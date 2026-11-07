@@ -779,10 +779,12 @@ export class Koordinator {
     try {
       plan = await this.schedule(planCard, batch, active, ahead);
     } catch (e) {
-      // judged one by one instead, each seeing the others it may build on
+      // judged one by one instead, each seeing the others it may build on; one taken out of the
+      // queue or started anyway while the turn ran stays as the owner left it
+      const left = this.unplanned(key);
       if (planCard) this.o.board.log(key, 'error', 'obeya', t.togetherFailed(messageOf(e)));
-      else for (const w of batch) this.o.board.log(w.id, 'error', 'obeya', t.freedFailed(messageOf(e)));
-      for (const w of batch) {
+      else for (const w of left) this.o.board.log(w.id, 'error', 'obeya', t.freedFailed(messageOf(e)));
+      for (const w of left) {
         this.setQueue(w.id, { checking: true });
         this.serial(() => this.decide(w.id));
       }

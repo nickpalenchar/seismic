@@ -149,8 +149,9 @@ turn sees them with the plan doc, the cards in progress and those queued ahead, 
 order and says for each what it waits for: a workstream it builds on (until that has landed) or one
 it would likely conflict with; the rest start at once. A workstream waits only for what comes before
 it, and that order becomes the queue's. The plan's sheet names what each waits for. If the turn
-fails, each is judged alone, seeing the others as queued after it; after a restart the joint turn
-runs again.
+fails, each still in the queue is judged alone, seeing the others as queued after it; one the
+owner took out of the queue (or started anyway) while the turn ran stays as they left it. After a
+restart the joint turn runs again.
 
 ### Learning the owner's rules
 

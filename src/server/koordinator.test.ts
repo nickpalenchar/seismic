@@ -1210,6 +1210,24 @@ describe('Koordinator starts all workstreams of a plan', () => {
     expect(item(w4.id).queue).toMatchObject({ checking: true });
   });
 
+  test('a workstream taken out of the queue while they are checked together stays out when the turn fails', async () => {
+    const { p, w2, w3, w4 } = plan();
+    k.request(p.id);
+    await settle();
+    k.dequeue(w3.id);
+    schedules()[0]!.emit({ type: 'idle' });
+    await settle();
+    expect(board.events(p.id).at(-1)!.text).toContain('prüft sie einzeln');
+    expect(item(w3.id).queue).toBeUndefined();
+    await scope(['src/w2.ts']);
+    expect(item(w2.id).state).toBe('working');
+    await scope(['src/w4.ts']);
+    expect(item(w4.id).state).toBe('working');
+    expect(item(w3.id)).toMatchObject({ state: 'planned' });
+    expect(item(w3.id).queue).toBeUndefined();
+    expect(estimates()).toHaveLength(2);
+  });
+
   test('after a restart the joint turn runs again', async () => {
     const { p, w2, w3 } = plan();
     board.work(w2.id, { queue: JSON.stringify({ checking: true, together: p.id, since: '1' }) });
