@@ -478,6 +478,12 @@ const en = {
     body: "With the skill `seismic:settings`, fill in this repository's settings for everyone (`.obeya/settings.json`, shown in the configuration under “Settings” as “from the repository”): which checks run, how work lands, how an agent runs the app (starting it, after a change, for a demo), how Seismic stops it, and where the plan docs are that Seismic shows as plans. Also draft the allow list of commands agents run here without asking (the `Bash` rules in `.claude/settings.json`), for me to review and trust in the configuration. If the repository still has a `.obeya/adapter/`, move what it says into the settings and delete it. Ask me what you cannot find out in the repository (login, test data).",
     reason: (repo: string) => `Seismic does not know yet how the app of ${repo} starts, which checks run or how an agent runs it for a demo.`,
   },
+  finishChanges: {
+    title: 'Finish working changes',
+    body: (files: string[], more: number) =>
+      `The repository has changes that are not committed yet:\n\n${files.map((f) => `- \`${f}\``).join('\n')}${more ? `\n- … and ${more} more` : ''}\n\nLook at the changes (\`git status\`, \`git diff\`), work out what was being worked on, and finish it: add what is missing, run the checks and commit it. Ask me if what was intended stays unclear.`,
+    reason: 'The repository has changes that are not committed yet.',
+  },
   preparePlanDoc: {
     title: (file: string) => `Prepare ${file.slice(file.lastIndexOf('/') + 1)} as a plan`,
     body: (file: string) =>

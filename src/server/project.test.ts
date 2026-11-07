@@ -632,6 +632,26 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     expect(project.adapterSetupCard('shop').id).toBe(id);
   });
 
+  test('a new project whose repository has uncommitted changes gets a proposal to finish them, once', async () => {
+    fresh();
+    const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n' });
+    const clean = gitRepo(join(dir, 'clean'), { 'README.md': 'Clean\n' });
+    writeFileSync(join(shop, 'README.md'), 'Shop, edited\n');
+    writeFileSync(join(shop, 'cart.ts'), 'export {};\n');
+    canvas.shutdown();
+    const store = new Store(':memory:');
+    const start = (repos: { path: string }[]) => new CanvasRuntime({ repos }, { store, home: dir, runtime, forge: noForge, setupProposals: true });
+    const finish = () => canvas.board.snapshot().items.filter((i) => i.title === 'Offene Änderungen abschließen');
+    canvas = start([{ path: shop }, { path: clean }]);
+    await until(() => finish().length === 1);
+    expect(finish()[0]).toMatchObject({ state: 'proposal', repo: 'shop', body: expect.stringMatching(/`README.md`[\s\S]*`cart.ts`/) });
+    canvas.act(finish()[0]!.id, { action: 'dismiss' });
+    canvas.shutdown();
+    canvas = start([{ path: shop }, { path: clean }]);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(finish()).toEqual([]);
+  });
+
   test('dismissed, the proposal does not come back; still open, it goes once the repository has settings', async () => {
     fresh();
     const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n' });

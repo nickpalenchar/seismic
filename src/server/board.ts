@@ -438,6 +438,7 @@ const CLAUDE_MD_SETTING = 'claude_md_card:';
 
 /** The setting that names the card filling in a repository's settings, proposed by Seismic or made in the Configuration dialog, per repository: Seismic proposes it once. */
 const SETUP_CARD_SETTING = 'setup_card:';
+const FINISH_CARD_SETTING = 'finish_card:';
 
 /** How long an empty card of the owner's (no title, text or screenshots) may exist before Seismic drops it on start. */
 const UNTITLED_GRACE_MS = 10 * 60_000;
@@ -1134,6 +1135,32 @@ export class Board {
     const row = this.store.cards.get(id);
     if (unknown || !row || row.deleted_at || row.state !== 'proposal') return;
     this.store.updateCard(id, { deleted_at: new Date().toISOString(), idea: { proposal: { ...storedProposal(row)!, superseded: {} } satisfies Proposal } });
+    this.changed();
+  }
+
+  /**
+   * Seismic proposes finishing the uncommitted changes (`files`, as `git status` lists them) a new
+   * repository came with, once per repository: dismissed or accepted, it does not come back.
+   */
+  proposeFinishChanges(repo: string, files: string[]) {
+    const key = `${FINISH_CARD_SETTING}${repo}`;
+    if (this.setting(key) || !files.length) return;
+    this.checkRepo(repo);
+    const { title, body, reason } = this.t.finishChanges;
+    const shown = files.slice(0, 15);
+    const [row] = this.store.insert([
+      {
+        canvas_id: this.canvas.id,
+        kind: 'task',
+        state: 'proposal',
+        title,
+        body: body(shown, files.length - shown.length),
+        ...this.freeSpot(),
+        repo: this.repoColumn(repo),
+        proposal: JSON.stringify(proposalOf({ reason }) satisfies Proposal),
+      },
+    ]);
+    this.setSetting(key, row!.id);
     this.changed();
   }
 

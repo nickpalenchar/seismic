@@ -54,7 +54,7 @@ import { isSitePath, siteMissing, siteName, sitePaths } from './site';
 import { demoSite, findSite } from './demo-sites';
 import { dimensions } from '../core/page-tags';
 import { type DueRestart, Workers } from './workers';
-import { branchSetting, type CardWorkstations, defaultBranchAsync, type FileAt, type FileVersions, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, Workstations } from './workstations';
+import { branchSetting, type CardWorkstations, defaultBranchAsync, type FileAt, type FileVersions, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, gitAsync, Workstations } from './workstations';
 import { FolderWorkstations } from './folder';
 import { readingTheme, readTheme, type Theme } from './theme';
 import { claudeToken, githubToken, hostName, registerHost } from './hosts';
@@ -339,9 +339,11 @@ export class ProjectRuntime {
       return repo && !outsidePlanDir(path) ? planHistory(repo.read.path, path) : [];
     });
     // the Koordinator needs the workers, and the workers ask it: it is set right after them
+    // a canvas without cards is new: its repositories' working changes are worth a card
+    const fresh = deps.store.cards(id).length === 0;
     repos.forEach((x, i) => {
       try {
-        this.addRepo(this.startRepo(resolved, i));
+        this.addRepo(this.startRepo(resolved, i), fresh);
       } catch (e) {
         // without its home repository the project does not start; another one is left out, its cards kept
         if (i === 0) throw new HomeDown(id, e);
@@ -982,11 +984,24 @@ export class ProjectRuntime {
   }
 
   /** Puts a repository set up by `startRepo` on the project, last. */
-  private addRepo(r: Repo) {
+  private addRepo(r: Repo, fresh = false) {
     this.repos.push(r);
     this.board.project.repos.push(r.ref);
     this.watch(r);
     this.proposeSetup(r);
+    if (fresh) this.proposeFinishChanges(r);
+  }
+
+  /** Proposes finishing the uncommitted changes a repository new on the canvas comes with (`Board.proposeFinishChanges`). */
+  private proposeFinishChanges(r: Repo) {
+    if (!this.deps.setupProposals || r.info.folder) return;
+    gitAsync(r.info.path, 'status', '--porcelain', '--untracked-files=all')
+      .then((out) => {
+        if (this.stopped) return;
+        const files = out.split('\n').map((l) => l.replace(/^\s*\S+\s+/, '')).filter(Boolean);
+        this.board.proposeFinishChanges(r.ref.id, files);
+      })
+      .catch(() => {});
   }
 
   /** Stops what the repository set up: its read checkout, the watchers, its workers' sessions. Its cards stay. */
@@ -1081,7 +1096,7 @@ export class ProjectRuntime {
         console.error(`Seismic: ${info.path} does not start, left out of the project ${this.id}: ${messageOf(e)}`);
         return this.fail(resolved.repos[i]!.ref.id, e);
       }
-      this.addRepo(r);
+      this.addRepo(r, true);
       this.ran(r.ref.id);
       console.log(`Seismic: ${info.path} is on the project ${this.id} now`);
       if (this.obeyaDue) r.workers.restartDue(this.obeyaDue);
