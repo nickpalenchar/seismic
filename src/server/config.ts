@@ -30,6 +30,7 @@ import {
 } from '../../plugin/skills/demo/lib/settings.ts';
 import { checkSetup, type SetupCheck } from '../../plugin/skills/demo/lib/setup.ts';
 import { installState, installVoice, KEY_ENV, sample, voiceProblem } from '../../plugin/skills/demo/lib/voices.ts';
+import { slug } from '../core/project-slug';
 import { BadRequest } from './board';
 import { ConfigError, readingRepo, resolveCanvas, type StartFailure } from './canvas';
 import type { Store } from './db';
@@ -108,6 +109,7 @@ export const configShape = z.array(
     .object({
       name: z.string().optional(),
       id: z.string().optional(),
+      oldNames: z.array(z.string()).optional(),
       repos: z.array(
         z
           .object({
@@ -145,9 +147,10 @@ export const configShape = z.array(
 
 /** The configuration as it is saved: no empty names, clone lists or counts. */
 function tidy(canvases: z.infer<typeof configShape>): CanvasConfig[] {
-  return canvases.map(({ name, id, repos, ...settings }) => ({
+  return canvases.map(({ name, id, oldNames, repos, ...settings }) => ({
     ...(name?.trim() ? { name: name.trim() } : {}),
     ...(id?.trim() ? { id: id.trim() } : {}),
+    ...withOldNames(oldNames ?? [], name?.trim()),
     ...tidyCanvasSettings(settings),
     repos: repos.map((r) => {
       const workspaces = (r.workspaces ?? []).map((w) => w.trim()).filter(Boolean);
@@ -166,6 +169,61 @@ function tidy(canvases: z.infer<typeof configShape>): CanvasConfig[] {
       };
     }),
   }));
+}
+
+/**
+ * A canvas's old names as saved: each address once, the newest kept, none that is its name now (a
+ * project renamed back has its name again, not as an old one).
+ */
+function withOldNames(names: string[], now: string | undefined): { oldNames?: string[] } {
+  const seen = new Set(now ? [slug(now)] : []);
+  const kept = names
+    .map((n) => n.trim())
+    .reverse()
+    .filter((n) => {
+      const s = slug(n);
+      if (!s || seen.has(s)) return false;
+      seen.add(s);
+      return true;
+    })
+    .reverse();
+  return kept.length ? { oldNames: kept } : {};
+}
+
+/**
+ * The names no project may take because another has them (`names`, by index; null for a canvas
+ * that neither resolves nor has a name), now or as an old name: compared as addresses. Of two projects with one
+ * name, the later is told; one whose id is taken already (`sameId`) is not told again.
+ */
+export function nameProblems(names: (string | null)[], oldNames: (string[] | undefined)[], skip: Set<number>): ConfigProblem[] {
+  const problems: ConfigProblem[] = [];
+  names.forEach((name, canvas) => {
+    const s = name === null ? '' : slug(name);
+    if (!s || skip.has(canvas)) return;
+    const now = names.findIndex((n, j) => j < canvas && n !== null && slug(n) === s);
+    if (now >= 0) {
+      problems.push({ code: 'nameTaken', canvas, of: names[now]!, detail: `canvas ${canvas + 1} is called "${name}" as is canvas ${now + 1}; give it another name` });
+      return;
+    }
+    const old = oldNames.findIndex((o, j) => j !== canvas && names[j] !== null && !!o?.some((n) => slug(n) === s));
+    if (old >= 0) problems.push({ code: 'oldNameTaken', canvas, of: names[old]!, detail: `"${name}" is an old name of the project "${names[old]}", whose old addresses lead there; delete it there first to use it again` });
+  });
+  return problems;
+}
+
+/**
+ * The canvases with the name each had before this save (`before`, as saved, by id) among their old
+ * names, where they were renamed.
+ */
+function withRenames(canvases: CanvasConfig[], now: (ResolvedCanvas | null)[], before: (ResolvedCanvas | null)[]): CanvasConfig[] {
+  return canvases.map((c, i) => {
+    const r = now[i];
+    const was = r && before.find((b) => b?.id === r.id);
+    if (!was || slug(was.name) === slug(r.name)) return c;
+    const { oldNames: _, ...rest } = c;
+    const { oldNames } = withOldNames([...(c.oldNames ?? []), was.name], r.name);
+    return { ...rest, ...(oldNames ? { oldNames } : {}) };
+  });
 }
 
 /** Reads a configuration file; throws when it is no list of canvases. */
@@ -629,9 +687,13 @@ export class Config {
       }
     });
     const failures = this.o.failures?.() ?? [];
+    const sameIds = new Set<number>();
     resolved.forEach((r, canvas) => {
       const first = resolved.findIndex((x) => x?.id === r?.id);
-      if (r && first !== canvas) problems.push({ code: 'sameId', canvas, detail: `canvas ${canvas + 1} has the id "${r.id}" of canvas ${first + 1}; give it another name` });
+      if (r && first !== canvas) {
+        problems.push({ code: 'sameId', canvas, detail: `canvas ${canvas + 1} has the id "${r.id}" of canvas ${first + 1}; give it another name` });
+        sameIds.add(canvas);
+      }
       // what does not run as it is configured, by the canvases and repositories it resolves to
       for (const f of failures.filter((f) => f.canvas === r?.id)) {
         if (f.repo === undefined) {
@@ -642,6 +704,8 @@ export class Config {
         if (repo >= 0) problems.push({ code: f.before ? 'repoBefore' : 'repoDown', canvas, repo, detail: f.detail });
       }
     });
+    // a new project's name is checked before its repository is: the owner types it first
+    problems.push(...nameProblems(resolved.map((r, i) => r?.name ?? canvases[i]!.name ?? null), canvases.map((c) => c.oldNames), sameIds));
     return { canvases, resolved, problems };
   }
 
@@ -800,7 +864,11 @@ export class Config {
     const before = await this.check(this.current());
     const existing = new Set([...this.o.running(), ...before.resolved.flatMap((c) => c ? [c.id] : [])]);
     const homes = new Set(this.current().map((c) => c.repos[0] && resolve(expandHome(c.repos[0].path))));
-    const canvases = withCanvasDefaults(given, canvasDefaults(this.o.server.home), (c, i) => !existing.has(resolved[i]?.id ?? '') && !homes.has(c.repos[0] && resolve(expandHome(c.repos[0].path))));
+    const renamed = withRenames(given, resolved, before.resolved);
+    // a name freed by a rename and taken by another project in the same save: its old addresses would lead to two
+    const taken = nameProblems(resolved.map((r) => r?.name ?? null), renamed.map((c) => c.oldNames), new Set());
+    if (taken.length) throw new BadRequest('config', taken.map((p) => p.detail).join('; '));
+    const canvases = withCanvasDefaults(renamed, canvasDefaults(this.o.server.home), (c, i) => !existing.has(resolved[i]?.id ?? '') && !homes.has(c.repos[0] && resolve(expandHome(c.repos[0].path))));
     mkdirSync(dirname(this.o.file), { recursive: true });
     writeFileSync(this.o.file, `${JSON.stringify(canvases, null, 2)}\n`);
     this.read = undefined;

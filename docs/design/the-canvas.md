@@ -384,9 +384,13 @@ slug (lowercase, accents folded, other characters one dash), or its id where the
 projects apart (two projects with the same slug, or a slug that is another project's id: ids keep
 opening their project). An address names a project by that part, else by id (links from before names,
 notifications), and a hand-typed name works too. An address naming no project says so and lists the
-projects, rather than showing another one's cards. A rename moves the open page's address to the new
-name; the old name's address no longer opens it, its id does. Decided 2026-11-07: name as slug with the
-id as fallback; rejected: ids only (not what the owner sees), names only (breaks on duplicates and renames).
+projects, rather than showing another one's cards. A rename moves the open page's address (an open
+card's included) to the new name. The names a project had before stay its own (see Projects in
+Repositories and configuration): an address with one of them, a card's too, opens that project and
+moves to its name now; an address names a project by its name now first, then by id, then by an old
+name. Decided 2026-11-07: name as slug with the id as fallback; rejected: ids only (not what the owner
+sees), names only (breaks on duplicates and renames). Old names as redirects decided by the owner the
+same day, so that links shared before a rename keep working.
 `/p/<project>/c/<code>` a card
 or plan open on it (the phone view: the card full screen). The code is the card's short code, the
 first six hex digits of its id with one more digit for each card already holding those; its whole id

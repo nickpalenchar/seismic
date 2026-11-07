@@ -392,6 +392,20 @@ one repository shows at a time. A move is a change of the draft like any other. 
 saved together with "Save" at the bottom of every canvas's page, which says so while several
 have changes. Renaming a canvas keeps its id and cards.
 
+Saving a rename keeps the name before it among the canvas's old names (`oldNames` in the
+configuration, oldest first; compared as addresses, so "Store" and "store" are one name; a canvas
+renamed back to an old name has it as its name again, no longer as an old one). Its addresses lead to
+the canvas (see Addresses in The canvas), and no other canvas may take it: a name another canvas has
+now ("Name of project X, can't reuse.") or had before ("Old name of project X, can't reuse.") is a
+problem at the name field that blocks saving, checked as the owner types, before the new canvas's
+repository is filled in; a save that renames one canvas and gives its old name to another in the same
+go is refused too. "Old names" under the name lists them, folded under their count from three on; a
+trash icon on hover over one deletes it after a warning ("This action may have unintended
+consequences, please read": card links with the old name stop loading, and a new project may take the
+name, which old links then lead to), with "Delete old name" in red and "Go back"; the deletion is a
+change of the draft, saved with "Save". Decided by the owner 2026-11-07: a renamed project's links
+keep working, and names are freed only on purpose.
+
 A repository's page is its path, its problems, then its settings in groups under a small heading
 each, always shown: where its agents work ("Agents work in": Worktrees or Klonen, with its
 source, the clones, slots and other machines), branch and landing (main branch, landing, direct,

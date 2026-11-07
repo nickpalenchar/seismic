@@ -42,6 +42,21 @@ export const projectPath = (canvas: string) => {
   return `/p/${encodeURIComponent(p ? projectSegment(p, known) : canvas)}`;
 };
 
+/**
+ * The path that takes the place of `pathname` while the project `open` is shown, or null where it
+ * stays: an address of that project by another name than its own now (an old one, or its id)
+ * moves to its name, as does `was`, the address it had until a rename while it was open (also where no project keeps
+ * that name). What follows the project in the path stays.
+ */
+export function followedPath(pathname: string, projects: { id: string; name: string; oldNames?: string[] }[], open: string, was: { id: string; path: string } | null): string | null {
+  knowProjects(projects);
+  const seg = /^\/p\/([^/]+)/.exec(pathname);
+  const now = projectPath(open);
+  if (!seg || seg[0] === now) return null;
+  const ours = projectNamed(projects, decodeURIComponent(seg[1]!))?.id === open || (was?.id === open && was.path === seg[0]);
+  return ours ? `${now}${pathname.slice(seg[0].length)}` : null;
+}
+
 /** The Agent Feedback Log, opened from a canvas: its link back to the dashboard leads there. */
 export const feedbackLogPath = (canvas: string) => `${projectPath(canvas)}/feedback`;
 

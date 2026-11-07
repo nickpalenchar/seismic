@@ -265,6 +265,29 @@ describe("Seismic's configuration", async () => {
     expect(restarts).toBe(1);
   });
 
+  test("a renamed project keeps its old names, which no other project may take until they are deleted there", async () => {
+    const c = config('file', [{ name: 'Store', repos: [{ path: web }] }], ['store']);
+    await c.save([{ name: 'Store', repos: [{ path: web }] }]);
+    // the dialog keeps the id when it renames
+    await c.save([{ name: 'Market', id: 'store', repos: [{ path: web }] }]);
+    expect(c.current()[0]).toMatchObject({ name: 'Market', id: 'store', oldNames: ['Store'] });
+    await c.save([{ ...c.current()[0]!, name: 'Bazaar' }]);
+    expect(c.current()[0]!.oldNames).toEqual(['Store', 'Market']);
+    // a new project by an old name, however written, or by the name now, is refused
+    const taken = await c.check([...c.current(), { name: 'market', repos: [{ path: api }] }]);
+    expect(taken.problems).toMatchObject([{ code: 'oldNameTaken', canvas: 1, of: 'Bazaar' }]);
+    expect(taken.problems.filter(blocksSaving)).toHaveLength(1);
+    expect((await c.check([...c.current(), { name: 'Bazaar!', id: 'other', repos: [{ path: api }] }])).problems).toMatchObject([{ code: 'nameTaken', canvas: 1, of: 'Bazaar' }]);
+    // renamed back to an old name: its name again, no longer an old one
+    await c.save([{ ...c.current()[0]!, name: 'Store' }]);
+    expect(c.current()[0]!.oldNames).toEqual(['Market', 'Bazaar']);
+    // deleted there, an old name is free for a new project
+    await c.save([{ ...c.current()[0]!, oldNames: ['Bazaar'] }, { name: 'Market', repos: [{ path: api }] }]);
+    expect(c.current().map((x) => [x.name, x.oldNames])).toEqual([['Store', ['Bazaar']], ['Market', undefined]]);
+    // a name freed by a rename and taken by another project in the same save is refused
+    await expect(c.save([{ ...c.current()[0]!, name: 'Shop' }, { name: 'Store', id: 'store2', repos: [{ path: api }] }])).rejects.toThrow('old name');
+  });
+
   test("a file from before canvases chose their demo site reads without a repository's site", async () => {
     const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'deploy {dir}' };
     mkdirSync(join(dir, 'home'));
@@ -838,8 +861,8 @@ function wav(seconds: number, rate = 16000) {
 
 describe('Canvas defaults', () => {
   test('every canvas setting has a value in Canvas defaults', () => {
-    // what a canvas holds beside its identity and repositories is a canvas setting; a new one needs its default
-    const settings = Object.keys(configShape.element.shape).filter((k) => !['name', 'id', 'repos'].includes(k));
+    // what a canvas holds beside its identity (names, id) and repositories is a canvas setting; a new one needs its default
+    const settings = Object.keys(configShape.element.shape).filter((k) => !['name', 'id', 'oldNames', 'repos'].includes(k));
     expect(settings.length).toBeGreaterThan(0);
     const defaults = canvasDefaults(dir) as Record<string, unknown>;
     for (const k of settings) {

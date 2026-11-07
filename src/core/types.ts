@@ -1296,6 +1296,8 @@ export type SpotInput = Pick<Spot, 'at' | 'still' | 'demo'>;
 export interface CanvasInfo {
   id: string;
   name: string;
+  /** Names it had before (`CanvasConfig.oldNames`): an address with one of them leads to it. */
+  oldNames?: string[];
   /** The repositories on the canvas; the first is its home. */
   repos: RepoRef[];
   /** How many times which of its repositories do not run as the configuration has them changed: the page reads the configuration's problems again when it changes. */
@@ -2498,6 +2500,8 @@ export interface CanvasConfig extends CanvasSettings {
   name?: string;
   /** Keeps the canvas's id, and with it its cards, whatever its name says: set when a canvas is renamed. */
   id?: string;
+  /** Names it had before, newest last: their addresses lead to it, and no other project may take them. */
+  oldNames?: string[];
   repos: RepoConfig[];
 }
 
@@ -2560,6 +2564,8 @@ export interface ConfigProblem {
   repo?: number;
   /** In English, for developers and the Koordinator. */
   detail: string;
+  /** The name of the project the problem points to (the one a name is taken by). */
+  of?: string;
 }
 
 /** Whether a problem keeps the configuration from being saved: not one in the repository, which is fixed there. */
@@ -2584,6 +2590,10 @@ export type ConfigProblemCode =
   | 'adapterGone'
   /** Two canvases with the same id. */
   | 'sameId'
+  /** A name (as an address) another project has (`ConfigProblem.of`). */
+  | 'nameTaken'
+  /** A name (as an address) another project had before (`ConfigProblem.of`): its old addresses lead there. */
+  | 'oldNameTaken'
   /** The repository the canvas was first served with is missing. */
   | 'homeMissing'
   /** A clone listed as a workspace that is no git repository. */

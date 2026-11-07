@@ -1666,6 +1666,15 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 .cfg-canvas-head > .c-del { align-self: center; }
 .cfg-canvas-head .btn.qmove { margin-top: 0; padding: 2px 8px; }
 .cfg-canvas .cfg-name { width: 100%; max-width: 420px; }
+.cfg-old-names { margin: 0; padding: 0; list-style: none; max-width: 420px; }
+.cfg-old-names li { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+.cfg-old-names li > .c-del { margin-left: 0; }
+.cfg-old-names-fold summary { cursor: pointer; line-height: 30px; }
+.old-name-warning { padding: 8px 12px; border-radius: 4px; color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); font-weight: 600; }
+.review-approval-box .old-name-warning { margin: 0 0 12px; }
+.old-name-effects { margin: 0 0 12px; padding-left: 20px; line-height: 1.5; }
+.review-approval-box .hint { margin: 0 0 18px; }
+.btn.delete-old-name { color: #fff; background: var(--error); border-color: var(--error); }
 .cfg-host { display: contents; }
 /* labels line up with the top of their controls, which are often several lines high */
 .cfg-canvas .cfg-field { align-items: start; }
@@ -1763,7 +1772,7 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 @media (hover: hover) {
   .c-remove { opacity: 0; transition: opacity .12s; }
   .cfg-canvas-head:hover > .c-remove, .cfg-canvas-head:focus-within > .c-remove, .cfg-repo-path:hover > .c-remove, .cfg-repo-path:focus-within > .c-remove,
-  .cfg-host:hover > .c-remove, .cfg-host:focus-within > .c-remove { opacity: 1; }
+  .cfg-host:hover > .c-remove, .cfg-host:focus-within > .c-remove, .cfg-old-names li:hover > .c-remove, .cfg-old-names li:focus-within > .c-remove { opacity: 1; }
 }
 .c-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
 .c-row .hint { font-size: 11.5px; min-width: 0; }

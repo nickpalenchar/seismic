@@ -14,6 +14,8 @@ export const slug = (s: string) =>
 interface Named {
   id: string;
   name: string;
+  /** Names it had before: their addresses lead to it. */
+  oldNames?: string[];
 }
 
 /**
@@ -27,14 +29,15 @@ export function projectSegment(project: Named, all: Named[]): string {
   return s && !taken ? s : project.id;
 }
 
-/** The project an address part names: by its segment, else by its id (links from before names, a renamed project's id). */
+/**
+ * The project an address part names: by its segment, else by its id (links from before names),
+ * else by a name it had before (a renamed project's old links).
+ */
 export function projectAt<T extends Named>(all: T[], segment: string | undefined): T | undefined {
   if (!segment) return undefined;
+  const find = (seg: string) =>
+    all.find((p) => projectSegment(p, all) === seg) ?? all.find((p) => p.id === seg) ?? all.find((p) => p.oldNames?.some((n) => slug(n) === seg));
   // typed by hand ("/p/Store"), the name works as the owner writes it
   const typed = slug(segment);
-  return (
-    all.find((p) => projectSegment(p, all) === segment) ??
-    all.find((p) => p.id === segment) ??
-    (typed ? (all.find((p) => projectSegment(p, all) === typed) ?? all.find((p) => p.id === typed)) : undefined)
-  );
+  return find(segment) ?? (typed && typed !== segment ? find(typed) : undefined);
 }

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { knowProjects, projectNamed, projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress, upgradeAddress } from './address';
+import { followedPath, knowProjects, projectNamed, projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress, upgradeAddress } from './address';
 
 const at = (url: string) => new URL(url, 'http://obeya');
 
@@ -105,5 +105,35 @@ test('a project is addressed by its name, its id where the name does not tell it
   knowProjects([{ id: 'shop', name: 'Store' }]);
   expect(projectPath('shop')).toBe('/p/store');
   expect(projectNamed([{ id: 'shop', name: 'Store' }], 'shop')?.id).toBe('shop');
+  knowProjects([]);
+});
+
+test('a renamed project’s old names lead to it, after its name and id', () => {
+  const list = [
+    { id: 'shop', name: 'Market', oldNames: ['Store', 'Old Shop'] },
+    { id: 'blog', name: 'Old Shop' },
+  ];
+  expect(projectNamed(list, 'store')?.id).toBe('shop');
+  expect(projectNamed(list, 'Store')?.id).toBe('shop');
+  // a name another project has now is that project's, not the old name's
+  expect(projectNamed(list, 'old-shop')?.id).toBe('blog');
+  expect(projectNamed(list, 'market')?.id).toBe('shop');
+  knowProjects([]);
+});
+
+test('renaming the open project moves the address, its card and all, to the new name', () => {
+  const before = [{ id: 'shop', name: 'Store' }];
+  // the page opened /p/store/c/a1b2c3: it is the project's address, nothing moves
+  expect(followedPath('/p/store/c/a1b2c3', before, 'shop', null)).toBeNull();
+  const was = { id: 'shop', path: '/p/store' };
+  // renamed, with the old name kept: the address follows
+  expect(followedPath('/p/store/c/a1b2c3', [{ id: 'shop', name: 'Market', oldNames: ['Store'] }], 'shop', was)).toBe('/p/market/c/a1b2c3');
+  // renamed, the old name not kept (deleted, or a list from before old names): the address follows all the same
+  expect(followedPath('/p/store/c/a1b2c3', [{ id: 'shop', name: 'Market' }], 'shop', was)).toBe('/p/market/c/a1b2c3');
+  // a reload of the old address opens the project by its old name, then moves to the new one
+  expect(followedPath('/p/store/feedback', [{ id: 'shop', name: 'Market', oldNames: ['Store'] }], 'shop', null)).toBe('/p/market/feedback');
+  // another project's address, before its canvas has arrived, stays
+  expect(followedPath('/p/blog', [{ id: 'shop', name: 'Market' }, { id: 'blog', name: 'Blog' }], 'shop', was)).toBeNull();
+  expect(followedPath('/p/store', [{ id: 'shop', name: 'Market' }], 'shop', { id: 'other', path: '/p/store' })).toBeNull();
   knowProjects([]);
 });

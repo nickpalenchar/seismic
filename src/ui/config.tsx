@@ -6,10 +6,11 @@
 
 import { Info as InfoIcon, Trash2 } from 'lucide-react';
 import { type CSSProperties, Fragment, type ReactNode, useContext, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, CARD_ARCHIVING, type CardArchiving, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blocksSaving, type CanvasConfig, type CanvasDefaults, type CanvasDefaultsView, type CanvasSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type CanvasDemoSite, type CanvasDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedCanvas, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
+import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, CARD_ARCHIVING, type CardArchiving, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blocksSaving, type CanvasConfig, type CanvasDefaults, type CanvasDefaultsView, type CanvasSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type CanvasDemoSite, type CanvasDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedCanvas, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
 import { lineDiff } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { LANGUAGES } from '../core/locale';
@@ -2329,7 +2330,22 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
             onChange(e.target.value ? { ...kept, name: e.target.value } : kept);
           }}
         />
+        {problems
+          .filter((p) => NAME_PROBLEMS.includes(p.code))
+          .map((p, k) => (
+            <Problem key={k} problem={p} where={here} />
+          ))}
       </Field>
+      {!!canvas.oldNames?.length && (
+        <OldNames
+          names={canvas.oldNames}
+          onDelete={(name) => {
+            const { oldNames: _, ...rest } = canvas;
+            const left = canvas.oldNames!.filter((n) => n !== name);
+            onChange(left.length ? { ...rest, oldNames: left } : rest);
+          }}
+        />
+      )}
       <SuggestField value={canvas.suggest} onChange={(suggest) => onChange({ ...canvas, suggest })} />
       <PlanBaselineField value={canvas.planBaselines} onChange={(planBaselines) => onChange({ ...canvas, planBaselines })} />
       <CardArchiveField value={canvas.archive} onChange={(archive) => onChange({ ...canvas, archive })} />
@@ -2345,7 +2361,7 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
         }}
       />
       {problems
-        .filter((p) => p.repo === undefined)
+        .filter((p) => p.repo === undefined && !NAME_PROBLEMS.includes(p.code))
         .map((p, k) => (
           <Problem key={k} problem={p} where={here} ask={askHere} retried={askHere && onRecheck} />
         ))}
@@ -3000,6 +3016,81 @@ function slotsOf(value: string): number | undefined {
  * Removes an entry of the configuration (a canvas, a repository, a host): a waste bin, so that it
  * does not pass for the dialog's close button, shown while the pointer or focus is on its entry.
  */
+/** Problems of a project's name, shown at the name. */
+const NAME_PROBLEMS: ConfigProblemCode[] = ['nameTaken', 'oldNameTaken'];
+
+/**
+ * A project's old names: their addresses lead to it. Each can be deleted, after a warning of what
+ * that does; three or more fold under their count.
+ */
+function OldNames({ names, onDelete }: { names: string[]; onDelete: (name: string) => void }) {
+  const c = t.config;
+  const [asking, setAsking] = useState<string | null>(null);
+  const rows = (
+    <ul className="cfg-old-names">
+      {names.map((n) => (
+        <li key={n}>
+          <span>{n}</span>
+          <RemoveButton label={c.deleteOldName(n)} onClick={() => setAsking(n)} />
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <Field label={<>{c.oldNames} <Info text={c.oldNamesHint} /></>}>
+      {names.length >= 3 ? (
+        <details className="cfg-old-names-fold">
+          <summary>{c.oldNamesCount(names.length)}</summary>
+          {rows}
+        </details>
+      ) : (
+        rows
+      )}
+      {asking !== null &&
+        createPortal(
+          <div className="review-approval-cover" onClick={() => setAsking(null)}>
+            <div
+              className="review-approval-box"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="old-name-title"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.stopPropagation();
+                  setAsking(null);
+                }
+              }}
+            >
+              <h2 id="old-name-title">{c.deleteOldNameTitle(asking)}</h2>
+              <p className="old-name-warning">{c.deleteOldNameWarning}</p>
+              <ul className="old-name-effects">
+                <li>{c.deleteOldNameCards}</li>
+                <li>{c.deleteOldNameReuse}</li>
+              </ul>
+              <p className="hint">{c.deleteOldNameSave}</p>
+              <div className="review-approval-actions">
+                <button
+                  className="btn delete-old-name"
+                  onClick={() => {
+                    onDelete(asking);
+                    setAsking(null);
+                  }}
+                >
+                  {c.deleteOldNameConfirm}
+                </button>
+                <button className="btn" autoFocus onClick={() => setAsking(null)}>
+                  {c.deleteOldNameBack}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </Field>
+  );
+}
+
 function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button className="c-del c-remove" title={label} aria-label={label} onClick={onClick}>
@@ -3066,7 +3157,7 @@ export function Problem({ problem, where, ask, retried }: { problem: ConfigProbl
   const [asked, setAsked] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState('');
-  const text = t.config.problem[problem.code];
+  const text = problem.of && (problem.code === 'nameTaken' || problem.code === 'oldNameTaken') ? t.config[problem.code](problem.of) : t.config.problem[problem.code];
   const retry = async () => {
     setRetrying(true);
     setError('');

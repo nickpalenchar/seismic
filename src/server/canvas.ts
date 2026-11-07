@@ -311,6 +311,7 @@ export class CanvasRuntime {
       deps.asksFeedback,
     );
     const board = this.board;
+    this.showOldNames();
     if (!stored) deps.store.setSetting(id, 'home_repo', repos[0]!.ref.id);
     if (deps.store.setting(id, 'paused') === '1') this.showPaused(true);
 
@@ -997,11 +998,15 @@ export class CanvasRuntime {
     const reviewsBefore = JSON.stringify(this.settings().codeReviews);
     const archiveBefore = this.settings().archive;
     this.config = resolved.config;
+    const namesBefore = JSON.stringify([this.board.canvas.name, this.board.canvas.oldNames]);
     if (resolved.name !== this.board.canvas.name) {
       this.board.canvas.name = resolved.name;
       this.deps.store.ensureCanvas(this.id, resolved.name);
       console.log(`Seismic: the canvas ${this.id} is called ${resolved.name} now`);
     }
+    this.showOldNames();
+    // the pages' switchers and addresses follow the names
+    if (JSON.stringify([this.board.canvas.name, this.board.canvas.oldNames]) !== namesBefore) this.board.changed();
     // its demo site may be another, or under another path
     this.siteCredentials();
     const changed = this.repos.filter((r) => {
@@ -2751,6 +2756,13 @@ export class CanvasRuntime {
   }
 
   /** This machine's demo sites changed (one added, connected or removed): the cards share on the canvas's, or export. */
+  /** Its old names on the canvas the pages list, so that their addresses lead here. */
+  private showOldNames() {
+    const old = this.config.oldNames;
+    if (old?.length) this.board.canvas.oldNames = [...old];
+    else delete this.board.canvas.oldNames;
+  }
+
   demoSitesChanged() {
     this.siteCredentials();
   }

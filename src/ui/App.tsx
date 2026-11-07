@@ -52,7 +52,7 @@ import { CardView, cardClass, shownState, DepLinks, depHead, depWidth, linkPath,
 import { clampWidth, loadWidths, saveWidths, SHEET_W, type SheetWidths, widthsIn } from './sheetWidth';
 import { clock, failText, t } from './strings';
 import { loadPinned, NAV_CANVAS_MIN, NAV_W, NavPill, NavSheet, savePinned } from './nav';
-import { projectPath, cardPath, feedbackLogPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
+import { projectPath, cardPath, feedbackLogPath, followedPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { type QuickReply, sendReply } from './quickReply';
 import { Inbox } from './inbox';
 import { useInboxRead } from './inboxRead';
@@ -251,12 +251,12 @@ function Canvas({
   oldBun: string | null;
 }) {
   knowProjects(canvases);
-  // a rename of this project: its address follows to the new name, keeping the card and query
+  // a rename of this project, or an address by an old name: it follows to the name now, keeping the card and query
+  const shownAt = useRef<{ id: string; path: string } | null>(null);
   useEffect(() => {
-    const seg = /^\/p\/([^/]+)/.exec(location.pathname);
-    const now = projectPath(snapshot.canvas.id);
-    if (!seg || projectNamed(canvases, decodeURIComponent(seg[1]!))?.id !== snapshot.canvas.id || seg[0] === now) return;
-    history.replaceState(history.state, '', `${now}${location.pathname.slice(seg[0].length)}${location.search}${location.hash}`);
+    const to = followedPath(location.pathname, canvases, snapshot.canvas.id, shownAt.current);
+    shownAt.current = { id: snapshot.canvas.id, path: projectPath(snapshot.canvas.id) };
+    if (to) history.replaceState(history.state, '', `${to}${location.search}${location.hash}`);
   }, [canvases, snapshot.canvas.id]);
   // ---------------------------------------------------------------- items
   // Local positions win over the snapshot until the server echoes them back.
