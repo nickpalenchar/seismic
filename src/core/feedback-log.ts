@@ -174,7 +174,7 @@ export function readLogQuery(search: string): LogState {
   const q = new URLSearchParams(search);
   const filter: LogFilter = {};
   for (const k of FILTER_KEYS) {
-    const v = q.get(k);
+    const v = q.get(k) ?? (k === 'plan' ? q.get('project') : null);
     if (v === null) continue;
     if (k === 'period') {
       if (PERIODS.includes(v as Period)) filter.period = v as Period;
@@ -183,7 +183,7 @@ export function readLogQuery(search: string): LogState {
     } else if (k === 'harness' || k === 'model' || k === 'effort') filter[k] = v;
     else if (v) filter[k] = v;
   }
-  const g = q.get('group');
+  const g = q.get('group') === 'project' ? 'plan' : q.get('group');
   return { filter, group: LOG_GROUPS.includes(g as LogGroup) ? (g as LogGroup) : 'none' };
 }
 

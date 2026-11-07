@@ -112,3 +112,7 @@ test('the state round-trips through the query, leaving out what is not set or no
   expect(logQuery({ filter: { period: 'all' }, group: 'none' })).toBe('');
   expect(readLogQuery('?period=7&rating=9&group=year&canvas=')).toEqual({ filter: {}, group: 'none' });
 });
+
+test('reads the old query names project and group=project as plan', () => {
+  expect(readLogQuery('?project=p1&group=project')).toEqual({ filter: { plan: 'p1' }, group: 'plan' });
+});
