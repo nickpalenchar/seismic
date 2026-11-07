@@ -64,5 +64,23 @@ export function inboxEntries(canvases: { id: string; name: string }[], waiting: 
 /** Whether the entry counts as waiting: a card snoozed while it waited is listed, but leaves the count until it comes back. */
 export const counted = (e: InboxEntry) => !e.card?.snoozed;
 
-/** How many entries wait, on the canvas `canvas` (its count in the navigation) or on every canvas (the inbox's). */
-export const waitingCount = (entries: InboxEntry[], canvas?: string) => entries.filter((e) => counted(e) && (!canvas || e.canvas === canvas)).length;
+/**
+ * What marks the entry read: the entry and the wait it stands for, with what it waits for. A card
+ * that waits anew or asks something new while it waits (a new question, a new summary) and a newer
+ * answer of Seismic's are unread again; a rule or setting proposal stays one wait until it is decided.
+ */
+export const readMark = (e: InboxEntry) => (e.preference || e.setting ? e.key : `${e.key}@${e.since}#${digest(e.text)}`);
+
+/** A short digest of a text, to tell it changed without keeping it. */
+function digest(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+/**
+ * How many unread entries wait, on the canvas `canvas` (its count in the navigation) or on every
+ * canvas (the inbox's); `read` tells the marks the owner has read.
+ */
+export const waitingCount = (entries: InboxEntry[], canvas?: string, read: (mark: string) => boolean = () => false) =>
+  entries.filter((e) => counted(e) && !read(readMark(e)) && (!canvas || e.canvas === canvas)).length;

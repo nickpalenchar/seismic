@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { inboxEntries, waitingCount } from './inbox';
+import { inboxEntries, readMark, waitingCount } from './inbox';
 import type { Item, Talk, Waiting } from './types';
 
 const card = (id: string, since: string, over: Partial<Item> = {}): Item => ({ id, kind: 'task', state: 'waiting', need: 'demo', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', waitingSince: since, ...over });
@@ -83,4 +83,19 @@ test('mobile falls back to creation or waiting time, with stable ties', () => {
   const at = '2026-11-05T08:00:00Z';
   const snapshots = { site: w([card('created', at, { createdAt: '2026-11-05T09:00:00Z' }), card('one', at), card('two', at)]) };
   expect(inboxEntries([site], snapshots, undefined, 'updated').map((e) => e.card?.id)).toEqual(['created', 'one', 'two']);
+});
+
+test('only unread entries count; a card that waits anew and a newer answer are unread again', () => {
+  const site2 = { site: { ...w([card('a', '2026-11-05T08:00:00Z'), card('b', '2026-11-05T09:00:00Z')], [talk(1, '2026-11-05T10:00:00Z')]), preferences: [{ id: 1, state: 'proposed' as const, text: 'A rule' }] } };
+  const e = inboxEntries([site], site2);
+  const read = new Set([readMark(e[0]!), readMark(e.find((x) => x.preference)!)]);
+  expect(waitingCount(e, undefined, (m) => read.has(m))).toBe(2);
+  expect(waitingCount(e, 'site', (m) => read.has(m))).toBe(2);
+  // the card read before waits again since later; the proposal, built anew, keeps its mark
+  const again = inboxEntries([site], { site: { ...site2.site, items: [card('a', '2026-11-05T11:00:00Z'), card('b', '2026-11-05T09:00:00Z')] } });
+  expect(waitingCount(again, undefined, (m) => read.has(m))).toBe(3);
+  expect(readMark(again.find((x) => x.preference)!)).toBe('site/preference/1');
+  // a new question while the card still waits makes it unread too
+  const asked = inboxEntries([site], { site: { ...site2.site, items: [card('a', '2026-11-05T08:00:00Z', { need: 'question', question: { text: 'Shipping too?', options: [] } }), card('b', '2026-11-05T09:00:00Z')] } });
+  expect(waitingCount(asked, undefined, (m) => read.has(m))).toBe(3);
 });

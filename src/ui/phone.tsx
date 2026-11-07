@@ -14,7 +14,8 @@ import { ChatsHead } from './chats';
 import { api, beforeReload, cardsOn, onNotice, phoneInUse, setCanvas, useCanvas, type Where } from './api';
 import { enterBreaksLines } from './composer';
 import { InboxList, when } from './inbox';
-import { inboxEntries } from '../core/inbox';
+import { inboxEntries, readMark } from '../core/inbox';
+import { useInboxRead } from './inboxRead';
 import { sendReply } from './quickReply';
 import { type ActDone, Detail, type Pending, TalkElsewhere, useEvents } from './detail';
 import { cardDraft, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, obeyaDraft } from './draft';
@@ -671,6 +672,13 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   }
 
   const isUnderway = (id: string) => underway.includes(id);
+  // "Needs you" as the desktop's inbox: what the owner has read there, and the open card's entry read while it is open
+  const entries = inboxEntries(ordered, snaps, isUnderway, 'updated');
+  const inboxRead = useInboxRead();
+  const openEntry = open ? entries.find((e) => e.card?.id === open) : undefined;
+  useEffect(() => {
+    if (openEntry) inboxRead.markRead(openEntry);
+  }, [openEntry && readMark(openEntry)]);
   const obeyaSnap = snaps[obeyaId];
   const unreadOf = (id: string) => (snaps[id] ? unreadAnswers(snaps[id].talk) : 0);
   const unread = ordered.reduce((n, c) => n + unreadOf(c.id), 0);
@@ -699,7 +707,9 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
         <section className="ph-section">
           <h2>{t.phone.forYou}</h2>
           <InboxList
-            entries={inboxEntries(ordered, snaps, isUnderway, 'updated')}
+            entries={entries}
+            isRead={inboxRead.isRead}
+            onRead={inboxRead.markRead}
             onGo={(e) => {
               if (e.card) return openCard(e.card);
               setObeyaCanvas(e.canvas);

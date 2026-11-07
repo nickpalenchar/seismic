@@ -3,7 +3,8 @@
 // Each entry names its canvas small, its card large and what it waits for lighter ("Demo ready" on
 // a handover, which is judged on the card); under it, the card's one-click replies
 // (src/ui/quickReply.ts), only its default primary, and "Go to card", always there and never the
-// primary one.
+// primary one. Unread entries carry an orange dot and a bold title; the switch above the list shows
+// all of them or only the unread ones (src/ui/inboxRead.ts keeps what was read).
 
 import { GitBranch } from 'lucide-react';
 import type { InboxEntry } from '../core/inbox';
@@ -13,6 +14,7 @@ import { Docked } from './docked';
 import { Inline, plain } from './markdown';
 import { asksYou } from './parts';
 import { type QuickReply, quickReplies } from './quickReply';
+import { useStoredState } from './stored';
 import { clock, shortDay, stateLabel, t } from './strings';
 
 /** When it began: the time today, else the day. */
@@ -26,53 +28,78 @@ export interface InboxProps {
   onReply: (canvas: string, i: Item, r: QuickReply) => void;
   onProposalCard: (canvas: string, i: Item) => void;
   onProposalConfig?: (canvas: string, repo: string, field: string) => void;
+  /** Whether the owner has read the entry. */
+  isRead: (e: InboxEntry) => boolean;
+  /** The owner clicked on the entry: it is read. */
+  onRead: (e: InboxEntry) => void;
 }
 
+type Filter = 'all' | 'unread';
+
 /** The entries as a list, the same on the desktop's sheet and the phone. */
-export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProposalConfig }: InboxProps) {
+export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProposalConfig, isRead, onRead }: InboxProps) {
+  const [filter, setFilter] = useStoredState<Filter>('obeya-inbox-filter', 'all');
   if (!entries.length) return <p className="empty-inbox">{t.inbox.empty}</p>;
+  // the open card's entry stays while the owner is at it, read or not
+  const shown = filter === 'all' ? entries : entries.filter((e) => !isRead(e) || (!!e.card && e.card.id === open));
+  const dot = <span className="unread-dot" role="img" aria-label={t.inbox.unread} />;
   return (
-    <ul className="inbox-list">
-      {entries.map((e) => {
-        if (e.preference || e.setting) return (
-          <li key={e.key} className="inbox-entry proposal-entry">
-            <div className="where"><GitBranch size={12} aria-hidden /><span className="canvas">{e.canvasName}</span></div>
-            <ul className="prefs proposals">
-              {e.preference && <ProposalRow p={e.preference} items={e.proposalItems ?? []} rules={e.rules ?? []} repos={e.repos ?? []} canvas={e.canvas} onOpen={(i) => onProposalCard(e.canvas, i)} />}
-              {e.setting && <SettingRow p={e.setting} items={e.proposalItems ?? []} repo={e.repos?.find((r) => r.id === e.setting!.repo)} canvas={e.canvas} onOpen={(i) => onProposalCard(e.canvas, i)} onConfig={onProposalConfig ? () => onProposalConfig(e.canvas, e.setting!.repo, e.setting!.field) : undefined} />}
-            </ul>
-          </li>
-        );
-        const i = e.card;
-        const replies = i ? quickReplies(i) : [];
-        const here = !!i && i.id === open;
-        return (
-          <li key={e.key} className={here ? 'inbox-entry on' : 'inbox-entry'} aria-current={here || undefined}>
-            <div className="where">
-              <GitBranch size={12} strokeWidth={2} aria-hidden />
-              <span className="canvas">{e.canvasName}</span>
-              <span className="since">{when(e.since)}</span>
-            </div>
-            <div className="ttl">{i ? <Inline md={i.title} /> : t.koordinator.title}</div>
-            <div className={i && asksYou(i) ? 'state asking' : i?.state === 'proposal' && i.retro ? 'state by-obeya' : 'state'}>
-              {i ? stateLabel(i) : t.phone.obeyaAnswered}
-              {i?.state === 'proposal' && i.retro && <span aria-hidden>✦</span>}
-            </div>
-            {e.text && <div className="text">{i ? <Inline md={e.text} /> : plain(e.text)}</div>}
-            <div className="replies">
-              {replies.map((r) => (
-                <button key={r.label} type="button" className={r.primary ? 'btn primary' : 'btn'} title={r.title} onClick={() => onReply(e.canvas, i!, r)}>
-                  {r.label}
+    <>
+      <div className="seg inbox-filter" role="radiogroup" aria-label={t.inbox.filter}>
+        {(['all', 'unread'] as const).map((f) => (
+          <button key={f} type="button" role="radio" aria-checked={filter === f} className={filter === f ? 'on' : undefined} onClick={() => setFilter(f)}>
+            {f === 'all' ? t.inbox.all : t.inbox.unread}
+          </button>
+        ))}
+      </div>
+      {!shown.length && <p className="empty-inbox">{t.inbox.noneUnread}</p>}
+      <ul className="inbox-list">
+        {shown.map((e) => {
+          const unread = !isRead(e);
+          const cls = unread ? ' unread' : ' read';
+          if (e.preference || e.setting) return (
+            <li key={e.key} className={`inbox-entry proposal-entry${cls}`} onClickCapture={() => onRead(e)}>
+              <div className="where"><GitBranch size={12} aria-hidden /><span className="canvas">{e.canvasName}</span>{unread && dot}</div>
+              <ul className="prefs proposals">
+                {e.preference && <ProposalRow p={e.preference} items={e.proposalItems ?? []} rules={e.rules ?? []} repos={e.repos ?? []} canvas={e.canvas} onOpen={(i) => onProposalCard(e.canvas, i)} />}
+                {e.setting && <SettingRow p={e.setting} items={e.proposalItems ?? []} repo={e.repos?.find((r) => r.id === e.setting!.repo)} canvas={e.canvas} onOpen={(i) => onProposalCard(e.canvas, i)} onConfig={onProposalConfig ? () => onProposalConfig(e.canvas, e.setting!.repo, e.setting!.field) : undefined} />}
+              </ul>
+            </li>
+          );
+          const i = e.card;
+          const replies = i ? quickReplies(i) : [];
+          const here = !!i && i.id === open;
+          return (
+            <li key={e.key} className={`inbox-entry${cls}${here ? ' on' : ''}`} aria-current={here || undefined} onClickCapture={() => onRead(e)}>
+              <div className="where">
+                <GitBranch size={12} strokeWidth={2} aria-hidden />
+                <span className="canvas">{e.canvasName}</span>
+                <span className="since">{when(e.since)}</span>
+              </div>
+              <div className="ttl">
+                {unread && dot}
+                <span>{i ? <Inline md={i.title} /> : t.koordinator.title}</span>
+              </div>
+              <div className={i && asksYou(i) ? 'state asking' : i?.state === 'proposal' && i.retro ? 'state by-obeya' : 'state'}>
+                {i ? stateLabel(i) : t.phone.obeyaAnswered}
+                {i?.state === 'proposal' && i.retro && <span aria-hidden>✦</span>}
+              </div>
+              {e.text && <div className="text">{i ? <Inline md={e.text} /> : plain(e.text)}</div>}
+              <div className="replies">
+                {replies.map((r) => (
+                  <button key={r.label} type="button" className={r.primary ? 'btn primary' : 'btn'} title={r.title} onClick={() => onReply(e.canvas, i!, r)}>
+                    {r.label}
+                  </button>
+                ))}
+                <button type="button" className="btn" onClick={() => onGo(e)}>
+                  {i ? t.inbox.goToCard : t.inbox.goToObeya}
                 </button>
-              ))}
-              <button type="button" className="btn" onClick={() => onGo(e)}>
-                {i ? t.inbox.goToCard : t.inbox.goToObeya}
-              </button>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 

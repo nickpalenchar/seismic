@@ -1352,6 +1352,10 @@ const de = {
     empty: 'Nichts wartet auf dich.',
     goToCard: 'Zur Karte',
     goToObeya: 'Zu Seismic',
+    filter: 'Einträge zeigen',
+    all: 'Alle',
+    unread: 'Ungelesen',
+    noneUnread: 'Nichts Ungelesenes.',
   },
   phone: {
     forYou: 'Braucht dich',
@@ -3744,6 +3748,10 @@ const en: Strings = {
     empty: 'Nothing waits for you.',
     goToCard: 'Go to card',
     goToObeya: 'Go to Seismic',
+    filter: 'Show entries',
+    all: 'All',
+    unread: 'Unread',
+    noneUnread: 'Nothing unread.',
   },
   phone: {
     forYou: 'Needs you',

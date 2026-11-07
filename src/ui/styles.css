@@ -2846,7 +2846,13 @@ body:has(#inbox.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .inbox-entry .where svg { flex: none; }
 .inbox-entry .where .canvas { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inbox-entry .where .since { margin-left: auto; flex: none; }
-.inbox-entry .ttl { font-size: 16px; font-weight: 700; line-height: 1.25; margin-top: 4px; }
+.inbox-entry .ttl { font-size: 16px; font-weight: 700; line-height: 1.25; margin-top: 4px; display: flex; align-items: flex-start; gap: 7px; }
+.inbox-entry.read .ttl { font-weight: 400; }
+/* an unread entry: an orange dot centred on the title's first line (or at the end of a proposal's canvas line) */
+.unread-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--waiting); margin-top: 6px; }
+.inbox-entry .where .unread-dot { margin: 0 0 0 auto; }
+.inbox-filter { margin: 0 0 12px 8px; }
+.ph-section .inbox-filter { margin-left: 0; }
 .inbox-entry .state { font-size: 12px; color: var(--waiting); font-weight: 600; margin-top: 3px; }
 /* a question from the card's agent: the dark yellow of the card's frame */
 .inbox-entry .state.asking { color: var(--asking); }

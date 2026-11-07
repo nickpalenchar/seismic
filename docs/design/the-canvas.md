@@ -34,8 +34,10 @@ beneath the unfolded card and returns when it folds back. Its button, Esc (once 
 click on the archive's button in the bar leaves it, closing the archive.
 
 The inbox button, beside Seismic's at the bar's right, shows an inbox icon and counts, in the orange
-of a waiting card, everything that waits for the owner on every canvas: the cards that need them,
-per canvas one for Seismic's answers waiting unread, and each open rule or setting proposal. Its click slides out the inbox from the right
+of a waiting card, everything that waits for the owner on every canvas and that they have not read
+yet (see Read and unread below): the cards that need them, per canvas one for Seismic's answers
+waiting unread, and each open rule or setting proposal. The navigation's count per canvas counts the
+same way. Its click slides out the inbox from the right
 instead of jumping to a card. The inbox is a sheet like Seismic's and a project's (see Sheets): docked
 to the edge from top to bottom, the canvas moved aside, one sheet open at a time, the same width and
 grip; the button's second click, the sheet's ✕ and Esc close it. Opened, it stays open as the owner
@@ -68,7 +70,18 @@ goes at once, with the undo a card's removal always has.
 alone. It opens the card beside the inbox, on this canvas or by switching to the card's canvas,
 where the inbox is open again beside it. Unlike a project's sheet, the inbox is not dimmed while a
 card is open: the open card's entry is marked with a ring and a tint, and the owner works down the
-list from there. Tab still goes through the cards of this canvas that need the owner and Seismic's
+list from there.
+
+Read and unread: an entry is unread until the owner clicks on it (any of its buttons, "Go to card"
+included) or opens its card some other way (on the canvas, with Tab); an unread one has an orange
+dot beside its title and the title bold, a read one neither. Read holds for the wait it was read
+in: a card that waits anew (a new demo after feedback), one that asks something new while it
+waits (another question, another summary) and a newer answer of Seismic's are unread again; a card open while it starts to wait again stays read, as the owner is
+looking at it. Only unread entries count on the inbox button. A switch "All | Unread" above the
+list shows every entry or only the unread ones; with "Unread", the open card's entry stays listed
+until the owner moves on, so it does not vanish under them. The switch's choice and what was read
+are kept per browser, like what of a conversation was seen (the phone and the desk each have their
+own). Tab still goes through the cards of this canvas that need the owner and Seismic's
 answers (see the legend), never another canvas's.
 
 The bar has no hint line. `?` (or the round `?` button) shows the legend of mouse and keys, ending
@@ -560,6 +573,12 @@ code, a generic one otherwise.
   Rejected: the inbox taking over the pinned left sidebar (a bigger change to upstream's
   navigation), and tabs inside the left element (not really separate). It competes with Seismic's
   sheet for the right edge; one sheet at a time settles that.
+- **Inbox entries read and unread** (owner, 2026-11-07): an entry already looked at still counted
+  on the button, so the count no longer told what was new. Read is kept per entry and wait, so a
+  card that asks again comes back unread, and only unread entries count. It is kept in the browser,
+  as what of a conversation was seen is: no new server state for a view-only marker. Rejected: read
+  state on the server shared by phone and desk (more state for a marker; can follow if wanted);
+  hiding read entries outright (they still wait and are answered from the list).
 - **The inbox's entries answer in one click** (owner, 2026-11-02): with several things
   waiting, opening each card for a decision its summary already settles is slow, and an inbox one
   cannot answer from is a list to work through twice. Only the decisions the card's own default

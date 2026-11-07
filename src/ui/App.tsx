@@ -55,8 +55,9 @@ import { loadPinned, NAV_CANVAS_MIN, NAV_W, NavPill, NavSheet, savePinned } from
 import { projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress } from './address';
 import { type QuickReply, sendReply } from './quickReply';
 import { Inbox } from './inbox';
+import { useInboxRead } from './inboxRead';
 import { CanvasSettingsSheet } from './canvasSettings';
-import { type InboxEntry, inboxEntries, waitingCount } from '../core/inbox';
+import { type InboxEntry, inboxEntries, readMark, waitingCount } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, voiceTarget } from './tell';
 
@@ -352,6 +353,8 @@ function Canvas({
   // the inbox, a docked sheet like Seismic's: only one of them is open; it stays open across canvases
   const [inboxOn, setInboxOn, inboxOnRef] = useLive(() => inboxKept(sessionStorage));
   useEffect(() => keepInbox(sessionStorage, inboxOn), [inboxOn]);
+  // what of the inbox the owner has read (src/ui/inboxRead.ts)
+  const inboxRead = useInboxRead();
   // the canvas's settings, a docked sheet like the inbox, from the gear in the bar (canvasSettings.tsx)
   const [csOn, setCsOn, csOnRef] = useLive(false);
   // Seismic's sheet takes the inbox's place however it opens (its button, `?talk`, a reload), and the settings'
@@ -1824,8 +1827,14 @@ function Canvas({
   // acted on (on any canvas: its reply is under way) and without answers in Seismic's sheet while it is open
   const here = waitingIn({ ...snapshot, items, talk: kOn ? [] : snapshot.talk });
   const entries = inboxEntries(canvases, { ...waiting, [snapshot.canvas.id]: here }, (id) => !!underway[id]);
-  const attentionCount = waitingCount(entries);
-  const counts = Object.fromEntries(canvases.map((c) => [c.id, waitingCount(entries, c.id)]));
+  // only what the owner has not read yet counts
+  const attentionCount = waitingCount(entries, undefined, inboxRead.read);
+  const counts = Object.fromEntries(canvases.map((c) => [c.id, waitingCount(entries, c.id, inboxRead.read)]));
+  // the open card's entry is read, and stays so while it is open, even as the card waits anew
+  const openEntry = openId ? entries.find((e) => e.card?.id === openId && e.canvas === snapshot.canvas.id) : undefined;
+  useEffect(() => {
+    if (openEntry) inboxRead.markRead(openEntry);
+  }, [openEntry && readMark(openEntry)]);
   // answers in Seismic's sheet the owner has not seen: Seismic waits for them like a card
   const unread = kOn ? 0 : unreadAnswers(snapshot.talk);
   const nav = {
@@ -2289,7 +2298,7 @@ function Canvas({
           onJump={(wx, wy) => !focusRef.current && fly(viewOn(wx, wy), 500)}
           onFollow={(wx, wy) => !focusRef.current && chase(camRef.current, viewOn(wx, wy), setCam)}
         />
-        <Inbox entries={entries} open={openId ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo}
+        <Inbox entries={entries} open={openId ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
           onProposalCard={(canvas, card) => goToEntry({ key: card.id, canvas, canvasName: '', card, text: '', since: '' })}
           onProposalConfig={(canvas, repo, setting) => { showRepoClones({ canvas, repo, field: 'settings', setting }); setCOn(true); }} />
         <CanvasSettingsSheet canvas={snapshot.canvas.id} name={snapshot.canvas.name} homePath={snapshot.canvas.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showCanvasesSection(), setPrefsOn(false), setCOn(true))} />
