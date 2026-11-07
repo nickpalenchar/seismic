@@ -167,7 +167,7 @@ export function groupLog(list: Feedback[], by: LogGroup): LogSection[] {
 
 const FILTER_KEYS = ['canvas', 'repo', 'plan', 'period', 'harness', 'model', 'effort', 'rating'] as const;
 /** The names the log's state takes in a query, and `performance`, which opens the dashboard with them. */
-export const LOG_KEYS = [...FILTER_KEYS, 'group', 'performance'];
+export const LOG_KEYS = [...FILTER_KEYS, 'project', 'group', 'performance'];
 
 /** The log's state from its query (`?plan=…&group=month`); what it does not know it leaves out. */
 export function readLogQuery(search: string): LogState {
