@@ -643,6 +643,7 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 #splash.none-runs { color: var(--ink); padding: 24px; }
 #splash.none-runs h2 { margin: 0; }
 #splash.none-runs .c-problem { max-width: 640px; }
+#splash.none-runs a.link { color: var(--working); text-decoration: underline 1px currentColor; }
 
 #edges { position: fixed; inset: 0; pointer-events: none; z-index: 15; }
 .edge { position: absolute; pointer-events: auto; cursor: pointer; display: flex; align-items: center; gap: 6px;
