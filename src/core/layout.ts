@@ -5,7 +5,7 @@ import { finished, finishingUp, type Item, type PlanDir } from './types';
 export type Shape = 'task' | 'chip' | 'plan';
 
 export const CARD_SIZE: Record<Exclude<Shape, 'plan'>, readonly [number, number]> = {
-  task: [300, 136],
+  task: [300, 146],
   chip: [300, 88],
 };
 

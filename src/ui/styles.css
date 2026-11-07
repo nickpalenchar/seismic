@@ -161,7 +161,7 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-fami
 .card .state { position: absolute; left: 14px; right: 14px; bottom: 10px; font-size: 12px; line-height: 1.2; font-weight: 600; color: var(--c); display: flex; align-items: center; gap: 7px; }
 .card .state .state-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card .state::after { flex: none; }
-.card.task { width: 300px; height: 136px; }
+.card.task { width: 300px; height: 146px; }
 .card.chip { width: 300px; height: 88px; }
 .card.chip::before { height: 3px; }
 .card.chip .meta, .card.chip .state, .card.chip .kind { display: none; }
