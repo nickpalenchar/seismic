@@ -323,7 +323,7 @@ h1, h2, .cfg-head h3, .p-title, .project > .head .ttl, .timeline .a-ttl { font-f
 #status .st-mid { display: flex; justify-content: center; min-width: 0; }
 #status .st { font-weight: 600; padding: 3px 10px; border-radius: 3px; white-space: nowrap; }
 #status .st.online { color: var(--online); }
-#status .st.offline { background: var(--waiting); color: #fff; }
+#status .st.offline { color: var(--waiting); }
 #status .pill { box-shadow: none; background: none; border: 0; height: 28px; padding-block: 0; font-size: 13px; }
 #status .pill.restart { color: var(--ice); font-weight: 600; padding-left: 10px; gap: 8px; min-width: 0; }
 #status .pill.restart .say { overflow: hidden; text-overflow: ellipsis; }
