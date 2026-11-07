@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { appended, cardDraft, pathWord, wordsOf, draftOf, dropDraft, giveBack, insert, insertFiles, keepDrafts, reviewReset, MIC_DRAFT, markupOf, moveFiles, moveImages, OBEYA_DRAFT, setMarkup, updateDraft, withoutWords } from './draft';
+import { appended, cardDraft, findingDraft, pathWord, wordsOf, draftOf, dropDraft, giveBack, insert, insertFiles, keepDrafts, reviewReset, MIC_DRAFT, markupOf, moveFiles, moveImages, OBEYA_DRAFT, setMarkup, updateDraft, withoutWords } from './draft';
 
 const store = () => {
   const m = new Map<string, string>();
@@ -131,4 +131,9 @@ test('reviewReset drops choices of a draft without a key', () => {
 });
 test('reviewReset adopts the review for an empty draft', () => {
   expect(reviewReset({}, '0')).toEqual({ reviewKey: '0' });
+});
+test('findingDraft hides choices and context of another review until the reset clears them', () => {
+  const d = { findings: { '1': 'self' as const }, findingNotes: { '1': 'x' }, reviewKey: '0' };
+  expect(findingDraft(d, '0').findings).toEqual({ '1': 'self' });
+  expect(findingDraft(d, '1')).toEqual({});
 });

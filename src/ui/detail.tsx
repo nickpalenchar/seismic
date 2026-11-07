@@ -179,7 +179,7 @@ export function Detail(p: Props) {
   const [picking, setPicking] = useState(false);
   const [confirmReviewApproval, setConfirmReviewApproval] = useState(false);
   const [confirmUnsent, setConfirmUnsent] = useState(false);
-  const unsentPicks = useDraft(cardDraft(item.id)).findings;
+  const unsentPicks = useFindingDraft(item).findings;
   const all = p.all;
   const duplicateMatches = (item.possibleDuplicates ?? []).map((id) => all.find((other) => other.id === id)).filter((other): other is Item => !!other);
   const duplicatePartner = duplicateMatches.find((other) => mergeableWith(item, other)) ?? duplicateMatches[0];

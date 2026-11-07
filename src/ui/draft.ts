@@ -54,7 +54,7 @@ export function reviewReset(d: Pick<Draft, 'findings' | 'findingNotes' | 'findin
 }
 
 /** The draft's finding choices and context as far as they belong to `review`: none while the draft still holds another review's (before `reviewReset` has cleared them). */
-export function findingDraft(d: Draft, review: string | undefined): Pick<Draft, 'findings' | 'findingNotes' | 'findingNoteEdits'> {
+export function findingDraft(d: Pick<Draft, 'findings' | 'findingNotes' | 'findingNoteEdits' | 'reviewKey'>, review: string | undefined): Pick<Draft, 'findings' | 'findingNotes' | 'findingNoteEdits'> {
   return d.reviewKey === review ? d : {};
 }
 
