@@ -3602,11 +3602,12 @@ function shareOf(r: CardRow, themeNow?: ThemeNow): Item['share'] {
 }
 
 /**
- * A proposal's text with its questions, once the owner took it: those they picked options for as
- * decided, the others as still open, for the agent that takes the card on.
+ * A proposal's text with its questions, once the owner took it: those they answered (by its options,
+ * or in their own words for one with options) as decided, the others as still open, for the agent
+ * that takes the card on.
  */
 export function withQuestions(text: string, questions: Question[], picks: string[][], t: Messages): string {
-  const chosen = (i: number) => (picks[i] ?? []).filter((o) => questions[i]!.options.includes(o));
+  const chosen = (i: number) => (questions[i]!.options.length ? (picks[i] ?? []).filter((o) => typeof o === 'string' && o.trim()).map((o) => o.trim()) : []);
   const decided = questions.flatMap((q, i) => (chosen(i).length ? [`- ${q.text} → ${chosen(i).join(', ')}`] : []));
   const open = questions.flatMap((q, i) => (chosen(i).length ? [] : [`- ${q.text}${q.options.length ? ` (${q.options.join(' / ')})` : ''}`]));
   return [text.trim(), decided.length ? `${t.decided}:\n${decided.join('\n')}` : '', open.length ? `${t.openQuestions}:\n${open.join('\n')}` : '']

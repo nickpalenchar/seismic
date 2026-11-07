@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { answerText, readAnswer, toggle } from './answer';
+import { answers, answerText, OTHER, ownAnswers, readAnswer, toggle, toggleOther } from './answer';
 
 const format = { text: 'Welches Format?', options: ['CSV', 'PDF', 'Excel'] };
 const whom = { text: 'Für wen?\nKurz.', options: ['Vermieter', 'Verwalter'], multiple: true };
@@ -38,5 +38,25 @@ describe('an answer', () => {
     expect(toggle(format, ['CSV'], 'CSV')).toEqual([]);
     expect(toggle(whom, ['Verwalter'], 'Vermieter')).toEqual(['Vermieter', 'Verwalter']);
     expect(toggle(whom, ['Vermieter', 'Verwalter'], 'Vermieter')).toEqual(['Verwalter']);
+  });
+});
+
+describe('the owner’s own answer', () => {
+  test('is picked like an option: on a single-choice question in place of the others', () => {
+    expect(toggleOther(format, ['CSV'], OTHER)).toEqual([OTHER]);
+    expect(toggleOther(format, [OTHER], 'PDF')).toEqual(['PDF']);
+    expect(toggleOther(whom, ['Verwalter'], OTHER)).toEqual(['Verwalter', OTHER]);
+  });
+
+  test('answers its question once picked and written', () => {
+    expect(answers([[OTHER], ['Vermieter', OTHER]], [' JSON ', ''])).toEqual([['JSON'], ['Vermieter']]);
+    expect(answers([['CSV']], ['JSON'])).toEqual([['CSV']]);
+    expect(answerText([format], answers([[OTHER]], ['JSON']), 'Danke.')).toBe('**Welches Format?** JSON\n\nDanke.');
+  });
+
+  test('stands in the text where the picks go apart, named by its question where several stand', () => {
+    expect(ownAnswers([format], [[OTHER]], ['JSON'], 'Danke.')).toBe('JSON\n\nDanke.');
+    expect(ownAnswers([format, whom], [[OTHER], ['Vermieter']], ['JSON'], '')).toBe('**Welches Format?** JSON');
+    expect(ownAnswers([format], [['CSV']], ['JSON'], ' Danke. ')).toBe('Danke.');
   });
 });

@@ -285,7 +285,8 @@ as a learned preference does. Older answers agents gave in the owner's name stay
 ### Decisions
 
 - **An agent's question is a first-class thing with answer options**, not prose: the owner answers
-  with a click, own words always possible. The answer travels as text, so the conversation reads the
+  with a click, own words always possible, as the question's last choice with a field of its own
+  (2026-11-07; before, only in the card's field below, which read as a remark rather than an answer). The answer travels as text, so the conversation reads the
   same later and a spoken answer takes the same path.
 - **A handover's question has options like `ask`'s** (2026-10-29): one kind of question, answered with
   the same click and pick everywhere. Rejected: free text only, which made the owner type an answer

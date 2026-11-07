@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { agentListens, answering, askable, type BackgroundTask, buildableOn, type CardAction, type Contribution, type HeldChanges, chapterAt, prototypeWorkstream, type CardEvent, type CardPatch, type Demo, type EarlierDemo, EXPORT_HTML_MAX, finished, finishedArchivable, finishingUp, handedOver, type Item, mergeableWith, type Mock, type NextStep, type PageTags, openQuestions, pausableNow, plannableAsPlan, type PrComment, type PrReviewEntry, type PullRequest, type Question, type Finding, type FindingPick, type Severity, SEVERITIES, type Clash as ClashFound, type RepoRef, snoozable, type Spot, started, stopped, stoppedArchivable, taskAuthor, withSupplemented } from '../core/types';
 import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
-import { answerText, toggle } from './answer';
+import { answers, answerText, OTHER, ownAnswers, toggleOther } from './answer';
 import { ApiError, api, canvasOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onReconnect } from './api';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
@@ -1255,7 +1255,7 @@ function ProposalView({
   // while it is reworked, the click waits for the new text in view; else the panel closes on the accepted card
   const accept = (start: boolean, asIdea = false, agent?: AgentSetting) =>
     act(
-      { action: 'accept', ...(start ? {} : { start: false }), ...(asIdea ? { idea: true } : {}), ...(agent ? { agent } : {}), ...(answer.picked ? { picks: answer.picks } : {}) },
+      { action: 'accept', ...(start ? {} : { start: false }), ...(asIdea ? { idea: true } : {}), ...(agent ? { agent } : {}), ...(answer.picked ? { picks: answer.answers } : {}) },
       (start || asIdea) && !revising
         ? { close: true, ack: idea || asIdea ? t.acceptedIdea : later && Date.parse(item.proposal!.startAt!) > Date.now() ? t.acceptedLater(snoozeWhen(item.proposal!.startAt!)) : t.accepted }
         : { close: false },
@@ -3564,7 +3564,10 @@ function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkF
       sentChoices(draft, decided);
       return;
     }
-    await (picked ? field!.onPicked(field!.quote ? answerText(questions, picks.picks, words) : words.trim(), picks.picks, images, replyTo) : field!.onWords(words, images, replyTo));
+    // the owner's own answers stand in the text: the picks that go apart from it are the options alone
+    const chosen = picks.picks.map((p) => p.filter((o) => o !== OTHER));
+    const text = field!.quote ? answerText(questions, picks.answers, words) : ownAnswers(questions, picks.picks, picks.others, words);
+    await (chosen.some((p) => p.length) || (field!.quote && picked) ? field!.onPicked(text, field!.quote ? picks.answers : chosen, images, replyTo) : field!.onWords(text, images, replyTo));
     picks.clear();
   };
   return (
@@ -3654,17 +3657,29 @@ function useOpenQuestions(item: Item, past = false) {
   const key = questionsKey(questions);
   const saved = useDraft(draft).picks;
   const picks = saved?.of === key ? saved.picks : [];
-  const choose = (i: number, o: string) =>
+  const others = (saved?.of === key && saved.others) || [];
+  // `write`: the owner's own answer to the question, which picks its choice as they write
+  const choose = (i: number, o: string, write?: string) =>
     updateDraft(draft, (d) => {
-      const was = d.picks?.of === key ? d.picks.picks : [];
-      return { picks: { of: key, picks: questions.map((q, j) => (j === i ? toggle(q, was[j] ?? [], o) : (was[j] ?? []))) } };
+      const was = d.picks?.of === key ? d.picks : { picks: [], others: [] };
+      const on = (j: number) => was.picks[j] ?? [];
+      const toggled = (j: number) => (write !== undefined && on(j).includes(OTHER) ? on(j) : toggleOther(questions[j]!, on(j), o));
+      const wrote = was.others ?? [];
+      return {
+        picks: {
+          of: key,
+          picks: questions.map((_, j) => (j === i ? toggled(j) : on(j))),
+          ...(write !== undefined || wrote.length ? { others: questions.map((_, j) => (j === i && write !== undefined ? write : (wrote[j] ?? ''))) } : {}),
+        },
+      };
     });
   const clear = () => updateDraft(draft, { picks: undefined });
-  return { questions, picks, choose, clear, picked: picks.some((x) => x.length > 0) };
+  const given = answers(picks, others);
+  return { questions, picks, others, answers: given, choose, clear, picked: given.some((x) => x.length > 0) };
 }
 
 /** An agent's questions, each with its options as radio buttons, or checkboxes when several may be chosen. */
-function Questions(p: { questions: Question[]; picks: string[][]; choose: (i: number, option: string) => void }) {
+function Questions(p: { questions: Question[]; picks: string[][]; others: string[]; choose: (i: number, option: string, write?: string) => void }) {
   if (!p.questions.length) return null;
   return (
     <div className="question ask">
@@ -3696,11 +3711,43 @@ function Questions(p: { questions: Question[]; picks: string[][]; choose: (i: nu
                   </button>
                 );
               })}
+              <OtherChoice multiple={!!q.multiple} on={(p.picks[i] ?? []).includes(OTHER)} text={p.others[i] ?? ''} onToggle={() => p.choose(i, OTHER)} onWrite={(text) => p.choose(i, OTHER, text)} />
             </div>
           )}
           {q.pick?.why && <div className="hint pick-why">{t.ask.pickWhy(q.pick.why)}</div>}
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * The last choice of a question with options: the owner's own answer, in a field of its own.
+ * Writing in it picks it; a click beside the field picks it or takes it back.
+ */
+function OtherChoice({ multiple, on, text, onToggle, onWrite }: { multiple: boolean; on: boolean; text: string; onToggle: () => void; onWrite: (text: string) => void }) {
+  const field = useRef<HTMLTextAreaElement>(null);
+  return (
+    <div
+      role={multiple ? 'checkbox' : 'radio'}
+      aria-checked={on}
+      className={`choice other${on ? ' on' : ''}`}
+      onMouseDown={(e) => e.target !== field.current && e.preventDefault()}
+      onClick={(e) => {
+        if (e.target === field.current) return;
+        onToggle();
+        if (!on) field.current?.focus();
+      }}
+    >
+      <textarea
+        ref={field}
+        rows={1}
+        value={text}
+        placeholder={t.ask.other}
+        aria-label={t.ask.other}
+        onFocus={() => !on && text.trim() && onToggle()}
+        onChange={(e) => onWrite(e.target.value)}
+      />
     </div>
   );
 }

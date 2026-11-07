@@ -61,6 +61,8 @@ export function findingDraft(d: Pick<Draft, 'findings' | 'findingNotes' | 'findi
 export interface Picks {
   of: string;
   picks: string[][];
+  /** The owner's own answer to each question, written beside its last choice. */
+  others?: string[];
 }
 
 /** Which questions picks belong to: they count only while the same questions stand. */

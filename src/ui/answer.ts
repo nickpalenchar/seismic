@@ -40,9 +40,32 @@ function chosen(s: string, options: string[]): string[] | undefined {
 }
 
 /** Picks one option: a single-choice question holds one (picking it again takes it back), a multiple-choice one any. */
-export function toggle(q: Question, picked: string[], option: string): string[] {
+export function toggle(q: Pick<Question, 'options' | 'multiple'>, picked: string[], option: string): string[] {
   if (picked.includes(option)) return picked.filter((o) => o !== option);
   return q.multiple ? q.options.filter((o) => o === option || picked.includes(o)) : [option];
+}
+
+/** The last choice of every question with options, picked like the others: the owner's own answer, written beside it. */
+export const OTHER = '\u0000other';
+
+/** Picks the owner's own answer like an option (`OTHER`), after the question's options. */
+export const toggleOther = (q: Question, picked: string[], option: string) => toggle({ ...q, options: [...q.options, OTHER] }, picked, option);
+
+/** The answers to each question: the options picked, and the owner's own answer (`others`) where its choice is picked and written. */
+export function answers(picks: string[][], others: string[] = []): string[][] {
+  return picks.map((p, i) => p.flatMap((o) => (o !== OTHER ? [o] : others[i]?.trim() ? [others[i]!.trim()] : [])));
+}
+
+/**
+ * The owner's own answers, for an answer whose picks go apart from its text: each as its own
+ * paragraph, named by its question where several stand, then the owner's further words.
+ */
+export function ownAnswers(questions: Question[], picks: string[][], others: string[], words: string): string {
+  const own = questions.flatMap((q, i) => {
+    const text = picks[i]?.includes(OTHER) ? others[i]?.trim() : '';
+    return text ? [questions.length > 1 ? `**${oneLine(q.text)}** ${text}` : text] : [];
+  });
+  return [...own, words.trim()].filter(Boolean).join('\n\n');
 }
 
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim();

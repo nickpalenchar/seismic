@@ -371,7 +371,9 @@ const de = {
     question: 'Frage an dich',
     questions: 'Fragen an dich',
     several: 'Mehrere möglich',
-    words: 'Eigene Antwort oder Anmerkung – optional',
+    words: 'Eine Anmerkung – optional',
+    /** The last choice of every question, a field for the owner's own answer. */
+    other: 'Eigene Antwort …',
     send: 'Antworten',
     /** On the option the asking agent would pick itself. */
     pick: 'Würde ich nehmen',
@@ -2854,7 +2856,8 @@ const en: Strings = {
     question: 'Question for you',
     questions: 'Questions for you',
     several: 'Pick several',
-    words: 'Your own answer or a remark – optional',
+    words: 'A remark – optional',
+    other: 'Your own answer …',
     send: 'Answer',
     pick: 'I would take this',
     pickWhy: (why: string) => `The agent would decide this way: ${why}`,
