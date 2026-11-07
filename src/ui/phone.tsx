@@ -171,7 +171,9 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   const feed = (id: string, live: ReturnType<typeof useCanvas>) => {
     setUsage(live.usage);
     if (live.snapshot) setSnaps((s) => (s[id] === live.snapshot ? s : { ...s, [id]: live.snapshot! }));
-    setOffline((o) => (o[id] === live.offlineSince ? o : { ...o, [id]: live.offlineSince }));
+    // a socket that is open but answers nothing (frozen) counts as not answering, like a lost one
+    const down = live.offlineSince ?? live.frozenSince;
+    setOffline((o) => (o[id] === down ? o : { ...o, [id]: down }));
     if (live.canvases) setCanvases(live.canvases);
   };
 
@@ -796,7 +798,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
 /** One canvas's live snapshot, handed up as it changes. */
 function Feed({ id, onChange }: { id: string; onChange: (id: string, live: ReturnType<typeof useCanvas>) => void }) {
   const live = useCanvas(id);
-  useEffect(() => onChange(id, live), [live.snapshot, live.offlineSince, live.canvases, live.usage]);
+  useEffect(() => onChange(id, live), [live.snapshot, live.offlineSince, live.frozenSince, live.canvases, live.usage]);
   return null;
 }
 

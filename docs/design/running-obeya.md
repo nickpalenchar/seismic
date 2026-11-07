@@ -260,7 +260,8 @@ screen wrongly); Seismic holds the lock until full screen ends. Where only the v
 *When the server does not answer* for 3 s, a line at the top says "Seismic is not answering · since 14:02" and why that may be; the page reconnects by itself, at once when it comes back into view, and
 the 3 s count from then (a phone back from its lock screen reconnects within them). A sleeping
 machine refuses nothing, so a connection not open within 3 s counts as not answering, and one not
-open after 10 s is tried anew.
+open after 10 s is tried anew. A connection that stays open but answers nothing to the page's
+pings (a frozen server) counts as not answering too: the line appears 10 s after the last answer.
 
 #### Notifications on the phone
 
