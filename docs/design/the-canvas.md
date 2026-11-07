@@ -213,7 +213,8 @@ agent is done. It keeps the width and title size of an open card, on opaque mute
 that stays opaque when zoomed out, with larger titles in the overview. Existing plans make
 room for these cards where their older layout would overlap. A plan wraps its workstreams, which cannot be dragged out; new plans go below
 the existing ones. A proposal or follow-up goes below its card, or, when that spot is taken (for a
-workstream: by its own plan), to the nearest spot clear of everything. The dashed line from a
+workstream: by its own plan), to the nearest spot clear of everything, unless that is more than about two cards away: in a crowded
+area it then stays below its card and overlaps, so it is always in view of the card it follows. The dashed line from a
 proposal, follow-up or prototype to its card joins the facing sides and runs above plans but
 below cards. Where a wait joins the same two cards (a follow-up queued behind the card it came
 from, say), only the wait's arrow shows: both lines would take the same course.

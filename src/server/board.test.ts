@@ -429,6 +429,14 @@ describe('the archive of plans', () => {
     expect(board.planHistory(board.snapshot().items[0]!.id)).toEqual({ decisions: [], origin: null, talk: [] });
   });
 
+  test('a follow-up in a crowded area stays near its origin instead of drifting far away', () => {
+    const origin = board.create({ title: 'Origin', x: 5000, y: 5000 });
+    // a dense wall of cards around and below the origin, with no gaps wide enough for a card
+    for (let c = -8; c <= 8; c++) for (let r = -4; r <= 8; r++) if (c || r) board.create({ title: `W${c}-${r}`, x: 5000 + c * 310, y: 5000 + r * 140 });
+    const next = board.create({ title: 'Next', from: origin.id });
+    expect(Math.hypot(next.x - origin.x, next.y - origin.y)).toBeLessThan(400);
+  });
+
   test('a plan takes the place of the idea it was written from; the idea goes once its worker is done', () => {
     const idea = board.create({ idea: true, title: 'Idee B', x: 900, y: 40 });
     const below = board.create({ title: 'Darunter', x: 900, y: 240 });

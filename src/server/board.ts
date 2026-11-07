@@ -883,17 +883,22 @@ export class Board {
     // an archived card is not on the canvas: its follow-ups go where there is room
     if (!from) return this.freeSpot();
     const earlier = items.filter((i) => i.from === fromId && i.state !== 'proposal' && !i.prototypeOf).length;
-    return this.nearFree(items, below(boundsOf(from, items), earlier));
+    return this.nearFree(items, below(boundsOf(from, items), earlier), undefined, true);
   }
 
-  /** The free spot nearest `want` for a new card, clear of every plan and card on the canvas; in `view` if there is room there. */
-  private nearFree(items: Item[], want: { x: number; y: number }, view?: Bounds): { x: number; y: number } {
-    return freeSpotNear(
+  /**
+   * The free spot nearest `want` for a new card, clear of every plan and card on the canvas; in `view` if there is room there.
+   * With `close` (a card that belongs beside another), a spot more than about two cards away is no use: in a crowded area the card
+   * stays at `want`, overlapping, so it remains in view of the card it follows.
+   */
+  private nearFree(items: Item[], want: { x: number; y: number }, view?: Bounds, close = false): { x: number; y: number } {
+    const at = freeSpotNear(
       want,
       CARD_SIZE.task,
       items.filter((i) => !i.parent).map((i) => boundsOf(i, items)),
       view,
     );
+    return close && Math.hypot(at.x - want.x, at.y - want.y) > 2 * CARD_SIZE.task[0] ? want : at;
   }
 
   /** The worker's last summary of a card; it stays with the card until work on it starts again. */
@@ -911,7 +916,7 @@ export class Board {
     if (p.repo !== undefined) this.checkRepo(p.repo);
     const items = this.items();
     const from = items.find((i) => i.id === fromId);
-    const at = from ? this.nearFree(items, below(boundsOf(from, items))) : this.freeSpot();
+    const at = from ? this.nearFree(items, below(boundsOf(from, items)), undefined, true) : this.freeSpot();
     const proposal = proposalOf(p);
     const [row] = this.store.insert([
       {
@@ -1652,7 +1657,7 @@ export class Board {
           const f = merge.followUp;
           const next = this.create({ title: f.title, body: withQuestions(f.task, f.questions.map((n) => proposal.questions[n]!).filter(Boolean), [], this.t), from: other.id, repo: other.repo, images: f.images });
           // Even an archived survivor keeps its place; the new task is placed beside it.
-          const at = this.nearFree(this.items(), { x: other.x + CARD_SIZE.task[0] + 40, y: other.y });
+          const at = this.nearFree(this.items(), { x: other.x + CARD_SIZE.task[0] + 40, y: other.y }, undefined, true);
           this.store.update(next.id, at);
           this.setManualDependencies([...this.manualDependencies(), [other.id, next.id]]);
         }
