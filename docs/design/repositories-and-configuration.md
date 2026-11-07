@@ -4,7 +4,7 @@ A chapter of the [design doc](../design.md), whose header says how it is written
 
 ### Projects and repositories
 
-Each repository on a project has its own settings, workspaces, workers, project agents and PR watcher;
+Each repository on a project has its own settings, workspaces, workers, plan agents and PR watcher;
 the project has one board and one Koordinator, whose collision checks stay within a repository. The
 first repository is the project's home; the others' plan docs are referenced as `<repo>:<path>`. The
 owner's cards carry their repository, chosen in the panel before work begins (home by default); on a

@@ -140,7 +140,7 @@ is presented without "I" or "we".
 - One scene per behaviour, 1–3 sentences each. Say what the viewer sees and why it matters,
   never the implementation. Length follows the size of the change, never padded: a small one
   30–60 s (for a fix: the broken behaviour, then the fixed one), a larger one 1½–3 min,
-  a multi-commit project one demo per shipped workstream.
+  a multi-commit plan one demo per shipped workstream.
 - Open with the situation and what was missing; end with a one-sentence recap.
 - Every visual cue (a highlight, a marker, a card appearing) shows at the moment the narration
   talks about it, not earlier or later (`untilSpoken`); whatever appears on screen gets mentioned

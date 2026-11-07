@@ -569,6 +569,7 @@ export const MIGRATIONS = [
   `UPDATE cards SET kind = 'plan' WHERE kind = 'project';
    UPDATE events SET author = 'plan' WHERE author = 'project';
    UPDATE talk SET answer_by = 'plan' WHERE answer_by = 'project';
+   UPDATE decisions SET by = 'plan' WHERE by = 'project';
    UPDATE feedback SET context = json_set(json_remove(context, '$.project'), '$.plan', json_extract(context, '$.project')) WHERE json_extract(context, '$.project') IS NOT NULL;
    ALTER TABLE cards RENAME COLUMN becomes_project TO becomes_plan;
    ALTER TABLE decisions RENAME COLUMN project_id TO plan_id;`,

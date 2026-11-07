@@ -106,12 +106,15 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     s.db.run('DROP INDEX talk_chat');
     s.db.run('ALTER TABLE talk DROP COLUMN chat');
     s.db.run('DROP TABLE chats');
+    s.addDecision({ canvas_id: 'c', plan_id: plan!.id, card_id: plan!.id, question: 'q', answer: 'a', by: 'plan' });
+    s.db.run("UPDATE decisions SET by = 'project'");
     s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
     s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
     s.db.run(`PRAGMA user_version = ${RELEASED}`);
     s.db.close();
 
     const after = new Store(path);
+    expect(after.decisions('c', plan!.id)[0]!.by).toBe('plan');
     expect(JSON.parse(after.card(video!.id)!.demo!)).toEqual({ dir: '/d', chapters: [], kind: 'video' });
     expect(JSON.parse(after.card(video!.id)!.detail!)).toEqual({ answering: true });
     expect(after.events(video!.id).find((e) => e.id === paused.id)!.text).toBe('Paused.');

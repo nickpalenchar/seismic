@@ -53,7 +53,7 @@ Find out, from the files rather than by guessing:
 
 Some things only the owner knows: the login for a demo when no seed makes one, which test data
 shows the app well, whether approved work may go straight
-onto the default branch, and where plan docs go: the directory of plans you found (its docs then converted with "Als Projekt
+onto the default branch, and where plan docs go: the directory of plans you found (its docs then converted with "Als Plan
 aufbereiten" on the canvas), or a new `docs/plan/`. Where your briefing names more than one agent
 harness that can work on this machine, the owner also picks which of them the allow list (step 4)
 is set up for: that question is always asked, with each harness as an option and several
