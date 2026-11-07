@@ -56,6 +56,8 @@ const PLANNED_OPEN = 'obeya-phone-planned';
 const DONE_OPEN = 'obeya-phone-done';
 /** How long the server may not answer before the view says so: a phone back from its lock screen reconnects within this. */
 const QUIET_MS = 3000;
+/** How long a frozen server may stay silent before the banner names the time it went quiet. */
+const UNRESPONSIVE_MS = 150_000;
 
 /** The card the address names, by its code or its id. */
 const cardInAddress = () => readAddress().card ?? null;
@@ -166,6 +168,8 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   const snapsRef = useRef(snaps);
   snapsRef.current = snaps;
   const [offline, setOffline] = useState<Record<string, number | null>>({});
+  // the canvases whose connection is open but answers nothing
+  const [frozen, setFrozen] = useState<Record<string, boolean>>({});
   // the plan's usage limits, the same over every canvas's connection
   const [usage, setUsage] = useState<Usage | null>(null);
   const feed = (id: string, live: ReturnType<typeof useCanvas>) => {
@@ -174,6 +178,8 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     // a socket that is open but answers nothing (frozen) counts as not answering, like a lost one
     const down = live.offlineSince ?? live.frozenSince;
     setOffline((o) => (o[id] === down ? o : { ...o, [id]: down }));
+    const isFrozen = live.offlineSince === null && live.frozenSince !== null;
+    setFrozen((f) => (f[id] === isFrozen ? f : { ...f, [id]: isFrozen }));
     if (live.canvases) setCanvases(live.canvases);
   };
 
@@ -529,19 +535,22 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
 
   // ---------------------------------------------------------------- the machine not answering
   const quietSince = Object.values(offline).reduce<number | null>((min, x) => (x === null ? min : min === null ? x : Math.min(min, x)), null);
+  const isFrozen = quietSince !== null && Object.keys(offline).some((id) => offline[id] === quietSince && frozen[id]);
   const [, tick] = useState(0);
   useEffect(() => {
     if (quietSince === null) return;
-    const h = setTimeout(() => tick((n) => n + 1), Math.max(0, quietSince + QUIET_MS - Date.now()) + 50);
+    const h = setTimeout(() => tick((n) => n + 1), Math.max(0, quietSince + (isFrozen ? UNRESPONSIVE_MS : QUIET_MS) - Date.now()) + 50);
     return () => clearTimeout(h);
-  }, [quietSince]);
-  const quiet = quietSince !== null && Date.now() - quietSince >= QUIET_MS;
+  }, [quietSince, isFrozen]);
+  // a frozen server is named at once (its silence was already 10 s); a lost connection after 3 s
+  const quiet = quietSince !== null && (isFrozen || Date.now() - quietSince >= QUIET_MS);
+  const unresponsive = isFrozen && Date.now() - quietSince! >= UNRESPONSIVE_MS;
 
   const feeds = canvases.map((c) => <Feed key={c.id} id={c.id} onChange={feed} />);
   const several = canvases.length > 1;
   const banner = quiet && (
     <div className="ph-quiet" role="status">
-      <b>{t.phone.notAnswering(when(quietSince!))}</b>
+      <b>{isFrozen ? (unresponsive ? t.unresponsiveSince(when(quietSince!)) : t.notResponding) : t.phone.notAnswering(when(quietSince!))}</b>
       <span>{t.phone.notAnsweringWhy}</span>
     </div>
   );
