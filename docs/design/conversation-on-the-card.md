@@ -99,11 +99,13 @@ for it, a demo report's until answered; a parked or dropped idea has none. Open 
 the conversation's end under "Question for you" ("Questions for you"), and only then does the field read
 "A remark – optional" and "Answer". Every question with options ends with one more choice, a field
 "Your own answer …" in place of an option's label: writing in it picks it (on a single-choice
-question in place of the option picked), and it goes out like a pick. Where the picks travel apart
+question in place of the option picked), and it goes out like a pick; a question without options
+has that field alone. Where the picks travel apart
 from the words (a worker's or a handover's question), the own answer leads the owner's words as
 text, named by its question where several stand; where the answer names each question (ideas,
-proposals), it stands as that question's answer; a proposal accepted with it takes it as decided.
-It stays in the card's draft with the picks. The owner's words the agent read only
+proposals), it stands as that question's answer, ticked on the question after its options like a
+picked one; a proposal accepted with it takes it as decided. It stays in the card's draft with the
+picks, written but not picked too. The owner's words the agent read only
 after it asked (said while it worked, they reached it after the question) go along and stay below
 the question, as everywhere in reading order: above it they would read as words the question took
 into account, and once it is answered and back in place they would jump below it. Anything of an

@@ -1880,11 +1880,17 @@ function Message({
       {e.spot && <SpotLink cardId={e.cardId} spot={e.spot} />}
       {!turn.quiet && <Body md={q ? q.text : (turn.words ?? e.text)} />}
       {e.wish && <WishReplyLink wish={e.wish} />}
-      {q && turn.end !== 'settled' && q.options.length > 0 && (
+      {q && turn.end !== 'settled' && (q.options.length > 0 || turn.picks?.length) && (
         <ul className="q-opts">
           {q.options.map((o) => (
             <li key={o} className={(turn.picks ? turn.picks.includes(o) : turn.answer?.includes(o)) ? 'on' : ''}>
               <Inline md={o} />
+            </li>
+          ))}
+          {/* the owner's own answer, written in place of an option */}
+          {turn.picks?.filter((o) => !q.options.includes(o)).map((o) => (
+            <li key={`own:${o}`} className="on own">
+              {o}
             </li>
           ))}
         </ul>
@@ -3583,8 +3589,8 @@ function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkF
         <Composer
           key={field.key}
           draft={draft}
-          placeholder={options ? t.ask.words : at ? t.demo.commentAt(mmss(at.at)) : field.placeholder}
-          label={options ? t.ask.send : t.send}
+          placeholder={questions.length ? t.ask.words : at ? t.demo.commentAt(mmss(at.at)) : field.placeholder}
+          label={questions.length ? t.ask.send : t.send}
           allowEmpty={picked || deciding}
           obeya={field.listener}
           noImages={field.noImages}
@@ -3689,7 +3695,8 @@ function Questions(p: { questions: Question[]; picks: string[][]; others: string
           <div className="q-text">
             <Body md={q.text} />
           </div>
-          {q.options.length > 0 && (
+          {/* a question without options has the owner's own answer alone */}
+          {q.options.length > 0 ? (
             <div className={`choices ${q.multiple ? 'multiple' : 'single'}`} role={q.multiple ? 'group' : 'radiogroup'}>
               {q.multiple && <div className="hint">{t.ask.several}</div>}
               {q.options.map((o) => {
@@ -3713,6 +3720,10 @@ function Questions(p: { questions: Question[]; picks: string[][]; others: string
               })}
               <OtherChoice multiple={!!q.multiple} on={(p.picks[i] ?? []).includes(OTHER)} text={p.others[i] ?? ''} onToggle={() => p.choose(i, OTHER)} onWrite={(text) => p.choose(i, OTHER, text)} />
             </div>
+          ) : (
+            <div className="choices">
+              <OtherChoice alone on text={p.others[i] ?? ''} onToggle={() => {}} onWrite={(text) => p.choose(i, OTHER, text)} />
+            </div>
           )}
           {q.pick?.why && <div className="hint pick-why">{t.ask.pickWhy(q.pick.why)}</div>}
         </div>
@@ -3723,18 +3734,20 @@ function Questions(p: { questions: Question[]; picks: string[][]; others: string
 
 /**
  * The last choice of a question with options: the owner's own answer, in a field of its own.
- * Writing in it picks it; a click beside the field picks it or takes it back.
+ * Writing in it picks it; a click beside the field picks it or takes it back. `alone`: the
+ * question has no options, and the field is all there is to answer it with.
  */
-function OtherChoice({ multiple, on, text, onToggle, onWrite }: { multiple: boolean; on: boolean; text: string; onToggle: () => void; onWrite: (text: string) => void }) {
+function OtherChoice({ multiple, alone, on, text, onToggle, onWrite }: { multiple?: boolean; alone?: boolean; on: boolean; text: string; onToggle: () => void; onWrite: (text: string) => void }) {
   const field = useRef<HTMLTextAreaElement>(null);
   return (
     <div
-      role={multiple ? 'checkbox' : 'radio'}
-      aria-checked={on}
-      className={`choice other${on ? ' on' : ''}`}
+      role={alone ? undefined : multiple ? 'checkbox' : 'radio'}
+      aria-checked={alone ? undefined : on}
+      className={`choice other${alone ? ' alone' : ''}${on && !alone ? ' on' : ''}`}
       onMouseDown={(e) => e.target !== field.current && e.preventDefault()}
       onClick={(e) => {
         if (e.target === field.current) return;
+        if (alone) return field.current?.focus();
         onToggle();
         if (!on) field.current?.focus();
       }}

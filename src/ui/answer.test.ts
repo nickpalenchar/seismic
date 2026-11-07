@@ -28,8 +28,8 @@ describe('an answer', () => {
     // an option that starts like another, followed by a comma
     const later = { text: 'Wann?', options: ['Jetzt', 'Jetzt, aber leise'] };
     expect(readAnswer('**Wann?** Jetzt, aber leise', [later]).picks).toEqual([['Jetzt, aber leise']]);
-    // words of their own, a question asked nowhere, an option it does not have: nothing picked
-    for (const text of ['Lieber JSON.', '**Welches Format?** JSON', '**Wie viele?** 3\n\nGenau.', '**Welches Format?** CSV\nUnd PDF.'])
+    // words of their own, a question asked nowhere, a line naming no question: nothing picked
+    for (const text of ['Lieber JSON.', '**Wie viele?** 3\n\nGenau.', '**Welches Format?** CSV\nUnd PDF.'])
       expect(readAnswer(text, [format])).toEqual({ picks: [], words: text });
   });
 
@@ -52,6 +52,14 @@ describe('the owner’s own answer', () => {
     expect(answers([[OTHER], ['Vermieter', OTHER]], [' JSON ', ''])).toEqual([['JSON'], ['Vermieter']]);
     expect(answers([['CSV']], ['JSON'])).toEqual([['CSV']]);
     expect(answerText([format], answers([[OTHER]], ['JSON']), 'Danke.')).toBe('**Welches Format?** JSON\n\nDanke.');
+  });
+
+  test('reads back as its question’s answer, after the options picked', () => {
+    expect(readAnswer('**Welches Format?** JSON', [format])).toEqual({ picks: [['JSON']], words: '' });
+    expect(readAnswer(answerText([format, whom], answers([[], ['Verwalter', OTHER]], ['', 'die Hausmeisterin, bitte']), 'Danke.'), [format, whom])).toEqual({
+      picks: [undefined, ['Verwalter', 'die Hausmeisterin, bitte']],
+      words: 'Danke.',
+    });
   });
 
   test('stands in the text where the picks go apart, named by its question where several stand', () => {

@@ -12,9 +12,10 @@ export function answerText(questions: Question[], picks: string[][], words: stri
 }
 
 /**
- * An answer `answerText` wrote, read back against the questions it may name: the options picked for
- * each question its lines name, and the owner's own words. A text that does not start with such
- * lines, every one of them naming one of `questions` and options of it, picked nothing.
+ * An answer `answerText` wrote, read back against the questions it may name: the answers given to
+ * each question its lines name (its options picked, then the owner's own answer, which is no option
+ * of it), and the owner's further words. A text that does not start with such lines, every one of
+ * them naming one of `questions`, picked nothing.
  */
 export function readAnswer(text: string, questions: Pick<Question, 'text' | 'options'>[]): { picks: (string[] | undefined)[]; words: string } {
   const none = { picks: [], words: text };
@@ -22,11 +23,20 @@ export function readAnswer(text: string, questions: Pick<Question, 'text' | 'opt
   const picks: (string[] | undefined)[] = [];
   for (const line of lead.split('\n')) {
     const i = questions.findIndex((q) => line.startsWith(`**${oneLine(q.text)}** `));
-    const picked = i < 0 ? undefined : chosen(line.slice(oneLine(questions[i]!.text).length + 5), questions[i]!.options);
+    const picked = i < 0 ? undefined : given(line.slice(oneLine(questions[i]!.text).length + 5), questions[i]!.options);
     if (!picked) return none;
     picks[i] = picked;
   }
   return { picks, words: rest.join('\n\n').trim() };
+}
+
+/** The answers `answerText` joined into `s`: the options it starts with, then the owner's own answer, if any is left. */
+function given(s: string, options: string[]): string[] | undefined {
+  if (!s.trim()) return undefined;
+  const all = chosen(s, options);
+  if (all) return all;
+  const o = options.find((x) => s.startsWith(`${x}, `));
+  return o ? [o, ...given(s.slice(o.length + 2), options.filter((x) => x !== o))!] : [s];
 }
 
 /** The options `answerText` joined into `s`, in any order; undefined if `s` is not made of them. */

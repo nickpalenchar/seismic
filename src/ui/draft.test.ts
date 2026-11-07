@@ -44,6 +44,13 @@ test('the options picked for a card\'s questions are written down with its draft
   expect(s.getItem('obeya-drafts-shop')).toBeNull();
 });
 
+test('the owner\'s own answer to a question is written down with the draft while written, picked or not', () => {
+  updateDraft(cardDraft('p2'), { picks: { of: 'q', picks: [[]], others: ['Lieber JSON'] } });
+  expect(JSON.parse(s.getItem('obeya-drafts-shop')!)[cardDraft('p2')].picks).toEqual({ of: 'q', picks: [[]], others: ['Lieber JSON'] });
+  updateDraft(cardDraft('p2'), { picks: { of: 'q', picks: [[]], others: [' '] } });
+  expect(s.getItem('obeya-drafts-shop')).toBeNull();
+});
+
 test('the marks on a screenshot are kept beside its original by the marked image, and go when taken back', () => {
   const marks = [{ kind: 'pin' as const, x: 4, y: 5 }];
   setMarkup('marked1', { original: 'orig1', marks });

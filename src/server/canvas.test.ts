@@ -250,7 +250,7 @@ describe('a canvas with several repositories', () => {
     expect(canvas.board.row(card.id).unheard).toBeNull();
   });
 
-  test("the options picked on a proposal go into its text as decided, the others as open", () => {
+  test("the answers given on a proposal, picked or in the owner's own words, go into its text as decided, the others as open", () => {
     const b = canvas.board.create({ title: 'B', x: 0, y: 0 });
     const questions = [
       { text: 'Welches Wort?', options: ['Erledigt', 'Beendet'] },
@@ -258,8 +258,8 @@ describe('a canvas with several repositories', () => {
       { text: 'Was noch?', options: [] },
     ];
     const p = canvas.board.propose(b.id, { title: 'Ein Wort', task: 'Zustand und Knopf angleichen.', reason: 'R', questions });
-    canvas.act(p.id, { action: 'accept', start: false, picks: [['Beendet'], [], ['erfunden']] });
-    expect(item(p.id).body).toBe('Zustand und Knopf angleichen.\n\nEntschieden:\n- Welches Wort? → Beendet\n\nOffene Fragen (nach bestem Wissen selbst entscheiden, im Zweifel die Standardlösung):\n- Auch im Archiv? (Ja / Nein)\n- Was noch?');
+    canvas.act(p.id, { action: 'accept', start: false, picks: [['Beendet'], [' '], ['Die Hilfe auch']] });
+    expect(item(p.id).body).toBe('Zustand und Knopf angleichen.\n\nEntschieden:\n- Welches Wort? → Beendet\n- Was noch? → Die Hilfe auch\n\nOffene Fragen (nach bestem Wissen selbst entscheiden, im Zweifel die Standardlösung):\n- Auch im Archiv? (Ja / Nein)');
   });
 
   test('a proposed idea becomes an idea whose agent opens the discussion; taken as a task it is planned', () => {

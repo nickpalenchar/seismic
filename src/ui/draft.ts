@@ -70,7 +70,8 @@ export const questionsKey = (questions: unknown[]) => JSON.stringify(questions);
 
 type Kept = Pick<Draft, 'text' | 'images' | 'picks' | 'reply' | 'files' | 'findings' | 'findingNotes' | 'findingNoteEdits' | 'reviewKey' | 'agent'>;
 const keptOf = ({ text, images, picks, reply, files, findings, findingNotes, findingNoteEdits, reviewKey, agent }: Draft): Kept | null => {
-  const picked = picks?.picks.some((p) => p.length) ? picks : undefined;
+  // the owner's own answers count while written, picked or not
+  const picked = picks?.picks.some((p) => p.length) || picks?.others?.some((o) => o.trim()) ? picks : undefined;
   const decided = findings && Object.keys(findings).length ? findings : undefined;
   const noted = findingNotes && Object.keys(findingNotes).length ? findingNotes : undefined;
   const editing = findingNoteEdits && Object.keys(findingNoteEdits).length ? findingNoteEdits : undefined;

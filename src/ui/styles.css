@@ -1333,6 +1333,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .choice.other textarea { flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; outline: 0; background: transparent; resize: none;
   font: inherit; color: inherit; line-height: inherit; field-sizing: content; min-height: 1lh; }
 .choice.other textarea::placeholder { color: var(--muted); }
+.choice.other.alone::before { content: none; }
 /* the prototypes the idea's agent planned, one row each, its task in two lines */
 .prototype-variants { margin-top: 16px; max-width: 80ch; }
 .prototype-variants .choice { flex-basis: 100%; }
