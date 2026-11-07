@@ -3,9 +3,10 @@
 // Each entry names its canvas small, its card large and what it waits for lighter ("Demo ready" on
 // a handover, which is judged on the card); under it, the card's one-click replies
 // (src/ui/quickReply.ts), only its default primary, and "Go to card", always there and never the
-// primary one. Unread entries carry an orange dot and a bold title; the switch above the list shows
+// primary one. Only a click on a button (the title included) reads an entry. Unread entries carry an orange dot and a bold title; the switch above the list shows
 // all of them or only the unread ones (src/ui/inboxRead.ts keeps what was read).
 
+import type { MouseEvent } from 'react';
 import { GitBranch } from 'lucide-react';
 import type { InboxEntry } from '../core/inbox';
 import type { Item } from '../core/types';
@@ -42,6 +43,10 @@ export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProp
   if (!entries.length) return <p className="empty-inbox">{t.inbox.empty}</p>;
   // the open card's entry stays while the owner is at it, read or not
   const shown = filter === 'all' ? entries : entries.filter((e) => !isRead(e) || (!!e.card && e.card.id === open));
+  // only a click on a button or link reads the entry, not one on the text around it
+  const readOnButton = (ev: MouseEvent, e: InboxEntry) => {
+    if ((ev.target as Element).closest('button, a')) onRead(e);
+  };
   const dot = <span className="unread-dot" role="img" aria-label={t.inbox.unread} />;
   return (
     <>
@@ -58,7 +63,7 @@ export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProp
           const unread = !isRead(e);
           const cls = unread ? ' unread' : ' read';
           if (e.preference || e.setting) return (
-            <li key={e.key} className={`inbox-entry proposal-entry${cls}`} onClickCapture={() => onRead(e)}>
+            <li key={e.key} className={`inbox-entry proposal-entry${cls}`} onClickCapture={(ev) => readOnButton(ev, e)}>
               <div className="where"><GitBranch size={12} aria-hidden /><span className="canvas">{e.canvasName}</span>{unread && dot}</div>
               <ul className="prefs proposals">
                 {e.preference && <ProposalRow p={e.preference} items={e.proposalItems ?? []} rules={e.rules ?? []} repos={e.repos ?? []} canvas={e.canvas} onOpen={(i) => onProposalCard(e.canvas, i)} />}
@@ -70,7 +75,7 @@ export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProp
           const replies = i ? quickReplies(i) : [];
           const here = !!i && i.id === open;
           return (
-            <li key={e.key} className={`inbox-entry${cls}${here ? ' on' : ''}`} aria-current={here || undefined} onClickCapture={() => onRead(e)}>
+            <li key={e.key} className={`inbox-entry${cls}${here ? ' on' : ''}`} aria-current={here || undefined} onClickCapture={(ev) => readOnButton(ev, e)}>
               <div className="where">
                 <GitBranch size={12} strokeWidth={2} aria-hidden />
                 <span className="canvas">{e.canvasName}</span>
@@ -78,7 +83,7 @@ export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProp
               </div>
               <div className="ttl">
                 {unread && dot}
-                <span>{i ? <Inline md={i.title} /> : t.koordinator.title}</span>
+                <button type="button" className="ttl-link" onClick={() => onGo(e)}>{i ? <Inline md={i.title} /> : t.koordinator.title}</button>
               </div>
               <div className={i && asksYou(i) ? 'state asking' : i?.state === 'proposal' && i.retro ? 'state by-obeya' : 'state'}>
                 {i ? stateLabel(i) : t.phone.obeyaAnswered}

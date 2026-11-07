@@ -2865,6 +2865,9 @@ body:has(#inbox.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .inbox-entry .where .since { margin-left: auto; flex: none; }
 .inbox-entry .ttl { font-size: 16px; font-weight: 700; line-height: 1.25; margin-top: 4px; display: flex; align-items: flex-start; gap: 7px; }
 .inbox-entry.read .ttl { font-weight: 400; }
+.inbox-entry .ttl-link { all: unset; cursor: pointer; min-width: 0; }
+.inbox-entry .ttl-link:hover { text-decoration: underline; }
+.inbox-entry .ttl-link:focus-visible { text-decoration: underline; outline: 2px solid var(--working); outline-offset: 2px; border-radius: 3px; }
 /* an unread entry: an orange dot centred on the title's first line (or at the end of a proposal's canvas line) */
 .unread-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--waiting); margin-top: 6px; }
 .inbox-entry .where .unread-dot { margin: 0 0 0 auto; }

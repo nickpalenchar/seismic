@@ -73,7 +73,7 @@ card is open: the open card's entry is marked with a ring and a tint, and the ow
 list from there.
 
 Read and unread: an entry is unread until the owner clicks on it (any of its buttons, "Go to card"
-included) or opens its card some other way (on the canvas, with Tab); an unread one has an orange
+included) or opens its card some other way (on the canvas, with Tab); only a click on a button reads an entry (its title is one, underlined on hover and opening the card), not one on the text around it; an unread one has an orange
 dot beside its title and the title bold, a read one neither. Read holds for the wait it was read
 in: a card that waits anew (a new demo after feedback), one that asks something new while it
 waits (another question, another summary) and a newer answer of Seismic's are unread again; a card open while it starts to wait again stays read, as the owner is
