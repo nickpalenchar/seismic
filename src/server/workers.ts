@@ -1389,7 +1389,7 @@ export class Workers {
     const q = card.question!.text;
     const held = this.takeHeld(card.id);
     const demo = JSON.parse(this.o.board.row(card.id).demo!) as Record<string, unknown>;
-    this.o.board.work(card.id, { demo: JSON.stringify({ ...demo, answer: text || '(Screenshot)' }) });
+    this.o.board.work(card.id, { demo: JSON.stringify({ ...demo, answer: text || '(Screenshot)', ...(picks.length ? { picks } : {}) }) });
     this.takingIn(card.id);
     this.recordAnswer(card, q, text, images, replyTo, picks);
     this.deliver(

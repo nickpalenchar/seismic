@@ -1914,13 +1914,21 @@ function Message({
       {demoQuestion?.question && (
         <div className={`demo-q${demoQuestion.answer === undefined ? '' : ' answered'}`}>
           <b>{t.talk.demoQuestion}</b> {demoQuestion.question}
-          {!!demoQuestion.options?.length && (
+          {!!(demoQuestion.options?.length || demoQuestion.picks?.length) && (
             <ul className="q-opts">
-              {demoQuestion.options.map((o) => (
-                <li key={o} className={demoQuestion.answer?.includes(o) ? 'on' : ''}>
+              {(demoQuestion.options ?? []).map((o) => (
+                <li key={o} className={(demoQuestion.picks ? demoQuestion.picks.includes(o) : demoQuestion.answer?.includes(o)) ? 'on' : ''}>
                   <Inline md={o} />
                 </li>
               ))}
+              {/* the owner's own answer, written in place of an option */}
+              {demoQuestion.picks
+                ?.filter((o) => !demoQuestion.options?.includes(o))
+                .map((o) => (
+                  <li key={`own:${o}`} className="on own">
+                    {o}
+                  </li>
+                ))}
             </ul>
           )}
         </div>
@@ -3763,7 +3771,8 @@ function OtherChoice({ multiple, alone, on, text, onToggle, onWrite }: { multipl
         value={text}
         placeholder={t.ask.other}
         aria-label={t.ask.other}
-        onFocus={() => !on && text.trim() && onToggle()}
+        // a click into a written answer picks it; focus alone does not, as the click beside the field already has
+        onMouseDown={() => !alone && !on && text.trim() && onToggle()}
         onChange={(e) => onWrite(e.target.value)}
       />
     </div>

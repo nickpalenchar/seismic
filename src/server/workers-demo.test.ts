@@ -375,7 +375,7 @@ describe('handing over with a demo', () => {
     expect(state(c.id)).toBe('waiting:demo');
     expect(board.item(c.id)!.question).toBeUndefined();
     // a pick that is no option is the owner's own answer
-    expect(board.item(c.id)!.demo).toMatchObject({ options: ['Semikolon', 'Komma'], answer: 'Semikolon, Tab\n\nUnd mit Kopfzeile.' });
+    expect(board.item(c.id)!.demo).toMatchObject({ options: ['Semikolon', 'Komma'], answer: 'Semikolon, Tab\n\nUnd mit Kopfzeile.', picks: ['Semikolon', 'Tab'] });
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'answer', picks: ['Semikolon', 'Tab'] });
     expect(runtime.last.inbox.at(-1)).toContain('They picked “Semikolon”. They answered in their own words: “Tab”.\n\nThey added in their own words:\n\nUnd mit Kopfzeile.');
     expect(board.decisions(null).at(-1)).toMatchObject({ question: 'Semikolon oder Komma?', answer: 'Semikolon, Tab\n\nUnd mit Kopfzeile.' });

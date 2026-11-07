@@ -1056,6 +1056,8 @@ export interface Demo {
   pick?: Question['pick'];
   /** The owner's answer to it; the demo keeps waiting for approval. */
   answer?: string;
+  /** What the answer picked: its options, and the owner's own answer, which is no option. */
+  picks?: string[];
   /** The handover event it came with: a later handover may keep the demo, and its question stays with the first. */
   handover?: number;
   /**
