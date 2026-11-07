@@ -43,9 +43,10 @@ export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProp
   if (!entries.length) return <p className="empty-inbox">{t.inbox.empty}</p>;
   // the open card's entry stays while the owner is at it, read or not
   const shown = filter === 'all' ? entries : entries.filter((e) => !isRead(e) || (!!e.card && e.card.id === open));
-  // only a click on a button or link reads the entry, not one on the text around it
+  // only a click on a button reads the entry, not one on the text around it
   const readOnButton = (ev: MouseEvent, e: InboxEntry) => {
-    if ((ev.target as Element).closest('button, a')) onRead(e);
+    const hit = (ev.target as Element).closest('button, a');
+    if (hit?.tagName === 'BUTTON') onRead(e);
   };
   const dot = <span className="unread-dot" role="img" aria-label={t.inbox.unread} />;
   return (
@@ -83,7 +84,7 @@ export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProp
               </div>
               <div className="ttl">
                 {unread && dot}
-                <button type="button" className="ttl-link" onClick={() => onGo(e)}>{i ? <Inline md={i.title} /> : t.koordinator.title}</button>
+                <button type="button" className="ttl-link" onClick={() => onGo(e)}>{i ? plain(i.title) : t.koordinator.title}</button>
               </div>
               <div className={i && asksYou(i) ? 'state asking' : i?.state === 'proposal' && i.retro ? 'state by-obeya' : 'state'}>
                 {i ? stateLabel(i) : t.phone.obeyaAnswered}
