@@ -465,6 +465,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                 onRecheck={recheck}
                 onCanvas={setCanvas}
                 onMove={moveCanvas}
+                onShow={setPick}
                 onSave={async () => {
                   setBusy(true);
                   let applies = false;
@@ -674,6 +675,8 @@ interface CanvasesProps {
   origin: (string | null)[];
   /** The canvas shown, by its place in the draft. */
   n: number;
+  /** Shows another canvas, by its place in the draft. */
+  onShow: (n: number) => void;
   /** Its key, which goes with it when it moves: what is open in it stays with it. */
   canvasKey: number | undefined;
   checked: Checked | null;
@@ -697,7 +700,7 @@ interface CanvasesProps {
 }
 
 /** One canvas of the configuration with its repositories; all canvases are saved together, with the bar at the bottom. */
-function Canvases({ view, draft, origin, n, canvasKey, checked, changed, busy, focus, onAsk, onRecheck, onCanvas, onMove, onSave, onReset, onReload, status, json, onJson }: CanvasesProps) {
+function Canvases({ view, draft, origin, n, canvasKey, checked, changed, busy, focus, onAsk, onRecheck, onCanvas, onMove, onShow, onSave, onReset, onReload, status, json, onJson }: CanvasesProps) {
   const c = t.config;
   const problems = checked?.problems ?? [];
   // "For everyone" takes over what is saved: with changes in the dialog it saves them first, where that applies without a restart
@@ -735,6 +738,7 @@ function Canvases({ view, draft, origin, n, canvasKey, checked, changed, busy, f
           onReload={onReload}
           {...(prepare ? { prepare } : {})}
           onChange={(y) => onCanvas(n, y)}
+          onShow={onShow}
         />
       ) : (
         <Head title={c.sections.canvases} hint={file} />
@@ -2249,6 +2253,8 @@ function VoiceBlock({ on }: { on: boolean }) {
 
 interface CanvasProps {
   n: number;
+  /** Shows another canvas, by its place in the draft (the one a problem points to). */
+  onShow: (n: number) => void;
   canvas: CanvasConfig;
   /** Where the canvases are saved, under its title. */
   file: ReactNode;
@@ -2276,7 +2282,7 @@ interface CanvasProps {
 }
 
 /** A canvas as its own page: its title with id, order and removal, its name, then each repository with its settings. */
-function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved, problems, focus, ask, onRecheck, onReload, prepare, onChange, onMove, last }: CanvasProps) {
+function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved, problems, focus, ask, onRecheck, onReload, prepare, onChange, onShow, onMove, last }: CanvasProps) {
   const fresh = resolved && !running.includes(resolved.id);
   // the Koordinator of the canvas with the problem, where it runs: a card for it goes there
   const askHere = ask && ((text: string) => ask(text, resolved && running.includes(resolved.id) ? resolved.id : undefined));
@@ -2333,7 +2339,7 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
         {problems
           .filter((p) => NAME_PROBLEMS.includes(p.code))
           .map((p, k) => (
-            <Problem key={k} problem={p} where={here} />
+            <Problem key={k} problem={p} where={here} onShow={onShow} />
           ))}
       </Field>
       {!!canvas.oldNames?.length && (
@@ -3153,11 +3159,13 @@ const DETAILED: ConfigProblem['code'][] = ['adapterGone', 'repoSettings', 'hostN
  * what to fix, and a button that has the Koordinator create a task that fixes it (with the detail, which it reads).
  * What did not start as saved tries again with "Try again", where `retried` is given (called after it).
  */
-export function Problem({ problem, where, ask, retried }: { problem: ConfigProblem; where: string; ask?: (text: string) => void; retried?: () => void }) {
+export function Problem({ problem, where, ask, retried, onShow }: { problem: ConfigProblem; where: string; ask?: (text: string) => void; retried?: () => void; /** Shows the canvas the problem points to (`ofCanvas`). */ onShow?: (n: number) => void }) {
   const [asked, setAsked] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState('');
   const text = problem.of && (problem.code === 'nameTaken' || problem.code === 'oldNameTaken') ? t.config[problem.code](problem.of) : t.config.problem[problem.code];
+  // the project a name is taken by, as a link to its page
+  const named = problem.of && problem.ofCanvas !== undefined && onShow && (problem.code === 'nameTaken' || problem.code === 'oldNameTaken') ? t.config[problem.code]('\0').split('\0') : null;
   const retry = async () => {
     setRetrying(true);
     setError('');
@@ -3172,7 +3180,17 @@ export function Problem({ problem, where, ask, retried }: { problem: ConfigProbl
   };
   return (
     <div className="p-error c-problem">
-      {text}
+      {named ? (
+        <>
+          {named[0]}
+          <button type="button" className="link" onClick={() => onShow!(problem.ofCanvas!)}>
+            {problem.of}
+          </button>
+          {named[1]}
+        </>
+      ) : (
+        text
+      )}
       {DETAILED.includes(problem.code) && (
         <details>
           <summary>{t.config.details}</summary>

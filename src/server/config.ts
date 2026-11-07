@@ -202,11 +202,11 @@ export function nameProblems(names: (string | null)[], oldNames: (string[] | und
     if (!s || skip.has(canvas)) return;
     const now = names.findIndex((n, j) => j < canvas && n !== null && slug(n) === s);
     if (now >= 0) {
-      problems.push({ code: 'nameTaken', canvas, of: names[now]!, detail: `canvas ${canvas + 1} is called "${name}" as is canvas ${now + 1}; give it another name` });
+      problems.push({ code: 'nameTaken', canvas, of: names[now]!, ofCanvas: now, detail: `canvas ${canvas + 1} is called "${name}" as is canvas ${now + 1}; give it another name` });
       return;
     }
     const old = oldNames.findIndex((o, j) => j !== canvas && names[j] !== null && !!o?.some((n) => slug(n) === s));
-    if (old >= 0) problems.push({ code: 'oldNameTaken', canvas, of: names[old]!, detail: `"${name}" is an old name of the project "${names[old]}", whose old addresses lead there; delete it there first to use it again` });
+    if (old >= 0) problems.push({ code: 'oldNameTaken', canvas, of: names[old]!, ofCanvas: old, detail: `"${name}" is an old name of the project "${names[old]}", whose old addresses lead there; delete it there first to use it again` });
   });
   return problems;
 }

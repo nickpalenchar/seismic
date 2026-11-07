@@ -396,8 +396,8 @@ Saving a rename keeps the name before it among the canvas's old names (`oldNames
 configuration, oldest first; compared as addresses, so "Store" and "store" are one name; a canvas
 renamed back to an old name has it as its name again, no longer as an old one). Its addresses lead to
 the canvas (see Addresses in The canvas), and no other canvas may take it: a name another canvas has
-now ("Name of project X, can't reuse.") or had before ("Old name of project X, can't reuse.") is a
-problem at the name field that blocks saving, checked as the owner types, before the new canvas's
+now ("Name of project X, can't reuse.") or had before ("Old name of project X, can't reuse.", X a
+link to that canvas's page) is a problem at the name field that blocks saving, checked as the owner types, before the new canvas's
 repository is filled in; a save that renames one canvas and gives its old name to another in the same
 go is refused too. "Old names" under the name lists them, folded under their count from three on; a
 trash icon on hover over one deletes it after a warning ("This action may have unintended

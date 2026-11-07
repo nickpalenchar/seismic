@@ -2566,6 +2566,8 @@ export interface ConfigProblem {
   detail: string;
   /** The name of the project the problem points to (the one a name is taken by). */
   of?: string;
+  /** That project's place in the configuration, counting from 0. */
+  ofCanvas?: number;
 }
 
 /** Whether a problem keeps the configuration from being saved: not one in the repository, which is fixed there. */

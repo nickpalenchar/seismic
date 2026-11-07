@@ -275,7 +275,7 @@ describe("Seismic's configuration", async () => {
     expect(c.current()[0]!.oldNames).toEqual(['Store', 'Market']);
     // a new project by an old name, however written, or by the name now, is refused
     const taken = await c.check([...c.current(), { name: 'market', repos: [{ path: api }] }]);
-    expect(taken.problems).toMatchObject([{ code: 'oldNameTaken', canvas: 1, of: 'Bazaar' }]);
+    expect(taken.problems).toMatchObject([{ code: 'oldNameTaken', canvas: 1, of: 'Bazaar', ofCanvas: 0 }]);
     expect(taken.problems.filter(blocksSaving)).toHaveLength(1);
     expect((await c.check([...c.current(), { name: 'Bazaar!', id: 'other', repos: [{ path: api }] }])).problems).toMatchObject([{ code: 'nameTaken', canvas: 1, of: 'Bazaar' }]);
     // renamed back to an old name: its name again, no longer an old one

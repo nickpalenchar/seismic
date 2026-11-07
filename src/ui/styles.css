@@ -1837,6 +1837,7 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 .doc th { font-weight: 600; }
 button.link { border: 0; background: none; padding: 0; color: var(--working); cursor: pointer; font-size: inherit; }
 button.link:hover { text-decoration: underline; }
+.c-problem button.link { font: inherit; text-decoration: underline; }
 .app-link { color: var(--working); text-decoration: none; }
 .app-link:hover { text-decoration: underline; }
 .sheet .origin { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; margin-top: 14px; padding: 9px 12px; border: 1px dashed var(--idea);
