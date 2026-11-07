@@ -141,8 +141,10 @@ Its foot opens the Configuration at this canvas's page for its name, repositorie
 
 
 A thin frosted bar along the bottom, between the sheets docked at the edges, with three places.
-Left, the connection: "Online" in light green; "No connection to the server" in white on orange
-while the server is gone; while a restart waits, that instead, in ice blue (see Running Seismic,
+Left, the connection: "Online" in light green; in orange text without a background "Reconnecting …" while the
+connection is gone, "Server not responding …" while it is open but the server answers nothing (see
+the decision on the status bar's liveness), and "No connection since <time>" or "Unresponsive since
+<time>" from 2½ minutes on; while a restart waits, that instead, in ice blue (see Running Seismic,
 the restart); beside it "Creating demo site …" while the canvas's demo site is being initialized
 (see A canvas's demo site in Sharing demos). In the middle, whom the microphone speaks to (see Voice). It stays above an open
 card's dimming, so that line stays readable while a card is open; the microphone sits just above

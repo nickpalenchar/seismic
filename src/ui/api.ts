@@ -612,6 +612,8 @@ export function useCanvas(id = canvasId): {
     let opened = false;
     /** When the oldest ping the server has not answered was sent. */
     let unanswered: number | null = null;
+    /** Since when the server counts as frozen; a connection lost meanwhile keeps counting from there. */
+    let frozenAt: number | null = null;
     const connect = () => {
       ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/c/${encodeURIComponent(id)}/ws`);
       sockets.set(id, ws);
@@ -635,7 +637,7 @@ export function useCanvas(id = canvasId): {
         sendFocus();
       };
       ws.onmessage = (e) => {
-        unanswered = null;
+        unanswered = frozenAt = null;
         setFrozenSince(null);
         const start = performance.now();
         const msg = JSON.parse(e.data) as ServerMessage;
@@ -660,10 +662,11 @@ export function useCanvas(id = canvasId): {
       };
       ws.onclose = () => {
         if (closed) return;
-        unanswered = null;
+        const outageStart = frozenAt ?? Date.now();
+        unanswered = frozenAt = null;
         setFrozenSince(null);
         setOnline(false);
-        setOfflineSince((t) => t ?? Date.now());
+        setOfflineSince((t) => t ?? outageStart);
         // a canvas the configuration no longer has: the page goes to the first one there is; a
         // device removed from Seismic's devices, or a browser whose cookie no longer names the
         // owner's key, gets the page that says how to connect or sign in again
@@ -680,7 +683,7 @@ export function useCanvas(id = canvasId): {
     const beat = setInterval(() => {
       if (ws.readyState !== WebSocket.OPEN || document.visibilityState !== 'visible') return;
       const now = Date.now();
-      if (unanswered !== null && now - unanswered >= FROZEN_MS) setFrozenSince((t) => t ?? unanswered);
+      if (unanswered !== null && now - unanswered >= FROZEN_MS) setFrozenSince((frozenAt ??= unanswered));
       if (unanswered === null) unanswered = now;
       ws.send(JSON.stringify({ type: 'ping' } satisfies ClientMessage));
     }, PING_MS);
@@ -689,6 +692,11 @@ export function useCanvas(id = canvasId): {
       const visible = document.visibilityState === 'visible';
       const cameBack = hidden && visible;
       hidden = !visible;
+      // pings a locked phone or suspended tab left unanswered say nothing of the server: it gets to answer anew
+      if (cameBack) {
+        unanswered = frozenAt = null;
+        setFrozenSince(null);
+      }
       if (visible && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'back' } satisfies ClientMessage));
       if (!visible || closed || ws.readyState === WebSocket.OPEN) return sendFocus();
       // a phone that was locked had no connection meanwhile, which says nothing of the server: not
