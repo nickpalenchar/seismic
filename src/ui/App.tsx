@@ -52,7 +52,7 @@ import { CardView, cardClass, shownState, DepLinks, depHead, depWidth, linkPath,
 import { clampWidth, loadWidths, saveWidths, SHEET_W, type SheetWidths, widthsIn } from './sheetWidth';
 import { failText, t } from './strings';
 import { loadPinned, NAV_CANVAS_MIN, NAV_W, NavPill, NavSheet, savePinned } from './nav';
-import { projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress } from './address';
+import { projectPath, cardPath, feedbackLogPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { type QuickReply, sendReply } from './quickReply';
 import { Inbox } from './inbox';
 import { useInboxRead } from './inboxRead';
@@ -84,8 +84,11 @@ export function App() {
   if (!canvases) return <Splash offline={failed} />;
   // the canvas in the address, else the first
   const { canvas: wanted, page } = readAddress();
-  const current = canvases.find((c) => c.id === wanted) ?? canvases[0];
-  if (!current) return <NoCanvas />;
+  knowProjects(canvases);
+  // an address with no address part opens the first; one naming no project says so, rather than showing another's cards
+  const current = wanted ? projectNamed(canvases, wanted) : canvases[0];
+  if (!canvases.length) return <NoCanvas />;
+  if (!current) return <NoSuchProject name={wanted!} canvases={canvases} />;
   // a phone gets every canvas's waits and work, and the cards full screen, instead of the canvas
   if (phone) return <Phone canvases={canvases} />;
   // the Agent Feedback Log, a page of its own in place of the canvas it was opened from
@@ -94,6 +97,25 @@ export function App() {
   keepDrafts(sessionStorage, current.id);
   keepWish(sessionStorage, current.id);
   return <Live canvases={canvases} />;
+}
+
+/** An address names a project that does not exist (a renamed one's old address, a typo): the projects there are, as links. */
+function NoSuchProject({ name, canvases }: { name: string; canvases: CanvasInfo[] }) {
+  return (
+    <div id="splash" className="none-runs">
+      <Sign size={56} />
+      <h2>{t.noSuchProject(name)}</h2>
+      <ul>
+        {canvases.map((c) => (
+          <li key={c.id}>
+            <a className="link" href={projectPath(c.id)}>
+              {c.name}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 /**
@@ -206,6 +228,14 @@ function Canvas({
   /** The Bun the server runs on, when it is too old for it (docs/design/distribution.md, Builds). */
   oldBun: string | null;
 }) {
+  knowProjects(canvases);
+  // a rename of this project: its address follows to the new name, keeping the card and query
+  useEffect(() => {
+    const seg = /^\/p\/([^/]+)/.exec(location.pathname);
+    const now = projectPath(snapshot.canvas.id);
+    if (!seg || projectNamed(canvases, decodeURIComponent(seg[1]!))?.id !== snapshot.canvas.id || seg[0] === now) return;
+    history.replaceState(history.state, '', `${now}${location.pathname.slice(seg[0].length)}${location.search}${location.hash}`);
+  }, [canvases, snapshot.canvas.id]);
   // ---------------------------------------------------------------- items
   // Local positions win over the snapshot until the server echoes them back.
   const [moved, setMoved] = useState<Record<string, Pos>>({});
@@ -762,7 +792,7 @@ function Canvas({
     // the canvas's own address, where the page came without one or with another canvas's; `?talk`
     // (Seismic's answer in another canvas's navigation) opens Seismic's sheet, once
     const a = readAddress();
-    const code = !a.canvas || a.canvas === snapshot.canvas.id ? a.card : undefined;
+    const code = !a.canvas || projectNamed(canvases, a.canvas)?.id === snapshot.canvas.id ? a.card : undefined;
     const talk = new URLSearchParams(location.search).has('talk');
     history.replaceState(history.state, '', `${code ? cardPath(snapshot.canvas.id, code) : projectPath(snapshot.canvas.id)}${queryWithout(location.search, 'c', 'card', 'talk', ...(perfAtStart ? LOG_KEYS : []))}`);
     // what comes back is what the address names already; a kept card the address left out (a

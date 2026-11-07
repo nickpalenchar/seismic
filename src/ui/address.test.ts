@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress, upgradeAddress } from './address';
+import { knowProjects, projectNamed, projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress, upgradeAddress } from './address';
 
 const at = (url: string) => new URL(url, 'http://obeya');
 
@@ -77,4 +77,33 @@ test('upgrading bookmarks preserves phone flags, feedback filters, and fragments
       else Reflect.deleteProperty(globalThis, key);
     }
   }
+});
+
+test('a project is addressed by its name, its id where the name does not tell it apart', () => {
+  const list = [
+    { id: 'shop', name: 'Store' },
+    { id: 'blog', name: 'My Blog' },
+    { id: 'a', name: 'Twin' },
+    { id: 'b', name: 'twin' },
+    { id: 'store', name: 'Other' },
+  ];
+  knowProjects(list);
+  expect(projectPath('blog')).toBe('/p/my-blog');
+  expect(cardPath('blog', { id: 'a1b2c3d4', short: 'a1b2c3' })).toBe('/p/my-blog/c/a1b2c3');
+  expect(feedbackLogPath('blog')).toBe('/p/my-blog/feedback');
+  // another project's id is not taken over; equal names fall back to ids
+  expect(projectPath('shop')).toBe('/p/shop');
+  expect(projectPath('store')).toBe('/p/other');
+  expect(projectPath('a')).toBe('/p/a');
+  expect(projectPath('b')).toBe('/p/b');
+  expect(projectNamed(list, 'my-blog')?.id).toBe('blog');
+  expect(projectNamed(list, 'My Blog')?.id).toBe('blog');
+  expect(projectNamed(list, 'store')?.id).toBe('store');
+  expect(projectNamed(list, 'Store')?.id).toBe('store');
+  expect(projectNamed(list, 'a')?.id).toBe('a');
+  expect(projectNamed(list, 'gone')).toBeUndefined();
+  knowProjects([{ id: 'shop', name: 'Store' }]);
+  expect(projectPath('shop')).toBe('/p/store');
+  expect(projectNamed([{ id: 'shop', name: 'Store' }], 'shop')?.id).toBe('shop');
+  knowProjects([]);
 });

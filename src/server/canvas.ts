@@ -1,6 +1,7 @@
 // One canvas and everything that works on it: its repositories (each with adapter, workspaces,
 // workers, project agents and PR watcher), the board, the Koordinator and the voice commands.
 
+import { slug } from '../core/project-slug';
 import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { existsSync, mkdirSync, realpathSync, statSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
@@ -3209,15 +3210,6 @@ function sameDir(a: string, b: string): boolean {
     return false;
   }
 }
-
-const slug = (s: string) =>
-  s
-    .replace(/ß/g, 'ss')
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9.-]+/g, '-')
-    .replace(/^-|-$/g, '');
 
 /** A workspace as a directory on this machine, for a program that runs here (gh on a pull request's URL); none for one on another machine. */
 const localDir = (workspace: string | null) => (workspace && !hostName(workspace) ? workspace : null);

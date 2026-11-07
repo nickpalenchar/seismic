@@ -245,6 +245,7 @@ const de = {
   online: 'Online',
   creatingSite: 'Demo-Seite wird angelegt …',
   noneRuns: 'Kein Projekt läuft',
+  noSuchProject: (name: string) => `Es gibt kein Projekt „${name}“. Vielleicht wurde es umbenannt.`,
   repos: (n: number) => `${n} Repositories`,
   /** The pause and resume of a canvas's agents, on its row in the canvas switcher. */
   canvasPause: {
@@ -2722,6 +2723,7 @@ const en: Strings = {
   online: 'Online',
   creatingSite: 'Creating demo site …',
   noneRuns: 'No project is running',
+  noSuchProject: (name: string) => `There is no project “${name}”. It may have been renamed.`,
   repos: (n: number) => `${n} repositories`,
   canvasPause: {
     pause: (n: number) => (n === 1 ? 'Pause 1 running agent' : `Pause ${n} running agents`),

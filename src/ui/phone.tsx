@@ -33,7 +33,7 @@ import { agentWorks, beingWritten, cardTalk, koordinatorReads, obeyaWorks, opens
 import { seenOf } from './seen';
 import { noticeLine, tellers, useAck } from './tell';
 import { HoldToTalk, PushToTalk, ToldList, usePushToTalk, useTold } from './voice';
-import { projectPath, cardPath, named, queryWithout, readAddress } from './address';
+import { projectPath, cardPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { scrollBehavior } from './motion';
 
 /**
@@ -161,6 +161,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   const [canvases, setCanvases] = useState(loaded);
   // the canvases it last had, while the server did not answer: the list the server sends once it does
   useEffect(() => setCanvases(loaded), [loaded]);
+  knowProjects(canvases);
   const [snaps, setSnaps] = useState<Record<string, CanvasSnapshot>>({});
   const snapsRef = useRef(snaps);
   snapsRef.current = snaps;
@@ -329,8 +330,8 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
 
   // the canvas whose Seismic is spoken to without a card open
   const [obeyaCanvas, setObeyaCanvasState] = useState(() => {
-    const wanted = readAddress().canvas ?? localStorage.getItem(OBEYA_CANVAS);
-    return (canvases.find((c) => c.id === wanted) ?? canvases[0]!).id;
+    const wanted = readAddress().canvas;
+    return (projectNamed(canvases, wanted) ?? canvases.find((c) => c.id === localStorage.getItem(OBEYA_CANVAS)) ?? canvases[0]!).id;
   });
   const obeyaId = canvases.some((c) => c.id === obeyaCanvas) ? obeyaCanvas : canvases[0]!.id;
   const obeyaRef = useRef(obeyaId);

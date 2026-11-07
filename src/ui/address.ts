@@ -2,6 +2,7 @@
 // the code being the card's short code or its whole id, `/p/<project>/feedback` the Agent Feedback
 // Log, a page of its own opened from that canvas. What else the page shows (the phone view,
 // the conversation open on the phone) stays in the query.
+import { projectAt, projectSegment } from '../core/project-slug';
 import type { Item } from '../core/types';
 
 export interface Address {
@@ -25,7 +26,21 @@ export function readAddress(at: { pathname: string; search: string } = location)
   return { ...(canvas ? { canvas } : {}), ...(card ? { card } : {}) };
 }
 
-export const projectPath = (canvas: string) => `/p/${encodeURIComponent(canvas)}`;
+let known: { id: string; name: string }[] = [];
+
+/** The projects the page knows, so that addresses are made with their names. */
+export const knowProjects = (projects: { id: string; name: string }[]) => {
+  known = projects;
+};
+
+/** The project an address part (`Address.canvas`) names among `projects`: by its name, else by its id. */
+export const projectNamed = <T extends { id: string; name: string }>(projects: T[], segment: string | undefined) => projectAt(projects, segment);
+
+/** The address of a project by its id: its name as the owner sees it, its id while the page does not know it. */
+export const projectPath = (canvas: string) => {
+  const p = known.find((c) => c.id === canvas);
+  return `/p/${encodeURIComponent(p ? projectSegment(p, known) : canvas)}`;
+};
 
 /** The Agent Feedback Log, opened from a canvas: its link back to the dashboard leads there. */
 export const feedbackLogPath = (canvas: string) => `${projectPath(canvas)}/feedback`;
