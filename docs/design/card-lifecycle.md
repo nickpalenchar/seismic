@@ -18,6 +18,8 @@ asks the rest.
 
 Seismic proposes cards of its own too ("Proposed by Seismic"): the work retrospective's, and the card
 that fills in the settings of a repository that has none (see Projects in Repositories and configuration).
+Everything Seismic proposes by itself shows its state label "Proposed by Seismic" in purple, the proposal
+colour, in the inbox (an agent's proposal keeps its own label, "Proposed by an agent", in orange).
 
 A proposed idea ("✦ Proposal · Idea") is for something to think through first: "Accept and discuss" makes it an open idea whose exploration agent opens the discussion with the text and its
 questions; "Accept as a task" plans it as a task. "Ideate" on a proposed task

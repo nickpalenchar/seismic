@@ -86,7 +86,7 @@ export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProp
                 {unread && dot}
                 <button type="button" className="ttl-link" onClick={() => onGo(e)}>{i ? plain(i.title) : t.koordinator.title}</button>
               </div>
-              <div className={i && asksYou(i) ? 'state asking' : i?.state === 'proposal' && i.retro ? 'state by-obeya' : 'state'}>
+              <div className={i && asksYou(i) ? 'state asking' : i?.state === 'proposal' && (i.retro || i.proposal?.setup) ? 'state by-obeya' : 'state'}>
                 {i ? stateLabel(i) : t.phone.obeyaAnswered}
                 {i?.state === 'proposal' && i.retro && <span aria-hidden>✦</span>}
               </div>
