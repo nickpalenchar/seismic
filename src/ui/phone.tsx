@@ -321,6 +321,14 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     setOpenState(id);
     history.replaceState(history.state, '', addressWith({ card: id, talk: talkRef.current }));
   }, [all]);
+  // a project renamed: the address names it as it is called now, the open card's included
+  const listed = useRef(canvases);
+  useEffect(() => {
+    if (listed.current === canvases) return;
+    listed.current = canvases;
+    const now = addressWith({ card: openRef.current, talk: talkRef.current });
+    if (now !== `${location.pathname}${location.search}`) history.replaceState(history.state, '', now);
+  }, [canvases]);
   // approved cards the server is still landing: they need the owner no longer
   const [underway, setUnderway] = useState<string[]>([]);
   // a card replied to from "Needs you" stays under way while it still waits for the owner
