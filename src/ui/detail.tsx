@@ -1247,7 +1247,8 @@ function ProposalView({
 }) {
   const revising = item.proposal?.revising;
   const answer = useOpenQuestions(item);
-  const unanswered = answer.questions.filter((_, i) => !answer.picks[i]?.length).length;
+  // an own answer picked but not written answers nothing
+  const unanswered = answer.questions.filter((_, i) => !answer.answers[i]?.length).length;
   const { guard, dialog: questionsDialog } = useOpenQuestionsGuard(unanswered);
   const idea = !!item.proposal?.idea;
   const armed = item.proposal?.acceptAfterRevision;

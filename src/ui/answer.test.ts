@@ -56,6 +56,10 @@ describe('the owner’s own answer', () => {
 
   test('reads back as its question’s answer, after the options picked', () => {
     expect(readAnswer(answerText([format], [['JSON']], ''), [format])).toEqual({ picks: [['JSON']], words: '' });
+    // an option in quotes itself stays that option
+    const quoted = { text: 'Welches Format?', options: ['“JSON”', 'CSV'] };
+    expect(readAnswer(answerText([quoted], [['“JSON”']], ''), [quoted]).picks).toEqual([['“JSON”']]);
+    expect(readAnswer(answerText([quoted], [['CSV', 'XML']], ''), [quoted]).picks).toEqual([['CSV', 'XML']]);
     // one that starts like an option is still the owner's own, not that option
     expect(readAnswer(answerText([format], [['CSV, aber mit Kopfzeile']], ''), [format]).picks).toEqual([['CSV, aber mit Kopfzeile']]);
     // written over several lines, it stands on its question's line

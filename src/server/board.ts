@@ -3607,7 +3607,8 @@ function shareOf(r: CardRow, themeNow?: ThemeNow): Item['share'] {
  * that takes the card on.
  */
 export function withQuestions(text: string, questions: Question[], picks: string[][], t: Messages): string {
-  const chosen = (i: number) => (Array.isArray(picks[i]) ? picks[i] : []).filter((o) => typeof o === 'string' && o.trim()).map((o) => o.trim());
+  // each on one line: an own answer must not add lines of its own to the text
+  const chosen = (i: number) => (Array.isArray(picks[i]) ? picks[i] : []).filter((o) => typeof o === 'string' && o.trim()).map((o) => o.replace(/\s+/g, ' ').trim());
   const decided = questions.flatMap((q, i) => (chosen(i).length ? [`- ${q.text} → ${chosen(i).join(', ')}`] : []));
   const open = questions.flatMap((q, i) => (chosen(i).length ? [] : [`- ${q.text}${q.options.length ? ` (${q.options.join(' / ')})` : ''}`]));
   return [text.trim(), decided.length ? `${t.decided}:\n${decided.join('\n')}` : '', open.length ? `${t.openQuestions}:\n${open.join('\n')}` : '']
