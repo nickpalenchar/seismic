@@ -1950,8 +1950,8 @@ function Canvas({
   function goToEntry(e: InboxEntry) {
     if (e.canvas !== snapshot.canvas.id) return location.assign(e.card ? cardPath(e.canvas, e.card) : `${projectPath(e.canvas)}?talk`);
     if (!e.card) return kOnRef.current || toggleKoordinator();
-    const i = byId(e.card.id);
-    if (i) void openFresh(i);
+    // the entry's own copy opens it when the canvas no longer lists the card (it just left the inbox)
+    void openFresh(byId(e.card.id) ?? e.card);
   }
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
   keys.current = (e: KeyboardEvent) => {
