@@ -1157,7 +1157,7 @@ export class Board {
         body: body(shown, files.length - shown.length),
         ...this.freeSpot(),
         repo: this.repoColumn(repo),
-        proposal: JSON.stringify(proposalOf({ reason }) satisfies Proposal),
+        proposal: JSON.stringify({ ...proposalOf({ reason }), finish: true } satisfies Proposal),
       },
     ]);
     this.setSetting(key, row!.id);
@@ -1604,7 +1604,7 @@ export class Board {
     if (proposal?.revising) throw new BadRequest('revising', 'the proposal is being reworked');
     if (proposal?.merge) throw new BadRequest('merging', 'the proposal is merged with another card; approve or separate that first');
     // an agent's proposal keeps that it was one: its task is not the owner's words; Seismic's setup card is as if the owner made it
-    const kept = proposal && !proposal.setup ? ({ ...(proposal.idea ? { idea: true } : {}), questions: [] } satisfies Proposal) : null;
+    const kept = proposal && !proposal.setup && !proposal.finish ? ({ ...(proposal.idea ? { idea: true } : {}), questions: [] } satisfies Proposal) : null;
     this.store.updateCard(id, { state: asIdea ? 'idea' : 'planned', body: withQuestions(row.body ?? '', proposal?.questions ?? [], picks, this.t), idea: { proposal: kept } });
     this.changed();
   }
@@ -1676,7 +1676,7 @@ export class Board {
     // what the owner said meanwhile is the next rework's
     const next = done?.next?.length ? { revising: merged(done.next) } : {};
     // when it starts is the owner's to change, not the reviser's
-    const proposal: Proposal = p ? { ...proposalOf({ ...p, startAt: was.startAt }), ...(was.acceptAfterRevision ? { acceptAfterRevision: was.acceptAfterRevision } : {}), ...(was.setup ? { setup: was.setup } : {}) } : was;
+    const proposal: Proposal = p ? { ...proposalOf({ ...p, startAt: was.startAt }), ...(was.acceptAfterRevision ? { acceptAfterRevision: was.acceptAfterRevision } : {}), ...(was.setup ? { setup: was.setup } : {}), ...(was.finish ? { finish: was.finish } : {}) } : was;
     this.store.updateCard(id, {
       ...(p ? { title: p.title.slice(0, 200), body: p.task.slice(0, 20000) } : {}),
       ...(p?.images ? { images: p.images.length ? JSON.stringify(p.images) : null } : {}),

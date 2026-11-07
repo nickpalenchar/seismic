@@ -861,6 +861,8 @@ export interface Proposal {
    * Konfiguration dialog makes.
    */
   setup?: true;
+  /** Seismic's own proposal to finish the uncommitted changes a new repository came with. */
+  finish?: true;
 }
 
 /**
