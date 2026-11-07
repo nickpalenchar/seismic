@@ -50,7 +50,7 @@ import { HoldToTalk, PushToTalk, SPACE_SHOWS_MS, TAP_MS, ToldList, usePushToTalk
 import { videoOf } from './spot';
 import { CardView, cardClass, shownState, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, ProjectView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkspacesPill } from './parts';
 import { clampWidth, loadWidths, saveWidths, SHEET_W, type SheetWidths, widthsIn } from './sheetWidth';
-import { failText, t } from './strings';
+import { clock, failText, t } from './strings';
 import { loadPinned, NAV_CANVAS_MIN, NAV_W, NavPill, NavSheet, savePinned } from './nav';
 import { projectPath, cardPath, feedbackLogPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { type QuickReply, sendReply } from './quickReply';
