@@ -979,6 +979,28 @@ function RepoDownBox({ item }: { item: Item }) {
 }
 
 /** `prototypes`: the idea's repository can have them (a folder without git has no branch to build one on). */
+/**
+ * Starting a card whose agent still has questions: a dialog warns first, and "Start anyway" goes ahead
+ * (the agent then decides what is open itself). Shared by every card that starts with open questions.
+ */
+function useOpenQuestionsGuard(open: number) {
+  const [pending, setPending] = useState<(() => void) | null>(null);
+  const guard = (go: () => void) => (open > 0 ? setPending(() => go) : go());
+  const dialog = pending && createPortal(
+    <div className="review-approval-cover" onClick={() => setPending(null)}>
+      <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="open-questions-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setPending(null); } }}>
+        <h2 id="open-questions-title">{t.startWithQuestions.title}</h2>
+        <p>{t.startWithQuestions.body(open)}</p>
+        <div className="review-approval-actions">
+          <button className="btn review-warning" onClick={() => { const go = pending; setPending(null); go(); }}>{t.startWithQuestions.anyway}</button>
+          <button className="btn" autoFocus onClick={() => setPending(null)}>{t.startWithQuestions.back}</button>
+        </div>
+      </div>
+    </div>, document.body,
+  );
+  return { guard, dialog };
+}
+
 function IdeaView({
   item,
   act,
@@ -1004,6 +1026,7 @@ function IdeaView({
   // a new repository building creates first: the button names it, a line under it says what it does
   const fresh = newRepoWords(choice, true);
   const [prototyping, setPrototyping] = useState(false);
+  const { guard, dialog: questionsDialog } = useOpenQuestionsGuard(idea.status === 'open' && !idea.thinking ? idea.questions.length : 0);
   // what the agent would do in the owner's place is the marked click; without a suggestion, building is
   const next = idea.status === 'open' && !idea.thinking ? idea.next : undefined;
   const btn = (step: NextStep['step']) => (next ? (next.step === step ? 'btn primary suggested' : 'btn') : step === 'build' ? 'btn primary' : 'btn');
@@ -1096,7 +1119,7 @@ function IdeaView({
               // while the agent works, the click waits for its reply in view; else the panel closes on the built card;
               // built in a new repository, it stays open for "Undo" and then follows the card to its canvas
               fresh ? (
-                <button className={btn('build')} disabled={!fresh.ready} title={fresh.hint} onClick={() => act({ action: 'build' }, { close: false })}>
+                <button className={btn('build')} disabled={!fresh.ready} title={fresh.hint} onClick={() => guard(() => void act({ action: 'build' }, { close: false }))}>
                   {fresh.button}
                 </button>
               ) : (
@@ -1106,7 +1129,7 @@ function IdeaView({
                   tone={btn('build').replace(' suggested', '')}
                   suggested={btn('build').includes('suggested')}
                   codexAllowed={prototypes && !item.contribution}
-                  onStart={(agent) => act({ action: 'build', ...(agent ? { agent } : {}) }, idea.thinking ? { close: false } : { close: true, ack: t.idea.built })}
+                  onStart={(agent) => guard(() => void act({ action: 'build', ...(agent ? { agent } : {}) }, idea.thinking ? { close: false } : { close: true, ack: t.idea.built }))}
                 />
               )
             )}
@@ -1136,6 +1159,7 @@ function IdeaView({
             </button>
           </div>
           {fresh && <p className="hint">{fresh.hint}</p>}
+          {questionsDialog}
         </>
       )}
     </>
@@ -1223,6 +1247,8 @@ function ProposalView({
 }) {
   const revising = item.proposal?.revising;
   const answer = useOpenQuestions(item);
+  const unanswered = answer.questions.filter((_, i) => !answer.picks[i]?.length).length;
+  const { guard, dialog: questionsDialog } = useOpenQuestionsGuard(unanswered);
   const idea = !!item.proposal?.idea;
   const armed = item.proposal?.acceptAfterRevision;
   const later = !idea && !!item.proposal?.startAt;
@@ -1281,8 +1307,8 @@ function ProposalView({
           <Armed label={t.acceptWaits(idea || armed === 'idea')} undo={t.unaccept} onUndo={() => act({ action: 'unaccept' }, { close: false })} />
         ) : (
           // one to start later is planned and waits until then: taking it on is all there is to it
-          !idea && !later && !revising ? <StartAgent draft={cardDraft(item.id)} label={t.accept} codexAllowed={codexAllowed} onStart={(agent) => accept(true, false, agent)} /> :
-          <button className="btn primary" title={later ? t.startAt.accept : undefined} onClick={() => accept(true)}>{idea ? t.acceptIdea : later ? t.acceptOnly : t.accept}</button>
+          !idea && !later && !revising ? <StartAgent draft={cardDraft(item.id)} label={t.accept} codexAllowed={codexAllowed} onStart={(agent) => guard(() => void accept(true, false, agent))} /> :
+          <button className="btn primary" title={later ? t.startAt.accept : undefined} onClick={() => (idea || later ? accept(true) : guard(() => void accept(true)))}>{idea ? t.acceptIdea : later ? t.acceptOnly : t.accept}</button>
         )}
         {!later && (
           <button className="btn" disabled={!!revising} onClick={() => accept(false)}>
@@ -1302,6 +1328,7 @@ function ProposalView({
         <Later item={item} act={act} />
       </div>
       {answer.questions.length > 0 && <p className="hint">{t.proposalQuestionsHint}</p>}
+      {questionsDialog}
     </>
   );
 }

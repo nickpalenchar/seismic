@@ -19,7 +19,7 @@ import type { HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts
 import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type CanvasConfig, type CanvasDefaults, type CanvasDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsProject, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
 import { appliedCanvasSettings, canvasAgentSetting, startAgentSetting } from './settings';
 import { asksAhead, holdsNotes } from '../core/queue';
-import { BadRequest, Board, pathOfRef, repoOfRef, replyNote, type StoredContribution } from './board';
+import { BadRequest, Board, withQuestions, pathOfRef, repoOfRef, replyNote, type StoredContribution } from './board';
 import type { FindingPick } from '../core/types';
 import { type Command, Commander } from './commands';
 import type { Config } from './config';
@@ -2333,10 +2333,10 @@ export class CanvasRuntime {
 
   /** The idea is decided for building: its agent's conversation ends, the brief becomes the task, the other prototypes are discarded. */
   private decided(idea: Item, how: { answer: string; log: string }) {
-    const { brief } = this.board.idea(idea.id);
+    const { brief, questions } = this.board.idea(idea.id);
     this.explorers.close(idea.id);
     this.discardPrototypes(idea.id);
-    this.board.work(idea.id, { state: 'planned', ...(brief.trim() ? { body: brief.trim() } : {}) });
+    this.board.work(idea.id, { state: 'planned', ...(brief.trim() ? { body: withQuestions(brief, questions ?? [], [], this.board.t) } : {}) });
     // the screenshots the owner showed in the discussion belong to what is built
     const shown = this.board.events(idea.id).flatMap((e) => (e.kind === 'talk' && e.author === 'owner' ? (e.images ?? []) : []));
     if (shown.length) this.addTaskImages(idea.id, shown);

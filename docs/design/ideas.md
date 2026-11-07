@@ -92,6 +92,9 @@ prototype. "Discard" (also approving or deleting it) throws its workspace and br
 ### Deciding
 
 "Build it like this" makes the brief the card's task and starts it through the Koordinator like "Start agent" (see Scheduling).
+While the agent still has open questions, a dialog warns first ("The agent still has questions") with a yellow
+"Start anyway" and "Go back"; the same dialog guards accepting a proposal with unanswered questions. Starting
+anyway puts the unanswered questions into the task with the instruction to decide them as best it can, usually by the default.
 
 Beside it stands the repository picker of a card before work begins (see Projects and
 repositories), with "New repository …": an idea to be built in a repository that does not exist

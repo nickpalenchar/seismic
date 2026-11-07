@@ -259,7 +259,7 @@ describe('a canvas with several repositories', () => {
     ];
     const p = canvas.board.propose(b.id, { title: 'Ein Wort', task: 'Zustand und Knopf angleichen.', reason: 'R', questions });
     canvas.act(p.id, { action: 'accept', start: false, picks: [['Beendet'], [], ['erfunden']] });
-    expect(item(p.id).body).toBe('Zustand und Knopf angleichen.\n\nEntschieden:\n- Welches Wort? → Beendet\n\nOffene Fragen:\n- Auch im Archiv? (Ja / Nein)\n- Was noch?');
+    expect(item(p.id).body).toBe('Zustand und Knopf angleichen.\n\nEntschieden:\n- Welches Wort? → Beendet\n\nOffene Fragen (nach bestem Wissen selbst entscheiden, im Zweifel die Standardlösung):\n- Auch im Archiv? (Ja / Nein)\n- Was noch?');
   });
 
   test('a proposed idea becomes an idea whose agent opens the discussion; taken as a task it is planned', () => {

@@ -29,7 +29,7 @@ const de = {
   multiple: 'Mehrfachauswahl',
   /** The headings of a taken proposal's questions in its text. */
   decided: 'Entschieden',
-  openQuestions: 'Offene Fragen',
+  openQuestions: 'Offene Fragen (nach bestem Wissen selbst entscheiden, im Zweifel die Standardlösung)',
   /** Whisper's words to expect, before the titles on the canvas. */
   vocabulary: 'Seismic, Aufgabe, Folgeaufgabe, Karte, Workstream, Idee, Prototyp, parken, Demo, freigeben, Pull Request, Agent.',
   /** In the log of a card the canvas archived by itself once its work landed. */
@@ -581,7 +581,7 @@ const en: Messages = {
   quote: (s: string) => `“${s}”`,
   multiple: 'multiple choice',
   decided: 'Decided',
-  openQuestions: 'Open questions',
+  openQuestions: 'Open questions (decide these yourself as best you can, taking the default when in doubt)',
   vocabulary: 'Seismic, task, follow-up, card, workstream, idea, prototype, park, demo, approve, pull request, agent.',
   archivedLanded: 'Landed and finished: the card is in the archive now.',
   voice: {

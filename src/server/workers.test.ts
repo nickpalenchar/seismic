@@ -1248,7 +1248,7 @@ describe('workers', () => {
     expect(board.item(p.id)!.proposal).toBeUndefined();
     // its conversation names the proposal as where the task comes from
     expect(board.item(p.id)!.proposed).toBe(true);
-    expect(board.item(p.id)!.body).toBe('Der Knopf „Export“ heißt in src/ui/strings.ts noch „Exportieren“.\n\nOffene Fragen:\n- Welches Wort? (Export / Exportieren)');
+    expect(board.item(p.id)!.body).toBe('Der Knopf „Export“ heißt in src/ui/strings.ts noch „Exportieren“.\n\nOffene Fragen (nach bestem Wissen selbst entscheiden, im Zweifel die Standardlösung):\n- Welches Wort? (Export / Exportieren)');
   });
 
   test('on a canvas with several repositories, a proposal goes to the one its agent names, else to its card’s', async () => {
