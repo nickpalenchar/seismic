@@ -780,8 +780,12 @@ export class Koordinator {
       plan = await this.schedule(planCard, batch, active, ahead);
     } catch (e) {
       // judged one by one instead, each seeing the others it may build on; one taken out of the
-      // queue or started anyway while the turn ran stays as the owner left it
-      const left = this.unplanned(key);
+      // queue or started anyway while the turn ran stays as the owner left it, and one started again
+      // meanwhile (a new `since`) goes to the joint turn of that start
+      const left = batch.filter((w) => {
+        const q = this.o.board.item(w.id)?.queue;
+        return !!q && 'checking' in q && q.together === key && q.since === w.queue!.since;
+      });
       if (planCard) this.o.board.log(key, 'error', 'obeya', t.togetherFailed(messageOf(e)));
       else for (const w of left) this.o.board.log(w.id, 'error', 'obeya', t.freedFailed(messageOf(e)));
       for (const w of left) {

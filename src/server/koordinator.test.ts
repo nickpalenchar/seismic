@@ -1228,6 +1228,29 @@ describe('Koordinator starts all workstreams of a plan', () => {
     expect(estimates()).toHaveLength(2);
   });
 
+  test('workstreams taken out and started again while the turn runs go to the joint turn of their new start', async () => {
+    const { p, w2, w3, w4 } = plan();
+    k.request(p.id);
+    await settle();
+    k.dequeue(w3.id);
+    k.dequeue(w4.id);
+    k.request(p.id);
+    schedules()[0]!.emit({ type: 'idle' });
+    await settle();
+    expect(board.events(p.id).some((e) => e.text.includes('prüft sie einzeln'))).toBe(true);
+    // only W2 is judged alone; the second start keeps its workstreams together
+    expect(item(w2.id).queue).toMatchObject({ checking: true });
+    expect(item(w2.id).queue).not.toHaveProperty('together');
+    expect([w3, w4].map((w) => item(w.id).queue)).toEqual([0, 1].map(() => expect.objectContaining({ checking: true, together: p.id })));
+    await scope(['src/w2.ts']);
+    expect(item(w2.id).state).toBe('working');
+    // and gets a joint turn of its own, with both of them
+    expect(schedules()).toHaveLength(2);
+    expect(schedules()[1]!.inbox[0]).toContain('W3 "Titel W3"');
+    expect(schedules()[1]!.inbox[0]).toContain('W4 "Titel W4"');
+    expect(estimates()).toHaveLength(1);
+  });
+
   test('after a restart the joint turn runs again', async () => {
     const { p, w2, w3 } = plan();
     board.work(w2.id, { queue: JSON.stringify({ checking: true, together: p.id, since: '1' }) });
