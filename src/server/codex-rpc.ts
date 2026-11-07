@@ -4,7 +4,7 @@ import { StringDecoder } from 'node:string_decoder';
 import { z } from 'zod';
 import { messageOf } from '../core/text';
 import { OWN_GROUP } from './spawn';
-import { AgentProcesses } from './agent-processes';
+import { AgentProcesses, tolerateTimeouts } from './agent-processes';
 import { sessionRegistry } from './session-registry';
 
 const running = new Map<() => void, { done: Promise<void>; force: () => Promise<void> }>();
@@ -16,6 +16,21 @@ export async function endCodexHere(force = false) {
     for (const [close] of active) close();
     await Promise.allSettled(active.map(([, entry]) => entry.done));
   }
+}
+
+/** One tick for every session, so their observations share one process snapshot. */
+const observers = new Set<() => void>();
+let ticker: ReturnType<typeof setInterval> | undefined;
+function observeEveryTick(observe: () => void) {
+  observers.add(observe);
+  if (!ticker) {
+    ticker = setInterval(() => { for (const o of observers) o(); }, 500);
+    ticker.unref?.();
+  }
+  return () => {
+    observers.delete(observe);
+    if (!observers.size && ticker) { clearInterval(ticker); ticker = undefined; }
+  };
 }
 
 export interface CodexHandlers {
@@ -50,19 +65,21 @@ const envelope = z.object({
   error: z.object({ code: z.number(), message: z.string() }).optional(),
 });
 
-/** An argv override is for contract tests; the runtime uses the installed CLI (or OBEYA_CODEX). */
+/** An argv override is for contract tests; the runtime uses the installed CLI (or SEISMIC_CODEX). */
 export function codexConnection(
   options: { command: string; args: string[]; cwd: string; env: NodeJS.ProcessEnv; timeoutMs?: number; /** What the session is, for the crash record. */ label?: string },
   handlers: CodexHandlers,
 ): CodexConnection {
   const child = spawn(options.command, options.args, { cwd: options.cwd, env: options.env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: OWN_GROUP });
   const terminals = child.pid ? new AgentProcesses(child.pid) : undefined;
-  // What a crash of Obeya would leave behind is recorded as it is observed (session-registry.ts).
+  // What a crash of Seismic would leave behind is recorded as it is observed (session-registry.ts).
   const record = terminals ? sessionRegistry()?.begin(options.label ?? 'Codex session', options.cwd) : undefined;
   const publish = () => {
     try { record?.publish(terminals!.observed()); } catch (error) { console.warn(`Session record not updated: ${messageOf(error)}`); }
   };
   if (terminals && record) { terminals.onChange = publish; publish(); }
+  // A busy machine's snapshot can time out: that observation is skipped, not the session ended.
+  const observed = tolerateTimeouts();
   /** The session's processes have ended, or the attempt failed and the record stays for a sweep. */
   const settleRecord = (ended: boolean) => { if (ended) record?.finish(); else record?.abandon(); };
   const pending = new Map<number, { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>();
@@ -158,16 +175,15 @@ export function codexConnection(
   child.on('error', (error) => fail(error));
   // Observe while turns are active too: a foreground/native PTY can detach before the first
   // background-list response. Creation identities keep snapshots from targeting reused PIDs.
-  // A snapshot still running when the next one is due is not joined by another.
+  // A track still running when the next tick is due is not joined by another.
   let observing = false;
-  const observe = setInterval(() => {
+  const stopObserving = observeEveryTick(() => {
     if (observing || !terminals) return;
     observing = true;
-    terminals.track().catch((error: unknown) => fail(new Error(messageOf(error)))).finally(() => { observing = false; });
-  }, 500);
-  observe.unref?.();
+    observed(terminals.track()).catch((error: unknown) => fail(new Error(messageOf(error)))).finally(() => { observing = false; });
+  });
   child.on('exit', (code, exitSignal) => {
-    clearInterval(observe);
+    stopObserving();
     if (!closing) fail(new Error(`Codex app-server exited (${exitSignal ?? code})${stderr.trim() ? `: ${stderr.trim()}` : ''}`));
     // Do not wait for `close`: a child command may still hold the dead parent's pipes open.
     void terminals?.kill().catch((error: unknown) => { failure ??= new Error(messageOf(error)); });
@@ -185,7 +201,7 @@ export function codexConnection(
     signal('SIGKILL');
   } });
   child.on('close', (code, exitSignal) => {
-    clearInterval(observe);
+    stopObserving();
     clearTimeout(terminate);
     clearTimeout(kill);
     if (!closing) failure = new Error(`Codex app-server exited (${exitSignal ?? code})${stderr.trim() ? `: ${stderr.trim()}` : ''}`);
@@ -202,10 +218,10 @@ export function codexConnection(
     })();
   });
   // Refuse to proceed if the initial app-server identity could not be established.
-  terminals?.track().catch((error: unknown) => fail(new Error(messageOf(error))));
+  if (terminals) observed(terminals.track()).catch((error: unknown) => fail(new Error(messageOf(error))));
   return {
     pid: child.pid,
-    trackProcesses: async (pids) => { await terminals?.track(pids); },
+    trackProcesses: async (pids) => { if (terminals) await observed(terminals.track(pids)); },
     request<T>(method: string, params: Record<string, unknown>): Promise<T> {
       return new Promise<T>((resolve, reject) => {
         if (closing) return reject(failure ?? new Error('Codex app-server connection closed'));

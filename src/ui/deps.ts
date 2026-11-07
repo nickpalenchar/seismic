@@ -15,6 +15,8 @@ export interface Deps {
   after: Set<string>;
   /** Each wait on the way, from the card waited for to the card waiting. */
   edges: [from: string, to: string][];
+  /** Those of `edges` on the way to the hovered card (into it or into a card it waits for), as `from to`. */
+  first: Set<string>;
 }
 
 const queued = (i: Item) => (i.queue && 'behind' in i.queue ? i.queue.behind : []);
@@ -34,16 +36,16 @@ export function waitsAmong(items: Item[]): [from: string, to: string][] {
 }
 
 /**
- * The dependencies within a project whose prerequisite is finished, which hold nothing any more and
- * so are no waits: from the finished card to the one that builds on it or that the owner drew an
- * arrow to, `done` once that one is finished too. They show what a delivered workstream unlocks.
+ * The dependencies whose prerequisite is finished, which hold nothing any more and so are no waits:
+ * from the finished card to the one that builds on it or that the owner drew an arrow to. They stay
+ * on the canvas as a dim green line.
  */
-export function settledAmong(items: Item[]): { from: string; to: string; done: boolean }[] {
+export function settledAmong(items: Item[]): { from: string; to: string }[] {
   const byId = new Map(items.map((i) => [i.id, i]));
   return items.flatMap((i) =>
-    [...new Set([...(i.buildsOn ?? []), ...(i.manualDependsOn ?? [])])].flatMap((from) => {
+    [...new Set([...queued(i), ...snoozedOn(i), ...(i.buildsOn ?? []), ...(i.manualDependsOn ?? [])])].flatMap((from) => {
       const f = byId.get(from);
-      return f && i.parent && f.parent === i.parent && finished(f.state) ? [{ from, to: i.id, done: finished(i.state) }] : [];
+      return f && finished(f.state) ? [{ from, to: i.id }] : [];
     }),
   );
 }
@@ -57,7 +59,8 @@ export function depsOf(id: string, items: Item[]): Deps | undefined {
   const waiters = new Map<string, string[]>();
   for (const i of items) for (const b of behind(i)) waiters.set(b, [...(waiters.get(b) ?? []), i.id]);
   const edges = new Map<string, [string, string]>();
-  const walk = (next: (x: string) => string[], edge: (x: string, y: string) => [string, string]) => {
+  const first = new Set<string>();
+  const walk = (next: (x: string) => string[], edge: (x: string, y: string) => [string, string], into?: Set<string>) => {
     const seen = new Set<string>();
     const todo = [id];
     while (todo.length) {
@@ -65,6 +68,7 @@ export function depsOf(id: string, items: Item[]): Deps | undefined {
       for (const y of next(x)) {
         const e = edge(x, y);
         edges.set(e.join(' '), e);
+        into?.add(e.join(' '));
         if (y === id || seen.has(y)) continue;
         seen.add(y);
         todo.push(y);
@@ -72,10 +76,10 @@ export function depsOf(id: string, items: Item[]): Deps | undefined {
     }
     return seen;
   };
-  const before = walk((x) => behind(byId.get(x)!), (x, y) => [y, x]);
+  const before = walk((x) => behind(byId.get(x)!), (x, y) => [y, x], first);
   const after = walk((x) => waiters.get(x) ?? [], (x, y) => [x, y]);
   if (!before.size && !after.size) return undefined;
-  return { before, after, edges: [...edges.values()] };
+  return { before, after, edges: [...edges.values()], first };
 }
 
 // ---------------------------------------------------------------- the dots an owner draws an arrow from
@@ -128,7 +132,7 @@ export function nearestHandle(cards: { id: string; b: Bounds }[], at: { x: numbe
 /** Unfinished prerequisites explicitly connected by the owner. */
 export function manualPrerequisites(item: Item, items: Item[]): Item[] {
   return (item.manualDependsOn ?? []).flatMap((id) => {
-    const prerequisite = items.find((i) => i.id === id);
-    return prerequisite && !prerequisite.archivedAt && !finished(prerequisite.state) ? [prerequisite] : [];
+    const prerequisite = items.find((i) => i.id === id) ?? item.manualArchived?.find((i) => i.id === id);
+    return prerequisite && !finished(prerequisite.state) && (!prerequisite.archivedAt || item.manualArchived?.some((i) => i.id === id)) ? [prerequisite] : [];
   });
 }

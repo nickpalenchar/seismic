@@ -1,6 +1,6 @@
 // What the owner changed in the configuration's dialog but has not saved yet (the canvases with
 // their repositories, the demo settings), written down per tab as it changes, so that it outlives
-// closing the dialog and a page load: Obeya's restart, say, which reloads the page mid-edit.
+// closing the dialog and a page load: Seismic's restart, say, which reloads the page mid-edit.
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 

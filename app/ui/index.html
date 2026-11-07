@@ -1,9 +1,9 @@
 <!doctype html>
-<!-- What the window shows until Obeya answers; then the shell (src/main.rs) loads the canvas. And while an update goes in. -->
+<!-- What the window shows until Seismic answers; then the shell (src/main.rs) loads the canvas. And while an update goes in. -->
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Obeya</title>
+    <title>Seismic</title>
     <style>
       html, body { margin: 0; height: 100%; background: #f4f2ee; color: #75716a; font: 15px system-ui, sans-serif; }
       @media (prefers-color-scheme: dark) { html, body { background: #151412; color: #a39e94; } }
@@ -18,7 +18,7 @@
     <script>
       const de = navigator.language.startsWith('de');
       // ?updating: the shell installs an update (src/update.rs) and then starts the app again
-      document.getElementById('what').textContent = location.search === '?updating' ? (de ? 'Obeya wird aktualisiert …' : 'Obeya is updating …') : de ? 'Obeya startet …' : 'Obeya is starting …';
+      document.getElementById('what').textContent = location.search === '?updating' ? (de ? 'Seismic wird aktualisiert …' : 'Seismic is updating …') : de ? 'Seismic startet …' : 'Seismic is starting …';
     </script>
   </body>
 </html>

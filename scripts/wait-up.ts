@@ -25,7 +25,7 @@ export async function waitUp(
   }
 }
 
-/** Whether `url` answers 2xx; Obeya's API only with the owner's key (`headers`, owner.ts). */
+/** Whether `url` answers 2xx; Seismic's API only with the owner's key (`headers`, owner.ts). */
 export async function answers(url: string, headers: Record<string, string> = {}) {
   try {
     return (await fetch(url, { headers, signal: AbortSignal.timeout(1000) })).ok;

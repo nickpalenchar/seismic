@@ -1,11 +1,11 @@
 // The demo video's full screen on the phone. Chrome on Android gives a video in full screen from its
-// own controls a landscape lock, and once the phone is turned to match it turns the lock into „any“
+// own controls a landscape lock, and once the phone is turned to match it turns the lock into "any"
 // and ends full screen when the screen turns back to portrait. Right after that change the screen
 // can still report the orientation it had before the lock, so turning the phone into landscape
 // sometimes ended full screen, and turning it back sometimes started it (Chromium's
 // media_controls_orientation_lock_delegate.cc describes the race). So on the phone the video's own
 // full screen button is hidden (`controlsList="nofullscreen"`, which also ends Chrome's turning into
-// full screen) and Obeya puts the player into full screen itself: it locks the screen to the
+// full screen) and Seismic puts the player into full screen itself: it locks the screen to the
 // video's orientation and holds the lock until full screen ends; the phone held the other way again
 // (read from the device's orientation, which goes on while the screen is locked) ends it.
 
@@ -45,6 +45,19 @@ const screenShape = (): Shape | null => {
   const type = orientation()?.type;
   return type ? (type.startsWith('portrait') ? 'portrait' : 'landscape') : null;
 };
+
+/** Scrolls each view scrolling around `el` by a pixel and back (the page to its top), which makes Safari place taps anew. */
+export function unstick(el: Element) {
+  if (scrollY) scrollTo(0, 0);
+  for (let box = el.parentElement; box; box = box.parentElement) {
+    if (box.scrollHeight <= box.clientHeight) continue;
+    const top = box.scrollTop;
+    const scroller = box;
+    scroller.scrollTop = top > 0 ? top - 1 : top + 1;
+    // back in the next frame: set back at once, Safari never scrolled
+    requestAnimationFrame(() => (scroller.scrollTop = top));
+  }
+}
 
 /**
  * The phone's full screen for the player `el` holding `video`: `can` says whether the browser puts
@@ -137,6 +150,16 @@ export function useFullscreen(el: RefObject<HTMLElement | null>, video: RefObjec
       if (fullRef.current) leave();
     };
   }, [can]);
+
+  // Safari on the iPhone: once its own player's full screen closed, taps on the page it returned to
+  // landed beside what they were aimed at (Approve took none) until the page was scrolled
+  useEffect(() => {
+    const v = video.current;
+    if (!enabled || can || !v) return;
+    const back = () => requestAnimationFrame(() => unstick(v));
+    v.addEventListener('webkitendfullscreen', back);
+    return () => v.removeEventListener('webkitendfullscreen', back);
+  }, [enabled, can]);
 
   return { can, full, toggle: () => (fullRef.current ? leave() : enter(false)), leave };
 }

@@ -1,6 +1,6 @@
-// What happens to processes a real Codex app-server started when it, or Obeya, stops?
+// What happens to processes a real Codex app-server started when it, or Seismic, stops?
 // bun scripts/process-lifecycle-probe.ts [graceful|forced|agent-death|host-death ...]
-// Runs the installed Codex app-server (no model turn, no billing) through Obeya's transport in
+// Runs the installed Codex app-server (no model turn, no billing) through Seismic's transport in
 // scratch directories, starts three heartbeat jobs with `thread/shellCommand` (one in the shell's
 // group, one in a session of its own, one in a session of its own whose launcher exits early) and
 // an unrelated canary, then stops things the named way and prints what survived as JSON.
@@ -41,11 +41,11 @@ else:
 const [mode, dir, kind] = process.argv.slice(2);
 if (mode === 'driver') {
   const repo = join(dir!, 'repo');
-  const codex = Bun.which(process.env.OBEYA_CODEX ?? 'codex');
+  const codex = Bun.which((process.env.SEISMIC_CODEX ?? process.env.OBEYA_CODEX) ?? 'codex');
   if (!codex) throw new Error('codex is not installed');
   const c = codexConnection({ command: codex, args: ['app-server', '--listen', 'stdio://'], cwd: repo, env: { ...process.env } }, { notification() {}, request: async () => ({}) });
   writeFileSync(join(dir!, 'agent.pid'), String(c.pid));
-  await c.request('initialize', { clientInfo: { name: 'obeya-probe', title: 'Obeya probe', version: '0' }, capabilities: { experimentalApi: true } });
+  await c.request('initialize', { clientInfo: { name: 'obeya-probe', title: 'Seismic probe', version: '0' }, capabilities: { experimentalApi: true } });
   c.notify('initialized', {});
   const started = await c.request<{ thread: { id: string } }>('thread/start', { cwd: repo, approvalPolicy: 'never', sandbox: 'danger-full-access' });
   await c.request('thread/shellCommand', { threadId: started.thread.id, command: JOBS.map((j) => `python3 job.py ${j} &`).join(' ') + ' wait' });

@@ -1,6 +1,6 @@
 // The usage limits of the Claude plan Claude Code is logged in with on this machine (the five-hour
 // session, the week, a model's week), for the bar while the owner has it show them (the settings'
-// `usageMeter`) and a page of Obeya's is open. They come from the data behind Claude Code's
+// `usageMeter`) and a page of Seismic's is open. They come from the data behind Claude Code's
 // `/usage`, which asks the plan's usage endpoint: one idle Claude Code session is asked about every
 // minute and sends no prompt, so it uses none of what it reports. The session keeps an answer for a
 // minute, so the rounds are a little longer apart and each gets a fresh one. A login without plan
@@ -107,7 +107,7 @@ export class UsageMeter {
     } catch (e) {
       this.failures++;
       this.skip = Math.min(2 ** (this.failures - 1) - 1, MAX_SKIPPED);
-      console.warn(`Obeya: the usage limits could not be fetched: ${e instanceof Error ? e.message : e}`);
+      console.warn(`Seismic: the usage limits could not be fetched: ${e instanceof Error ? e.message : e}`);
       // a new session next round; what was fetched last stands a little longer
       if (this.source === source) this.source = null;
       source.close();

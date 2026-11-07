@@ -11,7 +11,7 @@ import { type GitSetupPreview, LARGE_FILE } from '../core/types';
 import { BadRequest } from './board';
 import { GIT } from './workspaces';
 
-/** What Obeya writes as `.gitignore` where the folder has none: build output, dependencies, secrets. */
+/** What Seismic writes as `.gitignore` where the folder has none: build output, dependencies, secrets. */
 export const DEFAULT_GITIGNORE = `# Build output
 dist/
 build/
@@ -141,6 +141,6 @@ export function setUpGit(path: string): { branch: string } {
     if (wrote) rmSync(gitignore, { force: true });
     throw new BadRequest('gitSetup', `git ${step[0]} in ${path}: ${r.err}`);
   }
-  console.log(`Obeya: set up git in ${path} on ${branch}`);
+  console.log(`Seismic: set up git in ${path} on ${branch}`);
   return { branch };
 }

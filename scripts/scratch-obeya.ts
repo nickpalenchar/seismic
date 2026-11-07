@@ -1,24 +1,29 @@
-// A scratch Obeya for a demo or a live check, staged from one file: a fresh repository with plan
-// docs, a fresh OBEYA_HOME, the server from this checkout (or from an earlier commit, for a before
+// A scratch Seismic for a demo or a live check, staged from one file: a fresh repository with plan
+// docs, a fresh SEISMIC_HOME, the server from this checkout (or from an earlier commit, for a before
 // and after), and the cards in the states the demo needs. Running it again stages afresh, so a demo
 // calls it before every take.
 //
 //   bun scripts/scratch-obeya.ts <stage.json> [--port <n>] [--code <commit> | --binary <obeya>] [--real-workers | --record <dir> | --replay <dir>] [--restarts]
+//   bun scripts/scratch-obeya.ts --list
 //   bun scripts/scratch-obeya.ts --stop <port>
 //   bun scripts/scratch-obeya.ts --login <port>
-//   bun scripts/scratch-obeya.ts --say <port> <card key> <say|report|talk|question|review|to_obeya|tool|end> <text>
+//   bun scripts/scratch-obeya.ts --say <port> <card key> <say|report|talk|question|review|to_seismic|tool|end> <text>
 //   bun scripts/scratch-obeya.ts --artifact <port> <card key> <file> [<summary>]
 //
 // Prints one JSON line, also kept in <dir>/staged.json:
-//   { "url", "port", "dir", "canvas", "pid", "log", "from", "cards": { "<key>": "<card id>" }, "record"?, "replay"? }
+//   { "url", "port", "dir", "home", "repo", "database", "log", "canvas", "pid", "from", "cards": { "<key>": "<card id>" }, "record"?, "replay"? }
+// `home` is its SEISMIC_HOME, `repo` the staged repository, `database` its state (home/obeya.db),
+// `log` the server's output. --list prints a JSON line for each scratch Seismic staged by this script
+// whose server still runs: { "port", "url", "dir", "home", "repo", "database", "log", "stage", "code"? }.
+// `--list` and the stage output give home, repo, database and log paths; do not grep /tmp/obeya-scratch-*.
 // The port is --port, else the stage file's `port`; without either the script picks one: the
-// first from 4480 up that nothing listens on and no other scratch Obeya holds (a running one, or
+// first from 4480 up that nothing listens on and no other scratch Seismic holds (a running one, or
 // one being staged at the same time), so that workers staging at once never collide. --stop,
 // --login, --say and --artifact take the `port` it printed. Staging afresh from the same stage
-// file with the same --code or --binary (`from`) replaces the scratch Obeya staged from them
+// file with the same --code or --binary (`from`) replaces the scratch Seismic staged from them
 // before and takes its port again while that is free; with another --code, the two run side by
 // side. The dir is --dir, else the stage file's `dir`, else /tmp/obeya-scratch-<port>.
-// `url` signs browsers in (design: Who may talk to it), until the scratch Obeya stops; --login
+// `url` signs browsers in (design: Who may talk to it), until the scratch Seismic stops; --login
 // prints it again. --stop ends only the server it staged, never another program that has its
 // process number by now, and fails if the server still runs after it. The script itself talks to the API with the owner's key of the scratch home.
 //
@@ -28,7 +33,7 @@
 // as from a real agent. --say adds a line of the kind a stage file's `events` give: `say` (the
 // agent's words between its steps), `report` (its status line), `talk` (a reply), `question` (it
 // asks, and the card waits for the owner), `review` (a handover that keeps the card's demo); besides
-// those, `to_obeya` (it passes the owner's words on to Obeya, whose Koordinator is real and answers
+// those, `to_seismic` (it passes the owner's words on to Seismic, whose Koordinator is real and answers
 // on the card), `tool` (any other tool of the agent's, the text a JSON object `{ "tool", "args" }`)
 // `step` (a step of the agent's own that the card shows it doing, the text a JSON object: a tool call
 // `{ "type": "tool", "name": "Bash", "input": { "command": "…" } }`, its end `{ "type": "toolDone",
@@ -42,7 +47,7 @@
 // --record <dir> runs real workers, as --real-workers, and records every agent's session (the
 // Koordinator's, the workers', any other) into <dir>, emptied first (it must be empty, new, or a
 // recording). --replay <dir> plays such a recording back instead of running agents: each agent does
-// what it did in the recorded take, through Obeya's own tools of this code, and its handovers bring
+// what it did in the recorded take, through Seismic's own tools of this code, and its handovers bring
 // the recorded commits and demo; card ids, branches and paths of the recording stand for those of
 // this staging. A take played back comes out the same each time, in minutes and without Claude: it
 // goes at the recorded pace, except what the recorded take cut out (`d.skip`), which goes by in a
@@ -51,21 +56,21 @@
 // playback takes it from <demo dir>/.work while it is still the recorded take's; without them no wait
 // of the recording lasts long. Once the agents' instructions or tools differ from the recording's,
 // or a tool refuses what it took then, the playback refuses: the card shows the error, and the
-// scratch Obeya's home/replay-refused.txt says why (record anew). What the agents hear must stay as
+// scratch Seismic's home/replay-refused.txt says why (record anew). What the agents hear must stay as
 // recorded too: a changed command or comment needs a recorded take, since the recorded agents act
 // on the old one (the server's log names what differs; src/server/replay.ts).
 //
 // The server runs with --dev (it does not restart when the checkout commits; with --restarts it is
-// supervised like a real Obeya and restarts once the configuration is saved, PUT /api/config, and
+// supervised like a real Seismic and restarts once the configuration is saved, PUT /api/config, and
 // for commits on this checkout when it runs this checkout's code) and, unless
 // --real-workers, with --idle-workers: a started card is in progress without an agent. The
 // Koordinator and voice are real. --code <commit> runs that commit's code (`git archive`, with
 // this checkout's node_modules) in <dir>/code; that starts cold and on a busy machine takes well
 // over half a minute, so the script waits up to 5 minutes for the server while its process lives.
-// --binary <obeya> runs a compiled Obeya instead (`bun run build`), with the resources beside it.
+// --binary <obeya> runs a compiled Seismic instead (`bun run build`), with the resources beside it.
 // Bun's dev server answers for the page's scripts and styles only under the name it listens on: a
-// phone reaching the scratch Obeya through `tailscale serve` gets a blank page from one with --dev,
-// so stage with --restarts for that. Stopping a scratch Obeya removes its `tailscale serve` entry.
+// phone reaching the scratch Seismic through `tailscale serve` gets a blank page from one with --dev,
+// so stage with --restarts for that. Stopping a scratch Seismic removes its `tailscale serve` entry.
 //
 // The stage file (JSON; every field but `cards` optional):
 //   {
@@ -76,24 +81,24 @@
 //     "files": { "src/cli.ts": "…" }, "trusted": true,
 //     "pulls": [{ "number": 5, "title": "…", "author": "…", "files": { "src/x.ts": "…" }, "canModify": true }],
 //     "forgeClone": true,
-//     "plans": { "docs/plan/werkzeug.md": "# Werkzeug\n\n## Workstreams\n\n- [ ] **W1:** Konfiguration.\n" },
+//     "plans": { "docs/plan/tooling.md": "# Tooling\n\n## Workstreams\n\n- [ ] **W1:** Configuration.\n" },
 //     "cards": [
 //       { "key": "A", "title": "…", "body": "…", "x": 40, "y": 300,
-//         "state": "working", "statusLine": "Tests laufen", "createdAgo": "2h" },
-//       { "key": "B", "title": "…", "queue": { "behind": ["A"], "reason": "Beide ändern src/cli.ts." },
+//         "state": "working", "statusLine": "Tests running", "createdAgo": "2h" },
+//       { "key": "B", "title": "…", "queue": { "behind": ["A"], "reason": "Both change src/cli.ts." },
 //         "scope": ["src/cli.ts"] },
 //       { "key": "C", "title": "…", "state": "waiting", "need": "demo", "summary": "…",
-//         "demo": { "dir": "/abs/demo", "chapters": [[0, "Ausgangslage"]] } },
+//         "demo": { "dir": "/abs/demo", "chapters": [[0, "Starting point"]] } },
 //       { "key": "H", "title": "…", "state": "waiting", "need": "demo", "summary": "…",
 //         "demo": { "kind": "html", "dir": "/abs/artifact", "chapters": [] } },
 //       { "key": "N", "title": "…", "state": "waiting", "need": "review", "summary": "…" },
-//       { "key": "D", "title": "…", "state": "waiting", "need": "question", "question": { "text": "…", "options": ["Ja", "Nein"] } },
+//       { "key": "D", "title": "…", "state": "waiting", "need": "question", "question": { "text": "…", "options": ["Yes", "No"] } },
 //       { "key": "E", "title": "…", "from": "C" },
-//       { "key": "P", "project": "docs/plan/werkzeug.md", "x": 0, "y": 0 },
+//       { "key": "P", "project": "docs/plan/tooling.md", "x": 0, "y": 0 },
 //       { "key": "W1", "workstream": "W1", "state": "working", "statusLine": "…" }
 //     ],
 //     "preferences": [
-//       { "key": "R", "text": "Beschriftungen: präzise vor kurz." },
+//       { "key": "R", "text": "Labels: precise over short." },
 //       { "text": "…", "state": "proposed", "card": "A", "quote": "…", "replaces": "R" },
 //       { "text": "…", "state": "proposed", "review": true },
 //       { "text": "…", "state": "proposed", "target": "<repo id>" }
@@ -102,10 +107,10 @@
 //     "friction": [{ "card": "A", "what": "…", "cost": "…", "fix": "…", "ago": "1h" }],
 //     "feedback": [{ "card": "C", "rating": 4, "comment": "…", "configs": [{ "harness": "claude", "model": "claude-opus-5-5", "effort": "high" }], "ago": "2d" }],
 //     "settingProposals": [{ "field": "run", "value": "bun run dev", "basis": "…", "cards": ["A", "B"] }],
-//     "talk": [{ "said": "…", "reply": "…", "ago": "2h", "card": "A", "answer": "…" }]
+//     "talk": [{ "said": "…", "reply": "…", "ago": "2h", "card": "A", "answer": "…", "chat": 1 }]
 //   }
-// `language` is the language the scratch Obeya speaks (de or en); without it, the language of the
-// demos where the script runs (`plugin/skills/demo/lib/settings.ts`: `DEMO_LANGUAGE`, which Obeya
+// `language` is the language the scratch Seismic speaks (de or en); without it, the language of the
+// demos where the script runs (`plugin/skills/demo/lib/settings.ts`: `DEMO_LANGUAGE`, which Seismic
 // gives its workers from the repository's `demo.language`, else the demo settings'), so that the
 // screen a demo records matches its narration. Card titles and conversations are not translated:
 // write them in that language. `language` is the interface's; `conversation`, the language agents
@@ -136,10 +141,10 @@
 // starts from a configuration file in <dir>. `slots` caps the workers busy at once on this machine
 // (an idle worker counts as busy). `hosts` are other machines over SSH (as in the configuration;
 // `root` defaults to <dir>/far there): the repository gets a bare origin in <dir>, copied to each
-// host at the same path, so that Obeya clones it there as it would a remote; staging afresh
+// host at the same path, so that Seismic clones it there as it would a remote; staging afresh
 // removes <dir> there first. A host with `"gone": true` held its clones once and does not answer
 // now (an `ssh` target nobody resolves, say): nothing goes there, and its clones are registered as if
-// Obeya had made them. `name` names the canvas the cards go on; `repoName` names its repository's
+// Seismic had made them. `name` names the canvas the cards go on; `repoName` names its repository's
 // directory (<dir>/repo by default), and so its id; `repos` adds further repositories to that canvas,
 // `[{ "name": "promo", "files": { … } }]`, each in <dir>/<name> with that id, which a card's `repo`
 // names; `canvases` adds further ones by
@@ -152,16 +157,18 @@
 // exchange whose answer it continues, in that one's thread; `files`: the answer's files, each with
 // its name, caption and either `content` or a file to copy (`from`), written to the thread's output
 // directory; needs code that has them; `unread`: its answer waits unread; `wish`: what a draft for
-// Obeya's makers starts from, `{ said, answer? }`, for the link under the reply; `askedIn`: the key of
-// the project whose sheet the words were written in, straight to its project agent, with an empty `reply`). `friction` is what the Arbeitsrückschau noted on a card's
+// Seismic's makers starts from, `{ said, answer? }`, for the link under the reply; `askedIn`: the key of
+// the project whose sheet the words were written in, straight to its project agent, with an empty `reply`;
+// `chat`: a number that puts the exchanges with the same one into one chat, 0 by default, the chat
+// talked in last being the one open; needs code that has chats; `canvas`: the name of a canvas of
+// `canvases` it was said on). `friction` is what the work retrospective noted on a card's
 // runs (`card` a key), read by its next retrospective; `settingProposals` are values for a
 // repository's settings it proposed (`field`: checks, setup, softPaths or run; `cards` keys;
 // `repo` defaults to the canvas's home repository); both need code that has them. `feedback` are the
 // owner's responses on cards' approved work (`card` a key), about the card's latest handover (a
 // `review` event, or none), crediting `configs` as the work ran (none: nothing recorded; two or
 // more: mixed); `title` and `project` (a title) stand for the card's as they were; needs code that has them.
-// Obeya proposes a card that fills in the settings of a repository without any („Obeya für …
-// einrichten“); staging dismisses it on every canvas, unless `"setupProposals": true` keeps it.
+// Seismic proposes a card that fills in the settings of a repository without any ("Set up Seismic for …"); staging dismisses it on every canvas, unless `"setupProposals": true` keeps it.
 
 import { Database } from 'bun:sqlite';
 import { spawn, spawnSync } from 'node:child_process';
@@ -220,13 +227,13 @@ interface StageCard {
 }
 
 interface Stage {
-  /** No canvas: Obeya's first start, with the setup assistant. */
+  /** No canvas: Seismic's first start, with the setup assistant. */
   setup?: boolean;
-  /** Keeps Obeya's proposal to fill in the settings of a repository that has none. */
+  /** Keeps Seismic's proposal to fill in the settings of a repository that has none. */
   setupProposals?: boolean;
   /** Names the canvas the cards go on. */
   name?: string;
-  /** The language of the scratch Obeya's interface; the demos' where the script runs without it. */
+  /** The language of the scratch Seismic's interface; the demos' where the script runs without it. */
   language?: Language;
   /** The owner's conversation language; the interface's without it. */
   conversation?: Language;
@@ -263,8 +270,8 @@ interface Stage {
    * Pull requests someone outside opened on the canvas's repository, played by a forge in a file
    * (src/server/file-forge.ts): each a commit of `files` on the main branch, its head as
    * `refs/pull/<number>/head` in the repository. Their URLs are GitHub's for `forgeRepo` (default
-   * `acme/<repoName>`), the repository's origin too, which git of the scratch Obeya reads as the
-   * repository itself; the account Obeya acts as is `forgeViewer` (default `owner`); the watcher
+   * `acme/<repoName>`), the repository's origin too, which git of the scratch Seismic reads as the
+   * repository itself; the account Seismic acts as is `forgeViewer` (default `owner`); the watcher
    * looks at them every `prPoll` seconds (default 10). The file is <dir>/forge.json, which a demo
    * edits to play the contributor (a comment, a push).
    */
@@ -291,6 +298,8 @@ interface Stage {
     question?: string;
     answer?: string;
     answerBy?: string;
+    chat?: number;
+    canvas?: string;
     follows?: number;
     files?: { name: string; caption: string; content?: string; from?: string }[];
     unread?: boolean;
@@ -313,24 +322,29 @@ const SAYS = {
   talk: (text: string) => ({ tool: 'reply', args: { text } }),
   question: (question: string) => ({ tool: 'ask', args: { question } }),
   review: (summary: string) => ({ tool: 'ready_for_review', args: { summary, data_models: 'unchanged', data_models_reason: 'A staged handover.' } }),
-  to_obeya: (request: string) => ({ tool: 'to_obeya', args: { request } }),
+  to_seismic: (request: string) => ({ tool: 'to_seismic', args: { request } }),
   tool: (json: string) => ({ args: {}, ...(JSON.parse(json) as { tool: string; args?: Record<string, unknown> }) }) as { tool: string; args: Record<string, unknown> },
   step: (json: string) => ({ step: JSON.parse(json) as { type: 'tool'; name: string } }),
   end: () => ({ end: true as const }),
 };
 
+if (args.includes('--list')) {
+  for (const d of runningDirs()) console.log(JSON.stringify(pathsOf(d)));
+  process.exit(0);
+}
 const stopPort = opt('stop');
 if (stopPort) {
-  const d = opt('dir') ?? scratchDir(Number(stopPort));
+  const d = dirOf(Number(stopPort));
   if (!stop(d)) fail(`the server of ${d} (process ${pidIn(d)}) still runs after the stop`);
+  rmSync(pointerOf(Number(stopPort)), { force: true });
   process.exit(0);
 }
 const loginPort = opt('login');
 if (loginPort) {
-  const d = opt('dir') ?? scratchDir(Number(loginPort));
+  const d = dirOf(Number(loginPort));
   const canvas = existsSync(join(d, 'staged.json')) ? (JSON.parse(readFileSync(join(d, 'staged.json'), 'utf8')) as { canvas?: string }).canvas : undefined;
-  const link = await loginLink(`http://127.0.0.1:${loginPort}`, join(d, 'home'), canvas ? `/c/${canvas}` : '/');
-  if (!link) fail(`no scratch Obeya of ${d} answers on port ${loginPort}`);
+  const link = await loginLink(`http://127.0.0.1:${loginPort}`, join(d, 'home'), canvas ? `/p/${canvas}` : '/');
+  if (!link) fail(`no scratch Seismic of ${d} answers on port ${loginPort}`);
   console.log(link);
   process.exit(0);
 }
@@ -348,7 +362,7 @@ const artifactPort = opt('artifact');
 if (artifactPort) {
   const [key, from, ...words] = args.slice(args.indexOf('--artifact') + 2).filter((a, i, all) => !a.startsWith('--') && all[i - 1] !== '--dir');
   if (!key || !from || !existsSync(from)) fail('usage: bun scripts/scratch-obeya.ts --artifact <port> <card key> <file> [<summary>]');
-  const d = opt('dir') ?? scratchDir(Number(artifactPort));
+  const d = dirOf(Number(artifactPort));
   const to = artifactDir(d, key!);
   mkdirSync(to, { recursive: true });
   copyFileSync(from!, join(to, basename(from!)));
@@ -362,7 +376,7 @@ if (artifactPort) {
 const file = args.find((a, i) => !a.startsWith('--') && !args[i - 1]?.match(/^--(port|code|dir|binary|record|replay)$/));
 if (!file) fail('usage: bun scripts/scratch-obeya.ts <stage.json> [--port <n>] [--code <commit> | --binary <obeya>] [--real-workers | --record <dir> | --replay <dir>] [--restarts] | --stop <port> | --login <port> | --say <port> … | --artifact <port> …');
 const stage = JSON.parse(readFileSync(file!, 'utf8')) as Stage;
-// what a scratch Obeya was staged from: staging afresh from it replaces that one
+// what a scratch Seismic was staged from: staging afresh from it replaces that one
 const from = { stage: realpathSync(file!), ...(opt('code') || opt('binary') ? { code: opt('code') ?? opt('binary') } : {}) };
 const given = opt('port') ?? stage.port;
 const port = given !== undefined ? Number(given) : await pickPort(opt('dir') ?? stage.dir);
@@ -370,7 +384,10 @@ const dir = resolve(opt('dir') ?? stage.dir ?? scratchDir(port));
 const base = `http://127.0.0.1:${port}`;
 
 stop(dir);
-// whatever answers there, with Obeya's key or without
+// --list and the other options find a scratch Seismic outside /tmp/obeya-scratch-<port> by this
+if (dir !== scratchDir(port)) writeFileSync(pointerOf(port), dir);
+else rmSync(pointerOf(port), { force: true });
+// whatever answers there, with Seismic's key or without
 if (await fetch(base, { signal: AbortSignal.timeout(1000) }).then(() => true, () => false)) fail(`port ${port} is taken by another process (lsof -i :${port})`);
 rmSync(dir, { recursive: true, force: true });
 const home = join(dir, 'home');
@@ -380,7 +397,7 @@ const repo = join(dir, stage.repoName ?? 'repo');
 const mainBranch = stage.mainBranch ?? 'main';
 mkdirSync(home, { recursive: true });
 for (const k of ['language', 'conversation'] as const) if (stage[k] && !LANGUAGES.includes(stage[k])) fail(`"${k}" is ${LANGUAGES.join(' or ')}, not ${stage[k]}`);
-// the languages of Obeya's interface and of its agents' conversation with the owner (src/server/settings.ts)
+// the languages of Seismic's interface and of its agents' conversation with the owner (src/server/settings.ts)
 writeFileSync(join(home, 'settings.json'), `${JSON.stringify({ language: stage.language ?? demoSettingsHere().language, ...(stage.conversation ? { conversationLanguage: stage.conversation } : {}) })}\n`);
 // the owner's key, made before the server starts, which takes it from the home (owner.ts); code from before it has none and ignores it
 const owner = ownerHeaders(home);
@@ -433,7 +450,7 @@ if (stage.pulls?.length) {
     run('git', ['fetch', '-q', repo, '+refs/pull/*:refs/pull/*'], forgeRepo);
   }
   writeFileSync(join(dir, 'forge.json'), `${JSON.stringify({ repo: stage.forgeClone ? forgeRepo : repo, viewer: stage.forgeViewer ?? 'owner', prs }, null, 2)}\n`);
-  // its origin is the forge's repository, which git of the scratch Obeya finds in the repository itself
+  // its origin is the forge's repository, which git of the scratch Seismic finds in the repository itself
   if (!stage.poolCheckout && !stage.hosts?.length) run('git', ['remote', 'add', 'origin', `git@github.com:${slug}.git`], repo);
 }
 // the further repositories of the canvas
@@ -500,15 +517,18 @@ if (idle && !canIdle) console.error(`scratch-obeya: ${commit} has no --idle-work
 // which has none, its process tree)
 const log = join(dir, 'server.log');
 const out = openSync(log, 'a');
-// not supervised: a scratch Obeya restarts itself only when asked to
+// not supervised: a scratch Seismic restarts itself only when asked to
 const supervised = args.includes('--restarts');
 const env = {
-  ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'OBEYA_SUPERVISED')),
+  ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'OBEYA_SUPERVISED' && k !== 'SEISMIC_SUPERVISED')),
   OBEYA_HOME: home,
+  SEISMIC_HOME: home,
   ...(stage.pulls?.length
     ? {
         OBEYA_FORGE_FILE: join(dir, 'forge.json'),
+        SEISMIC_FORGE_FILE: join(dir, 'forge.json'),
         OBEYA_PR_POLL: String(stage.prPoll ?? 10),
+        SEISMIC_PR_POLL: String(stage.prPoll ?? 10),
         ...gitConfig(
           // the forge's repository is the remote's, and with a clone of its own the contributors' too: a push onto a PR's branch moves its head
           [`git@github.com:${stage.forgeRepo ?? `acme/${basename(repo)}`}.git`, ...(stage.forgeClone ? stage.pulls.map((p) => `https://github.com/${p.author}/${basename(stage.forgeRepo ?? `acme/${basename(repo)}`)}.git`) : [])].map(
@@ -580,7 +600,7 @@ if (!started.up) {
   fail(`the server did not come up ${started.exit !== null ? `(exit ${started.exit}) ${after}` : `${after}, so it was stopped`}; ${log}:\n${readFileSync(log, 'utf8').slice(-2000)}`);
 }
 if (stage.setup) {
-  const staged = { url: (await loginLink(base, home)) ?? `${base}/`, port, dir, repo, pid: server.pid, log, from, cards: {} };
+  const staged = { url: (await loginLink(base, home)) ?? `${base}/`, port, ...pathsAt(dir, repo, log), pid: server.pid, from, cards: {} };
   writeFileSync(join(dir, 'staged.json'), JSON.stringify(staged, null, 2));
   console.log(JSON.stringify(staged));
   process.exit(0);
@@ -598,7 +618,7 @@ const api = async (method: string, path: string, body?: unknown, on = canvas) =>
   return text ? JSON.parse(text) : undefined;
 };
 
-// the repositories' commands trusted as staged, as „Diesen Befehlen vertrauen“ does
+// the repositories' commands trusted as staged, as "Trust these commands" does
 if (stage.trusted) {
   const checked = (await (await fetch(`${base}/api/config/check`, { headers: owner })).json()) as ConfigChecked;
   for (const [i, c] of checked.canvases.entries())
@@ -610,7 +630,7 @@ if (stage.trusted) {
     }
 }
 
-// Obeya's proposal to fill in a repository's settings, on every canvas, unless the stage keeps it
+// Seismic's proposal to fill in a repository's settings, on every canvas, unless the stage keeps it
 if (!stage.setupProposals)
   for (const c of allCanvases)
     for (const i of ((await api('GET', '/canvas', undefined, c.id)) as CanvasSnapshot).items)
@@ -702,7 +722,7 @@ for (const [i, c] of stage.cards.entries()) {
     const other = c.repo && c.repo !== (stage.repoName ?? 'repo') ? c.repo : null;
     const checkout = other ? join(dir, other) : repo;
     const free = db.query('SELECT path FROM workspaces WHERE card_id IS NULL AND repo IS $r ORDER BY path').get({ r: other }) as { path: string } | null;
-    // no clones: the repository works in worktrees, one per card under Obeya's home
+    // no clones: the repository works in worktrees, one per card under Seismic's home
     const tree = !free && !!branch && !stage.clones;
     if (!free && !tree) fail(`card ${c.key ?? i}: no free clone for it ("clones" in the stage, settings that say clones), nor a branch for a worktree`);
     const path = tree ? join(home, 'workspaces', canvas, id.slice(0, 8)) : free!.path;
@@ -732,7 +752,7 @@ for (const [i, c] of stage.cards.entries()) {
   if (c.createdAgo !== undefined) row.created_at = ago(c.createdAgo);
   if (c.archivedAgo !== undefined) row.archived_at = ago(c.archivedAgo);
   Object.assign(row, c.row ?? {});
-  // a review card handed over has reviewed its PR's head, which is all Obeya merges
+  // a review card handed over has reviewed its PR's head, which is all Seismic merges
   const contribution = row.contribution as { number?: number; reviewed?: string } | undefined;
   const pull = contribution && !contribution.reviewed && prHeads.get(contribution.number ?? -1);
   if (pull) row.contribution = { ...contribution, reviewed: pull };
@@ -792,9 +812,12 @@ for (const [i, p] of (stage.preferences ?? []).entries()) {
 }
 const talkIds: number[] = [];
 const threadOf = new Map<number, number>();
+// code that keeps the owner's chats with Seismic apart: the exchanges with one `chat` key are one chat
+const chats = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'chats'").get();
+const chatIds = new Map<string, number>();
 for (const [i, x] of (stage.talk ?? []).entries()) {
   const row: Record<string, string | number | null> = {
-    canvas_id: canvas,
+    canvas_id: x.canvas ? (allCanvases.find((c) => c.name === x.canvas)?.id ?? fail(`talk ${i}: no canvas named ${x.canvas}`)) : canvas,
     at: ago(x.ago ?? '0s'),
     said: x.said,
     reply: x.reply,
@@ -812,6 +835,14 @@ for (const [i, x] of (stage.talk ?? []).entries()) {
     row.thread = threadOf.get(followed) ?? followed;
   }
   if (x.files?.length) row.files = JSON.stringify(x.files.map((f) => ({ name: f.name, caption: f.caption })));
+  if (chats) {
+    const key = `${row.canvas_id}/${x.chat ?? 0}`;
+    let chat = chatIds.get(key);
+    if (chat === undefined) chatIds.set(key, (chat = (db.query('INSERT INTO chats (canvas_id, at, opened) VALUES ($c, $at, $at) RETURNING id').get({ c: row.canvas_id as string, at: row.at as string }) as { id: number }).id));
+    // the chat talked in last is the one open
+    db.query('UPDATE chats SET opened = $at WHERE id = $id AND opened < $at').run({ id: chat, at: row.at as string });
+    row.chat = chat;
+  }
   const keys = Object.keys(row);
   const { id } = db.query(`INSERT INTO talk (${keys.join(', ')}) VALUES (${keys.map((k) => `$${k}`).join(', ')}) RETURNING id`).get(row) as { id: number };
   talkIds.push(id);
@@ -823,6 +854,8 @@ for (const [i, x] of (stage.talk ?? []).entries()) {
     writeFileSync(to, f.from ? readFileSync(f.from) : (f.content ?? ''));
   }
 }
+// the empty chat the server opened before the staged ones came is none of the stage's
+if (chats && chatIds.size) db.run('DELETE FROM chats WHERE id NOT IN (SELECT chat FROM talk WHERE chat IS NOT NULL)');
 const homeRepo = () => (db.query(`SELECT value FROM settings WHERE canvas_id = $c AND key = 'home_repo'`).get({ c: canvas }) as { value: string } | null)?.value ?? canvas;
 for (const [i, f] of (stage.friction ?? []).entries())
   db.query('INSERT INTO friction (canvas_id, repo, card_id, at, what, cost, fix) VALUES ($c, $repo, $card, $at, $what, $cost, $fix)').run({
@@ -883,7 +916,7 @@ for (const on of allCanvases) {
 for (const g of stage.groups ?? [])
   await api('POST', '/groups', { name: g.name, cards: g.cards.map((k) => ids[k] ?? fail(`group ${g.name}: card ${k} does not exist`)) });
 
-const staged = { url: (await loginLink(base, home, `/c/${canvas}`)) ?? `${base}/c/${canvas}`, port, dir, canvas, pid: server.pid, log, from, cards: ids, ...(record ? { record } : {}), ...(replay ? { replay } : {}) };
+const staged = { url: (await loginLink(base, home, `/p/${canvas}`)) ?? `${base}/p/${canvas}`, port, ...pathsAt(dir, repo, log), canvas, pid: server.pid, from, cards: ids, ...(record ? { record } : {}), ...(replay ? { replay } : {}) };
 writeFileSync(join(dir, 'staged.json'), JSON.stringify(staged, null, 2));
 console.log(JSON.stringify(staged));
 process.exit(0);
@@ -906,8 +939,8 @@ function run(cmd: string, a: string[], cwd: string) {
 }
 
 /**
- * A port for a scratch Obeya staged without one. Staging afresh from the same stage file and code
- * stops the scratch Obeya staged from them before (the one in `givenDir`, if given) and takes its
+ * A port for a scratch Seismic staged without one. Staging afresh from the same stage file and code
+ * stops the scratch Seismic staged from them before (the one in `givenDir`, if given) and takes its
  * port again; else the first from 4480 up that nothing listens on, whose scratch dir no running
  * server holds and that no other staging has claimed meanwhile (its server does not listen yet).
  */
@@ -924,13 +957,59 @@ async function pickPort(givenDir: string | undefined): Promise<number> {
     }
     rmSync(claimOf(p), { force: true });
   }
-  return fail('no free port from 4480 to 4979');
+  return fail('no free port from 4480 to 4979: run `bun scripts/scratch-obeya.ts --list` to see the running scratch instances, then `bun scripts/scratch-obeya.ts --stop <port>` for each stale one');
 }
 
 function scratchDirs() {
   return readdirSync('/tmp')
     .filter((n) => /^obeya-scratch-\d+$/.test(n))
     .map((n) => `/tmp/${n}`);
+}
+
+/** Where a scratch Seismic in `d` keeps what workers look for, as staging prints it. */
+function pathsAt(d: string, repo: string, log: string) {
+  return { dir: d, home: join(d, 'home'), repo, database: join(d, 'home', 'obeya.db'), log };
+}
+
+function pointerOf(p: number) {
+  return `${scratchDir(p)}.at`;
+}
+
+/** The scratch dir of the Seismic on port `p`: --dir, else the one staging named for it outside /tmp/obeya-scratch-<p> while it runs there. */
+function dirOf(p: number) {
+  const given = opt('dir');
+  if (given) return given;
+  try {
+    const d = readFileSync(pointerOf(p), 'utf8');
+    if (stagedIn(d)?.port === p && serverIn(d)) return d;
+  } catch {}
+  return scratchDir(p);
+}
+
+/** The scratch dirs whose server still runs: /tmp/obeya-scratch-<port> and those staging pointed to from there. */
+function runningDirs() {
+  const pointed = readdirSync('/tmp')
+    .filter((n) => /^obeya-scratch-\d+\.at$/.test(n))
+    .map((n) => {
+      try {
+        return readFileSync(`/tmp/${n}`, 'utf8');
+      } catch {
+        return '';
+      }
+    });
+  return [...new Set([...scratchDirs(), ...pointed])].filter((d) => d && stagedIn(d)?.port && serverIn(d)).sort((a, b) => stagedIn(a)!.port! - stagedIn(b)!.port!);
+}
+
+/** What --list prints of the scratch Seismic in `d`. */
+function pathsOf(d: string) {
+  const s = JSON.parse(readFileSync(join(d, 'staged.json'), 'utf8')) as { url: string; port: number; repo?: string; log?: string; from?: { stage?: string; code?: string } };
+  return {
+    port: s.port,
+    url: s.url,
+    ...pathsAt(d, s.repo ?? join(d, 'repo'), s.log ?? join(d, 'server.log')),
+    stage: s.from?.stage,
+    ...(s.from?.code ? { code: s.from.code } : {}),
+  };
 }
 
 function stagedIn(d: string): { port?: number; from?: unknown } | undefined {
@@ -1036,7 +1115,7 @@ async function free(p: number) {
   return !answers;
 }
 
-/** Ends the scratch Obeya that `dir` belongs to, and what it started, if it still runs; false if its server outlives the stop. */
+/** Ends the scratch Seismic that `dir` belongs to, and what it started, if it still runs; false if its server outlives the stop. */
 function stop(d: string) {
   const gone = stopServer(d);
   // one that was killed left its `tailscale serve` entry, which would serve whatever takes the port next
@@ -1067,7 +1146,7 @@ function signalGroup(pid: number) {
   }
   for (let i = 0; i < 40; i++) {
     if (!alive(pid)) return;
-    // Obeya waits for workers in the middle of a turn (an idle worker always is); a second signal ends it at once
+    // Seismic waits for workers in the middle of a turn (an idle worker always is); a second signal ends it at once
     if (i === 15)
       try {
         process.kill(-pid, 'SIGTERM');
@@ -1095,7 +1174,7 @@ function ago(s: string): string {
   return new Date(Date.now() - Number(m[1]) * unit * 1000).toISOString();
 }
 
-/** Where the card of `key` keeps its HTML artifact in the scratch Obeya of `d`. */
+/** Where the card of `key` keeps its HTML artifact in the scratch Seismic of `d`. */
 function artifactDir(d: string, key: string) {
   return join(d, 'artifacts', key);
 }
@@ -1106,10 +1185,10 @@ function copyArtifact(from: string, to: string) {
   return to;
 }
 
-/** The scratch Obeya on `port` as its staged.json has it, and the owner's key of its home. */
+/** The scratch Seismic on `port` as its staged.json has it, and the owner's key of its home. */
 function scratchAt(port: number) {
-  const d = opt('dir') ?? scratchDir(port);
-  if (!existsSync(join(d, 'staged.json'))) fail(`no scratch Obeya staged in ${d}`);
+  const d = dirOf(port);
+  if (!existsSync(join(d, 'staged.json'))) fail(`no scratch Seismic staged in ${d}`);
   const staged = JSON.parse(readFileSync(join(d, 'staged.json'), 'utf8')) as { canvas: string; cards: Record<string, string> };
   return { base: `http://127.0.0.1:${port}/api/c/${staged.canvas}`, cards: staged.cards, headers: ownerHeaders(join(d, 'home')) };
 }
@@ -1121,7 +1200,7 @@ function cardOf(port: number, key: string) {
 
 async function stagedCard(port: number, key: string): Promise<Item> {
   const { base, headers, id } = cardOf(port, key);
-  const r = await fetch(`${base}/canvas`, { headers }).catch(() => fail(`no scratch Obeya answers on port ${port}`));
+  const r = await fetch(`${base}/canvas`, { headers }).catch(() => fail(`no scratch Seismic answers on port ${port}`));
   return ((await r.json()) as CanvasSnapshot).items.find((i) => i.id === id) ?? fail(`card ${key} is not on the canvas`);
 }
 
@@ -1129,7 +1208,7 @@ async function stagedCard(port: number, key: string): Promise<Item> {
 async function standIn(port: number, key: string, act: { say: string } | { tool: string; args: Record<string, unknown> } | { end: true } | { step: unknown }): Promise<string> {
   const { base, headers, id } = cardOf(port, key);
   const r = await fetch(`${base}/cards/${id}/stand-in`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(act) }).catch(() =>
-    fail(`no scratch Obeya answers on port ${port}`),
+    fail(`no scratch Seismic answers on port ${port}`),
   );
   const body = (await r.json()) as { result?: string; error?: string };
   if (!r.ok) fail(`card ${key}: ${body.error ?? r.status}`);

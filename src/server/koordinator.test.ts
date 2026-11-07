@@ -54,10 +54,10 @@ const estimates = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => 
 const workerOf = (id: string) => runtime.sessions.find((s) => s.spec.cwd === board.row(id).workspace)!;
 
 /** Answers the latest open estimate. */
-async function scope(files: string[], conflicts: string[] = [], reason = 'Grund.', buildsOn: string[] = []) {
+async function scope(files: string[], conflicts: string[] = [], reason = 'Grund.', buildsOn: string[] = [], duplicates: string[] = []) {
   await settle();
   const s = estimates().at(-1) as FakeSession;
-  s.call('scope', { files, conflicts_with: conflicts, builds_on: buildsOn, reason });
+  s.call('scope', { files, conflicts_with: conflicts, builds_on: buildsOn, duplicates, reason });
   s.emit({ type: 'idle' });
   await settle();
 }
@@ -75,6 +75,48 @@ async function schedule(entries: [string, string[], string[], string[], string][
 }
 
 describe('Koordinator', () => {
+  test('a possible duplicate of a planned card stops the start and names the card', async () => {
+    const earlier = card('Export invoices to CSV');
+    const later = card('Add CSV export for invoices');
+    k.request(later.id);
+    await settle();
+    expect(estimates().at(-1)!.inbox[0]).toContain('Export invoices to CSV');
+    await scope(['src/export.ts'], [], 'Same requested export.', [], ['K1']);
+    expect(item(later.id).state).toBe('planned');
+    expect(item(later.id).queue).toBeUndefined();
+    expect(item(later.id).possibleDuplicates).toEqual([earlier.id]);
+    expect(board.events(later.id).some((e) => e.text.includes('Export invoices to CSV'))).toBe(true);
+    k.request(later.id);
+    await settle();
+    expect(item(later.id).state).toBe('working');
+  });
+
+  test('dismissing a possible duplicate hides the comparison and keeps the deliberate start', async () => {
+    card('Export invoices to CSV');
+    const later = card('Add CSV export for invoices');
+    k.request(later.id);
+    await scope(['src/export.ts'], [], 'Same export.', [], ['K1']);
+    expect(item(later.id).possibleDuplicates).toHaveLength(1);
+    board.dismissDuplicate(later.id);
+    expect(item(later.id).possibleDuplicates).toBeUndefined();
+    k.request(later.id);
+    await settle();
+    expect(item(later.id).state).toBe('working');
+  });
+
+  test('checking includes work awaiting review as a possible duplicate', async () => {
+    const earlier = card('Export invoices as CSV');
+    k.request(earlier.id);
+    await scope(['src/export.ts']);
+    board.work(earlier.id, { state: 'waiting', need: 'review' });
+    const later = card('Add invoice CSV export');
+    k.request(later.id);
+    await settle();
+    expect(estimates().at(-1)!.inbox[0]).toContain('Export invoices as CSV');
+    await scope(['src/export.ts'], [], 'Same export.', [], ['K1']);
+    expect(item(later.id).state).toBe('planned');
+    expect(board.events(later.id).at(-1)?.text).toContain('Export invoices as CSV');
+  });
   test('a one-start choice waits in the queue and reaches the worker when forced', async () => {
     const a = card('A');
     k.request(a.id);
@@ -102,6 +144,7 @@ describe('Koordinator', () => {
     expect(workerOf(b.id).spec.setting).toMatchObject({ model: 'opus', effort: 'high' });
   });
   test('a card with nothing in progress starts at once; its scope is estimated afterwards', async () => {
+    board.addPreference('Agents speak to me in English only.');
     const a = card('A');
     k.request(a.id);
     expect(item(a.id).queue).toMatchObject({ checking: true });
@@ -111,6 +154,8 @@ describe('Koordinator', () => {
     expect(item(a.id)).toMatchObject({ state: 'working', scope: ['src/a.ts'] });
     expect(item(a.id).queue).toBeUndefined();
     expect(estimates()[0]!.spec).toMatchObject({ readOnly: true });
+    expect(estimates()[0]!.spec.system).toContain('- Agents speak to me in English only.');
+    expect(estimates()[0]!.spec.tools.find((t) => t.name === 'scope')!.description).toContain('unless an explicit standing preference names another language');
   });
 
   test('a card likely to conflict waits and starts when the other one has landed', async () => {
@@ -325,7 +370,7 @@ describe('Koordinator', () => {
     expect(item(b.id).queue).toMatchObject({ checking: true });
     const brief = estimates().at(-1)!.inbox[0]!;
     expect(brief).toContain('"D"');
-    expect(brief).not.toContain('"C"');
+    expect(brief.split('Other unfinished tasks')[0]).not.toContain('"C"');
     await scope(['src/a.ts']);
     expect(item(b.id).state).toBe('working');
     expect(item(c.id).queue).toMatchObject({ behind: [b.id] });
@@ -507,7 +552,7 @@ describe("Koordinator queues a review's follow-up tasks", () => {
     const f = board.create({ title: 'Explain the arrows', from: r.id });
     k.followUp(f.id, r.id);
     expect(item(f.id)).toMatchObject({ state: 'planned', queue: { behind: [r.id], buildsOn: [r.id] } });
-    expect(board.events(f.id).at(-1)!.text).toBe('Obeya: wartet auf „PR #34: Manual dependencies“. Folgeaufgabe aus dem Review von PR #34; startet, sobald der PR gemergt ist.');
+    expect(board.events(f.id).at(-1)!.text).toBe('Seismic: wartet auf „PR #34: Manual dependencies“. Folgeaufgabe aus dem Review von PR #34; startet, sobald der PR gemergt ist.');
     await settle();
     expect(estimates()).toEqual([]);
     // the owner stopping the review does not free it: the PR is not merged
@@ -538,7 +583,7 @@ describe("Koordinator queues a review's follow-up tasks", () => {
     ]);
     expect(item(f2.id).state).toBe('working');
     expect(item(f1.id).queue).toMatchObject({ behind: [f2.id], buildsOn: [f2.id], reason: 'Die Tooltips bauen auf der Meldung auf.' });
-    expect(board.events(f1.id).at(-1)!.text).toBe('Obeya: wartet auf „Say why a link is refused“. Die Tooltips bauen auf der Meldung auf.');
+    expect(board.events(f1.id).at(-1)!.text).toBe('Seismic: wartet auf „Say why a link is refused“. Die Tooltips bauen auf der Meldung auf.');
   });
 
   test('a review closed without a merge takes its follow-up tasks back to planned, for the owner to decide on', async () => {
@@ -579,11 +624,26 @@ describe('Koordinator names a card the owner left without a title', () => {
     expect(item(a.id).title).toBe('Cursor startet im Textfeld');
   });
 
-  test('a title the owner types meanwhile stands; without an answer the text’s start stands in', async () => {
+  test('an English-only preference governs the title of a German task', async () => {
+    board.addPreference('Agents speak and write to me in English only.');
+    const a = task('Der Dialog soll den Cursor ins Textfeld setzen.');
+    const naming = k.name(a.id);
+    const s = namings().at(-1)!;
+    expect(s.spec.system).toContain('unless an explicit standing preference names another language');
+    expect(s.spec.system).toContain('- Agents speak and write to me in English only.');
+    expect(s.spec.system).toContain("The task's language does not change the title's language.");
+    expect(s.spec.tools.find((t) => t.name === 'title')!.description).toContain('unless an explicit standing preference names another language');
+    s.call('title', { title: 'Dialog focuses the text field' });
+    s.emit({ type: 'idle' });
+    await naming;
+    expect(item(a.id).title).toBe('Dialog focuses the text field');
+  });
+
+  test('a title the owner types meanwhile stands; without an answer the fallback is language-neutral', async () => {
     const a = task('Erste Zeile\nmehr');
     const naming = k.name(a.id);
     board.patch(a.id, { title: 'Meiner' });
-    namings()[0]!.call('title', { title: 'Obeyas' });
+    namings()[0]!.call('title', { title: 'Seismics' });
     namings()[0]!.emit({ type: 'idle' });
     await naming;
     expect(item(a.id).title).toBe('Meiner');
@@ -592,7 +652,38 @@ describe('Koordinator names a card the owner left without a title', () => {
     const failed = k.name(b.id);
     namings().at(-1)!.emit({ type: 'error', message: 'down' });
     await failed;
-    expect(item(b.id).title).toBe('Erste Zeile');
+    expect(item(b.id).title).toBe('…');
+
+    board.addPreference('Agents speak and write to me in English only.');
+    const c = task('Noch eine deutsche Aufgabe.');
+    const failedWithPreference = k.name(c.id);
+    namings().at(-1)!.emit({ type: 'error', message: 'down' });
+    await failedWithPreference;
+    expect(item(c.id).title).toBe('…');
+
+    board.setPreference(board.preferences('active')[0]!.id, null);
+    board.addPreference('Always speak to me in English.');
+    const d = task('Bitte wieder Deutsch schreiben.');
+    const failedWithOrdinaryRule = k.name(d.id);
+    namings().at(-1)!.emit({ type: 'error', message: 'down' });
+    await failedWithOrdinaryRule;
+    expect(item(d.id).title).toBe('…');
+
+    board.setPreference(board.preferences('active')[0]!.id, null);
+    board.addPreference('Use English for all replies.');
+    const e = task('Ein weiterer deutscher Text.');
+    const failedWithReplyRule = k.name(e.id);
+    namings().at(-1)!.emit({ type: 'error', message: 'down' });
+    await failedWithReplyRule;
+    expect(item(e.id).title).toBe('…');
+
+    board.setPreference(board.preferences('active')[0]!.id, null);
+    board.addPreference('Write commit messages in German.');
+    const f = task('English task text.');
+    const failedWithCodeRule = k.name(f.id);
+    namings().at(-1)!.emit({ type: 'error', message: 'down' });
+    await failedWithCodeRule;
+    expect(item(f.id).title).toBe('…');
   });
 
   test('a naming the usage limit stops waits on the card, and names it once the limit lifts', async () => {
@@ -712,6 +803,37 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     k.request(c.id);
     await settle();
     expect(labellings()).toHaveLength(1);
+  });
+
+  test.each([true, false])('CLAUDE.md cards get fixed labels at creation, not suggested, with session toggles %s', async (on) => {
+    k = new Koordinator({ board, runtime, home: () => dir, repoFor: () => ({ workers, workspaces, adapter: generic, path: dir }), holdMs: 0,
+      suggests: () => ({ category: on, complexity: on, priority: on }) });
+    board.fileRule('Use ISO dates.', ['home']);
+    const collect = board.collecting('home')!;
+    expect(collect).toMatchObject({ category: 'docs', subcategory: 'configuration' });
+    expect(collect.suggested).toBeUndefined();
+    expect(collect.complexity).toBeUndefined();
+    expect(collect.priority).toBeUndefined();
+    expect(runtime.sessions).toHaveLength(0);
+
+    // Later rules append to the same card without undoing the owner's label choices.
+    board.patch(collect.id, { category: 'tooling', subcategory: null });
+    board.acceptProposal(board.proposePreference('Use UTC timestamps.', {}, undefined, 'home'));
+    expect(board.collecting('home')!.id).toBe(collect.id);
+    expect(item(collect.id).body).toEndWith('- Use ISO dates.\n- Use UTC timestamps.');
+    expect(item(collect.id).category).toBe('tooling');
+    expect(item(collect.id).subcategory).toBeUndefined();
+    expect(item(collect.id).suggested).toBeUndefined();
+    expect(runtime.sessions).toHaveLength(0);
+
+    k.request(collect.id);
+    await settle();
+    expect(labellings()).toHaveLength(on ? 1 : 0);
+    if (on) expect(params(labellings()[0]!, 'labels')).toEqual(['complexity', 'priority']);
+    board.fileRule('Keep logs concise.', ['home']);
+    expect(board.collecting('home')).toMatchObject({ category: 'docs', subcategory: 'configuration' });
+    expect(board.collecting('home')!.suggested).toBeUndefined();
+    expect(board.collecting('home')!.id).not.toBe(collect.id);
   });
 });
 
@@ -1015,7 +1137,7 @@ describe('Koordinator starts all workstreams of a project', () => {
     expect(item(w2.id)).toMatchObject({ state: 'planned', scope: ['src/w2.ts'], queue: { behind: [w4.id], buildsOn: [w4.id], reason: 'W2 baut auf der API aus W4 auf.' } });
     expect(item(w3.id)).toMatchObject({ state: 'planned', queue: { behind: [a.id] } });
     expect(item(w3.id).queue).not.toHaveProperty('buildsOn');
-    expect(board.events(w2.id).at(-1)!.text).toBe('Obeya: wartet auf W4 „Titel W4“. W2 baut auf der API aus W4 auf.');
+    expect(board.events(w2.id).at(-1)!.text).toBe('Seismic: wartet auf W4 „Titel W4“. W2 baut auf der API aus W4 auf.');
     // the Koordinator's order is the queue's
     expect(k.ahead(item(w3.id)).map((i) => i.id)).toEqual([w2.id]);
     expect(board.events(p.id).at(-1)!.text).toContain('1 von 3 Workstreams starten jetzt');
@@ -1053,10 +1175,13 @@ describe('Koordinator starts all workstreams of a project', () => {
   });
 
   test('a workstream waits only for what comes before it, and every one has to be scheduled', async () => {
+    board.addPreference('Agents speak to me in English only.');
     const { p, w2, w3, w4 } = project();
     k.request(p.id);
     await settle();
     const s = schedules()[0]!;
+    expect(s.spec.system).toContain('- Agents speak to me in English only.');
+    expect(s.spec.tools.find((t) => t.name === 'schedule')!.description).toContain('unless an explicit standing preference names another language');
     expect(s.call('schedule', { workstreams: [{ card: 'K1', files: [], builds_on: [], conflicts_with: [], reason: '' }] })).toContain('missing K2, K3');
     await schedule([
       ['K1', ['src/w2.ts'], ['K3'], [], 'Wartet auf W4.'],
@@ -1093,7 +1218,7 @@ describe('Koordinator starts all workstreams of a project', () => {
     await settle();
     expect(schedules()).toHaveLength(1);
     expect(schedules()[0]!.inbox[0]).toContain('Titel W3');
-    expect(schedules()[0]!.inbox[0]).not.toContain('Titel W4');
+    expect(schedules()[0]!.inbox[0]!.split('Other unfinished tasks')[0]).not.toContain('Titel W4');
   });
 
   test('a single workstream is judged as any card; none left to start is refused', async () => {
@@ -1135,12 +1260,12 @@ describe('Koordinator starts all workstreams of a project', () => {
     expect(estimates().at(-1)!.spec.system).toContain('builds_on');
     await scope(['src/w3.ts'], [], 'W3 nutzt die API aus W2.', ['K1']);
     expect(item(w3.id)).toMatchObject({ state: 'planned', queue: { behind: [w2.id], buildsOn: [w2.id], reason: 'W3 nutzt die API aus W2.' } });
-    expect(board.events(w3.id).at(-1)!.text).toBe('Obeya: wartet auf W2 „Titel W2“ (noch nicht gestartet). W3 nutzt die API aus W2.');
+    expect(board.events(w3.id).at(-1)!.text).toBe('Seismic: wartet auf W2 „Titel W2“ (noch nicht gestartet). W3 nutzt die API aus W2.');
 
     // the owner starts W2: W3 waits for it, so W2 does not wait for W3
     k.request(w2.id);
     await settle();
-    expect(estimates().at(-1)!.inbox[0]).not.toContain('Titel W3');
+    expect(estimates().at(-1)!.inbox[0]!.split('Other unfinished tasks')[0]).not.toContain('Titel W3');
     await scope(['src/w2.ts']);
     expect(item(w2.id).state).toBe('working');
     expect(item(w3.id).queue).toMatchObject({ behind: [w2.id] });
@@ -1221,6 +1346,17 @@ describe('preference memory', () => {
     await settle();
   };
   const texts = (...states: ('proposed' | 'active' | 'rejected')[]) => board.preferences(...states).map((p) => p.text);
+
+  test('the learner receives the standing language rule for owner-facing proposals', async () => {
+    board.addPreference('Agents speak to me in English only.');
+    k.learn(null, 'talk', 'Bitte frag nicht nach Dateinamen.');
+    await settle();
+    const s = learnSession();
+    expect(s.spec.system).toContain('- Agents speak to me in English only.');
+    expect(s.spec.tools.find((t) => t.name === 'propose')!.description).toContain('unless an explicit standing preference names another language');
+    s.call('nothing', {});
+    s.emit({ type: 'idle' });
+  });
 
   test('a lasting preference is proposed with its occasion and applies once the owner accepts it; a one-off is not', async () => {
     const a = card('Labels');
@@ -1415,6 +1551,20 @@ describe('Rückschau', () => {
   const reviews = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'done'));
   const koordinator = () => new Koordinator({ board, runtime, home: () => board.canvas.repos[0]!.path, repoFor: () => ({ workers, workspaces, adapter: generic, path: board.canvas.repos[0]!.path }), reviewEvery: 4 });
 
+  test('the retrospective receives the standing language rule for owner-facing proposals', async () => {
+    board.addPreference('Agents speak to me in English only.');
+    const a = card('Export');
+    board.log(a.id, 'hint', 'owner', 'Please keep the card concise.');
+    const run = koordinator();
+    for (let n = 0; n < 4; n++) run.noticed();
+    await settle();
+    const s = reviews().at(-1)!;
+    expect(s.spec.system).toContain('- Agents speak to me in English only.');
+    expect(s.spec.tools.find((t) => t.name === 'propose')!.description).toContain('unless an explicit standing preference names another language');
+    s.call('done', {});
+    s.emit({ type: 'idle' });
+  });
+
   test('after enough inputs, counted across a restart, it reads the history since the last one and proposes rules from it', async () => {
     let k1 = koordinator();
     k1.noticed();
@@ -1429,7 +1579,7 @@ describe('Rückschau', () => {
     k1.noticed();
     expect(board.setting('review_inputs')).toBe('2');
 
-    // Obeya starts again: the count goes on
+    // Seismic starts again: the count goes on
     k1 = koordinator();
     k1.noticed();
     expect(reviews()).toHaveLength(0);

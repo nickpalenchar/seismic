@@ -3,10 +3,10 @@
 // agent works on; new tasks that start, wait, or start at a time the owner names; questions with no card open (an opinion becomes
 // an idea, a fact stays in the conversation, work on the machine such as a new repository is a task);
 // actions that depend on reading first, looked up with the step to take then;
-// requests Obeya cannot do, or words for its makers; a step promised for once a card is done,
+// requests Seismic cannot do, or words for its makers; a step promised for once a card is done,
 // which it waits for and then takes by itself; and reviews of pull requests, a review card each.
-// Runs only with OBEYA_LIVE=1 (it uses the machine's
-// Claude login and takes about a minute): `OBEYA_LIVE=1 bun test src/server/commands.live.test.ts`.
+// Runs only with SEISMIC_LIVE=1 (it uses the machine's
+// Claude login and takes about a minute): `SEISMIC_LIVE=1 bun test src/server/commands.live.test.ts`.
 
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -22,9 +22,9 @@ import { gitRepo } from './testing';
 
 // the sessions need the machine's Claude login, which the test setup hides behind a scratch config
 const scratch = process.env.CLAUDE_CONFIG_DIR;
-const machine = process.env.OBEYA_MACHINE_CLAUDE_CONFIG_DIR;
+const machine = (process.env.SEISMIC_MACHINE_CLAUDE_CONFIG_DIR ?? process.env.OBEYA_MACHINE_CLAUDE_CONFIG_DIR);
 const setConfig = (dir: string | undefined) => (dir === undefined ? delete process.env.CLAUDE_CONFIG_DIR : (process.env.CLAUDE_CONFIG_DIR = dir));
-beforeAll(() => void (process.env.OBEYA_LIVE && setConfig(machine)));
+beforeAll(() => void ((process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE) && setConfig(machine)));
 afterAll(() => void setConfig(scratch));
 
 // each Koordinator works in a directory of its own, removed once all have run
@@ -47,13 +47,13 @@ const STATES: Record<string, Record<string, string>> = {
 };
 
 /**
- * State of the open card, what the owner says (or types), the request its agent passes on (`to_obeya`;
+ * State of the open card, what the owner says (or types), the request its agent passes on (`to_seismic`;
  * none: the card has no agent, and the words reach the Koordinator themselves), whether typed, and
  * the actions expected. What the owner says to an agent never comes back to it as a note, an answer or feedback.
  */
 const CASES: [string, string, string | null, boolean, Command['do'][]][] = [
   ['working', 'mach eine Folgeaufgabe für den Excel-Export', 'Create a follow-up card for an Excel export of this card.', false, ['newCard']],
-  ['working', 'Merk dir: Exporte immer mit Kopfzeile', 'The owner wants Obeya to remember: exports always with a header row.', true, ['remember']],
+  ['working', 'Merk dir: Exporte immer mit Kopfzeile', 'The owner wants Seismic to remember: exports always with a header row.', true, ['remember']],
   ['working', 'halt an, ich will das anders angehen', 'Stop the agent on this card.', false, ['stop']],
   ['working', 'Was ist seit gestern auf der Leinwand passiert?', 'What happened on the canvas since yesterday?', true, []],
   ['working', 'starte auch gleich Login', 'Start the card Login.', false, ['start']],
@@ -94,8 +94,8 @@ async function hear(state: string, text: string, request: string | null, typed: 
   return { did: executed.map((c) => c.do), executed, confirm: heard.confirm, said };
 }
 
-test.skipIf(!process.env.OBEYA_LIVE)(
-  'the Koordinator does what an agent passes on, and knows Obeya’s commands on a card without one',
+test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
+  'the Koordinator does what an agent passes on, and knows Seismic’s commands on a card without one',
   async () => {
     const results = await Promise.all(CASES.map(async ([state, text, request, typed, want]) => ({ state, text, request, typed, want, got: await hear(state, text, request, typed) })));
     const wrong = results.filter((r) => JSON.stringify(r.got.did) !== JSON.stringify(r.want));
@@ -135,7 +135,7 @@ async function newTask(text: string, language: 'de' | 'en') {
   return { start: card?.do === 'newCard' ? (until ? 'later' : card.start) : undefined, until, confirm: heard.confirm };
 }
 
-test.skipIf(!process.env.OBEYA_LIVE)(
+test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   'a new task starts at once unless the owner says it should wait, or later when they name a time',
   async () => {
     const runs = NEW_TASKS.flatMap((c) => [c, c, c]);
@@ -154,7 +154,7 @@ const NO_CARD: [string, boolean, Command['do'][]][] = [
   ['Was hältst du davon, die Exporte nachts laufen zu lassen?', false, ['newIdea']],
   ['Was steht im Plan zu den Exporten?', true, []],
   ['Was ist seit gestern passiert?', false, []],
-  ['Kannst du mir ein neues repo in ~/dev/kassenbuch und einen entsprechenden Obeya canvas anlegen? Privater account, erstmal nicht nach GitHub.', true, ['newCard']],
+  ['Kannst du mir ein neues repo in ~/dev/kassenbuch und einen entsprechenden Seismic canvas anlegen? Privater account, erstmal nicht nach GitHub.', true, ['newCard']],
   ['Installier mir ffmpeg auf dem Rechner', false, ['newCard']],
 ];
 
@@ -166,7 +166,7 @@ async function noCard(text: string, typed: boolean) {
   board.create({ title: 'Zählerstände nachtragen', x: 0, y: 0 });
   const executed: Command[] = [];
   const runtime = withAgentSetting(sdkRuntime, () => AGENT_DEFAULTS.koordinator);
-  // the configuration as Obeya serves it, one canvas on a repository that exists
+  // the configuration as Seismic serves it, one canvas on a repository that exists
   const home = cwd();
   const started = [{ name: 'C', repos: [{ path: gitRepo(join(home, 'home')) }] }];
   const config = new Config({ file: join(home, 'canvases.json'), source: 'file', started, store: new Store(':memory:'), running: () => ['c'], server: { port: 4417, home, permissionMode: 'auto' } });
@@ -177,7 +177,7 @@ async function noCard(text: string, typed: boolean) {
   return { did: executed.map((c) => c.do), executed, confirm: heard.confirm };
 }
 
-test.skipIf(!process.env.OBEYA_LIVE)(
+test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   'with no card open, a question for an opinion becomes an idea, a question of fact stays in the conversation, and work on the machine is a task',
   async () => {
     const results = await Promise.all(NO_CARD.map(async ([text, typed, want]) => ({ text, want, got: await noCard(text, typed) })));
@@ -201,7 +201,7 @@ const READ_FIRST: [string, boolean, Command['do'][]][] = [
   ['Behebe Issue 27 auf GitHub', false, ['newCard']],
 ];
 
-test.skipIf(!process.env.OBEYA_LIVE)(
+test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   'actions that depend on reading are looked up with the step to take then; work on one named issue is a task',
   async () => {
     const results = await Promise.all(
@@ -227,8 +227,8 @@ test.skipIf(!process.env.OBEYA_LIVE)(
 );
 
 /**
- * What the owner says with no card open, and what comes of it: a reply that Obeya cannot do it
- * (`cannot`, with a link to report it as a wish), a draft for Obeya's makers they asked for (`wish`),
+ * What the owner says with no card open, and what comes of it: a reply that Seismic cannot do it
+ * (`cannot`, with a link to report it as a wish), a draft for Seismic's makers they asked for (`wish`),
  * or neither (unclear, a fact, a request that fails for the moment or does not fit a card's state).
  */
 const WISHES: [string, 'cannot' | 'wish' | null][] = [
@@ -236,14 +236,14 @@ const WISHES: [string, 'cannot' | 'wish' | null][] = [
   ['Exportier die ganze Leinwand als PDF', 'cannot'],
   ['Schick mir eine SMS, sobald eine Demo fertig ist', 'cannot'],
   ['Zeig mir für jede Aufgabe, wie viele Tokens sie gekostet hat, als Diagramm', null],
-  ['Obeya, Feedback: die Minikarte soll sich ausblenden lassen', 'wish'],
-  ['Sag den Entwicklern von Obeya, dass der Start zu lange dauert', 'wish'],
+  ['Seismic, Feedback: die Minikarte soll sich ausblenden lassen', 'wish'],
+  ['Sag den Entwicklern von Seismic, dass der Start zu lange dauert', 'wish'],
   ['mach das Ding da mal weg', null],
   ['Was ist seit gestern passiert?', null],
   ['Starte Login', null],
 ];
 
-/** What the Koordinator makes of one sentence with no card open: whether it says Obeya cannot do it, or opens a draft for the makers. */
+/** What the Koordinator makes of one sentence with no card open: whether it says Seismic cannot do it, or opens a draft for the makers. */
 async function wishOf(text: string) {
   const board = new Board(new Store(':memory:'), { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
   board.work(board.create({ title: 'Export als CSV', x: 0, y: 0 }).id, { state: 'live' });
@@ -254,8 +254,8 @@ async function wishOf(text: string) {
   return { got: heard.wish ? ('wish' as const) : heard.cannot ? ('cannot' as const) : null, confirm: heard.confirm };
 }
 
-test.skipIf(!process.env.OBEYA_LIVE)(
-  "a reply says when Obeya lacks what the owner asked, and words for Obeya's makers open a draft; nothing else does",
+test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
+  "a reply says when Seismic lacks what the owner asked, and words for Seismic's makers open a draft; nothing else does",
   async () => {
     const results = await Promise.all(WISHES.flatMap((c) => [c, c]).map(async ([text, want]) => ({ text, want, ...(await wishOf(text)) })));
     const wrong = results.filter((r) => r.got !== r.want);
@@ -282,10 +282,10 @@ async function later(text: string) {
   // a folder no repository is in yet, as on the owner's machine then: the Koordinator may look
   const place = join(cwd(), 'recipes');
   board.addTalk(
-    `Kannst du mir ein neues Repo in ${place} und einen entsprechenden Obeya canvas anlegen? Privater Account, erstmal nicht nach GitHub.`,
-    `I can't create a repository myself; Obeya can only put a canvas on one that already exists. Run \`mkdir -p ${place} && cd ${place} && git init -b main && git commit --allow-empty -m "Start"\`. Tell me once it's there, and I'll add the canvas “Recipes”.`,
+    `Kannst du mir ein neues Repo in ${place} und einen entsprechenden Seismic canvas anlegen? Privater Account, erstmal nicht nach GitHub.`,
+    `I can't create a repository myself; Seismic can only put a canvas on one that already exists. Run \`mkdir -p ${place} && cd ${place} && git init -b main && git commit --allow-empty -m "Start"\`. Tell me once it's there, and I'll add the canvas “Recipes”.`,
   );
-  const view = { file: '/h/canvases.json', source: 'file', canvases: [{ name: 'Obeya', repos: [{ path: '/r' }] }], running: ['obeya'] } as unknown as ConfigView;
+  const view = { file: '/h/canvases.json', source: 'file', canvases: [{ name: 'Seismic', repos: [{ path: '/r' }] }], running: ['obeya'] } as unknown as ConfigView;
   const config = { view: () => view, check: async (canvases: unknown) => ({ canvases: canvases as CanvasConfig[], resolved: [], problems: [] }), checkSaved: async () => ({ canvases: view.canvases, resolved: [], problems: [] }) };
   const executed: Command[] = [];
   const runtime = withAgentSetting(sdkRuntime, () => AGENT_DEFAULTS.koordinator);
@@ -320,7 +320,7 @@ async function later(text: string) {
   return { now, confirm: heard.confirm, on: wait.title, then: wait.then, body, after: executed.slice(made), notice: notices[0] };
 }
 
-test.skipIf(!process.env.OBEYA_LIVE)(
+test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   'a step that can only follow once a card is done is waited for, and taken by itself once it is',
   async () => {
     const results = await Promise.all(LATER.flatMap((c) => [c, c, c]).map(async ([text, want, on]) => ({ text, want, on, got: await later(text) })));
@@ -377,7 +377,7 @@ async function reviews(text: string) {
   return { did: executed.map((c) => c.do), executed };
 }
 
-test.skipIf(!process.env.OBEYA_LIVE)(
+test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   'every pull request the owner asks to have reviewed gets a review card of its own, also beside tasks titled like reviews',
   async () => {
     const results = await Promise.all(REVIEWS.flatMap((c) => [c, c, c]).map(async ([text, want]) => ({ text, want, got: await reviews(text) })));

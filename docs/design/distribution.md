@@ -12,8 +12,8 @@ Bun's embedded file system is readable only by the binary itself, so whatever ot
 import goes beside it as real files in `resources/`: the plugin with its skills and the
 `playwright-core` the demo skill records with, the voice sidecars, the skills' settings scripts
 bundled with their imports, and `docs/settings.md` for the settings skill. The server looks for them
-in `OBEYA_RESOURCES`, else `resources` beside the binary (`Resources` in a macOS app bundle), else
-the checkout (`src/server/resources.ts`). The resources may be read-only; everything Obeya writes is
+in `SEISMIC_RESOURCES`, else `resources` beside the binary (`Resources` in a macOS app bundle), else
+the checkout (`src/server/resources.ts`). The resources may be read-only; everything Seismic writes is
 in its home.
 
 The binary is its own Bun for scripts (a site's deploy script runs as `obeya <script>` with
@@ -23,7 +23,7 @@ least), or macOS kills it at start; Bun leaves a copy of its runtime (`.<hex>.bu
 working directory of every compile, so the build compiles in the output directory and removes it;
 the UI bundle needs `NODE_ENV` defined as production, or it ships React's development build.
 
-`package.json` holds Obeya's version, which the settings show, with the commit beside it when Obeya
+`package.json` holds Seismic's version, which the settings show, with the commit beside it when Seismic
 runs from a checkout. `bun scripts/check-binary.ts` checks a binary end to end on the machine it
 runs on (voice, a demo render, a real worker on Claude Code and on the SDK); it passes on macOS
 arm64, Windows x64 and Linux x64 and arm64 (2026-10-07).
@@ -36,8 +36,8 @@ without them the server fails at start for lack of `SharedArrayBuffer`), a per-u
 on Windows (no admin rights), an AppImage and a .deb on Linux (`app/linux.Dockerfile` builds and
 checks them in a container on a Mac).
 
-The shell opens a window on the Obeya already running on the home, or starts the server (on 4417,
-else a free port) and shows „Obeya startet …“ until it answers. Quitting the app (Cmd+Q, the menu,
+The shell opens a window on the Seismic already running on the home, or starts the server (on 4417,
+else a free port) and shows "Seismic is starting …" until it answers. Quitting the app (Cmd+Q, the menu,
 the Dock) stops that server as Ctrl-C would (`POST /api/stop`), whoever started it (the app, in this
 run or an earlier one, or `bun start` in a terminal, which then ends too), and the window shows what
 the stop waits for; quitting again goes ahead at once. The app ends when its server does; a server
@@ -45,7 +45,7 @@ it started in this run that ends unasked shows the last lines of its log in a di
 brings the window to the front. On a Mac, closing the window keeps the app in the Dock, and the
 window has no title bar: the canvas's bar holds the traffic lights, centred on its height, and drags the
 window (the pinned navigation's head, as tall, while it is pinned). Links
-leaving the canvas and new windows open in the default browser, as does „Im Browser öffnen“ in the
+leaving the canvas and new windows open in the default browser, as does "Open in browser" in the
 settings (and the Mac's File menu). The shell itself opens them, a plain click on a link with
 `target=_blank` included; Tauri's opener plugin stays unregistered, since its link script takes such
 a click and hands it to the plugin over IPC, which the page may not call, so the click did nothing
@@ -88,14 +88,14 @@ unprefixed property alone, dragging a card selects some of its text in the app, 
 
 `bun run app` builds the shell alone and runs it from the terminal on the checkout's server (`bun
 src/server/main.ts`, run in the checkout), which follows the checkout as `bun start` does. `bun run
-app install` installs that shell as an app of its own, „Obeya (checkout)“: in `~/Applications` on a
+app install` installs that shell as an app of its own, "Seismic (checkout)": in `~/Applications` on a
 Mac (a bundle, so Spotlight, Launchpad and the Dock know it and the system asks its permissions for
 it), in the Start menu on Windows, in the applications menu on Linux, and opens it. Its identifier is
 not the release's, so its permissions and its single instance stay apart from an installed release.
 Started from the desktop it gets no environment, so the checkout, the bun that ran the install and
-the version of `app/` on HEAD are compiled in, and the commit, which its settings show under „App“;
+the version of `app/` on HEAD are compiled in, and the commit, which its settings show under "App";
 the server it starts adds the directory of its bun to the PATH, for the workers' `bun`. A checkout's
-Obeya in a browser shows `bun run app install` in its settings.
+Seismic in a browser shows `bun run app install` in its settings.
 
 Landed code reaches it as it reaches `bun start` (see Self-update); the shell itself offers no
 release updates. Once `app/` on the checkout's HEAD is another than it was built from (looked at
@@ -115,7 +115,7 @@ without: the shell first has the page hand it to the server, waits a few seconds
 arrive, and the page in the new window takes it back, once. On a Mac the new shell is started
 through the system (`open`) once the old one has ended, as the Dock starts it: started by the old
 process, it would count as that process's for the system's permissions, the microphone among them.
-The bundle of the shell that still runs is moved aside on a Mac (`Obeya (checkout).app.old-…`
+The bundle of the shell that still runs is moved aside on a Mac (`Seismic (checkout).app.old-…`
 beside it), not removed: macOS decides on the microphone by the file the running program was
 started from and denies it once that file is gone. A later install removes the asides nothing has
 open any more. A build that fails is logged to `app-build.log` in the home and tried again with the next change
@@ -133,10 +133,10 @@ AppImage on Ubuntu 22.04 for its glibc), checks the compiled server there with
 `scripts/check-binary.ts`, and runs typecheck and tests on Linux (with uv and ffmpeg for the demo
 voice's tests). A run takes about ten minutes.
 
-Builds and tests use Bun 1.4.3. Obeya needs Bun 1.3.14 or later: in 1.3.12 on Linux, a closed
+Builds and tests use Bun 1.4.3. Seismic needs Bun 1.3.14 or later: in 1.3.12 on Linux, a closed
 `fs.watch` can deadlock Bun's work pool, after which every page bundle hangs for good (2026-10-13).
-`bun start` from a checkout runs on the machine's Bun; on Linux with a Bun before 1.3.14 Obeya still
-starts, but warns in the log and with a pill in the bar („Bun 1.3.12 ist zu alt“, the hover saying
+`bun start` from a checkout runs on the machine's Bun; on Linux with a Bun before 1.3.14 Seismic still
+starts, but warns in the log and with a pill in the bar ("Bun 1.3.12 is too old", the hover saying
 what may happen and to run `bun upgrade`).
 
 The build runs on a push to `main` that changes code (the same paths the self-update ignores are
@@ -174,7 +174,7 @@ certificates, keys, agreement) are in `docs/release.md`.
 
 #### Making a release
 
-„Mach ein Release“ is the project skill `.claude/skills/release/`, available to every Claude session
+"Mach ein Release" (make a release) is the project skill `.claude/skills/release/`, available to every Claude session
 in this repository, on a card or in a terminal. It follows `docs/release.md` § "A release" and holds
 only what to judge and where the owner comes in; `scripts/release-status.ts` prints what that is
 decided from (the last version tag and the commits since, the version to propose, how far GitHub's
@@ -190,26 +190,26 @@ video; the owner publishes.
 
 ### App updates
 
-The app updates itself from GitHub Releases through Tauri's updater, with Obeya's own key pair: the
+The app updates itself from GitHub Releases through Tauri's updater, with Seismic's own key pair: the
 public key and the endpoint (`releases/latest/download/latest.json`, so only a published release
 counts) are in `app/tauri.conf.json`; the private key signs in CI (see Builds). At start and every
 six hours the shell checks; a newer version is downloaded and its signature checked at once, so
 installing takes seconds. The shell keeps reporting it to the server it started (`POST
 /api/app-update`), and the bar shows "Update 0.4.0" with the release notes on hover and
-„Installieren“.
+"Install".
 
 The app never installs by itself. The owner's click (`POST /api/app-update/install`) asks for an
-update restart, which waits as a restart for new code does (see Self-update; here „Jetzt
-aktualisieren“ goes ahead at once), takes the place of a restart already waiting, and gives way to a
+update restart, which waits as a restart for new code does (see Self-update; here "Update
+now" goes ahead at once), takes the place of a restart already waiting, and gives way to a
 stop. The server then exits with code 77, which its supervisor passes on; the shell, seeing its
-server end so, shows „Obeya wird aktualisiert …“, installs (the bundle swapped on macOS, asking for
+server end so, shows "Seismic is updating …", installs (the bundle swapped on macOS, asking for
 an administrator only where the app's folder is not writable; the NSIS installer in passive mode on
 Windows, which restarts the app itself as the desktop's user, so without an environment set for the
 app's process alone; the AppImage file replaced) and starts the app again, whose server resumes the
 workers. An install that fails says why in a dialog, and the old version starts again.
 
 A .deb cannot be replaced by the app (dpkg needs root): its bar offers the release to download
-instead. No update is offered for an Obeya the app did not start in this run (it would not see it
+instead. No update is offered for an Seismic the app did not start in this run (it would not see it
 end), nor from a checkout, which follows its git (see Pulling from the upstream). `bun
 scripts/check-update.ts` has a locally built 0.0.1 update itself to a 0.0.2 from a local release; it
 passes on macOS arm64, Windows x64 and Linux x64 (2026-10-09).
@@ -222,16 +222,16 @@ the file too. Paths are relative, so it also works under sadilek.github.io/obeya
 sentence, "Direct coding agents like an engineering director" (the one who decides and directs spoke
 to a test reader more than "like a team"), and the hero video; then five pillars with screenshots;
 "From idea to main"; "The big room", what the name means and the one wall as the way out of many
-parallel chats (no Toyota, as in the README); "Obeya is built with Obeya."; and getting started
+parallel chats (no Toyota, as in the README); "Seismic is built with Seismic."; and getting started
 (downloads, `bun start`, GitHub; not the design doc, which is written for the agents working on
-Obeya).
+Seismic).
 
-The pillars: the canvas, a canvas per product side by side in one Obeya; voice; the demo, set
+The pillars: the canvas, a canvas per product side by side in one Seismic; voice; the demo, set
 against testing the change by hand, not against code review, since the audience reads no code
-anyway, with a pointer to `demos.obeya.si`, the demos of Obeya's own development; the order cards
+anyway, with a pointer to `demos.obeya.si`, the demos of Seismic's own development; the order cards
 run in, parallel where they can, one after the other where they must; the phone, what waits across
-all canvases and a demo opened from there, reaching Obeya over the owner's own private network,
-through no service of Obeya's. "From idea to main" switches (radios and CSS) between the three steps
+all canvases and a demo opened from there, reaching Seismic over the owner's own private network,
+through no service of Seismic's. "From idea to main" switches (radios and CSS) between the three steps
 most cards take, shown first so the page reads simple at first sight (say the task, watch the demo,
 approve), and a card's longer way along a wall (an idea and its prototypes, the work, the demo with
 a round back for changes, the merge, an agent's proposal hanging off it), each step a card in its
@@ -239,7 +239,7 @@ state as the canvas draws it. Only the demo carries the pin of a card waiting fo
 way reads as task, demo, done.
 
 `site/code-signing/` ("Code signing policy", linked under the downloads and in the footer) is what
-the SignPath Foundation asks of a project it signs for: who signs what, the team's roles, what Obeya
+the SignPath Foundation asks of a project it signs for: who signs what, the team's roles, what Seismic
 sends where. `site/watch-the-demo/` ("Why demos" in the navigation and footer) is an essay in the
 owner's first person, "Stop testing your agents' work. Watch the demo.": agents outpace whoever
 tests their work by hand, so a director has the work shown, as in a launch review; a demo is the
@@ -249,11 +249,11 @@ agent runs on its own work; then what is left for the owner, and the demos as a 
 launch post links when it argues rather than shows, with its own Open Graph tags (2026-10-19). Both
 share the stylesheet.
 
-The site has Obeya's palette and type (see Visual identity); its fonts, including the three
+The site has Seismic's palette and type (see Visual identity); its fonts, including the three
 characters of 大部屋, are served from `site/fonts/` with their OFL licences, not from Google Fonts. The
 screenshots show the English interface on the hero video's Tipjar app (the demo pillar a demo of a
-Tipjar change, so the picture is of a demo, not of Obeya); `bun scripts/site-shots.ts` retakes them
-from a scratch Obeya.
+Tipjar change, so the picture is of a demo, not of Seismic); `bun scripts/site-shots.ts` retakes them
+from a scratch Seismic.
 
 `.github/workflows/pages.yml` publishes `site/` to GitHub Pages on every push to `main` touching
 `site/` or the workflow, and on demand; Pages serves a branch only from `/` or `/docs`, hence the
@@ -263,7 +263,7 @@ at GitHub Pages' four A and four AAAA addresses and `www` is a CNAME to `sadilek
 
 ### Hero video
 
-The site's film is a real run recorded with Obeya's own demo pipeline (`scripts/hero-video/`, whose
+The site's film is a real run recorded with Seismic's own demo pipeline (`scripts/hero-video/`, whose
 README says how to change, re-render and publish it) on a scratch canvas over Tipjar, a small tip
 calculator with its own settings and plan doc. It goes through the main features once, from
 arranging the wall and an idea by voice through a real worker's demo, comments spoken into it and
@@ -290,13 +290,13 @@ which Chrome leaves stale after a seek. Without JavaScript or the chapters file 
 
 ### Decisions
 
-- **Installed, Obeya is an app: a Tauri shell around the server compiled into one file; the UI is
+- **Installed, Seismic is an app: a Tauri shell around the server compiled into one file; the UI is
   served locally to the browser too.** Someone without Bun or a checkout can download and start
   it. Tauri brings installers and updater, and its window is the system's webview, so the shell
   adds a few MB and the UI stays what the browser shows. The browser stays a way in; the checkout
-  (`bun start`, updating itself) stays how Obeya is developed.
-- **From a checkout, Obeya can be an installed app that follows the checkout** (2026-10-26): whoever
-  develops Obeya on its checkout gets the app (a window of its own, in the Dock or the Start menu)
+  (`bun start`, updating itself) stays how Seismic is developed.
+- **From a checkout, Seismic can be an installed app that follows the checkout** (2026-10-26): whoever
+  develops Seismic on its checkout gets the app (a window of its own, in the Dock or the Start menu)
   without installing again after each landing. The server already follows the checkout; the shell
   changes rarely and rebuilds itself when `app/` does. It installs a rebuilt shell without asking, unlike a
   release (see App updates), since what lands on the checkout's `main` is already installed that way
@@ -304,7 +304,7 @@ which Chrome leaves stale after a seek. Without JavaScript or the chapters file 
   follows the checkout; a launcher that rebuilds the shell at every start, which would make every
   start wait for cargo.
 - **A rebuilt shell leaves the running one's bundle on disk until it ends** (2026-10-29): the
-  install removed it at once, and from then until the app started again (with an Obeya started
+  install removed it at once, and from then until the app started again (with an Seismic started
   from a terminal: until the owner quit it) the window got no sound from the microphone. The
   system's check failed on the missing file; tried with a bundle of its own, moved aside it
   passes, removed it denies. Rejected: installing the new build only once the shell ends, which
@@ -312,7 +312,7 @@ which Chrome leaves stale after a seek. Without JavaScript or the chapters file 
   crash.
 - **The Mac app takes over a server that runs without the app that started it** (owner,
   2026-10-30): such a server left every worker without the local network until the owner quit
-  Obeya, and nothing said why. It waits for the workers' turns, so none is cut off. A self-restart of
+  Seismic, and nothing said why. It waits for the workers' turns, so none is cut off. A self-restart of
   the app leaves no such server: one the app started ends for the new build and the new app starts
   it, and the new app is started through the system; on 2026-10-29 a shell built before that still
   started its successor as its child, whose server then counted as the ended shell's. Rejected:
@@ -325,8 +325,8 @@ which Chrome leaves stale after a seek. Without JavaScript or the chapters file 
   would, or quieter, and the window comes back as it was, so it costs the owner no more than that
   restart's reload. Rejected: restarting the server along with it, which would pause every worker
   for a change to the window alone; asking the owner, for a change they cannot judge.
-- **Quitting the app stops the Obeya it shows, also one started from a terminal** (owner,
-  2026-10-29): to the owner, quitting the app means quitting Obeya, as Ctrl-C does in the terminal.
+- **Quitting the app stops the Seismic it shows, also one started from a terminal** (owner,
+  2026-10-29): to the owner, quitting the app means quitting Seismic, as Ctrl-C does in the terminal.
   Rejected: leaving a server started from a terminal running, which made Cmd+Q close only the window
   while the workers went on, with nothing to say so.
 - **DMG, NSIS installer, AppImage and .deb** (2026-10-06). Rejected: Flatpak and Snap, whose
@@ -338,7 +338,7 @@ which Chrome leaves stale after a seek. Without JavaScript or the chapters file 
   or not, until it has a reputation, so a Windows certificate could wait. Applied for with the
   SignPath Foundation (free for open source) after v0.5.0 (2026-10-19), disclosing that the server
   has Anthropic's proprietary Agent SDK compiled in, which SignPath's terms exclude. Rejected:
-  dropping the SDK to qualify, which would leave Obeya tracking Claude Code's undocumented control
+  dropping the SDK to qualify, which would leave Seismic tracking Claude Code's undocumented control
   protocol itself for no gain to users. Fallback: a certificate in the owner's name.
 - **A release is a project skill with a status script** (2026-10-13). Checking the narration
   against the UI, looking at the stills and judging the draft need an agent; what it decides from
@@ -346,7 +346,7 @@ which Chrome leaves stale after a seek. Without JavaScript or the chapters file 
   problems nobody had written down: GitHub's `main` far behind, `site-media` the latest release).
   Every release re-renders the video, stale or not, since almost every release changes the UI.
   Publishing stays the owner's click, since it reaches every installed app.
-- **Obeya is made known through a static English site on obeya.si that starts with the film**
+- **Seismic is made known through a static English site on obeya.si that starts with the film**
   (2026-10-06): the calm, editorial film-first prototype, with the pillars as cards on a wall, a
   card's way along the wall and "The big room" from a second. Rejected: a canvas the camera flies
   through while scrolling (built, then dropped: the scrolling felt odd).

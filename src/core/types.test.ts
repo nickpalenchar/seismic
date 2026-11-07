@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CLONES, type FilledClones, type Item, openPerGroup, type ResolvedCanvas, stoppedArchivable, type Talk, unreadPerProject, withClones, withSupplemented } from './types';
+import { CLONES, type FilledClones, type Item, needsYou, openPerGroup, type ResolvedCanvas, stoppedArchivable, type Talk, unreadPerProject, withClones, withSupplemented } from './types';
 
 const card = (over: Partial<Item>): Item => ({ id: 'x', kind: 'task', state: 'planned', title: '', body: '', x: 0, y: 0, source: 'manual', repo: 'r', ...over });
 
@@ -32,7 +32,7 @@ test("a project's card counts its agent's answers that wait unread, asked in its
     talk({ askedIn: 'p', answer: 'W2 first.', unread: true }),
     talk({ askedIn: 'p', answer: 'Yes.', unread: true }),
     talk({ askedIn: 'q', answer: 'Read already.' }),
-    // asked of Obeya: its button counts it, not the project's card
+    // asked of Seismic: its button counts it, not the project's card
     talk({ question: 'What is left?', answer: 'W3.', unread: true }),
   ]);
   expect([...unread]).toEqual([['p', 2]]);
@@ -111,4 +111,11 @@ describe('withSupplemented', () => {
     expect(along(2)).toEqual([3]);
     expect(along(5)).toEqual([6]);
   });
+});
+
+test('a running code review does not ask for attention until it finishes', () => {
+  const reviewing = card({ state: 'waiting', need: 'review', codeReview: { mode: 'auto', state: 'running', findings: [] } });
+  expect(needsYou(reviewing)).toBe(false);
+  expect(needsYou({ ...reviewing, codeReview: { mode: 'auto', state: 'done', findings: [] } })).toBe(true);
+  expect(needsYou({ ...reviewing, need: 'question' })).toBe(true);
 });

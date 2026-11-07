@@ -1,11 +1,11 @@
-// What happens to an app a real Claude or Codex worker started when its agent, or Obeya, dies?
+// What happens to an app a real Claude or Codex worker started when its agent, or Seismic, dies?
 // bun scripts/harness-crash-probe.ts [claude|codex ...] [agent-death|obeya-death|obeya-restart ...] [--out <file>]
-// For each harness and case it stages a scratch Obeya with real workers (scripts/scratch-obeya.ts,
-// its own repository and OBEYA_HOME), starts one card whose worker runs `python3 job.py` (a heartbeat
+// For each harness and case it stages a scratch Seismic with real workers (scripts/scratch-obeya.ts,
+// its own repository and SEISMIC_HOME), starts one card whose worker runs `python3 job.py` (a heartbeat
 // that leaves for a session and process group of its own; the launcher exits after three seconds)
 // and asks a question. Once parking has asked the trusted `app.keep` (which logs and keeps the app)
-// it SIGKILLs the worker's agent process or the Obeya server (obeya-restart: and then starts an
-// Obeya again on the same home, whose startup sweep ends what the crash left, session-registry.ts),
+// it SIGKILLs the worker's agent process or the Seismic server (obeya-restart: and then starts an
+// Seismic again on the same home, whose startup sweep ends what the crash left, session-registry.ts),
 // waits, and records what still runs:
 // heartbeat, agent, server, an unrelated canary, the card and the settings commands that ran. Then
 // it ends every process it started or saw under the server, and checks nothing of them is left.
@@ -74,11 +74,11 @@ function versions() {
   const v = (cmd: string) => spawnSync(cmd, ['--version'], { encoding: 'utf8', env: probeEnv() }).stdout.trim();
   return { claude: v(claudeCli()), codex: v(codexCli()), bun: Bun.version, os: `${process.platform} ${spawnSync('uname', ['-r'], { encoding: 'utf8' }).stdout.trim()}` };
 }
-// Obeya runs Codex from PATH; a wrapper there (a terminal app's shim, say) would stand between the server and the app-server
+// Seismic runs Codex from PATH; a wrapper there (a terminal app's shim, say) would stand between the server and the app-server
 const plainPath = () => (process.env.PATH ?? '').split(delimiter).filter((d) => !d.includes('cli-shims')).join(delimiter);
-const codexCli = () => process.env.OBEYA_CODEX ?? Bun.which('codex', { PATH: plainPath() }) ?? 'codex';
+const codexCli = () => (process.env.SEISMIC_CODEX ?? process.env.OBEYA_CODEX) ?? Bun.which('codex', { PATH: plainPath() }) ?? 'codex';
 const claudeCli = () => Bun.which('claude', { PATH: plainPath() }) ?? 'claude';
-const probeEnv = () => ({ ...process.env, PATH: plainPath(), OBEYA_CODEX: codexCli(), OBEYA_PARK_GRACE: '2' });
+const probeEnv = () => ({ ...process.env, PATH: plainPath(), SEISMIC_CODEX: codexCli(), SEISMIC_PARK_GRACE: '2' });
 
 async function run(harness: Harness, kind: Case) {
   const work = mkdtempSync(join(tmpdir(), `obeya-crash-${harness}-${kind}-`));
@@ -135,7 +135,7 @@ async function run(harness: Harness, kind: Case) {
     const workspace = before?.workspace ?? '';
     if (!ready()) {
       const log = read(join(s.dir, 'server.log'));
-      return Object.assign(result, { status: 'blocked', why: alive(s.pid) ? 'worker did not reach the question with a kept heartbeat in 6 minutes' : 'scratch Obeya exited', card: before, heartbeat: workspace ? read(join(workspace, 'app.tick')) : '', logTail: log.slice(-1500) });
+      return Object.assign(result, { status: 'blocked', why: alive(s.pid) ? 'worker did not reach the question with a kept heartbeat in 6 minutes' : 'scratch Seismic exited', card: before, heartbeat: workspace ? read(join(workspace, 'app.tick')) : '', logTail: log.slice(-1500) });
     }
     job = Number(read(join(workspace, 'app.pid')));
     const rows = table();
@@ -182,7 +182,7 @@ async function run(harness: Harness, kind: Case) {
       // the same home, as a supervisor would start it again after the crash
       const log = openSync(join(s.dir, 'server.log'), 'a');
       const again = spawn(process.execPath, ['src/server/main.ts', '--config', join(s.dir, 'canvases.json'), '--port', String(s.port), '--dev'], {
-        cwd: ROOT, env: { ...probeEnv(), OBEYA_HOME: home }, detached: true, stdio: ['ignore', log, log],
+        cwd: ROOT, env: { ...probeEnv(), SEISMIC_HOME: home }, detached: true, stdio: ['ignore', log, log],
       });
       again.unref();
       writeFileSync(join(s.dir, 'server.pid'), String(again.pid));
@@ -203,7 +203,7 @@ async function run(harness: Harness, kind: Case) {
         agentAlive: alive(agent.pid),
         canaryAlive: alive(canary.pid!),
         card: card(),
-        sweep: read(join(s.dir, 'server.log')).slice(sweptBefore).split('\n').filter((l) => /left by an earlier Obeya/.test(l)),
+        sweep: read(join(s.dir, 'server.log')).slice(sweptBefore).split('\n').filter((l) => /left by an earlier Seismic/.test(l)),
         registry: (() => { try { return readdirSync(join(home, 'sessions')); } catch { return []; } })(),
       };
     }

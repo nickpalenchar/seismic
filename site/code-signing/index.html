@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Code signing policy · Obeya</title>
-<meta name="description" content="How Obeya's downloads are signed, who may sign them, and what Obeya sends over the network.">
+<title>Code signing policy · Seismic</title>
+<meta name="description" content="How Seismic's downloads are signed, who may sign them, and what Seismic sends over the network.">
 <link rel="icon" href="../img/logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../img/apple-touch-icon.png">
 <link rel="stylesheet" href="../style.css">
@@ -12,7 +12,7 @@
 <body>
 
 <header class="top">
-  <a href="../" class="brand"><img src="../img/wordmark.svg" alt="Obeya" width="99" height="28"></a>
+  <a href="../" class="brand"><img src="../img/wordmark.svg" alt="Seismic" width="99" height="28"></a>
   <nav>
     <a href="../#start">Get started</a>
     <a class="gh" href="https://github.com/sadilek/obeya">GitHub</a>
@@ -25,13 +25,13 @@
 
     <p class="lead">Free code signing provided by <a href="https://signpath.io">SignPath.io</a>, certificate by
       <a href="https://signpath.org">SignPath Foundation</a>.</p>
-    <p>Obeya has applied to the SignPath Foundation. Until the application is accepted, the Windows installer
+    <p>Seismic has applied to the SignPath Foundation. Until the application is accepted, the Windows installer
       is not signed. The Mac apps are signed with the maintainer's Apple Developer ID and notarised by Apple.
       The Linux packages are not signed. Every release lists the SHA-256 of each of its files in
       <code>SHA256SUMS</code>.</p>
 
     <h2>What is signed</h2>
-    <p>The Windows installer (<code>Obeya-Windows-x64-setup.exe</code>) and the programs Obeya builds into it.
+    <p>The Windows installer (<code>Obeya-Windows-x64-setup.exe</code>) and the programs Seismic builds into it.
       They are built from a version tag of <a href="https://github.com/sadilek/obeya">github.com/sadilek/obeya</a>
       by the repository's GitHub Actions workflow (<code>.github/workflows/build.yml</code>). Nothing built
       anywhere else is signed, and neither is the software of other projects.</p>
@@ -41,16 +41,16 @@
       <li><b>Committers and reviewers:</b> <a href="https://github.com/sadilek">Daniel Sadilek</a> (owner of the repository)</li>
       <li><b>Approvers:</b> <a href="https://github.com/sadilek">Daniel Sadilek</a></li>
     </ul>
-    <p>Most changes are written by coding agents that the maintainer directs with Obeya. Each one reaches
+    <p>Most changes are written by coding agents that the maintainer directs with Seismic. Each one reaches
       <code>main</code> only after the maintainer has approved it. Pull requests from others are reviewed by
       a committer before they are merged. Each release is signed only after an approver has approved its
       signing request. Everyone on the team uses multi-factor authentication for GitHub and SignPath.</p>
 
     <h2 id="privacy">Privacy</h2>
-    <p>Obeya runs on your computer. It sends nothing to its makers and collects no usage data.
+    <p>Seismic runs on your computer. It sends nothing to its makers and collects no usage data.
       It connects to other systems only in these cases:</p>
     <ul>
-      <li><b>Agents:</b> Obeya's agents run on the Claude Code installed on your machine, under your own
+      <li><b>Agents:</b> Seismic's agents run on the Claude Code installed on your machine, under your own
         account. Claude Code sends what the agents work on to Anthropic
         (<a href="https://www.anthropic.com/legal/privacy">Anthropic's privacy policy</a>).</li>
       <li><b>Updates:</b> the app asks GitHub for the latest release when it starts and every six hours
@@ -59,8 +59,8 @@
       <li><b>When you ask for it:</b> tools that the setup installs at your click (from their publishers),
         speech models for voice input and demo narration (from Hugging Face), push notifications on your
         phone (through your phone browser's push service), pull requests (through GitHub's <code>gh</code>),
-        and narration by a text-to-speech service whose key you enter. Your phone reaches Obeya over your
-        own private network (Tailscale or another VPN), not through a service of Obeya's.</li>
+        and narration by a text-to-speech service whose key you enter. Your phone reaches Seismic over your
+        own private network (Tailscale or another VPN), not through a service of Seismic's.</li>
     </ul>
   </section>
 </main>

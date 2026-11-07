@@ -9,8 +9,10 @@ beforeEach(() => (home = mkdtempSync(join(tmpdir(), 'obeya-demo-settings-'))));
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
 describe('demo settings', () => {
-  test("without a file, a demo is narrated by Piper in the owner's conversation language, else the interface's", () => {
+  test("without a file, a demo is narrated by Piper in the owner's conversation language, else English", () => {
     writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'de' }));
+    expect(readDemoSettings(home)).toEqual({ language: 'en', voice: 'piper' });
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'en', conversationLanguage: 'de' }));
     expect(readDemoSettings(home)).toEqual({ language: 'de', voice: 'piper' });
     writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'de', conversationLanguage: 'en' }));
     expect(readDemoSettings(home)).toEqual({ language: 'en', voice: 'piper' });
@@ -26,7 +28,7 @@ describe('demo settings', () => {
     expect(tidyDemoSettings({ voice: 'nope', ownVoice: 'yes' })).toEqual({ language: 'de', voice: 'piper' });
     writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'de' }));
     writeFileSync(join(home, 'demo.json'), 'not json');
-    expect(readDemoSettings(home)).toEqual({ language: 'de', voice: 'piper' });
+    expect(readDemoSettings(home)).toEqual({ language: 'en', voice: 'piper' });
   });
 
   test('keep frames a whole number of days, or always', () => {
@@ -62,7 +64,7 @@ describe('demo settings', () => {
     expect(referenceOf(inLanguage(s, 'en'))).toBeUndefined();
   });
 
-  test("take a repository's language for its demos from Obeya, else from the repository's settings", () => {
+  test("take a repository's language for its demos from Seismic, else from the repository's settings", () => {
     const repo = join(home, 'repo');
     mkdirSync(join(repo, '.git'), { recursive: true });
     mkdirSync(join(repo, 'src', 'deep'), { recursive: true });
@@ -71,7 +73,7 @@ describe('demo settings', () => {
     writeFileSync(join(repo, '.obeya', 'settings.json'), JSON.stringify({ demo: { language: 'en' } }));
     expect(repositoryLanguage({}, join(repo, 'src', 'deep'))).toEqual({ language: 'en', from: 'repository', file: join(repo, '.obeya', 'settings.json') });
     expect(repositoryLanguage({ DEMO_LANGUAGE: 'de' }, join(repo, 'src'))).toEqual({ language: 'de', from: 'obeya' });
-    // a language Obeya does not speak is none
+    // a language Seismic does not speak is none
     writeFileSync(join(repo, '.obeya', 'settings.json'), JSON.stringify({ demo: { language: 'fr' } }));
     expect(repositoryLanguage({ DEMO_LANGUAGE: 'fr' }, repo)).toBeUndefined();
     const saved = { language: 'de', voice: 'qwen3', ownVoice: true, references: { de: '/de.wav', en: '/en.wav' } } as const;

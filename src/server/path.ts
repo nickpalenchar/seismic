@@ -1,6 +1,6 @@
-// The PATH the programs Obeya checks and starts are looked up on: what a process started from the
-// desktop may lack, and on Windows what an installer added since Obeya started (an installation
-// Obeya ran, or one the owner ran by hand), which only a new process would get from the registry.
+// The PATH the programs Seismic checks and starts are looked up on: what a process started from the
+// desktop may lack, and on Windows what an installer added since Seismic started (an installation
+// Seismic ran, or one the owner ran by hand), which only a new process would get from the registry.
 
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -23,7 +23,7 @@ export function addToPath(env: Env, dirs: string[]) {
 }
 
 /**
- * Puts the directories on the PATH that the programs Obeya checks and starts are installed in but
+ * Puts the directories on the PATH that the programs Seismic checks and starts are installed in but
  * a process started from the desktop may lack: the official installers' `~/.local/bin`, and
  * Homebrew's on a Mac.
  */
@@ -31,7 +31,7 @@ export function extendPath(env: Env = process.env, platform: string = process.pl
   addToPath(env, [localBin(), ...(platform === 'darwin' ? ['/opt/homebrew/bin', '/usr/local/bin'] : [])].filter((d) => existsSync(d)));
 }
 
-/** On Windows, what installers added to the user's and the machine's PATH since Obeya started. */
+/** On Windows, what installers added to the user's and the machine's PATH since Seismic started. */
 async function windowsPath(env: Env) {
   const out = await output('powershell', ['-NoProfile', '-Command', "[Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')"], env);
   if (out) addToPath(env, out.trim().split(';'));
@@ -40,7 +40,7 @@ async function windowsPath(env: Env) {
 /** The reading of the registry under way, which a check that starts meanwhile waits for too. */
 const reading = new WeakMap<Env, Promise<void>>();
 
-/** On Windows, the PATH as the registry has it now: before every check, so what was installed meanwhile, by Obeya or by hand, is found. */
+/** On Windows, the PATH as the registry has it now: before every check, so what was installed meanwhile, by Seismic or by hand, is found. */
 export function freshPath(env: Env = process.env, platform: string = process.platform): Promise<void> {
   if (platform !== 'win32') return Promise.resolve();
   let read = reading.get(env);

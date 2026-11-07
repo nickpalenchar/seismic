@@ -1,5 +1,5 @@
-// A forge kept in a JSON file, for a scratch Obeya (scripts/scratch-obeya.ts) whose demo needs pull
-// requests without a real forge: the file holds them as a forge would answer for them, Obeya's
+// A forge kept in a JSON file, for a scratch Seismic (scripts/scratch-obeya.ts) whose demo needs pull
+// requests without a real forge: the file holds them as a forge would answer for them, Seismic's
 // comments, reviews and merges go into it, and whoever stages the demo edits it to play the people on
 // the forge (a contributor answering, pushing). A merge squashes the PR's head onto the default
 // branch of the repository the file names, as the forge would on its side.
@@ -27,7 +27,7 @@ export interface FilePr {
   body?: string;
 }
 
-/** The file: the repository its PRs are of, the account Obeya acts as, the PRs. */
+/** The file: the repository its PRs are of, the account Seismic acts as, the PRs. */
 export interface ForgeFile {
   repo: string;
   viewer: string;

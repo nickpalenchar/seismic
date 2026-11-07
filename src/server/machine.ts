@@ -1,17 +1,18 @@
-// What Obeya needs on this machine, as one list for the setup assistant: shown on the first start
-// (no canvases.json in Obeya's home), in the app and the checkout alike, and later from the
+// What Seismic needs on this machine, as one list for the setup assistant: shown on the first start
+// (no canvases.json in Seismic's home), in the app and the checkout alike, and later from the
 // settings. Claude Code with a login and git are needed; gh with a login is for pull requests;
 // voice and demos are the checks the settings sheet makes (voice-setup.ts, the demo skill's
-// setup.ts). What installs without admin rights Obeya installs at a click (Claude Code and uv with
+// setup.ts). What installs without admin rights Seismic installs at a click (Claude Code and uv with
 // their official installers, the speech recognition through the voice's installation, a demo's voice);
-// system software comes with the command for this platform, which Obeya runs at a click where it
+// system software comes with the command for this platform, which Seismic runs at a click where it
 // needs no password (Homebrew, winget); a login opens a terminal. Then the first canvas: a
-// repository's folder, or a clone of one.
+// repository's folder, or a clone of one. A second page recommends more: on a Mac the pieces of
+// mobile development (Xcode, an iPhone simulator, Safari's remote automation).
 
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { homedir } from 'node:os';
+import { homedir, userInfo } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 // by its path: the package exports no package.json, which Bun imports all the same but TypeScript does not
 import sdk from '../../node_modules/@anthropic-ai/claude-agent-sdk/package.json';
@@ -28,25 +29,27 @@ import { saveClaudeToken } from './hosts';
 import { repoInfo } from './repo';
 import { COMPILED } from './resources';
 import { claudeExecutable } from './runtime';
+import { installedAgy } from './agy-runtime';
 import { extendPath, freshPath, which } from './path';
 import { ownerLanguage } from './settings';
 import type { VoiceSetup } from './voice-setup';
 
 type Env = Record<string, string | undefined>;
 
-/** The Claude Code the Agent SDK brings, which Obeya was checked with. */
+/** The Claude Code the Agent SDK brings, which Seismic was checked with. */
 export const CHECKED_CLAUDE: string = sdk.claudeCodeVersion;
 
 /** The official installers, which need no admin rights: in a shell, or in PowerShell on Windows. */
 const INSTALLERS = {
   claude: { unix: 'curl -fsSL https://claude.ai/install.sh | bash', win: 'irm https://claude.ai/install.ps1 | iex', url: 'https://code.claude.com/docs/en/setup' },
+  agy: { unix: 'curl -fsSL https://antigravity.google/cli/install.sh | bash', win: 'irm https://antigravity.google/cli/install.ps1 | iex', url: 'https://antigravity.google/docs/cli' },
   uv: { unix: 'curl -LsSf https://astral.sh/uv/install.sh | sh', win: 'irm https://astral.sh/uv/install.ps1 | iex', url: 'https://docs.astral.sh/uv/getting-started/installation/' },
 };
 
 /** How to install what the needed parts and pull requests need, on this platform. */
-export function machineHint(id: 'claude' | 'uv' | 'git' | 'gh', platform: string, family: LinuxFamily, brew: boolean): NonNullable<MachineItem['install']> {
+export function machineHint(id: 'claude' | 'agy' | 'uv' | 'git' | 'gh', platform: string, family: LinuxFamily, brew: boolean): NonNullable<MachineItem['install']> {
   const win = platform === 'win32';
-  if (id === 'claude' || id === 'uv') {
+  if (id === 'claude' || id === 'agy' || id === 'uv') {
     const i = INSTALLERS[id];
     return { commands: [win ? i.win : i.unix], url: i.url };
   }
@@ -69,7 +72,10 @@ export function machineHint(id: 'claude' | 'uv' | 'git' | 'gh', platform: string
   return { commands: command ? [command] : [], url: packages.url };
 }
 
-/** How Obeya runs an install command at a click; `null` where it needs a password, or a program that is not there. */
+const AXE_INSTALL = 'brew install cameroncooke/axe/axe';
+const AXE_URL = 'https://github.com/cameroncooke/AXe';
+
+/** How Seismic runs an install command at a click; `null` where it needs a password, or a program that is not there. */
 export function runnable(command: string, env: Env, platform: string = process.platform): string[] | null {
   if (/^curl -\S+ https:\/\/\S+ \| (ba)?sh$/.test(command)) return platform === 'win32' ? null : ['sh', '-c', command];
   if (command.startsWith('irm ')) return platform === 'win32' ? ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command] : null;
@@ -80,6 +86,9 @@ export function runnable(command: string, env: Env, platform: string = process.p
   if (program === 'winget') return [at, ...args, '--accept-source-agreements', '--accept-package-agreements'];
   // the Command Line Tools' own dialog
   if (command === 'xcode-select --install') return [at, ...args];
+  // the App Store's page of Xcode, and the simulator's iOS runtime, which Xcode downloads itself
+  if (program === 'open' && platform === 'darwin' && /^macappstore:\/\/\S+$/.test(args.join(' '))) return [at, ...args];
+  if (command === 'xcodebuild -downloadPlatform iOS') return [at, ...args];
   return null;
 }
 
@@ -99,7 +108,7 @@ function sdkClaude(platform: string, arch: string): string | null {
 /** A command as a shell shows it, its program quoted when its path has spaces. */
 const shown = (argv: string[]) => argv.map((a) => (/[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)).join(' ');
 
-/** Starts a program that goes on by itself, Obeya waiting for nothing of it; false where it does not start. */
+/** Starts a program that goes on by itself, Seismic waiting for nothing of it; false where it does not start. */
 function detached(cmd: string, args: string[], o: { env?: Env; windowsVerbatimArguments?: boolean } = {}): Promise<boolean> {
   return new Promise((done) => {
     const p = spawn(cmd, args, { detached: true, stdio: 'ignore', ...o });
@@ -109,9 +118,9 @@ function detached(cmd: string, args: string[], o: { env?: Env; windowsVerbatimAr
 }
 
 /**
- * Opens a file (or a directory) with the system's app for it, on the machine Obeya runs on, which
+ * Opens a file (or a directory) with the system's app for it, on the machine Seismic runs on, which
  * the owner sits at: Finder or Explorer for a directory. A file that is no document (`DOCUMENT`),
- * or any file with `show` („Im Ordner zeigen“), is shown in its folder, selected, where the
+ * or any file with `show` ("Show in folder"), is shown in its folder, selected, where the
  * platform can (Linux opens the folder).
  */
 export function openWithSystem(path: string, file = false, show = false): Promise<boolean> {
@@ -125,14 +134,18 @@ export function openWithSystem(path: string, file = false, show = false): Promis
   return detached(cmd!, args);
 }
 
-/** Opens a terminal that runs `argv`; false where Obeya finds none to open (Linux without one it knows). */
-export async function openTerminal(argv: string[], platform: string = process.platform, env: Env = process.env): Promise<boolean> {
-  const line = shown(argv);
+/**
+ * Opens a terminal that runs `argv`; false where Seismic finds none to open (Linux without one it
+ * knows). `closes`: on macOS the window closes once the command succeeded, else it stays for what
+ * it said to be read.
+ */
+export async function openTerminal(argv: string[], platform: string = process.platform, env: Env = process.env, closes = false): Promise<boolean> {
+  const line = closes && platform === 'darwin' ? `${shown(argv)} && exit` : shown(argv);
   if (platform === 'darwin') {
     const script = line.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return (await output('osascript', ['-e', 'tell application "Terminal"', '-e', 'activate', '-e', `do script "${script}"`, '-e', 'end tell'], env)) !== null;
   }
-  if (platform === 'win32') return detached('cmd.exe', ['/c', `start "Obeya" cmd /k "${line}"`], { env, windowsVerbatimArguments: true });
+  if (platform === 'win32') return detached('cmd.exe', ['/c', `start "Seismic" cmd /k "${line}"`], { env, windowsVerbatimArguments: true });
   // the window stays open once the login ends, so what it said can be read
   const keep = ['sh', '-c', `${line}; printf '\\n'; read -r _`];
   for (const [program, ...flag] of [['x-terminal-emulator', '-e'], ['gnome-terminal', '--'], ['konsole', '-e'], ['xfce4-terminal', '-x'], ['kitty'], ['alacritty', '-e'], ['xterm', '-e']] as const) {
@@ -209,7 +222,7 @@ export function cloneName(spec: string): string {
 export interface MachineOptions {
   home: string;
   config: Config;
-  /** Obeya's own voice check, with its installation; none in tests. */
+  /** Seismic's own voice check, with its installation; none in tests. */
   voice?: VoiceSetup;
   env?: Env;
   platform?: string;
@@ -218,7 +231,7 @@ export interface MachineOptions {
   compiled?: boolean;
 }
 
-/** What the check found, with how Obeya acts on each piece. */
+/** What the check found, with how Seismic acts on each piece. */
 interface Found {
   sections: MachineSection[];
   /** The Claude Code that logs in, and gh's login. */
@@ -255,12 +268,12 @@ export class MachineSetup {
   private async check(): Promise<Found> {
     const env = this.env;
     const platform = this.platform;
-    // on Windows what was installed since the last check, by Obeya or by hand
+    // on Windows what was installed since the last check, by Seismic or by hand
     await freshPath(env, platform);
     const arch = this.o.arch ?? process.arch;
     const family = platform === 'linux' ? linuxFamily() : null;
     const brew = platform === 'darwin' && !!which('brew', env);
-    const hint = (id: 'claude' | 'uv' | 'git' | 'gh') => machineHint(id, platform, family, brew);
+    const hint = (id: 'claude' | 'agy' | 'uv' | 'git' | 'gh') => machineHint(id, platform, family, brew);
     /** A missing piece, offered at a click where its first command runs without a password. */
     const missing = (item: Omit<MachineItem, 'state'>): MachineItem => {
       const command = item.install?.commands[0];
@@ -318,12 +331,48 @@ export class MachineSetup {
       return [{ id: 'gh', state: 'ok', found: gh }, missing({ id: 'ghLogin', install: { commands: ['gh auth login'] }, act: 'login' })];
     };
 
-    const [claudeItems, gitItems, pr, voice, demo] = await Promise.all([
+    /** Mobile development on a Mac: Xcode, an iPhone simulator, and Safari that Seismic's agents may drive. */
+    const mobilePart = async (): Promise<MachineItem[]> => {
+      const xcode = (await output('xcodebuild', ['-version'], env))?.match(/^Xcode (\S+)/m)?.[1];
+      const items: MachineItem[] = [xcode ? { id: 'xcode', state: 'ok', found: xcode } : missing({ id: 'xcode', install: { commands: ['open macappstore://apps.apple.com/app/id497799835'], url: 'https://apps.apple.com/app/xcode/id497799835' } })];
+      if (!xcode) items.push({ id: 'simulator', state: 'missing' });
+      else {
+        const list = await output('xcrun', ['simctl', 'list', 'devices', 'available'], env);
+        const phone = list?.match(/^\s+(iPhone[^(\n]*?)\s+\(/m)?.[1];
+        items.push(phone ? { id: 'simulator', state: 'ok', found: phone } : missing({ id: 'simulator', install: { commands: ['xcodebuild -downloadPlatform iOS'] } }));
+      }
+      // `safaridriver --enable` makes the user a member of the group that may start it
+      const user = env.USER ?? userInfo().username;
+      if (!which('safaridriver', env)) items.push({ id: 'safaridriver', state: 'missing' });
+      else if ((await output('dseditgroup', ['-o', 'checkmember', '-m', user, '_webdeveloper'], env)) !== null) items.push({ id: 'safaridriver', state: 'ok' });
+      else {
+        logins.safaridriver = ['safaridriver', '--enable'];
+        items.push({ id: 'safaridriver', state: 'missing', install: { commands: ['safaridriver --enable'] }, act: 'terminal' });
+      }
+      // AXe sends taps and swipes into the simulator, which Safari's remote automation cannot
+      const axe = which('axe', env);
+      if (axe) items.push({ id: 'axe', state: 'ok' });
+      else items.push(missing({ id: 'axe', install: brew ? { commands: [AXE_INSTALL], url: AXE_URL } : { commands: [], url: AXE_URL } }));
+      return items;
+    };
+
+    // Antigravity: installed and signed in (it can list its models), for tasks and code reviews that choose it
+    const agyPart = async (): Promise<MachineItem[]> => {
+      const agy = installedAgy(env);
+      if (!agy) return [missing({ id: 'agy', install: hint('agy') }), { id: 'agyLogin', state: 'missing' }];
+      logins.agyLogin = [agy];
+      const signedIn = (await output(agy, ['models'], env)) !== null;
+      return [{ id: 'agy', state: 'ok', found: agy }, signedIn ? { id: 'agyLogin', state: 'ok' } : missing({ id: 'agyLogin', install: { commands: [shown([agy])] }, act: 'login' })];
+    };
+
+    const [claudeItems, gitItems, pr, agyItems, voice, demo, mobile] = await Promise.all([
       agentsPart(),
       gitPart(),
       prPart(),
+      agyPart(),
       this.o.voice ? this.o.voice.view() : null,
       checkSetup(readDemoSettings(this.o.home), { home: this.o.home, env }),
+      platform === 'darwin' ? mobilePart() : null,
     ]);
     const needed = [...claudeItems, ...gitItems];
     // uv by its own installer, which needs no admin rights; the rest as the voice and demo checks say
@@ -341,8 +390,10 @@ export class MachineSetup {
     const sections: MachineSection[] = [
       { id: 'needed', items: needed, mb: 0 },
       { id: 'pr', items: pr, mb: 0 },
+      { id: 'agents', items: agyItems, mb: 0 },
       ...(voice ? [{ id: 'voice' as const, items: voiceItems, mb: voice.fetch.mb }] : []),
       { id: 'demos', items: demoItems, mb: mb(demoItems) },
+      ...(mobile ? [{ id: 'mobile' as const, items: mobile, mb: 0 }] : []),
     ];
     return { sections, logins };
   }
@@ -359,8 +410,8 @@ export class MachineSetup {
     const { section, id } = (input ?? {}) as { section?: MachineSectionId; id?: MachineItem['id'] };
     this.idle();
     const { item } = await this.item(section!, id!);
-    if (item.act !== 'install') throw new BadRequest('invalid', `Obeya does not install ${id}`);
-    console.log(`Obeya: installing ${id} (${section})`);
+    if (item.act !== 'install') throw new BadRequest('invalid', `Seismic does not install ${id}`);
+    console.log(`Seismic: installing ${id} (${section})`);
     return this.startJob(
       { kind: 'install', section, id },
       async (log) => {
@@ -372,10 +423,10 @@ export class MachineSetup {
         // the official installers' directory, which the first of them creates, and Windows' PATH
         extendPath(this.env, this.platform);
         await freshPath(this.env, this.platform);
-        console.log(`Obeya: ${id} installed`);
+        console.log(`Seismic: ${id} installed`);
       },
       (e) => {
-        console.error(`Obeya: installing ${id} failed: ${e.message}`);
+        console.error(`Seismic: installing ${id} failed: ${e.message}`);
         return e.message;
       },
     );
@@ -417,18 +468,18 @@ export class MachineSetup {
   }
 
   /**
-   * Opens a terminal that logs in; `opened: false` where Obeya finds none, and the command is to be
+   * Opens a terminal that logs in; `opened: false` where Seismic finds none, and the command is to be
    * run by hand. `token`: Claude's login for the sessions that run on a token, `claude setup-token`,
-   * whose token the owner then gives Obeya (`saveToken`).
+   * whose token the owner then gives Seismic (`saveToken`).
    */
   async login(input: unknown): Promise<{ opened: boolean; command: string }> {
     const { section, id, token } = (input ?? {}) as { section?: MachineSectionId; id?: MachineItem['id']; token?: boolean };
     const { item, found } = await this.item(section!, id!);
     const login = found.logins[item.id];
-    if (!login || (item.act !== 'login' && item.id !== 'claudeLogin')) throw new BadRequest('invalid', `${id} needs no login`);
+    if (!login || (item.act !== 'login' && item.act !== 'terminal' && item.id !== 'claudeLogin')) throw new BadRequest('invalid', `${id} needs no login`);
     if (token && item.id !== 'claudeLogin') throw new BadRequest('invalid', `${id} takes no token`);
     const argv = token ? [login[0]!, 'setup-token'] : login;
-    return { opened: await openTerminal(argv, this.platform, this.env), command: shown(argv) };
+    return { opened: await openTerminal(argv, this.platform, this.env, item.act === 'terminal'), command: shown(argv) };
   }
 
   /** The token the owner got from `claude setup-token`, for the sessions that run on a token. */
@@ -496,7 +547,7 @@ export class MachineSetup {
     const short = /^[\w.-]+\/[\w.-]+$/.test(spec);
     const gh = short && (await output('gh', ['auth', 'status'], this.env)) !== null;
     const argv = gh ? ['gh', 'repo', 'clone', spec, dest, '--', '--progress'] : ['git', 'clone', '--progress', short ? `https://github.com/${spec}.git` : spec, dest];
-    console.log(`Obeya: cloning ${spec} into ${dest}`);
+    console.log(`Seismic: cloning ${spec} into ${dest}`);
     return this.startJob(
       { kind: 'clone' },
       async (log, job) => {
@@ -504,13 +555,13 @@ export class MachineSetup {
         ({ canvas: job.canvas, branch: job.branch, opens: job.opens } = await this.add(dest));
       },
       (e) => {
-        console.error(`Obeya: cloning ${spec} failed: ${e.message}`);
+        console.error(`Seismic: cloning ${spec} failed: ${e.message}`);
         return e instanceof BadRequest ? e.message : e.message.split('\n').at(-1)!;
       },
     );
   }
 
-  /** Adds the repository as a canvas of its own and saves the configuration; Obeya runs it at once. `folder`: a folder that stays without git. */
+  /** Adds the repository as a canvas of its own and saves the configuration; Seismic runs it at once. `folder`: a folder that stays without git. */
   private async add(path: string, folder = false): Promise<FirstCanvas> {
     let next = [...this.o.config.current(), { repos: [{ path, ...(folder ? { git: false as const } : {}) }] }];
     let { problems, resolved } = await this.o.config.check(next);

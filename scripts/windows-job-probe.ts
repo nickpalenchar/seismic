@@ -1,13 +1,13 @@
 // What a Job Object holds on this Windows machine, measured; it proves no containment elsewhere.
 // bun scripts/windows-job-probe.ts [case ...], each case printing one JSON line:
-//   codex-close-tracker, codex-close-job: a real Codex app-server (OBEYA_CODEX, or `codex` on the
+//   codex-close-tracker, codex-close-job: a real Codex app-server (SEISMIC_CODEX, or `codex` on the
 //     PATH; no model turn, no login needed) starts Python heartbeats with `thread/shellCommand`: one
 //     in the shell's tree, and three started detached (DETACHED_PROCESS, a process group of their
 //     own) by launchers that stay, exit after 1.5 s, or exit at once. Then the session ends: through
 //     today's tracker alone (agent-processes.ts, taskkill /T), or with the app-server in a job
 //     (scripts/windows-job-prototype.ts) that is then terminated.
 //   codex-host-death-tracker, codex-host-death-job: the same, but the process holding the transport
-//     (Obeya's stand-in) is killed; the job's kill-on-close is all that runs.
+//     (Seismic's stand-in) is killed; the job's kill-on-close is all that runs.
 //   escapes: an agent in a job tries the ways out an unprivileged process has.
 // Also says whether the probe itself already runs in a job (a terminal's, the CI runner's), in which
 // case every job it makes is nested. An unrelated canary runs throughout; everything the probe
@@ -25,7 +25,7 @@ const until = async (check: () => boolean, ms = 60_000) => { const end = Date.no
 // a file a just-ended process held can stay locked a moment longer
 const remove = (dir: string) => { try { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }); } catch (error) { console.error(`left ${dir}: ${error}`); } };
 const taskkill = (pid: number) => spawnSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
-const python = process.env.OBEYA_PYTHON ?? 'python';
+const python = (process.env.SEISMIC_PYTHON ?? process.env.OBEYA_PYTHON) ?? 'python';
 
 const JOBS = ['same', 'detached', 'late', 'fast'] as const;
 const JOB = `import os, sys, time, subprocess
@@ -57,7 +57,7 @@ elif name.startswith('beat-'):
 const [mode, dir, kind] = process.argv.slice(2);
 if (mode === 'driver') {
   const repo = join(dir!, 'repo');
-  const codex = process.env.OBEYA_CODEX ?? Bun.which('codex');
+  const codex = (process.env.SEISMIC_CODEX ?? process.env.OBEYA_CODEX) ?? Bun.which('codex');
   if (!codex) throw new Error('codex is not installed');
   const inJobCase = kind!.endsWith('-job');
   const made = inJobCase ? createJob() : undefined;
@@ -66,7 +66,7 @@ if (mode === 'driver') {
   const c = codexConnection({ command: command!, args, cwd: repo, env: { ...process.env, ...(made ? { BUN_BE_BUN: '1' } : {}) } }, { notification() {}, request: async () => ({}) });
   if (made) assign(made.handle, c.pid!);
   writeFileSync(join(dir!, 'agent.pid'), String(c.pid));
-  await c.request('initialize', { clientInfo: { name: 'obeya-probe', title: 'Obeya probe', version: '0' }, capabilities: { experimentalApi: true } });
+  await c.request('initialize', { clientInfo: { name: 'obeya-probe', title: 'Seismic probe', version: '0' }, capabilities: { experimentalApi: true } });
   c.notify('initialized', {});
   const started = await c.request<{ thread: { id: string } }>('thread/start', { cwd: repo, approvalPolicy: 'never', sandbox: 'danger-full-access' });
   await c.request('thread/shellCommand', { threadId: started.thread.id, command: `${python} job.py launch` });
@@ -132,17 +132,17 @@ async function escapes() {
     const { spawn, spawnSync } = require('node:child_process');
     const fs = require('node:fs');
     const path = require('node:path');
-    const dir = process.env.OBEYA_ESC_DIR, task = process.env.OBEYA_ESC_TASK, python = process.env.OBEYA_ESC_PYTHON;
+    const dir = (process.env.SEISMIC_ESC_DIR ?? process.env.OBEYA_ESC_DIR), task = (process.env.SEISMIC_ESC_TASK ?? process.env.OBEYA_ESC_TASK), python = (process.env.SEISMIC_ESC_PYTHON ?? process.env.OBEYA_ESC_PYTHON);
     const beat = (file) => python + ' -c "import os,time,pathlib; pathlib.Path(r\\'' + path.join(dir, file) + '\\').write_text(str(os.getpid())); time.sleep(1000)"';
     const log = (name, r) => fs.writeFileSync(path.join(dir, name), [r.status, r.stdout, r.stderr, r.error].join(' | '));
-    const c = spawn(process.execPath, ['-e', 'require("node:fs").writeFileSync(process.env.OBEYA_ESC_DIR + "/detached", String(process.pid)); setInterval(()=>{},1000)'], { detached: true, stdio: 'ignore', windowsHide: true }); c.unref();
+    const c = spawn(process.execPath, ['-e', 'require("node:fs").writeFileSync((process.env.SEISMIC_ESC_DIR ?? process.env.OBEYA_ESC_DIR) + "/detached", String(process.pid)); setInterval(()=>{},1000)'], { detached: true, stdio: 'ignore', windowsHide: true }); c.unref();
     spawn('cmd.exe /d /c start "" /b ' + beat('cmd-start'), { shell: true, stdio: 'ignore', windowsHide: true });
-    log('wmi-result', spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '(Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine=$env:OBEYA_ESC_CMD}).ProcessId'], { encoding: 'utf8', windowsHide: true, env: { ...process.env, OBEYA_ESC_CMD: beat('wmi-inner') } }));
+    log('wmi-result', spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '(Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine=$env:SEISMIC_ESC_CMD}).ProcessId'], { encoding: 'utf8', windowsHide: true, env: { ...process.env, SEISMIC_ESC_CMD: beat('wmi-inner') } }));
     const st = spawnSync('schtasks.exe', ['/Create', '/F', '/TN', task, '/SC', 'ONCE', '/ST', '23:59', '/TR', beat('task')], { encoding: 'utf8', windowsHide: true });
     const run = spawnSync('schtasks.exe', ['/Run', '/TN', task], { encoding: 'utf8', windowsHide: true });
     log('task-result', { status: [st.status, run.status].join(','), stdout: st.stdout + run.stdout, stderr: st.stderr + run.stderr });
     setInterval(() => {}, 1000);`;
-  const r = await launchInJob(process.execPath, ['-e', agent], { stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, OBEYA_ESC_DIR: dir, OBEYA_ESC_TASK: task, OBEYA_ESC_PYTHON: python } });
+  const r = await launchInJob(process.execPath, ['-e', agent], { stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, SEISMIC_ESC_DIR: dir, SEISMIC_ESC_TASK: task, SEISMIC_ESC_PYTHON: python } });
   if (r.boundary !== 'job') return { kind: 'escapes', status: 'blocked', why: r.reason };
   let stderr = '';
   r.child.stderr!.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });

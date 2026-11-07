@@ -293,7 +293,7 @@ export function Choice({ label, value, options, onChange }: { label: string; val
   );
 }
 
-export const harnessName = (h: WorkConfig['harness']) => (h === 'claude' ? 'Claude Code' : h === 'codex' ? 'Codex' : t.performance.unknownHarness);
+export const harnessName = (h: WorkConfig['harness']) => (h === 'claude' ? 'Claude Code' : h === 'codex' ? 'Codex' : h === 'agy' ? 'Antigravity' : t.performance.unknownHarness);
 
 /** A configuration as one line: its model and effort, each named unknown where it is. */
 export function configText(c: WorkConfig, withHarness = false) {

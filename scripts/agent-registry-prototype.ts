@@ -1,4 +1,4 @@
-// Report-only experiment. Not integrated with Obeya and not a process-killing authority.
+// Report-only experiment. Not integrated with Seismic and not a process-killing authority.
 // Use only a private, local scratch directory: path hardening and filesystem guarantees are not established.
 // A per-generation SQLite write lock is a kernel-backed lease on supported local filesystems.
 // Separate files keep record commits independent of the long-lived lease transaction.

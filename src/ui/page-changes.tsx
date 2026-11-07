@@ -11,7 +11,7 @@ export function PageChangeList({ changes }: { changes: { id: OutdatedBy; pages?:
         const kinds = PAGE_CHANGES.find((c) => c.id === id)?.kinds ?? [];
         return (
           <li key={id}>
-            {/* a change of the repository's theme has no day of Obeya's */}
+            {/* a change of the repository's theme has no day of Seismic's */}
             {id !== THEME_CHANGED && <span className="when">{shortDay(`${id.slice(0, 10)}T12:00`)}</span>}
             <span>
               {kinds.length === 1 && <b>{t.pageChanges.only[kinds[0]!]}: </b>}

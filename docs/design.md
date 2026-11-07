@@ -1,12 +1,12 @@
-# Obeya — design
+# Seismic — design
 
-How Obeya works and why, written for an experienced engineer who would rebuild it with the same
+How Seismic works and why, written for an experienced engineer who would rebuild it with the same
 features, however different the rebuild would look. A sentence belongs here if that engineer would
 need it:
 
 - behaviour seen from outside: by the owner on the canvas and the phone, by the agents (their tools
   and what their prompts promise), and by repositories (the settings format, what lands in git, the
-  files Obeya writes);
+  files Seismic writes);
 - data and wire formats a rebuild must stay compatible with;
 - constraints that are not obvious and that a rebuild would otherwise walk into (a platform quirk,
   the reason something unusual is needed);
@@ -20,12 +20,12 @@ and git keeps the old one; a decision names the rejected alternative, not the st
 
 How this document is written:
 
-- Each chapter first says how its part of Obeya works now, in the present tense, then lists its
+- Each chapter first says how its part of Seismic works now, in the present tense, then lists its
   **decisions**.
 - A rule is described in one place; other chapters refer to it by its heading (see Landing).
-- UI texts are quoted in German as the owner sees them („Freigeben“) where the wording matters or
+- UI texts are quoted in English as the owner sees them ("Approve") where the wording matters or
   names the control; settings and API paths are in backticks.
-- Work in progress is planned in plan docs under `docs/plan/`, which Obeya shows as projects; when
+- Work in progress is planned in plan docs under `docs/plan/`, which Seismic shows as projects; when
   one is done, what passes the test above moves into a chapter and the plan doc goes.
 
 Chapters: Goal, Principles and Concepts follow below; every other chapter is a file of its own
@@ -38,7 +38,7 @@ touches, and keep those current in the same change.
 - [Card lifecycle](design/card-lifecycle.md) — a card's states from proposal to done: proposals
   (later starts, taking back, reworking by words), at work, waiting for approval (the handover
   report), approval and landing (feedback after it, comparing ratings), live and done, archive, how projects end.
-- [Communication](design/communication.md) — how workers and Obeya exchange messages: a worker's
+- [Communication](design/communication.md) — how workers and Seismic exchange messages: a worker's
   tools, turns that end without a handover, pausing an agent or a canvas's agents, snoozing a card, waiting without
   blocking, refused and confirmed tool calls, notes and replies, questions go to the owner.
 - [Conversation on the card](design/conversation-on-the-card.md) — what the owner sees and does in
@@ -55,10 +55,10 @@ touches, and keep those current in the same change.
   (watching the PR, ready to merge, the PR on the card), review cards for a contributor's pull
   request (own changes wait for the approval, unpushed commits it collides with), after landing
   (restarts for landed code, finishing, questions after the work).
-- [The Koordinator](design/the-koordinator.md) — the per-canvas agent the UI calls Obeya:
-  scheduling and the queue, learning the owner's rules (Rückschau, rules for a CLAUDE.md), its
-  sheet, Arbeitsrückschau, looked-up questions and threads, Question cards, its memory, wishes for
-  Obeya's makers.
+- [The Koordinator](design/the-koordinator.md) — the per-canvas agent the UI calls Seismic:
+  scheduling and the queue, learning the owner's rules (retrospective, rules for a CLAUDE.md), its
+  sheet and its chats, work retrospective, looked-up questions and threads, Question cards, its memory, wishes for
+  Seismic's makers.
 - [Voice](design/voice.md) — voice in (dictating or sending, drafts, the microphone), speech
   recognition (Parakeet, Whisper, a cloud service, the settings), who hears the words, commands to
   the Koordinator with confirmation and undo, voice latency, no voice out.
@@ -68,17 +68,18 @@ touches, and keep those current in the same change.
   headless browser.
 - [Sharing demos](design/sharing-demos.md) — demos on a page of their own for colleagues: where a
   demo goes, tags, several versions on one page, publishing (on approval too), outdated pages, the page
-  and the pull request, export without a site, a repository's theme, static sites, several machines on one site.
+  and the pull request, export without a site, a repository's theme, static sites, this machine's
+  demo sites and a canvas's site with its path, unlisted sites, several machines on one site.
 - [Repositories and configuration](design/repositories-and-configuration.md) — canvases and
-  repositories, main branch, Lesestand, plan docs (and how Obeya reads them), repository settings
-  (`.obeya/settings.json`, problems, trusting commands, writing them), the Konfiguration dialog,
+  repositories, main branch, read checkout, plan docs (and how Seismic reads them), repository settings
+  (`.obeya/settings.json`, problems, trusting commands, writing them), the configuration dialog,
   live configuration, language.
-- [Running Obeya](design/running-obeya.md) — the server (who may talk to it, other devices, the
+- [Running Seismic](design/running-obeya.md) — the server (who may talk to it, other devices, the
   phone view, notifications on the phone, stalls), setup assistant, setting up git in a folder,
   self-update (waiting for workers and the owner, pulling from the upstream), stopping.
-- [Distribution](design/distribution.md) — how Obeya gets to people: one file, the app, builds
+- [Distribution](design/distribution.md) — how Seismic gets to people: one file, the app, builds
   (signing, making a release), app updates, the site, the hero video.
-- [Data](design/data.md) — what Obeya stores in SQLite and under `~/.obeya/`, and what it derives.
+- [Data](design/data.md) — what Seismic stores in SQLite and under `~/.obeya/`, and what it derives.
 - [Open questions](#open-questions) — below.
 
 ## Goal
@@ -88,7 +89,7 @@ every task and every project is a card on one canvas; agents do the work in the 
 human keeps every essential decision — made by voice, from a narrated demo video, without reading
 code or cycling through terminals.
 
-*Obeya* is Japanese for "big room": in lean management, the room where every project hangs visibly
+*Seismic* is Japanese for "big room": in lean management, the room where every project hangs visibly
 on the walls and decisions are made in front of the wall.
 
 ## Principles
@@ -105,23 +106,31 @@ on the walls and decisions are made in front of the wall.
   What is to be looked at rather than watched (drafts side by side, a layout, an analysis, an
   answer) is an HTML artifact instead of a video; the worker picks, the video where either would
   do. There is no handover without one.
-- **Voice first, mouse welcome.** Push-to-talk in Obeya's window; buttons for the obvious actions. No live
+- **Voice first, mouse welcome.** Push-to-talk in Seismic's window; buttons for the obvious actions. No live
   transcript: what the owner says to an open card's agent shows in its conversation, a command to
-  Obeya gets a short written confirmation with undo. What was said and answered stays in the
-  conversation of the open card, or in the Koordinator's sheet. Obeya does not speak.
+  Seismic gets a short written confirmation with undo. What was said and answered stays in the
+  conversation of the open card, or in the Koordinator's sheet. Seismic does not speak.
 - **Repo-agnostic core.** Project specifics live in the repository's settings: in the repository
   itself (`.obeya/settings.json`), or set for this machine in the configuration.
+- **No coloured accent bars.** Nothing in the UI is marked with a coloured vertical bar down its
+  left edge (a border or inset stripe): a message new to the owner, a Question card, a callout, a
+  finding, the selected row of a list. What needs to stand out gets a tint of its colour, a full
+  thin outline or ring, or bolder text instead. A plain grey rule beside quoted text is a quotation
+  mark, not an accent, and stays.
 
 ## Concepts
 
-- **Canvas** — a canvas spans one or more repositories; one Obeya serves several canvases.
+- **Project** — the named workspace spanning one or more repositories; one Seismic serves several
+  projects. Each has a spatial canvas of cards. The UI calls these workspaces projects; existing
+  configuration, API and storage fields named `canvas` or `canvases` keep their format. Plan-backed
+  project cards remain containers for workstreams within a project.
 - **Cards** — everything on the canvas is a card: a task, an idea, a prototype, a Question card (a
   thread of looked-up answers, see Looked-up threads), or a project, a container backed by a plan doc
   whose workstreams are its child cards. Tasks have no further kind: fixing a bug or adding
   something is worked on the same way, so the owner picks none and a task's card names none; the
   other cards say what they are (idea, prototype, workstream number, project). The UI and the
   Koordinator call a task *Aufgabe* and a follow-up *Folgeaufgabe*, never *Karte*; *Karte* is only a
-  card on the canvas as such (moving, grouping, „Karte oder Projekt schließen“).
+  card on the canvas as such (moving, grouping, "Close card or project").
 - **Groups** — besides by place, the owner sorts the canvas by group: a group has a name and a
   colour, and a card belongs to none or one; a project belongs as a whole, with its workstreams. A
   proposal, a follow-up and a prototype come into the group of the card they come from, a project
@@ -132,34 +141,40 @@ on the walls and decisions are made in front of the wall.
 - **States** — `idea` → `planned` → `working` → `waiting` (demo ready | question) → `approved` → `in
   PR` → `live`, or `done` when the work changed no code; an agent's `proposal` is started when
   accepted. Every handover brings a demo; where the repository has no recipe for running its app
-  (Obeya's defaults have none), the worker finds that out from the repository. `waiting: review`
+  (Seismic's defaults have none), the worker finds that out from the repository. `waiting: review`
   (a handover without a demo) occurs only on old cards (see Demos, Decisions). An idea is `open`,
   `parked` or `dropped`.
 - **Agents**
   - *Worker*, one per card while it is worked on: implementation, local reviews, demo.
   - *Project agent*, one per project, long-lived: knows the plan doc and the history of every
-    workstream; the owner asks it in the project's sheet, or asks Obeya, which passes the question on.
+    workstream; the owner asks it in the project's sheet, or asks Seismic, which passes the question on.
   - *Exploration agent*, one per idea, long-lived, with a worker's tools: discusses the idea with
     the owner and keeps its brief.
   - *Koordinator* (Chief of Staff), one per canvas: takes voice input on the open canvas, creates
     and assigns cards, runs the workspace pool, keeps the preference memory, and schedules the work
     so that cards likely to conflict on merge are queued rather than run together (see Scheduling).
-    The UI calls it *Obeya* in both languages: its replies, its sheet, the line under the microphone
+    The UI calls it *Seismic* in both languages: its replies, its sheet, the line under the microphone
     and its log lines on cards; its button at the top right is a speech-bubble icon with its counts,
-    tooltip „Obeya (C)“. Prompts tell the agents the owner knows it as Obeya.
+    tooltip "Seismic (C)". Prompts tell the agents the owner knows it as Seismic.
 - **Preference memory** — rules distilled from the owner's answers and corrections ("questions to me
   with at most three options", "solve rebase conflicts yourself") or said outright ("Merk dir: …"),
   shared by all agents and kept by the Koordinator. A learned rule is a proposal until the owner
   accepts it; one said or written outright is active at once. It holds only rules about how agents
-  work with the owner through Obeya; whatever is about a repository, its taste in code included,
+  work with the owner through Seismic; whatever is about a repository, its taste in code included,
   goes into that repository's CLAUDE.md through a card (see Learning the owner's rules).
 
 ### Decisions
 
-- **Name**: Obeya.
-- **The Koordinator is called Obeya in the UI** (2026-10-09): the owner has one counterpart, not a
+- **Name**: Seismic.
+- **The Koordinator is called Seismic in the UI** (2026-10-09): the owner has one counterpart, not a
   product plus a component in it.
 - **Persistent local store**, not ephemeral.
+- **The docs, comments and prompts agents read are in English** (2026-11-05): agents drifted into
+  writing the owner in German after reading German UI labels quoted throughout the docs, although
+  the owner wrote in English. The German interface stays as an option the owner picks; it lives
+  only in the UI and message tables, and what an agent reads elsewhere quotes the English labels.
+- **No coloured vertical accent bars** (2026-11-05): the owner rejected them as a look; tints,
+  outlines and rings carry the same emphasis (see Principles).
 - **Agents may propose cards.**
 - **Open source** under the MIT licence, copyright Daniel Sadilek, in a public repository on GitHub
   (2026-10-06). Code, tests and docs name no other work projects. The README is written for
@@ -171,8 +186,8 @@ on the walls and decisions are made in front of the wall.
   `user-attachments` link no API makes), and a release asset shows as a download; so the loop is a
   GIF cut from the hero video (see Hero video), linked to the video on obeya.si (`#film`), which is
   always the current one (2026-10-19). Rejected: the video's first frame with a play button drawn on
-  it, which beside the loop would show two near-identical canvases. `CONTRIBUTING.md` says how Obeya
-  is built with Obeya (design doc, plan docs, cards, demos) and what a pull request from outside
+  it, which beside the loop would show two near-identical canvases. `CONTRIBUTING.md` says how Seismic
+  is built with Seismic (design doc, plan docs, cards, demos) and what a pull request from outside
   brings.
 - **The repository on GitHub is made to be found** (2026-10-19): its homepage is obeya.si; its
   topics are a dozen that people search for and that have active topic pages (`claude-code`,
@@ -190,7 +205,7 @@ on the walls and decisions are made in front of the wall.
 
 ## Open questions
 
-- Plan-doc sync: Obeya reads plan docs and never writes them; workers tick off their workstream in
+- Plan-doc sync: Seismic reads plan docs and never writes them; workers tick off their workstream in
   the doc as part of their change. Should the project agent keep the doc's progress instead?
 - Cloud hosts, left out for now (2026-10-10): a host type whose slots are cloud instances, one per
   card (an EC2 `m8g.xlarge`, say, in the using repository's cloud account), launched from a prepared

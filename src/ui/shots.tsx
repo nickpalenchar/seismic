@@ -3,6 +3,7 @@
 // those not sent yet take marks (marks.ts). Other files dropped go into the text by their path, for
 // the agent to read them (`fileTo`).
 
+import { Image as ImageIcon, Undo2 } from 'lucide-react';
 import { type ClipboardEvent, type DragEvent, type MouseEvent, type PointerEvent, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IMAGE_TYPES, MAX_FILE_BYTES, MAX_IMAGE_BYTES } from '../core/types';
@@ -13,6 +14,7 @@ import { know, known } from './known';
 import { badgeOf, CLICK_PX, drawMarks, EDGE, type Mark, markOf, markSize, type Point, RED, roundedRect } from './marks';
 import { confirmPasteHint, pastedShots, pickedShots, usePasteHint } from './pasteHint';
 import { failText, pasteKeys, t } from './strings';
+import { motionMs } from './motion';
 import { behindThumb, type Box, onto, ZOOM_EASE, ZOOM_MS } from './zoomBox';
 
 /** The longest side the model looks at in detail; larger screenshots only cost upload and context. */
@@ -76,7 +78,7 @@ export async function attachTo(key: string, files: File[], added?: () => void) {
 /**
  * Files for a draft that are no screenshots, one after the other; the path of each goes into its
  * text by `put` as it is known. That is the file's own path: the app's drop names it, and for a
- * browser's Obeya looks for the file on its machine. Where it finds none, the file is uploaded and
+ * browser's Seismic looks for the file on its machine. Where it finds none, the file is uploaded and
  * its copy's path goes in. How many did.
  */
 export async function fileTo(key: string, files: File[], put: (path: string) => void) {
@@ -275,11 +277,7 @@ export function AttachButton({ shots, title = t.shots.attach }: { shots: ShotInp
           shots.picker.current?.click();
         }}
       >
-        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
-          <rect x="2.5" y="4" width="15" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-          <circle cx="7" cy="8.5" r="1.5" fill="currentColor" />
-          <path d="M3.5 14.5 8 10.5l3 2.5 2.5-2 3 3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-        </svg>
+        <ImageIcon size={18} strokeWidth={1.75} aria-hidden="true" />
       </button>
       <input
         ref={shots.picker}
@@ -437,7 +435,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
     const { transform, clipPath } = getComputedStyle(img.current!);
     for (const el of moving()) {
       el.getAnimations().forEach((a) => a.cancel());
-      const back = el.animate([{ transform, clipPath }, to], { duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'forwards' });
+      const back = el.animate([{ transform, clipPath }, to], { duration: motionMs(ZOOM_MS), easing: ZOOM_EASE, fill: 'forwards' });
       if (el === img.current) back.onfinish = onClose;
     }
   };
@@ -450,7 +448,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
       setSize({ w: el.naturalWidth, h: el.naturalHeight });
       place();
       const from = onThumb();
-      if (from) for (const x of moving()) x.animate([from, { transform: 'none', clipPath: 'inset(0)' }], { duration: ZOOM_MS, easing: ZOOM_EASE });
+      if (from) for (const x of moving()) x.animate([from, { transform: 'none', clipPath: 'inset(0)' }], { duration: motionMs(ZOOM_MS), easing: ZOOM_EASE });
     };
     // a resized window resizes the image, and the marks with it
     const resized = new ResizeObserver(place);
@@ -520,10 +518,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
           <div className="lb-bar" onClick={(e) => e.stopPropagation()}>
             {!marksKnown && <span className="lb-hint">{t.shots.markHint}</span>}
             <button className="btn" title={t.shots.undoTitle} disabled={!marks.length} onClick={undo}>
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-                <path d="M5.5 3 2.5 6l3 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M3 6h6.5a4 4 0 0 1 0 8H7" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
+              <Undo2 size={14} strokeWidth={1.75} aria-hidden="true" />
               {t.shots.undo}
             </button>
             <button className="btn primary" onClick={close}>

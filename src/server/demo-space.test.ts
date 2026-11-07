@@ -89,7 +89,7 @@ test("what demos take, and their work directories' share of it", async () => {
   expect(await usage(join(demos, 'none'))).toEqual({ bytes: 0, work: 0 });
 });
 
-test("the days kept: the settings', else the default, which only the Obeya in the default home applies", () => {
+test("the days kept: the settings', else the default, which only the Seismic in the default home applies", () => {
   const own = join(homedir(), '.obeya');
   expect(keepDays({}, own)).toBe(DEFAULT_KEEP_DAYS);
   expect(keepDays({ keepFrames: 'always' }, own)).toBeNull();

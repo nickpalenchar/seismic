@@ -1,6 +1,6 @@
 // The line protocol between `tts.py` and a voice that stays loaded (`qwen3.py --serve`), against
 // fake voices: one that counts its starts, one that dies, and Qwen3's own server with a fake
-// mlx-audio that prints where the protocol runs; and the same voice held by Obeya across renders
+// mlx-audio that prints where the protocol runs; and the same voice held by Seismic across renders
 // (`src/server/narration.ts`). Python through uv, as a render runs it.
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
@@ -211,9 +211,9 @@ describe('English terms in German narration', () => {
   }, 30_000);
 });
 
-describe('a voice Obeya holds', () => {
+describe('a voice Seismic holds', () => {
   const UV = ['uv', 'run', '--quiet', '--no-project', '--with', 'numpy', 'python'];
-  /** A render while this process serves Obeya's narration: spawned, not spawnSync, which would block the server. */
+  /** A render while this process serves Seismic's narration: spawned, not spawnSync, which would block the server. */
   const render = (out: string, env: Record<string, string>, extra: string[] = []) =>
     new Promise<{ status: number | null; stderr: string }>((resolve) => {
       const child = spawn(UV[0]!, [...UV.slice(1), join(LIB, 'tts.py'), ...extra, join(dir, 'spec.json'), 'de', join(dir, 'jobs.json'), join(dir, out)], {
@@ -230,7 +230,7 @@ describe('a voice Obeya holds', () => {
     // the voice loads at once; a test that removes `go` holds it
     writeFileSync(go(), '');
     host = new NarrationHost({ argv: () => [...UV, join(dir, 'voice.py'), join(dir, 'log'), go()] });
-    // the narration server, as Obeya gives its workers in `OBEYA_URL`
+    // the narration server, as Seismic gives its workers in `SEISMIC_URL`
     server = serveNarration(host);
     const spec = JSON.parse(readFileSync(join(dir, 'spec.json'), 'utf8'));
     writeFileSync(join(dir, 'spec.json'), JSON.stringify({ ...spec, host: { speaker: 'ryan' } }));
@@ -247,10 +247,10 @@ describe('a voice Obeya holds', () => {
     const clip = host.clip.bind(host);
     let asked = 0;
     host.clip = (request) => (++asked === 2 && writeFileSync(go(), ''), clip(request));
-    const env = { OBEYA_URL: server.url.href };
+    const env = { SEISMIC_URL: server.url.href };
     const [a, b] = await Promise.all([render('a', env), render('b', env)]);
     expect([a.status, b.status]).toEqual([0, 0]);
-    expect(a.stderr).toMatch(/synthesised by Obeya in [\d.]+ s/);
+    expect(a.stderr).toMatch(/synthesised by Seismic in [\d.]+ s/);
     for (const out of ['a', 'b']) expect(JSON.parse(readFileSync(join(dir, out, 'tts.json'), 'utf8')).clips).toHaveLength(3);
     // the second render's clips came between the first's
     const clips = log().slice(1);
@@ -262,21 +262,21 @@ describe('a voice Obeya holds', () => {
   }, 60_000);
 
   // the lock is held here with flock, which Windows lacks
-  test.skipIf(process.platform === 'win32')('a render does not wait for the machine to synthesise through Obeya, and falls back to its own voice without Obeya', async () => {
+  test.skipIf(process.platform === 'win32')('a render does not wait for the machine to synthesise through Seismic, and falls back to its own voice without Seismic', async () => {
     // another render holds the lock, as one with a model of its own does
     const lock = join(dir, 'tts.lock');
     const holder = spawn(UV[0]!, [...UV.slice(1), '-c', `import fcntl, sys, time\nf = open(${JSON.stringify(lock)}, "a+b")\nfcntl.flock(f, fcntl.LOCK_EX)\nprint("held", flush=True)\ntime.sleep(60)`]);
     await new Promise((resolve) => holder.stdout.once('data', resolve));
     try {
-      const held = await render('a', { OBEYA_URL: server.url.href }, ['--lock', lock]);
+      const held = await render('a', { SEISMIC_URL: server.url.href }, ['--lock', lock]);
       expect(held.status).toBe(0);
       expect(held.stderr).not.toContain('waiting for it');
     } finally {
       holder.kill();
     }
-    const alone = await render('b', { OBEYA_URL: 'http://127.0.0.1:9', FAKE_LOG: join(dir, 'log') });
+    const alone = await render('b', { SEISMIC_URL: 'http://127.0.0.1:9', FAKE_LOG: join(dir, 'log') });
     expect(alone.status).toBe(0);
-    expect(alone.stderr).toContain('Obeya does not hold the voice, it is not reachable');
+    expect(alone.stderr).toContain('Seismic does not hold the voice, it is not reachable');
     expect(alone.stderr).toMatch(/voice loaded in [\d.]+ s/);
     expect(log().filter((l) => l === 'start')).toHaveLength(2);
   }, 90_000);
@@ -541,7 +541,7 @@ def load_model(repo):
     expect(new TextDecoder().decode((await out.read()).value)).toContain('"ready": true');
     p.stdin.write(`${JSON.stringify({ text: 'Ein Satz.', out: join(dir, 'a.wav'), id: 1 })}\n`);
     p.stdin.end();
-    // Obeya stops while the clip is made: nobody reads the answer
+    // Seismic stops while the clip is made: nobody reads the answer
     await out.cancel();
     expect(await p.exited).toBe(0);
     expect(await new Response(p.stderr).text()).not.toContain('BrokenPipeError');

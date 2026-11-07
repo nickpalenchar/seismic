@@ -1,7 +1,7 @@
 // The Chromium the plugin's skills drive: the demo skill records with it, the browser skill checks
 // pages with it. Plain Node with type stripping, like the skills that import it; importing this
 // module is what resolves Playwright, found up the tree from here (the checkout's node_modules, or
-// the one beside the plugin among Obeya's resources and on a host).
+// the one beside the plugin among Seismic's resources and on a host).
 
 import { join } from 'node:path';
 import { chromium, type Browser, type LaunchOptions } from 'playwright-core';

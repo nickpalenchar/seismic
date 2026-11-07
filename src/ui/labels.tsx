@@ -1,7 +1,8 @@
 // A card's labels (`core/labels.ts`): on its face, the priority's flag and compact chips after it;
-// on the unfolded card, a picker for each. A label Obeya suggested and the owner has not touched is
+// on the unfolded card, a picker for each. A label Seismic suggested and the owner has not touched is
 // drawn with the same dashed border as a proposal; any pick makes it theirs.
 
+import { Flag as FlagIcon } from 'lucide-react';
 import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { COMPLEXITIES, type Complexity, type Label, type Labels, LABEL_VALUES, PRIORITIES, type Priority } from '../core/labels';
 import type { Item } from '../core/types';
@@ -11,9 +12,7 @@ import { t } from './strings';
 
 /** A flag, in the colour of the priority it marks. */
 const Flag = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-    <path d="M5 21V4h11l-1.5 4L16 12H7v9z" />
-  </svg>
+  <FlagIcon size={11} strokeWidth={2} fill="currentColor" aria-hidden />
 );
 
 /** Rising bars, as many filled as the complexity's step in the scale. */
@@ -30,7 +29,7 @@ const Bars = ({ complexity }: { complexity: Complexity }) => {
 
 const suggestedOf = (item: Item, label: Label) => !!item.suggested?.includes(label);
 
-/** A card's priority on its face: a flag and its name, in its colour; framed in purple while Obeya suggested it. */
+/** A card's priority on its face: a flag and its name, in its colour; framed in purple while Seismic suggested it. */
 export const PriorityMark = ({ priority, suggested }: { priority: Priority; suggested?: boolean }) => (
   <span className={`prio prio-${priority}${suggested ? ' sugg' : ''}`} title={suggested ? t.labels.suggested : undefined}>
     <Flag />
@@ -49,7 +48,7 @@ function chipTitle(label: Exclude<Label, 'priority'>, v: NonNullable<Labels[type
   return label === 'complexity' ? t.labels.complexity.step(v as Complexity) : `${t.labels[label].label}: ${chipText(label, v)}`;
 }
 
-/** One label as a compact chip; purple-bordered while Obeya suggested it. */
+/** One label as a compact chip; purple-bordered while Seismic suggested it. */
 function Chip({ label, value, suggested }: { label: Exclude<Label, 'priority'>; value: NonNullable<Labels[typeof label]>; suggested?: boolean }) {
   return (
     <span className={`lchip lchip-${label}${suggested ? ' sugg' : ''}`} title={suggested ? `${chipTitle(label, value)}\n${t.labels.suggested}` : chipTitle(label, value)}>
@@ -77,8 +76,8 @@ export function LabelMarks({ item }: { item: Item }) {
 
 /**
  * A label on the unfolded card: its mark, or its name in a frame while it has none; a click lists
- * its values and „Keine“, which takes it off. A pick takes effect at once and makes the label the
- * owner's, the same value as Obeya's suggestion included.
+ * its values and "None", which takes it off. A pick takes effect at once and makes the label the
+ * owner's, the same value as Seismic's suggestion included.
  */
 function LabelPick<L extends Label>({ item, label, values, shown, empty, option, optionTitle, open, setOpen }: {
   item: Item;

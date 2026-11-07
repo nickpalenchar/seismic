@@ -1,17 +1,21 @@
 // The phone view: on a phone the page shows, instead of the canvas, what waits for the owner across
-// every canvas („Braucht dich“), what runs („Läuft“) and, folded away until opened, what is done but not
-// archived yet („Erledigt“); Obeya's conversation is a panel of its own that
+// every canvas ("Needs you"), what runs ("Running") and, folded away until opened, what is done but not
+// archived yet ("Done"); Seismic's conversation is a panel of its own that
 // comes up from below. A card opens full screen with the canvas's own detail view (answer options,
 // demo, approve buttons), its conversation in the same panel, and Back returns to the list. The microphone is held by touch; Enter breaks the line, only Send sends;
+// the list itself has a plus button in the microphone's place, which makes a card and opens it (the microphone is back with a panel open);
 // what was typed but not sent survives a reload. It holds one WebSocket per canvas.
 
+import { ChevronLeft, Plus } from 'lucide-react';
 import { useRatePrompt } from './feedback';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { type CanvasInfo, type CanvasSnapshot, type CardPatch, finishedArchivable, type Item, needsYou, openQuestions, unreadAnswers, type Usage, waitingOn } from '../core/types';
+import { type CanvasInfo, type CanvasSnapshot, type CardPatch, finishedArchivable, type Item, nameless, needsYou, openQuestions, unreadAnswers, type Usage } from '../core/types';
+import { ChatsHead } from './chats';
 import { api, beforeReload, cardsOn, onNotice, phoneInUse, setCanvas, useCanvas, type Where } from './api';
 import { enterBreaksLines } from './composer';
-import { ForYouRows, forYouOf, when } from './forYou';
-import { type QuickReply, sendReply } from './quickReply';
+import { InboxList, when } from './inbox';
+import { inboxEntries } from '../core/inbox';
+import { sendReply } from './quickReply';
 import { type ActDone, Detail, type Pending, TalkElsewhere, useEvents } from './detail';
 import { cardDraft, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, obeyaDraft } from './draft';
 import { KoordinatorTalk } from './koordinator';
@@ -24,11 +28,12 @@ import { CardFace, cardClass, shownState, TalkIcon } from './parts';
 import { videoOf } from './spot';
 import { failText, forTouch, t } from './strings';
 import { UsagePill } from './usage';
-import { agentWorks, cardTalk, koordinatorReads, obeyaWorks, opensWithTalk, runs, unseen } from './talk';
+import { agentWorks, beingWritten, cardTalk, koordinatorReads, obeyaWorks, opensWithTalk, runs, unseen } from './talk';
 import { seenOf } from './seen';
 import { noticeLine, tellers, useAck } from './tell';
 import { HoldToTalk, PushToTalk, ToldList, usePushToTalk, useTold } from './voice';
-import { canvasPath, cardPath, named, queryWithout, readAddress } from './address';
+import { projectPath, cardPath, named, queryWithout, readAddress } from './address';
+import { scrollBehavior } from './motion';
 
 /**
  * Whether the page shows the phone view: on a phone, which has a coarse pointer and a short side
@@ -43,9 +48,9 @@ export function phoneView(): boolean {
 
 /** The phone view keeps its drafts apart from any canvas's: it shows every canvas. */
 const DRAFTS = '@phone';
-/** The canvas whose Obeya the conversation at the bottom is with, as the owner last picked it. */
+/** The canvas whose Seismic the conversation at the bottom is with, as the owner last picked it. */
 const OBEYA_CANVAS = 'obeya-phone-canvas';
-/** Whether the owner opened „Geplant“ or „Erledigt“ in this tab; each starts closed. */
+/** Whether the owner opened "Planned" or "Done" in this tab; each starts closed. */
 const PLANNED_OPEN = 'obeya-phone-planned';
 const DONE_OPEN = 'obeya-phone-done';
 /** How long the server may not answer before the view says so: a phone back from its lock screen reconnects within this. */
@@ -58,18 +63,6 @@ const talkInAddress = () => new URLSearchParams(location.search).has('talk');
 type Step = 'card' | 'talk';
 /** The open card's demo video, on its page. */
 const pageVideo = () => document.querySelector<HTMLVideoElement>('#ph-card .demo-view video');
-
-/**
- * The keyboard makes the page shorter (`interactive-widget`), as Chrome on Android does with it: the
- * views fixed to the screen end at the keyboard then. Without it Chrome only shrinks the visual
- * viewport and reports it wrong by its own bars (by the gesture bar where it draws under it, by the
- * bottom toolbar where it has one), and the field ended under the keyboard or far above it. Safari
- * ignores it and shrinks the visual viewport, which the panel follows.
- */
-function keyboardResizes() {
-  const meta = document.querySelector<HTMLMetaElement>('meta[name=viewport]');
-  if (meta && !meta.content.includes('interactive-widget')) meta.content += ', interactive-widget=resizes-content';
-}
 
 /** The kinds of input the keyboard comes up for; a date or a time opens the phone's own picker instead. */
 const TYPED = new Set(['text', 'search', 'email', 'url', 'tel', 'password', 'number']);
@@ -161,7 +154,6 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     forTouch();
     enterBreaksLines();
     phoneInUse();
-    keyboardResizes();
   });
   useEffect(watchKeyboard, []);
   useEffect(tapOpensKeyboard, []);
@@ -184,13 +176,13 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   // ---------------------------------------------------------------- what is open
   const [open, setOpenState] = useState<string | null>(cardInAddress);
   /**
-   * The address with `card` open on its canvas (or the canvas of Obeya's conversation with none),
+   * The address with `card` open on its canvas (or the canvas of Seismic's conversation with none),
    * and that conversation open or not, keeping what else it holds (`?view=phone`, say).
    */
   const addressWith = ({ card, talk }: { card: string | null; talk: boolean }) => {
     const x = card ? allRef.current.find((c) => c.item.id === card) : undefined;
     // a card not known yet (the snapshots still on their way) keeps the address that named it
-    const path = !card ? canvasPath(obeyaRef.current) : x ? cardPath(x.canvas.id, x.item) : location.pathname;
+    const path = !card ? projectPath(obeyaRef.current) : x ? cardPath(x.canvas.id, x.item) : location.pathname;
     const q = queryWithout(location.search, 'c', 'card', 'talk');
     return `${path}${talk ? (q ? `${q}&talk` : '?talk') : q}`;
   };
@@ -198,7 +190,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   const resolve = (code: string | null) => (code && named(allRef.current.map((x) => x.item), code)?.id) || code;
   const openRef = useRef(open);
   openRef.current = open;
-  // the conversation of what is in view, a panel over it: the open card's, else Obeya's
+  // the conversation of what is in view, a panel over it: the open card's, else Seismic's
   const [talk, setTalk] = useState(talkInAddress);
   const talkRef = useRef(talk);
   talkRef.current = talk;
@@ -223,7 +215,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   };
   /** The card just opened, until it is known whether it waits for answers (its conversation opens then). */
   const looked = useRef<string | null>(cardInAddress());
-  // a card opens over Obeya's conversation, and from a card's conversation another card in its place
+  // a card opens over Seismic's conversation, and from a card's conversation another card in its place
   const openId = (id: string) => {
     if (openRef.current === id) return;
     looked.current = id;
@@ -267,7 +259,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     setOpenState(null);
     setTalk(false);
   };
-  // a tapped push: its card (or „Braucht dich“ for several) in the app that is open already
+  // a tapped push: its card (or "Needs you" for several) in the app that is open already
   useEffect(() => {
     registerWorker();
     const sw = navigator.serviceWorker;
@@ -295,7 +287,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     addEventListener('popstate', pop);
     return () => removeEventListener('popstate', pop);
   }, []);
-  // „Geplant“ and „Erledigt“ start closed, and stay as the owner left them while a card is open and over a reload
+  // "Planned" and "Done" start closed, and stay as the owner left them while a card is open and over a reload
   const [plannedOpen, togglePlanned] = useFolded(PLANNED_OPEN);
   const [doneOpen, toggleDone] = useFolded(DONE_OPEN);
   // the list keeps where it was scrolled to while a card is open
@@ -321,7 +313,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   }, [all]);
   // approved cards the server is still landing: they need the owner no longer
   const [underway, setUnderway] = useState<string[]>([]);
-  // a card replied to from „Braucht dich“ stays under way while it still waits for the owner
+  // a card replied to from "Needs you" stays under way while it still waits for the owner
   useEffect(
     () =>
       setUnderway((u) =>
@@ -334,7 +326,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   );
   const opened = open ? all.find((x) => x.item.id === open) : undefined;
 
-  // the canvas whose Obeya is spoken to without a card open
+  // the canvas whose Seismic is spoken to without a card open
   const [obeyaCanvas, setObeyaCanvasState] = useState(() => {
     const wanted = readAddress().canvas ?? localStorage.getItem(OBEYA_CANVAS);
     return (canvases.find((c) => c.id === wanted) ?? canvases[0]!).id;
@@ -350,7 +342,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
       localStorage.setItem(OBEYA_CANVAS, id);
     } catch {}
   };
-  // every call goes to the API of the canvas in view: the open card's, else Obeya's
+  // every call goes to the API of the canvas in view: the open card's, else Seismic's
   setCanvas(opened?.canvas.id ?? obeyaId);
   // and every call about a card to its canvas's
   for (const c of ordered) cardsOn(c.id, snaps[c.id]!.items.map((i) => i.id));
@@ -365,9 +357,18 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     edit.current = null;
     return Object.keys(e.patch).length ? api.patch(e.id, e.patch) : Promise.resolve();
   }
+  /** The open card's title, text and screenshots as typed, ahead of the snapshot: whether it was left without a title. */
+  const typed = useRef<{ id: string } & Pick<Item, 'kind' | 'title' | 'body' | 'images'> | null>(null);
   const onEdit = (p: CardPatch) => {
     const id = openRef.current;
     if (!id) return;
+    const i = byId(id);
+    if (i && typed.current?.id !== id) typed.current = { id, kind: i.kind, title: i.title, body: i.body, images: i.images ?? [] };
+    if (typed.current?.id === id) {
+      if (p.title !== undefined) typed.current.title = p.title;
+      if (p.body !== undefined) typed.current.body = p.body;
+      if (p.images !== undefined) typed.current.images = p.images;
+    }
     if (edit.current?.id !== id) flushEdit().catch(console.error);
     const e = (edit.current ??= { id, patch: {} });
     Object.assign(e.patch, p);
@@ -375,15 +376,64 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     e.timer = setTimeout(() => flushEdit().catch(console.error), 400);
   };
   useEffect(() => beforeReload(() => void flushEdit().catch(console.error)), []);
+  // a card of the owner's left without a title (Back, the browser's own, a push opening another): one
+  // left empty was not wanted and goes, one with a task Seismic names, as on the canvas
+  const deleting = useRef<string | null>(null);
+  const was = useRef(open);
+  useEffect(() => {
+    const left = was.current;
+    was.current = open;
+    if (!left || left === open) return;
+    beingWritten.delete(left);
+    const i = byId(left);
+    if (!i || i.source !== 'manual' || deleting.current === left) return;
+    const w = typed.current?.id === left ? typed.current : i;
+    if (w.title.trim()) return;
+    const saved = flushEdit();
+    if (nameless(w)) saved.then(() => api.act(left, { action: 'name' })).catch(console.error);
+    else saved.then(() => api.remove(left)).catch(console.error);
+  }, [open]);
+
+  // ---------------------------------------------------------------- a new card
+  /** The card the plus button made, opened as soon as the snapshot brings it. */
+  const [made, setMade] = useState<string | null>(null);
+  const [making, setMaking] = useState(false);
+  async function newCard() {
+    if (making) return;
+    setMaking(true);
+    try {
+      // on the canvas whose Seismic the list speaks to, where there is room on it
+      const card = await api.create({ title: '' });
+      beingWritten.add(card.id);
+      setMade(card.id);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setMaking(false);
+    }
+  }
+  useEffect(() => {
+    if (!made || !byId(made)) return;
+    setMade(null);
+    if (openRef.current || talkRef.current) return;
+    openId(made);
+  }, [made, all]);
+  // the card just made is written in its text first, as on the canvas: Seismic names it from that
+  useEffect(() => {
+    if (!open || !beingWritten.has(open) || !opened || opened.item.title) return;
+    const body = document.querySelector<HTMLElement>('#ph-card .p-body');
+    if (!body || body.textContent) return;
+    body.focus();
+  }, [open, !!opened]);
 
   // ---------------------------------------------------------------- voice and confirmations
   const { showAck, showWait, fail, line: ackLine } = useAck(true);
   const ratePrompt = useRatePrompt(useMemo(() => all.map((x) => x.item), [all]));
-  // the reply stands in Obeya's conversation, open in front of the owner: no line above the microphone
+  // the reply stands in Seismic's conversation, open in front of the owner: no line above the microphone
   const told = useTold(() => {}, (h) => talkRef.current && (h.inCard ? openRef.current === h.inCard : !!snapsRef.current[obeyaRef.current]?.talk.some((x) => x.id === h.talk)));
   const { tellAbout, tellTyped } = tellers(byId, told, fail, () => undefined);
   const where = (): Where => (openRef.current ? { card: openRef.current } : null);
-  /** The draft of the field that speaks to `target`: the open card's, or the one under Obeya's conversation. */
+  /** The draft of the field that speaks to `target`: the open card's, or the one under Seismic's conversation. */
   const draftFor = (target: Where) => (target && 'card' in target ? cardDraft(target.card) : obeyaDraft(obeyaRef.current));
   const fieldFor = (target: Where) => {
     const key = draftFor(target);
@@ -419,6 +469,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   useEffect(
     () =>
       onNotice((n) => {
+        if (n.made && n.token) return told.made(n.token, n.made);
         const i = n.cardId ? byId(n.cardId) : undefined;
         told.show(i ? { id: i.id, title: plain(i.title) } : undefined, { confirm: noticeLine(n.text), ...(n.token ? { token: n.token } : {}), ...(n.undoMs ? { undoMs: n.undoMs } : {}), ...(n.talk ? { talk: n.talk } : {}), ...(n.inTalk && n.cardId ? { inCard: n.cardId } : {}) });
       }),
@@ -462,6 +513,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     if (!i) return;
     if (edit.current) clearTimeout(edit.current.timer);
     edit.current = null;
+    deleting.current = i.id;
     back();
     try {
       await api.remove(i.id);
@@ -489,13 +541,18 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
       <span>{t.phone.notAnsweringWhy}</span>
     </div>
   );
-  const voice = (
-    <>
+  const acks = (
       <div id="acks">
-        <ToldList told={told.told} open={open ?? undefined} onUndo={told.undo} aside onGone={told.drop} />
-        {ratePrompt.prompt}
+        <ToldList told={told.told} open={open ?? undefined} onUndo={told.undo} onGo={(c, x) => {
+          told.drop(x);
+          openId(c.id);
+        }} aside onGone={told.drop} />
         {ackLine}
+        {/* nearest the microphone: a line going above it does not move the stars under a finger */}
+        {ratePrompt.prompt}
       </div>
+  );
+  const mic = (
       <PushToTalk
         phase={ptt.phase}
         level={ptt.level}
@@ -505,7 +562,6 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
         field={draftFor(where())}
         onDown={press}
       />
-    </>
   );
 
   // ---------------------------------------------------------------- the open card's conversation
@@ -547,7 +603,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     const v = pageVideo();
     if (!half || !page || !v) return;
     const bar = page.querySelector('.ph-bar')?.getBoundingClientRect().bottom ?? 0;
-    page.scrollTo({ top: page.scrollTop + v.getBoundingClientRect().top - bar - 10, behavior: 'smooth' });
+    page.scrollTo({ top: page.scrollTop + v.getBoundingClientRect().top - bar - 10, behavior: scrollBehavior() });
   }, [half]);
 
   if (open) {
@@ -560,9 +616,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
         <div id="ph-card" className="ph-view" ref={cardRef} style={i ? ({ '--c': `var(--${shownState(i)})` } as React.CSSProperties) : undefined}>
           <header className="ph-bar">
             <button className="ph-back" onClick={back}>
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <ChevronLeft size={18} strokeWidth={2.25} aria-hidden="true" />
               {t.phone.back}
             </button>
             {c && several && <span className="ph-canvas">{c.name}</span>}
@@ -610,7 +664,8 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
           </TalkPanel>
         )}
         {i && <CardTalkButton key={i.id} item={i} open={talk} shown={talk && !closing} onClick={() => (talk ? leaveTalk.current?.() : openTalk())} />}
-        {voice}
+        {acks}
+        {mic}
       </HoldToTalk.Provider>
     );
   }
@@ -628,7 +683,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   const shown = talk && !closing;
   // the tasks nobody has started yet (stopped ones and those set to start at a time among them), but nothing the lists above show already
   const planned = all.filter(({ item }) => plannedLater(item) && !runs(item) && !isUnderway(item.id));
-  // what the canvas's „Erledigte archivieren“ would take, but nothing the lists above show already
+  // what the canvas's "Archive done" would take, but nothing the lists above show already
   const done = all.filter(({ item }) => finishedArchivable(item) && !needsYou(item) && !item.snoozed?.waiting && !runs(item) && !isUnderway(item.id));
   return (
     <HoldToTalk.Provider value={press}>
@@ -636,29 +691,25 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
       <div id="ph-home" className="ph-view" ref={homeRef}>
         <header className="ph-bar ph-home">
           <Sign size={26} />
-          <span className="ph-word">Obeya</span>
+          <span className="ph-word">Seismic</span>
           {usage && <UsagePill usage={usage} />}
         </header>
         {banner}
         <Notify />
         <section className="ph-section">
           <h2>{t.phone.forYou}</h2>
-          <ForYou
-            canvases={ordered}
-            snaps={snaps}
-            several={several}
-            underway={isUnderway}
-            onOpen={openCard}
-            onObeya={(id) => {
-              setObeyaCanvas(id);
+          <InboxList
+            entries={inboxEntries(ordered, snaps, isUnderway, 'updated')}
+            onGo={(e) => {
+              if (e.card) return openCard(e.card);
+              setObeyaCanvas(e.canvas);
               openTalk();
             }}
+            onProposalCard={(_canvas, i) => openCard(i)}
             onReply={(c, i, r) =>
               sendReply(c, i, r, {
                 mark: (id, what) => setUnderway((u) => (what === null ? u.filter((x) => x !== id) : [...u.filter((x) => x !== id), id])),
                 showAck,
-                showWait,
-                rate: ratePrompt.ask,
               })
             }
           />
@@ -673,13 +724,25 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
         {done.length > 0 && <Folded label={t.phone.done} entries={done} several={several} open={doneOpen} onToggle={toggleDone} onOpen={openCard} />}
       </div>
       {talk && (
-        <TalkPanel title={t.koordinator.title} label={t.phone.talkTitle} banner={banner} onClose={closeTalk} leave={leaveTalk} onLeave={() => setClosing(true)}>
+        <TalkPanel
+          title={t.koordinator.title}
+          head={obeyaSnap && <ChatsHead title={<span className="ph-word">{t.koordinator.title}</span>} canvas={obeyaId} canvasName={obeyaSnap.canvas.name} chat={obeyaSnap.chat} chats={obeyaSnap.chats} talk={obeyaSnap.talk} onCanvas={setObeyaCanvas} />}
+          label={t.phone.talkTitle}
+          banner={banner}
+          onClose={closeTalk}
+          leave={leaveTalk}
+          onLeave={() => setClosing(true)}
+        >
           {obeyaSnap && (
             <div className="ph-talk" key={obeyaId}>
               <KoordinatorAgent.Provider value={obeyaSnap.koordinatorAgent}>
               <KoordinatorTalk
                 on
+                canvas={obeyaId}
                 talk={obeyaSnap.talk}
+                chat={obeyaSnap.chat}
+                chatModel={obeyaSnap.chatModel}
+                chats={obeyaSnap.chats}
                 items={obeyaSnap.items}
                 repos={obeyaSnap.canvas.repos}
                 onOpen={openCard}
@@ -692,7 +755,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
         </TalkPanel>
       )}
       <TalkButton label={t.phone.talkTitle} shown={shown} n={unread} count={t.koordinator.unreadCount(unread)} working={ordered.some((c) => obeyaWorks(snaps[c.id]!.talk))} onClick={() => (talk ? leaveTalk.current?.() : openTalkNewest())} />
-      {/* right of the microphone, with several canvases: whose Obeya the microphone and the panel speak to */}
+      {/* right of the microphone, with several canvases: whose Seismic the microphone and the panel speak to */}
       {several && (
         <label className="pill ph-canvas-pick">
           <span className="name">{canvases.find((c) => c.id === obeyaId)?.name}</span>
@@ -706,7 +769,15 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
           </select>
         </label>
       )}
-      {voice}
+      {acks}
+      {/* the list's own: a new card; with Seismic's conversation open, the microphone that speaks to it */}
+      {talk ? (
+        mic
+      ) : (
+        <button className="ph-new" aria-label={t.newCard} title={t.newCard} disabled={making || !!made} onClick={() => void newCard()}>
+          <Plus size={30} strokeWidth={2.25} aria-hidden="true" />
+        </button>
+      )}
     </HoldToTalk.Provider>
   );
 }
@@ -716,41 +787,6 @@ function Feed({ id, onChange }: { id: string; onChange: (id: string, live: Retur
   const live = useCanvas(id);
   useEffect(() => onChange(id, live), [live.snapshot, live.offlineSince, live.canvases, live.usage]);
   return null;
-}
-
-/** What waits for the owner, canvas by canvas in the switcher's order and within a canvas in Tab's order; Obeya where an answer waits unread. */
-function ForYou({
-  canvases,
-  snaps,
-  several,
-  underway,
-  onOpen,
-  onObeya,
-  onReply,
-}: {
-  canvases: CanvasInfo[];
-  snaps: Record<string, CanvasSnapshot>;
-  several: boolean;
-  underway: (id: string) => boolean;
-  onOpen: (i: Item) => void;
-  onObeya: (canvas: string) => void;
-  onReply: (canvas: string, i: Item, r: QuickReply) => void;
-}) {
-  if (!canvases.length) return null;
-  const waits = canvases.some((c) => waitingOn(snaps[c.id]!) > 0);
-  const rows = canvases.filter((c) => forYouOf(snaps[c.id]!, underway).cards.length || unreadAnswers(snaps[c.id]!.talk));
-  return (
-    <>
-      {!waits && <p className="ph-none">{t.phone.nothingWaits}</p>}
-      {rows.length > 0 && (
-        <ul className="ph-list">
-          {rows.map((c) => (
-            <ForYouRows key={c.id} waiting={snaps[c.id]!} canvas={c.id} where={several ? c.name : undefined} underway={underway} repos={c.repos} onOpen={onOpen} onObeya={onObeya} onReply={(i, r) => onReply(c.id, i, r)} />
-          ))}
-        </ul>
-      )}
-    </>
-  );
 }
 
 /** The cards at work, each with its status line, as their cards on the canvas show them. */
@@ -769,7 +805,7 @@ function Running({ entries, several, onOpen }: { entries: { item: Item; canvas: 
   );
 }
 
-/** A task planned and not archived that neither waits for the owner nor got snoozed while it did: the phone's „Geplant“. */
+/** A task planned and not archived that neither waits for the owner nor got snoozed while it did: the phone's "Planned". */
 const plannedLater = (i: Item) => i.kind === 'task' && i.state === 'planned' && !i.archivedAt && !needsYou(i) && !i.snoozed?.waiting;
 
 /** Whether a folded list is open, kept in this tab under `key`, and the toggle that opens and closes it. */
@@ -794,7 +830,7 @@ function Folded({ label, entries, several, open, onToggle, onOpen }: { label: st
   const head = useRef<HTMLElement>(null);
   const opened = useRef(false);
   useEffect(() => {
-    if (open && opened.current) head.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    if (open && opened.current) head.current?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
     opened.current = false;
   }, [open]);
   return (
@@ -830,7 +866,7 @@ function Folded({ label, entries, several, open, onToggle, onOpen }: { label: st
 /**
  * Left of the microphone, in reach of the thumb, as the canvas's top bar has it: opens the conversation
  * of what is in view as a panel, and closes it while it is open (inverted then). `n`: what waits there;
- * `working`: the conversation shows an agent (or Obeya) at work, which the moving line of a working card says.
+ * `working`: the conversation shows an agent (or Seismic) at work, which the moving line of a working card says.
  */
 function TalkButton({ label, shown, n, count, working, onClick }: { label: string; shown: boolean; n: number; count: string; working: boolean; onClick: () => void }) {
   return (
@@ -859,7 +895,7 @@ function CardTalkButton({ item, open, shown, onClick }: { item: Item; open: bool
 }
 
 /**
- * A conversation as a panel from below, Obeya's or the open card's (`children`): the conversation is
+ * A conversation as a panel from below, Seismic's or the open card's (`children`): the conversation is
  * the only thing in it that scrolls, the field stands under it and the microphone below that.
  * Its top is a grip the owner drags to the height they want (`settle`): let go near the screen's top
  * it takes the full height, near the bottom it closes (as the button beside the microphone and Back
@@ -869,6 +905,7 @@ function CardTalkButton({ item, open, shown, onClick }: { item: Item; open: bool
  */
 function TalkPanel({
   title,
+  head,
   label,
   banner,
   half = false,
@@ -879,6 +916,8 @@ function TalkPanel({
   children,
 }: {
   title: string;
+  /** What the panel's head shows in place of the title. */
+  head?: React.ReactNode;
   label: string;
   banner: React.ReactNode;
   half?: boolean;
@@ -897,8 +936,8 @@ function TalkPanel({
   const [height, setHeight] = useState<number | null>(null);
   useEffect(() => setHeight(null), [half]);
   const [leaving, setLeaving] = useState(false);
-  /** Where the finger went down and where the panel's top stood then, both from the top of the screen the keyboard leaves, and where the finger has been since. */
-  const drag = useRef<{ y: number; top: number; trail: Mark[] } | null>(null);
+  /** Where the finger went down, where the panel's top stood then (a share of the screen the keyboard leaves, from its top), that screen's height in px, and where the finger has been since. */
+  const drag = useRef<{ y: number; top: number; px: number; trail: Mark[] } | null>(null);
   // how a thrown panel glides on to where it comes to rest
   const [gliding, setGliding] = useState<{ ms: number; ease: string } | null>(null);
   const glided = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -913,24 +952,6 @@ function TalkPanel({
     setTimeout(onClose, ms);
   };
   leaveRef.current = leave;
-  // the panel takes the part of the screen the keyboard leaves, so the field stays above it (in Safari;
-  // Chrome makes the page itself shorter, `keyboardResizes`)
-  useEffect(() => {
-    const vv = window.visualViewport;
-    const el = panel.current;
-    if (!vv || !el) return;
-    const fit = () => {
-      el.style.setProperty('--vvh', `${vv.height}px`);
-      el.style.setProperty('--vvt', `${vv.offsetTop}px`);
-    };
-    fit();
-    vv.addEventListener('resize', fit);
-    vv.addEventListener('scroll', fit);
-    return () => {
-      vv.removeEventListener('resize', fit);
-      vv.removeEventListener('scroll', fit);
-    };
-  }, []);
   // the confirmations above the microphone stand above the field while the panel is open; the field
   // comes with the conversation, which may arrive after the panel
   useEffect(() => {
@@ -972,32 +993,39 @@ function TalkPanel({
       root.style.removeProperty('--ph-panel');
     };
   }, []);
-  const screen = () => ({ top: window.visualViewport?.offsetTop ?? 0, height: window.visualViewport?.height ?? innerHeight });
   const down = (e: React.PointerEvent) => {
     if ((e.target as Element).closest('button, select')) return;
-    drag.current = { y: e.clientY, top: panel.current!.getBoundingClientRect().top - screen().top, trail: [{ t: e.timeStamp, y: e.clientY }] };
+    // the panel ends at the bottom of the screen the keyboard leaves and is its `--ph-h` share high,
+    // so that screen's height comes from the panel alone, whether the page is pinned above the
+    // keyboard or not
+    const el = panel.current!;
+    const share = parseFloat(getComputedStyle(el).getPropertyValue('--ph-h')) || 1;
+    drag.current = { y: e.clientY, top: 1 - share, px: el.offsetHeight / share, trail: [{ t: e.timeStamp, y: e.clientY }] };
     e.currentTarget.setPointerCapture(e.pointerId);
     clearTimeout(glided.current);
     setGliding(null);
   };
-  /** Where the dragged top stands, as a share of the screen from its top. */
-  const topAt = (e: React.PointerEvent) => {
+  /** Where the dragged top stands, as a share of the screen from its top, with the finger at `y`. */
+  const topAt = (y: number) => {
     const d = drag.current!;
-    return (d.top + e.clientY - d.y) / screen().height;
+    return d.top + (y - d.y) / d.px;
   };
   const move = (e: React.PointerEvent) => {
     if (!drag.current) return;
     drag.current.trail = [...drag.current.trail.filter((m) => e.timeStamp - m.t < 200), { t: e.timeStamp, y: e.clientY }];
     setDragging(true);
-    setHeight(Math.min(1, 1 - topAt(e)));
+    setHeight(Math.min(1, 1 - topAt(e.clientY)));
   };
   const up = (e: React.PointerEvent) => {
     if (!drag.current) return;
-    const moved = Math.abs(e.clientY - drag.current.y) > 4;
-    const px = screen().height;
+    const cancelled = e.type === 'pointercancel';
+    // a cancelled touch may report no place of its own: it ends where the finger was last
+    const y = cancelled ? drag.current.trail[drag.current.trail.length - 1]!.y : e.clientY;
+    const moved = Math.abs(y - drag.current.y) > 4;
+    const px = drag.current.px;
     // the top stands no higher than the screen's
-    const at = Math.max(0, topAt(e));
-    const v = e.type === 'pointercancel' ? 0 : speed(drag.current.trail, e.timeStamp);
+    const at = Math.max(0, topAt(y));
+    const v = cancelled ? 0 : speed(drag.current.trail, e.timeStamp);
     const to = settle(thrown(at, v, px));
     drag.current = null;
     setDragging(false);
@@ -1006,7 +1034,7 @@ function TalkPanel({
     let ms: number | undefined;
     if (Math.abs(v) >= THROWN) {
       // the way left to go: down out of the screen, or to the top's new place
-      const g = glide(to === 'close' ? panel.current!.getBoundingClientRect().height : (at - (1 - to)) * px, v);
+      const g = glide(to === 'close' ? panel.current!.offsetHeight : (at - (1 - to)) * px, v);
       ms = g.ms;
       setGliding(g);
       glided.current = setTimeout(() => setGliding(null), g.ms);
@@ -1028,7 +1056,7 @@ function TalkPanel({
       aria-label={label}
     >
       <header className="ph-bar ph-grip" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
-        <span className="ph-word">{title}</span>
+        {head ?? <span className="ph-word">{title}</span>}
       </header>
       {banner}
       {children}

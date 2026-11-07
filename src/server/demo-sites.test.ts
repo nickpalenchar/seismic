@@ -2,18 +2,17 @@ import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:tes
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { z } from 'zod';
 import { MESSAGES } from '../core/messages';
 import { Board } from './board';
 import { Store } from './db';
-import { allowedHere, allowPrivate, approvedHere, connect, connectionCode, newToken, type PersonalSite, readPersonal, shareApproved, writePersonal } from './personal-site';
+import { connect, connectionCode, findSite, newToken, readSites, SITES_FILE, writeSites } from './demo-sites';
+import type { DemoSiteEntry } from '../core/types';
 import type { SharePage, ShareSource } from './share';
 import { Sharing } from './share';
 import { MANIFEST, siteKey, siteTarget } from './site';
 import { cloudflareAccounts, type Exec, exec, githubPagesDeploy, setupCloudflare, setupGithub, SetupRefused } from './site-hosts';
 import { SiteSetup } from './site-setup';
-import { CanvasRuntime } from './canvas';
-import { FakeRuntime, gitRepo, identify, noForge, until } from './testing';
+import { FakeRuntime, noForge } from './testing';
 
 let dir: string;
 let home: string;
@@ -43,10 +42,12 @@ const server = Bun.serve({
 afterAll(() => server.stop(true));
 const URL_ = `http://localhost:${server.port}/`;
 
-const personal = (extra: Partial<PersonalSite> = {}): PersonalSite => ({ host: 'cloudflare', url: URL_, project: 'obeya-ada', secret: 's3cr3tdirectory000000000', ...extra });
-/** The personal site as a target, deploying with the stand-in in place of wrangler. */
+const SECRET = 's3cr3tdirectory000000000';
+/** A site of the list, unlisted, deploying with the stand-in in place of wrangler. */
+const entry = (extra: Partial<DemoSiteEntry> = {}): DemoSiteEntry => ({ url: URL_.replace(/\/$/, ''), deploy: `deploy.ts {dir} ${dir}`, host: 'cloudflare', project: 'obeya-ada', secret: SECRET, ...extra });
+/** The unlisted site as a target. */
 const unlisted = (at = home, machine = 'a') =>
-  siteTarget({ title: 'Demos', url: URL_, deploy: `deploy.ts {dir} ${dir}` }, repo, at, MESSAGES.en.share, { machine, checkWaits: [0, 10, 10], by: 'Ada Lovelace', unlisted: { secret: personal().secret! } });
+  siteTarget({ title: 'Demos', url: URL_, deploy: `deploy.ts {dir} ${dir}` }, repo, at, MESSAGES.en.share, { machine, checkWaits: [0, 10, 10], by: 'Ada Lovelace', unlisted: { secret: SECRET } });
 const siteDir = (at = home) => join(at, 'sites', siteKey(URL_), 'site');
 const deployed = () => join(dir, 'deployed');
 const page = (slug: string, extra: Partial<SharePage> = {}): SharePage => ({ slug, title: `Title ${slug}`, text: 'One sentence.', kind: 'video', chapters: [[0, 'Before']], pr: null, language: 'en', dir: demo, shared: [], ...extra });
@@ -109,22 +110,22 @@ describe('an unlisted site', () => {
     expect(headers).toContain('/:token/:slug/artifact/*');
   });
 
-  test('refuses a page outside a random part of its address', async () => {
-    expect(await unlisted().publish(page('sync-button'))).toMatchObject({ why: expect.stringContaining('not a slug') });
-    expect(await unlisted().publish(page('short/sync-button'))).toMatchObject({ why: expect.stringContaining('not a slug') });
+  test('refuses a place that is not one', async () => {
+    expect(await unlisted().publish(page('../sync-button'))).toMatchObject({ why: expect.stringContaining('not a slug') });
+    expect(await unlisted().publish(page('Sync Button'))).toMatchObject({ why: expect.stringContaining('not a slug') });
   });
 
   test('a second machine connected with the code pulls the pages under the secret path, and keeps them when it publishes', async () => {
     await unlisted().publish(page(`${A}/sync-button`));
-    writePersonal(home, personal({ env: 'sites/p/cloudflare.env' }));
+    writeSites(home, [entry({ env: 'sites/p/cloudflare.env' })]);
     mkdirSync(join(home, 'sites/p'), { recursive: true });
     writeFileSync(join(home, 'sites/p/cloudflare.env'), 'CLOUDFLARE_API_TOKEN=t0k\nCLOUDFLARE_ACCOUNT_ID=acc\n');
-    const code = connectionCode(home, readPersonal(home)!);
+    const code = connectionCode(home, readSites(home)[0]!);
     const other = join(dir, 'other');
     const joined = connect(other, code);
     expect(joined.credentials).toBe(true);
-    expect(readPersonal(other)).toMatchObject({ host: 'cloudflare', url: URL_, secret: personal().secret });
-    expect(readFileSync(join(other, readPersonal(other)!.env!), 'utf8')).toContain('CLOUDFLARE_API_TOKEN=t0k');
+    expect(readSites(other)[0]).toMatchObject({ host: 'cloudflare', url: entry().url, secret: SECRET, deploy: entry().deploy });
+    expect(readFileSync(join(other, readSites(other)[0]!.env!), 'utf8')).toContain('CLOUDFLARE_API_TOKEN=t0k');
     expect(await unlisted(other, 'b').publish(page(`${B}/csv-export`))).toMatchObject({ url: `${URL_}${B}/csv-export/` });
     expect(existsSync(join(deployed(), A, 'sync-button/demo.mp4'))).toBe(true);
     expect(existsSync(join(deployed(), B, 'csv-export/demo.mp4'))).toBe(true);
@@ -139,23 +140,17 @@ test('the random part of an address carries at least 80 bits', () => {
   expect(new Set(Array.from({ length: 50 }, () => newToken())).size).toBe(50);
 });
 
-describe('sharing without a site of the repository', () => {
+describe("sharing on the canvas's site", () => {
   let board: Board;
   let source: ShareSource;
   let sharing: Sharing;
+  /** The canvas's site from the list, under a path. */
+  const canvasSite = (e: DemoSiteEntry, path = 'shop', extra: { publish?: 'approved' } = {}): ShareSource => ({ site: { site: { title: 'Shop', url: e.url, deploy: e.deploy, ...extra }, path, ...(e.secret ? { secret: e.secret } : {}) }, repo, title: 'Shop' });
   beforeEach(() => {
     board = new Board(new Store(':memory:'), { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: repo, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
-    source = { site: null, repo, isPublic: true };
-    writePersonal(home, personal());
-    sharing = new Sharing({
-      board,
-      runtime: new FakeRuntime(),
-      home,
-      forge: noForge,
-      sourceFor: () => source,
-      // the personal site deploying with the stand-in, in place of wrangler
-      personalSite: (p) => ({ title: 'Demos', url: p.url, deploy: `deploy.ts {dir} ${dir}` }),
-    });
+    writeSites(home, [entry()]);
+    source = canvasSite(entry());
+    sharing = new Sharing({ board, runtime: new FakeRuntime(), home, forge: noForge, sourceFor: () => source });
   });
   const card = () => {
     const c = board.create({ title: 'Sync button', x: 0, y: 0 });
@@ -167,11 +162,12 @@ describe('sharing without a site of the repository', () => {
     return board.item(id)!.share;
   };
 
-  test('a public repository shares on the personal site, under a random part drawn once for the card', async () => {
+  test('an unlisted site: under the path, a random part drawn once for the card', async () => {
     const id = card();
     sharing.share(id);
     const first = await settled(id, 'shared');
-    expect(first?.url).toMatch(new RegExp(`^${URL_}[a-z0-9]{16,}/sync-button-[0-9a-z]+/$`));
+    expect(first?.url).toMatch(new RegExp(`^${URL_}shop/[a-z0-9]{16,}/sync-button-[0-9a-z]+/$`));
+    expect(first!.unlisted).toBe(true);
     sharing.unshare(id);
     await settled(id, undefined);
     expect(existsSync(join(deployed(), first!.url!.slice(URL_.length)))).toBe(false);
@@ -180,94 +176,102 @@ describe('sharing without a site of the repository', () => {
     expect((await settled(id, 'shared'))?.url).toBe(first!.url!);
   });
 
-  test('a private repository shares nothing until the owner ticks it', async () => {
-    source = { site: null, repo };
-    const id = card();
-    expect(() => sharing.share(id)).toThrow('shares none');
-    expect(existsSync(join(dir, 'deployed'))).toBe(false);
-    allowPrivate(home, repo, true);
-    sharing.share(id);
-    expect((await settled(id, 'shared'))?.url).toStartWith(URL_);
-    allowPrivate(home, repo, false);
-    expect(allowedHere(readPersonal(home)!, repo, false)).toBe(false);
-    expect(allowedHere(readPersonal(home)!, repo, true)).toBe(true);
-  });
-
-  test('a private repository unticked after sharing: nothing more goes out, but its page can be withdrawn', async () => {
-    source = { site: null, repo };
-    allowPrivate(home, repo, true);
+  test('a listed site: no random part, an overview of the path listing the page, none at the root', async () => {
+    const { secret: _, ...listed } = entry({ host: 'github', project: 'ada/obeya-demos' });
+    writeSites(home, [listed]);
+    source = canvasSite(listed, 'team/shop');
     const id = card();
     sharing.share(id);
     const url = (await settled(id, 'shared'))!.url!;
-    allowPrivate(home, repo, false);
-    expect(() => sharing.share(id)).toThrow('not allowed');
+    expect(url).toMatch(new RegExp(`^${URL_}team/shop/sync-button-[0-9a-z]+/$`));
+    expect(board.item(id)!.share!.unlisted).toBeUndefined();
+    expect(readFileSync(join(deployed(), 'team/shop/index.html'), 'utf8')).toContain('Sync button');
+    expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).not.toContain('Sync button');
+    expect(existsSync(join(deployed(), MANIFEST))).toBe(true);
+  });
+
+  test("a page stays where it went out: on the site and path it has, once the canvas chose another", async () => {
+    const id = card();
+    sharing.share(id);
+    const url = (await settled(id, 'shared'))!.url!;
+    source = canvasSite(entry(), 'elsewhere');
     sharing.unshare(id);
     await settled(id, undefined);
     expect(existsSync(join(deployed(), url.slice(URL_.length), 'demo.mp4'))).toBe(false);
   });
 
-  test('a page on a personal site this machine is no longer connected to is left alone', async () => {
+  test('a page on a site this machine no longer has is left alone', async () => {
     const id = card();
     sharing.share(id);
     await settled(id, 'shared');
-    writePersonal(home, personal({ url: 'https://other.example.dev' }));
+    writeSites(home, []);
+    source = { site: null, repo, title: 'Shop' };
     expect(() => sharing.unshare(id)).not.toThrow();
     await settled(id, 'shared');
     expect(board.events(id).some((e) => e.kind === 'error')).toBe(true);
   });
 
-  test('a listed personal site (a public GitHub repository): no random part, an overview listing the page', async () => {
-    const { secret: _, ...listed } = personal({ host: 'github', project: 'ada/obeya-demos' });
-    writePersonal(home, listed);
-    const id = card();
-    sharing.share(id);
-    const url = (await settled(id, 'shared'))!.url!;
-    expect(url).toMatch(new RegExp(`^${URL_}sync-button-[0-9a-z]+/$`));
-    expect(board.item(id)!.share!.unlisted).toBeUndefined();
-    expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).toContain('Sync button');
-    expect(existsSync(join(deployed(), MANIFEST))).toBe(true);
-  });
-
-  test('approving shares nothing there until the owner ticks the repository for it, then the latest demo goes out unless the card opts out', async () => {
+  test("approving shares there where the canvas's site publishes on approval, unless the card opts out", async () => {
     const id = card();
     expect(sharing.approved(id)).toBeNull();
     expect(board.item(id)!.share).toBeUndefined();
-    shareApproved(home, repo, true);
-    expect(sharing.approved(id)).toStartWith(`Demo-Video: ${URL_}`);
+    source = canvasSite(entry(), 'shop', { publish: 'approved' });
+    expect(sharing.approved(id)).toStartWith(`Demo-Video: ${URL_}shop/`);
     expect((await settled(id, 'shared'))?.url).toStartWith(URL_);
-    // the card that opted out stays here
     const other = card();
     sharing.onApproval(other, false);
     expect(sharing.approved(other)).toBeNull();
     expect(board.item(other)!.share?.url).toBeUndefined();
-    shareApproved(home, repo, false);
-    expect(approvedHere(readPersonal(home)!, repo)).toBe(false);
-    expect(readPersonal(home)!.approved).toBeUndefined();
+  });
+});
+
+describe("this machine's list of demo sites", () => {
+  test('takes the personal site kept before as its first site, into its own file with the next change', () => {
+    writeFileSync(join(home, 'personal-site.json'), JSON.stringify({ host: 'github', url: 'https://ada.github.io/obeya-demos/', project: 'ada/obeya-demos', secret: SECRET, private: ['/x'] }));
+    expect(readSites(home)).toEqual([{ url: 'https://ada.github.io/obeya-demos', deploy: 'obeya:github-pages ada/obeya-demos', host: 'github', project: 'ada/obeya-demos', secret: SECRET, maxFile: 100 * 1024 * 1024 }]);
+    writeSites(home, [...readSites(home), { url: 'https://demos.example.dev', deploy: 'true' }]);
+    expect(existsSync(join(home, 'personal-site.json'))).toBe(false);
+    expect(JSON.parse(readFileSync(join(home, SITES_FILE), 'utf8')).sites).toHaveLength(2);
+    expect(findSite(home, 'https://demos.example.dev/')?.deploy).toBe('true');
   });
 
-  test('a page shared there by hand, the repository not ticked for approval: the landing commit links it all the same', async () => {
-    const id = card();
-    sharing.share(id);
-    const url = (await settled(id, 'shared'))!.url!;
-    expect(sharing.approved(id)).toBe(`Demo-Video: ${url}`);
-    // nothing more went out for the approval
-    expect(board.item(id)!.share?.state).toBe('shared');
+  test("a personal site's connection code from before adds it to the list", () => {
+    const old = 'obeya-site:' + Buffer.from(JSON.stringify({ host: 'cloudflare', url: 'https://obeya-ada.pages.dev', project: 'obeya-ada', secret: SECRET, credentials: { CLOUDFLARE_API_TOKEN: 't' } })).toString('base64url');
+    expect(connect(home, old).site).toMatchObject({ url: 'https://obeya-ada.pages.dev', deploy: expect.stringContaining('--project-name obeya-ada'), secret: SECRET, env: expect.stringMatching(/cloudflare\.env$/) });
+    expect(() => connect(home, 'something else')).toThrow('not a connection code');
   });
 
-  test('the tick for approval does not reach a repository whose card shares on its own site', async () => {
-    shareApproved(home, repo, true);
-    const own = { title: 'Team', url: 'https://demos.example.dev', deploy: 'true' };
-    source = { site: own, repo, isPublic: true };
-    const id = card();
-    expect(sharing.approved(id)).toBeNull();
-    expect(board.item(id)!.share).toBeUndefined();
+  test('a site entered by hand goes on the list once a publish there went through, else with the reason', async () => {
+    let check: string | null = 'HTTP 403';
+    let changed = 0;
+    const setup = new SiteSetup({ home, changed: () => changed++, check: async () => check });
+    const manual = { url: 'https://demos.example.dev/', deploy: 'true {dir}' };
+    expect(() => setup.add({ manual: { ...manual, url: 'demos' } })).toThrow();
+    expect(() => setup.add({ manual: { ...manual, deploy: 'no-such-deploy-anywhere {dir}' } })).toThrow('not on the PATH');
+    setup.add({ manual });
+    for (let i = 0; i < 100 && setup.view().job?.running; i++) await Bun.sleep(5);
+    expect(setup.view()).toMatchObject({ sites: [], job: { running: false, error: expect.stringContaining('HTTP 403') } });
+    check = null;
+    setup.add({ manual });
+    for (let i = 0; i < 100 && setup.view().job?.running; i++) await Bun.sleep(5);
+    expect(setup.view().sites).toEqual([{ url: 'https://demos.example.dev', deploy: 'true {dir}', listed: true, paths: [] }]);
+    expect(setup.view().job).toMatchObject({ site: 'https://demos.example.dev' });
+    expect(changed).toBe(1);
+    setup.seen();
+    expect(setup.view().job).toBeUndefined();
+    expect(setup.code('https://demos.example.dev').code).toStartWith('obeya-site:');
+    setup.remove({ url: 'https://demos.example.dev' });
+    expect(readSites(home)).toEqual([]);
   });
 
-  test('a repository whose site this machine cannot deploy to falls back to the personal site', async () => {
-    source = { site: { title: 'Team', url: 'https://demos.example.dev', deploy: 'true', env: 'sites/team/cloudflare.env' }, repo, isPublic: true };
-    const id = card();
-    sharing.share(id);
-    expect((await settled(id, 'shared'))?.url).toStartWith(URL_);
+  test('publishing to a site to add it takes over what is on it and deploys it again', async () => {
+    const setup = new SiteSetup({ home, changed: () => {} });
+    // a page another machine has there
+    await unlisted(join(dir, 'other'), 'b').publish(page(`${A}/sync-button`));
+    setup.add({ manual: { url: entry().url, deploy: `${join(repo, 'deploy.ts')} {dir} ${dir}` } });
+    for (let i = 0; i < 300 && setup.view().job?.running; i++) await Bun.sleep(10);
+    expect(setup.view().job?.error).toBeUndefined();
+    expect(setup.view().sites).toHaveLength(1);
   });
 });
 
@@ -294,7 +298,7 @@ describe('setting up at GitHub', () => {
   });
   const gh = () => calls.filter((c) => c[0] === 'gh').map((c) => c.slice(1).join(' '));
 
-  test('the personal site lives in a private repository, created as private and checked to be', async () => {
+  test('an unlisted site lives in a private repository, created as private and checked to be', async () => {
     const r = await setupGithub({ name: 'obeya-demos', private: true, log: () => {}, x, wait: [] });
     expect(r).toEqual({ url: 'https://ada.github.io/obeya-demos/', project: 'ada/obeya-demos' });
     const create = calls.find((c) => c[1] === 'repo' && c[2] === 'create')!;
@@ -331,21 +335,21 @@ describe('setting up at GitHub', () => {
 
   test('a public repository, as chosen: any account, no check of the plan, a listed site', async () => {
     answers[0] = ['api user', { code: 0, out: JSON.stringify({ login: 'ada', plan: { name: 'free' } }) }];
-    const setup = new SiteSetup({ home, changed: () => {}, x, wait: [] });
-    setup.setupPersonal({ host: 'github', public: true });
+    const setup = new SiteSetup({ home, changed: () => {}, x, wait: [], check: async () => null });
+    setup.add({ host: 'github', public: true });
     for (let i = 0; i < 100 && setup.view().job?.running; i++) await Bun.sleep(5);
-    expect(setup.view().site).toMatchObject({ host: 'github', listed: true });
+    expect(setup.view().sites[0]).toMatchObject({ host: 'github', listed: true });
     expect(calls.find((c) => c[2] === 'create')).toContain('--public');
-    expect(readPersonal(home)!.secret).toBeUndefined();
+    expect(readSites(home)[0]!.secret).toBeUndefined();
   });
 
-  test('every setup through the configuration without the public choice makes the personal site private', async () => {
-    const setup = new SiteSetup({ home, changed: () => {}, x, wait: [] });
-    setup.setupPersonal({ host: 'github' });
+  test('a site at GitHub without the public choice is private, and unlisted', async () => {
+    const setup = new SiteSetup({ home, changed: () => {}, x, wait: [], check: async () => null });
+    setup.add({ host: 'github' });
     for (let i = 0; i < 100 && setup.view().job?.running; i++) await Bun.sleep(5);
-    expect(setup.view().site).toMatchObject({ host: 'github', url: 'https://ada.github.io/obeya-demos/' });
+    expect(setup.view().sites[0]).toMatchObject({ host: 'github', url: 'https://ada.github.io/obeya-demos', listed: false });
     expect(calls.find((c) => c[2] === 'create')).toContain('--private');
-    expect(readPersonal(home)!.secret).toMatch(/^[a-z0-9]{25,}$/);
+    expect(readSites(home)[0]!.secret).toMatch(/^[a-z0-9]{25,}$/);
   });
 });
 
@@ -458,104 +462,4 @@ describe('setting up at Cloudflare', () => {
     expect(calls[2]).toContain('--force');
     expect(r).toEqual({ url: 'https://obeya-ada.pages.dev', project: 'obeya-ada' });
   });
-});
-
-test('the canvas says where a repository without a site shares: nowhere without a personal site, after a tick when private, else there', async () => {
-  const shop = gitRepo(join(dir, 'shop'), { 'docs/plan/plan.md': '# Shop\n\n## Goal\n\nG.\n' });
-  let visibility: 'public' | 'private' = 'private';
-  const canvas = new CanvasRuntime({ repos: [{ path: shop }] }, { store: new Store(':memory:'), home, runtime: new FakeRuntime(), forge: { ...noForge, visibility: async () => visibility } });
-  const ref = () => canvas.board.canvas.repos[0]!;
-  try {
-    expect(ref()).toMatchObject({ sharePersonal: 'none' });
-    expect(ref().share).toBeUndefined();
-    writePersonal(home, personal());
-    canvas.personalSiteChanged();
-    expect(ref()).toMatchObject({ sharePersonal: 'private' });
-    allowPrivate(home, shop, true);
-    canvas.personalSiteChanged();
-    expect(ref()).toMatchObject({ share: true, shareUnlisted: true });
-    expect(ref().sharePersonal).toBeUndefined();
-    expect(ref().shareOnPersonal).toBe(true);
-    expect(ref().shareOnApproval).toBeUndefined();
-    // ticked on the personal site, its approved cards share there by themselves
-    shareApproved(home, shop, true);
-    canvas.personalSiteChanged();
-    expect(ref()).toMatchObject({ share: true, shareOnApproval: true });
-    allowPrivate(home, shop, false);
-    canvas.personalSiteChanged();
-    expect(ref().share).toBeUndefined();
-    expect(ref().shareOnApproval).toBeUndefined();
-    // a public repository needs no tick, once its forge says so
-    visibility = 'public';
-    const again = new CanvasRuntime({ repos: [{ path: shop }] }, { store: new Store(':memory:'), home, runtime: new FakeRuntime(), forge: { ...noForge, visibility: async () => visibility } });
-    try {
-      for (let i = 0; i < 100 && !again.board.canvas.repos[0]!.share; i++) await Bun.sleep(5);
-      expect(again.board.canvas.repos[0]).toMatchObject({ share: true, shareUnlisted: true });
-    } finally {
-      again.shutdown();
-    }
-  } finally {
-    canvas.shutdown();
-  }
-});
-
-test("a worker resumed after a restart on a public repository writes the page, though the forge answers only later", async () => {
-  const shop = gitRepo(join(dir, 'shop'), { 'docs/plan/plan.md': '# Shop\n\nG.\n', '.obeya/settings.json': '{ "land": "main" }\n' });
-  identify(shop);
-  writePersonal(home, personal());
-  const store = new Store(':memory:');
-  // the page a handover sends, as the agent's runtime lets it through the tool's schema (it drops what the schema does not take)
-  const page = (r: FakeRuntime) => {
-    const tool = r.last.spec.tools!.find((t) => t.name === 'ready_for_review')!;
-    const sent = { title: 'Orders as CSV', text: 'Shop owners download their orders as a CSV file.' };
-    return (z.object(tool.schema as z.ZodRawShape).parse({ summary: 'S', data_models: 'unchanged', data_models_reason: 'UI only.', demo: { dir: demo, chapters: ['Before'], page: sent } }) as { demo: { page?: unknown } }).demo.page;
-  };
-  const before = new FakeRuntime();
-  const canvas = new CanvasRuntime({ repos: [{ path: shop }] }, { store, home, runtime: new FakeRuntime(), workerRuntime: before, forge: { ...noForge, visibility: async () => 'public' } });
-  let card: string;
-  try {
-    await until(() => canvas.board.canvas.repos[0]!.share);
-    card = canvas.board.create({ title: 'A', x: 0, y: 0 }).id;
-    await canvas.repos[0]!.workers.start(card);
-    expect(page(before)).toBeDefined();
-    before.last.emit({ type: 'session', id: 'sess-a' });
-  } finally {
-    canvas.shutdown();
-  }
-  // after the restart the forge takes its time to answer
-  let answer!: (v: 'public') => void;
-  const after = new FakeRuntime();
-  const again = new CanvasRuntime({ repos: [{ path: shop }] }, { store, home, runtime: new FakeRuntime(), workerRuntime: after, forge: { ...noForge, visibility: () => new Promise((r) => (answer = r)) } });
-  try {
-    await until(() => after.sessions.length);
-    expect(after.last.spec.resume).toBe('sess-a');
-    expect(page(after)).toBeDefined();
-    expect(again.board.canvas.repos[0]).toMatchObject({ share: true, shareOnPersonal: true });
-    answer('public');
-  } finally {
-    again.shutdown();
-  }
-});
-
-test('the configuration lists the repositories that share on the personal site with their tick for approval, and a connection keeps the ticks', () => {
-  writePersonal(home, personal());
-  let changed = 0;
-  const repos = [
-    { path: join(dir, 'shop'), name: 'shop', isPublic: true, ownSite: false, onPersonal: true },
-    { path: join(dir, 'team'), name: 'team', isPublic: true, ownSite: false, onPersonal: true, siteApproved: true },
-    { path: join(dir, 'site'), name: 'site', isPublic: true, ownSite: true },
-  ];
-  const setup = new SiteSetup({ home, changed: () => changed++, repos: () => repos });
-  expect(setup.view().approvedRepos).toEqual([
-    { path: join(dir, 'shop'), name: 'shop', on: false },
-    { path: join(dir, 'team'), name: 'team', on: true, bySettings: true },
-  ]);
-  expect(setup.approved({ path: join(dir, 'shop'), on: true }).approvedRepos[0]).toMatchObject({ name: 'shop', on: true });
-  expect(changed).toBe(1);
-  expect(() => setup.approved({ path: 1, on: true })).toThrow();
-  // the code carries no ticks; connecting again keeps this machine's
-  const code = connectionCode(home, readPersonal(home)!);
-  expect(JSON.parse(Buffer.from(code.slice('obeya-site:'.length), 'base64url').toString()).approved).toBeUndefined();
-  connect(home, code);
-  expect(approvedHere(readPersonal(home)!, join(dir, 'shop'))).toBe(true);
 });

@@ -80,7 +80,7 @@ describe('watchPlanDocs', () => {
   /**
    * How long a step may go on. A saturated fseventsd loses most events: on this Mac (2026-10-14,
    * fseventsd at full CPU) Bun, Node and fswatch alike saw only one to four of ten writes to a fresh
-   * directory, seconds late. The running Obeya has its safety-net poll for that; these tests check
+   * directory, seconds late. The running Seismic has its safety-net poll for that; these tests check
    * the watches alone, so a step whose change the system lost is made again.
    */
   const budget = 120_000;

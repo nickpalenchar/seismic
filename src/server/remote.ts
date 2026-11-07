@@ -1,13 +1,13 @@
-// Other devices reaching Obeya: the owner's phone over the owner's own private network. Obeya keeps
-// listening on 127.0.0.1; with the setting „Von anderen Geräten erreichbar“ on, `tailscale serve`
-// proxies HTTPS at the machine's tailnet name to it (tailscale.ts), or Obeya also listens on an
+// Other devices reaching Seismic: the owner's phone over the owner's own private network. Seismic keeps
+// listening on 127.0.0.1; with the setting "Reachable from other devices" on, `tailscale serve`
+// proxies HTTPS at the machine's tailnet name to it (tailscale.ts), or Seismic also listens on an
 // address of this machine the owner picked (another VPN's interface), in plain HTTP.
 //
 // A request is local when it comes from loopback under one of this machine's names and no proxy
 // forwarded it; through `tailscale serve` requests come from 127.0.0.1 too, but under the tailnet
 // name and with `X-Forwarded-For`, and count as remote. A remote request needs a paired device:
-// the page „Telefon verbinden“ shows a one-time code (in a QR code with the address), the device
-// opens it, and gets a cookie that Obeya keeps only the hash of. Without one it gets a page that
+// the page "Connect a phone" shows a one-time code (in a QR code with the address), the device
+// opens it, and gets a cookie that Seismic keeps only the hash of. Without one it gets a page that
 // says how to connect, and no API. Pairing, the devices and the setting are managed only on this
 // machine itself. A device stays paired until it is removed or goes unused for `UNUSED_MS`.
 
@@ -32,11 +32,11 @@ export const PAIRING_MS = 5 * 60_000;
 const PAIRING_TRIES = 5;
 /** A device unused this long is no longer paired: a phone given away or lost and forgotten. */
 export const UNUSED_MS = 90 * 24 * 3600_000;
-/** How often a device's „zuletzt gesehen“ is written. */
+/** How often a device's "last seen" is written. */
 const SEEN_EVERY_MS = 60_000;
-/** The cookie's own lifetime, the longest browsers keep one (400 days); Obeya's `UNUSED_MS` decides. */
+/** The cookie's own lifetime, the longest browsers keep one (400 days); Seismic's `UNUSED_MS` decides. */
 const COOKIE_MAX_AGE = 400 * 24 * 3600;
-/** The `tailscale serve` entry Obeya made, in its home, so turning the setting off removes it after a restart too. */
+/** The `tailscale serve` entry Seismic made, in its home, so turning the setting off removes it after a restart too. */
 const SERVE_FILE = 'tailscale-serve.json';
 
 /** The icons of the web app's manifest and its service worker: the same for everyone, and nothing in them the owner's. */
@@ -47,7 +47,7 @@ const FORWARDED = ['x-forwarded-for', 'x-forwarded-host', 'forwarded'];
 
 const sha256 = (text: string) => new Bun.CryptoHasher('sha256').update(text).digest('hex');
 
-/** A device's name from its browser's user agent: „iPhone · Safari“. */
+/** A device's name from its browser's user agent: "iPhone · Safari". */
 export function deviceName(ua: string): string {
   const device = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Macintosh|Mac OS X/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux|X11/.test(ua) ? 'Linux' : '';
   const browser = /EdgiOS|EdgA|Edg\//.test(ua) ? 'Edge' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '';
@@ -67,7 +67,7 @@ const inUrl = (address: string) => (address.includes(':') ? `[${address}]` : add
 
 export interface AccessOptions {
   store: Store;
-  /** Obeya's home, with the setting in `settings.json`; without one (a test) it is kept in memory. */
+  /** Seismic's home, with the setting in `settings.json`; without one (a test) it is kept in memory. */
   home?: string;
   tailscale?: Tailscale;
   language?: () => Language;
@@ -91,9 +91,9 @@ export class Access implements Gate {
   private readonly platform: string;
   private setting: RemoteSetting | null;
   private ts: TailscaleState = { state: 'missing' };
-  /** The `tailscale serve` entry Obeya keeps, and the tailnet name it serves at. */
+  /** The `tailscale serve` entry Seismic keeps, and the tailnet name it serves at. */
   private served: (ServeEntry & { name: string }) | null = null;
-  /** The other address Obeya listens on. */
+  /** The other address Seismic listens on. */
   private listening: string | null = null;
   private problem: RemoteProblem | undefined;
   private port = 0;
@@ -119,7 +119,7 @@ export class Access implements Gate {
 
   // ------------------------------------------------------------ the network
 
-  /** Obeya's server answers on `port`: the network is made as the setting says. */
+  /** Seismic's server answers on `port`: the network is made as the setting says. */
   start(port: number, listen: Listen): Promise<void> {
     this.port = port;
     this.listen = listen;
@@ -133,8 +133,8 @@ export class Access implements Gate {
   }
 
   /**
-   * Obeya stops: the `tailscale serve` entry goes with it, so whatever takes its port afterwards is
-   * not served to the tailnet. The next start serves Obeya again, at the same address while 443 is free.
+   * Seismic stops: the `tailscale serve` entry goes with it, so whatever takes its port afterwards is
+   * not served to the tailnet. The next start serves Seismic again, at the same address while 443 is free.
    */
   release() {
     this.stop();
@@ -215,14 +215,14 @@ export class Access implements Gate {
   }
 
   /**
-   * How long Obeya keeps this machine from sleeping for other devices: `off` while they may not reach
+   * How long Seismic keeps this machine from sleeping for other devices: `off` while they may not reach
    * it, else `always` or only while a worker `works`, as the owner set it.
    */
   awake(): 'off' | 'works' | 'always' {
     return !this.setting ? 'off' : this.setting.awake === 'always' ? 'always' : 'works';
   }
 
-  /** Where other devices reach Obeya now; `null` while they do not. */
+  /** Where other devices reach Seismic now; `null` while they do not. */
   address(): string | null {
     const s = this.setting;
     if (s?.via === 'tailscale' && this.served && this.ts.state === 'ready' && this.served.name === this.ts.name && !this.problem)
@@ -231,12 +231,12 @@ export class Access implements Gate {
     return null;
   }
 
-  /** The names requests may come under: this machine's, the tailnet name Obeya is served at, the other address. */
+  /** The names requests may come under: this machine's, the tailnet name Seismic is served at, the other address. */
   hosts(): readonly string[] {
     return [...LOCAL_HOSTS, ...(this.served && this.setting?.via === 'tailscale' ? [this.served.name] : []), ...(this.listening ? [inUrl(this.listening).toLowerCase()] : [])];
   }
 
-  /** The section „Von anderen Geräten“, with what Tailscale says now (and the network made anew if that changed). */
+  /** The section "From other devices", with what Tailscale says now (and the network made anew if that changed). */
   async view(): Promise<AccessView> {
     if (this.setting?.via === 'tailscale') {
       const before = JSON.stringify(this.ts);
@@ -292,10 +292,10 @@ export class Access implements Gate {
     if (device) {
       this.from.set(req, device.id);
       if (route.startsWith('/api/access') && !(route === '/api/access' && req.method === 'GET'))
-        return Response.json({ code: 'onlyHere', error: 'only on the machine Obeya runs on' }, { status: 403 });
+        return Response.json({ code: 'onlyHere', error: 'only on the machine Seismic runs on' }, { status: 403 });
       return null;
     }
-    if (route.startsWith('/api/')) return Response.json({ code: 'notPaired', error: 'this device is not paired with Obeya' }, { status: 401 });
+    if (route.startsWith('/api/')) return Response.json({ code: 'notPaired', error: 'this device is not paired with Seismic' }, { status: 401 });
     return this.notPairedPage(false);
   }
 
@@ -358,7 +358,7 @@ export class Access implements Gate {
 
   /** A new one-time code, valid for `PAIRING_MS`; the one before no longer pairs. */
   pair(): Pairing {
-    if (!this.address()) throw new BadRequest('notReachable', 'other devices do not reach Obeya yet');
+    if (!this.address()) throw new BadRequest('notReachable', 'other devices do not reach Seismic yet');
     const n = crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000;
     this.pairing = { code: String(n).padStart(6, '0'), expires: this.now() + PAIRING_MS, tries: 0 };
     return this.livePairing()!;
@@ -379,7 +379,7 @@ export class Access implements Gate {
     const device: DeviceView = { id: crypto.randomUUID(), name: deviceName(userAgent), pairedAt: at, lastSeen: at };
     this.store.addDevice({ ...device, tokenHash: sha256(token) });
     p.paired = device;
-    console.log(`Obeya: ${device.name} paired`);
+    console.log(`Seismic: ${device.name} paired`);
     return { token, device };
   }
 

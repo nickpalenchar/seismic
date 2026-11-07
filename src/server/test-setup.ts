@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { removeTemplates } from './testing';
 
 // Whatever the tests put in the temp directory goes into one of this run, removed after the run. A
-// run that was killed (Obeya restarting stops its workers' test runs) never got there: the next run
+// run that was killed (Seismic restarting stops its workers' test runs) never got there: the next run
 // removes the directories of runs whose process is gone.
 const RUN = 'obeya-test-';
 const alive = (pid: number) => {
@@ -26,9 +26,9 @@ const run = mkdtempSync(join(tmpdir(), `${RUN}${process.pid}-`));
 // TEMP and TMP are where Windows looks
 process.env.TMPDIR = process.env.TEMP = process.env.TMP = run;
 
-// the Arbeitsrückschau looks for transcripts there: never the machine's own. The live tests need
-// the machine's login from there, so they set it back while they run (from `OBEYA_MACHINE_CLAUDE_CONFIG_DIR`).
-if (process.env.CLAUDE_CONFIG_DIR) process.env.OBEYA_MACHINE_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
+// the work retrospective looks for transcripts there: never the machine's own. The live tests need
+// the machine's login from there, so they set it back while they run (from `SEISMIC_MACHINE_CLAUDE_CONFIG_DIR`).
+if (process.env.CLAUDE_CONFIG_DIR) process.env.SEISMIC_MACHINE_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 const claude = (process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'obeya-claude-')));
 
 afterAll(() => {

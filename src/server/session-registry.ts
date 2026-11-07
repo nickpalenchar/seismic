@@ -1,6 +1,6 @@
-// What an Obeya that crashed leaves behind: the processes its agent sessions started. A running
-// Obeya records, per session, the identities (pid and creation time) of the processes it observed
-// and holds an exclusive lease on that record; the next Obeya on the same home finds records whose
+// What an Seismic that crashed leaves behind: the processes its agent sessions started. A running
+// Seismic records, per session, the identities (pid and creation time) of the processes it observed
+// and holds an exclusive lease on that record; the next Seismic on the same home finds records whose
 // lease nobody holds any more, ends the processes that still are the recorded ones, and removes
 // the record. Best-effort cleanup, not containment: see "Lifetimes" in docs/design/agents-and-workspaces.md.
 import { Database } from 'bun:sqlite';
@@ -22,7 +22,7 @@ const recordSchema = z.object({
   host: z.string().min(1),
   boot: z.string().min(1),
   namespace: z.string().min(1),
-  /** The Obeya server that held the lease; for the report only. */
+  /** The Seismic server that held the lease; for the report only. */
   owner: z.number().int().positive().safe(),
   /** What the session was, for the report; never a command line or a credential. */
   label: z.string().max(300),
@@ -37,7 +37,7 @@ export interface Environment { host: string; boot: string; namespace: string }
 
 /**
  * Where a recorded identity can be compared: this machine, this boot, this PID namespace. Only
- * where Obeya knows all three (Linux, macOS); elsewhere (Windows) sessions are not recorded.
+ * where Seismic knows all three (Linux, macOS); elsewhere (Windows) sessions are not recorded.
  */
 export function environment(): Environment | undefined {
   try {
@@ -157,7 +157,7 @@ export class SessionRegistry {
     } catch (error) {
       try { lease && release(lease); } catch { /* closed below */ }
       for (const file of [paths.record, paths.lease]) try { unlinkSync(file); } catch { /* not created */ }
-      warn(`Session not recorded, so a crash of Obeya could not be cleaned up after: ${messageOf(error)}`);
+      warn(`Session not recorded, so a crash of Seismic could not be cleaned up after: ${messageOf(error)}`);
       return;
     }
   }
@@ -166,7 +166,7 @@ export class SessionRegistry {
   /**
    * Records left by sessions in `cwd` that were not accounted for (a sweep could not end their
    * processes, or could not judge them): a new session there could have a second writer beside
-   * an old one. Records of this Obeya's live sessions are not among them.
+   * an old one. Records of this Seismic's live sessions are not among them.
    */
   unaccounted(cwd: string): { generation: string; label: string }[] {
     let names: string[];
@@ -182,9 +182,9 @@ export class SessionRegistry {
   }
 
   /**
-   * The sweep, for the start of an Obeya: ends what crashed sessions left, only what the records
+   * The sweep, for the start of an Seismic: ends what crashed sessions left, only what the records
    * name and only while it is still the process recorded. A record is touched only under its own
-   * lease, so a live Obeya's sessions (this one's or another's on the same directory) are never
+   * lease, so a live Seismic's sessions (this one's or another's on the same directory) are never
    * candidates; anything unclear is left alone and reported.
    */
   recover(options: { table?: () => Map<number, ProcessInfo>; kill?: (owned: ProcessInfo[], table: Map<number, ProcessInfo>) => ReturnType<typeof terminate>; settleMs?: number; orphanAgeMs?: number } = {}): Recovery[] {
@@ -270,7 +270,7 @@ export interface Recovery {
   killed?: number[];
 }
 
-/** The registry this Obeya's sessions record into; set by the server at start. */
+/** The registry this Seismic's sessions record into; set by the server at start. */
 let active: SessionRegistry | undefined;
 export function useSessionRegistry(registry: SessionRegistry | undefined) { active = registry; }
 export function sessionRegistry() { return active; }

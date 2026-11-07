@@ -32,7 +32,7 @@ beforeEach(() => {
 });
 
 describe("the owner's language", () => {
-  test("the Koordinator confirms in the language of the owner's words, else the conversation language; Obeya's own words follow the interface; either changed takes a new session", async () => {
+  test("the Koordinator confirms in the conversation language; Seismic's own words follow the interface; either changed takes a new session", async () => {
     let language: 'de' | 'en' = 'en';
     let conversation: 'de' | 'en' = 'en';
     board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }), undefined, undefined, () => language, () => conversation);
@@ -40,7 +40,7 @@ describe("the owner's language", () => {
     const k = commander();
     const first = await say(k, 'start the export', 'act', { actions: [{ do: 'start', card: 'K1' }], confirm: 'Starting “Export”.' });
     expect(first.session.spec.system).toContain("one short sentence in the owner's language");
-    expect(first.session.spec.system).toContain('until they have said anything, English.');
+    expect(first.session.spec.system).toContain('Speak to the owner in English throughout this conversation');
     expect(first.session.spec.system).toContain('"New task “Meter readings as CSV”');
     // it knows the owner's words for its cards in either language
     expect(first.session.spec.system).toContain('a card is a “task”');
@@ -54,16 +54,16 @@ describe("the owner's language", () => {
     conversation = 'de';
     const second = await say(k, 'starte Export', 'reply', { confirm: 'Schon gestartet.' });
     expect(second.session).not.toBe(first.session);
-    expect(second.session.spec.system).toContain('until they have said anything, German.');
+    expect(second.session.spec.system).toContain('Speak to the owner in German throughout this conversation');
     expect(second.session.spec.system).toContain('"Neue Aufgabe „Zählerstände als CSV“');
-    // the interface stays English: Obeya's own words and the names of its cards
+    // the interface stays English: Seismic's own words and the names of its cards
     expect(second.session.spec.system).toContain('the repository\'s card “Add to CLAUDE.md”');
-    expect(k.vocabulary()).toStartWith('Obeya, task');
+    expect(k.vocabulary()).toStartWith('Seismic, task');
     language = 'de';
     const third = await say(k, 'starte Export', 'reply', { confirm: 'Schon gestartet.' });
     expect(third.session).not.toBe(second.session);
     expect(third.session.spec.system).toContain('the repository\'s card „CLAUDE.md ergänzen“');
-    expect(k.vocabulary()).toStartWith('Obeya, Aufgabe');
+    expect(k.vocabulary()).toStartWith('Seismic, Aufgabe');
   });
 });
 
@@ -89,7 +89,7 @@ describe('the Koordinator remembers', () => {
     const k = commander();
     const first = await say(k, 'starte Export', 'act', { actions: [{ do: 'start', card: 'K1' }], confirm: '„Export“ startet.' });
     expect(first.brief).toContain('K1 [planned] "Export"');
-    expect(first.brief).toContain('You have not talked with the owner before.');
+    expect(first.brief).toContain('This is a new chat: you have not talked with the owner in it yet.');
 
     board.create({ title: 'Login', x: 0, y: 0 });
     board.log(a.id, 'question', 'worker', 'CSV oder Excel?');
@@ -134,7 +134,7 @@ describe('the Koordinator remembers', () => {
     const { heard } = await say(k, 'stopp Export', 'act', { actions: [{ do: 'stop', card: 'K1' }], confirm: '„Export“ angehalten.' });
     expect(k.undo(heard.token!)).toBe(true);
     const next = await say(k, 'was ist los?', 'reply', { confirm: 'Nichts.' });
-    expect(next.brief).toContain('The owner took back what you confirmed with „„Export“ angehalten.“');
+    expect(next.brief).toContain('The owner took back what you confirmed with “„Export“ angehalten.”');
     expect(board.snapshot().talk.map((t) => [t.said, t.reply, !!t.undone])).toEqual([
       ['stopp Export', '„Export“ angehalten.', true],
       ['was ist los?', 'Nichts.', false],
@@ -161,6 +161,23 @@ describe('the Koordinator remembers', () => {
     ]);
   });
 
+  test('once the commands ran, the page hears which cards they made, so the confirmation offers to go to them', async () => {
+    const notices: Notice[] = [];
+    board.onNotice((n) => void notices.push(n));
+    const k = new Commander({ board, runtime, cwd: '/r', execute: (c) => (c.do === 'newCard' ? `id-${c.title}` : undefined), delayMs: 20 });
+    const { heard } = await say(k, 'new tasks login and dates elsewhere', 'act', {
+      actions: [
+        { do: 'new_card', title: 'Login', body: 'Login.' },
+        { do: 'new_idea', title: 'Logout', body: 'Logout.' },
+      ],
+      confirm: 'New task “Login” and idea “Logout”.',
+    });
+    k.arm(heard.token!);
+    expect(notices).toEqual([]);
+    await new Promise((r) => setTimeout(r, 40));
+    expect(notices).toEqual([{ text: heard.confirm, token: heard.token!, made: [{ id: 'id-Login', title: 'Login' }] }]);
+  });
+
   test('a command in its undo window outlives a restart: the next server runs it once the window is over', async () => {
     const k = new Commander({ board, runtime, cwd: '/r', execute: () => {}, delayMs: 2000 });
     const { heard } = await say(k, 'Spracheinstellung: „unten“ stimmt nicht mehr', 'act', {
@@ -173,7 +190,7 @@ describe('the Koordinator remembers', () => {
     expect(k.holding()).toBe(true);
     expect(k.undoable()).toEqual([{ text: heard.confirm, token: heard.token!, undoMs: expect.any(Number) }]);
     expect(k.undoable()[0]!.undoMs).toBeGreaterThan(1000);
-    // Obeya stops before the window is over; the next server finds the command on the same database
+    // Seismic stops before the window is over; the next server finds the command on the same database
     const later = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     const ran: Command[] = [];
     const next = new Commander({ board: later, runtime, cwd: '/r', execute: (c) => void ran.push(c), delayMs: 20 });
@@ -214,14 +231,14 @@ describe('the Koordinator remembers', () => {
     expect(slow.holding()).toBe(false);
   });
 
-  test('a new task starts at once, like "Agent starten", unless the owner says it should wait', async () => {
+  test('a new task starts at once, like "Start agent", unless the owner says it should wait', async () => {
     const k = commander();
     const { heard, session } = await say(k, 'Tipjar soll die Rechnung aufteilen', 'act', {
       actions: [{ do: 'new_card', title: 'Rechnung aufteilen', body: 'Tipjar soll die Rechnung aufteilen.', start: true }],
       confirm: 'Neue Aufgabe „Rechnung aufteilen“, der Agent fängt an.',
     });
     // the field says what the Koordinator would otherwise decide either way
-    expect(session.spec.tools.find((t) => t.name === 'act')!.description).toContain('start false only when the owner says it should wait („nur notieren“, „für später“, „noch nicht starten“), else true');
+    expect(session.spec.tools.find((t) => t.name === 'act')!.description).toContain('start false only when the owner says it should wait (“just note it”, “for later”, “do not start yet”), else true');
     k.arm(heard.token!);
     // left out, it starts too
     const { heard: bare } = await say(k, 'und eine für das Trinkgeld in Prozent', 'act', { actions: [{ do: 'new_card', title: 'Trinkgeld in Prozent', body: 'Trinkgeld frei in Prozent.' }], confirm: '…' });
@@ -449,9 +466,9 @@ describe('the Koordinator remembers', () => {
     await settle();
     const s = runtime.last;
     expect(s.inbox[0]).toContain('K2 [queued behind "Export"] "Archiv"');
-    expect(s.inbox[0]).toContain('K3 [queued: Obeya checks it for merge conflicts] "Login"');
+    expect(s.inbox[0]).toContain('K3 [queued: Seismic checks it for merge conflicts] "Login"');
     const refused = await s.call('act', { actions: [{ do: 'start', card: 'K2' }, { do: 'start', card: 'K3' }], confirm: 'Beide starten.' });
-    expect(refused).toContain('action 2 (start on K3): Obeya is still checking the card');
+    expect(refused).toContain('action 2 (start on K3): Seismic is still checking the card');
     s.call('act', { actions: [{ do: 'start', card: 'K2' }], confirm: '„Archiv“ startet trotz Überschneidung.' });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
@@ -494,7 +511,7 @@ describe('the Koordinator remembers', () => {
     expect(s.inbox[0]).toContain('The owner is looking at the project K1 "Export".');
     expect(s.inbox[0]).toContain('Projects with workstreams to start:\nK1 [project] "Export" — planned workstreams not yet started: W2, W3');
     expect(s.inbox[0]).not.toContain('"Fertig"');
-    s.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: 'Obeya plant alle Workstreams von „Export“ ein.' });
+    s.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: 'Seismic plant alle Workstreams von „Export“ ein.' });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await new Promise((r) => setTimeout(r, 40));
@@ -566,8 +583,8 @@ describe('the Koordinator remembers', () => {
   test('a reply that only answers waits in the sheet until the owner sees it; a confirmation of actions and a reply on a card do not', async () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     const k = commander();
-    // it may come once the owner has closed the sheet: Obeya's button counts it until they see it
-    await say(k, 'wie zerlegt Obeya Anforderungen?', 'reply', { confirm: 'In Stufen: Idee, Plan-Doc, Projekt.' });
+    // it may come once the owner has closed the sheet: Seismic's button counts it until they see it
+    await say(k, 'wie zerlegt Seismic Anforderungen?', 'reply', { confirm: 'In Stufen: Idee, Plan-Doc, Projekt.' });
     expect(board.snapshot().talk.at(-1)).toMatchObject({ reply: 'In Stufen: Idee, Plan-Doc, Projekt.', unread: true });
     expect(waitingOn(board.snapshot())).toBe(1);
     board.readTalk();
@@ -596,13 +613,13 @@ describe('the Koordinator remembers', () => {
       return brief;
     };
     expect(await reply('und welche davon wartet?', { talk: first!.id, part: 'reply' })).toContain(
-      'The owner typed (as written, no recognition errors): "und welche davon wartet?"\n\n[In reply to your reply: „Zwei: „Export“ und „Login“.“]',
+      'The owner typed (as written, no recognition errors): "und welche davon wartet?"\n\n[In reply to your reply: “Zwei: „Export“ und „Login“.”]',
     );
     expect(board.snapshot().talk.at(-1)!.replyTo).toEqual({ talk: first!.id, part: 'reply', by: 'koordinator', text: 'Zwei: „Export“ und „Login“.' });
-    expect(await reply('nochmal', { talk: first!.id, part: 'said' })).toContain('[In reply to their own earlier message: „wie viele Karten laufen?“]');
+    expect(await reply('nochmal', { talk: first!.id, part: 'said' })).toContain('[In reply to their own earlier message: “wie viele Karten laufen?”]');
     // a looked-up answer goes by its tag, to follow up on it
     store.answerTalk(first!.id, 'Export wartet auf dich.', 'project');
-    expect(await reply('warum?', { talk: first!.id, part: 'answer' })).toContain(`[In reply to the answer A${first!.id} the project's agent looked up: „Export wartet auf dich.“]`);
+    expect(await reply('warum?', { talk: first!.id, part: 'answer' })).toContain(`[In reply to the answer A${first!.id} the project's agent looked up: “Export wartet auf dich.”]`);
     // what is no message of the sheet is dropped, and the words go alone
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     await say(k, 'hallo', 'reply', { confirm: 'Hallo.' });
@@ -623,7 +640,7 @@ describe('the Koordinator remembers', () => {
     expect(board.snapshot().talk.map((t) => [t.said, t.reply])).toEqual([['hallo nochmal', undefined]]);
     expect(board.events(a.id).map((e) => [e.kind, e.author, e.text])).toEqual([['say', 'owner', 'starte ihn']]);
     // the words being read are not part of what the Koordinator remembers
-    expect(runtime.last.inbox.at(-1)).toContain('You have not talked with the owner before.');
+    expect(runtime.last.inbox.at(-1)).toContain('This is a new chat: you have not talked with the owner in it yet.');
     runtime.last.call('reply', { confirm: 'Hallo!' });
     runtime.last.emit({ type: 'idle' });
     await heard;
@@ -638,14 +655,14 @@ describe('the Koordinator remembers', () => {
     ]);
   });
 
-  test('words being read when Obeya stopped get a reply that says so, in the sheet and on the card', () => {
+  test('words being read when Seismic stopped get a reply that says so, in the sheet and on the card', () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     board.addTalk('hallo', '');
     board.addTalk('starte ihn', '', a.id);
     board.log(a.id, 'say', 'owner', 'starte ihn');
     board.interruptTalk();
-    expect(board.snapshot().talk.map((t) => t.reply)).toEqual(['Obeya startete neu, bevor ich das gelesen hatte. Bitte noch einmal.']);
-    expect(board.events(a.id).at(-1)).toMatchObject({ kind: 'say', author: 'koordinator', text: 'Obeya startete neu, bevor ich das gelesen hatte. Bitte noch einmal.' });
+    expect(board.snapshot().talk.map((t) => t.reply)).toEqual(['Seismic startete neu, bevor ich das gelesen hatte. Bitte noch einmal.']);
+    expect(board.events(a.id).at(-1)).toMatchObject({ kind: 'say', author: 'koordinator', text: 'Seismic startete neu, bevor ich das gelesen hatte. Bitte noch einmal.' });
   });
 
   test('a new session, after a restart, starts from the stored conversation and the canvas history', async () => {
@@ -654,15 +671,43 @@ describe('the Koordinator remembers', () => {
     board.log(a.id, 'state', 'obeya', 'Agent gestartet auf obeya/export.');
     board.log(a.id, 'activity', 'worker', 'Read src/app.ts');
 
-    // Obeya restarts: a new Commander on the same store
+    // Seismic restarts: a new Commander on the same store
     const { brief } = await say(commander(), 'was habe ich vorhin gestartet?', 'reply', { confirm: '„Export“.' });
     expect(runtime.sessions).toHaveLength(2);
-    expect(brief).toContain('Your conversation with the owner before this session');
+    expect(brief).toContain('Your conversation with the owner in this chat before this session');
     expect(brief).toContain('the owner: "starte Export" → you: "„Export“ startet."');
     expect(brief).toContain('K1 "Export": new card');
     expect(brief).toContain('K1 "Export": Agent gestartet auf obeya/export.');
     // the worker's steps are no history the Koordinator needs
     expect(brief).not.toContain('Read src/app.ts');
+  });
+
+  test('a new chat takes a new session that remembers only that chat; going back to the earlier one remembers it again', async () => {
+    const c = commander();
+    board.setChatModel('sonnet');
+    await say(c, 'starte Export', 'reply', { confirm: 'Gleich.' });
+    expect(runtime.last.spec.setting?.model).toBe('sonnet');
+    const first = board.chat();
+    expect(board.newChat()).not.toBe(first);
+    expect(board.chatModel()).toBeUndefined();
+    const { brief } = await say(c, 'was gibt es?', 'reply', { confirm: 'Nichts.' });
+    expect(runtime.sessions).toHaveLength(2);
+    expect(runtime.last.spec.setting).toBeUndefined();
+    expect(brief).toContain('This is a new chat: you have not talked with the owner in it yet.');
+    expect(brief).not.toContain('starte Export');
+    // the sheet shows the chat open now (and the reply still unread in the other); both are listed, the latest first
+    const now = board.snapshot();
+    expect(now.talk.filter((t) => t.chat === now.chat).map((t) => t.said)).toEqual(['was gibt es?']);
+    expect(now.talk.filter((t) => t.chat !== now.chat).map((t) => [t.said, t.unread])).toEqual([['starte Export', true]]);
+    expect(board.snapshot().chats.map((x) => x.title)).toEqual(['was gibt es?', 'starte Export']);
+
+    board.openChat(first);
+    const back = await say(c, 'und jetzt?', 'reply', { confirm: 'Weiter.' });
+    expect(runtime.sessions).toHaveLength(3);
+    expect(back.brief).toContain('the owner: "starte Export" → you: "Gleich."');
+    expect(back.brief).not.toContain('was gibt es?');
+    const later = board.snapshot();
+    expect(later.talk.filter((t) => t.chat === later.chat).map((t) => t.said)).toEqual(['starte Export', 'und jetzt?']);
   });
 
   test('review cards stand out from tasks titled like reviews, in the card list and the history', async () => {
@@ -789,7 +834,7 @@ describe('the usage limit', () => {
     await settle();
     lifts(10_000);
     await heard;
-    // Obeya restarts, shortly before the limit lifts: the words are not cut off, and a new Commander reads them
+    // Seismic restarts, shortly before the limit lifts: the words are not cut off, and a new Commander reads them
     const [x] = store.heldTalk('c');
     store.holdTalk(x!.id, { ...x!.held, until: new Date(Date.now() + 30).toISOString() });
     board.interruptTalk();
@@ -823,7 +868,7 @@ describe('what the agent of a card passes on from the owner\'s words', () => {
 
   for (const state of ['working', 'question', 'demo', 'review', 'inPr', 'finishing'])
     for (const spoken of [false, true])
-      test(`on a card ${state}, ${spoken ? 'spoken' : 'typed'}: Obeya's commands wait for undo; the words do not go back to the agent`, async () => {
+      test(`on a card ${state}, ${spoken ? 'spoken' : 'typed'}: Seismic's commands wait for undo; the words do not go back to the agent`, async () => {
         const a = open(state);
         const k = commander();
         // a follow-up, a rule, a stop, an approval: confirmed, and taken back within the window
@@ -839,7 +884,7 @@ describe('what the agent of a card passes on from the owner\'s words', () => {
           await settle();
           const s = runtime.last;
           const brief = s.inbox.at(-1)!;
-          expect(brief).toContain(`The agent of the open card passes on a request from what the owner told it, asking Obeya for something: "${request}"`);
+          expect(brief).toContain(`The agent of the open card passes on a request from what the owner told it, asking Seismic for something: "${request}"`);
           expect(brief).toContain(`The owner's own words to it, ${spoken ? 'spoken (speech recognition, may contain errors)' : 'typed (as written, no recognition errors)'}: "${words}"`);
           expect(brief).toContain('The owner has this card open');
           // the agent has the words: nothing goes back to it
@@ -875,7 +920,7 @@ describe('what the agent of a card passes on from the owner\'s words', () => {
     const heard = k.forward(a.id, 'Start the card Login');
     await settle();
     const brief = runtime.last.inbox.at(-1)!;
-    expect(brief).toContain('asking Obeya for something: "Start the card Login"');
+    expect(brief).toContain('asking Seismic for something: "Start the card Login"');
     expect(brief).not.toContain("The owner's own words");
     runtime.last.call('reply', { confirm: 'Es gibt keine Karte Login.' });
     runtime.last.emit({ type: 'idle' });
@@ -1037,8 +1082,8 @@ describe('what the owner says to the Koordinator is offered for learning', () =>
   });
 });
 
-describe("the Koordinator and Obeya's configuration", () => {
-  const view = { file: '/h/canvases.json', source: 'file', canvases: [{ name: 'Obeya', repos: [{ path: '/r' }] }], running: ['obeya'] } as unknown as ConfigView;
+describe("the Koordinator and Seismic's configuration", () => {
+  const view = { file: '/h/canvases.json', source: 'file', canvases: [{ name: 'Seismic', repos: [{ path: '/r' }] }], running: ['obeya'] } as unknown as ConfigView;
   const config = {
     view: () => view,
     check: async (input: unknown) => {
@@ -1057,9 +1102,9 @@ describe("the Koordinator and Obeya's configuration", () => {
     const heard = k.hear('welche Leinwände gibt es?', {});
     await settle();
     expect(JSON.parse(await runtime.last.call('config', {}))).toMatchObject({ file: '/h/canvases.json', running: ['obeya'], problems: [] });
-    runtime.last.call('reply', { confirm: 'Eine: Obeya.' });
+    runtime.last.call('reply', { confirm: 'Eine: Seismic.' });
     runtime.last.emit({ type: 'idle' });
-    expect(await heard).toEqual({ confirm: 'Eine: Obeya.', talk: 1 });
+    expect(await heard).toEqual({ confirm: 'Eine: Seismic.', talk: 1 });
   });
 
   test('changes it on the owner\'s word after the undo window; one that does not work goes back to it', async () => {
@@ -1067,13 +1112,13 @@ describe("the Koordinator and Obeya's configuration", () => {
     const heard = k.hear('nimm das Repository nirgends dazu', {});
     await settle();
     const s = runtime.last;
-    const bad = [{ name: 'Obeya', repos: [{ path: '/r' }, { path: '/nirgends' }] }];
+    const bad = [{ name: 'Seismic', repos: [{ path: '/r' }, { path: '/nirgends' }] }];
     expect(await s.call('configure', { canvases: bad, confirm: 'Ok.' })).toContain('/nirgends is not a git repository');
-    const good = [{ name: 'Obeya', repos: [{ path: '/r' }, { path: '/r2' }] }];
-    await s.call('configure', { canvases: good, confirm: 'Das Repository r2 kommt dazu; Obeya startet danach neu.' });
+    const good = [{ name: 'Seismic', repos: [{ path: '/r' }, { path: '/r2' }] }];
+    await s.call('configure', { canvases: good, confirm: 'Das Repository r2 kommt dazu; Seismic startet danach neu.' });
     s.emit({ type: 'idle' });
     const h = await heard;
-    expect(h.confirm).toBe('Das Repository r2 kommt dazu; Obeya startet danach neu.');
+    expect(h.confirm).toBe('Das Repository r2 kommt dazu; Seismic startet danach neu.');
     k.arm(h.token!);
     expect(executed).toEqual([]);
     await new Promise((r) => setTimeout(r, 40));
@@ -1179,12 +1224,12 @@ describe('merging and deleting planned tasks by voice', () => {
   });
 });
 
-describe("wishes for Obeya's makers", () => {
-  test('a reply that Obeya cannot do something carries what the owner asked and the answer, for a draft', async () => {
+describe("wishes for Seismic's makers", () => {
+  test('a reply that Seismic cannot do something carries what the owner asked and the answer, for a draft', async () => {
     const k = commander();
-    const { heard } = await say(k, 'sortier die Karten nach Datum', 'reply', { confirm: 'Karten nach Datum sortieren kann ich nicht; das gibt es in Obeya nicht.', wish: true });
-    expect(heard).toEqual({ confirm: 'Karten nach Datum sortieren kann ich nicht; das gibt es in Obeya nicht.', cannot: true, talk: 1 });
-    expect(board.snapshot().talk.at(-1)!.wish).toEqual({ said: 'sortier die Karten nach Datum', answer: 'Karten nach Datum sortieren kann ich nicht; das gibt es in Obeya nicht.' });
+    const { heard } = await say(k, 'sortier die Karten nach Datum', 'reply', { confirm: 'Karten nach Datum sortieren kann ich nicht; das gibt es in Seismic nicht.', wish: true });
+    expect(heard).toEqual({ confirm: 'Karten nach Datum sortieren kann ich nicht; das gibt es in Seismic nicht.', cannot: true, talk: 1 });
+    expect(board.snapshot().talk.at(-1)!.wish).toEqual({ said: 'sortier die Karten nach Datum', answer: 'Karten nach Datum sortieren kann ich nicht; das gibt es in Seismic nicht.' });
   });
 
   test('a reply for words that are unclear, or that failed just now, offers nothing', async () => {
@@ -1196,9 +1241,9 @@ describe("wishes for Obeya's makers", () => {
 
   test('a question looked up is never a wish, even flagged', async () => {
     const k = commander();
-    const heard = k.hear('kann Obeya Karten nach Datum sortieren?', {});
+    const heard = k.hear('kann Seismic Karten nach Datum sortieren?', {});
     await settle();
-    runtime.last.call('look_up', { question: 'Kann Obeya Karten nach Datum sortieren?', confirm: 'Ich schaue nach.' });
+    runtime.last.call('look_up', { question: 'Kann Seismic Karten nach Datum sortieren?', confirm: 'Ich schaue nach.' });
     runtime.last.emit({ type: 'idle' });
     expect(await heard).toEqual({ confirm: 'Ich schaue nach.', talk: 1 });
     expect(board.snapshot().talk.at(-1)!.wish).toBeUndefined();
@@ -1206,7 +1251,7 @@ describe("wishes for Obeya's makers", () => {
 
   test('what the owner wants the makers told opens a draft at once: nothing runs, nothing to take back', async () => {
     const k = commander();
-    const { heard } = await say(k, 'Obeya, Feedback: die Leiste soll sich ausblenden lassen', 'act', {
+    const { heard } = await say(k, 'Seismic, Feedback: die Leiste soll sich ausblenden lassen', 'act', {
       actions: [{ do: 'wish', text: 'Die Leiste soll sich ausblenden lassen.' }],
       confirm: 'Der Entwurf für die Entwickler ist offen.',
     });
@@ -1249,11 +1294,11 @@ describe("wishes for Obeya's makers", () => {
     const k = commander();
     const heard = k.forward(a.id, 'Sort the cards by date.', { text: 'sortier die Karten nach Datum', spoken: true });
     await settle();
-    runtime.last.call('reply', { confirm: 'Das kann Obeya nicht.', wish: true });
+    runtime.last.call('reply', { confirm: 'Das kann Seismic nicht.', wish: true });
     runtime.last.emit({ type: 'idle' });
-    expect(await heard).toEqual({ confirm: 'Das kann Obeya nicht.', cannot: true });
+    expect(await heard).toEqual({ confirm: 'Das kann Seismic nicht.', cannot: true });
     const answer = board.events(a.id).find((e) => e.author === 'koordinator')!;
-    expect(answer.wish).toEqual({ said: 'sortier die Karten nach Datum', answer: 'Das kann Obeya nicht.' });
+    expect(answer.wish).toEqual({ said: 'sortier die Karten nach Datum', answer: 'Das kann Seismic nicht.' });
   });
 });
 
@@ -1360,8 +1405,10 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
     expect(after).toMatchObject({ said: '', after: { title: card.title, state: 'done', met: 'reached', from: board.snapshot().talk[0]!.id } });
     runtime.last.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: '„Recipes einrichten“ startet.' });
     runtime.last.emit({ type: 'idle' });
-    await until(() => notices.length);
-    expect(notices[0]).toMatchObject({ text: '„Recipes einrichten“ startet.', talk: after!.id, undoMs: 20 });
+    // the first notice offered to go to the card the first command made
+    expect(notices).toEqual([{ text: heard.confirm, token: heard.token!, made: [{ id: card.id, title: card.title }] }]);
+    await until(() => notices.length === 2);
+    expect(notices[1]).toMatchObject({ text: '„Recipes einrichten“ startet.', talk: after!.id, undoMs: 20 });
     // decided: it no longer waits
     expect(board.snapshot().talk[0]!.waits).toBeUndefined();
     await until(() => executed.length === 2);
@@ -1483,7 +1530,7 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
     expect(k.unwait(talk, b.id)).toBe(true);
     expect(board.snapshot().talk[2]!.waits).toBeUndefined();
     const next = await say(k, 'und?', 'reply', { confirm: 'Nichts.' });
-    expect(next.brief).toContain('The owner told you to stop waiting on „Login“');
+    expect(next.brief).toContain('The owner told you to stop waiting on “Login”');
     expect(next.brief).not.toContain('Cards you wait on');
     board.work(b.id, { state: 'live' });
     k.due(board.snapshot().items);
@@ -1608,12 +1655,12 @@ describe('a step the Koordinator takes once it has looked something up', () => {
 });
 
 describe('other canvases and new repositories', () => {
-  test('a new card or idea goes onto another canvas the owner names; one the Obeya does not have is refused with those it has', async () => {
+  test('a new card or idea goes onto another canvas the owner names; one the Seismic does not have is refused with those it has', async () => {
     const k = new Commander({ board, runtime, cwd: '/r', execute: (c) => void executed.push(c), delayMs: 20, canvases: () => [{ id: 'super59', name: 'Super 59' }] });
     const heard = k.hear('leg auf Super 59 eine Aufgabe Termine an', {});
     await settle();
     const s = runtime.last;
-    expect(s.inbox.at(-1)).toContain('Other canvases of this Obeya (new_card and new_idea go there with canvas): "Super 59"');
+    expect(s.inbox.at(-1)).toContain('Other canvases of this Seismic (new_card and new_idea go there with canvas): "Super 59"');
     expect(s.call('act', { actions: [{ do: 'new_idea', title: 'X', canvas: 'Shop' }], confirm: '…' })).toContain('unknown canvas Shop; the other canvases are "Super 59"');
     s.call('act', { actions: [{ do: 'new_card', title: 'Termine', body: 'Termine.', canvas: 'Super 59' }, { do: 'new_idea', title: 'Hier', canvas: 'C' }], confirm: 'Lege „Termine“ auf Super 59 an.' });
     s.emit({ type: 'idle' });

@@ -1,15 +1,15 @@
-// Tailscale on this machine, for other devices to reach Obeya (remote.ts): what `tailscale status`
-// says it allows, and the one `tailscale serve` entry Obeya keeps, which proxies HTTPS at the
-// machine's tailnet name to Obeya's port on 127.0.0.1. Obeya touches no other entry: one on a port
-// that serves something else stays, and Obeya takes the next port.
+// Tailscale on this machine, for other devices to reach Seismic (remote.ts): what `tailscale status`
+// says it allows, and the one `tailscale serve` entry Seismic keeps, which proxies HTTPS at the
+// machine's tailnet name to Seismic's port on 127.0.0.1. Seismic touches no other entry: one on a port
+// that serves something else stays, and Seismic takes the next port.
 
 import { existsSync } from 'node:fs';
 import type { RemoteProblem, TailscaleState } from '../core/types';
 
-/** The HTTPS ports Obeya tries in turn (those the tailnet also lets Funnel use, which every client knows). */
+/** The HTTPS ports Seismic tries in turn (those the tailnet also lets Funnel use, which every client knows). */
 export const SERVE_PORTS = [443, 8443, 10000] as const;
 
-/** The entry Obeya serves: HTTPS on `https` of the tailnet name, proxied to `target`. */
+/** The entry Seismic serves: HTTPS on `https` of the tailnet name, proxied to `target`. */
 export interface ServeEntry {
   https: number;
   target: string;
@@ -89,8 +89,8 @@ export class Tailscale {
   }
 
   /**
-   * Serves Obeya's `port` at `name` over HTTPS: on the port of `kept` (the entry Obeya served
-   * before, while it is still Obeya's), else on the first of `SERVE_PORTS` nothing serves yet.
+   * Serves Seismic's `port` at `name` over HTTPS: on the port of `kept` (the entry Seismic served
+   * before, while it is still Seismic's), else on the first of `SERVE_PORTS` nothing serves yet.
    */
   async serve(name: string, port: number, kept: ServeEntry | null): Promise<{ entry: ServeEntry } | { problem: RemoteProblem }> {
     const target = `http://127.0.0.1:${port}`;
@@ -110,14 +110,14 @@ export class Tailscale {
     return r.ok ? { entry: { https, target } } : { problem: this.problemOf(r.out) };
   }
 
-  /** Removes the entry Obeya served, if it is still Obeya's. */
+  /** Removes the entry Seismic served, if it is still Seismic's. */
   async unserve(name: string, entry: ServeEntry): Promise<void> {
     const config = await this.config().catch(() => ({}) as ServeConfig);
     if (config.Web?.[`${name}:${entry.https}`]?.Handlers?.['/']?.Proxy !== entry.target) return;
     await this.run(['serve', `--https=${entry.https}`, 'off']);
   }
 
-  /** As `unserve`, waiting for it: Obeya stopping, which ends the process right after. */
+  /** As `unserve`, waiting for it: Seismic stopping, which ends the process right after. */
   unserveSync(name: string, entry: ServeEntry) {
     const run = (args: string[]) => Bun.spawnSync([this.bin!, ...args], { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', timeout: 5000 });
     const status = run(['serve', 'status', '--json']);

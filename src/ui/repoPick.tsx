@@ -1,5 +1,5 @@
 // The repository a card is built in, picked before work on it begins: one of the canvas's, or a
-// new one Obeya creates for it (its folder, and whether it gets a canvas of its own). Built once
+// new one Seismic creates for it (its folder, and whether it gets a canvas of its own). Built once
 // for every kind of card that has a task before it starts (a planned task, an idea); the button
 // that starts or builds the card names a new one, so what the click does is clear before it.
 
@@ -65,10 +65,10 @@ export function useRepoChoice(item: Item, onEdit: (p: CardPatch) => void): RepoC
 const besideHome = (repos: RepoRef[]) => repos[0]?.path.replace(/[/\\][^/\\]+[/\\]?$/, '/') ?? '';
 
 /**
- * The picker: the canvas's repositories and „Neues Repository …“, which once picked shows its
- * folder and „eigene Leinwand“. It stays out of the way: shown on a canvas with several
+ * The picker: the canvas's repositories and "New repository …", which once picked shows its
+ * folder and "own canvas". It stays out of the way: shown on a canvas with several
  * repositories, and where a new one is picked already (by the idea's agent, or the owner's words to
- * Obeya); a card of a canvas with one repository and no new one shows none. `fresh`: a new
+ * Seismic); a card of a canvas with one repository and no new one shows none. `fresh`: a new
  * repository may be picked (not on a proposal, whose acceptance starts it where it is).
  */
 export function RepoPick({ choice, repos, fresh = true }: { choice: RepoChoice; repos: RepoRef[]; fresh?: boolean }) {
@@ -117,7 +117,7 @@ export function RepoPick({ choice, repos, fresh = true }: { choice: RepoChoice; 
             onChange={(e) => choice.setFresh({ ...n, path: e.target.value })}
           />
           <label className="repo-canvas" title={t.repoPick.ownCanvasHint}>
-            <input type="checkbox" checked={n.canvas} onChange={(e) => choice.setFresh({ ...n, canvas: e.target.checked })} />
+            <input type="checkbox" role="switch" className="toggle" checked={n.canvas} onChange={(e) => choice.setFresh({ ...n, canvas: e.target.checked })} />
             {t.repoPick.ownCanvas}
           </label>
         </div>

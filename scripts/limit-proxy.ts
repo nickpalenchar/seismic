@@ -5,8 +5,8 @@
 //   bun scripts/limit-proxy.ts [--port <n>] [--log <file>]
 //
 // Claude Code goes through it with ANTHROPIC_BASE_URL=http://127.0.0.1:<port>/anthropic in the
-// scratch Obeya's environment, Codex with the wrapper it writes (`codex` beside the log, given to
-// the scratch Obeya as OBEYA_CODEX): the installed Codex with a model provider of the same
+// scratch Seismic's environment, Codex with the wrapper it writes (`codex` beside the log, given to
+// the scratch Seismic as SEISMIC_CODEX): the installed Codex with a model provider of the same
 // ChatGPT sign-in whose base URL is this proxy's /codex. Everything else is forwarded unchanged.
 //
 //   curl -XPOST 'http://127.0.0.1:<port>/limit?harness=claude&for=120'

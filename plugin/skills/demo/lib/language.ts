@@ -1,8 +1,8 @@
-// The languages of Obeya's owner, both chosen in its configuration dialog (`settings.json` under
-// Obeya's home): the interface's, else the system's, which the server's own words are in; and the
-// conversation's, else the interface's, which agents write the owner in until the owner's words
-// say otherwise and a demo is narrated in unless the demo settings name another. Plain Node, like
-// the director: it runs without Obeya too.
+// The languages of Seismic's owner, both chosen in its configuration dialog (`settings.json` under
+// Seismic's home): the interface's, else the system's, which the server's own words are in; and the
+// conversation's, else English, which agents write the owner in unless a standing preference
+// names another language. A demo is narrated in it unless the demo settings name another. Plain Node, like
+// the director: it runs without Seismic too.
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -25,7 +25,7 @@ function chosen(home: string, key: 'language' | 'conversationLanguage'): Languag
 /** The owner's settings as last read, by file, with the file's state then: the server asks for the language with every text it writes. */
 const read = new Map<string, { at: string; settings: Record<string, unknown> }>();
 
-/** Obeya wrote the owner's settings: they are read again, even where the file's time did not move on (a coarse clock). */
+/** Seismic wrote the owner's settings: they are read again, even where the file's time did not move on (a coarse clock). */
 export const ownerSettingsWritten = (home: string) => read.delete(path.join(home, OWNER_SETTINGS_FILE));
 
 /** The owner's settings in the file, read again only once it changed; none where it is missing or unreadable. */
@@ -49,7 +49,7 @@ function ownerSettings(file: string): Record<string, unknown> {
 /**
  * The system's language. On a Mac the one its interface is in (`AppleLanguages`), which a server
  * started outside a terminal has no `LANG` for; elsewhere the locale variables, in the order POSIX
- * gives them, then what the runtime reports (Windows). A language Obeya does not speak gives the
+ * gives them, then what the runtime reports (Windows). A language Seismic does not speak gives the
  * fallback.
  */
 export function systemLanguage(env: Record<string, string | undefined> = process.env, platform: string = process.platform, apple = appleLanguage): Language {
@@ -75,5 +75,5 @@ function appleLanguage(): string | undefined {
 /** The interface language that applies: the owner's choice, else the system's. */
 export const ownerLanguageIn = (home: string): Language => chosenLanguage(home) ?? systemLanguage();
 
-/** The conversation language that applies: the owner's choice, else the interface language. */
-export const conversationLanguageIn = (home: string): Language => chosenConversationLanguage(home) ?? ownerLanguageIn(home);
+/** The conversation language that applies: the owner's choice, else English. */
+export const conversationLanguageIn = (home: string): Language => chosenConversationLanguage(home) ?? 'en';

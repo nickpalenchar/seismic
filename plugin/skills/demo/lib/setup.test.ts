@@ -65,14 +65,14 @@ describe('demo setup', () => {
     expect(by.playwright?.state).toBe('ok');
   });
 
-  test('a voice Obeya holds on its own machine counts as there for a worker on another one', async () => {
+  test('a voice Seismic holds on its own machine counts as there for a worker on another one', async () => {
     const env = { PATH: join(dir, 'none'), HOME: dir, DEMO_CHROME: join(dir, 'no-chrome') };
     const voice = async (more: Record<string, string>, voice: 'qwen3' | 'piper' = 'qwen3') =>
       (await checkSetup({ language: 'de', voice }, { env: { ...env, ...more }, home: dir, narrationOnly: true })).items.find((i) => i.id === 'voice');
     expect((await voice({}))?.state).toBe('missing');
-    expect(await voice({ OBEYA_HOLDS_VOICE: '1', OBEYA_URL: 'http://127.0.0.1:41234' })).toMatchObject({ state: 'ok', found: 'qwen3 (held by Obeya)' });
+    expect(await voice({ OBEYA_HOLDS_VOICE: '1', SEISMIC_URL: 'http://127.0.0.1:41234' })).toMatchObject({ state: 'ok', found: 'qwen3 (held by Seismic)' });
     // Piper is not held: it runs with each render
-    expect((await voice({ OBEYA_HOLDS_VOICE: '1', OBEYA_URL: 'http://127.0.0.1:41234' }, 'piper'))?.state).toBe('missing');
+    expect((await voice({ SEISMIC_HOLDS_VOICE: '1', OBEYA_URL: 'http://127.0.0.1:41234' }, 'piper'))?.state).toBe('missing');
   });
 
   test.skipIf(process.platform === 'win32')('takes an old Node and an ffmpeg without libx264 as missing', async () => {

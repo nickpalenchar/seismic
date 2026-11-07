@@ -1,4 +1,4 @@
-// The field the owner writes in under a conversation, the same on a card and in Obeya's sheet: one
+// The field the owner writes in under a conversation, the same on a card and in Seismic's sheet: one
 // frame with the text, the screenshot button, the microphone and Send (an arrow, as in chat apps) in
 // its bottom corner, as wide as the conversation above it. The text grows with what is written (or
 // with its placeholder, which shows in full), up to a part of the window.
@@ -8,6 +8,7 @@
 // the bottom, or Space. Under a card's conversation, `/` at the start of a word opens the menu of the
 // skills of the card's agent (`skills.ts`).
 
+import { ArrowUp } from 'lucide-react';
 import { type MouseEvent, type ReactNode, useContext, useEffect, useId, useRef, useState } from 'react';
 import { api } from './api';
 import { dropDraft, typeInto, updateDraft, useDraft, useDraftField } from './draft';
@@ -67,7 +68,7 @@ function fitField(el: HTMLTextAreaElement, tools: HTMLElement | null) {
 }
 
 /**
- * What the owner writes to an agent or to Obeya; screenshots are pasted, dropped or picked, unless
+ * What the owner writes to an agent or to Seismic; screenshots are pasted, dropped or picked, unless
  * `noImages`. `draft`: the draft it shows and keeps (`draft.ts`), which the microphone reads; without
  * one the field keeps its own. `label` names what Send does (its tooltip); `action` puts words on the button instead
  * of the arrow, for a button that starts something rather than sends. The message the words reply
@@ -96,7 +97,7 @@ export function Composer({
   action?: string;
   allowEmpty?: boolean;
   noImages?: boolean;
-  /** Obeya reads what is typed: it gets ready while the owner types; a text here says so under the field. */
+  /** Seismic reads what is typed: it gets ready while the owner types; a text here says so under the field. */
   obeya?: true | string;
   /** Hears the text as it is typed. */
   onText?: (text: string) => void;
@@ -287,9 +288,7 @@ export function Composer({
             </button>
           ) : (
             <button className="btn primary c-send c-arrow" title={label} aria-label={label} disabled={!ready} onMouseDown={keepFocus} onClick={send}>
-              <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-                <path d="M10 16V4M4.5 9.5 10 4l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <ArrowUp size={16} strokeWidth={2.25} aria-hidden="true" />
             </button>
           )}
         </div>

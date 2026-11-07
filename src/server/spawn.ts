@@ -1,20 +1,20 @@
 // A program run on this machine and waited for, with what it printed.
 
 /**
- * Whether a process Obeya starts and ends itself goes into a process group of its own (POSIX):
+ * Whether a process Seismic starts and ends itself goes into a process group of its own (POSIX):
  * Ctrl-C in the terminal goes to the whole foreground group. It reached every agent in the middle
- * of its turn, and what each ran, while Obeya meant to wait for them to pause; a sidecar it reached
- * died with a traceback. Out of that group, Ctrl-C reaches Obeya alone, which ends them itself. Not
+ * of its turn, and what each ran, while Seismic meant to wait for them to pause; a sidecar it reached
+ * died with a traceback. Out of that group, Ctrl-C reaches Seismic alone, which ends them itself. Not
  * on Windows, where a detached process has no console and every console program it starts opens a
  * window.
  */
 export const OWN_GROUP = process.platform !== 'win32';
 
 /**
- * Makes every console program Obeya starts through `Bun.spawn` or `Bun.spawnSync` (git above all,
+ * Makes every console program Seismic starts through `Bun.spawn` or `Bun.spawnSync` (git above all,
  * many times a second while it looks after clones) run without a window, where nothing says
- * otherwise. On Windows a process without a console, as Obeya is when started detached (a scratch
- * Obeya, a launcher without a terminal), gives each console program it starts a window of its own:
+ * otherwise. On Windows a process without a console, as Seismic is when started detached (a scratch
+ * Seismic, a launcher without a terminal), gives each console program it starts a window of its own:
  * it flashed up and took the focus from whatever the owner was typing in. A default for all, not
  * an option at each call: one call forgotten brings the flashing back. Node's `child_process`
  * passes its own `windowsHide` (false unless given), so a program that is meant to show (Explorer,

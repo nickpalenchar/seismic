@@ -1,5 +1,5 @@
 // A card's demo: the directory the `demo` skill rendered into, or an HTML artifact the worker
-// made instead, read and served by Obeya.
+// made instead, read and served by Seismic.
 
 import { closeSync, existsSync, fstatSync, openSync, readdirSync, readFileSync, readSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -12,8 +12,8 @@ import type { FileAt } from './workspaces';
 import { resource } from './resources';
 
 /**
- * The plugin Obeya loads into its workers' sessions: it brings the demo skill (`obeya:demo`), the
- * pipeline that records a demo. A Claude Code session without Obeya reaches the same skill through
+ * The plugin Seismic loads into its workers' sessions: it brings the demo skill (`obeya:demo`), the
+ * pipeline that records a demo. A Claude Code session without Seismic reaches the same skill through
  * the plugin or a user skill that points to `plugin/skills/demo`.
  */
 export const OBEYA_PLUGIN = resource('plugin');
@@ -40,7 +40,7 @@ const realpath = (path: string) => {
 /**
  * The name of the demo skill in a worker's session on this machine. Claude Code lists a skill file
  * once: a user skill that links to the plugin's (`~/.claude/skills/demo` pointing to
- * `plugin/skills/demo`, as a session without Obeya reaches the skill) is listed under its own name
+ * `plugin/skills/demo`, as a session without Seismic reaches the skill) is listed under its own name
  * instead, and the session knows no `obeya:demo`.
  */
 export function demoSkillName(skills = join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), 'skills'), file = DEMO_SKILL_FILE): string {
@@ -183,7 +183,7 @@ function readAt(fd: number, length: number, position: number): Uint8Array<ArrayB
  * `Access-Control-Allow-Origin: null`, which any sandboxed page on any site matches; a request from
  * that frame carries neither a referrer nor anything else of its own. Its address does: the page is
  * sent on to `<directory>/~<key>/index.html`, so whatever it loads relative to itself carries the
- * key, which nobody can know without Obeya's API; the server lets a request with it in without the
+ * key, which nobody can know without Seismic's API; the server lets a request with it in without the
  * owner's cookie (access.ts). Only an address with the key gets the header.
  *
  * `route`: where the route's file path begins (`/demo/`, `/demos/2/` for an earlier demo); `name`: the file path after it, decoded.
@@ -234,7 +234,7 @@ function servedFrom(req: Request): string | undefined {
 /**
  * A file of a worker's directory (an HTML artifact's, a looked-up answer's), never one outside it.
  * It is the worker's, so it runs sandboxed: scripts yes, but in an origin of its own, without
- * Obeya's API or the canvas's storage, and connecting to nothing but the address of the files beside
+ * Seismic's API or the canvas's storage, and connecting to nothing but the address of the files beside
  * it (`pagePolicy`, `OWN_CONNECTIONS`). A `page` tells its frame its height, so the frame grows to it
  * instead of scrolling inside, and what the owner marks in it, to quote it. Opened in a window of its own (a link on the card), a file that may run
  * scripts (HTML, SVG) comes in a frame of a page around it (`framed`): alone in its window a page

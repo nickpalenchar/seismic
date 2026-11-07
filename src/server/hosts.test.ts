@@ -105,24 +105,26 @@ describe('a session on a host', () => {
   test('starts Claude Code there once the host has the plugin, with its environment and the logins from stdin', async () => {
     const s = spawnSession({
       command: 'sh',
-      args: ['-c', 'echo "$PWD|$FOO|$OBEYA_HOME|$CLAUDE_CODE_OAUTH_TOKEN|$OBEYA_URL|$1|$OBEYA_HOLDS_VOICE"; cat "$1/skills/SKILL.md"; echo; read line; echo "got $line"', 'x', join(dir, 'plugin')],
-      env: { FOO: "it's", OBEYA_URL: 'http://localhost:4417', OBEYA_NARRATION_URL: 'http://127.0.0.1:4418' },
+      args: ['-c', 'echo "$PWD|$FOO|$OBEYA_HOME|$CLAUDE_CODE_OAUTH_TOKEN|$OBEYA_URL|$1|$OBEYA_HOLDS_VOICE|$SEISMIC_URL|$SEISMIC_HOME|$SEISMIC_HOLDS_VOICE"; cat "$1/skills/SKILL.md"; echo; read line; echo "got $line"', 'x', join(dir, 'plugin')],
+      env: { FOO: "it's", SEISMIC_URL: 'http://localhost:4417', SEISMIC_NARRATION_URL: 'http://127.0.0.1:4418' },
     });
     s.p.stdin.write('ping\n');
     expect(await s.exited).toBe(0);
-    // Obeya's directory there is in the host's home
+    // Seismic's directory there is in the host's home
     const remoteDir = join(dir, 'net', 'home', '.obeya', 'remote');
     const [first, skill, got] = s.out().trim().split('\n');
-    const [pwd, foo, home, token, url, plugin, held] = first!.split('|');
+    const [pwd, foo, home, token, url, plugin, held, seismicUrl, seismicHome, seismicHeld] = first!.split('|');
     expect(pwd).toEndWith('/ws');
     expect(foo).toBe("it's");
     expect(home).toBe(remoteDir);
     expect(token).toBe('sk-claude');
-    // a port there forwarded to Obeya's here
+    // a port there forwarded to Seismic's here
     expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d{5}$/);
     expect(plugin).toBe(`${home}/plugin`);
-    // the narration voice Obeya holds needs no installation there
+    // the narration voice Seismic holds needs no installation there
     expect(held).toBe('1');
+    // both names are set there, for a plugin older than the rename
+    expect([seismicUrl, seismicHome, seismicHeld]).toEqual([url, home, '1']);
     expect(skill).toBe('a skill');
     expect(got).toBe('got ping');
     expect(readFileSync(join(remoteDir, 'plugin.stamp'), 'utf8')).toHaveLength(16);
@@ -461,7 +463,7 @@ describe('the app of a card on a host', () => {
   test('opens through a forward of its port, which ends once the card no longer offers it', async () => {
     const card = board.create({ title: 'Weit weg', x: 0, y: 0 });
     await workers.start(card.id);
-    expect(runtime.last.inbox[0]).toContain("Obeya forwards that address's port, and only that one");
+    expect(runtime.last.inbox[0]).toContain("Seismic forwards that address's port, and only that one");
     const first = app('erste');
     runtime.last.call('app_running', { url: `${first}seite?x=1` });
     expect(await workers.appUp(card.id)).toBe(true);
@@ -503,7 +505,7 @@ describe('the app of a card on a host', () => {
     rmSync(join(dir, 'net', 'down'));
     expect(await workers.openApp(card.id)).toBe(opened);
     expect(await answers(opened)).toBe('da');
-    // Obeya stops, and the forward with it
+    // Seismic stops, and the forward with it
     workers.shutdown();
     await closed(opened);
   }, 20_000);

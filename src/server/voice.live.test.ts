@@ -1,7 +1,7 @@
 // Voice in on this machine, for real: Piper (the demos' voice) speaks a command, the speech
-// recognition hears it. Runs with `OBEYA_LIVE_VOICE=<home>`: Piper is installed under that home if
+// recognition hears it. Runs with `SEISMIC_LIVE_VOICE=<home>`: Piper is installed under that home if
 // it is not yet, the recognition comes through uv (the first run fetches it). The backend is
-// Parakeet unless `OBEYA_WHISPER_BACKEND` names Whisper (`mlx`, `faster`, `whisper`).
+// Parakeet unless `SEISMIC_WHISPER_BACKEND` names Whisper (`mlx`, `faster`, `whisper`).
 
 import { expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -14,7 +14,7 @@ import { LocalTranscriber } from './voice';
 import { CHECK_CLIP } from './voice-setup';
 import { resource } from './resources';
 
-const home = process.env.OBEYA_LIVE_VOICE;
+const home = (process.env.SEISMIC_LIVE_VOICE ?? process.env.OBEYA_LIVE_VOICE);
 
 test.skipIf(!home)(
   'Piper speaks a command and the speech recognition hears it back',

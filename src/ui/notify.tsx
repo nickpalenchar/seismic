@@ -1,7 +1,7 @@
 // Notifications on the phone (design: Push). On iOS a web page gets pushes only once it is on the
 // home screen and opened from there: Safari's phone view says how until it runs that way. There a
 // button asks for the permission (iOS asks only after a tap) and stays until it is granted or
-// refused. Granted, the page subscribes with Obeya's key and hands the subscription to the server,
+// refused. Granted, the page subscribes with Seismic's key and hands the subscription to the server,
 // at every load, so a new key or a subscription the push service renewed reaches it.
 
 import { useEffect, useState } from 'react';
@@ -29,7 +29,7 @@ export function registerWorker() {
 const bytes = (b64u: string) => Uint8Array.from(atob(b64u.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
 const same = (a: ArrayBuffer | null, b: Uint8Array) => !!a && a.byteLength === b.length && new Uint8Array(a).every((x, i) => x === b[i]);
 
-/** Subscribes with Obeya's key (anew where the one before was another's) and gives the server the subscription. */
+/** Subscribes with Seismic's key (anew where the one before was another's) and gives the server the subscription. */
 async function subscribe() {
   await navigator.serviceWorker.register('/sw.js');
   // subscribing needs the worker active, not only registered
@@ -45,7 +45,7 @@ async function subscribe() {
   await api.subscribe(sub.toJSON());
 }
 
-/** The hint to put Obeya on the home screen, or the button that turns notifications on; nothing once they are. */
+/** The hint to put Seismic on the home screen, or the button that turns notifications on; nothing once they are. */
 export function Notify() {
   const [state, setState] = useState(stateNow);
   const [failed, setFailed] = useState<string | null>(null);

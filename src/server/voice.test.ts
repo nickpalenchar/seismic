@@ -43,6 +43,7 @@ test('every machine hears with Parakeet, unless Whisper is asked for', () => {
   expect(listenBackend({ OBEYA_WHISPER_BACKEND: 'whisper' }, 'darwin', 'arm64')).toBe('mlx');
   expect(listenBackend({ OBEYA_WHISPER_BACKEND: 'whisper' }, 'linux', 'x64')).toBe('faster');
   expect(listenBackend({ OBEYA_WHISPER_BACKEND: 'nope' }, 'linux', 'x64')).toBe('parakeet');
+  expect(listenBackend({ SEISMIC_WHISPER_BACKEND: 'faster', OBEYA_WHISPER_BACKEND: 'mlx' }, 'darwin', 'arm64')).toBe('faster');
 });
 
 /** A recognition on this machine that hears `text` after `ms`. */
@@ -190,7 +191,7 @@ test('a cloud service is tested with the sentence, then hears every recording; a
   }
 });
 
-test('the recognition sidecar ends quietly when Obeya is gone before it has written a recording down', async () => {
+test('the recognition sidecar ends quietly when Seismic is gone before it has written a recording down', async () => {
   // a fake mlx-whisper that takes a moment for a recording longer than the warm-up's second
   const dir = mkdtempSync(join(tmpdir(), 'obeya-sidecar-'));
   try {
@@ -205,7 +206,7 @@ test('the recognition sidecar ends quietly when Obeya is gone before it has writ
     const out = (p.stdout as ReadableStream<Uint8Array>).getReader();
     expect(new TextDecoder().decode((await out.read()).value)).toContain('"ready": true');
     p.stdin.write(`${JSON.stringify({ id: 1, path: join(dir, 'speech.wav') })}\n`);
-    // Obeya ends the sidecar's stdin as it stops, and is gone before the words are written
+    // Seismic ends the sidecar's stdin as it stops, and is gone before the words are written
     p.stdin.end();
     await out.cancel();
     expect(await p.exited).toBe(0);

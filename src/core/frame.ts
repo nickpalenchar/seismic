@@ -1,6 +1,6 @@
-// Pages Obeya shows in a sandboxed frame (a worker's HTML artifact, an idea's mock): they tell the
+// Pages Seismic shows in a sandboxed frame (a worker's HTML artifact, an idea's mock): they tell the
 // page around them their height, so the frame grows to it instead of scrolling inside, and on
-// Obeya's own page what the owner marks in them, to quote it; they load nothing from the internet.
+// Seismic's own page what the owner marks in them, to quote it; they load nothing from the internet.
 
 /**
  * What a worker's page may load (an HTML artifact, an answer's page, an idea's mock): the files beside
@@ -19,7 +19,7 @@ export function pagePolicy(own?: string): string {
   return `default-src ${here}data: blob:; script-src ${here}'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' data: blob:; style-src ${here}'unsafe-inline' data: blob:; form-action 'none'`;
 }
 
-/** What Obeya's page (`src/ui/index.html`) may show in its frames: its own addresses, where the workers' pages are served, and nothing a frame navigates to elsewhere. */
+/** What Seismic's page (`src/ui/index.html`) may show in its frames: its own addresses, where the workers' pages are served, and nothing a frame navigates to elsewhere. */
 export const FRAMES_POLICY = "frame-src 'self' data: blob:";
 
 /**
@@ -47,16 +47,19 @@ export function sealed(html: string, own?: string): string {
  * late, and a page of images as wide as itself, measured beside the bar or at the frame's height,
  * had its frame jump between two heights for a second. A frame not laid out yet says nothing and
  * asks again shortly: one out of sight hears of no change of its own until it comes into sight.
+ * The frame's own measures come from the scrolling element, not the root: a page without a doctype
+ * renders in quirks mode, where the root's are the page's, and its frame stayed at its first height.
  */
 const HEIGHT_REPORT = `<script>(() => {
   let last = 0, box = -1, again = 0;
   const say = () => {
     const html = document.documentElement;
     if (!innerHeight || !innerWidth) { again ||= setTimeout(() => { again = 0; say(); }, 200); return; }
+    const view = document.scrollingElement || html;
     html.style.setProperty('overflow-y', 'hidden');
     const own = Math.ceil(html.getBoundingClientRect().height);
-    const bar = innerHeight - html.clientHeight;
-    const h = html.scrollHeight > html.clientHeight ? Math.max(own, html.scrollHeight) + bar : own === box ? last : own + bar;
+    const bar = innerHeight - view.clientHeight;
+    const h = view.scrollHeight > view.clientHeight ? Math.max(own, view.scrollHeight) + bar : own === box ? last : own + bar;
     box = own;
     if (h !== last) { last = h; parent.postMessage({ obeyaHeight: h }, '*'); }
     if (innerHeight < h) html.style.removeProperty('overflow-y');
@@ -100,7 +103,7 @@ export function withImageViewer(html: string): string {
 }
 
 /**
- * What the owner marks in the page, sent to Obeya's page around it, where a button beside it quotes
+ * What the owner marks in the page, sent to Seismic's page around it, where a button beside it quotes
  * it into the card's field (`CiteButton` in src/ui/cite.tsx): the text, its first and last line in
  * the frame's window, and whether it was marked backwards; null once nothing is marked. While the
  * mouse still drags it out, the marking is not said. `{ obeyaUnmark }` from the page around takes the
@@ -132,7 +135,7 @@ const MARK_REPORT = `<script>(() => {
   addEventListener('message', (e) => { if (e.source === parent && e.data && e.data.obeyaUnmark) getSelection().removeAllRanges(); });
 })();</script>`;
 
-/** The page with its marking report (`MARK_REPORT`), for a page shown on Obeya's own page: at the end of its body, or of the page without one. */
+/** The page with its marking report (`MARK_REPORT`), for a page shown on Seismic's own page: at the end of its body, or of the page without one. */
 export function withMarkReport(html: string): string {
   const at = html.toLowerCase().lastIndexOf('</body>');
   return at < 0 ? html + MARK_REPORT : html.slice(0, at) + MARK_REPORT + html.slice(at);

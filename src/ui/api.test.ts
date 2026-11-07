@@ -13,7 +13,7 @@ test('a call about a card goes to its canvas, though another is in view as it go
     fetched.push(url);
     return new Response(null, { status: 204 });
   }) as typeof fetch;
-  // the phone view: a card of the website's canvas closes, Obeya's conversation is with the shop's
+  // the phone view: a card of the website's canvas closes, Seismic's conversation is with the shop's
   cardsOn('website', ['c1']);
   setCanvas('shop');
   await api.act('c1', { action: 'release' });

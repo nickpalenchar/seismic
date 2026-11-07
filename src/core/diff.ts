@@ -49,7 +49,7 @@ export interface FolderChange {
   changed?: true;
   /** A file the card made or changed that is no longer where it left it: someone deleted or moved it since. */
   gone?: true;
-  /** Lines added and removed, for a text file whose earlier version Obeya kept. */
+  /** Lines added and removed, for a text file whose earlier version Seismic kept. */
   added?: number;
   removed?: number;
   /**

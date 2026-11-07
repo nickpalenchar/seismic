@@ -1,7 +1,8 @@
 // Voice in: a sidecar on this machine transcribes (Parakeet by default, Whisper where asked for),
-// or a cloud service where the owner chose one (voice-cloud.ts). Obeya does not speak; its
+// or a cloud service where the owner chose one (voice-cloud.ts). Seismic does not speak; its
 // confirmations and answers are written.
 
+import { seismicEnv } from '../core/env';
 import type { Subprocess } from 'bun';
 import { join } from 'node:path';
 import { LANGUAGES } from '../core/locale';
@@ -23,7 +24,7 @@ export interface Transcript {
 
 export interface Transcriber {
   /**
-   * In the language spoken, of the ones Obeya speaks: the owner may speak another than the
+   * In the language spoken, of the ones Seismic speaks: the owner may speak another than the
    * interface's, and Whisper told to expect that one translated into it.
    */
   transcribe(audioPath: string, vocabulary: string): Promise<Transcript>;
@@ -33,7 +34,7 @@ export interface Transcriber {
 
 /**
  * Whisper's way of failing on a recording without audible speech, the card titles as prompt making
- * it likelier: one word, phrase or syllable over and over („Fall Fall Fall …“, „aufgingingingi…“).
+ * it likelier: one word, phrase or syllable over and over ("fall fall fall …", "aufgingingingi…").
  * Six times in a row is a loop; nobody says a command like that.
  */
 export function looping(text: string): boolean {
@@ -43,7 +44,7 @@ export function looping(text: string): boolean {
 
 /**
  * What Whisper writes for a recording without speech instead of a loop: there was nothing to hear.
- * „Musik“, sure of itself and without the card titles, came from a 0.6 s press with room noise only;
+ * "Musik", sure of itself and without the card titles, came from a 0.6 s press with room noise only;
  * in English it thanks for watching, as it learnt from subtitles.
  */
 export const silence = (text: string) =>
@@ -66,12 +67,12 @@ export function listenKit(backend: ListenBackend = 'parakeet') {
 }
 
 /**
- * How Obeya hears on this machine: Parakeet, everywhere. `OBEYA_WHISPER_BACKEND` chooses Whisper
+ * How Seismic hears on this machine: Parakeet, everywhere. `SEISMIC_WHISPER_BACKEND` chooses Whisper
  * instead: `mlx`, `faster`, or `whisper` for this platform's (MLX on Apple Silicon, faster-whisper
  * elsewhere).
  */
 export function listenBackend(env: Record<string, string | undefined> = process.env, platform: string = process.platform, arch: string = process.arch): ListenBackend {
-  const asked = env.OBEYA_WHISPER_BACKEND;
+  const asked = seismicEnv('WHISPER_BACKEND', env);
   return asked === 'mlx' || asked === 'faster' ? asked : asked === 'whisper' ? (platform === 'darwin' && arch === 'arm64' ? 'mlx' : 'faster') : 'parakeet';
 }
 
@@ -173,7 +174,7 @@ class Sidecar {
 
 /**
  * The sidecar keeps the model loaded between recordings. Its Python comes from
- * `OBEYA_WHISPER_PYTHON` (one with the backend's package: `onnx_asr`, `mlx_whisper` or
+ * `SEISMIC_WHISPER_PYTHON` (one with the backend's package: `onnx_asr`, `mlx_whisper` or
  * `faster_whisper`), else from `uv` with the backend's package (`listenKit`).
  */
 export class LocalTranscriber implements Transcriber {
@@ -182,7 +183,7 @@ export class LocalTranscriber implements Transcriber {
   constructor(readonly backend: ListenBackend = listenBackend()) {
     this.sidecar = new Sidecar('transcription', () => {
       const script = [join(VOICE, 'transcribe_sidecar.py'), '--backend', backend];
-      const python = process.env.OBEYA_WHISPER_PYTHON;
+      const python = seismicEnv('WHISPER_PYTHON');
       return python ? [python, ...script] : ['uv', 'run', '--quiet', '--no-project', ...listenKit(backend).uvArgs, 'python', ...script];
     });
   }

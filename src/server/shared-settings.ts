@@ -1,4 +1,4 @@
-// „Für alle ins Repository übernehmen“: a repository's settings for this machine go into its
+// "For everyone, into the repository": a repository's settings for this machine go into its
 // `.obeya/settings.json`, which a fresh clone brings with it. Where work lands on the main branch
 // they are committed there; where it goes through pull requests, the commit goes out as one, or,
 // where work may go straight to main as well, is pushed there. None of them touches what the
@@ -73,7 +73,7 @@ async function commitBeside(repoPath: string, parent: string, text: string, mess
 }
 
 /** The subject of a change of settings' commit and pull request, which names its fields: `…: checks, land`. */
-const subjectOf = (mine: SharedSettings) => `Obeya settings for everyone: ${Object.keys(mine).join(', ')}`;
+const subjectOf = (mine: SharedSettings) => `Seismic settings for everyone: ${Object.keys(mine).join(', ')}`;
 
 /**
  * Commits `mine` into the repository's `.obeya/settings.json` on its main branch (the local one,
@@ -129,7 +129,7 @@ export async function proposeShared(repoPath: string, mine: SharedSettings, forg
       base: branch,
       head,
       title: subjectOf(mine),
-      body: `Takes the Obeya settings set on one machine over into \`${REPO_SETTINGS_FILE}\`, so that everyone who runs Obeya on this repository gets them (a fresh clone too):\n\n\`\`\`json\n${text}\`\`\``,
+      body: `Takes the Seismic settings set on one machine over into \`${REPO_SETTINGS_FILE}\`, so that everyone who runs Seismic on this repository gets them (a fresh clone too):\n\n\`\`\`json\n${text}\`\`\``,
     });
     return { pr };
   } catch (e) {

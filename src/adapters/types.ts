@@ -1,4 +1,4 @@
-// What Obeya knows about how a repository works: its defaults (`generic.ts`) with the repository's
+// What Seismic knows about how a repository works: its defaults (`generic.ts`) with the repository's
 // settings in front (`.obeya/settings.json`, then this machine's). The core only talks to this
 // interface.
 
@@ -16,5 +16,5 @@ export interface RepoInfo {
   folder?: true;
 }
 
-/** The repository's settings in front of Obeya's defaults: a field with a default is always there. */
+/** The repository's settings in front of Seismic's defaults: a field with a default is always there. */
 export type RepoAdapter = SharedSettings & Required<Pick<SharedSettings, 'planDocs' | 'land' | 'softPaths' | 'workspaces' | 'language'>>;

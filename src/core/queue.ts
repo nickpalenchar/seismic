@@ -23,8 +23,8 @@ export function queueOrder(items: Item[]): Item[] {
 export function drawnWaits(card: Item, items: Item[]): string[] {
   if (card.state !== 'planned' || (card.queue && 'begun' in card.queue)) return [];
   return (card.manualDependsOn ?? []).filter((id) => {
-    const i = items.find((x) => x.id === id);
-    return !!i && !finished(i.state) && !i.archivedAt;
+    const i = items.find((x) => x.id === id) ?? card.manualArchived?.find((x) => x.id === id);
+    return !!i && !finished(i.state) && (!i.archivedAt || !!card.manualArchived?.some((x) => x.id === id));
   });
 }
 

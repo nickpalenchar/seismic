@@ -28,7 +28,7 @@ export interface Entry {
   dir?: true;
   /** Its bytes are only in the cloud (a dataless file of a file provider): it is never read or copied, which would download it. */
   cloud?: true;
-  /** Of its contents, where Obeya read them: of what a card changed, to tell later whether someone changed it again. */
+  /** Of its contents, where Seismic read them: of what a card changed, to tell later whether someone changed it again. */
   hash?: string;
 }
 
@@ -258,7 +258,7 @@ export interface FolderCard {
   held?: true;
   /** Its work is over: nothing is undone any more; a follow-up's changes are still its own. */
   done?: true;
-  /** The undo it has, once Obeya made it ready (`snapshot/`, or `text/`); none before, and once done. */
+  /** The undo it has, once Seismic made it ready (`snapshot/`, or `text/`); none before, and once done. */
   undo: 'full' | 'partial' | null;
   changes: Tracked[];
 }
@@ -354,9 +354,9 @@ const READS = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead', 'WebFetch',
 /** Tools that write the one file their input names. */
 const EDITS: Record<string, string> = { Edit: 'file_path', MultiEdit: 'file_path', Write: 'file_path', NotebookEdit: 'notebook_path' };
 
-const writes = (name: string) => !READS.has(name) && !name.startsWith('mcp__obeya__');
+const writes = (name: string) => !READS.has(name) && !name.startsWith('mcp__seismic__');
 
-/** A tool call's window: from just before it ran until Obeya has read what it changed. `only`: the paths it can change, for a call that writes one file. */
+/** A tool call's window: from just before it ran until Seismic has read what it changed. `only`: the paths it can change, for a call that writes one file. */
 interface Window {
   card: string;
   id: string;
@@ -386,7 +386,7 @@ export interface UndoReport {
 export interface FolderOptions {
   /** The folder, as the configuration names it (a symbolic link stays one: agents work there by that name). */
   path: string;
-  /** Where the cards' undo goes (a clone of the folder, or copies), under Obeya's home. */
+  /** Where the cards' undo goes (a clone of the folder, or copies), under Seismic's home. */
   dir: string;
   /** A card's change list changed. */
   onChange?: (cardId: string) => void;
@@ -531,6 +531,10 @@ export class FolderWorkspaces implements CardWorkspaces {
     return this.landOnMain();
   }
 
+  foldMain(): Promise<LandProblem> {
+    return this.landOnMain() as Promise<LandProblem>;
+  }
+
   /** The owner approved the card: its undo goes at once, though its worker may still finish in the folder. */
   done(cardId: string) {
     const rec = this.rec(cardId);
@@ -583,7 +587,7 @@ export class FolderWorkspaces implements CardWorkspaces {
     return this.changed(cardId);
   }
 
-  /** What the card changed, as `changes` has it, read at once from what Obeya recorded. */
+  /** What the card changed, as `changes` has it, read at once from what Seismic recorded. */
   changed(cardId: string): Change[] {
     return (this.rec(cardId)?.changes ?? []).map((t) => ({
       file: t.dir ? `${t.path}/` : t.path,
@@ -634,7 +638,7 @@ export class FolderWorkspaces implements CardWorkspaces {
   }
 
   /**
-   * The time as the file system stamps a change's ctime, read off a file of Obeya's own written
+   * The time as the file system stamps a change's ctime, read off a file of Seismic's own written
    * now. Linux stamps it from a coarse clock, up to a tick (1 to 10 ms) behind Date.now(), and
    * Windows may too: by Date.now(), a change right after a window opened would come before it.
    * Read at once, so nothing happens between the reading and the window's opening.

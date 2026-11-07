@@ -26,6 +26,8 @@ test('a card in the middle shows both ways', () => {
   const d = depsOf('B', items)!;
   expect([...d.before]).toEqual(['A']);
   expect([...d.after].sort()).toEqual(['C', 'D']);
+  // the waits on the way to it are told apart from those waiting for it
+  expect([...d.first]).toEqual(['A B']);
 });
 
 test('a card without waits has none, and cards gone from the canvas are left out', () => {
@@ -92,22 +94,32 @@ test('with an edge reach, a dot also shows near any point of its edge, the neare
   expect(nearestHandle(cards, { x: 2, y: 3 }, 18, 6)).toEqual({ id: 'A', side: 'left' });
 });
 
-test("in a project, a finished card's dependencies stay as what it unlocked, done once both are finished", () => {
+test("a finished card's dependencies stay as dim green lines, in a project or not", () => {
   const ws = (id: string, state: Item['state'], extra: Partial<Item> = {}) => ({ ...card(id), kind: 'workstream', state, parent: 'P', ...extra }) as Item;
   const items = [
     ws('W1', 'live'),
     ws('W2', 'live', { buildsOn: ['W1'] }),
     ws('W3', 'planned', { buildsOn: ['W2'] }),
     ws('W4', 'planned', { manualDependsOn: ['W1', 'W3'] }),
-    // a finished card outside the project counts for nothing
     { ...card('X'), state: 'done' } as Item,
     ws('W5', 'planned', { manualDependsOn: ['X'] }),
   ];
   expect(settledAmong(items)).toEqual([
-    { from: 'W1', to: 'W2', done: true },
-    { from: 'W2', to: 'W3', done: false },
-    { from: 'W1', to: 'W4', done: false },
+    { from: 'W1', to: 'W2' },
+    { from: 'W2', to: 'W3' },
+    { from: 'W1', to: 'W4' },
+    { from: 'X', to: 'W5' },
   ]);
   // they are no waits
   expect(waitsAmong(items)).toEqual([['W3', 'W4']]);
+});
+
+test('a queued or snoozed card keeps its line from a finished card while it still records it', () => {
+  const done = { ...card('F'), state: 'live' } as Item;
+  const queued = card('Q', 'F');
+  const snoozed = { ...card('S'), snoozed: { on: { card: 'F', title: 'F', state: 'done' }, by: 'agent' } } as Item;
+  expect(settledAmong([done, queued, snoozed])).toEqual([
+    { from: 'F', to: 'Q' },
+    { from: 'F', to: 'S' },
+  ]);
 });

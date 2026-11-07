@@ -30,7 +30,7 @@ jobs:
           bun add @openai/codex@0.162.0
           codex="$(find "$RUNNER_TEMP/codex/node_modules/@openai" -name codex.exe -path '*bin*' | head -1)"
           echo "found: $codex"; "$codex" --version
-          echo "OBEYA_CODEX=$codex" >> "$GITHUB_ENV"
+          echo "SEISMIC_CODEX=$codex" >> "$GITHUB_ENV"
       - name: Prototype tests
         continue-on-error: true
         run: bun test scripts/windows-job-prototype.test.ts
@@ -58,7 +58,7 @@ jobs:
           bun add @openai/codex@0.162.0
           codex="$(find "$RUNNER_TEMP/codex/node_modules/@openai" -path '*/bin/codex' -type f | head -1)"
           echo "found: $codex"; "$codex" --version
-          echo "OBEYA_CODEX=$codex" >> "$GITHUB_ENV"
+          echo "SEISMIC_CODEX=$codex" >> "$GITHUB_ENV"
       - name: Environment
         run: |
           systemctl --version | head -1; uname -r; grep cgroup /proc/self/mounts; cat /proc/self/cgroup

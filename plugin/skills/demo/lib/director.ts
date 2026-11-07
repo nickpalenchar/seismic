@@ -205,7 +205,7 @@ export class Director {
   }
 
   /**
-   * Keeps `cuts`, also in `cuts.json` of the work directory (wall clock, s), for a scratch Obeya
+   * Keeps `cuts`, also in `cuts.json` of the work directory (wall clock, s), for a scratch Seismic
    * that plays this take's agents back (`--replay`): what was cut goes by in a moment there.
    */
   #cut(...cuts: Cut[]) {
@@ -423,7 +423,7 @@ function macSleptSince(t: number) {
 }
 
 /**
- * On a Mac, no idle sleep while the director runs (`caffeinate -i`, ending with it): Obeya holds
+ * On a Mac, no idle sleep while the director runs (`caffeinate -i`, ending with it): Seismic holds
  * that only while other devices may reach it. A closed lid on battery sleeps regardless.
  */
 function stayAwake() {
@@ -919,7 +919,7 @@ export function assemble({ outDir, work, list, clips, marks, total, viewport, sh
   const vtt = ['WEBVTT', ''];
   marks.forEach((m, i) => vtt.push(`${vttTime(m.speechStart)} --> ${vttTime(m.speechEnd)}`, untagged(says[i]!), ''));
   fs.writeFileSync(path.join(outDir, 'captions.vtt'), vtt.join('\n'));
-  // The scenes as chapters, for a player outside Obeya (the hero video on obeya.si reads them).
+  // The scenes as chapters, for a player outside Seismic (the hero video on obeya.si reads them).
   const chapters = ['WEBVTT', ''];
   marks.forEach((m, i) => chapters.push(`${vttTime(m.start)} --> ${vttTime(i + 1 < marks.length ? marks[i + 1]!.start : total)}`, m.title, ''));
   fs.writeFileSync(path.join(outDir, 'chapters.vtt'), chapters.join('\n'));

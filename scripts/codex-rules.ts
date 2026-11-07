@@ -1,9 +1,9 @@
 // Writes `.codex/rules/obeya.rules`, the Codex form of the allow list in `.claude/settings.json`
 // (one list, two harnesses; `codexRules` in src/server/allow-rules.ts): `bun scripts/codex-rules.ts`; `--check` only tells whether the file
 // is up to date. Codex reads such rules of a project it trusts (`[projects."<path>"]` in
-// ~/.codex/config.toml; for Obeya's workers, once the owner trusts the repository's `.codex/`), takes a command inside `zsh -lc '…'` as the command it is, and asks
+// ~/.codex/config.toml; for Seismic's workers, once the owner trusts the repository's `.codex/`), takes a command inside `zsh -lc '…'` as the command it is, and asks
 // for what no rule allows. A rule is a literal word prefix, so only a `Bash` rule that names its
-// words (or ends in ` *` after them) fits; a rule with a `*` inside a path stays with Obeya, which
+// words (or ends in ` *` after them) fits; a rule with a `*` inside a path stays with Seismic, which
 // applies the allow list to Codex workers itself (src/server/allow-rules.ts). A prefix also allows
 // arguments after a rule that Claude Code reads as the exact command.
 

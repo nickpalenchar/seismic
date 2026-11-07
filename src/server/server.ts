@@ -1,11 +1,11 @@
-// HTTP and WebSocket for the UI: one API per canvas under /api/c/<canvas>/.
+// HTTP and WebSocket for the UI: one API per canvas under /api/c/<project>/.
 
 import type { ServerWebSocket } from 'bun';
 import { extensionSettings, serverExtensions as extensions } from '../extensions/server';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { join, resolve } from 'node:path';
-import { agentListens, type CanvasInfo, type CardAction, type ClientMessage, type CardPatch, type Item, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
+import { agentListens, type CanvasInfo, type ChatElsewhere, type CanvasSettingsView, type CardAction, type ClientMessage, type CardPatch, type DeveloperView, type Item, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
 import index from '../ui/index.html';
 import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
@@ -27,6 +27,7 @@ import { AppUpdates, HandOver } from './app-update';
 import type { SourceUpdates } from './source-update';
 import { oldLinuxBun } from './repo';
 import { Store } from './db';
+import { canvasData, canvasCsv } from './data-export';
 import { Access } from './remote';
 import { Push, startedWaiting } from './push';
 import { worker } from '../ui/sw';
@@ -35,7 +36,8 @@ import icon512 from '../ui/logo/icon-512.png' with { type: 'file' };
 import { servePdfjs } from './pdfjs';
 import { Tailscale } from './tailscale';
 import { codexModels } from './codex-runtime';
-import { agentsView, feedbackPromptView, languageView, notificationsView, ownerLanguage, saveAgents, saveNotifications, saveFeedbackPrompt, saveLanguage, saveTheme, saveUsageMeter, themeView, usageMeterView } from './settings';
+import { agyModels } from './agy-runtime';
+import { agentsView, canvasDefaultsView, feedbackPromptView, languageView, notificationsView, ownerLanguage, saveAgents, saveCanvasDefaults, saveCodexAutoReview, saveNotifications, saveFeedbackPrompt, saveLanguage, saveTheme, saveMotion, saveUsageMeter, themeView, motionView, usageMeterView } from './settings';
 import { proposeTags, TagProposals } from './tag-proposal';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
@@ -76,7 +78,7 @@ export interface Served {
 }
 
 /**
- * A demo's narration clip, in the voice Obeya holds loaded across renders (narration.ts). It writes a
+ * A demo's narration clip, in the voice Seismic holds loaded across renders (narration.ts). It writes a
  * file, so only as JSON, which a page elsewhere cannot send without asking first. `remote`: for a
  * render on another machine, whose clip comes back in the reply and is written nowhere here.
  */
@@ -99,7 +101,7 @@ function clipRoute(narration: NarrationHost, remote = false) {
 
 /**
  * What a worker on another machine reaches through the port forwarded to it (design: Hosts): the
- * narration clips and nothing else of Obeya's, as whoever is on that machine reaches the port too.
+ * narration clips and nothing else of Seismic's, as whoever is on that machine reaches the port too.
  */
 export function serveNarration(narration: NarrationHost) {
   const clip = clipRoute(narration, true);
@@ -121,27 +123,28 @@ export function serve(
   restarter?: Restarter,
   narration?: NarrationHost,
   machine?: MachineSetup,
-  /** Stops Obeya as Ctrl-C does: once the workers paused, a second time at once. */
+  /** Stops Seismic as Ctrl-C does: once the workers paused, a second time at once. */
   stop?: () => void,
   /** The newer version of the app its shell has ready. */
   updates = new AppUpdates(),
-  /** Who reaches Obeya from other devices; by default no one. */
+  /** Who reaches Seismic from other devices; by default no one. */
   access = new Access({ store: new Store(':memory:'), tailscale: new Tailscale(null) }),
   /** What goes to the devices that turned notifications on. */
   push = new Push({ store: access.store }),
-  /** New commits on the upstream of the checkout Obeya runs from; none for the app or the compiled binary. */
+  /** New commits on the upstream of the checkout Seismic runs from; none for the app or the compiled binary. */
   sources?: SourceUpdates,
   /** The plan's usage limits for the bar, fetched while the owner has it show them and a page is open. */
   usage?: UsageMeter,
   /** Where the stalls of the pages go, beside the server's own. */
   stalls?: Stalls,
+  /** What the Developer section may do here; nothing by default. */
+  developer: DeveloperView = { restart: false, rebuild: false, why: 'dev' },
 ) {
   const canvases = Array.isArray(served) ? { all: () => served } : served;
   const sites = config
     ? new SiteSetup({
         home: config.home,
-        changed: () => canvases.all().forEach((c) => c.personalSiteChanged()),
-        repos: () => canvases.all().flatMap((c) => c.repos.map((r) => ({ path: r.info.path, name: r.ref.name, isPublic: !!r.isPublic, ownSite: !!r.ref.share && !r.ref.shareOnPersonal, onPersonal: !!r.ref.shareOnPersonal, siteApproved: r.site?.publish === 'approved' }))),
+        changed: () => canvases.all().forEach((c) => c.demoSitesChanged()),
         user: (() => {
           try {
             return userInfo().username;
@@ -181,7 +184,7 @@ export function serve(
   access.onRemoved((device) => {
     for (const set of sockets.values()) for (const ws of set) if (ws.data.device === device) ws.close(4401, 'device removed');
   });
-  /** The restart that waits, as canvas `id` sees it: Obeya's, else that of some of its repositories' agents. */
+  /** The restart that waits, as canvas `id` sees it: Seismic's, else that of some of its repositories' agents. */
   const pending = (id: string): PendingRestart | null => {
     const due = restarter?.due();
     if (!due) return byId.get(id)?.pendingRestart() ?? null;
@@ -291,7 +294,7 @@ export function serve(
   };
   for (const c of canvases.all()) attach(c);
   relist();
-  // a canvas started or stopped while Obeya runs: the pages of one that stopped go to another
+  // a canvas started or stopped while Seismic runs: the pages of one that stopped go to another
   canvases.onChange?.(() => {
     const now = canvases.all();
     for (const [id, c] of [...byId])
@@ -309,7 +312,7 @@ export function serve(
     relist();
   });
 
-  /** A click the Rückschau counts (a card deleted, a command taken back, a rule proposal decided on), once it went through. */
+  /** A click the retrospective counts (a card deleted, a command taken back, a rule proposal decided on), once it went through. */
   const click = <T>(c: CanvasRuntime, out: T): T => {
     c.koordinator.noticed();
     return out;
@@ -361,7 +364,7 @@ export function serve(
 
   /**
    * The recordings that arrived whole (`?sent=<id>`, the page's name for one): a page whose
-   * connection broke before the answer asks here whether Obeya has the command, and gives the field
+   * connection broke before the answer asks here whether Seismic has the command, and gives the field
    * its words and screenshots back only when it has not. The newest few hundred; a restart forgets them.
    */
   const arrived = new Set<string>();
@@ -405,7 +408,7 @@ export function serve(
   const listens = (card: Item, input: Input) => agentListens(card) || (input.field === 'note' && holdsNotes(card));
   /**
    * What the owner said or typed: with an agent on the open card, straight to that agent (which
-   * passes on what asks Obeya for something); else the Koordinator reads it. `null`: Whisper heard
+   * passes on what asks Seismic for something); else the Koordinator reads it. `null`: Whisper heard
    * nothing it could write down, which nobody should guess from.
    */
   const heard = async (c: CanvasRuntime, text: string | null, focus: Focus, images: string[] = [], input: Input = {}) => {
@@ -445,8 +448,9 @@ export function serve(
     routes: guarded({
       ...extensionRoutes,
       '/': index,
-      // a canvas, and a card open on it (`/c/<canvas>/card/<code>`): the page reads the address
-      '/c/*': index,
+      // a canvas, and a card open on it (`/p/<project>/c/<code>`): the page reads the address
+      '/p/*': index,
+      '/c/*': index, // Existing bookmarks are upgraded by the page.
       // a browser on this machine signing in with a one-time link (owner.ts)
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
       // such a link, for whoever holds the owner's key (the app's shell, a second start, scripts); `next`: where it leads; `once`: for one browser
@@ -459,7 +463,7 @@ export function serve(
       },
       // another device pairing: the address in the QR code (`?code=`), or the code typed into the page it got
       '/pair': { GET: (req, srv) => access.pairRoute(req, srv), POST: (req, srv) => access.pairRoute(req, srv) },
-      // „Von anderen Geräten“: the setting, what the network allows, the devices; only on this machine
+      // "From other devices": the setting, what the network allows, the devices; only on this machine
       '/api/access': {
         GET: (req, srv) => (access.isLocal(req, srv) ? handle(() => access.view()) : Response.json({ local: false })),
         PUT: async (req, srv) => (access.isLocal(req, srv) ? handle(async () => access.save(await req.json())) : onlyHere()),
@@ -468,7 +472,7 @@ export function serve(
       '/api/access/devices/:id': { DELETE: (req, srv) => (access.isLocal(req, srv) ? handle(() => ({ removed: access.remove(req.params.id) })) : onlyHere()) },
       // the web app on a phone's home screen: the icons of its manifest (manifest.webmanifest, which the
       // page's bundle carries), its service worker (sw.ts), and the device's push subscription (`on`:
-      // Obeya has one for this device); pushes go only to paired devices
+      // Seismic has one for this device); pushes go only to paired devices
       '/icons/180.png': { GET: () => new Response(Bun.file(icon180), { headers: { 'cache-control': 'max-age=86400' } }) },
       '/icons/512.png': { GET: () => new Response(Bun.file(icon512), { headers: { 'cache-control': 'max-age=86400' } }) },
       // pdf.js's worker, fonts and decoders, where the page draws a PDF itself (src/ui/pdf.tsx)
@@ -490,13 +494,49 @@ export function serve(
         },
       },
       '/api/canvases': { GET: () => Response.json(canvases.all().map((c) => c.board.canvas) satisfies CanvasInfo[]) },
-      // Obeya's configuration: read, checked while the owner edits it, and saved (Obeya then starts again)
+      // the chats with Seismic on every canvas that runs, the latest first
+      '/api/chats': {
+        GET: () => {
+          const names = new Map(canvases.all().map((c) => [c.board.canvas.id, c.board.canvas.name]));
+          return Response.json((canvases.all()[0]?.board.everyChat() ?? []).flatMap((x) => (names.has(x.canvas) ? [{ ...x, canvasName: names.get(x.canvas)! }] : [])) satisfies ChatElsewhere[]);
+        },
+      },
+      '/api/canvases/export': { GET: (req) => {
+        const url = new URL(req.url);
+        const as = url.searchParams.get('as');
+        const ids = url.searchParams.getAll('canvas');
+        if (as !== 'json' && as !== 'csv') return Response.json({ code: 'invalid', error: 'Choose CSV or JSON' }, { status: 400 });
+        const available = canvases.all();
+        const chosen = ids.length ? [...new Set(ids)] : available.map((c) => c.board.canvas.id);
+        if (!chosen.length || chosen.some((id) => !available.some((c) => c.board.canvas.id === id)))
+          return Response.json({ code: 'invalid', error: 'Unknown canvas' }, { status: 400 });
+        const data = canvasData(available[0]!.dataStore, chosen);
+        const body = as === 'csv' ? canvasCsv(data) : JSON.stringify(data, null, 2);
+        return new Response(body, { headers: {
+          'content-type': `${as === 'csv' ? 'text/csv' : 'application/json'}; charset=utf-8`,
+          'content-disposition': `attachment; filename="obeya-canvases.${as}"`,
+          'cache-control': 'no-store',
+        } });
+      } },
+      // Seismic's configuration: read, checked while the owner edits it, and saved (Seismic then starts again)
       '/api/config': {
         GET: needs(config, (c) => c.view()),
         PUT: needs(config, async (c, req) => c.save(await req.json())),
       },
       // the owner has the restart of a repository's agents that waits for them go ahead at once
       '/api/c/:canvas/restart': { POST: on((c) => ({ restarting: c.restartNow() })) },
+      // the canvas's own settings, from the gear in the bar: read with Configuration's models they fall back on, saved into the configuration
+      '/api/c/:canvas/settings': {
+        GET: on((c) => (config ? { settings: c.settings(), agents: agentsView(config.home).agents } satisfies CanvasSettingsView : notFound())),
+        PUT: on(async (c, req) => {
+          if (!config) return notFound();
+          await config.saveCanvas(c.id, await req.json());
+          return { settings: c.settings(), agents: agentsView(config.home).agents } satisfies CanvasSettingsView;
+        }),
+      },
+      // "Initialize" at the canvas's demo site: its path on the site, with the empty overview, deployed
+      '/api/c/:canvas/demo-site': { GET: on((c) => c.siteState() ?? null) },
+      '/api/c/:canvas/demo-site/init': { POST: on(async (c, req) => c.initSite(await req.json()) ?? null) },
       // the owner pauses the canvas's agents at work (and holds its queue), or resumes its paused ones
       '/api/c/:canvas/pause': { POST: on((c) => c.pauseAgents()) },
       '/api/c/:canvas/resume': { POST: on((c) => c.resumeAgents()) },
@@ -510,6 +550,19 @@ export function serve(
             return { restarting: due };
           }),
       },
+      // the Developer section: what it may do here, and the restart or rebuild the owner asks for there
+      '/api/developer': { GET: () => handle(() => developer) },
+      '/api/developer/:what': {
+        POST: (req) =>
+          handle(() => {
+            const what = req.params.what;
+            if ((what !== 'restart' && what !== 'rebuild') || !restarter || !developer[what])
+              return Response.json({ code: 'invalid', error: `Seismic cannot ${what} itself here` }, { status: 409 });
+            // after the answer is out: a restart with no worker to wait for stops this server at once
+            setTimeout(() => restarter.request(what === 'rebuild' ? 'rebuild' : 'owner'), 100);
+            return { requested: what };
+          }),
+      },
       // the app quitting, or anything that cannot send a signal (Windows has no SIGTERM): Ctrl-C over HTTP
       '/api/stop': {
         POST: () =>
@@ -520,7 +573,7 @@ export function serve(
             return { stopping: true };
           }),
       },
-      // the interface language (chosen in the settings, else the system's) and the conversation language (chosen, else the interface's)
+      // the interface language (chosen in the settings, else the system's) and the conversation language (chosen, else English)
       '/api/language': {
         GET: needs(config, (c) => languageView(c.home)),
         PUT: needs(config, async (c, req) => saveLanguage(c.home, await req.json())),
@@ -529,6 +582,10 @@ export function serve(
       '/api/theme': {
         GET: needs(config, (c) => themeView(c.home)),
         PUT: needs(config, async (c, req) => saveTheme(c.home, await req.json())),
+      },
+      '/api/motion': {
+        GET: needs(config, (c) => motionView(c.home)),
+        PUT: needs(config, async (c, req) => saveMotion(c.home, await req.json())),
       },
       // whether the bar shows the plan's usage limits: the meter fetches them from then on, or stops
       '/api/usage-meter': {
@@ -543,6 +600,11 @@ export function serve(
       '/api/notifications': {
         GET: needs(config, (c) => notificationsView(c.home)),
         PUT: needs(config, async (c, req) => saveNotifications(c.home, await req.json())),
+      },
+      // Canvas defaults: what a canvas created from now on starts with; the canvases there are keep their own settings
+      '/api/canvas-defaults': {
+        GET: needs(config, (c) => canvasDefaultsView(c.home)),
+        PUT: needs(config, async (c, req) => saveCanvasDefaults(c.home, await req.json())),
       },
       // whether approving work asks for feedback on it: every canvas's cards follow at once; the responses given stay
       '/api/feedback-prompt': {
@@ -560,25 +622,20 @@ export function serve(
         GET: needs(config, (c) => agentsView(c.home)),
         PUT: needs(config, async (c, req) => saveAgents(c.home, await req.json())),
       },
+      '/api/agents/codex-auto-review': { PUT: needs(config, async (c, req) => saveCodexAutoReview(c.home, await req.json())) },
       '/api/agents/codex-models': { GET: needs(config, async () => codexModels()) },
-      // the owner's personal demo site: set up at a host, connected with another machine's code, removed
-      // from this machine; the private repositories ticked for it, and those that share there with the approval
-      '/api/personal-site': {
+      '/api/agents/agy-models': { GET: needs(config, async () => agyModels()) },
+      // this machine's demo sites: listed, added (set up at a host or entered by hand, once a publish there
+      // went through), connected with another machine's code, removed from this machine
+      '/api/demo-sites': {
         GET: needs(sites, (x) => x.view()),
-        DELETE: needs(sites, (x) => x.remove()),
+        POST: needs(sites, async (x, req) => x.add(await req.json())),
+        DELETE: needs(sites, (x, req) => x.remove({ url: new URL(req.url).searchParams.get('url') ?? '' })),
       },
-      '/api/personal-site/setup': { POST: needs(sites, async (x, req) => x.setupPersonal(await req.json())) },
-      '/api/personal-site/connect': { POST: needs(sites, async (x, req) => x.connect(await req.json())) },
-      '/api/personal-site/code': { GET: needs(sites, (x) => x.code()) },
-      '/api/personal-site/private': { POST: needs(sites, async (x, req) => x.allow(await req.json())) },
-      '/api/personal-site/approved': { POST: needs(sites, async (x, req) => x.approved(await req.json())) },
-      // „Demo-Seite einrichten“ for a repository: started, followed, and taken into its settings
-      '/api/site-setup': {
-        GET: needs(sites, (x, req) => ({ job: x.repoJob(new URL(req.url).searchParams.get('path') ?? '') })),
-        POST: needs(sites, async (x, req) => ({ job: x.setupRepo(await req.json()) })),
-        DELETE: needs(sites, (x, req) => (x.doneWith(new URL(req.url).searchParams.get('path') ?? ''), {})),
-      },
-      // „Vorschlagen lassen“ at a demo site's tags: started, followed, and taken into the field
+      '/api/demo-sites/seen': { POST: needs(sites, (x) => (x.seen(), x.view())) },
+      '/api/demo-sites/connect': { POST: needs(sites, async (x, req) => x.connect(await req.json())) },
+      '/api/demo-sites/code': { GET: needs(sites, (x, req) => x.code(new URL(req.url).searchParams.get('url') ?? '')) },
+      // "Suggest tags" at a demo site's tags: started, followed, and taken into the field
       '/api/tag-proposal': {
         GET: needs(config, (_, req) => {
           const path = new URL(req.url).searchParams.get('path') ?? '';
@@ -587,7 +644,7 @@ export function serve(
         POST: needs(config, async (c, req) => ({ job: proposeTagsFor(c.home, await req.json()) })),
         DELETE: needs(config, (_, req) => (tagProposals.doneWith(new URL(req.url).searchParams.get('path') ?? ''), {})),
       },
-      // what Obeya's own voice in needs here, and installing it
+      // what Seismic's own voice in needs here, and installing it
       '/api/voice-setup': { GET: needs(setup, (s) => s.view()) },
       '/api/voice-setup/install': { POST: needs(setup, (s) => s.install()) },
       '/api/voice-setup/measure': { POST: needs(setup, (s) => s.measure()) },
@@ -596,7 +653,7 @@ export function serve(
         PUT: needs(setup, async (s, req) => s.useCloud(await req.json())),
         DELETE: needs(setup, (s) => s.useLocal()),
       },
-      // the setup assistant: what Obeya needs on this machine, installed, logged in; then the first canvas
+      // the setup assistant: what Seismic needs on this machine, installed, logged in; then the first canvas
       '/api/setup': { GET: needs(machine, (m) => m.view()) },
       '/api/setup/install': { POST: needs(machine, async (m, req) => m.install(await req.json())) },
       '/api/setup/login': { POST: needs(machine, async (m, req) => m.login(await req.json())) },
@@ -636,14 +693,14 @@ export function serve(
           );
         },
       },
-      // a demo's narration clip, in the voice Obeya holds loaded across renders (narration.ts)
+      // a demo's narration clip, in the voice Seismic holds loaded across renders (narration.ts)
       '/api/narration/clip': { POST: narration ? clipRoute(narration) : notFound },
-      // „Für alle ins Repository übernehmen“: a repository's settings for this machine into its .obeya/settings.json
+      // "For everyone, into the repository": a repository's settings for this machine into its .obeya/settings.json
       '/api/config/share-settings': { POST: needs(config, async (c, req) => c.shareSettings(await req.json())) },
       // a repository's commands, new or changed on its default branch, confirmed by the owner: they count from now on
       '/api/config/trust': { POST: needs(config, async (c, req) => (c.trust(await req.json()), {})) },
       // what the configuration amounts to and what is wrong with it: as saved, or a draft as the owner edits it
-      // „Erneut versuchen“: what did not start as the configuration has it tries again
+      // "Try again": what did not start as the configuration has it tries again
       '/api/config/retry': { POST: needs(config, (c) => c.retry()) },
       '/api/config/check': {
         GET: needs(config, (c) => c.checkSaved()),
@@ -651,7 +708,7 @@ export function serve(
       },
       '/api/c/:canvas/canvas': { GET: on((c) => c.board.snapshot()) },
       '/api/c/:canvas/cards': { POST: on(async (c, req) => c.board.create((await req.json()) as NewCard)) },
-      // from "Konfiguration", for a repository without settings of its own: the card that writes them
+      // from "Configuration", for a repository without settings of its own: the card that writes them
       '/api/c/:canvas/adapter-setup': { POST: on(async (c, req) => c.adapterSetupCard(String(((await req.json()) as { repo?: unknown }).repo))) },
       // from the note on a plan directory: the card that prepares one of its docs as a project, started
       '/api/c/:canvas/prepare-plan-doc': {
@@ -696,7 +753,7 @@ export function serve(
       // the archive, newest first; posting archives every finished card of the owner's
       '/api/c/:canvas/archive': { GET: on((c) => c.board.archived()), POST: on((c) => ({ ids: c.board.archiveDone() })) },
       '/api/c/:canvas/cards/:id/act': { POST: on(async (c, req) => c.press(req.params.id!, (await req.json()) as CardAction)) },
-      // a script acting as the card's agent, in a scratch Obeya whose workers are idle (scripts/scratch-obeya.ts --say)
+      // a script acting as the card's agent, in a scratch Seismic whose workers are idle (scripts/scratch-obeya.ts --say)
       '/api/c/:canvas/cards/:id/stand-in': { POST: on(async (c, req) => ({ result: await c.standIn(req.params.id!, (await req.json()) as Parameters<typeof c.standIn>[1]) })) },
       '/api/c/:canvas/cards/:id/events': { GET: on((c, req) => c.board.events(req.params.id!)) },
       // the owner's responses on the card's approved work, and a new one (`{ answer, handover?, facets? }`); the same handover again replaces its answer
@@ -710,14 +767,14 @@ export function serve(
       '/api/c/:canvas/images': {
         POST: on(async (c, req) => ({ id: c.images.save(new Uint8Array(await req.arrayBuffer()), req.headers.get('content-type') ?? '') })),
       },
-      // a file of another kind for a message: Obeya keeps it, and the field gets its path (`?name`: what it was called)
+      // a file of another kind for a message: Seismic keeps it, and the field gets its path (`?name`: what it was called)
       '/api/c/:canvas/files': {
         POST: on(async (c, req) => {
           if (Number(req.headers.get('content-length')) > MAX_FILE_BYTES) throw new BadRequest('fileTooLarge', `a file may have at most ${MAX_FILE_BYTES} bytes`);
           return { path: c.files.save(new Uint8Array(await req.arrayBuffer()), new URL(req.url).searchParams.get('name') ?? '') };
         }),
       },
-      // a file of another kind dropped in a browser: where it lies on this machine, if Obeya finds exactly one that fits
+      // a file of another kind dropped in a browser: where it lies on this machine, if Seismic finds exactly one that fits
       '/api/c/:canvas/files/find': {
         POST: on(async (_c, req) => ({ path: await findDropped((await req.json()) as Dropped) })),
       },
@@ -843,7 +900,7 @@ export function serve(
             return updates.report(body);
           }),
       },
-      // the Mac app's shell finds this Obeya running without the app that started it, so without the
+      // the Mac app's shell finds this Seismic running without the app that started it, so without the
       // system's permissions for it (the local network): it ends once the workers paused, and the shell
       // starts it again under itself (app/src/main.rs, `orphaned`)
       '/api/app-takeover': {
@@ -854,7 +911,7 @@ export function serve(
             return { taking: !!restarter };
           }),
       },
-      // a shell installed from a checkout has built itself anew while this Obeya runs on without it (started
+      // a shell installed from a checkout has built itself anew while this Seismic runs on without it (started
       // from a terminal), every few seconds until it starts again: it waits while the owner dictates or
       // watches a video, as a restart does; `kept`: whether the page handed over when the shell asked
       '/api/app-rebuilt': {
@@ -869,7 +926,7 @@ export function serve(
         GET: () => Response.json(handOver.take()),
         POST: (req) => handle(async () => (handOver.give(await req.json()), { ok: true })),
       },
-      // the owner installs it: once the workers paused, Obeya ends for the shell to install it and start again
+      // the owner installs it: once the workers paused, Seismic ends for the shell to install it and start again
       '/api/app-update/install': {
         POST: () =>
           handle(() => {
@@ -880,9 +937,9 @@ export function serve(
             return { updating: true };
           }),
       },
-      // new commits on the upstream of the checkout Obeya runs from
+      // new commits on the upstream of the checkout Seismic runs from
       '/api/source-update': { GET: () => Response.json(sources?.current() ?? null) },
-      // the owner pulls them: a fast-forward of the checkout, after which the self-update restarts Obeya once the workers paused
+      // the owner pulls them: a fast-forward of the checkout, after which the self-update restarts Seismic once the workers paused
       '/api/source-update/pull': { POST: needs(sources, async (s) => (await s.pull(), { source: s.current() })) },
       // a demo as a file to pass on, where the repository has no share target (`?as=zip|html`)
       '/api/c/:canvas/cards/:id/export': {
@@ -961,7 +1018,7 @@ export function serve(
           return heard(c, text.trim(), focusOf(req, c), images ?? [], { typed: true, ...(isField(field) ? { field } : {}), ...(typeof replyTo === 'number' || isTalkRef(replyTo) ? { replyTo } : {}), ...(spot ? { spot } : {}) });
         }),
       },
-      // a wish or a bug for Obeya's makers: the issue's text as a small job writes it, for the owner to check and open on GitHub
+      // a wish or a bug for Seismic's makers: the issue's text as a small job writes it, for the owner to check and open on GitHub
       '/api/c/:canvas/wish': {
         POST: on(async (c, req) => {
           const { said, answer, title, body, images, app } = ((await req.json()) ?? {}) as Record<string, unknown>;
@@ -995,7 +1052,7 @@ export function serve(
         }),
       },
       '/api/c/:canvas/preferences/:id/reject': { POST: on((c, req) => click(c, c.rejectRule(Number(req.params.id)))) },
-      // a value for a repository's setting the Arbeitsrückschau proposed: taken on this machine or for everyone (`where`), or rejected
+      // a value for a repository's setting the work retrospective proposed: taken on this machine or for everyone (`where`), or rejected
       '/api/c/:canvas/setting-proposals/:id/take': {
         POST: on(async (c, req) => {
           const { where, value } = (await req.json().catch(() => ({}))) as { where?: unknown; value?: unknown };
@@ -1008,7 +1065,7 @@ export function serve(
         POST: on(async (c, req) => {
           const { count, tags } = (await req.json().catch(() => ({}))) as { count?: number | null; tags?: unknown };
           if (count != null && !(Number.isInteger(count) && count > 0)) throw new BadRequest('invalid', 'count must be a positive integer or null');
-          // `tags`: the pages without tags, tagged and shared again („N Seiten ohne Tags“)
+          // `tags`: the pages without tags, tagged and shared again ("N pages without tags")
           c.sharing.reshareMany(count ?? null, tags === true);
         }),
         // "Ausblenden": puts away what the finished run says, and the notice of outdated pages until a newer change
@@ -1025,7 +1082,24 @@ export function serve(
           c.board.readTalk(ids as number[] | undefined);
         }),
       },
-      // the owner no longer wants the step the Koordinator waits on a card for („Nicht mehr warten“)
+      // the owner starts a new chat with Seismic, or (`id`) goes back to an earlier one
+      '/api/c/:canvas/chat': {
+        POST: on(async (c, req) => {
+          const { id } = (await req.json().catch(() => ({}))) as { id?: unknown };
+          if (id === undefined) return { chat: c.board.newChat() };
+          if (!Number.isInteger(id)) throw new BadRequest('invalid', 'id must be a chat id');
+          c.board.openChat(id as number);
+          return { chat: id };
+        }),
+      },
+      '/api/c/:canvas/chat/model': {
+        POST: on(async (c, req) => {
+          const { model } = (await req.json().catch(() => ({}))) as { model?: unknown };
+          if (model !== null && model !== undefined && (typeof model !== 'string' || !['default', 'fable', 'opus', 'sonnet', 'haiku'].includes(model))) throw new BadRequest('invalid', 'unknown model');
+          c.board.setChatModel(model == null ? undefined : model as import('../core/types').AgentModel);
+        }),
+      },
+      // the owner no longer wants the step the Koordinator waits on a card for ("Stop waiting")
       '/api/c/:canvas/talk/:id/unwait': {
         POST: on(async (c, req) => ({ stopped: c.commander.unwait(Number(req.params.id), String(((await req.json().catch(() => ({}))) as { card?: unknown }).card ?? '')) })),
       },
@@ -1050,7 +1124,7 @@ export function serve(
         if (usage) unwatch.set(ws.data.page, usage.watch());
         ws.send(JSON.stringify({ type: 'snapshot', snapshot: c.board.snapshot() } satisfies ServerMessage));
         ws.send(waitingMessage());
-        // a page that reloads within a command's undo window offers "Rückgängig" again
+        // a page that reloads within a command's undo window offers "Undo" again
         for (const n of c.commander.undoable()) ws.send(JSON.stringify({ type: 'notice', ...n } satisfies ServerMessage));
       },
       close: (ws: ServerWebSocket<Socket>) => {
@@ -1100,12 +1174,12 @@ export function serve(
     })
     .then(() => {
       const address = access.address();
-      if (address) console.log(`Obeya: other devices reach it at ${address}`);
+      if (address) console.log(`Seismic: other devices reach it at ${address}`);
     });
   return server;
 }
 
-/** Pushes go to a paired device: the machine Obeya runs on gets none. */
+/** Pushes go to a paired device: the machine Seismic runs on gets none. */
 const onlyDevices = () => Response.json({ code: 'onlyDevices', error: 'only a paired device gets pushes' }, { status: 403 });
 
-const onlyHere = () => Response.json({ code: 'onlyHere', error: 'only on the machine Obeya runs on' }, { status: 403 });
+const onlyHere = () => Response.json({ code: 'onlyHere', error: 'only on the machine Seismic runs on' }, { status: 403 });

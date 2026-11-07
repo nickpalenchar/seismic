@@ -1,4 +1,4 @@
-// The voice Obeya holds across renders, against a fake voice that speaks qwen3.py's protocol: one
+// The voice Seismic holds across renders, against a fake voice that speaks qwen3.py's protocol: one
 // queue for every render's clips, one start while clips keep coming, an end after the idle time.
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
@@ -58,7 +58,7 @@ const until = async (done: () => boolean) => {
   for (let i = 0; i < 100 && !done(); i++) await Bun.sleep(50);
 };
 
-describe('the voice Obeya holds', () => {
+describe('the voice Seismic holds', () => {
   test('starts once for the clips of several renders, which take turns in the order they asked', async () => {
     hold();
     // two renders, each asking for its next clip once the last is done
@@ -193,5 +193,8 @@ describe('a clip over HTTP', () => {
     expect(parseClipRequest({ ...ok, voice: { reference: 'ich.wav' } })).toContain('reference');
     expect(parseClipRequest({ ...ok, script: 'Hallo.' })).toEqual({ ...ok, script: 'Hallo.' });
     expect(parseClipRequest({ ...ok, script: 7 })).toContain('script');
+    // a style goes to the voice as one argument of its own, whatever it says
+    expect(parseClipRequest({ ...ok, voice: { speaker: 'ryan', style: '--serve calm' } })).toMatchObject({ voice: { speaker: 'ryan', style: '--serve calm' } });
+    expect(parseClipRequest({ ...ok, voice: { speaker: 'ryan', style: 'x'.repeat(1001) } })).toContain('style');
   });
 });

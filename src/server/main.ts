@@ -5,45 +5,46 @@
 // Serves canvases at http://127.0.0.1:<port>, to the owner alone (owner.ts): it prints a link that
 // signs a browser in, and a second start while it runs prints a new one. Without repositories: the canvases the JSON file
 // lists, `[{ "name"?, "id"?, "repos": [{ "path", "workspaces"?, "clones"? }] }]`, by default
-// $OBEYA_HOME/canvases.json; while that does not exist, none, and the page shows the setup
+// $SEISMIC_HOME/canvases.json; while that does not exist, none, and the page shows the setup
 // assistant, which checks the machine and creates the first canvas (machine.ts). With repositories: one canvas with them (the first is its home;
-// --workspace and --clones apply to it). Data lives in $OBEYA_HOME/obeya.db (default
+// --workspace and --clones apply to it). Data lives in $SEISMIC_HOME/obeya.db (default
 // ~/.obeya).
 //
 // Without --dev the process supervises the server: it runs it as a child and starts it again
-// when the server exits to pick up new code on Obeya's own checkout (self-update.ts); new commits
+// when the server exits to pick up new code on Seismic's own checkout (self-update.ts); new commits
 // on that checkout's upstream show in the bar, for the owner to pull (source-update.ts). A
 // configuration the owner saves applies while the server runs (config.ts, `Canvases`); saved while
 // the canvases came from the command line, it starts the server again, from the file from then on.
 //
 // Ctrl-C, SIGTERM or `POST /api/stop` (the app, app/, and Windows, which has no SIGTERM) stops
-// Obeya the way a restart goes: workers in the middle of a turn hear of it and pause, and Obeya
+// Seismic the way a restart goes: workers in the middle of a turn hear of it and pause, and Seismic
 // ends once none is (at most 15 minutes); a second Ctrl-C ends it at once. Workers it stopped are
-// resumed when Obeya starts again. Installing a newer version of the app (`POST
-// /api/app-update/install`) goes the same way, and then Obeya ends with UPDATE for the app's shell,
-// which installs it and starts the app again. So does the Mac app taking over an Obeya that runs
-// without the app that started it (`POST /api/app-takeover`): Obeya ends with TAKEOVER, marks its
-// entry so, and the app starts it again. The app starts Obeya with OBEYA_FROM_APP, which its entry
+// resumed when Seismic starts again. Installing a newer version of the app (`POST
+// /api/app-update/install`) goes the same way, and then Seismic ends with UPDATE for the app's shell,
+// which installs it and starts the app again. So does the Mac app taking over an Seismic that runs
+// without the app that started it (`POST /api/app-takeover`): Seismic ends with TAKEOVER, marks its
+// entry so, and the app starts it again. The app starts Seismic with SEISMIC_FROM_APP, which its entry
 // records (`app`).
 //
-// One Obeya per home (instance.ts): a start on a home where one runs says where and ends. The
-// running one has its port and pid in $OBEYA_HOME/server.json; while its server starts again, a
+// One Seismic per home (instance.ts): a start on a home where one runs says where and ends. The
+// running one has its port and pid in $SEISMIC_HOME/server.json; while its server starts again, a
 // start waits for it.
 //
-// --idle-workers: no agent works on a started card (a scratch Obeya for a demo, scripts/scratch-obeya.ts).
+// --idle-workers: no agent works on a started card (a scratch Seismic for a demo, scripts/scratch-obeya.ts).
 // --record <dir>: every agent's session is recorded into <dir>; --replay <dir> plays such a recording
-// back instead of running agents (replay.ts; why it refuses goes into $OBEYA_HOME/replay-refused.txt).
-// OBEYA_PARK_GRACE=<seconds>: how long a waiting card's app runs on before Obeya stops it
+// back instead of running agents (replay.ts; why it refuses goes into $SEISMIC_HOME/replay-refused.txt).
+// SEISMIC_PARK_GRACE=<seconds>: how long a waiting card's app runs on before Seismic stops it
 // (Parking; 300 by default), shorter for a demo or a live check.
-// OBEYA_FORGE_FILE=<file.json>: pull requests come from that file instead of GitHub or Forgejo
-// (file-forge.ts), for a scratch Obeya whose demo plays a forge; OBEYA_PR_POLL=<seconds>: how often
+// SEISMIC_FORGE_FILE=<file.json>: pull requests come from that file instead of GitHub or Forgejo
+// (file-forge.ts), for a scratch Seismic whose demo plays a forge; SEISMIC_PR_POLL=<seconds>: how often
 // the watcher looks at open pull requests (120 by default).
 
+import { bothNames, seismicEnv } from '../core/env';
 import { chmodSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import type { RestartReason } from '../core/types';
+import type { DeveloperView, RestartReason } from '../core/types';
 import { type CanvasConfig, Canvases } from './canvas';
 import { Config, CONFIG_FILE, expandConfig, readConfigFile } from './config';
 import { checkPlugin } from './demo';
@@ -59,7 +60,7 @@ import { claim, release, restarting, running, takenOver } from './instance';
 import { recordingRuntime, replayRuntime } from './replay';
 import { MachineSetup, welcome } from './machine';
 import { addToPath, extendPath } from './path';
-import { headOf, installDependencies, ownCheckout, RESTART, RESTART_FROM_FILE, RESTART_PATIENCE_MS, Restarter, TAKEOVER, UPDATE, watchOwnCode } from './self-update';
+import { headOf, installDependencies, ownCheckout, reinstallDependencies, RESTART, RESTART_FROM_FILE, RESTART_PATIENCE_MS, Restarter, TAKEOVER, UPDATE, watchOwnCode } from './self-update';
 import { AppUpdates } from './app-update';
 import { SourceUpdates } from './source-update';
 import { claudeUsage, UsageMeter } from './usage';
@@ -76,7 +77,7 @@ import { useLib } from '../../plugin/skills/demo/lib/here.ts';
 import { DEMO_SETTINGS_FILE, expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { DemoSpace } from './demo-space';
 import { qwen3Serve } from '../../plugin/skills/demo/lib/voices.ts';
-import { agentSetting, conversationLanguage, feedbackPromptView, ownerLanguage, usageMeterView } from './settings';
+import { agentSetting, agentsView, conversationLanguage, feedbackPromptView, ownerLanguage, usageMeterView } from './settings';
 import { loginLink } from './owner';
 import { Stalls } from './stalls';
 import { hideConsoleWindows } from './spawn';
@@ -89,7 +90,7 @@ const { values, positionals } = parseArgs({
   options: {
     config: { type: 'string' },
     name: { type: 'string' },
-    port: { type: 'string', default: process.env.OBEYA_PORT ?? '4417' },
+    port: { type: 'string', default: seismicEnv('PORT') ?? '4417' },
     dev: { type: 'boolean', default: false },
     workspace: { type: 'string', multiple: true, default: [] },
     clones: { type: 'string' },
@@ -101,11 +102,11 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
 });
 
-const home = process.env.OBEYA_HOME ?? join(homedir(), '.obeya');
+const home = seismicEnv('HOME') ?? join(homedir(), '.obeya');
 // the home holds the logins, the cards and the agents' transcripts: the owner's alone
 mkdirSync(home, { recursive: true, mode: 0o700 });
 if (process.platform !== 'win32' && (statSync(home).mode & 0o077) !== 0 && statSync(home).uid === process.getuid?.()) chmodSync(home, 0o700);
-// a machine that runs on a token runs on the newest one the owner gave Obeya (claude-token), not one its environment kept since
+// a machine that runs on a token runs on the newest one the owner gave Seismic (claude-token), not one its environment kept since
 if (process.env.CLAUDE_CODE_OAUTH_TOKEN) process.env.CLAUDE_CODE_OAUTH_TOKEN = claudeToken(home) ?? process.env.CLAUDE_CODE_OAUTH_TOKEN;
 // what the official installers and Homebrew install is found from a process the desktop started too
 extendPath();
@@ -115,17 +116,17 @@ if (!COMPILED) addToPath(process.env, [dirname(process.execPath)]);
 if (COMPILED) useLib(resource('plugin', 'skills', 'demo', 'lib'));
 const configFile = values.config ? resolve(expandHome(values.config)) : join(home, CONFIG_FILE);
 
-if (!process.env.OBEYA_SUPERVISED) {
+if (!seismicEnv('SUPERVISED')) {
   const other = await running(home);
   if (other) {
     // a new link to it, for a browser not signed in yet
     const link = await loginLink(other.url, home);
-    console.error(`Obeya already runs on ${home}, at ${other.url} (pid ${other.pid}); one home serves one Obeya${link ? `\nOpen it signed in: ${link}` : ''}`);
+    console.error(`Seismic already runs on ${home}, at ${other.url} (pid ${other.pid}); one home serves one Seismic${link ? `\nOpen it signed in: ${link}` : ''}`);
     process.exit(1);
   }
 }
 
-if (!values.dev && !process.env.OBEYA_SUPERVISED) {
+if (!values.dev && !seismicEnv('SUPERVISED')) {
   let child: ReturnType<typeof Bun.spawn> | undefined;
   // the server stops once its workers paused; whatever exit code it ends with, nothing starts again
   let stopping = false;
@@ -137,7 +138,7 @@ if (!values.dev && !process.env.OBEYA_SUPERVISED) {
   let args = Bun.argv.slice(2);
   for (;;) {
     child = Bun.spawn([...SELF, ...args], {
-      env: { ...process.env, OBEYA_SUPERVISED: '1' },
+      env: { ...process.env, ...bothNames({ SUPERVISED: '1' }) },
       stdio: ['inherit', 'inherit', 'inherit'],
     });
     const code = await child.exited;
@@ -153,8 +154,8 @@ if (!values.dev && !process.env.OBEYA_SUPERVISED) {
         ...(values.record ? ['--record', values.record] : []),
         ...(values.replay ? ['--replay', values.replay] : []),
       ];
-      console.log(`Obeya: starting again with ${configFile}`);
-    } else if (code === RESTART) console.log('Obeya: starting again with the new code');
+      console.log(`Seismic: starting again with ${configFile}`);
+    } else if (code === RESTART) console.log('Seismic: starting again with the new code');
     else process.exit(code);
   }
 }
@@ -167,7 +168,7 @@ if (source === 'file' && !values.config && !existsSync(configFile)) {
 } else if (source === 'file') {
   if (!existsSync(configFile)) {
     console.error(`usage: obeya [--config <file>] | <repo>… [--name <canvas>] [--workspace <path>]… [--clones <n>]; [--port <n>] [--dev] [--permission-mode <mode>]
-(without repositories Obeya reads ${configFile}, which does not exist)`);
+(without repositories Seismic reads ${configFile}, which does not exist)`);
     process.exit(2);
   }
   started = readConfigFile(configFile);
@@ -189,14 +190,14 @@ if (source === 'file' && !values.config && !existsSync(configFile)) {
 }
 const configs = expandConfig(started);
 
-// What a crash of the Obeya before this one left running: agent sessions' processes it recorded
+// What a crash of the Seismic before this one left running: agent sessions' processes it recorded
 // (session-registry.ts). Ended before any card resumes; what cannot be ended stays recorded.
 {
   const registry = new SessionRegistry(join(home, 'sessions'));
   useSessionRegistry(registry.supported ? registry : undefined);
   for (const r of registry.recover()) {
     if (r.outcome === 'busy' || r.outcome === 'cleared') continue;
-    console.log(`Obeya: session ${r.label ?? r.generation} left by an earlier Obeya: ${r.outcome} (${r.detail})`);
+    console.log(`Seismic: session ${r.label ?? r.generation} left by an earlier Seismic: ${r.outcome} (${r.detail})`);
   }
 }
 
@@ -205,12 +206,12 @@ const store = (() => {
     return new Store(join(home, 'obeya.db'));
   } catch (e) {
     if (!(e instanceof UnusableDatabase)) throw e;
-    console.error(`Obeya: ${e.message}`);
+    console.error(`Seismic: ${e.message}`);
     process.exit(1);
   }
 })();
 // work that lands on the checkout this code comes from restarts the server, so what is live is what runs
-const own = process.env.OBEYA_SUPERVISED ? ownCheckout() : null;
+const own = seismicEnv('SUPERVISED') ? ownCheckout() : null;
 // the commit this server's code came from: what changed since decides what to install before a restart
 const ranFrom = own && headOf(own);
 let canvases: Canvases | undefined;
@@ -224,9 +225,10 @@ const leave = (reason: RestartReason, forced = false) => {
   if (reason === 'stop') return shutdown(0, forced);
   if (reason === 'update') return shutdown(UPDATE);
   if (own && ranFrom) {
-    const done = installDependencies(own, ranFrom);
-    if (done.ran && done.ok) console.log(`Obeya: installed the new dependencies in ${own}`);
-    else if (done.ran) console.error(`Obeya: installing the new dependencies in ${own} failed; starting again anyway\n${done.output}`);
+    // a rebuild the owner asked for installs whatever changed; a restart for new code only when its dependencies did
+    const done = reason === 'rebuild' ? reinstallDependencies(own) : installDependencies(own, ranFrom);
+    if (done.ran && done.ok) console.log(`Seismic: installed the new dependencies in ${own}`);
+    else if (done.ran) console.error(`Seismic: installing the new dependencies in ${own} failed; starting again anyway\n${done.output}`);
   }
   // after a takeover the app starts it again, not the supervisor
   shutdown(reason === 'takeover' ? TAKEOVER : exitCode);
@@ -247,7 +249,7 @@ restarter.onChange(() => {
   for (const c of live()) c.restartDue(due && { reason: due.reason, deadline: due.deadline });
 });
 const restart = (reason: RestartReason, why: string) => {
-  if (!restarter.due()) console.log(`Obeya: ${why}; restarting${busy().length ? ' once no worker is in the middle of a turn' : ''}`);
+  if (!restarter.due()) console.log(`Seismic: ${why}; restarting${busy().length ? ' once no worker is in the middle of a turn' : ''}`);
   restarter.request(reason);
 };
 /** The commit the code runs from, for the settings beside the version; none for the compiled binary. */
@@ -255,9 +257,10 @@ const commitOf = () => {
   const checkout = own ?? ownCheckout();
   return ranFrom ?? (checkout && headOf(checkout));
 };
-const forge = process.env.OBEYA_FORGE_FILE ? fileForge(process.env.OBEYA_FORGE_FILE) : routedForge(ghForge, forgejoForge, originOf, (remote) => onGitHub(remote));
+const forgeFile = seismicEnv('FORGE_FILE');
+const forge = forgeFile ? fileForge(forgeFile) : routedForge(ghForge, forgejoForge, originOf, (remote) => onGitHub(remote));
 const narration = new NarrationHost({ argv: (voice, language) => qwen3Serve(voice, language, home), log: (line) => console.log(line) });
-// what a demo's narration reaches of Obeya, for the voice it holds loaded (narration.ts): the
+// what a demo's narration reaches of Seismic, for the voice it holds loaded (narration.ts): the
 // narration and nothing else, from a worker here as from one on another machine (design: Hosts)
 const narrationServer = serveNarration(narration);
 const narrationUrl = `http://127.0.0.1:${narrationServer.port}`;
@@ -278,7 +281,7 @@ const config = new Config({
   },
   apply: (configs, ids) => canvases?.apply(configs, ids),
   failures: () => canvases?.failures() ?? [],
-  ...(process.env.OBEYA_SUPERVISED
+  ...(seismicEnv('SUPERVISED')
     ? {
         restart: () => {
           // canvases from the command line come from the saved file from now on
@@ -296,7 +299,7 @@ canvases = new Canvases(
     store,
     home,
     runtime,
-    ...(!values['idle-workers'] ? { workerRuntime: workerHarnessRuntime(runtime, values.record || values.replay ? { start() { throw new Error('Codex workers are not supported in record/replay mode'); } } : undefined) } : {}),
+    ...(!values['idle-workers'] ? { workerRuntime: workerHarnessRuntime(runtime, values.record || values.replay ? { start() { throw new Error('Codex workers are not supported in record/replay mode'); } } : undefined, values.record || values.replay ? { start() { throw new Error('Antigravity workers are not supported in record/replay mode'); } } : undefined) } : {}),
     ...(values['idle-workers'] && !values.record && !values.replay ? { idleWorkers: true } : {}),
     forge,
     permissionMode: values['permission-mode'] as 'auto',
@@ -304,13 +307,14 @@ canvases = new Canvases(
     setupProposals: true,
     ownCheckout: own,
     config,
-    workerEnv: { OBEYA_URL: narrationUrl, OBEYA_NARRATION_URL: narrationUrl },
-    ...(process.env.OBEYA_PARK_GRACE ? { parkGrace: Number(process.env.OBEYA_PARK_GRACE) * 1000 } : {}),
-    ...(process.env.OBEYA_PR_POLL ? { prPollMs: Number(process.env.OBEYA_PR_POLL) * 1000 } : {}),
+    workerEnv: bothNames({ URL: narrationUrl, NARRATION_URL: narrationUrl, HOME: home }),
+    ...(seismicEnv('PARK_GRACE') ? { parkGrace: Number(seismicEnv('PARK_GRACE')) * 1000 } : {}),
+    ...(seismicEnv('PR_POLL') ? { prPollMs: Number(seismicEnv('PR_POLL')) * 1000 } : {}),
     language: () => ownerLanguage(home),
     conversation: () => conversationLanguage(home),
     asksFeedback: () => feedbackPromptView(home).on,
     agents: (role) => agentSetting(home, role),
+    codexAutoReview: () => agentsView(home).codexAutoReview,
     settings: (path) => config.repoSettings(path),
   },
   // the canvas the setup assistant created gets a first card that says what to try
@@ -332,7 +336,7 @@ if (new Set(ids).size !== ids.length) {
 const transcriber = new VoiceIn(home, new LocalTranscriber());
 const voiceSetup = new VoiceSetup({ home, local: transcriber.local });
 const updates = new AppUpdates();
-// run from a clone of Obeya's repository: new commits on its upstream, for the owner to pull
+// run from a clone of Seismic's repository: new commits on its upstream, for the owner to pull
 const sources = own ? new SourceUpdates(own) : undefined;
 // the plan's usage limits in the bar, while the owner has it show them and a page is open
 const usage = new UsageMeter(() => claudeUsage(home), { on: usageMeterView(home).on });
@@ -353,7 +357,7 @@ const shutdown = async (code: number, forced = false) => {
   transcriber.stop();
   narration.stop();
   // the supervisor stays across a restart, and gives the entry up when it ends
-  if (!process.env.OBEYA_SUPERVISED) (code === TAKEOVER ? takenOver : release)(home, process.pid);
+  if (!seismicEnv('SUPERVISED')) (code === TAKEOVER ? takenOver : release)(home, process.pid);
   process.exit(code);
 };
 // stopping waits for the workers like a restart; a second Ctrl-C has it go ahead at once
@@ -363,13 +367,13 @@ const stop = () => {
   if (!stopAsked) {
     stopAsked = Date.now();
     const n = busy().length;
-    console.log(n ? `Obeya: stopping once no worker is in the middle of a turn (${n} ${n === 1 ? 'is' : 'are'}, at most ${RESTART_PATIENCE_MS / 60_000} minutes); Ctrl-C again stops at once` : 'Obeya: stopping');
+    console.log(n ? `Seismic: stopping once no worker is in the middle of a turn (${n} ${n === 1 ? 'is' : 'are'}, at most ${RESTART_PATIENCE_MS / 60_000} minutes); Ctrl-C again stops at once` : 'Seismic: stopping');
     restarter.request('stop');
     return;
   }
   // Ctrl-C in the terminal reaches the supervisor too, which passes it on: one press arrives twice
   if (Date.now() - stopAsked < SAME_PRESS_MS) return;
-  console.log('Obeya: stopping now');
+  console.log('Seismic: stopping now');
   if (!restarter.now()) shutdown(0, true);
 };
 for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, stop);
@@ -378,30 +382,34 @@ for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, stop);
 const access = new Access({ store, home, language: () => ownerLanguage(home) });
 // and what starts waiting for the owner, pushed to the phones that turned notifications on
 const push = new Push({ store, home, language: () => ownerLanguage(home) });
-// while other devices may reach Obeya, the machine stays awake as long as a worker works, or the whole time
+// while other devices may reach Seismic, the machine stays awake as long as a worker works, or the whole time
 const awake = new Awake({ wanted: () => access.awake() === 'always' || (access.awake() === 'works' && busy().length > 0) }).start();
 // what held the server up, or a page, for the owner to notice: in this log and in the home's stalls.log
 const stalls = new Stalls({ home }).start();
-server = serve(canvases, { transcriber, setup: voiceSetup }, Number(values.port), values.dev, config, restarter, narration, machine, stop, updates, access, push, sources, usage, stalls);
-claim(home, { pid: process.env.OBEYA_SUPERVISED ? process.ppid : process.pid, port: server.port!, url: `http://127.0.0.1:${server.port}`, version: VERSION, ...(process.env.OBEYA_FROM_APP ? { app: true } : {}) });
+// the Developer section: a restart needs the supervisor that starts the server again, a rebuild a checkout to install in
+const developer: DeveloperView = seismicEnv('SUPERVISED')
+  ? { restart: true, rebuild: !!(own && ranFrom), ...(own && ranFrom ? {} : { rebuildWhy: 'compiled' as const }) }
+  : { restart: false, rebuild: false, why: 'dev' };
+server = serve(canvases, { transcriber, setup: voiceSetup }, Number(values.port), values.dev, config, restarter, narration, machine, stop, updates, access, push, sources, usage, stalls, developer);
+claim(home, { pid: seismicEnv('SUPERVISED') ? process.ppid : process.pid, port: server.port!, url: `http://127.0.0.1:${server.port}`, version: VERSION, ...(seismicEnv('FROM_APP') ? { app: true } : {}) });
 // the address as a one-time link that signs a browser in (owner.ts)
 const link = access.owner.link(`http://127.0.0.1:${server.port}`);
-console.log(`Obeya ${own ? `from ${own}` : VERSION} on ${link} (${source === 'file' ? configFile : 'canvases from the command line'}), agents on ${claudeExecutable() ?? 'the Claude Code the Agent SDK brings'}`);
+console.log(`Seismic ${own ? `from ${own}` : VERSION} on ${link} (${source === 'file' ? configFile : 'canvases from the command line'}), agents on ${claudeExecutable() ?? 'the Claude Code the Agent SDK brings'}`);
 // from the commit the server started from: a landing since is new code to it, not where it started
 if (own && ranFrom) watchOwnCode(own, ranFrom, (from, to) => restart('code', `${own} moved from ${from.slice(0, 7)} to ${to.slice(0, 7)}`));
 sources?.start();
 if (!canvases.all().length) console.log(`  no canvas yet: the setup assistant there checks this machine and creates the first`);
 for (const c of canvases.all()) {
-  console.log(`  ${c.board.canvas.name} (/c/${c.id})`);
+  console.log(`  ${c.board.canvas.name} (/p/${c.id})`);
   for (const r of c.repos)
     console.log(
       `    ${r.ref.id}: ${r.info.path} (${r.info.folder ? 'a folder without git: every card works in it' : r.adapter.workspaces === 'worktrees' ? 'a worktree per card' : `clones: ${r.workspaces.list().map((w) => w.path).join(', ') || 'none (--workspace or --clones)'}`})`,
     );
 }
 const plugin = checkPlugin();
-if (plugin) console.warn(`Obeya: warning: ${plugin}`);
+if (plugin) console.warn(`Seismic: warning: ${plugin}`);
 // once the deadlock struck, the canvas does not load and cannot show its warning: the log says it too
 if (oldLinuxBun())
   console.warn(
-    `Obeya: warning: Bun ${Bun.version} is too old; Obeya needs Bun 1.3.14 or later. On Linux this Bun can deadlock a thread of its work pool when a file watch closes, and then the canvas stops loading. Upgrade it with \`bun upgrade\` and start Obeya again.`,
+    `Seismic: warning: Bun ${Bun.version} is too old; Seismic needs Bun 1.3.14 or later. On Linux this Bun can deadlock a thread of its work pool when a file watch closes, and then the canvas stops loading. Upgrade it with \`bun upgrade\` and start Seismic again.`,
   );

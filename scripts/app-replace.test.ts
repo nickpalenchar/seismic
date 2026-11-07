@@ -17,8 +17,8 @@ function bundle(name: string, build: string) {
 const program = (at: string) => fs.readFileSync(path.join(at, 'Contents', 'MacOS', 'obeya'), 'utf8');
 
 test.skipIf(process.platform !== 'darwin')('the bundle of a shell that still runs stays on disk until nothing has it open', async () => {
-  const to = path.join(dir, 'Obeya (checkout).app');
-  bundle('Obeya (checkout).app', 'first');
+  const to = path.join(dir, 'Seismic (checkout).app');
+  bundle('Seismic (checkout).app', 'first');
   // the running shell: a process with its program open, as the system has it while the app runs
   const shell = Bun.spawn(['tail', '-f', path.join(to, 'Contents', 'MacOS', 'obeya')]);
   await Bun.sleep(200);

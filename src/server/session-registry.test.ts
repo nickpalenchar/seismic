@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
+import { testProcessCode } from '../test-process';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,7 +16,7 @@ async function until(check: () => boolean, ms = 8000) {
   const end = Date.now() + ms;
   while (!check()) { if (Date.now() > end) throw new Error('timed out'); await Bun.sleep(20); }
 }
-const idle = (extra = '') => ['-e', `${extra};setInterval(()=>{},1000)`];
+const idle = (extra = '') => ['-e', testProcessCode(`${extra};setInterval(()=>{},1000)`)];
 
 const cleanup: (() => void)[] = [];
 afterEach(() => { for (const f of cleanup.splice(0)) try { f(); } catch { /* best effort */ } });
@@ -32,19 +33,19 @@ function start(extra = ''): ChildProcess {
 /**
  * Owner: a process that takes a lease, starts `jobs` processes of their own group, records them,
  * writes their pids to `ready` and waits to be killed. Their parent is the owner, so after its
- * crash they are orphans, as after a crash of Obeya.
+ * crash they are orphans, as after a crash of Seismic.
  */
 function owner(root: string, ready: string, jobs: number) {
-  const code = `
+  const code = testProcessCode(`
     import { spawn } from 'node:child_process';
     import { SessionRegistry } from ${JSON.stringify(join(import.meta.dir, 'session-registry'))};
     import { processes } from ${JSON.stringify(join(import.meta.dir, 'agent-processes'))};
     const g = new SessionRegistry(${JSON.stringify(root)}).begin('test session', '/work/a');
-    const pids = Array.from({ length: ${jobs} }, () => spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { detached: true, stdio: 'ignore' }).pid);
+    const pids = Array.from({ length: ${jobs} }, () => spawn(process.execPath, ['-e', ${JSON.stringify(testProcessCode())}], { detached: true, stdio: 'ignore' }).pid);
     const table = processes();
     g.publish(pids.map((pid) => ({ pid, born: table.find((p) => p.pid === pid).born })));
     await Bun.write(${JSON.stringify(ready)}, JSON.stringify(pids));
-    setInterval(() => {}, 1000);`;
+    setInterval(() => {}, 1000);`);
   const child = spawn(process.execPath, ['-e', code], { detached: true, stdio: 'inherit' });
   cleanup.push(() => {
     try { process.kill(child.pid!, 'SIGKILL'); } catch { /* gone */ }
@@ -87,7 +88,7 @@ test.skipIf(!supported)('after a crash, the recorded work ends; an unrelated can
   expect(registry.recover()).toEqual([]);
 }, 20_000);
 
-test.skipIf(!supported)('another live Obeya on the same directory keeps its sessions through a sweep', async () => {
+test.skipIf(!supported)('another live Seismic on the same directory keeps its sessions through a sweep', async () => {
   const root = scratch();
   const ready1 = join(root, '..', 'ready1'), ready2 = join(root, '..', 'ready2');
   const crashed = owner(root, ready1, 1);
@@ -158,13 +159,13 @@ test.skipIf(!supported)('a workspace whose old session could not be ended is rep
   const dead = owner(root, ready, 1);
   await until(() => existsSync(ready));
   const registry = new SessionRegistry(root);
-  expect(registry.unaccounted('/work/a').length).toBe(1); // its owner is alive, but this is another Obeya's registry object
+  expect(registry.unaccounted('/work/a').length).toBe(1); // its owner is alive, but this is another Seismic's registry object
   await crash(dead);
   expect(registry.unaccounted('/work/a')).toEqual([{ generation: expect.any(String), label: 'test session' }]);
   expect(registry.unaccounted('/work/other')).toEqual([]);
   registry.recover();
   expect(registry.unaccounted('/work/a')).toEqual([]);
-  // this Obeya's own live session is not an old one
+  // this Seismic's own live session is not an old one
   const g = registry.begin('mine', '/work/b')!;
   expect(registry.unaccounted('/work/b')).toEqual([]);
   g.finish();
@@ -205,10 +206,10 @@ test.skipIf(!supported)('an unwritable registry runs the session unrecorded and 
 test.skipIf(!supported)('a crash of the host of a Codex transport: the next sweep ends its app-server and the PTY it observed', async () => {
   const root = scratch();
   const ready = join(root, '..', 'ready');
-  const appCode = `const {spawn}=require('node:child_process');
-const leaf=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});
-require('node:fs').writeFileSync(${JSON.stringify(join(root, '..', 'leaf'))},String(leaf.pid));setInterval(()=>{},1000);`;
-  const host = spawn(process.execPath, ['-e', `
+  const appCode = testProcessCode(`const {spawn}=require('node:child_process');
+const leaf=spawn(process.execPath,['-e',${JSON.stringify(testProcessCode())}],{detached:true,stdio:'ignore'});
+require('node:fs').writeFileSync(${JSON.stringify(join(root, '..', 'leaf'))},String(leaf.pid));setInterval(()=>{},1000);`);
+  const host = spawn(process.execPath, ['-e', testProcessCode(`
     import { codexConnection } from ${JSON.stringify(join(import.meta.dir, 'codex-rpc'))};
     import { SessionRegistry, useSessionRegistry } from ${JSON.stringify(join(import.meta.dir, 'session-registry'))};
     import { readFileSync } from 'node:fs';
@@ -218,7 +219,7 @@ require('node:fs').writeFileSync(${JSON.stringify(join(root, '..', 'leaf'))},Str
     while (!leaf) { try { leaf = Number(readFileSync(${JSON.stringify(join(root, '..', 'leaf'))}, 'utf8')); } catch {} await Bun.sleep(10); }
     await c.trackProcesses([leaf]);
     await Bun.write(${JSON.stringify(ready)}, JSON.stringify([c.pid, leaf]));
-    setInterval(() => {}, 1000);`], { detached: true, stdio: 'inherit' });
+    setInterval(() => {}, 1000);`)], { detached: true, stdio: 'inherit' });
   cleanup.push(() => { try { process.kill(host.pid!, 'SIGKILL'); } catch { /* gone */ } try { for (const pid of pidsOf(ready)) process.kill(pid, 'SIGKILL'); } catch { /* gone */ } });
   const canary = start();
   await until(() => existsSync(ready));
@@ -235,16 +236,17 @@ require('node:fs').writeFileSync(${JSON.stringify(join(root, '..', 'leaf'))},Str
 
 test.skipIf(!supported)('a Codex transport that ends in order removes its own record', async () => {
   const root = scratch();
-  const code = `
+  const code = testProcessCode(`
     import { codexConnection } from ${JSON.stringify(join(import.meta.dir, 'codex-rpc'))};
     import { SessionRegistry, useSessionRegistry } from ${JSON.stringify(join(import.meta.dir, 'session-registry'))};
     import { readdirSync } from 'node:fs';
     useSessionRegistry(new SessionRegistry(${JSON.stringify(root)}));
-    const c = codexConnection({ command: process.execPath, args: ['-e', 'process.stdin.resume()'], cwd: '/', env: process.env }, { notification() {}, request: async () => ({}) });
+    const c = codexConnection({ command: process.execPath, args: ['-e', ${JSON.stringify(testProcessCode('process.stdin.resume()'))}], cwd: '/', env: process.env }, { notification() {}, request: async () => ({}) });
+    await c.trackProcesses([]); // publication follows the asynchronous identity snapshot
     const during = readdirSync(${JSON.stringify(root)}).length;
     c.close();
     await c.done;
-    console.log(JSON.stringify([during > 0, readdirSync(${JSON.stringify(root)}).length]));`;
+    console.log(JSON.stringify([during > 0, readdirSync(${JSON.stringify(root)}).length]));`);
   const out = spawn(process.execPath, ['-e', code], { stdio: ['ignore', 'pipe', 'inherit'] });
   let text = '';
   out.stdout.on('data', (d) => { text += d; });

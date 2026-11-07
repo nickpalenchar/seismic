@@ -45,7 +45,7 @@ describe('the files a card names as its result', () => {
     expect(board.item(c.id)!.files).toBeUndefined();
   });
 
-  test('Obeya serves a file the card made or changed, and an image a Markdown file of it shows; no other file of the workspace', async () => {
+  test('Seismic serves a file the card made or changed, and an image a Markdown file of it shows; no other file of the workspace', async () => {
     const { c } = await reportCard();
     const ws = realpathSync(board.row(c.id).workspace!);
     expect(await workers.file(c.id, 'docs/report.md')).toEqual({ path: join(ws, 'docs', 'report.md') });

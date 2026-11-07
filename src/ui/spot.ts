@@ -6,6 +6,7 @@
 import { useSyncExternalStore } from 'react';
 import { chapterAt, type SpotInput } from '../core/types';
 import { api } from './api';
+import { scrollBehavior } from './motion';
 import { MAX_SIDE } from './shots';
 
 interface Watched {
@@ -161,6 +162,6 @@ export function seekTo(cardId: string, at: number, demo?: number) {
   const v = videoOf(cardId);
   if (!v) return;
   v.currentTime = at;
-  v.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  v.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() });
   v.play().catch(() => {});
 }

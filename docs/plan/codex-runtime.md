@@ -1,12 +1,12 @@
 # Codex preview hardening, then Pi
 
-Obeya owns the canvas, workspaces, conversations and owner decisions. Each harness owns its coding
-loop. A role (coordinator, worker, explorer or small job) is not a harness or a model. The local
+Seismic owns the canvas, workspaces, conversations and owner decisions. Each harness owns its coding
+loop. A role (Koordinator, worker, explorer or small job) is not a harness or a model. The local
 Codex worker preview is described in the permanent design chapters; this plan tracks what remains.
 
 ## Goal
 
-Harden the local Codex worker preview and complete its remaining acceptance and parity work, then add Pi as a harness with the shared Obeya contracts.
+Harden the local Codex worker preview and complete its remaining acceptance and parity work, then add Pi as a harness with the shared Seismic contracts.
 
 ## Workstreams
 
@@ -19,13 +19,13 @@ Harden the local Codex worker preview and complete its remaining acceptance and 
   groups interact with those lifecycle choices. Native Windows and Linux Codex behavior remains
   unverified. Record the actual results and limitations, not a containment guarantee.
 - [x] **W2:** Comparable harness crash probes. Run comparable real Claude and Codex probes on macOS in scratch repositories and an isolated
-  Obeya home: agent death and Obeya death, with a separately grouped background process and an
+  Seismic home: agent death and Seismic death, with a separately grouped background process and an
   unrelated canary. Check whether the app is meant to remain running, clean up every test-owned
   process, and report blocked authentication or incomplete runs rather than extrapolating.
 - [x] **W3:** Session lifetimes and crash recovery. Before adding Pi, specify session work, the app governed by parking and `app.keep`, and
   external operations as distinct lifetimes. Use probe results to design and validate safe
-  recovery of observed processes after an Obeya crash. This is not a Codex preview gate; it is
-  a Pi gate. Recovery must not kill another live Obeya instance's processes or unrelated processes.
+  recovery of observed processes after an Seismic crash. This is not a Codex preview gate; it is
+  a Pi gate. Recovery must not kill another live Seismic instance's processes or unrelated processes.
   Done for Codex on macOS and Linux (container); see "Recovery boundary" below. The lifetimes and
   the recovery are now in `docs/design/agents-and-workspaces.md` (Lifetimes).
   Launching agents through the liveness supervisor, and what must hold before that, belongs here
@@ -33,11 +33,11 @@ Harden the local Codex worker preview and complete its remaining acceptance and 
 - [x] **W4:** Liveness-pipe prototype. Evaluated (2026-11-01): the two failure cases that reverted
   the first Codex transport integration are fixed in the prototype and have regression tests, and
   the transport's process identity is the agent's own, not the supervisor's. Verdict: combine it
-  with the registry rather than adopt it alone, and keep it out of Obeya's launch path until W3; see
+  with the registry rather than adopt it alone, and keep it out of Seismic's launch path until W3; see
   "Liveness-pipe prototype: evaluation" below.
 - [x] **W5:** Platform process boundaries. Evaluated (2026-11-03): systemd user scopes (Linux) and
   Job Objects (Windows) hold everything a real Codex app-server's commands started, the job also
-  through Obeya's death, where today's tracker misses a child that detached before its first sample;
+  through Seismic's death, where today's tracker misses a child that detached before its first sample;
   neither holds a process that asks the system to start it elsewhere. Prototypes only, out of the
   launch path; Claude, macOS and the installed app untested. See "Platform process boundaries" below.
 - [x] **W6:** Live phase 1 acceptance. Done (2026-11-03, macOS, Codex CLI 0.162.0): a Claude and a
@@ -54,12 +54,12 @@ Harden the local Codex worker preview and complete its remaining acceptance and 
   override wins over the user's `[projects]` in both directions, project layers above the
   checkout are never read, and the workspace-write sandbox refuses creating or writing `.codex/`.
   Not verified: Linux and Windows Codex; whether Codex reloads project configuration that changes
-  during a running session (Obeya checks only at start and resume).
+  during a running session (Seismic checks only at start and resume).
 - [x] **W9:** Foreground-wait guard. Decided (2026-11-02): no guard for Codex. Native `PreToolUse` hooks exist
   (Claude-shaped input and `permissionDecision: deny`) and work, but only once trusted in the user's
   own `config.toml`; session-level hooks stay untrusted and never run. And none is needed: steering
   lands during a running foreground command, which then continues as a background terminal. Now in
-  `docs/design/agents-and-workspaces.md` (Native Codex workers). Still open, and W8's: if Obeya ever
+  `docs/design/agents-and-workspaces.md` (Native Codex workers). Still open, and W8's: if Seismic ever
   manages Codex hooks, that is a write into the user's configuration.
 - [x] **W10:** Transcripts and retrospectives. Done (2026-11-03): decided to build it. A Codex worker's run is read from its
   rollout like a Claude transcript, so its cards feed the work retrospective. Now in
@@ -69,17 +69,17 @@ Harden the local Codex worker preview and complete its remaining acceptance and 
   before removing the current refusal. User/repository skill discovery is separate from bundled
   file-based skills already supplied to Codex.
 - [ ] **W12:** Other harness roles. Harness selection for other roles once their permission/read-only/continuation contracts are
-  implemented. Keeping the coordinator on Claude is a rollout boundary, not an architectural need.
+  implemented. Keeping the Koordinator on Claude is a rollout boundary, not an architectural need.
 - [ ] **W13:** Pi adapter. Implement the phase 2 adapter and its supported role contracts after the phase 1 gates.
 
 ## Verified checkpoint
 
-Installed Codex CLI 0.162.0, on macOS, in scratch repositories and a scratch Obeya home:
+Installed Codex CLI 0.162.0, on macOS, in scratch repositories and a scratch Seismic home:
 
-- Native app-server transport and shared Obeya tools, file edits, reporting, active-turn messages,
+- Native app-server transport and shared Seismic tools, file edits, reporting, active-turn messages,
   questions and owner replies, HTML handover, subprocess restart and restored tools.
 - Selecting Codex through the real settings UI and discovering account models without a model turn.
-- A real canvas card asking Blue/Green, restarting Obeya and changing the future default to Claude,
+- A real canvas card asking Blue/Green, restarting Seismic and changing the future default to Claude,
   then answering Blue and resuming the same Codex thread and resolved model.
 - Owner permission denial and subsequent allow decisions through the existing question UI.
 - Separate headless browser sessions for Codex and the test driver, desktop/mobile artifact checks,
@@ -139,7 +139,7 @@ Current evidence (2026-10-31): on macOS, the process-tracking, Codex transport a
 plus simulated parking/demo tests pass (87 tests); typecheck passes. A real Codex app-server
 SIGKILL stopped an observed separately grouped background Python job (heartbeat stopped and its
 PID disappeared). This was a runtime probe, not a full card or app-parking test; it did not test
-Obeya's own death or an unrelated canary. The earlier Linux container tests were synthetic;
+Seismic's own death or an unrelated canary. The earlier Linux container tests were synthetic;
 Windows and native Linux Codex remain unverified. An initial broad Codex review timed out; a
 subsequent narrow review identified the already-known snapshot-to-signal PID/PGID reuse race and
 also the unverified app-server group signal after `exit` and `close`, when its numeric group ID may
@@ -157,7 +157,7 @@ agent; an unrelated canary survived all four cases. After SIGKILL of the runtime
 Codex app-server and heartbeat exited, while Claude and its heartbeat survived (the heartbeat
 advanced from 40 to 57 in 1.8 seconds). After SIGKILL of the agent, the Codex heartbeat stopped
 and disappeared; Claude's heartbeat survived and advanced from 37 to 54. The short-lived runtime
-host also exited after agent failure, unlike the Obeya server, so these results do not establish
+host also exited after agent failure, unlike the Seismic server, so these results do not establish
 behavior of a still-running server. All observed test-owned processes were explicitly cleaned up.
 The Codex owner-death result is an observation of this run, not a crash-containment guarantee;
 the Claude result makes crash cleanup relevant to both harnesses. No `app.keep` or real card was
@@ -167,7 +167,7 @@ involved. Probe and detailed output: `/tmp/obeya-runtime-owner-crash.ts` and
 Real Codex card probes (2026-10-31) used a scratch server and trusted settings whose `app.keep`
 logs and succeeds, while `app.stop` logs and signals the test app. A Python heartbeat launched as
 a native background terminal was alive on a waiting question, but `app.keep` had not run while
-that background task remained active. On graceful Obeya shutdown the heartbeat stopped; neither
+that background task remained active. On graceful Seismic shutdown the heartbeat stopped; neither
 settings command had run. A second attempt launched it via a shell `&` with redirected stdio: the
 app was already dead by the time `app.keep` ran, while `app.stop` did not run. Thus neither
 attempt demonstrates that an app which `app.keep` actually protected survives session closure;
@@ -189,7 +189,7 @@ test-owned PIDs were cleaned up. Probe source and last report: `/tmp/obeya-keep-
 `/tmp/obeya-keep-card-report.json` on the test machine.
 
 W1 closing pass (2026-11-01, macOS, Codex CLI 0.162.0, scratch directories, no model turn;
-`scripts/process-lifecycle-probe.ts`). The probe drives the installed app-server through Obeya's
+`scripts/process-lifecycle-probe.ts`). The probe drives the installed app-server through Seismic's
 transport, starts three Python heartbeats with `thread/shellCommand` (in the shell's group, in a
 session of its own, in a session of its own whose launcher exits early) and an unrelated canary,
 then ends things four ways:
@@ -201,7 +201,7 @@ then ends things four ways:
 | SIGKILL of the app-server (the host lives) | all three stopped | gone | alive |
 | SIGKILL of the host (no tracker left to run) | **all three kept running** | gone (stdin EOF) | alive |
 
-So cleanup follows from the host's tracker, not from Codex: when Obeya itself dies, the
+So cleanup follows from the host's tracker, not from Codex: when Seismic itself dies, the
 separately grouped and the same-group jobs alike outlive it. This differs from the earlier
 host-death probe above, where the heartbeat stopped; the earlier job was most likely a Codex-managed
 terminal that the app-server ended itself on EOF, whereas `shellCommand` jobs are not. Treat the host-death result as
@@ -219,18 +219,18 @@ Lifecycle summary, as verified: for Codex, normal and forced stop and agent deat
 (observed descendants and the app-server's group), unrelated processes are left alone, and
 `app.keep` is not involved: it only decides whether a waiting card's app is stopped by parking. An
 app started as session work dies with its session on any shutdown, graceful or forced; one the owner
-wants to outlive a shutdown needs a handoff that does not exist (W3 left it unspecified). A crash of Obeya runs no
+wants to outlive a shutdown needs a handoff that does not exist (W3 left it unspecified). A crash of Seismic runs no
 cleanup. A Claude agent's death ends nothing it started outside its own process group (W2 below).
 
 W2 comparable crash probes (2026-11-02, macOS 26.6.2, Claude Code 2.1.316 through the
 Agent SDK, Codex CLI 0.162.0 app-server, Bun 1.3.14; `scripts/harness-crash-probe.ts`). Each case
-stages its own scratch Obeya with real workers, repository and `OBEYA_HOME`, trusts settings whose
+stages its own scratch Seismic with real workers, repository and `SEISMIC_HOME`, trusts settings whose
 `app.keep` logs and exits 0 and whose `app.stop` logs and kills the app, and starts one card (Claude
 Sonnet, low effort; Codex account default, low effort). The worker runs `python3 job.py`, which forks
 a heartbeat into a session and process group of its own and keeps it as its child for three
-seconds, then asks a question. Once the card waits and parking (`OBEYA_PARK_GRACE=2`) ran `app.keep`,
-so the app is one Obeya means to keep running while the card waits, the probe SIGKILLs the worker's
-agent process (the `claude` binary, or `codex app-server`) or the Obeya server, and looks 8 s later.
+seconds, then asks a question. Once the card waits and parking (`SEISMIC_PARK_GRACE=2`) ran `app.keep`,
+so the app is one Seismic means to keep running while the card waits, the probe SIGKILLs the worker's
+agent process (the `claude` binary, or `codex app-server`) or the Seismic server, and looks 8 s later.
 An unrelated canary in its own session runs throughout. Repetitions: Claude agent death 5, the other
 three cases 3 each (Codex agent death also once more in a trial); every case measured, none blocked.
 
@@ -238,8 +238,8 @@ three cases 3 each (Codex agent death also once more in a trial); every case mea
 | --- | --- | --- | --- | --- | --- |
 | Claude, agent SIGKILL | **kept running** (~80 ticks in 8 s, every time) | gone | alive | alive | still asks; log: "Claude Code process terminated by signal SIGKILL" |
 | Codex, agent SIGKILL | stopped at once (0–1 ticks, pid gone, every time) | gone | alive | alive | still asks; log: "Codex app-server exited (SIGKILL)", then parking's "the app keeps running" |
-| Claude, Obeya SIGKILL | **kept running** | exited (stdin EOF) | gone | alive | unchanged in the database |
-| Codex, Obeya SIGKILL | **kept running** | exited (stdin EOF) | gone | alive | unchanged in the database |
+| Claude, Seismic SIGKILL | **kept running** | exited (stdin EOF) | gone | alive | unchanged in the database |
+| Codex, Seismic SIGKILL | **kept running** | exited (stdin EOF) | gone | alive | unchanged in the database |
 
 What this says about whether the app is meant to keep running:
 
@@ -248,11 +248,11 @@ What this says about whether the app is meant to keep running:
   running, after the tracker had already killed it: the card tells the owner the opposite of what
   happened (in every Codex agent-death run).
 - Claude agent death leaves a separately grouped app running, kept or not: Claude workers have no
-  descendant tracking, and Obeya signals nothing when one dies. The design does not say whether that is
-  meant; it is the same outcome as an Obeya crash, but with Obeya still running and able to clean up.
+  descendant tracking, and Seismic signals nothing when one dies. The design does not say whether that is
+  meant; it is the same outcome as an Seismic crash, but with Seismic still running and able to clean up.
   This makes recovery after agent death a W3 question for both harnesses, not only for Codex.
-- Obeya death: both harnesses' agents exit on their own once their stdin closes; the separately
-  grouped app outlives Obeya for both, as the design says of a crash (no cleanup runs). Nothing marks
+- Seismic death: both harnesses' agents exit on their own once their stdin closes; the separately
+  grouped app outlives Seismic for both, as the design says of a crash (no cleanup runs). Nothing marks
   the card: it still asks in the database. In one of three Claude runs another Claude process of the
   server (not the worker's; most likely the Koordinator's or a small job's) and the MCP servers from
   the machine's user-level Claude configuration were still alive 8 s after the server's death.
@@ -273,7 +273,7 @@ the crash.
 What W3 built from the proposal below, for Codex sessions (`src/server/session-registry.ts`; the
 rules are in the design chapter, Lifetimes). Differences from the proposal, with reasons:
 
-- **No separate supervisor.** The Obeya server itself holds the per-session lease and writes the
+- **No separate supervisor.** The Seismic server itself holds the per-session lease and writes the
   record; its death releases the lease. The supervisor of W4 is a different failure (a launcher that
   dies on its own) and stays a prototype; the production registry is independent of it.
 - **The sweep is destructive, not report-only.** The proposal held it back until an OS mechanism
@@ -304,7 +304,7 @@ Validated (macOS 26, Bun 1.3.14; Linux ARM64 container with `--init`, same tests
   PTY observed through the tracker) is recovered from its record, and an orderly close removes it.
   Linux passes the same tests and `agent-processes.test.ts`.
 - Real Claude Code 2.1.316 and Codex CLI 0.162.0 (`scripts/harness-crash-probe.ts`, case
-  `obeya-restart`: the W2 setup, then SIGKILL of the server and a start of Obeya again on the same
+  `obeya-restart`: the W2 setup, then SIGKILL of the server and a start of Seismic again on the same
   home): Codex: the app the worker started stayed alive after the crash (as in W2) and the next
   start logged `recovered (ended <app pid>)`, the app stopped, the canary lived, the record was gone.
   Claude: nothing recorded, nothing recovered, the app kept running (unchanged from W2). Repetitions:
@@ -320,7 +320,7 @@ build, and a power-loss test of the record's durability is untested.
 ### Proposed recovery boundary (the original proposal)
 
 Use the supervisor and a registry for different failures, not as substitutes. A private liveness
-pipe lets the session's supervisor react when its Obeya server dies. A durable registry is a fallback
+pipe lets the session's supervisor react when its Seismic server dies. A durable registry is a fallback
 for a supervisor that dies, or cleanup it could not complete; it does nothing until a later sweep.
 Neither makes an unobserved descendant recoverable. The prototypes below have no startup sweep and
 must not be treated as providing this design.
@@ -343,7 +343,7 @@ initial directory creation, and write-failure boundaries remain unverified. A cr
 observation and publication still loses that observation. A synthetic Linux ARM64 container test
 kills the supervisor and inspects the surviving worker and
 separately grouped child; neither is killed by the report. Windows, hostile paths, power-loss durability,
-filesystem lock behavior beyond local tests, real agents and packaged Obeya are unverified. This is
+filesystem lock behavior beyond local tests, real agents and packaged Seismic are unverified. This is
 not a production registry, a startup sweep or proof that an identity is safe to signal.
 
 - **Lifetime:** each local agent session gets a random, never-reused session generation and a
@@ -354,7 +354,7 @@ not a production registry, a startup sweep or proof that an identity is safe to 
   server stop waits for busy turns as described above. No command-line search or workspace-wide
   kill is an ownership boundary.
 - **Ownership:** the supervisor holds an exclusive, kernel-backed per-generation lease while it can
-  own or clean up the session. Another Obeya instance or startup sweeper must acquire that same
+  own or clean up the session. Another Seismic instance or startup sweeper must acquire that same
   lease non-blockingly and keep it throughout inspection, signalling and record updates; a busy,
   missing, inaccessible, unsupported or ambiguous lease is *not* permission to kill. Lease files
   must not be unlinked and recreated while contenders may hold the old inode. Use a private local
@@ -396,7 +396,7 @@ not a production registry, a startup sweep or proof that an identity is safe to 
 ### Liveness-pipe prototype: evaluation
 
 `scripts/agent-liveness-prototype.ts` (the supervisor) and `scripts/agent-liveness-owner.ts` (its
-caller) are POSIX-only experiments; Obeya does not launch agents through them. The build bundles the
+caller) are POSIX-only experiments; Seismic does not launch agents through them. The build bundles the
 supervisor as a resource, and a macOS compiled-binary smoke test ran it with `BUN_BE_BUN=1`.
 
 How they work. The caller starts the supervisor in a group of its own with two private pipes: a
@@ -432,7 +432,7 @@ What the combination covers, by what dies:
 
 | Dies | Who cleans up | Left over |
 | --- | --- | --- |
-| Obeya server | supervisor, on liveness-pipe EOF | descendants not yet sampled that left the agent's group |
+| Seismic server | supervisor, on liveness-pipe EOF | descendants not yet sampled that left the agent's group |
 | supervisor | caller, from the adopted identities | the same, and a same-group child of an agent that also exited already |
 | both (power loss, OS killing both) | nobody until a registry sweep, Linux report-only today | everything |
 
@@ -456,14 +456,14 @@ launched through it (W3):
   the group has emptied.
 - *Packaging.* POSIX only, with `/bin/sh` as the gate; Windows needs a different mechanism (W5: a
   Job Object, see "Platform process boundaries"). A
-  compiled Obeya must start the bundled resource with `BUN_BE_BUN=1`, which the caller side does
+  compiled Seismic must start the bundled resource with `BUN_BE_BUN=1`, which the caller side does
   not set yet.
 - *Both harnesses.* Claude's processes survived the host's death in the probes above; the launch path
   should be shared by Claude and Codex, not a Codex transport detail.
 
 ### Platform process boundaries (W5, evaluated 2026-11-03)
 
-Two prototypes, outside Obeya's launch path like W4's: a transient systemd user scope per session on
+Two prototypes, outside Seismic's launch path like W4's: a transient systemd user scope per session on
 Linux (`scripts/linux-scope-prototype.ts`) and a Job Object per session on Windows
 (`scripts/windows-job-prototype.ts`). Each has tests (skipped where the mechanism does not exist) and
 a probe with a real Codex CLI 0.162.0 app-server, no model turn and no login
@@ -502,7 +502,7 @@ session or process group of their own by a launcher that stays, exits after 1.5 
 | Case | Today's tracker alone | In a scope (Linux) | In a job (Windows) |
 | --- | --- | --- | --- |
 | Session closes (transport close) | three stop; **"fast" keeps running** (Linux and Windows alike) | all four stop (`cgroup.kill`) | all four stop (`TerminateJobObject`) |
-| Obeya's stand-in SIGKILLed/terminated | **all four keep running** | all four keep running in the scope; a sweep by unit name then ends them | all four stop at once (kill on close) |
+| Seismic's stand-in SIGKILLed/terminated | **all four keep running** | all four keep running in the scope; a sweep by unit name then ends them | all four stop at once (kill on close) |
 
 The canary lived in every case. "fast" is new: its launcher exits before the tracker's first 500 ms
 sample, so nothing links it to the app-server; this is the gap W1 named ("a child that detaches
@@ -546,12 +546,12 @@ Ways out (measured; Linux on all three systems, Windows on the runner):
   worked, and ending the inner one left the outer.
 
 App parking. Neither boundary ends anything by itself while its caller lives: the agent's exit leaves
-the app in it, `app.stop` (run by Obeya outside the boundary) ends the app, and an empty scope goes
-by itself. Ending the boundary when the session ends is what Obeya does to Codex session work today,
+the app in it, `app.stop` (run by Seismic outside the boundary) ends the app, and an empty scope goes
+by itself. Ending the boundary when the session ends is what Seismic does to Codex session work today,
 so for Codex parking and `app.keep` would behave as now, with the "fast" gap closed. Two differences
 would need deciding before integration: for Claude, ending its boundary with the session widens
 session work beyond its own process group (an app it started then dies with the session, as Codex's
-does); and on Windows, kill on close ends session work at every exit of Obeya, a graceful restart
+does); and on Windows, kill on close ends session work at every exit of Seismic, a graceful restart
 included, where Linux leaves it to the next start's sweep.
 
 Not covered, so not claimed: Claude Code on Linux or Windows (no login there; nothing ran); Pi; macOS
@@ -564,24 +564,24 @@ job names.
 Verdict: both are real boundaries for what a cooperating agent starts, closing the gap sampling
 leaves (W1, W4), and neither is containment against a process that means to leave. Linux scopes are
 available only with a reachable user manager and need the existing tracker as the fallback; Windows
-jobs need no service and also answer Obeya's crash. Integration is a launch-path change for both
+jobs need no service and also answer Seismic's crash. Integration is a launch-path change for both
 harnesses (the W3/W4 open point) plus the two decisions above, not part of this workstream.
 
 ## Live phase 1 acceptance (W6)
 
-2026-11-03, macOS, a scratch Obeya from this checkout with real workers on the machine's Claude and
+2026-11-03, macOS, a scratch Seismic from this checkout with real workers on the machine's Claude and
 Codex sign-ins (`--real-workers --restarts`), a scratch repository whose `bun run slow-check` takes
 three minutes. Card C ran on Claude Code (Sonnet, medium), card X on Codex (gpt-6.1-sol, low), both
 started at once with their harness chosen at the start. Usage limits were real refusals by the
 services' own shape, put in by `scripts/limit-proxy.ts`: real Claude Code and the installed Codex
-reach the real models through it (`ANTHROPIC_BASE_URL`, and `OBEYA_CODEX` naming its wrapper, which
+reach the real models through it (`ANTHROPIC_BASE_URL`, and `SEISMIC_CODEX` naming its wrapper, which
 gives Codex a provider of the same ChatGPT sign-in), and for a set time it refuses each model request
 with a 429 as at the account's limit. No account was driven to its actual limit.
 
 | Step | Claude card | Codex card |
 | --- | --- | --- |
 | Start side by side, ask the owner | asked, answer delivered to it alone | asked, answer delivered to it alone |
-| Answer given while both harnesses are over the limit (150 s) | „Usage limit · continues at 22:41“ from the rate-limit event | the same, from Codex's rate-limit update (before the fix: a retry in 15 minutes) |
+| Answer given while both harnesses are over the limit (150 s) | "Usage limit · continues at 22:41" from the rate-limit event | the same, from Codex's rate-limit update (before the fix: a retry in 15 minutes) |
 | Limit lifts | went on by itself within 20 s, acted on the answer | the same |
 | Pause during the three-minute check | stopped at once, the check ended | the same, app-server and check ended |
 | Restart (new code) while paused | stayed paused | stayed paused |
@@ -598,18 +598,14 @@ German examples from the worker's shared instructions and tool description. Its 
 its handover were in English; the slow check finished. This repeat checked the language, not the
 rate-limit, pause and restart sequence above.
 
-Seen besides, not fixed here:
-- The process tracker's `ps` snapshot (`spawnSync`) stalled the server for 0.6 to 1.8 s four times
-  while a Codex session ran.
-
 ## Phase 2: Pi
 
 An installed `pi --mode rpc` subprocess is the preferred first adapter; an embedded SDK is an
-alternative if tighter control outweighs isolation. Register the same Obeya tools through a Pi
+alternative if tighter control outweighs isolation. Register the same Seismic tools through a Pi
 extension. Reuse harness-aware settings and pinned session ownership. Map messages, steering,
 persistence and `agent_settled` (not merely `agent_end`) to the shared contract. Support standard
 extension dialogs explicitly; arbitrary TUI extensions are outside the initial scope. The
-coordinator can then select Pi once that role's contracts are supported, just like workers.
+Koordinator can then select Pi once that role's contracts are supported, just like workers.
 
 Estimated difficulty after a sound phase 1: a basic Pi worker is moderate, roughly 3–7 engineering
 days; polished installed-extension/configuration/recovery support likely adds 1–2 weeks. These

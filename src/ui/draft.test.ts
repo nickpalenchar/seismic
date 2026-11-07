@@ -64,7 +64,7 @@ test('words taken back go into an empty field with their screenshots; a field wi
   dropDraft(key);
 });
 
-test("the screenshots beside the microphone go into Obeya's field after those it has, the field's words untouched", () => {
+test("the screenshots beside the microphone go into Seismic's field after those it has, the field's words untouched", () => {
   updateDraft(MIC_DRAFT, { images: ['a.png', 'b.png'] });
   updateDraft(OBEYA_DRAFT, { text: 'Schau mal', images: ['b.png', 'c.png'] });
   moveImages(MIC_DRAFT, OBEYA_DRAFT);
@@ -92,7 +92,7 @@ test('a path with a space goes in quotes and stays one word', () => {
   expect(wordsOf(`/o/a.pdf ${spaced}`)).toEqual(['/o/a.pdf', spaced]);
 });
 
-test("the paths of dropped files go back beside the microphone when Obeya's field closes, the words around them stay", () => {
+test("the paths of dropped files go back beside the microphone when Seismic's field closes, the words around them stay", () => {
   const spaced = pathWord('/o/John Doe/Plan.pdf');
   // dropped on the microphone, then the sidebar opened
   updateDraft(MIC_DRAFT, { text: `/o/a/Rechnung.pdf ${spaced}` });

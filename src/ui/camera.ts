@@ -1,6 +1,7 @@
 // Camera math, from the mock: a world transform (translate, then scale) and animated flights.
 
 import type { Bounds, Place } from '../core/layout';
+import { reducedMotion } from './motion';
 
 export interface Cam {
   x: number;
@@ -149,6 +150,10 @@ let settle: (() => void) | null = null;
 /** Animates the camera; interpolates the world point under the screen centre so it reads as a camera move. */
 export function flyTo(from: Cam, to: Cam, set: (c: Cam) => void, ms = 650): Promise<void> {
   stopFlight();
+  if (reducedMotion()) {
+    set(to);
+    return Promise.resolve();
+  }
   return new Promise((resolve) => {
     settle = resolve;
     const t0 = performance.now();
@@ -208,6 +213,11 @@ let chased: Cam | null = null;
  * nor restarts its easing. It counts as a flight and ends with `stopFlight`.
  */
 export function chase(from: Cam, to: Cam, set: (c: Cam) => void) {
+  if (reducedMotion()) {
+    stopFlight();
+    set(to);
+    return;
+  }
   const running = chased !== null;
   chased = to;
   if (running) return;

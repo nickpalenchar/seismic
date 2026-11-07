@@ -1,28 +1,29 @@
+import { Check, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, Play, Plus, Share, SquarePlus, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
 // The unfolded card: what it is, what its worker does, and what the owner decides.
 
 import { Rate } from './feedback';
 import { createContext, type CSSProperties, Fragment, type ReactNode, type RefObject, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { agentListens, answering, askable, type BackgroundTask, buildableOn, type CardAction, type ChangeRoute, type Contribution, type HeldChanges, chapterAt, prototypeWorkstream, type CardEvent, type CardPatch, type Demo, type EarlierDemo, EXPORT_HTML_MAX, finished, finishedArchivable, finishingUp, handedOver, type Item, type Mock, type NextStep, type PageTags, openQuestions, pausableNow, plannableAsProject, type PrComment, type PrReviewEntry, type PullRequest, type Question, type Finding, type Clash as ClashFound, type RepoRef, snoozable, type Spot, started, stopped, stoppedArchivable, taskAuthor, withSupplemented } from '../core/types';
+import { agentListens, answering, askable, type BackgroundTask, buildableOn, type CardAction, type Contribution, type HeldChanges, chapterAt, prototypeWorkstream, type CardEvent, type CardPatch, type Demo, type EarlierDemo, EXPORT_HTML_MAX, finished, finishedArchivable, finishingUp, handedOver, type Item, mergeableWith, type Mock, type NextStep, type PageTags, openQuestions, pausableNow, plannableAsProject, type PrComment, type PrReviewEntry, type PullRequest, type Question, type Finding, type FindingPick, type Severity, SEVERITIES, type Clash as ClashFound, type RepoRef, snoozable, type Spot, started, stopped, stoppedArchivable, taskAuthor, withSupplemented } from '../core/types';
 import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answerText, toggle } from './answer';
 import { ApiError, api, canvasOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onReconnect } from './api';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
-import { MergeButton, MergeView } from './merge';
+import { DuplicateMergePreview, MergeButton, MergeView } from './merge';
 import { LinkField, type LinkFieldHandle } from './cardMenu';
 import { useCopy } from './copy';
 import { manualPrerequisites } from './deps';
 import { firstOpening } from './demoSeen';
 import { know, known } from './known';
 import { Branch } from './diff';
-import { ResultFiles } from './files';
+import { ResultFiles, REVIEW } from './files';
 import { DiscardChanges, FolderBox, FolderLine, useFolderDiff } from './folder';
 import { LabelMarks, LabelPicks } from './labels';
-import { asksYou, CardFace, cardClass, landedRef, LimitNotice, PauseMark, PlayMark, QuestionMark, shownTitle } from './parts';
-import { asksAhead, holdsNotes } from '../core/queue';
+import { asksYou, CardFace, cardClass, DepArrow, landedRef, LimitNotice, PauseMark, PlayMark, QuestionMark, RestartMark, shownTitle } from './parts';
+import { asksAhead, holdsNotes, queueOrder } from '../core/queue';
 import { forcedText, QueueList, scrollerOf, useMenuClose, useQueueMove, useQueueSort, waitText, type Behind } from './queue';
 import { dimensions, shownTags } from '../core/page-tags';
 import { CardRefs, Inline, plain } from './markdown';
@@ -33,6 +34,7 @@ import { CiteButton } from './cite';
 import { Composer } from './composer';
 import { useFitHeight } from './fitHeight';
 import { useFullscreen } from './fullscreen';
+import { motionMs, scrollBehavior } from './motion';
 import { type Box, onto, ZOOM_EASE, ZOOM_MS, zoomBox } from './zoomBox';
 import { AttachButton, imageUrl, ShotStrip, Shots, useShotInput } from './shots';
 import { useStickToEnd } from './stickToEnd';
@@ -46,7 +48,7 @@ import { PageChangeList } from './page-changes';
 import { WishReplyLink } from './wish';
 import { claudeLoginFailed } from '../core/login';
 import { Reauthenticate } from './reauthenticate';
-import { StartAgent } from './start-agent';
+import { describeAgent, StartAgent } from './start-agent';
 import type { AgentSetting } from '../core/types';
 
 /**
@@ -80,7 +82,7 @@ interface Props {
   onReadPlan?: (project: Item, mark?: string) => void;
   /** Opens the configuration at the clone count (or the slots) of a repository: the card waits for a free clone or slot. Not in the phone view. */
   onClones?: (repo: string, field: 'clones' | 'slots') => void;
-  /** Opens the configuration at the owner's personal demo site. */
+  /** Opens the canvas's settings, where it chooses its demo site. */
   onDemoSites?: () => void;
   onTell: Tell;
 }
@@ -89,6 +91,54 @@ interface Props {
 function WaitsFor({ queue, all }: { queue: Behind; all: Item[] }) {
   const cards = queue.behind.map((id) => ({ card: all.find((x) => x.id === id), title: all.find((x) => x.id === id)?.title ?? id }));
   return <Naming text={(...names) => waitText(queue, all, (id) => names[queue.behind.indexOf(id)]!)} cards={cards} />;
+}
+
+/**
+ * The chain a queued card waits in, top to bottom as its waits run on the canvas: the card it waits
+ * for (the first where it waits for several), the card itself (its title only), and a card that waits
+ * for it (the first in the queue where several do), tagged and ringed as on the canvas while the
+ * pointer is on the card. The cards above and below open in its place.
+ */
+function QueueChain({ item, all }: { item: Item; all: Item[] }) {
+  const cards = useContext(Cards);
+  const behind = item.queue && 'behind' in item.queue ? item.queue.behind : [];
+  const first = behind.map((id) => all.find((x) => x.id === id)).find((x) => x && !x.archivedAt);
+  const after = queueOrder(all).find((x) => x.queue && 'behind' in x.queue && x.queue.behind.includes(item.id));
+  if (!first && !after) return null;
+  const cover = (card: Item, dep: 'before' | 'after') => (
+    <a
+      className={`${cardClass(card)} cover dep-${dep}`}
+      href={cardPath(canvasOf(card.id), card)}
+      onClick={(m) => {
+        if (m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
+        m.preventDefault();
+        cards.open(card);
+      }}
+    >
+      <div className="dep-tag">{t.deps[dep]}</div>
+      <CardFace item={card} />
+    </a>
+  );
+  return (
+    <div className="q-chain" role="group" aria-label={t.queue.chain}>
+      {first && (
+        <>
+          {cover(first, 'before')}
+          <DepArrow cls="lit-first" length={36} />
+        </>
+      )}
+      <div className={`${cardClass(item)} cover own`}>
+        <div className="dep-tag">{t.queue.thisCard}</div>
+        <div className={item.title ? 'ttl' : 'ttl untitled'}>{shownTitle(item)}</div>
+      </div>
+      {after && (
+        <>
+          <DepArrow cls="lit" length={36} />
+          {cover(after, 'after')}
+        </>
+      )}
+    </div>
+  );
 }
 
 /** Where a waiting card stands in the queue, with the buttons that move it; unfolded, the queue around it, where it is dragged instead. */
@@ -126,7 +176,12 @@ export function Detail(p: Props) {
   // a prototype whose idea has become a project: the workstream to build on it
   const [workstream, setWorkstream] = useState('');
   const [picking, setPicking] = useState(false);
+  const [confirmReviewApproval, setConfirmReviewApproval] = useState(false);
+  const [confirmUnsent, setConfirmUnsent] = useState(false);
+  const unsentPicks = useDraft(cardDraft(item.id)).findings;
   const all = p.all;
+  const duplicateMatches = (item.possibleDuplicates ?? []).map((id) => all.find((other) => other.id === id)).filter((other): other is Item => !!other);
+  const duplicatePartner = duplicateMatches.find((other) => mergeableWith(item, other)) ?? duplicateMatches[0];
   const run = async (fn: () => Promise<void>, done: ActDone) => {
     setError('');
     const answered = p.flush().then(fn);
@@ -145,6 +200,8 @@ export function Detail(p: Props) {
     run(async () => {
       if (a.action === 'approve' || a.action === 'pushChanges') await saveHeld(item.id);
       await api.act(item.id, a);
+      // the agent picked in the Start menu is spent once the start is accepted, not before
+      if (a.action === 'start' || (a.action === 'accept' && a.start !== false)) updateDraft(cardDraft(item.id), { agent: undefined });
     }, done);
   // the repository the card is to be built in, before work on it begins: one of the canvas's or a new one
   const choice = useRepoChoice(item, p.onEdit);
@@ -153,7 +210,7 @@ export function Detail(p: Props) {
   const changes = useFolderDiff(item, inFolder && item.kind === 'task' && !!item.branch);
   // the tab the left column shows: a file picked there or in the change list beside the handover
   const [tab, setTab] = useState<string | null>(null);
-  // Obeya reads what is typed here when no agent listens on the card: the field says so, as the microphone does
+  // Seismic reads what is typed here when no agent listens on the card: the field says so, as the microphone does
   const listener = agentListens(item) ? undefined : t.voice.card(plain(item.title));
   const tell = (field: Field) => async (text: string, images?: string[], replyTo?: number) => p.onTell(text, images, field, replyTo);
   const repo = p.repos.length > 1 ? (p.repos.find((r) => r.id === item.repo)?.name ?? item.repo) : '';
@@ -176,7 +233,7 @@ export function Detail(p: Props) {
     .join(' · ');
   // a proposal being reworked takes the agent's title and text: the fields come back with them, rather than keeping a draft
   // a stopped task keeps what it was started with: the task is its conversation's first message
-  const editable = item.source === 'manual' && (item.state === 'planned' || item.state === 'idea' || item.state === 'proposal') && !item.queue && !item.proposal?.revising && !stopped(item);
+  const editable = item.source === 'manual' && (item.state === 'planned' || item.state === 'idea' || item.state === 'proposal') && !item.queue && !item.proposal?.revising && !item.proposal?.merge && !item.mergingInto && !stopped(item);
   if (item.kind === 'question' && item.thread)
     return (
       <>
@@ -241,16 +298,11 @@ export function Detail(p: Props) {
         demo={demo}
         act={act}
         onApproval={!!shares?.shareOnApproval}
-        // on the personal site, the tick that is not there yet turns sharing with the approval on for the whole repository
-        approveAll={shares?.shareOnPersonal && !shares.shareOnApproval ? () => run(async () => {
-          await api.shareApprovedRepo(shares.path, true);
-          if (item.notOnApproval) await api.act(item.id, { action: 'shareOnApproval', on: true });
-        }, { close: false }) : undefined}
         vocabulary={shares?.shareTags}
         unlisted={item.share ? !!item.share.unlisted : !!shares?.shareUnlisted}
       />
     ) : (
-      <ExportBox item={item} demo={demo} run={run} needs={shares?.shareNeeds} personal={shares?.sharePersonal} repoPath={shares?.path} onDemoSites={p.onDemoSites} />
+      <ExportBox item={item} demo={demo} run={run} needs={shares?.shareNeeds} site={shares?.shareSite} onDemoSites={p.onDemoSites} />
     );
   // a prototype is discarded or its idea built on it, never approved or deleted; built once the idea's agent has taken in what changed
   const ideaTitle = plain(item.ideaTitle ?? p.from?.title ?? '');
@@ -317,7 +369,15 @@ export function Detail(p: Props) {
   const repoRef = p.repos.find((r) => r.id === item.repo);
   const pr = !inFolder && !item.noChange && (item.lands?.land ?? (repoRef?.pullRequests ? 'pr' : 'main')) === 'pr';
   const direct = pr && (item.lands?.direct ?? !!repoRef?.direct);
-  const approveButton = item.contribution ? (
+  // a canvas that reviews work on the owner's word: the latest handover not reviewed yet (or its review failed)
+  const cr = item.codeReview;
+  // the agent fixing findings the owner sent it counts as part of the review: Approve warns the same way
+  const fixing = !!cr?.findings?.some((f) => f.status === 'open' && f.decided === 'self');
+  const reviewRunning = cr?.state === 'running' || fixing;
+  // choices on findings picked but not sent yet: approving would drop them
+  const unsent = Object.keys(unsentPicks ?? {}).filter((id) => cr?.findings?.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided)).length;
+  const asksReview = !!cr && cr.mode === 'manual' && (!cr.state || !!cr.stale || cr.state === 'failed');
+  const approveButton = item.landing ? null : item.contribution ? (
     <ApproveReview c={item.contribution} act={act} />
   ) : inFolder ? (
     <>
@@ -328,9 +388,41 @@ export function Detail(p: Props) {
     </>
   ) : (
     <>
-      <button className="btn primary" onClick={() => act({ action: 'approve' }, item.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id })}>
-        {item.noChange ? t.approveNoChange : pr ? t.approvePr : t.approve}
+      {/* while yellow, a second line inside it says why, as on the start buttons */}
+      <button className={reviewRunning ? 'btn review-warning start-agent-main' : 'btn primary'} onClick={() => unsent ? setConfirmUnsent(true) : reviewRunning ? setConfirmReviewApproval(true) : act({ action: 'approve' }, item.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id })}>
+        <span>{item.noChange ? t.approveNoChange : pr ? t.approvePr : t.approve}</span>
+        {reviewRunning && <span className="start-agent-model">{cr?.state === 'running' ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>}
       </button>
+      {unsent > 0 && confirmUnsent && createPortal(
+        <div className="review-approval-cover" onClick={() => setConfirmUnsent(false)}>
+          <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="unsent-choices-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setConfirmUnsent(false); } }}>
+            <h2 id="unsent-choices-title">{t.unsentChoices.title}</h2>
+            <p>{t.unsentChoices.body(unsent)}</p>
+            <div className="review-approval-actions">
+              <button className="btn primary" onClick={() => { setConfirmUnsent(false); void act({ action: 'approve' }, item.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id }); }}>{t.unsentChoices.approve}</button>
+              <button className="btn" autoFocus onClick={() => setConfirmUnsent(false)}>{t.unsentChoices.back}</button>
+            </div>
+          </div>
+        </div>, document.body,
+      )}
+      {reviewRunning && confirmReviewApproval && createPortal(
+        <div className="review-approval-cover" onClick={() => setConfirmReviewApproval(false)}>
+          <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="review-approval-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setConfirmReviewApproval(false); } }}>
+            <h2 id="review-approval-title">{t.approveDuringReview.title}</h2>
+            <p>{t.approveDuringReview.body}</p>
+            <div className="review-approval-actions">
+              <button className="btn primary" onClick={() => { setConfirmReviewApproval(false); void act({ action: 'approve' }, { close: true, ack: t.approved, pending: t.approving, rate: item.id }); }}>{t.approveDuringReview.land}</button>
+              <button className="btn" autoFocus onClick={() => setConfirmReviewApproval(false)}>{t.approveDuringReview.continue}</button>
+            </div>
+          </div>
+        </div>, document.body,
+      )}
+      {/* where the owner starts code reviews themselves: beside Approve, in its own colour, until the latest handover is reviewed */}
+      {asksReview && (
+        <button className="btn code-review" title={t.codeReview.startHint} onClick={() => (setTab(REVIEW), act({ action: 'codeReview' }, { close: false }))}>
+          {t.codeReview.start}
+        </button>
+      )}
       {direct && (
         <button className="btn" title={t.directHint} onClick={() => act({ action: 'approve', direct: true }, { close: true, ack: t.approvedDirect, pending: t.approvingDirect, rate: item.id })}>
           {t.approveDirect}
@@ -349,6 +441,12 @@ export function Detail(p: Props) {
   const halted = stopped(item) && !item.queue;
   // a workstream planned again after a part of it landed starts its rest from the same row
   const rest = item.state === 'planned' && !!item.landedPart && !item.branch && !item.queue;
+  const duplicateNotice = duplicatePartner && item.state === 'planned' && !item.queue && !item.proposal?.merge && <div className="question duplicate-notice">
+    <h4>{t.duplicate.title}</h4>
+    <p>{t.duplicate.detail}</p>
+    <DuplicateMergePreview item={item} partner={duplicatePartner} />
+    {duplicateMatches.length > 1 && <p className="hint">{t.duplicate.more(duplicateMatches.length - 1)}: {duplicateMatches.filter((other) => other.id !== duplicatePartner.id).map((other) => plain(other.title)).join(', ')}</p>}
+  </div>;
   // an archived project's doc is gone
   const readPlan = parent && !parent.archivedAt && p.onReadPlan;
   // a workstream names its plan doc at the top in every state, an agent's work its branch beside it
@@ -420,6 +518,7 @@ export function Detail(p: Props) {
           <div className="q-text">
             <WaitsFor queue={item.queue} all={all} />
           </div>
+          <QueueChain item={item} all={all} />
           <QueuePlace item={item} items={all} />
           <div className="actions">
             <button
@@ -455,13 +554,15 @@ export function Detail(p: Props) {
   );
 
   return (
-    <CardRefs.Provider value={smartLink}>
+    <CardRefs.Provider value={smartLink}><DescriptionEdit.Provider value={p.onEdit}>
       <KindLine kind={kind} item={item} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className="p-title">{shownTitle(item)}</div>}
-      <div className={['p-state', finishingUp(item) && 'finishing', (item.paused || item.snoozed) && 'paused'].filter(Boolean).join(' ')}>
-        {asksYou(item) ? <QuestionMark /> : '●'} {stateLabel(item)}
+      <div className={['p-state', finishingUp(item) && 'finishing', (item.paused || item.snoozed) && 'paused', item.restartPaused && 'restart-paused', item.resolvingConflicts && 'resolving-conflicts', item.codeReview?.state === 'running' && 'reviewing'].filter(Boolean).join(' ')}>
+        {asksYou(item) ? <QuestionMark /> : item.restartPaused ? <RestartMark /> : '●'} {stateLabel(item)}
         {item.snoozed ? (
           <span className="p-status"> · {snoozeWho(item.snoozed)}</span>
+        ) : item.resolvingConflicts ? (
+          <span className="p-status conflict"> · {t.resolvingConflicts}</span>
         ) : (
           item.statusLine && (item.state === 'working' || item.state === 'inPr' || item.finishing || answering(item)) && <span className="p-status"> · {item.statusLine}</span>
         )}
@@ -486,20 +587,22 @@ export function Detail(p: Props) {
           <Naming text={t.merge.into} cards={[{ card: all.find((i) => i.id === item.mergingInto) }]} />
         </p>
       )}
-      {item.state === 'proposal' && item.proposal?.merge && <MergeView item={item} partner={all.find((i) => i.id === item.proposal!.merge!.with)} act={act} />}
+      {item.proposal?.merge && <MergeView item={item} partner={all.find((i) => i.id === item.proposal!.merge!.with)} act={act} />}
       {item.state === 'proposal' && !item.proposal?.merge && (
         <ProposalView item={item} all={all} from={p.from} act={act} listener={listener} onRevise={tell('revise')} codexAllowed={!inFolder && !item.contribution}>
           {editable ? (
             <ManualFields item={item} repos={p.repos} choice={choice} onEdit={p.onEdit} grow />
           ) : (
             <>
-              <Body md={item.body} />
+              <Description item={item} />
               <Shots ids={item.images} />
             </>
           )}
         </ProposalView>
       )}
 
+      {error && <p className="p-error" role="alert">{error}</p>}
+      {!item.proposal?.merge && <>
       {!waits && queueBox}
 
       {item.prototypeOf && (
@@ -531,21 +634,23 @@ export function Detail(p: Props) {
 
       <LastFailure item={item} />
 
-      {item.state === 'planned' && !worked && !waits && (
+      {item.state === 'planned' && !item.proposal?.merge && !worked && !waits && (
         <>
           {editable ? (
             <ManualFields item={item} repos={p.repos} choice={choice} fresh onEdit={p.onEdit} />
           ) : (
             <>
-              <Body md={item.body} />
+              <Description item={item} />
               <Shots ids={item.images} />
             </>
           )}
         </>
       )}
+      {!waits && duplicateNotice}
 
       {/* what the card changed in a folder without git stays in view: in its left column, or above its conversation where it has none */}
       {worked && inFolder && talkAlone(item) && <FolderBox item={item} diff={changes.diff} />}
+      {worked && talkAlone(item) && item.blocked && item.state === 'waiting' && !!ownerField(item) && <Blocked item={item} act={act} />}
       {waits ? (
         <Split
           main={
@@ -555,10 +660,11 @@ export function Detail(p: Props) {
                 <ManualFields item={item} repos={p.repos} choice={choice} fresh onEdit={p.onEdit} grow />
               ) : (
                 <>
-                  <Body md={item.body} />
+                  <Description item={item} />
                   <Shots ids={item.images} />
                 </>
               )}
+              {duplicateNotice}
             </>
           }
           talk={<TaskTalk item={item} act={act} tell={tell} />}
@@ -604,11 +710,14 @@ export function Detail(p: Props) {
                     decides={!!ownerField(item) && !finished(item.state)}
                     onPush={() => act({ action: 'pushMain' }, { close: true, ack: t.review.pushing(item.contribution!.number), undo: () => api.act(item.id, { action: 'keepMain' }) })}
                   />}
+                {/* an approval the checkout's own changes kept from landing: what is in the way, and the offer to fold it into the card */}
+                {item.blocked && item.state === 'waiting' && !!ownerField(item) && <Blocked item={item} act={act} />}
                 {/* the last handover's demo stays while the agent works on the card again; a new handover replaces it. Beside it, the files the work made or changed */}
                 <ResultFiles
                   item={item}
                   tab={tab}
                   onTab={setTab}
+                  {...(item.codeReview?.state ? { review: reviewTab(item, act) } : {})}
                   {...(inFolder ? { diff: changes.diff } : {})}
                   demo={
                     item.demo && (
@@ -651,7 +760,7 @@ export function Detail(p: Props) {
               </>
             )
           }
-          // what is typed into a card waiting to start waits for its agent, not for Obeya
+          // what is typed into a card waiting to start waits for its agent, not for Seismic
           talk={<TaskTalk item={item} listener={holdsNotes(item) ? undefined : listener} act={act} tell={tell} />}
           cite={!!ownerField(item) && cardDraft(item.id)}
         />
@@ -660,7 +769,7 @@ export function Detail(p: Props) {
           {brief}
           {item.state !== 'planned' && item.state !== 'proposal' && (
             <>
-              <Body md={item.body} />
+              <Description item={item} />
               <Shots ids={item.images} />
             </>
           )}
@@ -673,20 +782,22 @@ export function Detail(p: Props) {
         </>
       )}
 
-      {error && <p className="p-error">{error}</p>}
 
       {/* approved work asks how the agent did until answered, and keeps the answer to change */}
       {item.rate && <Rate item={item} />}
 
+      {item.state === 'planned' && item.queue && <div className="actions"><MergeButton item={item} all={all} act={act} /></div>}
+
       {/* the decisions of a card nobody worked on yet, below what it shows, as on every card */}
-      {item.state === 'planned' && !worked && !item.queue && (
+      {item.state === 'planned' && !item.proposal?.merge && !worked && !item.queue && (
         <div className="actions">
-          {/* one snoozed to start later starts now with „Jetzt zurückholen“ on its line in the conversation */}
+          {/* one snoozed to start later starts now with "Wake now" on its line in the conversation */}
           {item.newRepo?.due ? (
             <Armed label={t.repoPick.making(choice.name)} undo={t.undo} onUndo={() => act({ action: 'stayHere' }, { close: false })} />
           ) : (
             !item.snoozed && (
               item.newRepo ? <button className="btn primary" disabled={!!fresh && !fresh.ready} title={fresh?.hint} onClick={() => act({ action: 'start' }, { close: false })}>{fresh?.button ?? t.start}</button> : <StartAgent
+                draft={cardDraft(item.id)}
                 label={fresh?.button ?? t.start}
                 disabled={!!fresh && !fresh.ready}
                 title={fresh?.hint ?? (inFolder ? t.folder.startHint : t.startHint)}
@@ -695,10 +806,15 @@ export function Detail(p: Props) {
               />
             )
           )}
+          {duplicatePartner && mergeableWith(item, duplicatePartner) && <span className="duplicate-merge-actions">
+            <button className="btn duplicate-attempt" onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</button>
+            <button className="btn duplicate-dismiss" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</button>
+          </span>}
           <Later item={item} act={act} />
           {prototypeActions}
           {item.source === 'manual' && !item.prototypeOf && (
             <>
+              {!duplicatePartner && <MergeButton item={item} all={all} act={act} />}
               {/* a task with a branch has work already, one decided as a project goes its way: neither is discussed or planned anew */}
               {plannableAsProject(item) && (
                 <>
@@ -730,15 +846,15 @@ export function Detail(p: Props) {
       {worked && (running || archivable || halted || rest || snoozable(item)) && (
         <div className="actions">
           {rest && (
-            <StartAgent label={t.landedPart.start} title={t.landedPart.startHint} codexAllowed={!inFolder && !item.contribution} onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: false })} />
+            <StartAgent draft={cardDraft(item.id)} label={t.landedPart.start} title={t.landedPart.startHint} codexAllowed={!inFolder && !item.contribution} onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: false })} />
           )}
           {halted && !item.archivedAt && (
-            <StartAgent label={t.startAgain} title={t.startAgainHint} codexAllowed={!inFolder && !item.contribution} onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: false })} />
+            <StartAgent draft={cardDraft(item.id)} label={t.startAgain} title={t.startAgainHint} codexAllowed={!inFolder && !item.contribution} onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: false })} />
           )}
           {review ? prototypeActions || approveButton : (running || (halted && !item.archivedAt)) && prototypeActions}
           <Later item={item} act={act} />
           {running && (
-            <button className="btn" title={t.stopHint} onClick={() => act({ action: 'stop' }, { close: true, ack: t.stopped })}>
+            <button className="btn" disabled={item.landingPosition === 0} title={item.landingPosition === 0 ? stateLabel(item) : t.stopHint} onClick={() => act({ action: 'stop' }, { close: true, ack: t.stopped })}>
               {t.stop}
             </button>
           )}
@@ -750,11 +866,13 @@ export function Detail(p: Props) {
           )}
         </div>
       )}
-      {item.state === 'planned' && !worked && !item.queue && fresh && <p className="hint">{fresh.hint}</p>}
+      {item.state === 'planned' && !item.proposal?.merge && !worked && !item.queue && fresh && <p className="hint">{fresh.hint}</p>}
+      {review && item.demo && sharing && !item.demo.asked && (shares?.share || item.share) && sharesLater(item, item.demo, !!shares?.shareOnApproval) && <ShareOnApproval item={item} act={act} />}
       {review && item.noChange && !item.prototypeOf && <p className="hint">{inFolder ? t.folder.noChangeHint : t.noChangeHint}</p>}
       {review && item.modelsUnchanged && <p className="hint">{t.modelsUnchanged(item.modelsUnchanged)}</p>}
       {review && direct && !item.prototypeOf && <p className="hint">{t.directHint}</p>}
-    </CardRefs.Provider>
+      </>}
+    </DescriptionEdit.Provider></CardRefs.Provider>
   );
 }
 
@@ -765,7 +883,7 @@ const Limited = ({ item }: { item: Item }) => (item.limitedUntil ? <span classNa
 const archivedOn = (i: Item) => i.archivedAt && <span className="p-status"> · {t.archive.when(new Date(i.archivedAt))}</span>;
 
 /**
- * „Später …“ in a card's action row, on any card the owner can snooze that is not snoozed yet (a
+ * "Later" in a card's action row, on any card the owner can snooze that is not snoozed yet (a
  * snoozed one changes its time on its line in the conversation).
  */
 function Later({ item, act }: { item: Item; act: (a: CardAction, done: ActDone) => Promise<void> }) {
@@ -774,9 +892,9 @@ function Later({ item, act }: { item: Item; act: (a: CardAction, done: ActDone) 
 }
 
 /**
- * Approving a review card: „Mergen (PR #5)“, or where its agent's own changes wait for the approval,
- * „Pushen und mergen“ with „Nur pushen und kommentieren“ beside it (the merge later), and with
- * requests to the contributor beside them „Pushen und an … schicken“, which merges nothing and
+ * Approving a review card: "Merge (PR #5)", or where its agent's own changes wait for the approval,
+ * "Push and merge" with "Push and comment only" beside it (the merge later), and with
+ * requests to the contributor beside them "Push and send to …", which merges nothing and
  * leaves the card waiting for them.
  */
 function ApproveReview({ c, act }: { c: Contribution; act: (a: CardAction, done: ActDone) => Promise<void> }) {
@@ -810,7 +928,7 @@ function ApproveReview({ c, act }: { c: Contribution; act: (a: CardAction, done:
  */
 /**
  * On an accepted proposal its agent withdrew or replaced since: who did, why, and the choice to
- * remove the card (as „Löschen“ does, its worker stopped, with an undo) or keep it.
+ * remove the card (as "Delete" does, its worker stopped, with an undo) or keep it.
  */
 function SupersededBox({ item, all, act, onDelete }: { item: Item; all: Item[]; act: (a: CardAction, done: ActDone) => Promise<void>; onDelete: () => void }) {
   const s = item.superseded;
@@ -910,7 +1028,7 @@ function IdeaView({
             {/* what "Teilaufgabe abtrennen" would build, as its worker's task */}
             {idea.split && !item.archivedAt && (
               // opened at the bottom of the column, it scrolls into view rather than opening out of sight
-              <details className="question brief settled" onToggle={(e) => e.currentTarget.open && e.currentTarget.scrollIntoView({ block: 'nearest', behavior: 'smooth' })}>
+              <details className="question brief settled" onToggle={(e) => e.currentTarget.open && e.currentTarget.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() })}>
                 <summary>{t.idea.settled(idea.split.title)}</summary>
                 <Body md={idea.split.brief} />
               </details>
@@ -975,15 +1093,21 @@ function IdeaView({
               <Armed label={t.idea.buildWaits} undo={t.idea.unbuild} onUndo={() => act({ action: 'unbuild' }, { close: false })} />
             ) : (
               // while the agent works, the click waits for its reply in view; else the panel closes on the built card;
-              // built in a new repository, it stays open for „Rückgängig“ and then follows the card to its canvas
-              <button
-                className={btn('build')}
-                disabled={!!fresh && !fresh.ready}
-                title={fresh?.hint}
-                onClick={() => act({ action: 'build' }, idea.thinking || fresh ? { close: false } : { close: true, ack: t.idea.built })}
-              >
-                {fresh?.button ?? t.idea.build}
-              </button>
+              // built in a new repository, it stays open for "Undo" and then follows the card to its canvas
+              fresh ? (
+                <button className={btn('build')} disabled={!fresh.ready} title={fresh.hint} onClick={() => act({ action: 'build' }, { close: false })}>
+                  {fresh.button}
+                </button>
+              ) : (
+                <StartAgent
+                  draft={cardDraft(item.id)}
+                  label={t.idea.build}
+                  tone={btn('build').replace(' suggested', '')}
+                  suggested={btn('build').includes('suggested')}
+                  codexAllowed={prototypes && !item.contribution}
+                  onStart={(agent) => act({ action: 'build', ...(agent ? { agent } : {}) }, idea.thinking ? { close: false } : { close: true, ack: t.idea.built })}
+                />
+              )
             )}
             <button className={btn('planDoc')} disabled={idea.thinking} onClick={() => act({ action: 'planDoc' }, { close: true, ack: t.idea.planned })}>
               {t.idea.planDoc}
@@ -1156,7 +1280,7 @@ function ProposalView({
           <Armed label={t.acceptWaits(idea || armed === 'idea')} undo={t.unaccept} onUndo={() => act({ action: 'unaccept' }, { close: false })} />
         ) : (
           // one to start later is planned and waits until then: taking it on is all there is to it
-          !idea && !later && !revising ? <StartAgent label={t.accept} codexAllowed={codexAllowed} onStart={(agent) => accept(true, false, agent)} /> :
+          !idea && !later && !revising ? <StartAgent draft={cardDraft(item.id)} label={t.accept} codexAllowed={codexAllowed} onStart={(agent) => accept(true, false, agent)} /> :
           <button className="btn primary" title={later ? t.startAt.accept : undefined} onClick={() => accept(true)}>{idea ? t.acceptIdea : later ? t.acceptOnly : t.accept}</button>
         )}
         {!later && (
@@ -1181,7 +1305,7 @@ function ProposalView({
   );
 }
 
-/** When a proposed task starts once accepted, with „Ändern“: another time, or none, so it starts at once. */
+/** When a proposed task starts once accepted, with "Change": another time, or none, so it starts at once. */
 function StartAt({ item, act }: { item: Item; act: (a: CardAction, done: ActDone) => Promise<void> }) {
   const at = item.proposal?.startAt;
   if (!at) return null;
@@ -1204,7 +1328,7 @@ function StartAt({ item, act }: { item: Item; act: (a: CardAction, done: ActDone
   );
 }
 
-/** A go clicked while an agent works on the card ("So bauen", "Übernehmen und starten"): it waits armed until the agent is done, its take-back beside it. */
+/** A go clicked while an agent works on the card ("Build it like this", "Accept and start"): it waits armed until the agent is done, its take-back beside it. */
 function Armed({ label, undo, onUndo }: { label: string; undo: string; onUndo: () => void }) {
   return (
     <>
@@ -1231,7 +1355,7 @@ function PrototypeStart({ item, act }: { item: Item; act: (a: CardAction, done: 
   // the choice opens below the conversation, often out of sight
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    end.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    end.current?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() });
   }, []);
   return (
     <>
@@ -1394,7 +1518,7 @@ function Conversation({
     idea && !past && item.body.trim() && !opened(events, item.body) && <Seed item={item} by="owner" who={t.idea.seed} />
   );
   const seedAt = task ? Math.max(0, turns.shown.findIndex((x) => started(x.e))) : 0;
-  // the comments on places in the demo video Obeya holds back while the owner watches: each can be
+  // the comments on places in the demo video Seismic holds back while the owner watches: each can be
   // deleted, and under the last the owner can send them without watching to the end
   const held = item.held ?? [];
   // the line where the card was snoozed, while it still is, offers to wake it or change the time
@@ -1485,7 +1609,7 @@ function Conversation({
             {questions}
             {turns.below.map(line)}
             {bubble}
-            {/* Obeya's reply to what the agent passed on, until the agent's message it leads to */}
+            {/* Seismic's reply to what the agent passed on, until the agent's message it leads to */}
             {turns.passedOn.map(line)}
           </>
         ) : (
@@ -1529,18 +1653,35 @@ const takeBack = (cardId: string, e: CardEvent) =>
     .then(() => giveBack(cardDraft(cardId), e.text, e.images))
     .catch(() => {});
 
-/** Who wrote the task an agent started on: the owner, a plan doc, the Arbeitsrückschau, an agent's proposal, or a prototype's idea. */
+/** Who wrote the task an agent started on: the owner, a plan doc, the work retrospective, an agent's proposal, or a prototype's idea. */
 
 /** Where a conversation starts, as its first message: what was said to an idea, the task an agent started on; long ones folded. */
 function Seed({ item, by, who }: { item: Item; by: string; who: string }) {
   return (
     <Msg by={by} className="seed" who={who}>
-      <Fold>
-        <Body md={item.body} />
-      </Fold>
+      <Fold><Body md={item.body} /></Fold>
       <Shots ids={item.images} />
     </Msg>
   );
+}
+
+const DescriptionEdit = createContext<(patch: CardPatch) => void>(() => {});
+
+function Description({ item }: { item: Item }) {
+  const onEdit = useContext(DescriptionEdit);
+  const [editing, setEditing] = useState(false);
+  const [body, setBody] = useState(item.body);
+  useEffect(() => { if (!editing) setBody(item.body); }, [item.body]);
+  if (item.source !== 'manual' || item.archivedAt) return <Body md={item.body} />;
+  return <div className="description-edit">
+    {editing ? <>
+      <LinkField self={item} className="p-body" value={body} placeholder={t.bodyPlaceholder} onChange={(value) => { setBody(value); onEdit({ body: value }); }} />
+      <button className="btn" onClick={() => setEditing(false)}>{t.descriptionDone}</button>
+    </> : <>
+      <Body md={body} />
+      <button className="description-edit-button" title={t.descriptionEdit} aria-label={t.descriptionEdit} onClick={() => setEditing(true)}><Pencil size={16} /></button>
+    </>}
+  </div>;
 }
 
 /** A text shown to its first eight lines or so (or `lines`), with "more" for the rest. */
@@ -1588,21 +1729,39 @@ function Line({ turn, snoozed, explained, ...rest }: { turn: Turn; snoozed?: Ite
 }
 
 /**
- * An action of Obeya's in the conversation, set apart from what is said: the follow-up card it made
- * of this one, as a compact cover that opens it by its address (in place, as a card named in a text
+ * A card made from this conversation, set apart from what is said: a proposal or follow-up,
+ * as a compact cover that opens it by its address (in place, as a card named in a text
  * does). A card on another canvas opens there; one gone from the canvas shows its title, not a link.
  */
 function Made({ e, fresh }: { e: CardEvent; fresh?: boolean }) {
   const cards = useContext(Cards);
   const made = e.made!;
-  const card = made.canvas ? undefined : cards.items.find((i) => i.id === made.card);
+  const proposed = e.author === 'worker';
+  const [elsewhere, setElsewhere] = useState<Item | null>();
+  // A proposal can be accepted or withdrawn on its other canvas. Refresh when this conversation
+  // changes (the proposing agent retracts it), and when returning from another tab's decision.
+  useEffect(() => {
+    if (!made.canvas) return;
+    let active = true;
+    let latest = 0;
+    const refresh = () => {
+      const request = ++latest;
+      return api.canvas(made.canvas!).then(
+        (snapshot) => { if (active && request === latest) setElsewhere(snapshot.items.find((i) => i.id === made.card) ?? null); },
+        () => { if (active && request === latest) setElsewhere(null); },
+      );
+    };
+    void refresh();
+    const events = onCardEvent((event) => { if (event.cardId === e.cardId) void refresh(); });
+    const reconnect = onReconnect(refresh);
+    window.addEventListener('focus', refresh);
+    return () => { active = false; events(); reconnect(); window.removeEventListener('focus', refresh); };
+  }, [made.canvas, made.card, e.cardId]);
+  const card = made.canvas ? elsewhere : cards.items.find((i) => i.id === made.card);
   const who = (
     <>
-      <svg className="action-mark" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-        <rect x="1.5" y="3.5" width="10" height="9" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
-        <path d="M13.5 1v5M11 3.5h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      </svg>
-      {t.author.obeya} · {t.talk.madeFollowUp}
+      <SquarePlus className="action-mark" size={13} strokeWidth={1.75} aria-hidden="true" />
+      {t.author[e.author]} · {proposed ? t.talk.proposedNewCard : t.talk.madeFollowUp}
     </>
   );
   const bare = (note: string) => (
@@ -1616,27 +1775,23 @@ function Made({ e, fresh }: { e: CardEvent; fresh?: boolean }) {
       {card && !card.archivedAt ? (
         <a
           className={`${cardClass(card)} cover`}
-          href={cardPath(canvasOf(card.id), card)}
+          href={cardPath(made.canvas ?? canvasOf(card.id), card)}
           onClick={(m) => {
-            if (m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
+            if (made.canvas || m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
             m.preventDefault();
             cards.open(card);
           }}
         >
           <CardFace item={card} />
         </a>
-      ) : made.canvas ? (
-        <a className="card cover elsewhere" href={cardPath(made.canvas, made.card)}>
-          {bare(t.talk.madeElsewhere)}
-        </a>
       ) : (
-        <div className="card cover gone">{bare(t.talk.madeGone)}</div>
+        <div className="card cover gone">{bare(made.canvas && elsewhere === undefined ? t.talk.madeElsewhere : t.talk.madeGone)}</div>
       )}
     </Msg>
   );
 }
 
-/** A line's text with its addresses as links (the comment Obeya or the agent wrote on a pull request, say). */
+/** A line's text with its addresses as links (the comment Seismic or the agent wrote on a pull request, say). */
 function Linked({ text }: { text: string }) {
   return text.split(/(https?:\/\/[^\s<>"]*[^\s<>".,;:!?)])/).map((part, i) =>
     i % 2 ? (
@@ -1759,7 +1914,7 @@ function Mocks({ mocks }: { mocks?: Mock[] }) {
 
 /**
  * One mock in the frame a worker's HTML artifact gets: its scripts run, but in an origin of its own,
- * away from Obeya's API, and connect to nothing (the empty frame Obeya serves for it, which writes
+ * away from Seismic's API, and connect to nothing (the empty frame Seismic serves for it, which writes
  * the page it is sent into itself). It grows to the height the mock reports, up to a limit, then scrolls.
  */
 function MockFrame({ mock }: { mock: Mock }) {
@@ -1942,7 +2097,7 @@ function DemoView({
     // into view with the line above it, unless its top is in view already
     const column = v.closest('.split-main')?.getBoundingClientRect();
     const top = v.getBoundingClientRect().top;
-    if (column && (top < column.top || top > column.bottom - 80)) v.closest('.demo-view')?.querySelector('.demo-versions')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    if (column && (top < column.top || top > column.bottom - 80)) v.closest('.demo-view')?.querySelector('.demo-versions')?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
     return () => v.removeEventListener('loadedmetadata', go);
   }, [shownN]);
   return (
@@ -1979,7 +2134,7 @@ function DemoView({
           </div>
         )}
         {demo.kind === 'html' ? (
-          // the worker's page: scripts run, but in an origin of its own, away from Obeya's API. Once
+          // the worker's page: scripts run, but in an origin of its own, away from Seismic's API. Once
           // the frame has the page's height, the page stops scrolling up and down by itself
           // (`withHeightReport`); sideways it still scrolls, where it is wider than the frame
           <iframe ref={artifact} className="artifact" sandbox="allow-scripts" src={src('index.html')} title={t.demo.artifact} style={{ height: artifactHeight }} />
@@ -2027,9 +2182,7 @@ function DemoView({
                 // a click anywhere on the video but its controls starts it, like on a shared page
                 <button className="start" aria-label={t.demo.play} onClick={() => video.current?.play().catch(() => {})}>
                   <span>
-                    <svg viewBox="0 0 24 24">
-                      <path d="M6 4l15 8-15 8z" />
-                    </svg>
+                    <Play fill="currentColor" strokeWidth={2} />
                   </span>
                 </button>
               )}
@@ -2045,17 +2198,13 @@ function DemoView({
                     else document.querySelector<HTMLTextAreaElement>('.card-sheet .split-talk .composer textarea')?.focus();
                   }}
                 >
-                  <svg viewBox="0 0 24 24">
-                    <path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4z" />
-                  </svg>
+                  <MessageSquare strokeWidth={2} />
                   {t.demo.comment}
                 </button>
               )}
               {fullscreen.can && (
                 <button className="fullscreen" title={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen} aria-label={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen} onClick={fullscreen.toggle}>
-                  <svg viewBox="0 0 24 24">
-                    <path d={fullscreen.full ? 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5' : 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'} />
-                  </svg>
+                  {fullscreen.full ? <Minimize strokeWidth={2} /> : <Maximize strokeWidth={2} />}
                 </button>
               )}
               <button
@@ -2070,10 +2219,7 @@ function DemoView({
                     {zoom.box ? t.demo.unzoomHint : t.demo.zoomHint} <kbd>Z</kbd>
                   </span>
                 )}
-                <svg viewBox="0 0 24 24">
-                  <circle cx="10.5" cy="10.5" r="6.5" />
-                  <path d={zoom.box ? 'M7.5 10.5h6M15.5 15.5L21 21' : 'M7.5 10.5h6M10.5 7.5v6M15.5 15.5L21 21'} />
-                </svg>
+                {zoom.box ? <ZoomOut strokeWidth={2} /> : <ZoomIn strokeWidth={2} />}
               </button>
             </div>
           </div>
@@ -2114,7 +2260,7 @@ const STOOD_MS = 3 * 60_000;
 
 /**
  * The card's demo video as the one its words may be about (`chapters` null: they are not): typing in
- * the card's field pauses it, and the owner's comments on places in it, which Obeya holds back while
+ * the card's field pauses it, and the owner's comments on places in it, which Seismic holds back while
  * they watch, go to the agent once they have finished: the video ended, stood for a few minutes, or
  * the card closed. Words without a place, and an approval, take them too (on the server).
  */
@@ -2177,7 +2323,7 @@ const SEEK_KEYS_KNOWN = 'obeya-seek-keys-known';
  * ← and → jump back and forward in the demo video, without a click on its progress bar first. The
  * browser's controls keep every key to themselves once clicked (Space too, which then neither paused
  * the video nor started a recording), so the video hands the focus back to the page at once; then
- * the keys reach Obeya's own handlers. Their overflow menu (⋮) takes the focus as it opens, right
+ * the keys reach Seismic's own handlers. Their overflow menu (⋮) takes the focus as it opens, right
  * after the press on its button gave it to them, and closes when it loses it: the focus coming back
  * that soon stays. Without a mouse (a phone, a tablet) there are no keys, and the focus stays too. A
  * click on the controls shows the keys over the video for a moment, until the owner first jumped
@@ -2250,7 +2396,7 @@ function useZoom(video: RefObject<HTMLVideoElement | null>) {
     const r = player.current!.getBoundingClientRect();
     const back = { left: r.left, top: r.top, width: r.width, height: cur.from.height * (r.width / cur.from.width) };
     setBox({ ...cur, closing: true });
-    el.animate([{ transform: 'none' }, { transform: onto(back, cur.to) }], { duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'forwards' }).onfinish = () => setBox(null);
+    el.animate([{ transform: 'none' }, { transform: onto(back, cur.to) }], { duration: motionMs(ZOOM_MS), easing: ZOOM_EASE, fill: 'forwards' }).onfinish = () => setBox(null);
   };
   const toggleRef = useRef(toggle);
   toggleRef.current = toggle;
@@ -2261,7 +2407,7 @@ function useZoom(video: RefObject<HTMLVideoElement | null>) {
     const cur = boxRef.current;
     if (!screen.current) return;
     if (!cur) return screen.current.getAnimations().forEach((a) => a.cancel());
-    screen.current.animate([{ transform: onto(cur.from, cur.to) }, { transform: 'none' }], { duration: ZOOM_MS, easing: ZOOM_EASE });
+    screen.current.animate([{ transform: onto(cur.from, cur.to) }, { transform: 'none' }], { duration: motionMs(ZOOM_MS), easing: ZOOM_EASE });
   }, [zoomed]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -2301,46 +2447,124 @@ function useZoom(video: RefObject<HTMLVideoElement | null>) {
 
 /**
  * What a review card's agent found, beside its demo: the checks on the PR's head and the merge probe
- * on one line, then each finding of the review, which its agent keeps as the conversation goes on.
- * Findings its agent would make one follow-up task stand together in a bracket that says so, while
- * they are open or made one. On an open finding the owner decides („An Beitragenden“, „Selbst
- * ändern“, „Als Folgeaufgabe“, a second click takes it back; a bracket picks nothing for its others)
- * while their words reach its agent (`decides`); the decisions stand in the card's draft and go out
- * with the field's one Send. „Selbst ändern“ is greyed with its reason where the contributor allows
- * no edits by maintainers. A finding something came of says what; one made a follow-up task links
- * that task.
+ * on one line, then each finding of the review (`FindingList`), which its agent keeps as the
+ * conversation goes on.
  */
 function Findings({ item, decides, onPush }: { item: Item; decides: boolean; onPush?: () => void }) {
   const c = item.contribution!;
+  const findings = (c.findings ?? []).filter(shownFinding);
+  const open = findings.filter((f) => f.status === 'open');
+  const ok = !!c.results && c.results.mergeable && c.results.checks.every((x) => x.passed);
+  return (
+    <section className="findings">
+      {c.results && <div className={ok ? 'rr-checks ok' : 'rr-checks bad'}>{t.review.checks(c.results)}</div>}
+      {c.clash && !finished(item.state) && <Clash clash={c.clash} {...(decides && onPush ? { onPush } : {})} />}
+      {c.findings && (
+        <h4 className="p-h">{!findings.length && c.findings.length ? t.review.allIgnored : t.review.findings(findings.length, open.length, open.filter((f) => f.security).length)}</h4>
+      )}
+      <FindingList item={item} findings={findings} decides={decides} />
+    </section>
+  );
+}
+
+/**
+ * The findings of a review, a review card's or the code review of a card's work, one element for
+ * both: each with its number, title, severity where it has one, a sentence or two and where it is.
+ * Findings that would make one follow-up task stand together in a bracket that says so, while they
+ * are open or made one. On an open finding the owner decides while their words reach the card's
+ * agent (`decides`), a second click taking it back, a bracket picking nothing for its others: on a
+ * review card "To contributor", "Change it myself" (greyed with its reason where the contributor
+ * allows no edits by maintainers) or "As a follow-up task", on a code review "Fix it" or "As a
+ * follow-up task". The decisions stand in the card's draft and go out with the field's one Send. A
+ * finding something came of says what; one made a follow-up task links that task.
+ */
+function FindingList({ item, findings, decides }: { item: Item; findings: Finding[]; decides: boolean }) {
+  const c = item.contribution;
   const cards = useContext(Cards);
   const draft = cardDraft(item.id);
   const picks = useDraft(draft).findings ?? {};
-  const findings = c.findings ?? [];
-  const open = findings.filter((f) => f.status === 'open');
-  const pick = (f: Finding, route: ChangeRoute) =>
+  const pick = (f: Finding, route: FindingPick) =>
     updateDraft(draft, (d) => {
       const { [f.id]: was, ...rest } = d.findings ?? {};
       return { findings: was === route ? rest : { ...rest, [f.id]: route } };
     });
-  const ok = !!c.results && c.results.mergeable && c.results.checks.every((x) => x.passed);
+  // finding numbers start again with each code review: choices and context written for an earlier review do not carry over to the next
+  const review = item.codeReview ? String(item.codeReview.previous?.length ?? 0) : undefined;
+  const kept = useDraft(draft).reviewKey;
+  useEffect(() => {
+    if (review === kept) return;
+    updateDraft(draft, () => (kept === undefined ? { reviewKey: review } : { reviewKey: review, findings: undefined, findingNotes: undefined, findingNoteEdits: undefined }));
+  }, [review, kept, draft]);
+  // findings the agent is fixing fold to their heads; a click on one unfolds it
+  const [unfolded, setUnfolded] = useState<Set<number>>(new Set());
+  const unfold = (id: number) =>
+    setUnfolded((was) => {
+      const next = new Set(was);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  const choice = (f: Finding, route: FindingPick, label: string, more: { title?: string; disabled?: boolean } = {}) => (
+    <button
+      className={`choice${picks[f.id] === route ? ' on' : ''}`}
+      aria-pressed={picks[f.id] === route}
+      disabled={more.disabled}
+      title={more.title}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => pick(f, route)}
+    >
+      {label}
+    </button>
+  );
   const one = (f: Finding) => {
     const task = f.status === 'later' && f.card ? cards.items.find((x) => x.id === f.card) : undefined;
-    return (
-      <div key={f.id} className={['finding', f.security && 'security', f.status !== 'open' && 'settled'].filter(Boolean).join(' ')}>
-        <div className="f-head">
-          <span className="f-no">{f.id}</span>
-          <b>{f.title}</b>
-          {f.security && <span className="f-tag">{t.review.security}</span>}
+    const fixing = f.status === 'open' && f.decided === 'self';
+    const folded = fixing && !unfolded.has(f.id);
+    const head = (
+      <>
+        <span className="f-no">{f.id}</span>
+        {fixing && <span className="f-fixing">{t.codeReview.fixing}</span>}
+        {f.severity && <span className={`f-sev ${f.severity}`}>{t.codeReview.severity[f.severity]}</span>}
+        <b>{f.title}</b>
+        {f.security && <span className="f-tag">{t.review.security}</span>}
+      </>
+    );
+    const cls = ['finding', f.security && 'security', f.severity, f.status !== 'open' && 'settled', folded && 'folded'].filter(Boolean).join(' ');
+    if (fixing)
+      return (
+        <div key={f.id} className={cls}>
+          <button className="f-head f-fold" aria-expanded={!folded} title={folded ? t.codeReview.unfold : t.codeReview.fold} onClick={() => unfold(f.id)}>
+            {head}
+            <span className="f-chevron">{folded ? <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />}</span>
+          </button>
+          {!folded && body(f, task)}
         </div>
+      );
+    return (
+      <div key={f.id} className={cls}>
+        <div className="f-head">{head}</div>
+        {body(f, task)}
+      </div>
+    );
+  };
+  const body = (f: Finding, task: Item | undefined) => {
+    return (
+      <>
         <div className="f-text">
           <Inline md={f.text} />
         </div>
+        {f.file && (
+          <div className="f-where">
+            <code>{f.line ? `${f.file}:${f.line}` : f.file}</code>
+          </div>
+        )}
         {f.status !== 'open' ? (
           <div className="f-status">
             {task ? (
               <a href="#" onClick={(e) => (e.preventDefault(), cards.open(task))}>
                 {t.review.laterCard(plain(task.title))} →
               </a>
+            ) : !c ? (
+              f.status === 'fixed' ? t.codeReview.fixed : t.review.status[f.status as 'later']('')
             ) : f.url ? (
               <a href={f.url} target="_blank" rel="noreferrer">
                 {t.review.status[f.status](c.author)} ↗
@@ -2353,31 +2577,32 @@ function Findings({ item, decides, onPush }: { item: Item; decides: boolean; onP
           </div>
         ) : f.decided ? (
           <div className="f-status pending">
-            {f.decided === 'self' ? t.review.goingSelf : f.decided === 'later' ? t.review.goingLater : f.withChanges ? t.review.goingWithChanges(c.author) : t.review.goingTo(c.author)}
+            {f.decided === 'self' ? (c ? t.review.goingSelf : t.codeReview.goingFix) : f.decided === 'later' ? t.review.goingLater : f.withChanges ? t.review.goingWithChanges(c!.author) : t.review.goingTo(c!.author)}
           </div>
         ) : (
           decides && (
+            <>
             <div className="choices single f-choices" role="group">
-              <button className={`choice${picks[f.id] === 'contributor' ? ' on' : ''}`} aria-pressed={picks[f.id] === 'contributor'} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(f, 'contributor')}>
-                {t.review.toContributor}
-              </button>
-              <button
-                className={`choice${picks[f.id] === 'self' ? ' on' : ''}`}
-                aria-pressed={picks[f.id] === 'self'}
-                disabled={!c.canModify}
-                title={c.canModify ? t.review.selfHint : t.review.selfOff(c.author)}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pick(f, 'self')}
-              >
-                {t.review.self}
-              </button>
-              <button className={`choice${picks[f.id] === 'later' ? ' on' : ''}`} aria-pressed={picks[f.id] === 'later'} title={t.review.laterHint} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(f, 'later')}>
-                {t.review.later}
-              </button>
+              {c ? (
+                <>
+                  {choice(f, 'contributor', t.review.toContributor)}
+                  {choice(f, 'self', t.review.self, { disabled: !c.canModify, title: c.canModify ? t.review.selfHint : t.review.selfOff(c.author) })}
+                  {choice(f, 'later', t.review.later, { title: t.review.laterHint })}
+                  {choice(f, 'ignore', t.review.ignore, { title: t.review.ignoreHint })}
+                </>
+              ) : (
+                <>
+                  {choice(f, 'self', t.codeReview.fix, { title: t.codeReview.fixHint })}
+                  {choice(f, 'later', t.review.later, { title: t.codeReview.laterHint })}
+                  {choice(f, 'ignore', t.review.ignore, { title: t.review.ignoreHint })}
+                </>
+              )}
             </div>
+            <FindingContext draft={draft} id={f.id} />
+            </>
           )
         )}
-      </div>
+      </>
     );
   };
   // each finding once: alone, or where the first of its bundle stands, with the others of it
@@ -2395,20 +2620,128 @@ function Findings({ item, decides, onPush }: { item: Item; decides: boolean; onP
     ];
   });
   return (
-    <section className="findings">
-      {c.results && <div className={ok ? 'rr-checks ok' : 'rr-checks bad'}>{t.review.checks(c.results)}</div>}
-      {c.clash && !finished(item.state) && <Clash clash={c.clash} {...(decides && onPush ? { onPush } : {})} />}
-      {c.findings && (
-        <h4 className="p-h">{t.review.findings(findings.length, open.length, open.filter((f) => f.security).length)}</h4>
-      )}
+    <>
       {blocks}
-      {decides && open.some((f) => !f.decided) && <p className="hint">{t.review.decideHint}</p>}
-    </section>
+      {decides && findings.some((f) => f.status === 'open' && !f.decided) && <p className="hint">{c ? t.review.decideHint : t.codeReview.decideHint}</p>}
+    </>
   );
 }
 
 /**
- * Unpushed commits on the local main that a review card's PR collides with, as Obeya found before
+ * The Review tab of a card whose work its canvas reviews (design: Code reviews in Card lifecycle):
+ * its label counts the open findings by severity in their colours, or shows the review running, and
+ * "outdated" where it reviewed an earlier handover; its panel shows "Reviewing …", why it failed,
+ * or the findings to decide on.
+ */
+function reviewTab(item: Item, act: (a: CardAction, done: ActDone) => void): { label: ReactNode; title?: string; panel: ReactNode } {
+  const r = item.codeReview!;
+  const reviewer = r.agent && `${t.config.agents.harnesses[r.agent.harness]}${r.agent.model ? ` · ${r.agent.model}` : ''}`;
+  const findings = (r.findings ?? []).filter(shownFinding);
+  const open = findings.filter((f) => f.status === 'open');
+  const count = (s: Severity) => open.filter((f) => f.severity === s).length;
+  const counts = SEVERITIES.map((s) => [s, count(s)] as const).filter(([, n]) => n > 0);
+  const label = (
+    <>
+      {t.codeReview.tab}
+      {r.state === 'running' && <span className="rv-running" aria-label={t.codeReview.running(reviewer)} />}
+      {r.state === 'done' && !r.stale && r.findings?.length === 0 && <Check className="rv-clean" aria-label={t.codeReview.findings(0, 0)} />}
+      {r.state === 'done' && counts.map(([s, n]) => <span key={s} className={`rv-count ${s}`}>●{n}</span>)}
+      {r.stale && r.state !== 'running' && <span className="rv-outdated">{t.codeReview.outdated}</span>}
+    </>
+  );
+  // the review of an earlier handover is the owner's to read, not to decide on: its findings may be fixed by now
+  const decides = !!ownerField(item) && !finished(item.state) && !r.stale && r.state === 'done';
+  const again = r.mode === 'auto' && (r.state === 'failed' || !!r.stale) && handedOver(item) && !item.landing;
+  const panel = <ReviewHistory item={item} act={act} decides={decides} again={again} reviewer={reviewer} />;
+  return { label, ...(r.state === 'done' && open.length ? { title: t.codeReview.counts(counts.map(([s, n]) => ({ severity: t.codeReview.severity[s], count: n }))) } : {}), panel };
+}
+
+/** Keep an earlier review visible as new reviews arrive; only the latest permits decisions. */
+function ReviewHistory({ item, act, decides, again, reviewer }: { item: Item; act: (a: CardAction, done: ActDone) => void; decides: boolean; again: boolean; reviewer?: string }) {
+  const r = item.codeReview!;
+  const previous = r.previous ?? [];
+  const [shown, setShown] = useState<number | null>(null);
+  const selected = shown !== null && shown < previous.length ? previous[shown]! : r;
+  const current = selected === r;
+  const position = current ? previous.length : shown!;
+  const findings = current ? (selected.findings ?? []).filter(shownFinding) : (selected.findings ?? []);
+  const open = findings.filter((f) => f.status === 'open');
+  const selectedReviewer = selected.agent ? `${t.config.agents.harnesses[selected.agent.harness]}${selected.agent.model ? ` · ${selected.agent.model}` : ''}` : reviewer;
+  return (
+    <section className="findings code-review">
+      {previous.length > 0 && <div className={current ? 'demo-versions review-versions' : 'demo-versions review-versions earlier'}>
+        <button className="step" disabled={position === 0} title={t.codeReview.older} aria-label={t.codeReview.older} onClick={() => setShown(position - 1)}>‹</button>
+        <span>{t.codeReview.version(position + 1, previous.length + 1, current)}{!current && ` · ${handedAt(previous[position]!.at)}`}</span>
+        <button className="step" disabled={current} title={t.codeReview.newer} aria-label={t.codeReview.newer} onClick={() => setShown(position + 1 === previous.length ? null : position + 1)}>›</button>
+        {!current && position < previous.length - 1 && <button className="link" onClick={() => setShown(null)}>{t.codeReview.toLatest}</button>}
+      </div>}
+      {current && r.stale && r.state !== 'running' && <p className="hint">{t.codeReview.staleHint}</p>}
+      {selected.state === 'running' ? (
+        <>
+          <p className="rv-busy">{t.codeReview.running(selectedReviewer)}</p>
+          <p className="hint">{t.codeReview.runningHint}</p>
+        </>
+      ) : selected.state === 'failed' ? (
+        <p className="bad">{t.codeReview.failed(selected.error ?? '')}</p>
+      ) : (
+        <>
+          <h4 className="p-h">{!findings.length && selected.findings?.length ? t.codeReview.allIgnored : t.codeReview.findings(findings.length, open.length)}</h4>
+          <FindingList item={item} findings={findings} decides={current && decides} />
+          {current && decides && <ReviewSubmit item={item} />}
+        </>
+      )}
+      {current && again && (
+        <button className="btn" onClick={() => act({ action: 'codeReview' }, { close: false })}>
+          {t.codeReview.again}
+        </button>
+      )}
+    </section>
+  );
+}
+
+/** Send the selected code review routes from the Review tab, including on phones without chat. */
+function ReviewSubmit({ item }: { item: Item }) {
+  const draft = cardDraft(item.id);
+  const choices = useDraft(draft).findings ?? {};
+  const notes = useDraft(draft).findingNotes;
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const findings = Object.fromEntries(Object.entries(choices).filter(([id]) =>
+    item.codeReview?.findings?.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided),
+  ));
+  if (!Object.keys(findings).length) return null;
+  const findingNotes = notesOf(notes, findings);
+  const submit = async (agent?: import('../core/types').AgentSetting) => {
+    if (sending) return;
+    setSending(true);
+    setError('');
+    try {
+      await api.act(item.id, { action: 'message', text: '', findings, ...(Object.keys(findingNotes).length ? { findingNotes } : {}), ...(agent ? { newAgent: agent } : {}) });
+      sentChoices(draft, findings);
+    } catch (e) {
+      setError(failText(e));
+    } finally {
+      setSending(false);
+    }
+  };
+  return (
+    <div className="review-submit">
+      <button type="button" className="btn primary start-agent-main" disabled={sending} onClick={() => submit()}><span>{t.codeReview.submitAnswers}</span>{item.workerSetting && <span className="start-agent-model">{describeAgent(item.workerSetting, true)}</span>}</button>
+      <StartAgent label={t.codeReview.submitNewAgent} selectionOnly hint={t.codeReview.newAgentHint} disabled={sending} onStart={(agent) => { if (agent) void submit(agent); }} />
+      {error && <p className="p-error">{error}</p>}
+    </div>
+  );
+}
+
+/** The findings the owner decides on: a review card's, or those of the code review of a card's work (`code`). */
+export function findingsOf(item: Item): { findings: Finding[]; code: boolean } | null {
+  if (item.contribution) return { findings: item.contribution.findings ?? [], code: false };
+  if (item.codeReview?.findings) return { findings: item.codeReview.findings, code: true };
+  return null;
+}
+
+/**
+ * Unpushed commits on the local main that a review card's PR collides with, as Seismic found before
  * the merge: which commit the pull after it would stop at, the card that landed it (to open), and
  * what the owner can do about it.
  */
@@ -2446,25 +2779,108 @@ function Clash({ clash, onPush }: { clash: ClashFound; onPush?: () => void }) {
   );
 }
 
+/**
+ * Approved work that could not land, since main's checkout has uncommitted changes to files the card
+ * changes too: they are named, and either button moves them into the card for its agent to work in.
+ */
+function Blocked({ item, act }: { item: Item; act: (a: CardAction, done: ActDone) => void }) {
+  const files = item.blocked!.files;
+  return (
+    <section className="findings">
+      <div className="rr-clash">
+        <b>{t.blocked.head(files.length)}</b>
+        <ul className="blocked-files">
+          {files.slice(0, 8).map((f) => (
+            <li key={f}>
+              <code>{f}</code>
+            </li>
+          ))}
+          {files.length > 8 && <li>+ {files.length - 8}</li>}
+        </ul>
+        <div className="rr-clash-what">{t.blocked.what}</div>
+        <div className="rr-clash-push">
+          <button className="btn primary" title={t.blocked.landHint} onClick={() => act({ action: 'fold', land: true }, { close: true, ack: t.blocked.landed, pending: t.blocked.folding })}>
+            {t.blocked.land}
+          </button>
+          <button className="btn" title={t.blocked.demoHint} onClick={() => act({ action: 'fold', land: false }, { close: true, ack: t.blocked.demoed, pending: t.blocked.folding })}>
+            {t.blocked.demo}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The owner's own words on one open finding, at the bottom right of it: "Write more context" opens
+ * a text box and turns into "Save"; the saved words show on the finding and go verbatim to the
+ * agent with the finding's decision.
+ */
+function FindingContext({ draft, id }: { draft: string; id: number }) {
+  const { findingNotes, findingNoteEdits } = useDraft(draft);
+  const saved = findingNotes?.[id] ?? '';
+  const edit = findingNoteEdits?.[id];
+  const editing = edit !== undefined;
+  // what is typed lives in the draft too, so it survives closing the card and reloads, but only Save makes it context to send
+  const type = (words: string | undefined) =>
+    updateDraft(draft, (d) => {
+      const { [id]: _, ...rest } = d.findingNoteEdits ?? {};
+      return { findingNoteEdits: words === undefined ? rest : { ...rest, [id]: words } };
+    });
+  const save = () => {
+    updateDraft(draft, (d) => {
+      const { [id]: _, ...rest } = d.findingNotes ?? {};
+      return { findingNotes: edit?.trim() ? { ...rest, [id]: edit } : rest };
+    });
+    type(undefined);
+  };
+  return (
+    <div className="f-context">
+      {editing ? (
+        <textarea autoFocus rows={3} value={edit} placeholder={t.review.contextPlaceholder} onChange={(e) => type(e.target.value)} />
+      ) : (
+        saved && <p className="f-note">{saved}</p>
+      )}
+      <button type="button" className="f-context-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => (editing ? save() : type(saved))}>
+        {editing ? t.review.saveContext : saved ? t.review.editContext : t.review.addContext}
+      </button>
+    </div>
+  );
+}
+
+/** What went out with the owner's choices leaves the draft: those choices and the saved context of their findings; context of other findings and words still being typed stay. */
+function sentChoices(draft: string, sent: Record<string, FindingPick>) {
+  const without = (from: Record<string, string> | undefined) => Object.fromEntries(Object.entries(from ?? {}).filter(([id]) => !(id in sent)));
+  updateDraft(draft, (d) => ({ findings: undefined, findingNotes: without(d.findingNotes) }));
+}
+
+/** The owner's notes on the findings they decided on, trimmed; a finding without words has none. */
+const notesOf = (notes: Record<string, string> | undefined, decided: Record<string, FindingPick>) =>
+  Object.fromEntries(Object.entries(notes ?? {}).filter(([id, text]) => id in decided && decided[id] !== 'ignore' && text.trim()));
+
+/** A finding the card lists: one the owner ignored goes from the list once the choices are sent. */
+export const shownFinding = (f: Finding) => f.status !== 'dropped';
+
 /** A finding whose bundle still means something: open, or made a follow-up task. */
 const bundled = (f: Finding) => f.status === 'open' || f.status === 'later';
 
 /**
- * Above the field of a review card: what the owner decided for its findings, which goes out with the
- * words; with several made follow-up tasks, how many tasks they become as their agent bundled them.
+ * Above the field of a review card, or of a card with a code review: what the owner decided for its
+ * findings, which goes out with the words; with several made follow-up tasks, how many tasks they
+ * become as they are bundled.
  */
-function DecidedChip({ item, decided }: { item: Item; decided: Record<string, ChangeRoute> }) {
-  const c = item.contribution!;
-  const named = Object.entries(decided).filter(([id]) => c.findings?.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided));
+function DecidedChip({ item, decided }: { item: Item; decided: Record<string, FindingPick> }) {
+  const { findings, code } = findingsOf(item) ?? { findings: [], code: false };
+  const named = Object.entries(decided).filter(([id]) => findings.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided));
   if (!named.length) return null;
-  const later = named.filter(([, route]) => route === 'later').map(([id]) => c.findings!.find((f) => f.id === Number(id))!);
+  const later = named.filter(([, route]) => route === 'later').map(([id]) => findings.find((f) => f.id === Number(id))!);
   const tasks = new Set(later.map((f) => [f.id, ...(f.with ?? []).filter((w) => later.some((l) => l.id === w))].sort((a, b) => a - b).join())).size;
   return (
     <div className="quote decided">
       <div className="decided-lines">
         {named.map(([id, route]) => (
           <span key={id} className="quote-text">
-            {t.review.decidedLine(Number(id), route === 'self' ? t.review.self : route === 'later' ? t.review.later : t.review.toContributor)}
+            {t.review.decidedLine(Number(id), route === 'self' ? (code ? t.codeReview.fix : t.review.self) : route === 'later' ? t.review.later : route === 'ignore' ? t.review.ignore : t.review.toContributor)}
           </span>
         ))}
         {later.length > 1 && <span className="decided-tasks">{t.review.tasks(tasks)}</span>}
@@ -2545,8 +2961,8 @@ async function saveHeld(id: string) {
 }
 
 /**
- * The text that goes onto the PR with the approval, and „Bearbeiten“ on it: the text as a field in
- * its place, which „Speichern“ makes the text that goes out, as does the approval. What is typed
+ * The text that goes onto the PR with the approval, and "Edit" on it: the text as a field in
+ * its place, which "Save" makes the text that goes out, as does the approval. What is typed
  * waits in a draft of its own until then, through closing the card and a reload; words dictated
  * with the cursor in it go in.
  */
@@ -2612,16 +3028,34 @@ function HeldText({ card, body, save }: { card: string; body: string; save: (bod
   );
 }
 
+/** Approving would put this demo, the latest and not on the page yet, on the page: the owner may opt out, or share it now. */
+function sharesLater(item: Item, demo: Demo, onApproval: boolean): boolean {
+  const s = item.share;
+  const busy = s?.state === 'publishing' || s?.state === 'withdrawing';
+  const here = !!s?.url && (demo.handover !== undefined ? !!s.on?.includes(demo.handover) : !s.stale);
+  return onApproval && demo === item.demo && !here && !busy && !item.landing && (item.state === 'working' || item.state === 'waiting');
+}
+
+/** "Share on approval", under the row of buttons that approves. */
+function ShareOnApproval({ item, act }: { item: Item; act: (a: CardAction, done: ActDone) => Promise<void> }) {
+  return (
+    <label className="share-check" title={t.share.onApprovalHint}>
+      <input type="checkbox" role="switch" className="toggle" checked={!item.notOnApproval} onChange={(e) => void act({ action: 'shareOnApproval', on: e.target.checked }, { close: false })} />
+      {item.contribution ? t.review.onApproval : t.share.onApproval}
+    </label>
+  );
+}
+
 /**
  * Sharing the demo shown with colleagues: "Teilen" publishes it right away, then the page's link with
  * "Nicht mehr teilen" for this demo. A demo not on the page yet goes onto it beside the versions
- * there („Zur Seite dazunehmen“; an earlier demo in its place by handover) or, the latest, in their place
- * („Auf der Seite ersetzen“), the worker's word on it first; "Erneut teilen" once the site writes pages
+ * there ("Add to the page"; an earlier demo in its place by handover) or, the latest, in their place
+ * ("Replace on the page"), the worker's word on it first; "Erneut teilen" once the site writes pages
  * differently than when it published this one. Where the site publishes on approval (`onApproval`),
- * the latest demo not on the page has „Mit der Freigabe teilen“ until the card is approved, and
- * "Teilen" reads „Jetzt teilen“: the owner may share it before approving, or not on approving.
+ * the latest demo not on the page has "Share on approval" until the card is approved, and
+ * "Teilen" reads "Share now": the owner may share it before approving, or not on approving.
  */
-function ShareBox({ item, demo, act, onApproval, approveAll, vocabulary, unlisted }: { item: Item; demo: Demo; act: (a: CardAction, done: ActDone) => Promise<void>; onApproval: boolean; approveAll?: (() => Promise<void>) | undefined; vocabulary?: PageTags | undefined; unlisted: boolean }) {
+function ShareBox({ item, demo, act, onApproval, vocabulary, unlisted }: { item: Item; demo: Demo; act: (a: CardAction, done: ActDone) => Promise<void>; onApproval: boolean; vocabulary?: PageTags | undefined; unlisted: boolean }) {
   const [copied, copy] = useCopy(2000);
   const s = item.share;
   const all = [...(item.demos ?? []), ...(item.demo ? [item.demo] : [])];
@@ -2637,15 +3071,7 @@ function ShareBox({ item, demo, act, onApproval, approveAll, vocabulary, unliste
   const along = mine < 0 ? [] : withSupplemented(all, mine).slice(0, -1).map((d) => all.indexOf(d) + 1);
   // a latest demo from before handovers were kept is on the page unless the page shows an earlier one
   const here = !!s?.url && (demo.handover !== undefined ? !!s.on?.includes(demo.handover) : latest && !s.stale);
-  // approving would put this demo on the page: the owner may opt out, or share it now; where it would not, the owner may have it do so for the repository
-  const before = latest && !here && !busy && !item.landing && (item.state === 'working' || item.state === 'waiting');
-  const later = onApproval && before;
-  const approval = (later || (before && approveAll)) && (
-    <label className="share-check" title={later ? t.share.onApprovalHint : t.share.onApprovalRepoHint}>
-      <input type="checkbox" checked={later && !item.notOnApproval} onChange={(e) => (later ? go({ action: 'shareOnApproval', on: e.target.checked }) : void approveAll?.())} />
-      {item.contribution ? t.review.onApproval : t.share.onApproval}
-    </label>
-  );
+  const later = sharesLater(item, demo, onApproval);
   const replace = (first: boolean) => (
     <button key="replace" className={first ? 'btn primary' : 'btn'} title={t.share.replaceHint} onClick={() => go({ action: 'share', ...which })}>
       {t.share.replace}
@@ -2675,7 +3101,6 @@ function ShareBox({ item, demo, act, onApproval, approveAll, vocabulary, unliste
       ) : !s?.url ? (
         <div className="share-row">
           {along.length > 0 && <p className="hint">{t.share.along(t.share.demos(along))}</p>}
-          {approval}
           <button className="btn share-go" title={later ? t.share.shareNowHint : unlisted ? t.share.shareHintUnlisted : demo.kind === 'html' ? t.share.shareHintHtml : t.share.shareHint} onClick={() => go({ action: 'share', ...which })}>
             <ShareIcon />
             {later ? t.share.shareNow : t.share.share}
@@ -2714,10 +3139,9 @@ function ShareBox({ item, demo, act, onApproval, approveAll, vocabulary, unliste
                 </>
               )}
             </p>
-            {/* the worker's word comes first; without it „Auf der Seite ersetzen“, as the latest demo always went out before */}
+            {/* the worker's word comes first; without it "Replace on the page", as the latest demo always went out before */}
             {!latest ? add(false) : demo.follows === 'supplements' ? [add(true), replace(false)] : [replace(true), add(false)]}
           </div>
-          {approval && <div className="share-row">{approval}</div>}
         </>
       )}
       {vocabulary && <ShareTags tags={item.tags} vocabulary={vocabulary} set={(dimension, values) => go({ action: 'pageTags', dimension, values })} />}
@@ -2726,9 +3150,9 @@ function ShareBox({ item, demo, act, onApproval, approveAll, vocabulary, unliste
 }
 
 /**
- * The page's tags as chips, before sharing and after: × takes one off, „+“ offers the values of the
+ * The page's tags as chips, before sharing and after: × takes one off, "+" offers the values of the
  * site's vocabulary the page lacks. A change takes effect at once (a shared page goes out again), and
- * stays: neither a later worker nor Obeya's reading session changes what the owner set.
+ * stays: neither a later worker nor Seismic's reading session changes what the owner set.
  */
 function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; vocabulary: PageTags; set: (dimension: string, values: string[]) => void }) {
   const [open, setOpen] = useState(false);
@@ -2751,9 +3175,7 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
               <span className="dim">{d}:</span> {v}
             </span>
             <button className="x" title={t.share.removeTag(d, v)} aria-label={t.share.removeTag(d, v)} onClick={() => set(d, values.filter((x) => x !== v))}>
-              <svg viewBox="0 0 10 10" aria-hidden="true">
-                <path d="M2 2l6 6M8 2l-6 6" />
-              </svg>
+              <X size={10} strokeWidth={1.75} aria-hidden="true" />
             </button>
           </span>
         )),
@@ -2761,9 +3183,7 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
       {rest.length > 0 && (
         <span className="menu-pill">
           <button className={open ? 'tag-add on' : 'tag-add'} title={t.share.addTag} aria-label={t.share.addTag} aria-expanded={open} onClick={() => setOpen(!open)}>
-            <svg viewBox="0 0 10 10" aria-hidden="true">
-              <path d="M5 1.5v7M1.5 5h7" />
-            </svg>
+            <Plus size={10} strokeWidth={1.75} aria-hidden="true" />
           </button>
           {open && (
             <div className="bar-menu tag-menu">
@@ -2795,9 +3215,7 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
 /** Sharing's mark on its button: a box with an arrow going out of it. */
 function ShareIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3v12M7.5 7.5L12 3l4.5 4.5M5 11v9h14v-9" />
-    </svg>
+    <Share strokeWidth={2} aria-hidden="true" />
   );
 }
 
@@ -2812,18 +3230,16 @@ function ExportBox({
   demo,
   run,
   needs,
-  personal,
-  repoPath,
+  site,
   onDemoSites,
 }: {
   item: Item;
   demo: Demo;
   run: Run;
   needs?: { site: string; file: string } | undefined;
-  /** Why the owner's personal demo site does not take the demo: none set up here, or the repository is private and not ticked. */
-  personal?: 'none' | 'private' | undefined;
-  repoPath?: string | undefined;
-  /** Opens the configuration at the personal demo site. */
+  /** Why the canvas shares on no site: it has none, or its path there is not initialized yet. */
+  site?: 'none' | 'init' | undefined;
+  /** Opens the canvas's settings, where it chooses its demo site. */
   onDemoSites?: (() => void) | undefined;
 }) {
   const [open, setOpen] = useState(false);
@@ -2851,7 +3267,7 @@ function ExportBox({
         </button>
       ) : (
         <>
-          {!needs && personal !== 'private' && <p className="hint">{t.share.exportIntro}</p>}
+          {!needs && <p className="hint">{t.share.exportIntro}</p>}
           <div className="share-row">
             <button className="btn" title={artifact ? t.share.zipHintHtml : t.share.zipHint} disabled={!!busy} onClick={() => go('zip')}>
               {busy === 'zip' ? t.share.preparing : t.share.zip}
@@ -2871,22 +3287,13 @@ function ExportBox({
         </>
       )}
       {needs && <p className="hint">{t.share.needsEnv(needs.site, needs.file)}</p>}
-      {open && personal === 'none' && onDemoSites && (
+      {open && site && onDemoSites && (
         <p className="hint">
-          {t.share.noPersonal}{' '}
+          {site === 'init' ? t.share.siteNotReady : t.share.noSite}{' '}
           <button className="link" onClick={onDemoSites}>
-            {t.share.setUpPersonal}
+            {site === 'init' ? t.share.initSite : t.share.chooseSite}
           </button>
         </p>
-      )}
-      {open && personal === 'private' && repoPath && (
-        <>
-          <p className="hint">{t.share.privateRepo}</p>
-          <label className="share-check">
-            <input type="checkbox" checked={false} onChange={() => void run(() => api.allowPrivateRepo(repoPath, true).then(() => {}), { close: false })} />
-            {t.share.allowPrivate}
-          </label>
-        </>
       )}
     </div>
   );
@@ -2905,7 +3312,7 @@ function ArchiveButton({ item, run, className = 'btn', label = t.archive.archive
       {t.archive.unarchive}
     </button>
   ) : (
-    <button className={className} disabled={held} title={held ? t.archive.holdsWork : hint} onClick={() => run(() => api.archive(item.id), { close: true, ack: t.archive.archived(title), undo: () => api.unarchive(item.id) })}>
+    <button className={className} disabled={held} title={held ? t.archive.holdsWork : hint} onClick={() => run(() => api.archive(item.id), { close: true, ack: t.archive.archived(title), undo: () => api.unarchive(item.id), rate: item.id })}>
       {label}
     </button>
   );
@@ -2919,7 +3326,7 @@ function ManualTitle({ item, onEdit }: { item: Item; onEdit: (p: CardPatch) => v
   // one line of text that wraps: a long title shows in full instead of running out of the box
   const ref = useRef<HTMLTextAreaElement>(null);
   useFitHeight(ref, title);
-  // the title Obeya gave the card while it is open shows, unless the owner has typed in the field
+  // the title Seismic gave the card while it is open shows, unless the owner has typed in the field
   const typed = useRef(false);
   useEffect(() => {
     if (!typed.current && !title && item.title) setTitle(item.title);
@@ -3017,7 +3424,7 @@ function TaskTalk({
               listener,
               onWords: tell(field),
               onPicked: (text, [picks = []], images, replyTo) => act({ action: 'answer', text, picks, images, ...(replyTo ? { replyTo } : {}) }, { close: false }),
-              onDecided: (text, findings, images, replyTo) => act({ action: 'message', text, findings, ...(images ? { images } : {}), ...(replyTo ? { replyTo } : {}) }, { close: false }),
+              onDecided: (text, findings, images, replyTo, findingNotes) => act({ action: 'message', text, findings, ...(findingNotes ? { findingNotes } : {}), ...(images ? { images } : {}), ...(replyTo ? { replyTo } : {}) }, { close: false }),
             }
           : undefined
       }
@@ -3066,7 +3473,7 @@ function TalkColumn({ children, bare }: { children: ReactNode; bare?: boolean })
 /** The owner's one field under a conversation: words, and the options picked, go out with one Send. */
 interface TalkField {
   placeholder: string;
-  /** Obeya, when it reads the words rather than the card's agent. */
+  /** Seismic, when it reads the words rather than the card's agent. */
   listener?: string;
   /** Starts the field afresh when it changes (another question, another state). */
   key?: string;
@@ -3081,8 +3488,8 @@ interface TalkField {
   onWords: (text: string, images?: string[], replyTo?: number) => Promise<void>;
   /** Picked options go to the agent with the words: `picks` holds them for each question, and with `quote` the text names them too. */
   onPicked: (text: string, picks: string[][], images?: string[], replyTo?: number) => Promise<void>;
-  /** On a review card: the owner's decisions on its findings go to the agent with the words. */
-  onDecided?: (text: string, findings: Record<string, ChangeRoute>, images?: string[], replyTo?: number) => Promise<void>;
+  /** On a review card or a card with a code review: the owner's decisions on the findings go to the agent with the words. */
+  onDecided?: (text: string, findings: Record<string, FindingPick>, images?: string[], replyTo?: number, findingNotes?: Record<string, string>) => Promise<void>;
 }
 
 /**
@@ -3099,16 +3506,18 @@ function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkF
   // the demo video stands at a place: the words are about it, where the card's agent hears them
   const place = usePlace(item.id);
   const at = field && !field.listener && !options ? place : null;
-  // a review card's field, where its agent hears the words: the owner's decisions on its findings go with them
-  const review = !!item.contribution && !!field && !field.listener && !finished(item.state);
+  // the field of a review card or a card with a code review, where its agent hears the words: the owner's decisions on the findings go with them
+  const decidable = !!field && !field.listener && !finished(item.state) ? findingsOf(item) : null;
   const allDecided = useDraft(draft).findings;
-  const decided = review && allDecided ? Object.fromEntries(Object.entries(allDecided).filter(([id]) => item.contribution!.findings?.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided))) : {};
+  const allNotes = useDraft(draft).findingNotes;
+  const decided = decidable && allDecided ? Object.fromEntries(Object.entries(allDecided).filter(([id]) => decidable.findings.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided))) : {};
   const deciding = Object.keys(decided).length > 0;
   const send = async (words: string, images?: string[], to?: Reply['to']) => {
     const replyTo = typeof to === 'number' ? to : undefined;
     if (deciding && field!.onDecided) {
-      await field!.onDecided(words.trim(), decided, images, replyTo);
-      updateDraft(draft, { findings: undefined });
+      const findingNotes = notesOf(allNotes, decided);
+      await field!.onDecided(words.trim(), decided, images, replyTo, Object.keys(findingNotes).length ? findingNotes : undefined);
+      sentChoices(draft, decided);
       return;
     }
     await (picked ? field!.onPicked(field!.quote ? answerText(questions, picks.picks, words) : words.trim(), picks.picks, images, replyTo) : field!.onWords(words, images, replyTo));

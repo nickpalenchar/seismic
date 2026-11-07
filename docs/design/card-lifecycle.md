@@ -11,27 +11,26 @@ A worker proposes a card with `propose_card` (see A worker's tools). Its text is
 agent that will take the card on, as the owner would write a card (no "I", other cards named by
 their title). Apart from it come a reason, for the owner only, beside the card that proposed it, and
 what the owner has to decide, as questions with options. The owner can edit the proposal and pick
-options on it. „Übernehmen und starten“ starts it like a started planned card, through the
-Koordinator; „Übernehmen“ only plans it. Accepting writes the questions into the text, picked ones
-under „Entschieden:“, the rest under „Offene Fragen:“, so the new worker reads what is settled and
+options on it. "Accept and start" starts it like a started planned card, through the
+Koordinator; "Accept" only plans it. Accepting writes the questions into the text, picked ones
+under "Decided:", the rest under "Open questions:", so the new worker reads what is settled and
 asks the rest.
 
-Obeya proposes cards of its own too („Vorschlag von Obeya“): the Arbeitsrückschau's, and the card
-that fills in the settings of a repository that has none (see Leinwände).
+Seismic proposes cards of its own too ("Proposed by Seismic"): the work retrospective's, and the card
+that fills in the settings of a repository that has none (see Projects in Repositories and configuration).
 
-A proposed idea ("✦ Vorschlag · Idee") is for something to think through first: „Übernehmen und
-besprechen“ makes it an open idea whose exploration agent opens the discussion with the text and its
-questions; „Als Aufgabe übernehmen“ plans it as a task. „Als Idee besprechen“ on a proposed task
+A proposed idea ("✦ Proposal · Idea") is for something to think through first: "Accept and discuss" makes it an open idea whose exploration agent opens the discussion with the text and its
+questions; "Accept as a task" plans it as a task. "Discuss as an idea" on a proposed task
 makes it an open idea the same way, whose agent hears that it was proposed to be built and the owner
-wants to think it through first; by voice, „erst als Idee besprechen“.
+wants to think it through first; by voice, "discuss it as an idea first".
 
 #### A proposal that starts later
 
 A follow-up that can only be done later (whether a bank has registered a form, two weeks on) is a
 proposal with a start time (`start_at`), not a sentence in a handover where it goes under. The owner
 decides on it now, and the card starts by itself at the time. The time stands under the proposal's
-text with „Ändern“ (the „Später …“ menu, with „Ohne Zeitpunkt“), and on the canvas card after its
-state („startet …“). Its one button, „Übernehmen“, plans the card and snoozes it until then, the
+text with "Change" (the "Later" menu, with "No set time"), and on the canvas card after its
+state ("starts …"). Its one button, "Accept", plans the card and snoozes it until then, the
 proposal's reason as what it does then; at the time it starts like a started planned card (see
 Snoozing a card), at once if the time has passed. Its worker hears when the card was set to start
 and that it is that time now, so "in two weeks" reads as due; it checks what it can and asks the
@@ -41,54 +40,73 @@ drops it. Starting after another card is done is the plan's order, not this.
 #### A proposal its agent takes back
 
 A worker takes back its own proposal with `withdraw_proposal`, or replaces it with `propose_card`'s
-`replaces`, naming it by title (Obeya matches the card's latest proposal of that title, case, quotes
+`replaces`, naming it by title (Seismic matches the card's latest proposal of that title, case, quotes
 and markdown aside, and otherwise answers with the list of its proposals). A proposal still open goes
 from the canvas at once, also mid-rework, and the proposing card's conversation says so. It is kept
-as deleted with the mark, so the Rückschau does not read it as dismissed by the owner. One the owner
-accepted already is only marked until it is finished: its card reads „Ersetzt durch „…““ or „Vom
-Agenten zurückgezogen“ and needs the owner, and its panel says by what and why, with „Entfernen“ (as
-„Löschen“, with an undo) and „Behalten“. A finished card stays as it is.
+as deleted with the mark, so the retrospective does not read it as dismissed by the owner. One the owner
+accepted already is only marked until it is finished: its card reads "Replaced by “…”" or "Withdrawn by its agent" and needs the owner, and its panel says by what and why, with "Remove" (as
+"Delete", with an undo) and "Keep". A finished card stays as it is.
 
-#### Merging a proposal with a card
+#### Merging cards
 
-A proposal that belongs with another card, the owner's planned task or another proposal, is merged
-with it: „Zusammenführen mit …“ among the proposal's buttons opens a picker of the cards it can be
-merged with (tasks on the canvas nobody has worked on yet, not snoozed, not themselves merged or
-reworked, their repository running; never a proposed idea, nor from a snoozed proposal), the newest first, with a search over titles and texts. Picked, the
-two stand on the canvas as one card twice as wide, the proposal on the left, the other card on the
-right, glued by a knot that spins while a read-only agent in the other card's repository writes one
-card of both (title and text; questions stay questions). The pair goes to the nearest free spot by
-the other card. Meanwhile neither needs the owner and both refuse everything but „Trennen“ (and
-dismissing the proposal); the other card's own panel says it is being merged.
+"Merge with" starts at a task nobody has worked on: a proposal or a planned task.
+The picker searches titles and texts, listing planned tasks and proposals first, then in-progress,
+done/live and archived tasks, newest first within each group. It excludes itself, workstreams,
+ideas and prototypes, snoozed cards, cards being merged or reworked, and repositories that are down.
+Two started tasks cannot merge with each other.
 
-Once the merged card is there the pair needs the owner (the pin, „Braucht dich“). Its panel shows
-the two cards side by side on top and the merged card under them, centred, with „Zusammenführung
-übernehmen“ and „Trennen“. Long originals open clamped so the merged card is visible immediately
-on a tall screen; „Alles anzeigen“ expands both together for comparison, and can collapse them again.
-Only the panel scrolls, never the two originals independently. The merged text is always shown in
-full, and the actions stay at the panel's foot while it scrolls, on the phone as well.
-Approving gives the other card the merged title and text, the
-screenshots of both and the pair's place; a proposal also keeps the questions of both, a planned
-task gets the proposal's questions as open ones in its text, as accepting does. The proposal goes,
-kept as deleted with a mark so the Rückschau does not read it as dismissed, and what followed up on
-it follows up on the other card. „Trennen“ leaves both as they were, side by side where the pair
-stood. An agent that ends without a merged text leaves the reason in the panel, with „Nochmal
-versuchen“; a merge cut off by a restart starts again.
+The furthest-along card survives: proposal, planned, in progress (including stopped tasks with a
+branch), done/live, archived. The dissolving card is on the left and the survivor on the right.
+When both cards are unworked (two proposals, proposal and planned, or two planned tasks), a
+read-only agent writes one combined title and task, preserving both sets of requirements and
+keeping questions separate. Otherwise it compares the back card's text against the survivor's
+text and its handover summary, where present. It reads no branch diff or repository files.
+The survivor's text, branch, worker, demo, state and place stay untouched, while its worker can
+continue working during comparison.
 
-Decision (2026-11-04): the merged text waits for the owner rather than replacing the card at once,
-since an agent's summary may drop or blur what either card asked for; and only cards nobody has
-worked on can be merged, so no worker's task changes under it. Merging into a new third card was
-rejected: the owner's card, with its place, group and arrows, is what stays.
+The pair shows together on the canvas, with a spinner while the comparison runs. Once ready it
+needs the owner. Its panel shows both originals above the merged card. Long originals start as
+previews; "Show all" expands them together. Only the panel scrolls; the result is complete
+and "Approve merge" and "Separate" stay reachable on desktop and phone.
+
+For a progressed survivor the merged card is an exact copy of the right card. If it covers the
+left completely, all of the left task is crossed out, with a green notice explaining that the
+right card covers it and is preserved. Otherwise only covered parts of the left task are crossed
+out. Below the unchanged merged card an arrow leads to a preview of a new planned follow-up,
+containing only uncovered work, with the relevant screenshots and questions from the left card.
+A notice explains that extra work becomes a fast follow. The coverage map reproduces the original
+task exactly, so omissions or rewriting cannot hide a requirement from the owner.
+
+Only approval removes the left card and creates the follow-up, as one transaction. Its arrows and
+existing follow-ups move to the survivor, removing self arrows and duplicate arrows. The new
+follow-up is an ordinary planned task in the survivor's repository and group, placed beside it,
+with the existing dependency arrow waiting for the survivor to land. An archived survivor stays
+archived; its new follow-up is created on the canvas just the same. An archived stopped task
+continues to hold the follow-up until its work lands; an archived finished task holds nothing. For unworked pairs approval
+instead gives the survivor the combined text and screenshots, with both proposals' questions kept
+as questions (or included in a planned task's text). The dissolved card is kept as deleted, marked
+as merged rather than dismissed for retrospective.
+
+"Separate" restores both original cards, including their places, without creating work. A failed
+comparison shows its reason and "Try again"; unfinished comparisons resume after restart.
+If the compared text or handover changes before approval, a new comparison is required. A combined
+unworked draft cannot overwrite a survivor that has since started.
+
+Decision (2026-11-04): started, finished and archived tasks may be survivors, but only an unworked
+card can dissolve. This preserves the task under its worker while allowing covered requests to
+go and uncovered work to become a follow-up. The owner approves the comparison before any deletion
+or creation: an agent can misjudge coverage and silently lose work. Crossed-out originals make
+that judgement checkable. Merging into a third combined task is rejected: the further-along card,
+its work and its place are what stay.
 
 #### Reworking a proposal by words
 
-Instead of editing a proposal by hand, the owner may say or type what should change (its field „Was
-soll anders werden?“). With the proposal open, the words go straight to a read-only agent of its own
+Instead of editing a proposal by hand, the owner may say or type what should change (its field "What should change?"). With the proposal open, the words go straight to a read-only agent of its own
 in the card's repository, the reviser, without the Koordinator or an undo window. It rewrites title,
 text, reason and questions by those words and keeps the rest; a question the words settle goes, its
-decision into the text. What the words ask of Obeya (accept or dismiss it, a rule, another card) it
-passes on with `to_obeya` (an accept passed on that way waits for the rework, as the button does);
-what they only ask („Was würdest du nehmen?“) it answers, leaving the
+decision into the text. What the words ask of Seismic (accept or dismiss it, a rule, another card) it
+passes on with `to_seismic` (an accept passed on that way waits for the rework, as the button does);
+what they only ask ("Which would you take?") it answers, leaving the
 proposal as it was. Words about a proposal that is not open go to the Koordinator.
 
 Screenshots with the words (see Screenshots) reach the reviser along with those already on the
@@ -97,20 +115,20 @@ that go with the task (dropping one it kept before, if the words make it obsolet
 with the proposal's text and are the task's once accepted.
 
 The conversation stands beside the proposal as on an idea, its open questions at the end, a settled
-question where it was asked (see The conversation). Options picked and sent („Antworten“) go to the
+question where it was asked (see The conversation). Options picked and sent ("Answer") go to the
 reviser at once; accepting instead takes the picks into the text. While the rework runs the proposal
-shows „Wird überarbeitet“ (on the canvas card in place of its state, which the kind line already
-names), cannot be edited or accepted with „Übernehmen“ alone, and does not count
+shows "Being reworked" (on the canvas card in place of its state, which the kind line already
+names), cannot be edited or accepted with "Accept" alone, and does not count
 as needing the owner; words said meanwhile wait for the next rework. Then the conversation shows the
-reviser's reply, „Vorschlag überarbeitet.“ when the text changed, and any new questions. A reviser
+reviser's reply, "Proposal revised." when the text changed, and any new questions. A reviser
 that ends without a text leaves the proposal as it was, with the error; a rework running at a
 restart starts again.
 
-„Übernehmen und starten“ (and „Übernehmen und besprechen“, „Als Idee besprechen“) does not wait for
+"Accept and start" (and "Accept and discuss", "Discuss as an idea") does not wait for
 the rework, like "So bauen" on an idea: clicked during one, the proposal is accepted once the new text
 is there, unless it still has questions, in which case it stays a proposal and the conversation says
-why. Meanwhile the button reads „Startet nach der Überarbeitung …“ with „Doch nicht übernehmen“, and
-the canvas card's state line adds „danach übernommen“. Accepting by voice during a rework is refused (see Commands
+why. Meanwhile the button reads "Starts after the rework …" with "Don’t accept after all", and
+the canvas card's state line adds "then accepted". Accepting by voice during a rework is refused (see Commands
 to the Koordinator).
 
 ### At work
@@ -122,16 +140,14 @@ and records the demo.
 
 `waiting: demo`: the card carries the demo (see The demo on the card); the owner approves or gives
 feedback. Whatever the owner writes or says on the card goes to the worker at once, and the work
-still waits for approval: while the worker takes the words in, the card is at work („Agent arbeitet
-an deiner Nachricht“, not counted as needing the owner), „Freigeben“ stays, and a change the words
-call for comes as a new handover. Words asking Obeya for something (gib frei, a follow-up) the worker
-passes on with `to_obeya`.
+still waits for approval: while the worker takes the words in, the card is at work ("Agent working", not counted as needing the owner), "Approve" stays, and a change the words
+call for comes as a new handover. Words asking Seismic for something (gib frei, a follow-up) the worker
+passes on with `to_seismic`.
 
-When the turn ends, the card is the owner's again. Without a new demo it reads „Agent hat
-geantwortet, wartet auf dich“ instead of „Demo bereit“; a new demo reads „Demo bereit“ again. Only
-words for the owner count as an answer (a reply, what the worker says, Obeya's result of
-`to_obeya`), from this turn; an answer to earlier words does not count. A turn that ends without any
-(an error, the session ended) leaves the card at „Demo bereit“, and the conversation says the agent
+When the turn ends, the card is the owner's again. Without a new demo it reads "Agent answered, waiting for you" instead of "Demo ready"; a new demo reads "Demo ready" again, numbered from the second demo on ("2nd demo ready", "3rd demo ready"; drafts that came with a question do not count). Only
+words for the owner count as an answer (a reply, what the worker says, Seismic's result of
+`to_seismic`), from this turn; an answer to earlier words does not count. A turn that ends without any
+(an error, the session ended) leaves the card at "Demo ready", and the conversation says the agent
 stopped without answering. A turn that ends with words for the owner while only the app it serves
 for them to try runs on also gives the card back: only that app shows as running. Background work
 the worker waits for (a test run, a render it said a new handover waits for) keeps the card at work
@@ -153,26 +169,117 @@ first says what changed for the user and what the owner needs to know, in a few 
 most; a later one only what the conversation has not said yet, often a sentence. A reply to a note
 that changes nothing ends the turn by itself, without a new handover. Whoever reads the card's report
 outside its conversation (a follow-up's worker, the Koordinator, a prototype's idea, a shared page)
-gets the whole of it: the first handover, then „Danach im Gespräch:“ with the replies and later
+gets the whole of it: the first handover, then "Afterwards in the conversation:" with the replies and later
 handovers in order. A problem beyond the task is a proposal, not a line in the report.
+
+#### Code reviews
+
+Review answers may be submitted to the current worker or to a new agent chosen by harness, model and effort. The latter starts a fresh session in the same workspace with the selected findings as its task context; the previous worker must have finished its turn.
+
+A canvas may have the work of its cards reviewed before it lands (its settings sheet, "Code reviews",
+see The project settings in The canvas; off unless the owner turns it on, since reviews cost tokens).
+Only work that lands on `main` is reviewed: a card whose work goes through a pull request (with the
+repository's `land: pr`, also where "Straight to main" would push it) is left to the forge's
+reviewers, and so are folders without git, review cards, prototypes, work that changes nothing and
+approved work handed over again only to land.
+
+The reviewer is an agent of its own, not the worker: one session of the "Code reviews" group (see
+Models and effort in Agents and workspaces), read-only, in the card's workspace. Its brief is the
+card's title and task, the files changed and the branch's diff against `main` (cut off at a size, the
+rest left to reading the files); its instructions are to review the repository's way (its CLAUDE.md
+and docs): correctness, security, quality, and whether the change fits the design docs. It changes
+nothing and records its findings once with a tool: each with a title, a sentence or two in the
+conversation language, a severity (blocker: an app crash, a very important secret exposed, or an
+unprotected database; critical: a clear exploit, severe degradation, or other major consequence;
+major: a real defect or a clear departure from the repository's rules; minor: worth fixing without
+holding the work up; low: a small issue with limited impact; info: a nitpick or an uncertain point
+worth flagging), the file and line, whether it is about security, and the findings one agent
+would fix with it in one go (a bundle, as on a review card). A review that ends without recording
+any failed; the card says why, and it can be started again.
+
+"Reviews happen" says when:
+
+- "Automatically, with the demo": the review starts as the worker hands over, and the card shows the
+  demo at once, but the owner is not notified (push, desktop notification) that it waits until the
+  review has finished, whether the handover is the first or follows "Fix it". A "Review" tab stands after the deliverables, before Diff (see The files beside
+  the demo in Conversation on the card): its running status names the reviewing harness and model,
+  then it shows the findings, the open ones counted beside the tab's title by severity in colour.
+  A completed, current review with no findings shows a green checkmark beside the title.
+  Blocker has a dark purple badge,
+  critical a saturated red badge with white text, major a lighter red, minor orange, low yellow,
+  and info grey. The conversation notes the findings by severity when it is done, or says why it
+  failed.
+- "Manually, at handover": nothing runs by itself. "Approve" stays first and primary; beside it
+  "Start code review", in purple, until the latest handover is reviewed. The click runs exactly the
+  automatic review and opens its tab.
+
+While either review runs, the card's state rule and status line turn blue-green and say "Agent
+reviewing"; it does not show an attention badge while the review runs. "Approve" becomes a yellow warning button, and stays one while
+the card's agent (the same or a new one) fixes findings the owner sent it, until its next handover:
+fixing is part of the review. A second, smaller line inside it says why: "Review in progress" or "Fixing in progress". Clicking it asks "Approve without Review?"
+and explains that approval stops the in-progress review and moves straight to landing. The owner
+chooses "Stop Review & land" or "Continue review"; the latter leaves the review running.
+
+Changing the setting (or starting Seismic after it changed) reaches work already waiting for approval: with Manually a "Start code review" button appears, with Off the review goes. Automatically starts reviews at handovers only, never on work already waiting; findings are never settled by a setting change. Planned cards follow the setting once they hand over; cards already at work when it changed hand over without an automatic review (Manually still offers the button).
+
+Approval never waits for a review: approving while one runs stops it, and nothing of it stays. A
+handover makes the review before it stale unless the branch's commit is the one reviewed (an answer
+to the owner's words that changed no code keeps it): a review still running stops, and in automatic
+mode a new one starts; in manual mode the tab, findings and all, reads "outdated" and "Start code
+review" returns. Stopping the card stops a running review too. A restart of Seismic waits for a
+review at work as for a worker in a turn: its agent hears of it, ends its turn without findings, and
+goes on in the same session once Seismic runs again (a session that does not resume, another harness
+say, starts the review over); a review due while a restart waits starts after it. The card's log
+says it paused and went on; the tab reads running throughout. Only a review of work no longer waiting
+for approval after the restart failed ("Seismic restarted meanwhile").
+
+The Review tab lets the owner step through earlier completed reviews, in chronological order, as
+with earlier demos. Each shows its findings and the selections made on them at the time. Earlier
+reviews are read-only: their finding choices and submission controls are unavailable. The latest
+review remains selected by default, including while a newer review runs.
+
+The findings are the same element as a review card's (see Review cards in Landing), with the severity
+and where the finding is. On each open finding of the latest review the owner chooses "Fix it", "As
+a follow-up task" or "Ignore" (a second click takes it back; an ignored one is settled and leaves
+the list without reaching the worker, as on a review card). Every later review of the card's work
+is given the findings ignored or chosen as follow-up tasks in its earlier reviews, including the
+linked follow-up tasks where created, so it does not raise them again; the choices stand above the field and go to the
+worker with the card's one Send, with or without words of the owner's, exactly as on a review card.
+Each open finding also has a "Write more context" button at its bottom right, apart from the choices: it opens a text box and becomes "Save"; the saved words stand on the finding (button "Edit context") and go to the agent verbatim with the finding's decision, on review cards too. They are kept like the choices until sent and dropped with them; an ignored finding sends none.
+Approving while choices on findings are picked but not sent asks first: "Approve and close items" approves and drops them, "Go back" keeps them.
+The Review tab also offers "Submit answers" beneath the findings once a choice is made, so the
+owner can send those choices without opening the conversation on a phone. Sending them takes the
+card straight into the agent's response, clearing "Waiting for you", its "Needs you" inbox count,
+and its notification while the agent works, as sending the same choices through the conversation does.
+The worker reads each finding in full (it did not write them) and fixes those to fix on its branch,
+handing over again with a new demo where the change shows; that handover marks them fixed. While
+the worker fixes them, those findings fold to their head line (number, title, severity) with a
+"Fixing" badge before the severity, so the ones still to decide stand out; a click on the head
+unfolds one. A finding
+it holds wrong it explains in its handover instead. Follow-up tasks it makes with a tool of its own,
+bundled as the owner's words say, else as the review bundled them: tasks beside the card, following up
+on it, started at once and waiting in the queue until its work has landed (the reason reads "Builds on
+it"); until each finding chosen has its task, the worker's handover and reply are refused. A finding
+made a follow-up task links it.
 
 ### Approval and landing
 
 Where work lands through pull requests, the approve button reads "Freigeben (PR)": the card goes
-`in PR`, its worker opens the PR (until then „Freigegeben · Agent öffnet den PR“), and Obeya carries
+`in PR`, its worker opens the PR (until then "Approved · agent opening the PR"), and Seismic carries
 it through to the merge, which it does itself unless the settings leave the merge to people on the
 forge (see PR loop).
 
-Where the settings allow it (`direct`), "Direkt auf main" beside it pushes the work onto the
+Where the settings allow it (`direct`), "Straight to main" beside it pushes the work onto the
 default branch without a pull request, review or the PR's CI (see How work lands); only the button
 does, never words to the Koordinator. Where work lands on `main`, approval lands it at once.
 
-A review card, a contributor's pull request (see Review cards), reads „Mergen (PR #5)“: Obeya merges
+A review card, a contributor's pull request (see Review cards), reads "Merge (PR #5)": Seismic merges
 the head its worker reviewed, and the card is `live`; while a change request waits for the
-contributor it is `in PR`, „Wartet auf Beitragenden“.
+contributor it is `in PR`, "Waiting for the contributor".
 
 An approve click folds the card at once without waiting for the server: the canvas card says what is
-under way („wird freigegeben …“, „wird direkt auf main gepusht …“), no longer counts as needing the
+under way: first "being approved …" or "being pushed straight to main …", then the landing or its
+place in the repository’s landing queue (see How work lands). It no longer counts as needing the
 owner and is skipped by Tab, which goes on from the place of the card it opened last. A message with
 a spinner stands above the microphone, which the answer turns into the confirmation or, when the
 landing is refused, into the reason, with the card waiting for review again; a restart that cut the
@@ -180,38 +287,44 @@ landing off gives the card back the same way.
 
 #### Feedback after approval
 
-Once an approval of an agent's work has gone through (the card's button, the one-click approval in
-„Braucht dich“ on the canvas and the phone, work that changed nothing included), a prompt stands
-above the microphone: „Wie gut hat der Agent „…“ erledigt?“ with five stars (Schlecht, Mäßig, In
-Ordnung, Gut, Hervorragend) and „Überspringen“. A star saves the rating at once; then a comment
-field opens, optional, and „Überspringen“ becomes „Fertig“. The prompt stays until answered or
-skipped; another approval asks about its own card instead. Skipping records nothing: the card keeps
-asking. Every approved card (`approved`, `in PR`, `live`, `done`, archived too) whose latest
+The owner is asked how the agent did when the card goes into the archive by the owner's hand, as the
+canvas's "Cards archive" says (see Archive): where the owner archives cards ("Manually", the
+default), once the card is archived (its archive button, on the card or the canvas, or "all
+finished ones at once", which asks about each in turn); where cards archive themselves
+("Automatically, after landing"), once the approval has gone through (the card's button, work that
+changed nothing included). A workstream, which goes into the archive only with its project, is asked
+about after its approval either way. Then a prompt stands
+right above the microphone, under the confirmation: "How well did the agent do “…”?" with five stars (Poor, Fair, Okay,
+Good, Excellent) and "Skip". A star saves the rating at once; then a comment
+field opens, optional, and "Skip" becomes "Done". The prompt stays until answered or
+skipped, also when the card goes into the archive meanwhile; another approval asks about its own card instead. Skipping records nothing: the card keeps
+asking. Every approved card (`approved`, `in PR`, `live`, `done`, archived too; archiving by hand,
+only once archived) whose latest
 handover has no response shows the same stars and comment under its conversation, and once answered
 shows the answer there to change; an unsent comment is a draft of the card's like any other. Saving
 goes its own way: approval and landing never wait for it, and a refused save shows its reason in the
 prompt, the approval standing. A response is about the latest handover (see Models and effort in
 Agents and workspaces); approved again for the same handover (a retried landing), nothing new is
 asked once answered; work handed over anew asks afresh. Review cards of contributors' pull requests
-and prototypes are not asked about. „Feedback nach der Freigabe“ in Konfiguration → Benachrichtigungen und Limits turns
+and prototypes are not asked about. "Feedback after approval" in Configuration → Notifications and limits turns
 the asking off and on for every open page at once; turned off, no card asks or shows a rating, and
 the responses given stay.
 
 #### Comparing ratings
 
-„Bewertungen vergleichen“ (beside „Feedback nach der Freigabe“ in the Konfiguration, and
-under the stars of every rated card; the logo's menu has it as „Agentenleistung“) opens „Agentenleistung“ over the page, as the configuration
+"Compare ratings" (beside "Feedback after approval" in the Configuration, and
+under the stars of every rated card; the logo's menu has it as "Agent performance") opens "Agent performance" over the page, as the configuration
 is: every response on every canvas (`/api/feedback`), grouped by whom it credits (see Models and
 effort in Agents and workspaces). Each harness heads its rows, one per model and effort, the model
 as the session resolved it and an unknown field named unknown; work by several configurations
-(„Mehrere Konfigurationen“) and work nothing was recorded of („Nicht erfasst“) have rows of their
-own under „Keinem Modell allein zugeordnet“, never counted for a model. Rows are ordered by harness,
+("Several configurations") and work nothing was recorded of ("Not recorded") have rows of their
+own under "Not credited to one model", never counted for a model. Rows are ordered by harness,
 model and effort, never by score. Each says how many ratings it rests on, their average and
-comments; a row with fewer than five ratings is greyed and tagged „wenige“. The main view shows
-each row's ratings split by stars as one bar („Verteilung“); „Jede Bewertung“ draws each rating as a
+comments; a row with fewer than five ratings is greyed and tagged "few". The main view shows
+each row's ratings split by stars as one bar ("Spread"); "Each rating" draws each rating as a
 dot on the scale from 1 to 5 with the median as a line, the dots of one rating scattered in a cloud
 that grows with their number (the same at every render), each dot the larger the newer its rating, in
-five steps: up to three days, a week, a month, two months, older; „Im Zeitverlauf“ puts above the table each
+five steps: up to three days, a week, a month, two months, older; "Over time" puts above the table each
 model and effort's average per month as a line (from the first month with a rating to the last), a
 month of fewer than five ratings a hollow point, work credited to no one model without a line. The
 view chosen is kept per browser. With
@@ -228,24 +341,24 @@ again, the dialog keeps its filters and open row; it holds the keyboard's focus 
 gives it back to what opened it. A response with only a comment counts as a
 response, not a rating. The phone view has no dashboard.
 
-„Feedback-Log: jede Antwort nach Zeit“ in the dashboard's head leads to the Agent Feedback Log, a
-page of its own in place of the canvas (`/c/<canvas>/feedback`), with the dashboard's filters as they
-were; its link „← Agentenleistung“ leads back to that canvas with the dashboard open and the filters
+"Feedback log: every response by time" in the dashboard's head leads to the Agent Feedback Log, a
+page of its own in place of the canvas (`/p/<project>/feedback`), with the dashboard's filters as they
+were; its link "← Agent performance" leads back to that canvas with the dashboard open and the filters
 the two share, and so does the browser's Back. A page rather than a view in the dialog: a long list
 of responses wants the whole screen, and an address of its own keeps it across a reload and makes it
 a link (2026-11). It lists every response on every canvas, the newest first (by when it was last
 given), each with its date, card (a link to it, opening on its canvas, archived ones from the
-archive; a deleted card's title without one), stars („ohne Sterne“ for a comment alone), comment,
-whom it credits (for mixed work „Mehrere Konfigurationen“ with the configurations that did it),
+archive; a deleted card's title without one), stars ("no stars" for a comment alone), comment,
+whom it credits (for mixed work "Several configurations" with the configurations that did it),
 project, repository and canvas. Filters: the dashboard's (period by when a response was last given),
 then harness, model and effort of the credited configuration (each where there is more than one to
 choose, an unknown value named unknown), which work credited to no one configuration never matches,
-and rating, whole stars or „ohne Sterne“. Grouping: none, configuration (in the dashboard's order,
+and rating, whole stars or "no stars". Grouping: none, configuration (in the dashboard's order,
 mixed and unrecorded work last), project, repository, canvas (by name, those without one last),
 week (from Monday) or month (the newest first); each section heads its responses with their count
 and average, and the column it groups by gives way to that heading. The head counts the responses
 shown of all. With no responses at all it says what fills it; when the filters leave nothing, it
-says so with „Filter zurücksetzen“. Filters and grouping stay in the address. Every control is a
+says so with "Clear filters". Filters and grouping stay in the address. Every control is a
 link, a select or a button, in reading order for the keyboard.
 
 ### Live and done
@@ -257,7 +370,7 @@ Work that changed nothing in the repository (a demo, an analysis, an answer) has
 when the handover finds no commits of the card's own (measured as in The Koordinator) and nothing
 uncommitted, the button reads "Beenden" with a line that no pull request follows, and approving makes
 the card `done` ("Erledigt"). The handover's answer tells the worker what the button will do, as
-Obeya sees the branch: close the card, or land the files it names. A worker knows the commits it made,
+Seismic sees the branch: close the card, or land the files it names. A worker knows the commits it made,
 not those its branch carried from before, and otherwise told the owner the opposite of what the card
 showed. A worker whose
 branch emptied after the approval closes the card with `close_unchanged`, refused while the
@@ -269,9 +382,14 @@ Questions after the work).
 ### Archive
 
 The owner archives a finished card ("Archivieren" on it, its archive button on the canvas, or all
-finished ones at once in the archive); a prototype goes there when it ends (see Prototypes). A
-stopped task („Gestoppt“) can be archived one at a time, for the owner to come back to, beside „Neu
-starten“ and „Löschen“; not while it waits to start, nor while its workspace holds work that has not
+finished ones at once in the archive); a prototype goes there when it ends (see Prototypes). The
+canvas setting "Cards archive" chooses between "Manually" (the default: only so) and
+"Automatically, after landing": then an owner's finished task goes into the archive by itself as
+soon as its work has landed (or closed without a change) and its worker is done after the landing,
+with a line in its log; a workstream still goes with its project, and a card brought back from the
+archive stays on the canvas. The setting also decides when the owner is asked how the agent did
+(see Feedback after approval). A
+stopped task ("Stopped") can be archived one at a time, for the owner to come back to, beside "Start again" and "Delete"; not while it waits to start, nor while its workspace holds work that has not
 landed, or a clone keeps its branch since its workspace was taken (the button is greyed and says
 why), which would lie unseen in a clone. A stopped card opens
 like a card an agent worked on, the task as its conversation's first message.
@@ -296,6 +414,19 @@ Every project's sheet holds its conversation with its project agent (see Asking 
 sheet), lists its decisions and links the idea or task its plan doc came from (see Deciding).
 
 ### Decisions
+
+- **Code reviews are a canvas setting, by a separate agent of a model group of its own, only where
+  work lands on `main`** (owner, 2026-11-05): automatic with the demo (the Review tab with its
+  coloured counts) or manual at handover ("Approve" stays first and primary, "Start code review" second in purple:
+  the everyday button keeps its place); the
+  owner sends findings to the worker to fix with the one Send, or makes them follow-up tasks. Off by
+  default: reviews cost tokens, and nothing reviewed before. Rejected: the worker reviewing its own
+  diff before handing over (no fresh eyes, no separate model, nothing the owner can start at
+  handover); reviews of work through a pull request, which the forge's reviewers cover (a card of its
+  own takes those up); approval waiting for the review.
+- **A review stands for a later handover of the same commit** (2026-11-05): an answer to the owner's
+  words with ready_for_review and no new commit would otherwise start a new review each time, at its
+  cost, for a diff already reviewed.
 
 - **The dashboard compares without ranking** (owner, 2026-11-03): ratings are the owner's judgement
   of single tasks, whose difficulty and kind count too, so rows keep a fixed order, always show how
@@ -335,14 +466,14 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
   Rejected: only the proposing worker deciding whether a proposal is an idea.
 - **Feedback keeps the approval** (2026-10-08): the owner's words reach the worker at once and the
   approval stays at hand. Rejected: sending the card back to `working` until the next handover,
-  which took the approval away and held the feedback for „Rückgängig“ like a command.
+  which took the approval away and held the feedback for "Undo" like a command.
 - **Only words for the owner count as an answer** (2026-10-19). Rejected: counting any end of a
-  turn, which left „Agent hat geantwortet“ under a question no agent had seen.
+  turn, which left "Agent answered" under a question no agent had seen.
 - **An answer given while only the app it started runs on gives the card back** (2026-10-28,
   narrowed 2026-10-29). Rejected: keeping the card at work as long as any background work of that
   turn ran, which showed an agent at work on the owner's words for hours while only the test server
   it had restarted for them ran; and giving the card back whatever background work ran, which read
-  „wartet auf dich“ while the tests and render the agent had said it would hand over after still
+  "waiting for you" while the tests and render the agent had said it would hand over after still
   ran. The app is told apart by `app_running` rather than by the work's duration or the agent's
   words: the SDK says neither which task serves what nor whether the agent waits for it.
 - **A demo a worker reworks after an answer is at work, not the owner's** (2026-10-07). Rejected:
@@ -353,14 +484,18 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
   the reply just before them.
 - **An approve click folds the card at once.** Rejected: the card staying open with no sign of the
   click until the push was through.
-- **Work without a change ends in `done`, not `live`** (2026-10-02). Obeya reads it from the
+- **Work without a change ends in `done`, not `live`** (2026-10-02). Seismic reads it from the
   workspace, not from the worker's word. The owner still approves it: its demo or summary is the
   result. Rejected: waiting in `in PR` for a PR that never comes.
 - **A finished card keeps a field for questions to its agent** (2026-10-08).
 - **What the owner archives**: only their own finished cards, ideas once parked or dropped (a parked
-  idea's result may have been used outside Obeya, 2026-10-15), and stopped tasks (2026-10-15).
+  idea's result may have been used outside Seismic, 2026-10-15), and stopped tasks (2026-10-15).
   "All finished ones at once" leaves ideas alone; a workstream goes with its project. Archiving
   keeps the card's position, demo and log.
+- **The rating comes with archiving where the owner archives by hand** (owner, 2026-11-07): a card
+  the owner archives is judged when it is put away, after the owner has seen the work live, not
+  in the moment of approving; where cards archive themselves, there is no such moment, so the
+  approval asks. Archiving by hand is the default.
 - **No card goes into the archive while its worker finishes after the landing** (2026-10-16):
   workers are looked up among the cards on the canvas, so the worker of an archived card never ended
   its turn and held its clone out of the owner's sight.

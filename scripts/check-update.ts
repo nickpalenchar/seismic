@@ -11,7 +11,7 @@
 //   - the new version finds nothing newer;
 //   - `POST /api/stop` ends it.
 // On Windows the installer starts the new version as the desktop's user, without this script's
-// environment, so it runs on the default home (~/.obeya): run it there only where no Obeya uses it.
+// environment, so it runs on the default home (~/.obeya): run it there only where no Seismic uses it.
 //
 //   bun scripts/check-update.ts [--dir <dir>] [--reuse] [--keep]
 //
@@ -169,7 +169,7 @@ try {
     return program;
   });
   app = Bun.spawn([program], {
-    env: { ...process.env, OBEYA_HOME: home, OBEYA_PORT: String(await freePort()), OBEYA_UPDATE_EVERY: '5', APPIMAGE_EXTRACT_AND_RUN: '1' },
+    env: { ...process.env, SEISMIC_HOME: home, SEISMIC_PORT: String(await freePort()), SEISMIC_UPDATE_EVERY: '5', APPIMAGE_EXTRACT_AND_RUN: '1' },
     stdout: 'inherit',
     stderr: 'inherit',
   });

@@ -16,7 +16,7 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('defaultsFor', () => {
-  test("Obeya's own repository brings its settings like any other, with no problems in them", () => {
+  test("Seismic's own repository brings its settings like any other, with no problems in them", () => {
     const root = join(import.meta.dir, '../..');
     const read = parseShared(readFileSync(join(root, '.obeya/settings.json'), 'utf8'));
     expect(read.problems).toEqual([]);
@@ -58,9 +58,8 @@ describe('withSettings', () => {
     expect([a.app, a.demo]).toEqual([undefined, undefined]);
     s = { app: { run: 'Start it with `bun dev`.' } };
     expect(a.app).toEqual({ run: 'Start it with `bun dev`.' });
-    const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'git {dir}' };
-    s = { demo: { site } };
-    expect(a.demo).toEqual({ site });
+    s = { demo: { language: 'en' } };
+    expect(a.demo).toEqual({ language: 'en' });
     // the configuration's clones go before the setting
     expect(withSettings(generic, () => ({ workspaces: 'worktrees' }), true).workspaces).toBe('clones');
   });
@@ -100,19 +99,19 @@ describe('.obeya/settings.json', () => {
     expect(none.problems).toHaveLength(1);
   });
 
-  test('holds the app, the demo site and language; a field misspelt in them is named and the whole field does not count', () => {
+  test('holds the app and the language of demos; a field misspelt in them is named and the whole field does not count', () => {
     const app = { run: 'Start it with `bun dev`; the URL is in `.env` under URL.', stop: 'pkill -F .pid', keep: 'test -f .keep' };
-    const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'bunx wrangler pages deploy {dir}', env: 'sites/demos.env', headers: { 'X-Key': '${KEY}' } };
-    expect(parseShared(JSON.stringify({ app, demo: { site, language: 'en' } }))).toMatchObject({ settings: { app, demo: { site, language: 'en' } }, problems: [] });
+    const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'bunx wrangler pages deploy {dir}' };
+    expect(parseShared(JSON.stringify({ app, demo: { language: 'en' } }))).toMatchObject({ settings: { app, demo: { language: 'en' } }, problems: [] });
     expect(parseShared(JSON.stringify({ demo: { language: 'fr' } })).settings).toEqual({});
     // the language of what lands in the repository stands beside that of its demos
     expect(parseShared(JSON.stringify({ language: 'de', demo: { language: 'en' } })).settings).toEqual({ language: 'de', demo: { language: 'en' } });
     expect(parseShared(JSON.stringify({ language: 'fr' })).problems).toHaveLength(1);
-    // the site's language from before demo.language goes alone: the site stays
-    const old = parseShared(JSON.stringify({ demo: { site: { ...site, language: 'de' } } }));
-    expect(old.settings).toEqual({ demo: { site } });
-    expect(old.problems).toEqual(['.obeya/settings.json, demo.site.language: no longer read; demo.language names the language of the demos and of the overview']);
-    const read = parseShared(JSON.stringify({ app: { ...app, stp: 'x' }, demo: { site, howToRun: 'bun dev' }, stack: { start: 'bun dev' } }));
+    // a demo site, which a canvas chooses now, goes alone: the rest stays
+    const old = parseShared(JSON.stringify({ demo: { site, language: 'de' } }));
+    expect(old.settings).toEqual({ demo: { language: 'de' } });
+    expect(old.problems).toEqual(['.obeya/settings.json, demo.site: no longer read; a canvas chooses its demo site in its settings']);
+    const read = parseShared(JSON.stringify({ app: { ...app, stp: 'x' }, demo: { howToRun: 'bun dev' }, stack: { start: 'bun dev' } }));
     expect(read.settings).toEqual({});
     expect(read.problems).toEqual([
       '.obeya/settings.json, app.stp: no such field (did you mean stop?)',
@@ -134,7 +133,7 @@ describe('.obeya/settings.json', () => {
       planDocs: { value: { dir: 'docs/plan' }, source: 'default' },
       app: { run: { value: 'bun dev', source: 'repository' }, stop: { value: 'pkill -F .pid', source: 'repository' }, keep: { value: '', source: 'default' } },
       language: { value: 'en', source: 'default' },
-      demo: { site: { value: null, source: 'default' }, language: { value: null, source: 'default' } },
+      demo: { language: { value: null, source: 'default' } },
     });
     // a repository that names German for what lands in it
     expect(withSettings(defaultsFor(repoInfo(repo)), () => ({ language: 'de' })).language).toBe('de');

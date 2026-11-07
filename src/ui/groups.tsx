@@ -227,7 +227,7 @@ const RingIcon = () => (
  * Over the top right corner of what is marked (`at`, screen; `below` its bottom right one): how many, the button that opens the
  * colour ring for them and, until the owner has once moved several together, how that goes.
  */
-export function Marked({ at, below, count, hint, onGroup }: { at: Pt; below: boolean; count: number; hint: boolean; onGroup: (at: Pt) => void }) {
+export function Marked({ at, below, count, hint, onGroup }: { at: Pt; below: boolean; count: number; hint?: string; onGroup: (at: Pt) => void }) {
   return (
     <div id="marked" className={below ? 'below' : undefined} style={{ left: at.x, top: at.y }}>
       <div className="mrow">
@@ -244,16 +244,16 @@ export function Marked({ at, below, count, hint, onGroup }: { at: Pt; below: boo
           {t.marked.group}
         </button>
       </div>
-      {hint && <p className="mhint">{t.marked.move}</p>}
+      {hint && <p className="mhint">{hint}</p>}
     </div>
   );
 }
 
 /** After the owner moved a single card, until they have once marked cards: how to move several at once, at `at` (screen). */
-export function MarkHint({ at }: { at: Pt }) {
+export function MarkHint({ at, text }: { at: Pt; text: string }) {
   return (
     <p id="markhint" style={{ left: at.x, top: at.y }}>
-      {t.marked.howTo}
+      {text}
     </p>
   );
 }

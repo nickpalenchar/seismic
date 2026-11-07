@@ -2,7 +2,7 @@
 //
 // `clones`: a pool of full clones per canvas, leased one card at a time (for repositories with tools
 // that break in worktrees, or one app per clone), here and on other machines; a new card
-// takes a clone on the first machine whose busy workers leave it a slot (design: Hosts). `worktrees`: one worktree of the Obeya checkout per card,
+// takes a clone on the first machine whose busy workers leave it a slot (design: Hosts). `worktrees`: one worktree of the Seismic checkout per card,
 // created on start, as many in parallel as there are cards unless the repository has slots; kept
 // across stop and restart until the card's work has landed.
 
@@ -17,6 +17,7 @@ import { HostError, hostName, LOST, onHost, remote, sh as shWord, type SshHost, 
 import { runAppCommand } from './app-command';
 import { messageOf } from '../core/text';
 import { oneAtATime } from '../core/one-at-a-time';
+import { LandingQueue, type LandingTurn } from './landing-queue';
 import { demoFile } from './demo-page';
 import { sameRemote } from './repo';
 import { spawnOutput } from './spawn';
@@ -32,15 +33,15 @@ export class WorkspaceError extends Error {
 
 export interface LandProblem {
   code: 'landDirty' | 'landConflict' | 'landEmpty' | 'landCheckout' | 'landMerge' | 'landPush' | 'land';
-  /** Whether the worker can fix it; otherwise it is the owner's (local changes in the Obeya checkout in the way, a push turned away). */
+  /** Whether the worker can fix it; otherwise it is the owner's (local changes in the Seismic checkout in the way, a push turned away). */
   worker: boolean;
   detail: string;
   files?: string[];
 }
 
 /**
- * Work that landed: the default branch (of the Obeya checkout, or of `origin` when pushed) moved
- * from `from` to `to`. `switched` says where the Obeya checkout stood before Obeya put it back on
+ * Work that landed: the default branch (of the Seismic checkout, or of `origin` when pushed) moved
+ * from `from` to `to`. `switched` says where the Seismic checkout stood before Seismic put it back on
  * the default branch for the landing (on `branch`, or a detached `HEAD` at `commit`), and how many
  * commits there the default branch still lacks after it.
  */
@@ -69,7 +70,7 @@ export interface PullStopped extends PullClash {
 
 /**
  * The git binary. On macOS `/usr/bin/git` is a shim that asks xcrun for the real one on every
- * call, which more than doubles what a call costs; Obeya calls git often, so it asks once.
+ * call, which more than doubles what a call costs; Seismic calls git often, so it asks once.
  */
 export const GIT = gitBinary();
 
@@ -146,7 +147,7 @@ async function gitRun(cwd: string, args: string[]): Promise<{ code: number; stdo
   return spawnOutput([GIT, '-C', cwd, ...args]);
 }
 
-/** `git diff` as Obeya shows it to the owner: plain, with renames found and file names unquoted. */
+/** `git diff` as Seismic shows it to the owner: plain, with renames found and file names unquoted. */
 const DIFF = ['-c', 'core.quotePath=false', 'diff', '--no-color', '--no-ext-diff', '-M'];
 
 /** How many new files not yet added a branch's diff shows; a worker's stray build output should not flood it. */
@@ -175,8 +176,16 @@ export function gitDiff(cwd: string, base: string, to?: string): Promise<string>
   return gitAsync(cwd, ...DIFF, base, ...(to ? [to] : []));
 }
 
-/** The landing under way per Obeya checkout: landings of one repository run one after the other. */
-const landings = new Map<string, Promise<unknown>>();
+/** The landing under way per Seismic checkout: landings of one repository run one after the other. */
+const landings = new LandingQueue<string>();
+
+export interface LandingNotice {
+  cardId: string;
+  commit: string;
+  subjects: string[];
+  files: string[];
+}
+const landingListeners = new Map<string, Set<(notice: LandingNotice) => Promise<void>>>();
 
 /**
  * Puts the branch's whole change onto `upstream` as one commit, if it merges cleanly there; the
@@ -244,6 +253,42 @@ async function rebased(ws: string, base: string, upstream: () => Promise<string>
   return null;
 }
 
+/**
+ * The checkout's uncommitted changes (staged or not, and new files git does not ignore) to files
+ * the work from `head` to `tip` changes too: what keeps a fast-forward there from landing it.
+ */
+async function inTheWay(repo: string, head: string, tip: string): Promise<string[]> {
+  const list = (out: string) => out.split('\0').filter(Boolean);
+  const [changed, tracked, untracked] = await Promise.all([
+    gitAsync(repo, 'diff', '--name-only', '-z', '--no-renames', `${head}...${tip}`),
+    gitAsync(repo, 'diff', '--name-only', '-z', '--no-renames', 'HEAD'),
+    gitAsync(repo, 'ls-files', '-z', '--others', '--exclude-standard'),
+  ]);
+  const ours = new Set(list(changed));
+  return [...new Set([...list(tracked), ...list(untracked)])].filter((f) => ours.has(f)).sort();
+}
+
+/**
+ * A commit on `parent` holding the checkout's `files` as they are on disk (deleted ones deleted),
+ * made in an index of its own: the checkout's index and branch stay as they are.
+ */
+async function commitOf(repo: string, parent: string, files: string[], message: string): Promise<string> {
+  const path = resolve(repo, await gitAsync(repo, 'rev-parse', '--git-path', `obeya-fold-${process.pid}-${Date.now()}`));
+  const git = async (...args: string[]) => {
+    const r = await spawnOutput([GIT, '-C', repo, '--literal-pathspecs', ...args], { env: { ...process.env, GIT_INDEX_FILE: path } });
+    if (r.code !== 0) throw new WorkspaceError(`git ${args.join(' ')} in ${repo}: ${(r.stderr || r.stdout).trim()}`);
+    return r.stdout.trim();
+  };
+  try {
+    await git('read-tree', parent);
+    await git('add', '-A', '--', ...files);
+    const tree = await git('write-tree');
+    return await git('commit-tree', tree, '-p', parent, '-m', message);
+  } finally {
+    await rm(path, { force: true });
+  }
+}
+
 /** The merge, rebase or cherry-pick under way in the checkout at `repo`, if one is. */
 async function underway(repo: string): Promise<string | null> {
   const busy = await Promise.all(['MERGE_HEAD', 'REBASE_HEAD', 'CHERRY_PICK_HEAD'].map((r) => gitAsync(repo, 'rev-parse', '-q', '--verify', r).then(() => r, () => null)));
@@ -252,7 +297,7 @@ async function underway(repo: string): Promise<string | null> {
 }
 
 /**
- * Puts the Obeya checkout at `repo`, found on `on` (a branch, or empty for a detached `HEAD`),
+ * Puts the Seismic checkout at `repo`, found on `on` (a branch, or empty for a detached `HEAD`),
  * back on `base` for a landing, where nothing there would be lost or carried along: no
  * uncommitted or untracked files, no merge or rebase under way, and a detached `HEAD` on a
  * commit some ref holds. Otherwise the worker hears what is there, since it is most often work an
@@ -265,7 +310,7 @@ async function backOnBase(repo: string, base: string, on: string): Promise<LandP
     worker: true,
     ...(files ? { files } : {}),
     detail:
-      `the Obeya checkout (${repo}) is on ${at}, not on ${base}, and ${why}. Obeya puts it back on ${base} by itself only where everything there is committed. ` +
+      `the Seismic checkout (${repo}) is on ${at}, not on ${base}, and ${why}. Seismic puts it back on ${base} by itself only where everything there is committed. ` +
       `If that is your work, done there instead of in your workspace, carry it into your branch and leave the checkout clean (on ${on || base}, as you found it, or on ${base}); if it is not yours, it is the owner's: ask them.`,
   });
   const busy = await underway(repo);
@@ -285,7 +330,7 @@ async function backOnBase(repo: string, base: string, on: string): Promise<LandP
  * How `pullMain` pulls `origin`'s `base` into the checkout: the owner's way where their git
  * configuration sets one (`pull.rebase`, `pull.ff`, `branch.<base>.rebase`), else as git does where
  * nothing diverged (a fast-forward, which local changes outside it survive), and rebased where the
- * local `base` has commits of its own, as Obeya brings its own work onto `main`: git would refuse
+ * local `base` has commits of its own, as Seismic brings its own work onto `main`: git would refuse
  * to pick a way there.
  */
 async function pullMode(repo: string, base: string, upstream: string): Promise<string[]> {
@@ -392,7 +437,7 @@ export const RECHECK_MS = 60_000;
 
 export interface WorkspaceOptions {
   mode: 'clones' | 'worktrees';
-  /** The checkout Obeya runs on. */
+  /** The checkout Seismic runs on. */
   repoPath: string;
   /** Where worktrees and created clones go. */
   dir: string;
@@ -406,16 +451,19 @@ export interface WorkspaceOptions {
   machines?: { host: string | null; slots?: number }[];
   /** How many of the repository's workers are in a turn on a machine now (null: this one). */
   busy?: (host: string | null) => number;
-  /** The repository's command that stops its app (`app.stop`), run in a clone of Obeya's own before its folder goes. */
+  /** The repository's command that stops its app (`app.stop`), run in a clone of Seismic's own before its folder goes. */
   stop?: string;
   /** What its clones are clones of (its remote, its checkout): a folder whose `origin` is none of them is not one of its clones, and stays. */
   origins?: string[];
   /** Called when what the pool shows changes outside a card's lease: a clone's folder kept or gone. */
   changed?: () => void;
+  /** The project whose baseline this card's branch shares; absent when disabled or outside a project. */
+  projectOf?: (cardId: string) => string | undefined;
+  baselineConfigured?: (cardId: string, tag: string, commit: string) => void;
 }
 
 /**
- * The folders of Obeya's own clones that left the pool and stay on disk since something in them
+ * The folders of Seismic's own clones that left the pool and stay on disk since something in them
  * would be lost, by path (`ssh://<host>/…` on a host): what lies in them. Kept across a
  * repository's restarts, which make its `Workspaces` afresh; looked at again at each start.
  */
@@ -438,12 +486,12 @@ function onPath<T>(path: string, fn: () => Promise<T>): Promise<T> {
 }
 
 /**
- * The trailer of the commit in which Obeya keeps the work a card had not committed when its
+ * The trailer of the commit in which Seismic keeps the work a card had not committed when its
  * workspace was taken from it (`evict`); the card's next lease takes that commit apart again.
  */
 const SAVED = 'Obeya-Kept: uncommitted work';
 
-/** The name of a clone Obeya makes, its number (`ensureClones`); a card's worktree is named by the card's id, 8 characters. */
+/** The name of a clone Seismic makes, its number (`ensureClones`); a card's worktree is named by the card's id, 8 characters. */
 const CLONE_NAME = /^\d{1,4}$/;
 /** The name of a clone's folder moved aside to be removed (`clearAway`). */
 const TRASH_NAME = /^\d{1,4}\.removing-\d+$/;
@@ -454,7 +502,7 @@ const pathThere = (path: string) => {
   return host === null ? path : path.slice(`ssh://${host}`.length) || '/';
 };
 
-/** The name of the machine Obeya runs on, as the Workspaces pill shows it. */
+/** The name of the machine Seismic runs on, as the Workspaces pill shows it. */
 export const HERE = hostname().split('.')[0] || 'localhost';
 
 /** The code `lease` refuses with for each reason it finds no workspace. */
@@ -484,18 +532,21 @@ export interface CardWorkspaces {
   retake(cardId: string, path: string): boolean;
   forkPoint(cardId: string): Promise<{ ws: string; base: string } | null>;
   addedFiles(cardId: string, dir: string): Promise<string[]>;
-  landOnMain(cardId: string, branch: string, trailer?: string): Promise<LandProblem | Landed>;
-  pushToMain(cardId: string, trailer?: string): Promise<LandProblem | Landed>;
+  landOnMain(cardId: string, branch: string, trailer?: string, turn?: LandingTurn): Promise<LandProblem | Landed>;
+  foldMain(cardId: string, branch: string): Promise<{ files: string[]; commit?: string; conflict?: boolean; kept?: boolean } | LandProblem>;
+  pushToMain(cardId: string, trailer?: string, turn?: LandingTurn): Promise<LandProblem | Landed>;
   removeLanded(cardId: string, branch: string): Promise<void>;
   discard(cardId: string, branch: string): Promise<void>;
   transfer(from: string, to: string, branch: string, rename?: string): Promise<{ path: string; branch: string }>;
   followUpTree(cardId: string, branch: string): Lease;
   removeFollowUpTree(path: string): Promise<void>;
+  noticeMerged?(cardId: string, commit: string): Promise<void>;
+  watchLandings?(listener: (notice: LandingNotice) => Promise<void>): () => void;
   changes(cardId: string): Promise<Change[]>;
   diff(cardId: string, full: boolean): Promise<CardDiff | null>;
   landedDiff(base: string, commit: string, full: boolean): Promise<CardDiff | null>;
   fileOf(cardId: string, path: string, ref?: string, local?: boolean): Promise<FileAt | null>;
-  changedFiles(cardId: string, landed?: { base: string; commit: string }): Promise<string[]>;
+  changedFiles(cardId: string, landed?: { base: string; commit: string }, includeDeleted?: boolean): Promise<string[]>;
 }
 
 /**
@@ -537,7 +588,7 @@ export class Workspaces implements CardWorkspaces {
   private looking = new Map<string, Promise<Seen>>();
   /** Clones the configuration no longer names that a card still holds: they leave the pool once it gives them back (`keepOnly`). */
   private leaving = new Set<string>();
-  /** The directory Obeya makes its clones in on each host, once it has made sure they are there (`ensureHostClones`). */
+  /** The directory Seismic makes its clones in on each host, once it has made sure they are there (`ensureHostClones`). */
   private hostDirs = new Map<string, string>();
   /** The workspaces git is making ready, by the card they are leased to (`Lease.ready`). */
   private preparing = new Map<string, Promise<string>>();
@@ -601,7 +652,7 @@ export class Workspaces implements CardWorkspaces {
    * Takes the clones on `host` (null: this machine) that are not among `named` out of the pool: the
    * configuration no longer names them (fewer clones to create, an existing one or a host taken out,
    * the repository gone over to worktrees). A free one leaves at once; one a card holds stays with
-   * it and leaves once the card gives it back. A clone Obeya made goes from disk as it leaves where
+   * it and leaves once the card gives it back. A clone Seismic made goes from disk as it leaves where
    * nothing would be lost (`retire`); one the owner listed stays as it is. A workspace here whose
    * folder is gone leaves at once, clone or worktree, held or not (a card's own worktree aside, which
    * is no pool's): returns the cards that lost theirs that way, which take another at their next start.
@@ -639,7 +690,7 @@ export class Workspaces implements CardWorkspaces {
   }
 
   /**
-   * Looks again at the folders of Obeya's own clones on this machine that are not in the pool (left
+   * Looks again at the folders of Seismic's own clones on this machine that are not in the pool (left
    * it earlier, their folders kept since something in them would have been lost): those that lose
    * nothing now go.
    */
@@ -651,7 +702,7 @@ export class Workspaces implements CardWorkspaces {
     const pool = new Set(this.list().map((w) => w.path));
     for (const name of names) {
       if (CLONE_NAME.test(name) && !pool.has(join(this.o.dir, name))) this.retire(join(this.o.dir, name));
-      // one whose removal a stop of Obeya cut off
+      // one whose removal a stop of Seismic cut off
       if (TRASH_NAME.test(name) && !this.store.hasWorkspace(join(this.o.dir, name))) void rm(join(this.o.dir, name), { recursive: true, force: true }).catch(() => {});
     }
   }
@@ -666,7 +717,7 @@ export class Workspaces implements CardWorkspaces {
     }
   }
 
-  /** Whether a clone is one Obeya made in its own directory (on a host, in the one it makes them in there), not one the owner listed. */
+  /** Whether a clone is one Seismic made in its own directory (on a host, in the one it makes them in there), not one the owner listed. */
   private made(path: string): boolean {
     const host = hostName(path);
     const dir = host === null ? this.o.dir : this.hostDirs.get(host);
@@ -680,7 +731,7 @@ export class Workspaces implements CardWorkspaces {
   }
 
   /**
-   * A clone that left the pool: one Obeya made goes from disk, its app stopped first, unless
+   * A clone that left the pool: one Seismic made goes from disk, its app stopped first, unless
    * something in it would be lost (`unlanded`); then it stays, the log says once what lies in it,
    * and the pool shows it (`kept`) until a later start finds it can go. A host that does not
    * answer is asked again at the next start. One the owner listed is never touched.
@@ -809,7 +860,10 @@ export class Workspaces implements CardWorkspaces {
     if (own) {
       // given back while git was making it ready, and taken again before git was done: it stays the card's
       this.releasing.delete(cardId);
-      return { path: own, ready: this.preparing.get(cardId) ?? null };
+      const ready = this.preparing.get(cardId);
+      if (ready) return { path: own, ready };
+      if (this.o.projectOf?.(cardId)) return this.prepare(cardId, own, async () => own, () => this.release(cardId));
+      return { path: own, ready: null };
     }
     if (this.o.mode === 'clones') return this.leaseClone(cardId, branch, !!o.overSlots, o.from ?? null);
     if (!o.overSlots && !this.room(null)) throw new WorkspaceError(SHORT_TEXT.slots, SHORT_CODE.slots);
@@ -822,7 +876,10 @@ export class Workspaces implements CardWorkspaces {
    * other card takes it. Where git fails, `undo` gives back the workspace the card holds then.
    */
   private prepare(cardId: string, path: string, make: () => Promise<string>, undo: (at: string, e: WorkspaceError) => void): Lease {
-    const ready = make().then(
+    const ready = make().then(async (at) => {
+      await this.configureProjectBaseline(cardId, at);
+      return at;
+    }).then(
       (at) => {
         this.preparing.delete(cardId);
         if (this.releasing.delete(cardId)) this.release(cardId);
@@ -839,6 +896,36 @@ export class Workspaces implements CardWorkspaces {
     );
     this.preparing.set(cardId, ready);
     return { path, ready };
+  }
+
+  /** One immutable tag per project, copied into clones and named in each branch's local git config. */
+  private async configureProjectBaseline(cardId: string, ws: string): Promise<void> {
+    const project = this.o.projectOf?.(cardId);
+    if (!project) return;
+    const tag = projectBaselineTag(project);
+    const ref = `refs/tags/${tag}`;
+    const read = (path: string) => gitAsync(path, 'rev-parse', '--verify', '--quiet', ref).catch(() => '');
+    const hasCommit = async (path: string, commit: string) => {
+      if ((await gitRun(path, ['cat-file', '-e', `${commit}^{commit}`])).code !== 0) await gitAsync(path, 'fetch', '--quiet', 'origin', commit);
+    };
+    let commit = await read(this.o.repoPath);
+    if (!commit) {
+      const start = await gitAsync(ws, 'rev-parse', await this.upstreamAsync(ws));
+      await hasCommit(this.o.repoPath, start);
+      // Compare-and-swap: concurrent first workstreams keep the winner's tag, never move it.
+      await gitAsync(this.o.repoPath, 'update-ref', ref, start, '').catch(async (error) => {
+        if (!(await read(this.o.repoPath))) throw error;
+      });
+      commit = await read(this.o.repoPath);
+    }
+    await hasCommit(ws, commit);
+    const existing = await read(ws);
+    if (existing && existing !== commit) throw new WorkspaceError(`Project baseline tag ${tag} in ${ws} differs from the project's tag`);
+    if (!existing) await gitAsync(ws, 'update-ref', ref, commit, '');
+    const branch = await gitAsync(ws, 'branch', '--show-current');
+    if (!branch) throw new WorkspaceError(`Cannot configure project baseline on a detached HEAD in ${ws}`);
+    await gitAsync(ws, 'config', '--local', `branch.${branch}.obeya-project-baseline`, tag);
+    this.o.baselineConfigured?.(cardId, tag, commit);
   }
 
   /** Whether its pool is worth showing: clones, or worktrees capped by slots. */
@@ -972,7 +1059,7 @@ export class Workspaces implements CardWorkspaces {
   /**
    * The pool by machine for the Workspaces pill, `busy` the cards whose worker is in a turn. Worktrees
    * are never short, so their pool is this machine's slots, each taken while a worker is at work.
-   * `kept`: the folders of clones Obeya made that left the pool and stay since something in them would be lost.
+   * `kept`: the folders of clones Seismic made that left the pool and stay since something in them would be lost.
    * `blocked`: the free clones no new card gets now, and why. `workspaces`: each clone or worktree
    * by its path there, with the card that holds it.
    */
@@ -1040,7 +1127,7 @@ export class Workspaces implements CardWorkspaces {
 
   /**
    * Takes the card's clone from it for other cards (the owner gave it to one waiting), losing
-   * nothing: what is uncommitted there goes into a commit of Obeya's on the branch checked out
+   * nothing: what is uncommitted there goes into a commit of Seismic's on the branch checked out
    * (`SAVED`), and the clone is free once git is done, holding the card's branch until the card
    * takes it from there (`lease` with `from`), which makes that work uncommitted again. Settles with
    * the clone; null where the card holds none, or git was still making it ready (it is freed once git
@@ -1058,7 +1145,7 @@ export class Workspaces implements CardWorkspaces {
       if (this.leasedBy(cardId) !== path) return null;
       if (await gitAsync(path, 'status', '--porcelain')) {
         await gitAsync(path, 'add', '--all');
-        await gitAsync(path, '-c', 'user.name=Obeya', '-c', 'user.email=obeya@localhost', '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '--no-verify', '-m', `Uncommitted work, kept by Obeya as the card's workspace went to another card\n\n${SAVED}`);
+        await gitAsync(path, '-c', 'user.name=Seismic', '-c', 'user.email=obeya@localhost', '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '--no-verify', '-m', `Uncommitted work, kept by Seismic as the card's workspace went to another card\n\n${SAVED}`);
       }
       // given back meanwhile (a stop that had asked git before) and perhaps taken by another card, which waits for this
       if (this.leasedBy(cardId) === path) this.free(path);
@@ -1165,15 +1252,64 @@ export class Workspaces implements CardWorkspaces {
   }
 
   /**
-   * Lands the card's committed branch on the Obeya checkout's default branch by rebasing (or,
+   * Lands the card's committed branch on the Seismic checkout's default branch by rebasing (or,
    * when only the replay conflicts, squashing) and fast-forwarding. The workspace stays with the
    * card, so its worker can finish what remains; `removeLanded` frees it. Returns what went wrong
-   * (`worker` problems are the worker's to fix, the others stop at the Obeya checkout), or how
+   * (`worker` problems are the worker's to fix, the others stop at the Seismic checkout), or how
    * the default branch moved. A checkout found off the default branch is put back on it where
    * nothing would be lost (`backOnBase`), else the worker hears what is in the way. `trailer` goes into the message of the commit that lands last.
    */
-  landOnMain(cardId: string, branch: string, trailer?: string): Promise<LandProblem | Landed> {
-    return oneAtATime(landings, this.o.repoPath, () => this.land(cardId, branch, trailer));
+  landOnMain(cardId: string, branch: string, trailer?: string, turn?: LandingTurn): Promise<LandProblem | Landed> {
+    return landings.run(this.o.repoPath, () => this.announceLanding(cardId, () => this.land(cardId, branch, trailer)), turn);
+  }
+
+  /** Successful landings in this repository, including those of another canvas. */
+  watchLandings(listener: (notice: LandingNotice) => Promise<void>): () => void {
+    const listeners = landingListeners.get(this.o.repoPath) ?? new Set();
+    landingListeners.set(this.o.repoPath, listeners);
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+      if (!listeners.size) landingListeners.delete(this.o.repoPath);
+    };
+  }
+
+  /** A forge merge, read before the landed worker gives its workspace back. */
+  async noticeMerged(cardId: string, commit: string): Promise<void> {
+    const cwd = this.leasedBy(cardId);
+    if (!cwd) return;
+    try {
+      // A squash or merge made on the forge may not be in the workspace yet.
+      if ((await gitRun(cwd, ['cat-file', '-e', `${commit}^{commit}`])).code !== 0) await gitAsync(cwd, 'fetch', '--quiet', 'origin');
+      await this.announceRange(cardId, cwd, { from: `${commit}^`, to: commit });
+    } catch (e) {
+      console.error('reading merged changes:', messageOf(e));
+    }
+  }
+
+  private async announceLanding(cardId: string, land: () => Promise<LandProblem | Landed>): Promise<LandProblem | Landed> {
+    const result = await land();
+    if (!('code' in result)) {
+      // Direct pushes hold the commits in the card's workspace; the checkout need not have them.
+      const cwd = this.leasedBy(cardId);
+      if (cwd) await this.announceRange(cardId, cwd, result);
+    }
+    return result;
+  }
+
+  private async announceRange(cardId: string, cwd: string, result: Landed): Promise<void> {
+    if (result.from === result.to) return;
+    try {
+      const [names, subjects] = await Promise.all([
+        gitAsync(cwd, 'diff', '--name-only', '--no-renames', '-z', result.from, result.to),
+        gitAsync(cwd, 'log', '--format=%s', `${result.from}..${result.to}`),
+      ]);
+      const notice = { cardId, commit: result.to, subjects: subjects.split('\n').filter(Boolean), files: names.split('\0').filter(Boolean) };
+      // A notice cannot turn a successful merge into a failed approval.
+      await Promise.allSettled([...(landingListeners.get(this.o.repoPath) ?? [])].map((listener) => listener(notice)));
+    } catch (e) {
+      console.error('reading landed changes:', messageOf(e));
+    }
   }
 
   private async land(cardId: string, branch: string, trailer?: string): Promise<LandProblem | Landed> {
@@ -1214,10 +1350,74 @@ export class Workspaces implements CardWorkspaces {
         // main moved while the branch was rebased (a commit made in the checkout by hand): once more onto it
         const moved = (await gitRun(repo, ['merge-base', '--is-ancestor', 'HEAD', tip])).code === 1;
         if (moved && attempt === 0) continue;
-        // else typically local changes in the Obeya checkout that the fast-forward would overwrite
-        return { code: moved ? 'land' : 'landMerge', worker: false, detail: messageOf(e) };
+        if (moved) return { code: 'land', worker: false, detail: messageOf(e) };
+        // else typically local changes in the Seismic checkout that the fast-forward would overwrite: which, so that the owner may fold them into the card
+        const files = await inTheWay(repo, 'HEAD', tip).catch(() => []);
+        return { code: 'landMerge', worker: false, detail: messageOf(e), ...(files.length ? { files } : {}) };
       }
     }
+  }
+
+  /**
+   * Moves the Seismic checkout's uncommitted changes that stand in the way of landing the card (files
+   * its branch changes too, `inTheWay`) into the card's branch, so that its worker can work them in
+   * before the work lands: they become one commit on the checkout's `HEAD` (kept under
+   * `refs/obeya/folded/<card>`), picked onto the branch in its workspace, then put back to `HEAD`
+   * in the checkout. Its other uncommitted changes stay as they are. Where the pick conflicts, it
+   * stays under way in the workspace for the worker to resolve (`conflict`). Nothing in the way any
+   * more: no files, and nothing moved.
+   */
+  foldMain(cardId: string, branch: string): Promise<{ files: string[]; commit?: string; conflict?: boolean; kept?: boolean } | LandProblem> {
+    return landings.run(this.o.repoPath, async () => {
+      const ws = this.leasedBy(cardId);
+      if (!ws) return { code: 'land', worker: false, detail: 'the card has no workspace' };
+      const repo = this.o.repoPath;
+      try {
+        const base = await this.checkoutBase();
+        if ((await gitAsync(repo, 'branch', '--show-current')) !== base) return { code: 'land', worker: false, detail: `the Seismic checkout is not on ${base}` };
+        if (await gitAsync(ws, 'status', '--porcelain')) return { code: 'landDirty', worker: true, detail: 'uncommitted changes in the workspace' };
+        let tip = branch;
+        if (this.cloned(ws)) {
+          await gitAsync(repo, 'fetch', '--quiet', ws, branch);
+          tip = await gitAsync(repo, 'rev-parse', 'FETCH_HEAD');
+        }
+        const files = await inTheWay(repo, 'HEAD', tip);
+        if (!files.length) return { files };
+        const head = await gitAsync(repo, 'rev-parse', 'HEAD');
+        const commit = await commitOf(repo, head, files, 'Uncommitted changes from the main checkout, folded into this card');
+        const ref = `refs/obeya/folded/${cardId}`;
+        await gitAsync(repo, 'update-ref', ref, commit);
+        // what the owner staged is kept too, for a file staged in one version and edited on to another
+        const staged = await gitAsync(repo, 'commit-tree', await gitAsync(repo, 'write-tree'), '-p', head, '-m', 'The main checkout\'s index when its changes were folded into this card');
+        await gitAsync(repo, 'update-ref', `${ref}-index`, staged);
+        if (this.cloned(ws)) await gitAsync(ws, 'fetch', '--quiet', repo, ref);
+        const picked = await gitRun(ws, ['cherry-pick', '--allow-empty', commit]);
+        let conflict = picked.code !== 0;
+        // a pick that failed without a conflict to resolve leaves the checkout's changes where they are
+        if (conflict && (await gitRun(ws, ['rev-parse', '-q', '--verify', 'CHERRY_PICK_HEAD'])).code !== 0)
+          return { code: 'land', worker: false, detail: `git cherry-pick in ${ws}: ${(picked.stderr || picked.stdout).trim()}` };
+        // the branch has those changes already: nothing to pick
+        if (conflict && !(await gitAsync(ws, 'diff', '--name-only', '--diff-filter=U'))) {
+          await gitAsync(ws, 'cherry-pick', '--skip');
+          conflict = false;
+        }
+        // files edited once more while git picked keep the checkout's copies: nothing the commit lacks is lost
+        const now = await commitOf(repo, head, files, 'check');
+        if ((await gitAsync(repo, 'rev-parse', `${now}^{tree}`)) !== (await gitAsync(repo, 'rev-parse', `${commit}^{tree}`)))
+          return { files, commit, ...(conflict ? { conflict } : {}), kept: true };
+        // the checkout's copies go back to HEAD: tracked files restored, new ones removed
+        const tracked = (await gitAsync(repo, '--literal-pathspecs', 'ls-tree', '-r', '-z', '--name-only', 'HEAD', '--', ...files)).split('\0').filter(Boolean);
+        const added = files.filter((f) => !tracked.includes(f));
+        if (tracked.length) await gitAsync(repo, '--literal-pathspecs', 'restore', '--source=HEAD', '--staged', '--worktree', '--', ...tracked);
+        if (added.length) {
+          await gitAsync(repo, '--literal-pathspecs', 'rm', '-q', '--cached', '--ignore-unmatch', '--', ...added);
+          await gitAsync(repo, '--literal-pathspecs', 'clean', '-q', '-f', '--', ...added);
+        }
+        return { files, commit, ...(conflict ? { conflict } : {}) };
+      } catch (e) {
+        return { code: 'land', worker: false, detail: messageOf(e) };
+      }
+    });
   }
 
   /**
@@ -1228,7 +1428,7 @@ export class Workspaces implements CardWorkspaces {
    * pulled, and it says where (`stopped`); a pull that fails all the same is undone and says why.
    */
   pullMain(): Promise<Landed | { problem: string } | { stopped: PullStopped }> {
-    return oneAtATime(landings, this.o.repoPath, () => this.pull());
+    return landings.run(this.o.repoPath, () => this.pull());
   }
 
   private async pull(): Promise<Landed | { problem: string } | { stopped: PullStopped }> {
@@ -1266,7 +1466,7 @@ export class Workspaces implements CardWorkspaces {
    * where `origin`'s main stood before and stands now.
    */
   pushMain(): Promise<{ from: string; to: string } | { problem: string }> {
-    return oneAtATime(landings, this.o.repoPath, async () => {
+    return landings.run(this.o.repoPath, async () => {
       const repo = this.o.repoPath;
       try {
         const base = await this.checkoutBase();
@@ -1294,7 +1494,7 @@ export class Workspaces implements CardWorkspaces {
    * conflicts with `origin`'s main itself (which the forge shows), or its head is nowhere to fetch.
    */
   clashBeforeMerge(cardId: string, head: string): Promise<PullClash | null> {
-    return oneAtATime(landings, this.o.repoPath, async () => {
+    return landings.run(this.o.repoPath, async () => {
       const repo = this.o.repoPath;
       const base = await this.checkoutBase();
       const known = async () => (await gitRun(repo, ['cat-file', '-e', `${head}^{commit}`])).code === 0;
@@ -1320,7 +1520,7 @@ export class Workspaces implements CardWorkspaces {
    * merge by now (the owner pulled it). `rewritten`: each unpushed commit's new one (`rewrites`).
    */
   landResolution(ws: string, at: { main: string; upstream: string }): Promise<(Landed & { rewritten: Record<string, string> }) | { already: string } | (LandProblem & { main?: string })> {
-    return oneAtATime(landings, this.o.repoPath, async () => {
+    return landings.run(this.o.repoPath, async () => {
       if (!ws) return { code: 'land', worker: false, detail: 'the card has no workspace' };
       const repo = this.o.repoPath;
       try {
@@ -1354,7 +1554,7 @@ export class Workspaces implements CardWorkspaces {
         if (cloned) await gitAsync(repo, 'fetch', '--quiet', '--no-write-fetch-head', ws, tip);
         // a commit made in the checkout by hand meanwhile would be lost with the reset: it goes on top first, at the next handover
         if ((await gitAsync(repo, 'rev-parse', 'HEAD')) !== now || (await gitAsync(repo, 'branch', '--show-current')) !== base)
-          return { code: 'landConflict', worker: true, main: now, detail: `the local ${base} moved on once more while Obeya landed your branch, which holds what landed on it up to ${now.slice(0, 7)} now: call ready_for_review again` };
+          return { code: 'landConflict', worker: true, main: now, detail: `the local ${base} moved on once more while Seismic landed your branch, which holds what landed on it up to ${now.slice(0, 7)} now: call ready_for_review again` };
         try {
           // never pushed, so moving the local main there rewrites no published history; the owner's uncommitted changes are kept, or it stops
           await gitAsync(repo, 'reset', '--quiet', '--keep', tip);
@@ -1368,7 +1568,7 @@ export class Workspaces implements CardWorkspaces {
     });
   }
 
-  /** The default branch of the Obeya checkout. */
+  /** The default branch of the Seismic checkout. */
   private async checkoutBase(): Promise<string> {
     const repo = this.o.repoPath;
     return branchSetting(repo) || (await gitSteps(repo, detectingBranch()));
@@ -1389,11 +1589,11 @@ export class Workspaces implements CardWorkspaces {
    * Lands the card's committed branch on the default branch of `origin` without a pull request:
    * rebased (or squashed) onto it as in `landOnMain`, then pushed there, never forced. When the
    * push is turned away because the default branch moved meanwhile, it fetches, rebases and pushes
-   * once more. The Obeya checkout is left as it is; the workspace stays with the card. `trailer`
+   * once more. The Seismic checkout is left as it is; the workspace stays with the card. `trailer`
    * as in `landOnMain`.
    */
-  pushToMain(cardId: string, trailer?: string): Promise<LandProblem | Landed> {
-    return oneAtATime(landings, this.o.repoPath, () => this.push(cardId, trailer));
+  pushToMain(cardId: string, trailer?: string, turn?: LandingTurn): Promise<LandProblem | Landed> {
+    return landings.run(this.o.repoPath, () => this.announceLanding(cardId, () => this.push(cardId, trailer)), turn);
   }
 
   private async push(cardId: string, trailer?: string): Promise<LandProblem | Landed> {
@@ -1486,7 +1686,7 @@ export class Workspaces implements CardWorkspaces {
       if (this.leasedBy(from) !== path) throw new WorkspaceError('the card has no workspace', 'noWorkspace');
       if (this.preparing.has(from)) throw new WorkspaceError('git is still preparing the workspace of the card it comes from');
       if (this.leasedBy(to)) throw new WorkspaceError('the card it goes to has a workspace of its own');
-      // in a worktree the branch lives in the Obeya checkout, in a clone in the clone
+      // in a worktree the branch lives in the Seismic checkout, in a clone in the clone
       const repo = this.cloned(path) ? path : this.o.repoPath;
       let now = branch;
       if (rename && rename !== branch && !(await gitAsync(repo, 'branch', '--list', rename))) {
@@ -1566,7 +1766,7 @@ export class Workspaces implements CardWorkspaces {
    * ` b/` in it can in a diff's header; what `file` serves rests on this list. Empty where git
    * cannot tell.
    */
-  async changedFiles(cardId: string, landed?: { base: string; commit: string }): Promise<string[]> {
+  async changedFiles(cardId: string, landed?: { base: string; commit: string }, includeDeleted?: boolean): Promise<string[]> {
     const names = async (cwd: string, args: string[]) => {
       const r = await gitRun(cwd, ['-c', 'core.quotePath=false', ...args]);
       if (r.code !== 0) throw new WorkspaceError(r.stderr);
@@ -1577,7 +1777,7 @@ export class Workspaces implements CardWorkspaces {
       const ws = this.leasedBy(cardId);
       if (!ws || !mayExist(ws)) return [];
       const base = await this.base(ws);
-      return [...(await names(ws, ['diff', '--name-only', '-z', '-M', '--diff-filter=d', base])), ...(await names(ws, ['ls-files', '-z', '--others', '--exclude-standard']))];
+      return [...(await names(ws, ['diff', '--name-only', '-z', ...(includeDeleted ? ['--no-renames'] : ['-M', '--diff-filter=d']), base])), ...(await names(ws, ['ls-files', '-z', '--others', '--exclude-standard']))];
     } catch {
       return [];
     }
@@ -1718,7 +1918,7 @@ export class Workspaces implements CardWorkspaces {
    * A temporary worktree for the owner's question to a finished card while no clone is free and
    * clean: detached at the head of the card's branch, made from the
    * clone on this machine that holds the branch (else from the configured checkout, at `origin`'s
-   * copy of the branch or the default branch), as the Lesestand is made. It takes no clone and is
+   * copy of the branch or the default branch), as the read checkout is made. It takes no clone and is
    * not in the pool; `removeFollowUpTree` removes it once the follow-up ends.
    */
   followUpTree(cardId: string, branch: string): Lease {
@@ -1765,7 +1965,7 @@ export class Workspaces implements CardWorkspaces {
     this.store.addWorkspace(this.canvasId, path, this.o.repo ?? null);
     this.store.setLease(path, cardId);
     const removing = this.clears.get(path);
-    if (!removing && existsSync(path)) return { path, ready: null };
+    if (!removing && existsSync(path) && !this.o.projectOf?.(cardId)) return { path, ready: null };
     return this.prepare(
       cardId,
       path,
@@ -1790,9 +1990,9 @@ export class Workspaces implements CardWorkspaces {
 /**
  * The clones of a repository's pool (`rows`, as registered) that a configuration no longer names,
  * which leave the pool once it runs (`keepOnly`): with the repository in worktrees all of them;
- * else those here that are neither `listed` (resolved) nor among the first `clones` Obeya makes in
+ * else those here that are neither `listed` (resolved) nor among the first `clones` Seismic makes in
  * `dir`, and on a host those beyond its number, or all where it is no longer configured. Each with
- * its number where Obeya made it, and the card that holds it.
+ * its number where Seismic made it, and the card that holds it.
  */
 export function leavingClones(
   rows: { path: string; card_id: string | null }[],
@@ -1826,7 +2026,7 @@ export function leavingClones(
  * (a follow-up's), and commits of a branch, a tag or a detached HEAD that are on no branch of
  * `origin` (fetched with pruning: a branch deleted there counts as gone), unless the files it
  * changes are on `origin`'s main branch as it has them (so a branch squashed or rebased onto it
- * counts as landed). `origin` is where its work lands: the remote, or the Obeya checkout where work lands on
+ * counts as landed). `origin` is where its work lands: the remote, or the Seismic checkout where work lands on
  * the local main. Empty where nothing would be lost; `gone` where the folder is gone already; null
  * where it cannot tell now (the host does not answer, `origin` cannot be fetched), or the folder is
  * no clone of `origins` (a worktree's `.git` is a file, a clone of another repository).
@@ -2019,7 +2219,7 @@ export function defaultBranch(path: string): string {
 
 /**
  * The folders without git in the configuration (`RepoConfig.git` false), by path: they have no
- * branch, and what Obeya reads of them (`.obeya/settings.json`, plan docs) it reads as the folder has
+ * branch, and what Seismic reads of them (`.obeya/settings.json`, plan docs) it reads as the folder has
  * it. Marked whenever a configuration is resolved.
  */
 const folders = new Set<string>();
@@ -2067,7 +2267,7 @@ export interface Branches {
 }
 
 /**
- * Reads `Branches` as git steps, all with one call: Obeya reads them each time it needs the main
+ * Reads `Branches` as git steps, all with one call: Seismic reads them each time it needs the main
  * branch, and each call of git takes a few milliseconds. Null where there is no git repository.
  */
 export function* readingBranches(): GitSteps<Branches | null> {
@@ -2086,7 +2286,7 @@ export function* readingBranches(): GitSteps<Branches | null> {
 }
 
 /**
- * What Obeya reads of a repository with git, written once for both ways it runs: batches of git
+ * What Seismic reads of a repository with git, written once for both ways it runs: batches of git
  * calls (their arguments) that do not depend on one another, each answered with the calls' output
  * (trimmed; null where git failed) before the next batch is asked.
  */
@@ -2126,6 +2326,9 @@ export function* gitCalls(...calls: string[][]): GitSteps<(string | null)[]> {
 
 /** What every card's branch begins with. */
 export const CARD_BRANCH = 'obeya/';
+
+/** Stable across renaming a project or its plan doc; project ids are globally unique. */
+export const projectBaselineTag = (projectId: string): string => `obeya/project/${projectId}/baseline`;
 
 /** `obeya/<slug>` from a card title, kept short and unique by the card id. */
 export function branchName(title: string, cardId: string): string {

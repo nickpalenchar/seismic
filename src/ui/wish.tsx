@@ -1,10 +1,11 @@
-// A wish or a bug for Obeya's makers: a dialog over the page, opened from the foot of Obeya's
+// A wish or a bug for Seismic's makers: a dialog over the page, opened from the foot of Seismic's
 // sidebar, from the `?` legend, by the Koordinator when the owner asks it to tell the makers
-// something, and from the link under a reply that says Obeya cannot do what they asked. What the
+// something, and from the link under a reply that says Seismic cannot do what they asked. What the
 // owner writes or says in its field a small job writes up as a GitHub issue in English; title and
-// body stand editable as they go out, and „Auf GitHub öffnen“ opens the prefilled issue for the
+// body stand editable as they go out, and "Open on GitHub" opens the prefilled issue for the
 // owner to submit under their own account. The draft is kept per tab and canvas, like every input.
 
+import { MessageCircle } from 'lucide-react';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { issueUrl, type Wish, withoutFooter } from '../core/wish';
 import { api, ApiError } from './api';
@@ -102,7 +103,7 @@ const same = (a: Wish | undefined, b: Wish) => !!a && a.said === b.said && a.ans
 const holds = (issue: Issue) => !!withoutFooter(issue.body).trim() || issue.images.length > 0;
 
 /**
- * Opens the dialog; with `seed` (what the owner wants the makers told, or a request Obeya could not
+ * Opens the dialog; with `seed` (what the owner wants the makers told, or a request Seismic could not
  * do and its answer) the job writes a draft from it. A draft written from that seed opens as it
  * stands; another one with something in it stays, and the owner decides; one without goes.
  */
@@ -286,7 +287,7 @@ function IssueFields({ issue, disabled }: { issue: Issue; disabled: boolean }) {
   );
 }
 
-/** The quiet link that opens the dialog: under „Einrichtung prüfen“ in the Konfiguration dialog, and in the legend (`onOpen` closes either). */
+/** The quiet link that opens the dialog: under "Check setup" in the Konfiguration dialog, and in the legend (`onOpen` closes either). */
 export function WishLink({ className, onOpen }: { className?: string; onOpen?: () => void }) {
   const draft = useWishDraft();
   return (
@@ -304,7 +305,7 @@ export function WishLink({ className, onOpen }: { className?: string; onOpen?: (
   );
 }
 
-/** Under a reply that says Obeya cannot do what the owner asked, or that opened a draft for the makers. */
+/** Under a reply that says Seismic cannot do what the owner asked, or that opened a draft for the makers. */
 export function WishReplyLink({ wish }: { wish: Wish }) {
   return (
     <button className="wish-link on-reply" onClick={() => openWish(wish)}>
@@ -315,8 +316,6 @@ export function WishReplyLink({ wish }: { wish: Wish }) {
 
 function BubbleIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" />
-    </svg>
+    <MessageCircle size={13} strokeWidth={2} aria-hidden="true" />
   );
 }

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { AccessView, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, CanvasConfig, CanvasInfo, CanvasSnapshot, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, PersonalSiteView, SiteSetupJob, TagProposalJob, PageTags, NarrationLanguage, FirstCanvas, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, ProjectHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView, NotificationsView } from '../core/types';
+import type { AccessView, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, CanvasConfig, CanvasInfo, CanvasSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, CanvasDemoSiteState, DemoSitesView, TagProposalJob, PageTags, NarrationLanguage, FirstCanvas, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, ProjectHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
+  CanvasDefaultsView,
+  CanvasSettings, CanvasSettingsView, DeveloperView, NotificationsView } from '../core/types';
 import type { Wish } from '../core/wish';
 import { noteMessage, watchPageStalls } from './stalls';
 
@@ -69,7 +71,7 @@ export function setCanvas(id: string) {
 export const at = (path: string) => `/api/c/${encodeURIComponent(canvasId)}${path}`;
 /**
  * The canvas each card is on, where the page shows the cards of several (the phone view). A call
- * about a card goes to its canvas even once another is in view: the card closing puts Obeya's in
+ * about a card goes to its canvas even once another is in view: the card closing puts Seismic's in
  * view before the card's last calls (its held comments released, say) go out.
  */
 const canvasOfCard = new Map<string, string>();
@@ -98,11 +100,11 @@ export type Where = { card: string } | { project: string } | null;
 /** The field on a card words were typed into, which tells the Koordinator what they were meant as. */
 export type Field = 'note' | 'answer' | 'feedback' | 'demo' | 'discuss' | 'revise';
 
-/** What Obeya made of a command. */
+/** What Seismic made of a command. */
 export interface Heard {
   confirm: string;
   token?: string;
-  /** How long the command still waits for "Rückgängig". */
+  /** How long the command still waits for "Undo". */
   undoMs?: number;
   /** Said to the open card's agent: the card shows it, so there is nothing to confirm. */
   quiet?: boolean;
@@ -110,7 +112,7 @@ export interface Heard {
   unheard?: boolean;
   /** The words heard. */
   text?: string;
-  /** The owner asked to tell Obeya's makers something: the draft for them opens with it. */
+  /** The owner asked to tell Seismic's makers something: the draft for them opens with it. */
   wish?: Wish;
   /** The exchange the reply stands in, which the conversation in view may show already. */
   talk?: number;
@@ -119,7 +121,7 @@ export interface Heard {
   /** The card whose conversation shows the reply in full. */
   inCard?: string;
 }
-/** How long "Rückgängig" shows: until shortly before the command stops waiting. */
+/** How long "Undo" shows: until shortly before the command stops waiting. */
 export const undoShownMs = (undoMs: number) => Math.max(0, undoMs - 400);
 /** How long a confirmation stays above the microphone: 7 s, unless its undo window is longer. */
 export const confirmShownMs = (undoMs = 0) => Math.max(7000, undoMs + 1500);
@@ -136,37 +138,44 @@ export interface SiteHow {
   public?: true;
 }
 
+/** "Add a demo site": at a host Seismic sets it up at (unlisted on Cloudflare unless `unlisted: false`), or entered by hand. */
+export type AddSiteInput = ({ host: 'cloudflare' | 'github'; unlisted?: false } & SiteHow) | { manual: { url: string; deploy: string; env?: string; maxFile?: number } };
+
 export const api = {
+  exportCanvases: (ids: string[], as: 'csv' | 'json') => download(`/api/canvases/export?as=${as}${ids.map((id) => `&canvas=${encodeURIComponent(id)}`).join('')}`, `obeya-canvases.${as}`),
   canvases: () => call<CanvasInfo[]>('GET', '/api/canvases'),
-  /** Obeya's configuration, for all canvases. */
+  canvas: (id: string) => call<CanvasSnapshot>('GET', `/api/c/${encodeURIComponent(id)}/canvas`),
+  /** Seismic's configuration, for all canvases. */
   config: () => call<ConfigView>('GET', '/api/config'),
   /** What the configuration as saved amounts to, and what is wrong with it: it reads every repository, so it comes after `config`. */
   configCheck: () => call<ConfigChecked>('GET', '/api/config/check'),
   checkConfig: (canvases: CanvasConfig[]) => call<ConfigChecked>('POST', '/api/config/check', canvases),
   retryStart: () => call<{}>('POST', '/api/config/retry'),
-  /** Saves it; Obeya then starts again with it where something restarts it. */
+  /** Saves it; Seismic then starts again with it where something restarts it. */
   saveConfig: (canvases: CanvasConfig[]) => call<ConfigSaved>('PUT', '/api/config', canvases),
-  /** „Für alle ins Repository übernehmen“: the repository's settings for this machine into its `.obeya/settings.json`. */
+  /** "Take over into the repository for everyone": the repository's settings for this machine into its `.obeya/settings.json`. */
   shareSettings: (path: string, direct = false) => call<SettingsShared>('POST', '/api/config/share-settings', { path, direct }),
   /** The owner confirms the repository's commands the dialog showed them (the groups `held` of `now`): they count from now on. */
   trustCommands: (path: string, trust: RepoTrust) => call<object>('POST', '/api/config/trust', { path, seen: trust.now, held: trust.held }),
-  /** The interface language (chosen, or the system's) and the conversation language (chosen, or the interface's). */
+  /** The interface language (chosen, or the system's) and the conversation language (chosen, or English). */
   language: () => call<LanguageView>('GET', '/api/language'),
   /** Saves the owner's choice; `null` follows the system again. */
   saveLanguage: (language: Language | null) => call<LanguageView>('PUT', '/api/language', { language }),
-  /** The language agents write the owner in until the owner's words say otherwise; `null` follows the interface's. */
+  /** The language agents write the owner in; `null` uses English. */
   saveConversationLanguage: (conversation: Language | null) => call<LanguageView>('PUT', '/api/language', { conversation }),
   /** Light or dark as the owner chose, or `null` for the system's. */
   theme: () => call<ThemeView>('GET', '/api/theme'),
-  // other devices reaching Obeya: the section „Von anderen Geräten“ and „Telefon verbinden“
+  motion: () => call<MotionView>('GET', '/api/motion'),
+  // other devices reaching Seismic: the section "Other devices" and "Connect a phone"
   access: () => call<AccessView | { local: false }>('GET', '/api/access'),
   saveAccess: (remote: RemoteSetting | null) => call<AccessView>('PUT', '/api/access', { remote }),
   pair: () => call<Pairing>('POST', '/api/access/pair'),
   removeDevice: (id: string) => call<{ removed: boolean }>('DELETE', `/api/access/devices/${encodeURIComponent(id)}`),
-  /** Obeya's key for pushes, and whether this device gets them. */
+  /** Seismic's key for pushes, and whether this device gets them. */
   push: () => call<{ key: string; on: boolean }>('GET', '/api/push'),
   subscribe: (subscription: PushSubscriptionJSON) => call<void>('PUT', '/api/push', subscription),
   saveTheme: (theme: Theme | null) => call<ThemeView>('PUT', '/api/theme', { theme }),
+  saveMotion: (motion: Motion | null) => call<MotionView>('PUT', '/api/motion', { motion }),
   /** Whether the bar shows the plan's usage limits. */
   usageMeter: () => call<UsageMeterView>('GET', '/api/usage-meter'),
   saveUsageMeter: (on: boolean) => call<UsageMeterView>('PUT', '/api/usage-meter', { on }),
@@ -177,15 +186,27 @@ export const api = {
   /** Every response the owner gave on agents' work, on every canvas. */
   allFeedback: () => call<Feedback[]>('GET', '/api/feedback'),
   saveFeedbackPrompt: (on: boolean) => call<FeedbackPromptView>('PUT', '/api/feedback-prompt', { on }),
+  /** Canvas defaults: what a new canvas's own settings start as. */
+  canvasDefaults: () => call<CanvasDefaultsView>('GET', '/api/canvas-defaults'),
+  saveCanvasDefaults: (d: CanvasSettings) => call<CanvasDefaultsView>('PUT', '/api/canvas-defaults', d),
+  /** A canvas's own settings, and Configuration's models they fall back on. */
+  canvasSettings: (canvas: string) => call<CanvasSettingsView>('GET', `/api/c/${encodeURIComponent(canvas)}/settings`),
+  /** Saves some of a canvas's own settings (`{ agents }`, `{ suggest }` …) into the configuration. */
+  saveCanvasSettings: (canvas: string, s: CanvasSettings) => call<CanvasSettingsView>('PUT', `/api/c/${encodeURIComponent(canvas)}/settings`, s),
   /** The model and effort of each group of agents. */
   agents: () => call<AgentsView>('GET', '/api/agents'),
+  /** The settings of the shown canvas, with Configuration's models as the base of its own. */
+  shownCanvasSettings: () => call<CanvasSettingsView>('GET', at('/settings')),
   codexModels: () => call<CodexModel[]>('GET', '/api/agents/codex-models'),
+  agyModels: () => call<CodexModel[]>('GET', '/api/agents/agy-models'),
   /** Saves the model or the effort of one group. */
+  /** Whether Codex's own automatic review decides for Codex workers (`true`) or the owner is asked. */
+  saveCodexAutoReview: (on: boolean) => call<AgentsView>('PUT', '/api/agents/codex-auto-review', { on }),
   saveAgents: (role: AgentRole, choice: Partial<AgentSetting>) => call<AgentsView>('PUT', '/api/agents', { [role]: choice }),
-  /** The setup assistant's list: what Obeya needs on this machine. */
+  /** The setup assistant's list: what Seismic needs on this machine. */
   setup: () => call<MachineView>('GET', '/api/setup'),
   setupInstall: (section: MachineSectionId, id: MachineItem['id']) => call<MachineView>('POST', '/api/setup/install', { section, id }),
-  /** Opens a terminal that logs in (`token`: Claude's `claude setup-token`); `opened: false` where Obeya found none. */
+  /** Opens a terminal that logs in (`token`: Claude's `claude setup-token`); `opened: false` where Seismic found none. */
   setupLogin: (section: MachineSectionId, id: MachineItem['id'], token?: boolean) => call<{ opened: boolean; command: string }>('POST', '/api/setup/login', { section, id, ...(token ? { token } : {}) }),
   /** The token from `claude setup-token`, for the sessions that run on a token. */
   setupToken: (token: string) => call<{ saved: true }>('POST', '/api/setup/token', { token }),
@@ -203,19 +224,16 @@ export const api = {
   /** Tests a cloud service with the check's sentence and hears through it from then on; a key left out keeps the saved one. */
   useCloudVoice: (service: { preset: CloudPreset; baseUrl?: string; model?: string; key?: string }) => call<VoiceSetupView>('PUT', '/api/voice-setup/cloud', service),
   useLocalVoice: () => call<VoiceSetupView>('DELETE', '/api/voice-setup/cloud'),
-  /** The owner's personal demo site on this machine: set up at a host, connected by code, removed; repositories ticked for it (private ones, those that share with the approval). */
-  personalSite: () => call<PersonalSiteView>('GET', '/api/personal-site'),
-  setUpPersonalSite: (host: 'cloudflare' | 'github', how: SiteHow = {}) => call<PersonalSiteView>('POST', '/api/personal-site/setup', { host, ...how }),
-  connectPersonalSite: (code: string) => call<PersonalSiteView>('POST', '/api/personal-site/connect', { code }),
-  personalSiteCode: () => call<{ code: string }>('GET', '/api/personal-site/code'),
-  removePersonalSite: () => call<PersonalSiteView>('DELETE', '/api/personal-site'),
-  allowPrivateRepo: (path: string, on: boolean) => call<PersonalSiteView>('POST', '/api/personal-site/private', { path, on }),
-  /** Ticks or unticks a repository whose approved cards put their latest demo on the personal site by themselves. */
-  shareApprovedRepo: (path: string, on: boolean) => call<PersonalSiteView>('POST', '/api/personal-site/approved', { path, on }),
-  /** „Demo-Seite einrichten“ for a repository: started, followed, and taken into its settings. */
-  setUpRepoSite: (path: string, host: 'cloudflare' | 'github', name: string, how: SiteHow = {}) => call<{ job: SiteSetupJob | null }>('POST', '/api/site-setup', { path, host, name, ...how }),
-  repoSiteSetup: (path: string) => call<{ job: SiteSetupJob | null }>('GET', `/api/site-setup?path=${encodeURIComponent(path)}`),
-  repoSiteTaken: (path: string) => call<object>('DELETE', `/api/site-setup?path=${encodeURIComponent(path)}`),
+  /** This machine's demo sites: listed, added (once a publish there went through), connected by code, removed. */
+  demoSites: () => call<DemoSitesView>('GET', '/api/demo-sites'),
+  addDemoSite: (input: AddSiteInput) => call<DemoSitesView>('POST', '/api/demo-sites', input),
+  demoSitesSeen: () => call<DemoSitesView>('POST', '/api/demo-sites/seen'),
+  connectDemoSite: (code: string) => call<DemoSitesView>('POST', '/api/demo-sites/connect', { code }),
+  demoSiteCode: (url: string) => call<{ code: string }>('GET', `/api/demo-sites/code?url=${encodeURIComponent(url)}`),
+  removeDemoSite: (url: string) => call<DemoSitesView>('DELETE', `/api/demo-sites?url=${encodeURIComponent(url)}`),
+  /** A canvas's demo site as it stands, and "Initialize": its path on the site, with the empty overview, deployed. */
+  canvasSite: (canvas: string) => call<CanvasDemoSiteState | null>('GET', `/api/c/${encodeURIComponent(canvas)}/demo-site`),
+  initCanvasSite: (canvas: string, url: string, path: string) => call<CanvasDemoSiteState | null>('POST', `/api/c/${encodeURIComponent(canvas)}/demo-site/init`, { url, path }),
   proposeTags: (path: string, current: PageTags | undefined, language: NarrationLanguage | null) =>
     call<{ job: TagProposalJob }>('POST', '/api/tag-proposal', { path, ...(current ? { current } : {}), ...(language ? { language } : {}) }),
   tagProposal: (path: string) => call<{ job: TagProposalJob | null; available: boolean }>('GET', `/api/tag-proposal?path=${encodeURIComponent(path)}`),
@@ -226,7 +244,11 @@ export const api = {
   demoSetup: (settings: DemoSettings) => call<SetupCheck>('POST', '/api/demo-settings/setup', settings),
   installDemoVoice: (settings: DemoSettings) => call<DemoSettingsView>('POST', '/api/demo-settings/install', settings),
   /** One sentence in the voice, as a WAV to play. */
-  demoVoiceSample: async (settings: DemoSettings) => (await send('POST', '/api/demo-settings/sample', settings)).blob(),
+  demoVoiceSample: async (settings: DemoSettings, sampleText?: string) => (await send('POST', '/api/demo-settings/sample', { ...settings, ...(sampleText ? { sampleText } : {}) })).blob(),
+  /** What the Developer section may do in this Seismic. */
+  developer: () => call<DeveloperView>('GET', '/api/developer'),
+  /** Restarts Seismic, or installs its dependencies again and restarts it, once no worker is in the middle of a turn. */
+  developerRestart: (what: 'restart' | 'rebuild') => call<{ requested: string }>('POST', `/api/developer/${what}`),
   /** Has a restart that waits for workers go ahead now; false when none waits. */
   restartNow: () => call<{ restarting: boolean }>('POST', '/api/restart'),
   /** Has the restart of this canvas's repositories' agents that waits for them go ahead at once. */
@@ -237,7 +259,7 @@ export const api = {
   resumeAgents: (canvas: string) => call<void>('POST', `/api/c/${encodeURIComponent(canvas)}/resume`),
   /** Installs the newer version of the app once the workers paused, as a restart waits for them. */
   installUpdate: () => call<{ updating: boolean }>('POST', '/api/app-update/install'),
-  /** Fast-forwards the checkout Obeya runs from to its upstream; Obeya then restarts with the new code once the workers paused. */
+  /** Fast-forwards the checkout Seismic runs from to its upstream; Seismic then restarts with the new code once the workers paused. */
   pullSource: () => call<{ source: SourceUpdate | null }>('POST', '/api/source-update/pull'),
   /** Draws or removes an owner-drawn arrow, `anchor` the edges and place it was drawn at; `keepalive` for one sent as the page goes. */
   dependency: (from: string, to: string, remove = false, keepalive = false, anchor?: import('../core/types').ManualAnchor) => call<void>(remove ? 'DELETE' : 'POST', at('/dependencies'), { from, to, ...(anchor ? { anchor } : {}) }, keepalive),
@@ -291,7 +313,7 @@ export const api = {
     await refused(res);
     return ((await res.json()) as { path: string }).path;
   },
-  /** Where a file dropped in the browser lies on Obeya's machine, if Obeya finds exactly one that fits its name, size and time. */
+  /** Where a file dropped in the browser lies on Seismic's machine, if Seismic finds exactly one that fits its name, size and time. */
   findFile: async (file: File) => (await call<{ path: string | null }>('POST', at('/files/find'), { name: file.name, size: file.size, modified: file.lastModified })).path,
   /** An image the app's drop names by its path on this machine, as a file the page attaches. */
   localImage: async (path: string) => {
@@ -307,7 +329,7 @@ export const api = {
   skills: (id: string) => call<Skill[]>('GET', cardAt(id, '/skills')),
   /** Whether the app in the card's workspace answers now. */
   appUp: async (id: string) => (await call<{ up: boolean }>('GET', cardAt(id, '/app'))).up,
-  /** Where the owner's browser opens the card's app: through Obeya, which keeps it running a while after. */
+  /** Where the owner's browser opens the card's app: through Seismic, which keeps it running a while after. */
   appOpen: (id: string) => cardAt(id, '/app/open'),
   /** What the card's work changes (null: nothing to read, no workspace and not landed); `full`: with the diff itself. */
   diff: async (id: string, full = false) => (await call<CardDiff | undefined>('GET', cardAt(id, `/diff${full ? '?full' : ''}`))) ?? null,
@@ -348,7 +370,7 @@ export const api = {
   },
   /** Whether the recording `voice` sent as `sent` arrived whole. */
   voiceArrived: async (sent: string) => (await call<{ arrived: boolean }>('GET', at(`/voice/arrived/${encodeURIComponent(sent)}`))).arrived,
-  /** The owner started speaking (or typing a command): Obeya gets ready to read it. */
+  /** The owner started speaking (or typing a command): Seismic gets ready to read it. */
   warmVoice: () => fetch(at('/voice/warm'), { method: 'POST' }).catch(() => {}),
   /** The same, typed; `field`: the field of the open card it was typed into. */
   command: (text: string, where: Where, { images, field, replyTo, spot, place }: { images?: string[]; field?: Field; replyTo?: number | TalkRef; spot?: SpotInput; place?: Place } = {}) =>
@@ -356,7 +378,7 @@ export const api = {
   /** A typed request to the Koordinator of another canvas, about nothing in view there. */
   commandOn: (canvas: string, text: string) => call<Heard>('POST', `/api/c/${encodeURIComponent(canvas)}/command`, { text }),
   undo: (token: string) => call<{ undone: boolean }>('POST', at('/command/undo'), { token }),
-  /** The issue for Obeya's makers as a small job writes it from the owner's words, reworking the draft so far; `app`: Obeya runs in its app. */
+  /** The issue for Seismic's makers as a small job writes it from the owner's words, reworking the draft so far; `app`: Seismic runs in its app. */
   writeWish: (w: { said: string; answer?: string; title?: string; body?: string; images?: string[]; app: boolean }) =>
     call<{ title: string; body: string; raw?: true; limitedUntil?: string }>('POST', at('/wish'), w),
   /** A rule of the owner's, active at once, or with `target` one for that repository's CLAUDE.md. */
@@ -365,21 +387,27 @@ export const api = {
   setPreference: (id: number, text: string | null) =>
     text === null ? call<void>('DELETE', at(`/preferences/${id}`)) : call<void>('PATCH', at(`/preferences/${id}`), { text }),
   /** Accepts a proposed rule, in the owner's words and for the place they chose (a repository, `null` for the preferences) when they changed these. */
-  acceptProposal: (id: number, text?: string, target?: string | null) =>
-    call<void>('POST', at(`/preferences/${id}/accept`), { ...(text === undefined ? {} : { text }), ...(target === undefined ? {} : { target }) }),
-  rejectProposal: (id: number) => call<void>('POST', at(`/preferences/${id}/reject`)),
-  /** Takes a setting the Arbeitsrückschau proposed, as it is or with the owner's `value`: on this machine, or into the repository for everyone. */
-  takeSetting: (id: number, where: 'machine' | 'repository', value?: string | string[]) => call<unknown>('POST', at(`/setting-proposals/${id}/take`), { where, ...(value === undefined ? {} : { value }) }),
-  rejectSetting: (id: number) => call<void>('POST', at(`/setting-proposals/${id}/reject`)),
+  acceptProposal: (id: number, text?: string, target?: string | null, canvas?: string) =>
+    call<void>('POST', canvas ? `/api/c/${encodeURIComponent(canvas)}/preferences/${id}/accept` : at(`/preferences/${id}/accept`), { ...(text === undefined ? {} : { text }), ...(target === undefined ? {} : { target }) }),
+  rejectProposal: (id: number, canvas?: string) => call<void>('POST', canvas ? `/api/c/${encodeURIComponent(canvas)}/preferences/${id}/reject` : at(`/preferences/${id}/reject`)),
+  /** Takes a setting the work retrospective proposed, as it is or with the owner's `value`: on this machine, or into the repository for everyone. */
+  takeSetting: (id: number, where: 'machine' | 'repository', value?: string | string[], canvas?: string) => call<unknown>('POST', canvas ? `/api/c/${encodeURIComponent(canvas)}/setting-proposals/${id}/take` : at(`/setting-proposals/${id}/take`), { where, ...(value === undefined ? {} : { value }) }),
+  rejectSetting: (id: number, canvas?: string) => call<void>('POST', canvas ? `/api/c/${encodeURIComponent(canvas)}/setting-proposals/${id}/reject` : at(`/setting-proposals/${id}/reject`)),
   /** Shares outdated pages again, the newest demos first: `count` of them, or all with null. */
   reshare: (count: number | null, tags = false) => call<void>('POST', at('/reshare'), { count, ...(tags ? { tags } : {}) }),
   stopReshare: () => call<void>('POST', at('/reshare/stop')),
   /** "Ausblenden": puts away what the finished run says, and the notice of outdated pages until a newer change. */
   dismissReshare: () => call<void>('DELETE', at('/reshare')),
   /** The owner has the Koordinator's sheet in view: the answers waiting there are read. */
-  /** Obeya's sheet is in view, or (`ids`) these exchanges in a project's sheet. */
+  /** Seismic's sheet is in view, or (`ids`) these exchanges in a project's sheet. */
   readTalk: (ids?: number[]) => call<void>('POST', at('/talk/read'), ids ? { ids } : undefined),
-  /** Obeya no longer waits on the card after that exchange, to take the step it said it would. */
+  /** A new chat with Seismic on the shown canvas, or (`id`) an earlier one, of `canvas` where it is another. */
+  newChat: () => call<{ chat: number }>('POST', at('/chat'), {}),
+  openChat: (id: number, canvas?: string) => call<{ chat: number }>('POST', canvas ? `/api/c/${encodeURIComponent(canvas)}/chat` : at('/chat'), { id }),
+  setChatModel: (canvas: string, model?: string) => call<void>('POST', `/api/c/${encodeURIComponent(canvas)}/chat/model`, { model: model ?? null }),
+  /** The chats with Seismic on every canvas that runs, the latest first. */
+  everyChat: () => call<ChatElsewhere[]>('GET', '/api/chats'),
+  /** Seismic no longer waits on the card after that exchange, to take the step it said it would. */
   unwait: (talk: number, card: string) => call<{ stopped: boolean }>('POST', at(`/talk/${talk}/unwait`), { card }),
 };
 
@@ -405,8 +433,8 @@ export function onCardEventGone(fn: (cardId: string, id: number) => void): () =>
   return () => goneListeners.delete(fn);
 }
 
-// What Obeya tells the owner without a command of theirs to answer (an answer looked up, what a
-// request an agent passed on came to): it shows above the microphone, with "Rückgängig" while actions wait.
+// What Seismic tells the owner without a command of theirs to answer (an answer looked up, what a
+// request an agent passed on came to): it shows above the microphone, with "Undo" while actions wait.
 const noticeListeners = new Set<(n: Notice) => void>();
 /** Notices that came before anything showed them: those a page gets as it opens, before the canvas is drawn. */
 let heldNotices: { n: Notice; at: number }[] = [];
@@ -545,7 +573,7 @@ export function useCanvas(id = canvasId): {
   offlineSince: number | null;
   restart: PendingRestart | null;
   update: AppUpdate | null;
-  /** New commits on the upstream of the checkout Obeya runs from. */
+  /** New commits on the upstream of the checkout Seismic runs from. */
   source: SourceUpdate | null;
   /** The plan's usage limits, while the bar shows them. */
   usage: Usage | null;
@@ -623,7 +651,7 @@ export function useCanvas(id = canvasId): {
         setOnline(false);
         setOfflineSince((t) => t ?? Date.now());
         // a canvas the configuration no longer has: the page goes to the first one there is; a
-        // device removed from Obeya's devices, or a browser whose cookie no longer names the
+        // device removed from Seismic's devices, or a browser whose cookie no longer names the
         // owner's key, gets the page that says how to connect or sign in again
         api.canvases().then(
           (list) => list.some((c) => c.id === id) || location.replace('/'),

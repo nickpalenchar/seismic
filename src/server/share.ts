@@ -1,12 +1,12 @@
-// Sharing a card's demo with colleagues, a video or an HTML artifact: a page outside Obeya, on the
-// static site Obeya keeps itself (`demo.site` of the repository's settings, site.ts). Obeya writes
+// Sharing a card's demo with colleagues, a video or an HTML artifact: a page outside Seismic, on the
+// static site Seismic keeps itself (the demo site its canvas chose, under the canvas's path, site.ts). Seismic writes
 // the page's text when the worker did not. A page keeps the newest page change (page-changes.ts) it
 // was published after: one that lacks a change since is offered to share again ("Erneut teilen"),
 // with what that brings, on its card, or many at once from the Koordinator's sheet.
 // Once the card has a pull request, its description links the page and the page links it; work that
 // lands without one links the page in its commit's trailer, and the page links the commit. A
-// repository without a site (or with a site whose credentials are not on this machine) exports
-// the demo instead: the same page as a ZIP with its files, or as one HTML file.
+// canvas without a site (or with one not initialized, or whose credentials are not on this machine)
+// exports the demo instead: the same page as a ZIP with its files, or as one HTML file.
 // Pages of one target are on one site, so each publish names the others.
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -18,10 +18,10 @@ import { type Demo, type DemoKind, type DemoPage, EXPORT_HTML_MAX, type Item, ty
 import { BadRequest, type Board, cardDemos, contributionOf, type DemoRef, pageTagsOf, type PrState, sameDemo, type SharedDemo, sharedDemos, type Shipped, type StoredDemo, type StoredReshare, type StoredShare } from './board';
 import { PAGE_CHANGES, pagesVersion } from '../core/page-changes';
 import { dimensions, shownTags, tagsOf, untagged } from '../core/page-tags';
-import type { DemoSite } from '../adapters/types';
+import type { DemoSite, DemoSiteEntry } from '../core/types';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { type Gone, siteBase, siteMissing, siteTarget } from './site';
-import { allowedHere, approvedHere, newToken, type PersonalSite, personalDemoSite, readPersonal } from './personal-site';
+import { demoSite, newToken, readSites } from './demo-sites';
 import { artifactCopy } from './artifact-copy';
 import { GITHUB_PAGES } from './site-hosts';
 import { rereadChapters } from './demo';
@@ -65,7 +65,7 @@ export interface SharePage {
   language: PageLanguage;
   /** The demo's directory: `demo.mp4`, `poster.jpg`, `captions.vtt`; an artifact's `index.html` and the files it loads. */
   dir: string;
-  /** The slugs of the other pages Obeya has stored as shared on this site: the site must still hold them. */
+  /** The slugs of the other pages Seismic has stored as shared on this site: the site must still hold them. */
   shared: string[];
   /** The later demo versions on the page, in order of handover. */
   more?: PageDemo[];
@@ -75,14 +75,22 @@ export interface SharePage {
   theme?: Theme;
 }
 
+/** A canvas's demo site as sharing uses it: the site with the canvas's title, tags and choices, its path there, and an unlisted site's secret. */
+export interface ShareSite {
+  site: DemoSite;
+  path: string;
+  secret?: string;
+}
+
 /**
- * Where a repository's demos may go: the site its settings name (none without one), its checkout,
- * and whether it is public (as its forge says), which lets it share on the owner's personal site.
+ * Where a card's demos may go: its canvas's demo site, once its path is initialized (none
+ * meanwhile, and without one), its repository's checkout, and the canvas's name, the title of a page
+ * that stays on a site the canvas no longer uses.
  */
 export interface ShareSource {
-  site: DemoSite | null;
+  site: ShareSite | null;
   repo: string;
-  isPublic?: boolean;
+  title: string;
   /** Its theme for the pages (`.obeya/theme.css`, theme.ts), asked for once a page goes out; none where it has none. */
   theme?: () => Theme | null;
 }
@@ -94,7 +102,7 @@ export interface ShareSource {
  */
 export interface ShareTarget {
   key: string;
-  /** An unlisted site (the owner's personal one): a page's place on it is `<token>/<slug>`. */
+  /** An unlisted site: a page's place on it is `<path>/<token>/<slug>`. */
   unlisted?: true;
   /** The card's repository checkout. */
   repo: string;
@@ -115,10 +123,12 @@ export interface ShareTarget {
   pageUrl(slug: string): string;
   /** Deploys again what this machine has, for the pages `audit` found missing. */
   repair(shared: string[], log?: (text: string) => void): Promise<{ why?: string; said: string; gone?: Gone[] }>;
+  /** "Initialize": puts the canvas's path on the site, with its empty overview, and deploys. */
+  init?(shared: string[], log?: (text: string) => void): Promise<{ why?: string; said: string; gone?: Gone[] }>;
 }
 
 /**
- * Where a site's deploy runs, under Obeya's home: not in the checkout, which is often a workspace
+ * Where a site's deploy runs, under Seismic's home: not in the checkout, which is often a workspace
  * of the pool too, and a file a command leaves in its working directory (`wrangler pages deploy`
  * writes its cache there) would keep the workspace from being leased until someone cleans up.
  */
@@ -127,15 +137,13 @@ export const SHARE_CWD = 'share';
 export interface SharingOptions {
   board: Board;
   runtime: AgentRuntime;
-  /** Where the card's repository may share demos; null while it does not run. */
+  /** Where the card's demos may go; null while its repository does not run. */
   sourceFor: (card: Item) => ShareSource | null;
-  /** The owner's personal demo site on this machine; read from Obeya's home without it. */
-  personal?: () => PersonalSite | null;
-  /** The personal site as a demo site, how it is deployed (`personalDemoSite` without it; a stand-in in tests). */
-  personalSite?: (p: PersonalSite) => DemoSite;
+  /** This machine's demo sites; read from Seismic's home without it. */
+  sites?: () => DemoSiteEntry[];
   /** The language the card's repository names for its demos (`demo.language` of its settings); none where it names none. */
   languageFor?: (card: Item) => PageLanguage | undefined;
-  /** Obeya's data directory, passed to a site's deploy as `OBEYA_HOME`; the deploy runs in a directory of it (`SHARE_CWD`). */
+  /** Seismic's data directory, passed to a site's deploy as `SEISMIC_HOME`; the deploy runs in a directory of it (`SHARE_CWD`). */
   home: string;
   /** Where the card's pull request is, for the page's link in its description. */
   forge: Forge;
@@ -151,7 +159,7 @@ export const COMMAND_TIMEOUT = 15 * 60_000;
 
 /** The pages of all canvases go out one at a time: a site directory takes one change at a time. */
 let chain: Promise<unknown> = Promise.resolve();
-const serial = <T>(fn: () => Promise<T>): Promise<T> => {
+export const serial = <T>(fn: () => Promise<T>): Promise<T> => {
   const next = chain.then(fn, fn);
   chain = next.catch(() => {});
   return next;
@@ -170,7 +178,7 @@ export class Sharing {
   constructor(private o: SharingOptions) {}
 
   /**
-   * "Teilen", "Auf der Seite ersetzen" or "Zur Seite dazunehmen": one of the card's demos (by its handover; the latest
+   * "Share", "Replace on the page" or "Add to the page": one of the card's demos (by its handover; the latest
    * without) is published right away, on the card's page in place of the versions there, or beside
    * them in its place by handover (`add`). A supplement on a new page or added takes along the demos
    * it supplements. A demo on the page already goes out again with the rest.
@@ -179,8 +187,7 @@ export class Sharing {
   share(cardId: string, { demo: handover, add = false }: { demo?: number | undefined; add?: boolean } = {}) {
     const card = this.card(cardId);
     const demo = handover === undefined ? this.demo(cardId) : this.cardDemo(cardId, { handover, dir: '' });
-    if (card.prototypeOf || !demo || !this.target(card)) throw new BadRequest('noShare', 'the card has no demo, or its repository shares none');
-    if (this.onPersonal(card) && !this.personalAllowed(card)) throw new BadRequest('noShare', 'the repository is private and not allowed on the personal demo site');
+    if (card.prototypeOf || !demo || !this.target(card)) throw new BadRequest('noShare', 'the card has no demo, or its canvas shares none');
     const s = this.stored(cardId);
     if (s?.state) throw new BadRequest('shareBusy', 'the page is being shared or withdrawn');
     const now: DemoRef[] = s?.url ? sharedDemos(s) : [];
@@ -196,9 +203,8 @@ export class Sharing {
   }
 
   /**
-   * The owner approved the card's work. Where its repository's site publishes on approval
-   * (`demo.site.publish`), or the owner ticked the repository for it on the personal site its page
-   * goes to, its latest demo goes on its page unless it is there: beside the versions
+   * The owner approved the card's work. Where its canvas's site publishes on approval
+   * (`publish` of the canvas's demo site), its latest demo goes on its page unless it is there: beside the versions
    * there where its worker said it only supplements them (with the demos it supplements), else in
    * their place. It goes out through
    * the queue like any share, so the landing does not wait for it; a failure goes into the card's
@@ -256,7 +262,7 @@ export class Sharing {
   }
 
   /**
-   * „Mit der Freigabe teilen“, where approving shares (see `approved`): whether approving the
+   * "Share on approval", where approving shares (see `approved`): whether approving the
    * card puts its latest demo on its page. It stays with the card across handovers.
    */
   onApproval(cardId: string, on: boolean) {
@@ -286,7 +292,7 @@ export class Sharing {
     if (s.url && !s.state) this.refresh(cardId, true);
   }
 
-  /** The approval of a card whose owner unticked „Mit der Freigabe teilen“: the log says so where it would have shared. */
+  /** The approval of a card whose owner unticked "Share on approval": the log says so where it would have shared. */
   private notOnPage(cardId: string) {
     const demo = this.demo(cardId);
     const s = this.stored(cardId);
@@ -387,7 +393,7 @@ export class Sharing {
   }
 
   /**
-   * Pages published before Obeya kept the page changes (until 2026-10-16) kept a hash of sample
+   * Pages published before Seismic kept the page changes (until 2026-10-16) kept a hash of sample
    * pages instead, which says nothing about what changed: their change is read off the page as the
    * site has it (the style for an artifact alone came with the security fix, Newsreader with the
    * look), and one whose page is not there counts as published before both.
@@ -400,7 +406,7 @@ export class Sharing {
       const source = card && this.o.sourceFor(card);
       let page = '';
       try {
-        if (source?.site) page = readFileSync(join(siteBase(this.o.home, source.site), 'site', s.slug, 'index.html'), 'utf8');
+        if (source?.site) page = readFileSync(join(siteBase(this.o.home, source.site.site), 'site', s.slug, 'index.html'), 'utf8');
       } catch {}
       const version = page.includes('body.alone') ? '2026-10-16-alone' : page.includes('Newsreader') ? '2026-10-10-look' : '';
       const { outdated: _, ...rest } = s as StoredShare & { outdated?: true };
@@ -496,7 +502,7 @@ export class Sharing {
   }
 
   /**
-   * The owner came back to Obeya: each site is asked again (at most once a minute) which pages
+   * The owner came back to Seismic: each site is asked again (at most once a minute) which pages
    * another machine withdrew, or took offline.
    */
   soon() {
@@ -539,6 +545,19 @@ export class Sharing {
   }
 
   /** Pages withdrawn on another machine: their cards here lose their link. */
+  /**
+   * "Initialize": puts a canvas's path on its site, with the empty overview, and deploys, after
+   * any share under way (one site directory takes one change at a time). Why it failed, where it did.
+   */
+  init(site: ShareSite, repo: string, language?: PageLanguage): Promise<{ why?: string }> {
+    return serial(async () => {
+      const target = siteTarget(site.site, repo, this.o.home, this.o.board.t.share, { path: site.path, ...(site.secret ? { unlisted: { secret: site.secret } } : {}), ...(language ? { language } : {}) });
+      const r = await target.init!(this.others('', target.key));
+      this.lost(target.key, r.gone);
+      return r.why ? { why: r.why } : {};
+    });
+  }
+
   private lost(key: string, gone: Gone[] = []) {
     for (const g of gone) {
       const { r, s } = this.shares().find(({ s }) => pathOf(s) === g.slug) ?? {};
@@ -571,11 +590,9 @@ export class Sharing {
       return false;
     };
     const target = this.target(card);
-    // a private repository unticked since: its page may be withdrawn, but nothing more goes out
-    if (s.personal && !this.personalAllowed(card)) return back(t.privateNotAllowed);
     let demos: SharedDemo[];
     if (s.refresh) {
-      // the page as it is: a newer demo on the card waits for "Auf der Seite ersetzen" or "Zur Seite dazunehmen"
+      // the page as it is: a newer demo on the card waits for "Replace on the page" or "Add to the page"
       demos = sharedDemos(s);
       if (!demos.length || !target) {
         if (s.again) return back(t.demoGone);
@@ -627,7 +644,7 @@ export class Sharing {
     this.lost(target.key, r.gone);
     if ('why' in r) return back(r.why, r.said);
     const { url } = r;
-    this.set(cardId, { slug: s.slug, url, demos, ...(pr ? { pr } : {}), ...(commit ? { commit: commit.url } : {}), version: pagesVersion(), ...(theme ? { theme: theme.hash } : {}), ...kept(s), ...(s.personal ? { personal: true as const } : {}) });
+    this.set(cardId, { slug: s.slug, url, demos, ...(pr ? { pr } : {}), ...(commit ? { commit: commit.url } : {}), version: pagesVersion(), ...(theme ? { theme: theme.hash } : {}), ...kept(s), ...placeOf(s) });
     if (r.said) this.o.board.log(cardId, 'activity', 'obeya', r.said);
     this.o.board.log(cardId, 'state', 'obeya', s.again ? t.sharedAgain(url) : s.retag ? t.retagged(url) : s.refresh ? (pr ? t.linksPr(url) : t.linksCommit(url)) : t.shared(url));
     this.settled(cardId, { url });
@@ -642,7 +659,7 @@ export class Sharing {
 
   /**
    * Puts the page's link into the pull request's description, unless it is there already (the
-   * worker put it there, or Obeya did before). A line of Obeya's own is found again by its marker.
+   * worker put it there, or Seismic did before). A line of Seismic's own is found again by its marker.
    */
   private async linkPr(cardId: string, pr: string, url: string, cwd: string, kind: DemoKind) {
     const n = parsePrUrl(pr)?.number;
@@ -700,7 +717,7 @@ export class Sharing {
    * The card's demo as a file to pass on, for a repository without a share target: the page in a
    * ZIP with the video, poster and captions beside it, or one HTML file that holds them all (videos
    * up to EXPORT_HTML_MAX). An HTML artifact goes beside its page in the ZIP, or into the one file
-   * when it is its `index.html` alone. Nothing leaves Obeya, so nothing is held.
+   * when it is its `index.html` alone. Nothing leaves Seismic, so nothing is held.
    */
   async export(cardId: string, as: 'zip' | 'html', handover?: number): Promise<{ name: string; type: string; data: Uint8Array<ArrayBuffer> }> {
     const card = this.card(cardId);
@@ -898,10 +915,9 @@ export class Sharing {
     this.o.board.log(cardId, 'activity', 'obeya', this.o.board.t.share.tagsChosen(shownTags(tags, tags).map(([d, v]) => `${d}: ${v.join(', ')}`).join(' · ') || '–'));
   }
 
-  /** The site's vocabulary of tags for the card's page; none where its repository names none, or the page is on the personal site. */
+  /** The vocabulary of tags for the card's page: its canvas's; none where it names none. */
   private vocabulary(card: Item): PageTags | undefined {
-    if (this.onPersonal(card)) return undefined;
-    const v = this.o.sourceFor(card)?.site?.tags;
+    const v = this.o.sourceFor(card)?.site?.site.tags;
     return v && dimensions(v).length ? v : undefined;
   }
 
@@ -924,78 +940,69 @@ export class Sharing {
   }
 
   /**
-   * Where the card's page goes: where it is, once it is out or going out; else its repository's
-   * site, where this machine can deploy to it, else the owner's personal site, where the repository
-   * may share there (public, or ticked). Null where none takes it: its demos are exported.
+   * Where the card's page goes: where it is, once it is out or going out (where this machine still
+   * has that site); else its canvas's site, once its path is initialized and this machine can deploy
+   * there. Null where none takes it: its demos are exported.
    */
   private target(card: Item): ShareTarget | null {
     const s = this.stored(card.id);
-    if (s?.url || s?.state) return s.personal ? this.personalTarget(card) : this.ownTarget(card);
-    return this.ownTarget(card) ?? (this.personalAllowed(card) ? this.personalTarget(card) : null);
+    // one going out since before pages named their site (until 2026-11-06) goes to the canvas's
+    if (s?.url || s?.site) return this.storedTarget(card, s);
+    return this.ownTarget(card);
   }
 
-  /** The card's repository's own site, where this machine has its credentials. */
+  /** The canvas's site, under its path, where this machine has its credentials. */
   private ownTarget(card: Item): ShareTarget | null {
     const src = this.o.sourceFor(card);
-    if (!src?.site || siteMissing(this.o.home, src.site)) return null;
-    const language = this.o.languageFor?.(card);
-    return siteTarget(src.site, src.repo, this.o.home, this.o.board.t.share, { ...(language ? { language } : {}), ...(src.theme ? { theme: src.theme } : {}) });
+    if (!src?.site || siteMissing(this.o.home, src.site.site)) return null;
+    return this.siteTarget(card, src.site);
   }
 
-  /**
-   * The owner's personal site, unlisted, where this machine is connected to it and has its
-   * credentials; none for a page that went out on another personal site (this machine was connected
-   * to another one since).
-   */
-  private personalTarget(card: Item): ShareTarget | null {
+  /** The site and path a page is on, or goes to: the canvas's, where it is the same, else that site of this machine's with the canvas's title. */
+  private storedTarget(card: Item, s: StoredShare): ShareTarget | null {
     const src = this.o.sourceFor(card);
-    const p = this.personal();
-    if (!src || !p) return null;
-    const url = this.stored(card.id)?.url;
-    if (url && !url.startsWith(`${p.url.replace(/\/+$/, '')}/`)) return null;
-    const site = (this.o.personalSite ?? personalDemoSite)(p);
-    if (siteMissing(this.o.home, site)) return null;
-    const language = this.o.languageFor?.(card);
-    return siteTarget(site, src.repo, this.o.home, this.o.board.t.share, { ...(p.secret ? { unlisted: { secret: p.secret } } : {}), ...(language ? { language } : {}) });
+    if (!src) return null;
+    const path = s.path ?? '';
+    const ownUrl = src.site?.site.url.replace(/\/+$/, '');
+    const own = src.site && (s.site ? s.site === ownUrl : !!s.url?.startsWith(`${ownUrl}/`)) && src.site.path === path ? src.site : null;
+    let site = own;
+    if (!site) {
+      const sites = this.o.sites?.() ?? readSites(this.o.home);
+      const entry = s.site ? sites.find((x) => x.url === s.site) : s.url ? sites.find((x) => s.url!.startsWith(`${x.url}/`)) : undefined;
+      if (!entry) return null;
+      site = { site: demoSite(entry, src.title), path, ...(entry.secret ? { secret: entry.secret } : {}) };
+    }
+    if (siteMissing(this.o.home, site.site)) return null;
+    return this.siteTarget(card, site);
   }
 
-  private personal(): PersonalSite | null {
-    return this.o.personal ? this.o.personal() : readPersonal(this.o.home);
-  }
-
-  /** Whether the card's repository may share on the personal site: a public one, or a private one the owner ticked. */
-  private personalAllowed(card: Item): boolean {
+  private siteTarget(card: Item, site: ShareSite): ShareTarget {
     const src = this.o.sourceFor(card);
-    const p = this.personal();
-    return !!src && !!p && allowedHere(p, src.repo, !!src.isPublic);
+    const language = this.o.languageFor?.(card);
+    return siteTarget(site.site, src?.repo ?? '', this.o.home, this.o.board.t.share, {
+      path: site.path,
+      ...(site.secret ? { unlisted: { secret: site.secret } } : {}),
+      ...(language ? { language } : {}),
+      ...(src?.theme ? { theme: src.theme } : {}),
+    });
   }
 
-  /** Whether approving the card puts its latest demo on its page: its site publishes on approval, or the personal site, where its page goes, has its repository ticked for it. */
+  /** Whether approving the card puts its latest demo on its page: its canvas's site publishes on approval. */
   private publishesOnApproval(card: Item): boolean {
-    const src = this.o.sourceFor(card);
-    if (!src) return false;
-    if (src.site?.publish === 'approved') return true;
-    const p = this.personal();
-    return !!p && approvedHere(p, src.repo) && this.onPersonal(card);
-  }
-
-  /** Whether the card's page is, or would go, on the personal site. */
-  private onPersonal(card: Item): boolean {
-    const s = this.stored(card.id);
-    return s?.url || s?.state ? !!s.personal : !this.ownTarget(card) && this.personalAllowed(card);
+    return this.o.sourceFor(card)?.site?.site.publish === 'approved';
   }
 
   /**
    * The card's share as a publish starts from it: a page that is out stays where it is; a new one
-   * goes where `target` says, on the personal site with the random part of its address, drawn once
-   * for the card, so its link stays the same when it is shared again.
+   * goes to the canvas's site under its path, on an unlisted site with the random part of its
+   * address, drawn once for the card, so its link stays the same when it is shared again.
    */
   private fresh(card: Item, s: StoredShare | null): StoredShare {
-    const { personal: _, ...base } = s ? atRest(s) : { slug: slugOf(card) };
     if (s?.url) return atRest(s);
-    if (!this.onPersonal(card)) return base;
-    // a listed personal site (a public repository) has no random part in its addresses
-    return this.personal()?.secret ? { ...base, personal: true, token: base.token ?? newToken() } : { ...base, personal: true };
+    const { personal: _, site: __, path: ___, unlisted: ____, ...base } = s ? atRest(s) : { slug: slugOf(card) };
+    const own = this.o.sourceFor(card)?.site;
+    if (!own) return base;
+    return { ...base, site: own.site.url.replace(/\/+$/, ''), ...(own.path ? { path: own.path } : {}), ...(own.secret ? { unlisted: true as const, token: base.token ?? newToken() } : {}) };
   }
 
   private card(cardId: string): Item {
@@ -1137,11 +1144,19 @@ function atRest({ state: _, refresh: __, again: ___, next: ____, retag: _____, .
   return s;
 }
 
-/** What a share keeps when its page is made anew or withdrawn: the owner's choices, and the random part of its address on the personal site. */
+/** What a share keeps when its page is made anew or withdrawn: the owner's choices, and the random part of its address on an unlisted site. */
 const kept = (s: StoredShare): Pick<StoredShare, 'notOnApproval' | 'token'> => ({ ...(s.notOnApproval ? { notOnApproval: true as const } : {}), ...(s.token ? { token: s.token } : {}) });
 
-/** The page's place on its site: its slug, on the personal site behind the random part of its address. */
-const pathOf = (s: StoredShare) => (s.personal && s.token ? `${s.token}/${s.slug}` : s.slug);
+/** The page's place on its site: its slug, under its canvas's path, on an unlisted site behind the random part of its address. */
+const pathOf = (s: StoredShare) => [s.path, (s.unlisted || s.personal) && s.token, s.slug].filter(Boolean).join('/');
+
+/** Which site and path a share's page is on, and whether it is unlisted, as it keeps them across a publish. */
+const placeOf = (s: StoredShare): Pick<StoredShare, 'site' | 'path' | 'unlisted' | 'personal'> => ({
+  ...(s.site ? { site: s.site } : {}),
+  ...(s.path ? { path: s.path } : {}),
+  ...(s.unlisted ? { unlisted: true as const } : {}),
+  ...(s.personal ? { personal: true as const } : {}),
+});
 
 /** What names a demo among the card's: its handover, and its directory. */
 const refOf = (d: DemoRef): DemoRef => ({ ...(d.handover !== undefined ? { handover: d.handover } : {}), dir: d.dir });
@@ -1158,7 +1173,7 @@ function statOr(path: string): number | null {
   }
 }
 
-/** Marks the line Obeya put into a pull request's description, so it is found again. */
+/** Marks the line Seismic put into a pull request's description, so it is found again. */
 export const DEMO_MARKER = '<!-- obeya:demo -->';
 
 /** The description with a line linking the demo's page; null when it links the page already. */
@@ -1182,12 +1197,12 @@ export const commandWords = (line: string): string[] => [...line.matchAll(/"([^"
 
 /**
  * Argv whose program, given as a path, is found in the repository (`~` is the home directory), and
- * a script (`.ts`, `.js`) runs with Obeya's own Bun, on every platform.
+ * a script (`.ts`, `.js`) runs with Seismic's own Bun, on every platform.
  */
 export function scriptArgv(words: string[], repoPath: string): string[] {
   if (!words.length) return [];
   let [program, ...rest] = words as [string, ...string[]];
-  // bunx is Obeya's own Bun too: an installation of Obeya may have no bunx on the PATH
+  // bunx is Seismic's own Bun too: an installation of Seismic may have no bunx on the PATH
   if (program === 'bunx') return [process.execPath, 'x', ...rest];
   program = expandHome(program);
   const script = /\.(m?[jt]sx?|cjs)$/.test(program);
@@ -1197,32 +1212,32 @@ export function scriptArgv(words: string[], repoPath: string): string[] {
 
 /** What the demo site lacks to be shared on (a title, an http(s) URL, a deploy command); null where it has it. */
 export function siteIncomplete(site: DemoSite): string | null {
-  if (!site.title.trim()) return 'demo.site.title: missing';
-  if (!/^https?:\/\/[^\s/]+[^\s]*$/.test(site.url)) return 'demo.site.url: expected an http(s) URL';
-  if (!site.deploy.trim()) return 'demo.site.deploy: missing';
+  if (!site.title.trim()) return 'title: missing';
+  if (!/^https?:\/\/[^\s/]+[^\s]*$/.test(site.url)) return 'address: expected an http(s) URL';
+  if (!site.deploy.trim()) return 'deploy command: missing';
   return null;
 }
 
 /**
- * Why the demo site a repository's settings name cannot be used, in English, starting with its
- * field (`demo.site.url: …`); null where it can. The configuration reports it.
+ * Why a demo site cannot be used, in English, starting with its field (`address: …`); null where
+ * it can. Adding a site refuses it with this.
  */
-export function siteProblem(site: DemoSite, repoPath: string): string | null {
+export function siteProblem(site: DemoSite, home: string): string | null {
   const incomplete = siteIncomplete(site);
   if (incomplete) return incomplete;
   const words = commandWords(site.deploy);
-  // the deploy Obeya builds in: a GitHub repository, pushed to with gh's login
+  // the deploy Seismic builds in: a GitHub repository, pushed to with gh's login
   if (words[0] === GITHUB_PAGES) {
-    if (!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(words[1] ?? '')) return `demo.site.deploy: ${GITHUB_PAGES} expects <owner>/<repository>`;
-    return Bun.which('gh') ? null : `demo.site.deploy: ${GITHUB_PAGES} needs gh, which is not on the PATH`;
+    if (!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(words[1] ?? '')) return `deploy command: ${GITHUB_PAGES} expects <owner>/<repository>`;
+    return Bun.which('gh') ? null : `deploy command: ${GITHUB_PAGES} needs gh, which is not on the PATH`;
   }
-  // bunx runs as Obeya's own Bun
-  if (words[0] === 'bunx') return words.length > 1 ? null : 'demo.site.deploy: bunx without a package';
-  const argv = scriptArgv(words, repoPath);
+  // bunx runs as Seismic's own Bun
+  if (words[0] === 'bunx') return words.length > 1 ? null : 'deploy command: bunx without a package';
+  const argv = scriptArgv(words, home);
   const program = argv[0] === process.execPath ? argv[1] : argv[0];
-  if (!program) return 'demo.site.deploy: the deploy command is empty';
-  if (isAbsolute(program)) return existsSync(program) ? null : `demo.site.deploy: the deploy command's program ${program} does not exist`;
-  return Bun.which(program) ? null : `demo.site.deploy: the deploy command's program ${program} is not on the PATH`;
+  if (!program) return 'deploy command: the deploy command is empty';
+  if (isAbsolute(program)) return existsSync(program) ? null : `deploy command: the deploy command's program ${program} does not exist`;
+  return Bun.which(program) ? null : `deploy command: the deploy command's program ${program} is not on the PATH`;
 }
 
 /** The last lines of a command's output, for the card's log. */

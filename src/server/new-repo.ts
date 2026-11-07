@@ -1,4 +1,4 @@
-// A repository Obeya creates for a card that is to be built in one that does not exist yet: the
+// A repository Seismic creates for a card that is to be built in one that does not exist yet: the
 // folder where there is none, then git as "Hier ein git-Repository einrichten" sets it up (the
 // default .gitignore, a first commit under git's name and e-mail), local only. A folder that is a
 // repository already is taken as it is. What it did can be taken back while the steps after it
@@ -17,13 +17,13 @@ type Words = Messages['newRepo'];
 export interface MadeRepo {
   /** The folder, absolute. */
   path: string;
-  /** Obeya set git up in it (false: it was a repository already). */
+  /** Seismic set git up in it (false: it was a repository already). */
   made: boolean;
-  /** Takes back what was done: the folder where Obeya created it, else git and the `.gitignore` it wrote. */
+  /** Takes back what was done: the folder where Seismic created it, else git and the `.gitignore` it wrote. */
   undo: () => void;
 }
 
-/** The folder a new repository's path names, absolute; refused where it is none Obeya could make one in. */
+/** The folder a new repository's path names, absolute; refused where it is none Seismic could make one in. */
 export function newRepoPath(path: string, t: Words): string {
   const p = path.trim();
   if (!p) throw new BadRequest('newRepoPath', t.noPath);
@@ -67,7 +67,7 @@ export function makeRepo(path: string, t: Words): MadeRepo {
     const top = existsSync(up) && statSync(up).isDirectory() ? git(up, 'rev-parse', '--show-toplevel') : null;
     if (top) throw new BadRequest('newRepoPath', t.inside(path, top));
   }
-  // the topmost folder Obeya creates, to remove again
+  // the topmost folder Seismic creates, to remove again
   let created: string | null = null;
   if (!existed) {
     let top = path;
@@ -77,7 +77,7 @@ export function makeRepo(path: string, t: Words): MadeRepo {
   }
   const gitignore = `${path}/.gitignore`;
   const hadIgnore = existsSync(gitignore);
-  // the folder itself, then the folders above it Obeya created, as long as nothing else came into them
+  // the folder itself, then the folders above it Seismic created, as long as nothing else came into them
   const removeCreated = () => {
     rmSync(path, { recursive: true, force: true });
     for (let up = dirname(path); created && up.length >= created.length; up = dirname(up)) {

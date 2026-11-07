@@ -9,7 +9,7 @@
 // socket gone), `ro-cgroup` (a mount namespace in which /sys/fs/cgroup is read-only, the manager
 // unchanged), `no-manager` (a user without lingering, so no user manager runs), and `unprivileged` (an
 // ordinary container: no systemd, read-only cgroupfs). `--codex` also installs the Codex CLI of the
-// version OBEYA_MATRIX_CODEX names (0.162.0 by default) and runs the probe's real Codex cases.
+// version SEISMIC_MATRIX_CODEX names (0.162.0 by default) and runs the probe's real Codex cases.
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
@@ -18,7 +18,7 @@ const BUN = 'oven/bun:1.3.14';
 const IMAGES: Record<string, string> = { trixie: BUN };
 const codex = process.argv.includes('--codex');
 const images = Object.keys(IMAGES);
-const CODEX_VERSION = process.env.OBEYA_MATRIX_CODEX ?? '0.162.0';
+const CODEX_VERSION = (process.env.SEISMIC_MATRIX_CODEX ?? process.env.OBEYA_MATRIX_CODEX) ?? '0.162.0';
 
 function sh(argv: string[], input?: string) {
   const r = spawnSync(argv[0]!, argv.slice(1), { encoding: 'utf8', input, maxBuffer: 64 * 1024 * 1024 });
@@ -71,7 +71,7 @@ for (const image of images) {
     if (codex) {
       const installed = sh(asWorker(name, [], `mkdir -p ~/codex && cd ~/codex && bun add @openai/codex@${CODEX_VERSION} >/dev/null 2>&1; find ~/codex/node_modules/@openai -path '*/bin/codex' -type f | head -1`)).out.trim();
       if (!installed) report(image, 'bus', 'codex', { status: 'blocked', why: 'Codex CLI did not install' });
-      else for (const p of probe(sh(asWorker(name, [RUNTIME, `OBEYA_CODEX=${installed}`], 'bun scripts/linux-scope-probe.ts codex-close-tracker codex-close-scope codex-host-death-tracker codex-host-death-scope')).out)) report(image, 'bus', 'codex', p);
+      else for (const p of probe(sh(asWorker(name, [RUNTIME, `SEISMIC_CODEX=${installed}`], 'bun scripts/linux-scope-probe.ts codex-close-tracker codex-close-scope codex-host-death-tracker codex-host-death-scope')).out)) report(image, 'bus', 'codex', p);
     }
 
     // ro-cgroup: the manager still moves the process; only this namespace's cgroupfs is read-only
@@ -92,7 +92,7 @@ for (const image of images) {
   }
 }
 
-// unprivileged: an ordinary container, as CI or a dev container runs Obeya
+// unprivileged: an ordinary container, as CI or a dev container runs Seismic
 const plain = sh(['docker', 'run', '--rm', '--init', '-u', '1500', '-e', 'HOME=/tmp', '-v', `${ROOT}:/w:ro`, '-w', '/w', `obeya-boundary-${images[0]}`, 'sh', '-c', `grep cgroup /proc/self/mounts; ${TEST}; bun scripts/linux-scope-probe.ts kill`]);
 report(images[0]!, 'unprivileged', 'mounts', { cgroupfs: plain.out.split('\n').filter((l) => l.startsWith('cgroup')).join('; ') });
 report(images[0]!, 'unprivileged', 'tests', tests(plain.out));

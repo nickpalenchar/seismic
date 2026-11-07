@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Obeya: a spatial canvas for directing AI coding agents. Goal, behaviour and the decisions behind
+Seismic: a spatial canvas for directing AI coding agents. Goal, behaviour and the decisions behind
 them are in `docs/design.md`, an index, and its chapters under `docs/design/`: read the index, then
 the chapters the change touches, and keep those current in the same change by the rebuild test the
 index's header states. The permanent docs (`docs/*.md` and the chapters under `docs/design/`) hold
@@ -9,27 +9,32 @@ however different the reimplementation would look: behaviour seen from outside, 
 must stay compatible with, non-obvious constraints, and decisions (chosen, why, rejected, date).
 Not what the code shows (names, modules, pixel values), and not history: a change rewrites the
 description instead of adding the old behaviour to it. Work in progress is planned in plan docs
-under `docs/plan/` (Obeya shows them as projects); when one is done, what passes the same test moves
+under `docs/plan/` (Seismic shows them as projects); when one is done, what passes the same test moves
 into the chapters under `docs/design/` (or the index) and the doc goes.
 
 - Bun + TypeScript throughout; tests with `bun test --parallel` (a file per process, from Bun 1.4 on;
   older Bun ignores the flag and runs them one after the other), types with `bun run typecheck`.
   When the suite fails only from machine load or timing, don't ask to rerun it: hand over and say
   which failing tests were unrelated. When it hangs or stalls, stop it and go on to the demo and
-  handover without asking: say there that the tests were skipped.
+  handover without asking: say there that the tests were skipped. The test "names what stands in
+  the way: site-media as the latest, a missing secret, GitHub ahead, a tag taken, a draft left over"
+  in `release-status.test.ts` clones real git repositories and may time out while iterating: skip it
+  locally (`--test-name-pattern` or by file), and run the full suite before handing over.
 - Never wait with `sleep` or polling chains in the foreground (`sleep 25; …`, `until curl …; sleep 3`):
-  a hook blocks them. Run long commands (`bun test --parallel`, `bun run typecheck`, a scratch Obeya
+  a hook blocks them. Run long commands (`bun test --parallel`, `bun run typecheck`, a scratch Seismic
   start) with run_in_background or Monitor and wait for the notification; for a short wait on a port
   use one bounded `timeout 30 bash -c 'until curl -sf http://127.0.0.1:<port>/ >/dev/null; do sleep 2; done'`.
+- File edits with complex content, quotes or special characters go through Read + Write, not `sed`,
+  to avoid shell escaping problems.
 - `src/core/` is shared by server and UI (types, plan-doc parser, layout); `src/server/` is the
-  Bun server with SQLite; `src/ui/` the React canvas; `src/adapters/` what Obeya knows of a repository (its defaults, its settings).
+  Bun server with SQLite; `src/ui/` the React canvas; `src/adapters/` what Seismic knows of a repository (its defaults, its settings).
 - Code that drives agents is tested against the fake runtime in `src/server/testing.ts` and real
   git repositories in a temp directory (`gitRepo` there; git calls are what makes tests slow).
-  Live runs go against a scratch git repository with a plan doc and a scratch `OBEYA_HOME` (never
-  `~/.obeya` of a running Obeya): `bun scripts/scratch-obeya.ts <stage.json>` stages one with its
+  Live runs go against a scratch git repository with a plan doc and a scratch `SEISMIC_HOME` (never
+  `~/.obeya` of a running Seismic): `bun scripts/scratch-obeya.ts <stage.json>` stages one with its
   cards in about a second (its header describes the stage file; `--stop <port>` ends it). Its
   workers are idle; with `--real-workers` they are real agents on the machine's Claude login.
-- UI checks run in a headless browser through the `browser` skill of Obeya's plugin
+- UI checks run in a headless browser through the `browser` skill of Seismic's plugin
   (`obeya:browser`; a session without the plugin reads `plugin/skills/browser/SKILL.md`): `input`
   for trusted clicks, drags, keys held for push-to-talk; `start --fake-mic <wav>` for voice. A
   claude-in-chrome tab is often hidden, which freezes `requestAnimationFrame`: camera flights and
@@ -39,11 +44,11 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
 - Reviews of the code (security, code quality and the like) always bring in Codex (`codex exec`)
   as a second reviewer.
 - Voice on this machine: Parakeet through uv, the default, needs nothing set. For Whisper instead:
-  `OBEYA_WHISPER_BACKEND=mlx OBEYA_WHISPER_PYTHON=/Users/sadilek/dev/stimmzwilling/.venv/bin/python`
+  `SEISMIC_WHISPER_BACKEND=mlx SEISMIC_WHISPER_PYTHON=/Users/sadilek/dev/stimmzwilling/.venv/bin/python`
   (has `mlx_whisper`; the model is cached). That Python alone, without the backend, fails: it has no
   `onnx_asr` for Parakeet.
-- The Obeya that plans this repo is the stable clone's, on port 4417 with `~/.obeya`; `bun start`
-  in a `-dev` checkout runs its code on `~/.obeya-dev` and port 4418, beside it. An Obeya restarts
+- The Seismic that plans this repo is the stable clone's, on port 4417 with `~/.obeya`; `bun start`
+  in a `-dev` checkout runs its code on `~/.obeya-dev` and port 4418, beside it. An Seismic restarts
   itself once `main` moves to commits that change code, a commit of yours included (workers resume, the page
   reloads); docs-only commits leave it running. Keep tests off it.
 - No project-specific logic in the core: what a project needs goes into its settings
@@ -54,16 +59,17 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
   cleanly, and the core may be extended where needed. A worker promoting a feature into an
   extension should expect other features to have seeped into the code it moves, and edits those
   itself.
-- The owner works in Obeya at the level of requirements, feature and bug descriptions and specs,
+- The owner works in Seismic at the level of requirements, feature and bug descriptions and specs,
   and checks results in demos and result artifacts. Source code and diffs stay in the background:
   on a card with a demo or artifact, its changed files are optional and stay in their own Diff tab,
   never shown up front.
-- Obeya's UI never sends the owner to the command line: when a message suggests a step (pushing
-  `main` first, say), Obeya offers it as an action right there, or the message doesn't mention it.
+- Seismic's UI never sends the owner to the command line: when a message suggests a step (pushing
+  `main` first, say), Seismic offers it as an action right there, or the message doesn't mention it.
 - UI strings live in one place, `src/ui/strings.ts`, in German and English (two tables of one shape).
-  German UI texts and docs call a button "Button" or "Schaltfläche", never "Knopf".
+  Docs, comments and prompts are in English and quote the English labels; the German table calls a
+  button "Button" or "Schaltfläche", never "Knopf".
 - An interaction that several kinds of card share (answering questions with comments and one Send
-  button, the conversation history, starting („So bauen“, „Übernehmen und starten“) while the agent
+  button, the conversation history, starting ("Build it like this", "Accept and start") while the agent
   is still working) is built once in shared code and works the same on each of them; no card kind
   gets its own variant.
 - The phone view stays as simple as possible: not every desktop view belongs on it (the workspaces
@@ -85,6 +91,8 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
   icon, say, or a hint that shows until it has been used once. A button that appears on hover over
   the thing it acts on is found that way and needs no more. A tooltip or a key that is only
   documented is not enough.
+- A single on/off setting is a toggle switch, not a checkbox; checkboxes only where several options
+  of a set can be picked.
 - Rarely used actions stay out of the way: shown only where they apply, behind hover or an overflow
   menu, so everyday use isn't cluttered with buttons. A button's label makes clear what it does to
   someone who doesn't yet know the use case.
@@ -97,6 +105,9 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
   what is off: text vertically centred with neighbouring buttons, enough padding to the edges of
   its block, controls (a remove ×, say) where the eye expects them.
 - Links in the UI are blue as well as underlined, so they are recognizable as links.
+- No coloured vertical accent bar down either side of an element (a border or inset stripe)
+  anywhere in the UI, list items, entries and chat messages included: emphasis comes from a tint,
+  a full outline or ring, or bolder text.
 - A demo video shows the entire feature from start to finish, not only what changed since the last demo.
 - Before a demo video goes to the owner, watch it for faults of the demo itself and fix them first:
   every dictated text it shows is transcribed completely and correctly (no missing words or
@@ -106,9 +117,9 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
   voice clone (voice ID `IErGHDQU4vPqicCi8dwR`), not the voice of the demo settings; demo videos
   published elsewhere (in a PR or issue comment, say) keep the voice of the demo settings. Its API
   key is in `.voice/elevenlabs.key` of the main checkout (`/Users/sadilek/dev/obeya`, gitignored);
-  render with an `OBEYA_HOME` whose `demo.json` names both (`voice: elevenlabs`, `voiceName`,
+  render with an `SEISMIC_HOME` whose `demo.json` names both (`voice: elevenlabs`, `voiceName`,
   `keyFile`), as `scripts/hero-video/render.ts` sets up for the hero video (its README says how to
-  change and re-render it). Credits are limited: only for the site's videos, never as Obeya's own
+  change and re-render it). Credits are limited: only for the site's videos, never as Seismic's own
   demo voice, and even there only once: a video for the site is iterated in local renders in the
   owner's Qwen3 voice, and the ElevenLabs render happens after the owner has approved the video.
   Qwen3-TTS references of the owner's voice lie beside the key, each with its transcript (`.txt`):
@@ -126,12 +137,12 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
   since the machine's active gh account may be another without admin rights.
 - A recurring step that needs a longer CLI call (an upload, say) goes into a script in the repo,
   not into the docs as a command to copy.
-- Commit directly to `main`; this repo uses no feature branches or pull requests. An Obeya worker
-  is the exception: it commits on its card's branch, and Obeya lands that branch on `main`.
+- Commit directly to `main`; this repo uses no feature branches or pull requests. An Seismic worker
+  is the exception: it commits on its card's branch, and Seismic lands that branch on `main`.
 - When a task handles a GitHub issue, its worker closes the issue once the work has landed, with a
   comment linking the demo video and the commit on `main`.
 - Once the owner approves the demo of an external contributor's pull request: comment on the PR
   with the demo link, squash-merge it, then `git pull` on `main` so the local checkout is current.
-- Pull requests Obeya opens in other people's repositories carry no Obeya attribution: no
-  `Co-authored-by` Obeya, no mention of Obeya in the PR text. They may link the demo page, and the
-  page itself may say "created with Obeya" at the bottom.
+- Pull requests Seismic opens in other people's repositories carry no Seismic attribution: no
+  `Co-authored-by` Seismic, no mention of Seismic in the PR text. They may link the demo page, and the
+  page itself may say "created with Seismic" at the bottom.

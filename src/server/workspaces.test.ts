@@ -528,7 +528,7 @@ describe('clones the configuration no longer names', () => {
     ws = join(dir, 'ws');
   });
 
-  test('a free clone Obeya made leaves the pool at once, and its folder goes once its app is stopped', async () => {
+  test('a free clone Seismic made leaves the pool at once, and its folder goes once its app is stopped', async () => {
     const { spaces, paths } = make(3);
     spaces.keepOnly(null, paths.slice(0, 2));
     expect(spaces.list().map((w) => w.path)).toEqual(paths.slice(0, 2));
@@ -672,7 +672,7 @@ describe('clones the configuration no longer names', () => {
     expect(spaces.retake(a, paths[0]!)).toBe(false);
   });
 
-  test('a clone the owner listed only leaves the pool: Obeya never touches its folder', async () => {
+  test('a clone the owner listed only leaves the pool: Seismic never touches its folder', async () => {
     const own = join(dir, 'own');
     git(dir, 'clone', '--quiet', origin, own);
     const { spaces, paths } = make(1);
@@ -695,7 +695,7 @@ describe('clones the configuration no longer names', () => {
     expect(held.path).toBe(paths[0]!);
     await held.ready;
     spaces.register(own, [origin]);
-    // a worktree from before the repository went over to clones, under the home Obeya had then
+    // a worktree from before the repository went over to clones, under the home Seismic had then
     const old = join(dir, 'old-home', 'a7d7c689');
     store.addWorkspace('c', old);
     store.setLease(old, b);

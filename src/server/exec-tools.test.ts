@@ -27,8 +27,8 @@ const lane = (rules: string[] = [], places: string[] = []): ExecLane => ({
   ask: async (r) => (asked.push(r), answer),
 });
 const tool = (l: ExecLane, name: string) => execTools(l).find((t) => t.name === name)!;
-const run = (l: ExecLane, args: Record<string, unknown>) => Promise.resolve(tool(l, 'obeya_run').run(args));
-const git = (l: ExecLane, ...args: string[]) => Promise.resolve(tool(l, 'obeya_git').run({ args }));
+const run = (l: ExecLane, args: Record<string, unknown>) => Promise.resolve(tool(l, 'run').run(args));
+const git = (l: ExecLane, ...args: string[]) => Promise.resolve(tool(l, 'git').run({ args }));
 
 test('a command the allow list covers runs without asking, in the workspace', async () => {
   const out = await run(lane(['pwd']), { command: 'pwd' });
@@ -47,6 +47,13 @@ test('a command the list does not cover asks the owner and runs on yes', async (
   const out = await run(lane(['echo *']), { command: 'echo a && uname', reason: 'to see the system' });
   expect(asked).toEqual([{ name: 'Bash', input: { command: 'echo a && uname' }, reason: 'to see the system' }]);
   expect(out).toContain('exit code 0');
+});
+
+test("with Codex's automatic review, a command the list does not cover is not asked but sent to the worker's own shell", async () => {
+  const auto = { ...lane(['pwd']), auto: true };
+  expect(await run(auto, { command: 'touch made' })).toContain('request escalated permissions');
+  expect(asked).toEqual([]);
+  expect(await run(auto, { command: 'pwd' })).toContain('exit code 0');
 });
 
 test('a declined command does not run', async () => {
@@ -98,7 +105,7 @@ test('long output keeps its start and end', async () => {
   expect(out).toContain('\n20000');
 });
 
-test('the command has no stdin and the environment of Obeya without a Claude session', async () => {
+test('the command has no stdin and the environment of Seismic without a Claude session', async () => {
   process.env.CLAUDE_CODE_TEST_MARK = 'x';
   try {
     const out = await run(lane(['*']), { command: 'cat; echo "[${CLAUDE_CODE_TEST_MARK-unset}]"' });

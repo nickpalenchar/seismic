@@ -1,17 +1,17 @@
-// A scratch Obeya's agents recorded once and played back (`--record`, `--replay`): a demo whose
+// A scratch Seismic's agents recorded once and played back (`--record`, `--replay`): a demo whose
 // agents ran for real once comes out the same in every take after, in minutes and without a model.
 //
 // A recording is a directory: `meta.json`, and for each agent session a `session-<n>.jsonl`, its
 // first line what the agent got (role, instructions, tools, first message), each further line one
-// thing that happened in it, in order: an event of the session, a call of one of Obeya's tools with
+// thing that happened in it, in order: an event of the session, a call of one of Seismic's tools with
 // its arguments and result, a message sent to it, a context update taken after a tool step. A
 // worker's call also keeps the commits it made in its workspace since its call before
 // (`session-<n>/<k>.bundle`), a handover (`ready_for_review`) a copy of the demo it names
 // (`session-<n>/demo-<k>/`). `cuts.json`, which the demo copies in after
 // the take, holds what the take cut out (`Director.skip`, wall clock).
 //
-// Playing back, each session Obeya starts gets the recorded one of its role and tools, in order;
-// its events go out again at the recorded pace, its calls run Obeya's real tools with the recorded
+// Playing back, each session Seismic starts gets the recorded one of its role and tools, in order;
+// its events go out again at the recorded pace, its calls run Seismic's real tools with the recorded
 // arguments, and a step after a message waits for that message. What the take cut out goes by in a
 // moment, the rest at the recorded pace (without cuts, no gap is longer than `GAP_MS`). Card ids,
 // branches and paths differ in every staging: what the agent was given then and is given now
@@ -68,7 +68,7 @@ interface Head {
 
 interface Meta {
   version: 1;
-  /** The recorded Obeya's home, whose paths the agents were told. */
+  /** The recorded Seismic's home, whose paths the agents were told. */
   home: string;
   at: number;
 }
@@ -79,7 +79,7 @@ const HANDOVER = 'ready_for_review';
 export const GAP_MS = 2000;
 /** What a gap inside a cut of the take lasts when played back. */
 export const CUT_MS = 100;
-/** A tool's refusal, as Obeya's tools word it ("Not handed over: …", the Koordinator's "Nothing recorded: …"). */
+/** A tool's refusal, as Seismic's tools word it ("Not handed over: …", the Koordinator's "Nothing recorded: …"). */
 const REFUSAL = /^(?:Not [a-z ]+|Nothing recorded):/;
 /** How long a step that took a context update waits for it to be there now. */
 const CONTEXT_WAIT_MS = 120_000;
@@ -102,8 +102,8 @@ export function mayRecordInto(dir: string): boolean {
 
 /**
  * A runtime that records every session `inner` runs into `dir`, for `replayRuntime` to play back,
- * after the sessions recorded there already (an Obeya that started again goes on with its
- * recording). `home` is Obeya's home, whose paths the agents are told.
+ * after the sessions recorded there already (an Seismic that started again goes on with its
+ * recording). `home` is Seismic's home, whose paths the agents are told.
  */
 export function recordingRuntime(inner: AgentRuntime, dir: string, home: string): AgentRuntime {
   if (!mayRecordInto(dir)) throw new Error(`${dir} holds something other than a recording; record into an empty or new directory`);
@@ -343,7 +343,7 @@ const names = (tools: { name: string }[]) =>
     .join(' ');
 
 export interface ReplayOptions {
-  /** Obeya's home now. */
+  /** Seismic's home now. */
   home: string;
   /** Hears why the recording does not fit, once: the recording's agents then do nothing. */
   refused?: (why: string) => void;
@@ -352,10 +352,10 @@ export interface ReplayOptions {
 }
 
 /**
- * A runtime that plays the recording in `dir` back (`recordingRuntime`). A session Obeya starts gets
+ * A runtime that plays the recording in `dir` back (`recordingRuntime`). A session Seismic starts gets
  * the first recorded one not played yet of its role and tools (else of its role with the most tools
  * in common), the one whose first message is the same where several are left; which were played is
- * kept in the home (`replay-played.json`), so an Obeya started again goes on with the next. One whose instructions or tools differ from the recording's refuses
+ * kept in the home (`replay-played.json`), so an Seismic started again goes on with the next. One whose instructions or tools differ from the recording's refuses
  * the playback (`refused`, and an error on its card), as does a tool that refuses now what it took
  * then: the recording no longer fits, and a real run has to record it anew. A session the recording
  * has none for ends each of its turns at once.
@@ -524,7 +524,7 @@ function play(rec: Recorded, spec: AgentSpec, p: Player): AgentSession {
       now = Date.now();
     }
   };
-  /** Runs the recorded call `e` with Obeya's tool of today; why the recording no longer fits, if it does not. */
+  /** Runs the recorded call `e` with Seismic's tool of today; why the recording no longer fits, if it does not. */
   const call = async (e: Extract<Entry, { type: 'call' }>): Promise<string | undefined> => {
     const tool = spec.tools.find((t) => t.name === e.name);
     if (!tool) return `the ${rec.start.role ?? 'agent'} has no tool ${e.name} any more`;

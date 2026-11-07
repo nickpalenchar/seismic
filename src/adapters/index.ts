@@ -14,7 +14,7 @@ import { messageOf } from '../core/text';
 /** Where a repository kept an adapter module before its settings said it all (`hasAdapterModule`). */
 export const REPO_ADAPTER_DIR = '.obeya/adapter';
 
-/** Obeya's defaults for the repository: what it runs on where its settings say nothing. */
+/** Seismic's defaults for the repository: what it runs on where its settings say nothing. */
 export const defaultsFor = (repo: RepoInfo): RepoAdapter => ({ ...generic, land: detectedLand(repo) });
 
 /**
@@ -81,7 +81,7 @@ export function repoValues(repo: RepoInfo, clones = false, shared: SharedSetting
     prNoise: value(a.prNoise ?? [], 'prNoise'),
     language: value(a.language, 'language'),
     app: { run: nested('app', 'run', ''), stop: nested('app', 'stop', ''), keep: nested('app', 'keep', '') },
-    demo: { site: nested('demo', 'site', null), language: nested('demo', 'language', null), artifacts: nested('demo', 'artifacts', artifacts) },
+    demo: { language: nested('demo', 'language', null), artifacts: nested('demo', 'artifacts', artifacts) },
   };
 }
 
@@ -197,7 +197,7 @@ export function* readingShared(commit: string): GitSteps<SharedRead> {
 
 /**
  * Whether the repository's main branch still has a `.obeya/adapter/index.ts`: a module that said
- * what its settings say now, which Obeya no longer reads (problem `adapterGone`).
+ * what its settings say now, which Seismic no longer reads (problem `adapterGone`).
  */
 export function hasAdapterModule(repoPath: string, commit = defaultBranchCommit(repoPath).commit): boolean {
   if (isFolder(repoPath)) return false;

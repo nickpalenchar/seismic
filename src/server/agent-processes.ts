@@ -10,6 +10,14 @@ const powershell = ['-NoProfile', '-NonInteractive', '-Command', windowsSnapshot
 
 type Run = { status: number | null; stdout: string; error?: NodeJS.ErrnoException };
 
+/** A snapshot that did not finish in its time: on a busy machine that passes, unlike a refusal. */
+export const timedOut = (error: unknown) => (error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT';
+
+function failed(r: Run): never {
+  if (timedOut(r.error)) throw Object.assign(new Error('Agent process snapshot timed out'), { code: 'ETIMEDOUT' });
+  throw new Error('Cannot inspect agent process ownership');
+}
+
 /** Like spawnSync, without holding the event loop while the command runs. */
 function run(command: string, args: string[], timeout: number): Promise<Run> {
   return new Promise((resolve) => {
@@ -46,7 +54,7 @@ export class WindowsProcessSnapshot {
   }
 
   private parse(result: Run): ProcessInfo[] {
-    if (result.status !== 0) throw new Error('Cannot inspect agent process ownership');
+    if (result.status !== 0) failed(result);
     const rows: unknown = JSON.parse(result.stdout);
     this.first = false;
     return (Array.isArray(rows) ? rows : [rows]).flatMap((row) => {
@@ -73,16 +81,25 @@ export function linuxProcessStat(stat: string): ProcessInfo | undefined {
   return { pid, parent, group, born };
 }
 
-function linuxProcess(name: string, stat: string): ProcessInfo[] {
-  const p = linuxProcessStat(stat);
-  return p && p.pid === Number(name) ? [p] : [];
+/** The rows read, and the processes that refused to be read, for whoever needs one of them. */
+interface Table { rows: ProcessInfo[]; denied: Map<number, unknown> }
+
+function linuxProcess(name: string, read: () => string, denied: Table['denied']): ProcessInfo[] {
+  try {
+    const p = linuxProcessStat(read());
+    return p && p.pid === Number(name) ? [p] : [];
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? '';
+    if (['ENOENT', 'ESRCH'].includes(code)) return []; // exited during the snapshot
+    if (['EACCES', 'EPERM'].includes(code)) { denied.set(Number(name), error); return []; } // unrelated or unobservable
+    throw error;
+  }
 }
 
-function linuxUnreadable(name: string, error: unknown, required: Set<number>): ProcessInfo[] {
-  const code = (error as NodeJS.ErrnoException).code ?? '';
-  if (['ENOENT', 'ESRCH'].includes(code)) return []; // exited during the snapshot
-  if (['EACCES', 'EPERM'].includes(code) && !required.has(Number(name))) return []; // unrelated or unobservable
-  throw error; // never silently lose a process already known to belong to the agent
+/** Never silently lose a process already known to belong to the agent. */
+function rowsFor(table: Table, required: Set<number>): ProcessInfo[] {
+  for (const pid of required) if (table.denied.has(pid)) throw table.denied.get(pid);
+  return table.rows;
 }
 
 // Some procfs configurations omit inaccessible processes from directory listings.
@@ -91,7 +108,7 @@ const linuxNames = (listed: string[], required: Set<number>) => new Set([...list
 const psArgs = ['-axo', 'pid=,ppid=,pgid=,lstart='];
 
 function psRows(r: Run): ProcessInfo[] {
-  if (r.status !== 0) throw new Error('Cannot inspect agent process ownership');
+  if (r.status !== 0) failed(r);
   return r.stdout.split('\n').flatMap((line) => {
     const m = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
     return m ? [{ pid: Number(m[1]), parent: Number(m[2]), group: Number(m[3]), born: m[4]! }] : [];
@@ -101,48 +118,101 @@ function psRows(r: Run): ProcessInfo[] {
 /** The process table, blocking: only for the sweep at start, before the server serves anyone. */
 export function processes(required = new Set<number>()): ProcessInfo[] {
   if (process.platform === 'linux') {
-    return [...linuxNames(readdirSync('/proc'), required)].flatMap((name) => {
-      if (!/^\d+$/.test(name)) return [];
-      try { return linuxProcess(name, readFileSync(`/proc/${name}/stat`, 'utf8')); }
-      catch (error) { return linuxUnreadable(name, error, required); }
-    });
+    const denied: Table['denied'] = new Map();
+    const rows = [...linuxNames(readdirSync('/proc'), required)].flatMap((name) =>
+      /^\d+$/.test(name) ? linuxProcess(name, () => readFileSync(`/proc/${name}/stat`, 'utf8'), denied) : []);
+    return rowsFor({ rows, denied }, required);
   }
   if (process.platform === 'win32') return windowsSnapshot.read();
   return psRows(spawnSync('ps', psArgs, { encoding: 'utf8', timeout: 3000 }));
 }
 
-/** The process table without holding the event loop: a busy machine's `ps` can take seconds. */
-export async function processesAsync(required = new Set<number>()): Promise<ProcessInfo[]> {
+async function table(required: Set<number>): Promise<Table> {
+  const denied: Table['denied'] = new Map();
   if (process.platform === 'linux') {
     const names = [...linuxNames(await readdir('/proc'), required)].filter((name) => /^\d+$/.test(name));
-    const rows = await Promise.all(names.map(async (name) => {
-      try { return linuxProcess(name, await readFile(`/proc/${name}/stat`, 'utf8')); }
-      catch (error) { return linuxUnreadable(name, error, required); }
+    const stats = await Promise.all(names.map(async (name) => {
+      try { return { name, stat: await readFile(`/proc/${name}/stat`, 'utf8') }; } catch (error) { return { name, error }; }
     }));
-    return rows.flat();
+    const rows = stats.flatMap((s) => linuxProcess(s.name, () => { if ('error' in s) throw s.error; return s.stat; }, denied));
+    return { rows, denied };
   }
-  if (process.platform === 'win32') return windowsSnapshot.readAsync();
-  return psRows(await run('ps', psArgs, 3000));
+  if (process.platform === 'win32') return { rows: await windowsSnapshot.readAsync(), denied };
+  return { rows: psRows(await run('ps', psArgs, 3000)), denied };
+}
+
+/** The process table without holding the event loop: a busy machine's `ps` can take seconds. */
+export async function processesAsync(required = new Set<number>()): Promise<ProcessInfo[]> {
+  return rowsFor(await table(required), required);
+}
+
+/**
+ * Every caller that asks before a snapshot starts shares it, so the sessions' ticks cost one `ps`
+ * between them. A caller that asks while one is running waits for the next: no caller is given a
+ * table older than its request, which a kill depends on.
+ */
+export function sharedSnapshot(take: (required: Set<number>) => Promise<Table>) {
+  let tail: Promise<unknown> = Promise.resolve();
+  let waiting: { required: Set<number>; table: Promise<Table> } | undefined;
+  return async (required: Set<number>): Promise<ProcessInfo[]> => {
+    if (!waiting) {
+      const batch: { required: Set<number>; table?: Promise<Table> } = { required: new Set() };
+      batch.table = tail.then(async () => {
+        // Callers whose operations are still a few promise hops away in this turn join as well.
+        await new Promise((resolve) => setImmediate(resolve));
+        if (waiting === batch) waiting = undefined;
+        return take(batch.required);
+      });
+      tail = batch.table.catch(() => {});
+      waiting = batch as { required: Set<number>; table: Promise<Table> };
+    }
+    const batch = waiting;
+    for (const pid of required) batch.required.add(pid);
+    return rowsFor(await batch.table, required);
+  };
+}
+
+const sharedProcesses = sharedSnapshot(table);
+
+/**
+ * Lets an operation's snapshot time out without failing it, until they have done so for `window`
+ * on end: a busy machine skips an observation, while ownership that cannot be watched at all still
+ * ends the session.
+ */
+export function tolerateTimeouts(window = 30_000, now = Date.now) {
+  let since: number | undefined;
+  return (operation: Promise<void>): Promise<void> => operation.then(() => { since = undefined; }, (error: unknown) => {
+    if (timedOut(error) && now() - (since ??= now()) < window) return;
+    throw error;
+  });
 }
 
 /**
  * Only register descendants while ownership is provable; remember their creation time against PID reuse.
- * Snapshots are taken without blocking the event loop, so every operation waits for the ones before
- * it: a kill always sees what an earlier track registered.
+ * Snapshots are taken without blocking the event loop and shared with the other sessions' trackers,
+ * so every operation waits for the ones before it: a kill always sees what an earlier track registered.
  */
 export class AgentProcesses {
   private owned = new Map<number, ProcessInfo>();
   private rootBorn?: string;
   private snapshotError?: unknown;
   private queue: Promise<unknown>;
-  constructor(private parent: number, private snapshot: (required: Set<number>) => ProcessInfo[] | Promise<ProcessInfo[]> = processesAsync) {
-    this.queue = (async () => {
-      try {
-        const root = (await this.snapshot(new Set([parent]))).find((p) => p.pid === parent && p.parent === process.pid);
-        if (!root) throw new Error('Cannot establish agent process ownership');
-        this.rootBorn = root.born;
-      } catch (error) { this.snapshotError = error; }
-    })();
+  constructor(private parent: number, private snapshot: (required: Set<number>) => ProcessInfo[] | Promise<ProcessInfo[]> = sharedProcesses) {
+    this.queue = this.establish().catch(() => {});
+  }
+
+  /** A snapshot that timed out leaves ownership to be established by the next operation. */
+  private async establish() {
+    if (this.rootBorn !== undefined) return;
+    if (this.snapshotError) throw this.snapshotError;
+    try {
+      const root = (await this.snapshot(new Set([this.parent]))).find((p) => p.pid === this.parent && p.parent === process.pid);
+      if (!root) throw new Error('Cannot establish agent process ownership');
+      this.rootBorn = root.born;
+    } catch (error) {
+      if (!timedOut(error)) this.snapshotError = error;
+      throw error;
+    }
   }
 
   /** Runs after every operation queued before it, whether that one failed or not. */
@@ -163,7 +233,7 @@ export class AgentProcesses {
 
   track(pids?: number[]): Promise<void> {
     return this.then(async () => {
-      if (this.snapshotError) throw this.snapshotError;
+      await this.establish();
       const before = this.signature();
       const table = await this.table();
       // A snapshot also captures descendants of terminals we already know, before their parent
@@ -190,14 +260,14 @@ export class AgentProcesses {
   }
 
   /**
-   * Identities that Obeya's own liveness supervisor (the root) observed, never ones an agent
+   * Identities that Seismic's own liveness supervisor (the root) observed, never ones an agent
    * reported: each is kept only while its process still has the reported creation identity (to the
    * second on macOS, so a PID reused within that second passes). Unlike `track`, no ancestry is
    * needed, so they stay attributable after the supervisor has died.
    */
   adopt(reported: { pid: number; born: string }[]): Promise<void> {
     return this.then(async () => {
-      if (this.snapshotError) throw this.snapshotError;
+      await this.establish();
       const table = await this.table(reported.map((r) => r.pid));
       for (const { pid, born } of reported) {
         const current = table.get(pid);

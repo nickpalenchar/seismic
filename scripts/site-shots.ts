@@ -1,14 +1,14 @@
-// The screenshots on obeya.si (`site/img/`), taken again from a scratch Obeya in English: the Tipjar
+// The screenshots on obeya.si (`site/img/`), taken again from a scratch Seismic in English: the Tipjar
 // app of the hero video as the repository, cards in the states the page talks about, and a demo of
 // a Tipjar change on the card whose demo the page shows, so that the picture is of a demo and not of
-// Obeya itself. The same wall on a phone (`phone.png`, `phone-demo.png`) shows the phone view.
+// Seismic itself. The same wall on a phone (`phone.png`, `phone-demo.png`) shows the phone view.
 //
 //   bun scripts/site-shots.ts [--demo <dir>] [--keep | --stage-only]
 //
 // --demo names a Tipjar demo to put on that card (a directory with demo.mp4 and poster.jpg); without
 // it the agent's first demo of splitting the bill from the newest render of the hero video is taken
 // (tipjar-split-the-bill* in the demo directory; the render leaves a second, shorter one on the owner's comments a
-// few minutes later); its chapters come from its chapters.vtt. The scratch Obeya runs on port 4740 and is stopped
+// few minutes later); its chapters come from its chapters.vtt. The scratch Seismic runs on port 4740 and is stopped
 // at the end; --keep leaves it running for a look, --stage-only stages it and takes nothing. Needs
 // Google Chrome.
 

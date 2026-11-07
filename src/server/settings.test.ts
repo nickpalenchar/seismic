@@ -6,14 +6,14 @@ import { languageOf } from '../core/locale';
 import { AGENT_DEFAULTS, type AgentSetting } from '../core/types';
 import { withAgentSetting } from './runtime';
 import { OWNER_SETTINGS_FILE as SETTINGS_FILE, systemLanguage } from '../../plugin/skills/demo/lib/language.ts';
-import { agentSetting, agentsView, conversationLanguage, languageView, ownerLanguage, saveAgents, saveLanguage, saveTheme, saveUsageMeter, themeView, usageMeterView, feedbackPromptView, saveFeedbackPrompt, notificationsView, saveNotifications } from './settings';
+import { agentSetting, agentsView, conversationLanguage, languageView, ownerLanguage, saveAgents, saveCodexAutoReview, saveLanguage, saveTheme, saveMotion, motionView, saveUsageMeter, themeView, usageMeterView, feedbackPromptView, saveFeedbackPrompt, notificationsView, saveNotifications, startAgentSetting } from './settings';
 import { FakeRuntime } from './testing';
 
 const homes: string[] = [];
 const scratchHome = () => homes[homes.push(mkdtempSync(join(tmpdir(), 'obeya-settings-'))) - 1]!;
 afterEach(() => homes.splice(0).forEach((h) => rmSync(h, { recursive: true, force: true })));
 
-test('a locale names a language Obeya speaks, or none', () => {
+test('a locale names a language Seismic speaks, or none', () => {
   expect(languageOf('de_DE.UTF-8')).toBe('de');
   expect(languageOf('en-GB')).toBe('en');
   expect(languageOf('DE')).toBe('de');
@@ -35,9 +35,9 @@ test('the system language: the Mac interface first, else the locale variables in
   expect(systemLanguage({ LANG: 'en_US.UTF-8' }, 'linux', () => 'de-DE')).toBe('en');
 });
 
-test('the conversation language follows the interface until chosen, each saved on its own beside the other settings', () => {
+test('the conversation defaults to English until chosen, each language saved on its own beside the other settings', () => {
   const home = scratchHome();
-  expect(languageView(home, 'de')).toMatchObject({ chosen: null, language: 'de', conversationChosen: null, conversation: 'de' });
+  expect(languageView(home, 'de')).toMatchObject({ chosen: null, language: 'de', conversationChosen: null, conversation: 'en' });
   saveLanguage(home, { language: 'en' });
   expect(languageView(home, 'de')).toMatchObject({ chosen: 'en', language: 'en', conversationChosen: null, conversation: 'en' });
   expect(conversationLanguage(home)).toBe('en');
@@ -61,6 +61,7 @@ test("the model and effort per group of agents: preset, chosen one group at a ti
     worker: { model: 'opus', effort: 'high' },
     explorer: { model: 'opus', effort: 'high' },
     chores: { model: 'opus', effort: 'medium' },
+    review: { model: 'opus', effort: 'high' },
   });
   saveLanguage(home, { language: 'en' });
   saveAgents(home, { worker: { model: 'fable', effort: 'xhigh' } });
@@ -128,6 +129,18 @@ test('worker harness choices retain separate Claude and Codex options and reject
   for (const bad of [{ worker: { harness: 'pi' } }, { koordinator: { harness: 'codex' } }, { explorer: { codex } }, { worker: { codex: { ...codex, effort: 'ultra' } } }, { worker: { codex: { ...codex, model: '' } } }]) expect(() => saveAgents(home, bad)).toThrow();
 });
 
+test('agy is a third worker harness with its own model and effort, kept apart from the others', () => {
+  const home = scratchHome();
+  const agy = { model: 'agy-test', effort: 'medium' as const };
+  saveAgents(home, { review: { harness: 'agy', agy } });
+  expect(agentSetting(home, 'review')).toEqual({ model: 'opus', effort: 'high', harness: 'agy', agy });
+  saveAgents(home, { review: { harness: 'codex', codex: { model: 'c', effort: 'low' } } });
+  expect(agentSetting(home, 'review')).toMatchObject({ harness: 'codex', agy, codex: { model: 'c' } });
+  expect(startAgentSetting({ model: 'opus', effort: 'high', harness: 'agy', agy })).toEqual({ model: 'opus', effort: 'high', harness: 'agy', agy });
+  expect(() => startAgentSetting({ model: 'opus', effort: 'high', harness: 'agy' })).toThrow();
+  for (const bad of [{ koordinator: { harness: 'agy' } }, { explorer: { agy } }, { worker: { agy: { ...agy, effort: 'ultra' } } }]) expect(() => saveAgents(home, bad)).toThrow();
+});
+
 test('light or dark: as the system until chosen, beside the other settings, and back to the system with null', () => {
   const home = scratchHome();
   expect(themeView(home).chosen).toBeNull();
@@ -142,6 +155,20 @@ test('light or dark: as the system until chosen, beside the other settings, and 
   // an unknown look in the file follows the system
   writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ theme: 'sepia' }));
   expect(themeView(home).chosen).toBeNull();
+});
+
+test('motion: as the system until chosen, reduced beside the look, and back to the system with null', () => {
+  const home = scratchHome();
+  expect(motionView(home).chosen).toBeNull();
+  saveTheme(home, { theme: 'dark' });
+  expect(saveMotion(home, { motion: 'reduced' }).chosen).toBe('reduced');
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ theme: 'dark', motion: 'reduced' });
+  expect(saveMotion(home, { motion: 'full' }).chosen).toBe('full');
+  expect(saveMotion(home, { motion: null }).chosen).toBeNull();
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ theme: 'dark' });
+  for (const bad of [{ motion: 'none' }, {}, null]) expect(() => saveMotion(home, bad)).toThrow();
+  writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ motion: 'slow' }));
+  expect(motionView(home).chosen).toBeNull();
 });
 
 test('the usage limits in the bar: shown until turned off, which alone stands in the file', () => {
@@ -178,4 +205,14 @@ test('desktop notifications: not decided until the owner chose, then on or off a
   for (const bad of [{ on: 'yes' }, {}, null]) expect(() => saveNotifications(home, bad)).toThrow();
   writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ notifications: 'yes' }));
   expect(notificationsView(home).on).toBeNull();
+});
+
+test("Codex's automatic review decides for Codex workers until the owner turns it off, which the file keeps", () => {
+  const home = scratchHome();
+  expect(agentsView(home).codexAutoReview).toBe(true);
+  expect(saveCodexAutoReview(home, { on: false }).codexAutoReview).toBe(false);
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ codexAutoReview: false });
+  expect(saveCodexAutoReview(home, { on: true }).codexAutoReview).toBe(true);
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({});
+  for (const bad of [{}, { on: 'yes' }, null]) expect(() => saveCodexAutoReview(home, bad)).toThrow();
 });

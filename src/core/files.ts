@@ -26,7 +26,7 @@ export interface CardFile {
  */
 export const DOCUMENT = /\.(pdf|png|jpe?g|gif|webp|svg|html?|md|txt|csv|tsv|json|ya?ml|xml|log|xlsx?|docx?|pptx?|od[tsp]|rtf|mp4|mov|webm|mp3|wav|m4a|ogg)$/i;
 
-/** Files read as text by their name, where the change list does not say (a file whose earlier version Obeya did not keep). */
+/** Files read as text by their name, where the change list does not say (a file whose earlier version Seismic did not keep). */
 const TEXT = /\.(md|markdown|txt|csv|tsv|json|ya?ml|xml|log|toml|ini|cfg|conf|html?|css|scss|svg|[cm]?[jt]sx?|py|rb|go|rs|java|kt|swift|c|h|cc|cpp|hpp|cs|php|sh|bash|zsh|ps1|bat|sql|r|lua|pl|tex|bib|ipynb|env|gitignore)$/i;
 
 /** How a file is shown: Markdown formatted, a PDF in the browser's viewer, an image, a page in a sandboxed frame, text as it is, anything else as a tile to open it on the computer. */

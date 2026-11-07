@@ -11,7 +11,7 @@ const at = (name: string, file: string, line: number) => ({ name, sourceURL: `/r
 const trace = (...frames: Trace['frames']): Trace => ({ timestamp: 0, frames });
 const times = (n: number, t: Trace) => Array.from({ length: n }, () => t);
 
-test('a sample is placed by the runtime function it was in and the code of Obeya that called it, a library’s frames left out', () => {
+test('a sample is placed by the runtime function it was in and the code of Seismic that called it, a library’s frames left out', () => {
   expect(placeOf(trace(native('spawnSync'), at('git', 'workspaces.ts', 77), { name: 'x', sourceURL: '/repo/node_modules/lib/a.js', line: 1, column: 1 }, at('approve', 'workers.ts', 1285)))).toBe(
     'spawnSync ← git (workspaces.ts:77) ← approve (workers.ts:1285)',
   );
@@ -23,7 +23,7 @@ test('a stall names where its samples were, by share, and the processes it waite
   const git = trace(native('spawnSync'), at('git', 'workspaces.ts', 77), at('hasWork', 'workspaces.ts', 900));
   const json = trace(native('stringify'), at('snapshot', 'board.ts', 2401));
   expect(describeStall(2400, [...times(900, git), ...times(300, json)], [{ argv: ['/usr/bin/git', '-C', '/repo', 'status', '--porcelain'], ms: 1800 }], 2)).toEqual([
-    'Obeya: the server stalled for 2.4 s; meanwhile it answered no page and heard no agent',
+    'Seismic: the server stalled for 2.4 s; meanwhile it answered no page and heard no agent',
     '   75% spawnSync ← git (workspaces.ts:77) ← hasWork (workspaces.ts:900)',
     '   25% stringify ← snapshot (board.ts:2401)',
     '  waited 1.8 s for: git -C /repo status --porcelain',
@@ -33,7 +33,7 @@ test('a stall names where its samples were, by share, and the processes it waite
 test('a pause the thread did not run in is no stall: the machine slept', () => {
   expect(describeStall(30_000, times(5, trace(native('spawnSync'))), [], 2)).toBeNull();
   // without a profiler to ask, the length is all there is
-  expect(describeStall(800, null, [])).toEqual(['Obeya: the server stalled for 0.8 s; meanwhile it answered no page and heard no agent']);
+  expect(describeStall(800, null, [])).toEqual(['Seismic: the server stalled for 0.8 s; meanwhile it answered no page and heard no agent']);
 });
 
 test('a page’s stall is logged with where its time went and what it took in before; the server takes no more than it logs', () => {
@@ -42,10 +42,10 @@ test('a page’s stall is logged with where its time went and what it took in be
   const s = pageStall({ type: 'stall', ms: 1300, scripts: [{ what: 'x'.repeat(500), ms: 900 }, { what: 3, ms: 1 }], before: ['snapshot (412 KB) 0.2 s before', 7], extra: true })!;
   expect(s).toEqual({ ms: 1300, scripts: [{ what: 'x'.repeat(200), ms: 900 }], before: ['snapshot (412 KB) 0.2 s before'] });
   // a line of its own, and nothing a terminal takes for a command, are not the page's to write
-  expect(pageStall({ ms: 900, scripts: [{ what: 'a\nObeya: forged\u001b[2J', ms: -5 }, { what: 'b', ms: 1e309 }, { what: 'c\u2028d', ms: 600 }], before: ['x\ry'] })).toEqual({ ms: 900, scripts: [{ what: 'c d', ms: 600 }], before: ['x y'] });
+  expect(pageStall({ ms: 900, scripts: [{ what: 'a\nSeismic: forged\u001b[2J', ms: -5 }, { what: 'b', ms: 1e309 }, { what: 'c\u2028d', ms: 600 }], before: ['x\ry'] })).toEqual({ ms: 900, scripts: [{ what: 'c d', ms: 600 }], before: ['x y'] });
   expect(pageStall({ ms: 1e309, scripts: [], before: [] })).toBeNull();
   expect(describePageStall({ ms: 1300, scripts: [{ what: 'WebSocket.onmessage: (anonymous) (index.js@1204)', ms: 1100 }], before: ['snapshot (412 KB) 0.2 s before'] }, 'this machine, canvas main')).toEqual([
-    'Obeya: a page (this machine, canvas main) stalled for 1.3 s; meanwhile it took no click or key',
+    'Seismic: a page (this machine, canvas main) stalled for 1.3 s; meanwhile it took no click or key',
     '  1.1 s WebSocket.onmessage: (anonymous) (index.js@1204)',
     '  before it: snapshot (412 KB) 0.2 s before',
   ]);
@@ -67,7 +67,7 @@ test('a stall the ticks see short is as long as its samples span', () => {
   stalls.tick(0, 560, samples(0.45));
   expect(lines).toEqual([]);
   stalls.tick(0, 560, samples(0.54));
-  expect(lines[0]).toBe('Obeya: the server stalled for 0.5 s; meanwhile it answered no page and heard no agent');
+  expect(lines[0]).toBe('Seismic: the server stalled for 0.5 s; meanwhile it answered no page and heard no agent');
 });
 
 test('a page that stalls again and again the same way gets one entry, and the stalls like it are counted in one line', () => {
@@ -84,22 +84,22 @@ test('a page that stalls again and again the same way gets one entry, and the st
   stalls.page({ ms: 900, scripts: [], before: [] }, where, 'p3', t + 35_000);
   stalls.page({ ms: 1300, scripts: [{ what: 'WebSocket.onmessage: (anonymous) (index.js@1204)', ms: 1100 }], before: [] }, where, 'p1', t + 40_000);
   expect(lines).toEqual([
-    'Obeya: a page (this machine, canvas main) stalled for 0.7 s; meanwhile it took no click or key',
-    'Obeya: a page (Pixel, canvas main) stalled for 0.9 s; meanwhile it took no click or key',
-    'Obeya: a page (this machine, canvas main) stalled for 0.9 s; meanwhile it took no click or key',
-    'Obeya: a page (this machine, canvas main) stalled for 1.3 s; meanwhile it took no click or key',
+    'Seismic: a page (this machine, canvas main) stalled for 0.7 s; meanwhile it took no click or key',
+    'Seismic: a page (Pixel, canvas main) stalled for 0.9 s; meanwhile it took no click or key',
+    'Seismic: a page (this machine, canvas main) stalled for 0.9 s; meanwhile it took no click or key',
+    'Seismic: a page (this machine, canvas main) stalled for 1.3 s; meanwhile it took no click or key',
     '  1.1 s WebSocket.onmessage: (anonymous) (index.js@1204)',
   ]);
   // a minute without one like them ends the run
   stalls.flush(t + 178_000);
   expect(lines.length).toBe(5);
   stalls.flush(t + 179_000);
-  expect(lines.slice(5)).toEqual([expect.stringMatching(/^Obeya: a page \(this machine, canvas main\) stalled 119 more times in 119 s like the one logged at \d{4}-\d\d-\d\dT[\d:.]+Z, for 0\.7–1\.1 s each$/)]);
+  expect(lines.slice(5)).toEqual([expect.stringMatching(/^Seismic: a page \(this machine, canvas main\) stalled 119 more times in 119 s like the one logged at \d{4}-\d\d-\d\dT[\d:.]+Z, for 0\.7–1\.1 s each$/)]);
   // the next one starts a run of its own
   stalls.page({ ms: 800, scripts: [], before: [] }, where, 'p1', t + 200_000);
   expect(lines.length).toBe(7);
   const file = readFileSync(join(home, STALLS_FILE), 'utf8');
-  expect(file).toMatch(/^\d{4}-\d\d-\d\dT[\d:.]+Z\nObeya: a page \(this machine, canvas main\) stalled for 0\.7 s/);
+  expect(file).toMatch(/^\d{4}-\d\d-\d\dT[\d:.]+Z\nSeismic: a page \(this machine, canvas main\) stalled for 0\.7 s/);
   expect(file).toContain('stalled 119 more times');
 });
 
@@ -110,7 +110,7 @@ test('a run that goes on all night is logged once an hour', () => {
   const t = 1_000_000;
   for (let i = 0; i < 3 * 3600; i++) stalls.page({ ms: 900, scripts: [], before: [] }, 'this machine, canvas main', 'p1', t + i * 1000);
   const first = readFileSync(join(home, STALLS_FILE), 'utf8').split('\n')[0];
-  const run = (n: number) => `Obeya: a page (this machine, canvas main) stalled ${n} more times in 60 min like the one logged at ${first}, for 0.9 s each`;
+  const run = (n: number) => `Seismic: a page (this machine, canvas main) stalled ${n} more times in 60 min like the one logged at ${first}, for 0.9 s each`;
   expect(lines.slice(1)).toEqual([run(3599), run(3600)]);
   // stopped, the server logs what it counted so far
   stalls.stop();
@@ -127,11 +127,11 @@ test('a synchronous process that holds the server up goes into the log and stall
   }
   expect(landOnMain()).toBe(0);
   await until(() => lines.length > 0);
-  expect(lines[0]).toMatch(/^Obeya: the server stalled for 0\.\d s/);
+  expect(lines[0]).toMatch(/^Seismic: the server stalled for 0\.\d s/);
   expect(lines.some((l) => /% spawnSync ← .*stalls\.test\.ts:\d+/.test(l))).toBe(true);
   expect(lines.some((l) => /^  waited 0\.\d s for: sleep 0\.7$/.test(l))).toBe(true);
   const file = readFileSync(join(home, STALLS_FILE), 'utf8');
-  expect(file).toMatch(/^\d{4}-\d\d-\d\dT[\d:.]+Z\nObeya: the server stalled/);
+  expect(file).toMatch(/^\d{4}-\d\d-\d\dT[\d:.]+Z\nSeismic: the server stalled/);
   expect(file).toContain('for: sleep 0.7');
   // stopped, it leaves Bun's own spawnSync behind
   stalls.stop();

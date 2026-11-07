@@ -16,7 +16,7 @@ nothing (it goes on as if it had: `start`, then `end` after about as long as say
 Its profile is fresh at every `start`: no logins or cookies of the machine's user.
 
 For what headless Chromium can't reproduce (on-screen keyboard, fullscreen, rotation), use
-`bun scripts/android-phone.ts` in Obeya's repository: Chrome in the Android emulator, with real taps.
+`bun scripts/android-phone.ts` in Seismic's repository: Chrome in the Android emulator, with real taps.
 
 ## Commands
 

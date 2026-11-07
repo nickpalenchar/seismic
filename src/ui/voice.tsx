@@ -1,6 +1,6 @@
 // Push-to-talk: hold Space or the microphone, speak, let go. With the cursor in a text field the
 // words are written into it, for the owner to add to and send. Otherwise the recording goes to
-// Obeya with what stands in the field of the card or sidebar in view (its words first, its
+// Seismic with what stands in the field of the card or sidebar in view (its words first, its
 // screenshots, the message it quotes): with an agent on the open card straight to that agent, else
 // to the Koordinator, which answers with a confirmation to show. Where no field is in view,
 // screenshots picked or pasted beside the microphone, and the paths of other files dropped on it,
@@ -8,8 +8,11 @@
 // free again at once: each spoken command has its own line above it while it is read, which becomes
 // its confirmation; a typed one gets its line with the confirmation.
 
+import { createPortal } from 'react-dom';
+import { Mic } from 'lucide-react';
 import { createContext, useEffect, useRef, useState } from 'react';
 import type { Place } from '../core/layout';
+import type { Notice } from '../core/types';
 import { ApiError, api, confirmShownMs, type Heard, holdRestart, undoShownMs, type Where } from './api';
 import { beginDictation, dictate, draftOf, focusedDraft, insertFiles, MIC_DRAFT, moveFiles, moveImages, takesImages, toObeya, updateDraft, useDraft, useFieldOn, uploaded, useFocusedDraft, wordsOf } from './draft';
 import { Aside } from './aside';
@@ -42,8 +45,8 @@ export const SPACE_SHOWS_MS = 200;
 const NOTE_MS = 6000;
 
 /**
- * Whether Obeya has the recording the page sent as `sent`, for a command whose answer the broken
- * connection lost: asked until Obeya answers, for as long as the page lives. A page going away
+ * Whether Seismic has the recording the page sent as `sent`, for a command whose answer the broken
+ * connection lost: asked until Seismic answers, for as long as the page lives. A page going away
  * (another canvas, a reload) never hears, and gives nothing back.
  */
 async function arrived(sent: string): Promise<boolean> {
@@ -62,7 +65,7 @@ const recordingName = () => `${Date.now().toString(36)}-${Math.random().toString
 /**
  * Recording and sending; `level` drives the ring while listening, `flat` says the microphone delivers
  * nothing. A recording begun with the cursor in a text field is dictated into it. Any other one
- * `send` hands on with the draft `field` names for its target, and settles with what Obeya made of
+ * `send` hands on with the draft `field` names for its target, and settles with what Seismic made of
  * it; the next one may start meanwhile.
  */
 export function usePushToTalk(
@@ -78,7 +81,7 @@ export function usePushToTalk(
   const showing = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [level, setLevel] = useState(0);
   const [flat, setFlat] = useState(false);
-  /** Recordings let go of that Obeya has not answered yet. */
+  /** Recordings let go of that Seismic has not answered yet. */
   const [writing, setWriting] = useState(0);
   const mic = useRef<Promise<{ stream: MediaStream; ctx: AudioContext; analyser: AnalyserNode }> | null>(null);
   const rec = useRef<{ recording: Recording; t0: number; target: Where; into: string | null; spot: Taken | null } | null>(null);
@@ -171,9 +174,9 @@ export function usePushToTalk(
       // said in reply to the message the field quotes, as typed words are
       const reply = replyOn(key);
       if (reply) setReply(key, null);
-      // the field gets them back only when Obeya says it has not taken the command: until
+      // the field gets them back only when Seismic says it has not taken the command: until
       // 2026-10-16 a connection that broke (the browser cutting it off as the page went to another
-      // canvas, say) counted as that, although Obeya had the command and read on, and the draft
+      // canvas, say) counted as that, although Seismic had the command and read on, and the draft
       // kept for the page's next load brought the screenshots back
       const name = recordingName();
       let failed = false;
@@ -218,6 +221,9 @@ export function usePushToTalk(
   return { phase: shown ? phase : 'idle', level, flat, start, stop };
 }
 
+/** How long a confirmation's line stays once it offers to go to the cards its command made: time to read it and reach for the button. */
+const MADE_SHOWN_MS = 15_000;
+
 /** A command on its way: while it is transcribed or the Koordinator reads it, then its confirmation. */
 export interface Told {
   id: number;
@@ -226,16 +232,19 @@ export interface Told {
   /** The card it was said to, named in the confirmation when another card is open by then. */
   card?: { id: string; title: string };
   heard?: Heard;
-  /** "Rückgängig" shows while the command still waits. */
+  /** "Undo" shows while the command still waits. */
   undo?: boolean;
+  /** The cards the command made, once it ran: the line offers to go to them. */
+  made?: NonNullable<Notice['made']>;
 }
 
 /**
  * Commands spoken or typed, each with its own line from sending to its confirmation; one that went
  * out quietly (to the open card's agent) leaves no line. The server reads them one after the other.
  * `show` adds a confirmation that comes without a request: a request a card's agent passed on.
+ * `made` gives a confirmation's line the cards its commands made, once they ran, and keeps it a while longer.
  * `inView` says whether the conversation the owner looks at shows the reply already: then it gets
- * no line, unless it has „Rückgängig“, which only the line offers.
+ * no line, unless it has "Undo", which only the line offers.
  */
 export function useTold(onHeard: (h: Heard) => void, inView: (h: Heard) => boolean = () => false) {
   const [told, setTold] = useState<Told[]>([]);
@@ -243,13 +252,32 @@ export function useTold(onHeard: (h: Heard) => void, inView: (h: Heard) => boole
   toldRef.current = told;
   const next = useRef(0);
   const update = (id: number, fn: (x: Told) => Told | null) => setTold((ts) => ts.flatMap((x) => (x.id === id ? (fn(x) ?? []) : [x])));
+  const gone = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  /** The line goes `ms` from now. */
+  function goneIn(id: number, ms: number) {
+    clearTimeout(gone.current.get(id));
+    gone.current.set(
+      id,
+      setTimeout(() => {
+        gone.current.delete(id);
+        update(id, () => null);
+      }, ms),
+    );
+  }
 
   function settle(id: number, h: Heard) {
     if (h.quiet || (!h.token && inView(h))) return update(id, () => null);
     const undo = !!(h.token && h.undoMs);
     update(id, (x) => ({ ...x, heard: h, undo }));
     if (undo) setTimeout(() => update(id, (x) => ({ ...x, undo: false })), undoShownMs(h.undoMs!));
-    setTimeout(() => update(id, () => null), confirmShownMs(h.undoMs));
+    goneIn(id, confirmShownMs(h.undoMs));
+  }
+
+  function made(token: string, cards: NonNullable<Notice['made']>) {
+    const x = toldRef.current.find((y) => y.heard?.token === token);
+    if (!x) return;
+    update(x.id, (y) => ({ ...y, made: cards }));
+    goneIn(x.id, MADE_SHOWN_MS);
   }
 
   async function tell(pending: string | null, card: Told['card'], request: () => Promise<Heard>): Promise<Heard> {
@@ -284,7 +312,7 @@ export function useTold(onHeard: (h: Heard) => void, inView: (h: Heard) => boole
     }
   }
 
-  // a restart waits while Obeya reads what the owner said or typed
+  // a restart waits while Seismic reads what the owner said or typed
   const reading = told.some((x) => !x.heard);
   useEffect(() => {
     holdRestart('told', reading ? 'voice' : null);
@@ -292,18 +320,18 @@ export function useTold(onHeard: (h: Heard) => void, inView: (h: Heard) => boole
   }, [reading]);
   /** A line the owner swiped aside: gone, and the confirmation of a command still read does not follow. */
   const drop = (x: Told) => update(x.id, () => null);
-  return { told, tell, show, undo, drop };
+  return { told, tell, show, made, undo, drop };
 }
 
 /**
  * The commands on their way, above the microphone, oldest first; `open`: the card open now. With
  * `aside` (the phone) the owner swipes a line away, and `onGone` drops it.
  */
-export function ToldList({ told, open, onUndo, aside = false, onGone }: { told: Told[]; open?: string; onUndo: (x: Told) => void; aside?: boolean; onGone?: (x: Told) => void }) {
+export function ToldList({ told, open, onUndo, onGo, aside = false, onGone }: { told: Told[]; open?: string; onUndo: (x: Told) => void; onGo: (card: NonNullable<Told['made']>[number], x: Told) => void; aside?: boolean; onGone?: (x: Told) => void }) {
   return (
     <>
       {told.map((x) => (x.heard || x.pending) && (
-        <Aside key={x.id} on={aside} onGone={() => onGone?.(x)} className={`ack told ${x.heard ? 'heard' : 'reading'}`}>
+        <Aside key={x.id} on={aside} onGone={() => onGone?.(x)} className={`ack told ${x.heard ? 'heard' : 'reading'}${!x.undo && (x.made?.length ?? 0) > 1 ? ' several' : ''}`}>
           <span>
             {x.heard ? (
               <>
@@ -315,6 +343,12 @@ export function ToldList({ told, open, onUndo, aside = false, onGone }: { told: 
             )}
           </span>
           {x.undo && <button onClick={() => onUndo(x)}>{t.undo}</button>}
+          {!x.undo &&
+            x.made?.filter((c) => c.id !== open).map((c) => (
+              <button key={c.id} onClick={() => onGo(c, x)}>
+                {x.made!.length > 1 ? t.voice.goTo(c.title) : t.voice.goToCard}
+              </button>
+            ))}
         </Aside>
       ))}
     </>
@@ -347,14 +381,15 @@ export function useHeldByTouch<T extends HTMLElement>() {
  * fills the screen) that line is left out. Without such a field, screenshots for the next
  * recording are picked beside the microphone; dropped on it or pasted (App), they go to the field
  * when there is one. So do the paths of other files dropped on it, which show beside it by their
- * names while they wait there. Those for Obeya stay in view: they go into Obeya's field when it
+ * names while they wait there. Those for Seismic stay in view: they go into Seismic's field when it
  * opens, and back beside the microphone when it closes, the paths that still stand in its words too.
+ * With a `slot` (the middle of the canvas's status bar) the line stands there, not under the microphone.
  */
-export function PushToTalk({ phase, level, flat, target, field, onDown }: { phase: Phase; level: number; flat: boolean; target: string | null; field: string | null; onDown: () => void }) {
+export function PushToTalk({ phase, level, flat, target, field, slot, onDown }: { phase: Phase; level: number; flat: boolean; target: string | null; field: string | null; slot?: HTMLElement | null; onDown: () => void }) {
   const on = useFieldOn(field);
   const key = on ? field! : MIC_DRAFT;
   const shots = useShotInput({ draft: key, off: !takesImages(key) });
-  // the screenshots and files for Obeya show where Obeya is spoken to: in its field while that is in view, else beside the microphone
+  // the screenshots and files for Seismic show where Seismic is spoken to: in its field while that is in view, else beside the microphone
   const obeya = useRef<string | null>(null);
   const { images: waiting, text: paths } = useDraft(MIC_DRAFT);
   useEffect(() => {
@@ -377,6 +412,23 @@ export function PushToTalk({ phase, level, flat, target, field, onDown }: { phas
   const n = shots.images.length;
   const mic = useHeldByTouch<HTMLButtonElement>();
   const parts = [...(text.trim() ? [t.voice.withText] : []), ...(n ? [t.voice.withShots(n)] : []), ...(on && quote ? [t.voice.withQuote] : [])];
+  const line = flat ? (
+        <div id="target" className="flat">
+          {t.voice.flat}
+        </div>
+      ) : into ? (
+        <div id="target" className="into">
+          → <b>{t.voice.intoField}</b>
+          {t.voice.sendWithEnter && ` · ${t.voice.sendWithEnter}`}
+        </div>
+      ) : (
+        target !== null && (
+          <div id="target">
+            → <b>{target}</b>
+            {parts.length > 0 && <span className="with"> {t.voice.with(parts)}</span>}
+          </div>
+        )
+      );
   return (
     <div id="ptt" className={`${phase}${shots.dropping ? ' dropping' : ''}`} {...shots.drop}>
       <div className="ptt-row">
@@ -405,23 +457,8 @@ export function PushToTalk({ phase, level, flat, target, field, onDown }: { phas
         )}
       </div>
       {shots.error && key === MIC_DRAFT && <div className="ptt-error">{shots.error}</div>}
-      {flat ? (
-        <div id="target" className="flat">
-          {t.voice.flat}
-        </div>
-      ) : into ? (
-        <div id="target" className="into">
-          → <b>{t.voice.intoField}</b>
-          {t.voice.sendWithEnter && ` · ${t.voice.sendWithEnter}`}
-        </div>
-      ) : (
-        target !== null && (
-          <div id="target">
-            → <b>{target}</b>
-            {parts.length > 0 && <span className="with"> {t.voice.with(parts)}</span>}
-          </div>
-        )
-      )}
+      {slot === undefined && line}
+      {slot && createPortal(line, slot)}
     </div>
   );
 }
@@ -446,9 +483,6 @@ function FileChips() {
 
 export function MicIcon({ size }: { size?: number }) {
   return (
-    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      <rect x="9" y="3" width="6" height="11" rx="3" />
-      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-    </svg>
+    <Mic size={size} strokeWidth={2} aria-hidden="true" />
   );
 }

@@ -11,19 +11,22 @@ import { api, cardFile } from './api';
 import { ChangeNote, DiffView, FileDiff, Lines, MARK } from './diff';
 import { Doc, DocImages } from './markdown';
 import { useReportedHeight } from './message';
+import { scrollBehavior } from './motion';
 import { PdfPages } from './pdf';
 import { phoneView } from './phone';
 import { t } from './strings';
 
-/** How many lines the change list shows before „und N weitere ▾“ where it is not folded to the result; the file picked shows too. */
+/** How many lines the change list shows before "and N more ▾" where it is not folded to the result; the file picked shows too. */
 const FOLD = 8;
-/** How much of a text file the view shows; the rest is a click on „Auf dem Rechner öffnen“ or ↓ away. */
+/** How much of a text file the view shows; the rest is a click on "Open on the computer" or ↓ away. */
 const TEXT_CAP = 400_000;
 /** The highest a page grows in its frame; a higher one scrolls inside it. */
 const PAGE_CAP = 30000;
 
 const DEMO = '';
 const DIFF = '\0diff';
+/** The code review's tab, to open it from elsewhere on the card. */
+export const REVIEW = '\0review';
 
 /** The card's change, read as the work moves on; `given` where the card has read it already (a folder's change list). */
 function useChange(item: Item, given: CardDiff | null | undefined): CardDiff | null {
@@ -40,8 +43,8 @@ function useChange(item: Item, given: CardDiff | null | undefined): CardDiff | n
   return own ? diff : given;
 }
 
-/** Deliverables in tabs, with the underlying change list in a separate Diff tab. */
-export function ResultFiles({ item, diff, demo, tab, onTab }: { item: Item; diff?: CardDiff | null; demo: ReactNode; tab: string | null; onTab: (path: string) => void }) {
+/** Deliverables in tabs, then the code review of the work where it has one (`review`, its tab's label and panel), with the underlying change list in a separate Diff tab. */
+export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: Item; diff?: CardDiff | null; demo: ReactNode; review?: { label: ReactNode; title?: string; panel: ReactNode }; tab: string | null; onTab: (path: string) => void }) {
   const change = useChange(item, diff);
   const rows = changeRows(change, item.files);
   const files = rows.flatMap((r) => (r.file ? [r.file] : []));
@@ -51,7 +54,8 @@ export function ResultFiles({ item, diff, demo, tab, onTab }: { item: Item; diff
   const tabs = [
     ...(demo ? [{ path: DEMO, label: item.demo?.kind === 'html' ? t.files.tabs.document : t.files.tabs.video }] : []),
     ...named.filter((f) => !schema(f)).map((f) => ({ path: f.path, label: label(f), title: f.caption })),
-    ...named.filter(schema).map((f) => ({ path: f.path, label: label(f), title: f.caption })),
+    ...named.filter(schema).map((f) => ({ path: f.path, label: label(f) as ReactNode, title: f.caption })),
+    ...(review ? [{ path: REVIEW, label: review.label, ...(review.title ? { title: review.title } : {}) }] : []),
     ...(rows.length ? [{ path: DIFF, label: t.files.tabs.diff }] : []),
   ];
   const current = tabs.some((t) => t.path === tab) ? tab : tabs[0]?.path;
@@ -62,6 +66,8 @@ export function ResultFiles({ item, diff, demo, tab, onTab }: { item: Item; diff
   const box = useRef<HTMLDivElement>(null);
   const [tallest, setTallest] = useState(0);
   useLayoutEffect(() => {
+    // the Review tab shrinks as findings are decided and fold: its height is no floor for the tabs
+    if (current === REVIEW) return;
     const h = box.current?.offsetHeight ?? 0;
     if (h > tallest) setTallest(h);
   });
@@ -73,11 +79,11 @@ export function ResultFiles({ item, diff, demo, tab, onTab }: { item: Item; diff
   useEffect(() => {
     if (!picked) return;
     const view = box.current?.querySelector('.r-file');
-    if (view && !seen(view)) view.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    if (view && !seen(view)) view.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
   }, [picked]);
   if (!tabs.length) return item.files && change ? <p className="hint">{t.files.none}</p> : null;
   const inDiff = current === DIFF;
-  const path = inDiff ? pickedFile : current;
+  const path = inDiff ? pickedFile : current === REVIEW ? null : current;
   const file = files.find((f) => f.path === path);
   const count = change?.folder ? shownChanges(change.folder.changes).length : (change?.files.length ?? 0);
   return (
@@ -90,6 +96,7 @@ export function ResultFiles({ item, diff, demo, tab, onTab }: { item: Item; diff
         ))}
       </div>
       {demo && <div ref={demoBox} role="tabpanel" hidden={current !== DEMO}>{demo}</div>}
+      {review && current === REVIEW && <div role="tabpanel">{review.panel}</div>}
       {inDiff && (
         <div role="tabpanel">
           <ChangeList
@@ -403,7 +410,7 @@ function Text({ url, children }: { url: string; children: (text: string) => Reac
   );
 }
 
-/** A page in the sandboxed frame of an HTML artifact, its scripts away from Obeya's API, as high as it reports. */
+/** A page in the sandboxed frame of an HTML artifact, its scripts away from Seismic's API, as high as it reports. */
 function Page({ url, title }: { url: string; title: string }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const height = useReportedHeight(frame, PAGE_CAP);

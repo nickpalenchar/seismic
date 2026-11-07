@@ -1,5 +1,5 @@
 {
   "name": "obeya",
-  "description": "What Obeya gives its workers: the demo skill, which records a narrated video of a change with a one-page report, the settings skill, which writes a repository's Obeya settings, the browser skill, a headless browser of the session's own for UI checks, the labels skill, which judges a card's category, sub-category, complexity and priority, and the titles skill, which names cards as user stories, observed faults or requested behaviour.",
+  "description": "What Seismic gives its workers: the demo skill, which records a narrated video of a change with a one-page report, the settings skill, which writes a repository's Seismic settings, the browser skill, a headless browser of the session's own for UI checks, the labels skill, which judges a card's category, sub-category, complexity and priority, and the titles skill, which names cards as user stories, observed faults or requested behaviour.",
   "version": "1.0.0"
 }

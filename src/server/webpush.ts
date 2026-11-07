@@ -1,5 +1,5 @@
 // Web Push without a library: the message is encrypted for the device (RFC 8291, `aes128gcm` of
-// RFC 8188) and the request signed with Obeya's VAPID key (RFC 8292), all through WebCrypto. It
+// RFC 8188) and the request signed with Seismic's VAPID key (RFC 8292), all through WebCrypto. It
 // travels through the browser maker's push service (Apple's, Google's, Mozilla's), which sees
 // neither title nor text.
 
@@ -20,7 +20,7 @@ export interface Subscription {
 
 /**
  * The push services of the browsers that have Web Push: Apple's (Safari), Google's (Chrome and what
- * builds on it), Mozilla's (Firefox), Microsoft's (Edge). A subscription names one of them; Obeya
+ * builds on it), Mozilla's (Firefox), Microsoft's (Edge). A subscription names one of them; Seismic
  * sends nowhere else, so a device cannot have it send requests into the network it is in.
  */
 const PUSH_SERVICES = [/(^|\.)push\.apple\.com$/, /^fcm\.googleapis\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/];
@@ -107,7 +107,7 @@ export async function encrypt(payload: Uint8Array, sub: Subscription, fixed?: { 
   return concat(header, asPublic, sealed);
 }
 
-/** Who to write to about Obeya's pushes, for the push services (RFC 8292 asks for a contact). */
+/** Who to write to about Seismic's pushes, for the push services (RFC 8292 asks for a contact). */
 const CONTACT = 'https://obeya.si';
 
 /** The `Authorization` header for `endpoint`: a JWT for its push service, signed with the VAPID key, valid 12 hours. */
@@ -122,7 +122,7 @@ export async function vapidAuth(endpoint: string, vapid: Vapid, now = Date.now()
 export interface PushMessage {
   title: string;
   body: string;
-  /** Where tapping it leads: a card in the phone view (`/c/<canvas>/card/<code>`), or „Braucht dich“ (`/`). */
+  /** Where tapping it leads: a card in the phone view (`/p/<project>/c/<code>`), or "Needs you" (`/`). */
   url: string;
   /** A later push with the same tag replaces this one in the list of notifications. */
   tag: string;
@@ -140,14 +140,14 @@ export async function send(sub: Subscription, message: PushMessage, vapid: Vapid
       authorization: await vapidAuth(sub.endpoint, vapid),
       'content-encoding': 'aes128gcm',
       'content-type': 'application/octet-stream',
-      // a day: a phone switched off for longer gets what still waits from „Braucht dich“
+      // a day: a phone switched off for longer gets what still waits from "Needs you"
       ttl: '86400',
       urgency: 'high',
     },
     body,
-    // a push service answers itself, and sends Obeya nowhere else
+    // a push service answers itself, and sends Seismic nowhere else
     redirect: 'manual',
   });
-  if (r.status >= 400 && r.status !== 404 && r.status !== 410) console.warn(`Obeya: push to ${new URL(sub.endpoint).host} refused (${r.status}): ${(await r.text().catch(() => '')).slice(0, 200)}`);
+  if (r.status >= 400 && r.status !== 404 && r.status !== 410) console.warn(`Seismic: push to ${new URL(sub.endpoint).host} refused (${r.status}): ${(await r.text().catch(() => '')).slice(0, 200)}`);
   return r.status;
 }

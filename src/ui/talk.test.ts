@@ -57,7 +57,7 @@ test("a task's conversation: the owner's words, the worker's replies and handove
   expect(pending).toEqual([]);
 });
 
-test("Obeya's lines that the plan doc ticked a workstream off stand as lines: they say why the card is done", () => {
+test("Seismic's lines that the plan doc ticked a workstream off stand as lines: they say why the card is done", () => {
   const stopped = ev('state', 'owner', 'Gestoppt.');
   const freed = ev('state', 'obeya', MESSAGES.de.worker.tickedFreed);
   const merged = ev('state', 'obeya', MESSAGES.en.worker.mergedTicked);
@@ -68,8 +68,8 @@ test("Obeya's lines that the plan doc ticked a workstream off stand as lines: th
   ]);
 });
 
-test("Obeya's line that it linked the demo on the pull request stands, with the link, so the owner sees it without opening the steps", () => {
-  const approved = ev('state', 'owner', 'Approved. Obeya merges PR #3.');
+test("Seismic's line that it linked the demo on the pull request stands, with the link, so the owner sees it without opening the steps", () => {
+  const approved = ev('state', 'owner', 'Approved. Seismic merges PR #3.');
   const shared = ev('state', 'obeya', MESSAGES.en.share.shared('https://demos.example/pr-3/'));
   const pr = 'https://github.com/acme/app/pull/3';
   const commented = ev('state', 'obeya', MESSAGES.en.share.prCommented(3, `${pr}#issuecomment-1`));
@@ -186,23 +186,23 @@ test('a spoken note stands once; the Koordinator confirms in the steps and answe
   ]);
 });
 
-test("Obeya's answer that it cannot do what the owner asked stands in the conversation, for its link to report it", () => {
+test("Seismic's answer that it cannot do what the owner asked stands in the conversation, for its link to report it", () => {
   const asked = ev('say', 'owner', 'Sortier die Karten nach Datum.');
-  const cannot = { ...ev('say', 'koordinator', 'Das gibt es in Obeya nicht.'), wish: { said: 'Sortier die Karten nach Datum.', answer: 'Das gibt es in Obeya nicht.' } };
+  const cannot = { ...ev('say', 'koordinator', 'Das gibt es in Seismic nicht.'), wish: { said: 'Sortier die Karten nach Datum.', answer: 'Das gibt es in Seismic nicht.' } };
   expect(talkTurns([asked, cannot]).shown).toEqual([
     { e: asked, steps: [] },
     { e: cannot, steps: [] },
   ]);
 });
 
-test("Obeya's reply to what the worker passed on stands under the worker's message, with the answer it looked up", () => {
+test("Seismic's reply to what the worker passed on stands under the worker's message, with the answer it looked up", () => {
   const asked = ev('hint', 'owner', 'Verlinkt der Commit die Demo?');
   const read = ev('activity', 'worker', 'Liest git log');
   const looking = { ...ev('say', 'koordinator', 'Moment, ich sehe nach, ob der Commit die Demo verlinkt.'), forwarded: true as const };
   const found = ev('say', 'koordinator', 'Ja, der Commit auf main verlinkt die Seite der Demo.');
-  const reply = ev('talk', 'worker', 'Das entscheidet Obeya; ich habe die Frage weitergegeben.');
+  const reply = ev('talk', 'worker', 'Das entscheidet Seismic; ich habe die Frage weitergegeben.');
   const review = ev('review', 'worker', 'Übergeben.');
-  // while the worker is at work, Obeya's reply waits below its work for the message
+  // while the worker is at work, Seismic's reply waits below its work for the message
   expect(talkTurns([asked, read, looking], { working: true })).toMatchObject({ shown: [{ e: asked }], pending: [read], passedOn: [{ e: looking, steps: [] }] });
   expect(talkTurns([asked, read, looking, found], { working: true }).passedOn.map((x) => x.e)).toEqual([looking, found]);
   // the answer looked up before the worker's message came moves under it too; what came after the message stays after it
@@ -214,24 +214,24 @@ test("Obeya's reply to what the worker passed on stands under the worker's messa
     { e: review, steps: [] },
   ]);
   expect(talkTurns([asked, read, looking, reply, review, found], { over: true }).shown.map((x) => x.e)).toEqual([asked, reply, looking, review, found]);
-  // a turn that ends without a message: its steps stand as one, above Obeya's reply
+  // a turn that ends without a message: its steps stand as one, above Seismic's reply
   expect(talkTurns([asked, read, looking], { over: true }).shown).toEqual([
     { e: asked, steps: [] },
     { e: read, steps: [read], quiet: true },
     { e: looking, steps: [] },
   ]);
-  // the owner's words before the worker's message: Obeya's reply stays above them, under the steps that led to it
+  // the owner's words before the worker's message: Seismic's reply stays above them, under the steps that led to it
   const more = ev('hint', 'owner', 'Und das Changelog?');
   expect(talkTurns([asked, read, looking, more, reply]).shown.map((x) => x.e)).toEqual([asked, read, looking, more, reply]);
 });
 
-test('a follow-up card Obeya made stands as an action: under the worker\'s message with Obeya\'s reply, or where it came', () => {
+test('a follow-up card Seismic made stands as an action: under the worker\'s message with Seismic\'s reply, or where it came', () => {
   const asked = ev('hint', 'owner', 'Mach eine Folgekarte für den Excel-Export.');
-  const passing = ev('activity', 'worker', 'to_obeya');
+  const passing = ev('activity', 'worker', 'to_seismic');
   const confirm = { ...ev('say', 'koordinator', 'Lege die Folgekarte „Excel-Export“ an.'), forwarded: true as const };
   const made = { ...ev('state', 'obeya', 'Folgekarte „Excel-Export“ angelegt.'), made: { card: 'k2', title: 'Excel-Export' } };
-  const reply = ev('talk', 'worker', 'Obeya legt sie an.');
-  // made before the worker's message, it waits with Obeya's reply and goes under that message
+  const reply = ev('talk', 'worker', 'Seismic legt sie an.');
+  // made before the worker's message, it waits with Seismic's reply and goes under that message
   expect(talkTurns([asked, passing, confirm, made], { working: true }).passedOn.map((x) => x.e)).toEqual([confirm, made]);
   expect(talkTurns([asked, passing, confirm, made, reply], { over: true }).shown).toEqual([
     { e: asked, steps: [] },
@@ -247,16 +247,34 @@ test('a follow-up card Obeya made stands as an action: under the worker\'s messa
   expect(talkTurns([said, ok, made], { over: true }).shown.map((x) => x.e)).toContain(made);
 });
 
-test("what Obeya reads to look up a question on a card the worker works on folds under its answer, not into the worker's work", () => {
+test('a worker proposal stays visible as an action before or after its reply, including after the turn ends', () => {
+  const asked = ev('hint', 'owner', 'What else needs changing?');
+  const read = ev('activity', 'worker', 'Read the settings.');
+  const made = { ...ev('activity', 'worker', 'Proposed Preferences.'), made: { card: 'p', title: 'Preferences' } };
+  const reply = ev('talk', 'worker', 'Preferences is proposed for you to consider.');
+  const after = ev('activity', 'worker', 'Checked the remaining settings.');
+  const closing = ev('closing', 'worker', 'Finished.');
+  for (const events of [[asked, read, made, reply, after, closing], [asked, read, reply, after, made, closing]]) {
+    for (const opts of [{ working: true }, { over: true }]) {
+      const turns = talkTurns(events, opts);
+      expect(turns.shown.find((x) => x.e === made)).toEqual({ e: made, steps: [] });
+      expect(turns.shown.find((x) => x.e === reply)?.steps).toContain(closing);
+      expect(turns.shown.find((x) => x.e === reply)?.steps).toContain(after);
+      expect(turns.pending).not.toContain(made);
+    }
+  }
+});
+
+test("what Seismic reads to look up a question on a card the worker works on folds under its answer, not into the worker's work", () => {
   const asked = ev('hint', 'owner', 'Verlinkt der Commit die Demo?');
-  const passing = ev('activity', 'worker', 'to_obeya');
+  const passing = ev('activity', 'worker', 'to_seismic');
   const looking = { ...ev('say', 'koordinator', 'Moment, ich sehe nach.'), forwarded: true as const };
   const cat = ev('activity', 'koordinator', '$ cat docs/plan/export.md');
   const edit = ev('activity', 'worker', 'Bearbeitet src/export.ts');
   const log = ev('activity', 'koordinator', '$ git log -1');
   const found = { ...ev('say', 'koordinator', 'Ja, der Commit verlinkt die Demo.'), answer: { thread: 1 } };
-  const reply = ev('talk', 'worker', 'Obeya sieht nach; ich baue weiter.');
-  // while Obeya still looks, its steps stand under its reply that it does, the worker's at work apart
+  const reply = ev('talk', 'worker', 'Seismic sieht nach; ich baue weiter.');
+  // while Seismic still looks, its steps stand under its reply that it does, the worker's at work apart
   expect(talkTurns([asked, passing, looking, cat, edit], { working: true })).toMatchObject({ pending: [passing, edit], passedOn: [{ e: looking, steps: [cat] }] });
   // its answer takes them
   expect(talkTurns([asked, passing, looking, cat, edit, log, found], { working: true })).toMatchObject({
@@ -272,13 +290,13 @@ test("what Obeya reads to look up a question on a card the worker works on folds
     { e: looking, steps: [] },
     { e: found, steps: [cat, log] },
   ]);
-  // asked through the microphone, Obeya's reply that it looks folds away with the worker's steps; its look-up's steps wait for its answer
+  // asked through the microphone, Seismic's reply that it looks folds away with the worker's steps; its look-up's steps wait for its answer
   const said = ev('say', 'owner', 'Wie weit ist das?');
   const checking = ev('say', 'koordinator', 'Ich schaue nach.');
   const answer = { ...ev('say', 'koordinator', 'Der Export steht.'), answer: { thread: 2 } };
   expect(talkTurns([said, checking, cat, edit], { working: true })).toMatchObject({ shown: [{ e: said }], pending: [checking, edit] });
   expect(talkTurns([said, checking, cat, edit, answer], { working: true })).toMatchObject({ shown: [{ e: said }, { e: answer, steps: [cat] }], pending: [checking, edit] });
-  // on a Question card Obeya's agent is the card's own: its steps lead to its answer, and while it reads it is at work
+  // on a Question card Seismic's agent is the card's own: its steps lead to its answer, and while it reads it is at work
   const question = ev('talk', 'owner', 'Wie weit ist der Export?');
   const reading = ev('activity', 'koordinator', '$ cat src/export.ts');
   expect(talkTurns([question, reading], { working: true, answers: true }).pending).toEqual([reading]);
@@ -289,7 +307,7 @@ test("what Obeya reads to look up a question on a card the worker works on folds
   ]);
 });
 
-test("Obeya's reply that answers the owner's question on a card without an agent stands, where a confirmation folds away", () => {
+test("Seismic's reply that answers the owner's question on a card without an agent stands, where a confirmation folds away", () => {
   const asked = ev('say', 'owner', 'Inwiefern überlappt sich diese Karte mit „Export“?');
   const answered = { ...ev('say', 'koordinator', 'Beide ändern den Export; diese nur für alte Karten.'), reply: true as const };
   const start = ev('say', 'owner', 'Starte sie.');
@@ -297,9 +315,9 @@ test("Obeya's reply that answers the owner's question on a card without an agent
   expect(talkTurns([asked, answered, start, confirm], { over: true }).shown.map((x) => x.e)).toEqual([asked, answered, start]);
 });
 
-test("Obeya's line that it put the project folder back on main stands under the approval, as the owner should know their folder changed", () => {
+test("Seismic's line that it put the project folder back on main stands under the approval, as the owner should know their folder changed", () => {
   const approved = ev('state', 'owner', 'Approved and on main.');
-  const switched = ev('state', 'obeya', 'The Obeya checkout was on the branch s1-foundation. Obeya switched it to main to land the work; s1-foundation stays as it was.');
+  const switched = ev('state', 'obeya', 'The Seismic checkout was on the branch s1-foundation. Seismic switched it to main to land the work; s1-foundation stays as it was.');
   expect(talkTurns([approved, switched]).shown).toEqual([
     { e: approved, steps: [], line: true },
     { e: switched, steps: [], line: true },
@@ -310,12 +328,12 @@ test('a conversation nobody works on ends with its last message or line, the ste
   const review = ev('review', 'worker', 'Gesprächsverlauf steht.');
   const approved = ev('state', 'owner', 'Freigegeben und auf main.');
   const landed = ev('state', 'obeya', 'Nach der Freigabe auf main gelandet.');
-  const restart = ev('state', 'obeya', 'Neustart von Obeya angekündigt; der Agent pausiert beim nächsten sicheren Punkt.');
+  const restart = ev('state', 'obeya', 'Neustart von Seismic angekündigt; der Agent pausiert beim nächsten sicheren Punkt.');
   const err = ev('error', 'obeya', 'API Error: 529 Overloaded');
   const events = [review, approved, landed, restart, err];
   // while the agent works, its steps wait for its next message
   expect(talkTurns(events).pending).toEqual([restart]);
-  // once it is over, what only Obeya noted goes
+  // once it is over, what only Seismic noted goes
   expect(talkTurns(events, { over: true })).toEqual({
     shown: [
       { e: review, steps: [] },
@@ -664,10 +682,10 @@ test("the usage limit that stopped the agent's turn is a line where it happened;
   expect(t.shown.map((x) => x.e)).toEqual([note, reply, run, limit, more]);
   expect(t.shown[2]).toMatchObject({ steps: [run], quiet: true });
   expect(t.pending).toEqual([parked, now]);
-  // in German, and when Obeya only tries again
-  const retry = ev('state', 'obeya', 'Nutzungslimit erreicht. Obeya versucht es um 19:35 noch einmal.');
+  // in German, and when Seismic only tries again
+  const retry = ev('state', 'obeya', 'Nutzungslimit erreicht. Seismic versucht es um 19:35 noch einmal.');
   expect(talkTurns([note, retry]).shown).toMatchObject([{ e: note }, { e: retry, line: true }]);
-  // the worker's closing words, which Obeya logs after the limit's line, close the turn the limit stopped
+  // the worker's closing words, which Seismic logs after the limit's line, close the turn the limit stopped
   const closing = ev('closing', 'worker', 'Ich warte auf die Vertragsprüfung.');
   const held = talkTurns([note, reply, run, limit, closing]);
   expect(held.shown).toEqual([{ e: note, steps: [] }, { e: reply, steps: [run, closing] }, { e: limit, steps: [], line: true }]);
@@ -778,7 +796,7 @@ test("the phone's „Läuft“ holds a handed-over card while its worker takes i
   expect(runs({ kind: 'task', state: 'planned' } as Item)).toBe(false);
 });
 
-test("Obeya's conversation shows it at work while it reads the owner's words or looks a question up, not while the usage limit holds it", () => {
+test("Seismic's conversation shows it at work while it reads the owner's words or looks a question up, not while the usage limit holds it", () => {
   const done = { id: 1, at: '2026-10-17T10:00:00Z', said: 'Was läuft?', reply: 'Zwei Karten.' };
   expect(obeyaWorks([done])).toBe(false);
   expect(obeyaWorks([done, { id: 2, at: '2026-10-17T10:01:00Z', said: 'Und jetzt?' }])).toBe(true);
@@ -788,7 +806,7 @@ test("Obeya's conversation shows it at work while it reads the owner's words or 
   expect(obeyaWorks([{ ...asked, answer: 'In src/export.ts.' }])).toBe(false);
   expect(obeyaWorks([{ ...asked, limitedUntil: '2026-10-17T12:00:00Z' }])).toBe(false);
   expect(obeyaWorks([{ ...asked, movedTo: 'q1' }])).toBe(false);
-  // asked in a project's sheet: no reply of Obeya's ever comes, only the project agent's answer
+  // asked in a project's sheet: no reply of Seismic's ever comes, only the project agent's answer
   const inSheet = { id: 3, at: '2026-10-17T10:02:00Z', said: 'Plan beenden?', question: 'Plan beenden?', askedIn: 'p1' };
   expect(obeyaWorks([inSheet])).toBe(true);
   expect(obeyaWorks([{ ...inSheet, answer: 'Erledigt.' }])).toBe(false);
@@ -867,7 +885,7 @@ test('a question nobody waits on shows how it ended, the same on every kind of c
   expect(cardTalk(idea, [reply, q1], true).shown[1]).toEqual({ e: q1, steps: [], end: 'left' });
 });
 
-test("Obeya's line that a card waits for others before it starts stands, in either language", () => {
+test("Seismic's line that a card waits for others before it starts stands, in either language", () => {
   const k = MESSAGES.en.koordinator;
   const drawn = ev('state', 'obeya', k.waitsFor('“Export”', k.drawn));
   const inferred = ev('state', 'obeya', MESSAGES.de.koordinator.waitsFor('„Export“', MESSAGES.de.koordinator.likelyConflict));

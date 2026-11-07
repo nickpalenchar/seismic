@@ -7,13 +7,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { creditOf, filtered, filterLog, givenAt, groupLog, LOG_GROUPS, logChoices, logQuery, type LogFilter, type LogGroup, type LogSection, type LogState, PERIODS, readLogQuery } from '../core/feedback-log';
 import { filterChoices } from '../core/performance';
 import type { CanvasInfo, Feedback } from '../core/types';
-import { canvasPath, cardPath, feedbackLogPath } from './address';
+import { projectPath, cardPath, feedbackLogPath } from './address';
 import { api } from './api';
 import { plain } from './markdown';
 import { Choice, configText, harnessName, StarText } from './performance';
 import { failText, t } from './strings';
 
-/** A filter's value for an unknown harness, model or effort (the empty string in the core), as a `<select>` can hold it apart from „all“. */
+/** A filter's value for an unknown harness, model or effort (the empty string in the core), as a `<select>` can hold it apart from "all". */
 const UNKNOWN = '-';
 
 export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: string }) {
@@ -24,7 +24,7 @@ export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: 
   const [state, setState] = useState<LogState>(() => readLogQuery(location.search));
   const { filter, group } = state;
   useEffect(() => {
-    document.title = `${l.title} · Obeya`;
+    document.title = `${l.title} · Seismic`;
     api.allFeedback().then(setAll, (e) => setError(failText(e)));
   }, []);
   // the address keeps the filters and grouping: a reload or a link shows the same
@@ -44,7 +44,7 @@ export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: 
   const ratings = shown.filter((f) => typeof f.answer.rating === 'number').length;
   // back to the dashboard on the canvas it was opened from, with the filters it shares
   const shared = logQuery({ filter: { canvas: filter.canvas, repo: filter.repo, project: filter.project, period: filter.period } });
-  const back = `${canvasPath(here)}${shared ? `${shared}&` : '?'}performance`;
+  const back = `${projectPath(here)}${shared ? `${shared}&` : '?'}performance`;
   const clear = () => setFilter({});
 
   const sectionName = (s: LogSection) => {

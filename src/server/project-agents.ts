@@ -17,7 +17,7 @@ export class ProjectAgents {
   constructor(
     private board: Board,
     private runtime: AgentRuntime,
-    /** The repository's Lesestand, which the plan docs are read from (read-tree.ts). */
+    /** The repository's read checkout, which the plan docs are read from (read-tree.ts). */
     private repoPath: () => string,
     private preferences: () => string = () => '',
     /** The workers' permission mode, which the project agent runs in too. */
@@ -29,8 +29,8 @@ export class ProjectAgents {
    * session. `dir`: the output directory of the looked-up thread, which the answer's files are in;
    * `signal` ends the turn at once; `onLimit` shows where it waits for the usage limit; `onWaiting`
    * passes the owner's words in while it waits for its background work (`Briefing.onWaiting`).
-   * `asked`: written in the project's sheet, straight to it: its screenshots, and `to_obeya` for what
-   * the words ask of Obeya rather than of it. `at`: where it shows at work.
+   * `asked`: written in the project's sheet, straight to it: its screenshots, and `to_seismic` for what
+   * the words ask of Seismic rather than of it. `at`: where it shows at work.
    */
   inform(
     project: Item,
@@ -58,7 +58,7 @@ export class ProjectAgents {
         ...(this.permissionMode ? { permissionMode: this.permissionMode } : {}),
         ...(asked?.images.length ? { images: asked.images } : {}),
         ...(asked?.toObeya ? { tools: [asked.toObeya] } : {}),
-        system: `You are the project agent of the project "${project.title}", directed through Obeya. Its plan doc is ${project.plan?.file ?? '(none)'}${project.plan && outsidePlanDir(pathOfRef(project.plan.file)) ? '' : ' in this repository'}; you know it and the history of its workstreams.\n\n${INFORM_RULES}${asked?.toObeya ? `\n\n${TO_OBEYA}` : ''}`,
+        system: `You are the project agent of the project "${project.title}", directed through Seismic. Its plan doc is ${project.plan?.file ?? '(none)'}${project.plan && outsidePlanDir(pathOfRef(project.plan.file)) ? '' : ' in this repository'}; you know it and the history of its workstreams.\n\n${INFORM_RULES}${asked?.toObeya ? `\n\n${TO_OBEYA}` : ''}`,
         message: [message, `Decisions taken in this project so far:\n${decisionLog(this.board.decisions(project.id))}`, this.preferences()].filter(Boolean).join('\n\n'),
         language: this.board.conversation(),
       }),

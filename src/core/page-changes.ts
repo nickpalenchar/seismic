@@ -17,7 +17,7 @@ export interface PageChange {
   kinds: readonly DemoKind[];
   /**
    * It shows only on a page with tags, which no page published before it had: those get it with
-   * their tags (the Koordinator's „N Seiten ohne Tags“), so it leaves no page outdated.
+   * their tags (the Koordinator's "N pages without tags"), so it leaves no page outdated.
    */
   tagged?: true;
 }
@@ -33,6 +33,9 @@ export const PAGE_CHANGES = [
   { id: '2026-10-30-commit', kinds: ['video', 'html'] },
   { id: '2026-10-30-steady', kinds: ['html'] },
   { id: '2026-11-02-images', kinds: ['html'] },
+  { id: '2026-11-06-seismic', kinds: ['video', 'html'] },
+  { id: '2026-11-06-theme', kinds: ['video', 'html'] },
+  { id: '2026-11-07-inter', kinds: ['video', 'html'] },
 ] as const satisfies readonly PageChange[];
 
 export type KnownChange = (typeof PAGE_CHANGES)[number];
@@ -40,15 +43,15 @@ export type PageChangeId = KnownChange['id'];
 
 /**
  * A page is outdated by its repository's theme too (`.obeya/theme.css`, src/server/theme.ts): once the
- * theme differs from the one it was published with. That is no change of Obeya's pages, so it has
+ * theme differs from the one it was published with. That is no change of Seismic's pages, so it has
  * no day, and the card and the Koordinator name it beside them.
  */
 export const THEME_CHANGED = 'theme';
-/** What leaves a page outdated: a change of Obeya's pages, or its repository's theme. */
+/** What leaves a page outdated: a change of Seismic's pages, or its repository's theme. */
 export type OutdatedBy = PageChangeId | typeof THEME_CHANGED;
 
 /** The sample pages' hash (`pagesHash` in site.ts) the changes above account for. */
-export const PAGES_HASH = { video: '5812f704acfb', html: 'dcf72e133da5', stacked: '0e959137c35c' };
+export const PAGES_HASH = { video: 'bd483064414d', html: 'e6978a5503ef', stacked: '8b3d503301db' };
 
 /** The version a page published now gets: the newest change; '' while there is none. */
 export const pagesVersion = (changes: readonly PageChange[] = PAGE_CHANGES): string => changes.at(-1)?.id ?? '';

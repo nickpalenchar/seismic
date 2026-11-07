@@ -1,4 +1,4 @@
-// The excerpt of a worker's run for the Arbeitsrückschau, drawn without a model from the Agent
+// The excerpt of a worker's run for the work retrospective, drawn without a model from the Agent
 // SDK's transcript (`<projects>/<workspace path>/<session id>.jsonl`) or Codex's rollout
 // (`<codex home>/sessions/<year>/<month>/<day>/rollout-<time>-<thread id>.jsonl`): where the worker
 // went wrong and corrected itself. Both formats are their harness's own and may change: whatever
@@ -19,7 +19,7 @@ export interface Call {
   /** What it did: the command, the file, the pattern. */
   what: string;
   failed: boolean;
-  /** Ended by the owner or Obeya rather than by the agent: a pause, a stop, a restart, a Ctrl-C. */
+  /** Ended by the owner or Seismic rather than by the agent: a pause, a stop, a restart, a Ctrl-C. */
   cutOff?: true;
   /** The error it ended in, shortened. */
   error?: string;
@@ -41,7 +41,7 @@ export interface Excerpt {
   steps: number;
   /** How many calls came before the first change to a file; null when it changed none. */
   firstChange: number | null;
-  /** The steps the owner or Obeya cut off (a pause, a stop, a restart), when there were any. */
+  /** The steps the owner or Seismic cut off (a pause, a stop, a restart), when there were any. */
   cutOff?: number[];
   findings: Finding[];
 }
@@ -158,7 +158,7 @@ function claudeRun(records: Record<string, unknown>[]): Run {
 /**
  * Codex's rollout: the `item_completed` events of its app-server, each holding a finished item with
  * its outcome. The thread's own rollout holds no subagent's items. A turn the owner's pause or stop
- * or Obeya's restart interrupted ends in `turn_aborted`; what it was still running completes after
+ * or Seismic's restart interrupted ends in `turn_aborted`; what it was still running completes after
  * that (a command with exit code -1), cut off rather than failed.
  */
 function codexRun(records: Record<string, unknown>[]): Run {
@@ -229,9 +229,12 @@ export function excerpt(jsonl: string): Excerpt | null {
       continue;
     }
     const r = results.get(e.id);
-    // cut off by Obeya's restart, or stopped by the owner: no mistake of the agent's
+    // cut off by Seismic's restart, or stopped by the owner: no mistake of the agent's
     const cutOff = !!r?.failed && (!!r.cutOff || CUT_OFF.some((c) => c.test(r.output)));
-    const failed = !!r?.failed && !cutOff;
+    // The SDK exposes Seismic's worker tools with an mcp__seismic__ prefix. An
+    // unqualified status call is a name-resolution slip, not repository friction.
+    const bareStatusName = e.tool === 'report' && /No such tool available: report\b/.test(r?.output ?? '');
+    const failed = !!r?.failed && !cutOff && !bareStatusName;
     calls.push({
       step: calls.length + 1,
       tool: e.tool,

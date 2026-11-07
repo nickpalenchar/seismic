@@ -1,9 +1,9 @@
-// Setting up a demo site at a host, and the deploy Obeya builds in for GitHub Pages. Cloudflare
+// Setting up a demo site at a host, and the deploy Seismic builds in for GitHub Pages. Cloudflare
 // Pages goes through wrangler (with the credentials of a site this machine already deploys to, else
 // the machine's own `wrangler login`), GitHub Pages through gh's login and git. Everything runs as a
 // program with its arguments, never through a shell, so it works on Windows and Linux alike.
 //
-// The personal site on GitHub Pages lives in a private repository, always: a public one would show
+// An unlisted site on GitHub Pages lives in a private repository, always: a public one would show
 // every page's random address in its file list. Pages from a private repository needs GitHub Pro;
 // where GitHub refuses, the setup says why and offers Cloudflare.
 
@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import { BUN_ENV } from './resources';
 import { spawnOutput } from './spawn';
 
-/** The deploy line's word for the deploy Obeya builds in: `obeya:github-pages <owner>/<repository>`. */
+/** The deploy line's word for the deploy Seismic builds in: `obeya:github-pages <owner>/<repository>`. */
 export const GITHUB_PAGES = 'obeya:github-pages';
 /** GitHub's limit on one file (100 MiB); a site stays under about 1 GB. */
 export const GITHUB_PAGES_MAX = 100 * 1024 * 1024;
@@ -40,7 +40,7 @@ export class SetupRefused extends Error {
   }
 }
 
-/** wrangler, run by Obeya's own Bun, so no `npx` or `bunx` need be on the PATH. */
+/** wrangler, run by Seismic's own Bun, so no `npx` or `bunx` need be on the PATH. */
 const wrangler = (...args: string[]) => [process.execPath, 'x', 'wrangler@4', ...args];
 const wranglerEnv = (env: Record<string, string>) => ({ ...BUN_ENV, ...env });
 
@@ -78,7 +78,7 @@ export function cloudflareAccounts(home: string): { site: string; env: Record<st
  */
 export async function setupCloudflare(o: { home: string; name: string; account?: string; token?: Record<string, string>; log: (line: string) => void; x?: Exec; wait?: number[] }): Promise<{ url: string; project: string; env?: Record<string, string> }> {
   // wrangler runs in an empty directory of its own: in another one it reads (and writes) what it
-  // finds there, and a command it hands on to Workers uploads that directory (2026-10-29: Obeya's
+  // finds there, and a command it hands on to Workers uploads that directory (2026-10-29: Seismic's
   // checkout went up as a Worker)
   const cwd = mkdtempSync(join(tmpdir(), 'obeya-wrangler-'));
   try {
@@ -138,7 +138,7 @@ async function cloudflareIn(cwd: string, o: Parameters<typeof setupCloudflare>[0
 
 /**
  * Creates a GitHub repository with a Pages site under the gh login's account: `private` for the
- * personal site (and never public then), public for a repository's listed site. A name already
+ * unlisted site (and never public then), public for a listed one. A name already
  * taken gets a number; GitHub's answer on the repository's visibility is checked before anything
  * goes into it. Returns the site's address and the repository.
  */
@@ -166,9 +166,9 @@ export async function setupGithub(o: { name: string; private: boolean; log: (lin
   }
   const project = `${user.login}/${name}`;
   o.log(`Creating the ${o.private ? 'private' : 'public'} repository ${project}…`);
-  await gh('repo', 'create', project, o.private ? '--private' : '--public', '--description', o.private ? 'Unlisted demo pages, published by Obeya' : 'Demo pages, published by Obeya');
+  await gh('repo', 'create', project, o.private ? '--private' : '--public', '--description', o.private ? 'Unlisted demo pages, published by Seismic' : 'Demo pages, published by Seismic');
   const visibility = (await gh('repo', 'view', project, '--json', 'visibility', '--jq', '.visibility')).trim().toUpperCase();
-  if (o.private && visibility !== 'PRIVATE') throw new SetupRefused(`GitHub created ${project} as ${visibility.toLowerCase() || 'unknown'}, not private; Obeya does not use it. Delete it on GitHub.`);
+  if (o.private && visibility !== 'PRIVATE') throw new SetupRefused(`GitHub created ${project} as ${visibility.toLowerCase() || 'unknown'}, not private; Seismic does not use it. Delete it on GitHub.`);
   // Pages needs a branch to serve: a first commit with an empty page
   const first = mkdtempSync(join(tmpdir(), 'obeya-pages-'));
   try {
@@ -229,7 +229,7 @@ export async function githubPagesDeploy(dir: string, repo: string, gitDir: strin
   if (o.private) {
     const v = await x(['gh', 'repo', 'view', repo, '--json', 'visibility', '--jq', '.visibility']);
     const visibility = v.out.trim().toUpperCase();
-    if (v.code !== 0 || visibility !== 'PRIVATE') throw new Error(`${repo} is ${v.code === 0 ? visibility.toLowerCase() || 'of unknown visibility' : `not readable (${lastLine(v)})`}, not private: Obeya puts no unlisted page there`);
+    if (v.code !== 0 || visibility !== 'PRIVATE') throw new Error(`${repo} is ${v.code === 0 ? visibility.toLowerCase() || 'of unknown visibility' : `not readable (${lastLine(v)})`}, not private: Seismic puts no unlisted page there`);
   }
   const token = await x(['gh', 'auth', 'token']);
   if (token.code !== 0 || !token.out.trim()) throw new Error(`gh is not logged in to GitHub (gh auth login): ${lastLine(token)}`);
@@ -242,7 +242,7 @@ export async function githubPagesDeploy(dir: string, repo: string, gitDir: strin
     GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
     GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token.out.trim()}`).toString('base64')}`,
   };
-  const git = ['git', `--git-dir=${gitDir}`, `--work-tree=${dir}`, '-c', 'user.name=Obeya', '-c', 'user.email=obeya@localhost', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', '-c', `core.hooksPath=${join(gitDir, 'none')}`, '-c', `core.excludesFile=${join(gitDir, 'none')}`];
+  const git = ['git', `--git-dir=${gitDir}`, `--work-tree=${dir}`, '-c', 'user.name=Seismic', '-c', 'user.email=obeya@localhost', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', '-c', `core.hooksPath=${join(gitDir, 'none')}`, '-c', `core.excludesFile=${join(gitDir, 'none')}`];
   const step = async (argv: string[], what: string) => {
     const r = await x(argv, { env, timeout: 15 * 60_000 });
     if (r.code !== 0) throw new Error(`${what}: ${lastLine(r)}`);

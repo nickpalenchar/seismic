@@ -6,8 +6,8 @@ This change does not accept trust on the owner's behalf.
 
 ## What the draft is based on
 
-The Obeya canvas history was read on 2026-10-31, through event 492. It contained 16 permission
-questions, all on **“Obeya should have a prompt to re-login when it encounters login errors”**:
+The Seismic canvas history was read on 2026-10-31, through event 492. It contained 16 permission
+questions, all on **“Seismic should have a prompt to re-login when it encounters login errors”**:
 creating a demo directory, staging scratch instances (including `--code HEAD`), starting and
 driving the browser, running Codex review, tests, copying demo files, and generating/checking
 the demo. Type checking and dependency installation are also required by this repository.
@@ -119,7 +119,7 @@ and `codex exec --help` / `codex exec review --help` for the installed CLI.
 1. Read the JSON and the scope above. Remove any workflow the owner does not want pre-approved.
 2. After the approved change lands on the repository's main branch, open **Konfiguration** and
    review the held Claude configuration diff. Trust the displayed configuration with
-   **Trust these commands** (`Diesen Befehlen vertrauen` in German). Obeya trusts the whole
+   **Trust these commands** (`Diesen Befehlen vertrauen` in German). Seismic trusts the whole
    displayed Claude group, including any other files in it, not just this allow list.
 3. Newly started Claude sessions then load the trusted project settings. Existing sessions may
    need to finish and start again. A later configuration change requires review again.

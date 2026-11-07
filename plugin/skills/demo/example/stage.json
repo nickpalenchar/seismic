@@ -1,0 +1,29 @@
+{
+  "_comment": "Copy this input file into your demo directory, edit it, then run bun scripts/scratch-obeya.ts <path>/stage.json. The printed staged.json is output, not input. Full schema: ../../../../scripts/scratch-obeya.ts (header). Omit port to choose a free one.",
+  "_language": "Use English for the interface and text below to match an English demo.",
+  "language": "en",
+  "_name": "Name of the scratch canvas.",
+  "name": "Example project",
+  "_plans": "Paths and contents of plan documents created in the scratch repository. Replace the snippet with your own.",
+  "plans": {
+    "docs/plan/example.md": "# Example project\n\n## Workstreams\n\n- [ ] **W1:** Prepare the demo.\n"
+  },
+  "_cards": "Each key identifies a card for commands such as --say. Replace titles, body and conversation with your demo's content.",
+  "cards": [
+    {
+      "key": "A",
+      "title": "Prepare the demo",
+      "body": "Show the progress of this work.",
+      "_state": "working starts an idle worker; events below supply its conversation. Use waiting with need demo for a handover.",
+      "state": "working",
+      "statusLine": "Checking the example",
+      "_events": "Conversation entries in order: author is owner or worker; kind is the event type, such as say or talk.",
+      "events": [
+        { "kind": "say", "author": "worker", "text": "The example is ready to inspect." },
+        { "kind": "talk", "author": "worker", "text": "The plan is in place." }
+      ],
+      "_row": "code_review makes the Review tab available. mode is the review setting; handover identifies the handover being reviewed. See the script header for other row fields.",
+      "row": { "code_review": { "mode": "auto", "handover": 1, "review": { "handover": 1, "state": "done", "findings": [], "at": "2026-01-01T12:00:00Z" } } }
+    }
+  ]
+}

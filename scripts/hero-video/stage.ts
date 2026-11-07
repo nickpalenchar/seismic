@@ -29,7 +29,7 @@ export function writeStage(file: string) {
     cards: [
       { key: 'P', project: 'docs/plan/tipjar-2.md', x: 60, y: 120 },
       { key: 'D', title: 'Dark mode', body: 'Tipjar follows the system’s dark mode.', state: 'live', x: 1030, y: 110, createdAgo: '1d' },
-      // hangs off Dark mode with a dashed line, where Obeya puts a proposal: right below the card it came from
+      // hangs off Dark mode with a dashed line, where Seismic puts a proposal: right below the card it came from
       {
         key: 'Q',
         title: 'Remember the last tip',
@@ -38,7 +38,7 @@ export function writeStage(file: string) {
         from: 'D',
         row: { proposal: { reason: 'Noticed while working on Dark mode: most people pick the same tip every time.', questions: [] } },
       },
-      // Obeya's own proposal, from its work retrospective over the finished cards' runs
+      // Seismic's own proposal, from its work retrospective over the finished cards' runs
       {
         key: 'R',
         title: 'A script that serves Tipjar for demos',
@@ -51,7 +51,7 @@ export function writeStage(file: string) {
         y: 330,
         row: { retro: 'On three cards the agent first searched for how to serve the app before it recorded its demo.' },
       },
-      // working without an agent: no workspace, so a scratch Obeya with real workers leaves it be
+      // working without an agent: no workspace, so a scratch Seismic with real workers leaves it be
       { key: 'C', title: 'Run the tests on every push', body: 'A GitHub Actions workflow runs bun test on every push and pull request.', state: 'working', statusLine: 'Writing the workflow', scope: ['.github/workflows/test.yml'], x: 610, y: 110 },
       { key: 'I', title: 'App icon', body: 'An icon for the home screen.', state: 'waiting', need: 'question', question: { text: 'Which of the three drafts should become the icon?', options: ['The jar', 'The coin', 'The receipt'] }, scope: ['icon.svg'], x: 610, y: 290 },
       {
@@ -86,7 +86,7 @@ export function writeStage(file: string) {
         },
       },
     ],
-    // the rules every agent follows, and one Obeya learned from the owner's answers and proposes
+    // the rules every agent follows, and one Seismic learned from the owner's answers and proposes
     preferences: [
       { text: 'Questions to me with at most three options.' },
       { text: 'Solve rebase conflicts yourself.' },

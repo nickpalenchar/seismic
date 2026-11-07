@@ -121,6 +121,15 @@ describe('plan docs', () => {
     expect(onCanvas(items)).toHaveLength(4);
   });
 
+  test('a card made without a place (from the phone) goes where there is room', () => {
+    const c = board.create({ title: '' });
+    const items = board.snapshot().items;
+    const mine = boundsOf(items.find((i) => i.id === c.id)!, items);
+    const clear = (b: ReturnType<typeof boundsOf>) => mine.x + mine.w <= b.x || b.x + b.w <= mine.x || mine.y + mine.h <= b.y || b.y + b.h <= mine.y;
+    expect(onCanvas(items).filter((i) => i.id !== c.id && !i.parent).every((i) => clear(boundsOf(i, items)))).toBe(true);
+    expect(() => board.create({ title: '', x: 1 })).toThrow(BadRequest);
+  });
+
   test('the owner gives any card a priority, changes it and takes it off again', () => {
     const [p, , w2] = board.snapshot().items;
     const c = board.create({ title: 'Own', x: 0, y: 0 });
@@ -162,7 +171,7 @@ describe('plan docs', () => {
     expect(at(c.id).complexity).toBeUndefined();
   });
 
-  test("Obeya's suggestion fills only empty labels the owner never set, marked until the owner touches them", () => {
+  test("Seismic's suggestion fills only empty labels the owner never set, marked until the owner touches them", () => {
     const c = board.create({ title: 'Own', x: 0, y: 0 });
     const at = (id: string) => board.snapshot().items.find((i) => i.id === id)!;
     board.patch(c.id, { priority: 'high' });
@@ -178,7 +187,7 @@ describe('plan docs', () => {
     // another value
     board.patch(c.id, { complexity: 1 });
     expect(at(c.id)).toMatchObject({ complexity: 1, suggested: ['subcategory'] });
-    // none: the label is empty, and Obeya does not suggest it again
+    // none: the label is empty, and Seismic does not suggest it again
     board.patch(c.id, { subcategory: null });
     expect(at(c.id).subcategory).toBeUndefined();
     expect(at(c.id)).not.toHaveProperty('suggested');
@@ -275,7 +284,7 @@ describe('plan docs', () => {
     expect(board.archived()[0]!.title).toBe('A');
   });
 
-  test('a doc whose work was done before Obeya first read it goes straight into the archive', () => {
+  test('a doc whose work was done before Seismic first read it goes straight into the archive', () => {
     docs = [docA, { ...docB, workstreams: [ws('W1', true)] }];
     board.docsChanged();
     expect(board.snapshot().items.filter((i) => i.kind === 'project').map((i) => i.title)).toEqual(['A']);
@@ -511,7 +520,6 @@ describe('manual cards', () => {
     expect(b.x - a.x).toBeGreaterThan(boundsOf(a, board.snapshot().items).w);
     expect(() => board.create({ title: 'x', from: 'nope' })).toThrow(BadRequest);
     expect(() => board.create({ title: 'x', from: src.id, idea: true })).toThrow(BadRequest);
-    expect(() => board.create({ title: 'x' })).toThrow(BadRequest);
   });
 
   test('rejects invalid input', () => {
@@ -782,6 +790,17 @@ describe('groups', () => {
 });
 
 describe('waiting since', () => {
+  test('card updates expose the stored update time without resetting the wait', () => {
+    const c = board.create({ title: 'Updated demo', x: 0, y: 0 });
+    board.work(c.id, { state: 'waiting', need: 'demo' });
+    const since = board.item(c.id)!.waitingSince;
+    store.db.query("UPDATE cards SET updated_at = '2020-01-01T00:00:00Z' WHERE id = ?").run(c.id);
+    board.work(c.id, { detail: JSON.stringify({ summary: 'Revised demo ready' }) });
+    expect(board.item(c.id)!.updatedAt).toBe(store.card(c.id)!.updated_at);
+    expect(Date.parse(board.item(c.id)!.updatedAt!)).toBeGreaterThan(Date.parse('2020-01-01T00:00:00Z'));
+    expect(board.item(c.id)!.waitingSince).toBe(since);
+  });
+
   test('a card notes when it starts to wait for the owner, keeps it while it waits and forgets it after', () => {
     const c = board.create({ title: 'Own', x: 0, y: 0 });
     expect(board.item(c.id)!.waitingSince).toBeUndefined();

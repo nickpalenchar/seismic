@@ -1,3 +1,4 @@
+import { seismicEnv } from '../core/env';
 import { LimitAttempts, limitWatch } from './limit-watch';
 // Agent sessions behind a small interface, so the orchestration can be tested without a model.
 
@@ -31,7 +32,7 @@ import { COMPILED } from './resources';
 import { OWN_GROUP } from './spawn';
 import type { Messages } from '../core/messages';
 import type { ToolCall, ToolWatch } from './folder';
-import type { AgentAt, AgentEffort, AgentIdentity, AgentRole, AgentSetting, ClaudeFile } from '../core/types';
+import { harnessChoice, type AgentAt, type AgentEffort, type AgentIdentity, type AgentRole, type AgentSetting, type ClaudeFile } from '../core/types';
 import { codexAsTrusted } from './trust';
 import { messageOf } from '../core/text';
 import { claudeLoginFailed } from '../core/login';
@@ -52,7 +53,7 @@ export type AgentEvent =
   | { type: 'toolDone'; name: string; ok: boolean }
   /**
    * A tool call was refused without anyone being asked: by a rule of the settings, auto mode's
-   * classifier, the permission mode, a hook (`obeya`: Obeya's own, `refuseForegroundWait`).
+   * classifier, the permission mode, a hook (`obeya`: Seismic's own, `refuseForegroundWait`).
    * `reason`: the deciding component's own words, when it gave any.
    */
   | { type: 'denied'; name: string; input: Record<string, unknown>; by: DeniedBy; reason?: string }
@@ -103,7 +104,7 @@ export interface AgentSpec {
   cwd: string;
   /** Appended to the default system prompt. */
   system: string;
-  /** Tools the agent reaches as `mcp__obeya__<name>`. */
+  /** Tools the agent reaches as `mcp__seismic__<name>`. */
   tools: AgentTool[];
   /** Resume this session instead of starting one. */
   resume?: string;
@@ -130,7 +131,12 @@ export interface AgentSpec {
   /** Directories of local Claude Code plugins loaded into the session (skills, mainly). */
   plugins?: string[];
   permissionMode?: PermissionMode;
-  /** Added to the agent's environment (Obeya's own, cleaned). */
+  /**
+   * A Codex session's own automatic review (`auto_review`) decides what leaves its sandbox, in
+   * place of the owner: Codex's counterpart of Claude Code's `auto` mode. Claude ignores it.
+   */
+  autoReview?: boolean;
+  /** Added to the agent's environment (Seismic's own, cleaned). */
   env?: Record<string, string>;
   /** How much the model thinks; low for quick, small jobs. */
   effort?: AgentEffort;
@@ -196,7 +202,7 @@ export function withAgentSetting(
     start(spec, firstMessage, images) {
       if (!spec.role) return runtime.start(spec, firstMessage, images);
       const chosen = spec.setting ?? setting(spec.role);
-      const { model, effort } = chosen.harness === 'codex' ? (chosen.codex ?? { model: 'default', effort: 'high' as const }) : chosen;
+      const { model, effort } = harnessChoice(chosen);
       const { model: _, ...rest } = spec;
       const identity: AgentIdentity = { harness: chosen.harness ?? 'claude', ...(model === 'default' ? {} : { model }) };
       const run = <T>(fn: () => T): T => agentIdentity.run(identity, fn);
@@ -209,7 +215,7 @@ export function withAgentSetting(
         ...(spec.askOwner ? { askOwner: (request, signal) => run(() => spec.askOwner!(request, signal)) } : {}),
         onEvent: (event) => {
           if (event.type === 'session') {
-            const resolved = event.model ?? event.setting?.codex?.model;
+            const resolved = event.model ?? (event.setting ? harnessChoice(event.setting).model : undefined);
             if (resolved && resolved !== 'default' && resolved !== identity.model) {
               identity.model = resolved;
               if (at) shown(at, { ...identity }, token);
@@ -230,9 +236,9 @@ export function withAgentSetting(
 /**
  * A runtime whose Codex agents do not ask the owner for a command that a rule of the repository's
  * allow list covers (`allow-rules.ts`): Claude Code applies that list itself, Codex has none of
- * its own that Obeya sets. `rules` are those the owner confirmed for the agent's `cwd`; none while
+ * its own that Seismic sets. `rules` are those the owner confirmed for the agent's `cwd`; none while
  * the repository's configuration is held (`claudeHeld`) or not read at all (`untrusted`). Such a
- * command may also have network (`networkOnly`), as `obeya_run` gives it; a request for anything
+ * command may also have network (`networkOnly`), as `seismic_run` gives it; a request for anything
  * beyond that (a path grant, other permissions) is always asked.
  */
 export function withTrustedAllow(runtime: AgentRuntime, rules: (cwd: string) => string[]): AgentRuntime {
@@ -289,13 +295,14 @@ export function withCodexTrust(runtime: AgentRuntime, trusted: (cwd: string) => 
 const READ_ONLY_TOOLS = ['Read', 'Grep', 'Glob'];
 
 /**
- * The Claude Code the agents run on: the one `OBEYA_CLAUDE` names; from the checkout, the binary
+ * The Claude Code the agents run on: the one `SEISMIC_CLAUDE` names; from the checkout, the binary
  * the Agent SDK brings for this platform (undefined: the SDK finds it itself); in the compiled
  * binary, which carries none, the machine's own installation, on the PATH or where the official
  * installer puts it (a path that does not exist when there is none, for the SDK to say so).
  */
 export function claudeExecutable(env: Record<string, string | undefined> = process.env, compiled = COMPILED, platform: string = process.platform): string | undefined {
-  if (env.OBEYA_CLAUDE) return env.OBEYA_CLAUDE;
+  const named = seismicEnv('CLAUDE', env);
+  if (named) return named;
   if (!compiled) return undefined;
   const installed = join(localBin(), platform === 'win32' ? 'claude.exe' : 'claude');
   const onPath = which('claude', env);
@@ -320,7 +327,7 @@ export function withRepoTrust(runtime: AgentRuntime, untrusted: (cwd: string) =>
       if (spec.untrusted) return runtime.start(spec, firstMessage, images);
       const start = (held: boolean) => {
         if (!held) return runtime.start(spec, firstMessage, images);
-        if (spec.setting?.harness === 'codex') return runtime.start({ ...spec, claudeHeld: true }, firstMessage, images);
+        if (spec.setting?.harness === 'codex' || spec.setting?.harness === 'agy') return runtime.start({ ...spec, claudeHeld: true }, firstMessage, images);
         const file = join(spec.cwd, 'CLAUDE.md');
         const notes = !remote(spec.cwd) && existsSync(file) ? readFileSync(file, 'utf8').trim() : '';
         const system = notes ? `${spec.system}\n\nThe repository's CLAUDE.md:\n\n${notes}` : spec.system;
@@ -461,16 +468,18 @@ export const sdkRuntime: AgentRuntime = {
     }
     if (firstMessage !== undefined) inbox.push(firstMessage, images);
     const abort = new AbortController();
-    const obeya = createSdkMcpServer({
-      name: 'obeya',
-      version: '1.0.0',
-      // the agent needs these from the first step, not behind a tool search
-      alwaysLoad: true,
-      tools: spec.tools.map((t) =>
-        tool(t.name, t.description, t.schema, async (args) => ({ content: [{ type: 'text' as const, text: await t.run(args as Record<string, unknown>) }] })),
-      ),
-    });
-    const ownTools = spec.tools.map((t) => `mcp__obeya__${t.name}`);
+    const server = (name: string, tools: AgentTool[]) =>
+      createSdkMcpServer({
+        name,
+        version: '1.0.0',
+        // the agent needs these from the first step, not behind a tool search
+        alwaysLoad: true,
+        tools: tools.map((t) =>
+          tool(t.name, t.description, t.schema, async (args) => ({ content: [{ type: 'text' as const, text: await t.run(args as Record<string, unknown>) }] })),
+        ),
+      });
+    const legacy = spec.resume ? legacyTools(spec.tools) : [];
+    const ownTools = [...spec.tools.map((t) => `mcp__seismic__${t.name}`), ...legacy.map((t) => `mcp__${LEGACY_SERVER}__${t.name}`)];
     const claude = there ? 'claude' : claudeExecutable();
     // a watched call's end is waited for before the agent goes on
     const watched = spec.watch ? [{ hooks: [async (input: HookInput) => (await spec.watch!.after(toolCall(input)), {})] }] : [];
@@ -491,7 +500,7 @@ export const sdkRuntime: AgentRuntime = {
               })
             : spawnHere((text) => (stderr = (stderr + text).slice(-STDERR_TAIL))),
         systemPrompt: { type: 'preset', preset: 'claude_code', append: spec.system },
-        mcpServers: { obeya },
+        mcpServers: { seismic: server('seismic', spec.tools), ...(legacy.length ? { [LEGACY_SERVER]: server(LEGACY_SERVER, legacy) } : {}) },
         ...(spec.plugins?.length ? { plugins: spec.plugins.map((path) => ({ type: 'local' as const, path })) } : {}),
         ...(spec.readOnly
           ? { tools: READ_ONLY_TOOLS, allowedTools: [...READ_ONLY_TOOLS, ...ownTools], permissionMode: 'dontAsk' as const }
@@ -508,7 +517,7 @@ export const sdkRuntime: AgentRuntime = {
         ...(spec.askOwner ? { canUseTool: (name: string, input: Record<string, unknown>, o: { signal: AbortSignal; decisionReason?: string; suggestions?: unknown }) => askOwner(spec.askOwner!, name, input, o) } : {}),
         hooks: {
           PreToolUse: [
-            { matcher: 'mcp__obeya__.*', hooks: [async () => ownToolAllowed] },
+            { matcher: `mcp__(seismic|${LEGACY_SERVER})__.*`, hooks: [async () => ownToolAllowed] },
             ...(spec.watch ? [{ hooks: [async (input: HookInput) => (await spec.watch!.before(toolCall(input)), {})] }] : []),
             {
               matcher: 'Bash',
@@ -560,7 +569,7 @@ export const sdkRuntime: AgentRuntime = {
           else if (m.type === 'assistant' && !m.parent_tool_use_id) {
             for (const block of m.message.content) {
               if (block.type === 'text' && block.text.trim()) spec.onEvent({ type: 'text', text: block.text });
-              else if (block.type === 'tool_use') inputs.set(block.id, (block.input ?? {}) as Record<string, unknown>), names.set(block.id, block.name), spec.onEvent({ type: 'tool', name: block.name, input: (block.input ?? {}) as Record<string, unknown> });
+              else if (block.type === 'tool_use') inputs.set(block.id, (block.input ?? {}) as Record<string, unknown>), names.set(block.id, currentToolName(block.name)), spec.onEvent({ type: 'tool', name: currentToolName(block.name), input: (block.input ?? {}) as Record<string, unknown> });
             }
           } else if (m.type === 'user' && !m.parent_tool_use_id && Array.isArray(m.message.content)) {
             for (const block of m.message.content) {
@@ -598,7 +607,7 @@ const STDERR_TAIL = 2000;
 
 /**
  * Starts Claude Code on this machine as the SDK would, but out of the terminal's process group
- * (`OWN_GROUP`), so that Ctrl-C reaches Obeya alone, which waits for the agent to pause. Its stderr
+ * (`OWN_GROUP`), so that Ctrl-C reaches Seismic alone, which waits for the agent to pause. Its stderr
  * goes to `stderr`, which the SDK reads only from a process it started itself.
  */
 export function spawnHere(stderr: (text: string) => void): (o: SpawnOptions) => SpawnedProcess {
@@ -611,7 +620,7 @@ export function spawnHere(stderr: (text: string) => void): (o: SpawnOptions) => 
   };
 }
 
-/** Has `endAgentsHere` end `p` too, with what it runs, as Obeya stops: a command Obeya runs for a Codex agent (`exec-tools.ts`). */
+/** Has `endAgentsHere` end `p` too, with what it runs, as Seismic stops: a command Seismic runs for a Codex agent (`exec-tools.ts`). */
 export function endWithAgents(p: ChildProcess) {
   here.add(p);
   p.once('exit', () => here.delete(p));
@@ -624,7 +633,7 @@ export function withStderr(message: string, stderr: string): string {
 }
 
 /**
- * Ends the Claude Code processes started on this machine, and what each runs, as Obeya stops: once
+ * Ends the Claude Code processes started on this machine, and what each runs, as Seismic stops: once
  * they paused for it, or at once when the owner would not wait. Without a terminal's Ctrl-C reaching
  * them, they would otherwise go on with a turn that nobody hears any more. Not on Windows, where they
  * stay in the console (`OWN_GROUP`) and a kill would end them at once, before they end what they run:
@@ -661,7 +670,7 @@ export function resultFailure(m: SDKResultMessage): string | undefined {
 /**
  * Whether a failed turn hit the account's usage limit, and when that lifts: the request was refused
  * for it, the limits last reported say so, or (from a CLI that reports neither) the message does
- * („You've hit your session limit · resets 2:40pm“).
+ * ("You've hit your session limit · resets 2:40pm").
  */
 export function usageLimit(failure: string, refused: boolean, limits: SDKRateLimitInfo | undefined, now = Date.now()): { resetsAt?: number } | undefined {
   const rejected = limits?.status === 'rejected';
@@ -673,7 +682,7 @@ export function usageLimit(failure: string, refused: boolean, limits: SDKRateLim
 }
 
 /**
- * When the message says the limit resets, as the CLI words it („resets 7:20pm (Europe/Berlin)“):
+ * When the message says the limit resets, as the CLI words it ("resets 7:20pm (Europe/Berlin)"):
  * the next such time in that zone, or one that passed within the hour. Nothing for a message that
  * names no time, or a day as well (a weekly limit).
  */
@@ -753,7 +762,7 @@ export function deniedBy(type: string | undefined): DeniedBy {
 /**
  * Passes a tool call that needs a person's permission to the owner, with Claude Code's suggestions
  * for it; the session takes the permission updates an answer brings. Claude Code's own question
- * tool has nobody to answer it in Obeya; the agent's tools of Obeya do.
+ * tool has nobody to answer it in Seismic; the agent's tools of Seismic do.
  */
 export async function askOwner(
   ask: NonNullable<AgentSpec['askOwner']>,
@@ -761,7 +770,7 @@ export async function askOwner(
   input: Record<string, unknown>,
   o: { signal: AbortSignal; decisionReason?: string; suggestions?: unknown },
 ): Promise<{ behavior: 'allow'; updatedInput: Record<string, unknown>; updatedPermissions?: PermissionUpdate[] } | { behavior: 'deny'; message: string }> {
-  if (name === 'AskUserQuestion') return { behavior: 'deny', message: 'Nobody answers this tool here. Ask the owner with the ask tool of Obeya (mcp__obeya__ask) instead.' };
+  if (name === 'AskUserQuestion') return { behavior: 'deny', message: 'Nobody answers this tool here. Ask the owner with the ask tool of Seismic (mcp__seismic__ask) instead.' };
   const answer = await ask({ name, input, ...(o.decisionReason?.trim() ? { reason: o.decisionReason.trim() } : {}), ...(o.suggestions != null ? { suggestions: o.suggestions } : {}) }, o.signal);
   if (!answer.allow) return { behavior: 'deny', message: answer.message };
   return answer.permissions?.length ? { behavior: 'allow', updatedInput: input, updatedPermissions: answer.permissions } : { behavior: 'allow', updatedInput: input };
@@ -859,11 +868,31 @@ export function refuseForegroundWait(input: HookInput): HookJSONOutput {
   };
 }
 
-/** Obeya's own tools run without asking anyone. */
+/** Seismic's own tools run without asking anyone. */
 /** A tool call as the hooks of `AgentSpec.watch` hear of it. */
+/**
+ * A resumed Claude session's history calls Seismic's tools by their names from before the rename to
+ * Seismic (`mcp__obeya__report`, `mcp__obeya__to_obeya`): it gets them under those names as well,
+ * and a call by an old name counts as a call of today's tool.
+ */
+const LEGACY_SERVER = 'obeya';
+
+/** Today's tools under their old names, for a resumed session. */
+export function legacyTools(tools: AgentTool[]): AgentTool[] {
+  return tools.map((t) => ({ ...t, name: t.name === 'to_seismic' ? 'to_obeya' : t.name, description: `The former name of mcp__seismic__${t.name}, the same tool.` }));
+}
+
+/** A tool's name as Seismic knows it today, for a call by its old name. */
+export function currentToolName(name: string): string {
+  const old = `mcp__${LEGACY_SERVER}__`;
+  if (!name.startsWith(old)) return name;
+  const rest = name.slice(old.length);
+  return `mcp__seismic__${rest === 'to_obeya' ? 'to_seismic' : rest}`;
+}
+
 function toolCall(input: HookInput): ToolCall {
   const i = input as { tool_use_id?: string; tool_name?: string; tool_input?: unknown };
-  return { id: i.tool_use_id ?? '', name: i.tool_name ?? '', input: (i.tool_input ?? {}) as Record<string, unknown> };
+  return { id: i.tool_use_id ?? '', name: currentToolName(i.tool_name ?? ''), input: (i.tool_input ?? {}) as Record<string, unknown> };
 }
 
 const ownToolAllowed: HookJSONOutput = { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow' } };
@@ -1062,7 +1091,7 @@ function iterations(header: string[]): number {
 }
 
 /**
- * Workers of a scratch Obeya for a demo (`--idle-workers`): a started card is in progress, but no
+ * Workers of a scratch Seismic for a demo (`--idle-workers`): a started card is in progress, but no
  * agent works on it, so it stays as staged and costs nothing. What a worker is told goes into the
  * server's log, for a demo to show what reaches the agent.
  */
@@ -1087,18 +1116,18 @@ export function backgroundWork(tasks: { task_id: string; task_type: string; desc
 }
 
 /**
- * Obeya's own environment minus what belongs to a Claude Code session that may have started it (but
+ * Seismic's own environment minus what belongs to a Claude Code session that may have started it (but
  * the login of a machine without a keychain, `CLAUDE_CODE_OAUTH_TOKEN`), minus the supervisor's
- * mark (an Obeya an agent starts, a scratch one for a demo, supervises itself), and minus what has
+ * mark (an Seismic an agent starts, a scratch one for a demo, supervises itself), and minus what has
  * the compiled binary run scripts as Bun.
  */
 export function cleanEnv(env: Record<string, string | undefined> = process.env): Record<string, string | undefined> {
-  return Object.fromEntries(Object.entries(env).filter(([k]) => k === 'CLAUDE_CODE_OAUTH_TOKEN' || !/^(CLAUDE_CODE_|CLAUDECODE$|CLAUDE_PID$|OBEYA_SUPERVISED$|OBEYA_FROM_APP$|BUN_BE_BUN$)/.test(k)));
+  return Object.fromEntries(Object.entries(env).filter(([k]) => k === 'CLAUDE_CODE_OAUTH_TOKEN' || !/^(CLAUDE_CODE_|CLAUDECODE$|CLAUDE_PID$|SEISMIC_SUPERVISED$|SEISMIC_FROM_APP$|OBEYA_SUPERVISED$|OBEYA_FROM_APP$|BUN_BE_BUN$)/.test(k)));
 }
 
 /**
- * Copies the owner's screenshots to the session's machine, into `images` in Obeya's directory
- * there, and the files the message names by path under `files` (Obeya's, here) into `files` there,
+ * Copies the owner's screenshots to the session's machine, into `images` in Seismic's directory
+ * there, and the files the message names by path under `files` (Seismic's, here) into `files` there,
  * and names them by their paths there in the message; the message goes as it was if that fails
  * (the session sees the images in it all the same).
  */

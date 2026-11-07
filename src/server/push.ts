@@ -1,9 +1,9 @@
 // Pushes to the owner's phone when something starts to wait for them (design: Push): a card whose
 // `needsYou` turns true (a demo, a question, a proposal, a card its agent withdrew, a PR to merge, an idea's turn), a landing
 // that failed, a worker that is stuck. Each paired device that turned notifications on holds one
-// subscription; Obeya signs with a VAPID key of its own in its home and needs no account.
+// subscription; Seismic signs with a VAPID key of its own in its home and needs no account.
 //
-// Nothing goes out while the owner uses Obeya: a page at the machine that was in view and used in the
+// Nothing goes out while the owner uses Seismic: a page at the machine that was in view and used in the
 // last `DESK_MS`, or one on a paired device that is in view (a phone in their hand). The first push goes out at once; what starts waiting within `WINDOW_MS` after it
 // goes out as one push at the end of that minute.
 
@@ -23,7 +23,7 @@ export const DESK_MS = 3 * 60_000;
 export const DEVICE_MS = 45_000;
 /** What starts waiting within this after a push goes out together at its end. */
 export const WINDOW_MS = 60_000;
-/** Obeya's VAPID key, in its home: subscriptions hold its public half, so it stays. */
+/** Seismic's VAPID key, in its home: subscriptions hold its public half, so it stays. */
 const KEY_FILE = 'vapid.json';
 
 export { kindOf, plainTitle, type PushKind, startedWaiting } from '../core/waits';
@@ -36,7 +36,7 @@ export interface Waits {
   card: string;
   title: string;
   kind: PushKind;
-  /** Its canvas's name, where Obeya has several. */
+  /** Its canvas's name, where Seismic has several. */
   canvas?: string;
   /** Whether it still waits: one the owner took care of within the minute is not pushed. */
   still: () => boolean;
@@ -44,7 +44,7 @@ export interface Waits {
 
 export interface PushOptions {
   store: Store;
-  /** Obeya's home, with the VAPID key; without one (a test) the key is made up in memory. */
+  /** Seismic's home, with the VAPID key; without one (a test) the key is made up in memory. */
   home?: string;
   language?: () => Language;
   now?: () => number;
@@ -145,10 +145,10 @@ export class Push {
     return [...this.devices.values()].some((at) => this.now() - at < DEVICE_MS);
   }
 
-  /** Whether the owner uses Obeya, at the machine or on a device; the server's log says why a phone got nothing. */
+  /** Whether the owner uses Seismic, at the machine or on a device; the server's log says why a phone got nothing. */
   private inUse(cards: Waits[]): boolean {
     const where = this.atDesk() ? 'at the machine' : this.onADevice() && 'on a device';
-    if (where) console.log(`Obeya: not pushed, the owner is ${where}: ${cards.map((w) => `„${plainTitle(w.title)}“`).join(', ')}`);
+    if (where) console.log(`Seismic: not pushed, the owner is ${where}: ${cards.map((w) => `“${plainTitle(w.title)}”`).join(', ')}`);
     return !!where;
   }
 
@@ -188,7 +188,7 @@ export class Push {
   /** Where tapping the push for a card leads: the card on its canvas, by its short code. */
   private cardUrl(id: string): string {
     const row = this.store.card(id);
-    return row ? `/c/${encodeURIComponent(row.canvas_id)}/card/${row.short}` : `/?card=${encodeURIComponent(id)}`;
+    return row ? `/p/${encodeURIComponent(row.canvas_id)}/c/${row.short}` : `/?card=${encodeURIComponent(id)}`;
   }
 
   /** Sends `message` to every device that gets pushes; a subscription its push service no longer knows goes. */
@@ -199,10 +199,10 @@ export class Push {
         this.subscriptions().map(async ({ id, name, push }) => {
           try {
             const status = await send(JSON.parse(push) as Subscription, message, vapid, this.post);
-            console.log(`Obeya: pushed „${message.title}“ to ${name}: ${status === 201 ? 'taken' : status}`);
+            console.log(`Seismic: pushed “${message.title}” to ${name}: ${status === 201 ? 'taken' : status}`);
             if (status === 404 || status === 410) this.store.setPush(id, null);
           } catch (e) {
-            console.warn(`Obeya: push to ${name} failed: ${(e as Error).message}`);
+            console.warn(`Seismic: push to ${name} failed: ${(e as Error).message}`);
           }
         }),
       );

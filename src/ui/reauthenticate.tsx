@@ -3,15 +3,15 @@ import { api } from './api';
 import { phoneView } from './phone';
 import { failText, t } from './strings';
 
-/** Whether this browser runs on the machine Obeya runs on, asked once per page. */
+/** Whether this browser runs on the machine Seismic runs on, asked once per page. */
 let local: Promise<boolean> | undefined;
 const onThisMachine = () => (local ??= api.access().then((v) => v.local, () => true));
 
 /**
  * The same terminal login as Setup, offered where an agent's expired login interrupted a chat. A
  * session that signed in with a token (`token`: on another machine, or on CLAUDE_CODE_OAUTH_TOKEN)
- * gets a new one instead: `claude setup-token` in a terminal, its token pasted here for Obeya to keep.
- * The terminal opens on the machine Obeya runs on, so the phone view and another device get no
+ * gets a new one instead: `claude setup-token` in a terminal, its token pasted here for Seismic to keep.
+ * The terminal opens on the machine Seismic runs on, so the phone view and another device get no
  * button, only where to go.
  */
 export function Reauthenticate({ start = false, token = false }: { start?: boolean; token?: boolean }) {

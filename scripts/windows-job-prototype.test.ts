@@ -1,6 +1,7 @@
 // Runs on Windows only (a desktop, or the windows-latest runner of .github/workflows/process-boundary.yml);
 // skipped elsewhere, since Job Objects do not exist there.
 import { afterEach, expect, test } from 'bun:test';
+import { testProcessCode } from '../src/test-process';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -19,9 +20,9 @@ const read = (file: string) => { try { return readFileSync(file, 'utf8').trim();
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const kill = (pid: number) => { if (pid > 0) try { process.kill(pid); } catch { /* gone */ } };
 const scratch = () => mkdtempSync(join(tmpdir(), 'obeya-job-'));
-const idle = () => spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore', windowsHide: true });
+const idle = () => spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore', windowsHide: true });
 /** A bun process running `code`, its stdio ignored. */
-const bunArgs = (code: string) => ['-e', code];
+const bunArgs = (code: string) => ['-e', testProcessCode(code)];
 
 const started: Job[] = [];
 afterEach(() => { for (const job of started.splice(0)) try { job.kill(); job.close(); } catch { /* reported by the test */ } });
@@ -54,7 +55,7 @@ test.skipIf(!windows)('ending the job stops a detached grandchild whose parent e
   let grandchild = 0;
   try {
     const r = await launch(process.execPath, bunArgs(`
-      const c = require('node:child_process').spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { detached: true, stdio: 'ignore', windowsHide: true });
+      const c = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(testProcessCode())}], { detached: true, stdio: 'ignore', windowsHide: true });
       require('node:fs').writeFileSync(${JSON.stringify(join(dir, 'grandchild'))}, String(c.pid)); c.unref(); process.exit(0);`), { stdio: ['ignore', 'ignore', 'pipe'] });
     if (r.boundary !== 'job') throw new Error(r.reason);
     await until(() => (grandchild = Number(read(join(dir, 'grandchild')))) > 0);
@@ -71,14 +72,14 @@ test.skipIf(!windows)("the caller's death ends the job's processes (kill on clos
   const canary = idle();
   let agent = 0;
   let grandchild = 0;
-  const caller = spawn(process.execPath, ['-e', `
+  const caller = spawn(process.execPath, ['-e', testProcessCode(`
     import { launchInJob } from ${PROTOTYPE};
     // the path comes by the environment: no quoting of a Windows path in code within code
-    const r = await launchInJob(process.execPath, ['-e', "const c=require('node:child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore',windowsHide:true});require('node:fs').writeFileSync(process.env.OBEYA_TEST_FILE,String(c.pid));setInterval(()=>{},1000);"], { stdio: ['ignore', 'ignore', 'ignore'] });
+    const r = await launchInJob(process.execPath, ['-e', ${JSON.stringify(testProcessCode(`const c=require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(testProcessCode())}],{detached:true,stdio:'ignore',windowsHide:true});require('node:fs').writeFileSync((process.env.SEISMIC_TEST_FILE ?? process.env.OBEYA_TEST_FILE),String(c.pid));setInterval(()=>{},1000);`))}], { stdio: ['ignore', 'ignore', 'ignore'] });
     if (r.boundary !== 'job') { console.error(r.reason); process.exit(1); }
     console.log(r.child.pid);
     setInterval(() => {}, 1000);
-  `], { stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true, env: { ...process.env, OBEYA_TEST_FILE: join(dir, 'grandchild') } });
+  `)], { stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true, env: { ...process.env, SEISMIC_TEST_FILE: join(dir, 'grandchild') } });
   try {
     agent = Number(await new Promise<string>((resolve) => caller.stdout!.once('data', (chunk: Buffer) => resolve(chunk.toString()))));
     await until(() => (grandchild = Number(read(join(dir, 'grandchild')))) > 0);
@@ -94,7 +95,7 @@ test.skipIf(!windows)("the agent's exit leaves its app running in the job, for p
   let app = 0;
   try {
     const r = await launch(process.execPath, bunArgs(`
-      const c = require('node:child_process').spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { detached: true, stdio: 'ignore', windowsHide: true });
+      const c = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(testProcessCode())}], { detached: true, stdio: 'ignore', windowsHide: true });
       require('node:fs').writeFileSync(${JSON.stringify(join(dir, 'app'))}, String(c.pid)); c.unref(); process.exit(0);`), { stdio: ['ignore', 'ignore', 'pipe'] });
     if (r.boundary !== 'job') throw new Error(r.reason);
     await new Promise((resolve) => r.child.exitCode !== null ? resolve(null) : r.child.once('exit', resolve));
@@ -102,7 +103,7 @@ test.skipIf(!windows)("the agent's exit leaves its app running in the job, for p
     await Bun.sleep(300);
     expect(alive(app)).toBe(true);
     expect(r.job.active()).toBe(1);
-    process.kill(app); // app.stop, run by Obeya outside the job
+    process.kill(app); // app.stop, run by Seismic outside the job
     await until(() => r.job.active() === 0);
   } finally { kill(app); rmSync(dir, { recursive: true, force: true }); }
 });
@@ -110,15 +111,15 @@ test.skipIf(!windows)("the agent's exit leaves its app running in the job, for p
 test.skipIf(!windows)('a job nested in an outer one: ending the inner leaves the outer, ending the outer ends both', async () => {
   const dir = scratch();
   let sessionAgent = 0;
-  // a launcher in an outer job (as Obeya inside a terminal's or a CI runner's job) makes a session job
-  const launcher = await launch(process.execPath, ['-e', `
+  // a launcher in an outer job (as Seismic inside a terminal's or a CI runner's job) makes a session job
+  const launcher = await launch(process.execPath, ['-e', testProcessCode(`
     import { launchInJob } from ${PROTOTYPE};
-    const r = await launchInJob(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: ['ignore', 'ignore', 'ignore'] });
+    const r = await launchInJob(process.execPath, ['-e', ${JSON.stringify(testProcessCode())}], { stdio: ['ignore', 'ignore', 'ignore'] });
     if (r.boundary !== 'job') { console.error(r.reason); process.exit(1); }
     require('node:fs').writeFileSync(${JSON.stringify(join(dir, 'session'))}, JSON.stringify({ name: r.job.name, agent: r.child.pid }));
     process.stdin.once('data', () => { r.job.kill(); require('node:fs').writeFileSync(${JSON.stringify(join(dir, 'killed'))}, '1'); });
     setInterval(() => {}, 1000);
-  `], { stdio: ['pipe', 'ignore', 'inherit'], killOnClose: false });
+  `)], { stdio: ['pipe', 'ignore', 'inherit'], killOnClose: false });
   try {
     if (launcher.boundary !== 'job') throw new Error(launcher.reason);
     await until(() => read(join(dir, 'session')) !== '');
@@ -139,8 +140,8 @@ test.skipIf(!windows)('a child created to break away stays in the job and ends w
   const dir = scratch();
   let child = 0;
   try {
-    const r = await launch(process.execPath, bunArgs(`import { startBreakingAway } from ${PROTOTYPE}; require('node:fs').writeFileSync(process.env.OBEYA_TEST_FILE, JSON.stringify(startBreakingAway('ping.exe -n 60 127.0.0.1'))); setInterval(() => {}, 1000);`), {
-      stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, OBEYA_TEST_FILE: join(dir, 'result') },
+    const r = await launch(process.execPath, bunArgs(`import { startBreakingAway } from ${PROTOTYPE}; require('node:fs').writeFileSync((process.env.SEISMIC_TEST_FILE ?? process.env.OBEYA_TEST_FILE), JSON.stringify(startBreakingAway('ping.exe -n 60 127.0.0.1'))); setInterval(() => {}, 1000);`), {
+      stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, SEISMIC_TEST_FILE: join(dir, 'result') },
     });
     if (r.boundary !== 'job') throw new Error(r.reason);
     await until(() => read(join(dir, 'result')) !== '');

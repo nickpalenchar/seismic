@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gitRepo } from '../../../../src/server/testing';
@@ -23,11 +23,10 @@ const SITE = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'git {d
 
 describe('check.ts', () => {
   test('shows the settings and finds nothing wrong with them', () => {
-    const { code, out } = check({ setup: 'bun install', app: { run: 'Start it with `bun dev`.', stop: 'pkill -F .pid' }, demo: { site: SITE } });
+    const { code, out } = check({ setup: 'bun install', app: { run: 'Start it with `bun dev`.', stop: 'pkill -F .pid' } });
     expect(out).toContain('setup: "bun install"');
     expect(out).toContain('app.run: Start it with `bun dev`.');
     expect(out).toContain('app.stop: "pkill -F .pid", app.keep: (none)');
-    expect(out).toContain('demo site: Demos at https://demos.example.dev, deploy "git {dir}"');
     expect(out).toContain('No problems.');
     expect(code).toBe(0);
   });
@@ -40,9 +39,9 @@ describe('check.ts', () => {
     expect(code).toBe(1);
   });
 
-  test("reports a site's deploy program that is not there", () => {
-    const { code, out } = check({ demo: { site: { ...SITE, deploy: 'scripts/no-such-deploy.sh {dir}' } } });
-    expect(out).toContain(`- demo.site.deploy: the deploy command's program ${join(realpathSync(dir), 'shop', 'scripts/no-such-deploy.sh')} does not exist`);
+  test('reports a demo site, which a canvas chooses now', () => {
+    const { code, out } = check({ demo: { site: SITE } });
+    expect(out).toContain('- .obeya/settings.json, demo.site: no longer read; a canvas chooses its demo site in its settings');
     expect(code).toBe(1);
   });
 

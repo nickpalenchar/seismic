@@ -1,4 +1,4 @@
-// Checks a compiled Obeya (`bun run build`) on this machine, the way someone without Bun or a
+// Checks a compiled Seismic (`bun run build`) on this machine, the way someone without Bun or a
 // checkout would use it: a scratch repository with its own settings (`.obeya/settings.json`) and
 // demo site, the binary started as `obeya` starts (supervised), and then what it hands to other
 // processes. Runs on macOS, Linux and Windows.
@@ -9,9 +9,9 @@
 // settings are read, the demo setup finds Playwright among the resources, and a script run with the
 // binary's Bun (`BUN_BE_BUN`) runs. --voice installs Piper and Whisper through
 // the settings, speaks a sentence in the demo voice (tts.py from the resources) and gives it to
-// Obeya as a voice command; what Whisper heard must match. --demo renders a short demo of the
+// Seismic as a voice command; what Whisper heard must match. --demo renders a short demo of the
 // canvas with the skill's director from the resources (Node, a browser, ffmpeg and uv needed).
-// --worker starts a card with a real agent on the Claude Code `OBEYA_CLAUDE` names, else the
+// --worker starts a card with a real agent on the Claude Code `SEISMIC_CLAUDE` names, else the
 // machine's own, which commits a file and hands over an HTML artifact that is then shared on the
 // repository's demo site (served from the scratch directory). The Koordinator's answer to the voice command needs a Claude
 // login as well; without --worker it is not waited for. Prints one line per check; exits 1 when
@@ -55,7 +55,7 @@ const api = async (path: string, init?: RequestInit & { json?: unknown }) => {
 const json = async <T = any>(path: string, init?: RequestInit & { json?: unknown }) => (await (await api(path, init)).json()) as T;
 
 // the scratch repository: a plan doc, its own settings with a demo site, and the site's deploy
-// script, which copies the site to `deployed` under Obeya's home, where the site is served from
+// script, which copies the site to `deployed` under Seismic's home, where the site is served from
 const dir = realpathSync(mkdtempSync(join(tmpdir(), 'obeya-check-')));
 const repo = join(dir, 'repo');
 const home = join(dir, 'home');
@@ -76,7 +76,7 @@ const files: Record<string, string> = {
   'docs/plan/tool.md': '# Tool\n\n## Workstreams\n\n- [ ] **W1:** Configuration.\n',
   '.obeya/settings.json': `${JSON.stringify({ app: { run: 'Nothing to run.' }, demo: { site: { title: 'Check demos', url: siteUrl, deploy: 'deploy.ts {dir}' } } }, null, 2)}\n`,
   'deploy.ts': `import { cpSync, rmSync } from 'node:fs';
-const out = process.env.OBEYA_HOME + '/deployed';
+const out = (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) + '/deployed';
 rmSync(out, { recursive: true, force: true });
 cpSync(process.argv[2], out, { recursive: true });
 console.log('deployed to ' + out);
@@ -102,7 +102,7 @@ writeFileSync(join(home, 'demo.json'), JSON.stringify({ language: 'en', voice: '
 
 // the binary, supervised as `obeya` runs without --dev
 const log = join(dir, 'server.log');
-const env = { ...process.env, OBEYA_HOME: home, OBEYA_SUPERVISED: undefined };
+const env = { ...process.env, SEISMIC_HOME: home, SEISMIC_SUPERVISED: undefined, OBEYA_SUPERVISED: undefined };
 let server: Subprocess | undefined;
 const logText = () => readFileSync(log, 'utf8');
 const stop = () => {
@@ -120,7 +120,7 @@ process.on('exit', () => {
   }
 });
 
-await check(`Obeya ${pkg.version} starts from ${binary}`, async () => {
+await check(`Seismic ${pkg.version} starts from ${binary}`, async () => {
   server = Bun.spawn([binary, '--port', String(port)], { cwd: dir, env, stdout: Bun.file(log), stderr: Bun.file(log), detached: !win });
   await until('the canvas answers', 60_000, async () => (await fetch(`${base}/api/canvases`, { headers: ownerHeaders(home) })).ok);
   return logText().split('\n')[0];
@@ -177,8 +177,8 @@ if (args.includes('--voice')) {
     const wav = await (await api('/api/demo-settings/sample', { json: { language: 'en', voice: 'piper' } })).arrayBuffer();
     const res = await json(`/api/c/${canvas}/voice`, { method: 'POST', body: wav, headers: { 'content-type': 'audio/wav' } });
     const heard = /heard on check: (.*)/.exec(logText())?.[1] ?? '';
-    expect(/voice sounds/i.test(heard), `heard „${heard}“`);
-    return `heard „${heard}“; Obeya answered „${res.confirm}“`;
+    expect(/voice sounds/i.test(heard), `heard “${heard}”`);
+    return `heard “${heard}”; Seismic answered “${res.confirm}”`;
   });
 }
 
@@ -192,11 +192,11 @@ if (args.includes('--demo')) {
       `import { runDemo } from ${JSON.stringify(pathToFileURL(director).href)};
 await runDemo(
   {
-    title: 'Obeya from one file',
+    title: 'Seismic from one file',
     baseUrl: ${JSON.stringify(base)},
-    login: async (page) => { await page.goto(${JSON.stringify(await loginLink(base, home, `/c/${canvas}`))}); },
+    login: async (page) => { await page.goto(${JSON.stringify(await loginLink(base, home, `/p/${canvas}`))}); },
     open: async (d) => { await d.goto('/c/${canvas}'); await d.page.getByText('Configuration').first().waitFor(); },
-    scenes: [{ title: 'The canvas', say: 'This canvas is served by the compiled Obeya.', run: async (d) => { await d.untilSpoken(0.5); } }],
+    scenes: [{ title: 'The canvas', say: 'This canvas is served by the compiled Seismic.', run: async (d) => { await d.untilSpoken(0.5); } }],
     report: { summary: 'A check render.', meta: {} },
   },
   import.meta.dirname,
@@ -212,7 +212,7 @@ await runDemo(
       copyFileSync(shot, join(process.env.CHECK_ARTIFACTS, 'demo-failure.png'));
       copyFileSync(log, join(process.env.CHECK_ARTIFACTS, 'server.log'));
     }
-    expect(p.exitCode === 0, `exit ${p.exitCode}\n${out.slice(-3000)}\n${p.exitCode !== 0 ? pageConsole(demo, await loginLink(base, home, `/c/${canvas}`)) : ''}`);
+    expect(p.exitCode === 0, `exit ${p.exitCode}\n${out.slice(-3000)}\n${p.exitCode !== 0 ? pageConsole(demo, await loginLink(base, home, `/p/${canvas}`)) : ''}`);
     expect(Bun.file(join(demo, 'demo.mp4')).size > 0, 'no demo.mp4');
     return out.split('\n').find((l) => /video →/.test(l))?.trim();
   });

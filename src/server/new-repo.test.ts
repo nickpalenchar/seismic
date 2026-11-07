@@ -73,7 +73,7 @@ function idea(path: string, canvas = true) {
 }
 
 describe('building an idea in a new repository', () => {
-  test('after the undo window, Obeya creates the repository and a canvas named after it, and the idea moves there with everything and starts', async () => {
+  test('after the undo window, Seismic creates the repository and a canvas named after it, and the idea moves there with everything and starts', async () => {
     const path = join(dir, 'dev', 'super59');
     const card = idea(path);
     const follower = docsCanvas().board.create({ title: 'Invite the parents', x: 600, y: 0, from: card.id });
@@ -88,7 +88,7 @@ describe('building an idea in a new repository', () => {
     expect(git(path, 'log', '--format=%an %s')).toBe('Ada Lovelace First commit');
     expect(existsSync(join(path, '.gitignore'))).toBe(true);
     expect(git(path, 'remote')).toBe('');
-    expect(JSON.parse(readFileSync(join(dir, 'canvases.json'), 'utf8')).at(-1)).toEqual({ repos: [{ path }] });
+    expect(JSON.parse(readFileSync(join(dir, 'canvases.json'), 'utf8')).at(-1)).toEqual({ projectBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path }] });
     expect(there.board.canvas.name).toBe('super59');
     // the card is there, decided as „So bauen“ decides it, with its conversation, decisions and screenshot, out of its group
     await until(() => there.board.item(card.id)?.queue || there.board.item(card.id)?.state === 'working');
@@ -190,7 +190,7 @@ describe('building an idea in a new repository', () => {
     docsCanvas().act(card.id, { action: 'stayHere' });
   });
 
-  test('a failed step removes only the folders Obeya created, not what came beside them', async () => {
+  test('a failed step removes only the folders Seismic created, not what came beside them', async () => {
     mkdirSync(join(dir, 'parent'));
     const sibling = join(dir, 'parent', 'beta');
     mkdirSync(sibling);

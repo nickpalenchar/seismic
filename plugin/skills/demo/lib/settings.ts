@@ -1,9 +1,9 @@
 // The demo settings: in which language a demo is narrated and by which voice, so the person it
-// speaks in follows, and the directory demos go into. Obeya's settings sheet edits them; they live in `demo.json` under Obeya's home
-// (`OBEYA_HOME`, else `~/.obeya`), where a session without Obeya finds them as well. Missing
+// speaks in follows, and the directory demos go into. Seismic's settings sheet edits them; they live in `demo.json` under Seismic's home
+// (`SEISMIC_HOME`, else `~/.obeya`), where a session without Seismic finds them as well. Missing
 // entries take the defaults; the language without one is the owner's conversation language. A
 // repository may name the language of its own demos (`demo.language` of its `.obeya/settings.json`):
-// Obeya gives it to its workers as `DEMO_LANGUAGE`, and a session without Obeya finds it in the
+// Seismic gives it to its workers as `DEMO_LANGUAGE`, and a session without Seismic finds it in the
 // repository it runs in.
 //
 // Run on its own (`node settings.ts`), it prints the settings in effect for the agent writing a
@@ -18,10 +18,10 @@ import { conversationLanguageIn } from './language.ts';
 import { allowsDemo, HANDOVER_ARTIFACTS, type HandoverArtifact } from './artifacts.ts';
 import { type Language, LANGUAGE_NAMES, LANGUAGES } from './locale.ts';
 
-/** The language a demo is narrated in: one Obeya speaks. */
+/** The language a demo is narrated in: one Seismic speaks. */
 export type NarrationLanguage = Language;
 /**
- * The voice providers (`voices.ts` turns each into what `tts.py` runs). Local models Obeya
+ * The voice providers (`voices.ts` turns each into what `tts.py` runs). Local models Seismic
  * installs on request (`piper`, the default, and `qwen3`), macOS `say`, the owner's own command or
  * HTTP endpoint, and templates for four hosted services.
  */
@@ -52,13 +52,18 @@ export interface DemoSettings {
    * has its own; one without a clip is spoken by a speaker.
    */
   references?: Partial<Record<NarrationLanguage, string>>;
+  /**
+   * How the narration should sound, for the voices that take instructions (a Qwen3 stock speaker,
+   * Gemini, OpenAI); `DEFAULT_STYLE` (`voice-choices.ts`) when left out.
+   */
+  style?: string;
   /** A service's API key, in a file; the service's environment variable takes precedence. */
   keyFile?: string;
   /** Where demos go, each into a directory of its own: an absolute path or one from `~`; `DEFAULT_DEMO_DIRECTORY` when left out. */
   directory?: string;
   /**
-   * How many days after a demo's last render Obeya keeps the frames it was cut from (`.work/frames`),
-   * which only re-voicing needs; `always` keeps them. Left out: Obeya's default (see `demo-space.ts`).
+   * How many days after a demo's last render Seismic keeps the frames it was cut from (`.work/frames`),
+   * which only re-voicing needs; `always` keeps them. Left out: Seismic's default (see `demo-space.ts`).
    */
   keepFrames?: number | 'always';
   /**
@@ -72,9 +77,9 @@ export const DEFAULT_DEMO_SETTINGS: DemoSettings = { language: 'de', voice: 'pip
 export const DEMO_SETTINGS_FILE = 'demo.json';
 export const DEFAULT_DEMO_DIRECTORY = '~/demos';
 
-/** Obeya's home, where its settings live. */
+/** Seismic's home, where its settings live. */
 export function obeyaHome(): string {
-  return process.env.OBEYA_HOME || path.join(os.homedir(), '.obeya');
+  return (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) || path.join(os.homedir(), '.obeya');
 }
 
 export const expandHome = (p: string) => p.replace(/^~(?=$|[\\/])/, os.homedir());
@@ -87,7 +92,7 @@ export function demoDirectory(s: Pick<DemoSettings, 'directory'> = readDemoSetti
   return path.resolve(expandHome(s.directory && absoluteDirectory(s.directory) ? s.directory : DEFAULT_DEMO_DIRECTORY));
 }
 
-const TEXT_FIELDS = ['command', 'url', 'voiceName', 'keyFile', 'directory'] as const;
+const TEXT_FIELDS = ['command', 'url', 'voiceName', 'style', 'keyFile', 'directory'] as const;
 
 /**
  * Keeps what is a valid setting, drops the rest; trims texts and leaves out empty ones. The one clip
@@ -135,11 +140,11 @@ export function readDemoSettings(home = obeyaHome()): DemoSettings {
   }
 }
 
-/** Where a repository's language for its demos comes from: Obeya, or the repository's own settings. */
+/** Where a repository's language for its demos comes from: Seismic, or the repository's own settings. */
 export type LanguageSource = 'obeya' | 'repository';
 
 /**
- * The language a repository names for its demos (`demo.language` of its settings): from Obeya,
+ * The language a repository names for its demos (`demo.language` of its settings): from Seismic,
  * which gives its workers the one of their card's repository as `DEMO_LANGUAGE`, else from the
  * `.obeya/settings.json` of the repository the directory `cwd` is in. None where neither names one.
  */
@@ -207,7 +212,7 @@ export function describeDemoSettings(saved: DemoSettings, override: string | und
     ...(repo?.from === 'repository'
       ? [`  (the repository's demo.language in ${repo.file}; render with DEMO_LANGUAGE=${repo.language} so the voice speaks it too)`]
       : repo
-        ? [`  (the repository's demo.language, given by Obeya as DEMO_LANGUAGE)`]
+        ? [`  (the repository's demo.language, given by Seismic as DEMO_LANGUAGE)`]
         : []),
     person === 'first'
       ? `person: first — the voice is the owner's own, so the narration speaks as the owner ("I added …")`

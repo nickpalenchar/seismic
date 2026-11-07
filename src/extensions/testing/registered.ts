@@ -68,8 +68,22 @@ const fixture = await import('../../server/workers-fixture');
 const { git } = await import('../../server/workspaces');
 fixture.setup({ ...generic, land: 'main', workspaces: 'clones', ...{ example: 'worker value' } });
 try {
+  // A runtime that cannot start must not tell extensions that a worker started.
+  const start = fixture.runtime.start.bind(fixture.runtime);
+  fixture.runtime.start = () => { throw new Error('Example runtime unavailable'); };
+  const failed = fixture.manual();
+  await fixture.workers.start(failed.id);
+  assert.equal(fixture.runtime.sessions.length, 0);
+  assert.equal(fixture.board.item(failed.id)!.question!.stuck, true);
+  assert.equal(events.length, 0);
+  await fixture.workers.stop(failed.id);
+  await fixture.workers.freed();
+  fixture.runtime.start = start;
+
   const card = fixture.manual();
   await fixture.workers.start(card.id);
+  // start() already waits for workspace preparation and the runtime launch.
+  assert.equal(fixture.runtime.sessions.length, 1);
   assert.deepEqual(events, [{ type: 'workerStarted', canvas: 'c', card: card.id, settings: { example: 'worker value' } }]);
   // a permission question carries the extension's option; picked, the call runs with its updates
   const permitted = fixture.runtime.last.spec.askOwner!({ name: 'Bash', input: { command: 'make' } }, new AbortController().signal);

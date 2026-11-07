@@ -1,11 +1,11 @@
 # The hero video for obeya.si
 
-A real run, recorded with Obeya's own demo pipeline (`plugin/skills/demo`): a scratch Obeya on a
+A real run, recorded with Seismic's own demo pipeline (`plugin/skills/demo`): a scratch Seismic on a
 small tip calculator, the wall arranged (a lasso into a group, a card dragged beside another group), an
-idea said into the microphone, a bug report typed, pasted and spoken in Obeya's
+idea said into the microphone, a bug report typed, pasted and spoken in Seismic's
 sidebar, a real agent building the idea and recording its demo, two comments said into that video and the
 agent's new demo on them, the approval landing it on main,
-proposals from an agent and from Obeya's work retrospective, an idea discussed with its agent, and the
+proposals from an agent and from Seismic's work retrospective, an idea discussed with its agent, and the
 phone view of the same wall in a phone's frame.
 About four minutes, in English, in the owner's ElevenLabs voice, recorded at twice the pixels
 (2880×1800, as the app looks on a Retina screen) with gentle compression (`sharp` in the spec).
@@ -26,7 +26,7 @@ which the project skill `.claude/skills/release/` goes through).
 
 ```sh
 node scripts/hero-video/render.ts --narration   # only the narration: costs ElevenLabs credits for changed sentences
-HERO_SHORT=1 node scripts/hero-video/render.ts  # the scenes up to Obeya’s sidebar and its preferences, without agents, in a few minutes
+HERO_SHORT=1 node scripts/hero-video/render.ts  # the scenes up to Seismic’s sidebar and its preferences, without agents, in a few minutes
 node scripts/hero-video/render.ts               # the whole video, with real agents: about ten minutes
 node scripts/hero-video/render.ts --record      # the same, with the agents recorded into ~/demos/obeya-hero-recording/ (or the directory after it)
 node scripts/hero-video/render.ts --replay      # the whole video with that recording's agents played back: the same run, in minutes
@@ -38,11 +38,11 @@ ElevenLabs once it stands.
 
 The render that goes out with a release is a real run, recorded (`--record`). Corrections after it
 (a scene, the layout, the narration's timing) play that recording back (`--replay`): every agent,
-the Koordinator's included, does what it did in the recorded run, through the Obeya of the checkout,
+the Koordinator's included, does what it did in the recorded run, through the Seismic of the checkout,
 whose cards, layout, held comments and landing are live. The playback takes a few minutes, costs no
 Claude usage and comes out the same each time, so a recorded run can also be chosen for how its
 agents did (one whose first demo leaves the bold line to the comment, say). It refuses, and the
-render stops with why, once the agents' instructions or Obeya's tools have changed since the
+render stops with why, once the agents' instructions or Seismic's tools have changed since the
 recording; a changed sentence the agents hear (the spoken command, the dictation, the comments) needs
 a recorded run too, since the recorded agents act on the old words. Then record anew.
 
@@ -51,7 +51,7 @@ another; `HERO_OUT` names another output): `demo.mp4`, `captions.vtt`,
 `chapters.vtt` (the scenes, which the site lists under the video),
 `review/` with a still from the middle and the end of each scene, and `index.html`. Clips are
 cached by voice and text, so a re-render after a visual change costs no credits. The scratch
-Obeya runs on port 4730; `bun scripts/scratch-obeya.ts --stop 4730` ends it, which the render
+Seismic runs on port 4730; `bun scripts/scratch-obeya.ts --stop 4730` ends it, which the render
 leaves running for a look.
 
 Before it goes out, look at the stills and at three things that went wrong before: the microphone

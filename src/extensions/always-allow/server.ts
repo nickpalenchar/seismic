@@ -1,4 +1,4 @@
-// „Immer erlauben“ (Always allow; see README.md): a permission question offers the rule that would
+// "Always allow" (see README.md): a permission question offers the rule that would
 // let the call through from now on, and picked, the rule goes into the repository's allow list.
 
 // The core's modules this imports at once stay light ones: the registry loads it while the core's
@@ -43,7 +43,7 @@ export const alwaysAllow: ServerExtension = {
         })
         .then(
           (done) => {
-            if (done) console.log(`Obeya: the owner allowed ${rules.join(', ')} for the agents of ${context.cwd}`);
+            if (done) console.log(`Seismic: the owner allowed ${rules.join(', ')} for the agents of ${context.cwd}`);
             context.log(done ? t.added(shown, done.branch) : t.already(shown));
           },
           (e: unknown) => context.log(t.failed(shown, messageOf(e))),

@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import type { HookInput, SDKResultMessage } from '@anthropic-ai/claude-agent-sdk';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { type AgentEvent, askOwner, BOUNDED_WAITS, Inbox, backgroundWork, deniedBy, claudeExecutable, cleanEnv, FOREGROUND_SLEEP_LIMIT, failureReason, foregroundSleep, refuseForegroundWait, resetIn, resultFailure, spawnHere, endAgentsHere, usageLimit, withCodexTrust, withLimitWait, withRepoTrust, withStderr, withTrustedAllow } from './runtime';
+import { type AgentEvent, askOwner, BOUNDED_WAITS, Inbox, backgroundWork, deniedBy, claudeExecutable, cleanEnv, currentToolName, legacyTools, FOREGROUND_SLEEP_LIMIT, failureReason, foregroundSleep, refuseForegroundWait, resetIn, resultFailure, spawnHere, endAgentsHere, usageLimit, withCodexTrust, withLimitWait, withRepoTrust, withStderr, withTrustedAllow } from './runtime';
 import { readShared } from '../adapters';
 import { commandsOf } from './trust';
 import { gitRepo as repoWith } from './testing';
@@ -212,6 +212,7 @@ test('three consecutive limit failures exhaust retries, including after a manual
 test("agents run the Agent SDK's Claude Code from the checkout, the machine's own from the binary", () => {
   expect(claudeExecutable({ PATH: '' }, false)).toBeUndefined();
   expect(claudeExecutable({ OBEYA_CLAUDE: '/opt/claude', PATH: '' }, true)).toBe('/opt/claude');
+  expect(claudeExecutable({ SEISMIC_CLAUDE: '/opt/new', OBEYA_CLAUDE: '/opt/claude', PATH: '' }, true)).toBe('/opt/new');
   // none on the PATH: where the official installer puts it, for the SDK to say it is missing
   expect(claudeExecutable({ PATH: '' }, true, 'linux')).toBe(join(homedir(), '.local', 'bin', 'claude'));
   expect(claudeExecutable({ PATH: '' }, true, 'win32')).toBe(join(homedir(), '.local', 'bin', 'claude.exe'));
@@ -220,6 +221,7 @@ test("agents run the Agent SDK's Claude Code from the checkout, the machine's ow
 test("an agent's environment keeps a machine's Claude login but not another session's marks", () => {
   const env = cleanEnv({ PATH: '/bin', CLAUDE_CODE_OAUTH_TOKEN: 't', CLAUDE_CODE_ENTRYPOINT: 'cli', CLAUDECODE: '1', OBEYA_SUPERVISED: '1', OBEYA_FROM_APP: '1', BUN_BE_BUN: '1' });
   expect(env).toEqual({ PATH: '/bin', CLAUDE_CODE_OAUTH_TOKEN: 't' });
+  expect(cleanEnv({ PATH: '/bin', SEISMIC_SUPERVISED: '1', SEISMIC_FROM_APP: '1' })).toEqual({ PATH: '/bin' });
 });
 
 test("a denial's reason type is sorted into who refused the call", () => {
@@ -239,7 +241,7 @@ test("a call that needs permission goes to the owner with Claude Code's reason; 
   expect(asked).toEqual([{ name: 'Bash', input: { command: 'ls' }, reason: 'write access' }]);
   expect(await askOwner(async () => ({ allow: false, message: 'no' }), 'Bash', { command: 'ls' }, { signal })).toEqual({ behavior: 'deny', message: 'no' });
   const q = await askOwner(ask, 'AskUserQuestion', {}, { signal });
-  expect(q.behavior === 'deny' && q.message).toContain('mcp__obeya__ask');
+  expect(q.behavior === 'deny' && q.message).toContain('mcp__seismic__ask');
   expect(asked).toHaveLength(1);
 });
 
@@ -273,7 +275,7 @@ test('a message sent while a turn ends is still to come; one the turn took mid-w
   expect(inbox.taken({})).toBe(true);
 });
 
-test.skipIf(process.platform === 'win32')("Claude Code here runs out of the terminal's process group: Ctrl-C reaches Obeya alone, which ends it and what it runs as it stops", async () => {
+test.skipIf(process.platform === 'win32')("Claude Code here runs out of the terminal's process group: Ctrl-C reaches Seismic alone, which ends it and what it runs as it stops", async () => {
   let stderr = '';
   // the agent and a command it runs, each saying its process group
   const p = spawnHere((t) => (stderr += t))({ command: 'sh', args: ['-c', 'echo "$(ps -o pgid= -p $$) $$"; sh -c \'echo "$(ps -o pgid= -p $$)"; sleep 30\' & echo "not logged in" >&2; wait'], env: { PATH: process.env.PATH }, cwd: process.cwd(), signal: new AbortController().signal });
@@ -419,4 +421,17 @@ test("a Codex agent loads the repository's .codex only where its workspace has i
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('a resumed Claude session reaches Seismic\'s tools by their names from before the rename', async () => {
+  const runs: string[] = [];
+  const tool = (name: string) => ({ name, description: name, schema: {}, run: () => (runs.push(name), 'ok') });
+  const legacy = legacyTools([tool('report'), tool('to_seismic')]);
+  expect(legacy.map((t) => t.name)).toEqual(['report', 'to_obeya']);
+  await legacy[1]!.run({});
+  expect(runs).toEqual(['to_seismic']);
+  expect(currentToolName('mcp__obeya__report')).toBe('mcp__seismic__report');
+  expect(currentToolName('mcp__obeya__to_obeya')).toBe('mcp__seismic__to_seismic');
+  expect(currentToolName('mcp__seismic__ask')).toBe('mcp__seismic__ask');
+  expect(currentToolName('Bash')).toBe('Bash');
 });

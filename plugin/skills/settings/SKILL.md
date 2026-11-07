@@ -1,12 +1,12 @@
 ---
 name: settings
-description: Write a repository's Obeya settings (`.obeya/settings.json`) — how its app runs and stops, which checks run, how work lands, where demos are shared, where its plan docs are — and draft the allow list of commands agents run without asking, from what the repository shows, prove the recipe for running the app by recording a demo with it, and ask the owner what the repository does not tell. Use when a task asks to set up Obeya for a repository, to write or fix its settings, or names this skill.
+description: Write a repository's Seismic settings (`.obeya/settings.json`) — how its app runs and stops, which checks run, how work lands, where its plan docs are — and draft the allow list of commands agents run without asking, from what the repository shows, prove the recipe for running the app by recording a demo with it, and ask the owner what the repository does not tell. Use when a task asks to set up Seismic for a repository, to write or fix its settings, or names this skill.
 ---
 
 # Writing a repository's settings
 
-Obeya learns how a project works from the repository's settings for everyone, in
-`.obeya/settings.json`: setup, checks, landing, plan docs, how to run the app, the demo site. The owner sees and changes them in "Konfiguration". The reference for every field and
+Seismic learns how a project works from the repository's settings for everyone, in
+`.obeya/settings.json`: setup, checks, landing, plan docs, how to run the app. The owner sees and changes them in "Konfiguration". The reference for every field and
 when a change takes effect is `${CLAUDE_SKILL_DIR}/../../../docs/settings.md`. Read it first; this
 skill is the way to fill it in.
 
@@ -30,22 +30,22 @@ Find out, from the files rather than by guessing:
   address (a file it writes, the console), migrations, seed data, and how to stop the app of one
   workspace (`app.stop`; `app.keep` where some hold data that must stay).
 - **An adapter module from before**: a `.obeya/adapter/index.ts` held what the settings hold now
-  (how the app runs, the demo site). Obeya no longer reads it: take its values over, then delete
+  (how the app runs). Seismic no longer reads it: take its values over, then delete
   `.obeya/adapter/`. What it held that is set on each machine in "Konfiguration" goes into your
   summary for the owner: the canvas's name.
 - **Logging in and test data**: seed scripts, fixtures, test users in the docs or the seed.
-- **Landing**: the `origin` remote (Obeya detects `land`: `pr` on GitHub, else `main`; write it
+- **Landing**: the `origin` remote (Seismic detects `land`: `pr` on GitHub, else `main`; write it
   only to differ), whether the default branch is protected, which bots comment on pull requests
   (`prNoise`).
 - **Plan docs**: where the project keeps its plans, if it does: `docs/plan/`, other directories
-  under `docs/`, `rfcs/`, `adr/`, `PLAN*.md`, a `TODO.md`. Obeya shows each `*.md` directly in one
+  under `docs/`, `rfcs/`, `adr/`, `PLAN*.md`, a `TODO.md`. Seismic shows each `*.md` directly in one
   directory (`planDocs.dir`) as a project when it has a checklist under `## Workstreams` (or
   `## Arbeitspakete`): each top-level item is a workstream (`- [ ] **W1:** Title. Details`), a
   ticked one has landed, and once all are ticked the project goes into the archive. Its goal is the
   first paragraph under `## Goal` (or `## Ziel`). A doc in that directory without such a checklist
   shows on the canvas as one that is not a project, with "Als Projekt aufbereiten", which has an
   agent add the checklist in the doc's own style. Design notes and ADRs that plan nothing belong
-  elsewhere, or in `planDocs.exclude`. Plans that git ignores are not on the default branch Obeya
+  elsewhere, or in `planDocs.exclude`. Plans that git ignores are not on the default branch Seismic
   reads: their folder's absolute path goes into the owner's configuration on their machine
   (Plan-Dokumente), not into the file.
 
@@ -53,21 +53,20 @@ Find out, from the files rather than by guessing:
 
 Some things only the owner knows: the login for a demo when no seed makes one, which test data
 shows the app well, whether approved work may go straight
-onto the default branch, where demos are shared with colleagues (a static site: `demo.site`), and
-where plan docs go: the directory of plans you found (its docs then converted with "Als Projekt
+onto the default branch, and where plan docs go: the directory of plans you found (its docs then converted with "Als Projekt
 aufbereiten" on the canvas), or a new `docs/plan/`. Where your briefing names more than one agent
 harness that can work on this machine, the owner also picks which of them the allow list (step 4)
 is set up for: that question is always asked, with each harness as an option and several
 pickable. Collect them and ask in one question
-(the `ask` tool under Obeya), with the options you found, while you go on with the rest. A secret
+(the `ask` tool under Seismic), with the options you found, while you go on with the rest. A secret
 (a real password, an API key) goes into `app.run` only as where to find it (a file outside git,
 an environment variable), never itself.
 
 ## 3. Write `.obeya/settings.json`
 
-Start from the example in the reference and keep only the fields that differ from Obeya's
+Start from the example in the reference and keep only the fields that differ from Seismic's
 defaults: `setup`, `checks`, `land`, `direct`, `autoMerge`, `planDocs`, `softPaths`, `workspaces`, `prNoise`,
-`app` with `run`, `stop` and `keep`, and `demo` with `site`.
+`app` with `run`, `stop` and `keep`.
 
 `app.run` is the part that decides whether workers can run and show their work. Write it for a
 newcomer, as a few sentences: what to start, in which order and how (in the background, which
@@ -81,17 +80,16 @@ Then check it:
 bun ${CLAUDE_SKILL_DIR}/lib/check.ts
 ```
 
-run in the repository. It reads the file from the checkout the way Obeya will, prints what Obeya
+run in the repository. It reads the file from the checkout the way Seismic will, prints what Seismic
 makes of it (also which docs in the plan directory are projects and which are not, and why) and
-every problem (an unknown field, a wrong type, a site's deploy program that is not there, an
-adapter module still there), and exits with 1 while there is one. Go on once it says "No
+every problem (an unknown field, a wrong type, an adapter module still there), and exits with 1 while there is one. Go on once it says "No
 problems."
 
 ## 4. Draft the allow list
 
 Agents ask the owner before each shell command no rule allows. The repository's allow list, the
 `Bash` rules under `permissions.allow` in `.claude/settings.json`, lets the everyday ones run
-without a question: Claude Code applies it itself, and Obeya applies the same list to its Codex
+without a question: Claude Code applies it itself, and Seismic applies the same list to its Codex
 workers (network included for a covered command). The owner reviews it and trusts it in
 the configuration before any of it counts.
 
@@ -116,8 +114,8 @@ bun ${CLAUDE_SKILL_DIR}/lib/allow-list.ts 'bun install' 'bun test --watch' …
 It shows the rules, marks the broad ones, says for each command whether the list covers it, and
 exits with 1 while one is not. For each harness the owner picked:
 
-- **Claude Code** and **Codex in Obeya** read `.claude/settings.json`; nothing more to write.
-- **Codex run outside Obeya** has its own rule engine: with `--codex` the check also writes
+- **Claude Code** and **Codex in Seismic** read `.claude/settings.json`; nothing more to write.
+- **Codex run outside Seismic** has its own rule engine: with `--codex` the check also writes
   `.codex/rules/obeya.rules` from the same list. Write it only where the owner picked Codex.
 
 In your summary list the rules you added and where each comes from, so the owner can judge them
@@ -139,5 +137,5 @@ Commit `.obeya/` and the allow list (`.claude/settings.json`, `.codex/rules/obey
 wrote it), nothing else. In the summary say what the settings set and why where it was a judgement
 call (the checks you left out, clones or worktrees), what the owner answered, and
 that they count once they are on the default branch (at once; where they move the workers between
-clones and worktrees, Obeya restarts the repository's agents by itself), and that the allow
+clones and worktrees, Seismic restarts the repository's agents by itself), and that the allow
 list counts once they trusted it in the configuration.

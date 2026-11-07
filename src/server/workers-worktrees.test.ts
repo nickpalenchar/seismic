@@ -25,7 +25,7 @@ describe('a worktree per card', () => {
 
   test('a worktree git cannot add puts the card back as planned, its conversation saying why', async () => {
     const c = manual();
-    // the Obeya checkout is on it: git adds no second worktree there
+    // the Seismic checkout is on it: git adds no second worktree there
     board.work(c.id, { branch: 'main' });
     await workers.start(c.id);
     expect(board.item(c.id)!.state).toBe('planned');
@@ -185,7 +185,7 @@ describe('a worktree per card', () => {
     expect(await spaces.changes(a.id)).toEqual([]);
     expect((await spaces.diff(a.id, true))!.files).toEqual([]);
     // the worker hears what the owner's button does, as the card shows it
-    expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() })).toContain('Obeya sees no change on your branch');
+    expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() })).toContain('Seismic sees no change on your branch');
     expect(board.item(a.id)!.noChange).toBe(true);
 
     commitIn(wa, 'own.ts', 'Own');
@@ -275,9 +275,10 @@ describe('a worktree per card', () => {
     await workers.approve(b.id);
     expect(state(b.id)).toBe('working');
     expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'error', code: 'landConflict' });
+    expect(board.item(b.id)).toMatchObject({ resolvingConflicts: true });
     expect(sb.inbox.at(-1)).toContain('conflicts in same.ts');
 
-    // the owner has local edits in the Obeya checkout on a file the card changes
+    // the owner has local edits in the Seismic checkout on a file the card changes
     const c = board.create({ title: 'Dritte', x: 0, y: 0 });
     await workers.start(c.id);
     commitIn(board.row(c.id).workspace!, 'mine.ts', 'C');
@@ -290,7 +291,7 @@ describe('a worktree per card', () => {
     expect(state(c.id)).toBe('waiting:demo');
     // the worker hears it with the owner's next words, rather than telling them the card still waits as if nothing had happened
     workers.message(c.id, 'Warum ist das nicht gelandet?');
-    expect(sc.inbox.at(-1)).toContain('the owner approved your work, but Obeya could not land it on main');
+    expect(sc.inbox.at(-1)).toContain('the owner approved your work, but Seismic could not land it on main');
     expect(sc.inbox.at(-1)).toContain('Warum ist das nicht gelandet?');
     // approved again in vain, then once the owner cleared the checkout: the worker hears it landed, not an earlier failure
     sc.emit({ type: 'idle' });
@@ -302,7 +303,59 @@ describe('a worktree per card', () => {
     expect(sc.inbox.at(-1)).not.toContain('could not land');
   });
 
-  test('an approval while a restart is due that cannot land: the worker leaves the conflict until Obeya resumes it', async () => {
+  test('the checkout’s own changes in the way: folded into the card, they land with it, and the checkout’s other changes stay', async () => {
+    writeFileSync(join(main, 'mine.ts'), 'a\nb\nc\n');
+    git(main, 'add', '.');
+    git(main, 'commit', '--quiet', '-m', 'mine');
+    const c = manual();
+    await workers.start(c.id);
+    commitIn(board.row(c.id).workspace!, 'mine.ts', 'card\nb\nc\n');
+    writeFileSync(join(main, 'mine.ts'), 'a\nb\nowner\n');
+    writeFileSync(join(main, 'other.ts'), 'unrelated');
+    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workspace)!;
+    await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
+    sc.emit({ type: 'idle' });
+    expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
+    expect(board.item(c.id)!.blocked).toEqual({ files: ['mine.ts'] });
+    // the owner folds them in, the approval kept: the worker works them in, and its next handover lands
+    await workers.fold(c.id, true);
+    expect(state(c.id)).toBe('working');
+    expect(board.item(c.id)!.blocked).toBeUndefined();
+    expect(sc.inbox.at(-1)).toContain('moved those changes into your branch');
+    expect(sc.inbox.at(-1)).toContain('the approval holds');
+    expect(sc.inbox.at(-1)).not.toContain('could not land it on main:');
+    const ws = board.row(c.id).workspace!;
+    expect(git(ws, 'log', '-1', '--format=%s')).toContain('folded into this card');
+    expect(git(ws, 'show', 'HEAD:mine.ts')).toBe('card\nb\nowner');
+    expect(git(main, 'diff', '--name-only')).toBe('');
+    expect(git(main, 'status', '--porcelain')).toBe('?? other.ts');
+    await sc.call('ready_for_review', { summary: 'S2' });
+    sc.emit({ type: 'idle' });
+    await until(() => state(c.id) === 'live');
+    expect(git(main, 'show', 'HEAD:mine.ts')).toBe('card\nb\nowner');
+    expect(git(main, 'status', '--porcelain')).toBe('?? other.ts');
+  });
+
+  test('folded in for a new demo, a conflict stays under way for the worker, and the owner approves anew', async () => {
+    const c = manual();
+    await workers.start(c.id);
+    commitIn(board.row(c.id).workspace!, 'shared.ts', 'card\n');
+    writeFileSync(join(main, 'shared.ts'), 'owner\n');
+    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workspace)!;
+    await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
+    sc.emit({ type: 'idle' });
+    await workers.approve(c.id).catch(() => {});
+    await workers.fold(c.id, false);
+    expect(state(c.id)).toBe('working');
+    expect(board.row(c.id).approved_at).toBeNull();
+    expect(sc.inbox.at(-1)).toContain('git cherry-pick --continue');
+    expect(sc.inbox.at(-1)).toContain('make a new demo');
+    expect(gitOrNull(board.row(c.id).workspace!, 'rev-parse', '-q', '--verify', 'CHERRY_PICK_HEAD')).not.toBeNull();
+    expect(git(main, 'status', '--porcelain')).toBe('');
+    expect(git(main, 'rev-parse', 'refs/obeya/folded/' + c.id)).toBeTruthy();
+  });
+
+  test('an approval while a restart is due that cannot land: the worker leaves the conflict until Seismic resumes it', async () => {
     const a = manual();
     const b = board.create({ title: 'Zweite Karte', x: 0, y: 0 });
     await workers.start(a.id);
@@ -315,22 +368,27 @@ describe('a worktree per card', () => {
     await workers.approve(a.id);
     await sb.call('ready_for_review', { summary: 'S', demo: artifact() });
     sb.emit({ type: 'idle' });
-    // the landing of the first card is about to restart Obeya; the owner approves the second meanwhile
+    // the landing of the first card is about to restart Seismic; the owner approves the second meanwhile
     workers.restartDue({ reason: 'code', deadline: Date.now() + 12 * 60_000 });
     expect(board.events(b.id).at(-1)).not.toMatchObject({ kind: 'state', text: expect.stringContaining('Neustart') });
     await workers.approve(b.id);
     expect(state(b.id)).toBe('working');
     expect(sb.inbox.at(-1)).toContain('conflicts in same.ts');
-    expect(sb.inbox.at(-1)).toContain('Obeya is about to restart (new code landed on main)');
-    expect(sb.inbox.at(-1)).toContain('leave the work it asks for until Obeya resumes you, and end your turn, without handing over');
+    expect(sb.inbox.at(-1)).toContain('Seismic is about to restart (new code landed on main)');
+    expect(sb.inbox.at(-1)).toContain('leave the work it asks for until Seismic resumes you, and end your turn, without handing over');
     expect(sb.inbox.at(-1)).not.toContain('finish the step you are in');
-    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: 'Obeya wartet auf einen Neustart; der Agent macht danach weiter.' });
+    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: 'Seismic wartet auf einen Neustart; der Agent macht danach weiter.' });
     // it ends the turn at once: paused, the approval still held for the handover after the restart
     sb.emit({ type: 'idle' });
     expect(workers.busyCards()).not.toContain(b.id);
     expect(state(b.id)).toBe('working');
     expect(board.row(b.id).approved_at).toBeTruthy();
-    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Obeya.' });
+    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Seismic.' });
+    // the card shows it paused for the restart, while that is due
+    expect(board.item(b.id)).toMatchObject({ restartPaused: true });
+    expect(board.item(b.id)!.inTurn).toBeUndefined();
+    workers.restartDue(null);
+    expect(board.item(b.id)!.restartPaused).toBeUndefined();
   });
 
   test('an approval that could not land holds: the worker brings the branch up to date and it lands', async () => {
@@ -384,7 +442,7 @@ describe('a worktree per card', () => {
     git(wc, 'reset', '--quiet', '--hard', 'main');
     commitIn(wc, 'c.ts', 'C on main');
 
-    // the owner edited the same file in the Obeya checkout meanwhile: the card waits and needs a new approval
+    // the owner edited the same file in the Seismic checkout meanwhile: the card waits and needs a new approval
     writeFileSync(join(main, 'c.ts'), 'local edit');
     await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
     expect(state(c.id)).toBe('working');
@@ -405,7 +463,7 @@ describe('a worktree per card', () => {
     const c = manual();
     await workers.start(c.id);
     commitIn(board.row(c.id).workspace!, 'c.ts', 'C');
-    // an agent worked in the Obeya checkout on a branch of its own
+    // an agent worked in the Seismic checkout on a branch of its own
     git(main, 'checkout', '--quiet', '-b', 'foundation');
     commitIn(main, 'stray.ts', 'Stray');
     const sc = runtime.last;
@@ -416,8 +474,8 @@ describe('a worktree per card', () => {
     expect(git(main, 'branch', '--show-current')).toBe('main');
     expect(git(main, 'log', '--format=%s', '-1')).toBe('C');
     expect(git(main, 'log', '--format=%s', '-1', 'foundation')).toBe('Stray');
-    expect(board.events(c.id).map((e) => e.text)).toContain('Der Obeya-Checkout stand auf dem Branch foundation. Obeya hat ihn zum Landen auf main gewechselt; foundation bleibt, wie er war.');
-    expect(sc.inbox.at(-1)).toContain('The Obeya checkout was on the branch foundation, not on main: Obeya switched it to main to land your work. foundation has a commit main does not');
+    expect(board.events(c.id).map((e) => e.text)).toContain('Der Seismic-Checkout stand auf dem Branch foundation. Seismic hat ihn zum Landen auf main gewechselt; foundation bleibt, wie er war.');
+    expect(sc.inbox.at(-1)).toContain('The Seismic checkout was on the branch foundation, not on main: Seismic switched it to main to land your work. foundation has a commit main does not');
   });
 
   test('a checkout found on another branch with uncommitted changes goes to the worker, the approval held', async () => {
@@ -434,7 +492,7 @@ describe('a worktree per card', () => {
     expect(state(c.id)).toBe('working');
     expect(board.row(c.id).approved_at).toBeTruthy();
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'error', code: 'landCheckout' });
-    expect(sc.inbox.at(-1)).toContain(`the Obeya checkout (${main}) is on branch foundation, not on main, and has uncommitted changes (stray.ts)`);
+    expect(sc.inbox.at(-1)).toContain(`the Seismic checkout (${main}) is on branch foundation, not on main, and has uncommitted changes (stray.ts)`);
     expect(git(main, 'branch', '--show-current')).toBe('foundation');
 
     // the worker carries the stray file into its branch and leaves the checkout clean: its next handover lands
@@ -689,7 +747,7 @@ describe('a worktree per card', () => {
     expect(workers.busyCards()).toEqual([]);
     expect(board.item(c.id)!.finishing).toBe(true);
 
-    // Obeya starts again: the worker resumes its session in the worktree it had
+    // Seismic starts again: the worker resumes its session in the worktree it had
     workers.shutdown();
     const after = restarting(new Board(store, board.canvas, () => ({ docs: [doc], dirs: [] })));
     after.resumeAll();
@@ -819,7 +877,7 @@ describe('a worktree per card', () => {
     await s.call('ready_for_review', { summary: 'S', demo: artifact() });
     s.emit({ type: 'idle' });
     await workers.approve(c.id);
-    // a restart Obeya does not start for this landing (another repository's adapter, say) comes while it finishes
+    // a restart Seismic does not start for this landing (another repository's adapter, say) comes while it finishes
     workers.restartDue({ reason: 'repository', deadline: Date.now() + 60_000 });
     expect(s.inbox.at(-1)).toContain('Pause at the next safe point');
     s.emit({ type: 'text', text: 'Pausing for the restart.' });

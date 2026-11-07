@@ -1,6 +1,6 @@
 // Other cards named in a card's text: `/` in its task field opens a menu of the canvas's cards whose
 // titles fit what follows, and the one picked stands in the text as a markdown link to its address
-// (`[Title](/c/<canvas>/card/<code>)`); the field shows it as a pill (`cardMenu.tsx`), and so does
+// (`[Title](/p/<project>/c/<code>)`); the field shows it as a pill (`cardMenu.tsx`), and so does
 // every place that shows the text: a smart link, with the card's state, its current title and its
 // priority (`SmartLink`). The agent reads the link as it stands: the card's title, and where it lives.
 
@@ -37,7 +37,7 @@ export function cardSearchAt(text: string, caret: number): CardSearch | null {
  * code; titles that start with the query first, then the rest, each group as listed. Not `self`,
  * nor what is archived.
  */
-export function matchingCards(items: Item[], query: string, self?: string): Item[] {
+export function matchingCards(items: Item[], query: string, self?: string, limit = SHOWN): Item[] {
   const q = query.trim().toLowerCase();
   const words = q.split(/\s+/).filter(Boolean);
   const fit = items.filter((i) => {
@@ -46,17 +46,18 @@ export function matchingCards(items: Item[], query: string, self?: string): Item
     return words.every((w) => title.includes(w) || i.short === w);
   });
   const first = fit.filter((i) => i.title.toLowerCase().startsWith(q));
-  return [...first, ...fit.filter((i) => !first.includes(i))].slice(0, SHOWN);
+  return [...first, ...fit.filter((i) => !first.includes(i))].slice(0, limit);
 }
 
 /** A card's title as the text of its link: brackets in it would end the link's text early. */
 export const linkText = (title: string) => title.replace(/[[\]]/g, '').replace(/\s+/g, ' ').trim();
 
-const HREF = /^\/c\/([^/]+)\/card\/([^/?#]+)$/;
+const HREF = /^\/p\/([^/]+)\/c\/([^/?#]+)$/;
+const LEGACY_HREF = /^\/c\/([^/]+)\/card\/([^/?#]+)$/;
 
 /** The canvas and card code an address of a card names; null for any other address. */
 export function cardHref(href: string): { canvas: string; code: string } | null {
-  const m = HREF.exec(href);
+  const m = HREF.exec(href) ?? LEGACY_HREF.exec(href);
   if (!m) return null;
   try {
     return { canvas: decodeURIComponent(m[1]!), code: decodeURIComponent(m[2]!) };

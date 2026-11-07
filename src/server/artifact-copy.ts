@@ -4,7 +4,7 @@
 // and from a ZIP opened from disk none of them loads at all. Behind a login (Cloudflare Access, say)
 // no request of the frame for a file beside it gets through: the browser sends them as cross-site,
 // without the login's cookie (Firefox never, Chrome where the cookie is not `SameSite=None`), and
-// the login answers with its own page, an image as much as a module script. Inside Obeya the files
+// the login answers with its own page, an image as much as a module script. Inside Seismic the files
 // are served under a keyed address instead (`keyed` in demo.ts); a static site cannot do that. So
 // the copy's pages load no file beside them: their module scripts are bundled into the page, the
 // files they name (an image, a stylesheet with what it loads in turn, a classic script, a font,

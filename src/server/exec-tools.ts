@@ -1,6 +1,6 @@
 // The tools a Codex worker reaches what its sandbox keeps from it through (docs/design/agents-and-workspaces.md):
 // network, a browser, a local server, a git write in a worktree (its `.git` lies in the main
-// repository, outside the workspace), a place outside the workspace. Obeya runs the call itself,
+// repository, outside the workspace), a place outside the workspace. Seismic runs the call itself,
 // on the owner's machine and with the owner's rights; what makes that safe is the gate (the
 // repository's confirmed allow list, else the owner is asked) and the places a command may run in,
 // not a sandbox. Claude workers have no use for them: their own tools and the same allow list cover this.
@@ -24,6 +24,12 @@ export interface ExecLane {
   ask: (request: PermissionRequest) => Promise<PermissionAnswer>;
   /** Added to the command's environment. */
   env?: Record<string, string>;
+  /**
+   * Codex's own automatic review decides for the worker (`AgentSpec.autoReview`): a command the
+   * allow list does not cover is not asked, the worker runs it in its own shell with escalated
+   * permissions, where that review judges it.
+   */
+  auto?: boolean;
 }
 
 export const DEFAULT_TIMEOUT = 300;
@@ -102,7 +108,7 @@ const GIT_REFUSED_FLAGS = /^(?:--git-dir|--work-tree|--exec|--upload-pack|--rece
 export function gitRefusal(args: string[]): string | null {
   const sub = args[0];
   if (!sub || sub.startsWith('-')) return 'The first argument is the git subcommand (git options before it are not accepted).';
-  if (!GIT_ALLOWED.has(sub)) return `git ${sub} is not available here (${[...GIT_ALLOWED].join(', ')} are). Pushing and settings are not yours to change; Obeya lands the work.`;
+  if (!GIT_ALLOWED.has(sub)) return `git ${sub} is not available here (${[...GIT_ALLOWED].join(', ')} are). Pushing and settings are not yours to change; Seismic lands the work.`;
   const flag = args.slice(1).find((a) => GIT_REFUSED_FLAGS.test(a) || (sub === 'rebase' && /^-[a-wyzA-Z]*x/.test(a)));
   return flag ? `${flag} is not accepted.` : null;
 }
@@ -110,17 +116,26 @@ export function gitRefusal(args: string[]): string | null {
 /** What a Codex worker's system prompt says of its two tools: what they are for, in terms of what its own shell cannot do. */
 export const EXEC_LANE_NOTE =
   'Your own shell is sandboxed: it writes only in your workspace and the temporary directories, has no network and cannot reach a local server, and cannot write your worktree’s .git. ' +
-  'The tools obeya_run (a shell command outside the sandbox) and obeya_git (git in your workspace) do what it cannot: git writes such as add, commit and rebase, installing packages, running a browser or a local app, recording a demo, writing into the demos directory.';
+  'The tools seismic_run (a shell command outside the sandbox) and seismic_git (git in your workspace) do what it cannot: git writes such as add, commit and rebase, installing packages, running a browser or a local app, recording a demo, writing into the demos directory.';
 
-/** `obeya_run` and `obeya_git` for a Codex worker whose workspace lies on this machine. */
+/** The same for a worker whose approvals Codex's automatic review decides. */
+export const EXEC_LANE_AUTO_NOTE =
+  'Your own shell is sandboxed: it writes only in your workspace and the temporary directories, has no network and cannot reach a local server, and cannot write your worktree’s .git. ' +
+  'For a command the sandbox stops, request escalated permissions: Codex’s automatic review decides, nobody is asked. ' +
+  'seismic_git (git in your workspace) does git writes such as add, commit and rebase without one, seismic_run the commands the repository’s allow list covers.';
+
+/** Execution tools for a Codex worker whose workspace lies on this machine. */
 export function execTools(lane: ExecLane): AgentTool[] {
   const env = { ...lane.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true', GIT_SEQUENCE_EDITOR: 'true', CI: '1' };
   return [
     {
-      name: 'obeya_run',
+      name: 'run',
       description:
         'Runs a shell command outside your sandbox, on the owner’s machine: for what the sandbox keeps from your own shell (network, a browser, a local server, files outside the workspace). Runs in the workspace, a temporary directory or the demos directory (`cwd`). ' +
-        'Commands the repository’s allow list covers run at once; any other waits for the owner’s answer. No stdin; a command that outlives `timeout_seconds` is ended with everything it started. ' +
+        (lane.auto
+          ? 'Only commands the repository’s allow list covers run; run any other in your own shell with escalated permissions. '
+          : 'Commands the repository’s allow list covers run at once; any other waits for the owner’s answer. ') +
+        'No stdin; a command that outlives `timeout_seconds` is ended with everything it started. ' +
         'Output longer than a few thousand lines comes back as its start and end.',
       schema: {
         command: z.string().describe('The shell line to run'),
@@ -134,6 +149,7 @@ export function execTools(lane: ExecLane): AgentTool[] {
         const cwd = placeFor(lane, typeof args.cwd === 'string' ? args.cwd : undefined);
         if (!cwd) return 'Not run: cwd is not a directory in the workspace, a temporary directory or the demos directory.';
         if (!allowed(lane.rules(), command, undefined, [lane.workspace, ...lane.places()])) {
+          if (lane.auto) return 'Not run: the repository’s allow list does not cover it. Run it in your own shell and request escalated permissions there; Codex’s automatic review decides.';
           const answer = await lane.ask({ name: 'Bash', input: { command }, ...(typeof args.reason === 'string' && args.reason ? { reason: args.reason } : {}) });
           if (!answer.allow) return `Not run: ${answer.message}`;
         }
@@ -142,10 +158,10 @@ export function execTools(lane: ExecLane): AgentTool[] {
       },
     },
     {
-      name: 'obeya_git',
+      name: 'git',
       description:
         'Runs git in your workspace, outside your sandbox (a worktree’s .git lies in the main repository, which your own shell cannot write): ' +
-        `${[...GIT_ALLOWED].join(', ')}. No push and no settings; Obeya lands your branch. Pass the arguments after "git" as a list.`,
+        `${[...GIT_ALLOWED].join(', ')}. No push and no settings; Seismic lands your branch. Pass the arguments after "git" as a list.`,
       schema: { args: z.array(z.string()).min(1).describe('The arguments after "git", e.g. ["commit", "-m", "Fix the export"]') },
       run: async (args) => {
         const list = Array.isArray(args.args) ? args.args.map(String) : [];

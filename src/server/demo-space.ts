@@ -1,4 +1,4 @@
-// The disk space demos take in the demo directory, and the frames of old renders that Obeya
+// The disk space demos take in the demo directory, and the frames of old renders that Seismic
 // deletes: a render keeps the frames it was cut from in its work directory (`.work/frames`, about
 // half a gigabyte a demo), which only re-voicing needs once the video is made (design: Demos, Disk
 // space of demos).
@@ -14,9 +14,9 @@ import { type DemoSettings, demoDirectory } from '../../plugin/skills/demo/lib/s
 export const DEFAULT_KEEP_DAYS = 14;
 
 const DAY_MS = 24 * 3600_000;
-/** How often Obeya looks for frames to delete. */
+/** How often Seismic looks for frames to delete. */
 const SWEEP_EVERY_MS = 6 * 3600_000;
-/** The first look after Obeya starts: not in the middle of its start. */
+/** The first look after Seismic starts: not in the middle of its start. */
 const FIRST_SWEEP_MS = 60_000;
 /** Demos whose work directories are looked for at the same time. */
 const DEMOS_AT_ONCE = 16;
@@ -24,8 +24,8 @@ const DEMOS_AT_ONCE = 16;
 const STALE_MS = 10 * 60_000;
 
 /**
- * The days that apply: the settings', else the default, which only the Obeya in the default home
- * (`~/.obeya`) applies. Another home (a scratch Obeya, a test, a render's own Obeya) shares the demo
+ * The days that apply: the settings', else the default, which only the Seismic in the default home
+ * (`~/.obeya`) applies. Another home (a scratch Seismic, a test, a render's own Seismic) shares the demo
  * directory without sharing the owner's demo settings, so it deletes only where its own say so.
  */
 export function keepDays(s: Pick<DemoSettings, 'keepFrames'>, home: string): number | null {
@@ -145,7 +145,7 @@ export async function sweep(dir: string, days: number, now = Date.now()): Promis
 
 /**
  * The demo directory's space for the configuration's Demos section, and the deletion of old frames:
- * a while after Obeya starts, every few hours after that, and at once when the owner changes how
+ * a while after Seismic starts, every few hours after that, and at once when the owner changes how
  * long they are kept. One job at a time; each deletion is followed by a count, and the section
  * opened counts again when the last count is old.
  */
@@ -216,19 +216,19 @@ export class DemoSpace {
     const dir = demoDirectory(s);
     try {
       const days = this.unreadable() ? null : keepDays(s, this.o.home);
-      // an Obeya that keeps every frame has nothing to delete, and counts only for the owner looking
+      // an Seismic that keeps every frame has nothing to delete, and counts only for the owner looking
       // (or for a directory it has no count of)
       if (sweeping && days === null && this.used?.dir === dir) return;
       if (sweeping && days !== null) {
         const freed = await sweep(dir, days);
         if (freed.demos) {
           this.freed = { at: new Date().toISOString(), ...freed, dir };
-          this.o.log?.(`Obeya: deleted the frames of ${freed.demos} demo${freed.demos === 1 ? '' : 's'} in ${dir} last rendered more than ${days} days ago (${(freed.bytes / 1e9).toFixed(1)} GB)`);
+          this.o.log?.(`Seismic: deleted the frames of ${freed.demos} demo${freed.demos === 1 ? '' : 's'} in ${dir} last rendered more than ${days} days ago (${(freed.bytes / 1e9).toFixed(1)} GB)`);
         }
       }
       this.used = { ...(await usage(dir)), at: new Date().toISOString(), dir };
     } catch (e) {
-      this.o.log?.(`Obeya: counting or tidying the demos in ${dir} failed: ${(e as Error).message}`);
+      this.o.log?.(`Seismic: counting or tidying the demos in ${dir} failed: ${(e as Error).message}`);
     }
   }
 
@@ -240,7 +240,7 @@ export class DemoSpace {
       JSON.parse(readFileSync(file, 'utf8'));
       return false;
     } catch {
-      this.o.log?.(`Obeya: ${file} does not read; no demo frames are deleted until it does`);
+      this.o.log?.(`Seismic: ${file} does not read; no demo frames are deleted until it does`);
       return true;
     }
   }

@@ -1,6 +1,6 @@
 // A repository's theme for its shared demo pages: `.obeya/theme.css` as its default branch has it
-// (like its settings, `readShared`), not as a card's branch does. Obeya manages nothing of it: the
-// file goes into each page after Obeya's own style (demo-page.ts), so it wins, with the files it
+// (like its settings, `readShared`), not as a card's branch does. Seismic manages nothing of it: the
+// file goes into each page after Seismic's own style (demo-page.ts), so it wins, with the files it
 // names (`url()`, `@import`: a logo, a font) as `data:` URLs where their real path lies in
 // `.obeya/`; what else it names, a file elsewhere or an address on the internet, is dropped. A page
 // is published with the theme's hash, and is outdated once the hash differs (board.ts).

@@ -192,14 +192,14 @@ describe('a canvas over a folder without git', () => {
     expect(canvas.board.events(card.id).some((e) => e.kind === 'review')).toBe(false);
   });
 
-  test('cards handed over without a demo before Obeya kept their list get it at the start, archived ones too, while their files are there', async () => {
+  test('cards handed over without a demo before Seismic kept their list get it at the start, archived ones too, while their files are there', async () => {
     const handed = async (title: string, file: string) => {
       const card = canvas.board.create({ title, x: 0, y: 0 });
       await canvas.repoOf(card.id).workers.start(card.id);
       const a = runtime.last;
       await a.use('Write', { file_path: join(docs, file) }, () => writeFileSync(join(docs, file), `# ${title}\n`));
       expect(await a.call('ready_for_review', { summary: 'Done.' })).toContain('Recorded');
-      // as an Obeya before kept it
+      // as an Seismic before kept it
       canvas.board.work(card.id, { files: null });
       return { id: card.id, a };
     };

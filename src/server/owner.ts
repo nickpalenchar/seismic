@@ -1,11 +1,11 @@
-// Only the owner talks to Obeya from this machine (design: Who may talk to it). Every request names
-// the owner's key, a secret in `owner.key` in Obeya's home that only the owner's account may read
-// (0600): in the header `X-Obeya-Key` (the app's shell, Obeya's own scripts) or in a cookie (the
+// Only the owner talks to Seismic from this machine (design: Who may talk to it). Every request names
+// the owner's key, a secret in `owner.key` in Seismic's home that only the owner's account may read
+// (0600): in the header `X-Obeya-Key` (the app's shell, Seismic's own scripts) or in a cookie (the
 // page, the push-to-talk panel). A browser gets the cookie from a link with a token
-// (`/login?token=…`), as Jupyter's: Obeya prints it when it starts, and gives it to whoever holds
-// the key (`POST /api/login-link`: the app's shell, a second start of Obeya,
+// (`/login?token=…`), as Jupyter's: Seismic prints it when it starts, and gives it to whoever holds
+// the key (`POST /api/login-link`: the app's shell, a second start of Seismic,
 // scripts/scratch-obeya.ts). It signs in any number of browsers until the server stops; a link
-// that goes through the system's `open` (the app's „Im Browser öffnen“), where other accounts see
+// that goes through the system's `open` (the app's "Open in browser"), where other accounts see
 // it in the process list, has a token of its own that signs in one browser.
 // Another program or account on the machine reaches the port but holds neither.
 
@@ -54,7 +54,7 @@ export function ownerKey(home: string): string {
 /** The header that carries the owner's key of `home`, for a script's requests. */
 export const ownerHeaders = (home: string) => ({ [KEY_HEADER]: ownerKey(home) });
 
-/** A link for `base` (`http://127.0.0.1:4417`) to open signed in, from the Obeya there that holds the key of `home`; `null` when none answers. */
+/** A link for `base` (`http://127.0.0.1:4417`) to open signed in, from the Seismic there that holds the key of `home`; `null` when none answers. */
 export async function loginLink(base: string, home: string, next = '/'): Promise<string | null> {
   try {
     const r = await fetch(`${base.replace(/\/$/, '')}/api/login-link`, {
@@ -92,18 +92,18 @@ const same = (a: string, b: string) => {
 };
 
 /**
- * On to `next` from a page of Obeya's own rather than with a redirect: a link opened from another
+ * On to `next` from a page of Seismic's own rather than with a redirect: a link opened from another
  * site or app (the app's shell navigates its window from its own `tauri:` page) starts a cross-site
  * navigation, and a browser sends a `SameSite=Strict` cookie on none of its redirects, so the
  * canvas would get no cookie. Going on from this page, the navigation is the site's own.
  */
 function onward(next: string, headers: Record<string, string> = {}): Response {
   const attr = next.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-  const html = `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${attr}"><title>Obeya</title><script>location.replace(${JSON.stringify(next).replace(/</g, '\\u003c')})</script>`;
+  const html = `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${attr}"><title>Seismic</title><script>location.replace(${JSON.stringify(next).replace(/</g, '\\u003c')})</script>`;
   return new Response(html, { headers: { ...headers, 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
-/** A path of Obeya's to go to after signing in; anything else is `/`. */
+/** A path of Seismic's to go to after signing in; anything else is `/`. */
 const localPath = (next: string | null) => (next && next.startsWith('/') && new URL(next, 'http://obeya').origin === 'http://obeya' ? next : '/');
 
 export class Owner {
@@ -120,7 +120,7 @@ export class Owner {
     this.language = o.language ?? (() => 'de');
   }
 
-  /** The cookie of the Obeya on `port`: a browser keeps cookies per host, not per port, and a scratch Obeya beside it has another key. */
+  /** The cookie of the Seismic on `port`: a browser keeps cookies per host, not per port, and a scratch Seismic beside it has another key. */
   cookieName(port: number) {
     return `obeya-${port}`;
   }
@@ -138,12 +138,12 @@ export class Owner {
     const url = new URL(req.url);
     if (req.headers.get('sec-fetch-site') === 'cross-site' && req.headers.get('sec-fetch-mode') === 'navigate' && !url.pathname.startsWith('/api/'))
       return onward(localPath(`${url.pathname}${url.search}`));
-    if (route.startsWith('/api/')) return Response.json({ code: 'notOwner', error: 'only the owner talks to Obeya: this request names no owner key' }, { status: 401 });
+    if (route.startsWith('/api/')) return Response.json({ code: 'notOwner', error: 'only the owner talks to Seismic: this request names no owner key' }, { status: 401 });
     return this.page(false);
   }
 
   /**
-   * A link at `base` that signs a browser in and opens `next`, a path of Obeya's: with the run's
+   * A link at `base` that signs a browser in and opens `next`, a path of Seismic's: with the run's
    * token, or with `once` one of its own that signs in one browser.
    */
   link(base: string, next = '/', once = false): string {

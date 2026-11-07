@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from 'bun:test';
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { CanvasSnapshot } from '../src/core/types';
@@ -21,7 +21,7 @@ afterAll(() => {
 
 const artifact = join(tmp, 'artifact');
 
-test('stages a scratch Obeya with its cards in the states the stage file gives', async () => {
+test('stages a scratch Seismic with its cards in the states the stage file gives', async () => {
   const stage = join(tmp, 'stage.json');
   mkdirSync(artifact);
   writeFileSync(join(artifact, 'index.html'), '<h1>First draft</h1>');
@@ -48,11 +48,15 @@ test('stages a scratch Obeya with its cards in the states the stage file gives',
   // a link that signs a browser in and opens the canvas
   expect(staged.url).toStartWith(`http://127.0.0.1:${port}/login?token=`);
   const signed = await fetch(staged.url, { redirect: 'manual' });
-  expect(await signed.text()).toContain('location.replace("/c/repo")');
+  expect(await signed.text()).toContain('location.replace("/p/repo")');
   // again, in another browser
   expect((await fetch(staged.url, { redirect: 'manual' })).status).toBe(200);
   // the same from --login
   expect(Bun.spawnSync([process.execPath, script, '--login', String(port), '--dir', dir]).stdout.toString().trim()).toBe(staged.url);
+  // --list finds it outside /tmp/obeya-scratch-<port> too, and --login without --dir
+  const line = Bun.spawnSync([process.execPath, script, '--list']).stdout.toString().split('\n').find((l) => l.includes(`"port":${port},`));
+  expect(JSON.parse(line!)).toMatchObject({ port, dir, database: join(dir, 'home', 'obeya.db') });
+  expect(Bun.spawnSync([process.execPath, script, '--login', String(port)]).stdout.toString().trim()).toBe(staged.url);
   // the API with the owner's key of its home
   const headers = ownerHeaders(join(dir, 'home'));
   const { items } = (await (await fetch(`http://127.0.0.1:${port}/api/c/${staged.canvas}/canvas`, { headers })).json()) as CanvasSnapshot;
@@ -93,7 +97,7 @@ test("--say and --artifact act as a staged card's agent, through the server", as
   ]);
   expect((await card('A')).statusLine).toBe('Writing tests');
   expect(run('--say', String(port), 'A', 'shout', 'x').stderr.toString()).toContain('usage');
-  // the artifact handed over again, its file rewritten in the scratch Obeya's copy, not in the stage's
+  // the artifact handed over again, its file rewritten in the scratch Seismic's copy, not in the stage's
   const before = (await card('H')).demo!;
   const next = join(tmp, 'index.html');
   writeFileSync(next, '<h1>Second draft</h1>');
@@ -119,7 +123,7 @@ test('without a port, stagings at the same time each pick a free one, and stagin
     const p = Bun.spawn([process.execPath, script, f], { stdout: 'pipe', stderr: 'pipe' });
     const [out, err] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
     expect(err).toBe('');
-    return JSON.parse(out) as { url: string; port: number; dir: string; pid: number };
+    return JSON.parse(out) as { url: string; port: number; dir: string; pid: number; home: string; repo: string; database: string; log: string };
   };
   const [one, two] = await Promise.all(stages.map(stageAt));
   try {
@@ -129,6 +133,32 @@ test('without a port, stagings at the same time each pick a free one, and stagin
       expect(s.dir).toBe(`/tmp/obeya-scratch-${s.port}`);
       expect((await fetch(s.url, { redirect: 'manual' })).status).toBe(200);
     }
+    // --list gives each one's paths, and the stage output the same
+    const listed = () =>
+      Bun.spawnSync([process.execPath, script, '--list'])
+        .stdout.toString()
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((l) => JSON.parse(l) as Record<string, string | number>);
+    for (const [i, s] of [one!, two!].entries()) {
+      const line = listed().find((l) => l.port === s.port)!;
+      expect(line).toEqual({
+        port: s.port,
+        url: s.url,
+        dir: s.dir,
+        home: `${s.dir}/home`,
+        repo: `${s.dir}/repo`,
+        database: `${s.dir}/home/obeya.db`,
+        log: `${s.dir}/server.log`,
+        stage: realpathSync(stages[i]!),
+      });
+      expect(s).toMatchObject({ home: line.home, repo: line.repo, database: line.database, log: line.log });
+      for (const path of [line.home, line.repo, line.database, line.log]) expect(existsSync(path as string)).toBe(true);
+    }
+    Bun.spawnSync([process.execPath, script, '--stop', String(two!.port)]);
+    expect(listed().map((l) => l.port)).toContain(one!.port);
+    expect(listed().map((l) => l.port)).not.toContain(two!.port);
     const again = await stageAt(stages[0]!);
     expect(again.port).toBe(one!.port);
     expect(again.pid).not.toBe(one!.pid);

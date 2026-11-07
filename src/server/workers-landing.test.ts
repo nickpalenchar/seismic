@@ -101,7 +101,7 @@ describe('a card whose own branch changes how work lands', () => {
     mkdirSync(join(clone, '.obeya'), { recursive: true });
     writeFileSync(join(clone, '.obeya/settings.json'), JSON.stringify(settings));
     git(clone, 'add', '.');
-    git(clone, 'commit', '--quiet', '-m', 'Obeya settings');
+    git(clone, 'commit', '--quiet', '-m', 'Seismic settings');
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
     runtime.last.emit({ type: 'idle' });
     return c;
@@ -115,7 +115,7 @@ describe('a card whose own branch changes how work lands', () => {
     await workers.approve(c.id);
     expect(state(c.id)).toBe('live');
     expect(board.item(c.id)!.pr).toBeUndefined();
-    expect(git(main, 'log', '--format=%s', '-1')).toBe('Obeya settings');
+    expect(git(main, 'log', '--format=%s', '-1')).toBe('Seismic settings');
   });
 
   test('as a pull request where the repository still lands on main', async () => {
@@ -160,6 +160,30 @@ describe('landing on main from a clone of the remote', () => {
     expect(state(c.id)).toBe('live');
     expect(git(main, 'log', '--format=%s', '-3').split('\n')).toEqual(['Zählerstände als CSV', 'Andere Karte', 'init']);
   });
+
+  test('the checkout’s uncommitted changes in the way go into the clone’s branch, and land with it', async () => {
+    const c = board.create({ title: 'Zählerstände exportieren', x: 0, y: 0 });
+    await workers.start(c.id);
+    const clone = board.row(c.id).workspace!;
+    writeFileSync(join(clone, 'k.ts'), 'k');
+    git(clone, 'add', '.');
+    git(clone, 'commit', '--quiet', '-m', 'Zählerstände als CSV');
+    writeFileSync(join(main, 'k.ts'), 'k from the owner');
+    await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
+    runtime.last.emit({ type: 'idle' });
+    expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
+    await workers.fold(c.id, true);
+    // the same new file on both sides: the pick is the worker's to finish
+    expect(runtime.last.inbox.at(-1)).toContain('git cherry-pick --continue');
+    writeFileSync(join(clone, 'k.ts'), 'k, with the owner’s');
+    git(clone, 'add', '.');
+    git(clone, '-c', 'core.editor=true', 'cherry-pick', '--continue');
+    expect(git(main, 'status', '--porcelain')).toBe('');
+    await runtime.last.call('ready_for_review', { summary: 'S2' });
+    runtime.last.emit({ type: 'idle' });
+    await until(() => state(c.id) === 'live');
+    expect(git(main, 'show', 'HEAD:k.ts')).toBe('k, with the owner’s');
+  });
 });
 
 describe('approving directly onto main where work goes out as a pull request', () => {
@@ -188,7 +212,7 @@ describe('approving directly onto main where work goes out as a pull request', (
     return { c, session, clone: board.row(c.id).workspace! };
   };
 
-  test('Obeya pushes the work onto origin/main itself: no pull request, the card is live, the Obeya checkout stays', async () => {
+  test('Seismic pushes the work onto origin/main itself: no pull request, the card is live, the Seismic checkout stays', async () => {
     const { c, session, clone } = await handedOver();
     commitIn(clone, 'x.ts', 'X');
     await session.call('ready_for_review', { summary: 'S', demo: artifact() });
@@ -204,7 +228,7 @@ describe('approving directly onto main where work goes out as a pull request', (
     expect(git(origin, 'log', '--format=%s', 'main').split('\n')).toEqual(['X', 'init']);
     expect(git(main, 'log', '--format=%s', '-1')).toBe('init');
     expect(board.events(c.id).at(-1)).toMatchObject({ author: 'owner', text: 'Freigegeben und direkt auf main gepusht.' });
-    expect(session.inbox.at(-1)).toContain('Obeya pushed it there without a pull request');
+    expect(session.inbox.at(-1)).toContain('Seismic pushed it there without a pull request');
     expect(merged).toEqual([c.id]);
     // the worker may finish what remains; then its clone is free again
     session.emit({ type: 'idle' });
@@ -217,7 +241,7 @@ describe('approving directly onto main where work goes out as a pull request', (
     commitIn(clone, 'x.ts', 'X');
     await session.call('ready_for_review', { summary: 'S', demo: artifact() });
     pushElsewhere('y.ts', 'Y');
-    // the first push finds main moved once more, as when someone pushes while Obeya rebases
+    // the first push finds main moved once more, as when someone pushes while Seismic rebases
     const hook = join(clone, '.git/hooks/pre-push');
     mkdirSync(join(clone, '.git/hooks'), { recursive: true });
     const other = join(dir, 'other-Y');
@@ -421,7 +445,7 @@ describe('the landing message names the demo’s page', () => {
     await workers.approve(c.id);
     expect(state(c.id)).toBe('live');
     expect(session.inbox.at(-1)).toContain('is on main now');
-    expect(session.inbox.at(-1)).toContain('Obeya tells you its address once it is online');
+    expect(session.inbox.at(-1)).toContain('Seismic tells you its address once it is online');
     // the turn ends before the page is online: the session stays for it
     session.emit({ type: 'idle' });
     expect(session.closed).toBe(false);
@@ -490,7 +514,7 @@ describe('the landing message names the demo’s page', () => {
     await workers.approve(c.id);
     expect(state(c.id)).toBe('inPr');
     rmSync(join(board.row(c.id).workspace!, 'x.ts'));
-    expect(await session.call('close_unchanged', {})).toContain('Obeya tells you its address once it is online');
+    expect(await session.call('close_unchanged', {})).toContain('Seismic tells you its address once it is online');
     session.emit({ type: 'idle' });
     expect(session.closed).toBe(false);
     published(c.id);
@@ -503,7 +527,7 @@ describe('the landing message names the demo’s page', () => {
     const session = runtime.last;
     await workers.approve(c.id);
     expect(state(c.id)).toBe('done');
-    expect(session.inbox.at(-1)).toContain('Obeya tells you its address once it is online');
+    expect(session.inbox.at(-1)).toContain('Seismic tells you its address once it is online');
     published(c.id);
     expect(session.inbox.at(-1)).toContain(URL_);
 
@@ -534,7 +558,7 @@ describe('the worker hears what became of its demo’s page', () => {
   const going = (id: string) => board.work(id, { share: JSON.stringify({ slug: 's', state: 'publishing', next: [{ dir: demoDir(id) }] }) });
   const online = (id: string) => board.work(id, { share: JSON.stringify({ slug: 's', url: URL_, demos: [{ dir: demoDir(id), shown: { title: 'T', text: 'T', chapters: [], kind: 'html' } }] }) });
 
-  test('shared by the owner after the handover: their next words come with the page’s address and where Obeya links it', async () => {
+  test('shared by the owner after the handover: their next words come with the page’s address and where Seismic links it', async () => {
     const c = await handedOver();
     const session = runtime.last;
     online(c.id);
@@ -680,7 +704,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
       runtime.last.emit({ type: 'idle' });
       return w;
     };
-    /** Obeya starts again, the doc still gone, and the worker resumes. */
+    /** Seismic starts again, the doc still gone, and the worker resumes. */
     const restart = () => {
       workers.shutdown();
       const b = new Board(store, board.canvas, () => ({ docs: [], dirs: [] }));
@@ -706,7 +730,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
     test('a project archived while its workstream finished comes back, and goes once its worker is done', async () => {
       const w = await landWaiting();
       const project = board.snapshot().items.find((i) => i.kind === 'project')!;
-      // as Obeya did before: archived at the landing, its worker unseen
+      // as Seismic did before: archived at the landing, its worker unseen
       store.update(project.id, { archived_at: new Date().toISOString() });
       const after = restart();
       expect(after.item(project.id)).toBeDefined();
@@ -834,10 +858,10 @@ describe('a workspace its card will not work in again goes back to the pool', ()
     expect(spaces.leasable()).toBe(true);
   });
 
-  test('one left taken before Obeya started is freed when it starts', async () => {
+  test('one left taken before Seismic started is freed when it starts', async () => {
     const w = w1();
     await stoppedWithWork(w.id);
-    // the doc was ticked off while an Obeya ran that did not free it; this one starts on the same database
+    // the doc was ticked off while an Seismic ran that did not free it; this one starts on the same database
     const fresh = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs: [{ ...doc, workstreams: [{ ...ws('W1'), done: true }, ws('W2')] }], dirs: [] }));
     new Workers({ board: fresh, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones' } }).resumeAll();
     expect(spaces.leasedBy(w.id)).toBeNull();
@@ -909,17 +933,17 @@ describe('a workspace its card will not work in again goes back to the pool', ()
     expect(spaces.leasable()).toBe(true);
   });
 
-  /** An Obeya started anew on the same database, which settles the leases as it starts. */
+  /** An Seismic started anew on the same database, which settles the leases as it starts. */
   const restart = () => {
     const fresh = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs: [doc], dirs: [] }));
     new Workers({ board: fresh, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones' } }).resumeAll();
     return fresh;
   };
 
-  test('a finished card whose worker is done gives back the clone the pool still counts taken, at the latest when Obeya starts', async () => {
+  test('a finished card whose worker is done gives back the clone the pool still counts taken, at the latest when Seismic starts', async () => {
     const c = manual();
     await workers.start(c.id);
-    // closed as done, its worker through, and only the lease left behind (by an Obeya before this one)
+    // closed as done, its worker through, and only the lease left behind (by an Seismic before this one)
     store.update(c.id, { state: 'done', landed: null });
     expect(spaces.leasable()).toBe(false);
     const fresh = restart();

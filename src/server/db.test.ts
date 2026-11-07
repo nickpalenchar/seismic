@@ -22,7 +22,7 @@ function withPath(f: (path: string) => void) {
   }
 }
 
-test('a database a newer Obeya wrote is left alone, not opened', () =>
+test('a database a newer Seismic wrote is left alone, not opened', () =>
   withPath((path) => {
     new Store(path).db.close();
     const newer = new Database(path);
@@ -32,7 +32,7 @@ test('a database a newer Obeya wrote is left alone, not opened', () =>
     expect(version(path)).toBe(RELEASED + MIGRATIONS.length + 1);
   }));
 
-test('a database an Obeya before the release left behind it is left alone, not opened', () =>
+test('a database an Seismic before the release left behind it is left alone, not opened', () =>
   withPath((path) => {
     const old = new Database(path);
     old.run('CREATE TABLE canvases (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL)');
@@ -42,7 +42,7 @@ test('a database an Obeya before the release left behind it is left alone, not o
     expect(version(path)).toBe(RELEASED - 1);
   }));
 
-test('what an Obeya before the release kept in earlier shapes is in today’s', () =>
+test('what an Seismic before the release kept in earlier shapes is in today’s', () =>
   withPath((path) => {
     const s = new Store(path);
     s.ensureCanvas('c', 'C');
@@ -102,7 +102,10 @@ test('what an Obeya before the release kept in earlier shapes is in today’s', 
     s.db.run('DROP TABLE agent_runs');
     s.db.run('DROP TABLE feedback');
     s.db.run('ALTER TABLE cards DROP COLUMN priority');
-    for (const c of ['category', 'subcategory', 'complexity', 'suggested_labels', 'owner_labels']) s.db.run(`ALTER TABLE cards DROP COLUMN ${c}`);
+    for (const c of ['category', 'subcategory', 'complexity', 'suggested_labels', 'owner_labels', 'code_review']) s.db.run(`ALTER TABLE cards DROP COLUMN ${c}`);
+    s.db.run('DROP INDEX talk_chat');
+    s.db.run('ALTER TABLE talk DROP COLUMN chat');
+    s.db.run('DROP TABLE chats');
     s.db.run(`PRAGMA user_version = ${RELEASED}`);
     s.db.close();
 
@@ -154,7 +157,10 @@ test('the migration gives the cards there are codes of their own, longer where t
     s.db.run('DROP TABLE agent_runs');
     s.db.run('DROP TABLE feedback');
     s.db.run('ALTER TABLE cards DROP COLUMN priority');
-    for (const c of ['category', 'subcategory', 'complexity', 'suggested_labels', 'owner_labels']) s.db.run(`ALTER TABLE cards DROP COLUMN ${c}`);
+    for (const c of ['category', 'subcategory', 'complexity', 'suggested_labels', 'owner_labels', 'code_review']) s.db.run(`ALTER TABLE cards DROP COLUMN ${c}`);
+    s.db.run('DROP INDEX talk_chat');
+    s.db.run('ALTER TABLE talk DROP COLUMN chat');
+    s.db.run('DROP TABLE chats');
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD COLUMN short'))}`);
     s.db.close();
     const after = new Store(path);
@@ -180,7 +186,10 @@ test('the sessions of cards from before runs were recorded: the last as pinned, 
     s.db.run('DROP TABLE agent_runs');
     s.db.run('DROP TABLE feedback');
     s.db.run('ALTER TABLE cards DROP COLUMN priority');
-    for (const c of ['category', 'subcategory', 'complexity', 'suggested_labels', 'owner_labels']) s.db.run(`ALTER TABLE cards DROP COLUMN ${c}`);
+    for (const c of ['category', 'subcategory', 'complexity', 'suggested_labels', 'owner_labels', 'code_review']) s.db.run(`ALTER TABLE cards DROP COLUMN ${c}`);
+    s.db.run('DROP INDEX talk_chat');
+    s.db.run('ALTER TABLE talk DROP COLUMN chat');
+    s.db.run('DROP TABLE chats');
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE agent_runs'))}`);
     s.db.close();
 
@@ -216,4 +225,75 @@ test('runs and responses survive a restart, one response for each handover', () 
     expect(after.runs(card!.id)).toHaveLength(1);
     expect(after.feedback()).toEqual([first]);
     after.db.close();
+  }));
+
+test('chats: words go into the one opened last, a new one only once something was said, answers wait unread in theirs', () => {
+  const store = new Store(':memory:');
+  store.db.run("INSERT INTO canvases (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01'), ('d', 'Site', '2026-11-01')");
+  const first = store.chat('c');
+  expect(store.chatModel('c')).toBeUndefined();
+  store.setChatModel('c', 'sonnet');
+  expect(store.chatModel('c')).toBe('sonnet');
+  expect(store.newChat('c')).toBe(first);
+  const asked = store.addTalk('c', 'wie viele Tests?', '', null, { question: 'wie viele Tests?', about: null });
+  const second = store.newChat('c');
+  expect(second).not.toBe(first);
+  expect(store.chatModel('c')).toBeUndefined();
+  store.addTalk('c', 'hallo', 'Hallo!', null);
+  store.addTalk('d', 'anderswo', 'Ja.', null);
+  // the answer comes in the chat it was asked in, while the owner talks in another
+  store.answerTalk(asked, '42', 'koordinator');
+  expect(store.sheet('c', second, 30).map((t) => [t.said, t.chat, !!t.unread])).toEqual([
+    ['wie viele Tests?', first, true],
+    ['hallo', second, false],
+  ]);
+  expect(store.chats('c').map((x) => [x.title, x.unread])).toEqual([
+    ['hallo', undefined],
+    ['wie viele Tests?', 1],
+  ]);
+  // only the chat in view is read
+  expect(store.readTalk('c')).toBe(false);
+  expect(store.openChat('c', first)).toBe(true);
+  expect(store.chat('c')).toBe(first);
+  expect(store.chatModel('c')).toBe('sonnet');
+  expect(store.readTalk('c')).toBe(true);
+  expect(store.openChat('d', first)).toBe(false);
+  expect(store.chats().map((x) => x.canvas).sort()).toEqual(['c', 'c', 'd']);
+  // a new chat left without a word in it goes once another is opened
+  const empty = store.newChat('c');
+  store.openChat('c', second);
+  expect(store.chats('c').map((x) => x.id)).not.toContain(empty);
+  expect(store.db.query('SELECT 1 FROM chats WHERE id = $id').get({ id: empty })).toBeNull();
+});
+
+test('a chat opened and a new one made in the same millisecond become current in turn', () => {
+  const store = new Store(':memory:');
+  store.db.run("INSERT INTO canvases (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
+  const first = store.chat('c');
+  store.addTalk('c', 'first', '', null);
+  const second = store.newChat('c');
+  store.addTalk('c', 'second', '', null);
+  store.openChat('c', first);
+  expect(store.chat('c')).toBe(first);
+  const third = store.newChat('c');
+  expect(store.chat('c')).toBe(third);
+  expect(third).not.toBe(second);
+});
+
+test('what was said before chats existed becomes one chat per canvas', () =>
+  withPath((path) => {
+    const store = new Store(path);
+    store.db.run("INSERT INTO canvases (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
+    store.addTalk('c', 'eins', 'A', null);
+    store.addTalk('c', 'zwei', 'B', null);
+    store.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE chats'))}`);
+    store.db.run('DROP INDEX talk_chat');
+    store.db.run('ALTER TABLE talk DROP COLUMN chat');
+    store.db.run('DROP TABLE chats');
+    store.db.close();
+    const again = new Store(path);
+    const chats = again.chats('c');
+    expect(chats.map((x) => x.title)).toEqual(['eins']);
+    expect(again.talk('c', 20, false, chats[0]!.id).map((t) => t.said)).toEqual(['eins', 'zwei']);
+    again.db.close();
   }));

@@ -1,4 +1,4 @@
-# Builds Obeya on every platform it ships for, each on its own runner (no cross compilation, so the
+# Builds Seismic on every platform it ships for, each on its own runner (no cross compilation, so the
 # smoke test runs where the build ran). A push to main that changes code (not only docs or the site)
 # builds the unsigned installers, checks the compiled server (scripts/check-binary.ts: a scratch
 # canvas answers, with the version, a repository's own adapter, Playwright and the adapter kit
@@ -153,4 +153,4 @@ jobs:
             [Code signing policy](https://obeya.si/code-signing/)
         run: |
           { printf '%s\n\n' "$NOTES"; cat notes.md; } > body.md
-          gh release create "$GITHUB_REF_NAME" --draft --latest --verify-tag --title "Obeya ${GITHUB_REF_NAME#v}" --notes-file body.md release/*
+          gh release create "$GITHUB_REF_NAME" --draft --latest --verify-tag --title "Seismic ${GITHUB_REF_NAME#v}" --notes-file body.md release/*

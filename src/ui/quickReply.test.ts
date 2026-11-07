@@ -1,18 +1,17 @@
 import { expect, test } from 'bun:test';
-import type { CardAction, Item, RepoRef } from '../core/types';
+import type { CardAction, Item } from '../core/types';
 import { api } from './api';
 import { quickReplies } from './quickReply';
 import { t } from './strings';
 
 const card = (over: Partial<Item>): Item => ({ id: 'x', kind: 'task', state: 'waiting', title: 'T', body: '', x: 0, y: 0, source: 'manual', repo: 'r', ...over }) as Item;
-const repo = (over: Partial<RepoRef> = {}): RepoRef => ({ id: 'r', name: 'r', ...over }) as RepoRef;
 
 /** What each reply sends to the card, by its label. */
-async function sent(i: Item, r = repo()) {
+async function sent(i: Item) {
   const was = api.act;
   const out: [string, CardAction | 'remove', boolean][] = [];
   try {
-    for (const q of quickReplies(i, r)) {
+    for (const q of quickReplies(i)) {
       let a: CardAction | 'remove' = 'remove';
       api.act = async (_id, x) => void (a = x);
       const remove = api.remove;
@@ -27,16 +26,16 @@ async function sent(i: Item, r = repo()) {
   return out;
 }
 
-test('a handover has its approval as its one primary reply, as the card names it', async () => {
-  expect(await sent(card({ need: 'demo' }))).toEqual([[t.approve, { action: 'approve' }, true]]);
-  expect((await sent(card({ need: 'demo' }), repo({ pullRequests: true })))[0]![0]).toBe(t.approvePr);
-  expect((await sent(card({ need: 'review', noChange: true })))[0]![0]).toBe(t.approveNoChange);
-  expect((await sent(card({ need: 'review', contribution: { number: 7 } as Item['contribution'] })))[0]![0]).toBe(t.review.merge(7));
+test('a handover is judged on the card: no approval, nor answers to its question', () => {
+  expect(quickReplies(card({ need: 'demo' }))).toEqual([]);
+  expect(quickReplies(card({ need: 'review', noChange: true }))).toEqual([]);
+  expect(quickReplies(card({ need: 'review', contribution: { number: 7 } as Item['contribution'] }))).toEqual([]);
+  expect(quickReplies(card({ need: 'demo', question: { text: 'Which?', options: ['A', 'B'] } }))).toEqual([]);
 });
 
 test('a reply that sets work in motion waits out its undo; keeping a card does not', () => {
-  expect(quickReplies(card({ need: 'demo' }), repo()).every((r) => r.held)).toBe(true);
-  const superseded = quickReplies(card({ superseded: { why: 'x' } as Item['superseded'] }), repo());
+  expect(quickReplies(card({ need: 'question', question: { text: '?', options: ['a', 'b'] } })).every((r) => r.held)).toBe(true);
+  const superseded = quickReplies(card({ superseded: { why: 'x' } as Item['superseded'] }));
   expect(superseded.map((r) => [r.label, !!r.held, !!r.undo])).toEqual([
     [t.superseded.keep, false, false],
     [t.superseded.remove, false, true],

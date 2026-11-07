@@ -1,5 +1,5 @@
 // Watches the open pull requests of a canvas and passes what happens on them to the card's
-// worker: new review comments, failed checks, conflicts. Once nothing is left for the worker, Obeya
+// worker: new review comments, failed checks, conflicts. Once nothing is left for the worker, Seismic
 // merges it (the owner's approval covered that), unless the repository's settings leave the merge
 // to the people on the forge (`autoMerge` off). A card may have several pull requests (one in
 // another repository its work also needed): each is watched alike, and the card is live once all of
@@ -29,16 +29,16 @@ export class PrWatcher {
     private board: Board,
     private workers: Workers,
     private forge: Forge,
-    /** Where the forge's calls run for a card (its workspace, else the Obeya checkout). */
+    /** Where the forge's calls run for a card (its workspace, else the Seismic checkout). */
     private cwd: (cardId: string) => string,
     /**
      * The repository's settings, asked each round since they may change while the watcher runs:
-     * accounts whose comments are not review feedback (`prNoise`), and whether Obeya merges (`autoMerge`).
+     * accounts whose comments are not review feedback (`prNoise`), and whether Seismic merges (`autoMerge`).
      */
     private settings: () => Pick<RepoAdapter, 'prNoise' | 'autoMerge'> = () => ({}),
     /** On a canvas with several repositories: the one whose pull requests this watches. */
     private repo?: string,
-    /** Called at the end of every round (the Lesestand fetches then). */
+    /** Called at the end of every round (the read checkout fetches then). */
     private onRound?: () => void,
   ) {}
 
@@ -53,7 +53,7 @@ export class PrWatcher {
   }
 
   /**
-   * A round right away, unless one began within `gapMs`: the owner came back to Obeya, perhaps from
+   * A round right away, unless one began within `gapMs`: the owner came back to Seismic, perhaps from
    * merging the PR, and should not wait for the next tick to see it.
    */
   soon(gapMs = 15_000) {
@@ -151,7 +151,7 @@ export class PrWatcher {
     return [first, ...(more ?? [])];
   }
 
-  /** The URLs of the card's pull requests still open as far as Obeya knows. */
+  /** The URLs of the card's pull requests still open as far as Seismic knows. */
   private openPrs(cardId: string): string[] {
     return this.prsOf(cardId).flatMap((p) => (p.url && !p.merged && !p.closed ? [p.url] : []));
   }
@@ -204,7 +204,7 @@ export class PrWatcher {
           cardId,
           this.board.t.pr.comments(comments.length, comments[0]!.author),
           [
-            `New review comments on your pull request${which}. Address them the way the repository does it (its own skill for review comments, if it has one; otherwise fix each, or leave it where a change is not right, and push). Each comment on the code gets a reply in its own thread, not one comment for all: what you changed, or why not. Then resolve each thread, unless you still want the reviewer’s answer. A summary or verdict that asks for nothing (a review without findings, an approval) needs no reply. Once you pushed, ask the reviewers for a new review the way the repository does it: Obeya merges only on a review of the latest commit. A comment of yours that mentions an account counts as such a request, and Obeya waits for its answer before it merges. End your turn. Use ask if one questions a decision only the owner can make.`,
+            `New review comments on your pull request${which}. Address them the way the repository does it (its own skill for review comments, if it has one; otherwise fix each, or leave it where a change is not right, and push). Each comment on the code gets a reply in its own thread, not one comment for all: what you changed, or why not. Then resolve each thread, unless you still want the reviewer’s answer. A summary or verdict that asks for nothing (a review without findings, an approval) needs no reply. Once you pushed, ask the reviewers for a new review the way the repository does it: Seismic merges only on a review of the latest commit. A comment of yours that mentions an account counts as such a request, and Seismic waits for its answer before it merges. End your turn. Use ask if one questions a decision only the owner can make.`,
             ...comments.map((c) => `- ${c.author}${c.verdict === 'changes' ? ' (requests changes)' : ''}${c.path ? ` on ${c.path}${c.line ? `:${c.line}` : ''}` : ''}${c.url ? ` (${c.url})` : ''}:\n${c.body}`),
           ].join('\n\n'),
         );
@@ -247,7 +247,7 @@ export class PrWatcher {
         this.workers.prEvent(
           cardId,
           this.board.t.pr.stale,
-          `Your pull request${which} has commits its reviewers have not seen: their last word is older than the head commit, and nobody asked for another look since. Their verdict is about an older state, so Obeya does not merge on it. Ask them for a new review the way the repository does it (its own skill or script for this, if it has one; otherwise a comment mentioning the review bot), and end your turn.`,
+          `Your pull request${which} has commits its reviewers have not seen: their last word is older than the head commit, and nobody asked for another look since. Their verdict is about an older state, so Seismic does not merge on it. Ask them for a new review the way the repository does it (its own skill or script for this, if it has one; otherwise a comment mentioning the review bot), and end your turn.`,
         );
       }
       const waits: PrWait[] = [...waitsOf(s, noise), ...(idle && !told ? [] : (['agent'] as const))];
@@ -276,7 +276,7 @@ export class PrWatcher {
         next.readyHead = s.head;
         delete next.held;
         delete next.manual;
-        // the owner's approval covered the merge: Obeya merges, and tries again each round while the forge refuses
+        // the owner's approval covered the merge: Seismic merges, and tries again each round while the forge refuses
         let commit: string | void;
         try {
           commit = await this.forge.merge(this.cwd(cardId), pr.url!, s.head);
@@ -313,10 +313,10 @@ export class PrWatcher {
   }
 
   /**
-   * A review card's pull request, which someone outside opened: Obeya never merges it here (only the
+   * A review card's pull request, which someone outside opened: Seismic never merges it here (only the
    * owner's approval of a reviewed head does), and what the contributor does reaches the worker only
    * while the card waits for them. Their comments count, not the PR author's being skipped as on the
-   * worker's own PRs: skipped are the owner's (the account Obeya acts as, the worker's too) and
+   * worker's own PRs: skipped are the owner's (the account Seismic acts as, the worker's too) and
    * `prNoise`. A new head counts once, whatever the worker reviewed before.
    */
   private reactToContributor(cardId: string, state: string, pr: PrState, s: PrStatus, c: StoredContribution, noise: string[]) {

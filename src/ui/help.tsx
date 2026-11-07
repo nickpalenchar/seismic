@@ -14,7 +14,7 @@ export function HelpButton({ on, onClick }: { on: boolean; onClick: () => void }
 }
 
 /**
- * The legend, with the link to the draft for Obeya's makers at its foot; a click beside it, Esc or `?` closes it. `note` is its foot while the bar still has the
+ * The legend, with the link to the draft for Seismic's makers at its foot; a click beside it, Esc or `?` closes it. `note` is its foot while the bar still has the
  * button: opened by the button it says the key goes away with the button, opened by the key for the
  * first time it says the button has gone.
  */
@@ -53,7 +53,7 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
             </section>
           ))}
         </div>
-        {/* what the owner misses goes to Obeya's makers; the legend closes for the draft */}
+        {/* what the owner misses goes to Seismic's makers; the legend closes for the draft */}
         <p className="wish-line">
           <WishLink onOpen={onClose} />
           <span className="w-legend">{t.wish.legend}</span>
@@ -71,11 +71,11 @@ export const HELP_KEY_KNOWN = 'obeya-help-key-known';
 export const DOUBLE_CLICK_KNOWN = 'obeya-double-click-known';
 
 /** What the bar's button for a new task opens: a task is created by double-click; a click beside it, Esc or the button closes it. */
-export function NewCardHint({ onClose }: { onClose: () => void }) {
+export function NewCardHint({ text, onClose }: { text: string; onClose: () => void }) {
   return (
     <div id="help" onClick={onClose}>
       <div className="box hint-box" role="dialog" aria-label={t.newCard} onClick={(e) => e.stopPropagation()}>
-        <p>{t.newCardHint.text}</p>
+        <p>{text}</p>
         <button className="btn primary" autoFocus onClick={onClose}>
           {t.newCardHint.ok}
         </button>

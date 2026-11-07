@@ -1,6 +1,6 @@
 # Generated from .claude/settings.json by `bun scripts/codex-rules.ts`; edit that file, not this one.
 # A Codex rule is a word prefix: a Claude rule without a `*` (an exact command) allows arguments after it here.
-# Rules whose `*` stands inside a word have no form here; Obeya applies them itself to its Codex workers:
+# Rules whose `*` stands inside a word have no form here; Seismic applies them itself to its Codex workers:
 #   Bash(mkdir -p /Users/nick/demos/obeya-*)
 #   Bash(mkdir -p /tmp/obeya-*)
 #   Bash(bun scripts/scratch-obeya.ts /tmp/obeya-*.json)
@@ -31,3 +31,22 @@ prefix_rule(pattern=["node","/Users/nick/harness/obeya/plugin/skills/browser/lib
 prefix_rule(pattern=["node","/Users/nick/harness/obeya/plugin/skills/browser/lib/browser.ts","screenshot"], decision="allow")
 prefix_rule(pattern=["node","/Users/nick/harness/obeya/plugin/skills/browser/lib/browser.ts","playwright"], decision="allow")
 prefix_rule(pattern=["node","/Users/nick/harness/obeya/plugin/skills/demo/lib/setup.ts"], decision="allow")
+prefix_rule(pattern=["bun","scripts/scratch-obeya.ts","/tmp/stage.json"], decision="allow")
+prefix_rule(pattern=["git","rebase"], decision="allow")
+prefix_rule(pattern=["git","add"], decision="allow")
+prefix_rule(pattern=["git","commit","-m","'"], decision="allow")
+prefix_rule(pattern=["git","commit","-m","'Start","Agent","button","shows","selected","model","underneath"], decision="allow")
+prefix_rule(pattern=["node","demo.ts","--narration"], decision="allow")
+prefix_rule(pattern=["node","demo.ts"], decision="allow")
+prefix_rule(pattern=["mkdir","-p","/Users/nick/demos/snoozed-cards-inbox-demo"], decision="allow")
+prefix_rule(pattern=["bun","scripts/scratch-obeya.ts","/Users/nick/demos/snoozed-cards-inbox-demo/stage.json"], decision="allow")
+prefix_rule(pattern=["rm","test-output.txt","&&","git","status"], decision="allow")
+prefix_rule(pattern=["node","demo.ts","--dry"], decision="allow")
+prefix_rule(pattern=["timeout","60","node","demo.ts","--dry"], decision="allow")
+prefix_rule(pattern=["rm","-rf","/Users/nick/demos/snoozed-cards-inbox-demo/.work"], decision="allow")
+prefix_rule(pattern=["rm","-rf","/Users/nick/demos/snoozed-cards-inbox-demo/.work","&&","cd","/Users/nick/demos/snoozed-cards-inbox-demo","&&","node","demo.ts","2>&1","&"], decision="allow")
+prefix_rule(pattern=["node","/Users/nick/programming/obeya/plugin/skills/demo/lib/setup.ts"], decision="allow")
+prefix_rule(pattern=["node","/Users/nick/programming/obeya/plugin/skills/browser/lib/browser.ts","open","http://127.0.0.1:4480/login?token=KPFLCr-vkaQnc9I7GCzfszXcTKyYC_WTiQzk5rQ9QfE&next=%2Fc%2Factivity"], decision="allow")
+prefix_rule(pattern=["tail","-25","/tmp/proposals-tests.log"], decision="allow")
+prefix_rule(pattern=["node","explore.ts"], decision="allow")
+prefix_rule(pattern=["node","/Users/nick/demos/obeya-incoming-arrows/explore.ts"], decision="allow")

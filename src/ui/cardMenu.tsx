@@ -23,8 +23,8 @@ export interface LinkFieldHandle {
   focusEnd: () => void;
 }
 
-/** The flag of a priority, as `PriorityMark` draws it. */
-const FLAG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H7v9z"/></svg>';
+/** The flag of a priority, as `PriorityMark` draws it (Lucide's Flag, as markup since the pill is built outside React). */
+const FLAG = '<svg class="lucide lucide-flag" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg>';
 
 /** A pill as the field holds it: its card's state, title and priority, the link it stands for in its data. */
 function pill(href: string, text: string, card: Item | undefined): HTMLSpanElement {

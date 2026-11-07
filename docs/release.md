@@ -1,4 +1,4 @@
-# Releasing Obeya
+# Releasing Seismic
 
 How a version of the app goes out, and the owner's steps it depends on. The builds are described
 in [`docs/design/distribution.md`](design/distribution.md) (Builds, App updates).
@@ -9,10 +9,10 @@ SHA-256 of every file in `SHA256SUMS`.
 
 ## A release
 
-Every release takes the site along: the hero video is rendered again from the Obeya being
+Every release takes the site along: the hero video is rendered again from the Seismic being
 released, and the site's screenshots are taken again with it. When the owner says "Mach ein
 Release", the project skill `.claude/skills/release/SKILL.md` goes through these steps in this
-order, on an Obeya card or in a terminal; it adds when to ask the owner and what to look at.
+order, on an Seismic card or in a terminal; it adds when to ask the owner and what to look at.
 The scripts that talk to GitHub act on the checkout's origin as the account that owns it
 (`sadilek` for sadilek/obeya, with its gh login, without switching the account gh has active);
 other gh calls go through `bun scripts/gh.ts <gh args…>`, which does the same, since the
@@ -47,7 +47,7 @@ machine's active account may lack the admin rights a workflow run or a rerun nee
      rendered again meanwhile.
 4. The version in `package.json` (the app, its settings and the release take it from there),
    committed with the poster and the screenshots. Landing it restarts a
-   running Obeya (`package.json` counts as code).
+   running Seismic (`package.json` counts as code).
 5. `git push origin main`. The tag's commit has to be on GitHub, and the README and the site
    come from `main`.
 6. `git tag v<version> <commit>` on the commit with the version, and `git push origin v<version>`:
@@ -79,7 +79,7 @@ pre-release, so it never becomes the latest release, and its tag does not count 
 
 ## The updater's key
 
-Installed apps install only what is signed with Obeya's own key pair (Tauri's updater, made with
+Installed apps install only what is signed with Seismic's own key pair (Tauri's updater, made with
 `tauri signer generate` on 2026-10-08, without a password).
 
 - The public key is in `app/tauri.conf.json` (`plugins.updater.pubkey`); every app carries it.
@@ -170,12 +170,12 @@ The Windows certificate is to come from the SignPath Foundation: free for open-s
 issued in the Foundation's name, the key in SignPath's HSM, each release signed from a GitHub
 Actions build after an approver has approved its signing request. The owner decided on
 2026-10-19 to apply right after v0.5.0. Its conditions
-(<https://signpath.org/terms>) as they bear on Obeya:
+(<https://signpath.org/terms>) as they bear on Seismic:
 
 - **Every component under an OSI licence, nothing proprietary.** The server (`obeya.exe` in the
   installer) has Anthropic's Claude Agent SDK compiled into it, whose licence is "© Anthropic PBC.
   All rights reserved"; Claude Code itself is not shipped. The application says so up front. If
-  SignPath declines because of it, Obeya would have to talk to the machine's Claude Code without
+  SignPath declines because of it, Seismic would have to talk to the machine's Claude Code without
   the SDK (its stream-json control protocol, undocumented, which the SDK tracks for each Claude
   Code version), or take a certificate of its own (below).
 - **Reputation** for downloadable programs: SignPath's judgement, without a threshold. At the
@@ -185,7 +185,7 @@ Actions build after an approver has approved its signing request. The owner deci
   section and footer, the README's download section and the notes of every release
   (`build.yml`). It has the sentence SignPath prescribes ("Free code signing provided by
   SignPath.io, certificate by SignPath Foundation"), the team's roles and the privacy statement:
-  what Obeya connects to and when. It says the Windows installer is not signed until the
+  what Seismic connects to and when. It says the Windows installer is not signed until the
   application is accepted; that sentence goes once a signed release is out.
 - **Multi-factor authentication** for every team member, on GitHub and on SignPath.
 - **Signed are only our own builds**, made from the repository by GitHub Actions; product name and

@@ -35,14 +35,13 @@ describe('workers', () => {
     expect(runtime.last.inbox[0]).not.toContain('agent harnesses');
   });
 
-  test('with an English interface and a German conversation, the worker writes the owner in German until their words say otherwise, commits in English, and the log says what happens in English', async () => {
+  test('with an English interface and a German conversation, the worker speaks German consistently, commits in English, and the log uses English', async () => {
     setLanguage('en');
     setConversation('de');
     const c = manual();
     await workers.start(c.id);
     expect(runtime.last.spec.system).toContain("ready_for_review) is in the owner's language");
-    expect(runtime.last.spec.system).toContain("The owner's language is the one of their most recent words to you, typed or spoken");
-    expect(runtime.last.spec.system).toContain('until they have said anything, German.');
+    expect(runtime.last.spec.system).toContain('Speak to the owner in German throughout this conversation');
     expect(runtime.last.spec.system).toContain('What you commit (code, comments, commit messages, docs, plan docs, CLAUDE.md) is in English, whatever language the owner talks to you in.');
     expect(runtime.last.spec.tools.find((t) => t.name === 'ask')!.description).toContain("Write the question in the owner's language");
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: `Agent started on ${board.row(c.id).branch}.` });
@@ -56,7 +55,7 @@ describe('workers', () => {
     setConversation('en');
     setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones', language: 'de' } }));
     await workers.start(manual().id);
-    expect(runtime.last.spec.system).toContain('until they have said anything, English.');
+    expect(runtime.last.spec.system).toContain('Speak to the owner in English throughout this conversation');
     expect(runtime.last.spec.system).toContain('What you commit (code, comments, commit messages, docs, plan docs, CLAUDE.md) is in German');
   });
 
@@ -72,7 +71,7 @@ describe('workers', () => {
     expect(runtime.last.inbox[0]).toContain('`bun install`');
     expect(runtime.last.inbox[0]).toContain('How to run the app: Start it with `bun run stack`; after an API change, `bun run api:restart`. The URL is in `.stack.env` under WEB_URL.');
     expect(runtime.last.inbox[0]).toContain('Run the app for it as the recipe above says.');
-    // a repository without demos gets Obeya's skills all the same: the one that writes its settings among them
+    // a repository without demos gets Seismic's skills all the same: the one that writes its settings among them
     expect(runtime.last.spec.plugins).toEqual([OBEYA_PLUGIN]);
     // the only clone is taken
     const d = manual();
@@ -106,7 +105,7 @@ describe('workers', () => {
     expect(workers.busyCards().length).toBeGreaterThan(0);
     runtime.last.emit({ type: 'idle' });
     expect(workers.busyCards()).toEqual([]);
-    // a turn Obeya did not start, e.g. after a background command finished
+    // a turn Seismic did not start, e.g. after a background command finished
     runtime.last.emit({ type: 'text', text: 'Fertig gerendert.' });
     expect(workers.busyCards().length).toBeGreaterThan(0);
   });
@@ -125,7 +124,7 @@ describe('workers', () => {
     const busy = runtime.last;
     busy.emit({ type: 'text', text: 'Ich lasse die Tests laufen.' });
     workers.restartDue({ reason: 'code', deadline: Date.now() + 15 * 60_000 });
-    expect(busy.inbox.at(-1)).toContain('Obeya is about to restart (new code landed on main)');
+    expect(busy.inbox.at(-1)).toContain('Seismic is about to restart (new code landed on main)');
     expect(busy.inbox.at(-1)).toContain('at most 15 more minutes');
     // heard once, however often the restart's waiting list changes
     const told = busy.inbox.length;
@@ -136,10 +135,10 @@ describe('workers', () => {
     expect(workers.busyCards()).toEqual([]);
     expect(busy.inbox.length).toBe(told);
     expect(state(c.id)).toBe('working');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Obeya.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Seismic.' });
   });
 
-  test('a worker that paused for the restart with its render still running hears, when the render wakes it, that Obeya still waits', async () => {
+  test('a worker that paused for the restart with its render still running hears, when the render wakes it, that Seismic still waits', async () => {
     const c = manual();
     await workers.start(c.id);
     const busy = runtime.last;
@@ -154,19 +153,19 @@ describe('workers', () => {
     // the render finishes and wakes the worker, which would go on from there
     const told = busy.inbox.length;
     busy.emit({ type: 'tool', name: 'Bash', input: { command: 'tail -2 render.log' } });
-    expect(busy.toolStep()).toContain('Obeya still waits for the restart (new code landed on main) you paused for, at most 15 more minutes');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Der Agent ist vor dem Neustart wieder aufgewacht; Obeya sagt ihm, dass der Neustart noch auf ihn wartet.' });
+    expect(busy.toolStep()).toContain('Seismic still waits for the restart (new code landed on main) you paused for, at most 15 more minutes');
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Der Agent ist vor dem Neustart wieder aufgewacht; Seismic sagt ihm, dass der Neustart noch auf ihn wartet.' });
     // once per turn
     expect(busy.toolStep()).toBeUndefined();
     expect(busy.inbox.length).toBe(told);
     busy.emit({ type: 'idle' });
     expect(workers.busyCards()).toEqual([]);
     expect(state(c.id)).toBe('working');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Obeya.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Seismic.' });
     // a note from the owner before the restart says so with the note
     workers.message(c.id, 'Nimm die dunkle Variante.');
     expect(busy.inbox.at(-1)).toContain('Nimm die dunkle Variante.');
-    expect(busy.inbox.at(-1)).toContain('Obeya still waits for the restart');
+    expect(busy.inbox.at(-1)).toContain('Seismic still waits for the restart');
     expect(busy.toolStep()).toBeUndefined();
   });
 
@@ -181,18 +180,18 @@ describe('workers', () => {
     expect(board.item(c.id)!.statusLine).toBe('Backend steht, jetzt die UI');
   });
 
-  test('stopping Obeya is announced like a restart, and the worker pauses until Obeya runs again', async () => {
+  test('stopping Seismic is announced like a restart, and the worker pauses until Seismic runs again', async () => {
     const c = manual();
     await workers.start(c.id);
     const busy = runtime.last;
     workers.restartDue({ reason: 'stop', deadline: Date.now() + 15 * 60_000 });
-    expect(busy.inbox.at(-1)).toContain('Obeya is about to stop (the owner is shutting it down)');
-    expect(busy.inbox.at(-1)).toContain('Obeya resumes you once it runs again');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Beenden von Obeya angekündigt; der Agent pausiert beim nächsten sicheren Punkt.' });
+    expect(busy.inbox.at(-1)).toContain('Seismic is about to stop (the owner is shutting it down)');
+    expect(busy.inbox.at(-1)).toContain('Seismic resumes you once it runs again');
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Beenden von Seismic angekündigt; der Agent pausiert beim nächsten sicheren Punkt.' });
     busy.emit({ type: 'idle' });
     expect(workers.busyCards()).toEqual([]);
     expect(state(c.id)).toBe('working');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert, bis Obeya wieder läuft.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert, bis Seismic wieder läuft.' });
   });
 
   test('a restart goes ahead once the workers it announced itself to have paused', async () => {
@@ -205,7 +204,7 @@ describe('workers', () => {
       workers.restartDue(due && { reason: due.reason, deadline: due.deadline });
     });
     restarter.request('code');
-    expect(runtime.last.inbox.at(-1)).toContain('Obeya is about to restart');
+    expect(runtime.last.inbox.at(-1)).toContain('Seismic is about to restart');
     await Bun.sleep(20);
     expect(gone).toBe(0);
     runtime.last.emit({ type: 'idle' });
@@ -220,14 +219,14 @@ describe('workers', () => {
     runtime.last.emit({ type: 'idle' });
     // an option the question does not offer is dropped
     workers.answer(c.id, 'Und mit Kopfzeile.', [], false, undefined, ['CSV', 'PDF']);
-    expect(runtime.last.inbox.at(-1)).toContain('Answer to your question (from the owner):\n\nThey picked „CSV“.\n\nThey added in their own words:\n\nUnd mit Kopfzeile.');
+    expect(runtime.last.inbox.at(-1)).toContain('Answer to your question (from the owner):\n\nThey picked “CSV”.\n\nThey added in their own words:\n\nUnd mit Kopfzeile.');
     // the log holds the answer as one text, and which options it picked
     expect(board.events(c.id).findLast((e) => e.kind === 'answer')).toMatchObject({ text: 'CSV\n\nUnd mit Kopfzeile.', picks: ['CSV'] });
     runtime.last.emit({ type: 'idle' });
     runtime.last.call('ask', { question: 'Auch PDF?', options: ['Ja', 'Nein'] });
     runtime.last.emit({ type: 'idle' });
     workers.answer(c.id, '', [], false, undefined, ['Nein']);
-    expect(runtime.last.inbox.at(-1)).toEndWith('They picked „Nein“.');
+    expect(runtime.last.inbox.at(-1)).toEndWith('They picked “Nein”.');
   });
 
   test('a turn that starts while a restart is due hears of it with its message', async () => {
@@ -242,15 +241,15 @@ describe('workers', () => {
     workers.answer(c.id, 'CSV');
     expect(runtime.last.inbox.length).toBe(before + 1);
     expect(runtime.last.inbox.at(-1)).toContain('Answer to your question');
-    expect(runtime.last.inbox.at(-1)).toContain('Obeya is about to restart (the owner saved a new configuration)');
+    expect(runtime.last.inbox.at(-1)).toContain('Seismic is about to restart (the owner saved a new configuration)');
     expect(runtime.last.inbox.at(-1)).toContain('at most 1 more minute, and this turn keeps it waiting');
     // not the notice for a worker in the middle of a step: the answer's work waits for the restart
-    expect(runtime.last.inbox.at(-1)).toContain('leave the work it asks for until Obeya resumes you');
+    expect(runtime.last.inbox.at(-1)).toContain('leave the work it asks for until Seismic resumes you');
     expect(runtime.last.inbox.at(-1)).not.toContain('finish the step you are in');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Obeya wartet auf einen Neustart; der Agent macht danach weiter.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Seismic wartet auf einen Neustart; der Agent macht danach weiter.' });
     runtime.last.emit({ type: 'idle' });
     expect(state(c.id)).toBe('working');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Obeya.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Seismic.' });
   });
 
   test('a worker started while a restart is due hears of it in its briefing', async () => {
@@ -258,7 +257,7 @@ describe('workers', () => {
     const c = manual();
     await workers.start(c.id);
     expect(runtime.last.inbox[0]).toContain('Zählerstände exportieren');
-    expect(runtime.last.inbox[0]).toContain('Obeya is about to restart');
+    expect(runtime.last.inbox[0]).toContain('Seismic is about to restart');
   });
 
   test('without a restart due, a turn that ends without handing over is nudged as before', async () => {
@@ -325,7 +324,7 @@ describe('workers', () => {
     workers.message(c.id, 'Exportier erst mal gar nichts, ich kläre das.');
     expect(state(c.id)).toBe('working');
     expect(board.item(c.id)!.question).toBeUndefined();
-    expect(runtime.last.inbox.at(-1)).toContain('withdraws your question („CSV oder Excel?“)');
+    expect(runtime.last.inbox.at(-1)).toContain('withdraws your question (“CSV oder Excel?”)');
     expect(runtime.last.inbox.at(-1)).toContain('Exportier erst mal gar nichts');
     // a remark is not a decision
     expect(board.decisionsOn(c.id)).toEqual([]);
@@ -355,7 +354,7 @@ describe('workers', () => {
     workers.message(c.id, 'Bitte auch Excel.', ['/tmp/shot.png']);
     const note = board.events(c.id).at(-1)!;
     expect(note).toMatchObject({ kind: 'hint', unread: true });
-    // not in the session's input, where the CLI would take it at a moment Obeya does not learn
+    // not in the session's input, where the CLI would take it at a moment Seismic does not learn
     expect(s.inbox.join()).not.toContain('Bitte auch Excel.');
     s.emit({ type: 'tool', name: 'Edit', input: { file_path: 'export.ts' } });
     const edit = board.events(c.id).at(-1)!;
@@ -464,18 +463,18 @@ describe('workers', () => {
     const replied = board.events(c.id).at(-1)!;
     workers.message(c.id, 'Lieber Komma.', [], false, replied.id);
     // the worker has the whole message in its session: the start of it says which one
-    expect(runtime.last.toolStep()).toContain('[In reply to your message: „Ich exportiere die Zählerstände als CSV mit Semikolon als Trenner, wie Excel es in Deutschland erwartet. Mehr dazu. Mehr dazu. Mehr dazu. Mehr dazu. Mehr dazu. …“]\n\nLieber Komma.');
+    expect(runtime.last.toolStep()).toContain('[In reply to your message: “Ich exportiere die Zählerstände als CSV mit Semikolon als Trenner, wie Excel es in Deutschland erwartet. Mehr dazu. Mehr dazu. Mehr dazu. Mehr dazu. Mehr dazu. …”]\n\nLieber Komma.');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'hint', author: 'owner', text: 'Lieber Komma.', replyTo: replied.id });
-    // Obeya's words in the conversation the worker never had: it reads them whole
+    // Seismic's words in the conversation the worker never had: it reads them whole
     const aside = board.log(c.id, 'say', 'koordinator', 'Die Karte „Import“ liegt auf einer anderen Leinwand.');
     workers.message(c.id, 'Dann lass es.', [], false, aside.id);
-    expect(runtime.last.toolStep()).toContain("[In reply to Obeya's message in the card's conversation: „Die Karte „Import“ liegt auf einer anderen Leinwand.“]\n\nDann lass es.");
+    expect(runtime.last.toolStep()).toContain("[In reply to Seismic's message in the card's conversation: “Die Karte „Import“ liegt auf einer anderen Leinwand.”]\n\nDann lass es.");
     // a question answered in reply to it says so too
     runtime.last.call('ask', { question: 'CSV oder Excel?', options: ['CSV', 'Excel'] });
     const asked = board.events(c.id).findLast((e) => e.kind === 'question')!;
     workers.answer(c.id, 'CSV', [], false, asked.id);
     runtime.last.emit({ type: 'idle' });
-    expect(runtime.last.inbox.at(-1)).toContain('[In reply to your question: „CSV oder Excel?');
+    expect(runtime.last.inbox.at(-1)).toContain('[In reply to your question: “CSV oder Excel?');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'answer', replyTo: asked.id });
   });
 
@@ -531,15 +530,15 @@ describe('workers', () => {
     expect(words(d.id).at(-1)).toBe('say: Weiter mit den Tests.');
   });
 
-  test("a task the owner wrote tells the worker the language they talk in; one from a plan doc tells nothing", async () => {
+  test("the task's language does not change the worker's conversation language", async () => {
     const c = board.create({ title: 'Contributing guide', body: 'Add a CONTRIBUTING.md.', x: 0, y: 0 });
     await workers.start(c.id);
-    expect(runtime.last.spec.system).toContain("until they have said anything, the language the card's task is written in, since the owner wrote it themselves: they told you their language with it (only where it tells none, German).");
-    expect(runtime.last.inbox[0]).toContain('Add a CONTRIBUTING.md.\n\nThe owner wrote this task themselves: write to them in its language.');
+    expect(runtime.last.spec.system).toContain('Speak to the owner in German throughout this conversation');
+    expect(runtime.last.inbox[0]).toContain('Add a CONTRIBUTING.md.');
     await workers.stop(c.id);
     const w = board.snapshot().items.find((i) => i.label === 'W1')!;
     await workers.start(w.id);
-    expect(runtime.last.spec.system).toContain("until they have said anything, German. What you write to the owner is in the owner's language, also where what you work on is in another. The card's task comes from the project's plan doc, not from the owner: its language tells nothing about theirs.");
+    expect(runtime.last.spec.system).toContain('Speak to the owner in German throughout this conversation');
     expect(runtime.last.inbox[0]).not.toContain('The owner wrote this task themselves');
   });
 
@@ -1000,6 +999,30 @@ describe('workers', () => {
     expect(s.inbox).toHaveLength(1);
   });
 
+  test('a standing language preference takes precedence over a German task and later German words', async () => {
+    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones' }, preferences: () => board.preferencesText() }));
+    board.addPreference('Speak and report to me in English only.');
+    const c = board.create({ title: 'Anmeldung', body: 'Bitte die Anmeldung reparieren.', x: 0, y: 0 });
+    await workers.start(c.id);
+    const s = runtime.last;
+    expect(s.spec.system).toContain('Speak to the owner in German throughout this conversation, unless an explicit standing preference names another language.');
+    expect(s.spec.system).toContain('A preference about the language you speak to the owner takes precedence over the task\'s language and their latest words');
+    expect(s.spec.system).toContain('- Speak and report to me in English only.');
+    expect(s.inbox[0]).toContain('Bitte die Anmeldung reparieren.');
+    expect(s.spec.system).toContain('The task and later messages may be written in another language; they do not change the language of your replies.');
+  });
+
+  test('a German task and later German words do not change an English conversation without a preference', async () => {
+    setConversation('en');
+    const c = board.create({ title: 'Login', body: 'Bitte die Anmeldung reparieren.', x: 0, y: 0 });
+    await workers.start(c.id);
+    const s = runtime.last;
+    expect(s.spec.system).toContain('Speak to the owner in English throughout this conversation');
+    expect(s.inbox[0]).toContain('Bitte die Anmeldung reparieren.');
+    workers.message(c.id, 'Bitte auch die Fehlermeldung ändern.');
+    expect(s.spec.system).toContain('later messages may be written in another language; they do not change the language of your replies');
+  });
+
   test('a worker that stopped and then works on by itself takes its question back', async () => {
     const c = manual();
     await workers.start(c.id);
@@ -1217,6 +1240,9 @@ describe('workers', () => {
       proposal: { reason: 'Gesehen beim Testen.', questions: [{ text: 'Welches Wort?', options: ['Export', 'Exportieren'] }] },
     });
     expect(p.y).toBeGreaterThan(c.y);
+    expect(board.events(c.id).at(-1)).toMatchObject({
+      kind: 'activity', author: 'worker', made: { card: p.id, title: p.title },
+    });
     board.accept(p.id);
     expect(state(p.id)).toBe('planned');
     expect(board.item(p.id)!.proposal).toBeUndefined();
@@ -1240,7 +1266,7 @@ describe('workers', () => {
     runtime.last.call('propose_card', { title: 'Auch dort', task: 'T', reason: 'R', repo: 'SITE' });
     const repoOf = (title: string) => board.snapshot().items.find((i) => i.title === title)!.repo;
     expect([repoOf('Hier'), repoOf('Dort'), repoOf('Auch dort')]).toEqual(['home', 'site', 'site']);
-    expect(runtime.last.call('propose_card', { title: 'Nirgends', task: 'T', reason: 'R', repo: 'shop' })).toBe('Not proposed: Obeya has no repository shop; give one of home, site.');
+    expect(runtime.last.call('propose_card', { title: 'Nirgends', task: 'T', reason: 'R', repo: 'shop' })).toBe('Not proposed: Seismic has no repository shop; give one of home, site.');
     expect(board.snapshot().items.some((i) => i.title === 'Nirgends')).toBe(false);
   });
 
@@ -1252,13 +1278,14 @@ describe('workers', () => {
     await workers.start(c.id);
     // with one repository of its own the worker sees those of the other canvases, by canvas
     expect(runtime.last.spec.tools.find((t) => t.name === 'propose_card')!.description).toContain(
-      `by its id: home (${main}, yours); on other canvases, where the proposal then waits for the owner: on „Tools“ tool (/r/tool), docs (/r/docs); on „Shop“ docs (/r/shop-docs); yours when left out.`,
+      `by its id: home (${main}, yours); on other canvases, where the proposal then waits for the owner: on “Tools” tool (/r/tool), docs (/r/docs); on “Shop” docs (/r/shop-docs); yours when left out.`,
     );
     expect(runtime.last.call('propose_card', { title: 'Ursache im Tool', task: 'T', reason: 'Die Ursache liegt im Tool.', repo: 'tool' })).toContain('Proposed');
     const p = tools.snapshot().items.find((i) => i.title === 'Ursache im Tool')!;
     expect(p).toMatchObject({ state: 'proposal', repo: 'tool', from: c.id, fromElsewhere: { canvas: 'c', canvasName: 'C', title: 'Zählerstände exportieren' } });
     expect(board.snapshot().items.some((i) => i.title === 'Ursache im Tool')).toBe(false);
-    expect(board.events(c.id).at(-1)!.text).toBe('Aufgabe vorgeschlagen auf der Leinwand „Tools“: Ursache im Tool');
+    expect(board.events(c.id).at(-1)!.text).toBe('Aufgabe vorgeschlagen im Projekt „Tools“: Ursache im Tool');
+    expect(board.events(c.id).at(-1)!.made).toEqual({ card: p.id, title: p.title, canvas: 'tools' });
     // an id two other canvases have takes the path
     expect(runtime.last.call('propose_card', { title: 'Doku', task: 'T', reason: 'R', repo: 'docs' })).toBe('Not proposed: several canvases have a repository docs; give its path instead: /r/docs, /r/shop-docs.');
     runtime.last.call('propose_card', { title: 'Doku', task: 'T', reason: 'R', repo: '/r/shop-docs/' });
@@ -1320,7 +1347,7 @@ describe('workers', () => {
     await workers.start(c.id);
     runtime.last.call('propose_card', { title: 'Lange Schnitte', task: 'T', reason: 'R' });
     const p = board.snapshot().items.find((i) => i.state === 'proposal')!;
-    expect(runtime.last.call('withdraw_proposal', { title: 'Kurze Schnitte', why: 'W' })).toBe('No proposal of yours is called so; nothing was withdrawn. Yours: „Lange Schnitte“ (proposal).');
+    expect(runtime.last.call('withdraw_proposal', { title: 'Kurze Schnitte', why: 'W' })).toBe('No proposal of yours is called so; nothing was withdrawn. Yours: “Lange Schnitte” (proposal).');
     expect(runtime.last.call('withdraw_proposal', { title: 'Lange Schnitte', why: 'W', replaced_by: 'Gibt es nicht' })).toContain('Nothing was withdrawn');
     expect(board.item(p.id)).toBeDefined();
     board.accept(p.id);
@@ -1560,7 +1587,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(board.item(c.id)!.paused).toBeUndefined();
   });
 
-  test("what Obeya has for a paused worker waits until it goes on, and so does a message it had not taken in", async () => {
+  test("what Seismic has for a paused worker waits until it goes on, and so does a message it had not taken in", async () => {
     const c = await atWork();
     workers.message(c.id, 'Und Excel?');
     workers.pause(c.id);
@@ -1570,12 +1597,12 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(board.item(c.id)!.paused).toBe(true);
     workers.resume(c.id);
     const first = runtime.last.inbox[0]!;
-    expect(first).toContain('While you were paused, Obeya had this for you');
+    expect(first).toContain('While you were paused, Seismic had this for you');
     expect(first).toContain('Und Excel?');
     expect(first).toContain('A check of your pull request failed: test.');
   });
 
-  test('a paused worker stays paused across a restart of Obeya', async () => {
+  test('a paused worker stays paused across a restart of Seismic', async () => {
     const c = await atWork();
     workers.pause(c.id);
     workers.shutdown();
@@ -1779,7 +1806,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(board.item(c.id)!.snoozed).toBeUndefined();
   });
 
-  test('a worker about to pause when Obeya restarts stays paused after it', async () => {
+  test('a worker about to pause when Seismic restarts stays paused after it', async () => {
     const c = await atWork();
     workers.pauseAtSafePoint(c.id);
     workers.shutdown();

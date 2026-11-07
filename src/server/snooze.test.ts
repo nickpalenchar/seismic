@@ -79,7 +79,7 @@ describe('the agent snoozes itself', () => {
     expect(workers().busyCards()).toEqual([id]);
   });
 
-  test('a note from the owner wakes it early, and so does what Obeya has for it', async () => {
+  test('a note from the owner wakes it early, and so does what Seismic has for it', async () => {
     const { id, s } = await atWork();
     s.call('snooze', { until: later(10 * HOUR), why: 'Prüfen' });
     s.emit({ type: 'idle' });
@@ -284,7 +284,7 @@ describe('the agent snoozes until another card gets somewhere', () => {
 });
 
 describe('the owner snoozes a card', () => {
-  test('at work: its worker stops at once as on a pause, Obeya’s messages wait, and at the time it goes on with them', async () => {
+  test('at work: its worker stops at once as on a pause, Seismic’s messages wait, and at the time it goes on with them', async () => {
     const { id, s } = await atWork();
     const until = later(14 * HOUR);
     canvas.act(id, { action: 'snooze', until });
@@ -300,7 +300,7 @@ describe('the owner snoozes a card', () => {
     expect(runtime.last.spec.resume).toBe('sess-1');
     expect(inbox).toContain('The owner snoozed you until');
     expect(inbox).toContain('exit code 137');
-    expect(inbox).toContain('While you were snoozed, Obeya had this for you');
+    expect(inbox).toContain('While you were snoozed, Seismic had this for you');
     expect(inbox).toContain('A check of your pull request failed');
     expect(item(id).snoozed).toBeUndefined();
     expect(item(id).paused).toBeUndefined();
@@ -411,7 +411,7 @@ describe('edges a review found', () => {
     s.emit({ type: 'idle' });
     canvas.shutdown();
     canvas = open();
-    expect(runtime.last.inbox[0]).toContain('Obeya has started again and runs main with your change now.');
+    expect(runtime.last.inbox[0]).toContain('Seismic has started again and runs main with your change now.');
     expect(JSON.parse(board().row(id).landed!)).toEqual({ commit: 'abc' });
     expect(item(id).snoozed).toBeUndefined();
   });
@@ -435,8 +435,8 @@ describe('the Koordinator waits on a card', () => {
     const repo = board().snapshot().items.find((i) => i.title === 'Repository anlegen')!;
     expect(board().snapshot().talk[0]!.waits).toEqual([{ card: repo.id, title: 'Repository anlegen', state: 'done' }]);
 
-    // its agent, asking Obeya for the step itself, hears that Obeya takes it
-    expect(await canvas.forward(repo.id, 'Lege die Leinwand an.')).toContain('Obeya itself takes these steps once your card is done: New card „Leinwand anlegen“, not started. If you asked for one of them, it is not missing');
+    // its agent, asking Seismic for the step itself, hears that Seismic takes it
+    expect(await canvas.forward(repo.id, 'Lege die Leinwand an.')).toContain('Seismic itself takes these steps once your card is done: New card „Leinwand anlegen“, not started. If you asked for one of them, it is not missing');
     // done: the board's change wakes the Koordinator, without the owner saying anything
     board().work(repo.id, { state: 'done' });
     await until(() => k.inbox.length === 2);

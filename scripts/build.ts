@@ -1,4 +1,4 @@
-// Obeya as one file: the server compiled with Bun (`bun build --compile`) into a binary that needs
+// Seismic as one file: the server compiled with Bun (`bun build --compile`) into a binary that needs
 // no Bun and no checkout, with the UI and SQLite in it, and beside it the resources other
 // processes run or import (src/server/resources.ts): the plugin with the demo skill and the
 // Playwright it records with, and the voice sidecars;
@@ -54,7 +54,7 @@ function resources(dir: string) {
   for (const script of ['plugin/skills/demo/lib/recipe.ts', 'plugin/skills/settings/lib/check.ts', 'plugin/skills/settings/lib/allow-list.ts'])
     run([process.execPath, 'build', script, '--target', 'bun', '--outfile', join(dir, script)]);
   // A compiled binary's embedded modules cannot be imported by a separate process. Bundle the
-  // liveness supervisor and its dependencies into a real resource executable by Obeya's Bun.
+  // liveness supervisor and its dependencies into a real resource executable by Seismic's Bun.
   mkdirSync(join(dir, 'scripts'), { recursive: true });
   run([process.execPath, 'build', 'scripts/agent-liveness-prototype.ts', '--target', 'bun', '--outfile', join(dir, 'scripts', 'agent-liveness.js')]);
 }

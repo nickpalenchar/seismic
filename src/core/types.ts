@@ -4,7 +4,7 @@ import type { DemoSettings, NarrationLanguage, VoiceKind } from '../../plugin/sk
 import type { HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
 import type { SetupId, SetupItem } from '../../plugin/skills/demo/lib/setup.ts';
 import type { CardFile } from './files';
-import type { Category, Complexity, Label, Priority, Subcategory } from './labels';
+import type { Category, Complexity, Label, Priority, Subcategory, SuggestSettings } from './labels';
 import type { Language } from './locale';
 import { MESSAGES } from './messages';
 import type { OutdatedBy } from './page-changes';
@@ -18,7 +18,7 @@ export { PRIORITIES, type Priority } from './labels';
 export type { SetupCheck, SetupId, SetupItem } from '../../plugin/skills/demo/lib/setup.ts';
 
 /**
- * How Obeya hears speech: Parakeet (NVIDIA's Parakeet TDT 0.6B v3, int8, through onnx-asr and ONNX
+ * How Seismic hears speech: Parakeet (NVIDIA's Parakeet TDT 0.6B v3, int8, through onnx-asr and ONNX
  * Runtime on the CPU), on every platform; or Whisper (mlx-whisper on Apple Silicon, faster-whisper
  * elsewhere).
  */
@@ -66,18 +66,20 @@ export interface WorkerTurn {
   over: boolean;
   /** What the worker does, for a card's own worker. */
   doing?: AgentDoing;
+  /** No turn at all: the worker ended its turn for a restart that is due, and goes on once it happened. */
+  restartPaused?: true;
 }
 
 /**
  * What a card's worker is doing in its turn, read from its steps: at work, thinking (a long while
  * without a step), debugging (a step of its failed), or at a stage of its demo.
  */
-export type AgentDoing = 'working' | 'thinking' | 'debugging' | 'preparingDemo' | 'recordingDemo' | 'finalizingDemo';
+export type AgentDoing = 'working' | 'building' | 'thinking' | 'debugging' | 'preparingDemo' | 'recordingDemo' | 'finalizingDemo';
 
 /** Whether the worker is at a stage of its demo, which its card shows in green. */
 export const demoStage = (d: AgentDoing) => d.endsWith('Demo');
 
-/** The card's agent is snoozed (by itself or the owner, „Später …“): it stops until its time, and neither pauses nor resumes meanwhile. */
+/** The card's agent is snoozed (by itself or the owner, "Later"): it stops until its time, and neither pauses nor resumes meanwhile. */
 const snoozedAway = (i: Pick<Item, 'snoozed'>) => !!i.snoozed && !i.snoozed.waiting;
 
 /** The card's agent runs a turn the owner can pause at once (the pause on the bubble of its turn), also while it is about to pause at a safe point. */
@@ -122,21 +124,23 @@ export const buildableOn = (i: Item) => i.state === 'planned' && !i.branch && !i
 export const untouched = (i: Item) =>
   i.kind === 'task' && i.source === 'manual' && i.state === 'planned' && !i.branch && !i.workspace && (!i.queue || 'behind' in i.queue) && !i.prototypeOf && !i.becomesProject;
 
-/** A proposal that is merged with another card right now: its agent writes the merged text. */
-export const merging = (i: Pick<Item, 'state' | 'proposal'>) => i.state === 'proposal' && !!i.proposal?.merge && i.proposal.merge.task === undefined && i.proposal.merge.failed === undefined;
+/** Progress decides which card dissolves. Unstarted pairs still combine their text. */
+export const mergeRank = (i: Item): number => i.archivedAt ? 4 : finished(i.state) ? 3 : i.state === 'proposal' ? 0 : untouched(i) ? 1 : 2;
 
-/**
- * A card a proposal can be merged with („Zusammenführen mit …“): a task on the canvas nobody has
- * worked on yet, the owner's planned one or another proposal, not itself being merged nor reworked.
- */
+/** Only an unworked task or proposal can start a merge and dissolve. */
+export const canMergeFrom = (i: Item) =>
+  i.kind === 'task' && !i.parent && !i.archivedAt && !i.mergingInto && !i.snoozed && !i.repoDown && !i.prototypeOf && !i.becomesProject &&
+  !i.proposal?.merge && !i.proposal?.idea && !i.proposal?.revising && !i.proposal?.acceptAfterRevision &&
+  (untouched(i) || (i.state === 'proposal' && !i.branch && !i.workspace));
+
+/** The read-only agent is still comparing the cards. */
+export const merging = (i: Pick<Item, 'state' | 'proposal'>) => !!i.proposal?.merge && i.proposal.merge.task === undefined && i.proposal.merge.failed === undefined;
+
+/** A merge starts at an unworked card; its partner may have reached any stage. */
 export const mergeableWith = (p: Item, i: Item) =>
-  i.id !== p.id &&
-  !i.parent &&
-  !i.archivedAt &&
-  !i.mergingInto &&
-  !i.snoozed &&
-  !i.repoDown &&
-  (untouched(i) || (i.kind === 'task' && i.state === 'proposal' && !i.proposal?.idea && !i.proposal?.merge && !i.proposal?.revising && !i.proposal?.acceptAfterRevision));
+  canMergeFrom(p) && i.id !== p.id && i.kind === 'task' && i.state !== 'idea' && !i.parent &&
+  !i.mergingInto && !i.snoozed && !i.repoDown && !i.prototypeOf && !i.becomesProject &&
+  !i.proposal?.idea && !i.proposal?.merge && !i.proposal?.revising && !i.proposal?.acceptAfterRevision;
 
 /**
  * A task of the owner's that can still be planned as a project, as an idea can: planned, nobody has
@@ -166,7 +170,7 @@ export interface Question {
   multiple?: boolean;
   /** What the asking agent would pick if it had to decide: some of the options, and why. */
   pick?: { options: string[]; why: string };
-  /** Obeya asks for a worker that is stuck (its turn failed, or ended twice without a handover), not the worker. */
+  /** Seismic asks for a worker that is stuck (its turn failed, or ended twice without a handover), not the worker. */
   stuck?: true;
 }
 
@@ -191,12 +195,12 @@ export const agentListens = (i: Pick<Item, 'kind' | 'state' | 'branch' | 'protot
   !i.archivedAt && (i.kind === 'question' || i.state === 'idea' || i.state === 'proposal' || i.state === 'working' || i.state === 'waiting' || i.state === 'inPr' || !!i.finishing || askable(i));
 
 /**
- * A card the owner left without a title but with a task (text or screenshots): Obeya names it from
+ * A card the owner left without a title but with a task (text or screenshots): Seismic names it from
  * that (`Koordinator.name`). Without either it is an empty card, dropped when closed.
  */
 export const nameless = (i: Pick<Item, 'kind' | 'title' | 'body' | 'images'>) => i.kind !== 'project' && !i.title.trim() && (!!i.body.trim() || !!i.images?.length);
 
-/** A title from a task's first words, on a card not named yet, and when Obeya's naming fails. */
+/** A title from a task's first words, on a card not named yet, and when Seismic's naming fails. */
 export function titleFrom(body: string): string {
   const line = body.trim().split('\n')[0]!.trim();
   if (line.length <= 70) return line;
@@ -225,13 +229,13 @@ export const agentFailed = (i: Pick<Item, 'state' | 'need' | 'question' | 'answe
  * A card needs the owner: it waits (but not while its worker takes in what the owner wrote on its
  * handover, nor once they approved it and its work lands), is a proposal or an accepted one its agent withdrew or
  * replaced since, has a pull request that only waits for the owner's merge, or is an open idea whose agent has replied
- * and is done. A proposal merged with another card needs them once the merged text is there, the
- * card it is merged with not on its own meanwhile.
+ * and is done. A merge needs them once its comparison is ready. A progressed survivor keeps its own
+ * handover and questions while an unworked partner waits for the comparison.
  */
 export const needsYou = (i: Item) =>
   !i.snoozed &&
-  !i.mergingInto &&
-  ((i.state === 'waiting' && !answering(i) && !i.landing) || (i.state === 'proposal' && !i.proposal?.revising && !merging(i)) || !!i.superseded || (i.state === 'inPr' && [i.pr, ...(i.morePrs ?? [])].some((p) => p?.ready && !p.merged && !p.closed)) || (!!i.idea && i.idea.status === 'open' && i.idea.yourTurn && !i.idea.thinking));
+  (!i.mergingInto || mergeRank(i) > 1) &&
+  ((!!i.proposal?.merge && !merging(i)) || (i.state === 'waiting' && !answering(i) && !i.landing && !(i.need !== 'question' && i.codeReview?.state === 'running')) || (i.state === 'proposal' && !i.proposal?.revising && !merging(i)) || !!i.superseded || (i.state === 'inPr' && [i.pr, ...(i.morePrs ?? [])].some((p) => p?.ready && !p.merged && !p.closed)) || (!!i.idea && i.idea.status === 'open' && i.idea.yourTurn && !i.idea.thinking));
 
 /**
  * What a worker can wait for another card to reach: `done`, its work on main (or the card closed
@@ -243,7 +247,7 @@ export type AwaitedState = (typeof AWAITED_STATES)[number];
 
 export type Awaited = 'reached' | 'gone' | 'archived' | 'stopped' | 'dropped';
 
-/** Why a snoozed card woke: its time came, the owner woke it, Obeya had something for its agent, it needs the owner, or what became of the card it waited on. */
+/** Why a snoozed card woke: its time came, the owner woke it, Seismic had something for its agent, it needs the owner, or what became of the card it waited on. */
 export type Woke = 'time' | 'owner' | 'news' | 'needsYou' | { met: Awaited };
 
 /**
@@ -267,7 +271,7 @@ const workerAtWork = (i: Item) => i.kind === 'task' && (i.state === 'working' ||
 export const plannedToStart = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt'>) => i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt;
 
 /**
- * A card the owner can snooze until a point in time („Später …“): one at work (its worker stops
+ * A card the owner can snooze until a point in time ("Later"): one at work (its worker stops
  * until then, as on a pause), one that waits for them (it leaves them until then), or one planned
  * (it starts then); a snoozed card's time can be changed.
  */
@@ -287,20 +291,21 @@ export function unreadPerProject(talk: Talk[]): Map<string, number> {
 export const waitingOn = (s: Pick<CanvasSnapshot, 'items' | 'talk'>) => s.items.filter(needsYou).length + (unreadAnswers(s.talk) ? 1 : 0);
 
 /**
- * What of a canvas „Braucht dich“ lists (the phone's, and the navigation on every other canvas's page):
+ * What of a canvas "Needs you" lists (the phone's, and the navigation on every other canvas's page):
  * the cards that need the owner and those snoozed while they did, and the Koordinator's answers that
  * wait unread.
  */
-export type Waiting = Pick<CanvasSnapshot, 'items' | 'talk'>;
-export const waitingIn = (s: Pick<CanvasSnapshot, 'items' | 'talk'>): Waiting => ({
+export type Waiting = Pick<CanvasSnapshot, 'items' | 'talk'> & Partial<Pick<CanvasSnapshot, 'preferences' | 'settingProposals' | 'canvas'>> & { proposalItems?: Item[] };
+export const waitingIn = (s: Pick<CanvasSnapshot, 'items' | 'talk'> & Partial<Pick<CanvasSnapshot, 'preferences' | 'settingProposals' | 'canvas'>>): Waiting => ({
   items: s.items.filter((i) => needsYou(i) || !!i.snoozed?.waiting),
   talk: s.talk.filter((x) => x.unread),
+  preferences: s.preferences, settingProposals: s.settingProposals, canvas: s.canvas, proposalItems: s.items.filter((i) => s.preferences?.some((p) => p.state === 'proposed' && p.cardId === i.id) || s.settingProposals?.some((p) => p.cards.some((c) => c.id === i.id))),
 });
 
 /** One item on the canvas as the UI sees it: a stored card merged with what its plan doc says. */
 /**
  * Who wrote a card's task: the owner (also through the Koordinator, from their words), the plan doc
- * of its workstream, Obeya (the Arbeitsrückschau), the idea a prototype is for, or a worker whose
+ * of its workstream, Seismic (the work retrospective), the idea a prototype is for, or a worker whose
  * proposal the owner accepted. A decided idea's task is its brief, the idea's agent's.
  */
 export type TaskAuthor = 'owner' | 'plan' | 'koordinator' | 'idea' | 'proposal';
@@ -313,7 +318,7 @@ export interface ManualAnchor { fromSide: EdgeSide; toSide: EdgeSide; offset: nu
 
 export interface Item {
   id: string;
-  /** The card's code in addresses (`/c/<canvas>/card/<code>`): a few hex digits, unique among all cards; the id works there too. */
+  /** The card's code in addresses (`/p/<project>/c/<code>`): a few hex digits, unique among all cards; the id works there too. */
   short?: string;
   kind: CardKind;
   state: CardState;
@@ -339,6 +344,8 @@ export interface Item {
   buildsOn?: string[];
   /** Cards connected by the owner that must finish before this card starts. */
   manualDependsOn?: string[];
+  /** Unfinished archived prerequisites, so their wait remains visible and enforceable off canvas. */
+  manualArchived?: Item[];
   /** Saved attachment points of the owner-drawn arrows, keyed by prerequisite. */
   manualAnchors?: Record<string, ManualAnchor>;
   /** The worker's latest `report`. */
@@ -361,12 +368,14 @@ export interface Item {
    */
   answered?: true;
   /**
-   * The owner's comments on places in the demo video (their event ids) that Obeya holds back while
+   * The owner's comments on places in the demo video (their event ids) that Seismic holds back while
    * they watch, to give them to the worker in one message once they are done (`Spot`).
    */
   held?: number[];
-  /** The owner approved the work and Obeya lands it on main (seconds of git): still `waiting`, but no longer the owner's. */
+  /** The owner approved the work and Seismic lands it on main (seconds of git): still `waiting`, but no longer the owner's. */
   landing?: true;
+  /** Zero while landing, otherwise the place among waiting approvals. */
+  landingPosition?: number;
   /** The demo, when `need` is `demo`; its files are served under `/api/cards/:id/demo/`. */
   demo?: Demo;
   /**
@@ -382,28 +391,30 @@ export interface Item {
   files?: CardFile[];
   /** The demo's page for colleagues, once the owner shared it (or is about to). */
   share?: Share;
-  /** Where the repository's site publishes on approval: the owner unticked „Mit der Freigabe teilen“, so approving shares nothing. */
+  /** Where the repository's site publishes on approval: the owner unticked "Share on approval", so approving shares nothing. */
   notOnApproval?: true;
   /**
    * The tags of the card's page (`pageTags` in src/core/page-tags.ts), by dimension, as they stand
    * without the site's vocabulary: set by hand, else by the newest worker that gave them, else by
-   * Obeya's reading session. A dimension without a key has none chosen yet.
+   * Seismic's reading session. A dimension without a key has none chosen yet.
    */
   tags?: PageTags;
   /** The card it comes from: a proposal's source, a prototype's idea, or the card a follow-up follows up on. */
   from?: string;
-  /** With `from` on another canvas (a card moved there, or one made there by Obeya): that card's title and canvas. */
+  /** With `from` on another canvas (a card moved there, or one made there by Seismic): that card's title and canvas. */
   fromElsewhere?: Elsewhere;
-  /** A card the Arbeitsrückschau proposed: the cards and the friction on them it rests on. */
+  /** A card the work retrospective proposed: the cards and the friction on them it rests on. */
   retro?: string;
   /** A worker's proposal, while it waits: an idea or a task, why, and what the owner has to decide. */
   proposal?: Proposal;
   /** An agent's proposal the owner accepted: its text is that agent's. */
   proposed?: true;
-  /** The proposal this card is merged with right now (`Proposal.merge`): it shows glued to it, and is not on its own until the owner decides. */
+  /** The unworked card this card is merged with right now (`Proposal.merge`): it shows glued to it, and is not on its own until the owner decides. */
   mergingInto?: string;
   /** When the card was created (ISO). */
   createdAt?: string;
+  /** Last stored change to the card (ISO), for newest-first mobile ordering. */
+  updatedAt?: string;
   /** An accepted proposal its agent withdrew or replaced since, while the card is not finished: the owner removes it or keeps it. */
   superseded?: Superseded;
   /** The repository the card belongs to (an id from the canvas's `repos`). */
@@ -427,6 +438,8 @@ export interface Item {
   keptIn?: string;
   /** Files the Koordinator expects the card to change. */
   scope?: string[];
+  /** Possible duplicate card ids found at the last start check, until dismissed or work starts. */
+  possibleDuplicates?: string[];
   /** A planned card the Koordinator is deciding on, or that waits for cards in progress. */
   queue?: Queue;
   /** The pull request, once the worker opened it after approval; on a review card, the one it reviews. */
@@ -438,6 +451,11 @@ export interface Item {
   morePrs?: PullRequest[];
   /** A review card: the pull request of someone outside that the card reviews and, once approved, merges. */
   contribution?: Contribution;
+  /**
+   * The code review of the card's work, where its canvas reviews work that lands on `main` and the
+   * card's does: present from its handover on (design: Code reviews in Card lifecycle).
+   */
+  codeReview?: CodeReview;
   /**
    * A workstream planned again: a part of it landed (this commit, this pull request), but its plan
    * doc keeps it open. A new run does the rest.
@@ -455,7 +473,7 @@ export interface Item {
   variant?: string;
   /** A prototype in the archive: discarded (its code thrown away), or built (its idea was built on its branch). */
   prototypeEnd?: 'discarded' | 'built';
-  /** A prototype built for a workstream of the project its idea became: that workstream ("W6 „Seite bauen“"). */
+  /** A prototype built for a workstream of the project its idea became: that workstream ("W6 \"Build the site\""). */
   builtInto?: string;
   /** A prototype: its idea's title, wherever the idea is (on the canvas, or in the archive once it became a project). */
   ideaTitle?: string;
@@ -481,6 +499,8 @@ export interface Item {
   doing?: AgentDoing;
   /** The harness and model of the card's agent whose session runs now (`AgentAt`), as far as known: its bubble at work names them. */
   agentAtWork?: AgentIdentity;
+  /** The selection pinned to the current worker session. */
+  workerSetting?: AgentSetting;
   /** The worker's background work that runs (a test run, a render, a watcher), the oldest first: while `inTurn`, or after the turn on a card that waits for the owner. */
   background?: BackgroundTask[];
   /**
@@ -490,11 +510,11 @@ export interface Item {
   limitedUntil?: string;
   /** Three consecutive usage-limit refusals: paused until a known reset or a manual attempt. */
   limitPaused?: true;
-  /** Since when it waits for the owner (`needsYou`), for the phone view's „Braucht dich“. */
+  /** Since when it waits for the owner (`needsYou`), for the phone view's "Needs you". */
   waitingSince?: string;
   /**
    * The owner paused the card's agent (its worker, the idea's agent, the Question card's agent):
-   * nothing of it runs, its session stays, and it goes on where it stopped with „Weitermachen“ or
+   * nothing of it runs, its session stays, and it goes on where it stopped with "Resume" or
    * the owner's next words to it.
    */
   paused?: true;
@@ -503,11 +523,13 @@ export interface Item {
    * card's pause, the canvas's): it works on until its turn ends, and is `paused` then.
    */
   pausing?: true;
+  /** Its worker paused for a restart that is due (Seismic's, or its repository's agents'): it goes on by itself once that happened. */
+  restartPaused?: true;
   /** Set aside until a point in time: nothing of its agent runs, and it does not wait for the owner meanwhile. */
   snoozed?: Snooze;
   /**
    * Where the app in the card's workspace runs, as its worker opens it (`http://localhost:5173`):
-   * while the worker says it runs and Obeya has not stopped it. The card offers it to the owner to
+   * while the worker says it runs and Seismic has not stopped it. The card offers it to the owner to
    * try by hand, once it answers.
    */
   app?: string;
@@ -519,7 +541,7 @@ export interface Item {
    */
   modelsUnchanged?: string;
   /**
-   * Approved work its agent did, while Obeya asks for feedback: the handover the owner's response
+   * Approved work its agent did, while Seismic asks for feedback: the handover the owner's response
    * would be about, and the answer given on it so far (none: not answered yet).
    */
   rate?: { handover: number; answer?: FeedbackAnswer };
@@ -528,6 +550,13 @@ export interface Item {
    * handover): approving lands it as the branch says, not as the repository does until then.
    */
   lands?: CardLanding;
+  /**
+   * Its approval could not land: the Seismic checkout has uncommitted changes to `files`, which the
+   * card's branch changes too. The card offers to fold them into it (`fold`).
+   */
+  blocked?: { files: string[] };
+  /** Its approval could not land because rebasing onto main conflicted: the worker resolves the conflicts, then the work lands without another approval. */
+  resolvingConflicts?: true;
   /**
    * Screenshots the owner attached to the card's task; its worker gets them at the start. On a
    * proposal, those that go with its task once it is accepted (the owner's or its reviser's pick).
@@ -551,7 +580,7 @@ export interface Item {
   subcategory?: Subcategory;
   /** The card's complexity, none until set. */
   complexity?: Complexity;
-  /** The labels Obeya set as its suggestion, which the owner has not touched since. */
+  /** The labels Seismic set as its suggestion, which the owner has not touched since. */
   suggested?: Label[];
 }
 
@@ -561,8 +590,8 @@ export const SNOOZE_LIMIT = 366 * 24 * 60 * 60_000;
 /**
  * A card set aside until a point in time (`CardRow.snoozed`): by its worker, which has nothing to do
  * until then (a test that runs for days, a check at midnight), or by the owner; or by its worker
- * until another card reaches a state (`on`). Obeya holds the time and the card and wakes it then;
- * the owner's words, „Jetzt zurückholen“, or what Obeya has for an agent that snoozed itself wake it
+ * until another card reaches a state (`on`). Seismic holds the time and the card and wakes it then;
+ * the owner's words, "Wake now", or what Seismic has for an agent that snoozed itself wake it
  * earlier.
  */
 export interface Snooze {
@@ -610,7 +639,7 @@ export interface Proposal {
    */
   revising?: Revising & { next?: Revising[] };
   /**
-   * "Übernehmen und starten" was clicked while it was reworked (`idea`: "Als Idee besprechen"): it
+   * "Accept and start" was clicked while it was reworked (`idea`: "Discuss as idea"): it
    * is accepted once the new text is there, unless that asks questions.
    */
   acceptAfterRevision?: true | 'idea';
@@ -624,7 +653,7 @@ export interface Proposal {
   /** The owner merges it with another card: the two show as one until they approve the merged text or separate them. */
   merge?: Merge;
   /**
-   * Obeya's own proposal of the card that fills in a repository's settings, while it knows them not
+   * Seismic's own proposal of the card that fills in a repository's settings, while it knows them not
    * yet (design: Repositories and configuration): accepted, it is the owner's card like the one the
    * Konfiguration dialog makes.
    */
@@ -644,15 +673,28 @@ export interface Superseded {
 }
 
 /**
- * A proposal being merged with another card (`with`, a planned task or another proposal): an agent
- * writes one card of both; until then neither `title` nor `task` is there. Approved, the other card
- * takes the merged text and this proposal goes; separated, both stay as they were.
+ * An unworked card being merged into a survivor: an agent combines two unworked cards, or marks
+ * coverage and extra work while preserving a progressed survivor. Approval dissolves the left
+ * card; separation restores it. Stored inside proposal JSON for both proposals and planned tasks.
  */
 export interface Merge {
   with: string;
+  /** Identifies this comparison, so a late result cannot replace a later attempt. */
+  attempt?: string;
+  /** Originals are restored exactly when the owner separates the pair. */
+  origin?: { x: number; y: number };
+  temporaryProposal?: true;
   /** The merged card as the agent wrote it. */
   title?: string;
   task?: string;
+  /** A progressed survivor is preserved; otherwise both unworked texts are combined. */
+  outcome?: 'covered' | 'followUp';
+  titleCovered?: boolean;
+  /** Exact consecutive pieces of the dissolving task, for checking coverage without rewriting it. */
+  parts?: { text: string; covered: boolean }[];
+  followUp?: { title: string; task: string; images: string[]; questions: number[] };
+  /** Texts compared by the agent, for rejecting a stale approval. */
+  compared?: { left: string; right: string; summary: string };
   /** The agent ended without a merged text: why. */
   failed?: string;
 }
@@ -681,7 +723,7 @@ export interface ProjectHistory {
   decisions: Decision[];
   /** The idea the plan doc was written from, wherever it is now (on the canvas or archived). */
   origin: Item | null;
-  /** The questions its project agent answered (asked in its sheet or of Obeya) and their follow-ups, oldest first. */
+  /** The questions its project agent answered (asked in its sheet or of Seismic) and their follow-ups, oldest first. */
   talk: Talk[];
 }
 
@@ -713,7 +755,7 @@ export interface Idea {
 
 /** The thread of looked-up answers a Question card holds, as its card shows it. */
 export interface Thread {
-  /** The exchange with Obeya the thread started with: its id names the thread and its output directory. */
+  /** The exchange with Seismic the thread started with: its id names the thread and its output directory. */
   talk: number;
   /** Its agent is reading, for what the owner asked on the card. */
   thinking?: boolean;
@@ -781,7 +823,7 @@ export interface PullRequest {
   conflict: boolean;
   /**
    * Nothing is left for the worker (checks green, threads resolved, reviewers answered), and GitHub
-   * refused Obeya's merge for `mergeError`, or the reviewer's confidence is too low for Obeya to
+   * refused Seismic's merge for `mergeError`, or the reviewer's confidence is too low for Seismic to
    * merge (`held`, Greptile's 3/5 say), or the repository's settings leave the merge to the people
    * on the forge (`manual`, `autoMerge` off): the owner merges, or tells the worker what is missing.
    */
@@ -805,7 +847,7 @@ export type PrWait = 'conflict' | 'behind' | 'draft' | 'protection' | 'forge' | 
 
 /**
  * The pull request a review card reviews: opened by someone outside (the contributor), reviewed by
- * the card's worker and merged by Obeya once the owner approves its demo.
+ * the card's worker and merged by Seismic once the owner approves its demo.
  */
 export interface Contribution {
   url: string;
@@ -813,7 +855,7 @@ export interface Contribution {
   /** The contributor's account on the forge. */
   author: string;
   title: string;
-  /** The contributor allows maintainers to push to the PR's branch (GitHub's „Allow edits by maintainers“). */
+  /** The contributor allows maintainers to push to the PR's branch (GitHub's "Allow edits by maintainers"). */
   canModify: boolean;
   /** What the worker found at its latest handover: the checks on the PR's head, whether it merges into the current main without conflicts. */
   results?: ReviewResults;
@@ -823,13 +865,13 @@ export interface Contribution {
   requested?: { url?: string; at: string };
   /** The worker's own commits for the PR, held on the card until the owner approves (`HeldChanges`). */
   held?: HeldChanges;
-  /** Where work lands on the local main: its unpushed commits collide with the PR, as Obeya found before the merge. */
+  /** Where work lands on the local main: its unpushed commits collide with the PR, as Seismic found before the merge. */
   clash?: Clash;
 }
 
 /**
  * What a review card's worker changed itself on the PR, held on the card: on the owner's approval
- * Obeya pushes its `commits` onto the PR's branch and posts `body` there, as a comment, or with
+ * Seismic pushes its `commits` onto the PR's branch and posts `body` there, as a comment, or with
  * requests to the contributor (the findings `asks`) as one review asking for changes.
  */
 export interface HeldChanges {
@@ -853,22 +895,33 @@ export interface Clash {
 
 /**
  * What the owner decides for a finding of a review card: it goes to the contributor as a change
- * request, (`self`) the worker makes the change, which Obeya pushes onto the PR's branch on the
+ * request, (`self`) the worker makes the change, which Seismic pushes onto the PR's branch on the
  * owner's approval, or (`later`)
  * it becomes a follow-up task of its own, outside the PR.
  */
 export type ChangeRoute = 'contributor' | 'self' | 'later';
 
-/** One finding of a review card's review, as its worker keeps it. */
+/** What the owner picks on an open finding: a route the worker carries out, or `ignore`, which settles it as dropped without telling the worker. */
+export type FindingPick = ChangeRoute | 'ignore';
+
+/** Review findings, ordered from most to least severe. */
+export const SEVERITIES = ['blocker', 'critical', 'major', 'minor', 'low', 'info'] as const;
+export type Severity = (typeof SEVERITIES)[number];
+
+/** One finding of a review: a review card's, as its worker keeps it, or a code review's of a card's work. */
 export interface Finding {
   /** Its number on the card, kept while the worker rewrites the list. */
   id: number;
   title: string;
   text: string;
   security?: boolean;
+  severity?: Severity;
+  /** Where in the repository it is: a file, and the line in it. */
+  file?: string;
+  line?: number;
   /**
    * `open` until something came of it: `sent` to the contributor (`url`, the review it went in),
-   * `fixed` by the worker (`url`, the post its push went out with, once Obeya pushed it), `resolved` (the contributor's push fixed it, or it no
+   * `fixed` by the worker (`url`, the post its push went out with, once Seismic pushed it), `resolved` (the contributor's push fixed it, or it no
    * longer applies), `dropped` (the owner does not pursue it), `later` (a follow-up task, `card`,
    * which the worker makes once the owner chose it).
    */
@@ -885,6 +938,40 @@ export interface Finding {
 }
 
 export type FindingStatus = 'open' | 'sent' | 'fixed' | 'resolved' | 'dropped' | 'later';
+
+/**
+ * The code review of a card's work as the card shows it: whether reviews start by themselves with a
+ * handover or by the owner's "Start code review", and the review of the latest handover or of an
+ * earlier one (`stale`). On a finding of it the owner decides `self` ("Fix it", the card's worker
+ * fixes it) or `later` (a follow-up task).
+ */
+export interface CodeReview {
+  mode: CodeReviewMode;
+  /** The agent running this review, as selected at start or resolved by its session. */
+  agent?: AgentIdentity;
+  /** None while no review ran for the card's work. */
+  state?: 'running' | 'done' | 'failed';
+  /** It reviewed an earlier handover than the latest. */
+  stale?: true;
+  findings?: Finding[];
+  /** Why it failed. */
+  error?: string;
+  /** Earlier review runs, oldest first; their findings and decisions are snapshots. */
+  previous?: { state: 'done' | 'failed'; findings: Finding[]; error?: string; at: string; agent?: AgentIdentity }[];
+}
+
+/** How a canvas's finished cards go into the archive (canvas setting "Cards archive"). */
+export const CARD_ARCHIVING = ['manual', 'landed'] as const;
+export type CardArchiving = (typeof CARD_ARCHIVING)[number];
+
+export const CODE_REVIEW_MODES = ['auto', 'manual'] as const;
+export type CodeReviewMode = (typeof CODE_REVIEW_MODES)[number];
+
+/** Whether a canvas reviews the work that lands on `main`, and when. */
+export interface CodeReviewSetting {
+  on: boolean;
+  mode: CodeReviewMode;
+}
 
 /** What the worker of a review card reports with its handover. */
 export interface ReviewResults {
@@ -921,10 +1008,10 @@ export type PrReviewEntry = { author: string; mine?: boolean; at: string; thread
  */
 export const START_ALL_HOLD_MS = 8000;
 
-/** How long taking a card's workspace from it (the Workspaces list) waits for the owner's „Rückgängig“. */
+/** How long taking a card's workspace from it (the Workspaces list) waits for the owner's "Undo". */
 export const EVICT_HOLD_MS = 8000;
 
-/** How long pushing main for a review card whose PR collides with unpushed commits waits for the owner's „Rückgängig“. */
+/** How long pushing main for a review card whose PR collides with unpushed commits waits for the owner's "Undo". */
 export const PUSH_HOLD_MS = 8000;
 
 /**
@@ -978,7 +1065,7 @@ export interface Demo {
   asked?: true;
   /** When that handover was. */
   at?: string;
-  /** The page it is shared on, for colleagues who have never seen Obeya: written by the worker at handover, or later from its summary. */
+  /** The page it is shared on, for colleagues who have never seen Seismic: written by the worker at handover, or later from its summary. */
   page?: DemoPage;
   /** An HTML artifact that is its `index.html` alone: it also goes out as one HTML file. */
   single?: true;
@@ -1012,7 +1099,7 @@ export interface DemoPage {
   title: string;
   /** Two to five sentences on what changes and why. */
   text: string;
-  /** The values of the site's vocabulary (`demo.site.tags`) the worker chose for each dimension; an empty list where none fits. */
+  /** The values of the site's vocabulary (the canvas's) the worker chose for each dimension; an empty list where none fits. */
   tags?: PageTags;
 }
 
@@ -1038,7 +1125,7 @@ export interface Share {
   /** The card's latest demo is not on the page. */
   stale?: boolean;
   /** The page shows the card's demo, but pages changed since it was published ("Erneut teilen"): those changes, oldest first. */
-  outdated?: OutdatedBy[];  /** The page is on the owner’s personal demo site, unlisted (behind a random part of its address). */
+  outdated?: OutdatedBy[];  /** The page is on an unlisted demo site (behind a random part of its address). */
   unlisted?: true;
 }
 
@@ -1052,7 +1139,7 @@ export const MAX_FILE_BYTES = 100_000_000;
 
 /** The harness and model of the session that actually spoke; absent on older messages. */
 export interface AgentIdentity {
-  harness: 'claude' | 'codex';
+  harness: Harness;
   model?: string;
 }
 
@@ -1061,7 +1148,7 @@ export interface AgentIdentity {
  * defaults of today. `null` is unknown (an old session, a model the session never named).
  */
 export interface WorkConfig {
-  harness: 'claude' | 'codex' | null;
+  harness: Harness | null;
   /** The model the session resolved to (`claude-opus-5-5`), not the alias it was asked for. */
   model: string | null;
   effort: AgentEffort | null;
@@ -1133,7 +1220,7 @@ export interface CardEvent {
   text: string;
   /** Set on an error the UI words itself; `text` then holds the server's technical detail. */
   code?: ErrorCode;
-  /** Screenshots the owner attached (ids under `/api/c/<canvas>/images/`). */
+  /** Screenshots the owner attached (ids under `/api/c/<project>/images/`). */
   images?: string[];
   /** The mocks of an exploration agent's reply. */
   mocks?: Mock[];
@@ -1145,36 +1232,37 @@ export interface CardEvent {
   answer?: AnswerRef;
   /** The owner's answer to a worker's question: the options they picked, which lead its text (`pickedAnswer`). */
   picks?: string[];
-  /** The owner's words the card's agent has not read yet: Obeya holds them for it, and the owner can still take them back. */
+  /** The owner's words the card's agent has not read yet: Seismic holds them for it, and the owner can still take them back. */
   unread?: true;
   /** The owner's words the agent read later than they were written: they stand after this line of the log, where it read them. */
   readAfter?: number;
-  /** Obeya's reply on the card says it cannot do what the owner asked (or the owner asked to tell its makers): what a draft for them starts from. */
+  /** Seismic's reply on the card says it cannot do what the owner asked (or the owner asked to tell its makers): what a draft for them starts from. */
   wish?: Wish;
   /**
-   * Obeya's reply on the card answers the owner's words without acting on them (no actions to take
+   * Seismic's reply on the card answers the owner's words without acting on them (no actions to take
    * back): it stands in the conversation, where the confirmation of actions folds away.
    */
   reply?: true;
   /**
-   * Obeya's reply to what the card's agent passed on from the owner's words (`to_obeya`): it answers
+   * Seismic's reply to what the card's agent passed on from the owner's words (`to_seismic`): it answers
    * a step of the agent's, so it stands under the agent's message that step leads to.
    */
   forwarded?: true;
   /**
-   * Obeya made a follow-up card of this one: the card it made, with its title then (`canvas`, when it
-   * went onto another canvas). The conversation shows it as an action, with the card's cover.
+   * A card made from this one: a worker's proposal or Seismic's follow-up, with its title then
+   * (`canvas`, when it went onto another canvas). The conversation shows it as an action, with
+   * the card's cover. The event's author distinguishes a proposal from a follow-up.
    */
   made?: { card: string; title: string; canvas?: string };
   /**
-   * An error of a session that signed in to Claude with a token (Obeya's `claude-token` or
+   * An error of a session that signed in to Claude with a token (Seismic's `claude-token` or
    * `CLAUDE_CODE_OAUTH_TOKEN`; on another machine, without one, that machine's own login), not with
    * this machine's account: signing in again here does not renew it, a new token does.
    */
   token?: true;
 }
 
-/** Obeya's line that a worker started on the card afresh: what it handed over before belongs to an earlier run. */
+/** Seismic's line that a worker started on the card afresh: what it handed over before belongs to an earlier run. */
 export const started = (e: Pick<CardEvent, 'kind' | 'author' | 'text'>) => e.kind === 'state' && e.author === 'obeya' && /^(Agent gestartet|Agent started)/.test(e.text);
 
 /** The owner's answer as the log holds it: the options picked, then their own words. */
@@ -1202,7 +1290,7 @@ export interface Spot {
   earlier?: true;
 }
 
-/** A place in the demo video as the browser sends it with the owner's words: Obeya adds chapter and narration. */
+/** A place in the demo video as the browser sends it with the owner's words: Seismic adds chapter and narration. */
 export type SpotInput = Pick<Spot, 'at' | 'still' | 'demo'>;
 
 export interface CanvasInfo {
@@ -1216,6 +1304,8 @@ export interface CanvasInfo {
   paused?: true;
   /** Its agents at work now (`pausable`) and those the owner paused or that are about to pause (`halted`), for the canvas switcher; absent while none is either. */
   agents?: { running: number; paused: number };
+  /** The demo site its demos are shared on; absent without one. */
+  demoSite?: CanvasDemoSiteState;
 }
 
 export interface RepoRef {
@@ -1225,27 +1315,21 @@ export interface RepoRef {
   branch: string;
   /** A folder without git: cards work in it directly, with no branches, landing, pull requests, prototypes or hosts. */
   folder?: true;
-  /** It has a share target: demos go to a page outside Obeya (the configuration's command, or the `demo.site` of the repository's settings); without one they are exported as a file. */
+  /** It has a share target: its canvas's demo site, initialized and deployable from this machine; without one demos are exported as a file. */
   share?: boolean;
-  /** The demo site of its settings needs an env file this machine lacks (as the settings name it, relative to Obeya's home): demos are exported meanwhile. */
+  /** Its canvas's demo site needs an env file this machine lacks (relative to Seismic's home): demos are exported meanwhile. */
   shareNeeds?: { site: string; file: string };
-  /**
-   * With `share`: each approved card's latest demo goes on the page by itself, unless the card opts
-   * out: its site publishes on approval (`demo.site.publish`), or it shares on the owner's personal
-   * site and the owner ticked it there for that.
-   */
+  /** With `share`: each approved card's latest demo goes on the page by itself, unless the card opts out (the canvas's site publishes on approval). */
   shareOnApproval?: true;
-  /** With `share`: the site's vocabulary of tags (`demo.site.tags`), which a card's page takes its tags from. */
+  /** With `share`: the vocabulary of tags the canvas names for its site, which a card's page takes its tags from. */
   shareTags?: PageTags;
-  /** With `share`: its demos go to the owner's personal site (it has no site of its own this machine can deploy to). */
-  shareOnPersonal?: true;
-  /** With `shareOnPersonal`: the personal site is unlisted. */
+  /** With `share`: the site is unlisted. */
   shareUnlisted?: true;
-  /** Without `share`: why the owner's personal site does not take its demos: none is set up on this machine, or the repository is private and not ticked for it. */
-  sharePersonal?: 'none' | 'private';
-  /** Its approved work goes out as a pull request (else it lands on the default branch of the Obeya checkout). */
+  /** Without `share`: why not: the canvas has no demo site (`none`), or its path is not initialized yet (`init`). */
+  shareSite?: 'none' | 'init';
+  /** Its approved work goes out as a pull request (else it lands on the default branch of the Seismic checkout). */
   pullRequests?: boolean;
-  /** Its `origin` is on a server, where others may open pull requests („Review PR #5“). */
+  /** Its `origin` is on a server, where others may open pull requests ("Review PR #5"). */
   forge?: true;
   /** With `pullRequests`: the owner may have approved work pushed directly onto the default branch instead (`direct` of its settings). */
   direct?: boolean;
@@ -1265,9 +1349,9 @@ export interface ClonePool {
 
 /** A machine's part of a pool: its clones and the cards that hold them, and how many of their workers may be busy at once. */
 export interface PoolHost {
-  /** The host's name in the configuration; for the machine Obeya runs on, its own name. */
+  /** The host's name in the configuration; for the machine Seismic runs on, its own name. */
   name: string;
-  /** The machine Obeya runs on. */
+  /** The machine Seismic runs on. */
   here?: boolean;
   /** Its workers work in worktrees: `total` is its slots, and `cards` those of the workers at work. */
   worktrees?: boolean;
@@ -1278,7 +1362,7 @@ export interface PoolHost {
   cards: string[];
   /** The cards whose worker is in a turn there now. */
   busy: string[];
-  /** The folders (paths there) of clones Obeya made that left the pool and stay, since something in them would be lost. */
+  /** The folders (paths there) of clones Seismic made that left the pool and stay, since something in them would be lost. */
   kept?: string[];
   /** Its free clones no new card gets now, by their last look; none when every free clone can be taken. */
   blocked?: BlockedClone[];
@@ -1294,9 +1378,9 @@ export interface PoolWorkspace {
   title?: string;
   /** The canvas of a holding card that lies on another canvas than the pool's. */
   canvas?: string;
-  /** Its card may give it up for a card waiting for one („Entziehen“: its worker stops, its work is kept on its branch). */
+  /** Its card may give it up for a card waiting for one ("Give to the waiting card": its worker stops, its work is kept on its branch). */
   takeable?: true;
-  /** Its card gives it up once the undo window of „Entziehen“ is through. */
+  /** Its card gives it up once the undo window of "Give to the waiting card" is through. */
   leaving?: true;
 }
 
@@ -1305,7 +1389,7 @@ export interface PoolWorkspace {
  * changes (the first `files`, `more` beyond them); `broken`, git fails in it (`error`); `missing`,
  * its folder is not there; `unreachable`, its machine does not answer over SSH; `failed`, git
  * failed making it ready for a card a moment ago (`error`), so it is passed over for a minute.
- * `made`: a clone Obeya made, which its next start makes again where the folder is missing.
+ * `made`: a clone Seismic made, which its next start makes again where the folder is missing.
  */
 export interface BlockedClone {
   /** Its path on its machine. */
@@ -1323,10 +1407,19 @@ export interface CanvasSnapshot {
   /** The canvas's groups, the oldest first. */
   groups: Group[];
   preferences: Preference[];
-  /** The settings the Arbeitsrückschau proposes for the canvas's repositories, waiting for the owner; none when none waits. */
+  /** The settings the work retrospective proposes for the canvas's repositories, waiting for the owner; none when none waits. */
   settingProposals?: SettingProposal[];
-  /** The owner's latest exchanges with the Koordinator without an open card (those with one are in its log). */
+  /**
+   * The owner's latest exchanges with the Koordinator in the current chat without an open card (those
+   * with one are in its log), and the answers that wait unread in the canvas's other chats.
+   */
   talk: Talk[];
+  /** The chat the owner talks in now (`Talk.chat`); its exchanges are those the sheet shows. */
+  chat: number;
+  /** Model chosen for this chat; absent means the canvas's Seismic setting. */
+  chatModel?: AgentModel;
+  /** The canvas's chats with something said in them, the latest first. */
+  chats: Chat[];
   /** The clone pools of the repositories that use clones; none when no repository does. */
   workspaces?: ClonePool[];
   /** Shared pages their sites now write differently, and sharing many of them again; none when there is neither. */
@@ -1375,13 +1468,34 @@ export interface Reshare {
     current?: string;
     /** The owner stopped it: the pages not yet out stay as they were. */
     stopped?: boolean;
-    /** It tags the pages without tags and shares them again („N Seiten ohne Tags“), rather than sharing outdated ones again. */
+    /** It tags the pages without tags and shares them again ("N pages without tags"), rather than sharing outdated ones again. */
     tags?: boolean;
   };
 }
 
+/** One of the owner's chats with Seismic: its exchanges, the Koordinator's memory while the owner talks in it. */
+export interface Chat {
+  id: number;
+  /** Model chosen for this chat; absent means the canvas's Seismic setting. */
+  model?: AgentModel;
+  canvas: string;
+  /** The owner's first words in it; none where it only holds what Seismic said by itself. */
+  title?: string;
+  /** When something was last said in it. */
+  at: string;
+  /** Answers in it the owner has not seen yet. */
+  unread?: number;
+}
+
+/** A chat as the list of every canvas's chats shows it, with its canvas's name. */
+export interface ChatElsewhere extends Chat {
+  canvasName: string;
+}
+
 /** One exchange between the owner and the Koordinator. */
 export interface Talk {
+  /** The chat it was said in. */
+  chat?: number;
   replyAgent?: AgentIdentity;
   answerAgent?: AgentIdentity;
   id: number;
@@ -1415,7 +1529,7 @@ export interface Talk {
   /** The message of the sheet the owner's words reply to, shown above them as a quote. */
   replyTo?: TalkQuote;
   /**
-   * The reply says Obeya cannot do what the owner asked, or the owner asked to tell Obeya's makers
+   * The reply says Seismic cannot do what the owner asked, or the owner asked to tell Seismic's makers
    * something: what a draft for them starts from, under a link on the reply.
    */
   wish?: Wish;
@@ -1439,7 +1553,7 @@ export interface Talk {
   moved?: TalkMoved;
   /**
    * Written in this project's sheet: the words went straight to its project agent as a question
-   * (`question` is the words), so Obeya has no reply of its own to them.
+   * (`question` is the words), so Seismic has no reply of its own to them.
    */
   askedIn?: string;
 }
@@ -1467,7 +1581,7 @@ export interface TalkAfter {
   from: number;
 }
 
-/** A message of Obeya's sheet: one part of an exchange, what the owner said, the Koordinator's reply or the looked-up answer. */
+/** A message of Seismic's sheet: one part of an exchange, what the owner said, the Koordinator's reply or the looked-up answer. */
 export interface TalkRef {
   talk: number;
   part: 'said' | 'reply' | 'answer';
@@ -1494,24 +1608,24 @@ export interface Preference {
   cardId?: string;
   /** What the owner said there that it was learned from. */
   quote?: string;
-  /** Proposed by the Rückschau over many exchanges, not from one. */
+  /** Proposed by the retrospective over many exchanges, not from one. */
   review?: boolean;
   /** The active rule a proposal would change. */
   replaces?: number;
   /**
    * A repository: the rule is about it and belongs in its CLAUDE.md, not in the preference memory.
-   * Accepted, it is `filed` there through a card „CLAUDE.md ergänzen“ and applies to no agent until it is.
+   * Accepted, it is `filed` there through a card "Add to CLAUDE.md" and applies to no agent until it is.
    */
   target?: string;
 }
 
 export type PreferenceState = 'proposed' | 'active' | 'rejected' | 'filed';
 
-/** The settings of a repository the Arbeitsrückschau may propose a value for, in the dialog's order: what friction on workers' runs shows missing. */
+/** The settings of a repository the work retrospective may propose a value for, in the dialog's order: what friction on workers' runs shows missing. */
 export const PROPOSED_SETTINGS = ['checks', 'setup', 'softPaths', 'run'] as const;
 export type ProposedSetting = (typeof PROPOSED_SETTINGS)[number];
 
-/** A value for a setting of a repository (`RepoSettings`) that the Arbeitsrückschau proposes, with the cards it rests on. */
+/** A value for a setting of a repository (`RepoSettings`) that the work retrospective proposes, with the cards it rests on. */
 export interface SettingProposal {
   id: number;
   /** The repository's id. */
@@ -1541,7 +1655,7 @@ export function settingPatch(field: ProposedSetting, value: string | string[] | 
 export interface NewCard {
   title: string;
   body?: string;
-  /** Where it goes; left out for a follow-up, which goes below the card it comes from. */
+  /** Where it goes; left out for a follow-up, which goes below the card it comes from, and otherwise where there is room. */
   x?: number;
   y?: number;
   /** A repository of the canvas; its home repository when left out (a follow-up's: that of its card). */
@@ -1550,7 +1664,7 @@ export interface NewCard {
   idea?: boolean;
   /** The card this one follows up on, e.g. for a finding of its demo. */
   from?: string;
-  /** Screenshots for the task (ids from `POST /api/c/<canvas>/images`). */
+  /** Screenshots for the task (ids from `POST /api/c/<project>/images`). */
   images?: string[];
 }
 
@@ -1558,7 +1672,7 @@ export interface NewCard {
  * A repository to be created for a card: its folder (absolute or from `~`; empty while the owner has
  * not named one yet) and whether it gets a canvas of its own, which the card moves to, or joins the
  * card's canvas. `by`: who chose it; what the owner chose, the idea's agent does not change.
- * `due`: building or starting the card was clicked, and Obeya creates the repository then (ISO),
+ * `due`: building or starting the card was clicked, and Seismic creates the repository then (ISO),
  * unless the owner takes it back meanwhile (`NEW_REPO_HOLD_MS`).
  */
 export interface NewRepo {
@@ -1592,7 +1706,7 @@ export interface CardPatch {
   repo?: string;
   /** A project: folded to its head, its workstreams not shown on the canvas, or unfolded again. */
   collapsed?: boolean;
-  /** The task's screenshots, all of them (ids from `POST /api/c/<canvas>/images`). */
+  /** The task's screenshots, all of them (ids from `POST /api/c/<project>/images`). */
   images?: string[];
   /** Before work begins: a repository to create for the card (`by` is the owner's), or none (null). */
   newRepo?: Pick<NewRepo, 'path' | 'canvas'> | null;
@@ -1610,7 +1724,7 @@ export interface CardPatch {
 export type CardAction =
   /** On a project: all its planned workstreams go to the Koordinator, which orders them. */
   | { action: 'start'; agent?: AgentSetting }
-  /** A card the owner closed without a title (`nameless`): Obeya names it from its text. */
+  /** A card the owner closed without a title (`nameless`): Seismic names it from its text. */
   | { action: 'name' }
   | { action: 'stop' }
   /**
@@ -1628,20 +1742,20 @@ export type CardAction =
   | { action: 'wake' }
   /** When a proposal starts once accepted (ISO), or `null`: at once. */
   | { action: 'startAt'; at: string | null }
-  /** `images`: ids of screenshots uploaded before (`POST /api/c/<canvas>/images`); with them the text may be empty. */
+  /** `images`: ids of screenshots uploaded before (`POST /api/c/<project>/images`); with them the text may be empty. */
   /** `spoken`: the words came through speech recognition, which the agent is told. */
   /** `replyTo`: the message of the card's conversation the words reply to (`CardEvent.replyTo`). */
   /** `spot`: the place in the card's demo video the words are about. */
-  /** `findings`: on a review card, what the owner decided for its findings, by their numbers; with them the text may be empty. */
-  | { action: 'message'; text: string; spoken?: boolean; images?: string[]; replyTo?: number; spot?: SpotInput; findings?: Record<string, ChangeRoute> }
+  /** `findings`: on a review card or a card with a code review, what the owner decided for its findings, by their numbers; with them the text may be empty. */
+  | { action: 'message'; text: string; spoken?: boolean; images?: string[]; replyTo?: number; spot?: SpotInput; findings?: Record<string, FindingPick>; findingNotes?: Record<string, string>; newAgent?: AgentSetting }
   /** `picks`: the options of the question the owner picked; with them the text, their own words, may be empty. */
   | { action: 'answer'; text: string; spoken?: boolean; images?: string[]; replyTo?: number; picks?: string[]; spot?: SpotInput }
   /**
-   * The owner has finished watching the demo video: the comments on places in it that Obeya held back
+   * The owner has finished watching the demo video: the comments on places in it that Seismic held back
    * go to the worker. `now`: they sent them themselves ("Jetzt senden"), so they go without a moment's wait.
    */
   | { action: 'release'; now?: boolean }
-  /** Deletes a comment on a place in the demo video that Obeya still holds back (`Item.held`). */
+  /** Deletes a comment on a place in the demo video that Seismic still holds back (`Item.held`). */
   | { action: 'unsay'; id: number }
   /**
    * A review card whose PR collides with unpushed commits on the local main: main is pushed, once
@@ -1649,14 +1763,22 @@ export type CardAction =
    * `keepMain` takes it back within the window.
    */
   | { action: 'pushMain' }
+  /**
+   * The Seismic checkout's uncommitted changes that keep the card from landing (`Item.blocked`) go
+   * into its branch, and its worker works them in; `land`: its next handover lands without a new
+   * demo, else it brings a new one for approval.
+   */
+  | { action: 'fold'; land: boolean }
   | { action: 'keepMain' }
-  /** A review card whose worker's own changes are held (`HeldChanges`): Obeya pushes them and posts their text, without merging („Nur pushen“). */
+  /** A review card whose worker's own changes are held (`HeldChanges`): Seismic pushes them and posts their text, without merging ("Push only"). */
   | { action: 'pushChanges' }
   /** The same card: the owner's own wording of the text that goes onto the PR with the approval, in place of the held one. */
   | { action: 'editHeld'; body: string }
   /** `direct`: onto the default branch at once, without a pull request, where the repository allows it (`RepoRef.direct`). */
   | { action: 'approve'; direct?: boolean }
-  /** In a folder without git, on a card waiting for approval: what it changed there is put back as it was before („Änderungen verwerfen“). */
+  /** A card waiting for approval whose canvas reviews work on the owner's word ("Start code review"): a review of its latest handover starts. */
+  | { action: 'codeReview' }
+  /** In a folder without git, on a card waiting for approval: what it changed there is put back as it was before ("Discard changes"). */
   | { action: 'undo' }
   /** Start a queued card although it may collide. */
   | { action: 'force' }
@@ -1685,11 +1807,13 @@ export type CardAction =
   | { action: 'accept'; start?: boolean; idea?: boolean; picks?: string[][]; agent?: AgentSetting }
   /** A proposal: accepting it after its revision is taken back. */
   | { action: 'unaccept' }
-  /** A proposal merged with another card (`with`, one `mergeableWith` it): an agent writes one card of both, for the owner to approve. */
+  /** Merge an unworked card with a partner in any state, for the owner to approve. */
   | { action: 'merge'; with: string }
-  /** A merged proposal: the other card takes the merged text, and the proposal goes. */
+  /** Dismiss Seismic's possible-duplicate suggestion for this version of the task. */
+  | { action: 'dismissDuplicate' }
+  /** Approve a comparison: dissolve the left card, combine unworked tasks or preserve the survivor. */
   | { action: 'approveMerge' }
-  /** A proposal being merged, or merged: both cards stay as they were. */
+  /** Separate a merge: restore both original cards. */
   | { action: 'separate' }
   /** A proposal, or a card whose agent withdrew or replaced it since (`Item.superseded`): it goes, its worker stopped. */
   | { action: 'dismiss' }
@@ -1703,7 +1827,7 @@ export type CardAction =
    * Ideas: the brief becomes the card's task and the card is planned. While the agent works on a
    * reply, the idea is built once the reply is there, unless it asks questions.
    */
-  | { action: 'build' }
+  | { action: 'build'; agent?: AgentSetting }
   /** Ideas: building after the reply is taken back. */
   | { action: 'unbuild' }
   /**
@@ -1742,7 +1866,7 @@ export type CardAction =
   | { action: 'share'; demo?: number; add?: boolean }
   /** Takes the demo with handover `demo` off the page, the page down with its last one; without `demo`, the whole page. */
   | { action: 'unshare'; demo?: number }
-  /** „Mit der Freigabe teilen“, where the repository's site publishes on approval: whether approving the card shares its latest demo. */
+  /** "Share on approval", where the repository's site publishes on approval: whether approving the card shares its latest demo. */
   | { action: 'shareOnApproval'; on: boolean }
   /** The owner sets the values of one dimension of the page's tags by hand; a shared page goes out again at once. */
   | { action: 'pageTags'; dimension: string; values: string[] }
@@ -1759,14 +1883,14 @@ export type CardAction =
  */
 export type ErrorCode =
   | 'unknownCard'
-  /** Pairing a device while other devices do not reach Obeya. */
+  /** Pairing a device while other devices do not reach Seismic. */
   | 'notReachable'
   /** From another device that is not paired (status 401). */
   | 'notPaired'
   | 'notOwner'
-  /** Managing who reaches Obeya, from another device (status 403). */
+  /** Managing who reaches Seismic, from another device (status 403). */
   | 'onlyHere'
-  /** Turning push on at the machine Obeya runs on, which gets none (status 403). */
+  /** Turning push on at the machine Seismic runs on, which gets none (status 403). */
   | 'onlyDevices'
   /** A group that no card belongs to any more, so it is gone. */
   | 'unknownGroup'
@@ -1796,20 +1920,20 @@ export type ErrorCode =
   | 'notReady'
   /** A review card's action on a card that reviews no pull request. */
   | 'notReview'
-  /** „Selbst ändern“ on a review card whose contributor does not allow maintainers' edits, or a decision on a finding it does not have open. */
+  /** "Change it myself" on a review card whose contributor does not allow maintainers' edits, or a decision on a finding it does not have open. */
   | 'noEdits'
   | 'noFinding'
   /** Approving a review card: its PR moved since the handover, was closed, or the forge refused the merge (the detail says why). */
   | 'prMoved'
-  /** „main pushen“ on a review card whose PR collides with nothing unpushed (any more), or taking back a push that is not waiting. */
+  /** "Push main" on a review card whose PR collides with nothing unpushed (any more), or taking back a push that is not waiting. */
   | 'noClash'
-  /** „Mergen“ on a review card whose PR collides with unpushed commits on the local main, which the card had not shown yet: it shows them now. */
+  /** "Merge" on a review card whose PR collides with unpushed commits on the local main, which the card had not shown yet: it shows them now. */
   | 'pullClash'
   | 'prClosed'
   | 'mergeRefused'
   /** Approving a review card: the worker's own commits could not go onto the PR's branch (the detail says why). */
   | 'pushRefused'
-  /** „Review PR #5“: no such pull request, or none Obeya can read. */
+  /** "Review PR #5": no such pull request, or none Seismic can read. */
   | 'noPr'
   /** Deleting a comment on the demo video: it is no longer held back, the worker has it. */
   | 'notHeld'
@@ -1823,8 +1947,10 @@ export type ErrorCode =
   | 'revising'
   /** Changing a proposal or the card it is merged with while they are merged, or approving a merge whose text is not there yet. */
   | 'merging'
-  /** Merging a proposal with a card that is no planned task nor proposal nobody has worked on (any more). */
+  /** Either card is unavailable for this merge, or its dissolving side has already been worked on. */
   | 'notMergeable'
+  /** The comparison no longer matches the cards the owner would approve. */
+  | 'mergeChanged'
   | 'planCard'
   | 'noWorkspace'
   | 'dirtyWorkspaces'
@@ -1832,7 +1958,7 @@ export type ErrorCode =
   | 'notEvictable'
   /** Starting a card while its workspace is being given to another. */
   | 'evicting'
-  /** Changing a card's new repository, or starting it, while Obeya is about to make it (`NewRepo.due`). */
+  /** Changing a card's new repository, or starting it, while Seismic is about to make it (`NewRepo.due`). */
   | 'newRepoDue'
   /** Building or starting a card in a new repository that has no folder named. */
   | 'newRepoPath'
@@ -1849,7 +1975,7 @@ export type ErrorCode =
   /** An uploaded screenshot is no image the agents read, or too large. */
   | 'imageType'
   | 'imageTooLarge'
-  /** A dropped file is larger than Obeya keeps. */
+  /** A dropped file is larger than Seismic keeps. */
   | 'fileTooLarge'
   /** Only a finished card of the owner's (or a stopped task, a parked or dropped idea) goes into the archive. */
   | 'notDone'
@@ -1908,13 +2034,13 @@ export type ErrorCode =
   | 'setupBusy'
   /** Sharing many pages again: no page is outdated. */
   | 'nothingOutdated'
-  /** „Für alle ins Repository übernehmen“: this machine sets nothing to take over. */
+  /** "Take over into the repository for everyone": this machine sets nothing to take over. */
   | 'noSettings'
-  /** „Für alle ins Repository übernehmen“: the checkout on the main branch has changes of its own in `.obeya/settings.json`. */
+  /** "Take over into the repository for everyone": the checkout on the main branch has changes of its own in `.obeya/settings.json`. */
   | 'settingsDirty'
   /** The commands to confirm changed on the default branch since the dialog showed them. */
   | 'trustChanged'
-  /** „Für alle ins Repository übernehmen“: the commit, the push or the pull request failed; why comes with it. */
+  /** "Take over into the repository for everyone": the commit, the push or the pull request failed; why comes with it. */
   | 'settingsShare'
   /** Export: the video is too large for one HTML file. */
   | 'exportTooLarge'
@@ -1938,7 +2064,7 @@ export type ErrorCode =
   /** Malformed input: a bug in the UI rather than something the owner can fix. */
   | 'invalid';
 
-/** A repository on a canvas, as Obeya's configuration lists it (`canvases.json`). */
+/** A repository on a canvas, as Seismic's configuration lists it (`canvases.json`). */
 export interface RepoConfig {
   path: string;
   /**
@@ -1948,7 +2074,7 @@ export interface RepoConfig {
   git?: false;
   /** Clones to register as workspaces (adapters that use clones). */
   workspaces?: string[];
-  /** Clones to create under Obeya's home (adapters that use clones). */
+  /** Clones to create under Seismic's home (adapters that use clones). */
   clones?: number;
   /** How many of its workers may be busy at once on this machine; left out, as many as it has clones, or any number in worktrees. */
   slots?: number;
@@ -1962,7 +2088,7 @@ export interface RepoConfig {
   settings?: RepoSettings;
 }
 
-/** How the repository's app runs (`app` of its settings): the recipe the workers read, and the two commands Obeya runs itself. */
+/** How the repository's app runs (`app` of its settings): the recipe the workers read, and the two commands Seismic runs itself. */
 export interface AppSettings {
   /**
    * How to run the app, in prose for a new colleague: how to start it, what to do after which kind
@@ -1971,33 +2097,29 @@ export interface AppSettings {
    */
   run?: string;
   /**
-   * Stops the app in a workspace, and does nothing where none runs. Obeya runs it there when the
+   * Stops the app in a workspace, and does nothing where none runs. Seismic runs it there when the
    * card waits for the owner and its worker has nothing running (Parking), and tells the worker with
    * its next message.
    */
   stop?: string;
-  /** Exits 0 when the workspace's app holds what must not be lost (a restored database, say): Obeya then leaves it running. */
+  /** Exits 0 when the workspace's app holds what must not be lost (a restored database, say): Seismic then leaves it running. */
   keep?: string;
 }
 
-/**
- * A static site the demos are shared on (`demo.site` of a repository's settings): Obeya keeps its
- * directory (one subdirectory per page, and the overview), writes the pages with its own templates
- * and runs the deploy command after each change.
- */
 /** A demo site being set up at a host, as the configuration follows it: its last lines, and how it ended. */
 export interface SiteSetupJob {
-  host: 'cloudflare' | 'github';
+  /** The host Seismic sets it up at; none for a site entered by hand. */
+  host?: 'cloudflare' | 'github';
   running: boolean;
   lines: string[];
   error?: string;
   /** The host the dialog offers where this one refused (GitHub Pages from a private repository without Pro). */
   offer?: 'cloudflare';
-  /** A repository's site once it is set up, for its settings. */
-  site?: DemoSite;
+  /** The site once it is added (its URL). */
+  site?: string;
 }
 
-/** A proposal for a demo site's tags (`demo.site.tags`), as the configuration follows it: running, then the tags and why, or the error. */
+/** A proposal for the tags of a canvas's demo site, as the configuration follows it: running, then the tags and why, or the error. */
 export interface TagProposalJob {
   running: boolean;
   tags?: PageTags;
@@ -2005,36 +2127,79 @@ export interface TagProposalJob {
   error?: string;
 }
 
-/** The owner's personal demo site on this machine, as Konfiguration → Demos shows it. */
-export interface PersonalSiteView {
-  site: {
-    host: 'cloudflare' | 'github';
+/**
+ * A demo site this machine publishes to (`demo-sites.json` in Seismic's home): where it is served and
+ * how it is deployed. A canvas chooses one and a path on it (`CanvasDemoSite`).
+ */
+export interface DemoSiteEntry {
+  /** Where the site is served, without a trailing slash: a canvas's pages lie at `url/<path>/<slug>/`. */
+  url: string;
+  /** The command line that deploys the site's directory; `{dir}` stands for it. */
+  deploy: string;
+  /** A file of `KEY=value` lines, relative to Seismic's home, added to the deploy's environment (credentials). */
+  env?: string;
+  /** Headers for reading the live site's manifest and pages (behind a login), values `${KEY}` from `env`. */
+  headers?: Record<string, string>;
+  /** The largest file the host takes, in bytes; 25 MiB without it. */
+  maxFile?: number;
+  /** The host Seismic set it up at, and its project there; none for a site entered by hand. */
+  host?: 'cloudflare' | 'github';
+  project?: string;
+  /** An unlisted site's directory the manifest is in: only the owner's machines know it. Without it the site is listed. */
+  secret?: string;
+}
+
+/** The demo sites of this machine, as Configuration → Demos lists them. */
+export interface DemoSitesView {
+  sites: {
     url: string;
-    project: string;
-    /** What a page's address looks like there (a fresh random part, for the dialog). */
-    example: string;
-    /** The env file with its credentials this machine lacks, relative to Obeya's home. */
+    host?: 'cloudflare' | 'github';
+    project?: string;
+    deploy: string;
+    /** Listed: an overview and a feed per canvas; unlisted: a random part in each page's address and nothing else. */
+    listed: boolean;
+    /** The env file with its credentials this machine lacks, relative to Seismic's home. */
     needs?: string;
-    /** A public GitHub repository's site: listed, without a random part in its addresses. */
-    listed?: true;
-  } | null;
+    /** The paths canvases have initialized on it ('' for its root), as this machine last saw it. */
+    paths: string[];
+  }[];
+  /** The site being added, as far as it got. */
   job?: SiteSetupJob;
-  /**
-   * The private repositories (those on the canvases whose forge does not say they are public, and
-   * those ticked), each with whether it is ticked to share there and whether it has a site of its
-   * own this machine deploys to.
-   */
-  privateRepos: { path: string; name: string; allowed: boolean; ownSite?: true }[];
-  /**
-   * The repositories that share there (and those ticked for it), each with whether each approved
-   * card's latest demo goes there by itself: ticked here, or by its site's settings (`bySettings`),
-   * which the tick here cannot change.
-   */
-  approvedRepos: { path: string; name: string; on: boolean; bySettings?: true }[];
   /** The sites this machine deploys to on Cloudflare, each of another account: a new site may go into one of them. */
   cloudflareAccounts: string[];
 }
 
+/** The demo site a canvas shares its demos on: one of this machine's (`url`), and where on it. */
+export interface CanvasDemoSite {
+  /** The site, as this machine's list has it. */
+  url: string;
+  /** Where the canvas's overview and pages lie on the site (`billing`, `team/billing`); its root where left out. */
+  path?: string;
+  /**
+   * When a demo goes on the site: `approved`, the card's latest demo as the owner approves its work
+   * (before it lands); without it, only when the owner clicks "Share".
+   */
+  publish?: 'approved';
+  /** The vocabulary the canvas's pages are tagged from: each dimension with its values, in the order the overview shows them. */
+  tags?: PageTags;
+}
+
+/** A canvas's demo site as the page shows it: chosen, initialized, and the initialization under way or failed. */
+export interface CanvasDemoSiteState {
+  url: string;
+  path: string;
+  /** The canvas's path is initialized on the site: its demos share there. */
+  ready: boolean;
+  /** "Initialize": running ("Creating demo site"), or why it failed. */
+  init?: { running: boolean; error?: string };
+}
+
+/**
+ * A static site the demos are shared on, as a canvas uses it: a site of this machine's list
+ * (`DemoSiteEntry`) with what the canvas adds. Seismic keeps its directory (one subdirectory per page,
+ * and the overviews), writes the pages with its own templates and runs the deploy command after each
+ * change.
+ */
 export interface DemoSite {
   /** The overview's heading, and the pages' tab titles. */
   title: string;
@@ -2043,7 +2208,7 @@ export interface DemoSite {
   /** The command line that deploys the site, run in the repository; `{dir}` stands for the site's directory. */
   deploy: string;
   /**
-   * A file of `KEY=value` lines, relative to Obeya's home, added to the deploy's environment
+   * A file of `KEY=value` lines, relative to Seismic's home, added to the deploy's environment
    * (credentials, never in git). A machine without it exports demos instead of sharing them.
    */
   env?: string;
@@ -2058,13 +2223,13 @@ export interface DemoSite {
   publish?: 'approved';
   /**
    * The vocabulary pages are tagged from: each dimension with its values, in the order the overview
-   * shows them. Workers and Obeya's reading session choose from it and add nothing to it.
+   * shows them. Workers and Seismic's reading session choose from it and add nothing to it.
    */
   tags?: PageTags;
 }
 
 /**
- * What Obeya needs to know about how a repository works, and its main branch, as the owner sets
+ * What Seismic needs to know about how a repository works, and its main branch, as the owner sets
  * them in the configuration dialog for this machine (design: Repository settings). Read where they
  * are used: saving them restarts nothing, but for `workspaces`, which restarts the repository's agents.
  */
@@ -2072,19 +2237,19 @@ export interface RepoSettings {
   /** Its main branch, where cards start from and work lands; detected where left out (`defaultBranch`). */
   branch?: string;
   /**
-   * How approved work lands: `main` fast-forwards the checkout Obeya runs on to the worker's
+   * How approved work lands: `main` fast-forwards the checkout Seismic runs on to the worker's
    * branch (created clones then come from that checkout); `pr` leaves the branch for a pull
    * request (M5) and clones come from `origin`.
    */
   land?: 'main' | 'pr';
   /**
    * With `land: 'pr'`: the owner may approve a card's work directly onto the default branch
-   * instead, without a pull request. Obeya rebases it onto `origin`'s default branch and pushes it
+   * instead, without a pull request. Seismic rebases it onto `origin`'s default branch and pushes it
    * there (never forced); review and the CI of a pull request are skipped.
    */
   direct?: boolean;
   /**
-   * With `land: 'pr'`: Obeya merges a pull request itself once nothing is left for the worker
+   * With `land: 'pr'`: Seismic merges a pull request itself once nothing is left for the worker
    * (checks green, threads resolved, reviewers answered). `false` leaves the merge to the people
    * on the forge: the card then waits for the owner, ready to merge. Default: `true`.
    */
@@ -2100,7 +2265,7 @@ export interface RepoSettings {
    * two cards: they are resolved when a branch is rebased (docs, plan docs).
    */
   softPaths?: string[];
-  /** Workers get full clones from a pool, or a worktree of the Obeya checkout per card. */
+  /** Workers get full clones from a pool, or a worktree of the Seismic checkout per card. */
   workspaces?: 'clones' | 'worktrees';
   /** Accounts whose pull request comments are not review feedback (deploy bots and the like). */
   prNoise?: string[];
@@ -2109,20 +2274,20 @@ export interface RepoSettings {
    * plan docs, CLAUDE.md), whatever language the owner talks to its agents in; English where left out.
    */
   language?: Language;
-  /** How the app runs: the recipe in every worker's brief, and how Obeya stops it while a card waits (Parking). */
+  /** How the app runs: the recipe in every worker's brief, and how Seismic stops it while a card waits (Parking). */
   app?: AppSettings;
   /**
-   * `site`: the static site Obeya keeps and deploys itself to share demos on (`src/server/site.ts`);
+   * `site`: the static site Seismic keeps and deploys itself to share demos on (`src/server/site.ts`);
    * without one, "Teilen" exports a demo as a file. `language`: the language of the repository's
    * demos (narration, captions, report, shared pages) and of its site's overview, over the one of
    * the demo settings (`demo.json`), which applies without it. `artifacts`: what a handover on this
    * repository may bring (`HANDOVER_ARTIFACTS`), over the demo settings' list, which applies without it.
    */
-  demo?: { site?: DemoSite; language?: NarrationLanguage; artifacts?: HandoverArtifact[] };
+  demo?: { language?: NarrationLanguage; artifacts?: HandoverArtifact[] };
 }
 
 /**
- * A repository's settings for everyone who runs Obeya on it, in `.obeya/settings.json` as its
+ * A repository's settings for everyone who runs Seismic on it, in `.obeya/settings.json` as its
  * default branch has it (design: Repository settings): those for this machine but the main branch,
  * which says where the file is read from.
  */
@@ -2135,7 +2300,7 @@ export type CardLanding = Partial<Pick<RepoSettings, 'land' | 'direct'>>;
 export const SHARED_FIELDS = ['land', 'direct', 'autoMerge', 'checks', 'setup', 'planDocs', 'softPaths', 'workspaces', 'prNoise', 'language', 'app', 'demo'] as const satisfies readonly (keyof SharedSettings)[];
 
 /** The settings made of fields that are each set, layered and taken over on their own, and their fields. */
-export const NESTED_SETTINGS = { app: ['run', 'stop', 'keep'], demo: ['site', 'language', 'artifacts'] } as const satisfies { [K in keyof RepoSettings]?: readonly (keyof NonNullable<RepoSettings[K]>)[] };
+export const NESTED_SETTINGS = { app: ['run', 'stop', 'keep'], demo: ['language', 'artifacts'] } as const satisfies { [K in keyof RepoSettings]?: readonly (keyof NonNullable<RepoSettings[K]>)[] };
 export type NestedSetting = keyof typeof NESTED_SETTINGS;
 export const isNested = (field: string): field is NestedSetting => field in NESTED_SETTINGS;
 
@@ -2151,7 +2316,7 @@ export function layerSettings<T extends RepoSettings>(under: T | undefined, over
 /**
  * Where a repository's setting comes from where this machine sets none, highest first: the
  * repository's `.obeya/settings.json`, the clones the configuration names (`workspaces` only),
- * detection (main branch, landing), Obeya's default.
+ * detection (main branch, landing), Seismic's default.
  */
 export type SettingSource = 'repository' | 'clones' | 'detected' | 'default';
 
@@ -2164,15 +2329,13 @@ export interface SettingValue<T> {
 }
 
 /**
- * What of a repository's own files Obeya runs or contacts on this machine without a click, or its
+ * What of a repository's own files Seismic runs or contacts on this machine without a click, or its
  * agents' sessions run outside Claude Code's permission checks, by group: one confirmed by the
  * owner counts as long as the default branch has it so (design: Trusting a repository's commands).
  */
 export interface RepoCommands {
   /** `app.stop` and `app.keep` of `.obeya/settings.json`, which park a waiting card: one without the other could stop what `keep` keeps. */
   app?: { stop?: string; keep?: string };
-  /** What of `demo.site` the deploy runs with and the live site is read from, and whether it deploys without a click on "Teilen". */
-  site?: Pick<DemoSite, 'url' | 'deploy' | 'env' | 'headers' | 'publish'>;
   /** The repository's own Claude Code configuration by file (everything under `.claude/`, `.mcp.json`): hooks, MCP servers, helpers. */
   claude?: Record<string, ClaudeFile>;
   /** The repository's own Codex configuration by file (everything under `.codex/`): settings, hooks, MCP servers, rules. */
@@ -2202,7 +2365,7 @@ export function commandLines(c: RepoCommands | undefined, g: TrustGroup): string
   const v = c?.[g];
   if (!v) return [];
   if (g === 'claude' || g === 'codex') return Object.entries(v as Record<string, ClaudeFile>).flatMap(([file, f]) => [`${file}:`, ...f.text.split('\n').map((l) => `  ${l}`)]);
-  return Object.entries(v).map(([k, x]) => `${g === 'app' ? 'app' : 'demo.site'}.${k}: ${typeof x === 'string' ? x : JSON.stringify(x)}`);
+  return Object.entries(v).map(([k, x]) => `${g}.${k}: ${typeof x === 'string' ? x : JSON.stringify(x)}`);
 }
 
 /** A repository's settings as they stand without this machine's: what the dialog shows where the owner set nothing. */
@@ -2219,7 +2382,7 @@ export interface RepoValues {
   prNoise: SettingValue<string[]>;
   language: SettingValue<Language>;
   app: { run: SettingValue<string>; stop: SettingValue<string>; keep: SettingValue<string> };
-  demo: { site: SettingValue<DemoSite | null>; language: SettingValue<NarrationLanguage | null>; artifacts: SettingValue<HandoverArtifact[]> };
+  demo: { language: SettingValue<NarrationLanguage | null>; artifacts: SettingValue<HandoverArtifact[]> };
 }
 
 /**
@@ -2291,19 +2454,60 @@ export interface HostConfig {
   ssh: string;
   /** The directory there that holds the clones (`~/…` in that machine's home). */
   root: string;
-  /** How many clones Obeya keeps there (`<root>/1`, `<root>/2`, …). */
+  /** How many clones Seismic keeps there (`<root>/1`, `<root>/2`, …). */
   clones: number;
   /** How many of the repository's workers may be busy there at once; as many as it has clones when left out. */
   slots?: number;
 }
 
-/** A canvas in Obeya's configuration. */
-export interface CanvasConfig {
+/**
+ * A canvas's own settings, beside its name, id and repositories. Each has a value in Canvas
+ * defaults, copied into a canvas when it is created (design: Canvas defaults).
+ */
+export interface CanvasSettings {
+  /** Tag each project’s starting commit and configure its workstream branches with it; on by default. */
+  projectBaselines?: boolean;
+  /**
+   * How finished cards go into the archive: by the owner's hand (`manual`, the default; the owner is
+   * asked how the agent did when archiving it), or by themselves once their work landed and their
+   * worker is done (`landed`; asked right after the approval).
+   */
+  archive?: CardArchiving;
+  /** Which labels Seismic suggests on the canvas's cards ("Seismic suggests"); all where left out. */
+  suggest?: SuggestSettings;
+  /** The canvas's own harness, model and effort for groups of its agents, over Configuration's; none where left out. */
+  agents?: CanvasAgents;
+  /** Whether a separate agent reviews work that lands on `main`, with the demo or on the owner's word; off where left out. */
+  codeReviews?: Partial<CodeReviewSetting>;
+  /** The demo site its demos are shared on, and where on it; none where left out (demos are exported). */
+  demoSite?: CanvasDemoSite | null;
+}
+
+/** A canvas's own harness, model or effort per group; a field left out follows Configuration's "Agents and models". */
+export type CanvasAgents = Partial<Record<AgentRole, Partial<AgentSetting>>>;
+
+/** The canvas settings sheet: the canvas's settings as they apply, and Configuration's models it falls back on. */
+export interface CanvasSettingsView {
+  settings: CanvasDefaults;
+  agents: Record<AgentRole, AgentSetting>;
+}
+
+/** A canvas in Seismic's configuration. */
+export interface CanvasConfig extends CanvasSettings {
   /** Names the canvas; its id follows. Without it, both are the first repository's name. */
   name?: string;
   /** Keeps the canvas's id, and with it its cards, whatever its name says: set when a canvas is renamed. */
   id?: string;
   repos: RepoConfig[];
+}
+
+/** Canvas defaults as they apply: every canvas setting with its value. */
+export type CanvasDefaults = Required<Omit<CanvasSettings, 'codeReviews'>> & { codeReviews: CodeReviewSetting };
+
+/** Canvas defaults in Seismic's home, and the file they are saved in. */
+export interface CanvasDefaultsView {
+  file: string;
+  defaults: CanvasDefaults;
 }
 
 /** What a configuration amounts to: each canvas's id and name, and its repositories with their settings. */
@@ -2316,7 +2520,7 @@ export interface ResolvedCanvas {
     /** A folder without git (`RepoConfig.git` false): no branch, landing, clones or hosts. */
     folder?: true;
     /**
-     * It still has a `.obeya/adapter/` on its main branch, which Obeya no longer reads: its values
+     * It still has a `.obeya/adapter/` on its main branch, which Seismic no longer reads: its values
      * belong in `.obeya/settings.json` (problem `adapterGone`).
      */
     adapterGone?: boolean;
@@ -2325,7 +2529,7 @@ export interface ResolvedCanvas {
     /** Its commands that wait for the owner to confirm them (problem `untrusted`). */
     trust?: RepoTrust;
     /**
-     * Where „Für alle ins Repository übernehmen“ puts `.obeya/settings.json`: a commit on the main
+     * Where "Take over into the repository for everyone" puts `.obeya/settings.json`: a commit on the main
      * branch where work lands there, else a pull request.
      */
     shareTo: 'main' | 'pr';
@@ -2333,7 +2537,7 @@ export interface ResolvedCanvas {
     shareDirect?: boolean;
     /**
      * On a canvas that runs: the clones its pool loses with this configuration (path on its machine,
-     * the host where not here, the number where Obeya made it, the title of the card that holds it).
+     * the host where not here, the number where Seismic made it, the title of the card that holds it).
      */
     leaving?: LeavingClone[];
   }[];
@@ -2343,13 +2547,13 @@ export interface ResolvedCanvas {
 export interface LeavingClone {
   path: string;
   host?: string;
-  /** Its number where Obeya made it; its folder goes once nothing in it would be lost. One the owner listed has none, and stays on disk. */
+  /** Its number where Seismic made it; its folder goes once nothing in it would be lost. One the owner listed has none, and stays on disk. */
   made?: number;
   /** The title of the card that holds it: it leaves once that card gives it back. */
   card?: string;
 }
 
-/** Something in a configuration that keeps Obeya from starting with it; `canvas` and `repo` count from 0. */
+/** Something in a configuration that keeps Seismic from starting with it; `canvas` and `repo` count from 0. */
 export interface ConfigProblem {
   code: ConfigProblemCode;
   canvas?: number;
@@ -2359,10 +2563,10 @@ export interface ConfigProblem {
 }
 
 /** Whether a problem keeps the configuration from being saved: not one in the repository, which is fixed there. */
-/** Problems of the running canvases, not of the configuration: a canvas or repository that did not start as it has them (`StartFailure`). Saving the configuration, or „Erneut versuchen“, has them try again. */
+/** Problems of the running canvases, not of the configuration: a canvas or repository that did not start as it has them (`StartFailure`). Saving the configuration, or "Try again", has them try again. */
 export const START_FAILED: ConfigProblemCode[] = ['canvasDown', 'repoDown', 'repoBefore'];
 
-export const blocksSaving = (p: ConfigProblem) => !['demoSite', 'adapterGone', 'repoSettings', 'untrusted', ...START_FAILED].includes(p.code);
+export const blocksSaving = (p: ConfigProblem) => !['adapterGone', 'repoSettings', 'untrusted', ...START_FAILED].includes(p.code);
 
 export type ConfigProblemCode =
   /** No canvas at all. */
@@ -2376,7 +2580,7 @@ export type ConfigProblemCode =
   | 'noFolder'
   /** A repository the canvas has already, under this path or another. */
   | 'sameRepo'
-  /** The repository still has a `.obeya/adapter/`, which Obeya no longer reads: its values belong in `.obeya/settings.json`. */
+  /** The repository still has a `.obeya/adapter/`, which Seismic no longer reads: its values belong in `.obeya/settings.json`. */
   | 'adapterGone'
   /** Two canvases with the same id. */
   | 'sameId'
@@ -2386,8 +2590,6 @@ export type ConfigProblemCode =
   | 'notClone'
   /** A clone listed as a workspace whose origin is another repository's. */
   | 'otherClone'
-  /** The demo site the repository's settings name cannot be used: a field is missing, or its deploy command names a program that is not there. */
-  | 'demoSite'
   /** A host that cannot work for the repository: its workers use worktrees, or its work does not go out through a remote. */
   | 'hostRepo'
   /** Two hosts of one name that connect to different machines. */
@@ -2408,7 +2610,7 @@ export type ConfigProblemCode =
   | 'invalid';
 
 /**
- * Obeya's configuration as the owner sees and edits it, at once: what it amounts to and what is
+ * Seismic's configuration as the owner sees and edits it, at once: what it amounts to and what is
  * wrong with it come after, from its check (`ConfigChecked`), which reads every repository.
  */
 export interface ConfigView {
@@ -2425,7 +2627,7 @@ export interface ConfigView {
    * commit of the checkout it runs from (null for the compiled binary).
    */
   server: { port: number; home: string; permissionMode: string; restarts: boolean; version: string; commit: string | null };
-  /** Saved, and Obeya starts again with it once no agent is in the middle of a turn. */
+  /** Saved, and Seismic starts again with it once no agent is in the middle of a turn. */
   restarting: boolean;
 }
 
@@ -2438,17 +2640,17 @@ export interface ConfigChecked {
   problems: ConfigProblem[];
 }
 
-/** What „Für alle ins Repository übernehmen“ did with a repository's settings for this machine. */
+/** What "Take over into the repository for everyone" did with a repository's settings for this machine. */
 export type SettingsShared =
   /** Committed `.obeya/settings.json` on the main branch (pushed onto `origin`'s, where it went there directly): the settings now come from the repository. */
   | { committed: string; branch: string }
   /** Opened a pull request with it: once it is merged, the settings come from the repository. */
   | { pr: string };
 
-/** What saving the configuration did: Obeya starts again with it, or (repositories' settings alone) it applies at once. */
+/** What saving the configuration did: Seismic starts again with it, or (repositories' settings alone) it applies at once. */
 export interface ConfigSaved {
   restarting: boolean;
-  /** Obeya runs with it now: canvases and repositories new in it started, settings apply as they are read, and agents whose repository's set-up changed restart once they paused. */
+  /** Seismic runs with it now: canvases and repositories new in it started, settings apply as they are read, and agents whose repository's set-up changed restart once they paused. */
   applied?: boolean;
 }
 
@@ -2462,7 +2664,9 @@ export type DemoSettingsProblem =
   | 'noKey'
   | 'keyFileMissing'
   /** `say` is macOS only. */
-  | 'notHere';
+  | 'notHere'
+  /** A Qwen3 speaker the model does not have. */
+  | 'unknownSpeaker';
 
 /** What keeps one of Qwen3's clips to clone from working: it is not there, or its transcript beside it. */
 export type ClipProblem = 'referenceMissing' | 'noTranscript';
@@ -2474,7 +2678,7 @@ export interface DemoVoiceCheck {
   problems: DemoSettingsProblem[];
   /** The clips to clone that do not work, by their language. */
   clips: Partial<Record<NarrationLanguage, ClipProblem>>;
-  /** What the voice needs installed by Obeya and is missing (Piper, Qwen3-TTS), and about how much that is. */
+  /** What the voice needs installed by Seismic and is missing (Piper, Qwen3-TTS), and about how much that is. */
   install: { installed: boolean; missing: string[]; mb: number };
   /** The directory demos go into, as these settings name it (`~` expanded), else the default. */
   directory: string;
@@ -2482,7 +2686,7 @@ export interface DemoVoiceCheck {
   directoryRelative?: true;
 }
 
-/** An installation Obeya runs for a voice, one at a time. */
+/** An installation Seismic runs for a voice, one at a time. */
 export interface VoiceInstallJob {
   voice: VoiceKind;
   running: boolean;
@@ -2493,16 +2697,16 @@ export interface VoiceInstallJob {
 
 /** The demo settings (`plugin/skills/demo/lib/settings.ts`) as the settings sheet shows them. */
 export interface DemoSettingsView {
-  /** The file they are saved in, under Obeya's home. */
+  /** The file they are saved in, under Seismic's home. */
   file: string;
   settings: DemoSettings;
   /** The saved voice checked. */
   check: DemoVoiceCheck;
-  /** The installation running or last run, while Obeya runs. */
+  /** The installation running or last run, while Seismic runs. */
   job?: VoiceInstallJob;
   /** `process.platform` of the server: `say` is offered on a Mac only. */
   platform: string;
-  /** What demos take on disk, and how long their frames are kept; none where Obeya does not look after the demo directory (tests). */
+  /** What demos take on disk, and how long their frames are kept; none where Seismic does not look after the demo directory (tests). */
   space?: DemoSpaceView;
 }
 
@@ -2516,34 +2720,44 @@ export interface DemoSpaceView {
   busy: boolean;
   /** What the demo directory took at the last count, and its renders' work directories (`.work`) of that. */
   used?: { bytes: number; work: number; at: string };
-  /** The last deletion that found frames to delete, since Obeya started. */
+  /** The last deletion that found frames to delete, since Seismic started. */
   freed?: { at: string; demos: number; bytes: number };
 }
 
-/** The owner's languages (`src/server/settings.ts`): the interface's, chosen else the system's, and the conversation's, chosen else the interface's. */
+/** The owner's languages (`src/server/settings.ts`): the interface's, chosen else the system's, and the conversation's, chosen else English. */
 export interface LanguageView {
-  /** The file it is saved in, under Obeya's home. */
+  /** The file it is saved in, under Seismic's home. */
   file: string;
   /** The interface language the owner chose; `null` follows the system. */
   chosen: Language | null;
-  /** The system's language, or the fallback when Obeya does not speak it. */
+  /** The system's language, or the fallback when Seismic does not speak it. */
   system: Language;
   /** The one that applies. */
   language: Language;
-  /** The conversation language the owner chose; `null` follows the interface's. */
+  /** The conversation language the owner chose; `null` uses English. */
   conversationChosen: Language | null;
-  /** The conversation language that applies: agents write the owner in it until the owner's words say otherwise. */
+  /** The conversation language that applies: agents write the owner in it unless a standing language preference overrides it. */
   conversation: Language;
 }
 
-/** The look Obeya's pages take (`src/server/settings.ts`): light or dark as chosen in the settings, else as the system's. */
+/** The look Seismic's pages take (`src/server/settings.ts`): light or dark as chosen in the settings, else as the system's. */
 export const THEMES = ['light', 'dark'] as const;
 export type Theme = (typeof THEMES)[number];
 export interface ThemeView {
-  /** The file it is saved in, under Obeya's home. */
+  /** The file it is saved in, under Seismic's home. */
   file: string;
   /** What the owner chose; `null` follows the system. */
   chosen: Theme | null;
+}
+
+/** How much Seismic's pages move (`src/server/settings.ts`): `reduced` drops animations, camera flights and blurs; unset, as the system's reduce-motion setting. */
+export const MOTIONS = ['full', 'reduced'] as const;
+export type Motion = (typeof MOTIONS)[number];
+export interface MotionView {
+  /** The file it is saved in, under Seismic's home. */
+  file: string;
+  /** What the owner chose; `null` follows the system. */
+  chosen: Motion | null;
 }
 
 /**
@@ -2552,7 +2766,7 @@ export interface ThemeView {
  * the window starts anew.
  */
 export interface UsageLimit {
-  /** The endpoint's kind of meter: `session` (five hours), `weekly_all`, `weekly_scoped` (one model's), or one Obeya does not know yet. */
+  /** The endpoint's kind of meter: `session` (five hours), `weekly_all`, `weekly_scoped` (one model's), or one Seismic does not know yet. */
   kind: string;
   /** The endpoint's group of the meter: `session` or `weekly`. */
   group: string;
@@ -2575,32 +2789,32 @@ export interface Usage {
 
 /** Whether the bar shows the plan's usage limits (`src/server/settings.ts`); on until the owner turns it off. */
 export interface UsageMeterView {
-  /** The file it is saved in, under Obeya's home. */
+  /** The file it is saved in, under Seismic's home. */
   file: string;
   on: boolean;
 }
 
 /** Whether the desktop notifies the owner when a card needs them (`src/server/settings.ts`); `null` until they were asked. */
 export interface NotificationsView {
-  /** The file it is saved in, under Obeya's home. */
+  /** The file it is saved in, under Seismic's home. */
   file: string;
   on: boolean | null;
 }
 
 /** Whether approving a card's work asks the owner for feedback on it (`src/server/settings.ts`); on until the owner turns it off. */
 export interface FeedbackPromptView {
-  /** The file it is saved in, under Obeya's home. */
+  /** The file it is saved in, under Seismic's home. */
   file: string;
   on: boolean;
 }
 
 /**
- * How other devices reach Obeya, when the owner lets them (`src/server/remote.ts`): through
+ * How other devices reach Seismic, when the owner lets them (`src/server/remote.ts`): through
  * `tailscale serve`, which gives an HTTPS address in the tailnet, or on an address of this machine
  * the owner picks (another VPN's interface), in plain HTTP.
  */
 export type RemoteSetting = ({ via: 'tailscale' } | { via: 'address'; address: string }) & {
-  /** `always`: the machine does not idle-sleep while Obeya runs; otherwise only while a worker works. */
+  /** `always`: the machine does not idle-sleep while Seismic runs; otherwise only while a worker works. */
   awake?: 'always';
 };
 
@@ -2628,14 +2842,14 @@ export type RemoteProblem =
   | { code: 'listen'; detail: string }
   | { code: 'failed'; detail: string };
 
-/** A device paired with Obeya: its cookie lets it in from another machine. */
+/** A device paired with Seismic: its cookie lets it in from another machine. */
 export interface DeviceView {
   id: string;
-  /** From its browser's user agent: „iPhone · Safari“. */
+  /** From its browser's user agent: "iPhone · Safari". */
   name: string;
   pairedAt: string;
   lastSeen: string;
-  /** It turned notifications on: Obeya pushes to it. */
+  /** It turned notifications on: Seismic pushes to it. */
   push?: true;
 }
 
@@ -2649,15 +2863,15 @@ export interface Pairing {
   paired?: DeviceView;
 }
 
-/** The section „Von anderen Geräten“ and „Telefon verbinden“ (`/api/access`), for a page on this machine. */
+/** The section "Other devices" and "Connect a phone" (`/api/access`), for a page on this machine. */
 export interface AccessView {
   local: true;
   /** The file the setting is saved in. */
   file: string;
-  /** `null`: other devices do not reach Obeya. */
+  /** `null`: other devices do not reach Seismic. */
   remote: RemoteSetting | null;
   tailscale: TailscaleState;
-  /** Where other devices reach Obeya now; `null` while they do not. */
+  /** Where other devices reach Seismic now; `null` while they do not. */
   address: string | null;
   problem?: RemoteProblem;
   /** This machine's addresses beyond loopback, to pick one for another VPN. */
@@ -2668,9 +2882,12 @@ export interface AccessView {
   platform: string;
 }
 
-/** The agents Obeya runs, grouped as the owner sets their model and effort (`src/server/settings.ts`). */
-export const AGENT_ROLES = ['koordinator', 'worker', 'explorer', 'chores'] as const;
+/** The agents Seismic runs, grouped as the owner sets their model and effort (`src/server/settings.ts`). */
+export const AGENT_ROLES = ['koordinator', 'worker', 'explorer', 'chores', 'review'] as const;
 export type AgentRole = (typeof AGENT_ROLES)[number];
+/** The groups whose agents may run in another harness than Claude Code: workers, and the code reviews of their work. */
+export const HARNESS_ROLES = ['worker', 'review'] as const satisfies readonly AgentRole[];
+export const choosesHarness = (role: AgentRole): boolean => (HARNESS_ROLES as readonly AgentRole[]).includes(role);
 /** The models offered: Claude Code's default, or one of its aliases, each the newest of its family. */
 export const AGENT_MODELS = ['default', 'fable', 'opus', 'sonnet', 'haiku'] as const;
 export type AgentModel = (typeof AGENT_MODELS)[number];
@@ -2680,10 +2897,22 @@ export type AgentEffort = (typeof AGENT_EFFORTS)[number];
 export interface AgentSetting {
   model: AgentModel;
   effort: AgentEffort;
-  /** Absent means Claude. Only local Git workers currently offer another harness. */
-  harness?: 'claude' | 'codex';
+  /** Absent means Claude. Only local Git workers and code reviews (`HARNESS_ROLES`) offer another harness. */
+  harness?: Harness;
   /** Codex choices are separate from Claude aliases, which survive switching back. */
   codex?: { model: string; effort: AgentEffort };
+  /** Antigravity (`agy`) choices, kept apart from the others in the same way. */
+  agy?: { model: string; effort: AgentEffort };
+}
+
+/** The coding agents a worker or code review can run in: Claude Code (the default), Codex and Antigravity (`agy`), the latter two in preview. */
+export const HARNESSES = ['claude', 'codex', 'agy'] as const;
+export type Harness = (typeof HARNESSES)[number];
+
+/** The model and effort of `setting` in the harness it names (Claude's aliases for Claude Code). */
+export function harnessChoice(setting: AgentSetting): { model: string; effort: AgentEffort } {
+  const own = setting.harness === 'codex' ? setting.codex : setting.harness === 'agy' ? setting.agy : undefined;
+  return setting.harness && setting.harness !== 'claude' ? (own ?? { model: 'default', effort: setting.effort }) : setting;
 }
 
 /** Discovered from the installed Codex account, never a hardcoded model alias. */
@@ -2693,22 +2922,25 @@ export interface CodexModel {
   supportedReasoningEfforts: { reasoningEffort: string }[];
   inputModalities: string[];
 }
-/** What applies until the owner chooses otherwise: Opus throughout, high effort for workers and exploration agents. */
+/** What applies until the owner chooses otherwise: Opus throughout, high effort for workers, exploration agents and code reviews. */
 export const AGENT_DEFAULTS: Record<AgentRole, AgentSetting> = {
   koordinator: { model: 'opus', effort: 'medium' },
   worker: { model: 'opus', effort: 'high' },
   explorer: { model: 'opus', effort: 'high' },
   chores: { model: 'opus', effort: 'medium' },
+  review: { model: 'opus', effort: 'high' },
 };
 
 /** The model and effort of each group of agents, as they apply (`settings.json` over `AGENT_DEFAULTS`). */
 export interface AgentsView {
   file: string;
   agents: Record<AgentRole, AgentSetting>;
+  /** Codex workers' approvals go to Codex's own automatic review, not the owner. */
+  codexAutoReview: boolean;
 }
 
 /**
- * The cloud services Obeya's voice in can send recordings to instead, all with the OpenAI-style
+ * The cloud services Seismic's voice in can send recordings to instead, all with the OpenAI-style
  * `/audio/transcriptions` endpoint (`src/server/voice-cloud.ts`). `prompt`: it takes the card
  * titles as vocabulary. `openai` stands for any compatible endpoint: base URL and model can be changed.
  */
@@ -2733,7 +2965,7 @@ export interface CloudVoiceView {
 }
 
 /**
- * How long the recognition on this machine took for the short sentence Obeya ships with
+ * How long the recognition on this machine took for the short sentence Seismic ships with
  * (`voice/check-de.ogg`), loaded and warm. `slow`: longer than the sentence itself.
  */
 export interface VoiceSpeed {
@@ -2742,7 +2974,7 @@ export interface VoiceSpeed {
   slow: boolean;
 }
 
-/** What Obeya's own voice in needs on this machine (`src/server/voice-setup.ts`). */
+/** What Seismic's own voice in needs on this machine (`src/server/voice-setup.ts`). */
 export type VoiceSetupId = 'recognition' | 'ffmpeg' | 'uv';
 export type VoiceSetupItem = Omit<SetupItem, 'id'> & {
   id: VoiceSetupId;
@@ -2768,21 +3000,29 @@ export interface VoiceSetupView {
   job?: { running: boolean; step: 'fetch' | 'measure'; error?: string };
 }
 
-/** The setup assistant's list (`src/server/machine.ts`): what Obeya needs on this machine, by what it is for. */
-export type MachineSectionId = 'needed' | 'pr' | 'voice' | 'demos';
+/** The setup assistant's list (`src/server/machine.ts`): what Seismic needs on this machine, by what it is for. */
+export type MachineSectionId = 'needed' | 'pr' | 'agents' | 'voice' | 'demos' | 'mobile';
+/** The sections of the recommended page; the others are the required one's. */
+export const RECOMMENDED_SECTIONS: readonly MachineSectionId[] = ['agents', 'mobile'];
 /** Claude Code, its login, git and git's name and e-mail for commits. */
 export type NeededId = 'claude' | 'claudeLogin' | 'git' | 'gitUser';
+/** Antigravity (`agy`) and its Google login: another agent for tasks and code reviews. */
+export type AgentsId = 'agy' | 'agyLogin';
 /** gh and its login. */
 export type PrId = 'gh' | 'ghLogin';
+/** Mobile development on a Mac: Xcode, an iPhone simulator, `safaridriver --enable`, and AXe. */
+export type MobileId = 'xcode' | 'simulator' | 'safaridriver' | 'axe';
 
-/** A piece of the list, as a setup check gives it, and what Obeya does about it at a click. */
+/** A piece of the list, as a setup check gives it, and what Seismic does about it at a click. */
 export type MachineItem = Omit<SetupItem, 'id'> & {
-  id: NeededId | PrId | VoiceSetupId | SetupId;
+  id: NeededId | PrId | AgentsId | MobileId | VoiceSetupId | SetupId;
   /**
-   * `install`: Obeya installs it (no admin rights, or Homebrew or winget). `login`: Obeya opens a
-   * terminal that logs in. `identity`: the owner gives git's name and e-mail, which Obeya sets.
+   * `install`: Seismic installs it (no admin rights, or Homebrew or winget). `login`: Seismic opens a
+   * terminal that logs in. `terminal`: Seismic opens a terminal that runs the command and closes
+   * once it is through (`safaridriver --enable`, which asks for a password). `identity`: the owner
+   * gives git's name and e-mail, which Seismic sets.
    */
-  act?: 'install' | 'login' | 'identity';
+  act?: 'install' | 'login' | 'terminal' | 'identity';
   /** What has to be installed first (uv, which brings the speech recognition). */
   waits?: 'uv';
 } & VoiceRecognitionParts;
@@ -2794,7 +3034,7 @@ export interface MachineSection {
   mb: number;
 }
 
-/** An installation, a login or a clone Obeya runs for the assistant, one at a time. */
+/** An installation, a login or a clone Seismic runs for the assistant, one at a time. */
 export interface MachineJob {
   kind: 'install' | 'clone';
   section?: MachineSectionId;
@@ -2803,11 +3043,11 @@ export interface MachineJob {
   /** The last line of its output. */
   line: string;
   error?: string;
-  /** A clone that became the first canvas: its id, opened once Obeya runs it. */
+  /** A clone that became the first canvas: its id, opened once Seismic runs it. */
   canvas?: string;
   /** Its main branch. */
   branch?: string;
-  /** Obeya runs it now, or starts again with it by itself; else the owner starts Obeya again. */
+  /** Seismic runs it now, or starts again with it by itself; else the owner starts Seismic again. */
   opens?: boolean;
 }
 
@@ -2815,19 +3055,19 @@ export interface MachineView {
   platform: string;
   arch: string;
   sections: MachineSection[];
-  /** The Claude Code Obeya was checked with (the Agent SDK's); the machine's may be newer or older. */
+  /** The Claude Code Seismic was checked with (the Agent SDK's); the machine's may be newer or older. */
   checkedClaude: string;
   job?: MachineJob;
-  /** Obeya can open the system's folder dialog here. */
+  /** Seismic can open the system's folder dialog here. */
   picker: boolean;
   /** Where a clone goes by default: the owner's home directory. */
   cloneInto: string;
 }
 
-/** What choosing the first canvas did: it is saved, and Obeya runs it (`opens`), or the owner starts Obeya again. */
+/** What choosing the first canvas did: it is saved, and Seismic runs it (`opens`), or the owner starts Seismic again. */
 export interface FirstCanvas {
   canvas: string;
-  /** The repository's main branch, as Obeya found it. */
+  /** The repository's main branch, as Seismic found it. */
   branch: string;
   opens: boolean;
 }
@@ -2848,7 +3088,7 @@ export interface GitSetupPreview {
   path: string;
   /** The branch the repository starts on. */
   branch: string;
-  /** The `.gitignore` Obeya writes, where the folder has none. */
+  /** The `.gitignore` Seismic writes, where the folder has none. */
   gitignore?: string;
   files: number;
   bytes: number;
@@ -2861,12 +3101,24 @@ export interface GitSetupPreview {
 }
 
 /**
- * Why Obeya starts again: new code on the checkout it runs from, a configuration the owner saved,
+ * Why Seismic starts again: new code on the checkout it runs from, a configuration the owner saved,
  * a repository's `.obeya/settings.json` changed on its default branch where its agents work, a
- * new version of the app the owner installs, or the Mac app taking over an Obeya that runs without
+ * new version of the app the owner installs, or the Mac app taking over an Seismic that runs without
  * the app that started it (app/src/main.rs, `orphaned`); or why it stops for good (Ctrl-C, SIGTERM).
  */
-export type RestartReason = 'code' | 'config' | 'repository' | 'update' | 'takeover' | 'stop';
+export type RestartReason = 'code' | 'config' | 'repository' | 'owner' | 'rebuild' | 'update' | 'takeover' | 'stop';
+
+/** What the Developer section of the Konfiguration dialog may do: each is false where Seismic cannot (no supervisor, no checkout). */
+export interface DeveloperView {
+  /** Restarting the server: only under the supervisor that starts it again (not with --dev). */
+  restart: boolean;
+  /** Installing the dependencies again and restarting: only from a checkout. */
+  rebuild: boolean;
+  /** Why restarting is off, when it is: `dev` (--dev runs without the supervisor). */
+  why?: 'dev';
+  /** Why rebuilding is off, when restarting is not: `compiled` (the app or the binary has no checkout). */
+  rebuildWhy?: 'compiled';
+}
 
 /** A newer version of the app that its shell has downloaded (app/src/update.rs), shown in the bar. */
 export interface AppUpdate {
@@ -2880,7 +3132,7 @@ export interface AppUpdate {
 }
 
 /**
- * New commits on the upstream of the checkout Obeya runs from (`origin/main`, say) that change code,
+ * New commits on the upstream of the checkout Seismic runs from (`origin/main`, say) that change code,
  * shown in the bar for the owner to pull (src/server/source-update.ts).
  */
 export interface SourceUpdate {
@@ -2893,7 +3145,7 @@ export interface SourceUpdate {
   /** The newest of them (at most ten), newest first: subject and when it was committed (ms since the epoch). */
   commits: { subject: string; date: number }[];
   /**
-   * Why Obeya cannot pull them itself, if it cannot: the checkout has commits of its own (`diverged`,
+   * Why Seismic cannot pull them itself, if it cannot: the checkout has commits of its own (`diverged`,
    * a fast-forward is not possible), or uncommitted changes to files the new commits change (`local`).
    */
   blocked?: { why: 'diverged' } | { why: 'local'; files: string[] };
@@ -2915,7 +3167,7 @@ export interface PendingRestart {
   elsewhere: { canvas: string; cards: string[] }[];
   /** What the owner does in some open page that it waits for, past the deadline too. */
   owner: OwnerHold[];
-  /** Only the agents of these repositories (by name) restart, for a change to their configuration; Obeya and the others work on. */
+  /** Only the agents of these repositories (by name) restart, for a change to their configuration; Seismic and the others work on. */
   repos?: string[];
   /** The canvas left the configuration: it stops once its agents paused. */
   leaving?: boolean;
@@ -2925,7 +3177,7 @@ export interface PendingRestart {
 export type ClientMessage =
   /** What the owner does in this page that a restart waits for (sent on every change). */
   | { type: 'hold'; hold: OwnerHold[] }
-  /** The owner came back to this page (from GitHub, say): what Obeya polls is looked at now. */
+  /** The owner came back to this page (from GitHub, say): what Seismic polls is looked at now. */
   | { type: 'back' }
   /** The owner uses this page: it is in view and they moved, typed or scrolled in it (or a video plays) within the last half minute. */
   | { type: 'here' }
@@ -2942,7 +3194,7 @@ export type ClientMessage =
 
 /**
  * A page that froze for `ms`: where the time went as far as the browser tells (the scripts of its
- * long frames, longest first, e.g. „WebSocket.onmessage (index.js:1204)“), and what the page did
+ * long frames, longest first, e.g. "WebSocket.onmessage (index.js:1204)"), and what the page did
  * shortly before (the server's messages it took in).
  */
 export interface PageStall {
@@ -2962,25 +3214,25 @@ export type ServerMessage =
    * reloads; and the version of Bun it runs on when that is too old (`oldLinuxBun`), for the bar.
    */
   | { type: 'hello'; server: string; oldBun?: string }
-  /** On connect and whenever it changes: the restart Obeya waits with, if any. */
+  /** On connect and whenever it changes: the restart Seismic waits with, if any. */
   | { type: 'restart'; restart: PendingRestart | null }
   /** On connect and whenever it changes: the newer version of the app there is to install, if any. */
   | { type: 'update'; update: AppUpdate | null }
-  /** On connect and whenever it changes: new commits on the upstream of the checkout Obeya runs from, if any. */
+  /** On connect and whenever it changes: new commits on the upstream of the checkout Seismic runs from, if any. */
   | { type: 'source'; source: SourceUpdate | null }
   /** On connect and whenever it changes: how much of its usage limits the account Claude Code runs with here has used, while the bar shows it. */
   | { type: 'usage'; usage: Usage | null }
   /** On connect and whenever it changes: what waits for the owner on each canvas, by canvas id. */
   | { type: 'waiting'; waiting: Record<string, Waiting> }
-  /** Whenever a canvas starts, stops, or changes its name or repositories while Obeya runs. */
+  /** Whenever a canvas starts, stops, or changes its name or repositories while Seismic runs. */
   | { type: 'canvases'; canvases: CanvasInfo[] }
   /** A line for the owner above the microphone, wherever they are. */
   | ({ type: 'notice' } & Notice);
 
 /**
- * What Obeya tells the owner above the microphone without a command of theirs to answer: an answer
+ * What Seismic tells the owner above the microphone without a command of theirs to answer: an answer
  * the Koordinator looked up, or what it did with a request a card's agent passed on from the
- * owner's words (`to_obeya`), with `token` while those actions wait for "Rückgängig".
+ * owner's words (`to_seismic`), with `token` while those actions wait for "Undo".
  */
 export interface Notice {
   /** The card it is about, named when another one is open. */
@@ -2988,9 +3240,9 @@ export interface Notice {
   text: string;
   token?: string;
   undoMs?: number;
-  /** The owner asked to tell Obeya's makers something: the page opens the draft for them with it. */
+  /** The owner asked to tell Seismic's makers something: the page opens the draft for them with it. */
   wish?: Wish;
-  /** The exchange of Obeya's sheet it answers, there in full: a page that shows the sheet needs no line above the microphone. */
+  /** The exchange of Seismic's sheet it answers, there in full: a page that shows the sheet needs no line above the microphone. */
   talk?: number;
   /** The project whose sheet shows that exchange in full too: a page with that sheet open needs no line either. */
   project?: string;
@@ -3000,6 +3252,11 @@ export interface Notice {
   open?: true;
   /** The card (`cardId`) moved to this canvas: a page that has it open follows it there. */
   movedTo?: string;
+  /**
+   * The cards the commands confirmed with `token` made, once they ran (after the undo window): the
+   * line that shows that confirmation offers to go to them; `canvas` where one went to another canvas.
+   */
+  made?: { id: string; title: string; canvas?: string }[];
 }
 
 /** A skill (or command) of Claude Code the owner can ask a card's agent for by `/name` in their words. */
@@ -3010,3 +3267,21 @@ export interface Skill {
   /** What to write after the name (`<file>`), when it says. */
   hint?: string;
 }
+
+/**
+ * The model and effort a group of a canvas's agents runs with: Configuration's, with the canvas's own
+ * over it. A canvas's own model for its workers is one of Claude Code's, so it runs them in Claude Code; an effort alone keeps them where they are.
+ */
+export function canvasAgentSetting(role: AgentRole, base: AgentSetting, own: CanvasAgents | undefined): AgentSetting {
+  const mine = own?.[role];
+  if (!mine || !Object.keys(mine).length) return base;
+  if (mine.harness) {
+    const selected = mine.harness;
+    return { ...base, ...mine, harness: selected,
+      ...(selected === 'codex' || selected === 'agy' ? { [selected]: { ...(base.harness === selected ? harnessChoice(base) : { model: 'default', effort: base.effort }), ...mine[selected] } } : {}) };
+  }
+  // an effort alone keeps Codex and agy workers where they are, with their model and that effort
+  if (base.harness && base.harness !== 'claude' && !mine.model) return { ...base, [base.harness]: { ...harnessChoice(base), effort: mine.effort! } };
+  return { ...base, ...mine, ...(base.harness && base.harness !== 'claude' ? { harness: 'claude' as const } : {}) };
+}
+

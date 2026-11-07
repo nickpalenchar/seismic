@@ -1,3 +1,4 @@
+import { normalize, overlaps } from '../core/path-overlap';
 // The Koordinator decides when a card may start: not while its changes are likely to conflict on
 // merge with work in progress. It judges that from what each card will change (estimated before
 // the start) and has changed so far (files and the places in them); sharing a file is not enough.
@@ -6,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { RepoAdapter } from '../adapters/types';
 import { drawnWaits, inQueue, movable, notStarted, queueOrder, reach, waitsOn } from '../core/queue';
-import { type AgentAt, type AgentRole, type CardEvent, EVICT_HOLD_MS, finished, type Item, nameless, type Preference, START_ALL_HOLD_MS, titleFrom, type Wait } from '../core/types';
+import { type AgentAt, type AgentRole, type CardEvent, EVICT_HOLD_MS, finished, mergeRank, type Item, nameless, type Preference, START_ALL_HOLD_MS, type Wait } from '../core/types';
 import { ACTIVE, BadRequest, type Board, contributionOf } from './board';
 import type { Utterance } from './db';
 import { type AgentRuntime, type AgentTool, waitQuietly } from './runtime';
@@ -22,6 +23,7 @@ import { titlesGuide } from './title-suggestion';
 interface Planned {
   card: string;
   files: string[];
+  duplicates: string[];
   waitsFor: string[];
   /** Those of `waitsFor` it builds on. */
   buildsOn: string[];
@@ -47,6 +49,8 @@ export interface InputContext {
 
 export interface Scope {
   files: string[];
+  /** Unfinished cards that appear to ask for the same outcome. */
+  duplicates: string[];
   /** Cards in progress or queued ahead whose changes the Koordinator expects to conflict with this card's on merge. */
   conflictsWith: string[];
   /** Workstreams of its project it builds on: they hold it until they have landed, also while not started. */
@@ -59,7 +63,7 @@ export interface RepoHands {
   workers: Workers;
   workspaces: CardWorkspaces;
   adapter: RepoAdapter;
-  /** Where the Koordinator reads (scopes, questions): the repository's Lesestand. */
+  /** Where the Koordinator reads (scopes, questions): the repository's read checkout. */
   path: string;
   /** A folder without git: its cards all work in the folder itself, with no branches to merge. */
   folder?: boolean;
@@ -70,17 +74,17 @@ export interface KoordinatorOptions {
   runtime: AgentRuntime;
   /** The repository of a card; a canvas may span several. */
   repoFor: (card: Item) => RepoHands;
-  /** Where the Koordinator reads for what the owner says without a card: the home repository's Lesestand. */
+  /** Where the Koordinator reads for what the owner says without a card: the home repository's read checkout. */
   home: () => string;
   /** Whether the owner paused the canvas's agents: a card the Koordinator lets start waits until they resume them (`{ paused }` in its queue). */
   paused?: () => boolean;
   /** How long a project's start, or taking a card's workspace, waits for the owner to take it back; START_ALL_HOLD_MS and EVICT_HOLD_MS by default. */
   holdMs?: number;
-  /** After how many of the owner's inputs the Rückschau runs; REVIEW_EVERY by default. */
+  /** After how many of the owner's inputs the retrospective runs; REVIEW_EVERY by default. */
   reviewEvery?: number;
   /** The files of screenshots by their ids. */
   imageFiles?: (ids?: string[]) => string[];
-  /** Which labels the canvas lets Obeya suggest; a toggle not given is on, as are all without this. */
+  /** Which labels the canvas lets Seismic suggest; a toggle not given is on, as are all without this. */
   suggests?: () => Partial<SuggestToggles>;
 }
 
@@ -88,6 +92,16 @@ export class Koordinator {
   /** The language its agents write the owner in: the owner's conversation language, since no words of the owner's go to them. */
   private get language() {
     return LANGUAGE_NAMES[this.o.board.conversation()];
+  }
+
+  /** A saved language rule also governs the Koordinator's short, owner-facing jobs. */
+  private ownerFacing(system: string): string {
+    const preferences = this.o.board.preferencesText();
+    return preferences ? `${system}\n\n${preferences}` : system;
+  }
+
+  private get spokenLanguage(): string {
+    return `${this.language} unless an explicit standing preference names another language`;
   }
 
   /** Decisions to start are taken one at a time, so two colliding cards cannot both slip through. */
@@ -198,7 +212,7 @@ export class Koordinator {
       return this.requestAll(card);
     }
     if (card.state !== 'planned') throw new BadRequest('notPlanned', 'only a planned card can be started');
-    if (card.queue) throw new BadRequest('queued', 'the card is already with Obeya');
+    if (card.queue) throw new BadRequest('queued', 'the card is already with Seismic');
     this.o.board.work(cardId, { agent_setting: setting ? JSON.stringify(setting) : null });
     this.setQueue(cardId, { checking: true });
     this.suggestAtStart(cardId);
@@ -206,16 +220,19 @@ export class Koordinator {
   }
 
   /**
-   * A follow-up task a review card's worker made of findings: it builds on the pull request, so it
-   * queues behind the review card at once, and once the PR is merged starts (or is judged again
-   * against the work in progress, as any card whose wait ended). A review card already finished
-   * leaves nothing to wait for: the task is judged as any card.
+   * A follow-up task a worker made of findings, of a review card's review or of the code review of
+   * its own work: it builds on the pull request or the work, so it queues behind that card at once,
+   * and once the PR is merged or the work landed starts (or is judged again against the work in
+   * progress, as any card whose wait ended). A card already finished leaves nothing to wait for:
+   * the task is judged as any card.
    */
   followUp(taskId: string, reviewId: string): void {
     const review = this.o.board.item(reviewId);
     if (!review || !unlanded(review)) return this.request(taskId);
     const t = this.o.board.t.koordinator;
-    const reason = t.followsReview(contributionOf(this.o.board.row(reviewId))?.number ?? 0);
+    // a review card's follow-up waits for its PR's merge, a code review's for the card's work to land
+    const pr = contributionOf(this.o.board.row(reviewId));
+    const reason = pr ? t.followsReview(pr.number) : t.buildsOn;
     this.setQueue(taskId, { behind: [reviewId], reason, buildsOn: [reviewId] });
     this.o.board.log(taskId, 'state', 'obeya', t.waitsFor(this.o.board.t.quote(review.title), reason));
   }
@@ -408,7 +425,7 @@ export class Koordinator {
 
   /**
    * The owner said something, or clicked without words (a start, an approval, a dismissed
-   * proposal): every `reviewEvery` of these, the Rückschau reads the history since the last one,
+   * proposal): every `reviewEvery` of these, the retrospective reads the history since the last one,
    * after the learner has read the input that completed the count. The count is a setting of the
    * canvas, so it survives a restart.
    */
@@ -421,10 +438,10 @@ export class Koordinator {
     const since = b.setting(REVIEW_SINCE)!;
     b.setSetting(REVIEW_COUNT, '0');
     b.setSetting(REVIEW_SINCE, new Date().toISOString());
-    this.learning = this.learning.then(() => this.review(since)).catch((e) => console.error('Koordinator (Rückschau):', e));
+    this.learning = this.learning.then(() => this.review(since)).catch((e) => console.error('Koordinator (retrospective):', e));
   }
 
-  /** The Rückschau: one session reads what happened since `since` and proposes rules for patterns across cards. */
+  /** The retrospective: one session reads what happened since `since` and proposes rules for patterns across cards. */
   private async review(since: string): Promise<void> {
     const history = this.history(since);
     if (!history.length) return;
@@ -434,11 +451,11 @@ export class Koordinator {
       cwd: this.o.home(),
       role: 'koordinator',
       onLimit: waitQuietly,
-      system: REVIEW_SYSTEM(this.language),
+      system: this.ownerFacing(REVIEW_SYSTEM(this.spokenLanguage)),
       tools: (finish): AgentTool[] => [
         {
           name: 'propose',
-          description: `Propose a rule to the owner: one short rule in ${this.language}, and why (one short sentence in ${this.language}, under 150 characters, naming what in the history it rests on). Pass replaces with the number of a recorded rule it refines or contradicts. ${REPOS_PARAM}`,
+          description: `Propose a rule to the owner: one short rule in ${this.spokenLanguage}, and why (one short sentence in ${this.spokenLanguage}, under 150 characters, naming what in the history it rests on). Pass replaces with the number of a recorded rule it refines or contradicts. ${REPOS_PARAM}`,
           schema: { rule: z.string(), why: z.string(), replaces: z.number().int().optional(), repos: z.array(z.string()).optional() },
           run: ({ rule, why, replaces, repos }) => {
             const r = String(rule).trim().slice(0, 500);
@@ -456,12 +473,12 @@ export class Koordinator {
         },
         { name: 'done', description: 'Nothing (more) to propose.', schema: {}, run: () => finish('Fine. End your turn now.') },
       ],
-      brief: [`What happened on the canvas since the last Rückschau, oldest first:\n${history.join('\n')}`, ...this.rules(null)].filter(Boolean).join('\n\n'),
+      brief: [`What happened on the canvas since the last retrospective, oldest first:\n${history.join('\n')}`, ...this.rules(null)].filter(Boolean).join('\n\n'),
     });
   }
 
   /**
-   * What the Rückschau reads, oldest first, at most the latest REVIEW_HISTORY lines: the cards'
+   * What the retrospective reads, oldest first, at most the latest REVIEW_HISTORY lines: the cards'
    * milestones (the owner's notes, answers and clicks, the agents' questions and hand-overs, answers
    * given in the owner's name), the owner's words in ideas and to the Koordinator (taken back or
    * not), the cards they deleted or dismissed, and the rule proposals they decided on.
@@ -507,7 +524,7 @@ export class Koordinator {
   }
 
   /**
-   * What the learner and the Rückschau read about the rules: the canvas's repositories, the active
+   * What the learner and the retrospective read about the rules: the canvas's repositories, the active
    * rules (numbered, for `replaces`), the rules on their way into a CLAUDE.md, and the proposals
    * waiting or rejected.
    */
@@ -567,11 +584,11 @@ export class Koordinator {
       cwd: card && !card.repoDown ? this.o.repoFor(card).path : this.o.home(),
       role: 'koordinator',
       onLimit: waitQuietly,
-      system: LEARN_SYSTEM(this.language),
+      system: this.ownerFacing(LEARN_SYSTEM(this.spokenLanguage)),
       tools: (finish): AgentTool[] => [
         {
           name: 'propose',
-          description: `Propose a lasting preference to the owner as one short rule in ${this.language}. Pass replaces with the number of a recorded rule it refines or contradicts. ${REPOS_PARAM}`,
+          description: `Propose a lasting preference to the owner as one short rule in ${this.spokenLanguage}. Pass replaces with the number of a recorded rule it refines or contradicts. ${REPOS_PARAM}`,
           schema: { rule: z.string(), replaces: z.number().int().optional(), repos: z.array(z.string()).optional() },
           run: ({ rule, replaces, repos }) => {
             const r = String(rule).trim().slice(0, 500);
@@ -659,30 +676,36 @@ export class Koordinator {
     const active = this.inProgress(card.repo);
     const ahead = this.ahead(card);
     const pending = this.pending(card, active, ahead);
-    if (!active.length && !ahead.length && !pending.length) {
+    const candidates = this.duplicateCandidates(card);
+    if (!active.length && !ahead.length && !pending.length && !candidates.length) {
       // held by the owner's arrows alone, it is judged once they let it go
       if (drawnWaits(card, this.o.board.items()).length) return void this.queueOrStart(cardId, [], [], '', '');
       // nothing it could collide with or build on: start at once, and estimate the scope for the cards after it
       this.startNow(cardId, this.o.board.t.koordinator.nothingRuns);
       if (this.o.board.item(cardId)?.state !== 'working') return;
       try {
-        const scope = await this.estimate(card, [], [], [], waitQuietly);
+        const scope = await this.estimate(card, [], [], [], [], waitQuietly);
         this.o.board.work(cardId, { scope: JSON.stringify({ files: scope.files, reason: scope.reason }) });
       } catch {}
       return;
     }
     let scope: Scope;
     try {
-      scope = await this.estimate(card, active, ahead, pending, (until, retry) => this.o.board.waitsForLimit({ card: cardId }, until, retry));
+      scope = await this.estimate(card, active, ahead, pending, candidates, (until, retry) => this.o.board.waitsForLimit({ card: cardId }, until, retry));
     } catch (e) {
       this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.koordinator.estimateFailed(messageOf(e)));
-      scope = { files: [], conflictsWith: [], buildsOn: [], reason: '' };
+      scope = { files: [], duplicates: [], conflictsWith: [], buildsOn: [], reason: '' };
     }
     const now = this.o.board.item(cardId);
     if (!now?.queue) return;
     // its repository stopped running while the Koordinator read
     if (now.repoDown) return this.repoGone(now);
-    this.o.board.work(cardId, { scope: JSON.stringify({ files: scope.files, reason: scope.reason }) });
+    this.o.board.work(cardId, { scope: JSON.stringify({ files: scope.files, reason: scope.reason, ...(scope.duplicates.length ? { duplicateCheck: { title: card.title, body: card.body, ids: scope.duplicates } } : {}) }) });
+    if (scope.duplicates.length) {
+      this.setQueue(cardId, null);
+      this.o.board.log(cardId, 'state', 'koordinator', this.o.board.t.koordinator.possibleDuplicate(scope.duplicates.map((id) => this.o.board.item(id)?.title ?? id).join(', ')));
+      return;
+    }
     // the workstreams it builds on, and the cards in progress or queued ahead whose changes it
     // expects to conflict with the card's
     const behind = [...active, ...ahead, ...pending].filter((a) => scope.buildsOn.includes(a.id) || scope.conflictsWith.includes(a.id)).map((a) => a.id);
@@ -714,7 +737,7 @@ export class Koordinator {
       return true;
     }
     this.setQueue(cardId, { behind: [...inferred, ...drawn], reason: inferred.length ? reason : this.o.board.t.koordinator.drawn, ...(buildsOn.length && { buildsOn }), ...(drawn.length && { manualWait: drawn }) });
-    this.logWait(cardId, inferred, reason, drawn, (id) => name?.(id) ?? this.nameOf(items.find((i) => i.id === id)!));
+    this.logWait(cardId, inferred, reason, drawn, (id) => name?.(id) ?? this.nameOf(items.find((i) => i.id === id) ?? this.o.board.card(id)!));
     return false;
   }
 
@@ -780,6 +803,13 @@ export class Koordinator {
     plan.forEach((p, n) => {
       const id = p.card;
       if (!still(id)) return before.add(id);
+      if (p.duplicates.length) {
+        const current = this.card(id);
+        this.o.board.work(id, { scope: JSON.stringify({ files: p.files, reason: p.reason, duplicateCheck: { title: current.title, body: current.body, ids: p.duplicates } }) });
+        this.setQueue(id, null);
+        this.o.board.log(id, 'state', 'koordinator', t.possibleDuplicate(p.duplicates.map((other) => this.o.board.item(other)?.title ?? other).join(', ')));
+        return;
+      }
       const behind = p.waitsFor.filter((b) => before.has(b) && this.blocks(b));
       before.add(id);
       this.o.board.work(id, { scope: JSON.stringify({ files: p.files, reason: p.reason }), queue: JSON.stringify({ checking: true, together: key, since: times[n] }) });
@@ -865,14 +895,14 @@ export class Koordinator {
     for (const w of waiting) {
       // one whose repository does not run waits on until it is back; one giving up its workspace, until it has;
       // one let start, until the owner resumes the canvas's agents
-      if (w.repoDown || this.giving.has(w.id)) continue;
+      if (w.repoDown || this.giving.has(w.id) || w.proposal?.merge || (w.mergingInto && mergeRank(w) <= 1)) continue;
       const begun = 'begun' in w.queue! && !!w.queue.begun;
       if (!('behind' in w.queue!)) {
         // an arrow the owner drew since it was let start holds it as one drawn before
         const drawn = drawnWaits(w, items);
         if (drawn.length) {
           this.setQueue(w.id, { behind: drawn, reason: this.o.board.t.koordinator.drawn, manualWait: drawn });
-          this.logWait(w.id, [], '', drawn, (id) => this.nameOf(items.find((i) => i.id === id)!));
+          this.logWait(w.id, [], '', drawn, (id) => this.nameOf(items.find((i) => i.id === id) ?? this.o.board.card(id)!));
           continue;
         }
       }
@@ -919,7 +949,7 @@ export class Koordinator {
         this.setQueue(w.id, { behind: still, reason: inferred.length ? q.reason : this.o.board.t.koordinator.drawn, ...(buildsOn.length && { buildsOn }), ...(manualWait.length && { manualWait }) });
         // an arrow the owner drew to it while it waited holds it too, which it says
         const drawnNow = manualWait.filter((id) => !q.behind.includes(id));
-        if (drawnNow.length) this.logWait(w.id, [], '', drawnNow, (id) => this.nameOf(items.find((i) => i.id === id)!));
+        if (drawnNow.length) this.logWait(w.id, [], '', drawnNow, (id) => this.nameOf(items.find((i) => i.id === id) ?? this.o.board.card(id)!));
         continue;
       }
       freed.push(w);
@@ -991,11 +1021,11 @@ export class Koordinator {
       cwd: card.repoDown ? this.o.home() : this.o.repoFor(card).path,
       role: 'chores',
       onLimit: (until, retry) => this.o.board.waitsForLimit({ card: card.id }, until, retry),
-      system: NAME_SYSTEM(this.language, asked),
+      system: this.ownerFacing(NAME_SYSTEM(this.language, asked)),
       tools: (finish) => [
         {
           name: 'title',
-          description: `The card's title, in the language the task is written in (${this.language} where it tells none, as with screenshots alone)${asked.length ? `, and its ${labelWords(asked)}` : ''}.`,
+          description: `The card's title, in ${this.language} unless an explicit standing preference names another language${asked.length ? `, and its ${labelWords(asked)}` : ''}.`,
           schema: { title: z.string(), ...labelParams(asked) },
           run: (a) => {
             if (title !== null) return 'Already named.';
@@ -1008,10 +1038,17 @@ export class Koordinator {
       brief: card.body.trim() ? `The task:\n${card.body.trim()}` : 'The task is in the screenshots alone (shown below).',
       images: this.o.imageFiles?.(card.images) ?? [],
     });
-    return { title: title || titleFrom(card.body), labels };
+    // A failed naming turn has no translation to use. Use a language-neutral placeholder rather
+    // than inferring a language from the task or the owner's free-form preferences.
+    return { title: title || '…', labels };
   }
 
   // ---------------------------------------------------------------- labels
+
+  /** The canvas's toggles as they are now; all on where it has none. */
+  suggests(): Partial<SuggestToggles> {
+    return this.o.suggests?.() ?? {};
+  }
 
   /**
    * The labels to ask a session for on a card: empty, never set by the owner, and on the canvas's
@@ -1019,7 +1056,7 @@ export class Koordinator {
    */
   private labelsToAsk(cardId: string): Label[] {
     if (this.labelled.has(cardId)) return [];
-    const on = suggestable(this.o.suggests?.() ?? {});
+    const on = suggestable(this.suggests());
     const asked = this.o.board.openLabels(cardId).filter((l) => on.includes(l));
     if (asked.length) this.labelled.add(cardId);
     return asked;
@@ -1064,29 +1101,50 @@ export class Koordinator {
 
   // ---------------------------------------------------------------- the estimate
 
+  /** Unfinished tasks in this repository, including ones still planned or awaiting approval. */
+  private duplicateCandidates(card: Item): Item[] {
+    const previous = this.o.board.row(card.id).scope;
+    if (previous) {
+      try {
+        const checked = (JSON.parse(previous) as { duplicateCheck?: { title: string; body: string } }).duplicateCheck;
+        if (checked?.title === card.title && checked.body === card.body) return [];
+      } catch {}
+    }
+    const words = (item: Item) => new Set(`${item.title} ${item.body}`.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu)?.filter((word) => !['the', 'and', 'for', 'with', 'from', 'add', 'eine', 'einen', 'und', 'für', 'mit', 'der', 'die', 'das'].includes(word)) ?? []);
+    const mine = words(card);
+    return this.o.board.items().filter((i) => {
+      if (i.id === card.id || i.repo !== card.repo || i.kind !== 'task' || i.prototypeOf || i.archivedAt || (i.state !== 'planned' && !ACTIVE.includes(i.state))) return false;
+      if (ACTIVE.includes(i.state)) return true;
+      const theirs = words(i);
+      return [...mine].filter((word) => theirs.has(word)).length >= 2;
+    });
+  }
+
   /** `onLimit`: where the estimate shows that it waits for the usage limit. */
-  private async estimate(card: Item, active: Item[], ahead: Item[], pending: Item[], onLimit: (until: number | null | undefined, retry?: () => void) => void): Promise<Scope> {
+  private async estimate(card: Item, active: Item[], ahead: Item[], pending: Item[], candidates: Item[], onLimit: (until: number | null | undefined, retry?: () => void) => void): Promise<Scope> {
     let scope: Scope | undefined;
-    const tags = new Map([...active, ...ahead, ...pending].map((a, n) => [`K${n + 1}`, a.id]));
+    const tags = new Map([...new Map([...active, ...ahead, ...pending, ...candidates].map((a) => [a.id, a])).values()].map((a, n) => [`K${n + 1}`, a.id]));
     // a conflict only with what runs or goes first; building on only a workstream of its project
     const running = new Set([...active, ...ahead].map((a) => a.id));
     const siblings = new Set([...active, ...ahead, ...pending].filter((a) => card.parent && a.parent === card.parent).map((a) => a.id));
+    const possible = new Set(candidates.map((a) => a.id));
     const ids = (list: unknown, among: Set<string>) =>
       (Array.isArray(list) ? list : []).map((t) => tags.get(String(t))).filter((x): x is string => !!x && among.has(x));
     const error = await readSession(this.o.runtime, {
       cwd: this.o.repoFor(card).path,
       role: 'koordinator',
       onLimit,
-      system: this.o.repoFor(card).folder ? FOLDER_SYSTEM(this.language) : SYSTEM(this.language),
+      system: this.ownerFacing(this.o.repoFor(card).folder ? FOLDER_SYSTEM(this.spokenLanguage) : SYSTEM(this.spokenLanguage)),
       tools: (finish) => [
         {
           name: 'scope',
-          description: `Report the files the card will change, the cards in progress or queued ahead whose changes are likely to conflict with it on merge (their tags), the workstreams of its project it builds on (their tags), and a one-sentence reason in ${this.language}.`,
-          schema: { files: z.array(z.string()), conflicts_with: z.array(z.string()), builds_on: z.array(z.string()).optional(), reason: z.string() },
+          description: `Report likely files, merge conflicts, dependencies, possible duplicate cards (their tags), and a one-sentence reason in ${this.spokenLanguage}.`,
+          schema: { files: z.array(z.string()), conflicts_with: z.array(z.string()), builds_on: z.array(z.string()).optional(), duplicates: z.array(z.string()).optional(), reason: z.string() },
           run: (a) => {
             if (scope) return 'Already reported.';
             scope = {
               files: (a.files as string[]).slice(0, 200),
+              duplicates: ids(a.duplicates, possible),
               conflictsWith: ids(a.conflicts_with, running),
               buildsOn: ids(a.builds_on, siblings),
               reason: String(a.reason).slice(0, 500),
@@ -1095,7 +1153,7 @@ export class Koordinator {
           },
         },
       ],
-      brief: await this.brief(card, active, ahead, pending, tags),
+      brief: `${await this.brief(card, active, ahead, pending, tags)}\n\nOther unfinished tasks to check for the same requested outcome (planned, in progress or awaiting review):\n${candidates.map((a) => `- ${tagOf(tags, a.id)}: "${a.title}" (${a.state})${a.body ? ` — ${a.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`).join('\n') || '(none)'}`,
     });
     if (!scope) throw new Error(error ?? 'no estimate');
     return scope;
@@ -1107,7 +1165,8 @@ export class Koordinator {
    */
   private async schedule(project: Item | undefined, batch: Item[], active: Item[], ahead: Item[]): Promise<Planned[]> {
     let plan: Planned[] | undefined;
-    const tags = new Map([...active, ...ahead, ...batch].map((a, n) => [`K${n + 1}`, a.id]));
+    const candidates = [...new Map(batch.flatMap((w) => this.duplicateCandidates(w)).map((a) => [a.id, a])).values()];
+    const tags = new Map([...new Map([...active, ...ahead, ...batch, ...candidates].map((a) => [a.id, a])).values()].map((a, n) => [`K${n + 1}`, a.id]));
     const hands = this.o.repoFor(batch[0]!);
     const noun = project ? 'workstream' : 'card';
     const error = await readSession(this.o.runtime, {
@@ -1117,14 +1176,14 @@ export class Koordinator {
       onLimit: (until, retry) => {
         for (const w of batch) this.o.board.waitsForLimit({ card: w.id }, until, retry);
       },
-      system: (hands.folder ? FOLDER_SCHEDULE_SYSTEM : SCHEDULE_SYSTEM)(this.language, !project),
+      system: this.ownerFacing((hands.folder ? FOLDER_SCHEDULE_SYSTEM : SCHEDULE_SYSTEM)(this.spokenLanguage, !project)),
       tools: (finish) => [
         {
           name: 'schedule',
-          description: `Report every ${noun} once, in the order they should go: its tag, the files it will change, the tags of the ${noun}s it builds on and of the cards it would likely conflict with (both empty to start now), and a one-sentence reason in ${this.language}.`,
+          description: `Report every ${noun} once, in the order they should go: its tag, likely files, dependencies, conflicts, possible duplicate cards (their tags), and a one-sentence reason in ${this.spokenLanguage}.`,
           schema: {
             workstreams: z.array(
-              z.object({ card: z.string(), files: z.array(z.string()), builds_on: z.array(z.string()), conflicts_with: z.array(z.string()), reason: z.string() }),
+              z.object({ card: z.string(), files: z.array(z.string()), builds_on: z.array(z.string()), conflicts_with: z.array(z.string()), duplicates: z.array(z.string()).optional(), reason: z.string() }),
             ),
           },
           run: (a) => {
@@ -1132,7 +1191,7 @@ export class Koordinator {
             const mine = new Set(batch.map((w) => w.id));
             const seen = new Set<string>();
             const order: Planned[] = [];
-            for (const w of a.workstreams as { card: string; files: string[]; builds_on: string[]; conflicts_with: string[]; reason: string }[]) {
+            for (const w of a.workstreams as { card: string; files: string[]; builds_on: string[]; conflicts_with: string[]; duplicates?: string[]; reason: string }[]) {
               const id = tags.get(w.card);
               if (!id || !mine.has(id) || seen.has(id)) continue;
               seen.add(id);
@@ -1141,6 +1200,7 @@ export class Koordinator {
               order.push({
                 card: id,
                 files: w.files.slice(0, 200),
+                duplicates: (w.duplicates ?? []).map((t) => tags.get(t)).filter((other): other is string => !!other && other !== id && candidates.some((c) => c.id === other)),
                 waitsFor: [...new Set([...buildsOn, ...ids(w.conflicts_with)])],
                 buildsOn,
                 reason: String(w.reason).slice(0, 500),
@@ -1172,6 +1232,7 @@ export class Koordinator {
                 .join('\n')}`,
             ]),
         ...(await this.others(batch[0]!, active, ahead, tags)),
+        `Other unfinished tasks to check for the same requested outcome (planned, in progress or awaiting review):\n${candidates.map((a) => `- ${tagOf(tags, a.id)}: "${a.title}" (${a.state})${a.body ? ` — ${a.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`).join('\n') || '(none)'}`,
       ]
         .filter(Boolean)
         .join('\n\n'),
@@ -1268,13 +1329,15 @@ export class Koordinator {
 }
 
 const NAME_SYSTEM = (language: string, labels: Label[] = []) =>
-  `You name a card on Obeya, a canvas on which the owner directs coding agents. The owner wrote the card's task (below) without a title. Give it one with the tool title, following the naming guide below, in the language the task is written in (${language} where it tells none).${labels.length ? ` In the same call, give its ${labelWords(labels)}, judged as the labels guide below says.` : ''} Then end your turn.\n\n${titlesGuide()}${labels.length ? `\n\n${labelsGuide()}` : ''}`;
+  `You name a card on Seismic, a canvas on which the owner directs coding agents. The owner wrote the card's task (below) without a title. Give it one with the tool title, following the naming guide below, in ${language} unless an explicit standing preference names another language. The task's language does not change the title's language.${labels.length ? ` In the same call, give its ${labelWords(labels)}, judged as the labels guide below says.` : ''} Then end your turn.\n\n${titlesGuide()}${labels.length ? `\n\n${labelsGuide()}` : ''}`;
 
 const LABELS_SYSTEM = (labels: Label[]) =>
-  `You label a card on Obeya, a canvas on which the owner directs coding agents: its title, text and screenshots are below. Give its ${labelWords(labels)} with the tool labels, judged as the guide below says, from the card alone, without reading files. Then end your turn.\n\n${labelsGuide()}`;
+  `You label a card on Seismic, a canvas on which the owner directs coding agents: its title, text and screenshots are below. Give its ${labelWords(labels)} with the tool labels, judged as the guide below says, from the card alone, without reading files. Then end your turn.\n\n${labelsGuide()}`;
 
 const SYSTEM = (language: string) => `
-You are the Koordinator of Obeya, a canvas on which the owner directs coding agents; the owner knows you simply as Obeya. Several workers work at the same time, each in its own workspace, and their branches are rebased onto the main branch one after the other. Your job here: before a card starts, estimate which files it will change, and judge whether running it next to the cards in progress is likely to end in merge conflicts. Only those keep it waiting, and for a workstream of a project what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to conflict with one of them waits behind it rather than overtaking it.
+You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workspace, and their branches are rebased onto the main branch one after the other. Your job here: before a card starts, estimate which files it will change, and judge whether running it next to the cards in progress is likely to end in merge conflicts. Only those keep it waiting, and for a workstream of a project what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to conflict with one of them waits behind it rather than overtaking it.
+
+Also check unfinished cards in this repository for the same requested outcome, including planned cards and work awaiting the owner's review. A possible duplicate is a substantially overlapping task, not merely a shared file or topic. Report its tag in duplicates; the card stays planned and the owner sees which card to compare before starting it again.
 
 A workstream of a project builds on another workstream of it when it needs code, an API, data or a decision that the other one introduces, or the plan says it comes after it. It then waits until that one has landed, also when the owner has not started that one yet: the owner may start workstreams one by one, and starting this one now would build on what is not there. Read the plan doc for that.
 
@@ -1284,12 +1347,15 @@ Read what you need in the repository (you cannot change files), then call scope 
 - files: repository-relative paths the card will most likely change; a path ending in "/" stands for a directory. Be concrete; list new files where you expect them.
 - conflicts_with: the tags of cards in progress or queued ahead whose changes will likely conflict with this card's on merge; empty when none. When in doubt, leave a card out: a conflict that happens anyway goes back to its worker to resolve.
 - builds_on: for a workstream, the tags of the workstreams of its project it builds on, whether in progress, queued or not started; empty when none, and for any other card.
+- duplicates: tags of unfinished tasks asking for substantially the same outcome; empty when none.
 - reason: one sentence in ${language} for the owner: with a dependency, what it builds on; with a conflict, where the two cards change the same code; without either, which files they share, if any, and why that is fine. The owner does not know the tags: name cards by their title.
 Keep it quick: this runs every time a card starts.
 `.trim();
 
 const FOLDER_SYSTEM = (language: string) => `
-You are the Koordinator of Obeya, a canvas on which the owner directs agents; the owner knows you simply as Obeya. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. Your job here: before a card starts, estimate which files and directories it will touch, and judge whether running it next to the cards in progress is likely to get in their way. Only those keep it waiting, and for a workstream of a project what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to collide with one of them waits behind it rather than overtaking it.
+You are the Koordinator of Seismic, a canvas on which the owner directs agents; the owner knows you simply as Seismic. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. Your job here: before a card starts, estimate which files and directories it will touch, and judge whether running it next to the cards in progress is likely to get in their way. Only those keep it waiting, and for a workstream of a project what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to collide with one of them waits behind it rather than overtaking it.
+
+Also check unfinished cards in this folder for the same requested outcome, including planned cards and work awaiting the owner's review. A possible duplicate is a substantially overlapping task, not merely a shared file or topic. Report its tag in duplicates; the card stays planned and the owner sees which card to compare before starting it again.
 
 A workstream of a project builds on another workstream of it when it needs files, an overview, data or a decision that the other one makes, or the plan says it comes after it. It then waits until that one is done, also when the owner has not started that one yet: the owner may start workstreams one by one, and starting this one now would build on what is not there. Read the plan doc for that.
 
@@ -1299,12 +1365,13 @@ Read what you need in the folder (you cannot change files), then call scope exac
 - files: paths relative to the folder that the card will most likely touch; a path ending in "/" stands for a directory. Be concrete; list new files where you expect them.
 - conflicts_with: the tags of cards in progress or queued ahead it would likely collide with; empty when none. Leave out a card that only works beside it.
 - builds_on: for a workstream, the tags of the workstreams of its project it builds on, whether in progress, queued or not started; empty when none, and for any other card.
+- duplicates: tags of unfinished tasks asking for substantially the same outcome; empty when none.
 - reason: one sentence in ${language} for the owner: with a dependency, what it builds on; with a collision, which files or directories both touch; without either, what they share, if anything, and why that is fine. The owner does not know the tags: name cards by their title.
 Keep it quick: this runs every time a card starts.
 `.trim();
 
 const DEPS_SYSTEM = `
-You are the Koordinator of Obeya, a canvas on which the owner directs coding agents. The owner wants the workstreams of a project arranged by what builds on what: what can start at once on the left, what builds on it to the right of it. Read the plan doc (and the repository only where the doc leaves it open; you cannot change files) and say for each workstream, delivered ones too, which workstreams it builds on.
+You are the Koordinator of Seismic, a canvas on which the owner directs coding agents. The owner wants the workstreams of a project arranged by what builds on what: what can start at once on the left, what builds on it to the right of it. Read the plan doc (and the repository only where the doc leaves it open; you cannot change files) and say for each workstream, delivered ones too, which workstreams it builds on.
 
 A workstream builds on another when it needs code, an API, data, a document or a decision that the other one introduces, or when the plan says it comes after it, needs it or waits for it. Name only direct dependencies: when C builds on B and B on A, C names B, not A. Two workstreams that merely touch the same files, or that the plan lists one after the other without saying one needs the other, do not build on each other. A workstream may build on a delivered one.
 
@@ -1333,18 +1400,21 @@ const batchOf = (freed: boolean, folder: boolean) =>
 const FOLDER_SCHEDULE_SYSTEM = (language: string, freed: boolean) => {
   const b = batchOf(freed, true);
   return `
-You are the Koordinator of Obeya, a canvas on which the owner directs agents; the owner knows you simply as Obeya. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. ${b.situation}
+You are the Koordinator of Seismic, a canvas on which the owner directs agents; the owner knows you simply as Seismic. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. ${b.situation}
 
 A ${b.noun} waits for another when:
 - it depends on it: ${b.dependsOn}. It then waits until that one is done.
 - running both at once likely collides: both change, move, rename or delete the same files, one reorganises a directory the other works in, or one sorts or rewrites files the other creates or reads. Working in the same directory is not a collision.
 Everything else starts now and runs in parallel; parallel work is the point. Cards in progress and queued ahead count as for any start: a ${b.noun} likely to collide with one of them waits for it.
 
+Check unfinished cards in this folder, including planned work and work awaiting review, for substantially the same requested outcome. Report possible duplicates even when their files do not collide. A possible duplicate stays planned for the owner to compare.
+
 Call schedule exactly once, with every ${b.noun} once, in the order they should go (what starts now first, then each one after what it waits for):
 - card: its tag.
 - files: paths relative to the folder it will most likely touch; a path ending in "/" stands for a directory.
 - builds_on: the tags of the ${b.noun}s it depends on (in progress, queued ahead, or earlier in your order).
 - conflicts_with: the tags of cards it would likely collide with: cards in progress, queued ahead, or ${b.noun}s earlier in your order.
+- duplicates: tags of unfinished tasks asking for substantially the same outcome; empty when none.
 Both empty: it starts now. A ${b.noun} that waits starts by itself once what it waits for is done.
 - reason: one sentence in ${language} for the owner: why it waits (the dependency, or where the changes collide), or, starting now, why it can run beside the others. The owner does not know the tags: name cards by their label or title.
 `.trim();
@@ -1353,66 +1423,69 @@ Both empty: it starts now. A ${b.noun} that waits starts by itself once what it 
 const SCHEDULE_SYSTEM = (language: string, freed: boolean) => {
   const b = batchOf(freed, false);
   return `
-You are the Koordinator of Obeya, a canvas on which the owner directs coding agents; the owner knows you simply as Obeya. Several workers work at the same time, each in its own workspace, and their branches are rebased onto the main branch one after the other. ${b.situation}
+You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workspace, and their branches are rebased onto the main branch one after the other. ${b.situation}
 
 A ${b.noun} waits for another when:
 - it depends on it: ${b.dependsOn}. It then waits until that one has landed.
 - running both at once likely ends in merge conflicts: both change the same lines or the same function or block, one rewrites, moves, renames or reformats code the other one edits, or both change the same small, tightly packed section. Sharing a file is not a conflict: changes in different places of a file merge cleanly.
 Everything else starts now and runs in parallel; parallel work is the point. When in doubt about a conflict, let it run: a conflict that happens anyway goes back to its worker. Cards in progress and queued ahead count as for any start: a ${b.noun} likely to conflict with one of them waits for it.
 
+Check unfinished cards in this repository, including planned work and work awaiting review, for substantially the same requested outcome. Report possible duplicates even when their files do not conflict. A possible duplicate stays planned for the owner to compare.
+
 Call schedule exactly once, with every ${b.noun} once, in the order they should go (what starts now first, then each one after what it waits for):
 - card: its tag.
 - files: repository-relative paths it will most likely change; a path ending in "/" stands for a directory.
 - builds_on: the tags of the ${b.noun}s it depends on (in progress, queued ahead, or earlier in your order).
 - conflicts_with: the tags of cards it would likely conflict with: cards in progress, queued ahead, or ${b.noun}s earlier in your order.
+- duplicates: tags of unfinished tasks asking for substantially the same outcome; empty when none.
 Both empty: it starts now. A ${b.noun} that waits starts by itself once what it waits for has landed.
 - reason: one sentence in ${language} for the owner: why it waits (the dependency, or where the changes collide), or, starting now, why it can run beside the others. The owner does not know the tags: name cards by their label or title.
 `.trim();
 };
 
 /**
- * Where a rule goes: the preference memory, for how agents work with the owner through Obeya, or a
- * repository's CLAUDE.md, for anything about the repository. Shared by the learner and the Rückschau.
+ * Where a rule goes: the preference memory, for how agents work with the owner through Seismic, or a
+ * repository's CLAUDE.md, for anything about the repository. Shared by the learner and the retrospective.
  */
 const WHERE_RULES_GO = `
 A rule goes to one of two places:
-- The preference memory, for rules at the level of Obeya: how the agents work with the owner through Obeya, whatever the repository. What to ask the owner and what to decide alone, how many options a question offers, how to report, hand over and demo, what to decide in the owner's name and what not. Leave repos out.
-- A repository's CLAUDE.md, for anything about a repository: its conventions, product requirements, tools, how its code is written, tested and landed, the UI and its wording, and taste in code too, even when it holds in every repository. There it is versioned, colleagues see it, and Claude Code follows it outside Obeya as well. Pass repos: the repository it concerns (usually the card's), or every repository of the canvas when it holds in all of them. A worker writes it into the CLAUDE.md once the owner accepts it; until that has landed, no agent follows it. If the repository's CLAUDE.md or docs say it already (you can read them), propose nothing.
+- The preference memory, for rules at the level of Seismic: how the agents work with the owner through Seismic, whatever the repository. What to ask the owner and what to decide alone, how many options a question offers, how to report, hand over and demo, what to decide in the owner's name and what not. Leave repos out.
+- A repository's CLAUDE.md, for anything about a repository: its conventions, product requirements, tools, how its code is written, tested and landed, the UI and its wording, and taste in code too, even when it holds in every repository. There it is versioned, colleagues see it, and Claude Code follows it outside Seismic as well. Pass repos: the repository it concerns (usually the card's), or every repository of the canvas when it holds in all of them. A worker writes it into the CLAUDE.md once the owner accepts it; until that has landed, no agent follows it. If the repository's CLAUDE.md or docs say it already (you can read them), propose nothing.
 `.trim();
 
 const REPOS_PARAM =
-  "repos: the ids of the repositories whose CLAUDE.md the rule belongs in (one proposal each); leave it out for a rule on how agents work with the owner through Obeya.";
+  "repos: the ids of the repositories whose CLAUDE.md the rule belongs in (one proposal each); leave it out for a rule on how agents work with the owner through Seismic.";
 
 const LEARN_SYSTEM = (language: string) => `
-You are the Koordinator of Obeya, a canvas on which the owner directs coding agents; the owner knows you simply as Obeya. You keep the owner's rules, so the owner never has to say the same thing twice.
+You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. You keep the owner's rules, so the owner never has to say the same thing twice.
 
 You get one thing the owner just said: to the agent on a card, in the text of a card they wrote, or to you in conversation. With it you see the card, what the owner said in the last days, the agent's last message before it, the canvas's repositories, the rules recorded so far, and the proposals waiting for the owner or rejected by them. Decide whether it holds a lasting rule that should guide future work on other cards too: how to work, what to ask and what not, style, wording, testing, tools.
 
 ${WHERE_RULES_GO}
 
 Signals for one:
-- It is phrased generally: "immer", "nie", "ab jetzt", "grundsätzlich", "jedes Mal", "bei so etwas".
+- It is phrased generally: "always", "never", "from now on", "as a rule", "every time", "in cases like this".
 - It corrects how an agent works rather than what it builds: the agent asked what it could have decided itself, skipped a check, wrote in a style the owner does not want, went beyond its task. The agent's last message shows what the owner reacts to.
 - It repeats something the owner said before, on this card or another: said twice, it should not need saying a third time.
 Not a preference: deciding the case at hand (an option, a name, a date, what this card should do), approving, asking how things stand, correcting a fact. Most of what the owner says is like that: then call nothing.
 
-Make few, good proposals: at most one per input, and only one you expect the owner to accept; when unsure, wait until the owner says it again. Call propose with a short, general rule in ${language}, in the owner's terms and without the occasion ("Fragen an mich mit höchstens drei Optionen.", "Änderungen am Login bekommen immer das Codex-Review." for the repository with the login); the owner accepts or rejects it before it applies. If it refines or contradicts a recorded rule, pass that rule's number as replaces. Do not propose what a recorded rule or a waiting proposal already covers, nor a rejected proposal again, in other words either.
+Make few, good proposals: at most one per input, and only one you expect the owner to accept; when unsure, wait until the owner says it again. Call propose with a short, general rule in ${language}, in the owner's terms and without the occasion ("Questions to me with at most three options.", "Changes to the login always get the Codex review." for the repository with the login); the owner accepts or rejects it before it applies. If it refines or contradicts a recorded rule, pass that rule's number as replaces. Do not propose what a recorded rule or a waiting proposal already covers, nor a rejected proposal again, in other words either.
 `.trim();
 
-/** After how many of the owner's inputs the Rückschau runs, at most how many rules it proposes, and how much history it reads. */
+/** After how many of the owner's inputs the retrospective runs, at most how many rules it proposes, and how much history it reads. */
 export const REVIEW_EVERY = 20;
 const REVIEW_PROPOSALS = 3;
 const REVIEW_HISTORY = 300;
-/** The settings that keep the Rückschau's count across restarts, and when its history begins. */
+/** The settings that keep the retrospective's count across restarts, and when its history begins. */
 const REVIEW_COUNT = 'review_inputs';
 const REVIEW_SINCE = 'review_since';
 
 const REVIEW_SYSTEM = (language: string) => `
-You are the Koordinator of Obeya, a canvas on which the owner directs coding agents; the owner knows you simply as Obeya. You keep the owner's rules, so the owner never has to say the same thing twice.
+You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. You keep the owner's rules, so the owner never has to say the same thing twice.
 
 ${WHERE_RULES_GO}
 
-This is the Rückschau. You get what happened on the canvas since the last one, oldest first: what the owner said and clicked (notes, answers, feedback, approvals, starts against your advice, cards and proposals they deleted or dismissed, commands they took back, rule proposals they accepted or rejected), and what the agents asked and handed over. Each thing the owner said was already read on its own; look for what only shows across several moments and cards:
+This is the retrospective. You get what happened on the canvas since the last one, oldest first: what the owner said and clicked (notes, answers, feedback, approvals, starts against your advice, cards and proposals they deleted or dismissed, commands they took back, rule proposals they accepted or rejected), and what the agents asked and handed over. Each thing the owner said was already read on its own; look for what only shows across several moments and cards:
 - the same correction or feedback on different cards;
 - the same kind of question, answered the same way each time;
 - proposals of one kind the owner always dismisses, or always takes;
@@ -1420,17 +1493,17 @@ This is the Rückschau. You get what happened on the canvas since the last one, 
 - commands taken back, and what the owner did instead.
 Clicks without words count here: what the owner does again and again says what they want as much as what they say.
 
-Propose a rule only for a pattern seen at least twice, on different cards, that you expect the owner to accept; most of the time there is none. Call propose for each, at most ${REVIEW_PROPOSALS}: rule, a short, general rule in ${language} in the owner's terms and without the occasion ("Fragen an mich mit höchstens drei Optionen.", "Änderungen am Login bekommen immer das Codex-Review." for the repository with the login); why, one short sentence in ${language} for the owner (under 150 characters) naming the cards or moments it rests on. If it refines or contradicts a recorded rule, pass that rule's number as replaces. Do not propose what a recorded rule or a waiting proposal already covers, nor a rejected proposal again, in other words either. Then call done.
+Propose a rule only for a pattern seen at least twice, on different cards, that you expect the owner to accept; most of the time there is none. Call propose for each, at most ${REVIEW_PROPOSALS}: rule, a short, general rule in ${language} in the owner's terms and without the occasion ("Questions to me with at most three options.", "Changes to the login always get the Codex review." for the repository with the login); why, one short sentence in ${language} for the owner (under 150 characters) naming the cards or moments it rests on. If it refines or contradicts a recorded rule, pass that rule's number as replaces. Do not propose what a recorded rule or a waiting proposal already covers, nor a rejected proposal again, in other words either. Then call done.
 `.trim();
 
-/** How the Rückschau names who did something on a card, and what. */
+/** How the retrospective names who did something on a card, and what. */
 const WHO: Record<CardEvent['author'], string> = {
   owner: 'the owner',
   worker: 'the agent',
   explorer: 'the idea agent',
   project: 'the project agent',
   koordinator: 'you',
-  obeya: 'Obeya',
+  obeya: 'Seismic',
 };
 const STEPS: Partial<Record<CardEvent['kind'], string>> = {
   state: ': ',
@@ -1534,12 +1607,4 @@ const same = (a: string[], b: string[]) => a.length === b.length && a.every((id)
 
 const tagOf = (tags: Map<string, string>, id: string) => [...tags].find(([, x]) => x === id)![0];
 
-const normalize = (p: string) => p.trim().replace(/^\.\//, '').replace(/^\/+/, '');
-
-/** Two paths overlap when they are equal or one is a directory (trailing `/`) containing the other. */
-export function overlaps(a: string, b: string): boolean {
-  if (a === b) return true;
-  if (a.endsWith('/') && b.startsWith(a)) return true;
-  if (b.endsWith('/') && a.startsWith(b)) return true;
-  return false;
-}
+export { overlaps } from '../core/path-overlap';

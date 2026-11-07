@@ -1,8 +1,8 @@
-// Obeya from a clone of its repository (README: From source): the clone's upstream, `origin/main`
+// Seismic from a clone of its repository (README: From source): the clone's upstream, `origin/main`
 // as a rule, gets new commits that the clone has only once its owner pulls them. This fetches the
 // upstream at the start and every hour and tells the bar while commits that change code wait there
 // (docs alone do not count, as for the self-update). The owner's "git pull" fast-forwards the
-// checkout to them, and the self-update (watchOwnCode) restarts Obeya with the new code as after a
+// checkout to them, and the self-update (watchOwnCode) restarts Seismic with the new code as after a
 // landing, once the workers paused. Where a fast-forward cannot go (commits of the checkout's own,
 // uncommitted changes in the way) the bar says so, and the owner pulls by hand.
 
@@ -78,12 +78,12 @@ export class SourceUpdates {
     await this.check();
     const u = this.last;
     if (!u) throw new BadRequest('invalid', 'nothing to pull');
-    if (u.blocked) throw new BadRequest('invalid', `${u.upstream} cannot be pulled by Obeya: ${u.blocked.why}`);
+    if (u.blocked) throw new BadRequest('invalid', `${u.upstream} cannot be pulled by Seismic: ${u.blocked.why}`);
     this.pulling = true;
     try {
       const r = await this.git('merge', '--ff-only', '--quiet', '@{upstream}');
       if (!r.ok) return this.set({ ...u, error: r.out || 'git merge --ff-only failed' });
-      console.log(`Obeya: pulled ${u.count} ${u.count === 1 ? 'commit' : 'commits'} from ${u.upstream} into ${this.checkout}`);
+      console.log(`Seismic: pulled ${u.count} ${u.count === 1 ? 'commit' : 'commits'} from ${u.upstream} into ${this.checkout}`);
       await this.check(false);
     } finally {
       this.pulling = false;
@@ -126,7 +126,7 @@ export class SourceUpdates {
     return files.length ? { why: 'local', files } : undefined;
   }
 
-  /** Fetches the branch the upstream is (`refs/remotes/<remote>/<branch>`) and nothing else, without FETCH_HEAD, as the Lesestand does. */
+  /** Fetches the branch the upstream is (`refs/remotes/<remote>/<branch>`) and nothing else, without FETCH_HEAD, as the read checkout does. */
   private async fetch() {
     const branch = (await this.git('symbolic-ref', '--quiet', '--short', 'HEAD')).out;
     const remote = (await this.git('config', `branch.${branch}.remote`)).out;
@@ -135,7 +135,7 @@ export class SourceUpdates {
     // an upstream that is a local branch (`remote` is `.`) has nothing to fetch
     if (!remote || remote === '.' || !merge || !tracking.startsWith('refs/remotes/')) return;
     const r = await this.git('fetch', '--quiet', '--no-write-fetch-head', remote, `+${merge}:${tracking}`);
-    if (!r.ok) console.error(`Obeya: git fetch ${remote} in ${this.checkout}: ${r.out}`);
+    if (!r.ok) console.error(`Seismic: git fetch ${remote} in ${this.checkout}: ${r.out}`);
   }
 
   private set(update: SourceUpdate | null) {

@@ -5,7 +5,7 @@ starts, the same text is spoken with Qwen3-TTS through the demo pipeline's `qwen
 where the ElevenLabs one starts, and the track is evened out as the pipeline does (`director.ts`).
 The reference is ten seconds of the ElevenLabs voice with their transcript beside them, in `.voice/`
 of the main checkout (gitignored): `qwen-reference-en.wav` and `.txt`. Runs in the environment
-Obeya installs for Qwen3-TTS (the settings sheet does that):
+Seismic installs for Qwen3-TTS (the settings sheet does that):
 
     ~/.obeya/voices/qwen3/env/bin/python scripts/hero-video/qwen.py
 
@@ -37,9 +37,9 @@ LOUDNESS = "loudnorm=I=-16:TP=-1.5"  # as the demo's mix in `director.ts`
 
 
 def demo_directory() -> Path:
-    """Where demos go: `directory` of the demo settings (`demo.json` in Obeya's home), else `~/demos`."""
+    """Where demos go: `directory` of the demo settings (`demo.json` in Seismic's home), else `~/demos`."""
     try:
-        home = Path(os.environ.get("OBEYA_HOME") or Path.home() / ".obeya")
+        home = Path(os.environ.get("SEISMIC_HOME", os.environ.get("OBEYA_HOME")) or Path.home() / ".obeya")
         given = json.loads((home / "demo.json").read_text()).get("directory", "")
     except (OSError, ValueError):
         given = ""

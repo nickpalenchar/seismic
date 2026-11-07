@@ -1,10 +1,10 @@
-// Merging a proposal with another card: „Zusammenführen mit …“ and its picker, and the merged card
-// beside the two it came from, to approve or separate (design: Merging a proposal with a card).
+// Merge selection and the owner's coverage review (design: Merging cards).
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { type CardAction, type Item, merging, mergeableWith } from '../core/types';
+import { Fragment, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { type CardAction, type Item, merging, mergeableWith, mergeRank, canMergeFrom } from '../core/types';
 import { Inline, plain } from './markdown';
-import { Body } from './message';
+import { Body, Cards } from './message';
+import { api } from './api';
 import { MergeMark } from './parts';
 import { Shots } from './shots';
 import { stateLabel, t } from './strings';
@@ -14,35 +14,43 @@ type Act = (a: CardAction, done: { close: true; ack: string } | { close: false }
 /** How many cards the picker lists before a search narrows them. */
 const SHOWN = 30;
 
-/** The cards a proposal can be merged with, matching `query`, the newest first. */
+/** Eligible partners, matching the search and ordered by stage, then newest first. */
 export function mergeCandidates(p: Item, all: Item[], query: string): Item[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const text = (i: Item) => `${i.title}\n${i.body}`.toLowerCase();
   return all
     .filter((i) => mergeableWith(p, i) && words.every((w) => text(i).includes(w)))
-    .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+    .sort((a, b) => pickerRank(a) - pickerRank(b) || (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
 }
 
-/** „Zusammenführen mit …“ on a proposal: opens the picker of the cards it can be merged with. */
+const pickerRank = (i: Item) => i.archivedAt ? 3 : mergeRank(i) <= 1 ? 0 : mergeRank(i) === 2 ? 1 : 2;
+const kind = (i: Item) => i.archivedAt ? t.merge.archived : stateLabel({ ...i, proposal: i.proposal ? { ...i.proposal, merge: undefined } : undefined });
+
+/** "Merge with" on an unworked task: opens the picker of the cards it can be merged with. */
 export function MergeButton({ item, all, act }: { item: Item; all: Item[]; act: Act }) {
   const [open, setOpen] = useState(false);
-  if (item.proposal?.idea || item.snoozed || !all.some((i) => mergeableWith(item, i))) return null;
+  const cards = useContext(Cards);
+  if (!canMergeFrom(item)) return null;
   return (
     <>
       <button className="btn" title={t.merge.buttonHint} onClick={() => setOpen(true)}>
         <MergeMark size={13} /> {t.merge.button}
       </button>
-      {open && <MergePicker item={item} all={all} onClose={() => setOpen(false)} onPick={(other) => void act({ action: 'merge', with: other.id }, { close: false }).then(() => setOpen(false))} />}
+      {open && <MergePicker item={item} all={all} onClose={() => setOpen(false)} onPick={(other) => void act({ action: 'merge', with: other.id }, { close: false }).then(() => { setOpen(false); if (mergeRank(other) < mergeRank(item)) cards.open(other); })} />}
     </>
   );
 }
 
-/** The cards a proposal can be merged with, the newest first, with a search over their titles and texts. */
+/** Search both active and archived partners by title and task. */
 function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; onClose: () => void; onPick: (other: Item) => void }) {
+  const [archived, setArchived] = useState<Item[]>([]);
+  useEffect(() => { let live = true; api.archived().then((a) => { if (live) setArchived(a); }, console.error); return () => { live = false; }; }, []);
+  const mergedIds = new Set(all.flatMap((i) => i.proposal?.merge ? [i.proposal.merge.with] : []));
+  const candidates = [...all, ...archived.filter((i) => !all.some((x) => x.id === i.id))].filter((i) => !mergedIds.has(i.id));
   const [query, setQuery] = useState('');
   const [at, setAt] = useState(0);
   const field = useRef<HTMLInputElement>(null);
-  const found = useMemo(() => mergeCandidates(item, all, query).slice(0, SHOWN), [item, all, query]);
+  const found = useMemo(() => mergeCandidates(item, candidates, query).slice(0, SHOWN), [item, all, archived, query]);
   useEffect(() => field.current?.focus(), []);
   useEffect(() => setAt(0), [query]);
   const key = (e: React.KeyboardEvent) => {
@@ -77,7 +85,7 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
                   </span>
                   <span className="merge-row-body">{plain(i.body).split('\n')[0]}</span>
                 </span>
-                <span className="merge-row-kind">{i.state === 'proposal' ? t.merge.proposal : t.merge.planned}</span>
+                <span className="merge-row-kind">{kind(i)}</span>
               </button>
             </li>
           ))}
@@ -88,13 +96,33 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
   );
 }
 
+/** The two original cards, before the owner asks an agent to prepare a merge. */
+export function DuplicateMergePreview({ item, partner }: { item: Item; partner: Item }) {
+  return <div className="merge-view duplicate-preview">
+    <div className="merge-sides">
+      {([item, partner] as const).map((card, n) => <Fragment key={card.id}>
+        {n === 1 && <div className="merge-sides-glue" aria-hidden><span className="merge-knot"><MergeMark /></span></div>}
+        <div className="merge-side">
+        <div className="merge-side-kind">{n ? t.duplicate.otherCard : t.duplicate.thisCard}</div>
+        <h3><Inline md={card.title} /></h3>
+        <Body md={card.body} />
+        <Shots ids={card.images} />
+        </div>
+      </Fragment>)}
+    </div>
+  </div>;
+}
+
 /**
- * A proposal merged with another card, in its panel: the two cards side by side on top, the merged
- * card under them, centred, with the spinner while an agent writes it; then „Zusammenführung
- * übernehmen“ and „Trennen“.
+ * An unworked card merged with another card, in its panel: the two cards side by side on top, the merged
+ * card under them, centred, with the spinner while an agent writes it; then "Approve merge"
+ * and "Separate".
  */
 export function MergeView({ item, partner, act }: { item: Item; partner?: Item; act: Act }) {
   const m = item.proposal!.merge!;
+  const [archivedPartner, setArchivedPartner] = useState<Item>();
+  useEffect(() => { if (partner) return; let live = true; api.archived().then((a) => { if (live) setArchivedPartner(a.find((i) => i.id === m.with)); }, console.error); return () => { live = false; }; }, [partner, m.with]);
+  partner ??= archivedPartner;
   const busy = merging(item);
   const [expanded, setExpanded] = useState(false);
   const [clipped, setClipped] = useState(false);
@@ -107,16 +135,19 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
     cards.forEach((card) => observer.observe(card));
     return () => observer.disconnect();
   }, [expanded, item.body, partner?.body]);
-  const side = (i: Item | undefined, kind: string) => (
+  const side = (i: Item | undefined, label: string, left = false) => (
     <div className="merge-side">
-      <div className="merge-side-kind">{kind}</div>
+      <div className="merge-side-kind">{label}</div>
       {i ? (
         <>
-          <h3>
+          <h3 className={left && m.outcome && m.titleCovered ? 'merge-covered-title' : undefined}>
             <Inline md={i.title} />
           </h3>
-          <Body md={i.body} />
+          {left && m.outcome ? (
+            <div className="merge-coverage">{m.parts?.map((p, n) => p.covered ? <del key={n}>{p.text}</del> : <span key={n}>{p.text}</span>)}</div>
+          ) : <Body md={i.body} />}
           <Shots ids={i.images} />
+          {i.proposal?.questions.map((q, n) => <p className="hint" key={n}>{q.text}{q.options.length ? ` (${q.options.join(' / ')})` : ''}</p>)}
         </>
       ) : (
         <p className="hint">{t.merge.gone}</p>
@@ -126,11 +157,11 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
   return (
     <div className={`merge-view${expanded ? ' expanded' : ''}${clipped ? ' clipped' : ''}`}>
       <div className="merge-sides" ref={sides} id={sidesId}>
-        {side(item, t.merge.proposal)}
+        {side(item, kind(item), true)}
         <div className="merge-sides-glue">
           <span className="merge-knot">{busy ? <span className="spinner" /> : <MergeMark />}</span>
         </div>
-        {side(partner, partner?.state === 'proposal' ? t.merge.proposal : partner ? stateLabel(partner) : '')}
+        {side(partner, partner ? kind(partner) : '')}
       </div>
       {(clipped || expanded) && (
         <button className="btn merge-toggle" aria-expanded={expanded} aria-controls={sidesId} onClick={() => setExpanded(!expanded)}>
@@ -155,7 +186,17 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
           </>
         )}
       </div>
-      {m.task !== undefined && partner && <p className="hint merge-intro">{t.merge.intro(plain(partner.title))}</p>}
+      {m.followUp && <>
+        <div className="merge-arrow merge-follow-arrow" aria-hidden />
+        <div className="merge-result merge-follow-up">
+          <div className="merge-side-kind">{t.merge.followUp}</div>
+          <h3><Inline md={m.followUp.title} /></h3>
+          <Body md={m.followUp.task} />
+          <Shots ids={m.followUp.images} />
+          {m.followUp.questions.map((n) => <p className="hint" key={n}>{item.proposal?.questions[n]?.text}</p>)}
+        </div>
+      </>}
+      {m.outcome ? <p className={`merge-callout ${m.outcome}`}>{m.outcome === 'covered' ? t.merge.covered : t.merge.extra}</p> : m.task !== undefined && partner && <p className="hint merge-intro">{t.merge.intro(plain(partner.title))}</p>}
       <div className="actions merge-actions">
         {m.task !== undefined && partner && (
           <button className="btn primary" onClick={() => act({ action: 'approveMerge' }, { close: true, ack: t.merge.approved })}>

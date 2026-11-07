@@ -10,7 +10,7 @@ const KEY = 'obeya-wish-shop';
 const calls: Parameters<typeof api.writeWish>[0][] = [];
 api.writeWish = async (w) => {
   calls.push(w);
-  return { title: `Issue: ${w.said}`, body: `${w.said}\n\nObeya 0.4.0 · macOS · app` };
+  return { title: `Issue: ${w.said}`, body: `${w.said}\n\nSeismic 0.4.0 · macOS · app` };
 };
 const written = () => new Promise((r) => setTimeout(r, 0));
 
@@ -21,7 +21,7 @@ beforeEach(() => {
 
 const misaligned = { said: 'Die Zeile „Wunsch oder Fehler melden“ ist nicht horizontal ausgerichtet.' };
 
-test('a draft with only a title gives way to the wish Obeya drafted, which is written from its words alone', async () => {
+test('a draft with only a title gives way to the wish Seismic drafted, which is written from its words alone', async () => {
   // the draft the page kept, back after a reload
   m.set(KEY, JSON.stringify({ title: 'Archive filter loses focus', body: '', images: [] }));
   keepWish(store, 'shop');
@@ -40,8 +40,8 @@ test('a draft with only a title gives way to the wish Obeya drafted, which is wr
 
 test('a draft with text or screenshots stays, and the new wish waits for the owner to decide', () => {
   for (const issue of [
-    { title: 'Archive filter loses focus', body: 'Typing in the filter loses focus.\n\nObeya 0.4.0 · macOS · app' },
-    { title: '', body: 'Obeya 0.4.0 · macOS · app', images: ['shot-1'] },
+    { title: 'Archive filter loses focus', body: 'Typing in the filter loses focus.\n\nSeismic 0.4.0 · macOS · app' },
+    { title: '', body: 'Seismic 0.4.0 · macOS · app', images: ['shot-1'] },
   ]) {
     wishNow().issue = { images: [], ...issue };
     openWish(misaligned);

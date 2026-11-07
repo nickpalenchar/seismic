@@ -1,4 +1,4 @@
-// Obeya as an app: the compiled server (scripts/build.ts) as the sidecar of the Tauri shell in app/,
+// Seismic as an app: the compiled server (scripts/build.ts) as the sidecar of the Tauri shell in app/,
 // bundled into what installs on this platform: a DMG on macOS (the app inside signed ad hoc, or with
 // a Developer ID and notarised, see below), an NSIS installer on Windows, an AppImage and a .deb on
 // Linux (both unsigned).

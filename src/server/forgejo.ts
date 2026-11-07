@@ -25,7 +25,7 @@ export class ForgeError extends Error {
 }
 
 /**
- * What to do where a host may be a GitHub Enterprise server rather than Forgejo: Obeya counts it
+ * What to do where a host may be a GitHub Enterprise server rather than Forgejo: Seismic counts it
  * GitHub's only once gh is logged into it (`onGitHub`).
  */
 const gheHint = (host: string) => `if ${host} is a GitHub Enterprise server, log gh in there: gh auth login --hostname ${host}`;
@@ -78,7 +78,7 @@ interface FjComment {
 
 /**
  * A time in UTC: Forgejo gives comments in the server's zone and commits in the committer's, and
- * Obeya compares times as text (`reviewStale`).
+ * Seismic compares times as text (`reviewStale`).
  */
 const utc = (t?: string) => (t && !Number.isNaN(Date.parse(t)) ? new Date(t).toISOString() : (t ?? ''));
 
@@ -346,7 +346,7 @@ async function credential(cwd: string, base: string, url: string): Promise<strin
   return `Basic ${Buffer.from(`${fields.get('username') ?? ''}:${fields.get('password')}`).toString('base64')}`;
 }
 
-/** The API over curl (on every system Obeya runs on), the login in its config on stdin, never on the command line. */
+/** The API over curl (on every system Seismic runs on), the login in its config on stdin, never on the command line. */
 const curlApi: Api = async (cwd, base, method, path, body) => {
   const { auth, forget } = await loginFor(cwd, base, path);
   const call = (file?: string) =>

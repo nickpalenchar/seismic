@@ -6,6 +6,7 @@ import { CodexRpcError, type CodexConnection, type CodexHandlers } from './codex
 import { codexLimit, codexSandbox, createCodexRuntime, projectTrust } from './codex-runtime';
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { gitRepo } from './testing';
+import { execTools } from './exec-tools';
 import { git } from './workspaces';
 import type { AgentEvent, AgentSession, AgentSpec } from './runtime';
 
@@ -54,7 +55,7 @@ async function until(check: () => boolean) {
 function fixture(overrides: Partial<AgentSpec> = {}, wire = new Wire(), first: string | null = 'start') {
   const events: AgentEvent[] = [];
   const runtime = createCodexRuntime((_spec, handlers) => { wire.handlers = handlers; return wire; });
-  const spec: AgentSpec = { cwd: tmpdir(), system: 'Obeya instructions', tools: [], onEvent: (e) => events.push(e), ...overrides };
+  const spec: AgentSpec = { cwd: tmpdir(), system: 'Seismic instructions', tools: [], onEvent: (e) => events.push(e), ...overrides };
   const session = runtime.start(spec, first ?? undefined);
   sessions.push(session);
   return { wire, session, events };
@@ -64,28 +65,59 @@ test('handshake enables experimental tools; model is discovered and names normal
   const calls: unknown[] = [];
   const { wire, events } = fixture({ effort: 'high', tools: [{ name: 'report', description: 'Report', schema: { text: z.string() }, run: (args) => { calls.push(args); return 'recorded'; } }] });
   await until(() => wire.n === 1);
-  expect(wire.calls[0]).toEqual({ method: 'initialize', params: { clientInfo: { name: 'obeya', title: 'Obeya', version: '0.1.0' }, capabilities: { experimentalApi: true } } });
+  expect(wire.calls[0]).toEqual({ method: 'initialize', params: { clientInfo: { name: 'obeya', title: 'Seismic', version: '0.1.0' }, capabilities: { experimentalApi: true } } });
   expect(wire.notifications).toEqual(['initialized']);
   const start = wire.calls.find((c) => c.method === 'thread/start')!;
-  expect(start.params).toMatchObject({ cwd: tmpdir(), developerInstructions: 'Obeya instructions', model: 'codex-test', approvalPolicy: 'on-request', sandbox: 'workspace-write', dynamicTools: [{ type: 'function', name: 'obeya_report' }] });
+  expect(start.params).toMatchObject({ cwd: tmpdir(), developerInstructions: 'Seismic instructions', model: 'codex-test', approvalPolicy: 'on-request', sandbox: 'workspace-write', dynamicTools: [{ type: 'function', name: 'seismic_report' }] });
   expect(events[0]).toEqual({ type: 'session', id: 'codex:thread-1' });
-  const result = await wire.server('item/tool/call', { callId: 'c1', namespace: null, tool: 'obeya_report', arguments: { text: 'done' } });
+  const result = await wire.server('item/tool/call', { callId: 'c1', namespace: null, tool: 'seismic_report', arguments: { text: 'done' } });
   expect(result).toEqual({ contentItems: [{ type: 'inputText', text: 'recorded' }], success: true });
   expect(calls).toEqual([{ text: 'done' }]);
-  expect(events.at(-1)).toEqual({ type: 'tool', name: 'mcp__obeya__report', input: { text: 'done' } });
+  expect(events.at(-1)).toEqual({ type: 'tool', name: 'mcp__seismic__report', input: { text: 'done' } });
+});
+
+test('execution tools are exposed and callable with a single Seismic prefix', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'obeya-codex-exec-'));
+  const workspace = gitRepo(join(dir, 'repo'));
+  try {
+    const tools = execTools({ workspace, places: () => [], rules: () => ['pwd'], ask: async () => ({ allow: false, message: 'denied' }) });
+    const { wire } = fixture({ tools });
+    await until(() => wire.n === 1);
+    const start = wire.calls.find((c) => c.method === 'thread/start')!;
+    expect((start.params.dynamicTools as { name: string }[]).map((t) => t.name)).toEqual(['seismic_run', 'seismic_git']);
+    const run = await wire.server('item/tool/call', { callId: 'run', namespace: null, tool: 'seismic_run', arguments: { command: 'pwd' } });
+    expect(run).toMatchObject({ success: true, contentItems: [{ text: expect.stringContaining('exit code 0') }] });
+    const git = await wire.server('item/tool/call', { callId: 'git', namespace: null, tool: 'seismic_git', arguments: { args: ['status'] } });
+    // success alone says only that the tool returned text; git's exit code and output say it ran
+    expect(git).toEqual({ success: true, contentItems: [{ type: 'inputText', text: expect.any(String) }] });
+    const text = (git as { contentItems: { text: string }[] }).contentItems[0]!.text;
+    expect(text).toContain('exit code 0');
+    expect(text).toContain('On branch main');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a thread resumed from before the rename to Seismic still reaches its tools by their old names', async () => {
+  const calls: string[] = [];
+  const tool = (name: string) => ({ name, description: '', schema: {}, run: () => { calls.push(name); return 'ok'; } });
+  const { wire } = fixture({ resume: 'codex:thread-1', tools: [tool('report'), tool('to_seismic'), tool('run'), tool('git')] });
+  await until(() => wire.n === 1);
+  for (const name of ['obeya_report', 'obeya_to_obeya', 'seismic_to_obeya', 'seismic_to_seismic', 'obeya_obeya_run', 'obeya_obeya_git']) {
+    expect(await wire.server('item/tool/call', { callId: name, namespace: null, tool: name, arguments: {} })).toMatchObject({ success: true });
+  }
+  expect(calls).toEqual(['report', 'to_seismic', 'to_seismic', 'to_seismic', 'run', 'git']);
 });
 
 test('tools validate strict arguments, reject other thread/turn/namespace, and deduplicate a call', async () => {
   let runs = 0;
   const { wire } = fixture({ tools: [{ name: 'report', description: '', schema: { count: z.number().int() }, run: () => { runs++; return 'ok'; } }] });
   await until(() => wire.n === 1);
-  const call = { namespace: null, tool: 'obeya_report', arguments: { count: 1 } };
+  const call = { namespace: null, tool: 'seismic_report', arguments: { count: 1 } };
   for (const [callId, arguments_] of [['bad', { count: '1' }], ['extra', { count: 1, injected: true }]] as const) {
     expect(await wire.server('item/tool/call', { ...call, callId, arguments: arguments_ })).toMatchObject({ success: false });
   }
   expect(await wire.server('item/tool/call', { ...call, callId: 'namespace', namespace: 'other' })).toMatchObject({ success: false });
-  await expect(wire.server('item/tool/call', { ...call, callId: 'wrong', threadId: 'another' })).rejects.toThrow('active Obeya thread');
-  await expect(wire.server('item/tool/call', { ...call, callId: 'wrong', turnId: 'another' })).rejects.toThrow('active Obeya thread');
+  await expect(wire.server('item/tool/call', { ...call, callId: 'wrong', threadId: 'another' })).rejects.toThrow('active Seismic thread');
+  await expect(wire.server('item/tool/call', { ...call, callId: 'wrong', turnId: 'another' })).rejects.toThrow('active Seismic thread');
   const results = await Promise.all([wire.server('item/tool/call', { ...call, callId: 'good' }), wire.server('item/tool/call', { ...call, callId: 'good' })]);
   expect(results[0]).toEqual(results[1]);
   expect(runs).toBe(1);
@@ -167,7 +199,7 @@ test('permission defaults to deny; unsupported grants and native questions fail 
   expect(await wire.server('item/commandExecution/requestApproval', { command: 'touch outside' })).toEqual({ decision: 'decline' });
   expect(await wire.server('item/fileChange/requestApproval', { grantRoot: '/outside' })).toEqual({ decision: 'decline' });
   expect(await wire.server('item/permissions/requestApproval')).toEqual({ permissions: {}, scope: 'turn' });
-  await expect(wire.server('item/tool/requestUserInput')).rejects.toThrow('use the Obeya tools');
+  await expect(wire.server('item/tool/requestUserInput')).rejects.toThrow('use the Seismic tools');
   expect(events.filter((e) => e.type === 'denied')).toHaveLength(3);
   expect(events.filter((e) => e.type === 'denied').every((e) => e.by === 'mode')).toBe(true);
 });
@@ -275,7 +307,7 @@ test('unknown model, unsupported effort and substitution fail explicitly before 
 
 test('unsupported safety contracts fail before spawning a subprocess', () => {
   const variants: Partial<AgentSpec>[] = [
-    { cwd: 'ssh://host/repo' }, { readOnly: true }, { untrusted: true }, { plugins: ['/plugin'] },
+    { cwd: 'ssh://host/repo' }, { untrusted: true }, { plugins: ['/plugin'] },
     { dirs: ['relative-root'] }, { env: { PATH: '/session-programs' } }, { env: { Path: 'C:\\session-programs' } }, { watch: { before: async () => {}, after: async () => {} } }, { permissionMode: 'auto' },
   ];
   for (const variant of variants) expect(() => fixture(variant)).toThrow('does not support');
@@ -285,9 +317,9 @@ test('portable roots, resolved model pinning and context updates use native prot
   let update = 'Owner changed the requirements';
   const { wire, events } = fixture({ dirs: ['/plans'], setting: { model: 'opus', effort: 'high', harness: 'codex' }, contextUpdate: () => { const text = update; update = ''; return text; }, tools: [{ name: 'report', description: '', schema: {}, run: () => 'recorded' }] });
   await until(() => wire.n === 1);
-  expect(wire.calls.find((c) => c.method === 'thread/start')?.params.config).toEqual({ 'sandbox_workspace_write.writable_roots': ['/plans'], 'shell_environment_policy.set': { OBEYA_AGENT_PID: '12345' } });
+  expect(wire.calls.find((c) => c.method === 'thread/start')?.params.config).toEqual({ 'sandbox_workspace_write.writable_roots': ['/plans'], 'shell_environment_policy.set': { SEISMIC_AGENT_PID: '12345', OBEYA_AGENT_PID: '12345' } });
   expect(events[0]).toMatchObject({ type: 'session', setting: { harness: 'codex', codex: { model: 'codex-test', effort: 'high' } } });
-  expect(await wire.server('item/tool/call', { callId: 'ctx', namespace: null, tool: 'obeya_report', arguments: {} })).toMatchObject({ contentItems: [{ type: 'inputText', text: 'recorded\n\nOwner changed the requirements' }] });
+  expect(await wire.server('item/tool/call', { callId: 'ctx', namespace: null, tool: 'seismic_report', arguments: {} })).toMatchObject({ contentItems: [{ type: 'inputText', text: 'recorded\n\nOwner changed the requirements' }] });
   update = 'Pause requested';
   wire.handlers.notification('item/completed', { threadId: 'thread-1', turnId: 'turn-1', item: { type: 'commandExecution' } });
   await until(() => wire.calls.some((c) => c.method === 'turn/steer'));
@@ -404,6 +436,9 @@ test('the sandbox is workspace-write unless OBEYA_CODEX_SANDBOX lifts it', () =>
     expect(codexSandbox({ OBEYA_CODEX_SANDBOX: 'workspace-write' })).toBe('workspace-write');
     expect(said).toEqual([]);
     expect(codexSandbox({ OBEYA_CODEX_SANDBOX: 'danger-full-access' })).toBe('danger-full-access');
+    expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'danger-full-access' })).toBe('danger-full-access');
+    // the new name wins over the old one
+    expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'workspace-write', OBEYA_CODEX_SANDBOX: 'danger-full-access' })).toBe('workspace-write');
     // anything else keeps the sandbox, and says so
     expect(codexSandbox({ OBEYA_CODEX_SANDBOX: 'off' })).toBe('workspace-write');
     expect(codexSandbox({ OBEYA_CODEX_SANDBOX: 'read-only' })).toBe('workspace-write');
@@ -461,5 +496,41 @@ test("Codex is told the trust of the project by its checkout and, from a linked 
     expect(projectTrust(join(dir, 'ws'), false)).toBe(`projects={${JSON.stringify(w)}={trust_level="untrusted"},${JSON.stringify(r)}={trust_level="untrusted"}}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a read-only agent (a code review) runs in the read-only sandbox and asks nobody, whatever the environment lifts for workers', async () => {
+  const was = process.env.OBEYA_CODEX_SANDBOX;
+  const warn = console.warn;
+  console.warn = () => {};
+  process.env.OBEYA_CODEX_SANDBOX = 'danger-full-access';
+  try {
+    const { wire } = fixture({ readOnly: true });
+    await until(() => wire.n === 1);
+    expect(wire.calls.find((c) => c.method === 'thread/start')?.params).toMatchObject({ sandbox: 'read-only', approvalPolicy: 'never' });
+  } finally {
+    console.warn = warn;
+    if (was === undefined) delete process.env.OBEYA_CODEX_SANDBOX;
+    else process.env.OBEYA_CODEX_SANDBOX = was;
+  }
+});
+
+test("with auto review, Codex's own reviewer decides on approvals, a refusal shows as auto mode's; the owner is asked without it", async () => {
+  const { wire, events } = fixture({ autoReview: true });
+  await until(() => wire.n === 1);
+  expect(wire.calls.find((c) => c.method === 'thread/start')?.params).toMatchObject({ approvalPolicy: 'on-request', approvalsReviewer: 'auto_review', sandbox: 'workspace-write' });
+  const review = (status: string, action: Record<string, unknown>) =>
+    wire.handlers.notification('item/autoApprovalReview/completed', { threadId: 'thread-1', turnId: 'turn-1', reviewId: 'r', review: { status, riskLevel: 'high', rationale: 'Deletes files outside the workspace' }, action });
+  review('approved', { type: 'command', command: 'curl -sI https://example.com', cwd: '/w', source: 'shell' });
+  review('denied', { type: 'command', command: 'rm -rf ~/x', cwd: '/w', source: 'shell' });
+  review('denied', { type: 'networkAccess', host: 'evil.test', port: 443, protocol: 'https', target: 'https://evil.test' });
+  expect(events.filter((e) => e.type === 'denied')).toEqual([
+    { type: 'denied', name: 'Bash', input: { command: 'rm -rf ~/x' }, by: 'classifier', reason: 'Deletes files outside the workspace' },
+    { type: 'denied', name: 'Network: https://evil.test', input: {}, by: 'classifier', reason: 'Deletes files outside the workspace' },
+  ]);
+  for (const spec of [{}, { autoReview: true, readOnly: true }]) {
+    const { wire } = fixture(spec);
+    await until(() => wire.n === 1);
+    expect(wire.calls.find((c) => c.method === 'thread/start')?.params).toMatchObject({ approvalsReviewer: 'user' });
   }
 });

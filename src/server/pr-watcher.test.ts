@@ -31,7 +31,7 @@ let unreadable: string | undefined;
 let settings: RepoAdapter;
 /** Cards whose PR the worker reported, as the canvas passes them to sharing. */
 let opened: string[];
-/** The language of Obeya's interface, which the lines the watcher logs on a card speak. */
+/** The language of Seismic's interface, which the lines the watcher logs on a card speak. */
 let language: Language;
 const URL_ = 'https://github.com/acme/app/pull/42';
 
@@ -201,7 +201,7 @@ describe('watching', () => {
     expect(lines().at(-1)).toBe('2 new review comments, passed on to the agent.');
   });
 
-  test('a PR with nothing left for the worker is merged by Obeya, which makes the card live', async () => {
+  test('a PR with nothing left for the worker is merged by Seismic, which makes the card live', async () => {
     const id = await inPr();
     runtime.last.call('pr_opened', { url: URL_ });
     // the turn that handed over ends, then the one the approval started
@@ -223,7 +223,7 @@ describe('watching', () => {
     await watcher.poll();
     expect(merges).toEqual(['aaa']);
     expect(state(id)).toBe('live');
-    expect(board.events(id).map((e) => e.text).slice(-2)).toEqual(['Bereit zum Mergen: Checks grün, alle Anmerkungen erledigt, das Review ist durch. Obeya mergt.', 'Pull Request gemergt. Live.']);
+    expect(board.events(id).map((e) => e.text).slice(-2)).toEqual(['Bereit zum Mergen: Checks grün, alle Anmerkungen erledigt, das Review ist durch. Seismic mergt.', 'Pull Request gemergt. Live.']);
     expect(runtime.last.inbox.at(-1)).toContain('pull request was merged');
   });
 
@@ -369,7 +369,7 @@ describe('watching', () => {
     expect(state(id)).toBe('live');
   });
 
-  test('a reviewer confidence below 4/5 leaves the merge to the owner; a better one lets Obeya merge', async () => {
+  test('a reviewer confidence below 4/5 leaves the merge to the owner; a better one lets Seismic merge', async () => {
     const id = await inPr();
     runtime.last.call('pr_opened', { url: URL_ });
     runtime.last.emit({ type: 'idle' });
@@ -381,7 +381,7 @@ describe('watching', () => {
     expect(state(id)).toBe('inPr');
     expect(board.item(id)!.pr).toMatchObject({ ready: true, held: { score: '3/5', by: 'greptile' } });
     expect(needsYou(board.item(id)!)).toBe(true);
-    expect(board.events(id).at(-1)!.text).toBe('Bereit zum Mergen, aber greptile gibt nur 3/5: Unter 4/5 mergt Obeya nicht selbst. Du entscheidest.');
+    expect(board.events(id).at(-1)!.text).toBe('Bereit zum Mergen, aber greptile gibt nur 3/5: Unter 4/5 mergt Seismic nicht selbst. Du entscheidest.');
     // said once
     const events = board.events(id).length;
     await watcher.poll();
@@ -404,7 +404,7 @@ describe('watching', () => {
     expect(state(id)).toBe('inPr');
     expect(board.item(id)!.pr).toMatchObject({ ready: true, manual: true });
     expect(needsYou(board.item(id)!)).toBe(true);
-    expect(board.events(id).at(-1)!.text).toBe('Bereit zum Mergen: Checks grün, alle Anmerkungen erledigt, das Review ist durch. In diesem Repository mergt Obeya nicht selbst: bitte selbst mergen.');
+    expect(board.events(id).at(-1)!.text).toBe('Bereit zum Mergen: Checks grün, alle Anmerkungen erledigt, das Review ist durch. In diesem Repository mergt Seismic nicht selbst: bitte selbst mergen.');
     // said once
     const events = board.events(id).length;
     await watcher.poll();
@@ -436,7 +436,7 @@ describe('watching', () => {
     expect(state(id)).toBe('inPr');
     expect(board.item(id)!.pr).toMatchObject({ ready: true, mergeError: refuse });
     expect(needsYou(board.item(id)!)).toBe(true);
-    expect(board.events(id).at(-1)!.text).toBe(`Obeya konnte nicht mergen: ${refuse}`);
+    expect(board.events(id).at(-1)!.text).toBe(`Seismic konnte nicht mergen: ${refuse}`);
     // said once
     const events = board.events(id).length;
     await watcher.poll();
@@ -489,7 +489,7 @@ describe('watching', () => {
     const id = await inPr();
     runtime.last.call('pr_opened', { url: URL_ });
     runtime.last.emit({ type: 'idle' });
-    // not yet ready, so Obeya does not merge it itself
+    // not yet ready, so Seismic does not merge it itself
     status.checks = [{ name: 'build', state: 'pending' }];
     let asked = 0;
     const counting = new PrWatcher(board, workers, { status: async () => (asked++, status), body: async () => '', setBody: async () => {}, merge: async () => {}, open: async () => '', ...noContributions }, () => dir);
@@ -498,7 +498,7 @@ describe('watching', () => {
     await Bun.sleep(5);
     expect(asked).toBe(1);
 
-    // merged on GitHub: the owner back in Obeya sees it without waiting for the next round
+    // merged on GitHub: the owner back in Seismic sees it without waiting for the next round
     status.state = 'MERGED';
     counting.soon(0);
     expect(state(id)).toBe('inPr');
@@ -520,7 +520,7 @@ describe('watching', () => {
     board.work(id, { pr: JSON.stringify({ ...pr, readError: { since: pr.readError.since - 10 * 60_000 } }) });
     await watcher.poll();
     await watcher.poll();
-    expect(board.events(id).map((e) => e.text).slice(events)).toEqual(['Obeya kann den Pull Request nicht lesen: git has no login for codeberg.org']);
+    expect(board.events(id).map((e) => e.text).slice(events)).toEqual(['Seismic kann den Pull Request nicht lesen: git has no login for codeberg.org']);
     unreadable = undefined;
     await watcher.poll();
     expect(JSON.parse(board.row(id).pr!).readError).toBeUndefined();

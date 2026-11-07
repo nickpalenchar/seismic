@@ -1,18 +1,21 @@
-// Obeya's configuration, in a dialog over the page with its sections listed on the left: the
-// canvases it serves and their repositories, edited and saved together (Obeya then starts again
+// Seismic's configuration, in a dialog over the page with its sections listed on the left: the
+// canvases it serves and their repositories, edited and saved together (Seismic then starts again
 // with them), and the settings saved on their own (models, voice, demos, notifications, other
 // devices). Language, theme and the server are blocks of this file shown in the logo's preferences
 // dialog (prefs.tsx).
 
+import { Info as InfoIcon, Trash2 } from 'lucide-react';
 import { type CSSProperties, Fragment, type ReactNode, useContext, useEffect, useId, useRef, useState } from 'react';
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
-import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type AgentsView, blocksSaving, type CanvasConfig, type ConfigChecked, type ConfigProblem, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoSite, type DemoVoiceCheck, type FilledClones, type PersonalSiteView, type SiteSetupJob, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedCanvas, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
+import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
+import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, CARD_ARCHIVING, type CardArchiving, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blocksSaving, type CanvasConfig, type CanvasDefaults, type CanvasDefaultsView, type CanvasSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type CanvasDemoSite, type CanvasDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedCanvas, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
 import { lineDiff } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { LANGUAGES } from '../core/locale';
+import { SUGGEST_TOGGLES, type SuggestSettings, type SuggestToggle, suggestToggles } from '../core/labels';
 import { AccessSection } from './access';
-import { api, reload, type SiteHow } from './api';
+import { type AddSiteInput, api, reload, type SiteHow } from './api';
 import { keepConfigDraft, keptConfigDraft } from './configDraft';
 import { keep } from './keep';
 import { plain } from './markdown';
@@ -21,9 +24,11 @@ import { useFitHeight } from './fitHeight';
 import { useCopy } from './copy';
 import { failText, fileSize, snoozeWhen, t } from './strings';
 import { applyTheme } from './theme';
+import { applyMotion } from './motion';
 import { canNotify, notificationsChanged, type Permission, permission, requestPermission } from './desktopNotify';
 import { WishLink } from './wish';
-import { canvasPath } from './address';
+import { projectPath } from './address';
+import { scrollBehavior } from './motion';
 
 declare global {
   interface Window {
@@ -43,12 +48,12 @@ type Checked = Pick<ConfigChecked, 'resolved' | 'problems'>;
 type Ask = (text: string, canvas?: string) => void;
 
 /** The dialog's sections, in the order its list shows them. */
-type Section = 'canvases' | 'agents' | 'voice' | 'demos' | 'notices' | 'devices';
-const SECTIONS: Section[] = ['canvases', 'agents', 'voice', 'demos', 'notices', 'devices'];
-// the section shown, per tab: a save that restarts Obeya reloads the page, and the dialog comes back at it
+type Section = 'canvases' | 'defaults' | 'agents' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
+const SECTIONS: Section[] = ['canvases', 'defaults', 'agents', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
+// the section shown, per tab: a save that restarts Seismic reloads the page, and the dialog comes back at it
 const SECTION_KEY = 'obeya-config-section';
 
-// the canvas shown in Leinwände, per tab, by its place in the list
+// the canvas shown in Canvases, per tab, by its place in the list
 const CANVAS_KEY = 'obeya-config-canvas';
 
 /** Opens the dialog at the canvases next time, at the one the page shows, as from the note on a plan directory. */
@@ -57,21 +62,37 @@ export const showCanvasesSection = () => {
   sessionStorage.removeItem(CANVAS_KEY);
 };
 
+const ADD_CANVAS_KEY = 'obeya-config-add-canvas';
+/** Opens the dialog next time with a new project added to its list, as from "+ New project" in the navigation. */
+export const showNewCanvas = () => {
+  showCanvasesSection();
+  sessionStorage.setItem(ADD_CANVAS_KEY, '1');
+};
+
 /** The canvas this tab showed last in the dialog, if any. */
 const keptCanvas = () => {
   const n = Number(sessionStorage.getItem(CANVAS_KEY) ?? NaN);
   return Number.isInteger(n) && n >= 0 ? n : null;
 };
 
-/** Opens the dialog at the demos next time, as from the hint on a card to set up a personal demo site. */
+/** Opens the dialog at the demos next time, scrolled to this machine's demo sites. */
 export const showDemosSection = () => {
   sessionStorage.setItem(SECTION_KEY, 'demos');
-  sessionStorage.setItem(PERSONAL_SHOW_KEY, '1');
+  sessionStorage.setItem(SITES_SHOW_KEY, '1');
 };
-/** The personal demo site is to be scrolled to once the dialog shows it. */
-const PERSONAL_SHOW_KEY = 'obeya-config-personal';
+/** The demo sites are to be scrolled to once the dialog shows them. */
+const SITES_SHOW_KEY = 'obeya-config-sites';
+/** The dialog shows the page that adds a demo site ("Configure publishing site"), in place of the Demos section. */
+const ADD_SITE_KEY = 'obeya-config-add-site';
+const ADD_SITE_EVENT = 'obeya-add-site';
+/** Opens the page that adds a demo site: at once where the dialog is open, else the next time it opens. */
+export const showAddSite = () => {
+  sessionStorage.setItem(SECTION_KEY, 'demos');
+  sessionStorage.setItem(ADD_SITE_KEY, '1');
+  window.dispatchEvent(new Event(ADD_SITE_EVENT));
+};
 
-/** Opens the dialog at „Von anderen Geräten“ next time, as from „Telefon verbinden“. */
+/** Opens the dialog at "Other devices" next time, as from "Connect a phone". */
 export const showDevicesSection = () => sessionStorage.setItem(SECTION_KEY, 'devices');
 
 /** The section this tab showed last, if any. */
@@ -135,7 +156,7 @@ function checkedMoved(c: Checked, n: number, from: number, to: number): Checked 
   };
 }
 
-export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProblems, onConnect, revs }: { on: boolean; /** The canvas the page shows: the one Leinwände shows first. */ page?: string; onClose: () => void; onSetup: () => void; onAsk: Ask; onTalk: () => void; onProblems: (n: number) => void; onConnect: () => void; revs: string }) {
+export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProblems, onConnect, revs }: { on: boolean; /** The canvas the page shows: the one Canvases shows first. */ page?: string; onClose: () => void; onSetup: () => void; onAsk: Ask; onTalk: () => void; onProblems: (n: number) => void; onConnect: () => void; revs: string }) {
   const [view, setView] = useState<ConfigView | null>(null);
   const [draft, setDraft] = useState<CanvasConfig[]>([]);
   const [checked, setChecked] = useState<Checked | null>(null);
@@ -144,11 +165,29 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [json, setJson] = useState(false);
+  // Canvas defaults: a canvas added here starts with them, as one made elsewhere does on the server
+  const [defaults, setDefaults] = useState<CanvasDefaultsView | null>(null);
   const [section, setSectionState] = useState<Section>(() => keptSection() ?? 'canvases');
+  // the page that adds a demo site, over the Demos section; kept across a reload
+  const [addingSite, setAddingSiteState] = useState(() => !!sessionStorage.getItem(ADD_SITE_KEY));
+  const setAddingSite = (on: boolean) => {
+    if (on) sessionStorage.setItem(ADD_SITE_KEY, '1');
+    else sessionStorage.removeItem(ADD_SITE_KEY);
+    setAddingSiteState(on);
+  };
   const setSection = (s: Section) => {
     sessionStorage.setItem(SECTION_KEY, s);
     setSectionState(s);
+    setAddingSite(false);
   };
+  useEffect(() => {
+    const open = () => {
+      setSectionState('demos');
+      setAddingSiteState(true);
+    };
+    window.addEventListener(ADD_SITE_EVENT, open);
+    return () => window.removeEventListener(ADD_SITE_EVENT, open);
+  }, []);
   // the id each canvas of the draft had when loaded: renaming a running canvas keeps it, and its cards
   const [origin, setOrigin] = useState<(string | null)[]>([]);
   // a repository added here whose settings say clones gets as many as the first canvas's, once it is checked, until existing ones are listed
@@ -185,7 +224,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
   // the field to show once the canvases are there; a new object each time, so a second jump to the same one still scrolls
   const [focus, setFocus] = useState<ConfigFocus | null>(null);
 
-  // the canvas Leinwände shows, by its place in the draft; until one is chosen, the field to show's or the page's, once their ids are known
+  // the canvas Canvases shows, by its place in the draft; until one is chosen, the field to show's or the page's, once their ids are known
   const [pick, setPickState] = useState<number | null>(keptCanvas);
   const setPick = (i: number | null) => {
     if (i === null) sessionStorage.removeItem(CANVAS_KEY);
@@ -216,7 +255,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
   const changed = !!view && JSON.stringify(draft) !== JSON.stringify(view.canvases);
   const changedRef = useRef(changed);
   changedRef.current = changed;
-  // a draft not saved yet is written down as it changes: a reload (Obeya's restart) brings it back
+  // a draft not saved yet is written down as it changes: a reload (Seismic's restart) brings it back
   useEffect(() => {
     if (view) keepConfigDraft<KeptCanvases>(sessionStorage, 'canvases', { draft, origin }, view.canvases, ofKept);
   }, [draft, origin, view]);
@@ -225,6 +264,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     if (!on) return;
     const s = keptSection();
     if (s) setSectionState(s);
+    setAddingSiteState(!!sessionStorage.getItem(ADD_SITE_KEY));
     const f = sessionStorage.getItem(FOCUS_KEY);
     sessionStorage.removeItem(FOCUS_KEY);
     const fo = f ? (JSON.parse(f) as ConfigFocus) : null;
@@ -234,6 +274,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     wanted.current = fo?.canvas ?? (kept === null ? (page ?? null) : null);
     setPickState(fo ? null : kept);
     setSaved(null);
+    api.canvasDefaults().then(setDefaults, console.error);
     api.config().then((v) => {
       setView(v);
       const kept = !changedRef.current && keptConfigDraft<KeptCanvases>(sessionStorage, 'canvases', v.canvases, ofKept);
@@ -243,6 +284,10 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
         setOrigin(kept.origin);
         unpinned.current = v.canvases;
       } else if (!changedRef.current) load(v, null);
+      if (sessionStorage.getItem(ADD_CANVAS_KEY)) {
+        sessionStorage.removeItem(ADD_CANVAS_KEY);
+        setAddAsked((n) => n + 1);
+      }
       setStatus(v.restarting ? t.config.saved : '');
       checkSaved();
     }, console.error);
@@ -297,9 +342,14 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     setSection('canvases');
     setPick(i);
   };
+  const [addAsked, setAddAsked] = useState(0);
+  // asked for from the navigation: the new project is added once the list has loaded
+  useEffect(() => {
+    if (addAsked) addCanvas();
+  }, [addAsked]);
   const addCanvas = () => {
     keys.current = [...keys.current, nextKey.current++];
-    setDraft([...draft, { repos: [{ path: '' }] }]);
+    setDraft([...draft, { ...structuredClone(defaults?.defaults ?? {}), repos: [{ path: '' }] }]);
     setOrigin([...origin, null]);
     showCanvas(draft.length);
   };
@@ -420,7 +470,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                   try {
                     const { restarting, applied } = await api.saveConfig(draft);
                     // what is saved now is the draft as last checked; settings applied at once change what the
-                    // repositories amount to (where „Für alle“ goes, say), so it is read and checked again
+                    // repositories amount to (where "For everyone" goes, say), so it is read and checked again
                     const fresh = applied ? await api.config() : null;
                     savedSeq.current++;
                     setSaved(checked);
@@ -447,15 +497,21 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
               />
             )}
           </section>
+          <section className="cfg-sec" hidden={section !== 'defaults'}>
+            <CanvasDefaultsBlock view={defaults} onSaved={setDefaults} />
+          </section>
           <section className="cfg-sec" hidden={section !== 'agents'}>
             <AgentsBlock on={on} />
           </section>
           <section className="cfg-sec" hidden={section !== 'voice'}>
             <VoiceBlock on={on} />
           </section>
-          <section className="cfg-sec" hidden={section !== 'demos'}>
+          <section className="cfg-sec" hidden={section !== 'demos' || addingSite}>
             <DemoBlock on={on} />
-            <PersonalSiteBlock on={on && section === 'demos'} />
+            <DemoSitesBlock on={on && section === 'demos' && !addingSite} onAdd={() => setAddingSite(true)} />
+          </section>
+          <section className="cfg-sec" hidden={section !== 'demos' || !addingSite}>
+            {addingSite && <AddSitePage on={on} onBack={() => setAddingSite(false)} />}
           </section>
           <section className="cfg-sec" hidden={section !== 'notices'}>
             <Head title={c.sections.notices} />
@@ -466,9 +522,74 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
           <section className="cfg-sec" hidden={section !== 'devices'}>
             <AccessSection on={on && section === 'devices'} onConnect={onConnect} />
           </section>
+          <section className="cfg-sec" hidden={section !== 'advanced'}>
+            <CanvasExport canvases={draft} ids={origin} />
+          </section>
+          <section className="cfg-sec" hidden={section !== 'developer'}>
+            <DeveloperBlock on={on && section === 'developer'} />
+          </section>
         </div>
       </div>
     </div>
+  );
+}
+
+function CanvasExport({ canvases, ids: savedIds }: { canvases: CanvasConfig[]; ids: (string | null)[] }) {
+  const [selected, setSelected] = useState<string[] | null>(null);
+  const [error, setError] = useState('');
+  const names = canvases.flatMap((canvas, i) => savedIds[i] ? [{ id: savedIds[i]!, name: canvas.name || savedIds[i]! }] : []);
+  const ids = selected === null ? names.map((canvas) => canvas.id) : selected.filter((id) => names.some((canvas) => canvas.id === id));
+  const exportAs = async (as: 'csv' | 'json') => {
+    setError('');
+    try { await api.exportCanvases(ids, as); } catch (e) { setError(failText(e)); }
+  };
+  return <>
+    <Head title={t.config.sections.advanced} />
+    <h3>{t.config.dataExport.title}</h3>
+    <p className="hint">{t.config.dataExport.hint}</p>
+    <label><input type="checkbox" checked={selected === null} onChange={() => setSelected(null)} /> {t.config.dataExport.all}</label>
+    {names.map((canvas) => <label key={canvas.id} style={{ display: 'block' }}><input type="checkbox" checked={selected === null || selected.includes(canvas.id)} onChange={(e) => setSelected(e.target.checked ? [...(selected ?? []), canvas.id] : (selected ?? names.map((n) => n.id)).filter((id) => id !== canvas.id))} /> {canvas.name}</label>)}
+    <p><button className="btn small" disabled={!ids.length} onClick={() => exportAs('csv')}>{t.config.dataExport.csv}</button>{' '}<button className="btn small" disabled={!ids.length} onClick={() => exportAs('json')}>{t.config.dataExport.json}</button></p>
+    {error && <p role="alert">{error}</p>}
+  </>;
+}
+
+/** Restarting Seismic, or rebuilding it (its dependencies installed again) and restarting, for work on Seismic itself. */
+function DeveloperBlock({ on }: { on: boolean }) {
+  const [view, setView] = useState<DeveloperView | null>(null);
+  const [status, setStatus] = useState('');
+  useEffect(() => {
+    if (on) api.developer().then(setView, console.error);
+  }, [on]);
+  const l = t.config.developer;
+  const ask = async (what: 'restart' | 'rebuild') => {
+    setStatus('');
+    try {
+      await api.developerRestart(what);
+      setStatus(l.asked);
+    } catch (e) {
+      setStatus(failText(e));
+    }
+  };
+  return (
+    <>
+      <Head title={t.config.sections.developer} hint={l.hint} />
+      {view && (
+        <>
+          <Field label={l.restart} hint={view.why ? l.why[view.why] : l.restartHint}>
+            <button className="btn small" disabled={!view.restart} onClick={() => ask('restart')}>
+              {l.restartButton}
+            </button>
+          </Field>
+          <Field label={l.rebuild} hint={view.why ? l.why[view.why] : view.rebuildWhy ? l.why[view.rebuildWhy] : l.rebuildHint}>
+            <button className="btn small" disabled={!view.rebuild} onClick={() => ask('rebuild')}>
+              {l.rebuildButton}
+            </button>
+          </Field>
+        </>
+      )}
+      {status && <p className="hint c-status">{status}</p>}
+    </>
   );
 }
 
@@ -535,11 +656,7 @@ function Info({ text }: { text: string }) {
         onBlur={() => setAt(null)}
         onClick={(e) => (e.preventDefault(), show())}
       >
-        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-          <circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
-          <circle cx="8" cy="5" r=".95" fill="currentColor" />
-          <path d="M8 7.3v4.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
+        <InfoIcon size={14} strokeWidth={1.75} aria-hidden="true" />
       </button>
       <span id={id} className="cfg-tip" role="tooltip" hidden={!at} style={at ?? undefined}>
         {text}
@@ -582,7 +699,7 @@ interface CanvasesProps {
 function Canvases({ view, draft, origin, n, canvasKey, checked, changed, busy, focus, onAsk, onRecheck, onCanvas, onMove, onSave, onReset, onReload, status, json, onJson }: CanvasesProps) {
   const c = t.config;
   const problems = checked?.problems ?? [];
-  // „Für alle“ takes over what is saved: with changes in the dialog it saves them first, where that applies without a restart
+  // "For everyone" takes over what is saved: with changes in the dialog it saves them first, where that applies without a restart
   const prepare = changed && view.source === 'file' && !view.restarting && !problems.some(blocksSaving) ? onSave : undefined;
   // a canvas with a problem has no id yet: which running canvas goes is only known once all resolve
   const resolved = checked?.resolved ?? [];
@@ -630,7 +747,7 @@ function Canvases({ view, draft, origin, n, canvasKey, checked, changed, busy, f
       {json && <pre className="c-json">{JSON.stringify(draft, null, 2)}</pre>}
       <div className="cfg-actions">
         <button className="btn primary" disabled={!changed || busy || problems.some(blocksSaving)} onClick={() => void onSave()}>
-          {/* a configuration from the file applies while Obeya runs; one from the command line becomes the file with a restart */}
+          {/* a configuration from the file applies while Seismic runs; one from the command line becomes the file with a restart */}
           {view.server.restarts && (view.source === 'args' || view.restarting) ? c.save : c.saveOnly}
         </button>
         {changed && (
@@ -704,6 +821,8 @@ const VOICE_FIELDS: Record<VoiceKind, ('voiceName' | 'command' | 'url' | 'keyFil
   elevenlabs: ['voiceName', 'keyFile'],
   azure: ['url', 'voiceName', 'keyFile'],
 };
+/** Where the settings sheet keeps the sentence typed to hear a voice by, for the tab. */
+const SAMPLE_TEXT_KEY = 'obeya-demo-sample-text';
 /** A stock voice of a model or service is nobody's own. */
 const STOCK_ONLY: VoiceKind[] = ['piper', 'say'];
 /** Where demos go when the settings name no directory (`DEFAULT_DEMO_DIRECTORY` of the demo skill, which the page cannot import). */
@@ -810,6 +929,45 @@ export function ThemeBlock({ on }: { on: boolean }) {
   );
 }
 
+/** Full or reduced motion, or as the system: saved on its own, and the page takes it at once. */
+export function MotionBlock({ on }: { on: boolean }) {
+  const [view, setView] = useState<MotionView | null>(null);
+  const [status, setStatus] = useState('');
+  useEffect(() => {
+    if (on) api.motion().then(setView, console.error);
+  }, [on]);
+  if (!view) return null;
+  const l = t.config.motion;
+  const choose = async (motion: Motion | null) => {
+    const before = view;
+    setView({ ...view, chosen: motion });
+    applyMotion(motion);
+    setStatus('');
+    try {
+      setView(await api.saveMotion(motion));
+    } catch (e) {
+      setView(before);
+      applyMotion(before.chosen);
+      setStatus(failText(e));
+    }
+  };
+  return (
+    <>
+      <Head sub title={l.title} hint={l.hint} file={view.file} />
+      <Field label={l.title}>
+        <div className="seg" role="radiogroup" aria-label={l.title}>
+          {[null, ...MOTIONS].map((x) => (
+            <button key={x ?? 'system'} type="button" role="radio" aria-checked={view.chosen === x} className={view.chosen === x ? 'on' : undefined} onClick={() => choose(x)}>
+              {x ? l.names[x] : l.system}
+            </button>
+          ))}
+        </div>
+      </Field>
+      {status && <p className="hint c-status">{status}</p>}
+    </>
+  );
+}
+
 /** Whether the bar shows the plan's usage limits: saved on its own, and the bar follows at once. */
 function UsageBlock({ on }: { on: boolean }) {
   const [view, setView] = useState<UsageMeterView | null>(null);
@@ -832,7 +990,7 @@ function UsageBlock({ on }: { on: boolean }) {
       <Head sub title={l.title} hint={l.hint} file={view.file} />
       <Field label={l.title}>
         <label className="c-check">
-          <input type="checkbox" checked={view.on} onChange={(e) => choose(e.target.checked)} />
+          <input type="checkbox" role="switch" className="toggle" checked={view.on} onChange={(e) => choose(e.target.checked)} />
           {l.label}
         </label>
       </Field>
@@ -869,7 +1027,7 @@ function NotificationsBlock({ on }: { on: boolean }) {
       <Head sub title={l.title} hint={l.hint} file={view.file} />
       <Field label={l.title}>
         <label className="c-check">
-          <input type="checkbox" checked={view.on === true} onChange={(e) => choose(e.target.checked)} />
+          <input type="checkbox" role="switch" className="toggle" checked={view.on === true} onChange={(e) => choose(e.target.checked)} />
           {l.label}
         </label>
       </Field>
@@ -902,7 +1060,7 @@ function FeedbackBlock({ on }: { on: boolean }) {
       <Head sub title={l.title} hint={l.hint} file={view.file} />
       <Field label={l.title}>
         <label className="c-check">
-          <input type="checkbox" checked={view.on} onChange={(e) => choose(e.target.checked)} />
+          <input type="checkbox" role="switch" className="toggle" checked={view.on} onChange={(e) => choose(e.target.checked)} />
           {l.label}
         </label>
         {openPerformance && (
@@ -916,15 +1074,133 @@ function FeedbackBlock({ on }: { on: boolean }) {
   );
 }
 
+/** The toggles "Seismic suggests": on a canvas's page, and as Canvas defaults. */
+export function SuggestField({ value, onChange }: { value: SuggestSettings | undefined; onChange: (s: Record<SuggestToggle, boolean>) => void }) {
+  const l = t.config.suggest;
+  const on = suggestToggles(value);
+  return (
+    <Field label={<>{l.title} <Info text={l.hint} /></>}>
+      {SUGGEST_TOGGLES.map((k) => (
+        <label key={k} className="c-check">
+          <input type="checkbox" checked={on[k]} onChange={(e) => onChange({ ...on, [k]: e.target.checked })} />
+          {l[k]}
+        </label>
+      ))}
+    </Field>
+  );
+}
+
+/** Project tagging uses the same control on a canvas and in Canvas defaults. */
+export function ProjectBaselineField({ value, onChange }: { value: boolean | undefined; onChange: (on: boolean) => void }) {
+  return (
+    <Field label={t.config.projectBaselines} hint={t.config.projectBaselinesHint}>
+      <label className="c-check">
+        <input type="checkbox" role="switch" className="toggle" checked={value !== false} onChange={(e) => onChange(e.target.checked)} />
+        {t.config.projectBaselinesOn}
+      </label>
+    </Field>
+  );
+}
+
+/** How finished cards go into the archive ("Cards archive"): on a canvas's settings sheet and page, and in Canvas defaults. */
+export function CardArchiveField({ value, onChange }: { value: CardArchiving | undefined; onChange: (v: CardArchiving) => void }) {
+  const l = t.config.archive;
+  const now = value ?? 'manual';
+  return (
+    <Field label={<>{l.title} <Info text={l.hint} /></>}>
+      <div className="cr-field" role="radiogroup" aria-label={l.title}>
+        {CARD_ARCHIVING.map((mode) => (
+          <label key={mode} className="c-check">
+            <input type="radio" checked={now === mode} onChange={() => onChange(mode)} />
+            {l[mode]}
+          </label>
+        ))}
+      </div>
+    </Field>
+  );
+}
+
+/**
+ * Whether a separate agent reviews work that lands on main, and when ("Reviews happen"): the same
+ * control on a canvas's settings sheet and page, and in Canvas defaults.
+ */
+export function CodeReviewField({ value, onChange, bare }: { value: Partial<CodeReviewSetting> | undefined; onChange: (v: CodeReviewSetting) => void; /** Under a heading of its own that names it (the settings sheet): the controls alone. */ bare?: boolean }) {
+  const l = t.config.codeReviews;
+  const now: CodeReviewSetting = { on: value?.on === true, mode: value?.mode === 'manual' ? 'manual' : 'auto' };
+  const controls = (
+    <>
+      <label className="c-check">
+        <input type="checkbox" role="switch" className="toggle" checked={now.on} onChange={(e) => onChange({ ...now, on: e.target.checked })} />
+        {l.on}
+      </label>
+      {now.on && (
+        <div className="cr-when" role="radiogroup" aria-label={l.when}>
+          <span className="hint">{l.when}</span>
+          {CODE_REVIEW_MODES.map((mode) => (
+            <label key={mode} className="c-check">
+              <input type="radio" checked={now.mode === mode} onChange={() => onChange({ ...now, mode })} />
+              {l[mode]}
+            </label>
+          ))}
+          <p className="hint">{l.scope}</p>
+        </div>
+      )}
+    </>
+  );
+  return bare ? <div className="cr-field">{controls}</div> : <Field label={<>{l.title} <Info text={l.hint} /></>}>{controls}</Field>;
+}
+
+/**
+ * Canvas defaults: what a canvas created from now on starts with, a value for every canvas setting
+ * (`CANVAS_SETTINGS` on the server). Saved on each change; existing canvases keep their own.
+ */
+function CanvasDefaultsBlock({ view, onSaved }: { view: CanvasDefaultsView | null; onSaved: (v: CanvasDefaultsView) => void }) {
+  const [status, setStatus] = useState('');
+  const c = t.config;
+  if (!view) return <Head title={c.sections.defaults} />;
+  const save = async (d: CanvasSettings) => {
+    setStatus('');
+    try {
+      onSaved(await api.saveCanvasDefaults(d));
+    } catch (e) {
+      setStatus(failText(e));
+    }
+  };
+  // a field for every canvas setting: one added to the defaults without a field here does not compile
+  const fields: { [K in keyof CanvasDefaults]: ReactNode } = {
+    suggest: <SuggestField value={view.defaults.suggest} onChange={(suggest) => save({ suggest })} />,
+    projectBaselines: <ProjectBaselineField value={view.defaults.projectBaselines} onChange={(projectBaselines) => save({ projectBaselines })} />,
+    archive: <CardArchiveField value={view.defaults.archive} onChange={(archive) => save({ archive })} />,
+    // a canvas's models default to "Agents and models": its own are chosen in its settings sheet
+    agents: <Field label={c.defaults.agents}>{c.defaults.agentsValue}</Field>,
+    codeReviews: <CodeReviewField value={view.defaults.codeReviews} onChange={(codeReviews) => save({ codeReviews })} />,
+    // a canvas chooses its demo site, and a path of its own there, in its settings
+    demoSite: <Field label={t.config.canvasSite.label}>{t.config.canvasSite.defaults}</Field>,
+  };
+  return (
+    <>
+      <Head title={c.sections.defaults} hint={c.defaults.hint} file={view.file} />
+      {Object.entries(fields).map(([k, field]) => (
+        <Fragment key={k}>{field}</Fragment>
+      ))}
+      {status && <p className="hint c-status">{status}</p>}
+    </>
+  );
+}
+
 /** The model and effort of each group of agents: saved on each change, taken by the next agent that starts. */
 function AgentsBlock({ on }: { on: boolean }) {
   const [view, setView] = useState<AgentsView | null>(null);
-  const [models, setModels] = useState<CodexModel[] | null>(null);
+  const [catalogs, setCatalogs] = useState<Partial<Record<'codex' | 'agy', CodexModel[]>>>({});
   const [catalogError, setCatalogError] = useState('');
   const [loading, setLoading] = useState(false);
   const loadModels = async () => {
     setLoading(true); setCatalogError('');
-    try { setModels(await api.codexModels()); } catch (e) { setCatalogError(failText(e)); }
+    try {
+      const wanted = (['codex', 'agy'] as const).filter((h) => HARNESS_ROLES.some((r) => view?.agents[r].harness === h));
+      const lists = await Promise.all(wanted.map((h) => (h === 'agy' ? api.agyModels() : api.codexModels())));
+      setCatalogs(Object.fromEntries(wanted.map((h, i) => [h, lists[i]])));
+    } catch (e) { setCatalogError(failText(e)); }
     setLoading(false);
   };
   const [status, setStatus] = useState('');
@@ -932,25 +1208,37 @@ function AgentsBlock({ on }: { on: boolean }) {
   useEffect(() => {
     if (on) api.agents().then(setView, console.error);
   }, [on]);
-  const codexOn = view?.agents.worker.harness === 'codex';
-  useEffect(() => { if (on && codexOn) void loadModels(); }, [on, codexOn]);
+  const codexOn = !!view && HARNESS_ROLES.some((r) => view.agents[r].harness === 'codex');
+  const agyOn = !!view && HARNESS_ROLES.some((r) => view.agents[r].harness === 'agy');
+  useEffect(() => { if (on && (codexOn || agyOn)) void loadModels(); }, [on, codexOn, agyOn]);
   if (!view) return null;
   const a = t.config.agents;
-  const choose = async (role: AgentRole, choice: Partial<AgentSetting>) => {
+  const save = async (saving: () => Promise<AgentsView>) => {
     setBusy(true);
     setStatus('');
     try {
-      setView(await api.saveAgents(role, choice));
+      setView(await saving());
     } catch (e) {
       setStatus(failText(e));
     }
     setBusy(false);
   };
+  const choose = (role: AgentRole, choice: Partial<AgentSetting>) => save(() => api.saveAgents(role, choice));
   return (
     <>
       <Head title={a.title} hint={a.hint} file={view.file} />
       {codexOn && <p className="hint">{a.codexScope}</p>}
-      {codexOn && (loading || catalogError) && <p className="hint c-status">{loading ? a.loadingModels : catalogError} {!loading && <button type="button" onClick={loadModels}>{a.reloadModels}</button>}</p>}
+      {view.agents.worker.harness === 'codex' && (
+        <>
+          <label className="c-check">
+            <input type="checkbox" role="switch" className="toggle" checked={view.codexAutoReview} disabled={busy} onChange={(e) => save(() => api.saveCodexAutoReview(e.target.checked))} />
+            {a.codexAutoReview}
+          </label>
+          <p className="hint">{a.codexAutoReviewHint}</p>
+        </>
+      )}
+      {agyOn && <p className="hint">{a.agyScope}</p>}
+      {(codexOn || agyOn) && (loading || catalogError) && <p className="hint c-status">{loading ? a.loadingModels : catalogError} {!loading && <button type="button" onClick={loadModels}>{a.reloadModels}</button>}</p>}
       <div className="cfg-agents">
         <span />
         <span className="hint">{a.harness}</span>
@@ -958,8 +1246,10 @@ function AgentsBlock({ on }: { on: boolean }) {
         <span className="hint">{a.effort}</span>
         {AGENT_ROLES.map((role) => {
           const setting = view.agents[role];
-          const codex = role === 'worker' && setting.harness === 'codex';
-          const choice = setting.codex ?? { model: 'default', effort: 'high' as const };
+          const other = choosesHarness(role) && (setting.harness === 'codex' || setting.harness === 'agy') ? setting.harness : null;
+          const codex = !!other;
+          const models = other ? catalogs[other] : undefined;
+          const choice = (other && setting[other]) || { model: 'default', effort: 'high' as const };
           const selected = models?.find((m) => choice.model === 'default' ? m.isDefault : m.model === choice.model);
           const efforts = codex ? AGENT_EFFORTS.filter((e) => !selected || selected.supportedReasoningEfforts.some((x) => x.reasoningEffort === e)) : AGENT_EFFORTS;
           return (
@@ -968,23 +1258,24 @@ function AgentsBlock({ on }: { on: boolean }) {
                 {a.roles[role].name}
                 <span className="hint">{a.roles[role].hint}</span>
               </div>
-              <select aria-label={`${a.roles[role].name}: ${a.harness}`} value={role === 'worker' ? setting.harness ?? 'claude' : 'claude'} disabled={busy || role !== 'worker'} onChange={(e) => choose(role, { harness: e.target.value as 'claude' | 'codex' })}>
+              <select aria-label={`${a.roles[role].name}: ${a.harness}`} value={choosesHarness(role) ? setting.harness ?? 'claude' : 'claude'} disabled={busy || !choosesHarness(role)} onChange={(e) => choose(role, { harness: e.target.value as Harness })}>
                 <option value="claude">{a.harnesses.claude}</option>
                 <option value="codex">{a.harnesses.codex}</option>
+                <option value="agy">{a.harnesses.agy}</option>
               </select>
               <select aria-label={`${a.roles[role].name}: ${a.model}`} value={codex ? choice.model : setting.model} disabled={busy || (codex && loading)} onChange={(e) => {
                 if (!codex) return choose(role, { model: e.target.value as AgentModel });
                 const next = models?.find((m) => e.target.value === 'default' ? m.isDefault : m.model === e.target.value);
                 const supported = AGENT_EFFORTS.filter((x) => next?.supportedReasoningEfforts.some((y) => y.reasoningEffort === x));
-                return choose(role, { codex: { model: e.target.value, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
+                return choose(role, { [other!]: { model: e.target.value, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
               }}>
                 {codex ? <>
-                  <option value="default">{a.codexDefault}</option>
+                  <option value="default">{other === 'agy' ? a.agyDefault : a.codexDefault}</option>
                   {choice.model !== 'default' && !models?.some((m) => m.model === choice.model) && <option value={choice.model}>{choice.model}</option>}
                   {models?.map((m) => <option key={m.model} value={m.model}>{m.model}</option>)}
                 </> : AGENT_MODELS.map((m) => <option key={m} value={m}>{a.models[m]}</option>)}
               </select>
-              <select aria-label={`${a.roles[role].name}: ${a.effort}`} value={codex ? choice.effort : setting.effort} disabled={busy || (codex && loading)} onChange={(e) => choose(role, codex ? { codex: { ...choice, effort: e.target.value as AgentEffort } } : { effort: e.target.value as AgentEffort })}>
+              <select aria-label={`${a.roles[role].name}: ${a.effort}`} value={codex ? choice.effort : setting.effort} disabled={busy || (codex && loading)} onChange={(e) => choose(role, codex ? { [other!]: { ...choice, effort: e.target.value as AgentEffort } } : { effort: e.target.value as AgentEffort })}>
                 {codex && !efforts.includes(choice.effort) && <option value={choice.effort}>{a.efforts[choice.effort]}</option>}
                 {efforts.map((x) => (
                   <option key={x} value={x}>
@@ -1029,6 +1320,13 @@ function DemoBlock({ on }: { on: boolean }) {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [sampling, setSampling] = useState(false);
+  // the sentence to hear the voice by: the owner's own, kept in the tab like the draft, else the stock one
+  const [sampleText, setSampleText] = useState(() => sessionStorage.getItem(SAMPLE_TEXT_KEY) ?? '');
+  const keepSampleText = (text: string) => {
+    setSampleText(text);
+    if (text) sessionStorage.setItem(SAMPLE_TEXT_KEY, text);
+    else sessionStorage.removeItem(SAMPLE_TEXT_KEY);
+  };
   const audio = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
     if (!on) return;
@@ -1091,7 +1389,7 @@ function DemoBlock({ on }: { on: boolean }) {
     setSampling(true);
     setStatus('');
     try {
-      const wav = await api.demoVoiceSample(draft);
+      const wav = await api.demoVoiceSample(draft, sampleText.trim() || undefined);
       audio.current?.pause();
       audio.current = new Audio(URL.createObjectURL(wav));
       await audio.current.play();
@@ -1099,6 +1397,24 @@ function DemoBlock({ on }: { on: boolean }) {
       failed(e);
     }
     setSampling(false);
+  };
+  // Qwen3's speakers are a fixed set: a list, so no name the model lacks gets in; one saved before stays shown, marked
+  const speakerField = () => {
+    const name = draft.voiceName;
+    const known = name ? qwen3Speaker(name) : QWEN3_SPEAKER;
+    return (
+      <Field key="voiceName" label={d.field.voiceName('qwen3')} hint={d.speakerHint}>
+        <select aria-label={d.field.voiceName('qwen3')} value={known ?? name} onChange={(e) => set('voiceName', e.target.value === QWEN3_SPEAKER ? undefined : e.target.value)}>
+          {!known && name && <option value={name}>{d.speakerUnknown(name)}</option>}
+          {QWEN3_SPEAKERS.map((s) => (
+            <option key={s} value={s}>
+              {d.speakers[s]}
+            </option>
+          ))}
+        </select>
+        {shown.problems.includes('unknownSpeaker') && <p className="p-error">{d.problem.unknownSpeaker}</p>}
+      </Field>
+    );
   };
   const field = (k: (typeof VOICE_FIELDS)[VoiceKind][number]) => (
     <Field key={k} label={d.field[k](draft.voice)}>
@@ -1163,7 +1479,20 @@ function DemoBlock({ on }: { on: boolean }) {
               ))}
             </select>
           </Field>
-          {VOICE_FIELDS[draft.voice].map(field)}
+          {VOICE_FIELDS[draft.voice].map((k) => (k === 'voiceName' && draft.voice === 'qwen3' ? speakerField() : field(k)))}
+          {(STYLED_VOICES as readonly VoiceKind[]).includes(draft.voice) && !(draft.voice === 'qwen3' && qwen3IsClone(draft)) && (
+            <Field label={d.style} hint={d.styleHint}>
+              <textarea
+                className="c-style"
+                rows={4}
+                aria-label={d.style}
+                placeholder={DEFAULT_STYLE}
+                value={draft.style ?? ''}
+                onChange={(e) => set('style', e.target.value || undefined)}
+              />
+            </Field>
+          )}
+          {draft.voice === 'qwen3' && qwen3IsClone(draft) && <p className="hint">{d.styleClone}</p>}
           {draft.voice === 'qwen3' &&
             LANGUAGES.map((l) => (
               <Field key={l} label={d.field.reference(d.languages[l])}>
@@ -1185,10 +1514,13 @@ function DemoBlock({ on }: { on: boolean }) {
           <Field label="" hint={d.person[shown.person]}>
             {!STOCK_ONLY.includes(draft.voice) && (
               <label className="c-check">
-                <input type="checkbox" checked={!!draft.ownVoice} onChange={(e) => set('ownVoice', e.target.checked || undefined)} />
+                <input type="checkbox" role="switch" className="toggle" checked={!!draft.ownVoice} onChange={(e) => set('ownVoice', e.target.checked || undefined)} />
                 {d.ownVoice}
               </label>
             )}
+          </Field>
+          <Field label={d.sampleText}>
+            <textarea className="c-sample" rows={2} aria-label={d.sampleText} placeholder={d.sampleTextPlaceholder} value={sampleText} onChange={(e) => keepSampleText(e.target.value)} />
           </Field>
           <Field label="">
             {job?.running ? (
@@ -1206,7 +1538,7 @@ function DemoBlock({ on }: { on: boolean }) {
               )
             )}
             {job?.error && !job.running && <p className="p-error">{d.installFailed(job.error.split('\n').at(-1) ?? '')}</p>}
-            {shown.problems.map((p) => (
+            {shown.problems.filter((p) => p !== 'unknownSpeaker').map((p) => (
               <p key={p} className="p-error">
                 {d.problem[p]}
               </p>
@@ -1252,7 +1584,7 @@ const CLOUDFLARE_TOKENS = 'https://dash.cloudflare.com/profile/api-tokens';
  * or another account, by an API token pasted here, which leaves the machine's login as it is.
  */
 function CloudflareAccount({ accounts, way, onChange, disabled }: { accounts: string[]; way: CloudflareWay; onChange: (way: CloudflareWay) => void; disabled?: boolean }) {
-  const a = t.config.personal;
+  const a = t.config.sites;
   return (
     <div className="site-account">
       <label>
@@ -1288,60 +1620,85 @@ function CloudflareAccount({ accounts, way, onChange, disabled }: { accounts: st
   );
 }
 
-/** The hosts the personal site may be set up at, in the switcher's order: a public GitHub repository works with any account. */
-type PersonalHost = 'github-public' | 'github' | 'cloudflare';
-const PERSONAL_HOSTS: PersonalHost[] = ['github-public', 'github', 'cloudflare'];
+/** A mebibyte, the unit the largest file is entered in. */
+const MIB = 1024 * 1024;
 
-/** The host chosen for a new site, and a connection code pasted but not sent yet: they survive closing the dialog. */
-const PERSONAL_HOST_KEY = 'obeya-personal-host';
-const PERSONAL_CODE_KEY = 'obeya-personal-code';
+/** How a new site is added, in the switcher's order: a public GitHub repository works with any account; another host is entered by hand. */
+type AddHost = 'github-public' | 'github' | 'cloudflare' | 'manual';
+const ADD_HOSTS: AddHost[] = ['github-public', 'github', 'cloudflare', 'manual'];
 
-/**
- * The owner's personal demo site: set up at Cloudflare Pages or GitHub Pages with one button, or
- * connected with another machine's code; once there, its address, the code for another machine, the
- * private repositories ticked for it, and removing it from this machine.
- */
-function PersonalSiteBlock({ on }: { on: boolean }) {
-  const [view, setView] = useState<PersonalSiteView | null>(null);
-  const [host, setHost] = useState<PersonalHost>(() => PERSONAL_HOSTS.find((h) => h === sessionStorage.getItem(PERSONAL_HOST_KEY)) ?? PERSONAL_HOSTS[0]!);
-  const [way, setWay] = useState<CloudflareWay | null>(null);
-  const [code, setCode] = useState(() => sessionStorage.getItem(PERSONAL_CODE_KEY) ?? '');
-  const [connecting, setConnecting] = useState(() => !!sessionStorage.getItem(PERSONAL_CODE_KEY));
-  const [copied, copy] = useCopy(1500);
-  // the connection code, at hand before the click: the clipboard takes it within the click
-  const [connection, setConnection] = useState('');
-  const [removing, setRemoving] = useState(false);
-  const [status, setStatus] = useState('');
-  const p = t.config.personal;
-  const box = useRef<HTMLDivElement>(null);
+/** The way chosen for a new site, a site entered by hand and a connection code not sent yet: they survive closing the dialog. */
+const ADD_HOST_KEY = 'obeya-site-host';
+const ADD_MANUAL_KEY = 'obeya-site-manual';
+const ADD_CODE_KEY = 'obeya-site-code';
+
+/** The demo sites of this machine, read once per page and shared by every block that shows them. */
+let sitesNow: DemoSitesView | null = null;
+const sitesListeners = new Set<(v: DemoSitesView) => void>();
+const showSites = (v: DemoSitesView) => {
+  sitesNow = v;
+  for (const l of sitesListeners) l(v);
+};
+const loadSites = () => api.demoSites().then(showSites, console.error);
+
+/** This machine's demo sites, kept current while a block shows them; a site being added is followed until it is on the list. */
+function useDemoSites(on: boolean): [DemoSitesView | null, (v: DemoSitesView) => void] {
+  const [view, setView] = useState<DemoSitesView | null>(sitesNow);
   useEffect(() => {
-    if (on) api.personalSite().then(setView, console.error);
+    sitesListeners.add(setView);
+    if (on) void loadSites();
+    return () => void sitesListeners.delete(setView);
   }, [on]);
-  // opened from a card's hint: it comes into view
-  useEffect(() => {
-    if (!on || !view || !sessionStorage.getItem(PERSONAL_SHOW_KEY)) return;
-    sessionStorage.removeItem(PERSONAL_SHOW_KEY);
-    // the demo settings above load meanwhile and push it down: scrolled once they stand
-    const at = setTimeout(() => box.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 400);
-    return () => clearTimeout(at);
-  }, [on, !!view]);
   const running = !!view?.job?.running;
-  // a setup runs on the server, with a login in the browser maybe: follow it until it ends
   useEffect(() => {
     if (!on || !running) return;
-    const timer = setInterval(() => api.personalSite().then(setView, console.error), 1000);
+    const timer = setInterval(loadSites, 1000);
     return () => clearInterval(timer);
   }, [on, running]);
+  return [view, showSites];
+}
+
+/**
+ * "Add a demo site": set up at GitHub Pages or Cloudflare Pages with one button, another host
+ * entered by hand, or a site another machine has, by its connection code. The site goes on the list
+ * once Seismic published to it; `onAdded` gets its address.
+ */
+function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onView: (v: DemoSitesView) => void; onAdded?: (url: string) => void; onCancel?: () => void }) {
+  const p = t.config.sites;
+  const c = t.config.settings;
+  const [host, setHost] = useState<AddHost>(() => ADD_HOSTS.find((h) => h === sessionStorage.getItem(ADD_HOST_KEY)) ?? ADD_HOSTS[0]!);
+  const [way, setWay] = useState<CloudflareWay | null>(null);
+  const [unlisted, setUnlisted] = useState(true);
+  const [manual, setManual] = useState<{ url: string; deploy: string; env: string; maxFile: string }>(() => {
+    try {
+      return { url: '', deploy: '', env: '', maxFile: '', ...JSON.parse(sessionStorage.getItem(ADD_MANUAL_KEY) ?? '{}') };
+    } catch {
+      return { url: '', deploy: '', env: '', maxFile: '' };
+    }
+  });
+  const [code, setCode] = useState(() => sessionStorage.getItem(ADD_CODE_KEY) ?? '');
+  const [connecting, setConnecting] = useState(() => !!sessionStorage.getItem(ADD_CODE_KEY));
+  const [status, setStatus] = useState('');
+  // the job this form started: its site is handed on once it is on the list
+  const [mine, setMine] = useState(false);
+  useEffect(() => sessionStorage.setItem(ADD_HOST_KEY, host), [host]);
+  useEffect(() => sessionStorage.setItem(ADD_MANUAL_KEY, JSON.stringify(manual)), [manual]);
+  useEffect(() => (code ? sessionStorage.setItem(ADD_CODE_KEY, code) : sessionStorage.removeItem(ADD_CODE_KEY)), [code]);
+  const job = view.job;
+  const running = !!job?.running;
   useEffect(() => {
-    if (view?.site) api.personalSiteCode().then((c) => setConnection(c.code), console.error);
-  }, [view?.site?.url]);
-  useEffect(() => sessionStorage.setItem(PERSONAL_HOST_KEY, host), [host]);
-  useEffect(() => (code ? sessionStorage.setItem(PERSONAL_CODE_KEY, code) : sessionStorage.removeItem(PERSONAL_CODE_KEY)), [code]);
-  if (!view) return null;
-  const act = async (fn: () => Promise<PersonalSiteView>) => {
+    if (!mine || !job || job.running) return;
+    setMine(false);
+    if (job.site) {
+      onAdded?.(job.site);
+      sessionStorage.removeItem(ADD_MANUAL_KEY);
+      void api.demoSitesSeen().then(onView, console.error);
+    }
+  }, [mine, job?.running, job?.site]);
+  const act = async (fn: () => Promise<DemoSitesView>) => {
     setStatus('');
     try {
-      setView(await fn());
+      onView(await fn());
       return true;
     } catch (e) {
       setStatus(failText(e));
@@ -1350,145 +1707,404 @@ function PersonalSiteBlock({ on }: { on: boolean }) {
   };
   // the first site's account, until the owner chooses
   const chosen: CloudflareWay = way ?? { account: view.cloudflareAccounts[0] ?? '', token: '', accountId: '' };
-  const setUp = (h: PersonalHost) => {
+  const add = async (h: AddHost) => {
     setHost(h);
-    void act(() => (h === 'cloudflare' ? api.setUpPersonalSite('cloudflare', cloudflareHow(chosen)) : api.setUpPersonalSite('github', h === 'github-public' ? { public: true } : {})));
+    const how: AddSiteInput =
+      h === 'manual'
+        ? { manual: { url: manual.url.trim(), deploy: manual.deploy.trim(), ...(manual.env.trim() ? { env: manual.env.trim() } : {}), ...(Number(manual.maxFile) > 0 ? { maxFile: Math.round(Number(manual.maxFile) * MIB) } : {}) } }
+        : h === 'cloudflare'
+          ? { host: 'cloudflare', ...cloudflareHow(chosen), ...(unlisted ? {} : { unlisted: false }) }
+          : { host: 'github', ...(h === 'github-public' ? { public: true } : {}) };
+    if (await act(() => api.addDemoSite(how))) setMine(true);
   };
-  const job = view.job;
-  const site = view.site;
+  const ready = host !== 'manual' ? !(host === 'cloudflare' && chosen.account === 'token' && !chosen.token.trim()) : !!(manual.url.trim() && manual.deploy.trim());
+  // a part of the hand-entered site: its label above it
+  const sub = (label: string, control: ReactNode) => (
+    <label className="wide">
+      <span className="hint">{label}</span>
+      {control}
+    </label>
+  );
   return (
-    <div className="personal-site" ref={box}>
-      <Head title={p.title} hint={p.hint} />
-      {!site ? (
-        <div className="cfg-narrow">
-          <div className="seg" role="radiogroup" aria-label={p.title}>
-            {PERSONAL_HOSTS.map((h) => (
-              <button key={h} type="button" role="radio" aria-checked={host === h} className={host === h ? 'on' : undefined} disabled={running} onClick={() => setHost(h)}>
-                {p.hosts[h]}
-              </button>
-            ))}
-          </div>
-          <p className="hint">{p.notes[host]}</p>
-          {host === 'cloudflare' && <CloudflareAccount accounts={view.cloudflareAccounts} way={chosen} onChange={setWay} disabled={running} />}
-          <button className="btn primary" disabled={running || (host === 'cloudflare' && chosen.account === 'token' && !chosen.token.trim())} onClick={() => setUp(host)}>
-            {running ? p.settingUp : p.setup}
+    <div className="add-site">
+      <div className="seg" role="radiogroup" aria-label={p.add}>
+        {ADD_HOSTS.map((h) => (
+          <button key={h} type="button" role="radio" aria-checked={host === h} className={host === h ? 'on' : undefined} disabled={running} onClick={() => setHost(h)}>
+            {p.hosts[h]}
           </button>
-          {job && (job.running || !job.error) && job.lines.length > 0 && <p className="hint c-install">{job.lines.at(-1)}</p>}
-          {job?.error && !job.running && (
-            <p className="p-error">
-              {p.failed} {job.error}
-            </p>
-          )}
-          {job?.error && !job.running && job.offer === 'cloudflare' && (
-            <button className="btn small" onClick={() => setUp('cloudflare')}>
-              {p.tryCloudflare}
-            </button>
-          )}
-          {host !== 'github-public' && <p className="hint">{p.unlistedNote}</p>}
-          {!connecting ? (
-            <p className="hint personal-connect">
-              <button className="link" onClick={() => setConnecting(true)}>
-                {p.connect}
-              </button>{' '}
-              · {p.connectIntro}
-            </p>
-          ) : (
-            <Field label={p.connect} hint={p.connectHint}>
-              <textarea className="c-path" rows={3} spellCheck={false} placeholder="obeya-site:…" aria-label={p.connect} value={code} onChange={(e) => setCode(e.target.value)} />
-              <div className="personal-actions">
-                <button
-                  className="btn"
-                  disabled={!code.trim()}
-                  onClick={async () => {
-                    if (await act(() => api.connectPersonalSite(code))) {
-                      setCode('');
-                      setConnecting(false);
-                    }
-                  }}
-                >
-                  {p.connectGo}
-                </button>
-              </div>
-            </Field>
-          )}
+        ))}
+      </div>
+      <p className="hint">{p.notes[host]}</p>
+      {host === 'cloudflare' && (
+        <>
+          <CloudflareAccount accounts={view.cloudflareAccounts} way={chosen} onChange={setWay} disabled={running} />
+          <label className="c-check">
+            <input type="checkbox" role="switch" className="toggle" checked={unlisted} disabled={running} onChange={(e) => setUnlisted(e.target.checked)} />
+            {p.unlisted}
+          </label>
+        </>
+      )}
+      {host === 'manual' && (
+        <div className="cfg-sub">
+          {sub(c.siteUrl, <input className="c-path" aria-label={c.siteUrl} placeholder="https://demos.example.com" spellCheck={false} value={manual.url} disabled={running} onChange={(e) => setManual({ ...manual, url: e.target.value })} />)}
+          {sub(c.siteDeploy, <input className="c-path" aria-label={c.siteDeploy} placeholder="bunx wrangler@4 pages deploy {dir} --project-name demos" spellCheck={false} value={manual.deploy} disabled={running} onChange={(e) => setManual({ ...manual, deploy: e.target.value })} />)}
+          {sub(c.siteEnv, <input className="c-path" aria-label={c.siteEnv} placeholder="sites/demos/deploy.env" spellCheck={false} value={manual.env} disabled={running} onChange={(e) => setManual({ ...manual, env: e.target.value })} />)}
+          {sub(c.siteMaxFile, <input className="c-path" type="number" min={1} aria-label={c.siteMaxFile} placeholder="25" value={manual.maxFile} disabled={running} onChange={(e) => setManual({ ...manual, maxFile: e.target.value })} />)}
         </div>
+      )}
+      {(host === 'github' || (host === 'cloudflare' && unlisted)) && <p className="hint">{p.unlistedNote}</p>}
+      <p className="hint">{p.checkNote}</p>
+      <div className="personal-actions">
+        <button className="btn primary" disabled={running || !ready} onClick={() => void add(host)}>
+          {running ? p.adding : p.addGo}
+        </button>
+        {onCancel && !running && (
+          <button className="btn" onClick={onCancel}>
+            {p.cancel}
+          </button>
+        )}
+      </div>
+      {job && job.running && job.lines.length > 0 && <p className="hint c-install">{job.lines.at(-1)}</p>}
+      {job?.error && !job.running && (
+        <p className="p-error">
+          {p.failed} {job.error}
+        </p>
+      )}
+      {job?.error && !job.running && job.offer === 'cloudflare' && (
+        <button className="btn small" onClick={() => void add('cloudflare')}>
+          {p.tryCloudflare}
+        </button>
+      )}
+      {!connecting ? (
+        <p className="hint personal-connect">
+          <button className="link" onClick={() => setConnecting(true)}>
+            {p.connect}
+          </button>{' '}
+          · {p.connectIntro}
+        </p>
       ) : (
-        <div className="cfg-narrow">
-          <p className="personal-url">
-            <a href={site.url} target="_blank" rel="noreferrer">
-              {site.url.replace(/^https:\/\//, '').replace(/\/$/, '')}
-            </a>
-            <span className="hint"> · {p.at(p.hostNames[site.host], site.project)}</span>
-          </p>
-          <p className="hint">
-            {p.example} <code>{site.example.replace(/^https:\/\//, '')}</code>
-          </p>
-          {site.needs && <p className="p-error">{p.needs(site.needs)}</p>}
-          {!site.listed && <p className="hint">{p.unlistedNote}</p>}
-          <Field label={p.privateRepos} hint={p.privateHint}>
-            {view.privateRepos.length ? (
-              <div className="personal-private">
-                {view.privateRepos.map((r) => (
-                  <label key={r.path} className="c-check" title={r.path}>
-                    <input type="checkbox" checked={r.allowed} aria-label={p.privateAllow(r.name)} onChange={(e) => void act(() => api.allowPrivateRepo(r.path, e.target.checked))} />
-                    {r.name}
-                    {r.ownSite && <span className="hint"> · {p.ownSite}</span>}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <p className="hint">{p.privateNone}</p>
-            )}
-          </Field>
-          <Field label={p.approvedRepos} hint={p.approvedHint}>
-            {view.approvedRepos.length ? (
-              <div className="personal-private">
-                {view.approvedRepos.map((r) => (
-                  <label key={r.path} className="c-check" title={r.path}>
-                    <input type="checkbox" checked={r.on} disabled={r.bySettings} aria-label={p.approvedOn(r.name)} onChange={(e) => void act(() => api.shareApprovedRepo(r.path, e.target.checked))} />
-                    {r.name}
-                    {r.bySettings && <span className="hint"> · {p.bySettings}</span>}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <p className="hint">{p.approvedNone}</p>
-            )}
-          </Field>
-          <Field label={p.codeLabel} hint={p.codeHint}>
-            <div className="personal-actions">
-              <button className="btn small" disabled={!connection} onClick={() => copy(connection)}>
-                {copied ? p.copied : p.code}
-              </button>
-            </div>
-          </Field>
+        <Field label={p.connect} hint={p.connectHint}>
+          <textarea className="c-path" rows={3} spellCheck={false} placeholder="obeya-site:…" aria-label={p.connect} value={code} onChange={(e) => setCode(e.target.value)} />
           <div className="personal-actions">
-            {!removing ? (
-              <button className="btn small" title={p.removeHint} onClick={() => setRemoving(true)}>
-                {p.remove}
-              </button>
-            ) : (
-              <>
-                <button
-                  className="btn small danger"
-                  onClick={async () => {
-                    setRemoving(false);
-                    await act(() => api.removePersonalSite());
-                  }}
-                >
-                  {p.removeConfirm}
-                </button>
-                <button className="btn small" onClick={() => setRemoving(false)}>
-                  {t.config.reset}
-                </button>
-              </>
-            )}
+            <button
+              className="btn"
+              disabled={!code.trim()}
+              onClick={async () => {
+                const before = new Set(view.sites.map((x) => x.url));
+                let added: string | undefined;
+                if (
+                  await act(async () => {
+                    const v = await api.connectDemoSite(code);
+                    added = v.sites.find((x) => !before.has(x.url))?.url;
+                    return v;
+                  })
+                ) {
+                  setCode('');
+                  setConnecting(false);
+                  if (added) onAdded?.(added);
+                }
+              }}
+            >
+              {p.connectGo}
+            </button>
           </div>
-          {removing && <p className="hint">{p.removeWarning}</p>}
-        </div>
+        </Field>
       )}
       {status && <p className="p-error">{status}</p>}
     </div>
+  );
+}
+
+/**
+ * "Configure publishing site": adding a demo site as a page of its own, in place of the Demos
+ * section, with the way back to it; back there once the site is on the list.
+ */
+function AddSitePage({ on, onBack: back }: { on: boolean; onBack: () => void }) {
+  const [view, setView] = useDemoSites(on);
+  const p = t.config.sites;
+  // back at the list of sites, scrolled to it
+  const onBack = () => {
+    sessionStorage.setItem(SITES_SHOW_KEY, '1');
+    back();
+  };
+  return (
+    <div className="add-site-page">
+      <button type="button" className="link add-site-back" onClick={onBack}>
+        ← {p.back}
+      </button>
+      <Head title={p.add} hint={p.addHint} />
+      {view && (
+        <div className="cfg-narrow">
+          <AddSite view={view} onView={setView} onAdded={onBack} onCancel={onBack} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A site's address as the owner reads it. */
+const siteLabel = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
+/**
+ * Configuration → Demos: the demo sites this machine publishes to, each with its host, whether it
+ * is listed, the canvases' paths on it, the code for another machine and removing it from this
+ * machine; and "Add a demo site".
+ */
+function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that adds a site. */ onAdd: () => void }) {
+  const [view, setView] = useDemoSites(on);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [copied, copy] = useCopy(1500);
+  const [copiedUrl, setCopiedUrl] = useState('');
+  // each site's connection code, at hand before the click: the clipboard takes it within the click
+  const [codes, setCodes] = useState<Record<string, string>>({});
+  const [status, setStatus] = useState('');
+  const p = t.config.sites;
+  const box = useRef<HTMLDivElement>(null);
+  // opened from a card's hint: it comes into view
+  useEffect(() => {
+    if (!on || !view || !sessionStorage.getItem(SITES_SHOW_KEY)) return;
+    sessionStorage.removeItem(SITES_SHOW_KEY);
+    // the demo settings above load meanwhile and push it down: scrolled once they stand
+    const at = setTimeout(() => box.current?.scrollIntoView({ block: 'start', behavior: scrollBehavior() }), 400);
+    return () => clearTimeout(at);
+  }, [on, !!view]);
+  const urls = view?.sites.map((x) => x.url).join(' ') ?? '';
+  useEffect(() => {
+    for (const x of view?.sites ?? []) if (!codes[x.url]) api.demoSiteCode(x.url).then((r) => setCodes((now) => ({ ...now, [x.url]: r.code })), console.error);
+  }, [urls]);
+  if (!view) return null;
+  return (
+    <div className="personal-site" ref={box}>
+      <Head title={p.title} hint={p.hint} />
+      <div className="cfg-narrow">
+        {view.sites.map((x) => (
+          <div key={x.url} className="demo-site">
+            <p className="personal-url">
+              <a href={x.url} target="_blank" rel="noreferrer">
+                {siteLabel(x.url)}
+              </a>
+              <span className="hint">
+                {' '}
+                · {x.host && x.project ? p.at(p.hostNames[x.host], x.project) : p.byHand} · {x.listed ? p.listed : p.unlistedShort}
+              </span>
+            </p>
+            {x.paths.length > 0 && <p className="hint">{p.usedBy(x.paths.map((path) => (path ? `/${path}` : p.root)).join(', '))}</p>}
+            {x.needs && <p className="p-error">{p.needs(x.needs)}</p>}
+            <div className="personal-actions">
+              <button
+                className="btn small"
+                title={p.codeHint}
+                disabled={!codes[x.url]}
+                onClick={() => {
+                  copy(codes[x.url]!);
+                  setCopiedUrl(x.url);
+                }}
+              >
+                {copied && copiedUrl === x.url ? p.copied : p.code}
+              </button>
+              {removing !== x.url ? (
+                <button className="btn small" title={p.removeHint} onClick={() => setRemoving(x.url)}>
+                  {p.remove}
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="btn small danger"
+                    onClick={async () => {
+                      setRemoving(null);
+                      setStatus('');
+                      try {
+                        setView(await api.removeDemoSite(x.url));
+                      } catch (e) {
+                        setStatus(failText(e));
+                      }
+                    }}
+                  >
+                    {p.removeConfirm}
+                  </button>
+                  <button className="btn small" onClick={() => setRemoving(null)}>
+                    {t.config.reset}
+                  </button>
+                </>
+              )}
+            </div>
+            {removing === x.url && <p className="hint">{p.removeWarning}</p>}
+          </div>
+        ))}
+        {!view.sites.length && <p className="hint">{p.none}</p>}
+        <button className="btn" onClick={onAdd}>
+          {view.job?.running ? p.adding : p.add}
+        </button>
+        {status && <p className="p-error">{status}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Whether a path is one a canvas may have on a site: lower-case parts with hyphens, `/` between up to three; '' for the root. */
+const sitePathOk = (path: string) => path === '' || /^[a-z0-9][a-z0-9-]{0,40}(\/[a-z0-9][a-z0-9-]{0,40}){0,2}$/.test(path);
+
+/** A path as typed, as it is kept: without slashes at either end. */
+const tidyPath = (path: string) => path.trim().replace(/^\/+|\/+$/g, '');
+
+/**
+ * A canvas's demo site, in its settings sheet and on its page in Configuration: one of this
+ * machine's sites ("+ Add new site" opens Configuration at the page that adds one), its path there, "Initialize" until the path is on the site ("Creating demo site" in the
+ * status bar meanwhile), the vocabulary of tags and when a demo goes on the site. `canvas`: the
+ * canvas's id where it runs (Initialize needs it). Path and tags take effect when the field is left.
+ */
+export function CanvasSiteField({ canvas, value, onChange, homePath, language, bare, onAddSite = showAddSite }: { canvas: string | undefined; value: CanvasDemoSite | null | undefined; onChange: (v: CanvasDemoSite | null) => void; /** The canvas's home repository, which "Have an agent propose the tags" reads. */ homePath?: string; language: NarrationLanguage | null; /** Under a heading of its own that names it (the settings sheet): the controls alone. */ bare?: boolean; /** "+ Add new site": opens the page that adds one (in Configuration, where the field is). */ onAddSite?: () => void }) {
+  const [view] = useDemoSites(true);
+  const [path, setPath] = useState(value?.path ?? '');
+  const [init, setInit] = useState<CanvasDemoSiteState | null>(null);
+  const [status, setStatus] = useState('');
+  const l = t.config.canvasSite;
+  const c = t.config.settings;
+  useEffect(() => setPath(value?.path ?? ''), [value?.url, value?.path]);
+  // the initialization the canvas runs, from wherever it was started: followed until it ends
+  const running = !!init?.init?.running;
+  useEffect(() => {
+    if (!canvas) return;
+    const look = () =>
+      api.canvasSite(canvas).then((s) => {
+        setInit(s);
+        if (!s?.init?.running) void loadSites();
+      }, console.error);
+    void look();
+    if (!running) return;
+    const timer = setInterval(look, 1000);
+    return () => clearInterval(timer);
+  }, [canvas, running]);
+  const url = value?.url ?? '';
+  const site = view?.sites.find((x) => x.url === url);
+  const typed = tidyPath(path);
+  const pathOk = sitePathOk(typed);
+  const ready = !!site && site.paths.includes(typed);
+  const commitPath = () => {
+    if (value && pathOk && typed !== (value.path ?? '')) {
+      const { path: _, ...rest } = value;
+      onChange(typed ? { ...rest, path: typed } : rest);
+    }
+  };
+  const failed = init?.url === url && init.path === typed && !init.init?.running ? init.init?.error : undefined;
+  const where = site ? `${siteLabel(site.url)}/${typed ? `${typed}/` : ''}` : '';
+  const controls = (
+    <div className="cfg-sub canvas-site">
+      <label className="wide">
+        {!bare && <span className="hint">{l.label}</span>}
+        <select
+          aria-label={l.label}
+          value={url}
+          disabled={running}
+          onChange={(e) => {
+            setStatus('');
+            if (e.target.value === '+') return onAddSite();
+            onChange(e.target.value ? { url: e.target.value, ...(value?.publish ? { publish: value.publish } : {}), ...(value?.tags ? { tags: value.tags } : {}), ...(typed ? { path: typed } : {}) } : null);
+          }}
+        >
+          <option value="">{l.none}</option>
+          {view?.sites.map((x) => (
+            <option key={x.url} value={x.url}>
+              {siteLabel(x.url)}
+            </option>
+          ))}
+          {url && !site && view && <option value={url}>{siteLabel(url)}</option>}
+          <option value="+">{l.addNew}</option>
+        </select>
+      </label>
+      {url && view && !site && <p className="p-error wide">{l.missing}</p>}
+      {url && site && (
+        <>
+          <label className="wide">
+            <span className="hint">{l.path}</span>
+            <input
+              className="c-path"
+              aria-label={l.path}
+              placeholder={l.pathPlaceholder}
+              spellCheck={false}
+              value={path}
+              disabled={running}
+              onChange={(e) => setPath(e.target.value)}
+              onBlur={commitPath}
+              onKeyDown={(e) => e.key === 'Enter' && commitPath()}
+            />
+          </label>
+          {!pathOk && <p className="p-error wide">{l.pathBad}</p>}
+          {pathOk && (
+            <div className="wide site-init">
+              {ready ? (
+                <p className="hint">
+                  {l.ready}{' '}
+                  <a href={`${site.url}/${typed ? `${typed}/` : ''}`} target="_blank" rel="noreferrer">
+                    {where}
+                  </a>
+                </p>
+              ) : (
+                <>
+                  <p className="p-error">{l.needsSetup}</p>
+                  <div className="personal-actions">
+                    <button
+                      className="btn primary"
+                      title={l.initHint(where)}
+                      disabled={running || !canvas || !!site.needs}
+                      onClick={async () => {
+                        setStatus('');
+                        commitPath();
+                        try {
+                          setInit(await api.initCanvasSite(canvas!, url, typed));
+                        } catch (e) {
+                          setStatus(failText(e));
+                        }
+                      }}
+                    >
+                      {running ? l.initializing : l.initialize}
+                    </button>
+                  </div>
+                  {!canvas && <p className="hint">{l.saveFirst}</p>}
+                  {site.needs && <p className="p-error">{t.config.sites.needs(site.needs)}</p>}
+                </>
+              )}
+              {failed && (
+                <p className="p-error">
+                  {l.failed} {failed}
+                </p>
+              )}
+            </div>
+          )}
+          {/* what the canvas's pages carry, once its path is on the site */}
+          {ready && (
+            <>
+          <label className="wide">
+            <span className="hint">{c.siteTags}</span>
+            <TagLines tags={value?.tags} placeholder={c.siteTagsPlaceholder} label={c.siteTags} onChange={(tags) => value && onChange(tags ? { ...value, tags } : (({ tags: _, ...rest }) => rest)(value))} />
+          </label>
+          {homePath && <TagProposal path={homePath} current={value?.tags} language={language} onTags={(tags) => value && onChange(tags ? { ...value, tags } : (({ tags: _, ...rest }) => rest)(value))} />}
+          {/* not a label: a click on its words would press the first button */}
+          <div className="wide">
+            <span className="hint">{c.sitePublish}</span>
+            <div className="seg" role="radiogroup" aria-label={c.sitePublish}>
+              {(['click', 'approved'] as const).map((x) => {
+                const on = (value?.publish ?? 'click') === x;
+                return (
+                  <button key={x} type="button" role="radio" aria-checked={on} className={on ? 'on' : undefined} onClick={() => value && onChange(x === 'approved' ? { ...value, publish: x } : (({ publish: _, ...rest }) => rest)(value))}>
+                    {c.sitePublishes[x]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+            </>
+          )}
+        </>
+      )}
+      {status && <p className="p-error wide">{status}</p>}
+    </div>
+  );
+  if (bare) return controls;
+  return (
+    <Field label={l.label} hint={l.hint}>
+      {controls}
+    </Field>
   );
 }
 
@@ -1649,7 +2265,7 @@ interface CanvasProps {
   ask?: Ask;
   onRecheck: () => void;
   onReload: () => Promise<void>;
-  /** Saves the dialog's changes before settings are taken over for everyone; none where saving restarts Obeya. */
+  /** Saves the dialog's changes before settings are taken over for everyone; none where saving restarts Seismic. */
   prepare?: () => Promise<boolean>;
   onChange: (c: CanvasConfig | null) => void;
   /** Moves it one place up or down; none while it is the only canvas. */
@@ -1680,7 +2296,7 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
           <h3>{canvas.name?.trim() || resolved?.name || here}</h3>
           {resolved && (
             <span className={fresh ? 'c-id fresh' : 'c-id'}>
-              {canvasPath(resolved.id)} · {fresh ? t.config.fresh : t.config.runs}
+              {projectPath(resolved.id)} · {fresh ? t.config.fresh : t.config.runs}
             </span>
           )}
           {onMove && (
@@ -1714,6 +2330,20 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
           }}
         />
       </Field>
+      <SuggestField value={canvas.suggest} onChange={(suggest) => onChange({ ...canvas, suggest })} />
+      <ProjectBaselineField value={canvas.projectBaselines} onChange={(projectBaselines) => onChange({ ...canvas, projectBaselines })} />
+      <CardArchiveField value={canvas.archive} onChange={(archive) => onChange({ ...canvas, archive })} />
+      <CodeReviewField value={canvas.codeReviews} onChange={(codeReviews) => onChange({ ...canvas, codeReviews })} />
+      <CanvasSiteField
+        canvas={resolved && running.includes(resolved.id) ? resolved.id : undefined}
+        value={canvas.demoSite}
+        homePath={canvas.repos[0]?.path}
+        language={resolved?.repos[0]?.values.demo.language.value ?? null}
+        onChange={(demoSite) => {
+          const { demoSite: _, ...rest } = canvas;
+          onChange(demoSite ? { ...rest, demoSite } : rest);
+        }}
+      />
       {problems
         .filter((p) => p.repo === undefined)
         .map((p, k) => (
@@ -1788,12 +2418,12 @@ interface RepoProps {
 /** A repository's name on its tab: its id once checked, else its folder's name. */
 const repoName = (repo: RepoConfig, resolved: ResolvedCanvas['repos'][number] | undefined) => resolved?.id ?? (repo.path.trim().split(/[\\/]/).filter(Boolean).pop() || t.config.newRepo);
 
-/** What „Für alle“ needs of the dialog: whether the canvases are as saved (what is taken over), how to read them again, how to save them first. */
+/** What "For everyone" needs of the dialog: whether the canvases are as saved (what is taken over), how to read them again, how to save them first. */
 interface Takeover {
   saved: boolean;
   /** Reads the saved configuration again: the server changed it. */
   onReload: () => Promise<void>;
-  /** Saves the dialog's changes; none where saving restarts Obeya. Says whether they were saved. */
+  /** Saves the dialog's changes; none where saving restarts Seismic. Says whether they were saved. */
   prepare?: () => Promise<boolean>;
 }
 
@@ -1835,7 +2465,7 @@ function RepoRow({ repo, home, resolved, canvasId, problems, focus, where, ask, 
     else next[k] = v;
     return next;
   };
-  // „Agenten arbeiten in“: this machine's setting where the repository's says otherwise; worktrees put the clones named aside
+  // "Agents work in": this machine's setting where the repository's says otherwise; worktrees put the clones named aside
   const setWorkIn = (mode: 'clones' | 'worktrees') => {
     if (mode === workIn) return;
     const { workspaces: _, ...others } = repo.settings ?? {};
@@ -1953,7 +2583,7 @@ function RepoRow({ repo, home, resolved, canvasId, problems, focus, where, ask, 
  * The settings of a repository, set on this machine (`RepoSettings`); those of `app` and `demo` each
  * on its own, `demo.language` as `demoLanguage` beside the repository's own `language`.
  */
-type SettingKey = Exclude<keyof RepoSettings, NestedSetting> | 'run' | 'stop' | 'keep' | 'site' | 'demoLanguage' | 'artifacts';
+type SettingKey = Exclude<keyof RepoSettings, NestedSetting> | 'run' | 'stop' | 'keep' | 'demoLanguage' | 'artifacts';
 
 /** The setting of `app` or `demo` that holds `k`, and its field there, if one does. */
 function nestedOf(k: SettingKey): [NestedSetting, string] | undefined {
@@ -1967,7 +2597,7 @@ function nestedOf(k: SettingKey): [NestedSetting, string] | undefined {
 /**
  * A repository's settings for this machine, below where its agents work, in groups under a heading
  * each (branch and landing, app and checks, plans and language, demos): each shows the value that
- * applies and where it comes from; changing one sets it on this machine, „Zurücksetzen“
+ * applies and where it comes from; changing one sets it on this machine, "Reset"
  * takes it back to its source. Saved with the configuration; they apply at once.
  */
 function RepoSettingsBlock({
@@ -2005,7 +2635,7 @@ function RepoSettingsBlock({
   const c = t.config.settings;
   const s = repo.settings ?? {};
   const { app: _, demo: __, ...flat } = values;
-  const base: Record<SettingKey, SettingValue<unknown>> = { ...flat, ...values.app, site: values.demo.site, demoLanguage: values.demo.language, artifacts: values.demo.artifacts };
+  const base: Record<SettingKey, SettingValue<unknown>> = { ...flat, ...values.app, demoLanguage: values.demo.language, artifacts: values.demo.artifacts };
   const own = (k: SettingKey): unknown => {
     const n = nestedOf(k);
     return n ? (s[n[0]] as Record<string, unknown> | undefined)?.[n[1]] : s[k as keyof RepoSettings];
@@ -2025,7 +2655,7 @@ function RepoSettingsBlock({
     onChange(Object.keys(next).length ? (next as RepoSettings) : undefined);
   };
   const lines = (k: SettingKey) => value<string[]>(k).join('\n');
-  // a setting: its label with where its value comes from (and „Zurücksetzen“ where it is set here), its control and what to know about it
+  // a setting: its label with where its value comes from (and "Reset" where it is set here), its control and what to know about it
   const field = (key: string, label: string, here: boolean, from: string, reset: () => void, control: ReactNode, hint?: string) => (
     <div className={shown === key ? 'cfg-field cfg-setting flash' : 'cfg-field cfg-setting'} key={key} data-setting={key}>
       <div className="cfg-label">
@@ -2052,18 +2682,6 @@ function RepoSettingsBlock({
   const language = value<Language>('language');
   const demoLanguage = value<NarrationLanguage | null>('demoLanguage');
   const artifacts = value<HandoverArtifact[]>('artifacts');
-  const site = value<DemoSite | null>('site') ?? { title: '', url: '', deploy: '' };
-  const setSite = (patch: Partial<DemoSite>) => set('site', { ...site, ...patch });
-  // a repository without a site: Obeya sets one up; the fields are for another host, entered by hand
-  const [manualSite, setManualSite] = useState(false);
-  const siteFields = manualSite || folder || !!(site.url.trim() || site.title.trim() || site.deploy.trim());
-  // a part of a setting with several fields: its label above it; a wide one takes the whole row
-  const sub = (label: string, control: ReactNode, wide = false) => (
-    <label className={wide ? 'wide' : undefined}>
-      <span className="hint">{label}</span>
-      {control}
-    </label>
-  );
   return (
     <div className="cfg-settings" ref={box}>
       {!folder && (
@@ -2087,7 +2705,7 @@ function RepoSettingsBlock({
               'direct',
               c.direct,
               <label className="c-check">
-                <input type="checkbox" checked={value<boolean>('direct')} onChange={(e) => set('direct', e.target.checked)} />
+                <input type="checkbox" role="switch" className="toggle" checked={value<boolean>('direct')} onChange={(e) => set('direct', e.target.checked)} />
                 {c.directLabel}
               </label>,
             )}
@@ -2096,7 +2714,7 @@ function RepoSettingsBlock({
               'autoMerge',
               c.autoMerge,
               <label className="c-check">
-                <input type="checkbox" checked={value<boolean>('autoMerge')} onChange={(e) => set('autoMerge', e.target.checked)} />
+                <input type="checkbox" role="switch" className="toggle" checked={value<boolean>('autoMerge')} onChange={(e) => set('autoMerge', e.target.checked)} />
                 {c.autoMergeLabel}
               </label>,
               c.autoMergeHint,
@@ -2153,68 +2771,6 @@ function RepoSettingsBlock({
           c.demoLanguageHint,
         )}
         {row('artifacts', c.artifacts, <ArtifactChecks value={artifacts} onChange={(v) => set('artifacts', v)} />, c.artifactsHint)}
-        {row(
-          'site',
-          c.site,
-          <div className="cfg-sub">
-            {!folder && <SiteSetupRow path={repo.path} name={repo.path.trim().split(/[\\/]/).filter(Boolean).pop() ?? ''} empty={!site.url.trim()} onSite={(made) => set('site', made)} />}
-            {!siteFields ? (
-              <button type="button" className="link wide site-manual" onClick={() => setManualSite(true)}>
-                {c.siteManual}
-              </button>
-            ) : (
-              <>
-            {sub(c.siteTitle, <input className="c-path" aria-label={c.siteTitle} spellCheck={false} value={site.title} onChange={(e) => setSite({ title: e.target.value })} />)}
-            {sub(c.siteUrl, <input className="c-path" aria-label={c.siteUrl} placeholder="https://demos.example.com" spellCheck={false} value={site.url} onChange={(e) => setSite({ url: e.target.value })} />)}
-            {sub(c.siteDeploy, <input className="c-path" aria-label={c.siteDeploy} placeholder="bunx wrangler@4 pages deploy {dir} --project-name demos" spellCheck={false} value={site.deploy} onChange={(e) => setSite({ deploy: e.target.value })} />, true)}
-            {sub(c.siteEnv, <input className="c-path" aria-label={c.siteEnv} placeholder="sites/demos/deploy.env" spellCheck={false} value={site.env ?? ''} onChange={(e) => setSite({ env: e.target.value })} />, true)}
-            {sub(
-              c.siteHeaders,
-              <textarea
-                rows={Math.max(2, Object.keys(site.headers ?? {}).length + 1)}
-                spellCheck={false}
-                aria-label={c.siteHeaders}
-                placeholder={'CF-Access-Client-Id: ${CF_ID}'}
-                value={Object.entries(site.headers ?? {})
-                  .map(([k, v]) => `${k}: ${v}`)
-                  .join('\n')}
-                onChange={(e) => setSite({ headers: headerLines(e.target.value) })}
-              />,
-              true,
-            )}
-            {sub(
-              c.siteMaxFile,
-              <input
-                className="c-path"
-                type="number"
-                min={1}
-                aria-label={c.siteMaxFile}
-                placeholder="25"
-                value={site.maxFile ? Math.round(site.maxFile / MIB) : ''}
-                onChange={(e) => setSite({ maxFile: Number(e.target.value) > 0 ? Math.round(Number(e.target.value) * MIB) : undefined })}
-              />,
-            )}
-            {sub(c.siteTags, <TagLines tags={site.tags} placeholder={c.siteTagsPlaceholder} label={c.siteTags} onChange={(tags) => setSite({ tags })} />, true)}
-            {!folder && <TagProposal path={repo.path} current={site.tags} language={demoLanguage} onTags={(tags) => setSite({ tags })} />}
-            {/* not a label: a click on its words would press the first button */}
-            <div className="wide">
-              <span className="hint">{c.sitePublish}</span>
-              <div className="seg" role="radiogroup" aria-label={c.sitePublish}>
-                {(['click', 'approved'] as const).map((x) => {
-                  const on = (site.publish ?? 'click') === x;
-                  return (
-                    <button key={x} type="button" role="radio" aria-checked={on} className={on ? 'on' : undefined} onClick={() => setSite({ publish: x === 'approved' ? x : undefined })}>
-                      {c.sitePublishes[x]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-              </>
-            )}
-          </div>,
-          c.siteHint,
-        )}
       </div>
       {/* the folder's settings file is written there like any other file; there is no commit or pull request to make */}
       {!folder && <ShareSettings repo={repo} values={values} branch={value<string>('branch')} shareTo={shareTo} shareDirect={shareDirect} takeover={takeover} />}
@@ -2222,96 +2778,8 @@ function RepoSettingsBlock({
   );
 }
 
-/**
- * „Demo-Seite einrichten“ at a repository without a site: the host chosen, Obeya creates the site
- * there (in the background, with a login in the browser maybe) and fills in its fields, which
- * „Speichern“ then takes over. A setup that finished while the dialog was closed is taken in when it
- * opens again.
- */
-function SiteSetupRow({ path, name, empty, onSite }: { path: string; name: string; empty: boolean; onSite: (site: DemoSite) => void }) {
-  const [open, setOpen] = useState(false);
-  // in the order of the personal site's hosts: GitHub first
-  const [host, setHost] = useState<'cloudflare' | 'github'>('github');
-  const [accounts, setAccounts] = useState<string[]>([]);
-  const [way, setWay] = useState<CloudflareWay | null>(null);
-  const [job, setJob] = useState<SiteSetupJob | null>(null);
-  const [done, setDone] = useState(false);
-  const [status, setStatus] = useState('');
-  const c = t.config.settings;
-  const take = (j: SiteSetupJob | null) => {
-    setJob(j);
-    if (j && !j.running && j.site) {
-      onSite(j.site);
-      setDone(true);
-      setOpen(false);
-      void api.repoSiteTaken(path).catch(console.error);
-    }
-  };
-  useEffect(() => {
-    if (path.trim()) api.repoSiteSetup(path).then((r) => take(r.job), console.error);
-  }, [path]);
-  useEffect(() => {
-    if (open) api.personalSite().then((v) => setAccounts(v.cloudflareAccounts), console.error);
-  }, [open]);
-  const chosen: CloudflareWay = way ?? { account: accounts[0] ?? '', token: '', accountId: '' };
-  const running = !!job?.running;
-  useEffect(() => {
-    if (!running) return;
-    const timer = setInterval(() => api.repoSiteSetup(path).then((r) => take(r.job), console.error), 1000);
-    return () => clearInterval(timer);
-  }, [running, path]);
-  if (done) return <p className="hint wide">{c.siteSetupDone}</p>;
-  if (!empty && !running) return null;
-  return (
-    <div className="wide site-setup">
-      {!open && !running ? (
-        <button type="button" className="btn small" title={c.siteSetupHint} onClick={() => setOpen(true)}>
-          {c.siteSetup}
-        </button>
-      ) : (
-        <>
-          <p className="hint">{c.siteSetupHint}</p>
-          <div className="seg" role="radiogroup" aria-label={c.siteSetup}>
-            {(['github', 'cloudflare'] as const).map((h) => (
-              <button key={h} type="button" role="radio" aria-checked={host === h} className={host === h ? 'on' : undefined} disabled={running} onClick={() => setHost(h)}>
-                {c.siteSetupHosts[h]}
-              </button>
-            ))}
-          </div>
-          <p className="hint">{c.siteSetupNotes[host]}</p>
-          {host === 'cloudflare' && <CloudflareAccount accounts={accounts} way={chosen} onChange={setWay} disabled={running} />}
-          <button
-            type="button"
-            className="btn small primary"
-            disabled={running}
-            onClick={async () => {
-              setStatus('');
-              try {
-                take((await api.setUpRepoSite(path, host, name, host === 'cloudflare' ? cloudflareHow(chosen) : {})).job);
-              } catch (e) {
-                setStatus(failText(e));
-              }
-            }}
-          >
-            {running ? c.siteSetupRunning : c.siteSetupGo}
-          </button>
-          {running && job!.lines.length > 0 && <p className="hint c-install">{job!.lines.at(-1)}</p>}
-        </>
-      )}
-      {job?.error && !running && (
-        <p className="p-error">
-          {c.siteSetupFailed} {job.error}
-        </p>
-      )}
-      {status && <p className="p-error">{status}</p>}
-    </div>
-  );
-}
-
 /** Whether the repository has settings for everyone (`.obeya/settings.json`): then it is set up. */
 const fromRepository = (v: RepoValues) => SHARED_FIELDS.some((k) => (isNested(k) ? Object.values(v[k]).some((f) => f.source === 'repository') : v[k].source === 'repository'));
-
-const MIB = 1024 * 1024;
 
 /**
  * The site's vocabulary of tags, a dimension per line (`Area: Billing, Reports`): the text stays as
@@ -2339,7 +2807,7 @@ function TagLines({ tags, placeholder, label, onChange }: { tags: PageTags | und
 }
 
 /**
- * „Tags von einem Agenten vorschlagen lassen“ under the site's tags: a read-only agent reads the
+ * "Have an agent propose the tags" under the site's tags: a read-only agent reads the
  * repository and its cards with their demos and proposes a vocabulary, which goes into the field
  * for the owner to change and save; the tags before can be had back. Offered where the repository
  * runs on a canvas; a proposal that finished while the dialog was closed is taken in when it opens again.
@@ -2424,16 +2892,6 @@ function TagProposal({ path, current, language, onTags }: { path: string; curren
   );
 }
 
-/** The headers of `Name: value` lines; none for lines without a name. */
-function headerLines(text: string): Record<string, string> | undefined {
-  const pairs = text
-    .split('\n')
-    .map((l) => l.match(/^([^:]+):\s*(.*)$/))
-    .filter((m): m is RegExpMatchArray => !!m && !!m[1]!.trim())
-    .map((m) => [m[1]!.trim(), m[2]!] as const);
-  return pairs.length ? Object.fromEntries(pairs) : undefined;
-}
-
 /** The repository's `.obeya/settings.json` as the dialog shows it: what the file holds now (`values` from the repository) with this machine's settings in front, but the main branch. */
 export function sharedPreview(repo: RepoConfig, values: RepoValues): Record<string, unknown> {
   const file: Record<string, unknown> = {};
@@ -2451,7 +2909,7 @@ export function sharedPreview(repo: RepoConfig, values: RepoValues): Record<stri
 }
 
 /**
- * „Für alle ins Repository übernehmen“ under a repository's settings: this machine's values (but
+ * "Take over into the repository for everyone" under a repository's settings: this machine's values (but
  * the main branch) go into its `.obeya/settings.json`, so that everyone who clones it gets them.
  * It first shows the file as it would be and where it goes (a commit on the main branch, or a pull
  * request), then does it at the owner's word. Only for the configuration as saved.
@@ -2545,9 +3003,7 @@ function slotsOf(value: string): number | undefined {
 function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button className="c-del c-remove" title={label} aria-label={label} onClick={onClick}>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10.5 11v5.5M13.5 11v5.5" />
-      </svg>
+      <Trash2 size={15} strokeWidth={1.8} aria-hidden />
     </button>
   );
 }
@@ -2599,12 +3055,12 @@ function Hosts({ hosts, onChange }: { hosts: HostConfig[]; onChange: (hosts: Hos
 }
 
 // problems whose detail says what to fix, in the repository's settings rather than here, or why something did not start
-const DETAILED: ConfigProblem['code'][] = ['demoSite', 'adapterGone', 'repoSettings', 'hostName', ...START_FAILED];
+const DETAILED: ConfigProblem['code'][] = ['adapterGone', 'repoSettings', 'hostName', ...START_FAILED];
 
 /**
  * A problem of the configuration: what is wrong, the technical detail folded away where it says
  * what to fix, and a button that has the Koordinator create a task that fixes it (with the detail, which it reads).
- * What did not start as saved tries again with „Erneut versuchen“, where `retried` is given (called after it).
+ * What did not start as saved tries again with "Try again", where `retried` is given (called after it).
  */
 export function Problem({ problem, where, ask, retried }: { problem: ConfigProblem; where: string; ask?: (text: string) => void; retried?: () => void }) {
   const [asked, setAsked] = useState(false);
@@ -2723,7 +3179,7 @@ function AdapterSetup({ canvas, repo, takeover }: { canvas: string; repo: string
       const card = await api.adapterSetup(canvas, repo);
       // the canvas loads with the card open, as after a restart
       keep(sessionStorage, canvas, { at: Date.now(), card: card.id, scroll: [], drafts: [] });
-      location.assign(canvasPath(canvas));
+      location.assign(projectPath(canvas));
     } catch (e) {
       setError(failText(e));
       setBusy(false);

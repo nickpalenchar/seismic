@@ -1,5 +1,5 @@
-// The rules „Immer erlauben“ (Always allow) offers and how they go into the repository's allow list,
-// the `permissions.allow` of its `.claude/settings.json` that Claude Code and Obeya's Codex workers
+// The rules "Always allow" offers and how they go into the repository's allow list,
+// the `permissions.allow` of its `.claude/settings.json` that Claude Code and Seismic's Codex workers
 // both read, and into `.codex/rules/obeya.rules` where the repository has that generated from the
 // list.
 
@@ -48,7 +48,7 @@ export function codexRulesAgain(before: string | undefined, settingsText: string
 }
 
 /**
- * The rules „Immer erlauben“ saves for a Codex command, given its plain commands (`plainCommands`;
+ * The rules "Always allow" saves for a Codex command, given its plain commands (`plainCommands`;
  * none: it is not plain, and no rule could cover it): per program it runs (the shell's setup in
  * front left out), Codex's own proposed prefix where it gives one and the command starts with it,
  * else its first two words and whatever follows (`bun test *`) where the second is a subcommand,
@@ -68,7 +68,7 @@ export function codexAlwaysRules(plain: string[] | null, proposed?: unknown): st
 
 /**
  * The rules of Claude Code's suggestions for a call it asks about (`canUseTool`'s `suggestions`)
- * that „Immer erlauben“ saves: those that add allow rules; a change of mode or of the directories
+ * that "Always allow" saves: those that add allow rules; a change of mode or of the directories
  * is no rule for the list.
  */
 export function claudeAlwaysRules(suggestions: unknown): string[] {

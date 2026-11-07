@@ -11,7 +11,7 @@ import { git } from './workspaces';
 const THEN = '3f2a9c4e-1b7d-4e8a-9c3f-5d6e7f8a9b0c';
 const NOW = 'b81c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e';
 
-/** An agent of `role` on the card `id`, in the scratch Obeya `dir`: what the tools were called with and what it said go into `heard`. */
+/** An agent of `role` on the card `id`, in the scratch Seismic `dir`: what the tools were called with and what it said go into `heard`. */
 function agent(dir: string, id: string, heard: { calls: Record<string, unknown>[]; events: AgentEvent[] }, o: { system?: string; schema?: AgentTool['schema']; refuse?: boolean } = {}): AgentSpec {
   return {
     cwd: join(dir, 'home', 'workspaces', 'tipjar', id.slice(0, 8)),
@@ -34,7 +34,7 @@ function agent(dir: string, id: string, heard: { calls: Record<string, unknown>[
 
 const heard = () => ({ calls: [] as Record<string, unknown>[], events: [] as AgentEvent[] });
 
-/** A recorded session in `rec` of a scratch Obeya in `<root>/a`: two turns, the second on a message. */
+/** A recorded session in `rec` of a scratch Seismic in `<root>/a`: two turns, the second on a message. */
 async function recordTwoTurns(root: string, rec: string) {
   const fake = new FakeRuntime();
   const then = heard();
@@ -42,7 +42,7 @@ async function recordTwoTurns(root: string, rec: string) {
   const s = fake.last;
   s.emit({ type: 'session', id: 'the-session' });
   s.emit({ type: 'text', text: `On obeya/split-the-bill-${THEN.slice(0, 6)} in ${join(root, 'a', 'home', 'workspaces', 'tipjar', THEN.slice(0, 8))}` });
-  s.emit({ type: 'tool', name: 'mcp__obeya__report', input: { status: `Building ${THEN}` } });
+  s.emit({ type: 'tool', name: 'mcp__seismic__report', input: { status: `Building ${THEN}` } });
   expect(await s.call('report', { status: `Building ${THEN}` })).toBe(`Shown on ${THEN}.`);
   s.emit({ type: 'idle' });
   session.send(`Comments on ${THEN}: start at two.`);
@@ -64,10 +64,10 @@ test('a recorded session plays back with the ids and paths of the staging, its s
   expect(now.events).toEqual([
     { type: 'session', id: 'the-session' },
     { type: 'text', text: `On obeya/split-the-bill-${NOW.slice(0, 6)} in ${join(root, 'b', 'home', 'workspaces', 'tipjar', NOW.slice(0, 8))}` },
-    { type: 'tool', name: 'mcp__obeya__report', input: { status: `Building ${NOW}` } },
+    { type: 'tool', name: 'mcp__seismic__report', input: { status: `Building ${NOW}` } },
     { type: 'idle' },
   ]);
-  // Obeya's own tool ran, with today's card
+  // Seismic's own tool ran, with today's card
   expect(now.calls).toEqual([{ status: `Building ${NOW}` }]);
   // the second turn waits for its message
   await Bun.sleep(50);

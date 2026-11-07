@@ -57,7 +57,7 @@ export const stars = (r: number | undefined): number | null => (typeof r === 'nu
 
 export const configKey = (c: WorkConfig) => `${c.harness ?? ''}|${c.model ?? ''}|${c.effort ?? ''}`;
 
-const HARNESS = ['claude', 'codex'];
+const HARNESS = ['claude', 'codex', 'agy'];
 const rank = (list: readonly (string | null)[], v: string | null) => (v === null ? list.length + 1 : list.includes(v) ? list.indexOf(v) : list.length);
 
 function order(a: PerformanceRow, b: PerformanceRow): number {

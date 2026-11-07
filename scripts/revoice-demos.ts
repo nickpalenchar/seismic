@@ -1,5 +1,5 @@
 // Re-voices the demos of a canvas's most recently approved cards in another language and shares
-// them, as was done for the 30 last Obeya demos when its demos went public in English.
+// them, as was done for the 30 last Seismic demos when its demos went public in English.
 //
 //   bun scripts/revoice-demos.ts list [--canvas obeya] [--count 30] [--language en]
 //   bun scripts/revoice-demos.ts publish <card id>… [--canvas obeya]
@@ -9,8 +9,8 @@
 // language), `render` (translated, not yet rendered), `revoiced`, `shared`, or `as is` (narrated in
 // that language already). The re-voicing itself is the demo skill's (`node lib/revoice.ts <dir>
 // <language>`), run by an agent, which translates and checks each.
-// `publish`: for each card whose demo was re-voiced, the Obeya running on OBEYA_HOME (else
-// ~/.obeya) reads it again (chapters, page) and shares it through its queue, like „Teilen“; one
+// `publish`: for each card whose demo was re-voiced, the Seismic running on SEISMIC_HOME (else
+// ~/.obeya) reads it again (chapters, page) and shares it through its queue, like "Share"; one
 // narrated in that language already is shared as it is.
 
 import { Database } from 'bun:sqlite';
@@ -27,7 +27,7 @@ const option = (name: string, fallback: string) => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 && args[i + 1] ? args.splice(i, 2)[1]! : fallback;
 };
-const home = process.env.OBEYA_HOME || join(homedir(), '.obeya');
+const home = (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) || join(homedir(), '.obeya');
 const canvas = option('canvas', 'obeya');
 const count = Number(option('count', '30'));
 const languageArg = option('language', 'en');
@@ -90,7 +90,7 @@ if (command === 'list') {
   }
 } else {
   const instance = recorded(home);
-  if (!instance) throw new Error(`no Obeya runs on ${home}`);
+  if (!instance) throw new Error(`no Seismic runs on ${home}`);
   const post = async (path: string, body?: unknown) => {
     const res = await fetch(`${instance.url}/api/c/${canvas}${path}`, {
       method: 'POST',

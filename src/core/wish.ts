@@ -1,5 +1,5 @@
-// A wish or a bug for Obeya's makers, as a GitHub issue the owner opens prefilled in the browser
-// and submits there under their own account: Obeya holds no token. The repository is fixed, since
+// A wish or a bug for Seismic's makers, as a GitHub issue the owner opens prefilled in the browser
+// and submits there under their own account: Seismic holds no token. The repository is fixed, since
 // the app runs without a checkout whose `origin` could say otherwise.
 
 /** Where the issue goes. */
@@ -9,7 +9,7 @@ const NEW_ISSUE = `https://github.com/${ISSUES_REPO}/issues/new`;
 /** How long the link may get: GitHub and browsers take about 8 KB. */
 export const MAX_ISSUE_URL = 8000;
 
-/** What a draft starts from: the owner's words, and Obeya's answer when it said it cannot do what they asked. */
+/** What a draft starts from: the owner's words, and Seismic's answer when it said it cannot do what they asked. */
 export interface Wish {
   said: string;
   answer?: string;
@@ -18,9 +18,9 @@ export interface Wish {
 export const isWish = (w: unknown): w is Wish =>
   !!w && typeof w === 'object' && typeof (w as Wish).said === 'string' && ((w as Wish).answer === undefined || typeof (w as Wish).answer === 'string');
 
-/** The line under the body: Obeya's version, the system, and how it runs. */
-export const issueFooter = (version: string, os: string, runs: string) => `Obeya ${version} · ${os} · ${runs}`;
-const FOOTER = /\n*Obeya \S+ · [^\n]+$/;
+/** The line under the body: Seismic's version, the system, and how it runs. */
+export const issueFooter = (version: string, os: string, runs: string) => `Seismic ${version} · ${os} · ${runs}`;
+const FOOTER = /\n*Seismic \S+ · [^\n]+$/;
 
 /** The body without its footer line, as the owner wrote or edited it. */
 export const withoutFooter = (body: string) => body.replace(FOOTER, '').trimEnd();

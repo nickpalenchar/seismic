@@ -1,10 +1,10 @@
 // What a demo needs on this machine, checked: Node, Playwright and a browser to record with,
 // ffmpeg (with libx264) to cut, uv for the Python parts (it brings Python itself), and the voice of
-// the settings. Each missing piece comes with how to install it on this platform. Obeya's configuration dialog shows the check, and a render runs it before anything
+// the settings. Each missing piece comes with how to install it on this platform. Seismic's configuration dialog shows the check, and a render runs it before anything
 // else, so it stops at once with the whole list instead of minutes in.
 //
 // Run on its own (`node setup.ts`), it prints the check and exits 1 when something is missing.
-// Plain Node with type stripping, like the director; Obeya's server (Bun) imports it too.
+// Plain Node with type stripping, like the director; Seismic's server (Bun) imports it too.
 
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -13,9 +13,9 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isMain, lib } from './here.ts';
 import { type DemoSettings, demoSettingsHere, withVoice } from './settings.ts';
-import { installState, voiceSpec } from './voices.ts';
+import { installState, voiceProblem, voiceSpec } from './voices.ts';
 
-/** The Obeya checkout the skill lives in (or the app's resources): Playwright comes from its `node_modules`. */
+/** The Seismic checkout the skill lives in (or the app's resources): Playwright comes from its `node_modules`. */
 const root = () => lib('..', '..', '..', '..');
 
 /** Node runs the director's TypeScript without flags from here on. */
@@ -27,7 +27,7 @@ export interface SetupItem {
   id: SetupId;
   /**
    * `ok`: there. `missing`: it does not work without it. `later`: fetched on first use, which
-   * takes a while (Obeya's speech recognition).
+   * takes a while (Seismic's speech recognition).
    */
   state: 'ok' | 'missing' | 'later';
   /** What was found: a version, a path, the voice's missing parts. */
@@ -197,10 +197,13 @@ export async function checkSetup(s: DemoSettings, o: SetupOptions = {}): Promise
   items.push(uv ? { id: 'uv', state: 'ok', found: uv } : missing('uv'));
 
   const voice = installState(s, o.home);
-  // a worker on another machine than Obeya: Obeya holds a voice that stays loaded on its own machine (OBEYA_URL)
+  // a worker on another machine than Seismic: Seismic holds a voice that stays loaded on its own machine (SEISMIC_URL)
   const spec = voiceSpec(s, o.home);
-  const held = env.OBEYA_HOLDS_VOICE === '1' && !!env.OBEYA_URL && spec.kind === 'command' && !!spec.host;
-  if (held) items.push({ id: 'voice', state: 'ok', found: `${s.voice} (held by Obeya)` });
+  const held = (env.SEISMIC_HOLDS_VOICE ?? env.OBEYA_HOLDS_VOICE) === '1' && !!(env.SEISMIC_URL ?? env.OBEYA_URL) && spec.kind === 'command' && !!spec.host;
+  // a setting no install mends (a speaker the model lacks) comes first, without install commands
+  const problem = voiceProblem(s);
+  if (problem) items.push({ id: 'voice', state: 'missing', found: `${s.voice}: ${problem}` });
+  else if (held) items.push({ id: 'voice', state: 'ok', found: `${s.voice} (held by Seismic)` });
   else items.push(voice.installed ? { id: 'voice', state: 'ok', found: s.voice } : missing('voice', { found: `${s.voice}: ${voice.missing.join(', ')}`, mb: voice.mb }));
   return { platform, arch, items };
 }
@@ -213,7 +216,7 @@ export function describeSetup(check: SetupCheck): string {
   const mark = { ok: '✓', missing: '✗', later: '…', off: '–' };
   const what = (i: SetupItem) => {
     const found = [i.found, i.need && `needs ${i.need}`].filter(Boolean).join(', ');
-    if (i.state === 'missing') return found ? `${found} — ${i.id === 'voice' ? 'not installed' : 'not usable'}` : 'not found';
+    if (i.state === 'missing') return found ? `${found} — ${i.id === 'voice' && i.install ? 'not installed' : 'not usable'}` : 'not found';
     return found;
   };
   const lines = [`Demo setup on ${platformName(check.platform)} (${check.arch}):`];
@@ -222,7 +225,7 @@ export function describeSetup(check: SetupCheck): string {
     if (i.state !== 'missing' || !i.install) continue;
     for (const c of i.install.commands) lines.push(`      ${c}`);
     if (i.install.url) lines.push(`      see ${i.install.url}`);
-    if (i.id === 'voice') lines.push("      or install it in Obeya's settings (Konfiguration → Demos)");
+    if (i.id === 'voice') lines.push("      or install it in Seismic's settings (Configuration → Demos)");
   }
   const missing = check.items.filter((i) => i.state === 'missing');
   lines.push(missing.length ? `Missing: ${missing.map((i) => i.id).join(', ')}. A render stops until they are installed.` : 'Ready to record.');

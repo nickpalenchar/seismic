@@ -1,14 +1,14 @@
-// The languages Obeya speaks, to the owner and in a demo's narration. Without Node modules: the
+// The languages Seismic speaks, to the owner and in a demo's narration. Without Node modules: the
 // UI's bundle has them too (through `src/core/locale.ts`).
 
-/** The languages Obeya speaks; the owner chooses one in the settings, else the system's applies. */
+/** The languages Seismic speaks; the owner chooses one in the settings, else the system's applies. */
 export const LANGUAGES = ['de', 'en'] as const;
 export type Language = (typeof LANGUAGES)[number];
 
-/** Obeya's language for a system with a language it does not speak. */
+/** Seismic's language for a system with a language it does not speak. */
 export const FALLBACK_LANGUAGE: Language = 'en';
 
-/** The language a locale names (`de_DE.UTF-8`, `en-GB`, `de`), if Obeya speaks it. */
+/** The language a locale names (`de_DE.UTF-8`, `en-GB`, `de`), if Seismic speaks it. */
 export function languageOf(locale: string | null | undefined): Language | undefined {
   const code = locale?.trim().toLowerCase().split(/[-_.@]/)[0];
   return LANGUAGES.find((l) => l === code);

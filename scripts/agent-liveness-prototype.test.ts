@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { testProcessCode } from '../src/test-process';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -19,10 +20,10 @@ test.skipIf(process.platform === 'win32')('liveness EOF stops an observed detach
   const dir = mkdtempSync(join(tmpdir(), 'obeya-liveness-prototype-'));
   const pidFile = join(dir, 'pid');
   const beatFile = join(dir, 'beat');
-  const worker = `import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
-const c=spawn(process.execPath,['-e',${JSON.stringify(`import {writeFileSync} from 'node:fs';let n=0;setInterval(()=>writeFileSync(${JSON.stringify(beatFile)},String(++n)),25);`)}],{detached:true,stdio:'ignore'});
-writeFileSync(${JSON.stringify(pidFile)},String(c.pid));setInterval(()=>{},1000);`;
-  const canary = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
+  const worker = testProcessCode(`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
+const c=spawn(process.execPath,['-e',${JSON.stringify(testProcessCode(`import {writeFileSync} from 'node:fs';let n=0;setInterval(()=>writeFileSync(${JSON.stringify(beatFile)},String(++n)),25);`))}],{detached:true,stdio:'ignore'});
+writeFileSync(${JSON.stringify(pidFile)},String(c.pid));setInterval(()=>{},1000);`);
+  const canary = spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore' });
   const supervisor = spawn(process.execPath, [join(import.meta.dir, 'agent-liveness-prototype.ts'), '--', process.execPath, '-e', worker], { stdio: ['ignore', 'ignore', 'pipe', 'pipe'] });
   let stderr = '';
   supervisor.stderr!.on('data', (chunk) => stderr += chunk);
@@ -47,10 +48,10 @@ test.skipIf(process.platform === 'win32')('an agent that exits at once does not 
   // Before the supervisor's first snapshot sees it: only the agent's group still reaches it.
   const dir = mkdtempSync(join(tmpdir(), 'obeya-liveness-fast-exit-'));
   const pidFile = join(dir, 'pid');
-  const worker = `import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
-const c=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});c.unref();
-writeFileSync(${JSON.stringify(pidFile)},String(c.pid));process.exit(0);`;
-  const canary = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
+  const worker = testProcessCode(`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
+const c=spawn(process.execPath,['-e',${JSON.stringify(testProcessCode())}],{stdio:'ignore'});c.unref();
+writeFileSync(${JSON.stringify(pidFile)},String(c.pid));process.exit(0);`);
+  const canary = spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore' });
   const supervisor = spawn(process.execPath, [join(import.meta.dir, 'agent-liveness-prototype.ts'), '--', process.execPath, '-e', worker], { stdio: ['ignore', 'ignore', 'pipe', 'pipe'] });
   let stderr = '';
   supervisor.stderr!.on('data', (chunk) => stderr += chunk);
@@ -70,11 +71,11 @@ test.skipIf(process.platform === 'win32')('a killed supervisor leaves its caller
   const dir = mkdtempSync(join(tmpdir(), 'obeya-liveness-sigkill-'));
   const agentFile = join(dir, 'agent');
   const leafFile = join(dir, 'leaf');
-  const worker = `import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
+  const worker = testProcessCode(`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
 writeFileSync(${JSON.stringify(agentFile)},String(process.pid));
-const c=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});
-writeFileSync(${JSON.stringify(leafFile)},String(c.pid));process.stdin.resume();setInterval(()=>{},1000);`;
-  const canary = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
+const c=spawn(process.execPath,['-e',${JSON.stringify(testProcessCode())}],{detached:true,stdio:'ignore'});
+writeFileSync(${JSON.stringify(leafFile)},String(c.pid));process.stdin.resume();setInterval(()=>{},1000);`);
+  const canary = spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore' });
   const s = superviseAgent([process.execPath, '-e', worker], { stdio: ['pipe', 'pipe', 'pipe'] });
   let stdoutClosed = false;
   s.supervisor.stdout!.on('close', () => stdoutClosed = true).resume();
@@ -116,7 +117,7 @@ test.skipIf(process.platform === 'win32')('neither the liveness pipe nor the rep
 test.skipIf(process.platform === 'win32')('ending one liveness pipe stops only that supervisor\'s agent', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'obeya-liveness-two-'));
   const files = [join(dir, 'a'), join(dir, 'b')];
-  const sessions = files.map((file) => superviseAgent([process.execPath, '-e', `require('node:fs').writeFileSync(${JSON.stringify(file)},String(process.pid));setInterval(()=>{},1000);`]));
+  const sessions = files.map((file) => superviseAgent([process.execPath, '-e', testProcessCode(`require('node:fs').writeFileSync(${JSON.stringify(file)},String(process.pid));setInterval(()=>{},1000);`)]));
   try {
     await until(() => files.every((file) => numberAt(file) > 1));
     sessions[0]!.close();
@@ -136,13 +137,13 @@ test.skipIf(process.platform === 'win32')('ending one liveness pipe stops only t
 test.skipIf(process.platform !== 'linux')('agent code starts only after its identity is in the registry', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'obeya-gate-registry-'));
   const result = join(dir, 'result');
-  const worker = `import {readdirSync,readFileSync,writeFileSync} from 'node:fs';
+  const worker = testProcessCode(`import {readdirSync,readFileSync,writeFileSync} from 'node:fs';
 const file=readdirSync(${JSON.stringify(dir)}).find(n=>n.endsWith('.json'));
 const record=JSON.parse(readFileSync(${JSON.stringify(dir)}+'/'+file,'utf8'));
 writeFileSync(${JSON.stringify(result)},String(record.processes.some(p=>p.pid===process.pid)));
-setInterval(()=>{},1000);`;
+setInterval(()=>{},1000);`);
   const supervisor = spawn(process.execPath, [join(import.meta.dir, 'agent-liveness-prototype.ts'), '--', process.execPath, '-e', worker], {
-    env: { ...process.env, OBEYA_PROTO_REGISTRY: dir }, stdio: ['ignore', 'ignore', 'pipe', 'pipe'],
+    env: { ...process.env, SEISMIC_PROTO_REGISTRY: dir }, stdio: ['ignore', 'ignore', 'pipe', 'pipe'],
   });
   try {
     await until(() => { try { return !!readFileSync(result, 'utf8'); } catch { return false; } });
@@ -160,13 +161,13 @@ test.skipIf(process.platform !== 'linux')('a killed supervisor leaves a report-o
   const dir = mkdtempSync(join(tmpdir(), 'obeya-liveness-registry-'));
   const rootFile = join(dir, 'root');
   const childFile = join(dir, 'child');
-  const worker = `import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
+  const worker = testProcessCode(`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
 writeFileSync(${JSON.stringify(rootFile)},String(process.pid));
-const c=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});
-writeFileSync(${JSON.stringify(childFile)},String(c.pid));setInterval(()=>{},1000);`;
-  const canary = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
+const c=spawn(process.execPath,['-e',${JSON.stringify(testProcessCode())}],{detached:true,stdio:'ignore'});
+writeFileSync(${JSON.stringify(childFile)},String(c.pid));setInterval(()=>{},1000);`);
+  const canary = spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore' });
   const supervisor = spawn(process.execPath, [join(import.meta.dir, 'agent-liveness-prototype.ts'), '--', process.execPath, '-e', worker], {
-    env: { ...process.env, OBEYA_PROTO_REGISTRY: dir }, stdio: ['ignore', 'ignore', 'ignore', 'pipe'],
+    env: { ...process.env, SEISMIC_PROTO_REGISTRY: dir }, stdio: ['ignore', 'ignore', 'ignore', 'pipe'],
   });
   let rootPid = 0, childPid = 0, id = '';
   try {

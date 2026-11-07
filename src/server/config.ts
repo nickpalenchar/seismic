@@ -1,7 +1,7 @@
 import { serverExtensions as extensions } from '../extensions/server';
-// Obeya's configuration: the canvases it serves, saved in `canvases.json` under its home. The owner
+// Seismic's configuration: the canvases it serves, saved in `canvases.json` under its home. The owner
 // reads and edits it in its sheet, the Koordinator on their word. A saved change applies while
-// Obeya runs (`Canvases.apply`, see Live configuration in
+// Seismic runs (`Canvases.apply`, see Live configuration in
 // docs/design/repositories-and-configuration.md): what a repository's agents are set up by
 // restarts that repository's agents alone, once they paused. The
 // repositories' settings (`RepoSettings`) are read where they are used, apply at once, and saving
@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { readShared, REPO_ADAPTER_DIR, REPO_SETTINGS_FILE } from '../adapters';
 import { settingsShape, withoutGone as goneSettings } from '../adapters/schema';
 import { LANGUAGES } from '../core/locale';
-import { blocksSaving, type CanvasConfig, type DemoSite, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedCanvas, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines } from '../core/types';
+import { blocksSaving, type CanvasConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedCanvas, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines } from '../core/types';
 import {
   absoluteDirectory,
   DEMO_SETTINGS_FILE,
@@ -29,7 +29,7 @@ import {
   writeDemoSettings,
 } from '../../plugin/skills/demo/lib/settings.ts';
 import { checkSetup, type SetupCheck } from '../../plugin/skills/demo/lib/setup.ts';
-import { installState, installVoice, KEY_ENV, sample } from '../../plugin/skills/demo/lib/voices.ts';
+import { installState, installVoice, KEY_ENV, sample, voiceProblem } from '../../plugin/skills/demo/lib/voices.ts';
 import { BadRequest } from './board';
 import { ConfigError, readingRepo, resolveCanvas, type StartFailure } from './canvas';
 import type { Store } from './db';
@@ -40,7 +40,7 @@ import type { Forge } from './forge';
 import { commitShared, proposeShared, pushShared } from './shared-settings';
 import { gitCalls, gitSteps, leavingClones } from './workspaces';
 import { VERSION } from './resources';
-import { siteProblem } from './share';
+import { canvasDefaults, canvasSettingsShape, tidyCanvasSettings, withCanvasDefaults } from './settings';
 import { canonical, commandsOf, heldGroups, trustHeld, trustTakenOver } from './trust';
 
 export const CONFIG_FILE = 'canvases.json';
@@ -70,8 +70,7 @@ function tidySettings(s: z.infer<typeof settingsShape> | undefined): RepoSetting
   if (!s) return undefined;
   const list = (l?: string[]) => l?.map((x) => x.trim()).filter(Boolean);
   const dir = s.planDocs?.dir.trim().replace(/\/+$/, '');
-  const site = tidySite(s.demo?.site);
-  const demo = { ...(site ? { site } : {}), ...(s.demo?.language ? { language: s.demo.language } : {}), ...(s.demo?.artifacts ? { artifacts: s.demo.artifacts } : {}) };
+  const demo = { ...(s.demo?.language ? { language: s.demo.language } : {}), ...(s.demo?.artifacts ? { artifacts: s.demo.artifacts } : {}) };
   const app = tidyApp(s.app);
   const extra = Object.fromEntries(extensions.flatMap((e) => Object.keys(e.settings ?? {})).filter((k) => Object.hasOwn(s, k)).map((k) => [k, (s as Record<string, unknown>)[k]]));
   const out: RepoSettings = {
@@ -103,22 +102,6 @@ function tidyApp(s: RepoSettings['app']): RepoSettings['app'] {
   return Object.keys(out).length ? out : undefined;
 }
 
-/** A demo site as it is saved: its fields trimmed, those left empty out; none where nothing is filled in. */
-function tidySite(s: DemoSite | undefined): DemoSite | undefined {
-  if (!s) return undefined;
-  const headers = Object.entries(s.headers ?? {}).filter(([k]) => k.trim());
-  const out: DemoSite = {
-    title: s.title.trim(),
-    url: s.url.trim(),
-    deploy: s.deploy.trim(),
-    ...(s.env?.trim() ? { env: s.env.trim() } : {}),
-    ...(headers.length ? { headers: Object.fromEntries(headers.map(([k, v]) => [k.trim(), v.trim()])) } : {}),
-    ...(s.maxFile ? { maxFile: s.maxFile } : {}),
-    ...(s.publish ? { publish: s.publish } : {}),
-  };
-  return out.title || out.url || out.deploy || Object.keys(out).length > 3 ? out : undefined;
-}
-
 /** The canvases as the configuration lists them, from the dialog, the file and the Koordinator alike. */
 export const configShape = z.array(
   z
@@ -140,7 +123,7 @@ export const configShape = z.array(
                     name: z
                       .string()
                       .regex(/^\s*[\w.-]*\s*$/, 'a host name is letters, digits, dots, dashes and underscores')
-                      // a directory of its own under Obeya's home holds the host's copies
+                      // a directory of its own under Seismic's home holds the host's copies
                       .refine((n) => !/^\.{1,2}$/.test(n.trim()), 'a host name is more than dots'),
                     // read by ssh as an option when it starts with a dash
                     ssh: z.string().refine((s) => !s.trim().startsWith('-'), 'an ssh target does not start with a dash'),
@@ -156,15 +139,17 @@ export const configShape = z.array(
           .strict(),
       ),
     })
+    .extend(canvasSettingsShape.shape)
     .strict(),
 );
 
 /** The configuration as it is saved: no empty names, clone lists or counts. */
 function tidy(canvases: z.infer<typeof configShape>): CanvasConfig[] {
-  return canvases.map((c) => ({
-    ...(c.name?.trim() ? { name: c.name.trim() } : {}),
-    ...(c.id?.trim() ? { id: c.id.trim() } : {}),
-    repos: c.repos.map((r) => {
+  return canvases.map(({ name, id, repos, ...settings }) => ({
+    ...(name?.trim() ? { name: name.trim() } : {}),
+    ...(id?.trim() ? { id: id.trim() } : {}),
+    ...tidyCanvasSettings(settings),
+    repos: repos.map((r) => {
       const workspaces = (r.workspaces ?? []).map((w) => w.trim()).filter(Boolean);
       // a host without a name or a machine is a row still being filled in
       const hosts = (r.hosts ?? []).map((h) => ({ name: h.name.trim(), ssh: h.ssh.trim(), root: h.root.trim() || '~/obeya', clones: h.clones, ...(h.slots !== undefined ? { slots: h.slots } : {}) })).filter((h) => h.name && h.ssh);
@@ -189,8 +174,8 @@ export function readConfigFile(file: string): CanvasConfig[] {
 }
 
 /**
- * A file as read, without the settings Obeya no longer has: a repository's share command (its demo
- * site took its place; `file` only), and its site's language (`demo.language` took its place).
+ * A file as read, without the settings Seismic no longer has: a repository's share command (`file`
+ * only), and its demo site (the canvas chooses one now).
  */
 function withoutGone(made: unknown, file = true): unknown {
   if (Array.isArray(made))
@@ -215,12 +200,12 @@ export interface ConfigOptions {
   running: () => string[];
   /** The running server's settings; `commit` the one its checkout stands at (none for the compiled binary). */
   server: { port: number; home: string; permissionMode: string; commit?: string | null };
-  /** Where this Obeya answers, so a sample's voice is held by it (`narration.ts`); none in tests. */
+  /** Where this Seismic answers, so a sample's voice is held by it (`narration.ts`); none in tests. */
   narrationUrl?: string;
   /** The lock a heavy voice's sample waits for; the machine's (TTS_LOCK) unless a test gives its own. */
   ttsLock?: string;
   /**
-   * Starts Obeya again with the saved configuration, for canvases that came from the command line
+   * Starts Seismic again with the saved configuration, for canvases that came from the command line
    * (the file is the configuration from then on); absent where nothing restarts it (--dev).
    */
   restart?: () => void;
@@ -233,7 +218,7 @@ export interface ConfigOptions {
   failures?: () => StartFailure[];
   /** Repositories' settings for everyone were committed: the running canvases read them again. */
   onSettings?: () => void;
-  /** Where „Für alle ins Repository übernehmen“ opens its pull request. */
+  /** Where "For everyone, into the repository" opens its pull request. */
   forge?: Forge;
   /** The demo directory's space and the deletion of old frames; none in tests. */
   space?: DemoSpace;
@@ -253,6 +238,7 @@ const demoShape = z
     command: z.string().optional(),
     url: z.string().optional(),
     voiceName: z.string().optional(),
+    style: z.string().optional(),
     references: z.partialRecord(z.enum(LANGUAGES), z.string()).optional(),
     // the one clip of a draft kept in the dialog from before `references`: `tidyDemoSettings` takes it as its language's
     reference: z.string().optional(),
@@ -277,7 +263,6 @@ function markHeld(values: RepoValues, trust: RepoTrust | undefined): RepoValues 
   return {
     ...values,
     app: trust.held.includes('app') ? { ...values.app, stop: mark(values.app.stop), keep: mark(values.app.keep) } : values.app,
-    demo: trust.held.includes('site') ? { ...values.demo, site: mark(values.demo.site) } : values.demo,
   } as RepoValues;
 }
 
@@ -297,6 +282,7 @@ export function demoSettingsProblems(
   if (s.voice === 'command' && !s.command) problems.push('noCommand');
   if ((s.voice === 'http' || s.voice === 'azure') && !s.url) problems.push('noUrl');
   if (s.voice === 'say' && platform !== 'darwin') problems.push('notHere');
+  if (voiceProblem(s)) problems.push('unknownSpeaker');
   const service = (SERVICES as readonly string[]).includes(s.voice) || s.voice === 'http';
   if (service && !env[KEY_ENV[s.voice as keyof typeof KEY_ENV]]) {
     if (s.keyFile && !existsSync(expandHome(s.keyFile))) problems.push('keyFileMissing');
@@ -370,7 +356,7 @@ export class Config {
       for (const key of extensions.flatMap((e) => Object.keys(e.settings ?? {})))
         if (mine[key] !== undefined && same(mine[key], theirs[key]) && !same(was?.[key], theirs[key])) delete mine[key];
     });
-    if (changed) console.log(`Obeya: settings of ${path} now come from its ${REPO_SETTINGS_FILE}; removed from this machine's`);
+    if (changed) console.log(`Seismic: settings of ${path} now come from its ${REPO_SETTINGS_FILE}; removed from this machine's`);
   }
 
   /**
@@ -401,9 +387,9 @@ export class Config {
   }
 
   /**
-   * A value for a repository's setting that the Arbeitsrückschau proposed, taken by the owner for
+   * A value for a repository's setting that the work retrospective proposed, taken by the owner for
    * the repository at `path` (absolute): on this machine, or into its `.obeya/settings.json` for
-   * everyone, the way „Für alle ins Repository übernehmen“ goes, with this value alone. Committed
+   * everyone, the way "For everyone, into the repository" goes, with this value alone. Committed
    * on the main branch, this machine's own value for it goes, so the repository's applies here
    * too; as a pull request, it is set on this machine as well until the pull request is merged
    * (`takenOver` then removes it). Says where it went for everyone; nothing for this machine.
@@ -439,7 +425,7 @@ export class Config {
   }
 
   /**
-   * „Für alle ins Repository übernehmen“: the settings saved for the repository at `path` (as the
+   * "For everyone, into the repository": the settings saved for the repository at `path` (as the
    * configuration names it) on this machine, but its main branch, go into its
    * `.obeya/settings.json`: committed on the main branch where work lands there (they then come
    * from the repository, here too), else as a pull request (once it is merged), or with `direct`,
@@ -459,7 +445,7 @@ export class Config {
     if (to === 'pr' && parsed.data.direct) {
       if (!resolved?.repos[at.repo]?.shareDirect) throw new BadRequest('noDirect', `${repoPath}: work goes to main only through pull requests`);
       const { after, ...done } = await pushShared(repoPath, mine);
-      console.log(`Obeya: settings of ${repoPath} for everyone, pushed onto origin's ${'branch' in done ? done.branch : ''}`);
+      console.log(`Seismic: settings of ${repoPath} for everyone, pushed onto origin's ${'branch' in done ? done.branch : ''}`);
       this.takenOver(repoPath, undefined, after);
       this.o.onSettings?.();
       return done;
@@ -478,11 +464,11 @@ export class Config {
     if (to === 'pr') {
       if (!this.o.forge) throw new BadRequest('settingsShare', 'no forge to open a pull request with');
       const done = await proposeShared(path, patch, this.o.forge);
-      console.log(`Obeya: ${what} of ${path} for everyone, as a pull request: ${'pr' in done ? done.pr : ''}`);
+      console.log(`Seismic: ${what} of ${path} for everyone, as a pull request: ${'pr' in done ? done.pr : ''}`);
       return done;
     }
     const { before: _, after, ...done } = await commitShared(path, patch);
-    console.log(`Obeya: ${what} of ${path} for everyone, committed on ${'branch' in done ? done.branch : ''}`);
+    console.log(`Seismic: ${what} of ${path} for everyone, committed on ${'branch' in done ? done.branch : ''}`);
     // all of it is in the file now, also what it held already
     this.takenOver(path, undefined, after);
     return done;
@@ -495,7 +481,7 @@ export class Config {
    * has them so. Commands that changed there since are refused (`trustChanged`).
    */
   trust(input: unknown) {
-    const parsed = z.object({ path: z.string().min(1), seen: z.unknown(), held: z.array(z.enum(['app', 'site', 'claude', 'codex'])) }).safeParse(input);
+    const parsed = z.object({ path: z.string().min(1), seen: z.unknown(), held: z.array(z.enum(['app', 'claude', 'codex'])) }).safeParse(input);
     if (!parsed.success) throw new BadRequest('invalid', 'expected { path, seen, held }');
     const repoPath = resolve(expandHome(parsed.data.path));
     if (!existsSync(repoPath)) throw new BadRequest('invalid', `no repository at ${parsed.data.path}`);
@@ -503,7 +489,7 @@ export class Config {
     if (canonical(now) !== canonical(parsed.data.seen)) throw new BadRequest('trustChanged', `${repoPath}: its commands changed on the default branch since they were shown`);
     // only the groups the dialog showed: one this machine's values (saved or in the draft) stand in for it did not
     this.o.store.trustCommands(repoPath, trustHeld(this.o.store.trustedCommands(repoPath), now, parsed.data.held.filter((g) => now[g] !== undefined)));
-    console.log(`Obeya: the owner confirmed the commands of ${repoPath}`);
+    console.log(`Seismic: the owner confirmed the commands of ${repoPath}`);
     this.o.onSettings?.();
   }
 
@@ -568,7 +554,7 @@ export class Config {
     const originOf = (path: string) => clones.get(path)?.origin ?? reads.get(path)?.info.remote ?? null;
     const read = (path: string) => reads.get(path) ?? null;
     const problems: ConfigProblem[] = [];
-    if (!canvases.length) problems.push({ code: 'noCanvas', detail: 'Obeya needs at least one canvas' });
+    if (!canvases.length) problems.push({ code: 'noCanvas', detail: 'Seismic needs at least one canvas' });
     // a host's name stands for one machine across the configuration: its workspaces are named by it
     const machines = new Map<string, string>();
     const resolved = expanded.map((c, canvas): ResolvedCanvas | null => {
@@ -610,9 +596,6 @@ export class Config {
             const why = adapter.land === 'main' ? 'its work lands on the main of this checkout' : !got.info.remote ? 'it has no remote to clone from' : null;
             if (why) problems.push({ code: 'hostRepo', canvas, repo, detail: `the repository cannot have workers on other machines: ${why}` });
           }
-          const site = adapter.demo?.site;
-          const wrong = site && siteProblem(site, resolve(r.path));
-          if (wrong) problems.push({ code: 'demoSite', canvas, repo, detail: wrong });
           for (const detail of got.shared.problems) problems.push({ code: 'repoSettings', canvas, repo, detail });
           const trust = trustOf(got.info.path, got.shared, r.settings, this.o.store);
           if (trust)
@@ -673,7 +656,7 @@ export class Config {
     });
   }
 
-  /** The demo settings in Obeya's home; a demo reads them when it renders, so no restart is needed. */
+  /** The demo settings in Seismic's home; a demo reads them when it renders, so no restart is needed. */
   demo(): DemoSettingsView {
     const settings = readDemoSettings(this.o.server.home);
     return {
@@ -687,7 +670,7 @@ export class Config {
   }
 
   /**
-   * Obeya's home, whose `settings.json` holds the owner's own settings (settings.ts): the language,
+   * Seismic's home, whose `settings.json` holds the owner's own settings (settings.ts): the language,
    * light or dark, the agents' models.
    */
   get home(): string {
@@ -698,7 +681,7 @@ export class Config {
     const before = readDemoSettings(this.o.server.home);
     const settings = parseDemo(input);
     writeDemoSettings(settings, this.o.server.home);
-    console.log(`Obeya: demo settings saved to ${resolve(this.o.server.home, DEMO_SETTINGS_FILE)}`);
+    console.log(`Seismic: demo settings saved to ${resolve(this.o.server.home, DEMO_SETTINGS_FILE)}`);
     // frames kept for a shorter time, or another directory: what is due goes at once
     if (before.keepFrames !== settings.keepFrames || demoDirectory(before) !== demoDirectory(settings)) void this.o.space?.sweepSoon();
     return this.demo();
@@ -733,28 +716,30 @@ export class Config {
     const s = parseDemo(input);
     if (this.voiceJob?.running) throw new BadRequest('voiceInstalling', `${this.voiceJob.voice} is being installed`);
     const job: VoiceInstallJob = (this.voiceJob = { voice: s.voice, running: true, line: '' });
-    console.log(`Obeya: installing the voice ${s.voice}`);
+    console.log(`Seismic: installing the voice ${s.voice}`);
     installVoice(s, (line) => (job.line = line.slice(0, 300)), this.o.server.home).then(
       () => {
         job.running = false;
-        console.log(`Obeya: voice ${s.voice} installed`);
+        console.log(`Seismic: voice ${s.voice} installed`);
       },
       (e: Error) => {
         job.running = false;
         job.error = e.message;
-        console.error(`Obeya: installing the voice ${s.voice} failed: ${e.message}`);
+        console.error(`Seismic: installing the voice ${s.voice} failed: ${e.message}`);
       },
     );
     return this.demo();
   }
 
-  /** One sentence in the voice, as WAV, so the owner hears it before choosing it. */
+  /** A sentence in the voice, as WAV, so the owner hears it before choosing it: theirs (`sampleText` beside the settings), else the stock one. */
   async sampleDemoVoice(input: unknown): Promise<Uint8Array<ArrayBuffer>> {
-    const s = parseDemo(input);
+    const { sampleText, ...settings } = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+    const s = parseDemo(settings);
+    const text = typeof sampleText === 'string' ? sampleText.slice(0, 2000) : undefined;
     const dir = mkdtempSync(join(tmpdir(), 'obeya-voice-'));
     try {
       const out = join(dir, 'sample.wav');
-      await sample(s, out, this.o.server.home, this.o.narrationUrl, this.o.ttsLock).catch((e: Error) => {
+      await sample(s, out, this.o.server.home, this.o.narrationUrl, this.o.ttsLock, text).catch((e: Error) => {
         // tts.py says why on its last line: no key, no command, a service's refusal
         const why = e.message.trim().split('\n').at(-1) ?? e.message;
         throw new BadRequest('voiceSample', why);
@@ -767,33 +752,62 @@ export class Config {
 
   /**
    * Saves a configuration that works, and the running canvases take it over (design: Live
-   * configuration). Where they came from the command line, Obeya starts again with it where
+   * configuration). Where they came from the command line, Seismic starts again with it where
    * something restarts it.
    */
   /**
-   * „Erneut versuchen“: the running canvases take the saved configuration over again, as after a
+   * "Try again": the running canvases take the saved configuration over again, as after a
    * save, so what did not start as it has them tries again.
    */
   async retry(): Promise<{}> {
-    if (!this.o.apply) throw new BadRequest('config', 'this Obeya does not apply its configuration while it runs');
+    if (!this.o.apply) throw new BadRequest('config', 'this Seismic does not apply its configuration while it runs');
     const { canvases, resolved } = await this.check(this.current());
     this.o.apply(expandConfig(canvases), resolved.map((r) => r?.id ?? null));
     return {};
   }
 
+  /**
+   * Saves one canvas's own settings from its settings sheet (`{ agents }`, `{ suggest }` …), the rest of
+   * the configuration as it is saved; applies at once, as a save from the dialog does.
+   */
+  saveCanvas(id: string, input: unknown): Promise<ConfigSaved> {
+    // one after the other: each reads the configuration the one before saved, so none undoes another
+    const saved = this.canvasSaves.then(() => this.saveCanvasNow(id, input));
+    this.canvasSaves = saved.catch(() => {});
+    return saved;
+  }
+
+  private canvasSaves: Promise<unknown> = Promise.resolve();
+
+  private async saveCanvasNow(id: string, input: unknown): Promise<ConfigSaved> {
+    const parsed = canvasSettingsShape.strict().safeParse(input);
+    if (!parsed.success) throw new BadRequest('invalid', `canvas settings: ${z.prettifyError(parsed.error)}`);
+    const current = this.current();
+    const { resolved } = await this.check(current);
+    const i = resolved.findIndex((r) => r?.id === id);
+    if (i < 0) throw new BadRequest('invalid', `the configuration has no canvas ${id}`);
+    return this.save(current.map((c, j) => (j === i ? { ...c, ...parsed.data } : c)));
+  }
+
   async save(input: unknown): Promise<ConfigSaved> {
-    const { canvases, resolved, problems: all } = await this.check(input);
+    const { canvases: given, resolved, problems: all } = await this.check(input);
     const problems = all.filter(blocksSaving);
     if (problems.length) throw new BadRequest('config', problems.map((p) => p.detail).join('; '));
+    // a canvas created now takes Canvas defaults for what it does not set itself: one this configuration
+    // already has (by its id, or its home repository, which a rename keeps) stays as it is
+    const before = await this.check(this.current());
+    const existing = new Set([...this.o.running(), ...before.resolved.flatMap((c) => c ? [c.id] : [])]);
+    const homes = new Set(this.current().map((c) => c.repos[0] && resolve(expandHome(c.repos[0].path))));
+    const canvases = withCanvasDefaults(given, canvasDefaults(this.o.server.home), (c, i) => !existing.has(resolved[i]?.id ?? '') && !homes.has(c.repos[0] && resolve(expandHome(c.repos[0].path))));
     mkdirSync(dirname(this.o.file), { recursive: true });
     writeFileSync(this.o.file, `${JSON.stringify(canvases, null, 2)}\n`);
     this.read = undefined;
     if (this.o.source === 'file' && !this.restarting && this.o.apply) {
-      console.log(`Obeya: configuration saved to ${this.o.file}; it applies at once`);
+      console.log(`Seismic: configuration saved to ${this.o.file}; it applies at once`);
       this.o.apply(expandConfig(canvases), resolved.map((r) => r?.id ?? null));
       return { restarting: false, applied: true };
     }
-    console.log(`Obeya: configuration saved to ${this.o.file}`);
+    console.log(`Seismic: configuration saved to ${this.o.file}`);
     if (this.o.restart && !this.restarting) {
       this.restarting = true;
       this.o.restart();

@@ -1,8 +1,8 @@
-// Obeya's own settings, in `settings.json` under its home beside `canvases.json` and `demo.json`:
-// the language of Obeya's interface and the one its agents talk to the owner in, light or dark, the model and effort of each group of
-// agents, how other devices reach Obeya (remote.ts), whether the bar shows the plan's usage limits (usage.ts), and whether approving work asks for feedback on it. The owner chooses them in the settings sheet;
+// Seismic's own settings, in `settings.json` under its home beside `canvases.json` and `demo.json`:
+// the language of Seismic's interface and the one its agents talk to the owner in, light or dark, the model and effort of each group of
+// agents, how other devices reach Seismic (remote.ts), whether the bar shows the plan's usage limits (usage.ts), whether approving work asks for feedback on it, and the Canvas defaults a new canvas takes its own settings from. The owner chooses them in the settings sheet;
 // until then the system's language and look apply, the agents run as `AGENT_DEFAULTS` says, and
-// no other device reaches Obeya. Saving restarts nothing: the page loads again in the new
+// no other device reaches Seismic. Saving restarts nothing: the page loads again in the new
 // language, takes the new look at once, and the server reads the file whenever it needs the
 // language or starts an agent.
 
@@ -10,20 +10,25 @@ import { z } from 'zod';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chosenConversationLanguage, chosenLanguage, conversationLanguageIn, OWNER_SETTINGS_FILE as SETTINGS_FILE, ownerLanguageIn, ownerSettingsWritten, systemLanguage } from '../../plugin/skills/demo/lib/language.ts';
+import { suggestToggles } from '../core/labels';
 import { type Language, LANGUAGES } from '../core/locale';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole, type AgentSetting, type AgentsView, type LanguageView, type RemoteSetting, type Theme, THEMES, type ThemeView, type UsageMeterView, type FeedbackPromptView, type NotificationsView } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole, type AgentSetting, type AgentsView, type LanguageView, type RemoteSetting, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type CanvasAgents, type CanvasDefaults, type CanvasDefaultsView, type CanvasSettings, type CanvasDemoSite, choosesHarness, HARNESSES, CODE_REVIEW_MODES, CARD_ARCHIVING, type CodeReviewSetting } from '../core/types';
 import { BadRequest } from './board';
 
 interface Settings {
-  /** The interface's: Obeya's own words. */
+  /** The interface's: Seismic's own words. */
   language?: Language;
-  /** The agents' to the owner until the owner's words say otherwise; absent, the interface's. */
+  /** The agents' to the owner; absent, English. */
   conversationLanguage?: Language;
   /** Light or dark; absent follows the system. */
   theme?: Theme;
+  /** Full or reduced motion; absent follows the system. */
+  motion?: Motion;
   /** Only what differs from `AGENT_DEFAULTS`, so a changed default reaches what the owner left. */
   agents?: Partial<Record<AgentRole, Partial<AgentSetting>>>;
-  /** How other devices reach Obeya; absent, they do not. */
+  /** `false`: Codex workers ask the owner what leaves their sandbox; absent, Codex's own automatic review decides. */
+  codexAutoReview?: false;
+  /** How other devices reach Seismic; absent, they do not. */
   remote?: RemoteSetting;
   /** `false`: the bar does not show the plan's usage limits; absent, it does. */
   usageMeter?: false;
@@ -31,6 +36,8 @@ interface Settings {
   feedbackPrompt?: false;
   /** Whether a page notifies the owner on the desktop when a card needs them; absent until the owner has been asked. */
   notifications?: boolean;
+  /** Canvas defaults: what a new canvas's own settings start as; a setting left out has its built-in value. */
+  canvasDefaults?: CanvasSettings;
 }
 
 function read(home: string): Settings {
@@ -39,7 +46,8 @@ function read(home: string): Settings {
     const language = LANGUAGES.find((l) => l === o.language);
     const conversationLanguage = LANGUAGES.find((l) => l === o.conversationLanguage);
     const theme = THEMES.find((x) => x === o.theme);
-    return { ...o, language, conversationLanguage, theme, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === false ? false : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined };
+    const motion = MOTIONS.find((x) => x === o.motion);
+    return { ...o, language, conversationLanguage, theme, motion, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === false ? false : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, canvasDefaults: canvasSettingsShape.safeParse(o.canvasDefaults).data };
   } catch {
     return {};
   }
@@ -49,18 +57,18 @@ export function languageView(home: string, system = systemLanguage()): LanguageV
   const chosen = chosenLanguage(home) ?? null;
   const language = chosen ?? system;
   const conversationChosen = chosenConversationLanguage(home) ?? null;
-  return { file: join(home, SETTINGS_FILE), chosen, system, language, conversationChosen, conversation: conversationChosen ?? language };
+  return { file: join(home, SETTINGS_FILE), chosen, system, language, conversationChosen, conversation: conversationChosen ?? 'en' };
 }
 
 /** The interface language that applies: the owner's choice, else the system's. */
 export const ownerLanguage = ownerLanguageIn;
 
-/** The conversation language that applies: the owner's choice, else the interface language. */
+/** The conversation language that applies: the owner's choice, else English. */
 export const conversationLanguage = conversationLanguageIn;
 
 /**
  * Saves the owner's choice of the interface language (`language`) or the conversation language
- * (`conversation`), whichever the input names; `null` follows the system, or the interface, again.
+ * (`conversation`), whichever the input names; `null` follows the system, or English, again.
  * Other settings in the file stay.
  */
 export function saveLanguage(home: string, input: unknown): LanguageView {
@@ -70,7 +78,7 @@ export function saveLanguage(home: string, input: unknown): LanguageView {
   for (const key of ['language', 'conversation'] as const)
     if (key in given && !valid(given[key])) throw new BadRequest('invalid', `${key} must be one of ${LANGUAGES.join(', ')} or null`);
   if ('language' in given) save(home, 'language', given.language as Language | null, `language ${given.language ?? 'of the system'}`);
-  if ('conversation' in given) save(home, 'conversationLanguage', given.conversation as Language | null, `conversation language ${given.conversation ?? 'of the interface'}`);
+  if ('conversation' in given) save(home, 'conversationLanguage', given.conversation as Language | null, `conversation language ${given.conversation ?? 'English'}`);
   return languageView(home);
 }
 
@@ -82,6 +90,16 @@ export function saveTheme(home: string, input: unknown): ThemeView {
   if (theme !== null && !THEMES.some((x) => x === theme)) throw new BadRequest('invalid', `theme must be one of ${THEMES.join(', ')} or null`);
   save(home, 'theme', theme as Theme | null, `${theme ?? "the system's"} look`);
   return themeView(home);
+}
+
+export const motionView = (home: string): MotionView => ({ file: join(home, SETTINGS_FILE), chosen: read(home).motion ?? null });
+
+/** Saves full or reduced motion; `null` follows the system again. */
+export function saveMotion(home: string, input: unknown): MotionView {
+  const motion = (input as { motion?: unknown } | null)?.motion;
+  if (motion !== null && !MOTIONS.some((x) => x === motion)) throw new BadRequest('invalid', `motion must be one of ${MOTIONS.join(', ')} or null`);
+  save(home, 'motion', motion as Motion | null, `${motion ?? "the system's"} motion`);
+  return motionView(home);
 }
 
 export const usageMeterView = (home: string): UsageMeterView => ({ file: join(home, SETTINGS_FILE), on: read(home).usageMeter !== false });
@@ -114,10 +132,119 @@ export function saveNotifications(home: string, input: unknown): NotificationsVi
   return notificationsView(home);
 }
 
+const ownAgent = z.object({ model: z.enum(AGENT_MODELS).optional(), effort: z.enum(AGENT_EFFORTS).optional(), harness: z.enum(HARNESSES).optional(), codex: z.object({ model: z.string(), effort: z.enum(AGENT_EFFORTS) }).strict().optional(), agy: z.object({ model: z.string(), effort: z.enum(AGENT_EFFORTS) }).strict().optional() }).strict().optional();
+
+/** A canvas's own settings, as the configuration and Canvas defaults hold them. */
+export const canvasSettingsShape = z.object({
+  projectBaselines: z.boolean().optional(),
+  archive: z.enum(CARD_ARCHIVING).optional(),
+  suggest: z.object({ category: z.boolean().optional(), complexity: z.boolean().optional(), priority: z.boolean().optional() }).strict().optional(),
+  agents: z.object({ koordinator: ownAgent, worker: ownAgent, explorer: ownAgent, chores: ownAgent, review: ownAgent }).strict().optional(),
+  codeReviews: z.object({ on: z.boolean().optional(), mode: z.enum(CODE_REVIEW_MODES).optional() }).strict().optional(),
+  demoSite: z
+    .object({
+      url: z.string().trim().regex(/^https?:\/\/\S+$/),
+      // up to three lower-case parts with hyphens, `/` between them; the root where empty
+      path: z
+        .string()
+        .transform((p) => p.trim().replace(/^\/+|\/+$/g, ''))
+        .refine((p) => p === '' || /^[a-z0-9][a-z0-9-]{0,40}(\/[a-z0-9][a-z0-9-]{0,40}){0,2}$/.test(p), 'lower-case letters, digits and hyphens, with / between up to three parts')
+        .optional(),
+      publish: z.enum(['approved']).optional(),
+      tags: z.record(z.string().trim().min(1), z.array(z.string().trim().min(1))).optional(),
+    })
+    .strict()
+    .nullable()
+    .optional(),
+});
+
+/** A canvas's demo site as it is saved: its address without a trailing slash, its path and tags without what is empty; none without an address. */
+function demoSite(saved: CanvasDemoSite | null | undefined): CanvasDemoSite | null {
+  const url = saved?.url?.trim().replace(/\/+$/, '');
+  if (!saved || !url) return null;
+  const path = saved.path?.trim().replace(/^\/+|\/+$/g, '');
+  const tags = Object.entries(saved.tags ?? {}).filter(([d, v]) => d.trim() && v.length);
+  return { url, ...(path ? { path } : {}), ...(saved.publish ? { publish: saved.publish } : {}), ...(tags.length ? { tags: Object.fromEntries(tags) } : {}) };
+}
+
+/** Whether and when a canvas reviews work that lands on main: off, and with the demo once turned on, where left out (reviews cost tokens). */
+const codeReviews = (saved: Partial<CodeReviewSetting> | undefined): CodeReviewSetting => ({ on: saved?.on === true, mode: saved?.mode === 'manual' ? 'manual' : 'auto' });
+
+/** The groups a canvas sets a model or effort of its own for, without those it leaves to Configuration. */
+function canvasAgents(saved: CanvasAgents | undefined): CanvasAgents {
+  const out: CanvasAgents = {};
+  for (const role of AGENT_ROLES) {
+    const { harness, model, effort, codex, agy } = saved?.[role] ?? {};
+    if (harness || model || effort || codex || agy) out[role] = { ...(harness ? { harness } : {}), ...(model ? { model } : {}), ...(effort ? { effort } : {}), ...(codex ? { codex } : {}), ...(agy ? { agy } : {}) };
+  }
+  return out;
+}
+
+/**
+ * Each canvas setting as it applies, from its value as saved (none: its built-in default). A setting
+ * added to `CanvasSettings` needs its entry here, and with it a value in Canvas defaults.
+ */
+export const CANVAS_SETTINGS: { [K in keyof CanvasSettings]-?: (saved: CanvasSettings[K]) => CanvasDefaults[K] } = {
+  suggest: suggestToggles,
+  projectBaselines: (saved) => saved !== false,
+  // the owner archives by hand where left out
+  archive: (saved) => (saved === 'landed' ? 'landed' : 'manual'),
+  // the default of every canvas's models is Configuration's "Agents and models": none of its own
+  agents: canvasAgents,
+  codeReviews,
+  // chosen per canvas, from this machine's sites: a new canvas has none until it chooses one
+  demoSite,
+};
+
+/** A value that says nothing: an empty group of a canvas's own models is not saved. */
+const empty = (v: unknown) => v === null || (!!v && typeof v === 'object' && !Object.keys(v).length);
+
+const canvasSetting = <K extends keyof CanvasSettings>(key: K, saved: CanvasSettings[K]): CanvasDefaults[K] => (CANVAS_SETTINGS[key] as (value: CanvasSettings[K]) => CanvasDefaults[K])(saved);
+
+const canvasSettingKeys = Object.keys(CANVAS_SETTINGS) as (keyof CanvasSettings)[];
+
+/** `s` with each canvas setting it holds as it applies; those it leaves out stay out. */
+export function tidyCanvasSettings(s: CanvasSettings): CanvasSettings {
+  return Object.fromEntries(canvasSettingKeys.filter((k) => s[k] !== undefined).map((k) => [k, canvasSetting(k, s[k])]).filter(([, v]) => !empty(v)));
+}
+
+/** A canvas's settings as they apply: what it holds, else each setting's built-in value. */
+export const appliedCanvasSettings = (s: CanvasSettings): CanvasDefaults => Object.fromEntries(canvasSettingKeys.map((k) => [k, canvasSetting(k, s[k])])) as CanvasDefaults;
+
+export { canvasAgentSetting } from '../core/types';
+
+/** Canvas defaults as they apply: the owner's, else each setting's built-in value. */
+export function canvasDefaults(home: string): CanvasDefaults {
+  const saved = read(home).canvasDefaults ?? {};
+  return Object.fromEntries(canvasSettingKeys.map((k) => [k, canvasSetting(k, saved[k])])) as CanvasDefaults;
+}
+
+export const canvasDefaultsView = (home: string): CanvasDefaultsView => ({ file: join(home, SETTINGS_FILE), defaults: canvasDefaults(home) });
+
+/**
+ * Saves the Canvas defaults given (`{ suggest: { … } }`); the canvases there are keep their own. Other settings in the file stay.
+ * A canvas's models have Configuration's "Agents and models" as their default, and its demo site is
+ * chosen on each canvas, so neither is among them.
+ */
+export function saveCanvasDefaults(home: string, input: unknown): CanvasDefaultsView {
+  const parsed = canvasSettingsShape.omit({ agents: true, demoSite: true }).strict().safeParse(input);
+  if (!parsed.success) throw new BadRequest('invalid', `canvas defaults: ${z.prettifyError(parsed.error)}`);
+  save(home, 'canvasDefaults', { ...canvasDefaults(home), ...tidyCanvasSettings(parsed.data) }, 'canvas defaults');
+  return canvasDefaultsView(home);
+}
+
+/**
+ * The configuration with Canvas defaults copied into each canvas `isNew` takes, for every setting
+ * it does not set itself; the other canvases stay as they are.
+ */
+export function withCanvasDefaults<C extends CanvasSettings>(canvases: C[], defaults: CanvasDefaults, isNew: (c: C, i: number) => boolean): C[] {
+  return canvases.map((c, i) => (isNew(c, i) ? { ...c, ...Object.fromEntries(canvasSettingKeys.filter((k) => c[k] === undefined && !empty(defaults[k])).map((k) => [k, defaults[k]])) } : c));
+}
+
 /** Saves one of the owner's choices, or with `null` takes it out; the other settings in the file stay. */
-function save<K extends 'language' | 'conversationLanguage' | 'theme' | 'remote' | 'usageMeter' | 'feedbackPrompt' | 'notifications'>(home: string, key: K, value: Settings[K] | null, what: string) {
+function save<K extends 'language' | 'conversationLanguage' | 'theme' | 'motion' | 'remote' | 'usageMeter' | 'codexAutoReview' | 'feedbackPrompt' | 'notifications' | 'canvasDefaults'>(home: string, key: K, value: Settings[K] | null, what: string) {
   write(home, { ...read(home), [key]: value ?? undefined });
-  console.log(`Obeya: ${what} saved to ${join(home, SETTINGS_FILE)}`);
+  console.log(`Seismic: ${what} saved to ${join(home, SETTINGS_FILE)}`);
 }
 
 function write(home: string, settings: Settings) {
@@ -131,21 +258,22 @@ const codexChoice = z.object({ model: z.string().trim().min(1).max(200).regex(/^
 
 /** Validate a one-start choice from an untrusted client without changing the defaults. */
 export function startAgentSetting(input: unknown): AgentSetting {
-  const parsed = z.object({ model: z.enum(AGENT_MODELS), effort: z.enum(AGENT_EFFORTS), harness: z.enum(['claude', 'codex']).optional(), codex: codexChoice.optional() }).strict().safeParse(input);
-  if (!parsed.success || (parsed.data.harness === 'codex' && !parsed.data.codex)) throw new BadRequest('invalid', 'invalid worker harness, model or effort');
+  const parsed = z.object({ model: z.enum(AGENT_MODELS), effort: z.enum(AGENT_EFFORTS), harness: z.enum(HARNESSES).optional(), codex: codexChoice.optional(), agy: codexChoice.optional() }).strict().safeParse(input);
+  if (!parsed.success || (parsed.data.harness === 'codex' && !parsed.data.codex) || (parsed.data.harness === 'agy' && !parsed.data.agy)) throw new BadRequest('invalid', 'invalid worker harness, model or effort');
   return parsed.data;
 }
 
 /** The known choices in a file's `agents` that differ from the defaults; anything else in it is left out. */
 function agentsOf(input: unknown): Partial<Record<AgentRole, Partial<AgentSetting>>> {
-  const o = (input && typeof input === 'object' ? input : {}) as Record<string, { model?: unknown; effort?: unknown; harness?: unknown; codex?: unknown } | undefined>;
+  const o = (input && typeof input === 'object' ? input : {}) as Record<string, { model?: unknown; effort?: unknown; harness?: unknown; codex?: unknown; agy?: unknown } | undefined>;
   const agents: Partial<Record<AgentRole, Partial<AgentSetting>>> = {};
   for (const role of AGENT_ROLES) {
     const model = AGENT_MODELS.find((m) => m === o[role]?.model && m !== AGENT_DEFAULTS[role].model);
     const effort = AGENT_EFFORTS.find((e) => e === o[role]?.effort && e !== AGENT_DEFAULTS[role].effort);
-    const harness = role === 'worker' && o[role]?.harness === 'codex' ? 'codex' as const : undefined;
-    const codex = role === 'worker' ? codexChoice.safeParse(o[role]?.codex) : undefined;
-    if (model || effort || harness || codex?.success) agents[role] = { ...(model ? { model } : {}), ...(effort ? { effort } : {}), ...(harness ? { harness } : {}), ...(codex?.success ? { codex: codex.data } : {}) };
+    const harness = choosesHarness(role) && (o[role]?.harness === 'codex' || o[role]?.harness === 'agy') ? o[role]!.harness as 'codex' | 'agy' : undefined;
+    const codex = choosesHarness(role) ? codexChoice.safeParse(o[role]?.codex) : undefined;
+    const agy = choosesHarness(role) ? codexChoice.safeParse(o[role]?.agy) : undefined;
+    if (model || effort || harness || codex?.success || agy?.success) agents[role] = { ...(model ? { model } : {}), ...(effort ? { effort } : {}), ...(harness ? { harness } : {}), ...(codex?.success ? { codex: codex.data } : {}), ...(agy?.success ? { agy: agy.data } : {}) };
   }
   return agents;
 }
@@ -154,7 +282,15 @@ function agentsOf(input: unknown): Partial<Record<AgentRole, Partial<AgentSettin
 export const agentSetting = (home: string, role: AgentRole): AgentSetting => ({ ...AGENT_DEFAULTS[role], ...read(home).agents?.[role] });
 
 export function agentsView(home: string): AgentsView {
-  return { file: join(home, SETTINGS_FILE), agents: Object.fromEntries(AGENT_ROLES.map((r) => [r, agentSetting(home, r)])) as Record<AgentRole, AgentSetting> };
+  return { file: join(home, SETTINGS_FILE), agents: Object.fromEntries(AGENT_ROLES.map((r) => [r, agentSetting(home, r)])) as Record<AgentRole, AgentSetting>, codexAutoReview: read(home).codexAutoReview !== false };
+}
+
+/** Saves whether Codex's own automatic review decides for Codex workers (`{ on }`) or the owner is asked; read whenever one starts. Other settings in the file stay. */
+export function saveCodexAutoReview(home: string, input: unknown): AgentsView {
+  const on = (input as { on?: unknown } | null)?.on;
+  if (typeof on !== 'boolean') throw new BadRequest('invalid', 'on must be true or false');
+  save(home, 'codexAutoReview', on ? null : false, `Codex workers' approvals ${on ? "by Codex's automatic review" : 'by the owner'},`);
+  return agentsView(home);
 }
 
 /** Saves the choices for the groups given (`{ worker: { model: 'opus' } }`). Other groups and settings in the file stay. */
@@ -164,20 +300,21 @@ export function saveAgents(home: string, input: unknown): AgentsView {
   const agents: Record<string, unknown> = { ...settings.agents };
   for (const [role, choice] of Object.entries(given)) {
     if (!AGENT_ROLES.some((r) => r === role)) throw new BadRequest('invalid', `agents are one of ${AGENT_ROLES.join(', ')}`);
-    const { model, effort, harness, codex, ...other } = (choice && typeof choice === 'object' ? choice : {}) as Record<string, unknown>;
+    const { model, effort, harness, codex, agy, ...other } = (choice && typeof choice === 'object' ? choice : {}) as Record<string, unknown>;
     if (Object.keys(other).length) throw new BadRequest('invalid', 'unknown agent setting');
-    if (harness !== undefined && (role !== 'worker' || !['claude', 'codex'].includes(String(harness)))) throw new BadRequest('invalid', 'only workers can select claude or codex');
-    if (codex !== undefined && (role !== 'worker' || !codexChoice.safeParse(codex).success)) throw new BadRequest('invalid', 'codex needs a model id and a supported effort (low, medium, high, xhigh, max)');
+    if (harness !== undefined && (!choosesHarness(role as AgentRole) || !(HARNESSES as readonly string[]).includes(String(harness)))) throw new BadRequest('invalid', 'only workers and code reviews can select claude, codex or agy');
+    if (agy !== undefined && (!choosesHarness(role as AgentRole) || !codexChoice.safeParse(agy).success)) throw new BadRequest('invalid', 'agy needs a model id and a supported effort (low, medium, high, xhigh, max)');
+    if (codex !== undefined && (!choosesHarness(role as AgentRole) || !codexChoice.safeParse(codex).success)) throw new BadRequest('invalid', 'codex needs a model id and a supported effort (low, medium, high, xhigh, max)');
     if (model !== undefined && !AGENT_MODELS.some((m) => m === model)) throw new BadRequest('invalid', `model must be one of ${AGENT_MODELS.join(', ')}`);
     if (effort !== undefined && !AGENT_EFFORTS.some((e) => e === effort)) throw new BadRequest('invalid', `effort must be one of ${AGENT_EFFORTS.join(', ')}`);
-    agents[role] = { ...agents[role]!, ...(model !== undefined ? { model } : {}), ...(effort !== undefined ? { effort } : {}), ...(harness !== undefined ? { harness } : {}), ...(codex !== undefined ? { codex: codexChoice.parse(codex) } : {}) };
+    agents[role] = { ...agents[role]!, ...(model !== undefined ? { model } : {}), ...(effort !== undefined ? { effort } : {}), ...(harness !== undefined ? { harness } : {}), ...(codex !== undefined ? { codex: codexChoice.parse(codex) } : {}), ...(agy !== undefined ? { agy: codexChoice.parse(agy) } : {}) };
   }
   write(home, { ...settings, agents: agentsOf(agents) });
-  console.log(`Obeya: models and effort of the agents saved to ${join(home, SETTINGS_FILE)}`);
+  console.log(`Seismic: models and effort of the agents saved to ${join(home, SETTINGS_FILE)}`);
   return agentsView(home);
 }
 
-/** A setting for other devices as the file or the page gives it; `null` for none or one Obeya cannot use. */
+/** A setting for other devices as the file or the page gives it; `null` for none or one Seismic cannot use. */
 export function remoteOf(input: unknown): RemoteSetting | null {
   const o = (input && typeof input === 'object' ? input : {}) as { via?: unknown; address?: unknown; awake?: unknown };
   const awake = o.awake === 'always' ? { awake: 'always' as const } : {};
@@ -186,10 +323,10 @@ export function remoteOf(input: unknown): RemoteSetting | null {
   return null;
 }
 
-/** How other devices reach Obeya, as the owner set it; `null`: they do not. */
+/** How other devices reach Seismic, as the owner set it; `null`: they do not. */
 export const remoteSetting = (home: string): RemoteSetting | null => read(home).remote ?? null;
 
-/** Saves how other devices reach Obeya (`{ remote }`); `null` turns it off. Other settings in the file stay. */
+/** Saves how other devices reach Seismic (`{ remote }`); `null` turns it off. Other settings in the file stay. */
 export function saveRemote(home: string, input: unknown): RemoteSetting | null {
   const given = (input as { remote?: unknown } | null)?.remote;
   const remote = given === null ? null : remoteOf(given);

@@ -1,6 +1,6 @@
 // Review cards: a pull request someone outside opened, reviewed by the card's worker on its head,
 // with the owner's change requests going to the contributor or made by the worker, and merged by
-// Obeya on approval, pinned to the head the worker reviewed.
+// Seismic on approval, pinned to the head the worker reviewed.
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -19,7 +19,7 @@ import { git, Workspaces } from './workspaces';
 
 const URL_ = 'https://github.com/acme/app/pull/5';
 
-/** A forge with one open pull request by a contributor, which records what Obeya does on it. */
+/** A forge with one open pull request by a contributor, which records what Seismic does on it. */
 function fakeForge(head: () => string) {
   const said = { comments: [] as string[], reviews: [] as string[], merges: [] as string[], refuse: undefined as string | undefined, refusePost: undefined as string | undefined };
   const status: PrStatus = { state: 'OPEN', mergeable: 'MERGEABLE', mergeState: 'CLEAN', head: '', author: 'amerlander', viewer: 'owner', checks: [{ name: 'test', state: 'success' }], comments: [] };
@@ -89,7 +89,7 @@ beforeEach(() => {
   const workspaces = new Workspaces(store, 'c', { mode: 'clones', repoPath: main, dir: join(dir, 'ws') });
   workspaces.ensureClones(main, 1);
   runtime = new FakeRuntime();
-  // the PR's branch in the contributor's repository, where Obeya pushes the worker's own commits
+  // the PR's branch in the contributor's repository, where Seismic pushes the worker's own commits
   fake = fakeForge(() => git(origin, 'rev-parse', 'contrib'));
   approvals = [];
   followed = [];
@@ -164,9 +164,9 @@ describe('a review card', () => {
     expect(brief).toContain('pull request #5 by amerlander');
     expect(brief).toContain('Look at security especially.');
     expect(brief.indexOf('Before you run anything of it')).toBeLessThan(brief.indexOf('Review the code'));
-    // the worker pushes nothing itself: Obeya does, on the owner's approval
+    // the worker pushes nothing itself: Seismic does, on the owner's approval
     expect(brief).not.toContain('git push');
-    expect(runtime.last.spec.system).toContain('Do not push (Obeya pushes your commits');
+    expect(runtime.last.spec.system).toContain('Do not push (Seismic pushes your commits');
     // watched from the start
     expect(board.item(id)!.pr).toMatchObject({ url: URL_, number: 5 });
     expect(board.item(id)!.contribution).toMatchObject({ number: 5, author: 'amerlander', canModify: true });
@@ -208,12 +208,25 @@ describe('a review card', () => {
     expect(board.item(id)!.noChange).toBeUndefined();
   });
 
+  test('an ignored finding is dropped without a word to the worker, and stays so when it rewrites the list', async () => {
+    const id = await reviewCard();
+    await handOver();
+    const before = runtime.last.inbox.length;
+    workers.message(id, '', [], false, undefined, undefined, { 2: 'ignore' });
+    expect(runtime.last.inbox.length).toBe(before);
+    expect(board.item(id)!.contribution!.findings!.map((f) => f.status)).toEqual(['open', 'dropped']);
+    runtime.last.call('findings', { findings: [{ id: 1, title: 'Path in the file name', text: 'T' }, { id: 2, title: 'No shortcut', text: 'T', status: 'open' }] });
+    expect(board.item(id)!.contribution!.findings!.map((f) => f.status)).toEqual(['open', 'dropped']);
+    // a new finding beside an ignored one: the worker hears it was ignored, so it raises it no more
+    expect(runtime.last.call('findings', { findings: [{ id: 1, title: 'Path in the file name', text: 'T' }, { id: 2, title: 'No shortcut', text: 'T' }, { title: 'Shortcut missing', text: 'T' }] })).toContain('The owner ignored #2 “No shortcut”');
+  });
+
   test('the owner decides per finding, with their words; a request alone goes to the contributor at once', async () => {
     const id = await reviewCard();
     await handOver();
     workers.message(id, 'Keep it short.', [], false, undefined, undefined, { 1: 'contributor' });
     const told = runtime.last.inbox.at(-1)!;
-    expect(told).toContain('To amerlander: #1 „Path in the file name“');
+    expect(told).toContain('To amerlander: #1 “Path in the file name”');
     expect(told).toContain('request_changes');
     expect(told).toContain('Keep it short.');
     expect(board.events(id).at(-1)!.text).toContain('Befund 1 „Path in the file name“: an amerlander');
@@ -244,7 +257,7 @@ describe('a review card', () => {
     await handOver();
     workers.message(id, '', [], false, undefined, undefined, { 2: 'self' });
     const told = runtime.last.inbox.at(-1)!;
-    expect(told).toContain('Yourself: #2 „No shortcut“');
+    expect(told).toContain('Yourself: #2 “No shortcut”');
     expect(told).toContain('commit it on your branch');
     expect(told).not.toContain('push it onto');
     runtime.last.emit({ type: 'idle' });
@@ -356,7 +369,7 @@ describe('a review card', () => {
     await handOver();
     workers.message(id, '', [], false, undefined, undefined, { 1: 'contributor', 2: 'self' });
     const told = runtime.last.inbox.at(-1)!;
-    expect(told).toContain('To amerlander: #1 „Path in the file name“. They go with your own changes below');
+    expect(told).toContain('To amerlander: #1 “Path in the file name”. They go with your own changes below');
     expect(board.item(id)!.contribution!.findings![0]).toMatchObject({ decided: 'contributor', withChanges: true });
     runtime.last.emit({ type: 'idle' });
     // the request does not go out on its own
@@ -454,7 +467,7 @@ describe('a review card', () => {
       [4, 'open', 'later'],
     ]);
     const told = runtime.last.inbox.at(-1)!;
-    expect(told).toContain('As follow-up tasks: #1 „Re-login does not help remotely“, #2 „Detection misses messages“, #4 „Two buttons for one error“');
+    expect(told).toContain('As follow-up tasks: #1 “Re-login does not help remotely”, #2 “Detection misses messages”, #4 “Two buttons for one error”');
     expect(told).toContain('as you bundled them (findings 2 + 4)');
     expect(told).toContain('Combine them as you see fit.');
     expect(board.events(id).at(-1)!.text).toContain('Befund 2 „Detection misses messages“: als Folgeaufgabe');
@@ -546,7 +559,7 @@ describe('a review card', () => {
     expect(approvals).toEqual([id]);
     expect(fake.said.merges).toEqual([prHead]);
     expect(board.item(id)!.state).toBe('live');
-    expect(runtime.last.inbox.at(-1)).toContain('Obeya merged the pull request');
+    expect(runtime.last.inbox.at(-1)).toContain('Seismic merged the pull request');
   });
 
   test('where the PR collides with unpushed commits on the local main, the card says so before the merge, naming the card that landed them', async () => {
@@ -663,7 +676,7 @@ describe('a review card', () => {
     expect(runtime.last.inbox.at(-1)).toContain('did not merge it');
   });
 
-  test('a push of the contributor’s after the handover: Obeya pushes, posts and merges nothing, and the worker puts its commits on top', async () => {
+  test('a push of the contributor’s after the handover: Seismic pushes, posts and merges nothing, and the worker puts its commits on top', async () => {
     const id = await reviewCard();
     await handOver();
     workers.message(id, '', [], false, undefined, undefined, { 2: 'self' });
@@ -677,7 +690,7 @@ describe('a review card', () => {
     expect([...fake.said.comments, ...fake.said.reviews, ...fake.said.merges]).toEqual([]);
     expect(board.item(id)!.state).toBe('working');
     const told = runtime.last.inbox.at(-1)!;
-    expect(told).toContain('Obeya pushed, posted and merged nothing');
+    expect(told).toContain('Seismic pushed, posted and merged nothing');
     expect(told).toContain('Put your own commits on top of the new head');
     // not fetched yet: its branch does not build on the PR's head, so it cannot hand over
     expect(await runtime.last.call('ready_for_review', { summary: 'S', review: results })).toContain('does not build on it');
@@ -700,7 +713,7 @@ describe('a review card', () => {
     commitOwn(id, 'shortcut.ts');
     await runtime.last.call('ready_for_review', { summary: 'Fixed 2.', demo: artifact(), review: results, pr_draft: 'I added the shortcut.' });
     runtime.last.emit({ type: 'idle' });
-    // the forge has not seen the contributor's push yet when Obeya reads the PR
+    // the forge has not seen the contributor's push yet when Seismic reads the PR
     const before = prHead;
     push('later.ts');
     fake.status.head = before;
@@ -788,7 +801,7 @@ describe('„Review PR #5“ on a canvas', () => {
     expect(canvas.board.events(id).some((e) => e.text === 'And the demo on the phone only.')).toBe(true);
   });
 
-  test('a PR one of Obeya’s workers opened opens that card', async () => {
+  test('a PR one of Seismic’s workers opened opens that card', async () => {
     const own = canvas.board.create({ title: 'Export', x: 0, y: 0 });
     canvas.board.work(own.id, { state: 'inPr', pr: JSON.stringify({ url: URL_, number: 5, seen: [], reported: [] }) });
     expect(await canvas.reviewPr({ do: 'reviewPr', pr: '5', text: '' })).toBe(own.id);

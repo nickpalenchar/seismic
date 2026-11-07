@@ -2,7 +2,7 @@
 
 A chapter of the [design doc](../design.md), whose header says how it is written.
 
-Agents never talk to each other directly; the Obeya server is the mailbox, so every exchange is
+Agents never talk to each other directly; the Seismic server is the mailbox, so every exchange is
 visible on a card.
 
 ### A worker's tools
@@ -15,31 +15,30 @@ visible on a card.
 - `ask(question, options, multiple, pick, pick_why, demo)`: returns at once; the worker ends its
   turn and the answer is its next message. `demo` is what the owner is to look at to answer (drafts
   side by side), shown on the card as a handover's demo is (see The demo on the card in Demos). The owner picks one option (several when `multiple`), writes their
-  own answer, or both. `pick`/`pick_why` are what the worker would choose and why, marked „Würde ich
-  nehmen“ on the card. Picks travel apart from the owner's words: the worker reads `They picked „…“.`
+  own answer, or both. `pick`/`pick_why` are what the worker would choose and why, marked "I would take this" on the card. Picks travel apart from the owner's words: the worker reads `They picked "…".`
   and below it what they `added in their own words`; the log keeps both as one text, picks first.
   An answer stands in the conversation at once and leaves the card open.
 - `propose_card(title, task, reason, idea?, questions?, replaces?, start_at?, repo?)` and
   `withdraw_proposal(title, why, replaced_by?)` (see Proposals): something it noticed outside its
-  task, instead of doing it, or a follow-up due later (`start_at`). `repo` exists wherever Obeya
+  task, instead of doing it, or a follow-up due later (`start_at`). `repo` exists wherever Seismic
   runs more than one repository: its description lists the ids and paths of the canvas's own and,
   by canvas, those of the other canvases.
 - `ready_for_review(summary, demo)`, whose summary is the report the owner reads. The demo's
   `question` (text, options, multiple, pick, pick_why) is asked and answered as with `ask`, while the
   card goes on waiting for approval (see Waiting for approval in Card lifecycle).
 - `app_running(url)`: where the app in its workspace opens, for the owner to try by hand (see Trying
-  the app by hand); for a workspace on another machine Obeya forwards the port.
+  the app by hand); for a workspace on another machine Seismic forwards the port.
 - `snooze(until, why, card, state)` (see Snoozing a card).
-- `to_obeya(request)`: what the owner's words ask of Obeya rather than of the worker (see Passing a
-  request on to Obeya).
+- `to_seismic(request)`: what the owner's words ask of Seismic rather than of the worker (see Passing a
+  request on to Seismic).
 
 A call that ends the turn (`ask`, `ready_for_review`, `pr_opened`, `snooze`, `after_restart`)
-returns „end your turn now“. When the owner's words waited for that very step (see Reading order in
+returns "end your turn now". When the owner's words waited for that very step (see Reading order in
 Conversation on the card), its result carries them instead, says what stands meanwhile (the question
 waits for the owner, the handover for approval) and leaves the turn to the worker: it answers them
 with `reply`, does what they ask, asks anew if they change its question, then ends the turn.
 
-Obeya's messages to a worker say what happened (feedback, an answer, a note, a failed landing, the
+Seismic's messages to a worker say what happened (feedback, an answer, a note, a failed landing, the
 landing), not what to do next: whether to record a demo again after feedback is the worker's call
 (see The demo on the card).
 
@@ -54,9 +53,9 @@ one). Such a card shows as failed: the owner's turn in red, its pin "!!", its st
 with an error". A worker that then works on by itself takes that question back.
 
 A turn that ends while the worker's own background work runs (a render, a test suite, a watcher) is
-not such a turn: the work wakes the worker, so Obeya waits, also after the landing, where an ended
+not such a turn: the work wakes the worker, so Seismic waits, also after the landing, where an ended
 turn would otherwise finish the card and remove its workspace. The SDK reports each change in how
-much background work runs; Obeya waits as long as some does, bounded by the work's own limits (two
+much background work runs; Seismic waits as long as some does, bounded by the work's own limits (two
 hours for a background command, half an hour for a watcher; three hours for a session that never
 says the work ended). It nudges only ten minutes after the work ended without a sign of life. A turn
 in which the worker said and did nothing does not count: a session resumed after a restart first
@@ -66,17 +65,17 @@ ends a turn over what the previous one left, which would otherwise use up the nu
 
 A turn the account's usage limit stopped (five-hour or weekly) is neither nudged nor a question. The
 SDK's `rate_limit_event` says `rejected` and when the limit resets (API error `rate_limit`); without
-the event, the message's „resets 7:20pm (Europe/Berlin)“ says when. A Codex turn fails with
+the event, the message's "resets 7:20pm (Europe/Berlin)" says when. A Codex turn fails with
 `usageLimitExceeded`; the reset is the latest one of the windows its `account/rateLimits/updated`
-reports used up, else the time its message names („try again at 10:41 PM.“, on the machine's
-clock). Obeya waits for a future reset, with a ten-second clock margin. Without a reset it
+reports used up, else the time its message names ("try again at 10:41 PM.", on the machine's
+clock). Seismic waits for a future reset, with a ten-second clock margin. Without a reset it
 tries again after fifteen minutes, or after a minute if the reported reset has passed. Three
 consecutive refused turns exhaust this retry budget: a worker's session closes and releases its
 slot, while its card and workspace stay. A failed manual attempt pauses it immediately again;
 actual text or a tool step clears the budget. Duplicate errors from one refused turn count once.
 A light-blue bar and an hourglass mark the usage pause, with a visible way to try again now.
 
-The server watches reset times centrally without asking an agent. Its coordinator periodically
+The server watches reset times centrally without asking an agent. Its Koordinator periodically
 wakes all limit-paused workers whose recorded reset has passed, including after a server restart
 or the machine waking from sleep. Pauses with no known future reset stay paused until the owner
 tries again; a failed attempt cannot turn an old reset into a new retry loop. A canvas paused by
@@ -89,36 +88,36 @@ background work as a normal immediate pause does.
 
 Every other agent waits the same way: look-ups, project agents, Question cards' and ideas' agents,
 the reviser of a proposal, and the Koordinator's small jobs (naming and checking cards, the learner,
-the Rückschau, the Arbeitsrückschau). The stopped turn is neither an error nor over; the owner's
+the retrospective, the work retrospective). The stopped turn is neither an error nor over; the owner's
 words meanwhile wait for its next turn. Where the agent waits says until when: under a looked-up
-question „Nutzungslimit · schlägt das um 19:20 von selbst nach“, on a card's face and in its bubble
-„Nutzungslimit · weiter um 19:20“. These agents share the retry budget and central reset watcher; their in-memory wait is
+question "Usage limit · looks it up by itself at 19:20", on a card's face and in its bubble
+"Usage limit · continues at 19:20". These agents share the retry budget and central reset watcher; their in-memory wait is
 re-established after a restart. Ending the session (pausing the agent, parking the idea) ends the wait. Two do not wait: a demo page shared
 without the worker's text (it takes the card's title and the summary's start) and the draft of a
-wish, whose owner waits in the dialog (see Wishes for Obeya's makers). Obeya's chat: see
+wish, whose owner waits in the dialog (see Wishes for Seismic's makers). Seismic's chat: see
 Confirmation and undo.
 
 ### Pausing an agent
 
 A note reaches the worker at any time without stopping it. To stop it mid-work, the conversation's
-bubble that shows the agent at work („Agent arbeitet …“) has a pause mark, faint. At the desk it
+bubble that shows the agent at work ("Agent at work") has a pause mark, faint. At the desk it
 shows only while the pointer is on the bubble, so a long run does not keep a button in view; on a
-touch screen it is always there. By voice „halt mal an“. Both pause at once.
+touch screen it is always there. By voice "pause for a moment". Both pause at once.
 
 On the canvas, the card shows a faint pause while the pointer is on it, in the corner where other
 cards show their play and archive buttons (see The canvas), which pauses at a safe point instead:
 the agent brings its work to a clean stop first, as for a restart (see Waiting for the workers). A
 worker hears that the owner pauses it: it finishes the step it is in, starts nothing long, stops the
 background work it can start again and ends its turn, without handing over if it is not done. An
-idea's or Question card's agent finishes the reply it works on. Meanwhile the card reads „Agent hält
-an …“ and its bubble „Agent hält an …“, whose pause still stops it at once. Once the turn ends,
+idea's or Question card's agent finishes the reply it works on. Meanwhile the card reads "Agent pausing
+…" and its bubble "Agent pausing …", whose pause still stops it at once. Once the turn ends,
 however it ends (with a handover or a question too), the agent is paused as by the bubble's pause;
 background work the worker let run keeps it from pausing until it ends, and the turn that work
 starts hears that the owner still waits. A worker that has not ended its turn after 15 minutes is
 paused at once. One with nothing running that could be cut off (its workspace still being made
 ready, waiting for the usage limit) pauses at once. A restart meanwhile leaves it paused. On the
 same hover, a paused card, and one about to pause, shows a faint ▶ there, which resumes it as
-„Weitermachen“ does; the one about to pause hears that it works on instead, and so it does with the
+"Resume" does; the one about to pause hears that it works on instead, and so it does with the
 owner's words to it.
 
 The bubble and the pause exist exactly while an agent runs a turn (background work included): a
@@ -126,48 +125,47 @@ Question card's agent reading, an idea's agent replying, a worker in any card st
 in the owner's words on its handover, in its PR, finishing after the landing). An idle agent (a PR
 card waiting for review) has neither. The reviser of a proposal has no pause: its rework is short.
 
-A worker's bubble also lists its background work under „Im Hintergrund“, each task as the agent
-described it, with how long it has run, counting from when Obeya first saw it (the SDK gives no
+A worker's bubble also lists its background work under "In the background", each task as the agent
+described it, with how long it has run, counting from when Seismic first saw it (the SDK gives no
 start time); the SDK's own housekeeping does not show.
 
 Pausing (at once, or once the turn has ended) ends the session, mid-step if need be, with whatever
 it ran, and keeps the card's state and the session. A worker keeps workspace and branch, frees its slot, and its app is parked
-after the grace; one paused on its handover leaves the card waiting for approval („Demo bereit ·
-Agent pausiert“), Freigeben included. An idea's or Question card's agent keeps what it had not
-answered. The bubble stays where the agent stopped, in pencil grey, „Agent pausiert · ▶
-Weitermachen“, over the line „Pausiert.“; a restart of Obeya leaves paused agents paused.
+after the grace; one paused on its handover leaves the card waiting for approval ("Demo ready ·
+agent paused"), Approve included. An idea's or Question card's agent keeps what it had not
+answered. The bubble stays where the agent stopped, in pencil grey, "Agent paused · ▶
+Resume", over the line "Paused."; a restart of Seismic leaves paused agents paused.
 
-„Weitermachen“ (by voice „mach weiter“) or anything the owner writes resumes the same session; the
+"Resume" (by voice "carry on") or anything the owner writes resumes the same session; the
 agent hears that it was paused and what ran was stopped (exit code 137), plus the owner's words and
-what it had not answered. What Obeya had for a paused worker meanwhile (a review, a landing) goes
-along then. „Stoppen“ stays in the card's action row: it ends the agent and plans the card again.
+what it had not answered. What Seismic had for a paused worker meanwhile (a review, a landing) goes
+along then. "Stop" stays in the card's action row: it ends the agent and plans the card again.
 
 ### Pausing a canvas's agents
 
 With several canvases, each canvas's row in the navigation (see The navigation) shows the moving line of a card at work while
 at least one agent works on that canvas (any agent with a pause, as above). While the pointer is on
-the row, the line turns into a pause button, faint like a card's, „x laufende Agenten pausieren“ in its tooltip; with
-none at work but at least one paused, the row shows ▶ on the same hover, „x pausierte Agenten
-fortsetzen“. On a touch screen the button is always there. Nothing else of it sits in the bar. The
+the row, the line turns into a pause button, faint like a card's, "pause x running agents" in its tooltip; with
+none at work but at least one paused, the row shows ▶ on the same hover, "resume x paused agents". On a touch screen the button is always there. Nothing else of it sits in the bar. The
 phone has none of it, to stay simple (owner, 2026-10-30): pausing is for the desktop.
 
 Pausing pauses each agent at work there as the pause on its card does, at a safe point; those about
-to pause count as paused already. As long as one of them is still paused (or about to be), the cards the Koordinator lets start on that canvas wait in the queue („Wartet:
-Leinwand pausiert“) instead of taking the slots that pausing freed. Resuming resumes every paused
-agent there, as „Weitermachen“ does, and the waiting cards start. Once none on the canvas is paused
+to pause count as paused already. As long as one of them is still paused (or about to be), the cards the Koordinator lets start on that canvas wait in the queue ("Waiting:
+canvas paused") instead of taking the slots that pausing freed. Resuming resumes every paused
+agent there, as "Resume" does, and the waiting cards start. Once none on the canvas is paused
 any more (the owner resumed each on its card, or their cards went), the queue runs again by itself;
 one that could not go on (its repository left the canvas) is still paused and keeps the queue held.
 A restart leaves it as it was: the cards stay paused and the canvas holds its queue. A snoozed card
 is not a paused agent, though its worker stopped the same way: it counts for neither number, the
 canvas's resume leaves it asleep, it holds no queue, and its card shows no ▶; it wakes at its time
-or by „Jetzt zurückholen“.
+or by "Wake now".
 
 ### Snoozing a card
 
 A card can be set aside until a point in time, by its worker or by the owner. A worker can also
 wait until another card is done (on main, or closed without a change) or waits for the owner (asks,
 hands over, or is a proposal or an idea with questions), as a release waits for another card's fix.
-Obeya holds the time and the card, not the agent's session. No other condition: waiting for CI
+Seismic holds the time and the card, not the agent's session. No other condition: waiting for CI
 stays background work.
 
 The worker calls `snooze` with `until`, or `card` (exact title, else a part only one open card's
@@ -183,41 +181,41 @@ and can be approved meanwhile, which ends the snooze; woken, the worker is at wo
 another card, to `snooze`; checkpoints are one snooze after another. Idea and Question cards' agents
 have no such tool.
 
-The owner snoozes with „Später …“ (a visible button with a clock in the action row; by voice „stell
-das bis morgen früh zurück“): this evening 18:00 (while more than half an hour off), tomorrow 08:00,
+The owner snoozes with "Later" (a visible button with a clock in the action row; by voice "snooze
+this until tomorrow morning"): this evening 18:00 (while more than half an hour off), tomorrow 08:00,
 next Monday 08:00, or a date and time. One menu serves every kind of card. It is offered on cards at
 work, cards waiting for the owner, and planned tasks not yet with the Koordinator:
 
 - A card at work stops as on a pause and goes on where it stopped at the time.
-- A card waiting for the owner leaves the count of what waits and Tab, moves to the end of „Braucht dich“, and comes back
+- A card waiting for the owner leaves the count of what waits and Tab, moves to the end of "Needs you", and comes back
   at the time like a snoozed mail, with a push to the phone. Nothing goes to its agent; background
   work runs on. Answering it anyway (or parking the idea, reworking the proposal) ends the
   snooze.
 - A planned card starts at the time as if the owner had started it, through the Koordinator's queue;
-  its worker hears that the card was set to start then. „Starten“, „Jetzt zurückholen“ or „Alle
-  starten“ on its project start it at once. An accepted proposal with a start time is such a card
+  its worker hears that the card was set to start then. "Start", "Wake now" or "Start
+  all" on its project start it at once. An accepted proposal with a start time is such a card
   (see A proposal that starts later). A card no longer planned to start (made an idea or project,
   archived, started otherwise, its plan doc gone) is snoozed no longer, so it never starts unasked;
   a change to its plan doc leaves the snooze.
 
 Waking is checked every 15 s, on every board change (so a card that only passes through the awaited
-state counts) and at every start of Obeya; a time missed while Obeya was down or the machine slept is
+state counts) and at every start of Seismic; a time missed while Seismic was down or the machine slept is
 caught up then, and a restart touches no snoozed card. A card wakes when its time comes, or its
 awaited card got there or no longer will by itself (stopped, archived, removed, idea dropped). The
 worker hears why and what for (and that the owner moved the time, if so); one the owner snoozed
-hears that and that what ran was stopped. The owner's words or „Jetzt zurückholen“ wake it earlier,
-as does, for a worker that snoozed itself, whatever Obeya has for it (a review, the landing, a failed
+hears that and that what ran was stopped. The owner's words or "Wake now" wake it earlier,
+as does, for a worker that snoozed itself, whatever Seismic has for it (a review, the landing, a failed
 check); it hears what woke it (no words: the owner wants to know where things stand) and may snooze
 again. For a worker the owner snoozed, such news waits. A question for the owner that arises
 meanwhile (its PR closed, a tool call to allow) ends the snooze.
 
-On the canvas a snoozed card is pushed back on greyed stock with a clock: „◷ Zurückgestellt bis
-morgen, 00:05“ (or „bis „…“ erledigt ist“, with „spätestens …“ when it has a time too), with who
+On the canvas a snoozed card is pushed back on greyed stock with a clock: "◷ Snoozed until
+tomorrow, 00:05" (or "until "…" is done", with "at the latest …" when it has a time too), with who
 snoozed it and why. One waiting on another card shows that wait while the pointer is on either, as
 a queued card does (see The queue's order). It counts neither as at work nor as needing the owner; on the phone it stands at
-the end of its list. Its conversation shows a line where it was snoozed, carrying „Jetzt
-zurückholen“ and „Ändern“ (the same menu, whoever snoozed it) while it lasts, and on waking a line
-that says why it is back („Wieder da: Zeitpunkt erreicht“, „… von dir zurückgeholt“, …).
+the end of its list. Its conversation shows a line where it was snoozed, carrying "Wake
+now" and "Change" (the same menu, whoever snoozed it) while it lasts, and on waking a line
+that says why it is back ("Back: time reached", "… woken by you", …).
 
 ### Waiting without blocking
 
@@ -236,14 +234,14 @@ while a foreground command is still running, so Codex has no such guard (see Nat
 ### Refused and confirmed tool calls
 
 A tool call refused without asking anyone (a deny rule, auto mode's classifier, the permission mode,
-a hook, the foreground-wait refusal) stands in the card's conversation as a line („Nicht erlaubt
-(Regel in den Einstellungen): $ …“), with the SDK's reason when it gives one.
+a hook, the foreground-wait refusal) stands in the card's conversation as a line ("Not allowed
+(rule in the settings): $ …"), with the SDK's reason when it gives one.
 
 A tool call the settings want confirmed (an `ask` rule, say for database writes) becomes, through the
 SDK's `canUseTool`, the question the card waits on: the whole command, Claude Code's reason, options
-„Erlauben“ and „Ablehnen“. The call waits within the worker's turn; meanwhile the worker counts as
-waiting for the owner, so a restart need not wait for it. „Erlauben“ runs it (words with it reach the
-worker next); „Ablehnen“, words alone or a note refuse it with the owner's words in the result.
+"Allow" and "Deny". The call waits within the worker's turn; meanwhile the worker counts as
+waiting for the owner, so a restart need not wait for it. "Allow" runs it (words with it reach the
+worker next); "Deny", words alone or a note refuse it with the owner's words in the result.
 Concurrent calls are asked one after another. A card that moves on without the answer (its PR merged,
 a review card's PR closed) refuses the call with what happened, so the worker goes on instead of
 waiting for a question no longer on the card. After a restart the question stays; answered then, an
@@ -252,14 +250,14 @@ the project's log. Claude Code's `AskUserQuestion` is refused with a pointer to 
 
 Codex's native command and file-change approval requests use this same question and one-call
 allow/deny decision, not session-wide permission or policy amendments. A refusal by the owner is
-labelled as such, not as Obeya's foreground-wait guard. A saved one-use grant identifies the action
+labelled as such, not as Seismic's foreground-wait guard. A saved one-use grant identifies the action
 and its permission scope, not ephemeral turn/item ids, callback ids or timestamps: a restart can
 reissue the same action without asking again, but a changed command or requested authority needs
 a new decision. Requests granting write access to a root for the rest of the session and extended
 permission profiles are denied. A denial's accompanying owner instructions reach the coding loop
 as input, since the wire decision itself carries no text. Resolving a native request or ending its
 turn withdraws the obsolete question and settles its callback; closing a session instead preserves
-the question for restart. Native user-input requests must use Obeya's `ask`.
+the question for restart. Native user-input requests must use Seismic's `ask`.
 
 ### Notes and replies
 
@@ -300,9 +298,9 @@ as a learned preference does. Older answers agents gave in the owner's name stay
   knew barely more than the worker. Also rejected: narrower advisor rules, or an advisor that only
   suggests; the worker's pick gives the owner what a suggestion would.
 - **Workers are told what happened, not what to do next**: they are full agents. Protocol stays where
-  Obeya depends on it: `ready_for_review`, `ask`, `pr_opened`.
+  Seismic depends on it: `ready_for_review`, `ask`, `pr_opened`.
 - **Words that reach a worker with the result of its turn-ending call leave it the turn**
-  (2026-10-22). „End your turn now without further work“ beside the owner's note had the worker end
+  (2026-10-22). "End your turn now without further work" beside the owner's note had the worker end
   it in silence; the note looked unheard until the answer to its question came. Rejected: holding
   the words back until the owner answers (the worker could take them in at once), and a rule to
   answer every note beside the instruction to stop, which contradicted it.
@@ -316,12 +314,12 @@ as a learned preference does. Older answers agents gave in the owner's name stay
   the reply to words the owner wrote after the reset.
 - **Look-ups, ideas and the other agents wait for the usage limit too** (2026-10-17), in one shared
   wrapper an agent joins, so an agent added later waits by joining it. Rejected: only workers and
-  Obeya's chat waiting, which answered look-ups with the limit error, ended idea turns in it, failed
+  Seismic's chat waiting, which answered look-ups with the limit error, ended idea turns in it, failed
   proposal reworks and named cards after their text's start.
 - **The pause sits on the bubble of the running turn** (2026-10-15), not in the action row: the row
   holds decisions about the card, pausing is about the turn now running, and the pause exists
   exactly when a turn runs (also while a worker takes in the owner's words on a waiting card, before
-  a paid render, say). „Stoppen“ is named so it does not read like a pause. Rejected: the bubble's pause
+  a paid render, say). "Stop" is named so it does not read like a pause. Rejected: the bubble's pause
   waiting for the next safe point, as for a restart: there the owner stops an agent going the wrong
   way (the card's pause waits, see below).
 - **The pause, the reply and the copy button show on hover at the desk, from the first use on**
@@ -344,25 +342,25 @@ as a learned preference does. Older answers agents gave in the owner's name stay
   pausing a busy canvas from just swapping its running agents for its queued ones. Rejected: a
   canvas-wide stop at a safe point with every session ended and everything for its workers held
   (a state of its own beside the cards' pauses); a button beside the canvas pill (too close to
-  the one in the navigation, and in view all the time); a setting to start Obeya with every canvas
+  the one in the navigation, and in view all the time); a setting to start Seismic with every canvas
   paused (pauses last over restarts anyway).
-- **Waits of hours or days are a snooze Obeya holds** (2026-10-17). Rejected: workers keeping a turn
+- **Waits of hours or days are a snooze Seismic holds** (2026-10-17). Rejected: workers keeping a turn
   open with chained background sleeps (the card looked busy for days and held a slot, every restart
-  cut in, some 35 times a day, Obeya knew nothing of the reminders, and a night without network
+  cut in, some 35 times a day, Seismic knew nothing of the reminders, and a night without network
   turned the midnight check into a stuck question); the agent only proposing a snooze for the owner
   to click (a click per checkpoint, while a snooze is undone with one); hiding only the restart
   noise; conditions besides a time or a card's state. German wording follows Gmail's
-  „Zurückstellen“, which owners know.
+  "Snooze", which owners know.
 - **A worker can snooze its card on its handover** (2026-11-02), when the owner's words on it ask
-  for a later look („Prüfe in drei Tagen nochmal“). Rejected: refusing it (the worker made a
+  for a later look ("Check again in three days"). Rejected: refusing it (the worker made a
   follow-up card instead, a second card for the same check); taking the handover back until the
   worker wakes (the owner could no longer approve meanwhile, as feedback keeps the approval).
-- **A worker can snooze until another card gets somewhere** (2026-10-17): Obeya knows when that card
+- **A worker can snooze until another card gets somewhere** (2026-10-17): Seismic knows when that card
   lands, a guessed time means polling. The states are those another card's result shows in: done, or
   waiting for the owner. Rejected: any state change (each start, handover and approval would wake the
   worker); a wait the owner wires up (the worker knows what it waits for).
 - **A question stands while background work keeps the turn open** (2026-10-16), with its options,
-  since the card's header already says „Frage an dich“.
+  since the card's header already says "Question for you".
 - **Refused and confirmed tool calls reach the card** (2026-10-09). Rejected: dropping the SDK's
   denials, and refusing `ask`-rule calls silently for lack of someone to ask.
 - **Closing words fold under the message they repeat** (2026-10-09). Rejected: dropping them, or

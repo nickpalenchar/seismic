@@ -3,7 +3,7 @@
 // reload (sessionStorage, per tab), and taken once by the page that loads.
 
 /** A sheet on the right that is not a project's, or the archive's list under its button. */
-export type SideSheet = 'koordinator' | 'inbox' | 'archive';
+export type SideSheet = 'koordinator' | 'inbox' | 'settings' | 'archive';
 
 export interface Kept {
   at: number;
@@ -24,8 +24,8 @@ export interface Kept {
   video?: { time: number; playing: boolean };
 }
 
-/** Where the open things are: the panel of the open card, the sheets, the pinned navigation, the archive's list and the configuration's dialog. */
-export const ROOTS = ['panel', 'sheet', 'ksheet', 'nav', 'amenu', 'config'];
+/** Where the open things are: the panel of the open card, the sheets, the pinned navigation, the inbox, the archive's list and the configuration's dialog. */
+export const ROOTS = ['panel', 'sheet', 'ksheet', 'nav', 'inbox', 'amenu', 'config'];
 
 /** How old what was kept may be to come back: a restart takes seconds, a page reloaded much later starts afresh. */
 const FRESH_MS = 5 * 60_000;
@@ -133,7 +133,7 @@ export function restore(k: Pick<Kept, 'scroll' | 'drafts' | 'video'>) {
 const sheetKey = (canvas: string) => `obeya-sheet-left-open-${canvas}`;
 
 /**
- * Whether the owner left the canvas (for another canvas, or a reload) with Obeya's sheet open and
+ * Whether the owner left the canvas (for another canvas, or a reload) with Seismic's sheet open and
  * something typed in its field: back on it, the sheet is open again. An empty field, or a sheet
  * closed as they left, leaves it closed.
  */
@@ -144,12 +144,31 @@ export function leaveSheet(store: Store, canvas: string, openWithDraft: boolean)
   } catch {}
 }
 
-/** Whether the owner left the canvas with Obeya's sheet open over a draft, once. */
+/** Whether the owner left the canvas with Seismic's sheet open over a draft, once. */
 export function takeSheetLeft(store: Store, canvas: string): boolean {
   try {
     const open = store.getItem(sheetKey(canvas)) === '1';
     store.removeItem(sheetKey(canvas));
     return open;
+  } catch {
+    return false;
+  }
+}
+
+const INBOX_KEY = 'obeya-inbox-open';
+
+/** Whether the inbox is open, for this tab and every canvas in it: it stays open as the owner switches canvas. */
+export function keepInbox(store: Store, on: boolean) {
+  try {
+    if (on) store.setItem(INBOX_KEY, '1');
+    else store.removeItem(INBOX_KEY);
+  } catch {}
+}
+
+/** The inbox was open as this tab left the canvas before. */
+export function inboxKept(store: Store): boolean {
+  try {
+    return store.getItem(INBOX_KEY) === '1';
   } catch {
     return false;
   }

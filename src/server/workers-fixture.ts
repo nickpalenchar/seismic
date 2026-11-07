@@ -3,6 +3,7 @@
 // on it, set up afresh for each test. Tests read the bindings below; they replace one with its setter.
 
 import { afterEach, beforeEach } from 'bun:test';
+import type { PageTags } from '../core/types';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -31,9 +32,9 @@ export let origin: string;
 /** The cards `onMerged` was called for. */
 export let merged: string[];
 
-/** The language of Obeya's interface in these tests. */
+/** The language of Seismic's interface in these tests. */
 export let language: 'de' | 'en';
-/** The owner's conversation language in these tests; the interface's where none is set. */
+/** The owner's conversation language in these tests; the fixture's interface language where none is set. */
 export let conversation: 'de' | 'en' | undefined;
 
 export const setWorkers = (w: Workers) => void (workers = w);
@@ -42,7 +43,8 @@ export const setLanguage = (l: 'de' | 'en') => void (language = l);
 export const setConversation = (l: 'de' | 'en') => void (conversation = l);
 
 /** `withOrigin`: clones come from a bare `origin`, as from a remote, instead of from the checkout. */
-export function setup(adapter: RepoAdapter, withOrigin = false) {
+/** `share`: the canvas shares demos on a site, with this vocabulary of tags where it names one. */
+export function setup(adapter: RepoAdapter, withOrigin = false, share?: { tags?: PageTags }) {
   dir = mkdtempSync(join(tmpdir(), 'obeya-workers-'));
   main = join(dir, 'main');
   gitRepo(main);
@@ -70,6 +72,7 @@ export function setup(adapter: RepoAdapter, withOrigin = false) {
     adapter,
     onMerged: (cardId) => void merged.push(cardId),
     env: { OBEYA_URL: 'http://127.0.0.1:4417' },
+    ...(share ? { shares: () => true, vocabulary: () => share.tags } : {}),
   });
 }
 

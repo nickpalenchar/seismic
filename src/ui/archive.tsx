@@ -3,7 +3,9 @@
 // workstreams belong to it and are not listed on their own. A field over the list filters it as
 // the owner types.
 
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { type Item, stopped } from '../core/types';
 import { plain } from './markdown';
 import { useMenuClose } from './queue';
@@ -29,13 +31,86 @@ interface Props {
 /** The bar's archive button; a click lists the archive under it. A click beside the list or Esc (in App) closes it. */
 export function ArchivePill({ on, onToggle, onClose, held, archived, done, onOpen, onArchiveDone, els, icon }: Props) {
   const box = useRef<HTMLDivElement>(null);
-  useMenuClose(on, box, () => held || onClose());
-  // one heading per day, in the server's order
   const [query, setQuery] = useState('');
+  const [full, setFull] = useState(false);
+  // the full-screen view lives in the body, but a click in it is no click beside the archive
+  const inside = { get current() { return { contains: (n: Node) => !!box.current?.contains(n) || !!(n instanceof Element && n.closest('#archive-full')) } as HTMLElement; } };
+  useMenuClose(on, inside, () => held || onClose());
   const field = useRef<HTMLInputElement>(null);
   // what was searched last stays, selected, so typing starts a new search
-  useEffect(() => void (on && field.current?.select()), [on]);
+  useEffect(() => void (on && field.current?.select()), [on, full]);
+  // closing the archive (Esc, a click beside it) also leaves the full-screen view
+  useEffect(() => void (!on && setFull(false)), [on]);
   const words = searchWords(query);
+  const entries = { archived, words, query, onOpen, els };
+  const search = (
+    <div className="a-search">
+      <input
+        ref={field}
+        type="text"
+        autoFocus
+        value={query}
+        placeholder={t.archive.search}
+        aria-label={t.archive.search}
+        spellCheck={false}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      {query && (
+        <button className="x" title={t.archive.clearSearch} aria-label={t.archive.clearSearch} onClick={() => (setQuery(''), field.current?.focus())}>
+          ×
+        </button>
+      )}
+    </div>
+  );
+  const archiveDone = done > 0 && (
+    <button className="btn" onClick={onArchiveDone}>
+      {t.archive.archiveDone(done)}
+    </button>
+  );
+  return (
+    <div className="menu-pill archive" ref={box}>
+      <button className={on ? 'pill kpill on' : 'pill kpill'} title={t.archive.title} aria-expanded={on} onClick={onToggle}>
+        {icon}
+        <span className="lbl">{t.archive.button}</span>
+      </button>
+      {on && !full && (
+        <div id="amenu" className="bar-menu archive-menu">
+          {archived.length > 0 && (
+            <div className="a-head">
+              {search}
+              <button className="a-full" title={t.archive.fullScreen} aria-label={t.archive.fullScreen} onClick={() => setFull(true)}>
+                <Maximize2 size={16} />
+              </button>
+            </div>
+          )}
+          {archiveDone}
+          <ArchiveEntries {...entries} />
+        </div>
+      )}
+      {on &&
+        full &&
+        createPortal(
+          <div id="archive-full" role="dialog" aria-label={t.archive.button}>
+            <div className="a-full-head">
+              <h2>{t.archive.button}</h2>
+              {search}
+              <button className="a-full" title={t.archive.leaveFullScreen} aria-label={t.archive.leaveFullScreen} onClick={() => setFull(false)}>
+                <Minimize2 size={16} />
+              </button>
+            </div>
+            <div className="a-full-body">
+              {archiveDone}
+              <ArchiveEntries {...entries} />
+            </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
+/** The archive's entries, one heading per day in the server's order, filtered by the search; the drop-down and the full-screen view share it. */
+function ArchiveEntries({ archived, words, query, onOpen, els }: { archived: Item[]; words: string[]; query: string; onOpen: (i: Item) => void; els: Map<string, HTMLElement> }) {
   const shown = archived.filter((i) => !i.parent && (!words.length || matches(i, words, archived.filter((x) => x.parent === i.id))));
   const days: { day: string; items: Item[] }[] = [];
   for (const i of shown) {
@@ -43,72 +118,36 @@ export function ArchivePill({ on, onToggle, onClose, held, archived, done, onOpe
     if (days.at(-1)?.day === day) days.at(-1)!.items.push(i);
     else days.push({ day, items: [i] });
   }
+  if (archived.length === 0) return <p className="hint">{t.archive.empty}</p>;
+  if (shown.length === 0) return <p className="hint">{t.archive.noMatch(query.trim())}</p>;
   return (
-    <div className="menu-pill archive" ref={box}>
-      <button className={on ? 'pill kpill on' : 'pill kpill'} title={t.archive.title} aria-expanded={on} onClick={onToggle}>
-        {icon}
-        <span className="lbl">{t.archive.button}</span>
-      </button>
-      {on && (
-        <div id="amenu" className="bar-menu archive-menu">
-          {archived.length > 0 && (
-            <div className="a-search">
-              <input
-                ref={field}
-                type="text"
-                autoFocus
-                value={query}
-                placeholder={t.archive.search}
-                aria-label={t.archive.search}
-                spellCheck={false}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              {query && (
-                <button className="x" title={t.archive.clearSearch} aria-label={t.archive.clearSearch} onClick={() => (setQuery(''), field.current?.focus())}>
-                  ×
-                </button>
-              )}
-            </div>
-          )}
-          {done > 0 && (
-            <button className="btn" onClick={onArchiveDone}>
-              {t.archive.archiveDone(done)}
-            </button>
-          )}
-          {archived.length === 0 ? (
-            <p className="hint">{t.archive.empty}</p>
-          ) : shown.length === 0 ? (
-            <p className="hint">{t.archive.noMatch(query.trim())}</p>
-          ) : (
-            days.map(({ day, items }) => (
-              <section key={day}>
-                <h4>{day}</h4>
-                <ol className="timeline">
-                  {items.map((i) => {
-                    const label = labelOf(i);
-                    return (
-                      <li key={i.id}>
-                        <time>{t.archive.time(new Date(i.archivedAt!))}</time>
-                        <span className="tick" />
-                        <button className="a-card" ref={(el) => void (el ? els.set(i.id, el) : els.delete(i.id))} onClick={() => onOpen(i)}>
-                          <span className="a-ttl">{marked(plain(i.title), words)}</span>
-                          {label && (
-                            <span className="hint">
-                              {label}
-                              {i.kind === 'project' && ` · ${t.archive.workstreams(archived.filter((x) => x.parent === i.id).length)}`}
-                            </span>
-                          )}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </section>
-            ))
-          )}
-        </div>
-      )}
-    </div>
+    <>
+      {days.map(({ day, items }) => (
+        <section key={day}>
+          <h4>{day}</h4>
+          <ol className="timeline">
+            {items.map((i) => {
+              const label = labelOf(i);
+              return (
+                <li key={i.id}>
+                  <time>{t.archive.time(new Date(i.archivedAt!))}</time>
+                  <span className="tick" />
+                  <button className="a-card" ref={(el) => void (el ? els.set(i.id, el) : els.delete(i.id))} onClick={() => onOpen(i)}>
+                    <span className="a-ttl">{marked(plain(i.title), words)}</span>
+                    {label && (
+                      <span className="hint">
+                        {label}
+                        {i.kind === 'project' && ` · ${t.archive.workstreams(archived.filter((x) => x.parent === i.id).length)}`}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      ))}
+    </>
   );
 }
 
@@ -117,7 +156,7 @@ function labelOf(i: Item) {
   return i.idea || i.prototypeEnd || stopped(i) ? stateLabel(i) : i.becomesProject ? becomesLabel(i) : i.kind === 'task' ? '' : t.kind[i.kind];
 }
 
-/** Lower case without accents, so „uber“ finds „Über“. */
+/** Lower case without accents, so "uber" finds "Über". */
 const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
 /** The words of a search in the archive, folded. */

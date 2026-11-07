@@ -24,7 +24,7 @@ once more. Commits that conflict one by one but not as a whole land squashed. Th
 with a shared demo carries the trailer `Demo-Video: <url>` (see Publishing on approval). Uncommitted
 work or a real conflict sends the card back to its worker with the approval kept: its next handover
 lands by itself, without a new demo. A local checkout found on another branch (or none), because an
-agent worked in the project folder instead of its workspace or the owner switched it, Obeya switches back to
+agent worked in the project folder instead of its workspace or the owner switched it, Seismic switches back to
 `main` itself where nothing there is uncommitted or untracked, no merge or rebase is under way and a
 detached `HEAD` stands on a commit some ref holds; the card's log says from where, and the worker
 hears it with the landing, along with commits on that branch that `main` lacks, which may be its own
@@ -35,25 +35,55 @@ fast-forward would overwrite, a push the remote turns away) goes to the owner, t
 review; its worker hears so with its next message, unless the work has landed by then, so it does
 not answer the owner as if the approval had not happened.
 
-Where a `pr` repository's settings allow `direct`, the owner may approve „Direkt auf main“: in the
-card's clone or worktree Obeya fetches, rebases onto `origin/<default>` and runs `git push origin
+Uncommitted changes in the checkout to files the card changes too (staged or not, and new files git
+does not ignore) are named on the card with an offer to fold them into it: "Fold in and land"
+or "Fold in, new demo". Either makes those changes one commit on the checkout's `main` (kept
+under `refs/obeya/folded/<card>`, the checkout's index beside it under `…-index`), picks it onto the
+card's branch in its workspace, and sets those files back in the checkout; its other uncommitted
+changes stay, and so do those files where they were edited again while git picked. A pick that conflicts stays under
+way for the worker. The worker works the changes in and hands over again: with the first button the
+approval holds and that handover lands without a new demo, with the second it brings a new demo for
+the owner to approve. Changes gone from the checkout meanwhile leave nothing to fold: the first
+button then lands at once.
+
+Where a `pr` repository's settings allow `direct`, the owner may approve "Straight to main": in the
+card's clone or worktree Seismic fetches, rebases onto `origin/<default>` and runs `git push origin
 HEAD:<default>`, never forced. A push refused because the branch moved is rebased and pushed once
 more; any other refusal (protection, rights) goes to the owner, the card back in review. Conflicts
 go back to the worker as above, and its next handover is pushed directly too. A card already in its
-PR does not switch. The local checkout is left alone; the Lesestand is refreshed at once, so plan docs
-the card adds show as projects, and the worker hears its work is on main. Obeya does not watch the CI
+PR does not switch. The local checkout is left alone; the read checkout is refreshed at once, so plan docs
+the card adds show as projects, and the worker hears its work is on main. Seismic does not watch the CI
 on the default branch.
 
 Landing runs git without blocking the server. Landings of one repository run one after the other;
-a card whose work is landing refuses another approval, and a restart of Obeya waits for it. The
-click ends the owner's turn at once (see Approval and landing).
+the active card says "Landing on main", and waiting approvals say "Waiting to land · 1st in line"
+(2nd, …), moving up as each landing finishes. The same status appears on the canvas, the
+phone and the opened card. Positions are per repository across canvases and cover both local
+landings and direct pushes; unrelated repositories proceed independently. A stopped waiting card
+leaves the queue without running git; failures and completed landings clear the status. Once git
+starts, stopping the card is refused until it finishes. A card whose work is landing refuses
+another approval, and a restart of Seismic waits for the queue. A crash clears the transient queue
+and returns outstanding approvals to review. The click ends the owner's turn at once (see Approval and landing).
+
+### Overlapping work after a landing
+
+After work reaches main (a local landing, a direct push or a known PR merge), other cards in
+progress in the same repository hear about it only where the landed files overlap files they have
+changed themselves, committed or not, including new and deleted files and both sides of a rename.
+Soft paths do not count, by the same repository setting as Scheduling; an estimated scope alone is
+no overlap. Cards on other canvases of that repository count too. Each notice names the landed
+commits' subjects and overlapping files and suggests considering a rebase now rather than at
+handover; the worker decides whether and when. The notice waits for its next turn, without
+interrupting a turn or waking an idle worker or a card waiting for the owner. It survives a restart.
+The receiving card's conversation logs each notice for the owner. No overlap means no notice;
+a failed landing sends none.
 
 ### PR loop
 
 On approval the worker opens the pull request the repository's way (its skills and conventions, a
-description for readers who have not seen Obeya) and reports it with `pr_opened(url)`: GitHub on
+description for readers who have not seen Seismic) and reports it with `pr_opened(url)`: GitHub on
 github.com or an Enterprise server (`https://<host>/<owner>/<repo>/pull/<n>`), or Forgejo and Gitea
-(`…/pulls/<n>`, also below a path). The host decides the forge, and Obeya records the URL with
+(`…/pulls/<n>`, also below a path). The host decides the forge, and Seismic records the URL with
 that forge's path: a Codeberg PR reported as `…/pull/<n>` (which Codeberg answers with 404) as
 `…/pulls/<n>`. Work that also needs a pull request in another repository (one that is no
 workspace of the card) gets it reported the same way, a call for each: the card's own is the one in
@@ -69,7 +99,7 @@ branch, never merges, and ends its turn after each round instead of handing over
 #### Watching the PR
 
 A watcher polls each open PR every two minutes (state, mergeability, checks, all comments), and at
-once when the owner comes back to an Obeya page (at most every 15 s), since the owner merges on the
+once when the owner comes back to an Seismic page (at most every 15 s), since the owner merges on the
 forge and returns.
 
 Every call to the forge (reading, merging, opening a PR, editing its description) runs without
@@ -108,12 +138,12 @@ waits.
 
 #### Ready to merge
 
-„Bereit zum Mergen“ when the forge sees nothing in the way (on Forgejo: mergeable and no draft),
+"Ready to merge" when the forge sees nothing in the way (on Forgejo: mergeable and no draft),
 every check passed, every thread is resolved, the worker is not in a turn, every reviewer who wrote
 has written since the PR's newest non-merge commit (merging the base in brings changes reviewed
 there), and whoever the author last asked for another look has answered (a rewritten summary
 counts, as bots often answer that way), and no reviewer's request for changes stands (GitHub's
-„Request changes“ and Forgejo's counterpart, until that reviewer approves or it is dismissed).
+"Request changes" and Forgejo's counterpart, until that reviewer approves or it is dismissed).
 Asking is a conversation comment of the author's that answers a reviewer whose latest word in the
 conversation before it was no passing verdict (a request for changes in a plain comment names
 nobody; the answer waits for that reviewer, another reviewer's word does not stand in for theirs),
@@ -125,12 +155,12 @@ anything but a passing verdict reaches the worker again. A review older than the
 new one the repository's way (its skill, or a comment mentioning the bot), once per commit; a PR no
 reviewer wrote on waits for nobody.
 
-Obeya then merges it itself (the repository's allowed method, squash first, pinned to the checked
+Seismic then merges it itself (the repository's allowed method, squash first, pinned to the checked
 head so a later push is never merged unchecked) and the card is `live`. It does not when the
-reviewer's latest confidence is below 4/5 (Greptile's „Confidence Score“): the card needs the owner
-(„Review nur 3/5“). A refused merge (branch protection) shows why and needs the owner; Obeya retries
-each round. With `autoMerge: false` („Automatisch mergen“) the team merges on the forge: the card
-needs the owner and says Obeya does not merge here, the worker hears so on approval, and the merge
+reviewer's latest confidence is below 4/5 (Greptile's "Confidence Score"): the card needs the owner
+("Review only 3/5"). A refused merge (branch protection) shows why and needs the owner; Seismic retries
+each round. With `autoMerge: false` ("Merge automatically") the team merges on the forge: the card
+needs the owner and says Seismic does not merge here, the worker hears so on approval, and the merge
 makes it `live`; the setting is read each round, so a change applies to open PRs too. Anything new
 for the worker takes readiness back.
 
@@ -146,21 +176,21 @@ The card shows the PR link, its checks (each linked to its run), a conflict or a
 and while it is not ready what it still waits for, in the order it is in the way: a conflict, the
 branch behind its base, a draft, branch protection (an approval, say), the forge still working out
 mergeability, checks red or running, open threads, a standing request for changes, a review of the newest commit, the reviewer's
-answer to a request for another look, the agent at work on it. Folded, „PR #42 · 1 Check rot ·
-Konflikt“, or what it waits for first („PR #42 · wartet auf Review“); a PR in another repository
-is named with it („PR docs #7“), and each of a card's open PRs has its block and its part of the
+answer to a request for another look, the agent at work on it. Folded, "PR #42 · 1 check red ·
+Conflict", or what it waits for first ("PR #42 · waits for review"); a PR in another repository
+is named with it ("PR docs #7"), and each of a card's open PRs has its block and its part of the
 folded line. Below, the review as last polled, oldest first: per round
-a reviewer commented in („Runde 2 · greptile-apps · 3 Anmerkungen, 1 offen“), each comment folded to
+a reviewer commented in ("Round 2 · greptile-apps · 3 comments, 1 open"), each comment folded to
 its first line with its thread's state and reply count, unfolded with file, comment and replies; the
-conversation between the rounds. Bots' HTML is stripped except badge names (Greptile's „P1“).
+conversation between the rounds. Bots' HTML is stripped except badge names (Greptile's "P1").
 
 ### Review cards
 
 A pull request someone outside opened (a contributor's) gets a card on the owner's word only:
-„Review PR #5“ to Obeya, typed or said, or the PR's link (see Other commands). What the owner says
-with it („schau besonders auf Security“, „die Demo nur auf dem Handy“) becomes the card's task, on
+"Review PR #5" to Seismic, typed or said, or the PR's link (see Other commands). What the owner says
+with it ("look especially at security", "the demo on the phone only") becomes the card's task, on
 top of the fixed review below. A PR that has a card already opens that card, and the words go to its
-worker; one closed or merged gets none. Obeya never makes such a card by itself and does not list
+worker; one closed or merged gets none. Seismic never makes such a card by itself and does not list
 open PRs. The card starts as any (see Scheduling) and names the PR's number, author and link above
 its title, on the canvas and opened.
 
@@ -169,7 +199,7 @@ fetched from `origin` where that is the PR's repository, else from the repositor
 Claude Code settings and CLAUDE.md there are the contributor's: the worker's session reads none of
 them (hooks and MCP servers would run before anyone looked), and gets the default branch's CLAUDE.md
 in its instructions instead.
-The worker's instructions for the review are Obeya's own for this kind of card, in a fixed order,
+The worker's instructions for the review are Seismic's own for this kind of card, in a fixed order,
 since the code is a stranger's and whatever of it runs, runs on the owner's machine:
 
 1. Read the diff before anything of it runs, for network access, install and postinstall scripts,
@@ -181,38 +211,40 @@ since the code is a stranger's and whatever of it runs, runs on the owner's mach
 4. The checks on the head, and a merge probe against the current `main`.
 
 The findings are an element of the card of their own, beside the demo, above it in the left column:
-each with its number, a short title, a sentence or two and whether it is about security. The worker
+each with its number, a short title, a sentence or two and whether it is about security, and where
+the worker gives them, a severity (blocker, critical, major, minor, low, info) and the file and line. The code review of a
+card's own work (see Code reviews in Card lifecycle) shows its findings with the same element. The worker
 keeps them as it keeps nothing else, like an idea's agent its brief: the whole list after its review,
-and again whenever the owner's words or a push change one („Befund 2 ist egal“), each by its number,
+and again whenever the owner's words or a push change one ("finding 2 does not matter"), each by its number,
 with what came of it: open, sent to the contributor (linking the review it went in), fixed by the
 worker, settled (a push fixed it, or it no longer applies), not pursued, a follow-up task (linking
 that task; several findings may link one). With each the worker names the findings it would make one
 follow-up task with, only what one worker would sensibly do in one go; such a bundle stands in a
-bracket of its own on the card („Befunde 2 + 4: eine Folgeaufgabe“) while its findings are open or
+bracket of its own on the card ("Findings 2 + 4: one follow-up task") while its findings are open or
 made one, and picks nothing for the others: the choice stays per finding. Above them stand the
-checks on the head and the merge probe („✓ bun test · ✓ konfliktfrei“), and a collision with
+checks on the head and the merge probe ("✓ bun test · ✓ no conflicts"), and a collision with
 unpushed commits on the local `main` where there is one (see Unpushed commits the PR collides
-with); on the canvas the card shows them on one line („Review: 2 Befunde offen (1 Sicherheit)“). The handover brings the checks'
+with); on the canvas the card shows them on one line ("Review: 2 findings open (1 security)"). The handover brings the checks'
 results and the merge probe; a handover without findings recorded (an empty list where there are
 none) is refused. The findings are for the owner: nothing of them reaches the contributor unless the
-owner sends it. Obeya records the head the worker handed over.
+owner sends it. Seismic records the head the worker handed over.
 
-On each open finding the owner decides „An Beitragenden“, „Selbst ändern“ or „Als Folgeaufgabe“ (a
+On each open finding the owner decides "To contributor", "Change it myself", "As a follow-up task" or "Ignore" (a
 second click takes it back), as they pick a question's options: the decisions stand in the card's draft, show above the
-field („Befund 1: An Beitragenden“) and go to the worker with the one Send of every card, with words
+field ("Finding 1: To contributor") and go to the worker with the one Send of every card, with words
 of the owner's or alone; with several chosen as follow-up tasks the field says how many tasks they
-make as bundled („→ 1 Folgeaufgabe“). The finding then reads what is under way („Geht an amerlander
-…“, „Wird Folgeaufgabe …“) until the worker records what came of it. Words alone that ask the same („schick ihm Befund 1“) count the
+make as bundled ("→ 1 follow-up task"). The finding then reads what is under way ("Going to amerlander
+…", "Becoming a follow-up task …") until the worker records what came of it. Words alone that ask the same ("send him finding 1") count the
 same; anything else the owner says (a question, more to look at) stays on the card.
 
 - To the contributor: the worker writes the findings sent as one review asking for changes (GitHub's
-  „Request changes“, Forgejo's counterpart) in the PR's language, posted by Obeya with the owner's
+  "Request changes", Forgejo's counterpart) in the PR's language, posted by Seismic with the owner's
   account; the findings it names are sent, linking it, and the card waits for the contributor (`in
-  PR`, „Wartet auf Beitragenden“), its log linking the review. Their comments since then and a new
+  PR`, "Waiting for the contributor"), its log linking the review. Their comments since then and a new
   head (once per commit) go to the worker, which reviews again, updates the findings and hands over
   anew. This goes out at once only while none of the worker's own changes are under way or held
   (below); otherwise the request goes with them.
-- Itself: only where the PR allows edits by maintainers (GitHub's „Allow edits by maintainers“;
+- Itself: only where the PR allows edits by maintainers (GitHub's "Allow edits by maintainers";
   otherwise the choice is greyed with the reason). The worker commits the change on the card's
   branch, which stands on the PR's head, marks the finding fixed and hands over with a new demo and
   the text for the PR: what it changed and why, in the PR's language. The worker pushes and posts
@@ -223,56 +255,64 @@ same; anything else the owner says (a question, more to look at) stays on the ca
   (not proposals) beside the review card, following up on it, each started at once and waiting in
   the queue behind the review card until the PR is merged (see Follow-up tasks of a review).
   Findings that belong together become one task: as the owner's words with the Send say
-  first („2 und 3 zusammen“, „fasst zusammen, wie ihr wollt“, „alle einzeln“), else as the worker
+  first ("2 and 3 together", "bundle them as you like", "all one by one"), else as the worker
   bundled them, a bundle counting only among the findings chosen. It writes each task from what its
-  review knows (the files concerned, the cause), for an agent who has seen neither; Obeya adds the
+  review knows (the files concerned, the cause), for an agent who has seen neither; Seismic adds the
   PR's link where the text lacks it. Each such finding is then settled for the PR and links its
-  task, and goes into no change request. Until all of them have a task, Obeya refuses the worker's
+  task, and goes into no change request. Until all of them have a task, Seismic refuses the worker's
   handover, its reply (which may end its turn) and its change request.
+- Ignore: until the Send it stands selected like the other choices; with the Send the finding is
+  settled and goes from the list (a line in the card's log says so; with all of them ignored the list
+  reads "all findings ignored"). It is never sent to the worker: the worker reads only the other
+  choices and the owner's words, and ignoring alone sends it nothing (the card keeps waiting for the
+  owner). The worker cannot reopen an ignored finding when it rewrites its list, and where that list
+  gains a new finding Seismic's reply names the ignored ones, so a later review does not raise them
+  again. Chosen over telling the worker in words ("drop 2"), which wakes it for nothing and leaves the
+  finding open until it records it (owner, 2026-11-06).
 
-„Mergen (PR #5)“ approves: Obeya reads the PR, and at a head other than the one handed over (the
+"Merge (PR #5)" approves: Seismic reads the PR, and at a head other than the one handed over (the
 contributor pushed since) it pushes, posts and merges nothing, and the worker reviews the PR as it
 is, its own commits not pushed yet put on top of the new head. Otherwise the
-demo goes on its page as with any approval („Demo teilen und am PR verlinken“, see Publishing on
+demo goes on its page as with any approval ("Share the demo and link it on the PR", see Publishing on
 approval), its link goes into a comment on the PR once the page is online (the description stays the
-contributor's), and Obeya merges with the repository's allowed method, squash first, pinned to the
+contributor's), and Seismic merges with the repository's allowed method, squash first, pinned to the
 reviewed head. A merge the forge refuses leaves the card waiting for the owner, with the reason.
 Merged, the card is `live`, and where work lands on `main` the checkout pulls the merge as `git pull`
 does it there. Where neither the repository nor the global git configuration sets a way of pulling
-and the local `main` has commits of its own, it pulls with a rebase, as Obeya brings its own work
+and the local `main` has commits of its own, it pulls with a rebase, as Seismic brings its own work
 onto `main`; without commits of its own it fast-forwards, uncommitted changes outside the merge
-kept. A PR closed without a merge asks the owner whether the card can go; „Ja“ closes it as done.
+kept. A PR closed without a merge asks the owner whether the card can go; "Yes" closes it as done.
 
 #### Own changes wait for the approval
 
-What Obeya does on a contributor's PR in the owner's name goes out only with the owner's approval of
+What Seismic does on a contributor's PR in the owner's name goes out only with the owner's approval of
 the demo, except a request to the contributor alone, which the owner sent with their decision. The
-worker's own commits stay on the card's branch; at a handover Obeya reads the PR's head on the
+worker's own commits stay on the card's branch; at a handover Seismic reads the PR's head on the
 forge and counts the commits of the card's branch on top of it. A branch that does not build on that
 head (the contributor pushed, and the worker had not fetched it) cannot be handed over. With commits
 of its own, the handover brings the text that goes onto the PR with them, and the card shows it in
-the PR's block under „Geht mit der Freigabe an PR #5“ with the number of commits; the owner's words
+the PR's block under "Goes to PR #5 with the approval" with the number of commits; the owner's words
 to the worker change it, and it hands over the new text, the demo standing where nothing else
-changed. The owner may also rewrite the text themselves („Bearbeiten“ on it): the text becomes a
-field in its place, and „Speichern“, or the approval with the field still open, makes their wording
+changed. The owner may also rewrite the text themselves ("Edit" on it): the text becomes a
+field in its place, and "Save", or the approval with the field still open, makes their wording
 the text that goes out; what they typed survives closing the card and a reload until then. The
 worker hears the owner's text with its next message or tool step (only the latest edit), so that a
 later handover starts from it; a handover with a new text the worker gave before it heard of the
-edit is refused with the owner's text, and one without a new text keeps theirs. Findings decided for the contributor in the same Send as „Selbst ändern“, or while the
-worker's own changes are under way or held, go in the same text as one message, and read „Geht mit
-deinen Änderungen an amerlander“ until the approval; the owner's choice for them is not asked again.
+edit is refused with the owner's text, and one without a new text keeps theirs. Findings decided for the contributor in the same Send as "Change it myself", or while the
+worker's own changes are under way or held, go in the same text as one message, and read "Goes to
+amerlander with your changes" until the approval; the owner's choice for them is not asked again.
 Follow-up tasks are made at once, as always: they are the owner's, not the contributor's.
 
 The approve button names what it does:
 
-- own changes alone: „Pushen und mergen (PR #5)“, and beside it „Nur pushen und kommentieren“ for
+- own changes alone: "Push and merge (PR #5)", and beside it "Push and comment only" for
   when the merge waits on something else (an answer of the contributor's, say), after which the card
-  waits with „Mergen (PR #5)“ again;
-- own changes and requests to the contributor: „Pushen und an amerlander schicken“, which merges
+  waits with "Merge (PR #5)" again;
+- own changes and requests to the contributor: "Push and send to amerlander", which merges
   nothing: the card then waits for the contributor as after any change request;
 - no own changes: as above.
 
-On the approval Obeya acts, not the worker: it pushes the card's branch onto the PR's branch in the
+On the approval Seismic acts, not the worker: it pushes the card's branch onto the PR's branch in the
 contributor's repository (the head repository and branch the forge names), fast-forward only and
 without the workspace's git hooks, since the PR's code ran there; then it posts the text with the
 owner's account, as a comment, or with requests as one review asking for changes, and marks the
@@ -280,33 +320,33 @@ findings fixed or sent, linking the post. A merge after it is pinned to the head
 the contributor's repository rejects as no fast-forward is a push of theirs that the forge had not
 shown yet: nothing is posted or merged, and the worker reviews the PR as it is now, as for a moved
 head. Any other refusal (rights, the network) stays with the owner, with the reason. A text the
-forge refuses after the push stops it there: nothing is merged, the card waits with „Mergen“ and
+forge refuses after the push stops it there: nothing is merged, the card waits with "Merge" and
 the reason, and the findings it asked the contributor for are open again, to be decided anew.
 
 #### Unpushed commits the PR collides with
 
 Where work lands on `main` without being pushed, the local `main` collects landings nobody pushed
-while others build on the remote's. Obeya tells, without touching the checkout, whether the pull
+while others build on the remote's. Seismic tells, without touching the checkout, whether the pull
 after the merge would stop on a conflict with them: it fetches the remote's `main`, merges the
 reviewed head onto it and replays the unpushed commits onto the result one by one as the rebase
 would (as a whole where the owner's git configuration pulls by a merge), all in git's object store
 (`git merge-tree`). It does so when the review is handed over, whenever the local `main` moves
 while the card waits for the owner, at each round of the watcher (the remote's `main` moves with
-others' pushes) and once more on „Mergen“. Commits the remote has already (cherry-picked there) are
+others' pushes) and once more on "Merge". Commits the remote has already (cherry-picked there) are
 skipped, as the rebase skips them. Where the PR conflicts with the
 remote's `main` itself, that is the forge's to show, and this check says nothing.
 
 A collision shows on the card above the findings: the commit the pull would stop at, the card
 that landed it (a link to it), the files, and the two ways out, each naming whose agent does the
-work. The recommended one is „main pushen und PR anpassen“: after an undo window Obeya pushes the
+work. The recommended one is "Push main, adapt the PR": after an undo window Seismic pushes the
 local `main` to the remote, never forced (what the remote has of its own pulled first, as above;
 where that would conflict, nothing is pushed and the card says why), and the review card's agent
 brings the PR up to date with it: itself on the card's branch where the contributor allows
 maintainers' edits (pushed with the next approval, as Own changes wait for the approval says),
 else by a change request to them; then it hands over again. The other is to
-merge anyway, which leaves `main` unpushed (below). The approve button then reads „Trotzdem
-mergen (PR #5)“, and the card on the canvas says „⚠ kollidiert mit lokalem main“. A collision the card did
-not show yet when the owner clicks („Mergen“ while a landing just moved `main`) holds the merge
+merge anyway, which leaves `main` unpushed (below). The approve button then reads "Merge
+anyway (PR #5)", and the card on the canvas says "⚠ collides with local main". A collision the card did
+not show yet when the owner clicks ("Merge" while a landing just moved `main`) holds the merge
 back once and shows itself; a second click merges.
 
 After the merge, a pull that would stop is not made, and a worker resolves it instead: the worker
@@ -315,7 +355,7 @@ session can go on (finishing after its landing, or resumed in a fresh workspace 
 after the work). It hears the pull request, the commit, the files and where the local `main` and
 the remote's stood; it rebases the unpushed commits onto the remote's `main` in its workspace,
 resolves the conflict, runs the checks and hands over with `ready_for_review`, without a demo.
-Obeya then puts the local `main` at the worker's `HEAD` with whatever landed on it meanwhile on top,
+Seismic then puts the local `main` at the worker's `HEAD` with whatever landed on it meanwhile on top,
 without the owner (`git reset --keep`, so uncommitted changes in the checkout survive or stop it);
 those commits were never pushed, so no published history is rewritten. The cards that landed them
 name the rebased commits from then on. Both cards' conversations
@@ -328,55 +368,55 @@ hand. A pull that fails for another reason (the checkout off `main`, a merge of 
 way) is undone, and the card says so.
 
 The watcher follows review cards in every repository, also one that lands on `main`. For them the
-PR's author is the contributor: their comments count, and only the owner's (the account Obeya acts
+PR's author is the contributor: their comments count, and only the owner's (the account Seismic acts
 as, which the worker writes with too) and `prNoise` are skipped. It never merges such a PR by itself,
 and checks and conflicts only show on the card.
 
 ### After landing
 
 The worker is told its work is on main (or its PR merged) and may finish what remains in its
-workspace (the card is `live`, „Live · Agent arbeitet“; notes, pause and „Stoppen“ work as usual).
+workspace (the card is `live`, "Live · agent working"; notes, pause and "Stop" work as usual).
 Ending a turn with nothing to wait for ends its session and frees the workspace. That message (and
 the one for work closed without a change) also names the demo's page, which the worker links where it
 points people at the work, such as an issue it closes (see The page and the landing). Work approved while
-a reply's turn ends lands, and the landing notice starts a turn of its own: each message Obeya sends
+a reply's turn ends lands, and the landing notice starts a turn of its own: each message Seismic sends
 carries a uuid, checked against those the turn's result names as taken (the CLI also lists those
 taken mid-turn), and the session stays until the turn that took the last one ends.
 
 #### Restarts for landed code
 
-When the landing changed Obeya's own code, or `workspaces` in a repository's settings (see Live
-configuration), the worker is told Obeya, or that repository's agents, restart with it; other
+When the landing changed Seismic's own code, or `workspaces` in a repository's settings (see Live
+configuration), the worker is told Seismic, or that repository's agents, restart with it; other
 settings changes apply at once. What needs the new code waits through `after_restart`: the worker
 ends its turn, the restart happens, and the resumed worker hears its change now runs. Work pushed
-straight to the remote's main applies once the Lesestand fetches it. A worker that ends its turn
+straight to the remote's main applies once the read checkout fetches it. A worker that ends its turn
 while a restart is due pauses for it and is resumed after it.
 
 #### Failed turns while finishing
 
 A turn there that an error cut off is retried once, then becomes a question to the owner
-(„Nochmal versuchen“ or „Stoppen“); while a restart is due it pauses for that instead. A turn the
+("Try again" or "Stop"); while a restart is due it pauses for that instead. A turn the
 usage limit stopped waits for the reset (see Turns that end without a handover).
 
 #### How a finishing card looks
 
-A finishing card looks awake: live stock and „Live“, not faded, its state line in working ink with
-the moving line („Live · Agent arbeitet“, „Erledigt · Agent arbeitet“, „Live · Agent antwortet“ for
+A finishing card looks awake: live stock and "Live", not faded, its state line in working ink with
+the moving line ("Live · agent working", "Done · agent working", "Live · agent answering" for
 a follow-up), its status line shown, and a workstream keeps task size instead of becoming a chip.
 
 #### Questions after the work
 
 What the owner says on a finished card whose worker has ended (typed, or spoken with the card open)
 resumes that session in a fresh workspace on the card's branch (see A finished card's question).
-The card stays `live` or `done`, „Agent antwortet“; the worker answers with `reply`, and its turn's
-end frees the workspace. One that needs a full clone (`need_clone`) reads „Wartet auf Workspace“
-until one is free; „Stoppen“ ends the wait. Commits there do not land: a change becomes a card of its own (`propose_card`).
+The card stays `live` or `done`, "agent answering"; the worker answers with `reply`, and its turn's
+end frees the workspace. One that needs a full clone (`need_clone`) reads "Waiting for a workspace"
+until one is free; "Stop" ends the wait. Commits there do not land: a change becomes a card of its own (`propose_card`).
 A card no agent worked on, a prototype or an archived card has no field.
 
 ### Decisions
 
-- **Obeya itself lands directly on `main`**, without branches or PRs.
-- **The worker tends its PR the repository's way** (2026-10-01). Rejected: Obeya scripting rebase
+- **Seismic itself lands directly on `main`**, without branches or PRs.
+- **The worker tends its PR the repository's way** (2026-10-01). Rejected: Seismic scripting rebase
   and `--force-with-lease`, which clashed with a repository that merges `main` in and never
   force-pushes.
 - **A card that changes how work lands lands the new way; gh runs as the repository's owner**
@@ -385,15 +425,21 @@ A card no agent worked on, a prototype or an archived card has no field.
 - **Landing is detected from the remote** (2026-10-14). Rejected: `pr` by default, which asked for
   PRs where no remote existed.
 - **Direct push is chosen per card at approval** (2026-10-06), allowed by `direct`, off by default;
-  Obeya pushes, fast-forward only. Rejected: rules by path.
-  Only by the card's button, never by word (2026-10-28): the Koordinator read „deploy it“ as „straight
-  to main“ and pushed past a repository's pull requests. An approval by word goes the way the
+  Seismic pushes, fast-forward only. Rejected: rules by path.
+  Only by the card's button, never by word (2026-10-28): the Koordinator read "deploy it" as "straight
+  to main" and pushed past a repository's pull requests. An approval by word goes the way the
   repository sets; words that explicitly ask to bypass the pull request get a reply pointing at the
   button instead of a pull request someone would have to close again. Rejected: direct by word after
   a question back (a misheard yes still pushes); approving by word as a pull request, then pointing at
   the button (leaves a pull request to close).
 - **Landing problems are classified**: uncommitted work, conflicts and emptied branches go to the
   worker; a blocked checkout or refused push to the owner.
+- **The owner's uncommitted changes in the way are folded into the card on request** (2026-11-05):
+  the owner asked to be offered folding them in, with the choice between landing right after and a
+  new demo. Only the files in the way move, so that unrelated work in the checkout stays the
+  owner's. Rejected: telling the owner to commit or set them aside in the checkout (sends them to
+  the command line); folding without asking (moves the owner's work unasked); folding every
+  uncommitted change of the checkout.
 - **An approval holds through fixes to land it**; a stop or a problem for the owner takes it back.
 - **Landing does not block the server** (2026-10-10). Rejected: landing inside the request, which
   froze the server and kept the card needing the owner.
@@ -417,7 +463,7 @@ A card no agent worked on, a prototype or an archived card has no field.
   server behind a VPN that is down would turn a PR into an unknown one).
 - **Forgejo and Gitea through curl and git's login** (2026-10-17). Rejected: `tea`/`fj`, which
   hardly any machine has.
-- **The watcher polls when the owner comes back**: otherwise a merged card stood „in PR“ for up to
+- **The watcher polls when the owner comes back**: otherwise a merged card stood "in PR" for up to
   two minutes.
 - **A rewritten summary is an answer, an old review no review** (2026-10-02). Rejected: waiting for
   new comments only (cards stuck) and counting any review (a PR merged on a stale 3/5).
@@ -436,34 +482,34 @@ A card no agent worked on, a prototype or an archived card has no field.
   (2026-11-02, issue #45): the approval covers the whole work, and a card went `live` while its
   second PR was still open. Rejected: a follow-up card per further PR (the owner made one by hand),
   and leaving such PRs to the owner.
-- **Approval covers the PR, its monitoring and the merge; Obeya merges ready PRs itself**
+- **Approval covers the PR, its monitoring and the merge; Seismic merges ready PRs itself**
   (2026-10-05): the owner approves the demo, not the code. Rejected: leaving the merge to the owner,
   which added only waiting (PRs sat for days).
 - **A repository may leave the merge to its team** (`autoMerge`, 2026-10-21): a ready PR then waits
-  for the owner; review comments and failed checks still go to the worker. Rejected: Obeya stopping
+  for the owner; review comments and failed checks still go to the worker. Rejected: Seismic stopping
   to watch such PRs.
-- **A contributor's pull request is reviewed on a card of its own, an Obeya feature** (2026-10-27).
+- **A contributor's pull request is reviewed on a card of its own, an Seismic feature** (2026-10-27).
   The flow holds for any repository on a forge; what a repository has of its own comes from its
-  settings (`app.run`, its demo site), its conventions and the forge's merge methods, with no new
-  setting. Rejected: a skill `review-pr` (Obeya would know nothing of the review: the card said
-  „Beenden, kein PR folgt“, comment and merge ran outside it, a push after the review went
+  settings (`app.run`), its canvas's demo site, its conventions and the forge's merge methods, with no new
+  setting. Rejected: a skill `review-pr` (Seismic would know nothing of the review: the card said
+  "Close, no PR follows", comment and merge ran outside it, a push after the review went
   unnoticed); a repository setting; a card for every open PR (a stranger's code runs on the owner's
   machine only on their word).
 - **One card per PR, the demo linked in a comment on it** (2026-10-27): each demo gets a page of its
   own, and the description is the contributor's.
-- **Obeya merges only the head the worker reviewed** (2026-10-27).
+- **Seismic merges only the head the worker reviewed** (2026-10-27).
 - **The worker's own changes to a contributor's PR wait for the owner's approval, and one approval
   sends everything** (2026-11-02, the review of PR #34: the commits for three findings were pushed
-  onto the contributor's branch and commented on before the owner had seen the demo). Obeya, not the
+  onto the contributor's branch and commented on before the owner had seen the demo). Seismic, not the
   worker, pushes and posts, so nothing goes out in the owner's name that they have not seen; requests
   to the contributor beside own changes go in the same text, so the contributor gets one message and
   does not work on a branch that is pushed to afterwards. Rejected: two approvals, one for the push
   and one for the merge (a round more where the owner merges after their own correction anyway;
-  „Nur pushen und kommentieren“ covers the other case); requests at once and own changes after the approval (two
+  "Push and comment only" covers the other case); requests at once and own changes after the approval (two
   messages to the contributor, who may by then be working on the branch pushed to afterwards).
-- **„Nur pushen und kommentieren“ is a button of its own beside the approval** (2026-11-03, the
+- **"Push and comment only" is a button of its own beside the approval** (2026-11-03, the
   owner, waiting on a contributor's answer, looked for it in the action row and did not find it in
-  „Später …“, where it had been). Rejected: keeping it in „Später …“ (the clock names snoozing, not
+  "Later", where it had been). Rejected: keeping it in "Later" (the clock names snoozing, not
   a second way to approve).
 - **The findings are an element of the card, decided on one by one, the decisions going with the
   one Send** (2026-10-27, the owner after the first demo). Rejected: a switch below the field for
@@ -471,30 +517,30 @@ A card no agent worked on, a prototype or an archived card has no field.
   the agent); choosing in the conversation alone (a misunderstanding is a public comment or a push
   into a stranger's fork); a click on a choice acting at once, or a button of its own under the list
   (two Sends where every card has one).
-- **„Als Folgeaufgabe“ is a third choice per finding** (2026-10-29, the owner: reviews often find
+- **"As a follow-up task" is a third choice per finding** (2026-10-29, the owner: reviews often find
   something worth fixing that should not hold the PR up). Rejected: the worker proposing the card (a
-  second decision for one already made); only asking Obeya for a follow-up in words (it works, but
+  second decision for one already made); only asking Seismic for a follow-up in words (it works, but
   is not found beside the other two choices).
 - **A follow-up task starts at once and waits for the PR's merge** (2026-11-02, the review of PR
   #34: its three follow-up tasks stood planned, and the owner did not dare start them, unsure
-  whether Obeya would see that they build on the PR). Choosing „Als Folgeaufgabe“ is the decision to
-  do it; what it waits for is known for certain, so Obeya sets it rather than estimating it.
+  whether Seismic would see that they build on the PR). Choosing "As a follow-up task" is the decision to
+  do it; what it waits for is known for certain, so Seismic sets it rather than estimating it.
   Rejected: planned tasks the owner starts after the merge (a second decision, and a wait the owner
   has to remember); starting them through the Koordinator's estimate (it may miss that a task builds
   on a PR not merged yet).
 - **The worker bundles findings in its list and makes the follow-up tasks after the Send**
   (2026-10-31, the review of PR #33: four findings chosen as follow-ups became four tasks at once,
-  and the owner's „fasst zusammen, wie ihr wollt“ reached the worker only after that). The owner
+  and the owner's "bundle them as you like" reached the worker only after that). The owner
   sees a bundle before deciding, and their words with the Send still count; the worker knows the
   review better than a finding's two sentences. The tasks are still made, not proposed (the
-  decision above). Rejected: Obeya making a task per finding on the Send (the words came too late);
+  decision above). Rejected: Seismic making a task per finding on the Send (the words came too late);
   a bundle choosing for its other findings (the choice stays per finding). What goes wrong anyway
-  Obeya mends by merging or deleting planned tasks (see Commands to the Koordinator).
+  Seismic mends by merging or deleting planned tasks (see Commands to the Koordinator).
 - **The pull after a merge rebases where git sets no way of pulling** (2026-10-29): without one,
   git refuses to pull diverged branches. A way the owner set (`pull.rebase`, `pull.ff`,
   `branch.<name>.rebase`) still decides. Rejected: rebasing whatever is set (overrides the owner's
   choice); rebasing also where nothing diverged (git then refuses beside uncommitted changes, which a
-  fast-forward keeps); merging (a merge commit on `main` where Obeya otherwise keeps it linear).
+  fast-forward keeps); merging (a merge commit on `main` where Seismic otherwise keeps it linear).
 - **A collision with unpushed commits is told before the merge and resolved by a worker after it**
   (2026-11-02), as an ordinary landing's conflict goes back to its worker. The check runs in git's
   object store so that it can run at any time beside the owner's checkout. The conflict goes to the
@@ -502,9 +548,9 @@ A card no agent worked on, a prototype or an archived card has no field.
   approval, as any landing fixed after its approval does. Pushing `main` and adapting the PR is
   the recommended way, offered as a button (the owner, after the first demo): several commits on
   `main` may collide with one PR, which is cleaner to adapt once than to rebase them all, and a
-  push from the command line does not fit Obeya. Rejected: taking the pull back with a line in the
+  push from the command line does not fit Seismic. Rejected: taking the pull back with a line in the
   review card's log only (the owner found out late, and had to rebase by hand); naming the push
-  without doing it (the owner would have to leave Obeya for git); refusing the merge while the
+  without doing it (the owner would have to leave Seismic for git); refusing the merge while the
   collision stands (keeping `main` unpushed is the owner's choice); pushing the local `main` before
   the merge without asking (publishes what the owner has not pushed); the review
   card's agent alone (it knows the PR, not the change it collides with); a question to the owner

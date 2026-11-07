@@ -1,6 +1,6 @@
 // Checks the installed app (scripts/build-app.ts) on this machine, in the webview it has here
 // (WKWebView, WebView2, WebKitGTK): what the page needs from the webview, and how the shell starts,
-// shares and stops Obeya.
+// shares and stops Seismic.
 //
 //   bun scripts/check-app.ts <the app's program> [--fake-mic] [--screenshot <png>] [--keep]
 //
@@ -12,12 +12,12 @@
 //     device, for a machine without one; on Linux a PulseAudio source is needed, not a sink's
 //     monitor (WebKitGTK lists none): module-sine-source will do;
 //   - a demo video (H.264 and AAC in MP4, as the demo skill renders it) plays;
-//   - the settings offer "Im Browser öffnen" (--screenshot takes the window with them open);
+//   - the settings offer "Open in browser" (--screenshot takes the window with them open);
 //   - starting the app a second time brings the first to the front and ends;
 //   - `POST /api/stop` ends the server and then the app, and the home has no entry left;
-//   - with an Obeya already running on the home (started from a terminal), the app opens a window
+//   - with an Seismic already running on the home (started from a terminal), the app opens a window
 //     on it instead of starting another, and quitting the app leaves it running.
-// The page reports through OBEYA_APP_CHECK (app/src/main.rs), which imports this script's module.
+// The page reports through SEISMIC_APP_CHECK (app/src/main.rs), which imports this script's module.
 // Prints one line per check; exits 1 when one failed. Needs ffmpeg (for the video) and git.
 
 import { type Subprocess } from 'bun';
@@ -151,12 +151,13 @@ const harness = Bun.serve({
 
 const env: Record<string, string> = {
   ...(process.env as Record<string, string>),
-  OBEYA_HOME: home,
-  OBEYA_APP_CHECK: `${harness.url.href}check.js`,
-  // a port of its own, so a running Obeya on this machine is not in the way
-  OBEYA_PORT: String(4600 + Math.floor(Math.random() * 300)),
+  SEISMIC_HOME: home,
+  SEISMIC_APP_CHECK: `${harness.url.href}check.js`,
+  // a port of its own, so a running Seismic on this machine is not in the way
+  SEISMIC_PORT: String(4600 + Math.floor(Math.random() * 300)),
   ...(args.includes('--fake-mic') && win ? { WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--use-fake-device-for-media-stream' } : {}),
 };
+delete env.SEISMIC_SUPERVISED;
 delete env.OBEYA_SUPERVISED;
 const entry = () => {
   try {
@@ -231,7 +232,7 @@ try {
       expect(v.ok, v.error ?? `stood at ${v.currentTime} s`);
       return `canPlayType "${v.canPlay}", ${v.currentTime?.toFixed(1)} s in 1.5 s`;
     });
-    await check('the settings offer "Im Browser öffnen"', () => expect(page.browserButton, 'no such button'));
+    await check('the settings offer "Open in browser"', () => expect(page.browserButton, 'no such button'));
     if (process.platform === 'darwin') await check('the bar may move the window', () => expect(page.drag === 'allowed', String(page.drag)));
     const shot = args[args.indexOf('--screenshot') + 1];
     if (args.includes('--screenshot') && shot) await check('a screenshot of the window', () => screenshot(app!.pid, resolve(shot)));
@@ -254,20 +255,20 @@ try {
     return `the app ended with ${code}`;
   });
 
-  // ---------------------------------------------------------------- an Obeya from a terminal on the same home
+  // ---------------------------------------------------------------- an Seismic from a terminal on the same home
   const sidecar = [join(dirname(program), win ? 'obeya-server.exe' : 'obeya-server'), resolve(dirname(program), '..', 'lib', 'Obeya', 'obeya-server')].find((f) => existsSync(f)) ?? '';
   if (existsSync(sidecar)) {
     reports.length = 0;
     const resources = [join(dirname(program), 'resources'), resolve(dirname(program), '..', 'Resources', 'resources'), resolve(dirname(program), '..', 'lib', 'Obeya', 'resources')].find((d) => existsSync(d));
-    server = Bun.spawn([sidecar, '--port', env.OBEYA_PORT!], { env: { ...env, ...(resources ? { OBEYA_RESOURCES: resources } : {}) }, stdout: 'ignore', stderr: 'ignore' });
-    const e = await until('the terminal\'s Obeya', 60_000, () => entry()?.pid === server!.pid && entry());
+    server = Bun.spawn([sidecar, '--port', env.SEISMIC_PORT!], { env: { ...env, ...(resources ? { SEISMIC_RESOURCES: resources } : {}) }, stdout: 'ignore', stderr: 'ignore' });
+    const e = await until('the terminal\'s Seismic', 60_000, () => entry()?.pid === server!.pid && entry());
     app = startApp();
-    await check('with an Obeya running on the home, the app opens a window on it', async () => {
+    await check('with an Seismic running on the home, the app opens a window on it', async () => {
       const page = await until('the page to report', 90_000, () => reports[0]);
       expect(String(page.location).startsWith(e.url), `the window shows ${page.location}`);
       expect(entry()?.pid === server!.pid, 'another server took the home');
     });
-    await check('quitting the app leaves that Obeya running', async () => {
+    await check('quitting the app leaves that Seismic running', async () => {
       app!.kill();
       await exited(app!, 10_000);
       expect(await answers(e.url), 'it does not answer');

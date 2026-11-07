@@ -1,6 +1,6 @@
-// Stalls: moments Obeya's server did nothing else (a synchronous git call, a long computation), so
+// Stalls: moments Seismic's server did nothing else (a synchronous git call, a long computation), so
 // that no page got an answer meanwhile, and moments a page froze; each goes into the server's log
-// and into `stalls.log` in the home, with where the time went (design: Running Obeya, Stalls).
+// and into `stalls.log` in the home, with where the time went (design: Running Seismic, Stalls).
 
 import * as jsc from 'bun:jsc';
 import { appendFileSync, renameSync, statSync } from 'node:fs';
@@ -15,7 +15,7 @@ const TICK_MS = 100;
 const SLOW_PROCESS_MS = 50;
 /** The places a stall names: the few where most of its time went. */
 const PLACES = 3;
-/** Frames of Obeya's own code a place names, innermost first. */
+/** Frames of Seismic's own code a place names, innermost first. */
 const FRAMES = 4;
 /** `stalls.log` grows to this size, then starts afresh beside the one before (`stalls.previous.log`). */
 const KEPT_BYTES = 1_000_000;
@@ -56,7 +56,7 @@ export function placeOf(t: Trace): string {
   const native = t.frames[0]!.sourceURL ? null : t.frames[0]!.name;
   // the timing of synchronous processes (`Stalls.start`) is not where the time went
   const sourced = t.frames.filter((f) => f.sourceURL && f.name !== 'timedSpawnSync');
-  // Obeya's own code says more than a library's; a stall entirely inside one names the library's
+  // Seismic's own code says more than a library's; a stall entirely inside one names the library's
   const own = sourced.filter((f) => !f.sourceURL!.includes('/node_modules/'));
   const shown = (own.length ? own : sourced).slice(0, FRAMES).map(frame);
   return [...(native ? [native] : []), ...shown].join(' ← ') || native || '(unknown)';
@@ -85,7 +85,7 @@ export function describeStall(ms: number, traces: Trace[] | null, waited: Waited
   }
   const places = [...counts].sort((a, b) => b[1] - a[1]).slice(0, PLACES);
   return [
-    `Obeya: the server stalled for ${seconds(ms)}; meanwhile it answered no page and heard no agent`,
+    `Seismic: the server stalled for ${seconds(ms)}; meanwhile it answered no page and heard no agent`,
     ...places.map(([p, n]) => `  ${String(Math.round((100 * n) / traces!.length)).padStart(3)}% ${p}`),
     ...waited.map((w) => `  waited ${seconds(w.ms)} for: ${command(w.argv)}`),
   ];
@@ -94,7 +94,7 @@ export function describeStall(ms: number, traces: Trace[] | null, waited: Waited
 /** The lines a page's stall gets. */
 export function describePageStall(s: PageStall, where: string): string[] {
   return [
-    `Obeya: a page (${where}) stalled for ${seconds(s.ms)}; meanwhile it took no click or key`,
+    `Seismic: a page (${where}) stalled for ${seconds(s.ms)}; meanwhile it took no click or key`,
     ...s.scripts.map((x) => `  ${seconds(x.ms)} ${x.what}`),
     ...(s.before.length ? [`  before it: ${s.before.join('; ')}`] : []),
   ];
@@ -118,7 +118,7 @@ export function describeRun(r: Run): string {
   const s = Math.round((r.last - r.since) / 1000);
   const span = s < 120 ? `${s} s` : `${Math.round(s / 60)} min`;
   const each = r.least === r.most ? seconds(r.least) : `${(r.least / 1000).toFixed(1)}–${seconds(r.most)}`;
-  return `Obeya: a page (${r.where}) stalled ${r.count} more ${r.count === 1 ? 'time' : 'times'} in ${span} like the one logged at ${r.first}, for ${each} each`;
+  return `Seismic: a page (${r.where}) stalled ${r.count} more ${r.count === 1 ? 'time' : 'times'} in ${span} like the one logged at ${r.first}, for ${each} each`;
 }
 
 /** What a page sent of its stall, if it is one: the server takes nothing else from it, and no more than it logs. */
@@ -134,7 +134,7 @@ export function pageStall(msg: unknown): PageStall | null {
 }
 
 export interface StallOptions {
-  /** Obeya's home, where `stalls.log` is kept. */
+  /** Seismic's home, where `stalls.log` is kept. */
   home: string;
   /** The server's log. */
   log?: (line: string) => void;

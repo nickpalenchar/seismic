@@ -64,7 +64,7 @@ describe('a question the Koordinator looks up', () => {
       confirm: 'Ich lese die offenen Issues und lege dann für jedes eine Aufgabe an.',
     });
     const a = answerer();
-    expect(a.inbox[0]).toContain('Obeya takes this step itself once your answer is in: Create a task for each open issue.');
+    expect(a.inbox[0]).toContain('Seismic takes this step itself once your answer is in: Create a task for each open issue.');
     a.call('answer_owner', { text: '- #27 Skills (https://github.com/o/r/issues/27)' });
     a.emit({ type: 'idle' });
     // the Koordinator hears the answer with the step it takes now, not as news for the next command
@@ -127,7 +127,7 @@ describe('a question the Koordinator looks up', () => {
 
     // the Koordinator hears the answer with the next command
     const next = await say('und dann?', { card: w4.id }, 'reply', { confirm: 'Dann wartet er.' });
-    expect(next.brief).toContain('The answer A1 you looked up for the owner\'s question „What would the worker do on W4');
+    expect(next.brief).toContain('The answer A1 you looked up for the owner\'s question “What would the worker do on W4');
   });
 
   test('about a card without a project: a thorough Koordinator turn answers, in the sheet when no card is open', async () => {
@@ -136,7 +136,7 @@ describe('a question the Koordinator looks up', () => {
     const tag = /(K\d+) \[planned\] "Login"/.exec(first.brief)![1];
     await say('was würde der agent bei login machen?', {}, 'look_up', { question: 'What would the worker do on Login?', card: tag, confirm: 'Moment, ich lese nach.' });
     const a = answerer();
-    expect(a.spec.system).toContain('You are the Koordinator of Obeya, a canvas on which the owner directs coding agents; the owner knows you simply as Obeya.');
+    expect(a.spec.system).toContain('You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic.');
     expect(a.spec.role).toBe('koordinator');
     expect(a.spec.readOnly).toBeUndefined();
     expect(a.spec.permissionMode).toBe('acceptEdits');
@@ -151,7 +151,7 @@ describe('a question the Koordinator looks up', () => {
     expect(board().snapshot().talk.at(-1)).toMatchObject({ answer: 'Er sucht den Hänger.', answerBy: 'koordinator', unread: true });
     // the sheet shows it in full: a page with the sheet open needs no line above the microphone for it
     expect(notices).toEqual([{ text: 'Er sucht den Hänger.', talk: board().snapshot().talk.at(-1)!.id }]);
-    // Obeya waits for the owner with it, like a card that needs them, until they see the sheet
+    // Seismic waits for the owner with it, like a card that needs them, until they see the sheet
     expect(waitingOn(board().snapshot())).toBe(1);
     board().readTalk();
     expect(board().snapshot().talk.at(-1)!.unread).toBeUndefined();
@@ -191,7 +191,7 @@ describe('a question the Koordinator looks up', () => {
     expect(fresh.brief).not.toContain('ENDE-ALT');
   });
 
-  test('a question still being looked up when Obeya restarts is looked up again', async () => {
+  test('a question still being looked up when Seismic restarts is looked up again', async () => {
     const w4 = workstream();
     await say('was würde der agent tun?', { card: w4.id }, 'look_up', { question: 'What would the worker do?', confirm: 'Ich schaue nach.' });
     canvas.shutdown();
@@ -281,7 +281,7 @@ describe('a look-up the usage limit stops', () => {
     expect(talk().answer).toBeUndefined();
     expect(Date.parse(talk().limitedUntil!)).toBeGreaterThan(Date.now());
     expect(a.closed).toBe(false);
-    // Obeya restarts: the question is looked up again, runs into the limit again and waits anew
+    // Seismic restarts: the question is looked up again, runs into the limit again and waits anew
     canvas.shutdown();
     canvas = open();
     await settle();
@@ -309,7 +309,7 @@ describe('a look-up the usage limit stops', () => {
     await settle();
     // in the card's conversation, without the error
     expect(board().events(w4.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya' });
-    expect(board().events(w4.id).at(-1)!.text).toStartWith('Das Nutzungslimit ist erreicht. Obeya schlägt das um ');
+    expect(board().events(w4.id).at(-1)!.text).toStartWith('Das Nutzungslimit ist erreicht. Seismic schlägt das um ');
     expect(board().events(w4.id).some((e) => e.text.includes('hit your'))).toBe(false);
     await settle(60);
     a.call('answer_owner', { text: 'Er fragt nach dem Go.' });
@@ -484,12 +484,12 @@ describe('a thread on a Question card', () => {
     // moved again, it is the same card
     expect(canvas.answers.toCard(first).id).toBe(card.id);
 
-    // the owner's words on the card go straight to that agent, with to_obeya for what asks Obeya
+    // the owner's words on the card go straight to that agent, with to_seismic for what asks Seismic
     canvas.tell(card.id, 'und im Oktober?', [], false);
     expect(board().item(card.id)!.thread!.thinking).toBe(true);
     const a = answerer();
     expect(a.spec.resume).toBe('look-1');
-    expect(a.spec.tools.map((t) => t.name)).toContain('to_obeya');
+    expect(a.spec.tools.map((t) => t.name)).toContain('to_seismic');
     expect(a.inbox[0]).toContain('und im Oktober?');
     // what comes while it reads waits for its turn, unread until then, and can be taken back
     canvas.tell(card.id, 'und November?', [], true);
@@ -768,7 +768,7 @@ describe('a thread on a Question card', () => {
     expect(board().item(card.id)!.limitedUntil).toBeUndefined();
   });
 
-  test('what the card asked when Obeya stopped is asked again', async () => {
+  test('what the card asked when Seismic stopped is asked again', async () => {
     const { card } = await moved();
     canvas.tell(card.id, 'und im Oktober?', [], false);
     canvas.shutdown();
@@ -790,7 +790,7 @@ describe('a thread on a Question card', () => {
     const explorer = runtime.sessions.at(-1)!;
     expect(explorer.spec.role).toBe('explorer');
     expect(explorer.spec.resume).toBeUndefined();
-    expect(explorer.inbox[0]).toContain('Obeya: Hier die Tabelle.');
+    expect(explorer.inbox[0]).toContain('Seismic: Hier die Tabelle.');
     expect(explorer.inbox[0]).toContain('numbers.xlsx – Die Viertelstunden');
     expect(explorer.inbox[0]).toContain(answersDir(dir, canvas.id, first));
     // the thread is where it starts, once: it is no idea discussed before
@@ -826,8 +826,8 @@ describe("a question asked in a project's sheet", () => {
     // no Koordinator read the words first
     expect(runtime.sessions.some(isKoordinator)).toBe(false);
     expect(a.spec.system).toContain('project agent of the project "PR-Loop"');
-    expect(a.spec.tools.map((t) => t.name)).toContain('to_obeya');
-    expect(a.inbox[0]).toContain("The owner wrote to you in the project's sheet in Obeya");
+    expect(a.spec.tools.map((t) => t.name)).toContain('to_seismic');
+    expect(a.inbox[0]).toContain("The owner wrote to you in the project's sheet in Seismic");
     expect(a.inbox[0]).toContain('Warum wartet W4 auf das Go?');
     expect(a.images[0]).toEqual([canvas.images.path(shot)!]);
     expect(board().row(project().id).session_id).toBe('project-1');
@@ -842,15 +842,15 @@ describe("a question asked in a project's sheet", () => {
     expect(board().talk().at(-1)!.unread).toBeUndefined();
   });
 
-  test("a reply to a message there follows up on its thread, in the project's session; a question asked of Obeya about the project stands there too", async () => {
+  test("a reply to a message there follows up on its thread, in the project's session; a question asked of Seismic about the project stands there too", async () => {
     const first = await asked('Was macht W4?', 'Es geht live.');
     const { a, talk } = await asked('Und wann?', 'Nach dem Go.', 'project-1', { replyTo: { talk: first.talk.id, part: 'answer' } });
     expect(a.spec.resume).toBe('project-1');
     expect(a.inbox[0]).toContain('The owner follows up on your answer. They said: "Und wann?"');
-    expect(a.inbox[0]).not.toContain('as Obeya understood it');
+    expect(a.inbox[0]).not.toContain('as Seismic understood it');
     expect(talk).toMatchObject({ thread: first.talk.id, follows: first.talk.id, replyTo: { talk: first.talk.id, part: 'answer' } });
 
-    // asked of Obeya with the project open, or with one of its workstreams open
+    // asked of Seismic with the project open, or with one of its workstreams open
     await say('was sagt der plan zu W1?', { project: project().id }, 'look_up', { question: 'What does the plan say about W1?', confirm: 'Ich schaue im Plan nach.' });
     const viaObeya = board().talk().at(-1)!;
     await say('und hier?', { card: workstream().id }, 'look_up', { question: 'What is left on W4?', confirm: 'Moment.' });
@@ -859,30 +859,30 @@ describe("a question asked in a project's sheet", () => {
     expect(viaObeya.askedIn).toBeUndefined();
   });
 
-  test("passes on with to_obeya what asks Obeya, which reads it with the project open", async () => {
+  test("passes on with to_seismic what asks Seismic, which reads it with the project open", async () => {
     canvas.press(project().id, { action: 'consult', text: 'Starte bitte W4.' });
     await settle();
     const a = answerer();
-    const passed = a.call('to_obeya', { request: 'Start W4.' });
+    const passed = a.call('to_seismic', { request: 'Start W4.' });
     await settle();
     const k = runtime.sessions.filter(isKoordinator).at(-1)!;
     expect(k.inbox.at(-1)).toContain('Starte bitte W4.');
     k.call('reply', { confirm: 'Mache ich gleich.' });
     k.emit({ type: 'idle' });
-    expect(await passed).toBe('Obeya: Mache ich gleich.');
-    // Obeya's reply stands in its sheet, not in a card's log
+    expect(await passed).toBe('Seismic: Mache ich gleich.');
+    // Seismic's reply stands in its sheet, not in a card's log
     expect(board().talk().at(-1)).toMatchObject({ said: 'Starte bitte W4.', reply: 'Mache ich gleich.' });
     expect(board().talk().at(-1)!.cardId).toBeUndefined();
   });
 
-  test('still being answered when Obeya restarts, it is asked again; "Make it a card" puts its card beside the project', async () => {
+  test('still being answered when Seismic restarts, it is asked again; "Make it a card" puts its card beside the project', async () => {
     canvas.press(project().id, { action: 'consult', text: 'Was fehlt noch?' });
     await settle();
     canvas.shutdown();
     canvas = open();
     await settle();
     const talk = board().talk().at(-1)!;
-    // Obeya never read the words, so they get no reply of its own at the restart
+    // Seismic never read the words, so they get no reply of its own at the restart
     expect(talk.reply).toBeUndefined();
     const a = answerer();
     expect(a.inbox[0]).toContain('Was fehlt noch?');

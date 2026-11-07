@@ -1,5 +1,5 @@
 // Updates of the app from GitHub Releases, through Tauri's updater: the endpoint and the public key
-// of Obeya's own key pair are in tauri.conf.json, and scripts/build-app.ts signs what a release
+// of Seismic's own key pair are in tauri.conf.json, and scripts/build-app.ts signs what a release
 // holds with the private one.
 //
 // - At start and every six hours the shell asks for latest.json of the newest release. A newer
@@ -10,16 +10,16 @@
 //   waits for the workers (and the owner's video or dictation) and ends with EXIT; the shell then
 //   installs the update and starts the app again, whose server resumes the workers.
 // - A .deb is not replaced by the app (dpkg needs root): the bar offers the release to download.
-// - Only for an Obeya the app started in this run, whose end it sees. An Obeya from a checkout
+// - Only for an Seismic the app started in this run, whose end it sees. An Seismic from a checkout
 //   updates itself from its checkout, and so does a shell installed from one (`bun run app install`,
-//   which compiles in the version of app/ it was built from, OBEYA_BUILT_TREE): every minute it
+//   which compiles in the version of app/ it was built from, SEISMIC_BUILT_TREE): every minute it
 //   looks at app/ on the checkout's HEAD, and once that is another, the checkout's scripts/app.ts
 //   builds the shell and installs it in this one's place. The shell then tells the server it started
 //   of it as of an update, which the server installs without asking, as it restarts for new code;
 //   nothing is left to install then but starting again. A server it did not start (a terminal's)
 //   runs on, and the shell starts again by itself (`start_again`). A build that failed (its output
 //   is in app-build.log in the home) is tried again for the next change of app/.
-// - OBEYA_UPDATE_EVERY=<seconds> asks that often instead (scripts/check-update.ts).
+// - SEISMIC_UPDATE_EVERY=<seconds> asks that often instead (scripts/check-update.ts).
 
 use std::{
   fs,
@@ -35,7 +35,7 @@ use tauri::{utils::config::BundleType, AppHandle, Url};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
-use crate::{main_window, no_window, post, say, Obeya};
+use crate::{main_window, no_window, post, say, Seismic};
 
 /// The exit code with which the server asks the shell to install the update (src/server/self-update.ts).
 pub const EXIT: i32 = 77;
@@ -61,10 +61,10 @@ fn deb() -> bool {
   matches!(tauri::utils::platform::bundle_type(), Some(BundleType::Deb))
 }
 
-pub fn start(app: &AppHandle, obeya: Arc<Obeya>) -> Arc<Updates> {
+pub fn start(app: &AppHandle, obeya: Arc<Seismic>) -> Arc<Updates> {
   let updates = Arc::new(Updates::default());
   if let Some(checkout) = crate::checkout() {
-    let Some(built) = option_env!("OBEYA_BUILT_TREE").filter(|t| !t.is_empty()) else {
+    let Some(built) = option_env!("SEISMIC_BUILT_TREE").or(option_env!("OBEYA_BUILT_TREE")).filter(|t| !t.is_empty()) else {
       return updates;
     };
     let (home, u) = (crate::home(), updates.clone());
@@ -82,7 +82,7 @@ pub fn start(app: &AppHandle, obeya: Arc<Obeya>) -> Arc<Updates> {
 
 /// At start and every six hours: a newer release, downloaded.
 fn check_releases(app: &AppHandle, updates: &Arc<Updates>) {
-  let every = std::env::var("OBEYA_UPDATE_EVERY").ok().and_then(|s| s.parse().ok()).map(Duration::from_secs);
+  let every = crate::seismic_env("UPDATE_EVERY").and_then(|s| s.into_string().ok()).and_then(|s| s.parse().ok()).map(Duration::from_secs);
   let (a, u) = (app.clone(), updates.clone());
   thread::spawn(move || loop {
     let wait = match check(&a, &u) {
@@ -109,6 +109,7 @@ fn rebuild(checkout: &Path, built: &str, home: &Path, updates: &Updates) {
       cmd
         .arg(checkout.join("scripts").join("app.ts"))
         // compiled into the new build in turn
+        .env("SEISMIC_BUN", &bun)
         .env("OBEYA_BUN", &bun)
         .args(["install", "--no-open"])
         .current_dir(checkout)
@@ -159,7 +160,7 @@ fn check(app: &AppHandle, updates: &Updates) -> Result<(), String> {
 /// Tells the server of the version that is ready, while it is one the app started in this run. A
 /// new build of the shell where the server runs on without it (started from a terminal) starts
 /// again by itself (`start_again`).
-fn report(app: &AppHandle, obeya: &Obeya, updates: &Updates) {
+fn report(app: &AppHandle, obeya: &Seismic, updates: &Updates) {
   let port = obeya.port.load(Ordering::SeqCst);
   if port == 0 || obeya.stopping.load(Ordering::SeqCst) {
     return;
@@ -187,7 +188,7 @@ fn report(app: &AppHandle, obeya: &Obeya, updates: &Updates) {
 /// owner neither dictates nor watches a video (as the server's restart waits for them, which says
 /// so) and its window allows (`may_relaunch`), after the page handed over what a reload keeps
 /// (src/ui/api.ts, `handOver`), or did not within a few seconds (a page that does not know how).
-fn start_again(app: &AppHandle, obeya: &Obeya, port: u16) {
+fn start_again(app: &AppHandle, obeya: &Seismic, port: u16) {
   let ask = |kept: &str| post(port, "/api/app-rebuilt", &json!({ "kept": kept }));
   let now = |a: &Option<serde_json::Value>| a.as_ref().is_some_and(|a| a["now"] == true);
   if !now(&ask("")) || !crate::may_relaunch(app) {
@@ -212,7 +213,7 @@ fn start_again(app: &AppHandle, obeya: &Obeya, port: u16) {
 
 /// The server ended to be updated: installs the update and starts the app again, the new version
 /// if it went in, else this one, after saying why. A new build of the shell is in place already.
-pub fn install(app: &AppHandle, obeya: &Obeya, updates: &Updates) {
+pub fn install(app: &AppHandle, obeya: &Seismic, updates: &Updates) {
   if let Some(w) = main_window(app) {
     let page = if cfg!(windows) { "http://tauri.localhost/index.html?updating" } else { "tauri://localhost/index.html?updating" };
     if let Ok(url) = Url::parse(page) {
@@ -226,10 +227,10 @@ pub fn install(app: &AppHandle, obeya: &Obeya, updates: &Updates) {
       app
         .dialog()
         .message(say(
-          &format!("Obeya {} ließ sich nicht installieren: {e}\n\nObeya startet wieder in der bisherigen Version.", update.version),
-          &format!("Obeya {} could not be installed: {e}\n\nObeya starts again in the version it had.", update.version),
+          &format!("Seismic {} ließ sich nicht installieren: {e}\n\nSeismic startet wieder in der bisherigen Version.", update.version),
+          &format!("Seismic {} could not be installed: {e}\n\nSeismic starts again in the version it had.", update.version),
         ))
-        .title("Obeya")
+        .title("Seismic")
         .kind(MessageDialogKind::Error)
         .blocking_show();
     }

@@ -1,5 +1,5 @@
 // A repository's allow list (`permissions.allow` of its `.claude/settings.json`, as the owner
-// confirmed it in "Konfiguration") applied to a harness that has no such list of its own: Claude
+// confirmed it in "Configuration") applied to a harness that has no such list of its own: Claude
 // Code checks it itself, a Codex worker asks the owner for each command its sandbox does not
 // cover. A command counts only when it is plain: one program with arguments, none of the shell's
 // own syntax, so that a rule for `bun test *` never lets `bun test x; rm -rf y` through. In front
@@ -45,7 +45,7 @@ export function codexRules(settingsText: string, by: string): { file: string; sk
   const header = [
     `# Generated from .claude/settings.json by ${by}; edit that file, not this one.`,
     '# A Codex rule is a word prefix: a Claude rule without a `*` (an exact command) allows arguments after it here.',
-    '# Rules whose `*` stands inside a word have no form here; Obeya applies them itself to its Codex workers:',
+    '# Rules whose `*` stands inside a word have no form here; Seismic applies them itself to its Codex workers:',
     ...skipped.map((r) => `#   Bash(${r})`),
     '',
   ];
@@ -100,7 +100,7 @@ function atHome(rule: string): string {
 export const TEMP_ROOTS: readonly string[] = ['/tmp/', '/private/tmp/'];
 
 /** Variables a command may not set in front of itself: they change what a rule's program is or does. */
-const UNSAFE_VARIABLES = /^(?:PATH|HOME|SHELL|IFS|ENV|BASH_ENV|LD_\w*|DYLD_\w*|NODE_\w*|BUN_\w*|PYTHON\w*|GIT_\w*|OBEYA_\w*|NPM_\w*)$/;
+const UNSAFE_VARIABLES = /^(?:PATH|HOME|SHELL|IFS|ENV|BASH_ENV|LD_\w*|DYLD_\w*|NODE_\w*|BUN_\w*|PYTHON\w*|GIT_\w*|OBEYA_\w*|SEISMIC_\w*|NPM_\w*)$/;
 
 /**
  * The parts of a script that the shell runs one after the other (`&&`, `;`, a new line); null

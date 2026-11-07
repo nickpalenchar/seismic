@@ -53,7 +53,7 @@ const setup = (o: { compiled?: boolean; env?: Record<string, string> } = {}) =>
 
 const section = (v: MachineView, id: string) => v.sections.find((s) => s.id === id)!;
 
-describe('what Obeya needs on this machine', () => {
+describe('what Seismic needs on this machine', () => {
   test('reauthenticates even when auth status still reports a login', async () => {
     fake('claude', 'case "$1" in --version) echo "2.1.300 (Claude Code)";; auth) echo \'{"loggedIn":true,"email":"ada@example.com"}\';; esac');
     const machine = setup();
@@ -102,7 +102,20 @@ describe('what Obeya needs on this machine', () => {
     expect(pr[1]).toEqual({ id: 'ghLogin', state: 'missing' });
     expect(v.checkedClaude).toMatch(/^\d+\.\d+\.\d+$/);
     // what demos need is checked too; without a voice check there is no voice section
-    expect(v.sections.map((s) => s.id)).toEqual(['needed', 'pr', 'demos']);
+    expect(v.sections.map((s) => s.id)).toEqual(['needed', 'pr', 'agents', 'demos']);
+    // Antigravity is optional: not there, its login waits for it
+    const agents = section(v, 'agents').items;
+    expect(agents[0]).toMatchObject({ id: 'agy', state: 'missing', install: { url: 'https://antigravity.google/docs/cli' }, act: 'install' });
+    expect(agents[1]).toEqual({ id: 'agyLogin', state: 'missing' });
+  });
+
+  test('Antigravity: found, signed in or to sign in by a terminal login', async () => {
+    fake('agy', 'case "$1" in models) exit 1;; esac');
+    const out = section(await setup().view(), 'agents').items;
+    expect(out[0]).toMatchObject({ id: 'agy', state: 'ok' });
+    expect(out[1]).toMatchObject({ id: 'agyLogin', state: 'missing', act: 'login' });
+    fake('agy', 'case "$1" in models) echo "gemini-x\tGemini";; esac');
+    expect(section(await setup().view(), 'agents').items[1]).toEqual({ id: 'agyLogin', state: 'ok' });
   });
 
   test('offers the official installer for a missing Claude Code, and the logins once logged in', async () => {
@@ -185,20 +198,20 @@ describe('what Obeya needs on this machine', () => {
 });
 
 describe('the first canvas', () => {
-  test('a repository folder becomes a canvas whose workers use worktrees, and Obeya runs it at once', async () => {
+  test('a repository folder becomes a canvas whose workers use worktrees, and Seismic runs it at once', async () => {
     const repo = gitRepo(join(dir, 'shop'));
     git(repo, 'branch', '-m', 'master');
     const out = await setup().canvas({ path: repo });
     expect(out).toEqual({ canvas: 'shop', branch: 'master', opens: true });
     expect(applied).toEqual([['shop']]);
-    expect(JSON.parse(readFileSync(join(home, 'canvases.json'), 'utf8'))).toEqual([{ repos: [{ path: repo }] }]);
+    expect(JSON.parse(readFileSync(join(home, 'canvases.json'), 'utf8'))).toEqual([{ projectBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo }] }]);
     expect(readFileSync(join(home, WELCOME_FILE), 'utf8')).toBe('shop');
   });
 
   test('a repository whose settings say clones gets clones', async () => {
     const repo = gitRepo(join(dir, 'shop'), { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workspaces": "clones" }\n' });
     await setup().canvas({ path: repo });
-    expect(JSON.parse(readFileSync(join(home, 'canvases.json'), 'utf8'))).toEqual([{ repos: [{ path: repo, clones: CLONES }] }]);
+    expect(JSON.parse(readFileSync(join(home, 'canvases.json'), 'utf8'))).toEqual([{ projectBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo, clones: CLONES }] }]);
   });
 
   test('says of a folder before it is saved whether it holds a repository, and its main branch', () => {
@@ -221,7 +234,7 @@ describe('the first canvas', () => {
     mkdirSync(docs);
     writeFileSync(join(docs, 'Scan.pdf'), '%PDF');
     expect(await setup().canvas({ path: docs, git: false })).toEqual({ canvas: 'dokumente', branch: '', opens: true });
-    expect(JSON.parse(readFileSync(join(home, 'canvases.json'), 'utf8'))).toEqual([{ repos: [{ path: docs, git: false }] }]);
+    expect(JSON.parse(readFileSync(join(home, 'canvases.json'), 'utf8'))).toEqual([{ projectBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: docs, git: false }] }]);
     expect(existsSync(join(docs, '.git'))).toBe(false);
   });
 
@@ -273,5 +286,48 @@ describe('the first canvas', () => {
     const cards = board.snapshot().items.filter((i) => i.kind === 'task');
     expect(cards.map((c) => c.title)).toEqual([board.t.welcome.title]);
     expect(existsSync(join(home, WELCOME_FILE))).toBe(false);
+  });
+});
+
+describe('mobile development, on the recommended page', () => {
+  const mac = () => new MachineSetup({ home, config: config(), env: { PATH: bin, USER: 'ada' }, platform: 'darwin', arch: 'arm64', compiled: true });
+
+  test('only a Mac has the section', async () => {
+    expect(await setup().view().then((v) => v.sections.map((s) => s.id))).not.toContain('mobile');
+  });
+
+  test('without Xcode: it comes from the App Store; the simulator waits for it; safaridriver asks for a terminal', async () => {
+    fake('xcodebuild', 'exit 1');
+    fake('safaridriver', 'exit 0');
+    fake('dseditgroup', 'exit 67');
+    fake('open', 'exit 0');
+    const items = section(await mac().view(), 'mobile').items;
+    expect(items.map((i) => [i.id, i.state])).toEqual([['xcode', 'missing'], ['simulator', 'missing'], ['safaridriver', 'missing'], ['axe', 'missing']]);
+    expect(items[0]).toMatchObject({ act: 'install', install: { commands: ['open macappstore://apps.apple.com/app/id497799835'] } });
+    expect(items[1]!.install).toBeUndefined();
+    expect(items[2]).toMatchObject({ act: 'terminal', install: { commands: ['safaridriver --enable'] } });
+  });
+
+  test('with Xcode, an iPhone and the group: all there', async () => {
+    fake('xcodebuild', 'echo "Xcode 27.0"; echo "Build version 27A1"');
+    fake('xcrun', 'printf -- "-- iOS 27.2 --\n    iPhone 17 (ABC-123) (Shutdown)\n"');
+    fake('safaridriver', 'exit 0');
+    fake('dseditgroup', 'exit 0');
+    const items = section(await mac().view(), 'mobile').items;
+    expect(items.map((i) => [i.id, i.state, i.found])).toEqual([['xcode', 'ok', '27.0'], ['simulator', 'ok', 'iPhone 17'], ['safaridriver', 'ok', undefined], ['axe', 'missing', undefined]]);
+    fake('axe', 'exit 0');
+    expect(section(await mac().view(), 'mobile').items[3]).toMatchObject({ id: 'axe', state: 'ok' });
+  });
+
+  test('Xcode without an iPhone runtime offers to download it; safaridriver --enable opens a terminal, only for itself', async () => {
+    fake('xcodebuild', 'echo "Xcode 27.0"');
+    fake('xcrun', 'echo "== Devices =="');
+    fake('safaridriver', 'exit 0');
+    fake('dseditgroup', 'exit 67');
+    const machine = mac();
+    const items = section(await machine.view(), 'mobile').items;
+    expect(items[1]).toMatchObject({ state: 'missing', act: 'install', install: { commands: ['xcodebuild -downloadPlatform iOS'] } });
+    expect(await machine.login({ section: 'mobile', id: 'safaridriver' })).toMatchObject({ command: 'safaridriver --enable' });
+    await expect(machine.login({ section: 'mobile', id: 'xcode' })).rejects.toThrow();
   });
 });

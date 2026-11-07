@@ -1,7 +1,7 @@
 // The narration voice held across renders. A voice that loads a large model and can stay loaded
-// (Qwen3-TTS, `qwen3.py --serve`) runs as a child of the Obeya server, which outlives every render
+// (Qwen3-TTS, `qwen3.py --serve`) runs as a child of the Seismic server, which outlives every render
 // and runs on every platform: `tts.py` sends each clip to `POST /api/narration/clip` when
-// `OBEYA_URL` says where Obeya's narration server is (`serveNarration`; Obeya sets it for its
+// `SEISMIC_URL` says where Seismic's narration server is (`serveNarration`; Seismic sets it for its
 // workers and for the settings sheet's sample). The clips of all renders wait in one queue, served one at a time: each render asks
 // for one clip at a time, so parallel renders take turns clip by clip. Once the queue is empty
 // the voice stays loaded for a while (`idleMs`), then ends; a request for another voice (another
@@ -97,7 +97,7 @@ export class NarrationHost {
     return !!this.voice;
   }
 
-  /** Ends the voice now, for Obeya's shutdown. */
+  /** Ends the voice now, for Seismic's shutdown. */
   stop() {
     clearTimeout(this.idle);
     this.voice?.child.kill();
@@ -156,11 +156,11 @@ export class NarrationHost {
       }
     })();
     this.voice = voice;
-    this.o.log?.(`Obeya: starting the narration voice (${argv.slice(-6).join(' ')})`);
+    this.o.log?.(`Seismic: starting the narration voice (${argv.slice(-6).join(' ')})`);
     const ready = await this.reply(voice, this.o.loadMs ?? NARRATION_LOAD_MS);
     if (ready === 'stuck') return this.stuck(voice, 'loading', this.o.loadMs ?? NARRATION_LOAD_MS);
     if (!ready) return this.died(voice);
-    this.o.log?.(`Obeya: narration voice loaded in ${((performance.now() - started) / 1000).toFixed(1)} s`);
+    this.o.log?.(`Seismic: narration voice loaded in ${((performance.now() - started) / 1000).toFixed(1)} s`);
     return { ok: true };
   }
 
@@ -203,7 +203,7 @@ export class NarrationHost {
     const silence = ms >= 60_000 ? `${Math.round(ms / 60_000)} min` : `${ms / 1000} s`;
     const why = voice.stderr.join('\n').trim().slice(-1500);
     const error = `the voice said nothing for ${silence} while ${doing} and was ended${why ? `: ${why}` : ''}`;
-    this.o.log?.(`Obeya: ${error}`);
+    this.o.log?.(`Seismic: ${error}`);
     return { error };
   }
 
@@ -213,7 +213,7 @@ export class NarrationHost {
     // the stderr reader may still hold the last lines
     await Bun.sleep(50);
     const error = `the voice stopped (${code}): ${voice.stderr.join('\n').trim().slice(-1500)}`;
-    this.o.log?.(`Obeya: ${error}`);
+    this.o.log?.(`Seismic: ${error}`);
     return { error };
   }
 
@@ -222,14 +222,14 @@ export class NarrationHost {
     const voice = this.voice;
     if (!voice) return;
     this.voice = undefined;
-    this.o.log?.(`Obeya: narration voice ends (${why})`);
+    this.o.log?.(`Seismic: narration voice ends (${why})`);
     endGently(voice.child);
   }
 }
 
 /**
  * A clip request as it comes over HTTP, checked: the voice writes a WAV where it says, so only an
- * absolute `.wav` path, and only a reference or a plain speaker name for the command line. An
+ * absolute `.wav` path, and only a reference or a plain speaker name (with a style of a few lines) for the command line. An
  * `inline` request gets a file of its own in the temporary directory, whose WAV goes back in the reply.
  */
 export function parseClipRequest(input: unknown): ClipRequest | string {
@@ -244,11 +244,12 @@ export function parseClipRequest(input: unknown): ClipRequest | string {
   const back = { ...(inline === true ? { inline: true } : {}), ...(script ? { script } : {}) };
   if (language !== 'de' && language !== 'en') return 'language must be de or en';
   if (!voice || typeof voice !== 'object') return 'voice is missing';
-  const { reference, speaker } = voice as Record<string, unknown>;
+  const { reference, speaker, style } = voice as Record<string, unknown>;
   if (reference !== undefined) {
     if (typeof reference !== 'string' || !isAbsolute(reference) || !reference.toLowerCase().endsWith('.wav')) return 'voice.reference must be an absolute path to a .wav';
     return { voice: { reference }, text, out, language, ...back };
   }
   if (typeof speaker !== 'string' || !/^[a-z][a-z0-9_]*$/i.test(speaker)) return 'voice needs a reference or a speaker';
-  return { voice: { speaker }, text, out, language, ...back };
+  if (style !== undefined && (typeof style !== 'string' || style.length > 1000)) return 'voice.style must be a string of at most 1000 characters';
+  return { voice: { speaker, ...(style ? { style } : {}) }, text, out, language, ...back };
 }

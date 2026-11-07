@@ -1,0 +1,167 @@
+@import "./styles.css";
+/* The fork's look, frost (design: The canvas, Visual identity), laid over styles.css without touching it.
+   index.html links this file, which imports styles.css first: linked side by side, the bundler would put
+   styles.css after it. It redefines the tokens and turns every card, the open card, the sheets, dialogs and
+   menus into frosted glass over a soft gradient board. --panel stays a solid surface for what upstream
+   draws on it; --glass is the translucent one, only on what blurs what lies behind it. */
+@font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(./fonts/inter-latin-wght-normal.woff2) format("woff2"); }
+
+/* light: ice on a cool board */
+:root {
+  --bg: #e6edf5; --dot: rgba(70,100,140,.18); --card: rgba(255,255,255,.55); --ink: #14202e; --muted: #5a6b80; --line: rgba(120,145,175,.24);
+  --glass-edge: rgba(255,255,255,.85); --glass-hi: rgba(255,255,255,.7);
+  --shadow: 0 1px 2px rgba(30,55,90,.06), 0 8px 24px -10px rgba(40,70,110,.32);
+  --lift: 0 2px 4px rgba(30,55,90,.06), 0 18px 40px -14px rgba(40,70,110,.45);
+  --serif: Inter, system-ui, sans-serif; --cond: Inter, system-ui, sans-serif;
+  --planned: #8592a3; --working: #2f6fe8; --waiting: #e05f00; --approved: #2f9a3f; --inPr: #0b8b93; --live: #6f7b8b; --proposal: #7a52e0; --idea: #e0336a; --question: #4b7799; --asking: #a17e00;
+  --waiting-rgb: 224,95,0; --on-ink: #ffffff; --state-text-ink: 32%; --unblurred: rgba(255,255,255,0);
+  --dep-line: rgba(90,115,150,.45); --done-dep: #9ac59a; --container: rgba(255,255,255,.22); --container-line: rgba(255,255,255,.7);
+  --dim: rgba(30,45,70,.22); --panel: #f5f8fc; --glass: rgba(246,249,253,.74); --chip: rgba(120,150,190,.13);
+  --board: radial-gradient(1100px 800px at 12% 18%, rgba(140,185,255,.22), transparent 60%),
+    radial-gradient(900px 700px at 88% 30%, rgba(255,190,220,.14), transparent 60%),
+    radial-gradient(1000px 900px at 60% 95%, rgba(150,230,220,.18), transparent 60%),
+    linear-gradient(135deg, #dce6f2, #eef3f9 55%, #d7e2ef);
+}
+/* dark: smoked glass on a night board */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1420; --dot: rgba(150,180,220,.10); --card: rgba(150,180,220,.09); --ink: #e6eef8; --muted: #8fa3bb; --line: rgba(180,210,255,.13);
+  --glass-edge: rgba(180,210,255,.16); --glass-hi: rgba(200,225,255,.10);
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -10px rgba(0,0,0,.7);
+  --lift: 0 2px 4px rgba(0,0,0,.3), 0 18px 40px -14px rgba(0,0,0,.85);
+  --planned: #8a97a9; --working: #6aa2ff; --waiting: #ff8a2a; --approved: #6fcf6a; --inPr: #2fc2c0; --live: #7a879d; --proposal: #a78bff; --idea: #ff6b95; --question: #8db6d6; --asking: #e6bd3a;
+  --waiting-rgb: 255,138,42; --on-ink: #0b111a; --state-text-ink: 20%; --unblurred: rgba(0,53,145,.125);
+  --dep-line: rgba(140,165,200,.35); --done-dep: #3f6e45; --container: rgba(150,180,220,.04); --container-line: rgba(180,210,255,.12);
+  --dim: rgba(0,5,15,.5); --panel: #151e2c; --glass: rgba(21,30,44,.76); --chip: rgba(150,180,220,.10);
+  --board: radial-gradient(1100px 800px at 12% 18%, rgba(50,90,180,.18), transparent 60%),
+    radial-gradient(900px 700px at 88% 30%, rgba(130,60,150,.10), transparent 60%),
+    radial-gradient(1000px 900px at 60% 95%, rgba(20,120,130,.12), transparent 60%),
+    linear-gradient(135deg, #0d1420, #141d2b 55%, #0b111a);
+} }
+:root[data-theme="dark"] {
+  --bg: #0d1420; --dot: rgba(150,180,220,.10); --card: rgba(150,180,220,.09); --ink: #e6eef8; --muted: #8fa3bb; --line: rgba(180,210,255,.13);
+  --glass-edge: rgba(180,210,255,.16); --glass-hi: rgba(200,225,255,.10);
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -10px rgba(0,0,0,.7);
+  --lift: 0 2px 4px rgba(0,0,0,.3), 0 18px 40px -14px rgba(0,0,0,.85);
+  --planned: #8a97a9; --working: #6aa2ff; --waiting: #ff8a2a; --approved: #6fcf6a; --inPr: #2fc2c0; --live: #7a879d; --proposal: #a78bff; --idea: #ff6b95; --question: #8db6d6; --asking: #e6bd3a;
+  --waiting-rgb: 255,138,42; --on-ink: #0b111a; --state-text-ink: 20%; --unblurred: rgba(0,53,145,.125);
+  --dep-line: rgba(140,165,200,.35); --done-dep: #3f6e45; --container: rgba(150,180,220,.04); --container-line: rgba(180,210,255,.12);
+  --dim: rgba(0,5,15,.5); --panel: #151e2c; --glass: rgba(21,30,44,.76); --chip: rgba(150,180,220,.10);
+  --board: radial-gradient(1100px 800px at 12% 18%, rgba(50,90,180,.18), transparent 60%),
+    radial-gradient(900px 700px at 88% 30%, rgba(130,60,150,.10), transparent 60%),
+    radial-gradient(1000px 900px at 60% 95%, rgba(20,120,130,.12), transparent 60%),
+    linear-gradient(135deg, #0d1420, #141d2b 55%, #0b111a);
+}
+
+html, body { background-color: var(--bg); background-image: var(--board); background-attachment: fixed; font-feature-settings: "cv11", "ss01"; letter-spacing: -.003em; }
+h1, h2, .cfg-head h3, .p-title, .project > .head .ttl, .timeline .a-ttl { font-weight: 650; letter-spacing: -.018em; }
+code { border-radius: 5px; }
+
+/* the canvas: the board's gradient shows through; the dots stay as a faint grid */
+#viewport { background-color: transparent; }
+
+/* ---------- glass on every card ---------- */
+.card { border-radius: 14px; border: 1px solid var(--glass-edge);
+  backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow); }
+.card:hover { box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift); transform: translateY(-2px); }
+/* the state: a glowing tab at the top edge rather than a rule across the card */
+.card::before { left: 14px; right: auto; width: 46px; top: -1px; height: 3px; border-radius: 0 0 3px 3px;
+  box-shadow: 0 0 10px var(--c); }
+.card.chip::before { width: 30px; }
+.card .ttl { font-weight: 620; letter-spacing: -.012em; font-size: 15.5px; line-height: 1.25; }
+.card.chip .ttl { font-size: 13.5px; font-weight: 560; }
+.card .kind { font-weight: 500; }
+.card .state { font-weight: 600; }
+/* a state line in words: its ink taken toward the text's colour until it reads (frost.test.ts measures it);
+   the tab, frame and pin keep the ink at full strength */
+.card .state, .p-state { color: color-mix(in srgb, var(--c), var(--ink) var(--state-text-ink)); }
+.card.dragging { transform: translateY(-4px) scale(1.02); box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift); }
+.card.q-card, .card.q-card.s-done { background-color: color-mix(in srgb, var(--question) 8%, var(--card)); }
+.card.q-card::before { display: block; }
+.card.s-proposal { border-radius: 14px; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.card.s-waiting, .card.s-idea.your-turn { box-shadow: 0 0 0 2px var(--waiting), 0 0 22px -4px rgba(var(--waiting-rgb), .55), var(--shadow); }
+.card.s-waiting:hover, .card.s-idea.your-turn:hover { box-shadow: 0 0 0 2px var(--waiting), 0 0 26px -4px rgba(var(--waiting-rgb), .65), var(--lift); }
+.card.s-waiting.underway, .card.s-waiting.answering, .card.snoozed { box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow); }
+.card .play { border-radius: 8px; }
+.card .play.archive { background: var(--panel); border-color: var(--glass-edge); }
+.merge-half { border-radius: 14px; }
+.merge-half.partner { border: 1px solid var(--glass-edge); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); }
+.card .landed-part { border-radius: 6px; }
+.badge::before { box-shadow: 0 0 0 2px var(--glass-edge), 0 4px 10px -2px rgba(0,0,0,.25); }
+
+/* projects: a big pane of thinner glass */
+.project { border-radius: 22px; border: 1px solid var(--container-line); backdrop-filter: blur(6px) saturate(1.2); -webkit-backdrop-filter: blur(6px) saturate(1.2); }
+
+/* ---------- chrome: frosted too ---------- */
+#bar { background: color-mix(in srgb, var(--bg) 45%, transparent); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border-bottom: 1px solid var(--line); box-shadow: none; }
+#status { background: color-mix(in srgb, var(--bg) 45%, transparent); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border-top: 1px solid var(--line); box-shadow: none; }
+#status .pill { border: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+#status :is(.st, .pill.usage .face, .pill.restart > button) { border-radius: 999px; }
+.pill { border-radius: 999px; background: var(--card); border: 1px solid var(--glass-edge); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow);
+  backdrop-filter: blur(12px) saturate(1.4); -webkit-backdrop-filter: blur(12px) saturate(1.4); }
+/* what lies under an open card or a dialog goes soft */
+#dim.on, #help, #wish, #config, #prefs, #phone, #perf, #merge-pick { backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+/* panes: the open card, sheets, dialogs */
+#panel, .sheet, .nav-sheet, .cfg-box, .d-sheet, .perf-box, .setup-page, :is(#help, #wish, #phone, #merge-pick) .box {
+  background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 18px; box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift);
+  backdrop-filter: blur(28px) saturate(1.6); -webkit-backdrop-filter: blur(28px) saturate(1.6); }
+.sheet { border-radius: 0; border-right: 0; }
+.nav-sheet { border-radius: 0; border-left: 0; }
+/* menus and tips: solid, as most open from the top bar, whose own blur would keep theirs from reaching the canvas */
+.nav-menu, .bar-menu, .prio-menu, .snooze-menu, .agents-tip, .pill:is(.restart, .workspaces, .usage) .tip, .qlist li .q-held {
+  background: var(--panel); border: 1px solid var(--glass-edge); border-radius: 12px; }
+/* the questions stacked by the microphone (rating, notifications): solid too, so where the screen is narrow and
+   they stand over the microphone, it does not show through them */
+.rate.prompt, .notify-ask { background: var(--panel); border: 1px solid var(--glass-edge); border-radius: 14px; box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift); }
+/* bars that stay put while a pane scrolls under them: frosted over the pane's own content */
+#panel .content > .actions:last-child, #panel .merge-actions, .cfg-actions, .read-head, .nav-sheet.titlebar .nav-head {
+  background: color-mix(in srgb, var(--panel) 88%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+/* the open card's foot reaches its edges, so it reads as the pane's frosted footer */
+#panel .content > .actions:last-child, #panel .merge-actions { margin-left: -30px; margin-right: -30px; padding-left: 30px; padding-right: 30px; }
+.cfg-nav { background: transparent; border-right: 1px solid var(--line); }
+.cfg-nav li button { border-radius: 8px; }
+.cfg-nav li button.on { background: var(--card); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow); }
+/* the open card blurs only while it is open in full: as it unfolds, folds and hides it is a solid pane, and the card it
+   lifted off the canvas keeps no blur either. Safari (an iPad's) can leave a hidden element's blur layer painted
+   where it was, an empty pane over the canvas once the card has folded */
+#panel:not(.ready) { background: var(--panel); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.card.lifted { backdrop-filter: none; -webkit-backdrop-filter: none; }
+#panel::before { left: 30px; right: auto; width: 80px; height: 3px; border-radius: 0 0 3px 3px; box-shadow: 0 0 12px var(--c); }
+#panel .close, #sheet-close { border-radius: 10px; }
+#minimap { border-radius: 14px; border: 1px solid var(--glass-edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+#mic { background: var(--glass); border: 1px solid var(--glass-edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+.btn { border-radius: 10px; }
+.btn.primary { background: var(--working); color: var(--on-ink); }
+.talk { border-radius: 14px; }
+.talk .msg { border-radius: 12px; border: 1px solid var(--glass-edge); }
+.smart-link { border-color: var(--glass-edge); }
+:is(#config, #prefs) :is(input, textarea, select) { border-radius: 8px; }
+
+/* small controls: soft corners */
+.prio-btn, .ph-fold .n, .c-attach, .ph-notify, .ph-quiet, .pr-held-edit { border-radius: 8px; }
+.ph-notify { background: var(--card); border-color: var(--glass-edge); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+#ptt .c-attach { border-radius: 12px; background: var(--glass); border: 1px solid var(--glass-edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+
+/* Lucide icons */
+svg.lucide { flex: none; }
+.lchip { border-radius: 999px; }
+.demo-view .start svg { color: #fff; stroke: #fff; }
+
+/* zoomed far out, and while the canvas moves (frost.ts): no blur behind the cards. Each blurred card is a layer
+   the GPU re-samples on every frame of a move; with ~100 on screen that drops frames (a fifth with a GPU, more
+   than half without one), and many small ones shimmer zoomed out. --unblurred stands in for the blur's saturate:
+   a tint that keeps the card the colour it has at rest (dark: bluer; light: none needed), so a pan or a click
+   on the canvas does not change the cards' colour. */
+:is(.z-far, .moving) :is(.card, .merge-half.partner, .project) { backdrop-filter: none; -webkit-backdrop-filter: none; }
+:is(.z-far, .moving) .card:not(.s-proposal) { background-image: linear-gradient(var(--unblurred), var(--unblurred)); }
+
+/* reduced motion (styles.css takes the blur away): glass that blurred what lies behind it turns solid, so the
+   canvas does not show through the bars and panes, and the cards take the tint they have zoomed out */
+:root[data-motion="reduce"] { --glass: var(--panel); }
+:root[data-motion="reduce"] :is(#bar, #status) { background: var(--bg); }
+:root[data-motion="reduce"] :is(#panel .content > .actions:last-child, #panel .merge-actions, .cfg-actions, .read-head, .nav-sheet.titlebar .nav-head) { background: var(--panel); }
+:root[data-motion="reduce"] .card:not(.s-proposal) { background-image: linear-gradient(var(--unblurred), var(--unblurred)); }

@@ -45,7 +45,7 @@ export interface Talk {
   /** What the owner said that the agent has not read yet, in the order said: it stands below its work, until it reads it. */
   unread: CardEvent[];
   /**
-   * Obeya's reply to what the agent at work passed on (`to_obeya`), and what Obeya said after it,
+   * Seismic's reply to what the agent at work passed on (`to_seismic`), and what Seismic said after it,
    * while no message of the agent's came yet: it stands below the agent's work, until that message.
    */
   passedOn: Turn[];
@@ -55,14 +55,14 @@ export interface Talk {
   below: Turn[];
 }
 
-/** Obeya's lines that mark where the work stands (the demo linked on the pull request among them), or why an idea clicked to build was not; its other notes (restarts, sessions, what happens on the pull request) fold away. */
+/** Seismic's lines that mark where the work stands (the demo linked on the pull request among them), or why an idea clicked to build was not; its other notes (restarts, sessions, what happens on the pull request) fold away. */
 const MILESTONE =
-  /^(Agent gestartet|Agent started|Pull Request gemergt|Pull request merged|Nach der Freigabe auf main gelandet|Landed on main after the approval|Pull Request ohne Merge geschlossen|Pull request closed without a merge|Das Projekt steht jetzt|The project now stands|Nicht gebaut|Not built|Teil gelandet|Part landed|Der Obeya-Checkout stand auf|The Obeya checkout was on|Im Plan-Doc|Ticked off in the plan doc|Den Link zur Demo (als Kommentar|in die Beschreibung)|Commented the demo’s link|Added the demo’s link|main ließ sich nach dem Merge nicht holen: Konflikt|Could not pull main after the merge: it conflicts|Der Merge von PR #\d+ kollidiert|Merging PR #\d+ conflicts|Konflikt mit PR #\d+ gelöst|Conflict with PR #\d+ resolved|main aus dem Remote geholt|Pulled main from the remote|main gepusht|Pushed main)/;
+  /^(Auf main gelandet:|Landed on main:|Agent gestartet|Agent started|Pull Request gemergt|Pull request merged|Nach der Freigabe auf main gelandet|Landed on main after the approval|Pull Request ohne Merge geschlossen|Pull request closed without a merge|Das Projekt steht jetzt|The project now stands|Nicht gebaut|Not built|Teil gelandet|Part landed|Der Seismic-Checkout stand auf|The Seismic checkout was on|Im Plan-Doc|Ticked off in the plan doc|Den Link zur Demo (als Kommentar|in die Beschreibung)|Commented the demo’s link|Added the demo’s link|main ließ sich nach dem Merge nicht holen: Konflikt|Could not pull main after the merge: it conflicts|Der Merge von PR #\d+ kollidiert|Merging PR #\d+ conflicts|Konflikt mit PR #\d+ gelöst|Conflict with PR #\d+ resolved|main aus dem Remote geholt|Pulled main from the remote|main gepusht|Pushed main)/;
 
 /** The agent that works on the card or thinks the idea through. */
-const agentAuthor = (e: CardEvent) => e.author === 'worker' || e.author === 'explorer';
+const agentAuthor = (e: CardEvent) => !e.made && (e.author === 'worker' || e.author === 'explorer');
 
-/** The agent Obeya looks the owner's questions up with (`answers.ts`): on a card whose own agent it is not, its steps are not that agent's. */
+/** The agent Seismic looks the owner's questions up with (`answers.ts`): on a card whose own agent it is not, its steps are not that agent's. */
 const lookUpAuthor = (e: CardEvent) => e.author === 'koordinator' || e.author === 'project';
 
 /** What the owner says to the card's agent. */
@@ -70,7 +70,7 @@ const toAgent = (e: CardEvent) => (e.kind === 'hint' || e.kind === 'answer' || e
 
 const place = (e: CardEvent, prev: CardEvent | undefined): 'owner' | 'agent' | 'aside' | 'line' | 'step' | 'after' => {
   if (toAgent(e)) return 'owner';
-  // a follow-up card Obeya made stands as an action, under the agent's message as Obeya's reply does
+  // a proposal or follow-up stands as an action, outside the agent's folded steps
   if (e.made) return 'aside';
   switch (e.kind) {
     case 'closing':
@@ -82,7 +82,7 @@ const place = (e: CardEvent, prev: CardEvent | undefined): 'owner' | 'agent' | '
     case 'say':
       // the Koordinator's confirmation of what the owner just said folds away; what it looked up for
       // them stands, and so does a reply that answers them without acting (a question of theirs, why
-      // it could not read them), and its answer that Obeya cannot do what they asked, with its link to report that
+      // it could not read them), and its answer that Seismic cannot do what they asked, with its link to report that
       if (e.author === 'owner') return 'owner';
       if (e.wish || e.reply) return 'aside';
       return (e.author === 'koordinator' || e.author === 'project') && !(prev?.kind === 'say' && prev.author === 'owner') ? 'aside' : 'step';
@@ -112,12 +112,12 @@ export function demoHandover(demo: Demo, shown: Turn[]): Turn | undefined {
  * `open`: the questions the card waits on, which leave where they were last asked; the others show how they ended (`ended`). `over`: no agent works on the card, so no message will
  * come for the steps without one (`settle`). `paused`: the agent is paused now, at the last line that says so.
  * `working`: the agent is at work, so the owner's last words may still get a question asked again.
- * Obeya's reply to what the agent passed on (`CardEvent.forwarded`) answers one of its steps: it
- * stands under the agent's message those steps lead to, with what Obeya said after it until then
+ * Seismic's reply to what the agent passed on (`CardEvent.forwarded`) answers one of its steps: it
+ * stands under the agent's message those steps lead to, with what Seismic said after it until then
  * (an answer it looked up), unless the owner's words or a line come first (`passedOn`).
- * What Obeya read to look a question up (its steps) is not the agent's work: it folds under the
+ * What Seismic read to look a question up (its steps) is not the agent's work: it folds under the
  * answer it looked up, and while it still looks, under its reply that it does; `answers`: a Question
- * card, whose own agent Obeya's is, so its steps are the card's agent's.
+ * card, whose own agent Seismic's is, so its steps are the card's agent's.
  */
 export function talkTurns(all: CardEvent[], opts: { open?: Question[]; over?: boolean; paused?: boolean; working?: boolean; answers?: boolean } = {}): Talk {
   const shown: Turn[] = [];
@@ -131,11 +131,11 @@ export function talkTurns(all: CardEvent[], opts: { open?: Question[]; over?: bo
   const limitHolds = !!lastLimit && !events.slice(events.indexOf(lastLimit) + 1).some(agentAuthor);
   // the worker handed over since it started
   let handedOver = false;
-  // Obeya's replies to what the agent passed on, held for the agent's next message
+  // Seismic's replies to what the agent passed on, held for the agent's next message
   let held: Turn[] = [];
-  // the steps of Obeya's look-up, for the answer it looks up
+  // the steps of Seismic's look-up, for the answer it looks up
   let looking: CardEvent[] = [];
-  // Obeya's reply that it looks the question up, where it stands
+  // Seismic's reply that it looks the question up, where it stands
   let lookingUnder: Turn | undefined;
   const lookUp = (e: CardEvent) => !opts.answers && e.kind === 'activity' && lookUpAuthor(e);
   const looked = (e: CardEvent) => {
@@ -150,8 +150,8 @@ export function talkTurns(all: CardEvent[], opts: { open?: Question[]; over?: bo
     shown.push(...held);
     held = [];
   };
-  // the agent's last message, past the replies of Obeya's that moved under it
-  const lastAgent = () => shown.findLast((x) => !moved.has(x));
+  // the agent's last message, past the replies of Seismic's that moved under it
+  const lastAgent = () => shown.findLast((x) => !moved.has(x) && !x.e.made);
   // the agent's steps so far, closed above what comes next
   const close = () => {
     const run = closed(steps);
@@ -199,7 +199,7 @@ export function talkTurns(all: CardEvent[], opts: { open?: Question[]; over?: bo
       // a turn that ended without a reply took its last words as the reply
       else {
         const own = steps.filter((s) => !(s.kind === 'say' && s.text === e.text.trim()));
-        // Obeya's own message (its answer on a proposal) has its look-up's steps among its steps
+        // Seismic's own message (its answer on a proposal) has its look-up's steps among its steps
         const lookedUp = looked(e);
         shown.push({ e, steps: lookedUp.length ? [...own, ...lookedUp].sort((x, y) => events.indexOf(x) - events.indexOf(y)) : own });
       }
@@ -216,7 +216,7 @@ export function talkTurns(all: CardEvent[], opts: { open?: Question[]; over?: bo
       if (toAgent(e)) open = true;
     }
   });
-  // a look-up not answered yet: its steps so far under Obeya's reply that it looks it up
+  // a look-up not answered yet: its steps so far under Seismic's reply that it looks it up
   if (looking.length && lookingUnder && !lookingUnder.line && lookUpAuthor(lookingUnder.e)) lookingUnder.steps.push(...looking);
   // while the agent works, they wait below its work for its message; else its steps since stand as one
   let passedOn: Turn[] = [];
@@ -278,16 +278,16 @@ const pauseLine = (e: CardEvent) => e.kind === 'state' && e.author === 'owner' &
 /** The line that the card was snoozed until a time (or its time changed), by its agent or the owner. */
 export const snoozeLine = (e: CardEvent) => e.kind === 'state' && (e.author === 'worker' || e.author === 'owner') && LANGUAGES.some((l) => e.text.startsWith(MESSAGES[l].worker.snoozed('\0').split('\0')[0]!));
 
-/** The line that a snoozed card woke, and why (or, until 2026-10-17, who had snoozed it: „Wieder da (vom Agenten zurückgestellt)“). */
+/** The line that a snoozed card woke, and why (or, until 2026-10-17, who had snoozed it: "Back (snoozed by the agent)"). */
 const wokeLine = (e: CardEvent) => e.kind === 'state' && LANGUAGES.some((l) => e.text.startsWith(MESSAGES[l].worker.woke('\0').split('\0')[0]!) || e.text.startsWith(`${MESSAGES[l].worker.woke('').replace(/: $/, '')} (`));
 
-/** Obeya's line that the agent stopped without answering the owner's words: they write again. */
+/** Seismic's line that the agent stopped without answering the owner's words: they write again. */
 const unansweredLine = (e: CardEvent) => e.kind === 'state' && e.author === 'obeya' && LANGUAGES.some((l) => e.text === MESSAGES[l].worker.unanswered);
 
-/** Obeya's line that the card waits for others before it starts, and why. */
+/** Seismic's line that the card waits for others before it starts, and why. */
 const waitLine = (e: CardEvent) => e.kind === 'state' && e.author === 'obeya' && LANGUAGES.some((l) => e.text.startsWith(MESSAGES[l].koordinator.waitsFor('\0', '').split('\0')[0]!));
 
-/** Obeya's line that the usage limit stopped the agent's turn, and when it goes on. */
+/** Seismic's line that the usage limit stopped the agent's turn, and when it goes on. */
 const limitLine = (e: CardEvent) =>
   e.kind === 'state' &&
   e.author === 'obeya' &&
@@ -298,7 +298,7 @@ const limitLine = (e: CardEvent) =>
     }),
   );
 
-/** The worker's closing words of a turn the usage limit stopped belong to that turn: Obeya logs them after its line on the limit. */
+/** The worker's closing words of a turn the usage limit stopped belong to that turn: Seismic logs them after its line on the limit. */
 function closedBeforeLimit(events: CardEvent[]): CardEvent[] {
   if (!events.some(limitLine)) return events;
   const out = [...events];
@@ -315,7 +315,7 @@ function asRead(events: CardEvent[]): CardEvent[] {
 
 /**
  * The agent's steps before it read the owner's words, closed above them: its last words in them as
- * its message, or, without words, as its steps. Steps only Obeya and the Koordinator noted go on to
+ * its message, or, without words, as its steps. Steps only Seismic and the Koordinator noted go on to
  * the next message.
  */
 function closed(steps: CardEvent[]): Turn | undefined {
@@ -352,7 +352,7 @@ function afterAsking(shown: Turn[], asked: Turn[]): Turn[] {
 /**
  * Steps no message came after, in a conversation nobody works on any more, go where they happened,
  * before what came later. Each run of them between two turns ends with the agent's last words in
- * it, as its message; a run without words stands as the agent's steps; what only Obeya and the
+ * it, as its message; a run without words stands as the agent's steps; what only Seismic and the
  * Koordinator noted there goes.
  */
 function settle(shown: Turn[], pending: CardEvent[], events: CardEvent[]) {
@@ -473,8 +473,8 @@ export function ownerField(item: Pick<Item, 'state' | 'need' | 'question' | 'fin
 }
 
 /**
- * A card an agent or Obeya is at (working on it, taking in the owner's words on its handover,
- * landing it, finding it a turn in the queue), and that waits for nobody: the phone's „Läuft“.
+ * A card an agent or Seismic is at (working on it, taking in the owner's words on its handover,
+ * landing it, finding it a turn in the queue), and that waits for nobody: the phone's "Running".
  */
 export const runs = (i: Item) =>
   !needsYou(i) &&
@@ -527,9 +527,9 @@ export const koordinatorReads = (events: CardEvent[]) => {
 };
 
 /**
- * Whether Obeya's conversation shows it at work: reading the owner's words, or looking a question up
+ * Whether Seismic's conversation shows it at work: reading the owner's words, or looking a question up
  * (not while the usage limit holds it). Words asked in a project's sheet went straight to its project
- * agent: Obeya never replies to them, only their answer is awaited.
+ * agent: Seismic never replies to them, only their answer is awaited.
  */
 export const obeyaWorks = (talk: Exchange[]) =>
   talk.some((x) => (x.reply === undefined && !x.heldUntil && !x.askedIn) || (x.question !== undefined && x.answer === undefined && !x.movedTo && !x.limitedUntil));

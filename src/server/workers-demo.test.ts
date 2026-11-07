@@ -39,13 +39,13 @@ describe('parking: the app of a card that waits for the owner', () => {
     parking();
     const c = await handOver();
     expect(state(c.id)).toBe('waiting:demo');
-    expect(runtime.last.inbox[0]).toContain('While the card waits for the owner, Obeya stops the app in your workspace');
+    expect(runtime.last.inbox[0]).toContain('While the card waits for the owner, Seismic stops the app in your workspace');
     await until(() => board.row(c.id).parked);
     expect(stopped(c.id)).toBe(true);
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: board.t.worker.parked });
     workers.message(c.id, 'Bitte noch die Spalte umbenennen.');
     expect(runtime.last.inbox.at(-1)).toContain('Bitte noch die Spalte umbenennen.');
-    expect(runtime.last.inbox.at(-1)).toContain('Obeya stopped the app in your workspace (`echo stopped >> parked.log`)');
+    expect(runtime.last.inbox.at(-1)).toContain('Seismic stopped the app in your workspace (`echo stopped >> parked.log`)');
     expect(runtime.last.inbox.at(-1)).toContain('start it again as the recipe in your brief says');
     expect(board.row(c.id).parked).toBeNull();
     // only once: the message after that says nothing of it
@@ -58,7 +58,7 @@ describe('parking: the app of a card that waits for the owner', () => {
     parking({ run: undefined });
     const c = await handOver();
     expect(runtime.last.inbox[0]).not.toContain('How to run the app:');
-    expect(runtime.last.inbox[0]).toContain('While the card waits for the owner, Obeya stops the app in your workspace');
+    expect(runtime.last.inbox[0]).toContain('While the card waits for the owner, Seismic stops the app in your workspace');
     await until(() => board.row(c.id).parked);
     workers.message(c.id, 'Noch eine Spalte.');
     expect(runtime.last.inbox.at(-1)).toContain('When you need it again, start it again.');
@@ -73,7 +73,7 @@ describe('parking: the app of a card that waits for the owner', () => {
     expect(stopped(c.id)).toBe(true);
     workers.resume(c.id);
     expect(runtime.last.inbox[0]).toContain('The owner paused you and has now let you go on');
-    expect(runtime.last.inbox[0]).toContain('Obeya stopped the app in your workspace');
+    expect(runtime.last.inbox[0]).toContain('Seismic stopped the app in your workspace');
   });
 
   test('an answer within the grace keeps the app running', async () => {
@@ -168,7 +168,7 @@ describe('parking: the app of a card that waits for the owner', () => {
     await until(() => runtime.last.inbox.length > before);
     expect(stopped(c.id)).toBe(true);
     expect(runtime.last.inbox.at(-1)).toContain('Noch etwas.');
-    expect(runtime.last.inbox.at(-1)).toContain('Obeya stopped the app');
+    expect(runtime.last.inbox.at(-1)).toContain('Seismic stopped the app');
   });
 
   test('after a restart, a card that waits is parked; its worker hears so when the session resumes', async () => {
@@ -183,10 +183,10 @@ describe('parking: the app of a card that waits for the owner', () => {
     await until(() => board.row(c.id).parked);
     workers.answer(c.id, 'Datum.');
     expect(runtime.last.spec.resume).toBe('sess-1');
-    expect(runtime.last.inbox[0]).toContain('Obeya stopped the app');
+    expect(runtime.last.inbox[0]).toContain('Seismic stopped the app');
   });
 
-  test('the app the worker says runs is offered on the card until Obeya stops it', async () => {
+  test('the app the worker says runs is offered on the card until Seismic stops it', async () => {
     parking({}, 40);
     const c = manual();
     await workers.start(c.id);
@@ -248,13 +248,13 @@ describe('handing over with a demo', () => {
   };
   const demo = (d: string, chapters = ['Vorher', 'Nachher']) => ({ dir: d, chapters, question: { text: 'Semikolon oder Komma?' } });
 
-  test('the worker gets the demo skill from the plugin that comes with Obeya, its brief names it, and it knows where Obeya is', async () => {
+  test('the worker gets the demo skill from the plugin that comes with Seismic, its brief names it, and it knows where Seismic is', async () => {
     rmSync(dir, { recursive: true, force: true });
     setup({ ...generic, land: 'main', workspaces: 'clones', app: { run: 'bun start' } });
     const c = manual();
     await workers.start(c.id);
     expect(runtime.last.spec.plugins).toEqual([OBEYA_PLUGIN]);
-    // a demo's narration finds Obeya, which holds the voice across renders
+    // a demo's narration finds Seismic, which holds the voice across renders
     expect(runtime.last.spec.env).toEqual({ OBEYA_URL: 'http://127.0.0.1:4417' });
     expect(existsSync(DEMO_SKILL_FILE)).toBe(true);
     // a session that does not know the skill reads its file
@@ -268,7 +268,7 @@ describe('handing over with a demo', () => {
     expect(runtime.last.spec.env).toEqual({ OBEYA_URL: 'http://127.0.0.1:4417', DEMO_LANGUAGE: 'en' });
     // named in its instructions too: an HTML artifact is written without the skill, which reads it
     expect(runtime.last.spec.system).toContain("A demo (its narration, report, or an HTML artifact's words) is in English, whatever language the owner talks in. This repository's settings name English for its demos, which holds over the narration language of the demo settings.");
-    expect(runtime.last.spec.system).toContain('until they have said anything, German.');
+    expect(runtime.last.spec.system).toContain('Speak to the owner in German throughout this conversation');
   });
 
   test("a repository that names no language for its demos has its worker demo in the demo settings' narration language, else the conversation's", async () => {
@@ -376,7 +376,7 @@ describe('handing over with a demo', () => {
     expect(board.item(c.id)!.question).toBeUndefined();
     expect(board.item(c.id)!.demo).toMatchObject({ options: ['Semikolon', 'Komma'], answer: 'Semikolon\n\nUnd mit Kopfzeile.' });
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'answer', picks: ['Semikolon'] });
-    expect(runtime.last.inbox.at(-1)).toContain('They picked „Semikolon“.\n\nThey added in their own words:\n\nUnd mit Kopfzeile.');
+    expect(runtime.last.inbox.at(-1)).toContain('They picked “Semikolon”.\n\nThey added in their own words:\n\nUnd mit Kopfzeile.');
     expect(board.decisions(null).at(-1)).toMatchObject({ question: 'Semikolon oder Komma?', answer: 'Semikolon\n\nUnd mit Kopfzeile.' });
   });
 
@@ -388,7 +388,7 @@ describe('handing over with a demo', () => {
     runtime.last.emit({ type: 'idle' });
     expect(board.item(c.id)!.question).toMatchObject({ multiple: true, pick: { options: ['Datum', 'Betrag'] } });
     workers.answer(c.id, '', [], false, undefined, ['Notiz', 'Datum']);
-    expect(runtime.last.inbox.at(-1)).toContain('They picked „Datum“, „Notiz“.');
+    expect(runtime.last.inbox.at(-1)).toContain('They picked “Datum”, “Notiz”.');
   });
 
   test('a stand-in that replies to the answer and ends the turn gives the card back to the owner', async () => {
@@ -544,7 +544,7 @@ describe('handing over with a demo', () => {
     workers.message(c.id, 'Starte den Testserver nochmal.');
     runtime.last.emit({ type: 'tool', name: 'Bash', input: { command: 'bun run dev', run_in_background: true } });
     runtime.last.emit({ type: 'background', tasks: [{ id: 'b1', description: 'Start dev server' }] });
-    runtime.last.emit({ type: 'tool', name: 'mcp__obeya__app_running', input: { url: 'http://localhost:5173' } });
+    runtime.last.emit({ type: 'tool', name: 'mcp__seismic__app_running', input: { url: 'http://localhost:5173' } });
     runtime.last.call('reply', { text: 'Läuft wieder.' });
     runtime.last.emit({ type: 'idle', background: 1 });
     const item = board.item(c.id)!;
@@ -570,7 +570,7 @@ describe('handing over with a demo', () => {
     workers.message(c.id, 'Starte den Testserver.');
     runtime.last.emit({ type: 'tool', name: 'Bash', input: { command: 'bun run dev', run_in_background: true } });
     runtime.last.emit({ type: 'background', tasks: [{ id: 'b1', description: 'Start dev server' }] });
-    runtime.last.emit({ type: 'tool', name: 'mcp__obeya__app_running', input: { url: 'http://localhost:5173' } });
+    runtime.last.emit({ type: 'tool', name: 'mcp__seismic__app_running', input: { url: 'http://localhost:5173' } });
     runtime.last.call('reply', { text: 'Läuft.' });
     runtime.last.emit({ type: 'idle', background: 1 });
     expect(board.item(c.id)).toMatchObject({ state: 'waiting', answered: true });
@@ -584,7 +584,7 @@ describe('handing over with a demo', () => {
     expect(item.answered).toBeUndefined();
     expect(needsYou(item)).toBe(false);
     // the work it said it waits for is not the app, even should it name the app's address again
-    runtime.last.emit({ type: 'tool', name: 'mcp__obeya__app_running', input: { url: 'http://localhost:5173' } });
+    runtime.last.emit({ type: 'tool', name: 'mcp__seismic__app_running', input: { url: 'http://localhost:5173' } });
     runtime.last.emit({ type: 'idle', background: 2 });
     expect(board.item(c.id)).toMatchObject({ answering: true, inTurn: true });
     // that work done, the worker goes on and hands over
@@ -626,7 +626,7 @@ describe('handing over with a demo', () => {
     workers.restartDue({ reason: 'code', deadline: Date.now() + 15 * 60_000 });
     busy.emit({ type: 'text', text: 'Ich pausiere für den Neustart.' });
     busy.emit({ type: 'idle' });
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Obeya.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Seismic.' });
     expect(board.item(c.id)!.answering).toBe(true);
     expect(needsYou(board.item(c.id)!)).toBe(false);
     workers.shutdown();
@@ -719,7 +719,7 @@ describe('handing over with a demo', () => {
 
   test('where demos are shared, a video or an artifact comes with its page for colleagues, kept with the demo', async () => {
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'clones', app: { run: 'bun start' }, demo: { site: { title: 'Demos', url: 'https://demos.example.dev', deploy: 'deploy {dir}' } } });
+    setup({ ...generic, land: 'main', workspaces: 'clones', app: { run: 'bun start' } }, false, {});
     const c = manual();
     await workers.start(c.id);
     expect(runtime.last.inbox[0]).toContain('share the demo, a video or an HTML artifact, with colleagues');
@@ -746,7 +746,7 @@ describe('handing over with a demo', () => {
     setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones' }, shares: () => shares }));
     const c = manual();
     await workers.start(c.id);
-    // the forge says only now that the repository is public: it shares on the owner's personal site
+    // the canvas's demo site is initialized only now
     shares = true;
     const tool = runtime.last.spec.tools!.find((t) => t.name === 'ready_for_review')!;
     const page = { title: 'Zählerstände als CSV', text: 'Vermieter laden die Zählerstände jetzt als CSV herunter.' };
@@ -756,10 +756,10 @@ describe('handing over with a demo', () => {
     expect(state(c.id)).toBe('waiting:demo');
   });
 
-  test("where the site names tags, the page comes with them, each dimension's from its values alone", async () => {
+  test("where the canvas names tags for its site, the page comes with them, each dimension's from its values alone", async () => {
     rmSync(dir, { recursive: true, force: true });
     const tags = { Area: ['Billing', 'Reports'], Audience: ['Admins', 'Customers'] };
-    setup({ ...generic, land: 'main', workspaces: 'clones', app: { run: 'bun start' }, demo: { site: { title: 'Demos', url: 'https://demos.example.dev', deploy: 'deploy {dir}', tags } } });
+    setup({ ...generic, land: 'main', workspaces: 'clones', app: { run: 'bun start' } }, false, { tags });
     const c = manual();
     await workers.start(c.id);
     expect(runtime.last.inbox[0]).toContain('hand it over with that page (title, text, tags)');
@@ -870,8 +870,8 @@ describe('comments on places in the demo video', () => {
       [
         'The owner watched your demo video and commented on places in it. The card still waits for their approval of what you handed over; a change their words call for goes into a new handover:',
         '2 comments on places in your demo video (their frames and screenshots are shown below, in this order):',
-        `[Demo video at 0:07, chapter „Export“, narration: „Jetzt der Export.“]\nHier fehlt die Kopfzeile.\n(frame: ${images.path(frame)})`,
-        '[Demo video at 0:14, chapter „Export“, narration: „Die Datei hat eine Kopfzeile.“] (spoken, so speech recognition may have misheard words)\nZu schnell.',
+        `[Demo video at 0:07, chapter “Export”, narration: “Jetzt der Export.”]\nHier fehlt die Kopfzeile.\n(frame: ${images.path(frame)})`,
+        '[Demo video at 0:14, chapter “Export”, narration: “Die Datei hat eine Kopfzeile.”] (spoken, so speech recognition may have misheard words)\nZu schnell.',
       ].join('\n\n'),
     );
     expect(runtime.last.images.at(-1)).toEqual([images.path(frame)!]);
@@ -899,7 +899,7 @@ describe('comments on places in the demo video', () => {
     expect(() => workers.unsay(c.id, first!.id)).toThrow(BadRequest);
     workers.released(c.id, true);
     expect(runtime.last.inbox).toHaveLength(n + 1);
-    expect(runtime.last.inbox.at(-1)).toContain('A comment on places in your demo video:\n\n[Demo video at 0:07, chapter „Export“, narration: „Jetzt der Export.“]\nHier fehlt die Kopfzeile.');
+    expect(runtime.last.inbox.at(-1)).toContain('A comment on places in your demo video:\n\n[Demo video at 0:07, chapter “Export”, narration: “Jetzt der Export.”]\nHier fehlt die Kopfzeile.');
     expect(runtime.last.inbox.at(-1)).not.toContain('Das stimmt nicht.');
     expect(board.item(c.id)!.held).toBeUndefined();
     expect(() => workers.unsay(c.id, second!.id)).toThrow(BadRequest);
@@ -937,7 +937,7 @@ describe('comments on places in the demo video', () => {
     expect(runtime.last.inbox).toHaveLength(n);
     workers.message(c.id, 'Semikolon.');
     expect(runtime.last.inbox).toHaveLength(n + 1);
-    expect(runtime.last.inbox.at(-1)).toContain('A comment on places in your demo video:\n\n[Demo video at 0:02, chapter „Liste“, narration: „Die Liste.“]\nHier ruckelt es.\n\nThen they answered:\n\nSemikolon.');
+    expect(runtime.last.inbox.at(-1)).toContain('A comment on places in your demo video:\n\n[Demo video at 0:02, chapter “Liste”, narration: “Die Liste.”]\nHier ruckelt es.\n\nThen they answered:\n\nSemikolon.');
     expect(board.item(c.id)!.demo!.answer).toBe('Semikolon.');
     expect(board.item(c.id)!.held).toBeUndefined();
   });
@@ -964,7 +964,7 @@ describe('comments on places in the demo video', () => {
     const told = runtime.sessions.flatMap((s) => s.inbox);
     expect(told.filter((m) => m.includes('Etwas kleiner.'))).toHaveLength(1);
     expect(told.at(-1)).toContain('The owner approved your work.');
-    expect(told.at(-1)).toContain('Before approving, the owner watched your demo video. A comment on places in your demo video:\n\n[Demo video at 0:01, chapter „Liste“, narration: „Die Liste.“]\nEtwas kleiner.\n\nThey approved the work as it is all the same');
+    expect(told.at(-1)).toContain('Before approving, the owner watched your demo video. A comment on places in your demo video:\n\n[Demo video at 0:01, chapter “Liste”, narration: “Die Liste.”]\nEtwas kleiner.\n\nThey approved the work as it is all the same');
   });
 
   test('one on a demo a later handover replaced is placed in that demo, and the worker hears which', async () => {
@@ -979,13 +979,13 @@ describe('comments on places in the demo video', () => {
     board.work(c.id, { state: 'working', need: null });
     workers.message(c.id, 'Hier war es noch falsch.', [], false, undefined, { at: 7, demo: first });
     expect(board.events(c.id).at(-1)!.spot).toEqual({ at: 7, chapter: 'Export', narration: 'Jetzt der Export.', demo: first, earlier: true });
-    expect(runtime.last.inbox.at(-1)).toContain('[Earlier demo video, one a later handover of yours replaced, at 0:07, chapter „Export“, narration: „Jetzt der Export.“]\nHier war es noch falsch.');
+    expect(runtime.last.inbox.at(-1)).toContain('[Earlier demo video, one a later handover of yours replaced, at 0:07, chapter “Export”, narration: “Jetzt der Export.”]\nHier war es noch falsch.');
     // one on the card's demo names it too, for a click on it once a later handover replaced that one as well
     runtime.last.emit({ type: 'idle' });
     board.work(c.id, { state: 'working', need: null });
     workers.message(c.id, 'Gut so.', [], false, undefined, { at: 1 });
     expect(board.events(c.id).at(-1)!.spot).toEqual({ at: 1, chapter: 'Zeile', narration: 'Nur die Zeile.', demo: second });
-    expect(runtime.last.inbox.at(-1)).toContain('[Demo video at 0:01, chapter „Zeile“');
+    expect(runtime.last.inbox.at(-1)).toContain('[Demo video at 0:01, chapter “Zeile”');
   });
 
   test("an answer to a question given at a place in the video is about that place, with its frame", async () => {
@@ -994,7 +994,7 @@ describe('comments on places in the demo video', () => {
     await runtime.last.call('ask', { question: 'Welcher Schnitt?' });
     const frame = still();
     workers.answer(c.id, 'Dieser hier.', [], false, undefined, [], { at: 6.5, still: frame });
-    expect(runtime.last.inbox.at(-1)).toContain(`[Demo video at 0:06, chapter „Export“, narration: „Jetzt der Export.“]\nDieser hier.\n\nThe frame at that place in the video is shown below (file: ${images.path(frame)}).`);
+    expect(runtime.last.inbox.at(-1)).toContain(`[Demo video at 0:06, chapter “Export”, narration: “Jetzt der Export.”]\nDieser hier.\n\nThe frame at that place in the video is shown below (file: ${images.path(frame)}).`);
     expect(runtime.last.images.at(-1)).toEqual([images.path(frame)!]);
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'answer', text: 'Dieser hier.', spot: { at: 6.5, still: frame } });
   });
@@ -1005,7 +1005,7 @@ describe('comments on places in the demo video', () => {
     board.work(c.id, { state: 'working', need: null });
     const frame = still();
     workers.message(c.id, 'Und hier.', [], false, undefined, { at: 6.5, still: frame });
-    expect(runtime.last.inbox.at(-1)).toContain(`[Demo video at 0:06, chapter „Export“, narration: „Jetzt der Export.“]\nUnd hier.\n\nThe frame at that place in the video is shown below (file: ${images.path(frame)}).`);
+    expect(runtime.last.inbox.at(-1)).toContain(`[Demo video at 0:06, chapter “Export”, narration: “Jetzt der Export.”]\nUnd hier.\n\nThe frame at that place in the video is shown below (file: ${images.path(frame)}).`);
     expect(runtime.last.images.at(-1)).toEqual([images.path(frame)!]);
     expect(board.events(c.id).at(-1)).toMatchObject({ text: 'Und hier.', spot: { at: 6.5, still: frame } });
     expect(board.item(c.id)!.held).toBeUndefined();

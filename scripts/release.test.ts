@@ -19,7 +19,7 @@ test('collects the installers under the names the site links, with the signed up
   files(bundle, {
     'appimage/Obeya_0.4.0_amd64.AppImage': 'image',
     'appimage/Obeya_0.4.0_amd64.AppImage.sig': 'sig',
-    'appimage/Obeya.AppDir/AppRun': 'run',
+    'appimage/Seismic.AppDir/AppRun': 'run',
     'deb/Obeya_0.4.0_amd64.deb': 'deb',
   });
   const out = join(tmp, 'collected-linux');

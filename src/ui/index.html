@@ -4,16 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="frame-src 'self' data: blob:">
-<title>Obeya</title>
+<title>Seismic</title>
 <link rel="icon" href="./logo/logo.png" type="image/png" sizes="64x64">
 <link rel="icon" href="./logo/logo.svg" type="image/svg+xml" sizes="any">
 <link rel="apple-touch-icon" href="./logo/apple-touch-icon.png">
 <link rel="manifest" href="./manifest.webmanifest" crossorigin="use-credentials">
-<meta name="apple-mobile-web-app-title" content="Obeya">
-<link rel="stylesheet" href="./styles.css">
+<meta name="apple-mobile-web-app-title" content="Seismic">
+<script>
+  // the owner's last look in this browser (theme.ts), before the first paint: the server's answer comes later
+  try { var t = localStorage.getItem('obeya-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<link rel="stylesheet" href="./frost.css">
 </head>
 <body>
 <div id="root"></div>
 <script type="module" src="./main.tsx"></script>
+<script type="module" src="./frost.ts"></script>
 </body>
 </html>

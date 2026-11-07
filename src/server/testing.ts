@@ -128,7 +128,7 @@ export function identify(repo: string) {
  */
 /**
  * `fetch` and `WebSocket` with the owner's key of the server `of` gives (one of `serve`), as the
- * page, the app's shell and Obeya's scripts send it. A request without it goes through the global ones.
+ * page, the app's shell and Seismic's scripts send it. A request without it goes through the global ones.
  */
 export function asOwner(of: () => object) {
   const withKey = (given?: HeadersInit) => {

@@ -35,7 +35,7 @@ test('a mock loads nothing from elsewhere, whatever comes before its own head', 
   expect(pagePolicy()).toContain("form-action 'none'");
 });
 
-test("Obeya's page frames only its own addresses", () => {
+test("Seismic's page frames only its own addresses", () => {
   const index = readFileSync(join(import.meta.dir, '../ui/index.html'), 'utf8');
   expect(index).toContain(`<meta http-equiv="Content-Security-Policy" content="${FRAMES_POLICY}">`);
 });

@@ -1,14 +1,18 @@
-// A static site Obeya keeps itself, for a repository whose settings name one (`demo.site`): the
-// share target for hosts that take a directory and serve it as it is.
+// A static site Seismic keeps itself, one of this machine's demo sites (demo-sites.ts) as a canvas
+// shares on it: the share target for hosts that take a directory and serve it as it is.
 //
-// The site lives under Obeya's home in `sites/<key>/`, the key made of its URL's host and path, so
-// every clone and repository naming the same site shares one directory (and the one queue all
-// shares go through, `serial` in share.ts). Its `site/` is what is deployed: one directory per page
-// with the demo's files, its `index.html` and a `meta.json`, plus the overview at the root. A host
+// The site lives under Seismic's home in `sites/<key>/`, the key made of its URL's host and path, so
+// every canvas sharing on the same site shares one directory (and the one queue all shares go
+// through, `serial` in share.ts). Its `site/` is what is deployed: under each canvas's path (`paths`
+// in the manifest; '' for the root) one directory per page with the demo's files, its `index.html`
+// and a `meta.json`, plus that path's overview and feed. A canvas's path is initialized before its
+// first page (`init`): its entry in the manifest, with the title, language, tag vocabulary and
+// theme its overview is written with, so that a deploy from any canvas or machine writes every
+// path's overview alike. A host
 // deployment is a full snapshot of that directory, so each publish or withdrawal changes it and runs
 // the deploy line on the whole of it (`{dir}` in the line stands for it), with the `KEY=value` lines
 // of the site's env file added to its environment. A deploy that fails puts the page back as it was
-// (it is set aside in `backup/` meanwhile); a directory lacking pages Obeya has as shared is not
+// (it is set aside in `backup/` meanwhile); a directory lacking pages Seismic has as shared is not
 // deployed, since the deployment would take them offline.
 //
 // Several machines may publish to one site, so each change pulls before it pushes: the site's
@@ -21,16 +25,16 @@
 // with nothing at its URL is the first one). A host may answer every missing file with a page of its
 // own (Cloudflare Pages serves the overview): a manifest answered that way is missing, not unreadable.
 //
-// The pages come from Obeya's own templates (`demo-page.ts`), each in its demo's language, the
+// The pages come from Seismic's own templates (`demo-page.ts`), each in its demo's language, the
 // overview in the site's. A call writes only its own page and the overview: a page shared earlier
 // keeps the template it was written with until it is published again (the page changes since,
 // page-changes.ts, say what that would bring). A page published again with the same video, or the same artifact
 // files, keeps its date, so the overview keeps its order when pages are brought up to date or get
 // their pull request's link. What counts is the demo's own files (`source` in meta.json), not the
-// copies on the site, which carry what Obeya adds to an artifact (artifact-copy.ts).
+// copies on the site, which carry what Seismic adds to an artifact (artifact-copy.ts).
 //
 // A repository's theme (theme.ts) goes into each page of its cards, and into the overview of a listed
-// site whose target names it (the repository publishing), after Obeya's style. Without one, the
+// site whose target names it (the repository publishing), after Seismic's style. Without one, the
 // pages are what they were.
 //
 // A host may serve no byte ranges (Cloudflare Pages does not): the video page then loads the video
@@ -39,11 +43,12 @@
 // A host that reads a `_headers` file (Cloudflare Pages, Netlify) sends an artifact's files with the
 // headers that keep it from the internet beyond what its CSP covers (`artifactHeaders`).
 //
-// The owner's personal site (personal-site.ts) is unlisted (`unlisted`): a page lies at
-// `<token>/<slug>/`, the token drawn per card; the manifest lies in a secret directory; the root and
+// An unlisted site (demo-sites.ts) has `unlisted`: a page lies at `<path>/<token>/<slug>/`, the
+// token drawn per card; the manifest lies in a secret directory; the root and
 // the answer to a missing address are blank; there is no feed; pages and headers keep search engines
 // out and send no referrer.
 
+import { bothNames } from '../core/env';
 import { createHash, randomUUID } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
@@ -64,7 +69,7 @@ import { BLANK_PAGE, GITHUB_PAGES, githubPagesDeploy } from './site-hosts';
 import { COMMAND_TIMEOUT, commandWords, SHARE_CWD, type SharePage, type ShareTarget, scriptArgv, tail } from './share';
 import { messageOf } from '../core/text';
 
-/** Where the sites live under Obeya's home. */
+/** Where the sites live under Seismic's home. */
 export const SITES_DIR = 'sites';
 /** The largest file a site takes without `maxFile` (Cloudflare Pages' limit). */
 export const MAX_FILE = 25 * 1024 * 1024;
@@ -85,11 +90,11 @@ interface Meta {
   /** A hash of the video or the artifact's files as the demo has them. */
   source: string;
   language: PageLanguage;
-  /** Who shared it: git's name (`user.name`) in the repository of the Obeya that published it; absent on pages from before (until 2026-10-20) or where git has none. */
+  /** Who shared it: git's name (`user.name`) in the repository of the Seismic that published it; absent on pages from before (until 2026-10-20) or where git has none. */
   by?: string;
   /** The later demo versions on the page, in order of handover, each in a directory of the page's (`dir`). */
   more?: MoreMeta[];
-  /** The page's tags from the site's vocabulary (`demo.site.tags`), by dimension; absent on pages without. */
+  /** The page's tags from the site's vocabulary (the canvas's), by dimension; absent on pages without. */
   tags?: PageTags;
 }
 
@@ -117,7 +122,7 @@ export function siteKey(url: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/** The site's directory under Obeya's home: `site/` is deployed, `backup/` holds a page set aside while a deploy runs. */
+/** The site's directory under Seismic's home: `site/` is deployed, `backup/` holds a page set aside while a deploy runs. */
 export const siteBase = (home: string, site: DemoSite) => join(home, SITES_DIR, siteKey(site.url));
 
 /** The page's URL on the site. */
@@ -131,7 +136,7 @@ const envPath = (home: string, site: DemoSite) => {
   if (!site.env) return null;
   const file = resolve(home, site.env);
   // under the home alone (the settings' check says so): what is in it goes to the site's URL
-  if (!file.startsWith(resolve(home) + sep)) throw new Refused(`the site's env file ${site.env} is not under Obeya's home`);
+  if (!file.startsWith(resolve(home) + sep)) throw new Refused(`the site's env file ${site.env} is not under Seismic's home`);
   return file;
 };
 
@@ -160,7 +165,7 @@ export function parseEnv(text: string): Record<string, string> {
 
 class Refused extends Error {}
 
-/** The site's manifest, at its root: every page with its files, and the pages withdrawn. */
+/** The site's manifest, at its root: every page with its files, the pages withdrawn, and the canvases' paths. */
 export const MANIFEST = 'obeya-site.json';
 
 /** A page in the manifest, or a withdrawn one (a tombstone). Only the machine whose card it is changes a page, so its revision counts up. */
@@ -182,15 +187,28 @@ interface Manifest {
   machine: string;
   at: string;
   pages: Record<string, Entry>;
+  /** The canvases' paths on the site ('' for its root), each with what its overview is written with; absent on sites from before (until 2026-11-06). */
+  paths?: Record<string, PathInfo>;
+}
+
+/** A canvas's path on the site: what its overview and feed are written with. */
+interface PathInfo {
+  title: string;
+  language: PageLanguage;
+  /** The canvas's vocabulary of tags, for the overview's filter. */
+  tags?: PageTags;
+  /** The theme of the repository that published there last (its CSS), for the overview. */
+  theme?: string;
 }
 
 /** The live site: its manifest; none for a site not deployed yet. */
 interface Live {
   deploy: string | null;
   pages: Record<string, Entry>;
+  paths: Record<string, PathInfo>;
 }
 
-/** A page this Obeya may have as shared that another machine withdrew. */
+/** A page this Seismic may have as shared that another machine withdrew. */
 export interface Gone {
   slug: string;
   machine: string;
@@ -203,6 +221,8 @@ export interface SiteOptions {
   checkWaits?: number[];
   /** The overview's words: the language the repository names for its demos (`demo.language`); without it the narration language of the demo settings. */
   language?: PageLanguage;
+  /** The canvas's path on the site, where its pages and overview lie (`billing`); '' (the root) without it. Its pages' places start with it. */
+  path?: string;
   /** Who the pages published from here say shared them; git's name (`user.name`) in the repository without it. */
   by?: string;
   /**
@@ -211,7 +231,7 @@ export interface SiteOptions {
    * for search engines, no referrer for the links leaving it.
    */
   unlisted?: { secret: string };
-  /** The theme of the repository publishing (theme.ts), for the overview: a listed site's overview carries the theme of the repository that published last. */
+  /** The theme of the repository publishing (theme.ts), for the overview: a listed site's overview of the path carries the theme of the repository that published there last. */
   theme?: () => Theme | null;
 }
 
@@ -241,10 +261,16 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
   const overviewLanguage = (): PageLanguage => opts.language ?? readDemoSettings(home).language;
   const root = site.url.replace(/\/+$/, '');
   const unlisted = !!opts.unlisted;
+  const own = opts.path ?? '';
+  /** What the canvas's path is written with now. */
+  const ownInfo = (): PathInfo => {
+    const theme = opts.theme?.()?.css;
+    return { title: site.title, language: overviewLanguage(), ...(dimensions(site.tags).length ? { tags: site.tags } : {}), ...(theme ? { theme } : {}) };
+  };
   /** Where the manifest is on the site: at its root, or in the unlisted site's secret directory. */
   const manifestAt = opts.unlisted ? `${opts.unlisted.secret}/${MANIFEST}` : MANIFEST;
 
-  /** The site lives only in its directory: one that lost pages Obeya has as shared would drop them with the next deployment. */
+  /** The site lives only in its directory: one that lost pages Seismic has as shared would drop them with the next deployment. */
   const checkSite = (shared: string[], self: string) => {
     const missing = shared.filter((s) => s !== self && !existsSync(join(dir, s, 'meta.json')));
     if (missing.length) throw new Refused(t.siteLacks(dir, missing));
@@ -257,7 +283,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     return parseEnv(readFileSync(file, 'utf8'));
   };
 
-  /** The headers for reading the live site, `${KEY}` taken from the env file (not Obeya's environment, whose secrets the settings may not send anywhere). */
+  /** The headers for reading the live site, `${KEY}` taken from the env file (not Seismic's environment, whose secrets the settings may not send anywhere). */
   const headers = (env: Record<string, string>): Record<string, string> =>
     Object.fromEntries(
       Object.entries(site.headers ?? {}).map(([name, value]) => [
@@ -304,7 +330,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     if (r.ok) {
       const body = await r.text();
       const m = manifestOf(body);
-      if (m) return { deploy: m.deploy, pages: m.pages };
+      if (m) return { deploy: m.deploy, pages: m.pages, paths: m.paths ?? {} };
       // a host may answer a missing file with a page of its own (Cloudflare Pages serves the
       // overview for a site without a 404.html): the manifest is missing when a file that cannot
       // be there gets the same answer
@@ -312,7 +338,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
       if (!missing.ok || (await missing.text()) !== body) throw unreadable(t.notManifest);
     } else if (r.status !== 404) throw unreadable(status(r));
     // no manifest: a site not deployed yet
-    return { deploy: null, pages: {} };
+    return { deploy: null, pages: {}, paths: {} };
   };
 
   /** The manifest in a file the live site served; null when it is none. */
@@ -336,7 +362,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     const deploy = randomUUID();
     const pages = Object.fromEntries(Object.entries(m.pages).filter(([slug, e]) => e.withdrawn || existsSync(join(dir, slug, 'meta.json'))));
     mkdirSync(dirname(join(dir, manifestAt)), { recursive: true });
-    writeFileSync(join(dir, manifestAt), JSON.stringify({ deploy, machine, at: new Date().toISOString(), pages } satisfies Manifest, null, 1));
+    writeFileSync(join(dir, manifestAt), JSON.stringify({ deploy, machine, at: new Date().toISOString(), pages, ...(m.paths && Object.keys(m.paths).length ? { paths: m.paths } : {}) } satisfies Manifest, null, 1));
     return deploy;
   };
 
@@ -365,7 +391,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     const gone: Gone[] = [];
     const fetchList: [string, Entry][] = [];
     for (const [slug, e] of Object.entries(live.pages)) {
-      if (!isPage(slug, unlisted)) continue;
+      if (!isPage(slug)) continue;
       const mine = local.pages[slug];
       if (e.withdrawn) {
         if (mine && mine.rev >= e.rev) continue;
@@ -405,7 +431,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
         writeFileSync(to, bytes);
       }
       rmSync(join(dir, slug), { recursive: true, force: true });
-      // an unlisted site's page lies a level deeper, in the random part of its address
+      // a page under a canvas's path, or in the random part of its address, lies a level deeper
       mkdirSync(dirname(join(dir, slug)), { recursive: true });
       mkdirSync(into, { recursive: true });
       renameSync(into, join(dir, slug));
@@ -436,30 +462,47 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
   };
 
   /**
-   * Writes the overview and the feed from the pages in the directory, and the headers of the
-   * artifacts' files. An unlisted site has neither overview nor feed: its root and its answer to an
-   * address it lacks (`404.html`) are a blank page, so neither leads to a page.
+   * Writes each path's overview and feed from the pages under it, and the headers of the artifacts'
+   * files. An unlisted site has neither overview nor feed: its root, each path and its answer to an
+   * address it lacks (`404.html`) are a blank page, so none leads to a page. A site from before the
+   * paths (none in its manifest) has its overview at the root, titled as the canvas's.
    */
-  const writeOverview = () => {
+  const writeOverview = (m: Manifest) => {
     mkdirSync(dir, { recursive: true });
+    const paths = m.paths ?? {};
+    const at = Object.keys(paths);
     if (unlisted) {
       writeFileSync(join(dir, 'index.html'), BLANK_PAGE);
       writeFileSync(join(dir, NOT_FOUND), BLANK_PAGE);
-      writeFileSync(join(dir, HEADERS), unlistedHeaders() + artifactHeaders(site, true));
+      for (const p of at.filter(Boolean)) {
+        mkdirSync(join(dir, p), { recursive: true });
+        writeFileSync(join(dir, p, 'index.html'), BLANK_PAGE);
+      }
+      writeFileSync(join(dir, HEADERS), unlistedHeaders() + artifactHeaders(site, true, at));
       rmSync(join(dir, FEED), { force: true });
       return;
     }
-    const pages = readPages(dir);
-    writeFileSync(join(dir, 'index.html'), overviewHtml(site, pages, overviewLanguage(), opts.theme?.()?.css));
-    writeFileSync(join(dir, FEED), feedXml(site, pages, overviewLanguage()));
-    writeFileSync(join(dir, HEADERS), artifactHeaders(site));
+    // a site from before the paths keeps its overview at the root while pages lie there
+    const overviews: [string, PathInfo][] = at.length ? Object.entries(paths) : readPages(dir).length ? [['', ownInfo()]] : [];
+    // the root of a site whose canvases all have a path of their own lists none of them
+    if (!overviews.some(([p]) => p === '')) writeFileSync(join(dir, 'index.html'), BLANK_PAGE);
+    for (const [p, info] of overviews) {
+      const { tags: _, ...bare } = site;
+      const view: DemoSite = { ...bare, url: p ? `${root}/${p}` : root, title: info.title, ...(info.tags ? { tags: info.tags } : {}) };
+      const under = join(dir, p);
+      mkdirSync(under, { recursive: true });
+      const pages = readPages(under);
+      writeFileSync(join(under, 'index.html'), overviewHtml(view, pages, info.language, info.theme));
+      writeFileSync(join(under, FEED), feedXml(view, pages, info.language));
+    }
+    writeFileSync(join(dir, HEADERS), artifactHeaders(site, false, at));
   };
 
   /** Runs the deploy line on the directory; what it said, for the card's log. */
   const deploy = async (env: Record<string, string>): Promise<string> => {
     mkdirSync(dir, { recursive: true });
     const words = commandWords(site.deploy).map((a) => a.replaceAll('{dir}', dir));
-    // the deploy Obeya builds in for GitHub Pages
+    // the deploy Seismic builds in for GitHub Pages
     if (words[0] === GITHUB_PAGES) {
       try {
         return tail(await githubPagesDeploy(dir, words[1] ?? '', join(base, 'git'), undefined, { private: unlisted }));
@@ -468,15 +511,17 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
       }
     }
     const argv = scriptArgv(words, repo);
-    const cwd = join(home, SHARE_CWD);
+    // from the root of the repository whose demo goes out (Seismic's home where there is none, adding a site)
+    const cwd = repo !== home && existsSync(repo) ? repo : join(home, SHARE_CWD);
     mkdirSync(cwd, { recursive: true });
+    keepOutOfGit(cwd);
     let out: string;
     let code: number;
     try {
       const r = await spawnOutput(argv, {
         cwd,
         stdin: 'ignore',
-        env: { ...process.env, ...(argv[0] === process.execPath ? BUN_ENV : {}), OBEYA_HOME: home, OBEYA_REPO: repo, ...env },
+        env: { ...process.env, ...(argv[0] === process.execPath ? BUN_ENV : {}), ...bothNames({ HOME: home, REPO: repo }), ...env },
         timeout: COMMAND_TIMEOUT,
       });
       out = `${r.stdout}\n${r.stderr}`.trim();
@@ -504,12 +549,18 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     apply: ((rev: number, before: Entry | undefined) => Entry) | null,
     log: (text: string) => void,
     gone: Gone[],
+    register = false,
   ): Promise<string> => {
     const env = deployEnv();
     for (let round = 1; ; round++) {
       const live = await readLive(env);
       const local = readLocal();
       const lost = await pull(local, live, env, log);
+      // the paths as the live site has them, the canvas's own as it is now
+      const paths = { ...local.paths, ...live.paths };
+      // a page going out under the path puts it there too, as Initialize does
+      if (register || slug || own in paths) paths[own] = ownInfo();
+      if (Object.keys(paths).length) local.paths = paths;
       gone.push(...lost.filter((g) => g.slug !== slug));
       const away = new Set(gone.map((g) => g.slug));
       const kept = shared.filter((s) => !away.has(s));
@@ -524,7 +575,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
         if (before) local.pages[slug] = before;
         else delete local.pages[slug];
         writeLocal(local);
-        writeOverview();
+        writeOverview(local);
       };
       let said = '';
       let seen: boolean | null;
@@ -534,7 +585,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
           ? [[slug, rev]]
           : kept.flatMap((s) => (local.pages[s] && !local.pages[s]!.withdrawn ? [[s, local.pages[s]!.rev] as [string, number]] : []));
         const id = writeLocal(local);
-        writeOverview();
+        writeOverview(local);
         // another machine deployed since the pull: its deployment would be lost, so pull again
         const now = await readLive(env);
         if (now.deploy !== live.deploy) seen = false;
@@ -566,7 +617,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     return backup;
   };
 
-  /** Runs a change of the site, its reason in Obeya's words where it was refused, with the pages another machine withdrew. */
+  /** Runs a change of the site, its reason in Seismic's words where it was refused, with the pages another machine withdrew. */
   const attempt = async <T>(fn: (gone: Gone[]) => Promise<T>): Promise<(T | { why: string; said: string }) & { gone: Gone[] }> => {
     const gone: Gone[] = [];
     try {
@@ -583,7 +634,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     ...(unlisted ? { unlisted: true as const } : {}),
     publish: (p: SharePage, log = () => {}) =>
       attempt(async (gone) => {
-        const slug = checkSlug(p.slug, unlisted);
+        const slug = checkSlug(p.slug);
         // the first version at the page's root, each later one in a directory of its own
         const parts = [{ ...p, sub: '' }, ...(p.more ?? []).map((m, i) => ({ ...m, sub: String(i + 2) }))];
         const ready = await Promise.all(
@@ -611,7 +662,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
             // a version keeps its date while its demo's own files stay the same, wherever it was on the page
             const dated = new Map<string, string>(before ? [[before.source, before.at], ...(before.more ?? []).map((m) => [m.source, m.at] as [string, string])] : []);
             const now = new Date().toISOString();
-            // the one whose Obeya publishes it now; a machine whose git has no name keeps whom the page named
+            // the one whose Seismic publishes it now; a machine whose git has no name keeps whom the page named
             const by = opts.by ?? gitName(repo) ?? before?.by;
             const written = ready.map(({ d, html, files, copy }) => {
               const into = join(target, d.sub, html ? ARTIFACT_DIR : '');
@@ -664,7 +715,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
       }),
     withdraw: async (slugArg, shared, log = () => {}) => {
       const r = await attempt(async (gone) => {
-        const slug = checkSlug(slugArg, unlisted);
+        const slug = checkSlug(slugArg);
         const said = await change(slug, shared, (rev) => ({ rev, machine, at: new Date().toISOString(), withdrawn: true }), log, gone);
         return { said };
       });
@@ -690,11 +741,45 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
       }
     },
     repair: async (shared, log = () => {}) => attempt(async (gone) => ({ said: await change(null, shared, null, log, gone) })),
+    init: async (shared, log = () => {}) => attempt(async (gone) => ({ said: await change(null, shared, null, log, gone, true) })),
   };
 }
 
-/** A page's place on the site: its slug, on an unlisted site behind the random part of its address (`<token>/<slug>`). */
-const isPage = (slug: string, unlisted: boolean) => (unlisted ? /^[a-z0-9]{16,40}\/[a-z0-9][a-z0-9-]{0,80}$/ : /^[a-z0-9][a-z0-9-]{0,80}$/).test(slug);
+/**
+ * What a deploy leaves in the repository it runs in (wrangler's cache, `.wrangler/`) goes into the
+ * repository's own exclude file, so a workspace does not count as changed for it and stays free to
+ * lease. Nothing where the directory is no git repository.
+ */
+function keepOutOfGit(dir: string) {
+  try {
+    const r = Bun.spawnSync(['git', '-C', dir, 'rev-parse', '--git-path', 'info/exclude'], { stdin: 'ignore', stdout: 'pipe', stderr: 'ignore' });
+    if (r.exitCode !== 0) return;
+    const file = resolve(dir, r.stdout.toString().trim());
+    const now = existsSync(file) ? readFileSync(file, 'utf8') : '';
+    if (now.split(/\r?\n/).includes('.wrangler/')) return;
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${now}${now && !now.endsWith('\n') ? '\n' : ''}.wrangler/\n`);
+  } catch {}
+}
+
+/**
+ * A page's place on the site: its slug, under its canvas's path and on an unlisted site behind the
+ * random part of its address (`<path>/<token>/<slug>`).
+ */
+const isPage = (place: string) => /^[a-z0-9][a-z0-9-]{0,80}(\/[a-z0-9][a-z0-9-]{0,80}){0,4}$/.test(place);
+
+/** A canvas's path on a site: up to three lower-case words with hyphens, `/` between them; '' for the root. */
+export const isSitePath = (path: string) => path === '' || /^[a-z0-9][a-z0-9-]{0,40}(\/[a-z0-9][a-z0-9-]{0,40}){0,2}$/.test(path);
+
+/** The paths canvases have initialized on the site, as this machine last wrote its manifest; a site from before the paths has none. */
+export function sitePaths(home: string, site: Pick<DemoSite, 'url'>, secret?: string): string[] {
+  const file = join(siteBase(home, site as DemoSite), 'site', secret ? `${secret}/${MANIFEST}` : MANIFEST);
+  try {
+    return Object.keys((JSON.parse(readFileSync(file, 'utf8')) as Manifest).paths ?? {});
+  } catch {
+    return [];
+  }
+}
 /** A path inside a page's directory. */
 const isPath = (f: string) => f.split('/').every((p) => p && p !== '.' && p !== '..' && !p.includes('\\'));
 const hashOf = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
@@ -706,8 +791,8 @@ function filesUnder(root: string, at = ''): string[] {
     .sort();
 }
 
-function checkSlug(slug: unknown, unlisted: boolean): string {
-  if (typeof slug !== 'string' || !isPage(slug, unlisted)) throw new Refused(`not a slug: ${String(slug)}`);
+function checkSlug(slug: unknown): string {
+  if (typeof slug !== 'string' || !isPage(slug)) throw new Refused(`not a slug: ${String(slug)}`);
   return slug;
 }
 
@@ -723,7 +808,7 @@ function sourceHash(dir: string, files: string[]): string {
 
 /**
  * A hash of a sample page in each language, with everything a page can have, the video pages',
- * then the artifact pages': it changes with every change to Obeya's templates, and `PAGES_HASH`
+ * then the artifact pages': it changes with every change to Seismic's templates, and `PAGES_HASH`
  * (page-changes.ts) pins it, so a change is described for the viewers, or found to show nowhere.
  */
 export function pagesHash(): { video: string; html: string; stacked: string } {
@@ -778,12 +863,14 @@ const unlistedHeaders = () => `/*
  * reaches, a connection opened ahead (`preconnect`) or WebRTC, kept to the site
  * (`Connection-Allowlist`, Chrome 152 on).
  */
-export function artifactHeaders(site: DemoSite, unlisted = false): string {
+export function artifactHeaders(site: DemoSite, unlisted = false, paths: string[] = []): string {
   const u = new URL(site.url);
-  // on an unlisted site, behind the random part of the page's address
-  const path = u.pathname.replace(/\/+$/, '') + (unlisted ? '/:token' : '');
+  const base = u.pathname.replace(/\/+$/, '');
+  // under each canvas's path, on an unlisted site behind the random part of the page's address
+  const prefixes = (paths.length ? paths : ['']).map((p) => (p ? `${base}/${p}` : base) + (unlisted ? '/:token' : ''));
   // an artifact as the page's first version, and as a later one in a directory of its own
-  return [`${path}/:slug/${ARTIFACT_DIR}/*`, `${path}/:slug/:n/${ARTIFACT_DIR}/*`]
+  return prefixes
+    .flatMap((path) => [`${path}/:slug/${ARTIFACT_DIR}/*`, `${path}/:slug/:n/${ARTIFACT_DIR}/*`])
     .map(
       (at) => `${at}
   Content-Security-Policy: sandbox allow-scripts; ${pagePolicy(u.origin)}
@@ -849,30 +936,32 @@ export const FEED = 'feed.xml';
 /** The first sentence of a page's text, as the overview shows it. */
 const firstSentence = (t: string) => (t.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? t).slice(0, 240);
 
-/** The style the overview adds: its filter (search, a row of chips per dimension), the count and „Links kopieren“, each page's copy icon. */
+/** The style the overview adds: its filter (search, a row of chips per dimension), the count and "Copy links", each page's copy icon. */
 const OVERVIEW_STYLE = `
-  .filter { display: grid; gap: 10px; margin: 0 0 16px; }
-  .filter input { font: inherit; font-size: 15px; width: 100%; padding: 7px 11px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
-  .filter input:focus { outline: none; border-color: var(--accent); }
-  .dim { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-  .dim > span { color: var(--muted); font-size: 13px; min-width: 90px; }
-  .chip { all: unset; cursor: pointer; font-size: 13px; line-height: 1.5; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); }
-  .chip:hover { border-color: var(--accent); }
-  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--card); }
+  .filter { display: grid; gap: 12px; margin: 0 0 20px; }
+  .filter input { font: inherit; font-size: 15px; width: 100%; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s; }
+  .filter input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .dim { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .dim > span { color: var(--muted); font-size: 13px; font-weight: 500; min-width: 90px; }
+  .chip { all: unset; cursor: pointer; font-size: 13px; font-weight: 500; line-height: 1.5; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); box-shadow: var(--shadow); transition: all 0.15s ease; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-ink); font-weight: 600; box-shadow: 0 0 12px var(--accent-glow); text-shadow: none; }
   .chip:focus-visible, .copy:focus-visible, .copy-all:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid var(--line); padding: 10px 0 12px; font-size: 14px; color: var(--muted); }
-  .copy-all, .copy { all: unset; cursor: pointer; color: var(--accent); display: inline-flex; align-items: center; gap: 6px; }
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid var(--line); padding: 12px 0 16px; font-size: 13.5px; color: var(--muted); }
+  .copy-all, .copy { all: unset; cursor: pointer; color: var(--accent); display: inline-flex; align-items: center; gap: 6px; font-weight: 500; transition: color 0.15s, text-shadow 0.15s; }
+  .copy-all:hover, .copy:hover { text-shadow: 0 0 8px var(--accent-glow); }
   .copy-all svg, .copy svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   ul.demos li { position: relative; }
   ul.demos li[hidden] { display: none; }
   ul.demos a { padding-right: 52px; }
-  ul.demos i { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; font-style: normal; }
-  ul.demos i em { font-style: normal; font-size: 12px; padding: 0 8px; border-radius: 999px; background: var(--chip); color: var(--muted); }
-  .copy { position: absolute; top: 12px; right: 12px; padding: 6px; border-radius: 3px; opacity: 0; transition: opacity 0.1s; }
-  .copy:hover { background: var(--chip); }
+  ul.demos i { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; font-style: normal; }
+  ul.demos i em { font-style: normal; font-size: 12px; font-weight: 500; padding: 2px 10px; border-radius: 999px; background: var(--chip); color: var(--muted); border: 1px solid var(--line); }
+  .copy { position: absolute; top: 14px; right: 14px; padding: 7px; border-radius: 8px; border: 1px solid transparent; opacity: 0; transition: opacity 0.15s, background 0.15s, border-color 0.15s; color: var(--muted); }
+  .copy:hover { background: var(--chip); border-color: var(--line); color: var(--accent); }
   ul.demos li:hover .copy, .copy:focus-visible, .copy.done { opacity: 1; }
-  .copy.done::after { content: attr(data-done); position: absolute; right: 100%; margin-right: 4px; font-size: 13px; white-space: nowrap; }
+  .copy.done::after { content: attr(data-done); position: absolute; right: 100%; margin-right: 6px; font-size: 13px; color: var(--accent); white-space: nowrap; }
   @media (hover: none) { .copy { opacity: 1; } }
+  .none { color: var(--muted); font-size: 14px; padding: 16px 0; }
 `;
 
 /** Two overlapping sheets: the mark for copying. */
@@ -883,7 +972,7 @@ const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9"
  * filter: a search over title and text, and a row of chips per dimension of the site's vocabulary
  * (its values that some page has), any of a dimension's and all dimensions; it stands in the URL
  * (`?Area=Billing&q=pdf`), so a filtered list can be passed on. Each page's link is copied by its
- * icon, those shown all at once by „Links kopieren“: as HTML links and as a Markdown list. It all
+ * icon, those shown all at once by "Copy links": as HTML links and as a Markdown list. It all
  * runs in the browser; the site stays static.
  */
 function overviewHtml(site: DemoSite, pages: (Meta & { slug: string })[], language: PageLanguage, theme?: string): string {
@@ -1023,7 +1112,7 @@ ${d.by ? `<author><name>${xml(d.by)}</name></author>\n` : ''}${Object.entries(d.
 <id>${xml(base)}</id>
 <updated>${xml(updated)}</updated>
 <author><name>${xml(site.title)}</name></author>
-<generator uri="${OBEYA_URL}">Obeya</generator>
+<generator uri="${OBEYA_URL}">Seismic</generator>
 ${pages.map(entry).join('')}</feed>
 `;
 }

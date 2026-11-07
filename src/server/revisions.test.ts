@@ -102,7 +102,7 @@ describe('a proposal reworked by what the owner says', () => {
     canvas.tell(p.id, 'Was würdest du nehmen?', [], false);
     expect(board().item(p.id)!.proposal?.revising).toMatchObject({ words: 'Was würdest du nehmen?' });
     expect(reviser()!.inbox[0]).toContain('Was würdest du nehmen?');
-    expect(reviser()!.spec.tools.map((t) => t.name)).toContain('to_obeya');
+    expect(reviser()!.spec.tools.map((t) => t.name)).toContain('to_seismic');
     expect(runtime.sessions.some(isKoordinator)).toBe(false);
     // the question stays above the owner's words
     expect(board().events(p.id).map((e) => [e.kind, e.author])).toEqual([
@@ -144,13 +144,13 @@ describe('a proposal reworked by what the owner says', () => {
     const p = board().propose(from.id, { title: 'CSV-Export prüfen', task: 'Der CSV-Export schreibt Umlaute falsch.', reason: 'Beim Export aufgefallen.' });
     canvas.tell(p.id, 'Übernimm ihn und leg los', [], true);
     const r = reviser()!;
-    const result = r.call('to_obeya', { request: 'Accept the proposal and start it' }) as Promise<string>;
+    const result = r.call('to_seismic', { request: 'Accept the proposal and start it' }) as Promise<string>;
     await settle();
     const k = runtime.sessions.filter(isKoordinator).at(-1)!;
     const tag = k.inbox.at(-1)!.match(/(K\d+) \[proposal\] "CSV-Export prüfen"/)![1]!;
     expect(k.call('act', { actions: [{ do: 'accept', card: tag }], confirm: 'Ich übernehme den Vorschlag und starte ihn.' })).not.toContain('goes by a click');
     k.emit({ type: 'idle' });
-    expect(await result).toBe('Obeya: Ich übernehme den Vorschlag und starte ihn.');
+    expect(await result).toBe('Seismic: Ich übernehme den Vorschlag und starte ihn.');
     await settle(30);
     expect(board().item(p.id)!.proposal?.acceptAfterRevision).toBe(true);
     // nothing to rework: the reviser ends without a new text, and the proposal goes as it is

@@ -26,7 +26,7 @@ export class AppUpdates {
     if (notes) update.notes = notes;
     if (typeof u.date === 'number' && Number.isFinite(u.date)) update.date = u.date;
     const download = text(u.download);
-    // the shell names a release of Obeya's (update.rs); another address in the bar would lead elsewhere
+    // the shell names a release of Seismic's (update.rs); another address in the bar would lead elsewhere
     if (download?.startsWith(RELEASES)) update.download = download;
     clearTimeout(this.expiry);
     this.expiry = setTimeout(() => this.set(null), FRESH_MS);

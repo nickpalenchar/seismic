@@ -1,5 +1,6 @@
-// The plan's usage limits in the bar: the session's and the week's, each as a short meter with how
-// much of it is used, in the grade the usage endpoint gives it. A click (a tap on the phone) lists
+// The plan's usage limits in the status bar: behind the logo of the harness they belong to (Claude
+// Code for now), the session's and the week's, each as a short meter with how much of it is used, in
+// the grade the usage endpoint gives it. A click (a tap on the phone) lists
 // every limit with when it starts anew, where the numbers come from, and the button
 // that hides them again (the setting in Konfiguration → Benachrichtigungen und Limits shows them again).
 
@@ -34,6 +35,20 @@ function Meter({ limit }: { limit: UsageLimit }) {
   );
 }
 
+/** Claude's mark, small: which harness the limits beside it belong to. */
+function ClaudeMark() {
+  // a starburst of rounded rays of uneven length, in Claude's terracotta
+  const rays = [10, 7.5, 9, 6.5, 10, 8, 9.5, 7, 10, 7.5, 9, 6.5];
+  return (
+    <svg className="harness-mark" viewBox="0 0 24 24" width="14" height="14" aria-hidden>
+      {rays.map((r, i) => {
+        const a = (i / rays.length) * 2 * Math.PI - Math.PI / 2;
+        return <line key={i} x1={12} y1={12} x2={12 + r * Math.cos(a)} y2={12 + r * Math.sin(a)} />;
+      })}
+    </svg>
+  );
+}
+
 export function UsagePill({ usage }: { usage: Usage }) {
   // open by a click (a tap) until one elsewhere or Escape
   const [open, setOpen] = useState(false);
@@ -59,6 +74,9 @@ export function UsagePill({ usage }: { usage: Usage }) {
   return (
     <div ref={ref} className={['pill usage', open && 'open'].filter(Boolean).join(' ')} id="usage">
       <button className="face" aria-expanded={open} aria-label={t.usage.title} onClick={() => setOpen(!open)}>
+        <span className="harness" title={t.usage.harness}>
+          <ClaudeMark />
+        </span>
         {shown.map((l) => (
           <span key={l.group} className={`group ${l.severity}`}>
             <span className="lbl">{t.usage.groups[l.group] ?? limitName(l)}</span>

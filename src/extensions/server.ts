@@ -21,7 +21,7 @@ export interface PermissionContext {
   settings: Settings;
 }
 
-/** An option of a permission question besides „Erlauben“ and „Ablehnen“; picked, the call runs. */
+/** An option of a permission question besides "Allow" and "Deny"; picked, the call runs. */
 export interface PermissionOption {
   /** Its words in every language: the owner's answer is matched against all of them. */
   label: Record<Language, string>;
@@ -32,7 +32,7 @@ export interface PermissionOption {
 }
 
 export interface PermissionPicked extends PermissionContext {
-  /** A line from Obeya in the card's conversation. */
+  /** A line from Seismic in the card's conversation. */
   log: (text: string) => void;
   /**
    * Changes the card's repository as its owner: `change` writes onto its main branch (or, in a

@@ -1,10 +1,10 @@
 """Narration clips with Qwen3-TTS: one clip, or as many as asked while the model stays loaded.
 
-Runs in the environment Obeya installs for the voice (`voices.ts`): MLX through mlx-audio on
+Runs in the environment Seismic installs for the voice (`voices.ts`): MLX through mlx-audio on
 Apple Silicon, PyTorch through qwen-tts elsewhere.
 
-    python qwen3.py --model <repo> --language de (--speaker ryan | --reference clip.wav) --out x.wav
-    python qwen3.py --model <repo> --language de (--speaker ryan | --reference clip.wav) --serve
+    python qwen3.py --model <repo> --language de (--speaker ryan [--instruct <style>] | --reference clip.wav) --out x.wav
+    python qwen3.py --model <repo> --language de (--speaker ryan [--instruct <style>] | --reference clip.wav) --serve
 
 With `--out`, the text comes on stdin and one WAV goes out. With `--serve`, the model, the
 reference and its transcript load once and the process answers requests until its stdin ends,
@@ -26,7 +26,8 @@ for minutes is stuck, and gets ended.
 stdout carries nothing but these lines: the libraries print there too, so their output is moved
 to stderr before they load.
 
-A stock speaker comes from a CustomVoice model; `--reference` clones a clip with a Base model,
+A stock speaker comes from a CustomVoice model, which takes `--instruct`, how to speak (the demo
+settings' style); `--reference` clones a clip with a Base model,
 conditioned on its exact transcript in the `.txt` beside it. The clip must start and end inside a
 pause: the model continues the reference, and a cut in the middle of a word made every clip start
 with a noise. Sentence by sentence, since the model drifts on long inputs; a short gap between
@@ -37,7 +38,7 @@ says the word again and again and never ends, until its frame limit, minutes lat
 gets frames for a slow reading of it, no more; one that uses them all ran on, and is made again.
 
 It can also stumble and still end in time ("reauthenti uh reauthentic"). So each sentence is heard
-back with Parakeet, the speech recognition of Obeya's voice input, and compared with its script
+back with Parakeet, the speech recognition of Seismic's voice input, and compared with its script
 letter by letter: one with a stretch of `STUMBLE_LETTERS` or more that differs is made again too,
 and the take that differs least is kept, also when every attempt stumbled (a name the
 recognition always mishears must not stop a render); only a sentence that ran on every time fails
@@ -74,7 +75,7 @@ STUMBLE_LETTERS = 5
 #: letters): letters that are only missing count from this many on, where the voice skipped a
 #: stretch or lost its place in the sentence.
 SKIPPED_LETTERS = 12
-#: Parakeet, as Obeya's voice input hears with it.
+#: Parakeet, as Seismic's voice input hears with it.
 EAR_MODEL = "nemo-parakeet-tdt-0.6b-v3"
 #: The audio tags of a script ("[short pause]"): not said.
 AUDIO_TAG = re.compile(r"\[[^\]]*\]")
@@ -250,6 +251,14 @@ def write_wav(path: str, samples, rate: int) -> None:
         fh.writeframes(pcm.tobytes())
 
 
+def check_speaker(args, speakers) -> None:
+    """Stops on a speaker the model lacks, which it would otherwise speak in a voice of its own choosing."""
+    if args.reference or not args.speaker or not speakers:
+        return
+    if args.speaker.lower() not in {s.lower() for s in speakers}:
+        sys.exit(f"Qwen3-TTS has no speaker \"{args.speaker}\"; its speakers: {', '.join(sorted(speakers))}")
+
+
 def load(args):
     """The model, ready to speak: `speak(sentence, language, frames)` gives the samples of at most
     `frames` frames, `rate()` their rate."""
@@ -269,6 +278,7 @@ def load(args):
 
     if load_model:
         model = load_model(args.model)
+        check_speaker(args, getattr(model, "get_supported_speakers", lambda: None)())
 
         def speak(sentence: str, language: str, frames: int):
             kwargs = {"lang_code": LANGUAGES[language], "max_tokens": frames}
@@ -276,6 +286,8 @@ def load(args):
                 kwargs |= {"ref_audio": args.reference, "ref_text": ref_text}
             else:
                 kwargs["voice"] = args.speaker
+                if args.instruct:
+                    kwargs["instruct"] = args.instruct
             return np.concatenate([np.array(s.audio) for s in model.generate(text=sentence, **kwargs)])
 
         return speak, lambda: model.sample_rate
@@ -285,6 +297,7 @@ def load(args):
 
     device = "cuda:0" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     model = Qwen3TTSModel.from_pretrained(args.model, device_map=device, dtype=torch.bfloat16)
+    check_speaker(args, getattr(model, "get_supported_speakers", lambda: None)())
     rate = 24000
 
     def speak(sentence: str, language: str, frames: int):
@@ -292,7 +305,7 @@ def load(args):
         if args.reference:
             wavs, rate = model.generate_voice_clone(text=sentence, language=LANGUAGES[language].capitalize(), ref_audio=args.reference, ref_text=ref_text, max_new_tokens=frames)
         else:
-            wavs, rate = model.generate_custom_voice(text=sentence, language=LANGUAGES[language].capitalize(), speaker=args.speaker, max_new_tokens=frames)
+            wavs, rate = model.generate_custom_voice(text=sentence, language=LANGUAGES[language].capitalize(), speaker=args.speaker, instruct=args.instruct, max_new_tokens=frames)
         return np.asarray(wavs[0], dtype=np.float32)
 
     return speak, lambda: rate
@@ -313,7 +326,7 @@ class Ear:
             import onnx_asr
             import onnxruntime
 
-            # as Obeya's voice input: more than 4 threads only cost
+            # as Seismic's voice input: more than 4 threads only cost
             options = onnxruntime.SessionOptions()
             options.intra_op_num_threads = min(4, os.cpu_count() or 4)
             self._model = onnx_asr.load_model(EAR_MODEL, quantization="int8", sess_options=options, providers=["CPUExecutionProvider"])
@@ -430,7 +443,7 @@ def serve(args) -> None:
         try:
             answer(reply)
         except BrokenPipeError:
-            # whoever asked went away before the clip was done (Obeya stopped or restarted): nobody
+            # whoever asked went away before the clip was done (Seismic stopped or restarted): nobody
             # is left to tell, and closing the protocol at exit would fail on the closed pipe once more
             os._exit(0)
 
@@ -441,6 +454,7 @@ def main() -> None:
     parser.add_argument("--language", required=True, choices=sorted(LANGUAGES))
     parser.add_argument("--speaker")
     parser.add_argument("--reference")
+    parser.add_argument("--instruct")
     parser.add_argument("--out")
     parser.add_argument("--serve", action="store_true")
     args = parser.parse_args()

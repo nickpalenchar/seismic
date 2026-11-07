@@ -1,4 +1,4 @@
-// A command of the `app` of a repository's settings (`stop`, `keep`), run in a workspace by Obeya itself (design: Parking).
+// A command of the `app` of a repository's settings (`stop`, `keep`), run in a workspace by Seismic itself (design: Parking).
 
 import { remote } from './hosts';
 import { messageOf } from '../core/text';

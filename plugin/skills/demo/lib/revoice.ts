@@ -248,7 +248,7 @@ function translationBrief(dir: string, file: string, to: Language) {
     `  ${file}`,
     'in the same shape and order, without "language". Then run this again.',
     `- say: written as it should sound in ${name}, in the same person; its audio tags ([short pause] …) stay where they stand.`,
-    `- The screen keeps its language: quote a label as it appears on screen, with its meaning in ${name} after it: in a say as an aside („Teilen“, share, …), which the voice speaks more reliably than parentheses; elsewhere „Teilen“ (Share).`,
+    `- The screen keeps its language: quote a label as it appears on screen, with its meaning in ${name} after it: in a say as an aside ("Teilen", share, …), which the voice speaks more reliably than parentheses; elsewhere "Teilen" (Share).`,
     `  ${path.join(dir, 'review')} holds a still from the middle and the end of each scene, to read the labels from.`,
     '- report and title: the report page; meta: its keys and values, branch names and commits as they are.',
   ].join('\n');

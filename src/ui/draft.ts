@@ -1,12 +1,12 @@
 // What the owner is about to say or write, one draft per field: the text, the screenshots, the
-// options picked for the questions above it and (in `reply.ts`) the message it replies to. The field of the open card and the one in Obeya's sidebar
+// options picked for the questions above it and (in `reply.ts`) the message it replies to. The field of the open card and the one in Seismic's sidebar
 // keep theirs here rather than in the field itself, so the microphone sends what stands in the field
 // and dictates into it, and a draft outlives closing the card. Without a field to speak to, the
 // screenshots for the next recording lie beside the microphone, in a draft of their own (`MIC`).
 // These drafts (text, screenshots, picks, the message replied to) are written down per tab and canvas (`keepDrafts`), so they outlive a page load too:
 // switching to another canvas and back, or a restart. So are the marks on screenshots (`Markup`).
 
-import type { ChangeRoute } from '../core/types';
+import type { AgentSetting, FindingPick } from '../core/types';
 import { useEffect, useSyncExternalStore } from 'react';
 import type { Mark } from './marks';
 import type { Reply } from './reply';
@@ -28,9 +28,17 @@ export interface Draft {
   /** The message the words reply to (`reply.ts`). */
   reply?: Reply;
   /** On a review card: what the owner decided for its findings, by number, which goes with the words. */
-  findings?: Record<string, ChangeRoute>;
+  findings?: Record<string, FindingPick>;
+  /** The owner's own words on single findings, by number, which go verbatim with the finding's decision. */
+  findingNotes?: Record<string, string>;
+  /** Context still being typed, by finding number: it becomes a note with Save. */
+  findingNoteEdits?: Record<string, string>;
+  /** Which code review the finding choices and context above were written for (`FindingList`). */
+  reviewKey?: string;
   /** The paths of dropped files among the words (`insertFiles`), which go back beside the microphone with the screenshots (`moveFiles`). */
   files?: string[];
+  /** The agent picked in the Start button's menu, for the next start (`start-agent.tsx`). */
+  agent?: AgentSetting;
 }
 
 export interface Picks {
@@ -41,13 +49,15 @@ export interface Picks {
 /** Which questions picks belong to: they count only while the same questions stand. */
 export const questionsKey = (questions: unknown[]) => JSON.stringify(questions);
 
-type Kept = Pick<Draft, 'text' | 'images' | 'picks' | 'reply' | 'files' | 'findings'>;
-const keptOf = ({ text, images, picks, reply, files, findings }: Draft): Kept | null => {
+type Kept = Pick<Draft, 'text' | 'images' | 'picks' | 'reply' | 'files' | 'findings' | 'findingNotes' | 'findingNoteEdits' | 'reviewKey' | 'agent'>;
+const keptOf = ({ text, images, picks, reply, files, findings, findingNotes, findingNoteEdits, reviewKey, agent }: Draft): Kept | null => {
   const picked = picks?.picks.some((p) => p.length) ? picks : undefined;
   const decided = findings && Object.keys(findings).length ? findings : undefined;
+  const noted = findingNotes && Object.keys(findingNotes).length ? findingNotes : undefined;
+  const editing = findingNoteEdits && Object.keys(findingNoteEdits).length ? findingNoteEdits : undefined;
   const standing = filesIn(text, files);
-  return text.trim() || images.length || picked || reply || decided
-    ? { text, images, ...(picked ? { picks: picked } : {}), ...(reply ? { reply } : {}), ...(standing.length ? { files: standing } : {}), ...(decided ? { findings: decided } : {}) }
+  return text.trim() || images.length || picked || reply || decided || noted || editing || agent
+    ? { text, images, ...(picked ? { picks: picked } : {}), ...(reply ? { reply } : {}), ...(standing.length ? { files: standing } : {}), ...(decided ? { findings: decided } : {}), ...(noted ? { findingNotes: noted } : {}), ...(editing ? { findingNoteEdits: editing } : {}), ...(reviewKey ? { reviewKey } : {}), ...(agent ? { agent } : {}) }
     : null;
 };
 
@@ -57,13 +67,13 @@ const EMPTY: Draft = { text: '', images: [], uploading: 0, error: '', dictation:
 export const cardDraft = (id: string) => `card:${id}`;
 /** The draft of the comment on a card's approved work, for its feedback (`feedback.tsx`). */
 export const rateDraft = (id: string) => `rate:${id}`;
-/** The draft of the field in Obeya's sidebar. */
+/** The draft of the field in Seismic's sidebar. */
 export const OBEYA_DRAFT = 'obeya';
-/** The draft of the field under Obeya's conversation of a canvas, in the phone view, which shows every canvas. */
+/** The draft of the field under Seismic's conversation of a canvas, in the phone view, which shows every canvas. */
 export const obeyaDraft = (canvas: string) => `${OBEYA_DRAFT}:${canvas}`;
 /** The screenshots beside the microphone, where no field is spoken to. */
 export const MIC_DRAFT = 'mic';
-/** The field of the draft for Obeya's makers (`wish.tsx`). */
+/** The field of the draft for Seismic's makers (`wish.tsx`). */
 export const WISH_DRAFT = 'wish';
 
 const drafts = new Map<string, Draft>();
@@ -130,8 +140,8 @@ export function keepDrafts(store: Store, canvas: string) {
   kept = { store, canvas };
   try {
     const saved = JSON.parse(store.getItem(storeKey(canvas)) ?? '{}') as Record<string, Kept>;
-    for (const [key, { text, images, picks, reply, files, findings }] of Object.entries(saved))
-      if (!drafts.has(key)) drafts.set(key, { ...EMPTY, text, images, ...(picks ? { picks } : {}), ...(reply ? { reply } : {}), ...(files ? { files } : {}), ...(findings ? { findings } : {}) });
+    for (const [key, { text, images, picks, reply, files, findings, findingNotes, findingNoteEdits, reviewKey, agent }] of Object.entries(saved))
+      if (!drafts.has(key)) drafts.set(key, { ...EMPTY, text, images, ...(picks ? { picks } : {}), ...(reply ? { reply } : {}), ...(files ? { files } : {}), ...(findings ? { findings } : {}), ...(findingNotes ? { findingNotes } : {}), ...(findingNoteEdits ? { findingNoteEdits } : {}), ...(reviewKey ? { reviewKey } : {}), ...(agent ? { agent } : {}) });
   } catch {}
   try {
     const saved = JSON.parse(store.getItem(markupsKey(canvas)) ?? '{}') as Record<string, Markup>;
@@ -173,7 +183,7 @@ export function giveBack(key: string, text: string, images: string[] = []) {
   updateDraft(key, { text, images });
 }
 
-/** Whether the draft's field speaks to Obeya, as the microphone does without one: the sidebar's, the phone view's under Obeya's conversation. */
+/** Whether the draft's field speaks to Seismic, as the microphone does without one: the sidebar's, the phone view's under Seismic's conversation. */
 export const toObeya = (key: string) => key === OBEYA_DRAFT || key.startsWith(`${OBEYA_DRAFT}:`);
 
 /** The screenshots of draft `from` go into draft `to`, after those it has. */

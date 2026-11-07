@@ -1,5 +1,7 @@
+import { normalize, overlaps } from '../core/path-overlap';
+import type { LandingNotice } from './workspaces';
 import { LimitAttempts, limitWatch } from './limit-watch';
-// Workers: one agent session per card, in a leased clone. Obeya is the mailbox between the
+// Workers: one agent session per card, in a leased clone. Seismic is the mailbox between the
 // worker and the owner; every exchange lands in the card's conversation.
 
 import { extensionSettings, type PermissionContext, type PermissionOption, serverExtensions as extensions } from '../extensions/server';
@@ -16,8 +18,8 @@ import { type CardFile, docImages, fileKind, isImage, normalPath, shownFiles } f
 import { DEFAULT_DEMO_DIRECTORY, expandHome } from '../../plugin/skills/demo/lib/settings.ts';
 import { HANDOVER_ARTIFACTS, type HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
-import { AGENT_DEFAULTS, type AgentSetting, answering, askable, type Awaited, AWAITED_STATES, awaited, type BackgroundTask, pausable, pausableNow, type WorkerTurn, type CardLanding, type Demo, type DemoKind, type DemoPage, finished, formatQuestion, handedOver, type Item, type TaskAuthor, taskAuthor, type Mock, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type RestartReason, type Share, type Snooze, SNOOZE_LIMIT, type Spot, type Superseded, type SpotInput, started } from '../core/types';
-import { BadRequest, type Board, replyNote, type Retracted, type StoredDemo, titleKey } from './board';
+import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, AWAITED_STATES, awaited, type BackgroundTask, pausable, pausableNow, type WorkerTurn, type CardLanding, type Demo, type DemoKind, type DemoPage, finished, formatQuestion, handedOver, type Item, type Mock, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type RestartReason, type Share, type Snooze, SNOOZE_LIMIT, type Spot, type Superseded, type SpotInput, started } from '../core/types';
+import { ACTIVE, BadRequest, type Board, replyNote, type Retracted, type StoredDemo, titleKey } from './board';
 import { type Asked, decisionLog, toQuestion, withPick } from './advisor';
 import { checkArtifact, DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, OBEYA_PLUGIN, placeIn, readChapters } from './demo';
 import { artifactFiles } from './demo-page';
@@ -26,7 +28,7 @@ import { outsidePlanDir, remoteHost } from './repo';
 import type { InputContext } from './koordinator';
 import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool, BACKGROUND_GRACE, BACKGROUND_LIMIT, failureReason, LIMIT_LIFTED, type PermissionAnswer, type PermissionRequest } from './runtime';
 import { TO_OBEYA, toObeyaTool } from './to-obeya';
-import { EXEC_LANE_NOTE, execTools } from './exec-tools';
+import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE, execTools } from './exec-tools';
 import { type Forward, HOST_DIR, hostName, remote } from './hosts';
 import { runAppCommand } from './app-command';
 import { readingShared } from '../adapters';
@@ -34,7 +36,7 @@ import { branchName, type CardWorkspaces, type FileAt, gitSteps, ownFile, type L
 import type { FolderWorkspaces, UndoReport } from './folder';
 import { contributionOf, type PrState, type Shipped, type StoredContribution, type StoredNewRepo } from './board';
 import { type Doing, onTool, onToolDone, shownDoing, THINKING_AFTER } from './doing';
-import { type ChangeRoute, type Clash, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS } from '../core/types';
+import { type ChangeRoute, type Clash, type FindingPick, type CodeReviewSetting, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS, SEVERITIES, type Severity } from '../core/types';
 import { dimensions, outside, tagsOf } from '../core/page-tags';
 import { gitAsync, gitOrNull } from './workspaces';
 import { defaultBranchCommit } from './read-tree';
@@ -44,11 +46,14 @@ import { type DataSignal, dataModelSignals, isSchemaPage, SIGNALS_NAMED } from '
 import { type Forge, parsePrUrl, sameRepo } from './forge';
 import { clip, messageOf } from '../core/text';
 import { holdsNotes } from '../core/queue';
+import { CodeReviews } from './code-review';
 
 export interface WorkerOptions {
   board: Board;
   runtime: AgentRuntime;
   agentSetting?: () => AgentSetting;
+  /** Whether a Codex worker's approvals go to Codex's own automatic review rather than the owner; to the owner when left out. */
+  codexAutoReview?: () => boolean;
   workspaces: CardWorkspaces;
   adapter: RepoAdapter;
   /**
@@ -56,18 +61,20 @@ export interface WorkerOptions {
    * `.obeya/settings.json`: how work lands where they say so, whatever a card's branch changes.
    */
   machineSettings?: () => RepoSettings | undefined;
-  /** Whether the repository shares demos on a page now (the configuration's command, the site its settings name); its settings' site alone when left out. */
+  /** Whether the repository's demos are shared on a page now (its canvas's demo site, initialized); none when left out. */
   shares?: () => boolean;
+  /** The vocabulary of tags the canvas names for its demo site; none where it names none. */
+  vocabulary?: () => PageTags | undefined;
   permissionMode?: PermissionMode;
   /** The owner's preferences, added to every worker's instructions. */
   preferences?: () => string;
-  /** The card starts: what the owner talked over with Obeya's answering agent before it (`Ahead.history`), which goes with the task; its agent ends. */
+  /** The card starts: what the owner talked over with Seismic's answering agent before it (`Ahead.history`), which goes with the task; its agent ends. */
   takeAsked?: (cardId: string) => string | undefined;
   /** Called with everything the owner tells a worker, so lasting preferences can be learned. */
   onOwnerInput?: (card: Item, kind: 'answer' | 'note' | 'feedback', text: string, context?: InputContext) => void;
   /** On a canvas with several repositories: the one these workers work in. */
   repo?: string;
-  /** The boards of the other canvases this Obeya runs: a worker proposes a card in their repositories too. */
+  /** The boards of the other canvases this Seismic runs: a worker proposes a card in their repositories too. */
   otherBoards?: () => Board[];
   /** The worker reported the card's pull request: a demo shared before gets its link. */
   onPrOpened?: (cardId: string) => void;
@@ -91,11 +98,11 @@ export interface WorkerOptions {
   backgroundGrace?: number;
   /** How long an ended turn waits at most while the worker's background work still runs. */
   backgroundLimit?: number;
-  /** How long a worker asked to pause at a safe point has for it, before Obeya pauses it at once. */
+  /** How long a worker asked to pause at a safe point has for it, before Seismic pauses it at once. */
   pauseLimit?: number;
-  /** How long a card waits for the owner, its worker idle, before Obeya stops its workspace's app (`app.stop`). */
+  /** How long a card waits for the owner, its worker idle, before Seismic stops its workspace's app (`app.stop`). */
   parkGrace?: number;
-  /** How long after the owner last opened the card's app Obeya leaves it running at the least, for them to try it by hand. */
+  /** How long after the owner last opened the card's app Seismic leaves it running at the least, for them to try it by hand. */
   tryGrace?: number;
   /** How long the owner's comments on places in the demo video wait at most for them to finish watching. */
   holdGrace?: number;
@@ -110,19 +117,19 @@ export interface WorkerOptions {
   /** The files of the owner's screenshots, by id; unknown ones are left out. */
   imageFiles?: (ids?: string[]) => string[];
   /**
-   * Whether Obeya starts again for work that landed (`obeya`): it runs from this repository's
+   * Whether Seismic starts again for work that landed (`obeya`): it runs from this repository's
    * checkout and the work changed code; or only this repository's agents do (`repo`): the work
    * changed where they work (its own adapter, its `.obeya/settings.json`). `pushedFrom` is the
    * workspace work was pushed from straight to the remote's main, which leaves the checkout as it is.
    */
   restartsFor?: (landed: Landed, pushedFrom?: string) => Promise<'obeya' | 'repo' | false> | 'obeya' | 'repo' | false;
-  /** Added to every worker's environment: where Obeya is (`OBEYA_URL`), for a demo's narration. */
+  /** Added to every worker's environment: where Seismic is (`SEISMIC_URL`), for a demo's narration. */
   env?: Record<string, string>;
   /** The narration language of the demo settings, for a repository that names none for its demos; the conversation language when left out. */
   demoLanguage?: () => Language;
   /** The artifacts a handover may bring where the repository names none (the demo settings'); all when left out. */
   demoArtifacts?: () => HandoverArtifact[] | undefined;
-  /** The `Bash` rules of the allow list the owner confirmed for the repository `cwd` lies in: what a Codex worker's `obeya_run` runs without asking. None when left out. */
+  /** The `Bash` rules of the allow list the owner confirmed for the repository `cwd` lies in: what a Codex worker's `seismic_run` runs without asking. None when left out. */
   allowRules?: (cwd: string) => string[];
   /**
    * Makes a change to the repository `cwd` lies in as its owner (`PermissionPicked.asOwner` of an
@@ -130,13 +137,18 @@ export interface WorkerOptions {
    * extensions change no repository.
    */
   asOwner?: <T>(cwd: string, change: (repo: { path: string; folder: boolean }) => Promise<T>) => Promise<T>;
+  /** Whether and when the canvas reviews work that lands on main (design: Code reviews in Card lifecycle); off when left out. */
+  codeReviews?: () => CodeReviewSetting;
+  /** Runs the code reviews' agents (the "Code reviews" group, in Claude Code or Codex); `runtime` when left out. */
+  reviewRuntime?: AgentRuntime;
+  reviewAgentSetting?: () => AgentSetting;
   /** The agent harnesses that can work on this machine (Claude Code; Codex where it is signed in), for the allow list a setup card drafts; Claude Code alone when left out. */
   harnesses?: () => string[];
   /** The directory demos go into on this machine (the demo settings'); `~/demos` when left out. */
   demoDirectory?: () => string;
   /** A card's work ended (landed, closed without a change, a prototype discarded or built): its runs can be read now. */
   onWorkEnded?: (cardId: string, workspace: string | null) => void;
-  /** Passes on to the Koordinator what the owner's words to a card's worker ask of Obeya (`to_obeya`); without it the worker has no such tool. */
+  /** Passes on to the Koordinator what the owner's words to a card's worker ask of Seismic (`to_seismic`); without it the worker has no such tool. */
   toObeya?: (cardId: string, request: string) => Promise<string>;
   /** Where pull requests live: a review card's is read, commented on and merged through it. */
   forge?: Forge;
@@ -150,9 +162,9 @@ export interface WorkerOptions {
    * the pull, and where that stops, the landing of the rebase a worker resolved.
    */
   pulls?: Pick<Workspaces, 'pullMain' | 'pushMain' | 'clashBeforeMerge' | 'landResolution' | 'landingOf'>;
-  /** How long pushing main for a review card waits for the owner's „Rückgängig“; PUSH_HOLD_MS when left out. */
+  /** How long pushing main for a review card waits for the owner's "Undo"; PUSH_HOLD_MS when left out. */
   pushHold?: number;
-  /** How long Obeya waits between looks at whether the forge shows a review card's pushed commits as the PR's head; a second when left out. */
+  /** How long Seismic waits between looks at whether the forge shows a review card's pushed commits as the PR's head; a second when left out. */
   pushSettle?: number;
 }
 
@@ -174,7 +186,7 @@ interface HeldComment {
 
 /** Where in the demo video the owner's words are, as the worker reads it above them. */
 export const spotNote = (spot: Spot) => {
-  return `[${spot.earlier ? 'Earlier demo video, one a later handover of yours replaced,' : 'Demo video'} at ${mmss(spot.at)}${spot.chapter ? `, chapter „${spot.chapter}“` : ''}${spot.narration ? `, narration: „${spot.narration}“` : ''}]`;
+  return `[${spot.earlier ? 'Earlier demo video, one a later handover of yours replaced,' : 'Demo video'} at ${mmss(spot.at)}${spot.chapter ? `, chapter “${spot.chapter}”` : ''}${spot.narration ? `, narration: “${spot.narration}”` : ''}]`;
 };
 
 /** What is stored while landed work's worker finishes (`CardRow.landed`). */
@@ -182,7 +194,7 @@ interface LandedState {
   commit?: string;
   /** Nothing landed: the work changed nothing in the repository, and the card is `done` rather than `live`. */
   unchanged?: boolean;
-  /** Obeya starts again for the landing. */
+  /** Seismic starts again for the landing. */
   restarts?: boolean;
   /** The worker waits for that restart. */
   waits?: boolean;
@@ -256,13 +268,13 @@ export const proposalQuestions = (questions: z.infer<typeof PROPOSAL_QUESTIONS> 
 /** What became of a proposal the worker took back (`replaced`: by a new one), as it reads it. */
 const retractedText = (r: Retracted, replaced: boolean): string => {
   if (r.kind === 'unknown')
-    return `No proposal of yours is called so${replaced ? ', so nothing was replaced' : '; nothing was withdrawn'}. Yours: ${r.mine.length ? r.mine.map((m) => `„${m.title}“ (${m.gone ? 'removed' : m.state})`).join(', ') : 'none'}.`;
-  const it = `„${r.title}“`;
+    return `No proposal of yours is called so${replaced ? ', so nothing was replaced' : '; nothing was withdrawn'}. Yours: ${r.mine.length ? r.mine.map((m) => `“${m.title}” (${m.gone ? 'removed' : m.state})`).join(', ') : 'none'}.`;
+  const it = `“${r.title}”`;
   switch (r.kind) {
     case 'gone':
       return `${it} was still open and is gone from the canvas.`;
     case 'marked':
-      return `The owner had taken ${it} on already (${r.state}): Obeya marks it as ${replaced ? 'replaced' : 'withdrawn'} and offers the owner to remove it.`;
+      return `The owner had taken ${it} on already (${r.state}): Seismic marks it as ${replaced ? 'replaced' : 'withdrawn'} and offers the owner to remove it.`;
     case 'finished':
       return `${it} is done already (${r.state}); it stays as it is.`;
     case 'dismissed':
@@ -274,14 +286,6 @@ const retractedText = (r: Retracted, replaced: boolean): string => {
   }
 };
 
-/** What a worker hears of a card's task someone else than the owner wrote: its language tells nothing of the owner's (`ownersLanguage`). */
-const TASK_BY: Record<Exclude<TaskAuthor, 'owner'>, string> = {
-  plan: "The card's task comes from the project's plan doc, not from the owner: its language tells nothing about theirs.",
-  koordinator: "Obeya's Arbeitsrückschau wrote the card's task, not the owner: its language tells nothing about theirs.",
-  idea: "The idea's agent wrote the card's task, not the owner: its language tells nothing about theirs.",
-  proposal: "A worker proposed the card's task and the owner took it on: its language tells nothing about theirs.",
-};
-
 export const proposalTask = (unseen: string) =>
   `task: the card's text, written for the agent who will take it on, which has seen neither ${unseen}: what is wrong or wanted, where (files, names), what done looks like. Write it as the owner would write a card: no "I", no "my question", no "your card"; name other cards by their title.`;
 
@@ -290,14 +294,16 @@ const HELD_EDITED = 'While your handover waits, the owner edited the text that g
 const heldEdited = (body: string) => `${HELD_EDITED} It reads now:\n\n${body}\n\nThat is the text that goes out with your commits. Should you hand over again with pr_draft, start from it and keep the owner's wording where nothing calls for a change.`;
 
 /** How the worker hears that its approved work could not land for something that is not its own to fix. */
-const NOT_LANDED = 'Since you handed over, the owner approved your work, but Obeya could not land it on main:';
+const NOT_LANDED = 'Since you handed over, the owner approved your work, but Seismic could not land it on main:';
 
 /**
- * The owner's words Obeya holds for the worker while it is in a turn (`CardRow.unheard`), each with
+ * The owner's words Seismic holds for the worker while it is in a turn (`CardRow.unheard`), each with
  * the lines of the log it carries: it takes them in with its next tool step's result, or, should
  * the turn end before one, as the message that starts the next.
  */
 interface Unheard {
+  /** Informational news: accompanies a future turn, never starts one or enters a tool result. */
+  nextTurn?: true;
   said: number[];
   text: string;
   images: string[];
@@ -319,12 +325,12 @@ function pageHeardOf(share: Share | undefined): PageHeard {
 interface PausedState {
   /** A subscription limit pause survives restart, including its reset and retry budget. */
   limit?: { attempts: number; until?: string; statusBefore?: string | null };
-  /** What Obeya had for the worker meanwhile (its pull request's review, the landing), and a message it had not taken in yet: it hears them once it goes on. */
+  /** What Seismic had for the worker meanwhile (its pull request's review, the landing), and a message it had not taken in yet: it hears them once it goes on. */
   held?: { text: string; images: string[] }[];
 }
 
 /**
- * A background task of the worker as Obeya follows it: whether it runs since an earlier turn, and
+ * A background task of the worker as Seismic follows it: whether it runs since an earlier turn, and
  * whether it serves the app the worker said runs, which wakes nobody: the worker waits for no app.
  */
 interface RunningTask extends BackgroundTask {
@@ -354,18 +360,20 @@ function onlyApp(live: Live): boolean {
   return live.tasks.size > 0 && [...live.tasks.values()].every((t) => t.app);
 }
 
-/** A step a script takes as a card's agent in a scratch Obeya (`standIn`), as the runtime would tell of it. */
+/** A step a script takes as a card's agent in a scratch Seismic (`standIn`), as the runtime would tell of it. */
 export type StandInStep = { type: 'tool'; name: string; input?: Record<string, unknown> } | { type: 'toolDone'; name: string; ok?: boolean } | { type: 'text'; text: string };
 
 interface Live {
   session: AgentSession;
-  /** The machine its workspace is on (null: the one Obeya runs on), where it holds a slot while in a turn. */
+  /** A Codex worker whose approvals Codex's automatic review decides, not the owner. */
+  autoReview?: boolean;
+  /** The machine its workspace is on (null: the one Seismic runs on), where it holds a slot while in a turn. */
   host: string | null;
   /** Whether the worker called `ask` or `ready_for_review` in the current turn. */
   handedOver: boolean;
   /** Whether the worker answered the owner with `reply` in the current turn. */
   answered?: boolean;
-  /** Whether the worker had words for the owner in the current turn: said something, replied, or passed their words on to Obeya. */
+  /** Whether the worker had words for the owner in the current turn: said something, replied, or passed their words on to Seismic. */
   spoke?: boolean;
   /** Whether the worker snoozed in the current turn: its session ends with the turn, and its closing words repeat the snooze. */
   snoozed?: boolean;
@@ -397,7 +405,7 @@ interface Live {
   limitReset?: number;
   /** How many of the worker's background tasks run, as the session last said. */
   background: number;
-  /** Those tasks by the session's id, as the agent described them and since when Obeya saw them run, the oldest first: on the card while they run. */
+  /** Those tasks by the session's id, as the agent described them and since when Seismic saw them run, the oldest first: on the card while they run. */
   tasks: Map<string, RunningTask>;
   /** When the usage limit that stopped the worker lifts (or, not knowing, when to try again); gone once it works. */
   limited?: number;
@@ -409,7 +417,7 @@ interface Live {
   toldRestart?: boolean;
   /** The card's status line from when the worker heard of the restart, back once it paused: a line about pausing is stale once it goes on. */
   statusBeforeRestart?: string | null;
-  /** The worker ended a turn for the restart that is due: a turn that starts before the restart (its background work woke it) hears that Obeya still waits. */
+  /** The worker ended a turn for the restart that is due: a turn that starts before the restart (its background work woke it) hears that Seismic still waits. */
   restartPaused?: boolean;
   /** The worker ended a turn for the owner's pause at a safe point while its background work runs on: a turn that work starts hears that the owner still waits. */
   pauseHeld?: boolean;
@@ -441,7 +449,7 @@ interface AskedPermission {
 export interface DueRestart {
   reason: RestartReason;
   deadline: number;
-  /** Only the agents of these workers' repository restart, for a change to its configuration; Obeya runs on. */
+  /** Only the agents of these workers' repository restart, for a change to its configuration; Seismic runs on. */
   repo?: boolean;
 }
 
@@ -450,13 +458,13 @@ const pauseOf = (due: DueRestart): Pause => (due.reason === 'stop' ? 'stop' : du
 
 /** The owner may pause the demo video for a while; a browser gone away leaves no other sign. */
 const HOLD_GRACE = 10 * 60_000;
-/** Closing the card with „Freigeben“ also ends the watching: the approval takes the comments then. */
+/** Closing the card with "Approve" also ends the watching: the approval takes the comments then. */
 const RELEASE_DELAY = 1500;
 /** A quick reply from the owner should not pay for starting the stack again. */
 const PARK_GRACE = 5 * 60_000;
 /** An app the owner opened to try by hand runs at least this long after, waiting card or not. */
 const TRY_GRACE = 30 * 60_000;
-/** How long Obeya waits for the app to answer when it looks whether it runs. */
+/** How long Seismic waits for the app to answer when it looks whether it runs. */
 const PROBE_MS = 1500;
 /** Whether the card's status line is the one it shows while its worker waits for a usage limit, in either language. */
 const limitLine = (line: string | null | undefined) => !!line && LANGUAGES.some((l) => line.startsWith(MESSAGES[l].worker.limitStatus));
@@ -467,7 +475,7 @@ export const SPOKEN = 'spoken, so speech recognition may have misheard words';
 export function answerNote(picks: string[], text: string): string {
   if (!picks.length) return text;
   const words = ownWords({ text, picks });
-  return `They picked ${picks.map((o) => `„${o}“`).join(', ')}.${words ? `\n\nThey added in their own words:\n\n${words}` : ''}`;
+  return `They picked ${picks.map((o) => `“${o}”`).join(', ')}.${words ? `\n\nThey added in their own words:\n\n${words}` : ''}`;
 }
 
 /** The question of a demo report as the demo keeps it: its text, options and the worker's pick, as `ask` takes them. */
@@ -481,28 +489,30 @@ const MAX_RESULT_FILES = 12;
 
 const END_TURN = 'Recorded. End your turn now without further work; the reply arrives as your next message.';
 
-/** How often Obeya asks whether a machine whose connection was lost answers again. */
+/** How often Seismic asks whether a machine whose connection was lost answers again. */
 const RECONNECT_MS = 30_000;
 
 const hostResumed = (host: string) =>
   `The connection to ${host}, the machine your workspace is on, dropped, and your session ended with it. Whatever you had running there may have been stopped with it: background commands, servers you started, and a command still running in your turn. Run again what you still need, and go on from there.`;
 
 const RESTARTED =
-  'Obeya was restarted. Whatever you had running then was stopped with it: background commands, servers you started, and a command still running in your turn (its result shows exit code 137). Run again what you still need. If you had paused for the restart, go on from there.';
+  'Seismic was restarted. Whatever you had running then was stopped with it: background commands, servers you started, and a command still running in your turn (its result shows exit code 137). Run again what you still need. If you had paused for the restart, go on from there.';
 
 const REPO_RESTARTED =
-  "Obeya restarted this repository's agents to apply a change to its configuration. Whatever you had running then was stopped with it: background commands, servers you started, and a command still running in your turn (its result shows exit code 137). Run again what you still need. If you had paused for the restart, go on from there.";
+  "Seismic restarted this repository's agents to apply a change to its configuration. Whatever you had running then was stopped with it: background commands, servers you started, and a command still running in your turn (its result shows exit code 137). Run again what you still need. If you had paused for the restart, go on from there.";
 
 const DUE_WHY: Record<RestartReason, string> = {
   code: 'restart (new code landed on main)',
   config: 'restart (the owner saved a new configuration)',
   repository: "restart (a repository's settings changed on its default branch)",
+  owner: 'restart (the owner restarts it)',
+  rebuild: 'restart (the owner rebuilds it: its dependencies are installed again)',
   stop: 'stop (the owner is shutting it down)',
   update: 'restart (the owner installs a new version of the app)',
-  takeover: 'restart (the app takes over this Obeya, which ran without it)',
+  takeover: 'restart (the app takes over this Seismic, which ran without it)',
 };
 
-/** Why Obeya restarts the agents of one repository alone: where they work changed, which they start again with. */
+/** Why Seismic restarts the agents of one repository alone: where they work changed, which they start again with. */
 const REPO_WHY: Partial<Record<RestartReason, string>> = {
   config: 'the owner changed its configuration',
   repository: 'its settings changed on its default branch',
@@ -519,33 +529,33 @@ const dueText = (due: DueRestart) =>
       }
     : { what: `${DUE_WHY[due.reason]} and stops whatever its workers run at that moment.`, whom: 'no worker', thing: DUE_WHY[due.reason], back: 'once it runs again' };
 
-/** How long Obeya waits for the restart at most, as the messages below say it. */
+/** How long Seismic waits for the restart at most, as the messages below say it. */
 const minutesLeft = (due: DueRestart) => {
   const minutes = Math.max(1, Math.round((due.deadline - Date.now()) / 60_000));
   return `at most ${minutes} more minute${minutes === 1 ? '' : 's'}`;
 };
 
-/** What is about to happen and how long Obeya waits for it, as the messages to a worker in a turn begin. */
+/** What is about to happen and how long Seismic waits for it, as the messages to a worker in a turn begin. */
 const dueOpening = (due: DueRestart) => {
   const d = dueText(due);
-  return `Obeya is about to ${due.repo ? `${d.what} which stops whatever you run at that moment.` : d.what} It waits until ${d.whom} is in the middle of a turn, ${minutesLeft(due)}`;
+  return `Seismic is about to ${due.repo ? `${d.what} which stops whatever you run at that moment.` : d.what} It waits until ${d.whom} is in the middle of a turn, ${minutesLeft(due)}`;
 };
 
-/** Tells a worker that Obeya is about to restart or stop, so that it pauses at a safe point instead of being cut off. */
+/** Tells a worker that Seismic is about to restart or stop, so that it pauses at a safe point instead of being cut off. */
 const restartNotice = (due: DueRestart) =>
-  `${dueOpening(due)}. Pause at the next safe point: finish the step you are in, start nothing long (a test run, a demo render, a measurement), and end your turn, without handing over if you are not done. Background commands still running keep Obeya waiting: let those you need finish, stop the others (a scratch server you can start again). One that finishes before the restart wakes you for a turn that keeps Obeya waiting too: take in its result and end that turn as well. Obeya resumes you ${dueText(due).back}, and you go on from there.`;
+  `${dueOpening(due)}. Pause at the next safe point: finish the step you are in, start nothing long (a test run, a demo render, a measurement), and end your turn, without handing over if you are not done. Background commands still running keep Seismic waiting: let those you need finish, stop the others (a scratch server you can start again). One that finishes before the restart wakes you for a turn that keeps Seismic waiting too: take in its result and end that turn as well. Seismic resumes you ${dueText(due).back}, and you go on from there.`;
 
 /**
  * Tells a worker whose turn a message starts while a restart is due (a conflict after an approval,
- * an answer, a card started) that the turn keeps Obeya waiting: it takes the message in and leaves
- * what it asks for until Obeya resumes it, instead of judging a step short enough to do first.
+ * an answer, a card started) that the turn keeps Seismic waiting: it takes the message in and leaves
+ * what it asks for until Seismic resumes it, instead of judging a step short enough to do first.
  */
 const restartWaits = (due: DueRestart) =>
-  `${dueOpening(due)}, and this turn keeps it waiting. Take in this message, leave the work it asks for until Obeya resumes you, and end your turn, without handing over. Obeya resumes you ${dueText(due).back}, and you do that work then.`;
+  `${dueOpening(due)}, and this turn keeps it waiting. Take in this message, leave the work it asks for until Seismic resumes you, and end your turn, without handing over. Seismic resumes you ${dueText(due).back}, and you do that work then.`;
 
-/** Tells a worker that paused for the restart, and was woken before it (by its background work, a message), that Obeya still waits for it. */
+/** Tells a worker that paused for the restart, and was woken before it (by its background work, a message), that Seismic still waits for it. */
 const stillDue = (due: DueRestart) =>
-  `Obeya still waits for the ${dueText(due).thing} you paused for, ${minutesLeft(due)}, and this turn keeps it waiting. Take in what started it (a background command that finished, a message), leave the work it leads to until Obeya resumes you, and end your turn.`;
+  `Seismic still waits for the ${dueText(due).thing} you paused for, ${minutesLeft(due)}, and this turn keeps it waiting. Take in what started it (a background command that finished, a message), leave the work it leads to until Seismic resumes you, and end your turn.`;
 
 /** How long a worker asked to pause at a safe point has for it at most, as a due restart waits for it. */
 const PAUSE_LIMIT = 15 * 60_000;
@@ -553,7 +563,7 @@ const PAUSE_LIMIT = 15 * 60_000;
 /** Tells a worker that the owner pauses it, so that it brings its work to a safe point first instead of being cut off. */
 const pauseNotice = (limit: number) => {
   const minutes = Math.max(1, Math.round(limit / 60_000));
-  return `The owner pauses you now: they want you to stop for the time being, at a safe point rather than in the middle of a step. Finish the step you are in, start nothing long (a test run, a demo render, a measurement), and end your turn, without handing over if you are not done. Stop the background commands still running (a scratch server you can start again): one you let finish keeps the owner waiting. Obeya pauses you wherever you are after at most ${minutes} minute${minutes === 1 ? '' : 's'}. Pausing ends your session; once the owner lets you go on, you go on from there.`;
+  return `The owner pauses you now: they want you to stop for the time being, at a safe point rather than in the middle of a step. Finish the step you are in, start nothing long (a test run, a demo render, a measurement), and end your turn, without handing over if you are not done. Stop the background commands still running (a scratch server you can start again): one you let finish keeps the owner waiting. Seismic pauses you wherever you are after at most ${minutes} minute${minutes === 1 ? '' : 's'}. Pausing ends your session; once the owner lets you go on, you go on from there.`;
 };
 
 /** Tells a worker that paused for the owner, and was woken by its background work before it could, that they still wait for it. */
@@ -595,7 +605,7 @@ const cap = (s: string) => s[0]!.toUpperCase() + s.slice(1);
 /**
  * What a snoozed worker hears when it wakes: why now (`timeUp`: its time has come; `met`: the card it
  * waits on got there, or no longer can; `owner`: the owner woke it, `words` with words of theirs
- * that follow; else Obeya has something for it).
+ * that follow; else Seismic has something for it).
  */
 function wokeNote(s: Snooze, timeUp: boolean, owner: boolean, words: boolean, met?: Awaited): string {
   const now = MESSAGES.en.at(Date.now());
@@ -615,7 +625,7 @@ function wokeNote(s: Snooze, timeUp: boolean, owner: boolean, words: boolean, me
   return `${who}; it is now ${now}, and ${early}. ${ended}${s.by === 'agent' ? ' Once you have dealt with it, snooze again if there is still nothing to do until then.' : ''}`;
 }
 
-const AFTER_RESTART = 'If something that remains needs Obeya to run your change, call after_restart and end your turn: Obeya tells you once it runs it.';
+const AFTER_RESTART = 'If something that remains needs Seismic to run your change, call after_restart and end your turn: Seismic tells you once it runs it.';
 
 const AFTER_LANDING =
   'Your workspace and this session stay until you end a turn with nothing left to wait for (a question, the restart); then both end. Commits you make here no longer land.';
@@ -629,7 +639,7 @@ const FOLLOW_UP =
   "Answer with reply (ask, for a decision that is the owner's). Commits you make here do not land: a change to the code the owner's words call for becomes a card of its own (propose_card). Workspace and session end once you end a turn with nothing left to wait for.";
 
 const IN_WORKTREE =
-  "No clone of the repository was free, so this is a temporary worktree, where the repository's app and tooling may not run. If answering needs a full clone, call need_clone and end your turn: Obeya resumes you in the next free clone.";
+  "No clone of the repository was free, so this is a temporary worktree, where the repository's app and tooling may not run. If answering needs a full clone, call need_clone and end your turn: Seismic resumes you in the next free clone.";
 
 /** How long taking a card's workspace waits for its ended session to finish its step before git keeps its work. */
 const EVICT_SESSION_WAIT = 30_000;
@@ -637,13 +647,16 @@ const EVICT_SESSION_WAIT = 30_000;
 export class Workers {
   private live = new Map<string, Live>();
   private limitAttempts = new Map<string, LimitAttempts>();
-  /** Turns a script plays for cards without a session in a scratch Obeya (`standIn` steps), shown as their workers'. */
+  /** Turns a script plays for cards without a session in a scratch Seismic (`standIn` steps), shown as their workers'. */
   private standIns = new Map<string, Live>();
   /** Cards whose approved work is landing: the server answers meanwhile, but approving again is refused, and a restart waits. */
   private landing = new Set<string>();
+  private landingTurns = new Map<string, AbortController>();
+  private landingActive = new Set<string>();
+  private unwatchLandings?: () => void;
   /** Cards approved while git tells what the approval does (`approve`). */
   private approving = new Set<string>();
-  /** Review cards whose „main pushen“ waits out its undo window (`pushMainFor`), or runs. */
+  /** Review cards whose "Push main, adapt the PR" waits out its undo window (`pushMainFor`), or runs. */
   private pushingMain = new Map<string, ReturnType<typeof setTimeout> | true>();
   /** Merged cards whose branch git reads the added plan docs of: their workspace goes once it has (`finish`). */
   private reading = new Map<string, Promise<void>>();
@@ -660,7 +673,7 @@ export class Workers {
   private generation = new Map<string, number>();
   /** The restart that waits for workers, if one does. */
   private restart: DueRestart | null = null;
-  /** Cards that wait for the owner, until their grace runs out and Obeya stops their app. */
+  /** Cards that wait for the owner, until their grace runs out and Seismic stops their app. */
   private parking = new Map<string, ReturnType<typeof setTimeout>>();
   /** When the owner last opened a card's app to try it by hand, by card. */
   private tried = new Map<string, number>();
@@ -670,7 +683,7 @@ export class Workers {
   private stopping = new Map<string, Promise<void>>();
   /** Cards whose session on another machine was cut off, waiting for that machine to answer again. */
   private reconnecting = new Map<string, ReturnType<typeof setTimeout>>();
-  /** When Obeya pauses at once a worker that the owner asked to pause at a safe point, by card. */
+  /** When Seismic pauses at once a worker that the owner asked to pause at a safe point, by card. */
   private pausing = new Map<string, ReturnType<typeof setTimeout>>();
   /** Tool calls the owner allowed after the session that asked was gone (a restart), by card: each runs once, without asking again. */
   private granted = new Map<string, Set<string>>();
@@ -691,9 +704,14 @@ export class Workers {
   /** Ends the subscription to the board's changes. */
   private unwatch: () => void;
 
+  /** The code reviews of the cards' work, where the canvas reviews work that lands on main. */
+  readonly reviews: CodeReviews;
+
   constructor(private o: WorkerOptions) {
+    this.reviews = new CodeReviews({ board: o.board, runtime: o.reviewRuntime ?? o.runtime, workspaces: o.workspaces, ...(o.reviewAgentSetting ? { agentSetting: o.reviewAgentSetting } : {}), ...(o.repo ? { repo: o.repo } : {}) });
     // what a worker does shows on its card while it is in a turn, and only then can it be paused
     o.board.showTurns(() => this.turnsShown());
+    this.unwatchLandings = o.workspaces.watchLandings?.((notice) => this.landingNotice(notice));
     // a forward to a card's app ends once the card no longer offers it: cleared, parked, its workspace gone
     this.unwatch = o.board.onChange(() => {
       for (const [id, f] of this.forwards) {
@@ -711,7 +729,7 @@ export class Workers {
 
   /** Whether a video demo here may go to a page for colleagues, which the worker then writes. */
   private get shares(): boolean {
-    return this.o.shares ? this.o.shares() : !!this.o.adapter.demo?.site;
+    return this.o.shares ? this.o.shares() : false;
   }
 
   // ---------------------------------------------------------------- owner actions
@@ -735,7 +753,7 @@ export class Workers {
     const branch = row.branch ?? `${branchName(card.title, card.id)}${shipped ? `-${shipped.commit?.slice(0, 7) ?? 'rest'}` : ''}`;
     const { path, ready } = asBadRequest(() => this.o.workspaces.lease(card.id, branch, { from: row.kept_in }));
     this.bump(card.id);
-    // the run before is not resumed, but the Arbeitsrückschau still reads it
+    // the run before is not resumed, but the work retrospective still reads it
     if (row.session_id) this.o.board.log(card.id, 'state', 'obeya', this.o.board.t.worker.restarted(this.o.board.t.worker.earlierRun(row.session_id)));
     // a review card's pull request is watched from the start, afresh
     const contribution = contributionOf(row);
@@ -744,7 +762,7 @@ export class Workers {
     this.o.board.work(card.id, { state: 'working', need: null, detail: null, status_line: null, workspace: path, branch, session_id: null, agent_setting: selected ? JSON.stringify(selected) : null, pr, approved_at: null, parked: null, paused: null, pausing: null, snoozed: null, app: null });
     const t = this.o.board.t.worker;
     this.o.board.log(card.id, 'state', 'obeya', this.folder ? t.startedInFolder : contribution ? t.reviewStarted(contribution.number, contribution.author) : t.started(branch));
-    if (selected) this.o.board.log(card.id, 'state', 'obeya', t.startedWith(selected.harness === 'codex' && selected.codex ? `Codex · ${selected.codex.model} · ${selected.codex.effort}` : `Claude Code · ${selected.model} · ${selected.effort}`));
+    if (selected) this.o.board.log(card.id, 'state', 'obeya', t.startedWith(selected.harness === 'codex' && selected.codex ? `Codex · ${selected.codex.model} · ${selected.codex.effort}` : selected.harness === 'agy' && selected.agy ? `Antigravity · ${selected.agy.model} · ${selected.agy.effort}` : `Claude Code · ${selected.model} · ${selected.effort}`));
     const asked = this.o.takeAsked?.(card.id);
     const launch = (headProblem?: string | null) => this.launch(card.id, [this.briefing(card, branch, !!row.branch, headProblem), asked].filter(Boolean).join('\n\n'), undefined, this.taskImages(card));
     return this.whenReady(
@@ -782,7 +800,7 @@ export class Workers {
     const path = this.o.board.row(cardId).workspace;
     const settle = (then: () => void, always = false) => {
       if (this.preparing.get(cardId)?.done === waited) this.preparing.delete(cardId);
-      // Obeya stopped meanwhile: a new run takes the card on
+      // Seismic stopped meanwhile: a new run takes the card on
       if (this.shut) return;
       // a deleted card keeps its row, to be restored
       if (this.o.board.row(cardId).status_line === line) this.o.board.work(cardId, { status_line: null });
@@ -853,7 +871,7 @@ export class Workers {
     if (!ref) return c.url;
     const remote = this.o.remote?.trim();
     if (remote && sameRepo(remote, ref.owner, ref.repo)) return remote;
-    // a repository without a remote has its pull requests' heads in itself, where any (a scratch Obeya's played forge)
+    // a repository without a remote has its pull requests' heads in itself, where any (a scratch Seismic's played forge)
     if (!remote && this.o.repoPath) return this.o.repoPath;
     return `${ref.base}/${ref.owner}/${ref.repo}.git`;
   }
@@ -881,7 +899,8 @@ export class Workers {
    */
   private decide(cardId: string, decisions: Record<number, ChangeRoute>): { note: string; log: string } {
     const c = contributionOf(this.o.board.row(cardId));
-    if (!c) throw new BadRequest('notReview', 'only a review card has findings to decide on');
+    // a card of the owner's decides on the findings of its code review
+    if (!c) return this.reviews.decide(cardId, decisions);
     const t = this.o.board.t.worker;
     const picked = Object.entries(decisions).map(([id, route]) => {
       const f = c.findings?.find((x) => x.id === Number(id) && x.status === 'open' && !x.decided);
@@ -898,7 +917,7 @@ export class Workers {
       return p ? { ...f, decided: p.route, ...(p.route === 'contributor' && withChanges ? { withChanges: true as const } : {}) } : f;
     });
     this.o.board.work(cardId, { contribution: JSON.stringify({ ...c, findings, ...(changing ? { changing: true as const } : {}) } satisfies StoredContribution) });
-    const name = (f: Finding) => `#${f.id} „${f.title}“`;
+    const name = (f: Finding) => `#${f.id} “${f.title}”`;
     const what = (p: (typeof picked)[number]) => (p.route === 'self' ? t.findingSelf : p.route === 'later' ? t.findingLater : t.findingTo(c.author));
     const later = of('later');
     const ids = new Set(later.map((p) => p.f.id));
@@ -916,20 +935,37 @@ export class Workers {
         'The owner decided on findings of your review, on the card; do it now:',
         of('contributor').length
           ? withChanges
-            ? `- To ${c.author}: ${of('contributor').map((p) => name(p.f)).join(', ')}. ${changing ? 'They go with your own changes below' : 'Your own changes wait for the owner’s approval, and these go with them'}, as one message: write the request into the same pr_draft as what you changed, and do not send it now. Obeya posts it as one review asking for changes once the owner approves.${changing ? '' : ' Hand over again with that pr_draft; the demo on the card stands.'}`
+            ? `- To ${c.author}: ${of('contributor').map((p) => name(p.f)).join(', ')}. ${changing ? 'They go with your own changes below' : 'Your own changes wait for the owner’s approval, and these go with them'}, as one message: write the request into the same pr_draft as what you changed, and do not send it now. Seismic posts it as one review asking for changes once the owner approves.${changing ? '' : ' Hand over again with that pr_draft; the demo on the card stands.'}`
             : `- To ${c.author}: ${of('contributor').map((p) => name(p.f)).join(', ')}. Write them as one review asking for changes (request_changes, with their numbers).`
           : '',
         changing
-          ? `- Yourself: ${of('self').map((p) => name(p.f)).join(', ')}. Make the change and commit it on your branch, mark them fixed (findings), and hand over again with a new demo and pr_draft. Obeya pushes your commits onto the PR's branch and posts pr_draft once the owner approves.`
+          ? `- Yourself: ${of('self').map((p) => name(p.f)).join(', ')}. Make the change and commit it on your branch, mark them fixed (findings), and hand over again with a new demo and pr_draft. Seismic pushes your commits onto the PR's branch and posts pr_draft once the owner approves.`
           : '',
         later.length
-          ? `- As follow-up tasks: ${later.map((p) => name(p.f)).join(', ')}. Make them tasks of their own with follow_up_task, outside this PR, before anything else ends your turn. Findings that belong together become one task: as the owner's words below say first („2 and 3 together“, „combine them as you see fit“, „all separate“); without a word on it, ${bundles.length ? `as you bundled them (${bundles.map((b) => `findings ${b}`).join('; ')}), the others one each` : 'one task each'}. Write each task from what your review knows (the files concerned, the cause, the PR's link). They go neither to ${c.author} nor into your changes.`
+          ? `- As follow-up tasks: ${later.map((p) => name(p.f)).join(', ')}. Make them tasks of their own with follow_up_task, outside this PR, before anything else ends your turn. Findings that belong together become one task: as the owner's words below say first (“2 and 3 together”, “combine them as you see fit”, “all separate”); without a word on it, ${bundles.length ? `as you bundled them (${bundles.map((b) => `findings ${b}`).join('; ')}), the others one each` : 'one task each'}. Write each task from what your review knows (the files concerned, the cause, the PR's link). They go neither to ${c.author} nor into your changes.`
           : '',
       ]
         .filter(Boolean)
         .join('\n'),
       log: picked.map((p) => t.findingDecided(p.f.id, p.f.title, what(p))).join('\n'),
     };
+  }
+
+  /**
+   * Findings the owner ignores, a review card's or its code review's: dropped at once, in the card's
+   * log, without a word to the worker. Refuses a finding that is not open.
+   */
+  private ignore(cardId: string, ids: number[]): void {
+    const c = contributionOf(this.o.board.row(cardId));
+    const all = c ? c.findings : this.reviews.findings(cardId);
+    const named = ids.map((id) => all?.find((f) => f.id === id && f.status === 'open' && !f.decided));
+    const missing = ids.filter((_, i) => !named[i]);
+    if (missing.length) throw new BadRequest('noFinding', `finding ${missing.join(', ')} is not open`);
+    const findings = all!.map((f): Finding => (ids.includes(f.id) ? { ...f, status: 'dropped' } : f));
+    if (c) this.o.board.work(cardId, { contribution: JSON.stringify({ ...c, findings } satisfies StoredContribution) });
+    else this.reviews.setFindings(cardId, findings);
+    const t = this.o.board.t.worker;
+    this.o.board.log(cardId, 'state', 'owner', named.map((f) => t.findingDecided(f!.id, f!.title, t.findingIgnored)).join('\n'));
   }
 
   /**
@@ -940,35 +976,40 @@ export class Workers {
    */
   private followUpTask(cardId: string, title: string, task: string, ids: number[]): string {
     const c = contributionOf(this.o.board.row(cardId));
-    if (!c) return 'Not made: this card reviews no pull request.';
+    // on a card of the owner's, the findings are its code review's
+    const all = c ? c.findings : this.reviews.findings(cardId);
+    if (!c && !all) return 'Not made: your work has no code review with findings.';
     if (!title) return 'Not made: the title is missing.';
     if (!task) return 'Not made: the task is missing.';
     const named = [...new Set(ids)];
     if (!named.length) return 'Not made: name the findings it is made of (findings, their numbers).';
-    const missing = named.filter((id) => !c.findings?.some((f) => f.id === id));
+    const missing = named.filter((id) => !all?.some((f) => f.id === id));
     if (missing.length) return `Not made: there is no finding ${missing.join(', ')}.`;
-    const settled = named.map((id) => c.findings!.find((f) => f.id === id)!).filter((f) => f.status !== 'open');
+    const settled = named.map((id) => all!.find((f) => f.id === id)!).filter((f) => f.status !== 'open');
     if (settled.length) return `Not made: ${settled.map((f) => `finding ${f.id} is ${f.status}${f.card ? ' (a follow-up task already)' : ''}`).join('; ')}.`;
     const t = this.o.board.t.worker;
     const body = clip(task, 19000);
-    const card = this.o.board.create({ title: clip(title, 200), body: body.includes(c.url) ? body : `${body}\n\n${t.findingTask(c.number, c.url)}`, from: cardId });
-    this.o.board.log(card.id, 'state', 'obeya', t.findingTaskMade(c.number));
+    const of = this.o.board.item(cardId)?.title ?? '';
+    const card = this.o.board.create({ title: clip(title, 200), body: c ? (body.includes(c.url) ? body : `${body}\n\n${t.findingTask(c.number, c.url)}`) : `${body}\n\n${t.findingTaskOf(of)}`, from: cardId });
+    this.o.board.log(card.id, 'state', 'obeya', c ? t.findingTaskMade(c.number) : t.findingTaskMadeOf(of));
     this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.voice.madeFollowUp(card.title), { made: { card: card.id, title: card.title } });
-    const findings = c.findings!.map((f): Finding => {
+    const findings = all!.map((f): Finding => {
       if (!named.includes(f.id)) return f;
       const { decided: _, ...rest } = f;
       return { ...rest, status: 'later', card: card.id };
     });
-    this.o.board.work(cardId, { contribution: JSON.stringify({ ...c, findings } satisfies StoredContribution) });
+    if (c) this.o.board.work(cardId, { contribution: JSON.stringify({ ...c, findings } satisfies StoredContribution) });
+    else this.reviews.setFindings(cardId, findings);
     this.o.onFollowUpTask?.(card.id, cardId);
     const owed = this.owedTasks(cardId);
-    return `Made: „${card.title}“, beside your card and queued behind it until the PR is merged, linked from ${named.length === 1 ? `finding ${named[0]}` : `findings ${named.join(', ')}`}.${owed ? ` Still to make: ${owed}.` : ''}`;
+    return `Made: “${card.title}”, beside your card and queued behind it until ${c ? 'the PR is merged' : 'your work has landed'}, linked from ${named.length === 1 ? `finding ${named[0]}` : `findings ${named.join(', ')}`}.${owed ? ` Still to make: ${owed}.` : ''}`;
   }
 
-  /** The findings of a review card the owner chose as follow-up tasks that have none yet, as the worker reads them; none: undefined. */
+  /** The findings the owner chose as follow-up tasks that have none yet (a review card's, or its code review's), as the worker reads them; none: undefined. */
   private owedTasks(cardId: string): string | undefined {
-    const owed = contributionOf(this.o.board.row(cardId))?.findings?.filter((f) => f.status === 'open' && f.decided === 'later') ?? [];
-    return owed.length ? `${owed.length === 1 ? 'finding' : 'findings'} ${owed.map((f) => `#${f.id} „${f.title}“`).join(', ')} (follow_up_task)` : undefined;
+    const row = this.o.board.row(cardId);
+    const owed = (contributionOf(row)?.findings ?? this.reviews.findings(cardId))?.filter((f) => f.status === 'open' && f.decided === 'later') ?? [];
+    return owed.length ? `${owed.length === 1 ? 'finding' : 'findings'} ${owed.map((f) => `#${f.id} “${f.title}”`).join(', ')} (follow_up_task)` : undefined;
   }
 
   /**
@@ -976,7 +1017,7 @@ export class Workers {
    * number (a new one gets the next), with what the owner decided while it stays open. `with` names
    * the findings it would make one follow-up task with, kept in both directions and across a chain.
    */
-  private setFindings(cardId: string, given: { id?: number; title: string; text: string; security?: boolean; status?: FindingStatus; url?: string; with?: number[] }[]): string {
+  private setFindings(cardId: string, given: { id?: number; title: string; text: string; security?: boolean; severity?: Severity; file?: string; line?: number; status?: FindingStatus; url?: string; with?: number[] }[]): string {
     const c = contributionOf(this.o.board.row(cardId));
     if (!c) return 'Not recorded: this card reviews no pull request.';
     const had = c.findings ?? [];
@@ -989,8 +1030,8 @@ export class Workers {
       if (id >= next) next = id + 1;
       seen.add(id);
       const before = had.find((f) => f.id === id);
-      // one the owner made a follow-up task stays one, and only a task made with follow_up_task makes one
-      const status = before?.status === 'later' ? 'later' : g.status === 'later' ? (before?.status ?? 'open') : (g.status ?? before?.status ?? 'open');
+      // one the owner made a follow-up task or ignored stays so, and only a task made with follow_up_task makes one
+      const status = before?.status === 'later' || before?.status === 'dropped' ? before.status : g.status === 'later' ? (before?.status ?? 'open') : (g.status ?? before?.status ?? 'open');
       const url = g.url ?? (status === before?.status ? before?.url : undefined);
       if (g.with?.length) named.push([id, g.with]);
       findings.push({
@@ -998,6 +1039,8 @@ export class Workers {
         title: clip(String(g.title).trim(), 120),
         text: clip(String(g.text).trim(), 2000),
         ...(g.security ? { security: true } : {}),
+        ...(g.severity && SEVERITIES.includes(g.severity) ? { severity: g.severity } : {}),
+        ...(g.file?.trim() ? { file: clip(g.file.trim(), 300), ...(g.line ? { line: g.line } : {}) } : {}),
         status,
         ...(url ? { url } : {}),
         ...(status === 'later' && before?.card ? { card: before.card } : {}),
@@ -1013,7 +1056,13 @@ export class Workers {
       if (w.length) f.with = w;
     }
     this.o.board.work(cardId, { contribution: JSON.stringify({ ...c, findings } satisfies StoredContribution) });
-    return `Recorded: ${findings.length === 1 ? '1 finding' : `${findings.length} findings`}.`;
+    // the owner ignored some without a word to the worker: a new finding must not raise one of them again
+    const ignored = findings.filter((f) => f.status === 'dropped' && had.some((h) => h.id === f.id && h.status === 'dropped'));
+    const fresh = findings.filter((f) => !had.some((h) => h.id === f.id));
+    const recorded = `Recorded: ${findings.length === 1 ? '1 finding' : `${findings.length} findings`}.`;
+    return ignored.length && fresh.length
+      ? `${recorded} The owner ignored ${ignored.map((f) => `#${f.id} “${f.title}”`).join(', ')}: they stay as they are. If a new finding of yours raises one of them again, leave it out and record the list again.`
+      : recorded;
   }
 
   /**
@@ -1022,13 +1071,45 @@ export class Workers {
    * conversation the words reply to, which the worker reads above them; `spot`: the place in the
    * demo video they are about. Such words on a handover are held back while the owner watches (`hold`).
    */
-  message(cardId: string, text: string, images: string[] = [], spoken = false, replyTo?: number, spot?: SpotInput, findings?: Record<number, ChangeRoute>) {
+  /** Route review decisions to a fresh session in the same workspace. */
+  reviewWithNewAgent(cardId: string, picks: Record<number, FindingPick> | undefined, setting: AgentSetting, notes?: Record<number, string>) {
     const card = this.card(cardId);
+    const live = this.live.get(cardId);
+    if (!handedOver(card) || !card.codeReview || card.codeReview.stale || card.codeReview.state !== 'done' || !this.o.board.row(cardId).workspace)
+      throw new BadRequest('notReady', 'a current code review and its workspace are required');
+    if (live?.busy || live?.background) throw new BadRequest('notReady', 'the current agent is still working');
+    const entries = Object.entries(picks ?? {});
+    if (!entries.length) throw new BadRequest('noFinding', 'choose findings first');
+    const ignored = entries.filter(([, p]) => p === 'ignore').map(([id]) => Number(id));
+    const routed = Object.fromEntries(entries.filter(([, p]) => p !== 'ignore')) as Record<number, ChangeRoute>;
+    // Validate every choice before changing any of them.
+    for (const [id, route] of entries) {
+      if (!card.codeReview.findings?.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided) || route === 'contributor')
+        throw new BadRequest('noFinding', `finding ${id} is not open`);
+    }
+    const decided = Object.keys(routed).length ? withNotes(this.reviews.decide(cardId, routed), routed, notes) : undefined;
+    if (ignored.length) this.ignore(cardId, ignored);
+    if (!decided) return;
+    this.end(cardId);
+    this.takingIn(cardId);
+    this.o.board.log(cardId, 'hint', 'owner', decided.log);
+    this.o.board.work(cardId, { session_id: null, agent_setting: JSON.stringify(setting) });
+    this.launch(cardId, decided.note, undefined, [], true);
+  }
+
+  message(cardId: string, text: string, images: string[] = [], spoken = false, replyTo?: number, spot?: SpotInput, picks?: Record<number, FindingPick>, notes?: Record<number, string>) {
+    const card = this.card(cardId);
+    // findings the owner ignores are settled at once and never reach the worker; ignoring alone sends nothing
+    const ignored = Object.entries(picks ?? {}).filter(([, p]) => p === 'ignore').map(([id]) => Number(id));
+    const routed = Object.entries(picks ?? {}).filter((e): e is [string, ChangeRoute] => e[1] !== 'ignore');
+    const findings = routed.length ? (Object.fromEntries(routed) as Record<number, ChangeRoute>) : undefined;
+    if (ignored.length) this.ignore(cardId, ignored);
+    if (ignored.length && !findings && !text && !images.length) return;
     const place = spot ? this.place(cardId, spot) : undefined;
     const handover = handedOver(card);
     if (place && handover && !findings) return this.hold(card, text, images, spoken, replyTo, place);
     // on a review card, what the owner decided for its findings goes with the words, above them
-    const decided = findings ? this.decide(cardId, findings) : undefined;
+    const decided = findings ? withNotes(this.decide(cardId, findings), findings, notes) : undefined;
     const words = `${decided ? `${decided.note}\n\n` : ''}${this.words(cardId, text, images, replyTo, place)}`;
     // the log shows the owner's screenshots, not the stills that join them below
     const shots = images;
@@ -1069,7 +1150,7 @@ export class Workers {
       if (text) this.o.onOwnerInput?.(card, 'note', text);
       this.deliver(
         cardId,
-        `A note from the owner instead of an answer${spoken ? ` (${SPOKEN})` : ''}. It withdraws your question („${card.question?.text ?? ''}“): if the note settles it, go on; if not, ask again.\n\n${words}`,
+        `A note from the owner instead of an answer${spoken ? ` (${SPOKEN})` : ''}. It withdraws your question (“${card.question?.text ?? ''}”): if the note settles it, go on; if not, ask again.\n\n${words}`,
         images,
         true,
         said,
@@ -1155,7 +1236,7 @@ export class Workers {
       () => {
         // a card that never reported a session: a new one needs the card first
         if (row.session_id) this.launch(card.id, text, row.session_id, images);
-        else this.launch(card.id, `You worked on the card „${card.title}“:\n\n${card.body}\n\n${text}`, undefined, [...this.taskImages(card), ...images]);
+        else this.launch(card.id, `You worked on the card “${card.title}”:\n\n${card.body}\n\n${text}`, undefined, [...this.taskImages(card), ...images]);
       },
       // the question stands in the conversation, without a workspace to answer it in
       () => {
@@ -1280,8 +1361,8 @@ export class Workers {
     this.deliver(
       card.id,
       allowed
-        ? `Before Obeya restarted, a tool call of yours (${call}) waited for the owner's permission. The owner allowed it${said}\n\nMake the call again if you still need it; it runs without asking again.`
-        : `Before Obeya restarted, a tool call of yours (${call}) waited for the owner's permission. The owner did not allow it${said}`,
+        ? `Before Seismic restarted, a tool call of yours (${call}) waited for the owner's permission. The owner allowed it${said}\n\nMake the call again if you still need it; it runs without asking again.`
+        : `Before Seismic restarted, a tool call of yours (${call}) waited for the owner's permission. The owner did not allow it${said}`,
       images,
       true,
     );
@@ -1301,7 +1382,7 @@ export class Workers {
     this.recordAnswer(card, q, text, images, replyTo, picks);
     this.deliver(
       card.id,
-      `The owner answered the question in your demo report („${q}“)${spoken ? ` (${SPOKEN})` : ''}. The card still waits for their approval of what you handed over; a change their words call for goes into a new handover:\n\n${held ? `${held.text}\n\nThen they answered:\n\n` : ''}${this.words(card.id, answerNote(picks, text), images, replyTo)}`,
+      `The owner answered the question in your demo report (“${q}”)${spoken ? ` (${SPOKEN})` : ''}. The card still waits for their approval of what you handed over; a change their words call for goes into a new handover:\n\n${held ? `${held.text}\n\nThen they answered:\n\n` : ''}${this.words(card.id, answerNote(picks, text), images, replyTo)}`,
       [...(held?.images ?? []), ...images],
       true,
     );
@@ -1401,7 +1482,7 @@ export class Workers {
 
   /**
    * The owner takes back words the worker has not taken in: a comment on a place in the demo video
-   * that is still held back, or words Obeya holds until its next step. They leave the conversation,
+   * that is still held back, or words Seismic holds until its next step. They leave the conversation,
    * and the worker never hears them.
    */
   unsay(cardId: string, id: number) {
@@ -1478,7 +1559,119 @@ export class Workers {
       : undefined;
   }
 
+  private detailOf(cardId: string): Record<string, unknown> {
+    const detail = this.o.board.row(cardId).detail;
+    return detail ? (JSON.parse(detail) as Record<string, unknown>) : {};
+  }
+
+  /**
+   * The owner's answer to uncommitted changes in the Seismic checkout that kept the card's approved
+   * work from landing (`blocked`): Seismic moves those changes into the card's branch and its worker
+   * works them in. `land`: the approval holds, and the worker's next handover lands without a new
+   * demo; otherwise the worker makes a new demo, and the owner approves again.
+   */
+  async fold(cardId: string, land: boolean) {
+    const card = this.card(cardId);
+    if (!handedOver(card) || this.landing.has(cardId) || this.approving.has(cardId) || card.state !== 'waiting') throw new BadRequest('notReady', 'the card is not ready for review');
+    const row = this.o.board.row(cardId);
+    const { blocked: _, ...detail } = this.detailOf(cardId);
+    this.landing.add(cardId);
+    let folded;
+    try {
+      folded = await this.o.workspaces.foldMain(cardId, row.branch!);
+    } finally {
+      this.landing.delete(cardId);
+    }
+    if ('code' in folded) throw new BadRequest(folded.code, folded.detail);
+    this.o.board.work(cardId, { detail: JSON.stringify(detail) });
+    // whatever was in the way is gone meanwhile: the approval lands as it is, or waits for the owner
+    if (!folded.files.length) return land ? this.approve(cardId) : undefined;
+    const files = folded.files.map((f) => `- ${f}`).join('\n');
+    // the failed approval is no news any more: what came of it follows
+    this.o.board.work(cardId, { state: 'working', need: null, detail: null, status_line: null, approved_at: land ? new Date().toISOString() : null, unheard: JSON.stringify(this.unheardBut(cardId, NOT_LANDED)) });
+    this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.folded(folded.files, land));
+    this.deliver(
+      cardId,
+      [
+        `The owner approved your work, but the Seismic checkout had uncommitted changes of theirs to files your branch changes too, so it could not land. At the owner's word, Seismic moved those changes into your branch, as the commit ${folded.commit!.slice(0, 7)} on top of your work (also under refs/obeya/folded/${cardId})${folded.kept ? '' : ', and set those files back in the checkout'}:\n${files}`,
+        ...(folded.kept ? ['The owner edited those files once more while Seismic folded them, so the checkout keeps its copies: if they still stand in the way once you hand over, the owner is offered to fold them in again.'] : []),
+        folded.conflict
+          ? 'The commit conflicts with your work: the cherry-pick is still under way in your workspace. Resolve it (git cherry-pick --continue), so that the owner\'s changes and yours both hold.'
+          : 'Look at what the commit changes and work it in, so that the owner\'s changes and yours both hold: keep the commit, or fold it into yours.',
+        land
+          ? 'Then run the checks and hand over again: the approval holds, and Seismic lands the work without asking the owner again, with the demo already on the card.'
+          : 'Then run the checks, make a new demo of the work with those changes in it, and hand over again: the owner approves anew.',
+      ].join('\n\n'),
+      [],
+      true,
+    );
+  }
+
+  /**
+   * The canvas's "Code reviews" setting changed (or Seismic started): work waiting for the owner's
+   * approval gets the "Start code review" button where the canvas reviews manually, and loses its
+   * review where the canvas reviews no more. Automatic reviews start at handovers only, never here;
+   * cards still at work or planned follow the setting when they hand over.
+   */
+  codeReviewsChanged(): Promise<void> {
+    // one catch-up after the other, so an older setting never overwrites a newer one
+    return (this.catchingUp = this.catchingUp.then(() => this.catchUpCodeReviews()));
+  }
+
+  private catchingUp: Promise<void> = Promise.resolve();
+
+  /** The setting changed while Seismic ran: the cards at work now do not get an automatic review at their next handover. */
+  holdAutoReviews(): void {
+    for (const i of this.o.board.items()) {
+      if (i.kind !== 'task' || i.state !== 'working' || (this.o.repo && i.repo !== this.o.repo)) continue;
+      const row = this.o.board.row(i.id);
+      const detail = row.detail ? (JSON.parse(row.detail) as Record<string, unknown>) : {};
+      this.o.board.work(i.id, { detail: JSON.stringify({ ...detail, noAutoReview: true }) });
+    }
+  }
+
+
+  private async catchUpCodeReviews(): Promise<void> {
+    for (const i of this.o.board.items()) {
+      if (i.kind !== 'task' || (this.o.repo && i.repo !== this.o.repo)) continue;
+      try {
+        if (!this.catchable(i.id)) continue;
+        const [work, { land }] = await Promise.all([this.o.workspaces.hasWork(i.id), this.landingOf(i.id)]);
+        // the card may have moved on during the git calls: look again before writing
+        if (!this.catchable(i.id)) continue;
+        const e = this.o.board.events(i.id).findLast((x) => x.kind === 'review' && x.author === 'worker');
+        if (e) this.reviews.applyMode(i.id, e.id, this.reviewModeOf(this.o.board.row(i.id), work, land));
+      } catch (err) {
+        console.error(`Seismic: the code review setting did not reach card ${i.id}: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+  }
+
+  /** Whether the card waits for the owner's approval of a handover, and its worker is not taking in the owner's words (it hands over again). */
+  private catchable(cardId: string): boolean {
+    const i = this.o.board.item(cardId);
+    if (!i) return false;
+    return i.kind === 'task' && handedOver(i) && !answering(i) && i.state === 'waiting' && !this.o.board.row(cardId).approved_at && !i.landing && !this.landing.has(cardId) && !this.approving.has(cardId);
+  }
+
+  /** The mode in which the canvas reviews this card's work at a handover, or null where it does not: the one rule for handovers and for a changed setting. */
+  private reviewModeOf(row: CardRow, work: boolean, land?: 'main' | 'pr'): CodeReviewSetting['mode'] | null {
+    if (this.folder || row.prototype_of || contributionOf(row)) return null;
+    const reviews = this.o.codeReviews?.();
+    if (!reviews?.on || !work || land !== 'main') return null;
+    // a card at work when the setting changed hands over unreviewed in automatic mode (its flag goes with the handover's detail)
+    if (reviews.mode === 'auto' && row.detail && (JSON.parse(row.detail) as { noAutoReview?: boolean }).noAutoReview) return null;
+    return reviews.mode;
+  }
+
   /** `direct`: the work goes onto the default branch at once instead of into a pull request, where the repository's settings allow it. */
+  /** "Start code review" on work waiting for the owner's approval: a review of its latest handover starts (design: Code reviews in Card lifecycle). */
+  startCodeReview(cardId: string) {
+    const card = this.card(cardId);
+    if (!handedOver(card) || card.landing || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
+    this.reviews.start(cardId);
+  }
+
   async approve(cardId: string, { direct = false }: { direct?: boolean } = {}) {
     const card = this.card(cardId);
     if (!handedOver(card) || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
@@ -1504,7 +1697,11 @@ export class Workers {
     clearTimeout(this.holding.get(cardId));
     this.holding.delete(cardId);
     const before = this.o.board.row(cardId).approved_at;
-    this.o.board.work(cardId, { approved_at: new Date().toISOString() });
+    // what stood in the way of an earlier approval is looked at afresh by this one
+    const { blocked, ...detail } = this.detailOf(cardId);
+    this.o.board.work(cardId, { approved_at: new Date().toISOString(), ...(blocked ? { detail: JSON.stringify(detail) } : {}) });
+    // the owner approved without waiting for the code review: one still running stops, its findings would come too late
+    this.reviews.cancel(cardId);
     this.approving.add(cardId);
     const generation = this.generation.get(cardId);
     let lands: { land: 'main' | 'pr'; direct: boolean };
@@ -1527,22 +1724,22 @@ export class Workers {
     // work that changed nothing (a demo, an analysis) has nothing to land and no pull request to open
     if (!work) return void this.close(cardId, 'owner', comments);
     if (lands.land === 'main' || direct) return this.land(cardId, 'owner', comments);
-    // the worker opens the PR the way the repository does it, then Obeya watches it
+    // the worker opens the PR the way the repository does it, then Seismic watches it
     const pr: PrState = { url: null, seen: [], reported: [] };
     // the line the worker reported before handing over is about work that is done
     this.o.board.work(cardId, { state: 'inPr', need: null, detail: null, status_line: null, approved_at: null, pr: JSON.stringify(pr) });
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.approvedPr);
-    // a page that goes out now gets the pull request's link from Obeya once both are there
+    // a page that goes out now gets the pull request's link from Seismic once both are there
     this.o.onApproval?.(cardId);
-    // a demo shared later gets its line from Obeya once the pull request is open
+    // a demo shared later gets its line from Seismic once the pull request is open
     const shared = card.share?.url;
     if (shared) this.pageHeard(cardId);
     this.deliver(
       cardId,
       [
-        `The owner approved your work. In this repository it goes out as a pull request, opened the way the repository does it (its own skills and conventions): from now on you may push this branch. Whoever reads the pull request has not seen Obeya, the card or the plan doc. Do not merge it: ${this.o.adapter.autoMerge === false ? 'the people on the forge merge it' : 'Obeya merges it'} once its checks have passed and its review is through.`,
+        `The owner approved your work. In this repository it goes out as a pull request, opened the way the repository does it (its own skills and conventions): from now on you may push this branch. Whoever reads the pull request has not seen Seismic, the card or the plan doc. Do not merge it: ${this.o.adapter.autoMerge === false ? 'the people on the forge merge it' : 'Seismic merges it'} once its checks have passed and its review is through.`,
         shared ? `Your demo video is shared with the team on a page of its own: ${shared}. Link it in the pull request's description.` : '',
-        'Once you report its URL with pr_opened, Obeya watches it and passes you review comments, failed checks and conflicts; you handle them the way the repository does (its skill for review comments, if it has one). A comment that questions a decision, or a conflict that needs a product call, is the owner’s (ask). Where the work also needs a pull request in another repository, report that one with pr_opened too: Obeya watches each, and the card is live once all are merged.',
+        'Once you report its URL with pr_opened, Seismic watches it and passes you review comments, failed checks and conflicts; you handle them the way the repository does (its skill for review comments, if it has one). A comment that questions a decision, or a conflict that needs a product call, is the owner’s (ask). Where the work also needs a pull request in another repository, report that one with pr_opened too: Seismic watches each, and the card is live once all are merged.',
         comments?.text ?? '',
       ]
         .filter(Boolean)
@@ -1553,13 +1750,13 @@ export class Workers {
   }
 
   /**
-   * „Mergen (PR #5)“: the owner approved a review card's demo. Obeya merges the pull request on the
+   * "Merge (PR #5)": the owner approved a review card's demo. Seismic merges the pull request on the
    * forge (the repository's allowed method, squash first), pinned to the head the worker reviewed:
    * a PR that moved since the handover is not merged, and its worker reviews it anew. Where the
-   * worker's own commits are held (`HeldChanges`), Obeya first pushes them onto the PR's branch,
+   * worker's own commits are held (`HeldChanges`), Seismic first pushes them onto the PR's branch,
    * fast-forward only, and posts their text: as a comment, or with requests to the contributor as
    * one review asking for changes, after which the card waits for them and nothing is merged;
-   * `merge: false` („Nur pushen“) stops after the post too. Before the merge the demo goes on its
+   * `merge: false` ("Push and comment only") stops after the post too. Before the merge the demo goes on its
    * page where the site publishes on approval, and the page's link goes into a comment on the PR
    * once it is online (`onApproval`; the description stays the contributor's). A refused merge
    * leaves the card waiting for the owner, with the reason. Merged, the card is live and, where work
@@ -1627,7 +1824,7 @@ export class Workers {
     }
   }
 
-  /** „Nur pushen“: the worker's own commits held on a review card go onto the PR with their text, and the card waits for the owner's „Mergen“ again. */
+  /** "Push and comment only": the worker's own commits held on a review card go onto the PR with their text, and the card waits for the owner's "Merge" again. */
   pushContribution(cardId: string) {
     const card = this.card(cardId);
     if (!card.contribution || !handedOver(card) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
@@ -1656,7 +1853,7 @@ export class Workers {
 
   /**
    * The approval of a review card met a pull request at another head than the one handed over (the
-   * contributor pushed since): Obeya pushes, posts and merges nothing, and the worker reviews the PR
+   * contributor pushed since): Seismic pushes, posts and merges nothing, and the worker reviews the PR
    * as it is now, its own commits not pushed yet put on top. Returns the refusal to throw.
    */
   private moved(cardId: string, c: StoredContribution, head: string): BadRequest {
@@ -1668,8 +1865,8 @@ export class Workers {
       cardId,
       [
         c.held
-          ? `The owner approved your handover, but the pull request's head is ${head.slice(0, 7)} now, not the ${c.held.base.slice(0, 7)} your commits build on: ${c.author} pushed meanwhile. So Obeya pushed, posted and merged nothing.`
-          : `The owner approved your handover, but the pull request's head is ${head.slice(0, 7)} now, not the ${c.reviewed?.slice(0, 7) ?? 'commit'} you handed over, so Obeya did not merge it.`,
+          ? `The owner approved your handover, but the pull request's head is ${head.slice(0, 7)} now, not the ${c.held.base.slice(0, 7)} your commits build on: ${c.author} pushed meanwhile. So Seismic pushed, posted and merged nothing.`
+          : `The owner approved your handover, but the pull request's head is ${head.slice(0, 7)} now, not the ${c.reviewed?.slice(0, 7) ?? 'commit'} you handed over, so Seismic did not merge it.`,
         `Review it as it is now: fetch its head, look at what changed before you run any of it, then the code review, a new demo where the change shows, the checks and the merge probe.${c.held ? ' Put your own commits on top of the new head first (rebase; the PR\'s commits stay as they are), and check that pr_draft still says what goes with them.' : ''} Hand over again.`,
         comments?.text ?? '',
       ]
@@ -1756,7 +1953,7 @@ export class Workers {
         ...(findings ? { findings } : {}),
         ...(sent ? { requested: { ...(url ? { url } : {}), at: new Date().toISOString() } } : {}),
       } satisfies StoredContribution),
-      // the state says it: „Wartet auf Beitragenden“
+      // the state says it: "Waiting for the contributor"
       ...(sent ? { state: 'inPr', need: null, detail: null, status_line: null } : {}),
     });
     if (failed) {
@@ -1781,7 +1978,7 @@ export class Workers {
     this.toOwner(cardId, { text: t.contributionClosedQuestion, options: [t.closeCard, t.keepCard] });
     this.deliver(
       cardId,
-      `The pull request was closed without a merge. Obeya asked the owner whether the card can go. If they say so, close it with close_unchanged; nothing of it lands.`,
+      `The pull request was closed without a merge. Seismic asked the owner whether the card can go. If they say so, close it with close_unchanged; nothing of it lands.`,
     );
   }
 
@@ -1799,7 +1996,7 @@ export class Workers {
 
   /**
    * The owner's change request, as the worker wrote it, goes to the contributor as a review asking
-   * for changes; the card waits for them (`inPr`, „Wartet auf Beitragenden“) with the review linked
+   * for changes; the card waits for them (`inPr`, "Waiting for the contributor") with the review linked
    * in its log. Returns why it was not sent, or nothing.
    */
   private async requestChanges(cardId: string, body: string, ids: number[] = []): Promise<string | undefined> {
@@ -1828,7 +2025,7 @@ export class Workers {
       state: 'inPr',
       need: null,
       detail: null,
-      // the state says it: „Wartet auf Beitragenden“
+      // the state says it: "Waiting for the contributor"
       status_line: null,
       contribution: JSON.stringify({
         ...now,
@@ -1854,14 +2051,14 @@ export class Workers {
     try {
       head = await gitAsync(ws, 'rev-parse', 'HEAD');
     } catch (e) {
-      return `Not handed over: Obeya could not read your branch's head (${messageOf(e)}). Check the workspace, then call ready_for_review again.`;
+      return `Not handed over: Seismic could not read your branch's head (${messageOf(e)}). Check the workspace, then call ready_for_review again.`;
     }
     if (!this.o.forge) return { head, base: head, commits: 0 };
     let base: string;
     try {
       base = (await this.o.forge.status(this.forgeCwd(cardId), c.url)).head;
     } catch (e) {
-      return `Not handed over: Obeya could not read the pull request's head from the forge (${messageOf(e)}). Call ready_for_review again in a moment.`;
+      return `Not handed over: Seismic could not read the pull request's head from the forge (${messageOf(e)}). Call ready_for_review again in a moment.`;
     }
     if (!base || base === head) return { head, base: head, commits: 0 };
     const on = await gitAsync(ws, 'merge-base', '--is-ancestor', base, head).then(
@@ -1905,12 +2102,12 @@ export class Workers {
     }
     const body = clip((draft ?? '').trim() || c.held?.body || '', 20000);
     if (!body)
-      return `Not handed over: your branch holds ${mine.commits === 1 ? 'a commit' : `${mine.commits} commits`} of your own that ${mine.commits === 1 ? 'is' : 'are'} not on the pull request yet. Give pr_draft: the text Obeya posts on the PR once the owner approves, after pushing them (what you changed and why${asks.length ? `, and the request for ${asks.map((f) => `#${f.id}`).join(', ')} to ${c.author}` : ''}). Then call ready_for_review again.`;
+      return `Not handed over: your branch holds ${mine.commits === 1 ? 'a commit' : `${mine.commits} commits`} of your own that ${mine.commits === 1 ? 'is' : 'are'} not on the pull request yet. Give pr_draft: the text Seismic posts on the PR once the owner approves, after pushing them (what you changed and why${asks.length ? `, and the request for ${asks.map((f) => `#${f.id}`).join(', ')} to ${c.author}` : ''}). Then call ready_for_review again.`;
     return { body, commits: mine.commits, asks: asks.map((f) => f.id), base: mine.base };
   }
 
   /**
-   * „Änderungen verwerfen“ in a folder without git, on a card waiting for approval: what its worker
+   * "Discard changes" in a folder without git, on a card waiting for approval: what its worker
    * changed there is put back as it was (`FolderWorkspaces.undo`), but what someone changed since
    * and what no copy was kept of. The card goes on waiting for the owner, its log says what was put
    * back and what not, and its worker hears it with its next message.
@@ -1931,7 +2128,7 @@ export class Workers {
     const row = this.o.board.row(cardId);
     const detail = row.detail ? (JSON.parse(row.detail) as Record<string, unknown>) : {};
     const told = [
-      `The owner discarded your changes in the folder: Obeya put back what your card changed (${report.undone.join(', ') || 'nothing'}) as it was before.`,
+      `The owner discarded your changes in the folder: Seismic put back what your card changed (${report.undone.join(', ') || 'nothing'}) as it was before.`,
       report.changedSince.length ? `Left as they are, since someone changed them after you: ${files(report.changedSince)}.` : '',
       report.lost.length ? `Left as they are, since no copy from before your change was kept: ${files(report.lost)}.` : '',
       report.shared.length ? `Left as they are, since another card's agent was at work when they changed: ${files(report.shared)}.` : '',
@@ -1967,49 +2164,67 @@ export class Workers {
   }
 
   /**
-   * Lands approved work on main: on the Obeya checkout, or, where work otherwise goes out as a pull
+   * Lands approved work on main: on the Seismic checkout, or, where work otherwise goes out as a pull
    * request, pushed directly onto `origin`'s default branch. What the worker can fix (main moved on
    * and the change conflicts, uncommitted work) goes back to it with the approval kept: its next
-   * handover lands without the owner approving again, the same way. What blocks the Obeya checkout,
+   * handover lands without the owner approving again, the same way. What blocks the Seismic checkout,
    * or a push turned away, stays with the owner and needs a new approval.
    */
   private async land(cardId: string, by: 'owner' | 'obeya', comments?: Comments) {
     if (this.landing.has(cardId)) return;
     this.landing.add(cardId);
+    const turn = new AbortController();
+    this.landingTurns.set(cardId, turn);
     try {
-      await this.landNow(cardId, by, comments);
+      await this.landNow(cardId, by, comments, turn.signal);
     } catch (e) {
+      if (turn.signal.aborted) return;
       // a landing that broke off gives the card back to the owner, who approves again
       if (this.o.board.row(cardId).state === 'waiting') this.o.board.work(cardId, { approved_at: null });
       throw e;
     } finally {
       this.landing.delete(cardId);
+      this.landingTurns.delete(cardId);
+      this.landingActive.delete(cardId);
+      this.o.board.showLandingPosition(cardId, undefined);
     }
   }
 
-  private async landNow(cardId: string, by: 'owner' | 'obeya', comments?: Comments) {
+  private async landNow(cardId: string, by: 'owner' | 'obeya', comments?: Comments, signal?: AbortSignal) {
     const row = this.o.board.row(cardId);
     // only a direct approval is held where work goes out as a pull request
     const direct = (await this.landingOf(cardId)).land === 'pr';
     // read before landing: the landed branch adds nothing against main
     const added = await this.planDocsAdded(cardId);
     // the demo goes out with the approval, also where it holds for the worker's next handover
+    signal?.throwIfAborted();
     const trailer = this.o.onApproval?.(cardId) ?? undefined;
-    const result = await (direct ? this.o.workspaces.pushToMain(cardId, trailer) : this.o.workspaces.landOnMain(cardId, row.branch!, trailer));
+    const turn = { signal, position: (n: number | undefined) => {
+      if (n === 0) this.landingActive.add(cardId);
+      this.o.board.showLandingPosition(cardId, n);
+    } };
+    const result = await (direct ? this.o.workspaces.pushToMain(cardId, trailer, turn) : this.o.workspaces.landOnMain(cardId, row.branch!, trailer, turn));
+    if (signal?.aborted) return;
     if ('code' in result && !result.worker) {
       // the worker hears it with its next step, so it does not tell the owner the card still waits for their approval as if nothing had happened
       const text = `${NOT_LANDED} ${result.detail}\n\nThat is not in your work: the owner sees on the card what to do, and the card waits for their approval again.`;
-      this.o.board.work(cardId, { approved_at: null, unheard: JSON.stringify([...this.unheardBut(cardId, NOT_LANDED), { said: [], text, images: [] }] satisfies Unheard[]) });
+      // the checkout's uncommitted changes to the card's files: the card offers to fold them into it
+      const blocked = result.code === 'landMerge' && result.files?.length ? { files: result.files } : undefined;
+      this.o.board.work(cardId, {
+        approved_at: null,
+        unheard: JSON.stringify([...this.unheardBut(cardId, NOT_LANDED), { said: [], text, images: [] }] satisfies Unheard[]),
+        ...(blocked ? { detail: JSON.stringify({ ...this.detailOf(cardId), blocked }) } : {}),
+      });
       throw new BadRequest(result.code, result.detail);
     }
     if ('code' in result) {
-      this.o.board.work(cardId, { state: 'working', need: null, detail: null, approved_at: row.approved_at ?? new Date().toISOString() });
+      this.o.board.work(cardId, { state: 'working', need: null, detail: result.code === 'landConflict' ? JSON.stringify({ conflict: true }) : null, approved_at: row.approved_at ?? new Date().toISOString() });
       this.o.board.log(cardId, 'error', 'obeya', result.detail, { code: result.code });
       this.deliver(
         cardId,
         [
           `The owner approved your work, but it could not land on main: ${result.detail}`,
-          'The approval holds for what it takes to land the work: once you hand over again, Obeya lands it without asking the owner again, with the demo already on the card. A change to what the owner approved is theirs to decide.',
+          'The approval holds for what it takes to land the work: once you hand over again, Seismic lands it without asking the owner again, with the demo already on the card. A change to what the owner approved is theirs to decide.',
           ...(comments ? [comments.text] : []),
         ].join('\n\n'),
         comments?.images,
@@ -2046,18 +2261,18 @@ export class Workers {
       cardId,
       [
         direct
-          ? `${by === 'owner' ? 'The owner approved your work to go directly onto main, and Obeya' : 'Obeya'} pushed it there without a pull request (${result.to.slice(0, 7)}); the card is live.`
+          ? `${by === 'owner' ? 'The owner approved your work to go directly onto main, and Seismic' : 'Seismic'} pushed it there without a pull request (${result.to.slice(0, 7)}); the card is live.`
           : `${by === 'owner' ? 'The owner approved your work, and it' : 'Your work'} is on main now (${result.to.slice(0, 7)}); the card is live.`,
         sw
-          ? `The Obeya checkout was on ${sw.branch ? `the branch ${sw.branch}` : `a detached HEAD at ${sw.commit}`}, not on main: Obeya switched it to main to land your work.` +
+          ? `The Seismic checkout was on ${sw.branch ? `the branch ${sw.branch}` : `a detached HEAD at ${sw.commit}`}, not on main: Seismic switched it to main to land your work.` +
             (sw.commits
               ? ` ${sw.branch ?? sw.commit} has ${sw.commits === 1 ? 'a commit' : `${sw.commits} commits`} main does not: if ${sw.commits === 1 ? 'it is' : 'they are'} work of yours, made there instead of in your workspace, ${sw.commits === 1 ? 'it' : 'they'} did not land with it; tell the owner.`
               : '')
           : '',
         restartFor === 'obeya'
-          ? `Obeya runs from that checkout and starts again with your change as soon as no worker is in the middle of a turn, which stops whatever you run then. ${AFTER_RESTART}`
+          ? `Seismic runs from that checkout and starts again with your change as soon as no worker is in the middle of a turn, which stops whatever you run then. ${AFTER_RESTART}`
           : restartFor === 'repo'
-            ? `Your change moves where this repository's agents work: Obeya restarts them with it as soon as none of them is in the middle of a turn, you among them, which stops whatever you run then. ${AFTER_RESTART}`
+            ? `Your change moves where this repository's agents work: Seismic restarts them with it as soon as none of them is in the middle of a turn, you among them, which stops whatever you run then. ${AFTER_RESTART}`
             : '',
         page.text,
         comments?.text ?? '',
@@ -2068,6 +2283,23 @@ export class Workers {
       comments?.images,
       by === 'owner',
     );
+  }
+
+  /** Main moved over files this card has changed: news for its next turn, without waking it. */
+  private async landingNotice(notice: LandingNotice) {
+    const repo = this.o.repo ?? this.o.board.home;
+    const hard = new Set(notice.files.filter((f) => !this.o.adapter.softPaths.some((p) => overlaps(normalize(f), normalize(p)))));
+    if (!hard.size) return;
+    const candidates = this.o.board.items().filter((c) => c.id !== notice.cardId && c.repo === repo && ACTIVE.includes(c.state) && c.kind !== 'project' && !c.prototypeOf);
+    await Promise.all(candidates.map(async (c) => {
+      const changed = await this.o.workspaces.changedFiles(c.id, undefined, true);
+      const files = [...new Set(changed.filter((f) => hard.has(f)))].sort();
+      const now = this.o.board.item(c.id);
+      if (!files.length || !now || !ACTIVE.includes(now.state)) return;
+      const text = `Seismic landed commits on main (${notice.commit.slice(0, 7)}) that touch files you have changed.\n\nLanded commits:\n${notice.subjects.map((s) => `- ${s}`).join('\n')}\n\nOverlapping files:\n${files.map((f) => `- ${f}`).join('\n')}\n\nYou may want to rebase now rather than wait until handover. Decide from your work whether and when to do so.`;
+      this.o.board.work(c.id, { unheard: JSON.stringify([...this.unheard(c.id), { nextTurn: true, said: [], text, images: [] }] satisfies Unheard[]) });
+      this.o.board.log(c.id, 'state', 'obeya', this.o.board.t.worker.landingOverlap(notice.subjects, files));
+    }));
   }
 
   /**
@@ -2107,7 +2339,7 @@ export class Workers {
   /**
    * What the worker of work that landed (or closed) hears about its demo's page, which it links
    * wherever it points people at the work (an issue it closes, say), and whether it waits for that
-   * page to go out: Obeya tells it the address once the page is online (`pageSettled`). Without a
+   * page to go out: Seismic tells it the address once the page is online (`pageSettled`). Without a
    * page, it hears so, and asks the owner rather than leave the link out.
    */
   private pageNote(cardId: string): { text: string; waits?: boolean } {
@@ -2118,7 +2350,7 @@ export class Workers {
     if (!this.shares) return { text: `This repository has no demo site, so your demo is on no page the team can open. ${ask}` };
     const s = card.share;
     if (s?.state === 'publishing')
-      return { text: 'Your demo is going out on a page of its own for the team right now. Obeya tells you its address once it is online: wait for that before you link the demo anywhere (an issue you close, say).', waits: true };
+      return { text: 'Your demo is going out on a page of its own for the team right now. Seismic tells you its address once it is online: wait for that before you link the demo anywhere (an issue you close, say).', waits: true };
     if (s?.state === 'shared' && s.url)
       return {
         text: s.stale
@@ -2153,7 +2385,7 @@ export class Workers {
    * What became of the card's demo page since its worker last heard of it: the owner shared it or
    * stopped sharing it, a share went online or failed. The worker hears it with its next message or
    * tool step (no turn of its own: nothing waits on it), so it knows where its demo is when the
-   * owner asks, and where Obeya links it once the work lands.
+   * owner asks, and where Seismic links it once the work lands.
    */
   private pageNews(cardId: string): string | undefined {
     const card = this.o.board.item(cardId);
@@ -2170,8 +2402,8 @@ export class Workers {
         `The owner shared your demo with the team on a page of its own: ${now.url}.`,
         now.stale ? 'It shows an earlier demo of yours, not the latest.' : '',
         contributionOf(row)
-          ? 'Once the owner approves, Obeya comments its link on the pull request.'
-          : `Obeya links it in what your work lands with: a \`${trailer}: <url>\` trailer on the commit that lands on main, or a line in the pull request's description.`,
+          ? 'Once the owner approves, Seismic comments its link on the pull request.'
+          : `Seismic links it in what your work lands with: a \`${trailer}: <url>\` trailer on the commit that lands on main, or a line in the pull request's description.`,
         'Link it wherever you point people at this work (an issue you close, say).',
       ]
         .filter(Boolean)
@@ -2222,7 +2454,7 @@ export class Workers {
     const landed = landedOf(row);
     this.o.board.work(cardId, { landed: null, workspace: null, status_line: null, parked: null, paused: null, pausing: null, snoozed: null, app: null, ...(row.state === 'waiting' ? { state: landed?.unchanged ? 'done' : 'live', need: null, detail: null } : {}) });
     this.o.board.workDone(cardId);
-    // the Arbeitsrückschau read the card's runs when its work ended
+    // the work retrospective read the card's runs when its work ended
     if (!landed?.followUp) this.o.onWorkEnded?.(cardId, row.workspace);
   }
 
@@ -2406,7 +2638,10 @@ export class Workers {
     // a review card's PR where work lands on the local main: the checkout gets the merge, as the owner would pull it
     if (contributionOf(this.o.board.row(cardId)) && this.pulls()) void this.pullAfterMerge(cardId);
     // git reads them without blocking the server; the workspace goes only once it has (`finish`)
-    const added = this.planDocsAdded(cardId).then((a) => this.o.board.planDocsLanded(cardId, a));
+    const added = Promise.all([
+      this.planDocsAdded(cardId).then((a) => this.o.board.planDocsLanded(cardId, a)),
+      commit ? this.o.workspaces.noticeMerged?.(cardId, commit) : undefined,
+    ]).then(() => {});
     this.reading.set(cardId, added);
     void added.finally(() => this.reading.get(cardId) === added && this.reading.delete(cardId));
     const pr = this.o.board.row(cardId).pr;
@@ -2427,7 +2662,7 @@ export class Workers {
     const review = !!contributionOf(this.o.board.row(cardId));
     this.afterLanding(
       cardId,
-      [review ? 'The owner approved your handover, and Obeya merged the pull request; the card is live. Leave the PR as it is: Obeya comments the demo’s link on it.' : 'Your pull request was merged; the card is live.', page.text, comments?.text ?? '', AFTER_LANDING].filter(Boolean).join('\n\n'),
+      [review ? 'The owner approved your handover, and Seismic merged the pull request; the card is live. Leave the PR as it is: Seismic comments the demo’s link on it.' : 'Your pull request was merged; the card is live.', page.text, comments?.text ?? '', AFTER_LANDING].filter(Boolean).join('\n\n'),
       comments?.images,
       !!comments,
     );
@@ -2454,7 +2689,7 @@ export class Workers {
     else this.pulled(cardId, r.to);
   }
 
-  /** The local main has a review card's merge now: its log says so, the Lesestand reads it, and the other review cards look again at what the move means for them. */
+  /** The local main has a review card's merge now: its log says so, the read checkout reads it, and the other review cards look again at what the move means for them. */
   private pulled(cardId: string, commit: string) {
     this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.pulledMain(commit.slice(0, 7)));
     this.o.onMerged?.(cardId);
@@ -2489,7 +2724,7 @@ export class Workers {
   }
 
   /**
-   * „main pushen und PR anpassen“ on a review card whose PR collides with unpushed commits on the
+   * "Push main, adapt the PR" on a review card whose PR collides with unpushed commits on the
    * local main: once the undo window is through (`keepMainFor` takes it back), the local main goes
    * to `origin` (`Workspaces.pushMain`), so the PR now conflicts there, and the card's worker brings
    * the PR up to date with it, itself where the contributor allows maintainers' edits, else by a
@@ -2509,7 +2744,7 @@ export class Workers {
     );
   }
 
-  /** The owner takes back „main pushen“ within its undo window: nothing happened. */
+  /** The owner takes back "Push main, adapt the PR" within its undo window: nothing happened. */
   keepMainFor(cardId: string) {
     const held = this.pushingMain.get(cardId);
     if (!held || held === true) throw new BadRequest('noClash', 'main is not waiting to be pushed for this card');
@@ -2536,9 +2771,9 @@ export class Workers {
     this.deliver(
       cardId,
       [
-        `The owner had Obeya push the local main to origin (${r.to.slice(0, 7)} there now): its commits nobody had pushed yet collide with this pull request${files.length ? ` in ${files.join(', ')}` : ''}, so the pull request now conflicts with origin's main. Bring it up to date with origin's main, so that both changes keep working.`,
+        `The owner had Seismic push the local main to origin (${r.to.slice(0, 7)} there now): its commits nobody had pushed yet collide with this pull request${files.length ? ` in ${files.join(', ')}` : ''}, so the pull request now conflicts with origin's main. Bring it up to date with origin's main, so that both changes keep working.`,
         c.canModify
-          ? `${c.author} allows maintainers' edits: merge origin's main into your branch, which is the PR's head (a merge, not a rebase: Obeya pushes onto the PR's branch only what builds on its head), resolve the conflict, run the checks and commit. Then review the new head as before (the checks, the merge probe; a new demo only where what the pull request does looks different now) and hand over again with pr_draft saying what you changed and why: Obeya pushes it onto the PR's branch and posts the text once the owner approves.`
+          ? `${c.author} allows maintainers' edits: merge origin's main into your branch, which is the PR's head (a merge, not a rebase: Seismic pushes onto the PR's branch only what builds on its head), resolve the conflict, run the checks and commit. Then review the new head as before (the checks, the merge probe; a new demo only where what the pull request does looks different now) and hand over again with pr_draft saying what you changed and why: Seismic pushes it onto the PR's branch and posts the text once the owner approves.`
           : `${c.author} does not allow maintainers' edits: ask them with request_changes, in the PR's language, to bring the PR up to date with main${files.length ? ` (the conflict is in ${files.join(', ')})` : ''}. The card then waits for them, and you review their push as any other.`,
       ].join('\n\n'),
       [],
@@ -2553,7 +2788,7 @@ export class Workers {
   }
 
   /**
-   * The local main moved, or may have while Obeya was not running: each review card waiting for the
+   * The local main moved, or may have while Seismic was not running: each review card waiting for the
    * owner looks again at whether its PR collides with what is unpushed on it.
    */
   private reprobeClashes() {
@@ -2632,17 +2867,17 @@ export class Workers {
   /** What the worker that resolves a stopped pull hears: what stopped, and how to rebase and hand it over. */
   private resolveMessage(r: Resolving, own: boolean, path: string): string {
     const s = r.stopped;
-    const repo = this.o.repoPath ?? 'the Obeya checkout';
+    const repo = this.o.repoPath ?? 'the Seismic checkout';
     const checks = this.o.adapter.checks ?? [];
     const commits = s.unpushed === 1 ? 'one commit' : `${s.unpushed} commits`;
     return [
-      `Obeya merged pull request #${r.pr} (${r.url}) on the forge, but pulling the merge into the local main of the Obeya checkout (${repo}) stopped on a conflict: the local main has ${commits} nobody pushed yet, and ${own ? 'the commit of your card' : 'its commit'} ${s.commit.slice(0, 7)} (“${s.subject}”) conflicts with the pull request in ${s.files.join(', ')}. Obeya took the pull back: the local main is as it was, at ${s.main.slice(0, 7)}.`,
+      `Seismic merged pull request #${r.pr} (${r.url}) on the forge, but pulling the merge into the local main of the Seismic checkout (${repo}) stopped on a conflict: the local main has ${commits} nobody pushed yet, and ${own ? 'the commit of your card' : 'its commit'} ${s.commit.slice(0, 7)} (“${s.subject}”) conflicts with the pull request in ${s.files.join(', ')}. Seismic took the pull back: the local main is as it was, at ${s.main.slice(0, 7)}.`,
       `Those commits were never pushed, so you may rebase them: that rewrites no published history. Resolve it in your workspace (${path}):`,
       [
         `1. Put a branch of your own at the local main as it stood: git checkout -B <branch> ${s.main}. Commit what you still have in the workspace first. Where the workspace lacks those commits, fetch them from the checkout first: git fetch ${repo} ${s.main} ${s.upstream}.`,
         `2. Rebase it onto ${s.upstream}, origin's main with the merge: git rebase ${s.upstream}. Resolve each conflict so that both the pull request's change and the local commits keep doing what they did.`,
         `3. Run ${checks.length ? `the checks (${checks.map((x) => `\`${x}\``).join(', ')})` : 'the repository’s checks'}.`,
-        '4. Call ready_for_review with a summary of how you resolved it, without a demo. Obeya then puts the local main at your HEAD, with whatever landed on it meanwhile on top. Do not push.',
+        '4. Call ready_for_review with a summary of how you resolved it, without a demo. Seismic then puts the local main at your HEAD, with whatever landed on it meanwhile on top. Do not push.',
       ].join('\n'),
       'Where the two changes contradict each other so that resolving it is a product decision, ask the owner.',
     ].join('\n\n');
@@ -2680,7 +2915,7 @@ export class Workers {
       done();
       if (this.o.board.card(r.card)) this.o.board.log(r.card, 'error', 'obeya', t.pullFailed(res.detail));
       this.o.board.log(cardId, 'error', 'obeya', t.pullFailed(res.detail));
-      return `Not landed: ${res.detail}. That is in the Obeya checkout, not in your work: the owner sees it on the card. End your turn.`;
+      return `Not landed: ${res.detail}. That is in the Seismic checkout, not in your work: the owner sees it on the card. End your turn.`;
     }
     done();
     if ('rewritten' in res) this.reshipped(res.rewritten);
@@ -2715,6 +2950,7 @@ export class Workers {
    */
   stop(cardId: string): Promise<void> {
     const card = this.card(cardId);
+    if (this.landingActive.has(cardId)) throw new BadRequest('notReady', 'the work is already landing');
     if (card.finishing) {
       this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.stopped);
       this.finish(cardId);
@@ -2723,6 +2959,8 @@ export class Workers {
     if (card.state !== 'working' && card.state !== 'waiting') throw new BadRequest('noAgent', 'no agent works on this card');
     // comments held back for the worker stay in the conversation
     this.takeHeld(cardId);
+    // a code review still running reviews work that is no longer handed over
+    this.reviews.cancel(cardId);
     this.end(cardId);
     this.bump(cardId);
     const generation = this.generation.get(cardId);
@@ -2809,7 +3047,7 @@ export class Workers {
    * The owner pauses the card's worker while it is in a turn: its session ends at once, in the
    * middle of a step if need be, and whatever it ran with it (background work included). Card,
    * state, workspace, branch and session stay; the slot it held is free. It goes on where it stopped
-   * once the owner resumes it or writes to it (`deliver`); what Obeya has for it meanwhile waits
+   * once the owner resumes it or writes to it (`deliver`); what Seismic has for it meanwhile waits
    * until then, and its app is parked like a waiting card's. A worker taking in the owner's
    * words on its handover is paused the same way: the card still waits for approval, and the
    * worker finishes taking them in once it goes on.
@@ -2912,7 +3150,7 @@ export class Workers {
   }
 
   /**
-   * A scratch Obeya's idle workers (`--idle-workers`): a script acts as the card's agent
+   * A scratch Seismic's idle workers (`--idle-workers`): a script acts as the card's agent
    * (`scripts/scratch-obeya.ts --say`), for a check of what the owner sees while one works. Its
    * words go into the conversation as an agent's text does, and its tools (report, reply, ask,
    * ready_for_review, …) run as the agent's do, through the same code; no turn starts or ends by
@@ -2994,7 +3232,7 @@ export class Workers {
 
   /**
    * The owner snoozes the card's worker until `until` (ISO), whether it is in a turn or between
-   * turns: as on a pause, its session ends at once and what Obeya has for it meanwhile waits; at the
+   * turns: as on a pause, its session ends at once and what Seismic has for it meanwhile waits; at the
    * time it goes on where it stopped. A worker snoozed already only gets the new time.
    */
   snooze(cardId: string, until: string) {
@@ -3025,7 +3263,7 @@ export class Workers {
   /**
    * A planned card snoozed to start later starts now: at its time (`timeUp`), or because the owner
    * starts it earlier. Its worker hears with its task when the card was to start, so a task that
-   * says „in two weeks“ is read as due now.
+   * says "in two weeks" is read as due now.
    */
   startsNow(cardId: string, timeUp: boolean) {
     const s = this.o.board.unsnooze(cardId, timeUp ? 'time' : 'owner');
@@ -3053,6 +3291,9 @@ export class Workers {
   resumeAll(repo = false) {
     const restarted = repo ? REPO_RESTARTED : RESTARTED;
     this.reprobeClashes();
+    this.reviews.interrupted();
+    // a setting changed while Seismic was down or restarted to apply it reaches the cards waiting for approval
+    void this.codeReviewsChanged();
     for (const i of this.o.board.items()) {
       if (this.o.repo && i.repo !== this.o.repo) continue;
       // the page reloaded: the owner may watch on, or have gone
@@ -3061,14 +3302,14 @@ export class Workers {
       const landed = landedOf(row);
       // a snoozed worker sleeps on until its time, a restart notwithstanding
       if (row.snoozed && !(JSON.parse(row.snoozed) as Snooze).waiting) {
-        // the owner's snooze holds what Obeya has for the worker, as a pause does
+        // the owner's snooze holds what Seismic has for the worker, as a pause does
         if (row.paused) this.pausedOverRestart(i.id, landed);
         else {
           this.parkLater(i.id);
           // a restart it waited for after the landing has happened: that wakes it
           if (landed?.restarts) {
             this.o.board.work(i.id, { landed: JSON.stringify(settled(landed)) });
-            this.deliver(i.id, 'Obeya has started again and runs main with your change now.');
+            this.deliver(i.id, 'Seismic has started again and runs main with your change now.');
           }
         }
         continue;
@@ -3112,7 +3353,7 @@ export class Workers {
   }
 
   /**
-   * A folder's cards handed over without a demo before Obeya kept which of them have files to show
+   * A folder's cards handed over without a demo before Seismic kept which of them have files to show
    * (`files` empty), on the canvas or archived: those whose change still has some get the list.
    */
   private async listFiles() {
@@ -3164,7 +3405,7 @@ export class Workers {
       }
       const abandoned = this.o.workspaces.abandon(path).then(
         (freed) => {
-          // a worktree with uncommitted changes stays, and is not looked at again until Obeya starts anew
+          // a worktree with uncommitted changes stays, and is not looked at again until Seismic starts anew
           if (!freed) return void this.kept.add(path);
           // a deleted card brought back and started meanwhile works there again: its worktree is made anew
           if (!this.o.board.leaseEnded(id, path)) return;
@@ -3216,7 +3457,7 @@ export class Workers {
     this.parkLater(cardId);
     if (!l?.restarts) return;
     this.o.board.work(cardId, { landed: JSON.stringify(settled(l)) });
-    this.deliver(cardId, 'Obeya has started again and runs main with your change now.');
+    this.deliver(cardId, 'Seismic has started again and runs main with your change now.');
   }
 
   /** After a restart (`repo`: of this repository's agents alone): landed work's worker goes on with what remains; the restart it waited for has happened. */
@@ -3226,7 +3467,7 @@ export class Workers {
     // an open question waits for its answer, which resumes the session
     if (card.state === 'waiting') return this.parkLater(card.id);
     const restarted = repo ? REPO_RESTARTED : RESTARTED;
-    this.launch(card.id, l.restarts ? `${repo ? 'Obeya runs' : 'Obeya has started again and runs'} main with your change now. ${restarted}` : restarted, session);
+    this.launch(card.id, l.restarts ? `${repo ? 'Seismic runs' : 'Seismic has started again and runs'} main with your change now. ${restarted}` : restarted, session);
   }
 
   /** Settles once the workspaces git is making ready now are ready (or failed), their workers started: for a start begun elsewhere (the Koordinator, the owner's question). */
@@ -3239,12 +3480,14 @@ export class Workers {
     return [...new Set([...[...this.live].filter(([, l]) => l.busy).map(([id]) => id), ...this.preparing.keys()])];
   }
 
-  /** The cards whose worker is in a turn, each with its background work that runs and whether the turn waits only for that work. */
+  /** The cards whose worker is in a turn, each with its background work that runs and whether the turn waits only for that work; and those that paused for a restart that is due. */
   private turnsShown(): Map<string, WorkerTurn> {
-    return new Map([...this.live, ...this.standIns].filter(([, l]) => l.busy).map(([id, l]) => [id, { tasks: [...l.tasks.values()].map(({ description, since }) => ({ description, since })), over: !!l.waiting, doing: shownDoing(l.doing ?? {}) }]));
+    const turns = new Map<string, WorkerTurn>([...this.live, ...this.standIns].filter(([, l]) => l.busy).map(([id, l]) => [id, { tasks: [...l.tasks.values()].map(({ description, since }) => ({ description, since })), over: !!l.waiting, doing: shownDoing(l.doing ?? {}) }]));
+    if (this.restart) for (const [id, l] of this.live) if (!l.busy && l.restartPaused) turns.set(id, { tasks: [], over: true, restartPaused: true });
+    return turns;
   }
 
-  /** How many of these workers are in a turn on a machine (null: the one Obeya runs on). */
+  /** How many of these workers are in a turn on a machine (null: the one Seismic runs on). */
   busyOn(host: string | null): number {
     const on = (id: string) => {
       const live = this.live.get(id);
@@ -3258,21 +3501,25 @@ export class Workers {
 
   /**
    * The cards whose worker is in the middle of a turn (or whose ended turn waits for its background
-   * work), and those whose workspace is being made ready, freed or taken from them (`evict`) or whose work is landing: a restart would cut off git midway.
+   * work), and those whose workspace is being made ready, freed or taken from them (`evict`), whose work is landing, or whose landed changes are still
+   * being read for plan docs and overlap notices: a restart would cut off git midway. And those whose code review's agent is at work.
    */
   busyCards(): string[] {
-    return [...new Set([...this.inTurn(), ...this.landing, ...[...this.freeing.values()].map((f) => f.card), ...this.evicting])];
+    return [...new Set([...this.inTurn(), ...this.landing, ...this.reading.keys(), ...[...this.freeing.values()].map((f) => f.card), ...this.evicting, ...this.reviews.busy()])];
   }
 
   /**
-   * Obeya is about to restart (or no longer is): workers in the middle of a turn hear so and pause
+   * Seismic is about to restart (or no longer is): workers in the middle of a turn hear so and pause
    * at a safe point, and those that start a turn before the restart hear it with their message.
    */
   restartDue(due: DueRestart | null) {
     this.restart = due;
+    this.reviews.restartDue(due);
+    // the cards paused for it show so while it is due
+    this.o.board.changed();
     if (!due) {
       // a worker that paused for it goes on with the owner's words that waited meanwhile
-      for (const cardId of this.live.keys()) if (!this.takesLater(cardId) && this.unheard(cardId).length) this.deliver(cardId, '');
+      for (const cardId of this.live.keys()) if (!this.takesLater(cardId) && this.unheard(cardId).some((u) => !u.nextTurn)) this.deliver(cardId, '');
       return;
     }
     for (const [cardId, live] of this.live) {
@@ -3286,7 +3533,10 @@ export class Workers {
   shutdown() {
     // workers of a repository started afresh are its new ones: these settle no lease any more
     this.unwatch();
+    this.unwatchLandings?.();
+    for (const turn of this.landingTurns.values()) turn.abort();
     this.shut = true;
+    this.reviews.shutdown();
     for (const id of [...this.live.keys()]) this.end(id);
     for (const timer of this.reconnecting.values()) clearTimeout(timer);
     this.reconnecting.clear();
@@ -3299,7 +3549,7 @@ export class Workers {
 
   // ---------------------------------------------------------------- sessions
 
-  /** What a worker's environment gets: where Obeya is, and the language the repository names for its demos (`DEMO_LANGUAGE`, read by the demo skill). */
+  /** What a worker's environment gets: where Seismic is, and the language the repository names for its demos (`DEMO_LANGUAGE`, read by the demo skill). */
   private env(): Record<string, string> | undefined {
     const language = this.o.adapter.demo?.language;
     return language ? { ...this.o.env, DEMO_LANGUAGE: language } : this.o.env;
@@ -3340,7 +3590,7 @@ export class Workers {
       return extension.picked(picked.data, {
         ...context,
         log: (text) => this.o.board.log(cardId, 'activity', 'obeya', text),
-        asOwner: (change) => (asOwner ? asOwner(context.cwd, change) : Promise.reject(new Error('Obeya changes no repository here'))),
+        asOwner: (change) => (asOwner ? asOwner(context.cwd, change) : Promise.reject(new Error('Seismic changes no repository here'))),
       })?.permissions;
     } catch (error) {
       console.error('Extension permission choice failed:', error);
@@ -3357,7 +3607,7 @@ export class Workers {
     }
   }
 
-  private launch(cardId: string, message: string, resume?: string, images: string[] = []) {
+  private launch(cardId: string, message: string, resume?: string, images: string[] = [], reviewOnly = false) {
     const row = this.o.board.row(cardId);
     if (!row.workspace) throw new Error(`card ${cardId} has no workspace to work in`);
     // A legacy unqualified session belongs to Claude regardless of today's worker default.
@@ -3367,19 +3617,21 @@ export class Workers {
     if (!row.agent_setting && resume) this.o.board.recordRun(cardId, resume, { harness: 'claude', model: null, effort: null });
     this.o.board.work(cardId, { agent_setting: JSON.stringify(setting) });
     const preferences = this.o.preferences?.() ?? '';
-    const live: Live = { session: undefined!, host: hostName(row.workspace), handedOver: false, acted: false, nudged: false, lastText: '', busy: true, background: 0, tasks: new Map(), stalled: false, preferences, ...(!row.agent_setting && resume ? { guessed: true as const } : {}) };
+    const live: Live = { session: undefined!, ...(setting.harness === 'codex' && this.o.codexAutoReview?.() ? { autoReview: true } : {}), host: hostName(row.workspace), handedOver: false, acted: false, nudged: false, lastText: '', busy: true, background: 0, tasks: new Map(), stalled: false, preferences, ...(!row.agent_setting && resume ? { guessed: true as const } : {}) };
     const project = this.o.board.item(cardId)?.parent;
-    if (project) live.project = { id: project, decision: this.o.board.decisions(project).at(-1)?.id ?? 0 };
+    if (project && !reviewOnly) live.project = { id: project, decision: this.o.board.decisions(project).at(-1)?.id ?? 0 };
     this.live.set(cardId, live);
     this.o.board.changed();
-    ({ text: message, images } = this.withUnheard(cardId, message, images));
-    message = this.withRestart(cardId, live, this.withPageNews(cardId, message));
+    if (!reviewOnly) {
+      ({ text: message, images } = this.withUnheard(cardId, message, images));
+      message = this.withRestart(cardId, live, this.withPageNews(cardId, message));
+    }
     live.pending = { text: message, images };
     const env = this.env();
     // a plan folder outside the repository is the worker's to tick its workstream in, on this machine
     const plans = live.host ? null : outsidePlanDir(this.o.adapter.planDocs.dir);
     // a Codex worker's sandbox writes only in its workspace and the temporary directories: the demos directory, where it makes the demos it hands over, is the one more place it may write
-    const demos = live.host || setting.harness !== 'codex' ? null : expandHome(this.demosDir(cardId));
+    const demos = live.host || !setting.harness || setting.harness === 'claude' ? null : expandHome(this.demosDir(cardId));
     const dirs = [plans, demos && isAbsolute(demos) && existsSync(demos) ? demos : null].filter((d): d is string => !!d);
     // a review card's workspace holds a stranger's code: its Claude Code settings (hooks, MCP servers) and
     // CLAUDE.md are the contributor's, so the session reads none of them, the default branch's CLAUDE.md instead
@@ -3394,16 +3646,17 @@ export class Workers {
           setting,
           ...(dirs.length ? { dirs } : {}),
           ...(review ? { untrusted: true } : {}),
-          system: `${this.system(preferences, !!row.prototype_of, this.o.board.item(cardId))}${setting.harness === 'codex' && !live.host && !review ? `\n\n${EXEC_LANE_NOTE}` : ''}${notes ? `\n\nThe repository's CLAUDE.md, as its default branch has it:\n\n${notes}` : ''}`,
+          system: `${this.system(preferences, !!row.prototype_of, this.o.board.item(cardId))}${setting.harness && setting.harness !== 'claude' && !live.host && !review ? `\n\n${live.autoReview ? EXEC_LANE_AUTO_NOTE : EXEC_LANE_NOTE}` : ''}${notes ? `\n\nThe repository's CLAUDE.md, as its default branch has it:\n\n${notes}` : ''}`,
           tools: this.tools(cardId, live, !!row.prototype_of),
           plugins: [OBEYA_PLUGIN],
           ...(env ? { env } : {}),
           contextUpdate: () =>
-            [this.restartStillDue(cardId, live), this.pauseStillDue(live), this.pageNewsNow(cardId, live), this.unheardNow(cardId, live), this.preferencesUpdate(live), this.decisionsUpdate(cardId, live)].filter(Boolean).join('\n\n') || undefined,
+            [this.restartStillDue(cardId, live), this.pauseStillDue(live), ...(!reviewOnly ? [this.pageNewsNow(cardId, live), this.unheardNow(cardId, live), this.decisionsUpdate(cardId, live)] : []), this.preferencesUpdate(live)].filter(Boolean).join('\n\n') || undefined,
           askOwner: (request, signal) => this.askOwner(cardId, live, request, signal),
           ...(this.folder ? { watch: this.folder.watch(cardId) } : {}),
           ...(resume ? { resume } : {}),
           ...(this.o.permissionMode ? { permissionMode: this.o.permissionMode } : {}),
+          ...(live.autoReview ? { autoReview: true } : {}),
           onEvent: (e) => this.onEvent(cardId, live, e),
         },
         message,
@@ -3418,6 +3671,7 @@ export class Workers {
       else this.o.board.changed();
       return;
     }
+    this.extensionEvent('workerStarted', cardId);
     live.session.done.then(() => {
       if (this.live.get(cardId) !== live) return;
       this.live.delete(cardId);
@@ -3430,7 +3684,7 @@ export class Workers {
 
   /**
    * Passes a message to the worker, resuming its session if it has none. While the owner has paused
-   * it, Obeya's messages wait (`owner` false); the owner's let it go on, after what waited. The
+   * it, Seismic's messages wait (`owner` false); the owner's let it go on, after what waited. The
    * owner's words of the log's lines `said` wait for the worker's next step while it is in a turn
    * (`takesLater`), unread until then; other words go into the session's input at once.
    */
@@ -3440,7 +3694,7 @@ export class Workers {
       this.o.board.work(cardId, { paused: JSON.stringify({ ...paused, held: [...(paused.held ?? []), { text, images }] } satisfies PausedState) });
       return;
     }
-    // a snoozed worker wakes: at its time, by the owner's words, or (snoozed by itself) by whatever Obeya has for it
+    // a snoozed worker wakes: at its time, by the owner's words, or (snoozed by itself) by whatever Seismic has for it
     const snoozed = this.o.board.snoozedOf(cardId);
     const woke = snoozed && !snoozed.waiting ? snoozed : null;
     if (woke) {
@@ -3467,7 +3721,7 @@ export class Workers {
       this.o.board.work(cardId, { paused: null });
       if (!woke) this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.resumedByOwner);
       const held = paused.held ?? [];
-      text = [woke ? wokeText : RESUMED, ...(held.length ? [`While you were ${woke ? 'snoozed' : 'paused'}, Obeya had this for you:\n\n${held.map((h) => h.text).join('\n\n---\n\n')}`] : []), ...(text ? [`Then:\n\n${text}`] : [])].join('\n\n');
+      text = [woke ? wokeText : RESUMED, ...(held.length ? [`While you were ${woke ? 'snoozed' : 'paused'}, Seismic had this for you:\n\n${held.map((h) => h.text).join('\n\n---\n\n')}`] : []), ...(text ? [`Then:\n\n${text}`] : [])].join('\n\n');
       images = [...held.flatMap((h) => h.images), ...images];
     } else if (woke) text = [wokeText, text].filter(Boolean).join('\n\n');
     this.unpark(cardId);
@@ -3533,11 +3787,13 @@ export class Workers {
     return stored ? (JSON.parse(stored) as Unheard[]) : [];
   }
 
-  /** The owner's words Obeya held for the worker, taken out: they are read from now on. */
-  private takeUnheard(cardId: string): Unheard[] {
-    const unheard = this.unheard(cardId);
+  /** The owner's words Seismic held for the worker, taken out: they are read from now on. */
+  private takeUnheard(cardId: string, nextTurn = true): Unheard[] {
+    const all = this.unheard(cardId);
+    const unheard = all.filter((u) => nextTurn || !u.nextTurn);
     if (!unheard.length) return [];
-    this.o.board.work(cardId, { unheard: null });
+    const kept = all.filter((u) => !unheard.includes(u));
+    this.o.board.work(cardId, { unheard: kept.length ? JSON.stringify(kept) : null });
     this.o.board.readNow(cardId, unheard.flatMap((u) => u.said));
     return unheard;
   }
@@ -3560,7 +3816,7 @@ export class Workers {
    */
   private unheardNow(cardId: string, live: Live): string | undefined {
     if (this.live.get(cardId) !== live) return;
-    const unheard = this.takeUnheard(cardId);
+    const unheard = this.takeUnheard(cardId, false);
     if (!unheard.length) return;
     const images = unheard.flatMap((u) => u.images);
     return [...unheard.map((u) => u.text), ...(images.length ? [`The screenshots cannot come with a tool result: read their files to see them (${images.join(', ')}).`] : [])].join('\n\n---\n\n');
@@ -3571,7 +3827,7 @@ export class Workers {
    * its next turn. Not while it stops for a restart or a usage limit, which it goes on from with them.
    */
   private unheardStarts(cardId: string, live: Live): boolean {
-    if (this.restart || live.limited || !this.unheard(cardId).length) return false;
+    if (this.restart || live.limited || !this.unheard(cardId).some((u) => !u.nextTurn)) return false;
     const { text: words, images } = this.withUnheard(cardId, '', []);
     const text = this.withPageNews(cardId, words);
     this.setBusy(live, true);
@@ -3606,7 +3862,7 @@ export class Workers {
 
   /**
    * A message that starts a turn while a restart is due tells the worker of it, once: that the
-   * work the message asks for waits until Obeya resumes it (workers in a turn heard of it already).
+   * work the message asks for waits until Seismic resumes it (workers in a turn heard of it already).
    */
   private withRestart(cardId: string, live: Live, text: string): string {
     const still = this.restartStillDue(cardId, live);
@@ -3619,7 +3875,7 @@ export class Workers {
 
   /**
    * A turn that starts after the worker paused for the restart, before it happened, hears once that
-   * Obeya still waits: with its message, or with its first tool step when nothing of Obeya's started
+   * Seismic still waits: with its message, or with its first tool step when nothing of Seismic's started
    * it (a background command that finished, which the worker would otherwise go on from).
    */
   private restartStillDue(cardId: string, live: Live): string | undefined {
@@ -3648,6 +3904,7 @@ export class Workers {
   }
 
   private bump(cardId: string) {
+    if (!this.landingActive.has(cardId)) this.landingTurns.get(cardId)?.abort();
     this.generation.set(cardId, (this.generation.get(cardId) ?? 0) + 1);
     this.unpark(cardId);
   }
@@ -3707,7 +3964,7 @@ export class Workers {
     if (this.live.get(cardId) !== live) return;
     if (e.type === 'background') return this.backgroundChanged(cardId, live, e.tasks);
     this.follow(live, e);
-    // a turn may also start without a message from Obeya (a finished background command)
+    // a turn may also start without a message from Seismic (a finished background command)
     this.setBusy(live, e.type !== 'idle');
     this.stopWaiting(live);
     limitWatch.cancel(live);
@@ -3723,12 +3980,12 @@ export class Workers {
     if (e.type === 'text' || e.type === 'tool' || (e.type === 'idle' && !e.more)) live.pending = undefined;
     switch (e.type) {
       case 'session': {
-        // a session that replaces another (none resumed, say) keeps the one before for the Arbeitsrückschau
+        // a session that replaces another (none resumed, say) keeps the one before for the work retrospective
         const before = this.o.board.row(cardId).session_id;
         if (before && before !== e.id) this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.newSession(this.o.board.t.worker.earlierRun(before)));
         // what this session runs on, as asked for and as it resolved, for whom the owner's response on the work credits
         const pinned = this.o.board.row(cardId).agent_setting;
-        if (pinned) this.o.board.recordRun(cardId, e.id, workConfig(JSON.parse(pinned) as AgentSetting, e.model ?? e.setting?.codex?.model, live.guessed));
+        if (pinned) this.o.board.recordRun(cardId, e.id, workConfig(JSON.parse(pinned) as AgentSetting, e.model ?? (e.setting ? harnessChoice(e.setting).model : undefined), live.guessed));
         this.o.board.work(cardId, { session_id: e.id, ...(e.setting ? { agent_setting: JSON.stringify(e.setting) } : {}) });
         break;
       }
@@ -3745,8 +4002,8 @@ export class Workers {
       case 'tool':
         if (live.held !== undefined) this.o.board.log(cardId, 'say', 'worker', live.held);
         live.held = undefined;
-        if (!e.name.startsWith('mcp__obeya__')) this.o.board.log(cardId, 'activity', 'worker', describeTool(e.name, e.input, this.o.board.t));
-        else if (e.name === 'mcp__obeya__app_running') appRunning(live, String(e.input.url ?? '').trim());
+        if (!e.name.startsWith('mcp__seismic__')) this.o.board.log(cardId, 'activity', 'worker', describeTool(e.name, e.input, this.o.board.t));
+        else if (e.name === 'mcp__seismic__app_running') appRunning(live, String(e.input.url ?? '').trim());
         break;
       case 'denied': {
         const t = this.o.board.t;
@@ -3808,7 +4065,7 @@ export class Workers {
     try {
       await this.land(cardId, 'obeya');
     } catch (e) {
-      // the Obeya checkout is in the way: the card waits for the owner, who approves again
+      // the Seismic checkout is in the way: the card waits for the owner, who approves again
       if (!(e instanceof BadRequest)) return this.o.board.log(cardId, 'error', 'obeya', messageOf(e));
       this.o.board.work(cardId, { state: 'waiting', need: this.o.board.row(cardId).demo ? 'demo' : 'review', status_line: null });
       this.o.board.log(cardId, 'error', 'obeya', e.message, { code: e.code });
@@ -3820,7 +4077,7 @@ export class Workers {
    * that ends while the worker's background work runs (a demo render, say) waits for that work
    * to wake the worker instead, unless nothing happens for a long while; so does a turn in which
    * the worker did nothing, as it never ended a turn of its own there. A turn that ends with a
-   * message from Obeya still to come (`more`) is not the worker's last: the turn that message starts
+   * message from Seismic still to come (`more`) is not the worker's last: the turn that message starts
    * is, so the landing of its work, told while the worker ended its reply, is not lost with the session.
    */
   private turnEnded(cardId: string, live: Live, background: number, waited = false, more = false) {
@@ -3836,7 +4093,7 @@ export class Workers {
     live.handedOver = false;
     live.answered = false;
     live.spoke = false;
-    // a snooze holds across a turn a message from Obeya still starts (a restart notice): its session ends after that one
+    // a snooze holds across a turn a message from Seismic still starts (a restart notice): its session ends after that one
     if (!more) live.snoozed = false;
     live.held = undefined;
     live.acted = false;
@@ -3846,7 +4103,7 @@ export class Workers {
     if (!card) return;
     if (closing !== undefined) this.o.board.log(cardId, 'closing', 'worker', closing);
     const row = this.o.board.row(cardId);
-    // it snoozed: its session ends (its background work with it), and Obeya resumes it at the time;
+    // it snoozed: its session ends (its background work with it), and Seismic resumes it at the time;
     // on its handover the snooze answers the owner's words, so waking it is at work again
     if (snoozed && !handedOver && !more && row.snoozed) {
       if (answering(card)) this.answerTaken(cardId, true);
@@ -3896,7 +4153,7 @@ export class Workers {
       // what remained after the landing is done, unless the worker waits for its question, the restart, its demo's page or the usage limit
       if (card.state === 'waiting' || landed.waits) return;
       if (landed.page) {
-        // the page went out (or did not) without the worker hearing it (Obeya was not running, say): it hears now
+        // the page went out (or did not) without the worker hearing it (Seismic was not running, say): it hears now
         if (card.share?.state !== 'publishing') this.pageSettled(cardId);
         return;
       }
@@ -3925,8 +4182,8 @@ export class Workers {
       this.setBusy(live, true);
       live.session.send(
         card.state === 'inPr'
-          ? 'Your turn ended, and Obeya has no pull request for this card yet (pr_opened), nor did you close it as needing none (close_unchanged).'
-          : 'Your turn ended without a handover (ready_for_review) or a question (ask), so the card still shows you at work. Should you end your turn again like this, Obeya passes your last words to the owner as a question.',
+          ? 'Your turn ended, and Seismic has no pull request for this card yet (pr_opened), nor did you close it as needing none (close_unchanged).'
+          : 'Your turn ended without a handover (ready_for_review) or a question (ask), so the card still shows you at work. Should you end your turn again like this, Seismic passes your last words to the owner as a question.',
       );
       return;
     }
@@ -3948,7 +4205,7 @@ export class Workers {
       this.o.board.work(cardId, { landed: JSON.stringify({ ...landed, resolve: { ...r, reminded: true } } satisfies LandedState) });
       this.setBusy(live, true);
       live.session.send(
-        `Your turn ended, and the pull of pull request #${r.pr} into the local main is still stopped: resolve it and hand it over with ready_for_review, or ask the owner where it needs their decision. Should you end your turn again like this, Obeya leaves the pull to the owner.`,
+        `Your turn ended, and the pull of pull request #${r.pr} into the local main is still stopped: resolve it and hand it over with ready_for_review, or ask the owner where it needs their decision. Should you end your turn again like this, Seismic leaves the pull to the owner.`,
       );
       return;
     }
@@ -4004,6 +4261,8 @@ export class Workers {
     if (!detail) return;
     const { answering, answered: before, ...rest } = JSON.parse(detail) as Record<string, unknown>;
     if (!answering) return;
+    // the worker's words alone end the card's wait for a handover: it takes the canvas's code review setting as it stands
+    void this.codeReviewsChanged();
     const answered = spoke || !!before;
     this.o.board.work(cardId, { detail: JSON.stringify({ ...rest, ...(answered ? { answered: true } : {}) }) });
     if (!answered) this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.unanswered);
@@ -4138,7 +4397,7 @@ export class Workers {
   }
 
   /**
-   * The owner opens the card's app to try it by hand: its address. Obeya leaves it running for a
+   * The owner opens the card's app to try it by hand: its address. Seismic leaves it running for a
    * while after (`TRY_GRACE`), so it does not stop under them once the card waits. None once it no longer runs.
    */
   async openApp(cardId: string): Promise<string | null> {
@@ -4157,7 +4416,7 @@ export class Workers {
 
   /**
    * The connection to the machine the card's workspace is on is gone, and the session with it (as
-   * at a restart of Obeya): once that machine answers again, the session resumes by its id, with
+   * at a restart of Seismic): once that machine answers again, the session resumes by its id, with
    * the message it had not yet taken, else told what happened if it was at work (or waited for its
    * background work). A session that never started there (the host could not be reached to get
    * it ready) has no id: a new one starts with the message it was to begin with. A card that waits
@@ -4235,7 +4494,7 @@ export class Workers {
 
   private parkedNote(): string {
     const { stop, run } = this.o.adapter.app ?? {};
-    return `While the card waited, Obeya stopped the app in your workspace${stop ? ` (\`${stop}\`)` : ''} to free the machine. When you need it again, start it again${run?.trim() ? ' as the recipe in your brief says' : ''}.`;
+    return `While the card waited, Seismic stopped the app in your workspace${stop ? ` (\`${stop}\`)` : ''} to free the machine. When you need it again, start it again${run?.trim() ? ' as the recipe in your brief says' : ''}.`;
   }
 
   /**
@@ -4302,8 +4561,8 @@ export class Workers {
     // take, so the handover asks for one only where they take it (where sharing began since, the page is written once shared)
     const shares = this.shares;
     // the vocabulary the page's tags come from, where the repository's site names one
-    const vocabulary = shares ? dimensions(this.o.adapter.demo?.site?.tags) : [];
-    // a proposal may go to another repository than the card's: of this canvas, or of another canvas this Obeya runs
+    const vocabulary = shares ? dimensions(this.o.vocabulary?.()) : [];
+    // a proposal may go to another repository than the card's: of this canvas, or of another canvas this Seismic runs
     const repos = this.o.board.canvas.repos;
     const ownRepo = this.o.repo ?? this.o.board.home;
     const others = this.otherBoards().filter((b) => b.canvas.repos.length);
@@ -4333,6 +4592,9 @@ export class Workers {
       tools.map((t) => ({ ...t, run: (args) => (this.live.get(cardId) === live || live.standIn ? t.run(args) : 'This session has ended. Stop working and end your turn.') }));
     // a review card's tools to the contributor's pull request
     const review = contributionOf(this.o.board.row(cardId));
+    // the tools stand for the whole session, while the canvas's setting may change under it: every card of the owner's has the tool, which refuses where there are no findings
+    // a card whose work the canvas reviews makes the follow-up tasks the owner chooses of the review's findings
+    const reviewed = !review && !this.folder && !this.o.board.row(cardId).prototype_of;
     return current([
       {
         name: 'report',
@@ -4437,11 +4699,11 @@ export class Workers {
               proposalTask('your card nor your session'),
               `reason: for the owner only, why you propose it, a sentence or two; it does not go to that agent.`,
               `questions: what the owner has to decide first (product behaviour, a trade-off), each with up to four short options; keep them out of task. The owner may answer them on the proposal; what they decided and what stays open go to the agent with the task.`,
-              `replaces: the title of an earlier proposal of yours this one takes the place of; Obeya takes that one off the canvas, or, if the owner has taken it on already, marks it as replaced and offers to remove it.`,
+              `replaces: the title of an earlier proposal of yours this one takes the place of; Seismic takes that one off the canvas, or, if the owner has taken it on already, marks it as replaced and offers to remove it.`,
               `start_at: when the card is to start, ISO 8601 with your timezone's offset (2026-11-04T08:00:00+01:00), for a task that can only be done later (whether a bank has registered a form two weeks on, say): accepted, it waits until then and starts by itself. Its agent then checks what it can and asks the owner for what only they can see.`,
               ...(anotherRepo
                 ? [
-                    `repo: the repository the change is to be made in, by its id: ${repos.map((r) => `${r.id} (${r.path}${r.id === ownRepo ? ', yours' : ''})`).join(', ')}${others.length ? `; on other canvases, where the proposal then waits for the owner: ${others.map((b) => `on „${b.canvas.name}“ ${b.canvas.repos.map((r) => `${r.id} (${r.path})`).join(', ')}`).join('; ')}` : ''}; yours when left out.`,
+                    `repo: the repository the change is to be made in, by its id: ${repos.map((r) => `${r.id} (${r.path}${r.id === ownRepo ? ', yours' : ''})`).join(', ')}${others.length ? `; on other canvases, where the proposal then waits for the owner: ${others.map((b) => `on “${b.canvas.name}” ${b.canvas.repos.map((r) => `${r.id} (${r.path})`).join(', ')}`).join('; ')}` : ''}; yours when left out.`,
                   ]
                 : []),
               `Everything in ${language}.`,
@@ -4476,7 +4738,9 @@ export class Workers {
                 ...(into ? { repo: into.repo } : {}),
               });
               const there = board === this.o.board ? undefined : board.canvas.name;
-              this.o.board.log(cardId, 'activity', 'worker', idea ? this.o.board.t.worker.proposedIdea(p.title, there) : this.o.board.t.worker.proposedCard(p.title, there));
+              this.o.board.log(cardId, 'activity', 'worker', idea ? this.o.board.t.worker.proposedIdea(p.title, there) : this.o.board.t.worker.proposedCard(p.title, there), {
+                made: { card: p.id, title: p.title, ...(there ? { canvas: board.canvas.id } : {}) },
+              });
               const old = typeof replaces === 'string' && replaces.trim() ? replaces.trim() : undefined;
               return old ? `Proposed. ${this.retract(cardId, old, { by: p.id, title: p.title })}` : 'Proposed; the owner decides. Continue with your task.';
             },
@@ -4488,7 +4752,7 @@ export class Workers {
             {
               name: 'withdraw_proposal',
               description: [
-                `Take back a card you proposed earlier (propose_card) that turned out wrong or needless, by its title. Still open, it goes from the canvas at once; if the owner has taken it on already, Obeya marks it as withdrawn and offers to remove it.`,
+                `Take back a card you proposed earlier (propose_card) that turned out wrong or needless, by its title. Still open, it goes from the canvas at once; if the owner has taken it on already, Seismic marks it as withdrawn and offers to remove it.`,
                 `replaced_by: the title of a proposal of yours that takes its place, when you made one already (a new one names the old with replaces instead).`,
                 `why: for the owner, a sentence, in ${language}.`,
               ].join(' '),
@@ -4501,7 +4765,7 @@ export class Workers {
                       .map((b) => b.items().findLast((i) => i.from === cardId && (!!i.proposal || !!i.proposed) && titleKey(i.title) === titleKey(replaced_by)))
                       .find(Boolean)
                   : undefined;
-                if (replaced_by?.trim() && !by) return `No card you proposed is called „${replaced_by.trim()}“. Nothing was withdrawn.`;
+                if (replaced_by?.trim() && !by) return `No card you proposed is called “${replaced_by.trim()}”. Nothing was withdrawn.`;
                 return this.retract(cardId, String(title).trim(), { ...(by ? { by: by.id, title: by.title } : {}), ...(why?.trim() ? { why: clip(why.trim(), 1000) } : {}) });
               },
             },
@@ -4510,7 +4774,7 @@ export class Workers {
         ? ([
             {
               name: 'findings',
-              description: `Record your review's findings for the owner, the whole list as it stands now (you keep it like a brief: call it after your review, and again whenever a finding changes, from the owner's words or a push). Each: a short title, a sentence or two in ${language}, whether it is about security, and its status: open; sent (to the contributor, with the review's url); fixed (by you, committed on your branch; Obeya pushes it with the owner's approval); resolved (a push of the contributor's fixed it, or it no longer applies); dropped (the owner does not pursue it); later (a follow-up task you made with follow_up_task, which Obeya keeps as it is). Give the id of a finding you had; a new one gets the next free number, in the order of the list. with: the ids of the other findings it would make one follow-up task with, should the owner choose that for them: only what one worker would sensibly do in one go (the same cause, the same files), else none. The card shows them beside the demo, bundles together, and the owner decides on each there.`,
+              description: `Record your review's findings for the owner, the whole list as it stands now (you keep it like a brief: call it after your review, and again whenever a finding changes, from the owner's words or a push). Each: a short title, a sentence or two in ${language}, whether it is about security, its severity (blocker: crashes the app or exposes a very important secret or unprotected database; critical: a clear exploit, severe degradation or other major consequence; major: a real defect; minor: worth fixing but not a reason to hold the PR; low: a small issue with limited impact; info: a nitpick or something to flag that may or may not be a problem), the file and line where it is, and its status: open; sent (to the contributor, with the review's url); fixed (by you, committed on your branch; Seismic pushes it with the owner's approval); resolved (a push of the contributor's fixed it, or it no longer applies); dropped (the owner does not pursue it); later (a follow-up task you made with follow_up_task, which Seismic keeps as it is). Give the id of a finding you had; a new one gets the next free number, in the order of the list. with: the ids of the other findings it would make one follow-up task with, should the owner choose that for them: only what one worker would sensibly do in one go (the same cause, the same files), else none. The card shows them beside the demo, bundles together, and the owner decides on each there.`,
               schema: {
                 findings: z.array(
                   z.object({
@@ -4518,6 +4782,9 @@ export class Workers {
                     title: z.string(),
                     text: z.string(),
                     security: z.boolean().optional(),
+                    severity: z.enum(SEVERITIES).optional(),
+                    file: z.string().optional(),
+                    line: z.number().int().positive().optional(),
                     status: z.enum(['open', 'sent', 'fixed', 'resolved', 'dropped', 'later']).optional(),
                     url: z.string().optional(),
                     with: z.array(z.number().int()).optional(),
@@ -4528,25 +4795,25 @@ export class Workers {
             },
             {
               name: 'follow_up_task',
-              description: `Make findings the owner chose as follow-up tasks (or asked for in words) a task of its own, beside your card and following up on it, outside this PR; it waits in the queue behind your card and starts once the PR is merged. findings: the numbers of the findings it is made of, one or several that belong together; title: short and precise, in ${language}; task: what is to be done, in ${language}, written for the agent who will take it on and has seen neither this PR nor your review: what is wrong and why, the files concerned, what done looks like, and the PR's link (${review.url}). Obeya marks those findings later, linking the task.`,
+              description: `Make findings the owner chose as follow-up tasks (or asked for in words) a task of its own, beside your card and following up on it, outside this PR; it waits in the queue behind your card and starts once the PR is merged. findings: the numbers of the findings it is made of, one or several that belong together; title: short and precise, in ${language}; task: what is to be done, in ${language}, written for the agent who will take it on and has seen neither this PR nor your review: what is wrong and why, the files concerned, what done looks like, and the PR's link (${review.url}). Seismic marks those findings later, linking the task.`,
               schema: { findings: z.array(z.number().int()), title: z.string(), task: z.string() },
               run: ({ findings, title, task }) => this.followUpTask(cardId, String(title).trim(), String(task).trim(), (findings as number[]) ?? []),
             },
             {
               name: 'request_changes',
-              description: `Send change requests to ${review.author} as one review of the pull request that asks for changes, posted with the owner's account. body: in the PR's language, as the owner's words to the contributor; findings: the numbers of the findings it holds, which Obeya marks as sent. Then end your turn: the card waits for ${review.author}.`,
+              description: `Send change requests to ${review.author} as one review of the pull request that asks for changes, posted with the owner's account. body: in the PR's language, as the owner's words to the contributor; findings: the numbers of the findings it holds, which Seismic marks as sent. Then end your turn: the card waits for ${review.author}.`,
               schema: { body: z.string(), findings: z.array(z.number().int()).optional() },
               run: async ({ body, findings }) => {
                 const owed = this.owedTasks(cardId);
                 if (owed) return `Not sent: first make the follow-up tasks the owner chose, for ${owed}; then call request_changes again.`;
                 const own = contributionOf(this.o.board.row(cardId));
                 if (own?.changing || own?.held)
-                  return `Not sent: your own changes to the PR wait for the owner's approval, and a request to ${review.author} goes with them as one message. Write it into pr_draft with your handover (ready_for_review): Obeya posts it once the owner approves.`;
+                  return `Not sent: your own changes to the PR wait for the owner's approval, and a request to ${review.author} goes with them as one message. Write it into pr_draft with your handover (ready_for_review): Seismic posts it once the owner approves.`;
                 const sent = await this.requestChanges(cardId, String(body), (findings as number[] | undefined) ?? []);
                 if (sent) return sent;
                 handOver();
                 return ending(
-                  `Sent. End your turn now: the card waits for ${review.author}, and Obeya passes you what they answer or push.`,
+                  `Sent. End your turn now: the card waits for ${review.author}, and Seismic passes you what they answer or push.`,
                   `Sent: the card waits for ${review.author}.`,
                   'a change request in them goes to the contributor the same way, or to you as their switch says',
                 );
@@ -4554,10 +4821,20 @@ export class Workers {
             },
           ] satisfies AgentTool[])
         : []),
+      ...(reviewed
+        ? ([
+            {
+              name: 'follow_up_task',
+              description: `Make findings of the code review of your work that the owner chose as follow-up tasks (or asked for in words) a task of its own, beside your card and following up on it; it waits in the queue behind your card and starts once your work has landed. findings: the numbers of the findings it is made of, one or several that belong together; title: short and precise, in ${language}; task: what is to be done, in ${language}, written for the agent who will take it on and has seen neither your card nor the review: what is wrong and why, the files concerned, what done looks like. Seismic marks those findings as follow-up tasks, linking the task.`,
+              schema: { findings: z.array(z.number().int()), title: z.string(), task: z.string() },
+              run: ({ findings, title, task }) => this.followUpTask(cardId, String(title).trim(), String(task).trim(), (findings as number[]) ?? []),
+            },
+          ] satisfies AgentTool[])
+        : []),
       {
         name: 'pr_opened',
         description:
-          'After the owner approved: report the pull request you opened for this card (its URL); where the work also needed one in another repository, report that one too, a call for each. Then end your turn; Obeya watches them, and the card is live once all are merged.',
+          'After the owner approved: report the pull request you opened for this card (its URL); where the work also needed one in another repository, report that one too, a call for each. Then end your turn; Seismic watches them, and the card is live once all are merged.',
         schema: { url: z.string() },
         run: ({ url }) => {
           const row = this.o.board.row(cardId);
@@ -4581,12 +4858,12 @@ export class Workers {
           this.o.board.work(cardId, { pr: JSON.stringify(pr) });
           this.o.board.log(cardId, 'state', 'worker', this.o.board.t.worker.prOpened(elsewhere ? `${ref.repo} #${ref.number}` : `#${ref.number}`));
           this.o.onPrOpened?.(cardId);
-          return ending('Recorded. End your turn now; Obeya watches the pull request.', 'Recorded: Obeya watches the pull request.', 'a change to the work goes onto the pull request');
+          return ending('Recorded. End your turn now; Seismic watches the pull request.', 'Recorded: Seismic watches the pull request.', 'a change to the work goes onto the pull request');
         },
       },
       {
         name: 'ready_for_review',
-        description: `Hand the finished work to the owner, after committing it, running the checks and making the demo. The summary (in ${language}) is what this handover tells the owner beyond what the card's conversation already holds: on your first handover, what changed from the user's point of view and what they really need to know (something left open or not verified, a decision you took for them), in a few short paragraphs at most; on a later one, only what your last handover and your replies since have not said yet, often a sentence. Obeya keeps your handovers and replies together as the card's report for whoever reads it later. A problem you noticed outside the task goes to propose_card, not into the summary, as does a follow-up to your task that is due only later (start_at). The demo: a video's directory and chapter titles in scene order, or an HTML artifact's directory, with its report (in the language of its narration); without a new one, the demo already on the card stands. Then end your turn.`,
+        description: `Hand the finished work to the owner, after committing it, running the checks and making the demo. The summary (in ${language}) is what this handover tells the owner beyond what the card's conversation already holds: on your first handover, what changed from the user's point of view and what they really need to know (something left open or not verified, a decision you took for them), in a few short paragraphs at most; on a later one, only what your last handover and your replies since have not said yet, often a sentence. Seismic keeps your handovers and replies together as the card's report for whoever reads it later. A problem you noticed outside the task goes to propose_card, not into the summary, as does a follow-up to your task that is due only later (start_at). The demo: a video's directory and chapter titles in scene order, or an HTML artifact's directory, with its report (in the language of its narration); without a new one, the demo already on the card stands. Then end your turn.`,
         schema: {
           summary: z.string(),
           demo: z
@@ -4628,7 +4905,7 @@ export class Workers {
                       })
                       .optional()
                       .describe(
-                        `required: the page on which the owner may share the demo (the video, or the HTML artifact below the text) with colleagues, in ${pageLanguage}. They know the product but have never seen Obeya, this card or the plan doc. title: what changes, in a few words; text: two to five sentences on what changes for the user and why, without findings, tests or internal process${vocabulary.length ? '; tags: see there' : ''}`,
+                        `required: the page on which the owner may share the demo (the video, or the HTML artifact below the text) with colleagues, in ${pageLanguage}. They know the product but have never seen Seismic, this card or the plan doc. title: what changes, in a few words; text: two to five sentences on what changes for the user and why, without findings, tests or internal process${vocabulary.length ? '; tags: see there' : ''}`,
                       ),
                     follows: z
                       .enum(['replaces', 'supplements'])
@@ -4653,7 +4930,7 @@ export class Workers {
                   .string()
                   .optional()
                   .describe(
-                    "when your branch holds commits of your own that are not on the PR yet: the text Obeya posts on the PR once the owner approves, after pushing them onto its branch. What you changed and why, in the PR's language, as the owner's words to the contributor, without mentioning Obeya or agents; with findings the owner sends the contributor along with your changes, the request for them in the same text. The card shows it to the owner first, who may edit it there. Without it, the text on the card stands.",
+                    "when your branch holds commits of your own that are not on the PR yet: the text Seismic posts on the PR once the owner approves, after pushing them onto its branch. What you changed and why, in the PR's language, as the owner's words to the contributor, without mentioning Seismic or agents; with findings the owner sends the contributor along with your changes, the request for them in the same text. The card shows it to the owner first, who may edit it there. Without it, the text on the card stands.",
                   ),
               }
             : {}),
@@ -4682,12 +4959,12 @@ export class Workers {
           type Demo = { kind?: DemoKind; dir: string; chapters?: string[]; question?: { text: string } & Omit<Asked, 'question'>; page?: DemoPage; follows?: 'replaces' | 'supplements' };
           const given = demo as Demo | undefined;
           // whether the branch holds work and decides where it lands, which git tells without blocking the server
-          // a review card hands over the PR's head it reviewed, which is all Obeya ever merges
-          // with the commits of its own on top of the PR's head, which Obeya pushes on the owner's approval
+          // a review card hands over the PR's head it reviewed, which is all Seismic ever merges
+          // with the commits of its own on top of the PR's head, which Seismic pushes on the owner's approval
           const handOverWork = (d: Demo | undefined, named: CardFile[] | undefined, shows: boolean): Promise<string> =>
             review
               ? this.ownCommits(cardId, review).then((mine) => (typeof mine === 'string' ? mine : handOverNow(d, named, shows, true, undefined, mine)))
-              : Promise.all([this.o.workspaces.hasWork(cardId), this.landingOf(cardId)]).then(async ([work, { own }]) =>
+              : Promise.all([this.o.workspaces.hasWork(cardId), this.landingOf(cardId)]).then(async ([work, { own, land }]) =>
                   handOverNow(
                     d,
                     named,
@@ -4698,6 +4975,7 @@ export class Workers {
                     work && !this.folder ? await this.o.workspaces.changedFiles(cardId) : undefined,
                     // what the branch shows of a data-model change, unless the worker says it has one
                     work && !this.folder && declared !== 'changed' && this.artifacts().includes('schema') ? dataModelSignals((await this.o.workspaces.diff(cardId, true))?.patch ?? '') : [],
+                    land,
                   ),
                 );
           const handOverNow = (
@@ -4709,17 +4987,18 @@ export class Workers {
             mine?: OwnCommits,
             changed?: string[],
             signals: DataSignal[] = [],
+            land?: 'main' | 'pr',
           ): string => {
             // reading what the change shows takes a while, in which the owner may stop or replace the session
             if (this.live.get(cardId) !== live && !live.standIn) return 'This session has ended. Stop working and end your turn.';
             const s = clip(String(summary), 6000);
             const row = this.o.board.row(cardId);
             if (row.landed) return 'Not handed over: your work is on main already.';
-            if (row.pr && !review) return 'Not handed over: the work is in its pull request, where Obeya follows it.';
+            if (row.pr && !review) return 'Not handed over: the work is in its pull request, where Seismic follows it.';
             const checked = results as { checks: { name: string; passed: boolean }[]; mergeable: boolean } | undefined;
             if (review && !checked) return "Not handed over: a review card's handover says what the checks and the merge probe found (review). Call ready_for_review again with it.";
             if (review && !contributionOf(row)?.findings) return 'Not handed over: record your findings first (findings; an empty list where your review found nothing), then call ready_for_review again.';
-            const owed = review && this.owedTasks(cardId);
+            const owed = this.owedTasks(cardId);
             if (owed) return `Not handed over: first make the follow-up tasks the owner chose, for ${owed}; then call ready_for_review again.`;
             // what goes onto the PR with the owner's approval: the worker's own commits and their text, with the requests to the contributor decided meanwhile
             const held = review && mine ? this.heldAt(cardId, mine, typeof draft === 'string' ? draft : undefined) : undefined;
@@ -4781,11 +5060,13 @@ export class Workers {
             }
             const report = this.report(cardId, s);
             const e = this.o.board.log(cardId, 'review', 'worker', s);
+            // work that lands on main gets its code review where the canvas reviews work; work through a pull request gets the forge's reviewers
+            if (!review && !approved) void this.reviews.handedOver(cardId, e.id, this.reviewModeOf(row, work, land));
             // the demo report's question goes with the handover it came with, also once a later one keeps the demo
             if (demoJson) demoJson = JSON.stringify({ ...(JSON.parse(demoJson) as object), handover: e.id, at: e.at });
             // the demo it replaces stays with the card, for the owner to go back to; so do a question's drafts, which are no handover's result
             const demos = (demoJson || asked) && row.demo ? this.earlier(cardId, row) : undefined;
-            // approved work does not wait for the owner again: it stays with Obeya until its turn has ended
+            // approved work does not wait for the owner again: it stays with Seismic until its turn has ended
             this.o.board.work(cardId, {
               // the worker's last status line is about the work it hands over: it would show again once the card is at work
               ...(approved ? { status_line: this.o.board.t.worker.landing } : { state: 'waiting', need: d || kept ? 'demo' : 'review', status_line: null }),
@@ -4813,16 +5094,16 @@ export class Workers {
             if (card?.prototypeOf) this.o.onPrototype?.(card, report, demoJson);
             if (approved)
               return ending(
-                'Recorded. End your turn now; once it has ended, Obeya lands your work on main.',
-                'Recorded: once your turn has ended, Obeya lands your work on main.',
+                'Recorded. End your turn now; once it has ended, Seismic lands your work on main.',
+                'Recorded: once your turn has ended, Seismic lands your work on main.',
                 'a change to the work is to be committed by then',
               );
-            // what the owner's button does, as Obeya sees the branch: the worker may know of no commit on it but its own
+            // what the owner's button does, as Seismic sees the branch: the worker may know of no commit on it but its own
             const lands =
               review || this.folder
                 ? ''
                 : !work
-                  ? ' Obeya sees no change on your branch: approving closes the card, and nothing lands.'
+                  ? ' Seismic sees no change on your branch: approving closes the card, and nothing lands.'
                   : changed?.length
                     ? ` Approving lands your branch's change to ${changed.length === 1 ? '1 file' : `${changed.length} files`}: ${changed.slice(0, 8).join(', ')}${changed.length > 8 ? ', …' : ''}.`
                     : '';
@@ -4874,23 +5155,23 @@ export class Workers {
       },
       {
         name: 'after_restart',
-        description: 'Only after your work has landed and Obeya said it starts again for it: what remains needs Obeya to run your change. Then end your turn; Obeya tells you once it runs your change.',
+        description: 'Only after your work has landed and Seismic said it starts again for it: what remains needs Seismic to run your change. Then end your turn; Seismic tells you once it runs your change.',
         schema: {},
         run: () => {
           const l = landedOf(this.o.board.row(cardId));
           if (!l) return 'Not recorded: your work has not landed.';
-          if (!l.restarts) return 'Not recorded: Obeya does not start again for this landing; what runs now is what you get.';
+          if (!l.restarts) return 'Not recorded: Seismic does not start again for this landing; what runs now is what you get.';
           this.o.board.work(cardId, { landed: JSON.stringify({ ...l, waits: true } satisfies LandedState) });
           this.o.board.log(cardId, 'activity', 'worker', this.o.board.t.worker.waitsForRestart);
-          return ending('Recorded. End your turn now.', 'Recorded: Obeya tells you once it runs your change.');
+          return ending('Recorded. End your turn now.', 'Recorded: Seismic tells you once it runs your change.');
         },
       },
       {
         name: 'snooze',
         description: [
           `Snooze while there is nothing to do until a point in time further off than a background command can wait (a check at midnight, a test that runs for days, a report on the 31st), or until another card on this canvas gets somewhere (its fix is on main, its demo is ready).`,
-          `until: that time, ISO 8601 with your timezone's offset (2026-10-31T08:00:00+01:00). card: the title of the card to wait on; state: what it is to reach, 'done' (its work is on main, or it closed without a change; the default) or 'waits_for_owner' (it asks the owner or hands its work over). Give until, card or both: Obeya wakes you at whichever comes first, and also when that card can no longer get there (stopped, archived, removed).`,
-          `why: what you do then, in a few words in ${language}, shown on the card. Your session ends with your turn, and whatever you still run in the background with it; workspace and branch stay. Obeya resumes this session then, or earlier with a note from the owner or whatever else comes for you (a review, the landing). For checkpoints one after the other, snooze to the next one each time you wake. Then end your turn.`,
+          `until: that time, ISO 8601 with your timezone's offset (2026-10-31T08:00:00+01:00). card: the title of the card to wait on; state: what it is to reach, 'done' (its work is on main, or it closed without a change; the default) or 'waits_for_owner' (it asks the owner or hands its work over). Give until, card or both: Seismic wakes you at whichever comes first, and also when that card can no longer get there (stopped, archived, removed).`,
+          `why: what you do then, in a few words in ${language}, shown on the card. Your session ends with your turn, and whatever you still run in the background with it; workspace and branch stay. Seismic resumes this session then, or earlier with a note from the owner or whatever else comes for you (a review, the landing). For checkpoints one after the other, snooze to the next one each time you wake. Then end your turn.`,
         ].join(' '),
         schema: { until: z.string().optional(), why: z.string(), card: z.string().optional(), state: z.enum(['done', 'waits_for_owner']).optional() },
         run: ({ until, why, card: title, state }) => {
@@ -4920,8 +5201,8 @@ export class Workers {
           const s: Snooze = { ...(named ? { until: new Date(at).toISOString() } : {}), ...(on ? { on } : {}), by: 'agent', ...(String(why).trim() ? { why: clip(String(why).trim(), 200) } : {}) };
           this.o.board.snooze(cardId, s);
           return ending(
-            `Snoozed until ${snoozedUntil(s)}. End your turn now; Obeya resumes this session then.`,
-            `Snoozed until ${snoozedUntil(s)}: Obeya resumes this session then.`,
+            `Snoozed until ${snoozedUntil(s)}. End your turn now; Seismic resumes this session then.`,
+            `Snoozed until ${snoozedUntil(s)}: Seismic resumes this session then.`,
             'if they change what you wait for, snooze anew',
           );
         },
@@ -4945,14 +5226,14 @@ export class Workers {
         ? [
             {
               name: 'need_clone',
-              description: "Only in a follow-up in a temporary worktree: answering the owner needs a full clone (the repository's app or tooling, which may not run here). Then end your turn; Obeya resumes you in the next free clone.",
+              description: "Only in a follow-up in a temporary worktree: answering the owner needs a full clone (the repository's app or tooling, which may not run here). Then end your turn; Seismic resumes you in the next free clone.",
               schema: {},
               run: () => {
                 const l = landedOf(this.o.board.row(cardId));
                 if (!l?.worktree) return 'Not recorded: you work in a full clone already.';
                 this.o.board.work(cardId, { landed: JSON.stringify({ ...l, needsClone: true } satisfies LandedState) });
                 this.o.board.log(cardId, 'activity', 'worker', this.o.board.t.worker.needsClone);
-                return 'Recorded. Tell the owner with reply that you go on once a clone is free, then end your turn: Obeya resumes you in the next free clone.';
+                return 'Recorded. Tell the owner with reply that you go on once a clone is free, then end your turn: Seismic resumes you in the next free clone.';
               },
             } satisfies AgentTool,
           ]
@@ -4961,7 +5242,7 @@ export class Workers {
       ...(this.o.toObeya
         ? [
             toObeyaTool((request) => {
-              // what Obeya does or replies is shown to the owner as the answer to their words
+              // what Seismic does or replies is shown to the owner as the answer to their words
               live.spoke = true;
               return this.o.toObeya!(cardId, request);
             }),
@@ -4971,7 +5252,7 @@ export class Workers {
   }
 
   /**
-   * A Codex worker on this machine gets `obeya_run` and `obeya_git`: Obeya runs what its sandbox
+   * A Codex worker on this machine gets `seismic_run` and `seismic_git`: Seismic runs what its sandbox
    * keeps from it (`exec-tools.ts`). Not a review card's worker: its workspace holds a stranger's code.
    */
   private execLane(cardId: string, live: Live): AgentTool[] {
@@ -4984,13 +5265,15 @@ export class Workers {
       rules: () => this.o.allowRules?.(workspace) ?? [],
       ask: (request) => this.askOwner(cardId, live, request, new AbortController().signal),
       ...(this.env() ? { env: this.env()! } : {}),
+      ...(live.autoReview ? { auto: true } : {}),
     });
   }
 
   private usesExecLane(row: CardRow, live: Live): boolean {
     if (live.host || contributionOf(row)) return false;
     try {
-      return (row.agent_setting ? (JSON.parse(row.agent_setting) as AgentSetting) : null)?.harness === 'codex';
+      const harness = (row.agent_setting ? (JSON.parse(row.agent_setting) as AgentSetting) : null)?.harness;
+      return harness === 'codex' || harness === 'agy';
     } catch {
       return false;
     }
@@ -5090,7 +5373,7 @@ export class Workers {
     if (found.length === 1) return found[0]!;
     if (found.length > 1) return `Not proposed: several canvases have a repository ${wanted}; give its path instead: ${found.map((f) => f.path).join(', ')}.`;
     const all = this.proposalBoards().flatMap((b) => b.canvas.repos.map((r) => r.id));
-    return `Not proposed: Obeya has no repository ${wanted}; give one of ${all.join(', ')}.`;
+    return `Not proposed: Seismic has no repository ${wanted}; give one of ${all.join(', ')}.`;
   }
 
   private retract(cardId: string, title: string, s: Superseded): string {
@@ -5159,41 +5442,39 @@ export class Workers {
   }
 
   private system(preferences: string, prototype = false, card?: Item): string {
-    // a task the owner wrote is their first words to the worker; one an agent or a plan doc wrote is not
-    const by = card?.body.trim() ? taskAuthor(card) : undefined;
-    const language = by === 'owner' ? ownersLanguage(this.o.board.conversation(), "the card's task") : `${ownersLanguage(this.o.board.conversation())}${by ? ` ${TASK_BY[by]}` : ''}`;
+    const language = ownersLanguage(this.o.board.conversation());
     const folder = !!this.folder;
     return `
-You are a worker agent directed through Obeya, a canvas on which the owner directs coding agents like an engineering director directs a team. ${
+You are a worker agent directed through Seismic, a canvas on which the owner directs coding agents like an engineering director directs a team. ${
       folder
         ? 'You work on exactly one card, directly in a folder that is not a git repository. Other workers may work on other cards in the same folder at the same time, and so may the owner.'
         : 'You work on exactly one card, in a workspace of the repository (a clone or worktree) that belongs to that card, on your own branch. Other workers may work on other cards at the same time in their own workspaces.'
     }
 
-The owner does not watch you work and does not read code. They see your card's conversation: your status lines, questions, replies and handovers. Talk to them only through the Obeya tools:
+The owner does not watch you work and does not read code. They see your card's conversation: your status lines, questions, replies and handovers. Talk to them only through the Seismic tools. Use their names as shown in your tool list (in Claude Code, with the mcp__seismic__ prefix):
 - report: a short status line at milestones.
 - reply: your answer to a note or feedback from the owner, in a sentence or two: what you change because of it, or why nothing.
 - ask: a decision that is not yours (product behaviour, trade-offs, anything irreversible or external). Make routine judgement calls yourself. After ask, end your turn; the answer arrives as the next message.
 ${prototype ? '- propose_build: propose that the idea be built on your prototype, once it convinced. You make no other cards; mention other problems you noticed in your summary.' : '- propose_card: a separate problem or idea you noticed, as a card for the agent who will take it on; do not widen your task. A follow-up to your task that is due only later becomes such a card too, with start_at. withdraw_proposal takes back one of yours that turned out wrong.'}
-- ready_for_review: ${folder ? 'the work is done' : 'the work is committed'} and the checks pass. Then end your turn.${this.o.toObeya ? '\n- to_obeya: what the owner\'s words ask of Obeya rather than you.' : ''}
+- ready_for_review: ${folder ? 'the work is done' : 'the work is committed'} and the checks pass. Then end your turn.${this.o.toObeya ? '\n- to_seismic: what the owner\'s words ask of Seismic rather than you.' : ''}
 
 ${
       folder
-        ? "Obeya's messages tell you what happened: feedback, an answer, a note from the owner, your changes discarded, the approval. What to do about it is yours to judge. What you change in the folder is there at once. Obeya records which files your card changed (added, changed, moved, deleted) from your tool calls; the owner sees that list on the card and may discard your changes before approving. Approving makes the card done, and Obeya tells you so; your session ends with the turn after that."
-        : "Obeya's messages tell you what happened: feedback, an answer, a note from the owner, a landing that failed, your work landing. What to do about it is yours to judge. Approved work lands (or goes out as a pull request) and Obeya tells you once it is on main; your session ends with the turn after that, so whatever was waiting for the landing can still be done then. Work that changed nothing in the repository (the task needed only a demo, an analysis or an answer) lands nothing: approving it makes the card done, and Obeya tells you so the same way."
+        ? "Seismic's messages tell you what happened: feedback, an answer, a note from the owner, your changes discarded, the approval. What to do about it is yours to judge. What you change in the folder is there at once. Seismic records which files your card changed (added, changed, moved, deleted) from your tool calls; the owner sees that list on the card and may discard your changes before approving. Approving makes the card done, and Seismic tells you so; your session ends with the turn after that."
+        : "Seismic's messages tell you what happened: feedback, an answer, a note from the owner, a landing that failed, your work landing. What to do about it is yours to judge. Approved work lands (or goes out as a pull request) and Seismic tells you once it is on main; your session ends with the turn after that, so whatever was waiting for the landing can still be done then. Work that changed nothing in the repository (the task needed only a demo, an analysis or an answer) lands nothing: approving it makes the card done, and Seismic tells you so the same way."
     }
 ${this.o.toObeya ? `\n${TO_OBEYA}\n` : ''}
 Rules:
-${folder ? '- Others work in the same folder at the same time: leave what your card is not about as it is.' : card?.contribution ? "- Commit your work on your branch in this workspace. Do not push (Obeya pushes your commits onto the pull request's branch once the owner approves), do not open pull requests, do not switch branches." : '- Commit your work on your branch in this workspace. Do not push, do not open pull requests, do not switch branches.'}
+${folder ? '- Others work in the same folder at the same time: leave what your card is not about as it is.' : card?.contribution ? "- Commit your work on your branch in this workspace. Do not push (Seismic pushes your commits onto the pull request's branch once the owner approves), do not open pull requests, do not switch branches." : '- Commit your work on your branch in this workspace. Do not push, do not open pull requests, do not switch branches.'}
 - Follow the repository's own instructions (CLAUDE.md and docs).
 - Owner-facing text (report, reply, ask, ${prototype ? 'propose_build' : 'propose_card'}, ready_for_review) is in the owner's language, short and concrete. What you write between tool calls also shows on the card for the owner, folded under your next message: keep it brief and in the owner's language too. ${language} The docs you read and the owner's standing preferences do not count as the owner's words.
 - ${repositoryLanguage(this.o.adapter.language, folder)} A demo (its narration, report, or an HTML artifact's words) is in ${LANGUAGE_NAMES[this.demoLanguage()]}, whatever language the owner talks in.${this.o.adapter.demo?.language ? ` This repository's settings name ${LANGUAGE_NAMES[this.o.adapter.demo.language]} for its demos, which holds over the narration language of the demo settings.` : ''}
-- Wait for anything external (a deploy, a CI run, a process to finish) in the background: run_in_background or Monitor, then end your turn; Obeya wakes you when it finishes or fires. A point in time further off than a background command can wait (two hours), or another card getting somewhere (its fix on main), you snooze until (snooze). Never wait with sleep or a polling loop in the foreground: a note from the owner reaches you only once the running command is done.
+- Wait for anything external (a deploy, a CI run, a process to finish) in the background: run_in_background or Monitor, then end your turn; Seismic wakes you when it finishes or fires. A point in time further off than a background command can wait (two hours), or another card getting somewhere (its fix on main), you snooze until (snooze). Never wait with sleep or a polling loop in the foreground: a note from the owner reaches you only once the running command is done.
 - When a note or feedback from the owner arrives, answer it with reply. If it is unclear what they want, ask.
 `.trim() + (preferences ? `\n\n${preferences}` : '');
   }
 
-  /** The task the card's worker gets at its start, as Obeya would send it now (one that already ran goes on from its branch). */
+  /** The task the card's worker gets at its start, as Seismic would send it now (one that already ran goes on from its branch). */
   startBrief(card: Item): string {
     const row = this.o.board.row(card.id);
     return this.briefing(card, row.branch ?? branchName(card.title, card.id), !!row.branch);
@@ -5244,7 +5525,6 @@ ${idea.idea.brief}` : '',
       );
     if (card.body.trim()) parts.push(card.body.trim());
     // the owner's own words: the language the worker writes them in until they say more (`ownersLanguage`)
-    if (card.body.trim() && taskAuthor(card) === 'owner') parts.push('The owner wrote this task themselves: write to them in its language.');
     if (card.mocks?.length) parts.push(mocksText(card.mocks));
     if (card.builtOn) parts.push(this.builtOnPrototype(card.builtOn, !!card.parent));
     // the card it follows up on may be on another canvas (a proposal from a worker there)
@@ -5283,7 +5563,7 @@ ${idea.idea.brief}` : '',
     const isNew = !!made && !!(JSON.parse(made) as StoredNewRepo).made;
     if (isNew)
       parts.push(
-        `This repository is new: Obeya created it for this card with a first commit of what its folder held (a default .gitignore, else nothing). It is local only, with no remote. Besides the task, set it up as part of your work: a CLAUDE.md with what the task says about how to work in this repository, and its Obeya settings (\`.obeya/settings.json\`) with the skill \`obeya:settings\`, as the card “${this.o.board.t.adapterSetup.title(basename(this.o.repoPath ?? ''))}” would.`,
+        `This repository is new: Seismic created it for this card with a first commit of what its folder held (a default .gitignore, else nothing). It is local only, with no remote. Besides the task, set it up as part of your work: a CLAUDE.md with what the task says about how to work in this repository, and its Seismic settings (\`.obeya/settings.json\`) with the skill \`obeya:settings\`, as the card “${this.o.board.t.adapterSetup.title(basename(this.o.repoPath ?? ''))}” would.`,
       );
     if (isNew || this.o.board.isSetupCard(card)) {
       const harnesses = this.o.harnesses?.() ?? ['Claude Code'];
@@ -5293,8 +5573,8 @@ ${idea.idea.brief}` : '',
     }
     const allowed = this.artifacts();
     const { run, stop } = this.o.adapter.app ?? {};
-    const parking = stop ? ' While the card waits for the owner, Obeya stops the app in your workspace; your next message then says so.' : '';
-    const far = hostName(this.o.board.row(card.id).workspace) ? " (this workspace is on another machine: Obeya forwards that address's port, and only that one, to the owner's)" : '';
+    const parking = stop ? ' While the card waits for the owner, Seismic stops the app in your workspace; your next message then says so.' : '';
+    const far = hostName(this.o.board.row(card.id).workspace) ? " (this workspace is on another machine: Seismic forwards that address's port, and only that one, to the owner's)" : '';
     const tryIt = ` Once it runs and opens in a browser, give its address with app_running, so the owner can try it by hand from the card${far}.`;
     if (run?.trim()) parts.push(`How to run the app: ${run.trim()}${parking}${tryIt}`);
     else parts.push(`${parking}${tryIt}`.trim());
@@ -5304,12 +5584,12 @@ ${idea.idea.brief}` : '',
         `Then show the owner the result with a demo, so they can judge at a glance whether the work is done, and hand it over with ready_for_review.`,
         ...(allowed.includes('video')
           ? [
-              `${allowed.includes('html') ? 'Usually that is a video' : 'That is a video'} of the change, recorded with ${this.demoSkill(card.id)} as its instructions say (directory, chapter titles). Its length follows the size of the change, never padded: 30–60 s for a small one (a fix: the broken behaviour, then the fixed one), 1½–3 min for a larger one. Skip the skill's last steps (opening the page, the notification, the chat reply): Obeya shows the demo on the card.${this.shares ? ` The owner may share the demo, a video or an HTML artifact, with colleagues of the team on a page of its own: hand it over with that page (title, text${dimensions(this.o.adapter.demo?.site?.tags).length ? ', tags' : ''}), written for them.` : ''} ${run?.trim() ? 'Run the app for it as the recipe above says.' : "The repository's settings say nothing yet about how to run the app: find it out from the repository (README, scripts, configuration) and say in your summary how you ran it."}`,
+              `${allowed.includes('html') ? 'Usually that is a video' : 'That is a video'} of the change, recorded with ${this.demoSkill(card.id)} as its instructions say (directory, chapter titles). Its length follows the size of the change, never padded: 30–60 s for a small one (a fix: the broken behaviour, then the fixed one), 1½–3 min for a larger one. Skip the skill's last steps (opening the page, the notification, the chat reply): Seismic shows the demo on the card.${this.shares ? ` The owner may share the demo, a video or an HTML artifact, with colleagues of the team on a page of its own: hand it over with that page (title, text${dimensions(this.o.vocabulary?.()).length ? ', tags' : ''}), written for them.` : ''} ${run?.trim() ? 'Run the app for it as the recipe above says.' : "The repository's settings say nothing yet about how to run the app: find it out from the repository (README, scripts, configuration) and say in your summary how you ran it."}`,
             ]
           : [`This repository's settings allow no video as a demo: make an HTML artifact${this.shares ? ', and hand it over with the page (title, text) the owner may share with colleagues of the team, written for them' : ''}. ${run?.trim() ? 'Run the app as the recipe above says, where the artifact shows it.' : "The repository's settings say nothing yet about how to run the app: find it out from the repository (README, scripts, configuration) and say in your summary how you ran it."}`]),
         ...(allowed.includes('html')
           ? [
-              `${allowed.includes('video') ? 'When the result is something to look at rather than something that happens (drafts of a logo or a layout side by side, a comparison of variants, an analysis, an answer), make an HTML artifact instead' : 'The artifact is a page to look at (screenshots of the change among them), also for drafts, comparisons, an analysis or an answer'}: an index.html in a new directory under ${this.demosDir(card.id)} (never in git), self-contained or with the files it loads beside it, made for the owner to decide on, and hand it over with kind 'html' (drafts the owner is to choose from before you go on come with ask's demo instead). It shows in a sandboxed frame on the card, about 800 px wide, without Obeya's API.`,
+              `${allowed.includes('video') ? 'When the result is something to look at rather than something that happens (drafts of a logo or a layout side by side, a comparison of variants, an analysis, an answer), make an HTML artifact instead' : 'The artifact is a page to look at (screenshots of the change among them), also for drafts, comparisons, an analysis or an answer'}: an index.html in a new directory under ${this.demosDir(card.id)} (never in git), self-contained or with the files it loads beside it, made for the owner to decide on, and hand it over with kind 'html' (drafts the owner is to choose from before you go on come with ask's demo instead). It shows in a sandboxed frame on the card, about 800 px wide, without Seismic's API.`,
             ]
           : []),
         ...(allowed.includes('video') && allowed.includes('html') ? ['Where either would do, record the video: watching the work happen is what the owner enjoys most.'] : []),
@@ -5336,10 +5616,10 @@ ${idea.idea.brief}` : '',
     const checks = this.o.adapter.checks ?? [];
     const parts = [
       `Your card: “${card.title}”.`,
-      `This card reviews pull request #${c.number} by ${c.author}, who is not the owner: “${c.title}” (${c.url}). The owner asked for the review; once they approve your handover, Obeya merges exactly the head you reviewed. You never merge it yourself.`,
+      `This card reviews pull request #${c.number} by ${c.author}, who is not the owner: “${c.title}” (${c.url}). The owner asked for the review; once they approve your handover, Seismic merges exactly the head you reviewed. You never merge it yourself.`,
       card.body.trim() ? `What the owner said with it, on top of the review below:\n\n${card.body.trim()}` : '',
       headProblem
-        ? `Obeya could not put your workspace on the PR's head (${headProblem}). Fetch ${ref} from ${source} into your branch ${branch} yourself (git fetch, then git checkout -B ${branch} FETCH_HEAD).`
+        ? `Seismic could not put your workspace on the PR's head (${headProblem}). Fetch ${ref} from ${source} into your branch ${branch} yourself (git fetch, then git checkout -B ${branch} FETCH_HEAD).`
         : resumed && headProblem === undefined
           ? `You are on branch ${branch}, which holds the PR's head as you reviewed it before. Fetch ${ref} from ${source} to see whether it moved.`
           : `Your workspace is on branch ${branch}, at the PR's head (${ref}, fetched from ${source}).`,
@@ -5351,17 +5631,17 @@ ${idea.idea.brief}` : '',
         `4. Run ${checks.length ? `the checks (${checks.map((x) => `\`${x}\``).join(', ')})` : 'the repository’s checks'} on the PR's head, and a merge probe against the current default branch: whether the PR merges without conflicts (fetch the default branch, merge it without committing, then abort).`,
       ].join('\n'),
       [
-        `Record your findings with findings (an empty list where the review found nothing), most severe first: the card shows them beside the demo, and the owner decides on each there. Then hand over with ready_for_review: the demo, recorded with ${this.demoSkill(card.id)} as its instructions say (skip its last steps: Obeya shows the demo on the card), and review: each check with whether it passed, and whether the PR merges without conflicts. The summary says what the owner needs to know beyond the findings.${this.shares ? " The demo's page is for colleagues: it shows what the PR changes for the user, not your findings." : ''}`,
-        'Your findings are for the owner: nothing of them goes to the contributor unless the owner sends it. Keep the list current as the review goes on, from the owner\'s words („finding 2 does not matter“) as from a push.',
+        `Record your findings with findings (an empty list where the review found nothing), most severe first: the card shows them beside the demo, and the owner decides on each there. Then hand over with ready_for_review: the demo, recorded with ${this.demoSkill(card.id)} as its instructions say (skip its last steps: Seismic shows the demo on the card), and review: each check with whether it passed, and whether the PR merges without conflicts. The summary says what the owner needs to know beyond the findings.${this.shares ? " The demo's page is for colleagues: it shows what the PR changes for the user, not your findings." : ''}`,
+        'Your findings are for the owner: nothing of them goes to the contributor unless the owner sends it. Keep the list current as the review goes on, from the owner\'s words (“finding 2 does not matter”) as from a push.',
       ].join(' '),
       [
         'The owner decides on each finding on the card, and their decision comes with their next message:',
-        `- To ${c.author}: write the findings as one review of the PR asking for changes (request_changes, with their numbers), in the PR's language, as the owner's words to them (Obeya posts it with the owner's account), without mentioning Obeya or agents. Then end your turn: the card waits for ${c.author}, and Obeya passes you their answers and pushes; review a new head as above, update the findings (resolved where a push fixed one) and hand over again.`,
+        `- To ${c.author}: write the findings as one review of the PR asking for changes (request_changes, with their numbers), in the PR's language, as the owner's words to them (Seismic posts it with the owner's account), without mentioning Seismic or agents. Then end your turn: the card waits for ${c.author}, and Seismic passes you their answers and pushes; review a new head as above, update the findings (resolved where a push fixed one) and hand over again.`,
         c.canModify
-          ? `- Yourself (${c.author} allows maintainers' edits): make the change and commit it on your branch, run the checks, mark the finding fixed, and hand over again with a new demo and pr_draft, the text that goes onto the PR with your commits (what you changed and why, in the PR's language, as the owner's words, without mentioning Obeya or agents). Once the owner approves, Obeya pushes your commits onto the PR's branch and posts the text. Findings for ${c.author} decided together with yours, or while yours wait for the owner, go with them in the same text, not with request_changes. In the squash merge ${c.author} stays its author.`
+          ? `- Yourself (${c.author} allows maintainers' edits): make the change and commit it on your branch, run the checks, mark the finding fixed, and hand over again with a new demo and pr_draft, the text that goes onto the PR with your commits (what you changed and why, in the PR's language, as the owner's words, without mentioning Seismic or agents). Once the owner approves, Seismic pushes your commits onto the PR's branch and posts the text. Findings for ${c.author} decided together with yours, or while yours wait for the owner, go with them in the same text, not with request_changes. In the squash merge ${c.author} stays its author.`
           : `- ${c.author} does not allow maintainers' edits, so findings go to them or become follow-up tasks.`,
         '- As a follow-up task: you make it a task of its own beside your card, outside this PR (follow_up_task), which marks it later in your findings. Findings that belong together become one task: as the owner\'s words say first, else as you bundled them in your findings (with), so bundle there only what one worker would sensibly do in one go.',
-        'Words of the owner\'s that ask the same in so many words („send them finding 1“, „fix that yourself“) count the same. Anything else they say (a question, more to look at) you answer or do on the card, and nothing goes to the PR.',
+        'Words of the owner\'s that ask the same in so many words (“send them finding 1”, “fix that yourself”) count the same. Anything else they say (a question, more to look at) you answer or do on the card, and nothing goes to the PR.',
       ].join('\n'),
     ];
     return parts.filter(Boolean).join('\n\n');
@@ -5414,9 +5694,9 @@ function sameClash(a: Clash | null | undefined, b: Clash | null | undefined): bo
 }
 
 /**
- * Where Obeya pushes a review card's held commits: the PR's branch in its repository, both as the
+ * Where Seismic pushes a review card's held commits: the PR's branch in its repository, both as the
  * forge names them and from the contributor, so taken only in a plain form (an https address, or a
- * repository on this machine, as a scratch Obeya's played forge has it; a branch name git takes).
+ * repository on this machine, as a scratch Seismic's played forge has it; a branch name git takes).
  */
 function pushTarget(c: StoredContribution): { repo: string; branch: string } | null {
   const repo = c.headRepo && (/^https:\/\/[\w.-]+(:\d+)?(\/[\w.-]+)+$/.test(c.headRepo) || isAbsolute(c.headRepo)) ? c.headRepo : null;
@@ -5475,3 +5755,13 @@ const code = (text: string) =>
 
 const permissionKey = (p: AskedPermission) => JSON.stringify([p.name, p.input]);
 
+
+/** The owner's own words on the findings they decided on go to the agent as written, after the decisions. */
+function withNotes(decided: { note: string; log: string }, routed: Record<number, ChangeRoute>, notes?: Record<number, string>): { note: string; log: string } {
+  const own = Object.entries(notes ?? {}).filter(([id, text]) => Number(id) in routed && text.trim());
+  if (!own.length) return decided;
+  return {
+    note: `${decided.note}\n\nThe owner added context to these findings, in their own words:\n${own.map(([id, text]) => `Finding #${id}:\n${text}`).join('\n\n')}`,
+    log: `${decided.log}\n\n${own.map(([id, text]) => `Context on finding ${id}:\n${text}`).join('\n\n')}`,
+  };
+}

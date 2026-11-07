@@ -28,13 +28,13 @@ export interface Briefing {
   onSession?: (id: string) => void;
   /** What the agent reads, as it reads it. */
   onTool?: (name: string, input: Record<string, unknown>) => void;
-  /** The owner's conversation language: the answer's, unless the owner's words are in another (`ownersLanguage`). */
+  /** The owner's conversation language for the answer, unless a standing language preference overrides it. */
   language: Language;
   /** The workers' permission mode: the answering agent has their tools and runs as they do. */
   permissionMode?: PermissionMode;
   /** The output directory of the thread: the answer may come with files in it. */
   dir?: string;
-  /** Tools besides answer_owner (to_obeya, on a Question card). */
+  /** Tools besides answer_owner (to_seismic, on a Question card). */
   tools?: AgentTool[];
   /** Screenshot files that come with the message. */
   images?: string[];
@@ -182,7 +182,7 @@ export function answerFiles(dir: string, list: unknown): AnswerFile[] | string {
 
 /** How to answer a question of the owner's, the same for every agent that answers one. */
 export const INFORM_RULES = `
-The owner asked a question about the canvas, spoken or typed. Obeya's quick reading of every command could not answer it from the cards alone and passed it to you; the owner heard that the answer comes in a moment. Take the time to look it up: the repository's docs and plan docs, CLAUDE.md, the code, and what the message gives you. You have the tools a worker has: what the answer depends on beyond the text (the git history, files on this machine and their dates, a release, pull request or CI run on GitHub with gh, a page on the web), check rather than guess.
+The owner asked a question about the canvas, spoken or typed. Seismic's quick reading of every command could not answer it from the cards alone and passed it to you; the owner heard that the answer comes in a moment. Take the time to look it up: the repository's docs and plan docs, CLAUDE.md, the code, and what the message gives you. You have the tools a worker has: what the answer depends on beyond the text (the git history, files on this machine and their dates, a release, pull request or CI run on GitHub with gh, a page on the web), check rather than guess.
 - "What would the agent do on this card?": the message holds the task the card's worker gets at its start. Derive from it, the plan doc and the repository's instructions the concrete steps the worker would take, in order, and what it would ask the owner. Say what it would change, and where the plan leaves it open.
 - Answer what was asked, concretely and grounded in what you read; name the source (plan doc section, file). Say where you are guessing. Never answer that you cannot know: say what the sources say.
 - The owner does not read code: no code blocks, file paths only where they help.

@@ -49,7 +49,7 @@ export interface PrStatus {
   }[];
   /** Who opened the PR (the owner's account; the worker's own replies carry it too; on a review card, the contributor's). */
   author: string;
-  /** The account Obeya acts as on the forge (the owner's), where the forge says: on a review card, comments of its own. */
+  /** The account Seismic acts as on the forge (the owner's), where the forge says: on a review card, comments of its own. */
   viewer?: string;
   /** Once merged: the commit the merge put on the base branch. */
   mergeCommit?: string;
@@ -78,7 +78,7 @@ export interface Forge {
   contribution(cwd: string, url: string): Promise<ContributionInfo>;
   /** Writes `body` as a comment in the PR's conversation; returns the comment's URL where the forge says. */
   comment(cwd: string, url: string, body: string): Promise<string | void>;
-  /** A review of the PR that asks for changes (on GitHub „Request changes“), with `body`; returns its URL where the forge says. */
+  /** A review of the PR that asks for changes (on GitHub "Request changes"), with `body`; returns its URL where the forge says. */
   requestChanges(cwd: string, url: string, body: string): Promise<string | void>;
   /** Whether the repository at `cwd`'s origin is public, as its forge says; null where it cannot tell. */
   visibility?(cwd: string): Promise<'public' | 'private' | null>;
@@ -636,7 +636,7 @@ export function requestOf(s: PrStatus, skip: string[] = []): { at: string; await
 /** When the author last asked for another look (`requestOf`); empty where they never did. */
 export const lastAsked = (s: PrStatus, skip: string[] = []) => requestOf(s, skip)?.at ?? '';
 
-/** Below this share of a reviewer's confidence (4 of 5), Obeya leaves the merge to the owner. */
+/** Below this share of a reviewer's confidence (4 of 5), Seismic leaves the merge to the owner. */
 export const MIN_CONFIDENCE = 0.8;
 
 /** Whether a reviewer's comment is a verdict that lets the PR go: an approval, or a confidence of at least 4/5. */
@@ -647,7 +647,7 @@ export const passing = (c: PrStatus['comments'][number]) => {
 };
 
 /**
- * The reviewers whose request for changes (GitHub's „Request changes“) stands: their latest review
+ * The reviewers whose request for changes (GitHub's "Request changes") stands: their latest review
  * with a verdict asks for changes, not approved or dismissed since.
  */
 export function changesRequested(s: PrStatus, skip: string[] = []): string[] {

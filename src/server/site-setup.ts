@@ -1,123 +1,106 @@
-// Setting up demo sites from the configuration: the owner's personal site (Konfiguration → Demos),
-// and a repository's own site („Demo-Seite einrichten“ at its settings). Each setup runs in the
-// background, since a login in the browser may take minutes; the dialog follows its lines.
+// Adding demo sites to this machine's list from the configuration (Configuration → Demos, and a
+// canvas's "Add a demo site …"): set up at a host (Cloudflare Pages, GitHub Pages), entered by hand,
+// or connected with another machine's code. A site goes on the list only once Seismic has published to
+// it: it reads the live site's manifest, takes over what is there and deploys it again unchanged
+// (a new site's blank page, an existing one's pages), so a site whose deploy line or credentials do
+// not work never shows as a choice. Each runs in the background, since a login in the browser or a
+// first deploy may take minutes; the dialog follows its lines.
 
-import { basename, resolve } from 'node:path';
-import type { DemoSite } from '../adapters/types';
-import type { PersonalSiteView, SiteSetupJob } from '../core/types';
+import { MESSAGES } from '../core/messages';
+import type { DemoSiteEntry, DemoSitesView, SiteSetupJob } from '../core/types';
 import { BadRequest } from './board';
-import { allowPrivate, cloudflareDeploy, connect, connectionCode, envFileFor, newToken, type PersonalSite, personalDemoSite, readPersonal, shareApproved, type SiteHost, writeEnv, writePersonal } from './personal-site';
-import { siteMissing } from './site';
-import { cloudflareAccounts, type Exec, GITHUB_PAGES, GITHUB_PAGES_MAX, setupCloudflare, setupGithub, SetupRefused } from './site-hosts';
+import { addSite, connect, connectionCode, demoSite, envFileFor, findSite, hostDeploy, newToken, parseEntry, readSites, removeSite, type SiteHost, writeEnv } from './demo-sites';
+import { serial, siteProblem } from './share';
+import { siteMissing, sitePaths, siteTarget } from './site';
+import { cloudflareAccounts, type Exec, GITHUB_PAGES_MAX, setupCloudflare, setupGithub, SetupRefused } from './site-hosts';
 import { messageOf } from '../core/text';
 
 export interface SiteSetupOptions {
   home: string;
-  /** The personal site changed: every canvas tells its cards where they share now. */
+  /** The list changed: every canvas tells its cards where they share now. */
   changed: () => void;
-  /**
-   * The repositories on the canvases: their checkouts, names, whether public, whether they have a
-   * site of their own this machine deploys to, whether they share on the personal site, and whether
-   * their site's settings publish on approval.
-   */
-  repos?: () => { path: string; name: string; isPublic: boolean; ownSite: boolean; onPersonal?: boolean; siteApproved?: boolean }[];
-  /** Who runs Obeya here, for the personal site's name at Cloudflare. */
+  /** Who runs Seismic here, for a new site's name at Cloudflare. */
   user?: string;
   /** Runs wrangler, gh and git; a stand-in in tests. */
   x?: Exec;
   /** How long to wait (ms, step by step) for a new site's address to answer; a stand-in in tests. */
   wait?: number[];
+  /** Publishes to a site to prove this machine can: why it could not, or null. A deploy through the site's own line without it. */
+  check?: (site: DemoSiteEntry) => Promise<string | null>;
 }
 
-/** The jobs: `personal`, or a repository's by its checkout. */
+/** What "Add a demo site" takes: a host Seismic sets the site up at, or a site entered by hand. */
+type AddInput =
+  | { host: SiteHost; public?: boolean; unlisted?: boolean; account?: string; token?: string; accountId?: string }
+  | { manual: { url: string; deploy: string; env?: string; headers?: Record<string, string>; maxFile?: number } };
+
 export class SiteSetup {
-  private jobs = new Map<string, SiteSetupJob>();
+  /** The site being added, as far as it got; one at a time. */
+  private job: SiteSetupJob | null = null;
 
   constructor(private o: SiteSetupOptions) {}
 
-  view(): PersonalSiteView {
-    const p = readPersonal(this.o.home);
-    const job = this.jobs.get(PERSONAL);
+  view(): DemoSitesView {
     return {
-      site: p
-        ? {
-            host: p.host,
-            url: p.url,
-            project: p.project,
-            example: `${p.url.replace(/\/+$/, '')}/${p.secret ? `${newToken()}/` : ''}…/`,
-            ...(p.secret ? {} : { listed: true as const }),
-            ...(siteMissing(this.o.home, personalDemoSite(p)) ? { needs: p.env! } : {}),
-          }
-        : null,
-      ...(job ? { job } : {}),
-      privateRepos: this.privateRepos(p),
-      approvedRepos: this.approvedRepos(p),
-      cloudflareAccounts: this.accounts(),
+      sites: readSites(this.o.home).map((s) => {
+        const needs = siteMissing(this.o.home, demoSite(s, ''));
+        return {
+          url: s.url,
+          ...(s.host ? { host: s.host } : {}),
+          ...(s.project ? { project: s.project } : {}),
+          deploy: s.deploy,
+          listed: !s.secret,
+          ...(needs ? { needs } : {}),
+          paths: sitePaths(this.o.home, s, s.secret),
+        };
+      }),
+      ...(this.job ? { job: this.job } : {}),
+      cloudflareAccounts: cloudflareAccounts(this.o.home).map((a) => a.site),
     };
   }
 
-  /** The private repositories on the canvases, and those ticked that are not on them, each once. */
-  private privateRepos(p: PersonalSite | null): PersonalSiteView['privateRepos'] {
-    const ticked = (p?.private ?? []).map((x) => resolve(x));
-    const repos = this.o.repos?.() ?? [];
-    const out: PersonalSiteView['privateRepos'] = [];
-    for (const r of repos) {
-      const path = resolve(r.path);
-      if (r.isPublic || out.some((x) => x.path === path)) continue;
-      out.push({ path, name: r.name, allowed: ticked.includes(path), ...(r.ownSite ? { ownSite: true as const } : {}) });
-    }
-    for (const path of ticked) if (!out.some((x) => x.path === path)) out.push({ path, name: basename(path), allowed: true });
-    return out;
-  }
-
-  /** The repositories on the canvases that share on the personal site, and those ticked to share there with the approval that are not on them, each once. */
-  private approvedRepos(p: PersonalSite | null): PersonalSiteView['approvedRepos'] {
-    const ticked = (p?.approved ?? []).map((x) => resolve(x));
-    const out: PersonalSiteView['approvedRepos'] = [];
-    for (const r of this.o.repos?.() ?? []) {
-      const path = resolve(r.path);
-      if (!r.onPersonal || out.some((x) => x.path === path)) continue;
-      out.push({ path, name: r.name, on: !!r.siteApproved || ticked.includes(path), ...(r.siteApproved ? { bySettings: true as const } : {}) });
-    }
-    for (const path of ticked) if (!out.some((x) => x.path === path)) out.push({ path, name: basename(path), on: true });
-    return out;
-  }
-
-  /** The Cloudflare accounts of the sites this machine deploys to, by site, for a new site to go into. */
-  accounts(): string[] {
-    return cloudflareAccounts(this.o.home).map((a) => a.site);
-  }
-
-  /** „Einrichten“: the personal site at the host, unlisted. */
-  setupPersonal(input: unknown): PersonalSiteView {
-    const host = hostOf(input);
-    const account = accountOf(input);
-    const token = tokenOf(input);
-    // a public repository: any GitHub account, and a listed site, since anyone can list its files
-    const open = host === 'github' && (input as { public?: unknown } | null)?.public === true;
-    if (readPersonal(this.o.home)) throw new BadRequest('invalid', 'this machine has a personal demo site already; remove it first');
-    this.run(PERSONAL, host, async (log) => {
-      const name = `obeya-${slug(this.o.user ?? '') || 'demos'}`.slice(0, 50);
-      let site: PersonalSite;
-      if (host === 'cloudflare') {
-        const r = await setupCloudflare({ home: this.o.home, name, log, ...(account ? { account } : {}), ...(token ? { token } : {}), ...(this.o.x ? { x: this.o.x } : {}), ...(this.o.wait ? { wait: this.o.wait } : {}) });
-        site = { host, url: r.url, project: r.project, secret: newToken(128) };
-        if (r.env) writeEnv(this.o.home, (site.env = envFileFor(r.url, host)), r.env);
-      } else {
-        // a private repository keeps the site unlisted; a public one lists its files, so its site is listed
-        const r = await setupGithub({ name: 'obeya-demos', private: !open, log, ...(this.o.x ? { x: this.o.x } : {}), ...(this.o.wait ? { wait: this.o.wait } : {}) });
-        site = { host, url: r.url, project: r.project, ...(open ? {} : { secret: newToken(128) }) };
+  /** "Add": the site set up at the host, or entered by hand; on the list once a publish there went through. */
+  add(input: unknown): DemoSitesView {
+    const given = (input ?? {}) as Partial<AddInput> & Record<string, unknown>;
+    if ('manual' in given && given.manual) {
+      let entry: DemoSiteEntry;
+      try {
+        entry = parseEntry(given.manual);
+      } catch (e) {
+        throw new BadRequest('invalid', messageOf(e));
       }
-      writePersonal(this.o.home, site);
-      this.o.changed();
-      log(`Ready: ${site.url}`);
-      return {};
+      const wrong = siteProblem(demoSite(entry, 'Demos'), this.o.home);
+      if (wrong) throw new BadRequest('invalid', wrong);
+      this.run(undefined, async (log) => {
+        log(`Publishing to ${entry.url} …`);
+        return entry;
+      });
+      return this.view();
+    }
+    const host = hostOf(given);
+    const account = accountOf(given);
+    const token = tokenOf(given);
+    // a public repository: any GitHub account, and a listed site, since anyone can list its files
+    const open = host === 'github' && given.public === true;
+    const unlisted = host === 'github' ? !open : given.unlisted !== false;
+    this.run(host, async (log) => {
+      let entry: DemoSiteEntry;
+      if (host === 'cloudflare') {
+        const name = `obeya-${slug(this.o.user ?? '') || 'demos'}`.slice(0, 50);
+        const r = await setupCloudflare({ home: this.o.home, name, log, ...(account ? { account } : {}), ...(token ? { token } : {}), ...(this.o.x ? { x: this.o.x } : {}), ...(this.o.wait ? { wait: this.o.wait } : {}) });
+        entry = { url: r.url.replace(/\/+$/, ''), deploy: hostDeploy(host, r.project), host, project: r.project };
+        if (r.env) writeEnv(this.o.home, (entry.env = envFileFor(r.url, host)), r.env);
+      } else {
+        const r = await setupGithub({ name: 'obeya-demos', private: unlisted, log, ...(this.o.x ? { x: this.o.x } : {}), ...(this.o.wait ? { wait: this.o.wait } : {}) });
+        entry = { url: r.url.replace(/\/+$/, ''), deploy: hostDeploy(host, r.project), host, project: r.project, maxFile: GITHUB_PAGES_MAX };
+      }
+      return unlisted ? { ...entry, secret: newToken(128) } : entry;
     });
     return this.view();
   }
 
-  /** „Mit vorhandener Seite verbinden“: the personal site another machine of the owner's set up, by its code. */
-  connect(input: unknown): PersonalSiteView {
+  /** "Connect to an existing site": a site another machine of the owner's has, by its code. */
+  connect(input: unknown): DemoSitesView {
     const code = (input as { code?: unknown } | null)?.code;
     if (typeof code !== 'string' || !code.trim()) throw new BadRequest('invalid', 'expected { code }');
     try {
@@ -125,115 +108,71 @@ export class SiteSetup {
     } catch (e) {
       throw new BadRequest('invalid', messageOf(e));
     }
-    this.jobs.delete(PERSONAL);
     this.o.changed();
     return this.view();
   }
 
-  /** The code that connects another machine: the site and its credentials. */
-  code(): { code: string } {
-    const p = readPersonal(this.o.home);
-    if (!p) throw new BadRequest('invalid', 'no personal demo site on this machine');
-    return { code: connectionCode(this.o.home, p) };
+  /** The code that connects another machine to the site at `url`: the site and its credentials. */
+  code(url: string): { code: string } {
+    const site = findSite(this.o.home, url);
+    if (!site) throw new BadRequest('invalid', 'no such demo site on this machine');
+    return { code: connectionCode(this.o.home, site) };
   }
 
-  /** „Von diesem Rechner entfernen“: this machine no longer shares there; the pages online stay, as does the project at the host. */
-  remove(): PersonalSiteView {
-    writePersonal(this.o.home, null);
-    this.jobs.delete(PERSONAL);
+  /** "Remove from this machine": canvases here no longer share there; the pages online stay, as does the project at the host. */
+  remove(input: unknown): DemoSitesView {
+    const url = (input as { url?: unknown } | null)?.url;
+    if (typeof url !== 'string' || !findSite(this.o.home, url)) throw new BadRequest('invalid', 'no such demo site on this machine');
+    removeSite(this.o.home, url);
     this.o.changed();
     return this.view();
   }
 
-  /** Ticks or unticks a private repository for the personal site. */
-  allow(input: unknown): PersonalSiteView {
-    const { path, on } = (input ?? {}) as { path?: unknown; on?: unknown };
-    if (typeof path !== 'string' || typeof on !== 'boolean') throw new BadRequest('invalid', 'expected { path, on }');
-    try {
-      allowPrivate(this.o.home, path, on);
-    } catch (e) {
-      throw new BadRequest('invalid', messageOf(e));
-    }
-    this.o.changed();
-    return this.view();
+  /** The finished job's result was seen: the dialog shows the list without it. */
+  seen() {
+    if (!this.job?.running) this.job = null;
   }
 
-  /** Ticks or unticks a repository for sharing each approved card's latest demo on the personal site by itself. */
-  approved(input: unknown): PersonalSiteView {
-    const { path, on } = (input ?? {}) as { path?: unknown; on?: unknown };
-    if (typeof path !== 'string' || typeof on !== 'boolean') throw new BadRequest('invalid', 'expected { path, on }');
-    try {
-      shareApproved(this.o.home, path, on);
-    } catch (e) {
-      throw new BadRequest('invalid', messageOf(e));
-    }
-    this.o.changed();
-    return this.view();
-  }
-
-  /** „Demo-Seite einrichten“ at a repository's settings: a listed site at the host, its `demo.site` for the dialog to take in. */
-  setupRepo(input: unknown): SiteSetupJob | null {
-    const { path, host: h, name } = (input ?? {}) as { path?: unknown; host?: unknown; name?: unknown };
-    if (typeof path !== 'string' || !path) throw new BadRequest('invalid', 'expected { path, host }');
-    const host = hostOf({ host: h });
-    const account = accountOf(input);
-    const token = tokenOf(input);
-    const title = typeof name === 'string' && name.trim() ? name.trim() : basename(path);
-    const project = `${slug(title) || 'demos'}-demos`.slice(0, 50);
-    this.run(path, host, async (log) => {
-      let site: DemoSite;
-      if (host === 'cloudflare') {
-        const r = await setupCloudflare({ home: this.o.home, name: project, log, ...(account ? { account } : {}), ...(token ? { token } : {}), ...(this.o.x ? { x: this.o.x } : {}), ...(this.o.wait ? { wait: this.o.wait } : {}) });
-        site = { title: `${title} demos`, url: r.url, deploy: cloudflareDeploy(r.project) };
-        if (r.env) writeEnv(this.o.home, (site.env = envFileFor(r.url, host)), r.env);
-      } else {
-        // listed: the repository behind it may be public, as everything on the site is
-        const r = await setupGithub({ name: project, private: false, log, ...(this.o.x ? { x: this.o.x } : {}), ...(this.o.wait ? { wait: this.o.wait } : {}) });
-        site = { title: `${title} demos`, url: r.url, deploy: `${GITHUB_PAGES} ${r.project}`, maxFile: GITHUB_PAGES_MAX };
-      }
-      log(`Ready: ${site.url}`);
-      return { site };
-    });
-    return this.jobs.get(path) ?? null;
-  }
-
-  /** A repository's setup, as far as it got; null without one. */
-  repoJob(path: string): SiteSetupJob | null {
-    return this.jobs.get(path) ?? null;
-  }
-
-  /** The dialog took in a repository's finished setup. */
-  doneWith(path: string) {
-    if (!this.jobs.get(path)?.running) this.jobs.delete(path);
-  }
-
-  private run(key: string, host: SiteHost, fn: (log: (line: string) => void) => Promise<{ site?: DemoSite }>) {
-    if (this.jobs.get(key)?.running) throw new BadRequest('invalid', 'a setup is running already');
-    const job: SiteSetupJob = { host, running: true, lines: [] };
-    this.jobs.set(key, job);
+  /** Sets the site up (`fn`), publishes to it, and puts it on the list. */
+  private run(host: SiteHost | undefined, fn: (log: (line: string) => void) => Promise<DemoSiteEntry>) {
+    if (this.job?.running) throw new BadRequest('invalid', 'a demo site is being added already');
+    const job: SiteSetupJob = { ...(host ? { host } : {}), running: true, lines: [] };
+    this.job = job;
     const log = (line: string) => {
       job.lines = [...job.lines, line.slice(0, 400)].slice(-12);
     };
-    fn(log).then(
-      ({ site }) => {
+    const check = this.o.check ?? ((site) => this.publishes(site, log));
+    fn(log)
+      .then(async (site) => {
+        const wrong = await check(site);
+        if (wrong) throw new Error(`Seismic could not publish to ${site.url}: ${wrong}`);
+        addSite(this.o.home, site);
+        this.o.changed();
+        log(`Ready: ${site.url}`);
         job.running = false;
-        if (site) job.site = site;
-      },
-      (e) => {
+        job.site = site.url;
+      })
+      .catch((e) => {
         job.running = false;
         job.error = messageOf(e);
         if (e instanceof SetupRefused && e.offer) job.offer = e.offer;
-        console.error(`Obeya: setting up a demo site at ${host} failed: ${job.error}`);
-      },
-    );
+        console.error(`Seismic: adding a demo site failed: ${job.error}`);
+      });
+  }
+
+  /** Publishes the site as it is (pulled first, so nothing on it goes), through the queue all sites' changes go through; why it failed, or null. */
+  private publishes(site: DemoSiteEntry, log: (line: string) => void): Promise<string | null> {
+    return serial(async () => {
+      const target = siteTarget(demoSite(site, 'Demos'), this.o.home, this.o.home, MESSAGES.en.share, site.secret ? { unlisted: { secret: site.secret } } : {});
+      const r = await target.repair([], log);
+      return r.why ?? null;
+    });
   }
 }
 
-const PERSONAL = 'personal';
-
 function hostOf(input: unknown): SiteHost {
   const host = (input as { host?: unknown } | null)?.host;
-  if (host !== 'cloudflare' && host !== 'github') throw new BadRequest('invalid', 'expected { host: "cloudflare" | "github" }');
+  if (host !== 'cloudflare' && host !== 'github') throw new BadRequest('invalid', 'expected { host: "cloudflare" | "github" } or { manual }');
   return host;
 }
 

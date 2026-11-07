@@ -15,6 +15,14 @@ afterEach(() => {
 });
 
 describe('transcript excerpt', () => {
+  test('an unqualified worker status call is not treated as missing repository tooling', () => {
+    const call = (id: string, name: string) => JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id, name, input: { status: 'Checking the UI' } }] } });
+    const result = (id: string, failed: boolean, output: string) => JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: id, is_error: failed, content: output }] } });
+    const run = [call('a', 'report'), result('a', true, '<tool_use_error>Error: No such tool available: report</tool_use_error>'), call('b', 'mcp__seismic__report'), result('b', false, 'Status updated.')].join('\n');
+    expect(excerpt(run)).toMatchObject({ steps: 2, findings: [] });
+    expect(excerptText([excerpt(run)!])).toBe('');
+  });
+
   test('finds failed calls, corrections, repeated commands and rewritten files, with the words around them', () => {
     const e = excerpt(sample())!;
     // the subagent's call is not the worker's
@@ -32,7 +40,7 @@ describe('transcript excerpt', () => {
     expect(script).toMatchObject({ kind: 'failure', call: { step: 6, what: '`bun scripts/demo.ts`', after: 'Das Skript scheitert; ich schreibe es neu.' } });
     expect(script?.kind === 'failure' && script.call.error).toContain('TypeError: x is undefined');
     // `bun test` cut off by a restart is no mistake
-    expect(typecheck).toMatchObject({ kind: 'failure', call: { step: 9, what: '`bun run typecheck`', before: 'Obeya startet neu.', after: 'Ein Tippfehler; ich korrigiere ihn.' } });
+    expect(typecheck).toMatchObject({ kind: 'failure', call: { step: 9, what: '`bun run typecheck`', before: 'Seismic startet neu.', after: 'Ein Tippfehler; ich korrigiere ihn.' } });
     expect(polling).toMatchObject({ kind: 'retry', calls: [{ step: 11 }, { step: 12 }, { step: 13 }] });
     expect(rewrite).toEqual({ kind: 'rewrite', file: '/ws/card/scripts/demo.ts', times: 2, before: 'Das Skript scheitert; ich schreibe es neu.' });
     expect(e.findings).toHaveLength(5);

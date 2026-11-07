@@ -15,6 +15,7 @@ test("paths in Bun's embedded file system, on POSIX and Windows", () => {
 test('the resources: the checkout, beside the binary, or in a macOS app bundle', () => {
   expect(resourcesDir({}, false)).toBe(resolve(import.meta.dir, '..', '..'));
   expect(resourcesDir({ OBEYA_RESOURCES: '/opt/obeya/res' }, true)).toBe(resolve('/opt/obeya/res'));
+  expect(resourcesDir({ SEISMIC_RESOURCES: '/opt/seismic/res', OBEYA_RESOURCES: '/opt/obeya/res' }, true)).toBe(resolve('/opt/seismic/res'));
   const dir = mkdtempSync(join(tmpdir(), 'obeya-resources-'));
   try {
     mkdirSync(join(dir, 'Contents', 'MacOS'), { recursive: true });

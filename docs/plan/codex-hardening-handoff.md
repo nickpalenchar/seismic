@@ -152,7 +152,8 @@ verification. Earlier native probe PIDs 24040, 23111 and 46581 were also absent.
 
 Browser details if needed (read `plugin/skills/browser/SKILL.md` first): existing headless CDP port
 63642, browser PID 20084, owned by this Pi process PID 99849. Every browser CLI call used
-`OBEYA_AGENT_PID=99849` to avoid sharing a worker's browser. That process may have ended by the time
+`SEISMIC_AGENT_PID=99849` (the skill falls back to `OBEYA_AGENT_PID` only where that is unset) to
+avoid sharing a worker's browser. That process may have ended by the time
 you resume: use your own identity/new browser rather than assuming it remains valid. The visual
 helper `/tmp/obeya-speakers-visual-check.mjs` attaches to that CDP port. Phone screenshots need a
 settled camera/unfold (the helper waits 1200 ms); CLI calls reset viewport to its configured desktop
@@ -176,4 +177,4 @@ commits or final responses. No demo media was added to git.
    No new commit or push is authorized by the handoff request.
 
 Remaining larger parity work and the Pi estimate are in `docs/plan/codex-runtime.md`; do not expand
-this handoff into SSH/non-Git/coordinator/Pi implementation.
+this handoff into SSH/non-Git/Koordinator/Pi implementation.

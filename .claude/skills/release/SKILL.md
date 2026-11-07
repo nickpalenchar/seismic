@@ -1,6 +1,6 @@
 ---
 name: release
-description: Take a version of Obeya out from start to finish, with the hero video and the screenshots on obeya.si rendered again from the Obeya being released. Use when the owner says "Mach ein Release", "make a release", "release a new version", or names this skill.
+description: Take a version of Seismic out from start to finish, with the hero video and the screenshots on obeya.si rendered again from the Seismic being released. Use when the owner says "Mach ein Release", "make a release", "release a new version", or names this skill.
 ---
 
 # Release
@@ -13,7 +13,7 @@ The owner approves once, on the new hero video, before anything leaves the machi
 the agent pushes, tags, watches the build and uploads the video. Publishing the release (step 9)
 reaches every installed app through the updater, so that click is the owner's.
 
-## On an Obeya card
+## On an Seismic card
 
 ### Before the handover: steps 1–4
 
@@ -55,7 +55,7 @@ approval: push, tag, build, draft, video on the site, and the owner publishing.
 
 ### After the landing: steps 5–9
 
-Landing the version restarts Obeya. Call `after_restart` and end the turn; go on once Obeya says
+Landing the version restarts Seismic. Call `after_restart` and end the turn; go on once Seismic says
 it runs your change.
 
 **Steps 5 and 6.** Your workspace stands at what landed: tag its `HEAD`, after checking that its

@@ -29,7 +29,29 @@
       "Bash(node /Users/nick/harness/obeya/plugin/skills/demo/lib/setup.ts)",
       "Bash(node /Users/nick/demos/obeya-*/demo.ts)",
       "Bash(node /Users/nick/demos/obeya-*/demo.ts --narration)",
-      "Bash(node /Users/nick/demos/obeya-*/demo.ts --dry)"
+      "Bash(node /Users/nick/demos/obeya-*/demo.ts --dry)",
+      "Bash(bun scripts/scratch-obeya.ts /tmp/stage.json)",
+      "Bash(git rebase *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git commit -m 'Start Agent button shows selected model underneath *)",
+      "Read(//Users/nick/demos/start-agent-model/**)",
+      "Bash(node demo.ts --narration)",
+      "Bash(node demo.ts)",
+      "Read(//Users/nick/programming/obeya/plugin/skills/demo/example/**)",
+      "Bash(mkdir -p /Users/nick/demos/snoozed-cards-inbox-demo)",
+      "Bash(bun scripts/scratch-obeya.ts /Users/nick/demos/snoozed-cards-inbox-demo/stage.json)",
+      "Bash(rm test-output.txt && git status)",
+      "Read(//Users/nick/demos/snoozed-cards-inbox-demo/**)",
+      "Bash(node demo.ts --dry)",
+      "Bash(timeout 60 node demo.ts --dry)",
+      "Bash(rm -rf /Users/nick/demos/snoozed-cards-inbox-demo/.work)",
+      "Bash(rm -rf /Users/nick/demos/snoozed-cards-inbox-demo/.work && cd /Users/nick/demos/snoozed-cards-inbox-demo && node demo.ts 2>&1 &)",
+      "Bash(node /Users/nick/programming/obeya/plugin/skills/demo/lib/setup.ts)",
+      "Bash(node /Users/nick/programming/obeya/plugin/skills/browser/lib/browser.ts open http://127.0.0.1:4480/login?token=KPFLCr-vkaQnc9I7GCzfszXcTKyYC_WTiQzk5rQ9QfE&next=%2Fc%2Factivity)",
+      "Bash(tail -25 /tmp/proposals-tests.log)",
+      "Bash(node explore.ts)",
+      "Bash(node /Users/nick/demos/obeya-incoming-arrows/explore.ts)"
     ]
   }
 }

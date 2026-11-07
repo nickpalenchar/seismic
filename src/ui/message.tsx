@@ -2,6 +2,7 @@
 // and when above, the text below as paragraphs and lists; a reply quotes the message it answers
 // above its words, as chat apps do.
 
+import { Copy, Reply, Trash2 } from 'lucide-react';
 import { createContext, type ReactNode, type RefObject, useContext, useEffect, useRef, useState } from 'react';
 import type { AgentIdentity, AnswerFile, CardEvent, Item } from '../core/types';
 import { answerFile, api } from './api';
@@ -10,6 +11,7 @@ import { clock as time, t } from './strings';
 import type { Quoted } from './reply';
 import { clip } from '../core/text';
 import { copyOrSelect } from './copy';
+import { scrollBehavior } from './motion';
 
 /**
  * A message's frame: `by` places and colours it (the owner's on the right), `who` heads it with its
@@ -53,16 +55,12 @@ export function Msg({
       </div>
       {onReply && (
         <button className="msg-reply" title={t.talk.reply} aria-label={t.talk.reply} onMouseDown={(e) => e.preventDefault()} onClick={onReply}>
-          <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
-            <path d="M8 5 3 10l5 5M3.5 10H11a6 6 0 0 1 6 6v.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <Reply size={15} strokeWidth={2} aria-hidden="true" />
         </button>
       )}
       {onDelete && (
         <button className="msg-delete" title={deleteLabel} aria-label={deleteLabel} onMouseDown={(e) => e.preventDefault()} onClick={onDelete}>
-          <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
-            <path d="M4 6h12M8 6V4h4v2M5.5 6l.8 10h7.4l.8-10M8.5 9v4.5M11.5 9v4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />
         </button>
       )}
       {children}
@@ -84,7 +82,7 @@ export const Reading = () => <Msg by="koordinator" className="thinking" who={`${
 export function goToMessage(ev: number | string, orElse?: string) {
   const el = document.querySelector<HTMLElement>(`.talk [data-ev="${ev}"]`) ?? (orElse ? document.querySelector<HTMLElement>(`.talk ${orElse}`) : null);
   if (!el) return;
-  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  el.scrollIntoView({ block: 'center', behavior: scrollBehavior() });
   el.classList.remove('flash');
   void el.offsetWidth;
   el.classList.add('flash');
@@ -198,10 +196,7 @@ function Code({ text }: { text: string }) {
         {done ? (
           <span>{label}</span>
         ) : (
-          <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
-            <rect x="7" y="7" width="9.5" height="9.5" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M13 4.5V4.2A1.2 1.2 0 0 0 11.8 3H4.2A1.2 1.2 0 0 0 3 4.2v7.6A1.2 1.2 0 0 0 4.2 13h.3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
+          <Copy size={15} strokeWidth={1.75} aria-hidden="true" />
         )}
       </button>
     </div>
@@ -277,7 +272,7 @@ export function AnswerFiles({ thread, files }: { thread: number; files?: AnswerF
   const others = files.filter((f) => !isPage(f.name) && !isImage(f.name));
   const open = (file?: string) =>
     api.openAnswer(thread, file).catch(() => {
-      // the system has no app for it here (or Obeya runs elsewhere): the browser saves it instead
+      // the system has no app for it here (or Seismic runs elsewhere): the browser saves it instead
       if (file !== undefined) location.assign(answerFile(thread, file, true));
     });
   return (
@@ -315,7 +310,7 @@ export function AnswerFiles({ thread, files }: { thread: number; files?: AnswerF
   );
 }
 
-/** A page an answer comes with: in the frame of an HTML artifact, its scripts away from Obeya's API, as high as it reports. */
+/** A page an answer comes with: in the frame of an HTML artifact, its scripts away from Seismic's API, as high as it reports. */
 function AnswerPage({ thread, file }: { thread: number; file: AnswerFile }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const height = useReportedHeight(frame, PAGE_CAP);

@@ -8,7 +8,7 @@ import { Store } from './db';
 import { EXPORT_HTML_MAX } from '../core/types';
 import type { Forge } from './forge';
 import { demoPageHtml } from './demo-page';
-import { DEMO_MARKER, SHARE_CWD, Sharing, withDemoLink } from './share';
+import { DEMO_MARKER, Sharing, withDemoLink } from './share';
 import { siteKey } from './site';
 import { missedChanges, PAGE_CHANGES, pagesVersion } from '../core/page-changes';
 import type { Theme } from './theme';
@@ -19,7 +19,7 @@ let dir: string;
 let board: Board;
 let runtime: FakeRuntime;
 let sharing: Sharing;
-/** The descriptions of the fake forge's pull requests, and each edit Obeya made. */
+/** The descriptions of the fake forge's pull requests, and each edit Seismic made. */
 let bodies: Map<string, string>;
 let edits: string[];
 /** What the workers heard of each page that went out, or did not. */
@@ -109,14 +109,14 @@ function make(repo = dir) {
     home: join(dir, 'home'),
     forge,
     // a repository with a theme and without a site still has its theme for the export
-    sourceFor: (card) => (card.title.startsWith('Ohne') ? (theme ? { site: null, repo, theme: () => theme } : null) : { site: site(), repo, theme: () => theme }),
+    sourceFor: (card) => (card.title.startsWith('Ohne') ? (theme ? { site: null, repo, title: 'Laden', theme: () => theme } : null) : { site: { site: site(), path: '' }, repo, title: 'Laden', theme: () => theme }),
     // the repository names English for its demos (`demo.language`) on cards so titled
     languageFor: (card) => (card.title.startsWith('In English') ? 'en' : undefined),
     onPage: (id, r) => void settled.push([id, r]),
   });
 }
 
-/** Comments Obeya wrote on pull requests: the URL, then the comment. */
+/** Comments Seismic wrote on pull requests: the URL, then the comment. */
 let comments: string[] = [];
 
 const forge: Forge = {
@@ -189,9 +189,9 @@ describe('sharing a demo', () => {
     expect(call!.wrote).toEqual([slug]);
     expect(call!.pages[slug]!.meta).toMatchObject({ title: 'CSV-Export', text: 'Vermieter laden Zählerstände als CSV.', chapters: [[0, 'Vorher']], pr: null, language: 'de' });
     expect(readFileSync(join(dir, 'deployed', slug, 'demo.mp4'), 'utf8')).toBe('video');
-    // the deploy runs under Obeya's home, and learns the checkout from the environment
+    // the deploy runs at the root of the card's repository, and learns Seismic's home from the environment
     expect(call!.home).toBe(join(dir, 'home'));
-    expect(call!.cwd).toBe(realpathSync(join(dir, 'home', SHARE_CWD)));
+    expect(call!.cwd).toBe(realpathSync(dir));
     expect(call!.repo).toBe(dir);
     // the deploy's output goes into the card's log
     expect(log(c.id)).toContain('Uploading 3 files');
@@ -209,7 +209,7 @@ describe('sharing a demo', () => {
     expect(share(c.id)!.url).toBe(`${SITE_URL}${slug}/`);
   });
 
-  test('a deploy that leaves files in its working directory leaves the checkout clean, so its workspace can still be leased', async () => {
+  test("a deploy that leaves wrangler's cache in the repository leaves its checkout clean, so its workspace can still be leased", async () => {
     const repo = gitRepo(join(dir, 'checkout'));
     sharing = make(repo);
     const c = card();
@@ -218,8 +218,8 @@ describe('sharing a demo', () => {
     sharing.unshare(c.id);
     await until(() => !share(c.id));
     expect(calls().map((c) => c.repo)).toEqual([repo, repo]);
+    expect(existsSync(join(repo, '.wrangler/cache/pages.json'))).toBe(true);
     expect(git(repo, 'status', '--porcelain')).toBe('');
-    expect(existsSync(join(dir, 'home', SHARE_CWD, '.wrangler/cache/pages.json'))).toBe(true);
   });
 
   test('a newer demo is not shared on its own: the card says so, and "Neu teilen" replaces the page', async () => {
@@ -675,7 +675,7 @@ describe('a page published before a change to the pages', () => {
     expect(stored(b.id).version).toBe('');
   });
 
-  test('a page from before Obeya kept the page changes gets its change from the page as the site has it', async () => {
+  test('a page from before Seismic kept the page changes gets its change from the page as the site has it', async () => {
     const [a, b] = [card('A'), card('B')];
     for (const c of [a, b]) {
       sharing.share(c.id);
@@ -1421,7 +1421,7 @@ describe('a repository’s theme', () => {
   const THEME = { css: ':root { --accent: #1d4ed8; } h1 { font-family: system-ui; }', hash: 'aaaaaaaaaaaaaaaa' };
   const pageOf = (id: string) => readFileSync(join(dir, 'deployed', slug(id), 'index.html'), 'utf8');
 
-  test('goes into the page after Obeya’s style; a new theme leaves the page outdated, and sharing again brings it', async () => {
+  test('goes into the page after Seismic’s style; a new theme leaves the page outdated, and sharing again brings it', async () => {
     theme = THEME;
     const c = card();
     sharing.share(c.id);
@@ -1452,7 +1452,7 @@ describe('a repository’s theme', () => {
     expect(pageOf(c.id)).toContain(`<style>${theme.css}</style>`);
     expect(pageOf(c.id)).not.toContain(THEME.css);
 
-    // the theme taken away: the page goes back to Obeya's look
+    // the theme taken away: the page goes back to Seismic's look
     theme = null;
     board.changed();
     expect(share(c.id)!.outdated).toEqual(['theme']);

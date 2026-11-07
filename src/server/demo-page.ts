@@ -1,12 +1,14 @@
-// The page a demo is shared on, for people who have never seen Obeya, in the demo's language: title, text, the video with
+// The page a demo is shared on, for people who have never seen Seismic, in the demo's language: title, text, the video with
 // its chapters and captions (or an HTML artifact in a frame), the pull request, or without one the
 // commit it landed as. A repository's demo site is built from it (site.ts), and a repository
 // without one exports it (share.ts): as a ZIP with the video or the artifact beside the page, or as
 // one HTML file with everything inside.
 
-import { type Dirent, existsSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { type Dirent, existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { pagePolicy, sealed, withHeightReport, withImageViewer } from '../core/frame';
+import interFont from '../ui/fonts/inter-latin-wght-normal.woff2' with { type: 'file' };
+import interLicense from '../ui/fonts/LICENSE-Inter.txt' with { type: 'file' };
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 
 /** The languages a page speaks: those a demo is narrated in. */
@@ -25,7 +27,7 @@ export const PAGE_WORDS: Record<
     commits: string;
     ownWindow: string;
     demoOf: (day: string) => string;
-    /** A page on a site (`site.ts`): when it was shared and by whom (git's name of the one whose Obeya shared it), the link to the overview; the overview's own words. */
+    /** A page on a site (`site.ts`): when it was shared and by whom (git's name of the one whose Seismic shared it), the link to the overview; the overview's own words. */
     sharedOn: (day: string, by?: string) => string;
     allDemos: string;
     /** On the overview, after a page's date: who shared it. */
@@ -35,7 +37,7 @@ export const PAGE_WORDS: Record<
     /** A page with several demo versions: the first one's name in the list at the top, and the heading of each later one. */
     first: string;
     addendum: (at: string, timeZone?: string) => string;
-    /** The line every page and the overview end in, before the link to Obeya's site; the overview's link to its feed. */
+    /** The line every page and the overview end in, before the link to Seismic's site; the overview's link to its feed. */
     recordedWith: string;
     feed: string;
     /** The overview's filter: its search field, how many of the pages it shows, copying their links, a page's link, none passing. */
@@ -144,7 +146,7 @@ interface PageParts {
   /** The page's tags, by dimension, each a link (say, to the overview showing the pages with it). */
   tags?: { dimension: string; value: string; href: string }[];  /** A page of an unlisted site: kept out of search engines, and its links send no referrer. */
   unlisted?: true;
-  /** The theme of the card's repository (theme.ts): its CSS, after Obeya's own style. */
+  /** The theme of the card's repository (theme.ts): its CSS, after Seismic's own style. */
   theme?: string;
 }
 
@@ -178,58 +180,178 @@ const inScript = (s: string) => s.replace(/<\//g, '<\\/');
 export const day = (at: Date | string, language: PageLanguage = 'de') =>
   new Date(at).toLocaleDateString(PAGE_WORDS[language].locale, { day: 'numeric', month: 'long', year: 'numeric' });
 
+/**
+ * Inter (OFL) inlined as a `data:` URL, so a page shows it without the viewer having it installed, and
+ * a page opened from disk or sealed by `pagePolicy` needs no file beside it. Its copyright notice and
+ * licence travel with it as a comment in the same stylesheet, as the OFL asks of every copy.
+ */
+const INTER_FACE = `/* Inter font, embedded below:\n${readFileSync(interLicense, 'utf8').replace(/\*\//g, '* /')}*/\n  @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(data:font/woff2;base64,${readFileSync(interFont).toString('base64')}) format("woff2"); }`;
+
 export const PAGE_STYLE = `
-  :root { --bg: #e8e2d4; --card: #fdfbf5; --ink: #1f1b14; --muted: #776e5e; --line: #e2dccd; --chip: #f0ebdf; --accent: #08888e; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #121110; --card: #23211d; --ink: #efe9dc; --muted: #a69e8e; --line: #36322b; --chip: #2c2925; --accent: #27b9b6; } }
+  ${INTER_FACE}
+  :root {
+    --bg: #e6edf5;
+    --board: radial-gradient(1100px 800px at 12% 18%, rgba(140,185,255,.22), transparent 60%),
+      radial-gradient(900px 700px at 88% 30%, rgba(255,190,220,.14), transparent 60%),
+      radial-gradient(1000px 900px at 60% 95%, rgba(150,230,220,.18), transparent 60%);
+    --card: rgba(255, 255, 255, 0.82);
+    --card-hover: #ffffff;
+    --ink: #14202e;
+    --muted: #5a6b80;
+    --line: rgba(120, 145, 175, 0.28);
+    --chip: rgba(120, 150, 190, 0.14);
+    --chip-hover: rgba(120, 150, 190, 0.24);
+    --accent: #0b8b93;
+    --accent-glow: rgba(11, 139, 147, 0.3);
+    --on-ink: #ffffff;
+    --shadow: 0 1px 3px rgba(30, 55, 90, 0.08), 0 8px 24px -10px rgba(40, 70, 110, 0.18);
+    --lift: 0 2px 6px rgba(30, 55, 90, 0.1), 0 16px 36px -12px rgba(40, 70, 110, 0.28);
+    --glow-text: 0 1px 2px rgba(30, 55, 90, 0.12);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1420;
+      --board: radial-gradient(1100px 800px at 12% 18%, rgba(50,90,180,.18), transparent 60%),
+        radial-gradient(900px 700px at 88% 30%, rgba(130,60,150,.10), transparent 60%),
+        radial-gradient(1000px 900px at 60% 95%, rgba(20,120,130,.12), transparent 60%);
+      --card: rgba(18, 28, 44, 0.78);
+      --card-hover: rgba(26, 40, 62, 0.92);
+      --ink: #e6eef8;
+      --muted: #8fa3bb;
+      --line: rgba(160, 205, 255, 0.16);
+      --chip: rgba(140, 185, 240, 0.12);
+      --chip-hover: rgba(140, 185, 240, 0.22);
+      --accent: #2fc2c0;
+      --accent-glow: rgba(47, 194, 192, 0.45);
+      --on-ink: #0b111a;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 12px 28px -8px rgba(0, 0, 0, 0.7);
+      --lift: 0 2px 6px rgba(0, 0, 0, 0.5), 0 18px 40px -10px rgba(0, 0, 0, 0.85), 0 0 14px rgba(47, 194, 192, 0.2);
+      --glow-text: 0 0 14px rgba(47, 194, 192, 0.45), 0 0 28px rgba(106, 162, 255, 0.25);
+      color-scheme: dark;
+    }
+  }
+  :where([data-theme="light"]) {
+    --bg: #e6edf5;
+    --board: radial-gradient(1100px 800px at 12% 18%, rgba(140,185,255,.22), transparent 60%),
+      radial-gradient(900px 700px at 88% 30%, rgba(255,190,220,.14), transparent 60%),
+      radial-gradient(1000px 900px at 60% 95%, rgba(150,230,220,.18), transparent 60%);
+    --card: rgba(255, 255, 255, 0.82);
+    --card-hover: #ffffff;
+    --ink: #14202e;
+    --muted: #5a6b80;
+    --line: rgba(120, 145, 175, 0.28);
+    --chip: rgba(120, 150, 190, 0.14);
+    --chip-hover: rgba(120, 150, 190, 0.24);
+    --accent: #0b8b93;
+    --accent-glow: rgba(11, 139, 147, 0.3);
+    --on-ink: #ffffff;
+    --shadow: 0 1px 3px rgba(30, 55, 90, 0.08), 0 8px 24px -10px rgba(40, 70, 110, 0.18);
+    --lift: 0 2px 6px rgba(30, 55, 90, 0.1), 0 16px 36px -12px rgba(40, 70, 110, 0.28);
+    --glow-text: 0 1px 2px rgba(30, 55, 90, 0.12);
+    color-scheme: light;
+  }
+  :where([data-theme="dark"]) {
+    --bg: #0d1420;
+    --board: radial-gradient(1100px 800px at 12% 18%, rgba(50,90,180,.18), transparent 60%),
+      radial-gradient(900px 700px at 88% 30%, rgba(130,60,150,.10), transparent 60%),
+      radial-gradient(1000px 900px at 60% 95%, rgba(20,120,130,.12), transparent 60%);
+    --card: rgba(18, 28, 44, 0.78);
+    --card-hover: rgba(26, 40, 62, 0.92);
+    --ink: #e6eef8;
+    --muted: #8fa3bb;
+    --line: rgba(160, 205, 255, 0.16);
+    --chip: rgba(140, 185, 240, 0.12);
+    --chip-hover: rgba(140, 185, 240, 0.22);
+    --accent: #2fc2c0;
+    --accent-glow: rgba(47, 194, 192, 0.45);
+    --on-ink: #0b111a;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 12px 28px -8px rgba(0, 0, 0, 0.7);
+    --lift: 0 2px 6px rgba(0, 0, 0, 0.5), 0 18px 40px -10px rgba(0, 0, 0, 0.85), 0 0 14px rgba(47, 194, 192, 0.2);
+    --glow-text: 0 0 14px rgba(47, 194, 192, 0.45), 0 0 28px rgba(106, 162, 255, 0.25);
+    color-scheme: dark;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 "IBM Plex Sans Condensed", ui-sans-serif, system-ui, -apple-system, sans-serif; }
-  main { max-width: 1080px; margin: 0 auto; padding: 32px 24px 64px; }
-  a { color: var(--accent); }
+  body {
+    margin: 0;
+    background-color: var(--bg);
+    background-image: var(--board);
+    background-attachment: fixed;
+    color: var(--ink);
+    font: 15px/1.55 Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  main { max-width: 1080px; margin: 0 auto; padding: 36px 24px 64px; }
+  a { color: var(--accent); text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1px; transition: color 0.15s, text-shadow 0.15s, text-decoration-color 0.15s; }
+  a:hover, a:focus-visible { text-shadow: 0 0 8px var(--accent-glow); }
   .top { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
-  h1 { font: 600 31px/1.15 Newsreader, "Iowan Old Style", Georgia, serif; margin: 0 0 6px; }
-  .when { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
-  .text p { margin: 0 0 10px; max-width: 72ch; }
-  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 20px; margin-top: 22px; align-items: start; }
-  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
-  video { width: 100%; border-radius: 4px; background: #000; display: block; }
-  .player { position: relative; }
+  .top a { color: var(--accent); text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+  .top a:hover, .top a:focus-visible { text-shadow: 0 0 8px var(--accent-glow); }
+  h1 { font: 650 32px/1.2 Inter, system-ui, -apple-system, sans-serif; letter-spacing: -0.02em; margin: 0 0 8px; color: var(--ink); text-shadow: var(--glow-text); }
+  .when { color: var(--muted); font-size: 13px; margin-bottom: 18px; letter-spacing: -0.005em; }
+  .text p { margin: 0 0 12px; max-width: 72ch; line-height: 1.6; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; margin-top: 24px; align-items: start; }
+  @media (max-width: 800px) {
+    main { padding: 24px 16px 48px; }
+    h1 { font-size: 26px; }
+    .grid { grid-template-columns: 1fr; gap: 18px; }
+  }
+  video { width: 100%; border-radius: 12px; background: #000; display: block; border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .player { position: relative; border-radius: 12px; }
   .start { all: unset; position: absolute; inset: 0 0 56px 0; cursor: pointer; display: grid; place-items: center; }
   .start[hidden] { display: none; }
-  .start span { margin-top: 56px; width: 88px; height: 88px; border-radius: 50%; background: rgba(0, 0, 0, 0.6); display: grid; place-items: center; transition: transform 0.15s, background 0.15s; }
-  .start:hover span { background: rgba(0, 0, 0, 0.8); transform: scale(1.06); }
-  .start svg { width: 36px; height: 36px; margin-left: 6px; fill: #fff; }
-  ol { list-style: none; margin: 0; padding: 6px; background: var(--chip); border-radius: 3px; }
-  ol button { all: unset; cursor: pointer; display: flex; gap: 10px; width: 100%; padding: 7px 9px; border-radius: 2px; font-size: 14px; box-sizing: border-box; }
-  ol button:hover, ol button.on { background: var(--card); }
-  ol .t { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 34px; }
-  .pr { margin-top: 14px; font-size: 14px; }
+  .start span {
+    margin-top: 56px; width: 80px; height: 80px; border-radius: 50%;
+    background: rgba(13, 20, 32, 0.75); border: 1.5px solid var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow); display: grid; place-items: center;
+    transition: transform 0.18s, background 0.18s, box-shadow 0.18s;
+  }
+  @media (prefers-color-scheme: light) {
+    .start span { background: rgba(255, 255, 255, 0.85); box-shadow: 0 2px 12px rgba(30, 55, 90, 0.2); }
+  }
+  .start:hover span { transform: scale(1.08); box-shadow: 0 0 28px var(--accent); }
+  .start svg { width: 32px; height: 32px; margin-left: 5px; fill: var(--accent); filter: drop-shadow(0 0 4px var(--accent-glow)); }
+  ol { list-style: none; margin: 0; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  ol button { all: unset; cursor: pointer; display: flex; gap: 10px; width: 100%; padding: 8px 10px; border-radius: 8px; font-size: 13.5px; box-sizing: border-box; color: var(--ink); transition: background 0.12s, color 0.12s, text-shadow 0.12s; }
+  ol button:hover { background: var(--chip); }
+  ol button.on { background: var(--chip); color: var(--accent); font-weight: 600; text-shadow: 0 0 10px var(--accent-glow); }
+  ol .t { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 36px; }
+  ol button.on .t { color: var(--accent); }
+  .pr { margin-top: 14px; font-size: 13.5px; }
+  .pr a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--accent); text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1px; box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s, text-shadow 0.15s; }
+  .pr a:hover, .pr a:focus-visible { border-color: var(--accent); box-shadow: var(--lift); text-shadow: 0 0 8px var(--accent-glow); }
   ul.demos { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
-  ul.demos a { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 2px; padding: 14px 18px; color: var(--ink); text-decoration: none; }
-  ul.demos a:hover { border-color: var(--accent); }
-  ul.demos b { display: block; font: 600 19px/1.25 Newsreader, "Iowan Old Style", Georgia, serif; }
-  ul.demos span { color: var(--muted); font-size: 14px; }
-  .artifact { margin-top: 22px; background: #fff; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  ul.demos a { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; color: var(--ink); text-decoration: none; box-shadow: var(--shadow); transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s, background 0.15s; }
+  ul.demos a:hover, ul.demos a:focus-visible { border-color: var(--accent); background: var(--card-hover); transform: translateY(-2px); box-shadow: var(--lift); }
+  ul.demos b { display: block; font: 620 18px/1.3 Inter, system-ui, -apple-system, sans-serif; letter-spacing: -0.012em; margin-bottom: 4px; color: var(--accent); text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1px; transition: color 0.15s, text-shadow 0.15s; }
+  ul.demos a:hover b, ul.demos a:focus-visible b { text-shadow: var(--glow-text); }
+  ul.demos span { color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+  .artifact { margin-top: 24px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
   .artifact iframe { display: block; width: 100%; height: 80vh; border: 0; }
   body.alone main { max-width: none; padding: 0; }
   body.alone main > :not(.artifact) { display: none; }
-  body.alone .artifact { margin: 0; border: 0; border-radius: 0; }
+  body.alone .artifact { margin: 0; border: 0; border-radius: 0; box-shadow: none; }
   body.alone .artifact iframe { height: 100vh; }
-  .links { margin-top: 10px; font-size: 14px; display: flex; gap: 18px; }
-  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 18px; }
-  .tag { font-size: 13px; line-height: 1.5; padding: 2px 10px; border-radius: 999px; background: var(--chip); color: var(--ink); text-decoration: none; border: 1px solid transparent; }
-  a.tag:hover { border-color: var(--accent); }
-  .tag span { color: var(--muted); }
-  .credit { margin-top: 48px; font-size: 13px; color: var(--muted); }
+  .links { margin-top: 12px; font-size: 13.5px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .links a { display: inline-flex; align-items: center; padding: 6px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--accent); text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1px; box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s, text-shadow 0.15s; }
+  .links a:hover, .links a:focus-visible { border-color: var(--accent); box-shadow: var(--lift); text-shadow: 0 0 8px var(--accent-glow); }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 18px; }
+  .tag { font-size: 12.5px; font-weight: 500; line-height: 1.5; padding: 3px 12px; border-radius: 999px; background: var(--card); color: var(--accent); text-decoration: underline; text-underline-offset: 0.18em; text-decoration-thickness: 1px; border: 1px solid var(--line); box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s, color 0.15s, text-shadow 0.15s; }
+  a.tag:hover, a.tag:focus-visible { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); text-shadow: 0 0 8px var(--accent-glow); }
+  .tag span { color: var(--muted); margin-right: 2px; }
+  .credit { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .credit a { color: var(--accent); font-weight: 500; text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
 `;
 
-/** A repository's theme (theme.ts) in a page's head, after Obeya's own style, so it wins; nothing in it may close its element. */
+/** A repository's theme (theme.ts) in a page's head, after Seismic's own style, so it wins; nothing in it may close its element. */
 export const themeStyle = (css?: string) => (css ? `<style>${css.replace(/<\/(style)/gi, '<\\/$1')}</style>` : '');
 
-/** Obeya's site, which every page and the overview link at their end. */
+/** Seismic's site, which every page and the overview link at their end. */
 export const OBEYA_URL = 'https://obeya.si';
 
-/** The line every page and the overview end in: what made them, linking Obeya's site. */
-export const credit = (language: PageLanguage) => `<footer class="credit">${PAGE_WORDS[language].recordedWith} <a href="${OBEYA_URL}">Obeya</a></footer>
+/** The line every page and the overview end in: what made them, linking Seismic's site. */
+export const credit = (language: PageLanguage) => `<footer class="credit">${PAGE_WORDS[language].recordedWith} <a href="${OBEYA_URL}">Seismic</a></footer>
 `;
 
 // the cues of captions held in the page, for a page opened from disk
@@ -279,7 +401,7 @@ export const ON_DISK = 'file:';
 
 /**
  * The artifact runs in a sandboxed frame, an origin of its own, so its scripts reach neither the
- * page nor the site; it opens no window, and "In eigenem Fenster öffnen" is this page with the
+ * page nor the site; it opens no window, and "Open in its own window" is this page with the
  * frame alone (`?alone`), not the artifact's own file, which would run in the site's origin. The
  * frame grows to the artifact's height where the artifact says it (`withHeightReport`); without
  * that it stays at 80 % of the window and scrolls. Opened from disk (`disk`), the frame keeps the
@@ -409,19 +531,21 @@ export interface StackedPageParts extends Omit<PageParts, 'title' | 'text'> {
 
 /** The style a page with several demo versions adds: the list at the top, and each later version as an addendum. */
 const STACK_STYLE = `
-  .sections { font-size: 14px; color: var(--muted); margin: -10px 0 18px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
-  section.addendum { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); }
-  section.addendum h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
-  section.addendum h3 { font: 600 25px/1.2 Newsreader, "Iowan Old Style", Georgia, serif; margin: 0 0 10px; }
+  .sections { font-size: 13.5px; color: var(--muted); margin: -8px 0 20px; display: flex; flex-wrap: wrap; gap: 6px 10px; }
+  .sections a { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: var(--accent); text-decoration: underline; text-underline-offset: 0.18em; text-decoration-thickness: 1px; font-size: 13px; font-weight: 500; box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s, color 0.15s, text-shadow 0.15s; }
+  .sections a:hover, .sections a:focus-visible { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); text-shadow: 0 0 8px var(--accent-glow); }
+  section.addendum { margin-top: 52px; padding-top: 28px; border-top: 1px solid var(--line); }
+  section.addendum h2 { font-size: 12px; font-weight: 650; color: var(--accent); margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.08em; text-shadow: 0 0 10px var(--accent-glow); }
+  section.addendum h3 { font: 650 24px/1.25 Inter, system-ui, -apple-system, sans-serif; letter-spacing: -0.015em; margin: 0 0 12px; text-shadow: var(--glow-text); }
   body.alone main > section.alone { display: block; }
   body.alone section.alone > :not(.artifact) { display: none; }
 `;
 
 /**
  * A page with several demo versions of one change, in order of handover: the first with the page's
- * title and text on top, each later one below as an addendum („Ergänzung vom …“) with its own
+ * title and text on top, each later one below as an addendum ("Addendum from …") with its own
  * title, text and video or artifact, and a list of them at the top. A page with one version is
- * `demoPageHtml` or `artifactPageHtml`. "In eigenem Fenster öffnen" shows an artifact alone
+ * `demoPageHtml` or `artifactPageHtml`. "Open in its own window" shows an artifact alone
  * (`?alone=<n>`, its place on the page).
  */
 export function stackedPageHtml(p: StackedPageParts): string {

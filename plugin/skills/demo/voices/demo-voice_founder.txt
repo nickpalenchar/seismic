@@ -1,0 +1,1 @@
+Up until now, Seismic only read from a local config.json, which would conflict with other cloned git instances. Now, the config is centralized in the Seismic DB.

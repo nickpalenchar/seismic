@@ -131,7 +131,7 @@ describe('who may', () => {
     expect(board.snapshot().items).toEqual([]);
   });
 
-  test("Obeya's own page, the app's shell and scripts are answered, under each name of this machine", async () => {
+  test("Seismic's own page, the app's shell and scripts are answered, under each name of this machine", async () => {
     expect((await newCard({ origin: own(), 'sec-fetch-site': 'same-origin' })).status).toBe(200);
     expect((await newCard({ host: `localhost:${server.port}`, origin: `http://localhost:${server.port}` })).status).toBe(200);
     expect((await newCard({ host: `[::1]:${server.port}` })).status).toBe(200);
@@ -143,7 +143,7 @@ describe('who may', () => {
     expect(board.snapshot().items.length).toBe(4);
   });
 
-  test('the page and its WebSocket only for Obeya itself', async () => {
+  test('the page and its WebSocket only for Seismic itself', async () => {
     const page = await at('/', { 'sec-fetch-site': 'none' });
     expect(page.status).toBe(200);
     expect(await page.text()).toContain('<html');
@@ -241,7 +241,7 @@ describe('only the owner', () => {
     expect((await bare('/api/c/main/cards/x/act', { method: 'POST', headers: { 'x-obeya-key': 'guessed' } })).status).toBe(401);
     const page = await bare('/');
     expect(page.status).toBe(401);
-    expect(await page.text()).toContain('nicht bei Obeya angemeldet');
+    expect(await page.text()).toContain('nicht bei Seismic angemeldet');
     expect(await opens({})).toBe(false);
     expect(board.snapshot().items).toEqual([]);
   });
@@ -263,7 +263,7 @@ describe('only the owner', () => {
     expect((await bare(url)).headers.get('set-cookie')).toBe(set);
     expect(await link('/?c=main')).toBe(url);
     expect(await onward(await bare(url, { headers: { cookie } }))).toBe('/?c=main');
-    // a cookie of the Obeya on another port, or with another key, names nobody
+    // a cookie of the Seismic on another port, or with another key, names nobody
     expect((await bare(api('/canvas'), { headers: { cookie: cookie.replace(`obeya-${server.port}`, `obeya-${server.port! + 1}`) } })).status).toBe(401);
     expect((await bare(api('/canvas'), { headers: { cookie: `obeya-${server.port}=guessed` } })).status).toBe(401);
   });
@@ -284,7 +284,7 @@ describe('only the owner', () => {
     const opened = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' };
     // the browser does not send the Strict cookie with it
     expect(await onward(await bare('/?c=main', { headers: opened }))).toBe('/?c=main');
-    // a path that looks like another host stays one of Obeya's
+    // a path that looks like another host stays one of Seismic's
     expect(await onward(await bare(`${server.url.origin}//evil.example/`, { headers: opened }))).toBe('/evil.example/');
     expect((await bare('/?c=main', { headers: { 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'navigate' } })).status).toBe(401);
     expect((await bare('/?c=main', { headers: { 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'navigate', cookie } })).status).toBe(200);
@@ -292,14 +292,14 @@ describe('only the owner', () => {
 
   test('a canvas’s and a card’s address serve the page, to the owner only', async () => {
     const cookie = (await bare(await link())).headers.get('set-cookie')!.split(';')[0]!;
-    const page = await bare('/c/main/card/a1b2c3', { headers: { cookie } });
+    const page = await bare('/p/main/c/a1b2c3', { headers: { cookie } });
     expect(page.status).toBe(200);
     expect(await page.text()).toContain('<div id="root">');
-    expect((await bare('/c/main', { headers: { cookie } })).status).toBe(200);
-    expect((await bare('/c/main/card/a1b2c3')).status).toBe(401);
+    expect((await bare('/p/main', { headers: { cookie } })).status).toBe(200);
+    expect((await bare('/p/main/c/a1b2c3')).status).toBe(401);
   });
 
-  test('a link leads only to a path of Obeya’s', async () => {
+  test('a link leads only to a path of Seismic’s', async () => {
     for (const next of ['https://evil.example/', '//evil.example/', '/\\evil.example/'])
       expect(await onward(await bare(await link(next)))).toBe('/');
     expect((await bare(`${server.url.origin}/login?token=made-up`)).status).toBe(401);
@@ -425,7 +425,7 @@ describe('voice', () => {
     expect(body.confirm).toBe('Neue Karte „Export“, der Agent fängt an.');
     expect(body.token).toBeTruthy();
     expect((body as { undoMs?: number }).undoMs).toBe(DELAY_MS);
-    // Obeya does not speak
+    // Seismic does not speak
     expect(body.audio).toBeUndefined();
     expect(executed).toEqual([]);
     await until(() => executed.length);
@@ -446,7 +446,7 @@ describe('voice', () => {
     ]);
   });
 
-  test('a page that lost the answer learns whether its recording arrived, while Obeya still reads it', async () => {
+  test('a page that lost the answer learns whether its recording arrived, while Seismic still reads it', async () => {
     const arrived = async (id: string) => (await (await fetch(new URL(api(`/voice/arrived/${id}`), server.url))).json()) as { arrived: boolean };
     expect(await arrived('r1')).toEqual({ arrived: false });
     const res = fetch(new URL(`${api('/voice')}?sent=r1`, server.url), { method: 'POST', body: 'AUDIO' });
@@ -850,6 +850,31 @@ describe('„Merk dir“', () => {
   });
 });
 
+describe('the Developer section', () => {
+  test('restarts or rebuilds Seismic where it may, waiting for the workers like any restart', async () => {
+    const gone: string[] = [];
+    let busy = [{ canvas: 'main', card: 'k1' }];
+    const restarter = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 60_000, intervalMs: 10 });
+    const transcriber = { transcribe: async () => ({ text: '', doubtful: false }) };
+    // without the supervisor (--dev) neither goes
+    server.stop(true);
+    server = serve([canvas], { transcriber }, 0, false, undefined, restarter);
+    expect(await (await fetch(new URL('/api/developer', server.url))).json()).toEqual({ restart: false, rebuild: false, why: 'dev' });
+    expect(await codeOf(post('/api/developer/restart', ''))).toBe('invalid');
+    expect(restarter.due()).toBeNull();
+
+    server.stop(true);
+    server = serve([canvas], { transcriber }, 0, false, undefined, restarter, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, { restart: true, rebuild: false, rebuildWhy: 'compiled' });
+    expect(await codeOf(post('/api/developer/rebuild', ''))).toBe('invalid');
+    expect(await codeOf(post('/api/developer/other', ''))).toBe('invalid');
+    expect(await (await post('/api/developer/restart', '')).json()).toEqual({ requested: 'restart' });
+    await until(() => restarter.due()?.reason === 'owner');
+    busy = [];
+    await until(() => gone.length === 1);
+    expect(gone).toEqual(['owner']);
+  });
+});
+
 describe('a newer version of the app', () => {
   test('shows on the canvas while the shell reports it, and installing it waits like a restart', async () => {
     const gone: string[] = [];
@@ -895,7 +920,7 @@ describe('a newer version of the app', () => {
     expect(updates.current()).toEqual({ version: '0.2.0', download: 'https://github.com/sadilek/obeya/releases/tag/v0.2.0' });
     expect(await codeOf(post('/api/app-update/install', ''))).toBe('invalid');
     expect(restarter.due()).toBeNull();
-    // the bar leads to Obeya's releases only, whoever reports another address
+    // the bar leads to Seismic's releases only, whoever reports another address
     await post('/api/app-update', JSON.stringify({ version: '9.9.9', download: 'https://example.com/obeya.deb' }));
     expect(updates.current()).toEqual({ version: '9.9.9' });
   });
@@ -918,7 +943,7 @@ describe('a newer version of the app', () => {
     expect(gone).toEqual(['update']);
   });
 
-  test('the app taking over an Obeya that runs without it ends it once the workers paused, also when a restart for new code waits', async () => {
+  test('the app taking over an Seismic that runs without it ends it once the workers paused, also when a restart for new code waits', async () => {
     const gone: string[] = [];
     let busy = [{ canvas: 'main', card: 'k1' }];
     const restarter = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 60_000, intervalMs: 10 });
@@ -963,7 +988,7 @@ describe('a newer version of the app', () => {
   });
 });
 
-describe('new commits on the upstream of the checkout Obeya runs from', () => {
+describe('new commits on the upstream of the checkout Seismic runs from', () => {
   test('show on the canvas, and the owner pulls them into the checkout', async () => {
     const up = join(dir, 'up');
     gitRepo(up, { 'src/a.ts': 'a\n' });
@@ -984,7 +1009,7 @@ describe('new commits on the upstream of the checkout Obeya runs from', () => {
     await sources.check();
     await until(() => shown().length === 2);
     expect(shown()[1]!.source).toMatchObject({ upstream: 'origin/main', count: 1, commits: [{ subject: 'Faster' }] });
-    // an edit of the owner's in the way; once they come back from the terminal where they undid it, Obeya looks again
+    // an edit of the owner's in the way; once they come back from the terminal where they undid it, Seismic looks again
     writeFileSync(join(clone, 'src/a.ts'), 'mine\n');
     await sources.check(false);
     await until(() => shown().length === 3);
@@ -1003,7 +1028,7 @@ describe('new commits on the upstream of the checkout Obeya runs from', () => {
     ws.close();
   });
 
-  test('an Obeya that runs from no checkout has none', async () => {
+  test('an Seismic that runs from no checkout has none', async () => {
     expect((await post('/api/source-update/pull', '')).status).toBe(404);
     expect(await (await fetch(new URL('/api/source-update', server.url))).json()).toBeNull();
   });
@@ -1038,7 +1063,7 @@ test('a page that froze has its stall logged, with this machine and the canvas a
   ws.send(JSON.stringify({ type: 'stall', ms: 1300, scripts: [{ what: 'WebSocket.onmessage: (anonymous)', ms: 1200 }], before: [] } satisfies ClientMessage));
   await until(() => lines.length > 0);
   ws.close();
-  expect(lines).toEqual(['Obeya: a page (this machine, canvas main) stalled for 1.3 s; meanwhile it took no click or key', '  1.2 s WebSocket.onmessage: (anonymous)']);
+  expect(lines).toEqual(['Seismic: a page (this machine, canvas main) stalled for 1.3 s; meanwhile it took no click or key', '  1.2 s WebSocket.onmessage: (anonymous)']);
 });
 
 describe('a restart that waits', () => {
@@ -1162,7 +1187,7 @@ describe('cards that need the owner', () => {
   });
 });
 
-describe('canvases that start and stop while Obeya runs', () => {
+describe('canvases that start and stop while Seismic runs', () => {
   test('a new canvas is served at once and every page hears of it; the pages of one that stopped go elsewhere', async () => {
     const other = join(dir, 'other');
     gitRepo(other);
@@ -1471,7 +1496,7 @@ describe('freeing and discarding workspaces', () => {
   }, 20_000);
 });
 
-test("what a worker on another machine reaches: Obeya's narration clips, inline, and nothing else", async () => {
+test("what a worker on another machine reaches: Seismic's narration clips, inline, and nothing else", async () => {
   const asked: unknown[] = [];
   const narration = {
     clip: async (r: { out: string }) => {

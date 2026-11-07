@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Obeya",
+  "productName": "Seismic",
   "mainBinaryName": "obeya",
   "version": "../package.json",
   "identifier": "si.obeya",
@@ -13,7 +13,7 @@
     "copyright": "Copyright (c) 2026 Daniel Sadilek",
     "category": "DeveloperTool",
     "shortDescription": "A canvas for directing AI coding agents",
-    "longDescription": "Obeya is a spatial canvas on which you direct AI coding agents like an engineering director directs a team.",
+    "longDescription": "Seismic is a spatial canvas on which you direct AI coding agents like an engineering director directs a team.",
     "homepage": "https://obeya.si",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "externalBin": ["binaries/obeya-server"],

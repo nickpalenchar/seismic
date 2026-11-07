@@ -169,7 +169,8 @@ test('a session’s configuration: the resolved model over the alias, a Codex mo
   expect(checkedFeedback({ answer: { rating: 0 }, facets: {} })).toEqual({ answer: { rating: 0 } });
 });
 
-test('approved work asks for feedback until answered, and the answer stands on the card through a restart', () => {
+test('archiving after the landing, approved work asks for feedback until answered, and the answer stands on the card through a restart', () => {
+  board.archiving = () => 'landed';
   const card = manual();
   board.log(card.id, 'review', 'worker', 'Done.');
   const handover = store.handover(card.id)!.id;
@@ -183,6 +184,7 @@ test('approved work asks for feedback until answered, and the answer stands on t
   expect(board.item(card.id)!.rate).toEqual({ handover, answer: { rating: 4, comment: 'Clean.' } });
   // read afresh, as after a restart
   const again = new Board(store, board.canvas, () => ({ docs, dirs: [] }));
+  again.archiving = () => 'landed';
   expect(again.item(card.id)!.rate).toEqual({ handover, answer: { rating: 4, comment: 'Clean.' } });
   // work handed over again after more work asks about its new handover
   board.work(card.id, { state: 'waiting' });
@@ -192,6 +194,7 @@ test('approved work asks for feedback until answered, and the answer stands on t
 });
 
 test('work that changed nothing asks too once done; a prompt left unanswered stays', () => {
+  board.archiving = () => 'landed';
   const card = manual();
   board.log(card.id, 'review', 'worker', 'Nothing to change.');
   board.work(card.id, { state: 'done', approved_at: new Date().toISOString() });
@@ -202,6 +205,49 @@ test('work that changed nothing asks too once done; a prompt left unanswered sta
   expect(board.item(bare.id)!.rate).toBeUndefined();
 });
 
+test('archiving by hand, a card asks for feedback once the owner archives it; a workstream, which goes with its project, once approved', () => {
+  const card = manual();
+  board.log(card.id, 'review', 'worker', 'Done.');
+  const handover = store.handover(card.id)!.id;
+  board.work(card.id, { state: 'live', approved_at: new Date().toISOString() });
+  expect(board.item(card.id)!.rate).toBeUndefined();
+  board.archive([card.id]);
+  expect(board.card(card.id)!.rate).toEqual({ handover });
+  expect(board.archived().find((i) => i.id === card.id)!.rate).toEqual({ handover });
+  // and takes the answer there
+  board.giveFeedback(card.id, { answer: { rating: 4 }, handover });
+  expect(board.card(card.id)!.rate).toEqual({ handover, answer: { rating: 4 } });
+  // back on the canvas, it waits to be archived again
+  board.unarchive(card.id);
+  expect(board.item(card.id)!.rate).toBeUndefined();
+  const w = board.snapshot().items.find((i) => i.label === 'W1')!;
+  board.log(w.id, 'review', 'worker', 'Done.');
+  board.work(w.id, { state: 'approved', approved_at: new Date().toISOString() });
+  expect(board.item(w.id)!.rate).toEqual({ handover: store.handover(w.id)!.id });
+});
+
+test('archiving after the landing, a finished card goes into the archive once its worker is done, and one still at work stays', () => {
+  board.archiving = () => 'landed';
+  const card = manual();
+  board.work(card.id, { state: 'live', workspace: '/tmp/somewhere', landed: '{}' });
+  board.work(card.id, { workspace: null, landed: null });
+  board.workDone(card.id);
+  expect(board.snapshot().items.some((i) => i.id === card.id)).toBe(false);
+  expect(board.archived().map((i) => i.id)).toContain(card.id);
+  // archiving by hand, it stays where it is
+  board.archiving = () => 'manual';
+  const other = manual();
+  board.work(other.id, { state: 'live' });
+  board.workDone(other.id);
+  expect(board.snapshot().items.some((i) => i.id === other.id)).toBe(true);
+  // a workstream goes with its project, not on its own
+  board.archiving = () => 'landed';
+  const w = board.snapshot().items.find((i) => i.label === 'W1')!;
+  board.work(w.id, { state: 'live' });
+  board.workDone(w.id);
+  expect(board.archived().map((i) => i.id)).not.toContain(w.id);
+});
+
 test('turned off, no card asks for feedback and the responses given stay', () => {
   const card = manual();
   board.log(card.id, 'review', 'worker', 'Done.');
@@ -209,6 +255,7 @@ test('turned off, no card asks for feedback and the responses given stay', () =>
   board.giveFeedback(card.id, { answer: { rating: 5 } });
   let asks = false;
   const off = new Board(store, board.canvas, () => ({ docs, dirs: [] }), undefined, undefined, () => 'de', undefined, () => asks);
+  off.archiving = () => 'landed';
   expect(off.item(card.id)!.rate).toBeUndefined();
   expect(off.feedback(card.id)).toHaveLength(1);
   asks = true;

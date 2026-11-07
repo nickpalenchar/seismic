@@ -1,4 +1,5 @@
 // Native installed Codex app-server adapter. Worker routing and portability live separately.
+import { bothNames, seismicEnv } from '../core/env';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { homedir } from 'node:os';
 import { realpathSync } from 'node:fs';
@@ -12,8 +13,13 @@ import { codexConnection, CodexRpcError, type CodexConnection, type CodexHandler
 import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from './runtime';
 
 // Codex reserves mcp__ names for actual MCP servers. Keep its wire name separate from the
-// canonical identity consumed by Obeya's existing orchestration.
-const wirePrefix = 'obeya_';
+// canonical identity consumed by Seismic's existing orchestration.
+const wirePrefix = 'seismic_';
+// A resumed thread keeps the tool definitions it was started with, so a session started before the
+// rename still calls `obeya_report` and the like: those dispatch to today's tools. The execution
+// tools carried a prefix of their own then, doubled on the wire.
+const renamed: Record<string, string> = { obeya_obeya_run: 'seismic_run', obeya_obeya_git: 'seismic_git', obeya_to_obeya: 'seismic_to_seismic', seismic_to_obeya: 'seismic_to_seismic' };
+const currentName = (name: string) => renamed[name] ?? name.replace(/^obeya_/, wirePrefix);
 const threadResult = z.object({ thread: z.object({ id: z.string().min(1) }), model: z.string() });
 const turnResult = z.object({ turn: z.object({ id: z.string().min(1) }) });
 const modelPage = z.object({
@@ -24,6 +30,18 @@ const backgroundPage = z.object({ data: z.array(z.object({ itemId: z.string(), c
 const turnEvent = z.object({ turn: z.object({ id: z.string(), status: z.string(), error: z.object({ message: z.string(), codexErrorInfo: z.unknown() }).nullable().optional() }) });
 const toolCall = z.object({ threadId: z.string(), turnId: z.string(), callId: z.string(), namespace: z.string().nullable(), tool: z.string(), arguments: z.unknown() });
 const jsonObject = z.record(z.string(), z.unknown());
+// Codex marks the review notifications unstable: only what Seismic shows of them is read
+const autoReview = z.object({ review: z.object({ status: z.string(), rationale: z.string().nullish() }), action: jsonObject });
+
+/** What Codex's automatic review judged, as the tool call the conversation names. */
+function reviewedAction(action: Record<string, unknown>): { name: string; input: Record<string, unknown> } {
+  if (action.type === 'command') return { name: 'Bash', input: { command: action.command } };
+  if (action.type === 'execve') return { name: 'Bash', input: { command: [action.program, ...(Array.isArray(action.argv) ? action.argv.slice(1) : [])].join(' ') } };
+  if (action.type === 'applyPatch') return { name: 'Edit', input: { file_path: Array.isArray(action.files) ? action.files.join(', ') : '' } };
+  if (action.type === 'networkAccess') return { name: `Network: ${action.target}`, input: {} };
+  const { type, ...input } = action;
+  return { name: String(type), input };
+}
 const rateLimitWindow = z.object({ usedPercent: z.number(), resetsAt: z.number().nullable().optional() }).nullable().optional();
 const rateLimitSnapshot = z.object({ limitId: z.string().nullable().optional(), primary: rateLimitWindow, secondary: rateLimitWindow, rateLimitReachedType: z.unknown().optional() });
 const rateLimitsUpdate = z.object({ rateLimits: rateLimitSnapshot });
@@ -31,7 +49,7 @@ const rateLimitsUpdate = z.object({ rateLimits: rateLimitSnapshot });
 /**
  * When the usage limit that failed a Codex turn lifts (milliseconds), as far as Codex says: the last
  * reset of the windows its rate-limit updates report used up, else the time its message names
- * („… or try again at 10:38 PM.“, „… try again at Nov 5th, 2026 10:38 PM.“, the machine's own
+ * ("… or try again at 10:38 PM.", "… try again at Nov 5th, 2026 10:38 PM.", the machine's own
  * clock), else the last reset of a limit it reports reached (an update that lags the refusal says
  * 99 % used), else nothing, and the worker tries again later.
  */
@@ -91,7 +109,7 @@ export function projectTrust(cwd: string, trusted: boolean): string {
  * introducing a shell into the transport.
  */
 function installedCodex(): string | null {
-  const executable = Bun.which(process.env.OBEYA_CODEX ?? 'codex', { PATH: process.env.PATH ?? '' });
+  const executable = Bun.which(seismicEnv('CODEX') ?? 'codex', { PATH: process.env.PATH ?? '' });
   return executable && isAbsolute(executable) && !/\.(cmd|bat|ps1)$/i.test(executable) ? executable : null;
 }
 
@@ -106,11 +124,11 @@ export function codexConnected(): boolean {
 type Connect = (spec: AgentSpec, handlers: CodexHandlers) => CodexConnection;
 const connectInstalled: Connect = (spec, handlers) => {
   const executable = installedCodex();
-  if (!executable) throw new Error('Installed Codex executable unavailable; set OBEYA_CODEX to its native executable path');
-  // An earlier Obeya crashed and its sweep could not end this workspace's old session: a new one
-  // could write beside it. The sweep tries again when Obeya next starts.
+  if (!executable) throw new Error('Installed Codex executable unavailable; set SEISMIC_CODEX to its native executable path');
+  // An earlier Seismic crashed and its sweep could not end this workspace's old session: a new one
+  // could write beside it. The sweep tries again when Seismic next starts.
   const left = sessionRegistry()?.unaccounted(spec.cwd);
-  if (left?.length) throw new Error(`An earlier session in this workspace left processes that are still running (${left.map((l) => l.label).join('; ')}); Obeya tries to end them when it starts`);
+  if (left?.length) throw new Error(`An earlier session in this workspace left processes that are still running (${left.map((l) => l.label).join('; ')}); Seismic tries to end them when it starts`);
   return codexConnection({
     command: executable,
     args: ['app-server', '--listen', 'stdio://', '-c', projectTrust(spec.cwd, !!spec.codexConfig)],
@@ -122,18 +140,20 @@ const connectInstalled: Connect = (spec, handlers) => {
 
 /**
  * The sandbox a Codex worker runs in: Codex's `workspace-write`, which keeps it in its workspace
- * and the temporary directories with no network. `OBEYA_CODEX_SANDBOX=danger-full-access` in the
- * environment of Obeya lifts it, for a time when the sandbox stops work more than it protects
- * (loopback servers, browsers, the demos); Codex then asks only for what it holds dangerous.
+ * and the temporary directories with no network. `SEISMIC_CODEX_SANDBOX=danger-full-access` in the
+ * environment of Seismic lifts it, for a time when the sandbox stops work more than it protects
+ * (loopback servers, browsers, the demos); Codex then asks only for what it holds dangerous. The
+ * name from before the rename, `OBEYA_CODEX_SANDBOX`, counts where the new one is not set.
  */
 export function codexSandbox(env: Record<string, string | undefined> = process.env): 'workspace-write' | 'danger-full-access' {
-  const choice = env.OBEYA_CODEX_SANDBOX;
+  const name = env.SEISMIC_CODEX_SANDBOX !== undefined ? 'SEISMIC_CODEX_SANDBOX' : 'OBEYA_CODEX_SANDBOX';
+  const choice = env[name];
   if (choice === 'danger-full-access') {
-    if (!warnedUnsandboxed) console.warn('Obeya: Codex workers run without a sandbox (OBEYA_CODEX_SANDBOX=danger-full-access)');
+    if (!warnedUnsandboxed) console.warn(`Seismic: Codex workers run without a sandbox (${name}=danger-full-access)`);
     warnedUnsandboxed = true;
     return choice;
   }
-  if (choice && choice !== 'workspace-write') console.warn(`Obeya: OBEYA_CODEX_SANDBOX=${choice} is neither workspace-write nor danger-full-access; Codex workers keep the workspace-write sandbox`);
+  if (choice && choice !== 'workspace-write') console.warn(`Seismic: ${name}=${choice} is neither workspace-write nor danger-full-access; Codex workers keep the workspace-write sandbox`);
   return 'workspace-write';
 }
 let warnedUnsandboxed = false;
@@ -142,7 +162,6 @@ let warnedUnsandboxed = false;
 function supported(spec: AgentSpec) {
   const unsupported = [
     !isAbsolute(spec.cwd) || spec.cwd.startsWith('ssh://') ? 'non-local working directory' : '',
-    spec.readOnly ? 'read-only tool restrictions' : '',
     spec.untrusted ? 'untrusted repository configuration' : '',
     spec.plugins?.length ? 'Claude plugins' : '',
     spec.dirs?.some((d) => !isAbsolute(d)) ? 'non-local additional workspace roots' : '',
@@ -164,7 +183,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
     start(spec, firstMessage, images) {
       supported(spec);
       const tools = new Map(spec.tools.map((t) => [wirePrefix + t.name, { tool: t, schema: z.object(t.schema).strict() }]));
-      if (tools.size !== spec.tools.length) throw new Error('Duplicate Obeya tool name');
+      if (tools.size !== spec.tools.length) throw new Error('Duplicate Seismic tool name');
       const dynamicTools = [...tools].map(([name, { tool, schema }]) => ({ type: 'function', name, description: tool.description, inputSchema: z.toJSONSchema(schema) }));
       const queue: { text: string; images: string[] }[] = [];
       const completed = new Set<string>();
@@ -324,6 +343,10 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
             settle = true;
             idlePending = true;
             void pump();
+          } else if (method === 'item/autoApprovalReview/completed') {
+            // Codex's own review refused what the worker wanted outside its sandbox: shown as auto mode's refusals are
+            const review = autoReview.safeParse(params);
+            if (review.success && params.turnId === turn && (review.data.review.status === 'denied' || review.data.review.status === 'timedOut')) emit({ type: 'denied', ...reviewedAction(review.data.action), by: 'classifier', ...(review.data.review.rationale ? { reason: review.data.review.rationale } : {}) });
           } else if (method === 'item/agentMessage/delta') {
             if (params.turnId === turn) emit({ type: 'text', text: z.string().parse(params.delta) });
           } else if (method === 'item/started') {
@@ -331,7 +354,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
             const item = jsonObject.parse(params.item);
             if (item.type === 'commandExecution') emit({ type: 'tool', name: 'Bash', input: { command: item.command, cwd: item.cwd } });
             else if (item.type === 'fileChange') emit({ type: 'tool', name: 'Edit', input: { changes: item.changes } });
-            // Obeya tools are emitted at dispatch, not twice (here and item/tool/call).
+            // Seismic tools are emitted at dispatch, not twice (here and item/tool/call).
           }
           if (method === 'item/completed' && params.turnId === turn) {
             const item = jsonObject.parse(params.item);
@@ -346,18 +369,18 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
         } catch (error) { fail(error); }
       }
       async function serverRequest(method: string, params: Record<string, unknown>, requestId?: string | number): Promise<unknown> {
-        if (closing || !thread || params.threadId !== thread || !turn || params.turnId !== turn) throw new CodexRpcError(-32602, 'Request does not belong to the active Obeya thread and turn');
+        if (closing || !thread || params.threadId !== thread || !turn || params.turnId !== turn) throw new CodexRpcError(-32602, 'Request does not belong to the active Seismic thread and turn');
         if (method === 'item/tool/call') {
           const call = toolCall.parse(params);
           const key = `${call.turnId}:${call.callId}`;
           const existing = toolResults.get(key);
           if (existing) return existing;
           const result = (async () => {
-            const entry = call.namespace === null ? tools.get(call.tool) : undefined;
-            if (!entry) return { contentItems: [{ type: 'inputText', text: 'Unknown Obeya tool' }], success: false };
+            const entry = call.namespace === null ? tools.get(currentName(call.tool)) : undefined;
+            if (!entry) return { contentItems: [{ type: 'inputText', text: 'Unknown Seismic tool' }], success: false };
             try {
               const args = entry.schema.parse(call.arguments);
-              emit({ type: 'tool', name: `mcp__obeya__${entry.tool.name}`, input: args });
+              emit({ type: 'tool', name: `mcp__seismic__${entry.tool.name}`, input: args });
               const text = await entry.tool.run(args);
               const update = spec.contextUpdate?.();
               return { contentItems: [{ type: 'inputText', text: update ? `${text}\n\n${update}` : text }], success: true };
@@ -394,8 +417,8 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
           emit({ type: 'denied', name: 'permissions', input: params, by: 'mode', reason: 'Extended permission profiles are not supported by the Codex worker' });
           return { permissions: {}, scope: 'turn' };
         }
-        // Native requestUserInput isn't Obeya's shared question workflow. Agents must use ask.
-        throw new CodexRpcError(-32601, `Unsupported Codex request: ${method}; use the Obeya tools`);
+        // Native requestUserInput isn't Seismic's shared question workflow. Agents must use ask.
+        throw new CodexRpcError(-32601, `Unsupported Codex request: ${method}; use the Seismic tools`);
       }
       void (async () => {
         try {
@@ -409,9 +432,10 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
           imageSupport = model.inputModalities.includes('image');
           const config = {
             ...(spec.dirs?.length ? { 'sandbox_workspace_write.writable_roots': spec.dirs } : {}),
-            ...(connection.pid ? { 'shell_environment_policy.set': { OBEYA_AGENT_PID: String(connection.pid) } } : {}),
+            ...(connection.pid ? { 'shell_environment_policy.set': bothNames({ AGENT_PID: String(connection.pid) }) } : {}),
           };
-          const params = { cwd: spec.cwd, model: model.model, developerInstructions: spec.system, approvalPolicy: 'on-request', sandbox: codexSandbox(), config };
+          // a read-only agent (a code review) reads and runs what only reads, and asks nobody
+          const params = { cwd: spec.cwd, model: model.model, developerInstructions: spec.system, approvalPolicy: spec.readOnly ? 'never' : 'on-request', approvalsReviewer: spec.autoReview && !spec.readOnly ? 'auto_review' : 'user', sandbox: spec.readOnly ? 'read-only' : codexSandbox(), config };
           const result = threadResult.parse(await connection.request(spec.resume ? 'thread/resume' : 'thread/start', spec.resume ? { ...params, threadId: spec.resume.slice('codex:'.length) } : { ...params, dynamicTools }));
           if (closing) return;
           if (result.model !== model.model) throw new Error(`Codex substituted model ${result.model} for ${model.model}`);
@@ -443,7 +467,7 @@ async function checkProjectConfig(connection: CodexConnection, spec: AgentSpec) 
 }
 
 async function discover(connection: CodexConnection, closing: () => boolean): Promise<CodexModel[]> {
-  await connection.request('initialize', { clientInfo: { name: 'obeya', title: 'Obeya', version: '0.1.0' }, capabilities: { experimentalApi: true } });
+  await connection.request('initialize', { clientInfo: { name: 'obeya', title: 'Seismic', version: '0.1.0' }, capabilities: { experimentalApi: true } });
   if (closing()) return [];
   connection.notify('initialized', {});
   const models: CodexModel[] = [];

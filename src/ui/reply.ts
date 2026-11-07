@@ -1,5 +1,5 @@
 // The message a field's words reply to, as in chat apps: the field under a card's conversation or
-// in Obeya's sheet shows it as a quote, and what the owner types or says next goes with it. It is
+// in Seismic's sheet shows it as a quote, and what the owner types or says next goes with it. It is
 // part of the field's draft (`draft.ts`), so it outlives closing the card and a page load.
 
 import type { CardEvent, TalkQuote, TalkRef } from '../core/types';

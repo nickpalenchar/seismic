@@ -68,7 +68,7 @@ const opens = (headers: Record<string, string>) =>
   });
 
 describe('keeping the machine awake', () => {
-  test('off while other devices may not reach Obeya; while a worker works by default, or always as the owner sets it', async () => {
+  test('off while other devices may not reach Seismic; while a worker works by default, or always as the owner sets it', async () => {
     expect(access.awake()).toBe('off');
     await turnOn({ via: 'tailscale' });
     expect(access.awake()).toBe('works');
@@ -83,14 +83,14 @@ describe('keeping the machine awake', () => {
 });
 
 describe('through Tailscale', () => {
-  test('off by default: the tailnet name is not one of Obeya’s', async () => {
+  test('off by default: the tailnet name is not one of Seismic’s', async () => {
     expect((await view()).remote).toBeNull();
     expect((await viaTailnet('/')).status).toBe(421);
     expect(existsSync(join(ts, 'calls')) && readFileSync(join(ts, 'calls'), 'utf8')).not.toContain('serve --bg');
   });
 
-  test('turned on, Obeya serves its port over HTTPS at the tailnet name, and off removes only that entry', async () => {
-    // something else serves on 443 already: Obeya takes the next port and leaves it be
+  test('turned on, Seismic serves its port over HTTPS at the tailnet name, and off removes only that entry', async () => {
+    // something else serves on 443 already: Seismic takes the next port and leaves it be
     writeFileSync(join(ts, 'serve.json'), JSON.stringify({ TCP: { 443: { HTTPS: true } }, Web: { [`${NAME}:443`]: { Handlers: { '/': { Proxy: 'http://127.0.0.1:3000' } } } } }));
     const on = await turnOn();
     expect(on.tailscale).toEqual({ state: 'ready', name: NAME, account: 'owner@example.com', others: 1 });
@@ -104,7 +104,7 @@ describe('through Tailscale', () => {
     expect(config().Web[`${NAME}:443`].Handlers['/'].Proxy).toBe('http://127.0.0.1:3000');
   });
 
-  test('stopping, Obeya removes its entry: what takes the port next is not served to the tailnet', async () => {
+  test('stopping, Seismic removes its entry: what takes the port next is not served to the tailnet', async () => {
     await turnOn();
     access.release();
     expect(JSON.parse(readFileSync(join(ts, 'serve.json'), 'utf8')).Web[`${NAME}:443`]).toBeUndefined();
@@ -119,7 +119,7 @@ describe('through Tailscale', () => {
     expect(v.tailscale).toEqual({ state: 'noHttps', name: NAME });
     expect(v.address).toBeNull();
     expect(readFileSync(join(ts, 'calls'), 'utf8')).not.toContain('serve --bg');
-    // once HTTPS is on, the section's next look serves Obeya
+    // once HTTPS is on, the section's next look serves Seismic
     tailscaleStatus(ts, { state: 'Running', name: NAME, https: true });
     expect((await view()).address).toBe(`https://${NAME}`);
     const missing = new Access({ store, tailscale: new Tailscale(null) });
@@ -160,7 +160,7 @@ describe('pairing', () => {
     await turnOn();
     const page = await viaTailnet('/');
     expect(page.status).toBe(401);
-    expect(await page.text()).toContain('Dieses Gerät ist nicht mit Obeya verbunden');
+    expect(await page.text()).toContain('Dieses Gerät ist nicht mit Seismic verbunden');
     expect(await (await viaTailnet('/api/canvases')).json()).toMatchObject({ code: 'notPaired' });
     expect(await opens({ host: NAME, 'x-forwarded-for': '100.64.0.7', origin: `https://${NAME}` })).toBeNull();
     // this machine itself needs none
@@ -334,7 +334,7 @@ describe('push', () => {
 describe('on another address', () => {
   const lan = machineAddresses().find((a) => !a.includes(':'));
 
-  test.skipIf(!lan)("Obeya listens there too, in plain HTTP, and a phone there pairs as through Tailscale", async () => {
+  test.skipIf(!lan)("Seismic listens there too, in plain HTTP, and a phone there pairs as through Tailscale", async () => {
     const on = await turnOn({ via: 'address', address: lan });
     expect(on.address).toBe(`http://${lan}:${server.port}`);
     const there = (path: string, headers: Record<string, string> = {}) => fetch(`http://${lan}:${server.port}${path}`, { redirect: 'manual', headers: { 'user-agent': IPHONE, ...headers } });

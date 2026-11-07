@@ -1,14 +1,14 @@
-// One Obeya per home: two serving one database on one port would trip over each other. A running
-// Obeya writes where it answers into its home (`server.json`), and a second start on that home
+// One Seismic per home: two serving one database on one port would trip over each other. A running
+// Seismic writes where it answers into its home (`server.json`), and a second start on that home
 // finds it there: the checkout says where it runs and ends, the app (app/) opens a window on it.
 
 import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ownerHeaders } from './owner';
 
-/** What a running Obeya writes into its home. */
+/** What a running Seismic writes into its home. */
 export interface Instance {
-  /** The process that stays for as long as this Obeya runs: the supervisor, else the server. */
+  /** The process that stays for as long as this Seismic runs: the supervisor, else the server. */
   pid: number;
   port: number;
   url: string;
@@ -23,10 +23,10 @@ export interface Instance {
 
 export const INSTANCE_FILE = 'server.json';
 
-/** Writes that this Obeya answers in `home`. */
+/** Writes that this Seismic answers in `home`. */
 export function claim(home: string, instance: Instance) {
   const file = join(home, INSTANCE_FILE);
-  // written whole or not at all: the app reads it while Obeya starts
+  // written whole or not at all: the app reads it while Seismic starts
   writeFileSync(`${file}.tmp`, `${JSON.stringify(instance, null, 2)}\n`);
   renameSync(`${file}.tmp`, file);
 }
@@ -47,7 +47,7 @@ export function takenOver(home: string, pid: number) {
   if (i?.pid === pid) claim(home, { ...i, takenOver: true });
 }
 
-/** How long a start waits for an Obeya that is starting again. */
+/** How long a start waits for an Seismic that is starting again. */
 export const RESTART_GRACE_MS = 90_000;
 
 /** Removes the entry, if it is still the one process `pid` wrote. */
@@ -55,7 +55,7 @@ export function release(home: string, pid: number) {
   if (recorded(home)?.pid === pid) rmSync(join(home, INSTANCE_FILE), { force: true });
 }
 
-/** The entry in `home`, whether or not that Obeya still runs. */
+/** The entry in `home`, whether or not that Seismic still runs. */
 export function recorded(home: string): Instance | null {
   try {
     const i = JSON.parse(readFileSync(join(home, INSTANCE_FILE), 'utf8')) as Instance;
@@ -84,7 +84,7 @@ const answers = async (url: string, home: string) => {
 };
 
 /**
- * The Obeya that runs on `home`, if one does: its process is alive and its URL answers. A process
+ * The Seismic that runs on `home`, if one does: its process is alive and its URL answers. A process
  * that is alive but does not answer may be restarting, so it is given `graceMs` to come back
  * (`restartGraceMs` when its entry says so); one that stays silent is another program that got
  * the pid, and the entry is stale.

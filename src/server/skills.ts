@@ -10,7 +10,7 @@ import type { Skill } from '../core/types';
 import { OBEYA_PLUGIN } from './demo';
 import { claudeExecutable, cleanEnv, spawnHere } from './runtime';
 
-/** The portable Obeya skills shipped with this app, without starting a Claude process. */
+/** The portable Seismic skills shipped with this app, without starting a Claude process. */
 export function bundledSkills(): (Skill & { file: string })[] {
   return readdirSync(join(OBEYA_PLUGIN, 'skills'), { withFileTypes: true })
     .filter((e) => e.isDirectory())
@@ -43,7 +43,7 @@ const ANSWER_MS = 20_000;
 /**
  * The commands Claude Code lists that the owner may name: those of the repository, the user and
  * plugins, and of its own those that are skills (`/code-review`); not its controls of the session
- * (`/compact`, `/model`), which Obeya runs itself. Each name once, sorted.
+ * (`/compact`, `/model`), which Seismic runs itself. Each name once, sorted.
  */
 export function skillsOf(commands: SlashCommand[], skillNames: Set<string>): Skill[] {
   const byName = new Map<string, { skill: Skill; rank: number }>();
@@ -129,7 +129,7 @@ export class Skills {
     if (!asking) {
       asking = this.list(place)
         .catch((e) => {
-          console.error(`Obeya: Claude Code did not list the skills in ${place.cwd}: ${e instanceof Error ? e.message : String(e)}`);
+          console.error(`Seismic: Claude Code did not list the skills in ${place.cwd}: ${e instanceof Error ? e.message : String(e)}`);
           return null;
         })
         .then((skills) => {

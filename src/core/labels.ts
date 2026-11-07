@@ -33,7 +33,7 @@ export const LABEL_NAMES: Record<Category | Subcategory, string> = {
 /** The numeric complexity scale, for a prompt. */
 export const complexityScale = () => COMPLEXITIES.join(', ');
 
-/** A card's labels, each empty until the owner or Obeya's suggestion sets it. */
+/** A card's labels, each empty until the owner or Seismic's suggestion sets it. */
 export interface Labels {
   category?: Category;
   subcategory?: Subcategory;
@@ -64,10 +64,19 @@ export const PRIORITY_NAMES: Record<Priority, string> = {
   critical: 'Critical',
 };
 
-/** What a canvas lets Obeya suggest, a toggle each: category goes with its sub-category. */
-export type SuggestToggles = { category: boolean; complexity: boolean; priority: boolean };
+/** The canvas's toggles for what Seismic suggests ("Seismic suggests"): category goes with its sub-category. */
+export const SUGGEST_TOGGLES = ['category', 'complexity', 'priority'] as const;
+export type SuggestToggle = (typeof SUGGEST_TOGGLES)[number];
+export type SuggestToggles = Record<SuggestToggle, boolean>;
 export const SUGGEST_ALL: SuggestToggles = { category: true, complexity: true, priority: true };
 
-/** The labels the toggles let Obeya suggest; a toggle not given is on. */
-export const suggestable = (t: Partial<SuggestToggles> = {}): Label[] =>
-  LABELS.filter((l) => t[l === 'subcategory' ? 'category' : (l as keyof SuggestToggles)] !== false);
+/** Which labels Seismic may suggest on a canvas; a toggle left out (a label added later, a canvas from before) is on. */
+export type SuggestSettings = Partial<SuggestToggles>;
+
+/** Every toggle, each on where `s` leaves it out. */
+export const suggestToggles = (s: SuggestSettings | undefined): SuggestToggles =>
+  Object.fromEntries(SUGGEST_TOGGLES.map((k) => [k, s?.[k] !== false])) as SuggestToggles;
+
+/** The labels the toggles let Seismic suggest; a toggle not given is on. */
+export const suggestable = (t: SuggestSettings = {}): Label[] =>
+  LABELS.filter((l) => t[l === 'subcategory' ? 'category' : (l as SuggestToggle)] !== false);

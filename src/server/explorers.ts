@@ -35,7 +35,7 @@ export interface ExplorerOptions {
   imageFiles?: (ids?: string[]) => string[];
   /** The agent answered all it was told and its session ended (`replied`), or its turn ended without (an error, a restart). */
   onReplied?: (cardId: string, replied: boolean) => void;
-  /** Passes on to the Koordinator what the owner's words to the idea's agent ask of Obeya (`to_obeya`); without it the agent has no such tool. */
+  /** Passes on to the Koordinator what the owner's words to the idea's agent ask of Seismic (`to_seismic`); without it the agent has no such tool. */
   toObeya?: (cardId: string, request: string) => Promise<string>;
   /** How long an ended turn waits for a sign of the agent once none of its background work runs (any more). */
   backgroundGrace?: number;
@@ -157,7 +157,7 @@ export class Explorers {
   }
 
   /**
-   * Obeya tells the agent something the owner did not say (a prototype's result). `quiet`: it is
+   * Seismic tells the agent something the owner did not say (a prototype's result). `quiet`: it is
    * for the brief only (an answer given on a prototype), and the turn's words are no reply.
    */
   tell(cardId: string, text: string, quiet = false) {
@@ -212,7 +212,7 @@ export class Explorers {
         continue;
       }
       // with its repository not on the canvas, what it has not answered waits for the owner's next words
-      if (this.o.board.row(i.id).session_id && !i.repoDown) this.send(i, 'Obeya was restarted while you worked on your reply. Answer the owner’s last message now.');
+      if (this.o.board.row(i.id).session_id && !i.repoDown) this.send(i, 'Seismic was restarted while you worked on your reply. Answer the owner’s last message now.');
       else {
         this.o.board.setIdea(i.id, { thinking: false });
         this.o.onReplied?.(i.id, false);
@@ -221,7 +221,7 @@ export class Explorers {
   }
 
   /**
-   * Obeya stops: a session that started resumes with the message of its turn, but what waited for
+   * Seismic stops: a session that started resumes with the message of its turn, but what waited for
    * it would be lost; a session that never started loses its turn too.
    */
   shutdown() {
@@ -234,7 +234,7 @@ export class Explorers {
     this.live.clear();
   }
 
-  /** `owner`: the owner's words, which let a paused agent go on; what Obeya tells it waits with what it has not answered yet. */
+  /** `owner`: the owner's words, which let a paused agent go on; what Seismic tells it waits with what it has not answered yet. */
   private send(card: Item, message: string, images: string[] = [], quiet = false, said: number[] = [], owner = false) {
     // the owner's words let an agent about to pause after its reply go on, as they do a paused one
     if (owner && this.o.board.row(card.id).pausing) this.pauseTakenBack(card.id);
@@ -321,7 +321,7 @@ export class Explorers {
   private onEvent(cardId: string, live: Live, e: AgentEvent) {
     if (this.live.get(cardId) !== live) return;
     if (e.type === 'background') return live.work.changed(e.tasks.length);
-    // a turn may also start without a message from Obeya (a finished background command)
+    // a turn may also start without a message from Seismic (a finished background command)
     live.work.stop();
     switch (e.type) {
       case 'session':
@@ -481,7 +481,7 @@ export class Explorers {
       },
       {
         name: 'plan_repo',
-        description: `When the owner wants the idea built in a repository that does not exist yet ("in a new repo under ~/dev/super59"): path, its folder (absolute or from ~), and canvas: true for a canvas of its own (the default), false where the owner wants the repository on this canvas beside the others. The card's repository picker then shows it, and its button builds it there: Obeya creates the folder and a local git repository (no remote, nothing published), a canvas named after it, moves this idea there with all it holds (brief, conversation, mocks, decisions) and builds it there; the worker hears the repository is new and sets it up (CLAUDE.md, Obeya's settings). The whole value each time; an empty path when it is to be built in an existing repository again. What the owner picked on the card stands: you do not change it.`,
+        description: `When the owner wants the idea built in a repository that does not exist yet ("in a new repo under ~/dev/super59"): path, its folder (absolute or from ~), and canvas: true for a canvas of its own (the default), false where the owner wants the repository on this canvas beside the others. The card's repository picker then shows it, and its button builds it there: Seismic creates the folder and a local git repository (no remote, nothing published), a canvas named after it, moves this idea there with all it holds (brief, conversation, mocks, decisions) and builds it there; the worker hears the repository is new and sets it up (CLAUDE.md, Seismic's settings). The whole value each time; an empty path when it is to be built in an existing repository again. What the owner picked on the card stands: you do not change it.`,
         schema: { path: z.string(), canvas: z.boolean().optional() },
         run: ({ path, canvas }) => {
           const p = clip(String(path ?? '').trim(), 1000);
@@ -541,9 +541,9 @@ export class Explorers {
     const prototypes = card.prototypes ?? [];
     const shown = prototypes.slice(-MAX_VARIANTS);
     if (!brief.trim() && !mocks.length && !variants.length && !split && !repo && !prototypes.length && !talk.some((e) => e.author === 'explorer')) return '';
-    const who = (e: CardEvent) => (e.author === 'owner' ? 'Owner' : e.author === 'explorer' ? 'You' : 'Obeya');
+    const who = (e: CardEvent) => (e.author === 'owner' ? 'Owner' : e.author === 'explorer' ? 'You' : 'Seismic');
     return [
-      'This idea was discussed before, in a session of yours that is gone. Where it stands, as Obeya keeps it; go on from there, and keep in the brief what still holds:',
+      'This idea was discussed before, in a session of yours that is gone. Where it stands, as Seismic keeps it; go on from there, and keep in the brief what still holds:',
       brief.trim() ? `The brief as you left it:\n\n${brief.trim()}` : '',
       mocks.length ? `The brief's mocks, shown under it (update_brief without mocks keeps them): ${mocks.map((m) => `“${m.title}”`).join(', ')}.` : '',
       variants.length ? `The prototypes you planned (plan_prototypes):\n${variants.map((v) => `- ${v.approach}: ${v.show}`).join('\n')}` : '',
@@ -578,7 +578,7 @@ const system = (language: Language, ui: Language, repository: Language, toObeya:
   const w = WORDS[language];
   const [goal, today, variants, decisions, open, effort] = w.parts.map((p) => `**${p}**`);
   return `
-You are the exploration agent of one idea on Obeya, a canvas on which the owner directs coding agents like an engineering director directs a team. The owner wants to think the idea through with you before anything is planned or built. It is one long conversation; it may go on days later.
+You are the exploration agent of one idea on Seismic, a canvas on which the owner directs coding agents like an engineering director directs a team. The owner wants to think the idea through with you before anything is planned or built. It is one long conversation; it may go on days later.
 
 Your sources are the code, the repository's docs and plan docs, and what the messages give you (decisions taken so far, the owner's preferences). You have the tools a worker has: what the discussion depends on beyond the text (the git history, files on this machine and their dates, a release, pull request or CI run on GitHub with gh, a page on the web), check rather than guess. Nothing you do yourself starts work.${toObeya ? `\n\n${TO_OBEYA}` : ''}
 
@@ -593,7 +593,7 @@ How to work:
 - When a variant is something to look at (a layout, a card, a dialog), show it with a mock in the brief: a few lines of HTML the card shows beside the brief. A mock is a sketch of how it looks, not working code; a prototype is for what a sketch cannot show.
 
 Tools, within a turn in this order:
-- record_decision: when the owner decided something in the message. General preferences (how they like to work) are not decisions; Obeya learns those on its own.
+- record_decision: when the owner decided something in the message. General preferences (how they like to work) are not decisions; Seismic learns those on its own.
 - update_brief: keep the brief current whenever the conversation changed it. It has these parts, as short bold-labelled paragraphs or lists: ${goal}, ${today} (what the code does today, when it matters), ${variants} (open and dropped ones, each with why), ${decisions}, ${open}, and ${effort} once you can say. An answered question leaves the open questions; what it decided goes where it belongs. Whoever opens the card later reads only the brief, so it must stand on its own. When the owner builds the idea as it stands, the brief is the worker's task.
 - plan_prototypes: whenever the brief plans prototypes you have not passed to it yet, or the plan changes (which variants are to be seen side by side, and what each is to show). The owner then starts them all with one click, one worker per variant.
 - plan_split: whenever part of the idea is settled while the rest is still open, or that split changes or goes: the part to build now, as one worker's task.
@@ -612,7 +612,7 @@ Owner-facing text (your replies, the brief, its mocks, prototypes and split-off 
 `.trim();
 };
 
-const OWN_TOOLS = ['reply', 'update_brief', 'plan_prototypes', 'plan_split', 'plan_repo', 'record_decision', 'to_obeya'];
+const OWN_TOOLS = ['reply', 'update_brief', 'plan_prototypes', 'plan_split', 'plan_repo', 'record_decision', 'to_seismic'];
 
 /** At most this many prototypes are planned for one idea. */
 const MAX_VARIANTS = 6;
@@ -660,7 +660,7 @@ const UNREAD_NOTE: Record<Unread['why'], string> = {
   parked: 'The owner parked the idea while you were working on a reply, which ended that turn. These messages are still unanswered; take them in with the one after them:',
   dropped: 'The owner dropped the idea while you were working on a reply, which ended that turn. These messages are still unanswered; take them in with the one after them:',
   error: 'Your last turn ended with an error before you replied. These messages are still unanswered; take them in with the one after them:',
-  restart: 'Obeya was restarted while you worked on a reply. These messages are still unanswered; take them in with the one after them:',
+  restart: 'Seismic was restarted while you worked on a reply. These messages are still unanswered; take them in with the one after them:',
   paused:
     'The owner paused you while you worked on a reply and has now let you go on. Pausing ended your session at once: whatever you had running was stopped with it (a command still running shows exit code 137). These messages are still unanswered; take them in with the one after them:',
 };

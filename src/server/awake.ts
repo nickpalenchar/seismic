@@ -1,9 +1,9 @@
-// Keeping the machine awake for the owner's phone: while other devices may reach Obeya and a worker
+// Keeping the machine awake for the owner's phone: while other devices may reach Seismic and a worker
 // is in a turn (or its ended turn waits for its background work), or the whole time where the owner
-// set so, the machine Obeya runs on does not idle-sleep, and a short while after that ends it sleeps
+// set so, the machine Seismic runs on does not idle-sleep, and a short while after that ends it sleeps
 // again as it is set to. The display may still sleep, and a closed laptop lid puts the machine to sleep regardless. Per
 // platform: `caffeinate -i -w <pid>` on macOS, `systemd-inhibit --what=idle:sleep` on Linux (both
-// end with Obeya by themselves), `SetThreadExecutionState` on Windows, which holds as long as the
+// end with Seismic by themselves), `SetThreadExecutionState` on Windows, which holds as long as the
 // process does. SSH hosts keep their own power settings.
 
 import { OWN_GROUP } from './spawn';
@@ -20,9 +20,9 @@ export interface Held {
 /** Takes the assertion; `null` where this machine offers none. */
 export type Hold = () => Held;
 
-const WHY = 'Other devices reach Obeya';
+const WHY = 'Other devices reach Seismic';
 
-/** A process that keeps the assertion while it runs, also while Obeya waits for its workers after a Ctrl-C (`OWN_GROUP`). */
+/** A process that keeps the assertion while it runs, also while Seismic waits for its workers after a Ctrl-C (`OWN_GROUP`). */
 function holdingProcess(argv: string[]): Held {
   const p = Bun.spawn(argv, { stdin: 'ignore', stdout: 'ignore', stderr: 'pipe', detached: OWN_GROUP });
   let stderr = '';
@@ -44,14 +44,14 @@ export function platformHold(platform: string = process.platform, pid = process.
     const inhibit = Bun.which('systemd-inhibit');
     const tail = Bun.which('tail');
     if (!inhibit || !tail) return null;
-    return () => holdingProcess([inhibit, '--what=idle:sleep', '--who=Obeya', `--why=${WHY}`, '--mode=block', tail, `--pid=${pid}`, '-f', '/dev/null']);
+    return () => holdingProcess([inhibit, '--what=idle:sleep', '--who=Seismic', `--why=${WHY}`, '--mode=block', tail, `--pid=${pid}`, '-f', '/dev/null']);
   }
   if (platform === 'win32') {
     const ES_CONTINUOUS = 0x80000000;
     const ES_SYSTEM_REQUIRED = 0x00000001;
     const { dlopen, FFIType } = require('bun:ffi') as typeof import('bun:ffi');
     const kernel32 = dlopen('kernel32.dll', { SetThreadExecutionState: { args: [FFIType.u32], returns: FFIType.u32 } });
-    // the state belongs to the calling thread, which is the JavaScript thread here and lives as long as Obeya
+    // the state belongs to the calling thread, which is the JavaScript thread here and lives as long as Seismic
     return () => {
       const ok = kernel32.symbols.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED) !== 0;
       return { release: () => void kernel32.symbols.SetThreadExecutionState(ES_CONTINUOUS), alive: () => ok, why: () => 'SetThreadExecutionState failed' };
@@ -68,7 +68,7 @@ const EVERY_MS = 5_000;
 const RETRY_MS = 5 * 60_000;
 
 export interface AwakeOptions {
-  /** Whether the machine should stay awake now: other devices may reach Obeya, and a worker works or the owner set it to stay awake. */
+  /** Whether the machine should stay awake now: other devices may reach Seismic, and a worker works or the owner set it to stay awake. */
   wanted: () => boolean;
   hold?: Hold | null;
   lingerMs?: number;
@@ -105,7 +105,7 @@ export class Awake {
     this.letGo();
   }
 
-  /** Whether Obeya keeps the machine awake now. */
+  /** Whether Seismic keeps the machine awake now. */
   holding(): boolean {
     return !!this.held?.alive();
   }
@@ -115,13 +115,13 @@ export class Awake {
     if (this.o.wanted()) this.lastWanted = now;
     const keep = now - this.lastWanted < this.o.lingerMs;
     if (this.held && !this.held.alive()) {
-      this.o.log(`Obeya: could not keep this machine awake: ${this.held.why?.() ?? 'the assertion ended'}`);
+      this.o.log(`Seismic: could not keep this machine awake: ${this.held.why?.() ?? 'the assertion ended'}`);
       this.held = null;
       this.notBefore = now + RETRY_MS;
     }
     if (keep && !this.held && this.o.hold && now >= this.notBefore) {
       this.held = this.o.hold();
-      this.o.log('Obeya: keeping this machine awake for other devices');
+      this.o.log('Seismic: keeping this machine awake for other devices');
     }
     if (!keep) this.letGo();
   }
@@ -130,6 +130,6 @@ export class Awake {
     if (!this.held) return;
     this.held.release();
     this.held = null;
-    this.o.log('Obeya: this machine sleeps as it is set to again');
+    this.o.log('Seismic: this machine sleeps as it is set to again');
   }
 }

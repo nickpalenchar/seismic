@@ -1,4 +1,4 @@
-// The directory this skill's files are in. Obeya's compiled server carries the modules it imports
+// The directory this skill's files are in. Seismic's compiled server carries the modules it imports
 // (the setup check, the voices) inside its binary, where `import.meta.dirname` names a directory
 // no other process can read; the server then says where the files are on disk (`useLib`).
 //
@@ -18,7 +18,7 @@ export function useLib(lib: string) {
 export const lib = (...parts: string[]) => path.join(dir, ...parts);
 
 /**
- * Whether the module at `filename` is the script Node runs, not one imported; never inside Obeya's
+ * Whether the module at `filename` is the script Node runs, not one imported; never inside Seismic's
  * binary, where every module it carries has the binary's name, that of the script it runs.
  */
 export function isMain(filename: string): boolean {

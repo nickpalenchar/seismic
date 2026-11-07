@@ -31,7 +31,7 @@ describe("taking a card's workspace", () => {
     expect(board.row(c.id)).toMatchObject({ workspace: null, branch, kept_in: workspace });
     expect(spaces.list()).toEqual([{ path: workspace!, card_id: null }]);
     expect(git(workspace!, 'status', '--porcelain')).toBe('');
-    expect(git(workspace!, 'log', '--format=%s', '-2', branch!).split('\n')).toEqual(['Uncommitted work, kept by Obeya as the card\'s workspace went to another card', 'Work']);
+    expect(git(workspace!, 'log', '--format=%s', '-2', branch!).split('\n')).toEqual(['Uncommitted work, kept by Seismic as the card\'s workspace went to another card', 'Work']);
     expect(board.events(c.id).at(-1)!.text).toContain(workspace!);
     // a card holding no clone has none to give
     expect(workers.evictable(c.id)).toBe(false);

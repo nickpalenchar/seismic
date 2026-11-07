@@ -1,5 +1,5 @@
 // A line above the microphone that the phone lets the owner swipe aside, to either side, to be rid
-// of it before it goes by itself: Obeya's reply, a confirmation, a command still being read. Until
+// of it before it goes by itself: Seismic's reply, a confirmation, a command still being read. Until
 // the owner has swiped one away, each line nudges aside and back once after it appears.
 
 import { type ReactNode, useRef, useState } from 'react';
@@ -102,7 +102,7 @@ export function Aside({ on, onGone, id, className, children }: { on: boolean; on
       }}
       onPointerUp={letGo}
       onPointerCancel={letGo}
-      // a line pulled aside and let go is no tap on its „Rückgängig“
+      // a line pulled aside and let go is no tap on its "Undo"
       onClickCapture={(e) => {
         if (!dragged.current) return;
         dragged.current = false;

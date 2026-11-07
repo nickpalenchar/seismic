@@ -1,15 +1,15 @@
-// The voice providers: what each needs installed, how Obeya installs it, and the spec `tts.py`
+// The voice providers: what each needs installed, how Seismic installs it, and the spec `tts.py`
 // synthesises with. Every voice is text in, WAV out. A local one runs as a command (Piper, the
 // Qwen3-TTS helper `qwen3.py`, macOS `say`, the owner's own command), once per clip, or once per
-// render for one that can stay loaded (Qwen3-TTS), which a running Obeya holds loaded across
+// render for one that can stay loaded (Qwen3-TTS), which a running Seismic holds loaded across
 // renders instead (`src/server/narration.ts`); a hosted one is an HTTP request `tts.py`
 // makes from a template (Gemini, OpenAI, ElevenLabs, Azure, or the owner's own endpoint).
 //
-// Piper and Qwen3-TTS are installed on request into `voices/` in Obeya's home, each in a Python
+// Piper and Qwen3-TTS are installed on request into `voices/` in Seismic's home, each in a Python
 // environment of its own made by uv; Piper's voice files go beside it, Qwen3's models into the
 // Hugging Face cache, where a model downloaded before is found again. Run on its own,
 // `node voices.ts status` says whether the voice of the settings is installed and
-// `node voices.ts install` installs it, for a session without Obeya.
+// `node voices.ts install` installs it, for a session without Seismic.
 //
 // Plain Node with type stripping, like the director.
 
@@ -19,14 +19,17 @@ import os from 'node:os';
 import path from 'node:path';
 import { isMain, lib } from './here.ts';
 import { type DemoSettings, demoSettingsHere, expandHome, type NarrationLanguage, obeyaHome, referenceOf, SERVICES } from './settings.ts';
+import { BUILT_IN_CLONES, DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, QWEN3_STOCK_SPEAKER, qwen3Speaker } from './voice-choices.ts';
 
 /** Piper's voices: one per language unless the settings name another. */
 export const PIPER_VOICES: Record<NarrationLanguage, string> = { de: 'de_DE-thorsten-high', en: 'en_US-ryan-high' };
 const PIPER_BASE = 'https://huggingface.co/rhasspy/piper-voices/resolve/main';
-/** Qwen3-TTS: a stock speaker from the CustomVoice model, or a clone of a clip with the Base model. */
-export const QWEN3_SPEAKER = 'ryan';
+/** Qwen3-TTS: a stock speaker from the CustomVoice model (`voice-choices.ts`), or a clone of a clip with the Base model. */
+export { QWEN3_SPEAKER };
+/** A built-in clone's clip, as the demo skill ships it. */
+export const builtInClip = (file: string) => lib('..', 'voices', file);
 /**
- * Qwen3-TTS hears each sentence back with Parakeet, as Obeya's voice input does (`qwen3.py`): onnx-asr
+ * Qwen3-TTS hears each sentence back with Parakeet, as Seismic's voice input does (`qwen3.py`): onnx-asr
  * on the CPU, its model in the Hugging Face cache, fetched there on the voice's first start.
  */
 const QWEN3_EAR = 'onnx-asr[cpu,hub]';
@@ -39,10 +42,11 @@ const qwen3Model = (clone: boolean) =>
 /** `say`'s voice per language when the settings name none. */
 export const SAY_VOICES: Record<NarrationLanguage, string> = { de: 'Anna', en: 'Samantha' };
 
-/** A Qwen3 voice: a clone of a reference clip (its transcript beside it), or a stock speaker. */
+/** A Qwen3 voice: a clone of a reference clip (its transcript beside it), or a stock speaker told how to speak (`style`). */
 export interface HeldVoice {
   reference?: string;
   speaker?: string;
+  style?: string;
 }
 
 /** What `tts.py` gets: a command to run per clip, or a service to call. */
@@ -73,8 +77,8 @@ export type VoiceSpec =
        */
       serve?: string[];
       /**
-       * Obeya can hold this voice loaded across renders: `tts.py` asks Obeya for each clip when
-       * `OBEYA_URL` is set, and serves it itself otherwise (or when Obeya does not answer).
+       * Seismic can hold this voice loaded across renders: `tts.py` asks Seismic for each clip when
+       * `SEISMIC_URL` is set, and serves it itself otherwise (or when Seismic does not answer).
        */
       host?: HeldVoice;
     }
@@ -83,6 +87,8 @@ export type VoiceSpec =
       service: (typeof SERVICES)[number] | 'http';
       url?: string;
       voiceName?: string;
+      /** How to speak, for a service that takes instructions (Gemini, OpenAI). */
+      style?: string;
       /** The environment variable `tts.py` reads the key from before `keyFile` (`KEY_ENV`). */
       keyEnv: string;
       keyFile?: string;
@@ -110,7 +116,7 @@ function piperVoice(s: DemoSettings) {
   return { name, url: `${PIPER_BASE}/${locale.split('_')[0]}/${locale}/${rest.join('-')}/${quality}/${name}.onnx` };
 }
 
-/** Piper's Python and the voice file of these settings, as installed under Obeya's home. */
+/** Piper's Python and the voice file of these settings, as installed under Seismic's home. */
 export function piperFiles(s: DemoSettings, home = obeyaHome()) {
   const dir = path.join(voicesHome(home), 'piper');
   return { python: envPython(dir), onnx: path.join(dir, `${piperVoice(s).name}.onnx`) };
@@ -186,7 +192,7 @@ const PART_WORDS: Record<NarrationLanguage, { piperVoice: (name: string) => stri
   en: { piperVoice: (name) => `Piper voice ${name}`, model: (repo) => `Model ${repo}` },
 };
 
-/** What the voice of these settings needs installed; empty for a voice that needs nothing from Obeya. */
+/** What the voice of these settings needs installed; empty for a voice that needs nothing from Seismic. */
 export function components(s: DemoSettings, home = obeyaHome()): Component[] {
   if (s.voice === 'piper') {
     const dir = path.join(voicesHome(home), 'piper');
@@ -207,7 +213,7 @@ export function components(s: DemoSettings, home = obeyaHome()): Component[] {
   }
   if (s.voice === 'qwen3') {
     const dir = path.join(voicesHome(home), 'qwen3');
-    const repo = qwen3Model(!!referenceOf(s));
+    const repo = qwen3Model(!!cloneClip(qwen3Voice(s)));
     return [
       onMlx() ? pythonEnv(dir, ['mlx-audio', QWEN3_EAR], 'Qwen3-TTS (MLX)', 520) : pythonEnv(dir, ['qwen-tts', QWEN3_EAR], 'Qwen3-TTS (PyTorch)', 4070),
       {
@@ -228,6 +234,16 @@ export function installState(s: DemoSettings, home = obeyaHome()) {
   return { installed: !missing.length, missing: missing.map((c) => c.label), mb: missing.reduce((n, c) => n + c.mb, 0) };
 }
 
+/**
+ * What keeps the voice of these settings from speaking that installing would not mend: a Qwen3
+ * speaker the model does not have. For the agent and the settings sheet alike, in English.
+ */
+export function voiceProblem(s: DemoSettings): string | undefined {
+  if (s.voice === 'qwen3' && !referenceOf(s) && s.voiceName && !qwen3Speaker(s.voiceName))
+    return `Qwen3-TTS has no speaker "${s.voiceName}"; its speakers: ${QWEN3_SPEAKERS.join(', ')} (Seismic's settings, Configuration → Demos)`;
+  return undefined;
+}
+
 /** Installs what the voice is missing, one part after the other. */
 export async function installVoice(s: DemoSettings, log: (line: string) => void = () => {}, home = obeyaHome()) {
   for (const c of components(s, home)) {
@@ -237,13 +253,36 @@ export async function installVoice(s: DemoSettings, log: (line: string) => void 
   }
 }
 
-/** `qwen3.py` for a clone of `reference` or a stock `speaker`, before `--out` or `--serve`. */
-function qwen3Command(voice: HeldVoice, language: NarrationLanguage, home: string) {
-  const who = voice.reference ? ['--reference', voice.reference] : ['--speaker', voice.speaker || QWEN3_SPEAKER];
-  return [envPython(path.join(voicesHome(home), 'qwen3')), lib('qwen3.py'), '--model', qwen3Model(!!voice.reference), '--language', language, ...who];
+/**
+ * Who speaks for Qwen3 in these settings: the owner's clip for the narration language, else the
+ * speaker named (the default when none). A built-in clone stays a speaker name here, so a voice
+ * Seismic holds for a worker on another machine is cloned from Seismic's own copy of its clip.
+ */
+export function qwen3Voice(s: DemoSettings): HeldVoice {
+  const clip = referenceOf(s);
+  if (clip) return { reference: expandHome(clip) };
+  const speaker = (s.voiceName ? qwen3Speaker(s.voiceName) : QWEN3_SPEAKER) ?? s.voiceName ?? QWEN3_SPEAKER;
+  return builtInFile(speaker) ? { speaker } : { speaker, style: s.style || DEFAULT_STYLE };
 }
 
-/** The command Obeya holds a Qwen3 voice with across renders (`src/server/narration.ts`). */
+const builtInFile = (speaker: string | undefined) => (speaker ? BUILT_IN_CLONES[speaker as keyof typeof BUILT_IN_CLONES] : undefined);
+
+/** The clip a Qwen3 voice clones, on this machine: the owner's, or a built-in speaker's; none for a stock speaker. */
+export function cloneClip(voice: HeldVoice): string | undefined {
+  const builtIn = builtInFile(voice.speaker);
+  return voice.reference ?? (builtIn && builtInClip(builtIn));
+}
+
+/** `qwen3.py` for a clone of `reference`, a built-in clone or a stock `speaker`, before `--out` or `--serve`. */
+function qwen3Command(voice: HeldVoice, language: NarrationLanguage, home: string) {
+  const clip = cloneClip(voice);
+  const who = clip
+    ? ['--reference', clip]
+    : ['--speaker', voice.speaker || QWEN3_STOCK_SPEAKER, ...(voice.style ? [`--instruct=${voice.style}`] : [])];
+  return [envPython(path.join(voicesHome(home), 'qwen3')), lib('qwen3.py'), '--model', qwen3Model(!!clip), '--language', language, ...who];
+}
+
+/** The command Seismic holds a Qwen3 voice with across renders (`src/server/narration.ts`). */
 export const qwen3Serve = (voice: HeldVoice, language: NarrationLanguage, home = obeyaHome()) => [...qwen3Command(voice, language, home), '--serve'];
 
 /** The spec `tts.py` synthesises the voice of these settings with. */
@@ -255,16 +294,15 @@ export function voiceSpec(s: DemoSettings, home = obeyaHome()): VoiceSpec {
       return { kind: 'command', argv: [python, '-m', 'piper', '-m', onnx, '-f', '{out}'], tag: `piper|${piperVoice(s).name}`, heavy: false, respell: true };
     }
     case 'qwen3': {
-      const clip = referenceOf(s);
-      const reference = clip && expandHome(clip);
-      const voice = reference ? { reference } : { speaker: s.voiceName || QWEN3_SPEAKER };
+      const voice = qwen3Voice(s);
+      const reference = cloneClip(voice);
       const run = qwen3Command(voice, s.language, home);
       return {
         kind: 'command',
         argv: [...run, '--out', '{out}'],
         serve: [...run, '--serve'],
         host: voice,
-        tag: `qwen3|${qwen3Model(!!reference)}|${reference ?? s.voiceName ?? QWEN3_SPEAKER}`,
+        tag: `qwen3|${qwen3Model(!!reference)}|${voice.reference ?? (voice.style ? `${voice.speaker}|${voice.style}` : voice.speaker)}`,
         heavy: true,
         lexicon: 'qwen3',
       };
@@ -279,7 +317,7 @@ export function voiceSpec(s: DemoSettings, home = obeyaHome()): VoiceSpec {
     case 'http':
       return { kind: 'http', service: 'http', url: s.url, keyEnv: KEY_ENV.http, keyFile };
     default:
-      return { kind: 'http', service: s.voice, url: s.url, voiceName: s.voiceName, keyEnv: KEY_ENV[s.voice], keyFile };
+      return { kind: 'http', service: s.voice, url: s.url, voiceName: s.voiceName, style: s.style || DEFAULT_STYLE, keyEnv: KEY_ENV[s.voice], keyFile };
   }
 }
 
@@ -299,17 +337,17 @@ export const SAMPLE_TEXT: Record<NarrationLanguage, string> = {
 };
 
 /**
- * Synthesises one sample with `tts.py`, without listening back, into `out`. For the settings
- * sheet, so the owner hears a voice before choosing it; with `obeyaUrl`, Obeya holds a voice that
+ * Synthesises one sample with `tts.py`, without listening back, into `out`: `text`, else
+ * `SAMPLE_TEXT`. For the settings sheet, so the owner hears a voice before choosing it; with `obeyaUrl`, Seismic holds a voice that
  * can stay loaded, so the next sample (and the next render) skips loading it. A heavy voice waits
  * for `lock`, the machine's TTS_LOCK unless a test gives its own.
  */
-export function sample(s: DemoSettings, out: string, home = obeyaHome(), obeyaUrl?: string, lockFile = TTS_LOCK): Promise<void> {
+export function sample(s: DemoSettings, out: string, home = obeyaHome(), obeyaUrl?: string, lockFile = TTS_LOCK, text?: string): Promise<void> {
   const spec = voiceSpec(s, home);
   const specFile = `${out}.spec.json`;
   fs.writeFileSync(specFile, JSON.stringify(spec));
-  const args = [...ttsArgs(spec, lockFile), '--sample', specFile, s.language, SAMPLE_TEXT[s.language], out];
-  return exec('uv', args, () => {}, obeyaUrl ? { OBEYA_URL: obeyaUrl } : undefined).finally(() => fs.rmSync(specFile, { force: true }));
+  const args = [...ttsArgs(spec, lockFile), '--sample', specFile, s.language, text?.trim() || SAMPLE_TEXT[s.language], out];
+  return exec('uv', args, () => {}, obeyaUrl ? { SEISMIC_URL: obeyaUrl, OBEYA_URL: obeyaUrl } : undefined).finally(() => fs.rmSync(specFile, { force: true }));
 }
 
 /**
@@ -325,8 +363,8 @@ export function ttsArgs(spec: VoiceSpec, lockFile = TTS_LOCK) {
 /**
  * One large model loaded by a render at a time on the machine: each loaded a voice model, and
  * parallel demos from several agents swapped the machine to a halt. `tts.py --lock` holds it
- * (flock, on Windows a byte-range lock) from the moment it loads a model itself; a voice Obeya
- * holds takes no lock, so parallel renders synthesise turn by turn through Obeya. The system drops
+ * (flock, on Windows a byte-range lock) from the moment it loads a model itself; a voice Seismic
+ * holds takes no lock, so parallel renders synthesise turn by turn through Seismic. The system drops
  * the lock when its holder dies, so no stale lock survives a crash.
  */
 export const TTS_LOCK = path.join(os.homedir(), '.cache', 'demo-skill', 'tts.lock');
@@ -334,10 +372,12 @@ export const TTS_LOCK = path.join(os.homedir(), '.cache', 'demo-skill', 'tts.loc
 if (isMain(import.meta.filename)) {
   const s = demoSettingsHere();
   const state = installState(s);
+  const problem = voiceProblem(s);
+  if (problem) console.log(`${s.voice}: ${problem}`);
   if (process.argv[2] === 'install') {
     await installVoice(s, (line) => console.log(line));
     console.log(`${s.voice}: installed`);
   } else {
-    console.log(state.installed ? `${s.voice}: ready` : `${s.voice}: missing ${state.missing.join(', ')} (about ${state.mb} MB); run \`node voices.ts install\``);
+    if (!problem) console.log(state.installed ? `${s.voice}: ready` : `${s.voice}: missing ${state.missing.join(', ')} (about ${state.mb} MB); run \`node voices.ts install\``);
   }
 }

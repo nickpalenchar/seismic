@@ -1,6 +1,6 @@
 ---
 name: demo
-description: Present finished work to the owner as a narrated screen recording with a one-page report (what it does, what the owner needs to know beyond the video, an open question when there is one), so they can approve or give feedback without reading code or clicking through the app. Typically at the end of an implementation session, for the uncommitted and/or unpushed changes; also for any named commit or branch. Use when they ask for a demo, a walkthrough, "führ mir das vor", or /demo.
+description: Present finished work to the owner as a narrated screen recording with a one-page report (what it does, what the owner needs to know beyond the video, an open question when there is one), so they can approve or give feedback without reading code or clicking through the app. Typically at the end of an implementation session, for the uncommitted and/or unpushed changes; also for any named commit or branch. Use when they ask for a demo, a walkthrough, "show me this", or /demo.
 ---
 
 # /demo — present a change like a team lead presents to a director
@@ -70,9 +70,9 @@ costs more than a restart of one service.
 First check that this machine can record: `node ${CLAUDE_SKILL_DIR}/lib/setup.ts` lists Node,
 Playwright and a browser, ffmpeg, uv (it brings Python), the voice of the settings,
 and under each missing piece how to install it on this platform (`docs/demo-setup.md` in the
-Obeya repository says more). A render runs the same check and stops at once with that list. A
+Seismic repository says more). A render runs the same check and stops at once with that list. A
 voice that is not installed you may install yourself (`node ${CLAUDE_SKILL_DIR}/lib/voices.ts
-install`, a download into Obeya's home). System software (Node, a browser, ffmpeg, uv) is the
+install`, a download into Seismic's home). System software (Node, a browser, ffmpeg, uv) is the
 owner's to install: ask them with the lines the check printed, rather than installing it.
 
 Look at the real UI first: find the pages, the stable locators (ids, roles, exact texts) and what
@@ -99,10 +99,10 @@ Defects the demo uncovers:
   to reproduce it, and let the owner decide.
 
 A decision that is the owner's (a product or wording question, a trade-off) is the report's
-`question`. A problem outside the change that is worth a task of its own goes, under Obeya, into a
-proposal (`propose_card`); without Obeya, into the summary.
+`question`. A problem outside the change that is worth a task of its own goes, under Seismic, into a
+proposal (`propose_card`); without Seismic, into the summary.
 
-Under Obeya, the card shows the video and the worker's handover summary, not the report page:
+Under Seismic, the card shows the video and the worker's handover summary, not the report page:
 what the report's summary would tell the owner goes into the handover summary.
 
 A later demo of the same card either shows the change afresh or only what was corrected or
@@ -152,7 +152,7 @@ is presented without "I" or "we".
 - Waiting is not shown: where the demo waits for something slow (an agent's answer, a build, a
   sync), put the wait into `d.skip` after the scene's `untilSpoken(1)`. The video cuts it out
   with a white flash that says how much later it is; the next scene's narration starts with the
-  jump ("Etwas später …"). A wait under five seconds stays in the video, without a flash. A wait
+  jump ("A little later …"). A wait under five seconds stays in the video, without a flash. A wait
   that is only the app's latency (a reply that takes a few seconds), not time a viewer will
   spend waiting, goes into `d.skip(fn, { quiet: true })`: cut whole, without flash or label.
 - Write large numbers as words ("about fifteen thousand two hundred euros"); small ones as digits
@@ -200,8 +200,8 @@ node ${CLAUDE_SKILL_DIR}/lib/schema.ts <demo dir>/schema-models.json <demo dir>/
 ```
 
 Look at the page in the browser: does it show what the migration does, nothing more and nothing
-less? Under Obeya, name it first in `ready_for_review`'s `files` by its absolute path, with a
-caption, and give `data_models: 'changed'`. Without Obeya, link it from the summary.
+less? Under Seismic, name it first in `ready_for_review`'s `files` by its absolute path, with a
+caption, and give `data_models: 'changed'`. Without Seismic, link it from the summary.
 
 ## 5. Render
 
@@ -233,8 +233,8 @@ Narration is synthesised first by `lib/tts.py`, in the voice of the demo setting
 default) or Qwen3-TTS on this machine, macOS `say`, the owner's own command, or a hosted service
 (Gemini, OpenAI, ElevenLabs, Azure, an own endpoint) with its key from its environment variable or
 a key file. Qwen3 hears each sentence back with Parakeet, the speech recognition that came with
-it, and makes one it stumbled over again. The settings live in `demo.json` in Obeya's home (`OBEYA_HOME`, else `~/.obeya`);
-Obeya's configuration dialog edits them, installs Piper and Qwen3-TTS, and plays a sample. A voice that
+it, and makes one it stumbled over again. The settings live in `demo.json` in Seismic's home (`SEISMIC_HOME`, else `~/.obeya`);
+Seismic's configuration dialog edits them, installs Piper and Qwen3-TTS, and plays a sample. A voice that
 is not installed stops the render with how to install it: from the configuration dialog, or
 `node ${CLAUDE_SKILL_DIR}/lib/voices.ts install`; so does anything else the render needs
 (`lib/setup.ts`, section 3). `DEMO_VOICE=<provider>` renders in another
@@ -242,9 +242,9 @@ voice; `DEMO_VOICE=<path>.wav` clones that clip with Qwen3-TTS (its exact transc
 `.txt`). Clips are cached by voice and text, so re-runs after a visual fix skip synthesis. A
 voice that loads a large model (Qwen3-TTS, the owner's command) takes several GB, so only one such
 demo loads it at a time (lock `~/.cache/demo-skill/tts.lock`); the others log "waiting for it"
-and wait, which is expected, not a hang. Under Obeya (`OBEYA_URL` set), Obeya holds Qwen3-TTS
+and wait, which is expected, not a hang. Under Seismic (`SEISMIC_URL` set), Seismic holds Qwen3-TTS
 loaded for all demos and for about 5 minutes after the last clip: the narration then logs
-"synthesised by Obeya", and parallel demos take turns clip by clip without the lock. Recording
+"synthesised by Seismic", and parallel demos take turns clip by clip without the lock. Recording
 uses the local Chrome, else Edge, else Playwright's own Chromium (`DEMO_CHROME` names another; headless screencast, 1440×900); it runs
 on macOS, Linux and Windows. A failing scene (or `login`, `open`) stops the run with the page's
 `URL:`, a `Screenshot:` of it (`.work/failure.png`) and the `Cause:`, Playwright's message with
@@ -282,8 +282,8 @@ keeps its language; the narration, chapter titles and report change.
 The first run writes the words to translate (`.work/revoice/source.json`) and says where their
 translation goes (`.work/revoice/en.json`, same shape). Translate them yourself: each `say` as it
 should sound, in the same person, its audio tags where they stand; a label on screen quoted as it
-appears with its meaning after it, in a `say` as an aside („Teilen“, share, …: a voice drops
-parentheses at times), elsewhere „Teilen“ (Share); read the labels from `review/`. The next run
+appears with its meaning after it, in a `say` as an aside ("Teilen", share, …: a voice drops
+parentheses at times), elsewhere "Teilen" (Share); read the labels from `review/`. The next run
 synthesises the clips, stretches each scene's narrated stretch to its new clip so actions stay on
 their words, and rebuilds the video, captions, chapters, stills and report page in place; the demo
 as recorded stays in `.work/revoice/original/`. Check the result as section 6 says, the scenes it
@@ -297,7 +297,7 @@ it carries the owner's cloned voice.
 
 ## How to run the app
 
-Under Obeya, the worker's brief says how to run the app of its repository (the recipe is
-`app.run` of the repository's settings, `.obeya/settings.json`). Without Obeya, ask it: `bun ${CLAUDE_SKILL_DIR}/lib/recipe.ts`, run
+Under Seismic, the worker's brief says how to run the app of its repository (the recipe is
+`app.run` of the repository's settings, `.obeya/settings.json`). Without Seismic, ask it: `bun ${CLAUDE_SKILL_DIR}/lib/recipe.ts`, run
 in the repository, prints the recipe when its settings have one. Otherwise the
 repository's own docs (CLAUDE.md, README) say how to start it.

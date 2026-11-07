@@ -93,7 +93,7 @@ describe('asking on a card before its start', () => {
     asker().emit({ type: 'error', message: 'no conversation found' });
     await until(() => !asker().spec.resume && asker().inbox[0]?.includes('First?'));
     expect(asker().inbox[0]).toContain('The owner: First?');
-    expect(asker().inbox[0]).toContain('Obeya: One.');
+    expect(asker().inbox[0]).toContain('Seismic: One.');
     expect(asker().inbox[0]).toContain('Second?');
   });
 
@@ -107,7 +107,7 @@ describe('asking on a card before its start', () => {
     const worker = runtime.sessions.find((s) => s.spec.role === 'worker')!;
     expect(worker.inbox[0]).toContain('Add a PDF export.');
     expect(worker.inbox[0]).toContain('The owner: Should it use jsPDF?');
-    expect(worker.inbox[0]).toContain('Obeya: Yes, it is small.');
+    expect(worker.inbox[0]).toContain('Seismic: Yes, it is small.');
   });
 
   test('pausing ends the turn and keeps the question; resuming answers it', async () => {

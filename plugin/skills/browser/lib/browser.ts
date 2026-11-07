@@ -29,7 +29,7 @@
 //                                    system libraries they need on Linux)
 //
 // Each agent session has a browser of its own: its state (port, pid) is in a file named by
-// the session's process (`OBEYA_AGENT_PID`, or Claude Code's `CLAUDE_PID`), and the process holding
+// the session's process (`SEISMIC_AGENT_PID`, or Claude Code's `CLAUDE_PID`), and the process holding
 // the browser (`serve`, started by `start`) closes it once that process has ended. In a terminal there is one
 // browser per user, until `stop`. Playwright launches it (`plugin/lib/chromium.ts`), so it is the
 // Chromium the demo skill records with, with a fresh profile that goes with it.
@@ -60,7 +60,7 @@ export function alive(pid: number): boolean {
 
 /** The process of the agent session that runs this command, whose browser it drives. */
 export function sessionPid(env: NodeJS.ProcessEnv = process.env): number | null {
-  const pid = Number(env.OBEYA_AGENT_PID ?? env.CLAUDE_PID);
+  const pid = Number(env.SEISMIC_AGENT_PID ?? env.OBEYA_AGENT_PID ?? env.CLAUDE_PID);
   return Number.isInteger(pid) && pid > 0 ? pid : null;
 }
 
@@ -503,7 +503,7 @@ async function stop() {
 /**
  * The module a script imports Playwright from: the `playwright-core` this browser is launched with,
  * found up the tree from here (a checkout's node_modules, or the one beside the plugin among
- * Obeya's resources and on a host). A file URL, which an import takes on Windows too.
+ * Seismic's resources and on a host). A file URL, which an import takes on Windows too.
  */
 export function playwrightModule(): string {
   return import.meta.resolve('playwright-core');

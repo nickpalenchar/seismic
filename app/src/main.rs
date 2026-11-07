@@ -1,10 +1,10 @@
-// Obeya as an app: a window on the canvas of the compiled server (`obeya-server`, a sidecar beside
+// Seismic as an app: a window on the canvas of the compiled server (`obeya-server`, a sidecar beside
 // this program, built by scripts/build-app.ts), which the shell starts and stops.
 //
-// - One Obeya per home: when one runs on the home already ($OBEYA_HOME/server.json, written by the
+// - One Seismic per home: when one runs on the home already ($SEISMIC_HOME/server.json, written by the
 //   server), the window opens on it instead of starting a second. Whoever started it (the app, or
 //   `bun start` in a terminal), it stops when the app quits, and the app ends when it does.
-// - The server picks no port of its own: 4417 ($OBEYA_PORT) when free, else one the system hands out.
+// - The server picks no port of its own: 4417 ($SEISMIC_PORT) when free, else one the system hands out.
 // - Quitting stops the server through `POST /api/stop`, the way Ctrl-C does: workers in the middle
 //   of a turn pause first (at most 15 minutes), and the window shows that until the server is gone.
 //   Quitting again goes ahead at once. No signal: Windows has no SIGTERM, and a killed server would
@@ -21,16 +21,16 @@
 // - Downloads go into the Downloads folder and are shown there.
 // - A newer release is downloaded in the background, shown in the bar and installed when the owner
 //   says so, once the workers paused (update.rs).
-// - OBEYA_APP_CHECK=<url of a module>: the page imports it once the canvas has loaded
+// - SEISMIC_APP_CHECK=<url of a module>: the page imports it once the canvas has loaded
 //   (scripts/check-app.ts checks the microphone and video in the webview that way).
-// - OBEYA_CHECKOUT=<checkout>: started from a checkout (`bun run app`, scripts/app.ts), the shell
-//   starts `bun <checkout>/src/server/main.ts` (OBEYA_BUN names the bun) instead of the sidecar,
+// - SEISMIC_CHECKOUT=<checkout>: started from a checkout (`bun run app`, scripts/app.ts), the shell
+//   starts `bun <checkout>/src/server/main.ts` (SEISMIC_BUN names the bun) instead of the sidecar,
 //   which then updates itself from its checkout as `bun start` does. Installed from a checkout
-//   (`bun run app install`), the shell has both compiled in (OBEYA_BUILT_CHECKOUT, OBEYA_BUILT_BUN),
+//   (`bun run app install`), the shell has both compiled in (SEISMIC_BUILT_CHECKOUT, SEISMIC_BUILT_BUN),
 //   and builds itself anew when app/ changes there (update.rs).
 // - Starting again (an update, a new build) brings the window back where it was, on the page it showed
 //   (`relaunch`).
-// - On a Mac an Obeya that runs without the app that started it lacks the system's permissions for
+// - On a Mac an Seismic that runs without the app that started it lacks the system's permissions for
 //   that app (the local network): the shell has it end once its workers paused and starts it again
 //   under itself (`orphaned`).
 
@@ -67,7 +67,7 @@ const DEFAULT_PORT: u16 = 4417;
 const START_PATIENCE: Duration = Duration::from_secs(120);
 const KEY_HEADER: &str = "X-Obeya-Key";
 
-/// Obeya's home, once known.
+/// Seismic's home, once known.
 static HOME: OnceLock<PathBuf> = OnceLock::new();
 
 /// The owner's key in the home, which the server makes when it first starts.
@@ -78,16 +78,16 @@ fn key() -> Option<String> {
 
 /// A link that signs a browser or webview in and opens `next`; `once`: for one browser, as one that
 /// goes through the system's `open` is seen by other accounts in the process list. The plain address
-/// from an Obeya that has no such link.
+/// from an Seismic that has no such link.
 pub(crate) fn login_link(port: u16, next: &str, once: bool) -> String {
   post(port, "/api/login-link", &serde_json::json!({ "next": next, "once": once }))
     .and_then(|v| v["url"].as_str().map(String::from))
     .unwrap_or_else(|| format!("http://127.0.0.1:{port}{next}"))
 }
 
-/// What the shell knows of the Obeya its window shows.
+/// What the shell knows of the Seismic its window shows.
 #[derive(Default)]
-pub(crate) struct Obeya {
+pub(crate) struct Seismic {
   /// Where it answers; 0 until known.
   pub(crate) port: AtomicU16,
   /// Started in this run: the shell sees it end, and how (an update is installed then).
@@ -100,7 +100,7 @@ pub(crate) struct Obeya {
   first: Mutex<Option<String>>,
 }
 
-impl Obeya {
+impl Seismic {
   fn url(&self) -> Option<String> {
     match self.port.load(Ordering::SeqCst) {
       0 => None,
@@ -117,18 +117,24 @@ impl Obeya {
   }
 }
 
+/// An environment variable of Seismic by its name without the prefix: `SEISMIC_<name>`, else the
+/// name from before the rename, `OBEYA_<name>`.
+pub(crate) fn seismic_env(name: &str) -> Option<std::ffi::OsString> {
+  std::env::var_os(format!("SEISMIC_{name}")).or_else(|| std::env::var_os(format!("OBEYA_{name}")))
+}
+
 /// The checkout whose server the shell starts, when it runs from one rather than with its sidecar.
 pub(crate) fn checkout() -> Option<PathBuf> {
-  std::env::var_os("OBEYA_CHECKOUT")
+  seismic_env("CHECKOUT")
     .map(PathBuf::from)
-    .or_else(|| option_env!("OBEYA_BUILT_CHECKOUT").filter(|c| !c.is_empty()).map(PathBuf::from))
+    .or_else(|| option_env!("SEISMIC_BUILT_CHECKOUT").or(option_env!("OBEYA_BUILT_CHECKOUT")).filter(|c| !c.is_empty()).map(PathBuf::from))
 }
 
 /// The bun that runs the checkout's server: the one named, else the one it was built with while
 /// that is there, else whichever the PATH has.
 pub(crate) fn bun() -> std::ffi::OsString {
-  std::env::var_os("OBEYA_BUN")
-    .or_else(|| option_env!("OBEYA_BUILT_BUN").filter(|b| Path::new(b).exists()).map(Into::into))
+  seismic_env("BUN")
+    .or_else(|| option_env!("SEISMIC_BUILT_BUN").or(option_env!("OBEYA_BUILT_BUN")).filter(|b| Path::new(b).exists()).map(Into::into))
     .unwrap_or_else(|| "bun".into())
 }
 
@@ -173,23 +179,23 @@ fn answers(port: u16) -> bool {
 }
 
 pub(crate) fn home() -> PathBuf {
-  std::env::var_os("OBEYA_HOME")
+  seismic_env("HOME")
     .map(PathBuf::from)
     .unwrap_or_else(|| std::env::home_dir().unwrap_or_default().join(".obeya"))
 }
 
-/// The home's entry of the Obeya that runs on it (src/server/instance.ts).
+/// The home's entry of the Seismic that runs on it (src/server/instance.ts).
 fn entry(home: &Path) -> Option<serde_json::Value> {
   serde_json::from_str(&fs::read_to_string(home.join("server.json")).ok()?).ok()
 }
 
-/// The port of the Obeya that runs on `home`.
+/// The port of the Seismic that runs on `home`.
 fn running(home: &Path) -> Option<u16> {
   let port = u16::try_from(entry(home)?["port"].as_u64()?).ok()?;
   answers(port).then_some(port)
 }
 
-/// Whether the Obeya that runs on `home` runs without the app that started it. On a Mac the system
+/// Whether the Seismic that runs on `home` runs without the app that started it. On a Mac the system
 /// grants its permissions (the local network, the microphone) to the app a process counts as part
 /// of: the one that started it, or started what started it. Once that app has ended (it crashed, or
 /// was killed) the server counts as its own, or as the ended one's, and every LAN connection of its
@@ -215,7 +221,7 @@ fn orphaned(_: &Path) -> bool {
 }
 
 fn pick_port() -> u16 {
-  let want = std::env::var("OBEYA_PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(DEFAULT_PORT);
+  let want = seismic_env("PORT").and_then(|p| p.into_string().ok()).and_then(|p| p.parse().ok()).unwrap_or(DEFAULT_PORT);
   if TcpListener::bind(("127.0.0.1", want)).is_ok() {
     return want;
   }
@@ -262,8 +268,8 @@ fn show(app: &AppHandle) {
   }
 }
 
-/// A page of Obeya's in the system's browser, signed in there through a link of its own; another link as `open_in_browser`.
-fn open_outside(obeya: &Obeya, url: &Url) {
+/// A page of Seismic's in the system's browser, signed in there through a link of its own; another link as `open_in_browser`.
+fn open_outside(obeya: &Seismic, url: &Url) {
   let port = obeya.port.load(Ordering::SeqCst);
   if !obeya.ours(url) || url.scheme() != "http" || port == 0 {
     return open_in_browser(url.as_str());
@@ -273,7 +279,7 @@ fn open_outside(obeya: &Obeya, url: &Url) {
   thread::spawn(move || open_in_browser(&login_link(port, &next, true)));
 }
 
-/// Where `url` leads within Obeya, for a link that signs in and leads there.
+/// Where `url` leads within Seismic, for a link that signs in and leads there.
 fn next_of(url: &Url) -> String {
   match (url.query(), url.fragment()) {
     (Some(q), Some(f)) => format!("{}?{q}#{f}", url.path()),
@@ -283,7 +289,7 @@ fn next_of(url: &Url) -> String {
   }
 }
 
-/// A link out of Obeya, in the system's browser. Other schemes stay closed: the system would hand
+/// A link out of Seismic, in the system's browser. Other schemes stay closed: the system would hand
 /// `file:`, `smb:` or an app's own scheme to whatever program claims it, and a worker's page may link anywhere.
 fn open_in_browser(url: &str) {
   let scheme = url.split(':').next().unwrap_or("").to_ascii_lowercase();
@@ -306,9 +312,9 @@ fn tail(path: &Path) -> String {
   lines[lines.len().saturating_sub(20)..].join("\n")
 }
 
-/// Shows why Obeya could not go on, and ends the app.
+/// Shows why Seismic could not go on, and ends the app.
 fn fail(app: &AppHandle, why: String) {
-  app.dialog().message(why).title("Obeya").kind(MessageDialogKind::Error).blocking_show();
+  app.dialog().message(why).title("Seismic").kind(MessageDialogKind::Error).blocking_show();
   app.exit(1);
 }
 
@@ -330,13 +336,16 @@ fn start_server(app: &AppHandle, home: &Path, port: u16, log: &(fs::File, PathBu
   };
   cmd
     .args(["--port", &port.to_string()])
+    .env("SEISMIC_HOME", home)
     .env("OBEYA_HOME", home)
     // its entry in the home says so (`orphaned`)
+    .env("SEISMIC_FROM_APP", "1")
     .env("OBEYA_FROM_APP", "1")
     .stdin(Stdio::null())
     .stdout(log.0.try_clone()?)
     .stderr(log.0.try_clone()?);
   if let (Ok(dir), None) = (app.path().resource_dir(), checkout()) {
+    cmd.env("SEISMIC_RESOURCES", dir.join("resources"));
     cmd.env("OBEYA_RESOURCES", dir.join("resources"));
   }
   no_window(&mut cmd);
@@ -356,9 +365,9 @@ pub(crate) fn no_window(cmd: &mut Command) {
   let _ = cmd;
 }
 
-/// Brings up the Obeya of this home (the running one, else a new server) and shows its canvas;
+/// Brings up the Seismic of this home (the running one, else a new server) and shows its canvas;
 /// ends the app when that server has ended.
-fn serve(app: AppHandle, obeya: Arc<Obeya>, updates: Arc<update::Updates>) {
+fn serve(app: AppHandle, obeya: Arc<Seismic>, updates: Arc<update::Updates>) {
   let home = home();
   let attach = |port: u16| {
     obeya.port.store(port, Ordering::SeqCst);
@@ -389,13 +398,13 @@ enum Started {
 }
 
 /// Starts the server, shows its canvas once it answers, and waits for it to end.
-fn start(app: &AppHandle, obeya: &Obeya, updates: &update::Updates, home: &Path, attach: &dyn Fn(u16)) -> Started {
+fn start(app: &AppHandle, obeya: &Seismic, updates: &update::Updates, home: &Path, attach: &dyn Fn(u16)) -> Started {
   let Some(log) = log_file(home) else {
     fail(
       app,
       say(
-        &format!("Obeya kann nicht in {} schreiben.", home.display()),
-        &format!("Obeya cannot write to {}.", home.display()),
+        &format!("Seismic kann nicht in {} schreiben.", home.display()),
+        &format!("Seismic cannot write to {}.", home.display()),
       ),
     );
     return Started::Ended;
@@ -406,7 +415,7 @@ fn start(app: &AppHandle, obeya: &Obeya, updates: &update::Updates, home: &Path,
     Err(e) => {
       fail(
         app,
-        say(&format!("Obeya ließ sich nicht starten: {e}"), &format!("Obeya could not be started: {e}")),
+        say(&format!("Seismic ließ sich nicht starten: {e}"), &format!("Seismic could not be started: {e}")),
       );
       return Started::Ended;
     }
@@ -424,8 +433,8 @@ fn start(app: &AppHandle, obeya: &Obeya, updates: &update::Updates, home: &Path,
       fail(
         app,
         say(
-          &format!("Obeya antwortet nicht.\n\n{}", tail(&log.1)),
-          &format!("Obeya does not answer.\n\n{}", tail(&log.1)),
+          &format!("Seismic antwortet nicht.\n\n{}", tail(&log.1)),
+          &format!("Seismic does not answer.\n\n{}", tail(&log.1)),
         ),
       );
       return Started::Ended;
@@ -445,16 +454,16 @@ fn start(app: &AppHandle, obeya: &Obeya, updates: &update::Updates, home: &Path,
 
 fn ended(status: std::process::ExitStatus, log: &Path) -> String {
   say(
-    &format!("Obeya hat sich beendet ({status}).\n\n{}", tail(log)),
-    &format!("Obeya ended ({status}).\n\n{}", tail(log)),
+    &format!("Seismic hat sich beendet ({status}).\n\n{}", tail(log)),
+    &format!("Seismic ended ({status}).\n\n{}", tail(log)),
   )
 }
 
-/// An Obeya the shell did not start in this run (an earlier run of the app did, or a terminal): the
+/// An Seismic the shell did not start in this run (an earlier run of the app did, or a terminal): the
 /// app ends with it. One that runs without the app that started it (`orphaned`) is asked to end once
 /// its workers paused (`POST /api/app-takeover`); true once it has (its entry says so, `takenOver`),
 /// for this shell to start it again under itself. A stop meanwhile ends it for good, the app with it.
-fn watch(app: &AppHandle, obeya: &Obeya, home: &Path) -> bool {
+fn watch(app: &AppHandle, obeya: &Seismic, home: &Path) -> bool {
   let port = obeya.port.load(Ordering::SeqCst);
   let mut silent = 0;
   let mut taking = false;
@@ -480,7 +489,7 @@ fn watch(app: &AppHandle, obeya: &Obeya, home: &Path) -> bool {
 }
 
 /// Shows the canvas once it answers, signed in, and tells it to stop when the owner quit meanwhile.
-fn navigate(app: &AppHandle, obeya: &Obeya) {
+fn navigate(app: &AppHandle, obeya: &Seismic) {
   let (Some(_), Some(w)) = (obeya.url(), main_window(app)) else { return };
   let next = obeya.first.lock().unwrap().take().unwrap_or_else(|| "/".into());
   if let Ok(url) = Url::parse(&login_link(obeya.port.load(Ordering::SeqCst), &next, false)) {
@@ -491,8 +500,8 @@ fn navigate(app: &AppHandle, obeya: &Obeya) {
   }
 }
 
-/// The owner quits: Obeya is told to stop, and the app waits for it (true).
-fn quit(app: &AppHandle, obeya: &Obeya) -> bool {
+/// The owner quits: Seismic is told to stop, and the app waits for it (true).
+fn quit(app: &AppHandle, obeya: &Seismic) -> bool {
   let first = !obeya.stopping.swap(true, Ordering::SeqCst);
   match obeya.port.load(Ordering::SeqCst) {
     // still starting: told once it answers
@@ -531,7 +540,7 @@ pub(crate) fn now_ms() -> u64 {
 }
 
 impl Placed {
-  fn of(w: &WebviewWindow, obeya: &Obeya) -> Option<Placed> {
+  fn of(w: &WebviewWindow, obeya: &Seismic) -> Option<Placed> {
     let scale = w.scale_factor().ok()?;
     let at = w.outer_position().ok()?.to_logical::<f64>(scale);
     let size = w.inner_size().ok()?.to_logical::<f64>(scale);
@@ -593,7 +602,7 @@ pub(crate) fn may_relaunch(app: &AppHandle) -> bool {
 /// the server runs on unless it ended already. On a Mac through the system, as the Dock starts it, once
 /// this one has ended: run from this process instead, the new shell would count as this one's for the
 /// system's permissions (the microphone), which ends with it.
-pub(crate) fn relaunch(app: &AppHandle, obeya: &Obeya) {
+pub(crate) fn relaunch(app: &AppHandle, obeya: &Seismic) {
   obeya.relaunching.store(true, Ordering::SeqCst);
   let placed = main_window(app).and_then(|w| Placed::of(&w, obeya));
   if let Some(p) = &placed {
@@ -633,15 +642,15 @@ fn free_name(dir: &Path, name: &str) -> PathBuf {
   (2..).map(|i| dir.join(format!("{stem} ({i}){ext}"))).find(|p| !p.exists()).unwrap()
 }
 
-fn window(app: &AppHandle, obeya: Arc<Obeya>, placed: Option<&Placed>) -> tauri::Result<WebviewWindow> {
+fn window(app: &AppHandle, obeya: Arc<Seismic>, placed: Option<&Placed>) -> tauri::Result<WebviewWindow> {
   let navigation = obeya.clone();
   let outside = obeya.clone();
   let loaded = obeya.clone();
   let downloads = app.path().download_dir().ok();
   let saved: Arc<Mutex<HashMap<String, PathBuf>>> = Default::default();
-  let check = std::env::var("OBEYA_APP_CHECK").ok();
+  let check = seismic_env("APP_CHECK").and_then(|c| c.into_string().ok());
   let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-    .title("Obeya")
+    .title("Seismic")
     .inner_size(1440.0, 900.0)
     .min_inner_size(720.0, 480.0)
     .initialization_script(format!(
@@ -649,7 +658,7 @@ fn window(app: &AppHandle, obeya: Arc<Obeya>, placed: Option<&Placed>) -> tauri:
       app.package_info().version.to_string(),
       std::env::consts::OS,
       // installed from a checkout: the commit it was built from, which the settings show
-      option_env!("OBEYA_BUILT_COMMIT").filter(|c| !c.is_empty()).map_or("null".to_string(), |c| format!("{c:?}")),
+      option_env!("SEISMIC_BUILT_COMMIT").or(option_env!("OBEYA_BUILT_COMMIT")).filter(|c| !c.is_empty()).map_or("null".to_string(), |c| format!("{c:?}")),
       // started again: the page before may have handed over what a reload keeps (update.rs)
       placed.is_some()
     ))
@@ -743,17 +752,17 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     file.insert(&browser, 0)?;
   }
   // the default Quit (the app menu's last item) ends the app at once, which a Mac does not let an app
-  // put off: this one stops Obeya first, as closing the window does elsewhere
+  // put off: this one stops Seismic first, as closing the window does elsewhere
   if let Some(MenuItemKind::Submenu(own)) = items.first() {
     let n = own.items()?.len();
     own.remove_at(n - 1)?;
-    own.append(&MenuItem::with_id(app, "quit", say("Obeya beenden", "Quit Obeya"), true, Some("CmdOrCtrl+Q"))?)?;
+    own.append(&MenuItem::with_id(app, "quit", say("Seismic beenden", "Quit Seismic"), true, Some("CmdOrCtrl+Q"))?)?;
   }
   Ok(menu)
 }
 
 fn main() {
-  let obeya = Arc::new(Obeya::default());
+  let obeya = Arc::new(Seismic::default());
   let for_setup = obeya.clone();
   // started again by the shell before it (`relaunch`)
   let placed = Placed::take(&home());

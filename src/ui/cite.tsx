@@ -5,6 +5,7 @@
 // cursor behind it (`cite` in `draft.ts` says where). Until the owner has used it once the button
 // names what it does beside its icon, so it is found.
 
+import { Quote } from 'lucide-react';
 import { type RefObject, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cite } from './draft';
@@ -53,8 +54,8 @@ export function spot(first: Box, last: Box, backwards: boolean, view: Box, touch
 
 /**
  * The marking in a framed page, as the page says it (`withMarkReport` in src/core/frame.ts): its
- * lines in the frame's window. There is one marking at a time, on Obeya's page or in one frame: a new
- * one in a frame takes the page's away, a press on Obeya's page the frame's.
+ * lines in the frame's window. There is one marking at a time, on Seismic's page or in one frame: a new
+ * one in a frame takes the page's away, a press on Seismic's page the frame's.
  */
 interface FrameMark {
   frame: HTMLIFrameElement;
@@ -203,9 +204,7 @@ export function CiteButton({ box, draft, anywhere, onCite }: { box: RefObject<HT
         setNamed(false);
       }}
     >
-      <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
-        <path d="M3.5 15v-3.6c0-3 1.3-5.3 4-6.6l.8 1.3c-1.5.9-2.3 2-2.5 3.4H8.5V15zM11.5 15v-3.6c0-3 1.3-5.3 4-6.6l.8 1.3c-1.5.9-2.3 2-2.5 3.4h2.7V15z" fill="currentColor" />
-      </svg>
+      <Quote size={15} strokeWidth={2} aria-hidden="true" />
       {named && <span>{t.talk.cite}</span>}
     </button>,
     document.body,

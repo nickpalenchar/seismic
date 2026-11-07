@@ -94,8 +94,8 @@ describe('what starts waiting', () => {
 describe('Push', () => {
   test('a card that starts waiting is pushed at once, encrypted for the phone, and opens that card', async () => {
     const { push, sent, shown } = await setup();
-    push.waits([{ ...waits('c1'), canvas: 'Obeya' }]);
-    expect(await shown()).toEqual([{ title: 'c1', body: 'Demo bereit · Obeya', url: '/?card=c1', tag: 'c1' }]);
+    push.waits([{ ...waits('c1'), canvas: 'Seismic' }]);
+    expect(await shown()).toEqual([{ title: 'c1', body: 'Demo bereit · Seismic', url: '/?card=c1', tag: 'c1' }]);
     expect(sent[0]!.url).toBe('https://web.push.apple.com/abc');
   });
 
@@ -104,7 +104,7 @@ describe('Push', () => {
     store.ensureCanvas('shop', 'Shop');
     const [card] = store.insert([{ canvas_id: 'shop', kind: 'task', state: 'waiting', x: 0, y: 0 }]);
     push.waits([waits(card!.id)]);
-    expect((await shown())[0]!.url).toBe(`/c/shop/card/${card!.short}`);
+    expect((await shown())[0]!.url).toBe(`/p/shop/c/${card!.short}`);
   });
 
   test('nothing is pushed while the owner used a page at the machine in the last minutes', async () => {
@@ -216,7 +216,7 @@ describe('Push', () => {
     expect(timers).toHaveLength(0);
   });
 
-  test('the VAPID key stays in Obeya’s home, readable by the owner alone', async () => {
+  test('the VAPID key stays in Seismic’s home, readable by the owner alone', async () => {
     const home = mkdtempSync(join(tmpdir(), 'obeya-push-'));
     const store = new Store(':memory:');
     const key = await new Push({ store, home }).key();

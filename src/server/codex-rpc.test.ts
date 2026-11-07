@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { testProcessCode } from '../test-process';
 import { tmpdir } from 'node:os';
 import { codexConnection, CodexRpcError, type CodexHandlers } from './codex-rpc';
 
@@ -8,7 +9,7 @@ const send = (m) => process.stdout.write(JSON.stringify(m)+'\\n');
 const lines = createInterface({input:process.stdin});
 `;
 function connection(code: string, overrides: Partial<CodexHandlers> = {}, timeoutMs = 1000) {
-  return codexConnection({ command: process.execPath, args: ['-e', preamble + code], cwd: tmpdir(), env: process.env, timeoutMs }, { ...handlers, ...overrides });
+  return codexConnection({ command: process.execPath, args: ['-e', testProcessCode(preamble + code)], cwd: tmpdir(), env: process.env, timeoutMs }, { ...handlers, ...overrides });
 }
 
 test('stdio correlates concurrent replies out of order and preserves split UTF-8 notifications', async () => {
@@ -89,7 +90,7 @@ test.skipIf(process.platform === 'win32')('parent exit kills its remaining proce
     const c = connection(`
 const {spawn}=await import('node:child_process');
 lines.on('line', line => {
- const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:${JSON.stringify(stdio)}});
+ const child=spawn(process.execPath,['-e',${JSON.stringify(testProcessCode())}],{stdio:${JSON.stringify(stdio)}});
  send({id:JSON.parse(line).id,result:child.pid});
  setTimeout(()=>process.exit(7),50);
 });`);

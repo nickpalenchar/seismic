@@ -15,11 +15,12 @@ export interface Doing {
   /** A tool call failed and the agent works on it: the name of the tool whose next success ends it. */
   failed?: string;
   thinking?: boolean;
+  building?: number;
 }
 
 /** The label the card shows for the state: a failure the agent works on before the demo, the demo before thinking. */
 export function shownDoing(d: Doing): AgentDoing {
-  return d.failed ? 'debugging' : d.demo ?? (d.thinking ? 'thinking' : 'working');
+  return d.failed ? 'debugging' : d.demo ?? (d.building ? 'building' : d.thinking ? 'thinking' : 'working');
 }
 
 /** A Bash command that renders a demo video (the demo skill's `node demo.ts`, a revoice), not a dry run or the narration alone. */
@@ -35,11 +36,12 @@ function preparesDemo(name: string, input: Record<string, unknown>): boolean {
   return false;
 }
 
-/** The state after the agent starts a tool call. Obeya's own tools change nothing but a handover, which ends the demo. */
+/** The state after the agent starts a tool call. Seismic's own tools change nothing but a handover, which ends the demo. */
 export function onTool(d: Doing, name: string, input: Record<string, unknown>): Doing {
   const next: Doing = { ...d, thinking: false };
-  if (name === 'mcp__obeya__ready_for_review' || name === 'mcp__obeya__ask') return { failed: d.failed };
+  if (name === 'mcp__seismic__ready_for_review' || name === 'mcp__seismic__ask') return { failed: d.failed };
   if (name.startsWith('mcp__')) return next;
+  if (['Edit', 'MultiEdit', 'Write', 'NotebookEdit', 'apply_patch'].includes(name)) next.building = (d.building ?? 0) + 1;
   const command = name === 'Bash' && typeof input.command === 'string' ? input.command : '';
   if (command && renders(command)) next.demo = 'recordingDemo';
   else if (preparesDemo(name, input)) next.demo = d.demo === 'recordingDemo' || d.demo === 'finalizingDemo' ? 'finalizingDemo' : 'preparingDemo';
@@ -51,6 +53,7 @@ export function onTool(d: Doing, name: string, input: Record<string, unknown>): 
 /** The state after a tool call ended: a failure marks the agent debugging until that tool succeeds again. */
 export function onToolDone(d: Doing, name: string, ok: boolean): Doing {
   if (name.startsWith('mcp__')) return d;
+  if (['Edit', 'MultiEdit', 'Write', 'NotebookEdit', 'apply_patch'].includes(name)) d = { ...d, building: Math.max(0, (d.building ?? 0) - 1) };
   if (!ok) return { ...d, failed: name };
   return d.failed === name ? { ...d, failed: undefined } : d;
 }

@@ -4,48 +4,49 @@ A chapter of the [design doc](../design.md), whose header says how it is written
 
 ### Sharing a demo
 
-Every demo, video or HTML artifact, has a compact "Teilen" button at the right end of its own line
+Every demo, video or HTML artifact, has a compact "Share" button at the right end of its own line
 (see Earlier demos), on waiting, done and archived cards alike; prototypes are not shared. Once
-shared, the line holds the link, "Link kopieren" and "Nicht mehr teilen".
+shared, the line holds the link, "Copy link" and "Stop sharing".
 
 #### Where a demo goes
 
-Where a site takes the demo, "Teilen" publishes it on a page there at once, without a hold; "Nicht
-mehr teilen" withdraws it as easily. The site is the repository's own (see Static sites) where this
-machine can deploy to it, else the owner's personal one (see The personal site) where the repository
-may share there. Without either, it exports a file (see Export without a site). A page stays on the
-site it went out on: later versions, a withdrawal and the link to the PR or commit go there, even once the other
-site would take a new page. Pages go out one change at a time through one
+Where a site takes the demo, "Share" publishes it on a page there at once, without a hold; "Stop
+sharing" withdraws it as easily. The site is the one the card's canvas chose, under the canvas's
+path there (see A canvas's demo site), once that path is initialized and this machine can deploy to
+the site. Without one, it exports a file (see Export without a site), and the export box says why
+with a link into the project settings ("Choose a demo site", or "Initialize" while the path is not
+on the site yet). A page stays on the site and path it went out on: later versions, a withdrawal and
+the link to the PR or commit go there, even once the canvas chose another (as long as this machine
+still has that site). Pages go out one change at a time through one
 queue for all canvases, which resumes after a restart. The slug comes from the card's title and id
 once and stays, so the link survives republishing. The deploy's output goes into the card's log; a
 failure is logged as an error and leaves the card as it was.
 
-The page has a title and two to five sentences for colleagues who have never seen Obeya, which
-`ready_for_review` takes with every demo where the repository has a site (`demo.page`); for a demo
+The page has a title and two to five sentences for colleagues who have never seen Seismic, which
+`ready_for_review` takes with every demo where the canvas shares on a site (`demo.page`); for a demo
 without them, a short read-only session writes them from the worker's last summary when the owner
 shares, kept with the demo from then on. Whether `ready_for_review` takes and requires the page is
-fixed when the worker's session starts: where sharing begins only later (the forge answers after a
-restart that the repository is public, a site is set up), the session hands over without one, since
+fixed when the worker's session starts: where sharing begins only later (the canvas's site is initialized later), the session hands over without one, since
 its tools' schema drops a page it does not know.
 
 #### Tags
 
-A site may name a vocabulary of tags (`demo.site.tags`): a few dimensions, each with its values, in
-the order the overview shows them (`{"Area": ["Billing", "Reports"], "Audience": ["Admins"]}`). As
-the repository's settings, it is the same for everyone who shares on the site. Nobody adds to it:
+A canvas may name a vocabulary of tags for its demo site (`tags` of its `demoSite`): a few
+dimensions, each with its values, in the order the overview shows them (`{"Area": ["Billing",
+"Reports"], "Audience": ["Admins"]}`). The manifest carries it with the canvas's path, so every
+machine writes that path's overview with the same filter. Nobody adds to it:
 workers and the reading session choose from it, and the owner picks from it by hand. A page carries
 per dimension zero or more of its values; a dimension it has no key for has none chosen yet.
 
-The vocabulary need not be thought up by hand: under the field in the repository's settings,
-„Tags von einem Agenten vorschlagen lassen“ (shown once the repository runs on a canvas) starts a
-read-only session in the repository. It reads how the app is built (README, docs, the source tree)
+The vocabulary need not be thought up by hand: under the field in the canvas's demo site,
+"Have an agent propose the tags" starts a read-only session in the canvas's home repository. It reads how the app is built (README, docs, the source tree)
 and the repository's cards on every canvas it is on, finished and open, archived ones included,
 each with its task and what its demos' pages say (or their chapters, or the handover's summary where
 there is no demo), the canvas's cards first and the archive's most recent first, up to a size. It
 keeps what of a vocabulary already in the field still fits, since pages carry those values, and
 proposes two to four dimensions, in the language of the repository's demos, with a few sentences
-why in the owner's language. The proposal goes into the field as an unsaved change for the owner to
-edit and save, with a link that brings back the tags before; it runs on in the background, so a
+why in the owner's language. The proposal goes into the field (in the project settings sheet saved at
+once, in Configuration an unsaved change), with a link that brings back the tags before; it runs on in the background, so a
 dialog closed meanwhile takes it in when it opens again.
 
 Tags belong to the card's page, not to a version. Each dimension comes from the first that has it:
@@ -58,49 +59,45 @@ it writes the text, else in one of its own from the title and text of the page's
 chooses only those dimensions, kept on the card from then on, so a later worker's tags come before
 it and the owner's before both.
 
-The share box shows the page's tags as chips, before sharing and after: × takes one off, „+“ offers
+The share box shows the page's tags as chips, before sharing and after: × takes one off, "+" offers
 the vocabulary's other values. A change takes effect at once, without a hold: a shared page goes out
 again with the same demos (one going out goes out once more after it), and the log says so.
 
 Pages without tags are tagged from the Koordinator's sheet: while pages on a site with a vocabulary
 lack tags in a dimension (archived cards' included, their demos at hand), an entry says how many
-(„N Seiten ohne Tags“), and „Alle N taggen und teilen“ tags and shares them again in one run through
-the queue that shares outdated pages again (one run at a time, with its progress, "Anhalten" and the
-failed ones). Its "Ausblenden" puts away only its own result.
+("N pages without tags"), and "Tag and share all N" tags and shares them again in one run through
+the queue that shares outdated pages again (one run at a time, with its progress, "Stop" and the
+failed ones). Its "Hide" puts away only its own result.
 
 #### Several versions on one page
 
 A card has one page under one link, holding the demo versions the owner shared, in order of
-handover: the first on top with the page's title and text, each later one below as „Ergänzung vom
-16.10., 13:37“ (its handover's time, formatted by Obeya, since ICU joins the parts differently on
+handover: the first on top with the page's title and text, each later one below as "Addition from 16 Oct, 13:37" (its handover's time, formatted by Seismic, since ICU joins the parts differently on
 macOS and Linux) with its own title, text, chapters and demo. With two or more, a list of them stands
 under the title.
 
 The share box is about the version shown in the demo's line. On a version on the page: its link,
-"Link kopieren" and "Nicht mehr teilen" (the page goes out again without it; the last one takes the
-page down). With earlier demos on the card, a line says which versions the page holds („Auf der
-Seite: Demo 1 und 2“). On an earlier version not on the page, "Teilen" adds it in its place by
-handover. On the latest, not on the page, the hint „Die geteilte Seite zeigt Demo 1.“ offers „Auf
-der Seite ersetzen“ and „Zur Seite dazunehmen“. Which comes first is the worker's word:
+"Copy link" and "Stop sharing" (the page goes out again without it; the last one takes the
+page down). With earlier demos on the card, a line says which versions the page holds ("On the page: demo 1 and 2"). On an earlier version not on the page, "Share" adds it in its place by
+handover. On the latest, not on the page, the hint "The shared page shows demo 1." offers "Replace on the page" and "Add to the page". Which comes first is the worker's word:
 `ready_for_review` says of a later demo whether it was recorded afresh (`follows: replaces`) or
 supplements the one before (`supplements`), the demo skill asks for it, and a sentence under the
-buttons repeats it („Laut Agent ergänzt dieses Video Demo 1.“); without it, replacing comes first.
+buttons repeats it ("According to the agent, this video supplements demo 1."); without it, replacing comes first.
 Nothing goes out without the owner's click.
 
 A supplement never goes on a page without what it supplements: shared on a new page, added, or put
 there by an approval, it takes along the demo before it, and that one the demo before it while it
 supplements too, back to the first or one recorded afresh, also where those were never shared. Before
-a page exists, a line under "Teilen" names them („Kommt mit Demo 1 auf die Seite, die diese Demo laut
-Agent ergänzt.“). „Auf der Seite ersetzen“ puts the demo there alone, as the owner chose.
+a page exists, a line under "Share" names them ("Goes onto the page with demo 1, which this demo supplements according to the agent."). "Replace on the page" puts the demo there alone, as the owner chose.
 
 #### A shared artifact
 
 An artifact's page shows the title and text above the artifact in a sandboxed frame that grows to
 the artifact's reported height (`postMessage`, at most 30 steps, as an artifact as high as its window
-would grow on). „In eigenem Fenster öffnen“ shows the same page with the frame filling the window
+would grow on). "Open in its own window" shows the same page with the frame filling the window
 (`?alone`). The artifact may open no window: a popup could leave the sandbox or reach any server.
 
-The frame's origin is `null`, and a static site cannot hand out keyed addresses as Obeya does (see
+The frame's origin is `null`, and a static site cannot hand out keyed addresses as Seismic does (see
 The demo on the card): hosts send no or a wildcard CORS header, a ZIP from disk loads no CORS request,
 and behind a login (Cloudflare Access) the frame's requests for files go cross-site without the
 login's cookie (Firefox always, Chrome unless `SameSite=None`), so the login answers with its own
@@ -121,12 +118,12 @@ an owner's file into a public page. Still not loading: a Web Worker's script, an
 computed path, a font set from a script, and behind a login a file a script names at run time. A
 ZIP's page opened from disk lets the frame keep its origin (`file:` has no site to protect).
 
-A shared page sends nothing to the internet, under the rule of a worker's page inside Obeya (see The
+A shared page sends nothing to the internet, under the rule of a worker's page inside Seismic (see The
 demo on the card): each HTML page of the copy starts with that CSP as a meta tag (own files, inline,
 `data:`, `blob:`), naming its files by `'self'` and the site's address (for Safari), in a ZIP by
 `file:`; a single-file export carries it through `srcdoc`. The page around allows its frame only its
 own files, so the artifact cannot navigate elsewhere, and turns DNS prefetching off. Where the host
-reads `_headers` (Cloudflare Pages, Netlify), Obeya writes one: the artifact's files get the CSP, the
+reads `_headers` (Cloudflare Pages, Netlify), Seismic writes one: the artifact's files get the CSP, the
 sandbox (opened directly, a file does not run in the site's origin) and `Connection-Allowlist:
 (response-origin)` against `preconnect` and WebRTC (Chrome 152 on). Elsewhere, and in Firefox and
 Safari, those two stay open (no meta tag carries the header, no engine heeds `webrtc 'block'`), as
@@ -138,8 +135,7 @@ disk.
 What changes on the pages is written down as it changes (`PAGE_CHANGES` in
 `src/core/page-changes.ts`): each change a viewer sees, with the kinds of page it shows on (video,
 artifact, both) and its words. A share keeps the newest change at publishing; later changes that show
-on its versions' kinds make it outdated. Its card lists them with their days, beside "Erneut
-teilen" (same versions, same link) and "Nicht mehr teilen"; the latest demo not yet on the page
+on its versions' kinds make it outdated. Its card lists them with their days, beside "Share again" (same versions, same link) and "Stop sharing"; the latest demo not yet on the page
 brings them with replacing or adding. A change that shows nowhere gets no entry. A test pins a hash
 of sample pages (both languages, both kinds, several versions) and fails once they differ, asking to
 add an entry where a viewer sees it and to take the new hash. A change that shows only on pages with
@@ -149,24 +145,24 @@ publish without marking pages. A page whose demo files are gone (demos get delet
 neither offered nor counted.
 
 Many at once go from the Koordinator's sheet: while pages are outdated, an entry says how many
-(„N geteilte Demos sind veraltet“, archived cards' included), lists the changes with their days and
+("N shared demos are outdated", archived cards' included), lists the changes with their days and
 how many pages lack each, and shares again the newest 20 (or 10, 50, 100, all). They go through the
 same queue as the share kept them (a newer demo on the card still waits for the owner), a share the
 owner starts slipping in between. The entry shows progress and the failed ones with their cards;
-"Anhalten" stops after the current page; "Ausblenden" hides the entry until a newer change outdates
+"Stop" stops after the current page; "Hide" hides the entry until a newer change outdates
 pages. The run survives a restart; a page shared again on its own, withdrawn or deleted meanwhile
-drops out of it. It is not counted on the Koordinator button: each card offers "Erneut teilen", and
+drops out of it. It is not counted on the Koordinator button: each card offers "Share again", and
 nothing is lost by leaving them.
 
 A page is outdated by its repository's theme too (see A repository's theme): the share keeps the
 theme's hash, and once the repository's current one differs (a new theme, a changed one, one taken
-away), the card lists „Theme geändert“ without a day beside the page changes, and the Koordinator's
-entry counts its pages with them. „Ausblenden“ hides each of them until its repository's theme
+away), the card lists "Theme changed" without a day beside the page changes, and the Koordinator's
+entry counts its pages with them. "Hide" hides each of them until its repository's theme
 changes again or the page is shared again. The theme is read with the repository's settings, when
-its default branch moves (in a folder without git, when Obeya next reads the settings), not each
+its default branch moves (in a folder without git, when Seismic next reads the settings), not each
 time the canvas is drawn.
 
-A page published again with the same video keeps its date („Geteilt am“), so the overview keeps its
+A page published again with the same video keeps its date ("Shared on"), so the overview keeps its
 order; a new video dates it anew.
 
 #### What the worker hears of its page
@@ -175,31 +171,31 @@ The card's worker hears what became of its demo's page since it last heard of it
 it (going online, then online with its address, or showing an earlier demo than its latest),
 sharing failed, or the owner stopped sharing it. The news comes with its next message or tool step,
 before the owner's words that follow it, and starts no turn of its own. Online, it also says where
-Obeya links the page once the work lands (the commit's trailer or the PR's description, see below;
+Seismic links the page once the work lands (the commit's trailer or the PR's description, see below;
 the PR's comment on a review card), so a worker asked whether the link reaches git answers from
 fact. What a message tells of the page anyway (approval into a PR, the landing) counts as heard.
 
 #### The page and the pull request
 
 A demo shared before approval goes into the worker's approval message with "link it in the
-description". Once a PR exists and the page is out, in either order, Obeya adds to the PR description
+description". Once a PR exists and the page is out, in either order, Seismic adds to the PR description
 (unless it already contains the URL) a line `Demo-Video: <url> <!-- obeya:demo -->` (`Demo-Seite:`
-for an artifact; „Demo video:“/„Demo page:“ in English), replacing its own earlier line by the
+for an artifact; "Demo video:"/"Demo page:" in English), replacing its own earlier line by the
 marker. A page shared before the PR existed is republished with the PR's link, as it showed then; a PR
 reported while the page is going out gets a second round after it. A failure goes into the card's log; the page stays shared. Withdrawing leaves the line. A review card's pull request is the contributor's: its
 description stays as it is, and once the owner approved, the page's link goes into a comment on it
 instead (`Demo-Video: <url>` in the demo's language), once per page. Either way the card's
 conversation shows a line that the link is on the PR, with the comment's or the PR's address: the
-agent only knows Obeya will put it there, and the owner should not have to look on the forge.
+agent only knows Seismic will put it there, and the owner should not have to look on the forge.
 
 #### The page and the landing
 
 The message telling a worker its work landed, its PR merged, or its work closed without a change
 names the demo's page: its URL once it is online, or that the page shows an earlier demo. A page
-still going out says Obeya will send the address: the session stays past the end of the turn, and
+still going out says Seismic will send the address: the session stays past the end of the turn, and
 once the deploy that puts the latest demo on the page finishes (not one still under way before it)
-Obeya sends the URL, or the failure's reason with "ask the owner for a link". A worker that closes
-its card as needing no PR hears the same in the tool's result. If the deploy finished while Obeya was down, the worker hears where the page stands at the
+Seismic sends the URL, or the failure's reason with "ask the owner for a link". A worker that closes
+its card as needing no PR hears the same in the tool's result. If the deploy finished while Seismic was down, the worker hears where the page stands at the
 end of its next turn. Without a demo site, or with the demo not shared, the message says so and
 tells the worker to ask the owner before pointing anyone to the demo, so an issue is not closed
 without a link (CLAUDE.md asks workers to link the demo when they close one). The URL is known
@@ -208,31 +204,22 @@ there yet, or never will be if the deploy fails (decided 2026-10-26).
 
 #### Publishing on approval
 
-A site may publish every approved demo by itself (`demo.site.publish: "approved"`, a choice in
-Konfiguration); Obeya's own repository does, onto `demos.obeya.si`. There, until approval, the
-latest demo not on the page has a checkbox „Mit der Freigabe teilen“ (ticked) beside the button,
-which then reads „Jetzt teilen“. Unticked, approving shares nothing and the log says so. The choice
+A canvas's demo site may publish every approved demo by itself ("A demo goes on the site" "with
+the approval", `publish: "approved"` of its `demoSite`). There, until approval, the
+latest demo not on the page has a checkbox "Share on approval" (ticked) below the row of buttons that approves,
+which then reads "Share now". Unticked, approving shares nothing and the log says so. The choice
 stays with the card and takes effect at once.
-
-A repository that shares on the personal site does the same once the owner ticks it for that, a
-choice of the owner's that stays on this machine, not in the repository's settings (colleagues share
-on their own personal sites): Konfiguration → Demos lists, under the personal site, the repositories
-of the canvases that share there, each with „Mit der Freigabe teilen“ (one whose site publishes on
-approval ticked and fixed, „laut seinen Einstellungen“). Until it is ticked, its cards show the same
-checkbox unticked where the ticked one would be; ticking it there ticks the repository. A page that
-went out on the repository's own site stays out of it. The connection code does not carry the ticks,
-and connecting again keeps them.
 
 On approval, before landing, the latest demo goes on the page as the owner's click would: a new page,
 or beside the versions where its worker said it supplements (with what it supplements, see Several
 versions on one page), else in their place, after any share
 still going out; a log line says so. It goes through the queue, so landing does not wait; a failed
-deploy is logged and the card keeps "Teilen". The same holds for approved PR work, work closed
+deploy is logged and the card keeps "Share". The same holds for approved PR work, work closed
 without a change, and a held approval landed by the worker's next handover (the newer demo goes).
 
 Where a repository lands on `main` directly, the landing commit of a card with a page names it in a
 git trailer, `Demo-Video: <url>` (`Demo-Page:` for an artifact), beside the closing trailers. The URL
-comes from the fixed slug, so the trailer is there before the deploy finishes. Obeya amends the
+comes from the fixed slug, so the trailer is there before the deploy finishes. Seismic amends the
 rebased branch's last commit (`--no-verify`, author kept), skips a trailer already there, and lands a
 commit it cannot amend without one. A publish that succeeds for a landing that then fails leaves a
 public page for work not on `main`; accepted, since the next handover lands it.
@@ -240,23 +227,22 @@ public page for work not on `main`; accepted, since the next handover lands it.
 #### The page and the commit
 
 Work that lands on `main` without a pull request (landing on `main`, or pushed there directly) is
-linked from its page the way a PR is: „Commit ansehen“ („View commit“) where the PR's link would be,
-or „Commits ansehen“ („View commits“) over the comparison of several commits. The address is built
+linked from its page the way a PR is: "View commit" where the PR's link would be,
+or "View commits" over the comparison of several commits. The address is built
 from the checkout's `origin`, `<web address of the repository>/commit/<sha>` or
 `/compare/<before>...<last>` (GitHub's, Forgejo's and Gitea's path; GitLab puts it below `/-/`); an
 `origin` that is a path gives no link. The page goes out on approval before the commit exists, so
-once the work landed Obeya publishes it again as it is with the link, or gives a share still going
-out a second round, as for a PR opened late; the log says „Die geteilte Seite verlinkt jetzt den
-Commit auf main“. A card with a PR links the PR only. Where `main` is pushed later than it lands, the
+once the work landed Seismic publishes it again as it is with the link, or gives a share still going
+out a second round, as for a PR opened late; the log says "The shared page now links the commit on main". A card with a PR links the PR only. Where `main` is pushed later than it lands, the
 link answers once it is pushed; accepted, since nothing else names the commit before.
 
 #### Export without a site
 
-Without a site, "Teilen" exports the page (`GET …/cards/<id>/export?as=zip|html`): a ZIP with a
+Without a site, "Share" exports the page (`GET …/cards/<id>/export?as=zip|html`): a ZIP with a
 folder named by the slug, the video, poster and captions beside `index.html`, or one HTML file with
 the video in base64, played from a blob so it seeks, for videos up to 15 MiB so it still goes by mail
 (the button says so otherwise). An artifact goes into the ZIP under `artifact/`, or into one HTML file
-as `srcdoc` only when `index.html` is its only file. Nothing leaves Obeya, so an export is not held;
+as `srcdoc` only when `index.html` is its only file. Nothing leaves Seismic, so an export is not held;
 the log names the file. It packs the version shown, one per file. Captions go in as cues in a script,
 since Chrome loads no `<track>` from disk. The ZIP is stored uncompressed.
 
@@ -265,20 +251,29 @@ its `index.html` names, else the demo settings' narration language, else German)
 under a big play button; a click anywhere on it but the controls starts it. No autoplay: browsers
 play sound only after a click on the page, and the owner did not want it muted.
 
-Every page and every overview ends in „Aufgenommen mit Obeya“ ("Recorded with Obeya") linking
+Every page and every overview ends in "Recorded with Seismic" linking
 https://obeya.si, without a setting to turn it off; `?alone` leaves it out.
+
+#### Typeface
+
+Shared pages set their text in Inter and show it on every device: the font (Latin subset, OFL) is
+embedded in each page's stylesheet as a `data:` font-face, so the ZIP, the single HTML file and the
+site need no font file beside the page and the pages' policy, which allows `data:`, lets it load.
+Its copyright notice and the OFL text sit in the same stylesheet as a comment, since every copy of
+the font must carry them. Adding the font changed how the pages look to a viewer without Inter, so
+it is a page change (2026-11-07).
 
 #### A repository's theme
 
 A repository gives its shared pages a look of its own with one file, `.obeya/theme.css`, without a
-setting or anything in Obeya's UI: Obeya manages nothing of it. Like the settings, it is read from
-the default branch, not from a card's branch. Every page of the repository carries it, on its own
-site and on the personal site alike, and so does an export (ZIP and HTML file); the overview of a
-repository's site carries the theme of the repository publishing, as with the site's title (the feed
-has no styling), while the overview of a listed personal site keeps Obeya's look, as it belongs to
-no repository. An artifact in its frame stays untouched.
+setting or anything in Seismic's UI: Seismic manages nothing of it. Like the settings, it is read from
+the default branch, not from a card's branch. Every page of the repository carries it, on whichever
+site, and so does an export (ZIP and HTML file); the overview of a canvas's path carries the theme
+of the repository that published there last (the manifest keeps it with the path, so another
+machine's deploy writes the overview alike; the feed has no styling). An artifact in its frame stays
+untouched.
 
-The file goes into the page's head after Obeya's own style, so its rules win. Files it names with
+The file goes into the page's head after Seismic's own style, so its rules win. Files it names with
 `url()` or `@import` (a logo, a font, another stylesheet, which may name more in turn) go in as
 `data:` URLs where their real path lies inside `.obeya/` (a link to a file elsewhere does not
 count); every other reference, a file elsewhere or an address on the internet, is dropped. The
@@ -300,50 +295,53 @@ What a theme styles is the pages' markup, which is its interface and changes onl
   `.bar` with the count and `.copy-all`, `ul.demos` whose entries are links holding `b` (the
   title), `span` (the line under it) and `i` with `em` tags, each with a `.copy` button.
 
-A logo goes in as a `background-image` on an element there or a `::before`. „Aufgenommen mit Obeya“
+A logo goes in as a `background-image` on an element there or a `::before`. "Recorded with Seismic"
 stays in the markup of every page; a theme may hide it.
 
 #### Static sites
 
-A static host takes the site as a directory, deployed whole with each change. Obeya keeps it under its
-home, refuses before deploying a file over the host's limit and a directory lacking a page Obeya has
+A static host takes the site as a directory, deployed whole with each change. Seismic keeps it under its
+home, refuses before deploying a file over the host's limit and a directory lacking a page Seismic has
 as shared, and restores it when a deploy fails. Some hosts serve no byte ranges (Cloudflare Pages),
 so the page asks for a range first and, getting the whole file, plays the video from memory, as a
 browser cannot seek in it otherwise.
 
-`demo.site` in the repository's settings (once trusted, see Trusting a repository's commands):
+A site of this machine's list (see This machine's demo sites) has:
 
-- `title`: the overview's heading and the pages' tab titles; `url`: pages at `url/<slug>/`;
+- `url`: where it is served; a canvas's pages lie at `url/<path>/<slug>/`;
 - `deploy`: a command line, `{dir}` for the site's directory;
-- `env` (optional): a `KEY=value` file under Obeya's home with the deploy's credentials; a path
-  outside the home is refused, and `${KEY}` comes from that file only, so a repository's settings
-  cannot send the machine's secrets anywhere;
+- `env` (optional): a `KEY=value` file under Seismic's home with the deploy's credentials; a path
+  outside the home is refused, and `${KEY}` comes from that file only;
 - `headers`: for reading the live site behind a login; `maxFile`: the host's file limit (25 MiB
-  default); `publish`: see Publishing on approval; `tags`: the vocabulary (see Tags), which
-  Konfiguration writes as a line per dimension (`Area: Billing, Reports`).
+  default); `host` and `project` where Seismic set it up; `secret` where it is unlisted (see Unlisted
+  sites).
 
-The overview is in `demo.language`, else the narration language. Konfiguration has a field for each.
-A site counts once it has a title, an http(s) URL and a deploy command; an unusable one (incomplete,
-deploy program missing) is a problem shown at the repository.
+A canvas's choice adds the rest: its path, its vocabulary of tags (see Tags), whether it publishes
+on approval; the title of its overview and of its pages' tabs is the canvas's name. A path's
+overview is in the language of the home repository's demos (`demo.language`), else the narration
+language.
 
-The deploy runs in `share/` under Obeya's home with `OBEYA_HOME` and `OBEYA_REPO` set, not in the
-checkout, where leftovers (wrangler's cache) would keep a pool workspace from being leased. Its words
-are split at spaces outside quotes; programs and scripts are found in the repository; `.ts` and `.js`
-run with Obeya's Bun, so the line works on Windows. Any host that takes a directory fits: Cloudflare
+The deploy runs at the root of the card's repository (its checkout Seismic reads from; `share/` under
+Seismic's home when adding a site, which has no repository), with `SEISMIC_HOME` and `SEISMIC_REPO` set.
+What wrangler leaves there (`.wrangler/`) goes into the repository's own exclude file
+(`.git/info/exclude`), so a checkout that is also a pool workspace stays clean and can be leased.
+Its words are split at spaces outside quotes; a program or script given as a relative path is found
+in the card's repository (in Seismic's home when adding the site); `.ts` and `.js`
+run with Seismic's Bun, so the line works on Windows. Any host that takes a directory fits: Cloudflare
 Pages, Netlify, Vercel, `aws s3 sync`, `rsync`, a Pages branch, a script.
 
-The site lives in `sites/<key>/` under Obeya's home, the key from the URL's host and path, shared by
-all repositories naming it. `site/` holds a directory per page (demo files, `index.html`,
+The site lives in `sites/<key>/` under Seismic's home, the key from the URL's host and path, shared by
+all canvases on it. `site/` holds, under each canvas's path, a directory per page (demo files, `index.html`,
 `meta.json`: kind, title, text, chapters, PR (or without one the commit: its address, and whether it is a comparison over several), first shared, last changed, a hash of the demo's own
 files, language, who shared it, its tags, and under `more` the later versions, their files in `2/`, `3/` …),
-the overview, dated by each page's newest version, and an Atom feed (`feed.xml`, linked from the
-overview as „Feed abonnieren“ and by `<link rel="alternate">`) with one entry per page in the overview's order (title,
+the path's overview, dated by each page's newest version, and an Atom feed (`feed.xml`, linked from the
+overview as "Subscribe to feed" and by `<link rel="alternate">`) with one entry per page in the overview's order (title,
 first sentence as summary, the whole text as content, the page's address as link and id, the
 overview's date, the page's language, who shared it as author), written together and so equally
 current. A page keeps its date while its demo's own files stay the same.
 
-Each page names who shared it („Geteilt von Ada Lovelace am 20. Oktober 2026“), and the overview
-after the date, as colleagues publish to one site from their own Obeya: git's `user.name` in the
+Each page names who shared it ("Shared by Ada Lovelace on 20 October 2026"), and the overview
+after the date, as colleagues publish to one site from their own Seismic: git's `user.name` in the
 card's repository, left out where none is set.
 
 A page's tags stand as chips under the line saying who shared it, each linking the overview filtered
@@ -352,35 +350,122 @@ overview starts with a search over the pages' titles and texts and, where the si
 vocabulary, a row of chips per dimension (the values some page has): any chip of a dimension, and
 every dimension with one chosen. The filter stands in the URL (`?Area=Billing&Area=Reports&q=pdf`),
 so a filtered list can be passed on. Each entry shows its tags and, on hover (always on a touch
-screen), an icon copying the page's URL. Above the list, „N von M“ and „Links kopieren“: the pages
+screen), an icon copying the page's URL. Above the list, "N of M" and "Copy links": the pages
 shown as a list of titles and URLs, put on the clipboard as `text/html` (links in a mail or a
 document) and as Markdown (`- [Title](URL)`) in `text/plain`, as text alone where the browser lacks
 `ClipboardItem`. It all runs in an inline script; the site stays static.
 
-A machine without the site's `env` file shares on the personal site where it may, else exports, with
-a line naming the missing file; once placed, it counts when the owner comes back. A site without `env` deploys with the machine's own login.
+A machine without the site's `env` file exports, with a line naming the missing file; once placed, it counts when the owner comes back. A site without `env` deploys with the machine's own login.
 
-#### Setting up a repository's site
+#### This machine's demo sites
 
-Where a repository has no site, its settings offer „Demo-Seite einrichten …“, and the site's fields
-(title, URL, deploy command, env file and the rest) only behind „Anderer Hoster, von Hand eingetragen
-…“: the personal site has no such fields, as Obeya sets it up itself, and a repository's site needs
-them only for a host Obeya does not set up. The owner picks the host (GitHub first, then Cloudflare,
-as for the personal site), Obeya creates the site there in the background (the dialog shows its last line, a login in the
-browser may take minutes) and fills in `demo.site`, which „Speichern“ then takes over. Such a site is
-listed, like any repository's. Cloudflare Pages: a project `<repository>-demos` (with a suffix where
-the name is taken), through wrangler in the account of a site this machine deploys to already, as the
-owner picks it („wie bei demos.example.dev“, each account once; its credentials go into the new site's
-env file), or with the machine's own `wrangler login`, which opens the browser. The choice is shown,
-since a machine may deploy to sites of several accounts, a work account among them. wrangler runs in an
-empty directory of its own and creates a Pages project with `--force`: without it, wrangler 4.15x
-hands `pages project create` on to Workers, which made a Worker of the directory it ran in
-(2026-10-29, Obeya's checkout). A new project's address resolves only once something is deployed
-there, so the setup deploys a blank page and waits up to about two minutes for the address to answer;
-before that, the first share could not read the site and would refuse. GitHub Pages: a public repository `<repository>-demos` under gh's account, with Pages
-turned on for its `main`, and the built-in deploy as the deploy line.
+The demo sites are this machine's, kept in Seismic's home (`demo-sites.json`), not in any
+repository: a site's credentials are a person's, and a repository's settings would put a deploy
+line from a colleague's commit on this machine. Configuration → Demos lists them ("Demo sites"):
+each with its address (a link), its host and project or "entered by hand", listed or unlisted, the
+canvases' paths on it as this machine last saw them, a missing env file, "Copy connection code" and
+"Remove from this machine" (asked once more: the pages and the project at the host stay, and only a
+machine that has the site can withdraw them). Below them, "Configure publishing site" opens a page
+of its own in place of the section (the dialog's navigation stays), with "Back to Demos" at the top;
+a canvas's "+ Add new site" opens Configuration at that page, and once the site is added the page
+goes back to the list, where the canvas can then choose it.
 
-GitHub Pages takes no directory upload, so Obeya builds its deploy in: a deploy line
+The page's switcher offers, in this order, each with a line under it:
+
+- "GitHub, public": a public repository `obeya-demos` (a number where the name is taken; an
+  existing one is never reused) under gh's account, with Pages turned on, deployed by the built-in
+  deploy; listed. It works with any account, and anyone's demo repository seen by chance makes
+  Seismic known.
+- "GitHub, private": the same in a private repository, unlisted. Seismic creates it with `--private`,
+  checks GitHub's answer on its visibility before anything goes in, and again before every deploy
+  (a repository made public since, or one named by a connection code, would show every page's
+  token), and stops otherwise. An account on the free plan is refused before anything is created,
+  and a refusal when Pages is turned on gives GitHub's reason (the repository stays, private); both
+  offer Cloudflare instead.
+- "Cloudflare": a project `obeya-<user name>` (a suffix where taken), its address the one
+  Cloudflare names (`…pages.dev`); "Unlisted" ticked unless the owner unticks it. wrangler runs in
+  an empty directory of its own and creates the project with `--force`: without it, wrangler 4.15x
+  hands `pages project create` on to Workers, which made a Worker of the directory it ran in
+  (2026-10-29, Seismic's checkout). The account is that of a site this machine deploys to already (as
+  the owner picks it, "as for demos.example.dev", each account once; its credentials go into the new
+  site's env file), the machine's own `wrangler login`, which opens the browser, or "another
+  account: API token" (with "Cloudflare Pages: Edit"; its account's id where the token covers
+  several) into the new site's env file, so the login other sites deploy with stays. A new project's
+  address resolves only once something is deployed there, so the setup deploys a blank page and
+  waits up to about two minutes for the address to answer.
+- "Another host": its address, deploy line, env file and largest file, for a host Seismic does not
+  set up (Netlify, an S3 bucket, a server's directory). An incomplete one or one whose deploy
+  program is missing is refused with the reason.
+
+A site goes on the list only once Seismic has published to it as a share would: it reads the live
+manifest, takes over what is there and deploys it again unchanged (a new site's blank page, an
+existing site's pages), so a site whose deploy line or credentials do not work never becomes a
+choice; a failure shows its reason and adds nothing. One site is added at a time; it runs in the
+background and shows its last line, the form's choices kept while the dialog is closed.
+
+Another machine of the owner's joins a site with its connection code: `obeya-site:` and the site,
+its secret directory and the env file's values, base64url-encoded. "Connect to an existing site"
+under the form (with a line saying where the code comes from) takes it and adds the site to the
+list. Without credentials in it (a site deploying with the machine's own login), that machine
+deploys with its own `wrangler login` or `gh auth login`. Its first share pulls the pages from the
+live site as any machine's does (see Several machines on one site). A personal site's code from
+before the list is taken the same way.
+
+The owner's personal site, kept in `personal-site.json` before there was a list, is read as the list's
+first site and moves into `demo-sites.json` with the list's next change; its ticks (private
+repositories, sharing on approval) are gone, as the canvas's choice covers both.
+
+#### A canvas's demo site
+
+A canvas chooses its demo site in its settings (the sheet from the gear, see The project settings in
+The canvas, and its page in Configuration): "Demo site" offers "None: export demos as a file",
+this machine's sites, and at the bottom "+ Add new site" (the page above). Once a site is chosen,
+"Path on the site" (`billing`, `team/billing`: up to three parts of lower-case letters, digits and
+hyphens; empty for the site's root) takes effect when the field is left, and while the path is not
+on the site, red text "Site requires setup, click Initialize" and "Initialize" (its tooltip names
+the address the overview will have). Initialize publishes the canvas's empty
+overview there (an unlisted site: a blank page) and registers the path in the site's manifest, with
+the canvas's name as title, the overview's language, the vocabulary and the theme; it is disabled
+while it runs, and the status bar says "Creating demo site …" meanwhile, a failure shown at the
+field. From then on the field says "Ready" with the overview's link, and the vocabulary of tags and
+"A demo goes on the site" follow. A path counts as initialized as this machine's copy of the
+manifest has it; another machine joining the site initializes it again, which only pulls and
+deploys.
+
+Several canvases share a site, each under its path, from one machine or several: the site's
+directory and manifest are one, so every deploy carries every path's pages, and each deploy writes
+every path's overview and feed from the manifest's entry for it. The site's root lists none of the
+paths (a blank page) unless a canvas has the root as its path, or pages from before the paths lie
+there (they keep their overview at the root). The canvas's setting is `demoSite` in the
+configuration (`{ "url", "path", "tags", "publish" }`); Project defaults have none (each canvas
+chooses its own).
+
+#### Unlisted sites
+
+A site from a public GitHub repository, whose files anyone can list, is listed (an overview and a
+feed per path, a page at `<path>/<slug>/`, the manifest at the root), and a random part in its
+addresses would hide nothing. A site from a private GitHub repository, and one on Cloudflare unless
+unticked, is unlisted:
+
+- no overview, no feed, no tag links on the pages, no link to the site's root or the path;
+- a page lies at `<path>/<token>/<slug>/`: the slug for reading, the token (16 letters and digits,
+  about 82 bits) for not guessing; it is drawn once per card, on its first share there, and kept
+  through a withdrawal, so sharing again gives the same link;
+- the root, each path, and the answer to every address the site lacks (`404.html`, which Cloudflare
+  and GitHub Pages serve), are a blank page, so nothing lists anything;
+- the manifest lies in a secret directory (`<secret>/obeya-site.json`, about 128 bits) that only the
+  owner's machines know: at the root it would list every page;
+- every page says `noindex, nofollow` and `no-referrer` in meta tags (GitHub Pages sends no headers
+  of the site's), and `_headers` sends `X-Robots-Tag` and `Referrer-Policy` for every file where the
+  host reads it, so a click on "Recorded with Seismic" does not pass the address on. No `robots.txt`:
+  a `Disallow` keeps search engines from reading the `noindex`, so a link found in a public PR could
+  still show as a bare address.
+
+Unlisted is not protected: whoever has a link can pass it on (and a link in a public PR is found by
+the forge's search). The form says so in one sentence for the unlisted hosts; for real protection a
+site stays behind a login (Cloudflare Access, read with `headers`).
+
+GitHub Pages takes no directory upload, so Seismic builds its deploy in: a deploy line
 `obeya:github-pages <owner>/<repository>` commits the site's directory as a single commit without
 history and force-pushes it to the repository's `main`, so videos do not pile up in it. git runs with
 gh's token in its environment (an `http.extraheader`), never on the command line; in a repository
@@ -390,85 +475,6 @@ runs as programs with their arguments, so it works on Windows and Linux. GitHub 
 MiB and sites up to about 1 GB; its build takes a minute or so, so the check after a deploy waits
 about two minutes.
 
-#### The personal site
-
-The owner's personal site is one per person, in Obeya's home (`personal-site.json`: host, address,
-the host's project, the manifest's secret directory, the env file, the private repositories ticked,
-the repositories ticked to share with the approval),
-not in any repository: the site is a repository's setting, but credentials belong to a person. It
-takes every repository without a site of its own, and every one whose site this machine lacks the
-credentials for: a contributor's Obeya on Obeya's own repository shares there, and the PR gets the
-link as any page's (see The page and the pull request).
-
-A public repository shares there at once; its forge says whether it is public (gh, the Forgejo API).
-Obeya keeps the forge's last answer across restarts and starts from it until the forge answers
-again, so workers resumed in that time get the tools and brief of a repository that shares; a
-question that fails leaves the last answer standing.
-A private one, or one whose forge cannot tell (no remote, a folder), shares there only once the owner
-ticks it: the export box on its cards says the repository is private and offers „Demos dieses
-Repositorys auf meiner persönlichen Seite teilen“, and the configuration lists the private
-repositories of the canvases (and those ticked) with a checkbox each, ticked or not, to change it
-there too. A repository whose site publishes on approval does so on the personal site too; one
-without a site the owner may tick for it on the personal site (see Publishing on approval).
-
-Where the personal site lives decides whether it is listed, without a setting of its own: on
-Cloudflare Pages and from a private GitHub repository it is unlisted; from a public GitHub repository,
-whose files anyone can list, it is listed like a repository's site (overview, feed, a page at
-`<slug>/`, the manifest at the root), and a random part in its addresses would hide nothing. A
-repository's site is listed, always. Unlisted means:
-
-- no overview, no feed, no tag links on the pages, no link to the site's root;
-- a page lies at `<token>/<slug>/`: the slug for reading, the token (16 letters and digits, about 82
-  bits) for not guessing; it is drawn once per card, on its first share there, and kept through a
-  withdrawal, so sharing again gives the same link;
-- the root, and the answer to every address the site lacks (`404.html`, which Cloudflare and GitHub
-  Pages serve), are a blank page, so neither the root nor the level above a page lists anything;
-- the manifest lies in a secret directory (`<secret>/obeya-site.json`, about 128 bits) that only the
-  owner's machines know: at the root it would list every page;
-- every page says `noindex, nofollow` and `no-referrer` in meta tags (GitHub Pages sends no headers
-  of the site's), and `_headers` sends `X-Robots-Tag` and `Referrer-Policy` for every file where the
-  host reads it, so a click on „Aufgenommen mit Obeya“ does not pass the address on. No `robots.txt`:
-  a `Disallow` keeps search engines from reading the `noindex`, so a link found in a public PR could
-  still show as a bare address.
-
-Unlisted is not protected: whoever has a link can pass it on (and a link in a public PR is found by
-the forge's search). The setup says the first in one sentence; for real protection a project's site
-stays behind a login (Cloudflare Access).
-
-Konfiguration → Demos sets it up („Persönliche Demo-Seite“, the host to choose, „Einrichten“), and a
-card's export box, while there is none, offers „Persönliche Demo-Seite einrichten“, which opens it
-there. The switcher offers, in this order, each with a line under it:
-
-- „GitHub, öffentliches Repository“ („Geht mit jedem GitHub-Konto.“): a public repository
-  `obeya-demos` (a number where the name is taken; an existing one is never reused) under gh's
-  account, with Pages turned on, deployed by the built-in deploy. First, since anyone's demo
-  repository seen by chance makes Obeya known; what public means for finding the demos goes unsaid,
-  as it is plain.
-- „GitHub, privates Repository“ („Braucht GitHub Pro.“): the same in a private repository, unlisted.
-  Obeya creates it with `--private`, checks GitHub's answer on its visibility before anything goes
-  in, and again before every deploy (a repository made public since, or one named by a connection
-  code, would show every page's token), and stops otherwise. An account on the free plan is refused
-  before anything is created, and a refusal when Pages is turned on gives GitHub's reason (the
-  repository stays, private); both offer Cloudflare instead.
-- „Cloudflare“ (free account, unlisted): a project `obeya-<user name>` (a suffix where taken), as
-  for a repository's site; its address is the one Cloudflare names (`…pages.dev`). Besides the
-  account of a site this machine deploys to and the machine's own login, „anderes Konto: API-Token“
-  takes another account's token (with „Cloudflare Pages: Bearbeiten“; its account's id where the
-  token covers several) into the new site's env file, so the login other sites deploy with stays.
-
-The setup runs in the background and shows its last line. The sentence that unlisted is not
-protected shows only for the two unlisted hosts.
-
-Another machine of the owner's joins with a connection code: „Verbindungscode kopieren“ (under
-„Weitere Rechner“, with a line saying where to paste it) on one gives
-`obeya-site:` and the site, its secret directory and the env file's values, base64url-encoded;
-„Mit vorhandener Seite verbinden“ on the other (with a line beside it saying where the code comes
-from) takes it and writes them under its home. Without
-credentials in it (a site deploying with the machine's own login), the other machine deploys with its
-own `wrangler login` or `gh auth login`. Its first share pulls the pages from the live site as any
-machine's does (see Several machines on one site). „Von diesem Rechner entfernen“ asks once more: the
-pages and the project stay, and only a connected machine can withdraw them.
-
 #### Several machines on one site
 
 Each deploy replaces the whole site, so a machine must pull before it pushes. The site carries
@@ -476,7 +482,7 @@ Each deploy replaces the whole site, so a machine must pull before it pushes. Th
 writing machine; withdrawn pages stay as tombstones so a stale machine does not revive them. Only the
 machine whose card a page is changes it.
 
-Before every publish or withdrawal Obeya reads the live manifest (with `headers`), downloads missing
+Before every publish or withdrawal Seismic reads the live manifest (with `headers`), downloads missing
 or newer pages (a new machine's first share fetches all, logging every 25 pages), drops withdrawn
 ones, keeps pages the live site lacks, writes, and deploys. Redirects within the site are followed
 (Cloudflare Pages redirects `…/index.html` to `…/`); one elsewhere is a login. Just before deploying
@@ -500,7 +506,7 @@ another machine withdrew loses its link here, with a line naming the machine.
   short correction leaves colleagues without the change it corrects; approval had published a card's
   second demo alone, its first never shared. Rejected: always every demo of the card (one recorded
   afresh would sit beside the one it replaces).
-- **"Teilen" sits on the demo's own line** (2026-10-14). Rejected: a full-width button under the
+- **"Share" sits on the demo's own line** (2026-10-14). Rejected: a full-width button under the
   chapters, out of sight under many chapters or a tall artifact.
 - **A shared artifact's pages load no file beside them** (2026-10-16, 2026-10-20): behind Cloudflare
   Access the frame's requests lack the login's cookie (Firefox showed only alt texts), and from disk
@@ -518,75 +524,72 @@ another machine withdrew loses its link here, with a line naming the machine.
   had answered the owner that its demo lay only on this machine minutes after they shared it.
   Nothing waits on the news, so a turn for it would cost the owner time and tokens; heard late, it
   is still there when the worker next speaks.
-- **Sharing takes effect at once** (2026-10-02). Rejected: an 8 s hold with "Doch nicht";
+- **Sharing takes effect at once** (2026-10-02). Rejected: an 8 s hold with "Don’t build after all";
   withdrawing is as easy.
-- **Sharing on approval on the personal site is the owner's choice per repository** (owner,
-  2026-10-29): the site is theirs, so their colleagues need not follow it. Rejected: the repository's
-  settings (it would go for everyone who works in it), one choice for the whole personal site.
-- **On approval, sharing only when „Mit der Freigabe teilen“ stays ticked** (2026-10-20), with
-  „Jetzt teilen“ beside it, so a demo can go to colleagues for review before approval. Rejected:
+- **On approval, sharing only when "Share on approval" stays ticked** (2026-10-20), with
+  "Share now" beside it, so a demo can go to colleagues for review before approval. Rejected:
   approval always sharing.
-- **Deploys run in `share/` under Obeya's home** (2026-10-05): run in the checkout, wrangler's cache
-  blocked the pool workspace from being leased.
+- **Deploys run at the root of the card's repository, wrangler's cache excluded from git there**
+  (owner, 2026-11-06): a deploy line written for the repository finds its scripts and configuration
+  as from a terminal there. Rejected (2026-10-05 to 2026-11-06): `share/` under Seismic's home, chosen
+  because wrangler's cache in the checkout kept a pool workspace from being leased, which the
+  exclude entry now prevents.
 - **A repository's theme is a file in it, `.obeya/theme.css`, not settings** (owner, 2026-11-01):
-  a stylesheet gives full freedom (colours, fonts, spacing, a logo), and Obeya manages nothing of
+  a stylesheet gives full freedom (colours, fonts, spacing, a logo), and Seismic manages nothing of
   it. Rejected: single colour fields in the settings (too narrow), a `theme.html` with pieces of
   markup (it would need insertion points and scripts, a risk without a gain), and a theme UI in
-  Obeya. The markup the pages have is its interface from then on.
+  Seismic. The markup the pages have is its interface from then on.
 - **A page is outdated by a change written down for its viewers** (2026-10-16). Rejected: a hash of
   the pages' bytes, which marked pages outdated without saying what changed, also where nothing
   showed, so the owner could not judge whether resharing 70 pages was worth it.
 - **Each outdated page is updated on its own card** (2026-10-05). Rejected: rewriting every page on
   each share, unseen and slow with hundreds.
 - **A shared page speaks the demo's language** (2026-10-07).
-- **The overview's language is the repository's `demo.language`** (2026-10-19). Rejected: a
+- **The overview's language is the home repository's `demo.language`** (2026-10-19). Rejected: a
   `language` of the site's own, a second setting for one need; a file that still has it is read
   without it, and the configuration flags it.
-- **Static sites are built in from a few settings, and the demo site is the only place "Teilen"
+- **Static sites are built in from a few settings, and the demo site is the only place "Share"
   publishes to** (2026-10-09, 2026-10-15). Rejected: a kit library for per-repository share scripts
   (a script per repository), hosting providers in the core (one deploy line covers them all), a
   share command receiving each page as JSON (unused once sites existed; two unconnected settings for
   one thing). Hosts that cannot take a whole directory are unsupported; a `deploy` script may upload
   only what changed.
 - **A page names who shared it by git's `user.name`** (2026-10-20). Rejected: a name setting in
-  Obeya (one more field for a name agents already commit under) and the host name (a computer, not a
+  Seismic (one more field for a name agents already commit under) and the host name (a computer, not a
   person).
 - **The credit line has no setting**: settings stay few; a static credit line is common practice.
-- **Pages are tagged from a fixed vocabulary in the repository's settings; the worker tags at
+- **Pages are tagged from a fixed vocabulary of the canvas's site; the worker tags at
   handover, a session fills gaps, the owner corrects on the card** (owner, 2026-10-28): with a
   hundred pages and more the overview needs a filter, and the worker knows the change best, at no
   extra cost. Rejected: a session tagging at every share (a session per approval, knowing less than
   the worker), tagging by hand only (too much with over 100 pages; it stays the way to correct), tags
   the AI makes up (a filter with near-duplicates).
-- **The vocabulary may be proposed by an agent that reads the repository and its cards, the owner
+- **The vocabulary may be proposed by an agent that reads the home repository and its cards, the owner
   deciding in the field** (owner, 2026-11-02): the dimensions that fit an app show in its structure
   and in the changes made and planned on it, which the owner would otherwise have to survey by hand.
   Rejected: a card whose worker writes the settings (the owner wants the proposal where the field is,
   and a worker cannot read the canvas's cards and demos).
 - **Links are copied one by one and as the filtered list** (owner, 2026-10-28): a demo goes to one
   person, or several on one topic into a mail, release notes or to a customer.
-- **A personal site per person, beside the repositories' sites** (owner, 2026-10-28): the site is a
-  repository's setting, but credentials are a person's, so a contributor (or a second project without
-  a site) had only an export. Rejected: an Obeya service to share on (`share.obeya.si`), now or
-  later (costs, moderation, duties of a host; Cloudflare or GitHub Pages leave a contributor one step
-  of a few minutes).
-- **The personal site is unlisted, also for public repositories, where its host allows** (owner,
-  2026-10-28): an overview of all projects is another kind of public than links one would have to
-  collect, and an unlisted page can go to one recipient. Rejected: a setting for listed or unlisted
-  (the host decides it).
-- **A private repository shares on the personal site only once ticked** (owner, 2026-10-28), so
-  nothing of a private project goes out unasked; one whose forge cannot tell counts as private.
 - **A handover asks for the page only where the session's tools take one** (2026-10-29): a session
   resumed after a restart got its tools before the forge said the repository was public, so the
   page the worker sent was dropped and every handover refused for lacking it. Rejected: the page in
   every repository's tools (workers without a site would write pages nobody reads).
-- **A repository is as public as its forge said last, until it answers again** (2026-10-29): after
-  every restart a public repository counted as private until the forge answered, so its resumed
-  workers wrote no page. Rejected: resuming its workers only after the answer (a slow or unreachable
-  forge would hold them up). A repository made private since shares as public for those seconds.
-- **Three hosts for the personal site: a public GitHub repository first, a private one, Cloudflare**
-  (owner, 2026-10-29): it works without GitHub Pro, and public demo repositories make Obeya known.
-  A public repository's site is listed, without random parts (they would hide nothing). Rejected
+- **Demo sites are this machine's, chosen per canvas with a path of its own; repositories name
+  none** (owner, 2026-11-06): where demos go is decided in one place, the canvas, and one site
+  serves several canvases, each under its path. A site goes on the list only once a publish there
+  went through, and a canvas's path is initialized with a click ("Initialize", "Creating demo site"
+  in the status bar) before its first share. The personal site became one site of the list, chosen
+  like any other; Seismic's own `demos.obeya.si` was dropped from its settings. Rejected: a site in
+  the repository's settings (2026-10-09 to 2026-11-06: a deploy line and an address from a
+  colleague's commit, held until trusted, and a second, personal site as the fallback with ticks for
+  private repositories and approvals), one site per repository chosen on the machine, a canvas's
+  site taking every path of its own without initializing (a typo in the path would publish to a new
+  place unasked).
+- **Three hosts Seismic sets up: a public GitHub repository first, a private one, Cloudflare; another
+  host entered by hand** (owner, 2026-10-29): it works without GitHub Pro, and public demo
+  repositories make Seismic known. A public repository's site is listed, without random parts (they
+  would hide nothing); the private one is unlisted, Cloudflare unlisted unless unticked. Rejected
   (2026-10-28, then reversed): GitHub only from a private repository.
 - **The setup's warning names no forge's search** (owner, 2026-10-29): a link in a public PR is
   found whatever the host, and a repository need not be on GitHub.

@@ -1,4 +1,4 @@
-// Experimental Windows process boundary, not used by Obeya: each session in a Job Object of its own.
+// Experimental Windows process boundary, not used by Seismic: each session in a Job Object of its own.
 // A job is inherited by every process created inside it, detached or in a new console alike, and
 // TerminateJobObject ends all of its members (and those of jobs nested in it) by the job's handle, so
 // nothing is looked up by pid. With JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE the kernel also ends them when

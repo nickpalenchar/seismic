@@ -1,14 +1,14 @@
 // What a systemd user scope holds on this Linux machine, measured; it proves no containment elsewhere.
 // bun scripts/linux-scope-probe.ts [case ...], each case printing one JSON line:
-//   codex-close-tracker, codex-close-scope: a real Codex app-server (OBEYA_CODEX, or `codex` on the
+//   codex-close-tracker, codex-close-scope: a real Codex app-server (SEISMIC_CODEX, or `codex` on the
 //     PATH; no model turn, no login needed) starts four Python heartbeats with `thread/shellCommand`
 //     (in the shell's group; in a session of its own; the same with a launcher that exits after 1.5 s;
 //     the same with a launcher that exits at once), then the session ends: through today's tracker
 //     alone, or with the app-server in a scope (scripts/linux-scope-prototype.ts) that is then killed.
 //   codex-host-death-tracker, codex-host-death-scope: the same, but the process holding the transport
-//     (Obeya's stand-in) is SIGKILLed; with a scope, a sweep then ends the scope by name.
+//     (Seismic's stand-in) is SIGKILLed; with a scope, a sweep then ends the scope by name.
 //   breakaway: an agent in a scope tries the ways out an unprivileged process has.
-//   nested: the caller itself in a scope, or a service, as when Obeya is started from a desktop
+//   nested: the caller itself in a scope, or a service, as when Seismic is started from a desktop
 //     terminal or as a user service; what ending the caller's unit does to a session's scope.
 //   kill: a scope with one sleep, ended; says whether by cgroup.kill or by systemctl (read-only cgroupfs).
 // An unrelated canary runs throughout; everything the probe started is ended at the end of each case.
@@ -51,9 +51,9 @@ elif name == 'late':
 
 const [mode, dir, kind] = process.argv.slice(2);
 if (mode === 'driver') {
-  // Obeya's stand-in: holds the transport, ends the session the way the case says
+  // Seismic's stand-in: holds the transport, ends the session the way the case says
   const repo = join(dir!, 'repo');
-  const codex = process.env.OBEYA_CODEX ?? Bun.which('codex');
+  const codex = (process.env.SEISMIC_CODEX ?? process.env.OBEYA_CODEX) ?? Bun.which('codex');
   if (!codex) throw new Error('codex is not installed');
   const scoped = kind!.endsWith('-scope');
   const unit = `obeya-probe-${randomUUID()}.scope`;
@@ -61,7 +61,7 @@ if (mode === 'driver') {
   const [command, ...args] = scoped ? [Bun.which('systemd-run')!, '--user', '--scope', '--quiet', '--collect', `--unit=${unit}`, '--', ...app] : app;
   const c = codexConnection({ command: command!, args, cwd: repo, env: { ...process.env } }, { notification() {}, request: async () => ({}) });
   writeFileSync(join(dir!, 'agent.pid'), String(c.pid));
-  await c.request('initialize', { clientInfo: { name: 'obeya-probe', title: 'Obeya probe', version: '0' }, capabilities: { experimentalApi: true } });
+  await c.request('initialize', { clientInfo: { name: 'obeya-probe', title: 'Seismic probe', version: '0' }, capabilities: { experimentalApi: true } });
   c.notify('initialized', {});
   if (scoped) writeFileSync(join(dir!, 'scope.json'), JSON.stringify({ unit, cgroup: unitCgroup(unit) }));
   const started = await c.request<{ thread: { id: string } }>('thread/start', { cwd: repo, approvalPolicy: 'never', sandbox: 'danger-full-access' });
@@ -172,7 +172,7 @@ async function breakaway() {
   }
 }
 
-/** The caller (Obeya's stand-in) runs in a unit of its own and starts a session scope; then its unit ends. */
+/** The caller (Seismic's stand-in) runs in a unit of its own and starts a session scope; then its unit ends. */
 async function nested() {
   const out: Record<string, unknown> = { kind: 'nested', status: 'measured' };
   for (const how of ['scope', 'service'] as const) {

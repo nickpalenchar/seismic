@@ -2,7 +2,7 @@
 // with the files' paths (app/src/main.rs), and the page would hear nothing of it. The app passes on
 // where the drag is and, at the drop, the paths; the page plays them to the element under the
 // pointer as the browser's own drag events, with Files, each empty and known by its path
-// (`droppedPath`): an image the field reads through Obeya on the same machine as it attaches it as a
+// (`droppedPath`): an image the field reads through Seismic on the same machine as it attaches it as a
 // screenshot (`withBytes`); any other file (or folder) goes into the text by that path.
 
 import { api } from './api';

@@ -7,7 +7,7 @@ import { gitRepo } from './testing';
 import { git } from './workspaces';
 
 let dir: string;
-/** Where Obeya's repository is published (`origin`), and the clone Obeya runs from. */
+/** Where Seismic's repository is published (`origin`), and the clone Seismic runs from. */
 let up: string;
 let clone: string;
 

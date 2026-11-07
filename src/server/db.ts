@@ -1,9 +1,9 @@
 import { Database } from 'bun:sqlite';
 import { currentAgent } from './agent-identity';
-import type { AgentIdentity, Attribution, Feedback, FeedbackAnswer, WorkConfig } from '../core/types';
+import type { AgentIdentity, AgentModel, Attribution, Feedback, FeedbackAnswer, WorkConfig } from '../core/types';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { AnswerFile, AnswerRef, CardEvent, DeviceView, CardKind, CardState, Mock, Need, Preference, PreferenceState, ProposedSetting, RepoCommands, SettingProposal, SettingProposalState, Spot, Talk, TalkAfter, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../core/types';
+import type { AnswerFile, AnswerRef, CardEvent, Chat, DeviceView, CardKind, CardState, Mock, Need, Preference, PreferenceState, ProposedSetting, RepoCommands, SettingProposal, SettingProposalState, Spot, Talk, TalkAfter, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../core/types';
 import type { Place } from '../core/layout';
 import type { Wish } from '../core/wish';
 
@@ -45,6 +45,8 @@ export interface CardRow {
   pr: string | null;
   /** JSON, review cards only: the contributor's pull request the card reviews (`StoredContribution` in board.ts). */
   contribution: string | null;
+  /** JSON: the code review of the card's work where its canvas reviews work that lands on main (`StoredCodeReview` in board.ts). */
+  code_review: string | null;
   /** The owner's card's repository on a canvas with several; null is the home repository. */
   repo: string | null;
   /** JSON: the card's latest demo (`{ kind, dir, chapters, question? }`; no `kind` is a video). */
@@ -61,14 +63,14 @@ export interface CardRow {
   approved_at: string | null;
   /**
    * JSON, while the card's work is on main and its worker finishes what remains (its workspace and
-   * session are kept until then): `{ commit?, restart? }`, `restart` when it waits for Obeya to run the change.
+   * session are kept until then): `{ commit?, restart? }`, `restart` when it waits for Seismic to run the change.
    */
   landed: string | null;
   /** JSON: ids of the screenshots the owner attached to the card's task. */
   images: string | null;
   /** JSON, projects only: the plan doc as last read (`PlanDoc`), kept for the archive once the doc is gone. */
   plan: string | null;
-  /** A card the Arbeitsrückschau proposed: what it rests on. */
+  /** A card the work retrospective proposed: what it rests on. */
   retro: string | null;
   /** JSON, while a worker's proposal waits: `Proposal` (an idea or a task, why, the questions to decide). */
   proposal: string | null;
@@ -85,12 +87,12 @@ export interface CardRow {
   /**
    * JSON, once the card's work landed (`Shipped` in board.ts): the commit it landed with and its
    * pull request. Kept after its worker is done: a workstream whose plan doc keeps it open is
-   * planned again once the Lesestand holds that commit.
+   * planned again once the read checkout holds that commit.
    */
   shipped: string | null;
-  /** When Obeya stopped the app in the card's workspace while the card waited (Parking); gone once its worker heard so. */
+  /** When Seismic stopped the app in the card's workspace while the card waited (Parking); gone once its worker heard so. */
   parked: string | null;
-  /** JSON: the owner's comments on places in the demo video Obeya holds back while they watch (event ids, `Item.held`). */
+  /** JSON: the owner's comments on places in the demo video Seismic holds back while they watch (event ids, `Item.held`). */
   held: string | null;
   /** 1 once the owner decided the card (an idea or a task of theirs) becomes a project: its worker writes the plan doc, and the project takes its place. */
   becomes_project: number;
@@ -100,13 +102,13 @@ export interface CardRow {
   paused: string | null;
   /** Since when (ISO) the owner has asked the card's agent to pause once it has brought its work to a safe point; null once it paused, went on or stopped. */
   pausing: string | null;
-  /** JSON: the owner's words Obeya holds for the card's worker until it takes them in, at its next tool step or turn (`Unheard` in workers.ts). */
+  /** JSON: the owner's words Seismic holds for the card's worker until it takes them in, at its next tool step or turn (`Unheard` in workers.ts). */
   unheard: string | null;
-  /** The address its worker opens the app in the card's workspace at, while it runs (`app_running`); gone once Obeya stops the app or the workspace goes. */
+  /** The address its worker opens the app in the card's workspace at, while it runs (`app_running`); gone once Seismic stops the app or the workspace goes. */
   app: string | null;
   /** Since when the card waits for the owner (`needsYou`), kept while it does; null while it does not. */
   waiting_since: string | null;
-  /** JSON, while the card is snoozed until a point in time (`Snooze`): Obeya wakes it then. */
+  /** JSON, while the card is snoozed until a point in time (`Snooze`): Seismic wakes it then. */
   snoozed: string | null;
   /** JSON: the files its worker named as the result at its latest handover that named any (`CardFile[]`). */
   files: string | null;
@@ -116,12 +118,12 @@ export interface CardRow {
   collapsed: number;
   /**
    * The clone (`ssh://<host>/…` on a host) that holds the newest state of the card's branch since
-   * the owner took its workspace from it, its uncommitted work in a commit of Obeya's on top; gone
+   * the owner took its workspace from it, its uncommitted work in a commit of Seismic's on top; gone
    * once the card works in a clone again, which takes the branch from there.
    */
   kept_in: string | null;
   /**
-   * JSON: a repository to create for the card before work begins (`NewRepo`); once Obeya made it,
+   * JSON: a repository to create for the card before work begins (`NewRepo`); once Seismic made it,
    * `{ path, canvas, made: true }`, so its worker hears that the repository is new.
    */
   new_repo: string | null;
@@ -135,11 +137,11 @@ export interface CardRow {
   subcategory: string | null;
   /** The card's complexity (`Complexity`), null while none. */
   complexity: number | null;
-  /** JSON: the labels Obeya set as its suggestion and the owner has not touched since (`Label[]`); null while none. */
+  /** JSON: the labels Seismic set as its suggestion and the owner has not touched since (`Label[]`); null while none. */
   suggested_labels: string | null;
-  /** JSON: the labels the owner has set, to a value or to none (`Label[]`): Obeya suggests none of them again. Null while none. */
+  /** JSON: the labels the owner has set, to a value or to none (`Label[]`): Seismic suggests none of them again. Null while none. */
   owner_labels: string | null;
-  /** The card's code in addresses (`/c/<canvas>/card/<code>`): the start of its id's hex digits, unique among all cards (`SHORT`). */
+  /** The card's code in addresses (`/p/<project>/c/<code>`): the start of its id's hex digits, unique among all cards (`SHORT`). */
   short: string;
 }
 
@@ -202,7 +204,7 @@ export interface DecisionRow {
   at: string;
 }
 
-/** The schema Obeya was released with. */
+/** The schema Seismic was released with. */
 const SCHEMA = `
   CREATE TABLE canvases (
     id TEXT PRIMARY KEY,
@@ -340,7 +342,7 @@ const SCHEMA = `
     files TEXT,
     card TEXT
   );
-  -- the Arbeitsrückschau: friction noted on a card's run, per repository
+  -- the work retrospective: friction noted on a card's run, per repository
   CREATE TABLE friction (
     id INTEGER PRIMARY KEY,
     canvas_id TEXT NOT NULL REFERENCES canvases(id),
@@ -352,14 +354,14 @@ const SCHEMA = `
     fix TEXT NOT NULL
   );
   CREATE INDEX friction_repo ON friction (canvas_id, repo, at);
-  -- a command the owner has the confirmation of, while it waits for "Rückgängig": it outlives a restart
+  -- a command the owner has the confirmation of, while it waits for "Undo": it outlives a restart
   CREATE TABLE commands (
     token TEXT PRIMARY KEY,
     canvas_id TEXT NOT NULL REFERENCES canvases(id),
     due TEXT NOT NULL,
     body TEXT NOT NULL
   );
-  -- a value for a repository's setting the Arbeitsrückschau proposes, and where the owner took it
+  -- a value for a repository's setting the work retrospective proposes, and where the owner took it
   CREATE TABLE setting_proposals (
     id INTEGER PRIMARY KEY,
     canvas_id TEXT NOT NULL REFERENCES canvases(id),
@@ -378,16 +380,16 @@ export const SHORT = 6;
 
 /**
  * The `user_version` of a database at `SCHEMA`: the steps its schema took before the release. One
- * that took fewer is from an Obeya before it (`OlderDatabase`).
+ * that took fewer is from an Seismic before it (`OlderDatabase`).
  */
 export const RELEASED = 40;
 
 // Append only; each entry runs once on a database at `SCHEMA`, tracked in `PRAGMA user_version` after `RELEASED`.
 export const MIGRATIONS = [
-  // what an Obeya before the release kept in shapes that changed since, in today's: demos and
+  // what an Seismic before the release kept in shapes that changed since, in today's: demos and
   // shared pages without a kind are videos; a share held for undo publishes; `answering` moves out
   // of the demo; a demo's question goes with the last handover before the owner answered it (else
-  // the last one); a project whose doc went before Obeya kept it gets an empty one; the pause line
+  // the last one); a project whose doc went before Seismic kept it gets an empty one; the pause line
   // loses its second sentence; a repository with retrospectives before they were counted is past the ramp
   `UPDATE cards SET demo = json_set(demo, '$.kind', 'video') WHERE demo IS NOT NULL AND json_extract(demo, '$.kind') IS NULL;
    UPDATE cards SET share = json_set(share, '$.shown.kind', 'video') WHERE json_extract(share, '$.shown') IS NOT NULL AND json_extract(share, '$.shown.kind') IS NULL;
@@ -410,7 +412,7 @@ export const MIGRATIONS = [
   'ALTER TABLE talk ADD COLUMN reply_to TEXT;',
   // where the app in a card's workspace runs, for the owner to try it by hand
   'ALTER TABLE cards ADD COLUMN app TEXT;',
-  // devices paired to reach Obeya from another machine: the hash of each one's cookie
+  // devices paired to reach Seismic from another machine: the hash of each one's cookie
   `CREATE TABLE devices (
     id TEXT PRIMARY KEY,
     token_hash TEXT NOT NULL UNIQUE,
@@ -418,11 +420,11 @@ export const MIGRATIONS = [
     paired_at TEXT NOT NULL,
     last_seen TEXT NOT NULL
   );`,
-  // Obeya's reply says it cannot do what the owner asked, or the owner asked to tell its makers: what a draft for them starts from (JSON `Wish`)
+  // Seismic's reply says it cannot do what the owner asked, or the owner asked to tell its makers: what a draft for them starts from (JSON `Wish`)
   'ALTER TABLE talk ADD COLUMN wish TEXT; ALTER TABLE events ADD COLUMN wish TEXT;',
   // the demos of earlier handovers a later one replaced
   'ALTER TABLE cards ADD COLUMN demos TEXT;',
-  // since when a card waits for the owner, for the phone view's „Braucht dich“
+  // since when a card waits for the owner, for the phone view's "Needs you"
   'ALTER TABLE cards ADD COLUMN waiting_since TEXT;',
   // a repository's commands as the owner last confirmed them, by its path (JSON `RepoCommands`)
   `CREATE TABLE trusted_commands (
@@ -452,18 +454,18 @@ export const MIGRATIONS = [
   'ALTER TABLE cards ADD COLUMN collapsed INTEGER NOT NULL DEFAULT 0;',
   // words the owner wrote in a project's sheet, which went straight to its project agent: that project
   'ALTER TABLE talk ADD COLUMN asked_in TEXT;',
-  // Obeya's reply on a card that answers the owner's words without acting on them: it stands in the conversation
+  // Seismic's reply on a card that answers the owner's words without acting on them: it stands in the conversation
   'ALTER TABLE events ADD COLUMN reply INTEGER;',
   // the clone holding a card's branch since the owner took its workspace from it
   'ALTER TABLE cards ADD COLUMN kept_in TEXT;',
   // a review card: the pull request of someone outside it reviews (JSON `StoredContribution`)
   'ALTER TABLE cards ADD COLUMN contribution TEXT;',
-  // a repository to create for a card before work begins, and that Obeya made it (JSON `StoredNewRepo` in board.ts);
+  // a repository to create for a card before work begins, and that Seismic made it (JSON `StoredNewRepo` in board.ts);
   // an exchange of no one's in the sheet that says a card moved to another canvas (JSON `TalkMoved`)
   'ALTER TABLE cards ADD COLUMN new_repo TEXT; ALTER TABLE talk ADD COLUMN moved TEXT;',
   // what a card's worker last heard of its demo's page (JSON `PageHeard` in workers.ts)
   'ALTER TABLE cards ADD COLUMN page_heard TEXT;',
-  // Obeya's reply on a card to what its agent passed on from the owner's words (`to_obeya`)
+  // Seismic's reply on a card to what its agent passed on from the owner's words (`to_seismic`)
   'ALTER TABLE events ADD COLUMN forwarded INTEGER;',
   // since when the owner asked the card's agent to pause at a safe point, until it has (ISO)
   'ALTER TABLE cards ADD COLUMN pausing TEXT;',
@@ -489,7 +491,7 @@ export const MIGRATIONS = [
    CREATE INDEX cards_shared ON cards (canvas_id) WHERE deleted_at IS NULL AND share IS NOT NULL;`,
   // where the owner was on the canvas when they asked for a step that needed looking up first (JSON `Place`): its new cards go there
   'ALTER TABLE talk ADD COLUMN then_place TEXT;',
-  // a line that Obeya made a follow-up card of the card: that card (JSON `CardEvent['made']`)
+  // a line that Seismic made a follow-up card of the card: that card (JSON `CardEvent['made']`)
   'ALTER TABLE events ADD COLUMN made TEXT;',
   // each session that worked on a card, with the configuration it ran on (`WorkConfig`, null where
   // unknown), and the owner's responses on approved work with whom they credit as at their handover.
@@ -545,12 +547,23 @@ export const MIGRATIONS = [
        JOIN c ON c.id = x.card_id;`,
   // the priority the owner gave a card (`Priority`), a label only
   'ALTER TABLE cards ADD COLUMN priority TEXT;',
-  // the card's other labels beside its priority, which of them are Obeya's suggestion, and which the owner has set
+  // the card's other labels beside its priority, which of them are Seismic's suggestion, and which the owner has set
   `ALTER TABLE cards ADD COLUMN category TEXT;
    ALTER TABLE cards ADD COLUMN subcategory TEXT;
    ALTER TABLE cards ADD COLUMN complexity INTEGER;
    ALTER TABLE cards ADD COLUMN suggested_labels TEXT;
    ALTER TABLE cards ADD COLUMN owner_labels TEXT;`,
+  // the code review of a card's work that lands on main: its mode, the handover it is for, its findings
+  'ALTER TABLE cards ADD COLUMN code_review TEXT;',
+  // the owner's chats with Seismic on a canvas, each exchange in one; new words go into the one opened
+  // last. What was said before is one chat per canvas.
+  `CREATE TABLE chats (id INTEGER PRIMARY KEY, canvas_id TEXT NOT NULL REFERENCES canvases(id), at TEXT NOT NULL, opened TEXT NOT NULL);
+   CREATE INDEX chats_canvas ON chats (canvas_id, opened);
+   ALTER TABLE talk ADD COLUMN chat INTEGER REFERENCES chats(id);
+   INSERT INTO chats (canvas_id, at, opened) SELECT canvas_id, MIN(at), MAX(at) FROM talk GROUP BY canvas_id;
+   UPDATE talk SET chat = (SELECT id FROM chats WHERE chats.canvas_id = talk.canvas_id);
+   CREATE INDEX talk_chat ON talk (chat, id);`,
+  'ALTER TABLE chats ADD COLUMN model TEXT;',
 ];
 
 const EVENT_COLUMNS = 'id, card_id AS cardId, at, kind, author, text, code, images, mocks, reply_to AS replyTo, spot, answer, picks, unread, read_after AS readAfter, wish, reply, forwarded, agent, token, made';
@@ -596,21 +609,21 @@ export type NewRow = Pick<CardRow, 'canvas_id' | 'kind' | 'x' | 'y'> &
 /** What `Store.update` may change on a card: all but what is set once at its creation, and its times. */
 export type RowUpdate = Partial<Omit<CardRow, 'id' | 'canvas_id' | 'parent_id' | 'plan_ref' | 'prototype_of' | 'retro' | 'created_at' | 'updated_at'>>;
 
-/** A database this Obeya cannot open as it is: it leaves it alone. */
+/** A database this Seismic cannot open as it is: it leaves it alone. */
 export class UnusableDatabase extends Error {}
 
-/** The database was written by a newer Obeya (the checkout and the app share one home). */
+/** The database was written by a newer Seismic (the checkout and the app share one home). */
 export class NewerDatabase extends UnusableDatabase {
   constructor(path: string, version: number, known: number) {
-    super(`${path} is from a newer Obeya (schema ${version}; this one knows ${known}): update Obeya or start the newer one`);
+    super(`${path} is from a newer Seismic (schema ${version}; this one knows ${known}): update Seismic or start the newer one`);
   }
 }
 
-/** The database was written by an Obeya before the release and not brought up to it. */
+/** The database was written by an Seismic before the release and not brought up to it. */
 export class OlderDatabase extends UnusableDatabase {
   constructor(path: string, version: number) {
     super(
-      `${path} is from an Obeya before its release (schema ${version}): start the Obeya of commit 1cfa1dd once to bring it up to date, or move it away to start afresh`,
+      `${path} is from an Seismic before its release (schema ${version}): start the Seismic of commit 1cfa1dd once to bring it up to date, or move it away to start afresh`,
     );
   }
 }
@@ -1074,19 +1087,85 @@ export class Store {
 
   // ---------------------------------------------------------------- the Koordinator's memory
 
-  /** An exchange of no one's in the canvas's sheet, `reply` saying the card moved to another canvas. */
-  addMoved(canvasId: string, moved: TalkMoved, reply: string): number {
-    return (this.db.query("INSERT INTO talk (canvas_id, at, said, reply, moved) VALUES ($c, $at, '', $reply, $moved) RETURNING id").get({ c: canvasId, at: now(), reply, moved: JSON.stringify(moved) }) as { id: number }).id;
+  /** The chat new words on the canvas go into: the one the owner opened last; a first one where there is none. */
+  chat(canvasId: string): number {
+    const r = this.db.query('SELECT id FROM chats WHERE canvas_id = $c ORDER BY opened DESC, id DESC LIMIT 1').get({ c: canvasId }) as { id: number } | null;
+    if (r) return r.id;
+    const at = now();
+    return (this.db.query('INSERT INTO chats (canvas_id, at, opened) VALUES ($c, $at, $at) RETURNING id').get({ c: canvasId, at }) as { id: number }).id;
   }
 
-  addTalk(canvasId: string, said: string, reply: string, cardId: string | null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number): number {
+  chatModel(canvasId: string): AgentModel | undefined {
+    return (this.db.query('SELECT model FROM chats WHERE id = $id').get({ id: this.chat(canvasId) }) as { model: AgentModel | null }).model ?? undefined;
+  }
+
+  private nextChatOpening(canvasId: string): string {
+    const latest = this.db.query('SELECT MAX(opened) AS opened FROM chats WHERE canvas_id = $c').get({ c: canvasId }) as { opened: string | null };
+    return new Date(Math.max(Date.now(), latest.opened ? Date.parse(latest.opened) + 1 : 0)).toISOString();
+  }
+
+  setChatModel(canvasId: string, model?: AgentModel): void {
+    this.db.query('UPDATE chats SET model = $model WHERE id = $id AND canvas_id = $c').run({ id: this.chat(canvasId), c: canvasId, model: model ?? null });
+  }
+
+  /** A new chat to go on in; the current one while nothing was said in it yet. */
+  newChat(canvasId: string): number {
+    const current = this.chat(canvasId);
+    if (!this.db.query('SELECT 1 FROM talk WHERE chat = $id').get({ id: current })) return current;
+    const at = this.nextChatOpening(canvasId);
+    return (this.db.query('INSERT INTO chats (canvas_id, at, opened) VALUES ($c, $at, $at) RETURNING id').get({ c: canvasId, at }) as { id: number }).id;
+  }
+
+  /** The owner goes back to chat `id`: new words go into it. A chat left without a word in it goes. Whether `id` is the canvas's. */
+  openChat(canvasId: string, id: number): boolean {
+    if (!this.db.query('SELECT 1 FROM chats WHERE id = $id AND canvas_id = $c').get({ id, c: canvasId })) return false;
+    this.db.transaction(() => {
+      this.db.query('UPDATE chats SET opened = $at WHERE id = $id').run({ id, at: this.nextChatOpening(canvasId) });
+      this.db.query('DELETE FROM chats WHERE canvas_id = $c AND id != $id AND NOT EXISTS (SELECT 1 FROM talk WHERE talk.chat = chats.id)').run({ c: canvasId, id });
+    })();
+    return true;
+  }
+
+  /**
+   * The chats with something said in them, the latest first, of one canvas or (none named) of all:
+   * each with the owner's first words and when it was last talked in.
+   */
+  chats(canvasId?: string, limit = 200): Chat[] {
     return (
       this.db
         .query(
-          'INSERT INTO talk (canvas_id, at, said, reply, card_id, question, about, images, reply_to, after_wait, asked_in, after_answer) VALUES ($c, $at, $said, $reply, $cardId, $question, $about, $images, $replyTo, $after, $askedIn, $answered) RETURNING id',
+          `SELECT h.id, h.canvas_id AS canvas, h.model, MAX(t.at) AS at,
+             (SELECT said FROM talk f WHERE f.chat = h.id AND f.said != '' ORDER BY f.id LIMIT 1) AS title,
+             SUM(t.unread) AS unread
+           FROM chats h JOIN talk t ON t.chat = h.id
+           WHERE ${canvasId ? 'h.canvas_id = $c' : '1'}
+           GROUP BY h.id ORDER BY at DESC LIMIT $limit`,
+        )
+        .all({ ...(canvasId ? { c: canvasId } : {}), limit }) as { id: number; canvas: string; model: AgentModel | null; at: string; title: string | null; unread: number }[]
+    ).map((r) => ({ id: r.id, canvas: r.canvas, at: r.at, ...(r.model ? { model: r.model } : {}), ...(r.title ? { title: r.title } : {}), ...(r.unread ? { unread: r.unread } : {}) }));
+  }
+
+  /** An exchange of no one's in the canvas's sheet, `reply` saying the card moved to another canvas. */
+  addMoved(canvasId: string, moved: TalkMoved, reply: string): number {
+    return (
+      this.db.query("INSERT INTO talk (canvas_id, at, said, reply, moved, chat) VALUES ($c, $at, '', $reply, $moved, $chat) RETURNING id").get({ c: canvasId, at: now(), reply, moved: JSON.stringify(moved), chat: this.chat(canvasId) }) as {
+        id: number;
+      }
+    ).id;
+  }
+
+  /** An exchange in the current chat; one the Koordinator takes up by itself (`after`, `answered`) goes into the chat of the exchange it takes up. */
+  addTalk(canvasId: string, said: string, reply: string, cardId: string | null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number): number {
+    const from = after?.from ?? answered;
+    const earlier = from === undefined ? undefined : ((this.db.query('SELECT chat FROM talk WHERE id = $id').get({ id: from }) as { chat: number | null } | null)?.chat ?? undefined);
+    return (
+      this.db
+        .query(
+          'INSERT INTO talk (canvas_id, at, said, reply, card_id, question, about, images, reply_to, after_wait, asked_in, after_answer, chat) VALUES ($c, $at, $said, $reply, $cardId, $question, $about, $images, $replyTo, $after, $askedIn, $answered, $chat) RETURNING id',
         )
         .get({
           c: canvasId,
+          chat: earlier ?? this.chat(canvasId),
           at: now(),
           said,
           reply,
@@ -1104,7 +1183,7 @@ export class Store {
 
   /**
    * The Koordinator's reply to words it has read, the question it looks up for them, and what a draft
-   * for Obeya's makers would start from; with `waits`, one for the sheet waits there unread, as an
+   * for Seismic's makers would start from; with `waits`, one for the sheet waits there unread, as an
    * answer that was looked up does.
    */
   replyTalk(id: number, reply: string, lookUp?: { question: string; about: string | null }, wish?: Wish, waits = false, agent?: AgentIdentity) {
@@ -1115,7 +1194,7 @@ export class Store {
   }
 
   /**
-   * Words the Koordinator was reading when Obeya stopped: they get `reply`; returns them. Words the
+   * Words the Koordinator was reading when Seismic stopped: they get `reply`; returns them. Words the
    * usage limit holds wait on; words asked in a project's sheet the Koordinator never reads.
    */
   interruptTalk(canvasId: string, reply: string): Talk[] {
@@ -1161,7 +1240,7 @@ export class Store {
     this.db.query('UPDATE talk SET undone = 1 WHERE id = $id').run({ id });
   }
 
-  /** A command that waits for "Rückgängig" until `due`; `body` is what runs then, as JSON. */
+  /** A command that waits for "Undo" until `due`; `body` is what runs then, as JSON. */
   holdCommand(canvasId: string, token: string, due: string, body: string) {
     this.db.query('INSERT OR REPLACE INTO commands (token, canvas_id, due, body) VALUES ($token, $c, $due, $body)').run({ token, c: canvasId, due, body });
   }
@@ -1214,7 +1293,7 @@ export class Store {
   readTalk(canvasId: string, ids?: number[]): boolean {
     if (ids)
       return this.db.query('UPDATE talk SET unread = 0 WHERE canvas_id = $c AND unread = 1 AND id IN (SELECT value FROM json_each($ids))').run({ c: canvasId, ids: JSON.stringify(ids) }).changes > 0;
-    return this.db.query('UPDATE talk SET unread = 0 WHERE canvas_id = $c AND unread = 1').run({ c: canvasId }).changes > 0;
+    return this.db.query('UPDATE talk SET unread = 0 WHERE canvas_id = $c AND unread = 1 AND chat = $chat').run({ c: canvasId, chat: this.chat(canvasId) }).changes > 0;
   }
 
   /**
@@ -1234,11 +1313,22 @@ export class Store {
       .map((r) => withContinues(this.db, r));
   }
 
-  /** The latest exchanges, oldest first; with `withoutCard`, only those without an open card. */
-  talk(canvasId: string, limit = 20, withoutCard = false): Talk[] {
-    return (this.db.query(`SELECT * FROM talk WHERE canvas_id = $c${withoutCard ? ' AND card_id IS NULL' : ''} ORDER BY id DESC LIMIT $limit`).all({ c: canvasId, limit }) as TalkRow[])
+  /** The latest exchanges, oldest first; with `withoutCard`, only those without an open card; with `chat`, only that chat's. */
+  talk(canvasId: string, limit = 20, withoutCard = false, chat?: number): Talk[] {
+    return (
+      this.db
+        .query(`SELECT * FROM talk WHERE canvas_id = $c${withoutCard ? ' AND card_id IS NULL' : ''}${chat !== undefined ? ' AND chat = $chat' : ''} ORDER BY id DESC LIMIT $limit`)
+        .all({ c: canvasId, limit, ...(chat !== undefined ? { chat } : {}) }) as TalkRow[]
+    )
       .reverse()
       .map((r) => withContinues(this.db, r));
+  }
+
+  /** What Seismic's sheet shows: the latest exchanges of chat `chat` without an open card, and the answers that wait unread in the canvas's other chats; oldest first. */
+  sheet(canvasId: string, chat: number, limit: number): Talk[] {
+    const elsewhere = this.db.query('SELECT * FROM talk WHERE canvas_id = $c AND unread = 1 AND chat != $chat ORDER BY id').all({ c: canvasId, chat }) as TalkRow[];
+    const here = this.talk(canvasId, limit, true, chat);
+    return elsewhere.length ? [...elsewhere.map((r) => withContinues(this.db, r)), ...here].sort((a, b) => a.id - b.id) : here;
   }
 
   /** A message of the canvas's sheet (an exchange with no card open), as a reply quotes it. */
@@ -1337,7 +1427,7 @@ export class Store {
       .all({ c: canvasId, since }) as { at: string; title: string; state: CardState }[];
   }
 
-  // ---------------------------------------------------------------- the Arbeitsrückschau
+  // ---------------------------------------------------------------- the work retrospective
 
   addFriction(canvasId: string, repo: string, cardId: string, notes: FrictionNote[]) {
     const stmt = this.db.query('INSERT INTO friction (canvas_id, repo, card_id, at, what, cost, fix) VALUES ($c, $repo, $card, $at, $what, $cost, $fix)');
@@ -1355,7 +1445,7 @@ export class Store {
       .all({ c: canvasId, repo, since: since ?? '' }) as Friction[];
   }
 
-  /** The cards the Arbeitsrückschau proposed for a repository (`null`: the home repository), oldest first, with what became of them. */
+  /** The cards the work retrospective proposed for a repository (`null`: the home repository), oldest first, with what became of them. */
   retroProposals(canvasId: string, repo: string | null): { title: string; retro: string; state: CardState; dismissed: boolean }[] {
     return (
       this.db
@@ -1375,7 +1465,7 @@ export class Store {
     ).id;
   }
 
-  /** The settings the Arbeitsrückschau proposed, oldest first, with what became of them: those of a repository, or all; the cards they rest on with their titles. */
+  /** The settings the work retrospective proposed, oldest first, with what became of them: those of a repository, or all; the cards they rest on with their titles. */
   settingProposals(canvasId: string, repo?: string): (SettingProposal & { state: SettingProposalState })[] {
     const rows = this.db
       .query(`SELECT * FROM setting_proposals WHERE canvas_id = $c AND ($repo IS NULL OR repo = $repo) ORDER BY id`)
@@ -1650,6 +1740,7 @@ interface TalkRow {
   then_step: string | null;
   after_answer: number | null;
   then_place: string | null;
+  chat: number | null;
 }
 
 const toTalk = (r: TalkRow): Talk => ({
@@ -1680,6 +1771,7 @@ const toTalk = (r: TalkRow): Talk => ({
   ...(r.moved ? { moved: JSON.parse(r.moved) as TalkMoved } : {}),
   ...(r.then_step ? { then: r.then_step } : {}),
   ...(r.after_answer ? { answered: r.after_answer } : {}),
+  ...(r.chat ? { chat: r.chat } : {}),
 });
 
 /**

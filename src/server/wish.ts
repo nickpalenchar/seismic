@@ -1,6 +1,6 @@
-// The draft of a wish or a bug for Obeya's makers: a small job writes what the owner wrote or said
-// (and, for a request Obeya could not do, its answer) up as a GitHub issue in English, the
-// repository's language, with a line about the Obeya it came from. The owner checks and edits it,
+// The draft of a wish or a bug for Seismic's makers: a small job writes what the owner wrote or said
+// (and, for a request Seismic could not do, its answer) up as a GitHub issue in English, the
+// repository's language, with a line about the Seismic it came from. The owner checks and edits it,
 // then opens it on GitHub (`src/core/wish.ts`); nothing goes out from here.
 
 import { tmpdir } from 'node:os';
@@ -11,7 +11,7 @@ import type { AgentRuntime } from './runtime';
 export interface WishInput {
   /** What the owner wrote or said now. */
   said: string;
-  /** Obeya's answer that it cannot do what they asked, when the draft starts from one. */
+  /** Seismic's answer that it cannot do what they asked, when the draft starts from one. */
   answer?: string;
   /** The draft so far, as the owner may have edited it: the new words rework it. */
   title?: string;
@@ -31,7 +31,7 @@ export interface WishDraft {
 const WRITE_MS = 90_000;
 
 const SYSTEM = `
-You write a GitHub issue for the makers of Obeya, an open-source app in which one directs coding agents on a canvas, from what one of its users told you. It appears publicly on github.com/${ISSUES_REPO}.
+You write a GitHub issue for the makers of Seismic, an open-source app in which one directs coding agents on a canvas, from what one of its users told you. It appears publicly on github.com/${ISSUES_REPO}.
 Write it in English, whatever language the user used. title: a short summary, at most about 70 characters. body: what the user wants or what is broken, in markdown, plainly and briefly, in their meaning; add nothing they did not say. Spoken words come through speech recognition and may be misheard: read them for what was most likely meant.
 Call issue once, then end your turn.
 `.trim();
@@ -40,8 +40,8 @@ function brief(w: WishInput, shots: number): string {
   const parts: string[] = [];
   if (w.title?.trim() || w.body?.trim())
     parts.push(`The draft so far, which the user may have edited (keep it, and rework it only where the new words change or add something):\nTitle: ${w.title?.trim() ?? ''}\n\n${withoutFooter(w.body ?? '')}`);
-  if (w.answer) parts.push(`The user asked Obeya: „${w.said}“\nObeya answered that it cannot do this: „${w.answer}“\nThe issue is the user's wish for what they asked; Obeya's answer only shows that Obeya lacks it.`);
-  else parts.push(`${parts.length ? 'The user adds' : 'The user wrote'}: „${w.said}“`);
+  if (w.answer) parts.push(`The user asked Seismic: “${w.said}”\nSeismic answered that it cannot do this: “${w.answer}”\nThe issue is the user's wish for what they asked; Seismic's answer only shows that Seismic lacks it.`);
+  else parts.push(`${parts.length ? 'The user adds' : 'The user wrote'}: “${w.said}”`);
   if (shots) parts.push(`The user attached ${shots === 1 ? 'a screenshot' : `${shots} screenshots`} (below); they paste ${shots === 1 ? 'it' : 'them'} into the issue themselves, so describe only what the text needs.`);
   return parts.join('\n\n');
 }
@@ -98,10 +98,10 @@ export function writeWish(runtime: AgentRuntime, w: WishInput, footer: string, i
   });
 }
 
-/** The system Obeya runs on, as the issue names it. */
+/** The system Seismic runs on, as the issue names it. */
 export const osName = (platform: string = process.platform) =>
   platform === 'darwin' ? 'macOS' : platform === 'win32' ? 'Windows' : platform === 'linux' ? 'Linux' : platform;
 
-/** The footer of an issue from this Obeya: in the app, from a checkout (its commit), or the binary on its own. */
+/** The footer of an issue from this Seismic: in the app, from a checkout (its commit), or the binary on its own. */
 export const footerOf = (version: string, commit: string | null, app: boolean) =>
   issueFooter(version, osName(), app ? 'app' : commit ? `checkout ${commit.slice(0, 7)}` : 'binary');

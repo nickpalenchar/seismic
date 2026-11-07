@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { generic } from '../adapters/generic';
@@ -38,6 +38,27 @@ afterEach(() => rmSync(dir, { recursive: true, force: true }));
 const settle = () => new Promise((r) => setTimeout(r, 5));
 const noteSessions = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'note'));
 const retroSessions = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'card'));
+
+test('friction notes and work proposals follow an English-only preference with a German conversation setting', async () => {
+  board.addPreference('Agents speak and write to me in English only.');
+  files = { a: SAMPLE, b: SAMPLE };
+  ran('A', 'a');
+  await settle();
+  const notes = noteSessions()[0]!;
+  expect(notes.spec.system).toContain('- Agents speak and write to me in English only.');
+  expect(notes.spec.tools.find((t) => t.name === 'note')!.description).toContain('unless an explicit standing preference names another language');
+  await note({ what: 'Repeated setup steps' });
+  ran('B', 'b');
+  await note({ what: 'Repeated setup steps' });
+  ran('C', 'c');
+  await settle();
+  const review = retroSessions()[0]!;
+  expect(review.spec.system).toContain('- Agents speak and write to me in English only.');
+  expect(review.spec.tools.find((t) => t.name === 'card')!.description).toContain('unless an explicit standing preference names another language');
+  expect(review.spec.tools.find((t) => t.name === 'rule')!.description).toContain('basis in German unless an explicit standing preference names another language');
+  review.call('done', {});
+  review.emit({ type: 'idle' });
+});
 
 /** A card that ran in the given sessions and whose work ended. */
 function ran(title: string, ...sessions: string[]) {
@@ -92,6 +113,21 @@ describe('Arbeitsrückschau', () => {
     await settle();
     expect(noteSessions()).toHaveLength(0);
     expect(board.setting('work_retro_cards:home')).toBe('1');
+  });
+
+  test('a worker status name-resolution slip produces no friction-notes session', async () => {
+    const file = join(dir, 'status.jsonl');
+    writeFileSync(file, [
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'a', name: 'report', input: { status: 'Checking' } }] } }),
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'a', is_error: true, content: '<tool_use_error>Error: No such tool available: report</tool_use_error>' }] } }),
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'b', name: 'mcp__seismic__report', input: { status: 'Checking' } }] } }),
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'b', is_error: false, content: 'Status updated.' }] } }),
+    ].join('\n'));
+    files = { status: file };
+    ran('Status', 'status');
+    await settle();
+    expect(noteSessions()).toHaveLength(0);
+    expect(board.friction('home', null)).toHaveLength(0);
   });
 
   test('every few finished cards a retrospective in the repository proposes cards and CLAUDE.md lines for friction on two cards or more', async () => {
@@ -167,7 +203,7 @@ describe('Arbeitsrückschau', () => {
     await note({ what: 'tried three ways to start the app', fix: 'set run: bun run dev -p 4500, log in as demo' });
     await settle();
     const s = retroSessions()[0]! as FakeSession;
-    expect(s.inbox[0]).toContain("The repository's settings in Obeya now");
+    expect(s.inbox[0]).toContain("The repository's settings in Seismic now");
     expect(s.inbox[0]).toContain('- checks (the commands a worker runs before it hands its work over): "bun test"');
     expect(s.inbox[0]).toContain('- run ("How to run the app": the recipe every worker reads, in prose: how to start the app, what to do after which kind of change, where it gives its address, the login and test data for a demo): (empty)');
 
@@ -194,7 +230,7 @@ describe('Arbeitsrückschau', () => {
       },
       expect.objectContaining({ field: 'checks', value: ['bun test', 'bun run typecheck'], now: ['bun test'] }),
     ]);
-    // no card on the canvas: it waits with Obeya beside the rules
+    // no card on the canvas: it waits with Seismic beside the rules
     expect(board.snapshot().items.filter((i) => i.state === 'proposal')).toHaveLength(0);
 
     // the next retrospective hears what became of them

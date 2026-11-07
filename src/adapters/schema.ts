@@ -1,7 +1,7 @@
 // What a repository's settings may hold (this machine's in the configuration, everyone's in its
 // `.obeya/settings.json`), checked where they are read: a misspelt field (`check:` for `checks:`)
 // or a wrong type would otherwise be ignored without a word, or break whatever reads it later. Each
-// problem names its field; the field does not count, so Obeya's default stands for it, and the rest
+// problem names its field; the field does not count, so Seismic's default stands for it, and the rest
 // of the settings work.
 
 import { z } from 'zod';
@@ -13,29 +13,9 @@ import type { SharedSettings } from '../core/types';
 const strings = z.array(z.string());
 
 const planDocs = z.object({ dir: z.string(), exclude: strings }).strict();
-// what a site needs to be used (a title, a URL, a command) is checked where it is used
-// (`siteProblem`): the dialog saves one while the owner fills it in
-const site = z
-  .object({
-    title: z.string(),
-    url: z.string(),
-    deploy: z.string(),
-    // under Obeya's home: the settings may come from the repository, and the file's values go to `url`
-    env: z
-      .string()
-      .min(1)
-      .refine((f) => !/^([\\/~]|[A-Za-z]:)/.test(f) && !f.split(/[\\/]/).includes('..'), 'a path relative to Obeya’s home, without ..')
-      .optional(),
-    headers: z.record(z.string(), z.string()).optional(),
-    maxFile: z.number().int().positive().optional(),
-    publish: z.enum(['approved']).optional(),
-    // the vocabulary pages are tagged from: each dimension with its values
-    tags: z.record(z.string().trim().min(1), z.array(z.string().trim().min(1))).optional(),
-  })
-  .strict();
 // a handover brings a demo, a video or an HTML artifact: a list with neither would allow none
 const artifacts = z.array(z.enum(HANDOVER_ARTIFACTS)).refine(allowsDemo, 'at least video or html');
-const demo = z.object({ site: site.optional(), language: z.enum(LANGUAGES).optional(), artifacts: artifacts.optional() }).strict();
+const demo = z.object({ language: z.enum(LANGUAGES).optional(), artifacts: artifacts.optional() }).strict();
 const app = z.object({ run: z.string().optional(), stop: z.string().optional(), keep: z.string().optional() }).strict();
 
 /** What a repository's settings for this machine may hold (`RepoSettings`): how it works, and its main branch. */
@@ -77,7 +57,6 @@ const KNOWN: Record<string, string[]> = {
   '': Object.keys(sharedShape.shape),
   planDocs: Object.keys(planDocs.shape),
   demo: Object.keys(demo.shape),
-  'demo.site': Object.keys(site.shape),
   app: Object.keys(app.shape),
 };
 
@@ -93,15 +72,15 @@ export function checkShared(made: Record<string, unknown>): { settings: SharedSe
 }
 
 /**
- * Settings without the fields Obeya no longer has, and a line for each: `demo.site.language` (the
- * overview's language), which `demo.language` names now along with that of the demos. It goes
- * alone, so the site stays.
+ * Settings without the fields Seismic no longer has, and a line for each: `demo.site`, the demo site a
+ * repository once named, which a canvas chooses now (its canvas settings).
  */
 export function withoutGone(made: Record<string, unknown>): { settings: Record<string, unknown>; gone: string[] } {
-  const demo = made.demo as { site?: Record<string, unknown> } | undefined;
-  if (!demo?.site || typeof demo.site !== 'object' || !('language' in demo.site)) return { settings: made, gone: [] };
-  const { language: _, ...site } = demo.site;
-  return { settings: { ...made, demo: { ...demo, site } }, gone: ['demo.site.language: no longer read; demo.language names the language of the demos and of the overview'] };
+  const demo = made.demo as Record<string, unknown> | undefined;
+  if (!demo || typeof demo !== 'object' || !('site' in demo)) return { settings: made, gone: [] };
+  const { site: _, ...rest } = demo;
+  const { demo: __, ...others } = made;
+  return { settings: Object.keys(rest).length ? { ...others, demo: rest } : others, gone: ["demo.site: no longer read; a canvas chooses its demo site in its settings"] };
 }
 
 /** `made` without the top-level fields `shape` refuses, and a line for each problem; `known` names the fields of each object, for a guess at a misspelt one. */

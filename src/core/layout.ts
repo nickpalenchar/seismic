@@ -42,13 +42,13 @@ export function projectSize(children: Pick<Item, 'kind' | 'state' | 'parent' | '
   return [w, h];
 }
 
-/** A proposal merged with another card: both cards side by side, glued by the mark between them. */
+/** An unworked card merged with another card: both cards side by side, glued by the mark between them. */
 export const MERGED_SIZE: readonly [number, number] = [2 * CARD_SIZE.task[0] + 56, CARD_SIZE.task[1]];
 
 export function sizeOf(i: Item, all: Item[]): [number, number] {
   const shape = shapeOf(i);
   if (shape === 'project') return i.collapsed ? [...PROJECT_COLLAPSED] : projectSize(all.filter((c) => c.parent === i.id));
-  if (i.state === 'proposal' && i.proposal?.merge) return [...MERGED_SIZE];
+  if (i.proposal?.merge) return [...MERGED_SIZE];
   const [w, h] = CARD_SIZE[shape];
   return [w, h];
 }

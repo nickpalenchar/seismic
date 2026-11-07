@@ -1,17 +1,17 @@
-// The setup assistant: what Obeya needs on this machine in one list (Claude Code and its login, git,
+// The setup assistant: what Seismic needs on this machine in one list (Claude Code and its login, git,
 // gh and its login, voice, demos), the needed parts apart from those that can wait, installed at a
-// click where Obeya can, with the command for the rest and a terminal for the logins. On the first
+// click where Seismic can, with the command for the rest and a terminal for the logins. On the first
 // start (no canvas yet) it fills the page and ends with the first canvas, from a folder or a clone;
 // later the settings open it over the canvas.
 
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
-import { CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, type GitSetupPreview, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineView, type SetupItem, type VoiceSetupItem } from '../core/types';
+import { CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, type GitSetupPreview, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type VoiceSetupItem } from '../core/types';
 import { LANGUAGES } from '../core/locale';
 import { api, reload } from './api';
 import { useCopy } from './copy';
 import { Sign } from './logo';
 import { failText, fileSize, t } from './strings';
-import { canvasPath } from './address';
+import { projectPath } from './address';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 /** The machine's system and processor, as the owner knows them: "macOS (arm64)". */
@@ -30,7 +30,7 @@ function Command({ text }: { text: string }) {
   );
 }
 
-/** A setup check's pieces, each missing one with the commands that install it here, and what Obeya does about it at a click. */
+/** A setup check's pieces, each missing one with the commands that install it here, and what Seismic does about it at a click. */
 export function SetupList<I extends SetupItem | VoiceSetupItem | MachineItem>({
   items,
   name,
@@ -216,6 +216,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const [checking, setChecking] = useState(false);
   const [status, setStatus] = useState('');
   const [terminal, setTerminal] = useState<string | null>(null);
+  const [page, setPage] = useState<'required' | 'recommended'>('required');
   const shown = useRef(false);
   shown.current = !!view;
   const failed = (e: unknown) => setStatus(failText(e, { detail: ['invalid', 'config'] }));
@@ -257,7 +258,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     setTerminal(null);
     try {
       if (i.act === 'install') setView(await api.setupInstall(section.id, i.id));
-      else if (i.act === 'login') {
+      else if (i.act === 'login' || i.act === 'terminal') {
         const { opened } = await api.setupLogin(section.id, i.id);
         setTerminal(opened ? i.id : null);
         if (!opened) setStatus(s.noTerminal);
@@ -280,39 +281,43 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     if (i.act === 'identity') return <Identity onSaved={setView} onError={failed} />;
     const detail = section.id === 'voice' && i.id === 'recognition' && <RecognitionDetail item={i} busy={running} changed={recheck} />;
     if (!i.act) return detail || null;
-    if (i.act === 'login')
+    if (i.act === 'login' || i.act === 'terminal')
       return (
         <>
           <button className="btn small" onClick={() => act(section, i)}>
-            {s.login}
+            {i.act === 'terminal' ? s.mobile.enable : s.login}
           </button>
-          {terminal === i.id && <span className="hint">{s.terminalOpen}</span>}
+          {terminal === i.id && <span className="hint">{i.act === 'terminal' ? s.mobile.enableOpen : s.terminalOpen}</span>}
         </>
       );
     return (
       <>
         <button className="btn small" disabled={running} onClick={() => act(section, i)}>
-          {i.mb ? s.installSized(fileSize(i.mb * 1e6)) : s.install}
+          {i.mb ? s.installSized(fileSize(i.mb * 1e6)) : i.id === 'xcode' ? s.mobile.installApp : s.install}
         </button>
         {detail}
       </>
     );
   };
   const name = (section: MachineSection) => (i: MachineItem) =>
-    section.id === 'voice' ? t.config.voice.names[i.id as VoiceSetupItem['id']] : section.id === 'demos' ? t.config.setup.names[i.id as SetupItem['id']] : s.names[i.id as keyof typeof s.names];
+    section.id === 'mobile' ? s.mobile.names[i.id as MobileId] : section.id === 'voice' ? t.config.voice.names[i.id as VoiceSetupItem['id']] : section.id === 'demos' ? t.config.setup.names[i.id as SetupItem['id']] : s.names[i.id as keyof typeof s.names];
   const state = (section: MachineSection) => (i: MachineItem) => {
     if (section.id === 'voice') return voiceState(i);
     if (section.id === 'demos') return demoState(i);
-    if (i.state === 'ok') return i.id === 'claudeLogin' || i.id === 'ghLogin' ? (i.found ? s.loggedInAs(i.found) : s.loggedIn) : (i.found ?? t.config.setup.there);
+    if (section.id === 'mobile') return i.state === 'ok' ? (i.found ?? t.config.setup.there) : i.id === 'simulator' && !i.install ? s.mobile.xcodeFirst : t.config.setup.missing;
+    if (i.state === 'ok') return i.id === 'claudeLogin' || i.id === 'ghLogin' || i.id === 'agyLogin' ? (i.found ? s.loggedInAs(i.found) : s.loggedIn) : (i.found ?? t.config.setup.there);
     if (i.id === 'claudeLogin' && !i.act) return s.claudeFirst;
     if (i.id === 'ghLogin' && !i.act) return s.ghFirst;
-    if (i.id === 'claudeLogin' || i.id === 'ghLogin') return s.loggedOut;
+    if (i.id === 'agyLogin' && !i.act) return s.agyFirst;
+    if (i.id === 'claudeLogin' || i.id === 'ghLogin' || i.id === 'agyLogin') return s.loggedOut;
     if (i.id === 'gitUser') return s.noIdentity;
     return t.config.setup.missing;
   };
 
   const needed = view?.sections.find((x) => x.id === 'needed');
   const claude = needed?.items.find((i) => i.id === 'claude');
+  const recommended = view?.sections.some((x) => RECOMMENDED_SECTIONS.includes(x.id)) ?? false;
+  const shownPage = recommended ? page : 'required';
   return (
     <div className={first ? 'setup first' : 'setup over'} onClick={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className="setup-page">
@@ -336,7 +341,16 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           ) : (
             <>
               <p className="hint">{s.platform(platformName(view))}</p>
-              {view.sections.map((section) => (
+              {recommended && (
+                <div className="setup-pages" role="tablist">
+                  {(['required', 'recommended'] as const).map((p) => (
+                    <button key={p} role="tab" aria-selected={shownPage === p} className={shownPage === p ? 'on' : undefined} onClick={() => setPage(p)}>
+                      {s.pages[p]}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {view.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id) === (shownPage === 'recommended')).map((section) => (
                 <section key={section.id} className={`c-canvas c-setup setup-${section.id}`}>
                   <div className="setup-sh">
                     <b>{s.sections[section.id].title}</b>
@@ -348,6 +362,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                   </div>
                   <p className="hint">{s.sections[section.id].hint}</p>
                   <SetupList items={section.items} name={name(section)} state={state(section)} action={action(section)} />
+                  {section.id === 'mobile' && <p className="hint">{s.mobile.simulatorSafari}</p>}
                   {section.id === 'needed' && claude?.state === 'ok' && claude.found && !claude.found.startsWith(view.checkedClaude) && (
                     <p className="hint">{s.checkedWith(view.checkedClaude)}</p>
                   )}
@@ -357,7 +372,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
               <button className="btn small" disabled={checking || running} onClick={recheck}>
                 {checking ? t.config.setup.checking : t.config.setup.recheck}
               </button>
-              {first && <FirstCanvas view={view} ready={ready(needed)} onView={setView} />}
+              {first && shownPage === 'required' && <FirstCanvas view={view} ready={ready(needed)} onView={setView} />}
             </>
           )}
         </div>
@@ -415,7 +430,7 @@ function LanguagePick() {
   );
 }
 
-/** The first canvas: a repository's folder on this machine, or a clone of one. Obeya then starts again with it, and the page opens it. */
+/** The first canvas: a repository's folder on this machine, or a clone of one. Seismic then starts again with it, and the page opens it. */
 function FirstCanvas({ view, ready, onView }: { view: MachineView; ready: boolean; onView: (v: MachineView) => void }) {
   const [mode, setMode] = useState<'folder' | 'clone'>('folder');
   const [path, setPath] = useState('');
@@ -424,7 +439,7 @@ function FirstCanvas({ view, ready, onView }: { view: MachineView; ready: boolea
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [saved, setSaved] = useState<{ canvas: string; branch?: string; opens: boolean } | null>(null);
-  // the main branch of the folder named, once Obeya looked at it; or that it is a folder without git
+  // the main branch of the folder named, once Seismic looked at it; or that it is a folder without git
   const found = useFolder(mode === 'folder' ? path.trim() : '');
   const s = t.setup;
   const failed = (e: unknown) => setStatus(failText(e, { detail: ['invalid', 'config'] }));
@@ -435,7 +450,7 @@ function FirstCanvas({ view, ready, onView }: { view: MachineView; ready: boolea
   }, [job?.running, job?.canvas]);
   const branch = saved?.branch ?? found?.branch;
   const noGit = !!found?.noGit;
-  // once Obeya runs with the canvas (by itself, or started again by the owner), the page opens it
+  // once Seismic runs with the canvas (by itself, or started again by the owner), the page opens it
   const opened = useRef(false);
   useEffect(() => {
     if (!saved) return;
@@ -444,7 +459,7 @@ function FirstCanvas({ view, ready, onView }: { view: MachineView; ready: boolea
         api.canvases().then((list) => {
           if (opened.current || !list.some((c) => c.id === saved.canvas)) return;
           opened.current = true;
-          location.href = canvasPath(saved.canvas);
+          location.href = projectPath(saved.canvas);
         }, () => {}),
       1000,
     );
@@ -543,7 +558,7 @@ function FirstCanvas({ view, ready, onView }: { view: MachineView; ready: boolea
   );
 }
 
-/** What Obeya found at the folder `path` once it stopped changing for a moment: its main branch, or that it has no git; null until then. */
+/** What Seismic found at the folder `path` once it stopped changing for a moment: its main branch, or that it has no git; null until then. */
 function useFolder(path: string): { branch?: string; noGit?: boolean } | null {
   const [found, setFound] = useState<{ path: string; branch?: string; noGit?: boolean } | null>(null);
   useEffect(() => {
@@ -554,7 +569,7 @@ function useFolder(path: string): { branch?: string; noGit?: boolean } | null {
   return found?.path === path ? found : null;
 }
 
-/** The path, once Obeya found a folder without git there (where git can be set up); else empty. */
+/** The path, once Seismic found a folder without git there (where git can be set up); else empty. */
 export const useFolderWithoutGit = (path: string) => (useFolder(path)?.noGit ? path : '');
 
 // what stays out, listed up to this many
@@ -563,7 +578,7 @@ const IGNORED_SHOWN = 12;
 /**
  * A folder that has no git: the two ways on, each with what it means. Using it without git
  * (`onFolder`), or setting up git there: what the first commit holds (the folder's entries with
- * their sizes, large files marked, what stays out, the `.gitignore` Obeya writes), and only once the
+ * their sizes, large files marked, what stays out, the `.gitignore` Seismic writes), and only once the
  * owner confirms, the repository with its first commit. The first canvas and "+ Repository" in the
  * configuration both show it.
  */

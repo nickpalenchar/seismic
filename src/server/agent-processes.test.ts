@@ -1,10 +1,11 @@
 import { expect, test } from 'bun:test';
+import { testProcessCode } from '../test-process';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { codexConnection } from './codex-rpc';
-import { AgentProcesses, linuxProcessStat, processes, processesAsync } from './agent-processes';
+import { AgentProcesses, linuxProcessStat, processes, processesAsync, sharedSnapshot, tolerateTimeouts } from './agent-processes';
 
 const handlers = { notification() {}, request: async () => ({}) };
 const beat = (file: string) => { try { return Number(readFileSync(file, 'utf8')); } catch { return 0; } };
@@ -48,6 +49,53 @@ test('a kill waits for the snapshot of a track queued before it, and ends what t
     await killed;
     expect(spy.calls).toEqual([[-90002, 'SIGKILL']]);
   } finally { spy.restore(); }
+});
+
+const timeout = () => Object.assign(new Error('Agent process snapshot timed out'), { code: 'ETIMEDOUT' });
+
+test('sessions that observe on the same tick share one snapshot; one asked during it gets the next', async () => {
+  const rows = [{ pid: 90001, parent: process.pid, group: 90001, born: 'a' }, { pid: 90002, parent: process.pid, group: 90002, born: 'b' }];
+  const asked: number[][] = [];
+  let release!: () => void;
+  const share = sharedSnapshot(async (required) => {
+    asked.push([...required].sort());
+    if (asked.length === 1) await new Promise<void>((resolve) => { release = resolve; });
+    return { rows, denied: new Map([[90003, new Error('denied')]]) };
+  });
+  const a = new AgentProcesses(90001, share);
+  const b = new AgentProcesses(90002, share);
+  const first = Promise.all([a.track(), b.track()]);
+  await Bun.sleep(20);
+  expect(asked).toEqual([[90001, 90002]]);
+  const late = share(new Set([90003]));
+  release();
+  await first;
+  expect(a.observed()).toEqual([{ pid: 90001, born: 'a' }]);
+  // The roots were established in one snapshot; both tracks and the late caller share the next,
+  // in which only the caller that needs the unreadable process is refused.
+  await expect(late).rejects.toThrow('denied');
+  expect(asked).toEqual([[90001, 90002], [90001, 90002, 90003]]);
+});
+
+test('a timed-out snapshot leaves the root to be established by the next track', async () => {
+  const root = { pid: 90001, parent: process.pid, group: 90001, born: 'root' };
+  let calls = 0;
+  const tracker = new AgentProcesses(root.pid, () => { if (++calls === 1) throw timeout(); return [root]; });
+  await tracker.track();
+  expect(tracker.observed()).toEqual([{ pid: root.pid, born: 'root' }]);
+});
+
+test('snapshot timeouts are skipped until they last the whole window; other failures are not', async () => {
+  let now = 0;
+  const observed = tolerateTimeouts(30_000, () => now);
+  await observed(Promise.reject(timeout()));
+  now = 20_000;
+  await observed(Promise.reject(timeout()));
+  now = 30_000;
+  await expect(observed(Promise.reject(timeout()))).rejects.toThrow('timed out');
+  await observed(Promise.resolve());
+  await observed(Promise.reject(timeout())); // a snapshot that succeeded starts the window afresh
+  await expect(observed(Promise.reject(new Error('Cannot inspect agent process ownership')))).rejects.toThrow('Cannot inspect');
 });
 
 test('a missing initial root is reported, never trusted later', async () => {
@@ -105,14 +153,14 @@ test.skipIf(process.platform === 'win32')('a reported leaf keeps its app-server 
   const dir = mkdtempSync(join(tmpdir(), 'obeya-ancestor-death-'));
   const appFile = join(dir, 'app');
   const leafFile = join(dir, 'leaf');
-  const app = `import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
+  const app = testProcessCode(`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
 writeFileSync(${JSON.stringify(appFile)},String(process.pid));
-const leaf=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});
-writeFileSync(${JSON.stringify(leafFile)},String(leaf.pid));setInterval(()=>{},1000);`;
-  const supervisorCode = `import {spawn} from 'node:child_process';
-spawn(process.execPath,['-e',${JSON.stringify(app)}],{detached:true,stdio:'ignore'});setInterval(()=>{},1000);`;
+const leaf=spawn(process.execPath,['-e',${JSON.stringify(testProcessCode())}],{detached:true,stdio:'ignore'});
+writeFileSync(${JSON.stringify(leafFile)},String(leaf.pid));setInterval(()=>{},1000);`);
+  const supervisorCode = testProcessCode(`import {spawn} from 'node:child_process';
+spawn(process.execPath,['-e',${JSON.stringify(app)}],{detached:true,stdio:'ignore'});setInterval(()=>{},1000);`);
   const supervisor = spawn(process.execPath, ['-e', supervisorCode], { detached: true, stdio: 'ignore' });
-  const canary = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
+  const canary = spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore' });
   const tracker = new AgentProcesses(supervisor.pid!);
   let appPid = 0, leafPid = 0;
   const filePid = (file: string) => { try { return Number(readFileSync(file, 'utf8')); } catch { return 0; } };
@@ -136,12 +184,12 @@ spawn(process.execPath,['-e',${JSON.stringify(app)}],{detached:true,stdio:'ignor
 test.skipIf(process.platform === 'win32')('app-server death kills its separately grouped PTY, not an unrelated PID', async () => {
   const root = mkdtempSync(join(tmpdir(), 'obeya-pty-test-'));
   const file = join(root, 'heartbeat');
-  const childCode = `let n=0;const fs=await import('node:fs');setInterval(()=>fs.writeFileSync(${JSON.stringify(file)},String(++n)),25);`;
-  const code = `import {spawn} from 'node:child_process'; import {createInterface} from 'node:readline';
+  const childCode = testProcessCode(`let n=0;const fs=await import('node:fs');setInterval(()=>fs.writeFileSync(${JSON.stringify(file)},String(++n)),25);`);
+  const code = testProcessCode(`import {spawn} from 'node:child_process'; import {createInterface} from 'node:readline';
 const child=spawn(process.execPath,['-e',${JSON.stringify(childCode)}],{detached:true,stdio:'ignore'});
 createInterface({input:process.stdin}).on('line',line=>process.stdout.write(JSON.stringify({id:JSON.parse(line).id,result:child.pid})+'\\n'));
-setInterval(()=>{},1000);`;
-  const unrelated = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
+setInterval(()=>{},1000);`);
+  const unrelated = spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore' });
   const c = codexConnection({ command: process.execPath, args: ['-e', code], cwd: root, env: process.env }, handlers);
   let pid: number | undefined;
   try {
@@ -165,13 +213,13 @@ setInterval(()=>{},1000);`;
 test.skipIf(process.platform === 'win32')('forced shutdown signals an observed detached child and does not wait for escalation', async () => {
   const root = mkdtempSync(join(tmpdir(), 'obeya-force-test-'));
   const file = join(root, 'heartbeat');
-  const code = `import {writeFileSync} from 'node:fs';let n=0;process.on('SIGTERM',()=>{});setInterval(()=>writeFileSync(${JSON.stringify(file)},String(++n)),25);`;
-  const server = `import {spawn} from 'node:child_process';import {createInterface} from 'node:readline';
+  const code = testProcessCode(`import {writeFileSync} from 'node:fs';let n=0;process.on('SIGTERM',()=>{});setInterval(()=>writeFileSync(${JSON.stringify(file)},String(++n)),25);`);
+  const server = testProcessCode(`import {spawn} from 'node:child_process';import {createInterface} from 'node:readline';
 const child=spawn(process.execPath,['-e',${JSON.stringify(code)}],{detached:true,stdio:'ignore'});
 createInterface({input:process.stdin}).on('line',line=>process.stdout.write(JSON.stringify({id:JSON.parse(line).id,result:child.pid})+'\\n'));
-process.stdin.on('end',()=>{});process.on('SIGTERM',()=>{});setInterval(()=>{},1000);`;
+process.stdin.on('end',()=>{});process.on('SIGTERM',()=>{});setInterval(()=>{},1000);`);
   const { endCodexHere } = await import('./codex-rpc');
-  const canary = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
+  const canary = spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore' });
   const c = codexConnection({ command: process.execPath, args: ['-e', server], cwd: root, env: process.env }, handlers);
   let pid: number | undefined;
   try {
@@ -195,10 +243,10 @@ process.stdin.on('end',()=>{});process.on('SIGTERM',()=>{});setInterval(()=>{},1
 test('shutdown awaits escalation before exiting, including an EOF/TERM-ignoring subprocess', async () => {
   const root = mkdtempSync(join(tmpdir(), 'obeya-exit-test-'));
   const file = join(root, 'heartbeat');
-  const code = `import {writeFileSync} from 'node:fs';let n=0;process.stdin.resume();process.stdin.on('end',()=>{});process.on('SIGTERM',()=>{});setInterval(()=>writeFileSync(${JSON.stringify(file)},String(++n)),25);`;
-  const driver = `import {codexConnection,endCodexHere} from ${JSON.stringify(join(import.meta.dir, 'codex-rpc.ts'))};
+  const code = testProcessCode(`import {writeFileSync} from 'node:fs';let n=0;process.stdin.resume();process.stdin.on('end',()=>{});process.on('SIGTERM',()=>{});setInterval(()=>writeFileSync(${JSON.stringify(file)},String(++n)),25);`);
+  const driver = testProcessCode(`import {codexConnection,endCodexHere} from ${JSON.stringify(join(import.meta.dir, 'codex-rpc.ts'))};
 const c=codexConnection({command:process.execPath,args:['-e',${JSON.stringify(code)}],cwd:${JSON.stringify(root)},env:process.env},{notification(){},request:async()=>({})});
-console.log(c.pid);await Bun.sleep(150);await endCodexHere();process.exit(0);`;
+console.log(c.pid);await Bun.sleep(150);await endCodexHere();process.exit(0);`);
   const p = Bun.spawn([process.execPath, '-e', driver], { stdout: 'pipe', stderr: 'pipe' });
   let pid: number | undefined;
   try {
@@ -244,7 +292,7 @@ test.skipIf(process.platform === 'win32')('a refused signal does not leave the o
 test.skipIf(process.platform === 'win32')('after the app-server has exited, its group number is signalled once and never again', async () => {
   const spy = spyOnKill();
   const real = process.kill;
-  const c = codexConnection({ command: process.execPath, args: ['-e', `process.stdin.resume();process.stdin.on('end',()=>process.exit(0));`], cwd: process.cwd(), env: process.env }, handlers);
+  const c = codexConnection({ command: process.execPath, args: ['-e', testProcessCode(`process.stdin.resume();process.stdin.on('end',()=>process.exit(0));`)], cwd: process.cwd(), env: process.env }, handlers);
   const group = -c.pid!;
   const seen: [number, unknown][] = [];
   process.kill = ((pid: number, sig?: string | number) => { if (pid === group) seen.push([pid, sig]); return real(pid, sig as NodeJS.Signals); }) as typeof process.kill;

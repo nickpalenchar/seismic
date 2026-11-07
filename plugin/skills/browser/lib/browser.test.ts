@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { testProcessCode } from '../../../../src/test-process';
 import { type ChildProcess, spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -21,14 +22,15 @@ afterEach(() => {
 
 /** A stand-in for a Claude Code session's process: the browser lives as long as it does. */
 function session(): number {
-  const s = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+  const s = spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore' });
   sessions.push(s);
   return s.pid!;
 }
 
 /** The skill's command in a session, with the temp directory of this test for its state. */
 async function browser(pid: number | null, ...args: string[]): Promise<string> {
-  const env: Record<string, string | undefined> = { ...process.env, TMPDIR: dir, TEMP: dir, TMP: dir, CLAUDE_PID: pid ? String(pid) : undefined };
+  // SEISMIC_AGENT_PID of the worker running these tests (a Codex worker sets it) would take precedence over this session's CLAUDE_PID
+  const env: Record<string, string | undefined> = { ...process.env, TMPDIR: dir, TEMP: dir, TMP: dir, SEISMIC_AGENT_PID: undefined, OBEYA_AGENT_PID: undefined, CLAUDE_PID: pid ? String(pid) : undefined };
   // not spawnSync: a page this test serves has to be answered while the command waits for it
   const p = Bun.spawn(['node', SCRIPT, ...args], { env, stdout: 'pipe', stderr: 'pipe' });
   const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
@@ -81,6 +83,7 @@ function tone(file: string, seconds = 1, rate = 48_000) {
 
 test('portable agent identity isolates browsers and takes precedence over Claude identity', () => {
   expect(sessionPid({ OBEYA_AGENT_PID: '123', CLAUDE_PID: '456' })).toBe(123);
+  expect(sessionPid({ SEISMIC_AGENT_PID: '789', OBEYA_AGENT_PID: '123' })).toBe(789);
   expect(stateFile({ OBEYA_AGENT_PID: '123' })).toBe(stateFile({ CLAUDE_PID: '123' }));
   expect(stateFile({ OBEYA_AGENT_PID: '123' })).not.toBe(stateFile({ OBEYA_AGENT_PID: '456' }));
   expect(sessionPid({ OBEYA_AGENT_PID: 'invalid' })).toBeNull();

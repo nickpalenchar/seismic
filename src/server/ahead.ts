@@ -1,6 +1,6 @@
 // Asking before the start: on a planned card nobody has worked on, what the owner types goes to an
 // agent that answers at once, with a worker's tools to read and check, while the card stays planned.
-// It is Obeya's answering agent as the Koordinator's look-ups have it (`advisor.ts`), one turn per
+// It is Seismic's answering agent as the Koordinator's look-ups have it (`advisor.ts`), one turn per
 // message in a session that resumes, and the card's conversation is where the owner and it talk. The
 // worker that starts later hears that conversation with its task (`history`).
 
@@ -30,7 +30,7 @@ export interface AheadOptions {
   permissionMode?: PermissionMode;
   /** Called with what the owner says, so lasting preferences can be learned. */
   onOwnerInput?: (card: Item, text: string) => void;
-  /** Passes on to the Koordinator what the owner's words ask of Obeya (`to_obeya`); without it the agent has no such tool. */
+  /** Passes on to the Koordinator what the owner's words ask of Seismic (`to_seismic`); without it the agent has no such tool. */
   toObeya?: (cardId: string, request: string) => Promise<string>;
 }
 
@@ -144,9 +144,9 @@ export class Ahead {
     const lines = this.o.board
       .events(cardId)
       .filter((e) => e.kind === 'talk' && !e.unread && !waiting.has(e.id) && e.text.trim())
-      .map((e) => `${e.author === 'owner' ? 'The owner' : 'Obeya'}: ${e.text.trim()}`);
+      .map((e) => `${e.author === 'owner' ? 'The owner' : 'Seismic'}: ${e.text.trim()}`);
     if (!lines.length) return;
-    return `Before the card was started, the owner talked it over with Obeya's answering agent. The conversation, oldest first (what the owner said there is part of the task):\n\n${lines.join('\n\n')}`;
+    return `Before the card was started, the owner talked it over with Seismic's answering agent. The conversation, oldest first (what the owner said there is part of the task):\n\n${lines.join('\n\n')}`;
   }
 
   private start(cardId: string) {
@@ -215,7 +215,7 @@ export class Ahead {
       inform({
         runtime: this.o.runtime,
         cwd: this.o.pathFor(card),
-        system: `You are the Koordinator of Obeya, a canvas on which the owner directs coding agents; the owner knows you simply as Obeya.\n\n${AHEAD_RULES}${toObeya ? `\n\n${TO_OBEYA}` : ''}`,
+        system: `You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic.\n\n${AHEAD_RULES}${toObeya ? `\n\n${TO_OBEYA}` : ''}`,
         message: [message, this.o.preferences?.() ?? ''].filter(Boolean).join('\n\n'),
         onTool: (name, input) => {
           if (!name.startsWith('mcp__')) this.o.board.log(card.id, 'activity', 'koordinator', describeTool(name, input, this.o.board.t));

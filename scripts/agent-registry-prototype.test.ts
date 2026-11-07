@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { testProcessCode } from '../src/test-process';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -52,7 +53,7 @@ test.skipIf(process.platform === 'win32')('a killed owner releases its generatio
   const root = mkdtempSync(join(tmpdir(), 'obeya-registry-'));
   const ready = join(root, 'ready');
   const module = join(import.meta.dir, 'agent-registry-prototype.ts');
-  const code = `import {createGeneration} from ${JSON.stringify(module)};import {writeFileSync} from 'node:fs';const x=createGeneration(${JSON.stringify(root)},{pid:42,boot:'boot-a',namespace:'ns-a',start:'123'});x.publish([{pid:100,boot:'boot-a',namespace:'ns-a',start:'123'}]);writeFileSync(${JSON.stringify(ready)},x.id);setInterval(()=>{},1000);`;
+  const code = testProcessCode(`import {createGeneration} from ${JSON.stringify(module)};import {writeFileSync} from 'node:fs';const x=createGeneration(${JSON.stringify(root)},{pid:42,boot:'boot-a',namespace:'ns-a',start:'123'});x.publish([{pid:100,boot:'boot-a',namespace:'ns-a',start:'123'}]);writeFileSync(${JSON.stringify(ready)},x.id);setInterval(()=>{},1000);`);
   const child = spawn(process.execPath, ['-e', code], { stdio: 'ignore' });
   try {
     const fs = await import('node:fs');

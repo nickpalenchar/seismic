@@ -107,16 +107,41 @@ async function toolsWith(choice: AgentSetting) {
   return { tools: spec.tools.map((t) => t.name), system: spec.system };
 }
 
-test('a Codex worker gets obeya_run and obeya_git, and a note on what its sandbox keeps from it', async () => {
+test('a Codex worker gets seismic_run and seismic_git, and a note on what its sandbox keeps from it', async () => {
   const { tools, system } = await toolsWith(codex);
-  expect(tools).toContain('obeya_run');
-  expect(tools).toContain('obeya_git');
-  expect(system).toContain('obeya_run');
+  expect(tools).toContain('run');
+  expect(tools).toContain('git');
+  expect(system).toContain('seismic_run');
 });
 
 test('a Claude worker has neither', async () => {
   const { tools, system } = await toolsWith(AGENT_DEFAULTS.worker);
-  expect(tools).not.toContain('obeya_run');
-  expect(tools).not.toContain('obeya_git');
-  expect(system).not.toContain('obeya_run');
+  expect(tools).not.toContain('run');
+  expect(tools).not.toContain('git');
+  expect(system).not.toContain('seismic_run');
+});
+
+/** The spec a worker with this setting starts with, Codex's automatic review on. */
+async function autoSpec(choice: AgentSetting) {
+  setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, workspaces: 'clones', land: 'main' }, agentSetting: () => choice, codexAutoReview: () => true }));
+  await workers.start(manual().id);
+  const spec = runtime.last.spec;
+  workers.shutdown();
+  return spec;
+}
+
+test("a Codex worker with Codex's automatic review on starts with it and is told to ask for escalation, not the owner", async () => {
+  const spec = await autoSpec(codex);
+  expect(spec.autoReview).toBe(true);
+  expect(spec.system).toContain('request escalated permissions');
+  expect(spec.tools.find((t) => t.name === 'run')!.description).toContain('escalated permissions');
+});
+
+test("Codex's automatic review leaves a Claude worker as it was", async () => {
+  expect((await autoSpec(AGENT_DEFAULTS.worker)).autoReview).toBeUndefined();
+});
+
+test('without it, a Codex worker is told the owner is asked', async () => {
+  const { system } = await toolsWith(codex);
+  expect(system).not.toContain('request escalated permissions');
 });

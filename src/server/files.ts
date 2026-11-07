@@ -1,6 +1,6 @@
 // Files the owner drops into what they write that are no screenshots (a PDF, a log, a spreadsheet):
 // the field gets the file's own path, for the agent to read it there and to move or change it. The
-// app knows that path; a browser does not tell it, so Obeya looks for the file by its name, size and
+// app knows that path; a browser does not tell it, so Seismic looks for the file by its name, size and
 // time in the folders files are dropped from, and where it finds no single one, keeps a copy under
 // its home and the field gets that copy's path.
 
@@ -127,7 +127,7 @@ export function localImage(path: string): { file: string; type: string } | null 
   }
 }
 
-/** The stored files `text` names by path, under `root` (Obeya's `files` directory): the directory of each, which holds it alone. */
+/** The stored files `text` names by path, under `root` (Seismic's `files` directory): the directory of each, which holds it alone. */
 export function filesIn(text: string, root: string): string[] {
   const at = root.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const dirs = [...text.matchAll(new RegExp(`${at}[\\\\/][^\\\\/\\s]+[\\\\/][0-9a-f-]{36}(?=[\\\\/])`, 'g'))].map((m) => m[0]);

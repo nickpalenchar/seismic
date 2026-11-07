@@ -30,18 +30,28 @@ test('a language tag Intl refuses falls back to the usual variant', () => {
   expect(clock(new Date(2026, 9, 6, 15, 4))).toMatch(/03:04\sPM/);
 });
 
-test("a proposal of the Arbeitsrückschau is labelled as Obeya's, a worker's proposal as an agent's", () => {
+test("a proposal of the Arbeitsrückschau is labelled as Seismic's, a worker's proposal as an agent's", () => {
   setLanguage('en', []);
-  expect(stateLabel({ state: 'proposal', retro: 'Two cards hit the same wall.' })).toBe('Proposed by Obeya');
+  expect(stateLabel({ state: 'proposal', retro: 'Two cards hit the same wall.' })).toBe('Proposed by Seismic');
   expect(stateLabel({ state: 'proposal' })).toBe('Proposed by an agent');
   setLanguage('de', []);
-  expect(stateLabel({ state: 'proposal', retro: 'Zwei Karten scheiterten gleich.' })).toBe('Vorschlag von Obeya');
+  expect(stateLabel({ state: 'proposal', retro: 'Zwei Karten scheiterten gleich.' })).toBe('Vorschlag von Seismic');
   expect(stateLabel({ state: 'planned', retro: 'Zwei Karten scheiterten gleich.' })).toBe('Geplant');
 });
 
 test('a card whose agent answered the owner without a new demo says so instead of "Demo ready"', () => {
   setLanguage('en', []);
   expect(stateLabel({ state: 'waiting', need: 'demo' })).toBe('Demo ready');
+  expect(stateLabel({ state: 'waiting', need: 'demo', demos: [{}] })).toBe('2nd demo ready');
+  expect(stateLabel({ state: 'waiting', need: 'demo', demos: [{}, {}, {}] })).toBe('4th demo ready');
+  expect(stateLabel({ state: 'waiting', need: 'demo', demos: [{ asked: true }] })).toBe('Demo ready');
   expect(stateLabel({ state: 'waiting', need: 'demo', answered: true })).toBe('Agent answered, waiting for you');
   expect(stateLabel({ state: 'waiting', need: 'review', answered: true })).toBe('Agent answered, waiting for you');
+});
+
+test('a card whose agent paused for a restart says so in place of being at work', () => {
+  setLanguage('en', []);
+  expect(stateLabel({ state: 'working', restartPaused: true })).toBe('Paused, pending restart');
+  expect(stateLabel({ state: 'working' })).toBe('Agent at work');
+  expect(stateLabel({ state: 'waiting', need: 'review', codeReview: { state: 'running' } })).toBe('Agent reviewing');
 });

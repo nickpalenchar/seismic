@@ -1,9 +1,9 @@
 // Shows the allow list of the repository in the working directory as it stands in the checkout
-// (the `Bash` rules of `.claude/settings.json`, committed or not), the way Obeya applies it to its
+// (the `Bash` rules of `.claude/settings.json`, committed or not), the way Seismic applies it to its
 // workers once the owner trusted it: which rules there are, which of them let through more than a
 // command (a whole program, anything at all), and for each command given as an argument whether the
 // list covers it. `--codex` also writes `.codex/rules/obeya.rules`, the list's form for Codex's own
-// rule engine, for Codex run outside Obeya. Exits with 1 when the file does not read or a command
+// rule engine, for Codex run outside Seismic. Exits with 1 when the file does not read or a command
 // given is not covered. Run with Bun (`bun allow-list.ts [--codex] ['<command>' …]`).
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -69,7 +69,7 @@ if (codex) {
   const out = join(repo.path, CODEX_RULES);
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, rulesFile);
-  console.log(`\nwrote ${CODEX_RULES}${skipped.length ? ` (${skipped.length} rule${skipped.length === 1 ? '' : 's'} with a * inside a word have no Codex form; Obeya applies them to its Codex workers itself)` : ''}`);
+  console.log(`\nwrote ${CODEX_RULES}${skipped.length ? ` (${skipped.length} rule${skipped.length === 1 ? '' : 's'} with a * inside a word have no Codex form; Seismic applies them to its Codex workers itself)` : ''}`);
 }
 
 process.exit(problem ? 1 : 0);

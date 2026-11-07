@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import { blocksSaving, type CanvasConfig, type ConfigView, type DemoSettingsView, type LanguageView } from '../core/types';
 import { Board } from './board';
 import { CanvasRuntime, type StartFailure } from './canvas';
-import { clipProblems, Config, demoSettingsProblems, readConfigFile } from './config';
+import { clipProblems, Config, configShape, demoSettingsProblems, readConfigFile } from './config';
 import { Store } from './db';
 import { serve } from './server';
-import { ownerLanguage } from './settings';
+import { CANVAS_SETTINGS, canvasAgentSetting, canvasDefaults, canvasDefaultsView, ownerLanguage, saveCanvasDefaults } from './settings';
 import { asOwner, FakeRuntime, noForge, gitRepo, until } from './testing';
 import { git } from './workspaces';
 
@@ -54,7 +54,14 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-describe("Obeya's configuration", async () => {
+describe("Seismic's configuration", async () => {
+  test('keeps the canvas project-baseline toggle when saving and reading configuration', async () => {
+    const c = config('file', [{ repos: [{ path: web }] }], ['web']);
+    await c.save([{ projectBaselines: false, repos: [{ path: web }] }]);
+    expect(readConfigFile(file)[0]!.projectBaselines).toBe(false);
+    await c.save([{ projectBaselines: true, repos: [{ path: web }] }]);
+    expect(readConfigFile(file)[0]!.projectBaselines).toBe(true);
+  });
   test('says what each canvas amounts to: its id, name, repositories and where their workers work', async () => {
     api = gitRepo(join(dir, 'api-own'), { '.obeya/settings.json': '{ "workspaces": "clones" }\n' });
     const c = config('args', [{ name: 'Produkt', repos: [{ path: web }, { path: api }] }], ['produkt']);
@@ -205,17 +212,15 @@ describe("Obeya's configuration", async () => {
     expect((await check([{ path: web, hosts: [{ ...host, name: 'a/b' }] }])).problems.map((p) => p.code)).toEqual(['invalid']);
   });
 
-  test("a demo site that cannot be used is a problem at the repository", async () => {
-    const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'no-such-deploy-anywhere {dir}' };
-    const own = gitRepo(join(dir, 'shop'), { '.obeya/settings.json': JSON.stringify({ demo: { site } }) });
+  test("a demo site a repository's settings still name is no longer read, and said so; a canvas's own is kept tidied", async () => {
+    const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'deploy {dir}' };
+    const own = gitRepo(join(dir, 'shop'), { '.obeya/settings.json': JSON.stringify({ setup: 'bun install', demo: { site } }) });
     const c = config('args', [{ repos: [{ path: web }] }]);
-    const checked = (await c.check([{ repos: [{ path: own }] }]));
-    expect(checked.problems[0]).toEqual({ code: 'demoSite', canvas: 0, repo: 0, detail: "demo.site.deploy: the deploy command's program no-such-deploy-anywhere is not on the PATH" });
-    // a site the owner did not trust yet besides
-    expect(checked.problems.slice(1).map((p) => p.code)).toEqual(['untrusted']);
-    expect(checked.resolved[0]!.repos[0]!.values.demo.site).toEqual({ value: site, source: 'repository', held: true });
-    // one this machine sets without a URL
-    expect((await c.check([{ repos: [{ path: web, settings: { demo: { site: { ...site, url: 'demos', deploy: 'git {dir}' } } } }] }])).problems.map((p) => p.detail)).toEqual(['demo.site.url: expected an http(s) URL']);
+    const checked = await c.check([{ repos: [{ path: own }], demoSite: { url: 'https://demos.example.dev/', path: '/billing/' } }]);
+    expect(checked.problems.map((p) => [p.code, p.detail])).toEqual([['repoSettings', '.obeya/settings.json, demo.site: no longer read; a canvas chooses its demo site in its settings']]);
+    expect(checked.canvases[0]!.demoSite).toEqual({ url: 'https://demos.example.dev', path: 'billing' });
+    // a path that is not one
+    expect((await c.check([{ repos: [{ path: web }], demoSite: { url: 'https://demos.example.dev', path: 'Bil ling' } }])).problems.map((p) => p.code)).toEqual(['invalid']);
   });
 
   test("a repository whose main branch still has an adapter module is a problem there, which keeps nothing from being saved", async () => {
@@ -239,7 +244,7 @@ describe("Obeya's configuration", async () => {
     expect(moved.resolved[0]!.repos.map((r) => r.id)).toEqual(['api', 'web']);
   });
 
-  test('saves a configuration that works, tidied, and starts Obeya again; one with problems is refused', async () => {
+  test('saves a configuration that works, tidied, and starts Seismic again; one with problems is refused', async () => {
     const c = config('args', [{ repos: [{ path: web }] }]);
     await expect(c.save([{ repos: [{ path: join(dir, 'nowhere') }] }])).rejects.toThrow();
     expect(existsSync(file)).toBe(false);
@@ -255,13 +260,13 @@ describe("Obeya's configuration", async () => {
     expect(restarts).toBe(1);
   });
 
-  test("a file from before demo.language reads without its site's language, the site kept", async () => {
+  test("a file from before canvases chose their demo site reads without a repository's site", async () => {
     const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'deploy {dir}' };
     mkdirSync(join(dir, 'home'));
-    writeFileSync(file, JSON.stringify([{ repos: [{ path: web, settings: { demo: { site: { ...site, language: 'de' } } } }] }]));
-    expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { demo: { site } } }] }]);
+    writeFileSync(file, JSON.stringify([{ repos: [{ path: web, settings: { setup: 'x', demo: { site: { ...site, language: 'de' } } } }] }]));
+    expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { setup: 'x' } }] }]);
     // so does a draft the dialog kept from before
-    expect((await config('file', []).check([{ repos: [{ path: web, settings: { demo: { site: { ...site, language: 'de' } } } }] }])).problems.map((p) => p.code)).not.toContain('invalid');
+    expect((await config('file', []).check([{ repos: [{ path: web, settings: { demo: { site } } }] }])).problems.map((p) => p.code)).not.toContain('invalid');
   });
 
   test("saved from the file, the running canvases take it over without a restart: settings tidied, canvases and repositories as they come", async () => {
@@ -418,7 +423,7 @@ describe("Obeya's configuration", async () => {
     const done = (await c.shareSettings({ path: web }));
     expect(done).toMatchObject({ branch: 'main', committed: git(web, 'rev-parse', 'main').trim() });
     expect(JSON.parse(git(web, 'show', 'main:.obeya/settings.json'))).toEqual({ checks: ['bun test'], app: { run: 'bun dev' } });
-    expect(git(web, 'show', '--name-only', '--format=%s', 'main').trim()).toBe('Obeya settings for everyone: checks, app\n\n.obeya/settings.json');
+    expect(git(web, 'show', '--name-only', '--format=%s', 'main').trim()).toBe('Seismic settings for everyone: checks, app\n\n.obeya/settings.json');
     expect(git(web, 'status', '--porcelain').trim()).toBe('M  README.md');
     // the main branch stays this machine's; the rest come from the repository now
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { branch: 'main' } }] }]);
@@ -448,7 +453,7 @@ describe("Obeya's configuration", async () => {
     });
     const before = git(web, 'rev-parse', 'main').trim();
     expect((await c.shareSettings({ path: web }))).toEqual({ pr: 'https://github.com/acme/web/pull/7' });
-    expect(opened).toEqual([expect.objectContaining({ base: 'main', head: expect.stringMatching(/^obeya-settings-\d{8}-\d{6}$/), title: 'Obeya settings for everyone: land, checks' })]);
+    expect(opened).toEqual([expect.objectContaining({ base: 'main', head: expect.stringMatching(/^obeya-settings-\d{8}-\d{6}$/), title: 'Seismic settings for everyone: land, checks' })]);
     expect(JSON.parse(git(origin, 'show', `${opened[0]!.head}:.obeya/settings.json`))).toEqual(settings);
     expect(git(web, 'rev-parse', 'main').trim()).toBe(before);
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings }] }]);
@@ -502,7 +507,7 @@ describe("Obeya's configuration", async () => {
     const done = (await c.takeSetting(web, 'run', 'bun dev --port 4000', 'repository'));
     expect(done).toMatchObject({ branch: 'main', committed: git(web, 'rev-parse', 'main').trim() });
     expect(JSON.parse(git(web, 'show', 'main:.obeya/settings.json'))).toEqual({ app: { run: 'bun dev --port 4000' } });
-    expect(git(web, 'log', '-1', '--format=%s', 'main').trim()).toBe('Obeya settings for everyone: app');
+    expect(git(web, 'log', '-1', '--format=%s', 'main').trim()).toBe('Seismic settings for everyone: app');
     // this machine's other value for it went, so the repository's applies here; its checks stay its own
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { checks: ['bun test'] } }] }]);
     expect((await c.checkSaved()).resolved[0]!.repos[0]!.values.app.run).toEqual({ value: 'bun dev --port 4000', source: 'repository' });
@@ -529,7 +534,7 @@ describe("Obeya's configuration", async () => {
       apply: () => {},
     });
     expect((await c.takeSetting(web, 'setup', 'bun install', 'repository'))).toEqual({ pr: 'https://github.com/acme/web/pull/8' });
-    expect(opened).toMatchObject([{ title: 'Obeya settings for everyone: setup' }]);
+    expect(opened).toMatchObject([{ title: 'Seismic settings for everyone: setup' }]);
     expect(JSON.parse(git(origin, 'show', `${opened[0]!.head}:.obeya/settings.json`))).toEqual({ setup: 'bun install' });
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { land: 'pr', setup: 'bun install' } }] }]);
   });
@@ -542,7 +547,7 @@ describe("Obeya's configuration", async () => {
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { checks: ['a'] } }] }]);
   });
 
-  test('shows the file when Obeya runs from it, the command line until something is saved', async () => {
+  test('shows the file when Seismic runs from it, the command line until something is saved', async () => {
     mkdirSync(join(dir, 'home'));
     writeFileSync(file, JSON.stringify([{ name: 'Aus Datei', repos: [{ path: web }] }]));
     expect(config('file', []).view().canvases).toEqual([{ name: 'Aus Datei', repos: [{ path: web }] }]);
@@ -613,7 +618,7 @@ describe('the configuration over HTTP', () => {
 
   test('makes the card that fills in the settings of a repository, once while it is open', async () => {
     const made = await call('POST', '/api/c/web/adapter-setup', { repo: 'web' });
-    expect(made).toMatchObject({ status: 200, body: { title: 'Obeya für web einrichten', state: 'planned' } });
+    expect(made).toMatchObject({ status: 200, body: { title: 'Seismic für web einrichten', state: 'planned' } });
     expect(made.body.body).toContain('obeya:settings');
     expect((await call('POST', '/api/c/web/adapter-setup', { repo: 'web' })).body.id).toBe(made.body.id);
     expect((await call('POST', '/api/c/web/adapter-setup', { repo: 'nope' })).status).toBe(400);
@@ -637,8 +642,8 @@ describe('the configuration over HTTP', () => {
     // without a narration language of their own, demos speak the owner's
     writeFileSync(join(dir, 'settings.json'), JSON.stringify({ language: 'de' }));
     const before = (await call('GET', '/api/demo-settings')).body as unknown as DemoSettingsView;
-    expect(before).toMatchObject({ file: join(dir, 'demo.json'), settings: { language: 'de', voice: 'piper' }, check: { person: 'third', problems: [] } });
-    expect(before.check.install).toMatchObject({ installed: false, missing: ['Piper', 'Piper-Stimme de_DE-thorsten-high'] });
+    expect(before).toMatchObject({ file: join(dir, 'demo.json'), settings: { language: 'en', voice: 'piper' }, check: { person: 'third', problems: [] } });
+    expect(before.check.install).toMatchObject({ installed: false, missing: ['Piper', 'Piper voice en_US-ryan-high'] });
     expect((await call('PUT', '/api/demo-settings', { language: 'fr', voice: 'piper' })).status).toBe(400);
     const saved = await call('PUT', '/api/demo-settings', { language: 'en', voice: 'command', command: ' speak ', ownVoice: true });
     expect(saved.body).toMatchObject({ settings: { language: 'en', voice: 'command', command: 'speak', ownVoice: true }, check: { person: 'first', problems: [] } });
@@ -786,6 +791,8 @@ describe('the demo settings', () => {
     expect(demoSettingsProblems({ language: 'de', voice: 'http', url: 'http://localhost:9' }, {})).toEqual([]);
     expect(demoSettingsProblems({ language: 'de', voice: 'say' }, {}, 'linux')).toEqual(['notHere']);
     expect(demoSettingsProblems({ language: 'de', voice: 'say' }, {}, 'darwin')).toEqual([]);
+    expect(demoSettingsProblems({ language: 'en', voice: 'qwen3', voiceName: 'Kai' }, {})).toEqual(['unknownSpeaker']);
+    expect(demoSettingsProblems({ language: 'en', voice: 'qwen3', voiceName: 'Ryan' }, {})).toEqual([]);
     expect(demoSettingsProblems({ language: 'de', voice: 'gemini' }, {})).toEqual(['noKey']);
     expect(demoSettingsProblems({ language: 'de', voice: 'gemini' }, { GEMINI_API_KEY: 'k' })).toEqual([]);
     expect(demoSettingsProblems({ language: 'de', voice: 'azure', url: 'westeurope' }, {})).toEqual(['noKey']);
@@ -823,3 +830,119 @@ function wav(seconds: number, rate = 16000) {
   b.writeUInt32LE(data, 40);
   return b;
 }
+
+describe('Canvas defaults', () => {
+  test('every canvas setting has a value in Canvas defaults', () => {
+    // what a canvas holds beside its identity and repositories is a canvas setting; a new one needs its default
+    const settings = Object.keys(configShape.element.shape).filter((k) => !['name', 'id', 'repos'].includes(k));
+    expect(settings.length).toBeGreaterThan(0);
+    const defaults = canvasDefaults(dir) as Record<string, unknown>;
+    for (const k of settings) {
+      expect(Object.keys(CANVAS_SETTINGS), `canvas setting ${k} has no entry in Canvas defaults`).toContain(k);
+      expect(defaults[k], `canvas setting ${k} has no default value`).toBeDefined();
+    }
+    expect(Object.keys(defaults).sort()).toEqual(settings.sort());
+  });
+
+  test('start with every label suggested, and keep what the owner saves of them', () => {
+    expect(canvasDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { projectBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null } });
+    saveCanvasDefaults(dir, { suggest: { complexity: false } });
+    expect(canvasDefaults(dir)).toEqual({ projectBaselines: true, archive: 'manual', suggest: { category: true, complexity: false, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null });
+    // cards are archived by hand until the owner chooses otherwise
+    saveCanvasDefaults(dir, { archive: 'landed' });
+    expect(canvasDefaults(dir).archive).toBe('landed');
+    expect(() => saveCanvasDefaults(dir, { archive: 'weekly' })).toThrow();
+    // code reviews start off, and once on, with the demo, until the owner chooses otherwise
+    saveCanvasDefaults(dir, { codeReviews: { on: true, mode: 'manual' } });
+    expect(canvasDefaults(dir).codeReviews).toEqual({ on: true, mode: 'manual' });
+    expect(() => saveCanvasDefaults(dir, { codeReviews: { mode: 'sometimes' } })).toThrow();
+    // other settings in the file stay
+    expect(ownerLanguage(dir)).toBeDefined();
+    expect(() => saveCanvasDefaults(dir, { suggest: { colour: true } })).toThrow();
+    expect(() => saveCanvasDefaults(dir, { theme: 'dark' })).toThrow();
+  });
+
+  test('are copied into a canvas when it is created; the canvases there are keep their own', async () => {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify([{ repos: [{ path: web }] }])}\n`);
+    const c = config('file', [], ['web']);
+    saveCanvasDefaults(dir, { suggest: { priority: false } });
+    // a new canvas beside the existing one, which has no toggles of its own (all on)
+    await c.save([{ name: 'Web', repos: [{ path: web }] }, { repos: [{ path: api }] }]);
+    expect(readConfigFile(file)).toEqual([
+      { name: 'Web', repos: [{ path: web }] },
+      { projectBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: false }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: api }] },
+    ]);
+    // changing the defaults later leaves both alone, and what a new canvas sets itself is its own
+    saveCanvasDefaults(dir, { suggest: { category: false, priority: true } });
+    const other = repo('other');
+    await c.save([...readConfigFile(file), { suggest: { complexity: false }, repos: [{ path: other }] }]);
+    expect(readConfigFile(file).map((x) => x.suggest)).toEqual([undefined, { category: true, complexity: true, priority: false }, { category: true, complexity: false, priority: true }]);
+  });
+
+  test('project tagging defaults apply to new canvases while existing canvases and explicit choices stay their own', async () => {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, JSON.stringify([{ repos: [{ path: web }] }]));
+    const c = config('file', [], ['web']);
+    saveCanvasDefaults(dir, { projectBaselines: false });
+    expect(canvasDefaults(dir).projectBaselines).toBe(false);
+    await c.save([{ repos: [{ path: web }] }, { repos: [{ path: api }] }]);
+    expect(readConfigFile(file).map((x) => x.projectBaselines)).toEqual([undefined, false]);
+    saveCanvasDefaults(dir, { projectBaselines: true });
+    const other = repo('explicit');
+    await c.save([...readConfigFile(file), { projectBaselines: false, repos: [{ path: other }] }]);
+    expect(readConfigFile(file).map((x) => x.projectBaselines)).toEqual([undefined, false, false]);
+    expect(() => saveCanvasDefaults(dir, { projectBaselines: 'off' })).toThrow();
+  });
+
+  test('an existing canvas keeps its settings by id even when it is not running and its repositories change', async () => {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, JSON.stringify([{ id: 'shop', repos: [{ path: web }] }]));
+    saveCanvasDefaults(dir, { suggest: { priority: false } });
+    await config('file', []).save([{ id: 'shop', name: 'Store', repos: [{ path: api }] }]);
+    expect(readConfigFile(file)[0]?.suggest).toBeUndefined();
+  });
+});
+
+describe('The canvas settings', () => {
+  test('a canvas saves its own models over the configuration, and leaves the rest of it as it was', async () => {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify([{ name: 'Web', repos: [{ path: web }] }, { repos: [{ path: api }] }])}\n`);
+    const c = config('file', [], ['web']);
+    await c.saveCanvas('web', { agents: { worker: { model: 'sonnet' }, chores: {} } });
+    // an empty group says nothing and is not saved
+    expect(readConfigFile(file)).toEqual([{ name: 'Web', agents: { worker: { model: 'sonnet' } }, repos: [{ path: web }] }, { repos: [{ path: api }] }]);
+    await c.saveCanvas('web', { agents: { worker: { harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } } } });
+    expect(readConfigFile(file)[0]).toMatchObject({ agents: { worker: { harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } } } });
+    // all groups back to the configuration's: no models of its own left
+    await c.saveCanvas('web', { agents: {} });
+    expect(readConfigFile(file)[0]).toEqual({ name: 'Web', repos: [{ path: web }] });
+    await expect(c.saveCanvas('web', { agents: { worker: { model: 'gpt' } } })).rejects.toThrow();
+    await expect(c.saveCanvas('web', { name: 'Other' })).rejects.toThrow();
+    await expect(c.saveCanvas('nowhere', { suggest: { priority: false } })).rejects.toThrow();
+    // changes sent at once all stay
+    await Promise.all([c.saveCanvas('web', { projectBaselines: false }), c.saveCanvas('web', { suggest: { priority: false } })]);
+    expect(readConfigFile(file)[0]).toMatchObject({ projectBaselines: false, suggest: { priority: false } });
+  });
+
+  test("a canvas's own model or effort goes over the configuration's; Codex workers it sets a model for run in Claude Code", () => {
+    const base = { model: 'opus', effort: 'high' } as const;
+    expect(canvasAgentSetting('worker', base, undefined)).toBe(base);
+    expect(canvasAgentSetting('worker', base, { chores: { model: 'haiku' } })).toBe(base);
+    expect(canvasAgentSetting('worker', base, { worker: { effort: 'low' } })).toEqual({ model: 'opus', effort: 'low' });
+    const codex = { ...base, harness: 'codex', codex: { model: 'gpt-5', effort: 'high' } } as const;
+    expect(canvasAgentSetting('worker', codex, { worker: { model: 'sonnet' } })).toMatchObject({ model: 'sonnet', effort: 'high', harness: 'claude' });
+    expect(canvasAgentSetting('worker', codex, { worker: { effort: 'low' } })).toEqual({ ...codex, codex: { model: 'gpt-5', effort: 'low' } });
+    expect(canvasAgentSetting('worker', base, { worker: { harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } } })).toMatchObject({ harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } });
+    expect(canvasAgentSetting('worker', codex, { worker: { harness: 'claude', model: 'haiku' } })).toMatchObject({ harness: 'claude', model: 'haiku' });
+  });
+
+  test('Canvas defaults hold no models: the configuration is their default', async () => {
+    expect(canvasDefaults(dir).agents).toEqual({});
+    expect(() => saveCanvasDefaults(dir, { agents: { worker: { model: 'sonnet' } } })).toThrow();
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify([{ repos: [{ path: web }] }])}\n`);
+    await config('file', [], ['web']).save([{ repos: [{ path: web }] }, { repos: [{ path: api }] }]);
+    expect(readConfigFile(file)[1]?.agents).toBeUndefined();
+  });
+});

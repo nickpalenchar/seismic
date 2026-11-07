@@ -1,4 +1,4 @@
-// Obeya's suggestion of a card's labels (design: The canvas): the plugin's labels skill guides the
+// Seismic's suggestion of a card's labels (design: The canvas): the plugin's labels skill guides the
 // short session that judges them, as part of the naming call or a call of its own at the start.
 
 import { readFileSync } from 'node:fs';
@@ -16,7 +16,7 @@ import {
 } from '../core/labels';
 import { OBEYA_PLUGIN } from './demo';
 
-/** The labels skill's file in Obeya's plugin. */
+/** The labels skill's file in Seismic's plugin. */
 export const LABELS_SKILL_FILE = join(OBEYA_PLUGIN, 'skills', 'labels', 'SKILL.md');
 
 let guide: string | undefined;

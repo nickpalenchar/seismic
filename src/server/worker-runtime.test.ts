@@ -87,3 +87,25 @@ test("a Codex worker starts in a repository whose Claude Code configuration is h
   expect(review.events).toContainEqual(expect.objectContaining({ type: 'error', message: expect.stringContaining('untrusted repository configuration') }));
   expect(review.claude.sessions).toHaveLength(0);
 });
+
+test('an agy worker routes to Antigravity with portable skills; its sessions are pinned to it and nothing falls back to Claude', async () => {
+  const agySetting = { model: 'opus', effort: 'high', harness: 'agy', agy: { model: 'agy-test', effort: 'low' } } as const;
+  const { cwd, claude, codex, events } = fixture();
+  const agy = new FakeRuntime();
+  const runtime = withAgentSetting(workerHarnessRuntime(claude, codex, agy), () => AGENT_DEFAULTS.worker);
+  const spec: AgentSpec = { cwd, system: 'instructions', tools: [], role: 'worker', setting: agySetting, plugins: [OBEYA_PLUGIN], permissionMode: 'auto', onEvent: (e) => events.push(e) };
+  runtime.start(spec, 'build');
+  expect(claude.sessions).toHaveLength(0); expect(codex.sessions).toHaveLength(0);
+  expect(agy.last.spec).toMatchObject({ model: 'agy-test', effort: 'low', setting: agySetting });
+  expect(agy.last.spec.plugins).toBeUndefined();
+  expect(agy.last.spec.system).toContain(join(OBEYA_PLUGIN, 'skills', 'browser', 'SKILL.md'));
+  // a session belongs to its harness, both ways
+  for (const extra of [{ resume: 'claude-id' }, { resume: 'codex:t' }, { role: 'koordinator' as const }, { cwd: 'ssh://host/repo' }, { setting: { ...agySetting, harness: 'claude' as const }, resume: 'agy:c' }]) {
+    const before = events.length;
+    await runtime.start({ ...spec, ...extra }, 'build').done;
+    expect(events.slice(before).map((e) => e.type)).toEqual(['error', 'idle']);
+  }
+  expect(agy.sessions).toHaveLength(1); expect(claude.sessions).toHaveLength(0);
+  runtime.start({ ...spec, resume: 'agy:conv' });
+  expect(agy.sessions).toHaveLength(2);
+});

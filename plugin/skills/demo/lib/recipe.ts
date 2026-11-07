@@ -1,5 +1,5 @@
 // Prints how to run the app of the repository in the working directory, when its settings say
-// (`app.run` in `.obeya/settings.json` on its default branch): the recipe a worker under Obeya
+// (`app.run` in `.obeya/settings.json` on its default branch): the recipe a worker under Seismic
 // finds in its brief. Run with Bun (`bun recipe.ts`), since it reads the settings.
 
 import { readShared } from '../../../../src/adapters/index.ts';

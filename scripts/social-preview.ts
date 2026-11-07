@@ -24,7 +24,7 @@ const html = `<!doctype html>
 </style></head>
 <body>
   <div class="text">
-    <img src="img/wordmark.svg" alt="Obeya" width="190" height="54">
+    <img src="img/wordmark.svg" alt="Seismic" width="190" height="54">
     <h1>Direct coding agents like an engineering director.</h1>
     <p class="eyebrow">Open source · runs on your machine · obeya.si</p>
   </div>

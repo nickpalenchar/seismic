@@ -1,13 +1,14 @@
-// What Obeya's voice in needs on this machine, checked for the settings sheet like a demo's setup
+// What Seismic's voice in needs on this machine, checked for the settings sheet like a demo's setup
 // (`plugin/skills/demo/lib/setup.ts`): the speech recognition (the package in uv's cache or in
-// `OBEYA_WHISPER_PYTHON`, the model in the Hugging Face cache), ffmpeg (it decodes the recordings)
+// `SEISMIC_WHISPER_PYTHON`, the model in the Hugging Face cache), ffmpeg (it decodes the recordings)
 // and uv (it brings the recognition, so it comes first, and "Installieren" waits for it).
 // "Installieren" loads the recognition, which fetches it the first time, so the first command does
-// not wait minutes for it, and then measures it: the recognition hears a short sentence Obeya ships
+// not wait minutes for it, and then measures it: the recognition hears a short sentence Seismic ships
 // with (`voice/check-de.ogg`, spoken by Piper), and where it takes longer than the sentence lasts,
 // the sheet offers a cloud service instead (voice-cloud.ts), tested with the same sentence. With a
 // cloud service in use nothing of the above is needed.
 
+import { seismicEnv } from '../core/env';
 import type { CloudVoiceView, ListenBackend, VoiceSetupItem, VoiceSetupView, VoiceSpeed } from '../core/types';
 import { installHint, linuxFamily, output } from '../../plugin/skills/demo/lib/setup.ts';
 import { hfModelPresent } from '../../plugin/skills/demo/lib/voices.ts';
@@ -17,7 +18,7 @@ import { resource } from './resources';
 import { listenKit, type Transcript } from './voice';
 import { CloudError, cloudFrom, cloudInUse, cloudView, readVoiceFile, serviceName, transcribeInCloud, writeVoiceFile } from './voice-cloud';
 
-/** The sentence the check transcribes („Starte die Karte Export für Vermieter und sag mir Bescheid, wenn sie fertig ist.“), and how long it lasts. */
+/** The sentence the check transcribes ("Starte die Karte Export für Vermieter und sag mir Bescheid, wenn sie fertig ist."), and how long it lasts. */
 export const CHECK_CLIP = { file: 'check-de.ogg', seconds: 4.1 };
 
 export interface VoiceSetupOptions {
@@ -25,7 +26,7 @@ export interface VoiceSetupOptions {
   /** The recognition on this machine: its backend, loading it (which the first time fetches it), and hearing. */
   local: { backend: ListenBackend; prepare(): Promise<void>; transcribe(audioPath: string, vocabulary: string): Promise<Transcript> };
   env?: Record<string, string | undefined>;
-  /** The check's sentence; Obeya's own by default. */
+  /** The check's sentence; Seismic's own by default. */
   clip?: string;
   fetcher?: typeof fetch;
 }
@@ -53,7 +54,7 @@ export class VoiceSetup {
     const family = platform === 'linux' ? linuxFamily() : null;
     const hint = (id: 'ffmpeg' | 'uv') => installHint(id, platform, arch, family);
     const kit = listenKit(listen);
-    const python = env.OBEYA_WHISPER_PYTHON;
+    const python = seismicEnv('WHISPER_PYTHON', env);
     const has = `import importlib.util,sys; sys.exit(not importlib.util.find_spec(${JSON.stringify(kit.module)}))`;
     const [ffmpegOut, uvOut, packageOut] = await Promise.all([
       output('ffmpeg', ['-hide_banner', '-version'], env),
@@ -66,7 +67,7 @@ export class VoiceSetup {
     const uv = python ? undefined : uvOut?.match(/uv (\S+)/)?.[1];
     if (!python) items.push(uv ? { id: 'uv', state: 'ok', found: uv } : { id: 'uv', state: 'missing', install: hint('uv') });
     const found = kit.name;
-    const model = listen !== 'parakeet' && env.OBEYA_WHISPER_MODEL ? env.OBEYA_WHISPER_MODEL : kit.model;
+    const model = (listen !== 'parakeet' ? seismicEnv('WHISPER_MODEL', env) : undefined) || kit.model;
     // a model named without its repository (faster-whisper's own names) is not looked up
     const modelMb = model.includes('/') && !hfModelPresent(model) ? kit.mb.model : 0;
     let mb = 0;
@@ -107,7 +108,7 @@ export class VoiceSetup {
     const job: NonNullable<VoiceSetupView['job']> = (this.job = { running: true, step: fetching ? 'fetch' : 'measure' });
     const listen = this.o.local.backend;
     this.done = (async () => {
-      console.log(`Obeya: loading the speech recognition (${listenKit(listen).name}, fetched the first time)`);
+      console.log(`Seismic: loading the speech recognition (${listenKit(listen).name}, fetched the first time)`);
       await this.o.local.prepare();
       job.step = 'measure';
       // twice, the faster one counts: the first recording after loading takes longer than those after it
@@ -121,7 +122,7 @@ export class VoiceSetup {
       }
       const speed: VoiceSpeed = { backend: listen, seconds, slow: seconds > CHECK_CLIP.seconds };
       writeVoiceFile(this.o.home, { ...readVoiceFile(this.o.home), speed });
-      console.log(`Obeya: the speech recognition heard ${CHECK_CLIP.seconds} s of speech in ${seconds} s${speed.slow ? ', too slow' : ''}: ${text}`);
+      console.log(`Seismic: the speech recognition heard ${CHECK_CLIP.seconds} s of speech in ${seconds} s${speed.slow ? ', too slow' : ''}: ${text}`);
     })().then(
       () => {
         job.running = false;
@@ -129,7 +130,7 @@ export class VoiceSetup {
       (e: Error) => {
         job.running = false;
         job.error = e.message;
-        console.error(`Obeya: installing the voice failed: ${e.message}`);
+        console.error(`Seismic: installing the voice failed: ${e.message}`);
         throw e;
       },
     );
@@ -160,7 +161,7 @@ export class VoiceSetup {
     }
     const tested: CloudVoiceView['tested'] = { seconds: Math.round((performance.now() - started) / 10) / 100 };
     writeVoiceFile(this.o.home, { ...readVoiceFile(this.o.home), use: 'cloud', cloud: { ...service, tested } });
-    console.log(`Obeya: voice in through ${serviceName(service)} (${service.model}), which heard the check in ${tested.seconds} s: ${heard.text}`);
+    console.log(`Seismic: voice in through ${serviceName(service)} (${service.model}), which heard the check in ${tested.seconds} s: ${heard.text}`);
     return this.view();
   }
 
@@ -168,7 +169,7 @@ export class VoiceSetup {
   useLocal(): Promise<VoiceSetupView> {
     if (cloudInUse(this.o.home)) {
       writeVoiceFile(this.o.home, { ...readVoiceFile(this.o.home), use: 'local' });
-      console.log('Obeya: voice in on this machine again');
+      console.log('Seismic: voice in on this machine again');
     }
     return this.view();
   }

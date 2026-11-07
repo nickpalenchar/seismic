@@ -4,6 +4,7 @@
 // screenshots with a message, a demo directory at a handover). Nothing secret is stored there:
 // the Claude login and the repository's GitHub token travel on stdin at each start.
 
+import { bothNames, seismicEnv } from '../core/env';
 import { type ChildProcess, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
@@ -19,7 +20,7 @@ import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/setti
 /** Where a workspace on another machine says which machine it is on. */
 const PREFIX = 'ssh://';
 
-/** The workspace `path` on the host `name`, as Obeya names it. */
+/** The workspace `path` on the host `name`, as Seismic names it. */
 export const onHost = (name: string, path: string) => `${PREFIX}${name}${path.startsWith('/') ? '' : '/'}${path}`;
 
 /** The host a workspace is on and its path there; null for a workspace on this machine. */
@@ -51,7 +52,7 @@ export const RECHECK_DOWN_MS = 30_000;
 /** Directories that come first on the host's PATH: where the official installers put Claude Code and Bun. */
 const PATH_PREFIX = '$HOME/.local/bin:$HOME/.bun/bin';
 
-/** Obeya's directory on a host, in its home: the plugin, the demo settings, the owner's screenshots, voices. */
+/** Seismic's directory on a host, in its home: the plugin, the demo settings, the owner's screenshots, voices. */
 export const HOST_DIR = '.obeya/remote';
 
 /** A string as one word for a POSIX shell. */
@@ -88,7 +89,7 @@ export interface HostOptions {
   name: string;
   /** What `ssh` connects to: `user@machine`, or a name from `~/.ssh/config`. */
   ssh: string;
-  /** Obeya's home on this machine: copies of the host's demo directories go there. */
+  /** Seismic's home on this machine: copies of the host's demo directories go there. */
   home: string;
   /** The Claude login the host's sessions run on (`claude setup-token`); without it they run on the host's own. */
   claudeToken?: () => string | undefined;
@@ -285,7 +286,7 @@ export class SshHost {
 
   /**
    * A session's transcript there (Claude Code's, under the directory it ran in), copied here for
-   * the Arbeitsrückschau; null when there is none or the host does not answer.
+   * the work retrospective; null when there is none or the host does not answer.
    */
   async transcript(sessionId: string, cwd: string): Promise<string | null> {
     if (!/^[\w-]+$/.test(sessionId)) return null;
@@ -298,7 +299,7 @@ export class SshHost {
   }
 
   /**
-   * A host directory's copy here, where the server serves and shares it from: under Obeya's home, by
+   * A host directory's copy here, where the server serves and shares it from: under Seismic's home, by
    * host and path. A path with `.` or `..` in it has none: the worker names it, and the copy replaces
    * whatever is at its place here.
    */
@@ -314,7 +315,7 @@ export class SshHost {
   }
 
   /**
-   * Makes the host ready for sessions, once per run of Obeya (again after it failed): Obeya's
+   * Makes the host ready for sessions, once per run of Seismic (again after it failed): Seismic's
    * directory there with `files` in it. Returns that directory. A directory that did not change
    * since its last copy is not copied again.
    */
@@ -349,7 +350,7 @@ export class SshHost {
    * Forwards a free port here to `port` at `target` as the host reaches it (the address of an app
    * running there, for the owner's browser), on a connection of its own, until `close`. `prefer`
    * is the port tried first (the one a forward had before it went with a dropped connection).
-   * The forward ends with Obeya too: its command there waits for stdin, which closes then.
+   * The forward ends with Seismic too: its command there waits for stdin, which closes then.
    */
   forward(target: string, port: number, prefer?: number): Forward {
     let child: ReturnType<typeof Bun.spawn> | undefined;
@@ -389,10 +390,10 @@ export class SshHost {
   /**
    * A worker's session there: the SDK's `spawnClaudeCodeProcess`, which starts Claude Code through
    * `ssh` in `cwd` once the host has `files` (paths of those directories among its arguments
-   * become their copies there), its environment (the SDK's and the session's, Obeya's directory
-   * there as `OBEYA_HOME`, the logins) read from stdin first. A host that cannot be made ready
-   * ends the process as a lost connection would. With `OBEYA_NARRATION_URL` in the environment, a
-   * port there is forwarded to it, Obeya's narration alone, as `OBEYA_URL` there. `onExit` hears the exit code of
+   * become their copies there), its environment (the SDK's and the session's, Seismic's directory
+   * there as `SEISMIC_HOME`, the logins) read from stdin first. A host that cannot be made ready
+   * ends the process as a lost connection would. With `SEISMIC_NARRATION_URL` in the environment, a
+   * port there is forwarded to it, Seismic's narration alone, as `SEISMIC_URL` there. `onExit` hears the exit code of
    * `ssh` (`LOST`: the connection failed or dropped).
    */
   session(o: { cwd: string; files: HostFiles; onExit?: (code: number | null) => void }): (s: SpawnOptions) => SpawnedProcess {
@@ -406,7 +407,8 @@ export class SshHost {
           return hit ? `${dir}/${hit[0]}` : a;
         });
         // only the narration's port: whoever is on that machine reaches the forward too
-        const here = s.env.OBEYA_NARRATION_URL ? Number(new URL(s.env.OBEYA_NARRATION_URL).port) : 0;
+        const narration = seismicEnv('NARRATION_URL', s.env);
+        const here = narration ? Number(new URL(narration).port) : 0;
         // a port of its own per session, so that sessions ending do not take another's forward along
         const there = here ? 30_000 + Math.floor(Math.random() * 30_000) : 0;
         // a session cut off by a dropped connection may still run there: the one that resumes it ends it first;
@@ -419,9 +421,9 @@ export class SshHost {
           ...(here ? { forward: `127.0.0.1:${there}:127.0.0.1:${here}` } : {}),
         });
         const child = spawn(argv[0]!, argv.slice(1), { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: OWN_GROUP });
-        // with Obeya reachable, a voice it holds loaded narrates from Obeya's machine (OBEYA_HOLDS_VOICE: no need to install it here)
-        const { OBEYA_URL: _, OBEYA_NARRATION_URL: __, ...own } = s.env;
-        const env = { ...own, OBEYA_HOME: dir, ...(here ? { OBEYA_URL: `http://127.0.0.1:${there}`, OBEYA_HOLDS_VOICE: '1' } : {}), ...(token ? { CLAUDE_CODE_OAUTH_TOKEN: token } : {}) };
+        // with Seismic reachable, a voice it holds loaded narrates from Seismic's machine (SEISMIC_HOLDS_VOICE: no need to install it here)
+        const { OBEYA_URL: _, OBEYA_NARRATION_URL: __, SEISMIC_URL: ___, SEISMIC_NARRATION_URL: ____, ...own } = s.env;
+        const env = { ...own, ...bothNames({ HOME: dir }), ...(here ? bothNames({ URL: `http://127.0.0.1:${there}`, HOLDS_VOICE: '1' }) : {}), ...(token ? { CLAUDE_CODE_OAUTH_TOKEN: token } : {}) };
         child.stdin!.write(this.envLine(o.cwd, env));
         // ssh's own complaints (a forward refused, the connection dropped) are no session output
         child.stderr!.on('data', (d: Buffer) => {
@@ -469,7 +471,7 @@ async function accepts(port: number): Promise<boolean> {
   }
 }
 
-/** What a host gets before a session, by the path it has in Obeya's directory there. */
+/** What a host gets before a session, by the path it has in Seismic's directory there. */
 export interface HostFiles {
   /** Directories here. */
   dirs: Record<string, string>;
@@ -555,8 +557,8 @@ function deferred<T>(ready: Promise<T>, start: (value: T) => ChildProcess): Spaw
 
 /**
  * What a worker's session needs on a host: the plugins it loads, the `playwright-core` the demo
- * skill imports (found from the plugin's directory there, as in Obeya's checkout), and the owner's
- * demo settings, with the voice references as paths here: Obeya holds that voice and reads them.
+ * skill imports (found from the plugin's directory there, as in Seismic's checkout), and the owner's
+ * demo settings, with the voice references as paths here: Seismic holds that voice and reads them.
  * The key file of a hosted voice stays here, and so does the demo directory, a path of this
  * machine: on the host, demos go into its default.
  */
@@ -588,7 +590,7 @@ export function registerHost(o: HostOptions): SshHost {
 
 /**
  * The token sessions log in to Claude with where not on this machine's account (a host's, and this
- * machine's when it runs on `CLAUDE_CODE_OAUTH_TOKEN`): `claude-token` in Obeya's home, or
+ * machine's when it runs on `CLAUDE_CODE_OAUTH_TOKEN`): `claude-token` in Seismic's home, or
  * `CLAUDE_CODE_OAUTH_TOKEN`.
  */
 export function claudeToken(home: string, env: Record<string, string | undefined> = process.env): string | undefined {
@@ -609,7 +611,7 @@ export function saveClaudeToken(home: string, token: string, env: Record<string,
 }
 
 /**
- * git's credential helper for a host's clones: the GitHub login comes from `GH_TOKEN`, which Obeya
+ * git's credential helper for a host's clones: the GitHub login comes from `GH_TOKEN`, which Seismic
  * passes with each command and session, and is stored nowhere (the empty helper before it drops the
  * system's, macOS's keychain, which would keep it).
  */

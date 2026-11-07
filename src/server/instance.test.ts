@@ -23,7 +23,7 @@ test('an entry is given up only by the process that wrote it', () => {
   expect(recorded(dir)).toBeNull();
 });
 
-test('an Obeya that ended for the app to take it over leaves its entry marked, which runs on no more', async () => {
+test('an Seismic that ended for the app to take it over leaves its entry marked, which runs on no more', async () => {
   claim(dir, { ...entry(4242, 4417), app: true });
   takenOver(dir, 1);
   expect(recorded(dir)?.takenOver).toBeUndefined();
@@ -39,10 +39,10 @@ test('runs: a live process whose URL answers; not a dead one, not this one, nor 
   try {
     claim(dir, entry(other.pid, server.port!));
     expect(await running(dir)).toMatchObject({ pid: other.pid });
-    // the server itself finds its own entry, which is no other Obeya
+    // the server itself finds its own entry, which is no other Seismic
     expect(await running(dir, other.pid)).toBeNull();
     server.stop(true);
-    // alive but silent past the grace, as when another program got the pid of an Obeya long gone
+    // alive but silent past the grace, as when another program got the pid of an Seismic long gone
     expect(await running(dir, process.pid, 300)).toBeNull();
     other.kill();
     await other.exited;
@@ -54,7 +54,7 @@ test('runs: a live process whose URL answers; not a dead one, not this one, nor 
   }
 });
 
-test('an Obeya starting again is waited for past the grace, until its server answers', async () => {
+test('an Seismic starting again is waited for past the grace, until its server answers', async () => {
   const other = Bun.spawn(['sleep', '30']);
   let server: ReturnType<typeof Bun.serve> | undefined;
   try {
@@ -80,10 +80,10 @@ test('an Obeya starting again is waited for past the grace, until its server ans
   }
 });
 
-test('a second Obeya on the same home ends and says where the first runs; the first stops over HTTP and gives up its entry', async () => {
+test('a second Seismic on the same home ends and says where the first runs; the first stops over HTTP and gives up its entry', async () => {
   const repo = gitRepo(join(dir, 'repo'));
   const home = join(dir, 'home');
-  const env = { ...process.env, OBEYA_HOME: home, OBEYA_SUPERVISED: '' };
+  const env = { ...process.env, SEISMIC_HOME: home, SEISMIC_SUPERVISED: '', OBEYA_HOME: undefined, OBEYA_SUPERVISED: undefined };
   const main = join(import.meta.dir, 'main.ts');
   const first = Bun.spawn([process.execPath, main, repo, '--port', '0', '--idle-workers'], { env, stdout: 'pipe', stderr: 'pipe' });
   try {

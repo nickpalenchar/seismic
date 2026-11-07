@@ -3,7 +3,7 @@
 // owner can skip it; the card itself keeps asking until it is answered, and shows the answer after.
 // Saving goes its own way: approval and landing never wait for it, nor fail with it.
 
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { FeedbackAnswer, Item } from '../core/types';
 import { api } from './api';
 import { dropDraft, rateDraft, updateDraft, useDraft } from './draft';
@@ -11,7 +11,7 @@ import { plain } from './markdown';
 import { OpenPerformance } from './performance';
 import { failText, t } from './strings';
 
-/** Stars and the comment for the card's approved work; `prompt`: the one after the approval, with its title and „Überspringen“. */
+/** Stars and the comment for the card's approved work; `prompt`: the one after the approval, with its title and "Skip". */
 export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; onClose?: () => void }) {
   const rate = item.rate!;
   const key = rateDraft(item.id);
@@ -57,7 +57,7 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
     <div className={prompt ? 'rate prompt' : 'rate'}>
       <div className="rate-row">
         <span className="rate-q">{prompt ? t.feedback.ask(plain(item.title)) : t.feedback.askCard}</span>
-        <span className="stars" role="radiogroup" aria-label={t.feedback.askCard} onMouseLeave={() => setHover(0)}>
+        <span className="stars" role="radiogroup" aria-label={t.feedback.askCard} onPointerLeave={() => setHover(0)}>
           {t.feedback.stars.map((name, n) => (
             <button
               key={n}
@@ -68,7 +68,8 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
               title={name}
               className={n < shown ? 'star on' : 'star'}
               disabled={busy}
-              onMouseEnter={() => setHover(n + 1)}
+              // a mouse's only: Safari on the iPhone takes a tap that changes what shows on hover for the hover alone, and the star stayed unsaved
+              onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(n + 1)}
               onClick={() => rating !== n + 1 && void give({ rating: n + 1, ...(saved?.comment ? { comment: saved.comment } : {}) })}
             >
               {n < shown ? '★' : '☆'}
@@ -123,22 +124,49 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
 }
 
 /**
- * The prompt after an approval: `ask` it for a card once the approval went through; it shows once
- * the card's approved work takes feedback and has none yet, and stays until answered or skipped.
- * Another approval asks about its own card instead.
+ * The prompt after an approval or archiving: `ask` it for a card (or, archiving several at once, for
+ * each in turn) once that went through; it shows while the card's approved work takes feedback and
+ * has none yet, and stays until answered or skipped. Another approval asks about its own card instead.
+ * A card that is not on the canvas (archived, by the owner or by itself after landing) is looked up
+ * in the archive.
  */
 export function useRatePrompt(items: Item[]) {
-  const [card, setCard] = useState<string | null>(null);
-  const item = card ? items.find((i) => i.id === card) : undefined;
+  const [queue, setQueue] = useState<string[]>([]);
+  const card = queue[0] ?? null;
+  // the archive as read for the cards asked about, and which cards that read covers
+  const [archive, setArchive] = useState<{ covers: Set<string>; items: Item[] } | null>(null);
+  const here = card ? items.find((i) => i.id === card) : undefined;
+  const looked = !!card && !!archive?.covers.has(card);
+  const away = looked ? archive!.items.find((i) => i.id === card) : undefined;
+  const found = here?.rate ? here : away?.rate ? away : undefined;
+  // the card as last shown: it stays while the archive is read after it left the canvas
+  const shown = useRef<Item | undefined>(undefined);
+  if (found) shown.current = found;
+  const item = found ?? (!looked && shown.current?.id === card ? shown.current : undefined);
   // answered elsewhere (the card, another device) or no longer asked for: nothing left to ask
   const [answeredHere, setAnsweredHere] = useState(false);
   useEffect(() => setAnsweredHere(false), [card]);
+  useEffect(() => {
+    if (!card || here?.rate || looked) return;
+    let live = true;
+    api.archived().then((a) => live && setArchive((was) => ({ covers: new Set([...(was?.covers ?? []), card, ...a.map((i) => i.id)]), items: a })), console.error);
+    return () => void (live = false);
+  }, [card, !!here?.rate, looked]);
   const open = !!item?.rate && (!item.rate.answer || answeredHere);
-  const close = () => setCard(null);
+  // nothing to ask about this one: on to the next
+  useEffect(() => {
+    if (card && !open && (here?.rate || looked)) setQueue((q) => q.slice(1));
+  }, [card, open, !!here?.rate, looked]);
+  const close = () => setQueue((q) => q.slice(1));
   const prompt = open ? (
     <div className="rate-pop" onClickCapture={() => setAnsweredHere(true)}>
-      <Rate item={item!} prompt onClose={close} />
+      <Rate key={item!.id} item={item!} prompt onClose={close} />
     </div>
   ) : null;
-  return { ask: setCard, prompt };
+  const ask = useCallback((ids: string | string[]) => {
+    setArchive(null);
+    shown.current = undefined;
+    setQueue(typeof ids === 'string' ? [ids] : ids);
+  }, []);
+  return { ask, prompt };
 }

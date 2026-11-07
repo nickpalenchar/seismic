@@ -15,7 +15,7 @@ test('recognises Claude Code’s login failures in the words it uses', () => {
     'Failed to authenticate. API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"OAuth token has expired."}}',
     'Claude Code process exited with code 1. stderr: not logged in',
     'Claude Code process exited with code 1. stderr: Error: something\nNot logged in',
-    // a failure Obeya words around the session's message
+    // a failure Seismic words around the session's message
     'Arranging failed: Not logged in · Please run /login',
   ])
     expect(claudeLoginFailed(text)).toBe(true);

@@ -42,7 +42,7 @@ export interface AnswerOptions {
   permissionMode?: PermissionMode;
   /** The answer to an exchange is in: the Koordinator hears it with the owner's next command. */
   onAnswer?: (talk: number, question: string, answer: string) => void;
-  /** Passes on what the owner's words on a Question card ask of Obeya (`to_obeya`). */
+  /** Passes on what the owner's words on a Question card ask of Seismic (`to_seismic`). */
   toObeya?: (cardId: string, request: string) => Promise<string>;
 }
 
@@ -95,10 +95,10 @@ export class Answers {
     const follow = t.id !== thread;
     // the session of the answer it continues, else the thread's latest; a thread moved onto a card that is gone has the card's
     const resume = follow ? (this.o.board.threadTalk(thread).findLast((x) => x.session && x.id <= (t.follows ?? t.id))?.session ?? this.cardSession(root)) : undefined;
-    // looked up for an action: Obeya takes it with the answer, which brings what it needs
-    const step = t.then ? `\n\nObeya takes this step itself once your answer is in: ${t.then}\nYour answer gives what the step needs.` : '';
+    // looked up for an action: Seismic takes it with the answer, which brings what it needs
+    const step = t.then ? `\n\nSeismic takes this step itself once your answer is in: ${t.then}\nYour answer gives what the step needs.` : '';
     const fresh = `${this.message(root.said, root.question!, about, project, root.askedIn)}${follow ? '' : step}`;
-    // written in the project's sheet: Obeya did not read the words, so the agent passes on what asks Obeya
+    // written in the project's sheet: Seismic did not read the words, so the agent passes on what asks Seismic
     const asked = t.askedIn ? { images: this.o.imageFiles?.(t.images) ?? [], from: t.askedIn } : undefined;
     this.queue(thread, () =>
       this.consult({
@@ -129,9 +129,9 @@ export class Answers {
   }
 
   /**
-   * The owner's words in a project's sheet: a question straight to its project agent, which Obeya
+   * The owner's words in a project's sheet: a question straight to its project agent, which Seismic
    * does not read first. In reply to a message there, it follows up on that message's thread, as a
-   * follow-up in Obeya's sheet does. `images`: the screenshots' ids.
+   * follow-up in Seismic's sheet does. `images`: the screenshots' ids.
    */
   askProject(projectId: string, text: string, images: string[], replyTo?: TalkRef): number {
     const project = this.o.board.item(projectId);
@@ -145,7 +145,7 @@ export class Answers {
 
   /**
    * The owner's words to the agent of a Question card, maybe with screenshots and in reply to a
-   * message of its conversation; `talk`: asked in Obeya's sheet as a follow-up of its thread, whose
+   * message of its conversation; `talk`: asked in Seismic's sheet as a follow-up of its thread, whose
    * exchange gets the answer too. Words that come while it reads go in with the next turn; while it
    * waits for its background work, they go in at once.
    */
@@ -223,7 +223,7 @@ export class Answers {
 
   /**
    * The owner takes back words the card's agent has not read, which wait for its next turn: they
-   * leave the conversation, and the agent never hears them. A follow-up asked in Obeya's sheet
+   * leave the conversation, and the agent never hears them. A follow-up asked in Seismic's sheet
    * waits for its answer there, so it stays.
    */
   unsay(cardId: string, id: number) {
@@ -284,11 +284,11 @@ export class Answers {
   opening(cardId: string): string {
     const { talk } = this.o.board.thread(cardId);
     return [
-      'The owner looked a question up with Obeya and asked on, then chose to discuss it as an idea. The conversation so far, oldest first, is where this discussion starts:',
+      'The owner looked a question up with Seismic and asked on, then chose to discuss it as an idea. The conversation so far, oldest first, is where this discussion starts:',
       this.o.board
         .events(cardId)
         .filter(inConversation)
-        .map((e) => (e.author === 'owner' ? `The owner: "${e.text}"` : `Obeya: ${e.text}${fileList(e.answer?.files)}`))
+        .map((e) => (e.author === 'owner' ? `The owner: "${e.text}"` : `Seismic: ${e.text}${fileList(e.answer?.files)}`))
         .join('\n\n'),
       `The files of its answers are in ${this.o.dirOf(talk)}. They have not said more yet. Look into it and open the discussion.`,
     ].join('\n\n');
@@ -411,7 +411,7 @@ export class Answers {
       inform({
         runtime: this.o.runtime,
         cwd: this.o.pathFor(c.about),
-        system: `You are the Koordinator of Obeya, a canvas on which the owner directs coding agents; the owner knows you simply as Obeya.\n\n${INFORM_RULES}${toObeya ? `\n\n${TO_OBEYA}` : ''}`,
+        system: `You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic.\n\n${INFORM_RULES}${toObeya ? `\n\n${TO_OBEYA}` : ''}`,
         message: [message, filesNote(dir), this.o.preferences?.() ?? ''].filter(Boolean).join('\n\n'),
         dir,
         onTool: c.onTool,
@@ -508,7 +508,7 @@ export class Answers {
 
   private message(said: string, question: string, about: Item | undefined, project: Item | undefined, askedIn?: string): string {
     const parts = askedIn
-      ? [`The owner wrote to you in the project's sheet in Obeya, where your answer stands below their words: "${said}"`]
+      ? [`The owner wrote to you in the project's sheet in Seismic, where your answer stands below their words: "${said}"`]
       : [`The owner said: "${said}"`, `The question, as you understood it then: ${question}`];
     if (about && about.kind !== 'project') {
       const state = about.queue ? 'planned, queued' : about.need ? `${about.state}: ${about.need}` : about.state;
@@ -537,13 +537,13 @@ export class Answers {
   }
 }
 
-/** What the agent hears when the owner goes on: in Obeya's sheet (with the question as Obeya understood it) or on the Question card. */
+/** What the agent hears when the owner goes on: in Seismic's sheet (with the question as Seismic understood it) or on the Question card. */
 const followUp = (said: string, question: string | undefined, onCard: boolean) =>
   [
     onCard
       ? `The owner moved this conversation onto a card of its own, and goes on there; their words come to you directly:\n\n${said}`
       : `The owner follows up on your answer. They said: "${said}"`,
-    question ? `The question, as Obeya understood it: ${question}` : '',
+    question ? `The question, as Seismic understood it: ${question}` : '',
     'Answer it the same way: read and check what you need (what you read and computed before is still yours), then call answer_owner once.',
   ]
     .filter(Boolean)
@@ -582,6 +582,6 @@ export const fromAnswerTag = (tag: string): number | undefined => {
   return m ? Number(m[1]) : undefined;
 };
 
-/** A thread's output directory under Obeya's home: never in a repository, like demos. */
+/** A thread's output directory under Seismic's home: never in a repository, like demos. */
 export const answersDir = (home: string, canvas: string, thread: number) => join(home, 'answers', canvas, String(thread));
 

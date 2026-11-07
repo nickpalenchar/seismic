@@ -21,7 +21,7 @@ test('a page loaded long after starts afresh', () => {
   expect(takeKept(s, 'obeya', 1000 + 10 * 60_000)).toBeNull();
 });
 
-test("Obeya's sheet left open over a draft opens again on its canvas, closed or empty it stays closed", () => {
+test("Seismic's sheet left open over a draft opens again on its canvas, closed or empty it stays closed", () => {
   const s = store();
   leaveSheet(s, 'obeya', true);
   expect(takeSheetLeft(s, 'shop')).toBe(false);

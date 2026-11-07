@@ -1,7 +1,7 @@
 // Voice in through a cloud service, for a machine whose own recognition is too slow: one client for
 // the OpenAI-style `/audio/transcriptions` endpoint (Groq, Mistral, OpenAI or any compatible
-// server), with its base URL, model and API key in `voice.json` in Obeya's home, never in a
-// repository. What Obeya measured of the recognition on this machine is kept there too.
+// server), with its base URL, model and API key in `voice.json` in Seismic's home, never in a
+// repository. What Seismic measured of the recognition on this machine is kept there too.
 
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';

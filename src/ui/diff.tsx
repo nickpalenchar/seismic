@@ -62,7 +62,7 @@ const APP_LOOK_MS = 10_000;
 
 /**
  * The app running in the card's workspace, while it answers: a link beside the workspace's path for
- * the owner to try it by hand, opened through Obeya, which keeps it running a while after.
+ * the owner to try it by hand, opened through Seismic, which keeps it running a while after.
  */
 function AppLink({ item }: { item: Item }) {
   const [up, setUp] = useState(false);
@@ -134,7 +134,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
   }, [onClose]);
   const got = diff === 'failed' ? null : diff;
   const folder = got?.folder;
-  // in a folder, only text files whose earlier version Obeya kept have lines to show
+  // in a folder, only text files whose earlier version Seismic kept have lines to show
   const all = got ? splitDiff(got.patch ?? '').filter((p) => !folder || p.lines.some((l) => l.startsWith('@@'))) : [];
   // one file's diff while it is there; a file without one (cut off, say) shows the whole
   const one = only ? all.find((p) => p.file === only) : undefined;

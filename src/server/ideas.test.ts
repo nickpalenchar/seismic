@@ -39,7 +39,7 @@ const settle = async (ms = 5) => {
   await Promise.all(canvas.repos.map((r) => r.workers.prepared()));
   await Promise.all(canvas.repos.map((r) => r.workers.freed()));
 };
-/** A plan doc lands on main, and Obeya reads it from there. */
+/** A plan doc lands on main, and Seismic reads it from there. */
 const landDoc = async (file: string, text: string) => {
   writeFileSync(join(main, file), text);
   identify(main);
@@ -102,7 +102,7 @@ describe('an idea', () => {
     s.emit({ type: 'tool', name: 'Read', input: { file_path: '/repo/src/server/board.ts' } });
     s.emit({ type: 'text', text: 'Das Archiv nimmt keine Projekte auf.' });
     s.call('update_brief', { brief: '**Ziel:** Archiv für Projekte.' });
-    s.emit({ type: 'tool', name: 'mcp__obeya__update_brief', input: {} });
+    s.emit({ type: 'tool', name: 'mcp__seismic__update_brief', input: {} });
     s.call('reply', { text: 'Ziel und Ist-Stand stehen im Stand. Eine offene Frage.' });
     s.emit({ type: 'text', text: 'Fertig.' });
     s.emit({ type: 'idle' });
@@ -190,7 +190,7 @@ describe('an idea', () => {
     first.emit({ type: 'idle' });
     const said = board().events(i.id).findLast((e) => e.kind === 'talk' && e.author === 'explorer')!;
     canvas.act(i.id, { action: 'discuss', text: 'Nimm A.', replyTo: said.id });
-    expect(explorer().inbox.at(-1)).toEndWith('The owner says:\n\n[In reply to your message: „Zu erstens: zwei Wege, A und B.“]\n\nNimm A.');
+    expect(explorer().inbox.at(-1)).toEndWith('The owner says:\n\n[In reply to your message: “Zu erstens: zwei Wege, A und B.”]\n\nNimm A.');
     expect(board().events(i.id).findLast((e) => e.author === 'owner')).toMatchObject({ kind: 'talk', text: 'Nimm A.', replyTo: said.id });
   });
 
@@ -222,6 +222,14 @@ describe('an idea', () => {
     turn(explorer(), 'Verstehe.');
     canvas.act(c.id, { action: 'build' });
     expect(item(c.id).images).toEqual([task, shown]);
+  });
+
+  test('building with a chosen agent starts the worker with the chosen agent', () => {
+    const chosen = { model: 'sonnet', effort: 'low' } as const;
+    const c = board().create({ title: 'Seite bricht um', x: 0, y: 0 });
+    board().patch(c.id, { state: 'idea' });
+    canvas.act(c.id, { action: 'build', agent: chosen });
+    expect(JSON.parse(board().row(c.id).agent_setting!)).toMatchObject(chosen);
   });
 
   test('a spoken message says so to the agent; a turn without reply still answers with its words', () => {
@@ -543,7 +551,7 @@ describe('an idea', () => {
     expect(() => canvas.act(worked.id, { action: 'planDoc' })).toThrow(expect.objectContaining({ code: 'notPlannable' }));
   });
 
-  test('with its plan folder outside the repository, the worker writes the doc there under the name Obeya gives, and the project takes the idea’s place once approved', async () => {
+  test('with its plan folder outside the repository, the worker writes the doc there under the name Seismic gives, and the project takes the idea’s place once approved', async () => {
     const plans = join(dir, 'private-plans');
     mkdirSync(plans);
     writeFileSync(join(plans, 'export-fur-vermieter.md'), '# Schon da\n');
@@ -558,6 +566,7 @@ describe('an idea', () => {
     expect(item(i.id).body).toContain(`ein Plan-Doc als \`${file}\`, in einem Ordner dieses Rechners außerhalb des Repositorys,`);
     expect(item(i.id).body).not.toContain('Verweis darauf');
     expect(JSON.parse(board().row(i.id).plan_docs!)).toEqual([file]);
+    await settle();
     // another card of the same title, planned before that doc is written, gets a name of its own
     const twin = board().create({ title: 'Export für Vermieter', x: 0, y: 400 });
     canvas.act(twin.id, { action: 'planDoc' });
@@ -625,7 +634,7 @@ describe('an idea', () => {
     canvas = open();
     const s = explorer();
     expect(s.spec.resume).toBe('sess-9');
-    expect(s.inbox[0]).toContain('Obeya was restarted');
+    expect(s.inbox[0]).toContain('Seismic was restarted');
   });
 
   test('planning waits for its agent’s reply, which changes the brief it decides on', () => {
@@ -873,7 +882,7 @@ describe('an idea', () => {
     ]);
   });
 
-  test('its agent the usage limit stops when Obeya restarts runs into it again and waits anew; parked meanwhile, it waits no more', () => {
+  test('its agent the usage limit stops when Seismic restarts runs into it again and waits anew; parked meanwhile, it waits no more', () => {
     const i = idea();
     canvas.act(i.id, { action: 'discuss', text: 'Frage.' });
     explorer().emit({ type: 'session', id: 'sess-9' });
@@ -883,7 +892,7 @@ describe('an idea', () => {
     canvas = open();
     expect(item(i.id).limitedUntil).toBeUndefined();
     const s = explorer();
-    expect(s.inbox[0]).toContain('Obeya was restarted');
+    expect(s.inbox[0]).toContain('Seismic was restarted');
     s.emit({ type: 'error', message: "You've hit your session limit", limit: { resetsAt: Date.now() + 10_000 } });
     s.emit({ type: 'idle' });
     expect(item(i.id).limitedUntil).toBeDefined();
@@ -892,7 +901,7 @@ describe('an idea', () => {
     expect(item(i.id).limitedUntil).toBeUndefined();
   });
 
-  test('what waited for its agent’s turn when Obeya stopped reaches it after the restart', () => {
+  test('what waited for its agent’s turn when Seismic stopped reaches it after the restart', () => {
     const i = idea();
     canvas.act(i.id, { action: 'discuss', text: 'Frage.' });
     explorer().emit({ type: 'session', id: 'sess-9' });
@@ -994,13 +1003,13 @@ describe('a prototype', () => {
   test('several run side by side, each with its approach, and the idea shows every demo', async () => {
     canvas.shutdown();
     canvas = open(3);
-    const i = idea('Logo für Obeya');
+    const i = idea('Logo für Seismic');
     canvas.act(i.id, { action: 'prototype', text: 'Wortmarke: der Name in eigener Schrift' });
     canvas.act(i.id, { action: 'prototype', text: 'Bildmarke' });
     canvas.act(i.id, { action: 'prototype' });
     await settle();
     const all = prototypes(i.id);
-    expect(all.map((p) => p.title)).toEqual(['Prototyp: Logo für Obeya – Wortmarke', 'Prototyp: Logo für Obeya – Bildmarke', 'Prototyp: Logo für Obeya']);
+    expect(all.map((p) => p.title)).toEqual(['Prototyp: Logo für Seismic – Wortmarke', 'Prototyp: Logo für Seismic – Bildmarke', 'Prototyp: Logo für Seismic']);
     expect(all.every((p) => p.state === 'working')).toBe(true);
     // side by side below the idea, not on top of each other
     expect(new Set(all.map((p) => p.y)).size).toBe(1);
@@ -1011,9 +1020,9 @@ describe('a prototype', () => {
     expect(item(i.id).idea).toMatchObject({ yourTurn: false, thinking: false });
     await handOver(workerOf(all[1]!.id), 'Bildmarke.', 'b');
     expect(item(i.id).prototypes!.map((p) => [p.title, !!p.demo])).toEqual([
-      ['Prototyp: Logo für Obeya – Wortmarke', true],
-      ['Prototyp: Logo für Obeya – Bildmarke', true],
-      ['Prototyp: Logo für Obeya', false],
+      ['Prototyp: Logo für Seismic – Wortmarke', true],
+      ['Prototyp: Logo für Seismic – Bildmarke', true],
+      ['Prototyp: Logo für Seismic', false],
     ]);
     // a running prototype keeps a dropped idea on the canvas
     canvas.act(i.id, { action: 'drop' });
@@ -1160,7 +1169,7 @@ describe('a prototype', () => {
     worker().call('ask', { question: 'Welche Farbe?', options: ['Blau', 'Grün'] });
     canvas.act(prototype!.id, { action: 'answer', text: 'Blau' });
     const s = explorer();
-    expect(s.inbox.at(-1)).toContain('„Welche Farbe?“');
+    expect(s.inbox.at(-1)).toContain('“Welche Farbe?”');
     expect(s.inbox.at(-1)).toContain('The owner answered: Blau');
     // what it says on the way is no reply: the owner is not asked again
     s.call('update_brief', { brief: '**Entscheidungen:** Blau.' });
@@ -1243,7 +1252,7 @@ describe('a prototype', () => {
     // workstream, which may build on W1 or W3: they have not landed
     await until(() => {
       for (const k of runtime.sessions.filter((x) => x.spec.tools.some((t) => t.name === 'scope'))) k.call('scope', { files: [], conflicts_with: [], reason: '' });
-      return item(w2!.id).state === 'working';
+      return item(w2!.id).state === 'working' && workers().at(-1)?.inbox[0]?.includes('build this workstream on the prototype');
     });
     const brief = workers().at(-1)!.inbox[0]!;
     expect(brief).toContain('build this workstream on the prototype');
@@ -1370,22 +1379,22 @@ describe('by voice', () => {
     expect(runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'act'))).toEqual([]);
   });
 
-  test("its agent passes on what asks Obeya for something; the Koordinator reads it with the owner's words", async () => {
+  test("its agent passes on what asks Seismic for something; the Koordinator reads it with the owner's words", async () => {
     const i = idea();
     canvas.tell(i.id, 'Mach daraus ein Projekt', [], true);
     const s = explorer();
-    expect(s.spec.system).toContain('Pass those on with to_obeya');
-    const result = s.call('to_obeya', { request: 'Plan this idea as a project' }) as Promise<string>;
+    expect(s.spec.system).toContain('Pass those on with to_seismic');
+    const result = s.call('to_seismic', { request: 'Plan this idea as a project' }) as Promise<string>;
     await settle();
     const k = reader();
-    expect(k.inbox[0]).toContain('passes on a request from what the owner told it, asking Obeya for something: "Plan this idea as a project"');
+    expect(k.inbox[0]).toContain('passes on a request from what the owner told it, asking Seismic for something: "Plan this idea as a project"');
     expect(k.inbox[0]).toContain('The owner\'s own words to it, spoken (speech recognition, may contain errors): "Mach daraus ein Projekt"');
     expect(k.inbox[0]).toContain('The owner has this card open');
     // the agent has the words already; planning waits for the reply it works on
     expect(k.call('act', { actions: [{ do: 'discuss', card: 'K1', text: 'Projekt' }], confirm: 'Ok.' })).toContain('reached this card');
     expect(k.call('act', { actions: [{ do: 'plan_doc', card: 'K1' }], confirm: 'Ok.' })).toContain("waits for the reply the idea's agent is working on");
     k.call('reply', { confirm: 'Planen geht per Klick, sobald deine Antwort da ist.' });
-    expect(await result).toBe('Obeya: Planen geht per Klick, sobald deine Antwort da ist.');
+    expect(await result).toBe('Seismic: Planen geht per Klick, sobald deine Antwort da ist.');
     // the owner's words are on the card once, the Koordinator's answer under them
     expect(board().events(i.id).filter((e) => e.author === 'owner').map((e) => e.text)).toEqual(['Mach daraus ein Projekt']);
     expect(board().events(i.id).at(-1)).toMatchObject({ kind: 'say', author: 'koordinator', text: 'Planen geht per Klick, sobald deine Antwort da ist.' });

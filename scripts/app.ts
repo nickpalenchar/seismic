@@ -1,15 +1,15 @@
-// The app's shell (app/) started from the checkout: it opens a window on the Obeya that runs on
+// The app's shell (app/) started from the checkout: it opens a window on the Seismic that runs on
 // the home, or starts this checkout's server (`bun src/server/main.ts`, which updates itself from
 // the checkout as `bun start` does) and stops it when the app quits. No compiled server and no
 // installer: those are scripts/build-app.ts.
 //
 //   bun run app [--debug]            builds the shell and runs it from this terminal
-//   bun run app install [--no-open]  installs it as an app of its own, "Obeya (checkout)", and opens it
+//   bun run app install [--no-open]  installs it as an app of its own, "Seismic (checkout)", and opens it
 //
 // install builds the shell with this checkout, the bun that runs it and the version of app/ on HEAD
 // (and the commit, which the settings show) compiled in, and puts it where the system starts apps from: ~/Applications on a Mac (Spotlight,
 // Launchpad, the Dock), the applications menu on Linux (~/.local/share/obeya-checkout and a .desktop
-// file in ~/.local/share/applications), the Start menu on Windows (%LOCALAPPDATA%\Programs\Obeya
+// file in ~/.local/share/applications), the Start menu on Windows (%LOCALAPPDATA%\Programs\Seismic
 // checkout). Started from there, it runs this checkout's server as `bun run app` does. Once app/ on
 // HEAD is another than it was built from, the installed shell runs `install --no-open` itself in the
 // background and starts again with the new build (app/src/update.rs); everything else follows HEAD
@@ -31,8 +31,8 @@ const args = process.argv.slice(2);
 const install = args[0] === 'install';
 const debug = args.includes('--debug');
 const target = join(APP, 'target', 'checkout');
-/** What the installed app is called; its identifier keeps it apart from an installed release of Obeya (permissions, single instance). */
-const NAME = 'Obeya (checkout)';
+/** What the installed app is called; its identifier keeps it apart from an installed release of Seismic (permissions, single instance). */
+const NAME = 'Seismic (checkout)';
 const IDENTIFIER = 'si.obeya.checkout';
 
 function fail(msg: string): never {
@@ -51,13 +51,13 @@ if (install) {
   Object.assign(config, { identifier: IDENTIFIER });
   Object.assign(env, {
     // compiled in (option_env! in app/src/main.rs and update.rs): started from the desktop, the shell gets no environment of ours
-    OBEYA_BUILT_CHECKOUT: ROOT,
+    SEISMIC_BUILT_CHECKOUT: ROOT,
     // the one the installed shell names when it builds itself anew (started from the desktop, its PATH
     // has none), else the PATH's (Homebrew's link, say) rather than the binary it points at, which an upgrade removes
-    OBEYA_BUILT_BUN: process.env.OBEYA_BUN || Bun.which('bun') || process.execPath,
-    OBEYA_BUILT_TREE: git('rev-parse', 'HEAD:app'),
+    SEISMIC_BUILT_BUN: (process.env.SEISMIC_BUN ?? process.env.OBEYA_BUN) || Bun.which('bun') || process.execPath,
+    SEISMIC_BUILT_TREE: git('rev-parse', 'HEAD:app'),
     // for the settings, which show it
-    OBEYA_BUILT_COMMIT: git('rev-parse', 'HEAD'),
+    SEISMIC_BUILT_COMMIT: git('rev-parse', 'HEAD'),
   });
 }
 // on a Mac an app bundle (Info.plist, icon, the system's permissions for it); elsewhere the program is all there is
@@ -76,7 +76,7 @@ const program = join(built, process.platform === 'win32' ? 'obeya.exe' : 'obeya'
 if (!install) {
   const shell = Bun.spawn([program], {
     stdio: ['inherit', 'inherit', 'inherit'],
-    env: { ...process.env, OBEYA_CHECKOUT: ROOT, OBEYA_BUN: process.execPath },
+    env: { ...process.env, SEISMIC_CHECKOUT: ROOT, SEISMIC_BUN: process.execPath },
   });
   process.exit(await shell.exited);
 }
@@ -101,7 +101,7 @@ if (process.platform === 'darwin') {
   console.log(`app: installed ${dest}`);
   start = ['open', dest];
 } else if (process.platform === 'win32') {
-  const dir = join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'Programs', 'Obeya checkout');
+  const dir = join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'Programs', 'Seismic checkout');
   mkdirSync(dir, { recursive: true });
   const exe = join(dir, 'obeya.exe');
   put(program, exe);

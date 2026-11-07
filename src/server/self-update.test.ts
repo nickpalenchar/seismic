@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { type Busy, headSeal, installDependencies, ownCheckout, Restarter, symbolicTarget, watchOwnCode, whenIdle } from './self-update';
+import { type Busy, headSeal, installDependencies, reinstallDependencies, ownCheckout, Restarter, symbolicTarget, watchOwnCode, whenIdle } from './self-update';
 import { gitRepo } from './testing';
 import { git } from './workspaces';
 
@@ -267,6 +267,23 @@ test('a restart installs the dependencies only when package.json or bun.lock cha
   expect(existsSync(join(repo, 'installed'))).toBe(true);
   const after = commit('package.json', '{}');
   expect(installDependencies(repo, after, install)).toEqual({ ran: false });
+});
+
+test('a rebuild installs the dependencies whatever changed', () => {
+  const install = [process.execPath, '-e', "require('fs').writeFileSync('reinstalled', '')"];
+  expect(reinstallDependencies(repo, install)).toMatchObject({ ran: true, ok: true });
+  expect(existsSync(join(repo, 'reinstalled'))).toBe(true);
+});
+
+test("the owner's rebuild turns a restart that waits into a rebuild, and a later restart keeps it one", async () => {
+  const gone: string[] = [];
+  const r = new Restarter({ busy: () => [{ canvas: 'c', card: 'a' }], go: (reason) => gone.push(reason), patienceMs: 10_000, intervalMs: 10 });
+  r.request('code');
+  r.request('rebuild');
+  r.request('owner');
+  expect(r.due()).toMatchObject({ reason: 'rebuild' });
+  expect(r.now()).toBe(true);
+  expect(gone).toEqual(['rebuild']);
 });
 
 test('an install that fails is told, not thrown', () => {

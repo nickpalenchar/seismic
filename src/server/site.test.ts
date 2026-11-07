@@ -7,8 +7,7 @@ import { MESSAGES } from '../core/messages';
 import { Board } from './board';
 import { CanvasRuntime } from './canvas';
 import { Store } from './db';
-import { readShared } from '../adapters';
-import { commandsOf } from './trust';
+import { writeSites } from './demo-sites';
 import type { SharePage, ShareTarget } from './share';
 import { Sharing } from './share';
 import { MANIFEST, parseEnv, siteKey, siteMissing, pagesHash, siteName, siteTarget } from './site';
@@ -126,8 +125,8 @@ const page = (slug: string, extra: Partial<SharePage> = {}): SharePage => ({
 });
 const meta = (slug: string) => JSON.parse(readFileSync(join(siteDir(), slug, 'meta.json'), 'utf8')) as { at: string; first: string; kind?: string; language?: string; tags?: Record<string, string[]> };
 const overview = () => readFileSync(join(siteDir(), 'index.html'), 'utf8');
-const CREDIT_DE = '<footer class="credit">Aufgenommen mit <a href="https://obeya.si">Obeya</a></footer>\n';
-const CREDIT_EN = '<footer class="credit">Recorded with <a href="https://obeya.si">Obeya</a></footer>\n';
+const CREDIT_DE = '<footer class="credit">Aufgenommen mit <a href="https://obeya.si">Seismic</a></footer>\n';
+const CREDIT_EN = '<footer class="credit">Recorded with <a href="https://obeya.si">Seismic</a></footer>\n';
 
 /** An element of a parsed XML document: its name, attributes, child elements and text. */
 interface XmlNode {
@@ -175,7 +174,7 @@ function parseXml(source: string): XmlNode {
 }
 const child = (n: XmlNode, name: string) => n.children.find((c) => c.name === name);
 const manifest = (at = siteDir()) => JSON.parse(readFileSync(join(at, MANIFEST), 'utf8')) as { deploy: string; pages: Record<string, { rev: number; machine: string; withdrawn?: true }> };
-/** A file of a page as an earlier Obeya wrote it: here, on the site, and in both manifests. */
+/** A file of a page as an earlier Seismic wrote it: here, on the site, and in both manifests. */
 const earlier = (path: string, text: string) => {
   const [slug, file] = path.split(/\/(.*)/) as [string, string];
   for (const at of [siteDir(), deployed()]) {
@@ -186,7 +185,7 @@ const earlier = (path: string, text: string) => {
   }
 };
 
-describe('a site Obeya keeps', () => {
+describe('a site Seismic keeps', () => {
   test('publishes a page with the video, lists it in the overview, and deploys the whole site with the env file', async () => {
     const r = await target.publish(page('csv-export-abc123', { pr: 'https://github.com/o/r/pull/7' }));
     expect(r).toEqual({ url: `${URL_}csv-export-abc123/`, said: 'Uploaded 5 entries', gone: [] });
@@ -201,7 +200,7 @@ describe('a site Obeya keeps', () => {
     // a host without byte ranges: the page loads the video whole to seek in it
     expect(html).toContain("Range: 'bytes=0-'");
     expect(html).toContain('href="https://github.com/o/r/pull/7"');
-    // every page ends in a line saying what made it, linking Obeya's site
+    // every page ends in a line saying what made it, linking Seismic's site
     expect(html).toContain(`${CREDIT_DE}</main>`);
     expect(deploys()).toEqual(['_headers csv-export-abc123 feed.xml index.html obeya-site.json token=secret-1']);
     expect(readFileSync(join(deployed(), 'csv-export-abc123/demo.mp4'), 'utf8')).toBe('video');
@@ -348,7 +347,7 @@ describe('a site Obeya keeps', () => {
     expect(first.kind).toBe('html');
     await target.publish(artifact({ pr: 'https://github.com/o/r/pull/3' }));
     expect(meta('auswertung-abc123').at).toBe(first.at);
-    // the page Obeya wraps around the artifact is not its content: written by an earlier template, it keeps its date
+    // the page Seismic wraps around the artifact is not its content: written by an earlier template, it keeps its date
     earlier('auswertung-abc123/artifact/index.html', 'written by an earlier template');
     await target.publish(artifact());
     expect(meta('auswertung-abc123').at).toBe(first.at);
@@ -411,9 +410,9 @@ describe('a site Obeya keeps', () => {
     expect(overview()).toContain('Titel a-111111');
   });
 
-  test('refuses a site that lost pages Obeya has as shared, and files larger than the site takes', async () => {
+  test('refuses a site that lost pages Seismic has as shared, and files larger than the site takes', async () => {
     const lost = await target.publish(page('c-333333', { shared: ['gone-999999'] }));
-    expect('why' in lost && lost.why).toContain('lacks a page Obeya has as shared (gone-999999)');
+    expect('why' in lost && lost.why).toContain('lacks a page Seismic has as shared (gone-999999)');
     expect(existsSync(join(dir, 'deploys'))).toBe(false);
     expect(await make(SITE({ maxFile: 4 })).publish(page('c-333333'))).toMatchObject({ why: expect.stringContaining('demo.mp4 is 0.0 MiB; the site takes at most 0 MiB per file') });
     writeFileSync(join(demo, 'demo.mp4'), Buffer.alloc(25 * 1024 * 1024 + 1));
@@ -433,7 +432,7 @@ describe('a site Obeya keeps', () => {
   test('a theme: each page carries its card’s repository’s, the overview the one of the repository publishing', async () => {
     const theme = { css: 'h1 { color: navy; } /* </style><script>alert(1)</script> */', hash: '0123456789abcdef' };
     await target.publish(page('ohne-theme-abc123'));
-    // a site that carries no theme for its overview (the personal one): Obeya's look there, the page its repository's
+    // a site that carries no theme for its overview (the personal one): Seismic's look there, the page its repository's
     await target.publish(page('mit-theme-def456', { theme, shared: ['ohne-theme-abc123'] }));
     const html = readFileSync(join(siteDir(), 'mit-theme-def456/index.html'), 'utf8');
     // nothing in it ends its element early
@@ -537,7 +536,7 @@ describe('several machines publishing to one site', () => {
     await target.publish(page('a-111111'));
     const said: string[] = [];
     expect(await b.publish(page('b-222222'), (l) => said.push(l))).toMatchObject({ url: `${URL_}b-222222/` });
-    expect(said).toEqual([expect.stringMatching(/^Downloading a page other machines shared from the site \(0\.0 MiB\)/)]);
+    expect(said).toEqual([expect.stringMatching(/^Downloading a page other machines shared from the site \(0\.[01] MiB\)/)]);
     expect(readFileSync(join(siteDir(other), 'a-111111/demo.mp4'), 'utf8')).toBe('video');
     expect(readdirSync(deployed()).sort()).toEqual(['_headers', 'a-111111', 'b-222222', 'feed.xml', 'index.html', MANIFEST]);
     expect(live().pages).toMatchObject({ 'a-111111': { rev: 1, machine: 'a' }, 'b-222222': { rev: 1, machine: 'b' } });
@@ -692,7 +691,7 @@ describe('sharing to a site', () => {
       runtime: new FakeRuntime(),
       home,
       forge: noForge,
-      sourceFor: () => ({ site: { ...SITE(), deploy: `deploy.ts {dir} ${dir}` }, repo }),
+      sourceFor: () => ({ site: { site: { ...SITE(), deploy: `deploy.ts {dir} ${dir}` }, path: '' }, repo, title: 'C' }),
     });
   });
 
@@ -755,8 +754,8 @@ describe('sharing to a site', () => {
     rmSync(join(deployed(), slug), { recursive: true });
     writeFileSync(join(deployed(), MANIFEST), JSON.stringify({ ...m, deploy: 'theirs' }));
     await sharing.checkSites();
-    expect(board.events(two).map((e) => e.text)).toContain('Die Seite fehlte auf der Site: Der Deploy eines anderen Rechners hatte sie offline genommen. Obeya hat sie wieder deployt.');
-    expect(board.events(one).map((e) => e.text)).not.toContain('Die Seite fehlte auf der Site: Der Deploy eines anderen Rechners hatte sie offline genommen. Obeya hat sie wieder deployt.');
+    expect(board.events(two).map((e) => e.text)).toContain('Die Seite fehlte auf der Site: Der Deploy eines anderen Rechners hatte sie offline genommen. Seismic hat sie wieder deployt.');
+    expect(board.events(one).map((e) => e.text)).not.toContain('Die Seite fehlte auf der Site: Der Deploy eines anderen Rechners hatte sie offline genommen. Seismic hat sie wieder deployt.');
     expect(existsSync(join(deployed(), slug, 'demo.mp4'))).toBe(true);
     expect(board.item(two)!.share).toMatchObject({ state: 'shared' });
   });
@@ -769,18 +768,23 @@ describe('sharing to a site', () => {
   });
 });
 
-test("a repository whose settings name a site: the canvas says the env file it lacks, until it is there", () => {
-  const shop = gitRepo(join(dir, 'shop'), {
-    'docs/plan/plan.md': '# Laden\n\n## Goal\n\nG.\n',
-    '.obeya/settings.json': JSON.stringify({ app: { run: 'bun dev' }, demo: { site: SITE() } }),
-  });
-  rmSync(join(home, 'sites/demos/deploy.env'));
-  // the owner trusted the site
-  const store = new Store(':memory:');
-  store.trustCommands(shop, commandsOf(readShared(shop)));
-  const canvas = new CanvasRuntime({ repos: [{ path: shop }] }, { store, home, runtime: new FakeRuntime(), forge: noForge });
+test("a canvas's demo site: Initialize puts its path on it, and the canvas says the env file it lacks, until it is there", async () => {
+  const shop = gitRepo(join(dir, 'shop'), { 'docs/plan/plan.md': '# Laden\n\n## Goal\n\nG.\n', 'deploy.ts': DEPLOY });
+  const url = URL_.replace(/\/$/, '');
+  writeSites(home, [{ url, deploy: `deploy.ts {dir} ${dir}`, env: 'sites/demos/deploy.env' }]);
+  const canvas = new CanvasRuntime({ name: 'Laden', repos: [{ path: shop }], demoSite: { url, path: 'laden' } }, { store: new Store(':memory:'), home, runtime: new FakeRuntime(), forge: noForge });
   try {
-    expect(canvas.repos[0]!.site).toEqual(SITE());
+    expect(canvas.board.canvas.repos[0]).toMatchObject({ shareSite: 'init' });
+    expect(canvas.initSite({ url, path: 'laden' })).toMatchObject({ init: { running: true } });
+    expect(() => canvas.initSite({ url, path: 'laden' })).toThrow('being created');
+    for (let i = 0; i < 300 && canvas.board.canvas.demoSite?.init?.running; i++) await Bun.sleep(10);
+    expect(canvas.board.canvas.demoSite).toEqual({ url, path: 'laden', ready: true, init: { running: false } });
+    expect(canvas.board.canvas.repos[0]!.share).toBe(true);
+    // the canvas's empty overview, titled with its name; the root lists none
+    expect(readFileSync(join(deployed(), 'laden/index.html'), 'utf8')).toContain('<h1>Laden</h1>');
+    expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).not.toContain('Laden');
+    rmSync(join(home, 'sites/demos/deploy.env'));
+    canvas.ownerBack();
     expect(canvas.board.canvas.repos[0]).toMatchObject({ shareNeeds: { site: siteName(SITE()), file: 'sites/demos/deploy.env' } });
     expect(canvas.board.canvas.repos[0]!.share).toBeUndefined();
     writeFileSync(join(home, 'sites/demos/deploy.env'), 'TOKEN=1\n');

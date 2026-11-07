@@ -1,6 +1,7 @@
 // Runs where a systemd user manager answers (a Linux desktop or server session, or the containers of
 // scripts/boundary-matrix.ts); skipped elsewhere, since what it tests does not exist there.
 import { afterEach, expect, test } from 'bun:test';
+import { testProcessCode } from '../src/test-process';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -18,7 +19,10 @@ const read = (file: string) => { try { return readFileSync(file, 'utf8').trim();
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const kill = (pid: number) => { if (pid > 1) try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } };
 function scratch() { return mkdtempSync(join(tmpdir(), 'obeya-scope-')); }
-function canary() { return spawn('sleep', ['1000'], { stdio: 'ignore' }); }
+function canary() { return spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore' }); }
+// These commands run through a shell, including through a nested setsid shell.
+const quote = (s: string) => "'" + s.replaceAll("'", "'\"'\"'") + "'";
+const idleCommand = () => [process.execPath, '-e', testProcessCode()].map(quote).join(' ');
 // what a failing test started must not outlive it
 const started: Scope[] = [];
 afterEach(() => { for (const scope of started.splice(0)) try { scope.kill(); } catch { /* reported by the test */ } });
@@ -52,7 +56,7 @@ test.skipIf(!manager)('ending the scope stops a daemon that detached before anyt
   let daemon = 0;
   try {
     // double fork into a session of its own, and the agent gone at once: no ancestry left to follow
-    const r = await launch('/bin/sh', ['-c', `setsid sh -c 'echo $$ > ${dir}/daemon; exec sleep 1000' </dev/null >/dev/null 2>&1 & exit 0`], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const r = await launch('/bin/sh', ['-c', `setsid sh -c ${quote(`echo $$ > ${dir}/daemon; exec ${idleCommand()}`)} </dev/null >/dev/null 2>&1 & exit 0`], { stdio: ['ignore', 'ignore', 'pipe'] });
     if (r.boundary !== 'scope') throw new Error(r.reason);
     await until(() => (daemon = Number(read(`${dir}/daemon`))) > 1);
     await new Promise((resolve) => r.child.exitCode !== null ? resolve(null) : r.child.once('exit', resolve));
@@ -68,14 +72,14 @@ test.skipIf(!manager)('a scope outlives its caller, and a sweep ends it by name'
   const other = canary();
   let daemon = 0;
   let agent = 0;
-  // the caller is a process of its own, killed like a crashed Obeya
-  const caller = spawn(process.execPath, ['-e', `
+  // the caller is a process of its own, killed like a crashed Seismic
+  const caller = spawn(process.execPath, ['-e', testProcessCode(`
     import { launchInScope } from ${JSON.stringify(join(import.meta.dir, 'linux-scope-prototype.ts'))};
-    const r = await launchInScope('/bin/sh', ['-c', "setsid sleep 1000 </dev/null >/dev/null 2>&1 & echo $! > ${dir}/daemon; exec sleep 1000"], { stdio: ['ignore', 'ignore', 'ignore'] });
+    const r = await launchInScope('/bin/sh', ['-c', ${JSON.stringify(`setsid ${idleCommand()} </dev/null >/dev/null 2>&1 & echo $! > ${dir}/daemon; exec ${idleCommand()}`)}], { stdio: ['ignore', 'ignore', 'ignore'] });
     if (r.boundary !== 'scope') { console.error(r.reason); process.exit(1); }
     console.log(JSON.stringify({ unit: r.scope.unit, cgroup: r.scope.cgroup, agent: r.child.pid }));
     setInterval(() => {}, 1000);
-  `], { stdio: ['ignore', 'pipe', 'inherit'] });
+  `)], { stdio: ['ignore', 'pipe', 'inherit'] });
   try {
     const line = await new Promise<string>((resolve) => caller.stdout!.once('data', (chunk: Buffer) => resolve(chunk.toString())));
     const { unit, cgroup, agent: pid } = JSON.parse(line) as { unit: string; cgroup: string; agent: number };
@@ -95,18 +99,18 @@ test.skipIf(!manager)('a scope outlives its caller, and a sweep ends it by name'
 });
 
 test.skipIf(!manager)("the agent's exit leaves its app running in the scope, for parking or the caller to end", async () => {
-  // what ends the app stays Obeya's decision (app.stop, or the session's end), not the scope's
+  // what ends the app stays Seismic's decision (app.stop, or the session's end), not the scope's
   const dir = scratch();
   let app = 0;
   try {
-    const r = await launch('/bin/sh', ['-c', `setsid sleep 1000 </dev/null >/dev/null 2>&1 & echo $! > ${dir}/app`], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const r = await launch('/bin/sh', ['-c', `setsid ${idleCommand()} </dev/null >/dev/null 2>&1 & echo $! > ${dir}/app`], { stdio: ['ignore', 'ignore', 'pipe'] });
     if (r.boundary !== 'scope') throw new Error(r.reason);
     await new Promise((resolve) => r.child.exitCode !== null ? resolve(null) : r.child.once('exit', resolve));
     app = Number(read(`${dir}/app`));
     await Bun.sleep(300);
     expect(alive(app)).toBe(true);
     expect(r.scope.members()).toEqual([app]);
-    // app.stop, run by Obeya outside the scope, ends the app; the empty scope then goes by itself
+    // app.stop, run by Seismic outside the scope, ends the app; the empty scope then goes by itself
     process.kill(app, 'SIGTERM');
     await until(() => !existsSync(`/sys/fs/cgroup${r.scope.cgroup}`));
   } finally { kill(app); rmSync(dir, { recursive: true, force: true }); }

@@ -1,10 +1,10 @@
-// The hero video for obeya.si, recorded with Obeya's own demo pipeline (`plugin/skills/demo`): a
-// scratch Obeya with Tipjar, a small tip calculator, and real workers. The owner arranges the wall,
+// The hero video for obeya.si, recorded with Seismic's own demo pipeline (`plugin/skills/demo`): a
+// scratch Seismic with Tipjar, a small tip calculator, and real workers. The owner arranges the wall,
 // an idea said into the microphone becomes a task, a message mixed of typing, pasting and speaking
-// goes to Obeya in its sidebar, the agent builds the first task and records its demo, the owner
+// goes to Seismic in its sidebar, the agent builds the first task and records its demo, the owner
 // approves and the change lands. Run it through `render.ts`, which sets the voice; the README says
 // how. The microphone is a WAV played into a fake stream: the narration clip of the scene that
-// speaks the words, so what the viewer hears is what Obeya hears.
+// speaks the words, so what the viewer hears is what Seismic hears.
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,7 +19,7 @@ const ROOT = path.resolve(import.meta.dirname, '../..');
 /** Where the video, its stills and the work files go: outside the repository. */
 const OUT = process.env.HERO_OUT ?? path.join(demoDirectory(), 'obeya-hero');
 const base = `http://127.0.0.1:${PORT}`;
-/** HERO_SHORT: the scenes up to Obeya’s sidebar and its preferences, without agents, to check them in a few minutes. */
+/** HERO_SHORT: the scenes up to Seismic’s sidebar and its preferences, without agents, to check them in a few minutes. */
 const SHORT = !!process.env.HERO_SHORT;
 /**
  * HERO_RECORD: the take's agents are recorded into that directory as they work; HERO_REPLAY: the
@@ -33,7 +33,7 @@ const SHOT = path.join(OUT, 'tipjar-comma.png');
 
 /** What scratch-obeya.ts staged: its directory and the ids of the cards by their keys. */
 let staged: { url: string; dir: string; cards: Record<string, string> };
-/** The scratch Obeya's owner key, for the API (design: Who may talk to it). */
+/** The scratch Seismic's owner key, for the API (design: Who may talk to it). */
 const owner = () => ownerHeaders(path.join(staged.dir, 'home'));
 
 function stage() {
@@ -41,7 +41,7 @@ function stage() {
   writeStage(file);
   const agents = RECORD ? ['--record', RECORD] : REPLAY ? ['--replay', REPLAY] : SHORT ? [] : ['--real-workers'];
   const printed = execFileSync('bun', [path.join(ROOT, 'scripts/scratch-obeya.ts'), file, ...agents], {
-    env: { ...process.env, OBEYA_HOME: undefined },
+    env: { ...process.env, SEISMIC_HOME: undefined, OBEYA_HOME: undefined },
     encoding: 'utf8',
   });
   staged = JSON.parse(printed);
@@ -49,7 +49,7 @@ function stage() {
   fs.writeFileSync(path.join(staged.dir, 'home', 'demo.json'), JSON.stringify({ language: 'en', voice: 'say', voiceName: 'Samantha', directory: demoDirectory() }));
   const key = `${KEY_HEADER}: ${owner()[KEY_HEADER]}`;
   execFileSync('curl', ['-s', '-H', key, '-X', 'PUT', `${base}/api/language`, '-d', '{"language":"en"}']);
-  // Whisper and Obeya loaded before the take, so the spoken command is heard at once
+  // Whisper and Seismic loaded before the take, so the spoken command is heard at once
   execFileSync('curl', ['-s', '-H', key, '-X', 'POST', `${base}/api/c/tipjar/voice/warm`]);
   execFileSync('sleep', ['20']);
 }
@@ -283,7 +283,7 @@ async function phone(d: Director) {
     veil.id = 'hero-phone';
     veil.innerHTML = `<div class="frame"><div class="screen"><div class="status"><span>9:41</span><span class="island"></span><span class="bars"><i></i></span></div><iframe src="${src}"></iframe></div></div>`;
     document.body.append(style, veil);
-  }, '/c/tipjar?view=phone');
+  }, '/p/tipjar?view=phone');
   await d.page.frameLocator('#hero-phone iframe').locator('.ph-card', { hasText: 'Settle up after a trip' }).waitFor({ timeout: 30_000 });
 }
 
@@ -341,8 +341,8 @@ const scenes: Scene[] = [
       await d.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
       await speak(d, 'command');
       await d.untilSpoken(1);
-      // Whisper and Obeya take some seconds: the wait is cut when it is long
-      // Obeya's confirmation, in its own words: what was said, heard, above the microphone
+      // Whisper and Seismic take some seconds: the wait is cut when it is long
+      // Seismic's confirmation, in its own words: what was said, heard, above the microphone
       await d.skip(() => d.page.locator('#acks .told.heard').waitFor({ timeout: 90_000 }), { quiet: true });
     },
   },
@@ -360,7 +360,7 @@ const scenes: Scene[] = [
       await split(d).waitFor({ timeout: 60_000 });
       await d.wait(1200);
       await d.highlight(split(d), 'new task');
-      // Obeya mostly starts a new task by itself; a planned one is started by a click
+      // Seismic mostly starts a new task by itself; a planned one is started by a click
       await d.wait(1500);
       if (await split(d).getByText(/^Planned$/).isVisible()) {
         // the play button shows while the pointer is on the card
@@ -385,10 +385,10 @@ const scenes: Scene[] = [
     },
   },
   {
-    title: 'Obeya’s sidebar',
+    title: 'Seismic’s sidebar',
     say: narration.sidebar,
     run: async (d) => {
-      await d.click(d.page.getByRole('button', { name: 'Obeya' }));
+      await d.click(d.page.getByRole('button', { name: 'Seismic' }));
       await d.wait(900);
       await d.highlight(d.page.locator('.talk.conv').first(), 'what you said');
       const say = narration.sidebar;
@@ -420,7 +420,7 @@ const scenes: Scene[] = [
       );
       await d.wait(400);
       await d.click(d.page.locator('.composer.tell .c-send'));
-      // Obeya answers in the sidebar: a second message of its own
+      // Seismic answers in the sidebar: a second message of its own
       await d.skip(() => d.page.locator('.talk.conv .msg.by-koordinator:not(.thinking)').nth(1).waitFor({ timeout: 120_000 }), { quiet: true });
       await d.wait(1800);
     },
@@ -432,8 +432,8 @@ const scenes: Scene[] = [
       const say = narration.preferences;
       // the proposals, folded while the video showed the chat
       await d.click(d.page.locator('#ksheet .fold-head', { hasText: 'Proposals' }));
-      await saying(d, say, 'Obeya also proposes');
-      await d.highlight(d.page.locator('#ksheet li.proposal').first(), 'proposed by Obeya');
+      await saying(d, say, 'Seismic also proposes');
+      await d.highlight(d.page.locator('#ksheet li.proposal').first(), 'proposed by Seismic');
       await saying(d, say, 'Once you accept');
       await d.clearHighlights();
       await d.click(d.page.locator('#ksheet li.proposal button', { hasText: 'Accept' }));
@@ -447,7 +447,7 @@ const scenes: Scene[] = [
     title: 'The agents at work',
     say: narration.working,
     run: async (d) => {
-      await d.click(d.page.getByRole('button', { name: 'Obeya' }));
+      await d.click(d.page.getByRole('button', { name: 'Seismic' }));
       await d.wait(900);
       await bringIntoView(d, split(d));
       await d.click(split(d));
@@ -554,11 +554,11 @@ const scenes: Scene[] = [
       await d.click(d.page.getByRole('button', { name: /^Approve/ }).first());
       await d.wait(2500);
       await d.untilSpoken(1);
-      // landing takes Obeya some seconds: no wait an owner sits through, so no label
+      // landing takes Seismic some seconds: no wait an owner sits through, so no label
       await d.skip(
         async () => {
           await until(['live'], 'land');
-          // Obeya's proposal from its retrospective, which the stage kept back so far
+          // Seismic's proposal from its retrospective, which the stage kept back so far
           await fetch(`${base}/api/c/tipjar/cards/${staged.cards.R}/unarchive`, { method: 'POST', headers: owner() });
           await d.wait(1200);
         },
@@ -592,9 +592,9 @@ const scenes: Scene[] = [
       await d.wait(900);
       const say = narration.proposals;
       await d.highlight(card(d, 'Remember the last tip'), 'proposed by an agent');
-      await saying(d, say, 'And Obeya itself');
+      await saying(d, say, 'And Seismic itself');
       await d.clearHighlights();
-      await d.highlight(card(d, 'A script that serves Tipjar'), 'proposed by Obeya');
+      await d.highlight(card(d, 'A script that serves Tipjar'), 'proposed by Seismic');
       await saying(d, say, 'Not every thought');
       await d.clearHighlights();
       await saying(d, say, 'goes on the wall as an idea');
@@ -639,7 +639,7 @@ const scenes: Scene[] = [
 
 await runDemo(
   {
-    title: 'Obeya',
+    title: 'Seismic',
     baseUrl: `${base}/`,
     // for the site: as sharp as the app on a Retina screen
     sharp: true,
@@ -683,7 +683,7 @@ await runDemo(
           return length;
         };
       });
-      // Obeya's sidebar opens with the proposed rules folded: the video shows the chat first
+      // Seismic's sidebar opens with the proposed rules folded: the video shows the chat first
       const snap = (await (await fetch(`${base}/api/c/tipjar/canvas`, { headers: owner() })).json()) as { preferences: { id: number; state: string }[] };
       const proposed = snap.preferences.filter((p) => p.state === 'proposed').map((p) => p.id);
       await d.page.addInitScript((ids) => localStorage.setItem('obeya-ksheet-tipjar', JSON.stringify({ proposalsClosed: ids })), proposed);
@@ -694,7 +694,7 @@ await runDemo(
         localStorage.setItem('obeya-help-key-known', '1');
         localStorage.setItem('obeya-move-marked-known', '1');
       });
-      await d.goto('/c/tipjar');
+      await d.goto('/p/tipjar');
       await d.page.addStyleTag({ content: 'bun-hmr { display: none !important; }' });
       for (const name of Object.keys(clips)) await d.page.evaluate((n) => (window as unknown as Mic).__load(n, `/__demo/${n}.wav`), name);
       await card(d, 'App icon').waitFor();
@@ -718,8 +718,8 @@ await runDemo(
     scenes: scenes.slice(0, SHORT ? 7 : undefined),
     report: {
       summary:
-        'The hero video for obeya.si: on a scratch canvas with the example app Tipjar, the owner groups and moves cards, an idea said into the microphone becomes a task, a message typed, pasted and spoken goes to Obeya in its sidebar, a real agent builds the task and records its demo, and the approval lands the change on main.',
-      meta: { Stack: `Scratch Obeya on port ${PORT} from this checkout, ${REPLAY ? `the agents played back from ${REPLAY}` : 'real workers'}, Obeya and Whisper real` },
+        'The hero video for obeya.si: on a scratch canvas with the example app Tipjar, the owner groups and moves cards, an idea said into the microphone becomes a task, a message typed, pasted and spoken goes to Seismic in its sidebar, a real agent builds the task and records its demo, and the approval lands the change on main.',
+      meta: { Stack: `Scratch Seismic on port ${PORT} from this checkout, ${REPLAY ? `the agents played back from ${REPLAY}` : 'real workers'}, Seismic and Whisper real` },
     },
   },
   OUT,

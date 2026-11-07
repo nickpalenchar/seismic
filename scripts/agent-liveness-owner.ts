@@ -1,4 +1,4 @@
-// Experimental caller side of `agent-liveness-prototype.ts`, not used by Obeya. It holds the
+// Experimental caller side of `agent-liveness-prototype.ts`, not used by Seismic. It holds the
 // liveness pipe (the supervisor cleans up when this process dies) and adopts every identity the
 // supervisor reports, so that when the supervisor dies instead, this side signals what it saw:
 // the agent itself (reparented, possibly still holding this process's pipes) and its descendants.
@@ -34,7 +34,7 @@ export function superviseAgent(
   const script = options.script ?? join(import.meta.dir, 'agent-liveness-prototype.ts');
   const supervisor = spawn(process.execPath, [script, '--', ...argv], {
     cwd: options.cwd,
-    env: { ...(options.env ?? process.env), OBEYA_LIVENESS_REPORT_FD: '4' },
+    env: { ...(options.env ?? process.env), SEISMIC_LIVENESS_REPORT_FD: '4' },
     stdio: [...(options.stdio ?? ['ignore', 'ignore', 'inherit']), 'pipe', 'pipe'],
     detached: true,
   });

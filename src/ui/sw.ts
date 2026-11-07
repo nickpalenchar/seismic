@@ -1,7 +1,7 @@
 // The service worker of the web app on the phone's home screen (design: Push). The server serves
 // `/sw.js` as this function's source, so it stays one file in the binary and is checked with the rest.
-// It shows Obeya's pushes, opens the card a tapped one is about, and keeps the page's shell: the app
-// opened while the machine sleeps shows that Obeya does not answer, instead of the browser's error.
+// It shows Seismic's pushes, opens the card a tapped one is about, and keeps the page's shell: the app
+// opened while the machine sleeps shows that Seismic does not answer, instead of the browser's error.
 
 /** Runs in the service worker: it uses nothing from outside this function. */
 export function worker() {
@@ -53,7 +53,7 @@ export function worker() {
     if (req.method !== 'GET' || url.origin !== location.origin || fresh(url.pathname)) return;
     const page = req.mode === 'navigate';
     // the page is the same at each of its addresses: `/`, a canvas's, a card's
-    if (page && url.pathname !== '/' && !url.pathname.startsWith('/c/')) return;
+    if (page && url.pathname !== '/' && !url.pathname.startsWith('/p/') && !url.pathname.startsWith('/c/')) return;
     e.respondWith(load(req, page));
   });
 
@@ -67,7 +67,7 @@ export function worker() {
     let keptShown = false;
     // the page asked for anew, as the worker's own: passed on, the request of an app opened from
     // the home screen (or a link elsewhere) keeps `Sec-Fetch-Site: cross-site`, but no longer
-    // `Sec-Fetch-Mode: navigate`, and Obeya would refuse it as another site's request
+    // `Sec-Fetch-Mode: navigate`, and Seismic would refuse it as another site's request
     const network = fetch(page ? new Request(req.url, { redirect: 'manual' }) : req).then((r) => {
       answered = true;
       if (page) quiet = false;
@@ -95,10 +95,10 @@ export function worker() {
     try {
       m = e.data?.json() ?? {};
     } catch {}
-    e.waitUntil(sw.registration.showNotification(m.title || 'Obeya', { body: m.body ?? '', tag: m.tag, icon: '/icons/180.png', data: { url: m.url ?? '/' } }));
+    e.waitUntil(sw.registration.showNotification(m.title || 'Seismic', { body: m.body ?? '', tag: m.tag, icon: '/icons/180.png', data: { url: m.url ?? '/' } }));
   });
 
-  // a tapped push opens its card in the phone view (or „Braucht dich“ for several): in the open app, else in a new one
+  // a tapped push opens its card in the phone view (or "Needs you" for several): in the open app, else in a new one
   sw.addEventListener('notificationclick', (e) => {
     e.notification.close();
     const url = new URL(e.notification.data?.url ?? '/', location.origin).href;

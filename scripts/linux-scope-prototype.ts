@@ -1,4 +1,4 @@
-// Experimental Linux process boundary, not used by Obeya: each session in a transient systemd user
+// Experimental Linux process boundary, not used by Seismic: each session in a transient systemd user
 // scope of its own. `systemd-run --user --scope` has the user manager move systemd-run's own process
 // into a new cgroup and only then execs the command in place (same pid, same stdio), so no agent
 // code runs outside it: the launch is gated by construction. A shell in between reports the cgroup it

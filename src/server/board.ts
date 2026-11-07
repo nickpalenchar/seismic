@@ -8,7 +8,7 @@
 
 import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../core/labels';
 import { createHash } from 'node:crypto';
-import type { AgentAt, AgentIdentity, Feedback, WorkConfig } from '../core/types';
+import type { AgentAt, AgentIdentity, CodeReview, CodeReviewMode, CardArchiving, Feedback, Finding, WorkConfig } from '../core/types';
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { arrangeWorkstreams, type Bounds, boundsOf, CARD_SIZE, freeSpotNear, GAP, MERGED_SIZE, type Place, PROJECT_HEAD, placeProjects, planDirNoteBox, placeWorkstreams, projectSize, shapeOf, sizeOf, unionBounds } from '../core/layout';
@@ -71,6 +71,8 @@ import {
   finished,
   formatQuestion,
   mergeableWith,
+  mergeRank,
+  type Merge,
   needsYou,
   plannedToStart,
   type Notice,
@@ -83,7 +85,7 @@ import { branchName, CARD_BRANCH } from './workspaces';
 import { clip, messageOf, oneLine } from '../core/text';
 import type { Wish } from '../core/wish';
 
-/** What Obeya keeps about a card's pull request; `url` is null until the worker opened it. */
+/** What Seismic keeps about a card's pull request; `url` is null until the worker opened it. */
 export interface PrState {
   url: string | null;
   number?: number;
@@ -100,11 +102,11 @@ export interface PrState {
   pushedHead?: string;
   /** The commit the PR was found ready to merge at; gone once something is left to do again. */
   readyHead?: string;
-  /** Why the forge refused Obeya's merge of the ready PR: then the owner merges. */
+  /** Why the forge refused Seismic's merge of the ready PR: then the owner merges. */
   mergeError?: string;
   /** Since when reading the PR fails, and whether the card said why; gone once it reads again. */
   readError?: { since: number; shown?: boolean };
-  /** A ready PR's reviewer confidence too low for Obeya to merge it: the owner decides. */
+  /** A ready PR's reviewer confidence too low for Seismic to merge it: the owner decides. */
   held?: { score: string; by: string };
   /** A ready PR the repository's settings leave to the people on the forge to merge (`autoMerge` off). */
   manual?: true;
@@ -139,7 +141,7 @@ const waitOf = (r: Pick<CardRow, 'queue'>) => {
 export interface StoredContribution extends Contribution {
   /** `base`: the PR's head the held commits go on top of, as it stood at the handover. */
   held?: HeldChanges & { base: string };
-  /** The owner chose „Selbst ändern“, and the worker's changes have not gone out yet: requests to the contributor wait for them. */
+  /** The owner chose "Change it myself", and the worker's changes have not gone out yet: requests to the contributor wait for them. */
   changing?: true;
   /** The PR's head commit the worker reviewed at its latest handover: only that one is merged. */
   reviewed?: string;
@@ -148,10 +150,40 @@ export interface StoredContribution extends Contribution {
   headRef?: string;
   /** The owner approved: the demo's page is linked in a comment on the PR once it is online. */
   approved?: true;
-  /** The page's address Obeya linked in a comment on the PR. */
+  /** The page's address Seismic linked in a comment on the PR. */
   linked?: string;
   /** The PR was closed without a merge, and the owner was asked whether the card can go. */
   closed?: true;
+}
+
+/**
+ * The code review of a card's work (`CardRow.code_review`): the mode its canvas had at the card's
+ * latest handover that is to be reviewed (`handover`, its event), and the latest review that ran,
+ * of that handover or an earlier one (then it is stale).
+ */
+export interface StoredCodeReview {
+  mode: CodeReviewMode;
+  handover: number;
+  /** `head`: the branch's commit it reviewed, where git told it; `session`: its agent's session while it runs, which goes on after a restart. */
+  review?: { handover: number; head?: string; state: 'running' | 'done' | 'failed'; findings: Finding[]; error?: string; at: string; agent?: AgentIdentity; session?: string };
+  /** Completed runs replaced by a later review, in chronological order. */
+  previous?: NonNullable<StoredCodeReview['review']>[];
+  /** The findings the owner ignored in the card's earlier reviews, which the next review is told not to raise again. */
+  ignored?: { title: string; text: string; file?: string; line?: number }[];
+  /** An automatic review is about to start (git has not told the commit yet): the card shows it as running, so the handover is not announced before the review. */
+  pending?: true;
+}
+
+export const codeReviewOf = (r: Pick<CardRow, 'code_review'>): StoredCodeReview | null => (r.code_review ? (JSON.parse(r.code_review) as StoredCodeReview) : null);
+
+/** A card's code review as the card shows it. */
+function shownCodeReview(c: StoredCodeReview): CodeReview {
+  const r = c.review;
+  return {
+    mode: c.mode,
+    ...(c.pending && r?.state !== 'running' ? { state: 'running' as const, findings: [] } : r ? { state: r.state, findings: r.findings, ...(r.agent ? { agent: r.agent } : {}), ...(r.error ? { error: r.error } : {}), ...(r.handover !== c.handover ? { stale: true as const } : {}) } : {}),
+    ...(c.previous?.length ? { previous: c.previous.filter((p) => p.state !== 'running').map(({ state, findings, error, at, agent }) => ({ state: state as 'done' | 'failed', findings, at, ...(error ? { error } : {}), ...(agent ? { agent } : {}) })) } : {}),
+  };
 }
 
 /** A review card's pull request as the card shows it. */
@@ -169,7 +201,7 @@ export interface Shipped {
   base?: string;
   /** Merged as a pull request: that one. */
   pr?: { url: string; number: number };
-  /** The merge commit is not known: the Lesestand's commit after the next fetch stands in for it. */
+  /** The merge commit is not known: the read checkout's commit after the next fetch stands in for it. */
   fetch?: true;
 }
 
@@ -209,7 +241,7 @@ export type DemoRef = { handover?: number; dir: string };
 /** Whether two references name the same demo of a card. */
 export const sameDemo = (a: DemoRef, b: DemoRef) => (a.handover !== undefined && b.handover !== undefined ? a.handover === b.handover : a.dir === b.dir);
 
-/** What Obeya keeps about a card's shared demo page (share.ts): one page per card, holding one or more of its demo versions. */
+/** What Seismic keeps about a card's shared demo page (share.ts): one page per card, holding one or more of its demo versions. */
 export interface StoredShare {
   /** The page's name on the site; it stays with the card, so its link keeps working. */
   slug: string;
@@ -236,14 +268,21 @@ export interface StoredShare {
   again?: true;
   /** While `publishing` (with `refresh`): the page goes out again as it is, with the tags the owner set. */
   retag?: true;
-  /** The owner unticked „Mit der Freigabe teilen“: where the site publishes on approval, approving the card shares nothing. */
+  /** The owner unticked "Share on approval": where the site publishes on approval, approving the card shares nothing. */
   notOnApproval?: true;
   /** The page's tags the owner set by hand, by dimension: neither a worker nor the reading session changes them. */
   tags?: PageTags;
   /** The page's tags the reading session chose, by dimension, where neither the owner nor a worker had (`pageTagsOf`). */
-  auto?: PageTags;  /** The page is on the owner's personal site (unlisted), not on its repository's. */
+  auto?: PageTags;
+  /** The demo site the page is on, or goes to (its address in this machine's list); absent on pages from before (until 2026-11-06), found by their URL. */
+  site?: string;
+  /** The canvas's path on that site the page lies under; its root where absent. */
+  path?: string;
+  /** The site is unlisted: the page lies behind the random part of its address (`token`). */
+  unlisted?: true;
+  /** Before the list of demo sites: the page is on the owner's personal site (unlisted where it has a `token`). */
   personal?: true;
-  /** The random part of the page's address on the personal site (`<token>/<slug>`): drawn once for the card, so its link stays. */
+  /** The random part of the page's address on an unlisted site (`<path>/<token>/<slug>`): drawn once for the card, so its link stays. */
   token?: string;
   /** The hash of its repository's theme (theme.ts) the published page carries; none where it carries none. */
   theme?: string;
@@ -357,10 +396,10 @@ const SHEET_TALK = 30;
 /** The setting that names the card collecting accepted rules for a repository's CLAUDE.md, per repository. */
 const CLAUDE_MD_SETTING = 'claude_md_card:';
 
-/** The setting that names the card filling in a repository's settings, proposed by Obeya or made in the Konfiguration dialog, per repository: Obeya proposes it once. */
+/** The setting that names the card filling in a repository's settings, proposed by Seismic or made in the Configuration dialog, per repository: Seismic proposes it once. */
 const SETUP_CARD_SETTING = 'setup_card:';
 
-/** How long an empty card of the owner's (no title, text or screenshots) may exist before Obeya drops it on start. */
+/** How long an empty card of the owner's (no title, text or screenshots) may exist before Seismic drops it on start. */
 const UNTITLED_GRACE_MS = 10 * 60_000;
 
 /** A request the server refuses: a stable code for the UI's text, and an English detail. */
@@ -382,7 +421,7 @@ const QUOTABLE: CardEvent['kind'][] = ['say', 'closing', 'question', 'answer', '
 /**
  * What an agent reads above the owner's words that reply to a message: which one, by its start
  * where the agent has the whole in its session (its own words, the owner's words to it), else whole
- * (Obeya's words in the card's conversation, an idea's agent's to a card's worker; the Koordinator,
+ * (Seismic's words in the card's conversation, an idea's agent's to a card's worker; the Koordinator,
  * which reads each command afresh, gets them all whole).
  */
 export function replyNote(quoted: CardEvent | undefined, to: 'worker' | 'explorer' | 'koordinator'): string {
@@ -395,10 +434,10 @@ export function replyNote(quoted: CardEvent | undefined, to: 'worker' | 'explore
       ? `their own earlier ${what}`
       : quoted.author === 'explorer' || quoted.author === 'worker'
         ? `the ${quoted.author === 'explorer' ? "idea's agent's" : "card's worker's"} ${what}`
-        : `Obeya's ${what} in the card's conversation`;
+        : `Seismic's ${what} in the card's conversation`;
   const heard = own || (quoted.author === 'owner' && quoted.kind !== 'say');
   const text = quoted.text.replace(/\s+/g, ' ').trim();
-  return `[In reply to ${whose}: „${excerpt(text, heard && to !== 'koordinator' ? 160 : 2000)}“]\n\n`;
+  return `[In reply to ${whose}: “${excerpt(text, heard && to !== 'koordinator' ? 160 : 2000)}”]\n\n`;
 }
 
 /** The start of a text, cut at a word, to point at it. */
@@ -450,9 +489,9 @@ export class Board {
     private readDocs: () => PlanRead,
     /** The owner's screenshots, which a card's images must be among. */
     private images?: Pick<Images, 'resolve'>,
-    /** Whether the Lesestand of the repository holds the commit; without it, every commit counts as held. */
+    /** Whether the read checkout of the repository holds the commit; without it, every commit counts as held. */
     private holds?: (repo: string, commit: string) => boolean,
-    /** The language of Obeya's interface now (`ownerLanguage`): what the server writes itself; the tests speak German. */
+    /** The language of Seismic's interface now (`ownerLanguage`): what the server writes itself; the tests speak German. */
     readonly language: () => Language = () => 'de',
     /**
      * The owner's conversation language now (`conversationLanguage`): what agents write the owner
@@ -470,7 +509,10 @@ export class Board {
 
   readonly conversation: () => Language;
 
-  /** What Obeya says to the owner, in the interface language. */
+  /** How the canvas's finished cards go into the archive now (canvas setting `archive`); the tests archive by hand. */
+  archiving: () => CardArchiving = () => 'manual';
+
+  /** What Seismic says to the owner, in the interface language. */
   get t(): Messages {
     return MESSAGES[this.language()];
   }
@@ -496,7 +538,7 @@ export class Board {
     return () => this.goneListeners.delete(fn);
   }
 
-  /** Whoever shows the canvas (the server, to its pages) shows what Obeya tells the owner above the microphone. */
+  /** Whoever shows the canvas (the server, to its pages) shows what Seismic tells the owner above the microphone. */
   onNotice(fn: (n: Notice) => void): () => void {
     this.noticeListeners.add(fn);
     return () => this.noticeListeners.delete(fn);
@@ -570,7 +612,7 @@ export class Board {
         try {
           fn();
         } catch (e) {
-          console.error(`Obeya: reacting to a change on the canvas ${this.canvas.id} failed: ${messageOf(e)}`);
+          console.error(`Seismic: reacting to a change on the canvas ${this.canvas.id} failed: ${messageOf(e)}`);
         }
       }
     });
@@ -583,7 +625,7 @@ export class Board {
   }
 
   /**
-   * The repository's Lesestand moved to `commit` after a fetch: pull requests merged before it,
+   * The repository's read checkout moved to `commit` after a fetch: pull requests merged before it,
    * whose merge commit GitHub did not say, count as landed with it. Then the plan docs are read again.
    */
   lesestandMoved(repo: string, commit: string) {
@@ -598,7 +640,7 @@ export class Board {
 
   /**
    * The plan doc decides a workstream's state. Stored `live` means its work landed; once the
-   * Lesestand holds what landed and the doc still leaves the workstream open, only a part of it is
+   * read checkout holds what landed and the doc still leaves the workstream open, only a part of it is
    * done: the card is planned again, to be started for the rest. Its log, PR and handover stay.
    */
   private reopen(docs: PlanDoc[]) {
@@ -624,9 +666,9 @@ export class Board {
    * the id); `replyTo`: the message the owner's words reply to (`quoted`); `spot`: the place in the
    * demo video they are about; `picks`: the options an answer picked; `answer`: a looked-up answer's
    * exchange and files; `at` keeps a message's time when a thread is copied onto its Question card;
-   * `wish`: on a reply of Obeya's, what a draft for its makers starts from; `forwarded`: Obeya's
+   * `wish`: on a reply of Seismic's, what a draft for its makers starts from; `forwarded`: Seismic's
    * reply to what the card's agent passed on; `token`: an error of a session signed in with a token;
-   * `made`: the follow-up card Obeya made of this one.
+   * `made`: the proposal or follow-up made from this card.
    */
   log(
     cardId: string,
@@ -750,7 +792,9 @@ export class Board {
     if (typeof given === 'string') throw new BadRequest('invalid', given);
     const handover = this.store.handover(cardId, given.handover);
     if (!handover) throw new BadRequest('invalid', given.handover === undefined ? 'the card has not handed over any work' : 'no such handover on the card');
-    const state = this.item(cardId)?.state;
+    // an archived card's work takes feedback as well: archiving by hand, that is when it is asked for
+    const card = this.card(cardId);
+    const state = card?.state;
     if (!row.approved_at && !(state && APPROVED.includes(state))) throw new BadRequest('invalid', 'only approved work takes feedback');
     const before = this.store.feedback({ cardId }).find((f) => f.handover === handover.id);
     const { attribution, configs } = before ?? attribute(this.store.runs(cardId), handover.at);
@@ -761,7 +805,7 @@ export class Board {
       cardId,
       canvasId: row.canvas_id,
       handover: handover.id,
-      title: before?.title ?? this.item(cardId)?.title ?? row.title ?? '',
+      title: before?.title ?? card?.title ?? row.title ?? '',
       repo: before ? before.repo : (row.repo ?? this.home),
       project: before ? before.project : project,
       attribution,
@@ -924,7 +968,7 @@ export class Board {
   }
 
   /**
-   * A card the Arbeitsrückschau proposes for a repository: it waits as a proposal like an agent's,
+   * A card the work retrospective proposes for a repository: it waits as a proposal like an agent's,
    * in a free spot, with what it rests on (`basis`).
    */
   proposeRetro(repo: string, p: { title: string; body: string; basis: string }): Item {
@@ -947,7 +991,7 @@ export class Board {
 
   /**
    * The card that fills in a repository's settings for everyone while it is open: the one made for
-   * it (`setupCard`), else one of its title made before Obeya noted which it was.
+   * it (`setupCard`), else one of its title made before Seismic noted which it was.
    */
   openSetupCard(repo: string, name: string): Item | undefined {
     const id = this.setting(`${SETUP_CARD_SETTING}${repo}`);
@@ -962,7 +1006,7 @@ export class Board {
 
   /**
    * Makes the card that fills in a repository's settings for everyone, right of everything on the
-   * canvas, at the top: the owner's, or Obeya's proposal (`propose`) with why. Either way Obeya
+   * canvas, at the top: the owner's, or Seismic's proposal (`propose`) with why. Either way Seismic
    * proposes it no more.
    */
   setupCard(repo: string, name: string, propose = false): Item {
@@ -990,7 +1034,7 @@ export class Board {
   }
 
   /**
-   * Obeya proposes the setup card (`setupCard`) for a repository whose settings it does not know
+   * Seismic proposes the setup card (`setupCard`) for a repository whose settings it does not know
    * (`unknown`), once: dismissed, accepted or made in the dialog, it does not come back. Its
    * proposal still open goes once the settings are there, withdrawn rather than dismissed.
    */
@@ -1006,12 +1050,12 @@ export class Board {
     this.changed();
   }
 
-  /** The cards the Arbeitsrückschau proposed for a repository, with what became of them. */
+  /** The cards the work retrospective proposed for a repository, with what became of them. */
   retroProposals(repo: string) {
     return this.store.retroProposals(this.canvas.id, this.repoColumn(repo));
   }
 
-  /** A value for a repository's setting the Arbeitsrückschau proposes: it waits in Obeya's sheet beside the rules. */
+  /** A value for a repository's setting the work retrospective proposes: it waits in Seismic's sheet beside the rules. */
   proposeSetting(p: { repo: string; field: ProposedSetting; value: string | string[]; basis: string; cards: string[] }): number {
     this.checkRepo(p.repo);
     const id = this.store.addSettingProposal(this.canvas.id, { ...p, basis: p.basis.slice(0, 2000) });
@@ -1019,7 +1063,7 @@ export class Board {
     return id;
   }
 
-  /** The settings the Arbeitsrückschau proposed, with what became of them: those of a repository, or all. */
+  /** The settings the work retrospective proposed, with what became of them: those of a repository, or all. */
   settingProposals(repo?: string) {
     return this.store.settingProposals(this.canvas.id, repo);
   }
@@ -1126,7 +1170,7 @@ export class Board {
   }
 
   /**
-   * The shared pages the Koordinator's sheet offers to tag („N Seiten ohne Tags“), archived cards'
+   * The shared pages the Koordinator's sheet offers to tag ("N pages without tags"), archived cards'
    * included: at rest, their demos at hand, on a site with a vocabulary, and lacking tags in one of
    * its dimensions.
    */
@@ -1140,7 +1184,7 @@ export class Board {
     });
   }
 
-  /** The vocabulary of tags each repository's site names (`demo.site.tags`), for the pages without tags; none where it names none. */
+  /** The vocabulary of tags the canvas names for its demo site, for the pages without tags; none where it names none. */
   private vocabularyOf?: (repo: string) => PageTags | undefined;
 
   showVocabulary(of: (repo: string) => PageTags | undefined) {
@@ -1248,7 +1292,7 @@ export class Board {
     return id;
   }
 
-  /** The Koordinator's reply to words it has read, the question it looks up for them, and what a draft for Obeya's makers would start from; `waits`: unread in the sheet until the owner sees it. */
+  /** The Koordinator's reply to words it has read, the question it looks up for them, and what a draft for Seismic's makers would start from; `waits`: unread in the sheet until the owner sees it. */
   replyTalk(id: number, reply: string, lookUp?: { question: string; about: string | null }, wish?: Wish, waits = false, agent?: AgentIdentity) {
     if (arguments.length < 6) this.store.replyTalk(id, reply, lookUp, wish, waits);
     else this.store.replyTalk(id, reply, lookUp, wish, waits, agent);
@@ -1256,7 +1300,7 @@ export class Board {
   }
 
   /**
-   * After a restart: words the Koordinator was reading when Obeya stopped are not read any more;
+   * After a restart: words the Koordinator was reading when Seismic stopped are not read any more;
    * they get a reply that says so, in the sheet or on the card that was open.
    */
   interruptTalk() {
@@ -1302,7 +1346,7 @@ export class Board {
     this.changed();
   }
 
-  /** A command waiting for "Rückgängig" until `due`, kept across a restart (`Commander`). */
+  /** A command waiting for "Undo" until `due`, kept across a restart (`Commander`). */
   holdCommand(token: string, due: number, body: unknown) {
     this.store.holdCommand(this.canvas.id, token, new Date(due).toISOString(), JSON.stringify(body));
   }
@@ -1317,6 +1361,41 @@ export class Board {
 
   talk(limit?: number) {
     return this.store.talk(this.canvas.id, limit);
+  }
+
+  /** The latest exchanges of the chat the owner talks in now, oldest first: the Koordinator's memory. */
+  chatTalk(limit: number) {
+    return this.store.talk(this.canvas.id, limit, false, this.store.chat(this.canvas.id));
+  }
+
+  /** The chat the owner talks in now. */
+  chat(): number {
+    return this.store.chat(this.canvas.id);
+  }
+
+  chatModel() { return this.store.chatModel(this.canvas.id); }
+
+  setChatModel(model?: import('../core/types').AgentModel) {
+    this.store.setChatModel(this.canvas.id, model);
+    this.changed();
+  }
+
+  /** The owner starts a new chat with Seismic (the current one while nothing was said in it); returns it. */
+  newChat(): number {
+    const id = this.store.newChat(this.canvas.id);
+    this.changed();
+    return id;
+  }
+
+  /** The chats with Seismic on every canvas of the database, the latest first. */
+  everyChat() {
+    return this.store.chats();
+  }
+
+  /** The owner goes back to an earlier chat. */
+  openChat(id: number) {
+    if (!this.store.openChat(this.canvas.id, id)) throw new BadRequest('invalid', 'unknown chat');
+    this.changed();
   }
 
   /** The answer to a question the Koordinator looked up, with the files it comes with. */
@@ -1351,7 +1430,7 @@ export class Board {
   }
 
   /** The owner has the Koordinator's sheet in view: its answers are read. */
-  /** The owner has Obeya's sheet in view, or (`ids`) those exchanges in a project's sheet. */
+  /** The owner has Seismic's sheet in view, or (`ids`) those exchanges in a project's sheet. */
   readTalk(ids?: number[]) {
     if (this.store.readTalk(this.canvas.id, ids)) this.changed();
   }
@@ -1400,7 +1479,7 @@ export class Board {
     const proposal = storedProposal(row);
     if (proposal?.revising) throw new BadRequest('revising', 'the proposal is being reworked');
     if (proposal?.merge) throw new BadRequest('merging', 'the proposal is merged with another card; approve or separate that first');
-    // an agent's proposal keeps that it was one: its task is not the owner's words; Obeya's setup card is as if the owner made it
+    // an agent's proposal keeps that it was one: its task is not the owner's words; Seismic's setup card is as if the owner made it
     const kept = proposal && !proposal.setup && JSON.stringify({ ...(proposal.idea ? { idea: true } : {}), questions: [] } satisfies Proposal);
     this.store.update(id, { state: asIdea ? 'idea' : 'planned', body: withQuestions(row.body ?? '', proposal?.questions ?? [], picks, this.t), proposal: kept || null });
     this.changed();
@@ -1449,7 +1528,7 @@ export class Board {
     this.changed();
   }
 
-  /** "Übernehmen und starten" during a revision (`on`; `idea`: "Als Idee besprechen"), or taken back; false when that was so already. */
+  /** "Accept and start" during a revision (`on`; `idea`: "Discuss as an idea"), or taken back; false when that was so already. */
   acceptAfterRevision(id: string, on: boolean | 'idea'): boolean {
     const row = this.own(id);
     if (row.state !== 'proposal') throw new BadRequest('notProposal', 'not a proposal');
@@ -1483,99 +1562,143 @@ export class Board {
     return true;
   }
 
-  // ---------------------------------------------------------------- merging a proposal
+  // ---------------------------------------------------------------- merging cards
 
   /**
-   * The owner merges proposal `id` with card `withId` (`mergeableWith` it): the two show as one, at
+   * The owner merges unworked task `id` with card `withId` (`mergeableWith` it): the two show as one, at
    * the free spot nearest the other card, while an agent writes the merged card. A merge that
    * failed may be tried again.
    */
   mergeStart(id: string, withId: string) {
-    const row = this.own(id);
-    if (row.state !== 'proposal') throw new BadRequest('notProposal', 'not a proposal');
-    const items = this.items();
-    const p = items.find((i) => i.id === id);
-    const other = items.find((i) => i.id === withId);
+    let p = this.card(id);
+    let other = this.card(withId);
     if (!p || !other) throw new BadRequest('unknownCard', 'unknown card');
     const was = p.proposal?.merge;
-    if (was && (was.failed === undefined || was.with !== withId)) throw new BadRequest('merging', 'the proposal is being merged already');
-    if (p.proposal?.revising) throw new BadRequest('revising', 'the proposal is being reworked');
-    if (p.proposal?.idea) throw new BadRequest('notMergeable', 'a proposed idea is not merged with a task');
-    if (p.snoozed) throw new BadRequest('notMergeable', 'a snoozed proposal is woken before it is merged');
-    // trying again after a failure: the other card is merged with this proposal already
-    if (!mergeableWith(p, other.mergingInto === id ? { ...other, mergingInto: undefined } : other)) throw new BadRequest('notMergeable', `„${other.title}“ can no longer be merged with`);
+    if (this.items().some((i) => i.id !== id && i.proposal?.merge?.with === withId)) throw new BadRequest('notMergeable', 'the partner is being merged already');
+    if (was && (was.failed === undefined || was.with !== withId)) throw new BadRequest('merging', 'the card is being merged already');
+    const clean = { ...p, proposal: p.proposal ? { ...p.proposal, merge: undefined } : undefined };
+    if (!mergeableWith(clean, other.mergingInto === id ? { ...other, mergingInto: undefined } : other)) throw new BadRequest('notMergeable', `“${other.title}” can no longer be merged with`);
+    // A planned card picked a proposal: the proposal is the dissolving left side.
+    if (!was && mergeRank(p) > mergeRank(other)) [p, other] = [other, p];
+    id = p.id;
+    withId = other.id;
+    const row = this.own(id);
+    const items = this.items();
     const taken = items.filter((i) => !i.parent && i.id !== id && i.id !== withId && !i.mergingInto).map((i) => boundsOf(i, items));
     const at = was ? {} : freeSpotNear({ x: other.x, y: other.y }, MERGED_SIZE, taken);
     const proposal = storedProposal(row) ?? { questions: [] };
-    this.store.update(id, { ...at, proposal: JSON.stringify({ ...proposal, merge: { with: withId } } satisfies Proposal) });
+    this.store.update(id, { ...at, proposal: JSON.stringify({ ...proposal, merge: { with: withId, attempt: crypto.randomUUID(), origin: was?.origin ?? { x: row.x, y: row.y }, ...((was?.temporaryProposal || !row.proposal) ? { temporaryProposal: true as const } : {}) } } satisfies Proposal) });
     this.log(id, 'state', 'koordinator', this.t.koordinator.mergeStarted(other.title));
     this.changed();
+    return id;
   }
 
   /** The merged card as the agent wrote it, or why there is none; false when the proposal is not being merged (any more). */
-  merged(id: string, r: { title: string; task: string } | { failed: string }): boolean {
+  merged(id: string, r: Omit<Merge, 'with' | 'failed'> & { title: string; task: string } | { failed: string }, attempt?: string): boolean {
     const row = this.store.card(id);
-    if (!row || row.canvas_id !== this.canvas.id || row.deleted_at || row.state !== 'proposal') return false;
+    if (!row || row.canvas_id !== this.canvas.id || row.deleted_at) return false;
     const proposal = storedProposal(row);
     const was = proposal?.merge;
-    if (!was || was.task !== undefined || was.failed !== undefined) return false;
-    const merge = 'failed' in r ? { with: was.with, failed: r.failed.slice(0, 2000) } : { with: was.with, title: r.title.trim().slice(0, 200), task: r.task.trim().slice(0, 20000) };
+    if (!was || (attempt !== undefined && was.attempt !== attempt) || was.task !== undefined || was.failed !== undefined) return false;
+    const merge = 'failed' in r ? { ...was, failed: r.failed.slice(0, 2000) } : { ...was, ...r, title: r.outcome ? r.title : r.title.trim().slice(0, 200), task: r.outcome ? r.task : r.task.trim().slice(0, 20000) };
     this.store.update(id, { proposal: JSON.stringify({ ...proposal, merge } satisfies Proposal) });
     if ('failed' in r) this.log(id, 'error', 'koordinator', this.t.koordinator.mergeFailed(r.failed));
     this.changed();
     return true;
   }
 
-  /** The owner separates a proposal from the card it is merged with: both stay as they were, side by side where the two stood as one. */
+  /** Separate restores both original cards, including their places. */
   separate(id: string) {
     const row = this.own(id);
     const { merge, ...proposal } = storedProposal(row) ?? { questions: [] };
     if (!merge) throw new BadRequest('notProposal', 'the proposal is not merged with another card');
     const other = this.store.card(merge.with);
     const there = other && other.canvas_id === this.canvas.id && !other.deleted_at && !other.archived_at;
-    this.store.update(id, { proposal: JSON.stringify(proposal satisfies Proposal) });
-    if (there) this.store.update(other.id, { x: row.x + MERGED_SIZE[0] - CARD_SIZE.task[0], y: row.y });
+    this.store.update(id, { ...(merge.origin ?? {}), proposal: merge.temporaryProposal ? null : JSON.stringify(proposal satisfies Proposal) });
+    // Both originals keep their exact place when separated.
     this.log(id, 'state', 'koordinator', this.t.koordinator.mergeSeparated(there ? (other.title ?? '') : ''));
     this.changed();
   }
 
-  /**
-   * The owner approves the merged card: the card the proposal was merged with takes its title and
-   * text, the screenshots of both, the place the two stood as one, and (a proposal itself) the
-   * questions of both, those of a planned task going into its text as open; what followed up on the
-   * proposal follows up on it. The proposal goes, marked as merged rather than dismissed. Returns the card that stays.
-   */
+  /** Hide a duplicate suggestion while retaining the checked task text for a deliberate start. */
+  dismissDuplicate(id: string) {
+    const row = this.own(id);
+    if (row.state !== 'planned' || !row.scope) throw new BadRequest('notPlanned', 'no duplicate suggestion on this card');
+    const scope = JSON.parse(row.scope) as { duplicateCheck?: { title: string; body: string; ids?: string[]; dismissed?: boolean } };
+    if (!scope.duplicateCheck?.ids?.length || scope.duplicateCheck.dismissed) throw new BadRequest('notPlanned', 'no duplicate suggestion on this card');
+    scope.duplicateCheck.dismissed = true;
+    this.store.update(id, { scope: JSON.stringify(scope) });
+    this.changed();
+  }
+
+  /** Approval dissolves the back card, preserving a progressed survivor and creating only the extra work. */
   approveMerge(id: string): string {
     const row = this.own(id);
     const proposal = storedProposal(row);
     const merge = proposal?.merge;
     if (!proposal || !merge || merge.task === undefined) throw new BadRequest('merging', 'the merged card is not there yet');
     const p = this.item(id);
-    const other = this.item(merge.with);
+    const mergedTask = merge.task;
+    const other = this.card(merge.with);
     if (!p || !other) throw new BadRequest('unknownCard', 'the card it was merged with is gone');
-    if (!mergeableWith(p, { ...other, mergingInto: undefined })) throw new BadRequest('notMergeable', `„${other.title}“ can no longer be merged with`);
+    if (!mergeableWith({ ...p, proposal: { ...proposal, merge: undefined } }, { ...other, mergingInto: undefined })) throw new BadRequest('notMergeable', `“${other.title}” can no longer be merged with`);
     const keep = this.own(other.id);
-    const images = [...new Set([...(other.images ?? []), ...(p.images ?? [])])];
-    const title = merge.title?.trim() || other.title;
-    const kept = storedProposal(keep);
-    const asked = new Set((kept?.questions ?? []).map((q) => q.text));
-    const added = proposal.questions.filter((q) => !asked.has(q.text));
-    const task = keep.state === 'proposal' ? merge.task : withQuestions(merge.task, proposal.questions, [], this.t);
-    this.store.update(other.id, {
-      title,
-      body: task.slice(0, 20000),
-      images: images.length ? JSON.stringify(images) : null,
-      x: row.x,
-      y: row.y,
-      ...(keep.state === 'proposal' && kept ? { proposal: JSON.stringify({ ...kept, questions: [...kept.questions, ...added] } satisfies Proposal) } : {}),
-    });
-    for (const r of this.store.cards(this.canvas.id)) if (r.from_id === id && r.id !== other.id) this.store.update(r.id, { from_id: other.id });
-    const { merge: _, ...rest } = proposal;
-    this.store.update(id, { proposal: JSON.stringify({ ...rest, superseded: { by: other.id, title, why: 'merged' } } satisfies Proposal), deleted_at: new Date().toISOString() });
-    this.log(other.id, 'state', 'koordinator', this.t.koordinator.mergedFrom(row.title ?? ''));
-    if (keep.state === 'proposal') for (const q of added) this.log(other.id, 'question', 'worker', formatQuestion(q, this.language()));
-    this.changed();
+    if (merge.compared && (merge.compared.left !== JSON.stringify([p.title, p.body, p.images, proposal.questions]) || merge.compared.right !== JSON.stringify([other.title, other.body]) || merge.compared.summary !== (this.summary(other.id) ?? '')))
+      throw new BadRequest('mergeChanged', 'The cards changed since the comparison. Separate and compare them again.');
+    if (mergeRank(other) > 1 && !merge.outcome) throw new BadRequest('mergeChanged', 'The survivor has progressed. Separate and compare them again.');
+    this.store.db.transaction(() => {
+      if (merge.outcome) {
+        if (merge.followUp) {
+          const f = merge.followUp;
+          const next = this.create({ title: f.title, body: withQuestions(f.task, f.questions.map((n) => proposal.questions[n]!).filter(Boolean), [], this.t), from: other.id, repo: other.repo, images: f.images });
+          // Even an archived survivor keeps its place; the new task is placed beside it.
+          const at = this.nearFree(this.items(), { x: other.x + CARD_SIZE.task[0] + 40, y: other.y });
+          this.store.update(next.id, at);
+          this.setManualDependencies([...this.manualDependencies(), [other.id, next.id]]);
+        }
+      } else {
+        const images = [...new Set([...(other.images ?? []), ...(p.images ?? [])])];
+        const title = merge.title?.trim() || other.title;
+        const kept = storedProposal(keep);
+        const asked = new Set((kept?.questions ?? []).map((q) => q.text));
+        const added = proposal.questions.filter((q) => !asked.has(q.text));
+        const task = keep.state === 'proposal' ? mergedTask : withQuestions(mergedTask, proposal.questions, [], this.t);
+        this.store.update(other.id, {
+          title,
+          body: task.slice(0, 20000),
+          images: images.length ? JSON.stringify(images) : null,
+          x: row.x,
+          y: row.y,
+          ...(keep.state === 'proposal' && kept ? { proposal: JSON.stringify({ ...kept, questions: [...kept.questions, ...added] } satisfies Proposal) } : {}),
+        });
+      }
+      this.retargetMerge(id, other.id);
+      const title = other.title;
+      const { merge: _, ...rest } = proposal;
+      this.store.update(id, { proposal: JSON.stringify({ ...rest, superseded: { by: other.id, title, why: 'merged' } } satisfies Proposal), deleted_at: new Date().toISOString() });
+      this.log(other.id, 'state', 'koordinator', this.t.koordinator.mergedFrom(row.title ?? ''));
+      if (!merge.outcome && keep.state === 'proposal') for (const q of proposal.questions) this.log(other.id, 'question', 'worker', formatQuestion(q, this.language()));
+      this.changed();
+    })();
     return other.id;
+  }
+
+  /** Move the dissolving card's relationships, removing self arrows and duplicates. */
+  private retargetMerge(id: string, survivor: string) {
+    const to = (ids: string[], own: string) => [...new Set(ids.map((x) => x === id ? survivor : x))].filter((x) => x !== own);
+    for (const r of this.store.cards(this.canvas.id)) {
+      if (r.from_id === id && r.id !== survivor) this.store.update(r.id, { from_id: survivor });
+      const q = waitOf(r);
+      if (r.id !== survivor && q?.behind.includes(id)) this.store.update(r.id, { queue: JSON.stringify({ ...q, behind: to(q.behind, r.id), ...(q.buildsOn && { buildsOn: to(q.buildsOn, r.id) }), ...(q.manualWait && { manualWait: to(q.manualWait, r.id) }) }) });
+    }
+    const seen = new Set<string>();
+    this.setManualDependencies(this.manualDependencies().flatMap(([a, b, anchor]) => {
+      const from = a === id ? survivor : a, dest = b === id ? survivor : b;
+      const key = `${from}:${dest}`;
+      if (from === dest || seen.has(key)) return [];
+      seen.add(key);
+      return [anchor ? [from, dest, anchor] as [string, string, ManualAnchor?] : [from, dest] as [string, string]];
+    }));
   }
 
   // ---------------------------------------------------------------- archive
@@ -1644,13 +1767,14 @@ export class Board {
     const projects = rows.filter((r) => r.plan_ref);
     const docs = projects.map((r) => JSON.parse(r.plan!) as PlanDoc);
     const kids = this.store.children(projects.map((r) => r.id));
-    const items = this.withRate(this.withPrototypes(toItems([...rows, ...kids], docs, this.home, this.worked, this.themeNow)));
+    const items = this.withRate(this.withPrototypes(toItems([...rows, ...kids], docs, this.home, this.worked, this.themeNow)), true);
     const byId = new Map(items.map((i) => [i.id, i]));
     const kidsOf = Map.groupBy(items.filter((i) => i.parent), (i) => i.parent!);
     return rows.flatMap((r) => {
       const at = { archivedAt: r.archived_at! };
       const own = byId.get(r.id);
-      return own ? [{ ...own, ...at }, ...(kidsOf.get(r.id) ?? []).map((i) => ({ ...i, ...at }))] : [];
+      const repoDown = own && !this.canvas.repos.some((r) => r.id === own.repo);
+      return own ? [{ ...own, ...at, ...(repoDown ? { repoDown: true } : {}) }, ...(kidsOf.get(r.id) ?? []).map((i) => ({ ...i, ...at }))] : [];
     });
   }
 
@@ -1746,14 +1870,28 @@ export class Board {
   workDone(cardId: string) {
     // a workstream its doc keeps open is planned again (reopen) once its worker is done
     if (this.own(cardId).plan_ref) this.docs = null;
-    if (this.retire(cardId) || !this.docs) this.changed();
+    if (this.retire(cardId) || this.archiveLanded(cardId) || !this.docs) this.changed();
+  }
+
+  /**
+   * Where the canvas archives cards once their work landed, the owner's finished card goes into the
+   * archive as soon as its worker is done after the landing, as "Archive all finished" would take it.
+   */
+  private archiveLanded(cardId: string): boolean {
+    if (this.archiving() !== 'landed') return false;
+    const r = this.store.card(cardId);
+    if (!r || r.deleted_at || r.archived_at || r.plan_ref || r.kind !== 'task' || r.prototype_of || !r.state || !finished(r.state) || r.workspace) return false;
+    this.store.update(cardId, { archived_at: new Date().toISOString() });
+    this.log(cardId, 'state', 'obeya', this.t.archivedLanded);
+    return true;
   }
 
   /** The canvas as the UI sees it; built once per change (every write here ends in `changed`). */
   snapshot(): CanvasSnapshot {
     const items = this.items();
     if (this.cache) return this.cache;
-    const talk = this.store.talk(this.canvas.id, SHEET_TALK, true);
+    const chat = this.store.chat(this.canvas.id);
+    const talk = this.store.sheet(this.canvas.id, chat, SHEET_TALK);
     const reshare = this.reshare();
     const pools = this.clonePools();
     const planDirs = this.planDirs(this.docs!);
@@ -1770,6 +1908,9 @@ export class Board {
       preferences: this.store.preferences(this.canvas.id, ['proposed', 'active']),
       ...(settingProposals.length ? { settingProposals } : {}),
       talk: this.limits.size || this.atWork.size ? talk.map((x) => ({ ...x, ...this.limited(`talk:${x.id}`), ...this.agentAt('lookUpAgent', `talk:${x.id}`) })) : talk,
+      chat,
+      ...(this.store.chatModel(this.canvas.id) ? { chatModel: this.store.chatModel(this.canvas.id) } : {}),
+      chats: this.store.chats(this.canvas.id),
       ...(pools.length ? { workspaces: pools } : {}),
       ...(reshare ? { reshare } : {}),
       ...(planDirs.length ? { planDirs } : {}),
@@ -1847,11 +1988,16 @@ export class Board {
     }
     const manual = this.manualDependencies();
     if (manual.length) {
-      const eligible = new Set(items.filter(connectable).map((i) => i.id));
+      const sources = new Set(manual.map(([from]) => from));
+      const archivedRows = this.store.archived(this.canvas.id).filter((r) => sources.has(r.id) && r.state && !finished(r.state));
+      const archivedAt = new Map(archivedRows.map((r) => [r.id, r.archived_at!]));
+      const archived = toItems(archivedRows, [], this.home, this.worked, this.themeNow).filter(connectable).map((i) => ({ ...i, archivedAt: archivedAt.get(i.id)! }));
+      const eligible = new Set([...items.filter(connectable), ...archived].map((i) => i.id));
       items = items.map((i) => {
         const edges = eligible.has(i.id) ? manual.filter(([from, to]) => to === i.id && eligible.has(from)) : [];
         const anchors = Object.fromEntries(edges.flatMap(([from, , anchor]) => (anchor ? [[from, anchor]] : [])));
-        return edges.length ? { ...i, manualDependsOn: edges.map(([from]) => from), ...(Object.keys(anchors).length ? { manualAnchors: anchors } : {}) } : i;
+        const manualArchived = archived.filter((a) => edges.some(([from]) => from === a.id));
+        return edges.length ? { ...i, manualDependsOn: edges.map(([from]) => from), ...(manualArchived.length ? { manualArchived } : {}), ...(Object.keys(anchors).length ? { manualAnchors: anchors } : {}) } : i;
       });
     }
     items = this.withPrototypes(items);
@@ -1860,6 +2006,8 @@ export class Board {
     if (inTurn.size) items = items.map((i) => {
       const turn = inTurn.get(i.id);
       if (!turn) return i;
+      // a card that waits for the owner is not at work anyway: the restart holds nobody up there
+      if (turn.restartPaused) return needsYou(i) ? i : { ...i, restartPaused: true };
       const background = turn.tasks.length ? { background: turn.tasks } : {};
       // a turn that ended while its background work runs (the app served, say) holds the worker's slot,
       // but a card that waits for the owner then has nobody at work on it: only that work runs
@@ -1881,18 +2029,21 @@ export class Board {
     if (items.some((i) => !running.has(i.repo))) items = items.map((i) => (running.has(i.repo) || i.kind === 'question' ? i : { ...i, repoDown: true }));
     if (this.limits.size) items = items.map((i) => ({ ...i, ...this.limited(`card:${i.id}`) }));
     if (this.atWork.size) items = items.map((i) => ({ ...i, ...this.agentAt('agentAtWork', `card:${i.id}`) }));
+    if (this.landingPositions.size) items = items.map((i) => this.landingPositions.has(i.id) && i.landing ? { ...i, landingPosition: this.landingPositions.get(i.id)! } : i);
     this.itemsCache = items;
     return items;
   }
 
   /**
-   * Approved work an agent did takes the owner's feedback while Obeya asks for it: each such card
+   * Approved work an agent did takes the owner's feedback while Seismic asks for it: each such card
    * names its latest handover and the answer on it so far. A contributor's pull request and a
    * prototype are not an agent's work to judge here.
    */
-  private withRate(items: Item[]): Item[] {
+  private withRate(items: Item[], archived = false): Item[] {
     if (!this.asksFeedback()) return items;
-    const rateable = (i: Item) => i.kind === 'task' && APPROVED.includes(i.state) && !i.contribution && !i.prototypeOf;
+    // archived by hand, a card asks when it goes into the archive; a workstream, which goes with its project, after its approval
+    const asks = (i: Item) => archived || this.archiving() === 'landed' || i.source === 'plan';
+    const rateable = (i: Item) => i.kind === 'task' && APPROVED.includes(i.state) && !i.contribution && !i.prototypeOf && asks(i);
     const rated = this.store.rated(items.filter(rateable).map((i) => i.id));
     if (!rated.size) return items;
     return items.map((i) => {
@@ -1953,7 +2104,7 @@ export class Board {
 
   /**
    * The card is snoozed no longer, with the line that it woke and why (`woke`): its time came, the
-   * owner woke it, Obeya had something for its agent, the card needs the owner, or what became of the
+   * owner woke it, Seismic had something for its agent, the card needs the owner, or what became of the
    * card it waited on. Returns the snooze it had.
    */
   unsnooze(cardId: string, woke: Woke): Snooze | null {
@@ -2081,7 +2232,7 @@ export class Board {
   /**
    * The harness and model of the session that runs at each place an agent shows at work (`AgentAt`),
    * by `card:<id>`, `talk:<id>` and `koordinator`, with the session they belong to. Held in memory:
-   * a session lives no longer than Obeya.
+   * a session lives no longer than Seismic.
    */
   private atWork = new Map<string, { agent: AgentIdentity; session: object }>();
 
@@ -2102,6 +2253,16 @@ export class Board {
   private agentAt<K extends string>(field: K, key: string): { [k in K]?: AgentIdentity } {
     const at = this.atWork.get(key);
     return (at ? { [field]: { ...at.agent } } : {}) as { [k in K]?: AgentIdentity };
+  }
+
+  private landingPositions = new Map<string, number>();
+
+  /** The repository's landing queue is transient: a restart cancels outstanding approvals. */
+  showLandingPosition(cardId: string, position: number | undefined) {
+    if (position === this.landingPositions.get(cardId)) return;
+    if (position === undefined) this.landingPositions.delete(cardId);
+    else this.landingPositions.set(cardId, position);
+    this.changed();
   }
 
   /** Who says which cards' workers are in a turn, each with its background work: one per repository's workers (`showTurns`). */
@@ -2247,7 +2408,7 @@ export class Board {
   /** The owner's active preferences as agents read them; empty when there are none. */
   preferencesText(): string {
     const p = this.preferences('active');
-    return p.length ? `The owner's standing preferences (follow them unless the card says otherwise):\n${p.map((x) => `- ${x.text}`).join('\n')}` : '';
+    return p.length ? `The owner's standing preferences (follow them unless the card says otherwise). A preference about the language you speak to the owner takes precedence over the task's language and their latest words. If it says "only" or "always", a card's language cannot override it:\n${p.map((x) => `- ${x.text}`).join('\n')}` : '';
   }
 
   /** A rule the owner writes: active at once. */
@@ -2284,8 +2445,8 @@ export class Board {
   /**
    * The owner accepts a proposal, as it is or in their own words; a change takes the place of the
    * rule it changes. `target` sets where it goes when the owner changed that: a repository, or
-   * `null` for the preference memory. A rule for a repository goes into its card „CLAUDE.md
-   * ergänzen“, which a worker writes it from into the CLAUDE.md; until then it applies to no agent.
+   * `null` for the preference memory. A rule for a repository goes into its card "Add to CLAUDE.md",
+   * which a worker writes it from into the CLAUDE.md; until then it applies to no agent.
    */
   acceptProposal(id: number, text?: string, target?: string | null) {
     const p = this.preferences('proposed').find((x) => x.id === id);
@@ -2303,8 +2464,8 @@ export class Board {
   }
 
   /**
-   * A rule the owner gives outright for the CLAUDE.md of each of `repos`, said („Merk dir: …“) or
-   * written in the sheet: it goes into the repository's card „CLAUDE.md ergänzen“ at once, without
+   * A rule the owner gives outright for the CLAUDE.md of each of `repos`, said ("Remember: …") or
+   * written in the sheet: it goes into the repository's card "Add to CLAUDE.md" at once, without
    * a proposal. `replaces`: an active rule of the owner's it takes the place of.
    */
   fileRule(text: string, repos: string[], cardId: string | null = null, replaces?: number) {
@@ -2322,7 +2483,7 @@ export class Board {
   }
 
   /**
-   * Adds an accepted rule to the repository's open card „CLAUDE.md ergänzen“: planned and not yet
+   * Adds an accepted rule to the repository's open card "Add to CLAUDE.md": planned and not yet
    * with the Koordinator. Without one, a new card collects it.
    */
   private collect(repo: string, rule: string) {
@@ -2333,11 +2494,13 @@ export class Board {
       return;
     }
     const card = this.create({ title: this.t.claudeMd.title, body: `${this.t.claudeMd.task}\n\n- ${rule}`, repo, ...this.freeSpot() });
+    // Seismic makes this card itself, so its labels are set, not suggested
+    this.store.update(card.id, { category: 'docs', subcategory: 'configuration' });
     this.setSetting(`${CLAUDE_MD_SETTING}${repo}`, card.id);
     this.log(card.id, 'state', 'koordinator', this.t.koordinator.ruleTaken(rule));
   }
 
-  /** The repository's card „CLAUDE.md ergänzen“ while it still collects rules, if there is one. */
+  /** The repository's card "Add to CLAUDE.md" while it still collects rules, if there is one. */
   collecting(repo: string): Item | undefined {
     const id = this.setting(`${CLAUDE_MD_SETTING}${repo}`);
     const card = id ? this.item(id) : undefined;
@@ -2442,7 +2605,7 @@ export class Board {
   }
 
   /**
-   * `elsewhere`: the card on another canvas it follows up on (a card Obeya makes here from there); it
+   * `elsewhere`: the card on another canvas it follows up on (a card Seismic makes here from there); it
    * goes where `x` and `y` say, in no group.
    */
   create(n: NewCard, elsewhere?: string): Item {
@@ -2451,11 +2614,13 @@ export class Board {
     if (n.repo !== undefined) this.checkRepo(n.repo);
     const from = n.from !== undefined ? this.own(n.from) : undefined;
     if (from && n.idea) throw new BadRequest('invalid', 'an idea follows up on no card');
-    if (!from) {
+    // without a place (the phone, which shows no canvas) it goes where there is room
+    const placed = n.x !== undefined || n.y !== undefined;
+    if (!from && placed) {
       checkNumber(n.x, 'x');
       checkNumber(n.y, 'y');
     }
-    const at = from ? this.followUpSpot(from.id) : { x: n.x!, y: n.y! };
+    const at = from ? this.followUpSpot(from.id) : placed ? { x: n.x!, y: n.y! } : this.freeSpot();
     // a follow-up stays in the repository of the card it comes from unless told otherwise
     const repo = n.repo ?? (from ? (from.repo ?? this.home) : undefined);
     if (n.images !== undefined) this.checkImages(n.images);
@@ -2516,7 +2681,7 @@ export class Board {
     this.changed();
   }
 
-  /** The owner set these labels, to a value or to none: their suggested mark goes, and Obeya suggests none of them again. */
+  /** The owner set these labels, to a value or to none: their suggested mark goes, and Seismic suggests none of them again. */
   private ownerLabels(row: CardRow, set: Label[]) {
     if (!set.length) return {};
     const suggested = labelList(row.suggested_labels).filter((l) => !set.includes(l));
@@ -2525,7 +2690,7 @@ export class Board {
   }
 
   /**
-   * Obeya's suggestion of a card's labels: it fills only those that are empty and the owner has
+   * Seismic's suggestion of a card's labels: it fills only those that are empty and the owner has
    * never set (not even to none), and marks them as suggested. The labels it filled.
    */
   suggestLabels(id: string, labels: Labels): Label[] {
@@ -2564,7 +2729,7 @@ export class Board {
   }
 
   /**
-   * The repository to create for a card, as its idea's agent or Obeya sets it; null takes it off.
+   * The repository to create for a card, as its idea's agent or Seismic sets it; null takes it off.
    * What the owner chose, the agent does not change: false then.
    */
   setNewRepo(id: string, n: StoredNewRepo | null, by: NewRepo['by'] = 'owner'): boolean {
@@ -2576,7 +2741,7 @@ export class Board {
     return true;
   }
 
-  /** The owner's history of the canvas, in Obeya's sheet: the card left for another canvas. */
+  /** The owner's history of the canvas, in Seismic's sheet: the card left for another canvas. */
   moved(m: TalkMoved) {
     this.store.addMoved(this.canvas.id, m, this.t.newRepo.movedAway(m.title, m.canvasName));
     this.changed();
@@ -2842,7 +3007,7 @@ export class Board {
   }
 
   /**
-   * Moves the project's cards from the keys an older Obeya gave its workstreams (their place in
+   * Moves the project's cards from the keys an older Seismic gave its workstreams (their place in
    * the doc, `#n`) onto the keys they have now. A card an agent worked on goes by the title its
    * branch was named after, since the doc may have changed under its old key, so that its log stays
    * with its own workstream; one whose workstream the doc no longer has leaves the project, and the
@@ -2923,7 +3088,7 @@ export class Board {
   /**
    * The key of the doc's workstream an agent started on under the title its branch was named after
    * (`slug`), among those no card has yet (`claimed`): by that title, or, where the doc reworded it
-   * since, by the label the doc as Obeya last kept it (`stored`, read anew) or the doc's history gave
+   * since, by the label the doc as Seismic last kept it (`stored`, read anew) or the doc's history gave
    * that title.
    */
   private startedOn(slug: string, doc: PlanDoc, claimed: Set<string>, stored: PlanDoc): string | undefined {
@@ -2997,7 +3162,7 @@ export class Board {
 
   /**
    * Stores a row for every project and workstream seen for the first time. A doc whose work was
-   * done before Obeya first saw it (among `all`, not `docs`) gets its rows too, placed after the
+   * done before Seismic first saw it (among `all`, not `docs`) gets its rows too, placed after the
    * others, and goes straight to the archive (`keepDocs`). Returns whether any were added.
    */
   private placeNew(docs: PlanDoc[], items: Item[], all: PlanDoc[], rows: CardRow[]): boolean {
@@ -3181,7 +3346,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
         ...(r.built_on ? { builtOn: r.built_on } : {}),
         ...(r.images ? { images: JSON.parse(r.images) as string[] } : {}),
         ...(r.retro ? { retro: r.retro } : {}),
-        ...(r.proposal ? (r.state === 'proposal' ? { proposal: storedProposal(r)! } : { proposed: true as const, ...supersededOf(r) }) : {}),
+        ...(r.proposal ? (r.state === 'proposal' || storedProposal(r)?.merge ? { proposal: storedProposal(r)! } : { proposed: true as const, ...supersededOf(r) }) : {}),
         ...(r.group_id ? { group: r.group_id } : {}),
         ...labelsOf(r),
         ...newRepoOf(r),
@@ -3257,11 +3422,11 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
       .map((k) => k.item),
   );
   // a card merged with a proposal shows within it, until the owner decides
-  const into = new Map(manual.flatMap((i) => (i.state === 'proposal' && i.proposal?.merge ? [[i.proposal.merge.with, i.id] as const] : [])));
+  const into = new Map(manual.flatMap((i) => (i.proposal?.merge ? [[i.proposal.merge.with, i.id] as const] : [])));
   return [...projects, ...ordered, ...(into.size ? manual.map((i) => (into.has(i.id) ? { ...i, mergingInto: into.get(i.id)! } : i)) : manual)];
 }
 
-/** The card's labels that are set, and which of them are Obeya's suggestion. */
+/** The card's labels that are set, and which of them are Seismic's suggestion. */
 const labelsOf = (r: CardRow): Labels & { suggested?: Label[] } => {
   const set = Object.fromEntries(LABELS.filter((l) => r[l] !== null && isLabelValue(l, r[l])).map((l) => [l, r[l]])) as Labels;
   const suggested = labelList(r.suggested_labels).filter((l) => set[l] !== undefined);
@@ -3305,7 +3470,7 @@ const named = (w: Pick<Workstream, 'label' | 'title'>, slug: string) =>
 /** Where a card goes below the card with bounds `b`: the `n`th of those there, each beside the one before. */
 const below = (b: Bounds, n = 0) => ({ x: b.x + 35 + n * (CARD_SIZE.task[0] + GAP), y: b.y + b.h + 60 });
 
-/** What is stored of a repository to create for a card: the target, and once Obeya made it, `made`. */
+/** What is stored of a repository to create for a card: the target, and once Seismic made it, `made`. */
 export type StoredNewRepo = NewRepo & { made?: true; none?: true };
 
 /** A card's new repository while it is still to be made, before work on the card begins. */
@@ -3349,24 +3514,30 @@ const pullRequest = (pr: PrState): PullRequest => ({
 
 /** The fields a worker adds to a card. */
 function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
-  const detail = r.detail ? (JSON.parse(r.detail) as { question?: Item['question']; summary?: string; noChange?: boolean; lands?: Item['lands']; modelsUnchanged?: string; answering?: boolean; answered?: boolean }) : {};
+  const detail = r.detail ? (JSON.parse(r.detail) as { question?: Item['question']; summary?: string; noChange?: boolean; lands?: Item['lands']; modelsUnchanged?: string; answering?: boolean; answered?: boolean; blocked?: Item['blocked']; conflict?: boolean }) : {};
   const demo = r.demo ? shownDemo(JSON.parse(r.demo) as StoredDemo) : undefined;
   const earlier = demo ? earlierDemos(r) : [];
   const handed = r.need === 'review' || r.need === 'demo';
   const answering = detail.answering && handed;
-  const scope = r.scope ? (JSON.parse(r.scope) as { files: string[] }).files : undefined;
+  const storedScope = r.scope ? JSON.parse(r.scope) as { files: string[]; duplicateCheck?: { title: string; body: string; ids?: string[]; dismissed?: boolean } } : undefined;
+  const scope = storedScope?.files;
   const pr = r.pr ? (JSON.parse(r.pr) as PrState) : undefined;
   const contribution = contributionOf(r);
+  const codeReview = codeReviewOf(r);
   const share = shareOf(r, themeNow);
   const notOnApproval = r.share ? (JSON.parse(r.share) as StoredShare).notOnApproval : undefined;
   const tags = demo && !r.prototype_of ? pageTagsOf(r) : {};
   const landed = r.landed ? (JSON.parse(r.landed) as { followUp?: boolean; needsClone?: boolean; resolve?: object }) : null;
   return {
+    updatedAt: r.updated_at,
     ...(scope?.length ? { scope } : {}),
+    ...(r.state === 'planned' && storedScope?.duplicateCheck && !storedScope.duplicateCheck.dismissed && storedScope.duplicateCheck.title === r.title && storedScope.duplicateCheck.body === r.body && storedScope.duplicateCheck.ids?.length ? { possibleDuplicates: storedScope.duplicateCheck.ids } : {}),
     ...(r.queue && (r.state ?? 'planned') === 'planned' ? { queue: JSON.parse(r.queue) as Item['queue'] } : {}),
     ...(pr?.url ? { pr: pullRequest(pr) } : {}),
     ...(pr?.more?.some((m) => m.url) ? { morePrs: pr.more.filter((m) => m.url).map(pullRequest) } : {}),
     ...(contribution ? { contribution: { url: contribution.url, number: contribution.number, author: contribution.author, title: contribution.title, canModify: contribution.canModify, ...(contribution.results ? { results: contribution.results } : {}), ...(contribution.findings ? { findings: contribution.findings } : {}), ...(contribution.requested ? { requested: contribution.requested } : {}), ...(contribution.held ? { held: { body: contribution.held.body, commits: contribution.held.commits, asks: contribution.held.asks } } : {}), ...(contribution.clash ? { clash: contribution.clash } : {}) } } : {}),
+    ...(codeReview ? { codeReview: shownCodeReview(codeReview) } : {}),
+    ...(r.session_id && r.agent_setting ? { workerSetting: JSON.parse(r.agent_setting) as Item['workerSetting'] } : {}),
     ...(r.status_line ? { statusLine: r.status_line } : {}),
     ...(detail.question && r.need === 'question' ? { question: detail.question } : {}),
     // a demo's question is as open as a worker's: the owner answers it on the card or by voice
@@ -3391,6 +3562,8 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
     ...(landed && (r.workspace || landed.needsClone) ? { finishing: true, ...(landed.followUp && !landed.resolve ? { followUp: true } : {}), ...(landed.needsClone && !r.workspace ? { waitsForClone: true } : {}) } : {}),
     ...(detail.noChange && handed ? { noChange: true } : {}),
     ...(detail.lands && handed ? { lands: detail.lands } : {}),
+    ...(detail.conflict && r.approved_at && r.state === 'working' ? { resolvingConflicts: true as const } : {}),
+    ...(detail.blocked && handed && !r.approved_at ? { blocked: detail.blocked } : {}),
     ...(detail.modelsUnchanged && handed ? { modelsUnchanged: detail.modelsUnchanged } : {}),
     ...(r.paused ? { paused: true } : {}),
     ...(r.pausing && !r.paused ? { pausing: true } : {}),
@@ -3417,9 +3590,9 @@ function shareOf(r: CardRow, themeNow?: ThemeNow): Item['share'] {
     ...(s.url ? { url: s.url } : {}),
     ...(on.length ? { on } : {}),
     ...(stale ? { stale: true } : {}),
-    // shown with each version on the page; the latest, not on it, brings the changes with „Auf der Seite ersetzen“ or „Zur Seite dazunehmen“
+    // shown with each version on the page; the latest, not on it, brings the changes with "Replace on the page" or "Add to the page"
     ...(outdated.length ? { outdated } : {}),
-    ...(s.personal && s.token ? { unlisted: true as const } : {}),
+    ...((s.unlisted || s.personal) && s.token ? { unlisted: true as const } : {}),
   };
 }
 
@@ -3490,7 +3663,7 @@ export interface StoredThread {
   thinking?: boolean;
   /**
    * What the owner asked that the agent has not answered yet: behind a running turn, or left by a
-   * restart; `talk`: asked in Obeya's sheet, whose exchange gets the answer too.
+   * restart; `talk`: asked in Seismic's sheet, whose exchange gets the answer too.
    */
   pending?: (Message & { talk?: number })[];
   answers: number;
@@ -3586,7 +3759,7 @@ const connectable = (i: Item) => i.source !== 'plan' && i.kind !== 'project';
 
 /**
  * Whether an arrow from `from` to `to` would close a cycle with the arrows between the cards shown
- * (`edges`; a deleted or archived card's count for nothing) and the waits Obeya inferred.
+ * (`edges`; a deleted or archived card's count for nothing) and the waits Seismic inferred.
  */
 function closesCycle(from: string, to: string, edges: [string, string][], items: Item[]): boolean {
   const shown = new Set(items.map((i) => i.id));

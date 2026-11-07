@@ -1,7 +1,7 @@
 // Signs that a card's change alters the data its project persists, read at its handover from the
 // branch's diff: a tripwire beside the worker's own declaration (`data_models`), so that a model
 // change does not reach the owner without its schema-change page. Generic signals only (DDL, the
-// usual migration and schema files, the usual migration calls of ORMs): Obeya cannot know how a
+// usual migration and schema files, the usual migration calls of ORMs): Seismic cannot know how a
 // repository defines its models, and a false alarm costs the worker one more call.
 
 /** A file of the change that looks like it alters persisted models, with what gave it away. */

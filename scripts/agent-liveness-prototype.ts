@@ -1,8 +1,8 @@
-// Experimental POSIX-only liveness supervisor, not used by Obeya.
+// Experimental POSIX-only liveness supervisor, not used by Seismic.
 // The caller starts this script with a private pipe as fd 3 and keeps its write end open.
 // It passes the command after `--`. On EOF the supervisor kills the child, its process group and
 // the descendants it observed. Only fd 0/1/2 reach the child: it cannot accidentally keep the
-// liveness pipe alive. With OBEYA_LIVENESS_REPORT_FD set, each identity it observes, the child's
+// liveness pipe alive. With SEISMIC_LIVENESS_REPORT_FD set, each identity it observes, the child's
 // first and before any agent code runs, goes to the caller there as a JSON line, so the caller can
 // clean up when this supervisor dies (`agent-liveness-owner.ts`).
 // This is a sampling experiment, not containment or a production crash-recovery mechanism.
@@ -20,7 +20,7 @@ if (process.platform === 'win32' || !argv.length) {
 
 // Optional report-only Linux registry. The child waits at a private gate until its identity has
 // been recorded. Record writes are fsynced, but the prototype is not a production crash guarantee.
-const registryRoot = process.env.OBEYA_PROTO_REGISTRY;
+const registryRoot = (process.env.SEISMIC_PROTO_REGISTRY ?? process.env.OBEYA_PROTO_REGISTRY);
 let registry: ReturnType<typeof createGeneration> | undefined;
 if (registryRoot) {
   try {
@@ -30,9 +30,11 @@ if (registryRoot) {
     console.error(`registry-generation:${registry.id}`);
   } catch (error) { console.error('registry startup:', error); process.exit(1); }
 }
-const reportFd = process.env.OBEYA_LIVENESS_REPORT_FD ? Number(process.env.OBEYA_LIVENESS_REPORT_FD) : undefined;
+const reportFd = (process.env.SEISMIC_LIVENESS_REPORT_FD ?? process.env.OBEYA_LIVENESS_REPORT_FD) ? Number((process.env.SEISMIC_LIVENESS_REPORT_FD ?? process.env.OBEYA_LIVENESS_REPORT_FD)) : undefined;
 const env = { ...process.env };
+delete env.SEISMIC_PROTO_REGISTRY;
 delete env.OBEYA_PROTO_REGISTRY;
+delete env.SEISMIC_LIVENESS_REPORT_FD;
 delete env.OBEYA_LIVENESS_REPORT_FD;
 // The shell cannot execute agent code until the supervisor releases fd 3. If the supervisor dies
 // first, EOF makes the shell exit; closing the descriptor before exec keeps it out of the agent.

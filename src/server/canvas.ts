@@ -11,15 +11,15 @@ import { demoDirectory, readDemoSettings } from '../../plugin/skills/demo/lib/se
 import { demoFile } from './demo-page';
 import { openWithSystem } from './machine';
 import { repoName } from '../adapters/generic';
-import type { DemoSite, RepoAdapter, RepoInfo } from '../adapters/types';
+import type { RepoAdapter, RepoInfo } from '../adapters/types';
 import type { CardDiff } from '../core/diff';
 import type { Language } from '../core/locale';
 import type { HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
-import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type CanvasConfig, prototypeWorkstream, type CardAction, untouched, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsProject, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
-import { startAgentSetting } from './settings';
+import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type CanvasConfig, type CanvasDefaults, type CanvasDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsProject, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
+import { appliedCanvasSettings, canvasAgentSetting, startAgentSetting } from './settings';
 import { asksAhead, holdsNotes } from '../core/queue';
 import { BadRequest, Board, pathOfRef, repoOfRef, replyNote, type StoredContribution } from './board';
-import type { ChangeRoute } from '../core/types';
+import type { FindingPick } from '../core/types';
 import { type Command, Commander } from './commands';
 import type { Config } from './config';
 import type { Store } from './db';
@@ -48,9 +48,9 @@ import { bundledSkills, Skills } from './skills';
 const sharedSkills = new Skills();
 import { OBEYA_PLUGIN } from './demo';
 import { changesCode, RESTART_PATIENCE_MS, whenIdle } from './self-update';
-import { Sharing, siteIncomplete } from './share';
-import { siteMissing, siteName } from './site';
-import { allowedHere, approvedHere, personalDemoSite, readPersonal } from './personal-site';
+import { Sharing, type ShareSite } from './share';
+import { isSitePath, siteMissing, siteName, sitePaths } from './site';
+import { demoSite, findSite } from './demo-sites';
 import { dimensions } from '../core/page-tags';
 import { type DueRestart, Workers } from './workers';
 import { branchSetting, type CardWorkspaces, defaultBranch, type FileAt, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, Workspaces } from './workspaces';
@@ -64,7 +64,7 @@ export type { CanvasConfig, RepoConfig };
 
 export interface CanvasDeps {
   store: Store;
-  /** Obeya's data directory (workspaces live under it). */
+  /** Seismic's data directory (workspaces live under it). */
   home: string;
   runtime: AgentRuntime;
   /** The skills the cards' agents know (`skillsOf`); Claude Code on this machine tells, when left out. */
@@ -72,7 +72,7 @@ export interface CanvasDeps {
   /** Runs the cards' workers; `runtime` when left out. */
   workerRuntime?: AgentRuntime;
   /**
-   * No agent works on a started card (`idleRuntime`, for a scratch Obeya): a script stands in for a
+   * No agent works on a started card (`idleRuntime`, for a scratch Seismic): a script stands in for a
    * card's agent instead (`standIn`).
    */
   idleWorkers?: boolean;
@@ -86,21 +86,21 @@ export interface CanvasDeps {
   commandDelayMs?: number;
   /** How long building or starting a card in a new repository waits for undo; NEW_REPO_HOLD_MS when left out. */
   newRepoHoldMs?: number;
-  /** The checkout this Obeya runs from, when it starts again for new code there (self-update.ts). */
+  /** The checkout this Seismic runs from, when it starts again for new code there (self-update.ts). */
   ownCheckout?: string | null;
-  /** Obeya's configuration, which the Koordinator reads and changes on the owner's word. */
+  /** Seismic's configuration, which the Koordinator reads and changes on the owner's word. */
   config?: Config;
   /** How long the owner stops typing in a card before what they wrote counts as written. */
   writingPauseMs?: number;
-  /** Added to every worker's environment (`OBEYA_URL`). */
+  /** Added to every worker's environment (`SEISMIC_URL`). */
   workerEnv?: Record<string, string>;
   /** How long a waiting card's app runs on before it is stopped (Parking); five minutes when left out. */
   parkGrace?: number;
   /** How often the watcher looks at open pull requests; two minutes when left out. */
   prPollMs?: number;
-  /** The language of Obeya's interface now (`ownerLanguage`): its own words; German when left out (the tests). */
+  /** The language of Seismic's interface now (`ownerLanguage`): its own words; German when left out (the tests). */
   language?: () => Language;
-  /** The owner's conversation language now (`conversationLanguage`): the agents', until the owner's words say otherwise; the interface's when left out. */
+  /** The owner's conversation language now (`conversationLanguage`): the agents', English when left out. */
   conversation?: () => Language;
   /** Whether approving work asks the owner for feedback on it now; on when left out (the tests). */
   asksFeedback?: () => boolean;
@@ -108,7 +108,9 @@ export interface CanvasDeps {
   limitMargin?: number;
   /** The model and effort of a group of agents (`agentSetting`), asked whenever one starts; the defaults when left out. */
   agents?: (role: AgentRole) => AgentSetting;
-  /** How long a restart of a repository's agents waits for them to pause at most; Obeya's patience for a restart when left out. */
+  /** Whether Codex workers' approvals go to Codex's own automatic review now, not the owner; to the owner when left out (the tests). */
+  codexAutoReview?: () => boolean;
+  /** How long a restart of a repository's agents waits for them to pause at most; Seismic's patience for a restart when left out. */
   restartPatienceMs?: number;
   /** How often that restart looks whether they paused; every two seconds when left out. */
   restartIntervalMs?: number;
@@ -119,7 +121,7 @@ export interface CanvasDeps {
   settings?: (repoPath: string) => RepoSettings | undefined;
   /** The canvas stopped while it ran: its home repository no longer starts (`Canvases` leaves it out). */
   stopped?: (c: CanvasRuntime, why: string) => void;
-  /** The canvases that run now, this one among them (`Canvases`): a card goes to another one, or Obeya makes one there. */
+  /** The canvases that run now, this one among them (`Canvases`): a card goes to another one, or Seismic makes one there. */
   canvases?: () => CanvasRuntime[];
 }
 
@@ -149,11 +151,7 @@ export interface RepoRuntime {
   ref: RepoRef;
   info: RepoInfo;
   adapter: RepoAdapter;
-  /** The demo site of its settings, where its demos are shared; null where they go to the owner's personal site, or are exported. */
-  site: DemoSite | null;
-  /** Its forge says it is public: its demos may go to the owner's personal site without the owner's tick. */
-  isPublic?: boolean;
-  /** Its Lesestand: the default branch, where plan docs are read and the agents that only read work. */
+  /** Its read checkout: the default branch, where plan docs are read and the agents that only read work. */
   read: ReadTree;
   workspaces: CardWorkspaces;
   workers: Workers;
@@ -164,11 +162,11 @@ export interface RepoRuntime {
 interface Repo extends RepoRuntime {
   /** Its entry in the configuration. */
   config: RepoConfig;
-  /** Stops its Lesestand and the retries for clones on other machines. */
+  /** Stops its read checkout and the retries for clones on other machines. */
   stops: (() => void)[];
   /** Stops watching its plan docs. */
   docs?: () => void;
-  /** Its plan docs as last read from its Lesestand: what the canvas shows while git moves the Lesestand. */
+  /** Its plan docs as last read from its read checkout: what the canvas shows while git moves the read checkout. */
   planDocs?: ReturnType<typeof readPlanDocs>;
   /** Watches its pull requests, once its work went out as one; it stays for those still open. */
   prs?: PrWatcher;
@@ -194,9 +192,9 @@ interface RepoRestart {
   stop: () => void;
 }
 
-/** How long a host that could not be reached at start (or failed to clone) waits before Obeya tries again. */
+/** How long a host that could not be reached at start (or failed to clone) waits before Seismic tries again. */
 const HOST_RETRY_MS = 2 * 60_000;
-/** How often Obeya looks for snoozed cards whose time has come. */
+/** How often Seismic looks for snoozed cards whose time has come. */
 const WAKE_EVERY_MS = 15_000;
 
 /** The owner's actions on a card that change only the board: they go also while its repository does not run on the canvas. */
@@ -217,7 +215,7 @@ let making: Promise<unknown> = Promise.resolve();
 export class CanvasRuntime {
   readonly board: Board;
   readonly koordinator: Koordinator;
-  /** The Arbeitsrückschau: friction in the workers' runs, made into proposals. */
+  /** The work retrospective: friction in the workers' runs, made into proposals. */
   readonly workRetro: WorkRetro;
   readonly commander: Commander;
   readonly explorers: Explorers;
@@ -231,15 +229,17 @@ export class CanvasRuntime {
   readonly merges: Merges;
   /** The skills of the cards' agents, by repository. */
   private readonly skills: Skills;
-  /** Demos shared with colleagues, on the demo site of the card's repository. */
+  /** Demos shared with colleagues, on the canvas's demo site. */
   readonly sharing: Sharing;
   /** Its repositories, the home one first. */
   readonly repos: Repo[] = [];
   /** Its configuration as it runs now (the home repository first). */
   private config: CanvasConfig;
+  /** The model and effort a group of the canvas's agents starts with now. */
+  private agentFor: (role: AgentRole) => AgentSetting;
   /** By repository's path: what takes back where the main branch the owner set is read. */
   private branchSettings = new Map<string, () => void>();
-  /** By repository's path: its `.obeya/settings.json` as the Lesestand last had it. */
+  /** By repository's path: its `.obeya/settings.json` as the read checkout last had it. */
   private shared = new Map<string, SharedRead>();
   /** By repository's path: its commands that do not count until the owner confirms them, as last worked out (`heldOf`). */
   private held = new Map<string, TrustGroup[]>();
@@ -253,7 +253,7 @@ export class CanvasRuntime {
   private shutDown = false;
   /** By repository's id: why it does not run as the configuration has it (`StartFailure`). */
   private failed = new Map<string, { detail: string; before?: true }>();
-  /** The restart of all of Obeya that waits, if one does: it covers the repositories' too. */
+  /** The restart of all of Seismic that waits, if one does: it covers the repositories' too. */
   private obeyaDue: DueRestart | null = null;
   /** The owner paused the canvas's agents (kept across restarts, `paused` of its stored settings): cards the Koordinator lets start wait until they resume them. */
   private paused = false;
@@ -270,16 +270,28 @@ export class CanvasRuntime {
    */
   inView: Place | undefined;
 
+  get dataStore(): Store { return this.deps.store; }
+
+  /** What the code reviews' agents run on (`WorkerOptions.reviewRuntime`). */
+  private reviewRuntime!: AgentRuntime;
+
+  /** The canvas's own settings as they apply (design: The canvas settings). */
+  settings(): CanvasDefaults { return appliedCanvasSettings(this.config); }
+
   constructor(config: CanvasConfig, private deps: CanvasDeps) {
-    const agents = deps.agents ?? ((role: AgentRole) => AGENT_DEFAULTS[role]);
-    // the agents other than workers and Obeya's chat wait for the usage limit through it, each where it shows;
+    // Configuration's model and effort of each group, with the canvas's own over it (design: The canvas settings)
+    const agents = (role: AgentRole) => canvasAgentSetting(role, deps.agents?.(role) ?? AGENT_DEFAULTS[role], this.config?.agents);
+    this.agentFor = agents;
+    // the agents other than workers and Seismic's chat wait for the usage limit through it, each where it shows;
     // each names its harness and model where it shows at work
     const runtime = (r: AgentRuntime) => withLimitWait(withRepoTrust(withAgentSetting(withCodexTrust(withTrustedAllow(r, this.allowRules), this.codexTrusted), agents, (at, agent, session) => this.board?.showAtWork(at, agent, session)), this.claudeHeld), deps.limitMargin);
     const workerRuntime = deps.workerRuntime ?? (deps.idleWorkers ? idleRuntime : undefined);
+    // code reviews run where workers do (Claude Code or Codex), and also where workers are idle, as the other agents do
+    this.reviewRuntime = runtime(deps.workerRuntime ?? deps.runtime);
     deps = { ...deps, runtime: runtime(deps.runtime), ...(workerRuntime ? { workerRuntime: runtime(workerRuntime) } : {}) };
     this.deps = deps;
     this.skills = deps.skills ?? sharedSkills;
-    // the main branch the owner set counts from the start: the repository's id, its settings and its Lesestand go by it
+    // the main branch the owner set counts from the start: the repository's id, its settings and its read checkout go by it
     for (const r of config.repos) this.useBranch(r);
     this.config = config;
     const resolved = this.resolve(config);
@@ -309,6 +321,7 @@ export class CanvasRuntime {
       repoLanguage: (repo) => (this.repos.find((r) => r.ref.id === repo) ?? this.repos[0]!).adapter.language,
     });
     board.showSettings(this.settingsNow);
+    board.archiving = () => this.settings().archive;
     board.readPlanHistory((ref) => {
       const repo = this.repos.find((r) => r.ref.id === repoOfRef(ref, board.home));
       const path = pathOfRef(ref);
@@ -322,7 +335,7 @@ export class CanvasRuntime {
       } catch (e) {
         // without its home repository the canvas does not start; another one is left out, its cards kept
         if (i === 0) throw new HomeDown(id, e);
-        console.error(`Obeya: ${x.read.info.path} does not start, left out of the canvas ${id}: ${messageOf(e)}`);
+        console.error(`Seismic: ${x.read.info.path} does not start, left out of the canvas ${id}: ${messageOf(e)}`);
         this.fail(x.ref.id, e);
       }
     });
@@ -351,9 +364,11 @@ export class CanvasRuntime {
         return { workers: r.workers, workspaces: r.workspaces, adapter: r.adapter, path: r.read.path, folder: !!r.info.folder };
       },
       imageFiles: this.imageFiles,
+      // the toggles as the configuration has them now: a saved change applies to the next suggestion
+      suggests: () => this.config.suggest ?? {},
     }));
     koordinator.resume();
-    // a card whose page closed before Obeya named it
+    // a card whose page closed before Seismic named it
     for (const i of board.items()) if (i.state === 'planned' && !i.queue && nameless(i)) void koordinator.name(i.id);
     this.explorers = new Explorers({
       board,
@@ -396,13 +411,13 @@ export class CanvasRuntime {
       onAnswer: (talk, question, answer) => {
         // looked up for an action: the Koordinator takes it now, hearing the answer with it
         if (this.commander.answerIn(talk)) return;
-        // asked in a project's sheet, the question went to its project agent without Obeya reading it
+        // asked in a project's sheet, the question went to its project agent without Seismic reading it
         const sheet = board.exchange(talk)?.askedIn;
         const project = sheet ? board.item(sheet)?.title : undefined;
         this.commander.tell(
           project !== undefined
-            ? `The owner asked the project agent of "${project}" in its sheet: „${question}“. Its answer ${answerTag(talk)} was shown to them there: ${answer}`
-            : `The answer ${answerTag(talk)} you looked up for the owner's question „${question}“ came in and was shown to them: ${answer}`,
+            ? `The owner asked the project agent of "${project}" in its sheet: “${question}”. Its answer ${answerTag(talk)} was shown to them there: ${answer}`
+            : `The answer ${answerTag(talk)} you looked up for the owner's question “${question}” came in and was shown to them: ${answer}`,
         );
       },
     });
@@ -434,19 +449,19 @@ export class CanvasRuntime {
       onRevised: (cardId, revised) => this.revised(cardId, revised),
     });
     this.revisions.resume();
-    this.merges = new Merges({ board, runtime: deps.runtime, preferences: this.preferences, pathFor: (card) => this.repoOf(card).read.path });
+    this.merges = new Merges({ board, runtime: deps.runtime, imageFiles: this.imageFiles, preferences: this.preferences, pathFor: (card) => this.repoOf(card).read.path });
     this.merges.resume();
     this.sharing = new Sharing({
       board,
       runtime: deps.runtime,
       home: deps.home,
       forge: deps.forge,
-      // the site of a repository not running is not known meanwhile
+      // a repository not running has no checkout to publish from meanwhile
       sourceFor: (card) => {
         const r = this.runs(card) ? this.repoOf(card) : undefined;
         if (!r) return null;
         const path = r.info.path;
-        return { site: r.site, repo: path, ...(r.isPublic ? { isPublic: true } : {}), theme: () => this.themeOf(path) };
+        return { site: this.shareSite(), repo: path, title: this.board.canvas.name, theme: () => this.themeOf(path) };
       },
       languageFor: (card) => (this.runs(card) ? this.repoOf(card).adapter.demo?.language : undefined),
       onPage: (cardId, r) => {
@@ -455,11 +470,11 @@ export class CanvasRuntime {
       },
     });
     this.sharing.resume();
-    // the pages without tags the Koordinator's sheet offers to tag, by each repository's site
-    board.showVocabulary((repo) => {
-      const site = this.repos.find((r) => r.ref.id === repo)?.site;
-      return site && dimensions(site.tags).length ? site.tags : undefined;
-    });
+    // the canvas's demo site, as the page shows it
+    const site = this.siteState();
+    if (site) board.canvas.demoSite = site;
+    // the pages without tags the Koordinator's sheet offers to tag, by the canvas's site
+    board.showVocabulary(() => this.vocabulary());
     // the pages a repository's new theme leaves outdated
     board.showThemes((repo) => {
       const r = this.repos.find((x) => x.ref.id === repo);
@@ -467,7 +482,7 @@ export class CanvasRuntime {
       const theme = this.themeKnown(r.info.path);
       return theme === undefined ? undefined : (theme?.hash ?? null);
     });
-    // snoozed cards wake at their time: one that passed while Obeya was not running, or the machine slept, at once
+    // snoozed cards wake at their time: one that passed while Seismic was not running, or the machine slept, at once
     this.wakeDue();
     this.waker = setInterval(() => this.wakeDue(), WAKE_EVERY_MS);
     this.waker.unref?.();
@@ -560,10 +575,10 @@ export class CanvasRuntime {
 
   private preferences = () => this.board.preferencesText();
 
-  /** What an agent passes on to Obeya (`forward`). */
+  /** What an agent passes on to Seismic (`forward`). */
   private toObeya = (cardId: string, request: string) => this.forward(cardId, request);
 
-  /** The settings of a repository the Arbeitsrückschau may propose a value for, as they apply now. */
+  /** The settings of a repository the work retrospective may propose a value for, as they apply now. */
   private settingsNow = (repo: string): Record<ProposedSetting, string | string[]> | undefined => {
     const a = this.repos.find((r) => r.ref.id === repo)?.adapter;
     return a && { checks: a.checks ?? [], setup: a.setup ?? '', softPaths: a.softPaths, run: a.app?.run ?? '' };
@@ -575,7 +590,7 @@ export class CanvasRuntime {
   private settingsOf = (r: RepoConfig): (() => RepoSettings | undefined) => (this.deps.settings ? () => this.deps.settings!(resolve(r.path)) : () => r.settings);
 
   /**
-   * The repository's settings for everyone, as its Lesestand last had them (read again whenever it
+   * The repository's settings for everyone, as its read checkout last had them (read again whenever it
    * moves, `reread`), without the commands that wait for the owner's confirmation (`heldOf`).
    */
   private sharedOf = (path: string): (() => SharedSettings | undefined) => {
@@ -632,12 +647,12 @@ export class CanvasRuntime {
       const mine = this.deps.settings ? this.deps.settings(path) : this.config?.repos.find((r) => resolve(r.path) === path)?.settings;
       held = heldGroups(commandsOf(this.shared.get(path)), this.deps.store.trustedCommands(path), mine);
       this.held.set(path, held);
-      if (held.length) console.warn(`Obeya: ${path}: ${held.join(', ')} of its settings wait for the owner's confirmation in Konfiguration (held)`);
+      if (held.length) console.warn(`Seismic: ${path}: ${held.join(', ')} of its settings wait for the owner's confirmation in Configuration (held)`);
     }
     return held;
   }
 
-  /** The repository of the canvas that `cwd` lies in (its checkout, its Lesestand, a workspace of it; the most specific, since the home repository's workspaces hold the others'). */
+  /** The repository of the canvas that `cwd` lies in (its checkout, its read checkout, a workspace of it; the most specific, since the home repository's workspaces hold the others'). */
   private repoAt(cwd: string): Repo | undefined {
     const depth = (dir: string) => (cwd === dir || cwd.startsWith(dir.endsWith(sep) || dir.endsWith('/') ? dir : `${dir}${dir.includes('://') ? '/' : sep}`) ? dir.length : -1);
     let best: { r: Repo; at: number } | undefined;
@@ -689,10 +704,10 @@ export class CanvasRuntime {
 
   /**
    * Whether an agent working in `cwd` works in a repository of the canvas (its checkout, its
-   * Lesestand, a workspace of it; the most specific, since the home repository's workspaces hold
+   * read checkout, a workspace of it; the most specific, since the home repository's workspaces hold
    * the others') whose own Claude Code configuration waits for the owner's trust. As the default
    * branch has it now, not as the canvas last read it: a commit there that the canvas did not notice
-   * (on the checkout's main, from outside Obeya) is in the files the session reads. Agents start
+   * (on the checkout's main, from outside Seismic) is in the files the session reads. Agents start
    * often, many at once when work lands: what was read stands while the repository's refs did not
    * move (`refsSeal`), and git reads it again without the server waiting for it.
    */
@@ -745,11 +760,11 @@ export class CanvasRuntime {
     if (!this.branchSettings.has(path)) this.branchSettings.set(path, useBranchSetting(path, () => this.settingsOf(r)()?.branch));
   }
 
-  /** The plan docs of all its repositories, each from its Lesestand: the home repository's by their bare path, the others' with the repository's id before it. */
+  /** The plan docs of all its repositories, each from its read checkout: the home repository's by their bare path, the others' with the repository's id before it. */
   private planDocs() {
     const home = this.repos[0]?.ref.id;
     const read = this.repos.map((r) => {
-      // while git moves the Lesestand its files are half the one commit and half the other: the docs read before stand
+      // while git moves the read checkout its files are half the one commit and half the other: the docs read before stand
       if (!r.read.moving || !r.planDocs) r.planDocs = readPlanDocs(r.read.path, r.adapter);
       return { r, ...r.planDocs };
     });
@@ -760,7 +775,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * Sets up the repository at `index` of a resolved configuration: its Lesestand, workspaces (clones
+   * Sets up the repository at `index` of a resolved configuration: its read checkout, workspaces (clones
    * here and on other machines), project agents and workers. Its workers resume nothing yet.
    */
   private startRepo(resolved: Resolved, index: number): Repo {
@@ -773,17 +788,14 @@ export class CanvasRuntime {
       ref,
     } = resolved.repos[index]!;
     const isHome = index === 0;
-    for (const p of this.shared.get(info.path)?.problems ?? []) console.warn(`Obeya: ${info.path}: ${p} (ignored)`);
-    const site = siteOf(adapter);
-    // public as its forge said last time: workers resumed before it answers again get the tools of a repository that shares
-    const isPublic = !info.folder && board.setting(visibilityKey(info.path)) === 'public';
-    // whether the repository shares here, which the UI shows
-    Object.assign(ref, shareRef(site, deps.home, info.path, isPublic));
+    for (const p of this.shared.get(info.path)?.problems ?? []) console.warn(`Seismic: ${info.path}: ${p} (ignored)`);
+    // whether the canvas shares here, which the UI shows
+    Object.assign(ref, this.shareRef());
     const stops: (() => void)[] = [];
     // filled in below; what is set up here reaches it once it is
-    const repo = { config: rc, stops, from: { resolved, index }, ...(isPublic ? { isPublic } : {}) } as Repo;
+    const repo = { config: rc, stops, from: { resolved, index } } as Repo;
     repo.problemSources = this.problemSources(info.path, this.adapterModules.get(info.path));
-    // where work lands on the local main, the checkout is the Lesestand; otherwise it is a pool clone on a card's branch
+    // where work lands on the local main, the checkout is the read checkout; otherwise it is a pool clone on a card's branch
     const folder = !!info.folder;
     const read = new ReadTree({
       repoPath: info.path,
@@ -801,7 +813,7 @@ export class CanvasRuntime {
     let workers!: Workers;
     let workspaces: CardWorkspaces;
     if (folder)
-      // every card works in the folder itself; what each changed, and its undo, under Obeya's home
+      // every card works in the folder itself; what each changed, and its undo, under Seismic's home
       workspaces = new FolderWorkspaces(deps.store, { path: info.path, dir: join(deps.home, 'undo', resolved.id, ref.id) });
     else {
       const git = new Workspaces(deps.store, resolved.id, {
@@ -813,6 +825,8 @@ export class CanvasRuntime {
         busy: (host) => workers.busyOn(host),
         ...(adapter.app?.stop ? { stop: adapter.app.stop } : {}),
         origins: [info.remote, info.path].filter((x): x is string => !!x),
+        projectOf: (cardId) => this.config.projectBaselines !== false ? board.item(cardId)?.parent : undefined,
+        baselineConfigured: (cardId, tag, commit) => board.log(cardId, 'state', 'obeya', board.t.worker.projectBaseline(tag, commit)),
         changed: () => board.changed(),
       });
       const named: string[] = [];
@@ -831,7 +845,7 @@ export class CanvasRuntime {
       for (const { card, path } of git.keepOnly(null, named)) board.workspaceGone(card, path);
       const hosts = new Set(remoteHosts.map((h) => h.name));
       for (const host of new Set(git.list().map((w) => hostName(w.path)))) if (host !== null && !hosts.has(host)) git.keepOnly(host, []);
-      // the folders of Obeya's clones that left the pool earlier go once nothing in them would be lost
+      // the folders of Seismic's clones that left the pool earlier go once nothing in them would be lost
       git.sweep();
       workspaces = git;
     }
@@ -865,7 +879,11 @@ export class CanvasRuntime {
     workers = new Workers({
       board,
       runtime: deps.workerRuntime ?? deps.runtime,
-      agentSetting: () => (deps.agents ?? ((r: AgentRole) => AGENT_DEFAULTS[r]))('worker'),
+      agentSetting: () => this.agentFor('worker'),
+      ...(deps.codexAutoReview ? { codexAutoReview: deps.codexAutoReview } : {}),
+      codeReviews: () => this.settings().codeReviews,
+      reviewRuntime: this.reviewRuntime,
+      reviewAgentSetting: () => this.agentFor('review'),
       workspaces,
       adapter,
       machineSettings: this.settingsOf(rc),
@@ -873,6 +891,7 @@ export class CanvasRuntime {
       asOwner: this.asOwner,
       harnesses: () => ['Claude Code', ...(codexConnected() ? ['Codex'] : [])],
       shares: () => !!repo.ref.share,
+      vocabulary: () => this.vocabulary(),
       repo: ref.id,
       otherBoards: () => (deps.canvases?.() ?? []).filter((c) => c !== this).map((c) => c.board),
       preferences: this.preferences,
@@ -889,8 +908,8 @@ export class CanvasRuntime {
       onFollowUpTask: (taskId, reviewId) => this.koordinator.followUp(taskId, reviewId),
       onPrototype: (prototype, summary, demo) => this.prototypeReady(prototype, summary, demo),
       onPrototypeAnswer: (prototype, question, answer) => this.prototypeAnswered(prototype, question, answer),
-      // where work lands on the local main, the Lesestand is the checkout and moves with the landing;
-      // a push leaves the checkout as it is: what it changes applies once the Lesestand fetches it
+      // where work lands on the local main, the read checkout is the checkout and moves with the landing;
+      // a push leaves the checkout as it is: what it changes applies once the read checkout fetches it
       restartsFor: async (l: Landed, pushedFrom?: string) => {
         if (pushedFrom) return false;
         if (deps.ownCheckout && sameDir(deps.ownCheckout, info.path) && (await changesCode(info.path, l.from, l.to))) return 'obeya';
@@ -912,29 +931,8 @@ export class CanvasRuntime {
       demoDirectory: () => demoDirectory(readDemoSettings(deps.home)),
       ...(deps.parkGrace !== undefined ? { parkGrace: deps.parkGrace } : {}),
     });
-    Object.assign(repo, { ref, info, adapter, site, read, workspaces, workers, projectAgents });
-    void this.lookVisibility(repo);
+    Object.assign(repo, { ref, info, adapter, read, workspaces, workers, projectAgents });
     return repo;
-  }
-
-  /**
-   * Asks the repository's forge whether it is public: a public one shares on the owner's personal
-   * site without a tick. Until the answer it is as the forge said last time (kept across restarts),
-   * private where it never answered; where the forge cannot tell, it counts as private. A question
-   * that fails leaves the last answer standing.
-   */
-  private async lookVisibility(r: Repo) {
-    if (r.info.folder || !this.deps.forge.visibility) return;
-    let v: 'public' | 'private' | null;
-    try {
-      v = await this.deps.forge.visibility(r.info.path);
-    } catch {
-      return;
-    }
-    this.board.setSetting(visibilityKey(r.info.path), v ?? 'unknown');
-    if ((v === 'public') === !!r.isPublic) return;
-    r.isPublic = v === 'public';
-    this.siteCredentials();
   }
 
   /** Puts a repository set up by `startRepo` on the canvas, last. */
@@ -945,7 +943,7 @@ export class CanvasRuntime {
     this.proposeSetup(r);
   }
 
-  /** Stops what the repository set up: its Lesestand, the watchers, its workers' sessions. Its cards stay. */
+  /** Stops what the repository set up: its read checkout, the watchers, its workers' sessions. Its cards stay. */
   private stopRepo(r: Repo) {
     for (const stop of r.stops) stop();
     r.docs?.();
@@ -954,8 +952,8 @@ export class CanvasRuntime {
   }
 
   /**
-   * Watches the plan docs of the repository in its Lesestand, afresh where they were watched (the
-   * directory or the Lesestand moved), and its pull requests once its work goes out as one or a
+   * Watches the plan docs of the repository in its read checkout, afresh where they were watched (the
+   * directory or the read checkout moved), and its pull requests once its work goes out as one or a
    * card is in one (its own branch said so); a watcher of pull requests stays, for those still open.
    */
   private watch(r: Repo) {
@@ -992,15 +990,19 @@ export class CanvasRuntime {
     try {
       resolved = this.resolve(next);
     } catch (e) {
-      console.error(`Obeya: the new configuration of the canvas ${this.id} does not resolve; it runs on as it was: ${messageOf(e)}`);
+      console.error(`Seismic: the new configuration of the canvas ${this.id} does not resolve; it runs on as it was: ${messageOf(e)}`);
       return;
     }
+    const reviewsBefore = JSON.stringify(this.settings().codeReviews);
+    const archiveBefore = this.settings().archive;
     this.config = resolved.config;
     if (resolved.name !== this.board.canvas.name) {
       this.board.canvas.name = resolved.name;
       this.deps.store.ensureCanvas(this.id, resolved.name);
-      console.log(`Obeya: the canvas ${this.id} is called ${resolved.name} now`);
+      console.log(`Seismic: the canvas ${this.id} is called ${resolved.name} now`);
     }
+    // its demo site may be another, or under another path
+    this.siteCredentials();
     const changed = this.repos.filter((r) => {
       const now = resolved.repos.find((x) => x.read.info.path === r.info.path);
       if (!now || repoShape(r.config) !== repoShape(now.config) || r.ref.id !== now.ref.id) return true;
@@ -1019,15 +1021,19 @@ export class CanvasRuntime {
       try {
         r = this.startRepo(resolved, i);
       } catch (e) {
-        console.error(`Obeya: ${info.path} does not start, left out of the canvas ${this.id}: ${messageOf(e)}`);
+        console.error(`Seismic: ${info.path} does not start, left out of the canvas ${this.id}: ${messageOf(e)}`);
         return this.fail(resolved.repos[i]!.ref.id, e);
       }
       this.addRepo(r);
       this.ran(r.ref.id);
-      console.log(`Obeya: ${info.path} is on the canvas ${this.id} now`);
+      console.log(`Seismic: ${info.path} is on the canvas ${this.id} now`);
       if (this.obeyaDue) r.workers.restartDue(this.obeyaDue);
       r.workers.resumeAll(true);
     });
+    // whose approved cards ask for feedback depends on it
+    if (this.settings().archive !== archiveBefore) this.board.changed();
+    // work already waiting for approval takes the canvas's new code review setting
+    if (JSON.stringify(this.settings().codeReviews) !== reviewsBefore) for (const r of this.repos) (r.workers.holdAutoReviews(), void r.workers.codeReviewsChanged());
     return this.settingsChanged();
   }
 
@@ -1042,8 +1048,8 @@ export class CanvasRuntime {
 
   /**
    * Restarts the agents of the repositories at `paths` once they paused (`restartRepos`), at most
-   * after Obeya's patience for a restart; Obeya and the other repositories' agents work on. They
-   * hear of it and pause at a safe point, unless a restart of all of Obeya is due already.
+   * after Seismic's patience for a restart; Seismic and the other repositories' agents work on. They
+   * hear of it and pause at a safe point, unless a restart of all of Seismic is due already.
    */
   private due(paths: string[], reason: RepoRestart['reason']) {
     if (!paths.length) return;
@@ -1056,7 +1062,7 @@ export class CanvasRuntime {
     }
     const due = repoDue(p);
     for (const r of this.repos) if (paths.includes(r.info.path) && !this.obeyaDue) r.workers.restartDue(due);
-    console.log(`Obeya: ${this.retiring ? `the canvas ${this.id} leaves the configuration; it stops` : `restarting the agents of ${paths.join(', ')}`}${this.pendingBusy().length ? ' once they paused' : ''}`);
+    console.log(`Seismic: ${this.retiring ? `the canvas ${this.id} leaves the configuration; it stops` : `restarting the agents of ${paths.join(', ')}`}${this.pendingBusy().length ? ' once they paused' : ''}`);
     p.waiting = this.pendingBusy();
     this.emitPending();
     if (!fresh) return;
@@ -1108,7 +1114,7 @@ export class CanvasRuntime {
       const done = this.retiring;
       this.retiring = null;
       this.shutdown();
-      console.log(`Obeya: the canvas ${this.id} stopped; its cards are kept`);
+      console.log(`Seismic: the canvas ${this.id} stopped; its cards are kept`);
       done();
       return;
     }
@@ -1116,7 +1122,7 @@ export class CanvasRuntime {
     try {
       resolved = this.resolve(this.config);
     } catch (e) {
-      console.error(`Obeya: the configuration of the canvas ${this.id} does not resolve; its repositories run on as they were: ${messageOf(e)}`);
+      console.error(`Seismic: the configuration of the canvas ${this.id} does not resolve; its repositories run on as they were: ${messageOf(e)}`);
       for (const r of this.repos) if (p.paths.has(r.info.path)) r.workers.restartDue(this.obeyaDue);
       this.emitPending();
       return;
@@ -1133,7 +1139,7 @@ export class CanvasRuntime {
         if (was) this.ran(was.ref.id);
         this.branchSettings.get(path)?.();
         this.branchSettings.delete(path);
-        console.log(`Obeya: ${path} left the canvas ${this.id}; its cards are kept`);
+        console.log(`Seismic: ${path} left the canvas ${this.id}; its cards are kept`);
         continue;
       }
       const repo = resolved.repos[i]!.ref.id;
@@ -1141,24 +1147,24 @@ export class CanvasRuntime {
       try {
         r = this.startRepo(resolved, i);
         this.ran(repo);
-        console.log(`Obeya: restarted the agents of ${path}`);
+        console.log(`Seismic: restarted the agents of ${path}`);
       } catch (e) {
         // it starts again as it was set up before; where that fails too, it leaves the canvas, its cards kept
-        console.error(`Obeya: the agents of ${path} do not start as the configuration has it now: ${messageOf(e)}`);
+        console.error(`Seismic: the agents of ${path} do not start as the configuration has it now: ${messageOf(e)}`);
         try {
           if (was) {
             r = this.startRepo(was.from.resolved, was.from.index);
-            console.log(`Obeya: the agents of ${path} work on as they were set up before`);
+            console.log(`Seismic: the agents of ${path} work on as they were set up before`);
           }
         } catch (again) {
-          console.error(`Obeya: nor as they were set up before: ${messageOf(again)}`);
+          console.error(`Seismic: nor as they were set up before: ${messageOf(again)}`);
         }
         this.fail(repo, e, !!r);
         if (!r && i === 0) homeDown = e;
       }
       if (!r) {
         if (at >= 0) this.repos.splice(at, 1);
-        if (!homeDown) console.log(`Obeya: ${path} is left out of the canvas ${this.id}; its cards are kept`);
+        if (!homeDown) console.log(`Seismic: ${path} is left out of the canvas ${this.id}; its cards are kept`);
         continue;
       }
       if (at >= 0) this.repos.splice(at, 1, r);
@@ -1169,7 +1175,7 @@ export class CanvasRuntime {
       // without its home repository the canvas does not run: it stops, its cards kept
       this.stopped = true;
       this.shutdown();
-      console.error(`Obeya: the home repository of the canvas ${this.id} does not start; the canvas stopped, its cards are kept`);
+      console.error(`Seismic: the home repository of the canvas ${this.id} does not start; the canvas stopped, its cards are kept`);
       this.emitPending();
       this.deps.stopped?.(this, messageOf(homeDown));
       return;
@@ -1217,7 +1223,7 @@ export class CanvasRuntime {
         this.agentOf(i.id).pauseAtSafePoint(i.id);
         paused++;
       } catch (e) {
-        console.error(`Obeya: the agent of ${i.id} did not pause: ${messageOf(e)}`);
+        console.error(`Seismic: the agent of ${i.id} did not pause: ${messageOf(e)}`);
       }
     }
     // set once they paused: until then the canvas would count none paused, which ends its pause
@@ -1236,7 +1242,7 @@ export class CanvasRuntime {
       try {
         this.agentOf(i.id).resume(i.id);
       } catch (e) {
-        console.error(`Obeya: the agent of ${i.id} did not resume: ${messageOf(e)}`);
+        console.error(`Seismic: the agent of ${i.id} did not resume: ${messageOf(e)}`);
       }
     }
     if (!this.paused || this.board.items().some(halted)) return;
@@ -1320,7 +1326,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * The Lesestand of the repository moved, or its settings were saved: reads its
+   * The read checkout of the repository moved, or its settings were saved: reads its
    * `.obeya/settings.json` again from the default branch; the settings apply where they are read.
    * Where the repository's agents now work elsewhere (clones or worktrees, set up when they start),
    * they restart once they paused (`due`); where demos are shared may have changed, and so may the
@@ -1390,12 +1396,6 @@ export class CanvasRuntime {
       this.due([path], shared ? 'repository' : 'config');
       return 'due';
     }
-    const site = siteOf(r.adapter);
-    if (JSON.stringify(site) !== JSON.stringify(r.site)) {
-      r.site = site;
-      setShare(r.ref, shareRef(site, this.deps.home, r.info.path, !!r.isPublic));
-      return 'follow';
-    }
     return shared || problems || held ? 'follow' : 'same';
   }
 
@@ -1425,13 +1425,13 @@ export class CanvasRuntime {
       return false;
     }
     this.shared.set(path, now);
-    for (const p of now.problems) console.warn(`Obeya: ${path}: ${p} (ignored)`);
+    for (const p of now.problems) console.warn(`Seismic: ${path}: ${p} (ignored)`);
     this.deps.config?.takenOver(path, before?.settings, now.settings);
     return true;
   }
 
   /**
-   * What the canvas set up by the repositories' settings follows them: the Lesestand where work
+   * What the canvas set up by the repositories' settings follows them: the read checkout where work
    * now lands elsewhere, the watched plan directory, the pull requests, what the page shows of
    * each repository.
    */
@@ -1440,7 +1440,7 @@ export class CanvasRuntime {
       r.info.branch = defaultBranch(r.info.path);
       for (const k of ['pullRequests', 'direct', 'forge'] as const) delete r.ref[k];
       Object.assign(r.ref, settled(r.info, r.adapter));
-      // where work lands on the local main, the checkout is the Lesestand; otherwise a worktree on the default branch
+      // where work lands on the local main, the checkout is the read checkout; otherwise a worktree on the default branch
       r.read.retarget(r.info.folder || r.adapter.land === 'main' ? null : join(this.deps.home, 'read', this.id, r.ref.id));
       this.watch(r);
     }
@@ -1509,8 +1509,8 @@ export class CanvasRuntime {
     if (!idea) {
       const row = this.board.row(cardId);
       // Legacy unqualified sessions belong to Claude even after the default changes.
-      const setting = row.agent_setting ? JSON.parse(row.agent_setting) : row.session_id ? undefined : this.deps.agents?.('worker');
-      if (setting?.harness === 'codex') return bundledSkills().map(({ file: _, ...skill }) => skill);
+      const setting = row.agent_setting ? JSON.parse(row.agent_setting) : row.session_id ? undefined : this.agentFor('worker');
+      if (setting?.harness === 'codex' || setting?.harness === 'agy') return bundledSkills().map(({ file: _, ...skill }) => skill);
     }
     return this.skills.of({ cwd, plugins: idea ? [] : [OBEYA_PLUGIN], untrusted: (!idea && !!card.contribution) || (await this.claudeHeld(cwd)) });
   }
@@ -1565,9 +1565,9 @@ export class CanvasRuntime {
   }
 
   /**
-   * A rule the owner gives outright, by „Merk dir: …“ or in the sheet: one of theirs, active at once,
+   * A rule the owner gives outright, by "Remember: …" or in the sheet: one of theirs, active at once,
    * or with `repos` one for those repositories' CLAUDE.md, which goes straight into their cards
-   * „CLAUDE.md ergänzen“. `replaces`: the active rule it changes; `card`: the card open when it was said.
+   * "Add to CLAUDE.md". `replaces`: the active rule it changes; `card`: the card open when it was said.
    */
   remember(text: string, o: { repos?: string[]; replaces?: number; card?: string } = {}) {
     // the rule it changes may have been deleted in the meantime: then it is a new one
@@ -1585,7 +1585,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * The owner takes a setting the Arbeitsrückschau proposed, as it is or with their `value`: on
+   * The owner takes a setting the work retrospective proposed, as it is or with their `value`: on
    * this machine, or into the repository's `.obeya/settings.json` for everyone (`Config.takeSetting`).
    */
   async takeSetting(id: number, where: unknown, value?: unknown): Promise<SettingsShared | null> {
@@ -1608,7 +1608,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * Once no proposal waits any more, the cards „CLAUDE.md ergänzen“ start, with all the rules
+   * Once no proposal waits any more, the cards "Add to CLAUDE.md" start, with all the rules
    * accepted for them: a waiting proposal might yet become one of theirs.
    */
   private fileRules() {
@@ -1624,7 +1624,7 @@ export class CanvasRuntime {
    * straight to that agent, by the card's state: talk to an idea, words a proposal is reworked by,
    * the answer to its worker's question, or else words the worker takes in (a note while it works,
    * words on its handover, a question once its work is done, a note held for the agent that takes on
-   * a planned card). The agent passes on what asks Obeya for something (`to_obeya`).
+   * a planned card). The agent passes on what asks Seismic for something (`to_seismic`).
    * `replyTo`: the message of the card's conversation the words reply to; `spot`: the place in the
    * card's demo video they are about.
    */
@@ -1647,43 +1647,43 @@ export class CanvasRuntime {
   }
 
   /**
-   * A request a card's agent passes on from the owner's words (`to_obeya`): the Koordinator reads it
+   * A request a card's agent passes on from the owner's words (`to_seismic`): the Koordinator reads it
    * with those words and the card in focus, as a command, and its confirmation (or reply, or that it
-   * looks the question up) is the agent's answer. Actions wait for "Rückgängig" as usual; the owner
+   * looks the question up) is the agent's answer. Actions wait for "Undo" as usual; the owner
    * sees the confirmation above the microphone and in the card's conversation.
    */
   async forward(cardId: string, request: string): Promise<string> {
     // the owner's words go beside the request, also those before a restart; an agent that passes on
     // what nobody said (words in a file it read, say) has nothing to pass on
     const before = this.said.has(cardId) ? undefined : this.board.events(cardId).findLast((e) => e.author === 'owner' && e.kind !== 'state' && e.text.trim());
-    // a step Obeya waits to take on this card itself, which its agent read in its task
+    // a step Seismic waits to take on this card itself, which its agent read in its task
     const steps = this.commander.waitsOn(cardId);
     // without them, the card's task once the owner gave it (typed it, the Koordinator wrote it from
     // their words, or they accepted an agent's proposal), not while it is a proposal; a step of the
-    // task Obeya waits to take is Obeya's
+    // task Seismic waits to take is Seismic's
     const card = this.board.item(cardId);
     const task = !steps.length && card && card.state !== 'proposal' && (card.body.trim() || card.title.trim());
     const said = this.said.get(cardId) ?? (before ? { text: before.text, spoken: false } : task ? { text: task, spoken: false, task: true } : undefined);
-    const later = steps.length ? ` Obeya itself takes these steps once your card ${steps.map((w) => `${w.state === 'done' ? 'is done' : 'waits for the owner'}: ${w.then.replace(/[.\s]+$/, '')}`).join('; ')}. If you asked for one of them, it is not missing: leave it to Obeya.` : '';
-    if (!said) return `Nothing passed on: the owner has said nothing on your card. to_obeya passes on the owner's own words.${later}`;
+    const later = steps.length ? ` Seismic itself takes these steps once your card ${steps.map((w) => `${w.state === 'done' ? 'is done' : 'waits for the owner'}: ${w.then.replace(/[.\s]+$/, '')}`).join('; ')}. If you asked for one of them, it is not missing: leave it to Seismic.` : '';
+    if (!said) return `Nothing passed on: the owner has said nothing on your card. to_seismic passes on the owner's own words.${later}`;
     const h = await this.commander.forward(cardId, request, said);
     if (h.token) this.commander.arm(h.token);
     this.board.notify({ cardId, text: h.confirm, ...(h.token ? { token: h.token, undoMs: this.commander.delayMs } : {}), ...(h.wish ? { wish: h.wish } : {}) });
     // the agent learns what the owner finds under the answer
-    if (h.wish) return `${h.confirm} (A draft for Obeya's makers opened for the owner to check and send on GitHub.)`;
-    if (h.cannot) return `${h.confirm} (Obeya lacks this; under this answer the owner finds a link to send it to Obeya's makers as a wish.)`;
+    if (h.wish) return `${h.confirm} (A draft for Seismic's makers opened for the owner to check and send on GitHub.)`;
+    if (h.cannot) return `${h.confirm} (Seismic lacks this; under this answer the owner finds a link to send it to Seismic's makers as a wish.)`;
     return h.confirm;
   }
 
-  /** The issue a small job writes from the owner's words, for Obeya's makers; `footer` ends its body. */
+  /** The issue a small job writes from the owner's words, for Seismic's makers; `footer` ends its body. */
   writeWish(w: WishInput, footer: string, images: string[] = []): Promise<WishDraft> {
     return writeWish(this.deps.runtime, w, footer, this.imageFiles(images));
   }
 
-  /** The owner clicks in the card's panel: a click without words the learner reads counts towards the Rückschau. */
-  /** A script acts as the card's agent, in a scratch Obeya whose workers are idle (`Workers.standIn`). */
+  /** The owner clicks in the card's panel: a click without words the learner reads counts towards the retrospective. */
+  /** A script acts as the card's agent, in a scratch Seismic whose workers are idle (`Workers.standIn`). */
   standIn(cardId: string, act: Parameters<Workers['standIn']>[1]) {
-    if (!this.deps.idleWorkers) throw new BadRequest('invalid', 'only an Obeya with idle workers (--idle-workers) lets a script stand in for an agent');
+    if (!this.deps.idleWorkers) throw new BadRequest('invalid', 'only an Seismic with idle workers (--idle-workers) lets a script stand in for an agent');
     return this.repoOf(cardId).workers.standIn(cardId, act);
   }
 
@@ -1695,19 +1695,31 @@ export class CanvasRuntime {
     return r;
   }
 
-  /** What the owner decided for a review card's findings, as the browser sent it: by finding number, to the contributor, the worker's own change or a follow-up task. */
-  private decisions(findings: unknown): Record<number, ChangeRoute> | undefined {
+  /** What the owner decided for a review card's findings, as the browser sent it: by finding number, to the contributor, the worker's own change, a follow-up task, or ignored. */
+  private decisions(findings: unknown): Record<number, FindingPick> | undefined {
     if (findings === undefined || findings === null) return undefined;
-    if (typeof findings !== 'object') throw new BadRequest('invalid', 'findings must map finding numbers to contributor, self or later');
-    const out: Record<number, ChangeRoute> = {};
+    if (typeof findings !== 'object') throw new BadRequest('invalid', 'findings must map finding numbers to contributor, self, later or ignore');
+    const out: Record<number, FindingPick> = {};
     for (const [id, route] of Object.entries(findings as Record<string, unknown>)) {
-      if (!/^\d+$/.test(id) || (route !== 'contributor' && route !== 'self' && route !== 'later')) throw new BadRequest('invalid', 'findings must map finding numbers to contributor, self or later');
+      if (!/^\d+$/.test(id) || (route !== 'contributor' && route !== 'self' && route !== 'later' && route !== 'ignore')) throw new BadRequest('invalid', 'findings must map finding numbers to contributor, self, later or ignore');
       out[Number(id)] = route;
     }
     return Object.keys(out).length ? out : undefined;
   }
 
-  /** A place in the demo video as the browser sent it: a frame Obeya does not have is left out; `demo` names the demo it is in. */
+  /** The owner's words on single findings, as the browser sent them: by finding number, kept as written. */
+  private findingNotes(notes: unknown): Record<number, string> | undefined {
+    if (notes === undefined || notes === null) return undefined;
+    if (typeof notes !== 'object') throw new BadRequest('invalid', 'findingNotes must map finding numbers to text');
+    const out: Record<number, string> = {};
+    for (const [id, text] of Object.entries(notes as Record<string, unknown>)) {
+      if (!/^\d+$/.test(id) || typeof text !== 'string') throw new BadRequest('invalid', 'findingNotes must map finding numbers to text');
+      if (text.trim()) out[Number(id)] = text;
+    }
+    return Object.keys(out).length ? out : undefined;
+  }
+
+  /** A place in the demo video as the browser sent it: a frame Seismic does not have is left out; `demo` names the demo it is in. */
   private spot(spot: unknown): SpotInput | undefined {
     if (!spot || typeof spot !== 'object') return;
     const { at, still, demo } = spot as Record<string, unknown>;
@@ -1727,8 +1739,8 @@ export class CanvasRuntime {
     // while its new repository is about to be made, the card is not decided otherwise
     if (card?.newRepo?.due && DUE_REFUSES.includes(a.action)) throw new BadRequest('newRepoDue', 'the card is about to be built in its new repository; take that back first');
     // a card merged with a proposal, and the proposal while the two are one, wait for the owner's call on the merge
-    if (card?.mergingInto && !MERGE_LEAVES.includes(a.action)) throw new BadRequest('merging', 'the card is merged with a proposal; approve or separate that first');
-    if (card?.state === 'proposal' && card.proposal?.merge && !['merge', 'approveMerge', 'separate', 'dismiss', ...MERGE_LEAVES].includes(a.action))
+    if (card?.mergingInto && mergeRank(card) <= 1 && !MERGE_LEAVES.includes(a.action)) throw new BadRequest('merging', 'the card is merged with a proposal; approve or separate that first');
+    if (card?.proposal?.merge && !['merge', 'approveMerge', 'separate', 'dismiss', ...MERGE_LEAVES].includes(a.action))
       throw new BadRequest('merging', 'the proposal is merged with another card; approve or separate that first');
     const text = 'text' in a ? (a.text ?? '') : '';
     const images = this.images.resolve('images' in a ? a.images : undefined);
@@ -1781,7 +1793,8 @@ export class CanvasRuntime {
         // words on a card nobody has started are asked of an agent that answers at once
         const asking = this.board.item(cardId);
         if (asking && asksAhead(asking)) return this.ahead.ask(cardId, text.trim(), images, !!a.spoken, replyTo);
-        return this.repoOf(cardId).workers.message(cardId, text.trim(), images, !!a.spoken, replyTo, this.spot(a.spot), this.decisions(a.findings));
+        if (a.newAgent) return this.repoOf(cardId).workers.reviewWithNewAgent(cardId, this.decisions(a.findings), startAgentSetting(a.newAgent), this.findingNotes(a.findingNotes));
+        return this.repoOf(cardId).workers.message(cardId, text.trim(), images, !!a.spoken, replyTo, this.spot(a.spot), this.decisions(a.findings), this.findingNotes(a.findingNotes));
       case 'release':
         return this.repoOf(cardId).workers.released(cardId, !!a.now);
       case 'unsay': {
@@ -1797,8 +1810,12 @@ export class CanvasRuntime {
         return this.repoOf(cardId).workers.answer(cardId, text.trim(), images, !!a.spoken, replyTo, picks, this.spot(a.spot));
       case 'approve':
         return this.repoOf(cardId).workers.approve(cardId, { direct: !!a.direct });
+      case 'codeReview':
+        return this.repoOf(cardId).workers.startCodeReview(cardId);
       case 'undo':
         return this.repoOf(cardId).workers.undo(cardId);
+      case 'fold':
+        return this.repoOf(cardId).workers.fold(cardId, !!a.land);
       case 'pushMain':
         return this.repoOf(cardId).workers.pushMainFor(cardId);
       case 'keepMain':
@@ -1814,6 +1831,8 @@ export class CanvasRuntime {
       case 'merge':
         if (typeof a.with !== 'string') throw new BadRequest('invalid', 'with must name the card to merge with');
         return this.merges.merge(cardId, a.with);
+      case 'dismissDuplicate':
+        return this.board.dismissDuplicate(cardId);
       case 'approveMerge':
         return void this.board.approveMerge(cardId);
       case 'separate':
@@ -1834,7 +1853,8 @@ export class CanvasRuntime {
       case 'discuss':
         return this.explorers.discuss(cardId, text.trim(), !!a.spoken, images, replyTo);
       case 'build':
-        return this.build(cardId);
+        if (a.agent && this.board.item(cardId)?.newRepo) throw new BadRequest('invalid', 'this build does not support an agent choice');
+        return this.build(cardId, a.agent === undefined ? undefined : startAgentSetting(a.agent));
       case 'unbuild':
         return this.unbuild(cardId);
       case 'splitOff':
@@ -1883,7 +1903,7 @@ export class CanvasRuntime {
     return answersDir(this.deps.home, this.id, thread);
   }
 
-  /** "Im Ordner zeigen", or a click on an answer's file: opened with the system's app on this machine. */
+  /** "Show in folder", or a click on an answer's file: opened with the system's app on this machine. */
   async openAnswerFile(thread: number, file?: string) {
     const dir = this.answerDir(thread);
     mkdirSync(dir, { recursive: true });
@@ -1898,7 +1918,7 @@ export class CanvasRuntime {
     return this.repoOf(this.board.card(cardId) ?? cardId).workers.file(cardId, path, local);
   }
 
-  /** „Auf dem Rechner öffnen“ on a file of the card's work, or with `show` „Im Ordner zeigen“: with the system's app on this machine. */
+  /** "Open on the computer" on a file of the card's work, or with `show` "Show in folder": with the system's app on this machine. */
   async openCardFile(cardId: string, path: string, show: boolean) {
     const file = await this.cardFile(cardId, path, true);
     if (!file || !('path' in file)) throw new BadRequest('noFile', 'the file is not on this machine');
@@ -1906,7 +1926,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * "Als Idee besprechen" on a Question card: it becomes an idea, whose exploration agent starts from
+   * "Discuss as an idea" on a Question card: it becomes an idea, whose exploration agent starts from
    * the thread (questions, answers, the files in its output directory) instead of the look-up's session.
    */
   private questionAsIdea(cardId: string) {
@@ -1943,7 +1963,7 @@ export class CanvasRuntime {
   /**
    * The card whose worker fills in a repository's settings for everyone (`.obeya/settings.json`)
    * with the `settings` skill, for one that has none yet or still has an adapter module; one still
-   * open for it is returned rather than a second made, Obeya's proposal of it taken on as planned.
+   * open for it is returned rather than a second made, Seismic's proposal of it taken on as planned.
    * It goes right of everything on the canvas, at the top.
    */
   adapterSetupCard(repo: string): Item {
@@ -1955,9 +1975,9 @@ export class CanvasRuntime {
   }
 
   /**
-   * Obeya proposes the card that fills in a repository's settings where it knows them not (nothing
+   * Seismic proposes the card that fills in a repository's settings where it knows them not (nothing
    * of the repository's own in `.obeya/settings.json`, or an adapter module left on its main branch),
-   * as the Konfiguration dialog offers it; a folder without git is left alone.
+   * as the Configuration dialog offers it; a folder without git is left alone.
    */
   private proposeSetup(r: Repo) {
     if (!this.deps.setupProposals || r.info.folder) return;
@@ -1996,7 +2016,7 @@ export class CanvasRuntime {
   private accept(cardId: string, picks: string[][] | undefined, start: boolean, asIdea?: boolean, setting?: AgentSetting) {
     const card = this.board.item(cardId);
     if (card?.state !== 'proposal') throw new BadRequest('notProposal', 'not a proposal');
-    // one the Arbeitsrückschau made before it stored proposal data has none
+    // one the work retrospective made before it stored proposal data has none
     const proposal = card.proposal ?? { questions: [] };
     if (setting && (!start || asIdea || proposal.idea || proposal.revising || (proposal.startAt && Date.parse(proposal.startAt) > Date.now()))) throw new BadRequest('invalid', 'this acceptance does not support an agent choice');
     if ((start || asIdea) && proposal.revising) {
@@ -2041,28 +2061,34 @@ export class CanvasRuntime {
    * The idea is built as it stands: its brief becomes the card's task, and the card goes to the
    * Koordinator to start. A prototype still running for it is discarded: what is built now is the brief.
    */
-  private build(cardId: string) {
+  private build(cardId: string, agent?: AgentSetting) {
     const card = this.ideaCard(cardId);
     if (card.idea?.thinking) {
       // the owner knows what comes; the reply still may ask what must be settled first
       if (card.idea.buildAfterReply) return;
+      if (agent) this.buildAgents.set(cardId, agent);
       this.board.setIdea(cardId, { buildAfterReply: true });
       this.board.log(cardId, 'state', 'owner', this.board.t.idea.buildAfterReply);
       return;
     }
     if (card.newRepo) return this.intoNewRepo(cardId);
     this.decided(card, { answer: this.board.t.idea.buildAnswer, log: this.board.t.idea.buildLog });
-    this.koordinator.request(cardId);
+    const chosen = agent ?? this.buildAgents.get(cardId);
+    this.buildAgents.delete(cardId);
+    this.koordinator.request(cardId, chosen);
   }
+
+  /** The agent chosen with "Build it like this" while the idea's reply was still coming: used when it builds after the reply. */
+  private buildAgents = new Map<string, AgentSetting>();
 
   // ---------------------------------------------------------------- a new repository
 
-  /** Cards whose new repository Obeya makes once the undo window is through (`NewRepo.due`). */
+  /** Cards whose new repository Seismic makes once the undo window is through (`NewRepo.due`). */
   private newRepos = new Map<string, ReturnType<typeof setTimeout>>();
 
   /**
-   * „So bauen“ or „Agent starten“ on a card to be built in a repository that does not exist yet:
-   * after a few seconds in which `stayHere` takes it back, Obeya makes that repository and builds or
+   * "Build it like this" or "Start agent" on a card to be built in a repository that does not exist yet:
+   * after a few seconds in which `stayHere` takes it back, Seismic makes that repository and builds or
    * starts the card there (`makeNewRepo`). What it cannot do is refused at once where it can tell.
    */
   private intoNewRepo(cardId: string) {
@@ -2115,7 +2141,7 @@ export class CanvasRuntime {
   /**
    * Makes the card's new repository and builds or starts the card there, one step after the other:
    * the folder and git (`makeRepo`), the configuration with a canvas of its own named after it (or
-   * the repository on this canvas), then the card: an idea is decided as „So bauen“ decides it, and
+   * the repository on this canvas), then the card: an idea is decided as "Build it like this" decides it, and
    * moves, with its history and decisions, to the new canvas, where it starts. A step that fails takes
    * back those before it, and the card says why.
    */
@@ -2157,7 +2183,7 @@ export class CanvasRuntime {
         try {
           await step();
         } catch (u) {
-          console.error(`Obeya: taking back a step of the new repository of ${cardId}:`, u);
+          console.error(`Seismic: taking back a step of the new repository of ${cardId}:`, u);
         }
       }
       if (!this.board.item(cardId)) return;
@@ -2166,7 +2192,7 @@ export class CanvasRuntime {
     }
   }
 
-  /** The new repository joined this canvas: the card works in it, an idea built as „So bauen“ builds it. */
+  /** The new repository joined this canvas: the card works in it, an idea built as "Build it like this" builds it. */
   private joined(cardId: string, path: string, made: boolean) {
     const r = this.repos.find((x) => x.info.path === path);
     if (!r) throw new Error(`${path} does not run on the canvas`);
@@ -2230,12 +2256,13 @@ export class CanvasRuntime {
     this.koordinator.request(task.id);
     this.explorers.tell(
       cardId,
-      `The owner clicked "${t.splitOffButton}": the part you marked as settled is now the task “${split.title}”, on a card of its own beside this idea, and a worker starts on it. Obeya has cleared the split. This idea stays open, with this conversation and its prototypes, planned and running, for what is still open. Trim the brief to what is open (the built part a line under decisions, as the task “${split.title}”), then reply to the owner in a sentence or two.`,
+      `The owner clicked "${t.splitOffButton}": the part you marked as settled is now the task “${split.title}”, on a card of its own beside this idea, and a worker starts on it. Seismic has cleared the split. This idea stays open, with this conversation and its prototypes, planned and running, for what is still open. Trim the brief to what is open (the built part a line under decisions, as the task “${split.title}”), then reply to the owner in a sentence or two.`,
     );
   }
 
   /** Building after the reply is taken back: the idea stays in its discussion. */
   private unbuild(cardId: string) {
+    this.buildAgents.delete(cardId);
     if (!this.ideaCard(cardId).idea?.buildAfterReply) return;
     this.board.setIdea(cardId, { buildAfterReply: false });
     this.board.log(cardId, 'state', 'owner', this.board.t.idea.unbuild);
@@ -2475,7 +2502,7 @@ export class CanvasRuntime {
   private prototypeAnswered(prototype: Item, question: string, answer: string) {
     this.explorers.tell(
       prototype.prototypeOf!,
-      `On the prototype “${prototype.title}”, its worker asked: „${question}“\n\nThe owner answered: ${answer}\n\nTake what this settles into the brief (decisions, open questions), so it is not asked again. Do not reply to the owner for it; end your turn without a reply unless it raises something they must decide now.`,
+      `On the prototype “${prototype.title}”, its worker asked: “${question}”\n\nThe owner answered: ${answer}\n\nTake what this settles into the brief (decisions, open questions), so it is not asked again. Do not reply to the owner for it; end your turn without a reply unless it raises something they must decide now.`,
       true,
     );
   }
@@ -2632,7 +2659,7 @@ export class CanvasRuntime {
   private untouched(cardId: string): Item {
     const card = this.board.item(cardId);
     if (!card) throw new BadRequest('unknownCard', 'unknown card');
-    if (!untouched(card)) throw new BadRequest('notUntouched', `„${card.title}“ is no planned task nobody has worked on any more`);
+    if (!untouched(card)) throw new BadRequest('notUntouched', `“${card.title}” is no planned task nobody has worked on any more`);
     return card;
   }
 
@@ -2645,7 +2672,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * „Review PR #5“: a review card for the pull request someone outside opened, started at once, the
+   * "Review PR #5": a review card for the pull request someone outside opened, started at once, the
    * owner's words with it as its task. A PR that has a card on the canvas already opens that one, and
    * the words go to its worker. What goes wrong (no such PR, one closed) the owner hears.
    */
@@ -2669,7 +2696,7 @@ export class CanvasRuntime {
     // a pull request of another repository would be merged there, from a workspace of this one
     const origin = originUrl(repo.info);
     if (origin && !sameRepo(origin, ref.owner, ref.repo)) return fail(t.review.otherRepo(repo.ref.id));
-    // a card of the PR's own (one of Obeya's workers opened it) is the card for it too, also where
+    // a card of the PR's own (one of Seismic's workers opened it) is the card for it too, also where
     // its URL was recorded in another form (a slash at the end, the host in capitals, `/pull/` on Forgejo)
     const same = (other?: string) => !!other && (parsePrUrl(other, github)?.url ?? other) === url;
     const had = this.board.items().find((i) => (same(i.contribution?.url) || same(i.pr?.url)) && !i.archivedAt);
@@ -2722,25 +2749,105 @@ export class CanvasRuntime {
     this.siteCredentials();
   }
 
-  /** The owner's personal demo site was set up, connected, removed, or a private repository ticked for it: the cards share there, or export. */
-  personalSiteChanged() {
+  /** This machine's demo sites changed (one added, connected or removed): the cards share on the canvas's, or export. */
+  demoSitesChanged() {
     this.siteCredentials();
   }
 
-  /** A site's env file placed or removed on this machine since, or the personal site changed: its repository's cards share again, or export. */
-  private siteCredentials() {
-    let changed = false;
+  /** "Initialize" under way or failed, by the site's address and path. */
+  private siteInit: { url: string; path: string; running: boolean; error?: string } | null = null;
+
+  /**
+   * The canvas's demo site as sharing uses it: one of this machine's sites, with the canvas's
+   * name as its title, its tags and choices, once its path there is initialized; null before, and
+   * without one.
+   */
+  shareSite(): ShareSite | null {
+    const chosen = this.config.demoSite;
+    const entry = chosen && findSite(this.deps.home, chosen.url);
+    if (!chosen || !entry) return null;
+    const path = chosen.path ?? '';
+    if (!sitePaths(this.deps.home, entry, entry.secret).includes(path)) return null;
+    const site = demoSite(entry, this.board.canvas.name, { ...(chosen.publish ? { publish: chosen.publish } : {}), ...(chosen.tags && dimensions(chosen.tags).length ? { tags: chosen.tags } : {}) });
+    return { site, path, ...(entry.secret ? { secret: entry.secret } : {}) };
+  }
+
+  /** The vocabulary of tags the canvas names for its demo site; none where it names none. */
+  private vocabulary(): PageTags | undefined {
+    const tags = this.config.demoSite?.tags;
+    return tags && dimensions(tags).length ? tags : undefined;
+  }
+
+  /** What the UI is told about sharing on the canvas: the same on each of its repositories. */
+  private shareRef(): ShareRef {
+    const chosen = this.config.demoSite;
+    if (!chosen) return { shareSite: 'none' };
+    const own = this.shareSite();
+    if (!own) return { shareSite: findSite(this.deps.home, chosen.url) ? 'init' : 'none' };
+    const missing = siteMissing(this.deps.home, own.site);
+    if (missing) return { shareNeeds: { site: siteName(own.site), file: missing } };
+    const tags = dimensions(own.site.tags).length ? { shareTags: Object.fromEntries(dimensions(own.site.tags)) } : {};
+    return { share: true, ...(own.site.publish === 'approved' ? { shareOnApproval: true as const } : {}), ...(own.secret ? { shareUnlisted: true as const } : {}), ...tags };
+  }
+
+  /** The canvas's demo site as the page shows it, with the initialization under way or failed. */
+  siteState(): CanvasDemoSiteState | undefined {
+    const chosen = this.config.demoSite;
+    if (!chosen) return undefined;
+    const path = chosen.path ?? '';
+    const init = this.siteInit && this.siteInit.url === chosen.url && this.siteInit.path === path ? this.siteInit : null;
+    return { url: chosen.url, path, ready: !!this.shareSite(), ...(init ? { init: { running: init.running, ...(init.error ? { error: init.error } : {}) } } : {}) };
+  }
+
+  /**
+   * "Initialize": puts the canvas's path on one of this machine's sites, with its empty overview,
+   * and deploys; the status bar says "Creating demo site" meanwhile. The site and path come with
+   * the request, as the owner may initialize before saving them.
+   */
+  initSite(input: unknown) {
+    const { url, path: given } = (input ?? {}) as { url?: unknown; path?: unknown };
+    const entry = typeof url === 'string' ? findSite(this.deps.home, url) : undefined;
+    if (!entry) throw new BadRequest('invalid', 'not a demo site of this machine');
+    const path = typeof given === 'string' ? given.trim().replace(/^\/+|\/+$/g, '') : '';
+    if (!isSitePath(path)) throw new BadRequest('invalid', 'a path is lower-case letters, digits and hyphens, with / between up to three parts');
+    if (this.siteInit?.running) throw new BadRequest('invalid', 'a demo site is being created already');
+    if (siteMissing(this.deps.home, demoSite(entry, ''))) throw new BadRequest('invalid', 'this machine lacks the credentials of that site');
+    const chosen = this.config.demoSite;
+    const same = chosen?.url === entry.url && (chosen.path ?? '') === path;
+    const site = demoSite(entry, this.board.canvas.name, same ? { ...(chosen.publish ? { publish: chosen.publish } : {}), ...(chosen.tags ? { tags: chosen.tags } : {}) } : {});
+    this.siteInit = { url: entry.url, path, running: true };
+    this.siteCredentials(true);
+    const home = this.repos[0];
+    const language = home?.adapter.demo?.language;
+    void this.sharing.init({ site, path, ...(entry.secret ? { secret: entry.secret } : {}) }, home?.info.path ?? this.deps.home, language).then((r) => {
+      this.siteInit = { url: entry.url, path, running: false, ...(r.why ? { error: r.why } : {}) };
+      if (r.why) console.error(`Seismic: creating the demo site ${siteName(site)}${path ? `/${path}` : ''} failed: ${r.why}`);
+      else console.log(`Seismic: the canvas ${this.id} shares its demos on ${siteName(site)}${path ? `/${path}` : ''} now`);
+      this.siteCredentials(true);
+    });
+    return this.siteState();
+  }
+
+  /** A site's env file placed or removed on this machine since, the canvas's site changed or its path initialized: its cards share there, or export. */
+  private siteCredentials(force = false) {
+    let changed = force;
+    const next = this.shareRef();
     for (const r of this.repos) {
-      const next = shareRef(r.site, this.deps.home, r.info.path, !!r.isPublic);
       if (JSON.stringify(SHARE_FIELDS.map((f) => r.ref[f])) !== JSON.stringify(SHARE_FIELDS.map((f) => next[f]))) {
         setShare(r.ref, next);
         changed = true;
       }
     }
+    const state = this.siteState();
+    if (JSON.stringify(state) !== JSON.stringify(this.board.canvas.demoSite)) {
+      if (state) this.board.canvas.demoSite = state;
+      else delete this.board.canvas.demoSite;
+      changed = true;
+    }
     if (changed) this.board.changed();
   }
 
-  /** Obeya is about to restart, or no longer is: the workers hear so and pause for it (or for their repository's restart that waits). */
+  /** Seismic is about to restart, or no longer is: the workers hear so and pause for it (or for their repository's restart that waits). */
   restartDue(due: DueRestart | null) {
     this.obeyaDue = due;
     const p = this.pending;
@@ -2773,8 +2880,8 @@ export function approachOf(what: string, max = 40): string {
 }
 
 /**
- * Starts the canvases; one that does not start is left out, with why in Obeya's log and in
- * "Konfiguration" (which checks the configuration again, and shows `failed` of one whose home
+ * Starts the canvases; one that does not start is left out, with why in Seismic's log and in
+ * "Configuration" (which checks the configuration again, and shows `failed` of one whose home
  * repository did not start), and the others run.
  */
 export function startCanvases(configs: CanvasConfig[], deps: CanvasDeps, failed: (f: StartFailure) => void = () => {}): CanvasRuntime[] {
@@ -2783,7 +2890,7 @@ export function startCanvases(configs: CanvasConfig[], deps: CanvasDeps, failed:
       return new CanvasRuntime(c, deps);
     } catch (e) {
       const why = e instanceof ConfigError || e instanceof HomeDown ? e.message : e instanceof Error ? (e.stack ?? e.message) : String(e);
-      console.error(`Obeya: the canvas ${c.name ?? c.id ?? c.repos[0]?.path} does not start, left out: ${why}`);
+      console.error(`Seismic: the canvas ${c.name ?? c.id ?? c.repos[0]?.path} does not start, left out: ${why}`);
       if (e instanceof HomeDown) failed({ canvas: e.canvas, detail: e.message });
       return [];
     }
@@ -2791,7 +2898,7 @@ export function startCanvases(configs: CanvasConfig[], deps: CanvasDeps, failed:
 }
 
 /**
- * The canvases Obeya serves, as its configuration has them while it runs (design: Live
+ * The canvases Seismic serves, as its configuration has them while it runs (design: Live
  * configuration): a canvas new in it starts at once, one that changed takes the change
  * (`CanvasRuntime.apply`), one no longer in it stops once its agents paused, its cards kept.
  */
@@ -2804,7 +2911,7 @@ export class Canvases {
   constructor(
     configs: CanvasConfig[],
     private deps: CanvasDeps,
-    /** A canvas started while Obeya runs. */
+    /** A canvas started while Seismic runs. */
     private started: (c: CanvasRuntime) => void = () => {},
   ) {
     this.deps = {
@@ -2858,7 +2965,7 @@ export class Canvases {
       const [c] = this.start([config]);
       if (!c) return;
       this.list.push(c);
-      console.log(`Obeya: the canvas ${c.board.canvas.name} (/c/${c.id}) runs now`);
+      console.log(`Seismic: the canvas ${c.board.canvas.name} (/p/${c.id}) runs now`);
       this.started(c);
     });
     // the configuration's order is the order canvases are listed in (the switcher, the phone); one leaving goes last
@@ -2877,7 +2984,7 @@ export class Canvases {
     this.emit();
   }
 
-  /** Stops every canvas, for Obeya to end. */
+  /** Stops every canvas, for Seismic to end. */
   shutdown() {
     for (const c of this.list) c.shutdown();
   }
@@ -2963,7 +3070,7 @@ function readFolder(path: string): RepoRead | null {
 
 /**
  * What a canvas's configuration amounts to, without touching anything: its repositories (home
- * first), each with Obeya's defaults and in front of them the repository's `.obeya/settings.json`
+ * first), each with Seismic's defaults and in front of them the repository's `.obeya/settings.json`
  * (`shared`: where they are read, by the repository's path; as `read` read them when left out) and
  * this machine's settings (`settings`: where a repository's are read; its entry's when left out),
  * each with its id and its settings without this machine's (`values`), and the canvas's id and
@@ -3025,7 +3132,7 @@ export function resolveCanvas(
 type Resolved = ReturnType<typeof resolveCanvas>;
 
 /**
- * How a canvas runs a repository: Obeya's defaults with the repository's `shared` settings and this
+ * How a canvas runs a repository: Seismic's defaults with the repository's `shared` settings and this
  * machine's `settings` in front, each read when it is asked for; its workers work in clones where
  * the configuration names some.
  */
@@ -3082,39 +3189,9 @@ function settled(info: RepoInfo, adapter: RepoAdapter): Pick<RepoRef, 'branch' |
   };
 }
 
-/** Where a repository shares demos: the site its settings name, once it is complete; null without one. */
-function siteOf(adapter: RepoAdapter): DemoSite | null {
-  const site = adapter.demo?.site;
-  return site && !siteIncomplete(site) ? site : null;
-}
-
 /** What the UI is told about sharing a repository's demos. */
-const SHARE_FIELDS = ['share', 'shareNeeds', 'shareOnApproval', 'shareTags', 'shareOnPersonal', 'shareUnlisted', 'sharePersonal'] as const;
+const SHARE_FIELDS = ['share', 'shareNeeds', 'shareOnApproval', 'shareTags', 'shareUnlisted', 'shareSite'] as const;
 type ShareRef = Pick<RepoRef, (typeof SHARE_FIELDS)[number]>;
-
-/**
- * What the canvas tells the UI about it: a site to share on here (its own, where this machine has
- * its credentials, else the owner's personal one, where the repository may go there), the env file
- * its site lacks on this machine, and why the personal site does not take it (none set up, or the
- * repository is private and not ticked).
- */
-function shareRef(site: DemoSite | null, home: string, path: string, isPublic: boolean): ShareRef {
-  const missing = site && siteMissing(home, site);
-  if (site && !missing) {
-    const tags = dimensions(site.tags).length ? { shareTags: Object.fromEntries(dimensions(site.tags)) } : {};
-    return { share: true, ...(site.publish === 'approved' ? { shareOnApproval: true as const } : {}), ...tags };
-  }
-  const needs = site && missing ? { shareNeeds: { site: siteName(site), file: missing } } : {};
-  const p = readPersonal(home);
-  if (!p || siteMissing(home, personalDemoSite(p))) return { ...needs, sharePersonal: 'none' };
-  if (!allowedHere(p, path, isPublic)) return { ...needs, sharePersonal: 'private' };
-  // a repository whose site publishes each approved demo does so on the personal site too, as does one the owner ticked there for it
-  const approved = site?.publish === 'approved' || approvedHere(p, path);
-  return { share: true, shareOnPersonal: true, ...(p.secret ? { shareUnlisted: true as const } : {}), ...(approved ? { shareOnApproval: true as const } : {}) };
-}
-
-/** The canvas setting that keeps the forge's last answer on whether the repository at `path` is public. */
-const visibilityKey = (path: string) => `visibility:${path}`;
 
 /** Tells the UI about sharing on the repository what `share` says, in place of what it was told before. */
 function setShare(ref: RepoRef, share: ShareRef) {

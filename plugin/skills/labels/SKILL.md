@@ -1,11 +1,11 @@
 ---
 name: labels
-description: Judge a card's labels on Obeya (category, sub-category, complexity, priority) from its title, text and screenshots, on Obeya's fixed lists and complexity scale. Use when asked to label, classify or size a card or task, or names this skill.
+description: Judge a card's labels on Seismic (category, sub-category, complexity, priority) from its title, text and screenshots, on Seismic's fixed lists and complexity scale. Use when asked to label, classify or size a card or task, or names this skill.
 ---
 
 # Judging a card's labels
 
-A card on Obeya is a task for a coding agent: a title, a text and perhaps screenshots. Its labels
+A card on Seismic is a task for a coding agent: a title, a text and perhaps screenshots. Its labels
 tell the owner at a glance what kind of work it is. Judge only the labels you are asked for, each
 from the card alone, and give a value for every one of them: a best guess beats none. Use exactly
 the names below.

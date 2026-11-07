@@ -1,4 +1,4 @@
-// Screenshots the owner adds to what they write on a card: stored once under Obeya's home,
+// Screenshots the owner adds to what they write on a card: stored once under Seismic's home,
 // shown in the card's log, and handed to the agent as images along with the text.
 
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';

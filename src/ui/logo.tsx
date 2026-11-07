@@ -1,46 +1,21 @@
-// Obeya's sign, three index cards spread over the canvas in the inks of working, waiting and approved, and
-// its wordmark, "obeya" in Newsreader SemiBold (the type of the cards' titles) as outlines. `bun
-// scripts/logo.tsx` writes them as the files in src/ui/logo/ (favicon, PNGs, the README's wordmark).
-
-// on a 32-unit square
-const CARDS = [
-  { x: 2, y: 3, w: 17, h: 8, fill: '#1d5fe0' },
-  { x: 11, y: 12.5, w: 19, h: 8, fill: '#f27405' },
-  { x: 4, y: 22, w: 14, h: 7, fill: '#3d9a1f' },
-];
-// Newsreader SemiBold at 2000 units per em, scaled to an x-height of 12 units on the baseline at 24, each
-// letter at its x (kerned)
-const GLYPH_SCALE = 0.0142;
-const LETTERS: [number, string][] = [
-  [37.00, 'M545-86Q608-86 656-118Q703-151 730-222Q756-294 756-410Q756-540 731-627Q705-714 657-758Q609-803 539-803Q475-803 428-770Q380-738 354-667Q327-596 327-479Q327-350 353-262Q378-175 427-130Q475-86 545-86M535 24Q391 24 287-33Q182-91 125-194Q68-298 68-434Q68-575 129-683Q190-791 298-852Q406-913 549-913Q693-913 798-856Q902-799 959-696Q1015-593 1015-455Q1015-314 954-206Q893-98 785-37Q677 24 535 24'],
-  [52.38, 'M297-56L176 18L106 4L140-219L140-1186Q125-1203 103-1219Q80-1236 49-1253Q18-1271-21-1288L-21-1335L365-1434L402-1434L386-1230L386-822Q397-828 409-834Q461-860 507-877Q553-895 595-904Q636-913 674-913Q803-913 891-860Q978-807 1023-711Q1067-615 1067-488Q1067-365 1028-269Q988-174 919-108Q850-43 761-9Q671 25 572 25Q514 25 462 14Q409 3 358-22Q328-36 297-56M386-728L386-286Q386-226 409-181Q431-137 475-112Q518-88 581-88Q652-88 703-126Q753-164 780-242Q807-321 807-440Q807-547 778-618Q748-690 694-725Q639-761 564-761Q521-761 479-754Q436-747 398-733Q392-730 386-728'],
-  [68.52, 'M513-913Q632-913 714-864Q796-815 842-720Q888-626 898-490L302-490Q304-385 342-311Q381-233 455-193Q528-154 629-154Q674-154 715-162Q755-170 794-187Q833-204 872-230L898-175Q839-113 778-68Q717-24 651 0Q585 24 512 24Q379 24 279-34Q179-92 124-195Q68-298 68-431Q68-566 121-675Q173-785 273-849Q372-913 513-913M306-583L654-597Q648-654 635-695Q616-752 581-780Q546-809 494-809Q437-809 394-778Q350-747 326-680Q312-639 306-583'],
-  [82.20, 'M255 519Q186 519 144 485Q102 450 102 389Q102 357 115 334Q128 310 147 297Q166 283 183 283Q202 283 223 291Q243 299 269 307Q294 315 326 315Q359 315 385 304Q411 292 434 263Q457 233 481 179L535 56L124-786L0-835L0-889L514-889L514-834L393-795L656-232L862-799L747-834L747-889L1094-889L1094-834L992-798L588 196Q536 323 487 393Q438 463 383 491Q327 519 255 519'],
-  [97.90, 'M575-549L575-648Q575-718 540-757Q504-796 422-796Q388-796 353-790Q337-787 323-783Q321-768 318-755Q311-721 303-698Q294-675 283-661Q267-639 239-628Q210-617 175-617Q131-617 108-634Q84-652 84-680Q84-719 120-759Q156-799 218-833Q280-867 359-888Q437-909 522-909Q634-909 700-875Q765-842 793-781Q820-720 820-636L820-193Q820-165 829-146Q837-128 853-119Q869-110 893-110Q913-110 937-116Q961-123 985-137L985-70Q936-26 879-1Q822 23 772 23Q708 23 667-2Q625-28 605-77Q588-117 583-169Q566-115 536-76Q498-26 444-1Q390 24 325 24Q211 24 141-35Q71-94 71-211Q71-269 95-317Q118-365 179-407Q240-449 350-487Q441-518 575-549M575-275L575-456Q513-442 470-427Q406-404 372-379Q338-354 325-325Q312-297 312-263Q312-197 345-165Q377-134 432-134Q472-134 505-153Q537-173 556-205Q575-237 575-275'],
-];
-const WORD_W = 112.82;
-
-const Cards = () => (
-  <>
-    {CARDS.map((c) => (
-      <rect key={c.y} x={c.x} y={c.y} width={c.w} height={c.h} rx={0.6} fill={c.fill} />
-    ))}
-  </>
-);
+// Seismic's sign (seismic_logo.png, embedded) and its wordmark, "Seismic" in Newsreader SemiBold (the type of
+// the cards' titles) as outlines. `uv run scripts/logo.py` writes the data in logo/glyphs.ts and the files in
+// src/ui/logo/ (favicon, PNGs, the README's wordmark).
+import { GLYPH_SCALE, LETTERS, SIGN, WORD_W } from './logo/glyphs';
 
 export function Sign({ size = 32 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-      <Cards />
+      <image width={32} height={32} href={SIGN} />
     </svg>
   );
 }
 
-/** The sign with "obeya" beside it; `ink` colours the letters (the text colour by default). */
+/** The sign with "Seismic" beside it; `ink` colours the letters (the text colour by default). */
 export function Wordmark({ height = 32, ink = 'currentColor' }: { height?: number; ink?: string }) {
   return (
-    <svg height={height} width={+((WORD_W * height) / 32).toFixed(1)} viewBox={`0 0 ${WORD_W} 32`} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Obeya">
-      <Cards />
+    <svg height={height} width={+((WORD_W * height) / 32).toFixed(1)} viewBox={`0 0 ${WORD_W} 32`} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Seismic">
+      <image width={32} height={32} href={SIGN} />
       {LETTERS.map(([x, d]) => (
         <path key={x} transform={`translate(${x} 24) scale(${GLYPH_SCALE})`} d={d} fill={ink} />
       ))}

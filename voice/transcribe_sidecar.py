@@ -1,6 +1,6 @@
-"""Speech recognition for Obeya, one process that keeps the model loaded. By default Parakeet TDT
+"""Speech recognition for Seismic, one process that keeps the model loaded. By default Parakeet TDT
 0.6B v3 (`--backend parakeet`: NVIDIA's model as int8 ONNX, through onnx-asr and ONNX Runtime on the
-CPU, on every platform); Whisper where `OBEYA_WHISPER_BACKEND` asks for it: mlx-whisper on Apple
+CPU, on every platform); Whisper where `SEISMIC_WHISPER_BACKEND` asks for it: mlx-whisper on Apple
 Silicon (`--backend mlx`), faster-whisper elsewhere (`--backend faster`: CUDA when there is a GPU,
 else int8 on the CPU; a GPU without the CUDA libraries falls back to the CPU).
 
@@ -12,7 +12,7 @@ translates into it, badly and unsure of its words (German speech, told English: 
 of a bit of a doubt“), and the longer the recording, the likelier one of its parts fails the test below.
 faster-whisper decodes the first window from the encoder pass that heard the language (see Faster.languages).
 Writes JSON lines on stdout: {"id": ..., "text": "...", "doubtful": bool} or {"id": ..., "error": "..."}.
-Ends with its stdin, after the recording it is on; when Obeya is gone by then, quietly.
+Ends with its stdin, after the recording it is on; when Seismic is gone by then, quietly.
 Audio is decoded by ffmpeg (for every backend: faster-whisper's own decoder, PyAV, broke with
 newer PyAV releases), so any format the browser records (webm/opus, mp4, wav) works. The model is
 loaded at start, before "ready". Each recording's length and level go to stderr (the server's log), so
@@ -174,12 +174,12 @@ class Faster:
 
 
 def main() -> None:
-    # Ctrl-C in Obeya's terminal is for Obeya, which ends the sidecar itself once it stops
+    # Ctrl-C in Seismic's terminal is for Seismic, which ends the sidecar itself once it stops
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     args = argparse.ArgumentParser()
     args.add_argument("--backend", choices=list(MODELS), default="parakeet")
     backend = args.parse_args().backend
-    model = os.environ.get("OBEYA_WHISPER_MODEL", MODELS[backend]) if backend != "parakeet" else MODELS[backend]
+    model = (os.environ.get("SEISMIC_WHISPER_MODEL", os.environ.get("OBEYA_WHISPER_MODEL")) or MODELS[backend]) if backend != "parakeet" else MODELS[backend]
     ear = Parakeet(model) if backend == "parakeet" else Mlx(model) if backend == "mlx" else Faster(model)
     # load the model and warm it up on a second of silence, so the first recording is as quick as the rest
     ear.transcribe(np.zeros(SAMPLE_RATE, dtype=np.float32), None)
@@ -251,6 +251,6 @@ if __name__ == "__main__":
     try:
         main()
     except BrokenPipeError:
-        # Obeya went away before it read the answer (stopped or restarted while the sidecar wrote): nobody
+        # Seismic went away before it read the answer (stopped or restarted while the sidecar wrote): nobody
         # is left to tell, and Python's flush of stdout at exit would fail on the closed pipe once more
         os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())

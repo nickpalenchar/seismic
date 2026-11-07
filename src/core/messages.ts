@@ -4,19 +4,19 @@
 // the language that applies when it is written and stays so.
 
 import type { Language } from './locale';
-import type { Awaited, AwaitedState, Snooze } from './types';
+import { SEVERITIES, type Severity, type Awaited, type AwaitedState, type Snooze } from './types';
 
-/** What a worker pauses for: Obeya restarting, Obeya stopping, or only its repository's agents restarting (a change to its configuration). */
+/** What a worker pauses for: Seismic restarting, Seismic stopping, or only its repository's agents restarting (a change to its configuration). */
 export type Pause = 'restart' | 'stop' | 'repo';
 
 const de = {
-  /** A time in the owner's words: „um 14:40“, or „am 7.10. um 14:40“ on another day. */
+  /** A time in the owner's words: "at 2:40 pm", or "on 7 Oct at 2:40 pm" on another day. */
   when: (at: number) => {
     const d = new Date(at);
     const time = `um ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
     return d.toDateString() === new Date().toDateString() ? time : `am ${d.getDate()}.${d.getMonth() + 1}. ${time}`;
   },
-  /** A day and time in the owner's words, the year only when it is not this one: „Fr 31.10., 08:00“. */
+  /** A day and time in the owner's words, the year only when it is not this one: "Fri 31 Oct, 08:00". */
   at: (at: number) => {
     const d = new Date(at);
     const day = d.toLocaleDateString('de-DE', { weekday: 'short' }).replace(/\.$/, '');
@@ -31,20 +31,22 @@ const de = {
   decided: 'Entschieden',
   openQuestions: 'Offene Fragen',
   /** Whisper's words to expect, before the titles on the canvas. */
-  vocabulary: 'Obeya, Aufgabe, Folgeaufgabe, Karte, Workstream, Idee, Prototyp, parken, Demo, freigeben, Pull Request, Agent.',
+  vocabulary: 'Seismic, Aufgabe, Folgeaufgabe, Karte, Workstream, Idee, Prototyp, parken, Demo, freigeben, Pull Request, Agent.',
+  /** In the log of a card the canvas archived by itself once its work landed. */
+  archivedLanded: 'Gelandet und fertig: Die Karte liegt jetzt im Archiv.',
   voice: {
     notUnderstood: 'Das habe ich nicht verstanden.',
     nothingHeard: 'Ich habe nichts gehört.',
     couldNotRead: (why: string) => `Ich konnte das nicht lesen. ${why}`,
     cloudFailed: (service: string, why: string) => `${service} hat die Aufnahme nicht erkannt (${why}).`,
-    interrupted: 'Obeya startete neu, bevor ich das gelesen hatte. Bitte noch einmal.',
+    interrupted: 'Seismic startete neu, bevor ich das gelesen hatte. Bitte noch einmal.',
     /** The usage limit keeps the Koordinator from reading the words: it reads them by itself once it lifts. */
     held: (when: string) => `Das Nutzungslimit ist erreicht. Ich lese das ${when} von selbst.`,
     undone: 'Zurückgenommen.',
     created: 'Per Sprache angelegt.',
-    /** On the card a follow-up comes from, once Obeya made it. */
+    /** On the card a follow-up comes from, once Seismic made it. */
     madeFollowUp: (title: string) => `Folgekarte „${title}“ angelegt.`,
-    /** On the task Obeya merged others into: which, by their titles. */
+    /** On the task Seismic merged others into: which, by their titles. */
     merged: (titles: string[]) => `Zusammengeführt mit ${titles.map((t) => `„${t}“`).join(', ')}.`,
   },
   failure: {
@@ -54,7 +56,7 @@ const de = {
   answer: {
     failed: (why: string) => `Ich konnte die Frage nicht beantworten (${why}).`,
     /** On the card the question was asked on: the usage limit stopped the look-up, which goes on by itself. */
-    limited: (when: string) => `Das Nutzungslimit ist erreicht. Obeya schlägt das ${when} von selbst nach.`,
+    limited: (when: string) => `Das Nutzungslimit ist erreicht. Seismic schlägt das ${when} von selbst nach.`,
     asIdea: 'Als Idee weiter besprochen.',
   },
   tool: {
@@ -69,6 +71,7 @@ const de = {
     restarted: (earlier: string) => `Von vorn gestartet. ${earlier}`,
     newSession: (earlier: string) => `Neue Sitzung. ${earlier}`,
     earlierRun: (session: string) => `Der frühere Lauf (Sitzung ${session}) bleibt für die Arbeitsrückschau erhalten.`,
+    projectBaseline: (tag: string, commit: string) => `Git-Ausgangspunkt des Projekts: ${tag} (${commit.slice(0, 7)}). Dieser Zweig ist damit verknüpft.`,
     started: (branch: string) => `Agent gestartet auf ${branch}.`,
     /** The owner chose the worker's harness, model and effort for this start. */
     startedWith: (choice: string) => `Für diesen Start gewählt: ${choice}.`,
@@ -76,7 +79,7 @@ const de = {
     reviewStarted: (n: number, author: string) => `Agent gestartet: Er prüft PR #${n} von ${author}.`,
     /** The worker sent the owner's change request to the contributor as a review on the PR. */
     changesRequested: (n: number, author: string) => `Änderungswunsch als Review-Kommentar an PR #${n}. Wartet auf ${author}.`,
-    /** On the owner's approval, Obeya pushed the worker's own commits onto the contributor's PR and posted their text, with a request to them or without. */
+    /** On the owner's approval, Seismic pushed the worker's own commits onto the contributor's PR and posted their text, with a request to them or without. */
     pushedHeld: (n: number, commits: number, author?: string) =>
       `${commits === 1 ? '1 Commit' : `${commits} Commits`} auf den Branch von PR #${n} gepusht und ${author ? `mit dem Änderungswunsch an ${author} geschickt. Wartet auf ${author}.` : 'kommentiert.'}`,
     /** The worker's own commits could not go onto the PR's branch. */
@@ -87,8 +90,8 @@ const de = {
     postFailed: (reason: string) => `Gepusht, aber der Text dazu ließ sich nicht posten: ${reason}`,
     /** The owner rewrote the text that goes onto the PR with the approval of the worker's own changes. */
     heldEdited: (n: number) => `Text für PR #${n} bearbeitet.`,
-    /** Approving a review card: Obeya merges the PR. */
-    approvedMerge: (n: number) => `Freigegeben. Obeya mergt PR #${n}.`,
+    /** Approving a review card: Seismic merges the PR. */
+    approvedMerge: (n: number) => `Freigegeben. Seismic mergt PR #${n}.`,
     mergedContribution: (n: number) => `PR #${n} gemergt. Live.`,
     /** The contributor pushed after the handover: the approval does not merge a head the worker has not reviewed. */
     unreviewedHead: (head: string) => `Nicht gemergt: Der PR steht seit der Übergabe auf einem anderen Stand (${head}). Der Agent prüft ihn.`,
@@ -123,6 +126,20 @@ const de = {
     findingLater: 'als Folgeaufgabe',
     findingTask: (n: number, url: string) => `Aus dem Review von PR #${n}: ${url}`,
     findingTaskMade: (n: number) => `Als Folgeaufgabe aus dem Review von PR #${n} angelegt.`,
+    /** A finding of the code review of a card's work. */
+    findingFix: 'beheben',
+    findingIgnored: 'ignoriert',
+    findingTaskOf: (title: string) => `Aus dem Code-Review von „${title}“.`,
+    findingTaskMadeOf: (title: string) => `Als Folgeaufgabe aus dem Code-Review von „${title}“ angelegt.`,
+    codeReviewStarted: 'Code-Review gestartet.',
+    codeReviewDone: (n: number, counts: Record<Severity, number>) =>
+      n === 0 ? 'Code-Review: keine Befunde.' : `Code-Review: ${n === 1 ? '1 Befund' : `${n} Befunde`} (${SEVERITIES.filter((s) => counts[s]).map((s) => `${counts[s]} ${({ blocker: 'Blocker', critical: 'kritisch', major: 'schwer', minor: 'leicht', low: 'gering', info: 'Info' } satisfies Record<Severity, string>)[s]}`).join(', ')}).`,
+    codeReviewFailed: (why: string) => `Code-Review gescheitert: ${why}`,
+    codeReviewNoFindings: 'Es hat keine Befunde festgehalten.',
+    codeReviewInterrupted: 'Seismic wurde währenddessen neu gestartet.',
+    codeReviewPaused: 'Das Code-Review pausiert für den Neustart von Seismic und geht danach weiter.',
+    codeReviewResumed: 'Seismic läuft wieder: das Code-Review geht weiter.',
+    codeReviewNoDiff: 'Der Branch der Karte ließ sich nicht lesen, oder er ändert nichts.',
     keepCard: 'Nein, behalten',
     laterInConversation: 'Danach im Gespräch:',
     approvedPr: 'Freigegeben. Der Agent öffnet den Pull Request.',
@@ -131,12 +148,12 @@ const de = {
     approvedMain: 'Freigegeben und auf main.',
     landedMain: 'Nach der Freigabe auf main gelandet.',
     switchedToMain: (branch: string | null, commit: string) =>
-      branch ? `Der Obeya-Checkout stand auf dem Branch ${branch}. Obeya hat ihn zum Landen auf main gewechselt; ${branch} bleibt, wie er war.` : `Der Obeya-Checkout stand auf keinem Branch (${commit}). Obeya hat ihn zum Landen auf main gewechselt.`,
+      branch ? `Der Seismic-Checkout stand auf dem Branch ${branch}. Seismic hat ihn zum Landen auf main gewechselt; ${branch} bleibt, wie er war.` : `Der Seismic-Checkout stand auf keinem Branch (${commit}). Seismic hat ihn zum Landen auf main gewechselt.`,
     approvedUnchanged: 'Freigegeben. Ohne Änderung am Code gibt es nichts zu landen: erledigt.',
     doneUnchanged: 'Ohne Änderung am Code abgeschlossen: erledigt.',
     startedInFolder: 'Agent gestartet im Ordner.',
     approvedFolder: 'Freigegeben. Die Änderungen bleiben im Ordner: erledigt.',
-    /** What „Änderungen verwerfen“ did in a folder without git. */
+    /** What "Discard changes" did in a folder without git. */
     undone: (n: number) => (n === 1 ? 'Änderungen verworfen: 1 Datei zurückgesetzt.' : `Änderungen verworfen: ${n} Dateien zurückgesetzt.`),
     undoChangedSince: (files: string) => `Seitdem von jemand anderem geändert, daher gelassen: ${files}.`,
     undoLost: (files: string) => `Nicht rückgängig zu machen, keine Kopie von vorher: ${files}.`,
@@ -174,12 +191,12 @@ const de = {
     snoozed: (at: string, why?: string) => `Zurückgestellt bis ${at}${why ? ` · ${why}` : ''}`,
     /** Until when a worker waits on another card: until it is done or waits for the owner, and at the latest when, if it gave a time. */
     awaits: (title: string, state: AwaitedState, at?: string) => `„${title}“ ${state === 'done' ? 'erledigt ist' : 'auf dich wartet'}${at ? `, spätestens ${at}` : ''}`,
-    /** It woke from a snooze, and why (`wokeWhy`). Until 2026-10-17 the line said who had snoozed it: „Wieder da (vom Agenten zurückgestellt)“. */
+    /** It woke from a snooze, and why (`wokeWhy`). Until 2026-10-17 the line said who had snoozed it: "Back (snoozed by the agent)". */
     woke: (why: string) => `Wieder da: ${why}`,
     wokeWhy: {
       time: 'Zeitpunkt erreicht',
       owner: 'von dir zurückgeholt',
-      /** Obeya had something for an agent that snoozed itself (a review, the landing, a failed check). */
+      /** Seismic had something for an agent that snoozed itself (a review, the landing, a failed check). */
       news: 'Neues für den Agenten',
       needsYou: 'die Karte braucht dich',
       /** What became of the card the agent waited on. */
@@ -193,18 +210,18 @@ const de = {
     appGone: 'Die App dieser Karte läuft nicht mehr. Soll der Agent sie wieder starten, sag es ihm auf der Karte.',
     stoppedPrOpen: (n: number) => `Gestoppt. Pull Request #${n} bleibt offen.`,
     restartDue: (pause: Pause) =>
-      `${pause === 'stop' ? 'Beenden von Obeya' : pause === 'repo' ? 'Neustart der Agenten dieses Repositorys' : 'Neustart von Obeya'} angekündigt; der Agent pausiert beim nächsten sicheren Punkt.`,
+      `${pause === 'stop' ? 'Beenden von Seismic' : pause === 'repo' ? 'Neustart der Agenten dieses Repositorys' : 'Neustart von Seismic'} angekündigt; der Agent pausiert beim nächsten sicheren Punkt.`,
     restartWaits: (pause: Pause): string =>
       pause === 'stop'
-        ? 'Obeya wartet auf das Beenden; der Agent macht weiter, wenn Obeya wieder läuft.'
+        ? 'Seismic wartet auf das Beenden; der Agent macht weiter, wenn Seismic wieder läuft.'
         : pause === 'repo'
-          ? 'Obeya wartet, um die Agenten dieses Repositorys neu zu starten; der Agent macht danach weiter.'
-          : 'Obeya wartet auf einen Neustart; der Agent macht danach weiter.',
-    restartStillDue: (pause: Pause) => `Der Agent ist vor dem ${pause === 'stop' ? 'Beenden' : 'Neustart'} wieder aufgewacht; Obeya sagt ihm, dass ${pause === 'stop' ? 'das Beenden' : 'der Neustart'} noch auf ihn wartet.`,
+          ? 'Seismic wartet, um die Agenten dieses Repositorys neu zu starten; der Agent macht danach weiter.'
+          : 'Seismic wartet auf einen Neustart; der Agent macht danach weiter.',
+    restartStillDue: (pause: Pause) => `Der Agent ist vor dem ${pause === 'stop' ? 'Beenden' : 'Neustart'} wieder aufgewacht; Seismic sagt ihm, dass ${pause === 'stop' ? 'das Beenden' : 'der Neustart'} noch auf ihn wartet.`,
     limitResumes: (when: string) => `Der Agent arbeitet ${when} automatisch weiter.`,
     limitPaused: 'Nutzungslimit · nach 3 Versuchen pausiert. Bei bekanntem Reset geht es automatisch weiter; jetzt erneut versuchen ist möglich.',
-    limitRetries: (when: string) => `Obeya versucht es ${when} noch einmal.`,
-    paused: (pause: Pause): string => (pause === 'stop' ? 'Pausiert, bis Obeya wieder läuft.' : pause === 'repo' ? 'Pausiert bis zum Neustart der Agenten dieses Repositorys.' : 'Pausiert bis zum Neustart von Obeya.'),
+    limitRetries: (when: string) => `Seismic versucht es ${when} noch einmal.`,
+    paused: (pause: Pause): string => (pause === 'stop' ? 'Pausiert, bis Seismic wieder läuft.' : pause === 'repo' ? 'Pausiert bis zum Neustart der Agenten dieses Repositorys.' : 'Pausiert bis zum Neustart von Seismic.'),
     hostLost: (host: string) => `Die Verbindung zu ${host} ist weg; der Agent macht weiter, sobald ${host} wieder erreichbar ist.`,
     hostBack: (host: string) => `${host} ist wieder erreichbar; der Agent macht weiter.`,
     stalled: 'Der Agent hat angehalten, ohne fertig zu sein.',
@@ -218,7 +235,7 @@ const de = {
       classifier: 'Prüfmodell des Auto-Modus',
       mode: 'Berechtigungsmodus',
       hook: 'Hook',
-      obeya: 'Obeya: Warten im Vordergrund',
+      obeya: 'Seismic: Warten im Vordergrund',
       owner: 'von dir abgelehnt',
       other: 'ohne Angabe',
     },
@@ -229,8 +246,8 @@ const de = {
     limitStatus: 'Nutzungslimit',
     limitStatusUntil: (when: string) => `Nutzungslimit · weiter ${when}`,
     proposesBuild: (reason: string) => `Schlägt vor, die Idee auf diesem Prototyp zu bauen: ${reason}`,
-    proposedIdea: (title: string, canvas?: string) => `Idee vorgeschlagen${canvas ? ` auf der Leinwand „${canvas}“` : ''}: ${title}`,
-    proposedCard: (title: string, canvas?: string) => `Aufgabe vorgeschlagen${canvas ? ` auf der Leinwand „${canvas}“` : ''}: ${title}`,
+    proposedIdea: (title: string, canvas?: string) => `Idee vorgeschlagen${canvas ? ` im Projekt „${canvas}“` : ''}: ${title}`,
+    proposedCard: (title: string, canvas?: string) => `Aufgabe vorgeschlagen${canvas ? ` im Projekt „${canvas}“` : ''}: ${title}`,
     /** The agent's own earlier proposal, withdrawn or replaced (`by`: the proposal that takes its place). */
     withdrewProposal: (title: string, why?: string, by?: string) =>
       by ? `Ersetzt den Vorschlag „${title}“ durch „${by}“${why ? `: ${why}` : '.'}` : `Zieht den Vorschlag „${title}“ zurück${why ? `: ${why}` : '.'}`,
@@ -239,7 +256,9 @@ const de = {
       by ? `Der vorschlagende Agent hat diese Karte ersetzt durch „${by}“${why ? `: ${why}` : '.'}` : `Der vorschlagende Agent hat diese Karte zurückgezogen${why ? `: ${why}` : '.'}`,
     prOpened: (pr: string) => `Pull Request ${pr} geöffnet.`,
     landing: 'Landet auf main',
-    waitsForRestart: 'Wartet auf den Neustart von Obeya mit der neuen Version',
+    folded: (files: string[], land: boolean) => `Die nicht committeten Änderungen im Checkout an ${files.join(', ')} sind jetzt in dieser Karte. Der Agent arbeitet sie ein; ${land ? 'danach landet die Arbeit ohne neue Freigabe.' : 'danach kommt eine neue Demo zur Freigabe.'}`,
+    landingOverlap: (subjects: string[], files: string[]) => `Auf main gelandet: ${subjects.join('; ')}. Überschneidung: ${files.join(', ')}. Der Agent hört es mit seinem nächsten Zug und entscheidet, ob er jetzt rebasen möchte.`,
+    waitsForRestart: 'Wartet auf den Neustart von Seismic mit der neuen Version',
     needsClone: 'Braucht für die Antwort einen vollen Klon',
     waitsForWorkspace: 'Wartet auf Workspace',
     waitsForClone: 'Die Nachfrage wartet auf den nächsten freien Klon und geht dann von selbst weiter.',
@@ -247,7 +266,7 @@ const de = {
     preparingWorkspace: 'Bereitet den Workspace vor …',
     workspaceFailed: (detail: string) => `Der Workspace ließ sich nicht vorbereiten: ${detail}`,
   },
-  /** „Review PR #5“ to Obeya: a review card for someone outside's pull request. */
+  /** "Review PR #5" to Seismic: a review card for someone outside's pull request. */
   review: {
     failed: (pr: string, why: string) => `Keine Review-Karte für PR ${/^\d+$/.test(pr) ? `#${pr}` : pr}: ${why}`,
     opened: (n: number) => `PR #${n} hat schon eine Karte: Hier ist sie.`,
@@ -262,11 +281,11 @@ const de = {
     conflict: 'Konflikt mit dem Zielbranch. Der Agent bringt den Branch auf Stand.',
     contributorPushed: (author: string) => `${author} hat neu gepusht, an den Agenten weitergegeben.`,
     stale: 'Neuer Stand seit dem letzten Review, um ein neues hat niemand gebeten. Der Agent fragt danach.',
-    held: (by: string, score: string) => `Bereit zum Mergen, aber ${by} gibt nur ${score}: Unter 4/5 mergt Obeya nicht selbst. Du entscheidest.`,
-    ready: 'Bereit zum Mergen: Checks grün, alle Anmerkungen erledigt, das Review ist durch. Obeya mergt.',
-    readyManual: 'Bereit zum Mergen: Checks grün, alle Anmerkungen erledigt, das Review ist durch. In diesem Repository mergt Obeya nicht selbst: bitte selbst mergen.',
-    mergeFailed: (reason: string) => `Obeya konnte nicht mergen: ${reason}`,
-    unreadable: (reason: string) => `Obeya kann den Pull Request nicht lesen: ${reason}`,
+    held: (by: string, score: string) => `Bereit zum Mergen, aber ${by} gibt nur ${score}: Unter 4/5 mergt Seismic nicht selbst. Du entscheidest.`,
+    ready: 'Bereit zum Mergen: Checks grün, alle Anmerkungen erledigt, das Review ist durch. Seismic mergt.',
+    readyManual: 'Bereit zum Mergen: Checks grün, alle Anmerkungen erledigt, das Review ist durch. In diesem Repository mergt Seismic nicht selbst: bitte selbst mergen.',
+    mergeFailed: (reason: string) => `Seismic konnte nicht mergen: ${reason}`,
+    unreadable: (reason: string) => `Seismic kann den Pull Request nicht lesen: ${reason}`,
     behind: 'Der Branch ist hinter dem Zielbranch, und das Repository mergt nur einen aktuellen. Der Agent bringt ihn auf Stand.',
     mergedOne: (pr: string, left: (string | null)[]) =>
       `Pull Request ${pr} gemergt. Live, sobald auch ${left.map((l) => (l ? `Pull Request ${l}` : 'der Pull Request dieses Repositorys')).join(' und ')} gemergt ist.`,
@@ -298,11 +317,11 @@ const de = {
     parked: 'Geparkt.',
     /** `file`: the doc to write, where the plan directory is a folder outside the repository. */
     planDocTask: (dir: string, task = false, file?: string) =>
-      `Schreibe aus ${task ? 'dieser Aufgabe' : 'dem Stand dieser Idee'} ein Plan-Doc ${file ? `als \`${file}\`, in einem Ordner dieses Rechners außerhalb des Repositorys,` : `in \`${dir}/\`,`} nach den Konventionen des Repositorys (vorhandene Plan-Docs als Vorbild). Es braucht ein \`## Ziel\` (oder \`## Goal\`) und eine Checkliste unter \`## Workstreams\` (\`- [ ] **W1:** Titel. Details\`), in Pakete geschnitten, die einzeln landen können; dann zeigt Obeya es als Projekt, das an die Stelle dieser ${task ? 'Aufgabe' : 'Idee'} tritt. Baue nichts davon; nur das Plan-Doc${file ? '' : ' (und ein Verweis darauf, wo das Repository Plan-Docs verlinkt)'}.`,
+      `Schreibe aus ${task ? 'dieser Aufgabe' : 'dem Stand dieser Idee'} ein Plan-Doc ${file ? `als \`${file}\`, in einem Ordner dieses Rechners außerhalb des Repositorys,` : `in \`${dir}/\`,`} nach den Konventionen des Repositorys (vorhandene Plan-Docs als Vorbild). Es braucht ein \`## Ziel\` (oder \`## Goal\`) und eine Checkliste unter \`## Workstreams\` (\`- [ ] **W1:** Titel. Details\`), in Pakete geschnitten, die einzeln landen können; dann zeigt Seismic es als Projekt, das an die Stelle dieser ${task ? 'Aufgabe' : 'Idee'} tritt. Baue nichts davon; nur das Plan-Doc${file ? '' : ' (und ein Verweis darauf, wo das Repository Plan-Docs verlinkt)'}.`,
     planDocIdea: (title: string) => `Idee: „${title}“`,
     planDocCard: (title: string) => `Aufgabe: „${title}“`,
     planDocPrototypes: (n: number) =>
-      `Zu dieser Idee gibt es schon ${n > 1 ? `${n} Prototypen` : 'einen Prototyp'}. Sie bleiben auf der Leinwand stehen; steht das Projekt, wählt der Owner einen von ihnen („Diesen Prototyp bauen“), und der Workstream, der darauf aufbaut, wird auf seinem Branch gebaut. Plane sie also nicht noch einmal als Workstreams, sondern nimm, was sie gezeigt haben, ins Plan-Doc auf. Nur der Workstream, der auf dem gewählten Prototyp aufbaut, erwähnt Prototypen: an ihm erkennt Obeya, welcher Workstream auf dem Branch des Prototyps gebaut wird.`,
+      `Zu dieser Idee gibt es schon ${n > 1 ? `${n} Prototypen` : 'einen Prototyp'}. Sie bleiben im Projekt stehen; steht das Projekt, wählt der Owner einen von ihnen („Diesen Prototyp bauen“), und der Workstream, der darauf aufbaut, wird auf seinem Branch gebaut. Plane sie also nicht noch einmal als Workstreams, sondern nimm, was sie gezeigt haben, ins Plan-Doc auf. Nur der Workstream, der auf dem gewählten Prototyp aufbaut, erwähnt Prototypen: an ihm erkennt Seismic, welcher Workstream auf dem Branch des Prototyps gebaut wird.`,
     planDocHandedOver: (title: string, summary: string) => `„${title}“, so übergeben:\n\n${summary}`,
     planDocInProgress: (title: string) => `„${title}“: noch in Arbeit.`,
     onlyThisVariant: (others: string) => `Nur diese Variante: ${others} bauen eigene Prototypen.`,
@@ -332,27 +351,27 @@ const de = {
     prototypeButton: 'Prototyp bauen lassen',
     splitOffButton: 'Teilaufgabe abtrennen',
   },
-  /** A card built or started in a repository Obeya creates for it. */
+  /** A card built or started in a repository Seismic creates for it. */
   newRepo: {
     held: (path: string) => `Legt das Repository ${path} an …`,
     stayed: 'Neues Repository zurückgenommen: Die Karte bleibt, wie sie war.',
     failed: (why: string) => `Repository nicht angelegt, die Karte bleibt, wie sie war: ${why}`,
     noPath: 'Für das neue Repository fehlt der Ordner.',
-    taken: (path: string, canvas: string) => `Das Repository ${path} gibt es auf der Leinwand „${canvas}“ schon; wähl es dort.`,
+    taken: (path: string, canvas: string) => `Das Repository ${path} gibt es im Projekt „${canvas}“ schon; wähl es dort.`,
     inside: (path: string, repo: string) => `${path} liegt im Repository ${repo}.`,
     notFolder: (path: string) => `${path} ist kein Ordner.`,
-    fromCommandLine: 'Die Leinwände kommen von der Kommandozeile; eine neue legt nur die Konfiguration an.',
-    notStarted: (why: string) => `Die neue Leinwand startet nicht: ${why}`,
+    fromCommandLine: 'Die Projekte kommen von der Kommandozeile; ein neues legt nur die Konfiguration an.',
+    notStarted: (why: string) => `Das neue Projekt startet nicht: ${why}`,
     /** In the card's conversation, once it is on the new canvas. */
-    movedHere: (from: string, path: string, made: boolean) => `Von der Leinwand „${from}“ hierher umgezogen. Das Repository ${path} ${made ? 'ist neu angelegt' : 'gab es schon'}.`,
-    joined: (path: string, made: boolean) => `Das Repository ${path} ${made ? 'ist neu angelegt und ' : ''}gehört jetzt zu dieser Leinwand; die Karte arbeitet darin.`,
-    /** In Obeya's sheet of the canvas the card left. */
-    movedAway: (title: string, canvas: string) => `„${title}“ ist auf die Leinwand „${canvas}“ umgezogen und wird dort gebaut.`,
+    movedHere: (from: string, path: string, made: boolean) => `Aus dem Projekt „${from}“ hierher umgezogen. Das Repository ${path} ${made ? 'ist neu angelegt' : 'gab es schon'}.`,
+    joined: (path: string, made: boolean) => `Das Repository ${path} ${made ? 'ist neu angelegt und ' : ''}gehört jetzt zu diesem Projekt; die Karte arbeitet darin.`,
+    /** In Seismic's sheet of the canvas the card left. */
+    movedAway: (title: string, canvas: string) => `„${title}“ ist in das Projekt „${canvas}“ umgezogen und wird dort gebaut.`,
     /** The answer the decision log records when an idea is built in a new repository. */
     buildAnswer: (path: string) => `So bauen, im neuen Repository ${path}.`,
   },
   proposal: {
-    /** `how`: the button clicked, "Übernehmen und starten", "Übernehmen und besprechen" (a proposed idea) or "Als Idee besprechen". */
+    /** `how`: the button clicked, "Accept and start", "Accept and discuss" (a proposed idea) or "Discuss as idea". */
     acceptAfterRevision: (how: 'start' | 'discuss' | 'asIdea') =>
       `${{ start: 'Übernehmen und starten', discuss: 'Übernehmen und besprechen', asIdea: 'Als Idee besprechen' }[how]}, sobald der Vorschlag überarbeitet ist; hat er noch Fragen, bleibt er Vorschlag.`,
     notAccepting: 'Doch nicht übernehmen.',
@@ -361,7 +380,7 @@ const de = {
     notAcceptedQuestion: 'Nicht übernommen: Der Vorschlag hat noch eine Frage.',
   },
   koordinator: {
-    allStarted: (names: string) => `Alle Workstreams gestartet: ${names}. Obeya legt die Reihenfolge fest.`,
+    allStarted: (names: string) => `Alle Workstreams gestartet: ${names}. Seismic legt die Reihenfolge fest.`,
     startedDespite: 'Trotzdem gestartet, ohne zu warten.',
     startTakenBack: (names: string) => `Start zurückgenommen: ${names}.`,
     dequeued: 'Aus der Warteschlange genommen.',
@@ -369,8 +388,9 @@ const de = {
     movedAfter: (title: string) => `In der Warteschlange hinter „${title}“ gestellt.`,
     proposes: (rule: string) => `Schlägt vor: „${rule}“`,
     nothingRuns: 'Nichts läuft gerade; es geht sofort los.',
-    repoDown: (repo: string) => `Nicht gestartet: Das Repository ${repo} läuft gerade nicht auf dieser Leinwand. Starte die Aufgabe wieder, sobald es zurück ist.`,
-    estimateFailed: (why: string) => `Obeya konnte den Umfang nicht schätzen (${why}); die Aufgabe startet trotzdem.`,
+    repoDown: (repo: string) => `Nicht gestartet: Das Repository ${repo} läuft gerade nicht in diesem Projekt. Starte die Aufgabe wieder, sobald es zurück ist.`,
+    estimateFailed: (why: string) => `Seismic konnte den Umfang nicht schätzen (${why}); die Aufgabe startet trotzdem.`,
+    possibleDuplicate: (titles: string) => `Möglicherweise doppelt mit ${titles}. Diese Aufgabe bleibt geplant; prüfe die Karten und starte sie bei Bedarf erneut.`,
     noConflict: 'Kein Merge-Konflikt mit laufender Arbeit zu erwarten.',
     waitsAhead: (title: string) => `„${title}“ (wartet selbst und ist vorher dran)`,
     likelyConflict: 'Wahrscheinlich Merge-Konflikte mit laufender Arbeit.',
@@ -378,27 +398,27 @@ const de = {
     followsReview: (n: number) => `Folgeaufgabe aus dem Review von PR #${n}; startet, sobald der PR gemergt ist.`,
     reviewClosed: (review: string) => `Zurück auf geplant: Der PR von ${review} wurde ohne Merge geschlossen. Starte die Folgeaufgabe selbst, wenn sie trotzdem gebraucht wird.`,
     notStarted: (name: string) => `${name} (noch nicht gestartet)`,
-    waitsFor: (names: string, reason: string) => `Obeya: wartet auf ${names}. ${reason}`,
+    waitsFor: (names: string, reason: string) => `Seismic: wartet auf ${names}. ${reason}`,
     /** Why a card waits that only the owner's arrows hold. */
     drawn: 'Du hast die Karten verbunden; sie startet, sobald das erledigt ist.',
     /** After `waitsFor`, the cards the owner's arrows hold it for besides. */
     drawnToo: (names: string) => `Außerdem wartet sie auf ${names}: Du hast die Karten verbunden.`,
-    togetherFailed: (why: string) => `Obeya konnte die Workstreams nicht gemeinsam einplanen (${why}) und prüft sie einzeln.`,
-    arrangeFailed: (why: string) => `Obeya konnte nicht lesen, welcher Workstream auf welchem aufbaut (${why}); die Karten bleiben, wo sie stehen.`,
+    togetherFailed: (why: string) => `Seismic konnte die Workstreams nicht gemeinsam einplanen (${why}) und prüft sie einzeln.`,
+    arrangeFailed: (why: string) => `Seismic konnte nicht lesen, welcher Workstream auf welchem aufbaut (${why}); die Karten bleiben, wo sie stehen.`,
     togetherStarts: 'Gemeinsam mit den anderen Workstreams eingeplant; startet jetzt.',
     planned: (started: number, of: number) => `Eingeplant: ${started} von ${of} Workstreams starten jetzt, die anderen warten.`,
-    says: (why: string) => `Obeya: ${why}`,
+    says: (why: string) => `Seismic: ${why}`,
     workspaceFree: 'Ein Workspace ist frei; es geht los.',
     /** A card whose workspace the owner gave to another waits in the queue for the next one. */
     requeued: 'Wartet auf den nächsten freien Workspace und macht dann auf ihrem Branch weiter.',
     slotFree: 'Ein Rechner hat wieder einen Slot frei; es geht los.',
-    canvasPaused: 'Die Agenten dieser Leinwand sind pausiert: Die Aufgabe startet, sobald du sie fortsetzt.',
-    canvasPlays: 'Die Agenten dieser Leinwand laufen wieder; es geht los.',
+    canvasPaused: 'Die Agenten dieses Projekts sind pausiert: Die Aufgabe startet, sobald du sie fortsetzt.',
+    canvasPlays: 'Die Agenten dieses Projekts laufen wieder; es geht los.',
     waitedDone: 'Worauf sie gewartet hat, ist erledigt; es geht los.',
-    waitedDoneRecheck: 'Obeya: Worauf sie gewartet hat, ist erledigt; prüft neu gegen die laufende Arbeit.',
-    waitedDoneTogether: 'Obeya: Worauf sie gewartet hat, ist erledigt; prüft sie zusammen mit den anderen Aufgaben, die jetzt frei sind.',
+    waitedDoneRecheck: 'Seismic: Worauf sie gewartet hat, ist erledigt; prüft neu gegen die laufende Arbeit.',
+    waitedDoneTogether: 'Seismic: Worauf sie gewartet hat, ist erledigt; prüft sie zusammen mit den anderen Aufgaben, die jetzt frei sind.',
     freedStarts: 'Zusammen mit den anderen frei gewordenen Aufgaben geprüft; startet jetzt.',
-    freedFailed: (why: string) => `Obeya konnte die frei gewordenen Aufgaben nicht gemeinsam prüfen (${why}) und prüft sie einzeln.`,
+    freedFailed: (why: string) => `Seismic konnte die frei gewordenen Aufgaben nicht gemeinsam prüfen (${why}) und prüft sie einzeln.`,
     noWorkspace: 'Kein Workspace frei: Alle sind belegt oder es ist keiner eingerichtet. Die Aufgabe startet, sobald einer frei wird.',
     dirtyWorkspaces: 'Kein Workspace frei: Jeder freie hat noch nicht committete Änderungen. Die Aufgabe startet, sobald einer sauber ist.',
     noSlot: 'Kein Slot frei: Auf jedem Rechner mit freiem Workspace arbeiten so viele Agenten, wie er Slots hat. Die Aufgabe startet, sobald einer fertig ist.',
@@ -423,7 +443,7 @@ const de = {
     occasion: (why: string) => `Anlass (Arbeitsrückschau): ${why}`,
     from: (repo: string, why: string, cards: string) => `Aus der Arbeitsrückschau für ${repo}. ${why} Karten: ${cards}.`,
     done: (repo: string, made: number) =>
-      `Arbeitsrückschau für ${repo}: ${made ? `${made === 1 ? 'ein Vorschlag' : `${made} Vorschläge`}, auf der Leinwand und bei Obeya.` : 'nichts, was sich auf mehreren Karten wiederholt.'}`,
+      `Arbeitsrückschau für ${repo}: ${made ? `${made === 1 ? 'ein Vorschlag' : `${made} Vorschläge`}, im Projekt und bei Seismic.` : 'nichts, was sich auf mehreren Karten wiederholt.'}`,
     settings: { checks: 'Prüfungen', setup: 'Einrichten', softPaths: 'Weiche Pfade', run: 'So läuft die App' },
     onMachine: (setting: string, repo: string) => `„${setting}“ für ${repo} gilt jetzt auf diesem Rechner.`,
     committed: (setting: string, repo: string, branch: string) => `„${setting}“ für ${repo} steht jetzt in .obeya/settings.json auf ${branch} und gilt für alle.`,
@@ -450,7 +470,6 @@ const de = {
     demoGone: 'Eine Demo, die die Seite zeigt, ist nicht mehr da; „Auf der Seite ersetzen“ bringt die neueste der Aufgabe.',
     linkLater: 'Die geteilte Seite bekommt den Link zum Pull Request oder Commit mit dem nächsten Teilen.',
     noDemo: 'Die Aufgabe hat keine Demo mehr, oder ihr Repository teilt keine.',
-    privateNotAllowed: 'Das Repository ist privat und nicht mehr für die persönliche Demo-Seite freigegeben. Zurückziehen geht weiter.',
     sharedAgain: (url: string) => `Erneut geteilt: ${url}`,
     linksPr: (url: string) => `Die geteilte Seite verlinkt jetzt den Pull Request: ${url}`,
     linksCommit: (url: string) => `Die geteilte Seite verlinkt jetzt den Commit auf main: ${url}`,
@@ -468,12 +487,12 @@ const de = {
     prComment: (artifact: boolean, url: string) => `${artifact ? 'Demo-Seite' : 'Demo-Video'}: ${url}`,
     notWithdrawnNoShare: 'Nicht zurückgezogen: Das Repository der Aufgabe teilt keine Demos mehr.',
     withdrawn: 'Die Seite ist zurückgezogen.',
-    // a site Obeya keeps (`demo.site`): why a page did not go out, or did not come down
+    // a site Seismic keeps (a canvas's demo site): why a page did not go out, or did not come down
     pageIncomplete: 'Der Seite fehlen Titel, Text oder das Verzeichnis der Demo.',
     fileMissing: (file: string, dir: string) => `${file} fehlt in ${dir}.`,
     fileTooLarge: (file: string, mib: string, max: string) => `${file} ist ${mib} MiB groß; die Site nimmt höchstens ${max} MiB pro Datei.`,
     siteLacks: (dir: string, slugs: string[]) =>
-      `Nicht deployt: ${dir} fehlen ${slugs.length === 1 ? 'eine Seite' : `${slugs.length} Seiten`}, die Obeya als geteilt kennt (${slugs.join(', ')}); ein Deploy nähme ${slugs.length === 1 ? 'sie' : 'sie alle'} offline. Erst das Verzeichnis wiederherstellen.`,
+      `Nicht deployt: ${dir} fehlen ${slugs.length === 1 ? 'eine Seite' : `${slugs.length} Seiten`}, die Seismic als geteilt kennt (${slugs.join(', ')}); ein Deploy nähme ${slugs.length === 1 ? 'sie' : 'sie alle'} offline. Erst das Verzeichnis wiederherstellen.`,
     envMissing: (file: string) => `${file} fehlt auf diesem Rechner.`,
     deployFailed: (code: number) => `Der Deploy der Site ist gescheitert (Exit-Code ${code}).`,
     notWithdrawn: (why: string) => `Nicht zurückgezogen: ${why}`,
@@ -491,7 +510,7 @@ const de = {
     lostTwice: 'Zweimal kam der Deploy eines anderen Rechners dazwischen; die Site zeigt die Änderung nicht. Bitte noch einmal.',
     notSeenYet: 'Die Site zeigt den neuen Stand noch nicht; der nächste Deploy prüft wieder.',
     withdrawnElsewhere: (machine: string) => `Die Seite wurde auf einem anderen Rechner (${machine}) zurückgezogen; der Link ist weg.`,
-    restored: 'Die Seite fehlte auf der Site: Der Deploy eines anderen Rechners hatte sie offline genommen. Obeya hat sie wieder deployt.',
+    restored: 'Die Seite fehlte auf der Site: Der Deploy eines anderen Rechners hatte sie offline genommen. Seismic hat sie wieder deployt.',
     notRestored: (why: string) => `Die Seite fehlt auf der Site (der Deploy eines anderen Rechners hat sie offline genommen) und ist nicht wieder deployt: ${why}`,
     exported: (zip: boolean, name: string) => `Exportiert als ${zip ? 'ZIP' : 'HTML-Datei'}: ${name}`,
     /** The line in a pull request's description that links its demo. */
@@ -502,30 +521,30 @@ const de = {
   /** The first card on the canvas the setup assistant created: what to try. */
   welcome: {
     title: 'Erste Aufgabe: etwas Kleines ändern',
-    body: 'Schreib in diese Karte, was ein Agent in diesem Repository tun soll, zum Beispiel: „Ergänze im README, wie man das Projekt startet.“ Dann „Agent starten“: Er arbeitet auf einem eigenen Branch, fragt nach, wenn er etwas nicht selbst entscheiden soll, und zeigt dir zum Schluss eine Demo. Du gibst sie frei oder schreibst, was noch fehlt.\n\nWeitere Aufgaben legst du mit „+ Neue Aufgabe“ an, oder du sagst sie: Leertaste halten und sprechen. „Konfiguration“ → „Einrichtung prüfen“ prüft auch später, was Obeya auf diesem Rechner braucht.',
+    body: 'Schreib in diese Karte, was ein Agent in diesem Repository tun soll, zum Beispiel: „Ergänze im README, wie man das Projekt startet.“ Dann „Agent starten“: Er arbeitet auf einem eigenen Branch, fragt nach, wenn er etwas nicht selbst entscheiden soll, und zeigt dir zum Schluss eine Demo. Du gibst sie frei oder schreibst, was noch fehlt.\n\nWeitere Aufgaben legst du mit „+ Neue Aufgabe“ an, oder du sagst sie: Leertaste halten und sprechen. „Konfiguration“ → „Einrichtung prüfen“ prüft auch später, was Seismic auf diesem Rechner braucht.',
   },
   adapterSetup: {
-    title: (repo: string) => `Obeya für ${repo} einrichten`,
-    body: 'Füll mit dem Skill `obeya:settings` die Einstellungen dieses Repositorys für alle aus (`.obeya/settings.json`, in der Konfiguration unter „Einstellungen“ als „aus dem Repository“ zu sehen): welche Prüfungen laufen, wie Arbeit landet, wie ein Agent die App betreibt (starten, nach einer Änderung, für eine Demo), wie Obeya sie stoppt, und wo die Plan-Docs liegen, die Obeya als Projekte zeigt. Entwirf dazu die Allow-Liste der Befehle, die Agenten hier ohne Rückfrage ausführen (die `Bash`-Regeln in `.claude/settings.json`), damit ich sie in der Konfiguration prüfe und ihr vertraue. Hat das Repository noch ein `.obeya/adapter/`, übernimm, was darin steht, in die Einstellungen und lösch es. Was du im Repository nicht herausfindest (Login, Testdaten), frag mich.',
-    reason: (repo: string) => `Obeya weiß noch nicht, wie die App von ${repo} startet, welche Prüfungen laufen und wie ein Agent sie für eine Demo betreibt.`,
+    title: (repo: string) => `Seismic für ${repo} einrichten`,
+    body: 'Füll mit dem Skill `obeya:settings` die Einstellungen dieses Repositorys für alle aus (`.obeya/settings.json`, in der Konfiguration unter „Einstellungen“ als „aus dem Repository“ zu sehen): welche Prüfungen laufen, wie Arbeit landet, wie ein Agent die App betreibt (starten, nach einer Änderung, für eine Demo), wie Seismic sie stoppt, und wo die Plan-Docs liegen, die Seismic als Projekte zeigt. Entwirf dazu die Allow-Liste der Befehle, die Agenten hier ohne Rückfrage ausführen (die `Bash`-Regeln in `.claude/settings.json`), damit ich sie in der Konfiguration prüfe und ihr vertraue. Hat das Repository noch ein `.obeya/adapter/`, übernimm, was darin steht, in die Einstellungen und lösch es. Was du im Repository nicht herausfindest (Login, Testdaten), frag mich.',
+    reason: (repo: string) => `Seismic weiß noch nicht, wie die App von ${repo} startet, welche Prüfungen laufen und wie ein Agent sie für eine Demo betreibt.`,
   },
   /** The card that turns a doc in the plan directory that is not a project into one. */
   preparePlanDoc: {
     title: (file: string) => `${file.slice(file.lastIndexOf('/') + 1)} als Projekt aufbereiten`,
     body: (file: string) =>
-      `Bereite \`${file}\` so auf, dass Obeya es als Projekt zeigt. Obeya liest ein Plan-Doc als Projekt, wenn unter \`## Workstreams\` (oder \`## Arbeitspakete\`) eine Checkliste steht: Jeder Punkt der obersten Ebene ist ein Workstream (\`- [ ] **W1:** Titel. Details\`), ein Paket, das einzeln landen kann, und ein abgehakter ist gelandet. Das Ziel des Projekts ist der erste Absatz unter \`## Goal\` (oder \`## Ziel\`).\n\nErgänze die Checkliste, und das Ziel, wenn es fehlt, im Stil des Docs aus dem, was es plant. Führt es seine Aufgaben schon unter einer anderen Überschrift (Tasks, Meilensteine, Phasen), wird daraus die Checkliste, statt sie zu verdoppeln. Hake ab, was schon erledigt ist; ist alles erledigt, sag es mir, denn ein Projekt mit lauter abgehakten Workstreams geht gleich ins Archiv. Der übrige Text bleibt, und gebaut wird nichts davon.`,
+      `Bereite \`${file}\` so auf, dass Seismic es als Projekt zeigt. Seismic liest ein Plan-Doc als Projekt, wenn unter \`## Workstreams\` (oder \`## Arbeitspakete\`) eine Checkliste steht: Jeder Punkt der obersten Ebene ist ein Workstream (\`- [ ] **W1:** Titel. Details\`), ein Paket, das einzeln landen kann, und ein abgehakter ist gelandet. Das Ziel des Projekts ist der erste Absatz unter \`## Goal\` (oder \`## Ziel\`).\n\nErgänze die Checkliste, und das Ziel, wenn es fehlt, im Stil des Docs aus dem, was es plant. Führt es seine Aufgaben schon unter einer anderen Überschrift (Tasks, Meilensteine, Phasen), wird daraus die Checkliste, statt sie zu verdoppeln. Hake ab, was schon erledigt ist; ist alles erledigt, sag es mir, denn ein Projekt mit lauter abgehakten Workstreams geht gleich ins Archiv. Der übrige Text bleibt, und gebaut wird nichts davon.`,
   },
   /** The page another device gets until it is paired (src/server/remote.ts). */
   notOwner: {
-    title: 'Nicht angemeldet · Obeya',
-    heading: 'Dieser Browser ist nicht bei Obeya angemeldet',
-    how: 'Öffne den Link, den Obeya beim Start im Terminal ausgibt („Obeya … on http://127.0.0.1:…/login?token=…“). Er gilt, bis Obeya neu startet; danach gibt Obeya einen neuen aus, und auch, wenn du es noch einmal startest, während es läuft. In der App öffnet „Im Browser öffnen“ (in den Einstellungen) Obeya angemeldet im Browser.',
-    used: 'Dieser Link gilt nicht mehr: Obeya ist seither neu gestartet, oder er war für einen einzigen Browser.',
+    title: 'Nicht angemeldet · Seismic',
+    heading: 'Dieser Browser ist nicht bei Seismic angemeldet',
+    how: 'Öffne den Link, den Seismic beim Start im Terminal ausgibt („Seismic … on http://127.0.0.1:…/login?token=…“). Er gilt, bis Seismic neu startet; danach gibt Seismic einen neuen aus, und auch, wenn du es noch einmal startest, während es läuft. In der App öffnet „Im Browser öffnen“ (in den Einstellungen) Seismic angemeldet im Browser.',
+    used: 'Dieser Link gilt nicht mehr: Seismic ist seither neu gestartet, oder er war für einen einzigen Browser.',
   },
   notPaired: {
-    title: 'Nicht verbunden · Obeya',
-    heading: 'Dieses Gerät ist nicht mit Obeya verbunden',
-    how: 'Am Rechner, auf dem Obeya läuft: oben in der Leiste das Telefon-Symbol, dann den QR-Code mit der Kamera dieses Geräts scannen. Oder den Code, der dort steht, hier eingeben:',
+    title: 'Nicht verbunden · Seismic',
+    heading: 'Dieses Gerät ist nicht mit Seismic verbunden',
+    how: 'Am Rechner, auf dem Seismic läuft: oben in der Leiste das Telefon-Symbol, dann den QR-Code mit der Kamera dieses Geräts scannen. Oder den Code, der dort steht, hier eingeben:',
     code: 'Code',
     pair: 'Verbinden',
     wrong: 'Dieser Code stimmt nicht oder ist abgelaufen. „Telefon verbinden“ am Rechner zeigt einen neuen.',
@@ -563,13 +582,14 @@ const en: Messages = {
   multiple: 'multiple choice',
   decided: 'Decided',
   openQuestions: 'Open questions',
-  vocabulary: 'Obeya, task, follow-up, card, workstream, idea, prototype, park, demo, approve, pull request, agent.',
+  vocabulary: 'Seismic, task, follow-up, card, workstream, idea, prototype, park, demo, approve, pull request, agent.',
+  archivedLanded: 'Landed and finished: the card is in the archive now.',
   voice: {
     notUnderstood: 'I did not understand that.',
     nothingHeard: 'I heard nothing.',
     couldNotRead: (why: string) => `I could not read that. ${why}`,
     cloudFailed: (service: string, why: string) => `${service} did not transcribe the recording (${why}).`,
-    interrupted: 'Obeya restarted before I had read that. Please say it again.',
+    interrupted: 'Seismic restarted before I had read that. Please say it again.',
     held: (when: string) => `The usage limit is reached. I will read this by myself ${when}.`,
     undone: 'Taken back.',
     created: 'Created by voice.',
@@ -582,7 +602,7 @@ const en: Messages = {
   },
   answer: {
     failed: (why: string) => `I could not answer the question (${why}).`,
-    limited: (when: string) => `The usage limit is reached. Obeya looks this up by itself ${when}.`,
+    limited: (when: string) => `The usage limit is reached. Seismic looks this up by itself ${when}.`,
     asIdea: 'Discussed further as an idea.',
   },
   tool: {
@@ -598,6 +618,7 @@ const en: Messages = {
     newSession: (earlier: string) => `New session. ${earlier}`,
     earlierRun: (session: string) => `The earlier run (session ${session}) is kept for the work retrospective.`,
     startedWith: (choice: string) => `Chosen for this start: ${choice}.`,
+    projectBaseline: (tag: string, commit: string) => `Project git baseline: ${tag} (${commit.slice(0, 7)}). This branch is linked to it.`,
     started: (branch: string) => `Agent started on ${branch}.`,
     reviewStarted: (n: number, author: string) => `Agent started: it reviews PR #${n} by ${author}.`,
     changesRequested: (n: number, author: string) => `Change request sent as a review comment on PR #${n}. Waiting for ${author}.`,
@@ -607,7 +628,7 @@ const en: Messages = {
     heldMoved: (head: string) => `Not pushed: the PR is at another commit than at the handover (${head}). The agent puts its commits on top and reviews what is new.`,
     postFailed: (reason: string) => `Pushed, but the text with it could not be posted: ${reason}`,
     heldEdited: (n: number) => `Edited the text for PR #${n}.`,
-    approvedMerge: (n: number) => `Approved. Obeya merges PR #${n}.`,
+    approvedMerge: (n: number) => `Approved. Seismic merges PR #${n}.`,
     mergedContribution: (n: number) => `PR #${n} merged. Live.`,
     unreviewedHead: (head: string) => `Not merged: the PR is at another commit than at the handover (${head}). The agent reviews it.`,
     mergeRefused: (reason: string) => `Not merged: ${reason}`,
@@ -634,6 +655,19 @@ const en: Messages = {
     findingLater: 'as a follow-up task',
     findingTask: (n: number, url: string) => `From the review of PR #${n}: ${url}`,
     findingTaskMade: (n: number) => `Made a follow-up task from the review of PR #${n}.`,
+    findingFix: 'fix it',
+    findingIgnored: 'ignored',
+    findingTaskOf: (title: string) => `From the code review of “${title}”.`,
+    findingTaskMadeOf: (title: string) => `Made a follow-up task from the code review of “${title}”.`,
+    codeReviewStarted: 'Code review started.',
+    codeReviewDone: (n: number, counts: Record<Severity, number>) =>
+      n === 0 ? 'Code review: no findings.' : `Code review: ${n === 1 ? '1 finding' : `${n} findings`} (${SEVERITIES.filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`).join(', ')}).`,
+    codeReviewFailed: (why: string) => `Code review failed: ${why}`,
+    codeReviewNoFindings: 'It recorded no findings.',
+    codeReviewInterrupted: 'Seismic restarted meanwhile.',
+    codeReviewPaused: 'The code review pauses for Seismic’s restart and goes on after it.',
+    codeReviewResumed: 'Seismic runs again: the code review goes on.',
+    codeReviewNoDiff: 'The card’s branch could not be read, or it changes nothing.',
     keepCard: 'No, keep it',
     laterInConversation: 'Later in the conversation:',
     approvedPr: 'Approved. The agent opens the pull request.',
@@ -642,7 +676,7 @@ const en: Messages = {
     approvedMain: 'Approved and on main.',
     landedMain: 'Landed on main after the approval.',
     switchedToMain: (branch: string | null, commit: string) =>
-      branch ? `The Obeya checkout was on the branch ${branch}. Obeya switched it to main to land the work; ${branch} stays as it was.` : `The Obeya checkout was on no branch (${commit}). Obeya switched it to main to land the work.`,
+      branch ? `The Seismic checkout was on the branch ${branch}. Seismic switched it to main to land the work; ${branch} stays as it was.` : `The Seismic checkout was on no branch (${commit}). Seismic switched it to main to land the work.`,
     approvedUnchanged: 'Approved. Without a change to the code there is nothing to land: done.',
     doneUnchanged: 'Finished without a change to the code: done.',
     startedInFolder: 'Agent started in the folder.',
@@ -690,18 +724,18 @@ const en: Messages = {
     /** The page the owner's browser gets for a card whose app no longer runs. */
     appGone: 'The app of this card no longer runs. To have the agent start it again, tell it on the card.',
     stoppedPrOpen: (n: number) => `Stopped. Pull request #${n} stays open.`,
-    restartDue: (pause: Pause) => `Obeya is about to ${pause === 'stop' ? 'stop' : pause === 'repo' ? "restart this repository's agents" : 'restart'}; the agent pauses at the next safe point.`,
+    restartDue: (pause: Pause) => `Seismic is about to ${pause === 'stop' ? 'stop' : pause === 'repo' ? "restart this repository's agents" : 'restart'}; the agent pauses at the next safe point.`,
     restartWaits: (pause: Pause) =>
       pause === 'stop'
-        ? 'Obeya waits to stop; the agent goes on once Obeya runs again.'
+        ? 'Seismic waits to stop; the agent goes on once Seismic runs again.'
         : pause === 'repo'
-          ? "Obeya waits to restart this repository's agents; the agent goes on after that."
-          : 'Obeya waits to restart; the agent goes on after the restart.',
-    restartStillDue: (pause: Pause) => `The agent woke before Obeya's ${pause === 'stop' ? 'stop' : 'restart'}; Obeya tells it the ${pause === 'stop' ? 'stop' : 'restart'} still waits for it.`,
+          ? "Seismic waits to restart this repository's agents; the agent goes on after that."
+          : 'Seismic waits to restart; the agent goes on after the restart.',
+    restartStillDue: (pause: Pause) => `The agent woke before Seismic's ${pause === 'stop' ? 'stop' : 'restart'}; Seismic tells it the ${pause === 'stop' ? 'stop' : 'restart'} still waits for it.`,
     limitResumes: (when: string) => `The agent goes on by itself ${when}.`,
     limitPaused: 'Usage limit · paused after 3 attempts. Resumes at the known reset; you can also try again now.',
-    limitRetries: (when: string) => `Obeya tries again ${when}.`,
-    paused: (pause: Pause) => (pause === 'stop' ? 'Paused until Obeya runs again.' : pause === 'repo' ? "Paused until this repository's agents restart." : 'Paused until Obeya has restarted.'),
+    limitRetries: (when: string) => `Seismic tries again ${when}.`,
+    paused: (pause: Pause) => (pause === 'stop' ? 'Paused until Seismic runs again.' : pause === 'repo' ? "Paused until this repository's agents restart." : 'Paused until Seismic has restarted.'),
     hostLost: (host: string) => `The connection to ${host} is gone; the agent goes on once ${host} can be reached again.`,
     hostBack: (host: string) => `${host} can be reached again; the agent goes on.`,
     stalled: 'The agent stopped without being done.',
@@ -714,7 +748,7 @@ const en: Messages = {
       classifier: "auto mode's classifier",
       mode: 'the permission mode',
       hook: 'a hook',
-      obeya: 'Obeya: waiting in the foreground',
+      obeya: 'Seismic: waiting in the foreground',
       owner: 'declined by you',
       other: 'no reason given',
     },
@@ -724,15 +758,17 @@ const en: Messages = {
     limitStatus: 'Usage limit',
     limitStatusUntil: (when: string) => `Usage limit · continues ${when}`,
     proposesBuild: (reason: string) => `Proposes building the idea on this prototype: ${reason}`,
-    proposedIdea: (title: string, canvas?: string) => `Proposed an idea${canvas ? ` on the canvas “${canvas}”` : ''}: ${title}`,
-    proposedCard: (title: string, canvas?: string) => `Proposed a task${canvas ? ` on the canvas “${canvas}”` : ''}: ${title}`,
+    proposedIdea: (title: string, canvas?: string) => `Proposed an idea${canvas ? ` in the project “${canvas}”` : ''}: ${title}`,
+    proposedCard: (title: string, canvas?: string) => `Proposed a task${canvas ? ` in the project “${canvas}”` : ''}: ${title}`,
     withdrewProposal: (title: string, why?: string, by?: string) =>
       by ? `Replaces the proposal “${title}” by “${by}”${why ? `: ${why}` : '.'}` : `Withdraws the proposal “${title}”${why ? `: ${why}` : '.'}`,
     superseded: (by?: string, why?: string) =>
       by ? `The agent that proposed this card replaced it by “${by}”${why ? `: ${why}` : '.'}` : `The agent that proposed this card withdrew it${why ? `: ${why}` : '.'}`,
     prOpened: (pr: string) => `Pull request ${pr} opened.`,
     landing: 'Landing on main',
-    waitsForRestart: 'Waits for Obeya to restart with the new version',
+    folded: (files: string[], land: boolean) => `The uncommitted changes in the checkout to ${files.join(', ')} are in this card now. The agent works them in; ${land ? 'then the work lands without another approval.' : 'then a new demo comes for approval.'}`,
+    landingOverlap: (subjects: string[], files: string[]) => `Landed on main: ${subjects.join('; ')}. Overlapping files: ${files.join(', ')}. The agent hears this on its next turn and decides whether to rebase now.`,
+    waitsForRestart: 'Waits for Seismic to restart with the new version',
     needsClone: 'Needs a full clone to answer',
     waitsForWorkspace: 'Waiting for a workspace',
     waitsForClone: 'The follow-up waits for the next free clone and then goes on by itself.',
@@ -754,11 +790,11 @@ const en: Messages = {
     conflict: 'Conflict with the base branch. The agent brings the branch up to date.',
     contributorPushed: (author: string) => `${author} pushed new commits, passed to the agent.`,
     stale: 'New commits since the last review, and nobody asked for another one. The agent asks for it.',
-    held: (by: string, score: string) => `Ready to merge, but ${by} gives only ${score}: below 4/5 Obeya does not merge by itself. Your call.`,
-    ready: 'Ready to merge: checks green, all comments resolved, the review is through. Obeya merges.',
-    readyManual: 'Ready to merge: checks green, all comments resolved, the review is through. In this repository Obeya does not merge by itself: please merge it yourself.',
-    mergeFailed: (reason: string) => `Obeya could not merge: ${reason}`,
-    unreadable: (reason: string) => `Obeya cannot read the pull request: ${reason}`,
+    held: (by: string, score: string) => `Ready to merge, but ${by} gives only ${score}: below 4/5 Seismic does not merge by itself. Your call.`,
+    ready: 'Ready to merge: checks green, all comments resolved, the review is through. Seismic merges.',
+    readyManual: 'Ready to merge: checks green, all comments resolved, the review is through. In this repository Seismic does not merge by itself: please merge it yourself.',
+    mergeFailed: (reason: string) => `Seismic could not merge: ${reason}`,
+    unreadable: (reason: string) => `Seismic cannot read the pull request: ${reason}`,
     behind: 'The branch is behind the base branch, and the repository merges only an up-to-date one. The agent brings it up to date.',
     mergedOne: (pr: string, left: (string | null)[]) =>
       `Pull request ${pr} merged. Live once ${left.map((l) => (l ? `pull request ${l}` : 'the pull request of this repository')).join(' and ')} ${left.length > 1 ? 'are' : 'is'} merged too.`,
@@ -788,11 +824,11 @@ const en: Messages = {
     dropped: 'Dropped.',
     parked: 'Parked.',
     planDocTask: (dir: string, task = false, file?: string) =>
-      `Write a plan doc ${file ? `as \`${file}\`, in a folder of this machine outside the repository,` : `in \`${dir}/\``} from ${task ? 'this task' : 'where this idea stands'}, following the repository’s conventions (existing plan docs as the model). It needs a \`## Goal\` (or \`## Ziel\`) and a checklist under \`## Workstreams\` (\`- [ ] **W1:** Title. Details\`), cut into packages that can land one by one; then Obeya shows it as a project that takes the place of this ${task ? 'task' : 'idea'}. Build none of it; only the plan doc${file ? '' : ' (and a link to it where the repository links plan docs)'}.`,
+      `Write a plan doc ${file ? `as \`${file}\`, in a folder of this machine outside the repository,` : `in \`${dir}/\``} from ${task ? 'this task' : 'where this idea stands'}, following the repository’s conventions (existing plan docs as the model). It needs a \`## Goal\` (or \`## Ziel\`) and a checklist under \`## Workstreams\` (\`- [ ] **W1:** Title. Details\`), cut into packages that can land one by one; then Seismic shows it as a project that takes the place of this ${task ? 'task' : 'idea'}. Build none of it; only the plan doc${file ? '' : ' (and a link to it where the repository links plan docs)'}.`,
     planDocIdea: (title: string) => `Idea: “${title}”`,
     planDocCard: (title: string) => `Task: “${title}”`,
     planDocPrototypes: (n: number) =>
-      `This idea already has ${n > 1 ? `${n} prototypes` : 'a prototype'}. They stay on the canvas; once the project stands, the owner picks one of them (“Build this prototype”), and the workstream that builds on it is built on its branch. So do not plan them again as workstreams; take what they showed into the plan doc. Only the workstream that builds on the chosen prototype mentions prototypes: that is how Obeya knows which workstream is built on the prototype’s branch.`,
+      `This idea already has ${n > 1 ? `${n} prototypes` : 'a prototype'}. They stay in the project; once the project stands, the owner picks one of them (“Build this prototype”), and the workstream that builds on it is built on its branch. So do not plan them again as workstreams; take what they showed into the plan doc. Only the workstream that builds on the chosen prototype mentions prototypes: that is how Seismic knows which workstream is built on the prototype’s branch.`,
     planDocHandedOver: (title: string, summary: string) => `“${title}”, handed over like this:\n\n${summary}`,
     planDocInProgress: (title: string) => `“${title}”: still in progress.`,
     onlyThisVariant: (others: string) => `Only this variant: ${others} get prototypes of their own.`,
@@ -824,14 +860,14 @@ const en: Messages = {
     stayed: 'New repository taken back: the card stays as it was.',
     failed: (why: string) => `Repository not created, the card stays as it was: ${why}`,
     noPath: 'The new repository has no folder yet.',
-    taken: (path: string, canvas: string) => `The repository ${path} is on the canvas “${canvas}” already; choose it there.`,
+    taken: (path: string, canvas: string) => `The repository ${path} is in the project “${canvas}” already; choose it there.`,
     inside: (path: string, repo: string) => `${path} lies inside the repository ${repo}.`,
     notFolder: (path: string) => `${path} is not a folder.`,
-    fromCommandLine: 'The canvases come from the command line; a new one would only go into the configuration.',
-    notStarted: (why: string) => `The new canvas does not start: ${why}`,
-    movedHere: (from: string, path: string, made: boolean) => `Moved here from the canvas “${from}”. The repository ${path} ${made ? 'is new' : 'existed already'}.`,
-    joined: (path: string, made: boolean) => `The repository ${path} ${made ? 'is new and ' : ''}belongs to this canvas now; the card works in it.`,
-    movedAway: (title: string, canvas: string) => `“${title}” moved to the canvas “${canvas}” and is built there.`,
+    fromCommandLine: 'The projects come from the command line; a new one would only go into the configuration.',
+    notStarted: (why: string) => `The new project does not start: ${why}`,
+    movedHere: (from: string, path: string, made: boolean) => `Moved here from the project “${from}”. The repository ${path} ${made ? 'is new' : 'existed already'}.`,
+    joined: (path: string, made: boolean) => `The repository ${path} ${made ? 'is new and ' : ''}belongs to this project now; the card works in it.`,
+    movedAway: (title: string, canvas: string) => `“${title}” moved to the project “${canvas}” and is built there.`,
     buildAnswer: (path: string) => `Build it like this, in the new repository ${path}.`,
   },
   proposal: {
@@ -843,7 +879,7 @@ const en: Messages = {
     notAcceptedQuestion: 'Not accepted: the proposal still has a question.',
   },
   koordinator: {
-    allStarted: (names: string) => `All workstreams started: ${names}. Obeya decides their order.`,
+    allStarted: (names: string) => `All workstreams started: ${names}. Seismic decides their order.`,
     startedDespite: 'Started anyway, without waiting.',
     startTakenBack: (names: string) => `Start taken back: ${names}.`,
     dequeued: 'Taken out of the queue.',
@@ -851,8 +887,9 @@ const en: Messages = {
     movedAfter: (title: string) => `Moved behind “${title}” in the queue.`,
     proposes: (rule: string) => `Proposes: “${rule}”`,
     nothingRuns: 'Nothing is running; it starts right away.',
-    repoDown: (repo: string) => `Not started: the repository ${repo} does not run on this canvas right now. Start the task again once it is back.`,
-    estimateFailed: (why: string) => `Obeya could not estimate the scope (${why}); the task starts anyway.`,
+    repoDown: (repo: string) => `Not started: the repository ${repo} does not run in this project right now. Start the task again once it is back.`,
+    estimateFailed: (why: string) => `Seismic could not estimate the scope (${why}); the task starts anyway.`,
+    possibleDuplicate: (titles: string) => `Possible duplicate of ${titles}. This card remains planned; compare the cards and start it again if needed.`,
     noConflict: 'No merge conflict with work in progress expected.',
     waitsAhead: (title: string) => `“${title}” (waiting itself, and ahead in the queue)`,
     likelyConflict: 'Likely merge conflicts with work in progress.',
@@ -860,24 +897,24 @@ const en: Messages = {
     followsReview: (n: number) => `A follow-up task from the review of PR #${n}; starts once the PR is merged.`,
     reviewClosed: (review: string) => `Back to planned: the PR of ${review} was closed without a merge. Start the follow-up task yourself if it is still needed.`,
     notStarted: (name: string) => `${name} (not started yet)`,
-    waitsFor: (names: string, reason: string) => `Obeya: waits for ${names}. ${reason}`,
+    waitsFor: (names: string, reason: string) => `Seismic: waits for ${names}. ${reason}`,
     drawn: 'You connected the cards; it starts once that is done.',
     drawnToo: (names: string) => `It also waits for ${names}: you connected the cards.`,
-    togetherFailed: (why: string) => `Obeya could not plan the workstreams together (${why}); it checks them one by one.`,
-    arrangeFailed: (why: string) => `Obeya could not read which workstream builds on which (${why}); the cards stay where they are.`,
+    togetherFailed: (why: string) => `Seismic could not plan the workstreams together (${why}); it checks them one by one.`,
+    arrangeFailed: (why: string) => `Seismic could not read which workstream builds on which (${why}); the cards stay where they are.`,
     togetherStarts: 'Planned together with the other workstreams; starts now.',
     planned: (started: number, of: number) => `Planned: ${started} of ${of} workstreams start now, the others wait.`,
-    says: (why: string) => `Obeya: ${why}`,
+    says: (why: string) => `Seismic: ${why}`,
     workspaceFree: 'A workspace is free; it starts.',
     requeued: 'Waits for the next free workspace and then goes on on its branch.',
     slotFree: 'A machine has a free slot again; it starts.',
-    canvasPaused: "This canvas's agents are paused: the task starts once you resume them.",
-    canvasPlays: "This canvas's agents run again; it starts.",
+    canvasPaused: "This project's agents are paused: the task starts once you resume them.",
+    canvasPlays: "This project's agents run again; it starts.",
     waitedDone: 'What it waited for is done; it starts.',
-    waitedDoneRecheck: 'Obeya: what it waited for is done; checks it again against the work in progress.',
-    waitedDoneTogether: 'Obeya: what it waited for is done; checks it together with the other tasks free now.',
+    waitedDoneRecheck: 'Seismic: what it waited for is done; checks it again against the work in progress.',
+    waitedDoneTogether: 'Seismic: what it waited for is done; checks it together with the other tasks free now.',
     freedStarts: 'Checked together with the other tasks freed at the same time; starts now.',
-    freedFailed: (why: string) => `Obeya could not check the freed tasks together (${why}); it checks them one by one.`,
+    freedFailed: (why: string) => `Seismic could not check the freed tasks together (${why}); it checks them one by one.`,
     noWorkspace: 'No workspace free: all are taken or none is set up. The task starts as soon as one is free.',
     dirtyWorkspaces: 'No workspace free: every free one has uncommitted changes. The task starts as soon as one is clean.',
     noSlot: 'No slot free: every machine with a free workspace has as many agents at work as it has slots. The task starts as soon as one is done.',
@@ -901,7 +938,7 @@ const en: Messages = {
     occasion: (why: string) => `Occasion (work retrospective): ${why}`,
     from: (repo: string, why: string, cards: string) => `From the work retrospective for ${repo}. ${why} Cards: ${cards}.`,
     done: (repo: string, made: number) =>
-      `Work retrospective for ${repo}: ${made ? `${made === 1 ? 'one proposal' : `${made} proposals`}, on the canvas and with Obeya.` : 'nothing that recurs on several cards.'}`,
+      `Work retrospective for ${repo}: ${made ? `${made === 1 ? 'one proposal' : `${made} proposals`}, in the project and with Seismic.` : 'nothing that recurs on several cards.'}`,
     settings: { checks: 'Checks', setup: 'Setup', softPaths: 'Soft paths', run: 'How to run the app' },
     onMachine: (setting: string, repo: string) => `“${setting}” for ${repo} now applies on this machine.`,
     committed: (setting: string, repo: string, branch: string) => `“${setting}” for ${repo} is now in .obeya/settings.json on ${branch} and applies to everyone.`,
@@ -928,7 +965,6 @@ const en: Messages = {
     demoGone: 'A demo the page shows is gone; “Replace on the page” brings the task’s latest.',
     linkLater: 'The shared page gets the link to the pull request or commit with the next share.',
     noDemo: 'The task has no demo any more, or its repository shares none.',
-    privateNotAllowed: 'The repository is private and no longer allowed on the personal demo site. Withdrawing still works.',
     sharedAgain: (url: string) => `Shared again: ${url}`,
     linksPr: (url: string) => `The shared page now links the pull request: ${url}`,
     linksCommit: (url: string) => `The shared page now links the commit on main: ${url}`,
@@ -948,7 +984,7 @@ const en: Messages = {
     fileMissing: (file: string, dir: string) => `${file} is missing in ${dir}.`,
     fileTooLarge: (file: string, mib: string, max: string) => `${file} is ${mib} MiB; the site takes at most ${max} MiB per file.`,
     siteLacks: (dir: string, slugs: string[]) =>
-      `Not deployed: ${dir} lacks ${slugs.length === 1 ? 'a page' : `${slugs.length} pages`} Obeya has as shared (${slugs.join(', ')}); a deploy would take ${slugs.length === 1 ? 'it' : 'them'} offline. Restore the directory first.`,
+      `Not deployed: ${dir} lacks ${slugs.length === 1 ? 'a page' : `${slugs.length} pages`} Seismic has as shared (${slugs.join(', ')}); a deploy would take ${slugs.length === 1 ? 'it' : 'them'} offline. Restore the directory first.`,
     envMissing: (file: string) => `${file} is missing on this machine.`,
     deployFailed: (code: number) => `The site’s deploy failed (exit code ${code}).`,
     notWithdrawn: (why: string) => `Not withdrawn: ${why}`,
@@ -965,7 +1001,7 @@ const en: Messages = {
     lostTwice: 'Another machine’s deploy came in between twice; the site does not show the change. Please try again.',
     notSeenYet: 'The site does not show the new state yet; the next deploy checks again.',
     withdrawnElsewhere: (machine: string) => `The page was withdrawn on another machine (${machine}); the link is gone.`,
-    restored: 'The page was missing on the site: another machine’s deploy had taken it offline. Obeya deployed it again.',
+    restored: 'The page was missing on the site: another machine’s deploy had taken it offline. Seismic deployed it again.',
     notRestored: (why: string) => `The page is missing on the site (another machine’s deploy took it offline) and was not deployed again: ${why}`,
     exported: (zip: boolean, name: string) => `Exported as ${zip ? 'ZIP' : 'HTML file'}: ${name}`,
     rebuilt: (language: 'de' | 'en') =>
@@ -974,28 +1010,28 @@ const en: Messages = {
   },
   welcome: {
     title: 'First task: change something small',
-    body: 'Write into this card what an agent should do in this repository, for example: “Add to the README how to start the project.” Then “Start agent”: it works on a branch of its own, asks when something is not its to decide, and shows you a demo at the end. You approve it or write what is still missing.\n\nMore tasks come from “+ New task”, or you say them: hold Space and speak. “Configuration” → “Check setup” checks again later what Obeya needs on this machine.',
+    body: 'Write into this card what an agent should do in this repository, for example: “Add to the README how to start the project.” Then “Start agent”: it works on a branch of its own, asks when something is not its to decide, and shows you a demo at the end. You approve it or write what is still missing.\n\nMore tasks come from “+ New task”, or you say them: hold Space and speak. “Configuration” → “Check setup” checks again later what Seismic needs on this machine.',
   },
   adapterSetup: {
-    title: (repo: string) => `Set up Obeya for ${repo}`,
-    body: "With the skill `obeya:settings`, fill in this repository's settings for everyone (`.obeya/settings.json`, shown in the configuration under “Settings” as “from the repository”): which checks run, how work lands, how an agent runs the app (starting it, after a change, for a demo), how Obeya stops it, and where the plan docs are that Obeya shows as projects. Also draft the allow list of commands agents run here without asking (the `Bash` rules in `.claude/settings.json`), for me to review and trust in the configuration. If the repository still has a `.obeya/adapter/`, move what it says into the settings and delete it. Ask me what you cannot find out in the repository (login, test data).",
-    reason: (repo: string) => `Obeya does not know yet how the app of ${repo} starts, which checks run or how an agent runs it for a demo.`,
+    title: (repo: string) => `Set up Seismic for ${repo}`,
+    body: "With the skill `obeya:settings`, fill in this repository's settings for everyone (`.obeya/settings.json`, shown in the configuration under “Settings” as “from the repository”): which checks run, how work lands, how an agent runs the app (starting it, after a change, for a demo), how Seismic stops it, and where the plan docs are that Seismic shows as projects. Also draft the allow list of commands agents run here without asking (the `Bash` rules in `.claude/settings.json`), for me to review and trust in the configuration. If the repository still has a `.obeya/adapter/`, move what it says into the settings and delete it. Ask me what you cannot find out in the repository (login, test data).",
+    reason: (repo: string) => `Seismic does not know yet how the app of ${repo} starts, which checks run or how an agent runs it for a demo.`,
   },
   preparePlanDoc: {
     title: (file: string) => `Prepare ${file.slice(file.lastIndexOf('/') + 1)} as a project`,
     body: (file: string) =>
-      `Prepare \`${file}\` so that Obeya shows it as a project. Obeya reads a plan doc as a project when a checklist stands under \`## Workstreams\` (or \`## Arbeitspakete\`): each top-level item is a workstream (\`- [ ] **W1:** Title. Details\`), a package that can land on its own, and a ticked one has landed. The project's goal is the first paragraph under \`## Goal\` (or \`## Ziel\`).\n\nAdd the checklist, and the goal if it is missing, in the doc's own style, from what it plans. If the doc already keeps its tasks under another heading (Tasks, Milestones, Phases), that becomes the checklist instead of a copy of it. Tick what is already done; if everything is, tell me, since a project whose workstreams are all ticked goes straight to the archive. The rest of the text stays, and nothing of it is built.`,
+      `Prepare \`${file}\` so that Seismic shows it as a project. Seismic reads a plan doc as a project when a checklist stands under \`## Workstreams\` (or \`## Arbeitspakete\`): each top-level item is a workstream (\`- [ ] **W1:** Title. Details\`), a package that can land on its own, and a ticked one has landed. The project's goal is the first paragraph under \`## Goal\` (or \`## Ziel\`).\n\nAdd the checklist, and the goal if it is missing, in the doc's own style, from what it plans. If the doc already keeps its tasks under another heading (Tasks, Milestones, Phases), that becomes the checklist instead of a copy of it. Tick what is already done; if everything is, tell me, since a project whose workstreams are all ticked goes straight to the archive. The rest of the text stays, and nothing of it is built.`,
   },
   notOwner: {
-    title: 'Not signed in · Obeya',
-    heading: 'This browser is not signed in to Obeya',
-    how: 'Open the link Obeya prints in its terminal when it starts (“Obeya … on http://127.0.0.1:…/login?token=…”). It holds until Obeya restarts; then Obeya prints a new one, and also when you start it again while it runs. In the app, “Open in browser” (in the settings) opens Obeya signed in in the browser.',
-    used: 'This link no longer holds: Obeya has restarted since, or it was for a single browser.',
+    title: 'Not signed in · Seismic',
+    heading: 'This browser is not signed in to Seismic',
+    how: 'Open the link Seismic prints in its terminal when it starts (“Seismic … on http://127.0.0.1:…/login?token=…”). It holds until Seismic restarts; then Seismic prints a new one, and also when you start it again while it runs. In the app, “Open in browser” (in the settings) opens Seismic signed in in the browser.',
+    used: 'This link no longer holds: Seismic has restarted since, or it was for a single browser.',
   },
   notPaired: {
-    title: 'Not connected · Obeya',
-    heading: 'This device is not connected to Obeya',
-    how: "On the computer Obeya runs on: the phone icon at the top of the bar, then scan the QR code with this device's camera. Or type the code shown there here:",
+    title: 'Not connected · Seismic',
+    heading: 'This device is not connected to Seismic',
+    how: "On the computer Seismic runs on: the phone icon at the top of the bar, then scan the QR code with this device's camera. Or type the code shown there here:",
     code: 'Code',
     pair: 'Connect',
     wrong: 'This code is wrong or has expired. “Connect a phone” on the computer shows a new one.',

@@ -1,9 +1,9 @@
-/* Obeya's type: Newsreader for titles, IBM Plex Sans Condensed for the rest (both OFL, licences beside them) */
+/* Seismic's type: Newsreader for titles, IBM Plex Sans Condensed for the rest (both OFL, licences beside them) */
 @font-face { font-family: Newsreader; font-style: normal; font-weight: 300 800; font-display: swap; src: url(fonts/newsreader-latin-opsz-normal.woff2) format("woff2"); }
 @font-face { font-family: "Plex Condensed"; font-style: normal; font-weight: 400; font-display: swap; src: url(fonts/ibm-plex-sans-condensed-latin-400-normal.woff2) format("woff2"); }
 @font-face { font-family: "Plex Condensed"; font-style: normal; font-weight: 600; font-display: swap; src: url(fonts/ibm-plex-sans-condensed-latin-600-normal.woff2) format("woff2"); }
 /* Noto Serif JP, cut down to the three characters of 大部屋 */
-@font-face { font-family: "Obeya Kanji"; font-weight: 700; font-display: swap; src: url(fonts/obeya-kanji.woff2) format("woff2"); }
+@font-face { font-family: "Seismic Kanji"; font-weight: 700; font-display: swap; src: url(fonts/obeya-kanji.woff2) format("woff2"); }
 
 :root {
   /* the canvas's palette: card stock on a warm board, the states as inks */
@@ -83,7 +83,7 @@ section { max-width: var(--wide); margin: 0 auto; padding: 0 24px; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 1px; margin-right: 8px; vertical-align: -1px; }
 .dot.blue { background: var(--blue); } .dot.amber { background: var(--amber); } .dot.green { background: var(--green); }
 
-/* ---------- cards, as on Obeya's canvas: index cards with the state as a rule across the top ---------- */
+/* ---------- cards, as on Seismic's canvas: index cards with the state as a rule across the top ---------- */
 .s-idea { --c: var(--pink); } .s-working { --c: var(--blue); } .s-waiting { --c: var(--amber); }
 .s-approved { --c: var(--green); } .s-planned { --c: var(--grey); } .s-proposal { --c: var(--purple); }
 .card { position: relative; background: var(--card); border-radius: 2px; box-shadow: var(--shadow); padding: 15px 16px 40px; min-height: 128px;
@@ -175,12 +175,12 @@ section { max-width: var(--wide); margin: 0 auto; padding: 0 24px; }
   border-top: 1px solid var(--line); padding-top: 72px; padding-bottom: 96px; }
 .room-mark { font-size: clamp(80px, 13vw, 170px); line-height: .95; font-weight: 700; color: var(--ink); opacity: .9;
   writing-mode: vertical-rl; justify-self: center; letter-spacing: .05em;
-  font-family: "Obeya Kanji", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif; }
+  font-family: "Seismic Kanji", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif; }
 .room h2 { font-size: clamp(28px, 3vw, 38px); margin-bottom: 22px; }
 .room p { margin: 0 0 18px; color: var(--muted); max-width: 36em; }
 .room .big { font-family: var(--serif); font-size: clamp(22px, 2.4vw, 28px); line-height: 1.4; color: var(--ink); font-weight: 500; }
 
-/* ---------- built with Obeya ---------- */
+/* ---------- built with Seismic ---------- */
 .proof { max-width: none; background: var(--ink); color: #efe9dc; padding: 80px 24px; text-align: center; }
 .proof .big { font-family: var(--serif); color: #fdfbf5; font-size: clamp(32px, 4.6vw, 52px); font-weight: 600; letter-spacing: -.015em; line-height: 1.12; margin: 0; }
 .proof p { max-width: 36em; margin: 14px auto 0; color: #b4ab98; font-size: 18px; }

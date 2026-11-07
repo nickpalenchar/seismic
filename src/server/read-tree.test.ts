@@ -326,10 +326,10 @@ describe("a repository's settings for everyone", () => {
     expect(landed.closed).toBe(true);
     expect(runtime.last).not.toBe(landed);
     expect(runtime.last.spec.resume).toBe('session-Clones');
-    expect(runtime.last.inbox[0]).toContain('Obeya runs main with your change now');
+    expect(runtime.last.inbox[0]).toContain('Seismic runs main with your change now');
   });
 
-  test('changed by work pushed straight onto the remote main applies once Obeya fetches it, without a restart', async () => {
+  test('changed by work pushed straight onto the remote main applies once Seismic fetches it, without a restart', async () => {
     push({ '.obeya/settings.json': settings({ land: 'pr', direct: true, workspaces: 'clones' }) });
     git(checkout, 'pull', '--quiet');
     const runtime = new FakeRuntime();

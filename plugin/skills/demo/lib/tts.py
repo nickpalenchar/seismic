@@ -9,10 +9,10 @@ The voice comes as a spec from `voices.ts`, one of two kinds:
   loaded (the Qwen3-TTS helper `qwen3.py`) has `serve` as well: that command starts once, on the
   first clip to synthesise, and answers clip by clip over its stdin and stdout,
   one JSON line each way (the protocol is in `qwen3.py`). If it dies, the render stops with its
-  stderr; one that says nothing for minutes (`ANSWER_LIMITS`) is stuck, and is ended the same way. Such a voice with `host` as well is held by Obeya across renders when `OBEYA_URL` says
-  where Obeya runs: each clip goes to `POST $OBEYA_URL/api/narration/clip` and waits its turn
-  behind other renders' clips (`src/server/narration.ts`). An Obeya that cannot be reached, or
-  does not hold voices, leaves the voice to this process, as without Obeya.
+  stderr; one that says nothing for minutes (`ANSWER_LIMITS`) is stuck, and is ended the same way. Such a voice with `host` as well is held by Seismic across renders when `SEISMIC_URL` says
+  where Seismic runs: each clip goes to `POST $SEISMIC_URL/api/narration/clip` and waits its turn
+  behind other renders' clips (`src/server/narration.ts`). An Seismic that cannot be reached, or
+  does not hold voices, leaves the voice to this process, as without Seismic.
 - `http`: a request from a template, for Gemini, OpenAI, ElevenLabs, Azure, or the owner's own
   endpoint (`http`: POST `{"text", "language"}` as JSON, audio back). The key comes from the
   service's environment variable, else from the key file in the spec.
@@ -41,7 +41,7 @@ voice that hears with `"heard": [{"script", "heard", "stumbled"?, "misheard"?}]`
 
 `--lock <file>` takes that file's lock before this process loads a large model and holds it to
 the end, for voices that load one: one such render at a time on the machine, the others wait. A
-voice Obeya holds takes no lock: parallel renders synthesise turn by turn through Obeya, with one
+voice Seismic holds takes no lock: parallel renders synthesise turn by turn through Seismic, with one
 voice model in memory.
 
     python tts.py [--lock <file>] --sample <spec.json> <language> <text> <out.wav>
@@ -71,10 +71,10 @@ from xml.sax.saxutils import escape
 LANGUAGE_NAMES = {"de": "German", "en": "English"}
 LOCALES = {"de": "de-DE", "en": "en-US"}
 
-#: How the hosted voices should sound: a product lead walking a colleague through a finished feature.
+#: How the hosted voices should sound when the spec says nothing (`style`, from the demo settings).
 STYLE = (
-    "Calm, matter-of-fact, confident; a product lead walking a colleague through a finished "
-    "feature. Native {language}, natural pace, slightly brisk."
+    "Speak in a calm, professional tone, as if presenting a technical demo to an audience of CTOs: "
+    "clear, confident and matter-of-fact, at a natural pace."
 )
 #: Free-tier quotas are per model (10 requests a day), so another TTS model can stand in.
 GEMINI_MODEL = os.environ.get("DEMO_GEMINI_MODEL", "gemini-3.8-flash-tts")
@@ -218,7 +218,7 @@ def hearing(reply: dict) -> dict | None:
 
 #: How long a voice that stays loaded may say nothing, in seconds: while it loads its model (a cold
 #: load took 17 s), and per sentence of a clip (a few seconds on a GPU, a minute or two on a slow
-#: CPU). Beyond that it is stuck, as `src/server/narration.ts` has it for the voice Obeya holds.
+#: CPU). Beyond that it is stuck, as `src/server/narration.ts` has it for the voice Seismic holds.
 ANSWER_LIMITS = {"load": 600.0, "sentence": 300.0}
 
 
@@ -317,7 +317,7 @@ class ServedVoice:
 
 
 class HeldVoice:
-    """A voice Obeya holds loaded across renders (`$OBEYA_URL`), else served by this process."""
+    """A voice Seismic holds loaded across renders (`$SEISMIC_URL`), else served by this process."""
 
     def __init__(self, spec: dict, language: str, url: str) -> None:
         self._host = spec["host"]
@@ -326,12 +326,12 @@ class HeldVoice:
         self._local = ServedVoice(spec, language)
         self._here = False
         self.tag = spec["tag"]
-        # Obeya is on this machine: no proxy in between.
+        # Seismic is on this machine: no proxy in between.
         self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
     def _ask(self, text: str, script: str | None) -> dict | None:
-        """Obeya's reply, or None when Obeya cannot be reached or does not hold voices."""
-        # the WAV comes back in the reply: Obeya may run on another machine than this render
+        """Seismic's reply, or None when Seismic cannot be reached or does not hold voices."""
+        # the WAV comes back in the reply: Seismic may run on another machine than this render
         body = json.dumps({"voice": self._host, "text": text, "inline": True, "language": self._language} | ({"script": script} if script else {})).encode()
         request = urllib.request.Request(self._url, data=body, headers={"Content-Type": "application/json"})
         try:
@@ -341,10 +341,10 @@ class HeldVoice:
             if error.code == 404:
                 why = "it does not hold voices"
             else:
-                sys.exit(f"Obeya refused the clip ({error.code}): {error.read().decode(errors='replace')[:600]}")
+                sys.exit(f"Seismic refused the clip ({error.code}): {error.read().decode(errors='replace')[:600]}")
         except (OSError, ValueError) as error:  # not running, or restarting midway
             why = f"it is not reachable ({error})"
-        print(f"narration: Obeya does not hold the voice, {why}; loading it here", file=sys.stderr, flush=True)
+        print(f"narration: Seismic does not hold the voice, {why}; loading it here", file=sys.stderr, flush=True)
         return None
 
     def synthesize(self, text: str, target: Path, script: str | None = None) -> dict | None:
@@ -356,7 +356,7 @@ class HeldVoice:
                 if "error" in reply or not reply.get("wav"):
                     sys.exit(f"the voice failed: {reply.get('error') or 'it sent no WAV'}")
                 raw.write_bytes(base64.b64decode(reply["wav"]))
-                print(f"narration: synthesised by Obeya in {reply.get('seconds', '?')} s", file=sys.stderr, flush=True)
+                print(f"narration: synthesised by Seismic in {reply.get('seconds', '?')} s", file=sys.stderr, flush=True)
                 to_wav(raw, target)
                 raw.unlink(missing_ok=True)
                 return hearing(reply)
@@ -375,7 +375,7 @@ class HttpVoice:
         self._language = language
         self._url = spec.get("url") or ""
         self._voice = spec.get("voiceName") or DEFAULT_VOICES.get(service, {}).get(language, "")
-        self._style = STYLE.format(language=LANGUAGE_NAMES[language])
+        self._style = f"{spec.get('style') or STYLE} Native {LANGUAGE_NAMES[language]}."
         key_env = spec["keyEnv"]
         key = os.environ.get(key_env, "").strip()
         key_file = spec.get("keyFile")
@@ -468,8 +468,9 @@ class HttpVoice:
 def make_voice(spec: dict, language: str):
     if spec["kind"] == "http":
         return HttpVoice(spec, language)
-    if spec.get("serve") and spec.get("host") and os.environ.get("OBEYA_URL"):
-        return HeldVoice(spec, language, os.environ["OBEYA_URL"])
+    seismic_url = os.environ.get("SEISMIC_URL", os.environ.get("OBEYA_URL"))
+    if spec.get("serve") and spec.get("host") and seismic_url:
+        return HeldVoice(spec, language, seismic_url)
     return ServedVoice(spec, language) if spec.get("serve") else CommandVoice(spec, language)
 
 

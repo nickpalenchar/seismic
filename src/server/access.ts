@@ -1,12 +1,12 @@
 // Who may talk to the server: every request and WebSocket upgrade, from this machine too, names one
-// of Obeya's own hosts and comes from no other site. A page elsewhere in the owner's browser may
+// of Seismic's own hosts and comes from no other site. A page elsewhere in the owner's browser may
 // send requests to 127.0.0.1 (a `text/plain` POST needs no preflight) and a DNS name rebound to it
 // reaches the server under that name; neither gets an answer. Then the gate has its say (remote.ts):
 // on this machine the owner's key (owner.ts), from another device a paired one.
 
 import { timingSafeEqual } from 'node:crypto';
 
-/** The names this machine reaches Obeya by. */
+/** The names this machine reaches Seismic by. */
 export const LOCAL_HOSTS: readonly string[] = ['localhost', '127.0.0.1', '[::1]'];
 
 const PLAIN = { 'content-type': 'text/plain; charset=utf-8' };
@@ -22,12 +22,12 @@ export function hostname(host: string): string {
  *
  * - `Host` (and `X-Forwarded-Host`, where a proxy set it) names none of `hosts`: 421 (a foreign
  *   name, a DNS name rebound to this machine). Its port is not checked: a worker on another
- *   machine reaches Obeya through a forwarded port of its own.
+ *   machine reaches Seismic through a forwarded port of its own.
  * - An `Origin` other than the address the request was sent to (as `tailscale serve` forwards it:
  *   `X-Forwarded-Proto` and `-Host`), or `Sec-Fetch-Site: cross-site`: 403. A request with neither
  *   (the app's shell, scripts, curl) passes. A page elsewhere cannot set the forwarded headers
- *   without a preflight, which Obeya does not answer.
- * - A link from another site opening one of Obeya's pages in the browser's window (a GET outside
+ *   without a preflight, which Seismic does not answer.
+ * - A link from another site opening one of Seismic's pages in the browser's window (a GET outside
  *   `/api/`, `Sec-Fetch-Mode: navigate` to a `document`) passes despite `cross-site`: it only shows
  *   the page, as typing the address would. Scanning the QR code on a phone often arrives this way
  *   (from the scanner app's page); in a frame of another site the page still gets nothing.
@@ -40,7 +40,7 @@ export function refusal(req: Request, hosts: readonly string[], files = false): 
   const forwarded = req.headers.get('x-forwarded-host');
   if (!host || !hosts.includes(hostname(host)) || (forwarded && !hosts.includes(hostname(forwarded)))) {
     const port = host?.match(/:(\d+)$/)?.[1];
-    return new Response(`Not one of Obeya's addresses. On its machine Obeya answers at http://127.0.0.1${port ? `:${port}` : ''}/\n`, { status: 421, headers: PLAIN });
+    return new Response(`Not one of Seismic's addresses. On its machine Seismic answers at http://127.0.0.1${port ? `:${port}` : ''}/\n`, { status: 421, headers: PLAIN });
   }
   if (files && (req.method === 'GET' || req.method === 'HEAD')) return null;
   const origin = req.headers.get('origin');
@@ -49,7 +49,7 @@ export function refusal(req: Request, hosts: readonly string[], files = false): 
     req.headers.get('sec-fetch-mode') === 'navigate' &&
     req.headers.get('sec-fetch-dest') === 'document' &&
     !new URL(req.url).pathname.startsWith('/api/');
-  if ((origin !== null && origin.toLowerCase() !== ownOrigin(req)) || (req.headers.get('sec-fetch-site') === 'cross-site' && !opened)) return new Response("Obeya answers its own page, not another site's.\n", { status: 403, headers: PLAIN });
+  if ((origin !== null && origin.toLowerCase() !== ownOrigin(req)) || (req.headers.get('sec-fetch-site') === 'cross-site' && !opened)) return new Response("Seismic answers its own page, not another site's.\n", { status: 403, headers: PLAIN });
   return null;
 }
 

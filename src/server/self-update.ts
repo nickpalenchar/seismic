@@ -1,6 +1,6 @@
-// Obeya on its own checkout: work that lands there changes the code this very process runs. The
+// Seismic on its own checkout: work that lands there changes the code this very process runs. The
 // supervisor in main.ts starts the server again when it exits with RESTART; this module tells
-// when that is due, and installs what the new code depends on before it goes. Stopping Obeya
+// when that is due, and installs what the new code depends on before it goes. Stopping Seismic
 // (Ctrl-C, SIGTERM) waits for the workers the same way, and then nothing starts again; so does
 // installing a new version of the app, after which the app's shell starts it again (UPDATE).
 
@@ -160,7 +160,7 @@ export class Restarter {
     return true;
   }
 
-  /** What the owner does that a restart waits for: watching a demo video, dictating; nothing while Obeya stops. */
+  /** What the owner does that a restart waits for: watching a demo video, dictating; nothing while Seismic stops. */
   owner(): OwnerHold[] {
     if (this.stopping) return [];
     const all = new Set([...this.holds.values(), this.o.held?.() ?? []].flat());
@@ -181,7 +181,8 @@ export class Restarter {
 }
 
 /** Which reason a restart that is due turns into when asked for another: the one that ends more of this server. */
-const OUTRANKS: Record<RestartReason, number> = { code: 0, config: 0, repository: 0, takeover: 1, update: 2, stop: 3 };
+// a rebuild outranks a plain restart, so the owner's asking for one is not lost to a restart that waits already
+const OUTRANKS: Record<RestartReason, number> = { code: 0, config: 0, repository: 0, owner: 0, rebuild: 1, takeover: 2, update: 3, stop: 4 };
 
 const key = (b: Busy[]) => b.map((x) => `${x.canvas}/${x.card}`).join(' ');
 
@@ -209,6 +210,11 @@ const INSTALL = [process.execPath, 'install', '--frozen-lockfile'];
 export function installDependencies(checkout: string, from: string, command = INSTALL): Install {
   const changed = gitOrNull(checkout, 'diff', '--name-only', from, 'HEAD', '--', 'package.json', 'bun.lock');
   if (changed === '') return { ran: false };
+  return reinstallDependencies(checkout, command);
+}
+
+/** Installs the checkout's dependencies whatever changed: the rebuild the owner asks for. Never throws, as above. */
+export function reinstallDependencies(checkout: string, command = INSTALL): Install & { ran: true } {
   try {
     const r = Bun.spawnSync(command, { cwd: checkout, stdout: 'pipe', stderr: 'pipe' });
     return { ran: true, ok: r.exitCode === 0, output: (r.stdout.toString() + r.stderr.toString()).trim() };
@@ -271,7 +277,7 @@ export function watchOwnCode(checkout: string, start: string, fn: (from: string,
       }
       afterRound?.();
     } catch (e) {
-      console.error('Obeya: watching for new code:', e);
+      console.error('Seismic: watching for new code:', e);
     } finally {
       if (!done) timer = setTimeout(round, intervalMs);
     }

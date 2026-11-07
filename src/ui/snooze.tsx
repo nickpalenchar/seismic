@@ -1,7 +1,8 @@
-// Snoozing a card until a point in time: the owner's „Später …“ with its presets and a date and time
-// of their own, on a card's action row and as „Ändern“ on the snooze line of its conversation, and
-// that line with „Jetzt zurückholen“. One component for every kind of card.
+// Snoozing a card until a point in time: the owner's "Later" with its presets and a date and time
+// of their own, on a card's action row and as "Change" on the snooze line of its conversation, and
+// that line with "Wake now". One component for every kind of card.
 
+import { Clock } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { CardEvent, Item, Snooze } from '../core/types';
 import { api } from './api';
@@ -10,10 +11,7 @@ import { clock, t } from './strings';
 
 /** The clock mark of a snoozed card and of the button that snoozes one. */
 export const ClockMark = () => (
-  <svg className="clock-mark" viewBox="0 0 12 12" width="11" height="11" aria-hidden>
-    <circle cx="6" cy="6" r="4.9" fill="none" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M6 3.2V6l2 1.3" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
+  <Clock className="clock-mark" size={11} strokeWidth={1.75} aria-hidden />
 );
 
 /** Who snoozed the card and what its agent does then, as the card says it below its state. */
@@ -53,7 +51,7 @@ function placeOnScreen(menu: HTMLElement, button: DOMRect) {
 }
 
 /**
- * The button that snoozes the card („Später …“, „Ändern“) and its menu: the presets, and a date and
+ * The button that snoozes the card ("Later", "Change") and its menu: the presets, and a date and
  * time to pick. `inline`: the menu opens below the button where the screen has room, else above it,
  * over the conversation rather than in it (on the phone the conversation is often lower than the
  * menu, which it cut off); else above the button. A proposal's start time is set with the same
@@ -174,7 +172,7 @@ export function SnoozeMenu({
 const snooze = (cardId: string, until: string) => void api.act(cardId, { action: 'snooze', until }).catch(() => {});
 const wake = (cardId: string) => void api.act(cardId, { action: 'wake' }).catch(() => {});
 
-/** The line in the conversation where the card was snoozed, while it still is: with „Jetzt zurückholen“ and „Ändern“. */
+/** The line in the conversation where the card was snoozed, while it still is: with "Wake now" and "Change". */
 export function SnoozeLine({ item, e, at }: { item: Item; e: CardEvent; at: string }) {
   return (
     <div className="note ev-state snooze-line">

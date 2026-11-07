@@ -4,6 +4,7 @@
 // later; one whose way is blocked by a wait says why when clicked (and on hover), and at the head or
 // the end of the queue it is greyed out. The card also unfolds the queue, where it alone is dragged.
 
+import { GripVertical, List } from 'lucide-react';
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
 import { move, movable, notStarted, queueOrder, reach } from '../core/queue';
 import type { Item } from '../core/types';
@@ -20,14 +21,20 @@ export function useMenuClose(on: boolean, box: RefObject<HTMLElement | null>, cl
     if (!on) return;
     const away = (e: PointerEvent) => box.current?.contains(e.target as Node) || latest.current();
     const key = (e: KeyboardEvent) => esc && e.key === 'Escape' && latest.current();
+    const dismiss = () => latest.current();
     addEventListener('pointerdown', away, true);
     addEventListener('keydown', key);
+    addEventListener('obeya:close-bar-menus', dismiss);
     return () => {
       removeEventListener('pointerdown', away, true);
       removeEventListener('keydown', key);
+      removeEventListener('obeya:close-bar-menus', dismiss);
     };
   }, [on]);
 }
+
+/** Make room for another bar interaction opened from a keyboard shortcut. */
+export const closeBarMenus = () => dispatchEvent(new Event('obeya:close-bar-menus'));
 
 /** The bar's queue button: how many cards wait; a click lists them under it, in turn, to open or move. */
 export function QueuePill({ items, onOpen }: { items: Item[]; onOpen: (i: Item) => void }) {
@@ -44,9 +51,7 @@ export function QueuePill({ items, onOpen }: { items: Item[]; onOpen: (i: Item) 
   return (
     <div className="menu-pill queue" ref={box}>
       <button className={open ? 'pill kpill on' : 'pill kpill'} title={t.queue.count(queued.length)} aria-expanded={open} onClick={() => setOpen(!open)}>
-        <svg className="bar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-          <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />
-        </svg>
+        <List className="bar-icon" size={16} strokeWidth={2} aria-hidden />
         <span className="lbl">{t.queue.button}</span>
         {queued.length > 0 && <span className="n">{queued.length}</span>}
       </button>
@@ -138,13 +143,13 @@ export function waitedOn(ids: string[], items: Item[], name: (id: string) => str
 
 export type Behind = { behind: string[]; reason: string; manualWait?: string[] };
 
-/** Why a card waits behind others: the reason Obeya gave, or the owner's arrows where only they hold it. */
+/** Why a card waits behind others: the reason Seismic gave, or the owner's arrows where only they hold it. */
 export const waitReason = (q: Behind) => (q.behind.some((id) => !q.manualWait?.includes(id)) ? q.reason : t.queue.drawn);
 
 /** The confirmation that a waiting card was started anyway. */
 export const forcedText = (q: Item['queue']) => (q && 'behind' in q && q.behind.every((id) => q.manualWait?.includes(id)) ? t.queue.forcedDrawn : t.queue.forced);
 
-/** What a card waits for and why: the waits Obeya inferred with their reason, then those the owner's arrows hold it for. */
+/** What a card waits for and why: the waits Seismic inferred with their reason, then those the owner's arrows hold it for. */
 export function waitText(q: Behind, items: Item[], name?: (id: string) => string): string {
   const drawn = q.behind.filter((id) => q.manualWait?.includes(id));
   const inferred = q.behind.filter((id) => !drawn.includes(id));
@@ -174,14 +179,7 @@ function QueueRow(p: {
     <li className={p.own ? 's-planned own' : 's-planned'} {...p.row} onClick={onOpen && (() => onOpen(item))}>
       {p.grip ? (
         <span className="grip" title={t.queue.drag} aria-hidden {...p.grip}>
-          <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
-            <circle cx="2.5" cy="3" r="1.5" />
-            <circle cx="7.5" cy="3" r="1.5" />
-            <circle cx="2.5" cy="8" r="1.5" />
-            <circle cx="7.5" cy="8" r="1.5" />
-            <circle cx="2.5" cy="13" r="1.5" />
-            <circle cx="7.5" cy="13" r="1.5" />
-          </svg>
+          <GripVertical size={16} strokeWidth={2} />
         </span>
       ) : (
         <span className="grip none" />

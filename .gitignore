@@ -2,6 +2,8 @@ node_modules/
 .DS_Store
 *.mp4
 *.wav
+# the built-in voices Qwen3-TTS clones ship with the demo skill
+!plugin/skills/demo/voices/*.wav
 __pycache__/
 dist/
 site/media/

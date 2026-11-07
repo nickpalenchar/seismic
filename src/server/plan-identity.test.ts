@@ -13,7 +13,7 @@ import { branchName, git } from './workspaces';
 const FILE = 'docs/plan/audit.md';
 const md = (items: string[]) => `# Audit\n\n## Goal\n\nFix the findings.\n\n## Workstreams\n\n${items.map((i) => `- ${i}`).join('\n')}\n`;
 const parse = (items: string[]) => parsePlanDoc(FILE, md(items)) as PlanDoc;
-/** The doc as an older Obeya read it: each workstream keyed by its place (`#n`). */
+/** The doc as an older Seismic read it: each workstream keyed by its place (`#n`). */
 const positional = (doc: PlanDoc): PlanDoc => ({ ...doc, workstreams: doc.workstreams.map((w, i) => ({ ...w, key: `#${i + 1}`, label: undefined, title: w.label ? `${w.label} ${w.title}` : w.title })) });
 
 const OLD = ['[x] **1G Testlücken schließen.** Only tests.', '[ ] **3B Auth zusammenführen.** One auth service.', '[ ] **3C Gleichzeitige Bearbeitung.** Row versions.'];
@@ -215,7 +215,7 @@ describe('a doc in a plan folder outside the repository', () => {
   });
 });
 
-describe('cards of a doc read by an older Obeya', () => {
+describe('cards of a doc read by an older Seismic', () => {
   test('a card holding another workstream’s log leaves the project, and the workstream gets a fresh card in its place', () => {
     // as the bug left it: the doc was read anew, and 3B took the card of 1G at its place
     history = [parse(OLD)];
@@ -226,7 +226,7 @@ describe('cards of a doc read by an older Obeya', () => {
     work(a!.id, '4A Sitzungen und Mandantensperre', { state: 'planned' });
     board.patch(b!.id, { x: 900, y: 500 });
 
-    // the new Obeya reads the same doc
+    // the new Seismic reads the same doc
     const after = read(parse(NEW));
     expect(after.map((k) => [k.label, k.state])).toEqual([
       ['4A', 'planned'],
@@ -248,7 +248,7 @@ describe('cards of a doc read by an older Obeya', () => {
     docs = [positional(parse(OLD))];
     const [g, b] = kids();
     work(b!.id, '3B Auth zusammenführen', { state: 'planned' });
-    // the doc changed while the older Obeya did not look: 3B is first now
+    // the doc changed while the older Seismic did not look: 3B is first now
     const moved = parse([OLD[1]!, OLD[0]!, OLD[2]!]);
     store.update(store.projects('c')[0]!.id, { plan: JSON.stringify(positional(moved)) });
     const after = read(moved);
@@ -258,7 +258,7 @@ describe('cards of a doc read by an older Obeya', () => {
   });
 });
 
-describe('cards of a doc read by an older Obeya, as workers left it', () => {
+describe('cards of a doc read by an older Seismic, as workers left it', () => {
   test('a card stays when its worker put the pull request before the title, or the doc reworded a labelled title', () => {
     const was = parse(['[ ] Ship the thing. Details', '[ ] **S1: Foundation.** Base', '[ ] **S2: Sign-in.** Rest']);
     history = [was];

@@ -1,13 +1,13 @@
 import { expect, test } from 'bun:test';
 import { issueFooter, issueUrl, MAX_ISSUE_URL, withoutFooter } from './wish';
 
-test('the link opens a prefilled issue on Obeya’s repository', () => {
-  const { url, trimmed } = issueUrl('Sort cards by date', 'I asked Obeya to sort the cards & it could not.', '…');
+test('the link opens a prefilled issue on Seismic’s repository', () => {
+  const { url, trimmed } = issueUrl('Sort cards by date', 'I asked Seismic to sort the cards & it could not.', '…');
   expect(trimmed).toBe(false);
   const u = new URL(url);
   expect(`${u.origin}${u.pathname}`).toBe('https://github.com/sadilek/obeya/issues/new');
   expect(u.searchParams.get('title')).toBe('Sort cards by date');
-  expect(u.searchParams.get('body')).toBe('I asked Obeya to sort the cards & it could not.');
+  expect(u.searchParams.get('body')).toBe('I asked Seismic to sort the cards & it could not.');
 });
 
 test('a body too long for the link is cut, with the note at the cut, and never in half a character', () => {
@@ -23,7 +23,7 @@ test('a body too long for the link is cut, with the note at the cut, and never i
 
 test('the footer line is the body’s last, and comes off for rewriting', () => {
   const footer = issueFooter('0.3.0', 'macOS', 'app');
-  expect(footer).toBe('Obeya 0.3.0 · macOS · app');
+  expect(footer).toBe('Seismic 0.3.0 · macOS · app');
   expect(withoutFooter(`Text.\n\nMore.\n\n${footer}`)).toBe('Text.\n\nMore.');
   expect(withoutFooter('No footer here.')).toBe('No footer here.');
 });

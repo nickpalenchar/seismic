@@ -1,4 +1,4 @@
-// Native Codex spike, deliberately independent of main.ts and the owner's running Obeya.
+// Native Codex spike, deliberately independent of main.ts and the owner's running Seismic.
 // bun scripts/codex-probe.ts [model] — uses the installed Codex login and bills model turns.
 // Keeps its scratch directory (printed at startup) for inspection; never commits or uses ~/.obeya.
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
@@ -39,15 +39,15 @@ function waitFor(check: () => boolean, label: string, timeout = 180_000): Promis
 function idleSince(index: number) { return events.slice(index).some((e) => e.type === 'idle' && !e.background && !e.more); }
 const spec: AgentSpec = {
   cwd,
-  env: { OBEYA_HOME: join(root, 'home') },
+  env: { SEISMIC_HOME: join(root, 'home') },
   ...(process.argv[2] ? { model: process.argv[2] } : {}),
-  system: 'You are exercising the Obeya native Codex adapter in a disposable repository. Use the Obeya tools to report, ask questions and hand over. When ask or ready_for_review returns, end your turn. Follow the exact probe steps, no commits.',
+  system: 'You are exercising the Seismic native Codex adapter in a disposable repository. Use the Seismic tools to report, ask questions and hand over. When ask or ready_for_review returns, end your turn. Follow the exact probe steps, no commits.',
   tools: [
     { name: 'report', description: 'Report progress.', schema: { message: z.string() }, run: ({ message }) => {
       console.log(`REPORT ${String(message)}`);
       if (!steeringSent) {
         steeringSent = true;
-        session!.send('Append exactly STEERED followed by a newline to result.txt. This is a live owner message. Then use the Obeya ask tool to ask which color to use, and end the turn after ask.');
+        session!.send('Append exactly STEERED followed by a newline to result.txt. This is a live owner message. Then use the Seismic ask tool to ask which color to use, and end the turn after ask.');
       } else if (artifact) resumedTool = true;
       return 'Progress recorded.';
     } },
@@ -71,19 +71,19 @@ try {
   await waitFor(() => question && idleSince(0), 'file edit, live steering, question and idle');
   if (readFileSync(join(cwd, 'result.txt'), 'utf8') !== 'START\nSTEERED\n') throw new Error('The live steering instruction was not applied exactly');
   const next = events.length;
-  session.send('The color is blue. Create artifact.html with an h1 heading saying Codex native Obeya probe, styled with color: blue. Use ready_for_review with path artifact.html, then end the turn.');
+  session.send('The color is blue. Create artifact.html with an h1 heading saying Codex native Seismic probe, styled with color: blue. Use ready_for_review with path artifact.html, then end the turn.');
   await waitFor(() => artifact && idleSince(next), 'owner response and artifact handover');
   if (!artifactPath || resolve(cwd, artifactPath) !== join(cwd, 'artifact.html')) throw new Error('The handed-over path is not the requested artifact');
   const html = readFileSync(resolve(cwd, artifactPath), 'utf8');
-  if (!html.includes('Codex native Obeya probe') || !/color\s*:\s*blue/i.test(html) || !/<h1\b/i.test(html)) throw new Error('Artifact does not reflect the owner reply (blue heading)');
+  if (!html.includes('Codex native Seismic probe') || !/color\s*:\s*blue/i.test(html) || !/<h1\b/i.test(html)) throw new Error('Artifact does not reflect the owner reply (blue heading)');
   if (!sessionId) throw new Error('No resumable session id');
   session.close();
   await session.done;
   const resume = events.length;
-  session = codexRuntime.start({ ...spec, resume: sessionId }, 'Append exactly RESUMED followed by a newline to result.txt. Then call the Obeya report tool with message resumed. End the turn.');
+  session = codexRuntime.start({ ...spec, resume: sessionId }, 'Append exactly RESUMED followed by a newline to result.txt. Then call the Seismic report tool with message resumed. End the turn.');
   await waitFor(() => resumedTool && idleSince(resume), 'subprocess restart, resume and restored tool');
   if (readFileSync(join(cwd, 'result.txt'), 'utf8') !== 'START\nSTEERED\nRESUMED\n') throw new Error('Resumed file edit missing');
-  console.log('\nPASS: edit, Obeya tool, active-turn message, ask/reply, HTML handover, process restart/resume and persisted tool.');
+  console.log('\nPASS: edit, Seismic tool, active-turn message, ask/reply, HTML handover, process restart/resume and persisted tool.');
   console.log('Not a full canvas acceptance test: permissions, background command cleanup, trust and card lifecycle remain rollout gates.');
 } finally {
   session?.close();

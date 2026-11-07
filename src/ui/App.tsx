@@ -4,22 +4,26 @@ import { clientExtensions as extensions } from '../extensions/client';
 import { useRatePrompt } from './feedback';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { Archive, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onCanvas, type Place, PROJECT_HEAD, PROJECT_PAD, unionBounds } from '../core/layout';
 import { type CanvasInfo, type CanvasSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerProject, type Usage, type Waiting, waitingIn } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, onNotice, quietAtStart, reportFocus, setCanvas, useCanvas } from './api';
 import { GroupNames, growFrom, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
+import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
 import { clip } from '../core/text';
 import { type ActDone, Detail, type Pending } from './detail';
 import { Cards, KoordinatorAgent } from './message';
+import { motionMs, reducedMotion, sizeSettled } from './motion';
 import type { Heard, Where } from './api';
 import { replyOn, setReply } from './reply';
 import { ArchivePill } from './archive';
+import { CardSearch } from './cardSearch';
 import { useBarFit } from './barFit';
 import { UsagePill } from './usage';
-import { ConfigDialog, Problem, showCanvasesSection, showDemosSection, showDevicesSection, showRepoClones } from './config';
+import { ConfigDialog, Problem, showAddSite, showCanvasesSection, showDevicesSection, showNewCanvas, showRepoClones } from './config';
 import { AppMenu, PrefsDialog } from './prefs';
 import { PhoneDialog } from './access';
 import { OpenPerformance, PerformanceDialog } from './performance';
@@ -28,11 +32,11 @@ import { LOG_KEYS, readLogQuery } from '../core/feedback-log';
 import { Setup } from './setup';
 import { Phone, phoneView } from './phone';
 import { KoordinatorSheet } from './koordinator';
-import { forcedText, QueuePill } from './queue';
+import { closeBarMenus, forcedText, QueuePill } from './queue';
 import { depsOf, handleAt, manualPrerequisites, nearestHandle, settledAmong, type Side, SIDES, waitsAmong } from './deps';
 import { anchoredPath, nearestEdge } from './manualLinks';
 import type { ManualAnchor } from '../core/types';
-import { collect, keep, type Kept, leaveSheet, restore, type SideSheet, takeKept, takeSheetLeft } from './keep';
+import { collect, inboxKept, keep, keepInbox, type Kept, leaveSheet, restore, type SideSheet, takeKept, takeSheetLeft } from './keep';
 import { Sign } from './logo';
 import { DOUBLE_CLICK_KNOWN, Help, HelpButton, HELP_KEY_KNOWN, NewCardHint } from './help';
 import { know, known } from './known';
@@ -44,12 +48,15 @@ import { attachTo, imageFiles } from './shots';
 import { cardDraft, drafted, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, OBEYA_DRAFT, takesImages } from './draft';
 import { HoldToTalk, PushToTalk, SPACE_SHOWS_MS, TAP_MS, ToldList, usePushToTalk, useTold } from './voice';
 import { videoOf } from './spot';
-import { CardView, cardClass, shownState, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, OldBunPill, ProjectView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkspacesPill } from './parts';
+import { CardView, cardClass, shownState, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, ProjectView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkspacesPill } from './parts';
 import { clampWidth, loadWidths, saveWidths, SHEET_W, type SheetWidths, widthsIn } from './sheetWidth';
 import { failText, t } from './strings';
 import { loadPinned, NAV_CANVAS_MIN, NAV_W, NavPill, NavSheet, savePinned } from './nav';
-import { canvasPath, cardPath, feedbackLogPath, named, queryWithout, readAddress } from './address';
+import { projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress } from './address';
 import { type QuickReply, sendReply } from './quickReply';
+import { Inbox } from './inbox';
+import { CanvasSettingsSheet } from './canvasSettings';
+import { type InboxEntry, inboxEntries, waitingCount } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, voiceTarget } from './tell';
 
@@ -68,7 +75,7 @@ export function App() {
         if (phone) setCanvases((c) => c ?? keptCanvases());
       },
     );
-    // the app from the home screen while the machine sleeps: the phone view with the canvases it had, which says that Obeya does not answer
+    // the app from the home screen while the machine sleeps: the phone view with the canvases it had, which says that Seismic does not answer
     if (!phone) return;
     const h = setTimeout(() => setCanvases((c) => c ?? keptCanvases()), quietAtStart ? 0 : 3000);
     return () => clearTimeout(h);
@@ -90,8 +97,8 @@ export function App() {
 
 /**
  * No canvas runs: on the first start, with none configured yet, the setup assistant fills the page
- * and creates one; where the configured ones did not start, the page says why, and „Erneut
- * versuchen“ opens the canvases once one runs.
+ * and creates one; where the configured ones did not start, the page says why, and "Try again"
+ * opens the canvases once one runs.
  */
 function NoCanvas() {
   const [down, setDown] = useState<ConfigProblem[] | null>(null);
@@ -160,6 +167,9 @@ const FLY_MS = 130;
 const MARKED_ROOM = 90;
 const MARKED_W = 270;
 const UNFOLD_MS = 170;
+// under reduced motion, the open card waits hidden this long for its content to stop growing, at most the cap
+const SETTLE_QUIET_MS = 100;
+const SETTLE_CAP_MS = 350;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** What `get` returns once it returns something, within `ms`. */
 async function soon<T>(get: () => T | undefined, ms = 3000): Promise<T | undefined> {
@@ -221,7 +231,7 @@ function Canvas({
       return keep.length === Object.keys(f).length ? f : Object.fromEntries(keep);
     });
     setPending((p) => (p.some((i) => byId.has(i.id)) ? p.filter((i) => !byId.has(i.id)) : p));
-    // a card replied to from „Braucht dich“ stays under way while it still waits for the owner, also one on another canvas
+    // a card replied to from "Needs you" stays under way while it still waits for the owner, also one on another canvas
     const elsewhere = (id: string) => Object.entries(waiting).find(([c]) => c !== snapshot.canvas.id && waiting[c]!.items.some((i) => i.id === id))?.[1].items.find((i) => i.id === id);
     setUnderway((u) => {
       const keep = Object.entries(u).filter(([id]) => {
@@ -275,8 +285,8 @@ function Canvas({
   }, [snapshot.planDirs, noteHidden, notesMoved]);
   const notes = useMemo(() => (planDirs ? planDirBoxes(planDirs, placed) : []), [planDirs, placed]);
   const all: Bounds = useMemo(() => unionBounds([...placed.map((p) => p.b), ...notes]) ?? { x: 0, y: 0, w: 1000, h: 600 }, [placed, notes]);
-  // what the view keeps in sight: the cards, a project only while it shows none, and the notes on plan directories
-  const content = useMemo(() => [...placed.filter(({ item }) => item.collapsed || !kidsOf.has(item.id)).map((p) => p.b), ...notes], [placed, kidsOf, notes]);
+  // what the view keeps in sight: the whole area the minimap panel shows, so anywhere on it can be scrolled to; an empty canvas has no limit
+  const content = useMemo(() => (placed.length || notes.length ? [minimapArea(all)] : []), [placed, notes, all]);
   const contentRef = useRef(content);
   contentRef.current = content;
   const byId = (id: string) => itemsRef.current.find((i) => i.id === id);
@@ -339,6 +349,20 @@ function Canvas({
   const sheetWRef = useRef(sheetW);
   sheetWRef.current = sheetW;
   const [kOn, setKOn, kOnRef] = useLive(false);
+  // the inbox, a docked sheet like Seismic's: only one of them is open; it stays open across canvases
+  const [inboxOn, setInboxOn, inboxOnRef] = useLive(() => inboxKept(sessionStorage));
+  useEffect(() => keepInbox(sessionStorage, inboxOn), [inboxOn]);
+  // the canvas's settings, a docked sheet like the inbox, from the gear in the bar (canvasSettings.tsx)
+  const [csOn, setCsOn, csOnRef] = useLive(false);
+  // Seismic's sheet takes the inbox's place however it opens (its button, `?talk`, a reload), and the settings'
+  useEffect(() => {
+    if (kOn) setInboxOn(false);
+    if (kOn) setCsOn(false);
+  }, [kOn]);
+  // the inbox and the canvas's settings take each other's place
+  useEffect(() => {
+    if (inboxOn) setCsOn(false);
+  }, [inboxOn]);
   const [aOn, setAOn, aOnRef] = useLive(false);
   const [cOn, setCOn, cOnRef] = useLive(false);
   // the navigation pinned as a sidebar on the left (src/ui/nav.tsx)
@@ -355,12 +379,14 @@ function Canvas({
    */
   const sideNow = (): Sides => {
     const narrow = matchMedia(NARROW).matches;
-    const right = narrow || !(kOnRef.current || sheetOnRef.current) ? 0 : sheetOnRef.current && readingRef.current ? sheetWRef.current.read : sheetWRef.current.sheet;
+    const right = narrow || !(kOnRef.current || inboxOnRef.current || csOnRef.current || sheetOnRef.current) ? 0 : sheetOnRef.current && readingRef.current ? sheetWRef.current.read : sheetWRef.current.sheet;
     return { left: !narrow && pinnedRef.current && innerWidth - NAV_W - right >= NAV_CANVAS_MIN ? NAV_W : 0, right };
   };
-  /** Opens Obeya's sheet or closes it; an open project closes. */
+  /** Opens Seismic's sheet or closes it; an open project closes. */
   const toggleKoordinator = () => {
     setKOn(!kOn);
+    if (!kOn) setInboxOn(false);
+    if (!kOn) setCsOn(false);
     if (!kOn && focusRef.current?.type === 'project') closeProject(false);
   };
   /** The sheet as the owner opens it to talk (its button, `C`): the field under the conversation takes the cursor. */
@@ -371,19 +397,20 @@ function Canvas({
   const toggleArchive = () => setAOn(!aOnRef.current);
   // the configuration is a dialog over the page: what is open behind it stays as it was
   const toggleConfig = () => (setPrefsOn(false), setCOn(!cOnRef.current));
-  // asking Obeya about the configuration: its conversation in place of the dialog, ready to type into
+  // asking Seismic about the configuration: its conversation in place of the dialog, ready to type into
   const talkFromConfig = () => {
     setCOn(false);
     if (!kOn) talkKoordinator();
   };
   const [helpOn, setHelpOn] = useState(false);
+  const [cardSearchOn, setCardSearchOn] = useState(false);
   // the app-wide preferences, a dialog over the page as the configuration is, opened from the logo's menu
   const [prefsOn, setPrefsOn] = useState(false);
   const openPrefs = () => {
     setCOn(false);
     setPrefsOn(true);
   };
-  // „Telefon verbinden“, from the section „Von anderen Geräten“ of the configuration
+  // "Connect a phone", from the section "Other devices" of the configuration
   const [phoneOn, setPhoneOn] = useState(false);
   // the performance dashboard, over the page as the configuration is; opened from the logo's menu,
   // the feedback setting or a rated card, and open at once coming back from the feedback log (`?performance`), with its filters
@@ -414,7 +441,7 @@ function Canvas({
   const archivedRef = useRef(archived);
   archivedRef.current = archived;
   /** The card `id`, on the canvas or else in the archive. */
-  const itemOrArchived = (id: string) => byId(id) ?? archivedRef.current.find((i) => i.id === id);
+  const itemOrArchived = (id: string) => byId(id) ?? items.flatMap((i) => i.manualArchived ?? []).find((i) => i.id === id) ?? archivedRef.current.find((i) => i.id === id);
   const archiveEls = useRef(new Map<string, HTMLElement>()).current;
   // rows of the project sheet, where its archived workstreams and its idea unfold from
   const sheetEls = useRef(new Map<string, HTMLElement>()).current;
@@ -424,7 +451,7 @@ function Canvas({
   // an archived card opened from a project's sheet, which the archive list may not hold
   const [opened, setOpened] = useState<Item | null>(null);
   useEffect(() => {
-    if (!aOn) return;
+    if (!aOn && !items.some((i) => i.proposal?.merge && !items.some((p) => p.id === i.proposal!.merge!.with))) return;
     let current = true;
     api.archived().then((a) => current && setArchived(a), console.error);
     return () => void (current = false);
@@ -469,7 +496,10 @@ function Canvas({
   };
 
   /** Unfolds the card `i`; `quick` without the flight and the unfold, as after a reload. */
-  async function open(i: Item, quick = false) {
+  async function open(i: Item, reload = false) {
+    // reduced motion opens at once too, but shows the card only at the size its content settles at
+    const hold = !reload && reducedMotion();
+    const quick = reload || hold;
     const f = focusRef.current;
     if (f?.type === 'card') return;
     if (i.kind === 'project') return openProject(i);
@@ -489,15 +519,22 @@ function Canvas({
     panel.style.setProperty('--c', `var(--${shownState(i)})`);
     panel.className = '';
     panel.style.setProperty('--unfold', `${quick ? 0 : UNFOLD_MS}ms`);
-    Object.assign(panel.style, rect(r), { display: 'block' });
+    Object.assign(panel.style, rect(r), { display: 'block', visibility: hold ? 'hidden' : '' });
     panel.getBoundingClientRect();
     panel.classList.add('anim');
     fitPanel(i);
     unfolded.current = true;
+    // laid out while hidden, so it measures what loads; it grows in view only after the cap
+    const content = innerRef.current?.firstElementChild;
+    if (hold && content) {
+      await sizeSettled(content, SETTLE_QUIET_MS, SETTLE_CAP_MS);
+      if (!unfolded.current || focusRef.current?.id !== i.id) return;
+      panel.style.visibility = '';
+    }
     setDim(true);
     if (!quick) await sleep(UNFOLD_MS);
     panel.classList.add('ready');
-    // a card of the owner's without a title is written in its text first: Obeya names it from that
+    // a card of the owner's without a title is written in its text first: Seismic names it from that
     const title = panel.querySelector<HTMLTextAreaElement>('textarea.p-title');
     const body = panel.querySelector<HTMLElement>('.p-body');
     if (title && !title.value) (body ?? title).focus();
@@ -589,19 +626,19 @@ function Canvas({
     panel.classList.remove('ready');
     if (el) Object.assign(panel.style, rect(el.getBoundingClientRect()));
     setDim(false);
-    await sleep(UNFOLD_MS);
+    await sleep(motionMs(UNFOLD_MS));
     panel.style.display = 'none';
     panel.className = '';
     beingWritten.delete(f.id);
     setOpenId(null);
     setFocus(f.project);
-    // a new card left empty was not wanted; one with a task but no title, Obeya names
+    // a new card left empty was not wanted; one with a task but no title, Seismic names
     const draft = openDraft.current;
     if (i?.source === 'manual' && !draft.title.trim()) {
       if (nameless(draft)) saved.then(() => api.act(i.id, { action: 'name' })).catch(console.error);
       else if (!keepUntitled) api.remove(i.id).catch(console.error);
     }
-    await fly(back(f), FLY_MS);
+    // the view stays where the card was brought to, so it can be seen among the rest
     // the card may have gone (archived, deleted) and taken the last content in view with it
     recover();
   }
@@ -643,6 +680,8 @@ function Canvas({
     setReading(r);
     setSheetOn(true);
     setKOn(false);
+    setInboxOn(false);
+    setCsOn(false);
     setAOn(false);
     if (inView) await flyOrJump(camFor(bounds(p), sideNow()), 700, quick);
   }
@@ -666,7 +705,7 @@ function Canvas({
     const title = openDraft.current.title.trim() || titleFrom(openDraft.current.body);
     if (edit.current) clearTimeout(edit.current.timer);
     edit.current = null;
-    // nothing for Obeya to name: the card goes
+    // nothing for Seismic to name: the card goes
     openDraft.current = { kind: i?.kind ?? 'task', title: '', body: '' };
     await closeCard({ keepUntitled: true });
     if (!i) return;
@@ -696,7 +735,7 @@ function Canvas({
     flushEdit().catch(console.error);
     const f = focusRef.current;
     const project = f?.type === 'project' ? f.id : f?.type === 'card' ? f.project?.id : undefined;
-    const sheet: SideSheet | undefined = kOn ? 'koordinator' : aOn ? 'archive' : undefined;
+    const sheet: SideSheet | undefined = kOn ? 'koordinator' : inboxOn ? 'inbox' : csOn ? 'settings' : aOn ? 'archive' : undefined;
     keep(sessionStorage, snapshot.canvas.id, {
       at: Date.now(),
       ...(f?.type === 'card' ? { card: f.id } : {}),
@@ -708,7 +747,7 @@ function Canvas({
     });
   };
   useEffect(() => beforeReload(() => keepNow.current()), []);
-  // Obeya's sheet left open over a draft comes back with the canvas; left empty or closed, it stays closed
+  // Seismic's sheet left open over a draft comes back with the canvas; left empty or closed, it stays closed
   useEffect(() => {
     const away = () => leaveSheet(sessionStorage, snapshot.canvas.id, kOnRef.current && drafted(OBEYA_DRAFT));
     addEventListener('pagehide', away);
@@ -718,11 +757,11 @@ function Canvas({
     const k = takeKept(sessionStorage, snapshot.canvas.id);
     const sheetLeft = takeSheetLeft(sessionStorage, snapshot.canvas.id);
     // the canvas's own address, where the page came without one or with another canvas's; `?talk`
-    // (Obeya's answer in another canvas's navigation) opens Obeya's sheet, once
+    // (Seismic's answer in another canvas's navigation) opens Seismic's sheet, once
     const a = readAddress();
     const code = !a.canvas || a.canvas === snapshot.canvas.id ? a.card : undefined;
     const talk = new URLSearchParams(location.search).has('talk');
-    history.replaceState(history.state, '', `${code ? cardPath(snapshot.canvas.id, code) : canvasPath(snapshot.canvas.id)}${queryWithout(location.search, 'c', 'card', 'talk', ...(perfAtStart ? LOG_KEYS : []))}`);
+    history.replaceState(history.state, '', `${code ? cardPath(snapshot.canvas.id, code) : projectPath(snapshot.canvas.id)}${queryWithout(location.search, 'c', 'card', 'talk', ...(perfAtStart ? LOG_KEYS : []))}`);
     // what comes back is what the address names already; a kept card the address left out (a
     // restart of the app's shell, a link to the canvas) gets its address once it is open
     addressSet.current = true;
@@ -742,6 +781,8 @@ function Canvas({
     // the sheet that comes back sets the camera beside it at once, as the rest comes back without flights
     quickSide.current = Date.now() + 2000;
     if (k.sheet === 'koordinator') setKOn(true);
+    else if (k.sheet === 'inbox') setInboxOn(true);
+    else if (k.sheet === 'settings') setCsOn(true);
     else if (k.sheet === 'archive') setAOn(true);
     if (k.config) setCOn(true);
     if (k.prefs) setPrefsOn(true);
@@ -761,7 +802,7 @@ function Canvas({
   }
 
   // ---------------------------------------------------------------- the address
-  // the address names the open card or project (`/c/<canvas>/card/<code>`). Opening one is a step in
+  // the address names the open card or project (`/p/<project>/c/<code>`). Opening one is a step in
   // the browser's history, so Back closes it again, as on the phone; one opened in place of another
   // (by a link in it) takes over that one's step. Changes take effect one after the other: a step
   // back is done once the browser says so.
@@ -776,7 +817,7 @@ function Canvas({
     const f = focusRef.current;
     return f ? itemOrArchived(f.id) : undefined;
   };
-  const pathOf = (i: Item | undefined) => `${i ? cardPath(snapshot.canvas.id, i) : canvasPath(snapshot.canvas.id)}${location.search}`;
+  const pathOf = (i: Item | undefined) => `${i ? cardPath(snapshot.canvas.id, i) : projectPath(snapshot.canvas.id)}${location.search}`;
   /** `i` opens over `under` (the project it is opened from, else the canvas). */
   function addressOpens(i: Item, under: Item | undefined) {
     if (addressSet.current) return;
@@ -887,6 +928,7 @@ function Canvas({
   const archiveCard = useCallback(async (i: Item) => {
     try {
       await api.archive(i.id);
+      ratePrompt.ask(i.id);
       showAck(t.archive.archived(plain(i.title)), () => api.unarchive(i.id));
     } catch (e) {
       fail(e);
@@ -918,8 +960,8 @@ function Canvas({
   }, []);
 
   /**
-   * „Entziehen“ in the Workspaces list: the card's clone goes to the card waiting longest once the
-   * undo window is through; „Rückgängig“ (here or in its row) takes that back meanwhile.
+   * "Give to the waiting card" in the Workspaces list: the card's clone goes to the card waiting longest once the
+   * undo window is through; "Undo" (here or in its row) takes that back meanwhile.
    */
   const keepWorkspace = useCallback(async (i: Item) => {
     try {
@@ -939,8 +981,8 @@ function Canvas({
   }, []);
 
   /**
-   * The project's „Anordnen“, on its card and in its sheet: its workstreams in columns by what builds
-   * on what, once Obeya has read that from the plan doc. It takes effect at once; „Rückgängig“ puts
+   * The project's "Arrange", on its card and in its sheet: its workstreams in columns by what builds
+   * on what, once Seismic has read that from the plan doc. It takes effect at once; "Undo" puts
    * the cards (and the project, which may have made room for itself) back where they stood.
    */
   const arrange = useCallback(async (p: Item) => {
@@ -1021,21 +1063,28 @@ function Canvas({
   function onHeard(h: Heard) {
     // said to the open card's agent: the card shows it
     if (h.quiet) return;
-    // the owner asked to tell Obeya's makers something: the draft for them opens
+    // the owner asked to tell Seismic's makers something: the draft for them opens
     if (h.wish) openWish(h.wish);
     if (h.token && !focusRef.current) newCardWatch.current = { known: new Set(itemsRef.current.map((i) => i.id)), until: Date.now() + 20_000 };
   }
-  // the reply stands in Obeya's sheet, or the answer in the project's sheet, open in front of the owner: no line above the microphone
+  // the reply stands in Seismic's sheet, or the answer in the project's sheet, open in front of the owner: no line above the microphone
   const told = useTold(
     onHeard,
     (h) =>
       !cOnRef.current &&
-      ((kOnRef.current && snapshotRef.current.talk.some((x) => x.id === h.talk)) ||
+      ((kOnRef.current && snapshotRef.current.talk.some((x) => x.id === h.talk && x.chat === snapshotRef.current.chat)) ||
         (!!h.inCard && focusRef.current?.type === 'card' && focusRef.current.id === h.inCard) ||
         (!!h.project && sheetOnRef.current && !readingRef.current && focusRef.current?.type === 'project' && focusRef.current.id === h.project)),
   );
   const { tellAbout, tellTyped } = tellers(byId, told, fail, placeNow);
-  // a card Obeya asked to open before it was on the canvas
+  /** "Go to card" on a confirmation's line: the card it made opens (in place of one open), one made on another canvas opens there. */
+  function goToMade(c: { id: string; canvas?: string }) {
+    if (c.canvas && c.canvas !== snapshotRef.current.canvas.id) return location.assign(cardPath(c.canvas, c.id));
+    newCardWatch.current = null;
+    setKOn(false);
+    void openNamed(c.id).catch(console.error);
+  }
+  // a card Seismic asked to open before it was on the canvas
   const openSoon = useRef<{ id: string; until: number } | null>(null);
   useEffect(() => {
     const o = openSoon.current;
@@ -1062,12 +1111,14 @@ function Canvas({
       open(made);
     } else if (!shows(camRef.current, viewNow(), boundsOf(made, itemsRef.current))) fly(centreOnPoint(boundsOf(made, itemsRef.current), Math.max(camRef.current.s, 0.8), sideNow()), 700);
   }, [snapshot]);
-  // what Obeya tells the owner without a command to answer: an answer looked up, what a request a
-  // card's agent passed on came to (with "Rückgängig" while its actions wait)
+  // what Seismic tells the owner without a command to answer: an answer looked up, what a request a
+  // card's agent passed on came to (with "Undo" while its actions wait)
   useEffect(
     () =>
       onNotice((n) => {
         // the open card moved to another canvas (built in a new repository there): the page follows it
+        // the cards a confirmed command made: its line offers to go to them
+        if (n.made && n.token) return told.made(n.token, n.made);
         const f = focusRef.current;
         if (n.movedTo && n.cardId && f?.type === 'card' && f.id === n.cardId) return location.assign(cardPath(n.movedTo, n.cardId));
         const i = itemsRef.current.find((x) => x.id === n.cardId);
@@ -1083,7 +1134,7 @@ function Canvas({
       }),
     [],
   );
-  /** The draft of the field that speaks to `target`, whether or not it is on the page: the open card's, or Obeya's sidebar's. */
+  /** The draft of the field that speaks to `target`, whether or not it is on the page: the open card's, or Seismic's sidebar's. */
   const draftFor = (target: Where) => (target && 'card' in target ? cardDraft(target.card) : !target && kOnRef.current ? OBEYA_DRAFT : null);
   /** The draft a recording for `target` goes out with: its field's, or without one on the page the screenshots beside the mic. */
   const fieldFor = (target: Where) => {
@@ -1167,6 +1218,21 @@ function Canvas({
   const [dragWith, setDragWith] = useState<string[]>([]);
   // the card the pointer is on, for the waits around it
   const [hoverId, setHoverId] = useState<string | null>(null);
+  // fingers on the canvas (touch.ts): whether the last press was one, and what the element under the first finger was
+  const [touchy, setTouchy] = useState(false);
+  const touchyRef = useRef(false);
+  const touchEl = useRef<Element | null>(null);
+  const touchesRef = useRef<Touches | null>(null);
+  // on touch, the card that was picked up and let go stands for the pointer resting on it: its dots and waits show
+  const [touchFocus, setTouchFocus] = useState<string | null>(null);
+  // how the long press works shows on a touch screen until the owner has used it once
+  const [holdKnown, setHoldKnown] = useState(() => known(TOUCH_HOLD_KNOWN));
+  const coarse = useMemo(() => matchMedia('(pointer: coarse)').matches, []);
+  const learnHold = () => {
+    if (holdKnown) return;
+    know(TOUCH_HOLD_KNOWN);
+    setHoldKnown(true);
+  };
   const [connection, setConnection] = useState<{ from: string; side: Side; x: number; y: number; target?: string; anchor?: ManualAnchor } | null>(null);
   // the dot under the pointer: the canvas renders again only when it changes
   const [handle, setHandle] = useState<{ id: string; side: Side } | null>(null);
@@ -1184,6 +1250,8 @@ function Canvas({
     const anchor = byId(to)?.manualAnchors?.[from];
     return anchor ? anchoredPath(a, b, anchor, head).path : undefined;
   };
+  // on touch the dots show on the card picked up and let go, and on the marked ones
+  const touchDots = (id: string) => touchy && !dragId && (touchFocus === id || selection.includes(id));
   const cardBoxes = useMemo(() => placed.flatMap(({ item, b }) => (item.kind === 'project' ? [] : [b])), [placed]);
   const titleOf = (id: string) => {
     const i = byId(id);
@@ -1192,11 +1260,11 @@ function Canvas({
   // what an arrow does shows while the owner draws one, until they have drawn their first
   const [depKnown, setDepKnown] = useState(() => known(DEP_KNOWN));
   // arrows the owner removed that the server may still have: one holding a queued card goes there only
-  // once „Rückgängig“ has run out (`sent` from then on), so that taking it back never leaves the card started
+  // once "Undo" has run out (`sent` from then on), so that taking it back never leaves the card started
   const [removing, setRemoving] = useState<{ key: string; sent?: true }[]>([]);
-  // those removals while „Rückgängig“ runs, each with its timer and what sends it
+  // those removals while "Undo" runs, each with its timer and what sends it
   const pendingRemovals = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; send: (keepalive?: boolean) => void }>());
-  // what the owner removed goes to the server even when the page goes before „Rückgängig“ has run out
+  // what the owner removed goes to the server even when the page goes before "Undo" has run out
   useEffect(() => {
     const away = () => {
       for (const p of pendingRemovals.current.values()) {
@@ -1208,7 +1276,7 @@ function Canvas({
     addEventListener('pagehide', away);
     return () => removeEventListener('pagehide', away);
   }, []);
-  /** A removal still waiting for „Rückgängig“ to run out is taken back: the arrow stays. */
+  /** A removal still waiting for "Undo" to run out is taken back: the arrow stays. */
   function keepDependency(key: string) {
     const p = pendingRemovals.current.get(key);
     if (!p) return;
@@ -1235,7 +1303,15 @@ function Canvas({
   useEffect(() => {
     if (!markHint) return;
     const h = setTimeout(() => setMarkHint(null), 7000);
-    return () => clearTimeout(h);
+    // the next click anywhere, a drag of the canvas or a scroll of it lets the hint go at once
+    const hide = () => setMarkHint(null);
+    window.addEventListener('pointerdown', hide, true);
+    window.addEventListener('wheel', hide, true);
+    return () => {
+      clearTimeout(h);
+      window.removeEventListener('pointerdown', hide, true);
+      window.removeEventListener('wheel', hide, true);
+    };
   }, [markHint]);
   const [ring, setRing] = useState<{ at: Pos; ids: string[] } | null>(null);
   const markedBox = unionBounds(placed.filter((p) => marked.includes(p.item.id)).map((p) => p.b));
@@ -1261,7 +1337,7 @@ function Canvas({
       fail(e);
     }
   }
-  /** The trash button on an owner-drawn arrow: it goes at once, with „Rückgängig“. */
+  /** The trash button on an owner-drawn arrow: it goes at once, with "Undo". */
   function removeDependency(from: string, to: Item) {
     const key = `${from}:${to.id}`;
     if (!(to.queue && 'behind' in to.queue && to.queue.behind.includes(from))) {
@@ -1303,6 +1379,8 @@ function Canvas({
   }
   /** A right click on a card opens the colour ring for it (a workstream's is its project's), on a marked one for all marked. */
   function onContextMenu(e: React.MouseEvent) {
+    // a long press of a finger picks up a card instead (touch.ts)
+    if (touchyRef.current) return e.preventDefault();
     if (focusRef.current) return;
     const el = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('.item');
     let i = el && byId(el.dataset.id!);
@@ -1328,7 +1406,7 @@ function Canvas({
   }, [side.left, side.right]);
 
   // the grip at the open sheet's left edge widens or narrows it; reading a plan doc has its own width
-  const gripOn = kOn || sheetOn;
+  const gripOn = kOn || inboxOn || csOn || sheetOn;
   const gripKind = !!reading && sheetOn ? 'read' : 'sheet';
   const gripRef = useRef<{ x: number; w: number; kind: 'sheet' | 'read' } | null>(null);
   const [resizing, setResizing] = useState(false);
@@ -1358,7 +1436,7 @@ function Canvas({
   const viewOn = (wx: number, wy: number) => kept({ s: camRef.current.s, x: midX(sideNow()) - wx * camRef.current.s, y: innerHeight / 2 - wy * camRef.current.s });
   /** When no content is in view any more (cards went, the window shrank), flies to the nearest. */
   const recover = () => {
-    if (focusRef.current?.type === 'card' || dragRef.current || panRef.current || flying()) return;
+    if (focusRef.current?.type === 'card' || dragRef.current || panRef.current || touchesRef.current?.busy || flying()) return;
     const c = camRef.current;
     const k = kept(c);
     if (k.x !== c.x || k.y !== c.y) fly(k, 400);
@@ -1367,12 +1445,19 @@ function Canvas({
 
   function onPointerDown(e: React.PointerEvent) {
     if (focusRef.current?.type === 'card' || e.button !== 0) return;
+    const touch = e.pointerType === 'touch';
+    if (touch !== touchyRef.current) {
+      touchyRef.current = touch;
+      setTouchy(touch);
+    }
     if (connection) {
       e.stopPropagation();
-      const { from, side } = connection;
+      // a finger did not hover on its way: the arrow aims at where it lands
+      const conn = touch ? aimed(connection, e.clientX, e.clientY) : connection;
+      const { from, side } = conn;
       const start = placed.find((p) => p.item.id === from)?.b;
       // a click on the empty canvas makes the card that is to wait there, and connects it
-      if (!connection.target && start && !(e.target as Element).closest('.item, .plan-dir, button')) {
+      if (!conn.target && start && !(e.target as Element).closest('.item, .plan-dir, button')) {
         // the arrow's head stays where the owner clicked: the card lies behind it, its edge facing the arrow
         const startAt = handleAt(start, side), at = toWorld(camRef.current, e.clientX, e.clientY);
         const [w, h] = CARD_SIZE.task, dx = at.x - startAt.x, dy = at.y - startAt.y;
@@ -1385,11 +1470,11 @@ function Canvas({
           know(DEP_KNOWN);
           setDepKnown(true);
         }
-      } else if (connection.target) {
-        // the arrow drawn again while its removal waits for „Rückgängig“ to run out: it simply stays
-        if (pendingRemovals.current.has(`${connection.from}:${connection.target}`)) keepDependency(`${connection.from}:${connection.target}`);
+      } else if (conn.target) {
+        // the arrow drawn again while its removal waits for "Undo" to run out: it simply stays
+        if (pendingRemovals.current.has(`${conn.from}:${conn.target}`)) keepDependency(`${conn.from}:${conn.target}`);
         else {
-          const { target, anchor } = connection;
+          const { target, anchor } = conn;
           api.dependency(from, target, false, false, anchor).catch((err) => showAck(err instanceof ApiError && err.code === 'dependencyCycle' ? t.deps.cycle(titleOf(from), titleOf(target)) : failText(err)));
         }
         if (!depKnown) {
@@ -1398,37 +1483,21 @@ function Canvas({
         }
       }
       setConnection(null);
+      setTouchFocus(null);
       return;
     }
     stopFlight();
-    const el = (e.target as Element).closest<HTMLElement>('.item');
-    const note = (e.target as Element).closest<HTMLElement>('.plan-dir');
-    if (note) {
-      // it moves by its top left as it stands now: one above the projects stands on its bottom
-      const repo = note.dataset.repo!;
-      const r = note.getBoundingClientRect();
-      const start = toWorld(camRef.current, r.left, r.top);
-      const b = notes[planDirs!.findIndex((d) => d.repo === repo)]!;
-      const content = unionBounds(placed.map((p) => p.b)) ?? b;
-      const grab = toWorld(camRef.current, e.clientX, e.clientY);
-      dragRef.current = { id: `note:${repo}`, note: repo, with: [], shift: false, x: e.clientX, y: e.clientY, px: e.clientX, py: e.clientY, grab, start, limit: dragLimit(content, b), moved: false, frame: 0, last: 0 };
-    } else if (el && (!el.classList.contains('project') || (e.target as Element).closest('.head'))) {
-      const i = byId(el.dataset.id!);
-      if (!i) return;
-      // a marked card takes the other marked ones along
-      const along = movesWith(marked, i.id).flatMap((id) => {
-        const x = byId(id);
-        return x ? [{ id, start: { x: x.x, y: x.y } }] : [];
-      });
-      const moving = new Set([i.id, ...along.map((a) => a.id)]);
-      // the view scrolls as far as the rest of the canvas reaches, plus room to drop the cards beside it
-      const rest = onCanvas(itemsRef.current).filter((x) => !moving.has(x.id));
-      const b = unionBounds([...moving].map((id) => bounds(byId(id)!)))!;
-      const content = unionBounds(rest.map((x) => boundsOf(x, rest))) ?? b;
-      const grab = toWorld(camRef.current, e.clientX, e.clientY);
+    if (touch) {
+      // no emulated mouse press follows the finger: it would take the focus from a card a double-tap just opened
+      e.preventDefault();
+      if (!touchesRef.current!.busy) touchEl.current = e.target as Element;
+      touchesRef.current!.down(e.pointerId, { x: e.clientX, y: e.clientY }, touchTarget(e.target as Element));
+      viewportRef.current!.setPointerCapture(e.pointerId);
+      return;
+    }
+    if (grab(e.target as Element, e.clientX, e.clientY, e.shiftKey)) {
       // Shift + press would otherwise extend the page's text selection up to the pointer
       if (e.shiftKey) e.preventDefault();
-      dragRef.current = { id: i.id, with: along, shift: e.shiftKey, x: e.clientX, y: e.clientY, px: e.clientX, py: e.clientY, grab, start: { x: i.x, y: i.y }, limit: dragLimit(content, b), moved: false, frame: 0, last: 0 };
     } else if (e.shiftKey) {
       // Shift + press would otherwise extend the page's text selection up to the pointer
       e.preventDefault();
@@ -1439,6 +1508,57 @@ function Canvas({
       setPanning(true);
     }
     viewportRef.current!.setPointerCapture(e.pointerId);
+  }
+
+  /** What a finger landed on, for touch.ts: a card or a project's head by its id, a plan directory's note, or null for the empty canvas. */
+  function touchTarget(target: Element) {
+    const note = target.closest<HTMLElement>('.plan-dir');
+    if (note) return `note:${note.dataset.repo}`;
+    const el = target.closest<HTMLElement>('.item');
+    return el && (!el.classList.contains('project') || target.closest('.head')) ? el.dataset.id! : null;
+  }
+
+  /** Takes hold of the card or note under the pointer at (x, y), ready to be dragged; false when there is none there. */
+  function grab(target: Element, x: number, y: number, shift: boolean) {
+    const el = target.closest<HTMLElement>('.item');
+    const note = target.closest<HTMLElement>('.plan-dir');
+    if (note) {
+      // it moves by its top left as it stands now: one above the projects stands on its bottom
+      const repo = note.dataset.repo!;
+      const r = note.getBoundingClientRect();
+      const start = toWorld(camRef.current, r.left, r.top);
+      const b = notes[planDirs!.findIndex((d) => d.repo === repo)]!;
+      const content = unionBounds(placed.map((p) => p.b)) ?? b;
+      const grab = toWorld(camRef.current, x, y);
+      dragRef.current = { id: `note:${repo}`, note: repo, with: [], shift: false, x, y, px: x, py: y, grab, start, limit: dragLimit(content, b), moved: false, frame: 0, last: 0 };
+      return true;
+    }
+    if (el && (!el.classList.contains('project') || target.closest('.head'))) {
+      const i = byId(el.dataset.id!);
+      if (!i) return true;
+      // a marked card takes the other marked ones along
+      const along = movesWith(marked, i.id).flatMap((id) => {
+        const x = byId(id);
+        return x ? [{ id, start: { x: x.x, y: x.y } }] : [];
+      });
+      const moving = new Set([i.id, ...along.map((a) => a.id)]);
+      // the view scrolls as far as the rest of the canvas reaches, plus room to drop the cards beside it
+      const rest = onCanvas(itemsRef.current).filter((x) => !moving.has(x.id));
+      const b = unionBounds([...moving].map((id) => bounds(byId(id)!)))!;
+      const content = unionBounds(rest.map((x) => boundsOf(x, rest))) ?? b;
+      const grab = toWorld(camRef.current, x, y);
+      dragRef.current = { id: i.id, with: along, shift, x, y, px: x, py: y, grab, start: { x: i.x, y: i.y }, limit: dragLimit(content, b), moved: false, frame: 0, last: 0 };
+      return true;
+    }
+    return false;
+  }
+
+  /** The held card comes off the canvas and follows the pointer, the view scrolling at the edges. */
+  function lift(d: Drag) {
+    setDragId(d.id);
+    setDragWith(d.with.map((w) => w.id));
+    d.moved = true;
+    d.frame = requestAnimationFrame(edgeTick);
   }
 
   /** Puts the dragged card under the pointer. */
@@ -1472,14 +1592,23 @@ function Canvas({
     d.frame = requestAnimationFrame(edgeTick);
   }
 
+  /** The arrow being drawn, aimed at the pointer at (x, y): at the card there, if any. */
+  function aimed(conn: NonNullable<typeof connection>, x: number, y: number): NonNullable<typeof connection> {
+    const p = toWorld(camRef.current, x, y);
+    const near = placed.filter(({ item }) => item.id !== conn.from && connectable(item)).map(({ item, b }) => ({ id: item.id, area: b.w * b.h, d: Math.hypot(Math.max(b.x - p.x, 0, p.x - b.x - b.w), Math.max(b.y - p.y, 0, p.y - b.y - b.h)) })).filter((x) => x.d <= 8 / camRef.current.s).sort((a, b) => a.d - b.d || a.area - b.area)[0];
+    // the arrow ends where the pointer is nearest on the target's edges, and keeps that place
+    const target = near && placed.find((x) => x.item.id === near.id);
+    const edge = target && nearestEdge(target.b, p);
+    return { ...conn, x: p.x, y: p.y, target: near?.id, anchor: edge ? { fromSide: conn.side, toSide: edge.side, offset: edge.offset } : undefined };
+  }
+
   function onPointerMove(e: React.PointerEvent) {
     if (connection) {
-      const p = toWorld(camRef.current, e.clientX, e.clientY);
-      const near = placed.filter(({ item }) => item.id !== connection.from && connectable(item)).map(({ item, b }) => ({ id: item.id, area: b.w * b.h, d: Math.hypot(Math.max(b.x - p.x, 0, p.x - b.x - b.w), Math.max(b.y - p.y, 0, p.y - b.y - b.h)) })).filter((x) => x.d <= 8 / camRef.current.s).sort((a, b) => a.d - b.d || a.area - b.area)[0];
-      // the arrow ends where the pointer is nearest on the target's edges, and keeps that place
-      const target = near && placed.find((x) => x.item.id === near.id);
-      const edge = target && nearestEdge(target.b, p);
-      setConnection({ ...connection, x: p.x, y: p.y, target: near?.id, anchor: edge ? { fromSide: connection.side, toSide: edge.side, offset: edge.offset } : undefined });
+      setConnection(aimed(connection, e.clientX, e.clientY));
+      return;
+    }
+    if (e.pointerType === 'touch') {
+      touchesRef.current!.move(e.pointerId, { x: e.clientX, y: e.clientY });
       return;
     }
     // the dots stay hidden while something is dragged, lassoed or panned, and while a card is open
@@ -1501,12 +1630,7 @@ function Canvas({
       d.px = e.clientX;
       d.py = e.clientY;
       if (!d.moved && Math.hypot(d.px - d.x, d.py - d.y) < 5) return;
-      if (!d.moved) {
-        setDragId(d.id);
-        setDragWith(d.with.map((w) => w.id));
-        d.moved = true;
-        d.frame = requestAnimationFrame(edgeTick);
-      }
+      if (!d.moved) lift(d);
       place(d);
       return;
     }
@@ -1520,53 +1644,17 @@ function Canvas({
   }
 
   function onPointerUp(e: React.PointerEvent) {
+    if (e.pointerType === 'touch') return touchesRef.current!.up(e.pointerId, { x: e.clientX, y: e.clientY });
     const l = lassoRef.current;
     if (l) {
       lassoRef.current = null;
       setLasso([]);
-      const c = camRef.current;
-      // a Shift + click on a project beside its workstreams marks the project
-      if (l.every((p) => Math.hypot(p.x - l[0]!.x, p.y - l[0]!.y) < 5)) {
-        const el = document.elementFromPoint(l[0]!.x, l[0]!.y)?.closest<HTMLElement>('.item');
-        const i = el && byId(el.dataset.id!);
-        if (i) setSelection((sel) => toggle(sel, markable(i)));
-        return;
-      }
-      // what the lasso caught: each card whose middle lies inside, a workstream as its project
-      const ids = [...new Set(placed.filter(({ b }) => inside({ x: c.x + (b.x + b.w / 2) * c.s, y: c.y + (b.y + b.h / 2) * c.s }, l)).map(({ item }) => markable(item)))];
-      setSelection((sel) => addAll(sel, ids));
+      endLasso(l);
       return;
     }
     const d = dragRef.current;
     if (d) {
-      cancelAnimationFrame(d.frame);
-      dragRef.current = null;
-      setDragId(null);
-      setDragWith([]);
-      const repo = d.note;
-      if (repo) {
-        if (d.moved && d.to)
-          api.movePlanDirNote(repo, d.to).catch((err) => {
-            console.error(err);
-            setNotesMoved(({ [repo]: _, ...rest }) => rest);
-          });
-        return;
-      }
-      const i = byId(d.id);
-      if (!i) return;
-      if (d.moved) {
-        for (const x of [i, ...d.with.flatMap((w) => byId(w.id) ?? [])])
-          api.patch(x.id, { x: x.x, y: x.y }).catch((err) => {
-            console.error(err);
-            setMoved(({ [x.id]: _, ...rest }) => rest);
-          });
-        if (d.with.length && !moveKnown) {
-          know(MOVE_MARKED_KNOWN);
-          setMoveKnown(true);
-        }
-        if (!d.with.length && !markKnown) setMarkHint({ at: { x: e.clientX, y: e.clientY }, key: Date.now() });
-      } else if (d.shift) setSelection((sel) => toggle(sel, markable(i)));
-      else open(i);
+      endDrag(d, { x: e.clientX, y: e.clientY });
       return;
     }
     const p = panRef.current;
@@ -1576,16 +1664,140 @@ function Canvas({
     if (p && Math.hypot(e.clientX - p.from.x, e.clientY - p.from.y) < 5) setSelection([]);
   }
 
+  function onPointerCancel(e: React.PointerEvent) {
+    if (e.pointerType === 'touch') touchesRef.current!.cancel(e.pointerId, { x: e.clientX, y: e.clientY });
+    else onPointerUp(e);
+  }
+
+  /** What a finished lasso (screen points) caught is marked; one that went nowhere is a click. */
+  function endLasso(l: Pos[]) {
+    const c = camRef.current;
+    // a Shift + click on a project beside its workstreams marks the project
+    if (l.every((p) => Math.hypot(p.x - l[0]!.x, p.y - l[0]!.y) < 5)) {
+      const el = document.elementFromPoint(l[0]!.x, l[0]!.y)?.closest<HTMLElement>('.item');
+      const i = el && byId(el.dataset.id!);
+      if (i) setSelection((sel) => toggle(sel, markable(i)));
+      return;
+    }
+    // what the lasso caught: each card whose middle lies inside, a workstream as its project
+    const ids = [...new Set(placed.filter(({ b }) => inside({ x: c.x + (b.x + b.w / 2) * c.s, y: c.y + (b.y + b.h / 2) * c.s }, l)).map(({ item }) => markable(item)))];
+    setSelection((sel) => addAll(sel, ids));
+  }
+
+  /** The dragged card is let go at `at` (screen): where it lies now is saved; one that never moved was clicked. */
+  function endDrag(d: Drag, at: Pos) {
+    cancelAnimationFrame(d.frame);
+    dragRef.current = null;
+    setDragId(null);
+    setDragWith([]);
+    const repo = d.note;
+    if (repo) {
+      if (d.moved && d.to)
+        api.movePlanDirNote(repo, d.to).catch((err) => {
+          console.error(err);
+          setNotesMoved(({ [repo]: _, ...rest }) => rest);
+        });
+      return;
+    }
+    const i = byId(d.id);
+    if (!i) return;
+    // a card held on touch and let go where it was stays unsaved
+    if (d.moved && (i.x !== d.start.x || i.y !== d.start.y)) {
+      for (const x of [i, ...d.with.flatMap((w) => byId(w.id) ?? [])])
+        api.patch(x.id, { x: x.x, y: x.y }).catch((err) => {
+          console.error(err);
+          setMoved(({ [x.id]: _, ...rest }) => rest);
+        });
+      if (d.with.length && !moveKnown) {
+        know(MOVE_MARKED_KNOWN);
+        setMoveKnown(true);
+      }
+      if (!d.with.length && !markKnown) setMarkHint({ at, key: Date.now() });
+    } else if (d.moved) return;
+    else if (d.shift) setSelection((sel) => toggle(sel, markable(i)));
+    else open(i);
+  }
+
   function onDoubleClick(e: React.MouseEvent) {
+    // fingers double-tap through touch.ts
+    if (!touchyRef.current) newCardAt(e.clientX, e.clientY);
+  }
+
+  /** A double-click or double-tap at (x, y) on the empty canvas makes a new card there. */
+  function newCardAt(x: number, y: number) {
     // the pointer capture retargets the event to the viewport, so look at what is under the pointer
-    if (focusRef.current || document.elementFromPoint(e.clientX, e.clientY)?.closest('.item, .plan-dir')) return;
-    createAt(toWorld(camRef.current, e.clientX, e.clientY));
+    if (focusRef.current || document.elementFromPoint(x, y)?.closest('.item, .plan-dir')) return;
+    createAt(toWorld(camRef.current, x, y));
     if (!dblKnown) {
       know(DOUBLE_CLICK_KNOWN);
       setDblKnown(true);
       setNewHintOn(false);
     }
   }
+
+  // what the fingers do on the canvas (touch.ts); the host gets this render's closures
+  const touchHost: ConstructorParameters<typeof Touches>[0] = {
+    pan: (dx, dy) => {
+      const c = camRef.current;
+      setCam(kept({ ...c, x: c.x + dx, y: c.y + dy }));
+    },
+    pinch: (from, to) => setCam(kept(pinchCam(camRef.current, from, to))),
+    tap: (_, target) => {
+      // a tap on the empty canvas lets go of what is marked, and of the card that showed its dots
+      if (!target) {
+        setSelection([]);
+        setTouchFocus(null);
+        return;
+      }
+      const i = target.startsWith('note:') ? undefined : byId(target);
+      if (!i) return;
+      // while cards are marked, a tap takes one in or out, as Shift + click does
+      if (marked.length) setSelection((sel) => toggle(sel, markable(i)));
+      else {
+        setTouchFocus(null);
+        open(i);
+      }
+    },
+    doubleTap: (at) => newCardAt(at.x, at.y),
+    hold: (at, target) => {
+      buzz();
+      learnHold();
+      setTouchFocus(null);
+      if (!target) {
+        lassoRef.current = [at];
+        setLasso(lassoRef.current);
+      } else if (touchEl.current && grab(touchEl.current, at.x, at.y, false) && dragRef.current) lift(dragRef.current);
+    },
+    holdMove: (at) => {
+      if (lassoRef.current) {
+        lassoRef.current = [...lassoRef.current, at];
+        setLasso(lassoRef.current);
+        return;
+      }
+      const d = dragRef.current;
+      if (!d) return;
+      d.px = at.x;
+      d.py = at.y;
+      place(d);
+    },
+    holdEnd: (at, cut) => {
+      const l = lassoRef.current;
+      if (l) {
+        lassoRef.current = null;
+        setLasso([]);
+        if (!cut) endLasso(l);
+        return;
+      }
+      const d = dragRef.current;
+      if (!d) return;
+      endDrag(d, at);
+      // the card let go shows its dots for drawing an arrow, and its waits
+      if (!d.note) setTouchFocus(d.id);
+    },
+    moving: setPanning,
+  };
+  touchesRef.current ??= new Touches(touchHost);
+  touchesRef.current.host = touchHost;
 
   useEffect(() => {
     const vp = viewportRef.current!;
@@ -1608,38 +1820,37 @@ function Canvas({
   const underwayRef = useRef(underway);
   underwayRef.current = underway;
   const yours = (i: Item) => needsYou(i) && !underwayRef.current[i.id];
-  // answers in Obeya's sheet the owner has not seen: Obeya waits for them like a card
+  // the inbox, what waits on every canvas: this one's as this page sees it, without what the owner just
+  // acted on (on any canvas: its reply is under way) and without answers in Seismic's sheet while it is open
+  const here = waitingIn({ ...snapshot, items, talk: kOn ? [] : snapshot.talk });
+  const entries = inboxEntries(canvases, { ...waiting, [snapshot.canvas.id]: here }, (id) => !!underway[id]);
+  const attentionCount = waitingCount(entries);
+  const counts = Object.fromEntries(canvases.map((c) => [c.id, waitingCount(entries, c.id)]));
+  // answers in Seismic's sheet the owner has not seen: Seismic waits for them like a card
   const unread = kOn ? 0 : unreadAnswers(snapshot.talk);
-  // what waits on each canvas, for the navigation: this one's as this page sees it, without what the
-  // owner just acted on and without answers in Obeya's sheet while it is open
-  const navWaiting = { ...waiting, [snapshot.canvas.id]: waitingIn({ items: items.filter((i) => !underway[i.id]), talk: kOn ? [] : snapshot.talk }) };
   const nav = {
     canvas: snapshot.canvas,
     canvases,
-    waiting: navWaiting,
-    underway: (id: string) => !!underway[id],
-    open: openId ?? undefined,
+    counts,
     pinned,
     pinnable: !matchMedia(NARROW).matches && innerWidth - NAV_W - side.right >= NAV_CANVAS_MIN,
     onPin: pin,
-    onOpen: (c: string, i: Item) => (c === snapshot.canvas.id ? void openFresh(i) : location.assign(cardPath(c, i))),
-    onObeya: (c: string) => (c === snapshot.canvas.id ? kOnRef.current || toggleKoordinator() : location.assign(`${canvasPath(c)}?talk`)),
-    onReply: (c: string, i: Item, r: QuickReply) =>
-      sendReply(c, i, r, {
-        mark: (id, what) => setUnderway(({ [id]: _, ...rest }) => (what === null ? rest : { ...rest, [id]: what })),
-        showAck,
-        showWait,
-        rate: ratePrompt.ask,
-      }),
+    onNew: () => (showNewCanvas(), setPrefsOn(false), setCOn(true)),
   };
-  const proposalCount = snapshot.preferences.filter((p) => p.state === 'proposed').length + (snapshot.settingProposals?.length ?? 0);
+  /** A one-click reply in the inbox: the entry leaves at once, a held one waits out "Undo", a refused one comes back with the reason. */
+  const replyTo = (c: string, i: Item, r: QuickReply) =>
+    sendReply(c, i, r, {
+      mark: (id, what) => setUnderway(({ [id]: _, ...rest }) => (what === null ? rest : { ...rest, [id]: what })),
+      showAck,
+    });
   const doneCount = items.filter((i) => i.source === 'manual' && finished(i.state)).length;
   async function archiveDone() {
     const { ids } = await api.archiveDone();
+    if (ids.length) ratePrompt.ask(ids);
     if (ids.length) showAck(t.archive.archivedMany(ids.length), () => Promise.all(ids.map((id) => api.unarchive(id))));
   }
   const attnLast = useRef<string | null>(null);
-  /** The next card that needs the owner, in turn, and Obeya's sheet among them while an answer waits there. */
+  /** The next card that needs the owner, in turn, and Seismic's sheet among them while an answer waits there. */
   function nextAttention() {
     const koordinator = !kOnRef.current && unreadAnswers(snapshotRef.current.talk) > 0;
     const all = itemsRef.current;
@@ -1653,6 +1864,33 @@ function Canvas({
     attnLast.current = key(next);
     if (next === 'k') toggleKoordinator();
     else open(next);
+  }
+  /** The inbox slides out in place of Seismic's sheet or a project's, and closes again. */
+  const toggleInbox = () => {
+    const open = !inboxOnRef.current;
+    setInboxOn(open);
+    if (!open) return;
+    setKOn(false);
+    if (focusRef.current?.type === 'project') closeProject(false);
+  };
+  /** The canvas's settings slide out in place of another sheet, and close again. */
+  const toggleCanvasSettings = () => {
+    const open = !csOnRef.current;
+    setCsOn(open);
+    if (!open) return;
+    setKOn(false);
+    setInboxOn(false);
+    if (focusRef.current?.type === 'project') closeProject(false);
+  };
+  /**
+   * "Go to card": the card opens beside the inbox, which stays open; one on another canvas opens
+   * there, the inbox open beside it again. Seismic's answer opens its sheet in place of the inbox.
+   */
+  function goToEntry(e: InboxEntry) {
+    if (e.canvas !== snapshot.canvas.id) return location.assign(e.card ? cardPath(e.canvas, e.card) : `${projectPath(e.canvas)}?talk`);
+    if (!e.card) return kOnRef.current || toggleKoordinator();
+    const i = byId(e.card.id);
+    if (i) void openFresh(i);
   }
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
   keys.current = (e: KeyboardEvent) => {
@@ -1684,7 +1922,7 @@ function Canvas({
       }
       return;
     }
-    // so does „Telefon verbinden“
+    // so does "Connect a phone"
     if (phoneOn) {
       if (e.key === 'Escape') setPhoneOn(false);
       return;
@@ -1694,7 +1932,7 @@ function Canvas({
       if (e.key === 'Escape') setNewHintOn(false);
       return;
     }
-    // the draft for Obeya's makers takes the keys until it closes, Esc closing it
+    // the draft for Seismic's makers takes the keys until it closes, Esc closing it
     if (wishOn) {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -1707,6 +1945,12 @@ function Canvas({
       if (e.key === 'Escape' || e.key === '?') setHelpOn(false);
       // Space would press the focused button behind it
       if (e.key === 'Escape' || e.key === '?' || e.code === 'Space') e.preventDefault();
+      return;
+    }
+    if (e.key === '/' && !typing && !focusRef.current && !e.metaKey && !e.ctrlKey && !e.altKey && !e.isComposing) {
+      e.preventDefault();
+      closeBarMenus();
+      setCardSearchOn(true);
       return;
     }
     if (e.key === '?' && !typing) {
@@ -1739,6 +1983,8 @@ function Canvas({
       if (typing) (e.target as HTMLElement).blur();
       if (f?.type === 'card') closeCard();
       else if (kOnRef.current) setKOn(false);
+      else if (inboxOnRef.current && f?.type !== 'project') setInboxOn(false);
+      else if (csOnRef.current && f?.type !== 'project') setCsOn(false);
       else if (f?.type === 'project' && readingRef.current && sheetProject) readPlan(sheetProject, null);
       else if (f?.type === 'project') closeProject();
       return;
@@ -1768,14 +2014,18 @@ function Canvas({
   // ---------------------------------------------------------------- render
   const sheetProject = sheetId ? itemOrArchived(sheetId) : undefined;
   const sheetKids = !sheetProject ? [] : sheetProject.archivedAt ? archived.filter((i) => i.parent === sheetProject.id) : (kidsOf.get(sheetProject.id) ?? []);
-  const deps = useMemo(() => (hoverId && !panning && !dragId ? depsOf(hoverId, items) : undefined), [hoverId, panning, dragId, items]);
+  // on touch nothing hovers: the card picked up and let go stands in for the one under the pointer
+  const hovered = touchy ? touchFocus : hoverId;
+  const deps = useMemo(() => (hovered && !panning && !dragId ? depsOf(hovered, items) : undefined), [hovered, panning, dragId, items]);
   const waits = useMemo(() => waitsAmong(items), [items]);
   const settled = useMemo(() => settledAmong(items), [items]);
-  const waitKeys = useMemo(() => new Set(waits.map(([from, to]) => `${from}:${to}`)), [waits]);
+  const waitKeys = useMemo(() => new Set([...waits, ...settled.map((d): [string, string] => [d.from, d.to])].map(([from, to]) => `${from}:${to}`)), [waits, settled]);
   // the waits shown as lines: those the owner is removing go at once
+  const notRemoving = ([from, to]: [string, string]) => !removing.some((x) => x.key === `${from}:${to}`);
+  const shownSettled = settled.filter((d) => notRemoving([d.from, d.to]));
   const shownWaits = waits.filter(([from, to]) => !removing.some((x) => x.key === `${from}:${to}`));
   const standsForId = (id: string) => (byId(id) ? standsFor(byId(id)!).id : id);
-  const depOf = (id: string) => (!deps ? undefined : id === hoverId ? 'self' : deps.before.has(id) ? 'before' : deps.after.has(id) ? 'after' : undefined);
+  const depOf = (id: string) => (!deps ? undefined : id === hovered ? 'self' : deps.before.has(id) ? 'before' : deps.after.has(id) ? 'after' : undefined);
   // a workstream of a collapsed project points to where its project stands
   const at = new Map(placed.map((p) => [p.item.id, p.b]));
   const edgeTargets = items.flatMap((item) => {
@@ -1783,21 +2033,18 @@ function Canvas({
     return b && yours(item) && (focus?.type !== 'project' || item.parent === focus.id) ? [{ item, b }] : [];
   });
 
-  // the button for the conversation with Obeya: the rightmost in the bar; while its sidebar is open it
+  // the button for the conversation with Seismic: the rightmost in the bar; while its sidebar is open it
   // belongs to the sidebar, at its top corner, and closes it. It is one element that never moves to
   // another parent, so opening and closing the sidebar only changes its colour; in the bar a hidden
   // copy keeps its room
+  // the status bar's middle, where the line naming whom the microphone speaks to stands
+  const [targetSlot, setTargetSlot] = useState<HTMLElement | null>(null);
   const talkButton = (
     <button className={kOn ? 'pill kpill talk-pill on' : 'pill kpill talk-pill'} title={t.koordinator.buttonTitle} aria-label={t.koordinator.button} onClick={talkKoordinator}>
       <TalkIcon />
       {unread > 0 && (
         <span className="n unread" title={t.koordinator.unreadCount(unread)}>
           {unread}
-        </span>
-      )}
-      {proposalCount > 0 && (
-        <span className="n prop" title={t.koordinator.proposalsCount(proposalCount)}>
-          {proposalCount}
         </span>
       )}
     </button>
@@ -1821,19 +2068,19 @@ function Canvas({
         <div
           id="viewport"
           ref={viewportRef}
-          className={[panning && 'panning', ring && 'still'].filter(Boolean).join(' ') || undefined}
+          className={[panning && 'panning', ring && 'still', touchy && 'touch'].filter(Boolean).join(' ') || undefined}
           style={{ backgroundSize: `${22 * cam.s}px ${22 * cam.s}px`, backgroundPosition: `${cam.x}px ${cam.y}px` }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          onPointerCancel={onPointerCancel}
           onDoubleClick={onDoubleClick}
           onContextMenu={onContextMenu}
         >
           <div id="world" style={{ transform: `translate(${cam.x}px,${cam.y}px) scale(${cam.s})` }}>
             <TerritoryLayer {...territories} selected={placed.filter((p) => (ring ? ring.ids : marked).includes(p.item.id)).map((p) => p.b)} />
-            <Links placed={placed} waits={shownWaits} standsFor={standsForId} />
-            <DepLinks placed={placed} waits={shownWaits} lit={deps?.edges ?? []} settled={settled} hover={!panning && !dragId ? hoverId : null} standsFor={standsForId} routeOf={routeOf} s={cam.s}>
+            <Links placed={placed} waits={[...shownWaits, ...shownSettled.map((d): [string, string] => [d.from, d.to])]} standsFor={standsForId} />
+            <DepLinks placed={placed} waits={shownWaits} lit={deps?.edges ?? []} first={deps?.first} settled={shownSettled} standsFor={standsForId} routeOf={routeOf} s={cam.s}>
               {/* an arrow the owner drew: under the pointer, a trash button that removes it, where no card
                   covers it; the button and the band that shows it keep their size on screen at every zoom */}
               {placed.flatMap(({ item, b }) => (connectable(item) ? item.manualDependsOn ?? [] : []).filter((from) => waitKeys.has(`${from}:${item.id}`) && !removing.some((x) => x.key === `${from}:${item.id}`)).flatMap((from) => {
@@ -1844,9 +2091,11 @@ function Canvas({
                 const anchor = item.manualAnchors?.[from];
                 const routed = anchor && anchoredPath(a, b, anchor, depHead(cam.s));
                 const { x, y } = routed ? routed.mid : linkSpot(a, b, depHead(cam.s), cardBoxes, r);
-                return [<g className="manual-edge" key={`${from}:${item.id}`}>
+                // on touch, the trash button shows on the arrows of the card picked up and let go
+                const shown = touchy && (touchFocus === from || touchFocus === item.id);
+                return [<g className={shown ? 'manual-edge shown' : 'manual-edge'} key={`${from}:${item.id}`}>
                   <path className="manual-hit" d={routed ? routed.path : linkPath(a, b, depHead(cam.s))} strokeWidth={22 / cam.s} />
-                  <foreignObject x={x - r} y={y - r} width={2 * r} height={2 * r}><button title={t.deps.remove} aria-label={t.deps.remove} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); removeDependency(from, item); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7" /></svg></button></foreignObject>
+                  <foreignObject x={x - r} y={y - r} width={2 * r} height={2 * r}><button title={t.deps.remove} aria-label={t.deps.remove} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); removeDependency(from, item); }}><Trash2 strokeWidth={2} /></button></foreignObject>
                 </g>];
               }))}
             </DepLinks>
@@ -1861,7 +2110,7 @@ function Canvas({
                 <CardView
                   key={item.id}
                   item={item}
-                  partner={item.state === 'proposal' && item.proposal?.merge ? itemById.get(item.proposal.merge.with) : undefined}
+                  partner={item.proposal?.merge ? itemById.get(item.proposal.merge.with) ?? archived.find((i) => i.id === item.proposal!.merge!.with) : undefined}
                   b={b}
                   lifted={item.id === openId}
                   dragging={item.id === dragId || dragWith.includes(item.id)}
@@ -1878,7 +2127,7 @@ function Canvas({
               ),
             )}
             {placed.filter(({ item }) => connectable(item)).map(({ item, b }) => <div key={`handles:${item.id}`} data-id={item.id} className={`connection-handles ${cardClass(item, underway[item.id]).replace(/^card\s*/, '')}${depOf(item.id) ? ' dep-highlight' : ''}${connection?.target === item.id ? ' target' : ''}`} style={{ left: b.x, top: b.y, width: b.w, height: b.h }}>
-              {SIDES.map((side) => <button key={side} className={`connection-dot ${side}${!connection && handle?.id === item.id && handle.side === side ? ' visible' : ''}`} title={t.deps.connect} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} />)}
+              {SIDES.map((side) => <button key={side} className={`connection-dot ${side}${!connection && (handle?.id === item.id && handle.side === side || touchDots(item.id)) ? ' visible' : ''}`} title={t.deps.connect} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} />)}
             </div>)}
             {planDirs?.map((d, n) => (
               <PlanDirNote
@@ -1908,7 +2157,7 @@ function Canvas({
             <p className="none">{t.empty.none}</p>
             <p>{t.empty.speak}</p>
             <p className="where">{t.empty.where}</p>
-            <p>{t.empty.click}</p>
+            <p>{coarse || touchy ? t.touch.emptyTap : t.empty.click}</p>
           </div>
         )}
         {!ring && <Lasso pts={lasso} />}
@@ -1916,14 +2165,20 @@ function Canvas({
           <Marked
             {...markedAt(markedBox)}
             count={marked.length}
-            hint={!moveKnown && marked.length > 1}
+            {...(!moveKnown && marked.length > 1 ? { hint: touchy ? t.touch.move : t.marked.move } : {})}
             onGroup={(at) => setRing({ at, ids: marked })}
           />
         )}
-        {markHint && <MarkHint key={markHint.key} at={markHint.at} />}
+        {markHint && <MarkHint key={markHint.key} at={markHint.at} text={touchy ? t.touch.markHowTo : t.marked.howTo} />}
+        {(coarse || touchy) && !holdKnown && !!items.length && !focus && (
+          <p id="touchhint">
+            {t.touch.hold}
+            <button onClick={learnHold}>{t.touch.ok}</button>
+          </p>
+        )}
         {connection && !depKnown && (
           <p id="dephint" style={{ left: cam.x + connection.x * cam.s, top: cam.y + connection.y * cam.s }}>
-            {connection.target ? t.deps.waits(titleOf(connection.from), titleOf(connection.target)) : t.deps.pick(titleOf(connection.from))}
+            {connection.target ? t.deps.waits(titleOf(connection.from), titleOf(connection.target)) : (touchy ? t.touch.pick : t.deps.pick)(titleOf(connection.from))}
           </p>
         )}
         {ring && (
@@ -1946,6 +2201,7 @@ function Canvas({
             onPerformance={openPerformance}
             onFeedbackLog={() => location.assign(feedbackLogPath(snapshot.canvas.id))}
             onPrefs={openPrefs}
+            onConfig={toggleConfig}
             onHelp={() => {
               setHelpNote(undefined);
               setHelpOn(true);
@@ -1969,9 +2225,12 @@ function Canvas({
             onOpen={open}
             onArchiveDone={() => archiveDone().catch(console.error)}
             els={archiveEls}
-            icon={<BarIcon d="M3 4h18v4H3zM5 8v12h14V8M10 12h4" />}
+            icon={<BarIcon icon={Archive} />}
           />
           <QueuePill items={items} onOpen={open} />
+          {!focus && <button className="pill card-search-button" title={t.cardSearch.shortcut} aria-label={t.cardSearch.shortcut} aria-expanded={cardSearchOn} onClick={() => { closeBarMenus(); setCardSearchOn((on) => !on); }}>
+            <BarIcon icon={Search} /> <span>/</span>
+          </button>}
           {!dblKnown && (
             <button className="pill new-card" title={t.newCard} onClick={() => focusRef.current?.type !== 'card' && setNewHintOn(true)}>
               + <span className="lbl">{t.newCard}</span>
@@ -1987,21 +2246,21 @@ function Canvas({
             />
           )}
           <div className="right">
-            {!online && <div className="pill offline">{t.offline}</div>}
             {oldBun && <OldBunPill version={oldBun} />}
-            {online && restart && <RestartPill restart={restart} items={items} />}
             {online && update && restart?.reason !== 'update' && <UpdatePill update={update} />}
             {online && source && <SourcePill source={source} />}
-            {online && usage && <UsagePill usage={usage} />}
             {snapshot.workspaces && <WorkspacesPill pools={snapshot.workspaces} canvas={snapshot.canvas} canvases={canvases} items={items} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => location.assign(cardPath(c, card))} onTake={takeWorkspace} onKeep={keepWorkspace} />}
-            <button className={cOn ? 'pill kpill config on' : 'pill kpill config'} title={t.config.button} onClick={toggleConfig}>
-              <BarIcon d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-              <span className="lbl">{t.config.button}</span>
+            <button className={csOn ? 'pill kpill cs-pill on' : 'pill kpill cs-pill'} title={t.canvasSettings.button} aria-label={t.canvasSettings.button} aria-expanded={csOn} onClick={toggleCanvasSettings}>
+              <BarIcon icon={Settings} />
               {configProblems > 0 && (
                 <span className="n err" title={t.config.problemCount(configProblems)}>
                   {configProblems}
                 </span>
               )}
+            </button>
+            <button className={inboxOn ? 'pill kpill inbox-pill on' : 'pill kpill inbox-pill'} id="attention" title={t.inbox.button(attentionCount)} aria-label={t.inbox.button(attentionCount)} aria-expanded={inboxOn} onClick={toggleInbox}>
+              <BarIcon icon={Inbox2} />
+              {attentionCount > 0 && <span className="n">{attentionCount}</span>}
             </button>
             {!kOn && (
               <div className="talk-room" aria-hidden>
@@ -2010,6 +2269,16 @@ function Canvas({
             )}
           </div>
         </header>
+        {cardSearchOn && !focus && <CardSearch items={items} onOpen={(item) => void openFresh(item)} onClose={() => setCardSearchOn(false)} />}
+        {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the usage limits */}
+        <footer id="status">
+          <div className="st-left">
+            {!online ? <span className="st offline">{t.offline}</span> : restart ? <RestartPill restart={restart} items={items} /> : <span className="st online">{t.online}</span>}
+            {online && snapshot.canvas.demoSite?.init?.running && <span className="st site-init">{t.creatingSite}</span>}
+          </div>
+          <div className="st-mid" ref={setTargetSlot} />
+          <div className="st-right">{online && usage && <UsagePill usage={usage} />}</div>
+        </footer>
         <NavSheet on={side.left > 0} {...nav} />
         <Minimap
           cam={cam}
@@ -2020,10 +2289,14 @@ function Canvas({
           onJump={(wx, wy) => !focusRef.current && fly(viewOn(wx, wy), 500)}
           onFollow={(wx, wy) => !focusRef.current && chase(camRef.current, viewOn(wx, wy), setCam)}
         />
+        <Inbox entries={entries} open={openId ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo}
+          onProposalCard={(canvas, card) => goToEntry({ key: card.id, canvas, canvasName: '', card, text: '', since: '' })}
+          onProposalConfig={(canvas, repo, setting) => { showRepoClones({ canvas, repo, field: 'settings', setting }); setCOn(true); }} />
+        <CanvasSettingsSheet canvas={snapshot.canvas.id} name={snapshot.canvas.name} homePath={snapshot.canvas.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showCanvasesSection(), setPrefsOn(false), setCOn(true))} />
         <div id="dim" className={dim ? 'on' : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
         <WishDialog />
-        {newHintOn && <NewCardHint onClose={() => setNewHintOn(false)} />}
+        {newHintOn && <NewCardHint text={coarse || touchy ? t.touch.newCard : t.newCardHint.text} onClose={() => setNewHintOn(false)} />}
         <div id="panel" ref={panelRef}>
           <button className="close" title={t.close} onClick={() => closeCard()}>
             ✕
@@ -2035,7 +2308,7 @@ function Canvas({
                 <Detail
                   key={openItem.id}
                   item={openItem}
-                  all={items}
+                  all={[...new Map([...items, ...archived, ...items.flatMap((i) => i.manualArchived ?? [])].map((i) => [i.id, i])).values()]}
                   repos={snapshot.canvas.repos}
                   parent={openItem.parent ? itemOrArchived(openItem.parent) : undefined}
                   from={openItem.from ? itemOrArchived(openItem.from) : undefined}
@@ -2045,8 +2318,9 @@ function Canvas({
                     setCOn(true);
                   }}
                   onDemoSites={() => {
-                    showDemosSection();
-                    setCOn(true);
+                    // the canvas chooses its demo site in its settings
+                    closeCard();
+                    if (!csOnRef.current) toggleCanvasSettings();
                   }}
                   onEdit={onEdit}
                   flush={flushEdit}
@@ -2071,6 +2345,7 @@ function Canvas({
           onAsk={(text, canvas) => void told.tell(t.voice.reading(t.voice.koordinator), undefined, () => (canvas ? api.commandOn(canvas, text) : api.command(text, null, { place: placeNow() })))}
         />
         <PrefsDialog
+          preferences={snapshot.preferences} repos={snapshot.canvas.repos}
           on={prefsOn}
           onClose={() => setPrefsOn(false)}
           onConfig={() => {
@@ -2089,7 +2364,7 @@ function Canvas({
             }}
           />
         )}
-        <KoordinatorSheet on={kOn} canvas={snapshot.canvas.id} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.canvas.repos} talk={snapshot.talk} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onConfig={(repo, setting) => {
+        <KoordinatorSheet on={kOn} onClose={toggleKoordinator} canvas={snapshot.canvas.id} canvasName={snapshot.canvas.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.canvas.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onCanvas={(c) => location.assign(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
             showRepoClones({ canvas: snapshot.canvas.id, repo, field: 'settings', setting });
             setCOn(true);
           }} />
@@ -2099,6 +2374,7 @@ function Canvas({
           flat={ptt.flat}
           target={target}
           field={draftFor(where())}
+          slot={targetSlot}
           onDown={() => press(false)}
         />
         <Sheet
@@ -2118,7 +2394,7 @@ function Canvas({
           {talkButton}
         </div>
         {gripOn && !kOn && (
-          <button id="sheet-close" title={t.close} onClick={() => (sheetOn ? closeProject() : setKOn(false))}>
+          <button id="sheet-close" title={t.close} onClick={() => (sheetOn ? closeProject() : (setInboxOn(false), setCsOn(false)))}>
             ✕
           </button>
         )}
@@ -2135,9 +2411,13 @@ function Canvas({
         />
         {/* commands on their way and confirmations, stacked above the microphone */}
         <div id="acks">
-          <ToldList told={told.told} open={focus?.type === 'card' ? focus.id : undefined} onUndo={told.undo} />
-          {ratePrompt.prompt}
+          <ToldList told={told.told} open={focus?.type === 'card' ? focus.id : undefined} onUndo={told.undo} onGo={(c, x) => {
+              told.drop(x);
+              goToMade(c);
+            }} />
           {ackLine}
+          {/* nearest the microphone: a line going above it does not move the stars under a finger */}
+          {ratePrompt.prompt}
           <NotifyAsk {...notifyAsk} />
         </div>
         <PerformanceDialog initial={perfAtStart} on={perfOn} onClose={() => setPerfOn(false)} canvases={canvases} here={snapshot.canvas.id} onOpenCard={(code) => void openNamed(code).catch(console.error)} />
@@ -2244,11 +2524,7 @@ function useLive<T>(init: T | (() => T)): [T, (v: T) => void, { readonly current
 }
 
 /** A button's icon in the top bar, shown in place of its label where the bar is narrow (beside a wide sheet). */
-function BarIcon({ d }: { d: string }) {
-  return (
-    <svg className="bar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d={d} />
-    </svg>
-  );
+function BarIcon({ icon: I }: { icon: LucideIcon }) {
+  return <I className="bar-icon" size={16} strokeWidth={2} aria-hidden />;
 }
 
