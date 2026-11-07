@@ -627,6 +627,16 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     page.scrollTo({ top: page.scrollTop + v.getBoundingClientRect().top - bar - 10, behavior: scrollBehavior() });
   }, [half]);
 
+  const isUnderway = (id: string) => underway.includes(id);
+  // "Needs you" as the desktop's inbox: what the owner has read there, and the open card's entry read while it is open
+  // (hooks, so above the open card's early return)
+  const entries = inboxEntries(ordered, snaps, isUnderway, 'updated');
+  const inboxRead = useInboxRead();
+  const openEntry = open ? entries.find((e) => e.card?.id === open) : undefined;
+  useEffect(() => {
+    if (openEntry) inboxRead.markRead(openEntry);
+  }, [openEntry && readMark(openEntry)]);
+
   if (open) {
     const c = opened?.canvas;
     const items = c ? snaps[c.id]!.items : [];
@@ -691,14 +701,6 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     );
   }
 
-  const isUnderway = (id: string) => underway.includes(id);
-  // "Needs you" as the desktop's inbox: what the owner has read there, and the open card's entry read while it is open
-  const entries = inboxEntries(ordered, snaps, isUnderway, 'updated');
-  const inboxRead = useInboxRead();
-  const openEntry = open ? entries.find((e) => e.card?.id === open) : undefined;
-  useEffect(() => {
-    if (openEntry) inboxRead.markRead(openEntry);
-  }, [openEntry && readMark(openEntry)]);
   const obeyaSnap = snaps[obeyaId];
   const unreadOf = (id: string) => (snaps[id] ? unreadAnswers(snaps[id].talk) : 0);
   const unread = ordered.reduce((n, c) => n + unreadOf(c.id), 0);
