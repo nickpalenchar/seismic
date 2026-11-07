@@ -1,4 +1,4 @@
-// Project agents: one long-lived session per project that answers the owner's questions about it
+// Plan agents: one long-lived session per plan that answers the owner's questions about it
 // from the plan doc, the decision log and the repository, with a worker's tools to check what it says.
 
 import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
@@ -10,8 +10,8 @@ import { outsidePlanDir } from './repo';
 import type { AgentRuntime, AgentTool } from './runtime';
 import { TO_OBEYA } from './to-obeya';
 
-export class ProjectAgents {
-  /** Questions about one project are answered one after the other, in one session. */
+export class PlanAgents {
+  /** Questions about one plan are answered one after the other, in one session. */
   private queues = new Map<string, Promise<unknown>>();
 
   constructor(
@@ -20,20 +20,20 @@ export class ProjectAgents {
     /** The repository's read checkout, which the plan docs are read from (read-tree.ts). */
     private repoPath: () => string,
     private preferences: () => string = () => '',
-    /** The workers' permission mode, which the project agent runs in too. */
+    /** The workers' permission mode, which the plan agent runs in too. */
     private permissionMode?: PermissionMode,
   ) {}
 
   /**
-   * Answers a question the owner asked about the project or one of its workstreams, in the project's
+   * Answers a question the owner asked about the plan or one of its workstreams, in the plan's
    * session. `dir`: the output directory of the looked-up thread, which the answer's files are in;
    * `signal` ends the turn at once; `onLimit` shows where it waits for the usage limit; `onWaiting`
    * passes the owner's words in while it waits for its background work (`Briefing.onWaiting`).
-   * `asked`: written in the project's sheet, straight to it: its screenshots, and `to_seismic` for what
+   * `asked`: written in the plan's sheet, straight to it: its screenshots, and `to_seismic` for what
    * the words ask of Seismic rather than of it. `at`: where it shows at work.
    */
   inform(
-    project: Item,
+    plan: Item,
     message: string,
     onLimit: (until: number | null | undefined, retry?: () => void) => void,
     onTool?: (name: string, input: Record<string, unknown>) => void,
@@ -43,14 +43,14 @@ export class ProjectAgents {
     asked?: { images: string[]; toObeya?: AgentTool },
     at?: AgentAt,
   ): Promise<OwnerAnswer> {
-    return this.queued(project, () =>
+    return this.queued(plan, () =>
       inform({
         onLimit,
         ...(at ? { at } : {}),
         runtime: this.runtime,
         cwd: this.repoPath(),
-        resume: this.board.row(project.id).session_id ?? undefined,
-        onSession: (id) => this.board.work(project.id, { session_id: id }),
+        resume: this.board.row(plan.id).session_id ?? undefined,
+        onSession: (id) => this.board.work(plan.id, { session_id: id }),
         ...(onTool ? { onTool } : {}),
         ...(dir ? { dir } : {}),
         ...(signal ? { signal } : {}),
@@ -58,15 +58,15 @@ export class ProjectAgents {
         ...(this.permissionMode ? { permissionMode: this.permissionMode } : {}),
         ...(asked?.images.length ? { images: asked.images } : {}),
         ...(asked?.toObeya ? { tools: [asked.toObeya] } : {}),
-        system: `You are the project agent of the project "${project.title}", directed through Seismic. Its plan doc is ${project.plan?.file ?? '(none)'}${project.plan && outsidePlanDir(pathOfRef(project.plan.file)) ? '' : ' in this repository'}; you know it and the history of its workstreams.\n\n${INFORM_RULES}${asked?.toObeya ? `\n\n${TO_OBEYA}` : ''}`,
-        message: [message, `Decisions taken in this project so far:\n${decisionLog(this.board.decisions(project.id))}`, this.preferences()].filter(Boolean).join('\n\n'),
+        system: `You are the plan agent of the plan "${plan.title}", directed through Seismic. Its plan doc is ${plan.plan?.file ?? '(none)'}${plan.plan && outsidePlanDir(pathOfRef(plan.plan.file)) ? '' : ' in this repository'}; you know it and the history of its workstreams.\n\n${INFORM_RULES}${asked?.toObeya ? `\n\n${TO_OBEYA}` : ''}`,
+        message: [message, `Decisions taken in this plan so far:\n${decisionLog(this.board.decisions(plan.id))}`, this.preferences()].filter(Boolean).join('\n\n'),
         language: this.board.conversation(),
       }),
     );
   }
 
-  /** One question at a time per project, in one session. */
-  private queued<T>(project: Item, fn: () => Promise<T>): Promise<T> {
-    return oneAtATime(this.queues, project.id, fn);
+  /** One question at a time per plan, in one session. */
+  private queued<T>(plan: Item, fn: () => Promise<T>): Promise<T> {
+    return oneAtATime(this.queues, plan.id, fn);
   }
 }

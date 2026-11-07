@@ -57,7 +57,7 @@ does not become the main branch; landing on the local main refuses while the che
 
 Every git repository of a canvas has a directory on its main branch, the read checkout. Plan docs are
 read from it (unless outside the repository, see A plan folder outside the repository), and the
-agents that answer or judge rather than work on a card run in it: project agents, ideas' exploration
+agents that answer or judge rather than work on a card run in it: plan agents, ideas' exploration
 agents, the Koordinator (with its look-ups, learner and retrospective), the work retrospective and the
 voice commands' session. A folder without git is its own read checkout (see Folders without git).
 
@@ -76,14 +76,14 @@ forced detached checkout and a fresh read of the plan docs. A failed fetch is lo
 round. So a doc committed only in another clone, or only edited, does not show. Fetch and checkout
 run without blocking the server (in a repository of thousands of files a checkout takes a while);
 while git writes the files, the canvas keeps the plan docs it read before, since a doc missing for a
-moment would take its project off the canvas and give back its workstreams' workspaces. Moving the
+moment would take its plan off the canvas and give back its workstreams' workspaces. Moving the
 read checkout to the worktree when work now lands elsewhere runs the same way, the checkout read until
 the worktree is there. Only making it when the canvas starts waits for git: the checkout, the only
 thing to read meanwhile, may be on a card's branch.
 
 ### Plan docs
 
-A doc in the repository's plan directory (`planDocs`) is a project when its `## Workstreams` section
+A doc in the repository's plan directory (`planDocs`) is a plan when its `## Workstreams` section
 has a checklist; each top-level item is a workstream (`**W3:** Title. Details`). A short code at the
 start of the bold text is its label: `W3`, `WP`, and the codes other docs use, before a colon, dash
 or full stop (`S1:`, `A1 —`, `1G.`). A code before a space (`4A Title`) is a label where at least two
@@ -95,7 +95,7 @@ title instead of becoming all of it, so the tile and the sheet still say what th
 paragraph under `## Goal` / `## Ziel`. Seismic reads plan docs and never writes them; workers tick off
 their workstream in the doc as part of their change. A plan card is stored when first seen, so the
 owner's placement persists; its title, text and state always come from the doc. Each read keeps the
-doc's last state in the project.
+doc's last state in the plan.
 
 #### A workstream's identity
 
@@ -112,10 +112,10 @@ as last read, or what the card remembered of it), by its label and title togethe
 alone may be another item's now. A card nobody worked on that holds such a key gives way to the card
 with the workstream's log.
 
-A card whose workstream the doc no longer lists, while the doc is there, leaves the project once an
+A card whose workstream the doc no longer lists, while the doc is there, leaves the plan once an
 agent worked on it: as a task of its own, with its log, under the workstream's label and title and
 its text as the doc last had them, its log saying why. Finished (live or done, or planned again
-after a part landed), it goes into the archive; at work or stopped, it stands beside the project. A
+after a part landed), it goes into the archive; at work or stopped, it stands beside the plan. A
 stopped card holding a workspace gives the workspace back first. A doc in a plan folder outside the
 repository is written in place, an item moved in two edits, so its card leaves only once the
 workstream stayed away for five minutes; back before that, it keeps its card. A card nobody worked
@@ -127,8 +127,8 @@ with such keys moves its cards onto the keys above once: a card an agent worked 
 branch was named after (`obeya/<title>-<id>`, from the card or its log), any other by its place in
 the doc as last read. A title the doc reworded since still finds its workstream by the label the
 doc as last read or its history gave it, and a pull request's number before it does not count. A
-card whose workstream the doc no longer has leaves the project as above, its title and text from the
-doc's history in git (the doc as each of its recent commits left it); the project then lays out afresh in the doc's order,
+card whose workstream the doc no longer has leaves the plan as above, its title and text from the
+doc's history in git (the doc as each of its recent commits left it); the plan then lays out afresh in the doc's order,
 with fresh cards for the workstreams left without one.
 
 #### A plan folder outside the repository
@@ -139,27 +139,27 @@ they are, and names each by its absolute path with forward slashes (so a Windows
 as a repository id), as the agents do. Workers on this machine get the folder as an extra directory:
 ticking a workstream there takes effect at once and goes into no commit, so the box says nothing of
 a landing: the card's work in progress still wins until it lands, and so does a stopped card with
-its branch, which stays stopped, keeps its workspace and holds its project on the canvas (see A
-workstream's state). A doc "Plan as a project" writes there cannot land, so Seismic names it at the
-start (the card's title, `-2` on a clash) and keeps it on the card; it shows as a project once
-written, and the project takes the card's place once approved (the card is done without a change).
+its branch, which stays stopped, keeps its workspace and holds its plan on the canvas (see A
+workstream's state). A doc "Make a plan" writes there cannot land, so Seismic names it at the
+start (the card's title, `-2` on a clash) and keeps it on the card; it shows as a plan once
+written, and the plan takes the card's place once approved (the card is done without a change).
 Workers on other machines do not reach the folder.
 
-#### Docs that are no projects
+#### Docs that are no plans
 
-The other `*.md` in the plan directory are not hidden: a quiet note at the top left of the projects
+The other `*.md` in the plan directory are not hidden: a quiet note at the top left of the plans
 names the directory and lists each doc with its reason (no `## Workstreams`, or one without a
-checklist) and "Prepare as a project". That starts a card whose worker adds the checklist (and
+checklist) and "Prepare as a plan". That starts a card whose worker adds the checklist (and
 `## Goal` if missing) in the doc's own style, turning tasks kept under another heading into it; once
-landed, the doc is a project. Meanwhile the doc's row shows "Being prepared" and opens the card.
+landed, the doc is a plan. Meanwhile the doc's row shows "Being prepared" and opens the card.
 
-A repository with no plan doc that never had a project gets a dashed note there instead: where Seismic
-looks, that "Plan as a project" on an idea or task card writes the first doc there, and "Change
+A repository with no plan doc that never had a plan gets a dashed note there instead: where Seismic
+looks, that "Make a plan" on an idea or task card writes the first doc there, and "Change
 directory", which opens the configuration at the repositories. Its × ("Hide") hides it for that
-repository and directory in this browser, since a canvas without projects is a normal state; another
-plan directory brings it back. The note on docs that are no projects has no ×: each row is something
+repository and directory in this browser, since a canvas without plans is a normal state; another
+plan directory brings it back. The note on docs that are no plans has no ×: each row is something
 to do. The owner drags either note like a card; from then on it stays there (stored with the canvas,
-the same in every browser) and new cards go clear of it. Until dragged, it follows the projects.
+the same in every browser) and new cards go clear of it. Until dragged, it follows the plans.
 
 #### A workstream's state
 
@@ -192,24 +192,24 @@ landed).
 
 #### Reading a plan doc
 
-The project's sheet lists each workstream with label, title and, below in smaller type, the rest of
+The plan's sheet lists each workstream with label, title and, below in smaller type, the rest of
 its item (text and sub-items), then its state, since a title alone is often too short to tell what
 a workstream is (2026-10-21); details the doc keeps in sections of their own stay in the doc. A workstream's card names its doc at the top (the
 path and "Read in the plan doc") and shows the item's text in every state: alone while planned,
 beside the conversation while queued, and once an agent works on it on the left under "Plan doc",
 above what came of the work, in full, or its first three lines with "more" above a demo or files.
 
-"Read the plan doc" in the project's sheet widens it and shows the doc rendered, kept current with
+"Read the plan doc" in the plan's sheet widens it and shows the doc rendered, kept current with
 the file; from a workstream's card it opens at that item. Esc goes back to the workstreams. The
-server hands out only docs it shows as projects, by project card, never by path.
+server hands out only docs it shows as plans, by plan card, never by path.
 
-#### When a project ends
+#### When a plan ends
 
-A plan doc with every workstream ticked, or one that disappears, ends its project (see Projects end).
+A plan doc with every workstream ticked, or one that disappears, ends its plan (see Plans end).
 The docs as last read decide, checked again whenever a card changes, since a worker finishing after
-the landing holds its project (for a doc that is gone, as it last stood; that worker's turn end reads
+the landing holds its plan (for a doc that is gone, as it last stood; that worker's turn end reads
 the docs again). A doc already done when first read goes straight into the archive. A renamed doc
-makes a new project and leaves the old one archived.
+makes a new plan and leaves the old one archived.
 
 #### Watching the plan directory
 
@@ -598,21 +598,21 @@ Prompts only agents read stay English, with German examples of what the owner ma
   did not exist.
 - **Plan docs come from the read checkout on the main branch** (2026-10-06), and the read-only agents run
   there too: the configured checkout is often a pool clone on a card's branch, where docs pushed from
-  elsewhere never showed and projects went to the archive and back. The fetch rides on the PR
+  elsewhere never showed and plans went to the archive and back. The fetch rides on the PR
   watcher, without its own timer. Rejected: `git cat-file` for the docs alone (agents would read
   another state), pulling the checkout (a clone on cards' branches), merging all clones' docs.
 - **Plans outside the repository are a folder set by path, not detected** (2026-10-19, the owner,
   GitHub issue #1). Rejected: detecting a gitignored plan directory and linking it everywhere (too
   much magic); a CLAUDE.md line alone (Seismic itself must know the folder).
-- **Plan docs are projects by a checklist under `## Workstreams`.** Plan-doc sync stays open (see Open
+- **Plan docs are plans by a checklist under `## Workstreams`.** Plan-doc sync stays open (see Open
   questions).
 - **The other `*.md` in the plan directory are not hidden** (2026-10-12): a repository with plans of
   its own showed an empty canvas without a reason. Deferred: a lenient parser (`Tasks`, `Milestones`,
-  `Phases`), which would turn design notes into projects; a repository's own format
+  `Phases`), which would turn design notes into plans; a repository's own format
   (`planDocs.read`). Rejected: an agent mapping any doc into workstreams in Seismic's database, against
   "plan docs are read, never written", with no box for workers to tick.
 - **The plan-directory note moves freely, its place stored on the server** (2026-10-21, a colleague):
-  pinned above the projects, it jumped with each new one. Rejected: localStorage (a place is layout,
+  pinned above the plans, it jumped with each new one. Rejected: localStorage (a place is layout,
   not a reading state like hiding).
 - **A workstream is known by its label, else its title, never by its place** (2026-11-02, a
   colleague): keyed by place, a doc that dropped finished workstreams and added new ones gave a new
@@ -620,7 +620,7 @@ Prompts only agents read stay English, with German examples of what the owner ma
   its log as a task of its own instead of disappearing with it. Rejected: treating a single item
   swapped at the same place as a rename (the very mix-up, once more); asking the owner for each
   card the repair moves (they would have to know every card's history); a button to take a card
-  out of its project by hand (not wanted, and it read as a copy of the card); for a plan folder
+  out of its plan by hand (not wanted, and it read as a copy of the card); for a plan folder
   outside the repository, leaving at once (a doc saved in two edits would take a card out for good).
 - **A stored `live` holds only until the read checkout has what landed** (2026-10-06), so a workstream the
   doc keeps open on purpose reopens. Rejected: the worker reporting "only a part" (a second source
@@ -628,9 +628,9 @@ Prompts only agents read stay English, with German examples of what the owner ma
 - **A partly landed workstream lays out as worked on, and its doc text stays in view on its card**
   (2026-10-21): done and remaining could not be told apart, nor what a running workstream was meant
   to do. Rejected: the text only as the conversation's first message.
-- **A plan doc with every workstream ticked ends its project** (2026-10-12, the owner), or finished
+- **A plan doc with every workstream ticked ends its plan** (2026-10-12, the owner), or finished
   plans kept in a repository stay on the canvas forever.
-- **A plan doc that disappears ends its project automatically** (2026-10-01); an explicit
+- **A plan doc that disappears ends its plan automatically** (2026-10-01); an explicit
   "finish" may sit on top later. Rejected: reading old content from git history (fragile).
 - **The configuration is the file `canvases.json`**, edited in the UI or by the Koordinator
   (2026-10-01); saving a command-line configuration switches Seismic to the file. Building a card in a

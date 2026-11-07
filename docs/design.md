@@ -25,7 +25,7 @@ How this document is written:
 - A rule is described in one place; other chapters refer to it by its heading (see Landing).
 - UI texts are quoted in English as the owner sees them ("Approve") where the wording matters or
   names the control; settings and API paths are in backticks.
-- Work in progress is planned in plan docs under `docs/plan/`, which Seismic shows as projects; when
+- Work in progress is planned in plan docs under `docs/plan/`, which Seismic shows as plans; when
   one is done, what passes the test above moves into a chapter and the plan doc goes.
 
 Chapters: Goal, Principles and Concepts follow below; every other chapter is a file of its own
@@ -37,7 +37,7 @@ touches, and keep those current in the same change.
   while the agent replies.
 - [Card lifecycle](design/card-lifecycle.md) — a card's states from proposal to done: proposals
   (later starts, taking back, reworking by words), at work, waiting for approval (the handover
-  report), approval and landing (feedback after it, comparing ratings), live and done, archive, how projects end.
+  report), approval and landing (feedback after it, comparing ratings), live and done, archive, how plans end.
 - [Communication](design/communication.md) — how workers and Seismic exchange messages: a worker's
   tools, turns that end without a handover, pausing an agent or a canvas's agents, snoozing a card, waiting without
   blocking, refused and confirmed tool calls, notes and replies, questions go to the owner.
@@ -46,7 +46,7 @@ touches, and keep those current in the same change.
   card layout (the files beside the demo, trying the app by hand), screenshots and marking them,
   other files by their path, skills by `/`, cards by `/` in the task text and smart links.
 - [The canvas](design/the-canvas.md) — the UI around the cards: the bar, creating cards, cards on
-  the canvas (a project arranged by its dependencies), moving around, unfolding a card, addresses
+  the canvas (a plan arranged by its dependencies), moving around, unfolding a card, addresses
   (a card's permalink, Back and Forward), sheets, visual identity, groups on the canvas, refusals.
 - [Agents and workspaces](design/agents-and-workspaces.md) — how agents run and where: agents,
   models and effort, workspaces (slots, the pool in the bar), folders without git, parking, hosts
@@ -85,11 +85,11 @@ touches, and keep those current in the same change.
 ## Goal
 
 A spatial workspace for directing AI coding agents the way an engineering director directs a team:
-every task and every project is a card on one canvas; agents do the work in the background; the
+every task and every plan is a card on one canvas; agents do the work in the background; the
 human keeps every essential decision — made by voice, from a narrated demo video, without reading
 code or cycling through terminals.
 
-*Seismic* is Japanese for "big room": in lean management, the room where every project hangs visibly
+*Seismic* is Japanese for "big room": in lean management, the room where every plan hangs visibly
 on the walls and decisions are made in front of the wall.
 
 ## Principles
@@ -101,7 +101,7 @@ on the walls and decisions are made in front of the wall.
 - **Decisions, not supervision.** The owner is pulled in only for a decision: a demo to approve, a
   question only they can answer, a proposal. Everything else runs.
 - **Every change gets a demo.** Its length follows the size of the change, not its kind: a small one
-  30–60 s, a larger one 1½–3 min, never padded; projects one demo per workstream. Backend behaviour
+  30–60 s, a larger one 1½–3 min, never padded; plans one demo per workstream. Backend behaviour
   is shown through the app's own inspection views; "covered by tests" is no reason to leave it out.
   What is to be looked at rather than watched (drafts side by side, a layout, an analysis, an
   answer) is an HTML artifact instead of a video; the worker picks, the video where either would
@@ -122,18 +122,19 @@ on the walls and decisions are made in front of the wall.
 
 - **Project** — the named workspace spanning one or more repositories; one Seismic serves several
   projects. Each has a spatial canvas of cards. The UI calls these workspaces projects; existing
-  configuration, API and storage fields named `canvas` or `canvases` keep their format. Plan-backed
-  project cards remain containers for workstreams within a project.
+  configuration, API and storage fields named `canvas` or `canvases` keep their format. A *plan* is
+  the card backed by a plan doc, a container for workstreams within a project; the word "project"
+  names only the app (decided 2026-11-07, so that no word means two things).
 - **Cards** — everything on the canvas is a card: a task, an idea, a prototype, a Question card (a
-  thread of looked-up answers, see Looked-up threads), or a project, a container backed by a plan doc
+  thread of looked-up answers, see Looked-up threads), or a plan, a container backed by a plan doc
   whose workstreams are its child cards. Tasks have no further kind: fixing a bug or adding
   something is worked on the same way, so the owner picks none and a task's card names none; the
-  other cards say what they are (idea, prototype, workstream number, project). The UI and the
+  other cards say what they are (idea, prototype, workstream number, plan). The UI and the
   Koordinator call a task *Aufgabe* and a follow-up *Folgeaufgabe*, never *Karte*; *Karte* is only a
-  card on the canvas as such (moving, grouping, "Close card or project").
+  card on the canvas as such (moving, grouping, "Close card or plan").
 - **Groups** — besides by place, the owner sorts the canvas by group: a group has a name and a
-  colour, and a card belongs to none or one; a project belongs as a whole, with its workstreams. A
-  proposal, a follow-up and a prototype come into the group of the card they come from, a project
+  colour, and a card belongs to none or one; a plan belongs as a whole, with its workstreams. A
+  proposal, a follow-up and a prototype come into the group of the card they come from, a plan
   written from an idea or a task into that card's; after that the group is the card's own. Moving a
   card never changes its group: in another group's territory it stands as an island. A group exists
   while a card belongs to it, on the canvas or in the archive; the last card leaving it ends it, and
@@ -146,8 +147,8 @@ on the walls and decisions are made in front of the wall.
   `parked` or `dropped`.
 - **Agents**
   - *Worker*, one per card while it is worked on: implementation, local reviews, demo.
-  - *Project agent*, one per project, long-lived: knows the plan doc and the history of every
-    workstream; the owner asks it in the project's sheet, or asks Seismic, which passes the question on.
+  - *Plan agent*, one per plan, long-lived: knows the plan doc and the history of every
+    workstream; the owner asks it in the plan's sheet, or asks Seismic, which passes the question on.
   - *Exploration agent*, one per idea, long-lived, with a worker's tools: discusses the idea with
     the owner and keeps its brief.
   - *Koordinator* (Chief of Staff), one per canvas: takes voice input on the open canvas, creates
@@ -206,7 +207,7 @@ on the walls and decisions are made in front of the wall.
 ## Open questions
 
 - Plan-doc sync: Seismic reads plan docs and never writes them; workers tick off their workstream in
-  the doc as part of their change. Should the project agent keep the doc's progress instead?
+  the doc as part of their change. Should the plan agent keep the doc's progress instead?
 - Cloud hosts, left out for now (2026-10-10): a host type whose slots are cloud instances, one per
   card (an EC2 `m8g.xlarge`, say, in the using repository's cloud account), launched from a prepared
   image when the other machines are full, stopped some minutes after the card's last turn (disk

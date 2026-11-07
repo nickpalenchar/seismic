@@ -1,5 +1,5 @@
 // One canvas and everything that works on it: its repositories (each with adapter, workspaces,
-// workers, project agents and PR watcher), the board, the Koordinator and the voice commands.
+// workers, plan agents and PR watcher), the board, the Koordinator and the voice commands.
 
 import { slug } from '../core/project-slug';
 import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
@@ -16,7 +16,7 @@ import type { RepoAdapter, RepoInfo } from '../adapters/types';
 import type { CardDiff } from '../core/diff';
 import type { Language } from '../core/locale';
 import type { HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
-import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type CanvasConfig, type CanvasDefaults, type CanvasDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsProject, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
+import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type CanvasConfig, type CanvasDefaults, type CanvasDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsPlan, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
 import { appliedCanvasSettings, canvasAgentSetting, startAgentSetting } from './settings';
 import { asksAhead, holdsNotes } from '../core/queue';
 import { BadRequest, Board, withQuestions, pathOfRef, repoOfRef, replyNote, type StoredContribution } from './board';
@@ -35,7 +35,7 @@ import { PrWatcher } from './pr-watcher';
 import { branchCommit, readingDefaultBranch, ReadTree, refsSeal } from './read-tree';
 import { Revisions } from './revisions';
 import { Merges } from './merges';
-import { ProjectAgents } from './project-agents';
+import { PlanAgents } from './plan-agents';
 import { ghHosts, onGitHub, outsidePlanDir, planHistory, readPlanDocs, watchPlanDocs } from './repo';
 import { boundsOf, GAP, type Place, planDirNoteBox, unionBounds } from '../core/layout';
 import { type AgentRuntime, idleRuntime, withAgentSetting, withCodexTrust, withLimitWait, withRepoTrust, withTrustedAllow } from './runtime';
@@ -156,7 +156,7 @@ export interface RepoRuntime {
   read: ReadTree;
   workspaces: CardWorkspaces;
   workers: Workers;
-  projectAgents: ProjectAgents;
+  planAgents: PlanAgents;
 }
 
 /** A repository as the canvas runs it, with what it was set up by and what stops what it set up. */
@@ -404,7 +404,7 @@ export class CanvasRuntime {
       // a question about a card whose repository does not run is looked up in the home repository
       pathFor: (card) => (card && this.runs(card) ? this.repoOf(card) : this.repos[0]!).read.path,
       startBrief: (card) => (this.runs(card) ? this.repoOf(card).workers.startBrief(card) : undefined),
-      projectAgent: (project) => this.repoOf(project).projectAgents,
+      planAgent: (plan) => this.repoOf(plan).planAgents,
       ...(deps.permissionMode ? { permissionMode: deps.permissionMode } : {}),
       dirOf: (thread) => answersDir(deps.home, id, thread),
       imageFiles: this.imageFiles,
@@ -412,12 +412,12 @@ export class CanvasRuntime {
       onAnswer: (talk, question, answer) => {
         // looked up for an action: the Koordinator takes it now, hearing the answer with it
         if (this.commander.answerIn(talk)) return;
-        // asked in a project's sheet, the question went to its project agent without Seismic reading it
+        // asked in a plan's sheet, the question went to its plan agent without Seismic reading it
         const sheet = board.exchange(talk)?.askedIn;
-        const project = sheet ? board.item(sheet)?.title : undefined;
+        const plan = sheet ? board.item(sheet)?.title : undefined;
         this.commander.tell(
-          project !== undefined
-            ? `The owner asked the project agent of "${project}" in its sheet: “${question}”. Its answer ${answerTag(talk)} was shown to them there: ${answer}`
+          plan !== undefined
+            ? `The owner asked the plan agent of "${plan}" in its sheet: “${question}”. Its answer ${answerTag(talk)} was shown to them there: ${answer}`
             : `The answer ${answerTag(talk)} you looked up for the owner's question “${question}” came in and was shown to them: ${answer}`,
         );
       },
@@ -777,7 +777,7 @@ export class CanvasRuntime {
 
   /**
    * Sets up the repository at `index` of a resolved configuration: its read checkout, workspaces (clones
-   * here and on other machines), project agents and workers. Its workers resume nothing yet.
+   * here and on other machines), plan agents and workers. Its workers resume nothing yet.
    */
   private startRepo(resolved: Resolved, index: number): Repo {
     const deps = this.deps;
@@ -826,8 +826,8 @@ export class CanvasRuntime {
         busy: (host) => workers.busyOn(host),
         ...(adapter.app?.stop ? { stop: adapter.app.stop } : {}),
         origins: [info.remote, info.path].filter((x): x is string => !!x),
-        projectOf: (cardId) => this.config.projectBaselines !== false ? board.item(cardId)?.parent : undefined,
-        baselineConfigured: (cardId, tag, commit) => board.log(cardId, 'state', 'obeya', board.t.worker.projectBaseline(tag, commit)),
+        planOf: (cardId) => this.config.planBaselines !== false ? board.item(cardId)?.parent : undefined,
+        baselineConfigured: (cardId, tag, commit) => board.log(cardId, 'state', 'obeya', board.t.worker.planBaseline(tag, commit)),
         changed: () => board.changed(),
       });
       const named: string[] = [];
@@ -876,7 +876,7 @@ export class CanvasRuntime {
         void ensure();
       }
     }
-    const projectAgents = new ProjectAgents(board, deps.runtime, () => read.path, this.preferences, deps.permissionMode);
+    const planAgents = new PlanAgents(board, deps.runtime, () => read.path, this.preferences, deps.permissionMode);
     workers = new Workers({
       board,
       runtime: deps.workerRuntime ?? deps.runtime,
@@ -932,7 +932,7 @@ export class CanvasRuntime {
       demoDirectory: () => demoDirectory(readDemoSettings(deps.home)),
       ...(deps.parkGrace !== undefined ? { parkGrace: deps.parkGrace } : {}),
     });
-    Object.assign(repo, { ref, info, adapter, read, workspaces, workers, projectAgents });
+    Object.assign(repo, { ref, info, adapter, read, workspaces, workers, planAgents });
     return repo;
   }
 
@@ -1879,7 +1879,7 @@ export class CanvasRuntime {
         // the agent passes a request on in its words; the Koordinator reads the owner's own beside them
         this.said.set(cardId, { text: text.trim(), spoken: !!a.spoken });
         const ids = Array.isArray(a.images) ? a.images.filter((i): i is string => typeof i === 'string') : [];
-        return void this.answers.askProject(cardId, text.trim(), ids, a.replyTo);
+        return void this.answers.askPlan(cardId, text.trim(), ids, a.replyTo);
       }
       case 'asIdea':
         return this.questionAsIdea(cardId);
@@ -1988,15 +1988,15 @@ export class CanvasRuntime {
   }
 
   /**
-   * A doc in the plan directory that is not a project: a card whose worker adds the workstream
-   * checklist, started at once; once its change lands, the doc is a project. It goes right of
+   * A doc in the plan directory that is not a plan: a card whose worker adds the workstream
+   * checklist, started at once; once its change lands, the doc is a plan. It goes right of
    * everything on the canvas, at the top, clear of the note on the plan directory at the left (and
    * of a note the owner put elsewhere).
    */
   preparePlanDoc(repo: string, file: string): Item {
     const dir = this.board.snapshot().planDirs?.find((d) => d.repo === repo);
     const doc = dir?.others.find((o) => o.file === file);
-    if (!doc) throw new BadRequest('invalid', 'not a doc in the plan directory that is not a project');
+    if (!doc) throw new BadRequest('invalid', 'not a doc in the plan directory that is not a plan');
     if (doc.preparing) return this.board.card(doc.preparing)!;
     const { title, body } = this.board.t.preparePlanDoc;
     const { items, planDirs = [] } = this.board.snapshot();
@@ -2252,7 +2252,7 @@ export class CanvasRuntime {
     const task = this.board.create({ title: split.title, body: `${split.brief}\n\n${t.settledTask(idea.title)}`, from: cardId, ...(images.length ? { images } : {}) });
     this.board.log(task.id, 'state', 'owner', t.settledFrom(idea.title));
     this.board.setIdea(cardId, { split: undefined });
-    this.board.decide({ project_id: null, card_id: cardId, question: t.howOn(idea.title), answer: t.splitOffAnswer(split.title), by: 'owner' });
+    this.board.decide({ plan_id: null, card_id: cardId, question: t.howOn(idea.title), answer: t.splitOffAnswer(split.title), by: 'owner' });
     this.board.log(cardId, 'state', 'owner', t.splitOffLog(split.title));
     this.koordinator.request(task.id);
     this.explorers.tell(
@@ -2291,11 +2291,11 @@ export class CanvasRuntime {
    */
   private buildOnPrototype(prototypeId: string, workstreamId?: string) {
     const prototype = this.prototypeCard(prototypeId);
-    const project = this.board.projectOf(prototype.prototypeOf!);
-    if (project) return this.buildWorkstreamOn(prototype, project, workstreamId);
+    const plan = this.board.planOf(prototype.prototypeOf!);
+    if (plan) return this.buildWorkstreamOn(prototype, plan, workstreamId);
     const planning = this.board.item(prototype.prototypeOf!);
-    if (planning?.becomesProject) throw new BadRequest('projectPending', 'the idea becomes a project; build on the prototype once its plan doc has landed');
-    if (!planning) throw new BadRequest('ideaGone', 'the prototype’s idea is no longer on the canvas, and no project of it is');
+    if (planning?.becomesPlan) throw new BadRequest('planPending', 'the idea becomes a plan; build on the prototype once its plan doc has landed');
+    if (!planning) throw new BadRequest('ideaGone', 'the prototype’s idea is no longer on the canvas, and no plan of it is');
     const idea = this.settledIdea(prototype.prototypeOf!);
     const { workers } = this.repoOf(prototype);
     return workers.buildOn(prototype.id, idea).then(() => {
@@ -2305,14 +2305,14 @@ export class CanvasRuntime {
   }
 
   /**
-   * The idea has become a project: the workstream the owner chose, or else the one its plan doc
+   * The idea has become a plan: the workstream the owner chose, or else the one its plan doc
    * builds on the prototypes with, is built on the prototype's branch and starts at once; the
    * idea's other prototypes are discarded. As `buildOnPrototype`, what stands in the way is thrown at once.
    */
-  private buildWorkstreamOn(prototype: Item, project: Item, workstreamId?: string) {
-    const ws = workstreamId ? this.board.item(workstreamId) : prototypeWorkstream(this.board.items(), project.id);
+  private buildWorkstreamOn(prototype: Item, plan: Item, workstreamId?: string) {
+    const ws = workstreamId ? this.board.item(workstreamId) : prototypeWorkstream(this.board.items(), plan.id);
     if (!ws && !workstreamId) throw new BadRequest('workstreamMissing', 'the plan doc does not say which workstream builds on the prototype: choose it');
-    if (!ws || ws.parent !== project.id) throw new BadRequest('invalid', 'not a workstream of the project the idea became');
+    if (!ws || ws.parent !== plan.id) throw new BadRequest('invalid', 'not a workstream of the plan the idea became');
     if (!buildableOn(ws)) throw new BadRequest('workstreamStarted', 'only a workstream nobody has started can be built on a prototype');
     const named = `${ws.label ? `${ws.label} ` : ''}${this.board.t.quote(ws.title)}`;
     return this.repoOf(prototype)
@@ -2320,7 +2320,7 @@ export class CanvasRuntime {
       .then(() => {
         this.discardPrototypes(prototype.prototypeOf!);
         const t = this.board.t.idea;
-        this.board.decide({ project_id: project.id, card_id: ws.id, question: t.whichPrototype(named), answer: t.onPrototype(prototype.title), by: 'owner' });
+        this.board.decide({ plan_id: plan.id, card_id: ws.id, question: t.whichPrototype(named), answer: t.onPrototype(prototype.title), by: 'owner' });
         this.board.log(ws.id, 'state', 'owner', t.workstreamOnLog(prototype.title));
         this.koordinator.request(ws.id);
       });
@@ -2340,14 +2340,14 @@ export class CanvasRuntime {
     // the screenshots the owner showed in the discussion belong to what is built
     const shown = this.board.events(idea.id).flatMap((e) => (e.kind === 'talk' && e.author === 'owner' ? (e.images ?? []) : []));
     if (shown.length) this.addTaskImages(idea.id, shown);
-    this.board.decide({ project_id: null, card_id: idea.id, question: this.board.t.idea.howOn(idea.title), answer: how.answer, by: 'owner' });
+    this.board.decide({ plan_id: null, card_id: idea.id, question: this.board.t.idea.howOn(idea.title), answer: how.answer, by: 'owner' });
     this.board.log(idea.id, 'state', 'owner', how.log);
   }
 
   /**
-   * A big idea becomes a project: a worker writes its plan doc on the idea's card at once, and once
-   * the doc lands, the project takes the idea's place. Its prototypes stay: the worker hears what
-   * they showed, and the owner builds a workstream on one of them once the project stands.
+   * A big idea becomes a plan: a worker writes its plan doc on the idea's card at once, and once
+   * the doc lands, the plan takes the idea's place. Its prototypes stay: the worker hears what
+   * they showed, and the owner builds a workstream on one of them once the plan stands.
    */
   private planDoc(cardId: string) {
     const task = this.board.item(cardId);
@@ -2361,7 +2361,7 @@ export class CanvasRuntime {
     this.explorers.close(cardId);
     this.board.work(cardId, {
       state: 'planned',
-      becomes_project: 1,
+      becomes_plan: 1,
       ...outside?.row,
       body: [
         t.planDocTask(dir, false, outside?.file),
@@ -2380,31 +2380,31 @@ export class CanvasRuntime {
         .filter(Boolean)
         .join('\n\n'),
     });
-    this.board.decide({ project_id: null, card_id: cardId, question: t.howOn(card.title), answer: t.planDocAnswer, by: 'owner' });
+    this.board.decide({ plan_id: null, card_id: cardId, question: t.howOn(card.title), answer: t.planDocAnswer, by: 'owner' });
     this.board.log(cardId, 'state', 'owner', t.planDocLog);
     this.koordinator.request(cardId);
   }
 
   /**
-   * A planned task of the owner's that nobody has worked on becomes a project the same way: its
+   * A planned task of the owner's that nobody has worked on becomes a plan the same way: its
    * worker writes the plan doc from the task, with its screenshots, on the task's card.
    */
   private planTaskDoc(card: Item) {
-    if (!plannableAsProject(card))
-      throw new BadRequest('notPlannable', 'only an idea, or a planned task of your own nobody has worked on yet, can be planned as a project');
+    if (!plannableAsPlan(card))
+      throw new BadRequest('notPlannable', 'only an idea, or a planned task of your own nobody has worked on yet, can be planned as a plan');
     const t = this.board.t.idea;
     const dir = this.repoOf(card).adapter.planDocs.dir;
     const outside = this.outsidePlanDoc(card);
-    this.board.work(card.id, { becomes_project: 1, ...outside?.row, body: [t.planDocTask(dir, true, outside?.file), t.planDocCard(card.title), card.body.trim()].filter(Boolean).join('\n\n') });
-    this.board.decide({ project_id: null, card_id: card.id, question: t.howOnTask(card.title), answer: t.planDocAnswer, by: 'owner' });
+    this.board.work(card.id, { becomes_plan: 1, ...outside?.row, body: [t.planDocTask(dir, true, outside?.file), t.planDocCard(card.title), card.body.trim()].filter(Boolean).join('\n\n') });
+    this.board.decide({ plan_id: null, card_id: card.id, question: t.howOnTask(card.title), answer: t.planDocAnswer, by: 'owner' });
     this.board.log(card.id, 'state', 'owner', t.planDocTaskLog);
     this.koordinator.request(card.id);
   }
 
   /**
-   * The doc a card planned as a project writes where the plan directory is a folder outside the
+   * The doc a card planned as a plan writes where the plan directory is a folder outside the
    * repository: named after the card, beside the docs there. Nothing of that folder lands, so the
-   * card names its doc from the start (`plan_docs`), and the project takes its place once the
+   * card names its doc from the start (`plan_docs`), and the plan takes its place once the
    * owner has approved the card (`linkOrigins`). None for a plan directory in the repository.
    */
   private outsidePlanDoc(card: Item): { file: string; row: { plan_docs: string } } | undefined {
@@ -2431,7 +2431,7 @@ export class CanvasRuntime {
     this.explorers.interrupt(cardId, how === 'park' ? 'parked' : 'dropped');
     this.board.setIdea(cardId, { status: how === 'park' ? 'parked' : 'dropped', buildAfterReply: false });
     const t = this.board.t.idea;
-    if (how === 'drop') this.board.decide({ project_id: null, card_id: cardId, question: t.howOn(card.title), answer: t.dropped, by: 'owner' });
+    if (how === 'drop') this.board.decide({ plan_id: null, card_id: cardId, question: t.howOn(card.title), answer: t.dropped, by: 'owner' });
     this.board.log(cardId, 'state', 'owner', how === 'park' ? t.parked : t.dropped);
   }
 

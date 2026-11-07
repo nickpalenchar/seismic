@@ -5,7 +5,7 @@ A chapter of the [design doc](../design.md), whose header says how it is written
 ### Voice in
 
 Push-to-talk: hold Space or the mic button in Seismic's window. The browser records and posts the
-audio with its focus (the open card, the project in view).
+audio with its focus (the open card, the plan in view).
 
 #### Dictating or sending
 
@@ -116,8 +116,8 @@ talk to an idea, an answer, or words the worker takes in (see Waiting for approv
 after the work). Spoken words carry the remark that speech recognition may have misheard them. They
 stand in the conversation under "You" at once; nothing waits for "Undo".
 
-On any other card (planned, queued, finished without an agent), with a project open or nothing, the
-Koordinator reads the words with that card or project in focus. What is typed into a planned card's
+On any other card (planned, queued, finished without an agent), with a plan open or nothing, the
+Koordinator reads the words with that card or plan in focus. What is typed into a planned card's
 field waits there for the agent that takes the card on (see Card layout).
 
 #### Passing a request on to Seismic
@@ -167,7 +167,7 @@ agent has the shell and asks the owner's permission.
 
 A new card or idea lands in view, centred where the pointer was when the owner stopped speaking or
 sent the words, else in the middle of the view, moved to the nearest free spot wholly in view; with a
-card or project open, in the view closing it returns to. Cards made by a step that waited for
+card or plan open, in the view closing it returns to. Cards made by a step that waited for
 something to be looked up first (a task for each open issue) land there too, where the pointer was
 when the owner asked, not where they look once the answer is in. A follow-up goes below the card it
 follows.

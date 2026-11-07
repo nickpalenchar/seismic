@@ -1,7 +1,7 @@
 // The Agent Feedback Log: a page of its own, opened from the performance dashboard, listing every
 // response the owner gave on agents' work on every canvas, the newest first. It filters by the
 // dashboard's filters and by whom a response credits and how it rated, and groups by configuration,
-// project, repository, canvas, week or month. Its filters and grouping stay in the address.
+// plan, repository, canvas, week or month. Its filters and grouping stay in the address.
 
 import { useEffect, useMemo, useState } from 'react';
 import { creditOf, filtered, filterLog, givenAt, groupLog, LOG_GROUPS, logChoices, logQuery, type LogFilter, type LogGroup, type LogSection, type LogState, PERIODS, readLogQuery } from '../core/feedback-log';
@@ -43,7 +43,7 @@ export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: 
   const canvasName = (id: string) => canvases.find((c) => c.id === id)?.name ?? id;
   const ratings = shown.filter((f) => typeof f.answer.rating === 'number').length;
   // back to the dashboard on the canvas it was opened from, with the filters it shares
-  const shared = logQuery({ filter: { canvas: filter.canvas, repo: filter.repo, project: filter.project, period: filter.period } });
+  const shared = logQuery({ filter: { canvas: filter.canvas, repo: filter.repo, plan: filter.plan, period: filter.period } });
   const back = `${projectPath(here)}${shared ? `${shared}&` : '?'}performance`;
   const clear = () => setFilter({});
 
@@ -51,8 +51,8 @@ export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: 
     switch (group) {
       case 'config':
         return s.config ? configText(s.config, true) : s.key === 'mixed' ? p.mixed : p.missing;
-      case 'project':
-        return s.title ? plain(s.title) : l.noProject;
+      case 'plan':
+        return s.title ? plain(s.title) : l.noPlan;
       case 'repo':
         return s.key || l.noRepo;
       case 'canvas':
@@ -137,7 +137,7 @@ export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: 
             <div className="perf-filters">
               {choices.canvases.length > 1 && <Choice label={p.filters.canvas} value={filter.canvas} options={choices.canvases.map((id) => ({ id, name: canvasName(id) }))} onChange={(v) => set('canvas', v)} />}
               {choices.repos.length > 1 && <Choice label={p.filters.repo} value={filter.repo} options={choices.repos.map((id) => ({ id, name: id }))} onChange={(v) => set('repo', v)} />}
-              {choices.projects.length > 0 && <Choice label={p.filters.project} value={filter.project} options={choices.projects.map(({ id, title }) => ({ id, name: plain(title) }))} onChange={(v) => set('project', v)} />}
+              {choices.plans.length > 0 && <Choice label={p.filters.plan} value={filter.plan} options={choices.plans.map(({ id, title }) => ({ id, name: plain(title) }))} onChange={(v) => set('plan', v)} />}
               <label className="perf-choice">
                 <span>{p.filters.period}</span>
                 <select value={filter.period ?? 'all'} onChange={(e) => set('period', e.target.value === 'all' ? undefined : e.target.value)}>
@@ -182,12 +182,12 @@ export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: 
 }
 
 /** The columns of what a response is filed under; grouped by one of them, its section heading says it instead. */
-const COLUMNS = ['config', 'project', 'repo', 'canvas'] as const;
+const COLUMNS = ['config', 'plan', 'repo', 'canvas'] as const;
 
 const known = (v: string | undefined) => (v === '' ? UNKNOWN : v);
 const unknown = (v: string | undefined) => (v === UNKNOWN ? '' : v);
 
-/** One response: when, its card (a link back to it; a deleted card's title without), stars, comment, whom it credits, project, repository and canvas. */
+/** One response: when, its card (a link back to it; a deleted card's title without), stars, comment, whom it credits, plan, repository and canvas. */
 function Row({ f, canvasName, without }: { f: Feedback; canvasName: (id: string) => string; without: LogGroup }) {
   const p = t.performance;
   const code = f.short ?? f.cardId;
@@ -213,7 +213,7 @@ function Row({ f, canvasName, without }: { f: Feedback; canvasName: (id: string)
       </td>
       <td className="flog-comment">{f.answer.comment ? t.feedback.quoted(f.answer.comment) : ''}</td>
       {without !== 'config' && <td className={c ? undefined : 'perf-special'}>{config}</td>}
-      {without !== 'project' && <td>{f.project ? plain(f.project.title) : ''}</td>}
+      {without !== 'plan' && <td>{f.plan ? plain(f.plan.title) : ''}</td>}
       {without !== 'repo' && <td>{f.repo ?? ''}</td>}
       {without !== 'canvas' && <td>{canvasName(f.canvasId)}</td>}
     </tr>

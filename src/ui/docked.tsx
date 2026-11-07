@@ -1,6 +1,6 @@
 // The container of the sheets on the right: a column docked to the window's edge, from top to
 // bottom, that slides in and out. The canvas is what remains to its left (`--side`, set by App),
-// and one is open at a time: Seismic's chat, a project's, the inbox.
+// and one is open at a time: Seismic's chat, a plan's, the inbox.
 
 import { forwardRef, type ReactNode } from 'react';
 

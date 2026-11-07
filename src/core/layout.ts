@@ -1,43 +1,43 @@
-// Card sizes and default placement. Cards keep a fixed, readable size; a project wraps its children.
+// Card sizes and default placement. Cards keep a fixed, readable size; a plan wraps its children.
 
 import { finished, finishingUp, type Item, type PlanDir } from './types';
 
-export type Shape = 'task' | 'chip' | 'project';
+export type Shape = 'task' | 'chip' | 'plan';
 
-export const CARD_SIZE: Record<Exclude<Shape, 'project'>, readonly [number, number]> = {
+export const CARD_SIZE: Record<Exclude<Shape, 'plan'>, readonly [number, number]> = {
   task: [300, 136],
   chip: [300, 88],
 };
 
-/** Inside a project: children start below the header, with this margin around them. */
-export const PROJECT_PAD = 30;
-export const PROJECT_HEAD = 78;
-const PROJECT_MIN: readonly [number, number] = [420, 150];
-/** A project the owner collapsed: its head, and a row of marks for its workstreams. */
-export const PROJECT_COLLAPSED: readonly [number, number] = [440, 84];
+/** Inside a plan: children start below the header, with this margin around them. */
+export const PLAN_PAD = 30;
+export const PLAN_HEAD = 78;
+const PLAN_MIN: readonly [number, number] = [420, 150];
+/** A plan the owner collapsed: its head, and a row of marks for its workstreams. */
+export const PLAN_COLLAPSED: readonly [number, number] = [440, 84];
 const CHIPS_PER_ROW = 3;
 const TASKS_PER_ROW = 3;
 export const GAP = 20;
-const PROJECT_GAP = 60;
+const PLAN_GAP = 60;
 
 /**
  * A delivered workstream becomes a shorter card once its agent is done; every other card shows at the
  * size of a task, so its state and status line show.
  */
 export function shapeOf(i: Pick<Item, 'kind' | 'state' | 'parent' | 'finishing'>): Shape {
-  if (i.kind === 'project') return 'project';
+  if (i.kind === 'plan') return 'plan';
   if (i.parent && finished(i.state) && !finishingUp(i)) return 'chip';
   // a Question card too: it has a task's size, and a look of its own
   return 'task';
 }
 
-export function projectSize(children: Pick<Item, 'kind' | 'state' | 'parent' | 'finishing' | 'x' | 'y'>[]): [number, number] {
-  let w = PROJECT_MIN[0];
-  let h = PROJECT_MIN[1];
+export function planSize(children: Pick<Item, 'kind' | 'state' | 'parent' | 'finishing' | 'x' | 'y'>[]): [number, number] {
+  let w = PLAN_MIN[0];
+  let h = PLAN_MIN[1];
   for (const c of children) {
-    const [cw, ch] = CARD_SIZE[shapeOf(c) as Exclude<Shape, 'project'>];
-    w = Math.max(w, c.x + cw + PROJECT_PAD);
-    h = Math.max(h, c.y + ch + PROJECT_PAD);
+    const [cw, ch] = CARD_SIZE[shapeOf(c) as Exclude<Shape, 'plan'>];
+    w = Math.max(w, c.x + cw + PLAN_PAD);
+    h = Math.max(h, c.y + ch + PLAN_PAD);
   }
   return [w, h];
 }
@@ -47,13 +47,13 @@ export const MERGED_SIZE: readonly [number, number] = [2 * CARD_SIZE.task[0] + 5
 
 export function sizeOf(i: Item, all: Item[]): [number, number] {
   const shape = shapeOf(i);
-  if (shape === 'project') return i.collapsed ? [...PROJECT_COLLAPSED] : projectSize(all.filter((c) => c.parent === i.id));
+  if (shape === 'plan') return i.collapsed ? [...PLAN_COLLAPSED] : planSize(all.filter((c) => c.parent === i.id));
   if (i.proposal?.merge) return [...MERGED_SIZE];
   const [w, h] = CARD_SIZE[shape];
   return [w, h];
 }
 
-/** The items the canvas shows: all but the workstreams of a collapsed project, and a card merged with a proposal, which shows within it. */
+/** The items the canvas shows: all but the workstreams of a collapsed plan, and a card merged with a proposal, which shows within it. */
 export function onCanvas(items: Item[]): Item[] {
   const collapsed = new Set(items.flatMap((i) => (i.collapsed ? [i.id] : [])));
   return collapsed.size || items.some((i) => i.mergingInto) ? items.filter((i) => !i.mergingInto && (!i.parent || !collapsed.has(i.parent))) : items;
@@ -66,7 +66,7 @@ export interface Bounds {
   h: number;
 }
 
-/** Absolute bounds of an item; children are stored relative to their project. */
+/** Absolute bounds of an item; children are stored relative to their plan. */
 export function boundsOf(i: Item, all: Item[]): Bounds {
   const parent = i.parent ? all.find((p) => p.id === i.parent) : undefined;
   const [w, h] = sizeOf(i, all);
@@ -86,10 +86,10 @@ export function unionBounds(bs: Bounds[]): Bounds | null {
 }
 
 /**
- * Places new workstreams inside a project, below `startY`: delivered ones as rows of chips first,
+ * Places new workstreams inside a plan, below `startY`: delivered ones as rows of chips first,
  * then the open ones as rows of cards, each group in the given order.
  */
-export function placeWorkstreams(ws: { done: boolean }[], startY = PROJECT_HEAD): { x: number; y: number }[] {
+export function placeWorkstreams(ws: { done: boolean }[], startY = PLAN_HEAD): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = new Array(ws.length);
   let y = startY;
   for (const [done, perRow, shape] of [
@@ -99,14 +99,14 @@ export function placeWorkstreams(ws: { done: boolean }[], startY = PROJECT_HEAD)
     const [w, h] = CARD_SIZE[shape];
     const idx = ws.map((_, i) => i).filter((i) => ws[i]!.done === done);
     idx.forEach((i, n) => {
-      out[i] = { x: PROJECT_PAD + (n % perRow) * (w + GAP), y: y + Math.floor(n / perRow) * (h + GAP) };
+      out[i] = { x: PLAN_PAD + (n % perRow) * (w + GAP), y: y + Math.floor(n / perRow) * (h + GAP) };
     });
     if (idx.length) y += Math.ceil(idx.length / perRow) * (h + GAP);
   }
   return out;
 }
 
-/** What arranging a project's workstreams needs of each, in the plan's order. */
+/** What arranging a plan's workstreams needs of each, in the plan's order. */
 export type Arrangeable = Pick<Item, 'id' | 'kind' | 'state' | 'parent' | 'finishing' | 'buildsOn'>;
 
 /** Between two columns of workstreams there is room for the arrows from one to the next. */
@@ -115,7 +115,7 @@ const COLUMN_GAP = 70;
 const ROWS_PER_COLUMN = 4;
 
 /**
- * A project's open workstreams in columns by their dependencies (`layers`: the columns of each
+ * A plan's open workstreams in columns by their dependencies (`layers`: the columns of each
  * depth). A workstream's depth is the length of the longest chain of open workstreams it builds on,
  * so what can start at once stands left and what builds on it right of it. Within a column the cards follow the rows of what they
  * build on, so arrows cross little, else the plan's order. Delivered ones (chips) are no step on
@@ -162,18 +162,18 @@ export function dependencyOrder(ws: Arrangeable[]): string[] {
 }
 
 /**
- * Where each workstream of a project stands once arranged by its dependencies (relative to the
- * project): rows of chips below the head, then the columns of `dependencyColumns`, a wider gap
+ * Where each workstream of a plan stands once arranged by its dependencies (relative to the
+ * plan): rows of chips below the head, then the columns of `dependencyColumns`, a wider gap
  * between one depth and the next for the arrows.
  */
 export function arrangeWorkstreams(ws: Arrangeable[]): Map<string, { x: number; y: number }> {
   const { chips, layers } = dependencyColumns(ws);
   const out = new Map<string, { x: number; y: number }>();
   const [cw, ch] = CARD_SIZE.chip;
-  chips.forEach((id, n) => out.set(id, { x: PROJECT_PAD + (n % CHIPS_PER_ROW) * (cw + GAP), y: PROJECT_HEAD + Math.floor(n / CHIPS_PER_ROW) * (ch + GAP) }));
-  const top = PROJECT_HEAD + Math.ceil(chips.length / CHIPS_PER_ROW) * (ch + GAP);
+  chips.forEach((id, n) => out.set(id, { x: PLAN_PAD + (n % CHIPS_PER_ROW) * (cw + GAP), y: PLAN_HEAD + Math.floor(n / CHIPS_PER_ROW) * (ch + GAP) }));
+  const top = PLAN_HEAD + Math.ceil(chips.length / CHIPS_PER_ROW) * (ch + GAP);
   const [w, h] = CARD_SIZE.task;
-  let x = PROJECT_PAD;
+  let x = PLAN_PAD;
   for (const layer of layers) {
     for (const ids of layer) {
       ids.forEach((id, r) => out.set(id, { x, y: top + r * (h + GAP) }));
@@ -244,20 +244,20 @@ export function planDirNoteHeight(d: PlanDir): number {
   return d.empty ? 92 : 64 + d.others.length * (mixed ? 48 : 34);
 }
 
-/** Where the owner put the note on a plan directory, about; none while it stands beside the projects. */
+/** Where the owner put the note on a plan directory, about; none while it stands beside the plans. */
 export const planDirNoteBox = (d: PlanDir): Bounds | undefined => d.at && { ...d.at, w: PLAN_DIR_NOTE_W, h: planDirNoteHeight(d) };
 
-/** Places new projects in a roughly square grid of columns below everything already on the canvas. */
-export function placeProjects(existing: Bounds | null, sizes: [number, number][]): { x: number; y: number }[] {
+/** Places new plans in a roughly square grid of columns below everything already on the canvas. */
+export function placePlans(existing: Bounds | null, sizes: [number, number][]): { x: number; y: number }[] {
   const x0 = existing?.x ?? 0;
-  let y = existing ? existing.y + existing.h + PROJECT_GAP * 2 : 0;
-  const colW = Math.max(...sizes.map(([w]) => w), 0) + PROJECT_GAP;
+  let y = existing ? existing.y + existing.h + PLAN_GAP * 2 : 0;
+  const colW = Math.max(...sizes.map(([w]) => w), 0) + PLAN_GAP;
   const cols = Math.max(2, Math.ceil(Math.sqrt(sizes.length)));
   const out: { x: number; y: number }[] = [];
   for (let i = 0; i < sizes.length; i += cols) {
     const row = sizes.slice(i, i + cols);
     row.forEach((_, j) => out.push({ x: x0 + j * colW, y }));
-    y += Math.max(...row.map(([, h]) => h)) + PROJECT_GAP;
+    y += Math.max(...row.map(([, h]) => h)) + PLAN_GAP;
   }
   return out;
 }

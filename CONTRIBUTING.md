@@ -1,6 +1,6 @@
 # Contributing
 
-Seismic is built with Seismic. Its canvas over this repository holds the projects and tasks; agents
+Seismic is built with Seismic. Its canvas over this repository holds the plans and tasks; agents
 do most of the work on their cards, and every change comes back as a demo before it lands. The
 same steps work for you, with or without Seismic running.
 
@@ -16,9 +16,9 @@ and keep those current in the same change.
 
 Work larger than one change is planned in a plan doc under [`docs/plan/`](docs/plan/): the goal,
 where things stand, the design, and the workstreams as a checklist (`- [ ] **W1:** …`). Seismic
-shows each plan doc as a project with a card per workstream; the change that finishes a workstream
-ticks it off in the doc, and once all are ticked the project goes into the archive. When the
-project is done, what passes the design doc's test moves into it and the plan doc goes.
+shows each plan doc as a plan with a card per workstream; the change that finishes a workstream
+ticks it off in the doc, and once all are ticked the plan goes into the archive. When the
+plan is done, what passes the design doc's test moves into it and the plan doc goes.
 
 ## Cards
 

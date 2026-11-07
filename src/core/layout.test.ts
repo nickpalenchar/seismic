@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { type Arrangeable, arrangeWorkstreams, type Bounds, CARD_SIZE, dependencyColumns, dependencyOrder, freeSpotNear, GAP, PROJECT_HEAD, PROJECT_PAD, shapeOf } from './layout';
+import { type Arrangeable, arrangeWorkstreams, type Bounds, CARD_SIZE, dependencyColumns, dependencyOrder, freeSpotNear, GAP, PLAN_HEAD, PLAN_PAD, shapeOf } from './layout';
 
 const clear = (a: Bounds, b: Bounds) => a.x + a.w + GAP <= b.x || b.x + b.w + GAP <= a.x || a.y + a.h + GAP <= b.y || b.y + b.h + GAP <= a.y;
 
@@ -8,12 +8,12 @@ describe('freeSpotNear', () => {
     expect(freeSpotNear({ x: 0, y: 200 }, [300, 136], [{ x: 0, y: 0, w: 300, h: 136 }])).toEqual({ x: 0, y: 200 });
   });
 
-  test('moves out of a project to the nearest side', () => {
-    const project = { x: 0, y: 0, w: 1000, h: 600 };
-    // wanted near the right edge: right of the project is nearer than below it
-    expect(freeSpotNear({ x: 800, y: 300 }, [300, 136], [project])).toEqual({ x: 1020, y: 300 });
+  test('moves out of a plan to the nearest side', () => {
+    const plan = { x: 0, y: 0, w: 1000, h: 600 };
+    // wanted near the right edge: right of the plan is nearer than below it
+    expect(freeSpotNear({ x: 800, y: 300 }, [300, 136], [plan])).toEqual({ x: 1020, y: 300 });
     // wanted near the bottom: below it
-    expect(freeSpotNear({ x: 400, y: 500 }, [300, 136], [project])).toEqual({ x: 400, y: 620 });
+    expect(freeSpotNear({ x: 400, y: 500 }, [300, 136], [plan])).toEqual({ x: 400, y: 620 });
   });
 
   test('keeps clear of everything taken', () => {
@@ -95,8 +95,8 @@ describe('arranging workstreams by their dependencies', () => {
   test('a depth with more cards than a column holds goes on in a column beside it', () => {
     const many = ['a', 'b', 'c', 'd', 'e'].map((id) => ws(id));
     const pos = arrangeWorkstreams([...many, ws('z', ['e'])]);
-    expect(pos.get('a')).toEqual({ x: PROJECT_PAD, y: PROJECT_HEAD });
-    expect(pos.get('e')).toEqual({ x: PROJECT_PAD + 300 + GAP, y: PROJECT_HEAD });
+    expect(pos.get('a')).toEqual({ x: PLAN_PAD, y: PLAN_HEAD });
+    expect(pos.get('e')).toEqual({ x: PLAN_PAD + 300 + GAP, y: PLAN_HEAD });
     // the next depth after a wider gap than between the two columns of one
     expect(pos.get('z')!.x - pos.get('e')!.x).toBeGreaterThan(300 + GAP);
   });

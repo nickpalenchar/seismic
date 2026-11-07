@@ -56,14 +56,14 @@ Where plan docs live (relative to the repository root), and file names in that d
 none (a template). Seismic reads the `*.md` directly in that directory (not below it) from the
 default branch. Plans kept out of the repository (gitignored, say) are a folder on one machine: set
 its absolute path (or one from `~/`) in that machine's configuration, not in this file. Seismic reads
-them there, and the agents on that machine tick their workstreams off there, outside any commit. One with a checklist under `## Workstreams` (or `## Arbeitspakete`) is a project:
+them there, and the agents on that machine tick their workstreams off there, outside any commit. One with a checklist under `## Workstreams` (or `## Arbeitspakete`) is a plan:
 each top-level item is a workstream (`- [ ] **W1:** Title. Details`), a ticked one has landed,
-and once every one is ticked the project goes into the archive. Its goal is the first paragraph
+and once every one is ticked the plan goes into the archive. Its goal is the first paragraph
 under `## Goal` (or `## Ziel`). Any other file there shows on the canvas in a note, with the
-reason it is not a project and "Als Projekt aufbereiten", which has an agent add the checklist; a
+reason it is not a plan and "Als Plan aufbereiten", which has an agent add the checklist; a
 file that is meant to stay as it is (a template, an index) goes into `exclude`. Default:
 `{ "dir": "docs/plan", "exclude": ["TEMPLATE.md"] }`. The skill's check script
-(`plugin/skills/settings/lib/check.ts`) lists which docs in the directory are projects and why the
+(`plugin/skills/settings/lib/check.ts`) lists which docs in the directory are plans and why the
 others are not.
 
 ### `setup` — a command

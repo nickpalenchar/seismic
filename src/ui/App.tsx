@@ -5,8 +5,8 @@ import { useRatePrompt } from './feedback';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Archive, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
-import { type Bounds, boundsOf, CARD_SIZE, centre, onCanvas, type Place, PROJECT_HEAD, PROJECT_PAD, unionBounds } from '../core/layout';
-import { type CanvasInfo, type CanvasSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerProject, type Usage, type Waiting, waitingIn } from '../core/types';
+import { type Bounds, boundsOf, CARD_SIZE, centre, onCanvas, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
+import { type CanvasInfo, type CanvasSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, onNotice, quietAtStart, reportFocus, setCanvas, useCanvas } from './api';
 import { GroupNames, growFrom, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
@@ -48,7 +48,7 @@ import { attachTo, imageFiles } from './shots';
 import { cardDraft, drafted, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, OBEYA_DRAFT, takesImages } from './draft';
 import { HoldToTalk, PushToTalk, SPACE_SHOWS_MS, TAP_MS, ToldList, usePushToTalk, useTold } from './voice';
 import { videoOf } from './spot';
-import { CardView, cardClass, shownState, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, ProjectView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkspacesPill } from './parts';
+import { CardView, cardClass, shownState, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkspacesPill } from './parts';
 import { clampWidth, loadWidths, saveWidths, SHEET_W, type SheetWidths, widthsIn } from './sheetWidth';
 import { clock, failText, t } from './strings';
 import { loadPinned, NAV_CANVAS_MIN, NAV_W, NavPill, NavSheet, savePinned } from './nav';
@@ -198,7 +198,7 @@ function Live({ canvases: loaded }: { canvases: CanvasInfo[] }) {
 }
 
 /** What is open, and the view to go back to: `prevCam` laid out beside the panels `prevSide`. */
-type Focus = { type: 'project'; id: string; prevCam: Cam; prevSide: Sides } | { type: 'card'; id: string; prevCam: Cam; prevSide: Sides; project: Focus | null };
+type Focus = { type: 'plan'; id: string; prevCam: Cam; prevSide: Sides } | { type: 'card'; id: string; prevCam: Cam; prevSide: Sides; plan: Focus | null };
 type Pos = { x: number; y: number };
 
 // opening a card takes FLY_MS + UNFOLD_MS (300 ms) and closing the same: fast, yet still a visible move
@@ -261,7 +261,7 @@ function Canvas({
   // ---------------------------------------------------------------- items
   // Local positions win over the snapshot until the server echoes them back.
   const [moved, setMoved] = useState<Record<string, Pos>>({});
-  // Projects collapsed or expanded here, until the server echoes it back.
+  // Plans collapsed or expanded here, until the server echoes it back.
   const [folded, setFolded] = useState<Record<string, boolean>>({});
   // Cards created here, until the snapshot carries them.
   const [pending, setPending] = useState<Item[]>([]);
@@ -309,7 +309,7 @@ function Canvas({
   }, [snapshot, pending, moved, folded]);
   const itemsRef = useRef(items);
   itemsRef.current = items;
-  // the workstreams of a collapsed project are not on the canvas: its marks stand for them
+  // the workstreams of a collapsed plan are not on the canvas: its marks stand for them
   const placed = useMemo(() => onCanvas(items).map((item) => ({ item, b: boundsOf(item, items) })), [items]);
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const territories = useTerritories(placed, snapshot.groups);
@@ -318,7 +318,7 @@ function Canvas({
     for (const i of items) if (i.parent) m.set(i.parent, [...(m.get(i.parent) ?? []), i]);
     return m;
   }, [items]);
-  const repliesIn = useMemo(() => unreadPerProject(snapshot.talk), [snapshot.talk]);
+  const repliesIn = useMemo(() => unreadPerPlan(snapshot.talk), [snapshot.talk]);
   // ideas with a prototype on the canvas, which stay out of the archive until it ends
   const prototyped = useMemo(() => new Set(items.flatMap((i) => (i.prototypeOf ? [i.prototypeOf] : []))), [items]);
   const [noteHidden, hideNote] = useHiddenEmptyNotes(snapshot.canvas.id);
@@ -343,9 +343,9 @@ function Canvas({
   const contentRef = useRef(content);
   contentRef.current = content;
   const byId = (id: string) => itemsRef.current.find((i) => i.id === id);
-  /** Where a card stands on the canvas; a workstream of a collapsed project, where its project does. */
+  /** Where a card stands on the canvas; a workstream of a collapsed plan, where its plan does. */
   const bounds = (i: Item) => boundsOf(standsFor(i), itemsRef.current);
-  /** The card on the canvas that shows `i`: a workstream of a collapsed project shows as a mark on its project. */
+  /** The card on the canvas that shows `i`: a workstream of a collapsed plan shows as a mark on its plan. */
   const standsFor = (i: Item) => {
     const p = i.parent ? byId(i.parent) : undefined;
     return p?.collapsed ? p : i;
@@ -394,7 +394,7 @@ function Canvas({
   const [dim, setDim] = useState(false);
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [sheetOn, setSheetOn, sheetOnRef] = useLive(false);
-  // the open project's plan doc, read in the widened sheet
+  // the open plan's plan doc, read in the widened sheet
   const [reading, setReading, readingRef] = useLive<{ mark?: string } | null>(null);
   // how wide the sheets are, as the owner dragged them; in effect clamped to the window
   const [widths, setWidths] = useState<SheetWidths>(() => loadWidths(localStorage));
@@ -437,12 +437,12 @@ function Canvas({
     const right = narrow || !(kOnRef.current || inboxOnRef.current || csOnRef.current || sheetOnRef.current) ? 0 : sheetOnRef.current && readingRef.current ? sheetWRef.current.read : sheetWRef.current.sheet;
     return { left: !narrow && pinnedRef.current && innerWidth - NAV_W - right >= NAV_CANVAS_MIN ? NAV_W : 0, right };
   };
-  /** Opens Seismic's sheet or closes it; an open project closes. */
+  /** Opens Seismic's sheet or closes it; an open plan closes. */
   const toggleKoordinator = () => {
     setKOn(!kOn);
     if (!kOn) setInboxOn(false);
     if (!kOn) setCsOn(false);
-    if (!kOn && focusRef.current?.type === 'project') closeProject(false);
+    if (!kOn && focusRef.current?.type === 'plan') closePlan(false);
   };
   /** The sheet as the owner opens it to talk (its button, `C`): the field under the conversation takes the cursor. */
   const talkKoordinator = () => {
@@ -498,12 +498,12 @@ function Canvas({
   /** The card `id`, on the canvas or else in the archive. */
   const itemOrArchived = (id: string) => byId(id) ?? items.flatMap((i) => i.manualArchived ?? []).find((i) => i.id === id) ?? archivedRef.current.find((i) => i.id === id);
   const archiveEls = useRef(new Map<string, HTMLElement>()).current;
-  // rows of the project sheet, where its archived workstreams and its idea unfold from
+  // rows of the plan sheet, where its archived workstreams and its idea unfold from
   const sheetEls = useRef(new Map<string, HTMLElement>()).current;
   /** The element a card unfolds from and folds back to: on the canvas, or a row in the sheet it was opened from. */
-  const fromEl = (id: string, inProject: boolean) =>
-    els.get(id) ?? (inProject ? (sheetEls.get(id) ?? archiveEls.get(id)) : (archiveEls.get(id) ?? sheetEls.get(id)));
-  // an archived card opened from a project's sheet, which the archive list may not hold
+  const fromEl = (id: string, inPlan: boolean) =>
+    els.get(id) ?? (inPlan ? (sheetEls.get(id) ?? archiveEls.get(id)) : (archiveEls.get(id) ?? sheetEls.get(id)));
+  // an archived card opened from a plan's sheet, which the archive list may not hold
   const [opened, setOpened] = useState<Item | null>(null);
   useEffect(() => {
     if (!aOn && !items.some((i) => i.proposal?.merge && !items.some((p) => p.id === i.proposal!.merge!.with))) return;
@@ -557,8 +557,8 @@ function Canvas({
     const quick = reload || hold;
     const f = focusRef.current;
     if (f?.type === 'card') return;
-    if (i.kind === 'project') return openProject(i);
-    setFocus({ type: 'card', id: i.id, prevCam: camRef.current, prevSide: camSide.current, project: f });
+    if (i.kind === 'plan') return openPlan(i);
+    setFocus({ type: 'card', id: i.id, prevCam: camRef.current, prevSide: camSide.current, plan: f });
     openDraft.current = { kind: i.kind, title: i.title, body: i.body, images: i.images ?? [] };
     setOpened(i.archivedAt ? i : null);
     // bring the card to the middle at a readable scale first, so the unfold starts where the eye is;
@@ -672,11 +672,11 @@ function Canvas({
     const f = focusRef.current;
     const panel = panelRef.current;
     if (f?.type !== 'card' || !panel) return;
-    if (!onward) addressCloses(f.project ? itemOrArchived(f.project.id) : undefined);
+    if (!onward) addressCloses(f.plan ? itemOrArchived(f.plan.id) : undefined);
     const saved = flushEdit().catch(console.error);
     panel.querySelector('video')?.pause();
     const i = byId(f.id);
-    const el = fromEl(f.id, !!f.project);
+    const el = fromEl(f.id, !!f.plan);
     unfolded.current = false;
     panel.classList.remove('ready');
     if (el) Object.assign(panel.style, rect(el.getBoundingClientRect()));
@@ -686,7 +686,7 @@ function Canvas({
     panel.className = '';
     beingWritten.delete(f.id);
     setOpenId(null);
-    setFocus(f.project);
+    setFocus(f.plan);
     // a new card left empty was not wanted; one with a task but no title, Seismic names
     const draft = openDraft.current;
     if (i?.source === 'manual' && !draft.title.trim()) {
@@ -714,22 +714,22 @@ function Canvas({
     await open(i);
   }
 
-  async function openProject(p: Item, quick = false) {
-    // an archived project is not on the canvas: its sheet takes the archive list's place
-    await projectSheet(p, null, quick, !p.archivedAt);
+  async function openPlan(p: Item, quick = false) {
+    // an archived plan is not on the canvas: its sheet takes the archive list's place
+    await planSheet(p, null, quick, !p.archivedAt);
   }
 
-  /** Reads the project's plan doc in the sheet, at the workstream `mark`; `null` goes back to the workstreams. */
+  /** Reads the plan's plan doc in the sheet, at the workstream `mark`; `null` goes back to the workstreams. */
   async function readPlan(p: Item, r: { mark?: string } | null, quick = false) {
     if (focusRef.current?.type === 'card') await closeCard();
-    // the project stays in view beside the wider sheet
-    await projectSheet(p, r, quick, true);
+    // the plan stays in view beside the wider sheet
+    await planSheet(p, r, quick, true);
   }
 
-  /** Shows the project in the sheet, its workstreams or (`r`) its plan doc, and with `inView` flies to it. */
-  async function projectSheet(p: Item, r: { mark?: string } | null, quick: boolean, inView: boolean) {
+  /** Shows the plan in the sheet, its workstreams or (`r`) its plan doc, and with `inView` flies to it. */
+  async function planSheet(p: Item, r: { mark?: string } | null, quick: boolean, inView: boolean) {
     const f = focusRef.current;
-    setFocus(f?.type === 'project' ? { ...f, id: p.id } : { type: 'project', id: p.id, prevCam: camRef.current, prevSide: camSide.current });
+    setFocus(f?.type === 'plan' ? { ...f, id: p.id } : { type: 'plan', id: p.id, prevCam: camRef.current, prevSide: camSide.current });
     addressOpens(p, undefined);
     setSheetId(p.id);
     setReading(r);
@@ -741,10 +741,10 @@ function Canvas({
     if (inView) await flyOrJump(camFor(bounds(p), sideNow()), 700, quick);
   }
 
-  /** Closes the open project; `toArchive`: back to the archive an archived one was opened from. */
-  async function closeProject(toArchive = true) {
+  /** Closes the open plan; `toArchive`: back to the archive an archived one was opened from. */
+  async function closePlan(toArchive = true) {
     const f = focusRef.current;
-    if (f?.type !== 'project') return;
+    if (f?.type !== 'plan') return;
     setFocus(null);
     addressCloses(undefined);
     setSheetOn(false);
@@ -789,12 +789,12 @@ function Canvas({
   keepNow.current = () => {
     flushEdit().catch(console.error);
     const f = focusRef.current;
-    const project = f?.type === 'project' ? f.id : f?.type === 'card' ? f.project?.id : undefined;
+    const plan = f?.type === 'plan' ? f.id : f?.type === 'card' ? f.plan?.id : undefined;
     const sheet: SideSheet | undefined = kOn ? 'koordinator' : inboxOn ? 'inbox' : csOn ? 'settings' : aOn ? 'archive' : undefined;
     keep(sessionStorage, snapshot.canvas.id, {
       at: Date.now(),
       ...(f?.type === 'card' ? { card: f.id } : {}),
-      ...(project ? { project, reading: !!readingRef.current } : {}),
+      ...(plan ? { plan, reading: !!readingRef.current } : {}),
       ...(sheet ? { sheet } : {}),
       ...(cOn ? { config: true } : {}),
       ...(prefsOn ? { prefs: true } : {}),
@@ -844,20 +844,20 @@ function Canvas({
     await openAgain(k, true);
     restore(k);
   }
-  /** Opens the project `k.project` (its plan doc with `reading`) and the card `k.card` in it or on the canvas; an archived one from its row in the archive or the project's sheet. */
-  async function openAgain(k: Pick<Kept, 'card' | 'project' | 'reading'>, quick: boolean) {
+  /** Opens the plan `k.plan` (its plan doc with `reading`) and the card `k.card` in it or on the canvas; an archived one from its row in the archive or the plan's sheet. */
+  async function openAgain(k: Pick<Kept, 'card' | 'plan' | 'reading'>, quick: boolean) {
     const find = async (id?: string) => (id ? namedBy(id) : undefined);
-    // an archived project's sheet lists its workstreams from the archive, which this loads
-    const p = await find(k.project);
+    // an archived plan's sheet lists its workstreams from the archive, which this loads
+    const p = await find(k.plan);
     // the doc opens at its top, and the kept position puts it back where it was
-    if (p) await (k.reading ? readPlan(p, {}, quick) : openProject(p, quick));
+    if (p) await (k.reading ? readPlan(p, {}, quick) : openPlan(p, quick));
     const i = await find(k.card);
-    // an archived card unfolds from its row in the archive or the project's sheet, once that has loaded
+    // an archived card unfolds from its row in the archive or the plan's sheet, once that has loaded
     if (i && (!i.archivedAt || (await soon(() => fromEl(i.id, !!p))))) await open(i, quick);
   }
 
   // ---------------------------------------------------------------- the address
-  // the address names the open card or project (`/p/<project>/c/<code>`). Opening one is a step in
+  // the address names the open card or plan (`/p/<project>/c/<code>`). Opening one is a step in
   // the browser's history, so Back closes it again, as on the phone; one opened in place of another
   // (by a link in it) takes over that one's step. Changes take effect one after the other: a step
   // back is done once the browser says so.
@@ -867,13 +867,13 @@ function Canvas({
   const stepBack = useRef<(() => void) | null>(null);
   /** While the page opens what the address names (as it loads, on Back or Forward): the address is set already. */
   const addressSet = useRef(false);
-  /** The card or project open now. */
+  /** The card or plan open now. */
   const openNow = () => {
     const f = focusRef.current;
     return f ? itemOrArchived(f.id) : undefined;
   };
   const pathOf = (i: Item | undefined) => `${i ? cardPath(snapshot.canvas.id, i) : projectPath(snapshot.canvas.id)}${location.search}`;
-  /** `i` opens over `under` (the project it is opened from, else the canvas). */
+  /** `i` opens over `under` (the plan it is opened from, else the canvas). */
   function addressOpens(i: Item, under: Item | undefined) {
     if (addressSet.current) return;
     address(() => {
@@ -883,14 +883,14 @@ function Canvas({
       else history.replaceState(history.state, '', pathOf(i));
     });
   }
-  /** What is open closes down to `under` (the project still open, else the canvas). */
+  /** What is open closes down to `under` (the plan still open, else the canvas). */
   function addressCloses(under: Item | undefined) {
     if (addressSet.current) return;
     address(() => {
       if (!(history.state as { step?: true } | null)?.step) return history.replaceState(history.state, '', pathOf(under));
       return new Promise<void>((done) => {
         stepBack.current = () => {
-          // the step before may name what is no longer open (a card opened over its project, then reloaded without it)
+          // the step before may name what is no longer open (a card opened over its plan, then reloaded without it)
           const at = readAddress().card;
           if (at && !(under && named([under], at))) history.replaceState(history.state, '', pathOf(under));
           done();
@@ -899,7 +899,7 @@ function Canvas({
       });
     });
   }
-  /** The card or project an address (or an id) names, on the canvas or in the archive, which it loads where it has to. */
+  /** The card or plan an address (or an id) names, on the canvas or in the archive, which it loads where it has to. */
   async function namedBy(code: string) {
     const here = named(itemsRef.current, code) ?? named(archivedRef.current, code);
     if (here) return here;
@@ -914,25 +914,25 @@ function Canvas({
     // by its short code, where it was named by its id
     history.replaceState(history.state, '', pathOf(i));
     if (!i) return;
-    if (i.kind === 'project') return openAgain({ project: i.id }, quick);
-    // an archived workstream unfolds from its project's sheet, any other archived card from the archive's list
-    const project = i.archivedAt ? i.parent : undefined;
-    if (i.archivedAt && !project) setAOn(true);
-    await openAgain({ card: i.id, project }, quick);
+    if (i.kind === 'plan') return openAgain({ plan: i.id }, quick);
+    // an archived workstream unfolds from its plan's sheet, any other archived card from the archive's list
+    const plan = i.archivedAt ? i.parent : undefined;
+    if (i.archivedAt && !plan) setAOn(true);
+    await openAgain({ card: i.id, plan }, quick);
   }
-  /** Opens the card a code names in place of the card open now, as a link to it does; an archived one from its row in the archive or its project's sheet. */
+  /** Opens the card a code names in place of the card open now, as a link to it does; an archived one from its row in the archive or its plan's sheet. */
   async function openNamed(code: string) {
     const i = await namedBy(code);
     if (!i) return;
-    if (i.kind === 'project') return openProject(i);
+    if (i.kind === 'plan') return openPlan(i);
     const f = focusRef.current;
     if (f?.type === 'card') {
       if (f.id === i.id) return;
       await closeCard({ keepUntitled: true, onward: true });
     }
-    const project = i.archivedAt ? i.parent : undefined;
-    if (i.archivedAt && !project) setAOn(true);
-    await openAgain({ card: i.id, project }, false);
+    const plan = i.archivedAt ? i.parent : undefined;
+    if (i.archivedAt && !plan) setAOn(true);
+    await openAgain({ card: i.id, plan }, false);
   }
   /** Back or Forward: what the address no longer names closes, what it names opens. */
   async function followAddress() {
@@ -943,7 +943,7 @@ function Canvas({
       const f = focusRef.current;
       if (f?.type === 'card' && f.id !== i?.id) await closeCard({ keepUntitled: true });
       const p = focusRef.current;
-      if (p?.type === 'project' && p.id !== i?.id && i?.parent !== p.id) await closeProject(false);
+      if (p?.type === 'plan' && p.id !== i?.id && i?.parent !== p.id) await closePlan(false);
       // a code no card has any longer: openAddress leaves the canvas at its address
       if (code && (!i || focusRef.current?.id !== i.id)) await openAddress(code, false);
     } finally {
@@ -991,7 +991,7 @@ function Canvas({
   }, []);
 
   /**
-   * The project's button, on its card and in its sheet: all planned workstreams go to the
+   * The plan's button, on its card and in its sheet: all planned workstreams go to the
    * Koordinator together, which waits a few seconds before it plans them, so the start can be taken back.
    */
   const startAll = useCallback(async (p: Item, n: number) => {
@@ -1036,9 +1036,9 @@ function Canvas({
   }, []);
 
   /**
-   * The project's "Arrange", on its card and in its sheet: its workstreams in columns by what builds
+   * The plan's "Arrange", on its card and in its sheet: its workstreams in columns by what builds
    * on what, once Seismic has read that from the plan doc. It takes effect at once; "Undo" puts
-   * the cards (and the project, which may have made room for itself) back where they stood.
+   * the cards (and the plan, which may have made room for itself) back where they stood.
    */
   const arrange = useCallback(async (p: Item) => {
     const before = [p, ...itemsRef.current.filter((i) => i.parent === p.id)].map(({ id, x, y }) => ({ id, x, y }));
@@ -1057,7 +1057,7 @@ function Canvas({
     }
   }, []);
 
-  /** The fold in a project's head: collapsed, only its head and a mark for each workstream stay on the canvas. */
+  /** The fold in a plan's head: collapsed, only its head and a mark for each workstream stay on the canvas. */
   const collapse = useCallback(async (p: Item, collapsed: boolean) => {
     setFolded((f) => ({ ...f, [p.id]: collapsed }));
     try {
@@ -1067,7 +1067,7 @@ function Canvas({
       fail(e);
     }
   }, []);
-  // a stable handle on `open` for the memoised project views
+  // a stable handle on `open` for the memoised plan views
   const openRef = useRef(open);
   openRef.current = open;
   const openCard = useCallback((i: Item) => void openRef.current(i).catch(console.error), []);
@@ -1086,7 +1086,7 @@ function Canvas({
   // ---------------------------------------------------------------- voice
   const where = (): Where => {
     const f = focusRef.current;
-    return f?.type === 'card' ? { card: f.id } : f?.type === 'project' ? { project: f.id } : null;
+    return f?.type === 'card' ? { card: f.id } : f?.type === 'plan' ? { plan: f.id } : null;
   };
   // where the pointer is on the page, null once it left the window
   const pointerAt = useRef<{ x: number; y: number } | null>(null);
@@ -1107,7 +1107,7 @@ function Canvas({
   };
   /**
    * Where a card a command makes goes: under the pointer on the canvas, else in the middle of the
-   * view (`pointer` false: always there); with a card or project open, in the view it goes back to.
+   * view (`pointer` false: always there); with a card or plan open, in the view it goes back to.
    */
   const placeNow = (pointer = true): Place => {
     const f = focusRef.current;
@@ -1122,14 +1122,14 @@ function Canvas({
     if (h.wish) openWish(h.wish);
     if (h.token && !focusRef.current) newCardWatch.current = { known: new Set(itemsRef.current.map((i) => i.id)), until: Date.now() + 20_000 };
   }
-  // the reply stands in Seismic's sheet, or the answer in the project's sheet, open in front of the owner: no line above the microphone
+  // the reply stands in Seismic's sheet, or the answer in the plan's sheet, open in front of the owner: no line above the microphone
   const told = useTold(
     onHeard,
     (h) =>
       !cOnRef.current &&
       ((kOnRef.current && snapshotRef.current.talk.some((x) => x.id === h.talk && x.chat === snapshotRef.current.chat)) ||
         (!!h.inCard && focusRef.current?.type === 'card' && focusRef.current.id === h.inCard) ||
-        (!!h.project && sheetOnRef.current && !readingRef.current && focusRef.current?.type === 'project' && focusRef.current.id === h.project)),
+        (!!h.plan && sheetOnRef.current && !readingRef.current && focusRef.current?.type === 'plan' && focusRef.current.id === h.plan)),
   );
   const { tellAbout, tellTyped } = tellers(byId, told, fail, placeNow);
   /** "Go to card" on a confirmation's line: the card it made opens (in place of one open), one made on another canvas opens there. */
@@ -1185,7 +1185,7 @@ function Canvas({
             void open(i);
           } else openSoon.current = { id: n.cardId, until: Date.now() + 10_000 };
         }
-        told.show(i ? { id: i.id, title: plain(i.title) } : undefined, { confirm: noticeLine(n.text), ...(n.token ? { token: n.token } : {}), ...(n.undoMs ? { undoMs: n.undoMs } : {}), ...(n.talk ? { talk: n.talk } : {}), ...(n.project ? { project: n.project } : {}), ...(n.inTalk && n.cardId ? { inCard: n.cardId } : {}) });
+        told.show(i ? { id: i.id, title: plain(i.title) } : undefined, { confirm: noticeLine(n.text), ...(n.token ? { token: n.token } : {}), ...(n.undoMs ? { undoMs: n.undoMs } : {}), ...(n.talk ? { talk: n.talk } : {}), ...(n.plan ? { plan: n.plan } : {}), ...(n.inTalk && n.cardId ? { inCard: n.cardId } : {}) });
       }),
     [],
   );
@@ -1298,7 +1298,7 @@ function Canvas({
     handleRef.current = h;
     setHandle(h);
   };
-  const connectable = (item: Item) => item.source !== 'plan' && item.kind !== 'project';
+  const connectable = (item: Item) => item.source !== 'plan' && item.kind !== 'plan';
   // what covers an arrow's trash button: the cards, which lie above the arrows
   // an arrow the owner drew at chosen edges follows its own route between them
   const routeOf = (from: string, to: string, a: Bounds, b: Bounds, head: number) => {
@@ -1307,7 +1307,7 @@ function Canvas({
   };
   // on touch the dots show on the card picked up and let go, and on the marked ones
   const touchDots = (id: string) => touchy && !dragId && (touchFocus === id || selection.includes(id));
-  const cardBoxes = useMemo(() => placed.flatMap(({ item, b }) => (item.kind === 'project' ? [] : [b])), [placed]);
+  const cardBoxes = useMemo(() => placed.flatMap(({ item, b }) => (item.kind === 'plan' ? [] : [b])), [placed]);
   const titleOf = (id: string) => {
     const i = byId(id);
     return clip(i ? plain(i.title) || titleFrom(i.body) || t.titlePlaceholder : '…', 50);
@@ -1432,7 +1432,7 @@ function Canvas({
       fail(e);
     }
   }
-  /** A right click on a card opens the colour ring for it (a workstream's is its project's), on a marked one for all marked. */
+  /** A right click on a card opens the colour ring for it (a workstream's is its plan's), on a marked one for all marked. */
   function onContextMenu(e: React.MouseEvent) {
     // a long press of a finger picks up a card instead (touch.ts)
     if (touchyRef.current) return e.preventDefault();
@@ -1565,12 +1565,12 @@ function Canvas({
     viewportRef.current!.setPointerCapture(e.pointerId);
   }
 
-  /** What a finger landed on, for touch.ts: a card or a project's head by its id, a plan directory's note, or null for the empty canvas. */
+  /** What a finger landed on, for touch.ts: a card or a plan's head by its id, a plan directory's note, or null for the empty canvas. */
   function touchTarget(target: Element) {
     const note = target.closest<HTMLElement>('.plan-dir');
     if (note) return `note:${note.dataset.repo}`;
     const el = target.closest<HTMLElement>('.item');
-    return el && (!el.classList.contains('project') || target.closest('.head')) ? el.dataset.id! : null;
+    return el && (!el.classList.contains('plan') || target.closest('.head')) ? el.dataset.id! : null;
   }
 
   /** Takes hold of the card or note under the pointer at (x, y), ready to be dragged; false when there is none there. */
@@ -1578,7 +1578,7 @@ function Canvas({
     const el = target.closest<HTMLElement>('.item');
     const note = target.closest<HTMLElement>('.plan-dir');
     if (note) {
-      // it moves by its top left as it stands now: one above the projects stands on its bottom
+      // it moves by its top left as it stands now: one above the plans stands on its bottom
       const repo = note.dataset.repo!;
       const r = note.getBoundingClientRect();
       const start = toWorld(camRef.current, r.left, r.top);
@@ -1588,7 +1588,7 @@ function Canvas({
       dragRef.current = { id: `note:${repo}`, note: repo, with: [], shift: false, x, y, px: x, py: y, grab, start, limit: dragLimit(content, b), moved: false, frame: 0, last: 0 };
       return true;
     }
-    if (el && (!el.classList.contains('project') || target.closest('.head'))) {
+    if (el && (!el.classList.contains('plan') || target.closest('.head'))) {
       const i = byId(el.dataset.id!);
       if (!i) return true;
       // a marked card takes the other marked ones along
@@ -1624,8 +1624,8 @@ function Canvas({
       d.to = p;
       return setNotesMoved((m) => ({ ...m, [d.note!]: p }));
     }
-    // workstreams stay inside their project
-    if (byId(d.id)?.parent) p = { x: Math.max(PROJECT_PAD, p.x), y: Math.max(PROJECT_HEAD, p.y) };
+    // workstreams stay inside their plan
+    if (byId(d.id)?.parent) p = { x: Math.max(PLAN_PAD, p.x), y: Math.max(PLAN_HEAD, p.y) };
     const by = { x: p.x - d.start.x, y: p.y - d.start.y };
     setMoved((m) => ({ ...m, [d.id]: p, ...shifted(d.with, by) }));
   }
@@ -1727,14 +1727,14 @@ function Canvas({
   /** What a finished lasso (screen points) caught is marked; one that went nowhere is a click. */
   function endLasso(l: Pos[]) {
     const c = camRef.current;
-    // a Shift + click on a project beside its workstreams marks the project
+    // a Shift + click on a plan beside its workstreams marks the plan
     if (l.every((p) => Math.hypot(p.x - l[0]!.x, p.y - l[0]!.y) < 5)) {
       const el = document.elementFromPoint(l[0]!.x, l[0]!.y)?.closest<HTMLElement>('.item');
       const i = el && byId(el.dataset.id!);
       if (i) setSelection((sel) => toggle(sel, markable(i)));
       return;
     }
-    // what the lasso caught: each card whose middle lies inside, a workstream as its project
+    // what the lasso caught: each card whose middle lies inside, a workstream as its plan
     const ids = [...new Set(placed.filter(({ b }) => inside({ x: c.x + (b.x + b.w / 2) * c.s, y: c.y + (b.y + b.h / 2) * c.s }, l)).map(({ item }) => markable(item)))];
     setSelection((sel) => addAll(sel, ids));
   }
@@ -1926,13 +1926,13 @@ function Canvas({
     if (next === 'k') toggleKoordinator();
     else open(next);
   }
-  /** The inbox slides out in place of Seismic's sheet or a project's, and closes again. */
+  /** The inbox slides out in place of Seismic's sheet or a plan's, and closes again. */
   const toggleInbox = () => {
     const open = !inboxOnRef.current;
     setInboxOn(open);
     if (!open) return;
     setKOn(false);
-    if (focusRef.current?.type === 'project') closeProject(false);
+    if (focusRef.current?.type === 'plan') closePlan(false);
   };
   /** The canvas's settings slide out in place of another sheet, and close again. */
   const toggleCanvasSettings = () => {
@@ -1941,7 +1941,7 @@ function Canvas({
     if (!open) return;
     setKOn(false);
     setInboxOn(false);
-    if (focusRef.current?.type === 'project') closeProject(false);
+    if (focusRef.current?.type === 'plan') closePlan(false);
   };
   /**
    * "Go to card": the card opens beside the inbox, which stays open; one on another canvas opens
@@ -2035,7 +2035,7 @@ function Canvas({
       // a screenshot or demo shown large closes first, a card's diff, the queue's list and the navigation's; the card stays open
       if (document.querySelector('.lightbox, .demo-zoom, .artifact-image-close, .queue-menu, .nav-menu, .diff-view, .start-agent-menu')) return;
       // so does the quote of a message the owner was replying to: in the field with the cursor, the open card's, the sidebar's
-      const quoting = [focusedDraft(), f?.type === 'card' || f?.type === 'project' ? cardDraft(f.id) : null, kOnRef.current ? OBEYA_DRAFT : null].find((k) => k && fieldOn(k) && replyOn(k));
+      const quoting = [focusedDraft(), f?.type === 'card' || f?.type === 'plan' ? cardDraft(f.id) : null, kOnRef.current ? OBEYA_DRAFT : null].find((k) => k && fieldOn(k) && replyOn(k));
       if (quoting) return setReply(quoting, null);
       // the archive's list closes after a card unfolded from it
       if (f?.type !== 'card' && aOnRef.current) return setAOn(false);
@@ -2044,10 +2044,10 @@ function Canvas({
       if (typing) (e.target as HTMLElement).blur();
       if (f?.type === 'card') closeCard();
       else if (kOnRef.current) setKOn(false);
-      else if (inboxOnRef.current && f?.type !== 'project') setInboxOn(false);
-      else if (csOnRef.current && f?.type !== 'project') setCsOn(false);
-      else if (f?.type === 'project' && readingRef.current && sheetProject) readPlan(sheetProject, null);
-      else if (f?.type === 'project') closeProject();
+      else if (inboxOnRef.current && f?.type !== 'plan') setInboxOn(false);
+      else if (csOnRef.current && f?.type !== 'plan') setCsOn(false);
+      else if (f?.type === 'plan' && readingRef.current && sheetPlan) readPlan(sheetPlan, null);
+      else if (f?.type === 'plan') closePlan();
       return;
     }
     if (typing || f?.type === 'card' || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -2073,8 +2073,8 @@ function Canvas({
   }, []);
 
   // ---------------------------------------------------------------- render
-  const sheetProject = sheetId ? itemOrArchived(sheetId) : undefined;
-  const sheetKids = !sheetProject ? [] : sheetProject.archivedAt ? archived.filter((i) => i.parent === sheetProject.id) : (kidsOf.get(sheetProject.id) ?? []);
+  const sheetPlan = sheetId ? itemOrArchived(sheetId) : undefined;
+  const sheetKids = !sheetPlan ? [] : sheetPlan.archivedAt ? archived.filter((i) => i.parent === sheetPlan.id) : (kidsOf.get(sheetPlan.id) ?? []);
   // on touch nothing hovers: the card picked up and let go stands in for the one under the pointer
   const hovered = touchy ? touchFocus : hoverId;
   const deps = useMemo(() => (hovered && !panning && !dragId ? depsOf(hovered, items) : undefined), [hovered, panning, dragId, items]);
@@ -2087,11 +2087,11 @@ function Canvas({
   const shownWaits = waits.filter(([from, to]) => !removing.some((x) => x.key === `${from}:${to}`));
   const standsForId = (id: string) => (byId(id) ? standsFor(byId(id)!).id : id);
   const depOf = (id: string) => (!deps ? undefined : id === hovered ? 'self' : deps.before.has(id) ? 'before' : deps.after.has(id) ? 'after' : undefined);
-  // a workstream of a collapsed project points to where its project stands
+  // a workstream of a collapsed plan points to where its plan stands
   const at = new Map(placed.map((p) => [p.item.id, p.b]));
   const edgeTargets = items.flatMap((item) => {
     const b = at.get(standsFor(item).id);
-    return b && yours(item) && (focus?.type !== 'project' || item.parent === focus.id) ? [{ item, b }] : [];
+    return b && yours(item) && (focus?.type !== 'plan' || item.parent === focus.id) ? [{ item, b }] : [];
   });
 
   // the button for the conversation with Seismic: the rightmost in the bar; while its sidebar is open it
@@ -2165,8 +2165,8 @@ function Canvas({
               {connection && (() => { const a = placed.find((p) => p.item.id === connection.from)?.b; if (!a) return null; const start = handleAt(a, connection.side); const b = placed.find((p) => p.item.id === connection.target)?.b; const path = b ? (connection.anchor ? anchoredPath(a, b, connection.anchor, depHead(cam.s)).path : linkPath({ ...start, w: 0, h: 0 }, b, depHead(cam.s))) : `M${start.x},${start.y} L${connection.x},${connection.y}`; return <path className="manual-ghost" d={path} strokeWidth={depWidth(cam.s)} markerEnd={b ? "url(#manual-arrow)" : "url(#ghost-arrow)"} />; })()}
             </svg>
             {placed.map(({ item, b }) =>
-              item.kind === 'project' ? (
-                <ProjectView key={item.id} item={item} b={b} kids={kidsOf.get(item.id) ?? []} replies={repliesIn.get(item.id) ?? 0} els={els} onStartAll={startAll} onArrange={arrange} onCollapse={collapse} onOpen={openCard} />
+              item.kind === 'plan' ? (
+                <PlanView key={item.id} item={item} b={b} kids={kidsOf.get(item.id) ?? []} replies={repliesIn.get(item.id) ?? 0} els={els} onStartAll={startAll} onArrange={arrange} onCollapse={collapse} onOpen={openCard} />
               ) : (
                 <CardView
                   key={item.id}
@@ -2254,7 +2254,7 @@ function Canvas({
             onClose={() => setRing(null)}
           />
         )}
-        {(!focus || focus.type === 'project') && <Edges cam={cam} targets={edgeTargets} side={side} onOpen={open} />}
+        {(!focus || focus.type === 'plan') && <Edges cam={cam} targets={edgeTargets} side={side} onOpen={open} />}
         {/* in the app on a Mac the bar is the window's title bar: it moves the window (app/src/main.rs); beside the pinned navigation, the traffic lights sit in that */}
         <header id="bar" ref={barRef} {...(window.obeyaApp?.platform === 'macos' ? { className: side.left ? 'titlebar beside-nav' : 'titlebar', 'data-tauri-drag-region': '' } : {})}>
           {extensions.map((e, i) => { const Slot = e.slots?.topBar; return Slot ? <Slot key={i} /> : null; })}
@@ -2373,7 +2373,7 @@ function Canvas({
                   repos={snapshot.canvas.repos}
                   parent={openItem.parent ? itemOrArchived(openItem.parent) : undefined}
                   from={openItem.from ? itemOrArchived(openItem.from) : undefined}
-                  onReadPlan={(project, mark) => readPlan(project, { mark })}
+                  onReadPlan={(plan, mark) => readPlan(plan, { mark })}
                   onClones={(repo, field) => {
                     showRepoClones({ canvas: snapshot.canvas.id, repo, field });
                     setCOn(true);
@@ -2439,13 +2439,13 @@ function Canvas({
           onDown={() => press(false)}
         />
         <Sheet
-          project={sheetProject}
+          planCard={sheetPlan}
           kids={sheetKids}
           all={items}
           on={sheetOn}
           reading={reading}
           onOpen={open}
-          onRead={(r) => sheetProject && readPlan(sheetProject, r)}
+          onRead={(r) => sheetPlan && readPlan(sheetPlan, r)}
           onStartAll={startAll}
           onArrange={arrange}
           els={sheetEls}
@@ -2455,7 +2455,7 @@ function Canvas({
           {talkButton}
         </div>
         {gripOn && !kOn && (
-          <button id="sheet-close" title={t.close} onClick={() => (sheetOn ? closeProject() : (setInboxOn(false), setCsOn(false)))}>
+          <button id="sheet-close" title={t.close} onClick={() => (sheetOn ? closePlan() : (setInboxOn(false), setCsOn(false)))}>
             ✕
           </button>
         )}

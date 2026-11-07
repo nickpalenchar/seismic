@@ -88,7 +88,7 @@ function planDirOf(repoPath: string, adapter: RepoAdapter): { dir: string; root:
 
 /**
  * The docs in the plan directory of the working tree, or of the folder outside the repository it
- * names: those that describe a project, and the others with the reason they are not one (none
+ * names: those that describe a plan, and the others with the reason they are not one (none
  * without the directory).
  */
 export function readPlanDocs(repoPath: string, adapter: RepoAdapter): { docs: PlanDoc[]; others: OtherDoc[] } {

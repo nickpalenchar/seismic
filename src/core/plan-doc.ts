@@ -1,8 +1,8 @@
-// Reads a living plan doc (markdown) into a project and its workstreams.
+// Reads a living plan doc (markdown) into a plan and its workstreams.
 //
 // The shape follows the common template: a `# Title`, a `## Goal` section and a `## Workstreams`
 // checklist whose top-level items are the workstreams (`- [x] **W3:** Title. Details …`).
-// A doc without a workstream checklist is not a project (design notes, templates); the parse says
+// A doc without a workstream checklist is not a plan (design notes, templates); the parse says
 // why, for the owner to see.
 
 export interface PlanDoc {
@@ -40,19 +40,19 @@ const LABEL = new RegExp(String.raw`^((?:W\d+[a-z]?(?:\.\d+)?|W[A-Z]{1,3})\b|${C
 const SPACED_LABEL = new RegExp(String.raw`^(${CODE})(?=\s)${AFTER_LABEL}`);
 const SPACED_CODE = new RegExp(String.raw`^\*\*${CODE}\s`);
 
-/** Why a doc in the plan directory is not a project: no `## Workstreams` section, or one without a checklist. */
-export type NotAProject = 'noWorkstreams' | 'noChecklist';
+/** Why a doc in the plan directory is not a plan: no `## Workstreams` section, or one without a checklist. */
+export type NotAPlan = 'noWorkstreams' | 'noChecklist';
 
-/** A doc in the plan directory that is not a project, with the reason. */
+/** A doc in the plan directory that is not a plan, with the reason. */
 export interface OtherDoc {
   file: string;
-  reason: NotAProject;
+  reason: NotAPlan;
 }
 
-/** Every workstream is ticked: the project's work is done, and it ends. */
+/** Every workstream is ticked: the plan's work is done, and it ends. */
 export const allTicked = (doc: PlanDoc): boolean => doc.workstreams.every((w) => w.done);
 
-/** The project the doc describes, or why it is none. */
+/** The plan the doc describes, or why it is none. */
 export function parsePlanDoc(file: string, markdown: string): PlanDoc | OtherDoc {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
   const titleLine = lines.find((l) => l.startsWith('# '));

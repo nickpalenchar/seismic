@@ -35,7 +35,7 @@ test('a response credits the session that did the work as it ran, through change
   const first = board.giveFeedback(card.id, { answer: { rating: 4 } });
   expect(first.configs).toEqual([claudeOpus]);
   expect(first).toMatchObject({ cardId: card.id, short: board.row(card.id).short, canvasId: 'c', title: 'Zählerstände exportieren', repo: 'home', attribution: 'single', configs: [claudeOpus], credited: claudeOpus, answer: { rating: 4 } });
-  expect(first.project).toBeUndefined();
+  expect(first.plan).toBeUndefined();
   expect(first.updatedAt).toBeUndefined();
   // the same click twice is one response; a changed answer replaces it and keeps whom it credits
   expect(board.giveFeedback(card.id, { answer: { rating: 4 } })).toEqual(first);
@@ -111,15 +111,15 @@ test('a legacy session resumed on today’s defaults is credited only with what 
   workers.shutdown();
 });
 
-test('a workstream’s response carries its project; it follows the card to another canvas', () => {
+test('a workstream’s response carries its plan; it follows the card to another canvas', () => {
   const w = board.snapshot().items.find((i) => i.label === 'W1')!;
   board.log(w.id, 'review', 'worker', 'Done.');
   approve(w.id);
   const f = board.giveFeedback(w.id, { answer: { rating: 1 }, facets: { type: 'bug' } });
-  expect(f).toMatchObject({ title: 'Title W1', project: { id: w.parent, title: 'A', file: 'docs/plan/a.md' }, facets: { type: 'bug' } });
+  expect(f).toMatchObject({ title: 'Title W1', plan: { id: w.parent, title: 'A', file: 'docs/plan/a.md' }, facets: { type: 'bug' } });
   store.ensureCanvas('d', 'D');
   store.moveCard(w.id, 'd', { x: 0, y: 0 });
-  expect(store.feedback({ cardId: w.id })[0]).toMatchObject({ id: f.id, canvasId: 'd', project: { title: 'A' } });
+  expect(store.feedback({ cardId: w.id })[0]).toMatchObject({ id: f.id, canvasId: 'd', plan: { title: 'A' } });
   // the dashboard reads every canvas's responses, from any canvas
   expect(board.allFeedback().map((x) => [x.id, x.canvasId])).toEqual([[f.id, 'd']]);
   expect(board.allFeedback()[0]!.deleted).toBeUndefined();
@@ -205,7 +205,7 @@ test('work that changed nothing asks too once done; a prompt left unanswered sta
   expect(board.item(bare.id)!.rate).toBeUndefined();
 });
 
-test('archiving by hand, a card asks for feedback once the owner archives it; a workstream, which goes with its project, once approved', () => {
+test('archiving by hand, a card asks for feedback once the owner archives it; a workstream, which goes with its plan, once approved', () => {
   const card = manual();
   board.log(card.id, 'review', 'worker', 'Done.');
   const handover = store.handover(card.id)!.id;
@@ -240,7 +240,7 @@ test('archiving after the landing, a finished card goes into the archive once it
   board.work(other.id, { state: 'live' });
   board.workDone(other.id);
   expect(board.snapshot().items.some((i) => i.id === other.id)).toBe(true);
-  // a workstream goes with its project, not on its own
+  // a workstream goes with its plan, not on its own
   board.archiving = () => 'landed';
   const w = board.snapshot().items.find((i) => i.label === 'W1')!;
   board.work(w.id, { state: 'live' });

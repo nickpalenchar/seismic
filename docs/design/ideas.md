@@ -11,11 +11,11 @@ planned card of the owner's that nobody has worked on, makes a card in state `id
 agent opens the discussion at once, with what the owner said or what the card says; that stays at
 the top of the conversation as its starting point ("Starting point").
 
-A planned task offers its ways on in one row, each with a tooltip saying what follows: "Start agent", "Ideate", "Plan as a project", and "Delete" set apart at the right end.
-"Plan as a project" does on the task what it does on an idea (see Deciding): a worker on the task's
-card ("Task → Project") writes a plan doc from its title, text and screenshots, and once the doc
-has landed the project takes the task's place and the task goes to the archive (by voice:
-`plan_doc`, "plan this as a project").
+A planned task offers its ways on in one row, each with a tooltip saying what follows: "Start agent", "Ideate", "Make a plan", and "Delete" set apart at the right end.
+"Make a plan" does on the task what it does on an idea (see Deciding): a worker on the task's
+card ("Task → Plan") writes a plan doc from its title, text and screenshots, and once the doc
+has landed the plan takes the task's place and the task goes to the archive (by voice:
+`plan_doc`, "make a plan of this").
 
 ### The discussion
 
@@ -112,11 +112,11 @@ carries and bring it to production quality (tests, checks, docs, shortcuts remov
 prototype's handover and the owner's answers. The decision log says "Build it like this, on prototype "…"".
 Either way the idea's other prototypes are discarded, so one card remains.
 
-"Plan as a project" starts a worker on the idea's card, shown as "Idea → Project": it writes a plan
-doc with workstreams, which lands like any change. Its project (the doc the landed work added to the
+"Make a plan" starts a worker on the idea's card, shown as "Idea → Plan": it writes a plan
+doc with workstreams, which lands like any change. Its plan (the doc the landed work added to the
 plan directory) then takes the idea's place on the canvas (cards in its way move aside), links back
 to it and takes over its decisions, showing those of both; the idea goes to the archive once its
-worker is done (put back, it stays). A task planned as a project is linked the same way. The
+worker is done (put back, it stays). A task made into a plan is linked the same way. The
 prototypes stay on the canvas and the plan doc's worker hears what each showed, so the doc builds on
 them; only the workstream built on the chosen prototype mentions prototypes. "Build this prototype"
 then builds that workstream (the owner may pick another, and picks one when the doc names none or
@@ -167,7 +167,7 @@ and the card says why.
 
 ### While the agent replies
 
-While the agent works on a reply, "Plan as a project", "Split off a task" and "Build this prototype" wait: the buttons are disabled ("Reply coming") and the server refuses them.
+While the agent works on a reply, "Make a plan", "Split off a task" and "Build this prototype" wait: the buttons are disabled ("Reply coming") and the server refuses them.
 The reply almost always rewrites the brief, so a plan taken before it would start from a brief the
 owner never read.
 
@@ -192,13 +192,13 @@ when Seismic stopped.
   passes the owner's words on. A question to Seismic asking for an opinion or a way forward becomes an
   idea card when no agent on the open card takes it (see Commands to the Koordinator); a wrong
   guess costs one card, undone with "Undo". Questions of fact stay in the conversation.
-- **A big idea becomes a project through a worker writing its plan doc on the idea's own card**
+- **A big idea becomes a plan through a worker writing its plan doc on the idea's own card**
   (2026-10-02), not through the exploration agent, which discusses and does not build. Rejected: a
   separate planned "plan doc" card in between, which had to be started by hand and left the idea
-  standing beside its project.
+  standing beside its plan.
 - **One way to break work up: the plan doc** (2026-10-12). Rejected: "Split", the Koordinator
   cutting a card into packages that replaced it, a second way beside the plan doc; "Start all" on
-  a project already plans which workstreams run in parallel.
+  a plan already plans which workstreams run in parallel.
 - **Prototypes are cards of their own, several per idea** (2026-10-02), so parallel approaches are
   seen side by side. The one that convinces is not rebuilt from `main`: the idea is built on its
   branch, its commits stay in the history, and the worker's brief keeps prototype quality from
@@ -218,7 +218,7 @@ when Seismic stopped.
 - **Mocks in a field of their own** (2026-10-05), beside the brief and the reply. Rejected: HTML in
   their Markdown; this way the agent writes no artifact files, the Markdown renderer stays without
   HTML, and the owner sees simple options without a prototype.
-- **A project links the idea it came from** by what the idea's landed work added to the plan
+- **A plan links the idea it came from** by what the idea's landed work added to the plan
   directory, not by title or time.
 - **An idea to be built in a repository that does not exist yet gets it, and a canvas, from one
   click, and moves there whole** (2026-10-28). Its agent picks the target from the conversation;

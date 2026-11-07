@@ -1,5 +1,5 @@
-// The archive: finished and stopped cards and parked or dropped ideas taken off the canvas and projects whose plan doc is
-// gone, the most recently archived first, listed under the bar's button as the queue is. A project's
+// The archive: finished and stopped cards and parked or dropped ideas taken off the canvas and plans whose plan doc is
+// gone, the most recently archived first, listed under the bar's button as the queue is. A plan's
 // workstreams belong to it and are not listed on their own. A field over the list filters it as
 // the owner types.
 
@@ -17,7 +17,7 @@ interface Props {
   onClose: () => void;
   /** A card unfolded from the list is open: the list stays under the dim, for the card to fold back into. */
   held: boolean;
-  /** The archive as the server sends it, newest first; a project is followed by its workstreams. */
+  /** The archive as the server sends it, newest first; a plan is followed by its workstreams. */
   archived: Item[];
   /** Finished cards of the owner's still on the canvas. */
   done: number;
@@ -137,7 +137,7 @@ function ArchiveEntries({ archived, words, query, onOpen, els }: { archived: Ite
                     {label && (
                       <span className="hint">
                         {label}
-                        {i.kind === 'project' && ` · ${t.archive.workstreams(archived.filter((x) => x.parent === i.id).length)}`}
+                        {i.kind === 'plan' && ` · ${t.archive.workstreams(archived.filter((x) => x.parent === i.id).length)}`}
                       </span>
                     )}
                   </button>
@@ -153,7 +153,7 @@ function ArchiveEntries({ archived, words, query, onOpen, els }: { archived: Ite
 
 /** An archived card's kind or state; a plain finished task, nearly every entry, goes without one, so the others stand out. */
 function labelOf(i: Item) {
-  return i.idea || i.prototypeEnd || stopped(i) ? stateLabel(i) : i.becomesProject ? becomesLabel(i) : i.kind === 'task' ? '' : t.kind[i.kind];
+  return i.idea || i.prototypeEnd || stopped(i) ? stateLabel(i) : i.becomesPlan ? becomesLabel(i) : i.kind === 'task' ? '' : t.kind[i.kind];
 }
 
 /** Lower case without accents, so "uber" finds "Über". */
@@ -164,7 +164,7 @@ export const searchWords = (query: string) => fold(query).split(/\s+/).filter(Bo
 
 /**
  * Whether an archived card holds every word of the search, each anywhere in its title, text,
- * summary, last status or label; a project's in its goal and its workstreams too.
+ * summary, last status or label; a plan's in its goal and its workstreams too.
  */
 export function matches(i: Item, words: string[], workstreams: Item[] = []) {
   const text = fold(

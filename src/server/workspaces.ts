@@ -457,8 +457,8 @@ export interface WorkspaceOptions {
   origins?: string[];
   /** Called when what the pool shows changes outside a card's lease: a clone's folder kept or gone. */
   changed?: () => void;
-  /** The project whose baseline this card's branch shares; absent when disabled or outside a project. */
-  projectOf?: (cardId: string) => string | undefined;
+  /** The plan whose baseline this card's branch shares; absent when disabled or outside a plan. */
+  planOf?: (cardId: string) => string | undefined;
   baselineConfigured?: (cardId: string, tag: string, commit: string) => void;
 }
 
@@ -862,7 +862,7 @@ export class Workspaces implements CardWorkspaces {
       this.releasing.delete(cardId);
       const ready = this.preparing.get(cardId);
       if (ready) return { path: own, ready };
-      if (this.o.projectOf?.(cardId)) return this.prepare(cardId, own, async () => own, () => this.release(cardId));
+      if (this.o.planOf?.(cardId)) return this.prepare(cardId, own, async () => own, () => this.release(cardId));
       return { path: own, ready: null };
     }
     if (this.o.mode === 'clones') return this.leaseClone(cardId, branch, !!o.overSlots, o.from ?? null);
@@ -877,7 +877,7 @@ export class Workspaces implements CardWorkspaces {
    */
   private prepare(cardId: string, path: string, make: () => Promise<string>, undo: (at: string, e: WorkspaceError) => void): Lease {
     const ready = make().then(async (at) => {
-      await this.configureProjectBaseline(cardId, at);
+      await this.configurePlanBaseline(cardId, at);
       return at;
     }).then(
       (at) => {
@@ -898,11 +898,11 @@ export class Workspaces implements CardWorkspaces {
     return { path, ready };
   }
 
-  /** One immutable tag per project, copied into clones and named in each branch's local git config. */
-  private async configureProjectBaseline(cardId: string, ws: string): Promise<void> {
-    const project = this.o.projectOf?.(cardId);
-    if (!project) return;
-    const tag = projectBaselineTag(project);
+  /** One immutable tag per plan, copied into clones and named in each branch's local git config. */
+  private async configurePlanBaseline(cardId: string, ws: string): Promise<void> {
+    const plan = this.o.planOf?.(cardId);
+    if (!plan) return;
+    const tag = planBaselineTag(plan);
     const ref = `refs/tags/${tag}`;
     const read = (path: string) => gitAsync(path, 'rev-parse', '--verify', '--quiet', ref).catch(() => '');
     const hasCommit = async (path: string, commit: string) => {
@@ -920,10 +920,10 @@ export class Workspaces implements CardWorkspaces {
     }
     await hasCommit(ws, commit);
     const existing = await read(ws);
-    if (existing && existing !== commit) throw new WorkspaceError(`Project baseline tag ${tag} in ${ws} differs from the project's tag`);
+    if (existing && existing !== commit) throw new WorkspaceError(`Plan baseline tag ${tag} in ${ws} differs from the plan's tag`);
     if (!existing) await gitAsync(ws, 'update-ref', ref, commit, '');
     const branch = await gitAsync(ws, 'branch', '--show-current');
-    if (!branch) throw new WorkspaceError(`Cannot configure project baseline on a detached HEAD in ${ws}`);
+    if (!branch) throw new WorkspaceError(`Cannot configure plan baseline on a detached HEAD in ${ws}`);
     await gitAsync(ws, 'config', '--local', `branch.${branch}.obeya-project-baseline`, tag);
     this.o.baselineConfigured?.(cardId, tag, commit);
   }
@@ -1965,7 +1965,7 @@ export class Workspaces implements CardWorkspaces {
     this.store.addWorkspace(this.canvasId, path, this.o.repo ?? null);
     this.store.setLease(path, cardId);
     const removing = this.clears.get(path);
-    if (!removing && existsSync(path) && !this.o.projectOf?.(cardId)) return { path, ready: null };
+    if (!removing && existsSync(path) && !this.o.planOf?.(cardId)) return { path, ready: null };
     return this.prepare(
       cardId,
       path,
@@ -2327,8 +2327,8 @@ export function* gitCalls(...calls: string[][]): GitSteps<(string | null)[]> {
 /** What every card's branch begins with. */
 export const CARD_BRANCH = 'obeya/';
 
-/** Stable across renaming a project or its plan doc; project ids are globally unique. */
-export const projectBaselineTag = (projectId: string): string => `obeya/project/${projectId}/baseline`;
+/** Stable across renaming a plan or its plan doc; plan ids are globally unique. */
+export const planBaselineTag = (planId: string): string => `obeya/project/${planId}/baseline`;
 
 /** `obeya/<slug>` from a card title, kept short and unique by the card id. */
 export function branchName(title: string, cardId: string): string {

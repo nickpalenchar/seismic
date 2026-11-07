@@ -1,16 +1,16 @@
-// What a restart's reload keeps: which card, project and sheet were open, where they were scrolled
+// What a restart's reload keeps: which card, plan and sheet were open, where they were scrolled
 // to, where the demo video stood, and what was typed but not sent. Written down just before the
 // reload (sessionStorage, per tab), and taken once by the page that loads.
 
-/** A sheet on the right that is not a project's, or the archive's list under its button. */
+/** A sheet on the right that is not a plan's, or the archive's list under its button. */
 export type SideSheet = 'koordinator' | 'inbox' | 'settings' | 'archive';
 
 export interface Kept {
   at: number;
-  /** The open card, and the project whose sheet it was opened from or that is open itself. */
+  /** The open card, and the plan whose sheet it was opened from or that is open itself. */
   card?: string;
-  project?: string;
-  /** The project's plan doc was read in its sheet. */
+  plan?: string;
+  /** The plan's plan doc was read in its sheet. */
   reading?: boolean;
   sheet?: SideSheet;
   /** The configuration's dialog was open over the page. */

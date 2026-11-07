@@ -423,8 +423,8 @@ interface Live {
   pauseHeld?: boolean;
   /** The owner's preferences as the worker last heard them: in its instructions, or since then. */
   preferences: string;
-  /** The project the card is a workstream of, and the last of its decisions the worker has heard of. */
-  project?: { id: string; decision: number };
+  /** The plan the card is a workstream of, and the last of its decisions the worker has heard of. */
+  plan?: { id: string; decision: number };
   /** Its setting was not pinned but taken from today's defaults (a legacy session resumed): what it runs on is known only from the session. */
   guessed?: true;
   /** Stands in for the agent of a card that has no session (`standIn`): its tools run all the same. */
@@ -743,7 +743,7 @@ export class Workers {
   start(cardId: string, selected?: AgentSetting): Promise<void> {
     const card = this.card(cardId);
     this.limitAttempts.delete(cardId);
-    if (card.kind === 'project') throw new BadRequest('project', 'a project is worked on through its workstreams');
+    if (card.kind === 'plan') throw new BadRequest('plan', 'a plan is worked on through its workstreams');
     if (card.state !== 'planned') throw new BadRequest('notPlanned', 'only a planned card can be started');
     if (this.evicting.has(card.id)) throw new BadRequest('evicting', 'its workspace is being given to another card');
     // once work has begun the branch stays the card's, whatever the title says now
@@ -2290,7 +2290,7 @@ export class Workers {
     const repo = this.o.repo ?? this.o.board.home;
     const hard = new Set(notice.files.filter((f) => !this.o.adapter.softPaths.some((p) => overlaps(normalize(f), normalize(p)))));
     if (!hard.size) return;
-    const candidates = this.o.board.items().filter((c) => c.id !== notice.cardId && c.repo === repo && ACTIVE.includes(c.state) && c.kind !== 'project' && !c.prototypeOf);
+    const candidates = this.o.board.items().filter((c) => c.id !== notice.cardId && c.repo === repo && ACTIVE.includes(c.state) && c.kind !== 'plan' && !c.prototypeOf);
     await Promise.all(candidates.map(async (c) => {
       const changed = await this.o.workspaces.changedFiles(c.id, undefined, true);
       const files = [...new Set(changed.filter((f) => hard.has(f)))].sort();
@@ -2493,7 +2493,7 @@ export class Workers {
   }
 
   /**
-   * The idea, or the workstream `into` names of the project it became, is built on this prototype:
+   * The idea, or the workstream `into` names of the plan it became, is built on this prototype:
    * its workspace and branch (renamed for that card) go to the card, which names them before the
    * prototype ends as built (a lease its card does not name is freed). Settles with the workspace
    * and branch the card has now, once git has renamed the branch.
@@ -3219,7 +3219,7 @@ export class Workers {
    * one, of several), else the one whose title holds it, if only one does; else why there is none.
    */
   private cardTitled(cardId: string, title: string): Item | string {
-    const items = this.o.board.items().filter((i) => i.id !== cardId && i.kind !== 'project');
+    const items = this.o.board.items().filter((i) => i.id !== cardId && i.kind !== 'plan');
     const key = titleKey(title);
     const exact = items.filter((i) => titleKey(i.title) === key);
     const pick = (of: Item[]) => of.findLast((i) => !i.archivedAt && !finished(i.state)) ?? of.at(-1)!;
@@ -3618,8 +3618,8 @@ export class Workers {
     this.o.board.work(cardId, { agent_setting: JSON.stringify(setting) });
     const preferences = this.o.preferences?.() ?? '';
     const live: Live = { session: undefined!, ...(setting.harness === 'codex' && this.o.codexAutoReview?.() ? { autoReview: true } : {}), host: hostName(row.workspace), handedOver: false, acted: false, nudged: false, lastText: '', busy: true, background: 0, tasks: new Map(), stalled: false, preferences, ...(!row.agent_setting && resume ? { guessed: true as const } : {}) };
-    const project = this.o.board.item(cardId)?.parent;
-    if (project && !reviewOnly) live.project = { id: project, decision: this.o.board.decisions(project).at(-1)?.id ?? 0 };
+    const plan = this.o.board.item(cardId)?.parent;
+    if (plan && !reviewOnly) live.plan = { id: plan, decision: this.o.board.decisions(plan).at(-1)?.id ?? 0 };
     this.live.set(cardId, live);
     this.o.board.changed();
     if (!reviewOnly) {
@@ -3850,14 +3850,14 @@ export class Workers {
     return now ? `The owner's preferences changed while you work; they now read:\n\n${now}` : 'The owner withdrew their standing preferences; none apply any more.';
   }
 
-  /** Decisions taken in the card's project since the worker last heard of them, passed with its next tool result; those on its own card it heard as answers. */
+  /** Decisions taken in the card's plan since the worker last heard of them, passed with its next tool result; those on its own card it heard as answers. */
   private decisionsUpdate(cardId: string, live: Live): string | undefined {
-    if (!live.project) return;
-    const fresh = this.o.board.decisions(live.project.id).filter((d) => d.id > live.project!.decision);
+    if (!live.plan) return;
+    const fresh = this.o.board.decisions(live.plan.id).filter((d) => d.id > live.plan!.decision);
     if (!fresh.length) return;
-    live.project.decision = fresh.at(-1)!.id;
+    live.plan.decision = fresh.at(-1)!.id;
     const others = fresh.filter((d) => d.card_id !== cardId);
-    return others.length ? `Decisions taken in this project while you work:\n${decisionLog(others)}` : undefined;
+    return others.length ? `Decisions taken in this plan while you work:\n${decisionLog(others)}` : undefined;
   }
 
   /**
@@ -5417,7 +5417,7 @@ export class Workers {
   /** The owner's answer to the question `q`: in the card's log, as a decision, and for whoever learns from it. */
   private recordAnswer(card: Item, q: string, text: string, images: string[], replyTo: number | undefined, picks: string[], place?: Spot) {
     this.o.board.log(card.id, 'answer', 'owner', text, { images, replyTo, picks, ...(place ? { spot: place } : {}) });
-    this.o.board.decide({ project_id: card.parent ?? null, card_id: card.id, question: q, answer: text || '(Screenshot)', by: 'owner' });
+    this.o.board.decide({ plan_id: card.parent ?? null, card_id: card.id, question: q, answer: text || '(Screenshot)', by: 'owner' });
     if (text) this.o.onOwnerInput?.(card, 'answer', text, { question: q });
     if (card.prototypeOf) this.o.onPrototypeAnswer?.(card, q, text || '(Screenshot)');
   }
@@ -5538,11 +5538,11 @@ ${idea.idea.brief}` : '',
     const shots = this.taskImages(card);
     if (shots.length)
       parts.push(`${shots.length === 1 ? 'The owner attached a screenshot' : `The owner attached ${shots.length} screenshots`} to the card (shown with this message; files: ${shots.join(', ')}).`);
-    const project = card.parent ? this.o.board.item(card.parent) : undefined;
-    if (project?.plan) parts.push(`This is workstream ${card.label ?? ''} of the project “${project.title}”. Read its plan doc ${project.plan.file} first; it holds the context and decisions.`);
-    const decisions = project ? this.o.board.decisions(project.id) : [];
-    if (decisions.length) parts.push(`Decisions taken in this project so far:\n${decisionLog(decisions)}`);
-    const part = project?.plan && this.o.board.row(card.id).shipped;
+    const plan = card.parent ? this.o.board.item(card.parent) : undefined;
+    if (plan?.plan) parts.push(`This is workstream ${card.label ?? ''} of the plan “${plan.title}”. Read its plan doc ${plan.plan.file} first; it holds the context and decisions.`);
+    const decisions = plan ? this.o.board.decisions(plan.id) : [];
+    if (decisions.length) parts.push(`Decisions taken in this plan so far:\n${decisionLog(decisions)}`);
+    const part = plan?.plan && this.o.board.row(card.id).shipped;
     if (part) {
       const s = JSON.parse(part) as Shipped;
       const what = [s.pr && `pull request #${s.pr.number} (${s.pr.url})`, s.commit && `commit ${s.commit.slice(0, 7)}`].filter(Boolean).join(', ');
@@ -5666,13 +5666,13 @@ ${idea.idea.brief}` : '',
     return parts.join('\n\n');
   }
 
-  /** What the worker of an idea, or of a workstream of the project it became, built on a prototype hears of it: what the branch holds, the prototype's handover and the owner's answers on it. */
+  /** What the worker of an idea, or of a workstream of the plan it became, built on a prototype hears of it: what the branch holds, the prototype's handover and the owner's answers on it. */
   private builtOnPrototype(prototypeId: string, workstream: boolean): string {
     const prototype = this.o.board.card(prototypeId);
     const summary = this.o.board.summary(prototypeId)?.trim();
     const answers = this.o.board.decisionsOn(prototypeId);
     return [
-      `The owner chose to build this ${workstream ? 'workstream' : 'idea'} on the prototype “${prototype?.title ?? ''}”${workstream ? `, one of those built for the idea the project came from` : ''}, and your branch is that prototype's. It is a throwaway prototype: built quickly to show the idea, without tests, polish or docs, with shortcuts. Take over what carries and bring it to production quality: tests, the repository's checks, the design doc and other docs, shortcuts removed. Rewrite or drop what does not hold up; nothing on the branch counts as reviewed code. The task is ${workstream ? 'the workstream as its plan doc describes it' : "the idea's brief above"}; the prototype is a means to it, not the result.`,
+      `The owner chose to build this ${workstream ? 'workstream' : 'idea'} on the prototype “${prototype?.title ?? ''}”${workstream ? `, one of those built for the idea the plan came from` : ''}, and your branch is that prototype's. It is a throwaway prototype: built quickly to show the idea, without tests, polish or docs, with shortcuts. Take over what carries and bring it to production quality: tests, the repository's checks, the design doc and other docs, shortcuts removed. Rewrite or drop what does not hold up; nothing on the branch counts as reviewed code. The task is ${workstream ? 'the workstream as its plan doc describes it' : "the idea's brief above"}; the prototype is a means to it, not the result.`,
       summary ? `The prototype's worker handed it over with this summary:\n\n${summary}` : '',
       answers.length ? `What the owner answered on the prototype:\n${answers.map((d) => `- ${d.question} → ${d.answer}`).join('\n')}` : '',
     ]

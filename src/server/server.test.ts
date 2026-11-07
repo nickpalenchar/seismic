@@ -402,16 +402,16 @@ describe('groups', () => {
 });
 
 describe('plan docs', () => {
-  test("a project's plan doc is read as written; other cards have none", async () => {
+  test("a plan's plan doc is read as written; other cards have none", async () => {
     const md = '# Export\n\n## Goal\n\nCSV for landlords.\n\n## Workstreams\n\n- [ ] **W1:** CSV. Columns as in `docs/x.md`.\n\n## Notes\n\nMore.\n';
     // where plan docs are read: the Lesestand of the repository (a worktree on its default branch)
     const read = canvas.repos[0]!.read.path;
     mkdirSync(join(read, 'docs', 'plan'), { recursive: true });
     writeFileSync(join(read, 'docs', 'plan', 'export.md'), md);
     board.docsChanged();
-    const project = board.snapshot().items.find((i) => i.kind === 'project')!;
+    const plan = board.snapshot().items.find((i) => i.kind === 'plan')!;
     const get = (id: string) => fetch(new URL(api(`/cards/${id}/plan`), server.url));
-    expect(await (await get(project.id)).json()).toEqual({ file: 'docs/plan/export.md', markdown: md });
+    expect(await (await get(plan.id)).json()).toEqual({ file: 'docs/plan/export.md', markdown: md });
     expect(await codeOf(get(card().id))).toBe('invalid');
     expect(await codeOf(get('nope'))).toBe('unknownCard');
   });
@@ -1346,8 +1346,8 @@ describe('the Lesestand and the free clones', () => {
       { name: 'Shop', repos: [{ path: checkout, clones: 1, settings: { land: 'pr', workspaces: 'clones' } }] },
       { store: new Store(':memory:'), home: join(dir, 'home-shop'), runtime, forge: noForge },
     );
-    const projects = () => shop.board.snapshot().items.filter((i) => i.kind === 'project').map((p) => p.title).sort();
-    expect(projects()).toEqual(['Export']);
+    const plans = () => shop.board.snapshot().items.filter((i) => i.kind === 'plan').map((p) => p.title).sort();
+    expect(plans()).toEqual(['Export']);
     // git that takes its time: a checkout writing the plan docs into the Lesestand (a repository of thousands of files),
     // `git status` in a free clone (a large repository, or one on another machine); each goes on once the test lets it
     const slow = (mark: string, then: string) => {
@@ -1378,10 +1378,10 @@ describe('the Lesestand and the free clones', () => {
     const refreshed = shop.repos[0]!.read.refresh().then(() => (moved = true));
     await until(() => existsSync(join(marks, 'checkout')));
     await answers();
-    expect([moved, projects()]).toEqual([false, ['Export']]);
+    expect([moved, plans()]).toEqual([false, ['Export']]);
     go('checkout');
     await refreshed;
-    expect(projects()).toEqual(['Export', 'Import']);
+    expect(plans()).toEqual(['Export', 'Import']);
 
     // a minute on (the canvas shown before looked at the free clone for the Workspaces pill), whether a card
     // may take it is answered at once, while git looks at it again in the background

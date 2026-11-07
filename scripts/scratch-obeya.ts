@@ -94,7 +94,7 @@
 //       { "key": "N", "title": "…", "state": "waiting", "need": "review", "summary": "…" },
 //       { "key": "D", "title": "…", "state": "waiting", "need": "question", "question": { "text": "…", "options": ["Yes", "No"] } },
 //       { "key": "E", "title": "…", "from": "C" },
-//       { "key": "P", "project": "docs/plan/tooling.md", "x": 0, "y": 0 },
+//       { "key": "P", "plan": "docs/plan/tooling.md", "x": 0, "y": 0 },
 //       { "key": "W1", "workstream": "W1", "state": "working", "statusLine": "…" }
 //     ],
 //     "preferences": [
@@ -116,7 +116,7 @@
 // write them in that language. `language` is the interface's; `conversation`, the language agents
 // write the owner in before the owner's words say otherwise, follows it where left out.
 // A card is created (x and y default to a free place; `idea`, `repo`, `from` as in
-// POST /api/c/<canvas>/cards) unless it names a plan doc's `project` or `workstream` (label; with
+// POST /api/c/<canvas>/cards) unless it names a plan doc's `plan` or `workstream` (label; with
 // several plan docs "docs/plan/x.md#W1"), which exist already. Then its fields are written straight
 // into the database:
 // state, need, statusLine, summary, question (with `permission`, `{ name, input, extra? }`: the tool call it asks
@@ -151,14 +151,14 @@
 // name, each over a repository of its own (<dir>/repo-2, …); a card goes on one of them by its `canvas` (the name). Preferences are active unless `state` says otherwise; `card` and `replaces` name keys;
 // `target` is the repository whose CLAUDE.md a rule is for (the canvas id names the home one).
 // What a learned rule's occasion is (card, quote, review), `replaces` and `target` need code that has them.
-// Groups are created through the API with their cards (keys; a workstream stands for its project),
+// Groups are created through the API with their cards (keys; a workstream stands for its plan),
 // in their colours by order. `talk` is the conversation with the Koordinator, oldest first (`card` a key;
 // `question` and `answer`, `answerBy` for a question it looked up; `follows`: the index of the
 // exchange whose answer it continues, in that one's thread; `files`: the answer's files, each with
 // its name, caption and either `content` or a file to copy (`from`), written to the thread's output
 // directory; needs code that has them; `unread`: its answer waits unread; `wish`: what a draft for
 // Seismic's makers starts from, `{ said, answer? }`, for the link under the reply; `askedIn`: the key of
-// the project whose sheet the words were written in, straight to its project agent, with an empty `reply`;
+// the plan whose sheet the words were written in, straight to its plan agent, with an empty `reply`;
 // `chat`: a number that puts the exchanges with the same one into one chat, 0 by default, the chat
 // talked in last being the one open; needs code that has chats; `canvas`: the name of a canvas of
 // `canvases` it was said on). `friction` is what the work retrospective noted on a card's
@@ -167,7 +167,7 @@
 // `repo` defaults to the canvas's home repository); both need code that has them. `feedback` are the
 // owner's responses on cards' approved work (`card` a key), about the card's latest handover (a
 // `review` event, or none), crediting `configs` as the work ran (none: nothing recorded; two or
-// more: mixed); `title` and `project` (a title) stand for the card's as they were; needs code that has them.
+// more: mixed); `title` and `plan` (a title) stand for the card's as they were; needs code that has them.
 // Seismic proposes a card that fills in the settings of a repository without any ("Set up Seismic for …"); staging dismisses it on every canvas, unless `"setupProposals": true` keeps it.
 
 import { Database } from 'bun:sqlite';
@@ -195,7 +195,7 @@ interface StageCard {
   idea?: boolean;
   repo?: string;
   from?: string;
-  project?: string;
+  plan?: string;
   workstream?: string;
   /** The name of one of `canvases` the card goes on, instead of the first canvas. */
   canvas?: string;
@@ -288,7 +288,7 @@ interface Stage {
   preferences?: { key?: string; text: string; state?: string; card?: string; quote?: string; review?: boolean; replaces?: string; target?: string }[];
   groups?: { name: string; cards: string[] }[];
   friction?: { card: string; what: string; cost: string; fix: string; ago?: string; repo?: string }[];
-  feedback?: { card: string; rating?: number; comment?: string; configs?: { harness: string | null; model: string | null; effort: string | null }[]; ago?: string; title?: string; project?: string }[];
+  feedback?: { card: string; rating?: number; comment?: string; configs?: { harness: string | null; model: string | null; effort: string | null }[]; ago?: string; title?: string; plan?: string }[];
   settingProposals?: { field: string; value: string | string[]; basis: string; cards: string[]; repo?: string }[];
   talk?: {
     said: string;
@@ -644,12 +644,12 @@ let placed = 0;
 const idOf = (c: StageCard, i: number) => ids[c.key ?? String(i)]!;
 for (const [i, c] of stage.cards.entries()) {
   let id: string | undefined;
-  if (c.project) id = snapshot.items.find((x) => x.kind === 'project' && x.plan?.file === c.project)?.id;
+  if (c.plan) id = snapshot.items.find((x) => x.kind === 'plan' && x.plan?.file === c.plan)?.id;
   else if (c.workstream) {
     const [doc, label] = c.workstream.includes('#') ? c.workstream.split('#') : [undefined, c.workstream];
-    const projects = new Set(snapshot.items.filter((x) => x.kind === 'project' && (!doc || x.plan?.file === doc)).map((x) => x.id));
+    const plans = new Set(snapshot.items.filter((x) => x.kind === 'plan' && (!doc || x.plan?.file === doc)).map((x) => x.id));
     // code before short codes were labels (`4A Title`, --code) has the code at the start of the title
-    id = snapshot.items.find((x) => (x.label ?? x.title.split(' ')[0]) === label && x.parent && projects.has(x.parent))?.id;
+    id = snapshot.items.find((x) => (x.label ?? x.title.split(' ')[0]) === label && x.parent && plans.has(x.parent))?.id;
   } else {
     if (c.from && !ids[c.from]) fail(`card ${c.key ?? i}: "from" names ${c.from}, which comes later or does not exist`);
     // without a place: in rows of four below the plan docs (a follow-up goes below its card)
@@ -669,7 +669,7 @@ for (const [i, c] of stage.cards.entries()) {
     }, on);
     id = created.id;
   }
-  if (!id) fail(`card ${c.key ?? i}: no ${c.project ? `project for ${c.project}` : `workstream ${c.workstream}`} on the canvas`);
+  if (!id) fail(`card ${c.key ?? i}: no ${c.plan ? `plan for ${c.plan}` : `workstream ${c.workstream}`} on the canvas`);
   ids[c.key ?? String(i)] = id!;
 }
 
@@ -682,7 +682,7 @@ const columns = new Set((db.query('PRAGMA table_info(cards)').all() as { name: s
 for (const [i, c] of stage.cards.entries()) {
   const id = idOf(c, i);
   const row: Record<string, unknown> = {};
-  if ((c.project || c.workstream) && (c.x !== undefined || c.y !== undefined)) Object.assign(row, { x: c.x, y: c.y });
+  if ((c.plan || c.workstream) && (c.x !== undefined || c.y !== undefined)) Object.assign(row, { x: c.x, y: c.y });
   if (c.state !== undefined) row.state = c.state;
   if (c.need !== undefined) row.need = c.need;
   if (c.statusLine !== undefined) row.status_line = c.statusLine;
@@ -828,7 +828,7 @@ for (const [i, x] of (stage.talk ?? []).entries()) {
   };
   if (x.unread) row.unread = 1;
   if (x.wish) row.wish = JSON.stringify(x.wish);
-  if (x.askedIn) row.asked_in = row.about = ids[x.askedIn] ?? fail(`talk ${i}: project ${x.askedIn} does not exist`);
+  if (x.askedIn) row.asked_in = row.about = ids[x.askedIn] ?? fail(`talk ${i}: plan ${x.askedIn} does not exist`);
   if (x.follows !== undefined) {
     const followed = talkIds[x.follows] ?? fail(`talk ${i}: follows ${x.follows}, which comes later or does not exist`);
     row.follows = followed;
@@ -874,7 +874,7 @@ for (const [i, f] of (stage.feedback ?? []).entries()) {
   const configs = f.configs ?? [];
   const attribution = !configs.length ? 'missing' : configs.length > 1 ? 'mixed' : 'single';
   const credited = attribution === 'single' ? configs[0] : undefined;
-  const project = f.project ? { id: row.parent_id ?? `project-${f.project}`, title: f.project } : undefined;
+  const plan = f.plan ? { id: row.parent_id ?? `plan-${f.plan}`, title: f.plan } : undefined;
   const answer = { ...(f.rating !== undefined ? { rating: f.rating } : {}), ...(f.comment ? { comment: f.comment } : {}) };
   db.query(
     `INSERT INTO feedback (card_id, canvas_id, handover, context, attribution, configs, harness, model, effort, answer, created_at)
@@ -883,7 +883,7 @@ for (const [i, f] of (stage.feedback ?? []).entries()) {
     card: id,
     c: row.canvas_id,
     handover,
-    context: JSON.stringify({ title: f.title ?? row.title ?? '', repo: row.repo ?? (db.query(`SELECT value FROM settings WHERE canvas_id = $c AND key = 'home_repo'`).get({ c: row.canvas_id }) as { value: string } | null)?.value ?? row.canvas_id, ...(project ? { project } : {}) }),
+    context: JSON.stringify({ title: f.title ?? row.title ?? '', repo: row.repo ?? (db.query(`SELECT value FROM settings WHERE canvas_id = $c AND key = 'home_repo'`).get({ c: row.canvas_id }) as { value: string } | null)?.value ?? row.canvas_id, ...(plan ? { plan } : {}) }),
     attribution,
     configs: JSON.stringify(configs),
     harness: credited?.harness ?? null,
@@ -906,8 +906,8 @@ for (const [i, p] of (stage.settingProposals ?? []).entries())
 db.close();
 // the server keeps a snapshot of the canvas: a change through the API makes it read the database anew
 for (const on of allCanvases) {
-  // a project or workstream is on the home canvas: a stage of plan cards alone has nothing else to move
-  const first = stage.cards.find((c) => (c.project || c.workstream ? on.id === canvas : c.canvas ? c.canvas === on.name : on.id === canvas));
+  // a plan or workstream is on the home canvas: a stage of plan cards alone has nothing else to move
+  const first = stage.cards.find((c) => (c.plan || c.workstream ? on.id === canvas : c.canvas ? c.canvas === on.name : on.id === canvas));
   if (!first) continue;
   const c = ((await api('GET', '/canvas', undefined, on.id)) as CanvasSnapshot).items.find((x: Item) => x.id === idOf(first, stage.cards.indexOf(first)))!;
   await api('PATCH', `/cards/${c.id}`, { x: c.x, y: c.y }, on.id);

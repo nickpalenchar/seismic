@@ -381,7 +381,7 @@ test('questions carry their answer; a note instead of an answer settles one; the
   expect(shown).toEqual([{ e: q1, steps: [], answer: 'CSV' }, { e: a1, steps: [] }, { e: q2, steps: [], end: 'settled' }, { e: note, steps: [] }]);
   expect(asked).toEqual([{ e: q3, steps: [work] }]);
   // a question answered on the owner's behalf is no longer open, whatever the card says
-  expect(talkTurns([...events, ev('answer', 'project', 'Nein')], { open: [{ text: 'Auch PDF?', options: [] }] }).asked).toEqual([]);
+  expect(talkTurns([...events, ev('answer', 'plan', 'Nein')], { open: [{ text: 'Auch PDF?', options: [] }] }).asked).toEqual([]);
 });
 
 test('the options an answer picked stand on its question once, not again in the owner’s message', () => {
@@ -806,7 +806,7 @@ test("Seismic's conversation shows it at work while it reads the owner's words o
   expect(obeyaWorks([{ ...asked, answer: 'In src/export.ts.' }])).toBe(false);
   expect(obeyaWorks([{ ...asked, limitedUntil: '2026-10-17T12:00:00Z' }])).toBe(false);
   expect(obeyaWorks([{ ...asked, movedTo: 'q1' }])).toBe(false);
-  // asked in a project's sheet: no reply of Seismic's ever comes, only the project agent's answer
+  // asked in a plan's sheet: no reply of Seismic's ever comes, only the plan agent's answer
   const inSheet = { id: 3, at: '2026-10-17T10:02:00Z', said: 'Plan beenden?', question: 'Plan beenden?', askedIn: 'p1' };
   expect(obeyaWorks([inSheet])).toBe(true);
   expect(obeyaWorks([{ ...inSheet, answer: 'Erledigt.' }])).toBe(false);

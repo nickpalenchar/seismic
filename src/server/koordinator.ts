@@ -53,7 +53,7 @@ export interface Scope {
   duplicates: string[];
   /** Cards in progress or queued ahead whose changes the Koordinator expects to conflict with this card's on merge. */
   conflictsWith: string[];
-  /** Workstreams of its project it builds on: they hold it until they have landed, also while not started. */
+  /** Workstreams of its plan it builds on: they hold it until they have landed, also while not started. */
   buildsOn: string[];
   reason: string;
 }
@@ -78,7 +78,7 @@ export interface KoordinatorOptions {
   home: () => string;
   /** Whether the owner paused the canvas's agents: a card the Koordinator lets start waits until they resume them (`{ paused }` in its queue). */
   paused?: () => boolean;
-  /** How long a project's start, or taking a card's workspace, waits for the owner to take it back; START_ALL_HOLD_MS and EVICT_HOLD_MS by default. */
+  /** How long a plan's start, or taking a card's workspace, waits for the owner to take it back; START_ALL_HOLD_MS and EVICT_HOLD_MS by default. */
   holdMs?: number;
   /** After how many of the owner's inputs the retrospective runs; REVIEW_EVERY by default. */
   reviewEvery?: number;
@@ -115,7 +115,7 @@ export class Koordinator {
   /** Cards whose labels a session was asked for: one call per card, whatever it answered. */
   private labelled = new Set<string>();
 
-  /** The projects whose plan doc it reads now for which workstream builds on which. */
+  /** The plans whose plan doc it reads now for which workstream builds on which. */
   private readingDeps = new Map<string, Promise<void>>();
 
   /** Cards whose workspace the owner takes from them, while the undo window runs (`evict`). */
@@ -203,11 +203,11 @@ export class Koordinator {
     return this.evictions.has(cardId);
   }
 
-  /** The owner wants the card worked on; a project, all its planned workstreams. */
+  /** The owner wants the card worked on; a plan, all its planned workstreams. */
   request(cardId: string, setting?: import('../core/types').AgentSetting): void {
     const card = this.card(cardId);
     if (card.repoDown) throw new BadRequest('repoDown', `the repository ${card.repo} of the card does not run on this canvas`);
-    if (card.kind === 'project') {
+    if (card.kind === 'plan') {
       if (setting) throw new BadRequest('invalid', 'choose an agent for an individual task');
       return this.requestAll(card);
     }
@@ -238,75 +238,75 @@ export class Koordinator {
   }
 
   /**
-   * All planned workstreams of the project go to the Koordinator together (those snoozed to start later too: the owner starts them now): one turn sees them all
+   * All planned workstreams of the plan go to the Koordinator together (those snoozed to start later too: the owner starts them now): one turn sees them all
    * with the plan doc and decides which start now and which wait, for a dependency or a likely
    * conflict, and in which order. They queue in the plan's order until it has, and the turn waits a
-   * few seconds, so the owner can take the start back (`dequeue` on the project).
+   * few seconds, so the owner can take the start back (`dequeue` on the plan).
    */
-  private requestAll(project: Item): void {
-    const open = this.o.board.items().filter((i) => i.parent === project.id && i.state === 'planned' && !i.queue);
-    if (!open.length) throw new BadRequest('nothingToStart', 'the project has no planned workstream left to start');
+  private requestAll(plan: Item): void {
+    const open = this.o.board.items().filter((i) => i.parent === plan.id && i.state === 'planned' && !i.queue);
+    if (!open.length) throw new BadRequest('nothingToStart', 'the plan has no planned workstream left to start');
     // one the owner set aside to start later goes with them, so a workstream building on it waits for it
     for (const w of open) if (w.snoozed?.start) this.o.board.unsnooze(w.id, 'owner');
     const now = Date.now();
-    open.forEach((w, n) => this.o.board.work(w.id, { agent_setting: null, queue: JSON.stringify({ checking: true, together: project.id, since: new Date(now + n).toISOString() }) }));
-    this.o.board.log(project.id, 'state', 'owner', this.o.board.t.koordinator.allStarted(open.map((w) => w.label ?? w.title).join(', ')));
-    setTimeout(() => this.serial(() => this.decideAll(project.id)), this.o.holdMs ?? START_ALL_HOLD_MS);
+    open.forEach((w, n) => this.o.board.work(w.id, { agent_setting: null, queue: JSON.stringify({ checking: true, together: plan.id, since: new Date(now + n).toISOString() }) }));
+    this.o.board.log(plan.id, 'state', 'owner', this.o.board.t.koordinator.allStarted(open.map((w) => w.label ?? w.title).join(', ')));
+    setTimeout(() => this.serial(() => this.decideAll(plan.id)), this.o.holdMs ?? START_ALL_HOLD_MS);
   }
 
   /**
-   * The owner wants the project's workstreams arranged by what builds on what: at once when it has
+   * The owner wants the plan's workstreams arranged by what builds on what: at once when it has
    * read that for the doc as it stands, else once it has.
    */
-  async arrange(projectId: string): Promise<void> {
-    if (this.o.board.deps(projectId).current) return this.o.board.arrange(projectId);
-    this.o.board.setDeps(projectId, { reading: 'owner' });
-    // the reading arranges the project once it has it
-    await this.readDeps(projectId).catch((e) => {
+  async arrange(planId: string): Promise<void> {
+    if (this.o.board.deps(planId).current) return this.o.board.arrange(planId);
+    this.o.board.setDeps(planId, { reading: 'owner' });
+    // the reading arranges the plan once it has it
+    await this.readDeps(planId).catch((e) => {
       throw new BadRequest('arrangeFailed', messageOf(e));
     });
   }
 
-  /** Projects waiting for their reading (one just come, or one asked for before a restart): it starts. */
+  /** Plans waiting for their reading (one just come, or one asked for before a restart): it starts. */
   private readPendingDeps() {
     for (const id of this.o.board.arranging()) if (!this.readingDeps.has(id) && this.o.board.item(id)?.arranging) void this.readDeps(id).catch(() => {});
   }
 
   /**
-   * Reads from the plan doc which workstream builds on which, and arranges the project by it when
+   * Reads from the plan doc which workstream builds on which, and arranges the plan by it when
    * the owner asked for that, or when it just came and the owner has moved none of its cards since.
    */
-  private readDeps(projectId: string): Promise<void> {
-    const running = this.readingDeps.get(projectId);
+  private readDeps(planId: string): Promise<void> {
+    const running = this.readingDeps.get(planId);
     if (running) return running;
     const run = (async () => {
-      const project = this.o.board.item(projectId);
-      if (!project) return;
-      const kids = this.o.board.items().filter((i) => i.parent === projectId);
+      const plan = this.o.board.item(planId);
+      if (!plan) return;
+      const kids = this.o.board.items().filter((i) => i.parent === planId);
       let on: Record<string, string[]>;
       try {
-        on = await this.dependencies(project, kids);
+        on = await this.dependencies(plan, kids);
       } catch (e) {
-        this.o.board.log(projectId, 'error', 'obeya', this.o.board.t.koordinator.arrangeFailed(messageOf(e)));
-        this.o.board.setDeps(projectId, { failed: true });
+        this.o.board.log(planId, 'error', 'obeya', this.o.board.t.koordinator.arrangeFailed(messageOf(e)));
+        this.o.board.setDeps(planId, { failed: true });
         throw e;
       }
-      if (!this.o.board.item(projectId)) return;
-      const by = this.o.board.deps(projectId).reading;
-      this.o.board.setDeps(projectId, { on });
-      if (by === 'owner' || (by === 'auto' && this.o.board.untouched(projectId))) this.o.board.arrange(projectId);
-    })().finally(() => this.readingDeps.delete(projectId));
-    this.readingDeps.set(projectId, run);
+      if (!this.o.board.item(planId)) return;
+      const by = this.o.board.deps(planId).reading;
+      this.o.board.setDeps(planId, { on });
+      if (by === 'owner' || (by === 'auto' && this.o.board.untouched(planId))) this.o.board.arrange(planId);
+    })().finally(() => this.readingDeps.delete(planId));
+    this.readingDeps.set(planId, run);
     return run;
   }
 
   /** One turn reads from the plan doc which workstream builds on which: the keys of those each builds on, by key. */
-  private async dependencies(project: Item, kids: Item[]): Promise<Record<string, string[]>> {
-    const keys = this.o.board.workstreamKeys(project.id);
+  private async dependencies(plan: Item, kids: Item[]): Promise<Record<string, string[]>> {
+    const keys = this.o.board.workstreamKeys(plan.id);
     const tags = new Map(kids.map((k, n) => [`K${n + 1}`, k.id]));
     let on: Record<string, string[]> | undefined;
     const error = await readSession(this.o.runtime, {
-      cwd: this.o.repoFor(project).path,
+      cwd: this.o.repoFor(plan).path,
       role: 'koordinator',
       system: DEPS_SYSTEM,
       tools: (finish) => [
@@ -333,8 +333,8 @@ export class Koordinator {
         },
       ],
       brief: [
-        `The project: "${project.title}"${project.plan ? `; plan doc ${project.plan.file}` : ''}.`,
-        project.plan?.goal ? `Goal: ${project.plan.goal}` : '',
+        `The plan: "${plan.title}"${plan.plan ? `; plan doc ${plan.plan.file}` : ''}.`,
+        plan.plan?.goal ? `Goal: ${plan.plan.goal}` : '',
         `Its workstreams, in the plan's order:\n${kids
           .map((k) => `- ${tagOf(tags, k.id)}${finished(k.state) ? ' (delivered)' : ''}: ${k.label ? `${k.label} ` : ''}"${k.title}"${k.body ? ` — ${k.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`)
           .join('\n')}`,
@@ -346,7 +346,7 @@ export class Koordinator {
     return on;
   }
 
-  /** The cards to be judged together under `key` (a project's start, or cards freed at once) that the Koordinator has not planned yet. */
+  /** The cards to be judged together under `key` (a plan's start, or cards freed at once) that the Koordinator has not planned yet. */
   private unplanned(key: string): Item[] {
     return this.o.board
       .snapshot()
@@ -395,10 +395,10 @@ export class Koordinator {
 
   dequeue(cardId: string) {
     const card = this.card(cardId);
-    if (card.kind === 'project') {
+    if (card.kind === 'plan') {
       // the start of all its workstreams, taken back before the Koordinator planned them
       const back = this.unplanned(cardId);
-      if (!back.length) throw new BadRequest('notQueued', 'no workstream of the project waits to be planned');
+      if (!back.length) throw new BadRequest('notQueued', 'no workstream of the plan waits to be planned');
       for (const w of back) this.setQueue(w.id, null);
       this.o.board.log(cardId, 'state', 'owner', this.o.board.t.koordinator.startTakenBack(back.map((w) => w.label ?? w.title).join(', ')));
       return;
@@ -608,7 +608,7 @@ export class Koordinator {
         { name: 'nothing', description: 'Nothing lasting to record.', schema: {}, run: () => finish('Fine. End your turn now.') },
       ],
       brief: [
-        card ? `Card${kind === 'talk' || kind === 'command' ? ' the owner had open' : ''}: ${card.kind === 'project' ? 'project ' : ''}"${card.title}".` : '',
+        card ? `Card${kind === 'talk' || kind === 'command' ? ' the owner had open' : ''}: ${card.kind === 'plan' ? 'plan ' : ''}"${card.title}".` : '',
         ...around,
         question ? `The worker asked: ${question}` : '',
         before ? `Before the owner wrote in it, the card's text read:\n${before}` : '',
@@ -627,7 +627,7 @@ export class Koordinator {
       .snapshot()
       // approved work counts until it has landed: a PR not yet merged still holds its files
       // a prototype never lands, so it collides with nothing
-      .items.filter((i) => ACTIVE.includes(i.state) && i.kind !== 'project' && !i.prototypeOf && (!repo || i.repo === repo));
+      .items.filter((i) => ACTIVE.includes(i.state) && i.kind !== 'plan' && !i.prototypeOf && (!repo || i.repo === repo));
   }
 
   /**
@@ -645,7 +645,7 @@ export class Koordinator {
   }
 
   /**
-   * The other workstreams of a workstream's project that have not landed and are neither in progress
+   * The other workstreams of a workstream's plan that have not landed and are neither in progress
    * nor queued ahead: not started (stopped ones too), or queued after it. It may build on one of
    * them; one waiting for it is left out, so the two never wait for each other.
    */
@@ -654,7 +654,7 @@ export class Koordinator {
     const items = this.o.board.items();
     const seen = new Set([card.id, ...active.map((i) => i.id), ...ahead.map((i) => i.id)]);
     return items.filter(
-      (i) => i.parent === card.parent && i.kind !== 'project' && !seen.has(i.id) && !finished(i.state) && !i.archivedAt && !waitsOn(i, card.id, items),
+      (i) => i.parent === card.parent && i.kind !== 'plan' && !seen.has(i.id) && !finished(i.state) && !i.archivedAt && !waitsOn(i, card.id, items),
     );
   }
 
@@ -751,12 +751,12 @@ export class Koordinator {
 
   /**
    * Decides on the cards that came to the Koordinator together under `key`: the workstreams of a
-   * project started at once (`key` its id), or cards whose waits ended at once (`freed:…`).
+   * plan started at once (`key` its id), or cards whose waits ended at once (`freed:…`).
    */
   private async decideAll(key: string) {
     const items = this.o.board.items();
     const batch = this.unplanned(key);
-    const project = this.o.board.item(key);
+    const planCard = this.o.board.item(key);
     const t = this.o.board.t.koordinator;
     if (!batch.length) return;
     if (batch[0]!.repoDown) return batch.forEach((w) => this.repoGone(w));
@@ -773,14 +773,14 @@ export class Koordinator {
     // cards keep their places, so what was queued after the last of them is not ahead
     const last = batch.map((w) => w.queue!.since).sort().at(-1)!;
     const ahead = items
-      .filter((i) => i.repo === repo && !ids.has(i.id) && inQueue(i) && (project || i.queue!.since < last) && !batch.some((w) => waitsOn(i, w.id, items)))
+      .filter((i) => i.repo === repo && !ids.has(i.id) && inQueue(i) && (planCard || i.queue!.since < last) && !batch.some((w) => waitsOn(i, w.id, items)))
       .sort((a, b) => a.queue!.since.localeCompare(b.queue!.since));
     let plan: Planned[];
     try {
-      plan = await this.schedule(project, batch, active, ahead);
+      plan = await this.schedule(planCard, batch, active, ahead);
     } catch (e) {
       // judged one by one instead, each seeing the others it may build on
-      if (project) this.o.board.log(key, 'error', 'obeya', t.togetherFailed(messageOf(e)));
+      if (planCard) this.o.board.log(key, 'error', 'obeya', t.togetherFailed(messageOf(e)));
       else for (const w of batch) this.o.board.log(w.id, 'error', 'obeya', t.freedFailed(messageOf(e)));
       for (const w of batch) {
         this.setQueue(w.id, { checking: true });
@@ -798,7 +798,7 @@ export class Koordinator {
     // wait for each other
     const times = batch.map((w) => w.queue!.since!);
     const before = new Set([...active, ...ahead].map((i) => i.id));
-    const names = new Map([...active, ...ahead, ...batch].map((i) => [i.id, i.parent && i.label && (!project || i.parent === key) ? `${i.label} ${this.o.board.t.quote(i.title)}` : this.o.board.t.quote(i.title)]));
+    const names = new Map([...active, ...ahead, ...batch].map((i) => [i.id, i.parent && i.label && (!planCard || i.parent === key) ? `${i.label} ${this.o.board.t.quote(i.title)}` : this.o.board.t.quote(i.title)]));
     let started = 0;
     plan.forEach((p, n) => {
       const id = p.card;
@@ -815,9 +815,9 @@ export class Koordinator {
       this.o.board.work(id, { scope: JSON.stringify({ files: p.files, reason: p.reason }), queue: JSON.stringify({ checking: true, together: key, since: times[n] }) });
       const buildsOn = behind.filter((b) => p.buildsOn.includes(b));
       const reason = p.reason || (buildsOn.length ? t.buildsOn : t.likelyConflict);
-      if (this.queueOrStart(id, behind, buildsOn, reason, `${project ? t.togetherStarts : t.freedStarts}${p.reason ? ` ${p.reason}` : ''}`, (b) => names.get(b))) started++;
+      if (this.queueOrStart(id, behind, buildsOn, reason, `${planCard ? t.togetherStarts : t.freedStarts}${p.reason ? ` ${p.reason}` : ''}`, (b) => names.get(b))) started++;
     });
-    if (project) this.o.board.log(key, 'state', 'koordinator', t.planned(started, plan.length));
+    if (planCard) this.o.board.log(key, 'state', 'koordinator', t.planned(started, plan.length));
   }
 
   /** Whether a card still holds others back: in progress, or waiting itself. */
@@ -1069,7 +1069,7 @@ export class Koordinator {
    */
   private suggestAtStart(cardId: string) {
     const card = this.o.board.item(cardId);
-    if (!card || nameless(card) || card.kind === 'project' || card.repoDown) return;
+    if (!card || nameless(card) || card.kind === 'plan' || card.repoDown) return;
     const asked = this.labelsToAsk(cardId);
     if (!asked.length) return;
     let labels: Labels = {};
@@ -1124,7 +1124,7 @@ export class Koordinator {
   private async estimate(card: Item, active: Item[], ahead: Item[], pending: Item[], candidates: Item[], onLimit: (until: number | null | undefined, retry?: () => void) => void): Promise<Scope> {
     let scope: Scope | undefined;
     const tags = new Map([...new Map([...active, ...ahead, ...pending, ...candidates].map((a) => [a.id, a])).values()].map((a, n) => [`K${n + 1}`, a.id]));
-    // a conflict only with what runs or goes first; building on only a workstream of its project
+    // a conflict only with what runs or goes first; building on only a workstream of its plan
     const running = new Set([...active, ...ahead].map((a) => a.id));
     const siblings = new Set([...active, ...ahead, ...pending].filter((a) => card.parent && a.parent === card.parent).map((a) => a.id));
     const possible = new Set(candidates.map((a) => a.id));
@@ -1160,15 +1160,15 @@ export class Koordinator {
   }
 
   /**
-   * One turn over all the cards of a batch, a project's workstreams (`project`) or cards freed at
+   * One turn over all the cards of a batch, a plan's workstreams (`plan`) or cards freed at
    * once: in which order they go, and which wait for what.
    */
-  private async schedule(project: Item | undefined, batch: Item[], active: Item[], ahead: Item[]): Promise<Planned[]> {
+  private async schedule(planCard: Item | undefined, batch: Item[], active: Item[], ahead: Item[]): Promise<Planned[]> {
     let plan: Planned[] | undefined;
     const candidates = [...new Map(batch.flatMap((w) => this.duplicateCandidates(w)).map((a) => [a.id, a])).values()];
     const tags = new Map([...new Map([...active, ...ahead, ...batch, ...candidates].map((a) => [a.id, a])).values()].map((a, n) => [`K${n + 1}`, a.id]));
     const hands = this.o.repoFor(batch[0]!);
-    const noun = project ? 'workstream' : 'card';
+    const noun = planCard ? 'workstream' : 'card';
     const error = await readSession(this.o.runtime, {
       cwd: hands.path,
       role: 'koordinator',
@@ -1176,7 +1176,7 @@ export class Koordinator {
       onLimit: (until, retry) => {
         for (const w of batch) this.o.board.waitsForLimit({ card: w.id }, until, retry);
       },
-      system: this.ownerFacing((hands.folder ? FOLDER_SCHEDULE_SYSTEM : SCHEDULE_SYSTEM)(this.spokenLanguage, !project)),
+      system: this.ownerFacing((hands.folder ? FOLDER_SCHEDULE_SYSTEM : SCHEDULE_SYSTEM)(this.spokenLanguage, !planCard)),
       tools: (finish) => [
         {
           name: 'schedule',
@@ -1214,10 +1214,10 @@ export class Koordinator {
         },
       ],
       brief: [
-        ...(project
+        ...(planCard
           ? [
-              `The project: "${project.title}"${project.plan ? `; plan doc ${project.plan.file}` : ''}.`,
-              project.plan?.goal ? `Goal: ${project.plan.goal}` : '',
+              `The plan: "${planCard.title}"${planCard.plan ? `; plan doc ${planCard.plan.file}` : ''}.`,
+              planCard.plan?.goal ? `Goal: ${planCard.plan.goal}` : '',
               `Its workstreams to schedule, in the plan's order:\n${batch
                 .map((w) => `- ${tagOf(tags, w.id)}: ${w.label ? `${w.label} ` : ''}"${w.title}"${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`)
                 .join('\n')}`,
@@ -1226,7 +1226,7 @@ export class Koordinator {
               `The cards to schedule, freed at once, in their order in the queue, which the owner may have set: keep it where neither a dependency nor a likely conflict asks for another:\n${batch
                 .map((w) => {
                   const of = w.parent ? this.o.board.item(w.parent) : undefined;
-                  const where = of?.plan ? ` (workstream ${w.label ?? ''} of the project "${of.title}", plan doc ${of.plan.file})` : '';
+                  const where = of?.plan ? ` (workstream ${w.label ?? ''} of the plan "${of.title}", plan doc ${of.plan.file})` : '';
                   return `- ${tagOf(tags, w.id)}: ${w.kind} "${w.title}"${where}${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 1500)}` : ''}`;
                 })
                 .join('\n')}`,
@@ -1242,16 +1242,16 @@ export class Koordinator {
   }
 
   private async brief(card: Item, active: Item[], ahead: Item[], pending: Item[], tags: Map<string, string>): Promise<string> {
-    const project = card.parent ? this.o.board.item(card.parent) : undefined;
+    const plan = card.parent ? this.o.board.item(card.parent) : undefined;
     const siblings = [...active, ...ahead].filter((a) => a.parent === card.parent).map((a) => tagOf(tags, a.id));
     const lines = [
       `The card to start: ${card.kind} "${card.title}".`,
       card.body.trim(),
-      project?.plan ? `It is workstream ${card.label ?? ''} of the project "${project.title}"; plan doc ${project.plan.file}.` : '',
+      plan?.plan ? `It is workstream ${card.label ?? ''} of the plan "${plan.title}"; plan doc ${plan.plan.file}.` : '',
       ...(await this.others(card, active, ahead, tags)),
-      siblings.length ? `Of these, workstreams of the same project: ${siblings.join(', ')}.` : '',
+      siblings.length ? `Of these, workstreams of the same plan: ${siblings.join(', ')}.` : '',
       pending.length
-        ? `The project's other workstreams that have not landed, neither in progress nor queued ahead:\n${pending
+        ? `The plan's other workstreams that have not landed, neither in progress nor queued ahead:\n${pending
             .map((w) => {
               const state = notStarted(w) ? (w.branch ? 'stopped by the owner, not running' : 'not started') : 'queued after this card';
               return `- ${tagOf(tags, w.id)}: ${w.label ? `${w.label} ` : ''}"${w.title}" (${state})${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 300)}` : ''}`;
@@ -1335,43 +1335,43 @@ const LABELS_SYSTEM = (labels: Label[]) =>
   `You label a card on Seismic, a canvas on which the owner directs coding agents: its title, text and screenshots are below. Give its ${labelWords(labels)} with the tool labels, judged as the guide below says, from the card alone, without reading files. Then end your turn.\n\n${labelsGuide()}`;
 
 const SYSTEM = (language: string) => `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workspace, and their branches are rebased onto the main branch one after the other. Your job here: before a card starts, estimate which files it will change, and judge whether running it next to the cards in progress is likely to end in merge conflicts. Only those keep it waiting, and for a workstream of a project what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to conflict with one of them waits behind it rather than overtaking it.
+You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workspace, and their branches are rebased onto the main branch one after the other. Your job here: before a card starts, estimate which files it will change, and judge whether running it next to the cards in progress is likely to end in merge conflicts. Only those keep it waiting, and for a workstream of a plan what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to conflict with one of them waits behind it rather than overtaking it.
 
 Also check unfinished cards in this repository for the same requested outcome, including planned cards and work awaiting the owner's review. A possible duplicate is a substantially overlapping task, not merely a shared file or topic. Report its tag in duplicates; the card stays planned and the owner sees which card to compare before starting it again.
 
-A workstream of a project builds on another workstream of it when it needs code, an API, data or a decision that the other one introduces, or the plan says it comes after it. It then waits until that one has landed, also when the owner has not started that one yet: the owner may start workstreams one by one, and starting this one now would build on what is not there. Read the plan doc for that.
+A workstream of a plan builds on another workstream of it when it needs code, an API, data or a decision that the other one introduces, or the plan says it comes after it. It then waits until that one has landed, also when the owner has not started that one yet: the owner may start workstreams one by one, and starting this one now would build on what is not there. Read the plan doc for that.
 
 Sharing a file is not a conflict. Git merges changes to different places of the same file cleanly: new strings, types, routes, tests or functions added next to others; edits in different functions. A conflict is likely when both cards change the same lines or the same function or block, when one rewrites, moves, renames or reformats code the other one edits, or when both change the same small, tightly packed section (one config entry, one signature that both extend). For a card in progress you see what it is expected to change and the places it has changed so far (line ranges in its branch, with the enclosing function); read the code there when you need to.
 
 Read what you need in the repository (you cannot change files), then call scope exactly once:
 - files: repository-relative paths the card will most likely change; a path ending in "/" stands for a directory. Be concrete; list new files where you expect them.
 - conflicts_with: the tags of cards in progress or queued ahead whose changes will likely conflict with this card's on merge; empty when none. When in doubt, leave a card out: a conflict that happens anyway goes back to its worker to resolve.
-- builds_on: for a workstream, the tags of the workstreams of its project it builds on, whether in progress, queued or not started; empty when none, and for any other card.
+- builds_on: for a workstream, the tags of the workstreams of its plan it builds on, whether in progress, queued or not started; empty when none, and for any other card.
 - duplicates: tags of unfinished tasks asking for substantially the same outcome; empty when none.
 - reason: one sentence in ${language} for the owner: with a dependency, what it builds on; with a conflict, where the two cards change the same code; without either, which files they share, if any, and why that is fine. The owner does not know the tags: name cards by their title.
 Keep it quick: this runs every time a card starts.
 `.trim();
 
 const FOLDER_SYSTEM = (language: string) => `
-You are the Koordinator of Seismic, a canvas on which the owner directs agents; the owner knows you simply as Seismic. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. Your job here: before a card starts, estimate which files and directories it will touch, and judge whether running it next to the cards in progress is likely to get in their way. Only those keep it waiting, and for a workstream of a project what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to collide with one of them waits behind it rather than overtaking it.
+You are the Koordinator of Seismic, a canvas on which the owner directs agents; the owner knows you simply as Seismic. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. Your job here: before a card starts, estimate which files and directories it will touch, and judge whether running it next to the cards in progress is likely to get in their way. Only those keep it waiting, and for a workstream of a plan what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to collide with one of them waits behind it rather than overtaking it.
 
 Also check unfinished cards in this folder for the same requested outcome, including planned cards and work awaiting the owner's review. A possible duplicate is a substantially overlapping task, not merely a shared file or topic. Report its tag in duplicates; the card stays planned and the owner sees which card to compare before starting it again.
 
-A workstream of a project builds on another workstream of it when it needs files, an overview, data or a decision that the other one makes, or the plan says it comes after it. It then waits until that one is done, also when the owner has not started that one yet: the owner may start workstreams one by one, and starting this one now would build on what is not there. Read the plan doc for that.
+A workstream of a plan builds on another workstream of it when it needs files, an overview, data or a decision that the other one makes, or the plan says it comes after it. It then waits until that one is done, also when the owner has not started that one yet: the owner may start workstreams one by one, and starting this one now would build on what is not there. Read the plan doc for that.
 
 Working in the same directory is not a collision: cards that add or edit different files there run side by side. A collision is likely when both change, move, rename or delete the same files; when one moves, renames or reorganises a directory the other works in; or when one sorts or rewrites files the other creates or reads. For a card in progress you see what it is expected to touch and what it has changed so far (each path, and whether it was added, changed, moved or deleted); look in the folder when you need to.
 
 Read what you need in the folder (you cannot change files), then call scope exactly once:
 - files: paths relative to the folder that the card will most likely touch; a path ending in "/" stands for a directory. Be concrete; list new files where you expect them.
 - conflicts_with: the tags of cards in progress or queued ahead it would likely collide with; empty when none. Leave out a card that only works beside it.
-- builds_on: for a workstream, the tags of the workstreams of its project it builds on, whether in progress, queued or not started; empty when none, and for any other card.
+- builds_on: for a workstream, the tags of the workstreams of its plan it builds on, whether in progress, queued or not started; empty when none, and for any other card.
 - duplicates: tags of unfinished tasks asking for substantially the same outcome; empty when none.
 - reason: one sentence in ${language} for the owner: with a dependency, what it builds on; with a collision, which files or directories both touch; without either, what they share, if anything, and why that is fine. The owner does not know the tags: name cards by their title.
 Keep it quick: this runs every time a card starts.
 `.trim();
 
 const DEPS_SYSTEM = `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents. The owner wants the workstreams of a project arranged by what builds on what: what can start at once on the left, what builds on it to the right of it. Read the plan doc (and the repository only where the doc leaves it open; you cannot change files) and say for each workstream, delivered ones too, which workstreams it builds on.
+You are the Koordinator of Seismic, a canvas on which the owner directs coding agents. The owner wants the workstreams of a plan arranged by what builds on what: what can start at once on the left, what builds on it to the right of it. Read the plan doc (and the repository only where the doc leaves it open; you cannot change files) and say for each workstream, delivered ones too, which workstreams it builds on.
 
 A workstream builds on another when it needs code, an API, data, a document or a decision that the other one introduces, or when the plan says it comes after it, needs it or waits for it. Name only direct dependencies: when C builds on B and B on A, C names B, not A. Two workstreams that merely touch the same files, or that the plan lists one after the other without saying one needs the other, do not build on each other. A workstream may build on a delivered one.
 
@@ -1379,7 +1379,7 @@ Call dependencies exactly once, with every workstream once.
 `.trim();
 
 /**
- * What a joint turn decides on: the workstreams of a project the owner started at once, or cards
+ * What a joint turn decides on: the workstreams of a plan the owner started at once, or cards
  * whose waits ended at once (`freed`).
  */
 const batchOf = (freed: boolean, folder: boolean) =>
@@ -1390,7 +1390,7 @@ const batchOf = (freed: boolean, folder: boolean) =>
         dependsOn: folder ? 'it builds on files, an overview, data or a decision that the other one makes' : 'it builds on code, an API, data or a decision that the other one introduces',
       }
     : {
-        situation: `The owner started all open workstreams of a project at once; you decide how they go. Read the plan doc and what you need in the ${folder ? 'folder' : 'repository'} (you cannot change files).`,
+        situation: `The owner started all open workstreams of a plan at once; you decide how they go. Read the plan doc and what you need in the ${folder ? 'folder' : 'repository'} (you cannot change files).`,
         noun: 'workstream',
         dependsOn: folder
           ? 'it builds on files, an overview, data or a decision that the other one makes, or the plan says it comes after it'
@@ -1501,7 +1501,7 @@ const WHO: Record<CardEvent['author'], string> = {
   owner: 'the owner',
   worker: 'the agent',
   explorer: 'the idea agent',
-  project: 'the project agent',
+  plan: 'the plan agent',
   koordinator: 'you',
   obeya: 'Seismic',
 };

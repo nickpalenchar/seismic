@@ -58,7 +58,7 @@ test('speaker metadata survives a database reopen; reply and researched answer c
     const talk = store.addTalk('c', 'Question', '', null);
     agentIdentity.run({ harness: 'claude', model: 'opus' }, () => store.replyTalk(talk, 'Looking it up'));
     agentIdentity.run({ harness: 'codex', model: 'gpt-research' }, () => {
-      store.answerTalk(talk, 'Research result', 'project');
+      store.answerTalk(talk, 'Research result', 'plan');
       store.addEvent({ cardId: card!.id, kind: 'say', author: 'worker', text: 'Recorded' });
     });
     store.db.close(); store = new Store(path);

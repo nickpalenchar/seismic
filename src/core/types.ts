@@ -8,7 +8,7 @@ import type { Category, Complexity, Label, Priority, Subcategory, SuggestSetting
 import type { Language } from './locale';
 import { MESSAGES } from './messages';
 import type { OutdatedBy } from './page-changes';
-import type { NotAProject } from './plan-doc';
+import type { NotAPlan } from './plan-doc';
 import type { Wish } from './wish';
 
 export type { DemoSettings, NarrationLanguage, VoiceKind } from '../../plugin/skills/demo/lib/settings.ts';
@@ -28,7 +28,7 @@ export type ListenBackend = 'parakeet' | 'mlx' | 'faster';
  * `question`: a thread of looked-up answers the owner moved onto a card of its own, with the agent
  * that looked them up; it holds answers, no work, so its state is `done` until the owner archives it.
  */
-export type CardKind = 'task' | 'project' | 'question';
+export type CardKind = 'task' | 'plan' | 'question';
 
 export const STATES = ['idea', 'proposal', 'planned', 'working', 'waiting', 'approved', 'inPr', 'live', 'done'] as const;
 export type CardState = (typeof STATES)[number];
@@ -104,7 +104,7 @@ export const askable = (i: Pick<Item, 'state' | 'branch' | 'prototypeOf' | 'arch
 
 /**
  * How many cards of each group are still to be done: not finished, not archived, not a dropped
- * idea. A project counts by its workstreams, not as a card of its own.
+ * idea. A plan counts by its workstreams, not as a card of its own.
  */
 export function openPerGroup(items: Item[]): Map<string, number> {
   const open = new Map<string, number>();
@@ -119,17 +119,17 @@ export const buildableOn = (i: Item) => i.state === 'planned' && !i.branch && !i
 /**
  * A planned task nobody has worked on yet, which the Koordinator may merge with others or delete:
  * no branch, no workspace, not with the Koordinator unless it waits there behind other cards (a
- * review's follow-up task waiting for the PR's merge, say), and no prototype nor becoming a project.
+ * review's follow-up task waiting for the PR's merge, say), and no prototype nor becoming a plan.
  */
 export const untouched = (i: Item) =>
-  i.kind === 'task' && i.source === 'manual' && i.state === 'planned' && !i.branch && !i.workspace && (!i.queue || 'behind' in i.queue) && !i.prototypeOf && !i.becomesProject;
+  i.kind === 'task' && i.source === 'manual' && i.state === 'planned' && !i.branch && !i.workspace && (!i.queue || 'behind' in i.queue) && !i.prototypeOf && !i.becomesPlan;
 
 /** Progress decides which card dissolves. Unstarted pairs still combine their text. */
 export const mergeRank = (i: Item): number => i.archivedAt ? 4 : finished(i.state) ? 3 : i.state === 'proposal' ? 0 : untouched(i) ? 1 : 2;
 
 /** Only an unworked task or proposal can start a merge and dissolve. */
 export const canMergeFrom = (i: Item) =>
-  i.kind === 'task' && !i.parent && !i.archivedAt && !i.mergingInto && !i.snoozed && !i.repoDown && !i.prototypeOf && !i.becomesProject &&
+  i.kind === 'task' && !i.parent && !i.archivedAt && !i.mergingInto && !i.snoozed && !i.repoDown && !i.prototypeOf && !i.becomesPlan &&
   !i.proposal?.merge && !i.proposal?.idea && !i.proposal?.revising && !i.proposal?.acceptAfterRevision &&
   (untouched(i) || (i.state === 'proposal' && !i.branch && !i.workspace));
 
@@ -139,23 +139,23 @@ export const merging = (i: Pick<Item, 'state' | 'proposal'>) => !!i.proposal?.me
 /** A merge starts at an unworked card; its partner may have reached any stage. */
 export const mergeableWith = (p: Item, i: Item) =>
   canMergeFrom(p) && i.id !== p.id && i.kind === 'task' && i.state !== 'idea' && !i.parent &&
-  !i.mergingInto && !i.snoozed && !i.repoDown && !i.prototypeOf && !i.becomesProject &&
+  !i.mergingInto && !i.snoozed && !i.repoDown && !i.prototypeOf && !i.becomesPlan &&
   !i.proposal?.idea && !i.proposal?.merge && !i.proposal?.revising && !i.proposal?.acceptAfterRevision;
 
 /**
- * A task of the owner's that can still be planned as a project, as an idea can: planned, nobody has
- * worked on it, the Koordinator does not hold it, and it is no prototype nor decided as a project already.
+ * A task of the owner's that can still be planned as a plan, as an idea can: planned, nobody has
+ * worked on it, the Koordinator does not hold it, and it is no prototype nor decided as a plan already.
  */
-export const plannableAsProject = (i: Item) =>
-  i.source === 'manual' && i.kind === 'task' && buildableOn(i) && !i.prototypeOf && !i.becomesProject;
+export const plannableAsPlan = (i: Item) =>
+  i.source === 'manual' && i.kind === 'task' && buildableOn(i) && !i.prototypeOf && !i.becomesPlan;
 
 /**
- * The workstream of a project, among `items`, that its idea's prototypes are built for: the one
+ * The workstream of a plan, among `items`, that its idea's prototypes are built for: the one
  * nobody has started that mentions prototypes, as the plan doc's worker writes it. None when no
  * such workstream, or several, leave it to the owner.
  */
-export function prototypeWorkstream(items: Item[], projectId: string): Item | undefined {
-  const named = items.filter((i) => i.parent === projectId && buildableOn(i) && /prototyp/i.test(`${i.title}\n${i.body}`));
+export function prototypeWorkstream(items: Item[], planId: string): Item | undefined {
+  const named = items.filter((i) => i.parent === planId && buildableOn(i) && /prototyp/i.test(`${i.title}\n${i.body}`));
   return named.length === 1 ? named[0] : undefined;
 }
 
@@ -198,7 +198,7 @@ export const agentListens = (i: Pick<Item, 'kind' | 'state' | 'branch' | 'protot
  * A card the owner left without a title but with a task (text or screenshots): Seismic names it from
  * that (`Koordinator.name`). Without either it is an empty card, dropped when closed.
  */
-export const nameless = (i: Pick<Item, 'kind' | 'title' | 'body' | 'images'>) => i.kind !== 'project' && !i.title.trim() && (!!i.body.trim() || !!i.images?.length);
+export const nameless = (i: Pick<Item, 'kind' | 'title' | 'body' | 'images'>) => i.kind !== 'plan' && !i.title.trim() && (!!i.body.trim() || !!i.images?.length);
 
 /** A title from a task's first words, on a card not named yet, and when Seismic's naming fails. */
 export function titleFrom(body: string): string {
@@ -280,8 +280,8 @@ export const snoozable = (i: Item) => !i.archivedAt && (!!i.snoozed || needsYou(
 /** Answers in the Koordinator's sheet the owner has not seen yet. */
 export const unreadAnswers = (talk: Talk[]) => talk.filter((x) => x.unread).length;
 
-/** Per project, its agent's answers to what the owner asked in its sheet that wait unread: its card shows them. */
-export function unreadPerProject(talk: Talk[]): Map<string, number> {
+/** Per plan, its agent's answers to what the owner asked in its sheet that wait unread: its card shows them. */
+export function unreadPerPlan(talk: Talk[]): Map<string, number> {
   const m = new Map<string, number>();
   for (const x of talk) if (x.unread && x.askedIn) m.set(x.askedIn, (m.get(x.askedIn) ?? 0) + 1);
   return m;
@@ -326,7 +326,7 @@ export interface Item {
   title: string;
   /** Free text: the owner's description, or a workstream's text from the plan doc (inline markdown). */
   body: string;
-  /** Position; relative to the parent project for its workstreams. */
+  /** Position; relative to the parent plan for its workstreams. */
   x: number;
   y: number;
   parent?: string;
@@ -334,13 +334,13 @@ export interface Item {
   source: 'manual' | 'plan';
   /** Workstream label from the plan doc (`W3`). */
   label?: string;
-  /** Projects only. */
+  /** Plans only. */
   plan?: { file: string; goal: string };
-  /** Projects only: the idea their plan doc was written from. */
+  /** Plans only: the idea their plan doc was written from. */
   origin?: string;
-  /** Projects only: the Koordinator reads from the plan doc which workstream builds on which, to arrange them. */
+  /** Plans only: the Koordinator reads from the plan doc which workstream builds on which, to arrange them. */
   arranging?: true;
-  /** Workstreams only: the workstreams of its project it builds on, as the Koordinator read them from the plan doc. */
+  /** Workstreams only: the workstreams of its plan it builds on, as the Koordinator read them from the plan doc. */
   buildsOn?: string[];
   /** Cards connected by the owner that must finish before this card starts. */
   manualDependsOn?: string[];
@@ -473,15 +473,15 @@ export interface Item {
   variant?: string;
   /** A prototype in the archive: discarded (its code thrown away), or built (its idea was built on its branch). */
   prototypeEnd?: 'discarded' | 'built';
-  /** A prototype built for a workstream of the project its idea became: that workstream ("W6 \"Build the site\""). */
+  /** A prototype built for a workstream of the plan its idea became: that workstream ("W6 \"Build the site\""). */
   builtInto?: string;
-  /** A prototype: its idea's title, wherever the idea is (on the canvas, or in the archive once it became a project). */
+  /** A prototype: its idea's title, wherever the idea is (on the canvas, or in the archive once it became a plan). */
   ideaTitle?: string;
   /** A prototype whose worker proposes to build the idea on it: why, in its words. */
   buildProposal?: string;
   /** Ideas: their prototypes, on the canvas or in the archive, the oldest first; each shows its demo on the idea. A workstream built on a prototype: that one. */
   prototypes?: Item[];
-  /** A card that was an idea, or a workstream of the project an idea became, built on the branch of one of the idea's prototypes: that prototype. */
+  /** A card that was an idea, or a workstream of the plan an idea became, built on the branch of one of the idea's prototypes: that prototype. */
   builtOn?: string;
   /** The work has landed and its worker finishes what remains (a migration, say) before its session ends. */
   finishing?: boolean;
@@ -566,11 +566,11 @@ export interface Item {
   brief?: string;
   /** A card that was an idea and has been decided: the mocks of its brief. */
   mocks?: Mock[];
-  /** An idea or a task of the owner's, decided as a project: its worker writes the plan doc, and the project takes its place. */
-  becomesProject?: boolean;
-  /** A project the owner folded to its head: its workstreams are not shown on the canvas, only counted in it. */
+  /** An idea or a task of the owner's, decided as a plan: its worker writes the plan doc, and the plan takes its place. */
+  becomesPlan?: boolean;
+  /** A plan the owner folded to its head: its workstreams are not shown on the canvas, only counted in it. */
   collapsed?: true;
-  /** The group the card belongs to (a `Group` id); a workstream's is its project's. */
+  /** The group the card belongs to (a `Group` id); a workstream's is its plan's. */
   group?: string;
   /** The card's priority, a label only: it changes no order. None until set. */
   priority?: Priority;
@@ -713,17 +713,17 @@ export interface Decision {
   cardId: string;
   question: string;
   answer: string;
-  by: 'owner' | 'project' | 'koordinator';
+  by: 'owner' | 'plan' | 'koordinator';
   at: string;
 }
 
-/** What a project's sheet shows beyond the project: its decisions and the idea it came from. */
-export interface ProjectHistory {
-  /** The project's decisions and those of its idea, oldest first. */
+/** What a plan's sheet shows beyond the plan: its decisions and the idea it came from. */
+export interface PlanHistory {
+  /** The plan's decisions and those of its idea, oldest first. */
   decisions: Decision[];
   /** The idea the plan doc was written from, wherever it is now (on the canvas or archived). */
   origin: Item | null;
-  /** The questions its project agent answered (asked in its sheet or of Seismic) and their follow-ups, oldest first. */
+  /** The questions its plan agent answered (asked in its sheet or of Seismic) and their follow-ups, oldest first. */
   talk: Talk[];
 }
 
@@ -1003,8 +1003,8 @@ export interface PrThread extends PrComment {
 export type PrReviewEntry = { author: string; mine?: boolean; at: string; threads: PrThread[] } | PrComment;
 
 /**
- * How long a project's workstreams, started together, wait before the Koordinator plans them: the
- * owner can take the start back until then (a button on the project card is easily hit).
+ * How long a plan's workstreams, started together, wait before the Koordinator plans them: the
+ * owner can take the start back until then (a button on the plan card is easily hit).
  */
 export const START_ALL_HOLD_MS = 8000;
 
@@ -1016,11 +1016,11 @@ export const PUSH_HOLD_MS = 8000;
 
 /**
  * `since`: when the card came to the Koordinator; of the cards whose turn comes, the one waiting
- * longest goes first. `together`: the project whose workstreams the Koordinator judges all at once.
+ * longest goes first. `together`: the plan whose workstreams the Koordinator judges all at once.
  * `workspace`: the Koordinator let the card start, but no workspace was free for it (`none`: all
  * leased or none set up; `dirty`: every free one has uncommitted changes); it starts once one is.
  * `behind`: the cards it waits for; `buildsOn`: those of them it builds on (workstreams of its
- * project), which hold it until they have landed, also while not started or stopped.
+ * plan), which hold it until they have landed, also while not started or stopped.
  * `manualWait`: those of `behind` that only an arrow the owner drew holds it for, not a wait the
  * Koordinator inferred; `buildsOn` names inferred waits alone.
  * `paused`: the Koordinator let it start, but the owner paused its canvas's agents; it starts once they resume them.
@@ -1031,7 +1031,7 @@ export type Queue = Wait & { since: string };
 
 /**
  * What a card in the queue waits for (`Queue`). `together`: judged in one turn with the cards of the
- * same key, a project's workstreams started at once (the project's id) or cards freed at once (`freed:…`).
+ * same key, a plan's workstreams started at once (the plan's id) or cards freed at once (`freed:…`).
  */
 export type Wait = { checking: true; together?: string } | { behind: string[]; reason: string; buildsOn?: string[]; manualWait?: string[] } | { workspace: WorkspaceShortage; begun?: true } | { paused: true; begun?: true };
 
@@ -1181,7 +1181,7 @@ export interface Feedback {
   /** The card as it was when the response was given. */
   title: string;
   repo?: string;
-  project?: { id: string; title: string; file?: string };
+  plan?: { id: string; title: string; file?: string };
   attribution: Attribution;
   /** Every configuration that worked on the card up to the handover, the earliest first. */
   configs: WorkConfig[];
@@ -1216,7 +1216,7 @@ export interface CardEvent {
    * with who refused it and why.
    */
   kind: 'report' | 'activity' | 'say' | 'closing' | 'question' | 'answer' | 'hint' | 'review' | 'state' | 'error' | 'talk' | 'denied';
-  author: 'worker' | 'owner' | 'project' | 'koordinator' | 'obeya' | 'explorer';
+  author: 'worker' | 'owner' | 'plan' | 'koordinator' | 'obeya' | 'explorer';
   text: string;
   /** Set on an error the UI words itself; `text` then holds the server's technical detail. */
   code?: ErrorCode;
@@ -1431,17 +1431,17 @@ export interface CanvasSnapshot {
 }
 
 /**
- * A repository's plan directory, shown as a note beside the projects (or where the owner put it): the docs in it that are not
- * projects, with the reason and the card preparing each as one (`preparing`), or, while the
- * repository has no plan doc and never had a project (`empty`), where the first one goes.
+ * A repository's plan directory, shown as a note beside the plans (or where the owner put it): the docs in it that are not
+ * plans, with the reason and the card preparing each as one (`preparing`), or, while the
+ * repository has no plan doc and never had a plan (`empty`), where the first one goes.
  */
 export interface PlanDir {
   repo: string;
   /** As the repository's settings name it, `docs/plan`. */
   dir: string;
   empty: boolean;
-  others: { file: string; reason: NotAProject; preparing?: string }[];
-  /** Where the owner put the note, its top left on the canvas; without it, it stands above the projects. */
+  others: { file: string; reason: NotAPlan; preparing?: string }[];
+  /** Where the owner put the note, its top left on the canvas; without it, it stands above the plans. */
   at?: { x: number; y: number };
 }
 
@@ -1513,8 +1513,8 @@ export interface Talk {
   /** A question the Koordinator looks up; its answer comes later. */
   question?: string;
   answer?: string;
-  /** Who answered: the Koordinator, or the project agent of the workstream asked about. */
-  answerBy?: 'koordinator' | 'project';
+  /** Who answered: the Koordinator, or the plan agent of the workstream asked about. */
+  answerBy?: 'koordinator' | 'plan';
   /** The answer came for the sheet, and the owner has not had the sheet in view since. */
   unread?: true;
   /** A looked-up question: the thread it belongs to (the id of the exchange that started it). */
@@ -1552,7 +1552,7 @@ export interface Talk {
   /** Words of no one: a card left this canvas for another, built there in a new repository. */
   moved?: TalkMoved;
   /**
-   * Written in this project's sheet: the words went straight to its project agent as a question
+   * Written in this plan's sheet: the words went straight to its plan agent as a question
    * (`question` is the words), so Seismic has no reply of its own to them.
    */
   askedIn?: string;
@@ -1589,7 +1589,7 @@ export interface TalkRef {
 
 /** A message of the sheet as a reply quotes it: who said it and what. */
 export interface TalkQuote extends TalkRef {
-  by: 'owner' | 'koordinator' | 'project';
+  by: 'owner' | 'koordinator' | 'plan';
   text: string;
 }
 
@@ -1704,7 +1704,7 @@ export interface CardPatch {
   need?: Need | null;
   /** Another repository of the canvas, before work on the card has begun. */
   repo?: string;
-  /** A project: folded to its head, its workstreams not shown on the canvas, or unfolded again. */
+  /** A plan: folded to its head, its workstreams not shown on the canvas, or unfolded again. */
   collapsed?: boolean;
   /** The task's screenshots, all of them (ids from `POST /api/c/<project>/images`). */
   images?: string[];
@@ -1722,7 +1722,7 @@ export interface CardPatch {
 
 /** Owner actions on a card's work, posted to `/api/c/:canvas/cards/:id/act`. */
 export type CardAction =
-  /** On a project: all its planned workstreams go to the Koordinator, which orders them. */
+  /** On a plan: all its planned workstreams go to the Koordinator, which orders them. */
   | { action: 'start'; agent?: AgentSetting }
   /** A card the owner closed without a title (`nameless`): Seismic names it from its text. */
   | { action: 'name' }
@@ -1789,10 +1789,10 @@ export type CardAction =
    */
   | { action: 'takeWorkspace' }
   | { action: 'keepWorkspace' }
-  /** On a project: takes back a start of all its workstreams while the Koordinator has not planned them yet. */
+  /** On a plan: takes back a start of all its workstreams while the Koordinator has not planned them yet. */
   | { action: 'dequeue' }
   /**
-   * On a project: its workstreams in columns by what builds on what, which the Koordinator reads
+   * On a plan: its workstreams in columns by what builds on what, which the Koordinator reads
    * from the plan doc unless it has for the doc as it stands. Answers once they stand there.
    */
   | { action: 'arrange' }
@@ -1853,7 +1853,7 @@ export type CardAction =
   | { action: 'prototype'; text?: string; variants?: string[] }
   /**
    * Prototypes: the idea is built on this prototype's branch; the idea's other prototypes are
-   * discarded. Once the idea has become a project, one of its workstreams is built on it instead:
+   * discarded. Once the idea has become a plan, one of its workstreams is built on it instead:
    * `workstream`, or else the one the plan doc builds on the prototypes with.
    */
   | { action: 'buildPrototype'; workstream?: string }
@@ -1874,7 +1874,7 @@ export type CardAction =
   | { action: 'ask'; text: string; spoken?: boolean; images?: string[]; replyTo?: number }
   /** Question cards: the thread becomes an idea, whose exploration agent starts from it. */
   | { action: 'asIdea' }
-  /** Projects: the owner's words in the project's sheet, straight to its project agent, maybe replying to a message there. */
+  /** Plans: the owner's words in the plan's sheet, straight to its plan agent, maybe replying to a message there. */
   | { action: 'consult'; text: string; spoken?: boolean; images?: string[]; replyTo?: TalkRef };
 
 /**
@@ -1894,10 +1894,10 @@ export type ErrorCode =
   | 'onlyDevices'
   /** A group that no card belongs to any more, so it is gone. */
   | 'unknownGroup'
-  | 'project'
+  | 'plan'
   /** An arrow between cards that would make them wait for each other, directly or through other cards. */
   | 'dependencyCycle'
-  /** An arrow to or from a project or one of its workstreams, whose order comes from the plan doc. */
+  /** An arrow to or from a plan or one of its workstreams, whose order comes from the plan doc. */
   | 'planDependency'
   /** An action that needs the card's agents while its repository does not run on the canvas (`Item.repoDown`). */
   | 'repoDown'
@@ -1996,19 +1996,19 @@ export type ErrorCode =
   | 'noSplit'
   /** A prototype for the idea is still running. */
   | 'prototypeRunning'
-  /** The prototype's idea is becoming a project: its plan doc is not there yet. */
-  | 'projectPending'
-  /** The prototype's idea is gone from the canvas, and no project of it is there. */
+  /** The prototype's idea is becoming a plan: its plan doc is not there yet. */
+  | 'planPending'
+  /** The prototype's idea is gone from the canvas, and no plan of it is there. */
   | 'ideaGone'
-  /** The prototype's idea became a project whose plan doc does not say which workstream builds on it, and none was chosen. */
+  /** The prototype's idea became a plan whose plan doc does not say which workstream builds on it, and none was chosen. */
   | 'workstreamMissing'
   /** The workstream to build on a prototype was started already. */
   | 'workstreamStarted'
   /** Every variant the idea's agent planned has its prototype on the canvas already. */
   | 'variantsRunning'
-  /** A project has no planned workstream left that is not already with the Koordinator. */
+  /** A plan has no planned workstream left that is not already with the Koordinator. */
   | 'nothingToStart'
-  /** The Koordinator could not read from a project's plan doc which workstream builds on which, so it arranged nothing. */
+  /** The Koordinator could not read from a plan's plan doc which workstream builds on which, so it arranged nothing. */
   | 'arrangeFailed'
   /** The action is for a prototype on the canvas, and the card is none. */
   | 'notPrototype'
@@ -2465,8 +2465,8 @@ export interface HostConfig {
  * defaults, copied into a canvas when it is created (design: Canvas defaults).
  */
 export interface CanvasSettings {
-  /** Tag each project’s starting commit and configure its workstream branches with it; on by default. */
-  projectBaselines?: boolean;
+  /** Tag each plan’s starting commit and configure its workstream branches with it; on by default. */
+  planBaselines?: boolean;
   /**
    * How finished cards go into the archive: by the owner's hand (`manual`, the default; the owner is
    * asked how the agent did when archiving it), or by themselves once their work landed and their
@@ -3248,8 +3248,8 @@ export interface Notice {
   wish?: Wish;
   /** The exchange of Seismic's sheet it answers, there in full: a page that shows the sheet needs no line above the microphone. */
   talk?: number;
-  /** The project whose sheet shows that exchange in full too: a page with that sheet open needs no line either. */
-  project?: string;
+  /** The plan whose sheet shows that exchange in full too: a page with that sheet open needs no line either. */
+  plan?: string;
   /** The conversation of the card (`cardId`) shows it in full, as it came: a page with that conversation open needs no line. */
   inTalk?: true;
   /** The page opens the card (`cardId`), unless the owner has another one open: the one a review of its PR asked for. */

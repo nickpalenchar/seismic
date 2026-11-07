@@ -1,4 +1,4 @@
-// What the agents that answer the owner's questions (the Koordinator, a project agent) share, and
+// What the agents that answer the owner's questions (the Koordinator, a plan agent) share, and
 // how an agent's question to the owner is put together.
 
 import { currentAgent } from './agent-identity';

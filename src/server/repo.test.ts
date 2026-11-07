@@ -8,7 +8,7 @@ import { ghHosts, oldLinuxBun, onGitHub, outsidePlanDir, readPlanDocs, remoteHos
 const DOC = '# P\n\n## Workstreams\n\n- [ ] **W1:** One.\n';
 
 describe('readPlanDocs', () => {
-  test('reads the docs that are projects, and the others with their reason; the excluded ones not at all', () => {
+  test('reads the docs that are plans, and the others with their reason; the excluded ones not at all', () => {
     const repo = mkdtempSync(join(tmpdir(), 'obeya-read-'));
     try {
       expect(readPlanDocs(repo, generic)).toEqual({ docs: [], others: [] });

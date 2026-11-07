@@ -498,7 +498,7 @@ export class Explorers {
         description: `The owner decided something in the conversation: record it in the decision log (question and answer in ${OWNER_LANGUAGE}, short).`,
         schema: { question: z.string(), answer: z.string() },
         run: ({ question, answer }) => {
-          this.o.board.decide({ project_id: null, card_id: cardId, question: clip(String(question), 500), answer: clip(String(answer), 500), by: 'owner' });
+          this.o.board.decide({ plan_id: null, card_id: cardId, question: clip(String(question), 500), answer: clip(String(answer), 500), by: 'owner' });
           this.o.board.log(cardId, 'state', 'explorer', t.decision(clip(String(question), 200), clip(String(answer), 200)));
           return 'Recorded.';
         },
@@ -517,7 +517,7 @@ export class Explorers {
       `The idea: “${card.title}”.`,
       card.body.trim(),
       shots.length ? `The owner attached ${shots.length === 1 ? 'a screenshot' : `${shots.length} screenshots`} to the card (shown with this message; files: ${shots.join(', ')}).` : '',
-      `Decisions on cards without a project so far:\n${decisionLog(this.o.board.decisions(null))}`,
+      `Decisions on cards without a plan so far:\n${decisionLog(this.o.board.decisions(null))}`,
       this.standing(card, said),
     ]
       .filter(Boolean)

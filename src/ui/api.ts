@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { AccessView, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, CanvasConfig, CanvasInfo, CanvasSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, CanvasDemoSiteState, DemoSitesView, TagProposalJob, PageTags, NarrationLanguage, FirstCanvas, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, ProjectHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
+import type { AccessView, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, CanvasConfig, CanvasInfo, CanvasSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, CanvasDemoSiteState, DemoSitesView, TagProposalJob, PageTags, NarrationLanguage, FirstCanvas, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
   CanvasDefaultsView,
   CanvasSettings, CanvasSettingsView, DeveloperView, NotificationsView } from '../core/types';
 import type { Wish } from '../core/wish';
@@ -60,7 +60,7 @@ async function download(path: string, fallback: string) {
 }
 
 const query = (where: Where) =>
-  !where ? '' : 'card' in where ? `?card=${encodeURIComponent(where.card)}` : `?project=${encodeURIComponent(where.project)}`;
+  !where ? '' : 'card' in where ? `?card=${encodeURIComponent(where.card)}` : `?plan=${encodeURIComponent(where.plan)}`;
 
 /** The canvas this page shows; every call goes to its API. */
 let canvasId = '';
@@ -80,11 +80,11 @@ export function cardsOn(canvas: string, cards: string[]) {
 }
 /** The canvas of the card `id`: the one it is on where the page shows several, else the shown one. */
 export const canvasOf = (id: string) => canvasOfCard.get(id) ?? canvasId;
-/** A path in the API of the card's canvas, about the card or project `id`. */
+/** A path in the API of the card's canvas, about the card or plan `id`. */
 export const cardAt = (id: string, path = '') => `/api/c/${encodeURIComponent(canvasOf(id))}/cards/${id}${path}`;
 /** A path in the API of the canvas of what the words are about, else of the shown one. */
 const whereAt = (where: Where, path: string) => {
-  const id = where && ('card' in where ? where.card : where.project);
+  const id = where && ('card' in where ? where.card : where.plan);
   return id ? `/api/c/${encodeURIComponent(canvasOf(id))}${path}` : at(path);
 };
 /** Where a looked-up answer's file is served; `download` to save it. */
@@ -95,8 +95,8 @@ export const answerFile = (thread: number, name: string, download = false) =>
 export const cardFile = (id: string, path: string, download = false) =>
   cardAt(id, `/files/${path.split('/').map(encodeURIComponent).join('/')}${download ? '?download' : ''}`);
 
-/** What a command is said about: the open card, the open project, or neither. */
-export type Where = { card: string } | { project: string } | null;
+/** What a command is said about: the open card, the open plan, or neither. */
+export type Where = { card: string } | { plan: string } | null;
 /** The field on a card words were typed into, which tells the Koordinator what they were meant as. */
 export type Field = 'note' | 'answer' | 'feedback' | 'demo' | 'discuss' | 'revise';
 
@@ -116,8 +116,8 @@ export interface Heard {
   wish?: Wish;
   /** The exchange the reply stands in, which the conversation in view may show already. */
   talk?: number;
-  /** The project whose sheet shows that exchange too. */
-  project?: string;
+  /** The plan whose sheet shows that exchange too. */
+  plan?: string;
   /** The card whose conversation shows the reply in full. */
   inCard?: string;
 }
@@ -333,12 +333,12 @@ export const api = {
   appOpen: (id: string) => cardAt(id, '/app/open'),
   /** What the card's work changes (null: nothing to read, no workspace and not landed); `full`: with the diff itself. */
   diff: async (id: string, full = false) => (await call<CardDiff | undefined>('GET', cardAt(id, `/diff${full ? '?full' : ''}`))) ?? null,
-  /** A project's plan doc as written. */
+  /** A plan's plan doc as written. */
   planDoc: (id: string) => call<{ file: string; markdown: string }>('GET', cardAt(id, '/plan')),
-  /** A project's decisions and the idea it came from. */
-  history: (id: string) => call<ProjectHistory>('GET', cardAt(id, '/history')),
+  /** A plan's decisions and the idea it came from. */
+  history: (id: string) => call<PlanHistory>('GET', cardAt(id, '/history')),
   /**
-   * What the owner said about the card or project in view, with the screenshots shown with it;
+   * What the owner said about the card or plan in view, with the screenshots shown with it;
    * `replyTo`: in reply to that message of the card's conversation, or of the sheet; `text`: typed in the field
    * before it, which goes first; `listen`: dictated into a field, the words only come back; `spot`:
    * about that place in the card's demo video; `place`: where on the canvas the owner was, for a card it makes;
@@ -399,7 +399,7 @@ export const api = {
   /** "Ausblenden": puts away what the finished run says, and the notice of outdated pages until a newer change. */
   dismissReshare: () => call<void>('DELETE', at('/reshare')),
   /** The owner has the Koordinator's sheet in view: the answers waiting there are read. */
-  /** Seismic's sheet is in view, or (`ids`) these exchanges in a project's sheet. */
+  /** Seismic's sheet is in view, or (`ids`) these exchanges in a plan's sheet. */
   readTalk: (ids?: number[]) => call<void>('POST', at('/talk/read'), ids ? { ids } : undefined),
   /** A new chat with Seismic on the shown canvas, or (`id`) an earlier one, of `canvas` where it is another. */
   newChat: () => call<{ chat: number }>('POST', at('/chat'), {}),

@@ -51,7 +51,7 @@ describe('check.ts', () => {
     expect(code).toBe(1);
   });
 
-  test('says which docs in the plan directory are projects and why the others are not', () => {
+  test('says which docs in the plan directory are plans and why the others are not', () => {
     expect(check({}).out).toContain('plan docs: docs/plan/ does not exist yet');
     rmSync(join(dir, 'shop'), { recursive: true, force: true });
     const { code, out } = check({}, {
@@ -59,7 +59,7 @@ describe('check.ts', () => {
       'docs/plan/search.md': '# Search\n\n## Workstreams\n\n- [x] **W1:** Index.\n',
       'docs/plan/rollout.md': '# Rollout\n\n## Phases\n\n- [ ] Vienna\n',
     });
-    expect(out).toContain('plan docs in docs/plan/: 2 are projects (search.md, done: archived; shop.md), 1 is not\n- rollout.md: no `## Workstreams` section');
+    expect(out).toContain('plan docs in docs/plan/: 2 are plans (search.md, done: archived; shop.md), 1 is not\n- rollout.md: no `## Workstreams` section');
     expect(code).toBe(0);
   });
 

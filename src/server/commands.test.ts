@@ -494,7 +494,7 @@ describe('the Koordinator remembers', () => {
     expect(executed).toEqual([{ do: 'dequeue', card: behind.id }]);
   });
 
-  test('starting a project hands its planned workstreams to the Koordinator together', async () => {
+  test('starting a plan hands its planned workstreams to the Koordinator together', async () => {
     const ws = (key: string, done = false) => ({ key, label: key, title: `Titel ${key}`, body: '', done, inReview: false });
     board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({
       docs: [
@@ -503,19 +503,19 @@ describe('the Koordinator remembers', () => {
       ],
       dirs: [],
     }));
-    const [project] = board.snapshot().items;
+    const [plan] = board.snapshot().items;
     const k = commander();
-    const heard = k.hear('starte alle Workstreams', { project: project!.id });
+    const heard = k.hear('starte alle Workstreams', { plan: plan!.id });
     await settle();
     const s = runtime.last;
-    expect(s.inbox[0]).toContain('The owner is looking at the project K1 "Export".');
-    expect(s.inbox[0]).toContain('Projects with workstreams to start:\nK1 [project] "Export" — planned workstreams not yet started: W2, W3');
+    expect(s.inbox[0]).toContain('The owner is looking at the plan K1 "Export".');
+    expect(s.inbox[0]).toContain('Plans with workstreams to start:\nK1 [plan] "Export" — planned workstreams not yet started: W2, W3');
     expect(s.inbox[0]).not.toContain('"Fertig"');
     s.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: 'Seismic plant alle Workstreams von „Export“ ein.' });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await new Promise((r) => setTimeout(r, 40));
-    expect(executed).toEqual([{ do: 'start', card: project!.id }]);
+    expect(executed).toEqual([{ do: 'start', card: plan!.id }]);
   });
 
   test("the exchange goes into the open card's log; without an open card into the sheet", async () => {
@@ -618,8 +618,8 @@ describe('the Koordinator remembers', () => {
     expect(board.snapshot().talk.at(-1)!.replyTo).toEqual({ talk: first!.id, part: 'reply', by: 'koordinator', text: 'Zwei: „Export“ und „Login“.' });
     expect(await reply('nochmal', { talk: first!.id, part: 'said' })).toContain('[In reply to their own earlier message: “wie viele Karten laufen?”]');
     // a looked-up answer goes by its tag, to follow up on it
-    store.answerTalk(first!.id, 'Export wartet auf dich.', 'project');
-    expect(await reply('warum?', { talk: first!.id, part: 'answer' })).toContain(`[In reply to the answer A${first!.id} the project's agent looked up: “Export wartet auf dich.”]`);
+    store.answerTalk(first!.id, 'Export wartet auf dich.', 'plan');
+    expect(await reply('warum?', { talk: first!.id, part: 'answer' })).toContain(`[In reply to the answer A${first!.id} the plan's agent looked up: “Export wartet auf dich.”]`);
     // what is no message of the sheet is dropped, and the words go alone
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     await say(k, 'hallo', 'reply', { confirm: 'Hallo.' });

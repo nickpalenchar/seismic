@@ -71,18 +71,18 @@ describe('a workstream card keeps its workstream', () => {
     ]);
   });
 
-  test('a card an agent worked on leaves the project when its workstream leaves the doc; finished, into the archive', () => {
+  test('a card an agent worked on leaves the plan when its workstream leaves the doc; finished, into the archive', () => {
     const [g, b, c] = read(parse(OLD));
     work(g!.id, '1G Testlücken schließen', { state: 'done' });
     work(c!.id, 'Gleichzeitige Bearbeitung', { state: 'working' });
     read(parse([NEW[0]!]));
     expect(board.archived().find((i) => i.id === g!.id)).toMatchObject({ title: '1G Testlücken schließen', body: 'Only tests.', state: 'done' });
-    expect(board.events(g!.id).at(-1)!.text).toBe('Hat das Projekt „Audit“ verlassen: Das Plan-Doc führt diesen Workstream nicht mehr.');
-    // at work, it stands beside the project
+    expect(board.events(g!.id).at(-1)!.text).toBe('Hat den Plan „Audit“ verlassen: Das Plan-Doc führt diesen Workstream nicht mehr.');
+    // at work, it stands beside the plan
     const items = board.snapshot().items;
-    const project = items.find((i) => i.kind === 'project')!;
+    const plan = items.find((i) => i.kind === 'plan')!;
     expect(items.find((i) => i.id === c!.id)).toMatchObject({ title: '3C Gleichzeitige Bearbeitung', state: 'working', source: 'manual' });
-    expect(items.find((i) => i.id === c!.id)!.x).toBeGreaterThan(project.x);
+    expect(items.find((i) => i.id === c!.id)!.x).toBeGreaterThan(plan.x);
     // nobody worked on it: it just goes
     expect(items.some((i) => i.id === b!.id)).toBe(false);
     expect(board.archived().some((i) => i.id === b!.id)).toBe(false);
@@ -216,7 +216,7 @@ describe('a doc in a plan folder outside the repository', () => {
 });
 
 describe('cards of a doc read by an older Seismic', () => {
-  test('a card holding another workstream’s log leaves the project, and the workstream gets a fresh card in its place', () => {
+  test('a card holding another workstream’s log leaves the plan, and the workstream gets a fresh card in its place', () => {
     // as the bug left it: the doc was read anew, and 3B took the card of 1G at its place
     history = [parse(OLD)];
     docs = [positional(parse(NEW))];
@@ -235,7 +235,7 @@ describe('cards of a doc read by an older Seismic', () => {
     ]);
     expect(after[0]!.id).toBe(a!.id);
     expect(after[2]!.id).toBe(c!.id);
-    // 3B is a fresh card, and the project lays out afresh in the doc's order
+    // 3B is a fresh card, and the plan lays out afresh in the doc's order
     expect(after[1]!.id).not.toBe(b!.id);
     expect(after.map((k) => ({ x: k.x, y: k.y }))).toEqual(placeWorkstreams(parse(NEW).workstreams));
     expect(board.events(after[1]!.id)).toEqual([]);
@@ -250,7 +250,7 @@ describe('cards of a doc read by an older Seismic', () => {
     work(b!.id, '3B Auth zusammenführen', { state: 'planned' });
     // the doc changed while the older Seismic did not look: 3B is first now
     const moved = parse([OLD[1]!, OLD[0]!, OLD[2]!]);
-    store.update(store.projects('c')[0]!.id, { plan: JSON.stringify(positional(moved)) });
+    store.update(store.plans('c')[0]!.id, { plan: JSON.stringify(positional(moved)) });
     const after = read(moved);
     expect(after.find((k) => k.label === '3B')!.id).toBe(b!.id);
     expect(after.find((k) => k.label === '1G')!.id).not.toBe(b!.id);

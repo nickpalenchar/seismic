@@ -274,7 +274,7 @@ describe('folding into a progressed survivor', () => {
     ];
     expect(mergeCandidates(p, all, '').map((i) => i.id)).toEqual(['newer', 'older', 'working', 'done', 'archived']);
     expect(mergeRank(all[0]!)).toBeGreaterThan(mergeRank(all[1]!));
-    for (const invalid of [{ parent: 'project' }, { mergingInto: 'another' }, { repoDown: true }, { snoozed: { why: 'later', by: 'owner', until: '2026-12-01' } }] as Partial<Item>[]) {
+    for (const invalid of [{ parent: 'plan' }, { mergingInto: 'another' }, { repoDown: true }, { snoozed: { why: 'later', by: 'owner', until: '2026-12-01' } }] as Partial<Item>[]) {
       expect(mergeableWith(p, { ...planned, ...invalid })).toBe(false);
       expect(mergeableWith({ ...p, ...invalid }, planned)).toBe(false);
     }

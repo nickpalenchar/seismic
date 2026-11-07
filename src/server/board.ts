@@ -1,8 +1,8 @@
 // The canvas of one repository: stored cards merged with what the plan docs say.
 //
-// Plan docs are read, never written. Their projects and workstreams get a stored row the first
+// Plan docs are read, never written. Their plans and workstreams get a stored row the first
 // time they appear, so the owner's placement survives; title, text and state always come from the
-// doc. Each read keeps the doc's last state on its project: when the doc goes, the project goes
+// doc. Each read keeps the doc's last state on its plan: when the doc goes, the plan goes
 // into the archive with it, and comes back to its place when the doc returns. A workstream that
 // leaves its doc stays stored but is not shown.
 
@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto';
 import type { AgentAt, AgentIdentity, CodeReview, CodeReviewMode, CardArchiving, Feedback, Finding, WorkConfig } from '../core/types';
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { arrangeWorkstreams, type Bounds, boundsOf, CARD_SIZE, freeSpotNear, GAP, MERGED_SIZE, type Place, PROJECT_HEAD, placeProjects, planDirNoteBox, placeWorkstreams, projectSize, shapeOf, sizeOf, unionBounds } from '../core/layout';
+import { arrangeWorkstreams, type Bounds, boundsOf, CARD_SIZE, freeSpotNear, GAP, MERGED_SIZE, type Place, PLAN_HEAD, placePlans, planDirNoteBox, placeWorkstreams, planSize, shapeOf, sizeOf, unionBounds } from '../core/layout';
 import type { CardFile } from '../core/files';
 import type { Language } from '../core/locale';
 import { MESSAGES, type Messages, snoozeTerm } from '../core/messages';
@@ -50,7 +50,7 @@ import {
   type PrReviewEntry,
   type PrWait,
   type PullRequest,
-  type ProjectHistory,
+  type PlanHistory,
   type Proposal,
   type Superseded,
   type CardState,
@@ -206,9 +206,9 @@ export interface Shipped {
 }
 
 /**
- * Which workstream of a project builds on which (`CardRow.deps`), as the Koordinator read it from
+ * Which workstream of a plan builds on which (`CardRow.deps`), as the Koordinator read it from
  * the plan doc: `on` by workstream key, for the doc's workstreams as they stood then (`sig`,
- * `depsSig`). `reading` while it reads them: `auto` for a project just come, which it arranges by
+ * `depsSig`). `reading` while it reads them: `auto` for a plan just come, which it arranges by
  * them unless the owner moved one of its cards first; `owner` when they asked to arrange it.
  */
 export interface StoredDeps {
@@ -449,7 +449,7 @@ export function excerpt(text: string, max: number): string {
 }
 
 /**
- * What the canvas's plan directories hold: the docs that are projects (a bare path for the home
+ * What the canvas's plan directories hold: the docs that are plans (a bare path for the home
  * repository, `<repo>:<path>` for another) and, per repository, the others with their reason.
  */
 export interface PlanRead {
@@ -468,7 +468,7 @@ export class Board {
   /** The repositories on the canvas when `docs` were read. */
   private docsOf = '';
   private dirs: PlanRead['dirs'] = [];
-  /** The docs whose projects were on the canvas at the last snapshot, to see one end or come back. */
+  /** The docs whose plans were on the canvas at the last snapshot, to see one end or come back. */
   private open: string | null = null;
   private cache: CanvasSnapshot | null = null;
   /** The snapshot's `items`, also while the rest of it is not built (`items`); gone with `cache`. */
@@ -560,7 +560,7 @@ export class Board {
     if (!items.some((i) => i.id === from) || !items.some((i) => i.id === to) || from === to)
       throw new BadRequest('unknownCard', 'invalid dependency');
     if (!remove && items.some((i) => (i.id === from || i.id === to) && !connectable(i)))
-      throw new BadRequest('planDependency', 'project dependencies are decided from the plan');
+      throw new BadRequest('planDependency', 'plan dependencies are decided from the plan');
     if (anchor && (!SIDES.includes(anchor.fromSide) || !SIDES.includes(anchor.toSide) || !Number.isFinite(anchor.offset) || anchor.offset < 0 || anchor.offset > 1))
       throw new BadRequest('invalid', 'invalid dependency attachment');
     const edges = this.manualDependencies().filter(([a, b]) => a !== from || b !== to);
@@ -798,16 +798,16 @@ export class Board {
     if (!row.approved_at && !(state && APPROVED.includes(state))) throw new BadRequest('invalid', 'only approved work takes feedback');
     const before = this.store.feedback({ cardId }).find((f) => f.handover === handover.id);
     const { attribution, configs } = before ?? attribute(this.store.runs(cardId), handover.at);
-    // a workstream's title and its project's come from the plan doc
+    // a workstream's title and its plan's come from the plan doc
     const parent = row.parent_id ? this.store.card(row.parent_id) : null;
-    const project = parent?.kind === 'project' ? { id: parent.id, title: this.item(parent.id)?.title ?? parent.title ?? parent.plan_ref ?? '', ...(parent.plan_ref ? { file: parent.plan_ref } : {}) } : undefined;
+    const plan = parent?.kind === 'plan' ? { id: parent.id, title: this.item(parent.id)?.title ?? parent.title ?? parent.plan_ref ?? '', ...(parent.plan_ref ? { file: parent.plan_ref } : {}) } : undefined;
     const saved = this.store.putFeedback({
       cardId,
       canvasId: row.canvas_id,
       handover: handover.id,
       title: before?.title ?? card?.title ?? row.title ?? '',
       repo: before ? before.repo : (row.repo ?? this.home),
-      project: before ? before.project : project,
+      plan: before ? before.plan : plan,
       attribution,
       configs,
       answer: given.answer,
@@ -827,11 +827,11 @@ export class Board {
     return { dir, kind };
   }
 
-  /** The plan doc of a project, as written, for the owner to read. */
+  /** The plan doc of a plan, as written, for the owner to read. */
   planDoc(id: string): { file: string; markdown: string } {
     const ref = this.own(id).plan_ref;
     const doc = ref && !ref.includes('#') ? (this.docs ??= this.read()).find((d) => d.file === ref) : undefined;
-    if (!doc) throw new BadRequest('invalid', 'not a project with a plan doc');
+    if (!doc) throw new BadRequest('invalid', 'not a plan with a plan doc');
     return { file: doc.file, markdown: doc.markdown };
   }
 
@@ -867,7 +867,7 @@ export class Board {
     const top = items.filter((i) => !i.parent);
     const all = unionBounds(top.map((i) => boundsOf(i, items)));
     if (!all) return { x: 0, y: 0 };
-    const column = top.filter((i) => i.kind !== 'project' && i.x >= all.x + all.w - 400);
+    const column = top.filter((i) => i.kind !== 'plan' && i.x >= all.x + all.w - 400);
     const x = column.length ? Math.min(...column.map((i) => i.x)) : all.x + all.w + 80;
     const y = column.length ? Math.max(...column.map((i) => boundsOf(i, items).y + boundsOf(i, items).h)) + 30 : all.y;
     return { x, y };
@@ -875,7 +875,7 @@ export class Board {
 
   /**
    * Where a follow-up of a card goes: below it, each further one beside the one before; or, when
-   * something is in the way there (the card's own project, for a workstream), the nearest free spot.
+   * something is in the way there (the card's own plan, for a workstream), the nearest free spot.
    */
   private followUpSpot(fromId: string): { x: number; y: number } {
     const items = this.items();
@@ -886,7 +886,7 @@ export class Board {
     return this.nearFree(items, below(boundsOf(from, items), earlier));
   }
 
-  /** The free spot nearest `want` for a new card, clear of every project and card on the canvas; in `view` if there is room there. */
+  /** The free spot nearest `want` for a new card, clear of every plan and card on the canvas; in `view` if there is room there. */
   private nearFree(items: Item[], want: { x: number; y: number }, view?: Bounds): { x: number; y: number } {
     return freeSpotNear(
       want,
@@ -1091,7 +1091,7 @@ export class Board {
     return this.store.friction(this.canvas.id, repo, since);
   }
 
-  decide(d: { project_id: string | null; card_id: string; question: string; answer: string; by: 'owner' }) {
+  decide(d: { plan_id: string | null; card_id: string; question: string; answer: string; by: 'owner' }) {
     this.store.addDecision({ canvas_id: this.canvas.id, ...d });
   }
 
@@ -1100,9 +1100,9 @@ export class Board {
     return this.store.cardDecisions(this.canvas.id, cardId).map(toDecision);
   }
 
-  /** A project's decisions, or with `null` those of standalone cards. */
-  decisions(projectId: string | null) {
-    return this.store.decisions(this.canvas.id, projectId);
+  /** A plan's decisions, or with `null` those of standalone cards. */
+  decisions(planId: string | null) {
+    return this.store.decisions(this.canvas.id, planId);
   }
 
   setting(key: string): string | null {
@@ -1399,7 +1399,7 @@ export class Board {
   }
 
   /** The answer to a question the Koordinator looked up, with the files it comes with. */
-  answerTalk(id: number, answer: string, by: 'koordinator' | 'project', files: AnswerFile[] = [], agent?: AgentIdentity) {
+  answerTalk(id: number, answer: string, by: 'koordinator' | 'plan', files: AnswerFile[] = [], agent?: AgentIdentity) {
     if (arguments.length < 5) this.store.answerTalk(id, answer, by, files);
     else this.store.answerTalk(id, answer, by, files, agent);
     this.changed();
@@ -1430,7 +1430,7 @@ export class Board {
   }
 
   /** The owner has the Koordinator's sheet in view: its answers are read. */
-  /** The owner has Seismic's sheet in view, or (`ids`) those exchanges in a project's sheet. */
+  /** The owner has Seismic's sheet in view, or (`ids`) those exchanges in a plan's sheet. */
   readTalk(ids?: number[]) {
     if (this.store.readTalk(this.canvas.id, ids)) this.changed();
   }
@@ -1707,7 +1707,7 @@ export class Board {
   archive(ids: string[]) {
     for (const id of ids) {
       const row = this.own(id);
-      if (row.plan_ref) throw new BadRequest('planCard', 'a workstream stays with its project');
+      if (row.plan_ref) throw new BadRequest('planCard', 'a workstream stays with its plan');
       if (row.state === 'idea') {
         if (this.idea(id).status === 'open') throw new BadRequest('notDone', 'an idea under discussion cannot be archived');
         if (this.items().some((i) => i.prototypeOf === id)) throw new BadRequest('prototypeRunning', 'a prototype for this idea is still running');
@@ -1738,10 +1738,10 @@ export class Board {
     return ids;
   }
 
-  /** Puts an archived card back where it was on the canvas; a project comes back with its doc. */
+  /** Puts an archived card back where it was on the canvas; a plan comes back with its doc. */
   unarchive(id: string) {
     const row = this.own(id);
-    if (row.plan_ref) throw new BadRequest('planCard', 'a project comes back when its plan doc does');
+    if (row.plan_ref) throw new BadRequest('planCard', 'a plan comes back when its plan doc does');
     if (!row.archived_at) throw new BadRequest('notArchived', 'the card is not archived');
     // a new attempt is a new prototype
     if (row.prototype_of) throw new BadRequest('prototypeEnded', 'a discarded or built prototype stays in the archive');
@@ -1751,7 +1751,7 @@ export class Board {
   }
 
   /**
-   * The archive, the most recently archived first. A project comes as its plan doc last stood,
+   * The archive, the most recently archived first. A plan comes as its plan doc last stood,
    * followed by its workstreams (with `parent`), which the archive lists under it, not on their own.
    */
   archived(): Item[] {
@@ -1762,11 +1762,11 @@ export class Board {
     return this.archiveItems;
   }
 
-  /** The archive's items for these of its cards, each project followed by its workstreams. */
+  /** The archive's items for these of its cards, each plan followed by its workstreams. */
   private archiveOf(rows: CardRow[]): Item[] {
-    const projects = rows.filter((r) => r.plan_ref);
-    const docs = projects.map((r) => JSON.parse(r.plan!) as PlanDoc);
-    const kids = this.store.children(projects.map((r) => r.id));
+    const plans = rows.filter((r) => r.plan_ref);
+    const docs = plans.map((r) => JSON.parse(r.plan!) as PlanDoc);
+    const kids = this.store.children(plans.map((r) => r.id));
     const items = this.withRate(this.withPrototypes(toItems([...rows, ...kids], docs, this.home, this.worked, this.themeNow)), true);
     const byId = new Map(items.map((i) => [i.id, i]));
     const kidsOf = Map.groupBy(items.filter((i) => i.parent), (i) => i.parent!);
@@ -1783,23 +1783,23 @@ export class Board {
     this.own(id);
     const item = this.item(id);
     if (item || this.archiveItems) return item ?? this.archiveItems!.find((i) => i.id === id);
-    // as the canvas has just read the docs: a project whose doc went is archived by that
+    // as the canvas has just read the docs: a plan whose doc went is archived by that
     const row = this.own(id);
-    // one card of the archive (a workstream with its project), without building all of it: sharing pages again asks for one after another
+    // one card of the archive (a workstream with its plan), without building all of it: sharing pages again asks for one after another
     const parent = row.parent_id ? this.store.card(row.parent_id) : null;
     const archived = row.archived_at ? row : parent?.archived_at && !parent.deleted_at && parent.canvas_id === this.canvas.id ? parent : null;
     return archived ? this.archiveOf([archived]).find((i) => i.id === id) : undefined;
   }
 
-  /** What a project's sheet shows besides the doc: its decisions and those of the idea or task it came from. */
-  projectHistory(id: string): ProjectHistory {
+  /** What a plan's sheet shows besides the doc: its decisions and those of the idea or task it came from. */
+  planHistory(id: string): PlanHistory {
     const row = this.own(id);
-    if (row.kind !== 'project') throw new BadRequest('invalid', 'not a project');
+    if (row.kind !== 'plan') throw new BadRequest('invalid', 'not a plan');
     const own = this.store.decisions(this.canvas.id, id, 500);
     const origin = row.from_id ? this.store.card(row.from_id) : null;
     const fromOrigin = origin && !origin.deleted_at ? this.store.cardDecisions(this.canvas.id, origin.id) : [];
     const decisions = [...fromOrigin, ...own].sort((a, b) => a.at.localeCompare(b.at) || a.id - b.id).map(toDecision);
-    // what its project agent answered: about the project or one of its workstreams
+    // what its plan agent answered: about the plan or one of its workstreams
     const talk = this.store.talkAbout(this.canvas.id, [id, ...this.store.children([id]).map((c) => c.id)]);
     return { decisions, origin: origin && !origin.deleted_at ? (this.card(origin.id) ?? null) : null, talk };
   }
@@ -1807,8 +1807,8 @@ export class Board {
   /** The plan docs (plan references) that a card's landed work added; the card becomes their origin. */
   planDocsLanded(cardId: string, refs: string[]) {
     const row = this.own(cardId);
-    // only a card that was an idea, or a task the owner planned as a project, is a project's origin
-    if ((!row.idea && !row.becomes_project) || !refs.length) return;
+    // only a card that was an idea, or a task the owner planned as a plan, is a plan's origin
+    if ((!row.idea && !row.becomes_plan) || !refs.length) return;
     this.store.update(cardId, { plan_docs: JSON.stringify(refs) });
     this.changed();
   }
@@ -1866,7 +1866,7 @@ export class Board {
     if (!row.deleted_at) this.log(cardId, 'state', 'obeya', this.t.worker.workspaceGone(path, working));
   }
 
-  /** A card's landed work is done, its worker gone: a card whose plan doc is a project now gives way to it. */
+  /** A card's landed work is done, its worker gone: a card whose plan doc is a plan now gives way to it. */
   workDone(cardId: string) {
     // a workstream its doc keeps open is planned again (reopen) once its worker is done
     if (this.own(cardId).plan_ref) this.docs = null;
@@ -1953,18 +1953,18 @@ export class Board {
     }
     let items = toItems(rows, docs, this.home, this.worked, this.themeNow);
     if (this.placeNew(docs, items, all, rows)) {
-      // projects seen for the first time keep their doc too
+      // plans seen for the first time keep their doc too
       this.keepDocs(all, docs);
-      // what reacts to changes hears of them too (the Koordinator reads what builds on what in a project just come)
+      // what reacts to changes hears of them too (the Koordinator reads what builds on what in a plan just come)
       this.tell();
       rows = this.store.cards(this.canvas.id);
       items = toItems(rows, docs, this.home, this.worked, this.themeNow);
     }
     if (read) {
-      // Older projects packed finished cards more tightly. Refit only projects whose finished
+      // Older plans packed finished cards more tightly. Refit only plans whose finished
       // cards no longer fit, preserving the owner's layout wherever there is still room.
-      for (const project of items.filter((i) => i.kind === 'project')) {
-        const kids = items.filter((i) => i.parent === project.id);
+      for (const plan of items.filter((i) => i.kind === 'plan')) {
+        const kids = items.filter((i) => i.parent === plan.id);
         const overlaps = kids.some((chip) => {
           if (shapeOf(chip) !== 'chip') return false;
           const a = boundsOf(chip, kids);
@@ -1980,10 +1980,10 @@ export class Board {
           Object.assign(kid, at.get(kid.id)!);
           this.store.update(kid.id, { x: kid.x, y: kid.y });
         }
-        const others = items.filter((i) => !i.parent && i.id !== project.id).map((i) => boundsOf(i, items));
-        const place = freeSpotNear(project, sizeOf(project, items), others);
-        this.store.update(project.id, place);
-        Object.assign(project, place);
+        const others = items.filter((i) => !i.parent && i.id !== plan.id).map((i) => boundsOf(i, items));
+        const place = freeSpotNear(plan, sizeOf(plan, items), others);
+        this.store.update(plan.id, place);
+        Object.assign(plan, place);
       }
     }
     const manual = this.manualDependencies();
@@ -2041,7 +2041,7 @@ export class Board {
    */
   private withRate(items: Item[], archived = false): Item[] {
     if (!this.asksFeedback()) return items;
-    // archived by hand, a card asks when it goes into the archive; a workstream, which goes with its project, after its approval
+    // archived by hand, a card asks when it goes into the archive; a workstream, which goes with its plan, after its approval
     const asks = (i: Item) => archived || this.archiving() === 'landed' || i.source === 'plan';
     const rateable = (i: Item) => i.kind === 'task' && APPROVED.includes(i.state) && !i.contribution && !i.prototypeOf && asks(i);
     const rated = this.store.rated(items.filter(rateable).map((i) => i.id));
@@ -2141,10 +2141,10 @@ export class Board {
   }
 
   /**
-   * The docs whose projects stand on the canvas: those with a workstream still open, and those
+   * The docs whose plans stand on the canvas: those with a workstream still open, and those
    * whose every workstream is ticked, or whose doc is gone (as it last stood), while one of their
    * cards is still at work (in progress, or its worker finishing after the landing). The others'
-   * projects have ended.
+   * plans have ended.
    */
   private openDocs(all: PlanDoc[], rows: CardRow[]): PlanDoc[] {
     const busy = new Set(
@@ -2154,21 +2154,21 @@ export class Board {
     );
     const files = new Set(all.map((d) => d.file));
     const gone = this.store
-      .projects(this.canvas.id)
+      .plans(this.canvas.id)
       .filter((r) => r.plan && busy.has(r.plan_ref!) && !files.has(r.plan_ref!))
       .map((r) => JSON.parse(r.plan!) as PlanDoc);
     return [...all.filter((d) => !allTicked(d) || busy.has(d.file)), ...gone];
   }
 
   /**
-   * The notes on the plan directories: one for each that holds docs which are not projects, and
-   * one for a repository with no plan doc that never had a project, saying where the first goes.
+   * The notes on the plan directories: one for each that holds docs which are not plans, and
+   * one for a repository with no plan doc that never had a plan, saying where the first goes.
    */
   private planDirs(docs: PlanDoc[], rows = this.store.cards(this.canvas.id)): PlanDir[] {
-    const projects = this.store.projects(this.canvas.id);
+    const plans = this.store.plans(this.canvas.id);
     const preparing = rows.filter((r) => !r.plan_ref && r.title && !finished(r.state ?? 'planned'));
     return this.dirs.flatMap(({ repo, dir, others }) => {
-      const empty = !others.length && !docs.some((d) => repoOfRef(d.file, this.home) === repo) && !projects.some((p) => repoOfRef(p.plan_ref!, this.home) === repo);
+      const empty = !others.length && !docs.some((d) => repoOfRef(d.file, this.home) === repo) && !plans.some((p) => repoOfRef(p.plan_ref!, this.home) === repo);
       if (!empty && !others.length) return [];
       return [
         {
@@ -2191,7 +2191,7 @@ export class Board {
     return at ? { at: JSON.parse(at) as { x: number; y: number } } : {};
   }
 
-  /** The owner moved the note on a repository's plan directory: it stays there, wherever the projects go. */
+  /** The owner moved the note on a repository's plan directory: it stays there, wherever the plans go. */
   movePlanDirNote(repo: string, at: unknown) {
     const { x, y } = (at ?? {}) as { x?: unknown; y?: unknown };
     if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) throw new BadRequest('invalid', 'a place needs x and y');
@@ -2393,9 +2393,9 @@ export class Board {
     return title;
   }
 
-  /** The project an idea became, while it is on the canvas. */
-  projectOf(ideaId: string): Item | undefined {
-    return this.items().find((i) => i.kind === 'project' && i.origin === ideaId);
+  /** The plan an idea became, while it is on the canvas. */
+  planOf(ideaId: string): Item | undefined {
+    return this.items().find((i) => i.kind === 'plan' && i.origin === ideaId);
   }
 
   // ---------------------------------------------------------------- preferences
@@ -2529,7 +2529,7 @@ export class Board {
 
   // ---------------------------------------------------------------- groups
 
-  /** Puts the cards into the group, or with `null` into none; a workstream stands for its project. */
+  /** Puts the cards into the group, or with `null` into none; a workstream stands for its plan. */
   group(cardIds: unknown, groupId: string | null) {
     const ids = this.groupable(cardIds);
     if (groupId !== null) this.ownGroup(groupId);
@@ -2585,7 +2585,7 @@ export class Board {
     return r.parent_id ? (this.store.card(r.parent_id)?.group_id ?? null) : null;
   }
 
-  /** The cards, each own: workstreams give their project, every card once. */
+  /** The cards, each own: workstreams give their plan, every card once. */
   private groupable(cardIds: unknown): string[] {
     if (!Array.isArray(cardIds) || !cardIds.every((id) => typeof id === 'string')) throw new BadRequest('invalid', 'cards must be a list of card ids');
     return [...new Set(cardIds.map((id) => this.own(id)).map((r) => r.parent_id ?? r.id))];
@@ -2644,7 +2644,7 @@ export class Board {
 
   patch(id: string, p: CardPatch) {
     const row = this.own(id);
-    const allowed = [...(row.plan_ref ? (row.kind === 'project' ? ['x', 'y', 'collapsed'] : ['x', 'y', 'state', 'need']) : ['x', 'y', 'title', 'body', 'state', 'need', 'repo', 'images', 'newRepo']), ...LABELS];
+    const allowed = [...(row.plan_ref ? (row.kind === 'plan' ? ['x', 'y', 'collapsed'] : ['x', 'y', 'state', 'need']) : ['x', 'y', 'title', 'body', 'state', 'need', 'repo', 'images', 'newRepo']), ...LABELS];
     const bad = Object.keys(p).filter((k) => !allowed.includes(k));
     if (bad.length) throw new BadRequest('invalid', `cannot change ${bad.join(', ')} on this card`);
     if (p.x !== undefined) checkNumber(p.x, 'x');
@@ -2827,7 +2827,7 @@ export class Board {
   }
 
   /**
-   * Keeps each doc's last state on its project. A project whose doc is gone, or whose work is done
+   * Keeps each doc's last state on its plan. A plan whose doc is gone, or whose work is done
    * (not among the `open` docs, which keep it while a workstream's worker finishes after its landing),
    * goes into the archive; one whose doc is back, or open again, returns to the canvas.
    */
@@ -2836,7 +2836,7 @@ export class Board {
     const shown = new Set(open.map((d) => d.file));
     const at = new Date().toISOString();
     this.store.db.transaction(() => {
-      for (const r of this.store.projects(this.canvas.id)) {
+      for (const r of this.store.plans(this.canvas.id)) {
         const doc = byFile.get(r.plan_ref!);
         const plan = doc ? JSON.stringify(doc) : r.plan;
         const archived_at = shown.has(r.plan_ref!) ? null : (r.archived_at ?? at);
@@ -2845,45 +2845,45 @@ export class Board {
     })();
   }
 
-  /** What the Koordinator read of a project's plan doc about which workstream builds on which, and whether it is reading it now. */
-  deps(projectId: string): StoredDeps & { current: boolean } {
-    // the project keeps its doc as the canvas last read it
+  /** What the Koordinator read of a plan's plan doc about which workstream builds on which, and whether it is reading it now. */
+  deps(planId: string): StoredDeps & { current: boolean } {
+    // the plan keeps its doc as the canvas last read it
     this.items();
-    const row = this.own(projectId);
-    if (row.kind !== 'project' || !row.plan) throw new BadRequest('invalid', 'not a project');
+    const row = this.own(planId);
+    if (row.kind !== 'plan' || !row.plan) throw new BadRequest('invalid', 'not a plan');
     const d = row.deps ? (JSON.parse(row.deps) as StoredDeps) : {};
     return { ...d, current: !!d.on && d.sig === depsSig(JSON.parse(row.plan) as PlanDoc) };
   }
 
   /**
-   * The projects whose plan doc the Koordinator is to read for which workstream builds on which
+   * The plans whose plan doc the Koordinator is to read for which workstream builds on which
    * (`arranging` on the canvas), from their rows: asked on every change, this builds no snapshot.
    */
   arranging(): string[] {
-    return this.store.projects(this.canvas.id).flatMap((r) => (!r.archived_at && r.deps && (JSON.parse(r.deps) as StoredDeps).reading ? [r.id] : []));
+    return this.store.plans(this.canvas.id).flatMap((r) => (!r.archived_at && r.deps && (JSON.parse(r.deps) as StoredDeps).reading ? [r.id] : []));
   }
 
   /** The Koordinator starts reading which workstream builds on which (`reading`), or has read it (`on`, for the doc as it stands now). */
-  setDeps(projectId: string, d: { reading: NonNullable<StoredDeps['reading']> } | { on: Record<string, string[]> } | { failed: true }) {
-    const row = this.own(projectId);
+  setDeps(planId: string, d: { reading: NonNullable<StoredDeps['reading']> } | { on: Record<string, string[]> } | { failed: true }) {
+    const row = this.own(planId);
     const was = row.deps ? (JSON.parse(row.deps) as StoredDeps) : {};
     const next: StoredDeps =
       'reading' in d ? { ...was, reading: d.reading } : 'on' in d ? { sig: depsSig(JSON.parse(row.plan!) as PlanDoc), on: d.on } : { ...was, reading: undefined };
-    this.store.update(projectId, { deps: JSON.stringify(next) });
+    this.store.update(planId, { deps: JSON.stringify(next) });
     this.changed();
   }
 
-  /** The workstream key of each of the project's workstreams, by card. */
-  workstreamKeys(projectId: string): Map<string, string> {
-    return new Map(this.store.children([projectId]).flatMap((k) => (k.plan_ref?.includes('#') ? [[k.id, k.plan_ref.slice(k.plan_ref.indexOf('#') + 1)]] : [])));
+  /** The workstream key of each of the plan's workstreams, by card. */
+  workstreamKeys(planId: string): Map<string, string> {
+    return new Map(this.store.children([planId]).flatMap((k) => (k.plan_ref?.includes('#') ? [[k.id, k.plan_ref.slice(k.plan_ref.indexOf('#') + 1)]] : [])));
   }
 
-  /** Whether none of the project's workstreams stands anywhere but where it was placed when the project came (`placeNew`). */
-  untouched(projectId: string): boolean {
-    const row = this.own(projectId);
+  /** Whether none of the plan's workstreams stands anywhere but where it was placed when the plan came (`placeNew`). */
+  untouched(planId: string): boolean {
+    const row = this.own(planId);
     const doc = JSON.parse(row.plan!) as PlanDoc;
     const first = placeWorkstreams(doc.workstreams);
-    const kids = this.store.children([projectId]);
+    const kids = this.store.children([planId]);
     return kids.every((k) => {
       const n = doc.workstreams.findIndex((w) => `${doc.file}#${w.key}` === k.plan_ref);
       return n >= 0 && first[n]!.x === k.x && first[n]!.y === k.y;
@@ -2891,42 +2891,42 @@ export class Board {
   }
 
   /**
-   * Puts the project's workstreams in columns by what builds on what (`arrangeWorkstreams`). A
-   * project that grows into another card or project moves to the nearest spot clear of everything.
+   * Puts the plan's workstreams in columns by what builds on what (`arrangeWorkstreams`). A
+   * plan that grows into another card or plan moves to the nearest spot clear of everything.
    */
-  arrange(projectId: string) {
+  arrange(planId: string) {
     const items = this.items();
-    const project = items.find((i) => i.id === projectId);
-    if (project?.kind !== 'project') throw new BadRequest('invalid', 'not a project on the canvas');
-    const kids = items.filter((i) => i.parent === projectId);
+    const plan = items.find((i) => i.id === planId);
+    if (plan?.kind !== 'plan') throw new BadRequest('invalid', 'not a plan on the canvas');
+    const kids = items.filter((i) => i.parent === planId);
     const at = arrangeWorkstreams(kids);
     const moved = kids.map((k) => ({ ...k, ...at.get(k.id)! }));
-    const [w, h] = projectSize(moved);
-    const others = items.filter((i) => !i.parent && i.id !== projectId).map((i) => boundsOf(i, items));
-    const overlaps = others.some((b) => project.x < b.x + b.w && b.x < project.x + w && project.y < b.y + b.h && b.y < project.y + h);
+    const [w, h] = planSize(moved);
+    const others = items.filter((i) => !i.parent && i.id !== planId).map((i) => boundsOf(i, items));
+    const overlaps = others.some((b) => plan.x < b.x + b.w && b.x < plan.x + w && plan.y < b.y + b.h && b.y < plan.y + h);
     this.store.db.transaction(() => {
       for (const k of moved) this.store.update(k.id, { x: k.x, y: k.y });
-      if (overlaps) this.store.update(projectId, freeSpotNear(project, [w, h], others));
+      if (overlaps) this.store.update(planId, freeSpotNear(plan, [w, h], others));
     })();
     this.changed();
   }
 
   /** Every workstream a plan doc has had, from its history in git, the newest first (`readPlanHistory`); none for a doc outside git. */
-  private planHistory?: (ref: string) => Workstream[];
-  /** What `planHistory` said of each doc during one `follow`, which may ask for several cards. */
+  private docHistory?: (ref: string) => Workstream[];
+  /** What `docHistory` said of each doc during one `follow`, which may ask for several cards. */
   private pastOf = new Map<string, Workstream[]>();
 
   /** Who reads a plan doc's history: a card whose workstream left the doc gets its title from there. */
   readPlanHistory(fn: (ref: string) => Workstream[]) {
-    this.planHistory = fn;
+    this.docHistory = fn;
   }
 
   /** What the doc's history says, read once per `follow`. */
   private past(file: string): Workstream[] {
-    return this.pastOf.get(file) ?? this.pastOf.set(file, this.planHistory?.(file) ?? []).get(file)!;
+    return this.pastOf.get(file) ?? this.pastOf.set(file, this.docHistory?.(file) ?? []).get(file)!;
   }
 
-  /** Cards whose workstream left its doc, by when that was seen, that wait to leave their project (`follow`). */
+  /** Cards whose workstream left its doc, by when that was seen, that wait to leave their plan (`follow`). */
   private missing = new Map<string, number>();
   /** Looks at the waiting cards again once the first of them may leave. */
   private waking?: ReturnType<typeof setTimeout>;
@@ -2934,12 +2934,12 @@ export class Board {
   /**
    * Keeps each workstream card with its own workstream. A card whose workstream the doc gives
    * another key now (a sibling dropped or added, `workstreamAliases`) moves onto it. A card whose
-   * workstream the doc no longer lists, while the doc is there, leaves the project once an agent
+   * workstream the doc no longer lists, while the doc is there, leaves the plan once an agent
    * worked on it, with its log, as a card of its own (`leave`); one nobody worked on just goes from
    * view. It remembers what the workstream was right away, and leaves only once it holds no
    * workspace it is not at work in, and, for a doc in a plan folder outside the repository, which
    * is written in place, once the workstream stayed away for `LEAVE_AFTER_MS`. With `read` (the docs
-   * were read again), a project read before workstreams had keys of their own (`#n`, their place in
+   * were read again), a plan read before workstreams had keys of their own (`#n`, their place in
    * the doc) moves its cards onto those keys first (`rekey`). Between reads, only waiting cards
    * bring it here.
    */
@@ -2947,15 +2947,15 @@ export class Board {
     if (!read && !this.missing.size) return;
     this.pastOf.clear();
     const byFile = new Map(all.map((d) => [d.file, d]));
-    const projects = this.store.projects(this.canvas.id).filter((p) => byFile.has(p.plan_ref!));
+    const plans = this.store.plans(this.canvas.id).filter((p) => byFile.has(p.plan_ref!));
     // the doc as last read, with its whole text: only parsed where a card needs it
     const lastOf = new Map<string, PlanDoc | null>();
     const last = (p: CardRow) => (lastOf.has(p.id) ? lastOf.get(p.id)! : lastOf.set(p.id, p.plan ? (JSON.parse(p.plan) as PlanDoc) : null).get(p.id)!);
-    if (read) for (const p of projects) if (last(p)) this.rekey(p, last(p)!, byFile.get(p.plan_ref!)!);
-    const kidsOf = Map.groupBy(this.store.children(projects.map((p) => p.id)), (k) => k.parent_id!);
+    if (read) for (const p of plans) if (last(p)) this.rekey(p, last(p)!, byFile.get(p.plan_ref!)!);
+    const kidsOf = Map.groupBy(this.store.children(plans.map((p) => p.id)), (k) => k.parent_id!);
     const waiting = new Set<string>();
     const now = Date.now();
-    for (const p of projects) {
+    for (const p of plans) {
       const doc = byFile.get(p.plan_ref!)!;
       const kids = kidsOf.get(p.id) ?? [];
       const keys = new Set(doc.workstreams.map((w) => w.key));
@@ -3000,26 +3000,26 @@ export class Board {
     }
   }
 
-  /** The card keeps what its workstream was (`w`), for when it leaves the project after the doc is read again. */
+  /** The card keeps what its workstream was (`w`), for when it leaves the plan after the doc is read again. */
   private remember(row: CardRow, w: Pick<Workstream, 'label' | 'title' | 'body'>) {
     const title = w.label ? `${w.label} ${w.title}` : w.title;
     if (row.title !== title || row.body !== w.body) this.store.update(row.id, { title, body: w.body });
   }
 
   /**
-   * Moves the project's cards from the keys an older Seismic gave its workstreams (their place in
+   * Moves the plan's cards from the keys an older Seismic gave its workstreams (their place in
    * the doc, `#n`) onto the keys they have now. A card an agent worked on goes by the title its
    * branch was named after, since the doc may have changed under its old key, so that its log stays
-   * with its own workstream; one whose workstream the doc no longer has leaves the project, and the
-   * project lays out afresh in the doc's order, with fresh cards for the workstreams without one.
+   * with its own workstream; one whose workstream the doc no longer has leaves the plan, and the
+   * plan lays out afresh in the doc's order, with fresh cards for the workstreams without one.
    * Otherwise the cards keep their places.
    */
-  private rekey(project: CardRow, before: PlanDoc, doc: PlanDoc) {
+  private rekey(plan: CardRow, before: PlanDoc, doc: PlanDoc) {
     const again = parsePlanDoc(before.file, before.markdown);
     if ('reason' in again || again.workstreams.length !== before.workstreams.length) return;
     const renamed = new Map(before.workstreams.flatMap((w, i) => (w.key !== again.workstreams[i]!.key ? [[w.key, again.workstreams[i]!.key] as const] : [])));
     if (!renamed.size) return;
-    const kids = this.store.children([project.id]);
+    const kids = this.store.children([plan.id]);
     const keys = new Set(doc.workstreams.map((w) => w.key));
     // positional keys of a doc read before this one, whose cards are out of view now
     const positional = (k: string) => renamed.has(k) || (/^#\d+$/.test(k) && !before.workstreams.some((w) => w.key === k));
@@ -3042,36 +3042,36 @@ export class Board {
     const ref = (key: string) => `${doc.file}#${key}`;
     this.store.db.transaction(() => {
       // out of each other's way first: two cards may swap keys
-      for (const k of moving) this.store.replan(k.id, `${project.plan_ref}#\u0000${k.id}`, project.id);
+      for (const k of moving) this.store.replan(k.id, `${plan.plan_ref}#\u0000${k.id}`, plan.id);
       for (const k of moving) {
         const key = to.get(k.id);
-        if (key) this.store.replan(k.id, ref(key), project.id);
+        if (key) this.store.replan(k.id, ref(key), plan.id);
         // nobody worked on it: it goes, and the workstream gets a card of its own; its reference stays
         // one of no card, so that nothing reads it as a card of the owner's they deleted
         else if (!leaving.includes(k)) this.store.update(k.id, { deleted_at: new Date().toISOString() });
       }
       for (const k of leaving) {
         const w = this.identity(k, doc.file, before, true);
-        if ((atWork(k) || !k.workspace) && !outsideRef(doc.file)) this.leave(k, project, w, this.t.idea.leftOther(doc.title));
+        if ((atWork(k) || !k.workspace) && !outsideRef(doc.file)) this.leave(k, plan, w, this.t.idea.leftOther(doc.title));
         // a stopped card gives its workspace back first, and a doc outside the repository may lack an item
         // only for a moment: it leaves later (`follow`), with what it remembers
         else {
-          this.store.replan(k.id, `${project.plan_ref}#~${k.id.slice(0, 6)}`, project.id);
+          this.store.replan(k.id, `${plan.plan_ref}#~${k.id.slice(0, 6)}`, plan.id);
           this.remember(k, w);
         }
       }
-      // cards left, others get fresh ones: the project lays out afresh in the doc's order, which the mix-up had broken anyway
+      // cards left, others get fresh ones: the plan lays out afresh in the doc's order, which the mix-up had broken anyway
       if (leaving.length) {
-        const rows = new Map(this.store.children([project.id]).flatMap((k) => (keyOfRef(k.plan_ref) ? [[keyOfRef(k.plan_ref)!, k] as const] : [])));
+        const rows = new Map(this.store.children([plan.id]).flatMap((k) => (keyOfRef(k.plan_ref) ? [[keyOfRef(k.plan_ref)!, k] as const] : [])));
         const at = placeWorkstreams(doc.workstreams.map((w) => ({ done: w.done || finished(rows.get(w.key)?.state ?? 'planned') })));
         doc.workstreams.forEach((w, i) => {
           const row = rows.get(w.key);
           if (row) this.store.update(row.id, at[i]!);
-          else this.store.insert([{ canvas_id: this.canvas.id, kind: 'task', parent_id: project.id, plan_ref: ref(w.key), ...at[i]! }]);
+          else this.store.insert([{ canvas_id: this.canvas.id, kind: 'task', parent_id: plan.id, plan_ref: ref(w.key), ...at[i]! }]);
         });
       }
       // what the Koordinator read of which workstream builds on which goes with the cards
-      const deps = project.deps ? (JSON.parse(project.deps) as StoredDeps) : null;
+      const deps = plan.deps ? (JSON.parse(plan.deps) as StoredDeps) : null;
       if (deps?.on) {
         const keyOf = new Map(moving.flatMap((k) => (to.has(k.id) ? [[keyOfRef(k.plan_ref)!, to.get(k.id)!] as const] : [])));
         const on = Object.fromEntries(
@@ -3080,7 +3080,7 @@ export class Board {
             return key ? [[key, by.flatMap((b) => keyOf.get(b) ?? (positional(b) ? [] : [b]))]] : [];
           }),
         );
-        this.store.update(project.id, { deps: JSON.stringify({ ...deps, on } satisfies StoredDeps) });
+        this.store.update(plan.id, { deps: JSON.stringify({ ...deps, on } satisfies StoredDeps) });
       }
     })();
   }
@@ -3129,39 +3129,39 @@ export class Board {
   }
 
   /**
-   * The card leaves its project as a card of its own, its log saying so (`why`), with the title and
+   * The card leaves its plan as a card of its own, its log saying so (`why`), with the title and
    * text of the workstream it worked on (`w`). Finished, it goes into the archive; otherwise it
-   * stands beside the project.
+   * stands beside the plan.
    */
-  private leave(row: CardRow, project: CardRow, w: Pick<Workstream, 'label' | 'title' | 'body'>, why: string) {
+  private leave(row: CardRow, plan: CardRow, w: Pick<Workstream, 'label' | 'title' | 'body'>, why: string) {
     // a workstream planned again after part of it landed is done now that the doc asks no more of it
     const state = row.state === 'planned' && row.shipped ? 'live' : (row.state ?? 'planned');
     const done = finished(state) && !atWork(row);
-    const at = done ? { x: row.x, y: row.y } : this.besideProject(project);
+    const at = done ? { x: row.x, y: row.y } : this.besidePlan(plan);
     this.store.replan(row.id, null, null);
     this.store.update(row.id, {
       title: w.label ? `${w.label} ${w.title}` : w.title,
       body: w.body,
       state,
-      repo: repoOfRef(project.plan_ref!, this.home),
-      group_id: project.group_id,
+      repo: repoOfRef(plan.plan_ref!, this.home),
+      group_id: plan.group_id,
       ...at,
       ...(done ? { archived_at: new Date().toISOString() } : {}),
     });
     this.log(row.id, 'state', 'obeya', why);
   }
 
-  /** A free spot for a card at the right of the project, near its top. */
-  private besideProject(project: CardRow): { x: number; y: number } {
+  /** A free spot for a card at the right of the plan, near its top. */
+  private besidePlan(plan: CardRow): { x: number; y: number } {
     const items = toItems(this.store.cards(this.canvas.id), this.docs ?? [], this.home);
-    const p = items.find((i) => i.id === project.id);
-    if (!p) return { x: project.x, y: project.y };
+    const p = items.find((i) => i.id === plan.id);
+    if (!p) return { x: plan.x, y: plan.y };
     const box = boundsOf(p, items);
     return freeSpotNear({ x: box.x + box.w + GAP, y: box.y }, CARD_SIZE.task, items.filter((i) => !i.parent).map((i) => boundsOf(i, items)));
   }
 
   /**
-   * Stores a row for every project and workstream seen for the first time. A doc whose work was
+   * Stores a row for every plan and workstream seen for the first time. A doc whose work was
    * done before Seismic first saw it (among `all`, not `docs`) gets its rows too, placed after the
    * others, and goes straight to the archive (`keepDocs`). Returns whether any were added.
    */
@@ -3171,38 +3171,38 @@ export class Board {
     const c = this.canvas.id;
 
     for (const doc of docs) {
-      const project = byRef.get(doc.file);
-      if (!project) continue;
+      const plan = byRef.get(doc.file);
+      if (!plan) continue;
       const missing = doc.workstreams.filter((w) => !byRef.has(`${doc.file}#${w.key}`));
       if (!missing.length) continue;
-      const kids = items.filter((i) => i.parent === project.id);
-      const startY = kids.length ? Math.max(...kids.map((k) => k.y + sizeOf(k, items)[1])) + GAP : PROJECT_HEAD;
+      const kids = items.filter((i) => i.parent === plan.id);
+      const startY = kids.length ? Math.max(...kids.map((k) => k.y + sizeOf(k, items)[1])) + GAP : PLAN_HEAD;
       placeWorkstreams(missing, startY).forEach((pos, n) =>
-        add.push({ canvas_id: c, kind: 'task', parent_id: project.id, plan_ref: `${doc.file}#${missing[n]!.key}`, ...pos }),
+        add.push({ canvas_id: c, kind: 'task', parent_id: plan.id, plan_ref: `${doc.file}#${missing[n]!.key}`, ...pos }),
       );
     }
     if (add.length) this.store.insert(add);
     const linked = this.linkOrigins(docs);
 
-    const known = new Set(this.store.projects(this.canvas.id).map((r) => r.plan_ref!));
+    const known = new Set(this.store.plans(this.canvas.id).map((r) => r.plan_ref!));
     const done = all.filter((d) => !docs.includes(d) && !known.has(d.file));
     const fresh = [...docs.filter((d) => !byRef.has(d.file)), ...done];
     if (!fresh.length) return add.length > 0 || linked;
     const layouts = fresh.map((d) => {
       const pos = placeWorkstreams(d.workstreams);
       const kids = pos.map((p, n) => ({ kind: 'task' as const, state: d.workstreams[n]!.done ? ('live' as const) : ('planned' as const), parent: 'p', ...p }));
-      return { doc: d, pos, size: projectSize(kids) };
+      return { doc: d, pos, size: planSize(kids) };
     });
     const top = items.filter((i) => !i.parent);
     // below a note the owner put there too
     const notes = this.planDirs(all).flatMap((d) => planDirNoteBox(d) ?? []);
-    const at = placeProjects(unionBounds([...top.map((i) => boundsOf(i, items)), ...notes]), layouts.map((l) => l.size));
+    const at = placePlans(unionBounds([...top.map((i) => boundsOf(i, items)), ...notes]), layouts.map((l) => l.size));
     layouts.forEach(({ doc, pos }, n) => {
-      const [project] = this.store.insert([{ canvas_id: c, kind: 'project', plan_ref: doc.file, ...at[n]! }]);
-      // a project just come stands arranged by what builds on what, once the Koordinator has read that
-      if (docs.includes(doc) && doc.workstreams.filter((w) => !w.done).length > 1) this.store.update(project!.id, { deps: JSON.stringify({ reading: 'auto' } satisfies StoredDeps) });
+      const [plan] = this.store.insert([{ canvas_id: c, kind: 'plan', plan_ref: doc.file, ...at[n]! }]);
+      // a plan just come stands arranged by what builds on what, once the Koordinator has read that
+      if (docs.includes(doc) && doc.workstreams.filter((w) => !w.done).length > 1) this.store.update(plan!.id, { deps: JSON.stringify({ reading: 'auto' } satisfies StoredDeps) });
       this.store.insert(
-        doc.workstreams.map((w, k) => ({ canvas_id: c, kind: 'task' as const, parent_id: project!.id, plan_ref: `${doc.file}#${w.key}`, ...pos[k]! })),
+        doc.workstreams.map((w, k) => ({ canvas_id: c, kind: 'task' as const, parent_id: plan!.id, plan_ref: `${doc.file}#${w.key}`, ...pos[k]! })),
       );
     });
     this.linkOrigins(docs);
@@ -3210,7 +3210,7 @@ export class Board {
   }
 
   /**
-   * A project whose doc the landed work of an idea (or a task planned as a project) added remembers
+   * A plan whose doc the landed work of an idea (or a task planned as a plan) added remembers
    * that card and takes its place, while the card is on the canvas. Returns whether any did.
    */
   private linkOrigins(docs: PlanDoc[]): boolean {
@@ -3219,7 +3219,7 @@ export class Board {
     for (const r of this.store.withPlanDocs(this.canvas.id)) if (r.landed || r.state === 'live' || r.state === 'done') for (const ref of JSON.parse(r.plan_docs!) as string[]) origin.set(ref, r.id);
     if (!origin.size) return false;
     let linked = false;
-    for (const r of this.store.projects(this.canvas.id)) {
+    for (const r of this.store.plans(this.canvas.id)) {
       const from = !r.from_id ? origin.get(r.plan_ref!) : undefined;
       if (!from) continue;
       this.store.update(r.id, { from_id: from });
@@ -3231,40 +3231,40 @@ export class Board {
   }
 
   /**
-   * The project goes where its idea is on the canvas. What the larger project would cover moves
+   * The plan goes where its idea is on the canvas. What the larger plan would cover moves
    * aside by as much as it outgrows the idea: the cards below it down, those beside it to the right.
    */
-  private takePlace(projectId: string, ideaId: string, docs: PlanDoc[]) {
+  private takePlace(planId: string, ideaId: string, docs: PlanDoc[]) {
     const items = toItems(this.store.cards(this.canvas.id), docs, this.home, undefined, this.themeNow);
-    const project = items.find((i) => i.id === projectId);
+    const plan = items.find((i) => i.id === planId);
     const idea = items.find((i) => i.id === ideaId);
-    if (!project || !idea) return;
+    if (!plan || !idea) return;
     const [iw, ih] = sizeOf(idea, items);
-    const [pw, ph] = sizeOf(project, items);
-    const moves: [string, { x: number; y: number }][] = [[project.id, { x: idea.x, y: idea.y }]];
+    const [pw, ph] = sizeOf(plan, items);
+    const moves: [string, { x: number; y: number }][] = [[plan.id, { x: idea.x, y: idea.y }]];
     for (const i of items) {
-      if (i.parent || i.id === project.id || i.id === idea.id) continue;
+      if (i.parent || i.id === plan.id || i.id === idea.id) continue;
       const b = boundsOf(i, items);
       if (ph > ih && b.y >= idea.y + ih && b.x < idea.x + pw && b.x + b.w > idea.x) moves.push([i.id, { x: i.x, y: i.y + ph - ih }]);
       else if (pw > iw && b.x >= idea.x + iw && b.y < idea.y + ph && b.y + b.h > idea.y) moves.push([i.id, { x: i.x + pw - iw, y: i.y }]);
     }
     this.store.db.transaction(() => moves.forEach(([id, at]) => this.store.update(id, at)))();
-    // the project stands for the idea in its group too
-    if (idea.group && !project.group) this.store.setGroup([project.id], idea.group);
+    // the plan stands for the idea in its group too
+    if (idea.group && !plan.group) this.store.setGroup([plan.id], idea.group);
   }
 
   /**
-   * An idea or task whose plan doc is a project goes to the archive once its worker is done: the project
-   * stands where it was and links it. Asked when the project is linked and when the worker is done,
+   * An idea or task whose plan doc is a plan goes to the archive once its worker is done: the plan
+   * stands where it was and links it. Asked when the plan is linked and when the worker is done,
    * once each; put back on the canvas, the idea stays. Returns whether it went.
    */
   private retire(ideaId: string): boolean {
     const r = this.store.card(ideaId);
     // `done`: approved without a change, its doc written in a plan folder outside the repository
     if (!r || r.deleted_at || r.archived_at || (r.state !== 'live' && r.state !== 'done') || (r.landed && r.workspace)) return false;
-    if (!this.store.projects(this.canvas.id).some((p) => p.from_id === ideaId && !p.archived_at)) return false;
+    if (!this.store.plans(this.canvas.id).some((p) => p.from_id === ideaId && !p.archived_at)) return false;
     this.store.update(ideaId, { archived_at: new Date().toISOString() });
-    this.log(ideaId, 'state', 'obeya', r.idea ? this.t.idea.becameProject : this.t.idea.taskBecameProject);
+    this.log(ideaId, 'state', 'obeya', r.idea ? this.t.idea.becamePlan : this.t.idea.taskBecamePlan);
     return true;
   }
 }
@@ -3311,16 +3311,16 @@ type Prototypes = {
 };
 type PrototypeRef = Pick<CardRow, 'id' | 'prototype_of' | 'archived_at'>;
 
-/** Visible items: projects first, their workstreams in doc order, then manual cards. */
+/** Visible items: plans first, their workstreams in doc order, then manual cards. */
 export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?: Worked, themeNow?: ThemeNow): Item[] {
   const work = (r: CardRow) => workOf(r, worked, themeNow);
   const docByFile = new Map(docs.map((d) => [d.file, d]));
-  // a project's group covers its workstreams
-  const groupOf = new Map(rows.flatMap((r) => (r.kind === 'project' && r.group_id ? [[r.id, r.group_id]] : [])));
-  // what each workstream builds on, by its project's reading of the doc
-  const depsOf = new Map(rows.flatMap((r) => (r.kind === 'project' && r.deps ? [[r.id, JSON.parse(r.deps) as StoredDeps]] : [])));
+  // a plan's group covers its workstreams
+  const groupOf = new Map(rows.flatMap((r) => (r.kind === 'plan' && r.group_id ? [[r.id, r.group_id]] : [])));
+  // what each workstream builds on, by its plan's reading of the doc
+  const depsOf = new Map(rows.flatMap((r) => (r.kind === 'plan' && r.deps ? [[r.id, JSON.parse(r.deps) as StoredDeps]] : [])));
   const idOfRef = new Map(rows.flatMap((r) => (r.plan_ref ? [[r.plan_ref, r.id]] : [])));
-  const projects: Item[] = [];
+  const plans: Item[] = [];
   const workstreams: { item: Item; order: number }[] = [];
   const manual: Item[] = [];
   for (const r of rows) {
@@ -3341,7 +3341,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
         ...work(r),
         ...(r.state === 'idea' ? { idea: ideaOf(r) } : r.idea ? decided(r) : {}),
         ...(r.thread ? { thread: threadOf(r) } : {}),
-        ...(r.becomes_project ? { becomesProject: true } : {}),
+        ...(r.becomes_plan ? { becomesPlan: true } : {}),
         ...(r.prototype_of ? { prototypeOf: r.prototype_of, ...prototypeOf(r) } : {}),
         ...(r.built_on ? { builtOn: r.built_on } : {}),
         ...(r.images ? { images: JSON.parse(r.images) as string[] } : {}),
@@ -3357,10 +3357,10 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
     const doc = docByFile.get(hash < 0 ? r.plan_ref : r.plan_ref.slice(0, hash));
     if (!doc) continue;
     if (hash < 0) {
-      projects.push({
+      plans.push({
         id: r.id,
         short: r.short,
-        kind: 'project',
+        kind: 'plan',
         state: 'planned',
         title: doc.title,
         body: '',
@@ -3413,9 +3413,9 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
       },
     });
   }
-  const shown = new Set(projects.map((p) => p.id));
+  const shown = new Set(plans.map((p) => p.id));
   const kids = workstreams.filter((w) => shown.has(w.item.parent!));
-  const ordered = projects.flatMap((p) =>
+  const ordered = plans.flatMap((p) =>
     kids
       .filter((k) => k.item.parent === p.id)
       .sort((a, b) => a.order - b.order)
@@ -3423,7 +3423,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
   );
   // a card merged with a proposal shows within it, until the owner decides
   const into = new Map(manual.flatMap((i) => (i.proposal?.merge ? [[i.proposal.merge.with, i.id] as const] : [])));
-  return [...projects, ...ordered, ...(into.size ? manual.map((i) => (into.has(i.id) ? { ...i, mergingInto: into.get(i.id)! } : i)) : manual)];
+  return [...plans, ...ordered, ...(into.size ? manual.map((i) => (into.has(i.id) ? { ...i, mergingInto: into.get(i.id)! } : i)) : manual)];
 }
 
 /** The card's labels that are set, and which of them are Seismic's suggestion. */
@@ -3436,7 +3436,7 @@ const labelsOf = (r: CardRow): Labels & { suggested?: Label[] } => {
 /** A stored list of labels (`suggested_labels`, `owner_labels`). */
 const labelList = (json: string | null): Label[] => (json ? (JSON.parse(json) as Label[]) : []);
 
-/** How long a workstream stays away from a doc in a plan folder outside the repository before its card leaves the project: such a doc is written in place, an item moved in two edits. */
+/** How long a workstream stays away from a doc in a plan folder outside the repository before its card leaves the plan: such a doc is written in place, an item moved in two edits. */
 export const LEAVE_AFTER_MS = 5 * 60_000;
 
 /** Whether a plan reference is to a doc in a plan folder outside the repository. */
@@ -3454,7 +3454,7 @@ function sameWorkstream(key: string, doc: PlanDoc, was?: Pick<Workstream, 'label
   return same.length === 1 ? same[0] : undefined;
 }
 
-/** The workstream key of a plan reference (`<doc>#<key>`); null for a project's or a card's without one. */
+/** The workstream key of a plan reference (`<doc>#<key>`); null for a plan's or a card's without one. */
 const keyOfRef = (ref: string | null): string | null => (ref?.includes('#') ? ref.slice(ref.indexOf('#') + 1) : null);
 
 /** Whether an agent worked on the card: it was started, or its work landed or ended. */
@@ -3614,7 +3614,7 @@ interface StoredPrototype {
   /** The planned variant it shows. */
   variant?: string;
   end?: 'discarded' | 'built';
-  /** Built for a workstream of the project its idea became: that workstream, as the owner reads it. */
+  /** Built for a workstream of the plan its idea became: that workstream, as the owner reads it. */
   into?: string;
   proposal?: string;
 }
@@ -3754,8 +3754,8 @@ function checkNumber(v: unknown, name: string) {
   if (typeof v !== 'number' || !Number.isFinite(v)) throw new BadRequest('invalid', `${name} must be a finite number`);
 }
 
-/** A card the owner may draw dependencies to and from: not a project nor one of its workstreams. */
-const connectable = (i: Item) => i.source !== 'plan' && i.kind !== 'project';
+/** A card the owner may draw dependencies to and from: not a plan nor one of its workstreams. */
+const connectable = (i: Item) => i.source !== 'plan' && i.kind !== 'plan';
 
 /**
  * Whether an arrow from `from` to `to` would close a cycle with the arrows between the cards shown

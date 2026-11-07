@@ -11,8 +11,8 @@ test('a search finds a card holding every word, in any case and without accents'
   expect(matches(i, searchWords('klon demo'))).toBe(false);
 });
 
-test("a project is found by its workstreams' titles", () => {
-  const p = card('Voice', { kind: 'project' });
+test("a plan is found by its workstreams' titles", () => {
+  const p = card('Voice', { kind: 'plan' });
   expect(matches(p, searchWords('whisper'), [card('Local Whisper model', { parent: 'Voice' })])).toBe(true);
   expect(matches(p, searchWords('whisper'))).toBe(false);
 });

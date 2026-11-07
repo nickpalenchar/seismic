@@ -37,7 +37,7 @@ export function PerformanceDialog({ on, onClose, canvases, here, onOpenCard, ini
   const p = t.performance;
   const [all, setAll] = useState<Feedback[] | null>(null);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<PerformanceFilter>(() => ({ ...(initial?.canvas ? { canvas: initial.canvas } : {}), ...(initial?.repo ? { repo: initial.repo } : {}), ...(initial?.project ? { project: initial.project } : {}) }));
+  const [filter, setFilter] = useState<PerformanceFilter>(() => ({ ...(initial?.canvas ? { canvas: initial.canvas } : {}), ...(initial?.repo ? { repo: initial.repo } : {}), ...(initial?.plan ? { plan: initial.plan } : {}) }));
   const [period, setPeriod] = useState<Period>(initial?.period ?? 'all');
   const [view, setViewState] = useState<View>(() => VIEWS.find((v) => v === localStorage.getItem(VIEW_KEY)) ?? 'stars');
   const setView = (v: View) => {
@@ -100,7 +100,7 @@ export function PerformanceDialog({ on, onClose, canvases, here, onOpenCard, ini
       </a>
     );
   };
-  const filtered = !!(filter.canvas || filter.repo || filter.project || period !== 'all');
+  const filtered = !!(filter.canvas || filter.repo || filter.plan || period !== 'all');
   // the log opens with the dashboard's filters; Back from it opens the dashboard again, with them
   const logFilter: LogFilter = { ...filter, period };
   const logQ = logQuery({ filter: logFilter });
@@ -242,8 +242,8 @@ export function PerformanceDialog({ on, onClose, canvases, here, onOpenCard, ini
                   <Choice label={p.filters.canvas} value={filter.canvas} options={choices.canvases.map((id) => ({ id, name: canvasName(id) }))} onChange={(canvas) => setFilter({ ...filter, canvas })} />
                 )}
                 {choices.repos.length > 1 && <Choice label={p.filters.repo} value={filter.repo} options={choices.repos.map((id) => ({ id, name: id }))} onChange={(repo) => setFilter({ ...filter, repo })} />}
-                {choices.projects.length > 0 && (
-                  <Choice label={p.filters.project} value={filter.project} options={choices.projects.map(({ id, title }) => ({ id, name: plain(title) }))} onChange={(project) => setFilter({ ...filter, project })} />
+                {choices.plans.length > 0 && (
+                  <Choice label={p.filters.plan} value={filter.plan} options={choices.plans.map(({ id, title }) => ({ id, name: plain(title) }))} onChange={(plan) => setFilter({ ...filter, plan })} />
                 )}
                 <label className="perf-choice">
                   <span>{p.filters.period}</span>
@@ -396,7 +396,7 @@ export function StarText({ rating }: { rating: number | undefined }) {
   );
 }
 
-/** Responses, each with its card (a link back to it), project, repository, when, the rating and the comment. */
+/** Responses, each with its card (a link back to it), plan, repository, when, the rating and the comment. */
 function Responses({ list, link, canvasName, withConfig }: { list: Feedback[]; link: (f: Feedback) => React.ReactNode; canvasName: (id: string) => string; withConfig?: boolean }) {
   const p = t.performance;
   const several = new Set(list.map((f) => f.canvasId)).size > 1;
@@ -407,7 +407,7 @@ function Responses({ list, link, canvasName, withConfig }: { list: Feedback[]; l
           <div className="perf-r-main">
             {link(f)}
             <span className="hint perf-r-ctx">
-              {[f.project ? plain(f.project.title) : '', f.repo ?? '', several ? canvasName(f.canvasId) : '', p.when(new Date(f.updatedAt ?? f.at))].filter(Boolean).join(' · ')}
+              {[f.plan ? plain(f.plan.title) : '', f.repo ?? '', several ? canvasName(f.canvasId) : '', p.when(new Date(f.updatedAt ?? f.at))].filter(Boolean).join(' · ')}
             </span>
             {withConfig && <span className="hint perf-r-config">{f.attribution === 'missing' || !f.configs.length ? p.missing : f.configs.map((c) => configText(c, true)).join(' + ')}</span>}
             {f.answer.comment && <p className="perf-r-comment">{t.feedback.quoted(f.answer.comment)}</p>}

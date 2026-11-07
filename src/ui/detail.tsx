@@ -5,7 +5,7 @@ import { clientExtensions as extensions } from '../extensions/client';
 import { Rate } from './feedback';
 import { createContext, type CSSProperties, Fragment, type ReactNode, type RefObject, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { agentListens, answering, askable, type BackgroundTask, buildableOn, type CardAction, type Contribution, type HeldChanges, chapterAt, prototypeWorkstream, type CardEvent, type CardPatch, type Demo, type EarlierDemo, EXPORT_HTML_MAX, finished, finishedArchivable, finishingUp, handedOver, type Item, mergeableWith, type Mock, type NextStep, type PageTags, openQuestions, pausableNow, plannableAsProject, type PrComment, type PrReviewEntry, type PullRequest, type Question, type Finding, type FindingPick, type Severity, SEVERITIES, type Clash as ClashFound, type RepoRef, snoozable, type Spot, started, stopped, stoppedArchivable, taskAuthor, withSupplemented } from '../core/types';
+import { agentListens, answering, askable, type BackgroundTask, buildableOn, type CardAction, type Contribution, type HeldChanges, chapterAt, prototypeWorkstream, type CardEvent, type CardPatch, type Demo, type EarlierDemo, EXPORT_HTML_MAX, finished, finishedArchivable, finishingUp, handedOver, type Item, mergeableWith, type Mock, type NextStep, type PageTags, openQuestions, pausableNow, plannableAsPlan, type PrComment, type PrReviewEntry, type PullRequest, type Question, type Finding, type FindingPick, type Severity, SEVERITIES, type Clash as ClashFound, type RepoRef, snoozable, type Spot, started, stopped, stoppedArchivable, taskAuthor, withSupplemented } from '../core/types';
 import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answerText, toggle } from './answer';
@@ -78,8 +78,8 @@ interface Props {
   flush: () => Promise<void>;
   onDelete: () => void;
   onDone: (d: ActDone, pending?: Pending) => void;
-  /** Reads the plan doc of a workstream's project, at the workstream; the phone view reads no plan docs. */
-  onReadPlan?: (project: Item, mark?: string) => void;
+  /** Reads the plan doc of a workstream's plan, at the workstream; the phone view reads no plan docs. */
+  onReadPlan?: (plan: Item, mark?: string) => void;
   /** Opens the configuration at the clone count (or the slots) of a repository: the card waits for a free clone or slot. Not in the phone view. */
   onClones?: (repo: string, field: 'clones' | 'slots') => void;
   /** Opens the canvas's settings, where it chooses its demo site. */
@@ -174,7 +174,7 @@ export function Detail(p: Props) {
   const { item, parent } = p;
   useReviewReset(item);
   const [error, setError] = useState('');
-  // a prototype whose idea has become a project: the workstream to build on it
+  // a prototype whose idea has become a plan: the workstream to build on it
   const [workstream, setWorkstream] = useState('');
   const [picking, setPicking] = useState(false);
   const [confirmReviewApproval, setConfirmReviewApproval] = useState(false);
@@ -222,12 +222,12 @@ export function Detail(p: Props) {
       ? `${plain(parent.title)} · ${item.label ?? ''} · ${t.kind.workstream}`
       : item.state === 'idea' || item.proposal?.idea
         ? t.kind.idea
-        : item.becomesProject
+        : item.becomesPlan
           ? becomesLabel(item)
           : item.prototypeOf
             ? t.kind.prototype
-            : item.kind === 'project'
-              ? t.kind.project
+            : item.kind === 'plan'
+              ? t.kind.plan
               : '',
   ]
     .filter(Boolean)
@@ -307,21 +307,21 @@ export function Detail(p: Props) {
     );
   // a prototype is discarded or its idea built on it, never approved or deleted; built once the idea's agent has taken in what changed
   const ideaTitle = plain(item.ideaTitle ?? p.from?.title ?? '');
-  // once the idea has become a project, one of its workstreams is built on the prototype instead
-  const project = item.prototypeOf ? all.find((i) => i.kind === 'project' && i.origin === item.prototypeOf) : undefined;
+  // once the idea has become a plan, one of its workstreams is built on the prototype instead
+  const plan = item.prototypeOf ? all.find((i) => i.kind === 'plan' && i.origin === item.prototypeOf) : undefined;
   const ideaCard = item.prototypeOf ? all.find((i) => i.id === item.prototypeOf) : undefined;
   const builtOn = item.builtOn ? item.prototypes?.find((x) => x.id === item.builtOn) : undefined;
-  const workstreams = project ? all.filter((i) => i.parent === project.id && buildableOn(i)) : [];
+  const workstreams = plan ? all.filter((i) => i.parent === plan.id && buildableOn(i)) : [];
   // the plan doc says which workstream builds on the prototypes; the owner picks only where it does not, or another
-  const named = project && !picking ? prototypeWorkstream(all, project.id) : undefined;
+  const named = plan && !picking ? prototypeWorkstream(all, plan.id) : undefined;
   const chosen = named ?? workstreams.find((w) => w.id === workstream);
-  const ideaThinking = !project && !!p.from?.idea?.thinking;
-  const planning = !project && !!p.from?.becomesProject;
+  const ideaThinking = !plan && !!p.from?.idea?.thinking;
+  const planning = !plan && !!p.from?.becomesPlan;
   const buildOn = (label: string) => (
     <button
       className="btn primary"
-      disabled={ideaThinking || planning || (!!project && !chosen)}
-      title={ideaThinking ? t.idea.prototypeWaits : planning ? t.idea.waitForProject : project && !chosen ? t.idea.chooseWorkstream : undefined}
+      disabled={ideaThinking || planning || (!!plan && !chosen)}
+      title={ideaThinking ? t.idea.prototypeWaits : planning ? t.idea.waitForPlan : plan && !chosen ? t.idea.chooseWorkstream : undefined}
       onClick={() =>
         act(
           { action: 'buildPrototype', ...(chosen ? { workstream: chosen.id } : {}) },
@@ -332,7 +332,7 @@ export function Detail(p: Props) {
       {label}
     </button>
   );
-  const workstreamPick = project && named ? (
+  const workstreamPick = plan && named ? (
     <div className="build-on">
       <span>
         {t.idea.buildsWorkstream(workstreamName(named))}{' '}
@@ -341,9 +341,9 @@ export function Detail(p: Props) {
         </button>
       </span>
     </div>
-  ) : project && (
+  ) : plan && (
     <label className="build-on">
-      {t.idea.workstreamOf(plain(project.title))}
+      {t.idea.workstreamOf(plain(plan.title))}
       <select value={workstream} onChange={(e) => setWorkstream(e.target.value)}>
         <option value="">{workstreams.length ? t.idea.chooseWorkstream : t.idea.noWorkstream}</option>
         {workstreams.map((w) => (
@@ -448,7 +448,7 @@ export function Detail(p: Props) {
     <DuplicateMergePreview item={item} partner={duplicatePartner} />
     {duplicateMatches.length > 1 && <p className="hint">{t.duplicate.more(duplicateMatches.length - 1)}: {duplicateMatches.filter((other) => other.id !== duplicatePartner.id).map((other) => plain(other.title)).join(', ')}</p>}
   </div>;
-  // an archived project's doc is gone
+  // an archived plan's doc is gone
   const readPlan = parent && !parent.archivedAt && p.onReadPlan;
   // a workstream names its plan doc at the top in every state, an agent's work its branch beside it
   const where = (worked || parent?.plan || item.contribution) && (
@@ -608,8 +608,8 @@ export function Detail(p: Props) {
 
       {item.prototypeOf && (
         <p className="hint">
-          {project ? (
-            <Naming text={t.idea.prototypeOfProject} cards={[{ card: ideaCard, title: ideaTitle }, { card: project }]} />
+          {plan ? (
+            <Naming text={t.idea.prototypeOfPlan} cards={[{ card: ideaCard, title: ideaTitle }, { card: plan }]} />
           ) : (
             <Naming text={planning ? t.idea.prototypeOfPlanning : t.idea.prototypeOf} cards={[{ card: ideaCard, title: ideaTitle }]} />
           )}
@@ -816,8 +816,8 @@ export function Detail(p: Props) {
           {item.source === 'manual' && !item.prototypeOf && (
             <>
               {!duplicatePartner && <MergeButton item={item} all={all} act={act} />}
-              {/* a task with a branch has work already, one decided as a project goes its way: neither is discussed or planned anew */}
-              {plannableAsProject(item) && (
+              {/* a task with a branch has work already, one decided as a plan goes its way: neither is discussed or planned anew */}
+              {plannableAsPlan(item) && (
                 <>
                   <button
                     className="btn"

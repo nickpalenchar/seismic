@@ -51,7 +51,7 @@ the cards that one sees as ahead or to build on, so no two cards wait for each o
 A waiting card shows the reason (one that starts says which files it shares and why that is fine).
 Once what it waits for has landed or stopped it starts, or, if other work may have started
 meanwhile, it is judged again. Cards whose waits end at once (the follow-up tasks of a merged PR,
-say) are judged together, in one turn as a project's start is (see Starting a whole project): it
+say) are judged together, in one turn as a plan's start is (see Starting a whole plan): it
 sees them in their order in the queue, keeps that order unless a dependency or a likely conflict
 asks for another, and says which start now and which wait for which, so the first in the queue
 does not start blind to one after it that it should build on or would collide with; a card alone
@@ -59,13 +59,13 @@ starts at once where nothing runs. "Start anyway" starts it at the owner's own r
 it keeps its full card and its conversation, where Seismic answers what the owner asks (see Card layout); spoken words there go to
 the Koordinator.
 
-A workstream started on its own also waits for the workstreams of its project it builds on (code, an
+A workstream started on its own also waits for the workstreams of its plan it builds on (code, an
 API, data or a decision one of them introduces, or the plan says it comes after), judged from the
 plan doc, including those not started or stopped, since the owner may start workstreams one by one.
 Such a wait holds until that workstream has landed; stopping it or taking it out of the queue does
 not free the card. The card says so ("Waiting for W2 "…" (not started yet)", in its log, the
-queue's list and the project's sheet), so the owner sees which to start first. Even with nothing in
-progress or queued, it skips this judgement only when no workstream of its project is left unlanded.
+queue's list and the plan's sheet), so the owner sees which to start first. Even with nothing in
+progress or queued, it skips this judgement only when no workstream of its plan is left unlanded.
 
 A dependency drawn by the owner (see Cards on the canvas) holds the card until the prerequisite has
 finished, including while that prerequisite is not started or stopped: a card started afterwards
@@ -138,17 +138,17 @@ pointer is on a card, its waits show both ways over every step over the faint li
 waits for ("comes first") in purple and those waiting for it ("waits for it") in the waiting colour,
 each with a ring, its tag and an arrow from the card waited for to the card waiting, so the two
 directions read apart at a glance. A workstream not delivered yet also shows the open workstreams
-it builds on as read for its project's arrangement (see A project arranged by its dependencies), and
+it builds on as read for its plan's arrangement (see A plan arranged by its dependencies), and
 a card snoozed until another card gets somewhere waits for that card (see Snoozing a card).
 
-#### Starting a whole project
+#### Starting a whole plan
 
-"Start all N" (the project card's head, its sheet, or by voice) queues all planned workstreams in
+"Start all N" (the plan card's head, its sheet, or by voice) queues all planned workstreams in
 the plan's order, with 8 seconds for "Undo" (the button is easily hit). Then one Koordinator
 turn sees them with the plan doc, the cards in progress and those queued ahead, puts them in an
 order and says for each what it waits for: a workstream it builds on (until that has landed) or one
 it would likely conflict with; the rest start at once. A workstream waits only for what comes before
-it, and that order becomes the queue's. The project's sheet names what each waits for. If the turn
+it, and that order becomes the queue's. The plan's sheet names what each waits for. If the turn
 fails, each is judged alone, seeing the others as queued after it; after a restart the joint turn
 runs again.
 
@@ -315,8 +315,8 @@ it went. "Dismiss" keeps it as rejected, and the next retrospective hears what b
 ### Looked-up questions
 
 A question that needs reading (what the agent would do, what the plan says, how something works) the
-quick turn acknowledges ("I'll check the plan.") and passes on: about a project or its
-workstreams to the project agent, in the project's session; else to a thorough Koordinator turn on
+quick turn acknowledges ("I'll check the plan.") and passes on: about a plan or its
+workstreams to the plan agent, in the plan's session; else to a thorough Koordinator turn on
 the card's repository. Both have a worker's tools and permission mode (shell, gh, the web, files
 outside the repository), so they check what the text alone does not say (which render is newest, a
 CI run) instead of saying they cannot see it. A call the settings want confirmed is refused, as
@@ -388,17 +388,17 @@ by "Archive done", no build, plan, prototype or park buttons. It has two: "Discu
 idea" (not while its agent reads) makes it an idea whose agent starts from the thread and its
 directory, and "Done" archives it. The Koordinator lists Question cards among the cards it sees.
 
-#### Asking in a project's sheet
+#### Asking in a plan's sheet
 
-A project's sheet has a section "Project agent": the conversation with its project agent and the
-shared field. Words there go straight to the project agent, not through the quick turn, in its one
+A plan's sheet has a section "Plan agent": the conversation with its plan agent and the
+shared field. Words there go straight to the plan agent, not through the quick turn, in its one
 session; a reply to a message follows up on that thread, other words start a new one. The agent has
-`to_seismic` for what asks Seismic ("start W4"). The section shows every thread the project agent
-answers, also those asked of Seismic about the project, each with "Make it a card". Seismic's sheet shows
-them too, marked "in the project sheet "…"", so an answer that comes after the owner left the project
-waits there unread; with the project's sheet in view (not its plan doc) its answers count as read
+`to_seismic` for what asks Seismic ("start W4"). The section shows every thread the plan agent
+answers, also those asked of Seismic about the plan, each with "Make it a card". Seismic's sheet shows
+them too, marked "in the plan sheet "…"", so an answer that comes after the owner left the plan
+waits there unread; with the plan's sheet in view (not its plan doc) its answers count as read
 and get no line above the microphone. While an answer to words written in the sheet waits unread,
-the project's card shows it at its corner, collapsed or not: a pulsing speech bubble in the project
+the plan's card shows it at its corner, collapsed or not: a pulsing speech bubble in the plan
 agent's colour (with the number from two answers on), beside the count of workstreams that need the
 owner and unlike it; a click opens the sheet. The sheet then opens at the first of them, marked as
 answers that waited are in Seismic's sheet. The conversation grows in the sheet, without a scrollbar
@@ -495,7 +495,7 @@ passed the words on through `to_seismic` hears that the owner finds the link und
   itself, since the owner opened it to place that card, not to rearrange others. Touch drags by a grip so that the list still scrolls under
   a finger. Nothing passes a card being
   judged, which could otherwise end up waiting for a card that waits for it.
-- **A project's workstreams started together are scheduled in one turn** (2026-10-02): they often
+- **A plan's workstreams started together are scheduled in one turn** (2026-10-02): they often
   build on each other, which a conflict check does not see; only a turn seeing all of them and the
   plan doc can choose the order.
 - **Cards freed at once are scheduled in one turn too** (2026-11-02, the owner on the follow-up
@@ -531,12 +531,12 @@ passed the words on through `to_seismic` hears that the owner finds the link und
   uncommitted changes.
 - **A look-up waits for its background work** (2026-10-19). Rejected: taking its words so far
   ("still downloading …") as the answer, which closed the session and stopped the work.
-- **The project agent can be asked from the project's sheet** (2026-10-21, a colleague's feedback),
-  since asking only through Seismic was not found from the project.
-- **The project's card shows its agent's unread answers** (2026-10-29, issue #21): a reply to what
+- **The plan agent can be asked from the plan's sheet** (2026-10-21, a colleague's feedback),
+  since asking only through Seismic was not found from the plan.
+- **The plan's card shows its agent's unread answers** (2026-10-29, issue #21): a reply to what
   the owner asked in the sheet is looked for where it was asked, not only on Seismic's button. A
   speech bubble rather than a second number, so it is not taken for workstreams that need the owner.
-  Answers asked of Seismic about the project stay on Seismic's button alone: they were asked there.
+  Answers asked of Seismic about the plan stay on Seismic's button alone: they were asked there.
 - **The Koordinator's memory lives in the store, not the session**: a session is never resumed, and
   a new one starts from the stored conversation and the cards' history. That keeps the context short
   over weeks and makes restart and renewal one path; the history is in it because the owner asks

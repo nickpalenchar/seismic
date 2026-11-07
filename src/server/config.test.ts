@@ -55,12 +55,17 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe("Seismic's configuration", async () => {
-  test('keeps the canvas project-baseline toggle when saving and reading configuration', async () => {
+  test('keeps the canvas plan-baseline toggle when saving and reading configuration', async () => {
     const c = config('file', [{ repos: [{ path: web }] }], ['web']);
-    await c.save([{ projectBaselines: false, repos: [{ path: web }] }]);
-    expect(readConfigFile(file)[0]!.projectBaselines).toBe(false);
-    await c.save([{ projectBaselines: true, repos: [{ path: web }] }]);
-    expect(readConfigFile(file)[0]!.projectBaselines).toBe(true);
+    await c.save([{ planBaselines: false, repos: [{ path: web }] }]);
+    expect(readConfigFile(file)[0]!.planBaselines).toBe(false);
+    await c.save([{ planBaselines: true, repos: [{ path: web }] }]);
+    expect(readConfigFile(file)[0]!.planBaselines).toBe(true);
+  });
+  test('still reads the canvas toggle under its old name, projectBaselines', async () => {
+    mkdirSync(join(dir, "home"), { recursive: true });
+    writeFileSync(file, JSON.stringify([{ projectBaselines: false, repos: [{ path: web }] }]));
+    expect(readConfigFile(file)[0]!.planBaselines).toBe(false);
   });
   test('says what each canvas amounts to: its id, name, repositories and where their workers work', async () => {
     api = gitRepo(join(dir, 'api-own'), { '.obeya/settings.json': '{ "workspaces": "clones" }\n' });
@@ -845,9 +850,9 @@ describe('Canvas defaults', () => {
   });
 
   test('start with every label suggested, and keep what the owner saves of them', () => {
-    expect(canvasDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { projectBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null } });
+    expect(canvasDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null } });
     saveCanvasDefaults(dir, { suggest: { complexity: false } });
-    expect(canvasDefaults(dir)).toEqual({ projectBaselines: true, archive: 'manual', suggest: { category: true, complexity: false, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null });
+    expect(canvasDefaults(dir)).toEqual({ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: false, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null });
     // cards are archived by hand until the owner chooses otherwise
     saveCanvasDefaults(dir, { archive: 'landed' });
     expect(canvasDefaults(dir).archive).toBe('landed');
@@ -871,7 +876,7 @@ describe('Canvas defaults', () => {
     await c.save([{ name: 'Web', repos: [{ path: web }] }, { repos: [{ path: api }] }]);
     expect(readConfigFile(file)).toEqual([
       { name: 'Web', repos: [{ path: web }] },
-      { projectBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: false }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: api }] },
+      { planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: false }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: api }] },
     ]);
     // changing the defaults later leaves both alone, and what a new canvas sets itself is its own
     saveCanvasDefaults(dir, { suggest: { category: false, priority: true } });
@@ -880,19 +885,19 @@ describe('Canvas defaults', () => {
     expect(readConfigFile(file).map((x) => x.suggest)).toEqual([undefined, { category: true, complexity: true, priority: false }, { category: true, complexity: false, priority: true }]);
   });
 
-  test('project tagging defaults apply to new canvases while existing canvases and explicit choices stay their own', async () => {
+  test('plan tagging defaults apply to new canvases while existing canvases and explicit choices stay their own', async () => {
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, JSON.stringify([{ repos: [{ path: web }] }]));
     const c = config('file', [], ['web']);
-    saveCanvasDefaults(dir, { projectBaselines: false });
-    expect(canvasDefaults(dir).projectBaselines).toBe(false);
+    saveCanvasDefaults(dir, { planBaselines: false });
+    expect(canvasDefaults(dir).planBaselines).toBe(false);
     await c.save([{ repos: [{ path: web }] }, { repos: [{ path: api }] }]);
-    expect(readConfigFile(file).map((x) => x.projectBaselines)).toEqual([undefined, false]);
-    saveCanvasDefaults(dir, { projectBaselines: true });
+    expect(readConfigFile(file).map((x) => x.planBaselines)).toEqual([undefined, false]);
+    saveCanvasDefaults(dir, { planBaselines: true });
     const other = repo('explicit');
-    await c.save([...readConfigFile(file), { projectBaselines: false, repos: [{ path: other }] }]);
-    expect(readConfigFile(file).map((x) => x.projectBaselines)).toEqual([undefined, false, false]);
-    expect(() => saveCanvasDefaults(dir, { projectBaselines: 'off' })).toThrow();
+    await c.save([...readConfigFile(file), { planBaselines: false, repos: [{ path: other }] }]);
+    expect(readConfigFile(file).map((x) => x.planBaselines)).toEqual([undefined, false, false]);
+    expect(() => saveCanvasDefaults(dir, { planBaselines: 'off' })).toThrow();
   });
 
   test('an existing canvas keeps its settings by id even when it is not running and its repositories change', async () => {
@@ -921,8 +926,8 @@ describe('The canvas settings', () => {
     await expect(c.saveCanvas('web', { name: 'Other' })).rejects.toThrow();
     await expect(c.saveCanvas('nowhere', { suggest: { priority: false } })).rejects.toThrow();
     // changes sent at once all stay
-    await Promise.all([c.saveCanvas('web', { projectBaselines: false }), c.saveCanvas('web', { suggest: { priority: false } })]);
-    expect(readConfigFile(file)[0]).toMatchObject({ projectBaselines: false, suggest: { priority: false } });
+    await Promise.all([c.saveCanvas('web', { planBaselines: false }), c.saveCanvas('web', { suggest: { priority: false } })]);
+    expect(readConfigFile(file)[0]).toMatchObject({ planBaselines: false, suggest: { priority: false } });
   });
 
   test("a canvas's own model or effort goes over the configuration's; Codex workers it sets a model for run in Claude Code", () => {

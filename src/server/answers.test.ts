@@ -86,7 +86,7 @@ describe('a question the Koordinator looks up', () => {
     expect(next.brief).not.toContain('came in and was shown to them');
   });
 
-  test("about a workstream: its project agent answers from the start task, in the open card's log and aloud", async () => {
+  test("about a workstream: its plan agent answers from the start task, in the open card's log and aloud", async () => {
     const w4 = workstream();
     const { heard } = await say('Was würde der Agent hier machen, wenn ich starte?', { card: w4.id }, 'look_up', {
       question: 'What would the worker do on W4 if the owner started it now?',
@@ -98,14 +98,14 @@ describe('a question the Koordinator looks up', () => {
     // with a worker's tools, in the workers' permission mode, to check what it says
     expect(a.spec.readOnly).toBeUndefined();
     expect(a.spec.permissionMode).toBe('acceptEdits');
-    expect(a.spec.system).toContain('project agent of the project "PR-Loop"');
+    expect(a.spec.system).toContain('plan agent of the plan "PR-Loop"');
     expect(a.inbox[0]).toContain('What would the worker do on W4');
     expect(a.inbox[0]).toContain('The task its worker would get if the owner started it now');
     expect(a.inbox[0]).toContain('Your card: “Live im Shop”.');
     expect(a.inbox[0]).toContain('Read its plan doc docs/plan/pr-loop.md first');
     expect(board().snapshot().talk).toEqual([]);
 
-    a.emit({ type: 'session', id: 'project-1' });
+    a.emit({ type: 'session', id: 'plan-1' });
     a.emit({ type: 'tool', name: 'Read', input: { file_path: `${main}/docs/plan/pr-loop.md` } });
     a.call('answer_owner', { text: '1. Liest das Plan-Doc.\n2. Fragt nach dem Go.' });
     a.emit({ type: 'idle' });
@@ -114,14 +114,14 @@ describe('a question the Koordinator looks up', () => {
     expect(board().events(w4.id).map((e) => [e.kind, e.author, e.text])).toEqual([
       ['say', 'owner', 'Was würde der Agent hier machen, wenn ich starte?'],
       ['say', 'koordinator', 'Ich schaue im Plan nach.'],
-      ['activity', 'project', 'Liest plan/pr-loop.md'],
-      ['say', 'project', '1. Liest das Plan-Doc.\n2. Fragt nach dem Go.'],
+      ['activity', 'plan', 'Liest plan/pr-loop.md'],
+      ['say', 'plan', '1. Liest das Plan-Doc.\n2. Fragt nach dem Go.'],
     ]);
     // above the microphone too, written
     expect(notices).toEqual([{ cardId: w4.id, text: '1. Liest das Plan-Doc.\n2. Fragt nach dem Go.', inTalk: true }]);
-    // the project agent keeps its session: it knows the plan and the history
-    expect(board().row(w4.parent!).session_id).toBe('project-1');
-    expect(board().talk().at(-1)).toMatchObject({ question: 'What would the worker do on W4 if the owner started it now?', answer: '1. Liest das Plan-Doc.\n2. Fragt nach dem Go.', answerBy: 'project' });
+    // the plan agent keeps its session: it knows the plan and the history
+    expect(board().row(w4.parent!).session_id).toBe('plan-1');
+    expect(board().talk().at(-1)).toMatchObject({ question: 'What would the worker do on W4 if the owner started it now?', answer: '1. Liest das Plan-Doc.\n2. Fragt nach dem Go.', answerBy: 'plan' });
     // it is read on the card, so the sheet does not wait with it
     expect(board().talk().at(-1)!.unread).toBeUndefined();
 
@@ -130,7 +130,7 @@ describe('a question the Koordinator looks up', () => {
     expect(next.brief).toContain('The answer A1 you looked up for the owner\'s question “What would the worker do on W4');
   });
 
-  test('about a card without a project: a thorough Koordinator turn answers, in the sheet when no card is open', async () => {
+  test('about a card without a plan: a thorough Koordinator turn answers, in the sheet when no card is open', async () => {
     board().create({ title: 'Login', body: 'Login hängt.', x: 0, y: 0 });
     const first = await say('was steht im plan zu login?', {}, 'reply', { confirm: 'Welche Karte?' });
     const tag = /(K\d+) \[planned\] "Login"/.exec(first.brief)![1];
@@ -209,7 +209,7 @@ describe('a question the Koordinator looks up', () => {
     a.emit({ type: 'text', text: 'Er fragt zuerst nach dem Go.' });
     a.emit({ type: 'idle' });
     await settle();
-    expect(board().events(w4.id).at(-1)).toMatchObject({ kind: 'say', author: 'project', text: 'Er fragt zuerst nach dem Go.' });
+    expect(board().events(w4.id).at(-1)).toMatchObject({ kind: 'say', author: 'plan', text: 'Er fragt zuerst nach dem Go.' });
 
     await say('und warum?', { card: w4.id }, 'look_up', { question: 'Q2', confirm: 'Ich schaue nach.' });
     await settle();
@@ -300,11 +300,11 @@ describe('a look-up the usage limit stops', () => {
     expect(notices).toEqual([{ text: 'Der Plan sagt nichts dazu.', talk: talk().id }]);
   });
 
-  test("a workstream's project agent waits the same way", async () => {
+  test("a workstream's plan agent waits the same way", async () => {
     const w4 = workstream();
     await say('was würde der agent tun?', { card: w4.id }, 'look_up', { question: 'What would the worker do?', confirm: 'Ich schaue nach.' });
     const a = answerer();
-    expect(a.spec.system).toContain('project agent');
+    expect(a.spec.system).toContain('plan agent');
     limit(a, 20);
     await settle();
     // in the card's conversation, without the error
@@ -315,7 +315,7 @@ describe('a look-up the usage limit stops', () => {
     a.call('answer_owner', { text: 'Er fragt nach dem Go.' });
     a.emit({ type: 'idle' });
     await settle();
-    expect(board().events(w4.id).at(-1)).toMatchObject({ author: 'project', text: 'Er fragt nach dem Go.' });
+    expect(board().events(w4.id).at(-1)).toMatchObject({ author: 'plan', text: 'Er fragt nach dem Go.' });
   });
 });
 
@@ -806,11 +806,11 @@ describe('a thread on a Question card', () => {
   });
 });
 
-describe("a question asked in a project's sheet", () => {
-  const project = () => board().snapshot().items.find((i) => i.kind === 'project')!;
-  /** Asks in the project's sheet; the project agent answers it in session `session`. */
-  async function asked(text: string, answer: string, session = 'project-1', extra: { images?: string[]; replyTo?: { talk: number; part: 'said' | 'answer' } } = {}) {
-    canvas.press(project().id, { action: 'consult', text, ...extra });
+describe("a question asked in a plan's sheet", () => {
+  const plan = () => board().snapshot().items.find((i) => i.kind === 'plan')!;
+  /** Asks in the plan's sheet; the plan agent answers it in session `session`. */
+  async function asked(text: string, answer: string, session = 'plan-1', extra: { images?: string[]; replyTo?: { talk: number; part: 'said' | 'answer' } } = {}) {
+    canvas.press(plan().id, { action: 'consult', text, ...extra });
     await settle();
     const a = answerer();
     a.emit({ type: 'session', id: session });
@@ -820,47 +820,47 @@ describe("a question asked in a project's sheet", () => {
     return { a, talk: board().talk().at(-1)! };
   }
 
-  test('goes straight to its project agent, with its screenshots, and stands in the sheet with the answer', async () => {
+  test('goes straight to its plan agent, with its screenshots, and stands in the sheet with the answer', async () => {
     const shot = canvas.images.save(new Uint8Array([1, 2, 3]), 'image/png');
-    const { a, talk } = await asked('Warum wartet W4 auf das Go?', 'Weil der Shop live geht.', 'project-1', { images: [shot] });
+    const { a, talk } = await asked('Warum wartet W4 auf das Go?', 'Weil der Shop live geht.', 'plan-1', { images: [shot] });
     // no Koordinator read the words first
     expect(runtime.sessions.some(isKoordinator)).toBe(false);
-    expect(a.spec.system).toContain('project agent of the project "PR-Loop"');
+    expect(a.spec.system).toContain('plan agent of the plan "PR-Loop"');
     expect(a.spec.tools.map((t) => t.name)).toContain('to_seismic');
-    expect(a.inbox[0]).toContain("The owner wrote to you in the project's sheet in Seismic");
+    expect(a.inbox[0]).toContain("The owner wrote to you in the plan's sheet in Seismic");
     expect(a.inbox[0]).toContain('Warum wartet W4 auf das Go?');
     expect(a.images[0]).toEqual([canvas.images.path(shot)!]);
-    expect(board().row(project().id).session_id).toBe('project-1');
-    expect(talk).toMatchObject({ said: 'Warum wartet W4 auf das Go?', askedIn: project().id, question: 'Warum wartet W4 auf das Go?', answer: 'Weil der Shop live geht.', answerBy: 'project', images: [shot] });
+    expect(board().row(plan().id).session_id).toBe('plan-1');
+    expect(talk).toMatchObject({ said: 'Warum wartet W4 auf das Go?', askedIn: plan().id, question: 'Warum wartet W4 auf das Go?', answer: 'Weil der Shop live geht.', answerBy: 'plan', images: [shot] });
     expect(talk.reply).toBeUndefined();
-    expect(board().projectHistory(project().id).talk.map((x) => x.id)).toEqual([talk.id]);
+    expect(board().planHistory(plan().id).talk.map((x) => x.id)).toEqual([talk.id]);
     // the sheet shows it in full: a page with it open needs no line above the microphone
-    expect(notices).toEqual([{ talk: talk.id, project: project().id, text: 'Weil der Shop live geht.' }]);
+    expect(notices).toEqual([{ talk: talk.id, plan: plan().id, text: 'Weil der Shop live geht.' }]);
     // seen there, it waits nowhere else
     expect(talk.unread).toBe(true);
     board().readTalk([talk.id]);
     expect(board().talk().at(-1)!.unread).toBeUndefined();
   });
 
-  test("a reply to a message there follows up on its thread, in the project's session; a question asked of Seismic about the project stands there too", async () => {
+  test("a reply to a message there follows up on its thread, in the plan's session; a question asked of Seismic about the plan stands there too", async () => {
     const first = await asked('Was macht W4?', 'Es geht live.');
-    const { a, talk } = await asked('Und wann?', 'Nach dem Go.', 'project-1', { replyTo: { talk: first.talk.id, part: 'answer' } });
-    expect(a.spec.resume).toBe('project-1');
+    const { a, talk } = await asked('Und wann?', 'Nach dem Go.', 'plan-1', { replyTo: { talk: first.talk.id, part: 'answer' } });
+    expect(a.spec.resume).toBe('plan-1');
     expect(a.inbox[0]).toContain('The owner follows up on your answer. They said: "Und wann?"');
     expect(a.inbox[0]).not.toContain('as Seismic understood it');
     expect(talk).toMatchObject({ thread: first.talk.id, follows: first.talk.id, replyTo: { talk: first.talk.id, part: 'answer' } });
 
-    // asked of Seismic with the project open, or with one of its workstreams open
-    await say('was sagt der plan zu W1?', { project: project().id }, 'look_up', { question: 'What does the plan say about W1?', confirm: 'Ich schaue im Plan nach.' });
+    // asked of Seismic with the plan open, or with one of its workstreams open
+    await say('was sagt der plan zu W1?', { plan: plan().id }, 'look_up', { question: 'What does the plan say about W1?', confirm: 'Ich schaue im Plan nach.' });
     const viaObeya = board().talk().at(-1)!;
     await say('und hier?', { card: workstream().id }, 'look_up', { question: 'What is left on W4?', confirm: 'Moment.' });
     const onWorkstream = board().talk().at(-1)!;
-    expect(board().projectHistory(project().id).talk.map((x) => x.id)).toEqual([first.talk.id, talk.id, viaObeya.id, onWorkstream.id]);
+    expect(board().planHistory(plan().id).talk.map((x) => x.id)).toEqual([first.talk.id, talk.id, viaObeya.id, onWorkstream.id]);
     expect(viaObeya.askedIn).toBeUndefined();
   });
 
-  test("passes on with to_seismic what asks Seismic, which reads it with the project open", async () => {
-    canvas.press(project().id, { action: 'consult', text: 'Starte bitte W4.' });
+  test("passes on with to_seismic what asks Seismic, which reads it with the plan open", async () => {
+    canvas.press(plan().id, { action: 'consult', text: 'Starte bitte W4.' });
     await settle();
     const a = answerer();
     const passed = a.call('to_seismic', { request: 'Start W4.' });
@@ -875,8 +875,8 @@ describe("a question asked in a project's sheet", () => {
     expect(board().talk().at(-1)!.cardId).toBeUndefined();
   });
 
-  test('still being answered when Seismic restarts, it is asked again; "Make it a card" puts its card beside the project', async () => {
-    canvas.press(project().id, { action: 'consult', text: 'Was fehlt noch?' });
+  test('still being answered when Seismic restarts, it is asked again; "Make it a card" puts its card beside the plan', async () => {
+    canvas.press(plan().id, { action: 'consult', text: 'Was fehlt noch?' });
     await settle();
     canvas.shutdown();
     canvas = open();
@@ -891,7 +891,7 @@ describe("a question asked in a project's sheet", () => {
     await settle();
     const card = canvas.answers.toCard(talk.id);
     expect(card).toMatchObject({ kind: 'question', title: 'Was fehlt noch?' });
-    const p = project();
+    const p = plan();
     expect(Math.abs(card.x - p.x) + Math.abs(card.y - p.y)).toBeLessThan(2000);
   });
 });

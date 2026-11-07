@@ -94,7 +94,7 @@ test('with an edge reach, a dot also shows near any point of its edge, the neare
   expect(nearestHandle(cards, { x: 2, y: 3 }, 18, 6)).toEqual({ id: 'A', side: 'left' });
 });
 
-test("a finished card's dependencies stay as dim green lines, in a project or not", () => {
+test("a finished card's dependencies stay as dim green lines, in a plan or not", () => {
   const ws = (id: string, state: Item['state'], extra: Partial<Item> = {}) => ({ ...card(id), kind: 'workstream', state, parent: 'P', ...extra }) as Item;
   const items = [
     ws('W1', 'live'),

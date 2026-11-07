@@ -293,8 +293,8 @@ const scenes: Scene[] = [
     say: narration.canvas,
     run: async (d) => {
       const say = narration.canvas;
-      await saying(d, say, 'they show up as projects');
-      await d.highlight(d.page.locator('.item.project').first(), 'project');
+      await saying(d, say, 'they show up as plans');
+      await d.highlight(d.page.locator('.item.plan').first(), 'plan');
       await saying(d, say, 'The colour says');
       await d.clearHighlights();
       await saying(d, say, 'is working');
@@ -699,7 +699,7 @@ await runDemo(
       for (const name of Object.keys(clips)) await d.page.evaluate((n) => (window as unknown as Mic).__load(n, `/__demo/${n}.wav`), name);
       await card(d, 'App icon').waitFor();
       // a step back from the wall, with the room the groups' territories take, once the Koordinator
-      // has arranged the project: the camera as saved, zoomed around the middle and a little up, so
+      // has arranged the plan: the camera as saved, zoomed around the middle and a little up, so
       // that the idea at the bottom stays clear of the microphone, and the page again
       await d.page.getByText('Arranging …').waitFor({ state: 'detached', timeout: 120_000 });
       await d.wait(600);

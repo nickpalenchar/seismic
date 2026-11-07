@@ -9,7 +9,7 @@ however different the reimplementation would look: behaviour seen from outside, 
 must stay compatible with, non-obvious constraints, and decisions (chosen, why, rejected, date).
 Not what the code shows (names, modules, pixel values), and not history: a change rewrites the
 description instead of adding the old behaviour to it. Work in progress is planned in plan docs
-under `docs/plan/` (Seismic shows them as projects); when one is done, what passes the same test moves
+under `docs/plan/` (Seismic shows them as plans); when one is done, what passes the same test moves
 into the chapters under `docs/design/` (or the index) and the doc goes.
 
 - Bun + TypeScript throughout; tests with `bun test --parallel` (a file per process, from Bun 1.4 on;

@@ -38,7 +38,7 @@ of a waiting card, everything that waits for the owner on every canvas and that 
 yet (see Read and unread below): the cards that need them, per canvas one for Seismic's answers
 waiting unread, and each open rule or setting proposal. The navigation's count per canvas counts the
 same way. Its click slides out the inbox from the right
-instead of jumping to a card. The inbox is a sheet like Seismic's and a project's (see Sheets): docked
+instead of jumping to a card. The inbox is a sheet like Seismic's and a plan's (see Sheets): docked
 to the edge from top to bottom, the canvas moved aside, one sheet open at a time, the same width and
 grip; the button's second click, the sheet's ✕ and Esc close it. Opened, it stays open as the owner
 switches canvas (per tab), until they close it or open another sheet.
@@ -68,7 +68,7 @@ goes at once, with the undo a card's removal always has.
 
 "Go to card" ("Go to Seismic" on Seismic's answer) is on every entry, last and never primary, even
 alone. It opens the card beside the inbox, on this canvas or by switching to the card's canvas,
-where the inbox is open again beside it. Unlike a project's sheet, the inbox is not dimmed while a
+where the inbox is open again beside it. Unlike a plan's sheet, the inbox is not dimmed while a
 card is open: the open card's entry is marked with a ring and a tint, and the owner works down the
 list from there.
 
@@ -135,7 +135,7 @@ saved into the configuration at once and applied without a restart:
 - Cards: "Cards archive", "Manually" (the default) or "Automatically, after landing" (see Archive
   in Card lifecycle).
 - Labels: the toggles "Seismic suggests" (see Projects in Repositories and configuration).
-- Projects: project git baseline tags.
+- Plans: plan git baseline tags.
 
 Its foot opens the Configuration at this canvas's page for its name, repositories and the rest.
 
@@ -210,20 +210,20 @@ with "Got it") and goes for good (per browser) once a card has been created by d
 
 Cards have one fixed size; a delivered workstream becomes a shorter card (`W3` and its title) once its
 agent is done. It keeps the width and title size of an open card, on opaque muted green stock
-that stays opaque when zoomed out, with larger titles in the overview. Existing projects make
-room for these cards where their older layout would overlap. A project wraps its workstreams, which cannot be dragged out; new projects go below
+that stays opaque when zoomed out, with larger titles in the overview. Existing plans make
+room for these cards where their older layout would overlap. A plan wraps its workstreams, which cannot be dragged out; new plans go below
 the existing ones. A proposal or follow-up goes below its card, or, when that spot is taken (for a
-workstream: by its own project), to the nearest spot clear of everything. The dashed line from a
-proposal, follow-up or prototype to its card joins the facing sides and runs above projects but
+workstream: by its own plan), to the nearest spot clear of everything. The dashed line from a
+proposal, follow-up or prototype to its card joins the facing sides and runs above plans but
 below cards. Where a wait joins the same two cards (a follow-up queued behind the card it came
 from, say), only the wait's arrow shows: both lines would take the same course.
 
-The arrow before a project's title collapses it to its head ("Fold", "Unfold"), for
-projects the owner does not work on (on a shared repository every colleague's plan docs are
-projects). Collapsed, it shows title, progress, start button, the badge of workstreams that need the
-owner, the bubble of its agent's unread answers (see Asking in a project's sheet), and a mark per workstream in its state's colour that names and opens it. Its workstreams stay
-in the project's sheet and the queue, and an edge indicator for one that needs the owner points to
-the project. Nothing around it moves. Collapsing is stored in this Seismic, not in the plan doc, so it
+The arrow before a plan's title collapses it to its head ("Fold", "Unfold"), for
+plans the owner does not work on (on a shared repository every colleague's plan docs are
+plans). Collapsed, it shows title, progress, start button, the badge of workstreams that need the
+owner, the bubble of its agent's unread answers (see Asking in a plan's sheet), and a mark per workstream in its state's colour that names and opens it. Its workstreams stay
+in the plan's sheet and the queue, and an edge indicator for one that needs the owner points to
+the plan. Nothing around it moves. Collapsing is stored in this Seismic, not in the plan doc, so it
 holds across reloads, devices and the archive.
 
 A planned or queued card shows a play button under the pointer that starts it without unfolding.
@@ -242,12 +242,12 @@ stages of its demo: "preparing demo" from the demo skill, a demo script or a dry
 outranks thinking. While the worker takes in feedback, the non-demo words add "from feedback". The phone's "Running" list shows its cards the same way.
 
 Every wait between cards on the canvas shows at all times as a thin, solid, grey arrow from the card
-waited for to the card waiting, under the cards and above projects like the dashed line: only direct
+waited for to the card waiting, under the cards and above plans like the dashed line: only direct
 waits, not the chain. All kinds of wait look alike (a card queued behind another, a workstream and
 those it builds on, a card snoozed until another, an arrow the owner drew); a wait ends once the card
 waited for is finished. A finished card's dependencies stay instead, from it to
-the cards queued behind it, snoozed until it, building on it or that the owner drew an arrow to, as dim green lines (as long as the card still records that dependency; an arrow the owner drew can be removed with its trash button either way). A workstream of a collapsed project shows
-its waits at the project's head. The lines stay thin on screen however far the view zooms out.
+the cards queued behind it, snoozed until it, building on it or that the owner drew an arrow to, as dim green lines (as long as the card still records that dependency; an arrow the owner drew can be removed with its trash button either way). A workstream of a collapsed plan shows
+its waits at the plan's head. The lines stay thin on screen however far the view zooms out.
 Under the pointer a card shows the waits around it over every step instead, those to it in the waiting colour and
 those from it in purple (see Scheduling); a wait shows once, never as both. Only the colour changes: line, head and course
 stay as they were, so that moving the pointer over the cards leaves the picture calm.
@@ -269,10 +269,10 @@ middle, or the nearest point along it no card covers. It is grey like the canvas
 buttons, darker under the pointer, and keeps its size on screen at every zoom, as does the band
 along the arrow that shows it. While the arrow holds a queued card, the
 removal waits until the undo has run out (or the page closes), so taking it back never leaves a card
-started. Projects and their workstreams get no dots, since the plan doc decides their order, and
+started. Plans and their workstreams get no dots, since the plan doc decides their order, and
 inferred waits have no trash button. An arrow that would close a cycle with other arrows or waits is
 refused, and the line says why: the card it starts from already waits for the other, directly or
-through other cards, so the two would wait for each other. One to or from a project or a workstream
+through other cards, so the two would wait for each other. One to or from a plan or a workstream
 is refused the same way, saying the plan doc gives their order. A deleted or archived card's arrows are hidden and count for nothing; bringing the card
 back brings them back, except one that would now close a cycle. How an arrow holds a card's start:
 see Scheduling.
@@ -281,19 +281,19 @@ see Scheduling.
 
 The owner gives any card a priority: Trivial, Low, Medium, High, Very high or Critical ("Trivial",
 "Low", "Medium", "High", "Very high", "Critical"). A card has none until then. The unfolded card
-(a project: its sheet) shows the priority in its kind line, or "Set priority" while it has
+(a plan: its sheet) shows the priority in its kind line, or "Set priority" while it has
 none. A click there lists the six priorities, highest first, and "None" to take it off; the pick
 takes effect at once, without an undo. On the canvas, the card's face shows the priority before its kind as a flag
-and its name, in a colour that rises from grey to red; Critical is set in white on red. A project's
-head shows it in place of the word "Project". A priority is a label for the owner only: it changes
+and its name, in a colour that rises from grey to red; Critical is set in white on red. A plan's
+head shows it in place of the word "Plan". A priority is a label for the owner only: it changes
 neither the queue's order nor what starts first, and agents are not told of it. It is stored in
 this Seismic, as collapsing is, so a workstream's priority stays out of its plan doc. Categories and a
 complexity beside it, suggested by Seismic where the owner leaves them empty, are planned in
 [Built-in card labels](../plan/card-labels.md).
 
-#### A project arranged by its dependencies
+#### A plan arranged by its dependencies
 
-A project's workstreams can stand in columns by what builds on what: leftmost what can start at
+A plan's workstreams can stand in columns by what builds on what: leftmost what can start at
 once, each further column one step along the longest chain of open workstreams. Delivered
 workstreams stay in rows of chips above. Within a column cards follow what they build on, so arrows
 cross little, else the plan's order; a column holds four cards and overflows into one beside it.
@@ -301,12 +301,12 @@ cross little, else the plan's order; a column holds four cards and overflows int
 Plan docs state dependencies in prose ("Needs W1", "after W2", or only implicitly), so the
 Koordinator reads them in a turn of its own: for each workstream, delivered ones too, the ones it
 builds on directly (it must name every open one). The reading is kept for the doc as it stood; under the pointer a workstream shows the open
-ones it builds on as waits (see Scheduling), and the project's sheet lists the workstreams in this
+ones it builds on as waits (see Scheduling), and the plan's sheet lists the workstreams in this
 order with what each builds on.
 
-A project arriving with two or more open workstreams is arranged once read, unless the owner has
+A plan arriving with two or more open workstreams is arranged once read, unless the owner has
 moved one of its cards meanwhile. "Arrange" in its head (or in its sheet) arranges it again, after a
-new reading if the doc has changed; it takes effect at once, with "Undo". A project that grows
+new reading if the doc has changed; it takes effect at once, with "Undo". A plan that grows
 into other cards moves to the nearest clear spot.
 
 ### Moving around
@@ -388,13 +388,13 @@ projects, rather than showing another one's cards. A rename moves the open page'
 name; the old name's address no longer opens it, its id does. Decided 2026-11-07: name as slug with the
 id as fallback; rejected: ids only (not what the owner sees), names only (breaks on duplicates and renames).
 `/p/<project>/c/<code>` a card
-or project open on it (the phone view: the card full screen). The code is the card's short code, the
+or plan open on it (the phone view: the card full screen). The code is the card's short code, the
 first six hex digits of its id with one more digit for each card already holding those; its whole id
 works in its place, and the page then shows the short one. The short code is given once, when the
 card is made, and never changes, so a link stays good; existing cards got theirs when the database
 was migrated, each the shortest start of its id no other card shared. Opening an address (a link, a
 bookmark, a reload) opens that card at once, without the flight; an archived one unfolds from its
-row in the archive, an archived workstream from its project's sheet; a code no card has leaves the
+row in the archive, an archived workstream from its plan's sheet; a code no card has leaves the
 canvas open at its own address. Existing `/c/<canvas>`, `/c/<canvas>/card/<code>` and `/c/<canvas>/feedback` addresses,
 and query addresses (`/?c=<canvas>&card=<id>`), are rewritten to this form, so old links and bookmarks keep working. What else the page shows that is
 not a place (`?view=phone`, the phone's open conversation `?talk`; on the canvas `?talk` opens
@@ -402,24 +402,24 @@ Seismic's sheet once, as the inbox's link to an answer on another canvas does) s
 `/p/<project>/feedback` is the Agent Feedback Log in place of that canvas (see Comparing ratings in
 Card lifecycle), and `?performance` on a canvas opens the performance dashboard once.
 
-Opening a card or a project is a step in the browser's history, on the canvas as on the phone: Back
+Opening a card or a plan is a step in the browser's history, on the canvas as on the phone: Back
 closes it again, and closing it (Esc, the close button) goes back that step, so Back after closing
-leaves the page rather than opening the card again. A card opened from a project's sheet is a step on
-from the project's; one opened in place of another (by a link in it) takes over that one's step, so
+leaves the page rather than opening the card again. A card opened from a plan's sheet is a step on
+from the plan's; one opened in place of another (by a link in it) takes over that one's step, so
 Back from it returns to what was open before the first. Where a card names another (what a queued
 card waits for, the card a follow-up or a proposal comes from, the card that replaced a proposal, a
-prototype's idea and project, what Seismic waits on), the name is a link to that card while it is on
+prototype's idea and plan, what Seismic waits on), the name is a link to that card while it is on
 the canvas: a click opens it in place of the open one, a click with a modifier in a tab of its own.
 Card faces on the canvas link nothing, since a click there opens the card itself.
 
 ### Sheets
 
-The sheets (Seismic's, a project's, a plan doc being read, the inbox, the project settings) are a sidebar docked to the window's right
+The sheets (Seismic's, a plan's, a plan doc being read, the inbox, the project settings) are a sidebar docked to the window's right
 edge, full height; the pinned navigation is one on the left edge. The canvas is the rest between
 them: the top bar, the microphone and its confirmations, the edge indicators, the minimap and an
 unfolding card all keep to it. Opening, closing or resizing a sheet, or pinning the navigation,
 shifts the view so its middle stays in the middle of the rest. A card opened beside a sheet
-returns beside whatever sheet is open when it closes; a project's sheet stays, dimmed, while one of
+returns beside whatever sheet is open when it closes; a plan's sheet stays, dimmed, while one of
 its cards is open, and the inbox stays undimmed beside any card. A narrow window lays the sheet over the canvas.
 
 Seismic's button, a speech bubble with its counts, stays where it is when its sheet opens and becomes
@@ -451,7 +451,7 @@ calm and modern without looking like a stock component kit.
   growing and fading, changes nothing but size and opacity: an animation the browser has to repaint
   makes the whole card under it shimmer on a zoomed-out canvas, 2026-10-30); an idea is glass tinted
   rose; a proposal only pencilled in (dashed, no glass); a queued card's tab dashed; done and live
-  cards are glass tinted muted green, in a project or outside one (a Question card keeps its own;
+  cards are glass tinted muted green, in a plan or outside one (a Question card keeps its own;
   while their agent still works after landing, only their state line is in the working ink, with the
   moving line). The state line at the card's foot stays one line, cut short
   with an ellipsis when it is longer, so it never runs into the text above it. Under the pointer a
@@ -526,16 +526,16 @@ runs out from where it was assigned, the territory overshoots and settles, and a
 along the new edge, all in under a second (see the decision on large animations).
 
 Marking: Shift + drag draws a lasso (without Shift it pans), Shift + click toggles a card (a
-workstream: its project; a click beside a project's workstreams marks the project); a lasso adds to what is marked. Marked cards carry drifting dashes and a
+workstream: its plan; a click beside a plan's workstreams marks the plan); a lasso adds to what is marked. Marked cards carry drifting dashes and a
 line with their count and "Group …". Dragging a marked card moves all marked ones, an unmarked one
 alone. A click on the empty canvas or Esc unmarks. Two hints teach it, each until used once: after a
 card was moved alone, how to mark several (gone after a few seconds, or at once with the next click,
 canvas drag or scroll); beside two or more marked cards, that dragging one moves
 them all.
 
-Assigning: "Group …", or a right click on a card (that card, a workstream's project, or all marked ones if it is among
+Assigning: "Group …", or a right click on a card (that card, a workstream's plan, or all marked ones if it is among
 them), opens a ring of colour balls: the groups, "+" (a new group, named in place) and "∅" (none).
-Each group's name stands beside its ball with its count of cards still to be done (not finished, archived or a dropped idea; a project by its workstreams); a group at 0 goes
+Each group's name stands beside its ball with its count of cards still to be done (not finished, archived or a dropped idea; a plan by its workstreams); a group at 0 goes
 pale, a candidate for deleting. Behind the ring the canvas steps back under a frosted halo and holds
 still. Moving towards a ball picks it, a click takes it, Esc closes the ring. The picked group's ×
 deletes it (its cards, archived ones too, belong to none), with "Undo".
@@ -611,12 +611,12 @@ code, a generic one otherwise.
 - **A finished card keeps its dependencies** (owner, 2026-11-04, extended to every card 2026-11-06):
   with a finished card's lines gone, the picture of what its delivered work unlocked next was lost.
   Dim green says "delivered", against the grey and orange of waits, for every finished card in a
-  project or not; delivered chips are muted green to match. Rejected: a blue tone while the target
+  plan or not; delivered chips are muted green to match. Rejected: a blue tone while the target
   is still open (one more colour to learn), and keeping them grey, which reads as one more wait.
 - **The owner may draw dependencies between task cards** (2026-11-02), beside the waits Seismic
   infers: single cards have no plan doc to say what comes first, and the owner sometimes knows an
-  order that a conflict check cannot see, without wanting to turn the cards into a project.
-  Rejected: arrows to or from projects and workstreams, whose order the plan doc decides; a trash
+  order that a conflict check cannot see, without wanting to turn the cards into a plan.
+  Rejected: arrows to or from plans and workstreams, whose order the plan doc decides; a trash
   button on inferred waits, which Seismic would infer again at the next start; a confirmation dialog
   before removing an arrow, where "Undo" does the same with one click fewer. A click on empty
   canvas while drawing makes the waiting card (2026-11-04): the next step often has no card yet,
@@ -662,9 +662,9 @@ code, a generic one otherwise.
   marked card.
 - **A group ends with its last card** (2026-10-06): no empty groups to clean up. Deleting exists for
   groups whose last cards sit in the archive, out of the ring's reach.
-- **A project the owner does not work on collapses** (2026-10-21): it stays in sight and needs no
-  second list. Rejected: hiding projects into a list beside the archive, filtered by the plan doc's
-  git author ("Only my projects").
+- **A plan the owner does not work on collapses** (2026-10-21): it stays in sight and needs no
+  second list. Rejected: hiding plans into a list beside the archive, filtered by the plan doc's
+  git author ("Only my plans").
 - **`?` and "New task" only teach** (2026-10-15). Rejected: a permanent `?` button, and "New
   task" creating a card mid-view.
 - **A card's title is optional** (2026-10-15). Rejected: a required title, which dropped untitled

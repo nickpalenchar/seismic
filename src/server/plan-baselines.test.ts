@@ -5,25 +5,25 @@ import { join } from 'node:path';
 import { Board } from './board';
 import { Store } from './db';
 import { gitRepo, identify } from './testing';
-import { git, gitOrNull, projectBaselineTag, Workspaces } from './workspaces';
+import { git, gitOrNull, planBaselineTag, Workspaces } from './workspaces';
 
 let dir: string;
 beforeEach(() => (dir = mkdtempSync(join(tmpdir(), 'obeya-baseline-'))));
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 
-describe('project git baselines', () => {
+describe('plan git baselines', () => {
   for (const mode of ['worktrees', 'clones'] as const) {
     test(`${mode}: concurrent workstreams share a fixed tag through landings and restarts`, async () => {
       const repo = gitRepo(join(dir, 'repo'));
       const store = new Store(':memory:');
       const board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: repo, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
       const ids = ['A', 'B', 'C'].map((title) => board.create({ title, x: 0, y: 0 }).id);
-      const options = { mode, repoPath: repo, dir: join(dir, 'ws'), projectOf: () => 'project-1' };
+      const options = { mode, repoPath: repo, dir: join(dir, 'ws'), planOf: () => 'plan-1' };
       let spaces = new Workspaces(store, 'c', options);
       if (mode === 'clones') spaces.ensureClones(repo, 3);
       const original = git(repo, 'rev-parse', 'main');
-      const tag = projectBaselineTag('project-1');
+      const tag = planBaselineTag('plan-1');
       const leases = ids.slice(0, 2).map((id, n) => spaces.lease(id, `obeya/w${n}`));
       await Promise.all(leases.map((l) => l.ready));
       for (const [n, lease] of leases.entries()) {
@@ -46,7 +46,7 @@ describe('project git baselines', () => {
     const board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: repo, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     const id = board.create({ title: 'A', x: 0, y: 0 }).id;
     let enabled = false;
-    const spaces = new Workspaces(store, 'c', { mode: 'worktrees', repoPath: repo, dir: join(dir, 'ws'), projectOf: () => enabled ? 'p' : undefined });
+    const spaces = new Workspaces(store, 'c', { mode: 'worktrees', repoPath: repo, dir: join(dir, 'ws'), planOf: () => enabled ? 'p' : undefined });
     const first = spaces.lease(id, 'obeya/a');
     await first.ready;
     expect(git(repo, 'tag', '--list')).toBe('');
@@ -55,10 +55,10 @@ describe('project git baselines', () => {
     enabled = true;
     await spaces.lease(id, 'obeya/a').ready;
     expect(git(first.path, 'rev-parse', 'HEAD')).toBe(head);
-    expect(git(repo, 'rev-parse', `refs/tags/${projectBaselineTag('p')}`)).toBe(git(repo, 'rev-parse', 'main'));
+    expect(git(repo, 'rev-parse', `refs/tags/${planBaselineTag('p')}`)).toBe(git(repo, 'rev-parse', 'main'));
     enabled = false;
     await spaces.lease(id, 'obeya/a').ready;
-    expect(git(first.path, 'config', '--get', 'branch.obeya/a.obeya-project-baseline')).toBe(projectBaselineTag('p'));
+    expect(git(first.path, 'config', '--get', 'branch.obeya/a.obeya-project-baseline')).toBe(planBaselineTag('p'));
   });
 
   test('a conflicting clone tag refuses preparation and releases the lease', async () => {
@@ -66,9 +66,9 @@ describe('project git baselines', () => {
     const store = new Store(':memory:');
     const board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: repo, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     const id = board.create({ title: 'A', x: 0, y: 0 }).id;
-    const tag = projectBaselineTag('p');
+    const tag = planBaselineTag('p');
     git(repo, 'tag', tag);
-    const spaces = new Workspaces(store, 'c', { mode: 'clones', repoPath: repo, dir: join(dir, 'ws'), projectOf: () => 'p' });
+    const spaces = new Workspaces(store, 'c', { mode: 'clones', repoPath: repo, dir: join(dir, 'ws'), planOf: () => 'p' });
     const [clone] = spaces.ensureClones(repo, 1);
     identify(clone!);
     git(clone!, 'commit', '--quiet', '--allow-empty', '-m', 'Other commit');

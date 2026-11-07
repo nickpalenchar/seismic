@@ -71,7 +71,7 @@ const de = {
     restarted: (earlier: string) => `Von vorn gestartet. ${earlier}`,
     newSession: (earlier: string) => `Neue Sitzung. ${earlier}`,
     earlierRun: (session: string) => `Der frühere Lauf (Sitzung ${session}) bleibt für die Arbeitsrückschau erhalten.`,
-    projectBaseline: (tag: string, commit: string) => `Git-Ausgangspunkt des Projekts: ${tag} (${commit.slice(0, 7)}). Dieser Zweig ist damit verknüpft.`,
+    planBaseline: (tag: string, commit: string) => `Git-Ausgangspunkt des Plans: ${tag} (${commit.slice(0, 7)}). Dieser Zweig ist damit verknüpft.`,
     started: (branch: string) => `Agent gestartet auf ${branch}.`,
     /** The owner chose the worker's harness, model and effort for this start. */
     startedWith: (choice: string) => `Für diesen Start gewählt: ${choice}.`,
@@ -310,18 +310,18 @@ const de = {
     settledFrom: (idea: string) => `Von der Idee „${idea}“ abgetrennt.`,
     howOn: (idea: string) => `Idee „${idea}“: wie weiter?`,
     howOnTask: (task: string) => `Aufgabe „${task}“: wie weiter?`,
-    planDocAnswer: 'Als Projekt: erst ein Plan-Doc mit Workstreams.',
-    planDocLog: 'Als Projekt: Ein Agent schreibt das Plan-Doc; ist es gelandet, tritt das Projekt an die Stelle der Idee.',
-    planDocTaskLog: 'Als Projekt: Ein Agent schreibt das Plan-Doc; ist es gelandet, tritt das Projekt an die Stelle der Aufgabe.',
+    planDocAnswer: 'Als Plan: erst ein Plan-Doc mit Workstreams.',
+    planDocLog: 'Als Plan: Ein Agent schreibt das Plan-Doc; ist es gelandet, tritt der Plan an die Stelle der Idee.',
+    planDocTaskLog: 'Als Plan: Ein Agent schreibt das Plan-Doc; ist es gelandet, tritt der Plan an die Stelle der Aufgabe.',
     dropped: 'Verworfen.',
     parked: 'Geparkt.',
     /** `file`: the doc to write, where the plan directory is a folder outside the repository. */
     planDocTask: (dir: string, task = false, file?: string) =>
-      `Schreibe aus ${task ? 'dieser Aufgabe' : 'dem Stand dieser Idee'} ein Plan-Doc ${file ? `als \`${file}\`, in einem Ordner dieses Rechners außerhalb des Repositorys,` : `in \`${dir}/\`,`} nach den Konventionen des Repositorys (vorhandene Plan-Docs als Vorbild). Es braucht ein \`## Ziel\` (oder \`## Goal\`) und eine Checkliste unter \`## Workstreams\` (\`- [ ] **W1:** Titel. Details\`), in Pakete geschnitten, die einzeln landen können; dann zeigt Seismic es als Projekt, das an die Stelle dieser ${task ? 'Aufgabe' : 'Idee'} tritt. Baue nichts davon; nur das Plan-Doc${file ? '' : ' (und ein Verweis darauf, wo das Repository Plan-Docs verlinkt)'}.`,
+      `Schreibe aus ${task ? 'dieser Aufgabe' : 'dem Stand dieser Idee'} ein Plan-Doc ${file ? `als \`${file}\`, in einem Ordner dieses Rechners außerhalb des Repositorys,` : `in \`${dir}/\`,`} nach den Konventionen des Repositorys (vorhandene Plan-Docs als Vorbild). Es braucht ein \`## Ziel\` (oder \`## Goal\`) und eine Checkliste unter \`## Workstreams\` (\`- [ ] **W1:** Titel. Details\`), in Pakete geschnitten, die einzeln landen können; dann zeigt Seismic es als Plan, der an die Stelle dieser ${task ? 'Aufgabe' : 'Idee'} tritt. Baue nichts davon; nur das Plan-Doc${file ? '' : ' (und ein Verweis darauf, wo das Repository Plan-Docs verlinkt)'}.`,
     planDocIdea: (title: string) => `Idee: „${title}“`,
     planDocCard: (title: string) => `Aufgabe: „${title}“`,
     planDocPrototypes: (n: number) =>
-      `Zu dieser Idee gibt es schon ${n > 1 ? `${n} Prototypen` : 'einen Prototyp'}. Sie bleiben im Projekt stehen; steht das Projekt, wählt der Owner einen von ihnen („Diesen Prototyp bauen“), und der Workstream, der darauf aufbaut, wird auf seinem Branch gebaut. Plane sie also nicht noch einmal als Workstreams, sondern nimm, was sie gezeigt haben, ins Plan-Doc auf. Nur der Workstream, der auf dem gewählten Prototyp aufbaut, erwähnt Prototypen: an ihm erkennt Seismic, welcher Workstream auf dem Branch des Prototyps gebaut wird.`,
+      `Zu dieser Idee gibt es schon ${n > 1 ? `${n} Prototypen` : 'einen Prototyp'}. Sie bleiben im Plan stehen; steht der Plan, wählt der Owner einen von ihnen („Diesen Prototyp bauen“), und der Workstream, der darauf aufbaut, wird auf seinem Branch gebaut. Plane sie also nicht noch einmal als Workstreams, sondern nimm, was sie gezeigt haben, ins Plan-Doc auf. Nur der Workstream, der auf dem gewählten Prototyp aufbaut, erwähnt Prototypen: an ihm erkennt Seismic, welcher Workstream auf dem Branch des Prototyps gebaut wird.`,
     planDocHandedOver: (title: string, summary: string) => `„${title}“, so übergeben:\n\n${summary}`,
     planDocInProgress: (title: string) => `„${title}“: noch in Arbeit.`,
     onlyThisVariant: (others: string) => `Nur diese Variante: ${others} bauen eigene Prototypen.`,
@@ -339,13 +339,13 @@ const de = {
     plansRepo: (path: string) => `Wählt ein neues Repository zum Bauen: ${path}`,
     plansNoRepo: 'Wählt kein neues Repository mehr',
     decision: (question: string, answer: string) => `Entscheidung: ${question} → ${answer}`,
-    becameProject: 'Das Projekt steht jetzt an der Stelle der Idee; die Idee liegt im Archiv.',
-    taskBecameProject: 'Das Projekt steht jetzt an der Stelle der Aufgabe; die Aufgabe liegt im Archiv.',
+    becamePlan: 'Der Plan steht jetzt an der Stelle der Idee; die Idee liegt im Archiv.',
+    taskBecamePlan: 'Der Plan steht jetzt an der Stelle der Aufgabe; die Aufgabe liegt im Archiv.',
     /** A workstream whose part landed while its plan doc keeps it open. */
     partLanded: 'Teil gelandet, im Plan-Doc weiter offen.',
-    /** A workstream card that left its project: the doc no longer lists it, or its log belongs to another workstream. */
-    leftGone: (project: string) => `Hat das Projekt „${project}“ verlassen: Das Plan-Doc führt diesen Workstream nicht mehr.`,
-    leftOther: (project: string) => `Hat das Projekt „${project}“ verlassen: Dieser Verlauf gehört zu einem Workstream, den das Plan-Doc nicht mehr führt.`,
+    /** A workstream card that left its plan: the doc no longer lists it, or its log belongs to another workstream. */
+    leftGone: (plan: string) => `Hat den Plan „${plan}“ verlassen: Das Plan-Doc führt diesen Workstream nicht mehr.`,
+    leftOther: (plan: string) => `Hat den Plan „${plan}“ verlassen: Dieser Verlauf gehört zu einem Workstream, den das Plan-Doc nicht mehr führt.`,
     /** How the brief and the prototype button are called on the card, for the idea's agent. */
     briefName: 'Stand der Idee',
     prototypeButton: 'Prototyp bauen lassen',
@@ -528,11 +528,11 @@ const de = {
     body: 'Füll mit dem Skill `obeya:settings` die Einstellungen dieses Repositorys für alle aus (`.obeya/settings.json`, in der Konfiguration unter „Einstellungen“ als „aus dem Repository“ zu sehen): welche Prüfungen laufen, wie Arbeit landet, wie ein Agent die App betreibt (starten, nach einer Änderung, für eine Demo), wie Seismic sie stoppt, und wo die Plan-Docs liegen, die Seismic als Projekte zeigt. Entwirf dazu die Allow-Liste der Befehle, die Agenten hier ohne Rückfrage ausführen (die `Bash`-Regeln in `.claude/settings.json`), damit ich sie in der Konfiguration prüfe und ihr vertraue. Hat das Repository noch ein `.obeya/adapter/`, übernimm, was darin steht, in die Einstellungen und lösch es. Was du im Repository nicht herausfindest (Login, Testdaten), frag mich.',
     reason: (repo: string) => `Seismic weiß noch nicht, wie die App von ${repo} startet, welche Prüfungen laufen und wie ein Agent sie für eine Demo betreibt.`,
   },
-  /** The card that turns a doc in the plan directory that is not a project into one. */
+  /** The card that turns a doc in the plan directory that is not a plan into one. */
   preparePlanDoc: {
-    title: (file: string) => `${file.slice(file.lastIndexOf('/') + 1)} als Projekt aufbereiten`,
+    title: (file: string) => `${file.slice(file.lastIndexOf('/') + 1)} als Plan aufbereiten`,
     body: (file: string) =>
-      `Bereite \`${file}\` so auf, dass Seismic es als Projekt zeigt. Seismic liest ein Plan-Doc als Projekt, wenn unter \`## Workstreams\` (oder \`## Arbeitspakete\`) eine Checkliste steht: Jeder Punkt der obersten Ebene ist ein Workstream (\`- [ ] **W1:** Titel. Details\`), ein Paket, das einzeln landen kann, und ein abgehakter ist gelandet. Das Ziel des Projekts ist der erste Absatz unter \`## Goal\` (oder \`## Ziel\`).\n\nErgänze die Checkliste, und das Ziel, wenn es fehlt, im Stil des Docs aus dem, was es plant. Führt es seine Aufgaben schon unter einer anderen Überschrift (Tasks, Meilensteine, Phasen), wird daraus die Checkliste, statt sie zu verdoppeln. Hake ab, was schon erledigt ist; ist alles erledigt, sag es mir, denn ein Projekt mit lauter abgehakten Workstreams geht gleich ins Archiv. Der übrige Text bleibt, und gebaut wird nichts davon.`,
+      `Bereite \`${file}\` so auf, dass Seismic es als Plan zeigt. Seismic liest ein Plan-Doc als Plan, wenn unter \`## Workstreams\` (oder \`## Arbeitspakete\`) eine Checkliste steht: Jeder Punkt der obersten Ebene ist ein Workstream (\`- [ ] **W1:** Titel. Details\`), ein Paket, das einzeln landen kann, und ein abgehakter ist gelandet. Das Ziel des Plans ist der erste Absatz unter \`## Goal\` (oder \`## Ziel\`).\n\nErgänze die Checkliste, und das Ziel, wenn es fehlt, im Stil des Docs aus dem, was es plant. Führt es seine Aufgaben schon unter einer anderen Überschrift (Tasks, Meilensteine, Phasen), wird daraus die Checkliste, statt sie zu verdoppeln. Hake ab, was schon erledigt ist; ist alles erledigt, sag es mir, denn ein Plan mit lauter abgehakten Workstreams geht gleich ins Archiv. Der übrige Text bleibt, und gebaut wird nichts davon.`,
   },
   /** The page another device gets until it is paired (src/server/remote.ts). */
   notOwner: {
@@ -618,7 +618,7 @@ const en: Messages = {
     newSession: (earlier: string) => `New session. ${earlier}`,
     earlierRun: (session: string) => `The earlier run (session ${session}) is kept for the work retrospective.`,
     startedWith: (choice: string) => `Chosen for this start: ${choice}.`,
-    projectBaseline: (tag: string, commit: string) => `Project git baseline: ${tag} (${commit.slice(0, 7)}). This branch is linked to it.`,
+    planBaseline: (tag: string, commit: string) => `Plan git baseline: ${tag} (${commit.slice(0, 7)}). This branch is linked to it.`,
     started: (branch: string) => `Agent started on ${branch}.`,
     reviewStarted: (n: number, author: string) => `Agent started: it reviews PR #${n} by ${author}.`,
     changesRequested: (n: number, author: string) => `Change request sent as a review comment on PR #${n}. Waiting for ${author}.`,
@@ -818,17 +818,17 @@ const en: Messages = {
     settledFrom: (idea: string) => `Split off from the idea “${idea}”.`,
     howOn: (idea: string) => `Idea “${idea}”: how to go on?`,
     howOnTask: (task: string) => `Task “${task}”: how to go on?`,
-    planDocAnswer: 'As a project: a plan doc with workstreams first.',
-    planDocLog: 'As a project: an agent writes the plan doc; once it has landed, the project takes the idea’s place.',
-    planDocTaskLog: 'As a project: an agent writes the plan doc; once it has landed, the project takes the task’s place.',
+    planDocAnswer: 'As a plan: a plan doc with workstreams first.',
+    planDocLog: 'As a plan: an agent writes the plan doc; once it has landed, the plan takes the idea’s place.',
+    planDocTaskLog: 'As a plan: an agent writes the plan doc; once it has landed, the plan takes the task’s place.',
     dropped: 'Dropped.',
     parked: 'Parked.',
     planDocTask: (dir: string, task = false, file?: string) =>
-      `Write a plan doc ${file ? `as \`${file}\`, in a folder of this machine outside the repository,` : `in \`${dir}/\``} from ${task ? 'this task' : 'where this idea stands'}, following the repository’s conventions (existing plan docs as the model). It needs a \`## Goal\` (or \`## Ziel\`) and a checklist under \`## Workstreams\` (\`- [ ] **W1:** Title. Details\`), cut into packages that can land one by one; then Seismic shows it as a project that takes the place of this ${task ? 'task' : 'idea'}. Build none of it; only the plan doc${file ? '' : ' (and a link to it where the repository links plan docs)'}.`,
+      `Write a plan doc ${file ? `as \`${file}\`, in a folder of this machine outside the repository,` : `in \`${dir}/\``} from ${task ? 'this task' : 'where this idea stands'}, following the repository’s conventions (existing plan docs as the model). It needs a \`## Goal\` (or \`## Ziel\`) and a checklist under \`## Workstreams\` (\`- [ ] **W1:** Title. Details\`), cut into packages that can land one by one; then Seismic shows it as a plan that takes the place of this ${task ? 'task' : 'idea'}. Build none of it; only the plan doc${file ? '' : ' (and a link to it where the repository links plan docs)'}.`,
     planDocIdea: (title: string) => `Idea: “${title}”`,
     planDocCard: (title: string) => `Task: “${title}”`,
     planDocPrototypes: (n: number) =>
-      `This idea already has ${n > 1 ? `${n} prototypes` : 'a prototype'}. They stay in the project; once the project stands, the owner picks one of them (“Build this prototype”), and the workstream that builds on it is built on its branch. So do not plan them again as workstreams; take what they showed into the plan doc. Only the workstream that builds on the chosen prototype mentions prototypes: that is how Seismic knows which workstream is built on the prototype’s branch.`,
+      `This idea already has ${n > 1 ? `${n} prototypes` : 'a prototype'}. They stay in the plan; once the plan stands, the owner picks one of them (“Build this prototype”), and the workstream that builds on it is built on its branch. So do not plan them again as workstreams; take what they showed into the plan doc. Only the workstream that builds on the chosen prototype mentions prototypes: that is how Seismic knows which workstream is built on the prototype’s branch.`,
     planDocHandedOver: (title: string, summary: string) => `“${title}”, handed over like this:\n\n${summary}`,
     planDocInProgress: (title: string) => `“${title}”: still in progress.`,
     onlyThisVariant: (others: string) => `Only this variant: ${others} get prototypes of their own.`,
@@ -846,11 +846,11 @@ const en: Messages = {
     plansRepo: (path: string) => `Picks a new repository to build in: ${path}`,
     plansNoRepo: 'No longer picks a new repository',
     decision: (question: string, answer: string) => `Decision: ${question} → ${answer}`,
-    becameProject: 'The project now stands in the idea’s place; the idea is in the archive.',
-    taskBecameProject: 'The project now stands in the task’s place; the task is in the archive.',
+    becamePlan: 'The plan now stands in the idea’s place; the idea is in the archive.',
+    taskBecamePlan: 'The plan now stands in the task’s place; the task is in the archive.',
     partLanded: 'Part landed; the plan doc keeps it open.',
-    leftGone: (project: string) => `Left the project “${project}”: the plan doc no longer lists this workstream.`,
-    leftOther: (project: string) => `Left the project “${project}”: this history belongs to a workstream the plan doc no longer lists.`,
+    leftGone: (plan: string) => `Left the plan “${plan}”: the plan doc no longer lists this workstream.`,
+    leftOther: (plan: string) => `Left the plan “${plan}”: this history belongs to a workstream the plan doc no longer lists.`,
     briefName: 'Where the idea stands',
     prototypeButton: 'Have a prototype built',
     splitOffButton: 'Split off a task',
@@ -1018,9 +1018,9 @@ const en: Messages = {
     reason: (repo: string) => `Seismic does not know yet how the app of ${repo} starts, which checks run or how an agent runs it for a demo.`,
   },
   preparePlanDoc: {
-    title: (file: string) => `Prepare ${file.slice(file.lastIndexOf('/') + 1)} as a project`,
+    title: (file: string) => `Prepare ${file.slice(file.lastIndexOf('/') + 1)} as a plan`,
     body: (file: string) =>
-      `Prepare \`${file}\` so that Seismic shows it as a project. Seismic reads a plan doc as a project when a checklist stands under \`## Workstreams\` (or \`## Arbeitspakete\`): each top-level item is a workstream (\`- [ ] **W1:** Title. Details\`), a package that can land on its own, and a ticked one has landed. The project's goal is the first paragraph under \`## Goal\` (or \`## Ziel\`).\n\nAdd the checklist, and the goal if it is missing, in the doc's own style, from what it plans. If the doc already keeps its tasks under another heading (Tasks, Milestones, Phases), that becomes the checklist instead of a copy of it. Tick what is already done; if everything is, tell me, since a project whose workstreams are all ticked goes straight to the archive. The rest of the text stays, and nothing of it is built.`,
+      `Prepare \`${file}\` so that Seismic shows it as a plan. Seismic reads a plan doc as a plan when a checklist stands under \`## Workstreams\` (or \`## Arbeitspakete\`): each top-level item is a workstream (\`- [ ] **W1:** Title. Details\`), a package that can land on its own, and a ticked one has landed. The plan's goal is the first paragraph under \`## Goal\` (or \`## Ziel\`).\n\nAdd the checklist, and the goal if it is missing, in the doc's own style, from what it plans. If the doc already keeps its tasks under another heading (Tasks, Milestones, Phases), that becomes the checklist instead of a copy of it. Tick what is already done; if everything is, tell me, since a plan whose workstreams are all ticked goes straight to the archive. The rest of the text stays, and nothing of it is built.`,
   },
   notOwner: {
     title: 'Not signed in · Seismic',

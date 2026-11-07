@@ -11,7 +11,7 @@ import { Store } from './db';
 import { readShared } from '../adapters';
 import { commandsOf } from './trust';
 import { artifact, FakeRuntime, gitRepo, heard, identify, noForge, until } from './testing';
-import { git, gitOrNull, projectBaselineTag, HERE } from './workspaces';
+import { git, gitOrNull, planBaselineTag, HERE } from './workspaces';
 import { type SkillPlace, Skills } from './skills';
 import { OBEYA_PLUGIN } from './demo';
 import { STALL_MS } from './stalls';
@@ -82,8 +82,8 @@ describe('a canvas with several repositories', () => {
   });
   test('names itself, lists its repositories, and shows the plan docs of all of them', () => {
     expect(canvas.board.canvas).toMatchObject({ id: 'produkt', name: 'Produkt', repos: [{ id: 'web' }, { id: 'api' }] });
-    const projects = canvas.board.snapshot().items.filter((i) => i.kind === 'project');
-    expect(projects.map((p) => [p.title, p.repo, p.plan!.file]).sort()).toEqual([
+    const plans = canvas.board.snapshot().items.filter((i) => i.kind === 'plan');
+    expect(plans.map((p) => [p.title, p.repo, p.plan!.file]).sort()).toEqual([
       ['API', 'api', 'api:docs/plan/plan.md'],
       ['Web', 'web', 'docs/plan/plan.md'],
     ]);
@@ -301,10 +301,10 @@ describe('a canvas with several repositories', () => {
     expect(item(r.id).state).toBe('idea');
   });
 
-  test('a proposal from a workstream goes to a free spot beside its project, not onto it', () => {
+  test('a proposal from a workstream goes to a free spot beside its plan, not onto it', () => {
     const items = canvas.board.snapshot().items;
-    const project = items.find((i) => i.kind === 'project' && i.repo === 'web')!;
-    const ws = items.find((i) => i.parent === project.id)!;
+    const plan = items.find((i) => i.kind === 'plan' && i.repo === 'web')!;
+    const ws = items.find((i) => i.parent === plan.id)!;
     const p = canvas.board.propose(ws.id, { title: 'Folgefehler', task: 'S', reason: 'R' });
     const all = canvas.board.snapshot().items;
     const pb = boundsOf(item(p.id), all);
@@ -859,7 +859,7 @@ describe('the configuration changed while the canvas runs', () => {
     expect(session.closed).toBe(false);
     expect(session.inbox.join()).not.toContain('restart');
     // the new repository's plan doc is on the canvas
-    expect(canvas.board.snapshot().items.some((i) => i.kind === 'project' && i.repo === 'api')).toBe(true);
+    expect(canvas.board.snapshot().items.some((i) => i.kind === 'plan' && i.repo === 'api')).toBe(true);
   });
 
   test("a repository whose clones changed restarts its agents once they paused; the other repository's work on", async () => {
@@ -1255,7 +1255,7 @@ test('a single repository keeps its canvas id and bare plan references', () => {
   const only = repo('solo', 'Solo');
   const c = new CanvasRuntime({ repos: [{ path: only }] }, { store: new Store(':memory:'), home: dir, runtime: new FakeRuntime(), forge: noForge });
   expect(c.board.canvas.id).toBe('solo');
-  expect(c.board.snapshot().items.find((i) => i.kind === 'project')!.plan!.file).toBe('docs/plan/plan.md');
+  expect(c.board.snapshot().items.find((i) => i.kind === 'plan')!.plan!.file).toBe('docs/plan/plan.md');
   canvas = c;
 });
 
@@ -1333,7 +1333,7 @@ test('clicks in a card count towards the Rückschau, and words the learner reads
 describe('where a spoken new card lands', () => {
   test('in view, at the place the owner was; without one, in what a page last had in view', async () => {
     canvas.board.create({ title: 'Far', x: 5000, y: 3000 });
-    // clear of the canvas's projects, which stand at the origin
+    // clear of the canvas's plans, which stand at the origin
     const view = { x: 2000, y: 1000, w: 1200, h: 800 };
     const [w, h] = CARD_SIZE.task;
     const titled = (title: string) => canvas.board.snapshot().items.find((i) => i.title === title)!;
@@ -1496,7 +1496,7 @@ describe("the owner's words on a card with an agent", () => {
   });
 });
 
-describe('plan docs that are not projects, and projects whose work is done', () => {
+describe('plan docs that are not plans, and plans whose work is done', () => {
   /** A doc lands on the default branch of the `api` repository, and Seismic reads it from there. */
   const land = async (file: string, text: string) => {
     const api = join(dir, 'api');
@@ -1505,14 +1505,14 @@ describe('plan docs that are not projects, and projects whose work is done', () 
     git(api, 'commit', '--quiet', '-m', `Plan ${file}`);
     await canvas.repos[1]!.read.refresh();
   };
-  const project = (title: string) => canvas.board.snapshot().items.find((i) => i.kind === 'project' && i.title === title);
+  const plan = (title: string) => canvas.board.snapshot().items.find((i) => i.kind === 'plan' && i.title === title);
 
-  test('an off-format doc is listed with its reason, prepared by a started card, and a project once its checklist lands', async () => {
+  test('an off-format doc is listed with its reason, prepared by a started card, and a plan once its checklist lands', async () => {
     await land('docs/plan/rollout.md', '# Rollout\n\n## Phasen\n\n- [ ] Wien\n');
     expect(canvas.board.snapshot().planDirs).toEqual([{ repo: 'api', dir: 'docs/plan', empty: false, others: [{ file: 'docs/plan/rollout.md', reason: 'noWorkstreams' }] }]);
-    expect(() => canvas.preparePlanDoc('api', 'docs/plan/plan.md')).toThrow('not a project');
+    expect(() => canvas.preparePlanDoc('api', 'docs/plan/plan.md')).toThrow('not a plan');
     const card = canvas.preparePlanDoc('api', 'docs/plan/rollout.md');
-    expect(card).toMatchObject({ title: 'rollout.md als Projekt aufbereiten', repo: 'api' });
+    expect(card).toMatchObject({ title: 'rollout.md als Plan aufbereiten', repo: 'api' });
     expect(card.body).toContain('`docs/plan/rollout.md`');
     // started at once, and asked for again it is the same card
     expect(canvas.board.item(card.id)!.queue).toBeDefined();
@@ -1524,17 +1524,17 @@ describe('plan docs that are not projects, and projects whose work is done', () 
     expect(canvas.board.item(card.id)!.x).toBeGreaterThan(right);
 
     await land('docs/plan/rollout.md', '# Rollout\n\n## Ziel\n\nÖsterreich.\n\n## Workstreams\n\n- [ ] **W1:** Wien.\n');
-    expect(project('Rollout')).toMatchObject({ repo: 'api', plan: { file: 'api:docs/plan/rollout.md', goal: 'Österreich.' } });
+    expect(plan('Rollout')).toMatchObject({ repo: 'api', plan: { file: 'api:docs/plan/rollout.md', goal: 'Österreich.' } });
     expect(canvas.board.snapshot().planDirs).toBeUndefined();
   });
 
-  test('a project goes into the archive once every workstream is ticked on the default branch, and comes back with an open one', async () => {
-    const before = project('API')!;
+  test('a plan goes into the archive once every workstream is ticked on the default branch, and comes back with an open one', async () => {
+    const before = plan('API')!;
     await land('docs/plan/plan.md', '# API\n\n## Goal\n\nG.\n\n## Workstreams\n\n- [x] **W1:** Erster Schritt.\n');
-    expect(project('API')).toBeUndefined();
+    expect(plan('API')).toBeUndefined();
     expect(canvas.board.archived().map((i) => i.title)).toEqual(['API', 'Erster Schritt']);
     await land('docs/plan/plan.md', '# API\n\n## Goal\n\nG.\n\n## Workstreams\n\n- [x] **W1:** Erster Schritt.\n- [ ] **W2:** Zweiter.\n');
-    expect(project('API')).toMatchObject({ id: before.id, x: before.x, y: before.y });
+    expect(plan('API')).toMatchObject({ id: before.id, x: before.x, y: before.y });
     expect(canvas.board.archived()).toEqual([]);
   });
 });
@@ -1865,19 +1865,19 @@ describe('owner-drawn dependencies in the queue', () => {
 });
 
 
-test('project baselines default on, remain separate per project, and the canvas toggle applies to later starts', async () => {
+test('plan baselines default on, remain separate per plan, and the canvas toggle applies to later starts', async () => {
   const workstreams = canvas.board.items().filter((c) => c.parent);
   const [a, b] = workstreams;
   for (const card of [a!, b!]) {
     await canvas.repoOf(card.id).workers.start(card.id);
     const row = canvas.board.row(card.id);
-    const tag = projectBaselineTag(card.parent!);
+    const tag = planBaselineTag(card.parent!);
     expect(git(row.workspace!, 'config', '--get', `branch.${row.branch}.obeya-project-baseline`)).toBe(tag);
     expect(canvas.board.events(card.id).some((e) => e.text.includes(tag))).toBe(true);
     await canvas.repoOf(card.id).workers.stop(card.id);
   }
-  expect(projectBaselineTag(a!.parent!)).not.toBe(projectBaselineTag(b!.parent!));
-  await canvas.apply({ name: 'Produkt', projectBaselines: false, repos: canvas.repos.map((r) => r.config) });
+  expect(planBaselineTag(a!.parent!)).not.toBe(planBaselineTag(b!.parent!));
+  await canvas.apply({ name: 'Produkt', planBaselines: false, repos: canvas.repos.map((r) => r.config) });
   const repo = canvas.repoOf(a!.id);
   const kept = repo.workspaces.list().find((w) => gitOrNull(w.path, 'branch', '--show-current') === canvas.board.row(a!.id).branch)!.path;
   git(kept, 'config', '--remove-section', `branch.${canvas.board.row(a!.id).branch}`);

@@ -212,7 +212,7 @@ A planned card a worker already began on (a stopped one), one waiting for a new 
 card and a prototype have no such agent: the field takes notes for the worker that takes the card on
 ("A note to the agent – it gets it once it starts"). Typed notes stand unread ("Not read yet · once the agent starts", with a bin to take them back) and go to the worker with the task
 when it starts, by the owner's click, at the time it was snoozed to, or out of the queue; a stopped
-card's worker gets them with the message it resumes with. Planned as a project, the card's worker
+card's worker gets them with the message it resumes with. Made into a plan, the card's worker
 gets them with its task; discussed as an idea, its exploration agent opens the discussion with them.
 
 The field is the same on every card and in Seismic's sheet: one frame, the text growing up to 30 % of

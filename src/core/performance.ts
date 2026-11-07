@@ -10,8 +10,8 @@ export const FEW = 5;
 export interface PerformanceFilter {
   canvas?: string;
   repo?: string;
-  /** A project's id. */
-  project?: string;
+  /** A plan's id. */
+  plan?: string;
   /** Only responses given since (ISO time). */
   since?: string;
 }
@@ -47,7 +47,7 @@ export function filterFeedback(list: Feedback[], f: PerformanceFilter): Feedback
     (x) =>
       (!f.canvas || x.canvasId === f.canvas) &&
       (!f.repo || x.repo === f.repo) &&
-      (!f.project || x.project?.id === f.project) &&
+      (!f.plan || x.plan?.id === f.plan) &&
       (!f.since || (x.updatedAt ?? x.at) >= f.since),
   );
 }
@@ -110,13 +110,13 @@ export function performance(list: Feedback[]): Performance {
   };
 }
 
-/** What the filters can choose from: the canvases, repositories and projects responses were given in. */
+/** What the filters can choose from: the canvases, repositories and plans responses were given in. */
 export function filterChoices(list: Feedback[]) {
   const canvases = [...new Set(list.map((f) => f.canvasId))];
   const repos = [...new Set(list.flatMap((f) => (f.repo ? [f.repo] : [])))].sort();
-  const projects = new Map<string, string>();
-  for (const f of list) if (f.project) projects.set(f.project.id, f.project.title);
-  return { canvases, repos, projects: [...projects].map(([id, title]) => ({ id, title })).sort((a, b) => a.title.localeCompare(b.title)) };
+  const plans = new Map<string, string>();
+  for (const f of list) if (f.plan) plans.set(f.plan.id, f.plan.title);
+  return { canvases, repos, plans: [...plans].map(([id, title]) => ({ id, title })).sort((a, b) => a.title.localeCompare(b.title)) };
 }
 
 export interface TrendPoint {

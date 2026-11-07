@@ -54,7 +54,7 @@
 }
 
 html, body { background-color: var(--bg); background-image: var(--board); background-attachment: fixed; font-feature-settings: "cv11", "ss01"; letter-spacing: -.003em; }
-h1, h2, .cfg-head h3, .p-title, .project > .head .ttl, .timeline .a-ttl { font-weight: 650; letter-spacing: -.018em; }
+h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-weight: 650; letter-spacing: -.018em; }
 code { border-radius: 5px; }
 
 /* the canvas: the board's gradient shows through; the dots stay as a faint grid */
@@ -90,8 +90,8 @@ code { border-radius: 5px; }
 .card .landed-part { border-radius: 6px; }
 .badge::before { box-shadow: 0 0 0 2px var(--glass-edge), 0 4px 10px -2px rgba(0,0,0,.25); }
 
-/* projects: a big pane of thinner glass */
-.project { border-radius: 22px; border: 1px solid var(--container-line); backdrop-filter: blur(6px) saturate(1.2); -webkit-backdrop-filter: blur(6px) saturate(1.2); }
+/* plans: a big pane of thinner glass */
+.plan { border-radius: 22px; border: 1px solid var(--container-line); backdrop-filter: blur(6px) saturate(1.2); -webkit-backdrop-filter: blur(6px) saturate(1.2); }
 
 /* ---------- chrome: frosted too ---------- */
 #bar { background: color-mix(in srgb, var(--bg) 45%, transparent); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
@@ -156,7 +156,7 @@ svg.lucide { flex: none; }
    than half without one), and many small ones shimmer zoomed out. --unblurred stands in for the blur's saturate:
    a tint that keeps the card the colour it has at rest (dark: bluer; light: none needed), so a pan or a click
    on the canvas does not change the cards' colour. */
-:is(.z-far, .moving) :is(.card, .merge-half.partner, .project) { backdrop-filter: none; -webkit-backdrop-filter: none; }
+:is(.z-far, .moving) :is(.card, .merge-half.partner, .plan) { backdrop-filter: none; -webkit-backdrop-filter: none; }
 :is(.z-far, .moving) .card:not(.s-proposal) { background-image: linear-gradient(var(--unblurred), var(--unblurred)); }
 
 /* reduced motion (styles.css takes the blur away): glass that blurred what lies behind it turns solid, so the

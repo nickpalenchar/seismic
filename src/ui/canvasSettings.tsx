@@ -1,13 +1,13 @@
 // The canvas's own settings, a docked sheet on the right like the inbox, opened from the gear in the
 // bar: models per group of agents over Configuration's, code reviews, the demo site, the labels Seismic
-// suggests, how cards go into the archive, project tags.
+// suggests, how cards go into the archive, plan tags.
 // Each change saves at once into the configuration; the rest of the canvas (name, repositories) is
 // in the Configuration dialog, which the sheet's foot opens at this canvas.
 
 import { Fragment, useEffect, useState } from 'react';
 import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, harnessChoice, type AgentEffort, type AgentModel, type AgentRole, type CanvasAgents, type CanvasSettings, type CanvasSettingsView, type CodexModel, type Harness } from '../core/types';
 import { api } from './api';
-import { CanvasSiteField, CardArchiveField, CodeReviewField, Head, ProjectBaselineField, SuggestField } from './config';
+import { CanvasSiteField, CardArchiveField, CodeReviewField, Head, PlanBaselineField, SuggestField } from './config';
 import { Docked } from './docked';
 import { failText, t } from './strings';
 
@@ -122,8 +122,8 @@ export function CanvasSettingsSheet({ canvas, name, homePath, on, covered, probl
           <CardArchiveField value={view.settings.archive} onChange={(archive) => save({ archive })} />
           <Head title={l.labels} />
           <SuggestField value={view.settings.suggest} onChange={(suggest) => save({ suggest })} />
-          <Head title={l.projects} />
-          <ProjectBaselineField value={view.settings.projectBaselines} onChange={(projectBaselines) => save({ projectBaselines })} />
+          <Head title={l.plans} />
+          <PlanBaselineField value={view.settings.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />
         </>
       )}
       {status && <p className="hint c-status">{status}</p>}

@@ -59,7 +59,7 @@ const stage = JSON.parse(readFileSync(stageFile, 'utf8'));
 stage.port = PORT;
 stage.dir = `/tmp/obeya-scratch-${PORT}`;
 stage.cards = [
-  { key: 'P', project: 'docs/plan/tipjar-2.md', x: 40, y: 100 },
+  { key: 'P', plan: 'docs/plan/tipjar-2.md', x: 40, y: 100 },
   { key: 'W2', workstream: 'W2', state: 'working', statusLine: 'Reading the receipt photo', branch: 'obeya/scan-receipt' },
   { key: 'W3', workstream: 'W3', queue: { behind: ['W2'], reason: 'The link shares the bill that W2 fills in from the receipt.' } },
   { key: 'S', title: 'Split the bill', body: 'Tipjar shows what each person at the table pays.', state: 'waiting', need: 'demo', x: 780, y: 100,
@@ -88,12 +88,12 @@ const base = `http://127.0.0.1:${PORT}`;
 await fetch(`${base}/api/language`, { method: 'PUT', headers: ownerHeaders(join(staged.dir, 'home')), body: JSON.stringify({ language: 'en' }) });
 console.log('staged', staged.url);
 
-// the Koordinator reads the new project's plan doc for what builds on what and arranges it: until
+// the Koordinator reads the new plan's doc for what builds on what and arranges it: until
 // then its head says "Arranging …", which a shot taken at once showed
 const settled = Date.now() + 3 * 60_000;
 while (Date.now() < settled) {
   const snap = (await (await fetch(`${base}/api/c/tipjar/canvas`, { headers: ownerHeaders(join(staged.dir, 'home')) })).json()) as { items: { kind: string; arranging?: true }[] };
-  if (!snap.items.some((i) => i.kind === 'project' && i.arranging)) break;
+  if (!snap.items.some((i) => i.kind === 'plan' && i.arranging)) break;
   await new Promise((r) => setTimeout(r, 1000));
 }
 
@@ -150,14 +150,14 @@ async function shots(page: Page, cards: Record<string, string>) {
   await page.waitForTimeout(1000);
 
   // the cards in their states
-  const all = await Promise.all((await page.locator('.card, .project').all()).map((l) => l.boundingBox()));
+  const all = await Promise.all((await page.locator('.card, .plan').all()).map((l) => l.boundingBox()));
   await page.screenshot({ path: join(IMG, 'cards.png'), clip: around(all.filter((b): b is Box => !!b && b.y > 60), 20) });
   console.log('cards.png');
 
   // the order: the pointer on a queued workstream shows what it waits for
   await page.hover(card(cards.W3));
   await page.waitForTimeout(800);
-  await page.screenshot({ path: join(IMG, 'order.png'), clip: around([await boxOf(page, '.project')], 24) });
+  await page.screenshot({ path: join(IMG, 'order.png'), clip: around([await boxOf(page, '.plan')], 24) });
   await page.mouse.move(5, 500);
   console.log('order.png');
 

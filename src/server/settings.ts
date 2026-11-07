@@ -47,7 +47,7 @@ function read(home: string): Settings {
     const conversationLanguage = LANGUAGES.find((l) => l === o.conversationLanguage);
     const theme = THEMES.find((x) => x === o.theme);
     const motion = MOTIONS.find((x) => x === o.motion);
-    return { ...o, language, conversationLanguage, theme, motion, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === false ? false : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, canvasDefaults: canvasSettingsShape.safeParse(o.canvasDefaults).data };
+    return { ...o, language, conversationLanguage, theme, motion, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === false ? false : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, canvasDefaults: canvasSettingsShape.safeParse(renamedBaselines(o.canvasDefaults)).data };
   } catch {
     return {};
   }
@@ -134,9 +134,16 @@ export function saveNotifications(home: string, input: unknown): NotificationsVi
 
 const ownAgent = z.object({ model: z.enum(AGENT_MODELS).optional(), effort: z.enum(AGENT_EFFORTS).optional(), harness: z.enum(HARNESSES).optional(), codex: z.object({ model: z.string(), effort: z.enum(AGENT_EFFORTS) }).strict().optional(), agy: z.object({ model: z.string(), effort: z.enum(AGENT_EFFORTS) }).strict().optional() }).strict().optional();
 
+/** A canvas's settings as saved before `projectBaselines` became `planBaselines`: the old key is still read. */
+export function renamedBaselines(saved: unknown): unknown {
+  if (!saved || typeof saved !== 'object' || !('projectBaselines' in saved)) return saved;
+  const { projectBaselines, ...rest } = saved as Record<string, unknown>;
+  return 'planBaselines' in rest ? rest : { ...rest, planBaselines: projectBaselines };
+}
+
 /** A canvas's own settings, as the configuration and Canvas defaults hold them. */
 export const canvasSettingsShape = z.object({
-  projectBaselines: z.boolean().optional(),
+  planBaselines: z.boolean().optional(),
   archive: z.enum(CARD_ARCHIVING).optional(),
   suggest: z.object({ category: z.boolean().optional(), complexity: z.boolean().optional(), priority: z.boolean().optional() }).strict().optional(),
   agents: z.object({ koordinator: ownAgent, worker: ownAgent, explorer: ownAgent, chores: ownAgent, review: ownAgent }).strict().optional(),
@@ -186,7 +193,7 @@ function canvasAgents(saved: CanvasAgents | undefined): CanvasAgents {
  */
 export const CANVAS_SETTINGS: { [K in keyof CanvasSettings]-?: (saved: CanvasSettings[K]) => CanvasDefaults[K] } = {
   suggest: suggestToggles,
-  projectBaselines: (saved) => saved !== false,
+  planBaselines: (saved) => saved !== false,
   // the owner archives by hand where left out
   archive: (saved) => (saved === 'landed' ? 'landed' : 'manual'),
   // the default of every canvas's models is Configuration's "Agents and models": none of its own

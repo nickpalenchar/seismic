@@ -57,29 +57,29 @@ function open(land: 'main' | 'pr' = 'pr') {
   return canvas;
 }
 
-const projects = (c: CanvasRuntime) =>
+const plans = (c: CanvasRuntime) =>
   c.board
     .snapshot()
-    .items.filter((i) => i.kind === 'project')
+    .items.filter((i) => i.kind === 'plan')
     .map((p) => p.title)
     .sort();
 
 describe('the Lesestand', () => {
-  test("is a worktree on the default branch: a card's branch in the checkout without the plan doc leaves the project on the canvas", () => {
+  test("is a worktree on the default branch: a card's branch in the checkout without the plan doc leaves the plan on the canvas", () => {
     git(checkout, 'checkout', '--quiet', '-b', 'obeya/card');
     git(checkout, 'rm', '--quiet', 'docs/plan/export.md');
     git(checkout, 'commit', '--quiet', '-m', 'card');
     const c = open();
     // named after the repository, which is named after its remote
     expect(c.repos[0]!.read.path).toBe(join(dir, 'home', 'read', 'shop', 'origin'));
-    expect(projects(c)).toEqual(['Export']);
+    expect(plans(c)).toEqual(['Export']);
     // the checkout's working tree is the card's, untouched; leasing finds it clean
     expect(existsSync(join(checkout, 'docs/plan/export.md'))).toBe(false);
     expect(git(checkout, 'status', '--porcelain')).toBe('');
     git(checkout, 'checkout', '--quiet', 'main');
     git(checkout, 'checkout', '--quiet', 'obeya/card');
     c.board.docsChanged();
-    expect(projects(c)).toEqual(['Export']);
+    expect(plans(c)).toEqual(['Export']);
   });
 
   test('of a repository on master without a remote is on master, while the checkout is on a card\'s branch', () => {
@@ -90,19 +90,19 @@ describe('the Lesestand', () => {
     git(checkout, 'commit', '--quiet', '-m', 'card');
     const c = open();
     expect(c.repos[0]!.read.path).toBe(join(dir, 'home', 'read', 'shop', 'origin'));
-    expect(projects(c)).toEqual(['Export']);
+    expect(plans(c)).toEqual(['Export']);
     expect(c.board.snapshot().canvas.repos[0]!.branch).toBe('master');
   });
 
   test('shows a doc that reached origin once it refreshes, and lets a deleted one go', async () => {
     const c = open();
     push({ 'docs/plan/import.md': doc('Import') });
-    expect(projects(c)).toEqual(['Export']);
+    expect(plans(c)).toEqual(['Export']);
     await c.repos[0]!.read.refresh();
-    expect(projects(c)).toEqual(['Export', 'Import']);
+    expect(plans(c)).toEqual(['Export', 'Import']);
     push({ 'docs/plan/export.md': null });
     await c.repos[0]!.read.refresh();
-    expect(projects(c)).toEqual(['Import']);
+    expect(plans(c)).toEqual(['Import']);
   });
 
   test('a workstream ticked off in a merged pull request goes live with the merge', async () => {
@@ -121,7 +121,7 @@ describe('the Lesestand', () => {
     writeFileSync(join(checkout, 'docs/plan/draft.md'), doc('Entwurf'));
     const c = open('main');
     expect(c.repos[0]!.read.path).toBe(checkout);
-    expect(projects(c)).toEqual(['Entwurf', 'Export']);
+    expect(plans(c)).toEqual(['Entwurf', 'Export']);
     expect(existsSync(join(dir, 'home', 'read'))).toBe(false);
   });
 

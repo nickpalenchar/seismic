@@ -1,12 +1,12 @@
 // The cards the owner has marked on the canvas (Shift + click, Shift + lasso), to move them together
-// or put them into a group at once. A workstream counts as its project, as in the lasso: it moves
-// only inside its project.
+// or put them into a group at once. A workstream counts as its plan, as in the lasso: it moves
+// only inside its plan.
 
 import type { Item } from '../core/types';
 
 type Pos = { x: number; y: number };
 
-/** What marking `i` marks: the card, or a workstream's project. */
+/** What marking `i` marks: the card, or a workstream's plan. */
 export const markable = (i: Pick<Item, 'id' | 'parent'>) => i.parent ?? i.id;
 
 /** The selection with `id` taken in, or out when it was in. */

@@ -57,13 +57,13 @@ export interface Talk {
 
 /** Seismic's lines that mark where the work stands (the demo linked on the pull request among them), or why an idea clicked to build was not; its other notes (restarts, sessions, what happens on the pull request) fold away. */
 const MILESTONE =
-  /^(Auf main gelandet:|Landed on main:|Agent gestartet|Agent started|Pull Request gemergt|Pull request merged|Nach der Freigabe auf main gelandet|Landed on main after the approval|Pull Request ohne Merge geschlossen|Pull request closed without a merge|Das Projekt steht jetzt|The project now stands|Nicht gebaut|Not built|Teil gelandet|Part landed|Der Seismic-Checkout stand auf|The Seismic checkout was on|Im Plan-Doc|Ticked off in the plan doc|Den Link zur Demo (als Kommentar|in die Beschreibung)|Commented the demo’s link|Added the demo’s link|main ließ sich nach dem Merge nicht holen: Konflikt|Could not pull main after the merge: it conflicts|Der Merge von PR #\d+ kollidiert|Merging PR #\d+ conflicts|Konflikt mit PR #\d+ gelöst|Conflict with PR #\d+ resolved|main aus dem Remote geholt|Pulled main from the remote|main gepusht|Pushed main)/;
+  /^(Auf main gelandet:|Landed on main:|Agent gestartet|Agent started|Pull Request gemergt|Pull request merged|Nach der Freigabe auf main gelandet|Landed on main after the approval|Pull Request ohne Merge geschlossen|Pull request closed without a merge|Das Projekt steht jetzt|The project now stands|Der Plan steht jetzt|The plan now stands|Nicht gebaut|Not built|Teil gelandet|Part landed|Der Seismic-Checkout stand auf|The Seismic checkout was on|Im Plan-Doc|Ticked off in the plan doc|Den Link zur Demo (als Kommentar|in die Beschreibung)|Commented the demo’s link|Added the demo’s link|main ließ sich nach dem Merge nicht holen: Konflikt|Could not pull main after the merge: it conflicts|Der Merge von PR #\d+ kollidiert|Merging PR #\d+ conflicts|Konflikt mit PR #\d+ gelöst|Conflict with PR #\d+ resolved|main aus dem Remote geholt|Pulled main from the remote|main gepusht|Pushed main)/;
 
 /** The agent that works on the card or thinks the idea through. */
 const agentAuthor = (e: CardEvent) => !e.made && (e.author === 'worker' || e.author === 'explorer');
 
 /** The agent Seismic looks the owner's questions up with (`answers.ts`): on a card whose own agent it is not, its steps are not that agent's. */
-const lookUpAuthor = (e: CardEvent) => e.author === 'koordinator' || e.author === 'project';
+const lookUpAuthor = (e: CardEvent) => e.author === 'koordinator' || e.author === 'plan';
 
 /** What the owner says to the card's agent. */
 const toAgent = (e: CardEvent) => (e.kind === 'hint' || e.kind === 'answer' || e.kind === 'talk') && (e.author === 'owner' || e.kind === 'answer');
@@ -85,7 +85,7 @@ const place = (e: CardEvent, prev: CardEvent | undefined): 'owner' | 'agent' | '
       // it could not read them), and its answer that Seismic cannot do what they asked, with its link to report that
       if (e.author === 'owner') return 'owner';
       if (e.wish || e.reply) return 'aside';
-      return (e.author === 'koordinator' || e.author === 'project') && !(prev?.kind === 'say' && prev.author === 'owner') ? 'aside' : 'step';
+      return (e.author === 'koordinator' || e.author === 'plan') && !(prev?.kind === 'say' && prev.author === 'owner') ? 'aside' : 'step';
     case 'error':
     case 'denied':
       return 'line';
@@ -528,7 +528,7 @@ export const koordinatorReads = (events: CardEvent[]) => {
 
 /**
  * Whether Seismic's conversation shows it at work: reading the owner's words, or looking a question up
- * (not while the usage limit holds it). Words asked in a project's sheet went straight to its project
+ * (not while the usage limit holds it). Words asked in a plan's sheet went straight to its plan
  * agent: Seismic never replies to them, only their answer is awaited.
  */
 export const obeyaWorks = (talk: Exchange[]) =>

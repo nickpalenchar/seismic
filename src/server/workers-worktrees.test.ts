@@ -986,7 +986,7 @@ describe('a worktree per card', () => {
     expect(board.item(c.id)!.finishing).toBeUndefined();
   });
 
-  test("an idea's plan doc that lands is remembered for the project it becomes", async () => {
+  test("an idea's plan doc that lands is remembered for the plan it becomes", async () => {
     const i = board.create({ idea: true, title: 'Groß', x: 0, y: 0 });
     board.work(i.id, { state: 'planned' });
     await workers.start(i.id);
@@ -998,10 +998,10 @@ describe('a worktree per card', () => {
     await workers.approve(i.id);
     expect(state(i.id)).toBe('live');
     expect(JSON.parse(board.row(i.id).plan_docs!)).toEqual(['docs/plan/README.md', 'docs/plan/gross.md']);
-    // the project takes the idea's place; the idea goes once its worker is done after the landing
+    // the plan takes the idea's place; the idea goes once its worker is done after the landing
     setDocs([doc, { file: 'docs/plan/gross.md', title: 'Groß', goal: 'G', workstreams: [ws('W1')], markdown: '' }]);
     board.docsChanged();
-    expect(board.snapshot().items.find((p) => p.title === 'Groß' && p.kind === 'project')).toMatchObject({ origin: i.id, x: 0, y: 0 });
+    expect(board.snapshot().items.find((p) => p.title === 'Groß' && p.kind === 'plan')).toMatchObject({ origin: i.id, x: 0, y: 0 });
     expect(board.item(i.id)).toBeDefined();
     runtime.last.emit({ type: 'idle' });
     expect(board.item(i.id)).toMatchObject({ finishing: true });

@@ -1,7 +1,7 @@
 // Questions the Koordinator looks up: what it cannot answer in its quick reading of a command (what
 // an agent would do on a card, what the plan says, what a release holds) goes to an agent with a
 // worker's tools that takes the time to read and check.
-// A workstream's question goes to its project agent, any other to a thorough Koordinator turn. The
+// A workstream's question goes to its plan agent, any other to a thorough Koordinator turn. The
 // answer comes later: in full in the log of the card that was open (else in the Koordinator's
 // sheet), and summed up aloud.
 // A look-up starts a thread: a follow-up on its answer resumes the same agent, which still has all
@@ -18,7 +18,7 @@ import type { AgentAt, AgentIdentity } from '../core/types';
 import { type Briefing, INFORM_RULES, inform, Interrupted, type OwnerAnswer } from './advisor';
 import { BadRequest, type Board, replyNote } from './board';
 import { imageNote } from './images';
-import type { ProjectAgents } from './project-agents';
+import type { PlanAgents } from './plan-agents';
 import type { AgentRuntime } from './runtime';
 import { TO_OBEYA, toObeyaTool } from './to-obeya';
 import { describeTool, SPOKEN } from './workers';
@@ -31,8 +31,8 @@ export interface AnswerOptions {
   pathFor: (card: Item | undefined) => string;
   /** The task the card's worker gets at its start. */
   startBrief: (card: Item) => string | undefined;
-  /** The project agent of a project answers what is asked about it and its workstreams. */
-  projectAgent: (project: Item) => Pick<ProjectAgents, 'inform'>;
+  /** The plan agent of a plan answers what is asked about it and its workstreams. */
+  planAgent: (plan: Item) => Pick<PlanAgents, 'inform'>;
   /** A thread's output directory, outside every repository. */
   dirOf: (thread: number) => string;
   /** The files of the owner's screenshots, by id; unknown ones are left out. */
@@ -50,7 +50,7 @@ export interface AnswerOptions {
 const LOG_LINES = 25;
 
 type Exchange = Talk & { about?: string; session?: string };
-type By = 'koordinator' | 'project';
+type By = 'koordinator' | 'plan';
 
 export class Answers {
   /** Exchanges being looked up, so a resume does not ask twice. */
@@ -86,7 +86,7 @@ export class Answers {
       return;
     }
     this.busy.add(talkId);
-    const { by, about, project } = this.agentFor(root);
+    const { by, about, plan } = this.agentFor(root);
     const reading = t.cardId && this.o.board.item(t.cardId) ? t.cardId : undefined;
     // what it reads shows on the open card, as an exploration agent's reading does
     const onTool = (name: string, input: Record<string, unknown>) => {
@@ -97,15 +97,15 @@ export class Answers {
     const resume = follow ? (this.o.board.threadTalk(thread).findLast((x) => x.session && x.id <= (t.follows ?? t.id))?.session ?? this.cardSession(root)) : undefined;
     // looked up for an action: Seismic takes it with the answer, which brings what it needs
     const step = t.then ? `\n\nSeismic takes this step itself once your answer is in: ${t.then}\nYour answer gives what the step needs.` : '';
-    const fresh = `${this.message(root.said, root.question!, about, project, root.askedIn)}${follow ? '' : step}`;
-    // written in the project's sheet: Seismic did not read the words, so the agent passes on what asks Seismic
+    const fresh = `${this.message(root.said, root.question!, about, plan, root.askedIn)}${follow ? '' : step}`;
+    // written in the plan's sheet: Seismic did not read the words, so the agent passes on what asks Seismic
     const asked = t.askedIn ? { images: this.o.imageFiles?.(t.images) ?? [], from: t.askedIn } : undefined;
     this.queue(thread, () =>
       this.consult({
         thread,
         by,
         about,
-        project,
+        plan,
         ...(asked ? { asked } : {}),
         onTool,
         onSession: (id) => this.o.board.talkSession(talkId, id),
@@ -123,21 +123,21 @@ export class Answers {
             }
           : { message: fresh }),
       })
-        .then((a) => this.deliver(talkId, thread, by, t.question!, a, reading, project))
-        .catch((e) => this.deliver(talkId, thread, by, t.question!, { text: this.o.board.t.answer.failed(messageOf(e)) }, reading, project)),
+        .then((a) => this.deliver(talkId, thread, by, t.question!, a, reading, plan))
+        .catch((e) => this.deliver(talkId, thread, by, t.question!, { text: this.o.board.t.answer.failed(messageOf(e)) }, reading, plan)),
     ).finally(() => this.busy.delete(talkId));
   }
 
   /**
-   * The owner's words in a project's sheet: a question straight to its project agent, which Seismic
+   * The owner's words in a plan's sheet: a question straight to its plan agent, which Seismic
    * does not read first. In reply to a message there, it follows up on that message's thread, as a
    * follow-up in Seismic's sheet does. `images`: the screenshots' ids.
    */
-  askProject(projectId: string, text: string, images: string[], replyTo?: TalkRef): number {
-    const project = this.o.board.item(projectId);
-    if (project?.kind !== 'project' || !project.plan) throw new BadRequest('invalid', 'not a project with a plan doc');
+  askPlan(planId: string, text: string, images: string[], replyTo?: TalkRef): number {
+    const plan = this.o.board.item(planId);
+    if (plan?.kind !== 'plan' || !plan.plan) throw new BadRequest('invalid', 'not a plan with a plan doc');
     const quoted = this.o.board.quotedTalk(replyTo);
-    const talk = this.o.board.addTalk(text, '', null, { question: text, about: projectId }, images, quoted, undefined, projectId);
+    const talk = this.o.board.addTalk(text, '', null, { question: text, about: planId }, images, quoted, undefined, planId);
     if (quoted && this.o.board.exchange(quoted.talk)?.thread) this.o.board.followTalk(talk, quoted.talk);
     this.lookUp(talk);
     return talk;
@@ -303,10 +303,10 @@ export class Answers {
     if (!card || !stored || !taken.length || card.paused) return;
     const root = this.o.board.exchange(stored.talk);
     if (!root?.question) return;
-    const { by, about, project } = this.agentFor(root);
+    const { by, about, plan } = this.agentFor(root);
     const words = taken.map((p) => p.text).join('\n\n');
     const heard = (p: { said: number[] }) => p.said.some((id) => taken.some((t) => t.said.includes(id)));
-    const intro = this.message(root.said, root.question, about, project);
+    const intro = this.message(root.said, root.question, about, plan);
     const resumed = this.resumed.delete(cardId) ? `${RESUMED}\n\n` : '';
     this.o.board.readNow(cardId, taken.flatMap((p) => p.said));
     this.reading.add(cardId);
@@ -318,7 +318,7 @@ export class Answers {
         thread: stored.talk,
         by,
         about,
-        project,
+        plan,
         card: cardId,
         images: taken.flatMap((p) => p.images),
         onTool: (name, input) => {
@@ -373,7 +373,7 @@ export class Answers {
   }
 
   /**
-   * Asks the thread's agent: a project's agent in its own session, else the look-up's session,
+   * Asks the thread's agent: a plan's agent in its own session, else the look-up's session,
    * resumed when there is one. A session that cannot be resumed (its transcript is gone) is
    * replaced by a fresh agent that gets the thread so far (`fallback`).
    */
@@ -381,13 +381,13 @@ export class Answers {
     thread: number;
     by: By;
     about: Item | undefined;
-    project: Item | undefined;
+    plan: Item | undefined;
     message: string;
     resume?: string | undefined;
     fallback?: () => { message: string; images?: string[] };
     card?: string;
     images?: string[];
-    /** Written in a project's sheet (`from`), straight to its project agent, with these screenshot files. */
+    /** Written in a plan's sheet (`from`), straight to its plan agent, with these screenshot files. */
     asked?: { images: string[]; from: string };
     signal?: AbortSignal;
     /** The turn waits for the agent's background work, or no longer (`Briefing.onWaiting`). */
@@ -401,10 +401,10 @@ export class Answers {
   }): Promise<OwnerAnswer> {
     const dir = this.o.dirOf(c.thread);
     mkdirSync(dir, { recursive: true });
-    if (c.by === 'project') {
+    if (c.by === 'plan') {
       const from = c.asked?.from;
       const asked = c.asked && { images: c.asked.images, ...(from && this.o.toObeya ? { toObeya: toObeyaTool((request) => this.o.toObeya!(from, request)) } : {}) };
-      return this.o.projectAgent(c.project!).inform(c.project!, `${c.message}\n\n${filesNote(dir)}`, c.onLimit, c.onTool, dir, c.signal, c.onWaiting, asked, c.at);
+      return this.o.planAgent(c.plan!).inform(c.plan!, `${c.message}\n\n${filesNote(dir)}`, c.onLimit, c.onTool, dir, c.signal, c.onWaiting, asked, c.at);
     }
     const toObeya = c.card && this.o.toObeya ? this.o.toObeya : undefined;
     const ask = (message: string, images: string[] | undefined, resume?: string) =>
@@ -437,11 +437,11 @@ export class Answers {
     });
   }
 
-  /** Who answers a thread: the project agent for a project or one of its workstreams, else a Koordinator turn. */
-  private agentFor(root: Exchange): { by: By; about: Item | undefined; project: Item | undefined } {
+  /** Who answers a thread: the plan agent for a plan or one of its workstreams, else a Koordinator turn. */
+  private agentFor(root: Exchange): { by: By; about: Item | undefined; plan: Item | undefined } {
     const about = root.about ? this.o.board.item(root.about) : undefined;
-    const project = about?.kind === 'project' ? about : about?.parent ? this.o.board.item(about.parent) : undefined;
-    return { by: project?.plan ? 'project' : 'koordinator', about, project };
+    const plan = about?.kind === 'plan' ? about : about?.parent ? this.o.board.item(about.parent) : undefined;
+    return { by: plan?.plan ? 'plan' : 'koordinator', about, plan };
   }
 
   /** The session of the Question card a thread moved onto, archived or deleted since. */
@@ -459,8 +459,8 @@ export class Answers {
     return oneAtATime(this.turns, thread, fn);
   }
 
-  /** `project`: the project whose agent answered, whose sheet shows the answer in full too. */
-  private deliver(talkId: number, thread: number, by: By, question: string, a: OwnerAnswer, card: string | undefined, project: Item | undefined) {
+  /** `plan`: the plan whose agent answered, whose sheet shows the answer in full too. */
+  private deliver(talkId: number, thread: number, by: By, question: string, a: OwnerAnswer, card: string | undefined, plan: Item | undefined) {
     const text = clip(a.text, 12000);
     const t = this.o.board.exchange(talkId);
     // in the log of the card that was open; with the thread moved onto a Question card meanwhile, there too
@@ -474,7 +474,7 @@ export class Answers {
       this.o.board.setThread(moved, { answers: s.answers + 1, files: s.files + (a.files?.length ?? 0) });
     }
     // above the microphone too, wherever the owner is by now; in full on the card or in the sheet
-    this.o.board.notify({ ...(card || moved ? { cardId: card ?? moved, inTalk: true as const } : { talk: talkId, ...(by === 'project' && project ? { project: project.id } : {}) }), text });
+    this.o.board.notify({ ...(card || moved ? { cardId: card ?? moved, inTalk: true as const } : { talk: talkId, ...(by === 'plan' && plan ? { plan: plan.id } : {}) }), text });
     this.o.onAnswer?.(talkId, question, text);
   }
 
@@ -506,15 +506,15 @@ export class Answers {
     return i;
   }
 
-  private message(said: string, question: string, about: Item | undefined, project: Item | undefined, askedIn?: string): string {
+  private message(said: string, question: string, about: Item | undefined, plan: Item | undefined, askedIn?: string): string {
     const parts = askedIn
-      ? [`The owner wrote to you in the project's sheet in Seismic, where your answer stands below their words: "${said}"`]
+      ? [`The owner wrote to you in the plan's sheet in Seismic, where your answer stands below their words: "${said}"`]
       : [`The owner said: "${said}"`, `The question, as you understood it then: ${question}`];
-    if (about && about.kind !== 'project') {
+    if (about && about.kind !== 'plan') {
       const state = about.queue ? 'planned, queued' : about.need ? `${about.state}: ${about.need}` : about.state;
       parts.push(
         [
-          `It is about the ${about.kind} "${about.title}"${about.label ? ` (workstream ${about.label} of the project "${project?.title ?? ''}")` : ''}, state ${state}.`,
+          `It is about the ${about.kind} "${about.title}"${about.label ? ` (workstream ${about.label} of the plan "${plan?.title ?? ''}")` : ''}, state ${state}.`,
           about.statusLine ? `Its last status line: ${about.statusLine}` : '',
           about.question ? `Its open question: ${about.question.text}` : '',
         ]
@@ -531,8 +531,8 @@ export class Answers {
         .filter((e) => e.kind !== 'activity')
         .slice(-LOG_LINES);
       if (log.length) parts.push(`The card's log, latest last:\n${log.map((e) => `- ${e.at.slice(0, 16)} ${e.author} (${e.kind}): ${clip(e.text, 300)}`).join('\n')}`);
-    } else if (project) parts.push(`It is about the project "${project.title}".`);
-    if (project?.plan) parts.push(`The project's plan doc: ${project.plan.file}.`);
+    } else if (plan) parts.push(`It is about the plan "${plan.title}".`);
+    if (plan?.plan) parts.push(`The plan's plan doc: ${plan.plan.file}.`);
     return parts.join('\n\n');
   }
 }

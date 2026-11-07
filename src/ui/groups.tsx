@@ -57,7 +57,7 @@ const spring = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : 1 - Math.exp(-5 * x) * 
 let effectKey = 0;
 
 /**
- * The territories of the groups behind the cards on the canvas (a project counts as one card, its
+ * The territories of the groups behind the cards on the canvas (a plan counts as one card, its
  * workstreams inside), animated while cards change group.
  */
 export function useTerritories(placed: Placed, groups: Group[]): { shapes: Shape[]; waves: Wave[]; streaks: Streak[] } {

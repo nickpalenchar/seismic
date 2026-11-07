@@ -99,7 +99,7 @@ export function tellers(byId: (id: string) => Item | undefined, told: ReturnType
    * it down for the open card's agent, or while the Koordinator reads it.
    */
   const tellAbout = (target: Where, request: () => Promise<Heard>) => {
-    const i = target ? byId('card' in target ? target.card : target.project) : undefined;
+    const i = target ? byId('card' in target ? target.card : target.plan) : undefined;
     const what = i ? `„${plain(i.title)}“` : t.voice.koordinator;
     return told.tell(listening(target) ? t.voice.transcribing(what) : t.voice.reading(what), toldCard(target), request);
   };
@@ -126,11 +126,11 @@ export function tellers(byId: (id: string) => Item | undefined, told: ReturnType
   return { listening, tellAbout, tellTyped };
 }
 
-/** Whom the microphone speaks to: the open card (its agent, where one listens), the open project, or the Koordinator. */
-export function voiceTarget(open: { type: 'card' | 'project'; item?: Item } | null): string {
+/** Whom the microphone speaks to: the open card (its agent, where one listens), the open plan, or the Koordinator. */
+export function voiceTarget(open: { type: 'card' | 'plan'; item?: Item } | null): string {
   const i = open?.item;
   const title = plain(i?.title ?? '');
-  if (open?.type === 'project') return t.voice.project(title);
+  if (open?.type === 'plan') return t.voice.plan(title);
   if (open?.type !== 'card') return t.voice.koordinator;
   if (!i || !agentListens(i)) return t.voice.card(title);
   return (i.kind === 'question' ? t.voice.question : i.state === 'idea' ? t.voice.idea : i.state === 'proposal' ? t.voice.proposal : t.voice.agent)(title);

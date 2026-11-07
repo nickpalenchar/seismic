@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { CLONES, type FilledClones, type Item, needsYou, openPerGroup, type ResolvedCanvas, stoppedArchivable, type Talk, unreadPerProject, withClones, withSupplemented } from './types';
+import { CLONES, type FilledClones, type Item, needsYou, openPerGroup, type ResolvedCanvas, stoppedArchivable, type Talk, unreadPerPlan, withClones, withSupplemented } from './types';
 
 const card = (over: Partial<Item>): Item => ({ id: 'x', kind: 'task', state: 'planned', title: '', body: '', x: 0, y: 0, source: 'manual', repo: 'r', ...over });
 
 describe('openPerGroup', () => {
-  test('counts the cards still to be done, a project by its workstreams', () => {
+  test('counts the cards still to be done, a plan by its workstreams', () => {
     const open = openPerGroup([
       card({ group: 'a', state: 'working' }),
       card({ group: 'a', state: 'waiting' }),
@@ -12,7 +12,7 @@ describe('openPerGroup', () => {
       card({ group: 'a', state: 'done' }),
       card({ group: 'a', archivedAt: '2026-10-01' }),
       card({ group: 'a', state: 'idea', idea: { status: 'dropped', brief: '', thinking: false, yourTurn: false, questions: [], variants: [], mocks: [] } }),
-      card({ group: 'b', kind: 'project' }),
+      card({ group: 'b', kind: 'plan' }),
       card({ group: 'b', parent: 'p', state: 'planned' }),
       card({ group: 'c', state: 'live' }),
       card({ state: 'working' }),
@@ -26,13 +26,13 @@ describe('openPerGroup', () => {
   });
 });
 
-test("a project's card counts its agent's answers that wait unread, asked in its sheet", () => {
+test("a plan's card counts its agent's answers that wait unread, asked in its sheet", () => {
   const talk = (over: Partial<Talk>): Talk => ({ id: 1, at: '2026-10-29T09:00:00Z', said: '', ...over });
-  const unread = unreadPerProject([
+  const unread = unreadPerPlan([
     talk({ askedIn: 'p', answer: 'W2 first.', unread: true }),
     talk({ askedIn: 'p', answer: 'Yes.', unread: true }),
     talk({ askedIn: 'q', answer: 'Read already.' }),
-    // asked of Seismic: its button counts it, not the project's card
+    // asked of Seismic: its button counts it, not the plan's card
     talk({ question: 'What is left?', answer: 'W3.', unread: true }),
   ]);
   expect([...unread]).toEqual([['p', 2]]);

@@ -292,7 +292,7 @@ canvas's "Cards archive" says (see Archive): where the owner archives cards ("Ma
 default), once the card is archived (its archive button, on the card or the canvas, or "all
 finished ones at once", which asks about each in turn); where cards archive themselves
 ("Automatically, after landing"), once the approval has gone through (the card's button, work that
-changed nothing included). A workstream, which goes into the archive only with its project, is asked
+changed nothing included). A workstream, which goes into the archive only with its plan, is asked
 about after its approval either way. Then a prompt stands
 right above the microphone, under the confirmation: "How well did the agent do “…”?" with five stars (Poor, Fair, Okay,
 Good, Excellent) and "Skip". A star saves the rating at once; then a comment
@@ -330,11 +330,11 @@ month of fewer than five ratings a hollow point, work credited to no one model w
 view chosen is kept per browser. With
 fewer than five ratings in all (after the filters), there is no table and no average, only the
 responses so far, each with whom it credits. The head counts responses, ratings and those credited
-to no one model. Filters: canvas, repository and project (each only where there is more than one to
-choose, a project as soon as there is one), and the period (all, the last 90 or 30 days, by when a
+to no one model. Filters: canvas, repository and plan (each only where there is more than one to
+choose, a plan as soon as there is one), and the period (all, the last 90 or 30 days, by when a
 response was last given). A click on a row lists its responses, the latest first: the card's title
 as it was (a link to the card: on this canvas it closes the dialog and opens the card, archived
-ones from the archive; on another, its address), project, repository, canvas where they differ,
+ones from the archive; on another, its address), plan, repository, canvas where they differ,
 date, stars and comment, and for mixed work the configurations that did it. A deleted card's
 response still counts and says so, its title without a link. Closed and opened
 again, the dialog keeps its filters and open row; it holds the keyboard's focus while open and
@@ -350,11 +350,11 @@ a link (2026-11). It lists every response on every canvas, the newest first (by 
 given), each with its date, card (a link to it, opening on its canvas, archived ones from the
 archive; a deleted card's title without one), stars ("no stars" for a comment alone), comment,
 whom it credits (for mixed work "Several configurations" with the configurations that did it),
-project, repository and canvas. Filters: the dashboard's (period by when a response was last given),
+plan, repository and canvas. Filters: the dashboard's (period by when a response was last given),
 then harness, model and effort of the credited configuration (each where there is more than one to
 choose, an unknown value named unknown), which work credited to no one configuration never matches,
 and rating, whole stars or "no stars". Grouping: none, configuration (in the dashboard's order,
-mixed and unrecorded work last), project, repository, canvas (by name, those without one last),
+mixed and unrecorded work last), plan, repository, canvas (by name, those without one last),
 week (from Monday) or month (the newest first); each section heads its responses with their count
 and average, and the column it groups by gives way to that heading. The head counts the responses
 shown of all. With no responses at all it says what fills it; when the filters leave nothing, it
@@ -386,7 +386,7 @@ finished ones at once in the archive); a prototype goes there when it ends (see 
 canvas setting "Cards archive" chooses between "Manually" (the default: only so) and
 "Automatically, after landing": then an owner's finished task goes into the archive by itself as
 soon as its work has landed (or closed without a change) and its worker is done after the landing,
-with a line in its log; a workstream still goes with its project, and a card brought back from the
+with a line in its log; a workstream still goes with its plan, and a card brought back from the
 archive stays on the canvas. The setting also decides when the owner is asked how the agent did
 (see Feedback after approval). A
 stopped task ("Stopped") can be archived one at a time, for the owner to come back to, beside "Start again" and "Delete"; not while it waits to start, nor while its workspace holds work that has not
@@ -398,19 +398,19 @@ The archive (its button in the bar, or `A`) drops down like the queue: archived 
 by day, newest first, labelled with their kind or state unless plain tasks. One unfolds as on the canvas and can go
 back to its place; an ended prototype only shows, read-only, how it ended. A search field, focused on
 opening and kept between openings, filters by every typed word (case and accents aside) in title,
-text, summary, last status or label, and a project's goal and workstreams, marking the words in the
+text, summary, last status or label, and a plan's goal and workstreams, marking the words in the
 titles. The list stays under the dim while a card from it is open, so the card folds back into it.
 
-### Projects end
+### Plans end
 
-A project ends when every workstream in its plan doc is ticked on the default branch, or when the
+A plan ends when every workstream in its plan doc is ticked on the default branch, or when the
 doc is deleted: it moves into the archive with its workstreams, which are not listed on their own. A
-workstream still at work then (or its worker finishing after the landing) keeps the project on the
+workstream still at work then (or its worker finishing after the landing) keeps the plan on the
 canvas until that worker is done. Opened from the archive, its sheet shows read-only the goal and
 workstreams as the doc last stood, each workstream with its conversation and demo. When the file
-comes back, or gets an open workstream, the project returns to its place.
+comes back, or gets an open workstream, the plan returns to its place.
 
-Every project's sheet holds its conversation with its project agent (see Asking in a project's
+Every plan's sheet holds its conversation with its plan agent (see Asking in a plan's
 sheet), lists its decisions and links the idea or task its plan doc came from (see Deciding).
 
 ### Decisions
@@ -490,7 +490,7 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
 - **A finished card keeps a field for questions to its agent** (2026-10-08).
 - **What the owner archives**: only their own finished cards, ideas once parked or dropped (a parked
   idea's result may have been used outside Seismic, 2026-10-15), and stopped tasks (2026-10-15).
-  "All finished ones at once" leaves ideas alone; a workstream goes with its project. Archiving
+  "All finished ones at once" leaves ideas alone; a workstream goes with its plan. Archiving
   keeps the card's position, demo and log.
 - **The rating comes with archiving where the owner archives by hand** (owner, 2026-11-07): a card
   the owner archives is judged when it is put away, after the owner has seen the work live, not

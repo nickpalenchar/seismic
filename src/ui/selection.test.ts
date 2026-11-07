@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { addAll, markable, movesWith, shifted, toggle } from './selection';
 
-test('a workstream is marked as its project', () => {
+test('a workstream is marked as its plan', () => {
   expect(markable({ id: 'w1', parent: 'p' })).toBe('p');
   expect(markable({ id: 'c' })).toBe('c');
 });

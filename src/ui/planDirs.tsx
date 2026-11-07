@@ -1,5 +1,5 @@
-// The note on a repository's plan directory, beside the projects on the canvas: the docs there
-// that are not projects, each with its reason and "Als Projekt aufbereiten", or, while the
+// The note on a repository's plan directory, beside the plans on the canvas: the docs there
+// that are not plans, each with its reason and "Als Projekt aufbereiten", or, while the
 // repository has no plan doc yet, where the first one goes (which the owner can hide).
 
 import { useCallback } from 'react';
@@ -8,19 +8,19 @@ import type { Item, PlanDir } from '../core/types';
 import { t } from './strings';
 import { useStoredState } from './stored';
 
-/** Between the note and the projects below it. */
+/** Between the note and the plans below it. */
 const NOTE_GAP = 40;
 
 /**
  * Where each note stands: where the owner put it, else side by side above the top left of the
- * projects (of all cards, while there are none), so that a card started from a note, which goes
- * right of everything, leaves it where it was. One that stands above the projects stands on the
+ * plans (of all cards, while there are none), so that a card started from a note, which goes
+ * right of everything, leaves it where it was. One that stands above the plans stands on the
  * bottom of its box, which is as tall as the camera takes it for to keep it in sight.
  */
 export function planDirBoxes(dirs: PlanDir[], placed: { item: Item; b: Bounds }[]): Bounds[] {
   const top = placed.filter(({ item }) => !item.parent);
-  const projects = top.filter(({ item }) => item.kind === 'project');
-  const at = unionBounds((projects.length ? projects : top).map((p) => p.b)) ?? { x: 0, y: 0, w: 0, h: 0 };
+  const plans = top.filter(({ item }) => item.kind === 'plan');
+  const at = unionBounds((plans.length ? plans : top).map((p) => p.b)) ?? { x: 0, y: 0, w: 0, h: 0 };
   const h = Math.max(...dirs.map(planDirNoteHeight));
   return dirs.map((d, n) => planDirNoteBox(d) ?? { x: at.x + n * (PLAN_DIR_NOTE_W + NOTE_GAP), y: at.y - NOTE_GAP - h, w: PLAN_DIR_NOTE_W, h });
 }
@@ -82,7 +82,7 @@ export function PlanDirNote({
         </p>
       ) : (
         <>
-          <div className="pd-head">{t.planDir.notProjects(where, dir.others.length)}</div>
+          <div className="pd-head">{t.planDir.notPlans(where, dir.others.length)}</div>
           {one && <div className="pd-why">{one}</div>}
           {dir.others.map((o) => (
             <div key={o.file} className="pd-doc">

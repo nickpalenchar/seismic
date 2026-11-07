@@ -2,24 +2,24 @@
 
 A chapter of the [design doc](../design.md), whose header says how it is written.
 
-### Project git baselines
+### Plan git baselines
 
-With the canvas setting `projectBaselines` on (the default), the first workstream started in a
-project creates a local lightweight git tag `obeya/project/<project-id>/baseline` at the default
-branch's commit from which work starts. Every workstream branch in that project gets the same tag
+With the canvas setting `planBaselines` on (the default; the old key `projectBaselines` is still read), the first workstream started in a
+plan creates a local lightweight git tag `obeya/project/<plan-id>/baseline` at the default
+branch's commit from which work starts. Every workstream branch in that plan gets the same tag
 in its repository and the local git config `branch.<branch>.obeya-project-baseline` names it.
 The card's conversation records the tag and commit after its workspace is prepared. A later
-workstream still starts from the current default branch; the tag remains the project's original
-reference, through landings, restarts and project or plan-doc renames. Clones, including those on
+workstream still starts from the current default branch; the tag remains the plan's original
+reference, through landings, restarts and plan or plan-doc renames. Clones, including those on
 other hosts, receive the same tag and branch configuration. Tags are local; Seismic does not push
 them to the forge. A conflicting tag in a clone fails workspace preparation rather than moving it.
 
-The canvas's configuration and Project defaults offer "Create project tags"; new canvases copy
+The canvas's configuration and Project defaults offer "Create plan tags"; new canvases copy
 the default, while existing canvases keep their own setting. Turning it off stops creating tags and
 configuring branches on subsequent starts; existing tags and branch links stay. Turning it back on
-reuses a project's tag, or captures the current starting point if it has none. Manual tasks and
-folders without git have no project baseline. Tagging an already active project captures its next
-workstream's starting point; it cannot reconstruct the project's earlier start.
+reuses a plan's tag, or captures the current starting point if it has none. Manual tasks and
+folders without git have no plan baseline. Tagging an already active plan captures its next
+workstream's starting point; it cannot reconstruct the plan's earlier start.
 
 ### Agents
 
@@ -34,8 +34,8 @@ newest token the owner gave Seismic, which the variable Seismic was started with
 
 A Claude worker is one session per card with streaming input, permission mode `auto`, and the repository's
 Claude Code settings and CLAUDE.md (only once the owner trusted them, see Trusting a repository's
-commands); after a restart it resumes by session id. A project agent is one session per project in
-the read checkout, resumed for each of the owner's questions about the project, one at a time. Project agents, ideas'
+commands); after a restart it resumes by session id. A plan agent is one session per plan in
+the read checkout, resumed for each of the owner's questions about the plan, one at a time. Plan agents, ideas'
 exploration agents and the Koordinator's look-ups have a worker's tools and mode (see Looked-up
 questions); agents that only judge from text (reading commands, estimates, the learner) are
 read-only: Read, Grep, Glob, mode `dontAsk`.
@@ -43,7 +43,7 @@ read-only: Read, Grep, Glob, mode `dontAsk`.
 Claude sessions refuse long foreground sleeps in Bash (see Waiting without blocking). What changed
 since a session's instructions were built reaches the agent once, with its next tool call's result
 (not a subagent's), without a message or turn: a preference of the owner learned meanwhile; for a
-workstream's worker also its project's new decisions and the owner's notes that came during its turn
+workstream's worker also its plan's new decisions and the owner's notes that came during its turn
 (see Reading order). A call the settings want confirmed becomes the question the card waits on (see
 Refused and confirmed tool calls); Seismic's own tools are allowed by a `PreToolUse` hook.
 
@@ -220,7 +220,7 @@ and a Seismic-side allow list (the sandbox is the boundary).
 ### Models and effort
 
 Every agent belongs to one of five groups: the Koordinator (voice commands, estimates and schedules,
-look-ups, project agents, learner, retrospective, proposal rewrites), workers, ideas' exploration agents,
+look-ups, plan agents, learner, retrospective, proposal rewrites), workers, ideas' exploration agents,
 small jobs (the work retrospective's notes and proposals, a shared demo page's text, a card's
 title and its suggested labels), and code reviews (see Code reviews in Card lifecycle). The Configuration dialog sets each group's model (Claude Code's default or an alias: Fable,
 Opus, Sonnet, Haiku) and effort (low to max) and marks the presets: Opus throughout, high effort for
@@ -264,7 +264,7 @@ requested, kept while the task is scheduled or waits for a workspace, taken back
 entry, recorded in the card's conversation at the start, and does not alter the configuration; from
 the start on, the pinning above holds it. Unavailable choices (Codex where it does not apply) and
 catalog or default-loading errors are visible, with a retry; a selected unavailable model is not
-silently replaced. A start that is not an immediate one of a single task (a project's workstreams,
+silently replaced. A start that is not an immediate one of a single task (a plan's workstreams,
 one set to start later, one in a new repository) takes no choice.
 Unqualified old session ids mean Claude; Codex locators carry `codex:`, Antigravity's `agy:`, and none resumes in another harness. A locator alone is not authorization to attach it to another card.
 
@@ -280,7 +280,7 @@ the configurations of the sessions that ran on the card up to that handover, as 
 configuration (`single`, credited even with unknown fields), several (`mixed`: none is credited on
 its own), or nothing known (`missing`). Two configurations that differ in any field, an unknown
 one included, count as two. The response keeps its card (by id, wherever the card goes), the
-card's title, repository and project as they were, an answer (a rating, a comment, or both) and
+card's title, repository and plan as they were, an answer (a rating, a comment, or both) and
 optional named facets for later dimensions such as the task's complexity or type. Given again for
 the same handover, it replaces the answer and keeps whom it credits. Cards from before sessions were
 recorded get their last session as its pinned setting has it, from their last start, with the model only where their
@@ -443,7 +443,7 @@ false`; the first canvas and "+ Repository" offer it beside setting up git (see 
 folder). It has no branch, landing, pull requests, prototypes, hosts or clones, and the UI offers
 none of them (nor "For everyone, into the repository": `.obeya/settings.json` is written into the
 folder like any file). The folder is its own read checkout, its plan docs, settings and Claude Code
-configuration read as they are; a plan doc "Plan as a project" writes is named at the start, as in
+configuration read as they are; a plan doc "Make a plan" writes is named at the start, as in
 a plan folder outside the repository, since nothing of it lands.
 
 Every card works in the folder itself, any number at once. Nothing lands: approving makes the card
@@ -464,7 +464,7 @@ folder (0.3 s for 4,615 files). Background work keeps a window open; the end of 
 left open. A file only in the cloud (dataless) is never read, hashed or copied, which would download
 it. Per path, a card's change runs from before its first change to after its last (added, changed,
 moved, deleted; a moved directory is one move), with a hash of what it wrote, kept after the card is
-done. Agents that only read (the Koordinator, project agents) are not followed.
+done. Agents that only read (the Koordinator, plan agents) are not followed.
 
 The card shows the list in the place of its branch ("Changed in the folder: 4 files +12 −1 · Undo: complete"), whose size shows it over the page with diffs of the text files whose
 earlier version Seismic kept, and in full as the change list at the top of its left column (see The

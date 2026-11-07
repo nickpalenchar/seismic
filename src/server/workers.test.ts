@@ -570,22 +570,22 @@ describe('workers', () => {
     expect(board.item(c.id)!.question!.pick).toEqual({ options: ['Ja'], why: '' });
   });
 
-  test("a workstream's worker gets its project's decisions, and those taken while it works once", async () => {
+  test("a workstream's worker gets its plan's decisions, and those taken while it works once", async () => {
     const w = board.snapshot().items.find((i) => i.label === 'W1')!;
-    const project = w.parent!;
-    // the project's other cards: here the project itself stands in for them
-    board.decide({ project_id: project, card_id: project, question: 'Welche Spalten?', answer: 'Alle.', by: 'owner' });
+    const plan = w.parent!;
+    // the plan's other cards: here the plan itself stands in for them
+    board.decide({ plan_id: plan, card_id: plan, question: 'Welche Spalten?', answer: 'Alle.', by: 'owner' });
     await workers.start(w.id);
     const s = runtime.last;
-    expect(s.inbox[0]).toContain('Decisions taken in this project so far:\n- Welche Spalten? → Alle. (owner)');
+    expect(s.inbox[0]).toContain('Decisions taken in this plan so far:\n- Welche Spalten? → Alle. (owner)');
     expect(s.toolStep()).toBeUndefined();
 
     s.call('ask', { question: 'Kopfzeile?', options: ['Ja', 'Nein'] });
     workers.answer(w.id, 'Ja');
     // its own answer it heard as one
     expect(s.toolStep()).toBeUndefined();
-    board.decide({ project_id: project, card_id: project, question: 'Datumsformat?', answer: 'ISO', by: 'owner' });
-    expect(s.toolStep()).toBe('Decisions taken in this project while you work:\n- Datumsformat? → ISO (owner)');
+    board.decide({ plan_id: plan, card_id: plan, question: 'Datumsformat?', answer: 'ISO', by: 'owner' });
+    expect(s.toolStep()).toBe('Decisions taken in this plan while you work:\n- Datumsformat? → ISO (owner)');
     expect(s.toolStep()).toBeUndefined();
   });
 
@@ -1447,7 +1447,7 @@ describe('tool calls the settings refuse or want confirmed', () => {
     expect(await answer).toEqual({ allow: true });
     expect(state(c.id)).toBe('working');
     expect(workers.busyCards().length).toBeGreaterThan(0);
-    // one call, not a decision of the project's
+    // one call, not a decision of the plan's
     expect(board.decisionsOn(c.id)).toEqual([]);
   });
 

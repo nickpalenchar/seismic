@@ -46,11 +46,11 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
   withPath((path) => {
     const s = new Store(path);
     s.ensureCanvas('c', 'C');
-    const [video, answered, held, project] = s.insert([
+    const [video, answered, held, plan] = s.insert([
       { canvas_id: 'c', kind: 'task', state: 'waiting', x: 0, y: 0 },
       { canvas_id: 'c', kind: 'task', state: 'waiting', x: 0, y: 1 },
       { canvas_id: 'c', kind: 'task', state: 'done', x: 0, y: 2 },
-      { canvas_id: 'c', kind: 'project', plan_ref: 'docs/plan/gone.md', title: 'Gone', x: 0, y: 3 },
+      { canvas_id: 'c', kind: 'project' as 'plan', plan_ref: 'docs/plan/gone.md', title: 'Gone', x: 0, y: 3 },
     ]);
     const log = (cardId: string, kind: CardEvent['kind'], author: CardEvent['author'], text: string) => s.addEvent({ cardId, kind, author, text });
     const first = log(answered!.id, 'review', 'worker', 'Done.');
@@ -106,6 +106,8 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     s.db.run('DROP INDEX talk_chat');
     s.db.run('ALTER TABLE talk DROP COLUMN chat');
     s.db.run('DROP TABLE chats');
+    s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
+    s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
     s.db.run(`PRAGMA user_version = ${RELEASED}`);
     s.db.close();
 
@@ -115,7 +117,8 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     expect(after.events(video!.id).find((e) => e.id === paused.id)!.text).toBe('Paused.');
     expect(JSON.parse(after.card(answered!.id)!.demo!).handover).toBe(first.id);
     expect(JSON.parse(after.card(held!.id)!.share!)).toMatchObject({ state: 'publishing', shown: { kind: 'video' } });
-    expect(JSON.parse(after.card(project!.id)!.plan!)).toEqual({ file: 'docs/plan/gone.md', title: 'Gone', goal: '', workstreams: [], markdown: '' });
+    expect(after.card(plan!.id)!.kind).toBe('plan');
+    expect(JSON.parse(after.card(plan!.id)!.plan!)).toEqual({ file: 'docs/plan/gone.md', title: 'Gone', goal: '', workstreams: [], markdown: '' });
     expect(after.setting('c', 'work_retro_runs:app')).toBe('3');
     expect(after.card(video!.id)!.agent_setting).toBeNull();
     expect(after.card(video!.id)!.short).toBe(video!.id.replaceAll('-', '').slice(0, SHORT));
@@ -161,6 +164,8 @@ test('the migration gives the cards there are codes of their own, longer where t
     s.db.run('DROP INDEX talk_chat');
     s.db.run('ALTER TABLE talk DROP COLUMN chat');
     s.db.run('DROP TABLE chats');
+    s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
+    s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD COLUMN short'))}`);
     s.db.close();
     const after = new Store(path);
@@ -190,6 +195,8 @@ test('the sessions of cards from before runs were recorded: the last as pinned, 
     s.db.run('DROP INDEX talk_chat');
     s.db.run('ALTER TABLE talk DROP COLUMN chat');
     s.db.run('DROP TABLE chats');
+    s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
+    s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE agent_runs'))}`);
     s.db.close();
 
@@ -286,6 +293,8 @@ test('what was said before chats existed becomes one chat per canvas', () =>
     store.db.run("INSERT INTO canvases (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
     store.addTalk('c', 'eins', 'A', null);
     store.addTalk('c', 'zwei', 'B', null);
+    store.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
+    store.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
     store.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE chats'))}`);
     store.db.run('DROP INDEX talk_chat');
     store.db.run('ALTER TABLE talk DROP COLUMN chat');

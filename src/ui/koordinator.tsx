@@ -137,16 +137,16 @@ function ReviewHint({ items, repos }: { items: Item[]; repos: RepoRef[] }) {
 }
 
 /**
- * A project's conversation with its project agent, in its sheet: what the owner asked it there or
- * asked Seismic about the project, and the answers, with the field to ask more (not once the project
+ * A plan's conversation with its plan agent, in its sheet: what the owner asked it there or
+ * asked Seismic about the plan, and the answers, with the field to ask more (not once the plan
  * is archived). `on`: the conversation is in view.
  */
-export function ProjectTalk({ on, project, talk, items, onOpen }: { on: boolean; project: Item; talk: Talk[]; items: Item[]; onOpen: (i: Item) => void }) {
+export function PlanTalk({ on, plan, talk, items, onOpen }: { on: boolean; plan: Item; talk: Talk[]; items: Item[]; onOpen: (i: Item) => void }) {
   const fresh = useRead(on, talk, (ids) => api.readTalk(ids));
-  const draft = cardDraft(project.id);
+  const draft = cardDraft(plan.id);
   const [error, setError] = useState('');
   const end = useFollowInSheet(talk);
-  // answers that waited unread (the project's card said so) are where the sheet opens, below the workstreams
+  // answers that waited unread (the plan's card said so) are where the sheet opens, below the workstreams
   const waited = fresh[0];
   useEffect(() => {
     if (waited !== undefined) end.current?.querySelector('.msg.fresh')?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
@@ -155,8 +155,8 @@ export function ProjectTalk({ on, project, talk, items, onOpen }: { on: boolean;
     <section className="p-talk" ref={end}>
       <h4 className="p-h">{t.plan.askHead}</h4>
       {!talk.length && <p className="hint">{t.plan.askHint}</p>}
-      <Conversation talk={talk} fresh={fresh} items={items} onOpen={onOpen} draft={draft} sheetOf={project.id} />
-      {!project.archivedAt && (
+      <Conversation talk={talk} fresh={fresh} items={items} onOpen={onOpen} draft={draft} sheetOf={plan.id} />
+      {!plan.archivedAt && (
         <Composer
           className="tell"
           draft={draft}
@@ -164,7 +164,7 @@ export function ProjectTalk({ on, project, talk, items, onOpen }: { on: boolean;
           label={t.plan.askSend}
           onSend={(text, images, replyTo) => {
             setError('');
-            return api.act(project.id, { action: 'consult', text, ...(images ? { images } : {}), ...(replyTo && typeof replyTo !== 'number' ? { replyTo } : {}) }).catch((e) => setError(failText(e)));
+            return api.act(plan.id, { action: 'consult', text, ...(images ? { images } : {}), ...(replyTo && typeof replyTo !== 'number' ? { replyTo } : {}) }).catch((e) => setError(failText(e)));
           }}
         />
       )}
@@ -174,7 +174,7 @@ export function ProjectTalk({ on, project, talk, items, onOpen }: { on: boolean;
 }
 
 /**
- * The project's conversation has no scrollbar of its own: it grows in the sheet, which scrolls. What
+ * The plan's conversation has no scrollbar of its own: it grows in the sheet, which scrolls. What
  * the owner just asked, and an answer that comes while the field under the conversation is in view,
  * is brought into view there: the field stays in view, unless the answer is taller than the sheet,
  * whose start then stands at the sheet's top. Returns the ref of the conversation's section.
@@ -235,8 +235,8 @@ function useRead(on: boolean, talk: Talk[], read: (ids: number[]) => Promise<unk
 /**
  * What the owner said to the Koordinator with no card open, and its replies; newest last. The owner
  * can reply to each message, as on a card: it stands quoted above the field, and above the words
- * that reply to it. Words written in a project's sheet went straight to its project agent, with no
- * reply of Seismic's; outside that sheet (`sheetOf`) a line names the project.
+ * that reply to it. Words written in a plan's sheet went straight to its plan agent, with no
+ * reply of Seismic's; outside that sheet (`sheetOf`) a line names the plan.
  */
 function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Talk[]; fresh: number[]; items: Item[]; onOpen: (i: Item) => void; draft: string; sheetOf?: string }) {
   const box = useRef<HTMLDivElement>(null);
@@ -318,7 +318,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
               <>
                 {/* a question it looked up: the answer follows the acknowledgement */}
                 {x.question && x.answer === undefined && (
-                  <Msg by={x.askedIn ? 'project' : 'koordinator'} className="thinking" who={t.author[x.askedIn ? 'project' : 'koordinator']} agent={x.lookUpAgent}>
+                  <Msg by={x.askedIn ? 'plan' : 'koordinator'} className="thinking" who={t.author[x.askedIn ? 'plan' : 'koordinator']} agent={x.lookUpAgent}>
                     <div className="hint">{x.limitedUntil ? t.koordinator.lookUpLimited(clock(x.limitedUntil)) : t.koordinator.lookingUp}</div>
                   </Msg>
                 )}

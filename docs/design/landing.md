@@ -52,7 +52,7 @@ HEAD:<default>`, never forced. A push refused because the branch moved is rebase
 more; any other refusal (protection, rights) goes to the owner, the card back in review. Conflicts
 go back to the worker as above, and its next handover is pushed directly too. A card already in its
 PR does not switch. The local checkout is left alone; the read checkout is refreshed at once, so plan docs
-the card adds show as projects, and the worker hears its work is on main. Seismic does not watch the CI
+the card adds show as plans, and the worker hears its work is on main. Seismic does not watch the CI
 on the default branch.
 
 Landing runs git without blocking the server. Landings of one repository run one after the other;

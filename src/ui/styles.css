@@ -82,7 +82,7 @@ a.smart-link:hover, a.smart-link:focus-visible { border-color: var(--working); b
 .smart-link.gone .sl-title { text-decoration: none; }
 .smart-link.gone .sl-dot { background: transparent; border: 1px solid var(--muted); width: 5px; height: 5px; }
 /* headings are titles on paper, in the serif; the rest stays in the condensed sans */
-h1, h2, .cfg-head h3, .p-title, .project > .head .ttl, .timeline .a-ttl { font-family: var(--serif); font-weight: 600; letter-spacing: -.005em; }
+h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-family: var(--serif); font-weight: 600; letter-spacing: -.005em; }
 
 /* ---------- canvas ---------- */
 #viewport { position: fixed; inset: 0; cursor: grab; touch-action: none;
@@ -93,7 +93,7 @@ h1, h2, .cfg-head h3, .p-title, .project > .head .ttl, .timeline .a-ttl { font-f
 #world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
 
 .item { position: absolute; }
-/* the note on a plan directory, above the projects: quiet beside the cards */
+/* the note on a plan directory, above the plans: quiet beside the cards */
 .plan-dir { position: absolute; transform: translateY(-100%); box-sizing: border-box; padding: 12px 14px; border-radius: 4px; font-size: 13px; line-height: 1.4;
   background: var(--container); border: 1.5px solid var(--container-line); color: var(--ink); cursor: grab; -webkit-user-select: none; user-select: none; }
 /* one the owner put somewhere stands on its top, and grows downwards as docs join it */
@@ -112,33 +112,33 @@ h1, h2, .cfg-head h3, .p-title, .project > .head .ttl, .timeline .a-ttl { font-f
 .plan-dir .pd-file { flex: 1; min-width: 0; padding: 3px 0; }
 .plan-dir .pd-name { display: block; font-family: var(--mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-dir .btn.small { margin-top: 0; padding: 3px 9px; flex: none; }
-.project { border-radius: 4px; background: var(--container); border: 1.5px solid var(--container-line);
+.plan { border-radius: 4px; background: var(--container); border: 1.5px solid var(--container-line);
   backdrop-filter: blur(2px); }
-.project > .head { position: absolute; left: 0; right: 0; top: 0; height: 58px; padding: 16px 22px;
+.plan > .head { position: absolute; left: 0; right: 0; top: 0; height: 58px; padding: 16px 22px;
   display: flex; align-items: center; gap: 10px; cursor: pointer; }
-.project > .head .ttl { font-size: 21px; line-height: 1.15; white-space: nowrap;
+.plan > .head .ttl { font-size: 21px; line-height: 1.15; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.project > .head .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-.project > .head .progress { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.plan > .head .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.plan > .head .progress { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
 /* arranges the workstreams by their dependencies, starts all planned ones; quiet until the pointer is on one */
-.project > .head .head-btn { display: flex; align-items: center; gap: 6px; flex: none; padding: 4px 11px 4px 9px; border-radius: 3px;
+.plan > .head .head-btn { display: flex; align-items: center; gap: 6px; flex: none; padding: 4px 11px 4px 9px; border-radius: 3px;
   font: inherit; font-size: 12px; font-weight: 500; color: var(--working); background: var(--card); border: 1px solid var(--line);
   cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
-.project > .head .head-btn:hover:not(:disabled) { background: var(--working); border-color: var(--working); color: var(--on-ink); }
-.project > .head .arrange { color: var(--muted); }
-.project > .head .arrange:disabled { cursor: default; animation: arranging 1.4s ease-in-out infinite; }
+.plan > .head .head-btn:hover:not(:disabled) { background: var(--working); border-color: var(--working); color: var(--on-ink); }
+.plan > .head .arrange { color: var(--muted); }
+.plan > .head .arrange:disabled { cursor: default; animation: arranging 1.4s ease-in-out infinite; }
 @keyframes arranging { 50% { opacity: .45; } }
-.z-far .project .head-btn { display: none; }
-.project > .head { padding-left: 12px; }
-/* folds the project to its head and back; always in sight, so it is found */
-.project > .head .fold { flex: none; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; margin-right: -4px;
+.z-far .plan .head-btn { display: none; }
+.plan > .head { padding-left: 12px; }
+/* folds the plan to its head and back; always in sight, so it is found */
+.plan > .head .fold { flex: none; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; margin-right: -4px;
   border: 0; border-radius: 3px; background: none; color: var(--muted); cursor: pointer; }
-.project > .head .fold:hover { background: var(--card); color: var(--ink); }
-.project > .head .fold path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.project.collapsed > .head { height: 54px; }
-.project > .marks { position: absolute; left: 22px; right: 22px; top: 54px; display: flex; flex-wrap: wrap; gap: 4px; overflow: hidden; height: 14px; }
-.project > .marks .mark { flex: none; width: 18px; height: 10px; margin-top: 2px; padding: 0; border: 0; border-radius: 2px; cursor: pointer; opacity: .55; }
-.project > .marks .mark.yours, .project > .marks .mark:hover { opacity: 1; }
+.plan > .head .fold:hover { background: var(--card); color: var(--ink); }
+.plan > .head .fold path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.plan.collapsed > .head { height: 54px; }
+.plan > .marks { position: absolute; left: 22px; right: 22px; top: 54px; display: flex; flex-wrap: wrap; gap: 4px; overflow: hidden; height: 14px; }
+.plan > .marks .mark { flex: none; width: 18px; height: 10px; margin-top: 2px; padding: 0; border: 0; border-radius: 2px; cursor: pointer; opacity: .55; }
+.plan > .marks .mark.yours, .plan > .marks .mark:hover { opacity: 1; }
 
 /* an index card pinned to the wall: card stock with nearly square corners, a short hard shadow, the state as a
    rule across the top; title in a serif, the small print in a condensed sans */
@@ -189,7 +189,7 @@ h1, h2, .cfg-head h3, .p-title, .project > .head .ttl, .timeline .a-ttl { font-f
     color-mix(in srgb, var(--c) 22%, transparent);
   animation: draw 1.6s cubic-bezier(.5,0,.3,1) infinite; }
 @keyframes draw { 0% { background-position: 100% 0; } 55% { background-position: 0 0; } 100% { background-position: -100% 0; } }
-/* done: muted green stock, in a project and outside one alike */
+/* done: muted green stock, in a plan and outside one alike */
 .card.s-live, .card.s-done { --c: color-mix(in srgb, var(--approved) 60%, var(--card)); opacity: 1; background-color: color-mix(in srgb, var(--approved) 13%, var(--card)); }
 /* its agent still at work after the landing: the yellowed stock, but awake, its state line in the working colour */
 .card.finishing { opacity: 1; }
@@ -273,11 +273,11 @@ h1, h2, .cfg-head h3, .p-title, .project > .head .ttl, .timeline .a-ttl { font-f
 .badge.pulse::after { content: ''; position: absolute; inset: -15px; z-index: -2; border-radius: 27px; background: var(--pin);
   opacity: 0; pointer-events: none; animation: pulse 1.8s ease-out infinite; }
 @keyframes pulse { 0% { transform: scale(.52); opacity: .6; } 70%, 100% { transform: none; opacity: 0; } }
-/* a project's badges side by side at its corner: its agent's unread answers (a speech bubble in the
-   project agent's colour), then the count of workstreams that need the owner */
-.project > .badges { position: absolute; top: -10px; right: -8px; display: flex; gap: 6px;
+/* a plan's badges side by side at its corner: its agent's unread answers (a speech bubble in the
+   plan agent's colour), then the count of workstreams that need the owner */
+.plan > .badges { position: absolute; top: -10px; right: -8px; display: flex; gap: 6px;
   transform: scale(max(1, calc(.9 / var(--s)))); transform-origin: 90% 30%; }
-.project > .badges > .badge { position: relative; top: auto; right: auto; transform: none; }
+.plan > .badges > .badge { position: relative; top: auto; right: auto; transform: none; }
 .badge.replied { --pin: var(--proposal); display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 5px; border: 0; cursor: pointer;
   background: none; }
 .badge.replied svg { display: block; flex: none; width: 14px; height: 14px; }
@@ -290,7 +290,7 @@ h1, h2, .cfg-head h3, .p-title, .project > .head .ttl, .timeline .a-ttl { font-f
 @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 /* semantic zoom: from afar the title fills the card, the rule grows */
-.z-far .card .meta, .z-far .project .progress { display: none; }
+.z-far .card .meta, .z-far .plan .progress { display: none; }
 /* the label chips and the state line stay, drawn 1.7 times as large so they still read; the kind's own words go, and chips that do not fit in one line are left out whole */
 .z-far .card .kind > span:not(.lchip, .prio) { display: none; }
 .z-far .card .kind:not(:has(.lchip, .prio)) { display: none; }
@@ -766,7 +766,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .review-approval-box h2 { margin: 0 0 10px; font: 600 24px var(--serif); }
 .review-approval-box p { margin: 0 0 22px; line-height: 1.5; }
 .review-approval-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-/* a prototype whose idea became a project: the workstream to build on it, on a line of its own above the buttons */
+/* a prototype whose idea became a plan: the workstream to build on it, on a line of its own above the buttons */
 .build-on { flex-basis: 100%; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
 .build-on select { font: inherit; font-size: 13px; color: var(--ink); padding: 6px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); max-width: 100%; }
 /* an idea's next step as its agent would take it: a line above the decisions, and the button it means */
@@ -977,7 +977,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .quote.q-by-owner { --q: var(--working); }
 .quote.q-by-worker { --q: var(--inPr); }
 .quote.q-by-explorer { --q: var(--idea); }
-.quote:is(.q-by-koordinator, .q-by-obeya, .q-by-project) { --q: var(--proposal); }
+.quote:is(.q-by-koordinator, .q-by-obeya, .q-by-plan) { --q: var(--proposal); }
 .quote-go { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 5px 9px 6px; border: 0; background: none;
   text-align: left; font: inherit; color: inherit; cursor: pointer; }
 .quote-who { font-size: 11.5px; font-weight: 600; color: var(--q); }
@@ -1186,7 +1186,7 @@ span.cl-name { color: inherit; cursor: default; }
 /* a task's conversation: under the card's demo and pull request, scrolled to its end */
 .talk.conv { max-height: min(520px, 60vh); max-width: 100ch; }
 .talk .msg.by-worker .who { color: var(--ink); }
-.talk .msg.by-koordinator .who, .talk .msg.by-project .who { color: var(--muted); }
+.talk .msg.by-koordinator .who, .talk .msg.by-plan .who { color: var(--muted); }
 .talk .msg.by-koordinator.thinking .who::after { background: linear-gradient(90deg, transparent, var(--proposal), transparent); background-size: 200% 100%; }
 .talk .msg.by-worker.thinking .who::after { background: linear-gradient(90deg, transparent, var(--working), transparent); background-size: 200% 100%; }
 /* a question in the conversation is answered, taken back or asked anew (the one the card waits on
@@ -1454,7 +1454,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .d-lines > .d-note { color: var(--muted); font-style: italic; }
 .d-cut { margin-top: 18px; }
 .btn:disabled { opacity: .45; cursor: default; filter: none; }
-/* above projects (z-index 0), below cards (2): a line from a workstream stays visible over its project */
+/* above plans (z-index 0), below cards (2): a line from a workstream stays visible over its plan */
 #links { position: absolute; left: 0; top: 0; z-index: 1; overflow: visible; pointer-events: none; }
 #links path { fill: none; stroke: var(--proposal); stroke-width: 2; stroke-dasharray: 5 6; opacity: .7; }
 
@@ -1918,7 +1918,7 @@ button.link:hover { text-decoration: underline; }
 .chats-drawer .hint { margin: 4px 6px; }
 .talk.fresh-chat { display: flex; align-items: center; justify-content: center; text-align: center; }
 .talk.fresh-chat .hint { max-width: 280px; margin: 0; }
-/* a project's conversation with its project agent grows in its sheet, which scrolls: no scrollbar of its own */
+/* a plan's conversation with its plan agent grows in its sheet, which scrolls: no scrollbar of its own */
 #sheet .p-talk .talk { max-height: none; overflow: visible; margin-bottom: 4px; }
 /* what the owner took back stays, struck through */
 .talk .msg.undone :is(.p-lead, .p-list, .p-table) { text-decoration: line-through; text-decoration-color: var(--muted); }
@@ -2753,13 +2753,13 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .lopt { display: flex; align-items: center; gap: 6px; color: var(--ink); }
 .lopt svg { flex: none; color: var(--ink); }
 .lopt b { font-weight: 600; }
-.project > .head .prio, .project > .head .lchip { font-size: 11px; }
+.plan > .head .prio, .plan > .head .lchip { font-size: 11px; }
 /* Labels have their own line in the existing space above the workstreams, leaving the title and actions their room. */
-.project > .head:has(.head-labels) .kind { display: none; }
-.project > .head .head-labels { position: absolute; left: 44px; right: 22px; top: 47px; display: flex; align-items: center; gap: 6px; overflow: hidden; }
-.project.collapsed:has(.head-labels) > .head { height: 46px; }
-.project.collapsed > .head .head-labels { top: 40px; }
-.project.collapsed:has(.head-labels) > .marks { top: 63px; }
+.plan > .head:has(.head-labels) .kind { display: none; }
+.plan > .head .head-labels { position: absolute; left: 44px; right: 22px; top: 47px; display: flex; align-items: center; gap: 6px; overflow: hidden; }
+.plan.collapsed:has(.head-labels) > .head { height: 46px; }
+.plan.collapsed > .head .head-labels { top: 40px; }
+.plan.collapsed:has(.head-labels) > .marks { top: 63px; }
 
 /* "Merge with": the cards a proposal can be merged with, the newest first, with a search */
 #merge-pick { position: fixed; inset: 0; z-index: 60; background: var(--dim); display: flex; align-items: flex-start; justify-content: center; padding: 10vh 24px 24px; animation: fade .15s ease-out; }

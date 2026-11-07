@@ -27,7 +27,7 @@ export function writeStage(file: string) {
     files: rest,
     plans,
     cards: [
-      { key: 'P', project: 'docs/plan/tipjar-2.md', x: 60, y: 120 },
+      { key: 'P', plan: 'docs/plan/tipjar-2.md', x: 60, y: 120 },
       { key: 'D', title: 'Dark mode', body: 'Tipjar follows the system’s dark mode.', state: 'live', x: 1030, y: 110, createdAgo: '1d' },
       // hangs off Dark mode with a dashed line, where Seismic puts a proposal: right below the card it came from
       {
@@ -68,14 +68,14 @@ export function writeStage(file: string) {
           {
             kind: 'talk',
             author: 'explorer',
-            text: 'Then a trip needs a shared list of bills, and at the end the balances: who pays whom, in as few transfers as possible. Those are several parts that build on each other, so I would plan it as a project.',
+            text: 'Then a trip needs a shared list of bills, and at the end the balances: who pays whom, in as few transfers as possible. Those are several parts that build on each other, so I would make it a plan.',
             ago: '44m',
           },
         ],
         row: {
           idea: {
             status: 'open',
-            brief: 'Settle a whole trip, not one bill: several bills, several people, who pays whom.\n\n## Variants\n- A shared list of bills per trip\n- Balances and who pays whom\n\n## Effort\nSeveral parts that build on each other: a project.',
+            brief: 'Settle a whole trip, not one bill: several bills, several people, who pays whom.\n\n## Variants\n- A shared list of bills per trip\n- Balances and who pays whom\n\n## Effort\nSeveral parts that build on each other: a plan.',
             thinking: false,
             yourTurn: true,
             questions: [],

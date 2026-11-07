@@ -1090,13 +1090,13 @@ export function SuggestField({ value, onChange }: { value: SuggestSettings | und
   );
 }
 
-/** Project tagging uses the same control on a canvas and in Canvas defaults. */
-export function ProjectBaselineField({ value, onChange }: { value: boolean | undefined; onChange: (on: boolean) => void }) {
+/** Plan tagging uses the same control on a canvas and in Canvas defaults. */
+export function PlanBaselineField({ value, onChange }: { value: boolean | undefined; onChange: (on: boolean) => void }) {
   return (
-    <Field label={t.config.projectBaselines} hint={t.config.projectBaselinesHint}>
+    <Field label={t.config.planBaselines} hint={t.config.planBaselinesHint}>
       <label className="c-check">
         <input type="checkbox" role="switch" className="toggle" checked={value !== false} onChange={(e) => onChange(e.target.checked)} />
-        {t.config.projectBaselinesOn}
+        {t.config.planBaselinesOn}
       </label>
     </Field>
   );
@@ -1169,7 +1169,7 @@ function CanvasDefaultsBlock({ view, onSaved }: { view: CanvasDefaultsView | nul
   // a field for every canvas setting: one added to the defaults without a field here does not compile
   const fields: { [K in keyof CanvasDefaults]: ReactNode } = {
     suggest: <SuggestField value={view.defaults.suggest} onChange={(suggest) => save({ suggest })} />,
-    projectBaselines: <ProjectBaselineField value={view.defaults.projectBaselines} onChange={(projectBaselines) => save({ projectBaselines })} />,
+    planBaselines: <PlanBaselineField value={view.defaults.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />,
     archive: <CardArchiveField value={view.defaults.archive} onChange={(archive) => save({ archive })} />,
     // a canvas's models default to "Agents and models": its own are chosen in its settings sheet
     agents: <Field label={c.defaults.agents}>{c.defaults.agentsValue}</Field>,
@@ -2331,7 +2331,7 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
         />
       </Field>
       <SuggestField value={canvas.suggest} onChange={(suggest) => onChange({ ...canvas, suggest })} />
-      <ProjectBaselineField value={canvas.projectBaselines} onChange={(projectBaselines) => onChange({ ...canvas, projectBaselines })} />
+      <PlanBaselineField value={canvas.planBaselines} onChange={(planBaselines) => onChange({ ...canvas, planBaselines })} />
       <CardArchiveField value={canvas.archive} onChange={(archive) => onChange({ ...canvas, archive })} />
       <CodeReviewField value={canvas.codeReviews} onChange={(codeReviews) => onChange({ ...canvas, codeReviews })} />
       <CanvasSiteField

@@ -6,8 +6,8 @@ import { memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } fr
 import { createPortal } from 'react-dom';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
-import { agentFailed, answering, type AppUpdate, type CanvasInfo, type BlockedClone, type ClonePool, demoStage, finished, finishedArchivable, finishingUp, handedOver, type Item, merging, needsYou, openQuestions, pausable, type PendingRestart, halted, type PoolHost, type ProjectHistory, type PullRequest, type SourceUpdate, stoppedArchivable, titleFrom } from '../core/types';
-import { ProjectTalk } from './koordinator';
+import { agentFailed, answering, type AppUpdate, type CanvasInfo, type BlockedClone, type ClonePool, demoStage, finished, finishedArchivable, finishingUp, handedOver, type Item, merging, needsYou, openQuestions, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type PullRequest, type SourceUpdate, stoppedArchivable, titleFrom } from '../core/types';
+import { PlanTalk } from './koordinator';
 import { api } from './api';
 import type { Cam, Sides } from './camera';
 import type { Shape } from './groups';
@@ -165,18 +165,18 @@ function CardCheckStop({ item }: { item: Item }) {
   );
 }
 
-/** The play mark on the buttons that start a card or a project's workstreams. */
+/** The play mark on the buttons that start a card or a plan's workstreams. */
 const PlayIcon = ({ size }: { size: number }) => (
   <Play size={size} strokeWidth={1.75} fill="currentColor" />
 );
 
-/** How many of a project's workstreams its button starts: those planned and in no queue. */
+/** How many of a plan's workstreams its button starts: those planned and in no queue. */
 const startableIn = (kids: Item[]) => kids.filter((k) => k.state === 'planned' && !k.queue).length;
 
-/** A project is worth arranging by its dependencies with two cards or more standing open in it. */
+/** A plan is worth arranging by its dependencies with two cards or more standing open in it. */
 const arrangeable = (kids: Item[]) => kids.filter((k) => shapeOf(k) !== 'chip').length > 1;
 
-/** The columns mark on the button that arranges a project's workstreams by what builds on what. */
+/** The columns mark on the button that arranges a plan's workstreams by what builds on what. */
 const ColumnsIcon = ({ size }: { size: number }) => (
   <Columns3 size={size} strokeWidth={1.75} />
 );
@@ -218,7 +218,7 @@ export function CardFace({ item, where, underway, since, chip }: { item: Item; w
   if (item.landing) underway = stateLabel(item);
   const kind =
     item.label ??
-    (item.contribution ? t.review.kind(item.contribution.number, item.contribution.author) : item.parent ? t.kind.workstream : item.kind === 'question' ? t.kind.question : item.idea || item.proposal?.idea ? t.kind.idea : item.becomesProject ? becomesLabel(item) : item.prototypeOf ? t.kind.prototype : item.kind === 'project' ? t.kind.project : '');
+    (item.contribution ? t.review.kind(item.contribution.number, item.contribution.author) : item.parent ? t.kind.workstream : item.kind === 'question' ? t.kind.question : item.idea || item.proposal?.idea ? t.kind.idea : item.becomesPlan ? becomesLabel(item) : item.prototypeOf ? t.kind.prototype : item.kind === 'plan' ? t.kind.plan : '');
   // a plain task says nothing of its kind: that it is one shows
   const label = [item.state === 'proposal' && t.proposalMark, where, kind].filter(Boolean).join(' · ');
   // a card whose agent finishes after the landing, opens its PR or takes in the owner's words on its handover shows its line like one at work: the usage limit it waits on, its reports
@@ -922,8 +922,8 @@ function BlockedClones({ host }: { host: PoolHost }) {
   );
 }
 
-export const ProjectView = memo(
-  function ProjectView({
+export const PlanView = memo(
+  function PlanView({
     item,
     b,
     kids,
@@ -937,22 +937,22 @@ export const ProjectView = memo(
     item: Item;
     b: Bounds;
     kids: Item[];
-    /** Answers of its project agent that wait unread. */
+    /** Answers of its plan agent that wait unread. */
     replies: number;
     els: Map<string, HTMLElement>;
-    onStartAll: (project: Item, count: number) => void;
-    onArrange: (project: Item) => void;
-    onCollapse: (project: Item, collapsed: boolean) => void;
+    onStartAll: (plan: Item, count: number) => void;
+    onArrange: (plan: Item) => void;
+    onCollapse: (plan: Item, collapsed: boolean) => void;
     onOpen: (i: Item) => void;
   }) {
     const live = kids.filter((k) => finished(k.state)).length;
     const waiting = kids.filter(needsYou).length;
     const startable = startableIn(kids);
     const collapsed = !!item.collapsed;
-    // the canvas would take the press as the start of a drag or a click that opens the project
+    // the canvas would take the press as the start of a drag or a click that opens the plan
     const own = (e: React.PointerEvent) => e.stopPropagation();
     return (
-      <div className={`item project s-${item.state}${collapsed ? ' collapsed' : ''}`} data-id={item.id} style={{ left: b.x, top: b.y, width: b.w, height: b.h, zIndex: 0 }}>
+      <div className={`item plan s-${item.state}${collapsed ? ' collapsed' : ''}`} data-id={item.id} style={{ left: b.x, top: b.y, width: b.w, height: b.h, zIndex: 0 }}>
         <div className="head">
           <button
             className="fold"
@@ -968,7 +968,7 @@ export const ProjectView = memo(
             {collapsed ? <ChevronRight size={12} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={12} strokeWidth={1.75} aria-hidden="true" />}
           </button>
           <span className="ttl">{plain(item.title)}</span>
-          <span className="kind">{t.kind.project}</span>
+          <span className="kind">{t.kind.plan}</span>
           {hasLabels(item) && <span className="head-labels"><LabelMarks item={item} /></span>}
           <span className="progress">{t.progress(live, kids.length)}</span>
           {/* collapsed, its workstreams are not on the canvas to arrange; its sheet still has the button */}
@@ -1002,7 +1002,7 @@ export const ProjectView = memo(
             </button>
           )}
         </div>
-        {/* a collapsed project's workstreams, a mark each in its state's colour: a click opens one, unfolding from its mark */}
+        {/* a collapsed plan's workstreams, a mark each in its state's colour: a click opens one, unfolding from its mark */}
         {collapsed && (
           <div className="marks">
             {kids.map((k) => (
@@ -1024,7 +1024,7 @@ export const ProjectView = memo(
         )}
         {(replies > 0 || waiting > 0) && (
           <div className="badges">
-            {/* its project agent's answers: a speech bubble, unlike the count of workstreams that need the owner */}
+            {/* its plan agent's answers: a speech bubble, unlike the count of workstreams that need the owner */}
             {replies > 0 && (
               <button
                 className="badge replied pulse"
@@ -1113,17 +1113,17 @@ export function linkSpot(a: Bounds, b: Bounds, head: number, cards: Bounds[], ro
 
 /**
  * A dashed line from each proposal and each follow-up not yet started to the card it came from, and
- * from each prototype to its idea, or to the project that took the idea's place; none where a wait
+ * from each prototype to its idea, or to the plan that took the idea's place; none where a wait
  * between the two cards (`waits`, settled ones included, as `standsFor` shows them) already draws its arrow there.
  */
 export function Links({ placed, waits, standsFor }: { placed: { item: Item; b: Bounds }[]; waits: [string, string][]; standsFor: (id: string) => string }) {
   const byId = new Map(placed.map((p) => [p.item.id, p]));
-  const projectOf = new Map(placed.flatMap((p) => (p.item.kind === 'project' && p.item.origin ? [[p.item.origin, p]] : [])));
+  const planOf = new Map(placed.flatMap((p) => (p.item.kind === 'plan' && p.item.origin ? [[p.item.origin, p]] : [])));
   // both ways: the arrow joins the same two cards whichever of them waits
   const joined = new Set(waits.flatMap(([from, to]) => [`${standsFor(from)} ${standsFor(to)}`, `${standsFor(to)} ${standsFor(from)}`]));
   const paths = placed.flatMap(({ item, b }) => {
     const src =
-      (item.state === 'proposal' || item.state === 'planned' || item.prototypeOf) && item.from ? (byId.get(item.from) ?? (item.prototypeOf ? projectOf.get(item.prototypeOf) : undefined)) : undefined;
+      (item.state === 'proposal' || item.state === 'planned' || item.prototypeOf) && item.from ? (byId.get(item.from) ?? (item.prototypeOf ? planOf.get(item.prototypeOf) : undefined)) : undefined;
     if (!src || joined.has(`${src.item.id} ${item.id}`)) return [];
     return [<path key={item.id} d={linkPath(src.b, b)} />];
   });
@@ -1164,7 +1164,7 @@ export const depHead = (s: number) => 6 * depWidth(s);
 /**
  * Every direct wait between cards on the canvas as a faint line, from the card waited for to the
  * card waiting; while the pointer is on a card, the waits around it (`lit`) in the waiting colour
- * instead (`first`: the waits on the way to it in the colour of what comes first). A workstream of a collapsed project stands for its project (`standsFor`). A dependency
+ * instead (`first`: the waits on the way to it in the colour of what comes first). A workstream of a collapsed plan stands for its plan (`standsFor`). A dependency
  * whose prerequisite is finished (`settled`) stays as a dim green line to the card it unlocked.
  * `children` go on top: what the pointer can reach on a line.
  */
@@ -1192,7 +1192,7 @@ export function DepLinks({
   children?: ReactNode;
 }) {
   const byId = new Map(placed.map((p) => [p.item.id, p.b]));
-  // each wait once between the cards that show it, none from a project to its own workstream
+  // each wait once between the cards that show it, none from a plan to its own workstream
   const shown = (edges: [string, string][]) =>
     new Map(
       edges.flatMap(([from, to]): [string, [string, string]][] => {
@@ -1235,12 +1235,12 @@ function sibling(id: string, kids: Item[], all: Item[]): string {
 }
 
 /**
- * The open project: its goal and workstreams (as the doc last stood, for an archived one), the idea
+ * The open plan: its goal and workstreams (as the doc last stood, for an archived one), the idea
  * it came from and the decisions taken in it; or, while `reading`, its plan doc as written, with the
  * workstream `reading.mark` (a label) in view.
  */
 export function Sheet({
-  project,
+  planCard,
   kids,
   all,
   on,
@@ -1252,7 +1252,7 @@ export function Sheet({
   els,
   version,
 }: {
-  project?: Item;
+  planCard?: Item;
   kids: Item[];
   /** Every card on the canvas, to name the cards a workstream waits for. */
   all: Item[];
@@ -1262,16 +1262,16 @@ export function Sheet({
   /** Reads the plan doc (`{}`), or goes back to the workstreams (`null`). */
   onRead: (r: { mark?: string } | null) => void;
   /** Hands all planned workstreams to the Koordinator, which orders them. */
-  onStartAll: (project: Item, count: number) => void;
+  onStartAll: (planCard: Item, count: number) => void;
   /** Puts the workstreams in columns by what builds on what. */
-  onArrange: (project: Item) => void;
-  /** Where the cards opened from the sheet unfold from (an archived project's are not on the canvas). */
+  onArrange: (planCard: Item) => void;
+  /** Where the cards opened from the sheet unfold from (an archived plan's are not on the canvas). */
   els: Map<string, HTMLElement>;
   /** Changes when the canvas does, so the decisions are read again. */
   version: unknown;
 }) {
-  const [loaded, setLoaded] = useState<{ id: string; h: ProjectHistory; opening: number } | null>(null);
-  const id = project?.id;
+  const [loaded, setLoaded] = useState<{ id: string; h: PlanHistory; opening: number } | null>(null);
+  const id = planCard?.id;
   // each time the sheet opens: the history loaded before stands until this opening's comes
   const [opening, setOpening] = useState({ n: 0, on });
   if (opening.on !== on) setOpening({ n: on ? opening.n + 1 : opening.n, on });
@@ -1282,27 +1282,27 @@ export function Sheet({
     api.history(id).then((h) => current && setLoaded({ id, h, opening: n }), console.error);
     return () => void (current = false);
   }, [id, on, version]);
-  // never another project's
+  // never another plan's
   const history = loaded && loaded.id === id ? loaded.h : null;
   // its conversation counts as in view once this opening's is there: answers that waited for it are marked then
   const talkLoaded = !!history && loaded!.opening === opening.n;
   const ref = (key: string) => (el: HTMLElement | null) => void (el ? els.set(key, el) : els.delete(key));
   const [doc, setDoc] = useState<{ id: string; markdown: string } | null>(null);
   const [failed, setFailed] = useState(false);
-  // read again whenever the project changes, which includes an edit of its doc
+  // read again whenever the plan changes, which includes an edit of its doc
   useEffect(() => {
-    if (!reading || !project) return;
+    if (!reading || !planCard) return;
     let current = true;
     setFailed(false);
-    api.planDoc(project.id).then(
-      (d) => current && setDoc({ id: project.id, markdown: d.markdown }),
+    api.planDoc(planCard.id).then(
+      (d) => current && setDoc({ id: planCard.id, markdown: d.markdown }),
       () => current && setFailed(true),
     );
     return () => void (current = false);
-  }, [!!reading, project]);
+  }, [!!reading, planCard]);
   const box = useRef<HTMLElement>(null);
   const markEl = useRef<HTMLElement | null>(null);
-  const shown = reading && doc?.id === project?.id ? doc : null;
+  const shown = reading && doc?.id === planCard?.id ? doc : null;
   const startable = startableIn(kids);
   // once Seismic has read what builds on what, the workstreams in the order they stand arranged in
   const inOrder = kids.some((k) => k.buildsOn) ? dependencyOrder(kids).map((id) => kids.find((k) => k.id === id)!) : kids;
@@ -1317,13 +1317,13 @@ export function Sheet({
   }, [shown?.id, reading, !!shown]);
   return (
     <Docked id="sheet" ref={box} on={!!on} className={reading ? 'reading' : undefined}>
-      {project?.plan && reading && (
+      {planCard?.plan && reading && (
         <>
           <div className="read-head">
             <button className="back" onClick={() => onRead(null)}>
               ‹ {t.plan.back}
             </button>
-            <span className="src">{project.plan.file}</span>
+            <span className="src">{planCard.plan.file}</span>
           </div>
           {shown ? (
             <Doc md={shown.markdown} mark={reading.mark} markRef={(el) => void (markEl.current = el)} />
@@ -1332,36 +1332,36 @@ export function Sheet({
           )}
         </>
       )}
-      {project?.plan && !reading && (
+      {planCard?.plan && !reading && (
         <>
           <div className="p-kind">
-            {project.archivedAt ? t.archivedProject : t.planSheet}
-            {project.archivedAt ? <LabelMarks item={project} /> : <LabelPicks item={project} />}
+            {planCard.archivedAt ? t.archivedPlan : t.planSheet}
+            {planCard.archivedAt ? <LabelMarks item={planCard} /> : <LabelPicks item={planCard} />}
           </div>
-          <h2>{plain(project.title)}</h2>
-          {project.archivedAt && <p className="hint">{t.archive.projectGone(new Date(project.archivedAt))}</p>}
+          <h2>{plain(planCard.title)}</h2>
+          {planCard.archivedAt && <p className="hint">{t.archive.planGone(new Date(planCard.archivedAt))}</p>}
           <div className="goal">
-            <Inline md={project.plan.goal} />
+            <Inline md={planCard.plan.goal} />
           </div>
-          <div className="src">{project.plan.file}</div>
-          {!project.archivedAt && (
+          <div className="src">{planCard.plan.file}</div>
+          {!planCard.archivedAt && (
             <button className="btn read" onClick={() => onRead({})}>
               {t.plan.read}
             </button>
           )}
-          {!project.archivedAt && startable > 0 && (
+          {!planCard.archivedAt && startable > 0 && (
             <div className="start-all">
-              <button className="btn primary" onClick={() => onStartAll(project, startable)}>
+              <button className="btn primary" onClick={() => onStartAll(planCard, startable)}>
                 {t.plan.startAll(startable)}
               </button>
               <p className="hint">{t.plan.startAllHint}</p>
             </div>
           )}
-          {!project.archivedAt && (project.arranging || arrangeable(kids)) && (
+          {!planCard.archivedAt && (planCard.arranging || arrangeable(kids)) && (
             <div className="arrange">
-              <button className="btn" disabled={project.arranging} onClick={() => onArrange(project)}>
+              <button className="btn" disabled={planCard.arranging} onClick={() => onArrange(planCard)}>
                 <ColumnsIcon size={12} />
-                {project.arranging ? t.plan.arranging : t.plan.arrangeLong}
+                {planCard.arranging ? t.plan.arranging : t.plan.arrangeLong}
               </button>
               <p className="hint">{t.plan.arrangeHint}</p>
             </div>
@@ -1395,7 +1395,7 @@ export function Sheet({
               </li>
             ))}
           </ol>
-          <ProjectTalk on={on && !reading && talkLoaded} project={project} talk={history?.talk ?? []} items={all} onOpen={onOpen} />
+          <PlanTalk on={on && !reading && talkLoaded} plan={planCard} talk={history?.talk ?? []} items={all} onOpen={onOpen} />
           <h4 className="p-h">{t.decisions}</h4>
           {history && history.decisions.length === 0 && <p className="hint">{t.noDecisions}</p>}
           {history && history.decisions.length > 0 && (
@@ -1516,9 +1516,9 @@ export function Minimap({
             y={oy + b.y * k}
             width={b.w * k}
             height={b.h * k}
-            rx={item.kind === 'project' ? 1.5 : 0.5}
-            style={{ fill: item.kind === 'project' ? 'var(--container-line)' : `var(--${item.snoozed ? 'muted' : agentFailed(item) ? 'error' : asksYou(item) ? 'asking' : item.state})` }}
-            opacity={item.kind === 'project' || needsYou(item) ? 1 : 0.55}
+            rx={item.kind === 'plan' ? 1.5 : 0.5}
+            style={{ fill: item.kind === 'plan' ? 'var(--container-line)' : `var(--${item.snoozed ? 'muted' : agentFailed(item) ? 'error' : asksYou(item) ? 'asking' : item.state})` }}
+            opacity={item.kind === 'plan' || needsYou(item) ? 1 : 0.55}
           />
         ))}
         <rect

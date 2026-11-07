@@ -201,7 +201,7 @@ export function welcome(home: string, canvases: CanvasRuntime[]) {
   const c = canvases.find((x) => x.id === id);
   if (!c) return;
   const items = c.board.items();
-  // right of the plan docs' projects the repository brings, at their top
+  // right of the plan docs' plans the repository brings, at their top
   const at = items.length ? { x: Math.max(...items.map((i) => i.x)) + 560, y: Math.min(...items.map((i) => i.y)) } : { x: 0, y: 0 };
   const { title, body } = c.board.t.welcome;
   c.board.create({ title, body, ...at });

@@ -1102,10 +1102,10 @@ describe('Koordinator waits for a free workspace', () => {
   });
 });
 
-describe('Koordinator starts all workstreams of a project', () => {
+describe('Koordinator starts all workstreams of a plan', () => {
   const ws = (key: string, done = false) => ({ key, label: key, title: `Titel ${key}`, body: `Text ${key}`, done, inReview: false });
-  /** A project with W1 live and W2 to W4 planned. */
-  function project() {
+  /** A plan with W1 live and W2 to W4 planned. */
+  function plan() {
     docs = [{ file: 'docs/plan/p.md', title: 'P', goal: 'Ziel P', workstreams: [ws('W1', true), ws('W2'), ws('W3'), ws('W4')], markdown: '' }];
     board.docsChanged();
     const [p, , w2, w3, w4] = board.snapshot().items;
@@ -1116,7 +1116,7 @@ describe('Koordinator starts all workstreams of a project', () => {
     const a = card('A');
     k.request(a.id);
     await scope(['src/a.ts']);
-    const { p, w2, w3, w4 } = project();
+    const { p, w2, w3, w4 } = plan();
     k.request(p.id);
     // in the plan's order until the Koordinator has decided
     expect([w2, w3, w4].map((w) => item(w.id).queue)).toEqual([0, 1, 2].map(() => expect.objectContaining({ checking: true, together: p.id })));
@@ -1148,8 +1148,8 @@ describe('Koordinator starts all workstreams of a project', () => {
     expect(item(w3.id).queue).toMatchObject({ checking: true });
   });
 
-  test('a workstream snoozed to start later stays so when its plan doc changes, and the project’s start takes it along', async () => {
-    const { p, w2, w3, w4 } = project();
+  test('a workstream snoozed to start later stays so when its plan doc changes, and the plan’s start takes it along', async () => {
+    const { p, w2, w3, w4 } = plan();
     const until = new Date(Date.now() + 86_400_000).toISOString();
     board.snooze(w2.id, { until, by: 'owner', start: true });
     docs = [{ ...docs[0]!, workstreams: [ws('W1', true), { ...ws('W2'), body: 'Text W2, neu' }, ws('W3'), ws('W4')] }];
@@ -1162,7 +1162,7 @@ describe('Koordinator starts all workstreams of a project', () => {
   });
 
   test('a workstream snoozed to start later whose plan doc goes is snoozed no longer when the doc comes back', () => {
-    const { w2 } = project();
+    const { w2 } = plan();
     board.snooze(w2.id, { until: new Date(Date.now() + 86_400_000).toISOString(), by: 'owner', start: true });
     const kept = docs;
     docs = [];
@@ -1176,7 +1176,7 @@ describe('Koordinator starts all workstreams of a project', () => {
 
   test('a workstream waits only for what comes before it, and every one has to be scheduled', async () => {
     board.addPreference('Agents speak to me in English only.');
-    const { p, w2, w3, w4 } = project();
+    const { p, w2, w3, w4 } = plan();
     k.request(p.id);
     await settle();
     const s = schedules()[0]!;
@@ -1194,7 +1194,7 @@ describe('Koordinator starts all workstreams of a project', () => {
   });
 
   test('without a schedule each is judged on its own', async () => {
-    const { p, w2, w3, w4 } = project();
+    const { p, w2, w3, w4 } = plan();
     k.request(p.id);
     await settle();
     schedules()[0]!.emit({ type: 'idle' });
@@ -1211,7 +1211,7 @@ describe('Koordinator starts all workstreams of a project', () => {
   });
 
   test('after a restart the joint turn runs again', async () => {
-    const { p, w2, w3 } = project();
+    const { p, w2, w3 } = plan();
     board.work(w2.id, { queue: JSON.stringify({ checking: true, together: p.id, since: '1' }) });
     board.work(w3.id, { queue: JSON.stringify({ checking: true, together: p.id, since: '2' }) });
     k.resume();
@@ -1222,7 +1222,7 @@ describe('Koordinator starts all workstreams of a project', () => {
   });
 
   test('a single workstream is judged as any card; none left to start is refused', async () => {
-    const { p, w2, w3, w4 } = project();
+    const { p, w2, w3, w4 } = plan();
     k.request(w2.id);
     k.request(w3.id);
     await settle();
@@ -1249,7 +1249,7 @@ describe('Koordinator starts all workstreams of a project', () => {
   }
 
   test('a workstream started alone waits for one it builds on that is not started, until that one has landed', async () => {
-    const { w2, w3, w4 } = project();
+    const { w2, w3, w4 } = plan();
     k.request(w3.id);
     await settle();
     // nothing runs, but the workstreams not started are there to build on
@@ -1287,7 +1287,7 @@ describe('Koordinator starts all workstreams of a project', () => {
   });
 
   test('taken out of the queue or stopped, a workstream still holds back what builds on it; a conflict does not', async () => {
-    const { w2, w3, w4 } = project();
+    const { w2, w3, w4 } = plan();
     k.request(w2.id);
     await scope(['src/w2.ts']);
     k.request(w3.id);
@@ -1315,7 +1315,7 @@ describe('Koordinator starts all workstreams of a project', () => {
 
   test('the start waits a few seconds, in which the owner can take it back', async () => {
     k = new Koordinator({ board, runtime, home: () => dir, repoFor: () => ({ workers, workspaces, adapter: generic, path: dir }), holdMs: 40 });
-    const { p, w2, w3, w4 } = project();
+    const { p, w2, w3, w4 } = plan();
     k.request(p.id);
     await Bun.sleep(5);
     expect(schedules()).toHaveLength(0);
@@ -1685,11 +1685,11 @@ test('overlaps', () => {
   expect(overlaps('src', 'src/a.ts')).toBe(false);
 });
 
-describe('Koordinator arranges a project by what builds on what', () => {
+describe('Koordinator arranges a plan by what builds on what', () => {
   const ws = (key: string, done = false) => ({ key, label: key, title: `Titel ${key}`, body: `Text ${key}`, done, inReview: false });
   const readings = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'dependencies'));
-  /** A project with W1 live and W2 to W4 planned, just come. */
-  function project() {
+  /** A plan with W1 live and W2 to W4 planned, just come. */
+  function plan() {
     docs = [{ file: 'docs/plan/p.md', title: 'P', goal: 'Ziel P', workstreams: [ws('W1', true), ws('W2'), ws('W3'), ws('W4')], markdown: '' }];
     board.docsChanged();
     const [p, w1, w2, w3, w4] = board.snapshot().items;
@@ -1705,15 +1705,15 @@ describe('Koordinator arranges a project by what builds on what', () => {
     return r;
   }
 
-  test('a project just come is read without anything else looking at the canvas first', async () => {
+  test('a plan just come is read without anything else looking at the canvas first', async () => {
     docs = [{ file: 'docs/plan/p.md', title: 'P', goal: 'Ziel P', workstreams: [ws('W1'), ws('W2')], markdown: '' }];
     board.docsChanged();
     await settle();
     expect(readings()).toHaveLength(1);
   });
 
-  test('a project just come is read and stands in columns: what can start at once on the left', async () => {
-    const { p, w1, w2, w3, w4 } = project();
+  test('a plan just come is read and stands in columns: what can start at once on the left', async () => {
+    const { p, w1, w2, w3, w4 } = plan();
     expect(item(p.id).arranging).toBe(true);
     await settle();
     expect(readings()).toHaveLength(1);
@@ -1733,7 +1733,7 @@ describe('Koordinator arranges a project by what builds on what', () => {
   });
 
   test('every open workstream at least: a reading that leaves one out is asked again', async () => {
-    project();
+    plan();
     await settle();
     expect(readings()[0]!.call('dependencies', { workstreams: [{ card: 'K2', builds_on: [] }] })).toContain('missing K3, K4');
   });
@@ -1747,7 +1747,7 @@ describe('Koordinator arranges a project by what builds on what', () => {
   });
 
   test('a card the owner moved before the reading came keeps its place; the reading is kept', async () => {
-    const { p, w2, w3, w4 } = project();
+    const { p, w2, w3, w4 } = plan();
     board.patch(w3.id, { x: 900, y: 500 });
     await read({ K2: ['K4'], K3: [], K4: [] });
     expect(item(w3.id)).toMatchObject({ x: 900, y: 500 });
@@ -1757,7 +1757,7 @@ describe('Koordinator arranges a project by what builds on what', () => {
   });
 
   test('asked to arrange, it uses what it read for the doc as it stands, and reads again once the doc changed', async () => {
-    const { p, w2, w3, w4 } = project();
+    const { p, w2, w3, w4 } = plan();
     board.patch(w2.id, { x: 900, y: 500 });
     await read({ K2: ['K4'], K3: [], K4: [] });
     await k.arrange(p.id);
@@ -1778,7 +1778,7 @@ describe('Koordinator arranges a project by what builds on what', () => {
   });
 
   test('a reading that fails leaves the cards where they are and says so', async () => {
-    const { p, w2 } = project();
+    const { p, w2 } = plan();
     board.patch(w2.id, { x: 900, y: 500 });
     await settle();
     readings()[0]!.emit({ type: 'error', message: 'kaputt' });

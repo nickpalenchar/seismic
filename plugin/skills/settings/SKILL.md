@@ -39,11 +39,11 @@ Find out, from the files rather than by guessing:
   (`prNoise`).
 - **Plan docs**: where the project keeps its plans, if it does: `docs/plan/`, other directories
   under `docs/`, `rfcs/`, `adr/`, `PLAN*.md`, a `TODO.md`. Seismic shows each `*.md` directly in one
-  directory (`planDocs.dir`) as a project when it has a checklist under `## Workstreams` (or
+  directory (`planDocs.dir`) as a plan when it has a checklist under `## Workstreams` (or
   `## Arbeitspakete`): each top-level item is a workstream (`- [ ] **W1:** Title. Details`), a
-  ticked one has landed, and once all are ticked the project goes into the archive. Its goal is the
+  ticked one has landed, and once all are ticked the plan goes into the archive. Its goal is the
   first paragraph under `## Goal` (or `## Ziel`). A doc in that directory without such a checklist
-  shows on the canvas as one that is not a project, with "Als Projekt aufbereiten", which has an
+  shows on the canvas as one that is not a plan, with "Als Plan aufbereiten", which has an
   agent add the checklist in the doc's own style. Design notes and ADRs that plan nothing belong
   elsewhere, or in `planDocs.exclude`. Plans that git ignores are not on the default branch Seismic
   reads: their folder's absolute path goes into the owner's configuration on their machine
@@ -81,7 +81,7 @@ bun ${CLAUDE_SKILL_DIR}/lib/check.ts
 ```
 
 run in the repository. It reads the file from the checkout the way Seismic will, prints what Seismic
-makes of it (also which docs in the plan directory are projects and which are not, and why) and
+makes of it (also which docs in the plan directory are plans and which are not, and why) and
 every problem (an unknown field, a wrong type, an adapter module still there), and exits with 1 while there is one. Go on once it says "No
 problems."
 

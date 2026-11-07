@@ -86,7 +86,7 @@ words on its handover is still at them: the card does not wait for the owner. Ba
 continues during the first two waits; reaching the retry cap ends the worker's session and its
 background work as a normal immediate pause does.
 
-Every other agent waits the same way: look-ups, project agents, Question cards' and ideas' agents,
+Every other agent waits the same way: look-ups, plan agents, Question cards' and ideas' agents,
 the reviser of a proposal, and the Koordinator's small jobs (naming and checking cards, the learner,
 the retrospective, the work retrospective). The stopped turn is neither an error nor over; the owner's
 words meanwhile wait for its next turn. Where the agent waits says until when: under a looked-up
@@ -193,8 +193,8 @@ work, cards waiting for the owner, and planned tasks not yet with the Koordinato
   snooze.
 - A planned card starts at the time as if the owner had started it, through the Koordinator's queue;
   its worker hears that the card was set to start then. "Start", "Wake now" or "Start
-  all" on its project start it at once. An accepted proposal with a start time is such a card
-  (see A proposal that starts later). A card no longer planned to start (made an idea or project,
+  all" on its plan start it at once. An accepted proposal with a start time is such a card
+  (see A proposal that starts later). A card no longer planned to start (made an idea or plan,
   archived, started otherwise, its plan doc gone) is snoozed no longer, so it never starts unasked;
   a change to its plan doc leaves the snooze.
 
@@ -246,7 +246,7 @@ Concurrent calls are asked one after another. A card that moves on without the a
 a review card's PR closed) refuses the call with what happened, so the worker goes on instead of
 waiting for a question no longer on the card. After a restart the question stays; answered then, an
 allowed call runs once without asking when the resumed worker makes it again. It is no decision for
-the project's log. Claude Code's `AskUserQuestion` is refused with a pointer to `ask`.
+the plan's log. Claude Code's `AskUserQuestion` is refused with a pointer to `ask`.
 
 Codex's native command and file-change approval requests use this same question and one-call
 allow/deny decision, not session-wide permission or policy amendments. A refusal by the owner is
@@ -276,8 +276,8 @@ decision log. Words on a demo whose report asks a question answer it (see Waitin
 
 A worker's question goes straight to the owner, with the worker's own pick; no other agent answers
 for the owner. The worker asks only what it should not decide itself (product behaviour, trade-offs,
-anything irreversible or external). What a project has decided reaches its workstreams' workers
-instead: a worker's task holds its project's decision log ("Decisions taken in this project so far")
+anything irreversible or external). What a plan has decided reaches its workstreams' workers
+instead: a worker's task holds its plan's decision log ("Decisions taken in this plan so far")
 beside the plan doc pointer, and a decision recorded while it runs reaches it at its next tool call,
 as a learned preference does. Older answers agents gave in the owner's name stay in the logs, marked
 "(an agent)". Owner-facing text from agents is in the owner's language (see Language).
@@ -293,7 +293,7 @@ as a learned preference does. Older answers agents gave in the owner's name stay
 - **Picks travel apart from the owner's words** (2026-10-15), so the worker can tell them apart.
   Rejected: the pick as the first line of the owner's words.
 - **A worker's question goes straight to the owner, with the worker's own pick** (2026-10-07).
-  Rejected: a project agent or the Koordinator answering and escalating only what it could not
+  Rejected: a plan agent or the Koordinator answering and escalating only what it could not
   settle; the Koordinator then decided against building a feature, the owner's call, and an advisor
   knew barely more than the worker. Also rejected: narrower advisor rules, or an advisor that only
   suggests; the worker's pick gives the owner what a suggestion would.

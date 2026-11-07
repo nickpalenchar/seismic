@@ -375,11 +375,11 @@ export function serve(
     for (const old of arrived) if (arrived.size > ARRIVED_KEPT) arrived.delete(old);
   };
 
-  /** The card or project in view, and where on the canvas the owner was: as the page says, else what it last had in view. */
+  /** The card or plan in view, and where on the canvas the owner was: as the page says, else what it last had in view. */
   const focusOf = (req: Request, c?: CanvasRuntime): Focus => {
     const q = new URL(req.url).searchParams;
     const place = parsePlace(q.get('place')) ?? c?.inView;
-    return { ...(q.get('card') ? { card: q.get('card')! } : {}), ...(q.get('project') ? { project: q.get('project')! } : {}), ...(place ? { place } : {}) };
+    return { ...(q.get('card') ? { card: q.get('card')! } : {}), ...(q.get('plan') ? { plan: q.get('plan')! } : {}), ...(place ? { place } : {}) };
   };
   const transcribe = async (c: CanvasRuntime, audio: Blob) => {
     const dir = mkdtempSync(join(tmpdir(), 'obeya-voice-'));
@@ -710,7 +710,7 @@ export function serve(
       '/api/c/:canvas/cards': { POST: on(async (c, req) => c.board.create((await req.json()) as NewCard)) },
       // from "Configuration", for a repository without settings of its own: the card that writes them
       '/api/c/:canvas/adapter-setup': { POST: on(async (c, req) => c.adapterSetupCard(String(((await req.json()) as { repo?: unknown }).repo))) },
-      // from the note on a plan directory: the card that prepares one of its docs as a project, started
+      // from the note on a plan directory: the card that prepares one of its docs as a plan, started
       '/api/c/:canvas/prepare-plan-doc': {
         POST: on(async (c, req) => {
           const { repo, file } = ((await req.json()) ?? {}) as { repo?: unknown; file?: unknown };
@@ -810,8 +810,8 @@ export function serve(
         },
       },
       '/api/c/:canvas/cards/:id/plan': { GET: on((c, req) => c.board.planDoc(req.params.id!)) },
-      // a project's decisions and the idea it came from
-      '/api/c/:canvas/cards/:id/history': { GET: on((c, req) => c.board.projectHistory(req.params.id!)) },
+      // a plan's decisions and the idea it came from
+      '/api/c/:canvas/cards/:id/history': { GET: on((c, req) => c.board.planHistory(req.params.id!)) },
       // the frame an idea's mock is written into
       '/api/mock-frame': { GET: () => serveMockFrame() },
       // an HTML artifact's page may load files from folders beside it
@@ -1074,7 +1074,7 @@ export function serve(
       '/api/c/:canvas/reshare/stop': { POST: on((c) => c.sharing.stopResharing()) },
       // the card's latest demo was narrated anew in its directory (the demo skill's `--revoice`)
       '/api/c/:canvas/cards/:id/demo-rebuilt': { POST: on((c, req) => c.sharing.rebuilt(req.params.id!)) },
-      // the owner has the Koordinator's sheet in view: the answers waiting there are read; with `ids`, those a project's sheet shows
+      // the owner has the Koordinator's sheet in view: the answers waiting there are read; with `ids`, those a plan's sheet shows
       '/api/c/:canvas/talk/read': {
         POST: on(async (c, req) => {
           const { ids } = (await req.json().catch(() => ({}))) as { ids?: unknown };

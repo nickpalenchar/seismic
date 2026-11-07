@@ -40,7 +40,7 @@ import type { Forge } from './forge';
 import { commitShared, proposeShared, pushShared } from './shared-settings';
 import { gitCalls, gitSteps, leavingClones } from './workspaces';
 import { VERSION } from './resources';
-import { canvasDefaults, canvasSettingsShape, tidyCanvasSettings, withCanvasDefaults } from './settings';
+import { canvasDefaults, canvasSettingsShape, renamedBaselines, tidyCanvasSettings, withCanvasDefaults } from './settings';
 import { canonical, commandsOf, heldGroups, trustHeld, trustTakenOver } from './trust';
 
 export const CONFIG_FILE = 'canvases.json';
@@ -179,12 +179,14 @@ export function readConfigFile(file: string): CanvasConfig[] {
  */
 function withoutGone(made: unknown, file = true): unknown {
   if (Array.isArray(made))
-    for (const c of made)
+    for (const [n, c] of made.entries()) {
+      made[n] = renamedBaselines(c);
       for (const r of Array.isArray(c?.repos) ? c.repos : []) {
         if (!r || typeof r !== 'object') continue;
         if (file) delete r.share;
         if (r.settings && typeof r.settings === 'object') r.settings = goneSettings(r.settings).settings;
       }
+    }
   return made;
 }
 

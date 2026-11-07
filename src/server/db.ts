@@ -19,12 +19,12 @@ export interface CardRow {
   x: number;
   y: number;
   parent_id: string | null;
-  /** `docs/plan/x.md` for a project, `docs/plan/x.md#W3` for a workstream; null for manual cards. */
+  /** `docs/plan/x.md` for a plan, `docs/plan/x.md#W3` for a workstream; null for manual cards. */
   plan_ref: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
-  /** Agent session of the card's worker, or of a project's project agent. */
+  /** Agent session of the card's worker, or of a plan's plan agent. */
   session_id: string | null;
   /** JSON AgentSetting pinned before a worker starts; null on legacy Claude sessions. */
   agent_setting: string | null;
@@ -68,7 +68,7 @@ export interface CardRow {
   landed: string | null;
   /** JSON: ids of the screenshots the owner attached to the card's task. */
   images: string | null;
-  /** JSON, projects only: the plan doc as last read (`PlanDoc`), kept for the archive once the doc is gone. */
+  /** JSON, plans only: the plan doc as last read (`PlanDoc`), kept for the archive once the doc is gone. */
   plan: string | null;
   /** A card the work retrospective proposed: what it rests on. */
   retro: string | null;
@@ -82,7 +82,7 @@ export interface CardRow {
   built_on: string | null;
   /** JSON: the demo's page for colleagues (`StoredShare` in share.ts); its slug stays once it was shared. */
   share: string | null;
-  /** The group the card belongs to; a project's covers its workstreams, whose own stays null. */
+  /** The group the card belongs to; a plan's covers its workstreams, whose own stays null. */
   group_id: string | null;
   /**
    * JSON, once the card's work landed (`Shipped` in board.ts): the commit it landed with and its
@@ -94,8 +94,8 @@ export interface CardRow {
   parked: string | null;
   /** JSON: the owner's comments on places in the demo video Seismic holds back while they watch (event ids, `Item.held`). */
   held: string | null;
-  /** 1 once the owner decided the card (an idea or a task of theirs) becomes a project: its worker writes the plan doc, and the project takes its place. */
-  becomes_project: number;
+  /** 1 once the owner decided the card (an idea or a task of theirs) becomes a plan: its worker writes the plan doc, and the plan takes its place. */
+  becomes_plan: number;
   /** JSON, a Question card (and an idea that was one): the thread of looked-up answers it holds (`StoredThread` in board.ts). */
   thread: string | null;
   /** JSON, while the owner or usage limit has paused the card's agent: for a worker what came for it meanwhile (`PausedState` in workers.ts), `{}` for an idea's or a Question card's agent, which keep what waits for them with the idea or the thread. */
@@ -112,9 +112,9 @@ export interface CardRow {
   snoozed: string | null;
   /** JSON: the files its worker named as the result at its latest handover that named any (`CardFile[]`). */
   files: string | null;
-  /** JSON, projects only: which workstream builds on which, as the Koordinator read it from the plan doc (`StoredDeps` in board.ts). */
+  /** JSON, plans only: which workstream builds on which, as the Koordinator read it from the plan doc (`StoredDeps` in board.ts). */
   deps: string | null;
-  /** 1 while the owner has a project folded to its head: its workstreams are not shown on the canvas. */
+  /** 1 while the owner has a plan folded to its head: its workstreams are not shown on the canvas. */
   collapsed: number;
   /**
    * The clone (`ssh://<host>/…` on a host) that holds the newest state of the card's branch since
@@ -196,11 +196,11 @@ export interface Utterance {
 export interface DecisionRow {
   id: number;
   canvas_id: string;
-  project_id: string | null;
+  plan_id: string | null;
   card_id: string;
   question: string;
   answer: string;
-  by: 'owner' | 'project' | 'koordinator';
+  by: 'owner' | 'plan' | 'koordinator';
   at: string;
 }
 
@@ -448,11 +448,11 @@ export const MIGRATIONS = [
   );`,
   // the files a card's worker named as its result at its handover (JSON `CardFile[]`)
   'ALTER TABLE cards ADD COLUMN files TEXT;',
-  // which workstream of a project builds on which, read from its plan doc to arrange them (JSON `StoredDeps`)
+  // which workstream of a plan builds on which, read from its plan doc to arrange them (JSON `StoredDeps`)
   'ALTER TABLE cards ADD COLUMN deps TEXT;',
-  // a project the owner folded to its head
+  // a plan the owner folded to its head
   'ALTER TABLE cards ADD COLUMN collapsed INTEGER NOT NULL DEFAULT 0;',
-  // words the owner wrote in a project's sheet, which went straight to its project agent: that project
+  // words the owner wrote in a plan's sheet, which went straight to its plan agent: that plan
   'ALTER TABLE talk ADD COLUMN asked_in TEXT;',
   // Seismic's reply on a card that answers the owner's words without acting on them: it stands in the conversation
   'ALTER TABLE events ADD COLUMN reply INTEGER;',
@@ -564,6 +564,14 @@ export const MIGRATIONS = [
    UPDATE talk SET chat = (SELECT id FROM chats WHERE chats.canvas_id = talk.canvas_id);
    CREATE INDEX talk_chat ON talk (chat, id);`,
   'ALTER TABLE chats ADD COLUMN model TEXT;',
+  // a plan was a "project" before the word went to the app level: the card kind, the plan agent's answers and its
+  // messages, the columns that name it, and the plan on a response's context (JSON `Feedback`)
+  `UPDATE cards SET kind = 'plan' WHERE kind = 'project';
+   UPDATE events SET author = 'plan' WHERE author = 'project';
+   UPDATE talk SET answer_by = 'plan' WHERE answer_by = 'project';
+   UPDATE feedback SET context = json_set(json_remove(context, '$.project'), '$.plan', json_extract(context, '$.project')) WHERE json_extract(context, '$.project') IS NOT NULL;
+   ALTER TABLE cards RENAME COLUMN becomes_project TO becomes_plan;
+   ALTER TABLE decisions RENAME COLUMN project_id TO plan_id;`,
 ];
 
 const EVENT_COLUMNS = 'id, card_id AS cardId, at, kind, author, text, code, images, mocks, reply_to AS replyTo, spot, answer, picks, unread, read_after AS readAfter, wish, reply, forwarded, agent, token, made';
@@ -696,9 +704,9 @@ export class Store {
       .all({ c: canvasId }) as CardRow[];
   }
 
-  /** The canvas's projects, on the canvas or archived. */
-  projects(canvasId: string): CardRow[] {
-    return this.db.query("SELECT * FROM cards WHERE canvas_id = $c AND deleted_at IS NULL AND kind = 'project' AND plan_ref IS NOT NULL").all({ c: canvasId }) as CardRow[];
+  /** The canvas's plans, on the canvas or archived. */
+  plans(canvasId: string): CardRow[] {
+    return this.db.query("SELECT * FROM cards WHERE canvas_id = $c AND deleted_at IS NULL AND kind = 'plan' AND plan_ref IS NOT NULL").all({ c: canvasId }) as CardRow[];
   }
 
   /** The cards whose landed work added plan docs, on the canvas or archived. */
@@ -713,7 +721,7 @@ export class Store {
       .all({ c: canvasId }) as Pick<CardRow, 'id' | 'prototype_of' | 'archived_at'>[];
   }
 
-  /** The workstreams of the given projects. */
+  /** The workstreams of the given plans. */
   children(parentIds: string[]): CardRow[] {
     if (!parentIds.length) return [];
     return this.db
@@ -813,7 +821,7 @@ export class Store {
     this.db.query(`UPDATE cards SET ${set}, updated_at = $now WHERE id = $id`).run({ ...fields, id, now: now() });
   }
 
-  /** Puts the card on another workstream (`planRef`, in project `parentId`), or takes it out of its project (both null). */
+  /** Puts the card on another workstream (`planRef`, in plan `parentId`), or takes it out of its plan (both null). */
   replan(id: string, planRef: string | null, parentId: string | null) {
     this.db.query('UPDATE cards SET plan_ref = $ref, parent_id = $parent, updated_at = $now WHERE id = $id').run({ id, ref: planRef, parent: parentId, now: now() });
   }
@@ -974,23 +982,23 @@ export class Store {
 
   addDecision(d: Omit<DecisionRow, 'id' | 'at'>) {
     this.db
-      .query('INSERT INTO decisions (canvas_id, project_id, card_id, question, answer, by, at) VALUES ($canvas_id, $project_id, $card_id, $question, $answer, $by, $at)')
+      .query('INSERT INTO decisions (canvas_id, plan_id, card_id, question, answer, by, at) VALUES ($canvas_id, $plan_id, $card_id, $question, $answer, $by, $at)')
       .run({ ...d, at: now() });
   }
 
-  /** The decisions taken on one card outside any project (an idea's, say). */
+  /** The decisions taken on one card outside any plan (an idea's, say). */
   cardDecisions(canvasId: string, cardId: string): DecisionRow[] {
     return this.db
-      .query('SELECT * FROM decisions WHERE canvas_id = $c AND card_id = $card AND project_id IS NULL ORDER BY id')
+      .query('SELECT * FROM decisions WHERE canvas_id = $c AND card_id = $card AND plan_id IS NULL ORDER BY id')
       .all({ c: canvasId, card: cardId }) as DecisionRow[];
   }
 
-  /** A project's decisions, or with `null` those of the canvas's standalone cards. */
-  decisions(canvasId: string, projectId: string | null, limit = 40): DecisionRow[] {
+  /** A plan's decisions, or with `null` those of the canvas's standalone cards. */
+  decisions(canvasId: string, planId: string | null, limit = 40): DecisionRow[] {
     return (
       this.db
-        .query('SELECT * FROM decisions WHERE canvas_id = $c AND project_id IS $p ORDER BY id DESC LIMIT $limit')
-        .all({ c: canvasId, p: projectId, limit }) as DecisionRow[]
+        .query('SELECT * FROM decisions WHERE canvas_id = $c AND plan_id IS $p ORDER BY id DESC LIMIT $limit')
+        .all({ c: canvasId, p: planId, limit }) as DecisionRow[]
     ).reverse();
   }
 
@@ -1195,7 +1203,7 @@ export class Store {
 
   /**
    * Words the Koordinator was reading when Seismic stopped: they get `reply`; returns them. Words the
-   * usage limit holds wait on; words asked in a project's sheet the Koordinator never reads.
+   * usage limit holds wait on; words asked in a plan's sheet the Koordinator never reads.
    */
   interruptTalk(canvasId: string, reply: string): Talk[] {
     const rows = this.db.query("SELECT * FROM talk WHERE canvas_id = $c AND reply = '' AND held IS NULL AND asked_in IS NULL ORDER BY id").all({ c: canvasId }) as TalkRow[];
@@ -1258,7 +1266,7 @@ export class Store {
    * The answer to a looked-up question, with its files; one for the sheet (no card was open, and its
    * thread is on no Question card) waits there unread.
    */
-  answerTalk(id: number, answer: string, by: 'koordinator' | 'project', files: AnswerFile[] = [], agent?: AgentIdentity) {
+  answerTalk(id: number, answer: string, by: 'koordinator' | 'plan', files: AnswerFile[] = [], agent?: AgentIdentity) {
     if (arguments.length < 5) agent = currentAgent();
     this.db
       .query('UPDATE talk SET answer = $answer, answer_agent = $agent, answer_by = $by, files = $files, unread = card_id IS NULL AND card IS NULL WHERE id = $id')
@@ -1289,7 +1297,7 @@ export class Store {
     this.db.query('UPDATE talk SET card = $card, unread = 0 WHERE canvas_id = $c AND (id = $t OR thread = $t)').run({ c: canvasId, t: thread, card });
   }
 
-  /** The owner saw the sheet's answers, or (`ids`) those of a project's sheet; whether any was unread. */
+  /** The owner saw the sheet's answers, or (`ids`) those of a plan's sheet; whether any was unread. */
   readTalk(canvasId: string, ids?: number[]): boolean {
     if (ids)
       return this.db.query('UPDATE talk SET unread = 0 WHERE canvas_id = $c AND unread = 1 AND id IN (SELECT value FROM json_each($ids))').run({ c: canvasId, ids: JSON.stringify(ids) }).changes > 0;
@@ -1297,8 +1305,8 @@ export class Store {
   }
 
   /**
-   * The latest exchanges of the threads about any of `about` (a project and its workstreams), oldest
-   * first: those its project agent answers.
+   * The latest exchanges of the threads about any of `about` (a plan and its workstreams), oldest
+   * first: those its plan agent answers.
    */
   talkAbout(canvasId: string, about: string[], limit = 100): Talk[] {
     return (
@@ -1607,7 +1615,7 @@ export class Store {
    */
   putFeedback(f: Omit<Feedback, 'id' | 'at' | 'updatedAt' | 'cardId' | 'canvasId' | 'short'> & { cardId: string; canvasId: string }): Feedback {
     const credited = f.attribution === 'single' ? f.configs[0] : undefined;
-    const context = { title: f.title, ...(f.repo ? { repo: f.repo } : {}), ...(f.project ? { project: f.project } : {}) };
+    const context = { title: f.title, ...(f.repo ? { repo: f.repo } : {}), ...(f.plan ? { plan: f.plan } : {}) };
     const row = this.db
       .query(
         `INSERT INTO feedback (card_id, canvas_id, handover, context, attribution, configs, harness, model, effort, answer, facets, created_at)
@@ -1675,7 +1683,7 @@ interface FeedbackRow {
 }
 
 function feedbackOf(r: FeedbackRow): Feedback {
-  const context = JSON.parse(r.context) as Pick<Feedback, 'title' | 'repo' | 'project'>;
+  const context = JSON.parse(r.context) as Pick<Feedback, 'title' | 'repo' | 'plan'>;
   const configs = JSON.parse(r.configs) as WorkConfig[];
   return {
     id: r.id,
@@ -1722,7 +1730,7 @@ interface TalkRow {
   question: string | null;
   about: string | null;
   answer: string | null;
-  answer_by: 'koordinator' | 'project' | null;
+  answer_by: 'koordinator' | 'plan' | null;
   images: string | null;
   unread: number;
   session_id: string | null;

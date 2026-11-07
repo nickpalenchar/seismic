@@ -121,8 +121,8 @@ describe('parsePlanDoc', () => {
   });
 });
 
-describe('a doc that is not a project', () => {
-  test('says why a doc without a workstream checklist is not a project', () => {
+describe('a doc that is not a plan', () => {
+  test('says why a doc without a workstream checklist is not a plan', () => {
     expect(parsePlanDoc('a.md', '# Design\n\n## Goal\n\nText.\n')).toEqual({ file: 'a.md', reason: 'noWorkstreams' });
     expect(parsePlanDoc('a.md', '# Rollout\n\n## Tasks\n\n- [ ] Ship it\n')).toEqual({ file: 'a.md', reason: 'noWorkstreams' });
     expect(parsePlanDoc('a.md', '# Design\n\n## Workstreams\n\nNone yet.\n')).toEqual({ file: 'a.md', reason: 'noChecklist' });

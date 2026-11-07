@@ -28,7 +28,7 @@ Persistent (SQLite):
   original place, combined text or exact coverage parts, optional follow-up with its screenshots and
   question references, and the texts and handover compared so stale approval can be refused); the new repository a card is to be built in, and that Seismic made
   it; an idea's brief, open questions and picks; a prototype's idea
-  and outcome; a project's plan doc as last read and the plan docs its landed work added; the priority the owner
+  and outcome; a plan's plan doc as last read and the plan docs its landed work added; the priority the owner
   gave it (`priority`: `trivial`, `low`, `medium`, `high`, `veryHigh` or `critical`, null for none); its short
   code for addresses (see Addresses in The canvas), unique across the database;
 - each session that worked on a card, with the harness, resolved model and effort it ran on (see
@@ -63,4 +63,4 @@ static sites Seismic keeps (`sites/<key>/`), the env files their repositories' s
 (relative to the home, `sites/demos/deploy.env`, say), and `share/`, the directory deploys run in.
 
 Derived, not stored: git, PR and CI state (read from git and GitHub), plan-doc content (read from
-the repository; the copy on the project is only for the archive).
+the repository; the copy on the plan is only for the archive).
