@@ -41,6 +41,18 @@ export interface Draft {
   agent?: AgentSetting;
 }
 
+/**
+ * Finding numbers start again with each code review, so choices and context are good only for the
+ * review they were written for. What `reviewKey` the draft should carry now, and what to drop: a
+ * draft with choices or context but no key (from before keys existed) may be foreign and is cleared.
+ * Null when the draft already fits.
+ */
+export function reviewReset(d: Pick<Draft, 'findings' | 'findingNotes' | 'findingNoteEdits' | 'reviewKey'>, review: string | undefined): Partial<Draft> | null {
+  if (review === d.reviewKey) return null;
+  const held = !!(d.findings || d.findingNotes || d.findingNoteEdits);
+  return held ? { reviewKey: review, findings: undefined, findingNotes: undefined, findingNoteEdits: undefined } : { reviewKey: review };
+}
+
 export interface Picks {
   of: string;
   picks: string[][];

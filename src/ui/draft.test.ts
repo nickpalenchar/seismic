@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { appended, cardDraft, pathWord, wordsOf, draftOf, dropDraft, giveBack, insert, insertFiles, keepDrafts, MIC_DRAFT, markupOf, moveFiles, moveImages, OBEYA_DRAFT, setMarkup, updateDraft, withoutWords } from './draft';
+import { appended, cardDraft, pathWord, wordsOf, draftOf, dropDraft, giveBack, insert, insertFiles, keepDrafts, reviewReset, MIC_DRAFT, markupOf, moveFiles, moveImages, OBEYA_DRAFT, setMarkup, updateDraft, withoutWords } from './draft';
 
 const store = () => {
   const m = new Map<string, string>();
@@ -118,4 +118,17 @@ test('a word taken out of a text takes the space after it, or at the end of a li
   expect(withoutWords('Schau /a.pdf\nund das', ['/a.pdf'])).toBe('Schau\nund das');
   // only as a word of its own
   expect(withoutWords('/a.pdfx /a.pdf', ['/a.pdf'])).toBe('/a.pdfx');
+});
+
+test('reviewReset keeps choices of the same review', () => {
+  expect(reviewReset({ findings: { '1': 'self' }, reviewKey: '0' }, '0')).toBeNull();
+});
+test('reviewReset drops choices and context of an earlier review', () => {
+  expect(reviewReset({ findings: { '1': 'self' }, findingNotes: { '1': 'x' }, findingNoteEdits: { '2': 'y' }, reviewKey: '0' }, '1')).toEqual({ reviewKey: '1', findings: undefined, findingNotes: undefined, findingNoteEdits: undefined });
+});
+test('reviewReset drops choices of a draft without a key', () => {
+  expect(reviewReset({ findings: { '1': 'self' } }, '0')).toMatchObject({ reviewKey: '0', findings: undefined });
+});
+test('reviewReset adopts the review for an empty draft', () => {
+  expect(reviewReset({}, '0')).toEqual({ reviewKey: '0' });
 });

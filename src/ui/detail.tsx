@@ -28,7 +28,7 @@ import { forcedText, QueueList, scrollerOf, useMenuClose, useQueueMove, useQueue
 import { dimensions, shownTags } from '../core/page-tags';
 import { CardRefs, Inline, plain } from './markdown';
 import { Body, Cards, goToMessage, Msg, Quote, Reading, useAnswer, useReportedHeight } from './message';
-import { appended, cardDraft, draftOf, dropDraft, giveBack, questionsKey, updateDraft, useDraft, useDraftField, useDrafting } from './draft';
+import { appended, cardDraft, draftOf, dropDraft, giveBack, questionsKey, reviewReset, updateDraft, useDraft, useDraftField, useDrafting } from './draft';
 import { eventQuote, type Reply, setReply } from './reply';
 import { CiteButton } from './cite';
 import { Composer } from './composer';
@@ -2478,6 +2478,17 @@ function Findings({ item, decides, onPush }: { item: Item; decides: boolean; onP
  * follow-up task". The decisions stand in the card's draft and go out with the field's one Send. A
  * finding something came of says what; one made a follow-up task links that task.
  */
+/** Clears the draft's finding choices and context once the card's code review is another one; used wherever the card is open, so no tab leaves stale choices for the send path. */
+function useReviewReset(item: Item) {
+  const draft = cardDraft(item.id);
+  const review = item.codeReview ? String(item.codeReview.previous?.length ?? 0) : undefined;
+  const d = useDraft(draft);
+  useEffect(() => {
+    const change = reviewReset(d, review);
+    if (change) updateDraft(draft, change);
+  }, [review, d.reviewKey, d.findings, d.findingNotes, d.findingNoteEdits, draft]);
+}
+
 function FindingList({ item, findings, decides }: { item: Item; findings: Finding[]; decides: boolean }) {
   const c = item.contribution;
   const cards = useContext(Cards);
@@ -2488,13 +2499,7 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
       const { [f.id]: was, ...rest } = d.findings ?? {};
       return { findings: was === route ? rest : { ...rest, [f.id]: route } };
     });
-  // finding numbers start again with each code review: choices and context written for an earlier review do not carry over to the next
-  const review = item.codeReview ? String(item.codeReview.previous?.length ?? 0) : undefined;
-  const kept = useDraft(draft).reviewKey;
-  useEffect(() => {
-    if (review === kept) return;
-    updateDraft(draft, () => (kept === undefined ? { reviewKey: review } : { reviewKey: review, findings: undefined, findingNotes: undefined, findingNoteEdits: undefined }));
-  }, [review, kept, draft]);
+  useReviewReset(item);
   // findings the agent is fixing fold to their heads; a click on one unfolds it
   const [unfolded, setUnfolded] = useState<Set<number>>(new Set());
   const unfold = (id: number) =>
@@ -3499,6 +3504,7 @@ interface TalkField {
  * conversation: it stands quoted above the field, and the words go out with it.
  */
 function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkField }) {
+  useReviewReset(item);
   const picks = useOpenQuestions(item, past);
   const { questions, picked } = picks;
   const options = questions.some((q) => q.options.length > 0);

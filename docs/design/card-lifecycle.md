@@ -245,7 +245,7 @@ the list without reaching the worker, as on a review card). Every later review o
 is given the findings ignored or chosen as follow-up tasks in its earlier reviews, including the
 linked follow-up tasks where created, so it does not raise them again; the choices stand above the field and go to the
 worker with the card's one Send, with or without words of the owner's, exactly as on a review card.
-Each open finding also has a "Write more context" button at its bottom right, apart from the choices: it opens a text box and becomes "Save"; the saved words stand on the finding (button "Edit context") and go to the agent verbatim with the finding's decision, on review cards too. They are kept like the choices until sent and dropped with them; an ignored finding sends none.
+Each open finding also has a "Write more context" button at its bottom right, apart from the choices: it opens a text box and becomes "Save"; the saved words stand on the finding (button "Edit context") and go to the agent verbatim with the finding's decision, on review cards too. They are kept like the choices until sent and dropped with them; an ignored finding sends none. Finding numbers start again with every code review, so choices and context belong to the review they were written for: as soon as the card's review is another one, whichever tab is open, they are dropped, and a draft holding them from before this was tracked is dropped too.
 Approving while choices on findings are picked but not sent asks first: "Approve and close items" approves and drops them, "Go back" keeps them.
 The Review tab also offers "Submit answers" beneath the findings once a choice is made, so the
 owner can send those choices without opening the conversation on a phone. Sending them takes the
