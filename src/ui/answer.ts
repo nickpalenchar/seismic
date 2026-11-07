@@ -4,10 +4,12 @@ import type { Question } from '../core/types';
 
 /**
  * One line per answered question (`**question** picks`), then the owner's own words: as in an
- * idea's conversation, which is read later without the questions beside it.
+ * idea's conversation, which is read later without the questions beside it. A pick that is no
+ * option of its question, the owner's own answer, stands in quotes, on the line.
  */
 export function answerText(questions: Question[], picks: string[][], words: string): string {
-  const lines = questions.flatMap((q, i) => (picks[i]?.length ? [`**${oneLine(q.text)}** ${picks[i]!.join(', ')}`] : []));
+  const named = (q: Question, o: string) => (q.options.includes(o) ? o : `“${oneLine(o)}”`);
+  const lines = questions.flatMap((q, i) => (picks[i]?.length ? [`**${oneLine(q.text)}** ${picks[i]!.map((o) => named(q, o)).join(', ')}`] : []));
   return [lines.join('\n'), words.trim()].filter(Boolean).join('\n\n');
 }
 
@@ -30,20 +32,13 @@ export function readAnswer(text: string, questions: Pick<Question, 'text' | 'opt
   return { picks, words: rest.join('\n\n').trim() };
 }
 
-/** The answers `answerText` joined into `s`: the options it starts with, then the owner's own answer, if any is left. */
+/** The answers `answerText` joined into `s`: options in any order, then maybe the owner's own answer in quotes; undefined if `s` is not made of them. */
 function given(s: string, options: string[]): string[] | undefined {
-  if (!s.trim()) return undefined;
-  const all = chosen(s, options);
-  if (all) return all;
-  const o = options.find((x) => s.startsWith(`${x}, `));
-  return o ? [o, ...given(s.slice(o.length + 2), options.filter((x) => x !== o))!] : [s];
-}
-
-/** The options `answerText` joined into `s`, in any order; undefined if `s` is not made of them. */
-function chosen(s: string, options: string[]): string[] | undefined {
+  const own = /^“(.+)”$/.exec(s);
+  if (own) return [own[1]!];
   for (const o of options) {
     if (s === o) return [o];
-    const more = s.startsWith(`${o}, `) && chosen(s.slice(o.length + 2), options.filter((x) => x !== o));
+    const more = s.startsWith(`${o}, `) && given(s.slice(o.length + 2), options.filter((x) => x !== o));
     if (more) return [o, ...more];
   }
   return undefined;
@@ -61,21 +56,10 @@ export const OTHER = '\u0000other';
 /** Picks the owner's own answer like an option (`OTHER`), after the question's options. */
 export const toggleOther = (q: Question, picked: string[], option: string) => toggle({ ...q, options: [...q.options, OTHER] }, picked, option);
 
-/** The answers to each question: the options picked, and the owner's own answer (`others`) where its choice is picked and written. */
+/** The answers to each question: the options picked, and the owner's own answer (`others`, on one line) where its choice is picked and written. */
 export function answers(picks: string[][], others: string[] = []): string[][] {
-  return picks.map((p, i) => p.flatMap((o) => (o !== OTHER ? [o] : others[i]?.trim() ? [others[i]!.trim()] : [])));
+  return picks.map((p, i) => p.flatMap((o) => (o !== OTHER ? [o] : others[i]?.trim() ? [oneLine(others[i]!)] : [])));
 }
 
-/**
- * The owner's own answers, for an answer whose picks go apart from its text: each as its own
- * paragraph, named by its question where several stand, then the owner's further words.
- */
-export function ownAnswers(questions: Question[], picks: string[][], others: string[], words: string): string {
-  const own = questions.flatMap((q, i) => {
-    const text = picks[i]?.includes(OTHER) ? others[i]?.trim() : '';
-    return text ? [questions.length > 1 ? `**${oneLine(q.text)}** ${text}` : text] : [];
-  });
-  return [...own, words.trim()].filter(Boolean).join('\n\n');
-}
 
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim();

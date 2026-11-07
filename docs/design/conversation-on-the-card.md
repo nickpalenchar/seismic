@@ -100,12 +100,13 @@ the conversation's end under "Question for you" ("Questions for you"), and only 
 "A remark – optional" and "Answer". Every question with options ends with one more choice, a field
 "Your own answer …" in place of an option's label: writing in it picks it (on a single-choice
 question in place of the option picked), and it goes out like a pick; a question without options
-has that field alone. Where the picks travel apart
-from the words (a worker's or a handover's question), the own answer leads the owner's words as
-text, named by its question where several stand; where the answer names each question (ideas,
-proposals), it stands as that question's answer, ticked on the question after its options like a
-picked one; a proposal accepted with it takes it as decided. It stays in the card's draft with the
-picks, written but not picked too. The owner's words the agent read only
+has that field alone; Enter picks or unpicks it from the keyboard, as it does an option. It goes
+out on one line, its line breaks made spaces: as a pick that is no option of the question where the
+picks travel apart from the words (a worker's or a handover's question), in quotes after the options
+on its question's line where the answer names each question (ideas, proposals), so that an own
+answer that starts like an option is not read as that option. Either way it stands ticked on its
+question after the options, like a picked one, and a proposal accepted with it takes it as decided.
+It stays in the card's draft with the picks, written but not picked too. The owner's words the agent read only
 after it asked (said while it worked, they reached it after the question) go along and stay below
 the question, as everywhere in reading order: above it they would read as words the question took
 into account, and once it is answered and back in place they would jump below it. Anything of an

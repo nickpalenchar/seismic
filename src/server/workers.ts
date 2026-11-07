@@ -471,11 +471,23 @@ const limitLine = (line: string | null | undefined) => !!line && LANGUAGES.some(
 /** Said of the owner's words when they came through speech recognition. */
 export const SPOKEN = 'spoken, so speech recognition may have misheard words';
 
-/** An answer as the worker reads it: the options the owner picked, apart from the words they added. */
-export function answerNote(picks: string[], text: string): string {
+/**
+ * An answer as the worker reads it: the options the owner picked and the answer they wrote in
+ * place of one (`own`, the picks that are no option), apart from the words they added.
+ */
+export function answerNote(picks: string[], text: string, options: string[] = picks): string {
   if (!picks.length) return text;
   const words = ownWords({ text, picks });
-  return `They picked ${picks.map((o) => `“${o}”`).join(', ')}.${words ? `\n\nThey added in their own words:\n\n${words}` : ''}`;
+  const picked = picks.filter((o) => options.includes(o));
+  const own = picks.find((o) => !options.includes(o));
+  const lead = [picked.length ? `They picked ${picked.map((o) => `“${o}”`).join(', ')}.` : '', own ? `They answered in their own words: “${own}”.` : ''].filter(Boolean).join(' ');
+  return `${lead}${words ? `\n\nThey added in their own words:\n\n${words}` : ''}`;
+}
+
+/** The answers the owner gave to a question with `options`: the options they picked, then the one they wrote in place of an option, on one line. */
+export function givenAnswers(options: string[], picks: string[]): string[] {
+  const own = picks.map((p) => p.replace(/\s+/g, ' ').trim()).find((p) => p && !options.includes(p));
+  return [...options.filter((o) => picks.includes(o)), ...(own ? [own.slice(0, 2000)] : [])];
 }
 
 /** The question of a demo report as the demo keeps it: its text, options and the worker's pick, as `ask` takes them. */
@@ -1309,13 +1321,13 @@ export class Workers {
 
   /**
    * The owner answered the card's question: `words` are their own, `picks` the options they picked
-   * (those not among the question's are dropped). The log holds both as one text, picks first
-   * (`pickedAnswer`); the worker reads which is which.
+   * and the answer they wrote in place of one (`givenAnswers`). The log holds both as one text,
+   * picks first (`pickedAnswer`); the worker reads which is which.
    */
   answer(cardId: string, words: string, images: string[] = [], spoken = false, replyTo?: number, picks: string[] = [], spot?: SpotInput) {
     const card = this.card(cardId);
     const options = card.question?.options ?? [];
-    const picked = options.filter((o) => picks.includes(o));
+    const picked = givenAnswers(options, picks);
     const text = pickedAnswer(picked, words);
     if (card.state === 'waiting' && card.need === 'demo' && card.question) return this.answerDemo(card, text, images, spoken, replyTo, picked);
     if (!(card.state === 'waiting' && card.need === 'question')) throw new BadRequest('noQuestion', 'the card has no open question');
@@ -1328,7 +1340,7 @@ export class Workers {
     const place = spot ? this.place(cardId, spot) : undefined;
     this.backToWork(cardId);
     this.recordAnswer(card, q, text, images, replyTo, picked, place);
-    this.deliver(cardId, `Answer to your question (from the owner${spoken ? `; ${SPOKEN}` : ''}):\n\n${this.words(cardId, answerNote(picked, text), images, replyTo, place)}`, [...this.stills(place), ...images], true);
+    this.deliver(cardId, `Answer to your question (from the owner${spoken ? `; ${SPOKEN}` : ''}):\n\n${this.words(cardId, answerNote(picked, text, options), images, replyTo, place)}`, [...this.stills(place), ...images], true);
   }
 
   /**
@@ -1382,7 +1394,7 @@ export class Workers {
     this.recordAnswer(card, q, text, images, replyTo, picks);
     this.deliver(
       card.id,
-      `The owner answered the question in your demo report (“${q}”)${spoken ? ` (${SPOKEN})` : ''}. The card still waits for their approval of what you handed over; a change their words call for goes into a new handover:\n\n${held ? `${held.text}\n\nThen they answered:\n\n` : ''}${this.words(card.id, answerNote(picks, text), images, replyTo)}`,
+      `The owner answered the question in your demo report (“${q}”)${spoken ? ` (${SPOKEN})` : ''}. The card still waits for their approval of what you handed over; a change their words call for goes into a new handover:\n\n${held ? `${held.text}\n\nThen they answered:\n\n` : ''}${this.words(card.id, answerNote(picks, text, card.question!.options ?? []), images, replyTo)}`,
       [...(held?.images ?? []), ...images],
       true,
     );

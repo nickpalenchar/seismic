@@ -374,10 +374,11 @@ describe('handing over with a demo', () => {
     workers.answer(c.id, 'Und mit Kopfzeile.', [], false, undefined, ['Semikolon', 'Tab']);
     expect(state(c.id)).toBe('waiting:demo');
     expect(board.item(c.id)!.question).toBeUndefined();
-    expect(board.item(c.id)!.demo).toMatchObject({ options: ['Semikolon', 'Komma'], answer: 'Semikolon\n\nUnd mit Kopfzeile.' });
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'answer', picks: ['Semikolon'] });
-    expect(runtime.last.inbox.at(-1)).toContain('They picked “Semikolon”.\n\nThey added in their own words:\n\nUnd mit Kopfzeile.');
-    expect(board.decisions(null).at(-1)).toMatchObject({ question: 'Semikolon oder Komma?', answer: 'Semikolon\n\nUnd mit Kopfzeile.' });
+    // a pick that is no option is the owner's own answer
+    expect(board.item(c.id)!.demo).toMatchObject({ options: ['Semikolon', 'Komma'], answer: 'Semikolon, Tab\n\nUnd mit Kopfzeile.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'answer', picks: ['Semikolon', 'Tab'] });
+    expect(runtime.last.inbox.at(-1)).toContain('They picked “Semikolon”. They answered in their own words: “Tab”.\n\nThey added in their own words:\n\nUnd mit Kopfzeile.');
+    expect(board.decisions(null).at(-1)).toMatchObject({ question: 'Semikolon oder Komma?', answer: 'Semikolon, Tab\n\nUnd mit Kopfzeile.' });
   });
 
   test('several options of the demo report’s question go together when it allows several', async () => {

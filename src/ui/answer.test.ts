@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { answers, answerText, OTHER, ownAnswers, readAnswer, toggle, toggleOther } from './answer';
+import { answers, answerText, OTHER, readAnswer, toggle, toggleOther } from './answer';
 
 const format = { text: 'Welches Format?', options: ['CSV', 'PDF', 'Excel'] };
 const whom = { text: 'Für wen?\nKurz.', options: ['Vermieter', 'Verwalter'], multiple: true };
@@ -28,8 +28,8 @@ describe('an answer', () => {
     // an option that starts like another, followed by a comma
     const later = { text: 'Wann?', options: ['Jetzt', 'Jetzt, aber leise'] };
     expect(readAnswer('**Wann?** Jetzt, aber leise', [later]).picks).toEqual([['Jetzt, aber leise']]);
-    // words of their own, a question asked nowhere, a line naming no question: nothing picked
-    for (const text of ['Lieber JSON.', '**Wie viele?** 3\n\nGenau.', '**Welches Format?** CSV\nUnd PDF.'])
+    // words of their own, a question asked nowhere, an option it does not have, a line naming no question: nothing picked
+    for (const text of ['Lieber JSON.', '**Welches Format?** JSON', '**Wie viele?** 3\n\nGenau.', '**Welches Format?** CSV\nUnd PDF.'])
       expect(readAnswer(text, [format])).toEqual({ picks: [], words: text });
   });
 
@@ -49,22 +49,23 @@ describe('the owner’s own answer', () => {
   });
 
   test('answers its question once picked and written', () => {
-    expect(answers([[OTHER], ['Vermieter', OTHER]], [' JSON ', ''])).toEqual([['JSON'], ['Vermieter']]);
+    expect(answers([[OTHER], ['Vermieter', OTHER]], [' JSON\n\nmit Kopfzeile ', ''])).toEqual([['JSON mit Kopfzeile'], ['Vermieter']]);
     expect(answers([['CSV']], ['JSON'])).toEqual([['CSV']]);
-    expect(answerText([format], answers([[OTHER]], ['JSON']), 'Danke.')).toBe('**Welches Format?** JSON\n\nDanke.');
+    expect(answerText([format], answers([[OTHER]], ['JSON']), 'Danke.')).toBe('**Welches Format?** “JSON”\n\nDanke.');
   });
 
   test('reads back as its question’s answer, after the options picked', () => {
-    expect(readAnswer('**Welches Format?** JSON', [format])).toEqual({ picks: [['JSON']], words: '' });
+    expect(readAnswer(answerText([format], [['JSON']], ''), [format])).toEqual({ picks: [['JSON']], words: '' });
+    // one that starts like an option is still the owner's own, not that option
+    expect(readAnswer(answerText([format], [['CSV, aber mit Kopfzeile']], ''), [format]).picks).toEqual([['CSV, aber mit Kopfzeile']]);
+    // written over several lines, it stands on its question's line
+    expect(readAnswer(answerText([format, whom], answers([[OTHER], ['Vermieter']], ['JSON\n\noder XML']), 'Danke.'), [format, whom])).toEqual({
+      picks: [['JSON oder XML'], ['Vermieter']],
+      words: 'Danke.',
+    });
     expect(readAnswer(answerText([format, whom], answers([[], ['Verwalter', OTHER]], ['', 'die Hausmeisterin, bitte']), 'Danke.'), [format, whom])).toEqual({
       picks: [undefined, ['Verwalter', 'die Hausmeisterin, bitte']],
       words: 'Danke.',
     });
-  });
-
-  test('stands in the text where the picks go apart, named by its question where several stand', () => {
-    expect(ownAnswers([format], [[OTHER]], ['JSON'], 'Danke.')).toBe('JSON\n\nDanke.');
-    expect(ownAnswers([format, whom], [[OTHER], ['Vermieter']], ['JSON'], '')).toBe('**Welches Format?** JSON');
-    expect(ownAnswers([format], [['CSV']], ['JSON'], ' Danke. ')).toBe('Danke.');
   });
 });

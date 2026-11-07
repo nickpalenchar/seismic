@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { agentListens, answering, askable, type BackgroundTask, buildableOn, type CardAction, type Contribution, type HeldChanges, chapterAt, prototypeWorkstream, type CardEvent, type CardPatch, type Demo, type EarlierDemo, EXPORT_HTML_MAX, finished, finishedArchivable, finishingUp, handedOver, type Item, mergeableWith, type Mock, type NextStep, type PageTags, openQuestions, pausableNow, plannableAsPlan, type PrComment, type PrReviewEntry, type PullRequest, type Question, type Finding, type FindingPick, type Severity, SEVERITIES, type Clash as ClashFound, type RepoRef, snoozable, type Spot, started, stopped, stoppedArchivable, taskAuthor, withSupplemented } from '../core/types';
 import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
-import { answers, answerText, OTHER, ownAnswers, toggleOther } from './answer';
+import { answers, answerText, OTHER, toggleOther } from './answer';
 import { ApiError, api, canvasOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onReconnect } from './api';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
@@ -3570,10 +3570,8 @@ function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkF
       sentChoices(draft, decided);
       return;
     }
-    // the owner's own answers stand in the text: the picks that go apart from it are the options alone
-    const chosen = picks.picks.map((p) => p.filter((o) => o !== OTHER));
-    const text = field!.quote ? answerText(questions, picks.answers, words) : ownAnswers(questions, picks.picks, picks.others, words);
-    await (chosen.some((p) => p.length) || (field!.quote && picked) ? field!.onPicked(text, field!.quote ? picks.answers : chosen, images, replyTo) : field!.onWords(text, images, replyTo));
+    // the owner's own answer goes with the options picked, as a pick that is no option
+    await (picked ? field!.onPicked(field!.quote ? answerText(questions, picks.answers, words) : words.trim(), picks.answers, images, replyTo) : field!.onWords(words, images, replyTo));
     picks.clear();
   };
   return (
@@ -3744,6 +3742,13 @@ function OtherChoice({ multiple, alone, on, text, onToggle, onWrite }: { multipl
       role={alone ? undefined : multiple ? 'checkbox' : 'radio'}
       aria-checked={alone ? undefined : on}
       className={`choice other${alone ? ' alone' : ''}${on && !alone ? ' on' : ''}`}
+      // a tab stop of its own, picked or taken back with Enter as the options are (Space is push-to-talk)
+      tabIndex={alone ? undefined : 0}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        onToggle();
+      }}
       onMouseDown={(e) => e.target !== field.current && e.preventDefault()}
       onClick={(e) => {
         if (e.target === field.current) return;

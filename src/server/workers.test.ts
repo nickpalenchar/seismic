@@ -217,16 +217,22 @@ describe('workers', () => {
     await workers.start(c.id);
     runtime.last.call('ask', { question: 'CSV oder Excel?', options: ['CSV', 'Excel'] });
     runtime.last.emit({ type: 'idle' });
-    // an option the question does not offer is dropped
-    workers.answer(c.id, 'Und mit Kopfzeile.', [], false, undefined, ['CSV', 'PDF']);
-    expect(runtime.last.inbox.at(-1)).toContain('Answer to your question (from the owner):\n\nThey picked “CSV”.\n\nThey added in their own words:\n\nUnd mit Kopfzeile.');
-    // the log holds the answer as one text, and which options it picked
-    expect(board.events(c.id).findLast((e) => e.kind === 'answer')).toMatchObject({ text: 'CSV\n\nUnd mit Kopfzeile.', picks: ['CSV'] });
+    // a pick the question does not offer is the owner's own answer, on one line, after the options
+    workers.answer(c.id, 'Und mit Kopfzeile.', [], false, undefined, ['Lieber\nPDF', 'CSV']);
+    expect(runtime.last.inbox.at(-1)).toContain('Answer to your question (from the owner):\n\nThey picked “CSV”. They answered in their own words: “Lieber PDF”.\n\nThey added in their own words:\n\nUnd mit Kopfzeile.');
+    // the log holds the answer as one text, and what it picked
+    expect(board.events(c.id).findLast((e) => e.kind === 'answer')).toMatchObject({ text: 'CSV, Lieber PDF\n\nUnd mit Kopfzeile.', picks: ['CSV', 'Lieber PDF'] });
     runtime.last.emit({ type: 'idle' });
     runtime.last.call('ask', { question: 'Auch PDF?', options: ['Ja', 'Nein'] });
     runtime.last.emit({ type: 'idle' });
     workers.answer(c.id, '', [], false, undefined, ['Nein']);
     expect(runtime.last.inbox.at(-1)).toEndWith('They picked “Nein”.');
+    runtime.last.emit({ type: 'idle' });
+    runtime.last.call('ask', { question: 'Welches Trennzeichen?', options: ['Komma', 'Semikolon'] });
+    runtime.last.emit({ type: 'idle' });
+    workers.answer(c.id, '', [], false, undefined, ['Tabulator']);
+    expect(runtime.last.inbox.at(-1)).toEndWith('They answered in their own words: “Tabulator”.');
+    expect(board.events(c.id).findLast((e) => e.kind === 'answer')).toMatchObject({ text: 'Tabulator', picks: ['Tabulator'] });
   });
 
   test('a turn that starts while a restart is due hears of it with its message', async () => {
