@@ -28,7 +28,7 @@ import { forcedText, QueueList, scrollerOf, useMenuClose, useQueueMove, useQueue
 import { dimensions, shownTags } from '../core/page-tags';
 import { CardRefs, Inline, plain } from './markdown';
 import { Body, Cards, goToMessage, Msg, Quote, Reading, useAnswer, useReportedHeight } from './message';
-import { appended, cardDraft, draftOf, dropDraft, giveBack, questionsKey, reviewReset, updateDraft, useDraft, useDraftField, useDrafting } from './draft';
+import { appended, cardDraft, draftOf, dropDraft, findingDraft, giveBack, questionsKey, reviewReset, updateDraft, useDraft, useDraftField, useDrafting } from './draft';
 import { eventQuote, type Reply, setReply } from './reply';
 import { CiteButton } from './cite';
 import { Composer } from './composer';
@@ -172,6 +172,7 @@ function QueuePlace({ item, items }: { item: Item; items: Item[] }) {
 
 export function Detail(p: Props) {
   const { item, parent } = p;
+  useReviewReset(item);
   const [error, setError] = useState('');
   // a prototype whose idea has become a project: the workstream to build on it
   const [workstream, setWorkstream] = useState('');
@@ -2478,10 +2479,19 @@ function Findings({ item, decides, onPush }: { item: Item; decides: boolean; onP
  * follow-up task". The decisions stand in the card's draft and go out with the field's one Send. A
  * finding something came of says what; one made a follow-up task links that task.
  */
-/** Clears the draft's finding choices and context once the card's code review is another one; used wherever the card is open, so no tab leaves stale choices for the send path. */
+/** Which code review the card's findings belong to: their numbers start again with each one. */
+const reviewKeyOf = (item: Item) => (item.codeReview ? String(item.codeReview.previous?.length ?? 0) : undefined);
+
+/** The draft's finding choices and context for the card's current review, read at render time. */
+const useFindingDraft = (item: Item) => findingDraft(useDraft(cardDraft(item.id)), reviewKeyOf(item));
+
+/** The same, read at the moment of sending, so a send never takes choices of a review that has since been replaced. */
+const findingDraftNow = (item: Item) => findingDraft(draftOf(cardDraft(item.id)), reviewKeyOf(item));
+
+/** Clears the draft's finding choices and context once the card's code review is another one; Detail runs it, so it holds whichever tab or panel is open. */
 function useReviewReset(item: Item) {
   const draft = cardDraft(item.id);
-  const review = item.codeReview ? String(item.codeReview.previous?.length ?? 0) : undefined;
+  const review = reviewKeyOf(item);
   const d = useDraft(draft);
   useEffect(() => {
     const change = reviewReset(d, review);
@@ -2493,13 +2503,12 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
   const c = item.contribution;
   const cards = useContext(Cards);
   const draft = cardDraft(item.id);
-  const picks = useDraft(draft).findings ?? {};
+  const picks = useFindingDraft(item).findings ?? {};
   const pick = (f: Finding, route: FindingPick) =>
     updateDraft(draft, (d) => {
       const { [f.id]: was, ...rest } = d.findings ?? {};
       return { findings: was === route ? rest : { ...rest, [f.id]: route } };
     });
-  useReviewReset(item);
   // findings the agent is fixing fold to their heads; a click on one unfolds it
   const [unfolded, setUnfolded] = useState<Set<number>>(new Set());
   const unfold = (id: number) =>
@@ -2603,7 +2612,7 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
                 </>
               )}
             </div>
-            <FindingContext draft={draft} id={f.id} />
+            <FindingContext item={item} id={f.id} />
             </>
           )
         )}
@@ -2707,17 +2716,18 @@ function ReviewHistory({ item, act, decides, again, reviewer }: { item: Item; ac
 /** Send the selected code review routes from the Review tab, including on phones without chat. */
 function ReviewSubmit({ item }: { item: Item }) {
   const draft = cardDraft(item.id);
-  const choices = useDraft(draft).findings ?? {};
-  const notes = useDraft(draft).findingNotes;
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-  const findings = Object.fromEntries(Object.entries(choices).filter(([id]) =>
+  const openOf = (choices: Record<string, FindingPick> | undefined) => Object.fromEntries(Object.entries(choices ?? {}).filter(([id]) =>
     item.codeReview?.findings?.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided),
   ));
-  if (!Object.keys(findings).length) return null;
-  const findingNotes = notesOf(notes, findings);
+  if (!Object.keys(openOf(useFindingDraft(item).findings)).length) return null;
   const submit = async (agent?: import('../core/types').AgentSetting) => {
     if (sending) return;
+    const now = findingDraftNow(item);
+    const findings = openOf(now.findings);
+    if (!Object.keys(findings).length) return;
+    const findingNotes = notesOf(now.findingNotes, findings);
     setSending(true);
     setError('');
     try {
@@ -2821,8 +2831,9 @@ function Blocked({ item, act }: { item: Item; act: (a: CardAction, done: ActDone
  * a text box and turns into "Save"; the saved words show on the finding and go verbatim to the
  * agent with the finding's decision.
  */
-function FindingContext({ draft, id }: { draft: string; id: number }) {
-  const { findingNotes, findingNoteEdits } = useDraft(draft);
+function FindingContext({ item, id }: { item: Item; id: number }) {
+  const draft = cardDraft(item.id);
+  const { findingNotes, findingNoteEdits } = useFindingDraft(item);
   const saved = findingNotes?.[id] ?? '';
   const edit = findingNoteEdits?.[id];
   const editing = edit !== undefined;
@@ -3504,7 +3515,6 @@ interface TalkField {
  * conversation: it stands quoted above the field, and the words go out with it.
  */
 function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkField }) {
-  useReviewReset(item);
   const picks = useOpenQuestions(item, past);
   const { questions, picked } = picks;
   const options = questions.some((q) => q.options.length > 0);
@@ -3514,14 +3524,15 @@ function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkF
   const at = field && !field.listener && !options ? place : null;
   // the field of a review card or a card with a code review, where its agent hears the words: the owner's decisions on the findings go with them
   const decidable = !!field && !field.listener && !finished(item.state) ? findingsOf(item) : null;
-  const allDecided = useDraft(draft).findings;
-  const allNotes = useDraft(draft).findingNotes;
-  const decided = decidable && allDecided ? Object.fromEntries(Object.entries(allDecided).filter(([id]) => decidable.findings.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided))) : {};
+  const openOf = (all: Record<string, FindingPick> | undefined) => (decidable && all ? Object.fromEntries(Object.entries(all).filter(([id]) => decidable.findings.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided))) : {});
+  const decided = openOf(useFindingDraft(item).findings);
   const deciding = Object.keys(decided).length > 0;
   const send = async (words: string, images?: string[], to?: Reply['to']) => {
     const replyTo = typeof to === 'number' ? to : undefined;
-    if (deciding && field!.onDecided) {
-      const findingNotes = notesOf(allNotes, decided);
+    const now = findingDraftNow(item);
+    const decided = openOf(now.findings);
+    if (Object.keys(decided).length && field!.onDecided) {
+      const findingNotes = notesOf(now.findingNotes, decided);
       await field!.onDecided(words.trim(), decided, images, replyTo, Object.keys(findingNotes).length ? findingNotes : undefined);
       sentChoices(draft, decided);
       return;
