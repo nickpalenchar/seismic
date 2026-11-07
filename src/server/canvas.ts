@@ -1926,13 +1926,13 @@ export class CanvasRuntime {
   }
 
   /**
-   * "Discuss as an idea" on a Question card: it becomes an idea, whose exploration agent starts from
+   * "Ideate" on a Question card: it becomes an idea, whose exploration agent starts from
    * the thread (questions, answers, the files in its output directory) instead of the look-up's session.
    */
   private questionAsIdea(cardId: string) {
     const card = this.board.item(cardId);
     if (card?.kind !== 'question') throw new BadRequest('notQuestion', 'the card is no Question card');
-    if (card.thread?.thinking) throw new BadRequest('ideaThinking', 'its agent is still reading; discuss it as an idea once the answer is there');
+    if (card.thread?.thinking) throw new BadRequest('ideaThinking', 'its agent is still reading; ideate it once the answer is there');
     if (!this.runs(card)) throw repoDown(card);
     // a paused agent's question goes into the discussion with the rest of the thread
     this.board.work(cardId, { kind: 'task', state: 'idea', idea: JSON.stringify({ status: 'open', brief: '' }), session_id: null, paused: null, pausing: null });

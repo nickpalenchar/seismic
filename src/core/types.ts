@@ -639,7 +639,7 @@ export interface Proposal {
    */
   revising?: Revising & { next?: Revising[] };
   /**
-   * "Accept and start" was clicked while it was reworked (`idea`: "Discuss as idea"): it
+   * "Accept and start" was clicked while it was reworked (`idea`: "Ideate"): it
    * is accepted once the new text is there, unless that asks questions.
    */
   acceptAfterRevision?: true | 'idea';

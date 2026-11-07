@@ -1528,7 +1528,7 @@ export class Board {
     this.changed();
   }
 
-  /** "Accept and start" during a revision (`on`; `idea`: "Discuss as an idea"), or taken back; false when that was so already. */
+  /** "Accept and start" during a revision (`on`; `idea`: "Ideate"), or taken back; false when that was so already. */
   acceptAfterRevision(id: string, on: boolean | 'idea'): boolean {
     const row = this.own(id);
     if (row.state !== 'proposal') throw new BadRequest('notProposal', 'not a proposal');

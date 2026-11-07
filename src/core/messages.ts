@@ -371,9 +371,9 @@ const de = {
     buildAnswer: (path: string) => `So bauen, im neuen Repository ${path}.`,
   },
   proposal: {
-    /** `how`: the button clicked, "Accept and start", "Accept and discuss" (a proposed idea) or "Discuss as idea". */
+    /** `how`: the button clicked, "Accept and start", "Accept and discuss" (a proposed idea) or "Ideate". */
     acceptAfterRevision: (how: 'start' | 'discuss' | 'asIdea') =>
-      `${{ start: 'Übernehmen und starten', discuss: 'Übernehmen und besprechen', asIdea: 'Als Idee besprechen' }[how]}, sobald der Vorschlag überarbeitet ist; hat er noch Fragen, bleibt er Vorschlag.`,
+      `${{ start: 'Übernehmen und starten', discuss: 'Übernehmen und besprechen', asIdea: 'Ideate' }[how]}, sobald der Vorschlag überarbeitet ist; hat er noch Fragen, bleibt er Vorschlag.`,
     notAccepting: 'Doch nicht übernehmen.',
     notAcceptedNoRevision: 'Nicht übernommen: Die Überarbeitung kam nicht zustande.',
     notAcceptedQuestions: 'Nicht übernommen: Der Vorschlag hat noch Fragen.',
@@ -872,7 +872,7 @@ const en: Messages = {
   },
   proposal: {
     acceptAfterRevision: (how: 'start' | 'discuss' | 'asIdea') =>
-      `${{ start: 'Accept and start', discuss: 'Accept and discuss', asIdea: 'Discuss as an idea' }[how]} once the proposal is revised; if it still has questions, it stays a proposal.`,
+      `${{ start: 'Accept and start', discuss: 'Accept and discuss', asIdea: 'Ideate' }[how]} once the proposal is revised; if it still has questions, it stays a proposal.`,
     notAccepting: 'Not accepting it after all.',
     notAcceptedNoRevision: 'Not accepted: the revision did not come.',
     notAcceptedQuestions: 'Not accepted: the proposal still has questions.',

@@ -782,7 +782,7 @@ describe('a thread on a Question card', () => {
     expect(board().item(card.id)!.thread!.thinking).toBeUndefined();
   });
 
-  test('"Discuss as idea" makes it an idea whose exploration agent starts from the thread; "Done" archives it', async () => {
+  test('"Ideate" makes it an idea whose exploration agent starts from the thread; "Done" archives it', async () => {
     const { first, card } = await moved();
     canvas.act(card.id, { action: 'asIdea' });
     const idea = board().item(card.id)!;

@@ -288,7 +288,7 @@ describe('a proposal reworked by what the owner says', () => {
     canvas.revisions.revise(p.id, 'Auch an Excel denken', false);
     canvas.act(p.id, { action: 'accept', start: false, idea: true });
     expect(board().item(p.id)!.proposal?.acceptAfterRevision).toBe('idea');
-    expect(board().events(p.id).at(-1)!.text).toStartWith('Als Idee besprechen, sobald');
+    expect(board().events(p.id).at(-1)!.text).toStartWith('Ideate, sobald');
     reviser()!.call('revise_proposal', { title: 'Exportformate', task: 'PDF- und Excel-Export bauen.', questions: [] });
     reviser()!.emit({ type: 'idle' });
     await settle();

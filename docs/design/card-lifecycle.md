@@ -20,9 +20,9 @@ Seismic proposes cards of its own too ("Proposed by Seismic"): the work retrospe
 that fills in the settings of a repository that has none (see Projects in Repositories and configuration).
 
 A proposed idea ("✦ Proposal · Idea") is for something to think through first: "Accept and discuss" makes it an open idea whose exploration agent opens the discussion with the text and its
-questions; "Accept as a task" plans it as a task. "Discuss as an idea" on a proposed task
+questions; "Accept as a task" plans it as a task. "Ideate" on a proposed task
 makes it an open idea the same way, whose agent hears that it was proposed to be built and the owner
-wants to think it through first; by voice, "discuss it as an idea first".
+wants to think it through first; by voice, "ideate it first".
 
 #### A proposal that starts later
 
@@ -124,7 +124,7 @@ reviser's reply, "Proposal revised." when the text changed, and any new question
 that ends without a text leaves the proposal as it was, with the error; a rework running at a
 restart starts again.
 
-"Accept and start" (and "Accept and discuss", "Discuss as an idea") does not wait for
+"Accept and start" (and "Accept and discuss", "Ideate") does not wait for
 the rework, like "So bauen" on an idea: clicked during one, the proposal is accepted once the new text
 is there, unless it still has questions, in which case it stays a proposal and the conversation says
 why. Meanwhile the button reads "Starts after the rework …" with "Don’t accept after all", and

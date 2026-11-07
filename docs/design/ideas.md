@@ -6,12 +6,12 @@ An idea is thought through on its card before anything is planned; no worker run
 
 ### Starting an idea
 
-"I want to think about export for landlords" (voice or typed), or "Discuss as an idea" on a
+"I want to think about export for landlords" (voice or typed), or "Ideate" on a
 planned card of the owner's that nobody has worked on, makes a card in state `idea`. Its exploration
 agent opens the discussion at once, with what the owner said or what the card says; that stays at
 the top of the conversation as its starting point ("Starting point").
 
-A planned task offers its ways on in one row, each with a tooltip saying what follows: "Start agent", "Discuss as an idea", "Plan as a project", and "Delete" set apart at the right end.
+A planned task offers its ways on in one row, each with a tooltip saying what follows: "Start agent", "Ideate", "Plan as a project", and "Delete" set apart at the right end.
 "Plan as a project" does on the task what it does on an idea (see Deciding): a worker on the task's
 card ("Task → Project") writes a plan doc from its title, text and screenshots, and once the doc
 has landed the project takes the task's place and the task goes to the archive (by voice:
