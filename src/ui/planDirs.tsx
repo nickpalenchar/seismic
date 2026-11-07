@@ -1,5 +1,5 @@
 // The note on a repository's plan directory, beside the plans on the canvas: the docs there
-// that are not plans, each with its reason and "Als Projekt aufbereiten", or, while the
+// that are not plans, each with its reason and "Als Plan aufbereiten", or, while the
 // repository has no plan doc yet, where the first one goes (which the owner can hide).
 
 import { useCallback } from 'react';

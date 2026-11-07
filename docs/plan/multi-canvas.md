@@ -11,7 +11,7 @@ To make room for the new word, the vocabulary changes in the UI and the data mod
 | **Workspace** (later, not built now) | The whole instance: the user's token, several users if that comes, all projects, the system configuration | – |
 | **Project** | An app with its repositories, models, review configuration, demo site and its own Seismic | "project" in the UI; "canvas" in code and data |
 | **Canvas** | New: a container of cards inside a project, at least one per project | – |
-| **Plan** | A card backed by a plan doc, whose workstreams are its child cards | "project" (UI and card kind); renamed in W1 |
+| **Plan** | A card backed by a plan doc, whose workstreams are its child cards | "project" (UI and card kind) until W1 |
 | **Workstation** | Where an agent works: a card's own git checkout | "workspace" |
 
 Workstreams keep their name. The workspace level is only reserved as a word; nothing of it is built.

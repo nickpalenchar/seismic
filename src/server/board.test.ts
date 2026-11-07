@@ -403,7 +403,7 @@ describe('the archive of plans', () => {
 
   test('a plan lists its decisions and those of the idea its doc was written from', () => {
     const idea = board.create({ idea: true, title: 'Idee B', x: 0, y: 0 });
-    board.decide({ plan_id: null, card_id: idea.id, question: 'Idee „Idee B“: wie weiter?', answer: 'Als Projekt.', by: 'owner' });
+    board.decide({ plan_id: null, card_id: idea.id, question: 'Idee „Idee B“: wie weiter?', answer: 'Als Plan.', by: 'owner' });
     board.work(idea.id, { state: 'live' });
     board.planDocsLanded(idea.id, ['docs/plan/b.md']);
     docs = [docA, docB];
@@ -417,7 +417,7 @@ describe('the archive of plans', () => {
     board.archive([idea.id]);
     const h = board.planHistory(b.id);
     expect(h.decisions.map((d) => [d.cardId, d.answer, d.by])).toEqual([
-      [idea.id, 'Als Projekt.', 'owner'],
+      [idea.id, 'Als Plan.', 'owner'],
       [w1.id, 'Alle.', 'plan'],
     ]);
     expect(h.origin).toMatchObject({ id: idea.id, title: 'Idee B', archivedAt: expect.any(String), brief: '' });

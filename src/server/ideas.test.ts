@@ -1189,7 +1189,7 @@ describe('a prototype', () => {
     expect(item(i.id).builtOn).toBeUndefined();
   });
 
-  test('"Als Projekt planen" keeps the prototypes; once the plan stands, one of its workstreams is built on one', async () => {
+  test('"Plan erstellen" keeps the prototypes; once the plan stands, one of its workstreams is built on one', async () => {
     canvas.shutdown();
     canvas = open(3);
     const i = idea('Webseite');

@@ -1073,7 +1073,7 @@ function Canvas({
   const openCard = useCallback((i: Item) => void openRef.current(i).catch(console.error), []);
   const notifyAsk = useDesktopNotifications(snapshot, openCard);
 
-  /** "Als Projekt aufbereiten" on the note on a plan directory: a card whose agent prepares the doc, started at once. */
+  /** "Als Plan aufbereiten" on the note on a plan directory: a card whose agent prepares the doc, started at once. */
   const preparePlanDoc = useCallback(async (dir: PlanDir, file: string) => {
     try {
       const card = await api.preparePlanDoc(snapshot.canvas.id, dir.repo, file);
