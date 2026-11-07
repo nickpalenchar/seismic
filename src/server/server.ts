@@ -1140,6 +1140,7 @@ export function serve(
       message: (ws: ServerWebSocket<Socket>, text: string | Buffer) => {
         try {
           const msg = JSON.parse(String(text)) as ClientMessage;
+          if (msg.type === 'ping') return void ws.send(JSON.stringify({ type: 'pong' } satisfies ServerMessage));
           if (msg.type === 'hold' && Array.isArray(msg.hold)) restarter?.hold(ws.data.page, msg.hold.filter((h) => h === 'video' || h === 'voice'));
           if (msg.type === 'back') byId.get(ws.data.canvas)?.ownerBack();
           // back from the terminal, say, where the owner committed what stood in the way of a pull, or pulled

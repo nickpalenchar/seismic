@@ -164,6 +164,23 @@ function keptCanvases(): CanvasInfo[] | null {
   }
 }
 
+/** How long the server may stay silent before the bar names the time it went quiet. */
+const UNRESPONSIVE_MS = 150_000;
+
+/** The status bar when the server does not answer: retrying, or, after 2½ minutes, since when. */
+function ConnectionLost({ since, frozen }: { since: number | null; frozen: boolean }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 5000);
+    return () => clearInterval(id);
+  }, []);
+  const long = since !== null && Date.now() - since >= UNRESPONSIVE_MS;
+  const text = frozen
+    ? long ? t.unresponsiveSince(clock(since!)) : t.notResponding
+    : long ? t.noConnectionSince(clock(since!)) : t.reconnecting;
+  return <span className="st offline">{text}</span>;
+}
+
 function Splash({ offline }: { offline: boolean }) {
   return (
     <div id="splash">
@@ -174,10 +191,10 @@ function Splash({ offline }: { offline: boolean }) {
 }
 
 function Live({ canvases: loaded }: { canvases: CanvasInfo[] }) {
-  const { snapshot, online, restart, update, source, usage, waiting, oldBun, canvases } = useCanvas();
+  const { snapshot, online, frozenSince, offlineSince, restart, update, source, usage, waiting, oldBun, canvases } = useCanvas();
   if (!snapshot) return <Splash offline={!online} />;
   // a canvas started, stopped or renamed while the page is open: the switcher follows
-  return <Canvas snapshot={snapshot} online={online} restart={restart} update={update} source={source} usage={usage} canvases={canvases ?? loaded} waiting={waiting} oldBun={oldBun} />;
+  return <Canvas snapshot={snapshot} online={online} downSince={offlineSince ?? frozenSince} frozen={frozenSince !== null} restart={restart} update={update} source={source} usage={usage} canvases={canvases ?? loaded} waiting={waiting} oldBun={oldBun} />;
 }
 
 /** What is open, and the view to go back to: `prevCam` laid out beside the panels `prevSide`. */
@@ -208,6 +225,8 @@ const camKey = (canvasId: string) => `obeya-cam-${canvasId}`;
 function Canvas({
   snapshot,
   online,
+  downSince,
+  frozen,
   restart,
   update,
   source,
@@ -218,6 +237,9 @@ function Canvas({
 }: {
   snapshot: CanvasSnapshot;
   online: boolean;
+  /** Since when the server answers nothing (connection lost or frozen); null while it does. */
+  downSince: number | null;
+  frozen: boolean;
   restart: PendingRestart | null;
   update: AppUpdate | null;
   source: SourceUpdate | null;
@@ -2312,7 +2334,7 @@ function Canvas({
         {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the usage limits */}
         <footer id="status">
           <div className="st-left">
-            {!online ? <span className="st offline">{t.offline}</span> : restart ? <RestartPill restart={restart} items={items} /> : <span className="st online">{t.online}</span>}
+            {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} /> : <span className="st online">{t.online}</span>}
             {online && snapshot.canvas.demoSite?.init?.running && <span className="st site-init">{t.creatingSite}</span>}
           </div>
           <div className="st-mid" ref={setTargetSlot} />

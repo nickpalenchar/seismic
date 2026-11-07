@@ -358,6 +358,18 @@ describe('the log', () => {
   });
 });
 
+describe('liveness', () => {
+  test('a ping is answered with a pong', async () => {
+    const messages: ServerMessage[] = [];
+    const ws = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
+    ws.onmessage = (e) => messages.push(JSON.parse(e.data));
+    await until(() => ws.readyState === WebSocket.OPEN && messages.some((m) => m.type === 'snapshot'));
+    ws.send(JSON.stringify({ type: 'ping' } satisfies ClientMessage));
+    await until(() => messages.some((m) => m.type === 'pong'));
+    ws.close();
+  });
+});
+
 describe('groups', () => {
   test('are created with cards, renamed and assigned, and every page hears of it', async () => {
     const [a, b] = [card(), card()];

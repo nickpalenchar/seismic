@@ -3183,6 +3183,8 @@ export type ClientMessage =
   | { type: 'here' }
   /** This page went out of view (on a phone: locked, or another app in front). */
   | { type: 'away' }
+  /** Is the server there? It answers `pong` as soon as its event loop gets to it; no answer means it is frozen. */
+  | { type: 'ping' }
   /**
    * What the owner has in view (sent on every change and when the page gets the focus back):
    * `place`, the middle of the canvas in view and its bounds (`placeParam`), where a new card goes
@@ -3214,6 +3216,8 @@ export type ServerMessage =
    * reloads; and the version of Bun it runs on when that is too old (`oldLinuxBun`), for the bar.
    */
   | { type: 'hello'; server: string; oldBun?: string }
+  /** The answer to a `ping`. */
+  | { type: 'pong' }
   /** On connect and whenever it changes: the restart Seismic waits with, if any. */
   | { type: 'restart'; restart: PendingRestart | null }
   /** On connect and whenever it changes: the newer version of the app there is to install, if any. */

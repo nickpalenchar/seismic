@@ -549,6 +549,13 @@ code, a generic one otherwise.
 
 ### Decisions
 
+- **The bar says "Online" only while the server answers** (owner, 2026-11-07): an open WebSocket
+  proves nothing when the server's event loop is frozen, so the page pings every 5 s and any
+  message counts as an answer. Ten seconds without one reads "Server not responding …"; from
+  2½ minutes on, "Unresponsive since <time>" (the time of the last answer). A lost connection reads
+  "Reconnecting …", and "No connection since <time>" after the same 2½ minutes. Rejected: trusting
+  the socket's open state alone, which showed "Online" through a freeze that blocked videos and
+  project switching.
 - **Status, voice target and usage in one status bar at the bottom** (owner, 2026-11-05): the
   connection, a waiting restart, whom the microphone speaks to and the usage limits used to be pills
   in the top bar and a line under the microphone; gathered along the bottom, the top bar keeps the

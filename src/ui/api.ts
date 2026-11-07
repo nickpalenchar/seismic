@@ -565,12 +565,18 @@ export const markQuiet = () => void (quietAtStart = true);
 const QUIET_MS = 3000;
 /** How long before it is given up and tried anew. */
 const GIVE_UP_MS = 10_000;
+/** How often the page asks an open connection whether the server is there. */
+const PING_MS = 5000;
+/** How long a ping may stay unanswered before the page counts the server as frozen. */
+const FROZEN_MS = 10_000;
 
 export function useCanvas(id = canvasId): {
   snapshot: CanvasSnapshot | null;
   online: boolean;
   /** Since when the server does not answer; null while it does. */
   offlineSince: number | null;
+  /** Since when the server, though connected, answers nothing (frozen); null while it does. */
+  frozenSince: number | null;
   restart: PendingRestart | null;
   update: AppUpdate | null;
   /** New commits on the upstream of the checkout Seismic runs from. */
@@ -587,6 +593,7 @@ export function useCanvas(id = canvasId): {
   // a page that loaded while the server answered nothing says so at once
   const [online, setOnline] = useState(!quietAtStart);
   const [offlineSince, setOfflineSince] = useState<number | null>(() => (quietAtStart ? Date.now() - QUIET_MS : null));
+  const [frozenSince, setFrozenSince] = useState<number | null>(null);
   const [restart, setRestart] = useState<PendingRestart | null>(null);
   const [update, setUpdate] = useState<AppUpdate | null>(null);
   const [source, setSource] = useState<SourceUpdate | null>(null);
@@ -603,6 +610,8 @@ export function useCanvas(id = canvasId): {
     let hidden = document.visibilityState !== 'visible';
     /** The socket was open before: one that opens now opens again. */
     let opened = false;
+    /** When the oldest ping the server has not answered was sent. */
+    let unanswered: number | null = null;
     const connect = () => {
       ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/c/${encodeURIComponent(id)}/ws`);
       sockets.set(id, ws);
@@ -626,11 +635,14 @@ export function useCanvas(id = canvasId): {
         sendFocus();
       };
       ws.onmessage = (e) => {
+        unanswered = null;
+        setFrozenSince(null);
         const start = performance.now();
         const msg = JSON.parse(e.data) as ServerMessage;
         // what the page took in, for a stall right after it
         queueMicrotask(() => noteMessage(msg.type, e.data.length, start, performance.now() - start));
         // a new server process may run new code: the page loads it, and keeps what was open
+        if (msg.type === 'pong') return;
         if (msg.type === 'hello') {
           if (server && server !== msg.server) reload();
           server = msg.server;
@@ -648,6 +660,8 @@ export function useCanvas(id = canvasId): {
       };
       ws.onclose = () => {
         if (closed) return;
+        unanswered = null;
+        setFrozenSince(null);
         setOnline(false);
         setOfflineSince((t) => t ?? Date.now());
         // a canvas the configuration no longer has: the page goes to the first one there is; a
@@ -662,6 +676,14 @@ export function useCanvas(id = canvasId): {
       };
     };
     connect();
+    // an open connection does not mean the server answers: a frozen one keeps it open and says nothing
+    const beat = setInterval(() => {
+      if (ws.readyState !== WebSocket.OPEN || document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (unanswered !== null && now - unanswered >= FROZEN_MS) setFrozenSince((t) => t ?? unanswered);
+      if (unanswered === null) unanswered = now;
+      ws.send(JSON.stringify({ type: 'ping' } satisfies ClientMessage));
+    }, PING_MS);
     // back from GitHub, say: the server looks at the pull requests now instead of at its next round
     const back = () => {
       const visible = document.visibilityState === 'visible';
@@ -687,11 +709,12 @@ export function useCanvas(id = canvasId): {
     return () => {
       closed = true;
       clearTimeout(retry);
+      clearInterval(beat);
       document.removeEventListener('visibilitychange', back);
       window.removeEventListener('focus', back);
       if (sockets.get(id) === ws) sockets.delete(id);
       ws.close();
     };
   }, [id]);
-  return { snapshot, online, offlineSince, restart, update, source, usage, waiting, oldBun, canvases };
+  return { snapshot, online, offlineSince, frozenSince, restart, update, source, usage, waiting, oldBun, canvases };
 }
