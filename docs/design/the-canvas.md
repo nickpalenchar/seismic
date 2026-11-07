@@ -377,7 +377,15 @@ text box grows until the reason below it would leave view.
 
 ### Addresses
 
-The page's address names what it shows: `/p/<project>` a named project, `/p/<project>/c/<code>` a card
+The page's address names what it shows: `/p/<project>` a named project, `<project>` being its name as a
+slug (lowercase, accents folded, other characters one dash), or its id where the name would not tell
+projects apart (two projects with the same slug, or a slug that is another project's id: ids keep
+opening their project). An address names a project by that part, else by id (links from before names,
+notifications), and a hand-typed name works too. An address naming no project says so and lists the
+projects, rather than showing another one's cards. A rename moves the open page's address to the new
+name; the old name's address no longer opens it, its id does. Decided 2026-11-07: name as slug with the
+id as fallback; rejected: ids only (not what the owner sees), names only (breaks on duplicates and renames).
+`/p/<project>/c/<code>` a card
 or project open on it (the phone view: the card full screen). The code is the card's short code, the
 first six hex digits of its id with one more digit for each card already holding those; its whole id
 works in its place, and the page then shows the short one. The short code is given once, when the
