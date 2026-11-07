@@ -148,7 +148,7 @@ describe('the schema-change page', () => {
     expect(html).toContain('<span class="fname mono">feedback_note</span><span class="ftype mono">TEXT</span>');
     expect(html).toContain('<code>cards.feedback_note</code>');
     expect(html).toMatch(/<h1>Schema change<\/h1>/);
-    expect(html).toMatch(/body \{[^}]*font:15px\/1.5 ui-sans-serif/);
+    expect(html).toMatch(/body \{[^}]*font:15px\/1.55 Inter, system-ui/);
   });
 
   test('loads nothing from elsewhere and follows light and dark', () => {

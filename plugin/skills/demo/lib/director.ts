@@ -13,6 +13,7 @@ import path from 'node:path';
 import type { Browser, BrowserContext, Locator, Page } from 'playwright-core';
 import { launchChromium, SILENT_SPEECH } from '../../../lib/chromium.ts';
 import { type DemoSettings, demoSettingsHere, type NarrationLanguage, withVoice } from './settings.ts';
+import { LOOK } from './look.ts';
 import { checkSetup, describeSetup } from './setup.ts';
 import { CLOCK, type Cut, type Frame, frameDurations, laterLabel, mmss, onPaintTime, readClock, untagged, videoTime } from './timeline.ts';
 import { ttsArgs, voiceSpec } from './voices.ts';
@@ -966,7 +967,7 @@ const PAGE_WORDS: Record<
   en: { captions: 'English', question: 'Open question' },
 };
 
-function reportPage(title: string, r: Report, marks: { title: string; start: number }[], language: NarrationLanguage) {
+export function reportPage(title: string, r: Report, marks: { title: string; start: number }[], language: NarrationLanguage) {
   const w = PAGE_WORDS[language];
   const summary = r.summary
     .split(/\n\s*\n/)
@@ -989,23 +990,21 @@ function reportPage(title: string, r: Report, marks: { title: string; start: num
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
 <style>
-:root { --bg:#f7f6f3; --card:#fff; --ink:#1c1b19; --muted:#6b6862; --line:#e4e1da; --accent:#f5a524; --accent-ink:#1c1b19; --warn-bg:#fff6e5; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#161513; --card:#201f1c; --ink:#eeebe5; --muted:#a19d95; --line:#34322e; --warn-bg:#2e2616; } }
-:root[data-theme="dark"] { --bg:#161513; --card:#201f1c; --ink:#eeebe5; --muted:#a19d95; --line:#34322e; --warn-bg:#2e2616; }
-* { box-sizing: border-box; }
-body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif; }
-main { max-width:1180px; margin:0 auto; padding:32px 16px 64px; }
-h1 { font-size:28px; line-height:1.2; margin:0 0 8px; letter-spacing:-.01em; }
-.summary { font-size:18px; color:var(--ink); max-width:70ch; margin:0 0 12px; }
-.player { margin-top:24px; display:grid; grid-template-columns: minmax(0,1fr) 280px; gap:16px; align-items:start; }
-video { width:100%; border-radius:12px; background:#000; display:block; box-shadow:0 10px 30px rgba(0,0,0,.12); }
-.chapters { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:8px; margin:0; list-style:none; }
-.chapters button { all:unset; cursor:pointer; display:flex; gap:10px; width:100%; padding:8px 10px; border-radius:8px; font-size:14px; }
-.chapters button:hover, .chapters button.on { background:var(--bg); }
-.chapters .t { color:var(--muted); font-variant-numeric:tabular-nums; min-width:34px; }
-.decision { margin:28px 0; padding:16px 20px; border-radius:12px; background:var(--warn-bg); border:1px solid var(--accent); }
-.decision h2 { margin:0 0 4px; font-size:15px; text-transform:uppercase; letter-spacing:.06em; }
-dl { display:grid; grid-template-columns:max-content 1fr; gap:4px 16px; font-size:13px; color:var(--muted); margin:28px 0 0; }
+${LOOK}
+main { max-width:1180px; margin:0 auto; padding:36px 24px 64px; }
+h1 { font-size:30px; line-height:1.2; margin:0 0 10px; }
+.summary { font-size:17px; line-height:1.6; color:var(--ink); max-width:72ch; margin:0 0 12px; }
+.player { margin-top:24px; display:grid; grid-template-columns: minmax(0,1fr) 280px; gap:24px; align-items:start; }
+video { width:100%; border-radius:12px; background:#000; display:block; border:1px solid var(--line); box-shadow:var(--shadow); }
+.chapters { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:6px; margin:0; list-style:none; box-shadow:var(--shadow); }
+.chapters button { all:unset; cursor:pointer; display:flex; gap:10px; width:100%; padding:8px 10px; border-radius:8px; font-size:13.5px; box-sizing:border-box; transition:background .12s, color .12s; }
+.chapters button:hover { background:var(--chip); }
+.chapters button.on { background:var(--chip); color:var(--accent); font-weight:600; text-shadow:0 0 10px var(--accent-glow); }
+.chapters .t { color:var(--muted); font-variant-numeric:tabular-nums; min-width:36px; }
+.chapters button.on .t { color:var(--accent); }
+.decision { margin:28px 0; padding:16px 20px; border-radius:12px; background:color-mix(in srgb, var(--waiting) 10%, var(--card)); border:1px solid var(--waiting); box-shadow:var(--shadow); }
+.decision h2 { margin:0 0 4px; font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--waiting); }
+dl { display:grid; grid-template-columns:max-content 1fr; gap:4px 16px; font-size:13px; color:var(--muted); margin:32px 0 0; padding-top:20px; border-top:1px solid var(--line); }
 dt { font-weight:600; } dd { margin:0; overflow-wrap:anywhere; }
 @media (max-width: 860px) { .player { grid-template-columns:1fr; } }
 </style>

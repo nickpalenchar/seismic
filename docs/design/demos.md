@@ -27,6 +27,9 @@ The report page (`index.html` beside the video, for use without Seismic) holds t
 (what the change does, then what the owner needs to know beyond the video: a behaviour left out and
 why, what is open or unverified, a defect found in someone else's change; a few short paragraphs),
 the video with its chapters, the open question if any, and the provenance (branch, commits, stack).
+It wears Seismic's look, as the shared pages and the canvas do (frost: glass panes on the cool
+board, Inter, the teal accent, the owner's-turn orange for the open question), light or dark as
+the system is, and so does the schema-change page.
 Under Seismic the card shows the video and the handover summary instead, and a problem outside the
 change is a proposal.
 

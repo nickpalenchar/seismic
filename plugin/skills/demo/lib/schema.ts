@@ -23,6 +23,7 @@
 
 import fs from 'node:fs';
 import { isMain } from './here.ts';
+import { LOOK } from './look.ts';
 
 export interface Field {
   name: string;
@@ -335,12 +336,9 @@ const DRAW = `(() => {
 })();`;
 
 const STYLE = `
-:root { --bg:#f7f6f3; --card:#fff; --ink:#1c1b19; --muted:#6b6862; --line:#d9d5cc; --chip:#f0ede6;
-  --add:#16a34a; --add-bg:#ecfdf3; --chg:#d97706; --chg-bg:#fff7e6; --del:#dc2626; --del-bg:#fef2f2; }
-@media (prefers-color-scheme: dark) { :root { --bg:#161513; --card:#201f1c; --ink:#eeebe5; --muted:#a19d95; --line:#3a3732; --chip:#2c2925;
-  --add:#4ade80; --add-bg:#12261a; --chg:#fbbf24; --chg-bg:#2b2213; --del:#f87171; --del-bg:#2c1616; } }
-* { box-sizing: border-box; }
-body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+${LOOK}
+:root { --add-bg:color-mix(in srgb, var(--add) 13%, var(--card)); --chg-bg:color-mix(in srgb, var(--chg) 13%, var(--card));
+  --del-bg:color-mix(in srgb, var(--del) 13%, var(--card)); }
 main { padding:20px 20px 28px; }
 .mono, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:.92em; }
 h1 { font-size:22px; line-height:1.25; margin:0 0 4px; }
@@ -352,7 +350,7 @@ h2 { font-size:16px; margin:24px 0 8px; }
 .diagram { position:relative; display:flex; gap:72px; align-items:flex-start; padding:4px; width:max-content; min-width:100%; }
 .column { display:flex; flex-direction:column; gap:28px; }
 .diagram svg { position:absolute; inset:0; pointer-events:none; overflow:visible; }
-.entity { position:relative; z-index:1; background:var(--card); border:2px solid var(--line); border-radius:10px; min-width:220px; max-width:420px; overflow:hidden; }
+.entity { position:relative; z-index:1; background:var(--card); border:2px solid var(--line); border-radius:12px; box-shadow:var(--shadow); min-width:220px; max-width:420px; overflow:hidden; }
 .entity.added { border-color:var(--add); } .entity.changed { border-color:var(--chg); } .entity.removed { border-color:var(--del); }
 .entity.neighbour { border-style:dashed; opacity:.85; }
 .entity header { display:flex; align-items:center; gap:6px; padding:7px 10px; font-weight:600; border-bottom:1px solid var(--line); background:var(--chip); }
