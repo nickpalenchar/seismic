@@ -744,15 +744,19 @@ function write(id: string, fields: Record<string, unknown>) {
     if (earlier.length) db.query('INSERT INTO card_demos (card_id) VALUES ($id) ON CONFLICT (card_id) DO NOTHING').run({ id });
   }
   if (keys.some((k) => [...LABELS, 'suggested_labels', 'owner_labels'].includes(k))) {
+    // what the card has already (a label the server suggested, say) stands where the stage does not set it
+    const had = db.query('SELECT label, value, by FROM card_labels WHERE card_id = $id').all({ id }) as { label: string; value: string | null; by: string | null }[];
+    const now = (l: string) => (l in fields ? fields[l] : had.find((r) => r.label === l)?.value) ?? null;
+    const by = (who: string) => had.filter((r) => r.by === who).map((r) => r.label);
     // a label with who set it: the owner where `owner_labels` names it, else Seismic where `suggested_labels` does and it has a value
-    const owner = (fields.owner_labels ?? []) as string[];
-    const suggested = (fields.suggested_labels ?? []) as string[];
+    const owner = (fields.owner_labels ?? by('owner')) as string[];
+    const suggested = (fields.suggested_labels ?? by('suggestion')) as string[];
     db.query('DELETE FROM card_labels WHERE card_id = $id').run({ id });
     for (const l of LABELS) {
-      const v = (fields[l] ?? null) as string | number | null;
+      const v = now(l) as string | number | null;
       if (v === null && !owner.includes(l)) continue;
-      const by = owner.includes(l) ? 'owner' : v !== null && suggested.includes(l) ? 'suggestion' : null;
-      db.query('INSERT INTO card_labels (card_id, label, value, by) VALUES ($id, $l, $v, $by)').run({ id, l, v: v === null ? null : String(v), by });
+      const who = owner.includes(l) ? 'owner' : v !== null && suggested.includes(l) ? 'suggestion' : null;
+      db.query('INSERT INTO card_labels (card_id, label, value, by) VALUES ($id, $l, $v, $by)').run({ id, l, v: v === null ? null : String(v), by: who });
     }
   }
   if (keys.includes('hold')) {
