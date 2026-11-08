@@ -67,7 +67,7 @@ export function useQueueSort(items: Item[], scroller: RefObject<HTMLElement | nu
 
 /**
  * The waiting cards in turn, a row dragged to its place as far as its waits let it. In the Agents
- * sheet (`onOpen`) a row opens its card and its × takes it out of the queue; on a waiting card the
+ * sheet (`onOpen`) a row opens its card; on a waiting card the
  * other rows stand there to show where it is.
  */
 export function QueueList({ items, q, onOpen }: { items: Item[]; q: ReturnType<typeof useQueueSort>; onOpen?: (i: Item) => void }) {
@@ -121,7 +121,7 @@ export function waitText(q: Behind, items: Item[], name?: (id: string) => string
 
 type Sort = ReturnType<typeof useSortable>;
 
-/** A card in the queue, with its grip and what it waits for; in the Agents sheet (`onOpen`) also the × that takes it out of the queue. */
+/** A card in the queue, with its grip and what it waits for. */
 function QueueRow(p: {
   item: Item;
   items: Item[];
@@ -150,20 +150,6 @@ function QueueRow(p: {
         <CardFace item={item} size="xs" tail={item.queue && 'behind' in item.queue && t.queue.behind(waitedOn(item.queue.behind, items))} />
         {p.failed && <span className="hint why">{p.failed}</span>}
       </span>
-      {onOpen && (
-        <button
-          className="x"
-          title={t.queue.dequeue}
-          aria-label={t.queue.dequeue}
-          onClick={(e) => {
-            e.stopPropagation();
-            p.onFail('');
-            api.act(item.id, { action: 'dequeue' }).catch((err) => p.onFail(failText(err)));
-          }}
-        >
-          ×
-        </button>
-      )}
       {held && <span className="q-held">{held}</span>}
     </li>
   );

@@ -18,9 +18,8 @@ and the gear of the project settings before that (see The project settings).
 The agents' button counts in grey the cards waiting in the queue, and only those; its click slides
 out the Agents sheet, a sheet like the inbox (see Sheets), with four tabs, the one chosen last
 remembered per browser. "Queue" (with the same count) lists the waiting cards in turn, each at size
-XS (see Card sizes) with what it waits for, dragged to its place (see The queue's order) and with a × that takes it out of
-the queue at once, as "Take out of the queue" on the card does (back to planned; no undo, starting
-it again is the way back); a row opens its card. "All" lists the project's other cards, each a
+XS (see Card sizes) with what it waits for, dragged to its place (see The queue's order), with no button that takes it out of
+the queue (that change is too big to sit on a list row; "Take out of the queue" on the card does it); a row opens its card. "All" lists the project's other cards, each a
 pane like an inbox entry (the card at size S, what it waits for where it needs the owner, "Go to
 card"), grouped by stage, in this order: "Needs you" (every card the
 inbox lists, whatever its kind, taken out of the stage it would be in), "Working" (a
