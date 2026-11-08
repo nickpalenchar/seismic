@@ -148,7 +148,7 @@ the same time will conflict (W3 most).
   - **Table and relation** in the part's model file, a `one` relation from `cards` named after the
     `Item` part (`cardsRelations` in cards.ts), both exported from `schema.ts`. The migration step is
     the `generateSQLiteMigration` diff plus an `INSERT … SELECT` of the cards that have any of it.
-  - **Reads**: `Cards` reads every row with `db.query.cards.findMany({ columns: {}, extras: <own
+  - **Reads** (as W6 left them; W7 moved them to joins, see there): `Cards` reads every row with `db.query.cards.findMany({ columns: {}, extras: <own
     columns as stored>, with: { idea: … } })`, so `CardRow` keeps the card's own columns as stored
     and gains the part, typed and parsed by Drizzle (`row.idea?.proposal`), or `null`. The moved
     columns stay in the Drizzle `cards` table, untyped, left out of `CardRow` (`MOVED`), and writing
@@ -173,7 +173,13 @@ the same time will conflict (W3 most).
   labels were whose are gone, and a suggestion of a label since cleared with them) and `card_holds`
   (`reason`, `since`, the rest of the `Hold` as `detail`). `CardRow` gains `review`, `demo` (with
   `earlier`), `plan`, `labels` (by label, empty for none) and `hold`, put together from the rows
-  by `toRow` in cards.ts. Writes take the parts beside the card's own fields in one object
+  by `toRow` in cards.ts. Reads no longer use the relational queries: with seven parts, each in a
+  subquery of its own and the query built anew for every read, a run of changes on a project of
+  900 cards took about 1.7 times the CPU (the board-size test's limit). Now the one-row parts are
+  left-joined (Drizzle reads a joined table as null where its first column is, so each part is
+  selected with its `card_id` first) and the earlier demos and labels come in one query each for
+  all cards read; the reads of every change (`get`, `onProject`) are prepared once. What remains
+  is JSON parsed for every card, about 1.2 times the CPU before W7. Writes take the parts beside the card's own fields in one object
   (`CardUpdate`: `board.work(id, { state, review: { pr }, hold: null })`), W6's third argument
   for the idea folded into it as `idea`; a part's fields merge into what it has, `hold` replaces
   it, a demo's `earlier` replaces the list. The partial indexes on `share` and `plan_docs` moved
