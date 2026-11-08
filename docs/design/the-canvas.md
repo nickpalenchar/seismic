@@ -58,7 +58,7 @@ to the edge from top to bottom, the canvas moved aside, one sheet open at a time
 grip; the button's second click, the sheet's ✕ and Esc close it. Opened, it stays open as the owner
 switches project (per tab), until they close it or open another sheet.
 
-The desktop's inbox lists the shown project's entries; a switch "All projects", right-aligned on the line of the All | Unread filter, lists every project's entries in one list (off by default, remembered). The list is ordered with the one that has waited longest first;
+The desktop's inbox lists the shown project's entries; a switch "All projects", right-aligned on the line of the All | Unread filter, lists every project's entries in one list (off by default, remembered). The list is ordered newest first by the time shown on the entry;
 cards snoozed while they waited stand at the end (see Snoozing a card). The phone's "Needs you"
 shares the entries, layout and actions, but sorts by last update, newest first: a refreshed demo
 moves its card to the top (see The phone view). An entry is a pane of glass of its own: its
@@ -92,7 +92,7 @@ included) or opens its card some other way (on the canvas, with Tab); only a cli
 dot beside its title and the title bold, a read one neither. Read holds for the wait it was read
 in: a card that waits anew (a new demo after feedback), one that asks something new while it
 waits (another question, another summary) and a newer answer of Seismic's are unread again; a card open while it starts to wait again stays read, as the owner is
-looking at it. Only unread entries count on the inbox button. A switch "All | Unread" above the
+looking at it. Only unread entries count on the inbox button. A switch "Unread | All" above the
 list shows every entry or only the unread ones; with "Unread", the open card's entry stays listed
 until the owner moves on, so it does not vanish under them. The switch's choice and what was read
 are kept per browser, like what of a conversation was seen (the phone and the desk each have their
@@ -673,7 +673,7 @@ code, a generic one otherwise.
   navigation on the left for projects and what waits", 2026-11-02): what waits is worked down in a
   list beside the cards it opens, across projects, and a list on the left that closed on every click
   or grouped entries by project hid which wait was oldest. Shared entries, layout and actions on
-  desktop and phone keep their behavior consistent; the desktop sorts oldest wait first and the
+  desktop and phone keep their behavior consistent; the desktop sorts by the time shown, newest first, and the
   phone newest update first. Each project keeps its own count in the picker.
   Rejected: the inbox taking over the pinned left sidebar (a bigger change to upstream's
   navigation), and tabs inside the left element (not really separate). It competes with Seismic's
@@ -730,9 +730,10 @@ code, a generic one otherwise.
   earlier look, index cards pinned to a wall (2026-10-10), stays upstream's.
 - **The inbox button opens an inbox instead of jumping to the next card** (owner, 2026-11-01): with
   several things waiting, a jump hides what the others are and cannot answer anything. Entries are
-  oldest wait first on desktop (owner, 2026-11-05), so what has waited longest is not buried.
+  newest first on desktop (owner, 2026-11-08; replaces oldest wait first, 2026-11-05), as in a mail inbox,
+  with "Unread" the default filter so what is still to do stays short.
   Mobile uses newest update first (owner, 2026-11-07), so a refreshed demo rises to the top.
-  Rejected on desktop: newest first as in a mail inbox; keeping the jump on the button (Tab keeps it).
+  Rejected: keeping the jump on the button (Tab keeps it).
 - **Groups are contours drawn in SVG** (2026-10-05): calm, no WebGL, no cost at rest. Rejected: two
   WebGL shader prototypes ("plasma" areas, a drifting honeycomb), livelier but costing frames all
   the time.

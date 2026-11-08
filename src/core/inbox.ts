@@ -1,4 +1,4 @@
-// The owner's inbox: everything that waits for them, across every project, as one chronological list
+// The owner's inbox: everything that waits for them, across every project, as one list, newest first
 // of entries. Built once from what each project has waiting, so the desktop's inbox and the phone's
 // "Needs you" list the same entries. The phone puts the most recently updated first.
 
@@ -47,8 +47,8 @@ function projectEntries(c: { id: string; name: string }, w: Waiting, underway: (
 }
 
 /**
- * Every project's entries in one list, the one that has waited longest first; cards snoozed while they
- * waited come at the end, until they come back. The phone uses `updated` for newest changes first.
+ * Every project's entries in one list, the one that began waiting last first; cards snoozed while they
+ * waited come at the end, until they come back. The phone uses `updated` to order by last update instead.
  * Ties keep the projects' order and, within one, Tab's.
  */
 export function inboxEntries(projects: { id: string; name: string }[], waiting: Record<string, Waiting | undefined>, underway: (id: string) => boolean = () => false, order: 'waiting' | 'updated' = 'waiting'): InboxEntry[] {
@@ -57,7 +57,7 @@ export function inboxEntries(projects: { id: string; name: string }[], waiting: 
   // a stable sort: ties stay in the order built above
   return all
     .map((e, n) => ({ e, n, later: counted(e) ? 0 : 1, t: Date.parse(order === 'updated' ? (e.card?.updatedAt ?? e.card?.createdAt ?? e.since) : e.since) }))
-    .sort((a, b) => a.later - b.later || (order === 'updated' ? b.t - a.t : a.t - b.t) || a.n - b.n)
+    .sort((a, b) => a.later - b.later || b.t - a.t || a.n - b.n)
     .map((x) => x.e);
 }
 

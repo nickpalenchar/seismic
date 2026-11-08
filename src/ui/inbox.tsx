@@ -1,4 +1,4 @@
-// The inbox: what waits for the owner on every project, oldest wait first (src/core/inbox.ts). The
+// The inbox: what waits for the owner on every project, newest first (src/core/inbox.ts). The
 // desktop slides it out as a sheet from the bar's inbox button; the phone lists it as "Needs you".
 // Each entry names its project small, its card large and what it waits for lighter ("Demo ready" on
 // a handover, which is judged on the card); under it, the card's one-click replies
@@ -42,7 +42,7 @@ type Filter = 'all' | 'unread';
 
 /** The entries as a list, the same on the desktop's sheet and the phone. */
 export function InboxList({ entries: all, current, open, onGo, onReply, onProposalCard, onProposalConfig, isRead, onRead }: InboxProps) {
-  const [filter, setFilter] = useStoredState<Filter>('obeya-inbox-filter', 'all');
+  const [filter, setFilter] = useStoredState<Filter>('obeya-inbox-filter', 'unread');
   const [everywhere, setEverywhere] = useStoredState<boolean>('obeya-inbox-all-projects', false);
   const entries = current && !everywhere ? all.filter((e) => e.project === current) : all;
   if (!entries.length && !current) return <p className="empty-inbox">{t.inbox.empty}</p>;
@@ -58,7 +58,7 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
     <>
       <div className="inbox-bar">
       <div className="seg inbox-filter" role="radiogroup" aria-label={t.inbox.filter}>
-        {(['all', 'unread'] as const).map((f) => (
+        {(['unread', 'all'] as const).map((f) => (
           <button key={f} type="button" role="radio" aria-checked={filter === f} className={filter === f ? 'on' : undefined} onClick={() => setFilter(f)}>
             {f === 'all' ? t.inbox.all : t.inbox.unread}
           </button>

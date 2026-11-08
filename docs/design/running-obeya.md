@@ -142,8 +142,8 @@ own WebSocket. It shows four lists:
   card update moves that card to the top. Each entry names its project, says
   what it waits for (its state line: "Demo ready", "Question for you" …) and since when (the server
   keeps that across restarts), with the same one-click replies and "Go to card". Snoozed cards stand
-  at the end (see Snoozing a card). The desktop's inbox shows the same entries with the longest
-  wait first; both share the entry layout and actions, the unread dot and the "All | Unread" switch.
+  at the end (see Snoozing a card). The desktop's inbox shows the same entries with the latest
+  wait first; both share the entry layout and actions, the unread dot and the "Unread | All" switch.
 - **"Running"**: the cards an agent or Seismic is at that wait for nobody (working, taking in the owner's
   words, landing, queued, in a PR, an idea's agent thinking …), with their status line, snoozed ones
   at the end. Every card that leaves "Needs you" without being done stands here.
