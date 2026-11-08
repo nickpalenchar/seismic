@@ -10,7 +10,7 @@ export const narration = {
     'You lay out the wall the way you think about the work. [short pause] Draw a lasso around cards to put them in a group, and give it a name. [short pause] Drag cards wherever you want them. [short pause] To add something, hold the space bar and say it.',
   command: 'Tipjar should split the bill. Add a field for how many people there are, and show what each person pays.',
   starts:
-    'Seismic confirms in one line, with a few seconds to undo, and puts the task on the wall. [short pause] It checks the task against the work already running, so that no two agents change the same code at once. [short pause] Then an agent starts on it, in a workspace of its own.',
+    'Seismic confirms in one line, with a few seconds to undo, and puts the task on the wall. [short pause] It checks the task against the work already running, so that no two agents change the same code at once. [short pause] Then an agent starts on it, in a workstation of its own.',
   sidebar:
     'What you say on the canvas goes to Seismic, and its sidebar keeps the conversation. [short pause] You can also type into the chat. One message can mix typed words, pasted text, a screenshot, and your voice:',
   dictation: 'It should also accept a comma as the decimal point.',
