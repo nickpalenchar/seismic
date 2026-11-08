@@ -83,9 +83,10 @@ For every workstream that migrates or moves queries:
 One after another; all of them touch `db.ts`, `board.ts` and `workers.ts`, so cards working there at
 the same time will conflict (W3 most).
 
-- [ ] **W1:** Backup before migrating. Whenever a migration is pending, the store first writes
+- [x] **W1:** Backup before migrating. Whenever a migration is pending, the store first writes
   `VACUUM INTO obeya.db.before-<version>` and keeps the last few. Test with a pending migration;
   document it in `docs/design/data.md`.
+  Done: `backUpBefore` in `db.ts` keeps the newest three; documented in the data chapter.
 - [x] **W2:** Drizzle and `models/`, schema and infrastructure. Add the dependencies and describe
   every current table in `src/server/models/` (checked against `drizzle-kit pull` on a migrated
   database). Add the test that the schema matches a database migrated from scratch. Prove the
