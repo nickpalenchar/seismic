@@ -164,7 +164,7 @@ describe('who may', () => {
     const c = card();
     const demo = artifact();
     writeFileSync(join(demo.dir, 'chart.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
-    board.work(c.id, { state: 'waiting', need: 'review', demo: JSON.stringify(demo) });
+    board.work(c.id, { state: 'waiting', need: 'review', demo: { latest: demo } });
     // the frame itself, from the project, with the owner's cookie: to the path with its directory's cap
     const frame = await at(api(`/cards/${c.id}/demo/index.html`), { 'sec-fetch-site': 'same-origin', 'sec-fetch-dest': 'iframe' }, { redirect: 'manual' });
     expect(frame.status).toBe(302);
@@ -185,7 +185,7 @@ describe('who may', () => {
     const c = card();
     const [earlier, latest] = [artifact(), artifact()];
     writeFileSync(join(earlier.dir, 'index.html'), '<p>Vorher</p>');
-    board.work(c.id, { state: 'waiting', need: 'review', demo: JSON.stringify(latest), demos: JSON.stringify([earlier]) });
+    board.work(c.id, { state: 'waiting', need: 'review', demo: { latest, earlier: [earlier] } });
     const page = async (path: string) => {
       const first = await at(api(path), { 'sec-fetch-site': 'same-origin', 'sec-fetch-dest': 'iframe' }, { redirect: 'manual' });
       return first.status === 302 ? at(first.headers.get('location')!, { 'sec-fetch-site': 'same-origin', 'sec-fetch-dest': 'iframe' }) : first;
@@ -199,7 +199,7 @@ describe('who may', () => {
   test("a new handover's artifact rendered into the same directory loads afresh at the address with its handover", async () => {
     const c = card();
     const demo = artifact();
-    board.work(c.id, { state: 'waiting', need: 'review', demo: JSON.stringify({ ...demo, handover: 1 }) });
+    board.work(c.id, { state: 'waiting', need: 'review', demo: { latest: { ...demo, handover: 1 } } });
     const page = async (path: string) => {
       const first = await at(api(path), { 'sec-fetch-site': 'same-origin', 'sec-fetch-dest': 'iframe' }, { redirect: 'manual' });
       expect(first.status).toBe(302);
@@ -212,7 +212,7 @@ describe('who may', () => {
     };
     expect(await page(`/cards/${c.id}/demo/index.html?v=1`)).toStartWith('<p>Ergebnis</p>');
     writeFileSync(join(demo.dir, 'index.html'), '<p>Neu</p>');
-    board.work(c.id, { demo: JSON.stringify({ ...demo, handover: 2 }) });
+    board.work(c.id, { demo: { latest: { ...demo, handover: 2 } } });
     expect(await page(`/cards/${c.id}/demo/index.html?v=2`)).toStartWith('<p>Neu</p>');
     rmSync(demo.dir, { recursive: true, force: true });
   });

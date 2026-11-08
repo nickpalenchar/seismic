@@ -386,7 +386,7 @@ describe('a worker on a host', () => {
     writeFileSync(join(demo, 'demo.mp4'), 'video');
     writeFileSync(join(demo, 'captions.vtt'), 'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nEins.\n');
     expect(await runtime.last.call('ready_for_review', { summary: 'Done.', demo: { dir: demo, chapters: ['Eins'] } })).toContain('End your turn');
-    const shown = JSON.parse(board.row(card.id).demo!) as { dir: string };
+    const shown = board.row(card.id).demo!.latest! as { dir: string };
     expect(shown.dir).toBe(host.localCopy(demo));
     expect(readFileSync(join(shown.dir, 'demo.mp4'), 'utf8')).toBe('video');
     expect(await runtime.last.call('ready_for_review', { summary: 'Done.', demo: { dir: join(dir, 'far', 'none'), chapters: [] } })).toContain('could not be copied');

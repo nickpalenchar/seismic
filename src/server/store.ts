@@ -6,8 +6,13 @@ import { openDatabase } from './db';
 import { Activity } from './models/activity';
 import { AgentRuns } from './models/agent-runs';
 import { Canvases } from './models/canvases';
-import { type CardRow, Cards, type NewRow, type RowUpdate } from './models/cards/cards';
-import { type IdeaUpdate, Ideas } from './models/cards/ideas';
+import { type CardRow, Cards, type CardUpdate, type NewRow, type PartsUpdate, type RowUpdate } from './models/cards/cards';
+import { Demos } from './models/cards/demos';
+import { Holds } from './models/cards/holds';
+import { Ideas } from './models/cards/ideas';
+import { Labels } from './models/cards/labels';
+import { Plans } from './models/cards/plans';
+import { Reviews } from './models/cards/reviews';
 import { Chats } from './models/chats';
 import { Commands } from './models/commands';
 import { atomic, type Db, now } from './models/common';
@@ -65,6 +70,11 @@ export class Store {
   readonly canvases: Canvases;
   readonly cards: Cards;
   readonly ideas: Ideas;
+  readonly reviews: Reviews;
+  readonly demos: Demos;
+  readonly plans: Plans;
+  readonly labels: Labels;
+  readonly holds: Holds;
   readonly groups: Groups;
   readonly activity: Activity;
   readonly events: Events;
@@ -91,6 +101,11 @@ export class Store {
     this.canvases = new Canvases(orm);
     this.cards = new Cards(orm);
     this.ideas = new Ideas(orm);
+    this.reviews = new Reviews(orm);
+    this.demos = new Demos(orm);
+    this.plans = new Plans(orm);
+    this.labels = new Labels(orm);
+    this.holds = new Holds(orm);
     this.groups = new Groups(orm);
     this.activity = new Activity(orm);
     this.events = new Events(orm);
@@ -124,36 +139,52 @@ export class Store {
   }
 
   /**
-   * Stores new cards, with their idea parts: each on the canvas it names, else a workstream on its
+   * Stores new cards, with their parts: each on the canvas it names, else a workstream on its
    * plan's, else on its project's `main`.
    */
   addCards(rows: NewRow[]): CardRow[] {
     const mains = new Map<string, string>();
     const main = (projectId: string) => mains.get(projectId) ?? mains.set(projectId, this.canvases.main(projectId)).get(projectId)!;
     const ids = this.transaction(() => {
-      const ids = this.cards.insert(rows.map(({ idea: _, ...r }) => ({ ...r, canvas_id: r.canvas_id ?? (r.parent_id ? this.cards.get(r.parent_id)?.canvas_id : undefined) ?? main(r.project_id) })));
-      rows.forEach((r, i) => r.idea && this.ideas.set(ids[i]!, r.idea));
+      const split = rows.map((r) => splitParts(r));
+      const ids = this.cards.insert(
+        split.map(([r]) => ({ ...r, canvas_id: r.canvas_id ?? (r.parent_id ? this.cards.get(r.parent_id)?.canvas_id : undefined) ?? main(r.project_id) })),
+      );
+      split.forEach(([, parts], i) => this.setParts(ids[i]!, parts));
       return ids;
     });
     return ids.map((id) => this.cards.get(id)!);
   }
 
-  /** Changes the card's own fields and those of its idea part, in one transaction. */
-  updateCard(id: string, fields: RowUpdate, idea: IdeaUpdate = {}) {
+  /** Changes the card's own fields and those of its parts, in one transaction; it counts as changed when only a part did. */
+  updateCard(id: string, update: CardUpdate) {
+    const [fields, parts] = splitParts(update);
     this.transaction(() => {
-      this.ideas.set(id, idea);
-      if (Object.keys(fields).length) this.cards.update(id, fields);
-      else if (Object.keys(idea).length) this.cards.touch(id);
+      const touched = this.setParts(id, parts);
+      if (Object.keys(fields).length) this.cards.update(id, fields as RowUpdate);
+      else if (touched) this.cards.touch(id);
     });
+  }
+
+  /** Sets the card's parts as `parts` changes them; whether it changes any. */
+  private setParts(id: string, parts: PartsUpdate): boolean {
+    const { idea, review, demo, plan, labels, hold } = parts;
+    if (idea) this.ideas.set(id, idea);
+    if (review) this.reviews.set(id, review);
+    if (demo) this.demos.set(id, demo);
+    if (plan) this.plans.set(id, plan);
+    if (labels) this.labels.set(id, labels);
+    if (hold !== undefined) this.holds.set(id, hold);
+    return [idea, review, demo, plan, labels].some((p) => p && Object.keys(p).length) || hold !== undefined;
   }
 
   /**
    * The card goes to another project, at `at` on its canvas `canvasId` (else its `main`), with its history and decisions: into that project's
-   * home repository (`repo` null) and out of its group, which belongs to the project it leaves; `idea` changes its idea part on the way.
+   * home repository (`repo` null) and out of its group, which belongs to the project it leaves; `parts` changes its parts on the way.
    */
-  moveCard(id: string, projectId: string, at: { x: number; y: number }, idea: IdeaUpdate = {}, canvasId?: string) {
+  moveCard(id: string, projectId: string, at: { x: number; y: number }, parts: PartsUpdate = {}, canvasId?: string) {
     this.transaction(() => {
-      this.updateCard(id, { x: at.x, y: at.y, repo: null, group_id: null }, idea);
+      this.updateCard(id, { x: at.x, y: at.y, repo: null, group_id: null, ...parts });
       this.cards.setProject(id, projectId, canvasId ?? this.canvases.main(projectId));
       this.decisions.setProject(id, projectId);
       this.feedback.setProject(id, projectId);
@@ -253,4 +284,11 @@ export class Store {
       .reverse()
       .map((r) => ({ at: r.at, kind: r.kind, text: r.text, ...(r.cardId ? { cardId: r.cardId } : {}), ...(r.title ? { title: r.title } : {}) }));
   }
+}
+
+/** A card's own fields and its parts, apart. */
+function splitParts<T extends PartsUpdate>(update: T): [Omit<T, keyof PartsUpdate>, PartsUpdate] {
+  const { idea, review, demo, plan, labels, hold, ...fields } = update;
+  const parts: PartsUpdate = { idea, review, demo, plan, labels, ...(hold !== undefined ? { hold } : {}) };
+  return [fields, parts];
 }

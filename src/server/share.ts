@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { LANGUAGE_NAMES } from '../core/locale';
 import { MESSAGES, type Messages } from '../core/messages';
 import { type Demo, type DemoKind, type DemoPage, EXPORT_HTML_MAX, type Item, type PageTags, withSupplemented } from '../core/types';
-import { BadRequest, type Board, cardDemos, contributionOf, type DemoRef, pageTagsOf, type PrState, sameDemo, type SharedDemo, sharedDemos, type Shipped, type StoredDemo, type StoredReshare, type StoredShare } from './board';
+import { BadRequest, type Board, cardDemos, contributionOf, type DemoRef, pageTagsOf, sameDemo, type SharedDemo, sharedDemos, type Shipped, type StoredDemo, type StoredReshare, type StoredShare } from './board';
 import { PAGE_CHANGES, pagesVersion } from '../core/page-changes';
 import { dimensions, shownTags, tagsOf, untagged } from '../core/page-tags';
 import type { DemoSite, DemoSiteEntry } from '../core/types';
@@ -353,7 +353,7 @@ export class Sharing {
     const chapters = rereadChapters(demo.dir);
     if (typeof chapters === 'string') throw new BadRequest('invalid', chapters);
     const { page: _, ...rest } = demo;
-    this.o.board.work(cardId, { demo: JSON.stringify({ ...rest, chapters }) });
+    this.o.board.work(cardId, { demo: { latest: { ...rest, chapters } } });
     this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.share.rebuilt(this.languageOf(demo.dir, this.card(cardId))));
   }
 
@@ -434,7 +434,7 @@ export class Sharing {
     if (run?.queue.length) throw new BadRequest('reshareBusy', 'pages are being shared again already');
     const rows = (tags ? this.o.board.untaggedRows() : this.o.board.outdatedRows().map(({ r }) => r))
       .filter((r) => this.find(r.id) && this.target(this.find(r.id)!))
-      .map((r) => ({ r, s: JSON.parse(r.share!) as StoredShare }));
+      .map((r) => ({ r, s: r.demo!.share! }));
     if (!rows.length) throw new BadRequest('nothingOutdated', tags ? 'no shared page lacks tags' : 'no shared page is outdated');
     const made = (dir?: string) => (dir ? (statOr(join(dir, 'demo.mp4')) ?? statOr(join(dir, 'index.html')) ?? statOr(dir) ?? 0) : 0);
     // newest by the newest version on the page
@@ -675,7 +675,7 @@ export class Sharing {
       try {
         const at = await this.o.forge.comment(cwd, pr, t.prComment(kind === 'html', url));
         const now = contributionOf(this.o.board.row(cardId));
-        if (now) this.o.board.work(cardId, { contribution: JSON.stringify({ ...now, linked: url }) });
+        if (now) this.o.board.work(cardId, { review: { contribution: { ...now, linked: url } } });
         this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.share.prCommented(n, at || pr));
       } catch (e) {
         this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.share.prNotCommented(n, messageOf(e)));
@@ -816,9 +816,8 @@ export class Sharing {
     if (tags) this.chosen(card.id, tags);
     const row = this.o.board.row(card.id);
     const latest = this.demo(card.id);
-    if (latest && sameDemo(latest, demo)) this.o.board.work(card.id, { demo: JSON.stringify({ ...latest, page }) });
-    else if (row.demos)
-      this.o.board.work(card.id, { demos: JSON.stringify((JSON.parse(row.demos) as StoredDemo[]).map((d) => (sameDemo(d, demo) ? { ...d, page } : d))) });
+    if (latest && sameDemo(latest, demo)) this.o.board.work(card.id, { demo: { latest: { ...latest, page } } });
+    else if (row.demo?.earlier.length) this.o.board.work(card.id, { demo: { earlier: row.demo.earlier.map((d) => (sameDemo(d, demo) ? { ...d, page } : d)) } });
     return page;
   }
 
@@ -908,8 +907,8 @@ export class Sharing {
     const row = this.o.board.row(cardId);
     const without = (t: PageTags | undefined) => (t ? Object.fromEntries(Object.entries(t).filter(([d]) => !(d in tags))) : undefined);
     const page = <D extends Demo>(d: D): D => (d.page?.tags ? { ...d, page: { ...d.page, tags: without(d.page.tags) } } : d);
-    if (row.demo) this.o.board.work(cardId, { demo: JSON.stringify(page(JSON.parse(row.demo) as StoredDemo)) });
-    if (row.demos) this.o.board.work(cardId, { demos: JSON.stringify((JSON.parse(row.demos) as StoredDemo[]).map(page)) });
+    if (row.demo?.latest) this.o.board.work(cardId, { demo: { latest: page(row.demo.latest) } });
+    if (row.demo?.earlier.length) this.o.board.work(cardId, { demo: { earlier: row.demo.earlier.map(page) } });
     const s = this.stored(cardId);
     this.setTagFields(cardId, this.card(cardId), { tags: without(s?.tags) ?? {}, auto: { ...s?.auto, ...tags } });
     this.o.board.log(cardId, 'activity', 'obeya', this.o.board.t.share.tagsChosen(shownTags(tags, tags).map(([d, v]) => `${d}: ${v.join(', ')}`).join(' · ') || '–'));
@@ -1040,8 +1039,7 @@ export class Sharing {
 
   /** The card's pull request, once its worker opened it. */
   private prOf(cardId: string): string | null {
-    const pr = this.o.board.row(cardId).pr;
-    return pr ? ((JSON.parse(pr) as PrState).url ?? null) : null;
+    return this.o.board.row(cardId).review?.pr?.url ?? null;
   }
 
   /**
@@ -1071,19 +1069,17 @@ export class Sharing {
   }
 
   private demo(cardId: string): (Demo & { dir: string }) | null {
-    const d = this.o.board.row(cardId).demo;
-    return d ? (JSON.parse(d) as Demo & { dir: string }) : null;
+    return this.o.board.row(cardId).demo?.latest ?? null;
   }
 
   /** The cards of the project, archived ones too, that were ever shared or are about to be, with their shares. */
   private shares(): { r: CardRow; s: StoredShare }[] {
-    return this.o.board.sharedRows().map((r) => ({ r, s: JSON.parse(r.share!) as StoredShare }));
+    return this.o.board.sharedRows().map((r) => ({ r, s: r.demo!.share! }));
   }
 
   private stored(cardId: string): StoredShare | null {
     if (!this.find(cardId)) return null;
-    const s = this.o.board.row(cardId).share;
-    return s ? (JSON.parse(s) as StoredShare) : null;
+    return this.o.board.row(cardId).demo?.share ?? null;
   }
 
   /** The card's page is at rest: those waiting for it hear so, unless its latest demo goes out after it. */
@@ -1097,13 +1093,13 @@ export class Sharing {
    */
   private set(cardId: string, { tags: _, auto: __, ...s }: StoredShare) {
     const now = this.stored(cardId);
-    this.o.board.work(cardId, { share: JSON.stringify({ ...s, ...(now?.tags ? { tags: now.tags } : {}), ...(now?.auto ? { auto: now.auto } : {}) }) });
+    this.o.board.work(cardId, { demo: { share: { ...s, ...(now?.tags ? { tags: now.tags } : {}), ...(now?.auto ? { auto: now.auto } : {}) } } });
   }
 
   /** Changes the page's tags the owner set by hand, or the reading session chose. */
   private setTagFields(cardId: string, card: Item, fields: Pick<StoredShare, 'tags' | 'auto'>) {
     const s = this.stored(cardId) ?? { slug: slugOf(card) };
-    this.o.board.work(cardId, { share: JSON.stringify({ ...s, ...fields }) });
+    this.o.board.work(cardId, { demo: { share: { ...s, ...fields } } });
   }
 }
 

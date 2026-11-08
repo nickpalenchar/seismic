@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectRuntime } from './project';
+import type { StoredShare } from './board';
 import { Store } from './store';
 import { FakeRuntime, gitRepo, heard, noForge } from './testing';
 
@@ -31,12 +32,14 @@ beforeAll(() => {
     mkdirSync(demo, { recursive: true });
     writeFileSync(join(demo, 'demo.mp4'), 'video');
     if (n % 2) writeFileSync(join(demo, 'poster.jpg'), 'poster');
-    const shown = { kind: 'video' as const, chapters: [[0, 'Before'], [20, 'After']], page: { title: `Card ${n}`, text: body } };
-    store.cards.update(r.id, {
-      demo: JSON.stringify({ dir: demo, ...shown }),
+    const shown = { kind: 'video' as const, chapters: [[0, 'Before'], [20, 'After']] as [number, string][], page: { title: `Card ${n}`, text: body } };
+    store.updateCard(r.id, {
+      demo: {
+        latest: { dir: demo, ...shown },
+        // a page published before the newest page changes: the Koordinator's sheet offers to share it again
+        ...(n % 3 === 0 ? { share: { slug: `card-${n}`, url: `https://demos.example/card-${n}`, demos: [{ dir: demo, shown }], version: '' } as unknown as StoredShare } : {}),
+      },
       ...(n < 800 ? { archived_at: new Date(Date.now() - n * 60_000).toISOString() } : {}),
-      // a page published before the newest page changes: the Koordinator's sheet offers to share it again
-      ...(n % 3 === 0 ? { share: JSON.stringify({ slug: `card-${n}`, url: `https://demos.example/card-${n}`, demos: [{ dir: demo, shown }], version: '' }) } : {}),
     });
   });
   archived = rows.slice(0, 800).map((r) => r.id);
@@ -49,11 +52,13 @@ beforeAll(() => {
     const demo = join(dir, 'demos', r.id);
     mkdirSync(demo, { recursive: true });
     writeFileSync(join(demo, 'demo.mp4'), 'video');
-    const shown = { kind: 'video' as const, chapters: [[0, 'Variant']], page: { title: r.title, text: body } };
-    store.cards.update(r.id, {
-      demo: JSON.stringify({ dir: demo, ...shown }),
+    const shown = { kind: 'video' as const, chapters: [[0, 'Variant']] as [number, string][], page: { title: r.title ?? '', text: body } };
+    store.updateCard(r.id, {
+      demo: {
+        latest: { dir: demo, ...shown },
+        ...(n % 2 === 0 ? { share: { slug: `prototype-${n}`, url: `https://demos.example/prototype-${n}`, demos: [{ dir: demo, shown }], version: '' } as unknown as StoredShare } : {}),
+      },
       ...(n < 280 ? { archived_at: new Date(Date.now() - n * 60_000).toISOString() } : {}),
-      ...(n % 2 === 0 ? { share: JSON.stringify({ slug: `prototype-${n}`, url: `https://demos.example/prototype-${n}`, demos: [{ dir: demo, shown }], version: '' }) } : {}),
     });
   });
   idea.slice(0, 70).forEach((r, n) => store.cards.update(r.id, { archived_at: new Date(Date.now() - n * 60_000).toISOString() }));

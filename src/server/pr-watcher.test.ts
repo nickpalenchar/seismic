@@ -122,7 +122,7 @@ describe('the PR phase', () => {
     await workers.start(c.id);
     commit(c.id);
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
-    board.work(c.id, { share: JSON.stringify({ slug: 'export', url: 'https://demos.example/export/', dir: '/d' }) });
+    board.work(c.id, { demo: { share: { slug: 'export', url: 'https://demos.example/export/', dir: '/d' } } });
     await workers.approve(c.id);
     expect(runtime.last.inbox.at(-1)).toContain('shared with the team on a page of its own: https://demos.example/export/. Link it');
     runtime.last.call('pr_opened', { url: URL_ });
@@ -304,7 +304,7 @@ describe('watching', () => {
       { id: 'cSUM', author: 'greptile', body: 'Confidence Score: 5/5', at: '2026-11-02T12:42:00Z' },
       { id: 'cPING', author: 'owner', body: '@greptile review', at: '2026-11-02T12:50:00Z' },
     ];
-    board.work(id, { pr: JSON.stringify({ ...JSON.parse(board.row(id).pr!), seen: ['cSUM'] }) });
+    board.work(id, { review: { pr: { ...board.row(id).review!.pr!, seen: ['cSUM'] } } });
     await watcher.poll();
     expect(board.item(id)!.review!.pr!.waits).toEqual(['checks', 'answer']);
     // branch protection that wants the branch up to date: the worker brings it there
@@ -342,7 +342,7 @@ describe('watching', () => {
       { id: 'i2', author: 'owner', body: 'Fixed in bbb.', at: '2026-10-02T12:52:13Z', round: 'B', replyTo: 'i1' },
     ];
     // what the worker was told already
-    board.work(id, { pr: JSON.stringify({ ...JSON.parse(board.row(id).pr!), seen: ['cSUM', 'i1'] }) });
+    board.work(id, { review: { pr: { ...board.row(id).review!.pr!, seen: ['cSUM', 'i1'] } } });
     await watcher.poll();
     expect(merges).toEqual([]);
     expect(runtime.last.inbox.at(-1)).toContain('nobody asked for another look');
@@ -368,7 +368,7 @@ describe('watching', () => {
     runtime.last.emit({ type: 'idle' });
     runtime.last.emit({ type: 'idle' });
     status.comments = [{ id: 'cSUM', author: 'greptile', body: 'Confidence Score: 3/5', at: '2026-10-02T08:34:00Z' }];
-    board.work(id, { pr: JSON.stringify({ ...JSON.parse(board.row(id).pr!), seen: ['cSUM'] }) });
+    board.work(id, { review: { pr: { ...board.row(id).review!.pr!, seen: ['cSUM'] } } });
     await watcher.poll();
     expect(merges).toEqual([]);
     expect(state(id)).toBe('inPr');
@@ -509,14 +509,14 @@ describe('watching', () => {
     await watcher.poll();
     // the network gone for a moment is not worth a line
     expect(board.events(id).length).toBe(events);
-    const pr = JSON.parse(board.row(id).pr!);
-    board.work(id, { pr: JSON.stringify({ ...pr, readError: { since: pr.readError.since - 10 * 60_000 } }) });
+    const pr = board.row(id).review!.pr!;
+    board.work(id, { review: { pr: { ...pr, readError: { since: pr.readError!.since - 10 * 60_000 } } } });
     await watcher.poll();
     await watcher.poll();
     expect(board.events(id).map((e) => e.text).slice(events)).toEqual(['Seismic cannot read the pull request: git has no login for codeberg.org']);
     unreadable = undefined;
     await watcher.poll();
-    expect(JSON.parse(board.row(id).pr!).readError).toBeUndefined();
+    expect(board.row(id).review!.pr!.readError).toBeUndefined();
   });
 
   test('a merge makes the card live and frees the clone; a close asks the owner', async () => {
@@ -608,7 +608,7 @@ describe('a merge that takes a while', () => {
       const round = w.poll();
       return { w, round };
     };
-    const pr = () => JSON.parse(board.row(id).pr!);
+    const pr = () => board.row(id).review!.pr!;
 
     let { w, round } = merging();
     await until(() => answer);
@@ -687,7 +687,7 @@ describe('gh slow to answer', () => {
     await round;
     expect(performance.now() - t).toBeLessThan(5000);
     // reading it failed: the card says so if it goes on failing
-    expect(JSON.parse(board.row(slow).pr!).readError).toBeDefined();
+    expect(board.row(slow).review!.pr!.readError).toBeDefined();
   });
 });
 
@@ -784,9 +784,9 @@ describe('pull requests in several repositories', () => {
   test('another PR in the card’s repository in place of its own starts afresh', async () => {
     const id = await inPr();
     runtime.last.call('pr_opened', { url: URL_ });
-    board.work(id, { pr: JSON.stringify({ ...JSON.parse(board.row(id).pr!), seen: ['c1'], merged: 'm1', more: [{ url: OTHER, number: 7, repo: 'acme/docs', seen: [], reported: [] }] }) });
+    board.work(id, { review: { pr: { ...board.row(id).review!.pr!, seen: ['c1'], merged: 'm1', more: [{ url: OTHER, number: 7, repo: 'acme/docs', seen: [], reported: [] }] } } });
     runtime.last.call('pr_opened', { url: 'https://github.com/acme/app/pull/43' });
-    const pr = JSON.parse(board.row(id).pr!);
+    const pr = board.row(id).review!.pr!;
     expect(pr).toMatchObject({ url: 'https://github.com/acme/app/pull/43', number: 43, seen: [] });
     expect(pr.merged).toBeUndefined();
     expect(pr.more).toHaveLength(1);

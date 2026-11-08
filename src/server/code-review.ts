@@ -415,7 +415,7 @@ export class CodeReviews {
   }
 
   private save(cardId: string, c: StoredCodeReview | null): void {
-    this.o.board.work(cardId, { code_review: c ? JSON.stringify(c) : null });
+    this.o.board.work(cardId, { review: { codeReview: c } });
   }
 }
 

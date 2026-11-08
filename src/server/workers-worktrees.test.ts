@@ -242,7 +242,7 @@ describe('a worktree per card', () => {
     expect(board.item(prototype.id)).toBeUndefined();
     expect(board.archived().find((i) => i.id === prototype.id)).toMatchObject({ idea: { prototypeEnd: 'built' } });
 
-    board.work(idea.id, { state: 'planned', workstation: moved.path, branch: moved.branch }, { builtOn: prototype.id });
+    board.work(idea.id, { state: 'planned', workstation: moved.path, branch: moved.branch, idea: { builtOn: prototype.id } });
     await workers.start(idea.id);
     expect(board.row(idea.id).workstation).toBe(path);
     const session = runtime.last;
@@ -997,7 +997,7 @@ describe('a worktree per card', () => {
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
     await workers.approve(i.id);
     expect(state(i.id)).toBe('live');
-    expect(JSON.parse(board.row(i.id).plan_docs!)).toEqual(['docs/plan/README.md', 'docs/plan/gross.md']);
+    expect(board.row(i.id).plan!.planDocs!).toEqual(['docs/plan/README.md', 'docs/plan/gross.md']);
     // the plan takes the idea's place; the idea goes once its worker is done after the landing
     setDocs([doc, { file: 'docs/plan/gross.md', title: 'Groß', goal: 'G', workstreams: [ws('W1')], markdown: '' }]);
     board.docsChanged();

@@ -1960,7 +1960,7 @@ export class ProjectRuntime {
     if (card.thread?.thinking) throw new BadRequest('ideaThinking', 'its agent is still reading; ideate it once the answer is there');
     if (!this.runs(card)) throw repoDown(card);
     // a paused agent's question goes into the discussion with the rest of the thread
-    this.board.work(cardId, { kind: 'task', state: 'idea', session_id: null, ...this.board.unheld(cardId, ['paused', 'pausing', 'limit']) }, { discussion: { status: 'open', brief: '' } });
+    this.board.work(cardId, { kind: 'task', state: 'idea', session_id: null, ...this.board.unheld(cardId, ['paused', 'pausing', 'limit']), idea: { discussion: { status: 'open', brief: '' } } });
     this.board.log(cardId, 'state', 'owner', this.board.t.answer.asIdea);
     this.explorers.tell(cardId, this.answers.opening(cardId));
   }
@@ -2249,7 +2249,7 @@ export class ProjectRuntime {
     this.writing.delete(cardId);
     this.said.delete(cardId);
     const at = there.board.freeSpot(there.inView);
-    this.deps.store.moveCard(cardId, there.id, at, { newRepo: { path: target.path, project: true, by: target.by, made: true } }, at.canvas);
+    this.deps.store.moveCard(cardId, there.id, at, { idea: { newRepo: { path: target.path, project: true, by: target.by, made: true } } }, at.canvas);
     this.deps.store.dropEmptyGroups(this.id);
     there.board.log(cardId, 'state', 'obeya', there.board.t.newRepo.movedHere(this.board.project.name, shown, made));
     const moved = { card: cardId, title: card.title, project: there.id, projectName: there.board.project.name };
@@ -2402,7 +2402,8 @@ export class ProjectRuntime {
       ]
         .filter(Boolean)
         .join('\n\n'),
-    }, { becomesPlan: true });
+      idea: { becomesPlan: true },
+    });
     this.board.decide({ plan_id: null, card_id: cardId, question: t.howOn(card.title), answer: t.planDocAnswer, by: 'owner' });
     this.board.log(cardId, 'state', 'owner', t.planDocLog);
     this.koordinator.request(cardId);
@@ -2418,7 +2419,7 @@ export class ProjectRuntime {
     const t = this.board.t.idea;
     const dir = this.repoOf(card).adapter.planDocs.dir;
     const outside = this.outsidePlanDoc(card);
-    this.board.work(card.id, { ...outside?.row, body: [t.planDocTask(dir, true, outside?.file), t.planDocCard(card.title), card.body.trim()].filter(Boolean).join('\n\n') }, { becomesPlan: true });
+    this.board.work(card.id, { ...outside?.row, body: [t.planDocTask(dir, true, outside?.file), t.planDocCard(card.title), card.body.trim()].filter(Boolean).join('\n\n'), idea: { becomesPlan: true } });
     this.board.decide({ plan_id: null, card_id: card.id, question: t.howOnTask(card.title), answer: t.planDocAnswer, by: 'owner' });
     this.board.log(card.id, 'state', 'owner', t.planDocTaskLog);
     this.koordinator.request(card.id);
@@ -2427,10 +2428,10 @@ export class ProjectRuntime {
   /**
    * The doc a card planned as a plan writes where the plan directory is a folder outside the
    * repository: named after the card, beside the docs there. Nothing of that folder lands, so the
-   * card names its doc from the start (`plan_docs`), and the plan takes its place once the
+   * card names its doc from the start (`plan.planDocs`), and the plan takes its place once the
    * owner has approved the card (`linkOrigins`). None for a plan directory in the repository.
    */
-  private outsidePlanDoc(card: Item): { file: string; row: { plan_docs: string } } | undefined {
+  private outsidePlanDoc(card: Item): { file: string; row: { plan: { planDocs: string[] } } } | undefined {
     const r = this.repoOf(card);
     const outside = outsidePlanDir(r.adapter.planDocs.dir);
     // in a folder without git nothing lands either: the doc is there as soon as it is written
@@ -2439,11 +2440,11 @@ export class ProjectRuntime {
     const at = (file: string) => (outside ? file : join(r.info.path, file));
     const name = slug(card.title).slice(0, 60).replace(/^[.-]+|[.-]+$/g, '') || 'plan';
     // nor one another card was given and has not written yet
-    const given = new Set(this.deps.store.cards.withPlanDocs(this.id).flatMap((row) => (JSON.parse(row.plan_docs!) as string[]).map(pathOfRef)));
+    const given = new Set(this.deps.store.cards.withPlanDocs(this.id).flatMap((row) => row.plan!.planDocs!.map(pathOfRef)));
     let file = `${dir}/${name}.md`;
     for (let n = 2; existsSync(at(file)) || given.has(file); n++) file = `${dir}/${name}-${n}.md`;
     const ref = r.ref.id === this.repos[0]!.ref.id ? file : `${r.ref.id}:${file}`;
-    return { file, row: { plan_docs: JSON.stringify([ref]) } };
+    return { file, row: { plan: { planDocs: [ref] } } };
   }
 
   /** A planned, stopped or waiting task goes into the parking lot: off the canvas, listed in the Agents sheet's Parked tab. */
@@ -2453,7 +2454,7 @@ export class ProjectRuntime {
     // waiting for the owner, its agent stops first
     const stopped = card.state === 'waiting' ? this.repoOf(cardId).workers.stop(cardId) : undefined;
     if (stopped) this.board.record(cardId, 'stopped', 'owner');
-    this.board.work(cardId, { hold: JSON.stringify({ reason: 'parkingLot', since: new Date().toISOString() } satisfies Hold) });
+    this.board.work(cardId, { hold: { reason: 'parkingLot', since: new Date().toISOString() } satisfies Hold });
     this.board.log(cardId, 'state', 'owner', this.board.t.worker.parkedInLot);
     return stopped;
   }
@@ -2774,7 +2775,7 @@ export class ProjectRuntime {
       ...(info.headRepo ? { headRepo: info.headRepo } : {}),
       ...(info.headRef ? { headRef: info.headRef } : {}),
     };
-    this.board.work(card.id, { contribution: JSON.stringify(stored) });
+    this.board.work(card.id, { review: { contribution: stored } });
     this.board.log(card.id, 'state', 'owner', t.voice.created);
     this.watchPrs(repo);
     this.koordinator.request(card.id);

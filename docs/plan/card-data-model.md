@@ -162,7 +162,21 @@ the same time will conflict (W3 most).
     argument. Values are objects, no `JSON.stringify` at the caller.
   - The project export gains the part's table (by card); the equality check on the live database
     (2026-11-08) differed only by that table.
-- [ ] **W7:** One table each, one card per table: reviews (`pr`, `contribution`, `code_review`);
+- [x] **W7:** One table each, one card per table: reviews (`pr`, `contribution`, `code_review`);
   demos (`demo`, `share`, `page_heard`, `files`, `held`, with earlier `demos` as rows); plans
   (`plan`, `deps`, `collapsed`, `plan_docs`); labels; holds.
+  Done, on W6's pattern, one migration for all five: `card_reviews` (`pr`, `contribution`,
+  `code_review`), `card_demos` (the demo as `latest`, `share`, `page_heard`, `files`, `held`) with
+  `card_earlier_demos` (a row per earlier demo, by `position`), `card_plans` (the plan doc as `doc`,
+  `deps`, `collapsed`, `plan_docs`), `card_labels` (a row per label: `value` as text, `by` `owner`,
+  `suggestion` or null for a value set before either was told apart; the two JSON lists of which
+  labels were whose are gone, and a suggestion of a label since cleared with them) and `card_holds`
+  (`reason`, `since`, the rest of the `Hold` as `detail`). `CardRow` gains `review`, `demo` (with
+  `earlier`), `plan`, `labels` (by label, empty for none) and `hold`, put together from the rows
+  by `toRow` in cards.ts. Writes take the parts beside the card's own fields in one object
+  (`CardUpdate`: `board.work(id, { state, review: { pr }, hold: null })`), W6's third argument
+  for the idea folded into it as `idea`; a part's fields merge into what it has, `hold` replaces
+  it, a demo's `earlier` replaces the list. The partial indexes on `share` and `plan_docs` moved
+  to the new tables. The scratch script copies what a stage writes into the old columns into the
+  new tables, as the migration does.
 - [ ] **W8:** Drop the moved columns from `cards`, one release after the last move.

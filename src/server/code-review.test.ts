@@ -188,15 +188,15 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     await until(() => reviewers().length === 1);
     const reviews = (workers as unknown as { reviews: { finish(id: string, run: null, f: undefined, e: string): void; interrupted(): void } }).reviews;
-    const stored = () => JSON.parse(board.row(id).code_review!) as { pending?: true; review?: { state: string } };
+    const stored = () => board.row(id).review!.codeReview!;
     // a second handover is pending while the first review ends
-    board.work(id, { code_review: JSON.stringify({ ...stored(), pending: true }) });
+    board.work(id, { review: { codeReview: { ...stored(), pending: true } } });
     reviews.finish(id, null, undefined, 'x');
     expect(stored().pending).toBe(true);
     expect(stored().review!.state).toBe('failed');
     expect(needsYou(board.item(id)!)).toBe(false);
     // a restart starts the review the handover (of a newer commit) was about to start
-    board.work(id, { code_review: JSON.stringify({ ...stored(), review: { ...stored().review, head: 'older' } }) });
+    board.work(id, { review: { codeReview: { ...stored(), review: { ...stored().review!, head: 'older' } } } });
     reviews.interrupted();
     await until(() => reviewers().length === 2);
     expect(stored().pending).toBeUndefined();

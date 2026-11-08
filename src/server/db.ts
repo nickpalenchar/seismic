@@ -478,6 +478,88 @@ export const MIGRATIONS = [
      SELECT id, idea, prototype_of, prototype, proposal, built_on, becomes_plan, new_repo FROM cards
      WHERE idea IS NOT NULL OR prototype_of IS NOT NULL OR prototype IS NOT NULL OR proposal IS NOT NULL
        OR built_on IS NOT NULL OR becomes_plan != 0 OR new_repo IS NOT NULL;`,
+  // a card's review, demo and plan parts, its labels and its hold in tables of their own, for the
+  // cards that have any of them: the earlier demos and the labels a row each, a label with who set
+  // it (a suggestion of a label since cleared is gone). The old columns stay until the moved columns
+  // are dropped; their indexes go.
+  `DROP INDEX \`cards_plan_docs\`;
+   DROP INDEX \`cards_shared\`;
+   CREATE TABLE \`card_reviews\` (
+     \`card_id\` text PRIMARY KEY NOT NULL,
+     \`pr\` text,
+     \`contribution\` text,
+     \`code_review\` text,
+     FOREIGN KEY (\`card_id\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action
+   );
+   CREATE TABLE \`card_demos\` (
+     \`card_id\` text PRIMARY KEY NOT NULL,
+     \`latest\` text,
+     \`share\` text,
+     \`page_heard\` text,
+     \`files\` text,
+     \`held\` text,
+     FOREIGN KEY (\`card_id\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action
+   );
+   CREATE INDEX \`card_demos_shared\` ON \`card_demos\` (\`card_id\`) WHERE share IS NOT NULL;
+   CREATE TABLE \`card_earlier_demos\` (
+     \`card_id\` text NOT NULL,
+     \`position\` integer NOT NULL,
+     \`demo\` text NOT NULL,
+     PRIMARY KEY(\`card_id\`, \`position\`),
+     FOREIGN KEY (\`card_id\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action
+   );
+   CREATE TABLE \`card_plans\` (
+     \`card_id\` text PRIMARY KEY NOT NULL,
+     \`doc\` text,
+     \`deps\` text,
+     \`collapsed\` integer DEFAULT false NOT NULL,
+     \`plan_docs\` text,
+     FOREIGN KEY (\`card_id\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action
+   );
+   CREATE INDEX \`card_plans_plan_docs\` ON \`card_plans\` (\`card_id\`) WHERE plan_docs IS NOT NULL;
+   CREATE TABLE \`card_labels\` (
+     \`card_id\` text NOT NULL,
+     \`label\` text NOT NULL,
+     \`value\` text,
+     \`by\` text,
+     PRIMARY KEY(\`card_id\`, \`label\`),
+     FOREIGN KEY (\`card_id\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action
+   );
+   CREATE TABLE \`card_holds\` (
+     \`card_id\` text PRIMARY KEY NOT NULL,
+     \`reason\` text NOT NULL,
+     \`since\` text NOT NULL,
+     \`detail\` text,
+     FOREIGN KEY (\`card_id\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action
+   );
+   INSERT INTO card_reviews (card_id, pr, contribution, code_review)
+     SELECT id, pr, contribution, code_review FROM cards WHERE pr IS NOT NULL OR contribution IS NOT NULL OR code_review IS NOT NULL;
+   INSERT INTO card_demos (card_id, latest, share, page_heard, files, held)
+     SELECT id, demo, share, page_heard, files, held FROM cards
+     WHERE demo IS NOT NULL OR share IS NOT NULL OR page_heard IS NOT NULL OR files IS NOT NULL OR held IS NOT NULL;
+   INSERT INTO card_earlier_demos (card_id, position, demo)
+     SELECT c.id, CAST(d.key AS INTEGER), d.value FROM cards c, json_each(c.demos) d WHERE c.demos IS NOT NULL;
+   INSERT INTO card_plans (card_id, doc, deps, collapsed, plan_docs)
+     SELECT id, plan, deps, collapsed, plan_docs FROM cards WHERE plan IS NOT NULL OR deps IS NOT NULL OR collapsed != 0 OR plan_docs IS NOT NULL;
+   INSERT INTO card_labels (card_id, label, value, by)
+     SELECT id, 'category', category, CASE WHEN EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = 'category') THEN 'owner'
+       WHEN category IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(suggested_labels) WHERE value = 'category') THEN 'suggestion' END
+     FROM cards WHERE category IS NOT NULL OR EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = 'category');
+   INSERT INTO card_labels (card_id, label, value, by)
+     SELECT id, 'subcategory', subcategory, CASE WHEN EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = 'subcategory') THEN 'owner'
+       WHEN subcategory IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(suggested_labels) WHERE value = 'subcategory') THEN 'suggestion' END
+     FROM cards WHERE subcategory IS NOT NULL OR EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = 'subcategory');
+   INSERT INTO card_labels (card_id, label, value, by)
+     SELECT id, 'complexity', CAST(complexity AS TEXT), CASE WHEN EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = 'complexity') THEN 'owner'
+       WHEN complexity IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(suggested_labels) WHERE value = 'complexity') THEN 'suggestion' END
+     FROM cards WHERE complexity IS NOT NULL OR EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = 'complexity');
+   INSERT INTO card_labels (card_id, label, value, by)
+     SELECT id, 'priority', priority, CASE WHEN EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = 'priority') THEN 'owner'
+       WHEN priority IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(suggested_labels) WHERE value = 'priority') THEN 'suggestion' END
+     FROM cards WHERE priority IS NOT NULL OR EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = 'priority');
+   INSERT INTO card_holds (card_id, reason, since, detail)
+     SELECT id, json_extract(hold, '$.reason'), coalesce(json_extract(hold, '$.since'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+       nullif(json_remove(hold, '$.reason', '$.since'), '{}') FROM cards WHERE hold IS NOT NULL;`,
 ];
 
 /** A database this Seismic cannot open as it is: it leaves it alone. */

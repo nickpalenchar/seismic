@@ -127,7 +127,7 @@ describe('a project over a folder without git', () => {
     expect(item(plan.id)).toMatchObject({ state: 'waiting', need: 'review' });
     expect(item(plan.id).demo?.latest).toBeUndefined();
     // kept with the card's earlier demos, which show once a later handover brings a demo
-    expect(JSON.parse(project.board.row(plan.id).demos!)).toMatchObject([{ kind: 'html', asked: true }]);
+    expect(project.board.row(plan.id).demo!.earlier).toMatchObject([{ kind: 'html', asked: true }]);
   });
 
   test('a card shows the files it changed as its result: those its worker names first, served from the folder, no other file of it', async () => {
@@ -200,7 +200,7 @@ describe('a project over a folder without git', () => {
       await a.use('Write', { file_path: join(docs, file) }, () => writeFileSync(join(docs, file), `# ${title}\n`));
       expect(await a.call('ready_for_review', { summary: 'Done.' })).toContain('Recorded');
       // as an Seismic before kept it
-      project.board.work(card.id, { files: null });
+      project.board.work(card.id, { demo: { files: null } });
       return { id: card.id, a };
     };
     const finish = async (card: { id: string }) => {

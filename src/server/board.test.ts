@@ -320,7 +320,7 @@ describe('plan docs', () => {
     const w2 = items.find((i) => i.plan?.label === 'W2')!;
     const w3 = items.find((i) => i.plan?.label === 'W3')!;
     // landed before the commit was kept, as a pull request; with its handover
-    board.work(w2.id, { state: 'live', pr: JSON.stringify({ url: 'https://github.com/acme/app/pull/821', number: 821, seen: [], reported: [] }) });
+    board.work(w2.id, { state: 'live', review: { pr: { url: 'https://github.com/acme/app/pull/821', number: 821, seen: [], reported: [] } } });
     board.work(w3.id, { state: 'done' });
     board.docsChanged();
     expect(board.item(w2.id)).toMatchObject({ state: 'planned', review: { landedPart: { pr: { url: 'https://github.com/acme/app/pull/821', number: 821 } } } });
@@ -492,7 +492,7 @@ describe('the archive of plans', () => {
 
   test('a task planned as a plan gives way to it as an idea does', () => {
     const task = board.create({ title: 'Aufgabe B', x: 900, y: 40 });
-    board.work(task.id, {}, { becomesPlan: true });
+    board.work(task.id, { idea: { becomesPlan: true } });
     expect(board.item(task.id)).toMatchObject({ idea: { becomesPlan: true } });
     expect(board.item(task.id)!.idea?.brief).toBeUndefined();
     board.work(task.id, { state: 'live' });
@@ -904,7 +904,7 @@ describe('canvases', () => {
   test('a plan written from an idea takes its place on the idea canvas, with its workstreams', () => {
     const ideas = board.createCanvas('Ideas');
     const idea = board.create({ title: 'Idea', x: 100, y: 100, idea: true, canvas: ideas.id });
-    store.cards.update(idea.id, { plan_docs: JSON.stringify(['docs/plan/b.md']), state: 'live', landed: '{}' });
+    store.updateCard(idea.id, { plan: { planDocs: ['docs/plan/b.md'] }, state: 'live', landed: '{}' });
     docs = [docA, docB];
     board.docsChanged();
     const items = board.snapshot().items;
@@ -957,8 +957,7 @@ describe('a demo on the card', () => {
     board.work(c.id, {
       state: 'working',
       branch: 'obeya/video',
-      demo: JSON.stringify({ kind: 'video', dir: framed, chapters: [[0, 'Danach']], handover: 2 }),
-      demos: JSON.stringify([{ kind: 'video', dir: bare, chapters: [[0, 'Vorher']], handover: 1 }]),
+      demo: { latest: { kind: 'video', dir: framed, chapters: [[0, 'Danach']], handover: 2 }, earlier: [{ kind: 'video', dir: bare, chapters: [[0, 'Vorher']], handover: 1 }] },
     });
     const item = board.item(c.id)!;
     expect(item.demo?.latest).toEqual({ kind: 'video', chapters: [[0, 'Danach']], handover: 2 });

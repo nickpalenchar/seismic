@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, setSystemTime, test } from 'bun:test';
 import { type AgentSetting, type ProjectConfig, type ConfigProblem, type ConfigView, type Notice, waitingOn } from '../core/types';
 import { Board } from './board';
+import type { CardUpdate } from './models/cards/cards';
 import { type Command, Commander } from './commands';
 import { Store } from './store';
 import { FakeRuntime, type FakeSession, until } from './testing';
@@ -324,7 +325,7 @@ describe('the Koordinator remembers', () => {
       state: 'waiting',
       need: 'demo',
       detail: JSON.stringify({ summary }),
-      demo: JSON.stringify({ kind: 'video', dir: '/d', chapters: [] }),
+      demo: { latest: { kind: 'video', dir: '/d', chapters: [] } },
     });
     const k = commander();
     const heard = k.hear('Freigegeben und lege eine Folgekarte für den ambient-Ton an', { card: a.id });
@@ -375,7 +376,7 @@ describe('the Koordinator remembers', () => {
 
   test("the question in a demo report is the card's open question: “ja” to it answers it", async () => {
     const a = board.create({ title: 'Archiv', x: 0, y: 0 });
-    board.work(a.id, { state: 'waiting', need: 'demo', demo: JSON.stringify({ kind: 'video', dir: '/d', chapters: [], question: 'Alte Projekte nachtragen?' }) });
+    board.work(a.id, { state: 'waiting', need: 'demo', demo: { latest: { kind: 'video', dir: '/d', chapters: [], question: 'Alte Projekte nachtragen?' } } });
     const k = commander();
     const heard = k.hear('ja zum Archiv', {});
     await settle();
@@ -696,7 +697,7 @@ describe('the Koordinator remembers', () => {
 
   test('review cards stand out from tasks titled like reviews, in the card list and the history', async () => {
     const contribution = { url: 'https://github.com/acme/shop/pull/4', number: 4, author: 'alice', title: 'Round totals', canModify: true };
-    board.work(board.create({ title: 'PR #4: Round totals', x: 0, y: 0 }).id, { contribution: JSON.stringify(contribution) });
+    board.work(board.create({ title: 'PR #4: Round totals', x: 0, y: 0 }).id, { review: { contribution: contribution } });
     board.create({ title: 'Review PR #3', x: 0, y: 0 });
     const { brief } = await say(commander(), 'was liegt an?', 'reply', { confirm: 'Zwei Karten.' });
     expect(brief).toContain('"PR #4: Round totals" (review card for PR #4 by alice)');
@@ -913,7 +914,7 @@ describe('what the agent of a card passes on from the owner\'s words', () => {
 });
 
 describe('what the owner says or types to the Koordinator about a card with an agent', () => {
-  const open = (state: Record<string, string>) => {
+  const open = (state: CardUpdate) => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     board.work(a.id, state);
     return a;
@@ -934,7 +935,7 @@ describe('what the owner says or types to the Koordinator about a card with an a
   });
 
   test('a question about the work of an agent goes to that agent, not to a look-up of main', async () => {
-    open({ state: 'waiting', need: 'demo', demo: JSON.stringify({ kind: 'video', dir: '/d', chapters: [] }) });
+    open({ state: 'waiting', need: 'demo', demo: { latest: { kind: 'video', dir: '/d', chapters: [] } } });
     const k = commander();
     const question = 'Ist bei Export sichergestellt, dass beim Anhalten alles committed ist?';
     const heard = k.hear(question, {}, [], { typed: true });

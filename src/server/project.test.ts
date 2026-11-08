@@ -94,7 +94,7 @@ describe('a project with several repositories', () => {
   test('a repository whose settings share no demos offers no sharing', () => {
     expect(project.board.project.repos.map((r) => r.share)).toEqual([undefined, undefined]);
     const c = project.board.create({ title: 'Home', x: 0, y: 0 });
-    project.board.work(c.id, { state: 'live', demo: JSON.stringify({ kind: 'video', dir, chapters: [] }) });
+    project.board.work(c.id, { state: 'live', demo: { latest: { kind: 'video', dir, chapters: [] } } });
     expect(() => project.act(c.id, { action: 'share' })).toThrow('shares none');
     expect(() => project.act(c.id, { action: 'unshare' })).toThrow('not shared');
   });
@@ -292,11 +292,11 @@ describe('a project with several repositories', () => {
     expect(item(p.id).state).toBe('planned');
     // as the work retrospective made them before
     const q = project.board.proposeRetro('web', { title: 'Skill für Demos', body: 'Ein Skill.', basis: 'Demos scheitern.' });
-    store.updateCard(q.id, {}, { proposal: null });
+    store.updateCard(q.id, { idea: { proposal: null } });
     project.act(q.id, { action: 'accept', start: false });
     expect(item(q.id).state).toBe('planned');
     const r = project.board.proposeRetro('web', { title: 'Regel für Tests', body: 'Eine Regel.', basis: 'Tests fehlen.' });
-    store.updateCard(r.id, {}, { proposal: null });
+    store.updateCard(r.id, { idea: { proposal: null } });
     project.act(r.id, { action: 'accept', idea: true });
     expect(item(r.id).state).toBe('idea');
   });
@@ -1400,7 +1400,7 @@ describe('merging and deleting planned tasks by voice', () => {
     const after = project.board.create({ title: 'After it', from: b.id });
     const review = project.board.create({ title: 'PR #5', x: 0, y: 900, repo: 'web' });
     const c: StoredContribution = { url: 'https://github.com/acme/app/pull/5', number: 5, author: 'amerlander', title: 'T', canModify: true, findings: [{ id: 1, title: 'F', text: 'T', status: 'later', card: b.id }] };
-    project.board.work(review.id, { contribution: JSON.stringify(c) });
+    project.board.work(review.id, { review: { contribution: c } });
     const g = project.board.createGroup('Login', [a.id]);
     await project.run({ do: 'merge', card: a.id, others: [b.id], title: 'Sign in again: when and where' });
     expect(item(a.id)).toMatchObject({ title: 'Sign in again: when and where', x: 100, y: 200, group: g.id });

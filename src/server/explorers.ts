@@ -8,7 +8,7 @@ import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { type Language, ownersLanguage, repositoryLanguage } from '../core/locale';
 import { MESSAGES } from '../core/messages';
-import { type CardEvent, formatQuestion, type Item, type Mock, NEXT_STEPS, type NextStep, type PlannedPrototype, type Question, type SettledPart, isPaused, isPausing, type Hold } from '../core/types';
+import { type CardEvent, formatQuestion, type Item, type Mock, NEXT_STEPS, type NextStep, type PlannedPrototype, type Question, type SettledPart, isPaused, isPausing } from '../core/types';
 import { type Asked, decisionLog, withPick } from './advisor';
 import { BadRequest, type Board, holdNow, type Message, replyNote, type Unread } from './board';
 import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool, BackgroundWait } from './runtime';
@@ -252,7 +252,7 @@ export class Explorers {
     const row = this.o.board.row(card.id);
     // what an interrupted turn left unanswered goes first
     const { unread } = this.o.board.idea(card.id);
-    if (row.hold && isPaused({ hold: JSON.parse(row.hold) as Hold })) {
+    if (row.hold && isPaused({ hold: row.hold })) {
       if (!owner) {
         this.o.board.setIdea(card.id, { unread: { why: unread?.why ?? 'paused', messages: [...(unread?.messages ?? []), { text: message, images, said }] } });
         return;

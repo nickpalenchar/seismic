@@ -140,7 +140,7 @@ export class PrWatcher {
   /** The card's first pull request as stored, with the further ones in `more`. */
   private stored(cardId: string): PrState | null {
     const row = this.board.row(cardId);
-    return row.pr ? (JSON.parse(row.pr) as PrState) : null;
+    return (row.review?.pr ?? null);
   }
 
   /** Each of the card's pull requests on its own (the first without `more`), the first first. */
@@ -368,7 +368,7 @@ export class PrWatcher {
     const { more: _, ...own } = pr;
     const next: PrState =
       root.url === pr.url ? { ...own, ...(root.more ? { more: root.more } : {}) } : { ...root, more: (root.more ?? []).map((m) => (m.url === pr.url ? own : m)) };
-    if (row.pr !== JSON.stringify(next)) this.board.work(cardId, { pr: JSON.stringify(next) });
+    if (JSON.stringify(row.review?.pr ?? null) !== JSON.stringify(next)) this.board.work(cardId, { review: { pr: next } });
   }
 }
 

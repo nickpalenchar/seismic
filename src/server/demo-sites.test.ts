@@ -154,7 +154,7 @@ describe("sharing on the project's site", () => {
   });
   const card = () => {
     const c = board.create({ title: 'Sync button', x: 0, y: 0 });
-    board.work(c.id, { state: 'live', demo: JSON.stringify({ kind: 'video', dir: demo, chapters: [[0, 'Before']], page: { title: 'Sync button', text: 'A sentence.' } }) });
+    board.work(c.id, { state: 'live', demo: { latest: { kind: 'video', dir: demo, chapters: [[0, 'Before']], page: { title: 'Sync button', text: 'A sentence.' } } } });
     return c.id;
   };
   const settled = async (id: string, state: string | undefined) => {

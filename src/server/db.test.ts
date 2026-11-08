@@ -23,8 +23,17 @@ function withPath(f: (path: string) => void) {
   }
 }
 
+/** The database as it was before a card's review, demo and plan parts, labels and hold had tables of their own. */
+function withoutParts(db: Database) {
+  if (!db.query("SELECT 1 FROM sqlite_master WHERE name = 'card_holds'").get()) return;
+  for (const t of ['card_reviews', 'card_demos', 'card_earlier_demos', 'card_plans', 'card_labels', 'card_holds']) db.run(`DROP TABLE ${t}`);
+  db.run('CREATE INDEX cards_plan_docs ON cards (project_id) WHERE deleted_at IS NULL AND plan_docs IS NOT NULL');
+  db.run('CREATE INDEX cards_shared ON cards (project_id) WHERE deleted_at IS NULL AND share IS NOT NULL');
+}
+
 /** The database as it was before projects had canvases: the migration that brought them undone, and the ones after it. */
 function withoutCanvases(db: Database) {
+  withoutParts(db);
   db.run('DROP TABLE card_ideas');
   db.run('ALTER TABLE cards DROP COLUMN hold');
   db.run('ALTER TABLE cards DROP COLUMN parking_lot');
@@ -76,11 +85,13 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     log(answered!.id, 'answer', 'owner', 'Yes');
     log(answered!.id, 'review', 'worker', 'Done again.');
     const paused = log(video!.id, 'state', 'owner', 'Paused. The agent goes on when you click “Resume” or write to it.');
-    s.cards.update(video!.id, { demo: JSON.stringify({ dir: '/d', chapters: [], answering: true }) });
-    s.cards.update(answered!.id, { demo: JSON.stringify({ kind: 'video', dir: '/d', chapters: [], question: 'Q?', answer: 'Yes' }) });
-    s.cards.update(held!.id, { share: JSON.stringify({ slug: 's', state: 'pending', dir: '/d', shown: { title: 'T', text: '', chapters: [] } }) });
+    const set = (id: string, column: string, value: object) => s.db.run(`UPDATE cards SET ${column} = ? WHERE id = ?`, [JSON.stringify(value), id]);
+    set(video!.id, 'demo', { dir: '/d', chapters: [], answering: true });
+    set(answered!.id, 'demo', { kind: 'video', dir: '/d', chapters: [], question: 'Q?', answer: 'Yes' });
+    set(held!.id, 'share', { slug: 's', state: 'pending', dir: '/d', shown: { title: 'T', text: '', chapters: [] } });
     s.settings.set('c', 'work_retro_since:app', '2026-10-01T00:00:00Z');
     // the schema as released: without the columns and indexes later migrations add
+    withoutParts(s.db);
     for (const index of ['cards_open', 'cards_plan_docs', 'cards_prototypes', 'cards_waiting', 'cards_shared']) s.db.run(`DROP INDEX ${index}`);
     s.db.run('ALTER TABLE talk DROP COLUMN reply_to');
     s.db.run('ALTER TABLE cards DROP COLUMN app');
@@ -138,13 +149,13 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
 
     const after = new Store(path);
     expect(after.decisions.of('c', plan!.id)[0]!.by).toBe('plan');
-    expect(JSON.parse(after.cards.get(video!.id)!.demo!)).toEqual({ dir: '/d', chapters: [], kind: 'video' });
+    expect(after.cards.get(video!.id)!.demo!.latest!).toEqual({ dir: '/d', chapters: [], kind: 'video' });
     expect(JSON.parse(after.cards.get(video!.id)!.detail!)).toEqual({ answering: true });
     expect(after.events.of(video!.id).find((e) => e.id === paused.id)!.text).toBe('Paused.');
-    expect(JSON.parse(after.cards.get(answered!.id)!.demo!).handover).toBe(first.id);
-    expect(JSON.parse(after.cards.get(held!.id)!.share!)).toMatchObject({ state: 'publishing', shown: { kind: 'video' } });
+    expect(after.cards.get(answered!.id)!.demo!.latest!.handover).toBe(first.id);
+    expect(after.cards.get(held!.id)!.demo!.share!).toMatchObject({ state: 'publishing', shown: { kind: 'video' } });
     expect(after.cards.get(plan!.id)!.kind).toBe('plan');
-    expect(JSON.parse(after.cards.get(plan!.id)!.plan!)).toEqual({ file: 'docs/plan/gone.md', title: 'Gone', goal: '', workstreams: [], markdown: '' });
+    expect(after.cards.get(plan!.id)!.plan!.doc!).toEqual({ file: 'docs/plan/gone.md', title: 'Gone', goal: '', workstreams: [], markdown: '' });
     expect(after.settings.get('c', 'work_retro_runs:app')).toBe('3');
     expect(after.cards.get(video!.id)!.agent_setting).toBeNull();
     expect(after.cards.get(video!.id)!.workstation).toBe('/w/1');
@@ -183,6 +194,7 @@ test('the migration gives the cards there are codes of their own, longer where t
     s.db.run('ALTER TABLE cards DROP COLUMN short');
     // later migrations run again after it: undo what they added
     s.db.run('ALTER TABLE events DROP COLUMN token');
+    withoutParts(s.db);
     for (const index of ['cards_open', 'cards_plan_docs', 'cards_prototypes', 'cards_waiting', 'cards_shared']) s.db.run(`DROP INDEX ${index}`);
     s.db.run('ALTER TABLE talk DROP COLUMN then_place');
     s.db.run('ALTER TABLE events DROP COLUMN made');
@@ -407,6 +419,7 @@ test('the pause, the pause at a safe point, the usage limit, the snooze and the 
     s.ensureProject('c', 'Shop');
     const rows = s.addCards(Array.from({ length: 8 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 })));
     const [paused, idea, pausing, limit, snoozed, ownerSnoozed, parked, free] = rows.map((r) => r.id);
+    withoutParts(s.db);
     s.db.run('DROP TABLE card_ideas');
     s.db.run('ALTER TABLE cards DROP COLUMN hold');
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD `hold`'))}`);
@@ -423,10 +436,7 @@ test('the pause, the pause at a safe point, the usage limit, the snooze and the 
     s.db.close();
 
     const after = new Store(path);
-    const hold = (id: string) => {
-      const h = after.cards.get(id)!.hold;
-      return h && JSON.parse(h);
-    };
+    const hold = (id: string): unknown => after.cards.get(id)!.hold;
     const since = expect.any(String);
     expect(hold(paused!)).toEqual({ reason: 'paused', since, held });
     expect(hold(idea!)).toEqual({ reason: 'paused', since });
@@ -445,6 +455,7 @@ test('an idea, a prototype, a proposal, a card built on a prototype, one that be
     s.ensureProject('c', 'Shop');
     const rows = s.addCards(Array.from({ length: 7 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 })));
     const [idea, prototype, proposed, built, plan, repo, plain] = rows.map((r) => r.id);
+    withoutParts(s.db);
     s.db.run('DROP TABLE card_ideas');
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE `card_ideas`'))}`);
     const set = (id: string, column: string, value: string | number) => s.db.run(`UPDATE cards SET ${column} = ? WHERE id = ?`, [value, id]);
@@ -477,12 +488,79 @@ test('a card gets its idea part once any of it is set, and loses it once all of 
   s.ensureProject('c', 'Shop');
   const [card] = s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0, idea: { proposal: { questions: [] } } }]);
   expect(card!.idea?.proposal).toEqual({ questions: [] });
-  s.updateCard(card!.id, {}, { becomesPlan: true });
+  s.updateCard(card!.id, { idea: { becomesPlan: true } });
   expect(s.cards.get(card!.id)!.idea).toMatchObject({ proposal: { questions: [] }, becomesPlan: true });
   expect(s.cards.proposalsFrom('c', card!.id)).toEqual([]);
-  s.updateCard(card!.id, {}, { proposal: null, becomesPlan: false });
+  s.updateCard(card!.id, { idea: { proposal: null, becomesPlan: false } });
   expect(s.cards.get(card!.id)!.idea).toBeNull();
   expect(s.db.query('SELECT COUNT(*) AS n FROM card_ideas').get()).toEqual({ n: 0 });
+});
+
+test('a pull request, a demo with earlier ones, a plan, labels and a hold move into tables of their own', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.ensureProject('c', 'Shop');
+    const [reviewed, demoed, planned, labelled, held, plain] = s.addCards(Array.from({ length: 6 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 }))).map((r) => r.id);
+    withoutParts(s.db);
+    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE \`card_reviews\`'))}`);
+    const set = (id: string, column: string, value: unknown) => s.db.run(`UPDATE cards SET ${column} = ? WHERE id = ?`, [typeof value === 'object' ? JSON.stringify(value) : (value as string | number), id]);
+    const pr = { url: 'https://github.com/a/b/pull/1', number: 1, seen: [], reported: [] };
+    set(reviewed!, 'pr', pr);
+    set(reviewed!, 'code_review', { mode: 'auto', handover: 3 });
+    const demo = (dir: string) => ({ kind: 'video', dir, chapters: [] });
+    set(demoed!, 'demo', demo('/c'));
+    set(demoed!, 'demos', [demo('/a'), demo('/b')]);
+    set(demoed!, 'share', { slug: 'csv' });
+    set(demoed!, 'files', [{ path: 'r.md', caption: 'Report' }]);
+    set(demoed!, 'held', [{ id: 4 }]);
+    set(planned!, 'plan', { file: 'docs/plan/a.md', title: 'A' });
+    set(planned!, 'collapsed', 1);
+    set(labelled!, 'category', 'frontend');
+    set(labelled!, 'complexity', 3);
+    set(labelled!, 'priority', 'high');
+    set(labelled!, 'suggested_labels', ['category', 'subcategory']);
+    set(labelled!, 'owner_labels', ['priority', 'subcategory']);
+    set(held!, 'hold', { reason: 'snoozed', since: '2026-11-08T10:00:00.000Z', until: '2026-11-09T08:00:00.000Z', by: 'owner' });
+    s.db.close();
+
+    const after = new Store(path);
+    const row = (id: string): Record<string, unknown> => after.cards.get(id)! as unknown as Record<string, unknown>;
+    expect(row(reviewed!).review).toEqual({ pr, contribution: null, codeReview: { mode: 'auto', handover: 3 } });
+    expect(row(demoed!).demo).toEqual({ latest: demo('/c'), earlier: [demo('/a'), demo('/b')], share: { slug: 'csv' }, pageHeard: null, files: [{ path: 'r.md', caption: 'Report' }], held: [{ id: 4 }] });
+    expect(row(planned!).plan).toEqual({ doc: { file: 'docs/plan/a.md', title: 'A' }, deps: null, collapsed: true, planDocs: null });
+    // a suggestion of a label since cleared is gone; the owner's set to none stays theirs
+    expect(row(labelled!).labels).toEqual({
+      category: { value: 'frontend', by: 'suggestion' },
+      complexity: { value: 3, by: null },
+      priority: { value: 'high', by: 'owner' },
+      subcategory: { value: null, by: 'owner' },
+    });
+    expect(row(held!).hold).toEqual({ reason: 'snoozed', since: '2026-11-08T10:00:00.000Z', until: '2026-11-09T08:00:00.000Z', by: 'owner' });
+    expect(row(plain!)).toMatchObject({ review: null, demo: null, plan: null, labels: {}, hold: null });
+    expect(after.cards.shared('c').map((r) => r.id)).toEqual([demoed!]);
+    expect(after.db.query('PRAGMA foreign_key_check').all()).toEqual([]);
+    after.db.close();
+  }));
+
+test('a card gets a part once any of it is set and loses it once all of it is cleared; a label set to nothing by nobody goes', () => {
+  const s = new Store(':memory:');
+  s.ensureProject('c', 'Shop');
+  const [card] = s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0, hold: { reason: 'parkingLot', since: '2026-11-08T10:00:00.000Z' } }]);
+  const id = card!.id;
+  expect(card!.hold).toEqual({ reason: 'parkingLot', since: '2026-11-08T10:00:00.000Z' });
+  const was = card!.updated_at;
+  s.updateCard(id, { demo: { latest: { kind: 'html', dir: '/d', chapters: [] }, earlier: [{ kind: 'video', dir: '/v', chapters: [] }] }, plan: { collapsed: true }, review: { pr: null }, hold: null });
+  const row = s.cards.get(id)!;
+  expect(row.updated_at >= was).toBe(true);
+  expect(row.demo).toMatchObject({ latest: { dir: '/d' }, earlier: [{ dir: '/v' }] });
+  expect([row.plan?.collapsed, row.review, row.hold]).toEqual([true, null, null]);
+  s.updateCard(id, { demo: { latest: null, earlier: [] }, plan: { collapsed: false } });
+  expect([s.cards.get(id)!.demo, s.cards.get(id)!.plan]).toEqual([null, null]);
+  s.updateCard(id, { labels: { priority: { value: 'high', by: 'owner' }, category: { value: null, by: 'owner' } } });
+  expect(s.cards.get(id)!.labels).toEqual({ priority: { value: 'high', by: 'owner' }, category: { value: null, by: 'owner' } });
+  s.updateCard(id, { labels: { priority: null, category: { value: null, by: null } } });
+  expect(s.cards.get(id)!.labels).toEqual({});
+  for (const t of ['card_reviews', 'card_demos', 'card_earlier_demos', 'card_plans', 'card_labels', 'card_holds']) expect(s.db.query(`SELECT COUNT(*) AS n FROM ${t}`).get()).toEqual({ n: 0 });
 });
 
 test('canvases: names unique per project in any case, ordered, a plan moves with its workstreams, a deleted one leaves its archive on main', () =>

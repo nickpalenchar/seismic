@@ -130,7 +130,8 @@
 // its branch checked out there, holding a commit where `branch` names it, of `branchFiles` (else of a `scratch.txt`; by path, a text or `{ from }` a file to copy); for one that works in worktrees, a branch is
 // required and the card gets a worktree of its own on it), prototypeOf (the key of the idea it is a prototype of),
 // and `row` for any other column of `cards` (objects are stored as JSON; an idea's columns go into its
-// idea part where the code has the ideas table, `idea` as its `discussion`; a
+// idea part where the code has the ideas table, `idea` as its `discussion`, and the columns of the other
+// parts into theirs, as the migration that brought their tables moved them; a
 // review card's `row.contribution` naming one of `pulls` gets that PR's head as `reviewed` where it names none). Times: "90s", "15m", "2h",
 // "3d" ago. `mainBranch` is the branch the repositories are on (default `main`). With `forgeClone`, the forge that plays `pulls` keeps its repository in <dir>/forge, a clone the PRs' heads are in, so that what lands on the local main is not on the forge until pushed; the contributors' repositories are that one too, so a push onto a PR's branch moves its head. `"setup": true` serves no project (no configuration, no repository given): the first start,
 // which shows the setup assistant; the repository is still made, for the assistant to pick, and
@@ -692,6 +693,33 @@ const columns = new Set((db.query('PRAGMA table_info(cards)').all() as { name: s
 /** A card's columns that code with the ideas table keeps there, under their names in it. */
 const IDEA_COLUMNS: Record<string, string> = { idea: 'discussion', prototype_of: 'prototype_of', prototype: 'prototype', proposal: 'proposal', built_on: 'built_on', becomes_plan: 'becomes_plan', new_repo: 'new_repo' };
 const ideaColumns = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_ideas'").get();
+/**
+ * Code with tables of their own for a card's review, demo and plan parts, its labels and its hold
+ * reads them there: what the stage wrote into the card's columns of those goes into them, as the
+ * migration that brought them moved it.
+ */
+const partTables = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_holds'").get();
+function copyParts(id: string) {
+  if (!partTables) return;
+  for (const t of ['card_reviews', 'card_demos', 'card_earlier_demos', 'card_plans', 'card_labels', 'card_holds']) db.query(`DELETE FROM ${t} WHERE card_id = $id`).run({ id });
+  const label = (l: string, v = l) =>
+    `INSERT INTO card_labels (card_id, label, value, by) SELECT id, '${l}', ${v}, CASE WHEN EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = '${l}') THEN 'owner'
+       WHEN ${l} IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(suggested_labels) WHERE value = '${l}') THEN 'suggestion' END
+     FROM cards WHERE id = $id AND (${l} IS NOT NULL OR EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = '${l}'))`;
+  for (const q of [
+    'INSERT INTO card_reviews (card_id, pr, contribution, code_review) SELECT id, pr, contribution, code_review FROM cards WHERE id = $id AND (pr IS NOT NULL OR contribution IS NOT NULL OR code_review IS NOT NULL)',
+    'INSERT INTO card_demos (card_id, latest, share, page_heard, files, held) SELECT id, demo, share, page_heard, files, held FROM cards WHERE id = $id AND (demo IS NOT NULL OR share IS NOT NULL OR page_heard IS NOT NULL OR files IS NOT NULL OR held IS NOT NULL)',
+    'INSERT INTO card_earlier_demos (card_id, position, demo) SELECT c.id, CAST(d.key AS INTEGER), d.value FROM cards c, json_each(c.demos) d WHERE c.id = $id AND c.demos IS NOT NULL',
+    'INSERT INTO card_plans (card_id, doc, deps, collapsed, plan_docs) SELECT id, plan, deps, collapsed, plan_docs FROM cards WHERE id = $id AND (plan IS NOT NULL OR deps IS NOT NULL OR collapsed != 0 OR plan_docs IS NOT NULL)',
+    label('category'),
+    label('subcategory'),
+    label('complexity', 'CAST(complexity AS TEXT)'),
+    label('priority'),
+    `INSERT INTO card_holds (card_id, reason, since, detail) SELECT id, json_extract(hold, '$.reason'), coalesce(json_extract(hold, '$.since'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+       nullif(json_remove(hold, '$.reason', '$.since'), '{}') FROM cards WHERE id = $id AND hold IS NOT NULL`,
+  ])
+    db.query(q).run({ id });
+}
 for (const [i, c] of stage.cards.entries()) {
   const id = idOf(c, i);
   const row: Record<string, unknown> = {};
@@ -819,6 +847,7 @@ for (const [i, c] of stage.cards.entries()) {
   }
   for (const [event, { demo, ...spot }] of spots)
     db.query('UPDATE events SET spot = $spot WHERE id = $id').run({ id: event, spot: JSON.stringify({ ...spot, ...(demo !== undefined && reviews[demo] ? { demo: reviews[demo].id } : {}) }) });
+  copyParts(id);
 }
 const prefIds: Record<string, number> = {};
 for (const [i, p] of (stage.preferences ?? []).entries()) {

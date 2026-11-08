@@ -420,7 +420,7 @@ describe('the landing message names the demo’s page', () => {
     rmSync(dir, { recursive: true, force: true });
     setup(adapter);
     site = true;
-    onApproval = (id) => board.work(id, { share: JSON.stringify({ slug: 's', state: 'publishing', next: [{ dir: demoDir(id) }] }) });
+    onApproval = (id) => board.work(id, { demo: { share: { slug: 's', state: 'publishing', next: [{ dir: demoDir(id) }] } } });
     setWorkers(new Workers({ board, runtime, workstations: spaces, adapter, shares: () => site, onApproval: (id) => (onApproval(id), null) }));
   }
   async function handedOver(commit = true) {
@@ -436,11 +436,11 @@ describe('the landing message names the demo’s page', () => {
     runtime.last.emit({ type: 'idle' });
     return c;
   }
-  const demoDir = (id: string) => (JSON.parse(board.row(id).demo!) as { dir: string }).dir;
+  const demoDir = (id: string) => (board.row(id).demo!.latest! as { dir: string }).dir;
   /** The page went out, as the demo site tells it. */
   function published(id: string) {
     const dir = demoDir(id);
-    board.work(id, { share: JSON.stringify({ slug: 's', url: URL_, demos: [{ dir, shown: { title: 'T', text: 'T', chapters: [], kind: 'html' } }] }) });
+    board.work(id, { demo: { share: { slug: 's', url: URL_, demos: [{ dir, shown: { title: 'T', text: 'T', chapters: [], kind: 'html' } }] } } });
     workers.pageSettled(id, { url: URL_ });
   }
 
@@ -469,7 +469,7 @@ describe('the landing message names the demo’s page', () => {
     const c = await handedOver();
     const session = runtime.last;
     await workers.approve(c.id);
-    board.work(c.id, { share: JSON.stringify({ slug: 's' }) });
+    board.work(c.id, { demo: { share: { slug: 's' } } });
     workers.pageSettled(c.id, { why: 'upload refused: token expired' });
     expect(session.inbox.at(-1)).toContain('did not go out (upload refused: token expired)');
     expect(session.inbox.at(-1)).toContain('ask the owner for a link');
@@ -481,7 +481,7 @@ describe('the landing message names the demo’s page', () => {
     const session = runtime.last;
     await workers.approve(c.id);
     // the page went out while nobody told the workers (a restart in between, say)
-    board.work(c.id, { share: JSON.stringify({ slug: 's', url: URL_, demos: [{ dir: demoDir(c.id), shown: { title: 'T', text: 'T', chapters: [], kind: 'html' } }] }) });
+    board.work(c.id, { demo: { share: { slug: 's', url: URL_, demos: [{ dir: demoDir(c.id), shown: { title: 'T', text: 'T', chapters: [], kind: 'html' } }] } } });
     session.emit({ type: 'idle' });
     expect(session.inbox.at(-1)).toContain(`shared with the team on a page of its own: ${URL_}`);
     expect(session.closed).toBe(false);
@@ -560,9 +560,9 @@ describe('the worker hears what became of its demo’s page', () => {
     runtime.last.emit({ type: 'idle' });
     return c;
   }
-  const demoDir = (id: string) => (JSON.parse(board.row(id).demo!) as { dir: string }).dir;
-  const going = (id: string) => board.work(id, { share: JSON.stringify({ slug: 's', state: 'publishing', next: [{ dir: demoDir(id) }] }) });
-  const online = (id: string) => board.work(id, { share: JSON.stringify({ slug: 's', url: URL_, demos: [{ dir: demoDir(id), shown: { title: 'T', text: 'T', chapters: [], kind: 'html' } }] }) });
+  const demoDir = (id: string) => (board.row(id).demo!.latest! as { dir: string }).dir;
+  const going = (id: string) => board.work(id, { demo: { share: { slug: 's', state: 'publishing', next: [{ dir: demoDir(id) }] } } });
+  const online = (id: string) => board.work(id, { demo: { share: { slug: 's', url: URL_, demos: [{ dir: demoDir(id), shown: { title: 'T', text: 'T', chapters: [], kind: 'html' } }] } } });
 
   test('shared by the owner after the handover: their next words come with the page’s address and where Seismic links it', async () => {
     const c = await handedOver();
@@ -598,13 +598,13 @@ describe('the worker hears what became of its demo’s page', () => {
     workers.message(c.id, 'Go on.');
     going(c.id);
     session.toolStep();
-    board.work(c.id, { share: JSON.stringify({ slug: 's' }) });
+    board.work(c.id, { demo: { share: { slug: 's' } } });
     expect(session.toolStep()).toContain('Sharing your demo did not work');
     online(c.id);
     session.toolStep();
-    board.work(c.id, { share: JSON.stringify({ slug: 's', url: URL_, state: 'withdrawing', demos: [] }) });
+    board.work(c.id, { demo: { share: { slug: 's', url: URL_, state: 'withdrawing', demos: [] } } });
     expect(session.toolStep()).toContain('The owner stopped sharing your demo');
-    board.work(c.id, { share: JSON.stringify({ slug: 's' }) });
+    board.work(c.id, { demo: { share: { slug: 's' } } });
     expect(session.toolStep()).toBeUndefined();
   });
 
@@ -791,7 +791,7 @@ describe('a workstream merged as a pull request, its box still empty', () => {
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
     runtime.last.emit({ type: 'idle' });
     await workers.approve(w.id);
-    board.work(w.id, { pr: JSON.stringify({ url: 'https://github.com/acme/app/pull/821', number: 821, seen: [], reported: [] }) });
+    board.work(w.id, { review: { pr: { url: 'https://github.com/acme/app/pull/821', number: 821, seen: [], reported: [] } } });
     return w;
   };
 
@@ -994,7 +994,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
     runtime.last.emit({ type: 'idle' });
     await workers.approve(w.id);
-    board.work(w.id, { pr: JSON.stringify({ url: 'https://github.com/acme/app/pull/821', number: 821, seen: [], reported: [] }) });
+    board.work(w.id, { review: { pr: { url: 'https://github.com/acme/app/pull/821', number: 821, seen: [], reported: [] } } });
     runtime.last.emit({ type: 'idle' });
     expect(state(w.id)).toBe('inPr');
     ticked();
@@ -1047,7 +1047,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     await flush();
     expect(state(w.id)).toBe('inPr');
     expect(runtime.last.inbox.at(-1) ?? '').not.toContain('Your pull request was merged');
-    board.work(w.id, { pr: JSON.stringify({ url: 'https://github.com/acme/app/pull/822', number: 822, seen: [], reported: [] }) });
+    board.work(w.id, { review: { pr: { url: 'https://github.com/acme/app/pull/822', number: 822, seen: [], reported: [] } } });
     runtime.last.emit({ type: 'idle' });
     await flush();
     expect(state(w.id)).toBe('inPr');

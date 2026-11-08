@@ -610,7 +610,7 @@ describe("Koordinator queues a review's follow-up tasks", () => {
   function review(state: 'working' | 'waiting' | 'live' = 'working') {
     const r = card('PR #34: Manual dependencies');
     const c: StoredContribution = { url: 'https://github.com/acme/app/pull/34', number: 34, author: 'amerlander', title: 'Manual dependencies', canModify: true };
-    board.work(r.id, { contribution: JSON.stringify(c), state });
+    board.work(r.id, { review: { contribution: c }, state });
     return r;
   }
 
@@ -657,8 +657,8 @@ describe("Koordinator queues a review's follow-up tasks", () => {
     const r = review();
     const f = board.create({ title: 'Explain the arrows', from: r.id });
     k.followUp(f.id, r.id);
-    const c = JSON.parse(board.row(r.id).contribution!) as StoredContribution;
-    board.work(r.id, { contribution: JSON.stringify({ ...c, closed: true } satisfies StoredContribution), state: 'done' });
+    const c = board.row(r.id).review!.contribution! as StoredContribution;
+    board.work(r.id, { review: { contribution: { ...c, closed: true } satisfies StoredContribution }, state: 'done' });
     await settle();
     expect(item(f.id).state).toBe('planned');
     expect(item(f.id).queue).toBeUndefined();

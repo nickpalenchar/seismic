@@ -691,7 +691,7 @@ describe('sharing to a site', () => {
 
   const card = () => {
     const c = board.create({ title: 'CSV export', x: 0, y: 0 });
-    board.work(c.id, { state: 'live', demo: JSON.stringify({ kind: 'video', dir: demo, chapters: [[0, 'Before']], page: { title: 'CSV export', text: 'One sentence.' } }) });
+    board.work(c.id, { state: 'live', demo: { latest: { kind: 'video', dir: demo, chapters: [[0, 'Before']], page: { title: 'CSV export', text: 'One sentence.' } } } });
     return c.id;
   };
   const settled = async (id: string, state: string | undefined) => {

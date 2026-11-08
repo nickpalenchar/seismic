@@ -109,7 +109,7 @@ describe('the Lesestand', () => {
     const c = open();
     const ws = (label: string) => c.board.snapshot().items.find((i) => i.plan?.label === label)!;
     expect([ws('W1').state, ws('W2').state]).toEqual(['planned', 'planned']);
-    c.board.work(ws('W1').id, { state: 'inPr', pr: JSON.stringify({ url: 'https://example.com/pr/1' }) });
+    c.board.work(ws('W1').id, { state: 'inPr', review: { pr: { url: 'https://example.com/pr/1', seen: [], reported: [] } } });
     push({ 'docs/plan/export.md': doc('Export', 'W1') });
     c.repos[0]!.workers.merged(ws('W1').id);
     // the merge started the refresh; a second call waits for the same one

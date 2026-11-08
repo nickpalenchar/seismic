@@ -10,7 +10,12 @@ import type { Scope } from '../../koordinator';
 import type { LandedState, PageHeard, Unheard } from '../../workers';
 import { groups } from '../groups';
 import { projects } from '../projects';
+import { asDemo, type CardDemo, cardDemos, cardEarlierDemos, type DemoUpdate, EARLIER } from './demos';
+import { asHold, cardHolds } from './holds';
 import { type CardIdea, cardIdeas, type IdeaUpdate } from './ideas';
+import { asLabels, type CardLabels, cardLabels, type LabelsUpdate } from './labels';
+import { type CardPlan, cardPlans, type PlanUpdate } from './plans';
+import { type CardReview, cardReviews, type ReviewUpdate } from './reviews';
 
 /** Every card, whatever its kind; what each column holds is described on `CardRow`. */
 export const cards = sqliteTable(
@@ -38,8 +43,10 @@ export const cards = sqliteTable(
     fromId: text('from_id').references((): AnySQLiteColumn => cards.id),
     scope: text({ mode: 'json' }).$type<Scope>(),
     queue: text({ mode: 'json' }).$type<Queue>(),
+    /** Not read since the reviews table took its place, nor are `contribution` and `code_review`: kept until the moved columns are dropped. */
     pr: text({ mode: 'json' }).$type<PrState>(),
     repo: text(),
+    /** Not read since the demos tables took its place, nor are `demos`, `share`, `page_heard`, `files` and `held`: kept until the moved columns are dropped. */
     demo: text({ mode: 'json' }).$type<StoredDemo>(),
     archivedAt: text('archived_at'),
     /** Not read since the ideas table took its place, nor are `prototype_of`, `prototype`, `proposal`, `built_on`, `becomes_plan` and `new_repo`: kept until the moved columns are dropped. */
@@ -48,6 +55,7 @@ export const cards = sqliteTable(
     approvedAt: text('approved_at'),
     landed: text({ mode: 'json' }).$type<LandedState>(),
     images: text({ mode: 'json' }).$type<string[]>(),
+    /** Not read since the plans table took its place, nor are `plan_docs`, `deps` and `collapsed`: kept until the moved columns are dropped. */
     plan: text({ mode: 'json' }).$type<PlanDoc>(),
     planDocs: text('plan_docs', { mode: 'json' }).$type<string[]>(),
     prototype: text(),
@@ -79,6 +87,7 @@ export const cards = sqliteTable(
     agentSetting: text('agent_setting', { mode: 'json' }).$type<AgentSetting>(),
     /** Set on every card (`SHORT` in db.ts); nullable only because it was added to a table that had rows. */
     short: text(),
+    /** Not read since the labels table took its place, nor are `category`, `subcategory`, `complexity`, `suggested_labels` and `owner_labels`: kept until the moved columns are dropped. */
     priority: text().$type<Priority>(),
     category: text().$type<Category>(),
     subcategory: text().$type<Subcategory>(),
@@ -89,7 +98,8 @@ export const cards = sqliteTable(
     /** No foreign key, which would keep a canvas from ever being dropped: the store keeps it valid. */
     canvasId: text('canvas_id'),
     parkingLot: text('parking_lot'),
-    hold: text({ mode: 'json' }).$type<Hold>(),
+    /** Not read since the holds table took its place: kept until the moved columns are dropped. */
+    hold: text({ mode: 'json' }),
   },
   (t) => [
     unique().on(t.projectId, t.planRef),
@@ -97,10 +107,8 @@ export const cards = sqliteTable(
     index('cards_canvas').on(t.canvasId),
     // the cards each change of a project reads, without going through its archive
     index('cards_open').on(t.projectId).where(sql`deleted_at IS NULL AND archived_at IS NULL`),
-    index('cards_plan_docs').on(t.projectId).where(sql`deleted_at IS NULL AND plan_docs IS NOT NULL`),
     index('cards_prototypes').on(t.projectId, t.createdAt).where(sql`deleted_at IS NULL AND prototype_of IS NOT NULL`),
     index('cards_waiting').on(t.projectId).where(sql`waiting_since IS NOT NULL`),
-    index('cards_shared').on(t.projectId).where(sql`deleted_at IS NULL AND share IS NOT NULL`),
   ],
 );
 
@@ -140,22 +148,22 @@ export interface CardRow {
   scope: string | null;
   /** JSON: set while the Koordinator decides (`{ checking: true }`) or the card waits (`{ behind, reason }`), with `since`. */
   queue: string | null;
-  /** JSON: the card's pull request once approval opened the PR phase (`PrState`); on a review card, the one it reviews from the start. */
-  pr: string | null;
-  /** JSON, review cards only: the contributor's pull request the card reviews (`StoredContribution` in board.ts). */
-  contribution: string | null;
-  /** JSON: the code review of the card's work where its project reviews work that lands on main (`StoredCodeReview` in board.ts). */
-  code_review: string | null;
   /** The owner's card's repository on a project with several; null is the home repository. */
   repo: string | null;
-  /** JSON: the card's latest demo (`{ kind, dir, chapters, question? }`; no `kind` is a video). */
-  demo: string | null;
-  /** JSON: the demos of earlier handovers a later one replaced, the oldest first, each as `demo` was; append only. */
-  demos: string | null;
   /** When the owner took the finished card off the project into the archive. */
   archived_at: string | null;
   /** Its idea part (`cardIdeas`): set once the card is an idea, a prototype or a worker's proposal, or was decided to become a plan or built in a new repository. */
   idea: CardIdea | null;
+  /** Its review part (`cardReviews`): its pull request, a contributor's it reviews, the code review of its work. */
+  review: CardReview | null;
+  /** Its demo part (`cardDemos`, `cardEarlierDemos`): the latest demo and the earlier ones, its page for colleagues, the files named as the result. */
+  demo: CardDemo | null;
+  /** Its plan part (`cardPlans`): a plan's doc, deps and fold; the plan docs a card's landed work added. */
+  plan: CardPlan | null;
+  /** Its labels (`cardLabels`), those it has. */
+  labels: CardLabels;
+  /** While the card's agent does not run or the card is off the canvas, why (`cardHolds`): paused, about to pause, paused by the usage limit, snoozed, in the parking lot. */
+  hold: Hold | null;
   /** When the owner approved work that could not land yet; its next handover lands without asking again. */
   approved_at: string | null;
   /**
@@ -165,14 +173,8 @@ export interface CardRow {
   landed: string | null;
   /** JSON: ids of the screenshots the owner attached to the card's task. */
   images: string | null;
-  /** JSON, plans only: the plan doc as last read (`PlanDoc`), kept for the archive once the doc is gone. */
-  plan: string | null;
   /** A card the work retrospective proposed: what it rests on. */
   retro: string | null;
-  /** JSON: the plan docs (plan references) the landed work of a card that was an idea added. */
-  plan_docs: string | null;
-  /** JSON: the demo's page for colleagues (`StoredShare` in share.ts); its slug stays once it was shared. */
-  share: string | null;
   /** The group the card belongs to; a plan's covers its workstreams, whose own stays null. */
   group_id: string | null;
   /**
@@ -183,8 +185,6 @@ export interface CardRow {
   shipped: string | null;
   /** When Seismic stopped the app in the card's workstation while the card waited (Parking); gone once its worker heard so. */
   parked: string | null;
-  /** JSON: the owner's comments on places in the demo video Seismic holds back while they watch (event ids, `Item.held`). */
-  held: string | null;
   /** JSON, a Question card (and an idea that was one): the thread of looked-up answers it holds (`StoredThread` in board.ts). */
   thread: string | null;
   /** JSON: the owner's words Seismic holds for the card's worker until it takes them in, at its next tool step or turn (`Unheard` in workers.ts). */
@@ -193,53 +193,56 @@ export interface CardRow {
   app: string | null;
   /** Since when the card waits for the owner (`needsYou`), kept while it does; null while it does not. */
   waiting_since: string | null;
-  /** JSON, while the card's agent does not run or the card is off the canvas, why (`Hold`): paused, about to pause, paused by the usage limit, snoozed, in the parking lot. */
-  hold: string | null;
-  /** JSON: the files its worker named as the result at its latest handover that named any (`CardFile[]`). */
-  files: string | null;
-  /** JSON, plans only: which workstream builds on which, as the Koordinator read it from the plan doc (`StoredDeps` in board.ts). */
-  deps: string | null;
-  /** 1 while the owner has a plan folded to its head: its workstreams are not shown on the project. */
-  collapsed: number;
   /**
    * The clone (`ssh://<host>/…` on a host) that holds the newest state of the card's branch since
    * the owner took its workstation from it, its uncommitted work in a commit of Seismic's on top; gone
    * once the card works in a clone again, which takes the branch from there.
    */
   kept_in: string | null;
-  /** What the card's worker last heard of its demo's page (`PageHeard` in workers.ts), so it hears of a change with its next step. */
-  page_heard: string | null;
-  /** The priority the owner gave the card (`Priority`), null while none. */
-  priority: string | null;
-  /** The card's category (`Category`), null while none. */
-  category: string | null;
-  /** The card's sub-category (`Subcategory`), null while none. */
-  subcategory: string | null;
-  /** The card's complexity (`Complexity`), null while none. */
-  complexity: number | null;
-  /** JSON: the labels Seismic set as its suggestion and the owner has not touched since (`Label[]`); null while none. */
-  suggested_labels: string | null;
-  /** JSON: the labels the owner has set, to a value or to none (`Label[]`): Seismic suggests none of them again. Null while none. */
-  owner_labels: string | null;
   /** The card's code in addresses (`/p/<project>/c/<code>`): the start of its id's hex digits, unique among all cards (`SHORT`). */
   short: string;
 }
 
+/** The card's parts in tables of their own, each under its name on `CardRow`. */
+export const PARTS = ['idea', 'review', 'demo', 'plan', 'labels', 'hold'] as const;
+export type Part = (typeof PARTS)[number];
+
+/** Changes to a card's parts in tables of their own: the fields of each to set (`hold` replaced or, `null`, let go). */
+export interface PartsUpdate {
+  idea?: IdeaUpdate;
+  review?: ReviewUpdate;
+  demo?: DemoUpdate;
+  plan?: PlanUpdate;
+  labels?: LabelsUpdate;
+  hold?: Hold | null;
+}
+
 /**
- * A card to store, with its idea part (`idea`) where it has one; without `canvas_id` it goes on its
- * plan's canvas (a workstream), else on the project's `main` (`Store.addCards`).
+ * A card to store, with its parts where it has any; without `canvas_id` it goes on its plan's
+ * canvas (a workstream), else on the project's `main` (`Store.addCards`).
  */
 export type NewRow = Pick<CardRow, 'project_id' | 'kind' | 'x' | 'y'> &
-  Partial<Pick<CardRow, 'canvas_id' | 'state' | 'title' | 'body' | 'parent_id' | 'plan_ref' | 'from_id' | 'repo' | 'images' | 'retro' | 'group_id'>> & { idea?: IdeaUpdate };
+  Partial<Pick<CardRow, 'canvas_id' | 'state' | 'title' | 'body' | 'parent_id' | 'plan_ref' | 'from_id' | 'repo' | 'images' | 'retro' | 'group_id'>> &
+  PartsUpdate;
 
 /** What `Cards.update` may change on a card: all but what is set once at its creation, its times and its parts in tables of their own. */
-export type RowUpdate = Partial<Omit<CardRow, 'id' | 'project_id' | 'canvas_id' | 'parent_id' | 'plan_ref' | 'retro' | 'created_at' | 'updated_at' | 'idea'>>;
+export type RowUpdate = Partial<Omit<CardRow, 'id' | 'project_id' | 'canvas_id' | 'parent_id' | 'plan_ref' | 'retro' | 'created_at' | 'updated_at' | Part>>;
+
+/** What `Store.updateCard` may change on a card: its own fields and its parts. */
+export type CardUpdate = RowUpdate & PartsUpdate;
 
 /** What a new card is stored with: the fields of `NewRow`, its own and its times. */
 const NEW_FIELDS = ['id', 'short', 'project_id', 'canvas_id', 'kind', 'state', 'title', 'body', 'x', 'y', 'parent_id', 'plan_ref', 'from_id', 'repo', 'images', 'retro', 'group_id', 'created_at', 'updated_at'] as const;
 
 /** The columns of `cards` that moved into a table of their own, kept until they are dropped and no longer read. */
-const MOVED = new Set(['idea', 'prototype_of', 'prototype', 'proposal', 'built_on', 'becomes_plan', 'new_repo', 'paused', 'pausing', 'snoozed', 'parking_lot']);
+const MOVED = new Set([
+  ...['idea', 'prototype_of', 'prototype', 'proposal', 'built_on', 'becomes_plan', 'new_repo'],
+  ...['paused', 'pausing', 'snoozed', 'parking_lot', 'hold'],
+  ...['pr', 'contribution', 'code_review'],
+  ...['demo', 'demos', 'share', 'page_heard', 'files', 'held'],
+  ...['plan', 'deps', 'collapsed', 'plan_docs'],
+  ...['priority', 'category', 'subcategory', 'complexity', 'suggested_labels', 'owner_labels'],
+]);
 
 /** The card's own columns as stored (JSON as its text), as `CardRow` has them. */
 const own = Object.fromEntries(
@@ -247,8 +250,13 @@ const own = Object.fromEntries(
     .filter((c) => !MOVED.has(c.name))
     .map((c) => [c.name, sql`${c}`.as(c.name)]),
 );
-/** How a card is read: its own columns as stored, with its parts from their tables (`CardRow`). */
-const READ = { columns: {}, extras: own, with: { idea: { columns: { cardId: false } } } } as const;
+const noKey = { columns: { cardId: false } } as const;
+/** How a card is read: its own columns as stored, with its parts from their tables (`toRow` makes it a `CardRow`). */
+const READ = {
+  columns: {},
+  extras: own,
+  with: { idea: noKey, review: noKey, demo: noKey, earlierDemos: EARLIER, plan: noKey, labels: { columns: { label: true, value: true, by: true } }, hold: noKey },
+} as const;
 /** Each column's key in `cards` by its name in the database. */
 const keyOf = new Map(Object.entries(getTableColumns(cards)).map(([key, c]) => [c.name, key]));
 
@@ -263,7 +271,28 @@ function asStored(fields: Record<string, unknown>): Record<string, SQL> {
   );
 }
 
-export const cardsRelations = relations(cards, ({ one }) => ({ idea: one(cardIdeas, { fields: [cards.id], references: [cardIdeas.cardId] }) }));
+export const cardsRelations = relations(cards, ({ one, many }) => ({
+  idea: one(cardIdeas, { fields: [cards.id], references: [cardIdeas.cardId] }),
+  review: one(cardReviews, { fields: [cards.id], references: [cardReviews.cardId] }),
+  demo: one(cardDemos, { fields: [cards.id], references: [cardDemos.cardId] }),
+  earlierDemos: many(cardEarlierDemos),
+  plan: one(cardPlans, { fields: [cards.id], references: [cardPlans.cardId] }),
+  labels: many(cardLabels),
+  hold: one(cardHolds, { fields: [cards.id], references: [cardHolds.cardId] }),
+}));
+
+/** A card as the relational query reads it (`READ`). */
+type Read = Omit<CardRow, 'demo' | 'labels' | 'hold'> & {
+  demo: Parameters<typeof asDemo>[0];
+  earlierDemos: Parameters<typeof asDemo>[1];
+  labels: Parameters<typeof asLabels>[0];
+  hold: Parameters<typeof asHold>[0];
+};
+
+/** A card as the relational query reads it (`READ`), as `CardRow`: the parts whose rows need putting together, put together. */
+function toRow({ earlierDemos, demo, labels, hold, ...row }: Read): CardRow {
+  return { ...row, demo: asDemo(demo, earlierDemos), labels: asLabels(labels), hold: asHold(hold) };
+}
 
 const open = (projectId: string) => and(eq(cards.projectId, projectId), isNull(cards.deletedAt));
 /** A card with a worker's proposal, waiting or accepted. Its table under a name of its own: a relational query reads every column of `cards_idea` as one of the card's. */
@@ -280,12 +309,13 @@ export class Cards {
   }
 
   get(id: string): CardRow | null {
-    return (this.byId.get({ id }) as CardRow | undefined) ?? null;
+    const row = this.byId.get({ id }) as Read | undefined;
+    return row ? toRow(row) : null;
   }
 
   /** The cards `where` selects, as read (`READ`), in the order given. */
   private rows(where: SQL | undefined, orderBy?: SQL[]): CardRow[] {
-    return this.db.query.cards.findMany({ ...READ, where, ...(orderBy ? { orderBy } : {}) }).sync() as unknown as CardRow[];
+    return this.db.query.cards.findMany({ ...READ, where, ...(orderBy ? { orderBy } : {}) }).sync().map((r) => toRow(r as unknown as Read));
   }
 
   /** The rows of these cards, deleted or archived ones too. */
@@ -301,7 +331,7 @@ export class Cards {
 
   /** The project's cards, archived ones too, that were ever shared or are about to be. */
   shared(projectId: string): CardRow[] {
-    return this.rows(and(open(projectId), isNotNull(cards.share)));
+    return this.rows(and(open(projectId), sql`EXISTS (SELECT 1 FROM card_demos d WHERE d.card_id = ${cards.id} AND d.share IS NOT NULL)`));
   }
 
   /** The project's archive, the most recently archived first. */
@@ -316,7 +346,7 @@ export class Cards {
 
   /** The cards whose landed work added plan docs, on the project or archived. */
   withPlanDocs(projectId: string): CardRow[] {
-    return this.rows(and(open(projectId), isNotNull(cards.planDocs)));
+    return this.rows(and(open(projectId), sql`EXISTS (SELECT 1 FROM card_plans p WHERE p.card_id = ${cards.id} AND p.plan_docs IS NOT NULL)`));
   }
 
   /** The workstreams of the given plans. */

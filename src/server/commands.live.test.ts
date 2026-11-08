@@ -13,6 +13,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Board } from './board';
+import type { CardUpdate } from './models/cards/cards';
 import { type Command, Commander } from './commands';
 import { Config } from './config';
 import { Store } from './store';
@@ -32,8 +33,8 @@ const cwds: string[] = [];
 const cwd = () => cwds[cwds.push(mkdtempSync(join(tmpdir(), 'obeya-live-'))) - 1]!;
 afterAll(() => cwds.forEach((d) => rmSync(d, { recursive: true, force: true })));
 
-const DEMO = JSON.stringify({ kind: 'video', dir: '/d', chapters: [], question: 'Alte Projekte nachtragen?' });
-const STATES: Record<string, Record<string, string>> = {
+const DEMO = { latest: { kind: 'video' as const, dir: '/d', chapters: [], question: 'Alte Projekte nachtragen?' } };
+const STATES: Record<string, CardUpdate> = {
   working: { state: 'working' },
   question: { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'CSV oder Excel?', options: ['CSV', 'Excel'] } }) },
   demo: { state: 'waiting', need: 'demo', demo: DEMO },
@@ -43,7 +44,7 @@ const STATES: Record<string, Record<string, string>> = {
   planned: { state: 'planned' },
   // LOGIN: the card “Login”, which it waits for
   queued: { state: 'planned', queue: JSON.stringify({ behind: ['LOGIN'], reason: 'Beide ändern die Sitzungsverwaltung.' }) },
-  proposal: { state: 'proposal', proposal: JSON.stringify({ reason: 'Beim Login aufgefallen.', questions: [{ text: 'Welche Kodierung?', options: ['UTF-8', 'Latin-1'] }] }) },
+  proposal: { state: 'proposal', idea: { proposal: { reason: 'Beim Login aufgefallen.', questions: [{ text: 'Welche Kodierung?', options: ['UTF-8', 'Latin-1'] }] } } },
 };
 
 /**
@@ -83,7 +84,7 @@ async function hear(state: string, text: string, request: string | null, typed: 
   if (state === 'queued') board.work(login.id, { state: 'working' });
   const card = board.create({ title: 'Export als CSV', x: 0, y: 0 });
   const { proposal, ...fields } = Object.fromEntries(Object.entries(STATES[state]!).map(([k, v]) => [k, v.replace('LOGIN', login.id)]));
-  board.work(card.id, fields, proposal ? { proposal: JSON.parse(proposal) } : {});
+  board.work(card.id, { ...fields, idea: proposal ? { proposal: JSON.parse(proposal) } : {} });
   const executed: Command[] = [];
   // what the session said: a command not understood shows why (not logged in, an API error)
   const said: string[] = [];
@@ -354,7 +355,7 @@ async function reviews(text: string) {
   const board = new Board(new Store(':memory:'), { id: 'c', name: 'Shop', repos: [{ id: 'shop', name: 'Shop', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
   board.work(board.create({ title: 'Checkout button looks disabled', x: 0, y: 0 }).id, { state: 'live' });
   const contribution = { url: 'https://github.com/acme/shop/pull/4', number: 4, author: 'alice', title: 'Round totals to cents', canModify: true };
-  board.work(board.create({ title: 'PR #4: Round totals to cents', x: 0, y: 0 }).id, { state: 'done', contribution: JSON.stringify(contribution) });
+  board.work(board.create({ title: 'PR #4: Round totals to cents', x: 0, y: 0 }).id, { state: 'done', review: { contribution: contribution } });
   board.addTalk('Review bitte Pull Request Nummer 4.', 'Neue Aufgabe für das Review von Pull Request 4, der Agent prüft ihn.');
   // tasks made for reviews before, which only look like review cards
   board.work(board.create({ title: 'Review PR #2', body: 'Review Pull Request 2.', x: 0, y: 0 }).id, { state: 'done' });

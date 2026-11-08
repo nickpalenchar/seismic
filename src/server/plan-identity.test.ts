@@ -250,7 +250,7 @@ describe('cards of a doc read by an older Seismic', () => {
     work(b!.id, '3B Auth zusammenführen', { state: 'planned' });
     // the doc changed while the older Seismic did not look: 3B is first now
     const moved = parse([OLD[1]!, OLD[0]!, OLD[2]!]);
-    store.cards.update(store.cards.plans('c')[0]!.id, { plan: JSON.stringify(positional(moved)) });
+    store.updateCard(store.cards.plans('c')[0]!.id, { plan: { doc: positional(moved) } });
     const after = read(moved);
     expect(after.find((k) => k.plan?.label === '3B')!.id).toBe(b!.id);
     expect(after.find((k) => k.plan?.label === '1G')!.id).not.toBe(b!.id);

@@ -3,6 +3,7 @@
 import { appendFileSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import type { StoredDemo } from './board';
 import type { Forge } from './forge';
 import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, PermissionAnswer } from './runtime';
 import { git } from './workstations';
@@ -207,10 +208,11 @@ kill $proxy 2>/dev/null
 
 
 /** A demo for a handover in a test that is not about demos: an HTML artifact in a directory of its own. */
-export function artifact(): { kind: 'html'; dir: string } {
+export function artifact(): StoredDemo {
   const dir = mkdtempSync(join(tmpdir(), 'obeya-artifact-'));
   writeFileSync(join(dir, 'index.html'), '<p>Ergebnis</p>\n');
-  return { kind: 'html', dir };
+  // as a worker's handover stores an artifact: without chapters
+  return { kind: 'html', dir } as StoredDemo;
 }
 
 /**

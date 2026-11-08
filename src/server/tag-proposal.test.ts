@@ -45,8 +45,8 @@ beforeEach(() => {
   const demo = join(dir, 'demos', done!.id);
   mkdirSync(demo, { recursive: true });
   writeFileSync(join(demo, 'demo.mp4'), 'video');
-  store.cards.update(done!.id, {
-    demo: JSON.stringify({ dir: demo, kind: 'video', chapters: [[0, 'Download']], page: { title: 'Invoices to download', text: 'Customers get their invoice as a PDF from the order page.' } }),
+  store.updateCard(done!.id, {
+    demo: { latest: { dir: demo, kind: 'video', chapters: [[0, 'Download']], page: { title: 'Invoices to download', text: 'Customers get their invoice as a PDF from the order page.' } } },
     archived_at: new Date().toISOString(),
   });
   project.board.changed();

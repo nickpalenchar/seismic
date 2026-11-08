@@ -106,7 +106,7 @@ afterEach(() => {
 async function reviewCard(canModify = true) {
   const card = board.create({ title: 'PR #5: Watcher polls gh in the background', body: 'Look at security especially.', x: 0, y: 0 });
   const c: StoredContribution = { url: URL_, number: 5, author: 'amerlander', title: 'Watcher polls gh in the background', canModify, headRepo: origin, headRef: 'contrib' };
-  board.work(card.id, { contribution: JSON.stringify(c) });
+  board.work(card.id, { review: { contribution: c } });
   await workers.start(card.id);
   await until(() => runtime.sessions.length > 0);
   return card.id;
@@ -135,7 +135,7 @@ const FINDINGS = [
   { title: 'Path in the file name', text: 'The title goes into the file name unchecked.', security: true },
   { title: 'No shortcut', text: 'The menu entry has no keyboard shortcut.' },
 ];
-const contribution = (id: string) => JSON.parse(board.row(id).contribution!) as StoredContribution;
+const contribution = (id: string) => board.row(id).review!.contribution! as StoredContribution;
 
 /**
  * A card whose work landed on the local main and was never pushed: a commit of `file` there, the
@@ -185,7 +185,7 @@ describe('a review card', () => {
   test('a branch name a shell would run is not handed to the worker as a command', async () => {
     const card = board.create({ title: 'PR #5', x: 0, y: 0 });
     const c: StoredContribution = { url: URL_, number: 5, author: 'amerlander', title: 'T', canModify: true, headRepo: 'https://github.com/amerlander/app.git', headRef: 'topic$(id)' };
-    board.work(card.id, { contribution: JSON.stringify(c) });
+    board.work(card.id, { review: { contribution: c } });
     await workers.start(card.id);
     await until(() => runtime.sessions.length > 0);
     expect(runtime.last.inbox[0]).not.toContain('$(id)');
@@ -803,14 +803,14 @@ describe('“Review PR #5” on a project', () => {
 
   test('a PR one of Seismic’s workers opened opens that card', async () => {
     const own = project.board.create({ title: 'Export', x: 0, y: 0 });
-    project.board.work(own.id, { state: 'inPr', pr: JSON.stringify({ url: URL_, number: 5, seen: [], reported: [] }) });
+    project.board.work(own.id, { state: 'inPr', review: { pr: { url: URL_, number: 5, seen: [], reported: [] } } });
     expect(await project.reviewPr({ do: 'reviewPr', pr: '5', text: '' })).toBe(own.id);
     expect(project.board.snapshot().items.some((i) => i.review?.contribution)).toBe(false);
   });
 
   test('a PR recorded in another form (a slash at the end, the host in capitals) opens its card too', async () => {
     const own = project.board.create({ title: 'Export', x: 0, y: 0 });
-    project.board.work(own.id, { state: 'inPr', pr: JSON.stringify({ url: 'https://GitHub.com/acme/app/pull/5/', number: 5, seen: [], reported: [] }) });
+    project.board.work(own.id, { state: 'inPr', review: { pr: { url: 'https://GitHub.com/acme/app/pull/5/', number: 5, seen: [], reported: [] } } });
     expect(await project.reviewPr({ do: 'reviewPr', pr: URL_, text: '' })).toBe(own.id);
     expect(project.board.snapshot().items.some((i) => i.review?.contribution)).toBe(false);
   });

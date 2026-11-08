@@ -565,7 +565,7 @@ describe('an idea', () => {
     const file = `${plans.replaceAll('\\', '/')}/export-fur-vermieter-2.md`;
     expect(item(i.id).body).toContain(`Write a plan doc as \`${file}\`, in a folder of this machine outside the repository,`);
     expect(item(i.id).body).not.toContain('Verweis darauf');
-    expect(JSON.parse(board().row(i.id).plan_docs!)).toEqual([file]);
+    expect(board().row(i.id).plan!.planDocs!).toEqual([file]);
     await settle();
     // another card of the same title, planned before that doc is written, gets a name of its own
     const twin = board().create({ title: 'Export für Vermieter', x: 0, y: 400 });

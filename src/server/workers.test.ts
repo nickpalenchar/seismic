@@ -676,7 +676,7 @@ describe('workers', () => {
     await until(() => runtime.sessions.length > before);
     fail();
     expect(board.item(c.id)).toMatchObject({ hold: { reason: 'limit' } });
-    expect(JSON.parse(board.row(c.id).hold!).attempts).toBe(4);
+    expect((board.row(c.id).hold as { attempts: number }).attempts).toBe(4);
   });
 
   test('a known reset wakes a capped worker only once; successful work clears the retry budget', async () => {
@@ -1636,7 +1636,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
 
   test('a card in its pull request offers a pause only while its worker is in a turn', async () => {
     const c = await atWork();
-    board.work(c.id, { state: 'inPr', pr: JSON.stringify({ url: 'https://github.com/acme/app/pull/7', number: 7, seen: [], reported: [] }) });
+    board.work(c.id, { state: 'inPr', review: { pr: { url: 'https://github.com/acme/app/pull/7', number: 7, seen: [], reported: [] } } });
     runtime.last.emit({ type: 'idle' });
     // the pull request waits for review: nothing runs, nothing to pause
     expect(board.item(c.id)).toMatchObject({ state: 'inPr' });
