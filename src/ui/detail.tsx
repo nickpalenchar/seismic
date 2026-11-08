@@ -1,4 +1,4 @@
-import { Car, Check, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, Play, Plus, Share, SquarePlus, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Car, Check, Star, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, Play, Plus, Share, SquarePlus, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
 // The unfolded card: what it is, what its worker does, and what the owner decides.
 
@@ -43,7 +43,7 @@ import { newRepoWords, type RepoChoice, RepoPick, useRepoChoice } from './repoPi
 import { dismissPlace, type Place, seekTo, showsVersions, usePlace, videoOf, watch } from './spot';
 import { cameInView, useSeen } from './seen';
 import { ClockMark, SnoozeLine, SnoozeMenu, snoozeWho } from './snooze';
-import { clock as time, errorText, failText, shortDay, snoozeWhen, stateLabel, t } from './strings';
+import { clock as time, errorText, failText, mergeProposed, shortDay, snoozeWhen, stateLabel, t } from './strings';
 import { agentWorks, cardTalk, demoHandover, talkState, koordinatorReads, ownerField, parseQuestion, snoozeLine, talkAlone, type Turn, unseenTurns, waitsFirstStart, worked as isWorked } from './talk';
 import { PageChangeList } from './page-changes';
 import { WishReplyLink } from './wish';
@@ -581,8 +581,8 @@ export function Detail(p: Props) {
       )}
       <KindLine kind={kind} item={item} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className="p-title">{shownTitle(item)}</div>}
-      <div className={['p-state', finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', item.review?.codeReview?.state === 'running' && 'reviewing'].filter(Boolean).join(' ')}>
-        {asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : '●'} {stateLabel(item)}
+      <div className={['p-state', finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', item.review?.codeReview?.state === 'running' && 'reviewing', mergeProposed(item) && 'merge-proposed'].filter(Boolean).join(' ')}>
+        {mergeProposed(item) ? <Star className="merge-mark" size={13} fill="currentColor" aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : '●'} {stateLabel(item)}
         {snoozeOf(item) ? (
           <span className="p-status"> · {snoozeWho(snoozeOf(item)!)}</span>
         ) : item.review?.resolvingConflicts ? (

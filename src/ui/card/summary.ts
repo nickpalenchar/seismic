@@ -6,7 +6,7 @@ import { agentFailed, answering, demoStage, finishingUp, handedOver, type Item, 
 import { excerpt, plain } from '../markdown';
 import { waitReason } from '../queue';
 import { snoozeWho } from '../snooze';
-import { becomesLabel, clock, snoozeWhen, stateLabel, t } from '../strings';
+import { becomesLabel, clock, mergeProposed, snoozeWhen, stateLabel, t } from '../strings';
 
 /** Whether the card's state reads "Question for you": its agent asks and waits for the answer. */
 export const asksYou = (i: Item) => i.state === 'waiting' && i.need === 'question' && !agentFailed(i) && !i.review?.answering && !i.review?.answered && !isPaused(i) && !isPausing(i) && !snoozeOf(i);
@@ -62,6 +62,7 @@ export const cardClass = (item: Item, underway?: string) =>
     item.review?.resolvingConflicts && 'resolving-conflicts',
     ((item.hold?.reason === 'limit') || item.agent?.limitedUntil) && 'limit-paused',
     snoozeOf(item) && 'snoozed',
+    mergeProposed(item) && 'merge-proposed',
     item.queue && 'queued',
     item.queue && 'restart' in item.queue && 'restart-queued',
   ]

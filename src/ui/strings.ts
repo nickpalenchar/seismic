@@ -45,6 +45,7 @@ const en = {
     working: 'Working',
     waiting: 'Waiting',
     proposal: 'Proposal',
+    mergeProposed: 'Merge proposed',
     question: 'Question',
     demo: 'Demo ready',
     answered: 'Answered',
@@ -411,6 +412,7 @@ const en = {
     more: (n: number) => `${n} more possible duplicates`,
     attempt: 'Attempt merge',
     dismiss: 'Dismiss merge',
+    proposed: 'Merge proposed',
     dismissed: 'Merge suggestion dismissed.',
   },
   revisingShort: 'Being reworked',
@@ -2586,8 +2588,12 @@ const number = (n: number, digits = 0) => n.toLocaleString(locale, { maximumFrac
 /** English ordinal: 2nd, 3rd, 11th. */
 const ordinal = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 >= 11 && n % 100 <= 13 ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 
+/** A planned card the start check found possible duplicates of, until dismissed or work starts. */
+export const mergeProposed = (i: { state: CardState; queue?: unknown; possibleDuplicates?: string[]; idea?: { proposal?: { merge?: unknown } } }) =>
+  i.state === 'planned' && !i.queue && !!i.possibleDuplicates?.length && !i.idea?.proposal?.merge;
+
 /** A card's state as its state line says it; `short`, in a word or two, as the smallest card face says it (`stateShort`). */
-export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; state: CardState; need?: Need; queue?: Queue; question?: { stuck?: true }; hold?: ItemHold; agent?: { finishing?: boolean; followUp?: boolean; branch?: string }; review?: { landing?: true; landingPosition?: number; pr?: unknown; contribution?: unknown; answering?: true; answered?: true; codeReview?: { state?: string } }; demo?: { earlier?: { asked?: true }[] }; idea?: { discussion?: Idea; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } } } }, short = false) => {
+export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; state: CardState; need?: Need; queue?: Queue; question?: { stuck?: true }; hold?: ItemHold; possibleDuplicates?: string[]; agent?: { finishing?: boolean; followUp?: boolean; branch?: string }; review?: { landing?: true; landingPosition?: number; pr?: unknown; contribution?: unknown; answering?: true; answered?: true; codeReview?: { state?: string } }; demo?: { earlier?: { asked?: true }[] }; idea?: { discussion?: Idea; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } } } }, short = false) => {
   const { agent, review, idea: ideaPart } = i;
   const idea = ideaPart?.discussion;
   const merge = ideaPart?.proposal?.merge;
@@ -2637,6 +2643,8 @@ export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; 
     ? idea.status === 'open' && idea.yourTurn && !idea.thinking
       ? t.idea.yourTurn
       : t.idea.status[idea.status]
+    : mergeProposed(i)
+    ? word(t.duplicate.proposed, 'mergeProposed')
     : i.queue
     ? 'checking' in i.queue
       ? word(t.queue.checking, 'checking')

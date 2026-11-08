@@ -250,6 +250,9 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
 .card.restart-queued { --c: var(--restart); background-color: color-mix(in srgb, var(--restart) 16%, var(--card)); }
 .card.restart-queued .state::after { display: none; }
 .p-state.restart-paused { --c: var(--restart); }
+/* a possible duplicate was found: the state in the proposal purple, behind a star */
+.card.merge-proposed .state, .p-state.merge-proposed { --c: var(--proposal); }
+.p-state .merge-mark { vertical-align: -1px; }
 /* the worker resolves rebase conflicts: the state text in orange, with the italic note beside it */
 .card.resolving-conflicts .state, .p-state.resolving-conflicts { --c: var(--waiting); }
 .card .state .doing.conflict, .p-state .p-status.conflict { color: var(--waiting); font-style: italic; font-weight: 500; }
