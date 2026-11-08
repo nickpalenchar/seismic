@@ -1358,10 +1358,10 @@ const de = {
     title: 'Agenten',
     /** The bar's button, with how many cards wait in the queue. */
     button: (n: number) => (n === 0 ? 'Agenten: keine Aufgabe in der Warteschlange' : n === 1 ? 'Agenten: eine Aufgabe in der Warteschlange' : `Agenten: ${n} Aufgaben in der Warteschlange`),
-    tabs: { queue: 'Warteschlange', working: 'Bei der Arbeit' },
-    /** The stages "Working" groups its cards by. */
-    stages: { working: 'Arbeitet', reviewing: 'Code-Review', fixing: 'Behebt Review-Befunde', demo: 'Macht die Demo' },
-    noneWorking: 'Gerade arbeitet kein Agent.',
+    tabs: { queue: 'Warteschlange', all: 'Alle' },
+    /** The stages "All" groups its cards by. */
+    stages: { needsYou: 'Braucht dich', working: 'Arbeitet', reviewing: 'Code-Review', fixing: 'Behebt Review-Befunde', demo: 'Macht die Demo', landing: 'Wird übernommen', planned: 'Geplant' },
+    none: 'Keine Karten.',
   },
   inbox: {
     title: 'Posteingang',
@@ -3821,9 +3821,9 @@ const en: Strings = {
   agents: {
     title: 'Agents',
     button: (n: number) => (n === 0 ? 'Agents: no task in the queue' : n === 1 ? 'Agents: one task in the queue' : `Agents: ${n} tasks in the queue`),
-    tabs: { queue: 'Queue', working: 'Working' },
-    stages: { working: 'Working', reviewing: 'Code reviewing', fixing: 'Review fixing', demo: 'Making demo' },
-    noneWorking: 'No agent is at work right now.',
+    tabs: { queue: 'Queue', all: 'All' },
+    stages: { needsYou: 'Needs you', working: 'Working', reviewing: 'Code reviewing', fixing: 'Review fixing', demo: 'Making demo', landing: 'Landing', planned: 'Planned' },
+    none: 'No cards.',
   },
   inbox: {
     title: 'Inbox',

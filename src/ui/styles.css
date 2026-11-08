@@ -2997,6 +2997,9 @@ body:has(#agents.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .agent-entry .ttl { font-weight: 600; margin-top: 0; }
 .agent-entry .state { color: var(--working); }
 .agent-entry.stage-reviewing .state { color: var(--reviewing); }
+.agent-entry.stage-needsYou .state { color: var(--waiting); }
+.agent-entry.stage-landing .state { color: var(--approved); }
+.agent-entry.stage-planned .state { color: var(--muted); }
 .agent-entry.stage-demo .state .doing { color: var(--approved); }
 .cs-pill .bar-icon { display: block; }
 .cs-pill { padding-inline: 10px; }
