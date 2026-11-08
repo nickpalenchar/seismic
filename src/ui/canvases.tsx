@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { Car, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { CANVAS_LUCIDE_ICONS } from '../core/canvas-icons';
 import type { Bounds } from '../core/layout';
-import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable } from '../core/types';
+import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping } from '../core/types';
 import { api } from './api';
 import { CANVAS_EMOJIS, CanvasIcon, canvasText, lucideOf } from './canvasIcon';
 import { know, known } from './known';
@@ -340,6 +340,7 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   const { canvases, move } = useContext(Canvases);
   const [open, setOpen] = useState(false);
   const [at, setAt] = useState<{ left: number; top: number }>();
+  const [confirm, setConfirm] = useState(false);
   const box = useRef<HTMLSpanElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   useMenuClose(open, box, () => setOpen(false), true, menu);
@@ -372,7 +373,8 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   }, [open, at]);
   const on = canvasOf(canvases, item);
   const others = canvases.filter((c) => c.id !== on?.id);
-  const canPark = parkable(item);
+  const stopsToPark = parkableStopping(item);
+  const canPark = parkable(item) || stopsToPark;
   const parked = !!item.parkingLot && !item.archivedAt;
   if ((!others.length && !canPark && !parked) || item.archivedAt) return null;
   const parking = (action: 'park' | 'unpark') => {
@@ -387,7 +389,7 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   const list = (
     <div ref={menu} className={`prio-menu card-more-menu${floating ? ' floating' : ''}`} role="menu" {...(floating && at ? { style: at } : {})}>
       {(canPark || parked) && (
-        <button role="menuitem" title={canPark ? t.parking.parkHint : undefined} onClick={() => parking(canPark ? 'park' : 'unpark')}>
+        <button role="menuitem" title={canPark ? t.parking.parkHint : undefined} onClick={() => (stopsToPark ? (setOpen(false), setConfirm(true)) : parking(canPark ? 'park' : 'unpark'))}>
           <span className="lopt">
             <Car size={14} aria-hidden />
             {canPark ? t.parking.park : t.parking.unpark}
@@ -418,6 +420,18 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
         <MoreHorizontal size={14} aria-hidden />
       </button>
       {open && (floating ? createPortal(list, document.body) : list)}
+      {confirm && createPortal(
+        <div className="review-approval-cover" onClick={() => setConfirm(false)}>
+          <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="stop-park-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setConfirm(false); } }}>
+            <h2 id="stop-park-title">{t.parking.stopTitle}</h2>
+            <p>{t.parking.stopText}</p>
+            <div className="review-approval-actions">
+              <button className="btn review-warning" onClick={() => { setConfirm(false); parking('park'); }}>{t.parking.stopConfirm}</button>
+              <button className="btn" autoFocus onClick={() => setConfirm(false)}>{t.parking.back}</button>
+            </div>
+          </div>
+        </div>, document.body,
+      )}
     </span>
   );
 }

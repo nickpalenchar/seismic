@@ -33,7 +33,9 @@ at a click; what is hidden is remembered per browser. Queued cards are only in
 listed.
 
 "Parked" is the parking lot. A planned or stopped task that is not queued (nothing runs for it)
-is parked with "Park" in its "⋯" menu (the open card's, and on the canvas); parked, it is off the
+is parked with "Park" in its "⋯" menu (the open card's, and on the canvas); a task that waits for the
+owner (a demo, a question) can be parked too, which stops its agent first and asks to confirm with a
+yellow "Stop and park" or a grey "Go back"; parked, it is off the
 canvas and lists here as a pane like those of "All", its state "Parked" with a car icon. It stays
 planned or stopped underneath, so its buttons are those of a card that is not running; it does not
 start by itself or from its start time. Starting it asks first: "This takes the card out of the

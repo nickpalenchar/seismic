@@ -16,7 +16,7 @@ import type { RepoAdapter, RepoInfo } from '../adapters/types';
 import type { CardDiff } from '../core/diff';
 import type { Language } from '../core/locale';
 import type { HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
-import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type ProjectConfig, type ProjectDefaults, type ProjectDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, parkable, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsPlan, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
+import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type ProjectConfig, type ProjectDefaults, type ProjectDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, parkable, parkableStopping, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsPlan, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
 import { appliedProjectSettings, projectAgentSetting, startAgentSetting } from './settings';
 import { asksAhead, holdsNotes } from '../core/queue';
 import { BadRequest, Board, withQuestions, pathOfRef, repoOfRef, replyNote, type StoredContribution } from './board';
@@ -2444,12 +2444,16 @@ export class ProjectRuntime {
     return { file, row: { plan_docs: JSON.stringify([ref]) } };
   }
 
-  /** A planned or stopped task goes into the parking lot: off the canvas, listed in the Agents sheet's Parked tab. */
+  /** A planned, stopped or waiting task goes into the parking lot: off the canvas, listed in the Agents sheet's Parked tab. */
   private parkInLot(cardId: string) {
     const card = this.board.item(cardId);
-    if (!card || !parkable(card)) throw new BadRequest('notParkable', 'only a planned or stopped task that is not queued can be parked');
+    if (!card || !(parkable(card) || parkableStopping(card))) throw new BadRequest('notParkable', 'only a task that is planned, stopped or waits for you, and is not queued, can be parked');
+    // waiting for the owner, its agent stops first
+    const stopped = card.state === 'waiting' ? this.repoOf(cardId).workers.stop(cardId) : undefined;
+    if (stopped) this.board.record(cardId, 'stopped', 'owner');
     this.board.work(cardId, { parking_lot: new Date().toISOString(), snoozed: null });
     this.board.log(cardId, 'state', 'owner', this.board.t.worker.parkedInLot);
+    return stopped;
   }
 
   /** The parked task goes back to its place on the canvas. */

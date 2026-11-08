@@ -274,6 +274,10 @@ export const plannedToStart = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archi
 export const parkable = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'parkingLot' | 'parent' | 'prototypeOf'>) =>
   i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt && !i.parkingLot && !i.parent && !i.prototypeOf;
 
+/** A task of the owner's that waits for them (a handover, a question) goes into the parking lot too, stopped on the way. */
+export const parkableStopping = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'parkingLot' | 'parent' | 'prototypeOf' | 'landing' | 'finishing'>) =>
+  i.kind === 'task' && i.state === 'waiting' && !i.landing && !i.finishing && !i.queue && !i.archivedAt && !i.parkingLot && !i.parent && !i.prototypeOf;
+
 /**
  * A card the owner can snooze until a point in time ("Later"): one at work (its worker stops
  * until then, as on a pause), one that waits for them (it leaves them until then), or one planned

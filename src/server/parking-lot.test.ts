@@ -50,4 +50,18 @@ describe('the parking lot', () => {
     project.act(c.id, { action: 'park' });
     expect(() => project.act(c.id, { action: 'park' })).toThrow(expect.objectContaining({ code: 'notParkable' }));
   });
+
+  test('a task that waits for the owner is stopped and parked', async () => {
+    const runtime = new FakeRuntime();
+    project.shutdown();
+    project = new ProjectRuntime({ repos: [{ path: join(dir, 'main'), clones: 1, settings: { land: 'main' } }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10 });
+    const c = project.board.create({ title: 'Ask', x: 0, y: 0 });
+    await project.act(c.id, { action: 'start' });
+    await new Promise((r) => setTimeout(r, 100));
+    runtime.last.call('ask', { question: 'CSV or Excel?', options: ['CSV', 'Excel'] });
+    expect(item(c.id).state).toBe('waiting');
+    await project.act(c.id, { action: 'park' });
+    expect(item(c.id).state).toBe('planned');
+    expect(item(c.id).parkingLot).toBeTruthy();
+  });
 });
