@@ -82,7 +82,7 @@ a.smart-link:hover, a.smart-link:focus-visible { border-color: var(--working); b
 .smart-link.gone .sl-title { text-decoration: none; }
 .smart-link.gone .sl-dot { background: transparent; border: 1px solid var(--muted); width: 5px; height: 5px; }
 /* headings are titles on paper, in the serif; the rest stays in the condensed sans */
-h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-family: var(--serif); font-weight: 600; letter-spacing: -.005em; }
+h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); font-weight: 600; letter-spacing: -.005em; }
 
 /* ---------- project ---------- */
 #viewport { position: fixed; inset: 0; cursor: grab; touch-action: none;
@@ -312,6 +312,47 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-fami
 .z-far .card.s-waiting:not(.underway):not(.answering), .z-far .card.s-idea.your-turn { box-shadow: 0 0 0 5px var(--waiting), var(--shadow); }
 .z-far .card.s-waiting.failed { box-shadow: 0 0 0 5px var(--error), var(--shadow); }
 .z-far .card.chip .ttl { font-size: 21px; line-height: 1.1; -webkit-line-clamp: 2; }
+
+/* a card's face in the lists (src/ui/card): S, a compact row of up to four lines (the inbox, the Agents
+   sheet's "All"), and XS, two lines (search, the queue, the archive, a plan's sheet, the merge picker).
+   The face brings its state's colour as --c; the list around it draws the row. */
+.face { display: flex; flex-direction: column; min-width: 0; text-align: left; }
+.face .f-ttl { display: flex; align-items: center; gap: 6px; min-width: 0; font-family: var(--serif); font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.face .f-ttl-text { min-width: 0; }
+.face .f-ttl.untitled .f-ttl-text { color: var(--muted); font-weight: 400; font-style: italic; }
+.face .f-state { color: var(--c); font-weight: 600; }
+.face .f-state .doing { font-style: italic; font-weight: 500; color: var(--muted); }
+.face .f-state .doing.demo { color: var(--approved); font-weight: 600; }
+.face .f-state .doing.conflict { color: var(--waiting); }
+.face .f-state .landed-part { margin-left: 6px; color: var(--approved); border: 1px solid color-mix(in srgb, var(--approved) 45%, transparent); border-radius: 2px; padding: 0 5px; font-weight: 500; }
+.face .f-state :is(.clock-mark, .question-mark, .restart-mark, .hourglass-mark, .parked-mark) { flex: none; }
+/* the pin of a card that needs the owner, after its title in a list */
+.f-pin { --pin: var(--waiting); flex: none; display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 5px; box-sizing: border-box;
+  border-radius: 9px; background: var(--pin); color: var(--on-ink); font: 700 11px/1 var(--serif); font-style: normal; }
+.f-pin.asking { --pin: var(--asking); }
+.f-pin.failed { --pin: var(--error); }
+.face-s .f-top { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 6px; min-width: 0; font-size: 11.5px; line-height: 17px; color: var(--muted); }
+.face-s .f-top .lchip, .face-s .f-top .prio { font-size: 11px; }
+.face-s .f-where { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.face-s .f-where > svg { vertical-align: -2px; margin-right: 4px; }
+.face-s .f-where .project { font-weight: 600; }
+.face-s .f-where .other-canvas { display: inline-flex; vertical-align: -2px; margin-left: 5px; }
+.face-s .f-ttl { align-items: flex-start; gap: 7px; margin-top: 4px; font-size: 16px; line-height: 1.25; }
+.face-s .f-ttl .f-pin { margin-top: 1px; }
+.face-s .f-state { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 3px; font-size: 12px; line-height: 1.3; }
+.face-s .f-text { margin-top: 4px; font-size: 13px; line-height: 1.4; color: var(--muted);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.face-xs { gap: 2px; }
+.face-xs .f-ttl { font-size: 14px; line-height: 1.3; }
+.face-xs .f-ttl-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.face-xs .ws-no { flex: none; font-family: var(--cond); font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.face-xs .f-line { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; line-height: 1.35; color: var(--muted); }
+.face-xs .f-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.face-xs .f-dot.proposal { box-sizing: border-box; width: 9px; height: 9px; background: none; border: 1.5px dashed var(--c); }
+.face-xs .f-words { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.face-xs .other-canvas { display: inline-flex; vertical-align: -2px; }
+.prio.bare { padding: 0 1px; }
+.prio.bare.prio-critical, .prio.bare.sugg { padding: 1px 3px; line-height: 1; }
 
 /* ---------- chrome ---------- */
 /* a frosted strip the project slides under, so cards never run into the pills; it ends at the panels docked at the window's edges */
@@ -1342,8 +1383,8 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 /* the chain a queued card waits in: the card it waits for, the card itself (its title), a card that waits
    for it, with the tags, rings and arrows of the project while the pointer is on a card; the card itself in green */
 .q-chain { display: flex; flex-direction: column; align-items: flex-start; margin-top: 20px; }
-.q-chain .cover { margin-top: 0; }
-.q-chain .cover.own { cursor: default; padding-top: 14px; --dep: var(--approved); box-shadow: 0 0 0 2.5px var(--approved), var(--shadow); }
+.q-chain .cover { margin-top: 0; padding: 9px 12px 8px; }
+.q-chain .cover.own { cursor: default; padding-top: 13px; --dep: var(--approved); box-shadow: 0 0 0 2.5px var(--approved), var(--shadow); }
 .q-chain .cover.own:hover { transform: none; }
 .q-chain .dep-arrow { display: block; margin: 2.5px 0 2.5px 134px; }
 .dep-arrow line { fill: none; }
@@ -1364,7 +1405,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .qlist { list-style: none; padding: 0; margin: 0; }
 .qlist li { display: flex; gap: 10px; align-items: flex-start; padding: 7px 8px; border-radius: 2px; cursor: pointer; font-size: 13px; }
 .qlist li:hover { background: var(--chip); }
-.qlist li .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-top: 5px; flex: none; }
 .qlist li .q-what { flex: 1; min-width: 0; }
 .qlist li .why { display: block; margin-top: 2px; }
 .qlist li .x { flex: none; padding: 0 4px; font-size: 17px; line-height: 22px; color: var(--muted); background: none; border: 0; cursor: pointer; }
@@ -1383,8 +1423,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .q-around > .hint { margin: 6px 0 0; }
 .qlist.on-card li { cursor: default; }
 .qlist.on-card li:hover { background: none; }
-.qlist.on-card li.own { background: var(--card); box-shadow: inset 0 0 0 1px var(--line); font-weight: 600; cursor: grab; }
-.qlist.on-card li.own .hint { font-weight: 400; }
+.qlist.on-card li.own { background: var(--card); box-shadow: inset 0 0 0 1px var(--line); cursor: grab; }
 .qlist.on-card li.own[data-sorting=dragged] { box-shadow: var(--lift); }
 .sorting, .sorting * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
 .card.queued .state { font-style: italic; }
@@ -1579,14 +1618,10 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .sheet .goal { font-size: 13.5px; opacity: .9; }
 .sheet .src { font: 12px var(--mono); color: var(--muted); margin-top: 8px; }
 .sheet > ol { list-style: none; padding: 0; margin: 16px 0 0; }
-.sheet > ol > li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
+.sheet > ol > li { padding: 8px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
 .sheet > ol > li:hover { background: var(--chip); }
-.sheet > ol > li .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-top: 5px; flex: none; }
-.sheet > ol > li .w { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 30px; }
-/* a workstream's text from the plan doc under its title, so the list says what each one is */
-.sheet > ol > li .ws { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.sheet > ol > li .ws > .ws-title { font-weight: 600; }
-.sheet .ws-text { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+/* a workstream's text from the plan doc under its face, so the list says what each one is */
+.sheet .ws-text { margin-top: 4px; color: var(--muted); font-size: 12.5px; line-height: 1.4; }
 .sheet .ws-text .p-lead { font-size: inherit; margin: 0; max-width: none; }
 .sheet .ws-text .p-lead + .p-lead, .sheet .ws-text .p-list { margin-top: 3px; }
 .sheet .ws-text .p-list { font-size: inherit; max-width: none; }
@@ -1611,7 +1646,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .a-search .x { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 2px 8px; font-size: 17px; line-height: 1;
   color: var(--muted); background: none; border: 0; cursor: pointer; }
 .a-search .x:hover { color: var(--ink); }
-.timeline .a-ttl mark { background: var(--chip); color: inherit; border-radius: 2px; box-shadow: 0 0 0 1px var(--chip); }
+.timeline .a-card mark { background: var(--chip); color: inherit; border-radius: 2px; box-shadow: 0 0 0 1px var(--chip); }
 .archive-menu h4 { margin: 6px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .timeline li { position: relative; display: grid; grid-template-columns: 38px 12px 1fr; column-gap: 8px; align-items: start; padding-bottom: 8px; }
@@ -1621,13 +1656,11 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .timeline li:only-child::before { display: none; }
 .timeline time { padding-top: 9px; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
 .timeline .tick { position: relative; width: 12px; height: 12px; margin-top: 10px; border-radius: 50%; background: var(--panel); border: 2px solid var(--live); box-sizing: border-box; }
-.timeline .a-card { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 9px 12px; text-align: left; font: inherit; color: var(--ink);
+.timeline .a-card { display: flex; flex-direction: column; min-width: 0; padding: 8px 12px; text-align: left; font: inherit; color: var(--ink);
   background: var(--card); border: 1px solid var(--line); border-radius: 3px; box-shadow: var(--shadow); cursor: pointer;
   transition: transform .15s, box-shadow .15s; }
 .timeline .a-card:hover { transform: translateY(-1px); box-shadow: var(--lift); }
 .timeline .a-card:focus-visible { outline: 2px solid var(--working); outline-offset: 2px; }
-.timeline .a-ttl { font-size: 15.5px; line-height: 1.25; }
-.timeline .hint { font-size: 11.5px; }
 .sheet .btn.read { margin-top: 14px; padding: 7px 14px; font-size: 13px; }
 .sheet .start-all { margin-top: 10px; }
 .sheet .start-all .btn { padding: 7px 14px; font-size: 13px; }
@@ -2074,9 +2107,8 @@ button.link:hover { text-decoration: underline; }
 .project-card-search { position: fixed; z-index: 22; top: 62px; left: calc(var(--left, 0px) + 14px); width: min(520px, calc(100vw - var(--left, 0px) - var(--side, 0px) - 28px)); box-sizing: border-box; background: var(--panel); box-shadow: var(--shadow); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
 .project-card-search input { width: 100%; box-sizing: border-box; padding: 9px 10px; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; outline-offset: 2px; }
 .project-card-search ul { list-style: none; max-height: min(360px, 45vh); overflow-y: auto; margin: 6px 0 0; padding: 0; }
-.project-card-search li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 3px; cursor: pointer; }
+.project-card-search li { padding: 7px 10px; border-radius: 3px; cursor: pointer; }
 .project-card-search li.on, .project-card-search li:hover { background: var(--chip); }
-.project-card-search li > span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 760px) { .project-card-search li > span:first-child { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; } }
 #bar .card-search-button { padding-inline: 10px; font-family: var(--mono); }
 /* under the task field while it has the cursor, until a card was linked once */
@@ -2870,12 +2902,7 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .merge-list { list-style: none; margin: 0; padding: 0; overflow: auto; min-height: 0; }
 .merge-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; border-radius: 3px; background: transparent; color: var(--ink); padding: 9px 10px; cursor: pointer; font: inherit; }
 .merge-row.on { background: color-mix(in srgb, var(--proposal) 10%, transparent); }
-.merge-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
-.merge-dot.s-proposal { background: transparent; border: 1.5px dashed var(--proposal); width: 8px; height: 8px; }
-.merge-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.merge-row-title { font-family: var(--serif); font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.merge-row-body { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.merge-row-kind { flex: none; color: var(--muted); font-size: 12px; }
+.merge-row > .face { flex: 1; }
 
 /* the merged card in its panel: the two it came from side by side, the merged one under them, centred */
 .merge-view { display: flex; flex-direction: column; align-items: center; gap: 0; margin-top: 10px; }
@@ -2945,9 +2972,9 @@ body:has(#inbox.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .inbox-entry .where { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); }
 .inbox-entry .where svg { flex: none; }
 .inbox-entry .where .project { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.inbox-entry .where .since { margin-left: auto; flex: none; }
-.inbox-entry .ttl { font-size: 16px; font-weight: 700; line-height: 1.25; margin-top: 4px; display: flex; align-items: flex-start; gap: 7px; }
-.inbox-entry.read .ttl { font-weight: 400; }
+.inbox-entry.unread .f-ttl { font-weight: 700; }
+.inbox-entry.read .f-ttl { font-weight: 400; }
+.inbox-entry .obeya-answer { --c: var(--waiting); }
 .inbox-entry .ttl-link { all: unset; cursor: pointer; min-width: 0; }
 .inbox-entry .ttl-link:hover { text-decoration: underline; }
 .inbox-entry .ttl-link:focus-visible { text-decoration: underline; outline: 2px solid var(--working); outline-offset: 2px; border-radius: 3px; }
@@ -2958,11 +2985,6 @@ body:has(#inbox.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .inbox-bar .inbox-filter { margin: 0; }
 .inbox-all-projects { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
 .ph-section .inbox-filter { margin-left: 0; }
-.inbox-entry .state { font-size: 12px; color: var(--waiting); font-weight: 600; margin-top: 3px; }
-/* a question from the card's agent: the dark yellow of the card's frame */
-.inbox-entry .state.asking { color: var(--asking); }
-.inbox-entry .state.by-obeya { display: flex; align-items: center; gap: 5px; color: var(--proposal); }
-.inbox-entry .text { font-weight: 400; font-size: 13px; color: var(--muted); line-height: 1.4; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .inbox-entry .replies { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .inbox-entry .replies .btn { margin-top: 0; padding: 5px 12px; font-size: 12.5px; }
 .empty-inbox { margin: 0; padding: 8px; color: var(--muted); font-size: 13px; }
@@ -2997,15 +3019,6 @@ body:has(#agents.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 #agents .agents-empty { margin: 14px 8px; font-size: 13px; line-height: 1.45; }
 .agents-stage h3 { margin: 18px 8px 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .agents-stage h3 .count { font-weight: 400; }
-/* a card at work is a pane like an inbox entry, its state in the colour of its stage */
-.agent-entry .ttl { font-weight: 600; margin-top: 0; }
-.agent-entry .state { color: var(--working); }
-.agent-entry.stage-reviewing .state { color: var(--reviewing); }
-.agent-entry.stage-needsYou .state { color: var(--waiting); }
-.agent-entry.stage-landing .state { color: var(--approved); }
-.agent-entry.stage-planned .state { color: var(--muted); }
-.agent-entry .state .doing { color: var(--muted); }
-.agent-entry .state .doing.demo { color: var(--approved); }
 /* the chips above "All": one per stage, tinted in its colour while its group shows */
 .agents-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 8px 0; }
 .agents-filter .chip { --c: var(--working); display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; cursor: pointer;

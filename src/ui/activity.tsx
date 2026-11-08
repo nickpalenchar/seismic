@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ActivityEntry, Item } from '../core/types';
 import { api } from './api';
 import { OtherCanvas } from './canvases';
-import { CardFace, cardClass } from './parts';
+import { CardFace, cardClass } from './card';
 import { useStoredState } from './stored';
 import { clock, t } from './strings';
 

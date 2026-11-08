@@ -16,3 +16,9 @@ test("a plan is found by its workstreams' titles", () => {
   expect(matches(p, searchWords('whisper'), [card('Local Whisper model', { parent: 'Voice' })])).toBe(true);
   expect(matches(p, searchWords('whisper'))).toBe(false);
 });
+
+test('a search finds a card by the state and kind its entry shows', () => {
+  expect(matches(card('Coupons', { state: 'live' }), searchWords('live'))).toBe(true);
+  expect(matches(card('Voice', { kind: 'plan' }), searchWords('plan'))).toBe(true);
+  expect(matches(card('Coupons'), searchWords('plan'))).toBe(false);
+});

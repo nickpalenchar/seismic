@@ -6,10 +6,11 @@
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { type Item, stopped } from '../core/types';
+import type { Item } from '../core/types';
+import { CardFace, cardKind } from './card';
 import { plain } from './markdown';
 import { useMenuClose } from './queue';
-import { becomesLabel, stateLabel, t } from './strings';
+import { stateLabel, t } from './strings';
 
 interface Props {
   on: boolean;
@@ -126,34 +127,25 @@ function ArchiveEntries({ archived, words, query, onOpen, els }: { archived: Ite
         <section key={day}>
           <h4>{day}</h4>
           <ol className="timeline">
-            {items.map((i) => {
-              const label = labelOf(i);
-              return (
-                <li key={i.id}>
-                  <time>{t.archive.time(new Date(i.archivedAt!))}</time>
-                  <span className="tick" />
-                  <button className="a-card" ref={(el) => void (el ? els.set(i.id, el) : els.delete(i.id))} onClick={() => onOpen(i)}>
-                    <span className="a-ttl">{marked(plain(i.title), words)}</span>
-                    {label && (
-                      <span className="hint">
-                        {label}
-                        {i.kind === 'plan' && ` · ${t.archive.workstreams(archived.filter((x) => x.parent === i.id).length)}`}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
+            {items.map((i) => (
+              <li key={i.id}>
+                <time>{t.archive.time(new Date(i.archivedAt!))}</time>
+                <span className="tick" />
+                <button className="a-card" ref={(el) => void (el ? els.set(i.id, el) : els.delete(i.id))} onClick={() => onOpen(i)}>
+                  <CardFace
+                    item={i}
+                    size="xs"
+                    title={i.title ? marked(plain(i.title), words) : undefined}
+                    tail={i.kind === 'plan' && t.archive.workstreams(archived.filter((x) => x.parent === i.id).length)}
+                  />
+                </button>
+              </li>
+            ))}
           </ol>
         </section>
       ))}
     </>
   );
-}
-
-/** An archived card's kind or state; a plain finished task, nearly every entry, goes without one, so the others stand out. */
-function labelOf(i: Item) {
-  return i.idea || i.prototypeEnd || stopped(i) ? stateLabel(i) : i.becomesPlan ? becomesLabel(i) : i.kind === 'task' ? '' : t.kind[i.kind];
 }
 
 /** Lower case without accents, so "uber" finds "Über". */
@@ -164,11 +156,11 @@ export const searchWords = (query: string) => fold(query).split(/\s+/).filter(Bo
 
 /**
  * Whether an archived card holds every word of the search, each anywhere in its title, text,
- * summary, last status or label; a plan's in its goal and its workstreams too.
+ * summary, last status, state or kind; a plan's in its goal and its workstreams too.
  */
 export function matches(i: Item, words: string[], workstreams: Item[] = []) {
   const text = fold(
-    [i.title, i.body, i.summary, i.statusLine, labelOf(i), i.plan?.goal, ...workstreams.flatMap((w) => [w.title, w.body])].filter(Boolean).join('\n'),
+    [i.title, i.body, i.summary, i.statusLine, stateLabel(i), cardKind(i), i.plan?.goal, ...workstreams.flatMap((w) => [w.title, w.body])].filter(Boolean).join('\n'),
   );
   return words.every((w) => text.includes(w));
 }

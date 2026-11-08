@@ -2,10 +2,7 @@ import { expect, test } from 'bun:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Item } from '../core/types';
-import { CardFace, Links, linkPath, linkSpot } from './parts';
-
-const ws: Item = { id: 'w', kind: 'task', state: 'live', title: 'Cart model', body: '', x: 0, y: 0, parent: 'p', source: 'plan', repo: 'shop', label: 'W1' };
-const face = (item: Item, chip?: boolean) => renderToStaticMarkup(createElement(CardFace, { item, chip }));
+import { Links, linkPath, linkSpot } from './parts';
 
 test('a follow-up shows the dashed line to its card only while no wait joins the two', () => {
   const origin: Item = { id: 'o', kind: 'task', state: 'inPr', title: 'Origin', body: '', x: 0, y: 0, source: 'manual', repo: 'shop' };
@@ -17,13 +14,6 @@ test('a follow-up shows the dashed line to its card only while no wait joins the
   expect(lines([['o', 'n']])).toBe(0);
   expect(lines([['n', 'o']])).toBe(0);
   expect(lines([['x', 'n']])).toBe(1);
-});
-
-test('a delivered workstream keeps its label before its title as a chip', () => {
-  expect(face(ws, true)).toContain('<div class="ttl"><span class="ws-no">W1</span>Cart model</div>');
-  // at a task's size the kind line says it
-  expect(face(ws)).toContain('<div class="ttl">Cart model</div>');
-  expect(face(ws)).toContain('<span>W1</span>');
 });
 
 /** The numbers of a path `M x1,y1 C c1 c2 x2,y2`, as points. */

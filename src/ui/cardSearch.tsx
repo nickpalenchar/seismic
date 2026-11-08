@@ -1,11 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Item } from '../core/types';
-import { OtherCanvas } from './canvases';
+import { CardFace } from './card';
 import { matchingCards } from './cardRefs';
-import { plain } from './markdown';
 import { t } from './strings';
 
-/** The project's quick card finder. It shares the task field's title and short-code matching. */
+/** The project's quick card finder. It shares the task field's title and short-code matching; a result is a card's face at size XS. */
 export function CardSearch({ items, onOpen, onClose }: { items: Item[]; onOpen: (item: Item) => void; onClose: () => void }) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
@@ -46,7 +45,7 @@ export function CardSearch({ items, onOpen, onClose }: { items: Item[]; onOpen: 
     {results.length > 0 && <ul ref={list} id="project-card-search-results" role="listbox" aria-label={t.cardSearch.results}>
       {results.map((item, index) => <li key={item.id} id={`project-card-search-option-${item.id}`} role="option" aria-selected={index === selected} className={index === selected ? 'on' : undefined}
         onMouseEnter={() => setSelected(index)} onClick={() => pick(item)}>
-        <span>{plain(item.title)}</span><OtherCanvas item={item} />
+        <CardFace item={item} size="xs" />
       </li>)}
     </ul>}
   </div>;

@@ -9,9 +9,10 @@ import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'rea
 import { move, movable, notStarted, queueOrder, reach } from '../core/queue';
 import type { Item } from '../core/types';
 import { api } from './api';
+import { CardFace } from './card';
 import { plain } from './markdown';
 import { type Drag, useSortable } from './sortable';
-import { failText, stateLabel, t } from './strings';
+import { failText, t } from './strings';
 
 /** A list under a bar's button: while it is `on`, a click anywhere beside `box` (and `also`, a list drawn elsewhere) closes it, and Esc does with `esc`. */
 export function useMenuClose(on: boolean, box: RefObject<HTMLElement | null>, close: () => void, esc = false, also?: RefObject<HTMLElement | null>) {
@@ -137,7 +138,7 @@ function QueueRow(p: {
   const stop = p.drag?.held && reach(item.id, p.drag.held === 'earlier', items);
   const held = stop && stop.stop && stop.why ? t.queue.stuck[stop.why](plain(stop.stop.title)) : '';
   return (
-    <li className={p.own ? 's-planned own' : 's-planned'} {...p.row} onClick={onOpen && (() => onOpen(item))}>
+    <li className={p.own ? 'own' : undefined} {...p.row} onClick={onOpen && (() => onOpen(item))}>
       {p.grip ? (
         <span className="grip" title={t.queue.drag} aria-hidden {...p.grip}>
           <GripVertical size={16} strokeWidth={2} />
@@ -145,11 +146,8 @@ function QueueRow(p: {
       ) : (
         <span className="grip none" />
       )}
-      <span className="dot" />
       <span className="q-what">
-        {plain(item.title)}
-        <br />
-        <span className="hint">{item.queue && 'behind' in item.queue ? t.queue.behind(waitedOn(item.queue.behind, items)) : stateLabel(item)}</span>
+        <CardFace item={item} size="xs" tail={item.queue && 'behind' in item.queue && t.queue.behind(waitedOn(item.queue.behind, items))} />
         {p.failed && <span className="hint why">{p.failed}</span>}
       </span>
       {onOpen && (

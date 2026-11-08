@@ -5,6 +5,7 @@ import { type CardAction, type Item, merging, mergeableWith, mergeRank, canMerge
 import { Inline, plain } from './markdown';
 import { Body, Cards } from './message';
 import { api } from './api';
+import { CardFace } from './card';
 import { MergeMark } from './parts';
 import { Shots } from './shots';
 import { stateLabel, t } from './strings';
@@ -78,14 +79,7 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
           {found.map((i, n) => (
             <li key={i.id}>
               <button className={n === at ? 'merge-row on' : 'merge-row'} onPointerEnter={() => setAt(n)} onClick={() => onPick(i)}>
-                <span className={`merge-dot s-${i.state}`} />
-                <span className="merge-row-text">
-                  <span className="merge-row-title">
-                    <Inline md={i.title} />
-                  </span>
-                  <span className="merge-row-body">{plain(i.body).split('\n')[0]}</span>
-                </span>
-                <span className="merge-row-kind">{kind(i)}</span>
+                <CardFace item={i} size="xs" tail={i.archivedAt && t.merge.archived} />
               </button>
             </li>
           ))}

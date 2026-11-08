@@ -131,7 +131,7 @@ cards one above the other, in the look the project gives waits while the pointer
 rings and arrows; see below): on top the card it waits for ("comes first"; the first, where it waits
 for several), then the card itself, its title alone, tagged "This card" in green, then a card that
 waits for it ("waits for it"; the first in the queue where several do). The cards above and below
-show their face as on the canvas and open in its place.
+show their face at size XS (see Card sizes) and open in its place.
 
 Each direct wait is a faint line on the canvas at all times (see Cards on the canvas). While the
 pointer is on a card, its waits show both ways over every step over the faint lines: the cards it

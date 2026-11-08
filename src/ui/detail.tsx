@@ -22,8 +22,8 @@ import { know, known } from './known';
 import { Branch } from './diff';
 import { ResultFiles, REVIEW } from './files';
 import { DiscardChanges, FolderBox, FolderLine, useFolderDiff } from './folder';
-import { LabelMarks, LabelPicks } from './labels';
-import { asksYou, CardFace, cardClass, DepArrow, HourglassMark, landedRef, LimitNotice, PauseMark, PlayMark, QuestionMark, RestartMark, shownTitle } from './parts';
+import { asksYou, CardFace, cardClass, cardKind, HourglassMark, LabelMarks, LabelPicks, landedRef, QuestionMark, RestartMark, shownTitle, Title } from './card';
+import { DepArrow, LimitNotice, PauseMark, PlayMark } from './parts';
 import { asksAhead, holdsNotes, queueOrder } from '../core/queue';
 import { forcedText, QueueList, scrollerOf, useMenuClose, useQueueMove, useQueueSort, waitText, type Behind } from './queue';
 import { dimensions, shownTags } from '../core/page-tags';
@@ -43,7 +43,7 @@ import { newRepoWords, type RepoChoice, RepoPick, useRepoChoice } from './repoPi
 import { dismissPlace, type Place, seekTo, showsVersions, usePlace, videoOf, watch } from './spot';
 import { cameInView, useSeen } from './seen';
 import { ClockMark, SnoozeLine, SnoozeMenu, snoozeWho } from './snooze';
-import { becomesLabel, clock as time, errorText, failText, shortDay, snoozeWhen, stateLabel, t } from './strings';
+import { clock as time, errorText, failText, shortDay, snoozeWhen, stateLabel, t } from './strings';
 import { agentWorks, cardTalk, demoHandover, talkState, koordinatorReads, ownerField, parseQuestion, snoozeLine, talkAlone, type Turn, unseenTurns, waitsFirstStart, worked as isWorked } from './talk';
 import { PageChangeList } from './page-changes';
 import { WishReplyLink } from './wish';
@@ -117,7 +117,7 @@ function QueueChain({ item, all }: { item: Item; all: Item[] }) {
       }}
     >
       <div className="dep-tag">{t.deps[dep]}</div>
-      <CardFace item={card} />
+      <CardFace item={card} size="xs" />
     </a>
   );
   return (
@@ -130,7 +130,11 @@ function QueueChain({ item, all }: { item: Item; all: Item[] }) {
       )}
       <div className={`${cardClass(item)} cover own`}>
         <div className="dep-tag">{t.queue.thisCard}</div>
-        <div className={item.title ? 'ttl' : 'ttl untitled'}>{shownTitle(item)}</div>
+        <span className="face face-xs">
+          <Title item={item} className="f-ttl" inline>
+            <span className="f-ttl-text">{shownTitle(item)}</span>
+          </Title>
+        </span>
       </div>
       {after && (
         <>
@@ -225,23 +229,8 @@ export function Detail(p: Props) {
   const listener = agentListens(item) ? undefined : t.voice.card(plain(item.title));
   const tell = (field: Field) => async (text: string, images?: string[], replyTo?: number) => p.onTell(text, images, field, replyTo);
   const repo = p.repos.length > 1 ? (p.repos.find((r) => r.id === item.repo)?.name ?? item.repo) : '';
-  // a plain task says nothing of its kind
-  const kind = [
-    repo,
-    parent
-      ? `${plain(parent.title)} · ${item.label ?? ''} · ${t.kind.workstream}`
-      : item.state === 'idea' || item.proposal?.idea
-        ? t.kind.idea
-        : item.becomesPlan
-          ? becomesLabel(item)
-          : item.prototypeOf
-            ? t.kind.prototype
-            : item.kind === 'plan'
-              ? t.kind.plan
-              : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  // a plain task says nothing of its kind; a contributor's pull request is named as a link below
+  const kind = [repo, parent ? `${plain(parent.title)} · ${item.label ?? ''} · ${cardKind(item)}` : item.contribution ? '' : cardKind(item)].filter(Boolean).join(' · ');
   // a proposal being reworked takes the agent's title and text: the fields come back with them, rather than keeping a draft
   // a stopped task keeps what it was started with: the task is its conversation's first message
   const editable = item.source === 'manual' && (item.state === 'planned' || item.state === 'idea' || item.state === 'proposal') && !item.queue && !item.proposal?.revising && !item.proposal?.merge && !item.mergingInto && !stopped(item);
@@ -249,7 +238,7 @@ export function Detail(p: Props) {
     return (
       <>
         <div className="p-kind">
-          {[repo, t.kind.question].filter(Boolean).join(' · ')}
+          {[repo, cardKind(item)].filter(Boolean).join(' · ')}
           {item.archivedAt ? <LabelMarks item={item} /> : <LabelPicks item={item} />}
         </div>
         <div className="p-title">

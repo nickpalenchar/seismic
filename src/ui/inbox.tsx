@@ -1,7 +1,8 @@
 // The inbox: what waits for the owner on every project, newest first (src/core/inbox.ts). The
 // desktop slides it out as a sheet from the bar's inbox button; the phone lists it as "Needs you".
-// Each entry names its project small, its card large and what it waits for lighter ("Demo ready" on
-// a handover, which is judged on the card); under it, the card's one-click replies
+// Each card's entry is its face at size S (src/ui/card), its project and canvas on its top line and
+// what it waits for under its state ("Demo ready" on a handover, which is judged on the card);
+// under it, the card's one-click replies
 // (src/ui/quickReply.ts), only its default primary, and "Go to card", always there and never the
 // primary one. Only a click on a button (the title included) reads an entry. Unread entries carry an orange dot and a bold title; the switch above the list shows
 // all of them or only the unread ones (src/ui/inboxRead.ts keeps what was read).
@@ -13,11 +14,11 @@ import type { Item } from '../core/types';
 import { ProposalRow, SettingRow } from './koordinator';
 import { Docked } from './docked';
 import { Inline, plain } from './markdown';
-import { asksYou } from './parts';
 import { OtherCanvas } from './canvases';
+import { CardFace, shownTitle, UnreadDot } from './card';
 import { type QuickReply, quickReplies } from './quickReply';
 import { useStoredState } from './stored';
-import { clock, shortDay, stateLabel, t } from './strings';
+import { clock, shortDay, t } from './strings';
 
 /** When it began: the time today, else the day. */
 export const when = (iso: string | number) => (new Date(iso).toDateString() === new Date().toDateString() ? clock(iso) : shortDay(iso));
@@ -55,7 +56,6 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
     const hit = (ev.target as Element).closest('button, a');
     if (hit?.tagName === 'BUTTON') onRead(e);
   };
-  const dot = <span className="unread-dot" role="img" aria-label={t.inbox.unread} />;
   return (
     <>
       <div className="inbox-bar">
@@ -81,7 +81,7 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
           const cls = unread ? ' unread' : ' read';
           if (e.preference || e.setting) return (
             <li key={e.key} className={`inbox-entry proposal-entry${cls}`} onClick={(ev) => readOnButton(ev, e)}>
-              <div className="where"><GitBranch size={12} aria-hidden /><span className="project">{e.projectName}</span>{unread && dot}</div>
+              <div className="where"><GitBranch size={12} aria-hidden /><span className="project">{e.projectName}</span>{unread && <UnreadDot />}</div>
               <ul className="prefs proposals">
                 {e.preference && <ProposalRow p={e.preference} items={e.proposalItems ?? []} rules={e.rules ?? []} repos={e.repos ?? []} project={e.project} onOpen={(i) => onProposalCard(e.project, i)} />}
                 {e.setting && <SettingRow p={e.setting} items={e.proposalItems ?? []} repo={e.repos?.find((r) => r.id === e.setting!.repo)} project={e.project} onOpen={(i) => onProposalCard(e.project, i)} onConfig={onProposalConfig ? () => onProposalConfig(e.project, e.setting!.repo, e.setting!.field) : undefined} />}
@@ -89,35 +89,69 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
             </li>
           );
           const i = e.card;
-          const replies = i ? quickReplies(i) : [];
           const here = !!i && i.id === open;
+          const project = (
+            <>
+              <GitBranch size={12} strokeWidth={2} aria-hidden />
+              <span className="project">{e.projectName}</span>
+            </>
+          );
+          const go = (
+            <button type="button" className="btn" onClick={() => onGo(e)}>
+              {i ? t.inbox.goToCard : t.inbox.goToObeya}
+            </button>
+          );
           return (
             <li key={e.key} className={`inbox-entry${cls}${here ? ' on' : ''}`} aria-current={here || undefined} onClick={(ev) => readOnButton(ev, e)}>
-              <div className="where">
-                <GitBranch size={12} strokeWidth={2} aria-hidden />
-                <span className="project">{e.projectName}</span>
-                {i && e.project === current && <OtherCanvas item={i} named />}
-                <span className="since">{when(e.since)}</span>
-              </div>
-              <div className="ttl">
-                {unread && dot}
-                <button type="button" className="ttl-link" onClick={() => onGo(e)}>{i ? plain(i.title) : t.koordinator.title}</button>
-              </div>
-              <div className={i && asksYou(i) ? 'state asking' : i?.state === 'proposal' && (i.retro || i.proposal?.setup) ? 'state by-obeya' : 'state'}>
-                {i ? stateLabel(i) : t.phone.obeyaAnswered}
-                {i?.state === 'proposal' && i.retro && <span aria-hidden>✦</span>}
-              </div>
-              {e.text && <div className="text">{i ? <Inline md={e.text} /> : plain(e.text)}</div>}
-              <div className="replies">
-                {replies.map((r) => (
-                  <button key={r.label} type="button" className={r.primary ? 'btn primary' : 'btn'} title={r.title} onClick={() => onReply(e.project, i!, r)}>
-                    {r.label}
-                  </button>
-                ))}
-                <button type="button" className="btn" onClick={() => onGo(e)}>
-                  {i ? t.inbox.goToCard : t.inbox.goToObeya}
-                </button>
-              </div>
+              {i ? (
+                <CardFace
+                  item={i}
+                  size="s"
+                  unread={unread}
+                  where={
+                    <>
+                      {project}
+                      {e.project === current && <OtherCanvas item={i} named />}
+                    </>
+                  }
+                  since={when(e.since)}
+                  title={
+                    <button type="button" className="ttl-link" onClick={() => onGo(e)}>
+                      {i.title ? plain(i.title) : shownTitle(i)}
+                    </button>
+                  }
+                  text={e.text && <Inline md={e.text} />}
+                >
+                  <div className="replies">
+                    {quickReplies(i).map((r) => (
+                      <button key={r.label} type="button" className={r.primary ? 'btn primary' : 'btn'} title={r.title} onClick={() => onReply(e.project, i, r)}>
+                        {r.label}
+                      </button>
+                    ))}
+                    {go}
+                  </div>
+                </CardFace>
+              ) : (
+                // Seismic's answers, which are no card, in the same lines as a card's entry
+                <div className="face face-s obeya-answer">
+                  <div className="f-top">
+                    <span className="f-where">
+                      {project} · {when(e.since)}
+                    </span>
+                  </div>
+                  <div className="f-ttl">
+                    {unread && <UnreadDot />}
+                    <span className="f-ttl-text">
+                      <button type="button" className="ttl-link" onClick={() => onGo(e)}>
+                        {t.koordinator.title}
+                      </button>
+                    </span>
+                  </div>
+                  <div className="f-state">{t.phone.obeyaAnswered}</div>
+                  {e.text && <div className="f-text">{plain(e.text)}</div>}
+                  <div className="replies">{go}</div>
+                </div>
+              )}
             </li>
           );
         })}

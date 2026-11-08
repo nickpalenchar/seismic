@@ -8,7 +8,7 @@ import { projectOf } from './api';
 import { cardHref, referenced } from './cardRefs';
 import { plain } from './markdown';
 import { Cards } from './message';
-import { PriorityMark } from './labels';
+import { PriorityMark } from './card';
 import { stateLabel } from './strings';
 
 /** The card by `title` (its own by default); plain text where it is not on the project. `onOpen` in place of the `Cards` around it. */

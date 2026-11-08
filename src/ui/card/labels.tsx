@@ -4,11 +4,11 @@
 
 import { Flag as FlagIcon } from 'lucide-react';
 import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
-import { COMPLEXITIES, type Complexity, type Label, type Labels, LABEL_VALUES, PRIORITIES, type Priority } from '../core/labels';
-import type { Item } from '../core/types';
-import { api } from './api';
-import { useMenuClose } from './queue';
-import { t } from './strings';
+import { COMPLEXITIES, type Complexity, type Label, type Labels, LABEL_VALUES, PRIORITIES, type Priority } from '../../core/labels';
+import type { Item } from '../../core/types';
+import { api } from '../api';
+import { useMenuClose } from '../queue';
+import { t } from '../strings';
 
 /** A flag, in the colour of the priority it marks. */
 const Flag = () => (
@@ -29,11 +29,17 @@ const Bars = ({ complexity }: { complexity: Complexity }) => {
 
 const suggestedOf = (item: Item, label: Label) => !!item.suggested?.includes(label);
 
-/** A card's priority on its face: a flag and its name, in its colour; framed in purple while Seismic suggested it. */
-export const PriorityMark = ({ priority, suggested }: { priority: Priority; suggested?: boolean }) => (
-  <span className={`prio prio-${priority}${suggested ? ' sugg' : ''}`} title={suggested ? t.labels.suggested : undefined}>
+/**
+ * A card's priority on its face: a flag and its name, in its colour; framed in purple while Seismic
+ * suggested it. `bare`, the flag alone, its name on hover, as the smallest card face shows it.
+ */
+export const PriorityMark = ({ priority, suggested, bare }: { priority: Priority; suggested?: boolean; bare?: boolean }) => (
+  <span
+    className={`prio prio-${priority}${suggested ? ' sugg' : ''}${bare ? ' bare' : ''}`}
+    title={bare ? [t.priority.names[priority], suggested && t.labels.suggested].filter(Boolean).join('\n') : suggested ? t.labels.suggested : undefined}
+  >
     <Flag />
-    {t.priority.names[priority]}
+    {!bare && t.priority.names[priority]}
   </span>
 );
 

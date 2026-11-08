@@ -490,11 +490,17 @@ export function CanvasStubs({ stubs, boundsOf, s, onOpen }: { stubs: Stub[]; bou
   );
 }
 
-/** A card on another canvas of the project than the one shown, as search and the inbox list it: that canvas's icon (`named`: and name). */
-export function OtherCanvas({ item, named = false }: { item: Item; named?: boolean }) {
+/** The canvas a card is on when that is another one of the project than the one shown. */
+export function useOtherCanvas(item: Item): Canvas | undefined {
   const { canvases, shown } = useContext(Canvases);
   const c = canvases.length > 1 ? canvases.find((x) => x.id === item.canvas) : undefined;
-  if (!c || c.id === shown) return null;
+  return c && c.id !== shown ? c : undefined;
+}
+
+/** A card on another canvas of the project than the one shown, as search and the inbox list it: that canvas's icon (`named`: and name). */
+export function OtherCanvas({ item, named = false }: { item: Item; named?: boolean }) {
+  const c = useOtherCanvas(item);
+  if (!c) return null;
   return (
     <span className="other-canvas" title={t.canvases.onCanvas(c.name)}>
       <CanvasIcon canvas={c} size={12} />

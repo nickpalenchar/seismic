@@ -1,21 +1,21 @@
 // The Agents sheet: slides out from the bar's robot button, which counts the queued cards in grey, and
 // holds four tabs. "Queue" lists the cards waiting to start in turn, dragged to their place as on a
 // waiting card (src/ui/queue.tsx); "All" lists the project's other cards by the stage they are at,
-// those that need the owner first (src/core/agents.ts), each card a pane like an inbox entry, under
+// those that need the owner first (src/core/agents.ts), each card a pane like an inbox entry (its face at size S), under
 // a chip per stage that shows or hides its group. A row's title or "Go to card" opens its card. "Parked"
 // lists the cards in the parking lot; "Activity" is the log of what happened on the cards (src/ui/activity.tsx).
 
-import { Car } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { AGENT_STAGES, type AgentStage, agentStage, byStage } from '../core/agents';
 import { waitsFor } from '../core/inbox';
-import { demoStage, type Item } from '../core/types';
+import type { Item } from '../core/types';
 import { ActivityTab } from './activity';
+import { CardFace, shownTitle } from './card';
 import { Docked } from './docked';
 import { Inline, plain } from './markdown';
 import { QueueList, useQueueSort } from './queue';
 import { useStoredState } from './stored';
-import { stateLabel, t } from './strings';
+import { t } from './strings';
 
 type Tab = 'queue' | 'all' | 'parked' | 'activity';
 
@@ -94,28 +94,29 @@ export function AgentsSheet({ els, on, items, open, underway, onOpen, project, c
   );
 }
 
-/** A card, as the inbox shows an entry: its title large, its state with what the agent does, what it waits for or its status line, and "Go to card". */
+/** A card, as the inbox shows an entry: its face at size S, with what it waits for where it needs the owner, and "Go to card". */
 function AgentEntry({ item: i, els, here, underway, onOpen }: { item: Item; els?: Map<string, HTMLElement>; here: boolean; underway: boolean; onOpen: (i: Item) => void }) {
-  const doing = i.doing && i.doing !== 'working' ? t.doing[i.doing] : '';
-  // what it waits for where it needs the owner, as its inbox entry says, else what its agent reported last
-  const text = agentStage(i, underway) === 'needsYou' ? waitsFor(i) : i.statusLine;
+  const stage = agentStage(i, underway);
+  // what it waits for where it needs the owner, as its inbox entry says; else the line its card shows under its title
+  const waits = stage === 'needsYou' ? waitsFor(i) : undefined;
   return (
-    <li ref={els && i.parkingLot ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined} className={`inbox-entry agent-entry stage-${agentStage(i, underway) ?? 'parked'}${here ? ' on' : ''}`} aria-current={here || undefined}>
-      <div className="ttl">
-        <button type="button" className="ttl-link" onClick={() => onOpen(i)}>
-          {plain(i.title)}
-        </button>
-      </div>
-      <div className="state">
-        {i.parkingLot && <Car size={13} aria-hidden />} {stateLabel(i)}
-        {doing && <span className={i.doing && demoStage(i.doing) ? 'doing demo' : 'doing'}> · {doing}</span>}
-      </div>
-      {text && <div className="text"><Inline md={text} /></div>}
-      <div className="replies">
-        <button type="button" className="btn" onClick={() => onOpen(i)}>
-          {t.inbox.goToCard}
-        </button>
-      </div>
+    <li ref={els && i.parkingLot ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined} className={`inbox-entry agent-entry stage-${stage ?? 'parked'}${here ? ' on' : ''}`} aria-current={here || undefined}>
+      <CardFace
+        item={i}
+        size="s"
+        title={
+          <button type="button" className="ttl-link" onClick={() => onOpen(i)}>
+            {i.title ? plain(i.title) : shownTitle(i)}
+          </button>
+        }
+        text={waits && <Inline md={waits} />}
+      >
+        <div className="replies">
+          <button type="button" className="btn" onClick={() => onOpen(i)}>
+            {t.inbox.goToCard}
+          </button>
+        </div>
+      </CardFace>
     </li>
   );
 }

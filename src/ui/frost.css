@@ -54,7 +54,7 @@
 }
 
 html, body { background-color: var(--bg); background-image: var(--board); background-attachment: fixed; font-feature-settings: "cv11", "ss01"; letter-spacing: -.003em; }
-h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-weight: 650; letter-spacing: -.018em; }
+h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-weight: 650; letter-spacing: -.018em; }
 code { border-radius: 5px; }
 
 /* the canvas: the board's gradient shows through; the dots stay as a faint grid */

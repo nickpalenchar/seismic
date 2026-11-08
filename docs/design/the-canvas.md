@@ -17,12 +17,12 @@ and the gear of the project settings before that (see The project settings).
 
 The agents' button counts in grey the cards waiting in the queue, and only those; its click slides
 out the Agents sheet, a sheet like the inbox (see Sheets), with four tabs, the one chosen last
-remembered per browser. "Queue" (with the same count) lists the waiting cards in turn, each with
-what it waits for, dragged to its place (see The queue's order) and with a × that takes it out of
+remembered per browser. "Queue" (with the same count) lists the waiting cards in turn, each at size
+XS (see Card sizes) with what it waits for, dragged to its place (see The queue's order) and with a × that takes it out of
 the queue at once, as "Take out of the queue" on the card does (back to planned; no undo, starting
 it again is the way back); a row opens its card. "All" lists the project's other cards, each a
-pane like an inbox entry (its title large, its state with what the agent does, what it waits for
-or its status line, "Go to card"), grouped by stage, in this order: "Needs you" (every card the
+pane like an inbox entry (the card at size S, what it waits for where it needs the owner, "Go to
+card"), grouped by stage, in this order: "Needs you" (every card the
 inbox lists, whatever its kind, taken out of the stage it would be in), "Working" (a
 worker making its demo too, which its state line says), "Code reviewing" (its code review runs,
 also while the card waits for the owner), "Review fixing" (its worker fixes findings the owner gave
@@ -59,7 +59,7 @@ waking, and anything before the log existed (the tab starts empty).
 
 The search button opens a small card finder below the bar. On the canvas, `/` opens it when no text
 field has focus. It searches non-archived cards by title words or short code, in the same order as
-card links in a task description. A click opens a result; arrow keys choose one and Enter opens it,
+card links in a task description, each result the card at size XS (see Card sizes). A click opens a result; arrow keys choose one and Enter opens it,
 including the first result when no arrow key has been pressed. Escape or a click outside closes it.
 The highlighted result remains visible as the owner moves through a list longer than the available space.
 The finder shows all matches; the task-description card-link menu limits its suggestions instead.
@@ -85,10 +85,10 @@ switches project (per tab), until they close it or open another sheet.
 The desktop's inbox lists the shown project's entries; a switch "All projects", right-aligned on the line of the Unread | All filter, lists every project's entries in one list (off by default, remembered). The list is ordered newest first by the time shown on the entry;
 cards snoozed while they waited stand at the end (see Snoozing a card). The phone's "Needs you"
 shares the entries, layout and actions, but sorts by last update, newest first: a refreshed demo
-moves its card to the top (see The phone view). An entry is a pane of glass of its own: its
-project small on top (name and icon, with since when it waits), the card's title large, its state
-("Demo ready", "Question for you" …) and, lighter, what the card waits for (the question, the
-summary, the proposal's text). Rule and setting proposals offer their decisions directly in the inbox. Seismic's latest unread answer on a project is an entry too, placed by
+moves its card to the top (see The phone view). An entry is a pane of glass of its own holding the
+card at size S (see Card sizes): its project (name and icon) and since when it waits on its top
+line, and what the card waits for (the question, the summary, the proposal's text) in place of the
+line under its title. Rule and setting proposals offer their decisions directly in the inbox. Seismic's latest unread answer on a project is an entry too, placed by
 when it came, and leads to Seismic's sheet there.
 
 Under an entry stand the buttons that answer it in one click, the same as its card's own, and of
@@ -316,6 +316,38 @@ through other cards, so the two would wait for each other. One to or from a plan
 is refused the same way, saying the plan doc gives their order. A deleted or archived card's arrows are hidden and count for nothing; bringing the card
 back brings them back, except one that would now close a cycle. How an arrow holds a card's start:
 see Scheduling.
+
+#### Card sizes
+
+A card has one face, which every place that shows a card draws in one of three sizes, so that no
+list says a card's title, state or labels in a way of its own:
+
+- **M** is the card on the canvas, also two merged cards side by side, the phone's "Running",
+  "Planned" and "Done" lists and a follow-up made in a conversation. Its top line holds the label
+  chips (the priority's flag and name, then category, sub-category and complexity; one Seismic
+  suggested is framed dashed in purple), followed by where it is (its repository on a project with
+  several, its project on the phone) and its kind ("Idea", "Plan", a workstream's label, a review
+  card's pull request; a plain task says none). Then its title; one line of what holds it, what it
+  asks, its status, else the start of its text; its state line in its state's colour with what its
+  agent is doing; and the pin while it needs the owner. Zoomed out, only the label chips of the top
+  line stay, enlarged.
+- **S** is a compact row of up to four lines, for the inbox and the Agents sheet's "All": the label
+  chips, then where, kind and since when; the title with the pin, or in the inbox the unread dot in
+  its place; the state line; then what the card waits for (else the line under its title), in at
+  most two lines. The entry's buttons stand below it.
+- **XS** is two lines with the least, for `/` search, the queue, the archive (with the time it was
+  archived beside it), a plan's sheet, the merge picker, and the cards before and after a queued
+  card in its chain on the open card: the title (a workstream's after its label) with the pin; then
+  the priority's flag alone, the dot and word of its state in its colour, its kind, the other canvas
+  it is on, and what the list adds (what it waits for, what it builds on, "Archived").
+
+Card links in text, the edge indicators and the minimap are no faces: they only name a card (a link
+with its priority's flag).
+
+Decision (2026-11-08): one face in three sizes for every surface, rather than each list drawing a row
+of its own: search showed neither state nor priority, and the rows drifted apart with every change to
+the card. XS leaves out category, sub-category and complexity so that it stays two lines; the
+priority stays, as what decides where in a list to look first.
 
 #### Priorities
 

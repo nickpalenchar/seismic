@@ -1,57 +1,24 @@
 // Presentational pieces of the project. State and camera live in App.tsx.
 
-import { Archive, ChevronDown, ChevronRight, CircleHelp, Columns3, GitMerge, MessageSquare, Pause, Play, RotateCw, Square } from 'lucide-react';
+import { Archive, ChevronDown, ChevronRight, Columns3, GitMerge, MessageSquare, Pause, Play, Square } from 'lucide-react';
 import { Docked } from './docked';
 import { memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
-import { agentFailed, answering, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, demoStage, finished, finishedArchivable, finishingUp, handedOver, type Item, merging, needsYou, openQuestions, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type PullRequest, type SourceUpdate, stoppedArchivable, titleFrom } from '../core/types';
+import { agentFailed, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type SourceUpdate, stoppedArchivable } from '../core/types';
 import { CardMore } from './canvases';
 import { PlanTalk } from './koordinator';
 import { api } from './api';
 import type { Cam, Sides } from './camera';
 import type { Shape } from './groups';
-import { Doc, excerpt, Inline, plain } from './markdown';
+import { Doc, Inline, plain } from './markdown';
 import { Body } from './message';
-import { waitedOn, waitReason } from './queue';
-import { hasLabels, LabelMarks, LabelPicks } from './labels';
+import { waitedOn } from './queue';
+import { asksYou, CardFace, cardClass, hasLabels, HourglassMark, LabelMarks, LabelPicks, shownState } from './card';
 import { scrollBehavior } from './motion';
-import { ClockMark, snoozeWho } from './snooze';
-import { becomesLabel, clock, shortDay, snoozeWhen, stateLabel, t } from './strings';
+import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
-
-/** The first line of a card's text that says something (not a bare "Goal" label, as briefs start). */
-const firstLine = (md: string) =>
-  plain(md)
-    .split('\n')
-    .map((l) => l.replace(/^Goal\s*:?\s*/i, '').trim())
-    .find(Boolean) ?? '';
-
-/** What of a workstream planned again has landed: its pull request, else its commit. */
-/** The state whose colour an open card wears: a demo whose worker takes in the owner's answer is at work. */
-/** The colour a card's state gives its unfolded sheet: a snoozed card's is pencil grey, as on the project. */
-export const shownState = (i: Item) => (i.snoozed ? 'muted' : i.kind === 'question' ? 'question' : answering(i) ? 'working' : agentFailed(i) ? 'error' : asksYou(i) ? 'asking' : i.state);
-
-/** Whether the card's state reads "Question for you": its agent asks and waits for the answer. */
-export const asksYou = (i: Item) => i.state === 'waiting' && i.need === 'question' && !agentFailed(i) && !i.answering && !i.answered && !i.paused && !i.pausing && !i.snoozed;
-
-/** The mark before a state that is a question for the owner. */
-export const QuestionMark = () => (
-  <CircleHelp className="question-mark" size={11} strokeWidth={1.75} aria-hidden />
-);
-
-/** A card's pull requests still open as far as Seismic knows: its own and those in other repositories. */
-export const openPrs = (item: Item): PullRequest[] => [...(item.pr ? [item.pr] : []), ...(item.morePrs ?? [])].filter((p) => !p.merged && !p.closed);
-
-/** A pull request's line on the project: its checks, a conflict, whether it is ready, and else what it waits for first. */
-const prShort = (p: PullRequest) => {
-  // a red check and a conflict the line names already
-  const wait = p.ready ? undefined : p.waits?.find((w) => w !== 'conflict' && w !== 'checksFailed');
-  return t.pr.short(`${p.repo ? `${p.repo.split('/').pop()} ` : ''}#${p.number}`, p.checks.filter((c) => c.state === 'failure').length, p.conflict, p.ready, p.held?.score, wait && t.pr.waitShort[wait]);
-};
-
-export const landedRef = (l: NonNullable<Item['landedPart']>) => (l.pr ? `PR #${l.pr.number}` : (l.commit?.slice(0, 7) ?? ''));
 
 /** The button for the conversation with Seismic (the project's top bar, the phone view's): a speech bubble. */
 export function TalkIcon() {
@@ -85,9 +52,6 @@ interface CardProps {
   underway?: string;
 }
 
-/** A card's title as it shows: its own, else the start of its text. */
-export const shownTitle = (i: Item) => (i.title ? <Inline md={i.title} /> : titleFrom(i.body) || t.titlePlaceholder);
-
 /** The marks on the buttons that pause an agent and let it go on. */
 export const PauseMark = () => (
   <Pause className="btn-mark" size={11} strokeWidth={1.75} fill="currentColor" aria-hidden />
@@ -95,16 +59,6 @@ export const PauseMark = () => (
 export const PlayMark = () => (
   <Play className="btn-mark" size={11} strokeWidth={1.75} fill="currentColor" aria-hidden />
 );
-
-export const HourglassMark = () => (
-  <svg className="hourglass-mark" viewBox="0 0 16 20" width="14" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
-    <path d="M2 1h12M2 19h12M3 1v4c0 2 3 3 5 5-2 2-5 3-5 5v4M13 1v4c0 2-3 3-5 5 2 2 5 3 5 5v4" />
-    <path d="m5 5 3 3 3-3M5 16l3-3 3 3" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-/** A circular arrow: the mark of a card whose agent paused for a restart that is due. */
-export const RestartMark = () => <RotateCw className="restart-mark" size={11} strokeWidth={2} aria-hidden />;
 
 /** The same limit pause and manual retry on every card's conversation. */
 export function LimitNotice({ item }: { item: Item }) {
@@ -184,111 +138,6 @@ const ColumnsIcon = ({ size }: { size: number }) => (
 
 const sameBounds = (a: Bounds, b: Bounds) => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 
-/** The classes that give a card its look: its state's colour, an idea's stock, the owner's turn, an agent at it. */
-export const cardClass = (item: Item, underway?: string) =>
-  [
-    'card',
-    `s-${item.state}`,
-    item.codeReview?.state === 'running' && 'reviewing',
-    item.idea && `idea-${item.idea.status}`,
-    item.kind === 'question' && 'q-card',
-    (item.idea?.thinking || item.proposal?.revising || item.thread?.thinking || merging(item)) && 'thinking',
-    item.idea && needsYou(item) && 'your-turn',
-    agentFailed(item) && 'failed',
-    underway && 'underway',
-    answering(item) && 'answering',
-    asksYou(item) && 'asking',
-    finishingUp(item) && 'finishing',
-    item.paused && 'paused',
-    item.restartPaused && 'restart-paused',
-    item.resolvingConflicts && 'resolving-conflicts',
-    (item.limitPaused || item.limitedUntil) && 'limit-paused',
-    item.snoozed && 'snoozed',
-    item.queue && 'queued',
-    item.queue && 'restart' in item.queue && 'restart-queued',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-/**
- * What a card says on its face, on the project and in the phone view's lists alike: its kind (after
- * `where` it is, its repository or project), its title, a line of its text, its state line in its
- * state's colour (`since` after it) and the pin while it needs the owner. A `chip`, a delivered
- * workstream, shows only its title, after its label, so it still reads as its workstream.
- */
-export function CardFace({ item, where, underway, since, chip }: { item: Item; where?: string; underway?: string; since?: string; chip?: boolean }) {
-  if (item.landing) underway = stateLabel(item);
-  const kind =
-    item.label ??
-    (item.contribution ? t.review.kind(item.contribution.number, item.contribution.author) : item.parent ? t.kind.workstream : item.kind === 'question' ? t.kind.question : item.idea || item.proposal?.idea ? t.kind.idea : item.becomesPlan ? becomesLabel(item) : item.prototypeOf ? t.kind.prototype : item.kind === 'plan' ? t.kind.plan : '');
-  // a plain task says nothing of its kind: that it is one shows
-  const label = [item.state === 'proposal' && t.proposalMark, where, kind].filter(Boolean).join(' · ');
-  // a card whose agent finishes after the landing, opens its PR or takes in the owner's words on its handover shows its line like one at work: the usage limit it waits on, its reports
-  // a review card waiting for the contributor says so in its state; what its review found shows while it waits for the owner
-  const results = item.contribution?.results && handedOver(item) && !answering(item) ? item.contribution.results : undefined;
-  const findings = (item.contribution?.findings ?? []).filter((f) => f.status !== 'dropped');
-  const open = findings.filter((f) => f.status === 'open');
-  const status = results
-    ? [t.review.checks(results), ...(item.contribution?.clash ? [t.review.clashShort] : []), t.review.findings(findings.length, open.length, open.filter((f) => f.security).length)].join(' · ')
-    : item.state === 'working' || item.finishing || answering(item) || (item.state === 'inPr' && (!openPrs(item).length || item.contribution))
-      ? item.statusLine && excerpt(item.statusLine)
-      : item.state === 'inPr'
-        ? openPrs(item).map(prShort).join(' | ')
-        : undefined;
-  // a proposal being reworked says that in place of its state: the kind line above already calls it a proposal
-  const revising = item.state === 'proposal' && item.proposal?.revising;
-  const asked = openQuestions(item)[0]?.text;
-  const meta =
-    (item.repoDown ? t.repoDown.short : undefined) ??
-    (item.snoozed ? snoozeWho(item.snoozed) : undefined) ??
-    (item.superseded ? (item.superseded.by ? t.superseded.byShort(plain(item.superseded.title ?? '')) : t.superseded.withdrawnShort) : undefined) ??
-    (item.limitPaused ? t.limitPaused : undefined) ??
-    (item.limitedUntil ? t.limitedUntil(clock(item.limitedUntil)) : undefined) ??
-    (item.kind === 'question' && item.thread ? t.question.count(item.thread.answers, item.thread.files) : undefined) ??
-    (asked === undefined ? undefined : excerpt(asked)) ??
-    (item.queue && 'behind' in item.queue ? excerpt(waitReason(item.queue)) : undefined) ??
-    (item.queue && 'workstation' in item.queue ? t.queue.workstationWhy[item.queue.workstation] : undefined) ??
-    (item.queue && 'paused' in item.queue ? t.queue.pausedWhy : undefined) ??
-    (item.queue && 'restart' in item.queue ? t.queue.restartWhy : undefined) ??
-    status ??
-    (item.idea ? firstLine(item.idea.brief) || firstLine(item.body) : firstLine(item.body));
-  return (
-    <>
-      {(label || hasLabels(item)) && (
-        <div className="kind">
-          <LabelMarks item={item} />
-          {label && <span>{label}</span>}
-        </div>
-      )}
-      <div className={item.title ? 'ttl' : 'ttl untitled'}>
-        {chip && item.label && <span className="ws-no">{item.label}</span>}
-        {shownTitle(item)}
-      </div>
-      {meta && <div className="meta">{meta}</div>}
-      <div className={doingNow(item) && !underway ? 'state doing-now' : 'state'}>
-        {(item.limitPaused || item.limitedUntil) && !underway && <HourglassMark />}
-        {item.snoozed && !underway && <ClockMark />}
-        {item.restartPaused && !underway && <RestartMark />}
-        {item.queue && 'restart' in item.queue && !underway && <HourglassMark />}
-        {asksYou(item) && !underway && !revising && !item.proposal?.merge && <QuestionMark />}
-        {/* one line on the card, cut short rather than running into the text above it */}
-        <span className="state-text">
-          {underway ?? (revising ? t.revisingShort : stateLabel(item))}
-          {item.landedPart && <span className="landed-part">{t.landedPart.short} · {landedRef(item.landedPart)}</span>}
-          {item.buildProposal && ` · ${t.idea.proposesBuild}`}
-          {item.proposal?.acceptAfterRevision && ` · ${t.acceptsAfterRevision}`}
-          {item.state === 'proposal' && item.proposal?.startAt && !item.proposal.idea && ` · ${t.startAt.short(snoozeWhen(item.proposal.startAt))}`}
-          {item.idea?.buildAfterReply && ` · ${t.idea.buildsAfterReply}`}
-          {item.idea?.next && needsYou(item) && ` · ${t.idea.suggests[item.idea.next.step]}`}
-          {!underway && item.resolvingConflicts ? <span className="doing conflict"> · {t.resolvingConflicts}</span> : !underway && doingNow(item) && <span className={demoStage(doingNow(item)!) ? 'doing demo' : 'doing'}> · {item.answering && !demoStage(doingNow(item)!) ? t.feedbackDoing[doingNow(item)! as keyof typeof t.feedbackDoing] : t.doing[doingNow(item)!]}</span>}
-          {since && <span className="since"> · {since}</span>}
-        </span>
-      </div>
-      {needsYou(item) && !underway && <div className={agentFailed(item) ? 'badge pulse failed' : 'badge pulse'}>{item.state === 'proposal' ? '✦' : agentFailed(item) ? '!!' : asksYou(item) ? '?' : '!'}</div>}
-    </>
-  );
-}
-
 /**
  * An unworked card merged with another card (`partner`), on the project: both cards side by side, glued by
  * a spinner while an agent merges them, and by the merge mark once the merged card waits for the owner.
@@ -312,9 +161,6 @@ function MergedPair({ item, partner, showRepo }: { item: Item; partner?: Item; s
 export const MergeMark = ({ size = 16 }: { size?: number }) => (
   <GitMerge className="merge-mark" size={size} strokeWidth={size <= 13 ? 1.75 : 2} />
 );
-
-/** What the card's worker is doing in its turn, after its state line: a stage of its demo in green. */
-const doingNow = (item: Item) => (item.inTurn && !item.paused ? item.doing : undefined);
 
 export const CardView = memo(
   function CardView({ item, partner, b, lifted, dragging, pop, prototyped, showRepo, els, onStart, onArchive, dep, onHover, underway }: CardProps) {
@@ -1382,24 +1228,21 @@ export function Sheet({
           )}
           <ol>
             {inOrder.map((k) => (
-              <li key={k.id} ref={ref(k.id)} className={`s-${k.state}`} onClick={() => onOpen(k)}>
-                <span className="dot" />
-                <span className="w">{k.label}</span>
-                <span className="ws">
-                  <span className="ws-title">
-                    <Inline md={k.title} />
-                  </span>
-                  {k.body.trim() && (
-                    <div className="ws-text">
-                      <Body md={k.body} />
-                    </div>
-                  )}
-                  <span className="hint">
-                    {k.queue && 'behind' in k.queue
+              <li key={k.id} ref={ref(k.id)} onClick={() => onOpen(k)}>
+                <CardFace
+                  item={k}
+                  size="xs"
+                  tail={
+                    k.queue && 'behind' in k.queue
                       ? t.queue.behind(waitedOn(k.queue.behind, all, (id) => sibling(id, kids, all)))
-                      : [stateLabel(k), !finished(k.state) && k.buildsOn?.length && t.plan.buildsOn(k.buildsOn.map((id) => sibling(id, kids, all)))].filter(Boolean).join(' · ')}
-                  </span>
-                </span>
+                      : !finished(k.state) && !!k.buildsOn?.length && t.plan.buildsOn(k.buildsOn.map((id) => sibling(id, kids, all)))
+                  }
+                />
+                {k.body.trim() && (
+                  <div className="ws-text">
+                    <Body md={k.body} />
+                  </div>
+                )}
               </li>
             ))}
           </ol>

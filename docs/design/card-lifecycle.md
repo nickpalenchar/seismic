@@ -53,7 +53,7 @@ accepted already is only marked until it is finished: its card reads "Replaced b
 
 "Merge with" starts at a task nobody has worked on: a proposal or a planned task.
 The picker searches titles and texts, listing planned tasks and proposals first, then in-progress,
-done/live and archived tasks, newest first within each group. It excludes itself, workstreams,
+done/live and archived tasks, newest first within each group, each at size XS (see Card sizes). It excludes itself, workstreams,
 ideas and prototypes, snoozed cards, cards being merged or reworked, and repositories that are down.
 Two started tasks cannot merge with each other.
 
@@ -397,10 +397,11 @@ why), which would lie unseen in a clone. A stopped card opens
 like a card an agent worked on, the task as its conversation's first message.
 
 The archive (its button in the bar, or `A`) drops down like the queue: archived cards on a timeline
-by day, newest first, labelled with their kind or state unless plain tasks. One unfolds as on the canvas and can go
+by day, newest first, each at size XS (see Card sizes) beside the time it was archived, a plan with
+the count of its workstreams. One unfolds as on the canvas and can go
 back to its place; an ended prototype only shows, read-only, how it ended. A search field, focused on
 opening and kept between openings, filters by every typed word (case and accents aside) in title,
-text, summary, last status or label, and a plan's goal and workstreams, marking the words in the
+text, summary, last status, state or kind, and a plan's goal and workstreams, marking the words in the
 titles. The list stays under the dim while a card from it is open, so the card folds back into it.
 
 ### Plans end

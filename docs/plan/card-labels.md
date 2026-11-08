@@ -46,7 +46,7 @@ this Seismic, never in plan docs, and not told to agents.
   UI and skill. Setting a label through the API clears its mark; a "suggest" write fills only empty,
   never-cleared labels and sets the mark. Old cards read as having no labels. Agents' prompts and
   tools stay without the labels. Tests for the writes, the marks and the never-overwrite rule.
-- [x] **W2:** Pickers and chips on the card. Done (2026-11-04): `src/ui/labels.tsx` draws the face's
+- [x] **W2:** Pickers and chips on the card. Done (2026-11-04): `src/ui/card/labels.tsx` draws the face's
   priority flag and chips (complexity as rising bars and its number) and the unfolded card's four
   pickers; the complexity list shows the seven Fibonacci values without descriptions. A
   suggested label has the proposal's dashed border and colour; any

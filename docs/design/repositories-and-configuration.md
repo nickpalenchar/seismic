@@ -192,9 +192,9 @@ landed).
 
 #### Reading a plan doc
 
-The plan's sheet lists each workstream with label, title and, below in smaller type, the rest of
-its item (text and sub-items), then its state, since a title alone is often too short to tell what
-a workstream is (2026-10-21); details the doc keeps in sections of their own stay in the doc. A workstream's card names its doc at the top (the
+The plan's sheet lists each workstream at size XS (see Card sizes: label, title, state and what it
+builds on) and, below in smaller type, the rest of its item (text and sub-items), since a title
+alone is often too short to tell what a workstream is (2026-10-21); details the doc keeps in sections of their own stay in the doc. A workstream's card names its doc at the top (the
 path and "Read in the plan doc") and shows the item's text in every state: alone while planned,
 beside the conversation while queued, and once an agent works on it on the left under "Plan doc",
 above what came of the work, in full, or its first three lines with "more" above a demo or files.
