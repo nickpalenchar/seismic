@@ -13,13 +13,13 @@ import { plain } from './markdown';
 import { type Drag, useSortable } from './sortable';
 import { failText, stateLabel, t } from './strings';
 
-/** A list under a bar's button: while it is `on`, a click anywhere beside `box` closes it, and Esc does with `esc`. */
-export function useMenuClose(on: boolean, box: RefObject<HTMLElement | null>, close: () => void, esc = false) {
+/** A list under a bar's button: while it is `on`, a click anywhere beside `box` (and `also`, a list drawn elsewhere) closes it, and Esc does with `esc`. */
+export function useMenuClose(on: boolean, box: RefObject<HTMLElement | null>, close: () => void, esc = false, also?: RefObject<HTMLElement | null>) {
   const latest = useRef(close);
   latest.current = close;
   useEffect(() => {
     if (!on) return;
-    const away = (e: PointerEvent) => box.current?.contains(e.target as Node) || latest.current();
+    const away = (e: PointerEvent) => box.current?.contains(e.target as Node) || also?.current?.contains(e.target as Node) || latest.current();
     const key = (e: KeyboardEvent) => esc && e.key === 'Escape' && latest.current();
     const dismiss = () => latest.current();
     addEventListener('pointerdown', away, true);

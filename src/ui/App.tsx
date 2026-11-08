@@ -836,13 +836,14 @@ function Project({
     recover();
   }
 
-  /** The card goes onto another canvas: it folds away, and the canvas shown stays. */
+  /** The card (a plan with its workstreams) goes onto another canvas: it folds away, and the canvas shown stays. */
   async function moveCard(i: Item, to: Canvas) {
     const title = plain(i.title) || titleFrom(i.body);
     if (focusRef.current?.type === 'card' && focusRef.current.id === i.id) {
       await flushEdit();
       await closeCard({ keepUntitled: true });
     }
+    if (focusRef.current?.type === 'plan' && focusRef.current.id === i.id) await closePlan(false);
     try {
       await api.moveToCanvas([i.id], to.id);
       showAck(t.canvases.moved(title, canvasText(to)));

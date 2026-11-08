@@ -128,7 +128,13 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-fami
 .plan > .head .arrange { color: var(--muted); }
 .plan > .head .arrange:disabled { cursor: default; animation: arranging 1.4s ease-in-out infinite; }
 @keyframes arranging { 50% { opacity: .45; } }
-.z-far .plan .head-btn { display: none; }
+.z-far .plan .head-btn, .z-far .plan .plan-more { display: none; }
+/* a plan's "⋯" shows with the pointer on the plan, and stays while its menu is open; its menu lies over the workstreams */
+.plan > .head .plan-more { flex: none; display: flex; opacity: 0; transition: opacity .15s; }
+.plan:hover > .head .plan-more, .plan > .head .plan-more:has([aria-expanded="true"]) { opacity: 1; }
+@media (hover: none) { .plan > .head .plan-more { opacity: 1; } }
+.plan > .head:has(.card-more) { padding-right: 10px; }
+.card-more-menu.floating { position: fixed; right: auto; z-index: 60; }
 .plan > .head { padding-left: 12px; }
 /* folds the plan to its head and back; always in sight, so it is found */
 .plan > .head .fold { flex: none; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; margin-right: -4px;

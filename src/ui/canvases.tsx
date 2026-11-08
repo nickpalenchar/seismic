@@ -4,6 +4,7 @@
 // card lies on another canvas.
 
 import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { CANVAS_LUCIDE_ICONS } from '../core/canvas-icons';
 import type { Bounds } from '../core/layout';
@@ -329,47 +330,65 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
   );
 }
 
-/** The open card's "⋯": "Move to canvas" and the project's other canvases; only where there are other canvases. */
-export function CardMore({ item }: { item: Item }) {
+/**
+ * A card's "⋯" (the open card's, a plan's on its container): "Move to canvas" and the project's other
+ * canvases; only where there are other canvases. On the canvas (`floating`) its menu is drawn over
+ * the page at the button, unscaled by the zoom and above the plan's workstreams, and goes when the
+ * canvas moves under it.
+ */
+export function CardMore({ item, floating }: { item: Item; floating?: boolean }) {
   const { canvases, move } = useContext(Canvases);
   const [open, setOpen] = useState(false);
+  const [at, setAt] = useState<{ left: number; top: number }>();
   const box = useRef<HTMLSpanElement>(null);
   const menu = useRef<HTMLDivElement>(null);
-  useMenuClose(open, box, () => setOpen(false), true);
+  useMenuClose(open, box, () => setOpen(false), true, menu);
+  useEffect(() => {
+    if (!open || !floating) return;
+    const away = () => setOpen(false);
+    addEventListener('wheel', away, { passive: true });
+    return () => removeEventListener('wheel', away);
+  }, [open, floating]);
   useLayoutEffect(() => {
     const m = menu.current;
     if (!open || !m) return;
     const over = m.getBoundingClientRect().right - (document.documentElement.clientWidth - 8);
-    if (over > 0) m.style.left = `${-over}px`;
-  }, [open]);
+    if (over > 0) m.style.left = `${(floating ? m.getBoundingClientRect().left : 0) - over}px`;
+  }, [open, at]);
   const on = canvasOf(canvases, item);
   const others = canvases.filter((c) => c.id !== on?.id);
-  if (!others.length || item.archivedAt || item.kind === 'plan') return null;
+  if (!others.length || item.archivedAt) return null;
+  const toggle = () => {
+    const b = box.current?.getBoundingClientRect();
+    if (floating && b) setAt({ left: b.left, top: b.bottom + 4 });
+    setOpen(!open);
+  };
+  const list = (
+    <div ref={menu} className={`prio-menu card-more-menu${floating ? ' floating' : ''}`} role="menu" {...(floating && at ? { style: at } : {})}>
+      <div className="cm-head">{t.canvases.moveTo}</div>
+      {others.map((c) => (
+        <button
+          key={c.id}
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
+            move(item, c);
+          }}
+        >
+          <span className="lopt">
+            <CanvasIcon canvas={c} />
+            {c.name}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
   return (
     <span className="prio-pick card-more" ref={box}>
-      <button className="prio-btn" title={t.canvases.more} aria-label={t.canvases.more} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button className="prio-btn" title={t.canvases.more} aria-label={t.canvases.more} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
         <MoreHorizontal size={14} aria-hidden />
       </button>
-      {open && (
-        <div ref={menu} className="prio-menu card-more-menu" role="menu">
-          <div className="cm-head">{t.canvases.moveTo}</div>
-          {others.map((c) => (
-            <button
-              key={c.id}
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                move(item, c);
-              }}
-            >
-              <span className="lopt">
-                <CanvasIcon canvas={c} />
-                {c.name}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+      {open && (floating ? createPortal(list, document.body) : list)}
     </span>
   );
 }

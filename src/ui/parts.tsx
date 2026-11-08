@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
 import { agentFailed, answering, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, demoStage, finished, finishedArchivable, finishingUp, handedOver, type Item, merging, needsYou, openQuestions, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type PullRequest, type SourceUpdate, stoppedArchivable, titleFrom } from '../core/types';
+import { CardMore } from './canvases';
 import { PlanTalk } from './koordinator';
 import { api } from './api';
 import type { Cam, Sides } from './camera';
@@ -1001,6 +1002,10 @@ export const PlanView = memo(
               {t.plan.startAllShort(startable)}
             </button>
           )}
+          {/* "Move to canvas", with its workstreams; its clicks stay its own */}
+          <span className="plan-more" onPointerDown={own} onClick={(e) => e.stopPropagation()}>
+            <CardMore item={item} floating />
+          </span>
         </div>
         {/* a collapsed plan's workstreams, a mark each in its state's colour: a click opens one, unfolding from its mark */}
         {collapsed && (

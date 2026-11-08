@@ -560,7 +560,10 @@ the Koordinator and of other cards are the project's and stay as they are across
 
 The open card's "⋯" beside its labels offers "Move to canvas" with the project's other canvases
 (only where there are others, and not on an archived card): the card folds away onto that canvas,
-the canvas shown stays, and a line confirms where it went. A wait whose other card lies on another
+the canvas shown stays, and a line confirms where it went. A plan's container has the same "⋯" at
+the end of its head, shown while the pointer is on the plan (always on touch): the plan goes with
+all its workstreams. Its menu stands over the page, at the size of the page rather than the zoom,
+and closes when the canvas is panned or zoomed under it. A wait whose other card lies on another
 canvas ends in a stub: a short faint arrow into the card from the left (what it waits for) or out
 of it to the right (what waits for it), ending at a round button with the other canvas's icon that
 names the card and canvas on hover and opens that card there.
