@@ -72,7 +72,7 @@ export class CodeReviews {
   /** After a restart: a review cut off by it, or paused for it, goes on; one about to start starts. One for work no longer waiting for approval failed. */
   interrupted(): void {
     for (const i of this.o.board.items()) {
-      if (!i.codeReview || (this.o.repo && i.repo !== this.o.repo)) continue;
+      if (!i.review?.codeReview || (this.o.repo && i.repo !== this.o.repo)) continue;
       const c = codeReviewOf(this.o.board.row(i.id));
       if (c?.pending) {
         // git had not told the commit yet: the review starts now, as the handover would have started it

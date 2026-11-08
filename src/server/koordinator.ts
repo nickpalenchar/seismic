@@ -270,7 +270,7 @@ export class Koordinator {
     }
     const now = Date.now();
     open.forEach((w, n) => this.o.board.work(w.id, { agent_setting: null, queue: JSON.stringify({ checking: true, together: plan.id, since: new Date(now + n).toISOString() }) }));
-    this.o.board.log(plan.id, 'state', 'owner', this.o.board.t.koordinator.allStarted(open.map((w) => w.label ?? w.title).join(', ')));
+    this.o.board.log(plan.id, 'state', 'owner', this.o.board.t.koordinator.allStarted(open.map((w) => w.plan?.label ?? w.title).join(', ')));
     setTimeout(() => this.serial(() => this.decideAll(plan.id)), this.o.holdMs ?? START_ALL_HOLD_MS);
   }
 
@@ -289,7 +289,7 @@ export class Koordinator {
 
   /** Plans waiting for their reading (one just come, or one asked for before a restart): it starts. */
   private readPendingDeps() {
-    for (const id of this.o.board.arranging()) if (!this.readingDeps.has(id) && this.o.board.item(id)?.arranging) void this.readDeps(id).catch(() => {});
+    for (const id of this.o.board.arranging()) if (!this.readingDeps.has(id) && this.o.board.item(id)?.plan?.arranging) void this.readDeps(id).catch(() => {});
   }
 
   /**
@@ -353,10 +353,10 @@ export class Koordinator {
         },
       ],
       brief: [
-        `The plan: "${plan.title}"${plan.plan ? `; plan doc ${plan.plan.file}` : ''}.`,
+        `The plan: "${plan.title}"${plan.plan?.file ? `; plan doc ${plan.plan.file}` : ''}.`,
         plan.plan?.goal ? `Goal: ${plan.plan.goal}` : '',
         `Its workstreams, in the plan's order:\n${kids
-          .map((k) => `- ${tagOf(tags, k.id)}${finished(k.state) ? ' (delivered)' : ''}: ${k.label ? `${k.label} ` : ''}"${k.title}"${k.body ? ` — ${k.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`)
+          .map((k) => `- ${tagOf(tags, k.id)}${finished(k.state) ? ' (delivered)' : ''}: ${k.plan?.label ? `${k.plan.label} ` : ''}"${k.title}"${k.body ? ` — ${k.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`)
           .join('\n')}`,
       ]
         .filter(Boolean)
@@ -420,7 +420,7 @@ export class Koordinator {
       const back = this.unplanned(cardId);
       if (!back.length) throw new BadRequest('notQueued', 'no workstream of the plan waits to be planned');
       for (const w of back) this.setQueue(w.id, null);
-      this.o.board.log(cardId, 'state', 'owner', this.o.board.t.koordinator.startTakenBack(back.map((w) => w.label ?? w.title).join(', ')));
+      this.o.board.log(cardId, 'state', 'owner', this.o.board.t.koordinator.startTakenBack(back.map((w) => w.plan?.label ?? w.title).join(', ')));
       return;
     }
     if (!card.queue) throw new BadRequest('notQueued', 'the card is not waiting');
@@ -647,7 +647,7 @@ export class Koordinator {
       .snapshot()
       // approved work counts until it has landed: a PR not yet merged still holds its files
       // a prototype never lands, so it collides with nothing
-      .items.filter((i) => ACTIVE.includes(i.state) && i.kind !== 'plan' && !i.prototypeOf && (!repo || i.repo === repo));
+      .items.filter((i) => ACTIVE.includes(i.state) && i.kind !== 'plan' && !i.idea?.prototypeOf && (!repo || i.repo === repo));
   }
 
   /**
@@ -681,7 +681,7 @@ export class Koordinator {
   /** How the log names a card waited for: a workstream by its label, and one not started as such. */
   private nameOf(i: Item): string {
     const t = this.o.board.t;
-    const name = i.parent && i.label ? `${i.label} ${t.quote(i.title)}` : t.quote(i.title);
+    const name = i.parent && i.plan?.label ? `${i.plan.label} ${t.quote(i.title)}` : t.quote(i.title);
     return notStarted(i) ? t.koordinator.notStarted(name) : name;
   }
 
@@ -824,7 +824,7 @@ export class Koordinator {
     // wait for each other
     const times = batch.map((w) => w.queue!.since!);
     const before = new Set([...active, ...ahead].map((i) => i.id));
-    const names = new Map([...active, ...ahead, ...batch].map((i) => [i.id, i.parent && i.label && (!planCard || i.parent === key) ? `${i.label} ${this.o.board.t.quote(i.title)}` : this.o.board.t.quote(i.title)]));
+    const names = new Map([...active, ...ahead, ...batch].map((i) => [i.id, i.parent && i.plan?.label && (!planCard || i.parent === key) ? `${i.plan.label} ${this.o.board.t.quote(i.title)}` : this.o.board.t.quote(i.title)]));
     let started = 0;
     plan.forEach((p, n) => {
       const id = p.card;
@@ -914,14 +914,14 @@ export class Koordinator {
     // cards whose waits ended in this pass
     const freed: Item[] = [];
     // the owner's question to a finished card whose agent needs a full clone goes before queued cards
-    for (const f of items.filter((i) => i.waitsForClone && !i.repoDown)) {
+    for (const f of items.filter((i) => i.agent?.waitsForClone && !i.repoDown)) {
       const hands = this.o.repoFor(f);
       if (full.has(f.repo) || !hands.workstations.leasable(true) || !hands.workers.takeClone(f.id)) full.add(f.repo);
     }
     for (const w of waiting) {
       // one whose repository does not run waits on until it is back; one giving up its workstation, until it has;
       // one let start, until the owner resumes the project's agents
-      if (w.repoDown || this.giving.has(w.id) || w.proposal?.merge || (w.mergingInto && mergeRank(w) <= 1)) continue;
+      if (w.repoDown || this.giving.has(w.id) || w.idea?.proposal?.merge || (w.idea?.mergingInto && mergeRank(w) <= 1)) continue;
       const begun = 'begun' in w.queue! && !!w.queue.begun;
       if (!('behind' in w.queue!) && !('restart' in w.queue!)) {
         // (a restart wait stays: the check after the restart applies the arrow)
@@ -1148,7 +1148,7 @@ export class Koordinator {
     const words = (item: Item) => new Set(`${item.title} ${item.body}`.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu)?.filter((word) => !['the', 'and', 'for', 'with', 'from', 'add', 'eine', 'einen', 'und', 'für', 'mit', 'der', 'die', 'das'].includes(word)) ?? []);
     const mine = words(card);
     return this.o.board.items().filter((i) => {
-      if (i.id === card.id || i.repo !== card.repo || i.kind !== 'task' || i.prototypeOf || i.archivedAt || (i.state !== 'planned' && !ACTIVE.includes(i.state))) return false;
+      if (i.id === card.id || i.repo !== card.repo || i.kind !== 'task' || i.idea?.prototypeOf || i.archivedAt || (i.state !== 'planned' && !ACTIVE.includes(i.state))) return false;
       if (ACTIVE.includes(i.state)) return true;
       const theirs = words(i);
       return [...mine].filter((word) => theirs.has(word)).length >= 2;
@@ -1251,17 +1251,17 @@ export class Koordinator {
       brief: [
         ...(planCard
           ? [
-              `The plan: "${planCard.title}"${planCard.plan ? `; plan doc ${planCard.plan.file}` : ''}.`,
+              `The plan: "${planCard.title}"${planCard.plan?.file ? `; plan doc ${planCard.plan.file}` : ''}.`,
               planCard.plan?.goal ? `Goal: ${planCard.plan.goal}` : '',
               `Its workstreams to schedule, in the plan's order:\n${batch
-                .map((w) => `- ${tagOf(tags, w.id)}: ${w.label ? `${w.label} ` : ''}"${w.title}"${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`)
+                .map((w) => `- ${tagOf(tags, w.id)}: ${w.plan?.label ? `${w.plan.label} ` : ''}"${w.title}"${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`)
                 .join('\n')}`,
             ]
           : [
               `The cards to schedule, freed at once, in their order in the queue, which the owner may have set: keep it where neither a dependency nor a likely conflict asks for another:\n${batch
                 .map((w) => {
                   const of = w.parent ? this.o.board.item(w.parent) : undefined;
-                  const where = of?.plan ? ` (workstream ${w.label ?? ''} of the plan "${of.title}", plan doc ${of.plan.file})` : '';
+                  const where = of?.plan?.file ? ` (workstream ${w.plan?.label ?? ''} of the plan "${of.title}", plan doc ${of.plan.file})` : '';
                   return `- ${tagOf(tags, w.id)}: ${w.kind} "${w.title}"${where}${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 1500)}` : ''}`;
                 })
                 .join('\n')}`,
@@ -1282,14 +1282,14 @@ export class Koordinator {
     const lines = [
       `The card to start: ${card.kind} "${card.title}".`,
       card.body.trim(),
-      plan?.plan ? `It is workstream ${card.label ?? ''} of the plan "${plan.title}"; plan doc ${plan.plan.file}.` : '',
+      plan?.plan?.file ? `It is workstream ${card.plan?.label ?? ''} of the plan "${plan.title}"; plan doc ${plan.plan.file}.` : '',
       ...(await this.others(card, active, ahead, tags)),
       siblings.length ? `Of these, workstreams of the same plan: ${siblings.join(', ')}.` : '',
       pending.length
         ? `The plan's other workstreams that have not landed, neither in progress nor queued ahead:\n${pending
             .map((w) => {
-              const state = notStarted(w) ? (w.branch ? 'stopped by the owner, not running' : 'not started') : 'queued after this card';
-              return `- ${tagOf(tags, w.id)}: ${w.label ? `${w.label} ` : ''}"${w.title}" (${state})${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 300)}` : ''}`;
+              const state = notStarted(w) ? (w.agent?.branch ? 'stopped by the owner, not running' : 'not started') : 'queued after this card';
+              return `- ${tagOf(tags, w.id)}: ${w.plan?.label ? `${w.plan.label} ` : ''}"${w.title}" (${state})${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 300)}` : ''}`;
             })
             .join('\n')}`
         : '',

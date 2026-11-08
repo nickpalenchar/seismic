@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 const plan = () => board.snapshot().items.find((i) => i.kind === 'plan')!;
-const card = () => board.snapshot().items.find((i) => i.label === 'W1')!;
+const card = () => board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
 
 describe('plan agents', () => {
   test("answer the owner's question in a session with a worker's tools on the repository, with the decision log", async () => {

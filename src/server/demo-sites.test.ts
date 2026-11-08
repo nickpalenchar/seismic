@@ -158,8 +158,8 @@ describe("sharing on the project's site", () => {
     return c.id;
   };
   const settled = async (id: string, state: string | undefined) => {
-    for (let i = 0; i < 300 && board.item(id)!.share?.state !== state; i++) await Bun.sleep(10);
-    return board.item(id)!.share;
+    for (let i = 0; i < 300 && board.item(id)!.demo?.share?.state !== state; i++) await Bun.sleep(10);
+    return board.item(id)!.demo?.share;
   };
 
   test('an unlisted site: under the path, a random part drawn once for the card', async () => {
@@ -184,7 +184,7 @@ describe("sharing on the project's site", () => {
     sharing.share(id);
     const url = (await settled(id, 'shared'))!.url!;
     expect(url).toMatch(new RegExp(`^${URL_}team/shop/sync-button-[0-9a-z]+/$`));
-    expect(board.item(id)!.share!.unlisted).toBeUndefined();
+    expect(board.item(id)!.demo!.share!.unlisted).toBeUndefined();
     expect(readFileSync(join(deployed(), 'team/shop/index.html'), 'utf8')).toContain('Sync button');
     expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).not.toContain('Sync button');
     expect(existsSync(join(deployed(), MANIFEST))).toBe(true);
@@ -214,14 +214,14 @@ describe("sharing on the project's site", () => {
   test("approving shares there where the project's site publishes on approval, unless the card opts out", async () => {
     const id = card();
     expect(sharing.approved(id)).toBeNull();
-    expect(board.item(id)!.share).toBeUndefined();
+    expect(board.item(id)!.demo?.share).toBeUndefined();
     source = projectSite(entry(), 'shop', { publish: 'approved' });
     expect(sharing.approved(id)).toStartWith(`Demo-Video: ${URL_}shop/`);
     expect((await settled(id, 'shared'))?.url).toStartWith(URL_);
     const other = card();
     sharing.onApproval(other, false);
     expect(sharing.approved(other)).toBeNull();
-    expect(board.item(other)!.share?.url).toBeUndefined();
+    expect(board.item(other)!.demo?.share?.url).toBeUndefined();
   });
 });
 

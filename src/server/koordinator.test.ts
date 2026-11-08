@@ -565,10 +565,10 @@ describe('Koordinator', () => {
     await settle();
     // it does not start without an estimate: it waits with the Koordinator, and says until when
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { checking: true } });
-    expect(item(b.id).limitedUntil).toBeDefined();
+    expect(item(b.id).agent?.limitedUntil).toBeDefined();
     expect(board.events(b.id).some((e) => e.kind === 'error')).toBe(false);
     await new Promise((r) => setTimeout(r, 60));
-    expect(item(b.id).limitedUntil).toBeUndefined();
+    expect(item(b.id).agent?.limitedUntil).toBeUndefined();
     expect(s.inbox.at(-1)).toContain('usage limit');
     await scope(['src/a.ts'], ['K1']);
     expect(item(b.id).queue).toMatchObject({ behind: [a.id] });
@@ -745,9 +745,9 @@ describe('Koordinator names a card the owner left without a title', () => {
     s.emit({ type: 'idle' });
     await settle();
     expect(item(a.id).title).toBe('');
-    expect(item(a.id).limitedUntil).toBeDefined();
+    expect(item(a.id).agent?.limitedUntil).toBeDefined();
     await new Promise((r) => setTimeout(r, 60));
-    expect(item(a.id).limitedUntil).toBeUndefined();
+    expect(item(a.id).agent?.limitedUntil).toBeUndefined();
     s.call('title', { title: 'Zeilen zählen' });
     await naming;
     expect(item(a.id).title).toBe('Zeilen zählen');
@@ -788,8 +788,8 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     s.call('title', { title: 'Export no longer crashes', category: 'Frontend', subcategory: 'Bug fix', complexity: 2, priority: 'very high' });
     s.emit({ type: 'idle' });
     await naming;
-    expect(item(a.id)).toMatchObject({ title: 'Export no longer crashes', category: 'frontend', subcategory: 'bugFix', complexity: 2, priority: 'veryHigh' });
-    expect(item(a.id).suggested).toEqual(['category', 'subcategory', 'complexity', 'priority']);
+    expect(item(a.id)).toMatchObject({ title: 'Export no longer crashes', labels: { category: 'frontend', subcategory: 'bugFix', complexity: 2, priority: 'veryHigh' } });
+    expect(item(a.id).labels?.suggested).toEqual(['category', 'subcategory', 'complexity', 'priority']);
     // started later, it runs no second session
     k.request(a.id);
     await scope([]);
@@ -814,8 +814,8 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     s.call('labels', { subcategory: 'New feature', complexity: 3, category: 'Backend', priority: 'Low' });
     s.emit({ type: 'idle' });
     await settle();
-    expect(item(a.id)).toMatchObject({ subcategory: 'newFeature', complexity: 8, priority: 'high', suggested: ['subcategory'] });
-    expect(item(a.id).category).toBeUndefined();
+    expect(item(a.id)).toMatchObject({ labels: { subcategory: 'newFeature', complexity: 8, priority: 'high', suggested: ['subcategory'] } });
+    expect(item(a.id).labels?.category).toBeUndefined();
   });
 
   test('a failed session leaves the labels empty and holds up nothing', async () => {
@@ -825,7 +825,7 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     labellings()[0]!.emit({ type: 'error', message: 'down' });
     await settle();
     expect(item(a.id)).toMatchObject({ state: 'working' });
-    expect(item(a.id).complexity).toBeUndefined();
+    expect(item(a.id).labels?.complexity).toBeUndefined();
     expect(labellings()).toHaveLength(1);
   });
 
@@ -845,7 +845,7 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     namings()[0]!.call('title', { title: 'B', complexity: 3 });
     namings()[0]!.emit({ type: 'idle' });
     await naming;
-    expect(item(b.id).complexity).toBeUndefined();
+    expect(item(b.id).labels?.complexity).toBeUndefined();
 
     toggles = {};
     const c = card('C');
@@ -860,10 +860,10 @@ describe('Koordinator suggests the labels the owner left empty', () => {
       suggests: () => ({ category: on, complexity: on, priority: on }) });
     board.fileRule('Use ISO dates.', ['home']);
     const collect = board.collecting('home')!;
-    expect(collect).toMatchObject({ category: 'docs', subcategory: 'configuration' });
-    expect(collect.suggested).toBeUndefined();
-    expect(collect.complexity).toBeUndefined();
-    expect(collect.priority).toBeUndefined();
+    expect(collect).toMatchObject({ labels: { category: 'docs', subcategory: 'configuration' } });
+    expect(collect.labels?.suggested).toBeUndefined();
+    expect(collect.labels?.complexity).toBeUndefined();
+    expect(collect.labels?.priority).toBeUndefined();
     expect(runtime.sessions).toHaveLength(0);
 
     // Later rules append to the same card without undoing the owner's label choices.
@@ -871,9 +871,9 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     board.acceptProposal(board.proposePreference('Use UTC timestamps.', {}, undefined, 'home'));
     expect(board.collecting('home')!.id).toBe(collect.id);
     expect(item(collect.id).body).toEndWith('- Use ISO dates.\n- Use UTC timestamps.');
-    expect(item(collect.id).category).toBe('tooling');
-    expect(item(collect.id).subcategory).toBeUndefined();
-    expect(item(collect.id).suggested).toBeUndefined();
+    expect(item(collect.id).labels?.category).toBe('tooling');
+    expect(item(collect.id).labels?.subcategory).toBeUndefined();
+    expect(item(collect.id).labels?.suggested).toBeUndefined();
     expect(runtime.sessions).toHaveLength(0);
 
     k.request(collect.id);
@@ -881,8 +881,8 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     expect(labellings()).toHaveLength(on ? 1 : 0);
     if (on) expect(params(labellings()[0]!, 'labels')).toEqual(['complexity', 'priority']);
     board.fileRule('Keep logs concise.', ['home']);
-    expect(board.collecting('home')).toMatchObject({ category: 'docs', subcategory: 'configuration' });
-    expect(board.collecting('home')!.suggested).toBeUndefined();
+    expect(board.collecting('home')).toMatchObject({ labels: { category: 'docs', subcategory: 'configuration' } });
+    expect(board.collecting('home')!.labels?.suggested).toBeUndefined();
     expect(board.collecting('home')!.id).not.toBe(collect.id);
   });
 });
@@ -953,7 +953,7 @@ describe('Koordinator waits for a free workstation', () => {
     workerOf(f.id).call('need_clone', {});
     workerOf(f.id).emit({ type: 'idle' });
     await settle();
-    expect(item(f.id).waitsForClone).toBe(true);
+    expect(item(f.id).agent?.waitsForClone).toBe(true);
 
     await workers.stop(a.id);
     await settle();
@@ -1806,7 +1806,7 @@ describe('Koordinator arranges a plan by what builds on what', () => {
 
   test('a plan just come is read and stands in columns: what can start at once on the left', async () => {
     const { p, w1, w2, w3, w4 } = plan();
-    expect(item(p.id).arranging).toBe(true);
+    expect(item(p.id).plan?.arranging).toBe(true);
     await settle();
     expect(readings()).toHaveLength(1);
     const brief = readings()[0]!.inbox[0]!;
@@ -1815,9 +1815,9 @@ describe('Koordinator arranges a plan by what builds on what', () => {
     expect(brief).toContain('- K3: W3 "Titel W3" — Text W3');
     // W2 builds on W4, W3 on W2 and on the delivered W1
     await read({ K1: [], K2: ['K4'], K3: ['K2', 'K1'], K4: [] });
-    expect(item(p.id).arranging).toBeUndefined();
-    expect(item(w2.id).buildsOn).toEqual([w4.id]);
-    expect(item(w3.id).buildsOn).toEqual([w2.id, w1.id]);
+    expect(item(p.id).plan?.arranging).toBeUndefined();
+    expect(item(w2.id).plan?.buildsOn).toEqual([w4.id]);
+    expect(item(w3.id).plan?.buildsOn).toEqual([w2.id, w1.id]);
     const x = (id: string) => item(id).x;
     expect(x(w4.id)).toBeLessThan(x(w2.id));
     expect(x(w2.id)).toBeLessThan(x(w3.id));
@@ -1835,7 +1835,7 @@ describe('Koordinator arranges a plan by what builds on what', () => {
     board.docsChanged();
     const [, w1, w2] = board.snapshot().items;
     await read({ K2: ['K1'], K3: ['K2'], K4: [] });
-    expect(item(w2!.id).buildsOn).toEqual([w1!.id]);
+    expect(item(w2!.id).plan?.buildsOn).toEqual([w1!.id]);
   });
 
   test('a card the owner moved before the reading came keeps its place; the reading is kept', async () => {
@@ -1844,7 +1844,7 @@ describe('Koordinator arranges a plan by what builds on what', () => {
     await read({ K2: ['K4'], K3: [], K4: [] });
     expect(item(w3.id)).toMatchObject({ x: 900, y: 500 });
     expect(item(w2.id).x).toBe(w2.x);
-    expect(item(w2.id).buildsOn).toEqual([w4.id]);
+    expect(item(w2.id).plan?.buildsOn).toEqual([w4.id]);
     expect(board.deps(p.id).current).toBe(true);
   });
 
@@ -1860,7 +1860,7 @@ describe('Koordinator arranges a plan by what builds on what', () => {
     board.docsChanged();
     expect(board.deps(p.id).current).toBe(false);
     const done = k.arrange(p.id);
-    expect(item(p.id).arranging).toBe(true);
+    expect(item(p.id).plan?.arranging).toBe(true);
     await read({ K2: ['K4'], K3: [], K4: ['K3'] });
     await done;
     expect(readings()).toHaveLength(2);
@@ -1875,7 +1875,7 @@ describe('Koordinator arranges a plan by what builds on what', () => {
     await settle();
     readings()[0]!.emit({ type: 'error', message: 'kaputt' });
     await settle();
-    expect(item(p.id).arranging).toBeUndefined();
+    expect(item(p.id).plan?.arranging).toBeUndefined();
     const done = k.arrange(p.id);
     await settle();
     readings()[1]!.emit({ type: 'error', message: 'kaputt' });

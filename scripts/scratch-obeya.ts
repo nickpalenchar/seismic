@@ -374,7 +374,7 @@ if (artifactPort) {
   mkdirSync(to, { recursive: true });
   copyFileSync(from!, join(to, basename(from!)));
   // the page it may be shared on stays as the card's demo had it
-  const { page } = (await stagedCard(Number(artifactPort), key!)).demo ?? {};
+  const { page } = (await stagedCard(Number(artifactPort), key!)).demo?.latest ?? {};
   const summary = words.join(' ').trim() || 'Updated the artifact.';
   console.log(await standIn(Number(artifactPort), key!, { tool: 'ready_for_review', args: { summary, data_models: 'unchanged', data_models_reason: 'A staged handover.', demo: { kind: 'html', dir: to, ...(page ? { page } : {}) } } }));
   process.exit(0);
@@ -641,7 +641,7 @@ if (stage.trusted) {
 if (!stage.setupProposals)
   for (const c of allProjects)
     for (const i of ((await api('GET', '/project', undefined, c.id)) as ProjectSnapshot).items)
-      if (i.state === 'proposal' && i.proposal?.setup) await api('POST', `/cards/${i.id}/act`, { action: 'dismiss' }, c.id);
+      if (i.state === 'proposal' && i.idea?.proposal?.setup) await api('POST', `/cards/${i.id}/act`, { action: 'dismiss' }, c.id);
 
 // the cards: created through the API, the plan doc's looked up, then their fields written directly
 const snapshot = (await api('GET', '/project')) as ProjectSnapshot;
@@ -656,7 +656,7 @@ for (const [i, c] of stage.cards.entries()) {
     const [doc, label] = c.workstream.includes('#') ? c.workstream.split('#') : [undefined, c.workstream];
     const plans = new Set(snapshot.items.filter((x) => x.kind === 'plan' && (!doc || x.plan?.file === doc)).map((x) => x.id));
     // code before short codes were labels (`4A Title`, --code) has the code at the start of the title
-    id = snapshot.items.find((x) => (x.label ?? x.title.split(' ')[0]) === label && x.parent && plans.has(x.parent))?.id;
+    id = snapshot.items.find((x) => (x.plan?.label ?? x.title.split(' ')[0]) === label && x.parent && plans.has(x.parent))?.id;
   } else {
     if (c.from && !ids[c.from]) fail(`card ${c.key ?? i}: "from" names ${c.from}, which comes later or does not exist`);
     // without a place: in rows of four below the plan docs (a follow-up goes below its card)

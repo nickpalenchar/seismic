@@ -66,7 +66,7 @@ const FINDINGS = [
 async function review(id: string, s: FakeSession, findings: unknown[] = FINDINGS) {
   expect(s.call('findings', { findings })).toContain('Recorded');
   s.emit({ type: 'idle' });
-  await until(() => board.item(id)!.codeReview?.state === 'done');
+  await until(() => board.item(id)!.review?.codeReview?.state === 'done');
 }
 
 describe('code reviews', () => {
@@ -75,9 +75,9 @@ describe('code reviews', () => {
     const id = await started();
     await handOver(id, 'review-model.ts');
     await until(() => reviewers().length === 1);
-    expect(board.item(id)!.codeReview?.agent).toEqual({ harness: 'claude', model: 'opus' });
+    expect(board.item(id)!.review?.codeReview?.agent).toEqual({ harness: 'claude', model: 'opus' });
     reviewers()[0]!.emit({ type: 'session', id: 'review-session', model: 'claude-opus-5-5' });
-    expect(board.item(id)!.codeReview?.agent).toEqual({ harness: 'claude', model: 'claude-opus-5-5' });
+    expect(board.item(id)!.review?.codeReview?.agent).toEqual({ harness: 'claude', model: 'claude-opus-5-5' });
   });
 
   test('are off unless the project turns them on: a handover gets no review', async () => {
@@ -86,7 +86,7 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     expect(state(id)).toBe('waiting:demo');
     await new Promise((r) => setTimeout(r, 30));
-    expect(board.item(id)!.codeReview).toBeUndefined();
+    expect(board.item(id)!.review?.codeReview).toBeUndefined();
     expect(reviewers()).toHaveLength(0);
   });
 
@@ -94,18 +94,18 @@ describe('code reviews', () => {
     reviewing('auto', false);
     const id = await started();
     await handOver(id, 'export.ts');
-    expect(board.item(id)!.codeReview).toBeUndefined();
+    expect(board.item(id)!.review?.codeReview).toBeUndefined();
     setting = { on: true, mode: 'auto' };
     await workers.codeReviewsChanged();
-    expect(board.item(id)!.codeReview).toBeUndefined();
+    expect(board.item(id)!.review?.codeReview).toBeUndefined();
     expect(reviewers()).toHaveLength(0);
     setting = { on: true, mode: 'manual' };
     await workers.codeReviewsChanged();
-    expect(board.item(id)!.codeReview).toEqual({ mode: 'manual' });
+    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'manual' });
     expect(reviewers()).toHaveLength(0);
     setting = { on: false, mode: 'auto' };
     await workers.codeReviewsChanged();
-    expect(board.item(id)!.codeReview).toBeUndefined();
+    expect(board.item(id)!.review?.codeReview).toBeUndefined();
   });
 
   test('a card at work when the setting turns automatic hands over unreviewed', async () => {
@@ -115,7 +115,7 @@ describe('code reviews', () => {
     workers.holdAutoReviews();
     await handOver(id, 'export.ts');
     await new Promise((r) => setTimeout(r, 30));
-    expect(board.item(id)!.codeReview).toBeUndefined();
+    expect(board.item(id)!.review?.codeReview).toBeUndefined();
     expect(reviewers()).toHaveLength(0);
   });
 
@@ -126,7 +126,7 @@ describe('code reviews', () => {
     board.work(id, { detail: JSON.stringify({ answering: true }) });
     setting = { on: true, mode: 'manual' };
     await workers.codeReviewsChanged();
-    expect(board.item(id)!.codeReview).toBeUndefined();
+    expect(board.item(id)!.review?.codeReview).toBeUndefined();
   });
 
   test('work that goes through a pull request gets none: the forge reviews it', async () => {
@@ -134,7 +134,7 @@ describe('code reviews', () => {
     const id = await started();
     await handOver(id, 'export.ts');
     await new Promise((r) => setTimeout(r, 30));
-    expect(board.item(id)!.codeReview).toBeUndefined();
+    expect(board.item(id)!.review?.codeReview).toBeUndefined();
     expect(reviewers()).toHaveLength(0);
   });
 
@@ -145,7 +145,7 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     expect(state(id)).toBe('waiting:demo');
     await until(() => reviewers().length === 1);
-    expect(board.item(id)!.codeReview).toEqual({ mode: 'auto', state: 'running', findings: [] });
+    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'auto', state: 'running', findings: [] });
     const r = reviewers()[0]!;
     expect(r.spec.system).toContain('- Agents speak and write to me in English only.');
     expect(r.spec.tools.find((t) => t.name === 'findings')!.description).toContain('unless an explicit standing preference names another language');
@@ -155,7 +155,7 @@ describe('code reviews', () => {
     expect(r.inbox[0]).toContain('+export.ts');
     expect(r.spec.system).toContain('CLAUDE.md');
     await review(id, r);
-    const done = board.item(id)!.codeReview!;
+    const done = board.item(id)!.review?.codeReview!;
     expect(done.state).toBe('done');
     expect(done.findings!.map((f) => [f.id, f.severity, f.file, f.line])).toEqual([
       [1, 'critical', 'export.ts', 12],
@@ -200,7 +200,7 @@ describe('code reviews', () => {
     reviews.interrupted();
     await until(() => reviewers().length === 2);
     expect(stored().pending).toBeUndefined();
-    expect(board.item(id)!.codeReview!.state).toBe('running');
+    expect(board.item(id)!.review?.codeReview!.state).toBe('running');
     await review(id, reviewers()[1]!);
     expect(needsYou(board.item(id)!)).toBe(true);
   });
@@ -218,7 +218,7 @@ describe('code reviews', () => {
     // it ends its turn without findings: paused, not failed, and the restart no longer waits for it
     first.emit({ type: 'idle' });
     expect(workers.busyCards()).not.toContain(id);
-    expect(board.item(id)!.codeReview!.state).toBe('running');
+    expect(board.item(id)!.review?.codeReview!.state).toBe('running');
     // Seismic restarts: the review goes on in its session
     workers.shutdown();
     reviewing('auto');
@@ -228,7 +228,7 @@ describe('code reviews', () => {
     expect(again.spec.resume).toBe('review-1');
     expect(again.inbox[0]).toContain('Seismic has restarted');
     await review(id, again);
-    expect(board.item(id)!.codeReview!.findings).toHaveLength(3);
+    expect(board.item(id)!.review?.codeReview!.findings).toHaveLength(3);
   });
 
   test('a review cut off by a restart goes on after it; one whose session is gone starts over', async () => {
@@ -255,7 +255,7 @@ describe('code reviews', () => {
     const id = await started();
     workers.restartDue({ reason: 'code', deadline: Date.now() + 15 * 60_000 });
     await handOver(id, 'export.ts');
-    await until(() => board.item(id)!.codeReview?.state === 'running');
+    await until(() => board.item(id)!.review?.codeReview?.state === 'running');
     await new Promise((r) => setTimeout(r, 30));
     expect(reviewers()).toHaveLength(0);
     expect(workers.busyCards()).not.toContain(id);
@@ -271,7 +271,7 @@ describe('code reviews', () => {
     await until(() => reviewers().length === 1);
     const severities: Severity[] = ['blocker', 'critical', 'major', 'minor', 'low', 'info'];
     await review(id, reviewers()[0]!, severities.map((severity) => ({ title: severity, text: `${severity} finding`, severity })));
-    expect(board.item(id)!.codeReview!.findings!.map((f) => f.severity)).toEqual(severities);
+    expect(board.item(id)!.review?.codeReview!.findings!.map((f) => f.severity)).toEqual(severities);
     expect(board.events(id).at(-1)!.text).toBe(board.t.worker.codeReviewDone(6, { blocker: 1, critical: 1, major: 1, minor: 1, low: 1, info: 1 }));
   });
 
@@ -281,11 +281,11 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     await until(() => reviewers().length === 1);
     reviewers()[0]!.emit({ type: 'idle' });
-    await until(() => board.item(id)!.codeReview?.state === 'failed');
-    expect(board.item(id)!.codeReview!.error).toBe(board.t.worker.codeReviewNoFindings);
+    await until(() => board.item(id)!.review?.codeReview?.state === 'failed');
+    expect(board.item(id)!.review?.codeReview!.error).toBe(board.t.worker.codeReviewNoFindings);
     workers.startCodeReview(id);
     await until(() => reviewers().length === 2);
-    expect(board.item(id)!.codeReview!.state).toBe('running');
+    expect(board.item(id)!.review?.codeReview!.state).toBe('running');
   });
 
   test('review answers can start a fresh worker with only the selected findings', async () => {
@@ -297,7 +297,7 @@ describe('code reviews', () => {
     const old = worker();
     const setting = { harness: 'claude' as const, model: 'opus' as const, effort: 'high' as const };
     board.work(id, { session_id: 'previous', agent_setting: JSON.stringify(setting) });
-    expect(board.item(id)!.workerSetting).toEqual(setting);
+    expect(board.item(id)!.agent?.workerSetting).toEqual(setting);
     workers.reviewWithNewAgent(id, { 1: 'self', 2: 'later', 3: 'ignore' }, setting);
     const fresh = worker();
     expect(fresh).not.toBe(old);
@@ -306,7 +306,7 @@ describe('code reviews', () => {
     expect(fresh.inbox[0]).toContain('SQL built from input');
     expect(fresh.inbox[0]).toContain('Race on a second handover');
     expect(fresh.inbox[0]).not.toContain('Name the constant');
-    expect(board.item(id)!.codeReview!.findings!.map((f) => f.status)).toEqual(['open', 'open', 'dropped']);
+    expect(board.item(id)!.review?.codeReview!.findings!.map((f) => f.status)).toEqual(['open', 'open', 'dropped']);
   });
 
   test('"Fix it" and "As a follow-up task" go to the worker with the Send; the next handover is fixed and reviewed anew', async () => {
@@ -323,7 +323,7 @@ describe('code reviews', () => {
     expect(note).toContain('#1 “SQL built from input” (critical, export.ts:12)');
     expect(note).toContain('as the review bundled them (findings 2 + 3)');
     expect(note).toContain('The race matters most.');
-    expect(board.item(id)!.codeReview!.findings!.map((f) => f.decided)).toEqual(['self', 'later', 'later']);
+    expect(board.item(id)!.review?.codeReview!.findings!.map((f) => f.decided)).toEqual(['self', 'later', 'later']);
     // a decided finding is not decided again
     expect(() => workers.message(id, '', [], false, undefined, undefined, { 1: 'later' })).toThrow();
     // the follow-up tasks come first
@@ -333,12 +333,12 @@ describe('code reviews', () => {
     expect(task.from).toBe(id);
     expect(task.body).toContain('Zählerstände exportieren');
     expect(followed).toEqual([[task.id, id]]);
-    expect(board.item(id)!.codeReview!.findings!.map((f) => f.status)).toEqual(['open', 'later', 'later']);
+    expect(board.item(id)!.review?.codeReview!.findings!.map((f) => f.status)).toEqual(['open', 'later', 'later']);
     await worker().call('ready_for_review', { summary: 'Fixed.', demo: artifact() });
     // the fix is in: the finding reads fixed until the new review of the new commit replaces it
     await until(() => reviewers().length === 2);
-    expect(board.item(id)!.codeReview!.state).toBe('running');
-    expect(board.item(id)!.codeReview!.previous![0]!.findings.map((f) => f.status)).toEqual(['fixed', 'later', 'later']);
+    expect(board.item(id)!.review?.codeReview!.state).toBe('running');
+    expect(board.item(id)!.review?.codeReview!.previous![0]!.findings.map((f) => f.status)).toEqual(['fixed', 'later', 'later']);
     const brief = reviewers()[1]!.inbox[0]!;
     expect(brief).toContain('handled separately, so leave out anything that raises one of them again');
     expect(brief).toContain('- Race on a second handover (export.ts:40): Two exports at once overwrite each other.');
@@ -364,15 +364,15 @@ describe('code reviews', () => {
     const before = worker().inbox.length;
     workers.message(id, '', [], false, undefined, undefined, { 3: 'ignore' });
     expect(worker().inbox.length).toBe(before);
-    expect(board.item(id)!.codeReview!.findings!.map((f) => f.status)).toEqual(['open', 'open', 'dropped']);
-    expect(board.events(id).at(-1)!.text).toBe(board.t.worker.findingDecided(3, board.item(id)!.codeReview!.findings![2]!.title, board.t.worker.findingIgnored));
+    expect(board.item(id)!.review?.codeReview!.findings!.map((f) => f.status)).toEqual(['open', 'open', 'dropped']);
+    expect(board.events(id).at(-1)!.text).toBe(board.t.worker.findingDecided(3, board.item(id)!.review!.codeReview!.findings![2]!.title, board.t.worker.findingIgnored));
     // an ignored finding is not decided again
     expect(() => workers.message(id, '', [], false, undefined, undefined, { 3: 'self' })).toThrow();
     workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 2: 'ignore' });
     const note = worker().inbox.at(-1)!;
     expect(note).toContain('#1 “SQL built from input”');
     expect(note).not.toContain('#2');
-    expect(board.item(id)!.codeReview!.findings!.map((f) => [f.status, f.decided])).toEqual([['open', 'self'], ['dropped', undefined], ['dropped', undefined]]);
+    expect(board.item(id)!.review?.codeReview!.findings!.map((f) => [f.status, f.decided])).toEqual([['open', 'self'], ['dropped', undefined], ['dropped', undefined]]);
     // the next review is told what the owner ignored, and so is the one after it
     await handOver(id, 'fix.ts');
     await until(() => reviewers().length === 2);
@@ -390,8 +390,8 @@ describe('code reviews', () => {
     reviewing('manual');
     const id = await started();
     await handOver(id, 'export.ts');
-    await until(() => !!board.item(id)!.codeReview);
-    expect(board.item(id)!.codeReview).toEqual({ mode: 'manual' });
+    await until(() => !!board.item(id)!.review?.codeReview);
+    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'manual' });
     expect(reviewers()).toHaveLength(0);
     workers.startCodeReview(id);
     await until(() => reviewers().length === 1);
@@ -402,17 +402,17 @@ describe('code reviews', () => {
     // the worker hands over again with a new commit: the review is of an earlier handover
     workers.message(id, 'One more column.');
     await handOver(id, 'column.ts');
-    await until(() => board.item(id)!.codeReview?.stale === true);
-    expect(board.item(id)!.codeReview!.findings).toHaveLength(3);
+    await until(() => board.item(id)!.review?.codeReview?.stale === true);
+    expect(board.item(id)!.review?.codeReview!.findings).toHaveLength(3);
     expect(reviewers()).toHaveLength(1);
     workers.startCodeReview(id);
     await until(() => reviewers().length === 2);
-    expect(board.item(id)!.codeReview!.stale).toBeUndefined();
-    expect(board.item(id)!.codeReview!.previous).toEqual([
+    expect(board.item(id)!.review?.codeReview!.stale).toBeUndefined();
+    expect(board.item(id)!.review?.codeReview!.previous).toEqual([
       expect.objectContaining({ state: 'done', findings: expect.arrayContaining([expect.objectContaining({ title: 'Name the constant' })]) }),
     ]);
     await review(id, reviewers()[1]!);
-    expect(board.item(id)!.codeReview!.previous![0]!.findings).toHaveLength(3);
+    expect(board.item(id)!.review?.codeReview!.previous![0]!.findings).toHaveLength(3);
   });
 
   test('a handover of the same commit keeps the review running, and it stands for that handover', async () => {
@@ -427,19 +427,19 @@ describe('code reviews', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(reviewers()).toHaveLength(1);
     await review(id, reviewers()[0]!);
-    expect(board.item(id)!.codeReview!.stale).toBeUndefined();
+    expect(board.item(id)!.review?.codeReview!.stale).toBeUndefined();
   });
 
   test('a review the owner starts and then approves before it runs never starts', async () => {
     reviewing('manual');
     const id = await started();
     await handOver(id, 'export.ts');
-    await until(() => !!board.item(id)!.codeReview);
+    await until(() => !!board.item(id)!.review?.codeReview);
     workers.startCodeReview(id);
     await workers.approve(id);
     await new Promise((r) => setTimeout(r, 100));
     expect(reviewers()).toHaveLength(0);
-    expect(board.item(id)?.codeReview?.state).toBeUndefined();
+    expect(board.item(id)?.review?.codeReview?.state).toBeUndefined();
   });
 
   test('approving while the review runs stops it, and nothing of it stays', async () => {
@@ -449,6 +449,6 @@ describe('code reviews', () => {
     await until(() => reviewers().length === 1);
     await workers.approve(id);
     expect(reviewers()[0]!.closed).toBe(true);
-    expect(board.item(id)?.codeReview?.state).toBeUndefined();
+    expect(board.item(id)?.review?.codeReview?.state).toBeUndefined();
   });
 });

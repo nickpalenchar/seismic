@@ -2586,15 +2586,19 @@ const number = (n: number, digits = 0) => n.toLocaleString(locale, { maximumFrac
 const ordinal = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 >= 11 && n % 100 <= 13 ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 
 /** A card's state as its state line says it; `short`, in a word or two, as the smallest card face says it (`stateShort`). */
-export const stateLabel = (i: { demos?: { asked?: true }[]; kind?: string; thread?: { thinking?: boolean }; state: CardState; landing?: true; landingPosition?: number; need?: Need; pr?: unknown; contribution?: unknown; queue?: Queue; idea?: Idea; question?: { stuck?: true }; answering?: true; answered?: true; finishing?: boolean; followUp?: boolean; hold?: ItemHold; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } }; branch?: string; codeReview?: { state?: string } }, short = false) => {
+export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; state: CardState; need?: Need; queue?: Queue; question?: { stuck?: true }; hold?: ItemHold; agent?: { finishing?: boolean; followUp?: boolean; branch?: string }; review?: { landing?: true; landingPosition?: number; pr?: unknown; contribution?: unknown; answering?: true; answered?: true; codeReview?: { state?: string } }; demo?: { earlier?: { asked?: true }[] }; idea?: { discussion?: Idea; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } } } }, short = false) => {
+  const { agent, review, idea: ideaPart } = i;
+  const idea = ideaPart?.discussion;
+  const merge = ideaPart?.proposal?.merge;
+  const earlier = i.demo?.earlier;
   /** The state's own words, or with `short` its word in `stateShort`. */
   const word = (long: string, key: keyof typeof t.stateShort) => (short ? t.stateShort[key] : long);
-  return i.landingPosition !== undefined
-    ? t.landingPosition(i.landingPosition)
-    : i.landing
+  return review?.landingPosition !== undefined
+    ? t.landingPosition(review.landingPosition)
+    : review?.landing
     ? word(t.approving, 'landing')
-    : i.proposal?.merge
-    ? i.proposal.merge.failed !== undefined ? t.merge.failedShort : i.proposal.merge.task === undefined ? t.merge.mergingShort : t.merge.mergedShort
+    : merge
+    ? merge.failed !== undefined ? t.merge.failedShort : merge.task === undefined ? t.merge.mergingShort : t.merge.mergedShort
     : inParkingLot(i)
     ? t.parking.state
     : i.hold?.reason === 'snoozed'
@@ -2611,27 +2615,27 @@ export const stateLabel = (i: { demos?: { asked?: true }[]; kind?: string; threa
       : i.thread?.thinking
       ? t.question.reading
       : t.question.ready
-    : i.prototypeEnd
-    ? t.idea.ended[i.prototypeEnd]
-    : i.codeReview?.state === 'running'
+    : ideaPart?.prototypeEnd
+    ? t.idea.ended[ideaPart.prototypeEnd]
+    : review?.codeReview?.state === 'running'
     ? word(t.agentReviewing, 'reviewing')
     : isPaused(i)
     ? word(
-        i.idea
+        idea
           ? t.pause.idea
           : i.state === 'waiting' && i.need
           ? t.pause.waiting(t.need[i.need])
-          : i.finishing
+          : agent?.finishing
           ? i.state === 'done' ? t.pause.done : t.pause.live
           : i.state === 'inPr' ? t.pause.inPr : t.pause.working,
         'paused',
       )
-    : i.finishing && (i.state === 'live' || i.state === 'done')
-    ? word(i.followUp ? (i.state === 'done' ? t.followingUpDone : t.followingUp) : i.state === 'done' ? t.finishingDone : t.finishing, 'finishing')
-    : i.idea
-    ? i.idea.status === 'open' && i.idea.yourTurn && !i.idea.thinking
+    : agent?.finishing && (i.state === 'live' || i.state === 'done')
+    ? word(agent.followUp ? (i.state === 'done' ? t.followingUpDone : t.followingUp) : i.state === 'done' ? t.finishingDone : t.finishing, 'finishing')
+    : idea
+    ? idea.status === 'open' && idea.yourTurn && !idea.thinking
       ? t.idea.yourTurn
-      : t.idea.status[i.idea.status]
+      : t.idea.status[idea.status]
     : i.queue
     ? 'checking' in i.queue
       ? word(t.queue.checking, 'checking')
@@ -2643,26 +2647,26 @@ export const stateLabel = (i: { demos?: { asked?: true }[]; kind?: string; threa
         ? word(i.queue.workstation === 'slots' ? t.queue.slot : t.queue.workstation, 'queued')
         : word(t.queue.waiting, 'queued')
     : i.state === 'waiting' && i.need
-      ? i.answering
+      ? review?.answering
         ? word(t.answering, 'working')
-        : i.need === 'demo' && !i.question && !i.answered && i.demos?.some((d) => !d.asked)
-          ? word(t.demoNth(i.demos.filter((d) => !d.asked).length + 1, false), 'demo')
+        : i.need === 'demo' && !i.question && !review?.answered && earlier?.some((d) => !d.asked)
+          ? word(t.demoNth(earlier.filter((d) => !d.asked).length + 1, false), 'demo')
         : i.need === 'demo' && i.question
-          ? i.demos?.some((d) => !d.asked)
-            ? word(t.demoNth(i.demos.filter((d) => !d.asked).length + 1, true), 'demo')
+          ? earlier?.some((d) => !d.asked)
+            ? word(t.demoNth(earlier.filter((d) => !d.asked).length + 1, true), 'demo')
             : word(t.demoWithQuestion, 'demo')
-          : i.answered
+          : review?.answered
             ? word(t.agentAnswered, 'answered')
             : i.need === 'question' && i.question?.stuck
               ? word(t.agentFailed, 'failed')
               : i.need === 'question'
                 ? word(t.need.question, 'question')
                 : t.need[i.need]
-      : i.state === 'inPr' && i.contribution
+      : i.state === 'inPr' && review?.contribution
         ? t.review.waits
-      : i.state === 'inPr' && !i.pr
+      : i.state === 'inPr' && !review?.pr
         ? t.openingPr
-        : i.state === 'proposal' && (i.retro || i.proposal?.setup)
+        : i.state === 'proposal' && (ideaPart?.retro || ideaPart?.proposal?.setup)
           ? word(t.proposalByObeya, 'proposal')
           : stopped(i)
             ? t.stoppedState

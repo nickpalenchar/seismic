@@ -251,7 +251,7 @@ if (args.includes('--worker')) {
         const ev = (await json(`/api/c/${project}/cards/${card}/events`)) as { text?: string }[];
         return ev.some((e) => (e.text ?? '').includes(siteUrl)) && ev;
       });
-      const url = (await json(`/api/c/${project}/project`)).items.find((i: { id: string }) => i.id === card)?.share?.url;
+      const url = (await json(`/api/c/${project}/project`)).items.find((i: { id: string }) => i.id === card)?.demo?.share?.url;
       expect(url && (await fetch(url)).ok, `the page ${url} is not on the site`);
       return events.map((e) => e.text ?? '').find((t) => t.includes(siteUrl));
     });

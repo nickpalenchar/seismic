@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Archive, Bot, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
-import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, inParkingLot } from '../core/types';
+import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, withPart, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, inParkingLot } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { GroupNames, growFrom, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
@@ -285,7 +285,7 @@ function Project({
       return keep.length === Object.keys(m).length ? m : Object.fromEntries(keep);
     });
     setFolded((f) => {
-      const keep = Object.entries(f).filter(([id, c]) => byId.has(id) && !!byId.get(id)!.collapsed !== c);
+      const keep = Object.entries(f).filter(([id, c]) => byId.has(id) && !!byId.get(id)!.plan?.collapsed !== c);
       return keep.length === Object.keys(f).length ? f : Object.fromEntries(keep);
     });
     setPending((p) => (p.some((i) => byId.has(i.id)) ? p.filter((i) => !byId.has(i.id)) : p));
@@ -308,8 +308,7 @@ function Project({
       const at = moved[i.id] ? { ...i, ...moved[i.id] } : i;
       const c = folded[i.id];
       if (c === undefined) return at;
-      const { collapsed: _, ...open } = at;
-      return c ? { ...open, collapsed: true as const } : open;
+      return withPart(at, 'plan', { collapsed: c || undefined });
     });
   }, [snapshot, pending, moved, folded]);
   const itemsRef = useRef(items);
@@ -387,7 +386,7 @@ function Project({
   }, [items]);
   const repliesIn = useMemo(() => unreadPerPlan(snapshot.talk), [snapshot.talk]);
   // ideas with a prototype on the project, which stay out of the archive until it ends
-  const prototyped = useMemo(() => new Set(items.flatMap((i) => (i.prototypeOf ? [i.prototypeOf] : []))), [items]);
+  const prototyped = useMemo(() => new Set(items.flatMap((i) => (i.idea?.prototypeOf ? [i.idea.prototypeOf] : []))), [items]);
   const [noteHidden, hideNote] = useHiddenEmptyNotes(snapshot.project.id);
   // where notes on plan directories were moved here, by repository, until the server echoes it back
   const [notesMoved, setNotesMoved] = useState<Record<string, Pos>>({});
@@ -417,7 +416,7 @@ function Project({
   /** The card on the project that shows `i`: a workstream of a collapsed plan shows as a mark on its plan. */
   const standsFor = (i: Item) => {
     const p = i.parent ? byId(i.parent) : undefined;
-    return p?.collapsed ? p : i;
+    return p?.plan?.collapsed ? p : i;
   };
 
   // ---------------------------------------------------------------- camera
@@ -591,7 +590,7 @@ function Project({
   const archivedRef = useRef(archived);
   archivedRef.current = archived;
   /** The card `id`, on the project or else in the archive. */
-  const itemOrArchived = (id: string) => byId(id) ?? items.flatMap((i) => i.manualArchived ?? []).find((i) => i.id === id) ?? archivedRef.current.find((i) => i.id === id);
+  const itemOrArchived = (id: string) => byId(id) ?? items.flatMap((i) => i.plan?.manualArchived ?? []).find((i) => i.id === id) ?? archivedRef.current.find((i) => i.id === id);
   const archiveEls = useRef(new Map<string, HTMLElement>()).current;
   // rows of the plan sheet, where its archived workstreams and its idea unfold from
   const sheetEls = useRef(new Map<string, HTMLElement>()).current;
@@ -601,7 +600,7 @@ function Project({
   // an archived card opened from a plan's sheet, which the archive list may not hold
   const [opened, setOpened] = useState<Item | null>(null);
   useEffect(() => {
-    if (!aOn && !items.some((i) => i.proposal?.merge && !items.some((p) => p.id === i.proposal!.merge!.with))) return;
+    if (!aOn && !items.some((i) => i.idea?.proposal?.merge && !items.some((p) => p.id === i.idea!.proposal!.merge!.with))) return;
     let current = true;
     api.archived().then((a) => current && setArchived(a), console.error);
     return () => void (current = false);
@@ -1421,7 +1420,7 @@ function Project({
   // what covers an arrow's trash button: the cards, which lie above the arrows
   // an arrow the owner drew at chosen edges follows its own route between them
   const routeOf = (from: string, to: string, a: Bounds, b: Bounds, head: number) => {
-    const anchor = byId(to)?.manualAnchors?.[from];
+    const anchor = byId(to)?.plan?.manualAnchors?.[from];
     return anchor ? anchoredPath(a, b, anchor, head).path : undefined;
   };
   // on touch the dots show on the card picked up and let go, and on the marked ones
@@ -1540,7 +1539,7 @@ function Project({
   }
   // a removal the server has done is shown by the snapshot from then on
   useEffect(() => {
-    const drawn = new Set(placed.flatMap(({ item }) => (item.manualDependsOn ?? []).map((from) => `${from}:${item.id}`)));
+    const drawn = new Set(placed.flatMap(({ item }) => (item.plan?.manualDependsOn ?? []).map((from) => `${from}:${item.id}`)));
     if (removing.some((x) => x.sent && !drawn.has(x.key))) setRemoving((r) => r.filter((x) => !x.sent || drawn.has(x.key)));
   }, [placed, removing]);
   /** The × on a group's name in the colour ring: its cards belong to none, with a moment to undo. */
@@ -2296,12 +2295,12 @@ function Project({
             <DepLinks placed={placed} waits={shownWaits} lit={deps?.edges ?? []} first={deps?.first} settled={shownSettled} standsFor={standsForId} routeOf={routeOf} s={cam.s}>
               {/* an arrow the owner drew: under the pointer, a trash button that removes it, where no card
                   covers it; the button and the band that shows it keep their size on screen at every zoom */}
-              {placed.flatMap(({ item, b }) => (connectable(item) ? item.manualDependsOn ?? [] : []).filter((from) => waitKeys.has(`${from}:${item.id}`) && !removing.some((x) => x.key === `${from}:${item.id}`)).flatMap((from) => {
+              {placed.flatMap(({ item, b }) => (connectable(item) ? item.plan?.manualDependsOn ?? [] : []).filter((from) => waitKeys.has(`${from}:${item.id}`) && !removing.some((x) => x.key === `${from}:${item.id}`)).flatMap((from) => {
                 const a = placed.find((p) => p.item.id === from && connectable(p.item))?.b;
                 if (!a) return [];
                 const r = 13 / cam.s;
                 // an arrow drawn at chosen edges: its button on the middle of its route
-                const anchor = item.manualAnchors?.[from];
+                const anchor = item.plan?.manualAnchors?.[from];
                 const routed = anchor && anchoredPath(a, b, anchor, depHead(cam.s));
                 const { x, y } = routed ? routed.mid : linkSpot(a, b, depHead(cam.s), cardBoxes, r);
                 // on touch, the trash button shows on the arrows of the card picked up and let go
@@ -2324,7 +2323,7 @@ function Project({
                 <CardView
                   key={item.id}
                   item={item}
-                  partner={item.proposal?.merge ? itemById.get(item.proposal.merge.with) ?? archived.find((i) => i.id === item.proposal!.merge!.with) : undefined}
+                  partner={item.idea?.proposal?.merge ? itemById.get(item.idea.proposal.merge.with) ?? archived.find((i) => i.id === item.idea!.proposal!.merge!.with) : undefined}
                   b={b}
                   lifted={item.id === openId}
                   dragging={item.id === dragId || dragWith.includes(item.id)}
@@ -2335,7 +2334,7 @@ function Project({
                   onStart={startCard}
                   onArchive={archiveCard}
                   dep={depOf(item.id)}
-                  underway={underway[item.id] ?? (item.landing ? t.approving : undefined)}
+                  underway={underway[item.id] ?? (item.review?.landing ? t.approving : undefined)}
                   onHover={setHoverId}
                 />
               ),
@@ -2528,7 +2527,7 @@ function Project({
                 <Detail
                   key={openItem.id}
                   item={openItem}
-                  all={[...new Map([...items, ...archived, ...items.flatMap((i) => i.manualArchived ?? [])].map((i) => [i.id, i])).values()]}
+                  all={[...new Map([...items, ...archived, ...items.flatMap((i) => i.plan?.manualArchived ?? [])].map((i) => [i.id, i])).values()]}
                   repos={snapshot.project.repos}
                   parent={openItem.parent ? itemOrArchived(openItem.parent) : undefined}
                   from={openItem.from ? itemOrArchived(openItem.from) : undefined}

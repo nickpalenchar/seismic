@@ -67,7 +67,7 @@ describe('a proposal reworked by what the owner says', () => {
 
     const item = board().item(p.id)!;
     // the owner's whole words, as said, with how they came
-    expect(item.proposal?.revising).toEqual({ words: 'Nimm auch Excel mit, und UTF-8 ist gesetzt.', spoken: true });
+    expect(item.idea?.proposal?.revising).toEqual({ words: 'Nimm auch Excel mit, und UTF-8 ist gesetzt.', spoken: true });
     const r = reviser()!;
     expect(r.spec.readOnly).toBe(true);
     expect(r.inbox[0]).toContain('Der CSV-Export schreibt Umlaute falsch.');
@@ -85,7 +85,7 @@ describe('a proposal reworked by what the owner says', () => {
     expect(after.state).toBe('proposal');
     expect(after.title).toBe('CSV- und Excel-Export prüfen');
     expect(after.body).toBe('CSV und Excel schreiben Umlaute falsch. Kodierung: UTF-8.');
-    expect(after.proposal).toEqual({ reason: 'Beim Export aufgefallen.', questions: [] });
+    expect(after.idea?.proposal).toEqual({ reason: 'Beim Export aufgefallen.', questions: [] });
     // the question it settled stays in the conversation where it was asked, the reviser's answer after the owner's words
     expect(board().events(p.id).map((e) => [e.kind, e.author, e.text])).toEqual([
       ['question', 'worker', 'Welche Kodierung?\n– UTF-8\n– Latin-1'],
@@ -100,7 +100,7 @@ describe('a proposal reworked by what the owner says', () => {
     const p = proposal();
     expect(agentListens(board().item(p.id)!)).toBe(true);
     project.tell(p.id, 'Was würdest du nehmen?', [], false);
-    expect(board().item(p.id)!.proposal?.revising).toMatchObject({ words: 'Was würdest du nehmen?' });
+    expect(board().item(p.id)!.idea?.proposal?.revising).toMatchObject({ words: 'Was würdest du nehmen?' });
     expect(reviser()!.inbox[0]).toContain('Was würdest du nehmen?');
     expect(reviser()!.spec.tools.map((t) => t.name)).toContain('to_seismic');
     expect(runtime.sessions.some(isKoordinator)).toBe(false);
@@ -152,7 +152,7 @@ describe('a proposal reworked by what the owner says', () => {
     k.emit({ type: 'idle' });
     expect(await result).toBe('Seismic: Ich übernehme den Vorschlag und starte ihn.');
     await settle(30);
-    expect(board().item(p.id)!.proposal?.acceptAfterRevision).toBe(true);
+    expect(board().item(p.id)!.idea?.proposal?.acceptAfterRevision).toBe(true);
     // nothing to rework: the reviser ends without a new text, and the proposal goes as it is
     r.emit({ type: 'idle' });
     await settle();
@@ -167,7 +167,7 @@ describe('a proposal reworked by what the owner says', () => {
     r.call('revise_proposal', { title: p.title, task: p.body, reason: 'Beim Export aufgefallen.', questions: [{ question: 'Welche Kodierung?', options: ['UTF-8', 'Latin-1'] }], reply: 'UTF-8: das lesen alle heutigen Programme.' });
     r.emit({ type: 'idle' });
     await settle();
-    expect(board().item(p.id)!.proposal).toEqual({ reason: 'Beim Export aufgefallen.', questions: [{ text: 'Welche Kodierung?', options: ['UTF-8', 'Latin-1'] }] });
+    expect(board().item(p.id)!.idea?.proposal).toEqual({ reason: 'Beim Export aufgefallen.', questions: [{ text: 'Welche Kodierung?', options: ['UTF-8', 'Latin-1'] }] });
     // the kept question is not asked a second time, and nothing reads as revised
     expect(board().events(p.id).map((e) => [e.kind, e.author, e.text])).toEqual([
       ['question', 'worker', 'Welche Kodierung?\n– UTF-8\n– Latin-1'],
@@ -197,14 +197,14 @@ describe('a proposal reworked by what the owner says', () => {
     expect(brief).toContain('into the field for what should change in the proposal');
     project.commander.arm(heard.token!);
     await settle(30);
-    expect(board().item(p.id)!.proposal?.revising).toEqual({ words: 'Lass die Frage weg' });
+    expect(board().item(p.id)!.idea?.proposal?.revising).toEqual({ words: 'Lass die Frage weg' });
     expect(reviser()!.inbox[0]).toContain('wrote about it');
   });
 
   test('options picked in the panel go to the reviser at once and stand in the conversation', async () => {
     const p = proposal();
     project.press(p.id, { action: 'revise', text: '**Welche Kodierung?** UTF-8' });
-    expect(board().item(p.id)!.proposal?.revising).toMatchObject({ words: '**Welche Kodierung?** UTF-8' });
+    expect(board().item(p.id)!.idea?.proposal?.revising).toMatchObject({ words: '**Welche Kodierung?** UTF-8' });
     expect(reviser()!.inbox[0]).toContain('**Welche Kodierung?** UTF-8');
     expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'say', author: 'owner', text: '**Welche Kodierung?** UTF-8' });
   });
@@ -231,7 +231,7 @@ describe('a proposal reworked by what the owner says', () => {
     project.act(p.id, { action: 'accept', picks: [['Latin-1']] });
     project.act(p.id, { action: 'accept' });
     expect(() => project.act(p.id, { action: 'accept', start: false })).toThrow('being reworked');
-    expect(board().item(p.id)).toMatchObject({ state: 'proposal', proposal: { revising: { words: '**Welche Kodierung?** UTF-8' }, acceptAfterRevision: true } });
+    expect(board().item(p.id)).toMatchObject({ state: 'proposal', idea: { proposal: { revising: { words: '**Welche Kodierung?** UTF-8' }, acceptAfterRevision: true } } });
     expect(board().events(p.id).filter((e) => e.text.startsWith('Accept and start once'))).toHaveLength(1);
 
     reviser()!.call('revise_proposal', { title: 'CSV-Export prüfen', task: 'Der CSV-Export schreibt Umlaute falsch. Kodierung: UTF-8.', questions: [] });
@@ -239,7 +239,7 @@ describe('a proposal reworked by what the owner says', () => {
     await settle();
     // the new text is the task, without the picks clicked on the old questions, and its worker starts
     expect(board().item(p.id)).toMatchObject({ state: 'working', body: 'Der CSV-Export schreibt Umlaute falsch. Kodierung: UTF-8.' });
-    expect(board().item(p.id)!.proposal).toBeUndefined();
+    expect(board().item(p.id)!.idea?.proposal).toBeUndefined();
   });
 
   test('accepted while it is reworked, it stays a proposal when the new text asks questions, when the reviser fails, or when taken back', async () => {
@@ -250,7 +250,7 @@ describe('a proposal reworked by what the owner says', () => {
     reviser()!.emit({ type: 'idle' });
     await settle();
     expect(board().item(p.id)).toMatchObject({ state: 'proposal', title: 'CSV- und Excel-Export' });
-    expect(board().item(p.id)!.proposal?.acceptAfterRevision).toBeUndefined();
+    expect(board().item(p.id)!.idea?.proposal?.acceptAfterRevision).toBeUndefined();
     expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'state', text: 'Not accepted: the proposal still has a question.' });
 
     project.revisions.revise(p.id, 'UTF-8', false);
@@ -267,7 +267,7 @@ describe('a proposal reworked by what the owner says', () => {
     reviser()!.call('revise_proposal', { title: 'CSV-Export', task: 'UTF-8.', questions: [] });
     reviser()!.emit({ type: 'idle' });
     await settle();
-    expect(board().item(p.id)).toMatchObject({ state: 'proposal', title: 'CSV-Export', proposal: { questions: [] } });
+    expect(board().item(p.id)).toMatchObject({ state: 'proposal', title: 'CSV-Export', idea: { proposal: { questions: [] } } });
   });
 
   test('a proposed idea accepted while it is reworked opens its discussion once the new text is there', async () => {
@@ -287,7 +287,7 @@ describe('a proposal reworked by what the owner says', () => {
     const p = board().propose(from.id, { title: 'Exportformate', task: 'PDF-Export bauen.', questions: [] });
     project.revisions.revise(p.id, 'Auch an Excel denken', false);
     project.act(p.id, { action: 'accept', start: false, idea: true });
-    expect(board().item(p.id)!.proposal?.acceptAfterRevision).toBe('idea');
+    expect(board().item(p.id)!.idea?.proposal?.acceptAfterRevision).toBe('idea');
     expect(board().events(p.id).at(-1)!.text).toStartWith('Ideate once');
     reviser()!.call('revise_proposal', { title: 'Exportformate', task: 'PDF- und Excel-Export bauen.', questions: [] });
     reviser()!.emit({ type: 'idle' });
@@ -316,8 +316,8 @@ describe('a proposal reworked by what the owner says', () => {
     await settle();
     const item = board().item(p.id)!;
     expect(item.title).toBe('CSV-Export prüfen');
-    expect(item.proposal?.revising).toBeUndefined();
-    expect(item.proposal?.questions).toHaveLength(1);
+    expect(item.idea?.proposal?.revising).toBeUndefined();
+    expect(item.idea?.proposal?.questions).toHaveLength(1);
     expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'error', text: expect.stringContaining('Revising did not work') });
   });
 
@@ -329,17 +329,17 @@ describe('a proposal reworked by what the owner says', () => {
     r.emit({ type: 'idle' });
     await settle();
     // no error: the proposal waits for its rework, and says until when
-    expect(board().item(p.id)!.proposal?.revising).toMatchObject({ words: 'Excel auch' });
-    expect(board().item(p.id)!.limitedUntil).toBeDefined();
+    expect(board().item(p.id)!.idea?.proposal?.revising).toMatchObject({ words: 'Excel auch' });
+    expect(board().item(p.id)!.agent?.limitedUntil).toBeDefined();
     expect(board().events(p.id).some((e) => e.kind === 'error')).toBe(false);
     await settle(60);
-    expect(board().item(p.id)!.limitedUntil).toBeUndefined();
+    expect(board().item(p.id)!.agent?.limitedUntil).toBeUndefined();
     expect(r.inbox.at(-1)).toContain('usage limit');
     r.call('revise_proposal', { title: 'CSV- und Excel-Export prüfen', task: 'Beide schreiben Umlaute falsch.', questions: [], reply: 'Excel ist drin.' });
     r.emit({ type: 'idle' });
     await settle();
     expect(board().item(p.id)).toMatchObject({ title: 'CSV- und Excel-Export prüfen' });
-    expect(board().item(p.id)!.proposal?.revising).toBeUndefined();
+    expect(board().item(p.id)!.idea?.proposal?.revising).toBeUndefined();
   });
 
   test('a proposal dismissed meanwhile stays gone', async () => {
@@ -376,7 +376,7 @@ describe("screenshots in a proposal's conversation", () => {
     expect(r.inbox[0]).toContain(`The owner attached a screenshot (shown below; files: ${a})`);
     expect(r.inbox[0]).toContain("No screenshot goes with the card's task now.");
     expect(r.spec.tools.find((t) => t.name === 'revise_proposal')!.description).toContain('images:');
-    r.call('revise_proposal', { title: p.title, task: p.body, reason: 'Beim Export aufgefallen.', questions: p.proposal!.questions.map((q) => ({ question: q.text, options: q.options })), reply: 'Der Screenshot geht mit.', images: [a, 'unknown.png'] });
+    r.call('revise_proposal', { title: p.title, task: p.body, reason: 'Beim Export aufgefallen.', questions: p.idea!.proposal!.questions.map((q) => ({ question: q.text, options: q.options })), reply: 'Der Screenshot geht mit.', images: [a, 'unknown.png'] });
     r.emit({ type: 'idle' });
     await settle();
     expect(board().item(p.id)!.images).toEqual([a]);
@@ -420,7 +420,7 @@ describe("screenshots in a proposal's conversation", () => {
     const first = reviser()!;
     const a = shot(1);
     project.tell(p.id, 'Und so soll es aussehen', [a], false);
-    expect(board().item(p.id)!.proposal?.revising?.next).toEqual([{ words: 'Und so soll es aussehen', said: [board().events(p.id).at(-1)!.id], images: [a] }]);
+    expect(board().item(p.id)!.idea?.proposal?.revising?.next).toEqual([{ words: 'Und so soll es aussehen', said: [board().events(p.id).at(-1)!.id], images: [a] }]);
     first.call('revise_proposal', { title: p.title, task: p.body, questions: [], reply: 'UTF-8.' });
     first.emit({ type: 'idle' });
     await settle();
@@ -436,7 +436,7 @@ describe("screenshots in a proposal's conversation", () => {
     const { heard } = await say('Schau, so sieht es aus', p, (tag) => [{ do: 'revise', card: tag, text: 'So sieht es aus' }], false, [a]);
     project.commander.arm(heard.token!);
     await settle(30);
-    expect(board().item(p.id)!.proposal?.revising).toMatchObject({ images: [a] });
+    expect(board().item(p.id)!.idea?.proposal?.revising).toMatchObject({ images: [a] });
     expect(reviser()!.images[0]).toEqual([project.images.path(a)!]);
     expect(board().events(p.id).find((e) => e.author === 'owner')).toMatchObject({ kind: 'say', images: [a] });
   });
@@ -469,7 +469,7 @@ describe('a proposal its agent takes back', () => {
     s.emit({ type: 'idle' });
     project.commander.arm((await heard).token!);
     await settle(30);
-    expect(board().item(p.id)!.superseded).toBeUndefined();
+    expect(board().item(p.id)!.idea?.superseded).toBeUndefined();
 
     board().retract(p.from!, 'CSV-Export prüfen', { why: 'Doch nicht nötig.' });
     await project.act(p.id, { action: 'dismiss' });

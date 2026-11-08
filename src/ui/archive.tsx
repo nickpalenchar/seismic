@@ -160,7 +160,7 @@ export const searchWords = (query: string) => fold(query).split(/\s+/).filter(Bo
  */
 export function matches(i: Item, words: string[], workstreams: Item[] = []) {
   const text = fold(
-    [i.title, i.body, i.summary, i.statusLine, stateLabel(i), cardKind(i), i.plan?.goal, ...workstreams.flatMap((w) => [w.title, w.body])].filter(Boolean).join('\n'),
+    [i.title, i.body, i.review?.summary, i.agent?.statusLine, stateLabel(i), cardKind(i), i.plan?.goal, ...workstreams.flatMap((w) => [w.title, w.body])].filter(Boolean).join('\n'),
   );
   return words.every((w) => text.includes(w));
 }

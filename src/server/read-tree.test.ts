@@ -107,7 +107,7 @@ describe('the Lesestand', () => {
 
   test('a workstream ticked off in a merged pull request goes live with the merge', async () => {
     const c = open();
-    const ws = (label: string) => c.board.snapshot().items.find((i) => i.label === label)!;
+    const ws = (label: string) => c.board.snapshot().items.find((i) => i.plan?.label === label)!;
     expect([ws('W1').state, ws('W2').state]).toEqual(['planned', 'planned']);
     c.board.work(ws('W1').id, { state: 'inPr', pr: JSON.stringify({ url: 'https://example.com/pr/1' }) });
     push({ 'docs/plan/export.md': doc('Export', 'W1') });

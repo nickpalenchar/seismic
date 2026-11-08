@@ -29,7 +29,7 @@ const snoozedOn = (i: Item) => {
 function waitsFor(i: Item, byId: Map<string, Item>): string[] {
   const open = (x: string) => byId.has(x) && !finished(byId.get(x)!.state);
   if (!open(i.id)) return [];
-  return [...new Set([...queued(i), ...snoozedOn(i), ...(i.manualDependsOn ?? []), ...(i.buildsOn ?? [])])].filter(open);
+  return [...new Set([...queued(i), ...snoozedOn(i), ...(i.plan?.manualDependsOn ?? []), ...(i.plan?.buildsOn ?? [])])].filter(open);
 }
 
 /** Every direct wait among `items`, from the card waited for to the card waiting. */
@@ -46,7 +46,7 @@ export function waitsAmong(items: Item[]): [from: string, to: string][] {
 export function settledAmong(items: Item[]): { from: string; to: string }[] {
   const byId = new Map(items.map((i) => [i.id, i]));
   return items.flatMap((i) =>
-    [...new Set([...queued(i), ...snoozedOn(i), ...(i.buildsOn ?? []), ...(i.manualDependsOn ?? [])])].flatMap((from) => {
+    [...new Set([...queued(i), ...snoozedOn(i), ...(i.plan?.buildsOn ?? []), ...(i.plan?.manualDependsOn ?? [])])].flatMap((from) => {
       const f = byId.get(from);
       return f && finished(f.state) ? [{ from, to: i.id }] : [];
     }),
@@ -134,8 +134,9 @@ export function nearestHandle(cards: { id: string; b: Bounds }[], at: { x: numbe
 
 /** Unfinished prerequisites explicitly connected by the owner. */
 export function manualPrerequisites(item: Item, items: Item[]): Item[] {
-  return (item.manualDependsOn ?? []).flatMap((id) => {
-    const prerequisite = items.find((i) => i.id === id) ?? item.manualArchived?.find((i) => i.id === id);
-    return prerequisite && !finished(prerequisite.state) && (!prerequisite.archivedAt || item.manualArchived?.some((i) => i.id === id)) ? [prerequisite] : [];
+  const archived = item.plan?.manualArchived;
+  return (item.plan?.manualDependsOn ?? []).flatMap((id) => {
+    const prerequisite = items.find((i) => i.id === id) ?? archived?.find((i) => i.id === id);
+    return prerequisite && !finished(prerequisite.state) && (!prerequisite.archivedAt || archived?.some((i) => i.id === id)) ? [prerequisite] : [];
   });
 }

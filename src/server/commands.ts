@@ -959,11 +959,11 @@ export class Commander {
     if (c.do === 'accept' && all.some((d) => d.do === 'revise' && d.card === c.card))
       return 'accepting a proposal waits for its reworked text, so the owner sees what they take: drop this action, keep revise, and say in confirm that accepting goes by a click once the new text is there';
     if (c.do !== 'planDoc' && c.do !== 'buildPrototype' && c.do !== 'splitOff') return;
-    const id = c.do === 'buildPrototype' ? this.o.board.item(c.card)?.prototypeOf : c.card;
+    const id = c.do === 'buildPrototype' ? this.o.board.item(c.card)?.idea?.prototypeOf : c.card;
     const idea = id ? this.o.board.item(id) : undefined;
     if (!idea) return;
     const talked = all.some((d) => d.do === 'discuss' && d.card === idea.id);
-    if (!idea.idea?.thinking && !talked) return;
+    if (!idea.idea?.discussion?.thinking && !talked) return;
     const what = { planDoc: 'planning', buildPrototype: 'building on a prototype', splitOff: 'splitting off a task' }[c.do];
     if (idea.id === from) return `${what} waits for the reply the idea's agent is working on, which changes the brief the owner decides on: drop this action and say in confirm that it goes by a click on the card once the reply is there.`;
     return `the idea's agent ${talked ? 'starts on a reply with the discuss in this command' : 'is still working on its reply'}, and building or planning waits for that reply, so the owner decides on the brief it leaves. Drop this action and pass what the owner said to the idea with discuss (one per idea), then say in confirm that ${c.do === 'planDoc' ? 'planning' : 'building'} goes by a click on the card once the reply is there.`;
@@ -1137,11 +1137,11 @@ export class Commander {
     const reviewable = handedOver(card);
     const is = `it is ${card.need ? `${card.state}: ${card.need}` : card.state}`;
     // an accepted proposal its agent withdrew or replaced goes or stays, whatever it is now
-    if (card.superseded && (a.do === 'dismiss' || a.do === 'keep')) return { do: a.do, card: card.id };
+    if (card.idea?.superseded && (a.do === 'dismiss' || a.do === 'keep')) return { do: a.do, card: card.id };
     if (a.do === 'keep') return `its agent has not withdrawn or replaced the card (${is})`;
-    if (card.prototypeOf && a.do === 'drop') return { do: 'discard', card: card.id };
-    if (card.prototypeOf && a.do === 'build') {
-      const plan = this.o.board.planOf(card.prototypeOf);
+    if (card.idea?.prototypeOf && a.do === 'drop') return { do: 'discard', card: card.id };
+    if (card.idea?.prototypeOf && a.do === 'build') {
+      const plan = this.o.board.planOf(card.idea.prototypeOf);
       if (!plan) return { do: 'buildPrototype', card: card.id };
       if (!a.cards?.length && prototypeWorkstream(this.o.board.items(), plan.id)) return { do: 'buildPrototype', card: card.id };
       const ws = a.cards?.length === 1 ? s.tags.get(a.cards[0]!) : undefined;
@@ -1161,7 +1161,7 @@ export class Commander {
     if ((a.do === 'build' || a.do === 'start') && a.path?.trim()) {
       const path = a.path.trim();
       if (!folderPath(path)) return `${path} is no folder: give it absolute or from ~`;
-      if (card.state !== 'idea' && (card.state !== 'planned' || card.source !== 'manual' || card.prototypeOf || card.queue || card.workstation || card.branch))
+      if (card.state !== 'idea' && (card.state !== 'planned' || card.source !== 'manual' || card.idea?.prototypeOf || card.queue || card.agent?.workstation || card.agent?.branch))
         return `only an idea, or a planned task of the owner's nobody has worked on yet and not with Seismic, is built in a new repository (${is})`;
       return { do: 'newRepo', card: card.id, path, project: a.own_project !== false };
     }
@@ -1174,14 +1174,14 @@ export class Commander {
       case 'plan_doc':
         return { do: 'planDoc', card: card.id };
       case 'split_off':
-        if (!card.idea?.split) return "its agent has marked no task to split off the idea: build it all (build), or pass on to it what the owner wants built now (discuss)";
+        if (!card.idea?.discussion?.split) return "its agent has marked no task to split off the idea: build it all (build), or pass on to it what the owner wants built now (discuss)";
         return { do: 'splitOff', card: card.id };
       case 'note':
       case 'answer':
       case 'feedback': {
         if (!a.text?.trim()) return 'the text is missing';
         // a card waiting to start holds the note for the worker that takes it on
-        if (a.do === 'note' && !['working', 'inPr', 'waiting'].includes(card.state) && !card.finishing && !askable(card) && !holdsNotes(card)) return `no agent works on this card (${is}), a note cannot reach it`;
+        if (a.do === 'note' && !['working', 'inPr', 'waiting'].includes(card.state) && !card.agent?.finishing && !askable(card) && !holdsNotes(card)) return `no agent works on this card (${is}), a note cannot reach it`;
         if (a.do === 'answer' && !card.question) return `the card has no open question (${is})`;
         if (a.do === 'feedback' && !reviewable) return `the card does not wait for review (${is})`;
         return { do: a.do, card: card.id, text: a.text.trim() };
@@ -1207,7 +1207,7 @@ export class Commander {
         const repo = this.o.board.project.repos.find((r) => r.id === card.repo);
         // where work lands on main anyway, approving it directly is approving it
         if (!a.direct || !repo?.pullRequests) break;
-        if (card.prototypeOf) return 'a prototype never lands; approving it throws it away';
+        if (card.idea?.prototypeOf) return 'a prototype never lands; approving it throws it away';
         // the owner hears why rather than getting a pull request they did not want
         if (!repo.direct) return `the repository ${card.repo} lands approved work only through a pull request; it does not allow pushing it directly onto main. Tell the owner so with reply, and approve without direct only once they want the pull request`;
         // past the pull request goes only by the card's button, never by word
@@ -1218,17 +1218,17 @@ export class Commander {
       case 'dismiss':
         if (card.state !== 'proposal') return `the card is no proposal (${is})`;
         // passed on by its reviser, accepting waits for the reworked text, as the button does
-        if (a.do === 'accept' && card.proposal?.revising && card.id !== s.reading?.from)
+        if (a.do === 'accept' && card.idea?.proposal?.revising && card.id !== s.reading?.from)
           return 'the proposal is being reworked by what the owner said; accepting it goes by a click, which waits for the new text: drop this action and say so in confirm';
         if (a.do === 'accept' && a.idea) return { do: 'accept', card: card.id, idea: true };
         break;
       case 'revise':
         if (card.state !== 'proposal') return `only a proposed card can be revised (${is})`;
         if (!a.text?.trim()) return 'the text is missing';
-        if (card.proposal?.revising) return 'the proposal is still being reworked by what the owner said before; reply that the new text comes in a moment, and to say it again then';
+        if (card.idea?.proposal?.revising) return 'the proposal is still being reworked by what the owner said before; reply that the new text comes in a moment, and to say it again then';
         return { do: 'revise', card: card.id, text: a.text.trim() };
       case 'stop':
-        if (card.state !== 'working' && card.state !== 'waiting' && !card.finishing) return `no agent works on this card (${is})`;
+        if (card.state !== 'working' && card.state !== 'waiting' && !card.agent?.finishing) return `no agent works on this card (${is})`;
         break;
       case 'pause':
         if (isPaused(card)) return 'its agent is paused already';
@@ -1372,7 +1372,7 @@ export class Commander {
     const groups = new Map(groupList.map((g) => [g.id, g.name]));
     const canvasName = new Map(canvasList.map((c) => [c.id, c.name]));
     const looking = canvasName.get(this.o.board.canvasFor(focus.place));
-    const relevant = items.filter((i) => i.kind !== 'plan' && (!finished(i.state) || i.finishing || i.kind === 'question' || i.id === focus.card));
+    const relevant = items.filter((i) => i.kind !== 'plan' && (!finished(i.state) || i.agent?.finishing || i.kind === 'question' || i.id === focus.card));
     const tag = (id: string) => {
       let t = s.tagOf.get(id);
       if (!t) {
@@ -1383,20 +1383,21 @@ export class Commander {
       return t;
     };
     const describe = (i: Item) => {
+      const { discussion, proposal, superseded, newRepo, prototypeOf } = i.idea ?? {};
       const plan = i.parent ? items.find((p) => p.id === i.parent) : undefined;
       const state = i.queue
         ? queued(i.queue, items)
         : i.need
-          ? `${i.state}: ${i.need}${answering(i) ? ", its agent works on the owner's answer to the question in its demo report" : i.answered ? ', its agent answered what the owner wrote on its handover' : ''}`
-          : i.idea && i.idea.status !== 'open'
-            ? `idea: ${i.idea.status}`
-            : i.idea?.thinking
-              ? `idea, its agent is working on its reply${i.idea.buildAfterReply ? '; built once the reply is there, unless it asks questions' : ''}`
+          ? `${i.state}: ${i.need}${answering(i) ? ", its agent works on the owner's answer to the question in its demo report" : i.review?.answered ? ', its agent answered what the owner wrote on its handover' : ''}`
+          : discussion && discussion.status !== 'open'
+            ? `idea: ${discussion.status}`
+            : discussion?.thinking
+              ? `idea, its agent is working on its reply${discussion.buildAfterReply ? '; built once the reply is there, unless it asks questions' : ''}`
             : i.kind === 'question'
               ? `question card: a thread of answers you looked up, moved onto a card; its agent ${i.thread?.thinking ? 'is reading' : 'answers what the owner asks on it (note)'}`
-            : i.finishing
-              ? i.followUp
-                ? `${i.state}, its agent answers the owner's follow-up${i.waitsForClone ? '; it needs a full clone for that and waits for the next free one, then goes on by itself' : ''}`
+            : i.agent?.finishing
+              ? i.agent.followUp
+                ? `${i.state}, its agent answers the owner's follow-up${i.agent.waitsForClone ? '; it needs a full clone for that and waits for the next free one, then goes on by itself' : ''}`
                 : `${i.state}, its agent finishes what remains${i.state === 'done' ? ' (nothing to land: the work changed no code)' : ' after the landing'}`
               : askable(i)
                 ? `${i.state}, its agent's session has ended; a note resumes it to answer`
@@ -1408,17 +1409,17 @@ export class Commander {
         ? '; its agent is paused by the owner: nothing of it runs until resume or what the owner says to it, which it goes on with'
         : isPausing(i)
         ? '; the owner asked its agent to pause at a safe point: it ends its turn once the step it is in is done, and is paused then; resume or what the owner says to it lets it work on instead'
-        : i.inTurn && i.state !== 'working'
+        : i.agent?.inTurn && i.state !== 'working'
           ? '; its agent is working on something right now'
-          : i.background?.length
-            ? `; its agent's turn is over, its background work still runs (${i.background.map((b) => clip(oneLine(b.description), 80)).join('; ')})`
+          : i.agent?.background?.length
+            ? `; its agent's turn is over, its background work still runs (${i.agent.background.map((b) => clip(oneLine(b.description), 80)).join('; ')})`
             : '';
       const repo = this.o.board.project.repos.length > 1 ? ` in ${i.repo}` : '';
-      const idea = i.prototypeOf ? items.find((x) => x.id === i.prototypeOf) : undefined;
-      const became = i.prototypeOf ? items.find((x) => x.kind === 'plan' && x.origin === i.prototypeOf) : undefined;
+      const idea = prototypeOf ? items.find((x) => x.id === prototypeOf) : undefined;
+      const became = prototypeOf ? items.find((x) => x.kind === 'plan' && x.plan?.origin === prototypeOf) : undefined;
       const builds = became && prototypeWorkstream(items, became.id);
       const group = i.group ? groups.get(i.group) : undefined;
-      return `${tag(i.id)} [${state}${paused}] "${i.title}"${repo}${i.contribution ? ` (review card for PR #${i.contribution.number} by ${i.contribution.author})` : ''}${plan ? ` (plan "${plan.title}")` : ''}${group ? ` (group "${group}")` : ''}${canvasList.length > 1 && i.canvas ? ` (canvas "${canvasName.get(i.canvas)}")` : ''}${became ? ` (prototype of the idea "${i.ideaTitle ?? ''}", which became the plan ${tag(became.id)} "${became.title}"${builds ? `; build starts its workstream ${tag(builds.id)} "${builds.title}" on it` : ''}${i.buildProposal ? '; its worker proposes to build on it' : ''})` : idea ? ` (prototype of ${tag(idea.id)} "${idea.title}"${i.buildProposal ? '; its worker proposes to build the idea on it' : ''})` : ''}${i.proposal ? ` — proposed ${i.proposal.idea ? 'idea' : 'task'}${i.proposal.startAt && i.state === 'proposal' ? `, to start ${when(i.proposal.startAt)} once accepted (it waits until then)` : ''}${i.proposal.revising ? `, being reworked by what the owner said${i.proposal.acceptAfterRevision ? `; accepted${i.proposal.acceptAfterRevision === 'idea' ? ' as an idea' : ''} once the new text is there, unless it asks questions` : ''}` : ''}` : ''}${i.superseded ? ` — the agent that proposed it ${i.superseded.by ? `replaced it by "${i.superseded.title ?? ''}"` : 'withdrew it'}${i.superseded.why ? ` (${clip(oneLine(i.superseded.why), 200)})` : ''}; the owner removes it (dismiss) or keeps it (keep)` : ''}${i.statusLine ? ` — status: ${clip(oneLine(i.statusLine), 160)}` : ''}${asks(i)}${i.idea?.next ? ` — its agent would ${NEXT_ACTION[i.idea.next.step]} next: ${clip(oneLine(i.idea.next.why), 200)}` : ''}${i.idea?.variants.length ? ` — prototypes its agent planned: ${i.idea.variants.map((v) => v.approach).join(', ')}` : ''}${i.idea?.split ? ` — task its agent marked to split off now (split_off): "${clip(oneLine(i.idea.split.title), 160)}"` : ''}${i.newRepo ? ` — to be built in a new repository ${i.newRepo.path || '(no folder named yet)'}${i.newRepo.project ? ' with a project of its own' : ' on this project'}, as ${i.newRepo.by === 'owner' ? 'the owner' : "its idea's agent"} chose${i.newRepo.due ? '; Seismic creates it in a few seconds unless the owner takes it back on the card' : ''}` : ''}`;
+      return `${tag(i.id)} [${state}${paused}] "${i.title}"${repo}${i.review?.contribution ? ` (review card for PR #${i.review.contribution.number} by ${i.review.contribution.author})` : ''}${plan ? ` (plan "${plan.title}")` : ''}${group ? ` (group "${group}")` : ''}${canvasList.length > 1 && i.canvas ? ` (canvas "${canvasName.get(i.canvas)}")` : ''}${became ? ` (prototype of the idea "${i.idea?.ideaTitle ?? ''}", which became the plan ${tag(became.id)} "${became.title}"${builds ? `; build starts its workstream ${tag(builds.id)} "${builds.title}" on it` : ''}${i.idea?.buildProposal ? '; its worker proposes to build on it' : ''})` : idea ? ` (prototype of ${tag(idea.id)} "${idea.title}"${i.idea?.buildProposal ? '; its worker proposes to build the idea on it' : ''})` : ''}${proposal ? ` — proposed ${proposal.idea ? 'idea' : 'task'}${proposal.startAt && i.state === 'proposal' ? `, to start ${when(proposal.startAt)} once accepted (it waits until then)` : ''}${proposal.revising ? `, being reworked by what the owner said${proposal.acceptAfterRevision ? `; accepted${proposal.acceptAfterRevision === 'idea' ? ' as an idea' : ''} once the new text is there, unless it asks questions` : ''}` : ''}` : ''}${superseded ? ` — the agent that proposed it ${superseded.by ? `replaced it by "${superseded.title ?? ''}"` : 'withdrew it'}${superseded.why ? ` (${clip(oneLine(superseded.why), 200)})` : ''}; the owner removes it (dismiss) or keeps it (keep)` : ''}${i.agent?.statusLine ? ` — status: ${clip(oneLine(i.agent.statusLine), 160)}` : ''}${asks(i)}${discussion?.next ? ` — its agent would ${NEXT_ACTION[discussion.next.step]} next: ${clip(oneLine(discussion.next.why), 200)}` : ''}${discussion?.variants.length ? ` — prototypes its agent planned: ${discussion.variants.map((v) => v.approach).join(', ')}` : ''}${discussion?.split ? ` — task its agent marked to split off now (split_off): "${clip(oneLine(discussion.split.title), 160)}"` : ''}${newRepo ? ` — to be built in a new repository ${newRepo.path || '(no folder named yet)'}${newRepo.project ? ' with a project of its own' : ' on this project'}, as ${newRepo.by === 'owner' ? 'the owner' : "its idea's agent"} chose${newRepo.due ? '; Seismic creates it in a few seconds unless the owner takes it back on the card' : ''}` : ''}`;
     };
     const step = (m: Moment) => {
       const card = items.find((i) => i.id === m.cardId);
@@ -1427,8 +1428,8 @@ export class Commander {
       const what =
         m.kind === 'created'
           ? m.author === 'owner'
-            ? card.contribution
-              ? `new review card for PR #${card.contribution.number}`
+            ? card.review?.contribution
+              ? `new review card for PR #${card.review.contribution.number}`
               : 'new card'
             : 'proposed by an agent'
           : `${STEP[m.kind] ?? ''}${clip(oneLine(m.text), 200)}`;
@@ -1483,7 +1484,7 @@ export class Commander {
     const plans = items.flatMap((p) => {
       if (p.kind !== 'plan') return [];
       const open = items.filter((i) => i.parent === p.id && i.state === 'planned' && !i.queue);
-      return open.length ? [`${tag(p.id)} [plan] "${p.title}" — planned workstreams not yet started: ${open.map((i) => i.label ?? i.title).join(', ')}`] : [];
+      return open.length ? [`${tag(p.id)} [plan] "${p.title}" — planned workstreams not yet started: ${open.map((i) => i.plan?.label ?? i.title).join(', ')}`] : [];
     });
     return [
       `Now: ${when(now)}.`,
@@ -1654,8 +1655,8 @@ function notUntouched(i: Item): string | undefined {
   if (i.kind !== 'task') return `is a ${i.kind}`;
   if (i.state !== 'planned') return `is ${i.state}`;
   if (i.source === 'plan') return 'is a workstream of a plan doc (changed there)';
-  if (i.prototypeOf) return 'is a prototype';
+  if (i.idea?.prototypeOf) return 'is a prototype';
   if (i.queue) return 'is with Seismic to start, being checked or about to start (dequeue it first)';
-  if (i.becomesPlan) return 'is being planned as a plan';
+  if (i.idea?.becomesPlan) return 'is being planned as a plan';
   return 'was worked on already (it has a branch or a workstation)';
 }

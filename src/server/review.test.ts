@@ -168,8 +168,8 @@ describe('a review card', () => {
     expect(brief).not.toContain('git push');
     expect(runtime.last.spec.system).toContain('Do not push (Seismic pushes your commits');
     // watched from the start
-    expect(board.item(id)!.pr).toMatchObject({ url: URL_, number: 5 });
-    expect(board.item(id)!.contribution).toMatchObject({ number: 5, author: 'amerlander', canModify: true });
+    expect(board.item(id)!.review?.pr).toMatchObject({ url: URL_, number: 5 });
+    expect(board.item(id)!.review?.contribution).toMatchObject({ number: 5, author: 'amerlander', canModify: true });
   });
 
   test('its session reads none of the PR’s Claude Code settings, and the default branch’s CLAUDE.md', async () => {
@@ -198,14 +198,14 @@ describe('a review card', () => {
     expect(runtime.last.call('findings', { findings: FINDINGS })).toContain('2 findings');
     await runtime.last.call('ready_for_review', { summary: 'Two findings.', demo: artifact(), review: results });
     expect(board.item(id)!.state).toBe('waiting');
-    expect(board.item(id)!.contribution!.results).toEqual(results);
-    expect(board.item(id)!.contribution!.findings!.map((f) => [f.id, f.status, !!f.security])).toEqual([
+    expect(board.item(id)!.review?.contribution!.results).toEqual(results);
+    expect(board.item(id)!.review?.contribution!.findings!.map((f) => [f.id, f.status, !!f.security])).toEqual([
       [1, 'open', true],
       [2, 'open', false],
     ]);
     expect(contribution(id).reviewed).toBe(prHead);
     // a review card is merged, never closed as needing no change
-    expect(board.item(id)!.noChange).toBeUndefined();
+    expect(board.item(id)!.review?.noChange).toBeUndefined();
   });
 
   test('an ignored finding is dropped without a word to the worker, and stays so when it rewrites the list', async () => {
@@ -214,9 +214,9 @@ describe('a review card', () => {
     const before = runtime.last.inbox.length;
     workers.message(id, '', [], false, undefined, undefined, { 2: 'ignore' });
     expect(runtime.last.inbox.length).toBe(before);
-    expect(board.item(id)!.contribution!.findings!.map((f) => f.status)).toEqual(['open', 'dropped']);
+    expect(board.item(id)!.review?.contribution!.findings!.map((f) => f.status)).toEqual(['open', 'dropped']);
     runtime.last.call('findings', { findings: [{ id: 1, title: 'Path in the file name', text: 'T' }, { id: 2, title: 'No shortcut', text: 'T', status: 'open' }] });
-    expect(board.item(id)!.contribution!.findings!.map((f) => f.status)).toEqual(['open', 'dropped']);
+    expect(board.item(id)!.review?.contribution!.findings!.map((f) => f.status)).toEqual(['open', 'dropped']);
     // a new finding beside an ignored one: the worker hears it was ignored, so it raises it no more
     expect(runtime.last.call('findings', { findings: [{ id: 1, title: 'Path in the file name', text: 'T' }, { id: 2, title: 'No shortcut', text: 'T' }, { title: 'Shortcut missing', text: 'T' }] })).toContain('The owner ignored #2 “No shortcut”');
   });
@@ -230,7 +230,7 @@ describe('a review card', () => {
     expect(told).toContain('request_changes');
     expect(told).toContain('Keep it short.');
     expect(board.events(id).at(-1)!.text).toContain('Finding 1 “Path in the file name”: to amerlander');
-    expect(board.item(id)!.contribution!.findings!.map((f) => [f.decided, f.withChanges])).toEqual([
+    expect(board.item(id)!.review?.contribution!.findings!.map((f) => [f.decided, f.withChanges])).toEqual([
       ['contributor', undefined],
       [undefined, undefined],
     ]);
@@ -240,12 +240,12 @@ describe('a review card', () => {
     expect(await runtime.last.call('request_changes', { body: 'Please keep the file in its folder.', findings: [1] })).toContain('waits for amerlander');
     expect(fake.said.reviews).toEqual(['Please keep the file in its folder.']);
     expect(board.item(id)!.state).toBe('inPr');
-    const sent = board.item(id)!.contribution!.findings![0]!;
+    const sent = board.item(id)!.review?.contribution!.findings![0]!;
     expect(sent).toMatchObject({ status: 'sent', url: `${URL_}#pullrequestreview-1` });
     expect(sent.decided).toBeUndefined();
     // the worker keeps the list, the numbers kept
     runtime.last.call('findings', { findings: [{ id: 1, title: 'Path in the file name', text: 'T', security: true }, { id: 2, title: 'No shortcut', text: 'T', status: 'dropped' }, { title: 'New one', text: 'T' }] });
-    expect(board.item(id)!.contribution!.findings!.map((f) => [f.id, f.status])).toEqual([
+    expect(board.item(id)!.review?.contribution!.findings!.map((f) => [f.id, f.status])).toEqual([
       [1, 'sent'],
       [2, 'dropped'],
       [3, 'open'],
@@ -267,7 +267,7 @@ describe('a review card', () => {
     expect(await runtime.last.call('ready_for_review', { summary: 'Fixed 2.', demo: artifact(), review: results })).toContain('Give pr_draft');
     await runtime.last.call('ready_for_review', { summary: 'Fixed 2.', demo: artifact(), review: results, pr_draft: 'Thanks! I added the shortcut on top of your branch.' });
     runtime.last.emit({ type: 'idle' });
-    expect(board.item(id)!.contribution!.held).toEqual({ body: 'Thanks! I added the shortcut on top of your branch.', commits: 1, asks: [] });
+    expect(board.item(id)!.review?.contribution!.held).toEqual({ body: 'Thanks! I added the shortcut on top of your branch.', commits: 1, asks: [] });
     // nothing went out yet
     expect(git(origin, 'rev-parse', 'contrib').trim()).toBe(prHead);
     expect(fake.said.comments).toEqual([]);
@@ -277,8 +277,8 @@ describe('a review card', () => {
     expect(fake.said.merges).toEqual([head]);
     expect(approvals).toEqual([id]);
     expect(board.item(id)!.state).toBe('live');
-    expect(board.item(id)!.contribution!.held).toBeUndefined();
-    expect(board.item(id)!.contribution!.findings![1]).toMatchObject({ status: 'fixed', url: `${URL_}#issuecomment-1` });
+    expect(board.item(id)!.review?.contribution!.held).toBeUndefined();
+    expect(board.item(id)!.review?.contribution!.findings![1]).toMatchObject({ status: 'fixed', url: `${URL_}#issuecomment-1` });
     expect(board.events(id).some((e) => e.text.startsWith(board.t.worker.pushedHeld(5, 1)))).toBe(true);
   });
 
@@ -296,7 +296,7 @@ describe('a review card', () => {
     expect(fake.said.merges).toEqual([]);
     expect(approvals).toEqual([]);
     expect(board.item(id)).toMatchObject({ state: 'waiting', need: 'demo' });
-    expect(board.item(id)!.contribution!.held).toBeUndefined();
+    expect(board.item(id)!.review?.contribution!.held).toBeUndefined();
     // nothing held any more: only “Merge” is left
     await expect(workers.pushContribution(id)).rejects.toMatchObject({ code: 'notReady' });
     await workers.approve(id);
@@ -315,7 +315,7 @@ describe('a review card', () => {
     expect(() => workers.editHeld(id, '  ')).toThrow(expect.objectContaining({ code: 'emptyText' }));
     workers.editHeld(id, 'Thanks! I added a keyboard shortcut on top of your branch.');
     workers.editHeld(id, 'Thanks a lot! I added a keyboard shortcut on top of your branch.');
-    expect(board.item(id)!.contribution!.held).toEqual({ body: 'Thanks a lot! I added a keyboard shortcut on top of your branch.', commits: 1, asks: [] });
+    expect(board.item(id)!.review?.contribution!.held).toEqual({ body: 'Thanks a lot! I added a keyboard shortcut on top of your branch.', commits: 1, asks: [] });
     expect(board.item(id)!.state).toBe('waiting');
     expect(board.events(id).filter((e) => e.text === board.t.worker.heldEdited(5))).toHaveLength(2);
     // the worker, idle, hears only the latest edit, with its next message
@@ -333,7 +333,7 @@ describe('a review card', () => {
     const refused = await runtime.last.call('ready_for_review', { summary: 'Menu entry.', review: results, pr_draft: 'I added the shortcut and the menu entry.' });
     expect(refused).toContain('Not handed over: the owner edited the text');
     expect(refused).toContain('(Ctrl+K)');
-    expect(board.item(id)!.contribution!.held!.body).toBe('Thanks a lot! I added a keyboard shortcut (Ctrl+K) on top of your branch.');
+    expect(board.item(id)!.review?.contribution!.held!.body).toBe('Thanks a lot! I added a keyboard shortcut (Ctrl+K) on top of your branch.');
     // heard once: the next pr_draft builds on it
     expect(runtime.last.toolStep() ?? '').not.toContain('edited the text');
     await runtime.last.call('ready_for_review', { summary: 'Menu entry.', review: results, pr_draft: 'Thanks a lot! I added a keyboard shortcut (Ctrl+K) and a menu entry on top of your branch.' });
@@ -361,7 +361,7 @@ describe('a review card', () => {
     workers.editHeld(id, 'Thanks! I added the shortcut.');
     expect(runtime.last.toolStep()).toContain('Thanks! I added the shortcut.');
     expect(await runtime.last.call('ready_for_review', { summary: 'Menu.', review: results, pr_draft: 'Thanks! I added the shortcut, and the menu shows it.' })).not.toContain('Not handed over');
-    expect(board.item(id)!.contribution!.held!.body).toBe('Thanks! I added the shortcut, and the menu shows it.');
+    expect(board.item(id)!.review?.contribution!.held!.body).toBe('Thanks! I added the shortcut, and the menu shows it.');
   });
 
   test('with requests to the contributor beside its own change, approving pushes and sends both as one review, and the card waits for them', async () => {
@@ -370,7 +370,7 @@ describe('a review card', () => {
     workers.message(id, '', [], false, undefined, undefined, { 1: 'contributor', 2: 'self' });
     const told = runtime.last.inbox.at(-1)!;
     expect(told).toContain('To amerlander: #1 “Path in the file name”. They go with your own changes below');
-    expect(board.item(id)!.contribution!.findings![0]).toMatchObject({ decided: 'contributor', withChanges: true });
+    expect(board.item(id)!.review?.contribution!.findings![0]).toMatchObject({ decided: 'contributor', withChanges: true });
     runtime.last.emit({ type: 'idle' });
     // the request does not go out on its own
     expect(await runtime.last.call('request_changes', { body: 'Please keep the file in its folder.', findings: [1] })).toContain('Not sent: your own changes');
@@ -379,8 +379,8 @@ describe('a review card', () => {
     runtime.last.call('findings', { findings: [{ id: 1, title: 'Path in the file name', text: 'T', security: true }, { id: 2, title: 'No shortcut', text: 'T', status: 'fixed' }] });
     await runtime.last.call('ready_for_review', { summary: 'Fixed 2.', demo: artifact(), review: results, pr_draft: 'I pushed a shortcut. Please keep the file in its folder (#1).' });
     runtime.last.emit({ type: 'idle' });
-    expect(board.item(id)!.contribution!.held).toEqual({ body: 'I pushed a shortcut. Please keep the file in its folder (#1).', commits: 1, asks: [1] });
-    expect(board.item(id)!.contribution!.findings![0]).toMatchObject({ status: 'open', decided: 'contributor', withChanges: true });
+    expect(board.item(id)!.review?.contribution!.held).toEqual({ body: 'I pushed a shortcut. Please keep the file in its folder (#1).', commits: 1, asks: [1] });
+    expect(board.item(id)!.review?.contribution!.findings![0]).toMatchObject({ status: 'open', decided: 'contributor', withChanges: true });
     await workers.approve(id);
     expect(git(origin, 'rev-parse', 'contrib').trim()).toBe(head);
     expect(fake.said.reviews).toEqual(['I pushed a shortcut. Please keep the file in its folder (#1).']);
@@ -388,7 +388,7 @@ describe('a review card', () => {
     expect(fake.said.merges).toEqual([]);
     expect(approvals).toEqual([]);
     expect(board.item(id)!.state).toBe('inPr');
-    const [asked, fixed] = board.item(id)!.contribution!.findings!;
+    const [asked, fixed] = board.item(id)!.review?.contribution!.findings!;
     expect(asked).toMatchObject({ status: 'sent', url: `${URL_}#pullrequestreview-1` });
     expect(asked!.decided).toBeUndefined();
     expect(asked!.withChanges).toBeUndefined();
@@ -411,7 +411,7 @@ describe('a review card', () => {
     expect(await runtime.last.call('request_changes', { body: 'Please keep the file in its folder.', findings: [1] })).toContain('Not sent');
     // handed over again without a new demo, the text rewritten
     await runtime.last.call('ready_for_review', { summary: 'Both in one.', review: results, pr_draft: 'I added the shortcut. Please keep the file in its folder.' });
-    expect(board.item(id)!.contribution!.held).toEqual({ body: 'I added the shortcut. Please keep the file in its folder.', commits: 1, asks: [1] });
+    expect(board.item(id)!.review?.contribution!.held).toEqual({ body: 'I added the shortcut. Please keep the file in its folder.', commits: 1, asks: [1] });
   });
 
   test('with no commit of its own after all, a request that waited for one goes out alone', async () => {
@@ -436,7 +436,7 @@ describe('a review card', () => {
         { title: 'E', text: 'T', with: [9] },
       ],
     });
-    expect(board.item(id)!.contribution!.findings!.map((f) => [f.id, f.with])).toEqual([
+    expect(board.item(id)!.review?.contribution!.findings!.map((f) => [f.id, f.with])).toEqual([
       [1, [3, 4]],
       [2, undefined],
       [3, [1, 4]],
@@ -460,7 +460,7 @@ describe('a review card', () => {
     workers.message(id, 'Combine them as you see fit.', [], false, undefined, undefined, { 1: 'later', 2: 'later', 4: 'later' });
     // nothing made yet: each waits for the worker, which hears the bundle among those chosen and the owner's words
     expect(board.items().filter((i) => i.from === id)).toEqual([]);
-    expect(board.item(id)!.contribution!.findings!.map((f) => [f.id, f.status, f.decided])).toEqual([
+    expect(board.item(id)!.review?.contribution!.findings!.map((f) => [f.id, f.status, f.decided])).toEqual([
       [1, 'open', 'later'],
       [2, 'open', 'later'],
       [3, 'open', undefined],
@@ -480,7 +480,7 @@ describe('a review card', () => {
     expect(runtime.last.call('follow_up_task', { findings: [2, 4], title: 'Re-login button: when and where', task: 'The button shows on the wrong messages, and twice on a failed start. See src/ui/login.tsx.' })).toContain(
       'Still to make: finding #1',
     );
-    const findings = () => board.item(id)!.contribution!.findings!;
+    const findings = () => board.item(id)!.review?.contribution!.findings!;
     const task = board.item(findings()[1]!.card!)!;
     expect(task).toMatchObject({ title: 'Re-login button: when and where', state: 'planned', from: id });
     expect(task.body).toBe(`The button shows on the wrong messages, and twice on a failed start. See src/ui/login.tsx.\n\nFrom the review of PR #5: ${URL_}`);
@@ -566,8 +566,8 @@ describe('a review card', () => {
     const x = landedLocally('poll.ts', 'Polls every minute');
     const id = await reviewCard();
     await handOver();
-    await until(() => !!board.item(id)!.contribution!.clash);
-    expect(board.item(id)!.contribution!.clash).toMatchObject({ subject: 'Polls every minute', files: ['poll.ts'], unpushed: 1, card: { id: x, title: 'Poll more often' } });
+    await until(() => !!board.item(id)!.review?.contribution!.clash);
+    expect(board.item(id)!.review?.contribution!.clash).toMatchObject({ subject: 'Polls every minute', files: ['poll.ts'], unpushed: 1, card: { id: x, title: 'Poll more often' } });
     // shown already: the owner merges anyway
     await workers.approve(id);
     expect(fake.said.merges).toEqual([prHead]);
@@ -577,13 +577,13 @@ describe('a review card', () => {
     const id = await reviewCard();
     await handOver();
     await probed(id);
-    expect(board.item(id)!.contribution!.clash).toBeUndefined();
+    expect(board.item(id)!.review?.contribution!.clash).toBeUndefined();
     landedLocally('poll.ts', 'Polls every minute');
     await expect(workers.approve(id)).rejects.toMatchObject({ code: 'pullClash' });
     expect(fake.said.merges).toEqual([]);
     expect(approvals).toEqual([]);
     expect(board.item(id)!.state).toBe('waiting');
-    expect(board.item(id)!.contribution!.clash).toMatchObject({ subject: 'Polls every minute' });
+    expect(board.item(id)!.review?.contribution!.clash).toMatchObject({ subject: 'Polls every minute' });
     await workers.approve(id);
     expect(fake.said.merges).toEqual([prHead]);
   });
@@ -593,7 +593,7 @@ describe('a review card', () => {
     const id = await reviewCard();
     const review = runtime.last;
     await handOver();
-    await until(() => !!board.item(id)!.contribution!.clash);
+    await until(() => !!board.item(id)!.review?.contribution!.clash);
     const before = git(main, 'rev-parse', 'HEAD').trim();
     await workers.approve(id);
     await until(() => runtime.sessions.length === 2);
@@ -606,7 +606,7 @@ describe('a review card', () => {
     // the local main is as it was
     expect(git(main, 'rev-parse', 'HEAD').trim()).toBe(before);
     expect(board.events(id).some((e) => e.text === board.t.worker.pullStopped('Polls every minute', 'Poll more often'))).toBe(true);
-    expect(board.item(x)!.statusLine).toBe(board.t.worker.resolvingStatus(5));
+    expect(board.item(x)!.agent?.statusLine).toBe(board.t.worker.resolvingStatus(5));
     // the worker rebases the unpushed commit onto origin's main with the merge, the conflict resolved
     const ws = board.row(x).workstation!;
     const upstream = git(origin, 'rev-parse', 'main').trim();
@@ -620,7 +620,7 @@ describe('a review card', () => {
     expect(git(main, 'rev-parse', 'HEAD~1').trim()).toBe(upstream);
     expect(git(main, 'log', '-1', '--format=%s').trim()).toBe('Polls every minute');
     expect(board.events(id).some((e) => e.text.startsWith(board.t.worker.pulledMain('').slice(0, 10)))).toBe(true);
-    expect(board.item(x)!.statusLine).toBeUndefined();
+    expect(board.item(x)!.agent?.statusLine).toBeUndefined();
     // its session ends with its turn
     resolver.emit({ type: 'idle' });
     await until(() => !board.row(x).workstation && !existsSync(ws));
@@ -631,7 +631,7 @@ describe('a review card', () => {
     const id = await reviewCard();
     const review = runtime.last;
     await handOver();
-    await until(() => !!board.item(id)!.contribution!.clash);
+    await until(() => !!board.item(id)!.review?.contribution!.clash);
     git(origin, 'config', 'receive.denyCurrentBranch', 'updateInstead');
     workers.pushMainFor(id);
     // taken back within the window: nothing happens
@@ -641,7 +641,7 @@ describe('a review card', () => {
     workers.pushMainFor(id);
     await until(() => board.item(id)!.state === 'working');
     expect(git(origin, 'log', '-1', '--format=%s', 'main').trim()).toBe('Polls every minute');
-    expect(board.item(id)!.contribution!.clash).toBeUndefined();
+    expect(board.item(id)!.review?.contribution!.clash).toBeUndefined();
     const told = review.inbox.at(-1)!;
     expect(told).toContain('push the local main to origin');
     expect(told).toContain('amerlander allows maintainers');
@@ -652,7 +652,7 @@ describe('a review card', () => {
     const x = landedLocally('poll.ts', 'Polls every minute');
     const id = await reviewCard();
     await handOver();
-    await until(() => !!board.item(id)!.contribution!.clash);
+    await until(() => !!board.item(id)!.review?.contribution!.clash);
     await workers.approve(id);
     await until(() => runtime.sessions.length === 2);
     const resolver = runtime.last;
@@ -700,7 +700,7 @@ describe('a review card', () => {
     git(ws, 'rebase', '--quiet', 'FETCH_HEAD');
     const head = git(ws, 'rev-parse', 'HEAD').trim();
     await runtime.last.call('ready_for_review', { summary: 'S', review: results });
-    expect(board.item(id)!.contribution!.held).toMatchObject({ body: 'I added the shortcut.', commits: 1 });
+    expect(board.item(id)!.review?.contribution!.held).toMatchObject({ body: 'I added the shortcut.', commits: 1 });
     await workers.approve(id);
     expect(fake.said.merges).toEqual([head]);
   });
@@ -736,9 +736,9 @@ describe('a review card', () => {
     expect(git(origin, 'rev-parse', 'contrib').trim()).toBe(head);
     expect(fake.said.merges).toEqual([]);
     expect(board.item(id)).toMatchObject({ state: 'waiting', need: 'demo' });
-    expect(board.item(id)!.contribution!.held).toBeUndefined();
-    expect(board.item(id)!.contribution!.findings![0]).toMatchObject({ status: 'open' });
-    expect(board.item(id)!.contribution!.findings![0]!.decided).toBeUndefined();
+    expect(board.item(id)!.review?.contribution!.held).toBeUndefined();
+    expect(board.item(id)!.review?.contribution!.findings![0]).toMatchObject({ status: 'open' });
+    expect(board.item(id)!.review?.contribution!.findings![0]!.decided).toBeUndefined();
     expect(board.events(id).at(-1)!.text).toContain('HTTP 502');
   });
 
@@ -794,7 +794,7 @@ describe('“Review PR #5” on a project', () => {
     const card = project.board.item(id)!;
     expect(card.title).toBe('PR #5: Watcher polls gh in the background');
     expect(card.body).toBe('Look at security especially.');
-    expect(card.contribution).toMatchObject({ url: URL_, author: 'amerlander', canModify: true });
+    expect(card.review?.contribution).toMatchObject({ url: URL_, author: 'amerlander', canModify: true });
     // started: with no other card at work, at once
     await until(() => project.board.row(id).state === 'working');
     expect(await project.reviewPr({ do: 'reviewPr', pr: URL_, text: 'And the demo on the phone only.' })).toBe(id);
@@ -805,19 +805,19 @@ describe('“Review PR #5” on a project', () => {
     const own = project.board.create({ title: 'Export', x: 0, y: 0 });
     project.board.work(own.id, { state: 'inPr', pr: JSON.stringify({ url: URL_, number: 5, seen: [], reported: [] }) });
     expect(await project.reviewPr({ do: 'reviewPr', pr: '5', text: '' })).toBe(own.id);
-    expect(project.board.snapshot().items.some((i) => i.contribution)).toBe(false);
+    expect(project.board.snapshot().items.some((i) => i.review?.contribution)).toBe(false);
   });
 
   test('a PR recorded in another form (a slash at the end, the host in capitals) opens its card too', async () => {
     const own = project.board.create({ title: 'Export', x: 0, y: 0 });
     project.board.work(own.id, { state: 'inPr', pr: JSON.stringify({ url: 'https://GitHub.com/acme/app/pull/5/', number: 5, seen: [], reported: [] }) });
     expect(await project.reviewPr({ do: 'reviewPr', pr: URL_, text: '' })).toBe(own.id);
-    expect(project.board.snapshot().items.some((i) => i.contribution)).toBe(false);
+    expect(project.board.snapshot().items.some((i) => i.review?.contribution)).toBe(false);
   });
 
   test('a closed PR gets no card', async () => {
     fake.info.state = 'CLOSED';
     expect(await project.reviewPr({ do: 'reviewPr', pr: '5', text: '' })).toBeUndefined();
-    expect(project.board.snapshot().items.some((i) => i.contribution)).toBe(false);
+    expect(project.board.snapshot().items.some((i) => i.review?.contribution)).toBe(false);
   });
 });

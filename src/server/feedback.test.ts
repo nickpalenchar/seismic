@@ -112,7 +112,7 @@ test('a legacy session resumed on today’s defaults is credited only with what 
 });
 
 test('a workstream’s response carries its plan; it follows the card to another project', () => {
-  const w = board.snapshot().items.find((i) => i.label === 'W1')!;
+  const w = board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
   board.log(w.id, 'review', 'worker', 'Done.');
   approve(w.id);
   const f = board.giveFeedback(w.id, { answer: { rating: 1 }, facets: { type: 'bug' } });
@@ -175,22 +175,22 @@ test('archiving after the landing, approved work asks for feedback until answere
   board.log(card.id, 'review', 'worker', 'Done.');
   const handover = store.events.handover(card.id)!.id;
   // waiting for approval, nothing is asked yet
-  expect(board.item(card.id)!.rate).toBeUndefined();
+  expect(board.item(card.id)!.review?.rate).toBeUndefined();
   board.work(card.id, { state: 'approved', approved_at: new Date().toISOString() });
-  expect(board.item(card.id)!.rate).toEqual({ handover });
+  expect(board.item(card.id)!.review?.rate).toEqual({ handover });
   // approved again (a retried landing), it is the same prompt; once answered, the card shows the answer
   board.work(card.id, { state: 'approved', approved_at: new Date().toISOString() });
   board.giveFeedback(card.id, { answer: { rating: 4, comment: 'Clean.' }, handover });
-  expect(board.item(card.id)!.rate).toEqual({ handover, answer: { rating: 4, comment: 'Clean.' } });
+  expect(board.item(card.id)!.review?.rate).toEqual({ handover, answer: { rating: 4, comment: 'Clean.' } });
   // read afresh, as after a restart
   const again = new Board(store, board.project, () => ({ docs, dirs: [] }));
   again.archiving = () => 'landed';
-  expect(again.item(card.id)!.rate).toEqual({ handover, answer: { rating: 4, comment: 'Clean.' } });
+  expect(again.item(card.id)!.review?.rate).toEqual({ handover, answer: { rating: 4, comment: 'Clean.' } });
   // work handed over again after more work asks about its new handover
   board.work(card.id, { state: 'waiting' });
   board.log(card.id, 'review', 'worker', 'Done again.');
   board.work(card.id, { state: 'approved' });
-  expect(board.item(card.id)!.rate).toEqual({ handover: store.events.handover(card.id)!.id });
+  expect(board.item(card.id)!.review?.rate).toEqual({ handover: store.events.handover(card.id)!.id });
 });
 
 test('work that changed nothing asks too once done; a prompt left unanswered stays', () => {
@@ -198,11 +198,11 @@ test('work that changed nothing asks too once done; a prompt left unanswered sta
   const card = manual();
   board.log(card.id, 'review', 'worker', 'Nothing to change.');
   board.work(card.id, { state: 'done', approved_at: new Date().toISOString() });
-  expect(board.item(card.id)!.rate).toEqual({ handover: store.events.handover(card.id)!.id });
+  expect(board.item(card.id)!.review?.rate).toEqual({ handover: store.events.handover(card.id)!.id });
   // a card nobody handed work over on asks nothing
   const bare = manual();
   board.work(bare.id, { state: 'done' });
-  expect(board.item(bare.id)!.rate).toBeUndefined();
+  expect(board.item(bare.id)!.review?.rate).toBeUndefined();
 });
 
 test('archiving by hand, a card asks for feedback once the owner archives it; a workstream, which goes with its plan, once approved', () => {
@@ -210,20 +210,20 @@ test('archiving by hand, a card asks for feedback once the owner archives it; a 
   board.log(card.id, 'review', 'worker', 'Done.');
   const handover = store.events.handover(card.id)!.id;
   board.work(card.id, { state: 'live', approved_at: new Date().toISOString() });
-  expect(board.item(card.id)!.rate).toBeUndefined();
+  expect(board.item(card.id)!.review?.rate).toBeUndefined();
   board.archive([card.id]);
-  expect(board.card(card.id)!.rate).toEqual({ handover });
-  expect(board.archived().find((i) => i.id === card.id)!.rate).toEqual({ handover });
+  expect(board.card(card.id)!.review?.rate).toEqual({ handover });
+  expect(board.archived().find((i) => i.id === card.id)!.review?.rate).toEqual({ handover });
   // and takes the answer there
   board.giveFeedback(card.id, { answer: { rating: 4 }, handover });
-  expect(board.card(card.id)!.rate).toEqual({ handover, answer: { rating: 4 } });
+  expect(board.card(card.id)!.review?.rate).toEqual({ handover, answer: { rating: 4 } });
   // back on the project, it waits to be archived again
   board.unarchive(card.id);
-  expect(board.item(card.id)!.rate).toBeUndefined();
-  const w = board.snapshot().items.find((i) => i.label === 'W1')!;
+  expect(board.item(card.id)!.review?.rate).toBeUndefined();
+  const w = board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
   board.log(w.id, 'review', 'worker', 'Done.');
   board.work(w.id, { state: 'approved', approved_at: new Date().toISOString() });
-  expect(board.item(w.id)!.rate).toEqual({ handover: store.events.handover(w.id)!.id });
+  expect(board.item(w.id)!.review?.rate).toEqual({ handover: store.events.handover(w.id)!.id });
 });
 
 test('archiving after the landing, a finished card goes into the archive once its worker is done, and one still at work stays', () => {
@@ -242,7 +242,7 @@ test('archiving after the landing, a finished card goes into the archive once it
   expect(board.snapshot().items.some((i) => i.id === other.id)).toBe(true);
   // a workstream goes with its plan, not on its own
   board.archiving = () => 'landed';
-  const w = board.snapshot().items.find((i) => i.label === 'W1')!;
+  const w = board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
   board.work(w.id, { state: 'live' });
   board.workDone(w.id);
   expect(board.archived().map((i) => i.id)).not.toContain(w.id);
@@ -256,9 +256,9 @@ test('turned off, no card asks for feedback and the responses given stay', () =>
   let asks = false;
   const off = new Board(store, board.project, () => ({ docs, dirs: [] }), undefined, undefined, () => 'en', undefined, () => asks);
   off.archiving = () => 'landed';
-  expect(off.item(card.id)!.rate).toBeUndefined();
+  expect(off.item(card.id)!.review?.rate).toBeUndefined();
   expect(off.feedback(card.id)).toHaveLength(1);
   asks = true;
   off.changed();
-  expect(off.item(card.id)!.rate).toMatchObject({ answer: { rating: 5 } });
+  expect(off.item(card.id)!.review?.rate).toMatchObject({ answer: { rating: 5 } });
 });

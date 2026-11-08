@@ -466,10 +466,10 @@ export function parseQuestion(text: string): { text: string; options: string[] }
  * a question, the answer and feedback together, sorted out by the Koordinator as spoken words are.
  * Null where no agent hears it. Ideas and proposals have fields of their own.
  */
-export function ownerField(item: Pick<Item, 'state' | 'need' | 'question' | 'finishing' | 'branch' | 'prototypeOf' | 'archivedAt' | 'queue'>): Field | null {
+export function ownerField(item: Pick<Item, 'state' | 'need' | 'question' | 'agent' | 'idea' | 'archivedAt' | 'queue'>): Field | null {
   if (item.state === 'waiting') return item.need === 'question' ? 'answer' : item.need === 'demo' && item.question ? 'demo' : 'feedback';
   // a finished card's agent is resumed for what the owner asks about it; a planned card holds the note for the agent that takes it on
-  return item.state === 'working' || item.state === 'inPr' || item.finishing || askable(item) || holdsNotes(item) ? 'note' : null;
+  return item.state === 'working' || item.state === 'inPr' || item.agent?.finishing || askable(item) || holdsNotes(item) ? 'note' : null;
 }
 
 /**
@@ -479,7 +479,7 @@ export function ownerField(item: Pick<Item, 'state' | 'need' | 'question' | 'fin
 export const runs = (i: Item) =>
   !needsYou(i) &&
   !snoozeOf(i)?.waiting &&
-  (i.state === 'working' || answering(i) || !!i.finishing || !!i.landing || !!i.queue || (i.state === 'inPr' && !!i.pr) || !!i.idea?.thinking || !!i.thread?.thinking);
+  (i.state === 'working' || answering(i) || !!i.agent?.finishing || !!i.review?.landing || !!i.queue || (i.state === 'inPr' && !!i.review?.pr) || !!i.idea?.discussion?.thinking || !!i.thread?.thinking);
 
 /**
  * Whether the phone opens a card with its conversation up: while its agent works on it, what the
@@ -513,8 +513,8 @@ export function unseenTurns(talk: Talk, events: CardEvent[], seen = -1): Turn[] 
  * Whether the card's agent is at work on it, so its conversation ends with the agent at work: an
  * agent working on something, which the owner can pause (`pausableNow`), or a proposal reworked.
  */
-export const agentWorks = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'inTurn' | 'hold' | 'proposal'>) =>
-  pausableNow(i) || (i.state === 'proposal' && !!i.proposal?.revising);
+export const agentWorks = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'agent' | 'hold'>) =>
+  pausableNow(i) || (i.state === 'proposal' && !!i.idea?.proposal?.revising);
 
 /**
  * Whether the Koordinator still reads what the owner said on the card: their words stand in the log
@@ -539,10 +539,10 @@ export const obeyaWorks = (talk: Exchange[]) =>
  * conversation. A workstream planned again after a part of it landed has no branch until its rest
  * starts, and still shows what landed.
  */
-export const worked = (i: Pick<Item, 'state' | 'branch' | 'landedPart'>) => i.state !== 'idea' && i.state !== 'proposal' && (!!i.branch || !!i.landedPart);
+export const worked = (i: Pick<Item, 'state' | 'agent' | 'review'>) => i.state !== 'idea' && i.state !== 'proposal' && (!!i.agent?.branch || !!i.review?.landedPart);
 
 /** What decides a card's layout. */
-type Laid = Pick<Item, 'state' | 'branch' | 'prototypeEnd' | 'demo' | 'files' | 'pr' | 'landedPart' | 'finishing' | 'brief' | 'prototypes' | 'queue'> & Partial<Pick<Item, 'source' | 'id' | 'archivedAt'>>;
+type Laid = Pick<Item, 'state' | 'agent' | 'review' | 'demo' | 'idea' | 'queue'> & Partial<Pick<Item, 'source' | 'id' | 'archivedAt'>>;
 
 /**
  * What a task an agent worked on shows beside its conversation: a demo, the files it named as the
@@ -550,13 +550,13 @@ type Laid = Pick<Item, 'state' | 'branch' | 'prototypeEnd' | 'demo' | 'files' | 
  * after the landing, a decided idea's brief, a workstream's text in its plan doc.
  */
 export const result = (i: Laid) =>
-  !!i.demo ||
-  !!i.files ||
+  !!i.demo?.latest ||
+  !!i.demo?.files ||
   i.state === 'inPr' ||
-  (!!i.pr && i.state === 'waiting') ||
-  !!i.landedPart ||
+  (!!i.review?.pr && i.state === 'waiting') ||
+  !!i.review?.landedPart ||
   finishingUp(i) ||
-  (i.brief !== undefined && (!!i.brief.trim() || !!i.prototypes?.length)) ||
+  (i.idea?.brief !== undefined && (!!i.idea.brief.trim() || !!i.idea.prototypes?.length)) ||
   i.source === 'plan';
 
 /**
@@ -564,7 +564,7 @@ export const result = (i: Laid) =>
  * proposal, a task waiting for its first start (its text beside the conversation, where notes wait
  * for its agent), a task an agent worked on once there is a result.
  */
-export const split = (i: Laid) => i.state === 'idea' || i.state === 'proposal' || waitsFirstStart(i) || ((!!i.prototypeEnd || worked(i)) && result(i));
+export const split = (i: Laid) => i.state === 'idea' || i.state === 'proposal' || waitsFirstStart(i) || ((!!i.idea?.prototypeEnd || worked(i)) && result(i));
 
 /**
  * A task no agent has worked on yet, planned or in the queue: its text stands beside its
@@ -572,12 +572,12 @@ export const split = (i: Laid) => i.state === 'idea' || i.state === 'proposal' |
  * they have just created (`beingWritten`) and has not started yet: its text alone, so the task goes
  * into the text, not into a note.
  */
-export const waitsFirstStart = (i: Pick<Item, 'state' | 'branch' | 'landedPart' | 'queue'> & Partial<Pick<Item, 'id' | 'archivedAt'>>) =>
+export const waitsFirstStart = (i: Pick<Item, 'state' | 'agent' | 'review' | 'queue'> & Partial<Pick<Item, 'id' | 'archivedAt'>>) =>
   holdsNotes(i) && !worked(i) && (!!i.queue || !(i.id && beingWritten.has(i.id)));
 
 /** The cards created on this page that have stayed open since: the owner is writing their task. */
 export const beingWritten = new Set<string>();
 
 /** A task an agent works or worked on without a result yet: its conversation stands alone, the card only as wide as it. */
-export const talkAlone = (i: Laid) => (!!i.prototypeEnd || worked(i)) && !result(i);
+export const talkAlone = (i: Laid) => (!!i.idea?.prototypeEnd || worked(i)) && !result(i);
 

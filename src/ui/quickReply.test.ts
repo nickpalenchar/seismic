@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { CardAction, Item } from '../core/types';
+import type { CardAction, Item, ItemIdea, ItemReview } from '../core/types';
 import { api } from './api';
 import { quickReplies } from './quickReply';
 import { t } from './strings';
@@ -28,14 +28,14 @@ async function sent(i: Item) {
 
 test('a handover is judged on the card: no approval, nor answers to its question', () => {
   expect(quickReplies(card({ need: 'demo' }))).toEqual([]);
-  expect(quickReplies(card({ need: 'review', noChange: true }))).toEqual([]);
-  expect(quickReplies(card({ need: 'review', contribution: { number: 7 } as Item['contribution'] }))).toEqual([]);
+  expect(quickReplies(card({ need: 'review', review: { noChange: true } }))).toEqual([]);
+  expect(quickReplies(card({ need: 'review', review: { contribution: { number: 7 } as ItemReview['contribution'] } }))).toEqual([]);
   expect(quickReplies(card({ need: 'demo', question: { text: 'Which?', options: ['A', 'B'] } }))).toEqual([]);
 });
 
 test('a reply that sets work in motion waits out its undo; keeping a card does not', () => {
   expect(quickReplies(card({ need: 'question', question: { text: '?', options: ['a', 'b'] } })).every((r) => r.held)).toBe(true);
-  const superseded = quickReplies(card({ superseded: { why: 'x' } as Item['superseded'] }));
+  const superseded = quickReplies(card({ idea: { superseded: { why: 'x' } as ItemIdea['superseded'] } }));
   expect(superseded.map((r) => [r.label, !!r.held, !!r.undo])).toEqual([
     [t.superseded.keep, false, false],
     [t.superseded.remove, false, true],
@@ -57,14 +57,14 @@ test('a choice of several or of many options is made on the card', () => {
 });
 
 test('a proposal is accepted or dismissed, but not accepted blind when it asks, nor while it is reworked', async () => {
-  expect((await sent(card({ state: 'proposal', proposal: { questions: [] } as unknown as Item['proposal'] }))).map(([, a]) => (a as CardAction).action)).toEqual(['accept', 'dismiss']);
-  const asks = card({ state: 'proposal', proposal: { questions: [{ text: '?', options: ['a', 'b'] }] } as unknown as Item['proposal'] });
+  expect((await sent(card({ state: 'proposal', idea: { proposal: { questions: [] } as unknown as ItemIdea['proposal'] } }))).map(([, a]) => (a as CardAction).action)).toEqual(['accept', 'dismiss']);
+  const asks = card({ state: 'proposal', idea: { proposal: { questions: [{ text: '?', options: ['a', 'b'] }] } as unknown as ItemIdea['proposal'] } });
   expect((await sent(asks)).map(([, a]) => (a as CardAction).action)).toEqual(['dismiss']);
-  expect(quickReplies(card({ state: 'proposal', proposal: { revising: true } as unknown as Item['proposal'] }))).toEqual([]);
+  expect(quickReplies(card({ state: 'proposal', idea: { proposal: { revising: true } as unknown as ItemIdea['proposal'] } }))).toEqual([]);
 });
 
 test('what only the card can settle has no reply', () => {
   expect(quickReplies(card({ state: 'inPr' }))).toEqual([]);
   expect(quickReplies(card({ state: 'idea' }))).toEqual([]);
-  expect(quickReplies(card({ need: 'demo', landing: true } as Partial<Item>))).toEqual([]);
+  expect(quickReplies(card({ need: 'demo', review: { landing: true } } as Partial<Item>))).toEqual([]);
 });

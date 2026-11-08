@@ -124,9 +124,21 @@ the same time will conflict (W3 most).
   only stored overlap was the owner's snooze of a worker, which wrote `paused` beside `snoozed` to
   hold Seismic's messages: that list is the snooze's `held` now. `queue` and `parked` do hold beside
   a hold, so they stay. The equality check differs from the snapshot before only by that regrouping.
-- [ ] **W5:** Grouped `Item`. Nested parts present only when a card has them: `agent`, `hold`,
+- [x] **W5:** Grouped `Item`. Nested parts present only when a card has them: `agent`, `hold`,
   `idea`, `review`, `demo`, `plan`, `labels`; the ~10 core fields stay flat. Update the UI and the
   agents' readers.
+  Done: `Item` keeps its core flat (identity, place, state, `need` and its `question`, `from`,
+  `repo`, `queue`, `scope`, `thread`, `images`, `group`, `canvas`, times) and puts the rest in
+  parts (`ItemAgent`, `ItemReview`, `ItemDemo`, `ItemIdea`, `ItemPlan`, `ItemLabels`, beside
+  `hold`), built in `toItems` and set on a copy with `withPart`. Renamed on the way: the demo is
+  `demo.latest` and the earlier ones `demo.earlier`; an idea's discussion is `idea.discussion`
+  (a decided idea's `brief` and `mocks` sit beside it); a plan's doc is `plan.file` and
+  `plan.goal`; the agent at work is `agent.identity`. A part's presence says nothing by itself: a
+  plan is `kind === 'plan'`, an idea under discussion has `idea.discussion`. Parts that W6–W7 do not
+  give a table of their own: `agent` (its columns stay on `cards`) and, inside `review`, the
+  handover's fields from `detail`; `proposal`, `retro` and `mergingInto` went to `idea`, as the
+  proposal column goes to the ideas table, and the owner's arrows to `plan`. The equality check
+  regroups a before side that had the fields flat.
 - [ ] **W6:** Ideas → `models/cards/ideas.ts` (pilot). Moves `idea`, `prototype`, `prototype_of`,
   `proposal`, `built_on`, `becomes_plan` and `new_repo`, read through Drizzle's relational queries
   (`with: { idea: true }`). Settles the pattern for the rest.

@@ -87,7 +87,7 @@ describe('a project with several repositories', () => {
       ['API', 'api', 'api:docs/plan/plan.md'],
       ['Web', 'web', 'docs/plan/plan.md'],
     ]);
-    const ws = project.board.snapshot().items.filter((i) => i.label === 'W1');
+    const ws = project.board.snapshot().items.filter((i) => i.plan?.label === 'W1');
     expect(ws.map((w) => w.repo).sort()).toEqual(['api', 'web']);
   });
 
@@ -149,7 +149,7 @@ describe('a project with several repositories', () => {
     // watching the first repository reads the docs before the second one is on the project
     const start = () => new ProjectRuntime(config, { store, home: dir, runtime, forge: noForge, watch: true });
     project = start();
-    const w = project.board.snapshot().items.find((i) => i.label === 'W1' && i.repo === 'api')!;
+    const w = project.board.snapshot().items.find((i) => i.plan?.label === 'W1' && i.repo === 'api')!;
     await project.repoOf(w.id).workers.start(w.id);
     const clone = project.board.row(w.id).workstation!;
     writeFileSync(join(clone, 'x.ts'), 'export {}\n');
@@ -265,9 +265,9 @@ describe('a project with several repositories', () => {
   test('a proposed idea becomes an idea whose agent opens the discussion; taken as a task it is planned', () => {
     const b = project.board.create({ title: 'B', x: 0, y: 0 });
     const p = project.board.propose(b.id, { title: 'Vorschläge mit Fragen', task: 'Vorschläge könnten Fragen tragen.', reason: 'R', idea: true });
-    expect(item(p.id).proposal).toEqual({ idea: true, reason: 'R', questions: [] });
+    expect(item(p.id).idea?.proposal).toEqual({ idea: true, reason: 'R', questions: [] });
     project.act(p.id, { action: 'accept' });
-    expect(item(p.id)).toMatchObject({ state: 'idea', idea: { status: 'open', thinking: true } });
+    expect(item(p.id)).toMatchObject({ state: 'idea', idea: { discussion: { status: 'open', thinking: true } } });
     const s = runtime.sessions.filter((x) => x.spec.tools.some((t) => t.name === 'update_brief')).at(-1)!;
     expect(s.inbox[0]).toContain('A worker proposed this idea');
     const q = project.board.propose(b.id, { title: 'Noch eine', task: 'T', reason: 'R', idea: true });
@@ -279,7 +279,7 @@ describe('a project with several repositories', () => {
     const b = project.board.create({ title: 'B', x: 0, y: 0 });
     const p = project.board.propose(b.id, { title: 'Export', task: 'Exporte als PDF.', reason: 'R', questions: [{ text: 'Auch CSV?', options: ['Ja', 'Nein'] }] });
     project.act(p.id, { action: 'accept', start: false, idea: true, picks: [['Ja']] });
-    expect(item(p.id)).toMatchObject({ state: 'idea', body: 'Exporte als PDF.\n\nDecided:\n- Auch CSV? → Ja', idea: { status: 'open', thinking: true } });
+    expect(item(p.id)).toMatchObject({ state: 'idea', body: 'Exporte als PDF.\n\nDecided:\n- Auch CSV? → Ja', idea: { discussion: { status: 'open', thinking: true } } });
     expect(item(p.id).queue).toBeFalsy();
     const s = runtime.sessions.filter((x) => x.spec.tools.some((t) => t.name === 'update_brief')).at(-1)!;
     expect(s.inbox[0]).toContain('A worker proposed this as a task to build');
@@ -287,7 +287,7 @@ describe('a project with several repositories', () => {
 
   test("the work retrospective's proposals are accepted like an agent's, also one stored without proposal data", () => {
     const p = project.board.proposeRetro('web', { title: 'Skript für Starts', body: 'Ein Skript, das den Server startet.', basis: 'Starts dauern.' });
-    expect(item(p.id).proposal).toEqual({ questions: [] });
+    expect(item(p.id).idea?.proposal).toEqual({ questions: [] });
     project.act(p.id, { action: 'accept' });
     expect(item(p.id).state).toBe('planned');
     // as the work retrospective made them before
@@ -618,7 +618,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     const start = () => new ProjectRuntime({ repos: [{ path: shop }, { path: done }] }, { store, home: dir, runtime, forge: noForge, setupProposals: true });
     project = start();
     const setup = () => project.board.snapshot().items.filter((i) => i.title.startsWith('Set up Seismic'));
-    expect(setup()).toMatchObject([{ state: 'proposal', title: 'Set up Seismic for shop', repo: 'shop', proposal: { setup: true, reason: expect.stringContaining('shop') } }]);
+    expect(setup()).toMatchObject([{ state: 'proposal', title: 'Set up Seismic for shop', repo: 'shop', idea: { proposal: { setup: true, reason: expect.stringContaining('shop') } } }]);
     const id = setup()[0]!.id;
     // a restart proposes no second one
     project.shutdown();
@@ -627,8 +627,8 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     // the dialog's button takes it on, planned, as if it had made it
     const card = project.adapterSetupCard('shop');
     expect(card).toMatchObject({ id, state: 'planned' });
-    expect(card.proposal).toBeUndefined();
-    expect(card.proposed).toBeUndefined();
+    expect(card.idea?.proposal).toBeUndefined();
+    expect(card.idea?.proposed).toBeUndefined();
     expect(project.adapterSetupCard('shop').id).toBe(id);
   });
 
@@ -641,7 +641,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     const store = new Store(':memory:');
     const start = () => new ProjectRuntime({ repos: [{ path: shop }, { path: web }] }, { store, home: dir, runtime, forge: noForge, setupProposals: true });
     project = start();
-    const setup = (repo: string) => project.board.snapshot().items.find((i) => i.repo === repo && i.proposal?.setup);
+    const setup = (repo: string) => project.board.snapshot().items.find((i) => i.repo === repo && i.idea?.proposal?.setup);
     project.act(setup('shop')!.id, { action: 'dismiss' });
     project.shutdown();
     project = start();
@@ -1407,7 +1407,7 @@ describe('merging and deleting planned tasks by voice', () => {
     expect(item(a.id).body).toBe('## Login error\n\nThe button shows on the wrong message.\n\n## Sign in again\n\nTwo buttons for one error.');
     expect(project.board.item(b.id)).toBeUndefined();
     expect(item(after.id).from).toBe(a.id);
-    expect(item(review.id).contribution!.findings![0]!.card).toBe(a.id);
+    expect(item(review.id).review!.contribution!.findings![0]!.card).toBe(a.id);
     expect(project.board.events(a.id).at(-1)!.text).toContain('“Sign in again”');
   });
 

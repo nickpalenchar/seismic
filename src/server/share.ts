@@ -187,7 +187,7 @@ export class Sharing {
   share(cardId: string, { demo: handover, add = false }: { demo?: number | undefined; add?: boolean } = {}) {
     const card = this.card(cardId);
     const demo = handover === undefined ? this.demo(cardId) : this.cardDemo(cardId, { handover, dir: '' });
-    if (card.prototypeOf || !demo || !this.target(card)) throw new BadRequest('noShare', 'the card has no demo, or its project shares none');
+    if (card.idea?.prototypeOf || !demo || !this.target(card)) throw new BadRequest('noShare', 'the card has no demo, or its project shares none');
     const s = this.stored(cardId);
     if (s?.state) throw new BadRequest('shareBusy', 'the page is being shared or withdrawn');
     const now: DemoRef[] = s?.url ? sharedDemos(s) : [];
@@ -218,7 +218,7 @@ export class Sharing {
       const s = this.stored(cardId);
       const pr = this.prOf(cardId);
       const card = this.find(cardId);
-      if (pr && s?.url && !s.state && card?.contribution) {
+      if (pr && s?.url && !s.state && card?.review?.contribution) {
         const target = this.target(card);
         const first = sharedDemos(s)[0];
         if (target && first) void this.linkPr(cardId, pr, s.url, target.repo, first.shown.kind);
@@ -233,7 +233,7 @@ export class Sharing {
 
   private publishApproved(cardId: string): string | null {
     const card = this.find(cardId);
-    if (!card || card.prototypeOf) return null;
+    if (!card || card.idea?.prototypeOf) return null;
     const target = this.target(card);
     if (target && this.publishesOnApproval(card)) {
       const s = this.stored(cardId);
@@ -267,7 +267,7 @@ export class Sharing {
    */
   onApproval(cardId: string, on: boolean) {
     const card = this.card(cardId);
-    if (card.prototypeOf) throw new BadRequest('noShare', 'prototypes are not shared');
+    if (card.idea?.prototypeOf) throw new BadRequest('noShare', 'prototypes are not shared');
     const { notOnApproval: _, ...s } = this.stored(cardId) ?? { slug: slugOf(card) };
     this.set(cardId, on ? s : { ...s, notOnApproval: true });
   }
@@ -279,7 +279,7 @@ export class Sharing {
    */
   setTags(cardId: string, dimension: string, values: string[]) {
     const card = this.card(cardId);
-    if (card.prototypeOf) throw new BadRequest('noShare', 'prototypes are not shared');
+    if (card.idea?.prototypeOf) throw new BadRequest('noShare', 'prototypes are not shared');
     const vocabulary = this.vocabulary(card);
     const allowed = dimensions(vocabulary).find(([d]) => d === dimension)?.[1];
     if (!allowed) throw new BadRequest('invalid', `the site has no tags of the dimension ${dimension}`);
@@ -722,9 +722,9 @@ export class Sharing {
   async export(cardId: string, as: 'zip' | 'html', handover?: number): Promise<{ name: string; type: string; data: Uint8Array<ArrayBuffer> }> {
     const card = this.card(cardId);
     const demo = handover === undefined ? this.demo(cardId) : this.cardDemo(cardId, { handover, dir: '' });
-    if (demo?.kind === 'html' && !card.prototypeOf) return this.exportArtifact(card, demo, as);
+    if (demo?.kind === 'html' && !card.idea?.prototypeOf) return this.exportArtifact(card, demo, as);
     const video = demo && demoFile(demo.dir, 'demo.mp4');
-    if (card.prototypeOf || !demo || !video || !existsSync(video)) throw new BadRequest('noShare', 'the card has no demo');
+    if (card.idea?.prototypeOf || !demo || !video || !existsSync(video)) throw new BadRequest('noShare', 'the card has no demo');
     const size = statSync(video).size;
     if (as === 'html' && size > EXPORT_HTML_MAX)
       throw new BadRequest('exportTooLarge', `the video is ${(size / 1024 / 1024).toFixed(1)} MiB; one HTML file takes at most ${EXPORT_HTML_MAX / 1024 / 1024} MiB`);

@@ -59,25 +59,25 @@ describe('the visible landing queue', () => {
     try {
       await gate.entered();
       const second = workers.approve(b.id); approvals.push(second);
-      await until(() => board.item(b.id)?.landingPosition === 1);
+      await until(() => board.item(b.id)?.review?.landingPosition === 1);
       const third = workers.approve(c.id); approvals.push(third);
-      await until(() => board.item(c.id)?.landingPosition === 2);
-      expect(board.item(a.id)?.landingPosition).toBe(0);
+      await until(() => board.item(c.id)?.review?.landingPosition === 2);
+      expect(board.item(a.id)?.review?.landingPosition).toBe(0);
       await expect(workers.approve(b.id)).rejects.toThrow('not ready');
       gate.release();
       await first;
       await gate.entered();
-      await until(() => board.item(b.id)?.landingPosition === 0);
-      expect(board.item(c.id)?.landingPosition).toBe(1);
+      await until(() => board.item(b.id)?.review?.landingPosition === 0);
+      expect(board.item(c.id)?.review?.landingPosition).toBe(1);
       gate.release();
       await second;
-      await until(() => board.item(c.id)?.landingPosition === 0);
+      await until(() => board.item(c.id)?.review?.landingPosition === 0);
       // Release the third hook when it arrives, rather than an earlier release closure.
       gate.close();
       await third;
       for (const x of [a, b, c]) {
         expect(board.item(x.id)?.state).toBe('live');
-        expect(board.item(x.id)?.landingPosition).toBeUndefined();
+        expect(board.item(x.id)?.review?.landingPosition).toBeUndefined();
       }
       expect(git(main, 'log', '-3', '--format=%s').split('\n')).toEqual(['Third', 'Second', 'First']);
     } finally { gate.close(); await Promise.allSettled(approvals); }
@@ -93,13 +93,13 @@ describe('the visible landing queue', () => {
     try {
       await gate.entered();
       const second = workers.approve(b.id); approvals.push(second);
-      await until(() => board.item(b.id)?.landingPosition === 1);
+      await until(() => board.item(b.id)?.review?.landingPosition === 1);
       const third = workers.approve(c.id); approvals.push(third);
-      await until(() => board.item(c.id)?.landingPosition === 2);
+      await until(() => board.item(c.id)?.review?.landingPosition === 2);
       await workers.stop(b.id);
       await second;
-      expect(board.item(b.id)?.landingPosition).toBeUndefined();
-      expect(board.item(c.id)?.landingPosition).toBe(1);
+      expect(board.item(b.id)?.review?.landingPosition).toBeUndefined();
+      expect(board.item(c.id)?.review?.landingPosition).toBe(1);
       gate.close();
       await Promise.all([first, third]);
       expect(git(main, 'log', '--format=%s')).not.toContain('Withdrawn');
@@ -147,13 +147,13 @@ test('a failed landing clears its place and emits no overlap notice', async () =
   try {
     await gate.entered();
     const second = workers.approve(b.id); approvals.push(second);
-    await until(() => board.item(b.id)?.landingPosition === 1);
+    await until(() => board.item(b.id)?.review?.landingPosition === 1);
     const third = workers.approve(c.id); approvals.push(third);
-    await until(() => board.item(c.id)?.landingPosition === 2);
+    await until(() => board.item(c.id)?.review?.landingPosition === 2);
     gate.close();
     await Promise.all([first, second, third]);
     expect(board.item(b.id)?.state).toBe('working');
-    expect(board.item(b.id)?.landingPosition).toBeUndefined();
+    expect(board.item(b.id)?.review?.landingPosition).toBeUndefined();
     expect(board.item(c.id)?.state).toBe('live');
     expect(board.events(a.id).some((e) => e.text.includes('Cannot land'))).toBe(false);
   } finally { gate.close(); await Promise.allSettled(approvals); }

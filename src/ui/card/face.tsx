@@ -72,9 +72,9 @@ function FaceM({ item, where, underway, since, chip }: CardFaceProps) {
         </div>
       )}
       <Title item={item} className="ttl">
-        {chip && item.label ? (
+        {chip && item.plan?.label ? (
           <>
-            <span className="ws-no">{item.label}</span>
+            <span className="ws-no">{item.plan.label}</span>
             {shownTitle(item)}
           </>
         ) : undefined}
@@ -141,8 +141,8 @@ function FaceXS({ item, underway, title, text, tail }: CardFaceProps) {
   return (
     <span className="face face-xs" style={tone(item, underway)}>
       <Title item={item} className="f-ttl" inline>
-        {item.priority && <PriorityMark priority={item.priority} suggested={!!item.suggested?.includes('priority')} bare />}
-        {item.parent && item.label && <span className="ws-no">{item.label}</span>}
+        {item.labels?.priority && <PriorityMark priority={item.labels.priority} suggested={!!item.labels.suggested?.includes('priority')} bare />}
+        {item.parent && item.plan?.label && <span className="ws-no">{item.plan.label}</span>}
         <span className="f-ttl-text">{title ?? shownTitle(item)}</span>
         {s.pin && <Pin pin={s.pin} />}
       </Title>

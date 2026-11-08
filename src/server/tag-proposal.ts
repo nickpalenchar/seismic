@@ -34,7 +34,7 @@ export function tagCards(items: Item[], summary: (id: string) => string | undefi
       status: finished(i.state) ? 'done' : i.state === 'planned' || i.state === 'proposal' || i.state === 'idea' ? 'planned' : 'open',
       task: plainText(i.kind === 'plan' ? (i.plan?.goal ?? i.body) : i.body),
       ...(i.kind === 'task' && summary(i.id) ? { summary: plainText(summary(i.id)!) } : {}),
-      demos: [...(i.demo ? [i.demo] : []), ...[...(i.demos ?? [])].reverse()].map((d) =>
+      demos: [...(i.demo?.latest ? [i.demo.latest] : []), ...[...(i.demo?.earlier ?? [])].reverse()].map((d) =>
         d.page ? `${d.page.title}: ${d.page.text}` : d.kind === 'html' ? 'a page to look at' : d.chapters.map(([, t]) => t).join(' · '),
       ),
     }));

@@ -48,7 +48,7 @@ describe('asking on a card before its start', () => {
     expect(asker().inbox[0]).toContain('Is there a PDF library already?');
     expect(asker().inbox[0]).toContain('Add a PDF export.');
     // at work on the card, which the owner can pause
-    expect(board().item(card.id)?.inTurn).toBe(true);
+    expect(board().item(card.id)?.agent?.inTurn).toBe(true);
     await answers('No, none yet.');
     expect(talk(card.id)).toEqual([
       ['owner', 'Is there a PDF library already?'],
@@ -56,7 +56,7 @@ describe('asking on a card before its start', () => {
     ]);
     const after = board().item(card.id)!;
     expect(after.state).toBe('planned');
-    expect(after.inTurn).toBeUndefined();
+    expect(after.agent?.inTurn).toBeUndefined();
     expect(runtime.sessions.some((s) => s.spec.role === 'worker')).toBe(false);
   });
 
@@ -118,7 +118,7 @@ describe('asking on a card before its start', () => {
     project.act(card.id, { action: 'pause' });
     await until(() => first.closed);
     expect(board().item(card.id)?.hold?.reason).toBe('paused');
-    expect(board().item(card.id)?.inTurn).toBeUndefined();
+    expect(board().item(card.id)?.agent?.inTurn).toBeUndefined();
     project.act(card.id, { action: 'resume' });
     await until(() => asker() !== first);
     expect(asker().inbox[0]).toContain('Question?');

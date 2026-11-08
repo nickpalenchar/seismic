@@ -128,7 +128,7 @@ async function created() {
   const refused = path.join(staged.dir, 'home', 'replay-refused.txt');
   if (fs.existsSync(refused)) throw new Error(`the recording ${REPLAY} no longer fits: ${fs.readFileSync(refused, 'utf8').trim()}; record anew`);
   const snap = (await (await fetch(`${base}/api/c/tipjar/project`, { headers: owner() })).json()) as {
-    items: { title: string; state: string; statusLine?: string; answering?: true; held?: number[] }[];
+    items: { title: string; state: string; agent?: { statusLine?: string }; review?: { answering?: true }; demo?: { held?: number[] } }[];
   };
   return snap.items.find((x) => /split the bill/i.test(x.title));
 }
@@ -147,7 +147,7 @@ async function until(states: string[], what: string) {
 async function statusLine() {
   const end = Date.now() + 60_000;
   while (Date.now() < end) {
-    if ((await created())?.statusLine) return;
+    if ((await created())?.agent?.statusLine) return;
     await new Promise((r) => setTimeout(r, 2000));
   }
 }
@@ -519,8 +519,8 @@ const scenes: Scene[] = [
       await d.skip(
         async () => {
           const end = Date.now() + 90_000;
-          while (Date.now() < end && (await created())?.held?.length) await new Promise((r) => setTimeout(r, 1000));
-          if ((await created())?.held?.length) await d.page.locator('.held-send').click();
+          while (Date.now() < end && (await created())?.demo?.held?.length) await new Promise((r) => setTimeout(r, 1000));
+          if ((await created())?.demo?.held?.length) await d.page.locator('.held-send').click();
           await d.wait(1200);
         },
         { quiet: true },
@@ -538,8 +538,8 @@ const scenes: Scene[] = [
         let took = false;
         while (Date.now() < end) {
           const c = await created();
-          took ||= !!c?.answering;
-          if (took && !c?.answering && c?.state === 'waiting') break;
+          took ||= !!c?.review?.answering;
+          if (took && !c?.review?.answering && c?.state === 'waiting') break;
           await new Promise((r) => setTimeout(r, 3000));
         }
         await d.wait(2500);

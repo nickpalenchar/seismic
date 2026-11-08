@@ -66,13 +66,13 @@ export class Revisions {
 
   /** After a restart: proposals still being reworked are reworked again. */
   resume() {
-    for (const i of this.o.board.items()) if (i.proposal?.revising) this.run(i.id);
+    for (const i of this.o.board.items()) if (i.idea?.proposal?.revising) this.run(i.id);
   }
 
   private run(cardId: string) {
     if (this.busy.has(cardId)) return;
     const card = this.o.board.item(cardId);
-    const said = card?.proposal?.revising;
+    const said = card?.idea?.proposal?.revising;
     if (!card || !said) return;
     this.busy.add(cardId);
     this.o.board.readNow(cardId, said.said ?? []);
@@ -91,7 +91,7 @@ export class Revisions {
           if (reply) this.o.board.log(cardId, 'talk', 'worker', reply.slice(0, 4000));
           if (changed(card, p)) this.o.board.log(cardId, 'state', 'koordinator', this.o.board.t.koordinator.revised);
           // a question asked anew stands in the conversation from now on; one it kept stands where it was asked
-          const asked = new Set(card.proposal!.questions.map(key));
+          const asked = new Set(card.idea!.proposal!.questions.map(key));
           for (const q of questions) if (!asked.has(key(q))) this.o.board.log(cardId, 'question', 'worker', formatQuestion(q, this.o.board.language()));
           return true;
         },
@@ -184,13 +184,13 @@ export class Revisions {
   }
 
   private message(card: Item, said: Revising, shots: ReturnType<Revisions['shots']>): string {
-    const p = card.proposal!;
+    const p = card.idea!.proposal!;
     const from = card.from ? this.o.board.item(card.from) : undefined;
     const summary = from ? this.o.board.summary(from.id)?.trim() : undefined;
     return [
       `The proposal as it stands${p.idea ? ' (proposed as an idea)' : ''}:\n\n<title>${card.title}</title>\n\n<task>\n${card.body}\n</task>`,
       p.reason ? `Why it was proposed (for the owner only): ${p.reason}` : '',
-      card.retro ? `The work retrospective proposed it, resting on: ${card.retro}` : '',
+      card.idea?.retro ? `The work retrospective proposed it, resting on: ${card.idea.retro}` : '',
       p.questions.length
         ? `Its questions to the owner:\n${p.questions.map((q) => `- ${q.text}${q.options.length ? ` (options: ${q.options.join(' / ')}${q.multiple ? '; several may be chosen' : ''})` : ''}`).join('\n')}`
         : 'It has no questions to the owner.',
@@ -216,7 +216,7 @@ const key = (q: Question) => JSON.stringify([q.text, q.options, !!q.multiple]);
 
 /** Whether the proposal reads otherwise now: words that only asked something leave it as it was. */
 function changed(card: Item, p: { title: string; task: string; reason?: string; idea: boolean; questions: Question[]; images?: string[] }): boolean {
-  const was = card.proposal!;
+  const was = card.idea!.proposal!;
   return (
     (!!p.images && JSON.stringify(p.images) !== JSON.stringify(card.images ?? [])) ||
     p.title !== card.title ||

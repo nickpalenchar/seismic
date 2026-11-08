@@ -1,7 +1,7 @@
 // Merge selection and the owner's coverage review (design: Merging cards).
 
 import { Fragment, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { type CardAction, type Item, merging, mergeableWith, mergeRank, canMergeFrom } from '../core/types';
+import { type CardAction, type Item, merging, mergeableWith, mergeRank, canMergeFrom, withPart } from '../core/types';
 import { Inline, plain } from './markdown';
 import { Body, Cards } from './message';
 import { api } from './api';
@@ -25,7 +25,7 @@ export function mergeCandidates(p: Item, all: Item[], query: string): Item[] {
 }
 
 const pickerRank = (i: Item) => i.archivedAt ? 3 : mergeRank(i) <= 1 ? 0 : mergeRank(i) === 2 ? 1 : 2;
-const kind = (i: Item) => i.archivedAt ? t.merge.archived : stateLabel({ ...i, proposal: i.proposal ? { ...i.proposal, merge: undefined } : undefined });
+const kind = (i: Item) => i.archivedAt ? t.merge.archived : stateLabel(withPart(i, 'idea', { proposal: i.idea?.proposal && { ...i.idea.proposal, merge: undefined } }));
 
 /** "Merge with" on an unworked task: opens the picker of the cards it can be merged with. */
 export function MergeButton({ item, all, act }: { item: Item; all: Item[]; act: Act }) {
@@ -46,7 +46,7 @@ export function MergeButton({ item, all, act }: { item: Item; all: Item[]; act: 
 function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; onClose: () => void; onPick: (other: Item) => void }) {
   const [archived, setArchived] = useState<Item[]>([]);
   useEffect(() => { let live = true; api.archived().then((a) => { if (live) setArchived(a); }, console.error); return () => { live = false; }; }, []);
-  const mergedIds = new Set(all.flatMap((i) => i.proposal?.merge ? [i.proposal.merge.with] : []));
+  const mergedIds = new Set(all.flatMap((i) => i.idea?.proposal?.merge ? [i.idea.proposal.merge.with] : []));
   const candidates = [...all, ...archived.filter((i) => !all.some((x) => x.id === i.id))].filter((i) => !mergedIds.has(i.id));
   const [query, setQuery] = useState('');
   const [at, setAt] = useState(0);
@@ -113,7 +113,7 @@ export function DuplicateMergePreview({ item, partner }: { item: Item; partner: 
  * and "Separate".
  */
 export function MergeView({ item, partner, act }: { item: Item; partner?: Item; act: Act }) {
-  const m = item.proposal!.merge!;
+  const m = item.idea!.proposal!.merge!;
   const [archivedPartner, setArchivedPartner] = useState<Item>();
   useEffect(() => { if (partner) return; let live = true; api.archived().then((a) => { if (live) setArchivedPartner(a.find((i) => i.id === m.with)); }, console.error); return () => { live = false; }; }, [partner, m.with]);
   partner ??= archivedPartner;
@@ -141,7 +141,7 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
             <div className="merge-coverage">{m.parts?.map((p, n) => p.covered ? <del key={n}>{p.text}</del> : <span key={n}>{p.text}</span>)}</div>
           ) : <Body md={i.body} />}
           <Shots ids={i.images} />
-          {i.proposal?.questions.map((q, n) => <p className="hint" key={n}>{q.text}{q.options.length ? ` (${q.options.join(' / ')})` : ''}</p>)}
+          {i.idea?.proposal?.questions.map((q, n) => <p className="hint" key={n}>{q.text}{q.options.length ? ` (${q.options.join(' / ')})` : ''}</p>)}
         </>
       ) : (
         <p className="hint">{t.merge.gone}</p>
@@ -187,7 +187,7 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
           <h3><Inline md={m.followUp.title} /></h3>
           <Body md={m.followUp.task} />
           <Shots ids={m.followUp.images} />
-          {m.followUp.questions.map((n) => <p className="hint" key={n}>{item.proposal?.questions[n]?.text}</p>)}
+          {m.followUp.questions.map((n) => <p className="hint" key={n}>{item.idea?.proposal?.questions[n]?.text}</p>)}
         </div>
       </>}
       {m.outcome ? <p className={`merge-callout ${m.outcome}`}>{m.outcome === 'covered' ? t.merge.covered : t.merge.extra}</p> : m.task !== undefined && partner && <p className="hint merge-intro">{t.merge.intro(plain(partner.title))}</p>}

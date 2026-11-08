@@ -62,16 +62,16 @@ test('stages a scratch Seismic with its cards in the states the stage file gives
   const { items } = (await (await fetch(`http://127.0.0.1:${port}/api/c/${staged.project}/project`, { headers })).json()) as ProjectSnapshot;
   const card = (key: string) => items.find((i) => i.id === staged.cards[key])!;
   expect(card('P')).toMatchObject({ kind: 'plan', x: 0, y: 0 });
-  expect(card('W1')).toMatchObject({ label: 'W1', state: 'working', statusLine: 'Liest ein' });
-  expect(card('A')).toMatchObject({ title: 'Einlesen', state: 'working', statusLine: 'Tests laufen' });
+  expect(card('W1')).toMatchObject({ state: 'working', agent: { statusLine: 'Liest ein' }, plan: { label: 'W1' } });
+  expect(card('A')).toMatchObject({ title: 'Einlesen', state: 'working', agent: { statusLine: 'Tests laufen' } });
   expect(card('B').queue).toMatchObject({ behind: [staged.cards.A], reason: 'Beide ändern src/config.ts.' });
   expect(card('C')).toMatchObject({ state: 'waiting', need: 'question', question: { text: 'Lang oder kurz?', options: ['Lang', 'Kurz'] } });
   // cards at work or waiting have the branch their start gave them: only then does the card show the
   // conversation with the question and the field to answer it, on the project and on the phone
-  expect(card('C').branch).toBe(`obeya/frage-${staged.cards.C!.slice(0, 6)}`);
-  expect(card('W1').branch).toStartWith('obeya/konfiguration-');
+  expect(card('C').agent?.branch).toBe(`obeya/frage-${staged.cards.C!.slice(0, 6)}`);
+  expect(card('W1').agent?.branch).toStartWith('obeya/konfiguration-');
   for (const key of ['A', 'C', 'H', 'W1']) expect(worked(card(key))).toBe(true);
-  expect(card('B').branch).toBeUndefined();
+  expect(card('B').agent?.branch).toBeUndefined();
   expect(card('D').from).toBe(staged.cards.C!);
   const created = Bun.spawnSync(['sqlite3', join(dir, 'home/obeya.db'), `SELECT created_at FROM cards WHERE id = '${staged.cards.A}'`]).stdout.toString();
   expect(Date.now() - Date.parse(created.trim())).toBeGreaterThan(7000_000);
@@ -95,17 +95,17 @@ test("--say and --artifact act as a staged card's agent, through the server", as
     ['report', 'Writing tests'],
     ['talk', 'Done with the parser.'],
   ]);
-  expect((await card('A')).statusLine).toBe('Writing tests');
+  expect((await card('A')).agent?.statusLine).toBe('Writing tests');
   expect(run('--say', String(port), 'A', 'shout', 'x').stderr.toString()).toContain('usage');
   // the artifact handed over again, its file rewritten in the scratch Seismic's copy, not in the stage's
-  const before = (await card('H')).demo!;
+  const before = (await card('H')).demo!.latest!;
   const next = join(tmp, 'index.html');
   writeFileSync(next, '<h1>Second draft</h1>');
   const handed = run('--artifact', String(port), 'H', next, 'The second draft.');
   expect(handed.stderr.toString()).toBe('');
   const after = await card('H');
-  expect(after.demo).toMatchObject({ kind: 'html' });
-  expect(after.demo!.handover).toBeGreaterThan(before.handover ?? 0);
+  expect(after.demo?.latest).toMatchObject({ kind: 'html' });
+  expect(after.demo!.latest!.handover).toBeGreaterThan(before.handover ?? 0);
   expect(after).toMatchObject({ state: 'waiting', need: 'demo' });
   expect(readFileSync(join(dir, 'artifacts/H/index.html'), 'utf8')).toBe('<h1>Second draft</h1>');
   expect(readFileSync(join(artifact, 'index.html'), 'utf8')).toBe('<h1>First draft</h1>');

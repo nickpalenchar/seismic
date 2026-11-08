@@ -75,7 +75,7 @@ describe('a handover says whether its change alters persisted data models', () =
     expect(board.item(c.id)!.state).toBe('working');
     writeFileSync(join(demo.dir, 'schema-change.html'), '<p>schema</p>');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo, data_models: 'changed', files: [{ path: join(demo.dir, 'schema-change.html'), caption: 'Schema' }] })).toContain('Recorded');
-    expect(board.item(c.id)!.modelsUnchanged).toBeUndefined();
+    expect(board.item(c.id)!.review?.modelsUnchanged).toBeUndefined();
     // a later handover keeps the page named before
     workers.message(c.id, 'Noch einmal.');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', data_models: 'changed' })).toContain('Recorded');
@@ -89,7 +89,7 @@ describe('a handover says whether its change alters persisted data models', () =
     expect(refused).toContain("data_models 'unchanged' and the reason");
     expect(board.item(c.id)!.state).toBe('working');
     expect(await call()).toContain('Recorded');
-    expect(board.item(c.id)!.modelsUnchanged).toBe('Nur ein Test-Fixture.');
+    expect(board.item(c.id)!.review?.modelsUnchanged).toBe('Nur ein Test-Fixture.');
   });
 
   test("'unchanged' takes its reason; a change with no signs needs nothing more", async () => {
@@ -97,7 +97,7 @@ describe('a handover says whether its change alters persisted data models', () =
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact(), data_models: 'unchanged' })).toContain('takes its reason');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact(), data_models: 'unchanged', data_models_reason: 'Nur UI.' })).toContain('Recorded');
     // no signs: nothing for the owner to judge
-    expect(board.item(c.id)!.modelsUnchanged).toBeUndefined();
+    expect(board.item(c.id)!.review?.modelsUnchanged).toBeUndefined();
   });
 
   test('files that show signs only later are refused once again', async () => {

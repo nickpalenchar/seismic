@@ -58,7 +58,7 @@ export class PlanAgents {
         ...(this.permissionMode ? { permissionMode: this.permissionMode } : {}),
         ...(asked?.images.length ? { images: asked.images } : {}),
         ...(asked?.toObeya ? { tools: [asked.toObeya] } : {}),
-        system: `You are the plan agent of the plan "${plan.title}", directed through Seismic. Its plan doc is ${plan.plan?.file ?? '(none)'}${plan.plan && outsidePlanDir(pathOfRef(plan.plan.file)) ? '' : ' in this repository'}; you know it and the history of its workstreams.\n\n${INFORM_RULES}${asked?.toObeya ? `\n\n${TO_OBEYA}` : ''}`,
+        system: `You are the plan agent of the plan "${plan.title}", directed through Seismic. Its plan doc is ${plan.plan?.file ?? '(none)'}${plan.plan?.file && outsidePlanDir(pathOfRef(plan.plan.file)) ? '' : ' in this repository'}; you know it and the history of its workstreams.\n\n${INFORM_RULES}${asked?.toObeya ? `\n\n${TO_OBEYA}` : ''}`,
         message: [message, `Decisions taken in this plan so far:\n${decisionLog(this.board.decisions(plan.id))}`, this.preferences()].filter(Boolean).join('\n\n'),
         language: this.board.conversation(),
       }),

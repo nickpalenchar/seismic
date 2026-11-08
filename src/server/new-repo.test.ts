@@ -80,7 +80,7 @@ describe('building an idea in a new repository', () => {
     docsProject().board.createGroup('School', [card.id, follower.id]);
     docsProject().act(card.id, { action: 'build' });
     // held for the owner to take it back: nothing made yet
-    expect(docsProject().board.item(card.id)!.newRepo).toMatchObject({ path, project: true, due: expect.any(String) });
+    expect(docsProject().board.item(card.id)!.idea?.newRepo).toMatchObject({ path, project: true, due: expect.any(String) });
     expect(existsSync(path)).toBe(false);
     await until(() => set.get('super59'));
     const there = set.get('super59')!;
@@ -96,7 +96,7 @@ describe('building an idea in a new repository', () => {
     expect(moved.body).toBe('**Goal** A schedule for the class.');
     expect(moved.repo).toBe('super59');
     expect(moved.group).toBeUndefined();
-    expect(moved.newRepo).toBeUndefined();
+    expect(moved.idea?.newRepo).toBeUndefined();
     expect(there.board.events(card.id).map((e) => e.text)).toEqual(
       expect.arrayContaining(['A separate repo for it, please.', expect.stringContaining('Docs'), expect.stringContaining('Build it')]),
     );
@@ -133,7 +133,7 @@ describe('building an idea in a new repository', () => {
     expect(set.all().map((c) => c.id)).toEqual(['docs']);
     const now = docsProject().board.item(card.id)!;
     expect(now.state).toBe('idea');
-    expect(now.newRepo).toEqual({ path, project: true, by: 'agent' });
+    expect(now.idea?.newRepo).toEqual({ path, project: true, by: 'agent' });
     expect(refused(() => docsProject().act(card.id, { action: 'stayHere' }))).toBe('newRepoGone');
   });
 
@@ -147,7 +147,7 @@ describe('building an idea in a new repository', () => {
     expect(JSON.parse(readFileSync(join(dir, 'projects.json'), 'utf8'))).toHaveLength(1);
     const now = docsProject().board.item(card.id)!;
     expect(now.state).toBe('idea');
-    expect(now.newRepo?.due).toBeUndefined();
+    expect(now.idea?.newRepo?.due).toBeUndefined();
     expect(docsProject().board.events(card.id).at(-1)!.text).toContain('Repository not created');
   });
 
@@ -186,7 +186,7 @@ describe('building an idea in a new repository', () => {
     docsProject().act(card.id, { action: 'build' });
     expect(refused(() => docsProject().act(card.id, { action: 'planDoc' }))).toBe('newRepoDue');
     expect(docsProject().board.setNewRepo(card.id, { path: join(dir, 'other'), project: true, by: 'agent' }, 'agent')).toBe(false);
-    expect(docsProject().board.item(card.id)!.newRepo?.due).toBeTruthy();
+    expect(docsProject().board.item(card.id)!.idea?.newRepo?.due).toBeTruthy();
     docsProject().act(card.id, { action: 'stayHere' });
   });
 
@@ -223,9 +223,9 @@ describe('building an idea in a new repository', () => {
     expect(c.board.setNewRepo(card.id, { path: '~/dev/a', project: true, by: 'agent' }, 'agent')).toBe(true);
     c.board.patch(card.id, { newRepo: { path: '~/dev/b', project: false } });
     expect(c.board.setNewRepo(card.id, { path: '~/dev/c', project: true, by: 'agent' }, 'agent')).toBe(false);
-    expect(c.board.item(card.id)!.newRepo).toEqual({ path: '~/dev/b', project: false, by: 'owner' });
+    expect(c.board.item(card.id)!.idea?.newRepo).toEqual({ path: '~/dev/b', project: false, by: 'owner' });
     c.board.patch(card.id, { repo: 'docs' });
-    expect(c.board.item(card.id)!.newRepo).toBeUndefined();
+    expect(c.board.item(card.id)!.idea?.newRepo).toBeUndefined();
     // and stands too
     expect(c.board.setNewRepo(card.id, { path: '~/dev/d', project: true, by: 'agent' }, 'agent')).toBe(false);
   });

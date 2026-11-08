@@ -19,11 +19,11 @@ export function agentStage(i: Item, underway = false): AgentStage | undefined {
   if (i.archivedAt || inParkingLot(i)) return undefined;
   if (needsYou(i) && !underway) return 'needsYou';
   if (i.kind !== 'task' || i.queue) return undefined;
-  if (i.codeReview?.state === 'running') return 'reviewing';
-  if (i.landing || i.landingPosition !== undefined || i.state === 'approved' || i.state === 'inPr') return 'landing';
+  if (i.review?.codeReview?.state === 'running') return 'reviewing';
+  if (i.review?.landing || i.review?.landingPosition !== undefined || i.state === 'approved' || i.state === 'inPr') return 'landing';
   if (i.state === 'planned') return 'planned';
   if (i.state !== 'working' && i.state !== 'waiting') return undefined;
-  if (i.codeReview?.findings?.some((f) => f.status === 'open' && f.decided === 'self')) return 'fixing';
+  if (i.review?.codeReview?.findings?.some((f) => f.status === 'open' && f.decided === 'self')) return 'fixing';
   return 'working';
 }
 

@@ -42,7 +42,7 @@ afterEach(() => {
 
 const settle = (ms = 5) => new Promise((r) => setTimeout(r, ms));
 const board = () => project.board;
-const workstream = () => board().snapshot().items.find((i) => i.label === 'W4')!;
+const workstream = () => board().snapshot().items.find((i) => i.plan?.label === 'W4')!;
 const isKoordinator = (s: FakeSession) => s.spec.tools.some((t) => t.name === 'look_up');
 const answerer = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'answer_owner')).at(-1)!;
 
@@ -732,14 +732,14 @@ describe('a thread on a Question card', () => {
     const { card } = await moved();
     project.tell(card.id, 'und im Oktober?', [], false);
     const a = answerer();
-    expect(board().item(card.id)!.agentAtWork).toEqual({ harness: 'claude', model: 'opus' });
+    expect(board().item(card.id)!.agent?.identity).toEqual({ harness: 'claude', model: 'opus' });
     a.emit({ type: 'session', id: 'q-1', model: 'claude-opus-5-5' });
-    expect(board().item(card.id)!.agentAtWork).toEqual({ harness: 'claude', model: 'claude-opus-5-5' });
+    expect(board().item(card.id)!.agent?.identity).toEqual({ harness: 'claude', model: 'claude-opus-5-5' });
     a.call('answer_owner', { text: 'Oktober: 12 ct.' });
     a.emit({ type: 'idle' });
     await until(() => a.closed);
     await settle();
-    expect(board().item(card.id)!.agentAtWork).toBeUndefined();
+    expect(board().item(card.id)!.agent?.identity).toBeUndefined();
   });
 
   test('its agent the usage limit stops waits on the card and answers once the limit lifts; paused meanwhile, it waits no more', async () => {
@@ -749,9 +749,9 @@ describe('a thread on a Question card', () => {
     limit(a, 20);
     await settle();
     expect(board().item(card.id)).toMatchObject({ thread: { thinking: true } });
-    expect(board().item(card.id)!.limitedUntil).toBeDefined();
+    expect(board().item(card.id)!.agent?.limitedUntil).toBeDefined();
     await settle(60);
-    expect(board().item(card.id)!.limitedUntil).toBeUndefined();
+    expect(board().item(card.id)!.agent?.limitedUntil).toBeUndefined();
     expect(a.inbox.at(-1)).toContain('usage limit');
     a.call('answer_owner', { text: 'Oktober: 12 ct.' });
     a.emit({ type: 'idle' });
@@ -762,10 +762,10 @@ describe('a thread on a Question card', () => {
     const b = answerer();
     limit(b, 10_000);
     await settle();
-    expect(board().item(card.id)!.limitedUntil).toBeDefined();
+    expect(board().item(card.id)!.agent?.limitedUntil).toBeDefined();
     project.act(card.id, { action: 'pause' });
     expect(b.closed).toBe(true);
-    expect(board().item(card.id)!.limitedUntil).toBeUndefined();
+    expect(board().item(card.id)!.agent?.limitedUntil).toBeUndefined();
   });
 
   test('what the card asked when Seismic stopped is asked again', async () => {

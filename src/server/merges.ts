@@ -39,14 +39,17 @@ export class Merges {
   }
 
   resume() {
-    for (const i of this.o.board.items()) if (i.proposal?.merge && i.proposal.merge.task === undefined && i.proposal.merge.failed === undefined) this.run(i.id);
+    for (const i of this.o.board.items()) {
+      const merge = i.idea?.proposal?.merge;
+      if (merge && merge.task === undefined && merge.failed === undefined) this.run(i.id);
+    }
   }
 
   private run(cardId: string) {
     const card = this.o.board.item(cardId);
-    const other = card?.proposal?.merge && this.o.board.card(card.proposal.merge.with);
+    const other = card?.idea?.proposal?.merge && this.o.board.card(card.idea.proposal.merge.with);
     if (!card || !other) return;
-    const attempt = card.proposal?.merge?.attempt;
+    const attempt = card.idea?.proposal?.merge?.attempt;
     if (this.busy.has(cardId) && this.busy.get(cardId) === attempt) return;
     this.busy.set(cardId, attempt);
     this.ask(card, other)
@@ -62,7 +65,7 @@ export class Merges {
     let merged: Result | undefined;
     const preserve = mergeRank(other) > 1;
     const summary = this.o.board.summary(other.id) ?? '';
-    const compared = { left: JSON.stringify([card.title, card.body, card.images, card.proposal?.questions ?? []]), right: JSON.stringify([other.title, other.body]), summary };
+    const compared = { left: JSON.stringify([card.title, card.body, card.images, card.idea?.proposal?.questions ?? []]), right: JSON.stringify([other.title, other.body]), summary };
     const error = await readSession(this.o.runtime, {
       cwd: this.o.pathFor(other),
       role: 'koordinator',
@@ -87,7 +90,7 @@ export class Merges {
             const v = parsed.data;
             if (v.parts.map((p) => p.text).join('') !== card.body) return 'Not recorded: parts must reproduce the entire left task exactly, including whitespace.';
             if (v.outcome === 'covered' ? !v.titleCovered || v.parts.some((p) => !p.covered) || !!v.followUp : !v.followUp || (v.titleCovered && !v.parts.some((p) => !p.covered))) return 'Not recorded: covered requires every part covered; followUp requires uncovered parts and a follow-up.';
-            if (v.followUp?.images.some((id) => !card.images?.includes(id)) || v.followUp?.questions.some((n) => !card.proposal?.questions[n])) return 'Not recorded: use only image IDs and question indexes from the left card.';
+            if (v.followUp?.images.some((id) => !card.images?.includes(id)) || v.followUp?.questions.some((n) => !card.idea?.proposal?.questions[n])) return 'Not recorded: use only image IDs and question indexes from the left card.';
             merged = { ...v, title: other.title, task: other.body, compared };
           } else {
             const parsed = combined.safeParse(r);
@@ -105,10 +108,10 @@ export class Merges {
   }
 
   private message(card: Item, other: Item, preserve: boolean, summary: string): string {
-    const describe = (i: Item, what: string) => [
+    const describe = (i: Item, what: string, proposal = i.idea?.proposal) => [
       `${what} (${i.archivedAt ? 'archived' : i.state}):\n\n<title>${i.title}</title>\n\n<task>\n${i.body}\n</task>`,
-      i.proposal?.reason ? `Why it was proposed (for the owner only): ${i.proposal.reason}` : '',
-      i.proposal?.questions.length ? `Questions to the owner (keep separate from the task):\n${i.proposal.questions.map((q, n) => `${n}: ${q.text}`).join('\n')}` : '',
+      proposal?.reason ? `Why it was proposed (for the owner only): ${proposal.reason}` : '',
+      proposal?.questions.length ? `Questions to the owner (keep separate from the task):\n${proposal.questions.map((q, n) => `${n}: ${q.text}`).join('\n')}` : '',
       i.images?.length ? `Screenshot IDs: ${i.images.join(', ')}` : '',
     ].filter(Boolean).join('\n\n');
     return [

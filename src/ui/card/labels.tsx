@@ -27,7 +27,7 @@ const Bars = ({ complexity }: { complexity: Complexity }) => {
   );
 };
 
-const suggestedOf = (item: Item, label: Label) => !!item.suggested?.includes(label);
+const suggestedOf = (item: Item, label: Label) => !!item.labels?.suggested?.includes(label);
 
 /**
  * A card's priority on its face: a flag and its name, in its colour; framed in purple while Seismic
@@ -67,14 +67,14 @@ function Chip({ label, value, suggested }: { label: Exclude<Label, 'priority'>; 
 const CHIPPED = ['category', 'subcategory', 'complexity'] as const;
 
 /** Whether a card has any label to show. */
-export const hasLabels = (item: Item) => !!item.priority || CHIPPED.some((l) => item[l] !== undefined);
+export const hasLabels = (item: Item) => !!item.labels?.priority || CHIPPED.some((l) => item.labels?.[l] !== undefined);
 
 /** A card's labels on its face: its priority's flag, then a chip for each label it has. */
 export function LabelMarks({ item }: { item: Item }) {
-  const shown = CHIPPED.filter((l) => item[l] !== undefined).map((l) => <Chip key={l} label={l} value={item[l]!} suggested={suggestedOf(item, l)} />);
+  const shown = CHIPPED.filter((l) => item.labels?.[l] !== undefined).map((l) => <Chip key={l} label={l} value={item.labels![l]!} suggested={suggestedOf(item, l)} />);
   return (
     <>
-      {item.priority && <PriorityMark priority={item.priority} suggested={suggestedOf(item, 'priority')} />}
+      {item.labels?.priority && <PriorityMark priority={item.labels.priority} suggested={suggestedOf(item, 'priority')} />}
       {shown}
     </>
   );
@@ -106,7 +106,7 @@ function LabelPick<L extends Label>({ item, label, values, shown, empty, option,
     const over = m.getBoundingClientRect().right - (document.documentElement.clientWidth - 8);
     if (over > 0) m.style.left = `${-over}px`;
   }, [open]);
-  const now = item[label] as Labels[L] | undefined;
+  const now = item.labels?.[label] as Labels[L] | undefined;
   const pick = (v: NonNullable<Labels[L]> | null) => {
     setOpen(false);
     api.patch(item.id, { [label]: v }).catch(console.error);

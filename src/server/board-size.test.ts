@@ -118,8 +118,8 @@ test('an archived card looked up on its own is the card the archive lists, with 
   const idea = ideas[3]!;
   const prototype = store.cards.prototypes(board.project.id).find((r) => r.prototype_of === idea)!.id;
   const alone = [board.card(idea), board.card(prototype)];
-  expect(alone[0]!.prototypes!.map((p) => p.title)).toEqual([0, 1, 2, 3].map((v) => `Idea 3, variant ${v}`));
-  expect(alone[1]!.ideaTitle).toBe('Idea 3');
+  expect(alone[0]!.idea!.prototypes!.map((p) => p.title)).toEqual([0, 1, 2, 3].map((v) => `Idea 3, variant ${v}`));
+  expect(alone[1]!.idea?.ideaTitle).toBe('Idea 3');
   const archive = board.archived();
   expect(alone).toEqual([archive.find((i) => i.id === idea), archive.find((i) => i.id === prototype)]);
 });

@@ -71,7 +71,7 @@ describe('a project over a folder without git', () => {
     expect(existsSync(join(docs, 'Scans', 'scan-1.pdf'))).toBe(true);
     expect(existsSync(join(docs, 'Tax'))).toBe(false);
     expect(await listOf(sort.id)).toEqual([]);
-    expect(item(sort.id)).toMatchObject({ state: 'waiting', noChange: true });
+    expect(item(sort.id)).toMatchObject({ state: 'waiting', review: { noChange: true } });
     expect(project.board.events(sort.id).at(-1)!.text).toBe('Changes discarded: 1 file put back.');
     // the other card's changes stay
     expect(readFileSync(join(docs, 'Estate', 'Reply.md'), 'utf8')).toBe('Dear court,\n');
@@ -120,12 +120,12 @@ describe('a project over a folder without git', () => {
     const a = runtime.last;
     const drafts = artifact();
     expect(await a.call('ask', { question: 'Which letterhead?', options: ['A', 'B'], demo: drafts })).toContain('End your turn');
-    expect(item(plan.id).demo).toMatchObject({ kind: 'html', asked: true });
+    expect(item(plan.id).demo?.latest).toMatchObject({ kind: 'html', asked: true });
     workers.answer(plan.id, 'A');
     await a.use('Write', { file_path: join(docs, 'Estate', 'Letterhead.md') }, () => writeFileSync(join(docs, 'Estate', 'Letterhead.md'), '# A\n'));
     expect(await a.call('ready_for_review', { summary: 'Done.' })).toContain('Recorded');
     expect(item(plan.id)).toMatchObject({ state: 'waiting', need: 'review' });
-    expect(item(plan.id).demo).toBeUndefined();
+    expect(item(plan.id).demo?.latest).toBeUndefined();
     // kept with the card's earlier demos, which show once a later handover brings a demo
     expect(JSON.parse(project.board.row(plan.id).demos!)).toMatchObject([{ kind: 'html', asked: true }]);
   });
@@ -144,10 +144,10 @@ describe('a project over a folder without git', () => {
     expect(await a.call('ready_for_review', { summary: 'Done.', files: [{ path: 'Estate/Inventory.md', caption: 'x' }] })).toContain('Estate/Inventory.md is not among the files your card made or changed');
     // without files named, the card still shows what it changed, beside its conversation
     expect(await a.call('ready_for_review', { summary: 'Done.' })).toContain('Recorded');
-    expect(item(plan.id).files).toEqual([]);
+    expect(item(plan.id).demo?.files).toEqual([]);
     workers.message(plan.id, 'Name the plan.');
     expect(await a.call('ready_for_review', { summary: 'Done.', files: [{ path: join(docs, 'Estate', 'Plan.md'), caption: 'The plan' }] })).toContain('Recorded');
-    expect(item(plan.id).files).toEqual([{ path: 'Estate/Plan.md', caption: 'The plan' }]);
+    expect(item(plan.id).demo?.files).toEqual([{ path: 'Estate/Plan.md', caption: 'The plan' }]);
 
     const file = (path: string) => project.cardFile(plan.id, path);
     expect(await file('Estate/Plan.md')).toMatchObject({ path: expect.stringMatching(/Estate\/Plan\.md$/) });
@@ -165,18 +165,18 @@ describe('a project over a folder without git', () => {
     const a = runtime.last;
     await a.use('Bash', { command: 'rm .obeya-note.txt' }, () => rmSync(join(docs, '.obeya-note.txt')));
     expect(await a.call('ready_for_review', { summary: 'Tidied.' })).toContain('Recorded');
-    expect(item(tidy.id).files).toBeUndefined();
+    expect(item(tidy.id).demo?.files).toBeUndefined();
 
     workers.message(tidy.id, 'Write it down.');
     await a.use('Write', { file_path: join(docs, 'Tidied.md') }, () => writeFileSync(join(docs, 'Tidied.md'), '# Tidied\n'));
     expect(await a.call('ready_for_review', { summary: 'Written.' })).toContain('Recorded');
-    expect(item(tidy.id).files).toEqual([]);
+    expect(item(tidy.id).demo?.files).toEqual([]);
     // the owner deletes it before handing over again: nothing of the change is left to show
     rmSync(join(docs, 'Tidied.md'));
     expect((await project.diff(tidy.id, false))!.folder!.changes.find((c) => c.path === 'Tidied.md')).toMatchObject({ kind: 'added', gone: true });
     workers.message(tidy.id, 'Again.');
     expect(await a.call('ready_for_review', { summary: 'Again.' })).toContain('Recorded');
-    expect(item(tidy.id).files).toBeUndefined();
+    expect(item(tidy.id).demo?.files).toBeUndefined();
   });
 
   test('a handover the owner stopped the session under, while its change was read, changes nothing', async () => {
@@ -219,7 +219,7 @@ describe('a project over a folder without git', () => {
     await runtime.last.use('Write', { file_path: join(docs, 'Working.md') }, () => writeFileSync(join(docs, 'Working.md'), '# Working\n'));
 
     project.repoOf(waiting).workers.resumeAll();
-    const files = (id: string) => project.board.card(id)!.files;
+    const files = (id: string) => project.board.card(id)!.demo?.files;
     for (let n = 0; n < 100 && !files(archived); n++) await new Promise((r) => setTimeout(r, 10));
     expect(files(waiting)).toEqual([]);
     expect(files(done)).toEqual([]);

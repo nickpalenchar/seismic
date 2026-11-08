@@ -695,8 +695,8 @@ describe('sharing to a site', () => {
     return c.id;
   };
   const settled = async (id: string, state: string | undefined) => {
-    for (let i = 0; i < 300 && board.item(id)!.share?.state !== state; i++) await Bun.sleep(10);
-    return board.item(id)!.share;
+    for (let i = 0; i < 300 && board.item(id)!.demo?.share?.state !== state; i++) await Bun.sleep(10);
+    return board.item(id)!.demo?.share;
   };
 
   test('publishes the card’s page there, marks it with the site’s version, and withdraws it', async () => {
@@ -708,7 +708,7 @@ describe('sharing to a site', () => {
     expect(board.events(id).map((e) => e.text)).toContain('Uploaded 5 entries');
     sharing.unshare(id);
     await settled(id, undefined);
-    expect(board.item(id)!.share).toBeUndefined();
+    expect(board.item(id)!.demo?.share).toBeUndefined();
     expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).not.toContain('CSV export');
   });
 
@@ -717,7 +717,7 @@ describe('sharing to a site', () => {
     mkdirSync(join(other, 'sites/demos'), { recursive: true });
     writeFileSync(join(other, 'sites/demos/deploy.env'), 'TOKEN=secret-2\n');
     const elsewhere = make(SITE(), other, 'laptop');
-    const slugOf = (id: string) => board.item(id)!.share!.url!.split('/').at(-2)!;
+    const slugOf = (id: string) => board.item(id)!.demo!.share!.url!.split('/').at(-2)!;
     const [one, two, three] = [card(), card(), card()];
     for (const id of [one, two]) {
       sharing.share(id);
@@ -725,12 +725,12 @@ describe('sharing to a site', () => {
     }
     await elsewhere.withdraw(slugOf(one), []);
     await sharing.checkSites();
-    expect(board.item(one)!.share).toBeUndefined();
+    expect(board.item(one)!.demo?.share).toBeUndefined();
     expect(board.events(one).map((e) => e.text)).toContain('The page was withdrawn on another machine (laptop); the link is gone.');
     await elsewhere.withdraw(slugOf(two), []);
     sharing.share(three);
     await settled(three, 'shared');
-    expect(board.item(two)!.share).toBeUndefined();
+    expect(board.item(two)!.demo?.share).toBeUndefined();
     expect(board.events(two).map((e) => e.text)).toContain('The page was withdrawn on another machine (laptop); the link is gone.');
     expect(readdirSync(deployed()).sort()).toEqual(['_headers', slugOf(three), 'feed.xml', 'index.html', MANIFEST]);
   });
@@ -741,7 +741,7 @@ describe('sharing to a site', () => {
       sharing.share(id);
       await settled(id, 'shared');
     }
-    const slug = board.item(two)!.share!.url!.split('/').at(-2)!;
+    const slug = board.item(two)!.demo!.share!.url!.split('/').at(-2)!;
     // another machine's deployment that pulled before the second page went out
     const m = manifest(deployed());
     delete m.pages[slug];
@@ -751,7 +751,7 @@ describe('sharing to a site', () => {
     expect(board.events(two).map((e) => e.text)).toContain('The page was missing on the site: another machine’s deploy had taken it offline. Seismic deployed it again.');
     expect(board.events(one).map((e) => e.text)).not.toContain('The page was missing on the site: another machine’s deploy had taken it offline. Seismic deployed it again.');
     expect(existsSync(join(deployed(), slug, 'demo.mp4'))).toBe(true);
-    expect(board.item(two)!.share).toMatchObject({ state: 'shared' });
+    expect(board.item(two)!.demo?.share).toMatchObject({ state: 'shared' });
   });
 
   test('without the env file on this machine the card exports instead', async () => {

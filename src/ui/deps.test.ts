@@ -46,7 +46,7 @@ test('a loop ends', () => {
 });
 
 test('a workstream waits for the open ones it builds on, started or not; a delivered one is no wait', () => {
-  const ws = (id: string, state: Item['state'], buildsOn: string[] = []) => ({ ...card(id), state, parent: 'p', buildsOn }) as Item;
+  const ws = (id: string, state: Item['state'], buildsOn: string[] = []) => ({ ...card(id), state, parent: 'p', plan: { buildsOn } }) as Item;
   const all = [ws('W1', 'live'), ws('W2', 'planned', ['W1']), ws('W3', 'planned', ['W2', 'W1']), ws('W4', 'working')];
   const d = depsOf('W2', all)!;
   expect([...d.after]).toEqual(['W3']);
@@ -67,9 +67,9 @@ test('a card snoozed until another card gets somewhere waits for that card', () 
 
 test('every direct wait on the project, of all kinds, not the chain; a finished card is waited for no longer', () => {
   const snoozed = { ...card('R'), hold: { reason: 'snoozed', since: '2026-11-01', on: { card: 'A', title: 'A', state: 'done' }, by: 'agent' } } as Item;
-  const drawn = { ...card('M'), manualDependsOn: ['B'] } as Item;
+  const drawn = { ...card('M'), plan: { manualDependsOn: ['B'] } } as Item;
   const done = { ...card('F'), state: 'done' } as Item;
-  const all = [...items, snoozed, drawn, done, card('G', 'F'), { ...card('H'), state: 'live', manualDependsOn: ['A'] } as Item];
+  const all = [...items, snoozed, drawn, done, card('G', 'F'), { ...card('H'), state: 'live', plan: { manualDependsOn: ['A'] } } as Item];
   expect(waitsAmong(all).sort()).toEqual([['A', 'B'], ['A', 'D'], ['A', 'R'], ['B', 'C'], ['B', 'D'], ['B', 'M']]);
 });
 
@@ -98,11 +98,11 @@ test("a finished card's dependencies stay as dim green lines, in a plan or not",
   const ws = (id: string, state: Item['state'], extra: Partial<Item> = {}) => ({ ...card(id), kind: 'workstream', state, parent: 'P', ...extra }) as Item;
   const items = [
     ws('W1', 'live'),
-    ws('W2', 'live', { buildsOn: ['W1'] }),
-    ws('W3', 'planned', { buildsOn: ['W2'] }),
-    ws('W4', 'planned', { manualDependsOn: ['W1', 'W3'] }),
+    ws('W2', 'live', { plan: { buildsOn: ['W1'] } }),
+    ws('W3', 'planned', { plan: { buildsOn: ['W2'] } }),
+    ws('W4', 'planned', { plan: { manualDependsOn: ['W1', 'W3'] } }),
     { ...card('X'), state: 'done' } as Item,
-    ws('W5', 'planned', { manualDependsOn: ['X'] }),
+    ws('W5', 'planned', { plan: { manualDependsOn: ['X'] } }),
   ];
   expect(settledAmong(items)).toEqual([
     { from: 'W1', to: 'W2' },

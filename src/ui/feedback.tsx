@@ -13,7 +13,7 @@ import { failText, t } from './strings';
 
 /** Stars and the comment for the card's approved work; `prompt`: the one after the approval, with its title and "Skip". */
 export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; onClose?: () => void }) {
-  const rate = item.rate!;
+  const rate = item.review!.rate!;
   const key = rateDraft(item.id);
   const draft = useDraft(key);
   // what was saved, ahead of the snapshot that brings it
@@ -138,7 +138,7 @@ export function useRatePrompt(items: Item[]) {
   const here = card ? items.find((i) => i.id === card) : undefined;
   const looked = !!card && !!archive?.covers.has(card);
   const away = looked ? archive!.items.find((i) => i.id === card) : undefined;
-  const found = here?.rate ? here : away?.rate ? away : undefined;
+  const found = here?.review?.rate ? here : away?.review?.rate ? away : undefined;
   // the card as last shown: it stays while the archive is read after it left the project
   const shown = useRef<Item | undefined>(undefined);
   if (found) shown.current = found;
@@ -147,16 +147,16 @@ export function useRatePrompt(items: Item[]) {
   const [answeredHere, setAnsweredHere] = useState(false);
   useEffect(() => setAnsweredHere(false), [card]);
   useEffect(() => {
-    if (!card || here?.rate || looked) return;
+    if (!card || here?.review?.rate || looked) return;
     let live = true;
     api.archived().then((a) => live && setArchive((was) => ({ covers: new Set([...(was?.covers ?? []), card, ...a.map((i) => i.id)]), items: a })), console.error);
     return () => void (live = false);
-  }, [card, !!here?.rate, looked]);
-  const open = !!item?.rate && (!item.rate.answer || answeredHere);
+  }, [card, !!here?.review?.rate, looked]);
+  const open = !!item?.review?.rate && (!item.review.rate.answer || answeredHere);
   // nothing to ask about this one: on to the next
   useEffect(() => {
-    if (card && !open && (here?.rate || looked)) setQueue((q) => q.slice(1));
-  }, [card, open, !!here?.rate, looked]);
+    if (card && !open && (here?.review?.rate || looked)) setQueue((q) => q.slice(1));
+  }, [card, open, !!here?.review?.rate, looked]);
   const close = () => setQueue((q) => q.slice(1));
   const prompt = open ? (
     <div className="rate-pop" onClickCapture={() => setAnsweredHere(true)}>

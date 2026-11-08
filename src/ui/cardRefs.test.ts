@@ -81,7 +81,7 @@ test('what the field shows reads back as the text it was filled with', () => {
 
 test('in a shown text a link to a card is a smart link: its state, current title and priority; one not on the project keeps its text, muted', () => {
   setProject('o');
-  const items = [card('ab12xx', 'Login with Google', { state: 'working', priority: 'high' })];
+  const items = [card('ab12xx', 'Login with Google', { state: 'working', labels: { priority: 'high' } })];
   const md = 'Builds on [Login](/p/o/c/ab12) and [Gone](/p/o/c/zz99).';
   const html = renderToStaticMarkup(
     createElement(Cards.Provider, { value: { items, open: () => {} } }, createElement(CardRefs.Provider, { value: smartLink }, createElement(Inline, { md }))),

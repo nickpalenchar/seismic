@@ -55,8 +55,8 @@ describe('a proposal merged with another card', () => {
     // while the agent merges: the two show as one, and neither needs the owner
     let a = board().item(p.id)!;
     let b = board().item(planned.id)!;
-    expect(a.proposal?.merge).toMatchObject({ with: planned.id });
-    expect(b.mergingInto).toBe(p.id);
+    expect(a.idea?.proposal?.merge).toMatchObject({ with: planned.id });
+    expect(b.idea?.mergingInto).toBe(p.id);
     expect(needsYou(a)).toBe(false);
     expect(openQuestions(a)).toEqual([]);
     expect(sizeOf(a, board().items())).toEqual([...MERGED_SIZE]);
@@ -68,7 +68,7 @@ describe('a proposal merged with another card', () => {
     m.emit({ type: 'idle' });
     await settle();
     a = board().item(p.id)!;
-    expect(a.proposal?.merge).toMatchObject({ with: planned.id, title: 'Fix the CSV export', task: 'The CSV export writes umlauts wrongly and dates off by one day. Fix both.' });
+    expect(a.idea?.proposal?.merge).toMatchObject({ with: planned.id, title: 'Fix the CSV export', task: 'The CSV export writes umlauts wrongly and dates off by one day. Fix both.' });
     // the merged card waits for the owner, in „Braucht dich“
     expect(needsYou(a)).toBe(true);
 
@@ -76,7 +76,7 @@ describe('a proposal merged with another card', () => {
     expect(board().item(p.id)).toBeUndefined();
     b = board().item(planned.id)!;
     expect(b.state).toBe('planned');
-    expect(b.mergingInto).toBeUndefined();
+    expect(b.idea?.mergingInto).toBeUndefined();
     expect(b.title).toBe('Fix the CSV export');
     // the proposal's open question goes with the planned task's text
     expect(b.body).toStartWith('The CSV export writes umlauts wrongly and dates off by one day. Fix both.');
@@ -93,8 +93,8 @@ describe('a proposal merged with another card', () => {
     project.act(p.id, { action: 'separate' });
     const a = board().item(p.id)!;
     const b = board().item(planned.id)!;
-    expect(a.proposal?.merge).toBeUndefined();
-    expect(b.mergingInto).toBeUndefined();
+    expect(a.idea?.proposal?.merge).toBeUndefined();
+    expect(b.idea?.mergingInto).toBeUndefined();
     expect(b.body).toBe('Dates in the CSV export are off by one day.');
     expect(b.x).toBe(900);
     expect({ x: a.x, y: a.y }).toEqual({ x: p.x, y: p.y });
@@ -103,7 +103,7 @@ describe('a proposal merged with another card', () => {
     merger()!.call('merge_cards', { title: 'x', task: 'y' });
     merger()!.emit({ type: 'idle' });
     await settle();
-    expect(board().item(p.id)!.proposal?.merge).toBeUndefined();
+    expect(board().item(p.id)!.idea?.proposal?.merge).toBeUndefined();
   });
 
   test('two proposals merged: the other keeps the questions of both', async () => {
@@ -118,7 +118,7 @@ describe('a proposal merged with another card', () => {
     const b = board().item(q.id)!;
     expect(b.state).toBe('proposal');
     expect(b.body).toBe('Export and import CSV correctly.');
-    expect(b.proposal?.questions.map((x) => x.text)).toEqual(['Which separator?', 'Which encoding?']);
+    expect(b.idea?.proposal?.questions.map((x) => x.text)).toEqual(['Which separator?', 'Which encoding?']);
   });
 
   test('ideas, the card itself and cards already merging are excluded; started partners are allowed', () => {
@@ -142,11 +142,11 @@ describe('a proposal merged with another card', () => {
     project.act(p.id, { action: 'merge', with: planned.id });
     merger()!.emit({ type: 'idle' });
     await settle();
-    expect(board().item(p.id)!.proposal?.merge?.failed).toBeDefined();
+    expect(board().item(p.id)!.idea?.proposal?.merge?.failed).toBeDefined();
     const before = runtime.sessions.length;
     project.act(p.id, { action: 'merge', with: planned.id });
     expect(runtime.sessions.length).toBe(before + 1);
-    expect(board().item(p.id)!.proposal?.merge).toMatchObject({ with: planned.id });
+    expect(board().item(p.id)!.idea?.proposal?.merge).toMatchObject({ with: planned.id });
   });
 });
 
@@ -169,7 +169,7 @@ describe('folding into a progressed survivor', () => {
     expect(merger()!.inbox[0]).toContain('CSV encoding and dates are fixed.');
     expect(merger()!.spec.system).toContain('without reading repository files or branch diffs');
     await finishMerge(covered(p));
-    const draft = board().item(p.id)!.proposal!.merge!;
+    const draft = board().item(p.id)!.idea!.proposal!.merge!;
     expect(draft.title).toBe(before.title!);
     expect(draft.task).toBe(before.body!);
     expect(store.cards.get(planned.id)).toEqual(before);
@@ -200,7 +200,7 @@ describe('folding into a progressed survivor', () => {
     expect(next.repo).toBe(planned.repo);
     expect(next.body).toStartWith('Fix the encoding of exported umlauts.');
     expect(next.body).toContain('Which encoding?');
-    expect(next.manualDependsOn).toEqual([planned.id]);
+    expect(next.plan?.manualDependsOn).toEqual([planned.id]);
     expect(board().item(child.id)!.from).toBe(planned.id);
     expect(board().manualDependencies().map(([a, b]) => [a, b])).toContainEqual([prerequisite.id, planned.id]);
     expect(board().manualDependencies().map(([a, b]) => [a, b])).toContainEqual([planned.id, child.id]);
@@ -214,7 +214,7 @@ describe('folding into a progressed survivor', () => {
     const original = store.cards.get(a.id)!;
     project.act(a.id, { action: 'merge', with: b.id });
     await finishMerge({ outcome: 'followUp', titleCovered: false, parts: [{ text: 'Add CSV.', covered: true }, { text: ' Also XLSX.', covered: false }], followUp: { title: 'XLSX', task: 'Add XLSX.', images: [], questions: [] } });
-    expect(board().item(a.id)!.proposal!.merge!.task).toBe('Add CSV.');
+    expect(board().item(a.id)!.idea!.proposal!.merge!.task).toBe('Add CSV.');
     project.act(a.id, { action: 'separate' });
     const { updated_at: _, waiting_since: __, ...after } = store.cards.get(a.id)!;
     const { updated_at: ___, waiting_since: ____, ...before } = original;
@@ -225,7 +225,7 @@ describe('folding into a progressed survivor', () => {
   test('a planned task picking a proposal keeps the planned task and combines both texts', async () => {
     const { p, planned } = cards();
     project.act(planned.id, { action: 'merge', with: p.id });
-    expect(board().item(p.id)!.proposal!.merge!.with).toBe(planned.id);
+    expect(board().item(p.id)!.idea!.proposal!.merge!.with).toBe(planned.id);
     await finishMerge({ title: 'CSV fixes', task: 'Fix dates and encoding.' });
     project.act(p.id, { action: 'approveMerge' });
     expect(board().item(planned.id)!.state).toBe('planned');
@@ -247,7 +247,7 @@ describe('folding into a progressed survivor', () => {
     board().work(planned.id, { state: 'working', branch: 'csv' });
     project.act(p.id, { action: 'merge', with: planned.id });
     expect(merger()!.call('merge_cards', { outcome: 'covered', titleCovered: true, parts: [{ text: 'Only a fragment', covered: true }] })).toContain('entire left task exactly');
-    expect(board().item(p.id)!.proposal!.merge!.task).toBeUndefined();
+    expect(board().item(p.id)!.idea!.proposal!.merge!.task).toBeUndefined();
     await finishMerge(covered(p));
     board().work(planned.id, { body: 'Changed requirements.' });
     expect(() => project.act(p.id, { action: 'approveMerge' })).toThrow('changed since the comparison');
@@ -274,7 +274,7 @@ describe('folding into a progressed survivor', () => {
     ];
     expect(mergeCandidates(p, all, '').map((i) => i.id)).toEqual(['newer', 'older', 'working', 'done', 'archived']);
     expect(mergeRank(all[0]!)).toBeGreaterThan(mergeRank(all[1]!));
-    for (const invalid of [{ parent: 'plan' }, { mergingInto: 'another' }, { repoDown: true }, { hold: { reason: 'snoozed', since: '2026-11-01', why: 'later', by: 'owner', until: '2026-12-01' } }] as Partial<Item>[]) {
+    for (const invalid of [{ parent: 'plan' }, { idea: { mergingInto: 'another' } }, { repoDown: true }, { hold: { reason: 'snoozed', since: '2026-11-01', why: 'later', by: 'owner', until: '2026-12-01' } }] as Partial<Item>[]) {
       expect(mergeableWith(p, { ...planned, ...invalid })).toBe(false);
       expect(mergeableWith({ ...p, ...invalid }, planned)).toBe(false);
     }
@@ -294,9 +294,9 @@ test('late answers from a separated comparison cannot complete a new merge', asy
   old.call('merge_cards', { title: 'Stale', task: 'Stale task.' });
   old.emit({ type: 'idle' });
   await settle();
-  expect(board().item(p.id)!.proposal!.merge!.task).toBeUndefined();
+  expect(board().item(p.id)!.idea!.proposal!.merge!.task).toBeUndefined();
   await finishMerge({ title: 'Current', task: 'Current task.' });
-  expect(board().item(p.id)!.proposal!.merge!.task).toBe('Current task.');
+  expect(board().item(p.id)!.idea!.proposal!.merge!.task).toBe('Current task.');
 });
 
 test('an unfinished planned-card comparison resumes once, including an archived partner', async () => {
@@ -312,7 +312,7 @@ test('an unfinished planned-card comparison resumes once, including an archived 
   expect(runtime.sessions).toHaveLength(before + 1);
   expect(merger()!.inbox[0]).toContain('archived');
   await finishMerge(covered(back));
-  expect(board().item(back.id)!.proposal!.merge!.outcome).toBe('covered');
+  expect(board().item(back.id)!.idea!.proposal!.merge!.outcome).toBe('covered');
 });
 
 test('a title-only request can become extra work, with selected screenshots and questions', async () => {
@@ -355,8 +355,8 @@ test('an archived stopped survivor holds its new follow-up until its work lands'
   await finishMerge({ outcome: 'followUp', titleCovered: false, parts: [{ text: p.body, covered: false }], followUp: { title: 'Remaining encoding work', task: 'Correct encoding after CSV export lands.', images: [], questions: [] } });
   project.act(p.id, { action: 'approveMerge' });
   let next = board().items().find((i) => i.title === 'Remaining encoding work')!;
-  expect(next.manualArchived?.map((i) => i.id)).toEqual([planned.id]);
-  expect(next.manualDependsOn).toEqual([planned.id]);
+  expect(next.plan?.manualArchived?.map((i) => i.id)).toEqual([planned.id]);
+  expect(next.plan?.manualDependsOn).toEqual([planned.id]);
   project.act(next.id, { action: 'start' });
   await settle(40);
   next = board().item(next.id)!;
@@ -365,5 +365,5 @@ test('an archived stopped survivor holds its new follow-up until its work lands'
   board().unarchive(planned.id);
   board().work(planned.id, { state: 'done' });
   await settle(40);
-  expect(board().item(next.id)!.manualArchived).toBeUndefined();
+  expect(board().item(next.id)!.plan?.manualArchived).toBeUndefined();
 });

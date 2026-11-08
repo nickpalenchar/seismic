@@ -24,14 +24,14 @@ const PLAN_GAP = 60;
  * A delivered workstream becomes a shorter card once its agent is done; every other card shows at the
  * size of a task, so its state and status line show.
  */
-export function shapeOf(i: Pick<Item, 'kind' | 'state' | 'parent' | 'finishing'>): Shape {
+export function shapeOf(i: Pick<Item, 'kind' | 'state' | 'parent' | 'agent'>): Shape {
   if (i.kind === 'plan') return 'plan';
   if (i.parent && finished(i.state) && !finishingUp(i)) return 'chip';
   // a Question card too: it has a task's size, and a look of its own
   return 'task';
 }
 
-export function planSize(children: Pick<Item, 'kind' | 'state' | 'parent' | 'finishing' | 'x' | 'y'>[]): [number, number] {
+export function planSize(children: Pick<Item, 'kind' | 'state' | 'parent' | 'agent' | 'x' | 'y'>[]): [number, number] {
   let w = PLAN_MIN[0];
   let h = PLAN_MIN[1];
   for (const c of children) {
@@ -47,16 +47,16 @@ export const MERGED_SIZE: readonly [number, number] = [2 * CARD_SIZE.task[0] + 5
 
 export function sizeOf(i: Item, all: Item[]): [number, number] {
   const shape = shapeOf(i);
-  if (shape === 'plan') return i.collapsed ? [...PLAN_COLLAPSED] : planSize(all.filter((c) => c.parent === i.id));
-  if (i.proposal?.merge) return [...MERGED_SIZE];
+  if (shape === 'plan') return i.plan?.collapsed ? [...PLAN_COLLAPSED] : planSize(all.filter((c) => c.parent === i.id));
+  if (i.idea?.proposal?.merge) return [...MERGED_SIZE];
   const [w, h] = CARD_SIZE[shape];
   return [w, h];
 }
 
 /** The items the project shows: all but the workstreams of a collapsed plan, and a card merged with a proposal, which shows within it. */
 export function onProject(items: Item[]): Item[] {
-  const collapsed = new Set(items.flatMap((i) => (i.collapsed ? [i.id] : [])));
-  return collapsed.size || items.some((i) => i.mergingInto) ? items.filter((i) => !i.mergingInto && (!i.parent || !collapsed.has(i.parent))) : items;
+  const collapsed = new Set(items.flatMap((i) => (i.plan?.collapsed ? [i.id] : [])));
+  return collapsed.size || items.some((i) => i.idea?.mergingInto) ? items.filter((i) => !i.idea?.mergingInto && (!i.parent || !collapsed.has(i.parent))) : items;
 }
 
 export interface Bounds {
@@ -107,7 +107,7 @@ export function placeWorkstreams(ws: { done: boolean }[], startY = PLAN_HEAD): {
 }
 
 /** What arranging a plan's workstreams needs of each, in the plan's order. */
-export type Arrangeable = Pick<Item, 'id' | 'kind' | 'state' | 'parent' | 'finishing' | 'buildsOn'>;
+export type Arrangeable = Pick<Item, 'id' | 'kind' | 'state' | 'parent' | 'agent' | 'plan'>;
 
 /** Between two columns of workstreams there is room for the arrows from one to the next. */
 const COLUMN_GAP = 70;
@@ -124,7 +124,7 @@ const ROWS_PER_COLUMN = 4;
 export function dependencyColumns(ws: Arrangeable[]): { chips: string[]; layers: string[][][] } {
   const open = ws.filter((w) => shapeOf(w) !== 'chip');
   const byId = new Map(open.map((w) => [w.id, w]));
-  const on = (w: Arrangeable) => (w.buildsOn ?? []).filter((d) => d !== w.id && byId.has(d));
+  const on = (w: Arrangeable) => (w.plan?.buildsOn ?? []).filter((d) => d !== w.id && byId.has(d));
   const depth = new Map<string, number>();
   const visiting = new Set<string>();
   const depthOf = (w: Arrangeable): number => {

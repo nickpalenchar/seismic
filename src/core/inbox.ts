@@ -26,11 +26,11 @@ export interface InboxEntry {
 
 /** What a card waits for, in one line or a few. */
 export function waitsFor(i: Item): string {
-  if (i.superseded) return i.superseded.why ?? '';
-  if (i.state === 'proposal') return i.proposal?.questions?.[0]?.text ?? i.body;
-  if (i.idea && i.state === 'idea') return i.idea.questions[0]?.text ?? i.statusLine ?? '';
-  if (handedOver(i)) return i.question?.text ?? i.summary ?? i.statusLine ?? '';
-  return i.question?.text ?? i.statusLine ?? '';
+  if (i.idea?.superseded) return i.idea.superseded.why ?? '';
+  if (i.state === 'proposal') return i.idea?.proposal?.questions?.[0]?.text ?? i.body;
+  if (i.idea?.discussion && i.state === 'idea') return i.idea.discussion.questions[0]?.text ?? i.agent?.statusLine ?? '';
+  if (handedOver(i)) return i.question?.text ?? i.review?.summary ?? i.agent?.statusLine ?? '';
+  return i.question?.text ?? i.agent?.statusLine ?? '';
 }
 
 /** One project's entries: the cards that need the owner (none they just acted on, `underway`) and Seismic's latest unread answer. */

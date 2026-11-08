@@ -56,9 +56,9 @@ describe('what starts waiting', () => {
     const before = new Map([
       ['a', item({ id: 'a' })],
       ['b', item({ id: 'b', state: 'waiting', need: 'demo' })],
-      ['l', item({ id: 'l', state: 'waiting', need: 'demo', landing: true })],
+      ['l', item({ id: 'l', state: 'waiting', need: 'demo', review: { landing: true } })],
       ['s', item({ id: 's' })],
-      ['r', item({ id: 'r', state: 'waiting', need: 'demo', proposed: true })],
+      ['r', item({ id: 'r', state: 'waiting', need: 'demo', idea: { proposed: true } })],
     ]);
     const after = [
       item({ id: 'a', state: 'waiting', need: 'demo' }),
@@ -70,7 +70,7 @@ describe('what starts waiting', () => {
       item({ id: 'n', state: 'proposal' }),
       item({ id: 'w' }),
       // waited before already, and its agent withdrew it now
-      item({ id: 'r', state: 'waiting', need: 'demo', proposed: true, superseded: { why: 'x' } }),
+      item({ id: 'r', state: 'waiting', need: 'demo', idea: { proposed: true, superseded: { why: 'x' } } }),
     ];
     expect(startedWaiting(before, after).map((x) => [x.item.id, x.kind])).toEqual([
       ['a', 'demo'],
@@ -84,9 +84,9 @@ describe('what starts waiting', () => {
   test('kinds', () => {
     expect(kindOf(item({ state: 'waiting', need: 'question', question: { text: 'x', options: [] } }))).toBe('question');
     expect(kindOf(item({ state: 'waiting', need: 'review' }))).toBe('review');
-    expect(kindOf(item({ state: 'working', proposed: true, superseded: { why: 'x' } }))).toBe('superseded');
-    expect(kindOf(item({ state: 'waiting', need: 'demo', answered: true }))).toBe('answered');
-    expect(kindOf(item({ state: 'inPr', pr: { url: 'u', number: 1, checks: [], conflict: false, ready: true } }))).toBe('pr');
+    expect(kindOf(item({ state: 'working', idea: { proposed: true, superseded: { why: 'x' } } }))).toBe('superseded');
+    expect(kindOf(item({ state: 'waiting', need: 'demo', review: { answered: true } }))).toBe('answered');
+    expect(kindOf(item({ state: 'inPr', review: { pr: { url: 'u', number: 1, checks: [], conflict: false, ready: true } } }))).toBe('pr');
     expect(plainTitle('**Login** mit `OAuth` [hier](https://x)')).toBe('Login mit OAuth hier');
   });
 });

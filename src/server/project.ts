@@ -440,7 +440,7 @@ export class ProjectRuntime {
     });
     board.interruptTalk();
     // the undo window of a new repository is not kept across a restart: the card stays as it was
-    for (const i of board.items()) if (i.newRepo?.due) board.setNewRepo(i.id, { ...i.newRepo, due: undefined });
+    for (const i of board.items()) if (i.idea?.newRepo?.due) board.setNewRepo(i.id, { ...i.idea.newRepo, due: undefined });
     this.commander.resume();
     this.answers.resumeAll();
     this.revisions = new Revisions({
@@ -570,7 +570,7 @@ export class ProjectRuntime {
     if (s.start) {
       this.repoOf(cardId).workers.startsNow(cardId, timeUp);
       // one to be started in a new repository makes it first
-      if (card.newRepo) return this.intoNewRepo(cardId);
+      if (card.idea?.newRepo) return this.intoNewRepo(cardId);
       return this.koordinator.request(cardId);
     }
     this.repoOf(cardId).workers.wake(cardId, timeUp, met);
@@ -970,7 +970,7 @@ export class ProjectRuntime {
     r.docs?.();
     r.docs = watchPlanDocs(r.read.path, r.adapter, () => this.board.docsChanged());
     // a review card's pull request is watched in any repository, also one that lands on main
-    if (r.adapter.land === 'pr' || this.board.items().some((i) => (i.state === 'inPr' || (i.contribution && !finished(i.state))) && i.repo === r.ref.id)) this.watchPrs(r);
+    if (r.adapter.land === 'pr' || this.board.items().some((i) => (i.state === 'inPr' || (i.review?.contribution && !finished(i.state))) && i.repo === r.ref.id)) this.watchPrs(r);
   }
 
   /** Watches the repository's pull requests, unless it does already. */
@@ -1526,7 +1526,7 @@ export class ProjectRuntime {
       const setting = row.agent_setting ? JSON.parse(row.agent_setting) : row.session_id ? undefined : this.agentFor('worker');
       if (setting?.harness === 'codex' || setting?.harness === 'agy') return bundledSkills().map(({ file: _, ...skill }) => skill);
     }
-    return this.skills.of({ cwd, plugins: idea ? [] : [OBEYA_PLUGIN], untrusted: (!idea && !!card.contribution) || (await this.claudeHeld(cwd)) });
+    return this.skills.of({ cwd, plugins: idea ? [] : [OBEYA_PLUGIN], untrusted: (!idea && !!card.review?.contribution) || (await this.claudeHeld(cwd)) });
   }
 
   /** Whether the app in the card's workstation answers, for the owner to try it by hand (`Workers.appUp`). */
@@ -1751,10 +1751,10 @@ export class ProjectRuntime {
     const card = this.board.item(cardId);
     if (card?.repoDown && !BOARD_ONLY.includes(a.action)) throw repoDown(card);
     // while its new repository is about to be made, the card is not decided otherwise
-    if (card?.newRepo?.due && DUE_REFUSES.includes(a.action)) throw new BadRequest('newRepoDue', 'the card is about to be built in its new repository; take that back first');
+    if (card?.idea?.newRepo?.due && DUE_REFUSES.includes(a.action)) throw new BadRequest('newRepoDue', 'the card is about to be built in its new repository; take that back first');
     // a card merged with a proposal, and the proposal while the two are one, wait for the owner's call on the merge
-    if (card?.mergingInto && mergeRank(card) <= 1 && !MERGE_LEAVES.includes(a.action)) throw new BadRequest('merging', 'the card is merged with a proposal; approve or separate that first');
-    if (card?.proposal?.merge && !['merge', 'approveMerge', 'separate', 'dismiss', ...MERGE_LEAVES].includes(a.action))
+    if (card?.idea?.mergingInto && mergeRank(card) <= 1 && !MERGE_LEAVES.includes(a.action)) throw new BadRequest('merging', 'the card is merged with a proposal; approve or separate that first');
+    if (card?.idea?.proposal?.merge && !['merge', 'approveMerge', 'separate', 'dismiss', ...MERGE_LEAVES].includes(a.action))
       throw new BadRequest('merging', 'the proposal is merged with another card; approve or separate that first');
     const text = 'text' in a ? (a.text ?? '') : '';
     const images = this.images.resolve('images' in a ? a.images : undefined);
@@ -1767,8 +1767,8 @@ export class ProjectRuntime {
       throw new BadRequest('emptyText', 'text must be a non-empty string');
     switch (a.action) {
       case 'start':
-        if (a.agent && (card?.newRepo || (card && snoozeOf(card)?.start))) throw new BadRequest('invalid', 'this start does not support an agent choice');
-        if (card?.newRepo) return this.intoNewRepo(cardId);
+        if (a.agent && (card?.idea?.newRepo || (card && snoozeOf(card)?.start))) throw new BadRequest('invalid', 'this start does not support an agent choice');
+        if (card?.idea?.newRepo) return this.intoNewRepo(cardId);
         // starting a parked card takes it out of the parking lot
         if (card && inParkingLot(card)) this.unparkFromLot(cardId);
         // one snoozed to start later starts now
@@ -1860,21 +1860,21 @@ export class ProjectRuntime {
         return this.board.separate(cardId);
       case 'dismiss':
         // a card its agent withdrew or replaced goes like a deleted one, its worker stopped
-        if (this.board.item(cardId)?.superseded) return this.remove(cardId);
+        if (this.board.item(cardId)?.idea?.superseded) return this.remove(cardId);
         if (this.board.row(cardId).state !== 'proposal') throw new BadRequest('notProposal', 'not a proposal');
         return this.board.remove(cardId);
       case 'keep':
         return this.board.keep(cardId);
       case 'revise': {
         // said while it is reworked, they wait for the next rework, unread until then
-        const later = !!this.board.item(cardId)?.proposal?.revising;
+        const later = !!this.board.item(cardId)?.idea?.proposal?.revising;
         const said = log ? this.board.log(cardId, 'say', 'owner', text.trim(), { images, replyTo, unread: later }).id : undefined;
         return this.revisions.revise(cardId, `${replyNote(this.board.quoted(cardId, replyTo), 'koordinator')}${text.trim()}`, !!a.spoken, said, images);
       }
       case 'discuss':
         return this.explorers.discuss(cardId, text.trim(), !!a.spoken, images, replyTo);
       case 'build':
-        if (a.agent && this.board.item(cardId)?.newRepo) throw new BadRequest('invalid', 'this build does not support an agent choice');
+        if (a.agent && this.board.item(cardId)?.idea?.newRepo) throw new BadRequest('invalid', 'this build does not support an agent choice');
         return this.build(cardId, a.agent === undefined ? undefined : startAgentSetting(a.agent));
       case 'unbuild':
         return this.unbuild(cardId);
@@ -2042,7 +2042,7 @@ export class ProjectRuntime {
     const card = this.board.item(cardId);
     if (card?.state !== 'proposal') throw new BadRequest('notProposal', 'not a proposal');
     // one the work retrospective made before it stored proposal data has none
-    const proposal = card.proposal ?? { questions: [] };
+    const proposal = card.idea?.proposal ?? { questions: [] };
     if (setting && (!start || asIdea || proposal.idea || proposal.revising || (proposal.startAt && Date.parse(proposal.startAt) > Date.now()))) throw new BadRequest('invalid', 'this acceptance does not support an agent choice');
     if ((start || asIdea) && proposal.revising) {
       // the owner knows what comes; the new text still may ask what must be settled first
@@ -2071,10 +2071,10 @@ export class ProjectRuntime {
   private revised(cardId: string, revised: boolean) {
     const card = this.board.item(cardId);
     // words the owner said meanwhile are reworked in first
-    const armed = card?.proposal?.acceptAfterRevision;
-    if (card?.state !== 'proposal' || !armed || card.proposal!.revising) return;
+    const armed = card?.idea?.proposal?.acceptAfterRevision;
+    if (card?.state !== 'proposal' || !armed || card.idea!.proposal!.revising) return;
     this.board.acceptAfterRevision(cardId, false);
-    const asks = card.proposal!.questions.length;
+    const asks = card.idea!.proposal!.questions.length;
     if (revised && !asks) return this.accept(cardId, [], true, armed === 'idea');
     const t = this.board.t.proposal;
     this.board.log(cardId, 'state', 'obeya', !revised ? t.notAcceptedNoRevision : asks > 1 ? t.notAcceptedQuestions : t.notAcceptedQuestion);
@@ -2088,15 +2088,15 @@ export class ProjectRuntime {
    */
   private build(cardId: string, agent?: AgentSetting) {
     const card = this.ideaCard(cardId);
-    if (card.idea?.thinking) {
+    if (card.idea?.discussion?.thinking) {
       // the owner knows what comes; the reply still may ask what must be settled first
-      if (card.idea.buildAfterReply) return;
+      if (card.idea.discussion.buildAfterReply) return;
       if (agent) this.buildAgents.set(cardId, agent);
       this.board.setIdea(cardId, { buildAfterReply: true });
       this.board.log(cardId, 'state', 'owner', this.board.t.idea.buildAfterReply);
       return;
     }
-    if (card.newRepo) return this.intoNewRepo(cardId);
+    if (card.idea?.newRepo) return this.intoNewRepo(cardId);
     this.decided(card, { answer: this.board.t.idea.buildAnswer, log: this.board.t.idea.buildLog });
     const chosen = agent ?? this.buildAgents.get(cardId);
     this.buildAgents.delete(cardId);
@@ -2118,7 +2118,7 @@ export class ProjectRuntime {
    */
   private intoNewRepo(cardId: string) {
     const card = this.board.item(cardId);
-    const target = card?.newRepo;
+    const target = card?.idea?.newRepo;
     if (!card || !target) throw new BadRequest('invalid', 'the card has no new repository');
     if (target.due) return;
     const t = this.board.t.newRepo;
@@ -2288,7 +2288,7 @@ export class ProjectRuntime {
   /** Building after the reply is taken back: the idea stays in its discussion. */
   private unbuild(cardId: string) {
     this.buildAgents.delete(cardId);
-    if (!this.ideaCard(cardId).idea?.buildAfterReply) return;
+    if (!this.ideaCard(cardId).idea?.discussion?.buildAfterReply) return;
     this.board.setIdea(cardId, { buildAfterReply: false });
     this.board.log(cardId, 'state', 'owner', this.board.t.idea.unbuild);
   }
@@ -2299,10 +2299,10 @@ export class ProjectRuntime {
    */
   private replied(cardId: string, replied: boolean) {
     const card = this.board.item(cardId);
-    if (card?.state !== 'idea' || !card.idea?.buildAfterReply) return;
+    if (card?.state !== 'idea' || !card.idea?.discussion?.buildAfterReply) return;
     this.board.setIdea(cardId, { buildAfterReply: false });
-    const asks = card.idea.questions.length;
-    if (replied && !asks && card.idea.status === 'open') return this.build(cardId);
+    const asks = card.idea.discussion.questions.length;
+    if (replied && !asks && card.idea.discussion.status === 'open') return this.build(cardId);
     const t = this.board.t.idea;
     this.board.log(cardId, 'state', 'obeya', !replied ? t.notBuiltNoReply : asks > 1 ? t.notBuiltQuestions : t.notBuiltQuestion);
   }
@@ -2315,12 +2315,12 @@ export class ProjectRuntime {
    */
   private buildOnPrototype(prototypeId: string, workstreamId?: string) {
     const prototype = this.prototypeCard(prototypeId);
-    const plan = this.board.planOf(prototype.prototypeOf!);
+    const plan = this.board.planOf(prototype.idea!.prototypeOf!);
     if (plan) return this.buildWorkstreamOn(prototype, plan, workstreamId);
-    const planning = this.board.item(prototype.prototypeOf!);
-    if (planning?.becomesPlan) throw new BadRequest('planPending', 'the idea becomes a plan; build on the prototype once its plan doc has landed');
+    const planning = this.board.item(prototype.idea!.prototypeOf!);
+    if (planning?.idea?.becomesPlan) throw new BadRequest('planPending', 'the idea becomes a plan; build on the prototype once its plan doc has landed');
     if (!planning) throw new BadRequest('ideaGone', 'the prototype’s idea is no longer on the project, and no plan of it is');
-    const idea = this.settledIdea(prototype.prototypeOf!);
+    const idea = this.settledIdea(prototype.idea!.prototypeOf!);
     const { workers } = this.repoOf(prototype);
     return workers.buildOn(prototype.id, idea).then(() => {
       this.decided(idea, { answer: this.board.t.idea.buildOnAnswer(prototype.title), log: this.board.t.idea.buildOnLog(prototype.title) });
@@ -2338,11 +2338,11 @@ export class ProjectRuntime {
     if (!ws && !workstreamId) throw new BadRequest('workstreamMissing', 'the plan doc does not say which workstream builds on the prototype: choose it');
     if (!ws || ws.parent !== plan.id) throw new BadRequest('invalid', 'not a workstream of the plan the idea became');
     if (!buildableOn(ws)) throw new BadRequest('workstreamStarted', 'only a workstream nobody has started can be built on a prototype');
-    const named = `${ws.label ? `${ws.label} ` : ''}${this.board.t.quote(ws.title)}`;
+    const named = `${ws.plan?.label ? `${ws.plan.label} ` : ''}${this.board.t.quote(ws.title)}`;
     return this.repoOf(prototype)
       .workers.buildOn(prototype.id, ws, named)
       .then(() => {
-        this.discardPrototypes(prototype.prototypeOf!);
+        this.discardPrototypes(prototype.idea!.prototypeOf!);
         const t = this.board.t.idea;
         this.board.decide({ plan_id: plan.id, card_id: ws.id, question: t.whichPrototype(named), answer: t.onPrototype(prototype.title), by: 'owner' });
         this.board.log(ws.id, 'state', 'owner', t.workstreamOnLog(prototype.title));
@@ -2352,7 +2352,7 @@ export class ProjectRuntime {
 
   /** The idea's prototypes still on the project go into the archive as discarded. */
   private discardPrototypes(ideaId: string) {
-    for (const p of this.board.items().filter((i) => i.prototypeOf === ideaId)) this.repoOf(p).workers.endPrototype(p.id, 'discarded', 'obeya');
+    for (const p of this.board.items().filter((i) => i.idea?.prototypeOf === ideaId)) this.repoOf(p).workers.endPrototype(p.id, 'discarded', 'obeya');
   }
 
   /** The idea is decided for building: its agent's conversation ends, the brief becomes the task, the other prototypes are discarded. */
@@ -2380,7 +2380,7 @@ export class ProjectRuntime {
     const idea = this.board.idea(cardId);
     const dir = this.repoOf(card).adapter.planDocs.dir;
     const outside = this.outsidePlanDoc(card);
-    const prototypes = this.board.items().filter((i) => i.prototypeOf === cardId);
+    const prototypes = this.board.items().filter((i) => i.idea?.prototypeOf === cardId);
     const t = this.board.t.idea;
     this.explorers.close(cardId);
     this.board.work(cardId, {
@@ -2490,7 +2490,7 @@ export class ProjectRuntime {
     if (this.repoOf(card).info.folder) throw new BadRequest('inFolder', 'a folder without git has no prototypes: its cards change the folder itself');
     const { variants = [] } = this.board.idea(cardId);
     const t = this.board.t.idea;
-    const running = new Set(this.board.items().flatMap((i) => (i.prototypeOf === cardId && i.variant ? [i.variant] : [])));
+    const running = new Set(this.board.items().flatMap((i) => (i.idea?.prototypeOf === cardId && i.idea?.variant ? [i.idea.variant] : [])));
     const picked = chosen ? variants.filter((v) => chosen.includes(v.approach)) : what ? [] : variants.filter((v) => !running.has(v.approach));
     if (chosen?.length && !picked.length && !what) throw new BadRequest('invalid', 'none of the chosen variants is planned');
     if (!chosen && !what && variants.length && !picked.length) throw new BadRequest('variantsRunning', 'every planned variant has its prototype on the project');
@@ -2499,7 +2499,7 @@ export class ProjectRuntime {
       return { approach: v.approach, task: others.length ? `${v.show}\n\n${t.onlyThisVariant(others.join(', '))}` : v.show, variant: v.approach };
     });
     if (what || !runs.length) runs.push({ approach: approachOf(what), task: what || t.showAsItStands, variant: '' });
-    const taken = new Set((this.board.item(cardId)?.prototypes ?? []).map((p) => p.title));
+    const taken = new Set((this.board.item(cardId)?.idea?.prototypes ?? []).map((p) => p.title));
     const started: string[] = [];
     try {
       for (const run of runs) {
@@ -2532,7 +2532,7 @@ export class ProjectRuntime {
 
   /** A prototype handed over: its demo shows on the idea beside those of the other prototypes, and the idea's agent hears what it found. */
   private prototypeReady(prototype: Item, summary: string, demo: string | undefined) {
-    const idea = this.board.item(prototype.prototypeOf!);
+    const idea = this.board.item(prototype.idea!.prototypeOf!);
     if (!idea) return;
     this.board.log(idea.id, 'state', 'worker', this.board.t.idea.prototypeReady(prototype.title, !!demo));
     if (idea.state === 'idea')
@@ -2545,7 +2545,7 @@ export class ProjectRuntime {
   /** A question on a prototype was answered: the idea's agent takes it into the brief, so the idea does not ask it again. */
   private prototypeAnswered(prototype: Item, question: string, answer: string) {
     this.explorers.tell(
-      prototype.prototypeOf!,
+      prototype.idea!.prototypeOf!,
       `On the prototype “${prototype.title}”, its worker asked: “${question}”\n\nThe owner answered: ${answer}\n\nTake what this settles into the brief (decisions, open questions), so it is not asked again. Do not reply to the owner for it; end your turn without a reply unless it raises something they must decide now.`,
       true,
     );
@@ -2554,7 +2554,7 @@ export class ProjectRuntime {
   private prototypeCard(cardId: string): Item {
     const card = this.board.item(cardId);
     if (!card) throw new BadRequest('unknownCard', 'unknown card');
-    if (!card.prototypeOf) throw new BadRequest('notPrototype', 'the card is not a prototype');
+    if (!card.idea?.prototypeOf) throw new BadRequest('notPrototype', 'the card is not a prototype');
     return card;
   }
 
@@ -2595,7 +2595,7 @@ export class ProjectRuntime {
   /** An idea to build or plan: not while its agent works on a reply, which will change the brief the owner decides on. */
   private settledIdea(cardId: string): Item {
     const card = this.ideaCard(cardId);
-    if (card.idea?.thinking) throw new BadRequest('ideaThinking', 'the idea’s agent is still working on its reply; decide once it is there');
+    if (card.idea?.discussion?.thinking) throw new BadRequest('ideaThinking', 'the idea’s agent is still working on its reply; decide once it is there');
     return card;
   }
 
@@ -2752,7 +2752,7 @@ export class ProjectRuntime {
     // a card of the PR's own (one of Seismic's workers opened it) is the card for it too, also where
     // its URL was recorded in another form (a slash at the end, the host in capitals, `/pull/` on Forgejo)
     const same = (other?: string) => !!other && (parsePrUrl(other, github)?.url ?? other) === url;
-    const had = this.board.items().find((i) => (same(i.contribution?.url) || same(i.pr?.url)) && !i.archivedAt);
+    const had = this.board.items().find((i) => (same(i.review?.contribution?.url) || same(i.review?.pr?.url)) && !i.archivedAt);
     if (had) {
       if (c.text) this.act(had.id, { action: 'message', text: c.text, spoken: !!c.spoken });
       this.board.notify({ text: t.review.opened(ref.number), cardId: had.id, open: true });

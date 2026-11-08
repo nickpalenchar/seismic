@@ -11,7 +11,7 @@ export function CardSearch({ items, onOpen, onClose }: { items: Item[]; onOpen: 
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLUListElement>(null);
   // A card absorbed by a merge has no project element to unfold from.
-  const results = matchingCards(items.filter((item) => !item.mergingInto), query, undefined, Infinity);
+  const results = matchingCards(items.filter((item) => !item.idea?.mergingInto), query, undefined, Infinity);
   const active = results[Math.min(selected, results.length - 1)];
   useEffect(() => input.current?.focus(), []);
   useEffect(() => setSelected(0), [query]);

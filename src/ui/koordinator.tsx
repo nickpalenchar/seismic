@@ -112,7 +112,7 @@ const REVIEW_KNOWN = 'obeya-review-pr-known';
  * review card once or closed it: one quiet line on how to have someone else's pull request reviewed.
  */
 function ReviewHint({ items, repos }: { items: Item[]; repos: RepoRef[] }) {
-  const used = items.some((i) => i.contribution);
+  const used = items.some((i) => i.review?.contribution);
   const [closed, setClosed] = useState(() => known(REVIEW_KNOWN));
   useEffect(() => {
     if (used) know(REVIEW_KNOWN);

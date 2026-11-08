@@ -35,14 +35,14 @@ describe('the files a card names as its result', () => {
     // an absolute path in the workstation counts as the path in the repository
     const done = await runtime.last.call('ready_for_review', { summary: 'Fertig.', demo: artifact(), files: [{ path: join(ws, 'docs', 'report.md'), caption: 'Der  Bericht\n' }] });
     expect(done).toContain('Recorded');
-    expect(board.item(c.id)!.files).toEqual([{ path: 'docs/report.md', caption: 'Der Bericht' }]);
+    expect(board.item(c.id)!.demo?.files).toEqual([{ path: 'docs/report.md', caption: 'Der Bericht' }]);
     workers.message(c.id, 'Noch die Einleitung kürzen.');
     expect(await runtime.last.call('ready_for_review', { summary: 'Gekürzt.' })).toContain('Recorded');
-    expect(board.item(c.id)!.files).toEqual([{ path: 'docs/report.md', caption: 'Der Bericht' }]);
+    expect(board.item(c.id)!.demo?.files).toEqual([{ path: 'docs/report.md', caption: 'Der Bericht' }]);
     // an empty list takes them back
     workers.message(c.id, 'Doch kein Bericht.');
     expect(await runtime.last.call('ready_for_review', { summary: 'Gut.', files: [] })).toContain('Recorded');
-    expect(board.item(c.id)!.files).toBeUndefined();
+    expect(board.item(c.id)!.demo?.files).toBeUndefined();
   });
 
   test('Seismic serves a file the card made or changed, and an image a Markdown file of it shows; no other file of the workstation', async () => {
@@ -120,7 +120,7 @@ describe('a page the worker names from its demo directory', () => {
       ],
     });
     expect(done).toContain('Recorded');
-    expect(board.item(c.id)!.files).toEqual([
+    expect(board.item(c.id)!.demo?.files).toEqual([
       { path: 'schema-change.html', caption: 'Schema', dir: demo.dir },
       { path: 'docs/report.md', caption: 'Bericht' },
     ]);
@@ -130,6 +130,6 @@ describe('a page the worker names from its demo directory', () => {
     // a later handover without a demo names one of the demo on the card
     workers.message(c.id, 'Noch einmal.');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', files: [{ path: join(demo.dir, 'schema-change.html'), caption: 'Schema' }] })).toContain('Recorded');
-    expect(board.item(c.id)!.files).toEqual([{ path: 'schema-change.html', caption: 'Schema', dir: demo.dir }]);
+    expect(board.item(c.id)!.demo?.files).toEqual([{ path: 'schema-change.html', caption: 'Schema', dir: demo.dir }]);
   });
 });

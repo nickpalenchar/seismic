@@ -32,7 +32,7 @@ export function useFolderDiff(item: Item, on: boolean): { diff: CardDiff | null;
       gone = true;
       clearInterval(timer);
     };
-  }, [on, item.id, item.state, item.need, item.statusLine, item.summary, item.noChange, asked]);
+  }, [on, item.id, item.state, item.need, item.agent?.statusLine, item.review?.summary, item.review?.noChange, asked]);
   return { diff, reload: () => setAsked((n) => n + 1) };
 }
 
@@ -82,10 +82,10 @@ export function FolderLine({ item, diff, sizeBelow }: { item: Item; diff: CardDi
           )}
         </>
       )}
-      {item.workstation && (
+      {item.agent?.workstation && (
         <>
           {' · '}
-          <button className={copied ? 'link copied' : 'link'} title={item.workstation} onClick={() => copy(item.workstation!)}>
+          <button className={copied ? 'link copied' : 'link'} title={item.agent.workstation} onClick={() => copy(item.agent!.workstation!)}>
             {copied ? t.diff.copied : t.diff.copyPath}
           </button>
         </>

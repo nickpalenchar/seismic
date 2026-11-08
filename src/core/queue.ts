@@ -22,9 +22,10 @@ export function queueOrder(items: Item[]): Item[] {
  */
 export function drawnWaits(card: Item, items: Item[]): string[] {
   if (card.state !== 'planned' || (card.queue && 'begun' in card.queue)) return [];
-  return (card.manualDependsOn ?? []).filter((id) => {
-    const i = items.find((x) => x.id === id) ?? card.manualArchived?.find((x) => x.id === id);
-    return !!i && !finished(i.state) && (!i.archivedAt || !!card.manualArchived?.some((x) => x.id === id));
+  const archived = card.plan?.manualArchived;
+  return (card.plan?.manualDependsOn ?? []).filter((id) => {
+    const i = items.find((x) => x.id === id) ?? archived?.find((x) => x.id === id);
+    return !!i && !finished(i.state) && (!i.archivedAt || !!archived?.some((x) => x.id === id));
   });
 }
 
@@ -42,8 +43,8 @@ export const holdsNotes = (i: Pick<Item, 'state' | 'archivedAt'>) => i.state ===
  * answers at once (`Ahead`) while the card stays planned. A stopped card (it has its branch), one
  * waiting for a new repository, a review card and a prototype keep the notes for their worker.
  */
-export const asksAhead = (i: Pick<Item, 'kind' | 'state' | 'archivedAt' | 'branch' | 'prototypeOf' | 'contribution' | 'newRepo' | 'landedPart'>) =>
-  i.kind === 'task' && holdsNotes(i) && !i.branch && !i.prototypeOf && !i.contribution && !i.newRepo && !i.landedPart;
+export const asksAhead = (i: Pick<Item, 'kind' | 'state' | 'archivedAt' | 'agent' | 'idea' | 'review'>) =>
+  i.kind === 'task' && holdsNotes(i) && !i.agent?.branch && !i.idea?.prototypeOf && !i.review?.contribution && !i.idea?.newRepo && !i.review?.landedPart;
 
 /** A card that has not been started: planned and not in the queue (a stopped one too). */
 export const notStarted = (i: Pick<Item, 'state' | 'queue'>) => i.state === 'planned' && !i.queue;

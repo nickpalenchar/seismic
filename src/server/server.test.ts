@@ -1338,8 +1338,8 @@ describe('starting a card', () => {
       const res = await fetch(new URL(`/api/c/${c.board.project.id}/project`, server.url));
       expect(res.status).toBe(200);
       expect(Date.now() - before).toBeLessThan(1000);
-      const shown = ((await res.json()) as { items: { id: string; state: string; statusLine?: string }[] }).items.find((i) => i.id === card.id);
-      expect(shown).toMatchObject({ state: 'working', statusLine: c.board.t.worker.preparingWorkstation });
+      const shown = ((await res.json()) as { items: { id: string; state: string; agent?: { statusLine?: string } }[] }).items.find((i) => i.id === card.id);
+      expect(shown).toMatchObject({ state: 'working', agent: { statusLine: c.board.t.worker.preparingWorkstation } });
       // its worker waits for the workstation
       expect(runtime.sessions.some((s) => s.spec.cwd === c.board.row(card.id).workstation)).toBe(false);
     }
@@ -1350,7 +1350,7 @@ describe('starting a card', () => {
       const ws = c.board.row(card.id).workstation!;
       expect(git(ws, 'branch', '--show-current')).toBe(c.board.row(card.id).branch!);
       expect(runtime.sessions.find((s) => s.spec.cwd === ws)!.inbox[0]).toContain('Langsamer Start');
-      expect(c.board.item(card.id)!.statusLine).toBeUndefined();
+      expect(c.board.item(card.id)!.agent?.statusLine).toBeUndefined();
     }
     worktrees.shutdown();
     clones.shutdown();
@@ -1494,7 +1494,7 @@ describe('freeing and discarding workstations', () => {
     });
     expect(discarded.ok).toBe(true);
     expect(Date.now() - discarding).toBeLessThan(1000);
-    expect(shop.board.archived().find((i) => i.id === prototype.id)).toMatchObject({ prototypeEnd: 'discarded' });
+    expect(shop.board.archived().find((i) => i.id === prototype.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' } });
     await until(() => existsSync(join(marks, 'checkout')));
     await answers();
     // half cleaned, the clone is no other card's yet

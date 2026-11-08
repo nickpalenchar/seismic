@@ -723,7 +723,7 @@ export class Workers {
     this.unwatch = o.board.onChange(() => {
       for (const [id, f] of this.forwards) {
         const card = this.o.board.item(id);
-        if (card?.app !== f.app || this.o.board.row(id).workstation !== f.workstation) this.unforward(id);
+        if (card?.agent?.app !== f.app || this.o.board.row(id).workstation !== f.workstation) this.unforward(id);
       }
       this.settleLater();
     });
@@ -1083,7 +1083,7 @@ export class Workers {
   reviewWithNewAgent(cardId: string, picks: Record<number, FindingPick> | undefined, setting: AgentSetting, notes?: Record<number, string>) {
     const card = this.card(cardId);
     const live = this.live.get(cardId);
-    if (!handedOver(card) || !card.codeReview || card.codeReview.stale || card.codeReview.state !== 'done' || !this.o.board.row(cardId).workstation)
+    if (!handedOver(card) || !card.review?.codeReview || card.review.codeReview.stale || card.review.codeReview.state !== 'done' || !this.o.board.row(cardId).workstation)
       throw new BadRequest('notReady', 'a current code review and its workstation are required');
     if (live?.busy || live?.background) throw new BadRequest('notReady', 'the current agent is still working');
     const entries = Object.entries(picks ?? {});
@@ -1092,7 +1092,7 @@ export class Workers {
     const routed = Object.fromEntries(entries.filter(([, p]) => p !== 'ignore')) as Record<number, ChangeRoute>;
     // Validate every choice before changing any of them.
     for (const [id, route] of entries) {
-      if (!card.codeReview.findings?.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided) || route === 'contributor')
+      if (!card.review.codeReview.findings?.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided) || route === 'contributor')
         throw new BadRequest('noFinding', `finding ${id} is not open`);
     }
     const decided = Object.keys(routed).length ? withNotes(this.reviews.decide(cardId, routed), routed, notes) : undefined;
@@ -1175,7 +1175,7 @@ export class Workers {
       const said = [this.o.board.log(cardId, 'hint', 'owner', text, { images: shots, replyTo, spot: place, unread: true }).id];
       if (text) this.o.onOwnerInput?.(card, 'note', text);
       this.o.board.work(cardId, { unheard: JSON.stringify([...this.unheard(cardId), { said, text: `A note from the owner while you waited for the clone${spoken ? ` (${SPOKEN})` : ''}:\n\n${words}`, images }] satisfies Unheard[]) });
-    } else if (card.state === 'working' || card.state === 'inPr' || card.finishing) {
+    } else if (card.state === 'working' || card.state === 'inPr' || card.agent?.finishing) {
       const said = log(true);
       if (text) this.o.onOwnerInput?.(card, 'note', text);
       // a note to a paused worker lets it go on, with the note
@@ -1662,7 +1662,7 @@ export class Workers {
   private catchable(cardId: string): boolean {
     const i = this.o.board.item(cardId);
     if (!i) return false;
-    return i.kind === 'task' && handedOver(i) && !answering(i) && i.state === 'waiting' && !this.o.board.row(cardId).approved_at && !i.landing && !this.landing.has(cardId) && !this.approving.has(cardId);
+    return i.kind === 'task' && handedOver(i) && !answering(i) && i.state === 'waiting' && !this.o.board.row(cardId).approved_at && !i.review?.landing && !this.landing.has(cardId) && !this.approving.has(cardId);
   }
 
   /** The mode in which the project reviews this card's work at a handover, or null where it does not: the one rule for handovers and for a changed setting. */
@@ -1679,7 +1679,7 @@ export class Workers {
   /** "Start code review" on work waiting for the owner's approval: a review of its latest handover starts (design: Code reviews in Card lifecycle). */
   startCodeReview(cardId: string) {
     const card = this.card(cardId);
-    if (!handedOver(card) || card.landing || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
+    if (!handedOver(card) || card.review?.landing || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
     this.reviews.start(cardId);
   }
 
@@ -1688,13 +1688,13 @@ export class Workers {
     if (!handedOver(card) || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
     // the approval goes into the activity log once nothing stands in its way any more
     const approved = () => this.o.board.record(cardId, 'approved', 'owner');
-    if (card.contribution) {
+    if (card.review?.contribution) {
       if (direct) throw new BadRequest('noDirect', 'a review card merges its pull request');
       return this.mergeContribution(cardId);
     }
-    if (direct && card.prototypeOf) throw new BadRequest('noDirect', 'a prototype never lands');
+    if (direct && card.idea?.prototypeOf) throw new BadRequest('noDirect', 'a prototype never lands');
     // a prototype never lands: approving it is having seen enough
-    if (card.prototypeOf) {
+    if (card.idea?.prototypeOf) {
       this.takeHeld(cardId);
       approved();
       return this.endPrototype(cardId, 'discarded');
@@ -1752,7 +1752,7 @@ export class Workers {
     // a page that goes out now gets the pull request's link from Seismic once both are there
     this.o.onApproval?.(cardId);
     // a demo shared later gets its line from Seismic once the pull request is open
-    const shared = card.share?.url;
+    const shared = card.demo?.share?.url;
     if (shared) this.pageHeard(cardId);
     this.deliver(
       cardId,
@@ -1851,7 +1851,7 @@ export class Workers {
   /** "Push and comment only": the worker's own commits held on a review card go onto the PR with their text, and the card waits for the owner's "Merge" again. */
   pushContribution(cardId: string) {
     const card = this.card(cardId);
-    if (!card.contribution || !handedOver(card) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
+    if (!card.review?.contribution || !handedOver(card) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
     return this.mergeContribution(cardId, { merge: false });
   }
 
@@ -2316,7 +2316,7 @@ export class Workers {
     const repo = this.o.repo ?? this.o.board.home;
     const hard = new Set(notice.files.filter((f) => !this.o.adapter.softPaths.some((p) => overlaps(normalize(f), normalize(p)))));
     if (!hard.size) return;
-    const candidates = this.o.board.items().filter((c) => c.id !== notice.cardId && c.repo === repo && ACTIVE.includes(c.state) && c.kind !== 'plan' && !c.prototypeOf);
+    const candidates = this.o.board.items().filter((c) => c.id !== notice.cardId && c.repo === repo && ACTIVE.includes(c.state) && c.kind !== 'plan' && !c.idea?.prototypeOf);
     await Promise.all(candidates.map(async (c) => {
       const changed = await this.o.workstations.changedFiles(c.id, undefined, true);
       const files = [...new Set(changed.filter((f) => hard.has(f)))].sort();
@@ -2370,11 +2370,11 @@ export class Workers {
    */
   private pageNote(cardId: string): { text: string; waits?: boolean } {
     const card = this.card(cardId);
-    if (!card.demo || card.prototypeOf) return { text: '' };
+    if (!card.demo?.latest || card.idea?.prototypeOf) return { text: '' };
     this.pageHeard(cardId);
     const ask = 'Before you point anyone to your demo (an issue you close, say), ask the owner for a link.';
     if (!this.shares) return { text: `This repository has no demo site, so your demo is on no page the team can open. ${ask}` };
-    const s = card.share;
+    const s = card.demo?.share;
     if (s?.state === 'publishing')
       return { text: 'Your demo is going out on a page of its own for the team right now. Seismic tells you its address once it is online: wait for that before you link the demo anywhere (an issue you close, say).', waits: true };
     if (s?.state === 'shared' && s.url)
@@ -2415,15 +2415,15 @@ export class Workers {
    */
   private pageNews(cardId: string): string | undefined {
     const card = this.o.board.item(cardId);
-    if (!card || card.prototypeOf || !card.demo) return;
-    const now = pageHeardOf(card.share);
+    if (!card || card.idea?.prototypeOf || !card.demo?.latest) return;
+    const now = pageHeardOf(card.demo.share);
     const row = this.o.board.row(cardId);
     const before: PageHeard = row.page_heard ? (JSON.parse(row.page_heard) as PageHeard) : { page: 'none' };
     if (JSON.stringify(now) === JSON.stringify(before)) return;
     this.o.board.work(cardId, { page_heard: JSON.stringify(now) });
     if (now.page === 'going') return 'The owner is sharing your demo with the team on a page of its own; it is going online right now. You hear its address once it is there.';
     if (now.page === 'online') {
-      const trailer = card.demo.kind === 'html' ? 'Demo-Page' : 'Demo-Video';
+      const trailer = card.demo.latest.kind === 'html' ? 'Demo-Page' : 'Demo-Video';
       return [
         `The owner shared your demo with the team on a page of its own: ${now.url}.`,
         now.stale ? 'It shows an earlier demo of yours, not the latest.' : '',
@@ -2435,14 +2435,14 @@ export class Workers {
         .filter(Boolean)
         .join(' ');
     }
-    if (before.page === 'going' && !card.share?.url) return 'Sharing your demo did not work (the owner sees why on the card): it is on no page the team can open.';
+    if (before.page === 'going' && !card.demo?.share?.url) return 'Sharing your demo did not work (the owner sees why on the card): it is on no page the team can open.';
     return 'The owner stopped sharing your demo: it is on no page the team can open any more.';
   }
 
   /** The worker has just heard where its demo's page stands (the landing's message, say): no news of it follows. */
   private pageHeard(cardId: string) {
     const card = this.o.board.item(cardId);
-    if (card) this.o.board.work(cardId, { page_heard: JSON.stringify(pageHeardOf(card.share)) });
+    if (card) this.o.board.work(cardId, { page_heard: JSON.stringify(pageHeardOf(card.demo?.share)) });
   }
 
   /** A message that starts a turn, with what became of the demo's page before it. */
@@ -2502,7 +2502,7 @@ export class Workers {
    */
   endPrototype(cardId: string, end: 'discarded' | 'built', by: 'owner' | 'obeya' = 'owner', into?: string) {
     const card = this.card(cardId);
-    if (!card.prototypeOf) throw new BadRequest('notPrototype', 'not a prototype');
+    if (!card.idea?.prototypeOf) throw new BadRequest('notPrototype', 'not a prototype');
     this.o.onWorkEnded?.(cardId, this.o.board.row(cardId).workstation);
     this.end(cardId);
     this.bump(cardId);
@@ -2511,11 +2511,11 @@ export class Workers {
     const { branch } = this.o.board.row(cardId);
     // the card goes anyway, its workstation once git has cleaned it; a leftover worktree does no harm
     if (workstation) this.whileFreeing(cardId, workstation, this.o.workstations.discard(cardId, branch ?? ''), 'discarding a prototype');
-    const idea = this.o.board.card(card.prototypeOf);
+    const idea = this.o.board.card(card.idea.prototypeOf);
     const t = this.o.board.t.worker;
     this.o.board.log(cardId, 'state', by, end === 'discarded' ? t.prototypeDiscarded : into ? t.prototypeBuiltInto(into) : t.prototypeBuilt(idea?.title ?? ''));
     this.o.board.endPrototype(cardId, end, into);
-    if (end === 'discarded' && this.o.board.item(card.prototypeOf)) this.o.board.log(card.prototypeOf, 'state', by, t.prototypeDiscardedOnIdea(card.title));
+    if (end === 'discarded' && this.o.board.item(card.idea.prototypeOf)) this.o.board.log(card.idea.prototypeOf, 'state', by, t.prototypeDiscardedOnIdea(card.title));
   }
 
   /**
@@ -2820,14 +2820,14 @@ export class Workers {
    */
   private reprobeClashes() {
     if (!this.pulls()) return;
-    for (const i of this.o.board.items()) if (i.contribution && (!this.o.repo || i.repo === this.o.repo) && handedOver(i) && !answering(i)) void this.probeClash(i.id);
+    for (const i of this.o.board.items()) if (i.review?.contribution && (!this.o.repo || i.repo === this.o.repo) && handedOver(i) && !answering(i)) void this.probeClash(i.id);
   }
 
   /** The card whose landing put `commit` on the default branch, where one did. */
   private async landedBy(commit: string): Promise<{ card?: { id: string; title: string } }> {
     const landed = this.o.board
       .items()
-      .filter((i) => finished(i.state) && !i.contribution && (!this.o.repo || i.repo === this.o.repo))
+      .filter((i) => finished(i.state) && !i.review?.contribution && (!this.o.repo || i.repo === this.o.repo))
       .flatMap((i) => {
         const row = this.o.board.row(i.id);
         const s = row.shipped ? (JSON.parse(row.shipped) as Shipped) : null;
@@ -2859,7 +2859,7 @@ export class Workers {
     const takes = (id: string) => {
       const i = this.o.board.item(id);
       const l = i && landedOf(this.o.board.row(id));
-      return !!i && i.kind === 'task' && !i.prototypeOf && !i.archivedAt && !l?.resolve && ((!!l && !!i.finishing) || askable(i));
+      return !!i && i.kind === 'task' && !i.idea?.prototypeOf && !i.archivedAt && !l?.resolve && ((!!l && !!i.agent?.finishing) || askable(i));
     };
     const resolver = [card?.id, reviewId].find((id) => !!id && takes(id));
     if (!resolver) {
@@ -2872,7 +2872,7 @@ export class Workers {
     const message = (path: string) => this.resolveMessage(resolving, own, path);
     const item = this.card(resolver);
     const landed = landedOf(this.o.board.row(resolver));
-    if (landed && item.finishing) {
+    if (landed && item.agent?.finishing) {
       this.o.board.work(resolver, { landed: JSON.stringify({ ...landed, resolve: resolving } satisfies LandedState), status_line: t.resolvingStatus(c.number) });
       this.deliver(resolver, message(this.o.board.row(resolver).workstation ?? ''));
       return;
@@ -2978,7 +2978,7 @@ export class Workers {
   stop(cardId: string): Promise<void> {
     const card = this.card(cardId);
     if (this.landingActive.has(cardId)) throw new BadRequest('notReady', 'the work is already landing');
-    if (card.finishing) {
+    if (card.agent?.finishing) {
       this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.stopped);
       this.finish(cardId);
       return Promise.resolve();
@@ -2993,7 +2993,7 @@ export class Workers {
     const generation = this.generation.get(cardId);
     const path = this.o.board.row(cardId).workstation;
     this.o.board.work(cardId, { state: 'planned', need: null, detail: null, pr: null, approved_at: null, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null });
-    this.o.board.log(cardId, 'state', 'owner', card.pr ? this.o.board.t.worker.stoppedPrOpen(card.pr.number) : this.o.board.t.worker.stopped);
+    this.o.board.log(cardId, 'state', 'owner', card.review?.pr ? this.o.board.t.worker.stoppedPrOpen(card.review.pr.number) : this.o.board.t.worker.stopped);
     return this.o.workstations.hasWork(cardId).then((keep) => {
       if (keep || this.generation.get(cardId) !== generation || this.o.board.row(cardId).workstation !== path) return;
       this.o.workstations.release(cardId);
@@ -3232,7 +3232,7 @@ export class Workers {
       preferences: '',
       standIn: true,
     };
-    const tool = this.tools(cardId, stand, !!card.prototypeOf).find((t) => t.name === act.tool);
+    const tool = this.tools(cardId, stand, !!card.idea?.prototypeOf).find((t) => t.name === act.tool);
     if (!tool) throw new BadRequest('invalid', `the card's agent has no tool ${act.tool}`);
     // as the SDK checks a call against the tool's schema
     const args = z.object(tool.schema).safeParse(act.args ?? {});
@@ -3325,7 +3325,7 @@ export class Workers {
     for (const i of this.o.board.items()) {
       if (this.o.repo && i.repo !== this.o.repo) continue;
       // the page reloaded: the owner may watch on, or have gone
-      if (i.held?.length) this.releaseLater(i.id, this.o.holdGrace ?? HOLD_GRACE);
+      if (i.demo?.held?.length) this.releaseLater(i.id, this.o.holdGrace ?? HOLD_GRACE);
       const row = this.o.board.row(i.id);
       const landed = landedOf(row);
       // a snoozed worker sleeps on until its time, a restart notwithstanding
@@ -3366,7 +3366,7 @@ export class Workers {
         continue;
       }
       // a landing the restart cut off: the card waits for the owner's approval again
-      if (i.landing) this.o.board.work(i.id, { approved_at: null });
+      if (i.review?.landing) this.o.board.work(i.id, { approved_at: null });
       if (this.waitsForOwner(i.id)) {
         this.parkLater(i.id);
         continue;
@@ -3389,7 +3389,7 @@ export class Workers {
   private async listFiles() {
     if (!this.folder) return;
     const cards = [...this.o.board.items(), ...this.o.board.archived()].filter(
-      (i) => i.kind === 'task' && (!this.o.repo || i.repo === this.o.repo) && !i.files && !i.demo && i.state !== 'working',
+      (i) => i.kind === 'task' && (!this.o.repo || i.repo === this.o.repo) && !i.demo?.files && !i.demo?.latest && i.state !== 'working',
     );
     for (const i of cards) {
       if (!this.o.board.events(i.id).some((e) => e.kind === 'review')) continue;
@@ -4004,7 +4004,7 @@ export class Workers {
     if (e.type === 'text' || e.type === 'tool') {
       // a turn of its own (a finished background command woke it) after it answered the owner's
       // words on its handover: it works on towards what it told them, so the card is at work again
-      if (!live.acted && this.o.board.item(cardId)?.answered) this.takingIn(cardId, true);
+      if (!live.acted && this.o.board.item(cardId)?.review?.answered) this.takingIn(cardId, true);
       this.resumed(cardId, live);
       this.unlimited(cardId, live);
       live.failed = undefined;
@@ -4048,7 +4048,7 @@ export class Workers {
           live.ended = true;
           this.unpark(cardId);
           // the address no longer answers
-          if (this.o.board.item(cardId)?.app) this.o.board.work(cardId, { app: null });
+          if (this.o.board.item(cardId)?.agent?.app) this.o.board.work(cardId, { app: null });
         }
         if (e.limit) {
           if (live.limitHit) break;
@@ -4183,14 +4183,14 @@ export class Workers {
     }
     const landed = landedOf(row);
     // in the PR phase a turn ends normally once the PR is open
-    if (card.state === 'inPr' && card.pr) return;
+    if (card.state === 'inPr' && card.review?.pr) return;
     if (card.state !== 'working' && card.state !== 'inPr' && !landed) return;
     if (landed) {
       // what remained after the landing is done, unless the worker waits for its question, the restart, its demo's page or the usage limit
       if (card.state === 'waiting' || landed.waits) return;
       if (landed.page) {
         // the page went out (or did not) without the worker hearing it (Seismic was not running, say): it hears now
-        if (card.share?.state !== 'publishing') this.pageSettled(cardId);
+        if (card.demo?.share?.state !== 'publishing') this.pageSettled(cardId);
         return;
       }
       if (landed.needsClone) return this.awaitClone(cardId);
@@ -4352,7 +4352,7 @@ export class Workers {
    */
   private waitsForOwner(cardId: string): boolean {
     const card = this.o.board.item(cardId);
-    if (!card || !(card.state === 'waiting' || (card.state === 'inPr' && card.pr) || isPaused(card) || snoozeOf(card))) return false;
+    if (!card || !(card.state === 'waiting' || (card.state === 'inPr' && card.review?.pr) || isPaused(card) || snoozeOf(card))) return false;
     // paused while taking in the owner's words on its handover, nothing of it runs either
     if ((answering(card) && !isPaused(card) && !snoozeOf(card)) || this.live.get(cardId)?.busy) return false;
     const row = this.o.board.row(cardId);
@@ -4381,7 +4381,7 @@ export class Workers {
    * made again when its connection dropped, on the port it had if that is still free.
    */
   private async appAt(cardId: string): Promise<string | null> {
-    const app = this.o.board.item(cardId)?.app;
+    const app = this.o.board.item(cardId)?.agent?.app;
     const workstation = this.o.board.row(cardId).workstation;
     if (!app || !workstation) return null;
     const there = remote(workstation);
@@ -4798,7 +4798,7 @@ export class Workers {
                 // the latest by that title, as retract takes the latest it replaces: of two alike, the newer replaces the older
                 const by = replaced_by?.trim()
                   ? this.proposalBoards()
-                      .map((b) => b.items().findLast((i) => i.from === cardId && (!!i.proposal || !!i.proposed) && titleKey(i.title) === titleKey(replaced_by)))
+                      .map((b) => b.items().findLast((i) => i.from === cardId && (!!i.idea?.proposal || !!i.idea?.proposed) && titleKey(i.title) === titleKey(replaced_by)))
                       .find(Boolean)
                   : undefined;
                 if (replaced_by?.trim() && !by) return `No card you proposed is called “${replaced_by.trim()}”. Nothing was withdrawn.`;
@@ -5127,7 +5127,7 @@ export class Workers {
                     : {}),
             });
             const card = this.o.board.item(cardId);
-            if (card?.prototypeOf) this.o.onPrototype?.(card, report, demoJson);
+            if (card?.idea?.prototypeOf) this.o.onPrototype?.(card, report, demoJson);
             if (approved)
               return ending(
                 'Recorded. End your turn now; once it has ended, Seismic lands your work on main.',
@@ -5215,7 +5215,7 @@ export class Workers {
           if (!card) return 'Not snoozed: the card is gone.';
           if (live.handedOver) return 'Not snoozed: you asked or handed over in this turn, so the card waits for the owner.';
           // taking in the owner's words on its handover, it may snooze as they ask (check again in three days): the handover stands meanwhile
-          if (!(card.state === 'working' || card.state === 'inPr' || card.finishing || answering(card))) return 'Not snoozed: the card waits for the owner; their answer or approval comes as your next message.';
+          if (!(card.state === 'working' || card.state === 'inPr' || card.agent?.finishing || answering(card))) return 'Not snoozed: the card waits for the owner; their answer or approval comes as your next message.';
           if (isPausing(card)) return 'Not snoozed: the owner pauses you; end your turn, and once they let you go on, snooze then if it is still due.';
           const named = typeof until === 'string' && until.trim() !== '';
           const at = named ? Date.parse(String(until)) : NaN;
@@ -5455,7 +5455,7 @@ export class Workers {
     this.o.board.log(card.id, 'answer', 'owner', text, { images, replyTo, picks, ...(place ? { spot: place } : {}) });
     this.o.board.decide({ plan_id: card.parent ?? null, card_id: card.id, question: q, answer: text || '(Screenshot)', by: 'owner' });
     if (text) this.o.onOwnerInput?.(card, 'answer', text, { question: q });
-    if (card.prototypeOf) this.o.onPrototypeAnswer?.(card, q, text || '(Screenshot)');
+    if (card.idea?.prototypeOf) this.o.onPrototypeAnswer?.(card, q, text || '(Screenshot)');
   }
 
   /** The card's question is settled: it goes back to its work, in its pull request, or finished (`done` when nothing landed, else `live`). */
@@ -5501,7 +5501,7 @@ ${
     }
 ${this.o.toObeya ? `\n${TO_OBEYA}\n` : ''}
 Rules:
-${folder ? '- Others work in the same folder at the same time: leave what your card is not about as it is.' : card?.contribution ? "- Commit your work on your branch in this workstation. Do not push (Seismic pushes your commits onto the pull request's branch once the owner approves), do not open pull requests, do not switch branches." : '- Commit your work on your branch in this workstation. Do not push, do not open pull requests, do not switch branches.'}
+${folder ? '- Others work in the same folder at the same time: leave what your card is not about as it is.' : card?.review?.contribution ? "- Commit your work on your branch in this workstation. Do not push (Seismic pushes your commits onto the pull request's branch once the owner approves), do not open pull requests, do not switch branches." : '- Commit your work on your branch in this workstation. Do not push, do not open pull requests, do not switch branches.'}
 - Follow the repository's own instructions (CLAUDE.md and docs).
 - Owner-facing text (report, reply, ask, ${prototype ? 'propose_build' : 'propose_card'}, ready_for_review) is in the owner's language, short and concrete. What you write between tool calls also shows on the card for the owner, folded under your next message: keep it brief and in the owner's language too. ${language} The docs you read and the owner's standing preferences do not count as the owner's words.
 - ${repositoryLanguage(this.o.adapter.language, folder)} A demo (its narration, report, or an HTML artifact's words) is in ${LANGUAGE_NAMES[this.demoLanguage()]}, whatever language the owner talks in.${this.o.adapter.demo?.language ? ` This repository's settings name ${LANGUAGE_NAMES[this.o.adapter.demo.language]} for its demos, which holds over the narration language of the demo settings.` : ''}
@@ -5544,27 +5544,27 @@ ${folder ? '- Others work in the same folder at the same time: leave what your c
     const parts = [`Your card: “${card.title}”.`];
     const contribution = contributionOf(this.o.board.row(card.id));
     if (contribution) return this.reviewBriefing(card, contribution, branch, resumed, headProblem);
-    const idea = card.prototypeOf ? this.o.board.card(card.prototypeOf) : undefined;
-    if (card.prototypeOf)
+    const idea = card.idea?.prototypeOf ? this.o.board.card(card.idea.prototypeOf) : undefined;
+    if (card.idea?.prototypeOf)
       parts.push(
         [
           `This card is a throwaway prototype for the idea “${idea?.title ?? ''}”, so the owner can see the idea before deciding on it; other prototypes may try other approaches beside it. It never lands itself: the owner either discards it (its code is thrown away, its demo stays in the archive) or has the idea built on its branch, by a worker who takes over what carries and brings it to production quality.`,
           'So build only what the demo needs to show, as quickly as you can: no tests, no polish, no docs or plan changes, and do not run the checks. Commit it on your branch anyway, so the demo can be reproduced and the idea can be built on it. The demo only needs to make the idea visible: a video of 30–60 s, or an HTML artifact when the idea is something to look at (drafts of a logo, say).',
           "Your questions and the owner's answers also reach the idea's exploration agent, so ask on this card; the idea will not ask them again.",
-          idea?.idea?.brief ? `The idea as discussed so far:
+          idea?.idea?.discussion?.brief ? `The idea as discussed so far:
 
-${idea.idea.brief}` : '',
-          mocksText(idea?.idea?.mocks),
+${idea.idea.discussion.brief}` : '',
+          mocksText(idea?.idea?.discussion?.mocks),
         ]
           .filter(Boolean)
           .join('\n\n'),
       );
     if (card.body.trim()) parts.push(card.body.trim());
     // the owner's own words: the language the worker writes them in until they say more (`ownersLanguage`)
-    if (card.mocks?.length) parts.push(mocksText(card.mocks));
-    if (card.builtOn) parts.push(this.builtOnPrototype(card.builtOn, !!card.parent));
+    if (card.idea?.mocks?.length) parts.push(mocksText(card.idea.mocks));
+    if (card.idea?.builtOn) parts.push(this.builtOnPrototype(card.idea.builtOn, !!card.parent));
     // the card it follows up on may be on another project (a proposal from a worker there)
-    const fromBoard = card.from && !card.prototypeOf ? this.proposalBoards().find((b) => b.item(card.from!) ?? b.archived().some((i) => i.id === card.from)) : undefined;
+    const fromBoard = card.from && !card.idea?.prototypeOf ? this.proposalBoards().find((b) => b.item(card.from!) ?? b.archived().some((i) => i.id === card.from)) : undefined;
     const from = fromBoard ? fromBoard.item(card.from!) ?? fromBoard.archived().find((i) => i.id === card.from) : undefined;
     if (fromBoard && from) {
       const summary = fromBoard.summary(from.id)?.trim();
@@ -5575,10 +5575,10 @@ ${idea.idea.brief}` : '',
     if (shots.length)
       parts.push(`${shots.length === 1 ? 'The owner attached a screenshot' : `The owner attached ${shots.length} screenshots`} to the card (shown with this message; files: ${shots.join(', ')}).`);
     const plan = card.parent ? this.o.board.item(card.parent) : undefined;
-    if (plan?.plan) parts.push(`This is workstream ${card.label ?? ''} of the plan “${plan.title}”. Read its plan doc ${plan.plan.file} first; it holds the context and decisions.`);
+    if (plan?.plan?.file) parts.push(`This is workstream ${card.plan?.label ?? ''} of the plan “${plan.title}”. Read its plan doc ${plan.plan.file} first; it holds the context and decisions.`);
     const decisions = plan ? this.o.board.decisions(plan.id) : [];
     if (decisions.length) parts.push(`Decisions taken in this plan so far:\n${decisionLog(decisions)}`);
-    const part = plan?.plan && this.o.board.row(card.id).shipped;
+    const part = plan?.plan?.file && this.o.board.row(card.id).shipped;
     if (part) {
       const s = JSON.parse(part) as Shipped;
       const what = [s.pr && `pull request #${s.pr.number} (${s.pr.url})`, s.commit && `commit ${s.commit.slice(0, 7)}`].filter(Boolean).join(', ');
@@ -5588,7 +5588,7 @@ ${idea.idea.brief}` : '',
     }
     if (this.folder) return this.folderBriefing(card.id, parts, resumed);
     parts.push(
-      card.builtOn
+      card.idea?.builtOn
         ? `You are on branch ${branch}, which holds the prototype's commits (and any earlier work on this card): look at its log and diff first.`
         : resumed
           ? `You are on branch ${branch}, which already holds earlier work on this card, perhaps uncommitted: look at its log, \`git status\` and diff first and go on from there.`
@@ -5614,7 +5614,7 @@ ${idea.idea.brief}` : '',
     const tryIt = ` Once it runs and opens in a browser, give its address with app_running, so the owner can try it by hand from the card${far}.`;
     if (run?.trim()) parts.push(`How to run the app: ${run.trim()}${parking}${tryIt}`);
     else parts.push(`${parking}${tryIt}`.trim());
-    if (this.o.adapter.checks?.length && !card.prototypeOf) parts.push(`Before ready_for_review, run: ${this.o.adapter.checks.map((c) => `\`${c}\``).join(', ')}.`);
+    if (this.o.adapter.checks?.length && !card.idea?.prototypeOf) parts.push(`Before ready_for_review, run: ${this.o.adapter.checks.map((c) => `\`${c}\``).join(', ')}.`);
     parts.push(
       [
         `Then show the owner the result with a demo, so they can judge at a glance whether the work is done, and hand it over with ready_for_review.`,

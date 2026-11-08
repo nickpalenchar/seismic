@@ -56,10 +56,10 @@ describe('shapeOf', () => {
   });
 
   test('a workstream whose agent still works after the landing stays at the size of a task', () => {
-    expect(shapeOf({ ...ws, state: 'live', finishing: true })).toBe('task');
-    expect(shapeOf({ ...ws, state: 'done', finishing: true })).toBe('task');
+    expect(shapeOf({ ...ws, state: 'live', agent: { finishing: true } })).toBe('task');
+    expect(shapeOf({ ...ws, state: 'done', agent: { finishing: true } })).toBe('task');
     // once its agent is done, it shrinks
-    expect(shapeOf({ ...ws, state: 'live', finishing: false })).toBe('chip');
+    expect(shapeOf({ ...ws, state: 'live', agent: { finishing: false } })).toBe('chip');
   });
 
   test('a card on its own stays a task', () => {
@@ -68,7 +68,7 @@ describe('shapeOf', () => {
 });
 
 describe('arranging workstreams by their dependencies', () => {
-  const ws = (id: string, buildsOn: string[] = [], state: Arrangeable['state'] = 'planned'): Arrangeable => ({ id, kind: 'task', state, parent: 'p', buildsOn });
+  const ws = (id: string, buildsOn: string[] = [], state: Arrangeable['state'] = 'planned'): Arrangeable => ({ id, kind: 'task', state, parent: 'p', plan: { buildsOn } });
 
   test('what builds on another stands in a column right of it', () => {
     const { layers } = dependencyColumns([ws('a'), ws('b', ['a']), ws('c'), ws('d', ['b', 'c'])]);

@@ -45,15 +45,15 @@ function options(q: Question): QuickReply[] {
 
 /** The replies an entry offers for its card `i`. */
 export function quickReplies(i: Item): QuickReply[] {
-  if (i.superseded)
+  if (i.idea?.superseded)
     return [
       { label: t.superseded.keep, send: act({ action: 'keep' }), ack: t.quick.kept, primary: true, title: t.superseded.keepHint },
       { label: t.superseded.remove, send: (id) => api.remove(id), ack: t.deleted(plain(i.title)), undo: (id) => api.restore(id), title: t.superseded.removeHint },
     ];
   if (i.state === 'proposal') {
     // a merged pair is approved or separated on the card, where the merged text shows
-    if (i.proposal?.revising || i.proposal?.acceptAfterRevision || i.proposal?.merge) return [];
-    const p = i.proposal;
+    const p = i.idea?.proposal;
+    if (p?.revising || p?.acceptAfterRevision || p?.merge) return [];
     const later = !p?.idea && !!p?.startAt;
     const accept: QuickReply[] = openQuestions(i).length
       ? []
@@ -69,7 +69,7 @@ export function quickReplies(i: Item): QuickReply[] {
     return [...accept, { label: t.dismiss, send: act({ action: 'dismiss' }), ack: t.dismissed, held: true }];
   }
   // a handover is judged by its demo, on the card; a question waiting there is its decision
-  if (i.state !== 'waiting' || i.landing || handedOver(i)) return [];
+  if (i.state !== 'waiting' || i.review?.landing || handedOver(i)) return [];
   const asked = openQuestions(i);
   return asked.length === 1 ? options(asked[0]!) : [];
 }

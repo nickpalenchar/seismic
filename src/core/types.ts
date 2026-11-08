@@ -36,18 +36,18 @@ export type CardState = (typeof STATES)[number];
 /** A card whose work is over: `live` once it landed, `done` when it needed no change to the code (a demo, an analysis). */
 export const finished = (s: CardState) => s === 'live' || s === 'done';
 /** A card an agent worked on until the owner stopped it: planned again, its branch stays the card's. */
-export const stopped = (i: Pick<Item, 'state' | 'branch'>) => i.state === 'planned' && !!i.branch;
+export const stopped = (i: Pick<Item, 'state' | 'agent'>) => i.state === 'planned' && !!i.agent?.branch;
 /**
  * A stopped card of the owner's the archive may take: nothing waits to start it, and its workstation
  * holds no work (a branch with commits or changes keeps it, and archiving would leave that work
  * unseen in a clone).
  */
-export const stoppedArchivable = (i: Pick<Item, 'state' | 'branch' | 'source' | 'queue' | 'workstation' | 'keptIn' | 'prototypeOf' | 'kind'>) =>
-  stopped(i) && i.source === 'manual' && i.kind === 'task' && !i.prototypeOf && !i.queue && !i.workstation && !i.keptIn;
+export const stoppedArchivable = (i: Pick<Item, 'state' | 'agent' | 'source' | 'queue' | 'idea' | 'kind'>) =>
+  stopped(i) && i.source === 'manual' && i.kind === 'task' && !i.idea?.prototypeOf && !i.queue && !i.agent?.workstation && !i.agent?.keptIn;
 /** A finished card of the owner's whose agent is done: the archive may take it. */
-export const finishedArchivable = (i: Pick<Item, 'state' | 'source' | 'finishing'>) => finished(i.state) && i.source === 'manual' && !i.finishing;
+export const finishedArchivable = (i: Pick<Item, 'state' | 'source' | 'agent'>) => finished(i.state) && i.source === 'manual' && !i.agent?.finishing;
 /** A finished card whose agent still works: after the landing, or answering a follow-up question. */
-export const finishingUp = (i: Pick<Item, 'state' | 'finishing'>) => !!i.finishing && finished(i.state);
+export const finishingUp = (i: Pick<Item, 'state' | 'agent'>) => !!i.agent?.finishing && finished(i.state);
 /**
  * Whether the card's agent is working on something right now, so that the owner can pause it: a
  * Question card's agent reading, an idea's agent working on its reply, a worker in a turn (whatever
@@ -95,11 +95,11 @@ export const inParkingLot = (i: Pick<Item, 'hold'>) => i.hold?.reason === 'parki
 const snoozedAway = (i: Pick<Item, 'hold'>) => !!snoozeOf(i) && !snoozeOf(i)!.waiting;
 
 /** The card's agent runs a turn the owner can pause at once (the pause on the bubble of its turn), also while it is about to pause at a safe point. */
-export const pausableNow = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'inTurn' | 'hold'>) =>
-  !isPaused(i) && !snoozedAway(i) && (i.kind === 'question' ? !!i.thread?.thinking : i.state === 'idea' && i.idea ? i.idea.thinking : !!i.inTurn);
+export const pausableNow = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'agent' | 'hold'>) =>
+  !isPaused(i) && !snoozedAway(i) && (i.kind === 'question' ? !!i.thread?.thinking : i.state === 'idea' && i.idea?.discussion ? i.idea.discussion.thinking : !!i.agent?.inTurn);
 
 /** The card's agent is at work and can be paused, at a safe point (the card's pause, the project's) or at once; not one about to pause already. */
-export const pausable = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'inTurn' | 'hold'>) => !isPausing(i) && pausableNow(i);
+export const pausable = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'agent' | 'hold'>) => !isPausing(i) && pausableNow(i);
 
 /** The owner paused the card's agent, and it waits for them to resume it; a snoozed one waits for its time instead. */
 export const resumable = (i: Pick<Item, 'hold'>) => isPaused(i);
@@ -111,8 +111,8 @@ export const halted = (i: Pick<Item, 'hold'>) => isPaused(i) || isPausing(i);
  * A finished card an agent worked on, on the project, with no agent on it now: what the owner asks
  * about it resumes the agent that did the work, which answers and ends again.
  */
-export const askable = (i: Pick<Item, 'state' | 'branch' | 'prototypeOf' | 'archivedAt' | 'finishing'>) =>
-  finished(i.state) && !!i.branch && !i.prototypeOf && !i.archivedAt && !i.finishing;
+export const askable = (i: Pick<Item, 'state' | 'agent' | 'idea' | 'archivedAt'>) =>
+  finished(i.state) && !!i.agent?.branch && !i.idea?.prototypeOf && !i.archivedAt && !i.agent?.finishing;
 
 /**
  * How many cards of each group are still to be done: not finished, not archived, not a dropped
@@ -121,12 +121,12 @@ export const askable = (i: Pick<Item, 'state' | 'branch' | 'prototypeOf' | 'arch
 export function openPerGroup(items: Item[]): Map<string, number> {
   const open = new Map<string, number>();
   for (const i of items)
-    if (i.group && i.kind === 'task' && !finished(i.state) && !i.archivedAt && i.idea?.status !== 'dropped') open.set(i.group, (open.get(i.group) ?? 0) + 1);
+    if (i.group && i.kind === 'task' && !finished(i.state) && !i.archivedAt && i.idea?.discussion?.status !== 'dropped') open.set(i.group, (open.get(i.group) ?? 0) + 1);
   return open;
 }
 
 /** A workstream a prototype can be built for: nobody has worked on it yet, and the Koordinator does not hold it. */
-export const buildableOn = (i: Item) => i.state === 'planned' && !i.branch && !i.queue;
+export const buildableOn = (i: Item) => i.state === 'planned' && !i.agent?.branch && !i.queue;
 
 /**
  * A planned task nobody has worked on yet, which the Koordinator may merge with others or delete:
@@ -134,32 +134,35 @@ export const buildableOn = (i: Item) => i.state === 'planned' && !i.branch && !i
  * review's follow-up task waiting for the PR's merge, say), and no prototype nor becoming a plan.
  */
 export const untouched = (i: Item) =>
-  i.kind === 'task' && i.source === 'manual' && i.state === 'planned' && !i.branch && !i.workstation && (!i.queue || 'behind' in i.queue) && !i.prototypeOf && !i.becomesPlan;
+  i.kind === 'task' && i.source === 'manual' && i.state === 'planned' && !i.agent?.branch && !i.agent?.workstation && (!i.queue || 'behind' in i.queue) && !i.idea?.prototypeOf && !i.idea?.becomesPlan;
 
 /** Progress decides which card dissolves. Unstarted pairs still combine their text. */
 export const mergeRank = (i: Item): number => i.archivedAt ? 4 : finished(i.state) ? 3 : i.state === 'proposal' ? 0 : untouched(i) ? 1 : 2;
 
 /** Only an unworked task or proposal can start a merge and dissolve. */
 export const canMergeFrom = (i: Item) =>
-  i.kind === 'task' && !i.parent && !i.archivedAt && !i.mergingInto && !snoozeOf(i) && !i.repoDown && !i.prototypeOf && !i.becomesPlan &&
-  !i.proposal?.merge && !i.proposal?.idea && !i.proposal?.revising && !i.proposal?.acceptAfterRevision &&
-  (untouched(i) || (i.state === 'proposal' && !i.branch && !i.workstation));
+  i.kind === 'task' && !i.parent && !i.archivedAt && !i.idea?.mergingInto && !snoozeOf(i) && !i.repoDown && !i.idea?.prototypeOf && !i.idea?.becomesPlan &&
+  !i.idea?.proposal?.merge && !i.idea?.proposal?.idea && !i.idea?.proposal?.revising && !i.idea?.proposal?.acceptAfterRevision &&
+  (untouched(i) || (i.state === 'proposal' && !i.agent?.branch && !i.agent?.workstation));
 
 /** The read-only agent is still comparing the cards. */
-export const merging = (i: Pick<Item, 'state' | 'proposal'>) => !!i.proposal?.merge && i.proposal.merge.task === undefined && i.proposal.merge.failed === undefined;
+export const merging = (i: Pick<Item, 'state' | 'idea'>) => {
+  const merge = i.idea?.proposal?.merge;
+  return !!merge && merge.task === undefined && merge.failed === undefined;
+};
 
 /** A merge starts at an unworked card; its partner may have reached any stage. */
 export const mergeableWith = (p: Item, i: Item) =>
   canMergeFrom(p) && i.id !== p.id && i.kind === 'task' && i.state !== 'idea' && !i.parent &&
-  !i.mergingInto && !snoozeOf(i) && !i.repoDown && !i.prototypeOf && !i.becomesPlan &&
-  !i.proposal?.idea && !i.proposal?.merge && !i.proposal?.revising && !i.proposal?.acceptAfterRevision;
+  !i.idea?.mergingInto && !snoozeOf(i) && !i.repoDown && !i.idea?.prototypeOf && !i.idea?.becomesPlan &&
+  !i.idea?.proposal?.idea && !i.idea?.proposal?.merge && !i.idea?.proposal?.revising && !i.idea?.proposal?.acceptAfterRevision;
 
 /**
  * A task of the owner's that can still be planned as a plan, as an idea can: planned, nobody has
  * worked on it, the Koordinator does not hold it, and it is no prototype nor decided as a plan already.
  */
 export const plannableAsPlan = (i: Item) =>
-  i.source === 'manual' && i.kind === 'task' && buildableOn(i) && !i.prototypeOf && !i.becomesPlan;
+  i.source === 'manual' && i.kind === 'task' && buildableOn(i) && !i.idea?.prototypeOf && !i.idea?.becomesPlan;
 
 /**
  * The workstream of a plan, among `items`, that its idea's prototypes are built for: the one
@@ -194,7 +197,7 @@ export const formatQuestion = (q: Question, language: Language): string =>
 export const handedOver = (i: Pick<Item, 'state' | 'need'>) => i.state === 'waiting' && (i.need === 'demo' || i.need === 'review');
 
 /** Its worker takes in the owner's words on its handover: meanwhile the card is at work, and still waits for approval. */
-export const answering = (i: Pick<Item, 'state' | 'need' | 'answering'>) => handedOver(i) && !!i.answering;
+export const answering = (i: Pick<Item, 'state' | 'need' | 'review'>) => handedOver(i) && !!i.review?.answering;
 
 /**
  * Whether an agent hears what the owner says or types on the card when it is open: its worker (at
@@ -203,8 +206,8 @@ export const answering = (i: Pick<Item, 'state' | 'need' | 'answering'>) => hand
  * does, the words wait for the rework after it). The words then go straight to it; on any other
  * card they go to the Koordinator.
  */
-export const agentListens = (i: Pick<Item, 'kind' | 'state' | 'branch' | 'prototypeOf' | 'archivedAt' | 'finishing'>) =>
-  !i.archivedAt && (i.kind === 'question' || i.state === 'idea' || i.state === 'proposal' || i.state === 'working' || i.state === 'waiting' || i.state === 'inPr' || !!i.finishing || askable(i));
+export const agentListens = (i: Pick<Item, 'kind' | 'state' | 'agent' | 'idea' | 'archivedAt'>) =>
+  !i.archivedAt && (i.kind === 'question' || i.state === 'idea' || i.state === 'proposal' || i.state === 'working' || i.state === 'waiting' || i.state === 'inPr' || !!i.agent?.finishing || askable(i));
 
 /**
  * A card the owner left without a title but with a task (text or screenshots): Seismic names it from
@@ -227,15 +230,17 @@ export function titleFrom(body: string): string {
  * questions are open: its conversation shows them at its end with the field under it set to answer
  * them, the project card and the phone's count show them, the Koordinator hears of them.
  */
-export function openQuestions(i: Pick<Item, 'archivedAt' | 'state' | 'need' | 'question' | 'idea' | 'proposal'>): Question[] {
+export function openQuestions(i: Pick<Item, 'archivedAt' | 'state' | 'need' | 'question' | 'idea'>): Question[] {
   if (i.archivedAt) return [];
-  if (i.state === 'idea') return i.idea?.status === 'open' && !i.idea.thinking ? i.idea.questions : [];
-  if (i.state === 'proposal') return i.proposal && !i.proposal.revising && !i.proposal.merge ? i.proposal.questions : [];
+  const discussion = i.idea?.discussion;
+  const proposal = i.idea?.proposal;
+  if (i.state === 'idea') return discussion?.status === 'open' && !discussion.thinking ? discussion.questions : [];
+  if (i.state === 'proposal') return proposal && !proposal.revising && !proposal.merge ? proposal.questions : [];
   return i.state === 'waiting' && (i.need === 'question' || i.need === 'demo') && i.question ? [i.question] : [];
 }
 
 /** A card whose worker failed (its session died with an error, or it could not start at all): it waits for the owner, shown in red. */
-export const agentFailed = (i: Pick<Item, 'state' | 'need' | 'question' | 'answering'>) => i.state === 'waiting' && i.need === 'question' && !!i.question?.stuck && !answering(i);
+export const agentFailed = (i: Pick<Item, 'state' | 'need' | 'question' | 'review'>) => i.state === 'waiting' && i.need === 'question' && !!i.question?.stuck && !answering(i);
 
 /**
  * A card needs the owner: it waits (but not while its worker takes in what the owner wrote on its
@@ -246,8 +251,8 @@ export const agentFailed = (i: Pick<Item, 'state' | 'need' | 'question' | 'answe
  */
 export const needsYou = (i: Item) =>
   !snoozeOf(i) &&
-  (!i.mergingInto || mergeRank(i) > 1) &&
-  ((!!i.proposal?.merge && !merging(i)) || (i.state === 'waiting' && !answering(i) && !i.landing && !(i.need !== 'question' && i.codeReview?.state === 'running')) || (i.state === 'proposal' && !i.proposal?.revising && !merging(i)) || !!i.superseded || (i.state === 'inPr' && [i.pr, ...(i.morePrs ?? [])].some((p) => p?.ready && !p.merged && !p.closed)) || (!!i.idea && i.idea.status === 'open' && i.idea.yourTurn && !i.idea.thinking));
+  (!i.idea?.mergingInto || mergeRank(i) > 1) &&
+  ((!!i.idea?.proposal?.merge && !merging(i)) || (i.state === 'waiting' && !answering(i) && !i.review?.landing && !(i.need !== 'question' && i.review?.codeReview?.state === 'running')) || (i.state === 'proposal' && !i.idea?.proposal?.revising && !merging(i)) || !!i.idea?.superseded || (i.state === 'inPr' && [i.review?.pr, ...(i.review?.morePrs ?? [])].some((p) => p?.ready && !p.merged && !p.closed)) || (!!i.idea?.discussion && i.idea.discussion.status === 'open' && i.idea.discussion.yourTurn && !i.idea.discussion.thinking));
 
 /**
  * What a worker can wait for another card to reach: `done`, its work on main (or the card closed
@@ -272,23 +277,23 @@ export function awaited(card: Item | undefined, state: AwaitedState): Awaited | 
   if (finished(card.state) || (state === 'waitsForOwner' && needsYou({ ...card, hold: undefined }))) return 'reached';
   if (card.archivedAt) return 'archived';
   if (stopped(card)) return 'stopped';
-  if (card.idea?.status === 'dropped') return 'dropped';
+  if (card.idea?.discussion?.status === 'dropped') return 'dropped';
   return null;
 }
 
 /** A worker on the card is at work (whether or not in a turn right now): it has started on the card, opens or follows its pull request, finishes after the landing, or takes in the owner's words on its handover. */
-const workerAtWork = (i: Item) => i.kind === 'task' && (i.state === 'working' || i.state === 'inPr' || !!i.finishing || answering(i));
+const workerAtWork = (i: Item) => i.kind === 'task' && (i.state === 'working' || i.state === 'inPr' || !!i.agent?.finishing || answering(i));
 
 /** A task planned and not with the Koordinator: snoozed, it starts at the time instead of now. */
 export const plannedToStart = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'hold'>) => i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt && !inParkingLot(i);
 
 /** A task of the owner's that nothing runs for (planned or stopped, not queued) can go into the parking lot. */
-export const parkable = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'hold' | 'parent' | 'prototypeOf'>) =>
-  i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt && !inParkingLot(i) && !i.parent && !i.prototypeOf;
+export const parkable = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'hold' | 'parent' | 'idea'>) =>
+  i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt && !inParkingLot(i) && !i.parent && !i.idea?.prototypeOf;
 
 /** A task of the owner's that waits for them (a handover, a question) goes into the parking lot too, stopped on the way. */
-export const parkableStopping = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'hold' | 'parent' | 'prototypeOf' | 'landing' | 'finishing'>) =>
-  i.kind === 'task' && i.state === 'waiting' && !i.landing && !i.finishing && !i.queue && !i.archivedAt && !inParkingLot(i) && !i.parent && !i.prototypeOf;
+export const parkableStopping = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'hold' | 'parent' | 'idea' | 'review' | 'agent'>) =>
+  i.kind === 'task' && i.state === 'waiting' && !i.review?.landing && !i.agent?.finishing && !i.queue && !i.archivedAt && !inParkingLot(i) && !i.parent && !i.idea?.prototypeOf;
 
 /**
  * A card the owner can snooze until a point in time ("Later"): one at work (its worker stops
@@ -330,8 +335,8 @@ export const waitingIn = (s: Pick<ProjectSnapshot, 'items' | 'talk'> & Partial<P
  */
 export type TaskAuthor = 'owner' | 'plan' | 'koordinator' | 'idea' | 'proposal';
 
-export const taskAuthor = (item: Pick<Item, 'source' | 'prototypeOf' | 'retro' | 'proposed' | 'brief'>): TaskAuthor =>
-  item.source === 'plan' ? 'plan' : item.prototypeOf || item.brief !== undefined ? 'idea' : item.retro ? 'koordinator' : item.proposed ? 'proposal' : 'owner';
+export const taskAuthor = (item: Pick<Item, 'source' | 'idea'>): TaskAuthor =>
+  item.source === 'plan' ? 'plan' : item.idea?.prototypeOf || item.idea?.brief !== undefined ? 'idea' : item.idea?.retro ? 'koordinator' : item.idea?.proposed ? 'proposal' : 'owner';
 
 export type EdgeSide = 'top' | 'right' | 'bottom' | 'left';
 export interface ManualAnchor { fromSide: EdgeSide; toSide: EdgeSide; offset: number }
@@ -352,29 +357,125 @@ export interface Item {
   parent?: string;
   /** `manual` cards are the owner's; `plan` cards mirror a plan doc and are read-only here. */
   source: 'manual' | 'plan';
-  /** Workstream label from the plan doc (`W3`). */
-  label?: string;
-  /** Plans only. */
-  plan?: { file: string; goal: string };
-  /** Plans only: the idea their plan doc was written from. */
-  origin?: string;
-  /** Plans only: the Koordinator reads from the plan doc which workstream builds on which, to arrange them. */
-  arranging?: true;
-  /** Workstreams only: the workstreams of its plan it builds on, as the Koordinator read them from the plan doc. */
-  buildsOn?: string[];
-  /** Cards connected by the owner that must finish before this card starts. */
-  manualDependsOn?: string[];
-  /** Unfinished archived prerequisites, so their wait remains visible and enforceable off project. */
-  manualArchived?: Item[];
-  /** Saved attachment points of the owner-drawn arrows, keyed by prerequisite. */
-  manualAnchors?: Record<string, ManualAnchor>;
-  /** The worker's latest `report`. */
-  statusLine?: string;
   /**
    * Open question: the worker's, when `need` is `question`; or the one in its demo report, while
    * the demo waits for approval and the owner has not answered it.
    */
   question?: Question;
+  /** The card it comes from: a proposal's source, a prototype's idea, or the card a follow-up follows up on. */
+  from?: string;
+  /** With `from` on another project (a card moved there, or one made there by Seismic): that card's title and project. */
+  fromElsewhere?: Elsewhere;
+  /** When the card was created (ISO). */
+  createdAt?: string;
+  /** Last stored change to the card (ISO), for newest-first mobile ordering. */
+  updatedAt?: string;
+  /** The repository the card belongs to (an id from the project's `repos`). */
+  repo: string;
+  /**
+   * Its repository does not run on the project (it left the configuration, or did not start): its
+   * agents take nothing until it is back, and no other repository's agents take it meanwhile.
+   * Never on a Question card, whose agent reads only.
+   */
+  repoDown?: true;
+  /** Files the Koordinator expects the card to change. */
+  scope?: string[];
+  /** Possible duplicate card ids found at the last start check, until dismissed or work starts. */
+  possibleDuplicates?: string[];
+  /** A planned card the Koordinator is deciding on, or that waits for cards in progress. */
+  queue?: Queue;
+  /** When the owner archived the card; archived cards are not on the project but in its archive. */
+  archivedAt?: string;
+  /** Question cards, and an idea that was one: the thread of looked-up answers it holds. */
+  thread?: Thread;
+  /** Since when it waits for the owner (`needsYou`), for the phone view's "Needs you". */
+  waitingSince?: string;
+  /** Why the card's agent does not run now, or why the card is off the canvas: one reason at a time (`ItemHold`). */
+  hold?: ItemHold;
+  /**
+   * Screenshots the owner attached to the card's task; its worker gets them at the start. On a
+   * proposal, those that go with its task once it is accepted (the owner's or its reviser's pick).
+   */
+  images?: string[];
+  /** The group the card belongs to (a `Group` id); a workstream's is its plan's. */
+  group?: string;
+  /** The canvas of the project the card is on (a `Canvas` id); a workstream's is its plan's. */
+  canvas?: string;
+  /** The card's agent and its run: its worker's status, turn and workstation; present while it has any of them. */
+  agent?: ItemAgent;
+  /** The work handed over for review and its way onto main: the handover, the approval and landing, the pull requests and the code review. */
+  review?: ItemReview;
+  /** What shows the work: the demo, earlier demos, the result's files and the demo's page for colleagues. */
+  demo?: ItemDemo;
+  /** Where the card comes from as an idea, a proposal or a prototype: the discussion and its brief, the prototypes, the proposal. */
+  idea?: ItemIdea;
+  /** The card's place in the plan of work: a plan's doc, a workstream's label and what it builds on, the owner's arrows. */
+  plan?: ItemPlan;
+  /** The card's labels (`labels.ts`), each none until set. */
+  labels?: ItemLabels;
+}
+
+/** The parts of an `Item` beside its core fields, each present only when the card has any of it. */
+export const ITEM_PARTS = ['agent', 'review', 'demo', 'idea', 'plan', 'labels'] as const;
+export type ItemPart = (typeof ITEM_PARTS)[number];
+
+/** A part of an item as built: none when nothing in it is set. */
+export const part = <T extends object>(p: T): T | undefined => (Object.values(p).some((v) => v !== undefined) ? p : undefined);
+
+/**
+ * The item with `fields` set in its part `k` (an `undefined` value clears one), the part dropped
+ * once nothing is left in it.
+ */
+export function withPart<I extends Pick<Item, ItemPart>, K extends ItemPart>(i: I, k: K, fields: Partial<NonNullable<Item[K]>>): I {
+  const merged = Object.fromEntries(Object.entries({ ...i[k], ...fields }).filter(([, v]) => v !== undefined));
+  const { [k]: _, ...rest } = i;
+  return (Object.keys(merged).length ? { ...rest, [k]: merged } : rest) as I;
+}
+
+/** The card's agent and its run: its worker's status, turn and workstation; present while it has any of them. */
+export interface ItemAgent {
+  /** The worker's latest `report`. */
+  statusLine?: string;
+  /**
+   * Its worker is in a turn right now, its background work included (a render, a watcher): what it
+   * does shows, and the owner can pause it. Not on a card that waits for the owner once the turn
+   * itself has ended and only its background work runs (the app served after the handover).
+   */
+  inTurn?: true;
+  /** While `inTurn`: what its worker is doing, shown under the card. */
+  doing?: AgentDoing;
+  /** The harness and model of the card's agent whose session runs now (`AgentAt`), as far as known: its bubble at work names them. */
+  identity?: AgentIdentity;
+  /** The selection pinned to the current worker session. */
+  workerSetting?: AgentSetting;
+  /** The worker's background work that runs (a test run, a render, a watcher), the oldest first: while `inTurn`, or after the turn on a card that waits for the owner. */
+  background?: BackgroundTask[];
+  /**
+   * The card's agent other than its worker (an idea's, a Question card's, the reviser of a proposal,
+   * the Koordinator naming or checking it) waits for the account's usage limit: it goes on by itself then (ISO time).
+   */
+  limitedUntil?: string;
+  /** The work has landed and its worker finishes what remains (a migration, say) before its session ends. */
+  finishing?: boolean;
+  /** While `finishing`: nothing just landed, the owner asked about the finished card and its agent answers. */
+  followUp?: boolean;
+  /** While `followUp`: its agent needs a full clone to answer and waits, without a workstation, for the next free one. */
+  waitsForClone?: true;
+  branch?: string;
+  /** Where the branch is checked out, while the card has a workstation: a directory, `host:/dir` on another machine. */
+  workstation?: string;
+  /** The clone that keeps its branch since its workstation was taken from it, until it works again (the same form as `workstation`). */
+  keptIn?: string;
+  /**
+   * Where the app in the card's workstation runs, as its worker opens it (`http://localhost:5173`):
+   * while the worker says it runs and Seismic has not stopped it. The card offers it to the owner to
+   * try by hand, once it answers.
+   */
+  app?: string;
+}
+
+/** The work handed over for review and its way onto main: the handover, the approval and landing, the pull requests and the code review. */
+export interface ItemReview {
   /** The worker's summary, when `need` is `review` or `demo`. */
   summary?: string;
   /**
@@ -387,157 +488,10 @@ export interface Item {
    * waits for the owner because of that answer, not a demo to watch.
    */
   answered?: true;
-  /**
-   * The owner's comments on places in the demo video (their event ids) that Seismic holds back while
-   * they watch, to give them to the worker in one message once they are done (`Spot`).
-   */
-  held?: number[];
   /** The owner approved the work and Seismic lands it on main (seconds of git): still `waiting`, but no longer the owner's. */
   landing?: true;
   /** Zero while landing, otherwise the place among waiting approvals. */
   landingPosition?: number;
-  /** The demo, when `need` is `demo`; its files are served under `/api/cards/:id/demo/`. */
-  demo?: Demo;
-  /**
-   * The demos of earlier handovers a later one replaced, the oldest first, as long as their files
-   * are still on disk; each one's files are served under `/api/cards/:id/demos/:n/`.
-   */
-  demos?: EarlierDemo[];
-  /**
-   * The files its worker named as the result at its latest handover that named any, the left column's
-   * first tabs after the demo; served with the others it changed under `/api/cards/:id/files/`.
-   * An empty list: none named, but there are files of its change to show (a folder's card handed over without a demo).
-   */
-  files?: CardFile[];
-  /** The demo's page for colleagues, once the owner shared it (or is about to). */
-  share?: Share;
-  /** Where the repository's site publishes on approval: the owner unticked "Share on approval", so approving shares nothing. */
-  notOnApproval?: true;
-  /**
-   * The tags of the card's page (`pageTags` in src/core/page-tags.ts), by dimension, as they stand
-   * without the site's vocabulary: set by hand, else by the newest worker that gave them, else by
-   * Seismic's reading session. A dimension without a key has none chosen yet.
-   */
-  tags?: PageTags;
-  /** The card it comes from: a proposal's source, a prototype's idea, or the card a follow-up follows up on. */
-  from?: string;
-  /** With `from` on another project (a card moved there, or one made there by Seismic): that card's title and project. */
-  fromElsewhere?: Elsewhere;
-  /** A card the work retrospective proposed: the cards and the friction on them it rests on. */
-  retro?: string;
-  /** A worker's proposal, while it waits: an idea or a task, why, and what the owner has to decide. */
-  proposal?: Proposal;
-  /** An agent's proposal the owner accepted: its text is that agent's. */
-  proposed?: true;
-  /** The unworked card this card is merged with right now (`Proposal.merge`): it shows glued to it, and is not on its own until the owner decides. */
-  mergingInto?: string;
-  /** When the card was created (ISO). */
-  createdAt?: string;
-  /** Last stored change to the card (ISO), for newest-first mobile ordering. */
-  updatedAt?: string;
-  /** An accepted proposal its agent withdrew or replaced since, while the card is not finished: the owner removes it or keeps it. */
-  superseded?: Superseded;
-  /** The repository the card belongs to (an id from the project's `repos`). */
-  repo: string;
-  /**
-   * Before work begins on a task or an idea of the owner's: it is to be built in a repository that
-   * does not exist yet (`NewRepo`), as the owner or the idea's agent chose. Building or starting it
-   * creates that repository first.
-   */
-  newRepo?: NewRepo;
-  /**
-   * Its repository does not run on the project (it left the configuration, or did not start): its
-   * agents take nothing until it is back, and no other repository's agents take it meanwhile.
-   * Never on a Question card, whose agent reads only.
-   */
-  repoDown?: true;
-  branch?: string;
-  /** Where the branch is checked out, while the card has a workstation: a directory, `host:/dir` on another machine. */
-  workstation?: string;
-  /** The clone that keeps its branch since its workstation was taken from it, until it works again (the same form as `workstation`). */
-  keptIn?: string;
-  /** Files the Koordinator expects the card to change. */
-  scope?: string[];
-  /** Possible duplicate card ids found at the last start check, until dismissed or work starts. */
-  possibleDuplicates?: string[];
-  /** A planned card the Koordinator is deciding on, or that waits for cards in progress. */
-  queue?: Queue;
-  /** The pull request, once the worker opened it after approval; on a review card, the one it reviews. */
-  pr?: PullRequest;
-  /**
-   * Further pull requests the worker opened for the card's work, in other repositories (or a second
-   * one in its own): the card is live once all of them and `pr` are merged.
-   */
-  morePrs?: PullRequest[];
-  /** A review card: the pull request of someone outside that the card reviews and, once approved, merges. */
-  contribution?: Contribution;
-  /**
-   * The code review of the card's work, where its project reviews work that lands on `main` and the
-   * card's does: present from its handover on (design: Code reviews in Card lifecycle).
-   */
-  codeReview?: CodeReview;
-  /**
-   * A workstream planned again: a part of it landed (this commit, this pull request), but its plan
-   * doc keeps it open. A new run does the rest.
-   */
-  landedPart?: { commit?: string; pr?: { url: string; number: number } };
-  /** When the owner archived the card; archived cards are not on the project but in its archive. */
-  archivedAt?: string;
-  /** Ideas only: what the discussion has settled so far. */
-  idea?: Idea;
-  /** Question cards, and an idea that was one: the thread of looked-up answers it holds. */
-  thread?: Thread;
-  /** A prototype's idea: the throwaway prototype is built for it and never lands itself. */
-  prototypeOf?: string;
-  /** A prototype of one of the variants its idea's agent planned: that variant's approach. */
-  variant?: string;
-  /** A prototype in the archive: discarded (its code thrown away), or built (its idea was built on its branch). */
-  prototypeEnd?: 'discarded' | 'built';
-  /** A prototype built for a workstream of the plan its idea became: that workstream ("W6 \"Build the site\""). */
-  builtInto?: string;
-  /** A prototype: its idea's title, wherever the idea is (on the project, or in the archive once it became a plan). */
-  ideaTitle?: string;
-  /** A prototype whose worker proposes to build the idea on it: why, in its words. */
-  buildProposal?: string;
-  /** Ideas: their prototypes, on the project or in the archive, the oldest first; each shows its demo on the idea. A workstream built on a prototype: that one. */
-  prototypes?: Item[];
-  /** A card that was an idea, or a workstream of the plan an idea became, built on the branch of one of the idea's prototypes: that prototype. */
-  builtOn?: string;
-  /** The work has landed and its worker finishes what remains (a migration, say) before its session ends. */
-  finishing?: boolean;
-  /** While `finishing`: nothing just landed, the owner asked about the finished card and its agent answers. */
-  followUp?: boolean;
-  /** While `followUp`: its agent needs a full clone to answer and waits, without a workstation, for the next free one. */
-  waitsForClone?: true;
-  /**
-   * Its worker is in a turn right now, its background work included (a render, a watcher): what it
-   * does shows, and the owner can pause it. Not on a card that waits for the owner once the turn
-   * itself has ended and only its background work runs (the app served after the handover).
-   */
-  inTurn?: true;
-  /** While `inTurn`: what its worker is doing, shown under the card. */
-  doing?: AgentDoing;
-  /** The harness and model of the card's agent whose session runs now (`AgentAt`), as far as known: its bubble at work names them. */
-  agentAtWork?: AgentIdentity;
-  /** The selection pinned to the current worker session. */
-  workerSetting?: AgentSetting;
-  /** The worker's background work that runs (a test run, a render, a watcher), the oldest first: while `inTurn`, or after the turn on a card that waits for the owner. */
-  background?: BackgroundTask[];
-  /**
-   * The card's agent other than its worker (an idea's, a Question card's, the reviser of a proposal,
-   * the Koordinator naming or checking it) waits for the account's usage limit: it goes on by itself then (ISO time).
-   */
-  limitedUntil?: string;
-  /** Since when it waits for the owner (`needsYou`), for the phone view's "Needs you". */
-  waitingSince?: string;
-  /** Why the card's agent does not run now, or why the card is off the canvas: one reason at a time (`ItemHold`). */
-  hold?: ItemHold;
-  /**
-   * Where the app in the card's workstation runs, as its worker opens it (`http://localhost:5173`):
-   * while the worker says it runs and Seismic has not stopped it. The card offers it to the owner to
-   * try by hand, once it answers.
-   */
-  app?: string;
   /** Waiting for approval, its branch holds no change (checked at the handover): approving makes the card `done`. */
   noChange?: boolean;
   /**
@@ -562,23 +516,128 @@ export interface Item {
   blocked?: { files: string[] };
   /** Its approval could not land because rebasing onto main conflicted: the worker resolves the conflicts, then the work lands without another approval. */
   resolvingConflicts?: true;
+  /** The pull request, once the worker opened it after approval; on a review card, the one it reviews. */
+  pr?: PullRequest;
   /**
-   * Screenshots the owner attached to the card's task; its worker gets them at the start. On a
-   * proposal, those that go with its task once it is accepted (the owner's or its reviser's pick).
+   * Further pull requests the worker opened for the card's work, in other repositories (or a second
+   * one in its own): the card is live once all of them and `pr` are merged.
    */
-  images?: string[];
+  morePrs?: PullRequest[];
+  /** A review card: the pull request of someone outside that the card reviews and, once approved, merges. */
+  contribution?: Contribution;
+  /**
+   * The code review of the card's work, where its project reviews work that lands on `main` and the
+   * card's does: present from its handover on (design: Code reviews in Card lifecycle).
+   */
+  codeReview?: CodeReview;
+  /**
+   * A workstream planned again: a part of it landed (this commit, this pull request), but its plan
+   * doc keeps it open. A new run does the rest.
+   */
+  landedPart?: { commit?: string; pr?: { url: string; number: number } };
+}
+
+/** What shows the work: the demo, earlier demos, the result's files and the demo's page for colleagues. */
+export interface ItemDemo {
+  /** The demo, when `need` is `demo`; its files are served under `/api/cards/:id/demo/`. */
+  latest?: Demo;
+  /**
+   * The demos of earlier handovers a later one replaced, the oldest first, as long as their files
+   * are still on disk; each one's files are served under `/api/cards/:id/demos/:n/`.
+   */
+  earlier?: EarlierDemo[];
+  /**
+   * The files its worker named as the result at its latest handover that named any, the left column's
+   * first tabs after the demo; served with the others it changed under `/api/cards/:id/files/`.
+   * An empty list: none named, but there are files of its change to show (a folder's card handed over without a demo).
+   */
+  files?: CardFile[];
+  /** The demo's page for colleagues, once the owner shared it (or is about to). */
+  share?: Share;
+  /** Where the repository's site publishes on approval: the owner unticked "Share on approval", so approving shares nothing. */
+  notOnApproval?: true;
+  /**
+   * The tags of the card's page (`pageTags` in src/core/page-tags.ts), by dimension, as they stand
+   * without the site's vocabulary: set by hand, else by the newest worker that gave them, else by
+   * Seismic's reading session. A dimension without a key has none chosen yet.
+   */
+  tags?: PageTags;
+  /**
+   * The owner's comments on places in the demo video (their event ids) that Seismic holds back while
+   * they watch, to give them to the worker in one message once they are done (`Spot`).
+   */
+  held?: number[];
+}
+
+/** Where the card comes from as an idea, a proposal or a prototype: the discussion and its brief, the prototypes, the proposal. */
+export interface ItemIdea {
+  /** Ideas only: what the discussion has settled so far. */
+  discussion?: Idea;
   /** A card that was an idea and has been decided: the brief it was decided on. */
   brief?: string;
   /** A card that was an idea and has been decided: the mocks of its brief. */
   mocks?: Mock[];
+  /** A prototype's idea: the throwaway prototype is built for it and never lands itself. */
+  prototypeOf?: string;
+  /** A prototype of one of the variants its idea's agent planned: that variant's approach. */
+  variant?: string;
+  /** A prototype in the archive: discarded (its code thrown away), or built (its idea was built on its branch). */
+  prototypeEnd?: 'discarded' | 'built';
+  /** A prototype built for a workstream of the plan its idea became: that workstream ("W6 \"Build the site\""). */
+  builtInto?: string;
+  /** A prototype: its idea's title, wherever the idea is (on the project, or in the archive once it became a plan). */
+  ideaTitle?: string;
+  /** A prototype whose worker proposes to build the idea on it: why, in its words. */
+  buildProposal?: string;
+  /** Ideas: their prototypes, on the project or in the archive, the oldest first; each shows its demo on the idea. A workstream built on a prototype: that one. */
+  prototypes?: Item[];
+  /** A card that was an idea, or a workstream of the plan an idea became, built on the branch of one of the idea's prototypes: that prototype. */
+  builtOn?: string;
   /** An idea or a task of the owner's, decided as a plan: its worker writes the plan doc, and the plan takes its place. */
   becomesPlan?: boolean;
+  /**
+   * Before work begins on a task or an idea of the owner's: it is to be built in a repository that
+   * does not exist yet (`NewRepo`), as the owner or the idea's agent chose. Building or starting it
+   * creates that repository first.
+   */
+  newRepo?: NewRepo;
+  /** A worker's proposal, while it waits: an idea or a task, why, and what the owner has to decide. */
+  proposal?: Proposal;
+  /** An agent's proposal the owner accepted: its text is that agent's. */
+  proposed?: true;
+  /** An accepted proposal its agent withdrew or replaced since, while the card is not finished: the owner removes it or keeps it. */
+  superseded?: Superseded;
+  /** The unworked card this card is merged with right now (`Proposal.merge`): it shows glued to it, and is not on its own until the owner decides. */
+  mergingInto?: string;
+  /** A card the work retrospective proposed: the cards and the friction on them it rests on. */
+  retro?: string;
+}
+
+/** The card's place in the plan of work: a plan's doc, a workstream's label and what it builds on, the owner's arrows. */
+export interface ItemPlan {
+  /** Plans only: their plan doc's path and its goal. */
+  file?: string;
+  goal?: string;
+  /** Workstream label from the plan doc (`W3`). */
+  label?: string;
+  /** Plans only: the idea their plan doc was written from. */
+  origin?: string;
+  /** Plans only: the Koordinator reads from the plan doc which workstream builds on which, to arrange them. */
+  arranging?: true;
   /** A plan the owner folded to its head: its workstreams are not shown on the project, only counted in it. */
   collapsed?: true;
-  /** The group the card belongs to (a `Group` id); a workstream's is its plan's. */
-  group?: string;
-  /** The canvas of the project the card is on (a `Canvas` id); a workstream's is its plan's. */
-  canvas?: string;
+  /** Workstreams only: the workstreams of its plan it builds on, as the Koordinator read them from the plan doc. */
+  buildsOn?: string[];
+  /** Cards connected by the owner that must finish before this card starts. */
+  manualDependsOn?: string[];
+  /** Unfinished archived prerequisites, so their wait remains visible and enforceable off project. */
+  manualArchived?: Item[];
+  /** Saved attachment points of the owner-drawn arrows, keyed by prerequisite. */
+  manualAnchors?: Record<string, ManualAnchor>;
+}
+
+/** The card's labels (`labels.ts`), each none until set. */
+export interface ItemLabels {
   /** The card's priority, a label only: it changes no order. None until set. */
   priority?: Priority;
   /** The card's category (`labels.ts`), none until set. */

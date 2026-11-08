@@ -28,11 +28,11 @@ export function Branch({ item, sizeBelow }: { item: Item; sizeBelow?: boolean })
     return () => {
       gone = true;
     };
-  }, [item.id, item.state, item.need, item.statusLine, item.workstation, item.summary]);
+  }, [item.id, item.state, item.need, item.agent?.statusLine, item.agent?.workstation, item.review?.summary]);
   const size = diff && diffSize(diff.files);
   return (
     <>
-      {t.branch} <code>{item.branch}</code>
+      {t.branch} <code>{item.agent?.branch}</code>
       {diff && size && !(sizeBelow && diff.files.length) && (
         <>
           {' · '}
@@ -45,10 +45,10 @@ export function Branch({ item, sizeBelow }: { item: Item; sizeBelow?: boolean })
           )}
         </>
       )}
-      {item.workstation && (
+      {item.agent?.workstation && (
         <>
           {' · '}
-          <CopyPath path={item.workstation} />
+          <CopyPath path={item.agent.workstation} />
         </>
       )}
       <AppLink item={item} />
@@ -65,10 +65,11 @@ const APP_LOOK_MS = 10_000;
  * the owner to try it by hand, opened through Seismic, which keeps it running a while after.
  */
 function AppLink({ item }: { item: Item }) {
+  const app = item.agent?.app;
   const [up, setUp] = useState(false);
   useEffect(() => {
     setUp(false);
-    if (!item.app) return;
+    if (!app) return;
     let alive = true;
     const look = () => api.appUp(item.id).then((u) => alive && setUp(u), () => {});
     void look();
@@ -77,14 +78,14 @@ function AppLink({ item }: { item: Item }) {
       alive = false;
       clearInterval(timer);
     };
-  }, [item.id, item.app]);
-  if (!item.app || !up) return null;
-  let where = item.app;
+  }, [item.id, app]);
+  if (!app || !up) return null;
+  let where = app;
   try {
-    where = new URL(item.app).host;
+    where = new URL(app).host;
   } catch {}
   // on another machine, reached here through a forward of that port
-  const host = /^([^/:\\]{2,}):\//.exec(item.workstation ?? '')?.[1];
+  const host = /^([^/:\\]{2,}):\//.exec(item.agent?.workstation ?? '')?.[1];
   if (host) where = `${host}, ${where}`;
   return (
     <>
@@ -148,7 +149,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
         <div className="d-head">
           <h2>{t.diff.title(plain(item.title))}</h2>
           <span className="hint">
-            {got?.source === 'folder' ? t.folder.changed : <code>{item.branch}</code>}
+            {got?.source === 'folder' ? t.folder.changed : <code>{item.agent?.branch}</code>}
             {folder?.undo && ` · ${t.folder.undo[folder.undo]}`}
             {got?.source === 'landed' && ` · ${t.diff.landed}`}
             {size && (

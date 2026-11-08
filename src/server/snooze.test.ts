@@ -141,7 +141,7 @@ describe('the agent snoozes itself', () => {
     s.emit({ type: 'idle' });
     expect(s.closed).toBe(true);
     expect(item(id)).toMatchObject({ state: 'waiting', need: 'review', hold: { reason: 'snoozed', by: 'agent' } });
-    expect(item(id).answering).toBeUndefined();
+    expect(item(id).review?.answering).toBeUndefined();
     expect(needsYou(item(id))).toBe(false);
     expect(board().events(id).some((e) => e.text.startsWith('The agent stopped'))).toBe(false);
 
@@ -149,7 +149,7 @@ describe('the agent snoozes itself', () => {
     expect(runtime.last.spec.resume).toBe('sess-1');
     expect(runtime.last.inbox[0]).toContain('the time you snoozed until, to: Check the log again');
     // at work towards what it told them, the card still waits for approval
-    expect(item(id)).toMatchObject({ state: 'waiting', need: 'review', answering: true });
+    expect(item(id)).toMatchObject({ state: 'waiting', need: 'review', review: { answering: true } });
     expect(item(id)?.hold?.reason).not.toBe('snoozed');
     expect(needsYou(item(id))).toBe(false);
   });
@@ -399,7 +399,7 @@ describe('edges a review found', () => {
     s.emit({ type: 'idle', background: 1 });
     project.act(id, { action: 'snooze', until: later(HOUR * 3) });
     expect(s.closed).toBe(false);
-    expect(item(id)).toMatchObject({ inTurn: true, hold: { reason: 'snoozed', waiting: true } });
+    expect(item(id)).toMatchObject({ agent: { inTurn: true }, hold: { reason: 'snoozed', waiting: true } });
     project.act(id, { action: 'pause' });
     expect(s.closed).toBe(true);
   });
@@ -465,10 +465,10 @@ describe('a card that starts later', () => {
     const at = later(14 * DAY);
     expect(s.call('propose_card', { title: 'Check the filing', task: 'Check whether the bank has registered the filing.', reason: 'Only visible in two weeks.', start_at: at })).toContain('Proposed');
     const p = board().snapshot().items.find((i) => i.state === 'proposal')!;
-    expect(p.proposal).toMatchObject({ startAt: new Date(at).toISOString() });
+    expect(p.idea?.proposal).toMatchObject({ startAt: new Date(at).toISOString() });
     // the reviser rewrites the text, not when it starts
     board().revised(p.id, { title: 'Check the filing', task: 'Check whether the bank has registered both filings.', reason: 'Only visible in two weeks.', questions: [] });
-    expect(item(p.id).proposal!.startAt).toBe(new Date(at).toISOString());
+    expect(item(p.id).idea!.proposal!.startAt).toBe(new Date(at).toISOString());
 
     project.act(p.id, { action: 'accept' });
     expect(item(p.id)).toMatchObject({ state: 'planned', hold: { reason: 'snoozed', until: new Date(at).toISOString(), by: 'agent', start: true, why: 'Only visible in two weeks.' } });
@@ -498,10 +498,10 @@ describe('a card that starts later', () => {
     const p = board().propose(b.id, { title: 'Nachsehen', task: 'T', reason: 'R', startAt: later(3 * DAY) });
     const sooner = later(DAY);
     project.act(p.id, { action: 'startAt', at: sooner });
-    expect(item(p.id).proposal!.startAt).toBe(new Date(sooner).toISOString());
+    expect(item(p.id).idea!.proposal!.startAt).toBe(new Date(sooner).toISOString());
     expect(() => project.act(p.id, { action: 'startAt', at: later(-HOUR) })).toThrow('within the coming year');
     project.act(p.id, { action: 'startAt', at: null });
-    expect(item(p.id).proposal!.startAt).toBeUndefined();
+    expect(item(p.id).idea!.proposal!.startAt).toBeUndefined();
     project.act(p.id, { action: 'accept' });
     expect(item(p.id)?.hold?.reason).not.toBe('snoozed');
     expect(item(p.id).queue).toMatchObject({ checking: true });

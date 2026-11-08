@@ -49,7 +49,7 @@ test('a card snoozed while it waited does not appear in the inbox', () => {
 
 test('what the entry waits for: the question, else the handover’s summary', () => {
   const e = inboxEntries([site], {
-    site: w([card('q', '2026-11-05T08:00:00Z', { need: 'question', question: { text: 'Which one?', options: ['A', 'B'] } }), card('d', '2026-11-05T09:00:00Z', { summary: 'Done it.' })]),
+    site: w([card('q', '2026-11-05T08:00:00Z', { need: 'question', question: { text: 'Which one?', options: ['A', 'B'] } }), card('d', '2026-11-05T09:00:00Z', { review: { summary: 'Done it.' } })]),
   });
   expect(e.map((x) => x.text)).toEqual(['Done it.', 'Which one?']);
 });
@@ -69,7 +69,7 @@ test('mobile puts the latest card update first across projects, including a refr
   const old = '2026-11-05T08:00:00Z';
   const mid = '2026-11-05T09:00:00Z';
   const latest = '2026-11-05T10:00:00Z';
-  const refreshed = card('refreshed', old, { updatedAt: latest, summary: 'New demo ready' });
+  const refreshed = card('refreshed', old, { updatedAt: latest, review: { summary: 'New demo ready' } });
   const snapshots = { site: w([card('other', mid, { updatedAt: mid })]), app: w([refreshed], [talk(1, mid)]) };
   const entries = inboxEntries([site, app], snapshots, undefined, 'updated');
   expect(entries.map((e) => e.key)).toEqual(['app/refreshed', 'site/other', 'app/obeya']);

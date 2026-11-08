@@ -154,7 +154,7 @@ describe('Work retrospective', () => {
     s.emit({ type: 'idle' });
 
     const card = board.snapshot().items.find((i) => i.title === 'Skript `scripts/dev.ts` für den Dev-Server')!;
-    expect(card).toMatchObject({ state: 'proposal', retro: 'Auf “A” und “B” falsche Flags.', repo: 'home' });
+    expect(card).toMatchObject({ state: 'proposal', repo: 'home', idea: { retro: 'Auf “A” und “B” falsche Flags.' } });
     expect(card.from).toBeUndefined();
     expect(card.body).toContain('Ein Skript, das den Server startet.');
     expect(board.events(card.id).at(-1)!.text).toContain(`Cards: “A”, “B”.`);
@@ -172,7 +172,7 @@ describe('Work retrospective', () => {
     first.emit({ type: 'idle' });
     await settle();
     // a proposal needs two different cards
-    expect(board.snapshot().items.filter((i) => i.retro)).toHaveLength(0);
+    expect(board.snapshot().items.filter((i) => i.idea?.retro)).toHaveLength(0);
     const p = board.proposeRetro('home', { title: 'Skill für Demos', body: '…', basis: 'Demos scheitern auf A und B.' });
     board.remove(p.id);
     const q = board.proposeRetro('home', { title: 'Skript für Starts', body: '…', basis: 'Starts dauern.' });

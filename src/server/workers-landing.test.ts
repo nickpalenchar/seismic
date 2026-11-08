@@ -30,9 +30,9 @@ describe('landing through a pull request', () => {
     git(clone, 'commit', '--quiet', '-m', 'X');
     runtime.last.call('report', { status: 'Demo fertig, übergebe' });
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
-    expect(board.item(c.id)!.noChange).toBeUndefined();
+    expect(board.item(c.id)!.review?.noChange).toBeUndefined();
     // the line was about the work handed over: it would show again once the card is at work
-    expect(board.item(c.id)!.statusLine).toBeUndefined();
+    expect(board.item(c.id)!.agent?.statusLine).toBeUndefined();
     await workers.approve(c.id);
     expect(state(c.id)).toBe('inPr');
     expect(git(main, 'log', '--format=%s', '-1')).toBe('init');
@@ -45,13 +45,13 @@ describe('landing through a pull request', () => {
     const s = runtime.last;
     await s.call('ready_for_review', { summary: 'Demo aufgenommen, keine Code-Änderung.', demo: artifact() });
     // the owner sees before approving that approval ends the card
-    expect(board.item(c.id)!.noChange).toBe(true);
+    expect(board.item(c.id)!.review?.noChange).toBe(true);
     s.emit({ type: 'idle' });
     await workers.approve(c.id);
     expect(state(c.id)).toBe('done');
-    expect(board.item(c.id)!.noChange).toBeUndefined();
-    expect(board.item(c.id)!.pr).toBeUndefined();
-    expect(board.item(c.id)!.finishing).toBe(true);
+    expect(board.item(c.id)!.review?.noChange).toBeUndefined();
+    expect(board.item(c.id)!.review?.pr).toBeUndefined();
+    expect(board.item(c.id)!.agent?.finishing).toBe(true);
     expect(s.inbox.at(-1)).toContain('nothing lands and there is no pull request: the card is done');
     expect(board.events(c.id).at(-1)!.text).toContain('done');
     // a question while it finishes, answered, returns the card to done, not live
@@ -88,7 +88,7 @@ describe('landing through a pull request', () => {
     git(clone, 'reset', '--quiet', '--hard', 'HEAD~1');
     expect(await s.call('close_unchanged', {})).toContain('the card is done');
     expect(state(c.id)).toBe('done');
-    expect(board.item(c.id)!.pr).toBeUndefined();
+    expect(board.item(c.id)!.review?.pr).toBeUndefined();
     expect(board.events(c.id).at(-1)).toMatchObject({ author: 'worker', text: 'Finished without a change to the code: done.' });
     s.emit({ type: 'idle' });
     expect(s.closed).toBe(true);
@@ -114,16 +114,16 @@ describe('a card whose own branch changes how work lands', () => {
     rmSync(dir, { recursive: true, force: true });
     setup({ ...generic, land: 'pr', workstations: 'clones' });
     const c = await settingUp({ land: 'main' });
-    expect(board.item(c.id)!.lands).toEqual({ land: 'main' });
+    expect(board.item(c.id)!.review?.lands).toEqual({ land: 'main' });
     await workers.approve(c.id);
     expect(state(c.id)).toBe('live');
-    expect(board.item(c.id)!.pr).toBeUndefined();
+    expect(board.item(c.id)!.review?.pr).toBeUndefined();
     expect(git(main, 'log', '--format=%s', '-1')).toBe('Seismic settings');
   });
 
   test('as a pull request where the repository still lands on main', async () => {
     const c = await settingUp({ land: 'pr' });
-    expect(board.item(c.id)!.lands).toEqual({ land: 'pr' });
+    expect(board.item(c.id)!.review?.lands).toEqual({ land: 'pr' });
     await workers.approve(c.id);
     expect(state(c.id)).toBe('inPr');
     expect(git(main, 'log', '--format=%s', '-1')).toBe('init');
@@ -134,7 +134,7 @@ describe('a card whose own branch changes how work lands', () => {
     setup({ ...generic, land: 'pr', workstations: 'clones' });
     setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'pr', workstations: 'clones' }, machineSettings: () => ({ land: 'pr' }) }));
     const c = await settingUp({ land: 'main', checks: ['bun test'] });
-    expect(board.item(c.id)!.lands).toBeUndefined();
+    expect(board.item(c.id)!.review?.lands).toBeUndefined();
     await workers.approve(c.id);
     expect(state(c.id)).toBe('inPr');
   });
@@ -222,12 +222,12 @@ describe('approving directly onto main where work goes out as a pull request', (
     session.emit({ type: 'idle' });
     const approved = workers.approve(c.id, { direct: true });
     // the click ends the owner's turn: the card no longer needs them while the push runs
-    expect(board.item(c.id)).toMatchObject({ state: 'waiting', landing: true });
+    expect(board.item(c.id)).toMatchObject({ state: 'waiting', review: { landing: true } });
     expect(needsYou(board.item(c.id)!)).toBe(false);
     await approved;
     expect(state(c.id)).toBe('live');
-    expect(board.item(c.id)!.landing).toBeUndefined();
-    expect(board.item(c.id)!.pr).toBeUndefined();
+    expect(board.item(c.id)!.review?.landing).toBeUndefined();
+    expect(board.item(c.id)!.review?.pr).toBeUndefined();
     expect(git(origin, 'log', '--format=%s', 'main').split('\n')).toEqual(['X', 'init']);
     expect(git(main, 'log', '--format=%s', '-1')).toBe('init');
     expect(board.events(c.id).at(-1)).toMatchObject({ author: 'owner', text: 'Approved and pushed straight to main.' });
@@ -272,12 +272,12 @@ describe('approving directly onto main where work goes out as a pull request', (
     git(clone, 'reset', '--quiet', '--hard', 'origin/main');
     commitIn(clone, 'same.ts', 'A nach B');
     await session.call('ready_for_review', { summary: 'S', demo: artifact() });
-    expect(board.item(c.id)!.statusLine).toBe('Landing on main');
+    expect(board.item(c.id)!.agent?.statusLine).toBe('Landing on main');
     session.emit({ type: 'idle' });
     await until(() => state(c.id) === 'live');
     expect(git(origin, 'log', '--format=%s', 'main').split('\n')).toEqual(['A nach B', 'B', 'init']);
     expect(board.events(c.id).at(-1)).toMatchObject({ author: 'obeya', text: 'Pushed straight to main after the approval.' });
-    expect(board.item(c.id)!.pr).toBeUndefined();
+    expect(board.item(c.id)!.review?.pr).toBeUndefined();
   });
 
   test('a push the remote turns away (a protected branch) stays with the owner, who approves again', async () => {
@@ -645,7 +645,7 @@ describe('a prototype built on in a clone', () => {
 });
 
 describe('a workstream whose plan doc keeps it open after its work landed', () => {
-  const w1 = () => board.snapshot().items.find((i) => i.label === 'W1')!;
+  const w1 = () => board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
   /** Starts W1, commits a file in its clone and hands it over. */
   const handOver = async () => {
     const w = w1();
@@ -690,7 +690,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
     await workers.approve(w.id);
     board.docsChanged();
     expect(board.item(plan.id)).toBeDefined();
-    expect(board.item(w.id)!.finishing).toBe(true);
+    expect(board.item(w.id)!.agent?.finishing).toBe(true);
     runtime.last.emit({ type: 'idle' });
     expect(spaces.leasedBy(w.id)).toBeNull();
     expect(board.item(plan.id)).toBeUndefined();
@@ -723,7 +723,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
       const w = await landWaiting();
       const plan = board.snapshot().items.find((i) => i.kind === 'plan')!;
       board.docsChanged();
-      expect(board.item(w.id)!.finishing).toBe(true);
+      expect(board.item(w.id)!.agent?.finishing).toBe(true);
       const after = restart();
       expect(after.item(plan.id)).toBeDefined();
       expect(runtime.last.spec.resume).toBe('sess-1');
@@ -740,7 +740,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
       store.cards.update(plan.id, { archived_at: new Date().toISOString() });
       const after = restart();
       expect(after.item(plan.id)).toBeDefined();
-      expect(after.item(w.id)!.finishing).toBe(true);
+      expect(after.item(w.id)!.agent?.finishing).toBe(true);
       runtime.last.emit({ type: 'idle' });
       expect(spaces.leasedBy(w.id)).toBeNull();
       expect(after.item(plan.id)).toBeUndefined();
@@ -757,7 +757,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
     runtime.last.emit({ type: 'idle' });
     const commit = git(main, 'rev-parse', 'HEAD');
     expect(state(w.id)).toBe('planned');
-    expect(w1().landedPart).toEqual({ commit });
+    expect(w1().review?.landedPart).toEqual({ commit });
     expect(board.events(w.id).at(-1)).toMatchObject({ author: 'obeya', text: 'Part landed; the plan doc keeps it open.' });
     // the handover stays in the log, the summary with it
     expect(board.events(w.id).some((e) => e.text.includes('Approved'))).toBe(true);
@@ -769,7 +769,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
     expect(git(board.row(w.id).workstation!, 'rev-parse', 'HEAD')).toBe(commit);
     expect(runtime.last.inbox[0]).toContain(`A part of this workstream has landed already (commit ${commit.slice(0, 7)})`);
     // what landed stays on the card while the rest is done
-    expect(w1().landedPart).toEqual({ commit });
+    expect(w1().review?.landedPart).toEqual({ commit });
   });
 });
 
@@ -779,7 +779,7 @@ describe('a workstream merged as a pull request, its box still empty', () => {
     setup({ ...generic, land: 'pr', workstations: 'clones' });
   });
 
-  const w1 = () => board.snapshot().items.find((i) => i.label === 'W1')!;
+  const w1 = () => board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
   /** W1 in its pull request #821, its worker idle. */
   const inPr = async () => {
     const w = w1();
@@ -812,9 +812,9 @@ describe('a workstream merged as a pull request, its box still empty', () => {
     git(main, 'merge', '--quiet', '--ff-only', 'merged');
     board.docsChanged();
     expect(state(w.id)).toBe('planned');
-    expect(w1().landedPart).toEqual({ commit, pr: { url: 'https://github.com/acme/app/pull/821', number: 821 } });
+    expect(w1().review?.landedPart).toEqual({ commit, pr: { url: 'https://github.com/acme/app/pull/821', number: 821 } });
     // the pull request is history now: starting again opens a new one
-    expect(w1().pr).toBeUndefined();
+    expect(w1().review?.pr).toBeUndefined();
     await workers.start(w.id);
     expect(runtime.last.inbox[0]).toContain('pull request #821 (https://github.com/acme/app/pull/821)');
   });
@@ -827,12 +827,12 @@ describe('a workstream merged as a pull request, its box still empty', () => {
     expect(state(w.id)).toBe('live');
     board.lesestandMoved('home', git(main, 'rev-parse', 'HEAD'));
     expect(state(w.id)).toBe('planned');
-    expect(w1().landedPart).toEqual({ commit: git(main, 'rev-parse', 'HEAD'), pr: { url: 'https://github.com/acme/app/pull/821', number: 821 } });
+    expect(w1().review?.landedPart).toEqual({ commit: git(main, 'rev-parse', 'HEAD'), pr: { url: 'https://github.com/acme/app/pull/821', number: 821 } });
   });
 });
 
 describe('a workstation its card will not work in again goes back to the pool', () => {
-  const w1 = () => board.snapshot().items.find((i) => i.label === 'W1')!;
+  const w1 = () => board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
   /** Starts the card, commits a file in its clone and stops it: the clone stays the card's. */
   const stoppedWithWork = async (id: string) => {
     await workers.start(id);
@@ -1004,7 +1004,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     expect(runtime.last.inbox.at(-1)).toContain('Your pull request was merged');
     runtime.last.emit({ type: 'idle' });
     expect(spaces.leasedBy(w.id)).toBeNull();
-    expect(board.item(w.id)!.finishing).toBeUndefined();
+    expect(board.item(w.id)!.agent?.finishing).toBeUndefined();
   });
 
   /** Approves the workstream's handed-over work into its pull request phase; the PR is not reported yet. */
@@ -1039,7 +1039,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     const outside: PlanDoc = { ...doc, file: '/plans/a.md' };
     setDocs([outside]);
     board.docsChanged();
-    const w = board.snapshot().items.find((i) => i.label === 'W1' && board.row(i.id).plan_ref?.startsWith('/plans/'))!;
+    const w = board.snapshot().items.find((i) => i.plan?.label === 'W1' && board.row(i.id).plan_ref?.startsWith('/plans/'))!;
     const clone = await approvedIntoPr(w.id);
     // the worker ticks its box in the folder, which takes effect at once, then opens the pull request
     setDocs([{ ...outside, workstreams: [{ ...ws('W1'), done: true }] }]);
@@ -1058,7 +1058,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     const outside: PlanDoc = { ...doc, file: '/plans/a.md' };
     setDocs([outside]);
     board.docsChanged();
-    const w = board.snapshot().items.find((i) => i.label === 'W1' && board.row(i.id).plan_ref?.startsWith('/plans/'))!;
+    const w = board.snapshot().items.find((i) => i.plan?.label === 'W1' && board.row(i.id).plan_ref?.startsWith('/plans/'))!;
     const clone = await stoppedWithWork(w.id);
     // the worker ticked its box in the folder before it was stopped, which took effect at once
     setDocs([{ ...outside, workstreams: [{ ...ws('W1'), done: true }] }]);

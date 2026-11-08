@@ -62,7 +62,7 @@ const turn = (s: FakeSession, reply: string, extra?: () => void) => {
 describe('an idea', () => {
   test('starts as an idea: no worker, no workstation, nothing with the Koordinator', () => {
     const i = idea();
-    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { status: 'open', brief: '', thinking: false, yourTurn: false, questions: [] } });
+    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { status: 'open', brief: '', thinking: false, yourTurn: false, questions: [] } } });
     expect(runtime.sessions).toHaveLength(0);
     expect(() => project.act(i.id, { action: 'start' })).toThrow('only a planned card can be started');
   });
@@ -81,13 +81,13 @@ describe('an idea', () => {
     expect(s.inbox[0]).toContain('The idea: “Export für Vermieter”.');
     expect(s.inbox[0]).toContain('Vermieter wollen ihre Zählerstände.');
     expect(s.inbox[0]).toContain('Lass uns das durchdenken.');
-    expect(item(i.id).idea!.thinking).toBe(true);
+    expect(item(i.id).idea?.discussion!.thinking).toBe(true);
     turn(s, 'CSV oder PDF?', () => {
       s.call('update_brief', { brief: '**Ziel:** Vermieter exportieren Zählerstände.' });
       s.call('record_decision', { question: 'Format?', answer: 'CSV' });
     });
     expect(s.closed).toBe(true);
-    expect(item(i.id).idea).toEqual({ status: 'open', brief: '**Ziel:** Vermieter exportieren Zählerstände.', thinking: false, yourTurn: true, questions: [], variants: [], mocks: [] });
+    expect(item(i.id).idea?.discussion).toEqual({ status: 'open', brief: '**Ziel:** Vermieter exportieren Zählerstände.', thinking: false, yourTurn: true, questions: [], variants: [], mocks: [] });
     expect(talk(i.id)).toEqual([
       ['owner', 'Lass uns das durchdenken.'],
       ['explorer', 'CSV oder PDF?'],
@@ -164,7 +164,7 @@ describe('an idea', () => {
     await settle();
     const [prototype] = board()
       .snapshot()
-      .items.filter((x) => x.prototypeOf === i.id);
+      .items.filter((x) => x.idea?.prototypeOf === i.id);
     // the session is gone (Claude pruned it after weeks, say)
     board().work(i.id, { session_id: null });
     project.act(i.id, { action: 'discuss', text: 'Eher CSV.' });
@@ -249,20 +249,20 @@ describe('an idea', () => {
     project.act(i.id, { action: 'discuss', text: 'Erstens.' });
     const s = explorer();
     s.emit({ type: 'session', id: 'sess-1' });
-    expect(item(i.id).idea).toMatchObject({ thinking: true, yourTurn: false });
+    expect(item(i.id).idea?.discussion).toMatchObject({ thinking: true, yourTurn: false });
     project.act(i.id, { action: 'discuss', text: 'Zweitens.' });
     s.call('reply', { text: 'Zu erstens.' });
     s.emit({ type: 'idle' });
     // the owner's second message is still to be answered
-    expect(item(i.id).idea).toMatchObject({ thinking: true });
+    expect(item(i.id).idea?.discussion).toMatchObject({ thinking: true });
     s.call('reply', { text: 'Zu zweitens.' });
     s.emit({ type: 'idle' });
-    expect(item(i.id).idea).toMatchObject({ thinking: false, yourTurn: true, questions: [], variants: [] });
+    expect(item(i.id).idea?.discussion).toMatchObject({ thinking: false, yourTurn: true, questions: [], variants: [] });
     project.act(i.id, { action: 'discuss', text: 'Drittens.' });
-    expect(item(i.id).idea).toMatchObject({ thinking: true, yourTurn: false });
+    expect(item(i.id).idea?.discussion).toMatchObject({ thinking: true, yourTurn: false });
     // a turn that ends without words leaves nothing to answer
     explorer().emit({ type: 'idle' });
-    expect(item(i.id).idea).toMatchObject({ thinking: false, yourTurn: false, questions: [] });
+    expect(item(i.id).idea?.discussion).toMatchObject({ thinking: false, yourTurn: false, questions: [] });
   });
 
   test('a turn that ends while its agent’s background work runs is no reply: the agent works on once that work wakes it', () => {
@@ -275,7 +275,7 @@ describe('an idea', () => {
     s.emit({ type: 'idle', background: 1 });
     // its words show as it works on, and the owner is not next
     expect(s.closed).toBe(false);
-    expect(item(i.id).idea).toMatchObject({ thinking: true, yourTurn: false });
+    expect(item(i.id).idea?.discussion).toMatchObject({ thinking: true, yourTurn: false });
     expect(talk(i.id)).toEqual([['owner', 'Rechne das nach.']]);
     expect(board().events(i.id).at(-1)).toMatchObject({ kind: 'say', text: 'Still downloading the market data.' });
     // what the owner says meanwhile goes in at once, and the turn answers it too
@@ -290,7 +290,7 @@ describe('an idea', () => {
     s.call('reply', { text: 'Mit 2023: 12 % weniger Ausgleichsenergie.' });
     s.emit({ type: 'idle', background: 0 });
     expect(s.closed).toBe(true);
-    expect(item(i.id).idea).toMatchObject({ thinking: false, yourTurn: true });
+    expect(item(i.id).idea?.discussion).toMatchObject({ thinking: false, yourTurn: true });
     expect(talk(i.id)).toEqual([
       ['owner', 'Rechne das nach.'],
       ['owner', 'Nimm auch 2023.'],
@@ -306,13 +306,13 @@ describe('an idea', () => {
     s.call('reply', { text: 'Der Download läuft im Hintergrund; ich melde mich, sobald er fertig ist.' });
     s.emit({ type: 'idle', background: 1 });
     expect(s.closed).toBe(false);
-    expect(item(i.id).idea).toMatchObject({ thinking: true });
+    expect(item(i.id).idea?.discussion).toMatchObject({ thinking: true });
     s.emit({ type: 'background', tasks: [] });
     s.emit({ type: 'text', text: 'Die Preise sind da.' });
     s.call('reply', { text: '1284 Preise, im Schnitt 4,37 €.' });
     s.emit({ type: 'idle', background: 0 });
     expect(s.closed).toBe(true);
-    expect(item(i.id).idea).toMatchObject({ thinking: false, yourTurn: true });
+    expect(item(i.id).idea?.discussion).toMatchObject({ thinking: false, yourTurn: true });
     expect(talk(i.id).slice(1)).toEqual([
       ['explorer', 'Der Download läuft im Hintergrund; ich melde mich, sobald er fertig ist.'],
       ['explorer', '1284 Preise, im Schnitt 4,37 €.'],
@@ -342,7 +342,7 @@ describe('an idea', () => {
     await settle(20);
     // its last words are the reply after all
     expect(s.closed).toBe(true);
-    expect(item(one.id).idea).toMatchObject({ thinking: false, yourTurn: true });
+    expect(item(one.id).idea?.discussion).toMatchObject({ thinking: false, yourTurn: true });
     expect(talk(one.id).at(-1)).toEqual(['explorer', 'Still downloading.']);
     const two = idea();
     explorers.discuss(two.id, 'Und das?');
@@ -351,7 +351,7 @@ describe('an idea', () => {
     await settle(15);
     expect(t.closed).toBe(false);
     await until(() => t.closed);
-    expect(item(two.id).idea).toMatchObject({ thinking: false, yourTurn: false });
+    expect(item(two.id).idea?.discussion).toMatchObject({ thinking: false, yourTurn: false });
   });
 
   test('its agent asks with answer options, which stand until the owner says something, and in its conversation after', () => {
@@ -368,7 +368,7 @@ describe('an idea', () => {
       ],
     });
     s.emit({ type: 'idle' });
-    expect(item(i.id).idea).toMatchObject({
+    expect(item(i.id).idea?.discussion).toMatchObject({
       yourTurn: true,
       questions: [
         { text: 'Welches Format?', options: ['CSV', 'PDF'] },
@@ -376,15 +376,15 @@ describe('an idea', () => {
         { text: 'Wann?', options: [] },
       ],
     });
-    expect(item(i.id).idea!.questions[0]!.multiple).toBeUndefined();
-    expect(item(i.id).idea!.questions[2]!.multiple).toBeUndefined();
+    expect(item(i.id).idea?.discussion!.questions[0]!.multiple).toBeUndefined();
+    expect(item(i.id).idea?.discussion!.questions[2]!.multiple).toBeUndefined();
     expect(board().events(i.id).filter((e) => e.kind === 'question').map((e) => [e.author, e.text])).toEqual([
       ['explorer', 'Welches Format?\n– CSV\n– PDF'],
       ['explorer', 'Für wen? (multiple choice)\n– Vermieter\n– Verwalter'],
       ['explorer', 'Wann?'],
     ]);
     project.act(i.id, { action: 'discuss', text: '- **Welches Format?** CSV' });
-    expect(item(i.id).idea).toMatchObject({ yourTurn: false, questions: [] });
+    expect(item(i.id).idea?.discussion).toMatchObject({ yourTurn: false, questions: [] });
     expect(explorer().inbox.at(-1)).toContain('- **Welches Format?** CSV');
   });
 
@@ -403,7 +403,7 @@ describe('an idea', () => {
       next: { step: 'answer', why: 'Das Format entscheidet den Rest.' },
     });
     s.emit({ type: 'idle' });
-    expect(item(i.id).idea).toMatchObject({
+    expect(item(i.id).idea?.discussion).toMatchObject({
       questions: [
         { text: 'Welches Format?', pick: { options: ['CSV'], why: 'Vermieter rechnen in Excel weiter.' } },
         { text: 'Für wen?', pick: { options: ['Vermieter', 'Verwalter'], why: 'Beide.' } },
@@ -413,24 +413,24 @@ describe('an idea', () => {
       ],
       next: { step: 'answer', why: 'Das Format entscheidet den Rest.' },
     });
-    expect(item(i.id).idea!.questions[3]!.pick).toBeUndefined();
+    expect(item(i.id).idea?.discussion!.questions[3]!.pick).toBeUndefined();
     project.act(i.id, { action: 'discuss', text: '- **Welches Format?** CSV' });
-    expect(item(i.id).idea!.next).toBeUndefined();
+    expect(item(i.id).idea?.discussion!.next).toBeUndefined();
     s = explorer();
     // answering without questions, or a step there is no button for, is no suggestion
     s.call('reply', { text: 'Danke.', next: { step: 'answer', why: '?' } });
     s.emit({ type: 'idle' });
-    expect(item(i.id).idea!.next).toBeUndefined();
+    expect(item(i.id).idea?.discussion!.next).toBeUndefined();
     project.act(i.id, { action: 'discuss', text: 'Und jetzt?' });
     s = explorer();
     s.call('reply', { text: 'Bauen.', next: { step: 'deploy', why: '?' } });
     s.emit({ type: 'idle' });
-    expect(item(i.id).idea!.next).toBeUndefined();
+    expect(item(i.id).idea?.discussion!.next).toBeUndefined();
     project.act(i.id, { action: 'discuss', text: 'Und jetzt?' });
     s = explorer();
     s.call('reply', { text: 'Bauen.', next: { step: 'build', why: 'Der Stand reicht als Auftrag.' } });
     s.emit({ type: 'idle' });
-    expect(item(i.id).idea!.next).toEqual({ step: 'build', why: 'Der Stand reicht als Auftrag.' });
+    expect(item(i.id).idea?.discussion!.next).toEqual({ step: 'build', why: 'Der Stand reicht als Auftrag.' });
   });
 
   test('what the owner says is offered for learning preferences', async () => {
@@ -464,7 +464,7 @@ describe('an idea', () => {
     turn(explorer(), 'Gut.', () => explorer().call('update_brief', { brief: '**Ziel:** CSV-Export.' }));
     project.act(i.id, { action: 'build' });
     expect(item(i.id)).toMatchObject({ state: 'planned', body: '**Ziel:** CSV-Export.', title: 'Export für Vermieter', queue: { checking: true } });
-    expect(item(i.id).idea).toBeUndefined();
+    expect(item(i.id).idea?.discussion).toBeUndefined();
     await settle();
     expect(item(i.id).state).toBe('working');
     const worker = runtime.sessions.find((s) => s.spec.tools.some((t) => t.name === 'ready_for_review'))!;
@@ -484,20 +484,20 @@ describe('an idea', () => {
     s.call('reply', { text: 'Zwei Varianten, siehe Stand. Und so sähe es im Dialog aus:', mocks: [{ title: '  Im   Dialog ', html: ' <dialog open>Export</dialog> ' }] });
     s.emit({ type: 'idle' });
     // a mock too long for a sketch is left out
-    expect(item(i.id).idea!.mocks).toEqual([a, b]);
+    expect(item(i.id).idea?.discussion!.mocks).toEqual([a, b]);
     expect(board().events(i.id).filter((e) => e.kind === 'talk').at(-1)!.mocks).toEqual([{ title: 'Im Dialog', html: '<dialog open>Export</dialog>' }]);
     expect(board().events(i.id).filter((e) => e.kind === 'talk' && e.author === 'owner')[0]!.mocks).toBeUndefined();
 
     // a brief without mocks keeps them; an empty list removes them
     project.act(i.id, { action: 'discuss', text: 'Nimm A.' });
     turn(explorer(), 'A steht.', () => explorer().call('update_brief', { brief: '**Entscheidungen:** A.' }));
-    expect(item(i.id).idea).toMatchObject({ brief: '**Entscheidungen:** A.', mocks: [a, b] });
+    expect(item(i.id).idea?.discussion).toMatchObject({ brief: '**Entscheidungen:** A.', mocks: [a, b] });
     project.act(i.id, { action: 'discuss', text: 'B weg.' });
     turn(explorer(), 'B ist raus.', () => explorer().call('update_brief', { brief: '**Entscheidungen:** A.', mocks: [a] }));
-    expect(item(i.id).idea!.mocks).toEqual([a]);
+    expect(item(i.id).idea?.discussion!.mocks).toEqual([a]);
 
     project.act(i.id, { action: 'build' });
-    expect(item(i.id)).toMatchObject({ state: 'planned', brief: '**Entscheidungen:** A.', mocks: [a] });
+    expect(item(i.id)).toMatchObject({ state: 'planned', idea: { brief: '**Entscheidungen:** A.', mocks: [a] } });
     await settle();
     const worker = runtime.sessions.find((x) => x.spec.tools.some((t) => t.name === 'ready_for_review'))!;
     expect(worker.inbox[0]).toContain('A Knopf oben:\n\n```html\n<button style="float:right">Export</button>\n```');
@@ -509,7 +509,7 @@ describe('an idea', () => {
     turn(explorer(), 'Gut.', () => explorer().call('update_brief', { brief: 'x', mocks: [{ title: 'A', html: '<b>A</b>' }] }));
     project.act(i.id, { action: 'discuss', text: 'Ohne Mock.' });
     turn(explorer(), 'Gut.', () => explorer().call('update_brief', { brief: 'x', mocks: [] }));
-    expect(item(i.id).idea!.mocks).toEqual([]);
+    expect(item(i.id).idea?.discussion!.mocks).toEqual([]);
   });
 
   test('a big idea becomes a plan: a worker starts on its plan doc at once, on the idea’s card', async () => {
@@ -517,7 +517,7 @@ describe('an idea', () => {
     board().setIdea(i.id, { brief: '**Ziel:** Vermieterportal.' });
     project.act(i.id, { action: 'planDoc' });
     const c = item(i.id);
-    expect(c).toMatchObject({ state: 'planned', title: 'Export für Vermieter', becomesPlan: true, brief: '**Ziel:** Vermieterportal.', queue: { checking: true } });
+    expect(c).toMatchObject({ state: 'planned', title: 'Export für Vermieter', idea: { becomesPlan: true, brief: '**Ziel:** Vermieterportal.' }, queue: { checking: true } });
     expect(c.body).toContain('`docs/plan/`');
     expect(c.body).toContain('## Workstreams');
     expect(c.body).toContain('**Ziel:** Vermieterportal.');
@@ -532,8 +532,8 @@ describe('an idea', () => {
     board().work(c.id, { images: JSON.stringify(['shot.png']) });
     project.act(c.id, { action: 'planDoc' });
     const t = item(c.id);
-    expect(t).toMatchObject({ state: 'planned', title: 'Mandanten', becomesPlan: true, queue: { checking: true }, images: ['shot.png'] });
-    expect(t.brief).toBeUndefined();
+    expect(t).toMatchObject({ state: 'planned', title: 'Mandanten', idea: { becomesPlan: true }, queue: { checking: true }, images: ['shot.png'] });
+    expect(t.idea?.brief).toBeUndefined();
     expect(t.body).toContain('Write a plan doc in `docs/plan/` from this task');
     expect(t.body).toContain('takes the place of this task');
     expect(t.body).toContain('Task: “Mandanten”\n\nJeder Kunde bekommt eigene Daten.');
@@ -579,8 +579,8 @@ describe('an idea', () => {
     board().docsChanged();
     // read at once, the doc is a plan, but the idea stays until the owner approves it
     const plan = board().snapshot().items.find((x) => x.kind === 'plan' && x.title === 'Export')!;
-    expect(plan.plan!.file).toBe(file);
-    expect(plan.origin).toBeUndefined();
+    expect(plan.plan?.file).toBe(file);
+    expect(plan.plan?.origin).toBeUndefined();
     const demo = join(dir, 'demo');
     mkdirSync(demo);
     writeFileSync(join(demo, 'index.html'), '<p>Plan</p>');
@@ -590,7 +590,7 @@ describe('an idea', () => {
     // nothing is in the branch: approved, the card is done without a pull request
     expect(board().row(i.id).state).toBe('done');
     worker.emit({ type: 'idle' });
-    expect(board().item(plan.id)!.origin).toBe(i.id);
+    expect(board().item(plan.id)!.plan?.origin).toBe(i.id);
     expect(board().item(i.id)).toBeUndefined();
     expect(board().planOf(i.id)!.id).toBe(plan.id);
   });
@@ -599,18 +599,18 @@ describe('an idea', () => {
     const i = idea();
     board().setIdea(i.id, { brief: 'Stand.' });
     project.act(i.id, { action: 'park' });
-    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { status: 'parked', brief: 'Stand.' } });
+    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { status: 'parked', brief: 'Stand.' } } });
     project.act(i.id, { action: 'drop' });
-    expect(item(i.id).idea!.status).toBe('dropped');
+    expect(item(i.id).idea?.discussion!.status).toBe('dropped');
     project.act(i.id, { action: 'discuss', text: 'Doch nochmal.' });
-    expect(item(i.id).idea!.status).toBe('open');
+    expect(item(i.id).idea?.discussion!.status).toBe('open');
     expect(() => project.act(board().create({ title: 'X', x: 0, y: 0 }).id, { action: 'drop' })).toThrow('not an idea');
   });
 
   test('a planned card of the owner’s can become an idea first, and its agent opens the discussion with what the card says', () => {
     const c = board().create({ title: 'Klon lädt sein Modell neu', body: 'Für jeden Clip.', x: 0, y: 0 });
     project.patch(c.id, { state: 'idea' });
-    expect(item(c.id).idea).toMatchObject({ status: 'open', brief: '', thinking: true, yourTurn: false, questions: [] });
+    expect(item(c.id).idea?.discussion).toMatchObject({ status: 'open', brief: '', thinking: true, yourTurn: false, questions: [] });
     const s = explorer();
     expect(s.spec.readOnly).toBeUndefined();
     expect(s.inbox[0]).toContain('“Klon lädt sein Modell neu”');
@@ -620,7 +620,7 @@ describe('an idea', () => {
     expect(talk(c.id)).toEqual([]);
     turn(s, 'Zwei Wege, siehe Stand.');
     expect(talk(c.id)).toEqual([['explorer', 'Zwei Wege, siehe Stand.']]);
-    expect(item(c.id).idea).toMatchObject({ thinking: false, yourTurn: true });
+    expect(item(c.id).idea?.discussion).toMatchObject({ thinking: false, yourTurn: true });
     // saving the idea again starts nothing new
     project.patch(c.id, { state: 'idea' });
     expect(runtime.sessions).toHaveLength(1);
@@ -643,7 +643,7 @@ describe('an idea', () => {
     const s = explorer();
     s.emit({ type: 'session', id: 'sess-1' });
     expect(() => project.act(i.id, { action: 'planDoc' })).toThrow('still working on its reply');
-    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { thinking: true } });
+    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { thinking: true } } });
     turn(s, 'PDF ist im Stand.');
     project.act(i.id, { action: 'planDoc' });
     expect(item(i.id).state).toBe('planned');
@@ -656,7 +656,7 @@ describe('an idea', () => {
     s.emit({ type: 'session', id: 'sess-1' });
     project.act(i.id, { action: 'build' });
     project.act(i.id, { action: 'build' });
-    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { thinking: true, buildAfterReply: true } });
+    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { thinking: true, buildAfterReply: true } } });
     expect(board().events(i.id).filter((e) => e.text.startsWith('Build it once the reply is there'))).toHaveLength(1);
     // the agent hears it with its next step, once: the brief it leaves becomes the task
     expect(s.toolStep()).toContain('The owner clicked "Build it like this" while you worked on this reply');
@@ -677,8 +677,8 @@ describe('an idea', () => {
     project.act(i.id, { action: 'build' });
     s.call('reply', { text: 'Eine Frage noch.', questions: [{ question: 'Auch Excel?', options: ['Ja', 'Nein'] }] });
     s.emit({ type: 'idle' });
-    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { thinking: false, yourTurn: true } });
-    expect(item(i.id).idea!.buildAfterReply).toBeUndefined();
+    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { thinking: false, yourTurn: true } } });
+    expect(item(i.id).idea?.discussion!.buildAfterReply).toBeUndefined();
     expect(board().events(i.id).at(-1)).toMatchObject({ kind: 'state', text: 'Not built: the agent still has a question.' });
     // answered, the owner decides again
     project.act(i.id, { action: 'discuss', text: 'Nein.' });
@@ -698,12 +698,12 @@ describe('an idea', () => {
     // the second message goes in with the note, as the agent has not called a tool yet
     expect(s.inbox.at(-1)).toContain('Zweitens.');
     expect(s.inbox.at(-1)).toContain('"Build it like this"');
-    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { thinking: true, buildAfterReply: true } });
+    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { thinking: true, buildAfterReply: true } } });
     project.act(i.id, { action: 'unbuild' });
     expect(board().events(i.id).at(-1)).toMatchObject({ kind: 'state', text: 'Not building it after all.' });
     s.call('reply', { text: 'Zu zweitens.' });
     s.emit({ type: 'idle' });
-    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { thinking: false, yourTurn: true } });
+    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { thinking: false, yourTurn: true } } });
   });
 
   test('built during its agent’s reply, it is not built when the turn ends with an error, or when it is parked', () => {
@@ -712,13 +712,13 @@ describe('an idea', () => {
     project.act(i.id, { action: 'build' });
     explorer().emit({ type: 'error', message: 'rate limit' });
     expect(item(i.id).state).toBe('idea');
-    expect(item(i.id).idea!.buildAfterReply).toBeUndefined();
+    expect(item(i.id).idea?.discussion!.buildAfterReply).toBeUndefined();
     expect(board().events(i.id).at(-1)).toMatchObject({ kind: 'state', text: 'Not built: the reply did not come.' });
     project.act(i.id, { action: 'discuss', text: 'Hallo?' });
     project.act(i.id, { action: 'build' });
     project.act(i.id, { action: 'park' });
-    expect(item(i.id).idea).toMatchObject({ status: 'parked', thinking: false });
-    expect(item(i.id).idea!.buildAfterReply).toBeUndefined();
+    expect(item(i.id).idea?.discussion).toMatchObject({ status: 'parked', thinking: false });
+    expect(item(i.id).idea?.discussion!.buildAfterReply).toBeUndefined();
   });
 
   test('parked or dropped during a turn, what its agent has not answered goes to it first when the conversation goes on, across a restart', () => {
@@ -730,7 +730,7 @@ describe('an idea', () => {
     project.act(i.id, { action: 'discuss', text: 'Zweitens.', images: [shot] });
     project.act(i.id, { action: 'park' });
     expect(first.closed).toBe(true);
-    expect(item(i.id).idea).toMatchObject({ status: 'parked', thinking: false });
+    expect(item(i.id).idea?.discussion).toMatchObject({ status: 'parked', thinking: false });
     project.shutdown();
     project = open();
     expect(runtime.sessions.filter((x) => x.spec.tools.some((t) => t.name === 'update_brief'))).toHaveLength(1);
@@ -762,7 +762,7 @@ describe('an idea', () => {
     first.emit({ type: 'session', id: 'sess-1' });
     project.act(i.id, { action: 'pause' });
     expect(first.closed).toBe(true);
-    expect(item(i.id)).toMatchObject({ hold: { reason: 'paused' }, idea: { status: 'open', thinking: false } });
+    expect(item(i.id)).toMatchObject({ hold: { reason: 'paused' }, idea: { discussion: { status: 'open', thinking: false } } });
     expect(() => project.act(i.id, { action: 'pause' })).toThrow('paused already');
     project.shutdown();
     project = open();
@@ -775,7 +775,7 @@ describe('an idea', () => {
     expect(later.inbox[0]).toContain('The owner paused you while you worked on a reply and has now let you go on');
     expect(later.inbox[0]).toContain('exit code 137');
     expect(later.inbox[0]).toContain('Erstens.');
-    expect(item(i.id)).toMatchObject({ idea: { thinking: true } });
+    expect(item(i.id)).toMatchObject({ idea: { discussion: { thinking: true } } });
     expect(item(i.id)?.hold?.reason).not.toBe('paused');
     expect(() => project.act(i.id, { action: 'resume' })).toThrow('not paused');
     turn(later, 'Zu Erstens.');
@@ -789,11 +789,11 @@ describe('an idea', () => {
     first.emit({ type: 'session', id: 'sess-1' });
     project.act(i.id, { action: 'pause', safePoint: true });
     expect(first.closed).toBe(false);
-    expect(item(i.id)).toMatchObject({ hold: { reason: 'pausing' }, idea: { thinking: true } });
+    expect(item(i.id)).toMatchObject({ hold: { reason: 'pausing' }, idea: { discussion: { thinking: true } } });
     turn(first, 'Zu Erstens.');
     expect(talk(i.id).at(-1)).toEqual(['explorer', 'Zu Erstens.']);
     expect(first.closed).toBe(true);
-    expect(item(i.id)).toMatchObject({ hold: { reason: 'paused' }, idea: { thinking: false } });
+    expect(item(i.id)).toMatchObject({ hold: { reason: 'paused' }, idea: { discussion: { thinking: false } } });
     expect(item(i.id)?.hold?.reason).not.toBe('pausing');
     // the owner's words let it go on, as they do a paused one
     project.act(i.id, { action: 'discuss', text: 'Zweitens.' });
@@ -833,7 +833,7 @@ describe('an idea', () => {
     project.act(i.id, { action: 'pause' });
     project.act(i.id, { action: 'park' });
     expect(item(i.id)?.hold?.reason).not.toBe('paused');
-    expect(item(i.id).idea).toMatchObject({ status: 'parked', thinking: false });
+    expect(item(i.id).idea?.discussion).toMatchObject({ status: 'parked', thinking: false });
     project.act(i.id, { action: 'discuss', text: 'Drittens.' });
     expect(explorer().inbox[0]).toContain('The owner parked the idea while you were working on a reply');
   });
@@ -845,7 +845,7 @@ describe('an idea', () => {
     s.emit({ type: 'session', id: 'sess-1' });
     project.act(i.id, { action: 'discuss', text: 'Zweitens.' });
     s.emit({ type: 'error', message: 'rate limit' });
-    expect(item(i.id).idea).toMatchObject({ status: 'open', thinking: false });
+    expect(item(i.id).idea?.discussion).toMatchObject({ status: 'open', thinking: false });
     project.act(i.id, { action: 'discuss', text: 'Hallo?' });
     const next = explorer();
     expect(next.inbox[0]).toContain('Your last turn ended with an error');
@@ -863,13 +863,13 @@ describe('an idea', () => {
     s.emit({ type: 'idle' });
     // no error in its conversation: the card says when it goes on, and the agent still works on its reply
     expect(board().events(i.id).some((e) => e.kind === 'error' || e.text.includes('hit your'))).toBe(false);
-    expect(item(i.id).idea).toMatchObject({ thinking: true });
-    expect(Date.parse(item(i.id).limitedUntil!)).toBeGreaterThan(Date.now());
+    expect(item(i.id).idea?.discussion).toMatchObject({ thinking: true });
+    expect(Date.parse(item(i.id).agent?.limitedUntil!)).toBeGreaterThan(Date.now());
     expect(s.closed).toBe(false);
     project.act(i.id, { action: 'discuss', text: 'Zweitens.' });
     expect(s.inbox).toHaveLength(1);
     await settle(60);
-    expect(item(i.id).limitedUntil).toBeUndefined();
+    expect(item(i.id).agent?.limitedUntil).toBeUndefined();
     expect(s.inbox[1]).toContain('The usage limit that stopped your last turn has reset');
     s.call('reply', { text: 'Zu erstens.' });
     s.emit({ type: 'idle' });
@@ -890,15 +890,15 @@ describe('an idea', () => {
     explorer().emit({ type: 'idle' });
     project.shutdown();
     project = open();
-    expect(item(i.id).limitedUntil).toBeUndefined();
+    expect(item(i.id).agent?.limitedUntil).toBeUndefined();
     const s = explorer();
     expect(s.inbox[0]).toContain('Seismic was restarted');
     s.emit({ type: 'error', message: "You've hit your session limit", limit: { resetsAt: Date.now() + 10_000 } });
     s.emit({ type: 'idle' });
-    expect(item(i.id).limitedUntil).toBeDefined();
+    expect(item(i.id).agent?.limitedUntil).toBeDefined();
     project.act(i.id, { action: 'park' });
     expect(s.closed).toBe(true);
-    expect(item(i.id).limitedUntil).toBeUndefined();
+    expect(item(i.id).agent?.limitedUntil).toBeUndefined();
   });
 
   test('what waited for its agent’s turn when Seismic stopped reaches it after the restart', () => {
@@ -930,7 +930,7 @@ describe('a prototype', () => {
   const prototypes = (ideaId: string) =>
     board()
       .snapshot()
-      .items.filter((x) => x.prototypeOf === ideaId);
+      .items.filter((x) => x.idea?.prototypeOf === ideaId);
   const archived = (id: string) => board().archived().find((i) => i.id === id);
   /** The prototype's worker commits something on its branch, as a real one would. */
   const commit = (cardId: string, file: string) => {
@@ -954,15 +954,15 @@ describe('a prototype', () => {
     expect(prototype).toMatchObject({ state: 'working', title: 'Prototype: Export für Vermieter – Den Export-Knopf', from: i.id, body: 'Den Export-Knopf. Oben rechts in der Leiste.' });
     expect(item(i.id).state).toBe('idea');
     // while the prototype is built, the owner waits for it, not the idea for the owner
-    expect(item(i.id).idea).toMatchObject({ yourTurn: false, thinking: false });
+    expect(item(i.id).idea?.discussion).toMatchObject({ yourTurn: false, thinking: false });
     // a reply to the owner meanwhile leaves them waiting for the prototype, unless it asks them something
     project.act(i.id, { action: 'discuss', text: 'Die Spalten stehen schon fest.' });
     turn(explorer(), 'Notiert. Jetzt zählt, was der Prototyp zeigt.');
-    expect(item(i.id).idea).toMatchObject({ yourTurn: false, thinking: false });
+    expect(item(i.id).idea?.discussion).toMatchObject({ yourTurn: false, thinking: false });
     project.act(i.id, { action: 'discuss', text: 'Und das Format?' });
     explorer().call('reply', { text: 'Dazu eine Frage.', questions: [{ question: 'Auch Excel?', options: ['Ja', 'Nein'] }] });
     explorer().emit({ type: 'idle' });
-    expect(item(i.id).idea).toMatchObject({ yourTurn: true, thinking: false });
+    expect(item(i.id).idea?.discussion).toMatchObject({ yourTurn: true, thinking: false });
     const w = worker();
     expect(w.inbox[0]).toContain('throwaway prototype');
     expect(w.inbox[0]).toContain('**Ziel:** CSV-Export.');
@@ -975,12 +975,12 @@ describe('a prototype', () => {
     const branch = board().row(prototype!.id).branch!;
     await handOver(w, 'Knopf gebaut.');
     // the demo stays the prototype's, and shows on the idea under its title
-    expect(item(i.id).demo).toBeUndefined();
-    expect(item(i.id).prototypes).toMatchObject([{ id: prototype!.id, title: prototype!.title, demo: { chapters: [[0, 'Knopf']] } }]);
+    expect(item(i.id).demo?.latest).toBeUndefined();
+    expect(item(i.id).idea?.prototypes).toMatchObject([{ id: prototype!.id, title: prototype!.title, demo: { latest: { chapters: [[0, 'Knopf']] } } }]);
     expect(explorer().inbox.at(-1)).toContain('Knopf gebaut.');
     expect(explorer().inbox.at(-1)).toContain(prototype!.title);
     turn(explorer(), 'Der Knopf trägt; nimmst du ihn?');
-    expect(item(i.id).idea).toMatchObject({ yourTurn: true });
+    expect(item(i.id).idea?.discussion).toMatchObject({ yourTurn: true });
     expect(item(prototype!.id)).toMatchObject({ state: 'waiting', need: 'demo' });
 
     // approving a prototype is having seen enough: it is discarded
@@ -991,12 +991,12 @@ describe('a prototype', () => {
     expect(git(ws, 'branch', '--list', branch)).toBe('');
     expect(project.repos[0]!.workstations.leasedBy(prototype!.id)).toBeNull();
     // in the archive with its demo, summary and log, and it stays there
-    expect(archived(prototype!.id)).toMatchObject({ prototypeEnd: 'discarded', summary: 'Knopf gebaut.', demo: { chapters: [[0, 'Knopf']] } });
+    expect(archived(prototype!.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' }, review: { summary: 'Knopf gebaut.' }, demo: { latest: { chapters: [[0, 'Knopf']] } } });
     expect(board().demoFiles(prototype!.id)).toEqual({ dir: join(dir, 'demo'), kind: 'video' });
     expect(board().events(prototype!.id).at(-1)!.text).toContain('Discarded');
     expect(() => board().unarchive(prototype!.id)).toThrow(expect.objectContaining({ code: 'prototypeEnded' }));
     // the idea still shows its demo
-    expect(item(i.id).prototypes).toMatchObject([{ id: prototype!.id, prototypeEnd: 'discarded', demo: { chapters: [[0, 'Knopf']] } }]);
+    expect(item(i.id).idea?.prototypes).toMatchObject([{ id: prototype!.id, idea: { prototypeEnd: 'discarded' }, demo: { latest: { chapters: [[0, 'Knopf']] } } }]);
     expect(board().events(i.id).at(-1)!.text).toContain('discarded');
   });
 
@@ -1017,9 +1017,9 @@ describe('a prototype', () => {
     await handOver(workerOf(all[0]!.id), 'Wortmarke.', 'a');
     // the reply to one result, the others still built, leaves the owner waiting for them
     turn(explorer(), 'Die Wortmarke trägt.');
-    expect(item(i.id).idea).toMatchObject({ yourTurn: false, thinking: false });
+    expect(item(i.id).idea?.discussion).toMatchObject({ yourTurn: false, thinking: false });
     await handOver(workerOf(all[1]!.id), 'Bildmarke.', 'b');
-    expect(item(i.id).prototypes!.map((p) => [p.title, !!p.demo])).toEqual([
+    expect(item(i.id).idea?.prototypes!.map((p) => [p.title, !!p.demo?.latest])).toEqual([
       ['Prototype: Logo für Seismic – Wortmarke', true],
       ['Prototype: Logo für Seismic – Bildmarke', true],
       ['Prototype: Logo für Seismic', false],
@@ -1056,11 +1056,11 @@ describe('a prototype', () => {
         ],
       }),
     );
-    expect(item(i.id).idea!.variants.map((v) => v.approach)).toEqual(['A Plasma-Felder', 'B Territorien', 'C Konturen']);
+    expect(item(i.id).idea?.discussion!.variants.map((v) => v.approach)).toEqual(['A Plasma-Felder', 'B Territorien', 'C Konturen']);
     // the owner leaves one out
     project.act(i.id, { action: 'prototype', variants: ['A Plasma-Felder', 'C Konturen'] });
     await settle();
-    expect(prototypes(i.id).map((p) => [p.title, p.variant, p.state])).toEqual([
+    expect(prototypes(i.id).map((p) => [p.title, p.idea?.variant, p.state])).toEqual([
       ['Prototype: Leinwand ordnen – A Plasma-Felder', 'A Plasma-Felder', 'working'],
       ['Prototype: Leinwand ordnen – C Konturen', 'C Konturen', 'working'],
     ]);
@@ -1071,7 +1071,7 @@ describe('a prototype', () => {
     // without a choice (a spoken command): the planned ones that have none yet
     project.act(i.id, { action: 'prototype' });
     await settle();
-    expect(prototypes(i.id).map((p) => p.variant)).toEqual(['A Plasma-Felder', 'C Konturen', 'B Territorien']);
+    expect(prototypes(i.id).map((p) => p.idea?.variant)).toEqual(['A Plasma-Felder', 'C Konturen', 'B Territorien']);
     expect(() => project.act(i.id, { action: 'prototype' })).toThrow(expect.objectContaining({ code: 'variantsRunning' }));
     // a discarded variant can be tried again
     project.act(prototypes(i.id)[0]!.id, { action: 'discard' });
@@ -1107,8 +1107,8 @@ describe('a prototype', () => {
     await project.act(chosen!.id, { action: 'buildPrototype' });
     // the idea is the feature now, in the prototype's workstation, on its branch under the idea's name
     const built = item(i.id);
-    expect(built).toMatchObject({ state: 'planned', body: '**Ziel:** CSV-Export.', builtOn: chosen!.id });
-    expect(built.idea).toBeUndefined();
+    expect(built).toMatchObject({ state: 'planned', body: '**Ziel:** CSV-Export.', idea: { builtOn: chosen!.id } });
+    expect(built.idea?.discussion).toBeUndefined();
     const row = board().row(i.id);
     expect(row.workstation).toBe(ws);
     expect(row.branch).toMatch(/^obeya\/export-fur-vermieter-/);
@@ -1117,11 +1117,11 @@ describe('a prototype', () => {
     expect(project.repos[0]!.workstations.leasedBy(i.id)).toBe(ws);
     // the chosen prototype goes into the archive as built, its worker stopped
     expect(w!.closed).toBe(true);
-    expect(archived(chosen!.id)).toMatchObject({ prototypeEnd: 'built', summary: 'Knopf oben gebaut; Export als CSV.' });
+    expect(archived(chosen!.id)).toMatchObject({ idea: { prototypeEnd: 'built' }, review: { summary: 'Knopf oben gebaut; Export als CSV.' } });
     expect(project.repos[0]!.workstations.leasedBy(chosen!.id)).toBeNull();
     // the other one is discarded with its code
     expect(wOther!.closed).toBe(true);
-    expect(archived(other!.id)).toMatchObject({ prototypeEnd: 'discarded' });
+    expect(archived(other!.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' } });
     await settle();
     expect(git(otherWs, 'branch', '--list', otherBranch)).toBe('');
     expect(prototypes(i.id)).toEqual([]);
@@ -1151,12 +1151,12 @@ describe('a prototype', () => {
     expect(w.spec.tools.some((t) => t.name === 'propose_card')).toBe(false);
     expect(w.spec.system).toContain('propose_build');
     expect(w.call('propose_build', { reason: 'Der Owner hat den Knopf gewählt.' })).toContain('owner decides');
-    expect(item(prototype!.id).buildProposal).toBe('Der Owner hat den Knopf gewählt.');
+    expect(item(prototype!.id).idea?.buildProposal).toBe('Der Owner hat den Knopf gewählt.');
     expect(board().snapshot().items.filter((x) => x.state === 'proposal')).toEqual([]);
     // accepting it is "Build this prototype"
     await project.act(prototype!.id, { action: 'buildPrototype' });
-    expect(item(i.id)).toMatchObject({ state: 'planned', builtOn: prototype!.id });
-    expect(archived(prototype!.id)!.buildProposal).toBeUndefined();
+    expect(item(i.id)).toMatchObject({ state: 'planned', idea: { builtOn: prototype!.id } });
+    expect(archived(prototype!.id)!.idea?.buildProposal).toBeUndefined();
   });
 
   test("its questions and the owner's answers reach the idea's agent, for the brief only", async () => {
@@ -1175,7 +1175,7 @@ describe('a prototype', () => {
     s.call('update_brief', { brief: '**Entscheidungen:** Blau.' });
     s.emit({ type: 'text', text: 'Im Stand festgehalten.' });
     s.emit({ type: 'idle' });
-    expect(item(i.id).idea).toMatchObject({ brief: '**Entscheidungen:** Blau.', yourTurn: false, thinking: false });
+    expect(item(i.id).idea?.discussion).toMatchObject({ brief: '**Entscheidungen:** Blau.', yourTurn: false, thinking: false });
     expect(talk(i.id).at(-1)).toEqual(['explorer', 'Ein Prototyp?']);
   });
 
@@ -1185,8 +1185,8 @@ describe('a prototype', () => {
     await settle();
     const [prototype] = prototypes(i.id);
     project.act(i.id, { action: 'build' });
-    expect(archived(prototype!.id)).toMatchObject({ prototypeEnd: 'discarded' });
-    expect(item(i.id).builtOn).toBeUndefined();
+    expect(archived(prototype!.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' } });
+    expect(item(i.id).idea?.builtOn).toBeUndefined();
   });
 
   test('"Make a plan" keeps the prototypes; once the plan stands, one of its workstreams is built on one', async () => {
@@ -1227,7 +1227,7 @@ describe('a prototype', () => {
     expect(board().item(i.id)).toBeUndefined();
     const [w1, w2, w3] = board().snapshot().items.filter((x) => x.parent === plan.id);
     // the prototypes still name their idea
-    expect(prototypes(i.id).map((p) => p.ideaTitle)).toEqual(['Webseite', 'Webseite']);
+    expect(prototypes(i.id).map((p) => p.idea?.ideaTitle)).toEqual(['Webseite', 'Webseite']);
 
     // two workstreams mention prototypes: the owner chooses
     expect(() => project.act(film!.id, { action: 'buildPrototype' })).toThrow(expect.objectContaining({ code: 'workstreamMissing' }));
@@ -1240,12 +1240,12 @@ describe('a prototype', () => {
     board().work(w3!.id, { branch: 'obeya/aufraeumen' });
     await project.act(film!.id, { action: 'buildPrototype' });
     // the workstream takes over the prototype's workstation and branch, and starts
-    expect(item(w2!.id).builtOn).toBe(film!.id);
-    expect(item(w2!.id).prototypes!.map((p) => p.id)).toEqual([film!.id]);
+    expect(item(w2!.id).idea?.builtOn).toBe(film!.id);
+    expect(item(w2!.id).idea?.prototypes!.map((p) => p.id)).toEqual([film!.id]);
     expect(board().row(w2!.id).workstation).toBe(ws);
     expect(git(ws, 'log', '--format=%s', '-1')).toBe('Prototyp film.html');
-    expect(archived(film!.id)).toMatchObject({ prototypeEnd: 'built', builtInto: 'W2 “Seite bauen”', ideaTitle: 'Webseite' });
-    expect(archived(manifest!.id)).toMatchObject({ prototypeEnd: 'discarded' });
+    expect(archived(film!.id)).toMatchObject({ idea: { prototypeEnd: 'built', builtInto: 'W2 “Seite bauen”', ideaTitle: 'Webseite' } });
+    expect(archived(manifest!.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' } });
     expect(prototypes(i.id)).toEqual([]);
     expect(board().decisions(plan.id).at(-1)).toMatchObject({ cardId: w2!.id, answer: `On the prototype “${film!.title}”.` });
     // the Koordinator estimates the scope of the plan doc's card first, then decides on the
@@ -1266,7 +1266,7 @@ describe('a prototype', () => {
     await settle();
     const [prototype] = prototypes(i.id);
     project.remove(prototype!.id);
-    expect(archived(prototype!.id)).toMatchObject({ prototypeEnd: 'discarded' });
+    expect(archived(prototype!.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' } });
     await settle();
     expect(project.repos[0]!.workstations.leasedBy(prototype!.id)).toBeNull();
     expect(() => project.act(i.id, { action: 'buildPrototype' })).toThrow('not a prototype');
@@ -1285,7 +1285,7 @@ describe('a prototype', () => {
     s.call('plan_split', { title: ' Lese-Lern-App:  Spiel und Lernlogik ', brief: '**Ziel:** Das Spiel mit Platzhalterbildern.' });
     s.call('reply', { text: 'Die Spiellogik kann los.', next: { step: 'splitOff', why: 'Die Spiellogik steht, die Bilder brauchen Prototypen.' } });
     s.emit({ type: 'idle' });
-    expect(item(i.id).idea).toMatchObject({
+    expect(item(i.id).idea?.discussion).toMatchObject({
       split: { title: 'Lese-Lern-App: Spiel und Lernlogik', brief: '**Ziel:** Das Spiel mit Platzhalterbildern.' },
       next: { step: 'splitOff' },
     });
@@ -1302,16 +1302,16 @@ describe('a prototype', () => {
     expect(task).toMatchObject({ kind: 'task', state: 'planned', from: i.id, images: [shot], queue: { checking: true } });
     expect(task.body).toBe('**Ziel:** Das Spiel mit Platzhalterbildern.\n\nThe part of the idea “Lese-Lern-App” that is settled. What is still open there, the idea goes on discussing; it is not part of this task.');
     // the idea stays open with its brief, its planned and running prototypes; the split is used up
-    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { status: 'open', brief: '**Ziel:** Lesen lernen. Die Spiellogik steht, die Bilder sind offen.' } });
-    expect(item(i.id).idea!.variants.map((v) => v.approach)).toEqual(['P1 lokal', 'P2 Cloud']);
-    expect(item(i.id).idea!.split).toBeUndefined();
+    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { status: 'open', brief: '**Ziel:** Lesen lernen. Die Spiellogik steht, die Bilder sind offen.' } } });
+    expect(item(i.id).idea?.discussion!.variants.map((v) => v.approach)).toEqual(['P1 lokal', 'P2 Cloud']);
+    expect(item(i.id).idea?.discussion!.split).toBeUndefined();
     expect(item(p1!.id).state).toBe('working');
     expect(board().decisions(null).at(-1)).toMatchObject({ cardId: i.id, answer: 'Split off a task: “Lese-Lern-App: Spiel und Lernlogik”.' });
     expect(board().events(i.id).some((e) => e.text === 'Task split off: “Lese-Lern-App: Spiel und Lernlogik” is now a task of its own; what is open stays here.')).toBe(true);
     // its agent hears what became of the part, and trims the brief to what is open
     const told = explorer();
     expect(told.inbox.at(-1)).toContain('the part you marked as settled is now the task “Lese-Lern-App: Spiel und Lernlogik”');
-    expect(item(i.id).idea!.thinking).toBe(true);
+    expect(item(i.id).idea?.discussion!.thinking).toBe(true);
     turn(told, 'Offen sind die Bilder.', () => told.call('update_brief', { brief: '**Ziel:** Bilder für die Lese-Lern-App.' }));
     expect(() => project.act(i.id, { action: 'splitOff' })).toThrow(expect.objectContaining({ code: 'noSplit' }));
     await settle();
@@ -1320,7 +1320,7 @@ describe('a prototype', () => {
     // later the idea is built as before, and its prototypes go
     project.act(i.id, { action: 'build' });
     expect(item(i.id)).toMatchObject({ state: 'planned', body: '**Ziel:** Bilder für die Lese-Lern-App.' });
-    expect(archived(p1!.id)).toMatchObject({ prototypeEnd: 'discarded' });
+    expect(archived(p1!.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' } });
   });
 
   test('building the settled part waits for its agent’s reply, and is no step without a part marked', () => {
@@ -1332,7 +1332,7 @@ describe('a prototype', () => {
     expect(s.spec.system).toContain("The idea's prototypes stay, for the workstream that builds on them.");
     s.call('reply', { text: 'Noch nichts.', next: { step: 'splitOff', why: '?' } });
     s.emit({ type: 'idle' });
-    expect(item(i.id).idea!.next).toBeUndefined();
+    expect(item(i.id).idea?.discussion!.next).toBeUndefined();
     expect(() => project.act(i.id, { action: 'splitOff' })).toThrow(expect.objectContaining({ code: 'noSplit' }));
     project.act(i.id, { action: 'discuss', text: 'CSV steht, PDF noch nicht.' });
     s = explorer();
@@ -1341,13 +1341,13 @@ describe('a prototype', () => {
     expect(() => project.act(i.id, { action: 'splitOff' })).toThrow(expect.objectContaining({ code: 'ideaThinking' }));
     s.call('reply', { text: 'CSV kann los.', next: { step: 'splitOff', why: 'CSV steht.' } });
     s.emit({ type: 'idle' });
-    expect(item(i.id).idea).toMatchObject({ split: { title: 'CSV-Export' }, next: { step: 'splitOff', why: 'CSV steht.' } });
+    expect(item(i.id).idea?.discussion).toMatchObject({ split: { title: 'CSV-Export' }, next: { step: 'splitOff', why: 'CSV steht.' } });
     // a split without a brief, or emptied, is none
     project.act(i.id, { action: 'discuss', text: 'Doch alles zusammen.' });
     s = explorer();
     s.call('plan_split', { title: 'CSV-Export', brief: ' ' });
     turn(s, 'Dann alles zusammen.');
-    expect(item(i.id).idea!.split).toBeUndefined();
+    expect(item(i.id).idea?.discussion!.split).toBeUndefined();
     expect(board().events(i.id).some((e) => e.text === 'Marks no task to split off any more')).toBe(true);
   });
 });
@@ -1416,7 +1416,7 @@ describe('by voice', () => {
     expect(explorer().inbox[0]).toContain('Nimm noch PDF auf.');
     project.commander.arm(h.token!);
     await settle(30);
-    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { thinking: true, buildAfterReply: true } });
+    expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { thinking: true, buildAfterReply: true } } });
     // the Koordinator sees what waits
     const again = project.commander.hear('was ist mit der Idee', { card: i.id });
     await settle();
@@ -1435,7 +1435,7 @@ describe('by voice', () => {
     await settle();
     const prototype = board()
       .snapshot()
-      .items.find((x) => x.prototypeOf === i.id)!;
+      .items.find((x) => x.idea?.prototypeOf === i.id)!;
     project.act(i.id, { action: 'discuss', text: 'Schon was zu sehen?' });
     expect(() => project.act(prototype.id, { action: 'buildPrototype' })).toThrow('still working on its reply');
   });
@@ -1446,15 +1446,15 @@ describe('by voice', () => {
     await settle();
     const prototype = board()
       .snapshot()
-      .items.find((x) => x.prototypeOf === i.id)!;
+      .items.find((x) => x.idea?.prototypeOf === i.id)!;
     const heard = project.commander.hear('bau diesen Prototyp', { card: prototype.id });
     await settle();
     expect(reader().inbox[0]).toContain(`"${prototype.title}" (prototype of K`);
     const tag = reader().inbox[0]!.match(/(K\d+) \[working\] "Prototyp/)![1];
     reader().call('act', { actions: [{ do: 'build', card: tag }], confirm: 'Die Idee wird auf diesem Prototyp gebaut.' });
     project.commander.arm((await heard).token!);
-    await until(() => item(i.id).builtOn);
-    expect(item(i.id)).toMatchObject({ builtOn: prototype.id });
+    await until(() => item(i.id).idea?.builtOn);
+    expect(item(i.id)).toMatchObject({ idea: { builtOn: prototype.id } });
   });
 
   test('"bau diesen Prototyp" builds the workstream its plan doc names once its idea is a plan', async () => {
@@ -1463,14 +1463,14 @@ describe('by voice', () => {
     await settle();
     const prototype = board()
       .snapshot()
-      .items.find((x) => x.prototypeOf === i.id)!;
+      .items.find((x) => x.idea?.prototypeOf === i.id)!;
     await landDoc('docs/plan/seite.md', '# Webseite\n\n## Ziel\n\nEine Seite.\n\n## Workstreams\n\n- [ ] **W1:** Seite bauen. Auf dem gewählten Prototyp.\n');
     board().work(i.id, { state: 'live' });
     board().planDocsLanded(i.id, ['docs/plan/seite.md']);
     board().docsChanged();
     const w1 = board()
       .snapshot()
-      .items.find((x) => x.label === 'W1')!;
+      .items.find((x) => x.plan?.label === 'W1')!;
     const heard = project.commander.hear('bau diesen Prototyp', { card: prototype.id });
     await settle();
     const list = reader().inbox[0]!;
@@ -1479,9 +1479,9 @@ describe('by voice', () => {
     expect(list).toContain('build starts its workstream K');
     reader().call('act', { actions: [{ do: 'build', card: tag }], confirm: 'W1 wird auf diesem Prototyp gebaut.' });
     project.commander.arm((await heard).token!);
-    await until(() => item(w1.id).builtOn);
+    await until(() => item(w1.id).idea?.builtOn);
     await settle();
-    expect(item(w1.id)).toMatchObject({ builtOn: prototype.id });
+    expect(item(w1.id)).toMatchObject({ idea: { builtOn: prototype.id } });
   });
 
   test('"bau schon, was feststeht" builds the part its agent marked, and only then', async () => {
@@ -1527,12 +1527,12 @@ describe('a new repository for an idea', () => {
     expect(s.spec.system).toContain('plan_repo');
     expect(s.call('plan_repo', { path: 'dev/super59' })).toContain('give it absolute or from ~');
     expect(s.call('plan_repo', { path: ' ~/dev/super59 ' })).toContain('a new repository at ~/dev/super59, with a project of its own');
-    expect(item(i.id).newRepo).toEqual({ path: '~/dev/super59', project: true, by: 'agent' });
+    expect(item(i.id).idea?.newRepo).toEqual({ path: '~/dev/super59', project: true, by: 'agent' });
     expect(s.call('plan_repo', { path: '' })).toContain('No new repository');
-    expect(item(i.id).newRepo).toBeUndefined();
+    expect(item(i.id).idea?.newRepo).toBeUndefined();
     s.call('plan_repo', { path: '~/dev/super59', project: false });
     board().patch(i.id, { newRepo: { path: '~/dev/termine', project: true } });
     expect(s.call('plan_repo', { path: '~/dev/other' })).toContain('The owner picked the repository on the card themselves (a new one at ~/dev/termine)');
-    expect(item(i.id).newRepo).toEqual({ path: '~/dev/termine', project: true, by: 'owner' });
+    expect(item(i.id).idea?.newRepo).toEqual({ path: '~/dev/termine', project: true, by: 'owner' });
   });
 });

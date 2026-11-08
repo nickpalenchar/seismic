@@ -29,17 +29,18 @@ export interface RepoChoice {
  * shows, unless the owner has changed it on the card since it opened.
  */
 export function useRepoChoice(item: Item, onEdit: (p: CardPatch) => void): RepoChoice {
+  const newRepo = item.idea?.newRepo;
   const [repo, setRepo] = useState(item.repo);
-  const [fresh, setFreshState] = useState<FreshRepo | null>(item.newRepo ? { path: item.newRepo.path, project: item.newRepo.project } : null);
+  const [fresh, setFreshState] = useState<FreshRepo | null>(newRepo ? { path: newRepo.path, project: newRepo.project } : null);
   // what the owner picked here and the server does not have yet: until it does, the card keeps showing it
   const mine = useRef<string | null>(null);
   const key = (r: string, f: FreshRepo | null) => JSON.stringify([r, f?.path.trim() ?? null, f?.project ?? null]);
-  const stored = key(item.repo, item.newRepo ? { path: item.newRepo.path, project: item.newRepo.project } : null);
+  const stored = key(item.repo, newRepo ? { path: newRepo.path, project: newRepo.project } : null);
   useEffect(() => {
     if (mine.current !== null && mine.current !== stored) return;
     mine.current = null;
     setRepo(item.repo);
-    setFreshState(item.newRepo ? { path: item.newRepo.path, project: item.newRepo.project } : null);
+    setFreshState(newRepo ? { path: newRepo.path, project: newRepo.project } : null);
   }, [stored]);
   const setFresh = (f: FreshRepo) => {
     mine.current = key(repo, f);

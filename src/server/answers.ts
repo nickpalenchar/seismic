@@ -135,7 +135,7 @@ export class Answers {
    */
   askPlan(planId: string, text: string, images: string[], replyTo?: TalkRef): number {
     const plan = this.o.board.item(planId);
-    if (plan?.kind !== 'plan' || !plan.plan) throw new BadRequest('invalid', 'not a plan with a plan doc');
+    if (plan?.kind !== 'plan' || !plan.plan?.file) throw new BadRequest('invalid', 'not a plan with a plan doc');
     const quoted = this.o.board.quotedTalk(replyTo);
     const talk = this.o.board.addTalk(text, '', null, { question: text, about: planId }, images, quoted, undefined, planId);
     if (quoted && this.o.board.exchange(quoted.talk)?.thread) this.o.board.followTalk(talk, quoted.talk);
@@ -441,7 +441,7 @@ export class Answers {
   private agentFor(root: Exchange): { by: By; about: Item | undefined; plan: Item | undefined } {
     const about = root.about ? this.o.board.item(root.about) : undefined;
     const plan = about?.kind === 'plan' ? about : about?.parent ? this.o.board.item(about.parent) : undefined;
-    return { by: plan?.plan ? 'plan' : 'koordinator', about, plan };
+    return { by: plan?.plan?.file ? 'plan' : 'koordinator', about, plan };
   }
 
   /** The session of the Question card a thread moved onto, archived or deleted since. */
@@ -514,8 +514,8 @@ export class Answers {
       const state = about.queue ? 'planned, queued' : about.need ? `${about.state}: ${about.need}` : about.state;
       parts.push(
         [
-          `It is about the ${about.kind} "${about.title}"${about.label ? ` (workstream ${about.label} of the plan "${plan?.title ?? ''}")` : ''}, state ${state}.`,
-          about.statusLine ? `Its last status line: ${about.statusLine}` : '',
+          `It is about the ${about.kind} "${about.title}"${about.plan?.label ? ` (workstream ${about.plan.label} of the plan "${plan?.title ?? ''}")` : ''}, state ${state}.`,
+          about.agent?.statusLine ? `Its last status line: ${about.agent.statusLine}` : '',
           about.question ? `Its open question: ${about.question.text}` : '',
         ]
           .filter(Boolean)
@@ -532,7 +532,7 @@ export class Answers {
         .slice(-LOG_LINES);
       if (log.length) parts.push(`The card's log, latest last:\n${log.map((e) => `- ${e.at.slice(0, 16)} ${e.author} (${e.kind}): ${clip(e.text, 300)}`).join('\n')}`);
     } else if (plan) parts.push(`It is about the plan "${plan.title}".`);
-    if (plan?.plan) parts.push(`The plan's plan doc: ${plan.plan.file}.`);
+    if (plan?.plan?.file) parts.push(`The plan's plan doc: ${plan.plan.file}.`);
     return parts.join('\n\n');
   }
 }

@@ -165,7 +165,7 @@ function videoDir(d: string) {
   return d;
 }
 
-const share = (id: string) => board.item(id)!.share;
+const share = (id: string) => board.item(id)!.demo?.share;
 /** The card's page on the site, by its slug. */
 const slug = (id: string) => (JSON.parse(board.row(id).share!) as { slug: string }).slug;
 /** What the latest deploy said of the card's page. */
@@ -332,7 +332,7 @@ describe('sharing a demo', () => {
     await until(() => share(c.id)?.state === 'shared');
     expect(meta(c.id)).toMatchObject({ title: 'Meter readings as CSV', text: 'Landlords download meter readings as CSV.' });
     // kept with the demo: the next share needs no session
-    expect(board.item(c.id)!.demo!.page).toEqual({ title: 'Meter readings as CSV', text: 'Landlords download meter readings as CSV.' });
+    expect(board.item(c.id)!.demo!.latest!.page).toEqual({ title: 'Meter readings as CSV', text: 'Landlords download meter readings as CSV.' });
   });
 
   test('after a restart, a share under way goes on', async () => {
@@ -355,7 +355,7 @@ describe('the tags of a page', () => {
 
   test("the worker's go on the page, in the vocabulary's order, and the card shows them", async () => {
     const c = tagged({ Area: ['Reports', 'Billing'], Audience: [] });
-    expect(board.item(c.id)!.tags).toEqual({ Area: ['Reports', 'Billing'], Audience: [] });
+    expect(board.item(c.id)!.demo?.tags).toEqual({ Area: ['Reports', 'Billing'], Audience: [] });
     sharing.share(c.id);
     await until(() => share(c.id)?.state === 'shared');
     expect(runtime.sessions).toHaveLength(0);
@@ -401,7 +401,7 @@ describe('the tags of a page', () => {
     const c = tagged({ Area: ['Billing'], Audience: ['Admins'] });
     // before sharing: kept for the page
     sharing.setTags(c.id, 'Area', ['Reports']);
-    expect(board.item(c.id)!.tags).toEqual({ Area: ['Reports'], Audience: ['Admins'] });
+    expect(board.item(c.id)!.demo?.tags).toEqual({ Area: ['Reports'], Audience: ['Admins'] });
     expect(log(c.id).at(-1)).toBe('Tags set by hand, Area: Reports');
     expect(calls()).toHaveLength(0);
     sharing.share(c.id);
@@ -418,11 +418,11 @@ describe('the tags of a page', () => {
     // a later demo's worker
     const newer = videoDir(join(dir, 'newer'));
     board.work(c.id, { demos: board.row(c.id).demo!.replace(/^/, '[') + ']', demo: JSON.stringify({ kind: 'video', dir: newer, chapters: [], page: { title: 'T', text: 'T.', tags: { Area: ['Settings'], Audience: ['Customers'] } } }) });
-    expect(board.item(c.id)!.tags).toEqual({ Area: ['Reports'], Audience: [] });
+    expect(board.item(c.id)!.demo?.tags).toEqual({ Area: ['Reports'], Audience: [] });
     // a dimension the owner left alone comes from the newest worker
     vocabulary = { ...vocabulary, Plan: ['Free', 'Pro'] };
     board.work(c.id, { demo: JSON.stringify({ kind: 'video', dir: newer, chapters: [], page: { title: 'T', text: 'T.', tags: { Area: ['Settings'], Audience: ['Customers'], Plan: ['Pro'] } } }) });
-    expect(board.item(c.id)!.tags).toEqual({ Area: ['Reports'], Audience: [], Plan: ['Pro'] });
+    expect(board.item(c.id)!.demo?.tags).toEqual({ Area: ['Reports'], Audience: [], Plan: ['Pro'] });
   });
 
   test('set while the page goes out, it goes out once more with them', async () => {
@@ -476,7 +476,7 @@ describe('the tags of a page', () => {
     }
     // the owner's choice for B was a struck value: the session's stands in for it, and the next owner's choice over that
     sharing.setTags(b.id, 'Area', ['Reports']);
-    expect(board.item(b.id)!.tags!.Area).toEqual(['Reports']);
+    expect(board.item(b.id)!.demo!.tags!.Area).toEqual(['Reports']);
     // put away, a run tagging pages leaves the notice of outdated pages as it was
     await until(() => still(b.id));
     sharing.dismissResharing();
@@ -1020,7 +1020,7 @@ describe('publishing on approval', () => {
   test('unticked “Share on approval” keeps the approval from sharing, through sharing now and withdrawing', async () => {
     const c = card('Filter bleiben', { handover: 1 });
     sharing.onApproval(c.id, false);
-    expect(board.card(c.id)?.notOnApproval).toBe(true);
+    expect(board.card(c.id)?.demo?.notOnApproval).toBe(true);
     expect(sharing.approved(c.id)).toBeNull();
     expect(share(c.id)).toBeUndefined();
     expect(log(c.id).at(-1)).toBe('Not shared with the approval: “Share on approval” was unticked.');
@@ -1034,10 +1034,10 @@ describe('publishing on approval', () => {
     expect(on(c.id)).toEqual([1]);
     sharing.unshare(c.id);
     await until(() => !share(c.id));
-    expect(board.card(c.id)?.notOnApproval).toBe(true);
+    expect(board.card(c.id)?.demo?.notOnApproval).toBe(true);
     // ticked again, the approval shares as before
     sharing.onApproval(c.id, true);
-    expect(board.card(c.id)?.notOnApproval).toBeUndefined();
+    expect(board.card(c.id)?.demo?.notOnApproval).toBeUndefined();
     sharing.approved(c.id);
     await until(() => share(c.id)?.state === 'shared');
     expect(on(c.id)).toEqual([2]);
@@ -1357,7 +1357,7 @@ describe('exporting a demo, where the repository has no demo site', () => {
     runtime.last.call('page', { title: 'Meter readings as CSV', text: 'Landlords download them.' });
     runtime.last.emit({ type: 'idle' });
     expect((await out).name).toEndWith('.zip');
-    expect(board.item(c.id)!.demo!.page).toEqual({ title: 'Meter readings as CSV', text: 'Landlords download them.' });
+    expect(board.item(c.id)!.demo!.latest!.page).toEqual({ title: 'Meter readings as CSV', text: 'Landlords download them.' });
   });
 
   test('an HTML artifact: beside its page in the ZIP, in one HTML file only when it is its index.html alone', async () => {

@@ -39,20 +39,20 @@ function useChange(item: Item, given: CardDiff | null | undefined): CardDiff | n
     return () => {
       gone = true;
     };
-  }, [own, item.id, item.state, item.need, item.summary, item.workstation, JSON.stringify(item.files)]);
+  }, [own, item.id, item.state, item.need, item.review?.summary, item.agent?.workstation, JSON.stringify(item.demo?.files)]);
   return own ? diff : given;
 }
 
 /** Deliverables in tabs, then the code review of the work where it has one (`review`, its tab's label and panel), with the underlying change list in a separate Diff tab. */
 export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: Item; diff?: CardDiff | null; demo: ReactNode; review?: { label: ReactNode; title?: string; panel: ReactNode }; tab: string | null; onTab: (path: string) => void }) {
   const change = useChange(item, diff);
-  const rows = changeRows(change, item.files);
+  const rows = changeRows(change, item.demo?.files);
   const files = rows.flatMap((r) => (r.file ? [r.file] : []));
   const named = files.filter((f) => f.caption !== undefined);
   const schema = (f: ShownFile) => f.kind === 'page' && /(^|\/)[^/]*schema[^/]*\.html?$/i.test(f.path);
   const label = (f: ShownFile) => schema(f) ? t.files.tabs.schema : f.kind === 'page' ? t.files.tabs.document : base(f.path);
   const tabs = [
-    ...(demo ? [{ path: DEMO, label: item.demo?.kind === 'html' ? t.files.tabs.document : t.files.tabs.video }] : []),
+    ...(demo ? [{ path: DEMO, label: item.demo?.latest?.kind === 'html' ? t.files.tabs.document : t.files.tabs.video }] : []),
     ...named.filter((f) => !schema(f)).map((f) => ({ path: f.path, label: label(f), title: f.caption })),
     ...named.filter(schema).map((f) => ({ path: f.path, label: label(f) as ReactNode, title: f.caption })),
     ...(review ? [{ path: REVIEW, label: review.label, ...(review.title ? { title: review.title } : {}) }] : []),
@@ -62,7 +62,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const [pickedFile, setPickedFile] = useState<string | null>(null);
   const [asChanges, setAsChanges] = useState<Record<string, boolean>>({});
   const demoBox = useRef<HTMLDivElement>(null);
-  const rev = revision(`${item.state}:${item.need ?? ''}:${item.summary ?? ''}:${JSON.stringify(change?.files ?? [])}:${JSON.stringify(change?.folder?.changes ?? [])}`);
+  const rev = revision(`${item.state}:${item.need ?? ''}:${item.review?.summary ?? ''}:${JSON.stringify(change?.files ?? [])}:${JSON.stringify(change?.folder?.changes ?? [])}`);
   const box = useRef<HTMLDivElement>(null);
   const [tallest, setTallest] = useState(0);
   useLayoutEffect(() => {
@@ -81,7 +81,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     const view = box.current?.querySelector('.r-file');
     if (view && !seen(view)) view.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
   }, [picked]);
-  if (!tabs.length) return item.files && change ? <p className="hint">{t.files.none}</p> : null;
+  if (!tabs.length) return item.demo?.files && change ? <p className="hint">{t.files.none}</p> : null;
   const inDiff = current === DIFF;
   const path = inDiff ? pickedFile : current === REVIEW ? null : current;
   const file = files.find((f) => f.path === path);

@@ -11,7 +11,7 @@ describe('openPerGroup', () => {
       card({ group: 'a', state: 'live' }),
       card({ group: 'a', state: 'done' }),
       card({ group: 'a', archivedAt: '2026-10-01' }),
-      card({ group: 'a', state: 'idea', idea: { status: 'dropped', brief: '', thinking: false, yourTurn: false, questions: [], variants: [], mocks: [] } }),
+      card({ group: 'a', state: 'idea', idea: { discussion: { status: 'dropped', brief: '', thinking: false, yourTurn: false, questions: [], variants: [], mocks: [] } } }),
       card({ group: 'b', kind: 'plan' }),
       card({ group: 'b', parent: 'p', state: 'planned' }),
       card({ group: 'c', state: 'live' }),
@@ -90,13 +90,13 @@ describe('withClones', () => {
 });
 
 test('a stopped task goes into the archive while nothing waits to start it and its workstation holds no work', () => {
-  const stoppedTask = { kind: 'task', state: 'planned', branch: 'obeya/x', source: 'manual' } as const;
+  const stoppedTask = { kind: 'task', state: 'planned', agent: { branch: 'obeya/x' }, source: 'manual' } as const;
   expect(stoppedArchivable(stoppedTask)).toBe(true);
-  expect(stoppedArchivable({ ...stoppedTask, branch: undefined })).toBe(false);
-  expect(stoppedArchivable({ ...stoppedTask, workstation: '/clones/1' })).toBe(false);
+  expect(stoppedArchivable({ ...stoppedTask, agent: undefined })).toBe(false);
+  expect(stoppedArchivable({ ...stoppedTask, agent: { ...stoppedTask.agent, workstation: '/clones/1' } })).toBe(false);
   expect(stoppedArchivable({ ...stoppedTask, queue: { checking: true, since: '' } })).toBe(false);
   expect(stoppedArchivable({ ...stoppedTask, source: 'plan' })).toBe(false);
-  expect(stoppedArchivable({ ...stoppedTask, prototypeOf: 'idea' })).toBe(false);
+  expect(stoppedArchivable({ ...stoppedTask, idea: { prototypeOf: 'idea' } })).toBe(false);
 });
 
 describe('withSupplemented', () => {
@@ -114,8 +114,8 @@ describe('withSupplemented', () => {
 });
 
 test('a running code review does not ask for attention until it finishes', () => {
-  const reviewing = card({ state: 'waiting', need: 'review', codeReview: { mode: 'auto', state: 'running', findings: [] } });
+  const reviewing = card({ state: 'waiting', need: 'review', review: { codeReview: { mode: 'auto', state: 'running', findings: [] } } });
   expect(needsYou(reviewing)).toBe(false);
-  expect(needsYou({ ...reviewing, codeReview: { mode: 'auto', state: 'done', findings: [] } })).toBe(true);
+  expect(needsYou({ ...reviewing, review: { codeReview: { mode: 'auto', state: 'done', findings: [] } } })).toBe(true);
   expect(needsYou({ ...reviewing, need: 'question' })).toBe(true);
 });

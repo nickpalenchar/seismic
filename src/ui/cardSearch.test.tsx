@@ -7,7 +7,7 @@ import { CardSearch } from './cardSearch';
 test('the project finder omits a card hidden inside a merge proposal', () => {
   const card = (id: string, title: string, more: Partial<Item> = {}) => ({ id, short: id, title, body: '', state: 'planned', ...more }) as Item;
   const html = renderToStaticMarkup(createElement(CardSearch, {
-    items: [card('hidden', 'Merged login card', { mergingInto: 'proposal' }), card('visible', 'Login settings')],
+    items: [card('hidden', 'Merged login card', { idea: { mergingInto: 'proposal' } }), card('visible', 'Login settings')],
     onOpen: () => {}, onClose: () => {},
   }));
   expect(html).toContain('Login settings');

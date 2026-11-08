@@ -8,13 +8,13 @@ export type PushKind = Exclude<keyof Messages['push'], 'several'>;
 
 /** What a card that needs the owner waits for; `before`: the card as it was before it did (a failed landing was landing). */
 export function kindOf(i: Item, before?: Item): PushKind {
-  if (before?.landing) return 'landing';
+  if (before?.review?.landing) return 'landing';
   if (i.state === 'proposal') return 'proposal';
-  if (i.superseded) return 'superseded';
+  if (i.idea?.superseded) return 'superseded';
   if (i.state === 'inPr') return 'pr';
-  if (i.idea) return 'idea';
+  if (i.idea?.discussion) return 'idea';
   if (i.need === 'question') return i.question?.stuck ? 'stuck' : 'question';
-  if (i.answered) return 'answered';
+  if (i.review?.answered) return 'answered';
   return i.need === 'demo' ? 'demo' : 'review';
 }
 
@@ -25,7 +25,7 @@ export function kindOf(i: Item, before?: Item): PushKind {
 export function startedWaiting(before: ReadonlyMap<string, Item>, after: readonly Item[]): { item: Item; kind: PushKind }[] {
   return after.flatMap((i) => {
     const was = before.get(i.id);
-    if (i.superseded && was && !was.superseded && !snoozeOf(i)) return [{ item: i, kind: 'superseded' as const }];
+    if (i.idea?.superseded && was && !was.idea?.superseded && !snoozeOf(i)) return [{ item: i, kind: 'superseded' as const }];
     return needsYou(i) && !(was && needsYou(was)) ? [{ item: i, kind: kindOf(i, was) }] : [];
   });
 }

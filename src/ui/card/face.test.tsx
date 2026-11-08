@@ -7,11 +7,11 @@ import { cardKind } from './summary';
 
 const card = (more: Partial<Item> = {}): Item => ({ id: 'c', kind: 'task', state: 'planned', title: 'Cart model', body: 'One cart per customer.', x: 0, y: 0, source: 'manual', repo: 'shop', ...more });
 const face = (p: CardFaceProps) => renderToStaticMarkup(createElement(CardFace, p)).replace(/<!-- -->/g, '');
-const labelled: Partial<Item> = { priority: 'high', category: 'frontend', subcategory: 'newFeature', complexity: 3, suggested: ['category'] };
+const labelled: Partial<Item> = { labels: { priority: 'high', category: 'frontend', subcategory: 'newFeature', complexity: 3, suggested: ['category'] } };
 const asking = card({ ...labelled, state: 'waiting', need: 'question', question: { text: 'Serif or sans?', options: ['Serif', 'Sans'] } } as unknown as Partial<Item>);
 
 test('a delivered workstream keeps its label before its title as a chip', () => {
-  const ws = card({ state: 'live', parent: 'p', source: 'plan', label: 'W1' });
+  const ws = card({ state: 'live', parent: 'p', source: 'plan', plan: { label: 'W1' } });
   expect(face({ item: ws, chip: true })).toContain('<div class="ttl"><span class="ws-no">W1</span>Cart model</div>');
   // at a task's size the kind line says it
   expect(face({ item: ws })).toContain('<div class="ttl">Cart model</div>');
@@ -50,10 +50,10 @@ test('XS keeps to two lines: the priority flag, title and pin, then the short st
   // the plan's sheet shows a workstream's text below in full, without it in the line
   expect(face({ item: asking, size: 'xs', text: false })).toContain('<span class="f-state">Question</span></span>');
   // a workstream names itself by its label before the title; an idea does not say "Idea" twice
-  const ws = face({ item: card({ parent: 'p', label: 'W2' }), size: 'xs' });
+  const ws = face({ item: card({ parent: 'p', plan: { label: 'W2' } }), size: 'xs' });
   expect(ws).toContain('<span class="ws-no">W2</span>');
   expect(ws).not.toContain('Workstream');
-  expect(face({ item: card({ state: 'idea', body: '', idea: { status: 'open', brief: '', questions: [] } } as unknown as Partial<Item>), size: 'xs' })).toContain('<span class="f-state">Idea</span></span>');
+  expect(face({ item: card({ state: 'idea', body: '', idea: { discussion: { status: 'open', brief: '', questions: [] } } } as unknown as Partial<Item>), size: 'xs' })).toContain('<span class="f-state">Idea</span></span>');
 });
 
 test("the smallest face says a card's state in a word or two, from one table", () => {
@@ -72,6 +72,6 @@ test("a card's kind word, the same on its face, its open card and the archive", 
   expect(cardKind(card({ parent: 'p' }))).toBe('Workstream');
   expect(cardKind(card({ kind: 'plan' }))).toBe('Plan');
   expect(cardKind(card({ kind: 'question' }))).toBe('Question');
-  expect(cardKind(card({ prototypeOf: 'i' }))).toBe('Prototype');
-  expect(cardKind(card({ contribution: { number: 7, author: 'ann' } } as Partial<Item>))).toBe('PR #7 · ann');
+  expect(cardKind(card({ idea: { prototypeOf: 'i' } }))).toBe('Prototype');
+  expect(cardKind(card({ review: { contribution: { number: 7, author: 'ann' } } } as Partial<Item>))).toBe('PR #7 · ann');
 });

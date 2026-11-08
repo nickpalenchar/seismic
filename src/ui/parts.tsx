@@ -62,11 +62,12 @@ export const PlayMark = () => (
 
 /** The same limit pause and manual retry on every card's conversation. */
 export function LimitNotice({ item }: { item: Item }) {
-  if (!(item.hold?.reason === 'limit') && !item.limitedUntil) return null;
+  const limitedUntil = item.agent?.limitedUntil;
+  if (!(item.hold?.reason === 'limit') && !limitedUntil) return null;
   return <div className="limit-notice">
     <HourglassMark />
-    <div>{(item.hold?.reason === 'limit') ? t.limitPaused : t.limitedUntil(clock(item.limitedUntil!))}
-      {(item.hold?.reason === 'limit') && item.limitedUntil && <div className="limit-reset">{t.limitedUntil(clock(item.limitedUntil))}</div>}
+    <div>{(item.hold?.reason === 'limit') ? t.limitPaused : t.limitedUntil(clock(limitedUntil!))}
+      {(item.hold?.reason === 'limit') && limitedUntil && <div className="limit-reset">{t.limitedUntil(clock(limitedUntil))}</div>}
     </div>
     <button onClick={() => void api.act(item.id, { action: 'resume' }).catch(console.error)}><PlayMark /> {t.limitTryAgain}</button>
   </div>;
@@ -166,17 +167,17 @@ export const CardView = memo(
   function CardView({ item, partner, b, lifted, dragging, pop, prototyped, showRepo, els, onStart, onArchive, dep, onHover, underway }: CardProps) {
     const shape = shapeOf(item);
     // a card the Koordinator is checking has nothing to start yet
-    const startable = !item.proposal?.merge && !item.mergingInto && item.state === 'planned' && (!item.queue || 'behind' in item.queue);
+    const startable = !item.idea?.proposal?.merge && !item.idea?.mergingInto && item.state === 'planned' && (!item.queue || 'behind' in item.queue);
     // as "Archivieren" in the unfolded card: a finished card of the owner's whose agent is done, a
     // stopped task, or a parked or dropped idea without a prototype on the project
     const archivable =
       !item.archivedAt &&
-      (finishedArchivable(item) || stoppedArchivable(item) || (!!item.idea && item.idea.status !== 'open' && !prototyped));
+      (finishedArchivable(item) || stoppedArchivable(item) || (!!item.idea?.discussion && item.idea.discussion.status !== 'open' && !prototyped));
     const cls = [
       'item',
       cardClass(item, underway),
       shape,
-      item.proposal?.merge && 'merged-pair',
+      item.idea?.proposal?.merge && 'merged-pair',
       dep && `dep-${dep}`, lifted && 'lifted', dragging && 'dragging', pop && 'pop'].filter(Boolean).join(' ');
     return (
       <div
@@ -188,7 +189,7 @@ export const CardView = memo(
         onPointerLeave={() => onHover(null)}
       >
         {(dep === 'before' || dep === 'after') && <div className="dep-tag">{t.deps[dep]}</div>}
-        {item.proposal?.merge ? (
+        {item.idea?.proposal?.merge ? (
           <MergedPair item={item} partner={partner} showRepo={showRepo} />
         ) : (
           <CardFace item={item} where={showRepo ? item.repo : undefined} underway={underway} chip={shape === 'chip'} />
@@ -561,11 +562,11 @@ export function WorkstationsPill({ pools, project, projects, items, onOpen, onEl
   }, [open]);
   const several = pools.length > 1;
   const name = (repo: string) => project.repos.find((r) => r.id === repo)?.name ?? repo;
-  const forWorkstation = items.filter((i) => (i.queue && 'workstation' in i.queue && i.queue.workstation !== 'slots') || i.waitsForClone).length;
+  const forWorkstation = items.filter((i) => (i.queue && 'workstation' in i.queue && i.queue.workstation !== 'slots') || i.agent?.waitsForClone).length;
   const forSlot = items.filter((i) => i.queue && 'workstation' in i.queue && i.queue.workstation === 'slots').length;
   // a clone is taken from its card only while none is free and a card of its repository waits for one
   const wanted = (p: ClonePool) =>
-    p.hosts.every((h) => h.cards.length + blocked(h) >= h.total) && items.some((i) => i.repo === p.repo && ((i.queue && 'workstation' in i.queue) || i.waitsForClone));
+    p.hosts.every((h) => h.cards.length + blocked(h) >= h.total) && items.some((i) => i.repo === p.repo && ((i.queue && 'workstation' in i.queue) || i.agent?.waitsForClone));
   const blocked = (h: PoolHost) => h.blocked?.length ?? 0;
   // a new card takes a free clone that is not blocked, on a machine whose busy workers leave it a slot
   const room = (h: PoolHost) => Math.max(0, Math.min(h.slots - h.busy.length, h.total - h.cards.length - blocked(h)));
@@ -798,7 +799,7 @@ export const PlanView = memo(
     const live = kids.filter((k) => finished(k.state)).length;
     const waiting = kids.filter(needsYou).length;
     const startable = startableIn(kids);
-    const collapsed = !!item.collapsed;
+    const collapsed = !!item.plan?.collapsed;
     // the project would take the press as the start of a drag or a click that opens the plan
     const own = (e: React.PointerEvent) => e.stopPropagation();
     return (
@@ -822,10 +823,10 @@ export const PlanView = memo(
           {hasLabels(item) && <span className="head-labels"><LabelMarks item={item} /></span>}
           <span className="progress">{t.progress(live, kids.length)}</span>
           {/* collapsed, its workstreams are not on the project to arrange; its sheet still has the button */}
-          {!collapsed && (item.arranging || arrangeable(kids)) && (
+          {!collapsed && (item.plan?.arranging || arrangeable(kids)) && (
             <button
               className="head-btn arrange"
-              disabled={item.arranging}
+              disabled={item.plan?.arranging}
               title={`${t.plan.arrangeLong}. ${t.plan.arrangeHint}`}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
@@ -834,7 +835,7 @@ export const PlanView = memo(
               }}
             >
               <ColumnsIcon size={11} />
-              {item.arranging ? t.plan.arranging : t.plan.arrange}
+              {item.plan?.arranging ? t.plan.arranging : t.plan.arrange}
             </button>
           )}
           {startable > 0 && (
@@ -972,12 +973,13 @@ export function linkSpot(a: Bounds, b: Bounds, head: number, cards: Bounds[], ro
  */
 export function Links({ placed, waits, standsFor }: { placed: { item: Item; b: Bounds }[]; waits: [string, string][]; standsFor: (id: string) => string }) {
   const byId = new Map(placed.map((p) => [p.item.id, p]));
-  const planOf = new Map(placed.flatMap((p) => (p.item.kind === 'plan' && p.item.origin ? [[p.item.origin, p]] : [])));
+  const planOf = new Map(placed.flatMap((p) => (p.item.kind === 'plan' && p.item.plan?.origin ? [[p.item.plan.origin, p]] : [])));
   // both ways: the arrow joins the same two cards whichever of them waits
   const joined = new Set(waits.flatMap(([from, to]) => [`${standsFor(from)} ${standsFor(to)}`, `${standsFor(to)} ${standsFor(from)}`]));
   const paths = placed.flatMap(({ item, b }) => {
+    const prototypeOf = item.idea?.prototypeOf;
     const src =
-      (item.state === 'proposal' || item.state === 'planned' || item.prototypeOf) && item.from ? (byId.get(item.from) ?? (item.prototypeOf ? planOf.get(item.prototypeOf) : undefined)) : undefined;
+      (item.state === 'proposal' || item.state === 'planned' || prototypeOf) && item.from ? (byId.get(item.from) ?? (prototypeOf ? planOf.get(prototypeOf) : undefined)) : undefined;
     if (!src || joined.has(`${src.item.id} ${item.id}`)) return [];
     return [<path key={item.id} d={linkPath(src.b, b)} />];
   });
@@ -1085,7 +1087,7 @@ export function DepLinks({
 /** A card a workstream waits for: a sibling by its label, any other by its title. */
 function sibling(id: string, kids: Item[], all: Item[]): string {
   const k = kids.find((x) => x.id === id);
-  return k?.label ?? plain((k ?? all.find((x) => x.id === id))?.title ?? '…');
+  return k?.plan?.label ?? plain((k ?? all.find((x) => x.id === id))?.title ?? '…');
 }
 
 /**
@@ -1159,7 +1161,7 @@ export function Sheet({
   const shown = reading && doc?.id === planCard?.id ? doc : null;
   const startable = startableIn(kids);
   // once Seismic has read what builds on what, the workstreams in the order they stand arranged in
-  const inOrder = kids.some((k) => k.buildsOn) ? dependencyOrder(kids).map((id) => kids.find((k) => k.id === id)!) : kids;
+  const inOrder = kids.some((k) => k.plan?.buildsOn) ? dependencyOrder(kids).map((id) => kids.find((k) => k.id === id)!) : kids;
   // the doc opens at its top, or at the workstream it was opened for
   useEffect(() => {
     if (!shown || !box.current) return;
@@ -1171,7 +1173,7 @@ export function Sheet({
   }, [shown?.id, reading, !!shown]);
   return (
     <Docked id="sheet" ref={box} on={!!on} className={reading ? 'reading' : undefined}>
-      {planCard?.plan && reading && (
+      {planCard?.plan?.file && reading && (
         <>
           <div className="read-head">
             <button className="back" onClick={() => onRead(null)}>
@@ -1186,7 +1188,7 @@ export function Sheet({
           )}
         </>
       )}
-      {planCard?.plan && !reading && (
+      {planCard?.plan?.file && !reading && (
         <>
           <div className="p-kind">
             {planCard.archivedAt ? t.archivedPlan : t.planSheet}
@@ -1195,7 +1197,7 @@ export function Sheet({
           <h2>{plain(planCard.title)}</h2>
           {planCard.archivedAt && <p className="hint">{t.archive.planGone(new Date(planCard.archivedAt))}</p>}
           <div className="goal">
-            <Inline md={planCard.plan.goal} />
+            <Inline md={planCard.plan.goal ?? ''} />
           </div>
           <div className="src">{planCard.plan.file}</div>
           {!planCard.archivedAt && (
@@ -1211,11 +1213,11 @@ export function Sheet({
               <p className="hint">{t.plan.startAllHint}</p>
             </div>
           )}
-          {!planCard.archivedAt && (planCard.arranging || arrangeable(kids)) && (
+          {!planCard.archivedAt && (planCard.plan.arranging || arrangeable(kids)) && (
             <div className="arrange">
-              <button className="btn" disabled={planCard.arranging} onClick={() => onArrange(planCard)}>
+              <button className="btn" disabled={planCard.plan.arranging} onClick={() => onArrange(planCard)}>
                 <ColumnsIcon size={12} />
-                {planCard.arranging ? t.plan.arranging : t.plan.arrangeLong}
+                {planCard.plan.arranging ? t.plan.arranging : t.plan.arrangeLong}
               </button>
               <p className="hint">{t.plan.arrangeHint}</p>
             </div>
@@ -1237,7 +1239,7 @@ export function Sheet({
                   tail={
                     k.queue && 'behind' in k.queue
                       ? t.queue.behind(waitedOn(k.queue.behind, all, (id) => sibling(id, kids, all)))
-                      : !finished(k.state) && !!k.buildsOn?.length && t.plan.buildsOn(k.buildsOn.map((id) => sibling(id, kids, all)))
+                      : !finished(k.state) && !!k.plan?.buildsOn?.length && t.plan.buildsOn(k.plan.buildsOn.map((id) => sibling(id, kids, all)))
                   }
                 />
                 {k.body.trim() && (

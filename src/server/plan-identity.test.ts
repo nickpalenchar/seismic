@@ -48,17 +48,17 @@ const work = (id: string, title: string, fields: Parameters<Store['cards']['upda
 describe('a workstream card keeps its workstream', () => {
   test('cards stay with their labels when the doc drops, adds and reorders workstreams', () => {
     const [g, b, c] = read(parse(OLD));
-    expect([g, b, c].map((k) => [k!.label, k!.title])).toEqual([
+    expect([g, b, c].map((k) => [k!.plan?.label, k!.title])).toEqual([
       ['1G', 'Testlücken schließen'],
       ['3B', 'Auth zusammenführen'],
       ['3C', 'Gleichzeitige Bearbeitung'],
     ]);
     work(b!.id, 'Auth zusammenführen', { state: 'planned' });
     const after = read(parse(NEW));
-    expect(after.map((k) => k.label)).toEqual(['4A', '3B', '3C']);
-    expect(after.find((k) => k.label === '3B')!.id).toBe(b!.id);
-    expect(after.find((k) => k.label === '3C')!.id).toBe(c!.id);
-    expect(after.find((k) => k.label === '4A')!.id).not.toBe(g!.id);
+    expect(after.map((k) => k.plan?.label)).toEqual(['4A', '3B', '3C']);
+    expect(after.find((k) => k.plan?.label === '3B')!.id).toBe(b!.id);
+    expect(after.find((k) => k.plan?.label === '3C')!.id).toBe(c!.id);
+    expect(after.find((k) => k.plan?.label === '4A')!.id).not.toBe(g!.id);
   });
 
   test('an unlabelled workstream is known by its title, also with a pull request before it', () => {
@@ -97,7 +97,7 @@ describe('a sibling dropped or added changes no card’s workstream', () => {
     expect(after.map((k) => [k.id, k.title])).toEqual([[a!.id, '4A Sitzungen']]);
     expect(board.archived()).toEqual([]);
     // and back: a second code makes it a label again
-    expect(read(parse(['[ ] **4A Sitzungen.** Revoke.', '[ ] **5C Neu.** New.'])).map((k) => [k.label, k.id === a!.id])).toEqual([
+    expect(read(parse(['[ ] **4A Sitzungen.** Revoke.', '[ ] **5C Neu.** New.'])).map((k) => [k.plan?.label, k.id === a!.id])).toEqual([
       ['4A', true],
       ['5C', false],
     ]);
@@ -159,7 +159,7 @@ describe('a doc in a plan folder outside the repository', () => {
     // the doc is saved in two edits: 3B is missing for a moment
     read(outside([OLD[0]!, OLD[2]!]));
     expect(board.archived()).toEqual([]);
-    expect(read(outside(OLD)).find((k) => k.label === '3B')!.id).toBe(b!.id);
+    expect(read(outside(OLD)).find((k) => k.plan?.label === '3B')!.id).toBe(b!.id);
     // now 1G goes for good
     const t = Date.now();
     read(outside(OLD.slice(1)));
@@ -201,7 +201,7 @@ describe('a doc in a plan folder outside the repository', () => {
     read(outside(OLD.slice(1)));
     expect(board.archived()).toEqual([]);
     expect(board.snapshot().items.some((i) => i.id === g!.id)).toBe(false);
-    expect(read(outside(OLD)).find((k) => k.label === '1G')!.id).toBe(g!.id);
+    expect(read(outside(OLD)).find((k) => k.plan?.label === '1G')!.id).toBe(g!.id);
   });
 
   test('the repair finds a reworded labelled title by the doc as last kept, without git', () => {
@@ -228,7 +228,7 @@ describe('cards of a doc read by an older Seismic', () => {
 
     // the new Seismic reads the same doc
     const after = read(parse(NEW));
-    expect(after.map((k) => [k.label, k.state])).toEqual([
+    expect(after.map((k) => [k.plan?.label, k.state])).toEqual([
       ['4A', 'planned'],
       ['3B', 'planned'],
       ['3C', 'planned'],
@@ -252,8 +252,8 @@ describe('cards of a doc read by an older Seismic', () => {
     const moved = parse([OLD[1]!, OLD[0]!, OLD[2]!]);
     store.cards.update(store.cards.plans('c')[0]!.id, { plan: JSON.stringify(positional(moved)) });
     const after = read(moved);
-    expect(after.find((k) => k.label === '3B')!.id).toBe(b!.id);
-    expect(after.find((k) => k.label === '1G')!.id).not.toBe(b!.id);
+    expect(after.find((k) => k.plan?.label === '3B')!.id).toBe(b!.id);
+    expect(after.find((k) => k.plan?.label === '1G')!.id).not.toBe(b!.id);
     expect(g).toBeDefined();
   });
 });
@@ -268,7 +268,7 @@ describe('cards of a doc read by an older Seismic, as workers left it', () => {
     work(s1!.id, 'S1: Foundation', { state: 'live' });
     const since = new Date(Date.now() - 1000).toISOString();
     const after = read(parse(['[x] #12. Ship the thing. Details', '[x] **S1: Foundation layer.** Base', '[ ] **S2: Sign-in.** Rest']));
-    expect(after.map((k) => [k.label ?? k.title, k.id])).toEqual([
+    expect(after.map((k) => [k.plan?.label ?? k.title, k.id])).toEqual([
       ['#12. Ship the thing', ship!.id],
       ['S1', s1!.id],
       ['S2', expect.any(String)],

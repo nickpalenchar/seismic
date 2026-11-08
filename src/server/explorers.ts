@@ -177,7 +177,7 @@ export class Explorers {
     live?.work.stop();
     live?.session.close();
     const card = this.o.board.item(cardId);
-    if (card?.idea?.thinking) this.o.board.setIdea(cardId, { thinking: false });
+    if (card?.idea?.discussion?.thinking) this.o.board.setIdea(cardId, { thinking: false });
     if (paused) this.o.board.work(cardId, { hold: holdNow('paused') });
     else if (card && (isPaused(card) || isPausing(card))) this.o.board.work(cardId, this.o.board.unheld(cardId, ['paused', 'pausing', 'limit']));
   }
@@ -203,7 +203,7 @@ export class Explorers {
   /** After a restart: an idea whose agent was in the middle of a reply gets it. */
   resumeAll() {
     for (const i of this.o.board.items()) {
-      if (i.state !== 'idea' || !i.idea?.thinking) continue;
+      if (i.state !== 'idea' || !i.idea?.discussion?.thinking) continue;
       // about to pause after its reply, which the restart cut off: it stays paused, its words unanswered
       if (isPausing(i)) {
         this.o.board.setIdea(i.id, { thinking: false });
@@ -305,7 +305,7 @@ export class Explorers {
 
   /** The owner clicked "Build it like this" while the agent works: it hears so once, as the brief it leaves becomes the task. */
   private buildNote(cardId: string, live: Live): string | undefined {
-    if (live.toldBuild || !this.o.board.item(cardId)?.idea?.buildAfterReply) return;
+    if (live.toldBuild || !this.o.board.item(cardId)?.idea?.discussion?.buildAfterReply) return;
     live.toldBuild = true;
     return BUILD_AFTER_REPLY;
   }
@@ -406,7 +406,7 @@ export class Explorers {
   private answer(cardId: string, text: string, questions: Question[] = [], next?: NextStep, mocks: Mock[] = []) {
     this.o.board.log(cardId, 'talk', 'explorer', text, { mocks });
     for (const q of questions) this.o.board.log(cardId, 'question', 'explorer', formatQuestion(q, this.o.board.language()));
-    const building = this.o.board.items().some((i) => i.prototypeOf === cardId && (i.state === 'planned' || i.state === 'working'));
+    const building = this.o.board.items().some((i) => i.idea?.prototypeOf === cardId && (i.state === 'planned' || i.state === 'working'));
     this.o.board.setIdea(cardId, { yourTurn: questions.length > 0 || !building, questions, next });
   }
 
@@ -530,7 +530,7 @@ export class Explorers {
    */
   private standing(card: Item, said: number[]): string {
     const { brief, mocks = [], variants = [], split } = this.o.board.idea(card.id);
-    const repo = card.newRepo;
+    const repo = card.idea?.newRepo;
     // in the order the agent read them: words it read later stand after the reply it read them at
     const place = (e: CardEvent) => (e.readAfter ? e.readAfter + 0.5 : e.id);
     const talk = this.o.board
@@ -538,7 +538,7 @@ export class Explorers {
       .filter((e) => !said.includes(e.id))
       .slice(-EARLIER_MESSAGES)
       .sort((a, b) => place(a) - place(b) || a.id - b.id);
-    const prototypes = card.prototypes ?? [];
+    const prototypes = card.idea?.prototypes ?? [];
     const shown = prototypes.slice(-MAX_VARIANTS);
     if (!brief.trim() && !mocks.length && !variants.length && !split && !repo && !prototypes.length && !talk.some((e) => e.author === 'explorer')) return '';
     const who = (e: CardEvent) => (e.author === 'owner' ? 'Owner' : e.author === 'explorer' ? 'You' : 'Seismic');
@@ -550,7 +550,7 @@ export class Explorers {
       split ? `The part you marked to split off (plan_split): “${split.title}”.\n\n${split.brief}` : '',
       repo ? `It is to be built in a new repository at ${repo.path || '(no folder named yet)'}${repo.project ? ', with a project of its own' : ' on this project'}, as ${repo.by === 'owner' ? 'the owner picked on the card' : 'you marked with plan_repo'}.` : '',
       shown.length
-        ? `The idea's prototypes${prototypes.length > shown.length ? ` (the latest ${shown.length} of ${prototypes.length})` : ''}:\n${shown.map((p) => `- “${p.title}”, ${prototypeState(p)}${p.summary ? `. Its summary: ${clip(p.summary, 2000)}` : ''}`).join('\n')}`
+        ? `The idea's prototypes${prototypes.length > shown.length ? ` (the latest ${shown.length} of ${prototypes.length})` : ''}:\n${shown.map((p) => `- “${p.title}”, ${prototypeState(p)}${p.review?.summary ? `. Its summary: ${clip(p.review.summary, 2000)}` : ''}`).join('\n')}`
         : '',
       talk.length
         ? `The conversation so far${talk.length === EARLIER_MESSAGES ? ' (its latest messages)' : ''}:\n\n${talk.map((e) => `${who(e)}${e.kind === 'question' ? ' (question)' : ''}: ${clip(e.text, 2000)}`).join('\n\n')}`
@@ -626,8 +626,8 @@ const EARLIER_MESSAGES = 20;
 
 /** A prototype's state, as a session from scratch hears it. */
 function prototypeState(p: Item): string {
-  if (p.prototypeEnd === 'discarded') return 'discarded';
-  if (p.prototypeEnd === 'built') return 'the idea was built on it';
+  if (p.idea?.prototypeEnd === 'discarded') return 'discarded';
+  if (p.idea?.prototypeEnd === 'built') return 'the idea was built on it';
   if (p.state === 'planned' || p.state === 'working') return 'being built';
   if (p.state === 'waiting' && (p.need === 'demo' || p.need === 'review')) return 'handed over';
   return p.state;

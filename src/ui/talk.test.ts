@@ -426,33 +426,33 @@ test("why an idea clicked to build was not built stands after the agent's reply"
 
 test('a card has one field for the owner, and under a demo with a question it takes the answer and feedback together', () => {
   expect(ownerField({ state: 'working' })).toBe('note');
-  expect(ownerField({ state: 'live', finishing: true })).toBe('note');
+  expect(ownerField({ state: 'live', agent: { finishing: true } })).toBe('note');
   expect(ownerField({ state: 'waiting', need: 'question', question: { text: 'A oder B?', options: [] } })).toBe('answer');
   expect(ownerField({ state: 'waiting', need: 'review' })).toBe('feedback');
   expect(ownerField({ state: 'waiting', need: 'demo' })).toBe('feedback');
   expect(ownerField({ state: 'waiting', need: 'demo', question: { text: 'Welche Stimme?', options: [] } })).toBe('demo');
   expect(ownerField({ state: 'done' })).toBeNull();
   // a finished card an agent worked on: what the owner asks resumes that agent
-  expect(ownerField({ state: 'live', branch: 'obeya/x' })).toBe('note');
-  expect(ownerField({ state: 'done', branch: 'obeya/x' })).toBe('note');
-  expect(ownerField({ state: 'live', branch: 'obeya/x', archivedAt: '2026-10-08T10:00:00Z' })).toBeNull();
-  expect(ownerField({ state: 'live', branch: 'obeya/x', prototypeOf: 'idea' })).toBeNull();
+  expect(ownerField({ state: 'live', agent: { branch: 'obeya/x' } })).toBe('note');
+  expect(ownerField({ state: 'done', agent: { branch: 'obeya/x' } })).toBe('note');
+  expect(ownerField({ state: 'live', agent: { branch: 'obeya/x' }, archivedAt: '2026-10-08T10:00:00Z' })).toBeNull();
+  expect(ownerField({ state: 'live', agent: { branch: 'obeya/x' }, idea: { prototypeOf: 'idea' } })).toBeNull();
   // a planned card, in the queue or not, a stopped one too, holds the note for the agent that takes it on
   expect(ownerField({ state: 'planned', queue: { checking: true, since: '2026-10-16T10:00:00Z' } })).toBe('note');
   expect(ownerField({ state: 'planned' })).toBe('note');
-  expect(ownerField({ state: 'planned', branch: 'obeya/x' })).toBe('note');
-  expect(ownerField({ state: 'planned', branch: 'obeya/x', archivedAt: '2026-10-08T10:00:00Z' })).toBeNull();
+  expect(ownerField({ state: 'planned', agent: { branch: 'obeya/x' } })).toBe('note');
+  expect(ownerField({ state: 'planned', agent: { branch: 'obeya/x' }, archivedAt: '2026-10-08T10:00:00Z' })).toBeNull();
 });
 
 test('ideas, proposals and tasks an agent worked on with a result share the layout with the conversation beside', () => {
   const demo = { kind: 'video' as const, chapters: [] };
   expect(split({ state: 'idea' })).toBe(true);
   expect(split({ state: 'proposal' })).toBe(true);
-  expect(split({ state: 'waiting', branch: 'obeya/x', demo })).toBe(true);
+  expect(split({ state: 'waiting', agent: { branch: 'obeya/x' }, demo: { latest: demo } })).toBe(true);
   // the demo stays when the owner sends the agent a message
-  expect(split({ state: 'working', branch: 'obeya/x', demo })).toBe(true);
-  expect(split({ state: 'inPr', branch: 'obeya/x' })).toBe(true);
-  expect(split({ state: 'working', branch: 'obeya/x', brief: 'Kurz' })).toBe(true);
+  expect(split({ state: 'working', agent: { branch: 'obeya/x' }, demo: { latest: demo } })).toBe(true);
+  expect(split({ state: 'inPr', agent: { branch: 'obeya/x' } })).toBe(true);
+  expect(split({ state: 'working', agent: { branch: 'obeya/x' }, idea: { brief: 'Kurz' } })).toBe(true);
   // waiting for its first start, planned or in the queue, a task keeps its text beside the conversation
   expect(split({ state: 'planned' })).toBe(true);
   expect(split({ state: 'planned', queue: { checking: true, since: '2026-10-16T10:00:00Z' } })).toBe(true);
@@ -462,27 +462,27 @@ test('ideas, proposals and tasks an agent worked on with a result share the layo
   expect(split({ id: 'new', state: 'planned', queue: { checking: true, since: '2026-10-16T10:00:00Z' } })).toBe(true);
   beingWritten.delete('new');
   expect(split({ id: 'new', state: 'planned' })).toBe(true);
-  expect(split({ state: 'planned', branch: 'obeya/x', queue: { checking: true, since: '2026-10-16T10:00:00Z' } })).toBe(false);
+  expect(split({ state: 'planned', agent: { branch: 'obeya/x' }, queue: { checking: true, since: '2026-10-16T10:00:00Z' } })).toBe(false);
   expect(split({ state: 'done' })).toBe(false);
 });
 
 test('a task an agent works on shows its conversation alone until there is a result', () => {
-  expect(talkAlone({ state: 'working', branch: 'obeya/x' })).toBe(true);
-  expect(talkAlone({ state: 'waiting', branch: 'obeya/x' })).toBe(true);
-  expect(talkAlone({ state: 'done', branch: 'obeya/x' })).toBe(true);
-  expect(talkAlone({ state: 'working', branch: 'obeya/x', demo: { kind: 'video', chapters: [] } })).toBe(false);
-  expect(talkAlone({ state: 'working', branch: 'obeya/x', brief: '' })).toBe(true);
+  expect(talkAlone({ state: 'working', agent: { branch: 'obeya/x' } })).toBe(true);
+  expect(talkAlone({ state: 'waiting', agent: { branch: 'obeya/x' } })).toBe(true);
+  expect(talkAlone({ state: 'done', agent: { branch: 'obeya/x' } })).toBe(true);
+  expect(talkAlone({ state: 'working', agent: { branch: 'obeya/x' }, demo: { latest: { kind: 'video', chapters: [] } } })).toBe(false);
+  expect(talkAlone({ state: 'working', agent: { branch: 'obeya/x' }, idea: { brief: '' } })).toBe(true);
   expect(talkAlone({ state: 'planned' })).toBe(false);
   // a stopped task lays out as one an agent worked on: the task opens its conversation
-  expect(talkAlone({ state: 'planned', branch: 'obeya/x' })).toBe(true);
-  expect(split({ state: 'planned', branch: 'obeya/x', demo: { kind: 'video', chapters: [] } })).toBe(true);
+  expect(talkAlone({ state: 'planned', agent: { branch: 'obeya/x' } })).toBe(true);
+  expect(split({ state: 'planned', agent: { branch: 'obeya/x' }, demo: { latest: { kind: 'video', chapters: [] } } })).toBe(true);
   expect(talkAlone({ state: 'idea' })).toBe(false);
 });
 
 test("a workstream an agent works on keeps its plan doc's text beside the conversation", () => {
-  expect(talkAlone({ state: 'working', branch: 'obeya/x', source: 'plan' })).toBe(false);
-  expect(split({ state: 'working', branch: 'obeya/x', source: 'plan' })).toBe(true);
-  expect(split({ state: 'live', branch: 'obeya/x', source: 'plan' })).toBe(true);
+  expect(talkAlone({ state: 'working', agent: { branch: 'obeya/x' }, source: 'plan' })).toBe(false);
+  expect(split({ state: 'working', agent: { branch: 'obeya/x' }, source: 'plan' })).toBe(true);
+  expect(split({ state: 'live', agent: { branch: 'obeya/x' }, source: 'plan' })).toBe(true);
   expect(split({ state: 'planned', source: 'plan' })).toBe(true);
 });
 
@@ -490,33 +490,33 @@ test('a workstream planned again after a part of it landed keeps what landed bes
   const landedPart = { pr: { url: 'https://github.com/acme/app/pull/821', number: 821 } };
   const demo = { kind: 'video' as const, chapters: [] };
   // its branch went with the landing; the demo of the part that landed stays, in the queue too
-  expect(split({ state: 'planned', landedPart, demo })).toBe(true);
-  expect(split({ state: 'planned', landedPart })).toBe(true);
-  expect(split({ state: 'planned', landedPart, queue: { checking: true, since: '2026-10-16T10:00:00Z' } })).toBe(true);
-  expect(talkAlone({ state: 'planned', landedPart })).toBe(false);
+  expect(split({ state: 'planned', review: { landedPart }, demo: { latest: demo } })).toBe(true);
+  expect(split({ state: 'planned', review: { landedPart } })).toBe(true);
+  expect(split({ state: 'planned', review: { landedPart }, queue: { checking: true, since: '2026-10-16T10:00:00Z' } })).toBe(true);
+  expect(talkAlone({ state: 'planned', review: { landedPart } })).toBe(false);
   // and while a new run does the rest
-  expect(split({ state: 'working', branch: 'obeya/x-4f2a9c1', landedPart })).toBe(true);
+  expect(split({ state: 'working', agent: { branch: 'obeya/x-4f2a9c1' }, review: { landedPart } })).toBe(true);
 });
 
 test('the conversation ends with the agent at work exactly while its agent works on something, whatever the card\'s state', () => {
   const task = { kind: 'task' } as const;
   // a worker in a turn: at work, taking in the owner's words on its handover, on its pull request, after the landing
-  expect(agentWorks({ ...task, state: 'working', inTurn: true })).toBe(true);
-  expect(agentWorks({ ...task, state: 'waiting', inTurn: true })).toBe(true);
-  expect(agentWorks({ ...task, state: 'inPr', inTurn: true })).toBe(true);
-  expect(agentWorks({ ...task, state: 'live', inTurn: true })).toBe(true);
+  expect(agentWorks({ ...task, state: 'working', agent: { inTurn: true } })).toBe(true);
+  expect(agentWorks({ ...task, state: 'waiting', agent: { inTurn: true } })).toBe(true);
+  expect(agentWorks({ ...task, state: 'inPr', agent: { inTurn: true } })).toBe(true);
+  expect(agentWorks({ ...task, state: 'live', agent: { inTurn: true } })).toBe(true);
   // idle: its pull request waits for review, or it waits for a usage limit
   expect(agentWorks({ ...task, state: 'inPr' })).toBe(false);
   expect(agentWorks({ ...task, state: 'working' })).toBe(false);
   // paused: nothing of it runs
-  expect(agentWorks({ ...task, state: 'working', inTurn: true, hold: { reason: 'paused', since: '2026-10-18T00:00:00Z' } })).toBe(false);
+  expect(agentWorks({ ...task, state: 'working', agent: { inTurn: true }, hold: { reason: 'paused', since: '2026-10-18T00:00:00Z' } })).toBe(false);
   const idea = (thinking: boolean) => ({ status: 'open' as const, brief: '', thinking, yourTurn: false, questions: [], variants: [], mocks: [] });
-  expect(agentWorks({ ...task, state: 'idea', idea: idea(true) })).toBe(true);
-  expect(agentWorks({ ...task, state: 'idea', idea: idea(false) })).toBe(false);
+  expect(agentWorks({ ...task, state: 'idea', idea: { discussion: idea(true) } })).toBe(true);
+  expect(agentWorks({ ...task, state: 'idea', idea: { discussion: idea(false) } })).toBe(false);
   expect(agentWorks({ kind: 'question', state: 'done', thread: { talk: 1, thinking: true, answers: 0, files: 0 } })).toBe(true);
   expect(agentWorks({ kind: 'question', state: 'done', thread: { talk: 1, answers: 0, files: 0 }, hold: { reason: 'paused', since: '2026-10-18T00:00:00Z' } })).toBe(false);
   // a proposal reworked is at work too, but no agent there can be paused
-  const reworked = { ...task, state: 'proposal' as const, proposal: { questions: [], revising: { words: 'kürzer' } } };
+  const reworked = { ...task, state: 'proposal' as const, idea: { proposal: { questions: [], revising: { words: 'kürzer' } } } };
   expect(agentWorks(reworked)).toBe(true);
   expect(pausable(reworked)).toBe(false);
 });
@@ -608,19 +608,19 @@ test("an idea's open questions stand at its conversation's end, where they are a
   const format = { text: 'Welches Format?', options: ['CSV', 'Excel'] };
   const reply = ev('talk', 'explorer', 'Eine Frage.');
   const q = ev('question', 'explorer', formatQuestion(format, 'en'));
-  const idea = { state: 'idea', idea: { status: 'open', questions: [format], yourTurn: true } } as unknown as Item;
+  const idea = { state: 'idea', idea: { discussion: { status: 'open', questions: [format], yourTurn: true } } } as unknown as Item;
   expect(cardTalk(idea, [reply, q]).shown.map((x) => x.e)).toEqual([reply]);
-  expect(cardTalk({ ...idea, idea: { ...idea.idea!, questions: [] } }, [reply, q]).shown.map((x) => x.e)).toEqual([reply, q]);
+  expect(cardTalk({ ...idea, idea: { discussion: { ...idea.idea!.discussion!, questions: [] } } }, [reply, q]).shown.map((x) => x.e)).toEqual([reply, q]);
   // an archived idea is read only: nothing is answered at its end
   expect(cardTalk({ ...idea, archivedAt: '2026-10-20' }, [reply, q], true).shown.map((x) => x.e)).toEqual([reply, q]);
   // while its agent works on a reply (a task split off, the owner's words), nothing is answered at the end: the question stays where it was asked
   const split = ev('state', 'owner', 'Task split off: “Recording page” is now a task of its own; what is open stays here.');
-  const thinking = { ...idea, idea: { ...idea.idea!, thinking: true } } as Item;
+  const thinking = { ...idea, idea: { discussion: { ...idea.idea!.discussion!, thinking: true } } } as Item;
   expect(cardTalk(thinking, [reply, q, split]).shown.map((x) => x.e)).toEqual([reply, q, split]);
   // nor on a parked idea, which waits for nobody
-  expect(cardTalk({ ...idea, idea: { ...idea.idea!, status: 'parked' } } as Item, [reply, q]).shown.map((x) => x.e)).toEqual([reply, q]);
+  expect(cardTalk({ ...idea, idea: { discussion: { ...idea.idea!.discussion!, status: 'parked' } } } as Item, [reply, q]).shown.map((x) => x.e)).toEqual([reply, q]);
   // a worker's question waits at the end the same way, also while its background work runs
-  const task = { state: 'waiting', need: 'question', question: format, inTurn: true } as unknown as Item;
+  const task = { state: 'waiting', need: 'question', question: format, agent: { inTurn: true } } as unknown as Item;
   const asked = ev('question', 'worker', formatQuestion(format, 'en'));
   expect(cardTalk(task, [reply, asked])).toMatchObject({ shown: [{ e: reply }], asked: [{ e: asked }] });
 });
@@ -652,19 +652,19 @@ test("a proposal's open questions leave where they were asked; settled ones stay
   const owner = ev('say', 'owner', 'Was würdest du nehmen?');
   const reply = ev('talk', 'koordinator', 'CSV, das liest jedes Programm.');
   const events = [q1, q2, owner, reply];
-  const proposal = { state: 'proposal', proposal: { questions: [] } } as unknown as Item;
+  const proposal = { state: 'proposal', idea: { proposal: { questions: [] } } } as unknown as Item;
   expect(cardTalk(proposal, events).shown.map((x) => x.e)).toEqual(events);
   // the reviser settled the format and kept PDF open: that one is answered at the end
-  const open = cardTalk({ ...proposal, proposal: { questions: [pdf] } }, events);
+  const open = cardTalk({ ...proposal, idea: { proposal: { questions: [pdf] } } }, events);
   expect(open.shown.map((x) => x.e)).toEqual([q1, owner, reply]);
   expect(open.asked.map((x) => x.e)).toEqual([q2]);
   // a rework that failed keeps the question the owner picked an option for: the pick stays marked where it was asked
   const picked = ev('say', 'owner', answerText([pdf], [['Ja']], ''));
-  const failed = cardTalk({ ...proposal, proposal: { questions: [pdf] } }, [q1, q2, picked]);
+  const failed = cardTalk({ ...proposal, idea: { proposal: { questions: [pdf] } } }, [q1, q2, picked]);
   expect(failed.shown).toEqual([{ e: q1, steps: [], end: 'settled' }, { e: q2, steps: [], picks: ['Ja'] }]);
   expect(failed.asked).toEqual([]);
   // while it is reworked, nothing is answered at the end
-  expect(cardTalk({ ...proposal, proposal: { questions: [pdf], revising: {} } } as unknown as Item, events).shown.map((x) => x.e)).toEqual(events);
+  expect(cardTalk({ ...proposal, idea: { proposal: { questions: [pdf], revising: {} } } } as unknown as Item, events).shown.map((x) => x.e)).toEqual(events);
 });
 
 test("the usage limit that stopped the agent's turn is a line where it happened; what the agent did until then stays above it once it went on", () => {
@@ -711,15 +711,15 @@ test('what an agent did until it was paused stays above the line once it went on
 
 test("the questions waiting for the owner: an open idea's until its agent thinks again, a proposal's until it is reworked, a worker's while it asks, a demo report's", () => {
   const q = { text: 'A oder B?', options: ['A', 'B'] };
-  const idea = { state: 'idea', idea: { status: 'open', thinking: false, questions: [q] } } as unknown as Item;
+  const idea = { state: 'idea', idea: { discussion: { status: 'open', thinking: false, questions: [q] } } } as unknown as Item;
   expect(openQuestions(idea)).toEqual([q]);
-  expect(openQuestions({ ...idea, idea: { ...idea.idea!, thinking: true } })).toEqual([]);
+  expect(openQuestions({ ...idea, idea: { discussion: { ...idea.idea!.discussion!, thinking: true } } })).toEqual([]);
   expect(openQuestions({ ...idea, archivedAt: '2026-10-17T10:00:00Z' })).toEqual([]);
   // a parked idea waits for nobody: its questions stand where they were asked
-  expect(openQuestions({ ...idea, idea: { ...idea.idea!, status: 'parked' } })).toEqual([]);
-  const proposal = { state: 'proposal', proposal: { questions: [q] } } as unknown as Item;
+  expect(openQuestions({ ...idea, idea: { discussion: { ...idea.idea!.discussion!, status: 'parked' } } })).toEqual([]);
+  const proposal = { state: 'proposal', idea: { proposal: { questions: [q] } } } as unknown as Item;
   expect(openQuestions(proposal)).toEqual([q]);
-  expect(openQuestions({ ...proposal, proposal: { ...proposal.proposal!, revising: {} as never } })).toEqual([]);
+  expect(openQuestions({ ...proposal, idea: { proposal: { ...proposal.idea!.proposal!, revising: {} as never } } })).toEqual([]);
   expect(openQuestions({ state: 'waiting', need: 'question', question: q } as Item)).toEqual([q]);
   expect(openQuestions({ state: 'waiting', need: 'review', question: q } as Item)).toEqual([]);
   expect(openQuestions({ state: 'waiting', need: 'demo', question: q } as Item)).toEqual([q]);
@@ -772,7 +772,7 @@ test('the snooze is a line, with what the agent did before it closed above it, a
   const earlier = ev('state', 'obeya', 'Woke up (snoozed by the agent)');
   expect(talkTurns([snoozed, earlier]).shown[1]).toMatchObject({ e: earlier, line: true });
   // a snoozed agent offers no pause, nor shows at work
-  expect(pausable({ kind: 'task', state: 'working', inTurn: true, hold: { reason: 'snoozed', since: '2026-10-18T00:00:00Z', until: '2026-10-18T00:05:00Z', by: 'agent' } })).toBe(false);
+  expect(pausable({ kind: 'task', state: 'working', agent: { inTurn: true }, hold: { reason: 'snoozed', since: '2026-10-18T00:00:00Z', until: '2026-10-18T00:05:00Z', by: 'agent' } })).toBe(false);
 });
 
 test('the phone opens a card at work, or one with a question open, with its conversation up', () => {
@@ -789,7 +789,7 @@ test("the phone's „Läuft“ holds a handed-over card while its worker takes i
   expect(needsYou(demo)).toBe(true);
   expect(runs(demo)).toBe(false);
   // until 2026-10-17 such a card stood in neither list until its worker handed over again
-  const answering = { ...demo, answering: true } as Item;
+  const answering = { ...demo, review: { answering: true } } as Item;
   expect(needsYou(answering)).toBe(false);
   expect(runs(answering)).toBe(true);
   expect(runs({ kind: 'task', state: 'working' } as Item)).toBe(true);
@@ -825,7 +825,7 @@ test('the line that the agent stopped without answering stands, not as a step of
 test('a question nobody waits on shows how it ended, the same on every kind of card', () => {
   const format = { text: 'Welches Format?', options: ['CSV', 'Excel'] };
   const whom = { text: 'Für wen?', options: ['Vermieter', 'Verwalter'] };
-  const idea = { state: 'idea', idea: { status: 'open', questions: [], yourTurn: true } } as unknown as Item;
+  const idea = { state: 'idea', idea: { discussion: { status: 'open', questions: [], yourTurn: true } } } as unknown as Item;
   // an idea's answer that picks for one of two questions: the other is settled by the owner's words once the agent replied without asking it again
   const reply = ev('talk', 'explorer', 'Zwei Fragen.');
   const q1 = ev('question', 'explorer', formatQuestion(format, 'en'));
@@ -840,15 +840,15 @@ test('a question nobody waits on shows how it ended, the same on every kind of c
     { e: next, steps: [] },
   ]);
   // while its agent works on the reply it may still ask again: no mark yet
-  const thinking = { ...idea, idea: { ...idea.idea!, thinking: true } } as Item;
+  const thinking = { ...idea, idea: { discussion: { ...idea.idea!.discussion!, thinking: true } } } as Item;
   expect(cardTalk(thinking, [reply, q1, q2, partial]).shown[2]).toEqual({ e: q2, steps: [] });
   // asked again, the earlier asking points to the later one, which waits at the end
   const again = ev('question', 'explorer', formatQuestion(whom, 'en'));
-  const asking = cardTalk({ ...idea, idea: { ...idea.idea!, questions: [whom] } } as Item, [reply, q1, q2, partial, next, again]);
+  const asking = cardTalk({ ...idea, idea: { discussion: { ...idea.idea!.discussion!, questions: [whom] } } } as Item, [reply, q1, q2, partial, next, again]);
   expect(asking.shown[2]).toEqual({ e: q2, steps: [], end: 'again', next: again.id });
   expect(asking.asked).toEqual([{ e: again, steps: [] }]);
   // built without a word to it, it was left open, also while the worker on it works
-  const built = { state: 'working', inTurn: true, branch: 'obeya/export' } as unknown as Item;
+  const built = { state: 'working', agent: { inTurn: true, branch: 'obeya/export' } } as unknown as Item;
   const start = ev('state', 'obeya', MESSAGES.en.worker.started('obeya/export'));
   expect(cardTalk(built, [reply, q1, start]).shown[1]).toEqual({ e: q1, steps: [], end: 'left' });
 
@@ -856,11 +856,11 @@ test('a question nobody waits on shows how it ended, the same on every kind of c
   const asked = ev('question', 'worker', formatQuestion(format, 'en'));
   const note = ev('hint', 'owner', 'Nimm, was Excel öffnet.');
   const answer = ev('talk', 'worker', 'Dann Excel.');
-  const task = { state: 'working', inTurn: true, branch: 'obeya/export' } as unknown as Item;
+  const task = { state: 'working', agent: { inTurn: true, branch: 'obeya/export' } } as unknown as Item;
   expect(cardTalk(task, [asked, note]).shown[0]).toEqual({ e: asked, steps: [] });
   expect(cardTalk(task, [asked, note, answer]).shown[0]).toEqual({ e: asked, steps: [], end: 'settled' });
   const anew = ev('question', 'worker', formatQuestion(format, 'en'));
-  const waits = { state: 'waiting', need: 'question', question: format, branch: 'obeya/export' } as unknown as Item;
+  const waits = { state: 'waiting', need: 'question', question: format, agent: { branch: 'obeya/export' } } as unknown as Item;
   const t = cardTalk(waits, [asked, note, answer, anew]);
   expect(t.shown[0]).toEqual({ e: asked, steps: [], end: 'again', next: anew.id });
   expect(t.asked).toEqual([{ e: anew, steps: [] }]);
@@ -870,11 +870,11 @@ test('a question nobody waits on shows how it ended, the same on every kind of c
   const p2 = ev('question', 'worker', formatQuestion(whom, 'en'));
   const said = ev('say', 'owner', 'CSV reicht.');
   const revised = ev('talk', 'worker', 'Format auf CSV gesetzt.');
-  const proposal = { state: 'proposal', proposal: { questions: [whom] } } as unknown as Item;
+  const proposal = { state: 'proposal', idea: { proposal: { questions: [whom] } } } as unknown as Item;
   const open = cardTalk(proposal, [p1, p2, said, revised]);
   expect(open.shown[0]).toEqual({ e: p1, steps: [], end: 'settled' });
   expect(open.asked).toEqual([{ e: p2, steps: [] }]);
-  const reworked = cardTalk({ ...proposal, proposal: { questions: [whom], revising: {} } } as unknown as Item, [p1, p2, said]);
+  const reworked = cardTalk({ ...proposal, idea: { proposal: { questions: [whom], revising: {} } } } as unknown as Item, [p1, p2, said]);
   expect(reworked.shown.slice(0, 2)).toEqual([{ e: p1, steps: [] }, { e: p2, steps: [] }]);
   const accepted = { state: 'planned' } as unknown as Item;
   expect(cardTalk(accepted, [p1, p2]).shown).toEqual([

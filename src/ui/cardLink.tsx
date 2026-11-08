@@ -79,7 +79,7 @@ export function SmartLink({ href, text }: { href: string; text: string }) {
     >
       <span className="sl-dot" />
       <span className="sl-title">{plain(card.title || text)}</span>
-      {card.priority && <PriorityMark priority={card.priority} />}
+      {card.labels?.priority && <PriorityMark priority={card.labels.priority} />}
     </a>
   );
 }

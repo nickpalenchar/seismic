@@ -47,11 +47,12 @@ function dress(el: HTMLElement, card: Item | undefined) {
   title.className = 'sl-title';
   title.textContent = on ? card.title || el.dataset.text! : el.dataset.text!;
   el.append(dot, title);
-  if (on && card.priority) {
+  const priority = card?.labels?.priority;
+  if (on && priority) {
     const prio = document.createElement('span');
-    prio.className = `prio prio-${card.priority}`;
+    prio.className = `prio prio-${priority}`;
     prio.innerHTML = FLAG;
-    prio.append(t.priority.names[card.priority]);
+    prio.append(t.priority.names[priority]);
     el.append(prio);
   }
 }

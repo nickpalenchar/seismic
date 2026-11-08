@@ -84,7 +84,7 @@ try {
  * for a before side from a commit that had not made them yet; one that had is left as it is.
  * W4, one hold: a stored card gets the `hold` its migration writes, a card as the UI gets it the
  * `hold` in place of `paused`, `pausing`, `limitPaused`, `restartPaused`, `snoozed` and `parkingLot`.
- * A pause or snooze counts from the migration, which reads as "now".
+ * A pause or snooze counts from the migration, which reads as "now". W5: then grouped (`grouped`).
  */
 function regrouped(value: unknown): unknown {
   const rows = new Map<string, Record<string, unknown>>();
@@ -114,7 +114,7 @@ function regrouped(value: unknown): unknown {
   };
   const OLD = ['paused', 'pausing', 'limitPaused', 'restartPaused', 'snoozed', 'parkingLot'];
   const isItem = (o: Record<string, unknown>) => typeof o.id === 'string' && typeof o.kind === 'string' && !('project_id' in o) && OLD.some((k) => k in o);
-  return walk(value, (o) => {
+  const held = walk(value, (o) => {
     if (isRow(o)) {
       const hold = storedHold(o);
       return { ...o, hold };
@@ -137,6 +137,45 @@ function regrouped(value: unknown): unknown {
                 : undefined;
     return hold ? { ...rest, hold } : rest;
   });
+  return grouped(held);
+}
+
+/**
+ * W5, the grouped item: a card as the UI gets it from a commit before carries its feature fields
+ * flat; regrouped into the parts `Item` has now, each only when it holds anything. A card from a
+ * commit that grouped them already is left as it is.
+ */
+function grouped(value: unknown): unknown {
+  const PARTS: Record<string, Record<string, string>> = {
+    agent: { statusLine: 'statusLine', inTurn: 'inTurn', doing: 'doing', agentAtWork: 'identity', workerSetting: 'workerSetting', background: 'background', limitedUntil: 'limitedUntil', finishing: 'finishing', followUp: 'followUp', waitsForClone: 'waitsForClone', branch: 'branch', workstation: 'workstation', keptIn: 'keptIn', app: 'app' },
+    review: { summary: 'summary', answering: 'answering', answered: 'answered', landing: 'landing', landingPosition: 'landingPosition', noChange: 'noChange', modelsUnchanged: 'modelsUnchanged', rate: 'rate', lands: 'lands', blocked: 'blocked', resolvingConflicts: 'resolvingConflicts', pr: 'pr', morePrs: 'morePrs', contribution: 'contribution', codeReview: 'codeReview', landedPart: 'landedPart' },
+    demo: { demo: 'latest', demos: 'earlier', files: 'files', share: 'share', notOnApproval: 'notOnApproval', tags: 'tags', held: 'held' },
+    idea: { idea: 'discussion', brief: 'brief', mocks: 'mocks', prototypeOf: 'prototypeOf', variant: 'variant', prototypeEnd: 'prototypeEnd', builtInto: 'builtInto', ideaTitle: 'ideaTitle', buildProposal: 'buildProposal', prototypes: 'prototypes', builtOn: 'builtOn', becomesPlan: 'becomesPlan', newRepo: 'newRepo', proposal: 'proposal', proposed: 'proposed', superseded: 'superseded', mergingInto: 'mergingInto', retro: 'retro' },
+    plan: { label: 'label', origin: 'origin', arranging: 'arranging', collapsed: 'collapsed', buildsOn: 'buildsOn', manualDependsOn: 'manualDependsOn', manualArchived: 'manualArchived', manualAnchors: 'manualAnchors' },
+    labels: { priority: 'priority', category: 'category', subcategory: 'subcategory', complexity: 'complexity', suggested: 'suggested' },
+  };
+  const flat = new Set(Object.values(PARTS).flatMap((p) => Object.keys(p)));
+  // what every card as the UI gets it has, and a stored row has not
+  const isItem = (o: Record<string, unknown>) => typeof o.id === 'string' && typeof o.kind === 'string' && 'source' in o && 'x' in o && !('project_id' in o);
+  const regroup = (o: Record<string, unknown>): Record<string, unknown> => {
+    // a plan with nothing else of a part has the same shape either way: its doc's path and goal
+    if (![...flat].some((k) => k in o)) return o;
+    const plan = o.plan as { file: string; goal: string } | undefined;
+    const rest = Object.fromEntries(Object.entries(o).filter(([k]) => !flat.has(k) && k !== 'plan'));
+    for (const [part, keys] of Object.entries(PARTS)) {
+      const got = Object.fromEntries(Object.entries(keys).flatMap(([from, to]) => (o[from] !== undefined ? [[to, o[from]]] : [])));
+      if (part === 'plan' && plan) Object.assign(got, { file: plan.file, goal: plan.goal });
+      if (Object.keys(got).length) rest[part] = got;
+    }
+    return rest;
+  };
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (!v || typeof v !== 'object') return v;
+    const o = isItem(v as Record<string, unknown>) ? regroup(v as Record<string, unknown>) : (v as Record<string, unknown>);
+    return Object.fromEntries(Object.entries(o).map(([k, x]) => [k, walk(x)]));
+  };
+  return walk(value);
 }
 
 /** Where `a` and `b` differ, by path; objects compare by their keys, whatever their order. */
