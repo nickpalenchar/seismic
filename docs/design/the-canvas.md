@@ -532,10 +532,38 @@ to the canvas it leaves; a workstream moves with its whole plan. A card moved to
 goes onto the canvas the owner last looked at there.
 
 The page shows the canvas its address's hash names: `#<name>`, `#<n>` its place in the order
-(`#1` the first), none (or one naming no canvas) the first; the hash stays in the address as the
-page loads and as cards open and close, so a reload shows the same canvas. Opening a card or a plan
-on another canvas, from search, the inbox or a link, switches to it and the hash names it. Grouping
-offers the groups of the canvas shown only. The camera is kept per canvas.
+(`#1` the first), none the first. As the page loads, a `#<n>` becomes the name of the canvas it
+names, so reordering does not change what the address shows, and a hash naming no canvas goes; the
+hash then stays in the address as cards open and close, so a reload shows the same canvas. Switching
+canvas writes its name into the hash. A card's address needs no hash, since the card knows its
+canvas: opening a card or a plan on another canvas, from search, the inbox, a link or a wait's stub,
+switches to it and the hash names it, so a link with a hash naming another canvas opens on the
+card's own. Search and the inbox list every canvas's cards, a card on another canvas than the one
+shown marked with that canvas's icon (the inbox with its name too). Grouping offers the groups of
+the canvas shown only. The camera is kept per canvas.
+
+A tab strip sits at the bottom right above the status bar. With one canvas it is only a "+",
+labelled "New canvas" until a canvas has been made or the drawer opened once; with several it shows
+each canvas's icon (a canvas without one shows its name's first letter), the canvas shown as a
+wider tab with its name, an orange count on a canvas whose cards wait for the owner, and the "+".
+A click on a tab switches to it. The pointer on the strip (on touch, the first tap) slides out a
+drawer above it: the canvases in order by name, each with its waiting count in orange, a click
+switching to it; on hover a row shows a pencil (rename and icon), a grip that drags it to another
+place in the order, and a trash on a canvas without cards (never "main"); the drawer ends with
+"+ New canvas". The "+" and "+ New canvas" open the canvas dialog: a name, checked against the
+naming rule as it is typed, and an icon picked from a grid of common emojis and a curated set of
+Lucide icons, or none; "Create canvas" makes it and shows it. The same dialog, from the pencil,
+changes a canvas ("main" keeps its name and changes only its icon). What is typed and picked in it
+stays until it is saved or cancelled, also across closing it and a reload. While a card is open the
+strip lies under the dimming, so switching never leaves a card's unsent input behind; the drafts of
+the Koordinator and of other cards are the project's and stay as they are across a switch.
+
+The open card's "⋯" beside its labels offers "Move to canvas" with the project's other canvases
+(only where there are others, and not on an archived card): the card folds away onto that canvas,
+the canvas shown stays, and a line confirms where it went. A wait whose other card lies on another
+canvas ends in a stub: a short faint arrow into the card from the left (what it waits for) or out
+of it to the right (what waits for it), ending at a round button with the other canvas's icon that
+names the card and canvas on hover and opens that card there.
 The API (`/api/c/<project>/canvases`) creates, renames, re-icons, reorders and deletes canvases and
 moves cards onto one; the Koordinator has the same as `new_canvas`, `change_canvas`,
 `delete_canvas` and `move_to_canvas`, and sees each card's canvas and which one the owner looks at.

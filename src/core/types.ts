@@ -647,13 +647,19 @@ export const CANVAS_NAME_MAX = 40;
  * is the first), and without a hash, or with one that names none, the first.
  */
 export function canvasOfHash<C extends Pick<Canvas, 'name'>>(canvases: C[], hash: string): C | undefined {
+  return canvasNamedBy(canvases, hash) ?? canvases[0];
+}
+
+/** The canvas the hash names, by its name or its place; none for an empty hash or one that names no canvas. */
+export function canvasNamedBy<C extends Pick<Canvas, 'name'>>(canvases: C[], hash: string): C | undefined {
   let h = hash.replace(/^#/, '');
   try {
     h = decodeURIComponent(h);
   } catch {}
   const key = h.trim().toLowerCase();
+  if (!key) return undefined;
   const n = /^\d+$/.test(key) ? Number(key) : 0;
-  return (n >= 1 ? canvases[n - 1] : undefined) ?? canvases.find((c) => c.name.toLowerCase() === key) ?? canvases[0];
+  return (n >= 1 ? canvases[n - 1] : undefined) ?? canvases.find((c) => c.name.toLowerCase() === key);
 }
 
 /** Why a canvas cannot be named so; none when it can. A number from 1 to 999 names a canvas by its place (`#2`). */

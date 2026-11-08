@@ -3,7 +3,7 @@ import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
 import type { AccessView, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
   ProjectDefaultsView,
-  ProjectSettings, ProjectSettingsView, DeveloperView, NotificationsView } from '../core/types';
+  ProjectSettings, ProjectSettingsView, DeveloperView, NotificationsView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
 import { noteMessage, watchPageStalls } from './stalls';
 
@@ -264,6 +264,11 @@ export const api = {
   /** Draws or removes an owner-drawn arrow, `anchor` the edges and place it was drawn at; `keepalive` for one sent as the page goes. */
   dependency: (from: string, to: string, remove = false, keepalive = false, anchor?: import('../core/types').ManualAnchor) => call<void>(remove ? 'DELETE' : 'POST', at('/dependencies'), { from, to, ...(anchor ? { anchor } : {}) }, keepalive),
   create: (c: NewCard) => call<Item>('POST', at('/cards'), c),
+  // the project's canvases: a new one, a new name, icon (`null`: none) or place (from 1), deleting an empty one, cards moved onto one
+  createCanvas: (name: string, icon?: string) => call<Canvas>('POST', at('/canvases'), { name, ...(icon ? { icon } : {}) }),
+  updateCanvas: (id: string, p: { name?: string; icon?: string | null; position?: number }) => call<Canvas>('PATCH', at(`/canvases/${encodeURIComponent(id)}`), p),
+  deleteCanvas: (id: string) => call<void>('DELETE', at(`/canvases/${encodeURIComponent(id)}`)),
+  moveToCanvas: (cards: string[], canvas: string) => call<void>('POST', at(`/canvases/${encodeURIComponent(canvas)}/cards`), { cards }),
   /** The card that writes a repository's settings for everyone, on the project it belongs to (not necessarily the shown one). */
   adapterSetup: (project: string, repo: string) => call<Item>('POST', `/api/c/${encodeURIComponent(project)}/adapter-setup`, { repo }),
   /** The note on a repository's plan directory stays where the owner put it (its top left). */

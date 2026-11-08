@@ -100,18 +100,18 @@ code { border-radius: 5px; }
   border-top: 1px solid var(--line); box-shadow: none; }
 #status .pill { border: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 #status :is(.st, .pill.usage .face, .pill.restart > button) { border-radius: 999px; }
-.pill { border-radius: 999px; background: var(--card); border: 1px solid var(--glass-edge); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow);
+.pill, .canvas-strip { border-radius: 999px; background: var(--card); border: 1px solid var(--glass-edge); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow);
   backdrop-filter: blur(12px) saturate(1.4); -webkit-backdrop-filter: blur(12px) saturate(1.4); }
 /* what lies under an open card or a dialog goes soft */
-#dim.on, #help, #wish, #config, #prefs, #phone, #perf, #merge-pick { backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+#dim.on, #help, #wish, #config, #prefs, #phone, #perf, #merge-pick, #canvas-dialog { backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
 /* panes: the open card, sheets, dialogs */
-#panel, .sheet, .nav-sheet, .cfg-box, .d-sheet, .perf-box, .setup-page, :is(#help, #wish, #phone, #merge-pick) .box {
+#panel, .sheet, .nav-sheet, .cfg-box, .d-sheet, .perf-box, .setup-page, :is(#help, #wish, #phone, #merge-pick, #canvas-dialog) .box {
   background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 18px; box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift);
   backdrop-filter: blur(28px) saturate(1.6); -webkit-backdrop-filter: blur(28px) saturate(1.6); }
 .sheet { border-radius: 0; border-right: 0; }
 .nav-sheet { border-radius: 0; border-left: 0; }
 /* menus and tips: solid, as most open from the top bar, whose own blur would keep theirs from reaching the canvas */
-.nav-menu, .bar-menu, .prio-menu, .snooze-menu, .agents-tip, .pill:is(.restart, .workstations, .usage) .tip, .qlist li .q-held {
+.nav-menu, .bar-menu, .prio-menu, .snooze-menu, .canvas-drawer, .agents-tip, .pill:is(.restart, .workstations, .usage) .tip, .qlist li .q-held {
   background: var(--panel); border: 1px solid var(--glass-edge); border-radius: 12px; }
 /* the questions stacked by the microphone (rating, notifications): solid too, so where the screen is narrow and
    they stand over the microphone, it does not show through them */

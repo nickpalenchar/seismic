@@ -14,6 +14,7 @@ import { ProposalRow, SettingRow } from './koordinator';
 import { Docked } from './docked';
 import { Inline, plain } from './markdown';
 import { asksYou } from './parts';
+import { OtherCanvas } from './canvases';
 import { type QuickReply, quickReplies } from './quickReply';
 import { useStoredState } from './stored';
 import { clock, shortDay, stateLabel, t } from './strings';
@@ -93,6 +94,7 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
               <div className="where">
                 <GitBranch size={12} strokeWidth={2} aria-hidden />
                 <span className="project">{e.projectName}</span>
+                {i && e.project === current && <OtherCanvas item={i} named />}
                 <span className="since">{when(e.since)}</span>
               </div>
               <div className="ttl">

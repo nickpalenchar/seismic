@@ -656,6 +656,77 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
   box-shadow: var(--shadow); z-index: 20; cursor: pointer; overflow: hidden; }
 #minimap svg { width: 100%; height: 100%; display: block; }
 
+/* ---------- canvases: the tab strip at the bottom right, the drawer it slides out, the dialog ---------- */
+#canvas-tabs { position: fixed; right: calc(var(--side, 0px) + 14px); transition: right .45s cubic-bezier(.3,.9,.3,1); bottom: 44px; z-index: 22;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+/* the confirmations stand above the strip */
+:root:has(#canvas-tabs) #acks { bottom: 86px; }
+.canvas-strip { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: var(--card); box-shadow: var(--shadow); }
+.ctab { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 28px; height: 28px; padding: 0 7px; box-sizing: border-box;
+  border: 0; border-radius: 999px; background: none; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.ctab:hover { background: var(--chip); color: var(--ink); }
+.ctab.on { background: var(--ink); color: var(--bg); font-weight: 600; padding: 0 11px 0 9px; }
+.ctab.on .canvas-icon.letter { background: color-mix(in srgb, var(--bg) 22%, transparent); color: var(--bg); }
+.ctab-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 28px; }
+.ctab.new.named { padding: 0 11px 0 8px; color: var(--ink); }
+.ctab-n { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px;
+  background: var(--waiting); color: var(--on-ink); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+.canvas-icon { flex: none; display: inline-block; }
+.canvas-icon.emoji { line-height: 1; }
+.canvas-icon.letter { display: inline-grid; place-items: center; border-radius: 50%; background: var(--chip); color: var(--ink); font-weight: 700; line-height: 1; padding: 2px; }
+.canvas-drawer { width: 260px; max-height: min(60vh, 520px); overflow: auto; padding: 6px; box-sizing: border-box; background: var(--panel); border-radius: 12px; box-shadow: var(--lift);
+  animation: drawer-out .18s cubic-bezier(.3,.9,.3,1); transform-origin: bottom right; }
+@keyframes drawer-out { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.canvas-drawer ul { list-style: none; margin: 0; padding: 0; }
+.canvas-drawer li { display: flex; align-items: center; gap: 2px; border-radius: 6px; background: var(--panel); }
+.canvas-drawer li:hover, .canvas-drawer li[data-sorting="dragged"] { background: var(--chip); }
+.canvas-drawer li.on .cd-name { font-weight: 700; }
+.canvas-drawer .grip { flex: none; display: grid; place-items: center; width: 16px; height: 30px; color: var(--muted); cursor: grab; opacity: 0; touch-action: none; }
+.canvas-drawer li:hover .grip { opacity: .8; }
+.cd-pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 2px; border: 0; background: none; color: var(--ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.cd-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-n { flex: none; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--waiting); color: var(--on-ink); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+.cd-tools { flex: none; display: none; gap: 2px; padding-right: 4px; }
+.canvas-drawer li:hover .cd-tools { display: flex; }
+.cd-tools button { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
+.cd-tools button:hover { background: var(--panel); color: var(--ink); }
+.cd-new { display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; margin-top: 4px; padding: 0 8px 0 18px; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 6px 6px;
+  background: none; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.cd-new:hover { background: var(--chip); }
+.cd-failed { margin: 4px 8px; font-size: 12px; color: var(--error); }
+#canvas-dialog { position: fixed; inset: 0; z-index: 60; background: var(--dim); display: flex; align-items: flex-start; justify-content: center; padding: 8vh 24px 24px; animation: fade .15s ease-out; }
+#canvas-dialog .box { position: relative; display: flex; flex-direction: column; width: 560px; max-width: 100%; max-height: 100%; box-sizing: border-box; padding: 22px 26px 20px;
+  background: var(--panel); border-radius: 3px; box-shadow: var(--lift); }
+#canvas-dialog h2 { display: flex; align-items: center; gap: 12px; margin: 0 44px 16px 0; font-size: 21px; }
+#canvas-dialog .close { position: absolute; right: 14px; top: 14px; border: 0; background: var(--chip); color: var(--ink); width: 32px; height: 32px; border-radius: 3px; cursor: pointer; }
+.cd-preview { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--chip); }
+.cd-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+.cd-field { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
+.cd-field[aria-invalid="true"] { border-color: var(--error); }
+.cd-problem { min-height: 18px; margin: 4px 0 12px; font-size: 12px; color: var(--muted); }
+.cd-problem.on { color: var(--error); }
+.cd-icons { min-height: 0; overflow: auto; margin: 0 -4px; padding: 0 4px; }
+.cd-icons h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.cd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; }
+.cicon { display: grid; place-items: center; height: 38px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; padding: 0; }
+.cicon .emoji { font-size: 21px; line-height: 1; }
+.cicon:hover { background: var(--chip); }
+.cicon.on { border-color: var(--ink); background: var(--chip); }
+.cd-icons > .cicon { height: 32px; padding: 0 12px; }
+.cd-none { font-size: 13px; color: var(--muted); }
+.cd-actions { display: flex; gap: 8px; margin-top: 18px; }
+.cd-actions .btn:disabled { opacity: .5; cursor: default; }
+/* the open card's "⋯", and the canvases it offers to move the card to */
+.card-more .prio-btn { display: inline-grid; place-items: center; height: 20px; padding: 0 5px; color: var(--muted); }
+.card-more-menu { min-width: 200px; }
+.card-more-menu .cm-head { padding: 5px 8px 3px; font-size: 11px; color: var(--muted); }
+/* a wait whose other card lies on another canvas: its line ends at that canvas's icon */
+#deps .canvas-stub foreignObject { overflow: visible; }
+#deps .canvas-stub button { pointer-events: auto; display: grid; place-items: center; width: 100%; height: 100%; padding: 0; border: 1px solid var(--dep-line); border-radius: 50%;
+  background: var(--card); color: var(--ink); cursor: pointer; box-sizing: border-box; }
+#deps .canvas-stub button:hover { border-color: var(--proposal); }
+.other-canvas { flex: none; display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+
 /* ---------- focus: dim + panel + plan sheet ---------- */
 #dim { position: fixed; inset: 0; background: var(--dim); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 30; }
 #dim.on { opacity: 1; pointer-events: auto; }
@@ -1994,8 +2065,8 @@ button.link:hover { text-decoration: underline; }
 .project-card-search ul { list-style: none; max-height: min(360px, 45vh); overflow-y: auto; margin: 6px 0 0; padding: 0; }
 .project-card-search li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 3px; cursor: pointer; }
 .project-card-search li.on, .project-card-search li:hover { background: var(--chip); }
-.project-card-search li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 760px) { .project-card-search li span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; } }
+.project-card-search li > span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) { .project-card-search li > span:first-child { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; } }
 #bar .card-search-button { padding-inline: 10px; font-family: var(--mono); }
 /* under the task field while it has the cursor, until a card was linked once */
 .p-body-field .card-refs-hint { position: absolute; top: 100%; left: 0; margin: 6px 0 0; }

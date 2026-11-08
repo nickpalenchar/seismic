@@ -6,13 +6,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Archive, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
-import { canvasOfHash, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn } from '../core/types';
+import { type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { GroupNames, growFrom, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
+import { Canvases, CanvasStubs, CanvasTabs, stubsOf } from './canvases';
+import { canvasText } from './canvasIcon';
 import { clip } from '../core/text';
 import { type ActDone, Detail, type Pending } from './detail';
 import { Cards, KoordinatorAgent } from './message';
@@ -313,23 +315,59 @@ function Project({
   // the canvas shown is the one the address's hash names (`#main`, `#2`), else the first; each has a layout of its own
   const [hash, setHash] = useState(() => location.hash);
   useEffect(() => {
-    const on = () => setHash(location.hash);
+    const on = () => {
+      // a card open is shown on its own canvas: a hash naming another one goes
+      const f = focusRef.current;
+      const open = f?.type === 'card' ? itemsRef.current.find((i) => i.id === f.id) : undefined;
+      const own = open && !open.archivedAt ? canvasesRef.current.find((c) => c.id === open.canvas) : undefined;
+      if (own && canvasNamedBy(canvasesRef.current, location.hash)?.id !== own.id) history.replaceState(history.state, '', `${location.pathname}${location.search}#${encodeURIComponent(own.name)}`);
+      setHash(location.hash);
+    };
     addEventListener('hashchange', on);
     return () => removeEventListener('hashchange', on);
   }, []);
   const canvases = useMemo(() => snapshot.canvases ?? [], [snapshot.canvases]);
-  const shownCanvas = canvasOfHash(canvases, hash);
+  const canvasesRef = useRef(canvases);
+  canvasesRef.current = canvases;
+  // a hash that names no canvas keeps the one shown before: a canvas just made or renamed here is
+  // named in the address before the project brings it under that name
+  const lastShown = useRef<string>(undefined);
+  const shownCanvas = (hash ? canvasNamedBy(canvases, hash) : undefined) ?? canvases.find((c) => c.id === lastShown.current) ?? canvases[0];
   const canvasId = shownCanvas?.id;
+  lastShown.current = canvasId;
   const canvasRef = useRef(canvasId);
   canvasRef.current = canvasId;
-  /** Shows another canvas of the project; the address names it. */
-  const showCanvas = (id: string) => {
-    const c = canvases.find((x) => x.id === id);
-    if (!c || id === canvasRef.current) return;
-    const to = `#${encodeURIComponent(c.name)}`;
-    history.replaceState(history.state, '', `${location.pathname}${location.search}${to}`);
-    flushSync(() => setHash(to));
+  /** Shows a canvas of the project (one just made too, which the project brings soon); the address names it. */
+  const showCanvas = (c: Canvas | string) => {
+    const to = typeof c === 'string' ? canvases.find((x) => x.id === c) : c;
+    if (!to) return;
+    const h = `#${encodeURIComponent(to.name)}`;
+    if (to.id === canvasRef.current && location.hash === h) return;
+    history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);
+    flushSync(() => setHash(h));
   };
+  // the address names the canvas by its name, which reordering does not change: `#2` as the page
+  // opens becomes the name of the second, and a hash that names none goes
+  useEffect(() => {
+    if (!location.hash || !canvases.length) return;
+    const named = canvasNamedBy(canvases, location.hash);
+    const h = named ? `#${encodeURIComponent(named.name)}` : '';
+    if (h === location.hash) return;
+    history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);
+    setHash(h);
+  }, []);
+  // per canvas, the cards waiting for the owner, and which canvases have none at all (those can go)
+  const perCanvas = useMemo(() => {
+    const waiting: Record<string, number> = {};
+    const used = new Set<string>();
+    for (const i of items) {
+      const c = i.canvas ?? canvases[0]?.id;
+      if (!c) continue;
+      used.add(c);
+      if (needsYou(i)) waiting[c] = (waiting[c] ?? 0) + 1;
+    }
+    return { waiting, empty: new Set(canvases.filter((c) => !used.has(c.id)).map((c) => c.id)) };
+  }, [items, canvases]);
   /** Whether the card is on the canvas shown (one the server has not placed on any yet counts as on the first). */
   const onShown = useCallback((i: Item) => !canvasId || (i.canvas ?? canvases[0]?.id) === canvasId, [canvasId, canvases]);
   // the workstreams of a collapsed plan are not on the project: its marks stand for them
@@ -796,6 +834,21 @@ function Project({
     if (toArchive && archivedRef.current.some((i) => i.id === f.id) && !itemsRef.current.some((i) => i.id === f.id)) setAOn(true);
     await fly(back(f), 600);
     recover();
+  }
+
+  /** The card goes onto another canvas: it folds away, and the canvas shown stays. */
+  async function moveCard(i: Item, to: Canvas) {
+    const title = plain(i.title) || titleFrom(i.body);
+    if (focusRef.current?.type === 'card' && focusRef.current.id === i.id) {
+      await flushEdit();
+      await closeCard({ keepUntitled: true });
+    }
+    try {
+      await api.moveToCanvas([i.id], to.id);
+      showAck(t.canvases.moved(title, canvasText(to)));
+    } catch (err) {
+      fail(err);
+    }
   }
 
   async function deleteOpen() {
@@ -2120,6 +2173,9 @@ function Project({
   }, []);
 
   // ---------------------------------------------------------------- render
+  const moveRef = useRef(moveCard);
+  moveRef.current = moveCard;
+  const canvasView = useMemo(() => ({ canvases, shown: canvasId, move: (i: Item, to: Canvas) => void moveRef.current(i, to) }), [canvases, canvasId]);
   const sheetPlan = sheetId ? itemOrArchived(sheetId) : undefined;
   const sheetKids = !sheetPlan ? [] : sheetPlan.archivedAt ? archived.filter((i) => i.parent === sheetPlan.id) : (kidsOf.get(sheetPlan.id) ?? []);
   // on touch nothing hovers: the card picked up and let go stands in for the one under the pointer
@@ -2133,6 +2189,9 @@ function Project({
   const shownSettled = settled.filter((d) => notRemoving([d.from, d.to]));
   const shownWaits = waits.filter(([from, to]) => !removing.some((x) => x.key === `${from}:${to}`));
   const standsForId = (id: string) => (byId(id) ? standsFor(byId(id)!).id : id);
+  // the waits whose other card lies on another canvas end in a stub with that canvas's icon
+  const placedAt = new Map(placed.map((p) => [p.item.id, p.b]));
+  const stubs = canvases.length > 1 ? stubsOf(shownWaits, new Set(placedAt.keys()), byId, standsForId, canvases, canvasId) : [];
   const depOf = (id: string) => (!deps ? undefined : id === hovered ? 'self' : deps.before.has(id) ? 'before' : deps.after.has(id) ? 'after' : undefined);
   // a workstream of a collapsed plan points to where its plan stands
   const at = new Map(placed.map((p) => [p.item.id, p.b]));
@@ -2162,6 +2221,7 @@ function Project({
     <HoldToTalk.Provider value={holdToTalk}>
     <OpenPerformance.Provider value={openPerformance}>
     <KoordinatorAgent.Provider value={snapshot.koordinatorAgent}>
+    <Canvases.Provider value={canvasView}>
       <div
         className={[cam.s < FAR && 'z-far', resizing && 'resizing'].filter(Boolean).join(' ') || undefined}
         style={
@@ -2206,6 +2266,7 @@ function Project({
                   <foreignObject x={x - r} y={y - r} width={2 * r} height={2 * r}><button title={t.deps.remove} aria-label={t.deps.remove} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); removeDependency(from, item); }}><Trash2 strokeWidth={2} /></button></foreignObject>
                 </g>];
               }))}
+              <CanvasStubs stubs={stubs} boundsOf={(id) => placedAt.get(id)} s={cam.s} onOpen={(i) => void openFresh(i)} />
             </DepLinks>
             <svg className="manual-deps" width="1" height="1">
               <defs><marker id="manual-arrow" viewBox="0 0 9 8" refX="0.3" refY="4" markerWidth={6} markerHeight={(6 * 8) / 9} markerUnits="strokeWidth" orient="auto"><path d="M0,0 L9,4 L0,8 z" /></marker><marker id="ghost-arrow" viewBox="0 0 9 8" refX="9" refY="4" markerWidth={6} markerHeight={(6 * 8) / 9} markerUnits="strokeWidth" orient="auto"><path d="M0,0 L9,4 L0,8 z" /></marker></defs>
@@ -2397,6 +2458,7 @@ function Project({
           onJump={(wx, wy) => !focusRef.current && fly(viewOn(wx, wy), 500)}
           onFollow={(wx, wy) => !focusRef.current && chase(camRef.current, viewOn(wx, wy), setCam)}
         />
+        <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), showCanvas(c))} />
         <Inbox entries={entries} current={snapshot.project.id} open={openId ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
           onProposalCard={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })}
           onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
@@ -2530,6 +2592,7 @@ function Project({
         </div>
         <PerformanceDialog initial={perfAtStart} on={perfOn} onClose={() => setPerfOn(false)} projects={projects} here={snapshot.project.id} onOpenCard={(code) => void openNamed(code).catch(console.error)} />
       </div>
+    </Canvases.Provider>
     </KoordinatorAgent.Provider>
     </OpenPerformance.Provider>
     </HoldToTalk.Provider>
