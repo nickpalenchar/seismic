@@ -159,7 +159,7 @@ try {
   // the canvas layer's own names: its table, indexes, and the column cards and groups point to it with
   const layer = /^(canvases|canvases_name|cards_canvas|sqlite_autoindex_canvases_1)$/;
   const left = (check.query('SELECT name, sql FROM sqlite_master').all() as { name: string; sql: string | null }[]).filter(
-    (o) => !layer.test(o.name) && /canvas/i.test(o.name + (o.sql ?? '').replace(/, canvas_id TEXT/, '')),
+    (o) => !layer.test(o.name) && /canvas/i.test(o.name + (o.sql ?? '').replace(/,\s*`?canvas_id`? text/i, '')),
   );
   const hadCanvases = tables.includes('canvases') && tables.includes('projects');
   if (!hadCanvases && check.query("SELECT 1 FROM sqlite_master WHERE name = 'canvases'").get()) {
