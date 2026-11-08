@@ -273,7 +273,8 @@ and requests signed with Seismic's VAPID key (RFC 8292), with WebCrypto; the pus
 title nor text. The key is made at the first start and kept in `vapid.json` in the home.
 
 *Turning them on.* A paired device holds at most one subscription; removing the device removes it,
-and one the push service answers with 404 or 410 goes. An iPhone gets pushes only from the home
+and one the push service answers with 404 or 410 goes, as does a stored one that is no valid
+subscription (the other devices still get their push). An iPhone gets pushes only from the home
 screen (iOS 16.4+): in Safari the phone view says how ("Share", "Add to Home Screen"). There, and
 in a phone's Chrome, a box at the top asks "Turn on notifications"; its button asks for the
 permission (iOS asks only after a tap), and the box stays until it is given or refused. Given, the
