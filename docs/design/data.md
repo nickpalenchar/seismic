@@ -8,7 +8,10 @@ and the repositories already know is read from them, not stored.
 Persistent (SQLite):
 
 - projects, their per-project settings (home repository, whether the owner paused its agents, the card collecting each repository's
-  CLAUDE.md rules, the retrospective's and the work retrospective's counts and when they last ran), groups
+  CLAUDE.md rules, the retrospective's and the work retrospective's counts and when they last ran);
+  each project's canvases (name, unique in the project in any case; icon; place in the owner's order;
+  always one named `main`, which the migration that brought canvases gave every project with all its
+  cards and groups) and the canvas each card and group is on (a workstream's is its plan's); groups
   and each card's group; owner-drawn dependencies between cards (the project setting `manual_dependencies`
   is a JSON list of `[from, to]` pairs, optionally followed by `{fromSide, toSide, offset}` for the
   chosen edges and the target's position along its edge; older pairs use automatic routing);

@@ -820,6 +820,8 @@ describe('canvases', () => {
     expect(board.createCanvas('2026').name).toBe('2026');
     expect(code(() => board.createCanvas('  '))).toBe('emptyText');
     expect(code(() => board.createCanvas('x'.repeat(41)))).toBe('invalid');
+    expect(code(() => board.createCanvas('Words', 'billing'))).toBe('invalid');
+    expect(code(() => board.createCanvas('Words', 'lucide:no-such-icon'))).toBe('invalid');
     expect(code(() => board.updateCanvas(main, { name: 'Start' }))).toBe('invalid');
     expect(code(() => board.deleteCanvas(main))).toBe('canvasInUse');
     expect(code(() => board.updateCanvas('nope', { name: 'X' }))).toBe('unknownCanvas');

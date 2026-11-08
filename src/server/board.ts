@@ -6,6 +6,7 @@
 // into the archive with it, and comes back to its place when the doc returns. A workstream that
 // leaves its doc stays stored but is not shown.
 
+import { CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../core/labels';
 import { createHash } from 'node:crypto';
 import { type AgentAt, type AgentIdentity, type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, type Finding, MAIN_CANVAS, type WorkConfig } from '../core/types';
@@ -2713,10 +2714,11 @@ export class Board {
     return n;
   }
 
-  /** An icon as given, checked: a short text without spaces (an emoji, or `lucide:<name>`). */
+  /** An icon as given, checked: one emoji, or `lucide:<name>` of the curated set (`CANVAS_LUCIDE_ICONS`). */
   private canvasIcon(icon: unknown): string {
-    if (typeof icon !== 'string' || !icon.trim() || icon.length > 40 || /\s/.test(icon.trim())) throw new BadRequest('invalid', 'icon must be an emoji or lucide:<name>');
-    return icon.trim();
+    const i = typeof icon === 'string' ? icon.trim() : '';
+    if (!isCanvasIcon(i)) throw new BadRequest('invalid', `icon must be one emoji or lucide:<name>, one of ${CANVAS_LUCIDE_ICONS.join(', ')}`);
+    return i;
   }
 
   /** The group a card's new offspring (a proposal, a follow-up, a package, a prototype) goes into. */

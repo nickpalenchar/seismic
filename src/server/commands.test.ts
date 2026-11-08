@@ -1201,6 +1201,7 @@ describe('canvases by voice', () => {
     expect(s.inbox[0]).toContain('"Dream" (canvas "Ideas")');
     expect(s.inbox[0]).toContain('Canvases of the project, in their order: "main", "Ideas" (icon 💡), "Later"; the owner is looking at "Ideas"');
     expect(s.call('act', { actions: [{ do: 'new_canvas', text: '7' }], confirm: '…' })).toContain('a number from 1 to 999');
+    expect(s.call('act', { actions: [{ do: 'new_canvas', text: 'Words', icon: 'money' }], confirm: '…' })).toContain('icon is one emoji or lucide:<name>');
     expect(s.call('act', { actions: [{ do: 'new_canvas', text: 'ideas' }], confirm: '…' })).toContain('there is a canvas "ideas" already');
     expect(s.call('act', { actions: [{ do: 'change_canvas', canvas: 'main', text: 'Start' }], confirm: '…' })).toContain('keeps its name');
     expect(s.call('act', { actions: [{ do: 'delete_canvas', canvas: 'Ideas' }], confirm: '…' })).toContain('only an empty canvas can be deleted');

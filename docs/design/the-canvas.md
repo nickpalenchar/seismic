@@ -517,7 +517,7 @@ to are each canvas's own; repositories, settings, the demo site, the inbox count
 the project's. Every project has the canvas "main", which holds what the project had before it had
 several (the database migration put every card and group there); it cannot be renamed or deleted.
 Other canvases have a name unique in the project (in any case), never a number from 1 to 999,
-since `#2` names a canvas by its place, an optional icon (an emoji, or `lucide:<name>`), and a place
+since `#2` names a canvas by its place, an optional icon (one emoji, or `lucide:<name>` of a curated set of Lucide icons; anything else is refused), and a place
 in the owner's order. Only a canvas without cards can be deleted; its archived cards go to "main",
 where they come back from the archive.
 
