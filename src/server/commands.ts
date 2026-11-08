@@ -1068,7 +1068,7 @@ export class Commander {
       const groups = this.o.board.snapshot().groups;
       // group names are unique per canvas: the group is the one on the canvas the owner is looking at
       const focus = s.reading?.focus ?? {};
-      const open = focus.card ? this.o.board.item(focus.card) : undefined;
+      const open = this.o.board.item(focus.card ?? focus.plan ?? '');
       const canvas = open?.canvas ?? this.o.board.canvasFor(focus.place);
       const key = a.group?.trim().toLowerCase();
       const named = groups.filter((x) => x.name.toLowerCase() === key);

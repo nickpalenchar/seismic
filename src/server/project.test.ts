@@ -1375,6 +1375,22 @@ describe('groups by voice', () => {
     expect(project.board.snapshot().groups).toEqual([{ ...g!, name: 'Billing' }]);
     expect(item(a.id).group).toBeUndefined();
   });
+
+  test('a group command joins the group of that name on the cards\' canvas, and a rename changes that canvas\'s group only', async () => {
+    const ideas = project.board.createCanvas('Ideas');
+    const a = project.board.create({ title: 'A', x: 0, y: 0 });
+    const b = project.board.create({ title: 'B', x: 0, y: 0, canvas: ideas.id });
+    const c = project.board.create({ title: 'C', x: 400, y: 0, canvas: ideas.id });
+    await project.run({ do: 'group', cards: [a.id], name: 'Billing' });
+    await project.run({ do: 'group', cards: [b.id], name: 'Billing' });
+    const [onMain, onIdeas] = project.board.snapshot().groups;
+    expect(onMain!.id).not.toBe(onIdeas!.id);
+    await project.run({ do: 'group', cards: [c.id], name: 'Billing' });
+    expect(item(c.id).group).toBe(onIdeas!.id);
+    expect(project.board.snapshot().groups).toHaveLength(2);
+    await project.run({ do: 'renameGroup', group: onIdeas!.id, name: 'Payments' });
+    expect(project.board.snapshot().groups.map((g) => g.name)).toEqual(['Billing', 'Payments']);
+  });
 });
 
 describe('merging and deleting planned tasks by voice', () => {

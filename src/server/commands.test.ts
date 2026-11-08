@@ -1241,10 +1241,31 @@ describe('groups by voice on several canvases', () => {
     k.arm((await heard).token!);
     await new Promise((r) => setTimeout(r, 40));
     expect(executed).toEqual([{ do: 'group', cards: [c.id], name: 'Billing' }]);
-    // run as the project does: the card joins the group on its own canvas, no new group appears
-    board.createGroup('Billing', [c.id]);
-    expect(board.item(c.id)?.group).toBe(onIdeas.id);
-    expect(board.snapshot().groups.filter((g) => g.name === 'Billing')).toHaveLength(2);
+  });
+});
+
+describe('groups by voice from a plan', () => {
+  test('rename_group resolves the group on the canvas of the open plan', async () => {
+    board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({
+      docs: [{ file: 'docs/plan/p.md', title: 'Export', goal: 'Ziel', workstreams: [{ key: 'W1', label: 'W1', title: 'Titel', body: '', done: false, inReview: false }], markdown: '' }],
+      dirs: [],
+    }));
+    const ideas = board.createCanvas('Ideas');
+    const plan = board.snapshot().items[0]!;
+    board.moveToCanvas([plan.id], ideas.id);
+    const a = board.create({ title: 'Export', x: 0, y: 0 });
+    const b = board.create({ title: 'Dream', x: 0, y: 0, canvas: ideas.id });
+    board.createGroup('Billing', [a.id]);
+    const onIdeas = board.createGroup('Billing', [b.id]);
+    const k = commander();
+    const heard = k.hear('rename Billing to Payments', { plan: plan.id });
+    await settle();
+    const s = runtime.last;
+    s.call('act', { actions: [{ do: 'rename_group', group: 'Billing', text: 'Payments' }], confirm: 'Done.' });
+    s.emit({ type: 'idle' });
+    k.arm((await heard).token!);
+    await new Promise((r) => setTimeout(r, 40));
+    expect(executed).toEqual([{ do: 'renameGroup', group: onIdeas.id, name: 'Payments' }]);
   });
 });
 
