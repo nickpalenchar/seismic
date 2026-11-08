@@ -87,7 +87,7 @@ export function useDesktopNotifications(snapshot: ProjectSnapshot, onOpen: (item
     if (!started.length) return;
     void permission().then((p) => {
       if (p !== 'granted') return;
-      const m = MESSAGES[languageOf(document.documentElement.lang) ?? 'de'].push;
+      const m = MESSAGES[languageOf(document.documentElement.lang) ?? 'en'].push;
       if (started.length > 1) return show(m.several(started.length), started.map((s) => plainTitle(s.item.title)).join(' · '));
       const { item, kind } = started[0] as (typeof started)[number];
       return show(plainTitle(item.title), [m[kind], project.name].filter(Boolean).join(' · '), () => open.current(item));

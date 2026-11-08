@@ -160,7 +160,7 @@ describe('pairing', () => {
     await turnOn();
     const page = await viaTailnet('/');
     expect(page.status).toBe(401);
-    expect(await page.text()).toContain('Dieses Gerät ist nicht mit Seismic verbunden');
+    expect(await page.text()).toContain('This device is not connected to Seismic');
     expect(await (await viaTailnet('/api/projects')).json()).toMatchObject({ code: 'notPaired' });
     expect(await opens({ host: NAME, 'x-forwarded-for': '100.64.0.7', origin: `https://${NAME}` })).toBeNull();
     // this machine itself needs none
@@ -196,7 +196,7 @@ describe('pairing', () => {
     expect(ws).not.toBeNull();
     const closed = new Promise((r) => (ws!.onclose = r));
 
-    // „Entfernen“ takes effect at once
+    // “Remove” takes effect at once
     expect(await (await local(`/api/access/devices/${v.devices[0]!.id}`, { method: 'DELETE' })).json()).toEqual({ removed: true });
     await closed;
     expect((await viaTailnet('/', { cookie })).status).toBe(401);
@@ -210,7 +210,7 @@ describe('pairing', () => {
       viaTailnet('/pair', { origin: `https://${NAME}`, 'content-type': 'application/x-www-form-urlencoded' }, { method: 'POST', body: `code=${encodeURIComponent(code)}` });
     const wrong = await typed('000000' === p.code ? '111111' : '000000');
     expect(wrong.status).toBe(401);
-    expect(await wrong.text()).toContain('Dieser Code stimmt nicht');
+    expect(await wrong.text()).toContain('This code is wrong or has expired');
     expect((await typed(`${p.code.slice(0, 3)} ${p.code.slice(3)}`)).status).toBe(303);
     const q = await pairing();
     const other = q.code === '999999' ? '888888' : '999999';
@@ -303,7 +303,7 @@ describe('push', () => {
     expect(pushed).toHaveLength(1);
     page.close();
 
-    // „Entfernen“ takes the subscription with it
+    // “Remove” takes the subscription with it
     expect(push.subscribed((await view()).devices[0]!.id)).toBe(true);
     await local(`/api/access/devices/${(await view()).devices[0]!.id}`, { method: 'DELETE' });
     expect(store.pushes()).toEqual([]);

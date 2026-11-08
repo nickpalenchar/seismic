@@ -25,7 +25,7 @@ Whatever comes back is made a mono 16-bit WAV with ffmpeg:
 voice + the text as spoken, so re-rendering a demo after a visual fix costs no synthesis.
 
 A voice whose spec has `respell` (Piper, `say`) reads every word by the rules of the narration
-language, so English terms in German narration get respelt first: from the language's lexicon
+language, so English terms in the narration get respelt first: from the language's lexicon
 beside this file (`lexicon.<language>.json`, term to spoken form), and from marks in the script,
 `{Canvas|Kännwes}`, which win over the lexicon. Other voices get the written form ("Canvas"),
 respelt only where the voice has a lexicon of its own for the narration language (`lexicon` in the
@@ -68,8 +68,8 @@ from collections import deque
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-LANGUAGE_NAMES = {"de": "German", "en": "English"}
-LOCALES = {"de": "de-DE", "en": "en-US"}
+LANGUAGE_NAMES = {"en": "English"}
+LOCALES = {"en": "en-US"}
 
 #: How the hosted voices should sound when the spec says nothing (`style`, from the demo settings).
 STYLE = (
@@ -79,16 +79,16 @@ STYLE = (
 #: Free-tier quotas are per model (10 requests a day), so another TTS model can stand in.
 GEMINI_MODEL = os.environ.get("DEMO_GEMINI_MODEL", "gemini-3.8-flash-tts")
 #: Director's notes the model reads but does not speak; only the transcript is spoken. A plain
-#: prefix ("Sprich ruhig: …") gets read aloud.
+#: prefix ("Speak calmly: …") gets read aloud.
 GEMINI_NOTES = "### DIRECTOR'S NOTES\nStyle: {style}\n\n#### TRANSCRIPT\n"
 OPENAI_MODEL = os.environ.get("DEMO_OPENAI_MODEL", "gpt-4o-mini-tts")
 ELEVENLABS_MODEL = os.environ.get("DEMO_ELEVENLABS_MODEL", "eleven_v4")
 #: Each service's voice when the settings name none: calm male voices, like Gemini's Charon.
 DEFAULT_VOICES = {
-    "gemini": {"de": "Charon", "en": "Charon"},
-    "openai": {"de": "onyx", "en": "onyx"},
-    "elevenlabs": {"de": "JBFqnCBsd6RMkjVDRZzb", "en": "JBFqnCBsd6RMkjVDRZzb"},
-    "azure": {"de": "de-DE-ConradNeural", "en": "en-US-AndrewNeural"},
+    "gemini": {"en": "Charon"},
+    "openai": {"en": "onyx"},
+    "elevenlabs": {"en": "JBFqnCBsd6RMkjVDRZzb"},
+    "azure": {"en": "en-US-AndrewNeural"},
 }
 
 
@@ -136,7 +136,7 @@ def key(term: str) -> str:
 
 
 def lexicon(name: str) -> dict[str, str]:
-    """The lexicon of a narration language (`de`) or of a voice in it (`qwen3.de`), keyed by the term in
+    """The lexicon of a narration language (`en`) or of a voice in it (`qwen3.en`), keyed by the term in
     lower case; empty without one."""
     file = Path(__file__).with_name(f"lexicon.{name}.json")
     if not file.exists():

@@ -187,7 +187,7 @@ describe('Koordinator', () => {
     k.request(b.id);
     await scope(['src/strings.ts'], [], 'Beide ergänzen src/strings.ts, an verschiedenen Stellen.');
     expect(item(b.id).state).toBe('working');
-    expect(board.events(b.id).some((e) => e.text.includes('Kein Merge-Konflikt') && e.text.includes('an verschiedenen Stellen'))).toBe(true);
+    expect(board.events(b.id).some((e) => e.text.includes('No merge conflict') && e.text.includes('an verschiedenen Stellen'))).toBe(true);
   });
 
   test('the estimate sees where a card in progress has changed its files, without soft paths', async () => {
@@ -305,7 +305,7 @@ describe('Koordinator', () => {
     // neither starts before the joint turn has seen both
     expect(item(first.id).queue).toMatchObject({ checking: true });
     expect(item(later.id).queue).toMatchObject({ checking: true, since });
-    expect(board.events(first.id).at(-1)!.text).toContain('zusammen mit den anderen Aufgaben');
+    expect(board.events(first.id).at(-1)!.text).toContain('together with the other tasks');
     const brief = schedules().at(-1)!.inbox[0]!;
     expect(brief.indexOf('"Zuerst"')).toBeLessThan(brief.indexOf('"Später"'));
     expect(schedules().at(-1)!.spec.system).toContain('what they waited for has landed now');
@@ -314,7 +314,7 @@ describe('Koordinator', () => {
       ['K2', ['src/a.ts'], [], ['K1'], 'Beide ändern dieselbe Funktion.'],
     ]);
     expect(item(first.id).state).toBe('working');
-    expect(board.events(first.id).some((e) => e.text.includes('Zusammen mit den anderen frei gewordenen Aufgaben geprüft'))).toBe(true);
+    expect(board.events(first.id).some((e) => e.text.includes('Checked together with the other tasks freed at the same time'))).toBe(true);
     expect(item(later.id).queue).toEqual({ behind: [first.id], reason: 'Beide ändern dieselbe Funktion.', since });
 
     await workers.stop(first.id);
@@ -337,7 +337,7 @@ describe('Koordinator', () => {
     expect(brief).toContain('- K2: "B"\n  expected to change: src/a.ts, src/b.ts\n  waits for: "A"');
     await scope(['src/b.ts'], ['K2'], 'Beide ändern render() in src/b.ts.');
     expect(item(c.id).queue).toMatchObject({ behind: [b.id], reason: 'Beide ändern render() in src/b.ts.' });
-    expect(board.events(c.id).some((e) => e.text.includes('„B“ (wartet selbst und ist vorher dran)'))).toBe(true);
+    expect(board.events(c.id).some((e) => e.text.includes('“B” (waiting itself, and ahead in the queue)'))).toBe(true);
 
     // B goes first; C waits for it to land, not only to start
     await workers.stop(a.id);
@@ -428,7 +428,7 @@ describe('Koordinator', () => {
 
     k.reorder(c.id, true);
     expect(order()).toEqual(['C', 'B', 'D']);
-    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'owner', text: 'In der Warteschlange vor „B“ gezogen.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'owner', text: 'Moved ahead of “B” in the queue.' });
     k.reorder(d.id, true);
     expect(order()).toEqual(['C', 'D', 'B']);
     // D waits for C, which stays ahead of it, and C is first already
@@ -482,10 +482,10 @@ describe('Koordinator', () => {
 
     k.reorder(d.id, true, 3);
     expect(order()).toEqual(['D', 'A', first, second, 'E']);
-    expect(board.events(d.id).at(-1)).toMatchObject({ author: 'owner', text: 'In der Warteschlange vor „A“ gezogen.' });
+    expect(board.events(d.id).at(-1)).toMatchObject({ author: 'owner', text: 'Moved ahead of “A” in the queue.' });
     k.reorder(a.id, false, 3);
     expect(order()).toEqual(['D', first, second, 'E', 'A']);
-    expect(board.events(a.id).at(-1)).toMatchObject({ text: 'In der Warteschlange hinter „E“ gestellt.' });
+    expect(board.events(a.id).at(-1)).toMatchObject({ text: 'Moved behind “E” in the queue.' });
 
     // E goes no farther up than right behind B, the card it waits for
     const items = () => board.snapshot().items;
@@ -534,7 +534,7 @@ describe('Koordinator', () => {
     estimates().at(-1)!.emit({ type: 'idle' });
     await settle();
     expect(item(b.id).state).toBe('working');
-    expect(board.events(b.id).some((e) => e.kind === 'error' && e.text.includes('nicht schätzen'))).toBe(true);
+    expect(board.events(b.id).some((e) => e.kind === 'error' && e.text.includes('could not estimate'))).toBe(true);
   });
 });
 
@@ -552,7 +552,7 @@ describe("Koordinator queues a review's follow-up tasks", () => {
     const f = board.create({ title: 'Explain the arrows', from: r.id });
     k.followUp(f.id, r.id);
     expect(item(f.id)).toMatchObject({ state: 'planned', queue: { behind: [r.id], buildsOn: [r.id] } });
-    expect(board.events(f.id).at(-1)!.text).toBe('Seismic: wartet auf „PR #34: Manual dependencies“. Folgeaufgabe aus dem Review von PR #34; startet, sobald der PR gemergt ist.');
+    expect(board.events(f.id).at(-1)!.text).toBe('Seismic: waits for “PR #34: Manual dependencies”. A follow-up task from the review of PR #34; starts once the PR is merged.');
     await settle();
     expect(estimates()).toEqual([]);
     // the owner stopping the review does not free it: the PR is not merged
@@ -583,7 +583,7 @@ describe("Koordinator queues a review's follow-up tasks", () => {
     ]);
     expect(item(f2.id).state).toBe('working');
     expect(item(f1.id).queue).toMatchObject({ behind: [f2.id], buildsOn: [f2.id], reason: 'Die Tooltips bauen auf der Meldung auf.' });
-    expect(board.events(f1.id).at(-1)!.text).toBe('Seismic: wartet auf „Say why a link is refused“. Die Tooltips bauen auf der Meldung auf.');
+    expect(board.events(f1.id).at(-1)!.text).toBe('Seismic: waits for “Say why a link is refused”. Die Tooltips bauen auf der Meldung auf.');
   });
 
   test('a review closed without a merge takes its follow-up tasks back to planned, for the owner to decide on', async () => {
@@ -595,7 +595,7 @@ describe("Koordinator queues a review's follow-up tasks", () => {
     await settle();
     expect(item(f.id).state).toBe('planned');
     expect(item(f.id).queue).toBeUndefined();
-    expect(board.events(f.id).at(-1)!.text).toContain('ohne Merge geschlossen');
+    expect(board.events(f.id).at(-1)!.text).toContain('closed without a merge');
   });
 
   test('of a review already merged, a follow-up task is judged as any card', async () => {
@@ -867,7 +867,7 @@ describe('Koordinator waits for a free workstation', () => {
     k.request(b.id);
     await scope(['src/b.ts']);
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none' } });
-    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', text: expect.stringContaining('sobald eine frei wird') });
+    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', text: expect.stringContaining('starts as soon as one is free') });
     expect(board.events(b.id).some((e) => e.kind === 'error')).toBe(false);
 
     await workers.stop(a.id);
@@ -875,7 +875,7 @@ describe('Koordinator waits for a free workstation', () => {
     expect(item(b.id).state).toBe('working');
     expect(board.row(b.id).workstation).toBe(clones[0]!);
     expect(item(b.id).queue).toBeUndefined();
-    expect(board.events(b.id).some((e) => e.text.includes('Eine Workstation ist frei'))).toBe(true);
+    expect(board.events(b.id).some((e) => e.text.includes('A workstation is free'))).toBe(true);
   });
 
   test("a follow-up whose agent needs a full clone takes the next free one, before a queued card", async () => {
@@ -920,7 +920,7 @@ describe('Koordinator waits for a free workstation', () => {
     k.request(b.id);
     await scope(['src/b.ts']);
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workstation: 'slots' } });
-    expect(board.events(b.id).at(-1)!.text).toContain('Kein Slot frei');
+    expect(board.events(b.id).at(-1)!.text).toContain('No slot free');
     expect(workstations.pool(workers.inTurn())).toEqual([expect.objectContaining({ here: true, slots: 1, total: 3, cards: [a.id], busy: [a.id] })]);
 
     // A asks the owner: its clone stays its own, its slot is free
@@ -929,7 +929,7 @@ describe('Koordinator waits for a free workstation', () => {
     await settle();
     expect(item(b.id).state).toBe('working');
     expect(board.row(b.id).workstation).not.toBe(board.row(a.id).workstation);
-    expect(board.events(b.id).some((e) => e.text.includes('wieder einen Slot frei'))).toBe(true);
+    expect(board.events(b.id).some((e) => e.text.includes('free slot again'))).toBe(true);
     expect(workstations.pool(workers.inTurn())[0]).toMatchObject({ cards: [a.id, b.id], busy: [b.id] });
   });
 
@@ -949,7 +949,7 @@ describe('Koordinator waits for a free workstation', () => {
     k.request(b.id);
     await scope(['src/b.ts']);
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workstation: 'slots' } });
-    expect(board.events(b.id).at(-1)!.text).toContain('Kein Slot frei');
+    expect(board.events(b.id).at(-1)!.text).toContain('No slot free');
     expect(workstations.pool(workers.inTurn())).toEqual([
       { name: HERE, here: true, worktrees: true, slots: 1, total: 1, cards: [a.id], busy: [a.id], workstations: [{ path: expect.any(String), card: a.id }] },
     ]);
@@ -959,7 +959,7 @@ describe('Koordinator waits for a free workstation', () => {
     workerOf(a.id).emit({ type: 'idle' });
     await settle();
     expect(item(b.id).state).toBe('working');
-    expect(board.events(b.id).some((e) => e.text.includes('wieder einen Slot frei'))).toBe(true);
+    expect(board.events(b.id).some((e) => e.text.includes('free slot again'))).toBe(true);
     expect(workstations.pool(workers.inTurn())[0]).toMatchObject({ cards: [b.id], busy: [b.id] });
   });
 
@@ -1060,7 +1060,7 @@ describe('Koordinator waits for a free workstation', () => {
     expect(runtime.sessions.find((s) => s.spec.cwd === at && s.closed)).toBeDefined();
     // the work A had not committed is in a commit on its branch
     expect(git(at, 'show', '--stat', '--format=%B', board.row(a.id).branch!)).toContain('a.ts');
-    expect(board.events(a.id).some((e) => e.text.startsWith('Workstation entzogen'))).toBe(true);
+    expect(board.events(a.id).some((e) => e.text.startsWith('Workstation taken away'))).toBe(true);
 
     await workers.stop(b.id);
     await until(() => item(a.id).state === 'working');
@@ -1131,16 +1131,16 @@ describe('Koordinator starts all workstreams of a plan', () => {
     await schedule([
       ['K4', ['src/w4.ts'], [], [], 'W4 ist unabhängig.'],
       ['K2', ['src/w2.ts'], ['K4'], [], 'W2 baut auf der API aus W4 auf.'],
-      ['K3', ['src/a.ts'], [], ['K1'], 'W3 und „A“ ändern dieselbe Funktion.'],
+      ['K3', ['src/a.ts'], [], ['K1'], 'W3 und “A” ändern dieselbe Funktion.'],
     ]);
     expect(item(w4.id)).toMatchObject({ state: 'working', scope: ['src/w4.ts'] });
     expect(item(w2.id)).toMatchObject({ state: 'planned', scope: ['src/w2.ts'], queue: { behind: [w4.id], buildsOn: [w4.id], reason: 'W2 baut auf der API aus W4 auf.' } });
     expect(item(w3.id)).toMatchObject({ state: 'planned', queue: { behind: [a.id] } });
     expect(item(w3.id).queue).not.toHaveProperty('buildsOn');
-    expect(board.events(w2.id).at(-1)!.text).toBe('Seismic: wartet auf W4 „Titel W4“. W2 baut auf der API aus W4 auf.');
+    expect(board.events(w2.id).at(-1)!.text).toBe('Seismic: waits for W4 “Titel W4”. W2 baut auf der API aus W4 auf.');
     // the Koordinator's order is the queue's
     expect(k.ahead(item(w3.id)).map((i) => i.id)).toEqual([w2.id]);
-    expect(board.events(p.id).at(-1)!.text).toContain('1 von 3 Workstreams starten jetzt');
+    expect(board.events(p.id).at(-1)!.text).toContain('1 of 3 workstreams start now');
 
     await workers.stop(a.id);
     await settle();
@@ -1199,7 +1199,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     await settle();
     schedules()[0]!.emit({ type: 'idle' });
     await settle();
-    expect(board.events(p.id).at(-1)!.text).toContain('prüft sie einzeln');
+    expect(board.events(p.id).at(-1)!.text).toContain('checks them one by one');
     // each sees the others it may build on
     await settle();
     expect(estimates().at(-1)!.inbox[0]).toMatch(/W3 "Titel W3" \(queued after this card\)/);
@@ -1217,7 +1217,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     k.dequeue(w3.id);
     schedules()[0]!.emit({ type: 'idle' });
     await settle();
-    expect(board.events(p.id).at(-1)!.text).toContain('prüft sie einzeln');
+    expect(board.events(p.id).at(-1)!.text).toContain('checks them one by one');
     expect(item(w3.id).queue).toBeUndefined();
     await scope(['src/w2.ts']);
     expect(item(w2.id).state).toBe('working');
@@ -1237,7 +1237,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     k.request(p.id);
     schedules()[0]!.emit({ type: 'idle' });
     await settle();
-    expect(board.events(p.id).some((e) => e.text.includes('prüft sie einzeln'))).toBe(true);
+    expect(board.events(p.id).some((e) => e.text.includes('checks them one by one'))).toBe(true);
     // only W2 is judged alone; the second start keeps its workstreams together
     expect(item(w2.id).queue).toMatchObject({ checking: true });
     expect(item(w2.id).queue).not.toHaveProperty('together');
@@ -1301,7 +1301,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     expect(estimates().at(-1)!.spec.system).toContain('builds_on');
     await scope(['src/w3.ts'], [], 'W3 nutzt die API aus W2.', ['K1']);
     expect(item(w3.id)).toMatchObject({ state: 'planned', queue: { behind: [w2.id], buildsOn: [w2.id], reason: 'W3 nutzt die API aus W2.' } });
-    expect(board.events(w3.id).at(-1)!.text).toBe('Seismic: wartet auf W2 „Titel W2“ (noch nicht gestartet). W3 nutzt die API aus W2.');
+    expect(board.events(w3.id).at(-1)!.text).toBe('Seismic: waits for W2 “Titel W2” (not started yet). W3 nutzt die API aus W2.');
 
     // the owner starts W2: W3 waits for it, so W2 does not wait for W3
     k.request(w2.id);
@@ -1351,7 +1351,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     k.force(w3.id);
     await settle();
     expect(item(w3.id).state).toBe('working');
-    expect(board.events(w3.id).some((e) => e.text === 'Trotzdem gestartet, ohne zu warten.')).toBe(true);
+    expect(board.events(w3.id).some((e) => e.text === 'Started anyway, without waiting.')).toBe(true);
   });
 
   test('the start waits a few seconds, in which the owner can take it back', async () => {
@@ -1362,7 +1362,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     expect(schedules()).toHaveLength(0);
     k.dequeue(p.id);
     expect([w2, w3, w4].map((w) => item(w.id).queue)).toEqual([undefined, undefined, undefined]);
-    expect(board.events(p.id).at(-1)!.text).toBe('Start zurückgenommen: W2, W3, W4.');
+    expect(board.events(p.id).at(-1)!.text).toBe('Start taken back: W2, W3, W4.');
     await new Promise((r) => setTimeout(r, 60));
     expect(schedules()).toHaveLength(0);
     expect(() => k.dequeue(p.id)).toThrow(expect.objectContaining({ code: 'notQueued' }));
@@ -1408,7 +1408,7 @@ describe('preference memory', () => {
     expect(board.preferences()).toEqual([
       { id: 1, text: 'Beschriftungen: präzise vor kurz.', state: 'proposed', cardId: a.id, quote: 'Präzise, auch wenn es länger wird. Das gilt immer.' },
     ]);
-    expect(board.events(a.id).at(-1)!.text).toBe('Schlägt vor: „Beschriftungen: präzise vor kurz.“');
+    expect(board.events(a.id).at(-1)!.text).toBe('Proposes: “Beschriftungen: präzise vor kurz.”');
     // agents do not follow it yet, and the next learner does not count it among the rules
     expect(board.preferencesText()).toBe('');
     expect(board.snapshot().preferences.map((p) => p.state)).toEqual(['proposed']);
@@ -1479,7 +1479,7 @@ describe('preference memory', () => {
     expect(board.preferences()).toEqual([{ id: 1, text: 'Kleinkram selbst entscheiden.', state: 'proposed', quote: 'Warum fragt der Agent immer nach Kleinkram?' }]);
   });
 
-  test('a rule about a repository is proposed for its CLAUDE.md, accepted into its card „CLAUDE.md ergänzen“, and reaches no agent', async () => {
+  test('a rule about a repository is proposed for its CLAUDE.md, accepted into its card “Add to CLAUDE.md”, and reaches no agent', async () => {
     const a = card('Export');
     k.learn(item(a.id), 'note', 'Tests schreiben wir hier immer auf Deutsch.');
     await settle();
@@ -1496,7 +1496,7 @@ describe('preference memory', () => {
     expect(board.preferencesText()).toBe('');
     expect(board.snapshot().preferences).toEqual([]);
     const collect = board.collecting('home')!;
-    expect(collect).toMatchObject({ title: 'CLAUDE.md ergänzen', state: 'planned', kind: 'task' });
+    expect(collect).toMatchObject({ title: 'Add to CLAUDE.md', state: 'planned', kind: 'task' });
     expect(collect.body).toEndWith('\n\n- Tests auf Deutsch benennen.');
 
     // the next learner knows it is on its way; a rule for the preferences can be moved to a CLAUDE.md, and back
@@ -1650,12 +1650,12 @@ describe('Rückschau', () => {
       'Proposals the owner rejected (do not propose them again):\n- Commits auf Englisch.',
     ])
       expect(brief).toContain(line);
-    s.call('propose', { rule: 'Keine Emojis in Texten.', why: 'Auf „Export“ zweimal gesagt, den Emoji-Picker verworfen.' });
+    s.call('propose', { rule: 'Keine Emojis in Texten.', why: 'Auf “Export” zweimal gesagt, den Emoji-Picker verworfen.' });
     s.call('propose', { rule: 'Keine Emojis in Texten.', why: 'Doppelt.' });
     s.call('done', {});
     s.emit({ type: 'idle' });
     await settle();
-    expect(board.preferences('proposed')).toEqual([{ id: 2, text: 'Keine Emojis in Texten.', state: 'proposed', quote: 'Auf „Export“ zweimal gesagt, den Emoji-Picker verworfen.', review: true }]);
+    expect(board.preferences('proposed')).toEqual([{ id: 2, text: 'Keine Emojis in Texten.', state: 'proposed', quote: 'Auf “Export” zweimal gesagt, den Emoji-Picker verworfen.', review: true }]);
 
     // the next one reads only what came after
     for (let n = 0; n < 3; n++) k1.noticed();

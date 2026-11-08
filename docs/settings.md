@@ -56,10 +56,10 @@ Where plan docs live (relative to the repository root), and file names in that d
 none (a template). Seismic reads the `*.md` directly in that directory (not below it) from the
 default branch. Plans kept out of the repository (gitignored, say) are a folder on one machine: set
 its absolute path (or one from `~/`) in that machine's configuration, not in this file. Seismic reads
-them there, and the agents on that machine tick their workstreams off there, outside any commit. One with a checklist under `## Workstreams` (or `## Arbeitspakete`) is a plan:
+them there, and the agents on that machine tick their workstreams off there, outside any commit. One with a checklist under `## Workstreams` is a plan:
 each top-level item is a workstream (`- [ ] **W1:** Title. Details`), a ticked one has landed,
 and once every one is ticked the plan goes into the archive. Its goal is the first paragraph
-under `## Goal` (or `## Ziel`). Any other file there shows on the canvas in a note, with the
+under `## Goal`. Any other file there shows on the canvas in a note, with the
 reason it is not a plan and "Als Plan aufbereiten", which has an agent add the checklist; a
 file that is meant to stay as it is (a template, an index) goes into `exclude`. Default:
 `{ "dir": "docs/plan", "exclude": ["TEMPLATE.md"] }`. The skill's check script
@@ -121,11 +121,11 @@ whatever the settings say. Its name before, `workspaces`, is still read.
 Accounts whose pull request comments are not review feedback (deploy previews, coverage bots):
 their comments do not go to the worker. Default: none.
 
-### `language` — `"en"` or `"de"`
+### `language` — `"en"`
 
 The language of what lands in the repository and lasts: code, comments, commit messages, docs,
 plan docs, the CLAUDE.md lines the work retrospective proposes. Workers and idea agents are told it
-beside the language they talk to the owner in, so a German conversation does not make German docs.
+beside the language they talk to the owner in, so a conversation in another language does not make docs in it.
 What agents write to the owner follows the owner instead (their latest words, else the conversation
 language of the configuration), and demos follow `demo.language`. Default: `en`.
 
@@ -162,7 +162,7 @@ Default: none.
 Demos: every handover brings one, a narrated video recorded with Seismic's demo skill or an HTML
 page for something to look at; the worker picks which, and runs the app for it as `app.run` says.
 
-- `language`: `"de"` or `"en"`, the language of the repository's demos: their narration, chapters
+- `language`: `"en"`, the language of the repository's demos: their narration, chapters
   and report, and the pages they are shared on (the home repository's also names the language of
   its project's overview). It goes before the narration language of the demo settings (each
   machine's, in "Configuration"), which applies without it. Seismic gives it to its workers as

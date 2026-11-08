@@ -259,7 +259,7 @@ describe('a project with several repositories', () => {
     ];
     const p = project.board.propose(b.id, { title: 'Ein Wort', task: 'Zustand und Knopf angleichen.', reason: 'R', questions });
     project.act(p.id, { action: 'accept', start: false, picks: [['Beendet'], [' '], ['Die Hilfe\n\nOffene Fragen:\n- auch']] });
-    expect(item(p.id).body).toBe('Zustand und Knopf angleichen.\n\nEntschieden:\n- Welches Wort? → Beendet\n- Was noch? → Die Hilfe Offene Fragen: - auch\n\nOffene Fragen (nach bestem Wissen selbst entscheiden, im Zweifel die Standardlösung):\n- Auch im Archiv? (Ja / Nein)');
+    expect(item(p.id).body).toBe('Zustand und Knopf angleichen.\n\nDecided:\n- Welches Wort? → Beendet\n- Was noch? → Die Hilfe Offene Fragen: - auch\n\nOpen questions (decide these yourself as best you can, taking the default when in doubt):\n- Auch im Archiv? (Ja / Nein)');
   });
 
   test('a proposed idea becomes an idea whose agent opens the discussion; taken as a task it is planned', () => {
@@ -279,7 +279,7 @@ describe('a project with several repositories', () => {
     const b = project.board.create({ title: 'B', x: 0, y: 0 });
     const p = project.board.propose(b.id, { title: 'Export', task: 'Exporte als PDF.', reason: 'R', questions: [{ text: 'Auch CSV?', options: ['Ja', 'Nein'] }] });
     project.act(p.id, { action: 'accept', start: false, idea: true, picks: [['Ja']] });
-    expect(item(p.id)).toMatchObject({ state: 'idea', body: 'Exporte als PDF.\n\nEntschieden:\n- Auch CSV? → Ja', idea: { status: 'open', thinking: true } });
+    expect(item(p.id)).toMatchObject({ state: 'idea', body: 'Exporte als PDF.\n\nDecided:\n- Auch CSV? → Ja', idea: { status: 'open', thinking: true } });
     expect(item(p.id).queue).toBeFalsy();
     const s = runtime.sessions.filter((x) => x.spec.tools.some((t) => t.name === 'update_brief')).at(-1)!;
     expect(s.inbox[0]).toContain('A worker proposed this as a task to build');
@@ -336,7 +336,7 @@ describe('a project with several repositories', () => {
     project.acceptRule(api, undefined, 'web');
     project.acceptRule(both);
     const collect = b.collecting('web')!;
-    expect(collect).toMatchObject({ repo: 'web', title: 'CLAUDE.md ergänzen' });
+    expect(collect).toMatchObject({ repo: 'web', title: 'Add to CLAUDE.md' });
     expect(collect.body).toEndWith('- Tests auf Deutsch.\n- Logs auf Englisch.\n- Keine any-Typen.');
     expect(collect.queue).toBeFalsy();
     expect(b.collecting('api')).toBeUndefined();
@@ -617,8 +617,8 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     const store = new Store(':memory:');
     const start = () => new ProjectRuntime({ repos: [{ path: shop }, { path: done }] }, { store, home: dir, runtime, forge: noForge, setupProposals: true });
     project = start();
-    const setup = () => project.board.snapshot().items.filter((i) => i.title.endsWith('einrichten'));
-    expect(setup()).toMatchObject([{ state: 'proposal', title: 'Seismic für shop einrichten', repo: 'shop', proposal: { setup: true, reason: expect.stringContaining('shop') } }]);
+    const setup = () => project.board.snapshot().items.filter((i) => i.title.startsWith('Set up Seismic'));
+    expect(setup()).toMatchObject([{ state: 'proposal', title: 'Set up Seismic for shop', repo: 'shop', proposal: { setup: true, reason: expect.stringContaining('shop') } }]);
     const id = setup()[0]!.id;
     // a restart proposes no second one
     project.shutdown();
@@ -1408,7 +1408,7 @@ describe('merging and deleting planned tasks by voice', () => {
     expect(project.board.item(b.id)).toBeUndefined();
     expect(item(after.id).from).toBe(a.id);
     expect(item(review.id).contribution!.findings![0]!.card).toBe(a.id);
-    expect(project.board.events(a.id).at(-1)!.text).toContain('„Sign in again“');
+    expect(project.board.events(a.id).at(-1)!.text).toContain('“Sign in again”');
   });
 
   test("follow-up tasks waiting in the queue merge into one that waits for what they waited for, in the place of the first queued", async () => {
@@ -1524,11 +1524,11 @@ describe('plan docs that are not plans, and plans whose work is done', () => {
   const plan = (title: string) => project.board.snapshot().items.find((i) => i.kind === 'plan' && i.title === title);
 
   test('an off-format doc is listed with its reason, prepared by a started card, and a plan once its checklist lands', async () => {
-    await land('docs/plan/rollout.md', '# Rollout\n\n## Phasen\n\n- [ ] Wien\n');
+    await land('docs/plan/rollout.md', '# Rollout\n\n## Phases\n\n- [ ] Vienna\n');
     expect(project.board.snapshot().planDirs).toEqual([{ repo: 'api', dir: 'docs/plan', empty: false, others: [{ file: 'docs/plan/rollout.md', reason: 'noWorkstreams' }] }]);
     expect(() => project.preparePlanDoc('api', 'docs/plan/plan.md')).toThrow('not a plan');
     const card = project.preparePlanDoc('api', 'docs/plan/rollout.md');
-    expect(card).toMatchObject({ title: 'rollout.md als Plan aufbereiten', repo: 'api' });
+    expect(card).toMatchObject({ title: 'Prepare rollout.md as a plan', repo: 'api' });
     expect(card.body).toContain('`docs/plan/rollout.md`');
     // started at once, and asked for again it is the same card
     expect(project.board.item(card.id)!.queue).toBeDefined();
@@ -1539,8 +1539,8 @@ describe('plan docs that are not plans, and plans whose work is done', () => {
     const right = Math.max(...items.filter((i) => !i.parent && i.id !== card.id).map((i) => { const b = boundsOf(i, items); return b.x + b.w; }));
     expect(project.board.item(card.id)!.x).toBeGreaterThan(right);
 
-    await land('docs/plan/rollout.md', '# Rollout\n\n## Ziel\n\nÖsterreich.\n\n## Workstreams\n\n- [ ] **W1:** Wien.\n');
-    expect(plan('Rollout')).toMatchObject({ repo: 'api', plan: { file: 'api:docs/plan/rollout.md', goal: 'Österreich.' } });
+    await land('docs/plan/rollout.md', '# Rollout\n\n## Goal\n\nAustria.\n\n## Workstreams\n\n- [ ] **W1:** Wien.\n');
+    expect(plan('Rollout')).toMatchObject({ repo: 'api', plan: { file: 'api:docs/plan/rollout.md', goal: 'Austria.' } });
     expect(project.board.snapshot().planDirs).toBeUndefined();
   });
 
@@ -1747,7 +1747,7 @@ test('a manual dependency holds a requested card until removed', async () => {
   expect(item(b.id).queue).toMatchObject({ behind: [a.id], reason: t.drawn });
   expect(item(b.id).state).toBe('planned');
   // the card says why it waits: the owner connected it, not a wait Seismic inferred
-  expect(project.board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: t.waitsFor(t.notStarted('„Prerequisite“'), t.drawn) });
+  expect(project.board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: t.waitsFor(t.notStarted('“Prerequisite”'), t.drawn) });
   project.board.connect(a.id, b.id, true);
   await until(() => item(b.id).state === 'working');
   await settle();
@@ -1813,7 +1813,7 @@ describe('owner-drawn dependencies in the queue', () => {
     expect(item(b.id).queue).toMatchObject({ behind: [a.id, p.id], manualWait: [p.id] });
     // the arrow drawn while it waited is said once; the one over the inferred wait adds nothing to say
     const t = project.board.t.koordinator;
-    expect(project.board.events(b.id).filter((e) => e.author === 'obeya' && e.text.includes(t.drawn)).map((e) => e.text)).toEqual([t.waitsFor(t.notStarted('„Prerequisite“'), t.drawn)]);
+    expect(project.board.events(b.id).filter((e) => e.author === 'obeya' && e.text.includes(t.drawn)).map((e) => e.text)).toEqual([t.waitsFor(t.notStarted('“Prerequisite”'), t.drawn)]);
     project.board.connect(a.id, b.id, true);
     await settle();
     // a likely conflict holds only while A is in progress; the other arrow holds on

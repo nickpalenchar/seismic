@@ -119,7 +119,7 @@ and `codex exec --help` / `codex exec review --help` for the installed CLI.
 1. Read the JSON and the scope above. Remove any workflow the owner does not want pre-approved.
 2. After the approved change lands on the repository's main branch, open **Konfiguration** and
    review the held Claude configuration diff. Trust the displayed configuration with
-   **Trust these commands** (`Diesen Befehlen vertrauen` in German). Seismic trusts the whole
+   **Trust these commands**. Seismic trusts the whole
    displayed Claude group, including any other files in it, not just this allow list.
 3. Newly started Claude sessions then load the trusted project settings. Existing sessions may
    need to finish and start again. A later configuration change requires review again.

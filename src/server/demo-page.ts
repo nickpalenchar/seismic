@@ -12,7 +12,7 @@ import interLicense from '../ui/fonts/LICENSE-Inter.txt' with { type: 'file' };
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 
 /** The languages a page speaks: those a demo is narrated in. */
-export type PageLanguage = 'de' | 'en';
+export type PageLanguage = 'en';
 
 /** The page's own words, in the demo's language. */
 export const PAGE_WORDS: Record<
@@ -50,35 +50,6 @@ export const PAGE_WORDS: Record<
     noMatch: string;
   }
 > = {
-  de: {
-    locale: 'de-DE',
-    captions: 'Deutsch',
-    play: 'Abspielen',
-    pr: 'Pull Request ansehen',
-    commit: 'Commit ansehen',
-    commits: 'Commits ansehen',
-    ownWindow: 'In eigenem Fenster öffnen',
-    demoOf: (day) => `Demo vom ${day}`,
-    sharedOn: (day, by) => (by ? `Geteilt von ${by} am ${day}` : `Geteilt am ${day}`),
-    allDemos: 'Alle Demos',
-    by: (name) => `von ${name}`,
-    overview: 'Videos und Auswertungen zu Änderungen, die neuesten zuerst.',
-    noDemos: 'Noch keine Demos geteilt.',
-    first: 'Demo',
-    addendum: (at, timeZone) => {
-      const t = timeParts(at, 'de-DE', 'numeric', timeZone);
-      return `Ergänzung vom ${t.day}.${t.month}., ${t.hour}:${t.minute}`;
-    },
-    recordedWith: 'Aufgenommen mit',
-    feed: 'Feed abonnieren',
-    search: 'Suchen …',
-    shown: '{n} von {m}',
-    copyLinks: 'Links kopieren',
-    copyLinksHint: 'Kopiert die gezeigten Demos als Liste aus Titel und Link, für eine Mail, ein Dokument oder Markdown',
-    copyLink: 'Link kopieren',
-    copied: 'Kopiert',
-    noMatch: 'Keine Demo passt zum Filter.',
-  },
   en: {
     locale: 'en-US',
     captions: 'English',
@@ -139,7 +110,7 @@ interface PageParts {
   when: string;
   /** The browser tab's title. */
   tabTitle: string;
-  /** The demo's language, which the page's own words and the captions' name are in; German without one. */
+  /** The demo's language, which the page's own words and the captions' name are in; English without one. */
   language?: PageLanguage;
   /** A link above the title (say, to all demos). */
   top?: { href: string; text: string };
@@ -177,7 +148,7 @@ const changeLink = (p: Pick<PageParts, 'pr' | 'commit'>, w: (typeof PAGE_WORDS)[
 /** Text inside a `<script>` element must not close it. */
 const inScript = (s: string) => s.replace(/<\//g, '<\\/');
 
-export const day = (at: Date | string, language: PageLanguage = 'de') =>
+export const day = (at: Date | string, language: PageLanguage = 'en') =>
   new Date(at).toLocaleDateString(PAGE_WORDS[language].locale, { day: 'numeric', month: 'long', year: 'numeric' });
 
 /**
@@ -412,7 +383,7 @@ export const ON_DISK = 'file:';
  * as `srcdoc` has the page's policy as well as its own).
  */
 export function artifactPageHtml(p: ArtifactPageParts): string {
-  const language = p.language ?? 'de';
+  const language = p.language ?? 'en';
   const w = PAGE_WORDS[language];
   const frame =
     'src' in p.artifact
@@ -461,7 +432,7 @@ const imageFrame = (f, open) => {
     activeImageFrame = f;
     imagePlaceholder = document.createElement('div'); imagePlaceholder.style.cssText = 'height:' + f.offsetHeight + 'px;width:' + f.offsetWidth + 'px'; f.before(imagePlaceholder);
     f.dataset.obeyaPreviousStyle = f.getAttribute('style') || ''; f.style.cssText += ';position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483646;border:0';
-    imageClose = document.createElement('button'); imageClose.textContent = '×'; imageClose.setAttribute('aria-label', document.documentElement.lang === 'de' ? 'Schließen' : 'Close');
+    imageClose = document.createElement('button'); imageClose.textContent = '×'; imageClose.setAttribute('aria-label', 'Close');
     imageClose.style.cssText = 'position:fixed;right:16px;top:12px;z-index:2147483647;color:white;background:#222;border:0;font:36px sans-serif;cursor:pointer'; imageClose.onclick = closeImage; document.body.append(imageClose); imageClose.focus();
   } else if (!open && f === activeImageFrame) closeImage();
 };
@@ -489,7 +460,7 @@ ${p.tags?.length ? `<div class="tags">${p.tags.map((x) => `<a class="tag" href="
 }
 
 export function demoPageHtml(p: DemoPageParts): string {
-  const language = p.language ?? 'de';
+  const language = p.language ?? 'en';
   const w = PAGE_WORDS[language];
   const chapters = p.chapters.length
     ? `<ol>${p.chapters.map(([at, title], i) => `<li><button data-at="${at}"${i === 0 ? ' class="on"' : ''}><span class="t">${mmss(at)}</span>${esc(title)}</button></li>`).join('')}</ol>`
@@ -549,7 +520,7 @@ const STACK_STYLE = `
  * (`?alone=<n>`, its place on the page).
  */
 export function stackedPageHtml(p: StackedPageParts): string {
-  const language = p.language ?? 'de';
+  const language = p.language ?? 'en';
   const w = PAGE_WORDS[language];
   const [first, ...later] = p.demos;
   const name = (i: number) => (i === 0 ? w.first : w.addendum(later[i - 1]!.at, p.timeZone));

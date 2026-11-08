@@ -102,7 +102,7 @@ describe('parking: the app of a card that waits for the owner', () => {
     parking();
     const c = manual();
     await workers.start(c.id);
-    runtime.last.emit({ type: 'text', text: 'Weiter.' });
+    runtime.last.emit({ type: 'text', text: 'Resumed.' });
     runtime.last.emit({ type: 'idle' });
     await Bun.sleep(60);
     expect(stopped(c.id)).toBe(false);
@@ -268,14 +268,14 @@ describe('handing over with a demo', () => {
     expect(runtime.last.spec.env).toEqual({ OBEYA_URL: 'http://127.0.0.1:4417', DEMO_LANGUAGE: 'en' });
     // named in its instructions too: an HTML artifact is written without the skill, which reads it
     expect(runtime.last.spec.system).toContain("A demo (its narration, report, or an HTML artifact's words) is in English, whatever language the owner talks in. This repository's settings name English for its demos, which holds over the narration language of the demo settings.");
-    expect(runtime.last.spec.system).toContain('Speak to the owner in German throughout this conversation');
+    expect(runtime.last.spec.system).toContain('Speak to the owner in English throughout this conversation');
   });
 
   test("a repository that names no language for its demos has its worker demo in the demo settings' narration language, else the conversation's", async () => {
     rmSync(dir, { recursive: true, force: true });
     setup({ ...generic, land: 'main', workstations: 'clones' });
     await workers.start(manual().id);
-    expect(runtime.last.spec.system).toContain("A demo (its narration, report, or an HTML artifact's words) is in German, whatever language the owner talks in.");
+    expect(runtime.last.spec.system).toContain("A demo (its narration, report, or an HTML artifact's words) is in English, whatever language the owner talks in.");
     rmSync(dir, { recursive: true, force: true });
     setup({ ...generic, land: 'main', workstations: 'clones' });
     setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, demoLanguage: () => 'en' }));
@@ -627,7 +627,7 @@ describe('handing over with a demo', () => {
     workers.restartDue({ reason: 'code', deadline: Date.now() + 15 * 60_000 });
     busy.emit({ type: 'text', text: 'Ich pausiere für den Neustart.' });
     busy.emit({ type: 'idle' });
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Seismic.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Paused until Seismic has restarted.' });
     expect(board.item(c.id)!.answering).toBe(true);
     expect(needsYou(board.item(c.id)!)).toBe(false);
     workers.shutdown();

@@ -241,7 +241,7 @@ describe('only the owner', () => {
     expect((await bare('/api/c/main/cards/x/act', { method: 'POST', headers: { 'x-obeya-key': 'guessed' } })).status).toBe(401);
     const page = await bare('/');
     expect(page.status).toBe(401);
-    expect(await page.text()).toContain('nicht bei Seismic angemeldet');
+    expect(await page.text()).toContain('Not signed in');
     expect(await opens({})).toBe(false);
     expect(board.snapshot().items).toEqual([]);
   });
@@ -275,7 +275,7 @@ describe('only the owner', () => {
     expect((await bare(api('/project'), { headers: { cookie } })).status).toBe(200);
     const again = await bare(url);
     expect(again.status).toBe(401);
-    expect(await again.text()).toContain('für einen einzigen Browser');
+    expect(await again.text()).toContain('for a single browser');
     expect(await onward(await bare(url, { headers: { cookie } }))).toBe('/?c=main');
   });
 
@@ -527,11 +527,11 @@ describe('voice', () => {
 
   const unsure = (text: string): Transcript => ({ text, doubtful: true });
   for (const [what, first, again, confirm] of [
-    ['loops on with and without the card titles is not understood', 'lächpt '.repeat(30), 'PLEASE PLEASE PLEASE PLEASE PLEASE PLEASE PLEASE', 'Das habe ich nicht verstanden.'],
-    ['is unsure of with and without the card titles is not understood', unsure('www.pap.com'), unsure('Hm.'), 'Das habe ich nicht verstanden.'],
-    ['is unsure of with the card titles and writes its words for silence on without them is nothing heard', unsure('!'), 'Vielen Dank.', 'Ich habe nichts gehört.'],
-    ['writes its words for silence on without the card titles is nothing heard', 'lächpt '.repeat(30), 'Vielen Dank.', 'Ich habe nichts gehört.'],
-    ['writes its words for silence on at once is nothing heard', 'Untertitelung des ZDF, 2020', 'Unused', 'Ich habe nichts gehört.'],
+    ['loops on with and without the card titles is not understood', 'lächpt '.repeat(30), 'PLEASE PLEASE PLEASE PLEASE PLEASE PLEASE PLEASE', 'I did not understand that.'],
+    ['is unsure of with and without the card titles is not understood', unsure('www.pap.com'), unsure('Hm.'), 'I did not understand that.'],
+    ['is unsure of with the card titles and writes its words for silence on without them is nothing heard', unsure('!'), 'Thank you.', 'I heard nothing.'],
+    ['writes its words for silence on without the card titles is nothing heard', 'lächpt '.repeat(30), 'Thank you.', 'I heard nothing.'],
+    ['writes its words for silence on at once is nothing heard', 'Thanks for watching!', 'Unused', 'I heard nothing.'],
   ] as [string, string | Transcript, string | Transcript, string][]) {
     test(`a recording Whisper ${what}, and the Koordinator does not guess`, async () => {
       whisper = (vocabulary) => (vocabulary ? first : again);
@@ -609,7 +609,7 @@ describe('voice', () => {
     const fresh = await briefed();
     fresh.emit({ type: 'error', message: 'Not logged in · Please run /login' });
     const { confirm } = await heard;
-    expect(confirm).toStartWith('Ich konnte das nicht lesen.');
+    expect(confirm).toStartWith('I could not read that.');
     expect(confirm).toContain('/login');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'say', author: 'koordinator', text: confirm });
   });
@@ -688,7 +688,7 @@ describe('voice', () => {
     expect(heardAudio).toEqual(['AUDIO', 'AUDIO', 'AUDIO']);
     // nothing heard: nothing goes out, and the field keeps its words
     whisper = () => '';
-    expect(await voice('&listen', 'AUDIO')).toMatchObject({ unheard: true, confirm: 'Ich habe nichts gehört.' });
+    expect(await voice('&listen', 'AUDIO')).toMatchObject({ unheard: true, confirm: 'I heard nothing.' });
     expect(await voice('', form('Siehe Log:'))).toMatchObject({ unheard: true });
     expect(told).toHaveLength(2);
   });
@@ -800,7 +800,7 @@ describe('screenshots', () => {
     expect(board.snapshot().talk.at(-1)).toMatchObject({ said: 'Neue Karte Export', images: [id] });
 
     whisper = () => '';
-    expect(await (await voice(`?image=${id}`)).json()).toMatchObject({ confirm: 'Ich habe nichts gehört.', unheard: true });
+    expect(await (await voice(`?image=${id}`)).json()).toMatchObject({ confirm: 'I heard nothing.', unheard: true });
   });
 
   test('a new card from a command keeps its screenshots; one said with a start goes to the task', async () => {
@@ -873,7 +873,7 @@ describe('„Merk dir“', () => {
     expect(board.preferences('active')).toEqual([]);
     expect(board.preferences('filed')).toMatchObject([{ text: 'Tests auf Deutsch benennen.', target: repo, cardId: c.id }]);
     const collect = board.collecting(repo)!;
-    expect(collect).toMatchObject({ title: 'CLAUDE.md ergänzen', repo });
+    expect(collect).toMatchObject({ title: 'Add to CLAUDE.md', repo });
     expect(collect.body).toEndWith('- Tests auf Deutsch benennen.');
     // written in the sheet; a proposal still waits, so the card collects on
     expect((await post(api('/preferences'), JSON.stringify({ text: 'Commits auf Englisch.', target: repo }))).status).toBe(204);
@@ -1544,7 +1544,7 @@ test("what a worker on another machine reaches: Seismic's narration clips, inlin
   const s = serveNarration(narration);
   try {
     const post = (path: string, body: unknown) => fetch(`http://127.0.0.1:${s.port}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    const clip = { voice: { speaker: 'ryan' }, text: 'Hallo.', language: 'de' };
+    const clip = { voice: { speaker: 'ryan' }, text: 'Hallo.', language: 'en' };
     expect((await post('/api/demo-settings/sample', { language: 'en', voice: 'command', command: 'touch /tmp/x' })).status).toBe(404);
     expect((await post('/api/config', {})).status).toBe(404);
     // a WAV written to a path on this machine: not from there

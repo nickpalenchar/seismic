@@ -413,7 +413,7 @@ function LanguagePick() {
   useEffect(() => {
     api.language().then((l) => setChosen(l.language), console.error);
   }, []);
-  if (!chosen) return null;
+  if (!chosen || LANGUAGES.length < 2) return null;
   return (
     <select
       className="setup-lang"

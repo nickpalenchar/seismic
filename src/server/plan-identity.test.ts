@@ -77,7 +77,7 @@ describe('a workstream card keeps its workstream', () => {
     work(c!.id, 'Gleichzeitige Bearbeitung', { state: 'working' });
     read(parse([NEW[0]!]));
     expect(board.archived().find((i) => i.id === g!.id)).toMatchObject({ title: '1G Testlücken schließen', body: 'Only tests.', state: 'done' });
-    expect(board.events(g!.id).at(-1)!.text).toBe('Hat den Plan „Audit“ verlassen: Das Plan-Doc führt diesen Workstream nicht mehr.');
+    expect(board.events(g!.id).at(-1)!.text).toBe('Left the plan “Audit”: the plan doc no longer lists this workstream.');
     // at work, it stands beside the plan
     const items = board.snapshot().items;
     const plan = items.find((i) => i.kind === 'plan')!;
@@ -241,7 +241,7 @@ describe('cards of a doc read by an older Seismic', () => {
     expect(board.events(after[1]!.id)).toEqual([]);
     // the card with 1G's log is done, in the archive, under 1G's title
     expect(board.archived().find((i) => i.id === b!.id)).toMatchObject({ title: '1G Testlücken schließen', state: 'done', source: 'manual' });
-    expect(board.events(b!.id).at(-1)!.text).toContain('Dieser Verlauf gehört zu einem Workstream, den das Plan-Doc nicht mehr führt');
+    expect(board.events(b!.id).at(-1)!.text).toContain('this history belongs to a workstream the plan doc no longer lists');
   });
 
   test('a card whose workstream moved in the doc follows it there', () => {

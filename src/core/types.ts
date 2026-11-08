@@ -787,7 +787,7 @@ export interface Idea {
   brief: string;
   /** The exploration agent is working on a reply. */
   thinking: boolean;
-  /** "So bauen" was clicked while the agent worked on a reply: the idea is built once the reply is there, unless it asks questions. */
+  /** "Build it like this" was clicked while the agent worked on a reply: the idea is built once the reply is there, unless it asks questions. */
   buildAfterReply?: true;
   /** The agent replied and the owner has not answered yet: an open idea then needs the owner. */
   yourTurn: boolean;
@@ -3038,7 +3038,7 @@ export interface CloudVoiceView {
 
 /**
  * How long the recognition on this machine took for the short sentence Seismic ships with
- * (`voice/check-de.ogg`), loaded and warm. `slow`: longer than the sentence itself.
+ * (`voice/check.ogg`), loaded and warm. `slow`: longer than the sentence itself.
  */
 export interface VoiceSpeed {
   backend: ListenBackend;

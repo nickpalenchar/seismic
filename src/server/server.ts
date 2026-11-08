@@ -169,7 +169,7 @@ export function serve(
       proposeTags({
         runtime: sources[0]!.runtime,
         cwd: sources[0]!.cwd,
-        language: language === 'de' || language === 'en' ? language : (sources[0]!.language ?? readDemoSettings(home).language),
+        language: language === 'en' ? language : (sources[0]!.language ?? readDemoSettings(home).language),
         owner: ownerLanguage(home),
         ...(vocabulary ? { current: vocabulary } : {}),
         cards: sources.flatMap((s) => s.cards),

@@ -16,9 +16,8 @@
     <img src="logo.svg" alt="" />
     <div id="what"></div>
     <script>
-      const de = navigator.language.startsWith('de');
       // ?updating: the shell installs an update (src/update.rs) and then starts the app again
-      document.getElementById('what').textContent = location.search === '?updating' ? (de ? 'Seismic wird aktualisiert …' : 'Seismic is updating …') : de ? 'Seismic startet …' : 'Seismic is starting …';
+      document.getElementById('what').textContent = location.search === '?updating' ? 'Seismic is updating …' : 'Seismic is starting …';
     </script>
   </body>
 </html>

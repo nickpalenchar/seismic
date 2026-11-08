@@ -109,7 +109,7 @@ export class Access implements Gate {
     this.store = o.store;
     this.home = o.home;
     this.tailscale = o.tailscale ?? new Tailscale();
-    this.language = o.language ?? (() => 'de');
+    this.language = o.language ?? (() => 'en');
     this.now = o.now ?? Date.now;
     this.platform = o.platform ?? process.platform;
     this.owner = o.owner ?? new Owner({ home: o.home, language: this.language });

@@ -181,9 +181,9 @@ describe('a session on a host', () => {
 
   test("the owner's demo settings go there with the voice references as paths here, without a key file or the demo directory", () => {
     mkdirSync(join(dir, 'home'), { recursive: true });
-    writeFileSync(join(dir, 'home', 'demo.json'), JSON.stringify({ language: 'de', voice: 'qwen3', references: { de: '~/voice/me.wav', en: '/voice/me-en.wav' }, keyFile: '~/.voice/key', directory: '/opt/work/demos' }));
+    writeFileSync(join(dir, 'home', 'demo.json'), JSON.stringify({ language: 'en', voice: 'qwen3', references: { en: '~/voice/me.wav' }, keyFile: '~/.voice/key', directory: '/opt/work/demos' }));
     const settings = JSON.parse(sessionFiles(join(dir, 'home'), []).files!['demo.json']!()!);
-    expect(settings.references).toEqual({ de: join(homedir(), 'voice', 'me.wav'), en: '/voice/me-en.wav' });
+    expect(settings.references).toEqual({ en: join(homedir(), 'voice', 'me.wav') });
     expect(settings.keyFile).toBeUndefined();
     // a path of this machine: demos on the host go into its own ~/demos
     expect(settings.directory).toBeUndefined();
@@ -359,16 +359,16 @@ describe('a worker on a host', () => {
     first.emit({ type: 'tool', name: 'Bash', input: { command: 'ls' } });
     first.emit({ type: 'idle' });
     // the owner writes, and the connection drops before the worker takes the message
-    workers.message(card.id, 'Bitte auch CSV.');
+    workers.message(card.id, 'Please add CSV too.');
     writeFileSync(join(dir, 'net', 'down'), '');
     first.emit({ type: 'lost', message: 'the connection was lost' });
-    expect(board.events(card.id).some((e) => e.text.includes(`Die Verbindung zu ${name} ist weg`))).toBe(true);
+    expect(board.events(card.id).some((e) => e.text.includes(`The connection to ${name} is gone`))).toBe(true);
     await Bun.sleep(80);
     expect(runtime.sessions).toHaveLength(1);
     rmSync(join(dir, 'net', 'down'));
     await until(() => runtime.sessions.length === 2);
     expect(runtime.last.spec.resume).toBe('s1');
-    expect(runtime.last.inbox[0]).toContain('Bitte auch CSV.');
+    expect(runtime.last.inbox[0]).toContain('Please add CSV too.');
     // at work when it dropped, it hears what happened
     runtime.last.emit({ type: 'tool', name: 'Bash', input: { command: 'ls' } });
     runtime.last.emit({ type: 'lost', message: 'the connection was lost' });
@@ -385,11 +385,11 @@ describe('a worker on a host', () => {
     mkdirSync(demo);
     writeFileSync(join(demo, 'demo.mp4'), 'video');
     writeFileSync(join(demo, 'captions.vtt'), 'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nEins.\n');
-    expect(await runtime.last.call('ready_for_review', { summary: 'Fertig.', demo: { dir: demo, chapters: ['Eins'] } })).toContain('End your turn');
+    expect(await runtime.last.call('ready_for_review', { summary: 'Done.', demo: { dir: demo, chapters: ['Eins'] } })).toContain('End your turn');
     const shown = JSON.parse(board.row(card.id).demo!) as { dir: string };
     expect(shown.dir).toBe(host.localCopy(demo));
     expect(readFileSync(join(shown.dir, 'demo.mp4'), 'utf8')).toBe('video');
-    expect(await runtime.last.call('ready_for_review', { summary: 'Fertig.', demo: { dir: join(dir, 'far', 'none'), chapters: [] } })).toContain('could not be copied');
+    expect(await runtime.last.call('ready_for_review', { summary: 'Done.', demo: { dir: join(dir, 'far', 'none'), chapters: [] } })).toContain('could not be copied');
     // waiting for the owner, it takes in their words and waits for its background work, when the connection drops
     runtime.last.emit({ type: 'idle' });
     workers.message(card.id, 'Noch ein Satz im Video.');
@@ -416,7 +416,7 @@ describe('a worker on a host', () => {
     // the host goes before the session reports an id: getting it ready failed
     writeFileSync(join(dir, 'net', 'down'), '');
     runtime.last.emit({ type: 'lost', message: 'the connection was lost' });
-    expect(board.events(card.id).some((e) => e.text.includes(`Die Verbindung zu ${name} ist weg`))).toBe(true);
+    expect(board.events(card.id).some((e) => e.text.includes(`The connection to ${name} is gone`))).toBe(true);
     await Bun.sleep(80);
     expect(runtime.sessions).toHaveLength(1);
     rmSync(join(dir, 'net', 'down'));

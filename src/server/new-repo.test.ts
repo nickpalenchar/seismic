@@ -98,7 +98,7 @@ describe('building an idea in a new repository', () => {
     expect(moved.group).toBeUndefined();
     expect(moved.newRepo).toBeUndefined();
     expect(there.board.events(card.id).map((e) => e.text)).toEqual(
-      expect.arrayContaining(['A separate repo for it, please.', expect.stringContaining('Docs'), expect.stringContaining('So bauen')]),
+      expect.arrayContaining(['A separate repo for it, please.', expect.stringContaining('Docs'), expect.stringContaining('Build it')]),
     );
     expect(there.board.decisions(null).map((d) => d.answer)).toEqual(expect.arrayContaining(['A repository of its own.', expect.stringContaining(path)]));
     expect(there.images.path(moved.images![0]!)).toBeTruthy();
@@ -148,7 +148,7 @@ describe('building an idea in a new repository', () => {
     const now = docsProject().board.item(card.id)!;
     expect(now.state).toBe('idea');
     expect(now.newRepo?.due).toBeUndefined();
-    expect(docsProject().board.events(card.id).at(-1)!.text).toContain('Repository nicht angelegt');
+    expect(docsProject().board.events(card.id).at(-1)!.text).toContain('Repository not created');
   });
 
   test('without a project of its own, the repository joins this project and the card works in it', async () => {
@@ -172,7 +172,7 @@ describe('building an idea in a new repository', () => {
     const inside = idea(join(dir, 'docs', 'sub'));
     docsProject().act(inside.id, { action: 'build' });
     await until(() => docsProject().board.events(inside.id).some((e) => e.kind === 'error'));
-    expect(docsProject().board.events(inside.id).at(-1)!.text).toContain('liegt im Repository');
+    expect(docsProject().board.events(inside.id).at(-1)!.text).toContain('lies inside the repository');
     expect(existsSync(join(dir, 'docs', 'sub'))).toBe(false);
   });
 

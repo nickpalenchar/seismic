@@ -157,13 +157,13 @@ is presented without "I" or "we".
   spend waiting, goes into `d.skip(fn, { quiet: true })`: cut whole, without flash or label.
 - Write large numbers as words ("about fifteen thousand two hundred euros"); small ones as digits
   are fine. Avoid abbreviations the voice would spell out.
-- A foreign term that is not in the narration language's lexicon (`lib/lexicon.de.json`) gets
+- A foreign term that is not in the narration language's lexicon (`lib/lexicon.<language>.json`) gets
   its spoken form in a mark, `{Project|Kännwes}`: the captions show "Project", Piper and
   `say` (which read every word by the narration language's rules) speak "Kännwes". Qwen3 gets
   no marks; a word it cannot read goes into its own lexicon (`lib/lexicon.qwen3.<language>.json`).
   The render names the words Qwen3 was heard saying differently (section 6). Add a respelling for
   one only where the voice plausibly said it wrong, not where the speech recognition mishears a
-  name, a file name or an English term in German narration, and only once `--narration` heard the
+  name, a file name or an English term in the narration, and only once `--narration` heard the
   respelling come back right.
 - Audio tags in square brackets (`[short pause]`, `[long pause]`) go to ElevenLabs v4 (its default
   model) and v3, which read them. Every other voice speaks the text between two pause tags on its

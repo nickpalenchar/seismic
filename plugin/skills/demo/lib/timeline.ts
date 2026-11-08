@@ -1,7 +1,6 @@
 // The video's timeline: the recording runs in real time, but stretches in which the demo only waits
 // (an agent thinking, a build) are cut out of it (`Director.skip`). Everything placed on the video
 // (frames, narration, chapters, captions) goes through `videoTime`.
-import type { NarrationLanguage } from './settings.ts';
 
 /** A stretch of real time, in seconds since the epoch, that the video leaves out. */
 export interface Cut {
@@ -107,13 +106,9 @@ export function frameDurations(frames: Frame[], t0: number, tEnd: number, cuts: 
 export const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /** What the picture says during a cut: how much later it is when the demo goes on. */
-export function laterLabel(seconds: number, language: NarrationLanguage) {
+export function laterLabel(seconds: number) {
   const s = Math.max(1, Math.round(seconds));
   const m = Math.round(seconds / 60);
-  if (language === 'en') {
-    if (s < 60) return s === 1 ? 'a second later' : `${s} seconds later`;
-    return m === 1 ? 'a minute later' : `${m} minutes later`;
-  }
-  if (s < 60) return s === 1 ? 'eine Sekunde später' : `${s} Sekunden später`;
-  return m === 1 ? 'eine Minute später' : `${m} Minuten später`;
+  if (s < 60) return s === 1 ? 'a second later' : `${s} seconds later`;
+  return m === 1 ? 'a minute later' : `${m} minutes later`;
 }

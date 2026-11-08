@@ -35,7 +35,7 @@ use tauri::{utils::config::BundleType, AppHandle, Url};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
-use crate::{main_window, no_window, post, say, Seismic};
+use crate::{main_window, no_window, post, Seismic};
 
 /// The exit code with which the server asks the shell to install the update (src/server/self-update.ts).
 pub const EXIT: i32 = 77;
@@ -226,10 +226,7 @@ pub fn install(app: &AppHandle, obeya: &Seismic, updates: &Updates) {
     if let Err(e) = update.install(bytes) {
       app
         .dialog()
-        .message(say(
-          &format!("Seismic {} ließ sich nicht installieren: {e}\n\nSeismic startet wieder in der bisherigen Version.", update.version),
-          &format!("Seismic {} could not be installed: {e}\n\nSeismic starts again in the version it had.", update.version),
-        ))
+        .message(format!("Seismic {} could not be installed: {e}\n\nSeismic starts again in the version it had.", update.version))
         .title("Seismic")
         .kind(MessageDialogKind::Error)
         .blocking_show();

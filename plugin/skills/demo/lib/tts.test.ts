@@ -10,8 +10,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { NarrationHost } from '../../../../src/server/narration';
 import { serveNarration } from '../../../../src/server/server';
-import { untagged } from './timeline';
-import { voiceSpec } from './voices';
 
 const LIB = import.meta.dirname;
 const python = (args: string[], env: Record<string, string> = {}, input?: string) =>
@@ -68,12 +66,12 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 const narrate = (env: Record<string, string> = {}) =>
-  python([join(LIB, 'tts.py'), join(dir, 'spec.json'), 'de', join(dir, 'jobs.json'), join(dir, 'out')], { FAKE_LOG: join(dir, 'log'), ...env });
+  python([join(LIB, 'tts.py'), join(dir, 'spec.json'), 'en', join(dir, 'jobs.json'), join(dir, 'out')], { FAKE_LOG: join(dir, 'log'), ...env });
 const log = () => readFileSync(join(dir, 'log'), 'utf8').trim().split('\n');
 /** tts.py's render with its time limits for a voice's answers cut to a fraction of a second. */
 const impatient = (env: Record<string, string>) =>
   python(
-    ['-c', `import sys; sys.path.insert(0, ${JSON.stringify(LIB)}); import tts; tts.ANSWER_LIMITS = {"load": 5, "sentence": 0.5}; sys.argv[1:] = ${JSON.stringify([join(dir, 'spec.json'), 'de', join(dir, 'jobs.json'), join(dir, 'out')])}; tts.main()`],
+    ['-c', `import sys; sys.path.insert(0, ${JSON.stringify(LIB)}); import tts; tts.ANSWER_LIMITS = {"load": 5, "sentence": 0.5}; sys.argv[1:] = ${JSON.stringify([join(dir, 'spec.json'), 'en', join(dir, 'jobs.json'), join(dir, 'out')])}; tts.main()`],
     { FAKE_LOG: join(dir, 'log'), ...env },
   );
 
@@ -81,7 +79,7 @@ describe('a voice that stays loaded', () => {
   test('starts once for all clips of a render, and not at all when every clip is cached', () => {
     const r = narrate();
     expect(r.status).toBe(0);
-    expect(log()).toEqual(['start', 'de:Eins.', 'de:Zwei.', 'de:Drei.', 'end']);
+    expect(log()).toEqual(['start', 'en:Eins.', 'en:Zwei.', 'en:Drei.', 'end']);
     const clips = JSON.parse(readFileSync(join(dir, 'out', 'tts.json'), 'utf8')).clips;
     expect(clips.map((c: { id: string }) => c.id)).toEqual(['s0', 's1', 's2']);
     for (const c of clips) expect(existsSync(c.file)).toBe(true);
@@ -96,7 +94,7 @@ describe('a voice that stays loaded', () => {
     writeFileSync(join(dir, 'jobs.json'), JSON.stringify([{ id: 's0', text: 'Eins. [short pause] Zwei [whispers] drei. [long pause] Vier.' }]));
     expect(narrate().status).toBe(0);
     // the parts between the pauses one by one, other tags left out
-    expect(log()).toEqual(['start', 'de:Eins.', 'de:Zwei drei.', 'de:Vier.', 'end']);
+    expect(log()).toEqual(['start', 'en:Eins.', 'en:Zwei drei.', 'en:Vier.', 'end']);
     // three parts of 0.1 s with 0.5 s and 1.5 s of silence between them
     const clip = JSON.parse(readFileSync(join(dir, 'out', 'tts.json'), 'utf8')).clips[0];
     expect(clip.seconds).toBeCloseTo(2.3, 2);
@@ -125,90 +123,8 @@ describe('a voice that stays loaded', () => {
     expect(r.status).not.toBe(0);
     expect(r.stderr).toContain('the voice said nothing for 0.5 s while making a clip and was ended: generating Zwei.');
     expect(performance.now() - started).toBeLessThan(30_000);
-    expect(log()).toEqual(['start', 'de:Eins.']);
+    expect(log()).toEqual(['start', 'en:Eins.']);
   });
-});
-
-describe('English terms in German narration', () => {
-  const lexicon = JSON.parse(readFileSync(join(LIB, 'lexicon.de.json'), 'utf8')) as Record<string, string>;
-  const spec = (respell: boolean) => {
-    const s = JSON.parse(readFileSync(join(dir, 'spec.json'), 'utf8'));
-    writeFileSync(join(dir, 'spec.json'), JSON.stringify({ ...s, respell }));
-  };
-  const jobs = (...texts: string[]) => writeFileSync(join(dir, 'jobs.json'), JSON.stringify(texts.map((text, i) => ({ id: `s${i}`, text }))));
-  const said = () => log().filter((l) => l.startsWith('de:')).map((l) => l.slice(3));
-
-  test('Piper and say respell them, the others do not', () => {
-    for (const voice of ['piper', 'say'] as const) expect(voiceSpec({ language: 'de', voice })).toMatchObject({ respell: true });
-    for (const voice of ['qwen3', 'command', 'elevenlabs', 'gemini', 'openai', 'azure', 'http'] as const)
-      expect(voiceSpec({ language: 'de', voice })).not.toHaveProperty('respell');
-  });
-
-  test('a voice that respells gets the lexicon\'s spoken forms, as whole words in any case, longest first, and a mark before the lexicon', () => {
-    spec(true);
-    jobs(
-      'Der Pull Request liegt auf dem branch. Pull-Request und Branchen.',
-      'Ein {Branch|Brantsch} auf dem {Canvas|Leinwand}. [short pause] Fertig.',
-    );
-    expect(narrate().status).toBe(0);
-    expect(said()).toEqual([
-      `Der ${lexicon['Pull Request']} liegt auf dem ${lexicon.Branch}. ${lexicon['Pull Request']} und Branchen.`,
-      'Ein Brantsch auf dem Leinwand.',
-      'Fertig.',
-    ]);
-  }, 30_000);
-
-  test('a voice with a lexicon of its own (Qwen3) gets the words it cannot read respelt from it, the rest as written', () => {
-    expect(voiceSpec({ language: 'de', voice: 'qwen3' })).toMatchObject({ lexicon: 'qwen3' });
-    const own = JSON.parse(readFileSync(join(LIB, 'lexicon.qwen3.de.json'), 'utf8')) as Record<string, string>;
-    const s = JSON.parse(readFileSync(join(dir, 'spec.json'), 'utf8'));
-    writeFileSync(join(dir, 'spec.json'), JSON.stringify({ ...s, lexicon: 'qwen3' }));
-    jobs('Der Button Reauthenticate auf dem {Canvas|Kännwes}. [short pause] Reauthenticate!', 'Ohne Lexikon.');
-    expect(narrate().status).toBe(0);
-    expect(said()).toEqual([`Der Button ${own.Reauthenticate} auf dem Canvas.`, `${own.Reauthenticate}!`, 'Ohne Lexikon.']);
-    // it hears each part against the script as written, and what it heard stays with the clip, cached too
-    const heard = [
-      { script: 'Der Button Reauthenticate auf dem Canvas.', heard: `Der Button ${own.Reauthenticate} auf dem Canvas.` },
-      { script: 'Reauthenticate!', heard: `${own.Reauthenticate}!` },
-    ];
-    const clips = () => JSON.parse(readFileSync(join(dir, 'out', 'tts.json'), 'utf8')).clips;
-    expect(clips()[0]).toMatchObject({ heard });
-    expect(clips()[1]).not.toHaveProperty('heard');
-    rmSync(join(dir, 'log'));
-    expect(narrate().status).toBe(0);
-    expect(existsSync(join(dir, 'log'))).toBe(false);
-    expect(clips()[0]).toMatchObject({ heard });
-  }, 30_000);
-
-  test('a voice that reads English terms (Qwen3, the hosted ones) gets them as written, without marks', () => {
-    spec(false);
-    jobs('Der Pull Request liegt auf dem {Canvas|Kännwes}.');
-    expect(narrate().status).toBe(0);
-    expect(said()).toEqual(['Der Pull Request liegt auf dem Canvas.']);
-  }, 30_000);
-
-  test('a clip is cached by what the voice says, so only a changed spoken form synthesises again', () => {
-    spec(true);
-    jobs('Der Branch.', 'Das Canvas.');
-    expect(narrate().status).toBe(0);
-    rmSync(join(dir, 'log'));
-    // the same spoken forms, from a mark instead of the lexicon: nothing to synthesise
-    jobs(`Der {Branch|${lexicon.Branch}}.`, `Das {Canvas|${lexicon.Canvas}}.`);
-    expect(narrate().status).toBe(0);
-    expect(existsSync(join(dir, 'log'))).toBe(false);
-    // another spoken form for one of them: that clip alone
-    jobs('Der {Branch|Brantsch}.', 'Das Canvas.');
-    expect(narrate().status).toBe(0);
-    expect(said()).toEqual(['Der Brantsch.']);
-  }, 60_000);
-
-  test('a sample is respelt too, and captions show the term as written', () => {
-    spec(true);
-    const r = python([join(LIB, 'tts.py'), '--sample', join(dir, 'spec.json'), 'de', 'Ein Feature auf dem {Canvas|Kännwes}.', join(dir, 'sample.wav')], { FAKE_LOG: join(dir, 'log') });
-    expect(r.status).toBe(0);
-    expect(said()).toEqual([`Ein ${lexicon.Feature} auf dem Kännwes.`]);
-    expect(untagged('Ein Feature auf dem {Canvas|Kännwes}. [short pause] Fertig.')).toBe('Ein Feature auf dem Canvas. Fertig.');
-  }, 30_000);
 });
 
 describe('a voice Seismic holds', () => {
@@ -216,7 +132,7 @@ describe('a voice Seismic holds', () => {
   /** A render while this process serves Seismic's narration: spawned, not spawnSync, which would block the server. */
   const render = (out: string, env: Record<string, string>, extra: string[] = []) =>
     new Promise<{ status: number | null; stderr: string }>((resolve) => {
-      const child = spawn(UV[0]!, [...UV.slice(1), join(LIB, 'tts.py'), ...extra, join(dir, 'spec.json'), 'de', join(dir, 'jobs.json'), join(dir, out)], {
+      const child = spawn(UV[0]!, [...UV.slice(1), join(LIB, 'tts.py'), ...extra, join(dir, 'spec.json'), 'en', join(dir, 'jobs.json'), join(dir, out)], {
         env: { ...process.env, ...env },
       });
       let stderr = '';
@@ -254,8 +170,8 @@ describe('a voice Seismic holds', () => {
     for (const out of ['a', 'b']) expect(JSON.parse(readFileSync(join(dir, out, 'tts.json'), 'utf8')).clips).toHaveLength(3);
     // the second render's clips came between the first's
     const clips = log().slice(1);
-    expect(clips.toSorted()).toEqual(['de:Drei.', 'de:Drei.', 'de:Eins.', 'de:Eins.', 'de:Zwei.', 'de:Zwei.']);
-    expect(clips.slice(0, 2)).toEqual(['de:Eins.', 'de:Eins.']);
+    expect(clips.toSorted()).toEqual(['en:Drei.', 'en:Drei.', 'en:Eins.', 'en:Eins.', 'en:Zwei.', 'en:Zwei.']);
+    expect(clips.slice(0, 2)).toEqual(['en:Eins.', 'en:Eins.']);
     rmSync(join(dir, 'a'), { recursive: true });
     expect((await render('a', env)).status).toBe(0);
     expect(log().filter((l) => l === 'start')).toHaveLength(1);
@@ -316,7 +232,7 @@ def load_model(repo):
       { text: 'Third.', out: join(dir, 'c.wav'), language: 'en' },
     ];
     const r = python(
-      [join(LIB, 'qwen3.py'), '--model', 'm', '--language', 'de', '--reference', join(dir, 'ref.wav'), '--serve'],
+      [join(LIB, 'qwen3.py'), '--model', 'm', '--language', 'en', '--reference', join(dir, 'ref.wav'), '--serve'],
       { PYTHONPATH: join(dir, 'fake'), FAKE_LOG: join(dir, 'log') },
       requests.map((q) => JSON.stringify(q)).join('\n') + '\n',
     );
@@ -332,7 +248,7 @@ def load_model(repo):
       { ok: true, seconds: expect.any(Number), unheard: expect.any(String) },
     ]);
     expect(r.stderr).toContain('raw bytes on fd 1');
-    expect(log()).toEqual(['load', 'german', 'german', 'english']);
+    expect(log()).toEqual(['load', 'english', 'english', 'english']);
     expect(existsSync(join(dir, 'a.wav')) && existsSync(join(dir, 'c.wav'))).toBe(true);
     expect(existsSync(join(dir, 'b.wav'))).toBe(false);
   });
@@ -473,15 +389,9 @@ def load_model(name, quantization, sess_options, providers):
   test('compares letters: numbers said as the other text has them, spaces, punctuation and audio tags left out', () => {
     // Parakeet's transcripts of real takes beside their scripts
     const cases: [string, string, string][] = [
-      ['de', 'Es kostet 15.200 Euro [short pause] im Jahr.', 'Es kostet fünfzehntausendzweihundert Euro im Jahr'],
-      ['de', 'Höchstens elfhundert Pixel breit, am zwölften November.', 'Höchstens 1100 Pixel breit, am 12. November.'],
       ['en', 'It took two thousand five hundred runs, on the twenty-first day.', 'It took 2,500 runs, on the 21st day.'],
-      // Parakeet's own noise: a compound heard together, an English word in German narration, a dropped word
-      ['de', 'Vorher stand der Fehler im Kasten Last failed.', 'Vorher stand der Fehler im Kastenlast, Fällt.'],
-      ['de', 'Eine neue Aufgabe startet sofort, außer ich sage ausdrücklich, dass sie warten soll.', 'Eine neue Aufgabe startet sofort, außer ausdrücklich, dass sie warten soll.'],
       // a wrong sound, a garbled word, a stumble
       ['en', 'Click the Reauthenticate button.', 'Click the reauthentipate button.'],
-      ['de', 'Mit einem Button Reauthenticate.', 'Mit einem ButtonRare Templet.'],
       ['en', 'Click the Reauthenticate button.', 'Click the reauthentip uh reauthentipite button.'],
       // a short sentence not said at all
       ['en', 'Click save.', ''],
@@ -498,12 +408,7 @@ print(json.dumps([[qwen3.differing(s, h, l), qwen3.misheard(s, h, l)] for l, s, 
     expect(r.stderr).toBe('');
     expect(JSON.parse(r.stdout)).toEqual([
       [0, []],
-      [0, []],
-      [0, []],
-      [2, [['failed', 'Fällt']]],
-      [0, []],
       [1, [['Reauthenticate', 'reauthentipate']]],
-      [5, [['Button Reauthenticate', 'ButtonRare Templet']]],
       [9, [['Reauthenticate', 'reauthentip uh reauthentipite']]],
       [9, []],
     ]);
@@ -531,7 +436,7 @@ def load_model(repo):
     );
     writeFileSync(join(dir, 'ref.wav'), '');
     writeFileSync(join(dir, 'ref.txt'), 'Das ist meine Stimme.');
-    const p = Bun.spawn(['uv', 'run', '--quiet', '--no-project', '--with', 'numpy', 'python', join(LIB, 'qwen3.py'), '--model', 'm', '--language', 'de', '--reference', join(dir, 'ref.wav'), '--serve'], {
+    const p = Bun.spawn(['uv', 'run', '--quiet', '--no-project', '--with', 'numpy', 'python', join(LIB, 'qwen3.py'), '--model', 'm', '--language', 'en', '--reference', join(dir, 'ref.wav'), '--serve'], {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',

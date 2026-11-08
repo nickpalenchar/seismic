@@ -76,7 +76,7 @@ const SITE = (extra: Partial<DemoSite> = {}): DemoSite => ({
 
 // the overview in the language the repository names for its demos (`demo.language`)
 // the one who shares: git's name on that machine
-const make = (site: DemoSite, at = home, machine = 'a', language: 'de' | 'en' = 'de', by = 'Ada Lovelace') =>
+const make = (site: DemoSite, at = home, machine = 'a', language: 'en' = 'en', by = 'Ada Lovelace') =>
   siteTarget({ ...site, deploy: site.deploy.replace('__OUT__', dir) }, repo, at, MESSAGES.en.share, { machine, checkWaits: [0, 10, 10], language, by });
 const siteDir = (at = home) => join(at, 'sites', siteKey(URL_), 'site');
 const deployed = () => join(dir, 'deployed');
@@ -110,22 +110,21 @@ afterEach(() => {
 
 const page = (slug: string, extra: Partial<SharePage> = {}): SharePage => ({
   slug,
-  title: `Titel ${slug}`,
-  text: 'Erster Satz <b>roh</b>. Zweiter Satz.',
+  title: `Title ${slug}`,
+  text: 'First sentence <b>raw</b>. Second sentence.',
   kind: 'video',
   chapters: [
-    [0, 'Vorher'],
-    [12.5, 'Nachher'],
+    [0, 'Before'],
+    [12.5, 'After'],
   ],
   pr: null,
-  language: 'de',
+  language: 'en',
   dir: demo,
   shared: [],
   ...extra,
 });
 const meta = (slug: string) => JSON.parse(readFileSync(join(siteDir(), slug, 'meta.json'), 'utf8')) as { at: string; first: string; kind?: string; language?: string; tags?: Record<string, string[]> };
 const overview = () => readFileSync(join(siteDir(), 'index.html'), 'utf8');
-const CREDIT_DE = '<footer class="credit">Aufgenommen mit <a href="https://obeya.si">Seismic</a></footer>\n';
 const CREDIT_EN = '<footer class="credit">Recorded with <a href="https://obeya.si">Seismic</a></footer>\n';
 
 /** An element of a parsed XML document: its name, attributes, child elements and text. */
@@ -191,41 +190,36 @@ describe('a site Seismic keeps', () => {
     expect(r).toEqual({ url: `${URL_}csv-export-abc123/`, said: 'Uploaded 5 entries', gone: [] });
     expect(readdirSync(join(siteDir(), 'csv-export-abc123')).sort()).toEqual(['captions.vtt', 'demo.mp4', 'index.html', 'meta.json', 'poster.jpg']);
     const html = readFileSync(join(siteDir(), 'csv-export-abc123/index.html'), 'utf8');
-    expect(html).toContain('<h1>Titel csv-export-abc123</h1>');
-    expect(html).toContain('Erster Satz &lt;b&gt;roh&lt;/b&gt;.');
+    expect(html).toContain('<h1>Title csv-export-abc123</h1>');
+    expect(html).toContain('First sentence &lt;b&gt;raw&lt;/b&gt;.');
     expect(html).toContain('data-at="12.5"');
-    expect(html).toContain('<title>Titel csv-export-abc123 · Team demos</title>');
-    expect(html).toContain('href="../">Alle Demos');
-    expect(html).toMatch(/Geteilt von Ada Lovelace am \d+\. \S+ \d{4}/);
+    expect(html).toContain('<title>Title csv-export-abc123 · Team demos</title>');
+    expect(html).toContain('href="../">All demos');
+    expect(html).toMatch(/Shared by Ada Lovelace on [A-Z][a-z]+ \d+, \d{4}/);
     // a host without byte ranges: the page loads the video whole to seek in it
     expect(html).toContain("Range: 'bytes=0-'");
     expect(html).toContain('href="https://github.com/o/r/pull/7"');
     // every page ends in a line saying what made it, linking Seismic's site
-    expect(html).toContain(`${CREDIT_DE}</main>`);
+    expect(html).toContain(`${CREDIT_EN}</main>`);
     expect(deploys()).toEqual(['_headers csv-export-abc123 feed.xml index.html obeya-site.json token=secret-1']);
     expect(readFileSync(join(deployed(), 'csv-export-abc123/demo.mp4'), 'utf8')).toBe('video');
 
     expect('url' in (await target.publish(page('zweite-def456', { shared: ['csv-export-abc123'] })))).toBe(true);
     // the most recently shared first
-    expect(overview().indexOf('Titel zweite-def456')).toBeLessThan(overview().indexOf('Titel csv-export-abc123'));
+    expect(overview().indexOf('Title zweite-def456')).toBeLessThan(overview().indexOf('Title csv-export-abc123'));
     expect(overview()).toContain('<h1>Team demos</h1>');
-    expect(overview()).toContain(`${CREDIT_DE}</main>`);
+    expect(overview()).toContain(`${CREDIT_EN}</main>`);
     expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).toBe(overview());
   });
 
-  test("writes each page in its demo's language and the overview in the repository's", async () => {
-    target = make(SITE(), home, 'a', 'en');
-    await target.publish(page('english-abc123', { language: 'en', title: 'An English one' }));
-    await target.publish(page('deutsch-def456', { shared: ['english-abc123'] }));
+  test('writes each page and the overview in English', async () => {
+    await target.publish(page('english-abc123', { title: 'An English one' }));
     const en = readFileSync(join(siteDir(), 'english-abc123/index.html'), 'utf8');
     expect(en).toContain('<html lang="en">');
     expect(en).toContain('href="../">All demos');
     expect(en).toMatch(/Shared by Ada Lovelace on [A-Z][a-z]+ \d+, \d{4}/);
     expect(meta('english-abc123').language).toBe('en');
-    const de = readFileSync(join(siteDir(), 'deutsch-def456/index.html'), 'utf8');
-    expect(de).toContain('href="../">Alle Demos');
     expect(en).toContain(`${CREDIT_EN}</main>`);
-    expect(de).toContain(`${CREDIT_DE}</main>`);
     expect(overview()).toContain('<html lang="en">');
     expect(overview()).toContain('Videos and analyses of changes, the newest first. · <a href="feed.xml">Subscribe to the feed</a>');
     expect(overview()).toContain(`${CREDIT_EN}</main>`);
@@ -234,13 +228,13 @@ describe('a site Seismic keeps', () => {
   test('writes an Atom feed beside the overview: each page with its title, text, address and date, the newest first', async () => {
     const empty = make(SITE());
     await empty.publish(page('a-111111', { title: 'Fish & <Chips> "quoted"', text: 'First <b>bold</b> & more.\u0007\n\nSecond paragraph.' }));
-    await empty.publish(page('b-222222', { language: 'en', shared: ['a-111111'] }));
+    await empty.publish(page('b-222222', { shared: ['a-111111'] }));
     expect(overview()).toContain('<link rel="alternate" type="application/atom+xml" title="Team demos" href="feed.xml">');
     const text = readFileSync(join(siteDir(), 'feed.xml'), 'utf8');
     expect(readFileSync(join(deployed(), 'feed.xml'), 'utf8')).toBe(text);
     const feed = parseXml(text);
     expect(feed.name).toBe('feed');
-    expect(feed.attrs).toEqual({ xmlns: 'http://www.w3.org/2005/Atom', 'xml:lang': 'de' });
+    expect(feed.attrs).toEqual({ xmlns: 'http://www.w3.org/2005/Atom', 'xml:lang': 'en' });
     expect(child(feed, 'title')?.text).toBe('Team demos');
     expect(child(feed, 'id')?.text).toBe(URL_);
     expect(feed.children.filter((c) => c.name === 'link').map((l) => l.attrs)).toEqual([
@@ -255,7 +249,7 @@ describe('a site Seismic keeps', () => {
     expect(entries.map((e) => child(e, 'updated')?.text)).toEqual([meta('b-222222').at, meta('a-111111').at]);
     expect(child(feed, 'updated')?.text).toBe(meta('b-222222').at);
     for (const e of [feed, ...entries]) expect(new Date(child(e, 'updated')!.text).toISOString()).toBe(child(e, 'updated')!.text);
-    expect(entries.map((e) => e.attrs['xml:lang'])).toEqual(['en', 'de']);
+    expect(entries.map((e) => e.attrs['xml:lang'])).toEqual(['en', 'en']);
     // the title and text come out as they went in, without what XML does not allow
     const [, a] = entries as [XmlNode, XmlNode];
     expect(child(a, 'title')?.text).toBe('Fish & <Chips> "quoted"');
@@ -285,10 +279,10 @@ describe('a site Seismic keeps', () => {
     expect(o).toContain('data-v="Customers"');
     expect(o).not.toContain('data-v="Settings"');
     expect(o).not.toContain('data-v="Admins"');
-    expect(o).toContain(`data-tags="{&quot;Area&quot;:[&quot;Billing&quot;],&quot;Who &amp; why&quot;:[&quot;Customers&quot;]}" data-search="titel b-222222 erster satz &lt;b&gt;roh&lt;/b&gt;. zweiter satz."`);
-    expect(o).toContain(`<button class="copy" data-url="${URL_}a-111111/" data-done="Kopiert" title="Link kopieren"`);
-    expect(o).toContain('<span id="count">3 von 3</span>');
-    expect(o).toContain('<span>Links kopieren</span>');
+    expect(o).toContain(`data-tags="{&quot;Area&quot;:[&quot;Billing&quot;],&quot;Who &amp; why&quot;:[&quot;Customers&quot;]}" data-search="title b-222222 first sentence &lt;b&gt;raw&lt;/b&gt;. second sentence."`);
+    expect(o).toContain(`<button class="copy" data-url="${URL_}a-111111/" data-done="Copied" title="Copy link"`);
+    expect(o).toContain('<span id="count">3 of 3</span>');
+    expect(o).toContain('<span>Copy links</span>');
     const entries = parseXml(readFileSync(join(siteDir(), 'feed.xml'), 'utf8')).children.filter((c) => c.name === 'entry');
     expect(entries.map((e) => e.children.filter((c) => c.name === 'category').map((c) => c.attrs))).toEqual([
       [],
@@ -340,8 +334,8 @@ describe('a site Seismic keeps', () => {
     expect(html).toContain('<a href="?alone" target="_blank"');
     expect(html).not.toContain('escape-sandbox');
     expect(html).not.toContain('<video');
-    expect(html).toContain(`${CREDIT_DE}</main>`);
-    expect(overview()).toContain('Titel auswertung-abc123');
+    expect(html).toContain(`${CREDIT_EN}</main>`);
+    expect(overview()).toContain('Title auswertung-abc123');
     // published again unchanged it keeps its date; an artifact without its page is refused
     const first = meta('auswertung-abc123');
     expect(first.kind).toBe('html');
@@ -364,7 +358,7 @@ describe('a site Seismic keeps', () => {
     earlier('a-111111/index.html', 'an earlier template');
     expect('url' in (await target.publish(page('b-222222', { shared: ['a-111111'] })))).toBe(true);
     expect(readFileSync(join(siteDir(), 'a-111111/index.html'), 'utf8')).toBe('an earlier template');
-    expect(overview()).toContain('Titel a-111111');
+    expect(overview()).toContain('Title a-111111');
     await target.publish(page('a-111111', { shared: ['b-222222'] }));
     expect(readFileSync(join(siteDir(), 'a-111111/index.html'), 'utf8')).toContain("Range: 'bytes=0-'");
   });
@@ -375,13 +369,13 @@ describe('a site Seismic keeps', () => {
     const at = meta('a-111111').at;
     await target.publish(page('a-111111', { shared: ['b-222222'], pr: 'https://github.com/o/r/pull/7' }));
     expect(meta('a-111111').at).toBe(at);
-    expect(overview().indexOf('Titel b-222222')).toBeLessThan(overview().indexOf('Titel a-111111'));
+    expect(overview().indexOf('Title b-222222')).toBeLessThan(overview().indexOf('Title a-111111'));
     // a new video is shared anew
     writeFileSync(join(demo, 'demo.mp4'), 'another video');
     await target.publish(page('a-111111', { shared: ['b-222222'] }));
     expect(meta('a-111111').at > at).toBe(true);
     expect(meta('a-111111').first).toBe(at);
-    expect(overview().indexOf('Titel a-111111')).toBeLessThan(overview().indexOf('Titel b-222222'));
+    expect(overview().indexOf('Title a-111111')).toBeLessThan(overview().indexOf('Title b-222222'));
   });
 
   test('withdraws a page; a failed deployment puts the site back as it was', async () => {
@@ -392,11 +386,11 @@ describe('a site Seismic keeps', () => {
     expect(failed.why).toBe('Not withdrawn: The site’s deploy failed (exit code 3).');
     expect(failed.said).toContain('upload refused: token expired');
     expect(existsSync(join(siteDir(), 'a-111111/demo.mp4'))).toBe(true);
-    expect(overview()).toContain('Titel a-111111');
+    expect(overview()).toContain('Title a-111111');
     rmSync(join(dir, 'fail'));
     expect(await target.withdraw('a-111111', ['b-222222'])).toEqual({ said: 'Uploaded 5 entries', gone: [] });
     expect(existsSync(join(siteDir(), 'a-111111'))).toBe(false);
-    expect(overview()).not.toContain('Titel a-111111');
+    expect(overview()).not.toContain('Title a-111111');
     expect(deploys().at(-1)).toBe('_headers b-222222 feed.xml index.html obeya-site.json token=secret-1');
     expect(readdirSync(deployed()).sort()).toEqual(['_headers', 'b-222222', 'feed.xml', 'index.html', MANIFEST]);
     expect(readdirSync(join(siteDir(), '../backup'))).toEqual([]);
@@ -406,8 +400,8 @@ describe('a site Seismic keeps', () => {
     await target.publish(page('a-111111'));
     writeFileSync(join(dir, 'fail'), '');
     expect(await target.publish(page('a-111111', { title: 'Neu' }))).toMatchObject({ why: 'The site’s deploy failed (exit code 3).' });
-    expect(readFileSync(join(siteDir(), 'a-111111/index.html'), 'utf8')).toContain('Titel a-111111');
-    expect(overview()).toContain('Titel a-111111');
+    expect(readFileSync(join(siteDir(), 'a-111111/index.html'), 'utf8')).toContain('Title a-111111');
+    expect(overview()).toContain('Title a-111111');
   });
 
   test('refuses a site that lost pages Seismic has as shared, and files larger than the site takes', async () => {
@@ -463,8 +457,8 @@ describe('a site Seismic keeps', () => {
     writeFileSync(join(later, 'demo.mp4'), 'later video');
     writeFileSync(join(later, 'captions.vtt'), 'WEBVTT\n');
     const more = [
-      { title: 'Die Tabelle', text: 'Ein Detail.', kind: 'html' as const, chapters: [], dir: art, at: '2026-10-16T11:37:00.000Z' },
-      { title: 'Der Reset', text: 'Leert auch die Daten.', kind: 'video' as const, chapters: [[0, 'Reset']] as [number, string][], dir: later, at: '2026-10-16T12:00:00.000Z' },
+      { title: 'The table', text: 'One detail.', kind: 'html' as const, chapters: [], dir: art, at: '2026-10-16T11:37:00.000Z' },
+      { title: 'The reset', text: 'Also clears the data.', kind: 'video' as const, chapters: [[0, 'Reset']] as [number, string][], dir: later, at: '2026-10-16T12:00:00.000Z' },
     ];
     const r = await target.publish(page('filter', { more }));
     expect(r).toMatchObject({ url: `${URL_}filter/` });
@@ -473,21 +467,21 @@ describe('a site Seismic keeps', () => {
     expect(readFileSync(join(at, '2', 'artifact', 'index.html'), 'utf8')).toStartWith('<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy"');
     expect(readFileSync(join(at, '3', 'demo.mp4'), 'utf8')).toBe('later video');
     const html = readFileSync(join(at, 'index.html'), 'utf8');
-    expect(html).toContain('<h1>Titel filter</h1>');
-    expect(html).toContain('<nav class="sections"><a href="#v1">1. Demo</a><a href="#v2">2. Ergänzung vom ');
-    expect(html).toContain('<h3>Die Tabelle</h3>');
+    expect(html).toContain('<h1>Title filter</h1>');
+    expect(html).toContain('<nav class="sections"><a href="#v1">1. Demo</a><a href="#v2">2. Addendum of ');
+    expect(html).toContain('<h3>The table</h3>');
     expect(html).toContain('<iframe src="2/artifact/index.html" sandbox="allow-scripts"');
     expect(html).toContain('<a href="?alone=2" target="_blank"');
     expect(html).toContain('src="3/demo.mp4"');
     expect(html).toContain('poster="poster.jpg"');
     expect(html).not.toContain('poster="3/poster.jpg"');
-    expect(html).toContain(`${CREDIT_DE}</main>`);
+    expect(html).toContain(`${CREDIT_EN}</main>`);
     // the page lets its frames show nothing but its own files, as an artifact's page does
     expect(html).toContain(`<meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data: blob:;`);
     const meta = JSON.parse(readFileSync(join(at, 'meta.json'), 'utf8'));
     expect(meta.more).toMatchObject([
-      { kind: 'html', title: 'Die Tabelle', dir: '2', handed: '2026-10-16T11:37:00.000Z' },
-      { title: 'Der Reset', dir: '3', chapters: [[0, 'Reset']] },
+      { kind: 'html', title: 'The table', dir: '2', handed: '2026-10-16T11:37:00.000Z' },
+      { title: 'The reset', dir: '3', chapters: [[0, 'Reset']] },
     ]);
     // published again with the same files, each version keeps its date
     const before = meta.more.map((m: { at: string }) => m.at);
@@ -515,7 +509,7 @@ describe('several machines publishing to one site', () => {
     other = join(dir, 'other');
     mkdirSync(join(other, 'sites/demos'), { recursive: true });
     writeFileSync(join(other, 'sites/demos/deploy.env'), 'TOKEN=secret-2\n');
-    b = make(SITE(), other, 'b', 'de', 'Grace Hopper');
+    b = make(SITE(), other, 'b', 'en', 'Grace Hopper');
   });
   const live = () => manifest(deployed());
   // a snapshot of what the site shows now, as another machine's deployment that lacks what comes next
@@ -545,7 +539,7 @@ describe('several machines publishing to one site', () => {
     await target.publish(page('c-333333'), (l) => again.push(l));
     expect(again).toEqual([expect.stringContaining('Downloading a page')]);
     expect(readdirSync(deployed()).sort()).toEqual(['_headers', 'a-111111', 'b-222222', 'c-333333', 'feed.xml', 'index.html', MANIFEST]);
-    expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).toContain('Titel b-222222');
+    expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).toContain('Title b-222222');
     // a page published again comes over with its new revision
     writeFileSync(join(demo, 'demo.mp4'), 'another video');
     await target.publish(page('a-111111'));
@@ -558,17 +552,17 @@ describe('several machines publishing to one site', () => {
     await target.publish(page('a-111111'));
     await b.publish(page('b-222222', { language: 'en' }));
     const html = (slug: string) => readFileSync(join(deployed(), slug, 'index.html'), 'utf8');
-    expect(html('a-111111')).toMatch(/<div class="when">Geteilt von Ada Lovelace am \d+\. \S+ \d{4}<\/div>/);
+    expect(html('a-111111')).toMatch(/<div class="when">Shared by Ada Lovelace on [A-Z][a-z]+ \d+, \d{4}<\/div>/);
     expect(html('b-222222')).toMatch(/<div class="when">Shared by Grace Hopper on [A-Z][a-z]+ \d+, \d{4}<\/div>/);
     const shown = readFileSync(join(deployed(), 'index.html'), 'utf8');
-    expect(shown).toMatch(/<span>\d+\. \S+ \d{4} · von Grace Hopper · Erster Satz/);
-    expect(shown).toMatch(/<span>\d+\. \S+ \d{4} · von Ada Lovelace · Erster Satz/);
+    expect(shown).toMatch(/<span>[A-Z][a-z]+ \d+, \d{4} · by Grace Hopper · First sentence/);
+    expect(shown).toMatch(/<span>[A-Z][a-z]+ \d+, \d{4} · by Ada Lovelace · First sentence/);
     const entries = parseXml(readFileSync(join(deployed(), 'feed.xml'), 'utf8')).children.filter((c) => c.name === 'entry');
     expect(entries.map((e) => child(e, 'author')?.children.map((c) => c.text))).toEqual([['Grace Hopper'], ['Ada Lovelace']]);
     // a machine whose git has no name names nobody
-    await make(SITE(), other, 'b', 'de', '').publish(page('c-333333', { shared: ['a-111111', 'b-222222'] }));
-    expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).toMatch(/<a href="c-333333\/"><b>Titel c-333333<\/b><span>\d+\. \S+ \d{4} · Erster Satz/);
-    expect(html('c-333333')).toMatch(/<div class="when">Geteilt am \d+\. \S+ \d{4}<\/div>/);
+    await make(SITE(), other, 'b', 'en', '').publish(page('c-333333', { shared: ['a-111111', 'b-222222'] }));
+    expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).toMatch(/<a href="c-333333\/"><b>Title c-333333<\/b><span>[A-Z][a-z]+ \d+, \d{4} · First sentence/);
+    expect(html('c-333333')).toMatch(/<div class="when">Shared on [A-Z][a-z]+ \d+, \d{4}<\/div>/);
   });
 
   test('a page withdrawn on one machine stays withdrawn: the other removes it and says so', async () => {
@@ -637,7 +631,7 @@ describe('several machines publishing to one site', () => {
     // undone here, as it is on the site
     expect(existsSync(join(siteDir(), 'd-444444'))).toBe(false);
     expect(manifest().pages['d-444444']).toBeUndefined();
-    expect(overview()).not.toContain('Titel d-444444');
+    expect(overview()).not.toContain('Title d-444444');
   });
 
   test('another machine’s deploy landing between the pull and the deploy: pulled again before deploying', async () => {
@@ -696,8 +690,8 @@ describe('sharing to a site', () => {
   });
 
   const card = () => {
-    const c = board.create({ title: 'Export als CSV', x: 0, y: 0 });
-    board.work(c.id, { state: 'live', demo: JSON.stringify({ kind: 'video', dir: demo, chapters: [[0, 'Vorher']], page: { title: 'CSV-Export', text: 'Ein Satz.' } }) });
+    const c = board.create({ title: 'CSV export', x: 0, y: 0 });
+    board.work(c.id, { state: 'live', demo: JSON.stringify({ kind: 'video', dir: demo, chapters: [[0, 'Before']], page: { title: 'CSV export', text: 'One sentence.' } }) });
     return c.id;
   };
   const settled = async (id: string, state: string | undefined) => {
@@ -709,13 +703,13 @@ describe('sharing to a site', () => {
     const id = card();
     sharing.share(id);
     const shared = await settled(id, 'shared');
-    expect(shared).toMatchObject({ state: 'shared', url: expect.stringMatching(new RegExp(`^${URL_}export-als-csv-[0-9a-z]+/$`)) });
-    expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).toContain('CSV-Export');
+    expect(shared).toMatchObject({ state: 'shared', url: expect.stringMatching(new RegExp(`^${URL_}csv-export-[0-9a-z]+/$`)) });
+    expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).toContain('CSV export');
     expect(board.events(id).map((e) => e.text)).toContain('Uploaded 5 entries');
     sharing.unshare(id);
     await settled(id, undefined);
     expect(board.item(id)!.share).toBeUndefined();
-    expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).not.toContain('CSV-Export');
+    expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).not.toContain('CSV export');
   });
 
   test('a page another machine withdrew: its card here loses its link, with the next share or when the owner comes back', async () => {
@@ -732,12 +726,12 @@ describe('sharing to a site', () => {
     await elsewhere.withdraw(slugOf(one), []);
     await sharing.checkSites();
     expect(board.item(one)!.share).toBeUndefined();
-    expect(board.events(one).map((e) => e.text)).toContain('Die Seite wurde auf einem anderen Rechner (laptop) zurückgezogen; der Link ist weg.');
+    expect(board.events(one).map((e) => e.text)).toContain('The page was withdrawn on another machine (laptop); the link is gone.');
     await elsewhere.withdraw(slugOf(two), []);
     sharing.share(three);
     await settled(three, 'shared');
     expect(board.item(two)!.share).toBeUndefined();
-    expect(board.events(two).map((e) => e.text)).toContain('Die Seite wurde auf einem anderen Rechner (laptop) zurückgezogen; der Link ist weg.');
+    expect(board.events(two).map((e) => e.text)).toContain('The page was withdrawn on another machine (laptop); the link is gone.');
     expect(readdirSync(deployed()).sort()).toEqual(['_headers', slugOf(three), 'feed.xml', 'index.html', MANIFEST]);
   });
 
@@ -754,8 +748,8 @@ describe('sharing to a site', () => {
     rmSync(join(deployed(), slug), { recursive: true });
     writeFileSync(join(deployed(), MANIFEST), JSON.stringify({ ...m, deploy: 'theirs' }));
     await sharing.checkSites();
-    expect(board.events(two).map((e) => e.text)).toContain('Die Seite fehlte auf der Site: Der Deploy eines anderen Rechners hatte sie offline genommen. Seismic hat sie wieder deployt.');
-    expect(board.events(one).map((e) => e.text)).not.toContain('Die Seite fehlte auf der Site: Der Deploy eines anderen Rechners hatte sie offline genommen. Seismic hat sie wieder deployt.');
+    expect(board.events(two).map((e) => e.text)).toContain('The page was missing on the site: another machine’s deploy had taken it offline. Seismic deployed it again.');
+    expect(board.events(one).map((e) => e.text)).not.toContain('The page was missing on the site: another machine’s deploy had taken it offline. Seismic deployed it again.');
     expect(existsSync(join(deployed(), slug, 'demo.mp4'))).toBe(true);
     expect(board.item(two)!.share).toMatchObject({ state: 'shared' });
   });

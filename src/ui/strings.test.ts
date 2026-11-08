@@ -1,16 +1,10 @@
 import { afterEach, expect, test } from 'bun:test';
 import { clock, setLanguage, stateLabel, t } from './strings';
 
-afterEach(() => setLanguage('de', []));
+afterEach(() => setLanguage('en', []));
 
 test('the strings follow the language set, dates and numbers too', () => {
   const d = new Date(2026, 9, 6, 15, 4);
-  setLanguage('de', []);
-  expect(t.newCard).toBe('Neue Aufgabe');
-  expect(clock(d)).toBe('15:04');
-  expect(t.archive.when(d)).toContain('15:04');
-  expect(t.share.tooLarge(12.34 * 1024 * 1024)).toContain('12,3 MB');
-
   setLanguage('en', []);
   expect(t.newCard).toBe('New task');
   expect(clock(d)).toMatch(/03:04\sPM/);
@@ -20,7 +14,7 @@ test('the strings follow the language set, dates and numbers too', () => {
 });
 
 test('the browser\'s variant of the language writes dates its way', () => {
-  setLanguage('en', ['de-DE', 'en-GB']);
+  setLanguage('en', ['en-GB']);
   expect(t.archive.day(new Date(2026, 9, 6), new Date(2026, 9, 9))).toBe('Tuesday 6 October');
   expect(clock(new Date(2026, 9, 6, 15, 4))).toBe('15:04');
 });
@@ -34,9 +28,7 @@ test("a proposal of the Arbeitsrückschau is labelled as Seismic's, a worker's p
   setLanguage('en', []);
   expect(stateLabel({ state: 'proposal', retro: 'Two cards hit the same wall.' })).toBe('Proposed by Seismic');
   expect(stateLabel({ state: 'proposal' })).toBe('Proposed by an agent');
-  setLanguage('de', []);
-  expect(stateLabel({ state: 'proposal', retro: 'Zwei Karten scheiterten gleich.' })).toBe('Vorschlag von Seismic');
-  expect(stateLabel({ state: 'planned', retro: 'Zwei Karten scheiterten gleich.' })).toBe('Geplant');
+  expect(stateLabel({ state: 'planned', retro: 'Two cards hit the same wall.' })).toBe('Planned');
 });
 
 test('a card whose agent answered the owner without a new demo says so instead of "Demo ready"', () => {

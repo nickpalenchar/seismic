@@ -9,13 +9,7 @@ beforeEach(() => (home = mkdtempSync(join(tmpdir(), 'obeya-demo-settings-'))));
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
 describe('demo settings', () => {
-  test("without a file, a demo is narrated by Piper in the owner's conversation language, else English", () => {
-    writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'de' }));
-    expect(readDemoSettings(home)).toEqual({ language: 'en', voice: 'piper' });
-    writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'en', conversationLanguage: 'de' }));
-    expect(readDemoSettings(home)).toEqual({ language: 'de', voice: 'piper' });
-    writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'de', conversationLanguage: 'en' }));
-    expect(readDemoSettings(home)).toEqual({ language: 'en', voice: 'piper' });
+  test('without a file, a demo is narrated by Piper in English', () => {
     writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'en' }));
     expect(readDemoSettings(home)).toEqual({ language: 'en', voice: 'piper' });
     // a file without a language takes it from there too
@@ -24,9 +18,8 @@ describe('demo settings', () => {
   });
 
   test('keep what is valid and fall back to the defaults for the rest', () => {
-    expect(tidyDemoSettings({ language: 'fr', voice: 'command', command: '  ', url: ' x ', extra: 1 })).toEqual({ language: 'de', voice: 'command', url: 'x' });
-    expect(tidyDemoSettings({ voice: 'nope', ownVoice: 'yes' })).toEqual({ language: 'de', voice: 'piper' });
-    writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'de' }));
+    expect(tidyDemoSettings({ language: 'fr', voice: 'command', command: '  ', url: ' x ', extra: 1 })).toEqual({ language: 'en', voice: 'command', url: 'x' });
+    expect(tidyDemoSettings({ voice: 'nope', ownVoice: 'yes' })).toEqual({ language: 'en', voice: 'piper' });
     writeFileSync(join(home, 'demo.json'), 'not json');
     expect(readDemoSettings(home)).toEqual({ language: 'en', voice: 'piper' });
   });
@@ -56,12 +49,13 @@ describe('demo settings', () => {
   });
 
   test('hold a clip to clone per language; a file with one clip has it for its language', () => {
-    expect(tidyDemoSettings({ language: 'en', voice: 'qwen3', references: { de: ' /de.wav ', en: '', fr: '/fr.wav' } })).toEqual({ language: 'en', voice: 'qwen3', references: { de: '/de.wav' } });
-    writeFileSync(join(home, 'demo.json'), JSON.stringify({ language: 'de', voice: 'qwen3', reference: '/de.wav' }));
+    expect(tidyDemoSettings({ language: 'en', voice: 'qwen3', references: { de: '/de.wav', en: ' /en.wav ', fr: '/fr.wav' } })).toEqual({ language: 'en', voice: 'qwen3', references: { en: '/en.wav' } });
+    expect(tidyDemoSettings({ language: 'en', voice: 'qwen3', references: { en: '' } })).toEqual({ language: 'en', voice: 'qwen3' });
+    writeFileSync(join(home, 'demo.json'), JSON.stringify({ language: 'en', voice: 'qwen3', reference: '/en.wav' }));
     const s = readDemoSettings(home);
-    expect(s).toEqual({ language: 'de', voice: 'qwen3', references: { de: '/de.wav' } });
-    expect(referenceOf(s)).toBe('/de.wav');
-    expect(referenceOf(inLanguage(s, 'en'))).toBeUndefined();
+    expect(s).toEqual({ language: 'en', voice: 'qwen3', references: { en: '/en.wav' } });
+    expect(referenceOf(s)).toBe('/en.wav');
+    expect(referenceOf(inLanguage(s, 'en'))).toBe('/en.wav');
   });
 
   test("take a repository's language for its demos from Seismic, else from the repository's settings", () => {
@@ -72,11 +66,11 @@ describe('demo settings', () => {
     mkdirSync(join(repo, '.obeya'));
     writeFileSync(join(repo, '.obeya', 'settings.json'), JSON.stringify({ demo: { language: 'en' } }));
     expect(repositoryLanguage({}, join(repo, 'src', 'deep'))).toEqual({ language: 'en', from: 'repository', file: join(repo, '.obeya', 'settings.json') });
-    expect(repositoryLanguage({ DEMO_LANGUAGE: 'de' }, join(repo, 'src'))).toEqual({ language: 'de', from: 'obeya' });
+    expect(repositoryLanguage({ DEMO_LANGUAGE: 'en' }, join(repo, 'src'))).toEqual({ language: 'en', from: 'obeya' });
     // a language Seismic does not speak is none
     writeFileSync(join(repo, '.obeya', 'settings.json'), JSON.stringify({ demo: { language: 'fr' } }));
     expect(repositoryLanguage({ DEMO_LANGUAGE: 'fr' }, repo)).toBeUndefined();
-    const saved = { language: 'de', voice: 'qwen3', ownVoice: true, references: { de: '/de.wav', en: '/en.wav' } } as const;
+    const saved = { language: 'en', voice: 'qwen3', ownVoice: true, references: { en: '/en.wav' } } as const;
     const text = describeDemoSettings(saved, undefined, { language: 'en', from: 'obeya' });
     expect(text).toContain('in English');
     expect(text).toContain('clone of /en.wav');
@@ -94,11 +88,11 @@ describe('demo settings', () => {
     expect(narrationPerson({ ownVoice: true })).toBe('first');
     expect(narrationPerson({})).toBe('third');
     expect(describeDemoSettings({ language: 'en', voice: 'piper' }, undefined)).toContain('in English');
-    expect(describeDemoSettings({ language: 'de', voice: 'command', ownVoice: true }, undefined)).toContain('person: first');
+    expect(describeDemoSettings({ language: 'en', voice: 'command', ownVoice: true }, undefined)).toContain('person: first');
     // another voice for one render is nobody's own, unless the settings say so
-    expect(describeDemoSettings({ language: 'de', voice: 'command', ownVoice: true }, '/tmp/x.wav')).toContain('person: third');
+    expect(describeDemoSettings({ language: 'en', voice: 'command', ownVoice: true }, '/tmp/x.wav')).toContain('person: third');
     // a clone without a clip for the language speaks with a stock speaker
-    expect(narrationPerson({ language: 'en', voice: 'qwen3', ownVoice: true, references: { de: '/de.wav' } })).toBe('third');
-    expect(narrationPerson({ language: 'de', voice: 'qwen3', ownVoice: true, references: { de: '/de.wav' } })).toBe('first');
+    expect(narrationPerson({ language: 'en', voice: 'qwen3', ownVoice: true })).toBe('third');
+    expect(narrationPerson({ language: 'en', voice: 'qwen3', ownVoice: true, references: { en: '/en.wav' } })).toBe('first');
   });
 });

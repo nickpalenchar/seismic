@@ -102,7 +102,7 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-/** A review card for PR #5, as „Review PR #5“ makes it, started and on the PR's head. */
+/** A review card for PR #5, as “Review PR #5” makes it, started and on the PR's head. */
 async function reviewCard(canModify = true) {
   const card = board.create({ title: 'PR #5: Watcher polls gh in the background', body: 'Look at security especially.', x: 0, y: 0 });
   const c: StoredContribution = { url: URL_, number: 5, author: 'amerlander', title: 'Watcher polls gh in the background', canModify, headRepo: origin, headRef: 'contrib' };
@@ -229,7 +229,7 @@ describe('a review card', () => {
     expect(told).toContain('To amerlander: #1 “Path in the file name”');
     expect(told).toContain('request_changes');
     expect(told).toContain('Keep it short.');
-    expect(board.events(id).at(-1)!.text).toContain('Befund 1 „Path in the file name“: an amerlander');
+    expect(board.events(id).at(-1)!.text).toContain('Finding 1 “Path in the file name”: to amerlander');
     expect(board.item(id)!.contribution!.findings!.map((f) => [f.decided, f.withChanges])).toEqual([
       ['contributor', undefined],
       [undefined, undefined],
@@ -282,7 +282,7 @@ describe('a review card', () => {
     expect(board.events(id).some((e) => e.text.startsWith(board.t.worker.pushedHeld(5, 1)))).toBe(true);
   });
 
-  test('„Nur pushen“ pushes and comments, and the card waits for „Mergen“ again', async () => {
+  test('“Push only” pushes and comments, and the card waits for “Merge” again', async () => {
     const id = await reviewCard();
     await handOver();
     workers.message(id, '', [], false, undefined, undefined, { 2: 'self' });
@@ -297,7 +297,7 @@ describe('a review card', () => {
     expect(approvals).toEqual([]);
     expect(board.item(id)).toMatchObject({ state: 'waiting', need: 'demo' });
     expect(board.item(id)!.contribution!.held).toBeUndefined();
-    // nothing held any more: only „Mergen“ is left
+    // nothing held any more: only “Merge” is left
     await expect(workers.pushContribution(id)).rejects.toMatchObject({ code: 'notReady' });
     await workers.approve(id);
     expect(fake.said.merges).toEqual([head]);
@@ -470,7 +470,7 @@ describe('a review card', () => {
     expect(told).toContain('As follow-up tasks: #1 “Re-login does not help remotely”, #2 “Detection misses messages”, #4 “Two buttons for one error”');
     expect(told).toContain('as you bundled them (findings 2 + 4)');
     expect(told).toContain('Combine them as you see fit.');
-    expect(board.events(id).at(-1)!.text).toContain('Befund 2 „Detection misses messages“: als Folgeaufgabe');
+    expect(board.events(id).at(-1)!.text).toContain('Finding 2 “Detection misses messages”: as a follow-up task');
     // not chosen again
     expect(() => workers.message(id, '', [], false, undefined, undefined, { 2: 'later' })).toThrow();
     // neither a reply nor a handover while one has no task
@@ -483,10 +483,10 @@ describe('a review card', () => {
     const findings = () => board.item(id)!.contribution!.findings!;
     const task = board.item(findings()[1]!.card!)!;
     expect(task).toMatchObject({ title: 'Re-login button: when and where', state: 'planned', from: id });
-    expect(task.body).toBe(`The button shows on the wrong messages, and twice on a failed start. See src/ui/login.tsx.\n\nAus dem Review von PR #5: ${URL_}`);
-    expect(board.events(task.id).at(-1)!.text).toBe('Als Folgeaufgabe aus dem Review von PR #5 angelegt.');
+    expect(task.body).toBe(`The button shows on the wrong messages, and twice on a failed start. See src/ui/login.tsx.\n\nFrom the review of PR #5: ${URL_}`);
+    expect(board.events(task.id).at(-1)!.text).toBe('Made a follow-up task from the review of PR #5.');
     // the review card's conversation shows the task it made, as an action
-    expect(board.events(id).findLast((e) => e.made)).toMatchObject({ text: 'Folgekarte „Re-login button: when and where“ angelegt.', made: { card: task.id, title: 'Re-login button: when and where' } });
+    expect(board.events(id).findLast((e) => e.made)).toMatchObject({ text: 'Created the follow-up card “Re-login button: when and where”.', made: { card: task.id, title: 'Re-login button: when and where' } });
     // it goes to the Koordinator at once, to wait in the queue for the PR's merge
     expect(followed).toEqual([[task.id, id]]);
     // a finding settled already makes none
@@ -520,7 +520,7 @@ describe('a review card', () => {
     expect(await runtime.last.call('request_changes', { body: 'Please keep the file in its folder.', findings: [1] })).toContain('waits for amerlander');
   });
 
-  test('„Selbst ändern“ only where the contributor allows maintainers’ edits', async () => {
+  test('“Change it yourself” only where the contributor allows maintainers’ edits', async () => {
     const id = await reviewCard(false);
     await handOver();
     expect(() => workers.message(id, '', [], false, undefined, undefined, { 1: 'self' })).toThrow();
@@ -626,7 +626,7 @@ describe('a review card', () => {
     await until(() => !board.row(x).workstation && !existsSync(ws));
   });
 
-  test('„main pushen“ puts the unpushed commits on the remote after its undo window, and the agent brings the PR up to date', async () => {
+  test('“Push main” puts the unpushed commits on the remote after its undo window, and the agent brings the PR up to date', async () => {
     landedLocally('poll.ts', 'Polls every minute');
     const id = await reviewCard();
     const review = runtime.last;
@@ -779,7 +779,7 @@ describe('a review card', () => {
   });
 });
 
-describe('„Review PR #5“ on a project', () => {
+describe('“Review PR #5” on a project', () => {
   let project: ProjectRuntime;
   beforeEach(() => {
     const store = new Store(':memory:');

@@ -22,7 +22,7 @@ import { type DemoSettings, demoSettingsHere, expandHome, type NarrationLanguage
 import { BUILT_IN_CLONES, DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, QWEN3_STOCK_SPEAKER, qwen3Speaker } from './voice-choices.ts';
 
 /** Piper's voices: one per language unless the settings name another. */
-export const PIPER_VOICES: Record<NarrationLanguage, string> = { de: 'de_DE-thorsten-high', en: 'en_US-ryan-high' };
+export const PIPER_VOICES: Record<NarrationLanguage, string> = { en: 'en_US-ryan-high' };
 const PIPER_BASE = 'https://huggingface.co/rhasspy/piper-voices/resolve/main';
 /** Qwen3-TTS: a stock speaker from the CustomVoice model (`voice-choices.ts`), or a clone of a clip with the Base model. */
 export { QWEN3_SPEAKER };
@@ -40,7 +40,7 @@ const qwen3Model = (clone: boolean) =>
     ? `mlx-community/Qwen3-TTS-12Hz-1.7B-${clone ? 'Base' : 'CustomVoice'}-bf16`
     : `Qwen/Qwen3-TTS-12Hz-1.7B-${clone ? 'Base' : 'CustomVoice'}`;
 /** `say`'s voice per language when the settings name none. */
-export const SAY_VOICES: Record<NarrationLanguage, string> = { de: 'Anna', en: 'Samantha' };
+export const SAY_VOICES: Record<NarrationLanguage, string> = { en: 'Samantha' };
 
 /** A Qwen3 voice: a clone of a reference clip (its transcript beside it), or a stock speaker told how to speak (`style`). */
 export interface HeldVoice {
@@ -188,7 +188,6 @@ async function download(url: string, file: string, log: (line: string) => void) 
 
 /** The names of what a voice needs, in the narration language: the settings show them as missing. */
 const PART_WORDS: Record<NarrationLanguage, { piperVoice: (name: string) => string; model: (repo: string) => string }> = {
-  de: { piperVoice: (name) => `Piper-Stimme ${name}`, model: (repo) => `Modell ${repo}` },
   en: { piperVoice: (name) => `Piper voice ${name}`, model: (repo) => `Model ${repo}` },
 };
 
@@ -332,7 +331,6 @@ export const KEY_ENV: Record<(typeof SERVICES)[number] | 'http', string> = {
 
 /** A sentence to hear a voice by in the settings, in the narration language. */
 export const SAMPLE_TEXT: Record<NarrationLanguage, string> = {
-  de: 'So klingt diese Stimme in einer Demo: Die Karte zeigt jetzt den Link, und ein Klick öffnet die Seite.',
   en: 'This is how the voice sounds in a demo: the card now shows the link, and one click opens the page.',
 };
 

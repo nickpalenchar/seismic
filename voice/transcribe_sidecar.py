@@ -4,12 +4,12 @@ CPU, on every platform); Whisper where `SEISMIC_WHISPER_BACKEND` asks for it: ml
 Silicon (`--backend mlx`), faster-whisper elsewhere (`--backend faster`: CUDA when there is a GPU,
 else int8 on the CPU; a GPU without the CUDA libraries falls back to the CPU).
 
-Reads JSON lines on stdin: {"id": ..., "path": "<audio file>", "prompt": "<vocabulary>", "languages": ["de", "en"]}
-(the languages the owner may speak; German when left out). Parakeet hears 25 European languages by
+Reads JSON lines on stdin: {"id": ..., "path": "<audio file>", "prompt": "<vocabulary>", "languages": ["en"]}
+(the languages the owner may speak; English when left out). Parakeet hears 25 European languages by
 itself and takes no prompt: both are for Whisper. Whisper hears which of the languages is spoken in
 the first 30 seconds and transcribes in that one: told a language the owner did not speak, it
-translates into it, badly and unsure of its words (German speech, told English: „That is quite a bit
-of a bit of a doubt“), and the longer the recording, the likelier one of its parts fails the test below.
+translates into it, badly and unsure of its words (speech in another language, told English: “That is quite a bit
+of a bit of a doubt”), and the longer the recording, the likelier one of its parts fails the test below.
 faster-whisper decodes the first window from the encoder pass that heard the language (see Faster.languages).
 Writes JSON lines on stdout: {"id": ..., "text": "...", "doubtful": bool} or {"id": ..., "error": "..."}.
 Ends with its stdin, after the recording it is on; when Seismic is gone by then, quietly.
@@ -68,7 +68,7 @@ class Parakeet:
         self._model = onnx_asr.load_model(model, quantization="int8", sess_options=options, providers=["CPUExecutionProvider"])
         print(f"voice: Parakeet {model} on the CPU, {options.intra_op_num_threads} threads", file=sys.stderr, flush=True)
 
-    def transcribe(self, audio: np.ndarray, prompt: str | None, language: str = "de") -> list[dict]:
+    def transcribe(self, audio: np.ndarray, prompt: str | None, language: str = "en") -> list[dict]:
         return [{"text": self._model.recognize(part, sample_rate=SAMPLE_RATE)} for part in parts(audio)]
 
 
@@ -102,7 +102,7 @@ class Mlx:
         _, probs = model.detect_language(pad_or_trim(mel, N_FRAMES, axis=-2).astype(mx.float16))
         return probs
 
-    def transcribe(self, audio: np.ndarray, prompt: str | None, language: str = "de") -> list[dict]:
+    def transcribe(self, audio: np.ndarray, prompt: str | None, language: str = "en") -> list[dict]:
         result = self._whisper.transcribe(
             audio,
             path_or_hf_repo=self._model,
@@ -144,7 +144,7 @@ class Faster:
         self._encoded = (audio, encoded)
         return {token[2:-2]: p for token, p in model.model.detect_language(encoded)[0]}
 
-    def transcribe(self, audio: np.ndarray, prompt: str | None, language: str = "de") -> list[dict]:
+    def transcribe(self, audio: np.ndarray, prompt: str | None, language: str = "en") -> list[dict]:
         encoded = self._encoded[1] if self._encoded and self._encoded[0] is audio else None
         self._encoded = None
         model = self._model
@@ -201,7 +201,7 @@ def main() -> None:
                 print(level, file=sys.stderr, flush=True)
                 segments = ear.transcribe(audio, None)
             else:
-                languages = job.get("languages") or ["de"]
+                languages = job.get("languages") or ["en"]
                 language, sure = spoken(ear, audio, languages)
                 print(f"{level}, {language}{f' ({sure:.0%})' if len(languages) > 1 else ''}", file=sys.stderr, flush=True)
                 segments = ear.transcribe(audio, job.get("prompt") or None, language)

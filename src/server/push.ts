@@ -74,7 +74,7 @@ export class Push {
   constructor(o: PushOptions) {
     this.store = o.store;
     this.home = o.home;
-    this.language = o.language ?? (() => 'de');
+    this.language = o.language ?? (() => 'en');
     this.now = o.now ?? Date.now;
     this.post = o.post;
     this.later = o.later ?? ((fn, ms) => void setTimeout(fn, ms));

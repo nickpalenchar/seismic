@@ -1603,20 +1603,6 @@ function when(iso: string): string {
 
 /** Examples of the confirmations the Koordinator speaks, and the owner's words for its cards, per language. */
 const CONFIRM: Record<Language, { act: string; words: string; remember: string; retro: string; reviewPr: string; group: string; merge: string; configure: string; lookUp: string; lookUpThen: string; idea: string; wish: string }> = {
-  de: {
-    act: '"Neue Aufgabe „Zählerstände als CSV“, der Agent fängt an." / "„Rabatt“ freigegeben, und die Folgeaufgabe „Archiv“ ist angelegt." / "An den Agenten von „Export“ weitergegeben."',
-    words: 'In German, a card is an „Aufgabe“ (a follow-up: „Folgeaufgabe“), an idea „Idee“, a plan „Plan“; never say „Karte“. The owner may still say „Karte“ and means the same.',
-    remember: '„Gemerkt, gilt ab sofort für alle Agenten.“ / „Kommt in die CLAUDE.md von <repository name>, über die Aufgabe „CLAUDE.md ergänzen“.“',
-    retro: '„Ich mache die Arbeitsrückschau für den Shop; Vorschläge erscheinen als Karten.“',
-    reviewPr: '„Ich lege eine Review-Karte für PR #5 an, mit Blick auf Security.“',
-    group: '„„Export“ und „Rabatt“ gehören jetzt zur Gruppe Abrechnung.“',
-    merge: '„Ich führe „Login-Fehler“ und „Neu anmelden“ zu „Neu anmelden, wann und wo“ zusammen.“',
-    configure: '„Das Repository shop-web kommt auf die Leinwand Shop.“ / „shop-web bekommt einen dritten Klon; seine Agenten starten neu, sobald sie pausieren.“',
-    lookUp: '„Ich schaue im Plan nach.“ / „Moment, ich lese nach, was der Agent bei „…“ tun würde.“',
-    lookUpThen: '„Ich lese die offenen Issues auf GitHub und lege dann für jedes eine Aufgabe an.“',
-    idea: '„Neue Idee „Erlaubte Datenbankabfragen“, zum Durchdenken mit dir.“',
-    wish: '„Der Entwurf für die Macher von Seismic ist offen: prüf ihn und schick ihn auf GitHub ab.“',
-  },
   en: {
     act: '"New task “Meter readings as CSV”, the agent starts." / "“Discount” approved, and the follow-up “Archive” is created." / "Passed on to the agent of “Export”."',
     words: 'In English, a card is a “task” (a follow-up: “follow-up”), an idea “idea”, a plan “plan”; never say “card”. The owner may still say “card” and means the same.',

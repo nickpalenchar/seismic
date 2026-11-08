@@ -25,7 +25,7 @@ export interface ClipRequest {
   script?: string;
   /** The WAV the voice writes. */
   out: string;
-  language: 'de' | 'en';
+  language: 'en';
   /**
    * The render runs on another machine (a worker on an SSH host, design: Hosts): the WAV comes
    * back in the reply (`wav`, base64) instead of being written to `out`, which is a path there.
@@ -242,7 +242,7 @@ export function parseClipRequest(input: unknown): ClipRequest | string {
   else if (inline !== undefined) return 'inline must be true when given';
   if (typeof out !== 'string' || !isAbsolute(out) || !out.toLowerCase().endsWith('.wav')) return 'out must be an absolute path to a .wav';
   const back = { ...(inline === true ? { inline: true } : {}), ...(script ? { script } : {}) };
-  if (language !== 'de' && language !== 'en') return 'language must be de or en';
+  if (language !== 'en') return 'language must be en';
   if (!voice || typeof voice !== 'object') return 'voice is missing';
   const { reference, speaker, style } = voice as Record<string, unknown>;
   if (reference !== undefined) {

@@ -825,12 +825,12 @@ export function pagesHash(): { video: string; html: string; stacked: string } {
     first: at,
     at,
     source: '',
-    language: 'de',
+    language: 'en',
     by: 'Ada Lovelace',
     tags: { Area: ['Billing', 'Reports'], Audience: [] },
   };
   const hash = (pages: string[]) => createHash('sha256').update(pages.join('\0')).digest('hex').slice(0, 12);
-  const languages: PageLanguage[] = ['de', 'en'];
+  const languages: PageLanguage[] = ['en'];
   // without a pull request, the commit (the commits) the work landed as
   const commit = { url: 'https://github.com/o/r/commit/b' };
   const commits = { url: 'https://github.com/o/r/compare/a...b', several: true as const };

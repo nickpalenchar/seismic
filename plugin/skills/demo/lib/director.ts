@@ -199,7 +199,7 @@ export class Director {
     const to = now();
     this.#cut({ from, to: fadeFrom }, { from: cutFrom, to });
     this.#skippedInScene += fadeFrom - from + to - cutFrom;
-    await this.evaluate((l) => window.__demo.timeJump(l), laterLabel(to - from, LANGUAGE));
+    await this.evaluate((l) => window.__demo.timeJump(l), laterLabel(to - from));
     await this.wait(1100);
     await this.evaluate(() => window.__demo.whiteIn());
     await this.wait(450);
@@ -963,7 +963,6 @@ const PAGE_WORDS: Record<
   NarrationLanguage,
   { captions: string; question: string }
 > = {
-  de: { captions: 'Deutsch', question: 'Offene Frage' },
   en: { captions: 'English', question: 'Open question' },
 };
 

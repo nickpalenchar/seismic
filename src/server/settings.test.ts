@@ -14,44 +14,36 @@ const scratchHome = () => homes[homes.push(mkdtempSync(join(tmpdir(), 'obeya-set
 afterEach(() => homes.splice(0).forEach((h) => rmSync(h, { recursive: true, force: true })));
 
 test('a locale names a language Seismic speaks, or none', () => {
-  expect(languageOf('de_DE.UTF-8')).toBe('de');
   expect(languageOf('en-GB')).toBe('en');
-  expect(languageOf('DE')).toBe('de');
+  expect(languageOf('EN')).toBe('en');
+  expect(languageOf('de_DE.UTF-8')).toBeUndefined();
   expect(languageOf('fr_FR')).toBeUndefined();
   expect(languageOf('')).toBeUndefined();
 });
 
-test('the system language: the Mac interface first, else the locale variables in POSIX order, else English', () => {
+test('the system language: English, whatever the Mac interface or the locale variables say', () => {
   const none = () => undefined;
-  expect(systemLanguage({ LANG: 'de_DE.UTF-8' }, 'linux', none)).toBe('de');
-  expect(systemLanguage({ LC_ALL: 'en_US.UTF-8', LANG: 'de_DE.UTF-8' }, 'linux', none)).toBe('en');
-  expect(systemLanguage({ LC_MESSAGES: 'de_AT', LANG: 'en_GB' }, 'linux', none)).toBe('de');
-  // C names no language: the next variable decides
-  expect(systemLanguage({ LC_ALL: 'C', LANG: 'de_DE.UTF-8' }, 'linux', none)).toBe('de');
+  expect(systemLanguage({ LANG: 'en_US.UTF-8' }, 'linux', none)).toBe('en');
+  expect(systemLanguage({ LC_ALL: 'C', LANG: 'en_GB' }, 'linux', none)).toBe('en');
   expect(systemLanguage({ LANG: 'fr_FR.UTF-8' }, 'linux', none)).toBe('en');
-  expect(systemLanguage({ LANG: 'en_US.UTF-8' }, 'darwin', () => 'de-DE')).toBe('de');
-  expect(systemLanguage({ LANG: 'de_DE.UTF-8' }, 'darwin', none)).toBe('de');
-  // the Mac's preference is only asked on a Mac
-  expect(systemLanguage({ LANG: 'en_US.UTF-8' }, 'linux', () => 'de-DE')).toBe('en');
+  expect(systemLanguage({ LANG: 'de_DE.UTF-8' }, 'darwin', none)).toBe('en');
+  expect(systemLanguage({ LANG: 'en_US.UTF-8' }, 'darwin', () => 'de-DE')).toBe('en');
 });
 
-test('the conversation defaults to English until chosen, each language saved on its own beside the other settings', () => {
+test('the languages default to English until chosen, each saved on its own beside the other settings', () => {
   const home = scratchHome();
-  expect(languageView(home, 'de')).toMatchObject({ chosen: null, language: 'de', conversationChosen: null, conversation: 'en' });
+  expect(languageView(home, 'en')).toMatchObject({ chosen: null, language: 'en', conversationChosen: null, conversation: 'en' });
   saveLanguage(home, { language: 'en' });
-  expect(languageView(home, 'de')).toMatchObject({ chosen: 'en', language: 'en', conversationChosen: null, conversation: 'en' });
+  expect(languageView(home, 'en')).toMatchObject({ chosen: 'en', language: 'en', conversationChosen: null, conversation: 'en' });
   expect(conversationLanguage(home)).toBe('en');
-  saveLanguage(home, { conversation: 'de' });
-  expect(languageView(home, 'de')).toMatchObject({ chosen: 'en', language: 'en', conversationChosen: 'de', conversation: 'de' });
-  expect([ownerLanguage(home), conversationLanguage(home)]).toEqual(['en', 'de']);
-  // the interface switched back and forth leaves the conversation where it is
-  saveLanguage(home, { language: 'de' });
-  saveLanguage(home, { language: 'en' });
-  expect(conversationLanguage(home)).toBe('de');
-  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en', conversationLanguage: 'de' });
+  saveLanguage(home, { conversation: 'en' });
+  expect(languageView(home, 'en')).toMatchObject({ chosen: 'en', language: 'en', conversationChosen: 'en', conversation: 'en' });
+  expect([ownerLanguage(home), conversationLanguage(home)]).toEqual(['en', 'en']);
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en', conversationLanguage: 'en' });
   saveLanguage(home, { conversation: null });
   expect(conversationLanguage(home)).toBe('en');
-  for (const bad of [{}, { conversation: 'fr' }, { language: 'de', conversation: 'fr' }, null]) expect(() => saveLanguage(home, bad)).toThrow();
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en' });
+  for (const bad of [{}, { conversation: 'fr' }, { language: 'de' }, { language: 'en', conversation: 'de' }, null]) expect(() => saveLanguage(home, bad)).toThrow();
 });
 
 test("the model and effort per group of agents: preset, chosen one group at a time beside the language, the file keeping only what differs", () => {
@@ -70,11 +62,10 @@ test("the model and effort per group of agents: preset, chosen one group at a ti
   expect(agentSetting(home, 'koordinator')).toEqual({ model: 'haiku', effort: 'medium' });
   expect(agentSetting(home, 'chores')).toEqual({ model: 'default', effort: 'medium' });
   saveAgents(home, { worker: { model: 'opus' } });
-  saveLanguage(home, { language: 'de' });
-  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'de', agents: { koordinator: { model: 'haiku' }, worker: { effort: 'xhigh' }, chores: { model: 'default' } } });
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en', agents: { koordinator: { model: 'haiku' }, worker: { effort: 'xhigh' }, chores: { model: 'default' } } });
   // back to the presets: the file keeps no list
   saveAgents(home, { koordinator: { model: 'opus' }, worker: { effort: 'high' }, chores: { model: 'opus' } });
-  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'de' });
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en' });
   for (const bad of [{ boss: {} }, { worker: { model: 'gpt' } }, { worker: { effort: null } }, { worker: { effort: 'huge' } }, { worker: { model: 'opus', fast: true } }]) expect(() => saveAgents(home, bad)).toThrow();
   // what the file holds beyond the known choices is left out
   writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ agents: { worker: { model: 'gpt', effort: 'low' }, boss: { model: 'opus' } } }));
@@ -147,10 +138,9 @@ test('light or dark: as the system until chosen, beside the other settings, and 
   saveLanguage(home, { language: 'en' });
   expect(saveTheme(home, { theme: 'dark' }).chosen).toBe('dark');
   expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en', theme: 'dark' });
-  saveLanguage(home, { language: 'de' });
   expect(themeView(home).chosen).toBe('dark');
   expect(saveTheme(home, { theme: null }).chosen).toBeNull();
-  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'de' });
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en' });
   for (const bad of [{ theme: 'sepia' }, {}, null]) expect(() => saveTheme(home, bad)).toThrow();
   // an unknown look in the file follows the system
   writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ theme: 'sepia' }));

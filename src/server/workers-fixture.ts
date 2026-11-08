@@ -33,14 +33,14 @@ export let origin: string;
 export let merged: string[];
 
 /** The language of Seismic's interface in these tests. */
-export let language: 'de' | 'en';
+export let language: 'en';
 /** The owner's conversation language in these tests; the fixture's interface language where none is set. */
-export let conversation: 'de' | 'en' | undefined;
+export let conversation: 'en' | undefined;
 
 export const setWorkers = (w: Workers) => void (workers = w);
 export const setDocs = (d: PlanDoc[]) => void (docs = d);
-export const setLanguage = (l: 'de' | 'en') => void (language = l);
-export const setConversation = (l: 'de' | 'en') => void (conversation = l);
+export const setLanguage = (l: 'en') => void (language = l);
+export const setConversation = (l: 'en') => void (conversation = l);
 
 /** `withOrigin`: clones come from a bare `origin`, as from a remote, instead of from the checkout. */
 /** `share`: the project shares demos on a site, with this vocabulary of tags where it names one. */
@@ -54,7 +54,7 @@ export function setup(adapter: RepoAdapter, withOrigin = false, share?: { tags?:
   docs = [doc];
   // the checkout is the Lesestand: work lands on its main
   const holds = (_repo: string, commit: string) => Bun.spawnSync([GIT, '-C', main, 'merge-base', '--is-ancestor', commit, 'HEAD'], { stderr: 'ignore' }).exitCode === 0;
-  language = 'de';
+  language = 'en';
   conversation = undefined;
   board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs, dirs: [] }), undefined, holds, () => language, () => conversation ?? language);
   const workstations = new Workstations(store, 'c', { mode: adapter.workstations, repoPath: main, dir: join(dir, 'ws') });

@@ -31,8 +31,8 @@ test('a loop is one word, phrase or syllable six times in a row, whatever the ca
 });
 
 test("Whisper's words for silence are told from a command", () => {
-  for (const s of ['Vielen Dank.', ' vielen Dank ', 'Untertitelung des ZDF, 2020', 'Danke fürs Zuschauen!', 'Musik', '[Musik]', '*Musik*']) expect(silence(s)).toBe(true);
-  for (const s of ['Vielen Dank, das war gut.', 'Danke, gib das frei.', 'Musik im Demo-Video leiser.']) expect(silence(s)).toBe(false);
+  for (const s of ['Thank you.', ' thank you ', 'Thanks for watching!', 'Music', '[Music]', '*Music*']) expect(silence(s)).toBe(true);
+  for (const s of ['Thank you, that was good.', 'Thanks, approve it.', 'Music in the demo video lower.']) expect(silence(s)).toBe(false);
 });
 
 test('every machine hears with Parakeet, unless Whisper is asked for', () => {
@@ -121,7 +121,7 @@ test('a recognition slower than the sentence lasts counts as too slow', async ()
       await setup.measure();
       await setup.finished();
     } finally {
-      CHECK_CLIP.seconds = 4.1;
+      CHECK_CLIP.seconds = 3.5;
     }
     expect((await setup.view()).items.find((i) => i.id === 'recognition')!.speed).toMatchObject({ slow: true });
   } finally {

@@ -1052,7 +1052,7 @@ export class Sharing {
   private languageOf(dir: string, card: Item): PageLanguage {
     try {
       const lang = /<html\b[^>]*\blang=["']?([a-z]{2})/i.exec(readFileSync(join(dir, 'index.html'), 'utf8').slice(0, 2000))?.[1]?.toLowerCase();
-      if (lang === 'de' || lang === 'en') return lang;
+      if (lang === 'en') return lang;
     } catch {}
     return this.o.languageFor?.(card) ?? readDemoSettings(this.o.home).language;
   }
@@ -1177,7 +1177,7 @@ function statOr(path: string): number | null {
 export const DEMO_MARKER = '<!-- obeya:demo -->';
 
 /** The description with a line linking the demo's page; null when it links the page already. */
-export function withDemoLink(body: string, url: string, kind: DemoKind = 'video', t: Messages = MESSAGES.de): string | null {
+export function withDemoLink(body: string, url: string, kind: DemoKind = 'video', t: Messages = MESSAGES.en): string | null {
   if (body.includes(url)) return null;
   const line = `${t.share.prLine(kind === 'html')}: ${url} ${DEMO_MARKER}`;
   const lines = body.split('\n');

@@ -92,7 +92,7 @@ number before the text (`**W3:** #27. Title. Details`, as a worker may tick it o
 title instead of becoming all of it, so the tile and the sheet still say what the workstream is
 (issue #12, 2026-10-26). Checked means
 `live`, `(in review)` after the label `in PR`, anything else `planned`. The goal is the first
-paragraph under `## Goal` / `## Ziel`. Seismic reads plan docs and never writes them; workers tick off
+paragraph under `## Goal`. Seismic reads plan docs and never writes them; workers tick off
 their workstream in the doc as part of their change. A plan card is stored when first seen, so the
 owner's placement persists; its title, text and state always come from the doc. Each read keeps the
 doc's last state in the plan.
@@ -534,25 +534,24 @@ agent only reads, and looks a question about such a card up in the home reposito
 
 ### Language
 
-Seismic keeps three languages apart, each German or English: the interface's, the conversation's and
+Seismic keeps three languages apart, each one of the languages Seismic speaks (English only for now: German support was removed on 2026-11-07, to return with proper language support): the interface's, the conversation's and
 the repository's. The owner switches the interface at will (to test both, say) without the agents
 switching; the conversation defaults to English until the owner chooses another language; what lands in git stays in the
-repository's language. A card may so show English UI around a German conversation about an English
-plan doc: that is intended.
+repository's language. With more than one language, a card may so show UI in one around a conversation in another about a plan doc in a third: that is intended. While English is the only language, the pickers for these languages are hidden.
 
 **The interface language** covers Seismic's own words: the UI, and what the server writes itself (log
 lines, fixed parts it adds to an agent's question such as "(multiple choice)", push notifications,
 its own pages; a log line stays in the language it was written in). The owner chooses it in the
 dialog ("Interface language"); until then the system's applies (on a Mac `AppleLanguages`,
 elsewhere `LC_ALL`, `LC_MESSAGES`, `LANG`, then the runtime's), English for any other. A change takes
-effect at once: the page reloads, keeping what was open. The strings are two tables of one shape, so
-a missing English text is a type error; both call the Koordinator "Seismic". Dates and numbers use the
+effect at once: the page reloads, keeping what was open. The strings are one table per language of one shape, so
+a missing text is a type error; all call the Koordinator "Seismic". Dates and numbers use the
 browser's variant of the language; a variant `Intl` refuses (`en-US@posix`) gives the usual one.
 
 **The conversation language** is what agents write the owner in: reports, questions, replies,
 handovers, idea briefs, card titles, Question-card answers, proposals, work retrospective notes, the
 Koordinator's replies and confirmations. Agents use "Conversation language", which is English until
-the owner explicitly chooses German. The language of a task or later message does not switch it.
+the owner explicitly chooses another language. The language of a task or later message does not switch it.
 An explicit standing preference about the language agents speak to the owner takes precedence over
 that setting; one that says "only" or "always" also takes precedence over a card asking for another
 language. This is an instruction in the prompts, not language detection code. The card namer uses
@@ -562,22 +561,22 @@ proposals, and code review findings use that same precedence.
 If automatic naming fails, an untitled card gets the language-neutral placeholder “…” instead of
 taking the first words of a task that may be in another language or guessing from a standing rule.
 The Koordinator knows the owner's words for
-its cards in both languages, takes examples in the conversation language, names Seismic's own cards
+its cards in every language, takes examples in the conversation language, names Seismic's own cards
 ("Add to CLAUDE.md") in the interface language, and starts its session afresh when either language changes. An analysis
 on a card is in the conversation language; a committed one is repository content.
 
 **The repository language** is that of everything that lands in git: code, comments, commit
 messages, design and plan docs, proposed CLAUDE.md lines. It is `language` in the repository's
 settings ("Repository language"), English by default. Workers and idea agents are told both
-languages explicitly, so a German conversation does not make German docs.
+languages explicitly, so a conversation in another language does not make docs in it.
 
 **Demos** have their own language per repository (`demo.language`), else the demo settings' narration
 language, else the conversation language; their shared pages follow it (see The demo settings and
 voices). Seismic's own repository says English, since its demos go public. A worker's instructions name
 that language outright, not where to look it up (2026-10-21: a worker writing an HTML artifact, which
-needs no skill, read the demo settings' German and missed the repository's English).
+needs no skill, read the demo settings' other language and missed the repository's English).
 
-Prompts only agents read stay English, with German examples of what the owner may say.
+Prompts only agents read stay English.
 
 ### Decisions
 

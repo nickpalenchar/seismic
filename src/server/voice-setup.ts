@@ -4,7 +4,7 @@
 // and uv (it brings the recognition, so it comes first, and "Installieren" waits for it).
 // "Installieren" loads the recognition, which fetches it the first time, so the first command does
 // not wait minutes for it, and then measures it: the recognition hears a short sentence Seismic ships
-// with (`voice/check-de.ogg`, spoken by Piper), and where it takes longer than the sentence lasts,
+// with (`voice/check.ogg`, spoken by Piper), and where it takes longer than the sentence lasts,
 // the sheet offers a cloud service instead (voice-cloud.ts), tested with the same sentence. With a
 // cloud service in use nothing of the above is needed.
 
@@ -18,8 +18,8 @@ import { resource } from './resources';
 import { listenKit, type Transcript } from './voice';
 import { CloudError, cloudFrom, cloudInUse, cloudView, readVoiceFile, serviceName, transcribeInCloud, writeVoiceFile } from './voice-cloud';
 
-/** The sentence the check transcribes ("Starte die Karte Export für Vermieter und sag mir Bescheid, wenn sie fertig ist."), and how long it lasts. */
-export const CHECK_CLIP = { file: 'check-de.ogg', seconds: 4.1 };
+/** The sentence the check transcribes ("Start the card Export for landlords and tell me when it is done."), and how long it lasts. */
+export const CHECK_CLIP = { file: 'check.ogg', seconds: 3.5 };
 
 export interface VoiceSetupOptions {
   home: string;

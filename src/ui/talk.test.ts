@@ -14,7 +14,7 @@ test("an idea's conversation folds the agent's steps under the reply they led to
   const decided = ev('state', 'explorer', 'Entscheidung: Format? → CSV');
   const reply = ev('talk', 'explorer', 'Varianten ergänzt. Zwei offene Fragen, siehe Stand.');
   const err = ev('error', 'obeya', 'kaputt');
-  const restart = ev('state', 'obeya', 'Neu gestartet');
+  const restart = ev('state', 'obeya', 'Restarted');
   const again = ev('talk', 'owner', 'Und weiter?');
   const reading = ev('activity', 'explorer', 'Liest ui/detail.tsx');
   const { shown, pending } = talkTurns([owner, read, thought, decided, reply, err, restart, again, reading]);
@@ -35,7 +35,7 @@ test('a turn without reply does not show its last words twice', () => {
 });
 
 test("a task's conversation: the owner's words, the worker's replies and handover; state changes as lines, the rest folded", () => {
-  const started = ev('state', 'obeya', 'Agent gestartet auf obeya/export.');
+  const started = ev('state', 'obeya', 'Agent started on obeya/export.');
   const read = ev('activity', 'worker', 'Liest server/export.ts');
   const status = ev('report', 'worker', 'Export steht');
   const note = ev('hint', 'owner', 'Bitte auch Excel.');
@@ -43,7 +43,7 @@ test("a task's conversation: the owner's words, the worker's replies and handove
   const session = ev('state', 'obeya', 'Neue Sitzung. Frühere Sitzung: abc');
   const edit = ev('activity', 'worker', 'Ändert server/export.ts');
   const review = ev('review', 'worker', 'CSV und Excel exportierbar.');
-  const approved = ev('state', 'owner', 'Freigegeben und auf main.');
+  const approved = ev('state', 'owner', 'Approved and on main.');
   const { shown, pending } = talkTurns([started, read, status, note, reply, session, edit, review, approved]);
   // the steps before the worker read the note close above it
   expect(shown).toEqual([
@@ -58,8 +58,8 @@ test("a task's conversation: the owner's words, the worker's replies and handove
 });
 
 test("Seismic's lines that the plan doc ticked a workstream off stand as lines: they say why the card is done", () => {
-  const stopped = ev('state', 'owner', 'Gestoppt.');
-  const freed = ev('state', 'obeya', MESSAGES.de.worker.tickedFreed);
+  const stopped = ev('state', 'owner', 'Stopped.');
+  const freed = ev('state', 'obeya', MESSAGES.en.worker.tickedFreed);
   const merged = ev('state', 'obeya', MESSAGES.en.worker.mergedTicked);
   expect(talkTurns([stopped, freed, merged]).shown).toEqual([
     { e: stopped, steps: [], line: true },
@@ -73,7 +73,7 @@ test("Seismic's line that it linked the demo on the pull request stands, with th
   const shared = ev('state', 'obeya', MESSAGES.en.share.shared('https://demos.example/pr-3/'));
   const pr = 'https://github.com/acme/app/pull/3';
   const commented = ev('state', 'obeya', MESSAGES.en.share.prCommented(3, `${pr}#issuecomment-1`));
-  const linked = ev('state', 'obeya', MESSAGES.de.share.prLinked(3, pr));
+  const linked = ev('state', 'obeya', MESSAGES.en.share.prLinked(3, pr));
   const done = ev('talk', 'worker', 'The demo is online.');
   expect(talkTurns([approved, shared, commented, linked, done]).shown).toEqual([
     { e: approved, steps: [], line: true },
@@ -229,7 +229,7 @@ test('a follow-up card Seismic made stands as an action: under the worker\'s mes
   const asked = ev('hint', 'owner', 'Mach eine Folgekarte für den Excel-Export.');
   const passing = ev('activity', 'worker', 'to_seismic');
   const confirm = { ...ev('say', 'koordinator', 'Lege die Folgekarte „Excel-Export“ an.'), forwarded: true as const };
-  const made = { ...ev('state', 'obeya', 'Folgekarte „Excel-Export“ angelegt.'), made: { card: 'k2', title: 'Excel-Export' } };
+  const made = { ...ev('state', 'obeya', 'Follow-up task “Excel export” created.'), made: { card: 'k2', title: 'Excel-Export' } };
   const reply = ev('talk', 'worker', 'Seismic legt sie an.');
   // made before the worker's message, it waits with Seismic's reply and goes under that message
   expect(talkTurns([asked, passing, confirm, made], { working: true }).passedOn.map((x) => x.e)).toEqual([confirm, made]);
@@ -326,8 +326,8 @@ test("Seismic's line that it put the project folder back on main stands under th
 
 test('a conversation nobody works on ends with its last message or line, the steps without a message where they happened', () => {
   const review = ev('review', 'worker', 'Gesprächsverlauf steht.');
-  const approved = ev('state', 'owner', 'Freigegeben und auf main.');
-  const landed = ev('state', 'obeya', 'Nach der Freigabe auf main gelandet.');
+  const approved = ev('state', 'owner', 'Approved and on main.');
+  const landed = ev('state', 'obeya', 'Landed on main after the approval.');
   const restart = ev('state', 'obeya', 'Neustart von Seismic angekündigt; der Agent pausiert beim nächsten sicheren Punkt.');
   const err = ev('error', 'obeya', 'API Error: 529 Overloaded');
   const events = [review, approved, landed, restart, err];
@@ -370,12 +370,12 @@ test('a conversation nobody works on ends with its last message or line, the ste
 });
 
 test('questions carry their answer; a note instead of an answer settles one; the open one stands apart', () => {
-  const q1 = ev('question', 'worker', formatQuestion({ text: 'CSV oder Excel?', options: ['CSV', 'Excel'] }, 'de'));
+  const q1 = ev('question', 'worker', formatQuestion({ text: 'CSV oder Excel?', options: ['CSV', 'Excel'] }, 'en'));
   const a1 = ev('answer', 'owner', 'CSV');
   const q2 = ev('question', 'worker', 'Welches Trennzeichen?');
   const note = ev('hint', 'owner', 'Nimm, was Excel öffnet.');
   const work = ev('activity', 'worker', 'Ändert server/export.ts');
-  const q3 = ev('question', 'worker', formatQuestion({ text: 'Auch PDF?', options: ['Ja', 'Nein'] }, 'de'));
+  const q3 = ev('question', 'worker', formatQuestion({ text: 'Auch PDF?', options: ['Ja', 'Nein'] }, 'en'));
   const events = [q1, a1, q2, note, work, q3];
   const { shown, asked } = talkTurns(events, { open: [{ text: 'Auch PDF?', options: ['Ja', 'Nein'] }] });
   expect(shown).toEqual([{ e: q1, steps: [], answer: 'CSV' }, { e: a1, steps: [] }, { e: q2, steps: [], end: 'settled' }, { e: note, steps: [] }]);
@@ -385,11 +385,11 @@ test('questions carry their answer; a note instead of an answer settles one; the
 });
 
 test('the options an answer picked stand on its question once, not again in the owner’s message', () => {
-  const q1 = ev('question', 'worker', formatQuestion({ text: 'CSV oder Excel?', options: ['CSV', 'Excel'] }, 'de'));
+  const q1 = ev('question', 'worker', formatQuestion({ text: 'CSV oder Excel?', options: ['CSV', 'Excel'] }, 'en'));
   const a1 = { ...ev('answer', 'owner', 'CSV\n\nUnd mit Kopfzeile.'), picks: ['CSV'] };
-  const q2 = ev('question', 'worker', formatQuestion({ text: 'Auch PDF?', options: ['Ja', 'Nein'] }, 'de'));
+  const q2 = ev('question', 'worker', formatQuestion({ text: 'Auch PDF?', options: ['Ja', 'Nein'] }, 'en'));
   const a2 = { ...ev('answer', 'owner', 'Nein'), picks: ['Nein'] };
-  const q3 = ev('question', 'worker', formatQuestion({ text: 'Welches Trennzeichen?', options: [';', ','] }, 'de'));
+  const q3 = ev('question', 'worker', formatQuestion({ text: 'Welches Trennzeichen?', options: [';', ','] }, 'en'));
   // an answer that picked nothing stands in its own words
   const a3 = ev('answer', 'owner', ';\n\nWie Excel.');
   expect(talkTurns([q1, a1, q2, a2, q3, a3]).shown).toEqual([
@@ -406,7 +406,7 @@ test('the options an answer picked stand on its question once, not again in the 
 });
 
 test('a question reads back from the log with its options', () => {
-  expect(parseQuestion(formatQuestion({ text: 'Welche Spalten?', options: ['Datum', 'Stand'], multiple: true }, 'de'))).toEqual({ text: 'Welche Spalten?', options: ['Datum', 'Stand'] });
+  expect(parseQuestion(formatQuestion({ text: 'Welche Spalten?', options: ['Datum', 'Stand'], multiple: true }, 'en'))).toEqual({ text: 'Welche Spalten?', options: ['Datum', 'Stand'] });
   expect(parseQuestion(formatQuestion({ text: 'Which columns?', options: ['Date', 'Reading'], multiple: true }, 'en'))).toEqual({ text: 'Which columns?', options: ['Date', 'Reading'] });
   expect(parseQuestion('Weiter so?')).toEqual({ text: 'Weiter so?', options: [] });
 });
@@ -415,7 +415,7 @@ test("why an idea clicked to build was not built stands after the agent's reply"
   const owner = ev('talk', 'owner', 'Nimm den Ton aus dem Styleguide.');
   const armed = ev('state', 'owner', 'So bauen, sobald die Antwort da ist; fragt der Agent noch etwas, wird nicht gebaut.');
   const reply = ev('talk', 'explorer', 'Wo liegt der Styleguide?');
-  const why = ev('state', 'obeya', 'Nicht gebaut: Der Agent hat noch eine Frage.');
+  const why = ev('state', 'obeya', 'Not built: the agent still has a question.');
   expect(talkTurns([owner, armed, reply, why]).shown).toEqual([
     { e: owner, steps: [] },
     { e: armed, steps: [], line: true },
@@ -562,7 +562,7 @@ test('a later handover right after the reply stands under it with what changed; 
   // the first handover after the worker started stands alone, also right after a reply
   const note = ev('hint', 'owner', 'Welche Spalten?');
   const answer = ev('talk', 'worker', 'Sorte und Menge.');
-  const start = ev('state', 'obeya', 'Agent gestartet auf obeya/export.');
+  const start = ev('state', 'obeya', 'Agent started on obeya/export.');
   expect(talkTurns([first, start, note, answer, again]).shown.at(-1)).toEqual({ e: again, steps: [] });
 });
 
@@ -578,8 +578,8 @@ test('the options an idea’s or a proposal’s answer names stand on their ques
   const format = { text: 'Welches Format?', options: ['CSV', 'Excel'] };
   const whom = { text: 'Für wen?', options: ['Vermieter', 'Verwalter'], multiple: true };
   const reply = ev('talk', 'explorer', 'Zwei Fragen, siehe Brief.');
-  const q1 = ev('question', 'explorer', formatQuestion(format, 'de'));
-  const q2 = ev('question', 'explorer', formatQuestion(whom, 'de'));
+  const q1 = ev('question', 'explorer', formatQuestion(format, 'en'));
+  const q2 = ev('question', 'explorer', formatQuestion(whom, 'en'));
   const a = ev('talk', 'owner', answerText([format, whom], [['Excel'], ['Vermieter', 'Verwalter']], 'Und bitte bald.'));
   expect(talkTurns([reply, q1, q2, a]).shown).toEqual([
     { e: reply, steps: [] },
@@ -593,8 +593,8 @@ test('the options an idea’s or a proposal’s answer names stand on their ques
   const words = ev('talk', 'owner', 'Erklär mir das.');
   expect(talkTurns([q1, words]).shown).toEqual([{ e: q1, steps: [], end: 'settled' }, { e: words, steps: [] }]);
   // a proposal's question asked again is answered where it was asked last, the first asking points there; a note after it does not take it back
-  const p1 = ev('question', 'worker', formatQuestion(format, 'de'));
-  const p2 = ev('question', 'worker', formatQuestion(format, 'de'));
+  const p1 = ev('question', 'worker', formatQuestion(format, 'en'));
+  const p2 = ev('question', 'worker', formatQuestion(format, 'en'));
   const said = ev('say', 'owner', answerText([format], [['CSV']], ''));
   const note = ev('hint', 'owner', 'Danke.');
   expect(talkTurns([p1, p2, said, note]).shown).toEqual([
@@ -607,7 +607,7 @@ test('the options an idea’s or a proposal’s answer names stand on their ques
 test("an idea's open questions stand at its conversation's end, where they are answered; answered ones where they were asked", () => {
   const format = { text: 'Welches Format?', options: ['CSV', 'Excel'] };
   const reply = ev('talk', 'explorer', 'Eine Frage.');
-  const q = ev('question', 'explorer', formatQuestion(format, 'de'));
+  const q = ev('question', 'explorer', formatQuestion(format, 'en'));
   const idea = { state: 'idea', idea: { status: 'open', questions: [format], yourTurn: true } } as unknown as Item;
   expect(cardTalk(idea, [reply, q]).shown.map((x) => x.e)).toEqual([reply]);
   expect(cardTalk({ ...idea, idea: { ...idea.idea!, questions: [] } }, [reply, q]).shown.map((x) => x.e)).toEqual([reply, q]);
@@ -621,7 +621,7 @@ test("an idea's open questions stand at its conversation's end, where they are a
   expect(cardTalk({ ...idea, idea: { ...idea.idea!, status: 'parked' } } as Item, [reply, q]).shown.map((x) => x.e)).toEqual([reply, q]);
   // a worker's question waits at the end the same way, also while its background work runs
   const task = { state: 'waiting', need: 'question', question: format, inTurn: true } as unknown as Item;
-  const asked = ev('question', 'worker', formatQuestion(format, 'de'));
+  const asked = ev('question', 'worker', formatQuestion(format, 'en'));
   expect(cardTalk(task, [reply, asked])).toMatchObject({ shown: [{ e: reply }], asked: [{ e: asked }] });
 });
 
@@ -629,7 +629,7 @@ test("the owner's words the worker read after asking stay below its open questio
   const format = { text: 'Welches Format?', options: ['CSV', 'Excel'] };
   const comment = ev('hint', 'owner', 'Hier ist es schon fett.');
   const note = ev('hint', 'owner', 'Mach vorher einen Rebase auf main.');
-  const asked = ev('question', 'worker', formatQuestion(format, 'de'));
+  const asked = ev('question', 'worker', formatQuestion(format, 'en'));
   const events = [comment, { ...note, readAfter: asked.id }, asked];
   const task = { state: 'waiting', need: 'question', question: format } as unknown as Item;
   // said while the worker asked, the note reached it after the question: above it, it would read as taken into account
@@ -647,8 +647,8 @@ test("the owner's words the worker read after asking stay below its open questio
 test("a proposal's open questions leave where they were asked; settled ones stay there", () => {
   const format = { text: 'Welches Format?', options: ['CSV', 'Excel'] };
   const pdf = { text: 'Auch PDF?', options: ['Ja', 'Nein'] };
-  const q1 = ev('question', 'worker', formatQuestion(format, 'de'));
-  const q2 = ev('question', 'worker', formatQuestion(pdf, 'de'));
+  const q1 = ev('question', 'worker', formatQuestion(format, 'en'));
+  const q2 = ev('question', 'worker', formatQuestion(pdf, 'en'));
   const owner = ev('say', 'owner', 'Was würdest du nehmen?');
   const reply = ev('talk', 'koordinator', 'CSV, das liest jedes Programm.');
   const events = [q1, q2, owner, reply];
@@ -683,7 +683,7 @@ test("the usage limit that stopped the agent's turn is a line where it happened;
   expect(t.shown[2]).toMatchObject({ steps: [run], quiet: true });
   expect(t.pending).toEqual([parked, now]);
   // in German, and when Seismic only tries again
-  const retry = ev('state', 'obeya', 'Nutzungslimit erreicht. Seismic versucht es um 19:35 noch einmal.');
+  const retry = ev('state', 'obeya', 'Usage limit reached. Seismic tries again at 19:35.');
   expect(talkTurns([note, retry]).shown).toMatchObject([{ e: note }, { e: retry, line: true }]);
   // the worker's closing words, which Seismic logs after the limit's line, close the turn the limit stopped
   const closing = ev('closing', 'worker', 'Ich warte auf die Vertragsprüfung.');
@@ -696,12 +696,12 @@ test('what an agent did until it was paused stays above the line once it went on
   const asked = ev('talk', 'owner', 'Was bräuchte ein Export?');
   const read = ev('activity', 'explorer', '$ git ls-files');
   const thought = ev('activity', 'explorer', '$ ls data');
-  const paused = ev('state', 'owner', 'Pausiert.');
+  const paused = ev('state', 'owner', 'Paused.');
   // paused now: the steps wait for the paused bubble, above the line
   expect(talkTurns([asked, read, thought, paused], { paused: true })).toMatchObject({ shown: [{ e: asked }, { e: paused, line: true }], pending: [read, thought] });
   // gone on with a message: the steps stand where it stopped, the new work after the message
   const more = ev('talk', 'owner', 'Und Excel?');
-  const resumed = ev('state', 'owner', 'Weiter.');
+  const resumed = ev('state', 'owner', 'Resumed.');
   const now = ev('activity', 'explorer', '$ cat data/strom.csv');
   const t = talkTurns([asked, read, thought, paused, more, resumed, now]);
   expect(t.shown.map((x) => x.e)).toEqual([asked, read, paused, more, resumed]);
@@ -759,8 +759,8 @@ test("a card's messages count as unseen after the last one seen, its words betwe
 test('the snooze is a line, with what the agent did before it closed above it, and waking is a line too', () => {
   const read = ev('activity', 'worker', '$ ha automation reload');
   const said = ev('say', 'worker', 'Kurz nach Mitternacht sehe ich nach.');
-  const snoozed = ev('state', 'worker', 'Zurückgestellt bis So 18.10., 00:05 · Prüfen');
-  const woke = ev('state', 'obeya', 'Wieder da: Zeitpunkt erreicht');
+  const snoozed = ev('state', 'worker', 'Snoozed until Sun 18 Oct, 00:05 · Check');
+  const woke = ev('state', 'obeya', 'Woke up: time reached');
   const now = ev('activity', 'worker', '$ ha state fan');
   const t = talkTurns([read, said, snoozed, woke, now]);
   expect(t.shown.map((x) => x.e)).toEqual([said, snoozed, woke]);
@@ -769,7 +769,7 @@ test('the snooze is a line, with what the agent did before it closed above it, a
   expect(t.shown[2]).toMatchObject({ line: true });
   expect(t.pending).toEqual([now]);
   // the line of a log from before it said why
-  const earlier = ev('state', 'obeya', 'Wieder da (vom Agenten zurückgestellt)');
+  const earlier = ev('state', 'obeya', 'Woke up (snoozed by the agent)');
   expect(talkTurns([snoozed, earlier]).shown[1]).toMatchObject({ e: earlier, line: true });
   // a snoozed agent offers no pause, nor shows at work
   expect(pausable({ kind: 'task', state: 'working', inTurn: true, snoozed: { until: '2026-10-18T00:05:00Z', by: 'agent' } })).toBe(false);
@@ -815,7 +815,7 @@ test("Seismic's conversation shows it at work while it reads the owner's words o
 test('the line that the agent stopped without answering stands, not as a step of an agent at work', () => {
   const asked = ev('hint', 'owner', 'Und im Westen?');
   const failed = ev('error', 'obeya', 'No conversation found');
-  const unanswered = ev('state', 'obeya', MESSAGES.de.worker.unanswered);
+  const unanswered = ev('state', 'obeya', MESSAGES.en.worker.unanswered);
   const t = talkTurns([asked, failed, unanswered], { over: true });
   expect(t.shown.map((x) => x.e)).toEqual([asked, failed, unanswered]);
   expect(t.shown[2]).toMatchObject({ line: true });
@@ -828,8 +828,8 @@ test('a question nobody waits on shows how it ended, the same on every kind of c
   const idea = { state: 'idea', idea: { status: 'open', questions: [], yourTurn: true } } as unknown as Item;
   // an idea's answer that picks for one of two questions: the other is settled by the owner's words once the agent replied without asking it again
   const reply = ev('talk', 'explorer', 'Zwei Fragen.');
-  const q1 = ev('question', 'explorer', formatQuestion(format, 'de'));
-  const q2 = ev('question', 'explorer', formatQuestion(whom, 'de'));
+  const q1 = ev('question', 'explorer', formatQuestion(format, 'en'));
+  const q2 = ev('question', 'explorer', formatQuestion(whom, 'en'));
   const partial = ev('talk', 'owner', answerText([format, whom], [['Excel'], []], 'Den Rest entscheide du.'));
   const next = ev('talk', 'explorer', 'Excel, für beide.');
   expect(cardTalk(idea, [reply, q1, q2, partial, next]).shown).toEqual([
@@ -843,31 +843,31 @@ test('a question nobody waits on shows how it ended, the same on every kind of c
   const thinking = { ...idea, idea: { ...idea.idea!, thinking: true } } as Item;
   expect(cardTalk(thinking, [reply, q1, q2, partial]).shown[2]).toEqual({ e: q2, steps: [] });
   // asked again, the earlier asking points to the later one, which waits at the end
-  const again = ev('question', 'explorer', formatQuestion(whom, 'de'));
+  const again = ev('question', 'explorer', formatQuestion(whom, 'en'));
   const asking = cardTalk({ ...idea, idea: { ...idea.idea!, questions: [whom] } } as Item, [reply, q1, q2, partial, next, again]);
   expect(asking.shown[2]).toEqual({ e: q2, steps: [], end: 'again', next: again.id });
   expect(asking.asked).toEqual([{ e: again, steps: [] }]);
   // built without a word to it, it was left open, also while the worker on it works
   const built = { state: 'working', inTurn: true, branch: 'obeya/export' } as unknown as Item;
-  const start = ev('state', 'obeya', MESSAGES.de.worker.started('obeya/export'));
+  const start = ev('state', 'obeya', MESSAGES.en.worker.started('obeya/export'));
   expect(cardTalk(built, [reply, q1, start]).shown[1]).toEqual({ e: q1, steps: [], end: 'left' });
 
   // a task: a question a note took back is settled once the worker replied; asked anew, it points further down
-  const asked = ev('question', 'worker', formatQuestion(format, 'de'));
+  const asked = ev('question', 'worker', formatQuestion(format, 'en'));
   const note = ev('hint', 'owner', 'Nimm, was Excel öffnet.');
   const answer = ev('talk', 'worker', 'Dann Excel.');
   const task = { state: 'working', inTurn: true, branch: 'obeya/export' } as unknown as Item;
   expect(cardTalk(task, [asked, note]).shown[0]).toEqual({ e: asked, steps: [] });
   expect(cardTalk(task, [asked, note, answer]).shown[0]).toEqual({ e: asked, steps: [], end: 'settled' });
-  const anew = ev('question', 'worker', formatQuestion(format, 'de'));
+  const anew = ev('question', 'worker', formatQuestion(format, 'en'));
   const waits = { state: 'waiting', need: 'question', question: format, branch: 'obeya/export' } as unknown as Item;
   const t = cardTalk(waits, [asked, note, answer, anew]);
   expect(t.shown[0]).toEqual({ e: asked, steps: [], end: 'again', next: anew.id });
   expect(t.asked).toEqual([{ e: anew, steps: [] }]);
 
   // a proposal: its words pass over one question, the rework drops it; taken on with the other open, that one was left open
-  const p1 = ev('question', 'worker', formatQuestion(format, 'de'));
-  const p2 = ev('question', 'worker', formatQuestion(whom, 'de'));
+  const p1 = ev('question', 'worker', formatQuestion(format, 'en'));
+  const p2 = ev('question', 'worker', formatQuestion(whom, 'en'));
   const said = ev('say', 'owner', 'CSV reicht.');
   const revised = ev('talk', 'worker', 'Format auf CSV gesetzt.');
   const proposal = { state: 'proposal', proposal: { questions: [whom] } } as unknown as Item;
@@ -888,7 +888,7 @@ test('a question nobody waits on shows how it ended, the same on every kind of c
 test("Seismic's line that a card waits for others before it starts stands, in either language", () => {
   const k = MESSAGES.en.koordinator;
   const drawn = ev('state', 'obeya', k.waitsFor('“Export”', k.drawn));
-  const inferred = ev('state', 'obeya', MESSAGES.de.koordinator.waitsFor('„Export“', MESSAGES.de.koordinator.likelyConflict));
+  const inferred = ev('state', 'obeya', MESSAGES.en.koordinator.waitsFor('“Export”', MESSAGES.en.koordinator.likelyConflict));
   const t = talkTurns([drawn, inferred], { over: false });
   expect(t.shown.map((x) => x.e)).toEqual([drawn, inferred]);
   expect(t.shown.every((x) => x.line)).toBe(true);

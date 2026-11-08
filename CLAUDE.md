@@ -65,9 +65,9 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
   never shown up front.
 - Seismic's UI never sends the owner to the command line: when a message suggests a step (pushing
   `main` first, say), Seismic offers it as an action right there, or the message doesn't mention it.
-- UI strings live in one place, `src/ui/strings.ts`, in German and English (two tables of one shape).
-  Docs, comments and prompts are in English and quote the English labels; the German table calls a
-  button "Button" or "Schaltfläche", never "Knopf".
+- UI strings live in one place, `src/ui/strings.ts`, in English (German support was removed on
+  2026-11-07 until language support returns; the table per language keeps its shape).
+  Docs, comments and prompts are in English and quote the English labels.
 - An interaction that several kinds of card share (answering questions with comments and one Send
   button, the conversation history, starting ("Build it like this", "Accept and start") while the agent
   is still working) is built once in shared code and works the same on each of them; no card kind

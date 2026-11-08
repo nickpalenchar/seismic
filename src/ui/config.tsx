@@ -844,7 +844,7 @@ export function LanguageBlock({ on }: { on: boolean }) {
   useEffect(() => {
     if (on) api.language().then(setView, console.error);
   }, [on]);
-  if (!view) return null;
+  if (!view || LANGUAGES.length < 2) return null;
   const l = t.config.language;
   const choose = async (language: Language | null) => {
     setBusy(true);
@@ -1450,7 +1450,7 @@ function DemoBlock({ on }: { on: boolean }) {
             {shown.directoryRelative && <p className="p-error">{d.directoryRelative}</p>}
           </Field>
           {view.space && <KeepFrames space={view.space} value={draft.keepFrames} onChange={(v) => set('keepFrames', v)} />}
-          <Field label={d.language} hint={d.languageHint}>
+          {LANGUAGES.length > 1 && <Field label={d.language} hint={d.languageHint}>
             <select aria-label={d.language} value={draft.language} onChange={(e) => set('language', e.target.value as NarrationLanguage)}>
               {(Object.keys(d.languages) as NarrationLanguage[]).map((l) => (
                 <option key={l} value={l}>
@@ -1458,7 +1458,7 @@ function DemoBlock({ on }: { on: boolean }) {
                 </option>
               ))}
             </select>
-          </Field>
+          </Field>}
           <Field label={d.artifactsLabel} hint={d.artifactsHint}>
             <ArtifactChecks value={draft.artifacts ?? [...HANDOVER_ARTIFACTS]} onChange={(v) => set('artifacts', v.length === HANDOVER_ARTIFACTS.length ? undefined : v)} />
           </Field>
@@ -2765,7 +2765,7 @@ function RepoSettingsBlock({
           </div>,
           c.planDocsHint,
         )}
-        {row(
+        {LANGUAGES.length > 1 && row(
           'language',
           c.language,
           <div className="seg" role="radiogroup" aria-label={c.language}>
@@ -2780,7 +2780,7 @@ function RepoSettingsBlock({
       </div>
       <div className="cfg-group">
         <h5 className="cfg-group-head">{t.config.groups.demos}</h5>
-        {row(
+        {LANGUAGES.length > 1 && row(
           'demoLanguage',
           c.demoLanguage,
           <div className="seg" role="radiogroup" aria-label={c.demoLanguage}>

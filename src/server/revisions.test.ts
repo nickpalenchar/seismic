@@ -92,7 +92,7 @@ describe('a proposal reworked by what the owner says', () => {
       ['say', 'owner', 'Nimm auch Excel mit, und UTF-8 ist gesetzt.'],
       ['say', 'koordinator', 'Ich überarbeite den Vorschlag.'],
       ['talk', 'worker', 'Excel ist dabei, UTF-8 steht im Text.'],
-      ['state', 'koordinator', 'Vorschlag überarbeitet.'],
+      ['state', 'koordinator', 'Proposal revised.'],
     ]);
   });
 
@@ -186,7 +186,7 @@ describe('a proposal reworked by what the owner says', () => {
     expect(board().events(p.id).map((e) => [e.kind, e.author, e.text]).slice(1)).toEqual([
       ['say', 'owner', '**Welche Kodierung?** UTF-8. Und Excel?'],
       ['talk', 'worker', 'UTF-8 steht im Text; ob Excel dazukommt, entscheidest du.'],
-      ['state', 'koordinator', 'Vorschlag überarbeitet.'],
+      ['state', 'koordinator', 'Proposal revised.'],
       ['question', 'worker', 'Excel auch?\n– Ja\n– Nein'],
     ]);
   });
@@ -227,12 +227,12 @@ describe('a proposal reworked by what the owner says', () => {
   test('accepted and started while it is reworked, it starts once the new text is there', async () => {
     const p = proposal();
     project.press(p.id, { action: 'revise', text: '**Welche Kodierung?** UTF-8' });
-    // the second click and the plain "Übernehmen" change nothing
+    // the second click and the plain "Accept" change nothing
     project.act(p.id, { action: 'accept', picks: [['Latin-1']] });
     project.act(p.id, { action: 'accept' });
     expect(() => project.act(p.id, { action: 'accept', start: false })).toThrow('being reworked');
     expect(board().item(p.id)).toMatchObject({ state: 'proposal', proposal: { revising: { words: '**Welche Kodierung?** UTF-8' }, acceptAfterRevision: true } });
-    expect(board().events(p.id).filter((e) => e.text.startsWith('Übernehmen und starten, sobald'))).toHaveLength(1);
+    expect(board().events(p.id).filter((e) => e.text.startsWith('Accept and start once'))).toHaveLength(1);
 
     reviser()!.call('revise_proposal', { title: 'CSV-Export prüfen', task: 'Der CSV-Export schreibt Umlaute falsch. Kodierung: UTF-8.', questions: [] });
     reviser()!.emit({ type: 'idle' });
@@ -251,19 +251,19 @@ describe('a proposal reworked by what the owner says', () => {
     await settle();
     expect(board().item(p.id)).toMatchObject({ state: 'proposal', title: 'CSV- und Excel-Export' });
     expect(board().item(p.id)!.proposal?.acceptAfterRevision).toBeUndefined();
-    expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'state', text: 'Nicht übernommen: Der Vorschlag hat noch eine Frage.' });
+    expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'state', text: 'Not accepted: the proposal still has a question.' });
 
     project.revisions.revise(p.id, 'UTF-8', false);
     project.act(p.id, { action: 'accept' });
     reviser()!.emit({ type: 'idle' });
     await settle();
     expect(board().item(p.id)!.state).toBe('proposal');
-    expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'state', text: 'Nicht übernommen: Die Überarbeitung kam nicht zustande.' });
+    expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'state', text: 'Not accepted: the revision did not come.' });
 
     project.revisions.revise(p.id, 'UTF-8', false);
     project.act(p.id, { action: 'accept' });
     project.act(p.id, { action: 'unaccept' });
-    expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Doch nicht übernehmen.' });
+    expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Not accepting it after all.' });
     reviser()!.call('revise_proposal', { title: 'CSV-Export', task: 'UTF-8.', questions: [] });
     reviser()!.emit({ type: 'idle' });
     await settle();
@@ -275,7 +275,7 @@ describe('a proposal reworked by what the owner says', () => {
     const p = board().propose(from.id, { title: 'Exportformate', task: 'Welche Formate brauchen Vermieter?', idea: true, questions: [] });
     project.revisions.revise(p.id, 'Auch an Excel denken', false);
     project.act(p.id, { action: 'accept' });
-    expect(board().events(p.id).at(-1)!.text).toStartWith('Übernehmen und besprechen, sobald');
+    expect(board().events(p.id).at(-1)!.text).toStartWith('Accept and discuss once');
     reviser()!.call('revise_proposal', { title: 'Exportformate', task: 'Welche Formate, auch Excel?', idea: true, questions: [] });
     reviser()!.emit({ type: 'idle' });
     await settle();
@@ -288,7 +288,7 @@ describe('a proposal reworked by what the owner says', () => {
     project.revisions.revise(p.id, 'Auch an Excel denken', false);
     project.act(p.id, { action: 'accept', start: false, idea: true });
     expect(board().item(p.id)!.proposal?.acceptAfterRevision).toBe('idea');
-    expect(board().events(p.id).at(-1)!.text).toStartWith('Ideate, sobald');
+    expect(board().events(p.id).at(-1)!.text).toStartWith('Ideate once');
     reviser()!.call('revise_proposal', { title: 'Exportformate', task: 'PDF- und Excel-Export bauen.', questions: [] });
     reviser()!.emit({ type: 'idle' });
     await settle();
@@ -318,7 +318,7 @@ describe('a proposal reworked by what the owner says', () => {
     expect(item.title).toBe('CSV-Export prüfen');
     expect(item.proposal?.revising).toBeUndefined();
     expect(item.proposal?.questions).toHaveLength(1);
-    expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'error', text: expect.stringContaining('Überarbeiten ging nicht') });
+    expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'error', text: expect.stringContaining('Revising did not work') });
   });
 
   test('a reviser the usage limit stops waits on the proposal and reworks it once the limit lifts', async () => {
@@ -381,7 +381,7 @@ describe("screenshots in a proposal's conversation", () => {
     await settle();
     expect(board().item(p.id)!.images).toEqual([a]);
     // what goes with it changed, so the proposal reads otherwise
-    expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'state', text: 'Vorschlag überarbeitet.' });
+    expect(board().events(p.id).at(-1)).toMatchObject({ kind: 'state', text: 'Proposal revised.' });
     project.act(p.id, { action: 'accept', start: false });
     expect(board().item(p.id)).toMatchObject({ state: 'planned', images: [a] });
   });

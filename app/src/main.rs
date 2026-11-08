@@ -14,7 +14,7 @@
 //   src/server/owner.ts); the window signs in through a link the shell asks the server for
 //   (`POST /api/login-link`).
 // - Links to anything but the project, and new windows, open in the default browser; so does
-//   "Im Browser öffnen" (the page offers it when it finds `window.obeyaApp`, the macOS menu too),
+//   "Open in Browser" (the page offers it when it finds `window.obeyaApp`, the macOS menu too),
 //   through a link that signs that one browser in.
 // - The page gets the microphone without asking (it records only while Space or the mic button is
 //   held); the system asks once for the app. WebKitGTK has media streams off until turned on here.
@@ -136,15 +136,6 @@ pub(crate) fn bun() -> std::ffi::OsString {
   seismic_env("BUN")
     .or_else(|| option_env!("SEISMIC_BUILT_BUN").or(option_env!("OBEYA_BUILT_BUN")).filter(|b| Path::new(b).exists()).map(Into::into))
     .unwrap_or_else(|| "bun".into())
-}
-
-/// The owner's language, for what the shell itself says.
-fn german() -> bool {
-  sys_locale::get_locale().is_some_and(|l| l.starts_with("de"))
-}
-
-fn say(de: &str, en: &str) -> String {
-  if german() { de } else { en }.to_string()
 }
 
 /// A request to the server; its status code, or none when it does not answer.
@@ -402,10 +393,7 @@ fn start(app: &AppHandle, obeya: &Seismic, updates: &update::Updates, home: &Pat
   let Some(log) = log_file(home) else {
     fail(
       app,
-      say(
-        &format!("Seismic kann nicht in {} schreiben.", home.display()),
-        &format!("Seismic cannot write to {}.", home.display()),
-      ),
+      format!("Seismic cannot write to {}.", home.display()),
     );
     return Started::Ended;
   };
@@ -415,7 +403,7 @@ fn start(app: &AppHandle, obeya: &Seismic, updates: &update::Updates, home: &Pat
     Err(e) => {
       fail(
         app,
-        say(&format!("Seismic ließ sich nicht starten: {e}"), &format!("Seismic could not be started: {e}")),
+        format!("Seismic could not be started: {e}"),
       );
       return Started::Ended;
     }
@@ -432,10 +420,7 @@ fn start(app: &AppHandle, obeya: &Seismic, updates: &update::Updates, home: &Pat
     if started.elapsed() > START_PATIENCE {
       fail(
         app,
-        say(
-          &format!("Seismic antwortet nicht.\n\n{}", tail(&log.1)),
-          &format!("Seismic does not answer.\n\n{}", tail(&log.1)),
-        ),
+        format!("Seismic does not answer.\n\n{}", tail(&log.1)),
       );
       return Started::Ended;
     }
@@ -453,10 +438,7 @@ fn start(app: &AppHandle, obeya: &Seismic, updates: &update::Updates, home: &Pat
 }
 
 fn ended(status: std::process::ExitStatus, log: &Path) -> String {
-  say(
-    &format!("Seismic hat sich beendet ({status}).\n\n{}", tail(log)),
-    &format!("Seismic ended ({status}).\n\n{}", tail(log)),
-  )
+  format!("Seismic ended ({status}).\n\n{}", tail(log))
 }
 
 /// An Seismic the shell did not start in this run (an earlier run of the app did, or a terminal): the
@@ -745,7 +727,7 @@ fn window(app: &AppHandle, obeya: Arc<Seismic>, placed: Option<&Placed>) -> taur
 
 fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
   let menu = Menu::default(app)?;
-  let browser = MenuItem::with_id(app, "browser", say("Im Browser öffnen", "Open in Browser"), true, Some("CmdOrCtrl+Shift+B"))?;
+  let browser = MenuItem::with_id(app, "browser", "Open in Browser", true, Some("CmdOrCtrl+Shift+B"))?;
   let items = menu.items()?;
   // the default menu's File menu, after the app's own
   if let Some(MenuItemKind::Submenu(file)) = items.get(1) {
@@ -756,7 +738,7 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
   if let Some(MenuItemKind::Submenu(own)) = items.first() {
     let n = own.items()?.len();
     own.remove_at(n - 1)?;
-    own.append(&MenuItem::with_id(app, "quit", say("Seismic beenden", "Quit Seismic"), true, Some("CmdOrCtrl+Q"))?)?;
+    own.append(&MenuItem::with_id(app, "quit", "Quit Seismic", true, Some("CmdOrCtrl+Q"))?)?;
   }
   Ok(menu)
 }

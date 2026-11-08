@@ -53,7 +53,7 @@ afterEach(() => {
 const hold = (idleMs = 60_000, limits: { loadMs?: number; sentenceMs?: number } = {}) =>
   (host = new NarrationHost({ argv: (voice, language) => ['bun', join(dir, 'voice.ts'), join(dir, 'log'), voice.speaker ?? voice.reference ?? '', language], idleMs, ...limits }));
 const log = () => (existsSync(join(dir, 'log')) ? readFileSync(join(dir, 'log'), 'utf8').trim().split('\n') : []);
-const clip = (text: string, speaker = 'ryan', language: ClipRequest['language'] = 'de'): ClipRequest => ({ voice: { speaker }, text, out: join(dir, `${text}.wav`), language });
+const clip = (text: string, speaker = 'ryan', language: ClipRequest['language'] = 'en'): ClipRequest => ({ voice: { speaker }, text, out: join(dir, `${text}.wav`), language });
 const until = async (done: () => boolean) => {
   for (let i = 0; i < 100 && !done(); i++) await Bun.sleep(50);
 };
@@ -69,7 +69,7 @@ describe('the voice Seismic holds', () => {
     };
     const [a, b] = await Promise.all([render('a'), render('b')]);
     expect([...a, ...b]).toEqual(Array(6).fill({ ok: true, seconds: 0.01 }));
-    expect(log()).toEqual(['start ryan', 'de:a1', 'de:b1', 'de:a2', 'de:b2', 'de:a3', 'de:b3']);
+    expect(log()).toEqual(['start ryan', 'en:a1', 'en:b1', 'en:a2', 'en:b2', 'en:a3', 'en:b3']);
     expect(existsSync(join(dir, 'b3.wav'))).toBe(true);
   });
 
@@ -78,11 +78,11 @@ describe('the voice Seismic holds', () => {
     await host.clip(clip('eins'));
     await Bun.sleep(100);
     await host.clip(clip('zwei'));
-    expect(log()).toEqual(['start ryan', 'de:eins', 'de:zwei']);
+    expect(log()).toEqual(['start ryan', 'en:eins', 'en:zwei']);
     await until(() => log().includes('end ryan'));
     expect(host.loaded).toBe(false);
     await host.clip(clip('drei'));
-    expect(log()).toEqual(['start ryan', 'de:eins', 'de:zwei', 'end ryan', 'start ryan', 'de:drei']);
+    expect(log()).toEqual(['start ryan', 'en:eins', 'en:zwei', 'end ryan', 'start ryan', 'en:drei']);
   });
 
   test('gives the voice the script as written, and passes on what it heard', async () => {
@@ -97,7 +97,7 @@ describe('the voice Seismic holds', () => {
     await host.clip(clip('zwei', 'vivian'));
     await until(() => log().includes('end ryan'));
     // the first ends as the second loads: their lines interleave
-    expect(log().toSorted()).toEqual(['de:eins', 'de:zwei', 'end ryan', 'start ryan', 'start vivian']);
+    expect(log().toSorted()).toEqual(['en:eins', 'en:zwei', 'end ryan', 'start ryan', 'start vivian']);
     expect(log().filter((l) => l.startsWith('start'))).toEqual(['start ryan', 'start vivian']);
   });
 
@@ -112,8 +112,8 @@ describe('the voice Seismic holds', () => {
 });
 
 describe('a voice that stops answering', () => {
-  test('fails its clip after a while, and the sample in another language and the renders behind it get their turn', async () => {
-    // 2026-10-21: the English voice gave no answer to a clip; the configuration sheet's German
+  test('fails its clip after a while, and the sample and the renders behind it get their turn', async () => {
+    // 2026-10-21: the English voice gave no answer to a clip; the configuration sheet's
     // sample and every render waited behind it without end
     hold(60_000, { sentenceMs: 400 });
     const replies: string[] = [];
@@ -126,13 +126,13 @@ describe('a voice that stops answering', () => {
     const a = render('a', ['a1 hängt', 'a2']);
     const b = render('b', ['b1', 'b2']);
     await until(() => log().includes('start ryan'));
-    const sample = host.clip(clip('Probe', 'ryan', 'de'));
+    const sample = host.clip(clip('Probe', 'ryan', 'en'));
     await Promise.all([a, b, sample]);
     expect(await sample).toEqual({ ok: true, seconds: 0.01 });
     expect(replies[0]).toMatch(/^a:a1 hängt the voice said nothing for 0.4 s while making a clip and was ended: .*generating a1 hängt/s);
     expect(replies.slice(1)).toEqual(['b:b1 ok', 'a:a2 ok', 'b:b2 ok']);
-    // the stuck voice is gone: a new one took the next clip, another the sample (German), a third the renders again
-    expect(log().filter((l) => !l.startsWith('end'))).toEqual(['start ryan', 'start ryan', 'en:b1', 'start ryan', 'de:Probe', 'start ryan', 'en:a2', 'en:b2']);
+    // the stuck voice is gone: a new one took the next clip, the sample and the renders went on with it
+    expect(log().filter((l) => !l.startsWith('end'))).toEqual(['start ryan', 'start ryan', 'en:b1', 'en:Probe', 'en:a2', 'en:b2']);
   });
 
   test('loading for too long fails the clip, and the next clip starts the voice anew', async () => {
@@ -146,7 +146,7 @@ describe('a voice that stops answering', () => {
     hold(60_000, { sentenceMs: 300 });
     // four sentences at 150 ms each: longer than the limit, but never silent for it
     expect(await host.clip(clip('Eins. Zwei. Drei. Vier.'))).toEqual({ ok: true, seconds: 0.01 });
-    expect(log()).toEqual(['start ryan', 'de:Eins. Zwei. Drei. Vier.']);
+    expect(log()).toEqual(['start ryan', 'en:Eins. Zwei. Drei. Vier.']);
   });
 });
 
@@ -162,7 +162,7 @@ describe('a clip over HTTP', () => {
       // a page elsewhere can send text/plain without asking first
       expect((await post(clip('zwei'), 'text/plain')).status).toBe(415);
       expect((await post({ ...clip('zwei'), out: 'relativ.wav' })).status).toBe(400);
-      expect(log()).toEqual(['start ryan', 'de:eins']);
+      expect(log()).toEqual(['start ryan', 'en:eins']);
     } finally {
       server.stop(true);
     }

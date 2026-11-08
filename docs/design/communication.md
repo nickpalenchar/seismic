@@ -264,7 +264,7 @@ the question for restart. Native user-input requests must use Seismic's `ask`.
 
 A worker answers a note or feedback with `reply`, saying what it changes or why nothing, and asks if
 the note is unclear. The closing words of a turn in which it replied mostly repeat the reply (often
-in English on a German project), so they fold under it as its last step, together with any steps in
+in another language than the project's), so they fold under it as its last step, together with any steps in
 between; closing words after a handover are left out. Words followed by a further step stay its
 words.
 
@@ -352,7 +352,7 @@ as a learned preference does. Older answers agents gave in the owner's name stay
   cut in, some 35 times a day, Seismic knew nothing of the reminders, and a night without network
   turned the midnight check into a stuck question); the agent only proposing a snooze for the owner
   to click (a click per checkpoint, while a snooze is undone with one); hiding only the restart
-  noise; conditions besides a time or a card's state. German wording follows Gmail's
+  noise; conditions besides a time or a card's state. The wording follows Gmail's
   "Snooze", which owners know.
 - **A worker can snooze its card on its handover** (2026-11-02), when the owner's words on it ask
   for a later look ("Check again in three days"). Rejected: refusing it (the worker made a

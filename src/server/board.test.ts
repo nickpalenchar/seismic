@@ -315,7 +315,7 @@ describe('plan docs', () => {
     board.docsChanged();
     expect(board.item(w2.id)).toMatchObject({ state: 'planned', landedPart: { pr: { url: 'https://github.com/acme/app/pull/821', number: 821 } } });
     expect(board.item(w2.id)!.pr).toBeUndefined();
-    expect(board.events(w2.id).map((e) => e.text)).toEqual(['Teil gelandet, im Plan-Doc weiter offen.']);
+    expect(board.events(w2.id).map((e) => e.text)).toEqual(['Part landed; the plan doc keeps it open.']);
     expect(board.item(w3.id)!.state).toBe('done');
     // reading again changes nothing more
     board.docsChanged();
@@ -338,7 +338,7 @@ describe('the note on the plan directory', () => {
     dirs = [{ repo: 'home', dir: 'docs/plan', others: [{ file: 'docs/plan/rollout.md', reason: 'noWorkstreams' }, { file: 'docs/plan/rfc.md', reason: 'noChecklist' }] }];
     board.docsChanged();
     expect(board.snapshot().planDirs).toEqual([{ repo: 'home', dir: 'docs/plan', empty: false, others: dirs[0]!.others }]);
-    const card = board.create({ title: 'rollout.md als Plan aufbereiten', x: 0, y: 0 });
+    const card = board.create({ title: 'Prepare rollout.md as a plan', x: 0, y: 0 });
     expect(board.snapshot().planDirs![0]!.others[0]).toEqual({ file: 'docs/plan/rollout.md', reason: 'noWorkstreams', preparing: card.id });
     // finished, it prepares nothing any more: the doc is a plan once its change has landed
     board.work(card.id, { state: 'done' });
@@ -465,7 +465,7 @@ describe('the archive of plans', () => {
     board.workDone(idea.id);
     expect(board.item(idea.id)).toBeUndefined();
     expect(board.archived().find((i) => i.id === idea.id)).toMatchObject({ title: 'Idee B' });
-    expect(board.events(idea.id).at(-1)!.text).toContain('an der Stelle der Idee');
+    expect(board.events(idea.id).at(-1)!.text).toContain('in the idea’s place');
     // put back on the project, it stays
     board.unarchive(idea.id);
     board.docsChanged();
@@ -491,7 +491,7 @@ describe('the archive of plans', () => {
     board.docsChanged();
     expect(board.snapshot().items.find((i) => i.title === 'B')).toMatchObject({ origin: task.id, x: 900, y: 40 });
     expect(board.item(task.id)).toBeUndefined();
-    expect(board.events(task.id).at(-1)!.text).toBe('Der Plan steht jetzt an der Stelle der Aufgabe; die Aufgabe liegt im Archiv.');
+    expect(board.events(task.id).at(-1)!.text).toBe('The plan now stands in the task’s place; the task is in the archive.');
   });
 });
 

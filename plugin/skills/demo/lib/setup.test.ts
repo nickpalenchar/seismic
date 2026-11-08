@@ -54,7 +54,7 @@ describe('demo setup', () => {
   });
 
   test('finds nothing on an empty PATH, and says how to install each', async () => {
-    const check = await checkSetup({ language: 'de', voice: 'piper' }, { env: { PATH: join(dir, 'none'), HOME: dir, DEMO_CHROME: join(dir, 'no-chrome') }, home: dir });
+    const check = await checkSetup({ language: 'en', voice: 'piper' }, { env: { PATH: join(dir, 'none'), HOME: dir, DEMO_CHROME: join(dir, 'no-chrome') }, home: dir });
     const by = Object.fromEntries(check.items.map((i) => [i.id, i]));
     for (const id of ['node', 'ffmpeg', 'uv', 'browser', 'voice'] as const) {
       expect(by[id]?.state).toBe('missing');
@@ -68,7 +68,7 @@ describe('demo setup', () => {
   test('a voice Seismic holds on its own machine counts as there for a worker on another one', async () => {
     const env = { PATH: join(dir, 'none'), HOME: dir, DEMO_CHROME: join(dir, 'no-chrome') };
     const voice = async (more: Record<string, string>, voice: 'qwen3' | 'piper' = 'qwen3') =>
-      (await checkSetup({ language: 'de', voice }, { env: { ...env, ...more }, home: dir, narrationOnly: true })).items.find((i) => i.id === 'voice');
+      (await checkSetup({ language: 'en', voice }, { env: { ...env, ...more }, home: dir, narrationOnly: true })).items.find((i) => i.id === 'voice');
     expect((await voice({}))?.state).toBe('missing');
     expect(await voice({ OBEYA_HOLDS_VOICE: '1', SEISMIC_URL: 'http://127.0.0.1:41234' })).toMatchObject({ state: 'ok', found: 'qwen3 (held by Seismic)' });
     // Piper is not held: it runs with each render
@@ -77,7 +77,7 @@ describe('demo setup', () => {
 
   test.skipIf(process.platform === 'win32')('takes an old Node and an ffmpeg without libx264 as missing', async () => {
     const env = fakePath({ node: 'v20.11.0', ffmpeg: 'ffmpeg version 6.1 Copyright\n V..... libopenh264', uv: 'uv 0.8.0 (abc)' });
-    const check = await checkSetup({ language: 'de', voice: 'say' }, { env, home: dir, narrationOnly: true });
+    const check = await checkSetup({ language: 'en', voice: 'say' }, { env, home: dir, narrationOnly: true });
     expect(check.items.map((i) => i.id)).toEqual(['node', 'ffmpeg', 'uv', 'voice']);
     const by = Object.fromEntries(check.items.map((i) => [i.id, i]));
     expect(by.node).toMatchObject({ state: 'missing', found: 'v20.11.0', need: '>= 22.18' });
@@ -88,7 +88,7 @@ describe('demo setup', () => {
 
   test.skipIf(process.platform === 'win32')('takes a current Node and an ffmpeg with libx264', async () => {
     const env = fakePath({ node: 'v24.1.0', ffmpeg: 'ffmpeg version 7.1 Copyright\n V....D libx264  H.264', uv: 'uv 0.8.0' });
-    const check = await checkSetup({ language: 'de', voice: 'say' }, { env, home: dir, narrationOnly: true });
+    const check = await checkSetup({ language: 'en', voice: 'say' }, { env, home: dir, narrationOnly: true });
     expect(check.items.filter((i) => i.state === 'missing')).toEqual([]);
   });
 

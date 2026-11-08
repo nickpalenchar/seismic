@@ -247,7 +247,7 @@ the log names the file. It packs the version shown, one per file. Captions go in
 since Chrome loads no `<track>` from disk. The ZIP is stored uncompressed.
 
 The page is the site's, without the overview link. Its own words are in the demo's language (the one
-its `index.html` names, else the demo settings' narration language, else German). Its video waits
+its `index.html` names, else the demo settings' narration language, else English). Its video waits
 under a big play button; a click anywhere on it but the controls starts it. No autoplay: browsers
 play sound only after a click on the page, and the owner did not want it muted.
 

@@ -87,10 +87,10 @@ clone takes none: it continues its clip, so the sheet hides the style field for 
 speaker such as Founder, or a voice sample set for the narration language) and says so in a note. The style is part of the voice, so another one makes the
 clips anew and is another voice for Seismic to hold.
 
-English terms in German narration ("Branch", "Feature", "Project") are respelt for the voices that
+English terms in narration of another language than English ("Branch", "Feature", "Project") are respelt for the voices that
 read every word by the narration language's rules: Piper (through espeak-ng, which made "Feature"
-*fe-a-tu-re*) and `say`. The spoken form comes from a lexicon per language shipped with the skill
-("Bräntsch", "Fietscher", "Kännwes", with inflected forms) and from a mark in the script,
+*fe-a-tu-re*) and `say`. The spoken form comes from a lexicon per language shipped with the skill (none while German support is removed, 2026-11-07;
+the German one held "Bräntsch", "Fietscher", "Kännwes", with inflected forms) and from a mark in the script,
 `{Project|Kännwes}`, which wins. Whole words are replaced, longest first, before the clip cache is
 keyed on the spoken text, so a lexicon change re-synthesises only the clips it touches; captions
 show the written form. Other voices get the written form: Qwen3 sounded too German respelt, and the

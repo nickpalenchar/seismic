@@ -73,7 +73,7 @@ export interface DemoSettings {
   artifacts?: HandoverArtifact[];
 }
 
-export const DEFAULT_DEMO_SETTINGS: DemoSettings = { language: 'de', voice: 'piper' };
+export const DEFAULT_DEMO_SETTINGS: DemoSettings = { language: 'en', voice: 'piper' };
 export const DEMO_SETTINGS_FILE = 'demo.json';
 export const DEFAULT_DEMO_DIRECTORY = '~/demos';
 

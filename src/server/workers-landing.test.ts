@@ -50,7 +50,7 @@ describe('landing through a pull request', () => {
     expect(board.item(c.id)!.pr).toBeUndefined();
     expect(board.item(c.id)!.finishing).toBe(true);
     expect(s.inbox.at(-1)).toContain('nothing lands and there is no pull request: the card is done');
-    expect(board.events(c.id).at(-1)!.text).toContain('erledigt');
+    expect(board.events(c.id).at(-1)!.text).toContain('done');
     // a question while it finishes, answered, returns the card to done, not live
     s.call('ask', { question: 'Stack stoppen?' });
     s.emit({ type: 'idle' });
@@ -86,7 +86,7 @@ describe('landing through a pull request', () => {
     expect(await s.call('close_unchanged', {})).toContain('the card is done');
     expect(state(c.id)).toBe('done');
     expect(board.item(c.id)!.pr).toBeUndefined();
-    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'worker', text: 'Ohne Änderung am Code abgeschlossen: erledigt.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'worker', text: 'Finished without a change to the code: done.' });
     s.emit({ type: 'idle' });
     expect(s.closed).toBe(true);
     expect(board.row(c.id).workstation).toBeNull();
@@ -227,7 +227,7 @@ describe('approving directly onto main where work goes out as a pull request', (
     expect(board.item(c.id)!.pr).toBeUndefined();
     expect(git(origin, 'log', '--format=%s', 'main').split('\n')).toEqual(['X', 'init']);
     expect(git(main, 'log', '--format=%s', '-1')).toBe('init');
-    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'owner', text: 'Freigegeben und direkt auf main gepusht.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'owner', text: 'Approved and pushed straight to main.' });
     expect(session.inbox.at(-1)).toContain('Seismic pushed it there without a pull request');
     expect(merged).toEqual([c.id]);
     // the worker may finish what remains; then its clone is free again
@@ -269,11 +269,11 @@ describe('approving directly onto main where work goes out as a pull request', (
     git(clone, 'reset', '--quiet', '--hard', 'origin/main');
     commitIn(clone, 'same.ts', 'A nach B');
     await session.call('ready_for_review', { summary: 'S', demo: artifact() });
-    expect(board.item(c.id)!.statusLine).toBe('Landet auf main');
+    expect(board.item(c.id)!.statusLine).toBe('Landing on main');
     session.emit({ type: 'idle' });
     await until(() => state(c.id) === 'live');
     expect(git(origin, 'log', '--format=%s', 'main').split('\n')).toEqual(['A nach B', 'B', 'init']);
-    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'obeya', text: 'Nach der Freigabe direkt auf main gepusht.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'obeya', text: 'Pushed straight to main after the approval.' });
     expect(board.item(c.id)!.pr).toBeUndefined();
   });
 
@@ -327,7 +327,7 @@ describe('approving directly onto main where work goes out as a pull request', (
 
 describe('the landed commit names the demo’s page', () => {
   const PAGE = 'Demo-Video: https://demos.example.dev/zahlerstande-exportieren-1/';
-  /** The cards approved, as the demo site heard of them; a card titled „Ohne Seite“ has no page. */
+  /** The cards approved, as the demo site heard of them; a card titled “Ohne Seite” has no page. */
   let approvals: string[];
   /** The cards whose work landed without a pull request, with what they shipped then, as the demo site heard of them. */
   let landings: [string, string | null][];
@@ -752,9 +752,9 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
     const commit = git(main, 'rev-parse', 'HEAD');
     expect(state(w.id)).toBe('planned');
     expect(w1().landedPart).toEqual({ commit });
-    expect(board.events(w.id).at(-1)).toMatchObject({ author: 'obeya', text: 'Teil gelandet, im Plan-Doc weiter offen.' });
+    expect(board.events(w.id).at(-1)).toMatchObject({ author: 'obeya', text: 'Part landed; the plan doc keeps it open.' });
     // the handover stays in the log, the summary with it
-    expect(board.events(w.id).some((e) => e.text.includes('Freigegeben'))).toBe(true);
+    expect(board.events(w.id).some((e) => e.text.includes('Approved'))).toBe(true);
 
     await workers.start(w.id);
     expect(state(w.id)).toBe('working');
@@ -853,7 +853,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     expect(spaces.leasedBy(w.id)).toBeNull();
     expect(board.row(w.id).workstation).toBeNull();
     expect(state(w.id)).toBe('live');
-    expect(board.events(w.id).at(-1)!.text).toBe('Im Plan-Doc abgehakt: Workstation freigegeben.');
+    expect(board.events(w.id).at(-1)!.text).toBe('Ticked off in the plan doc: workstation freed.');
     expect(git(clone, 'branch', '--list', branch)).toContain(branch);
     expect(spaces.leasable()).toBe(true);
   });
@@ -918,7 +918,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     await flush();
     expect(spaces.leasedBy(w.id)).toBeNull();
     expect(board.row(w.id).workstation).toBeNull();
-    expect(board.events(w.id).at(-1)!.text).toBe('Nicht mehr im Plan-Doc auf dem Hauptbranch: Workstation freigegeben.');
+    expect(board.events(w.id).at(-1)!.text).toBe('No longer in the plan doc on the default branch: workstation freed.');
     expect(git(clone, 'branch', '--list', branch)).toContain(branch);
     expect(spaces.leasable()).toBe(true);
   });
@@ -1060,7 +1060,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     await flush();
     expect(stopped(board.item(w.id)!)).toBe(true);
     expect(spaces.leasedBy(w.id)).toBe(clone);
-    expect(board.events(w.id).map((e) => e.text)).not.toContain('Im Plan-Doc abgehakt: Workstation freigegeben.');
+    expect(board.events(w.id).map((e) => e.text)).not.toContain('Ticked off in the plan doc: workstation freed.');
     // its plan, every box ticked, stays on the project with it
     expect(board.item(w.parent!)).toBeDefined();
     // started again, its work lands, and the box counts: the plan ends once its worker is done

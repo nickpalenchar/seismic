@@ -29,8 +29,8 @@ export interface Workstream {
   inReview: boolean;
 }
 
-const GOAL_HEADING = /^(goals?|ziele?)\b/i;
-const WORKSTREAMS_HEADING = /^(workstreams?|arbeitspakete)\b/i;
+const GOAL_HEADING = /^goals?\b/i;
+const WORKSTREAMS_HEADING = /^workstreams?\b/i;
 const ITEM = /^- \[([ xX])\]\s+(.*)$/;
 // `W3`, `W3a`, `W1.2`, `WP`, and the short codes other docs use (`S1:`, `A1 —`, `1G.`)
 const CODE = String.raw`(?:[A-Z]{1,3}\d+[a-z]?(?:\.\d+)?|\d+[A-Z])`;

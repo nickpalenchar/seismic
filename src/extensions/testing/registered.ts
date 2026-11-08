@@ -12,14 +12,14 @@ const picked: unknown[] = [];
 (serverExtensions as ServerExtension[]).splice(0);
 (clientExtensions as ClientExtension[]).splice(0);
 (clientExtensions as ClientExtension[]).push({
-  strings: { en: { exampleExtension: { label: 'Hello' } }, de: { exampleExtension: { label: 'Hallo' } } },
+  strings: { en: { exampleExtension: { label: 'Hello' } } },
 });
 (serverExtensions as ServerExtension[]).push({
   settings: { example: z.string().optional() },
   routes: { '/api/extension-example': { GET: (_request, context) => Response.json({ settings: context.settings('project', 'repo') }) } },
   event: (event) => { events.push(event); },
   permission: {
-    options: (request, context) => request.name === 'Bash' && context.landsOnMain ? [{ label: { en: 'Example', de: 'Beispiel' }, note: { en: 'Example note', de: 'Beispielnotiz' }, data: { rule: request.input.command } }] : [],
+    options: (request, context) => request.name === 'Bash' && context.landsOnMain ? [{ label: { en: 'Example' }, note: { en: 'Example note' }, data: { rule: request.input.command } }] : [],
     picked: (data, context) => {
       picked.push([data, context.harness, context.settings]);
       context.log('Example picked');
@@ -34,7 +34,7 @@ assert.deepEqual(checkShared({ example: 'value' }), { settings: { example: 'valu
 assert.equal(checkShared({ example: 3 }).problems.length, 1);
 assert.equal((withSettings(generic, () => ({ land: 'main', example: 'value' })) as unknown as Record<string, unknown>).example, 'value');
 const strings = await import('../../ui/strings');
-for (const [language, expected] of [['en', 'Hello'], ['de', 'Hallo']] as const) {
+for (const [language, expected] of [['en', 'Hello']] as const) {
   strings.setLanguage(language, []);
   assert.equal((strings.t as unknown as { exampleExtension: { label: string } }).exampleExtension.label, expected);
 }
@@ -89,8 +89,8 @@ try {
   const permitted = fixture.runtime.last.spec.askOwner!({ name: 'Bash', input: { command: 'make' } }, new AbortController().signal);
   await fixture.flush();
   const question = fixture.board.item(card.id)!.question!;
-  assert.deepEqual(question.options, ['Erlauben', 'Beispiel', 'Ablehnen']);
-  assert.ok(question.text.endsWith('\n\nBeispielnotiz'));
+  assert.deepEqual(question.options, ['Allow', 'Example', 'Deny']);
+  assert.ok(question.text.endsWith('\n\nExample note'));
   fixture.workers.answer(card.id, 'Example');
   assert.deepEqual(await permitted, { allow: true, permissions: [{ type: 'setMode', mode: 'acceptEdits', destination: 'session' }] });
   assert.deepEqual(picked, [[{ rule: 'make' }, 'claude', { example: 'worker value' }]]);

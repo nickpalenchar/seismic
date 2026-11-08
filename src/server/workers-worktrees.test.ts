@@ -69,7 +69,7 @@ describe('a worktree per card', () => {
     writeFileSync(join(main, '.git/hooks/post-checkout'), '#!/bin/sh\nsleep 0.3\n', { mode: 0o755 });
     const c = manual();
     const started = workers.start(c.id);
-    expect(board.item(c.id)).toMatchObject({ state: 'working', statusLine: 'Bereitet die Workstation vor …' });
+    expect(board.item(c.id)).toMatchObject({ state: 'working', statusLine: 'Preparing the workstation …' });
     // it holds a slot, and a restart waits for it
     expect(workers.inTurn()).toEqual([c.id]);
     expect(workers.busyCards()).toEqual([c.id]);
@@ -377,13 +377,13 @@ describe('a worktree per card', () => {
     expect(sb.inbox.at(-1)).toContain('Seismic is about to restart (new code landed on main)');
     expect(sb.inbox.at(-1)).toContain('leave the work it asks for until Seismic resumes you, and end your turn, without handing over');
     expect(sb.inbox.at(-1)).not.toContain('finish the step you are in');
-    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: 'Seismic wartet auf einen Neustart; der Agent macht danach weiter.' });
+    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: 'Seismic waits to restart; the agent goes on after the restart.' });
     // it ends the turn at once: paused, the approval still held for the handover after the restart
     sb.emit({ type: 'idle' });
     expect(workers.busyCards()).not.toContain(b.id);
     expect(state(b.id)).toBe('working');
     expect(board.row(b.id).approved_at).toBeTruthy();
-    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Seismic.' });
+    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', text: 'Paused until Seismic has restarted.' });
     // the card shows it paused for the restart, while that is due
     expect(board.item(b.id)).toMatchObject({ restartPaused: true });
     expect(board.item(b.id)!.inTurn).toBeUndefined();
@@ -425,7 +425,7 @@ describe('a worktree per card', () => {
     sb.emit({ type: 'idle' });
     await until(() => state(b.id) === 'live');
     expect(git(main, 'show', 'HEAD:same.ts')).toBe('A and B');
-    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: 'Nach der Freigabe auf main gelandet.' });
+    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: 'Landed on main after the approval.' });
     expect(board.row(b.id).approved_at).toBeNull();
   });
 
@@ -474,7 +474,7 @@ describe('a worktree per card', () => {
     expect(git(main, 'branch', '--show-current')).toBe('main');
     expect(git(main, 'log', '--format=%s', '-1')).toBe('C');
     expect(git(main, 'log', '--format=%s', '-1', 'foundation')).toBe('Stray');
-    expect(board.events(c.id).map((e) => e.text)).toContain('Der Seismic-Checkout stand auf dem Branch foundation. Seismic hat ihn zum Landen auf main gewechselt; foundation bleibt, wie er war.');
+    expect(board.events(c.id).map((e) => e.text)).toContain('The Seismic checkout was on the branch foundation. Seismic switched it to main to land the work; foundation stays as it was.');
     expect(sc.inbox.at(-1)).toContain('The Seismic checkout was on the branch foundation, not on main: Seismic switched it to main to land your work. foundation has a commit main does not');
   });
 
@@ -683,7 +683,7 @@ describe('a worktree per card', () => {
     expect(f.closed).toBe(true);
     await until(() => !existsSync(tree));
     expect(board.row(c.id).workstation).toBeNull();
-    expect(board.item(c.id)).toMatchObject({ state: 'live', finishing: true, followUp: true, waitsForClone: true, statusLine: 'Wartet auf Workstation' });
+    expect(board.item(c.id)).toMatchObject({ state: 'live', finishing: true, followUp: true, waitsForClone: true, statusLine: 'Waiting for a workstation' });
     // the owner's words meanwhile wait for it
     workers.message(c.id, 'Und die Untertitel?');
     expect(runtime.last).toBe(f);
@@ -863,7 +863,7 @@ describe('a worktree per card', () => {
       s.emit({ type: 'idle' });
     }
     expect(state(c.id)).toBe('waiting:question');
-    s.emit({ type: 'text', text: 'Weiter.' });
+    s.emit({ type: 'text', text: 'Resumed.' });
     expect(state(c.id)).toBe('live');
   });
 
@@ -973,7 +973,7 @@ describe('a worktree per card', () => {
     expect(s.closed).toBe(false);
     expect(workers.busyCards()).toEqual([]);
     expect(board.item(c.id)!.finishing).toBe(true);
-    expect(board.item(c.id)!.statusLine).toStartWith('Nutzungslimit · weiter um ');
+    expect(board.item(c.id)!.statusLine).toStartWith('Usage limit · continues at ');
     await Bun.sleep(60);
     expect(s.inbox).toHaveLength(sent + 1);
     expect(s.inbox.at(-1)).toContain('usage limit');

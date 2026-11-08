@@ -75,11 +75,8 @@ describe('the video timeline', () => {
   });
 
   test('the picture says how much later it is', () => {
-    expect(laterLabel(31.4, 'de')).toBe('31 Sekunden später');
-    expect(laterLabel(0.4, 'de')).toBe('eine Sekunde später');
-    expect(laterLabel(75, 'de')).toBe('eine Minute später');
-    expect(laterLabel(200, 'de')).toBe('3 Minuten später');
-    expect(laterLabel(12, 'en')).toBe('12 seconds later');
-    expect(laterLabel(130, 'en')).toBe('2 minutes later');
+    expect(laterLabel(0.4)).toBe('a second later');
+    expect(laterLabel(12)).toBe('12 seconds later');
+    expect(laterLabel(130)).toBe('2 minutes later');
   });
 });

@@ -74,7 +74,7 @@
 //
 // The stage file (JSON; every field but `cards` optional):
 //   {
-//     "name": "Shop", "projects": ["Website"], "language": "en", "conversation": "de",
+//     "name": "Shop", "projects": ["Website"], "language": "en", "conversation": "en",
 //     "clones": 2, "mainBranch": "master",
 //     "poolCheckout": true, "slots": 3,
 //     "hosts": [{ "name": "Workhorse", "ssh": "me@workhorse.local", "clones": 2, "slots": 2 }],
@@ -110,7 +110,7 @@
 //     "settingProposals": [{ "field": "run", "value": "bun run dev", "basis": "…", "cards": ["A", "B"] }],
 //     "talk": [{ "said": "…", "reply": "…", "ago": "2h", "card": "A", "answer": "…", "chat": 1 }]
 //   }
-// `language` is the language the scratch Seismic speaks (de or en); without it, the language of the
+// `language` is the language the scratch Seismic speaks (en); without it, the language of the
 // demos where the script runs (`plugin/skills/demo/lib/settings.ts`: `DEMO_LANGUAGE`, which Seismic
 // gives its workers from the repository's `demo.language`, else the demo settings'), so that the
 // screen a demo records matches its narration. Card titles and conversations are not translated:

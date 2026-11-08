@@ -101,7 +101,7 @@ export class Merges {
     });
     if (merged) return merged;
     if (error !== undefined) throw new Error(error);
-    throw new Error(this.o.board.language() === 'de' ? 'der Agent hat keinen zusammengeführten Text geliefert' : 'the agent gave no merged text');
+    throw new Error('the agent gave no merged text');
   }
 
   private message(card: Item, other: Item, preserve: boolean, summary: string): string {

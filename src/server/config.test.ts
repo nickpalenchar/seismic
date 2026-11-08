@@ -296,7 +296,7 @@ describe("Seismic's configuration", async () => {
   test("a file from before projects chose their demo site reads without a repository's site", async () => {
     const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'deploy {dir}' };
     mkdirSync(join(dir, 'home'));
-    writeFileSync(file, JSON.stringify([{ repos: [{ path: web, settings: { setup: 'x', demo: { site: { ...site, language: 'de' } } } }] }]));
+    writeFileSync(file, JSON.stringify([{ repos: [{ path: web, settings: { setup: 'x', demo: { site: { ...site, language: 'en' } } } }] }]));
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { setup: 'x' } }] }]);
     // so does a draft the dialog kept from before
     expect((await config('file', []).check([{ repos: [{ path: web, settings: { demo: { site } } }] }])).problems.map((p) => p.code)).not.toContain('invalid');
@@ -651,7 +651,7 @@ describe('the configuration over HTTP', () => {
 
   test('makes the card that fills in the settings of a repository, once while it is open', async () => {
     const made = await call('POST', '/api/c/web/adapter-setup', { repo: 'web' });
-    expect(made).toMatchObject({ status: 200, body: { title: 'Seismic für web einrichten', state: 'planned' } });
+    expect(made).toMatchObject({ status: 200, body: { title: 'Set up Seismic for web', state: 'planned' } });
     expect(made.body.body).toContain('obeya:settings');
     expect((await call('POST', '/api/c/web/adapter-setup', { repo: 'web' })).body.id).toBe(made.body.id);
     expect((await call('POST', '/api/c/web/adapter-setup', { repo: 'nope' })).status).toBe(400);
@@ -673,7 +673,7 @@ describe('the configuration over HTTP', () => {
 
   test('reads and saves the demo settings in its home, without a restart', async () => {
     // without a narration language of their own, demos speak the owner's
-    writeFileSync(join(dir, 'settings.json'), JSON.stringify({ language: 'de' }));
+    writeFileSync(join(dir, 'settings.json'), JSON.stringify({ language: 'en' }));
     const before = (await call('GET', '/api/demo-settings')).body as unknown as DemoSettingsView;
     expect(before).toMatchObject({ file: join(dir, 'demo.json'), settings: { language: 'en', voice: 'piper' }, check: { person: 'third', problems: [] } });
     expect(before.check.install).toMatchObject({ installed: false, missing: ['Piper', 'Piper voice en_US-ryan-high'] });
@@ -701,14 +701,14 @@ describe('the configuration over HTTP', () => {
     writeFileSync(clip, wav(0.2));
     const heard = await fetch(new URL('/api/demo-settings/sample', server.url), {
       method: 'POST',
-      body: JSON.stringify({ language: 'de', voice: 'command', command: `cat > ${JSON.stringify(join(dir, 'said.txt'))}; cp ${JSON.stringify(clip)} "$DEMO_WAV"` }),
+      body: JSON.stringify({ language: 'en', voice: 'command', command: `cat > ${JSON.stringify(join(dir, 'said.txt'))}; cp ${JSON.stringify(clip)} "$DEMO_WAV"` }),
     });
     expect(heard.headers.get('content-type')).toBe('audio/wav');
     expect((await heard.arrayBuffer()).byteLength).toBeGreaterThan(44);
-    expect(readFileSync(join(dir, 'said.txt'), 'utf8')).toContain('So klingt diese Stimme');
-    const refused = await call('POST', '/api/demo-settings/sample', { language: 'de', voice: 'command', command: 'echo kaputt >&2; exit 3' });
+    expect(readFileSync(join(dir, 'said.txt'), 'utf8')).toContain('This is how the voice sounds in a demo');
+    const refused = await call('POST', '/api/demo-settings/sample', { language: 'en', voice: 'command', command: 'echo broken >&2; exit 3' });
     expect(refused).toMatchObject({ status: 400, body: { code: 'voiceSample' } });
-    expect(String(refused.body.error)).toContain('kaputt');
+    expect(String(refused.body.error)).toContain('broken');
 
     // an own endpoint gets the text and the language as JSON, the key as a bearer token
     let asked: { auth: string | null; body: unknown } | undefined;
@@ -744,12 +744,12 @@ describe('the configuration over HTTP', () => {
     };
     try {
       const b = live.board;
-      const [a1, a2] = [b.create({ title: 'Login-Seite', x: 0, y: 0 }), b.create({ title: 'Warenkorb', x: 0, y: 0 })];
-      const run = b.proposeSetting({ repo: 'web', field: 'run', value: 'bun dev --port 4000; log in as demo@example.com', basis: 'Beide suchten den Start der App.', cards: [a1.id, a2.id] });
-      const checks = b.proposeSetting({ repo: 'web', field: 'checks', value: ['bun test', 'bun run typecheck'], basis: 'Beide vergaßen den Typcheck.', cards: [a1.id, a2.id] });
+      const [a1, a2] = [b.create({ title: 'Login page', x: 0, y: 0 }), b.create({ title: 'Shopping cart', x: 0, y: 0 })];
+      const run = b.proposeSetting({ repo: 'web', field: 'run', value: 'bun dev --port 4000; log in as demo@example.com', basis: 'Both looked for how to start the app.', cards: [a1.id, a2.id] });
+      const checks = b.proposeSetting({ repo: 'web', field: 'checks', value: ['bun test', 'bun run typecheck'], basis: 'Both forgot the type check.', cards: [a1.id, a2.id] });
       const setup = b.proposeSetting({ repo: 'web', field: 'setup', value: 'bun install', basis: '…', cards: [a1.id, a2.id] });
       expect(b.snapshot().settingProposals).toEqual([
-        { id: run, repo: 'web', field: 'run', value: 'bun dev --port 4000; log in as demo@example.com', basis: 'Beide suchten den Start der App.', cards: [{ id: a1.id, title: 'Login-Seite' }, { id: a2.id, title: 'Warenkorb' }], now: '' },
+        { id: run, repo: 'web', field: 'run', value: 'bun dev --port 4000; log in as demo@example.com', basis: 'Both looked for how to start the app.', cards: [{ id: a1.id, title: 'Login page' }, { id: a2.id, title: 'Shopping cart' }], now: '' },
         expect.objectContaining({ id: checks, now: ['bun test'] }),
         expect.objectContaining({ id: setup, now: '' }),
       ]);
@@ -760,12 +760,12 @@ describe('the configuration over HTTP', () => {
       // on this machine, in the owner's words
       expect((await post(`/api/c/web/setting-proposals/${run}/take`, { where: 'machine', value: ' bun dev --port 4100 ' })).status).toBe(200);
       expect(c.repoSettings(web)).toEqual({ checks: ['bun test'], app: { run: 'bun dev --port 4100' } });
-      expect(notices.at(-1)).toBe('„So läuft die App“ für web gilt jetzt auf diesem Rechner.');
+      expect(notices.at(-1)).toBe('“How to run the app” for web now applies on this machine.');
       // for everyone: committed on main, that value alone
       expect((await post(`/api/c/web/setting-proposals/${checks}/take`, { where: 'repository' })).body).toMatchObject({ branch: 'main' });
       expect(JSON.parse(git(web, 'show', 'main:.obeya/settings.json'))).toEqual({ checks: ['bun test', 'bun run typecheck'] });
       expect(c.repoSettings(web)).toEqual({ app: { run: 'bun dev --port 4100' } });
-      expect(notices.at(-1)).toBe('„Prüfungen“ für web steht jetzt in .obeya/settings.json auf main und gilt für alle.');
+      expect(notices.at(-1)).toBe('“Checks” for web is now in .obeya/settings.json on main and applies to everyone.');
       expect((await post(`/api/c/web/setting-proposals/${setup}/reject`)).status).toBe(204);
       expect(b.snapshot().settingProposals).toBeUndefined();
       expect(b.settingProposals().map((p) => [p.field, p.state, p.value])).toEqual([
@@ -818,28 +818,29 @@ describe('a change the Koordinator makes', () => {
 describe('the demo settings', () => {
   test('say what keeps a voice from speaking', () => {
     const missing = join(dir, 'nowhere');
-    expect(demoSettingsProblems({ language: 'de', voice: 'piper' }, {})).toEqual([]);
-    expect(demoSettingsProblems({ language: 'de', voice: 'command' }, {})).toEqual(['noCommand']);
-    expect(demoSettingsProblems({ language: 'de', voice: 'http' }, {})).toEqual(['noUrl']);
-    expect(demoSettingsProblems({ language: 'de', voice: 'http', url: 'http://localhost:9' }, {})).toEqual([]);
-    expect(demoSettingsProblems({ language: 'de', voice: 'say' }, {}, 'linux')).toEqual(['notHere']);
-    expect(demoSettingsProblems({ language: 'de', voice: 'say' }, {}, 'darwin')).toEqual([]);
+    expect(demoSettingsProblems({ language: 'en', voice: 'piper' }, {})).toEqual([]);
+    expect(demoSettingsProblems({ language: 'en', voice: 'command' }, {})).toEqual(['noCommand']);
+    expect(demoSettingsProblems({ language: 'en', voice: 'http' }, {})).toEqual(['noUrl']);
+    expect(demoSettingsProblems({ language: 'en', voice: 'http', url: 'http://localhost:9' }, {})).toEqual([]);
+    expect(demoSettingsProblems({ language: 'en', voice: 'say' }, {}, 'linux')).toEqual(['notHere']);
+    expect(demoSettingsProblems({ language: 'en', voice: 'say' }, {}, 'darwin')).toEqual([]);
     expect(demoSettingsProblems({ language: 'en', voice: 'qwen3', voiceName: 'Kai' }, {})).toEqual(['unknownSpeaker']);
     expect(demoSettingsProblems({ language: 'en', voice: 'qwen3', voiceName: 'Ryan' }, {})).toEqual([]);
-    expect(demoSettingsProblems({ language: 'de', voice: 'gemini' }, {})).toEqual(['noKey']);
-    expect(demoSettingsProblems({ language: 'de', voice: 'gemini' }, { GEMINI_API_KEY: 'k' })).toEqual([]);
-    expect(demoSettingsProblems({ language: 'de', voice: 'azure', url: 'westeurope' }, {})).toEqual(['noKey']);
-    expect(demoSettingsProblems({ language: 'de', voice: 'openai', keyFile: missing }, {})).toEqual(['keyFileMissing']);
+    expect(demoSettingsProblems({ language: 'en', voice: 'gemini' }, {})).toEqual(['noKey']);
+    expect(demoSettingsProblems({ language: 'en', voice: 'gemini' }, { GEMINI_API_KEY: 'k' })).toEqual([]);
+    expect(demoSettingsProblems({ language: 'en', voice: 'azure', url: 'westeurope' }, {})).toEqual(['noKey']);
+    expect(demoSettingsProblems({ language: 'en', voice: 'openai', keyFile: missing }, {})).toEqual(['keyFileMissing']);
     writeFileSync(join(dir, 'key'), 'k');
     expect(demoSettingsProblems({ language: 'en', voice: 'elevenlabs', keyFile: join(dir, 'key') }, {})).toEqual([]);
   });
 
   test("say which of Qwen3's clips to clone does not work, by its language", () => {
     writeFileSync(join(dir, 'me.wav'), '');
-    const s = { language: 'de', voice: 'qwen3', references: { de: join(dir, 'me.wav'), en: join(dir, 'me-en.wav') } } as const;
-    expect(clipProblems(s)).toEqual({ de: 'noTranscript', en: 'referenceMissing' });
-    writeFileSync(join(dir, 'me.txt'), 'Hallo.');
-    expect(clipProblems(s)).toEqual({ en: 'referenceMissing' });
+    const s = { language: 'en', voice: 'qwen3', references: { en: join(dir, 'me.wav') } } as const;
+    expect(clipProblems(s)).toEqual({ en: 'noTranscript' });
+    writeFileSync(join(dir, 'me.txt'), 'Hello.');
+    expect(clipProblems(s)).toEqual({});
+    expect(clipProblems({ ...s, references: { en: join(dir, 'me-en.wav') } })).toEqual({ en: 'referenceMissing' });
     // another voice clones nothing
     expect(clipProblems({ ...s, voice: 'piper' })).toEqual({});
   });

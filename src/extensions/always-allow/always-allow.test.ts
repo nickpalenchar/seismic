@@ -18,7 +18,7 @@ import { alwaysRules } from './server';
 describe('a permission question', () => {
   eachTest();
 
-  test('„Immer erlauben“ allows the call, adds its rules where work lands on main, and the Claude session takes them; not offered where it goes through pull requests', async () => {
+  test('“Always allow” allows the call, adds its rules where work lands on main, and the Claude session takes them; not offered where it goes through pull requests', async () => {
     // the change itself is the project test's below
     const added: string[] = [];
     let fails = false;
@@ -34,13 +34,13 @@ describe('a permission question', () => {
     const answer = runtime.last.spec.askOwner!({ name: 'Bash', input: { command: 'bun run lint' }, suggestions }, new AbortController().signal);
     await flush();
     const q = board.item(c.id)!.question!;
-    expect(q.options).toEqual(['Erlauben', 'Immer erlauben: bun run *', 'Ablehnen']);
-    expect(q.text).toContain('„Immer erlauben“ nimmt die Regel in die Erlaubnisliste des Repositorys auf');
-    workers.answer(c.id, 'Immer erlauben: bun run *');
+    expect(q.options).toEqual(['Allow', 'Always allow: bun run *', 'Deny']);
+    expect(q.text).toContain('“Always allow” adds the rule to the repository’s allow list');
+    workers.answer(c.id, 'Always allow: bun run *');
     expect(await answer).toEqual({ allow: true, permissions: [{ type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'bun run:*' }], behavior: 'allow', destination: 'session' }] });
     await flush();
     expect(added).toEqual([board.row(c.id).workstation!]);
-    expect(board.events(c.id).at(-1)!.text).toBe('In die Erlaubnisliste aufgenommen und auf main committet: bun run *');
+    expect(board.events(c.id).at(-1)!.text).toBe('Added to the allow list and committed on main: bun run *');
     // the list cannot take it: allowed once, and the card says why
     fails = true;
     const again = runtime.last.spec.askOwner!({ name: 'Bash', input: { command: 'bun run x' }, suggestions }, new AbortController().signal);
@@ -48,7 +48,7 @@ describe('a permission question', () => {
     workers.answer(c.id, 'Always allow: bun run *');
     expect((await again).allow).toBe(true);
     await flush();
-    expect(board.events(c.id).at(-1)!.text).toBe('Einmal erlaubt; in die Erlaubnisliste ließ sich bun run * nicht aufnehmen: .claude/settings.json has changes of its own');
+    expect(board.events(c.id).at(-1)!.text).toBe('Allowed once; bun run * could not be added to the allow list: .claude/settings.json has changes of its own');
     await workers.stop(c.id);
 
     setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'pr', workstations: 'clones' }, asOwner }));
@@ -56,7 +56,7 @@ describe('a permission question', () => {
     await workers.start(pr.id);
     void runtime.last.spec.askOwner!({ name: 'Bash', input: { command: 'bun run lint' }, suggestions }, new AbortController().signal);
     await flush();
-    expect(board.item(pr.id)!.question!.options).toEqual(['Erlauben', 'Ablehnen']);
+    expect(board.item(pr.id)!.question!.options).toEqual(['Allow', 'Deny']);
   });
 });
 
@@ -79,7 +79,7 @@ describe('in a project', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  test('„Immer erlauben“ commits the rule into the allow list on main, trusted, and a Codex worker goes by it at once', async () => {
+  test('“Always allow” commits the rule into the allow list on main, trusted, and a Codex worker goes by it at once', async () => {
     dir = mkdtempSync(join(tmpdir(), 'obeya-always-allow-'));
     const allow = { permissions: { allow: ['Bash(bun test *)'] } };
     const shop = gitRepo(join(dir, 'shop'), {
@@ -99,12 +99,12 @@ describe('in a project', () => {
     const answer = workers.last.permission('Bash', { command: "/bin/zsh -lc 'bun run lint --fix'" });
     await until(() => project!.board.item(card.id)!.state === 'waiting');
     const q = project.board.item(card.id)!.question!;
-    expect(q.options).toEqual(['Erlauben', 'Immer erlauben: bun run *', 'Ablehnen']);
-    expect(q.text).toContain('.claude/settings.json auf main');
-    r.workers.answer(card.id, 'Immer erlauben: bun run *');
+    expect(q.options).toEqual(['Allow', 'Always allow: bun run *', 'Deny']);
+    expect(q.text).toContain('.claude/settings.json on main');
+    r.workers.answer(card.id, 'Always allow: bun run *');
     expect(await answer).toEqual({ allow: true });
-    await until(() => project!.board.events(card.id).some((e) => e.text.startsWith('In die Erlaubnisliste')));
-    expect(project.board.events(card.id).at(-1)!.text).toBe('In die Erlaubnisliste aufgenommen und auf main committet: bun run *');
+    await until(() => project!.board.events(card.id).some((e) => e.text.startsWith('Added to the allow list')));
+    expect(project.board.events(card.id).at(-1)!.text).toBe('Added to the allow list and committed on main: bun run *');
     // on main for everyone, the Codex rules made again from the list, and trusted as the owner's
     const main = readShared(shop);
     expect(JSON.parse(main.claude!['.claude/settings.json']!.text)).toEqual({ permissions: { allow: ['Bash(bun test *)', 'Bash(bun run *)'] } });

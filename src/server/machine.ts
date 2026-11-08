@@ -31,7 +31,6 @@ import { COMPILED } from './resources';
 import { claudeExecutable } from './runtime';
 import { installedAgy } from './agy-runtime';
 import { extendPath, freshPath, which } from './path';
-import { ownerLanguage } from './settings';
 import type { VoiceSetup } from './voice-setup';
 
 type Env = Record<string, string | undefined>;
@@ -314,7 +313,7 @@ export class MachineSetup {
       if (!git) return [missing({ id: 'git', install: hint('git') })];
       const [name, email] = (await Promise.all([output('git', ['config', '--global', 'user.name'], env), output('git', ['config', '--global', 'user.email'], env)])).map((x) => x?.trim());
       if (name && email) return [{ id: 'git', state: 'ok', found: git }, { id: 'gitUser', state: 'ok', found: `${name} <${email}>` }];
-      const [n, e] = ownerLanguage(this.o.home) === 'de' ? ['Dein Name', 'du@example.com'] : ['Your Name', 'you@example.com'];
+      const [n, e] = ['Your Name', 'you@example.com'];
       const commands = [...(name ? [] : [`git config --global user.name "${n}"`]), ...(email ? [] : [`git config --global user.email "${e}"`])];
       return [
         { id: 'git', state: 'ok', found: git },

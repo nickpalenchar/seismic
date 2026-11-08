@@ -113,12 +113,6 @@ describe('parsePlanDoc', () => {
     expect(keys(['…'])).toEqual(['#1']);
     expect(keys(['Вход в систему', '登录', 'Søk'])).toEqual(['вход-в-систему', '登录', 'søk']);
   });
-
-  test('German section names', () => {
-    const d = parsePlanDoc('b.md', '# Kadenz\n\n## Ziel\n\nRegeln statt Fallarbeit.\n\n## Workstreams\n\n- [x] **W9:** Prüflauf. Täglich um 05:00.\n') as PlanDoc;
-    expect(d.goal).toBe('Regeln statt Fallarbeit.');
-    expect(d.workstreams[0]).toMatchObject({ title: 'Prüflauf', body: 'Täglich um 05:00.', done: true });
-  });
 });
 
 describe('a doc that is not a plan', () => {

@@ -54,9 +54,9 @@ The voice is chosen in Seismic's settings ("Demos"); "Listen" plays a sentence i
   (POST `{"text", "language"}` as JSON, audio back). Tick "This is my own voice" when it
   speaks in your voice; the narration is then in the first person.
 
-Piper and `say` read every word by the rules of the narration language, so in German narration
-English terms are respelt for them: from `plugin/skills/demo/lib/lexicon.de.json` (term → spoken
-form, e.g. `"Branch": "Bräntsch"`), and from a mark in a demo's script, `{Project|Kännwes}`. The
+Piper and `say` read every word by the rules of the narration language, so in narration of another
+language English terms are respelt for them: from `plugin/skills/demo/lib/lexicon.<language>.json` (term → spoken
+form), and from a mark in a demo's script, `{Project|Kännwes}`. The
 captions show the written form; the other voices get it too. To add a term, write its spoken form
 into the lexicon and listen to a clip of it in Piper first.
 

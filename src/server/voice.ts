@@ -48,7 +48,7 @@ export function looping(text: string): boolean {
  * in English it thanks for watching, as it learnt from subtitles.
  */
 export const silence = (text: string) =>
-  /^[[(*]?(vielen dank|danke fürs zuschauen|musik|untertitel(ung)? (im auftrag )?des zdf.*|thank you|thanks for watching|music)[.!]?[\])*]?$/i.test(text.trim());
+  /^[[(*]?(thank you|thanks for watching|music)[.!]?[\])*]?$/i.test(text.trim());
 
 const VOICE = resource('voice');
 

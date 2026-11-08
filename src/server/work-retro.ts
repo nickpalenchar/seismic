@@ -299,8 +299,8 @@ export class WorkRetro {
 export function earlierRuns(events: CardEvent[]): string[] {
   return events.flatMap((e) => {
     if (e.author !== 'obeya' || e.kind !== 'state') return [];
-    // the line that keeps an earlier run (`earlierRun` in either language)
-    const m = /\((?:Sitzung|session) ([\w-]+)\) (?:bleibt für die Arbeitsrückschau erhalten|is kept for the work retrospective)/.exec(e.text);
+    // the line that keeps an earlier run (`earlierRun`)
+    const m = /\(session ([\w-]+)\) is kept for the work retrospective/.exec(e.text);
     return m ? [m[1]!] : [];
   });
 }

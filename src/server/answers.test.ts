@@ -72,15 +72,15 @@ describe('a question the Koordinator looks up', () => {
     await until(() => k.inbox.length === 2);
     expect(k.inbox[1]).toContain("No words of the owner's this time");
     expect(k.inbox[1]).toContain('is in (the owner sees it too): - #27 Skills');
-    k.call('act', { actions: [{ do: 'new_card', title: 'Skills', body: 'GitHub-Issue #27: https://github.com/o/r/issues/27', start: false }], confirm: 'Neue Aufgabe „Skills“.' });
+    k.call('act', { actions: [{ do: 'new_card', title: 'Skills', body: 'GitHub-Issue #27: https://github.com/o/r/issues/27', start: false }], confirm: 'Neue Aufgabe “Skills”.' });
     k.emit({ type: 'idle' });
     await until(() => board().snapshot().items.some((i) => i.title === 'Skills'));
     const talk = board().snapshot().talk;
     expect(talk.map((x) => [x.said, x.reply, x.answer])).toEqual([
       ['Es gibt drei offene Issues bei GitHub, erstelle für jedes eine eigene Karte.', 'Ich lese die offenen Issues und lege dann für jedes eine Aufgabe an.', '- #27 Skills (https://github.com/o/r/issues/27)'],
-      ['', 'Neue Aufgabe „Skills“.', undefined],
+      ['', 'Neue Aufgabe “Skills”.', undefined],
     ]);
-    expect(notices.some((n) => n.text === 'Neue Aufgabe „Skills“.' && n.token)).toBe(true);
+    expect(notices.some((n) => n.text === 'Neue Aufgabe “Skills”.' && n.token)).toBe(true);
     // the next command does not hear the answer again as news
     const next = await say('danke', {}, 'reply', { confirm: 'Gern.' });
     expect(next.brief).not.toContain('came in and was shown to them');
@@ -114,7 +114,7 @@ describe('a question the Koordinator looks up', () => {
     expect(board().events(w4.id).map((e) => [e.kind, e.author, e.text])).toEqual([
       ['say', 'owner', 'Was würde der Agent hier machen, wenn ich starte?'],
       ['say', 'koordinator', 'Ich schaue im Plan nach.'],
-      ['activity', 'plan', 'Liest plan/pr-loop.md'],
+      ['activity', 'plan', 'Reads plan/pr-loop.md'],
       ['say', 'plan', '1. Liest das Plan-Doc.\n2. Fragt nach dem Go.'],
     ]);
     // above the microphone too, written
@@ -216,7 +216,7 @@ describe('a question the Koordinator looks up', () => {
     a = answerer();
     a.emit({ type: 'error', message: 'boom' });
     await settle();
-    expect(board().events(w4.id).at(-1)!.text).toContain('Ich konnte die Frage nicht beantworten (boom)');
+    expect(board().events(w4.id).at(-1)!.text).toContain('I could not answer the question (boom)');
   });
 
   test('a turn that ends while its background work runs is no answer: the agent answers once that work wakes it', async () => {
@@ -243,7 +243,7 @@ describe('a question the Koordinator looks up', () => {
   });
 
   test('it waits for its background work no longer than its limit, nor long after that work ended without waking it', async () => {
-    const ask = () => inform({ runtime, cwd: main, system: 'S', message: 'Q?', language: 'de', onLimit: () => {}, backgroundGrace: 5, backgroundLimit: 30 });
+    const ask = () => inform({ runtime, cwd: main, system: 'S', message: 'Q?', language: 'en', onLimit: () => {}, backgroundGrace: 5, backgroundLimit: 30 });
     const one = ask();
     const a = runtime.last;
     a.emit({ type: 'text', text: 'Still downloading.' });
@@ -309,7 +309,7 @@ describe('a look-up the usage limit stops', () => {
     await settle();
     // in the card's conversation, without the error
     expect(board().events(w4.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya' });
-    expect(board().events(w4.id).at(-1)!.text).toStartWith('Das Nutzungslimit ist erreicht. Seismic schlägt das um ');
+    expect(board().events(w4.id).at(-1)!.text).toStartWith('The usage limit is reached. Seismic looks this up by itself at ');
     expect(board().events(w4.id).some((e) => e.text.includes('hit your'))).toBe(false);
     await settle(60);
     a.call('answer_owner', { text: 'Er fragt nach dem Go.' });

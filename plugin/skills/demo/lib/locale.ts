@@ -2,7 +2,7 @@
 // UI's bundle has them too (through `src/core/locale.ts`).
 
 /** The languages Seismic speaks; the owner chooses one in the settings, else the system's applies. */
-export const LANGUAGES = ['de', 'en'] as const;
+export const LANGUAGES = ['en'] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 /** Seismic's language for a system with a language it does not speak. */
@@ -15,4 +15,4 @@ export function languageOf(locale: string | null | undefined): Language | undefi
 }
 
 /** A language's name as a prompt tells an agent which one to write the owner in. */
-export const LANGUAGE_NAMES: Record<Language, string> = { de: 'German', en: 'English' };
+export const LANGUAGE_NAMES: Record<Language, string> = { en: 'English' };

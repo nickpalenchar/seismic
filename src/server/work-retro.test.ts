@@ -39,7 +39,7 @@ const settle = () => new Promise((r) => setTimeout(r, 5));
 const noteSessions = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'note'));
 const retroSessions = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'card'));
 
-test('friction notes and work proposals follow an English-only preference with a German conversation setting', async () => {
+test('friction notes and work proposals follow an English-only preference', async () => {
   board.addPreference('Agents speak and write to me in English only.');
   files = { a: SAMPLE, b: SAMPLE };
   ran('A', 'a');
@@ -55,7 +55,7 @@ test('friction notes and work proposals follow an English-only preference with a
   const review = retroSessions()[0]!;
   expect(review.spec.system).toContain('- Agents speak and write to me in English only.');
   expect(review.spec.tools.find((t) => t.name === 'card')!.description).toContain('unless an explicit standing preference names another language');
-  expect(review.spec.tools.find((t) => t.name === 'rule')!.description).toContain('basis in German unless an explicit standing preference names another language');
+  expect(review.spec.tools.find((t) => t.name === 'rule')!.description).toContain('basis in English unless an explicit standing preference names another language');
   review.call('done', {});
   review.emit({ type: 'idle' });
 });
@@ -63,7 +63,7 @@ test('friction notes and work proposals follow an English-only preference with a
 /** A card that ran in the given sessions and whose work ended. */
 function ran(title: string, ...sessions: string[]) {
   const c = board.create({ title, x: 0, y: 0 });
-  sessions.slice(0, -1).forEach((s) => board.log(c.id, 'state', 'obeya', `Von vorn gestartet. Der frühere Lauf (Sitzung ${s}) bleibt für die Arbeitsrückschau erhalten.`));
+  sessions.slice(0, -1).forEach((s) => board.log(c.id, 'state', 'obeya', `Started from scratch. The earlier run (session ${s}) is kept for the work retrospective.`));
   if (sessions.length) board.work(c.id, { session_id: sessions.at(-1)! });
   retro.ended(c.id);
   return c;
@@ -79,7 +79,7 @@ async function note(...notes: { what: string; cost?: string; fix?: string }[]) {
   await settle();
 }
 
-describe('Arbeitsrückschau', () => {
+describe('Work retrospective', () => {
   test('a finished card’s runs become friction notes, written as a small job from the excerpt', async () => {
     files = { s1: SAMPLE };
     const a = ran('A', 's1', 's2');
@@ -94,7 +94,7 @@ describe('Arbeitsrückschau', () => {
       { cardId: a.id, title: 'A', what: 'bun run dev has no --port flag', cost: 'a few steps', fix: 'a script' },
       { cardId: a.id, what: 'the demo script failed and was rewritten' },
     ]);
-    expect(board.events(a.id).at(-1)).toMatchObject({ author: 'koordinator', text: 'Arbeitsrückschau, Reibung notiert:\n– bun run dev has no --port flag Kosten: a few steps Verhindert hätte es: a script\n– the demo script failed and was rewritten Kosten: a few steps Verhindert hätte es: a script' });
+    expect(board.events(a.id).at(-1)).toMatchObject({ author: 'koordinator', text: 'Work retrospective, friction noted:\n– bun run dev has no --port flag Cost: a few steps What would have prevented it: a script\n– the demo script failed and was rewritten Cost: a few steps What would have prevented it: a script' });
   });
 
   test('a Codex run is read from its rollout and counts toward the repository’s retrospective like a Claude run', async () => {
@@ -147,17 +147,17 @@ describe('Arbeitsrückschau', () => {
     expect(board.setting('work_retro_cards:home')).toBe('0');
 
     expect(s.call('card', { title: 'Skript für den Dev-Server', body: 'Baue es.', basis: 'Nur A.', cards: ['K1'] })).toContain('at least two cards');
-    expect(s.call('card', { title: 'Skript `scripts/dev.ts` für den Dev-Server', body: 'Ein Skript, das den Server startet.', basis: 'Auf „A“ und „B“ falsche Flags.', cards: ['K1', 'K2', 'K7'] })).toBe('Proposed.');
-    expect(s.call('rule', { rule: 'Der Dev-Server startet mit -p <port>.', basis: 'Auf „A“ und „B“ falsche Flags.', cards: ['K1', 'K2'] })).toBe('Proposed.');
+    expect(s.call('card', { title: 'Skript `scripts/dev.ts` für den Dev-Server', body: 'Ein Skript, das den Server startet.', basis: 'Auf “A” und “B” falsche Flags.', cards: ['K1', 'K2', 'K7'] })).toBe('Proposed.');
+    expect(s.call('rule', { rule: 'Der Dev-Server startet mit -p <port>.', basis: 'Auf “A” und “B” falsche Flags.', cards: ['K1', 'K2'] })).toBe('Proposed.');
     s.call('card', { title: 'Noch eins', body: '…', basis: '…', cards: ['K1', 'K2'] });
     expect(s.call('card', { title: 'Zu viel', body: '…', basis: '…', cards: ['K1', 'K2'] })).toContain('At most 3');
     s.emit({ type: 'idle' });
 
     const card = board.snapshot().items.find((i) => i.title === 'Skript `scripts/dev.ts` für den Dev-Server')!;
-    expect(card).toMatchObject({ state: 'proposal', retro: 'Auf „A“ und „B“ falsche Flags.', repo: 'home' });
+    expect(card).toMatchObject({ state: 'proposal', retro: 'Auf “A” und “B” falsche Flags.', repo: 'home' });
     expect(card.from).toBeUndefined();
     expect(card.body).toContain('Ein Skript, das den Server startet.');
-    expect(board.events(card.id).at(-1)!.text).toContain(`Karten: „A“, „B“.`);
+    expect(board.events(card.id).at(-1)!.text).toContain(`Cards: “A”, “B”.`);
     expect(board.preferences('proposed')).toMatchObject([{ text: 'Der Dev-Server startet mit -p <port>.', target: 'home', review: true }]);
   });
 
@@ -189,7 +189,7 @@ describe('Arbeitsrückschau', () => {
     expect(second.inbox[0]).toContain('- card "Skript für Starts" (taken)');
   });
 
-  test('workers who each worked out how to run the app: the retrospective proposes the recipe for „So läuft die App“', async () => {
+  test('workers who each worked out how to run the app: the retrospective proposes the recipe for “So läuft die App”', async () => {
     const now = { checks: ['bun test'], setup: '', softPaths: ['docs/'], run: '' };
     retro = new WorkRetro({ board, runtime, pathFor: () => main, transcript: (id) => files[id] ?? null, every: 2, ramp: [], settingsFor: () => now });
     board.showSettings(() => now);
@@ -210,7 +210,7 @@ describe('Arbeitsrückschau', () => {
     expect(s.call('setting', { field: 'run', value: 'bun run dev -p 4500', basis: 'Nur einer.', cards: ['K1'] })).toContain('at least two cards');
     expect(s.call('setting', { field: 'run', value: '  ', basis: '…', cards: ['K1', 'K2'] })).toContain('value is missing');
     const recipe = 'bun run dev -p 4500\nAnmelden als demo@example.com';
-    expect(s.call('setting', { field: 'run', value: recipe, basis: 'Auf „Login-Seite“ und „Warenkorb“ suchten die Agenten, wie die App startet.', cards: ['K1', 'K2'] })).toBe('Proposed.');
+    expect(s.call('setting', { field: 'run', value: recipe, basis: 'Auf “Login-Seite” und “Warenkorb” suchten die Agenten, wie die App startet.', cards: ['K1', 'K2'] })).toBe('Proposed.');
     expect(s.call('setting', { field: 'run', value: 'anders', basis: '…', cards: ['K1', 'K2'] })).toContain('already waits');
     expect(s.call('setting', { field: 'checks', value: 'bun test\nbun run typecheck\n', basis: '…', cards: ['K1', 'K2'] })).toBe('Proposed.');
     s.emit({ type: 'idle' });
@@ -221,7 +221,7 @@ describe('Arbeitsrückschau', () => {
         repo: 'home',
         field: 'run',
         value: recipe,
-        basis: 'Auf „Login-Seite“ und „Warenkorb“ suchten die Agenten, wie die App startet.',
+        basis: 'Auf “Login-Seite” und “Warenkorb” suchten die Agenten, wie die App startet.',
         cards: [
           { id: a.id, title: 'Login-Seite' },
           { id: b.id, title: 'Warenkorb' },
@@ -242,7 +242,7 @@ describe('Arbeitsrückschau', () => {
     retro.now('home');
     await settle();
     const next = retroSessions()[1]!;
-    expect(next.inbox[0]).toContain(`- setting run = ${JSON.stringify(recipe)} (Auf „Login-Seite“ und „Warenkorb“ suchten die Agenten, wie die App startet.)`);
+    expect(next.inbox[0]).toContain(`- setting run = ${JSON.stringify(recipe)} (Auf “Login-Seite” und “Warenkorb” suchten die Agenten, wie die App startet.)`);
     expect(next.inbox[0]).toContain('- setting checks = ["bun test","bun run typecheck"] (taken)');
   });
 
@@ -268,7 +268,7 @@ describe('Arbeitsrückschau', () => {
     retro.now('home');
     await retro.idle();
     expect(retroSessions()).toHaveLength(0);
-    expect(notices).toEqual(['Arbeitsrückschau für Home: Seit der letzten gibt es keine Reibung zu lesen.']);
+    expect(notices).toEqual(['Work retrospective for Home: no friction to read since the last one.']);
     expect(board.setting('work_retro_cards:home')).toBe('0');
   });
 
@@ -279,7 +279,7 @@ describe('Arbeitsrückschau', () => {
     runtime.last.emit({ type: 'session', id: 's1' });
     await workers.stop(c.id);
     await workers.start(c.id);
-    expect(board.events(c.id).some((e) => e.text.includes('(Sitzung s1) bleibt für die Arbeitsrückschau erhalten'))).toBe(true);
+    expect(board.events(c.id).some((e) => e.text.includes('(session s1) is kept for the work retrospective'))).toBe(true);
     const worker = runtime.last;
     worker.emit({ type: 'session', id: 's2' });
     await worker.call('ready_for_review', { summary: 'Fertig.', demo: artifact() });

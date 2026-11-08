@@ -117,7 +117,7 @@ export class Owner {
   /** Without `home` (a test) the key is made up and kept in memory. */
   constructor(o: { home?: string; language?: () => Language } = {}) {
     this.key = o.home ? ownerKey(o.home) : random();
-    this.language = o.language ?? (() => 'de');
+    this.language = o.language ?? (() => 'en');
   }
 
   /** The cookie of the Seismic on `port`: a browser keeps cookies per host, not per port, and a scratch Seismic beside it has another key. */

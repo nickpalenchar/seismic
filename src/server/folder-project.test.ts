@@ -72,13 +72,13 @@ describe('a project over a folder without git', () => {
     expect(existsSync(join(docs, 'Tax'))).toBe(false);
     expect(await listOf(sort.id)).toEqual([]);
     expect(item(sort.id)).toMatchObject({ state: 'waiting', noChange: true });
-    expect(project.board.events(sort.id).at(-1)!.text).toBe('Änderungen verworfen: 1 Datei zurückgesetzt.');
+    expect(project.board.events(sort.id).at(-1)!.text).toBe('Changes discarded: 1 file put back.');
     // the other card's changes stay
     expect(readFileSync(join(docs, 'Estate', 'Reply.md'), 'utf8')).toBe('Dear court,\n');
 
     await project.act(letter.id, { action: 'approve' });
     expect(item(letter.id).state).toBe('done');
-    expect(project.board.events(letter.id).some((e) => e.text === 'Freigegeben. Die Änderungen bleiben im Ordner: erledigt.')).toBe(true);
+    expect(project.board.events(letter.id).some((e) => e.text === 'Approved. The changes stay in the folder: done.')).toBe(true);
     expect(b.inbox.at(-1)).toContain('Your changes stay in the folder');
     // done: nothing is undone any more, but the list stays the card's record
     expect((await project.diff(letter.id, false))!.folder!.undo).toBeNull();

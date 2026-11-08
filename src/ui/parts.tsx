@@ -21,11 +21,11 @@ import { ClockMark, snoozeWho } from './snooze';
 import { becomesLabel, clock, shortDay, snoozeWhen, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
 
-/** The first line of a card's text that says something (not a bare "Ziel" label, as briefs start). */
+/** The first line of a card's text that says something (not a bare "Goal" label, as briefs start). */
 const firstLine = (md: string) =>
   plain(md)
     .split('\n')
-    .map((l) => l.replace(/^(Ziel|Goal)\s*:?\s*/i, '').trim())
+    .map((l) => l.replace(/^Goal\s*:?\s*/i, '').trim())
     .find(Boolean) ?? '';
 
 /** What of a workstream planned again has landed: its pull request, else its commit. */

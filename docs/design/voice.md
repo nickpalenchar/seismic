@@ -66,7 +66,7 @@ memory grows with the length it attends to (1.8 GB for 57 s).
 (mlx-whisper on Apple Silicon; elsewhere faster-whisper, on CUDA with a GPU and its libraries, else int8 on the CPU, as float32
 took twice as long),
 large-v3-turbo unless `SEISMIC_WHISPER_MODEL` says otherwise. It gets the card titles as vocabulary and
-transcribes in the language it hears in the first 30 s, German or English, not the interface's. With
+transcribes in the language it hears in the first 30 s, among the languages Seismic speaks, not the interface's. With
 faster-whisper the first window's encoder output both tells the language and is handed to that
 window's decode (its `generate_segments` accepts it, `transcribe` does not), so a short command costs
 one encoder pass; its own `multilingual` picks from all languages and hears short German as Dutch.
@@ -83,7 +83,7 @@ Invalid API Key)."), and the words stay in the field.
 The configuration dialog's section "Voice input" checks the recognition (package, model), ffmpeg
 and uv, each missing piece with how to install it here. "Install" fetches and loads the
 recognition (about 710 MB for Parakeet, 1.8 GB for Whisper), so the first command does not wait for
-it, then times it on a short German sentence Seismic ships, twice, the faster run counting (the first
+it, then times it on a short English sentence Seismic ships, twice, the faster run counting (the first
 after loading is slower). The line reads "Parakeet · 0.3 s for a short sentence", or, over one
 second per second of speech, "too slow", which opens the cloud offer; "Measure again" measures
 again. The setup assistant's "Voice commands" shows the same line.

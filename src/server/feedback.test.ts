@@ -254,7 +254,7 @@ test('turned off, no card asks for feedback and the responses given stay', () =>
   board.work(card.id, { state: 'approved', approved_at: new Date().toISOString() });
   board.giveFeedback(card.id, { answer: { rating: 5 } });
   let asks = false;
-  const off = new Board(store, board.project, () => ({ docs, dirs: [] }), undefined, undefined, () => 'de', undefined, () => asks);
+  const off = new Board(store, board.project, () => ({ docs, dirs: [] }), undefined, undefined, () => 'en', undefined, () => asks);
   off.archiving = () => 'landed';
   expect(off.item(card.id)!.rate).toBeUndefined();
   expect(off.feedback(card.id)).toHaveLength(1);

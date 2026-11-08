@@ -99,7 +99,7 @@ export interface ProjectDeps {
   parkGrace?: number;
   /** How often the watcher looks at open pull requests; two minutes when left out. */
   prPollMs?: number;
-  /** The language of Seismic's interface now (`ownerLanguage`): its own words; German when left out (the tests). */
+  /** The language of Seismic's interface now (`ownerLanguage`): its own words; English when left out (the tests). */
   language?: () => Language;
   /** The owner's conversation language now (`conversationLanguage`): the agents', English when left out. */
   conversation?: () => Language;

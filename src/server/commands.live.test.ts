@@ -41,7 +41,7 @@ const STATES: Record<string, Record<string, string>> = {
   inPr: { state: 'inPr' },
   finishing: { state: 'live', workstation: '/w', landed: '{}' },
   planned: { state: 'planned' },
-  // LOGIN: the card „Login“, which it waits for
+  // LOGIN: the card “Login”, which it waits for
   queued: { state: 'planned', queue: JSON.stringify({ behind: ['LOGIN'], reason: 'Beide ändern die Sitzungsverwaltung.' }) },
   proposal: { state: 'proposal', proposal: JSON.stringify({ reason: 'Beim Login aufgefallen.', questions: [{ text: 'Welche Kodierung?', options: ['UTF-8', 'Latin-1'] }] }) },
 };
@@ -100,26 +100,26 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
     const results = await Promise.all(CASES.map(async ([state, text, request, typed, want]) => ({ state, text, request, typed, want, got: await hear(state, text, request, typed) })));
     const wrong = results.filter((r) => JSON.stringify(r.got.did) !== JSON.stringify(r.want));
     for (const r of results)
-      console.log(`${wrong.includes(r) ? '✗' : '✓'} [${r.state}] ${r.typed ? 'getippt' : 'gesprochen'} „${r.text}“${r.request ? ` (vom Agenten: ${r.request})` : ''} → ${r.got.did.join(', ') || 'reply'} · ${JSON.stringify(r.got.executed.map((c) => ('text' in c ? c.text : 'title' in c ? c.title : 'name' in c ? c.name : '')))} · ${r.got.confirm}${r.got.confirm !== 'Das habe ich nicht verstanden.' ? '' : ` · Sitzung: ${r.got.said.join(' ').slice(0, 200)}`}`);
+      console.log(`${wrong.includes(r) ? '✗' : '✓'} [${r.state}] ${r.typed ? 'getippt' : 'gesprochen'} “${r.text}”${r.request ? ` (vom Agenten: ${r.request})` : ''} → ${r.got.did.join(', ') || 'reply'} · ${JSON.stringify(r.got.executed.map((c) => ('text' in c ? c.text : 'title' in c ? c.title : 'name' in c ? c.name : '')))} · ${r.got.confirm}${r.got.confirm !== 'Das habe ich nicht verstanden.' ? '' : ` · Sitzung: ${r.got.said.join(' ').slice(0, 200)}`}`);
     expect(wrong.map((r) => `[${r.state}] ${r.text}`)).toEqual([]);
   },
   300_000,
 );
 
 /** What the owner says for a new task, in which language, and whether it starts now, later (at a time the owner named) or not. */
-const NEW_TASKS: [string, 'de' | 'en', boolean | 'later'][] = [
+const NEW_TASKS: [string, 'en', boolean | 'later'][] = [
   ['Tipjar should split the bill Add a field for how many people there are and show what each person pays', 'en', true],
-  ['Tipjar soll die Rechnung aufteilen ein Feld für die Personenzahl und zeig was jede Person zahlt', 'de', true],
-  ['Das Trinkgeld soll man auch frei in Prozent eingeben können', 'de', true],
-  ['Neue Aufgabe für später: Tipjar soll die Rechnung aufteilen', 'de', false],
+  ['Tipjar needs to split the bill, a field for the number of people and show what each person pays', 'en', true],
+  ['The tip should also be freely enterable as a percentage', 'en', true],
+  ['New task for later: Tipjar should split the bill', 'en', false],
   ['Just note it down for later: a field for how many people there are', 'en', false],
-  ['Neue Aufgabe Export als PDF aber noch nicht starten', 'de', false],
-  ['Leg eine Aufgabe an, dass ich mich Anfang Dezember um den Export als PDF kümmere, wenn es bis dahin bessere Bibliotheken gibt', 'de', 'later'],
+  ['New task export as PDF but do not start it yet', 'en', false],
+  ['Create a task that I look at the export as PDF at the beginning of December, if there are better libraries by then', 'en', 'later'],
   ['Make a card to add the tip presets in two weeks, once the new prices are out', 'en', 'later'],
 ];
 
 /** The new card one sentence makes on a project like the one in the hero video: whether it starts. */
-async function newTask(text: string, language: 'de' | 'en') {
+async function newTask(text: string, language: 'en') {
   const board = new Board(new Store(':memory:'), { id: 'c', name: 'Tipjar', repos: [{ id: 'tipjar', name: 'Tipjar', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }), undefined, undefined, () => language);
   board.work(board.create({ title: 'Dark mode', x: 0, y: 0 }).id, { state: 'live' });
   board.work(board.create({ title: 'Run the tests on every push', x: 0, y: 0 }).id, { state: 'working' });
@@ -141,7 +141,7 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
     const runs = NEW_TASKS.flatMap((c) => [c, c, c]);
     const results = await Promise.all(runs.map(async ([text, language, want]) => ({ text, want, got: await newTask(text, language) })));
     const wrong = results.filter((r) => r.got.start !== r.want);
-    for (const r of results) console.log(`${wrong.includes(r) ? '✗' : '✓'} „${r.text}“ → ${r.got.start === undefined ? 'no new card' : r.got.start === 'later' ? `starts ${r.got.until}` : r.got.start ? 'starts' : 'planned'} · ${r.got.confirm}`);
+    for (const r of results) console.log(`${wrong.includes(r) ? '✗' : '✓'} “${r.text}” → ${r.got.start === undefined ? 'no new card' : r.got.start === 'later' ? `starts ${r.got.until}` : r.got.start ? 'starts' : 'planned'} · ${r.got.confirm}`);
     expect(wrong.map((r) => r.text)).toEqual([]);
   },
   300_000,
@@ -183,7 +183,7 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
     const results = await Promise.all(NO_CARD.map(async ([text, typed, want]) => ({ text, want, got: await noCard(text, typed) })));
     const wrong = results.filter((r) => JSON.stringify(r.got.did) !== JSON.stringify(r.want));
     for (const r of results)
-      console.log(`${wrong.includes(r) ? '✗' : '✓'} „${r.text}“ → ${r.got.did.join(', ') || 'reply or look-up'} · ${JSON.stringify(r.got.executed.map((c) => ('title' in c ? `${c.title}: ${'body' in c ? c.body : ''}` : '')))} · ${r.got.confirm}`);
+      console.log(`${wrong.includes(r) ? '✗' : '✓'} “${r.text}” → ${r.got.did.join(', ') || 'reply or look-up'} · ${JSON.stringify(r.got.executed.map((c) => ('title' in c ? `${c.title}: ${'body' in c ? c.body : ''}` : '')))} · ${r.got.confirm}`);
     expect(wrong.map((r) => r.text)).toEqual([]);
   },
   300_000,
@@ -220,7 +220,7 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
       }),
     );
     const wrong = results.filter((r) => JSON.stringify(r.did) !== JSON.stringify(r.want) || !!r.step !== r.then);
-    for (const r of results) console.log(`${wrong.includes(r) ? '✗' : '✓'} „${r.text}“ → ${r.did.join(', ') || 'reply or look-up'}${r.step ? ` · then: ${r.step}` : ''} · ${r.confirm}`);
+    for (const r of results) console.log(`${wrong.includes(r) ? '✗' : '✓'} “${r.text}” → ${r.did.join(', ') || 'reply or look-up'}${r.step ? ` · then: ${r.step}` : ''} · ${r.confirm}`);
     expect(wrong.map((r) => r.text)).toEqual([]);
   },
   300_000,
@@ -259,7 +259,7 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   async () => {
     const results = await Promise.all(WISHES.flatMap((c) => [c, c]).map(async ([text, want]) => ({ text, want, ...(await wishOf(text)) })));
     const wrong = results.filter((r) => r.got !== r.want);
-    for (const r of results) console.log(`${wrong.includes(r) ? '✗' : '✓'} „${r.text}“ → ${r.got ?? 'neither'} · ${r.confirm}`);
+    for (const r of results) console.log(`${wrong.includes(r) ? '✗' : '✓'} “${r.text}” → ${r.got ?? 'neither'} · ${r.confirm}`);
     expect(wrong.map((r) => r.text)).toEqual([]);
   },
   300_000,
@@ -330,7 +330,7 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
         : r.got.after?.some((c) => c.do === 'start');
     const wrong = results.filter((r) => JSON.stringify(r.got.now) !== JSON.stringify(r.want) || (r.on !== null && r.got.on !== r.on) || !configured(r));
     for (const r of results)
-      console.log(`${wrong.includes(r) ? '✗' : '✓'} „${r.text}“ → ${r.got.now.join(', ')} · ${r.got.confirm} · body: ${r.got.body} · waits on: ${r.got.on}, then: ${r.got.then} → ${r.got.after?.map((c) => c.do).join(', ')} · ${r.got.notice}`);
+      console.log(`${wrong.includes(r) ? '✗' : '✓'} “${r.text}” → ${r.got.now.join(', ')} · ${r.got.confirm} · body: ${r.got.body} · waits on: ${r.got.on}, then: ${r.got.then} → ${r.got.after?.map((c) => c.do).join(', ')} · ${r.got.notice}`);
     expect(wrong.map((r) => r.text)).toEqual([]);
   },
   300_000,
@@ -358,7 +358,7 @@ async function reviews(text: string) {
   // tasks made for reviews before, which only look like review cards
   board.work(board.create({ title: 'Review PR #2', body: 'Review Pull Request 2.', x: 0, y: 0 }).id, { state: 'done' });
   board.work(board.create({ title: 'Review PR #3', body: 'Review Pull Request 3.', x: 0, y: 0 }).id, { state: 'waiting', need: 'demo', demo: DEMO });
-  board.addTalk('Review Pull Requests 2 und 3, jeweils auf ihrer eigenen Karte.', 'Neue Aufgaben „Review PR #2“ und „Review PR #3“, die Agenten starten.');
+  board.addTalk('Review Pull Requests 2 und 3, jeweils auf ihrer eigenen Karte.', 'Neue Aufgaben “Review PR #2” und “Review PR #3”, die Agenten starten.');
   board.addPreference('When a request of mine contains several separate tasks (e.g. a release and a website update), create a separate card for each instead of one card for all.');
   board.addPreference("When I ask for a review of a pull request, the review checks the changes (including anything hidden that doesn't belong there) and records no demo video if the PR already contains one.");
   const executed: Command[] = [];
@@ -382,7 +382,7 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   async () => {
     const results = await Promise.all(REVIEWS.flatMap((c) => [c, c, c]).map(async ([text, want]) => ({ text, want, got: await reviews(text) })));
     const wrong = results.filter((r) => JSON.stringify(r.got.did) !== JSON.stringify(Array(r.want).fill('reviewPr')));
-    for (const r of results) console.log(`${wrong.includes(r) ? '✗' : '✓'} „${r.text}“ → ${r.got.did.join(', ') || 'nothing'} · ${JSON.stringify(r.got.executed.map((c) => (c.do === 'reviewPr' ? c.pr : 'title' in c ? c.title : '')))}`);
+    for (const r of results) console.log(`${wrong.includes(r) ? '✗' : '✓'} “${r.text}” → ${r.got.did.join(', ') || 'nothing'} · ${JSON.stringify(r.got.executed.map((c) => (c.do === 'reviewPr' ? c.pr : 'title' in c ? c.title : '')))}`);
     expect(wrong.map((r) => r.text)).toEqual([]);
   },
   300_000,

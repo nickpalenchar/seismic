@@ -105,11 +105,11 @@ describe('.obeya/settings.json', () => {
     expect(parseShared(JSON.stringify({ app, demo: { language: 'en' } }))).toMatchObject({ settings: { app, demo: { language: 'en' } }, problems: [] });
     expect(parseShared(JSON.stringify({ demo: { language: 'fr' } })).settings).toEqual({});
     // the language of what lands in the repository stands beside that of its demos
-    expect(parseShared(JSON.stringify({ language: 'de', demo: { language: 'en' } })).settings).toEqual({ language: 'de', demo: { language: 'en' } });
+    expect(parseShared(JSON.stringify({ language: 'en', demo: { language: 'en' } })).settings).toEqual({ language: 'en', demo: { language: 'en' } });
     expect(parseShared(JSON.stringify({ language: 'fr' })).problems).toHaveLength(1);
     // a demo site, which a project chooses now, goes alone: the rest stays
-    const old = parseShared(JSON.stringify({ demo: { site, language: 'de' } }));
-    expect(old.settings).toEqual({ demo: { language: 'de' } });
+    const old = parseShared(JSON.stringify({ demo: { site, language: 'en' } }));
+    expect(old.settings).toEqual({ demo: { language: 'en' } });
     expect(old.problems).toEqual(['.obeya/settings.json, demo.site: no longer read; a project chooses its demo site in its settings']);
     const read = parseShared(JSON.stringify({ app: { ...app, stp: 'x' }, demo: { howToRun: 'bun dev' }, stack: { start: 'bun dev' } }));
     expect(read.settings).toEqual({});
@@ -135,9 +135,9 @@ describe('.obeya/settings.json', () => {
       language: { value: 'en', source: 'default' },
       demo: { language: { value: null, source: 'default' } },
     });
-    // a repository that names German for what lands in it
-    expect(withSettings(defaultsFor(repoInfo(repo)), () => ({ language: 'de' })).language).toBe('de');
-    expect(repoValues(repoInfo(repo), false, { language: 'de' }).language).toEqual({ value: 'de', source: 'repository' });
+    // a repository that names English for what lands in it
+    expect(withSettings(defaultsFor(repoInfo(repo)), () => ({ language: 'en' })).language).toBe('en');
+    expect(repoValues(repoInfo(repo), false, { language: 'en' }).language).toEqual({ value: 'en', source: 'repository' });
   });
 });
 

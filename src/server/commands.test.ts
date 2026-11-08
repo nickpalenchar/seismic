@@ -32,38 +32,22 @@ beforeEach(() => {
 });
 
 describe("the owner's language", () => {
-  test("the Koordinator confirms in the conversation language; Seismic's own words follow the interface; either changed takes a new session", async () => {
-    let language: 'de' | 'en' = 'en';
-    let conversation: 'de' | 'en' = 'en';
-    board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }), undefined, undefined, () => language, () => conversation);
+  test("the Koordinator confirms in the conversation language and knows the owner's words for its cards", async () => {
+    board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }), undefined, undefined, () => 'en', () => 'en');
     board.create({ title: 'Export', x: 0, y: 0 });
     const k = commander();
     const first = await say(k, 'start the export', 'act', { actions: [{ do: 'start', card: 'K1' }], confirm: 'Starting “Export”.' });
     expect(first.session.spec.system).toContain("one short sentence in the owner's language");
     expect(first.session.spec.system).toContain('Speak to the owner in English throughout this conversation');
     expect(first.session.spec.system).toContain('"New task “Meter readings as CSV”');
-    // it knows the owner's words for its cards in either language
     expect(first.session.spec.system).toContain('a card is a “task”');
-    expect(first.session.spec.system).toContain('a card is an „Aufgabe“');
     expect(first.session.spec.system).toContain('the repository\'s card “Add to CLAUDE.md”');
-    // a turn without a decision is not understood, in English
+    // a turn without a decision is not understood
     const heard = k.hear('hm', {});
     await settle();
     runtime.last.emit({ type: 'idle' });
     expect((await heard).confirm).toBe('I did not understand that.');
-    conversation = 'de';
-    const second = await say(k, 'starte Export', 'reply', { confirm: 'Schon gestartet.' });
-    expect(second.session).not.toBe(first.session);
-    expect(second.session.spec.system).toContain('Speak to the owner in German throughout this conversation');
-    expect(second.session.spec.system).toContain('"Neue Aufgabe „Zählerstände als CSV“');
-    // the interface stays English: Seismic's own words and the names of its cards
-    expect(second.session.spec.system).toContain('the repository\'s card “Add to CLAUDE.md”');
     expect(k.vocabulary()).toStartWith('Seismic, task');
-    language = 'de';
-    const third = await say(k, 'starte Export', 'reply', { confirm: 'Schon gestartet.' });
-    expect(third.session).not.toBe(second.session);
-    expect(third.session.spec.system).toContain('the repository\'s card „CLAUDE.md ergänzen“');
-    expect(k.vocabulary()).toStartWith('Seismic, Aufgabe');
   });
 });
 
@@ -87,13 +71,13 @@ describe('the Koordinator remembers', () => {
   test('the conversation goes on in one session; card tags stay, and each command brings what happened since', async () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     const k = commander();
-    const first = await say(k, 'starte Export', 'act', { actions: [{ do: 'start', card: 'K1' }], confirm: '„Export“ startet.' });
+    const first = await say(k, 'starte Export', 'act', { actions: [{ do: 'start', card: 'K1' }], confirm: '“Export” startet.' });
     expect(first.brief).toContain('K1 [planned] "Export"');
     expect(first.brief).toContain('This is a new chat: you have not talked with the owner in it yet.');
 
     board.create({ title: 'Login', x: 0, y: 0 });
     board.log(a.id, 'question', 'worker', 'CSV oder Excel?');
-    const second = await say(k, 'und die andere auch', 'act', { actions: [{ do: 'start', card: 'K2' }], confirm: '„Login“ startet.' });
+    const second = await say(k, 'und die andere auch', 'act', { actions: [{ do: 'start', card: 'K2' }], confirm: '“Login” startet.' });
     expect(second.session).toBe(first.session);
     expect(runtime.sessions).toHaveLength(1);
     // Export keeps K1, the new card gets the next tag
@@ -131,12 +115,12 @@ describe('the Koordinator remembers', () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     board.work(a.id, { state: 'working' });
     const k = commander();
-    const { heard } = await say(k, 'stopp Export', 'act', { actions: [{ do: 'stop', card: 'K1' }], confirm: '„Export“ angehalten.' });
+    const { heard } = await say(k, 'stopp Export', 'act', { actions: [{ do: 'stop', card: 'K1' }], confirm: '“Export” angehalten.' });
     expect(k.undo(heard.token!)).toBe(true);
     const next = await say(k, 'was ist los?', 'reply', { confirm: 'Nichts.' });
-    expect(next.brief).toContain('The owner took back what you confirmed with “„Export“ angehalten.”');
+    expect(next.brief).toContain('The owner took back what you confirmed with ““Export” angehalten.”');
     expect(board.snapshot().talk.map((t) => [t.said, t.reply, !!t.undone])).toEqual([
-      ['stopp Export', '„Export“ angehalten.', true],
+      ['stopp Export', '“Export” angehalten.', true],
       ['was ist los?', 'Nichts.', false],
     ]);
   });
@@ -150,9 +134,9 @@ describe('the Koordinator remembers', () => {
         { do: 'approve', card: 'K1' },
         { do: 'new_card', title: 'Archiv', body: 'Folge von Export', start: false },
       ],
-      confirm: '„Export“ freigegeben, „Archiv“ angelegt.',
+      confirm: '“Export” freigegeben, “Archiv” angelegt.',
     });
-    expect(heard.confirm).toBe('„Export“ freigegeben, „Archiv“ angelegt.');
+    expect(heard.confirm).toBe('“Export” freigegeben, “Archiv” angelegt.');
     k.arm(heard.token!);
     await new Promise((r) => setTimeout(r, 40));
     expect(executed).toEqual([
@@ -180,13 +164,13 @@ describe('the Koordinator remembers', () => {
 
   test('a command in its undo window outlives a restart: the next server runs it once the window is over', async () => {
     const k = new Commander({ board, runtime, cwd: '/r', execute: () => {}, delayMs: 2000 });
-    const { heard } = await say(k, 'Spracheinstellung: „unten“ stimmt nicht mehr', 'act', {
-      actions: [{ do: 'new_card', title: 'Hinweis „unten“ korrigieren', body: 'Die Demo-Einstellungen stehen links.' }],
-      confirm: 'Neue Aufgabe „Hinweis „unten“ korrigieren“, der Agent fängt an.',
+    const { heard } = await say(k, 'Spracheinstellung: “unten” stimmt nicht mehr', 'act', {
+      actions: [{ do: 'new_card', title: 'Hinweis “unten” korrigieren', body: 'Die Demo-Einstellungen stehen links.' }],
+      confirm: 'Neue Aufgabe “Hinweis „unten” korrigieren“, der Agent fängt an.',
     });
     expect(k.holding()).toBe(false);
     k.arm(heard.token!);
-    // a restart waits for it, and a page that opens offers "Rückgängig" again for what is left of the window
+    // a restart waits for it, and a page that opens offers "Undo" again for what is left of the window
     expect(k.holding()).toBe(true);
     expect(k.undoable()).toEqual([{ text: heard.confirm, token: heard.token!, undoMs: expect.any(Number) }]);
     expect(k.undoable()[0]!.undoMs).toBeGreaterThan(1000);
@@ -198,7 +182,7 @@ describe('the Koordinator remembers', () => {
     next.resume();
     expect(next.holding()).toBe(true);
     await settle();
-    expect(ran).toEqual([{ do: 'newCard', title: 'Hinweis „unten“ korrigieren', body: 'Die Demo-Einstellungen stehen links.', start: true }]);
+    expect(ran).toEqual([{ do: 'newCard', title: 'Hinweis “unten” korrigieren', body: 'Die Demo-Einstellungen stehen links.', start: true }]);
     expect(next.holding()).toBe(false);
     expect(later.heldCommands()).toEqual([]);
     // it runs once: a third start finds nothing
@@ -210,7 +194,7 @@ describe('the Koordinator remembers', () => {
 
   test('a command taken back is gone for the next server too, and one that runs cannot be taken back', async () => {
     const k = commander();
-    const { heard } = await say(k, 'neue Aufgabe Archiv', 'act', { actions: [{ do: 'new_card', title: 'Archiv', body: 'Archiv.' }], confirm: 'Neue Aufgabe „Archiv“.' });
+    const { heard } = await say(k, 'neue Aufgabe Archiv', 'act', { actions: [{ do: 'new_card', title: 'Archiv', body: 'Archiv.' }], confirm: 'Neue Aufgabe “Archiv”.' });
     k.arm(heard.token!);
     expect(board.heldCommands()).toHaveLength(1);
     expect(k.undo(heard.token!)).toBe(true);
@@ -219,7 +203,7 @@ describe('the Koordinator remembers', () => {
 
     let release = () => {};
     const slow = new Commander({ board, runtime, cwd: '/r', execute: () => new Promise<void>((r) => (release = r)), delayMs: 5 });
-    const again = await say(slow, 'neue Aufgabe Export', 'act', { actions: [{ do: 'new_card', title: 'Export', body: 'Export.' }], confirm: 'Neue Aufgabe „Export“.' });
+    const again = await say(slow, 'neue Aufgabe Export', 'act', { actions: [{ do: 'new_card', title: 'Export', body: 'Export.' }], confirm: 'Neue Aufgabe “Export”.' });
     slow.arm(again.heard.token!);
     await new Promise((r) => setTimeout(r, 20));
     // running: too late to take back, and a restart still waits for it
@@ -235,7 +219,7 @@ describe('the Koordinator remembers', () => {
     const k = commander();
     const { heard, session } = await say(k, 'Tipjar soll die Rechnung aufteilen', 'act', {
       actions: [{ do: 'new_card', title: 'Rechnung aufteilen', body: 'Tipjar soll die Rechnung aufteilen.', start: true }],
-      confirm: 'Neue Aufgabe „Rechnung aufteilen“, der Agent fängt an.',
+      confirm: 'Neue Aufgabe “Rechnung aufteilen”, der Agent fängt an.',
     });
     // the field says what the Koordinator would otherwise decide either way
     expect(session.spec.tools.find((t) => t.name === 'act')!.description).toContain('start false only when the owner says it should wait (“just note it”, “for later”, “do not start yet”), else true');
@@ -245,7 +229,7 @@ describe('the Koordinator remembers', () => {
     k.arm(bare.token!);
     const { heard: later } = await say(k, 'für später: Export als PDF', 'act', {
       actions: [{ do: 'new_card', title: 'Export als PDF', body: 'Export als PDF.', start: false }],
-      confirm: 'Neue Aufgabe „Export als PDF“, sie startet noch nicht.',
+      confirm: 'Neue Aufgabe “Export als PDF”, sie startet noch nicht.',
     });
     k.arm(later.token!);
     await new Promise((r) => setTimeout(r, 40));
@@ -256,7 +240,7 @@ describe('the Koordinator remembers', () => {
     ]);
   });
 
-  test('a new card for a named later time is planned to start then („Folgekarte für Anfang Dezember“); a time passed or no time is refused', async () => {
+  test('a new card for a named later time is planned to start then (“Folgekarte für Anfang Dezember”); a time passed or no time is refused', async () => {
     const k = commander();
     const p = (n: number) => String(n).padStart(2, '0');
     const local = (days: number) => {
@@ -265,7 +249,7 @@ describe('the Koordinator remembers', () => {
     };
     const { heard, session } = await say(k, 'Leg eine Folgekarte an, dass ich mich Anfang Dezember um die Depots kümmere', 'act', {
       actions: [{ do: 'new_card', title: 'Depots einrichten', body: 'Anfang Dezember die Depots einrichten.', until: local(40) }],
-      confirm: 'Neue Aufgabe „Depots einrichten“, sie startet am 1. Dezember um 8 Uhr.',
+      confirm: 'Neue Aufgabe “Depots einrichten”, sie startet am 1. Dezember um 8 Uhr.',
     });
     expect(session.spec.tools.find((t) => t.name === 'act')!.description).toContain('until when the owner names a time for the work');
     k.arm(heard.token!);
@@ -312,7 +296,7 @@ describe('the Koordinator remembers', () => {
     // where the repository allows a direct push, the words still approve nothing: the button does it
     const refused = await s.call('act', { actions: [{ do: 'approve', card: 'K1', direct: true }], confirm: '…' });
     expect(refused).toContain('nothing was approved');
-    expect(refused).toContain('„Direkt auf main“');
+    expect(refused).toContain('“Straight to main”');
     const notAllowed = await s.call('act', { actions: [{ do: 'approve', card: 'K2', direct: true }], confirm: '…' });
     expect(notAllowed).toContain('the repository app lands approved work only through a pull request');
     // a plain approval goes out as the repository sets; where work lands on main anyway, "direkt" is a plain approval
@@ -321,7 +305,7 @@ describe('the Koordinator remembers', () => {
         { do: 'approve', card: 'K1' },
         { do: 'approve', card: 'K3', direct: true },
       ],
-      confirm: '„Export“ geht als Pull Request raus, „Logo“ ist freigegeben.',
+      confirm: '“Export” geht als Pull Request raus, “Logo” ist freigegeben.',
     });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
@@ -353,7 +337,7 @@ describe('the Koordinator remembers', () => {
         { do: 'approve', card: 'K1' },
         { do: 'new_card', card: 'K1', title: 'ambient-Ton stoppen', body: finding, start: false },
       ],
-      confirm: '„Export“ freigegeben, Folgekarte „ambient-Ton stoppen“ angelegt.',
+      confirm: '“Export” freigegeben, Folgekarte “ambient-Ton stoppen” angelegt.',
     });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
@@ -371,9 +355,9 @@ describe('the Koordinator remembers', () => {
     expect(s.inbox[0]).toContain('The owner has this card open');
     const refused = await s.call('act', { actions: [{ do: 'note', card: 'K1', text: 'Was heißt abgeschlossen?' }], confirm: 'Weitergegeben.' });
     expect(refused).toContain('Nothing recorded: action 1 (note on K1): no agent works on this card (it is live)');
-    s.call('reply', { confirm: '„Export“ ist seit gestern auf main.' });
+    s.call('reply', { confirm: '“Export” ist seit gestern auf main.' });
     s.emit({ type: 'idle' });
-    expect(await heard).toEqual({ confirm: '„Export“ ist seit gestern auf main.' });
+    expect(await heard).toEqual({ confirm: '“Export” ist seit gestern auf main.' });
   });
 
   test('a question on a live card an agent worked on is a note: it resumes that agent', async () => {
@@ -389,7 +373,7 @@ describe('the Koordinator remembers', () => {
     await heard;
   });
 
-  test("the question in a demo report is the card's open question: „ja“ to it answers it", async () => {
+  test("the question in a demo report is the card's open question: “ja” to it answers it", async () => {
     const a = board.create({ title: 'Archiv', x: 0, y: 0 });
     board.work(a.id, { state: 'waiting', need: 'demo', demo: JSON.stringify({ kind: 'video', dir: '/d', chapters: [], question: 'Alte Projekte nachtragen?' }) });
     const k = commander();
@@ -397,21 +381,21 @@ describe('the Koordinator remembers', () => {
     await settle();
     const s = runtime.last;
     expect(s.inbox[0]).toContain('[waiting: demo] "Archiv" — open question in its demo report: "Alte Projekte nachtragen?"');
-    expect(await s.call('act', { actions: [{ do: 'answer', card: 'K1', text: 'ja' }], confirm: 'Antwort an „Archiv“.' })).toContain('Done');
+    expect(await s.call('act', { actions: [{ do: 'answer', card: 'K1', text: 'ja' }], confirm: 'Antwort an “Archiv”.' })).toContain('Done');
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await new Promise((r) => setTimeout(r, 40));
     expect(executed).toEqual([{ do: 'answer', card: a.id, text: 'ja', spoken: true }]);
   });
 
-  test('„plane das als Projekt“ on a planned task of the owner’s plans its doc; on one with work, it is refused', async () => {
+  test('“plane das als Projekt” on a planned task of the owner’s plans its doc; on one with work, it is refused', async () => {
     const a = board.create({ title: 'Mandanten', x: 0, y: 0 });
     const k = commander();
     const heard = k.hear('plane das als Projekt', { card: a.id });
     await settle();
     const s = runtime.last;
     expect(s.spec.tools.find((t) => t.name === 'act')!.description).toContain('plan_doc also on a planned task');
-    expect(await s.call('act', { actions: [{ do: 'plan_doc', card: 'K1' }], confirm: 'Plan-Doc für „Mandanten“.' })).toContain('Done');
+    expect(await s.call('act', { actions: [{ do: 'plan_doc', card: 'K1' }], confirm: 'Plan-Doc für “Mandanten”.' })).toContain('Done');
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await new Promise((r) => setTimeout(r, 40));
@@ -425,7 +409,7 @@ describe('the Koordinator remembers', () => {
     await again;
   });
 
-    test("an idea's suggested next step, and its open questions with its agent's picks, are in its line: „mach, was du vorschlägst“ takes it", async () => {
+    test("an idea's suggested next step, and its open questions with its agent's picks, are in its line: “mach, was du vorschlägst” takes it", async () => {
     const a = board.create({ idea: true, title: 'Export', x: 0, y: 0 });
     board.setIdea(a.id, {
       yourTurn: true,
@@ -433,7 +417,7 @@ describe('the Koordinator remembers', () => {
       next: { step: 'answer', why: 'Das Format entscheidet den Rest.' },
     });
     const k = commander();
-    const { brief } = await say(k, 'mach, was du vorschlägst', 'act', { actions: [{ do: 'discuss', card: 'K1', text: 'CSV' }], confirm: 'An „Export“: CSV.' });
+    const { brief } = await say(k, 'mach, was du vorschlägst', 'act', { actions: [{ do: 'discuss', card: 'K1', text: 'CSV' }], confirm: 'An “Export”: CSV.' });
     expect(brief).toContain(
       '"Export" — open question: "Welches Format?" (its agent would pick: CSV) — its agent would have the owner answer its open questions (discuss) next: Das Format entscheidet den Rest.',
     );
@@ -469,7 +453,7 @@ describe('the Koordinator remembers', () => {
     expect(s.inbox[0]).toContain('K3 [queued: Seismic checks it for merge conflicts] "Login"');
     const refused = await s.call('act', { actions: [{ do: 'start', card: 'K2' }, { do: 'start', card: 'K3' }], confirm: 'Beide starten.' });
     expect(refused).toContain('action 2 (start on K3): Seismic is still checking the card');
-    s.call('act', { actions: [{ do: 'start', card: 'K2' }], confirm: '„Archiv“ startet trotz Überschneidung.' });
+    s.call('act', { actions: [{ do: 'start', card: 'K2' }], confirm: '“Archiv” startet trotz Überschneidung.' });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await new Promise((r) => setTimeout(r, 40));
@@ -487,7 +471,7 @@ describe('the Koordinator remembers', () => {
     const s = runtime.last;
     const refused = await s.call('act', { actions: [{ do: 'dequeue', card: 'K2' }, { do: 'dequeue', card: 'K1' }], confirm: 'Beide raus.' });
     expect(refused).toContain('action 2 (dequeue on K1): the card is not in the queue (it is working)');
-    s.call('act', { actions: [{ do: 'dequeue', card: 'K2' }], confirm: '„Archiv“ ist aus der Warteschlange.' });
+    s.call('act', { actions: [{ do: 'dequeue', card: 'K2' }], confirm: '“Archiv” ist aus der Warteschlange.' });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await new Promise((r) => setTimeout(r, 40));
@@ -511,7 +495,7 @@ describe('the Koordinator remembers', () => {
     expect(s.inbox[0]).toContain('The owner is looking at the plan K1 "Export".');
     expect(s.inbox[0]).toContain('Plans with workstreams to start:\nK1 [plan] "Export" — planned workstreams not yet started: W2, W3');
     expect(s.inbox[0]).not.toContain('"Fertig"');
-    s.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: 'Seismic plant alle Workstreams von „Export“ ein.' });
+    s.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: 'Seismic plant alle Workstreams von “Export” ein.' });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await new Promise((r) => setTimeout(r, 40));
@@ -524,20 +508,20 @@ describe('the Koordinator remembers', () => {
     const k = commander();
     const heard = k.hear('halt ihn an', { card: a.id });
     await settle();
-    runtime.last.call('act', { actions: [{ do: 'stop', card: 'K1' }], confirm: '„Export“ wird angehalten.' });
+    runtime.last.call('act', { actions: [{ do: 'stop', card: 'K1' }], confirm: '“Export” wird angehalten.' });
     runtime.last.emit({ type: 'idle' });
     k.undo((await heard).token!);
     expect(board.events(a.id).map((e) => [e.kind, e.author, e.text])).toEqual([
       ['say', 'owner', 'halt ihn an'],
-      ['say', 'koordinator', '„Export“ wird angehalten.'],
-      ['state', 'owner', 'Zurückgenommen.'],
+      ['say', 'koordinator', '“Export” wird angehalten.'],
+      ['state', 'owner', 'Taken back.'],
     ]);
     expect(board.snapshot().talk).toEqual([]);
-    await say(k, 'was läuft?', 'reply', { confirm: '„Export“.' });
+    await say(k, 'was läuft?', 'reply', { confirm: '“Export”.' });
     expect(board.snapshot().talk.map((t) => t.said)).toEqual(['was läuft?']);
     // the memory holds both, and knows which card was open
     const { brief } = await say(commander(), 'und?', 'reply', { confirm: 'Nichts.' });
-    expect(brief).toContain('(with "Export" open) the owner: "halt ihn an" → you: "„Export“ wird angehalten." (the owner took it back)');
+    expect(brief).toContain('(with "Export" open) the owner: "halt ihn an" → you: "“Export” wird angehalten." (the owner took it back)');
   });
 
   test("on a card, a reply that only answers is marked to stand in its conversation, a confirmation of actions is not; so is one to a request its agent passed on", async () => {
@@ -550,7 +534,7 @@ describe('the Koordinator remembers', () => {
     await asked;
     const started = k.hear('starte sie', { card: a.id }, [], { typed: true });
     await settle();
-    runtime.last.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: '„Export“ startet.' });
+    runtime.last.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: '“Export” startet.' });
     runtime.last.emit({ type: 'idle' });
     await started;
     const forwarded = k.forward(a.id, 'Does this overlap with Login?', { text: 'überlappt die mit Login?', spoken: false });
@@ -561,7 +545,7 @@ describe('the Koordinator remembers', () => {
     // the reply to what the card's agent passed on is marked, to stand under the agent's message
     expect(board.events(a.id).filter((e) => e.author === 'koordinator').map((e) => [e.text, !!e.reply, !!e.forwarded])).toEqual([
       ['Nein, Login ändert nur die Anmeldung.', true, false],
-      ['„Export“ startet.', false, false],
+      ['“Export” startet.', false, false],
       ['Nein.', true, true],
     ]);
   });
@@ -589,7 +573,7 @@ describe('the Koordinator remembers', () => {
     expect(waitingOn(board.snapshot())).toBe(1);
     board.readTalk();
     expect(board.snapshot().talk.at(-1)!.unread).toBeUndefined();
-    await say(k, 'starte Export', 'act', { actions: [{ do: 'start', card: 'K1' }], confirm: '„Export“ startet.' });
+    await say(k, 'starte Export', 'act', { actions: [{ do: 'start', card: 'K1' }], confirm: '“Export” startet.' });
     expect(board.snapshot().talk.at(-1)!.unread).toBeUndefined();
     const heard = k.hear('was macht er?', { card: a.id });
     await settle();
@@ -601,7 +585,7 @@ describe('the Koordinator remembers', () => {
 
   test('words in reply to a message of the sheet stand with its quote, and the Koordinator reads the message whole', async () => {
     const k = commander();
-    await say(k, 'wie viele Karten laufen?', 'reply', { confirm: 'Zwei: „Export“ und „Login“.' });
+    await say(k, 'wie viele Karten laufen?', 'reply', { confirm: 'Zwei: “Export” und “Login”.' });
     const [first] = board.snapshot().talk;
     const reply = async (text: string, replyTo: unknown) => {
       const heard = k.hear(text, {}, [], { typed: true, replyTo: replyTo as never });
@@ -613,9 +597,9 @@ describe('the Koordinator remembers', () => {
       return brief;
     };
     expect(await reply('und welche davon wartet?', { talk: first!.id, part: 'reply' })).toContain(
-      'The owner typed (as written, no recognition errors): "und welche davon wartet?"\n\n[In reply to your reply: “Zwei: „Export“ und „Login“.”]',
+      'The owner typed (as written, no recognition errors): "und welche davon wartet?"\n\n[In reply to your reply: “Zwei: “Export” und “Login”.”]',
     );
-    expect(board.snapshot().talk.at(-1)!.replyTo).toEqual({ talk: first!.id, part: 'reply', by: 'koordinator', text: 'Zwei: „Export“ und „Login“.' });
+    expect(board.snapshot().talk.at(-1)!.replyTo).toEqual({ talk: first!.id, part: 'reply', by: 'koordinator', text: 'Zwei: “Export” und “Login”.' });
     expect(await reply('nochmal', { talk: first!.id, part: 'said' })).toContain('[In reply to their own earlier message: “wie viele Karten laufen?”]');
     // a looked-up answer goes by its tag, to follow up on it
     store.answerTalk(first!.id, 'Export wartet auf dich.', 'plan');
@@ -646,12 +630,12 @@ describe('the Koordinator remembers', () => {
     await heard;
     expect(board.snapshot().talk.map((t) => [t.said, t.reply])).toEqual([['hallo nochmal', 'Hallo!']]);
     await settle();
-    runtime.last.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: '„Export“ startet.' });
+    runtime.last.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: '“Export” startet.' });
     runtime.last.emit({ type: 'idle' });
     await onCard;
     expect(board.events(a.id).map((e) => [e.kind, e.author, e.text])).toEqual([
       ['say', 'owner', 'starte ihn'],
-      ['say', 'koordinator', '„Export“ startet.'],
+      ['say', 'koordinator', '“Export” startet.'],
     ]);
   });
 
@@ -661,21 +645,21 @@ describe('the Koordinator remembers', () => {
     board.addTalk('starte ihn', '', a.id);
     board.log(a.id, 'say', 'owner', 'starte ihn');
     board.interruptTalk();
-    expect(board.snapshot().talk.map((t) => t.reply)).toEqual(['Seismic startete neu, bevor ich das gelesen hatte. Bitte noch einmal.']);
-    expect(board.events(a.id).at(-1)).toMatchObject({ kind: 'say', author: 'koordinator', text: 'Seismic startete neu, bevor ich das gelesen hatte. Bitte noch einmal.' });
+    expect(board.snapshot().talk.map((t) => t.reply)).toEqual(['Seismic restarted before I had read that. Please say it again.']);
+    expect(board.events(a.id).at(-1)).toMatchObject({ kind: 'say', author: 'koordinator', text: 'Seismic restarted before I had read that. Please say it again.' });
   });
 
   test('a new session, after a restart, starts from the stored conversation and the project history', async () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
-    await say(commander(), 'starte Export', 'act', { actions: [{ do: 'start', card: 'K1' }], confirm: '„Export“ startet.' });
+    await say(commander(), 'starte Export', 'act', { actions: [{ do: 'start', card: 'K1' }], confirm: '“Export” startet.' });
     board.log(a.id, 'state', 'obeya', 'Agent gestartet auf obeya/export.');
     board.log(a.id, 'activity', 'worker', 'Read src/app.ts');
 
     // Seismic restarts: a new Commander on the same store
-    const { brief } = await say(commander(), 'was habe ich vorhin gestartet?', 'reply', { confirm: '„Export“.' });
+    const { brief } = await say(commander(), 'was habe ich vorhin gestartet?', 'reply', { confirm: '“Export”.' });
     expect(runtime.sessions).toHaveLength(2);
     expect(brief).toContain('Your conversation with the owner in this chat before this session');
-    expect(brief).toContain('the owner: "starte Export" → you: "„Export“ startet."');
+    expect(brief).toContain('the owner: "starte Export" → you: "“Export” startet."');
     expect(brief).toContain('K1 "Export": new card');
     expect(brief).toContain('K1 "Export": Agent gestartet auf obeya/export.');
     // the worker's steps are no history the Koordinator needs
@@ -702,7 +686,7 @@ describe('the Koordinator remembers', () => {
     expect(board.snapshot().chats.map((x) => x.title)).toEqual(['was gibt es?', 'starte Export']);
 
     board.openChat(first);
-    const back = await say(c, 'und jetzt?', 'reply', { confirm: 'Weiter.' });
+    const back = await say(c, 'und jetzt?', 'reply', { confirm: 'Resumed.' });
     expect(runtime.sessions).toHaveLength(3);
     expect(back.brief).toContain('the owner: "starte Export" → you: "Gleich."');
     expect(back.brief).not.toContain('was gibt es?');
@@ -760,7 +744,7 @@ describe('the usage limit', () => {
   const limited = () => new Commander({ board, runtime, cwd: '/r', execute: (c) => void executed.push(c), delayMs: 20, limitMargin: 10 });
   const lifts = (ms: number) => runtime.last.emit({ type: 'error', message: hit, limit: { resetsAt: Date.now() + ms } });
 
-  test('words the limit kept the Koordinator from reading wait and are read by themselves once it lifts; the reply comes with „Rückgängig“', async () => {
+  test('words the limit kept the Koordinator from reading wait and are read by themselves once it lifts; the reply comes with “Undo”', async () => {
     board.create({ title: 'Export', x: 0, y: 0 });
     const notices: Notice[] = [];
     board.onNotice((n) => void notices.push(n));
@@ -769,7 +753,7 @@ describe('the usage limit', () => {
     await settle();
     lifts(60);
     const { confirm } = await heard;
-    expect(confirm).toStartWith('Das Nutzungslimit ist erreicht. Ich lese das um ');
+    expect(confirm).toStartWith('The usage limit is reached. I will read this by myself at ');
     const [x] = board.snapshot().talk;
     // the sheet says when it reads them, not that it reads them now
     expect(x).toMatchObject({ said: 'starte Export' });
@@ -778,15 +762,15 @@ describe('the usage limit', () => {
     expect(runtime.sessions).toHaveLength(1);
 
     await until(() => runtime.sessions.length === 2);
-    // read now: „liest …“ under them again
+    // read now: “liest …” under them again
     expect(board.snapshot().talk[0]!.heldUntil).toBeUndefined();
     expect(runtime.last.inbox.at(-1)).toContain("the account's usage limit kept you from reading it until now");
-    runtime.last.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: '„Export“ startet.' });
+    runtime.last.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: '“Export” startet.' });
     runtime.last.emit({ type: 'idle' });
     await until(() => notices.length);
-    expect(notices[0]).toMatchObject({ text: '„Export“ startet.', undoMs: 20, talk: x!.id });
+    expect(notices[0]).toMatchObject({ text: '“Export” startet.', undoMs: 20, talk: x!.id });
     expect(notices[0]!.token).toBeString();
-    expect(board.snapshot().talk[0]!.reply).toBe('„Export“ startet.');
+    expect(board.snapshot().talk[0]!.reply).toBe('“Export” startet.');
     await until(() => executed.length);
     expect(executed).toEqual([{ do: 'start', card: board.snapshot().items[0]!.id }]);
   });
@@ -804,14 +788,14 @@ describe('the usage limit', () => {
     expect(runtime.sessions).toHaveLength(2);
     expect(runtime.last.inbox.at(-1)).toContain('"hallo"');
     lifts(80);
-    expect((await second).confirm).toStartWith('Das Nutzungslimit ist erreicht.');
+    expect((await second).confirm).toStartWith('The usage limit is reached.');
     // not tried itself: the limit held the words before it
     expect(runtime.sessions).toHaveLength(2);
     expect(board.snapshot().talk.map((t) => !!t.heldUntil)).toEqual([true]);
     expect(store.heldTalk('c').map((t) => t.said)).toEqual(['hallo', 'starte ihn']);
     expect(board.events(a.id).map((e) => [e.author, e.text.slice(0, 30)])).toEqual([
       ['owner', 'starte ihn'],
-      ['koordinator', 'Das Nutzungslimit ist erreicht'],
+      ['koordinator', 'The usage limit is reached. I '],
     ]);
 
     // it lifts: read in the order they were said
@@ -821,10 +805,10 @@ describe('the usage limit', () => {
     runtime.last.emit({ type: 'idle' });
     await until(() => runtime.last.inbox.length === 2);
     expect(runtime.last.inbox.at(-1)).toContain('"starte ihn"');
-    runtime.last.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: '„Export“ startet.' });
+    runtime.last.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: '“Export” startet.' });
     runtime.last.emit({ type: 'idle' });
     await until(() => board.events(a.id).length === 3);
-    expect(board.events(a.id).at(-1)).toMatchObject({ author: 'koordinator', text: '„Export“ startet.' });
+    expect(board.events(a.id).at(-1)).toMatchObject({ author: 'koordinator', text: '“Export” startet.' });
     expect(store.heldTalk('c')).toEqual([]);
   });
 
@@ -957,7 +941,7 @@ describe('what the owner says or types to the Koordinator about a card with an a
     await settle();
     const s = runtime.last;
     expect(await s.call('look_up', { question, card: 'K1', confirm: 'Ich schaue nach.' })).toContain('Pass the owner\'s words to it with act (feedback)');
-    expect(await s.call('act', { actions: [{ do: 'feedback', card: 'K1', text: question }], confirm: 'An den Agenten von „Export“.' })).toContain('Done');
+    expect(await s.call('act', { actions: [{ do: 'feedback', card: 'K1', text: question }], confirm: 'An den Agenten von “Export”.' })).toContain('Done');
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await new Promise((r) => setTimeout(r, 40));
@@ -982,7 +966,7 @@ describe('what the owner says or types to the Koordinator about a card with an a
   });
 });
 
-describe('„Merk dir“', () => {
+describe('“Remember”', () => {
   test('records a rule after the undo window, with the open card as its occasion; undo takes it back', async () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     const k = commander();
@@ -1031,7 +1015,7 @@ describe('„Merk dir“', () => {
     await settle();
     const s = runtime.last;
     expect(s.inbox.at(-1)).toContain('Repositories on this project (the first is the default for a new card): home (Home)');
-    expect(s.spec.tools.find((t) => t.name === 'act')!.description).toContain('„CLAUDE.md ergänzen“');
+    expect(s.spec.tools.find((t) => t.name === 'act')!.description).toContain('“Add to CLAUDE.md”');
     expect(s.call('act', { actions: [{ do: 'remember', text: 'Tests auf Deutsch.', repos: ['web'] }], confirm: '…' })).toContain('unknown repository web; the project has home');
     s.call('act', { actions: [{ do: 'remember', text: 'Tests auf Deutsch.', repos: ['home', 'home'] }], confirm: 'Kommt in die CLAUDE.md von Home.' });
     s.emit({ type: 'idle' });
@@ -1062,14 +1046,14 @@ describe('what the owner says to the Koordinator is offered for learning', () =>
 
     const started = k.hear('mach eine Karte für den Import und fang gleich an, Tests immer zuerst', { card: a.id });
     await settle();
-    runtime.last.call('act', { actions: [{ do: 'new_card', title: 'Import', body: 'Import, Tests zuerst', start: true }], confirm: 'Neue Karte „Import“.' });
+    runtime.last.call('act', { actions: [{ do: 'new_card', title: 'Import', body: 'Import, Tests zuerst', start: true }], confirm: 'Neue Karte “Import”.' });
     runtime.last.emit({ type: 'idle' });
     k.arm((await started).token!);
     expect(heard).toHaveLength(2);
     await new Promise((r) => setTimeout(r, 40));
-    expect(heard[2]).toBe('command on Export: mach eine Karte für den Import und fang gleich an, Tests immer zuerst → Neue Karte „Import“.');
+    expect(heard[2]).toBe('command on Export: mach eine Karte für den Import und fang gleich an, Tests immer zuerst → Neue Karte “Import”.');
 
-    const { heard: back } = await say(k, 'stopp Export', 'act', { actions: [{ do: 'stop', card: 'K1' }], confirm: '„Export“ angehalten.' });
+    const { heard: back } = await say(k, 'stopp Export', 'act', { actions: [{ do: 'stop', card: 'K1' }], confirm: '“Export” angehalten.' });
     k.undo(back.token!);
     // a note reaches the learner through the worker, a rule is one already
     const { heard: note } = await say(k, 'sag Export: immer mit Einheit', 'act', { actions: [{ do: 'note', card: 'K1', text: 'Immer mit Einheit.' }], confirm: 'Weitergegeben.' });
@@ -1173,7 +1157,7 @@ describe('groups by voice', () => {
         { do: 'ungroup', cards: ['K1', 'K2'] },
         { do: 'rename_group', group: 'abrechnung', text: 'Billing' },
       ],
-      confirm: '„Rabatt“ gehört jetzt zur Abrechnung, die Billing heißt.',
+      confirm: '“Rabatt” gehört jetzt zur Abrechnung, die Billing heißt.',
     });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
@@ -1395,7 +1379,7 @@ describe("wishes for Seismic's makers", () => {
         { do: 'start', card: 'K1' },
         { do: 'wish', text: 'Der Start dauert zu lange.' },
       ],
-      confirm: '„Export“ startet; der Entwurf für die Entwickler ist offen.',
+      confirm: '“Export” startet; der Entwurf für die Entwickler ist offen.',
     });
     expect(heard.token).toBeDefined();
     expect(heard.wish).toEqual({ said: 'Der Start dauert zu lange.' });
@@ -1429,31 +1413,31 @@ describe("wishes for Seismic's makers", () => {
 });
 
 describe('snoozing by voice', () => {
-  test('„stell das bis morgen früh zurück“ snoozes the card until that local time; wake brings a snoozed one back; the card list says it is snoozed', async () => {
+  test('“stell das bis morgen früh zurück” snoozes the card until that local time; wake brings a snoozed one back; the card list says it is snoozed', async () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     board.work(a.id, { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'CSV?', options: [] } }) });
     const k = commander();
     const next = new Date(Date.now() + 86_400_000);
     const p = (n: number) => String(n).padStart(2, '0');
     const local = `${next.getFullYear()}-${p(next.getMonth() + 1)}-${p(next.getDate())}T08:00`;
-    const { heard, brief } = await say(k, 'stell Export bis morgen früh zurück', 'act', { actions: [{ do: 'snooze', card: 'K1', until: local }], confirm: '„Export“ bis morgen 8 Uhr zurückgestellt.' });
+    const { heard, brief } = await say(k, 'stell Export bis morgen früh zurück', 'act', { actions: [{ do: 'snooze', card: 'K1', until: local }], confirm: '“Export” bis morgen 8 Uhr zurückgestellt.' });
     expect(brief).toContain('Now: ');
     k.arm(heard.token!);
     await until(() => executed.length > 0);
     expect(executed).toEqual([{ do: 'snooze', card: a.id, until: new Date(local).toISOString() }]);
 
     board.snooze(a.id, { until: new Date(local).toISOString(), by: 'owner', waiting: true });
-    const back = await say(k, 'hol Export zurück', 'act', { actions: [{ do: 'wake', card: 'K1' }], confirm: '„Export“ ist zurück.' });
+    const back = await say(k, 'hol Export zurück', 'act', { actions: [{ do: 'wake', card: 'K1' }], confirm: '“Export” ist zurück.' });
     expect(back.brief).toContain('snoozed by the owner until');
     k.arm(back.heard.token!);
     await until(() => executed.length > 1);
     expect(executed[1]).toEqual({ do: 'wake', card: a.id });
   });
 
-  test('„erst am Montag starten“ snoozes a planned card, which the card list then says starts at the time', async () => {
+  test('“erst am Montag starten” snoozes a planned card, which the card list then says starts at the time', async () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     const k = commander();
-    const { heard } = await say(k, 'Export erst am Montag starten', 'act', { actions: [{ do: 'snooze', card: 'K1', until: '2030-01-07T08:00' }], confirm: '„Export“ startet Montag um 8.' });
+    const { heard } = await say(k, 'Export erst am Montag starten', 'act', { actions: [{ do: 'snooze', card: 'K1', until: '2030-01-07T08:00' }], confirm: '“Export” startet Montag um 8.' });
     k.arm(heard.token!);
     await until(() => executed.length > 0);
     expect(executed).toEqual([{ do: 'snooze', card: a.id, until: new Date('2030-01-07T08:00').toISOString() }]);
@@ -1490,7 +1474,7 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
       },
     });
 
-  test('it waits on the new card of the same command, and once that is done takes the step up by itself, with „Rückgängig“', async () => {
+  test('it waits on the new card of the same command, and once that is done takes the step up by itself, with “Undo”', async () => {
     const other = board.create({ title: 'Recipes einrichten', x: 0, y: 0 });
     const notices: Notice[] = [];
     board.onNotice((n) => void notices.push(n));
@@ -1498,9 +1482,9 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
     const { heard, session } = await say(k, 'Leg eine Aufgabe an, die das Repo erstellt, und dann die Leinwand', 'act', {
       actions: [
         { do: 'new_card', title: 'Repository ~/dev/recipes anlegen', body: 'git init in ~/dev/recipes' },
-        { do: 'wait_for', on: 'Repository ~/dev/recipes anlegen', text: 'Start K1, then tell K1 “Recipes einrichten” and „Recipes einrichten“ (K1).' },
+        { do: 'wait_for', on: 'Repository ~/dev/recipes anlegen', text: 'Start K1, then tell K1 “Recipes einrichten” and “Recipes einrichten” (K1).' },
       ],
-      confirm: 'Neue Aufgabe „Repository ~/dev/recipes anlegen“; sobald sie erledigt ist, starte ich „Recipes einrichten“.',
+      confirm: 'Neue Aufgabe “Repository ~/dev/recipes anlegen”; sobald sie erledigt ist, starte ich “Recipes einrichten”.',
     });
     expect(session.spec.system).toContain('wait_for in the same act');
     k.arm(heard.token!);
@@ -1510,7 +1494,7 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
 
     // the next command knows what it waits on
     const next = await say(k, 'was läuft?', 'reply', { confirm: 'Das Repository wird angelegt.' });
-    expect(next.brief).toMatch(/Cards you wait on.*\n- K\d "Repository ~\/dev\/recipes anlegen" until it is done \(since .*\), then: Start "Recipes einrichten", then tell “Recipes einrichten” and „Recipes einrichten“\./);
+    expect(next.brief).toMatch(/Cards you wait on.*\n- K\d "Repository ~\/dev\/recipes anlegen" until it is done \(since .*\), then: Start "Recipes einrichten", then tell “Recipes einrichten” and “Recipes einrichten”\./);
 
     // still at work: nothing happens
     board.work(card.id, { state: 'working' });
@@ -1525,16 +1509,16 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
     const brief = runtime.last.inbox.at(-1)!;
     expect(brief).toContain("No words of the owner's this time");
     expect(brief).toContain('the card "Repository ~/dev/recipes anlegen" is done');
-    expect(brief).toContain('to then: Start "Recipes einrichten", then tell “Recipes einrichten” and „Recipes einrichten“.');
+    expect(brief).toContain('to then: Start "Recipes einrichten", then tell “Recipes einrichten” and “Recipes einrichten”.');
     const [, , after] = board.snapshot().talk;
     // the exchange stands with what became of the card in place of the owner's words
     expect(after).toMatchObject({ said: '', after: { title: card.title, state: 'done', met: 'reached', from: board.snapshot().talk[0]!.id } });
-    runtime.last.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: '„Recipes einrichten“ startet.' });
+    runtime.last.call('act', { actions: [{ do: 'start', card: 'K1' }], confirm: '“Recipes einrichten” startet.' });
     runtime.last.emit({ type: 'idle' });
     // the first notice offered to go to the card the first command made
     expect(notices).toEqual([{ text: heard.confirm, token: heard.token!, made: [{ id: card.id, title: card.title }] }]);
     await until(() => notices.length === 2);
-    expect(notices[1]).toMatchObject({ text: '„Recipes einrichten“ startet.', talk: after!.id, undoMs: 20 });
+    expect(notices[1]).toMatchObject({ text: '“Recipes einrichten” startet.', talk: after!.id, undoMs: 20 });
     // decided: it no longer waits
     expect(board.snapshot().talk[0]!.waits).toBeUndefined();
     await until(() => executed.length === 2);
@@ -1550,7 +1534,7 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
     const k = making();
     const { heard } = await say(k, 'wenn Export wartet, sag ihm, es soll CSV nehmen', 'act', {
       actions: [{ do: 'wait_for', on: 'K1', state: 'waits_for_owner', text: 'Tell its agent to use CSV (note).' }],
-      confirm: 'Sobald „Export“ auf dich wartet, sage ich ihm, es soll CSV nehmen.',
+      confirm: 'Sobald “Export” auf dich wartet, sage ich ihm, es soll CSV nehmen.',
     });
     k.arm(heard.token!);
     await until(() => board.snapshot().talk[0]!.waits);
@@ -1560,14 +1544,14 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
     await until(() => runtime.last.inbox.length === 2);
     expect(runtime.last.inbox.at(-1)).toContain('the card "Export" was stopped by the owner');
     expect(runtime.last.inbox.at(-1)).toContain('tell the owner with reply');
-    runtime.last.call('reply', { confirm: '„Export“ wurde gestoppt; ich habe ihm nichts gesagt.' });
+    runtime.last.call('reply', { confirm: '“Export” wurde gestoppt; ich habe ihm nichts gesagt.' });
     runtime.last.emit({ type: 'idle' });
     await until(() => board.snapshot().talk[1]?.reply);
 
     // after a restart, the new session reads the exchange as one it took up by itself
     const fresh = making();
     const later = await say(fresh, 'und?', 'reply', { confirm: 'Nichts weiter.' });
-    expect(later.brief).toContain('the card "Export" was stopped by the owner (planned again), and you took up the step you had waited on it for → you: "„Export“ wurde gestoppt; ich habe ihm nichts gesagt."');
+    expect(later.brief).toContain('the card "Export" was stopped by the owner (planned again), and you took up the step you had waited on it for → you: "“Export” wurde gestoppt; ich habe ihm nichts gesagt."');
   });
 
   test('a wait names its new card by title, whatever else the command holds; several steps on one card each stand', async () => {
@@ -1609,7 +1593,7 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
     const b = board.create({ title: 'Login', x: 0, y: 0 });
     board.work(a.id, { state: 'working' });
     const k = making();
-    const { heard } = await say(k, 'wenn Export fertig ist, starte Login', 'act', { actions: [{ do: 'wait_for', on: 'K1', text: 'Start „Login“.' }], confirm: 'Mache ich.' });
+    const { heard } = await say(k, 'wenn Export fertig ist, starte Login', 'act', { actions: [{ do: 'wait_for', on: 'K1', text: 'Start “Login”.' }], confirm: 'Mache ich.' });
     k.arm(heard.token!);
     await until(() => board.snapshot().talk[0]!.waits);
     board.work(a.id, { state: 'live' });
@@ -1618,7 +1602,7 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
     expect(board.snapshot().talk[0]!.waits).toHaveLength(1);
     // the owner drops it while it is read: the start it decides is taken back
     expect(k.unwait(board.snapshot().talk[0]!.id, a.id)).toBe(true);
-    runtime.last.call('act', { actions: [{ do: 'start', card: 'K2' }], confirm: '„Login“ startet.' });
+    runtime.last.call('act', { actions: [{ do: 'start', card: 'K2' }], confirm: '“Login” startet.' });
     runtime.last.emit({ type: 'idle' });
     await until(() => board.snapshot().talk[1]!.undone);
     await settle();
@@ -1626,7 +1610,7 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
     expect(b.id).toBeString();
   });
 
-  test('a card there already is refused, and so is a wait that names two cards; stop_waiting and „Nicht mehr warten“ drop the step, and it hears of the latter', async () => {
+  test('a card there already is refused, and so is a wait that names two cards; stop_waiting and “Nicht mehr warten” drop the step, and it hears of the latter', async () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     const b = board.create({ title: 'Login', x: 0, y: 0 });
     board.work(a.id, { state: 'live' });
@@ -1644,7 +1628,7 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
     k.arm((await s).token!);
     await until(() => board.snapshot().talk[0]!.waits);
 
-    const { heard } = await say(k, 'vergiss das mit Login', 'act', { actions: [{ do: 'stop_waiting', on: 'K2' }], confirm: 'Ich warte nicht mehr auf „Login“.' });
+    const { heard } = await say(k, 'vergiss das mit Login', 'act', { actions: [{ do: 'stop_waiting', on: 'K2' }], confirm: 'Ich warte nicht mehr auf “Login”.' });
     k.arm(heard.token!);
     await until(() => !board.snapshot().talk[0]!.waits);
 
@@ -1680,7 +1664,7 @@ describe('a step the Koordinator takes once it has looked something up', () => {
       },
     });
 
-  test('a task for each open issue: it looks them up, then creates the tasks itself, with „Rückgängig“', async () => {
+  test('a task for each open issue: it looks them up, then creates the tasks itself, with “Undo”', async () => {
     const notices: Notice[] = [];
     board.onNotice((n) => void notices.push(n));
     const asked: number[] = [];
@@ -1697,7 +1681,7 @@ describe('a step the Koordinator takes once it has looked something up', () => {
     // no answer yet: nothing to take up
     expect(k.answerIn(asking!.id)).toBe(false);
 
-    board.answerTalk(asking!.id, '- #27 Skills per „/“ (https://github.com/o/r/issues/27)\n- #25 Freigabe scheitert (https://github.com/o/r/issues/25)', 'koordinator');
+    board.answerTalk(asking!.id, '- #27 Skills per “/” (https://github.com/o/r/issues/27)\n- #25 Freigabe scheitert (https://github.com/o/r/issues/25)', 'koordinator');
     expect(k.answerIn(asking!.id)).toBe(true);
     // a second call while it is taken up takes it up once
     expect(k.answerIn(asking!.id)).toBe(false);
@@ -1705,25 +1689,25 @@ describe('a step the Koordinator takes once it has looked something up', () => {
     const brief = runtime.last.inbox.at(-1)!;
     expect(brief).toContain("No words of the owner's this time");
     expect(brief).toContain('to then: Create a task for each open issue');
-    expect(brief).toContain(`The answer A${asking!.id} is in (the owner sees it too): - #27 Skills per „/“`);
+    expect(brief).toContain(`The answer A${asking!.id} is in (the owner sees it too): - #27 Skills per “/”`);
     const after = board.snapshot().talk[1]!;
     // the exchange stands without words of the owner's, after the one whose answer came in
     expect(after).toMatchObject({ said: '', answered: asking!.id });
     runtime.last.call('act', {
       actions: [
-        { do: 'new_card', title: 'Skills per „/“', body: 'GitHub-Issue #27: https://github.com/o/r/issues/27' },
+        { do: 'new_card', title: 'Skills per “/”', body: 'GitHub-Issue #27: https://github.com/o/r/issues/27' },
         { do: 'new_card', title: 'Freigabe scheitert', body: 'GitHub-Issue #25: https://github.com/o/r/issues/25' },
       ],
-      confirm: 'Zwei neue Aufgaben: „Skills per „/““ und „Freigabe scheitert“.',
+      confirm: 'Zwei neue Aufgaben: “Skills per „/”“ und “Freigabe scheitert”.',
     });
     runtime.last.emit({ type: 'idle' });
     await until(() => notices.length);
-    expect(notices[0]).toMatchObject({ text: 'Zwei neue Aufgaben: „Skills per „/““ und „Freigabe scheitert“.', talk: after.id, undoMs: 20 });
+    expect(notices[0]).toMatchObject({ text: 'Zwei neue Aufgaben: “Skills per „/”“ und “Freigabe scheitert”.', talk: after.id, undoMs: 20 });
     // decided: the step is no longer to take
     expect(board.snapshot().talk[0]!.then).toBeUndefined();
     expect(board.answeredSteps()).toEqual([]);
     await until(() => executed.length === 2);
-    expect(executed.map((c) => c.do === 'newCard' && c.title)).toEqual(['Skills per „/“', 'Freigabe scheitert']);
+    expect(executed.map((c) => c.do === 'newCard' && c.title)).toEqual(['Skills per “/”', 'Freigabe scheitert']);
     // the owner said it once: nothing more to learn from
     expect(store.utterances('c', '2000-01-01', 10).map((u) => u.text)).toEqual(['Es gibt drei offene Issues bei GitHub, erstelle für jedes eine eigene Karte.']);
 
@@ -1788,7 +1772,7 @@ describe('other projects and new repositories', () => {
     const s = runtime.last;
     expect(s.inbox.at(-1)).toContain('Other projects of this Seismic (new_card and new_idea go there with project): "Super 59"');
     expect(s.call('act', { actions: [{ do: 'new_idea', title: 'X', project: 'Shop' }], confirm: '…' })).toContain('unknown project Shop; the other projects are "Super 59"');
-    s.call('act', { actions: [{ do: 'new_card', title: 'Termine', body: 'Termine.', project: 'Super 59' }, { do: 'new_idea', title: 'Hier', project: 'C' }], confirm: 'Lege „Termine“ auf Super 59 an.' });
+    s.call('act', { actions: [{ do: 'new_card', title: 'Termine', body: 'Termine.', project: 'Super 59' }, { do: 'new_idea', title: 'Hier', project: 'C' }], confirm: 'Lege “Termine” auf Super 59 an.' });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await until(() => executed.length === 2);
@@ -1797,7 +1781,7 @@ describe('other projects and new repositories', () => {
     expect(executed[1]).not.toHaveProperty('project');
   });
 
-  test('„bau das in einem neuen Repo unter …“ builds an idea, or starts a planned task, in a new repository; a card already at work is refused', async () => {
+  test('“bau das in einem neuen Repo unter …” builds an idea, or starts a planned task, in a new repository; a card already at work is refused', async () => {
     const idea = board.create({ idea: true, title: 'Termine', x: 0, y: 0 });
     const task = board.create({ title: 'Export', x: 0, y: 0 });
     board.work(task.id, { state: 'working' });

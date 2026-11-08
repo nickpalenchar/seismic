@@ -3,15 +3,15 @@
 Runs in the environment Seismic installs for the voice (`voices.ts`): MLX through mlx-audio on
 Apple Silicon, PyTorch through qwen-tts elsewhere.
 
-    python qwen3.py --model <repo> --language de (--speaker ryan [--instruct <style>] | --reference clip.wav) --out x.wav
-    python qwen3.py --model <repo> --language de (--speaker ryan [--instruct <style>] | --reference clip.wav) --serve
+    python qwen3.py --model <repo> --language en (--speaker ryan [--instruct <style>] | --reference clip.wav) --out x.wav
+    python qwen3.py --model <repo> --language en (--speaker ryan [--instruct <style>] | --reference clip.wav) --serve
 
 With `--out`, the text comes on stdin and one WAV goes out. With `--serve`, the model, the
 reference and its transcript load once and the process answers requests until its stdin ends,
 one JSON object per line each way (what `tts.py` speaks with a voice whose spec has `serve`):
 
     → {"ready": true}                                      once the model is loaded
-    ← {"text": "...", "script": "...", "out": "/x/clip.wav", "language": "de", "id": 7}
+    ← {"text": "...", "script": "...", "out": "/x/clip.wav", "language": "en", "id": 7}
     → {"sentence": 1, "of": 3, "id": 7}                    once per sentence done
     → {"ok": true, "seconds": 4.2, "heard": [...], "id": 7}  or  {"error": "...", "id": 7}
 
@@ -61,7 +61,7 @@ import wave
 from pathlib import Path
 
 SENTENCE_GAP_SECONDS = 0.28
-LANGUAGES = {"de": "german", "en": "english"}
+LANGUAGES = {"en": "english"}
 #: Qwen3-TTS-12Hz speaks in frames of 80 ms.
 FRAMES_PER_SECOND = 12.5
 #: A slow reading: clean takes ran at about 17 characters a second, so this is twice as long.
@@ -79,30 +79,6 @@ SKIPPED_LETTERS = 12
 EAR_MODEL = "nemo-parakeet-tdt-0.6b-v3"
 #: The audio tags of a script ("[short pause]"): not said.
 AUDIO_TAG = re.compile(r"\[[^\]]*\]")
-
-_ONES = [
-    "null", "eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn",
-    "elf", "zwölf", "dreizehn", "vierzehn", "fünfzehn", "sechzehn", "siebzehn", "achtzehn",
-    "neunzehn",
-]
-_TENS = ["", "", "zwanzig", "dreißig", "vierzig", "fünfzig", "sechzig", "siebzig", "achtzig", "neunzig"]
-
-
-def german_number(n: int) -> str:
-    """0 ≤ n < 1,000,000 as one German word; larger numbers stay digits."""
-    if n < 20:
-        return _ONES[n]
-    if n < 100:
-        tens, ones = divmod(n, 10)
-        return (("ein" if ones == 1 else _ONES[ones]) + "und" if ones else "") + _TENS[tens]
-    if n < 1000:
-        hundreds, rest = divmod(n, 100)
-        return ("ein" if hundreds == 1 else _ONES[hundreds]) + "hundert" + (german_number(rest) if rest else "")
-    if n < 1_000_000:
-        thousands, rest = divmod(n, 1000)
-        return ("ein" if thousands == 1 else german_number(thousands)) + "tausend" + (german_number(rest) if rest else "")
-    return str(n)
-
 
 _EN_ONES = [
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
@@ -128,21 +104,13 @@ def english_number(n: int) -> str:
     return str(n)
 
 
-_DE_ORDINAL_STEMS = {1: "erst", 3: "dritt", 7: "siebt", 8: "acht"}
 _EN_ORDINALS = {"one": "first", "two": "second", "three": "third", "five": "fifth", "eight": "eighth", "nine": "ninth", "twelve": "twelfth"}
 
 
 def number_forms(n: int, language: str) -> list[str]:
-    """The ways a voice may say `n`, the usual first: "elfhundert" as well as "eintausendeinhundert",
-    "hundert" as well as "einhundert", and as an ordinal ("zwölften", "twenty-first"), which the
+    """The ways a voice may say `n`, the usual first: "eleven hundred" as well as "one thousand one hundred",
+    "a hundred" as well as "one hundred", and as an ordinal ("twenty-first"), which the
     recognition writes as "12." and "21st"."""
-    if language == "de":
-        usual = german_number(n)
-        forms = [usual, re.sub(r"^ein(?=hundert|tausend)", "", usual), *([usual[:-1] + end for end in ("", "e", "en", "em", "er", "es")] if usual.endswith("eins") else [])]
-        if 1100 <= n < 10000 and n % 1000 >= 100:
-            forms.append(german_number(n // 100) + "hundert" + (german_number(n % 100) if n % 100 else ""))
-        stems = [_DE_ORDINAL_STEMS.get(n, german_number(n) + ("t" if n < 20 else "st"))]
-        return forms + [stem + end for stem in stems for end in ("e", "en", "er", "em", "es")]
     usual = english_number(n)
     forms = [usual, re.sub(r"^one(?=hundred|thousand)", "a", usual)]
     if 1100 <= n < 10000 and n % 1000 >= 100:
@@ -166,10 +134,6 @@ def spoken_letters(text: str, language: str, like: str = "") -> str:
         return next((f for f in sorted(forms, key=len, reverse=True) if f in like), forms[0])
 
     text = AUDIO_TAG.sub(" ", text)
-    if language == "de":
-        text = re.sub(r"(?<=\d)\.(?=\d{3}\b)", "", text)
-        text = re.sub(r"(\d+)", said, text)
-        return re.sub(r"[^a-zäöüß]", "", text.lower())
     text = re.sub(r"(?<=\d),(?=\d{3}\b)", "", text)
     text = re.sub(r"(\d+)(?:(?:st|nd|rd|th)\b)?", said, text)
     text = re.sub(r"\band\b", "", text.lower())

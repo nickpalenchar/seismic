@@ -2216,7 +2216,7 @@ function DemoView({
                   watching.ended();
                 }}
               >
-                <track kind="captions" src={src('captions.vtt')} srcLang="de" label="Deutsch" />
+                <track kind="captions" src={src('captions.vtt')} srcLang="en" label="English" />
               </video>
               {seek.hint && (
                 <span className="seek-hint">

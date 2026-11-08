@@ -35,13 +35,13 @@ describe('workers', () => {
     expect(runtime.last.inbox[0]).not.toContain('agent harnesses');
   });
 
-  test('with an English interface and a German conversation, the worker speaks German consistently, commits in English, and the log uses English', async () => {
+  test('with an English interface and conversation, the worker speaks English consistently, commits in English, and the log uses English', async () => {
     setLanguage('en');
-    setConversation('de');
+    setConversation('en');
     const c = manual();
     await workers.start(c.id);
     expect(runtime.last.spec.system).toContain("ready_for_review) is in the owner's language");
-    expect(runtime.last.spec.system).toContain('Speak to the owner in German throughout this conversation');
+    expect(runtime.last.spec.system).toContain('Speak to the owner in English throughout this conversation');
     expect(runtime.last.spec.system).toContain('What you commit (code, comments, commit messages, docs, plan docs, CLAUDE.md) is in English, whatever language the owner talks to you in.');
     expect(runtime.last.spec.tools.find((t) => t.name === 'ask')!.description).toContain("Write the question in the owner's language");
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: `Agent started on ${board.row(c.id).branch}.` });
@@ -49,14 +49,6 @@ describe('workers', () => {
     expect(board.events(c.id).at(-1)!.text).toBe('Which columns? (multiple choice)\n– Date\n– Reading');
     await workers.stop(c.id);
     expect(board.events(c.id).at(-1)!.text).toBe('Stopped.');
-  });
-
-  test("a repository that names German for what lands in it has its worker commit in German, whatever the owner's language", async () => {
-    setConversation('en');
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones', language: 'de' } }));
-    await workers.start(manual().id);
-    expect(runtime.last.spec.system).toContain('Speak to the owner in English throughout this conversation');
-    expect(runtime.last.spec.system).toContain('What you commit (code, comments, commit messages, docs, plan docs, CLAUDE.md) is in German');
   });
 
   test('start leases a clean clone, branches and briefs the worker', async () => {
@@ -135,7 +127,7 @@ describe('workers', () => {
     expect(workers.busyCards()).toEqual([]);
     expect(busy.inbox.length).toBe(told);
     expect(state(c.id)).toBe('working');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Seismic.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Paused until Seismic has restarted.' });
   });
 
   test('a worker that paused for the restart with its render still running hears, when the render wakes it, that Seismic still waits', async () => {
@@ -154,14 +146,14 @@ describe('workers', () => {
     const told = busy.inbox.length;
     busy.emit({ type: 'tool', name: 'Bash', input: { command: 'tail -2 render.log' } });
     expect(busy.toolStep()).toContain('Seismic still waits for the restart (new code landed on main) you paused for, at most 15 more minutes');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Der Agent ist vor dem Neustart wieder aufgewacht; Seismic sagt ihm, dass der Neustart noch auf ihn wartet.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'The agent woke before Seismic\'s restart; Seismic tells it the restart still waits for it.' });
     // once per turn
     expect(busy.toolStep()).toBeUndefined();
     expect(busy.inbox.length).toBe(told);
     busy.emit({ type: 'idle' });
     expect(workers.busyCards()).toEqual([]);
     expect(state(c.id)).toBe('working');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Seismic.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Paused until Seismic has restarted.' });
     // a note from the owner before the restart says so with the note
     workers.message(c.id, 'Nimm die dunkle Variante.');
     expect(busy.inbox.at(-1)).toContain('Nimm die dunkle Variante.');
@@ -187,11 +179,11 @@ describe('workers', () => {
     workers.restartDue({ reason: 'stop', deadline: Date.now() + 15 * 60_000 });
     expect(busy.inbox.at(-1)).toContain('Seismic is about to stop (the owner is shutting it down)');
     expect(busy.inbox.at(-1)).toContain('Seismic resumes you once it runs again');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Beenden von Seismic angekündigt; der Agent pausiert beim nächsten sicheren Punkt.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Seismic is about to stop; the agent pauses at the next safe point.' });
     busy.emit({ type: 'idle' });
     expect(workers.busyCards()).toEqual([]);
     expect(state(c.id)).toBe('working');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert, bis Seismic wieder läuft.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Paused until Seismic runs again.' });
   });
 
   test('a restart goes ahead once the workers it announced itself to have paused', async () => {
@@ -252,10 +244,10 @@ describe('workers', () => {
     // not the notice for a worker in the middle of a step: the answer's work waits for the restart
     expect(runtime.last.inbox.at(-1)).toContain('leave the work it asks for until Seismic resumes you');
     expect(runtime.last.inbox.at(-1)).not.toContain('finish the step you are in');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Seismic wartet auf einen Neustart; der Agent macht danach weiter.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Seismic waits to restart; the agent goes on after the restart.' });
     runtime.last.emit({ type: 'idle' });
     expect(state(c.id)).toBe('working');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Pausiert bis zum Neustart von Seismic.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Paused until Seismic has restarted.' });
   });
 
   test('a worker started while a restart is due hears of it in its briefing', async () => {
@@ -297,7 +289,7 @@ describe('workers', () => {
   test('a long option reaches the owner whole', async () => {
     const c = manual();
     await workers.start(c.id);
-    const long = 'Die Prototypen bleiben stehen, „Diesen Prototyp bauen“ gibt es nach der Umwandlung aber nicht mehr. Sie lassen sich nur noch ansehen und verwerfen.';
+    const long = 'Die Prototypen bleiben stehen, “Diesen Prototyp bauen” gibt es nach der Umwandlung aber nicht mehr. Sie lassen sich nur noch ansehen und verwerfen.';
     runtime.last.call('ask', { question: 'Was passiert mit den Prototypen?', options: [long, 'Verwerfen'] });
     expect(board.item(c.id)!.question!.options).toEqual([long, 'Verwerfen']);
   });
@@ -305,7 +297,7 @@ describe('workers', () => {
   test('a long question reaches the owner whole', async () => {
     const c = manual();
     await workers.start(c.id);
-    const script = Array.from({ length: 40 }, (_, i) => `${i + 1} Szene: „Ein Satz für den Sprecher, lang genug zum Gegenlesen.“`).join('\n\n');
+    const script = Array.from({ length: 40 }, (_, i) => `${i + 1} Szene: “Ein Satz für den Sprecher, lang genug zum Gegenlesen.”`).join('\n\n');
     expect(script.length).toBeGreaterThan(2000);
     runtime.last.call('ask', { question: `Hier das Sprechskript:\n\n${script}`, options: ['Passt'] });
     expect(board.item(c.id)!.question!.text).toBe(`Hier das Sprechskript:\n\n${script}`);
@@ -317,7 +309,7 @@ describe('workers', () => {
     await workers.start(c.id);
     runtime.last.call('ask', { question: 'Welche Spalten?', options: ['Datum', 'Stand', 'Zähler'], multiple: true });
     expect(board.item(c.id)!.question).toEqual({ text: 'Welche Spalten?', options: ['Datum', 'Stand', 'Zähler'], multiple: true });
-    expect(board.events(c.id).at(-1)!.text).toContain('Mehrfachauswahl');
+    expect(board.events(c.id).at(-1)!.text).toContain('multiple choice');
     workers.answer(c.id, 'Datum, Stand');
     expect(runtime.last.inbox.at(-1)).toContain('Datum, Stand');
   });
@@ -472,9 +464,9 @@ describe('workers', () => {
     expect(runtime.last.toolStep()).toContain('[In reply to your message: “Ich exportiere die Zählerstände als CSV mit Semikolon als Trenner, wie Excel es in Deutschland erwartet. Mehr dazu. Mehr dazu. Mehr dazu. Mehr dazu. Mehr dazu. …”]\n\nLieber Komma.');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'hint', author: 'owner', text: 'Lieber Komma.', replyTo: replied.id });
     // Seismic's words in the conversation the worker never had: it reads them whole
-    const aside = board.log(c.id, 'say', 'koordinator', 'Die Karte „Import“ liegt auf einer anderen Leinwand.');
+    const aside = board.log(c.id, 'say', 'koordinator', 'Die Karte “Import” liegt auf einer anderen Leinwand.');
     workers.message(c.id, 'Dann lass es.', [], false, aside.id);
-    expect(runtime.last.toolStep()).toContain("[In reply to Seismic's message in the card's conversation: “Die Karte „Import“ liegt auf einer anderen Leinwand.”]\n\nDann lass es.");
+    expect(runtime.last.toolStep()).toContain("[In reply to Seismic's message in the card's conversation: “Die Karte “Import” liegt auf einer anderen Leinwand.”]\n\nDann lass es.");
     // a question answered in reply to it says so too
     runtime.last.call('ask', { question: 'CSV oder Excel?', options: ['CSV', 'Excel'] });
     const asked = board.events(c.id).findLast((e) => e.kind === 'question')!;
@@ -539,12 +531,12 @@ describe('workers', () => {
   test("the task's language does not change the worker's conversation language", async () => {
     const c = board.create({ title: 'Contributing guide', body: 'Add a CONTRIBUTING.md.', x: 0, y: 0 });
     await workers.start(c.id);
-    expect(runtime.last.spec.system).toContain('Speak to the owner in German throughout this conversation');
+    expect(runtime.last.spec.system).toContain('Speak to the owner in English throughout this conversation');
     expect(runtime.last.inbox[0]).toContain('Add a CONTRIBUTING.md.');
     await workers.stop(c.id);
     const w = board.snapshot().items.find((i) => i.label === 'W1')!;
     await workers.start(w.id);
-    expect(runtime.last.spec.system).toContain('Speak to the owner in German throughout this conversation');
+    expect(runtime.last.spec.system).toContain('Speak to the owner in English throughout this conversation');
     expect(runtime.last.inbox[0]).not.toContain('The owner wrote this task themselves');
   });
 
@@ -617,7 +609,7 @@ describe('workers', () => {
     runtime.last.emit({ type: 'error', message: 'Not logged in · Please run /login' });
     runtime.last.emit({ type: 'idle' });
     expect(state(c.id)).toBe('waiting:question');
-    expect(board.item(c.id)!.question!.text).toContain('nicht angemeldet');
+    expect(board.item(c.id)!.question!.text).toContain('not logged in');
   });
 
   test('a session that died with an error goes to the owner at once, with the reason', async () => {
@@ -727,9 +719,9 @@ describe('workers', () => {
     // no nudge, no question to the owner: the card waits for the limit, and a restart need not wait for it
     expect(state(c.id)).toBe('working');
     expect(workers.busyCards()).toEqual([]);
-    expect(board.item(c.id)!.statusLine).toStartWith('Nutzungslimit · weiter um ');
+    expect(board.item(c.id)!.statusLine).toStartWith('Usage limit · continues at ');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya' });
-    expect(board.events(c.id).at(-1)!.text).toContain('automatisch weiter');
+    expect(board.events(c.id).at(-1)!.text).toContain('goes on by itself');
     await Bun.sleep(60);
     expect(runtime.last.inbox.length).toBe(sent + 1);
     expect(runtime.last.inbox.at(-1)).toContain('usage limit');
@@ -759,7 +751,7 @@ describe('workers', () => {
     // the card does not wait for the owner: its worker is still at their words, and says why it rests
     expect(board.item(c.id)).toMatchObject({ state: 'waiting', need: 'demo', answering: true });
     expect(needsYou(board.item(c.id)!)).toBe(false);
-    expect(board.item(c.id)!.statusLine).toStartWith('Nutzungslimit · weiter um ');
+    expect(board.item(c.id)!.statusLine).toStartWith('Usage limit · continues at ');
     expect(workers.busyCards()).toEqual([]);
     await Bun.sleep(60);
     expect(runtime.last.inbox.length).toBe(sent + 1);
@@ -779,7 +771,7 @@ describe('workers', () => {
     runtime.last.emit({ type: 'idle', background: 1 });
     const sent = runtime.last.inbox.length;
     expect(state(c.id)).toBe('working');
-    expect(board.item(c.id)!.statusLine).toStartWith('Nutzungslimit · weiter um ');
+    expect(board.item(c.id)!.statusLine).toStartWith('Usage limit · continues at ');
     // the render still runs in the session: a restart waits for it
     expect(workers.busyCards().length).toBeGreaterThan(0);
     // the owner's words the limit cut off need not wait for the render to end
@@ -800,7 +792,7 @@ describe('workers', () => {
     // the session never says the work ended: after the wait for it, the worker only waits for the limit
     await Bun.sleep(40);
     expect(workers.busyCards()).toEqual([]);
-    expect(board.item(c.id)!.statusLine).toStartWith('Nutzungslimit · weiter um ');
+    expect(board.item(c.id)!.statusLine).toStartWith('Usage limit · continues at ');
     await workers.stop(c.id);
   });
 
@@ -1005,13 +997,13 @@ describe('workers', () => {
     expect(s.inbox).toHaveLength(1);
   });
 
-  test('a standing language preference takes precedence over a German task and later German words', async () => {
+  test('a standing language preference takes precedence over the conversation language', async () => {
     setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, preferences: () => board.preferencesText() }));
     board.addPreference('Speak and report to me in English only.');
     const c = board.create({ title: 'Anmeldung', body: 'Bitte die Anmeldung reparieren.', x: 0, y: 0 });
     await workers.start(c.id);
     const s = runtime.last;
-    expect(s.spec.system).toContain('Speak to the owner in German throughout this conversation, unless an explicit standing preference names another language.');
+    expect(s.spec.system).toContain('Speak to the owner in English throughout this conversation, unless an explicit standing preference names another language.');
     expect(s.spec.system).toContain('A preference about the language you speak to the owner takes precedence over the task\'s language and their latest words');
     expect(s.spec.system).toContain('- Speak and report to me in English only.');
     expect(s.inbox[0]).toContain('Bitte die Anmeldung reparieren.');
@@ -1106,7 +1098,7 @@ describe('workers', () => {
     runtime.last.emit({ type: 'idle' });
     // the conversation shows the change alone
     expect(board.events(c.id).findLast((e) => e.kind === 'review')!.text).toBe('Kopfzeile ergänzt, im Commit.');
-    const report = 'CSV-Export gebaut.\n\nDanach im Gespräch:\n\nMache ich: die Spaltennamen kommen in die erste Zeile.\n\nKopfzeile ergänzt, im Commit.';
+    const report = 'CSV-Export gebaut.\n\nLater in the conversation:\n\nMache ich: die Spaltennamen kommen in die erste Zeile.\n\nKopfzeile ergänzt, im Commit.';
     expect(board.summary(c.id)).toBe(report);
     expect(board.item(c.id)!.summary).toBe(report);
 
@@ -1233,7 +1225,7 @@ describe('workers', () => {
     await workers.start(c.id);
     runtime.last.call('propose_card', {
       title: 'Falsches Label',
-      task: 'Der Knopf „Export“ heißt in src/ui/strings.ts noch „Exportieren“.',
+      task: 'Der Knopf “Export” heißt in src/ui/strings.ts noch “Exportieren”.',
       reason: 'Gesehen beim Testen.',
       questions: [{ question: 'Welches Wort?', options: ['Export', 'Exportieren'] }],
     });
@@ -1242,7 +1234,7 @@ describe('workers', () => {
     expect(p).toMatchObject({
       title: 'Falsches Label',
       from: c.id,
-      body: 'Der Knopf „Export“ heißt in src/ui/strings.ts noch „Exportieren“.',
+      body: 'Der Knopf “Export” heißt in src/ui/strings.ts noch “Exportieren”.',
       proposal: { reason: 'Gesehen beim Testen.', questions: [{ text: 'Welches Wort?', options: ['Export', 'Exportieren'] }] },
     });
     expect(p.y).toBeGreaterThan(c.y);
@@ -1254,7 +1246,7 @@ describe('workers', () => {
     expect(board.item(p.id)!.proposal).toBeUndefined();
     // its conversation names the proposal as where the task comes from
     expect(board.item(p.id)!.proposed).toBe(true);
-    expect(board.item(p.id)!.body).toBe('Der Knopf „Export“ heißt in src/ui/strings.ts noch „Exportieren“.\n\nOffene Fragen (nach bestem Wissen selbst entscheiden, im Zweifel die Standardlösung):\n- Welches Wort? (Export / Exportieren)');
+    expect(board.item(p.id)!.body).toBe('Der Knopf “Export” heißt in src/ui/strings.ts noch “Exportieren”.\n\nOpen questions (decide these yourself as best you can, taking the default when in doubt):\n- Welches Wort? (Export / Exportieren)');
   });
 
   test('on a project with several repositories, a proposal goes to the one its agent names, else to its card’s', async () => {
@@ -1290,7 +1282,7 @@ describe('workers', () => {
     const p = tools.snapshot().items.find((i) => i.title === 'Ursache im Tool')!;
     expect(p).toMatchObject({ state: 'proposal', repo: 'tool', from: c.id, fromElsewhere: { project: 'c', projectName: 'C', title: 'Zählerstände exportieren' } });
     expect(board.snapshot().items.some((i) => i.title === 'Ursache im Tool')).toBe(false);
-    expect(board.events(c.id).at(-1)!.text).toBe('Aufgabe vorgeschlagen im Projekt „Tools“: Ursache im Tool');
+    expect(board.events(c.id).at(-1)!.text).toBe('Proposed a task in the project “Tools”: Ursache im Tool');
     expect(board.events(c.id).at(-1)!.made).toEqual({ card: p.id, title: p.title, project: 'tools' });
     // an id two other projects have takes the path
     expect(runtime.last.call('propose_card', { title: 'Doku', task: 'T', reason: 'R', repo: 'docs' })).toBe('Not proposed: several projects have a repository docs; give its path instead: /r/docs, /r/shop-docs.');
@@ -1316,10 +1308,10 @@ describe('workers', () => {
     const since = new Date(Date.now() - 1000).toISOString();
     runtime.last.call('propose_card', { title: 'Lange Schnitte', task: 'T', reason: 'R' });
     const p = board.snapshot().items.find((i) => i.state === 'proposal')!;
-    const out = runtime.last.call('withdraw_proposal', { title: '„lange  Schnitte“', why: 'Die Diagnose war falsch.' }) as string;
+    const out = runtime.last.call('withdraw_proposal', { title: '“lange  Schnitte”', why: 'Die Diagnose war falsch.' }) as string;
     expect(out).toContain('gone from the project');
     expect(board.item(p.id)).toBeUndefined();
-    expect(board.events(c.id).some((e) => e.text === 'Zieht den Vorschlag „Lange Schnitte“ zurück: Die Diagnose war falsch.')).toBe(true);
+    expect(board.events(c.id).some((e) => e.text === 'Withdraws the proposal “Lange Schnitte”: Die Diagnose war falsch.')).toBe(true);
     // the Rückschau reads deleted proposals as the owner's dismissals: this one was not
     expect(board.removed(since)).toEqual([]);
     expect(runtime.last.call('withdraw_proposal', { title: 'Lange Schnitte', why: 'W' })).toContain('withdrawn already');
@@ -1342,7 +1334,7 @@ describe('workers', () => {
     expect(out).toContain('marks it as replaced');
     expect(board.item(old.id)!.superseded).toEqual({ by: replacement.id, title: 'Display schläft' });
     expect(needsYou(board.item(old.id)!)).toBe(true);
-    expect(board.events(old.id).at(-1)!.text).toBe('Der vorschlagende Agent hat diese Karte ersetzt durch „Display schläft“.');
+    expect(board.events(old.id).at(-1)!.text).toBe('The agent that proposed this card replaced it by “Display schläft”.');
     board.keep(old.id);
     expect(board.item(old.id)!.superseded).toBeUndefined();
     expect(() => board.keep(old.id)).toThrow(BadRequest);
@@ -1430,8 +1422,8 @@ describe('tool calls the settings refuse or want confirmed', () => {
     runtime.last.emit({ type: 'denied', name: 'Bash', input: { command: 'psql -c "delete from t"' }, by: 'rule' });
     const denied = board.events(c.id).filter((e) => e.kind === 'denied');
     expect(denied.map((e) => e.text)).toEqual([
-      'Nicht erlaubt (Prüfmodell des Auto-Modus): $ rm -rf build — Löscht Dateien außerhalb der Aufgabe',
-      'Nicht erlaubt (Regel in den Einstellungen): $ psql -c "delete from t"',
+      'Not allowed (auto mode\'s classifier): $ rm -rf build — Löscht Dateien außerhalb der Aufgabe',
+      'Not allowed (a rule in the settings): $ psql -c "delete from t"',
     ]);
     expect(denied.every((e) => e.author === 'worker')).toBe(true);
   });
@@ -1443,13 +1435,13 @@ describe('tool calls the settings refuse or want confirmed', () => {
     await flush();
     expect(state(c.id)).toBe('waiting:question');
     const q = board.item(c.id)!.question!;
-    expect(q.options).toEqual(['Erlauben', 'Ablehnen']);
+    expect(q.options).toEqual(['Allow', 'Deny']);
     expect(q.text).toContain('`bun scripts/remote-psql.ts -c "update meters set …"`');
-    expect(q.text).toContain('Grund der Rückfrage: Schreibzugriff');
+    expect(q.text).toContain('Why it asks: Schreibzugriff');
     expect(board.events(c.id).at(-1)!.kind).toBe('question');
     // the worker waits for the owner, as after a question: a restart need not wait for it
     expect(workers.busyCards()).toEqual([]);
-    workers.answer(c.id, 'Erlauben');
+    workers.answer(c.id, 'Allow');
     expect(await answer).toEqual({ allow: true });
     expect(state(c.id)).toBe('working');
     expect(workers.busyCards().length).toBeGreaterThan(0);
@@ -1462,7 +1454,7 @@ describe('tool calls the settings refuse or want confirmed', () => {
     await workers.start(c.id);
     const first = runtime.last.permission('Bash', { command: 'git push --force' });
     await flush();
-    workers.answer(c.id, 'Ablehnen\n\nKein Force-Push, mach einen neuen Commit.');
+    workers.answer(c.id, 'Deny\n\nKein Force-Push, mach einen neuen Commit.');
     expect(await first).toEqual({ allow: false, message: 'Not run: the owner did not allow it:\n\nKein Force-Push, mach einen neuen Commit.' });
     const second = runtime.last.permission('Bash', { command: 'git push' });
     await flush();
@@ -1477,7 +1469,7 @@ describe('tool calls the settings refuse or want confirmed', () => {
     await workers.start(c.id);
     const answer = runtime.last.permission('Write', { file_path: '/repo/.env' });
     await flush();
-    expect(board.item(c.id)!.question!.text).toContain('Schreibt repo/.env');
+    expect(board.item(c.id)!.question!.text).toContain('Writes repo/.env');
     workers.answer(c.id, 'Schreib das lieber in .env.example');
     expect(await answer).toEqual({ allow: false, message: 'Not run: the owner did not allow it:\n\nSchreib das lieber in .env.example' });
   });
@@ -1506,7 +1498,7 @@ describe('tool calls the settings refuse or want confirmed', () => {
     expect((await first).allow).toBe(false);
     await flush();
     expect(board.item(c.id)!.question!.text).toContain('next');
-    workers.answer(c.id, 'Erlauben');
+    workers.answer(c.id, 'Allow');
     expect(await second).toEqual({ allow: true });
   });
 
@@ -1517,11 +1509,11 @@ describe('tool calls the settings refuse or want confirmed', () => {
     const b = runtime.last.permission('Bash', { command: 'two' });
     await flush();
     expect(board.item(c.id)!.question!.text).toContain('one');
-    workers.answer(c.id, 'Erlauben');
+    workers.answer(c.id, 'Allow');
     expect(await a).toEqual({ allow: true });
     await flush();
     expect(board.item(c.id)!.question!.text).toContain('two');
-    workers.answer(c.id, 'Ablehnen');
+    workers.answer(c.id, 'Deny');
     expect((await b).allow).toBe(false);
   });
 
@@ -1535,7 +1527,7 @@ describe('tool calls the settings refuse or want confirmed', () => {
     workers.resumeAll();
     expect(state(c.id)).toBe('waiting:question');
     const n = runtime.sessions.length;
-    workers.answer(c.id, 'Erlauben');
+    workers.answer(c.id, 'Allow');
     expect(runtime.sessions.length).toBe(n + 1);
     expect(runtime.last.spec.resume).toBe('s1');
     expect(runtime.last.inbox.at(-1)).toContain('The owner allowed it');
@@ -1568,7 +1560,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(workers.busyCards()).toEqual([]);
     expect(board.item(c.id)).toMatchObject({ state: 'working', paused: true });
     expect(board.row(c.id)).toMatchObject({ workstation, branch, session_id: 'sess-1' });
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Pausiert.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Paused.' });
     expect(() => workers.pause(c.id)).toThrow(BadRequest);
 
     const n = runtime.sessions.length;
@@ -1578,7 +1570,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(runtime.last.inbox[0]).toContain('The owner paused you and has now let you go on');
     expect(runtime.last.inbox[0]).toContain('exit code 137');
     expect(board.item(c.id)!.paused).toBeUndefined();
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Weiter.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Resumed.' });
     expect(workers.busyCards().length).toBeGreaterThan(0);
     expect(() => workers.resume(c.id)).toThrow(BadRequest);
   });
@@ -1719,7 +1711,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(board.item(c.id)).toMatchObject({ state: 'working', pausing: true, inTurn: true });
     expect(board.item(c.id)!.paused).toBeUndefined();
     expect(pausable(board.item(c.id)!)).toBe(false);
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Hält an, sobald die Arbeit an einem sicheren Punkt ist.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Pausing once the work is at a safe point.' });
     expect(() => workers.pauseAtSafePoint(c.id)).toThrow('paused already');
     session.emit({ type: 'text', text: 'Tests grün, ich halte an.' });
     session.emit({ type: 'idle' });
@@ -1728,7 +1720,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(board.item(c.id)).toMatchObject({ state: 'working', paused: true });
     expect(board.item(c.id)!.pausing).toBeUndefined();
     expect(board.item(c.id)!.question).toBeUndefined();
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Pausiert.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Paused.' });
     workers.resume(c.id);
     expect(runtime.last.spec.resume).toBe('sess-1');
     expect(board.item(c.id)!.paused).toBeUndefined();
@@ -1767,7 +1759,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     workers.resume(c.id);
     expect(session.inbox.at(-1)).toBe('The owner no longer wants you to pause: go on with your work.');
     expect(board.item(c.id)!.pausing).toBeUndefined();
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Weiter.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Resumed.' });
     workers.pauseAtSafePoint(c.id);
     // between its steps, so the words go in at once
     session.emit({ type: 'idle', background: 1 });

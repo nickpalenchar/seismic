@@ -19,21 +19,15 @@ const home = (process.env.SEISMIC_LIVE_VOICE ?? process.env.OBEYA_LIVE_VOICE);
 test.skipIf(!home)(
   'Piper speaks a command and the speech recognition hears it back',
   async () => {
-    for (const language of ['de', 'en'] as const) await installVoice(piper(language), (line) => console.log(line), home);
+    await installVoice(piper('en'), (line) => console.log(line), home);
     const ear = new LocalTranscriber();
     const dir = mkdtempSync(join(tmpdir(), 'obeya-voice-live-'));
     try {
-      let started = performance.now();
+      const prepared = performance.now();
       await ear.prepare();
-      console.log(`${ear.backend} loaded in ${((performance.now() - started) / 1000).toFixed(1)} s`);
-      await speak('Starte die Karte Export für Vermieter.', 'de', join(dir, 'command.wav'));
-      started = performance.now();
-      const heard = await ear.transcribe(join(dir, 'command.wav'), 'Export für Vermieter');
-      console.log(`heard in ${((performance.now() - started) / 1000).toFixed(1)} s: ${heard.text}`);
-      // Parakeet, without the card titles, writes Piper's „Starte die Karte Export“ as „Startet die Karteexport“
-      expect(heard.text.toLowerCase()).toMatch(/startet? die karte,? ?export für vermieter/);
-      expect(heard.doubtful).toBe(false);
-      // in English, Piper's English voice, which Whisper hears as English
+      console.log(`${ear.backend} loaded in ${((performance.now() - prepared) / 1000).toFixed(1)} s`);
+      // Piper's English voice
+      let started = performance.now();
       await speak('Start the task Export for landlords.', 'en', join(dir, 'english.wav'));
       const english = await ear.transcribe(join(dir, 'english.wav'), 'Export for landlords');
       console.log(`heard in English: ${english.text}`);
@@ -46,7 +40,7 @@ test.skipIf(!home)(
       const check = await ear.transcribe(resource('voice', CHECK_CLIP.file), '');
       const seconds = (performance.now() - started) / 1000;
       console.log(`the check's ${CHECK_CLIP.seconds} s sentence heard in ${seconds.toFixed(2)} s: ${check.text}`);
-      expect(check.text.toLowerCase()).toContain('vermieter');
+      expect(check.text.toLowerCase()).toContain('landlords');
     } finally {
       ear.stop();
       rmSync(dir, { recursive: true, force: true });

@@ -492,8 +492,8 @@ export class Board {
     private images?: Pick<Images, 'resolve'>,
     /** Whether the read checkout of the repository holds the commit; without it, every commit counts as held. */
     private holds?: (repo: string, commit: string) => boolean,
-    /** The language of Seismic's interface now (`ownerLanguage`): what the server writes itself; the tests speak German. */
-    readonly language: () => Language = () => 'de',
+    /** The language of Seismic's interface now (`ownerLanguage`): what the server writes itself; the tests speak English. */
+    readonly language: () => Language = () => 'en',
     /**
      * The owner's conversation language now (`conversationLanguage`): what agents write the owner
      * in until the owner's words say otherwise; the interface's when left out.
@@ -3793,7 +3793,7 @@ export interface StoredIdea {
   status: Idea['status'];
   brief: string;
   thinking?: boolean;
-  /** "So bauen" waits for the reply its agent works on; questions in it call the building off. */
+  /** "Build it like this" waits for the reply its agent works on; questions in it call the building off. */
   buildAfterReply?: boolean;
   yourTurn?: boolean;
   questions?: Question[];

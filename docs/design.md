@@ -178,8 +178,8 @@ on the walls and decisions are made in front of the wall.
 - **Persistent local store**, not ephemeral.
 - **The docs, comments and prompts agents read are in English** (2026-11-05): agents drifted into
   writing the owner in German after reading German UI labels quoted throughout the docs, although
-  the owner wrote in English. The German interface stays as an option the owner picks; it lives
-  only in the UI and message tables, and what an agent reads elsewhere quotes the English labels.
+  the owner wrote in English. German support was removed altogether (2026-11-07) until language
+  support returns; the UI and message tables are English only.
 - **No coloured vertical accent bars** (2026-11-05): the owner rejected them as a look; tints,
   outlines and rings carry the same emphasis (see Principles).
 - **Agents may propose cards.**
