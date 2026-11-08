@@ -59,6 +59,7 @@ export const cards = sqliteTable(
     short: text(),
     /** No foreign key, which would keep a canvas from ever being dropped: the store keeps it valid. */
     canvasId: text('canvas_id'),
+    stoppedAt: text('stopped_at', { mode: 'json' }),
   },
   (t) => [
     unique().on(t.projectId, t.planRef),
@@ -157,6 +158,8 @@ export interface CardRow {
    * once the card works in a clone again, which takes the branch from there.
    */
   kept_in: string | null;
+  /** JSON, on a card the owner stopped (planned again with its branch): the state it was at (`StoppedAt` in types.ts), until it starts again. */
+  stopped_at: string | null;
   /** The card's code in addresses (`/p/<project>/c/<code>`): the start of its id's hex digits, unique among all cards (`SHORT`). */
   short: string;
 }

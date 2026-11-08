@@ -6,7 +6,7 @@ import { agentFailed, answering, demoStage, finishingUp, handedOver, type Item, 
 import { excerpt, plain } from '../markdown';
 import { waitReason } from '../queue';
 import { snoozeWho } from '../snooze';
-import { becomesLabel, clock, mergeProposed, snoozeWhen, stateLabel, t } from '../strings';
+import { becomesLabel, clock, mergeProposed, snoozeWhen, stateLabel, stoppedAtOf, t } from '../strings';
 
 /** Whether the card's state reads "Question for you": its agent asks and waits for the answer. */
 export const asksYou = (i: Item) => i.state === 'waiting' && i.need === 'question' && !agentFailed(i) && !i.review?.answering && !i.review?.answered && !isPaused(i) && !isPausing(i) && !snoozeOf(i);
@@ -128,6 +128,8 @@ export interface CardSummary {
     label: string;
     /** The same in a word or two, as the smallest face says it. */
     short: string;
+    /** A stopped card that remembers its state: "Stopped at" and that state, each in its own colour (`stoppedAtOf`). */
+    stopped?: { prefix: string; status: string; tone: string };
     marks: StateMark[];
     /** The part of it that has landed already: its pull request or commit. */
     landed?: string;
@@ -207,6 +209,7 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
     state: {
       label: underway ?? (revising ? t.revisingShort : stateLabel(item)),
       short: underway ?? (revising ? t.revisingShort : stateLabel(item, true)),
+      stopped: underway ? undefined : stoppedAtOf(item),
       marks,
       landed: item.review?.landedPart && landedRef(item.review.landedPart),
       notes,

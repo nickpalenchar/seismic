@@ -47,3 +47,10 @@ test('a card whose agent paused for a restart says so in place of being at work'
   expect(stateLabel({ state: 'working' })).toBe('Agent at work');
   expect(stateLabel({ state: 'waiting', need: 'review', review: { codeReview: { state: 'running' } } })).toBe('Agent reviewing');
 });
+
+test('a stopped card names the state it was stopped at', () => {
+  setLanguage('en', []);
+  expect(stateLabel({ state: 'planned', agent: { branch: 'b' } })).toBe('Stopped');
+  expect(stateLabel({ state: 'planned', agent: { branch: 'b', stoppedAt: { state: 'waiting', need: 'demo' } } })).toBe('Stopped at Demo ready');
+  expect(stateLabel({ state: 'planned', agent: { branch: 'b', stoppedAt: { state: 'working' } } })).toBe('Stopped at Agent at work');
+});

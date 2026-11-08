@@ -433,6 +433,12 @@ export function withPart<I extends Pick<Item, ItemPart>, K extends ItemPart>(i: 
 }
 
 /** The card's agent and its run: its worker's status, turn and workstation; present while it has any of them. */
+/** The state a card was in when the owner stopped it. */
+export interface StoppedAt {
+  state: CardState;
+  need?: Need;
+}
+
 export interface ItemAgent {
   /** The worker's latest `report`. */
   statusLine?: string;
@@ -462,6 +468,8 @@ export interface ItemAgent {
   /** While `followUp`: its agent needs a full clone to answer and waits, without a workstation, for the next free one. */
   waitsForClone?: true;
   branch?: string;
+  /** On a stopped card: the state it was in when the owner stopped it, which its state line names ("Stopped at Demo ready"). */
+  stoppedAt?: StoppedAt;
   /** Where the branch is checked out, while the card has a workstation: a directory, `host:/dir` on another machine. */
   workstation?: string;
   /** The clone that keeps its branch since its workstation was taken from it, until it works again (the same form as `workstation`). */

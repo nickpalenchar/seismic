@@ -252,6 +252,9 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
 .p-state.restart-paused { --c: var(--restart); }
 /* a possible duplicate was found: the state in the proposal purple, behind a lightbulb */
 .card.merge-proposed, .card.merge-proposed .state, .p-state.merge-proposed { --c: var(--proposal); }
+.stopped-prefix { color: var(--muted); }
+.stopped-status { color: var(--c); }
+.stopped-status.s-asking { --c: var(--asking); }
 .p-state .merge-mark { vertical-align: -1px; }
 /* the worker resolves rebase conflicts: the state text in orange, with the italic note beside it */
 .card.resolving-conflicts .state, .p-state.resolving-conflicts { --c: var(--waiting); }

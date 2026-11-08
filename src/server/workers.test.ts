@@ -528,6 +528,19 @@ describe('workers', () => {
     expect(words(d.id).at(-1)).toBe('say: Weiter mit den Tests.');
   });
 
+  test('a stopped card remembers the state it was stopped at, until it starts again', async () => {
+    const c = board.create({ title: 'Contributing guide', body: 'Add a CONTRIBUTING.md.', x: 0, y: 0 });
+    await workers.start(c.id);
+    runtime.last.call('ask', { question: 'Which license?', options: ['MIT', 'Apache'] });
+    expect(state(c.id)).toBe('waiting:question');
+    await workers.stop(c.id);
+    expect(board.item(c.id)!.agent?.stoppedAt).toEqual({ state: 'waiting', need: 'question' });
+    await workers.start(c.id);
+    expect(board.item(c.id)!.agent?.stoppedAt).toBeUndefined();
+    await workers.stop(c.id);
+    expect(board.item(c.id)!.agent?.stoppedAt).toEqual({ state: 'working' });
+  });
+
   test("the task's language does not change the worker's conversation language", async () => {
     const c = board.create({ title: 'Contributing guide', body: 'Add a CONTRIBUTING.md.', x: 0, y: 0 });
     await workers.start(c.id);

@@ -431,6 +431,10 @@ stopped task ("Stopped") can be archived one at a time, for the owner to come ba
 landed, or a clone keeps its branch since its workstation was taken (the button is greyed and says
 why), which would lie unseen in a clone. A stopped card opens
 like a card an agent worked on, the task as its conversation's first message.
+A card the owner stopped remembers the state it stood in at that moment (working, or waiting with what it
+waited for) until it starts again, and its state line says "Stopped at" in grey followed by that state's
+usual words and colour ("Stopped at Demo ready", the status in orange). A card stopped before this was
+recorded says just "Stopped".
 
 The archive (its button in the bar, or `A`) drops down like the queue: archived cards on a timeline
 by day, newest first, each at size XS (see Card sizes) beside the time it was archived, a plan with

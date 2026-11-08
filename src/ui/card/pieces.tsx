@@ -43,11 +43,18 @@ export const StateMarks = ({ marks }: { marks: StateMark[] }) => (
   </>
 );
 
+/** "Stopped at" in grey, then the state the card was in, in that state's colour. */
+export const StoppedWords = ({ stopped }: { stopped: NonNullable<CardSummary['state']['stopped']> }) => (
+  <>
+    <span className="stopped-prefix">{stopped.prefix}</span> <span className={`stopped-status ${stopped.tone}`}>{stopped.status}</span>
+  </>
+);
+
 /** The words of a state line: the state, what has landed of it, its notes, what its agent does, and `since`. */
 export function StateText({ state, since }: { state: CardSummary['state']; since?: ReactNode }) {
   return (
     <>
-      {state.label}
+      {state.stopped ? <StoppedWords stopped={state.stopped} /> : state.label}
       {state.landed !== undefined && <span className="landed-part">{t.landedPart.short} · {state.landed}</span>}
       {state.notes.map((n) => ` · ${n}`).join('')}
       {state.doing && <span className={state.doing.conflict ? 'doing conflict' : state.doing.demo ? 'doing demo' : 'doing'}> · {state.doing.text}</span>}

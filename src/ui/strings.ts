@@ -7,7 +7,7 @@ import type { Qwen3Speaker } from '../../plugin/skills/demo/lib/voice-choices.ts
 import { type Language, languageOf } from '../core/locale';
 import { type Complexity, LABEL_NAMES } from '../core/labels';
 import { MESSAGES } from '../core/messages';
-import { type CardState, type ErrorCode, EXPORT_HTML_MAX, type VoiceKind, type Idea, type Need, type Queue, type OwnerHold, type RestartReason, type PrWait, type Awaited, type AwaitedState, type LeavingClone, stopped, isPaused, isPausing, inParkingLot, type ItemHold } from '../core/types';
+import { type CardState, type ErrorCode, EXPORT_HTML_MAX, type VoiceKind, type Idea, type Need, type Queue, type OwnerHold, type RestartReason, type PrWait, type Awaited, type AwaitedState, type LeavingClone, stopped, isPaused, isPausing, inParkingLot, type ItemHold, type StoppedAt, type Item } from '../core/types';
 
 /** A list in a sentence: "a, b and c". */
 const listOf = (items: string[], and: string) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} ${and} ${items.at(-1)}`);
@@ -272,6 +272,8 @@ const en = {
   start: 'Start agent',
   startHint: 'An agent starts on a branch of its own and shows a demo at the end.',
   stoppedState: 'Stopped',
+  /** Before the state a stopped card was in: "Stopped at Demo ready". */
+  stoppedAt: 'Stopped at',
   startAgain: 'Start again',
   startAgainHint: 'A new agent starts with a new session on the task’s branch; committed work there stays.',
   blocked: {
@@ -2599,7 +2601,7 @@ export const mergeProposed = (i: { state: CardState; queue?: unknown; possibleDu
   i.state === 'planned' && !i.queue && !!i.possibleDuplicates?.length && !i.idea?.proposal?.merge;
 
 /** A card's state as its state line says it; `short`, in a word or two, as the smallest card face says it (`stateShort`). */
-export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; state: CardState; need?: Need; queue?: Queue; question?: { stuck?: true }; hold?: ItemHold; possibleDuplicates?: string[]; agent?: { finishing?: boolean; followUp?: boolean; branch?: string }; review?: { landing?: true; landingPosition?: number; pr?: unknown; contribution?: unknown; answering?: true; answered?: true; codeReview?: { state?: string } }; demo?: { earlier?: { asked?: true }[] }; idea?: { discussion?: Idea; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } } } }, short = false) => {
+export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; state: CardState; need?: Need; queue?: Queue; question?: { stuck?: true }; hold?: ItemHold; possibleDuplicates?: string[]; agent?: { finishing?: boolean; followUp?: boolean; branch?: string; stoppedAt?: StoppedAt }; review?: { landing?: true; landingPosition?: number; pr?: unknown; contribution?: unknown; answering?: true; answered?: true; codeReview?: { state?: string } }; demo?: { earlier?: { asked?: true }[] }; idea?: { discussion?: Idea; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } } } }, short = false): string => {
   const { agent, review, idea: ideaPart } = i;
   const idea = ideaPart?.discussion;
   const merge = ideaPart?.proposal?.merge;
@@ -2684,10 +2686,16 @@ export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; 
         : i.state === 'proposal' && (ideaPart?.retro || ideaPart?.proposal?.setup)
           ? word(t.proposalByObeya, 'proposal')
           : stopped(i)
-            ? t.stoppedState
+            ? agent?.stoppedAt ? `${t.stoppedAt} ${stateLabel(agent.stoppedAt)}` : t.stoppedState
             : i.state === 'working' || i.state === 'waiting' || i.state === 'proposal'
               ? word(t.state[i.state], i.state)
               : t.state[i.state];
+};
+
+/** A stopped card that remembers where it stood: "Stopped at" in grey, then that state in its own colour (`tone`, a class). */
+export const stoppedAtOf = (i: Pick<Item, 'state' | 'agent'>) => {
+  const at = i.agent?.stoppedAt;
+  return at && stopped(i) ? { prefix: t.stoppedAt, status: stateLabel(at), tone: at.need === 'question' ? 's-asking' : `s-${at.state}` } : undefined;
 };
 
 /** An idea or a task decided as a plan, until the plan takes its place; a card that was an idea has the brief it was decided on. */

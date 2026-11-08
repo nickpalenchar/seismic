@@ -9,7 +9,7 @@
 import { CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../core/labels';
 import { createHash } from 'node:crypto';
-import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type Harness, type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig } from '../core/types';
+import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type Harness, type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig, type StoppedAt } from '../core/types';
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { arrangeWorkstreams, type Bounds, boundsOf, CARD_SIZE, freeSpotNear, GAP, MERGED_SIZE, type Place, PLAN_HEAD, placePlans, planDirNoteBox, placeWorkstreams, planSize, shapeOf, sizeOf, unionBounds } from '../core/layout';
@@ -870,6 +870,8 @@ export class Board {
   /** Changes a card's work fields (state, session, workstation …); for the agents, not the owner. */
   work(id: string, update: CardUpdate) {
     this.own(id);
+    // a card that leaves the planned state no longer stands where it was stopped
+    if (update.state && update.state !== 'planned' && !('stopped_at' in update)) update = { ...update, stopped_at: null };
     this.store.updateCard(id, update);
     this.changedRows();
   }
@@ -3847,6 +3849,7 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
         ...((r.session_id || r.queue) && r.agent_setting ? { workerSetting: JSON.parse(r.agent_setting) as ItemAgent['workerSetting'] } : {}),
         ...(r.status_line ? { statusLine: r.status_line } : {}),
         ...(r.branch ? { branch: r.branch } : {}),
+        ...(r.stopped_at && r.state === 'planned' && r.branch ? { stoppedAt: JSON.parse(r.stopped_at) as StoppedAt } : {}),
         // a workstation on another machine as ssh and scp write it
         ...(r.workstation ? { workstation: r.workstation.replace(/^ssh:\/\/([^/]+)/, '$1:') } : {}),
         ...(r.kept_in ? { keptIn: r.kept_in.replace(/^ssh:\/\/([^/]+)/, '$1:') } : {}),

@@ -686,6 +686,8 @@ export const MIGRATIONS = [
      FROM card_review_items i JOIN review_source s ON s.card_id = i.card_id WHERE i.status != 'raised';
    DROP TABLE review_source;
    UPDATE card_reviews SET code_review = json_remove(code_review, '$.previous', '$.ignored', '$.review.findings') WHERE code_review IS NOT NULL;`,
+  // what a card was at when the owner stopped it, to say "Stopped at …" (JSON `StoppedAt`)
+  'ALTER TABLE cards ADD COLUMN stopped_at TEXT;',
 ];
 
 /**
