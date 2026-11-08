@@ -49,7 +49,8 @@ time at the right, under "Today", "Yesterday" and then dates. A card on another 
 project carries its canvas icon, as in search. A click opens a live card; a deleted card keeps the
 title it had and is no link. It shows the open project's lines, or with the inbox's "All projects"
 switch every project's, each marked with its project; older lines load as the list is scrolled,
-back to the first one recorded, and new ones arrive over the same push as everything else.
+back to the first one recorded, and new ones arrive over the same push as everything else, above
+the lines already loaded without skipping any (more new lines than a page start the list over).
 Recorded: the owner creating a card, archiving, deleting, stopping, approving, and sending review
 items or findings to the agent; an agent proposing a card or starting on one; work landing on main;
 a card queued behind another card or for want of a free workstation; an agent stopped by its

@@ -10,6 +10,9 @@ import { Workers } from './workers';
 import { board, dir, doc, eachTest, flush, main, manual, merged, origin, runtime, setDocs, setup, setWorkers, spaces, state, store, workers, ws } from './workers-fixture';
 import { git } from './workstations';
 
+/** How often the Activity log says the owner approved the card. */
+const approvals = (id: string) => board.activityRows(['c'], undefined, 100).filter((r) => r.cardId === id && r.code === 'approved').length;
+
 eachTest();
 
 describe('landing through a pull request', () => {
@@ -291,9 +294,11 @@ describe('approving directly onto main where work goes out as a pull request', (
     expect(board.row(c.id).approved_at).toBeNull();
     // the card is the owner's again
     expect(needsYou(board.item(c.id)!)).toBe(true);
+    expect(approvals(c.id)).toBe(0);
     // approved the usual way, it goes out as a pull request
     await workers.approve(c.id);
     expect(state(c.id)).toBe('inPr');
+    expect(approvals(c.id)).toBe(1);
   });
 
   test('without `direct` in the settings the approval is refused; where work lands on main anyway it is a plain approval', async () => {
@@ -304,6 +309,7 @@ describe('approving directly onto main where work goes out as a pull request', (
     const err = await workers.approve(c.id, { direct: true }).catch((e) => e);
     expect(err).toMatchObject({ code: 'noDirect' });
     expect(state(c.id)).toBe('waiting:demo');
+    expect(approvals(c.id)).toBe(0);
     expect(git(origin, 'log', '--format=%s', 'main')).toBe('init');
 
     rmSync(dir, { recursive: true, force: true });

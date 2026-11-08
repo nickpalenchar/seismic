@@ -1691,7 +1691,8 @@ export class Workers {
   async approve(cardId: string, { direct = false }: { direct?: boolean } = {}) {
     const card = this.card(cardId);
     if (!handedOver(card) || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
-    this.o.board.record(cardId, 'approved', 'owner');
+    // the approval goes into the activity log once nothing stands in its way any more
+    const approved = () => this.o.board.record(cardId, 'approved', 'owner');
     if (card.contribution) {
       if (direct) throw new BadRequest('noDirect', 'a review card merges its pull request');
       return this.mergeContribution(cardId);
@@ -1700,6 +1701,7 @@ export class Workers {
     // a prototype never lands: approving it is having seen enough
     if (card.prototypeOf) {
       this.takeHeld(cardId);
+      approved();
       return this.endPrototype(cardId, 'discarded');
     }
     // approved, a card its worker snoozed on its handover wakes no more: the check it was to make again is done with
@@ -1707,6 +1709,7 @@ export class Workers {
     // in a folder without git, what it changed is in the folder already
     if (this.folder) {
       unsnooze();
+      approved();
       return void this.close(cardId, 'owner', this.approvalComments(cardId));
     }
     // git tells where the work lands and whether there is any, without blocking the server; the click ends the owner's turn meanwhile,
@@ -1739,8 +1742,13 @@ export class Workers {
     unsnooze();
     const comments = this.approvalComments(cardId);
     // work that changed nothing (a demo, an analysis) has nothing to land and no pull request to open
-    if (!work) return void this.close(cardId, 'owner', comments);
+    if (!work) {
+      approved();
+      return void this.close(cardId, 'owner', comments);
+    }
+    // a landing that gives the card back to the owner takes the approval back: the landing logs it once it holds
     if (lands.land === 'main' || direct) return this.land(cardId, 'owner', comments);
+    approved();
     // the worker opens the PR the way the repository does it, then Seismic watches it
     const pr: PrState = { url: null, seen: [], reported: [] };
     // the line the worker reported before handing over is about work that is done
@@ -1797,7 +1805,10 @@ export class Workers {
         throw new BadRequest('mergeRefused', messageOf(e));
       });
       if (!handedOver(this.card(cardId)) || this.generation.get(cardId) !== generation) throw new BadRequest('notReady', 'the card is not ready for review');
-      if (now.state === 'MERGED') return this.merged(cardId, now.mergeCommit, t.mergedContribution(c.number));
+      if (now.state === 'MERGED') {
+        if (merge) this.o.board.record(cardId, 'approved', 'owner');
+        return this.merged(cardId, now.mergeCommit, t.mergedContribution(c.number));
+      }
       if (now.state === 'CLOSED') throw new BadRequest('prClosed', 'the pull request was closed');
       // the worker's own commits go on top of the head they were made on; already there, only their text is still to post
       if (!c.reviewed || (now.head !== c.reviewed && now.head !== c.held?.base)) throw this.moved(cardId, c, now.head);
@@ -1831,6 +1842,7 @@ export class Workers {
         if (comments) this.deliver(cardId, comments.text, comments.images, true);
         throw new BadRequest('mergeRefused', reason);
       }
+      this.o.board.record(cardId, 'approved', 'owner');
       if (this.generation.get(cardId) !== generation || !this.o.board.item(cardId)) return;
       this.merged(cardId, merged || undefined, t.mergedContribution(c.number), comments);
     } catch (e) {
@@ -2234,6 +2246,7 @@ export class Workers {
       });
       throw new BadRequest(result.code, result.detail);
     }
+    if (by === 'owner') this.o.board.record(cardId, 'approved', 'owner');
     if ('code' in result) {
       this.o.board.work(cardId, { state: 'working', need: null, detail: result.code === 'landConflict' ? JSON.stringify({ conflict: true }) : null, approved_at: row.approved_at ?? new Date().toISOString() });
       this.o.board.log(cardId, 'error', 'obeya', result.detail, { code: result.code });

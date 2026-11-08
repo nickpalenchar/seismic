@@ -46,7 +46,8 @@ Persistent (SQLite):
 - the activity log: one typed line per event (when, who: the owner, a card's agent or Seismic; a
   fixed code such as created, proposed, archived, deleted, stopped, reviewSent, approved, started,
   landed, waitsForCard, waitsForWorkstation or usageLimit; the card, a second card it waits for, the
-  harness a usage limit stopped), written where the event happens and worded in the UI, so it
+  harness a usage limit stopped), written where the event happens (an approval once it holds: one
+  turned away, or a landing that hands the card back for a new approval, writes none) and worded in the UI, so it
   follows the interface language. The free-text state lines in a card's conversation are not
   parsed for it, so nothing before the log is reconstructed; a wait read again is not written twice;
 - the Koordinator's conversation with the owner, split into chats (each exchange in one; the

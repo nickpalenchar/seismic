@@ -17,39 +17,43 @@ import { clock, t } from './strings';
 export function ActivityTab({ project, changed, open, onGo }: { project: string; changed: unknown; open?: string; onGo: (project: string, i: Item) => void }) {
   const [everywhere, setEverywhere] = useStoredState<boolean>('obeya-activity-all-projects', false);
   const all = everywhere;
-  const [head, setHead] = useState<ActivityEntry[]>([]);
-  const [older, setOlder] = useState<ActivityEntry[]>([]);
-  const [more, setMore] = useState(false);
+  // the lines shown, newest first; `paged` once older pages were added under the first
+  const [list, setList] = useState<{ entries: ActivityEntry[]; more: boolean; paged: boolean }>({ entries: [], more: false, paged: false });
   const [loaded, setLoaded] = useState(false);
   const scope = `${project}/${all}`;
   const was = useRef(scope);
-  // the first page, read again with every change; the lines before it stay
+  // the first page, read again with every change; the lines loaded under it stay as long as the new page reaches them
   useEffect(() => {
     let current = true;
     if (was.current !== scope) {
       was.current = scope;
-      setHead([]);
-      setOlder([]);
+      setList({ entries: [], more: false, paged: false });
       setLoaded(false);
     }
     api.activity(project, all).then((p) => {
       if (!current) return;
-      setHead(p.entries);
       setLoaded(true);
-      setOlder((o) => (o.length ? o : (setMore(p.more), o)));
+      setList((l) => {
+        const fresh = new Set(p.entries.map((e) => e.id));
+        // more new lines than a page leave a gap to those loaded before: the list starts over from the newest
+        if (!l.paged || (p.more && !l.entries.some((e) => fresh.has(e.id)))) return { entries: p.entries, more: p.more, paged: false };
+        return { ...l, entries: [...p.entries, ...l.entries.filter((e) => !fresh.has(e.id))] };
+      });
     }, console.error);
     return () => void (current = false);
   }, [scope, changed]);
-  const entries = [...head, ...older.filter((o) => !head.some((h) => h.id === o.id))];
+  const { entries, more } = list;
   const last = entries.at(-1);
   const loading = useRef(false);
   const end = useRef<HTMLLIElement>(null);
   const loadOlder = () => {
     if (loading.current || !more || !last) return;
     loading.current = true;
+    const at = scope;
     api.activity(project, all, last.id).then((p) => {
-      setOlder((o) => [...o, ...p.entries]);
-      setMore(p.more);
+      if (was.current !== at) return;
+      // a list that started over meanwhile ends elsewhere: this page does not join it
+      setList((l) => l.entries.at(-1)?.id !== last.id ? l : ({ entries: [...l.entries, ...p.entries.filter((e) => !l.entries.some((o) => o.id === e.id))], more: p.more, paged: true }));
     }, console.error).finally(() => void (loading.current = false));
   };
   const latest = useRef(loadOlder);
