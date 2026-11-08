@@ -31,8 +31,7 @@ not queued). A stage without a card shows no heading at all. Under the Queue | A
 on "All", a chip per stage with its count, tinted while its group shows, shows or hides that group
 at a click; what is hidden is remembered per browser. Queued cards are only in
 "Queue"; finished and archived cards, and ideas the owner has nothing to answer on, are not
-listed. The queue moved here from a list under its own button in the bar so that what the agents
-do and what waits for them stand in one place (owner, 2026-11-07).
+listed.
 
 The search button opens a small card finder below the bar. On the canvas, `/` opens it when no text
 field has focus. It searches non-archived cards by title words or short code, in the same order as
@@ -758,8 +757,11 @@ code, a generic one otherwise.
   task" creating a card mid-view.
 - **A card's title is optional** (2026-10-15). Rejected: a required title, which dropped untitled
   cards with their text.
-- **Archive, queue and "New task" sit left in the bar** (2026-10-09). Rejected: the queue inside
-  the Koordinator's sheet.
+- **Archive and "New task" sit left in the bar; the queue is the "Queue" tab of the Agents sheet,
+  beside "All"** (2026-11-07), opened from the agents' robot button with a grey badge counting the
+  queued cards, so that what the agents do and what waits for them stand in one place (owner).
+  Rejected: a drop-down list under a button of its own in the bar, which kept the queue apart from
+  the cards being worked on; and the queue inside the Koordinator's sheet.
 - **The usage limits come from Claude Code's `/usage` data** (2026-10-28), asked through the
   Agent SDK of an idle session. Rejected: calling the plan's usage endpoint directly with the OAuth
   token read from the keychain or Claude Code's credentials file, which ties Seismic to where and how
