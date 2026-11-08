@@ -1,8 +1,8 @@
-import { eq, isNotNull } from 'drizzle-orm';
+import { eq, isNotNull, sql } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { DeviceView } from '../../core/types';
 import type { Db } from '../db';
-import type { Subscription } from '../webpush';
+import { type Subscription, subscriptionOf } from '../webpush';
 
 /** The devices paired to reach Seismic from another machine, each known by the hash of its cookie. */
 export const devices = sqliteTable('devices', {
@@ -28,13 +28,26 @@ export class Devices {
     return rows.map(({ push, ...d }) => (push ? { ...d, push: true } : d));
   }
 
-  /** The devices that get pushes, each with its subscription. */
+  /** The devices that get pushes, each with its subscription; one whose stored subscription is no valid subscription is cleared and left out. */
   pushes(): { id: string; name: string; push: Subscription; lastSeen: string }[] {
-    return this.db
-      .select({ id: devices.id, name: devices.name, push: devices.push, lastSeen: devices.lastSeen })
+    // The column is read as the raw text, so one malformed value fails only its own device.
+    const rows = this.db
+      .select({ id: devices.id, name: devices.name, raw: sql<string>`${devices.push}`, lastSeen: devices.lastSeen })
       .from(devices)
       .where(isNotNull(devices.push))
-      .all() as { id: string; name: string; push: Subscription; lastSeen: string }[];
+      .all();
+    const out: { id: string; name: string; push: Subscription; lastSeen: string }[] = [];
+    for (const { raw, ...d } of rows) {
+      let push: Subscription | string;
+      try {
+        push = subscriptionOf(JSON.parse(raw));
+      } catch {
+        push = 'not JSON';
+      }
+      if (typeof push === 'string') this.setPush(d.id, null);
+      else out.push({ ...d, push });
+    }
+    return out;
   }
 
   /** A device's push subscription, or none any more. */

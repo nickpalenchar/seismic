@@ -230,3 +230,18 @@ describe('Push', () => {
     expect(() => push.subscribe('phone', { endpoint: 'http://127.0.0.1/x', keys: { p256dh: 'a', auth: 'b' } })).toThrow();
   });
 });
+
+describe('a malformed stored subscription', () => {
+  test.each(['not json{', '{"endpoint":"https://evil.example/x"}'])('%s skips that device, clears it, and the others still get the push', async (bad) => {
+    const { store, push, sent } = await setup();
+    const at = new Date().toISOString();
+    store.devices.add({ id: 'broken', name: 'Old · Browser', pairedAt: at, lastSeen: at, tokenHash: 'h2' });
+    store.db.run('UPDATE devices SET push = ? WHERE id = ?', [bad, 'broken']);
+    push.waits([waits('a')]);
+    await push.settled();
+    expect(sent).toHaveLength(1);
+    expect(push.subscribed('phone')).toBe(true);
+    expect(push.subscribed('broken')).toBe(false);
+    expect(store.devices.pushes().map((p) => p.id)).toEqual(['phone']);
+  });
+});
