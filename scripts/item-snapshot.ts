@@ -4,7 +4,7 @@
 //   bun scripts/item-snapshot.ts [db] [--before <commit>] [--after <commit>] [--out <dir>]
 // `db` defaults to ~/.obeya/obeya.db, which is only read (through SQLite's own snapshot, as a
 // running Seismic writes to it); `--before` to `main`, `--after` to this checkout as it is. Each
-// side runs in a checkout of its own (a detached worktree for a commit) on a copy of the database,
+// side runs in a checkout of its own (a detached worktree for a commit) on its own copy of one snapshot of the database,
 // and writes what it read to `<out>/<side>.json`: each project's snapshot (the cards as the UI gets
 // them, its groups, canvases, chat and preferences), its archive, every card's history and agent
 // runs, and the Koordinator's reads (its talk, the timeline, what the owner said, decisions, the
@@ -14,7 +14,7 @@
 
 import { Database } from 'bun:sqlite';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -48,13 +48,17 @@ function checkout(commit: string | undefined): string {
   return dir;
 }
 
-/** What the code in `code` reads from a fresh copy of the database. */
+// one snapshot of the database for both sides: a running Seismic writing between two would show as a difference of the code
+const snapshot = join(out, 'source.db');
+rmSync(snapshot, { force: true });
+const source = new Database(db, { readonly: true });
+source.run('VACUUM INTO ?', [snapshot]);
+source.close();
+
+/** What the code in `code` reads from a copy of its own of the snapshot (reading writes to it). */
 function side(name: string, code: string): unknown {
   const copy = join(out, `${name}.db`);
-  rmSync(copy, { force: true });
-  const source = new Database(db, { readonly: true });
-  source.run('VACUUM INTO ?', [copy]);
-  source.close();
+  copyFileSync(snapshot, copy);
   const file = join(out, `${name}.json`);
   const run = spawnSync('bun', [join(root, 'scripts', 'item-snapshot.ts'), '--inner', code, copy, file], { stdio: 'inherit' });
   if (run.status) throw new Error(`the ${name} side failed`);
@@ -107,7 +111,8 @@ async function inner(code: string, path: string, file: string) {
     return f ? store[m][f](...a) : store[m](...a);
   };
   const projects = store.db.query('SELECT id, name FROM projects ORDER BY id').all() as { id: string; name: string }[];
-  const result: Record<string, unknown> = {};
+  // the projects under a key of their own, so none can share its id with what spans them
+  const result: { projects: Record<string, unknown>; [k: string]: unknown } = { projects: {} };
   for (const p of projects) {
     const home = read('setting', 'settings.get', p.id, 'home_repo') ?? 'home';
     const others = (store.db.query('SELECT DISTINCT repo FROM cards WHERE project_id = $p AND repo IS NOT NULL AND repo != $home').all({ p: p.id, home }) as { repo: string }[]).map((r) => r.repo);
@@ -118,7 +123,7 @@ async function inner(code: string, path: string, file: string) {
     const archived = board.archived();
     const cards = (store.db.query('SELECT id FROM cards WHERE project_id = $p ORDER BY rowid').all({ p: p.id }) as { id: string }[]).map((r) => r.id);
     const chat = read('chat', 'chats.current', p.id);
-    result[p.id] = {
+    result.projects[p.id] = {
       snapshot,
       archived,
       history: Object.fromEntries(cards.map((id) => [id, { events: read('events', 'events.of', id, 1e9), runs: read('runs', 'agentRuns.of', id) }])),
