@@ -3609,6 +3609,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
   const manual: Item[] = [];
   for (const r of rows) {
     if (!r.plan_ref) {
+      const worker = work(r);
       manual.push({
         id: r.id,
         short: r.short,
@@ -3623,7 +3624,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
         repo: r.repo ?? home,
         ...(r.canvas_id ? { canvas: r.canvas_id } : {}),
         createdAt: r.created_at,
-        ...work(r),
+        ...worker,
         ...(r.thread ? { thread: threadOf(r) } : {}),
         ...(r.images ? { images: JSON.parse(r.images) as string[] } : {}),
         ...(r.group_id ? { group: r.group_id } : {}),
@@ -3638,7 +3639,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
             ...newRepoOf(r),
           },
           labels: labelsOf(r),
-        }, work(r)),
+        }, worker),
       });
       continue;
     }
@@ -3681,6 +3682,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
     // what landed of a workstream planned again, also while a new run does the rest; once that lands, the card is live
     const shipped = (state === 'planned' || ACTIVE.includes(state)) && r.shipped ? (JSON.parse(r.shipped) as Shipped) : null;
     const buildsOn = (depsOf.get(r.parent_id)?.on?.[key] ?? []).flatMap((k) => idOfRef.get(`${doc.file}#${k}`) ?? []);
+    const worker = work(r);
     workstreams.push({
       order,
       item: {
@@ -3697,14 +3699,14 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
         source: 'plan',
         repo: repoOfRef(r.plan_ref, home),
         ...((canvasOf.get(r.parent_id) ?? r.canvas_id) ? { canvas: canvasOf.get(r.parent_id) ?? r.canvas_id } : {}),
-        ...work(r),
+        ...worker,
         ...(groupOf.get(r.parent_id) ? { group: groupOf.get(r.parent_id)! } : {}),
         ...parts({
           review: shipped ? { landedPart: { ...(shipped.commit ? { commit: shipped.commit } : {}), ...(shipped.pr ? { pr: shipped.pr } : {}) } } : {},
           idea: r.built_on ? { builtOn: r.built_on } : {},
           plan: { ...(w.label ? { label: w.label } : {}), ...(buildsOn.length ? { buildsOn } : {}) },
           labels: labelsOf(r),
-        }, work(r)),
+        }, worker),
       },
     });
   }
