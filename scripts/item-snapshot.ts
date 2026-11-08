@@ -158,8 +158,10 @@ function grouped(value: unknown): unknown {
   // what every card as the UI gets it has, and a stored row has not
   const isItem = (o: Record<string, unknown>) => typeof o.id === 'string' && typeof o.kind === 'string' && 'source' in o && 'x' in o && !('project_id' in o);
   const regroup = (o: Record<string, unknown>): Record<string, unknown> => {
-    // a plan with nothing else of a part has the same shape either way: its doc's path and goal
-    if (![...flat].some((k) => k in o)) return o;
+    // `idea` and `demo` name parts now too: flat, they were an idea under discussion and a demo;
+    // a plan with nothing else of a part has the same shape either way, its doc's path and goal
+    const was = (k: string, has: string) => !!o[k] && typeof o[k] === 'object' && has in (o[k] as object);
+    if (![...flat].some((k) => k !== 'idea' && k !== 'demo' && k in o) && !was('idea', 'status') && !was('demo', 'kind')) return o;
     const plan = o.plan as { file: string; goal: string } | undefined;
     const rest = Object.fromEntries(Object.entries(o).filter(([k]) => !flat.has(k) && k !== 'plan'));
     for (const [part, keys] of Object.entries(PARTS)) {
