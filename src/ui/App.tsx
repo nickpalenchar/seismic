@@ -951,10 +951,15 @@ function Project({
   useEffect(() => beforeReload(() => keepNow.current()), []);
   // a switch to another project within the page: what was open comes back with this project, as after a
   // reload; before the page leaves it, while its open things are still there to be read
+  /** This project has left the page; what it still puts back stops. */
+  const gone = useRef(false);
+  const stopRestore = useRef<(() => void) | null>(null);
   useLayoutEffect(
     () => () => {
       keepNow.current();
       camDue.current?.();
+      gone.current = true;
+      stopRestore.current?.();
     },
     [],
   );
@@ -1006,7 +1011,8 @@ function Project({
     if (k.config) setCOn(true);
     if (k.prefs) setPrefsOn(true);
     await openAgain(k, true);
-    restore(k);
+    if (gone.current) return;
+    stopRestore.current = restore(k);
   }
   /** Opens the plan `k.plan` (its plan doc with `reading`) and the card `k.card` in it or on the project; an archived one from its row in the archive or the plan's sheet. */
   async function openAgain(k: Pick<Kept, 'card' | 'plan' | 'reading'>, quick: boolean) {

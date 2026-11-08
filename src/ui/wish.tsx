@@ -71,6 +71,16 @@ function writeAgain() {
   }, Math.min(Math.max(0, Date.parse(a.until) - Date.now()), 2 ** 31 - 1));
 }
 
+/** The draft `at` keeps in its storage. */
+function storedIssue(at: typeof kept): Issue | null {
+  try {
+    const issue = at && (JSON.parse(at.store.getItem(at.key) ?? 'null') as Issue | null);
+    return issue && typeof issue.title === 'string' && typeof issue.body === 'string' ? { ...issue, images: issue.images ?? [] } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Takes back the project's draft that `store` kept, and writes it down there from now on; for another project (switched to within the page), in place of the one's before. */
 export function keepWish(store: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, project: string) {
   const key = `obeya-wish-${project}`;
@@ -78,10 +88,8 @@ export function keepWish(store: Pick<Storage, 'getItem' | 'setItem' | 'removeIte
   // the project before keeps its draft under its own name
   if (kept) state = { open: false, issue: null, writing: false, error: '' };
   kept = { store, key };
-  try {
-    const issue = JSON.parse(store.getItem(kept.key) ?? 'null') as Issue | null;
-    if (issue && typeof issue.title === 'string' && typeof issue.body === 'string') state = { ...state, issue: { ...issue, images: issue.images ?? [] } };
-  } catch {}
+  const issue = storedIssue(kept);
+  if (issue) state = { ...state, issue };
   writeAgain();
   for (const fn of listeners) fn();
 }
@@ -138,7 +146,9 @@ async function write(w: Wish, images: string[], { base, seed }: { base?: { title
       ...(images.length ? { images } : {}),
       app: !!window.obeyaApp,
     });
-    const shots = base === undefined ? [...(state.issue?.images ?? []), ...images] : (state.issue?.images ?? images);
+    // the draft as it stands now on the project it was asked on: after a switch, the one kept there
+    const now = kept === at ? state.issue : storedIssue(at);
+    const shots = base === undefined ? [...(now?.images ?? []), ...images] : (now?.images ?? images);
     const limited = out.limitedUntil ? { again: { wish: w, images, until: out.limitedUntil, base: before ? { title: before.title, body: before.body } : null } } : {};
     const issue: Issue = { title: out.title, body: out.body, images: shots, ...(out.raw ? { raw: true as const } : {}), ...limited, ...(from ? { from } : {}) };
     if (kept === at) set({ writing: false, issue });

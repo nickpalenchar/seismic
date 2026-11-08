@@ -95,7 +95,7 @@ const SETTLE_MS = 2500;
  * plan doc) moves boxes, so the positions are put back again until the content has settled, unless
  * the owner scrolls or types first.
  */
-export function restore(k: Pick<Kept, 'scroll' | 'drafts' | 'video'>) {
+export function restore(k: Pick<Kept, 'scroll' | 'drafts' | 'video'>): () => void {
   const until = performance.now() + SETTLE_MS;
   const drafts = new Map(k.drafts);
   let stop = false;
@@ -128,6 +128,8 @@ export function restore(k: Pick<Kept, 'scroll' | 'drafts' | 'video'>) {
     setTimeout(tick, 100);
   };
   tick();
+  // the page went on to another project, whose fields and boxes are not these
+  return owner;
 }
 
 const sheetKey = (project: string) => `obeya-sheet-left-open-${project}`;
