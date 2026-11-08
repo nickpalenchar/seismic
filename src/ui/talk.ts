@@ -474,7 +474,7 @@ export function ownerField(item: Pick<Item, 'state' | 'need' | 'question' | 'age
 
 /**
  * A card an agent or Seismic is at (working on it, taking in the owner's words on its handover,
- * landing it, finding it a turn in the queue), and that waits for nobody: the phone's "Running".
+ * landing it, finding it a turn in the queue), and that waits for nobody.
  */
 export const runs = (i: Item) =>
   !needsYou(i) &&

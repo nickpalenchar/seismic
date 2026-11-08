@@ -17,12 +17,50 @@ import { QueueList, useQueueSort } from './queue';
 import { useStoredState } from './stored';
 import { t } from './strings';
 
-type Tab = 'queue' | 'all' | 'parked' | 'activity';
+export type AgentsTab = 'queue' | 'all' | 'parked' | 'activity';
+type Tab = AgentsTab;
+
+/** The tab chosen last in this browser, the desktop's sheet and the phone's list alike; `first` until one was chosen. */
+export function useAgentsTab(first: Tab): [Tab, (t: Tab) => void] {
+  const [kept, setTab] = useStoredState<Tab | null>('obeya-agents-tab', null);
+  const tab: Tab = kept === 'queue' || kept === 'parked' || kept === 'activity' || kept === 'all' ? kept : first;
+  return [tab, setTab];
+}
+
+/** The switch between the four tabs, the queue's count on "Queue" and the parked cards' on "Parked". */
+export function AgentsTabs({ tab, onTab, queued, parked }: { tab: Tab; onTab: (t: Tab) => void; queued: number; parked: number }) {
+  return (
+    <div className="seg agents-tabs" role="tablist" aria-label={t.agents.title}>
+      {(['queue', 'all', 'parked', 'activity'] as const).map((k) => (
+        <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : undefined} onClick={() => onTab(k)}>
+          {t.agents.tabs[k]}
+          {k === 'queue' && queued > 0 && <span className="n">{queued}</span>}
+          {k === 'parked' && parked > 0 && <span className="count">{parked}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The chips above "All": one per stage with its count, tinted while its group shows; a tap shows or
+ * hides the group. With `onlyFull` (the phone, where the row has room for few) a stage without cards has none.
+ */
+export function StageChips<S extends string>({ stages, count, hidden, onHidden, onlyFull }: { stages: readonly S[]; count: (s: S) => number; hidden: S[]; onHidden: (h: S[]) => void; onlyFull?: boolean }) {
+  return (
+    <div className="agents-filter" role="group" aria-label={t.agents.filter}>
+      {stages.filter((s) => !onlyFull || count(s) > 0).map((s) => (
+        <button key={s} type="button" className={`chip stage-${s}${count(s) ? '' : ' none'}`} aria-pressed={!hidden.includes(s)} onClick={() => onHidden(hidden.includes(s) ? hidden.filter((x) => x !== s) : [...hidden, s])}>
+          {(t.agents.stages as Record<string, string>)[s]} <span className="count">{count(s)}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** The desktop's Agents sheet, docked on the right like the inbox. */
 export function AgentsSheet({ els, on, items, open, underway, onOpen, project, changed, onGo }: { els: Map<string, HTMLElement>; on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void; project: string; changed: unknown; onGo: (project: string, i: Item) => void }) {
-  const [kept, setTab] = useStoredState<Tab>('obeya-agents-tab', 'queue');
-  const tab: Tab = kept === 'queue' || kept === 'parked' || kept === 'activity' ? kept : 'all';
+  const [tab, setTab] = useAgentsTab('queue');
   const parked = items.filter((i) => inParkingLot(i) && !i.archivedAt);
   const box = useRef<HTMLElement>(null);
   const q = useQueueSort(items, box);
@@ -38,15 +76,7 @@ export function AgentsSheet({ els, on, items, open, underway, onOpen, project, c
   return (
     <Docked id="agents" ref={box} on={on} label={t.agents.title}>
       <h2>{t.agents.title}</h2>
-      <div className="seg agents-tabs" role="tablist" aria-label={t.agents.title}>
-        {(['queue', 'all', 'parked', 'activity'] as const).map((k) => (
-          <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : undefined} onClick={() => setTab(k)}>
-            {t.agents.tabs[k]}
-            {k === 'queue' && q.queued.length > 0 && <span className="n">{q.queued.length}</span>}
-            {k === 'parked' && parked.length > 0 && <span className="count">{parked.length}</span>}
-          </button>
-        ))}
-      </div>
+      <AgentsTabs tab={tab} onTab={setTab} queued={q.queued.length} parked={parked.length} />
       {tab === 'queue' ? (
         q.queued.length ? <QueueList items={items} q={q} onOpen={onOpen} /> : <p className="hint agents-empty">{t.queue.empty}</p>
       ) : tab === 'activity' ? (
@@ -63,13 +93,7 @@ export function AgentsSheet({ els, on, items, open, underway, onOpen, project, c
         )
       ) : (
         <>
-          <div className="agents-filter" role="group" aria-label={t.agents.filter}>
-            {AGENT_STAGES.map((s) => (
-              <button key={s} type="button" className={`chip stage-${s}${count(s) ? '' : ' none'}`} aria-pressed={!hidden.includes(s)} onClick={() => setHidden(hidden.includes(s) ? hidden.filter((x) => x !== s) : [...hidden, s])}>
-                {t.agents.stages[s]} <span className="count">{count(s)}</span>
-              </button>
-            ))}
-          </div>
+          <StageChips stages={AGENT_STAGES} count={count} hidden={hidden} onHidden={setHidden} />
           {!groups.length ? (
             <p className="hint agents-empty">{t.agents.none}</p>
           ) : !shown.length ? (

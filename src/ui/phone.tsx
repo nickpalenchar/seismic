@@ -1,6 +1,7 @@
-// The phone view: on a phone the page shows, instead of the project, what waits for the owner across
-// every project ("Needs you"), what runs ("Running") and, folded away until opened, what is done but not
-// archived yet ("Done"); Seismic's conversation is a panel of its own that
+// The phone view: on a phone the page shows, instead of the project, the Agents view across every
+// project, with the desktop sheet's tabs: "All" (the cards by stage, what needs the owner first as the
+// inbox lists it, and "Done" for what is finished but not archived, hidden until its chip is tapped),
+// "Queue", "Parked" and "Activity"; Seismic's conversation is a panel of its own that
 // comes up from below. A card opens full screen with the project's own detail view (answer options,
 // demo, approve buttons), its conversation in the same panel, and Back returns to the list. The microphone is held by touch; Enter breaks the line, only Send sends;
 // the list itself has a plus button in the microphone's place, which makes a card and opens it (the microphone is back with a panel open);
@@ -9,7 +10,12 @@
 import { ChevronLeft, Plus } from 'lucide-react';
 import { useRatePrompt } from './feedback';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { type ProjectInfo, type ProjectSnapshot, type CardPatch, finishedArchivable, type Item, nameless, needsYou, openQuestions, unreadAnswers, type Usage, snoozeOf } from '../core/types';
+import { type ProjectInfo, type ProjectSnapshot, type CardPatch, finishedArchivable, inParkingLot, type Item, nameless, needsYou, openQuestions, unreadAnswers, type Usage, snoozeOf } from '../core/types';
+import { AGENT_STAGES, agentStage } from '../core/agents';
+import { AgentsTabs, StageChips, useAgentsTab } from './agents';
+import { ActivityTab } from './activity';
+import { QueueList, useQueueSort } from './queue';
+import { useStoredState } from './stored';
 import { ChatsHead } from './chats';
 import { api, beforeReload, cardsOn, onNotice, phoneInUse, setProject, useProject, type Where } from './api';
 import { enterBreaksLines } from './composer';
@@ -53,9 +59,9 @@ export function phoneView(): boolean {
 const DRAFTS = '@phone';
 /** The project whose Seismic the conversation at the bottom is with, as the owner last picked it. */
 const OBEYA_PROJECT = 'obeya-phone-project';
-/** Whether the owner opened "Planned" or "Done" in this tab; each starts closed. */
-const PLANNED_OPEN = 'obeya-phone-planned';
-const DONE_OPEN = 'obeya-phone-done';
+/** The stages "All" groups the cards by on the phone: the desktop's, then the finished cards not archived yet. */
+const PHONE_STAGES = [...AGENT_STAGES, 'done'] as const;
+type PhoneStage = (typeof PHONE_STAGES)[number];
 /** How long the server may not answer before the view says so: a phone back from its lock screen reconnects within this. */
 const QUIET_MS = 3000;
 /** How long a frozen server may stay silent before the banner names the time it went quiet. */
@@ -299,9 +305,9 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
     addEventListener('popstate', pop);
     return () => removeEventListener('popstate', pop);
   }, []);
-  // "Planned" and "Done" start closed, and stay as the owner left them while a card is open and over a reload
-  const [plannedOpen, togglePlanned] = useFolded(PLANNED_OPEN);
-  const [doneOpen, toggleDone] = useFolded(DONE_OPEN);
+  // the tab and the groups shown, as the owner left them; "Done" hidden until its chip is tapped
+  const [tab, setTab] = useAgentsTab('all');
+  const [hidden, setHidden] = useStoredState<PhoneStage[]>('obeya-phone-hidden', ['done']);
   // the list keeps where it was scrolled to while a card is open
   const homeRef = useRef<HTMLDivElement>(null);
   const homeScroll = useRef(0);
@@ -712,10 +718,25 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
     openTalk();
   };
   const shown = talk && !closing;
-  // the tasks nobody has started yet (stopped ones and those set to start at a time among them), but nothing the lists above show already
-  const planned = all.filter(({ item }) => plannedLater(item) && !runs(item) && !isUnderway(item.id));
-  // what the project's "Archive done" would take, but nothing the lists above show already
-  const done = all.filter(({ item }) => finishedArchivable(item) && !needsYou(item) && !snoozeOf(item)?.waiting && !runs(item) && !isUnderway(item.id));
+  // "All": what needs the owner as the inbox lists it (Seismic's answers and snoozed cards among them),
+  // every other card by the stage it is at, and what is finished but not archived yet
+  const inInbox = new Set(entries.flatMap((e) => (e.card ? [e.card.id] : [])));
+  const stageOf = (i: Item): PhoneStage | undefined => {
+    if (inInbox.has(i.id) || i.archivedAt || inParkingLot(i)) return undefined;
+    const s = agentStage(i, isUnderway(i.id));
+    if (s && s !== 'needsYou') return s;
+    if (!s && finishedArchivable(i) && !needsYou(i) && !snoozeOf(i)?.waiting && !runs(i) && !isUnderway(i.id)) return 'done';
+    return undefined;
+  };
+  const staged = PHONE_STAGES.map((stage) => ({ stage, entries: stage === 'needsYou' ? [] : all.filter(({ item }) => stageOf(item) === stage) }));
+  const count = (s: PhoneStage) => (s === 'needsYou' ? entries.length : staged.find((g) => g.stage === s)!.entries.length);
+  const groups = PHONE_STAGES.filter((s) => count(s) > 0);
+  const shownGroups = groups.filter((s) => !hidden.includes(s));
+  const parked = all.filter(({ item }) => inParkingLot(item) && !item.archivedAt);
+  const queuedOn = ordered.filter((c) => snaps[c.id]!.items.some((i) => i.queue && !i.archivedAt));
+  const queued = ordered.reduce((n, c) => n + snaps[c.id]!.items.filter((i) => i.queue && !i.archivedAt).length, 0);
+  // nothing known yet (the server has not answered since the page loaded): no claim that there is nothing
+  const known = ordered.length > 0;
   return (
     <HoldToTalk.Provider value={press}>
       {feeds}
@@ -727,34 +748,70 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
         </header>
         {banner}
         <Notify />
-        <section className="ph-section">
-          <h2>{t.phone.forYou}</h2>
-          <InboxList
-            entries={entries}
-            isRead={inboxRead.isRead}
-            onRead={inboxRead.markRead}
-            onGo={(e) => {
-              if (e.card) return openCard(e.card);
-              setObeyaProject(e.project);
-              openTalk();
-            }}
-            onProposalCard={(_project, i) => openCard(i)}
-            onReply={(c, i, r) =>
-              sendReply(c, i, r, {
-                mark: (id, what) => setUnderway((u) => (what === null ? u.filter((x) => x !== id) : [...u.filter((x) => x !== id), id])),
-                showAck,
-              })
-            }
-          />
-        </section>
-        <section className="ph-section">
-          <h2>{t.phone.running}</h2>
-          {/* nothing known yet (the server has not answered since the page loaded): no claim that nothing runs */}
-          {/* a snoozed card at the end, after those at work now */}
-          {ordered.length > 0 && <Running entries={all.filter(({ item }) => runs(item) || isUnderway(item.id)).sort((a, b) => Number(!!snoozeOf(a.item)) - Number(!!snoozeOf(b.item)))} several={several} onOpen={openCard} />}
-        </section>
-        {planned.length > 0 && <Folded label={t.phone.planned} entries={planned} several={several} open={plannedOpen} onToggle={togglePlanned} onOpen={openCard} />}
-        {done.length > 0 && <Folded label={t.phone.done} entries={done} several={several} open={doneOpen} onToggle={toggleDone} onOpen={openCard} />}
+        <AgentsTabs tab={tab} onTab={setTab} queued={queued} parked={parked.length} />
+        {!known ? null : tab === 'all' ? (
+          <>
+            <StageChips stages={PHONE_STAGES} count={count} hidden={hidden} onHidden={setHidden} onlyFull />
+            {!groups.length ? (
+              <p className="ph-none ph-empty">{t.agents.none}</p>
+            ) : !shownGroups.length ? (
+              <p className="ph-none ph-empty">{t.agents.allHidden}</p>
+            ) : (
+              shownGroups.map((s) => (
+                <section key={s} className={`ph-section ph-stage stage-${s}`}>
+                  <h2>
+                    {t.agents.stages[s]} <span className="n">{count(s)}</span>
+                  </h2>
+                  {s === 'needsYou' ? (
+                    <InboxList
+                      entries={entries}
+                      isRead={inboxRead.isRead}
+                      onRead={inboxRead.markRead}
+                      onGo={(e) => {
+                        if (e.card) return openCard(e.card);
+                        setObeyaProject(e.project);
+                        openTalk();
+                      }}
+                      onProposalCard={(_project, i) => openCard(i)}
+                      onReply={(c, i, r) =>
+                        sendReply(c, i, r, {
+                          mark: (id, what) => setUnderway((u) => (what === null ? u.filter((x) => x !== id) : [...u.filter((x) => x !== id), id])),
+                          showAck,
+                        })
+                      }
+                    />
+                  ) : (
+                    // a snoozed card at the end, after those at work now
+                    <CardList entries={staged.find((g) => g.stage === s)!.entries.sort((a, b) => Number(!!snoozeOf(a.item)) - Number(!!snoozeOf(b.item)))} several={several} onOpen={openCard} />
+                  )}
+                </section>
+              ))
+            )}
+          </>
+        ) : tab === 'queue' ? (
+          queuedOn.length ? (
+            queuedOn.map((c) => (
+              <section key={c.id} className="ph-section ph-queue">
+                {several && <h2>{c.name}</h2>}
+                <ProjectQueue items={snaps[c.id]!.items} scroller={homeRef} onOpen={openCard} />
+              </section>
+            ))
+          ) : (
+            <p className="ph-none ph-empty">{t.queue.empty}</p>
+          )
+        ) : tab === 'parked' ? (
+          parked.length ? (
+            <section className="ph-section">
+              <CardList entries={parked} several={several} onOpen={openCard} />
+            </section>
+          ) : (
+            <p className="ph-none ph-empty">{t.agents.noneParked}</p>
+          )
+        ) : (
+          <section className="ph-section ph-activity">
+            <ActivityTab project={obeyaId} changed={snaps} onGo={(_project, i) => openCard(i)} allProjects />
+          </section>
+        )}
       </div>
       {talk && (
         <TalkPanel
@@ -822,9 +879,8 @@ function Feed({ id, onChange }: { id: string; onChange: (id: string, live: Retur
   return null;
 }
 
-/** The cards at work, each with its status line, as their cards on the project show them. */
-function Running({ entries, several, onOpen }: { entries: { item: Item; project: ProjectInfo }[]; several: boolean; onOpen: (i: Item) => void }) {
-  if (!entries.length) return <p className="ph-none">{t.phone.nothingRuns}</p>;
+/** Cards as the project shows them, as wide as the screen, each opening at a tap; led by its project's name where there are several. */
+function CardList({ entries, several, onOpen }: { entries: { item: Item; project: ProjectInfo }[]; several: boolean; onOpen: (i: Item) => void }) {
   return (
     <ul className="ph-list">
       {entries.map(({ item: i, project: c }) => (
@@ -838,62 +894,10 @@ function Running({ entries, several, onOpen }: { entries: { item: Item; project:
   );
 }
 
-/** A task planned and not archived that neither waits for the owner nor got snoozed while it did: the phone's "Planned". */
-const plannedLater = (i: Item) => i.kind === 'task' && i.state === 'planned' && !i.archivedAt && !needsYou(i) && !snoozeOf(i)?.waiting;
-
-/** Whether a folded list is open, kept in this tab under `key`, and the toggle that opens and closes it. */
-function useFolded(key: string): [boolean, () => void] {
-  const [open, setOpen] = useState(() => sessionStorage.getItem(key) === '1');
-  const toggle = () =>
-    setOpen((o) => {
-      try {
-        if (o) sessionStorage.removeItem(key);
-        else sessionStorage.setItem(key, '1');
-      } catch {}
-      return !o;
-    });
-  return [open, toggle];
-}
-
-/**
- * The cards planned or done, below the others: a head with their count that opens and closes the
- * list. Opened, the head moves to the top of the screen so the cards below it show.
- */
-function Folded({ label, entries, several, open, onToggle, onOpen }: { label: string; entries: { item: Item; project: ProjectInfo }[]; several: boolean; open: boolean; onToggle: () => void; onOpen: (i: Item) => void }) {
-  const head = useRef<HTMLElement>(null);
-  const opened = useRef(false);
-  useEffect(() => {
-    if (open && opened.current) head.current?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
-    opened.current = false;
-  }, [open]);
-  return (
-    <section className={['ph-section ph-fold', open && 'open'].filter(Boolean).join(' ')} ref={head}>
-      <h2>
-        <button
-          aria-expanded={open}
-          onClick={() => {
-            opened.current = !open;
-            onToggle();
-          }}
-        >
-          <span className="arrow" aria-hidden="true" />
-          <span className="label">{label}</span>
-          <span className="n">{entries.length}</span>
-        </button>
-      </h2>
-      {open && (
-        <ul className="ph-list">
-          {entries.map(({ item: i, project: c }) => (
-            <li key={i.id}>
-              <button className={`${cardClass(i)} ph-card`} onClick={() => onOpen(i)}>
-                <CardFace item={i} where={several ? c.name : undefined} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
+/** One project's queue, its rows dragged to their place by their grip, a tap opening the card. */
+function ProjectQueue({ items, scroller, onOpen }: { items: Item[]; scroller: React.RefObject<HTMLElement | null>; onOpen: (i: Item) => void }) {
+  const q = useQueueSort(items, scroller);
+  return <QueueList items={items} q={q} onOpen={onOpen} />;
 }
 
 /**

@@ -281,7 +281,7 @@ about twenty seconds without a step while no tool of its runs; "debugging" after
 tool calls failed (a command's non-zero exit), until that tool succeeds again; and, in green, the
 stages of its demo: "preparing demo" from the demo skill, a demo script or a dry run on,
 "recording demo" while the render runs (also as background work after the turn ended), "finalizing demo" from its next step until the handover. A failure outranks the demo, the demo
-outranks thinking. While the worker takes in feedback, the non-demo words add "from feedback". The phone's "Running" list shows its cards the same way.
+outranks thinking. While the worker takes in feedback, the non-demo words add "from feedback". The phone's Agents view shows its cards the same way.
 
 Every wait between cards on the canvas shows at all times as a thin, solid, grey arrow from the card
 waited for to the card waiting, under the cards and above plans like the dashed line: only direct
@@ -324,8 +324,7 @@ see Scheduling.
 A card has one face, which every place that shows a card draws in one of three sizes, so that no
 list says a card's title, state or labels in a way of its own:
 
-- **M** is the card on the canvas, also two merged cards side by side, the phone's "Running",
-  "Planned" and "Done" lists and a follow-up made in a conversation. Its top line holds the label
+- **M** is the card on the canvas, also two merged cards side by side, the phone's Agents view (its queue aside) and a follow-up made in a conversation. Its top line holds the label
   chips (the priority's flag and name, then category, sub-category and complexity; one Seismic
   suggested is framed dashed in purple), followed by where it is (its repository on a project with
   several, its project on the phone) and its kind ("Idea", "Plan", a workstream's label, a review

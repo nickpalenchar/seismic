@@ -135,28 +135,27 @@ On a phone the page shows the phone view instead of the project, at the same add
 same bundle. A phone is a device with a coarse pointer whose screen's shorter side is under 600 px;
 a tablet and a narrow window at the desk keep the project. `?view=phone` or `?view=project` decides
 instead. The view is settled at load; turning the phone does not switch it. It uses each project's
-own WebSocket. It shows four lists:
+own WebSocket. Under its top bar it shows the Agents view (see The bar in The canvas) across every
+project, with the desktop sheet's four tabs as a switch across the screen, the one chosen last
+remembered per browser ("All" until one was chosen):
 
-- **"Needs you"**: the inbox (see The bar): what waits for the owner across every project in one
-  list, most recently updated first, Seismic's unread answers among them. A new demo or another
-  card update moves that card to the top. Each entry names its project, says
-  what it waits for (its state line: "Demo ready", "Question for you" …) and since when (the server
-  keeps that across restarts), with the same one-click replies and "Go to card". Snoozed cards stand
-  at the end (see Snoozing a card). The desktop's inbox shows the same entries with the latest
-  wait first; both share the entry layout and actions, the unread dot and the "Unread | All" switch.
-- **"Running"**: the cards an agent or Seismic is at that wait for nobody (working, taking in the owner's
-  words, landing, queued, in a PR, an idea's agent thinking …), with their status line, snoozed ones
-  at the end. Every card that leaves "Needs you" without being done stands here.
-- **"Planned"**: the tasks no agent has started yet and that wait for nobody: planned ones (a follow-up
-  the owner accepted, say), stopped ones, and those set to start at a time. Opened, a card offers
-  what it does on the canvas ("Start agent", "Later"), so a task can be started from the phone.
-  Without this list an accepted proposal left the phone until it was started (2026-10-31).
-- **"Done"**: the finished cards that are not archived yet, those the archive's "Archive … done tasks" would take, and none the lists above hold.
-
-"Planned" and "Done" are closed until their head (with the count) is tapped, since either may
-hold many cards the owner rarely needs on the phone. Opened, the head moves up to the bar so its
-cards show; it stays open while a card is open and over a reload, and is closed again in a new tab.
-Without such cards it is not there.
+- **"All"**: the cards by stage, under a row of chips (one per stage that has cards, with its
+  count, scrolling sideways) that show or hide each group, as on the desktop. "Needs you" comes first
+  and is the inbox (see The bar): what waits for the owner across every project in one list, most
+  recently updated first, Seismic's unread answers among them. A new demo or another card update
+  moves that card to the top. Each entry names its project, says what it waits for (its state line:
+  "Demo ready", "Question for you" …) and since when (the server keeps that across restarts), with
+  the same one-click replies and "Go to card". Snoozed cards stand at the end (see Snoozing a card).
+  The desktop's inbox shows the same entries with the latest wait first; both share the entry
+  layout and actions, the unread dot and the "Unread | All" switch. Then "Working", "Code reviewing",
+  "Review fixing", "Landing" and "Planned" as on the desktop, snoozed cards at the end of each, and
+  last, on the phone only, "Done": the finished cards not archived yet (those the archive's "Archive
+  … done tasks" would take), hidden until its chip is tapped. A planned card opened offers what it
+  does on the canvas ("Start agent", "Later"), so a task can be started from the phone.
+- **"Queue"**: each project's queue (under the project's name where there are several), its rows
+  as large as a finger needs and dragged to their place by their grip.
+- **"Parked"**: the parking lot of every project.
+- **"Activity"**: the log of every project's cards, without the desktop's "All projects" switch.
 
 The cards look as on the canvas, as wide as the screen and without the pin, their kind line led by
 the project's name where there are several; where two of at least
@@ -548,9 +547,13 @@ workers are busy.
   It reuses the project's detail view, conversation, drafts and confirmations rather than copies. One
   WebSocket per project rather than one stream for all: the server's messages stay as they are, and an owner has a
   handful of projects.
-- **Done cards on the phone in a list of their own, closed by default** (2026-10-28, the owner):
-  the owner wants to see what is done but not archived from the phone, without it pushing what
-  waits and what runs further down.
+- **The phone's home is the Agents view** (2026-11-08, the owner): one way of looking at the cards
+  on the desk and the phone, instead of the phone's own lists ("Needs you", "Running", folded
+  "Planned" and "Done"). "Needs you" keeps the inbox's one-click replies, since answering is what the
+  phone is mostly for; chips of stages without cards are left out (the row has room for few); what
+  "Running" held that the Agents view leaves out (an idea's agent thinking) is reached from the
+  canvas. Done cards stay reachable as a stage of their own, hidden by default (owner, 2026-10-28:
+  what is done but not archived, without pushing what waits and runs further down).
 - **Phone conversations are a panel from below, sized with a grip** (2026-10-17). Rejected: the
   conversation as a box in the scrolling page (a scroll area inside another, and the page scrolled
   past the field to make room for the microphone); a grip that only closes or springs back. Cards
