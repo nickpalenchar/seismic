@@ -1,4 +1,4 @@
-import { Car, Check, Star, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, Play, Plus, Share, SquarePlus, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Car, Check, Lightbulb, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, Play, Plus, Share, SquarePlus, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
 // The unfolded card: what it is, what its worker does, and what the owner decides.
 
@@ -582,7 +582,7 @@ export function Detail(p: Props) {
       <KindLine kind={kind} item={item} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className="p-title">{shownTitle(item)}</div>}
       <div className={['p-state', finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', item.review?.codeReview?.state === 'running' && 'reviewing', mergeProposed(item) && 'merge-proposed'].filter(Boolean).join(' ')}>
-        {mergeProposed(item) ? <Star className="merge-mark" size={13} fill="currentColor" aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : '●'} {stateLabel(item)}
+        {mergeProposed(item) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : '●'} {stateLabel(item)}
         {snoozeOf(item) ? (
           <span className="p-status"> · {snoozeWho(snoozeOf(item)!)}</span>
         ) : item.review?.resolvingConflicts ? (
