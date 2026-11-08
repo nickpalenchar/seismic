@@ -4,13 +4,10 @@
 import { clientExtensions as extensions } from '../extensions/client';
 import { ApiError } from './api';
 import type { Qwen3Speaker } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import type { DiffFile } from '../core/diff';
 import { type Language, languageOf } from '../core/locale';
 import { type Complexity, LABEL_NAMES } from '../core/labels';
 import { MESSAGES } from '../core/messages';
-import type { OutdatedBy } from '../core/page-changes';
-import type { NotAPlan } from '../core/plan-doc';
-import { type AgentEffort, type AgentModel, type AgentRole, type CardState, type ConfigProblemCode, type DemoKind, type ClipProblem, type DemoSettingsProblem, type ErrorCode, EXPORT_HTML_MAX, type NarrationLanguage, type Theme, type Motion, type VoiceKind, type Idea, type Need, type NextStep, type Queue, type OwnerHold, type RestartReason, type SetupId, type VoiceSetupId, type CloudPreset, type MachineSectionId, type NeededId, type PrId, type AgentsId, type MobileId, type PrWait, type Snooze, type Awaited, type AwaitedState, type LeavingClone, stopped } from '../core/types';
+import { type CardState, type ErrorCode, EXPORT_HTML_MAX, type VoiceKind, type Idea, type Need, type Queue, type OwnerHold, type RestartReason, type PrWait, type Snooze, type Awaited, type AwaitedState, type LeavingClone, stopped } from '../core/types';
 
 /** A list in a sentence: "a, b and c". */
 const listOf = (items: string[], and: string) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} ${and} ${items.at(-1)}`);
