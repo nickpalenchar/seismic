@@ -2084,9 +2084,9 @@ button.link:hover { text-decoration: underline; }
 .toast.several { flex-wrap: wrap; gap: 10px 8px; }
 .toast.several > span { flex-basis: 100%; }
 .toast.several button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.toast.warning { background: var(--card); color: var(--ink); box-shadow: var(--shadow); outline: 2px solid var(--warn); }
+.toast.warning { background: color-mix(in srgb, var(--warn) 22%, var(--panel)); color: var(--ink); box-shadow: var(--shadow); outline: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); }
 .toast.warning button { border-color: var(--warn); color: var(--warn); }
-.toast.reading { background: var(--card); color: var(--muted); box-shadow: var(--shadow); padding: 7px 14px; font-size: 13px; }
+.toast.reading { background: var(--panel); color: var(--muted); box-shadow: var(--shadow); padding: 7px 14px; font-size: 13px; }
 .toast.reading::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--working); animation: spin .8s linear infinite; }
 /* on the phone a line is swiped aside to be rid of it; until that has happened once, each nudges aside and back */
 .toast.aside { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
