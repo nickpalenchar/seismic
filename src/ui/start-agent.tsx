@@ -37,7 +37,8 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   // Kept in the card's draft where there is one, so it outlives closing the card.
   const [local, setLocal] = useState<AgentSetting | null>(null);
   const kept = useDraft(draft ?? '').agent ?? null;
-  const picked = draft ? kept : local;
+  // what a queued card was started with stands until another is chosen: it is checked and started like a choice made here
+  const picked = (draft ? kept : local) ?? saved ?? null;
   const setPicked = (s: AgentSetting | null) => draft ? updateDraft(draft, { agent: s ?? undefined }) : setLocal(s);
   // a saved Codex or Antigravity choice is checked against the harness's catalog as it stands: on its own, when it is saved, and again as the button starts with it.
   // One the harness no longer offers stays shown and saved until the owner changes it, and the button does not start it.
@@ -79,7 +80,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     setOpen(false);
     setStartError('');
     const ticket = ++validation.current;
-    const stale = () => latestKey.current !== pickedKey || !latestAllowed.current || latestDisabled.current;
+    const stale = () => latestKey.current !== pickedKey || (!!other && !latestAllowed.current) || latestDisabled.current;
     try {
       if (choice && other) {
         const ok = await standsNow({ ...choice, harness: other });
@@ -133,7 +134,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     touched.current = false;
     ++request.current; setLoading(false);
     setSetting(null); setInitial(null); setError(''); setModels(null); setModelsOf(null);
-    workerDefault().then((v) => { if (active) { setSetting(picked ?? saved ?? v); setInitial(v); } }).catch((e) => { if (active) setError(e instanceof ApiError ? e.message : failText(e)); });
+    workerDefault().then((v) => { if (active) { setSetting(picked ?? v); setInitial(v); } }).catch((e) => { if (active) setError(e instanceof ApiError ? e.message : failText(e)); });
     return () => { active = false; };
   }, [open, attempt]);
   // the keyboard lands in the menu once it has its choices, and back on the chevron when it closes
@@ -162,7 +163,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     <div className={suggested ? 'start-agent-buttons suggested' : 'start-agent-buttons'}>
       <button className={selectionOnly ? "btn code-review" : `${tone} start-agent-main`} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} aria-haspopup={selectionOnly ? "true" : undefined} aria-expanded={selectionOnly ? open : undefined} onClick={() => { if (selectionOnly) return setOpen(!open); void startPicked(); }}>
         <span>{label}</span>
-        {!selectionOnly && (picked ?? saved ?? currentDefault) && <span className="start-agent-model">{describeAgent((picked ?? saved ?? currentDefault)!, true)}</span>}
+        {!selectionOnly && (picked ?? currentDefault) && <span className="start-agent-model">{describeAgent((picked ?? currentDefault)!, true)}</span>}
       </button>
       {!selectionOnly && <button type="button" ref={chevron} className={`${tone} start-agent-chevron`} disabled={disabled || starting} aria-label={a.chooseStart} aria-haspopup="true" aria-expanded={open} title={a.chooseStart} onClick={() => (open ? close() : setOpen(true))}>
         <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
