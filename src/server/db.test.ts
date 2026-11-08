@@ -30,6 +30,7 @@ function withoutCanvases(db: Database) {
 
 /** The database as it was while projects were canvases: the migrations that renamed them and brought canvases undone, for tests that rebuild an older one. */
 function asCanvases(db: Database) {
+  db.run('DROP TABLE activity');
   withoutCanvases(db);
   for (const { name } of db.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[])
     if ((db.query(`PRAGMA table_info(${name})`).all() as { name: string }[]).some((c) => c.name === 'project_id')) db.run(`ALTER TABLE ${name} RENAME COLUMN project_id TO canvas_id`);
@@ -99,6 +100,7 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     s.db.run('ALTER TABLE cards DROP COLUMN kept_in');
     s.db.run('ALTER TABLE cards DROP COLUMN contribution');
     s.db.run('ALTER TABLE cards DROP COLUMN new_repo');
+    s.db.run('ALTER TABLE cards DROP COLUMN parking_lot');
     s.db.run('ALTER TABLE talk DROP COLUMN moved');
     s.db.run('ALTER TABLE cards DROP COLUMN page_heard');
     s.db.run('ALTER TABLE events DROP COLUMN forwarded');
@@ -382,6 +384,7 @@ test('the migration gives every project a canvas main holding all its cards and 
     s.update(b!.id, { archived_at: '2026-11-01' });
     const g = s.addGroup('c', 'Billing', 200);
     s.setGroup([a!.id], g.id);
+    s.db.run('DROP TABLE activity');
     withoutCanvases(s.db);
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE canvases'))}`);
     s.db.close();

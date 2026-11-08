@@ -16,7 +16,7 @@ button is the rightmost (see Sheets), the inbox's just before it, the agents' (a
 and the gear of the project settings before that (see The project settings).
 
 The agents' button counts in grey the cards waiting in the queue, and only those; its click slides
-out the Agents sheet, a sheet like the inbox (see Sheets), with three tabs, the one chosen last
+out the Agents sheet, a sheet like the inbox (see Sheets), with four tabs, the one chosen last
 remembered per browser. "Queue" (with the same count) lists the waiting cards in turn, each with
 what it waits for, dragged to its place (see The queue's order) and with a × that takes it out of
 the queue at once, as "Take out of the queue" on the card does (back to planned; no undo, starting
@@ -40,6 +40,21 @@ planned or stopped underneath, so its buttons are those of a card that is not ru
 start by itself or from its start time. Starting it asks first: "This takes the card out of the
 parking lot" with "Unpark and start" or "Go back". "Unpark" in the same menu puts it back on the
 canvas without starting it. Opening a parked card unfolds it from its row, without flying anywhere.
+
+"Activity" is a log, newest first, of what happened lately on the cards and who did it, with no
+unread marker and no count on the tab or the robot button (what waits is in the inbox). Each line
+is a small sentence ("You approved", "An agent proposed", "Waits for “X”", "Waits for a
+workstation", "Stopped: Claude usage limit", "Landed on main") above the card's compact face, the
+time at the right, under "Today", "Yesterday" and then dates. A card on another canvas of the
+project carries its canvas icon, as in search. A click opens a live card; a deleted card keeps the
+title it had and is no link. It shows the open project's lines, or with the inbox's "All projects"
+switch every project's, each marked with its project; older lines load as the list is scrolled,
+back to the first one recorded, and new ones arrive over the same push as everything else.
+Recorded: the owner creating a card, archiving, deleting, stopping, approving, and sending review
+items or findings to the agent; an agent proposing a card or starting on one; work landing on main;
+a card queued behind another card or for want of a free workstation; an agent stopped by its
+harness's usage limit. Not recorded: a handover waiting (the inbox shows that), snoozing and
+waking, and anything before the log existed (the tab starts empty).
 
 The search button opens a small card finder below the bar. On the canvas, `/` opens it when no text
 field has focus. It searches non-archived cards by title words or short code, in the same order as
@@ -771,6 +786,9 @@ code, a generic one otherwise.
   queued cards, so that what the agents do and what waits for them stand in one place (owner).
   Rejected: a drop-down list under a button of its own in the bar, which kept the queue apart from
   the cards being worked on; and the queue inside the Koordinator's sheet.
+- **Activity is a tab of the Agents sheet** (2026-11-08), not a part of the inbox (the inbox is for
+  what waits for the owner) and not a sheet of its own (the bar is full). Rejected: an unread count
+  on the robot button, as a log has nothing to answer.
 - **The usage limits come from Claude Code's `/usage` data** (2026-10-28), asked through the
   Agent SDK of an idle session. Rejected: calling the plan's usage endpoint directly with the OAuth
   token read from the keychain or Claude Code's credentials file, which ties Seismic to where and how

@@ -1,26 +1,28 @@
 // The Agents sheet: slides out from the bar's robot button, which counts the queued cards in grey, and
-// holds two tabs. "Queue" lists the cards waiting to start in turn, dragged to their place as on a
+// holds four tabs. "Queue" lists the cards waiting to start in turn, dragged to their place as on a
 // waiting card (src/ui/queue.tsx); "All" lists the project's other cards by the stage they are at,
 // those that need the owner first (src/core/agents.ts), each card a pane like an inbox entry, under
-// a chip per stage that shows or hides its group. A row's title or "Go to card" opens its card.
+// a chip per stage that shows or hides its group. A row's title or "Go to card" opens its card. "Parked"
+// lists the cards in the parking lot; "Activity" is the log of what happened on the cards (src/ui/activity.tsx).
 
 import { Car } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { AGENT_STAGES, type AgentStage, agentStage, byStage } from '../core/agents';
 import { waitsFor } from '../core/inbox';
 import { demoStage, type Item } from '../core/types';
+import { ActivityTab } from './activity';
 import { Docked } from './docked';
 import { Inline, plain } from './markdown';
 import { QueueList, useQueueSort } from './queue';
 import { useStoredState } from './stored';
 import { stateLabel, t } from './strings';
 
-type Tab = 'queue' | 'all' | 'parked';
+type Tab = 'queue' | 'all' | 'parked' | 'activity';
 
 /** The desktop's Agents sheet, docked on the right like the inbox. */
-export function AgentsSheet({ els, on, items, open, underway, onOpen }: { els: Map<string, HTMLElement>; on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void }) {
+export function AgentsSheet({ els, on, items, open, underway, onOpen, project, changed, onGo }: { els: Map<string, HTMLElement>; on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void; project: string; changed: unknown; onGo: (project: string, i: Item) => void }) {
   const [kept, setTab] = useStoredState<Tab>('obeya-agents-tab', 'queue');
-  const tab: Tab = kept === 'queue' || kept === 'parked' ? kept : 'all';
+  const tab: Tab = kept === 'queue' || kept === 'parked' || kept === 'activity' ? kept : 'all';
   const parked = items.filter((i) => i.parkingLot && !i.archivedAt);
   const box = useRef<HTMLElement>(null);
   const q = useQueueSort(items, box);
@@ -37,7 +39,7 @@ export function AgentsSheet({ els, on, items, open, underway, onOpen }: { els: M
     <Docked id="agents" ref={box} on={on} label={t.agents.title}>
       <h2>{t.agents.title}</h2>
       <div className="seg agents-tabs" role="tablist" aria-label={t.agents.title}>
-        {(['queue', 'all', 'parked'] as const).map((k) => (
+        {(['queue', 'all', 'parked', 'activity'] as const).map((k) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : undefined} onClick={() => setTab(k)}>
             {t.agents.tabs[k]}
             {k === 'queue' && q.queued.length > 0 && <span className="n">{q.queued.length}</span>}
@@ -47,6 +49,8 @@ export function AgentsSheet({ els, on, items, open, underway, onOpen }: { els: M
       </div>
       {tab === 'queue' ? (
         q.queued.length ? <QueueList items={items} q={q} onOpen={onOpen} /> : <p className="hint agents-empty">{t.queue.empty}</p>
+      ) : tab === 'activity' ? (
+        <ActivityTab project={project} changed={changed} open={open} onGo={onGo} />
       ) : tab === 'parked' ? (
         parked.length ? (
           <ul className="inbox-list">

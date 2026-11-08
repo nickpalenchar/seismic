@@ -3053,3 +3053,22 @@ body:has(#project-settings.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .chat-model { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--muted); font-size: 12px; }
 .chat-model select { color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; font: inherit; }
 .card .state .hourglass-mark { width: 9px; height: 12px; }
+
+
+/* The Agents sheet's Activity tab: a line saying what happened, above the card's compact face */
+#agents .activity-bar { margin: 0 8px 6px; justify-content: flex-end; }
+.activity-list { list-style: none; margin: 0; padding: 0 8px 8px; display: flex; flex-direction: column; gap: 10px; }
+.activity-day { margin: 8px 2px 0; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.activity-what { display: flex; align-items: center; gap: 8px; margin: 0 2px 6px; font-size: 12px; color: var(--muted); }
+.activity-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-where { flex: none; display: inline-flex; align-items: center; gap: 3px; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-time { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; }
+.activity-row .act-card { position: relative; display: block; width: 100%; height: auto; min-height: 0; padding: 8px 10px 8px; text-align: left; color: var(--ink); border: 0; }
+.activity-row .act-card:hover { transform: none; }
+.activity-row .act-card.gone { cursor: default; opacity: .65; }
+.activity-row .act-card.on { box-shadow: 0 0 0 2px color-mix(in srgb, var(--working) 55%, transparent), var(--shadow); }
+.activity-row .act-card .kind { font-size: 11px; }
+.activity-row .act-card .ttl { font-size: 14.5px; line-height: 1.2; -webkit-line-clamp: 2; }
+.activity-row .act-card .meta { display: none; }
+.activity-row .act-card .state { position: static; margin-top: 4px; font-size: 11.5px; }
+.activity-end { height: 1px; }

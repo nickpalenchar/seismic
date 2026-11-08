@@ -1277,12 +1277,34 @@ const en = {
   agents: {
     title: 'Agents',
     button: (n: number) => (n === 0 ? 'Agents: no task in the queue' : n === 1 ? 'Agents: one task in the queue' : `Agents: ${n} tasks in the queue`),
-    tabs: { queue: 'Queue', all: 'All', parked: 'Parked' },
+    tabs: { queue: 'Queue', all: 'All', parked: 'Parked', activity: 'Activity' },
     noneParked: 'No parked cards.',
     stages: { needsYou: 'Needs you', working: 'Working', reviewing: 'Code reviewing', fixing: 'Review fixing', landing: 'Landing', planned: 'Planned' },
     none: 'No cards.',
     filter: 'Show groups',
     allHidden: 'All groups are hidden. Tap one above to show it.',
+    activity: {
+      empty: 'Nothing has happened yet. What happens on the cards from now on shows here.',
+      harness: { claude: 'Claude', codex: 'Codex', agy: 'agy' },
+      line: (e: { code: string; who: string; harness?: string; other?: { title: string } }) => {
+        const who = e.who === 'owner' ? 'You' : e.who === 'agent' ? 'An agent' : 'Seismic';
+        switch (e.code) {
+          case 'created': return `${who} created`;
+          case 'proposed': return `${who} proposed`;
+          case 'archived': return `${who} archived`;
+          case 'deleted': return `${who} deleted`;
+          case 'stopped': return `${who} stopped`;
+          case 'reviewSent': return `${who} sent a review to the agent`;
+          case 'approved': return `${who} approved`;
+          case 'started': return `${who} started on`;
+          case 'landed': return 'Landed on main';
+          case 'waitsForCard': return `Waits for “${e.other?.title ?? ''}”`;
+          case 'waitsForWorkstation': return 'Waits for a workstation';
+          case 'usageLimit': return `Stopped: ${e.harness ? `${en.agents.activity.harness[e.harness as 'claude'] ?? e.harness} ` : ''}usage limit`;
+          default: return who;
+        }
+      },
+    },
   },
   inbox: {
     title: 'Inbox',

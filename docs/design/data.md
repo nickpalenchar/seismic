@@ -43,6 +43,12 @@ Persistent (SQLite):
   producing agent's harness and model when known); the Koordinator's replies and looked-up answers
   each retain their own producing identity, never inferred for old messages; workstations
   and their leases, what a card changed in a folder without git and its undo there;
+- the activity log: one typed line per event (when, who: the owner, a card's agent or Seismic; a
+  fixed code such as created, proposed, archived, deleted, stopped, reviewSent, approved, started,
+  landed, waitsForCard, waitsForWorkstation or usageLimit; the card, a second card it waits for, the
+  harness a usage limit stopped), written where the event happens and worded in the UI, so it
+  follows the interface language. The free-text state lines in a card's conversation are not
+  parsed for it, so nothing before the log is reconstructed; a wait read again is not written twice;
 - the Koordinator's conversation with the owner, split into chats (each exchange in one; the
   chat opened last per project is where new words go), and the threads of looked-up questions (the
   question, its answer and files, the card it moved onto, the step to take once the answer is in),
