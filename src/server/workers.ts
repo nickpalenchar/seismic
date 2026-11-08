@@ -3047,6 +3047,7 @@ export class Workers {
         this.takeHeld(cardId);
         this.end(cardId);
         this.o.board.work(cardId, { state: 'planned', need: null, detail: null, pr: null, approved_at: null, paused: null, pausing: null, snoozed: null, app: null });
+        this.o.board.record(cardId, 'stopped', 'owner');
       }
       this.bump(cardId);
       this.o.board.work(cardId, { status_line: this.o.board.t.worker.evicting });
@@ -3067,7 +3068,6 @@ export class Workers {
       }
       // deleted meanwhile: its row stays, to be restored without the clone
       this.o.board.work(cardId, { workstation: null, parked: null, app: null, ...(kept ? { kept_in: kept } : {}) });
-      if (active) this.o.board.record(cardId, 'stopped', 'owner');
       this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.evicted(path));
       return active;
     } finally {

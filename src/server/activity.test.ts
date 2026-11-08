@@ -97,4 +97,22 @@ describe('the Activity log', () => {
     const next = board.activityRows(['c'], first[2]!.id, 3);
     expect(next.map((r) => r.id)).toEqual([first[3]!.id, ...board.activityRows(['c'], first[3]!.id, 3).map((r) => r.id)]);
   });
+
+  test('stopped: taking the workstation from an active card logs the stop once, also when moving the clone fails', async () => {
+    const c = manual();
+    await workers.start(c.id);
+    expect(await workers.evict(c.id)).toBe(true);
+    expect(log(c.id).filter((l) => l === 'owner:stopped')).toHaveLength(1);
+
+    const d = manual();
+    await workers.start(d.id);
+    const real = workers['o'].workstations.evict;
+    workers['o'].workstations.evict = async () => { throw new Error('git is gone'); };
+    try {
+      expect(await workers.evict(d.id)).toBe(false);
+    } finally {
+      workers['o'].workstations.evict = real;
+    }
+    expect(log(d.id).filter((l) => l === 'owner:stopped')).toHaveLength(1);
+  });
 });
