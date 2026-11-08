@@ -25,6 +25,7 @@ function withPath(f: (path: string) => void) {
 
 /** The database as it was before projects had canvases: the migration that brought them undone, and the ones after it. */
 function withoutCanvases(db: Database) {
+  db.run('ALTER TABLE cards DROP COLUMN hold');
   db.run('ALTER TABLE cards DROP COLUMN parking_lot');
   db.run('DROP INDEX cards_canvas; ALTER TABLE cards DROP COLUMN canvas_id; ALTER TABLE groups DROP COLUMN canvas_id; DROP TABLE canvases');
 }
@@ -396,6 +397,43 @@ test('the migration gives every project a canvas main holding all its cards and 
     expect(after.cards.get(b!.id)!.canvas_id).toBe(after.canvases.main('d'));
     expect(after.groups.get(g.id)!.canvasId).toBe(main);
     expect(after.db.query('PRAGMA foreign_key_check').all()).toEqual([]);
+    after.db.close();
+  }));
+
+test('the pause, the pause at a safe point, the usage limit, the snooze and the parking lot move into one hold, with what they held for the worker', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.ensureProject('c', 'Shop');
+    const rows = s.addCards(Array.from({ length: 8 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 })));
+    const [paused, idea, pausing, limit, snoozed, ownerSnoozed, parked, free] = rows.map((r) => r.id);
+    s.db.run('ALTER TABLE cards DROP COLUMN hold');
+    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD `hold`'))}`);
+    const set = (id: string, column: string, value: string) => s.db.run(`UPDATE cards SET ${column} = ? WHERE id = ?`, [value, id]);
+    const held = [{ text: 'The review came in.', images: ['img-1'] }];
+    set(paused!, 'paused', JSON.stringify({ held }));
+    set(idea!, 'paused', '{}');
+    set(pausing!, 'pausing', '2026-11-08T10:00:00.000Z');
+    set(limit!, 'paused', JSON.stringify({ limit: { attempts: 3, until: '2026-11-08T12:00:00.000Z', statusBefore: 'Running the tests' }, held }));
+    set(snoozed!, 'snoozed', JSON.stringify({ on: { card: free, title: 'Fix', state: 'done' }, by: 'agent', why: 'Rebase then' }));
+    set(ownerSnoozed!, 'snoozed', JSON.stringify({ until: '2026-11-09T08:00:00.000Z', by: 'owner' }));
+    set(ownerSnoozed!, 'paused', JSON.stringify({ held }));
+    set(parked!, 'parking_lot', '2026-11-08T19:32:19.733Z');
+    s.db.close();
+
+    const after = new Store(path);
+    const hold = (id: string) => {
+      const h = after.cards.get(id)!.hold;
+      return h && JSON.parse(h);
+    };
+    const since = expect.any(String);
+    expect(hold(paused!)).toEqual({ reason: 'paused', since, held });
+    expect(hold(idea!)).toEqual({ reason: 'paused', since });
+    expect(hold(pausing!)).toEqual({ reason: 'pausing', since: '2026-11-08T10:00:00.000Z' });
+    expect(hold(limit!)).toEqual({ reason: 'limit', since, attempts: 3, until: '2026-11-08T12:00:00.000Z', statusBefore: 'Running the tests', held });
+    expect(hold(snoozed!)).toEqual({ reason: 'snoozed', since, on: { card: free, title: 'Fix', state: 'done' }, by: 'agent', why: 'Rebase then' });
+    expect(hold(ownerSnoozed!)).toEqual({ reason: 'snoozed', since, until: '2026-11-09T08:00:00.000Z', by: 'owner', held });
+    expect(hold(parked!)).toEqual({ reason: 'parkingLot', since: '2026-11-08T19:32:19.733Z' });
+    expect(hold(free!)).toBeNull();
     after.db.close();
   }));
 

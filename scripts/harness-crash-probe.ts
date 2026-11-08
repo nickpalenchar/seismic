@@ -115,7 +115,7 @@ async function run(harness: Harness, kind: Case) {
     };
     db = new Database(join(home, 'obeya.db'), { readonly: true });
     const id = s.cards.probe!;
-    const card = () => db!.query('select state, need, paused, workstation, detail, session_id from cards where id = ?').get(id) as Record<string, string | null> | null;
+    const card = () => db!.query('select state, need, hold, workstation, detail, session_id from cards where id = ?').get(id) as Record<string, string | null> | null;
     const check = await api('/api/config/check', undefined, 'GET');
     const repo = check.resolved[0].repos[0];
     await api('/api/config/trust', { path: join(s.dir, 'repo'), seen: repo.trust.now, held: repo.trust.held });

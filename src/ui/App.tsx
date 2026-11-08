@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Archive, Bot, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
-import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn } from '../core/types';
+import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, inParkingLot } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { GroupNames, growFrom, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
@@ -364,7 +364,7 @@ function Project({
     const waiting: Record<string, number> = {};
     const used = new Set<string>();
     for (const i of items) {
-      if (i.parkingLot) continue;
+      if (inParkingLot(i)) continue;
       const c = i.canvas ?? canvases[0]?.id;
       if (!c) continue;
       used.add(c);
@@ -375,7 +375,7 @@ function Project({
   /** Whether the card is on the canvas shown (one the server has not placed on any yet counts as on the first). */
   const onShown = useCallback((i: Item) => !canvasId || (i.canvas ?? canvases[0]?.id) === canvasId, [canvasId, canvases]);
   // the workstreams of a collapsed plan are not on the project: its marks stand for them
-  const placed = useMemo(() => onProject(items.filter((i) => onShown(i) && !i.parkingLot)).map((item) => ({ item, b: boundsOf(item, items) })), [items, onShown]);
+  const placed = useMemo(() => onProject(items.filter((i) => onShown(i) && !inParkingLot(i))).map((item) => ({ item, b: boundsOf(item, items) })), [items, onShown]);
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   // the groups of the canvas shown: a group holds the cards of its own canvas only
   const groups = useMemo(() => snapshot.groups.filter((g) => !canvasId || (g.canvas ?? canvases[0]?.id) === canvasId), [snapshot.groups, canvasId, canvases]);
@@ -653,14 +653,14 @@ function Project({
     const f = focusRef.current;
     if (f?.type === 'card') return;
     // a card on another canvas opens there
-    if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt && !i.parkingLot) showCanvas(i.canvas);
+    if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt && !inParkingLot(i)) showCanvas(i.canvas);
     if (i.kind === 'plan') return openPlan(i);
     setFocus({ type: 'card', id: i.id, prevCam: camRef.current, prevSide: camSide.current, plan: f });
     openDraft.current = { kind: i.kind, title: i.title, body: i.body, images: i.images ?? [] };
     setOpened(i.archivedAt ? i : null);
     // bring the card to the middle at a readable scale first, so the unfold starts where the eye is;
     // an archived card is not on the project and unfolds from its row in the archive
-    if (!i.archivedAt && !i.parkingLot) await flyOrJump(centreOnPoint(bounds(i), Math.max(camRef.current.s, 0.85), sideNow()), FLY_MS, quick);
+    if (!i.archivedAt && !inParkingLot(i)) await flyOrJump(centreOnPoint(bounds(i), Math.max(camRef.current.s, 0.85), sideNow()), FLY_MS, quick);
     const el = fromEl(i.id, !!f);
     const panel = panelRef.current;
     // nothing to unfold from: the project stays as it was, open for the next card

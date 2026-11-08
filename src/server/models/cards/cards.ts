@@ -3,11 +3,11 @@ import { type AnySQLiteColumn, index, integer, real, sqliteTable, text, unique, 
 import type { CardFile } from '../../../core/files';
 import type { Category, Complexity, Label, Priority, Subcategory } from '../../../core/labels';
 import type { PlanDoc } from '../../../core/plan-doc';
-import type { AgentSetting, CardKind, CardState, Need, Proposal, Queue, Snooze } from '../../../core/types';
+import type { AgentSetting, CardKind, CardState, Hold, Need, Proposal, Queue } from '../../../core/types';
 import { atomic, changes, type Db, now, SHORT, stored } from '../common';
 import type { PrState, Shipped, StoredCodeReview, StoredContribution, StoredDemo, StoredDeps, StoredIdea, StoredNewRepo, StoredPrototype, StoredShare, StoredThread } from '../../board';
 import type { Scope } from '../../koordinator';
-import type { LandedState, PageHeard, PausedState, Unheard } from '../../workers';
+import type { LandedState, PageHeard, Unheard } from '../../workers';
 import { groups } from '../groups';
 import { projects } from '../projects';
 
@@ -59,12 +59,13 @@ export const cards = sqliteTable(
     held: text({ mode: 'json' }).$type<{ id: number }[]>(),
     becomesPlan: integer('becomes_plan', { mode: 'boolean' }).notNull().default(false),
     thread: text({ mode: 'json' }).$type<StoredThread>(),
-    paused: text({ mode: 'json' }).$type<PausedState>(),
+    /** Not read since `hold` took its place, nor are `snoozed`, `pausing` and `parking_lot`: kept until the moved columns are dropped. */
+    paused: text({ mode: 'json' }),
     unheard: text({ mode: 'json' }).$type<Unheard[]>(),
     app: text(),
     demos: text({ mode: 'json' }).$type<StoredDemo[]>(),
     waitingSince: text('waiting_since'),
-    snoozed: text({ mode: 'json' }).$type<Snooze>(),
+    snoozed: text({ mode: 'json' }),
     files: text({ mode: 'json' }).$type<CardFile[]>(),
     deps: text({ mode: 'json' }).$type<StoredDeps>(),
     collapsed: integer({ mode: 'boolean' }).notNull().default(false),
@@ -86,6 +87,7 @@ export const cards = sqliteTable(
     /** No foreign key, which would keep a canvas from ever being dropped: the store keeps it valid. */
     canvasId: text('canvas_id'),
     parkingLot: text('parking_lot'),
+    hold: text({ mode: 'json' }).$type<Hold>(),
   },
   (t) => [
     unique().on(t.projectId, t.planRef),
@@ -193,20 +195,14 @@ export interface CardRow {
   becomes_plan: number;
   /** JSON, a Question card (and an idea that was one): the thread of looked-up answers it holds (`StoredThread` in board.ts). */
   thread: string | null;
-  /** JSON, while the owner or usage limit has paused the card's agent: for a worker what came for it meanwhile (`PausedState` in workers.ts), `{}` for an idea's or a Question card's agent, which keep what waits for them with the idea or the thread. */
-  paused: string | null;
-  /** Since when (ISO) the owner has asked the card's agent to pause once it has brought its work to a safe point; null once it paused, went on or stopped. */
-  pausing: string | null;
   /** JSON: the owner's words Seismic holds for the card's worker until it takes them in, at its next tool step or turn (`Unheard` in workers.ts). */
   unheard: string | null;
   /** The address its worker opens the app in the card's workstation at, while it runs (`app_running`); gone once Seismic stops the app or the workstation goes. */
   app: string | null;
   /** Since when the card waits for the owner (`needsYou`), kept while it does; null while it does not. */
   waiting_since: string | null;
-  /** JSON, while the card is snoozed until a point in time (`Snooze`): Seismic wakes it then. */
-  snoozed: string | null;
-  /** When the owner moved the card into the parking lot (ISO): off the canvas, listed in the Agents sheet's Parked tab; null while it is on the canvas. */
-  parking_lot: string | null;
+  /** JSON, while the card's agent does not run or the card is off the canvas, why (`Hold`): paused, about to pause, paused by the usage limit, snoozed, in the parking lot. */
+  hold: string | null;
   /** JSON: the files its worker named as the result at its latest handover that named any (`CardFile[]`). */
   files: string | null;
   /** JSON, plans only: which workstream builds on which, as the Koordinator read it from the plan doc (`StoredDeps` in board.ts). */

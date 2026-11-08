@@ -66,7 +66,7 @@ function side(name: string, code: string): unknown {
 }
 
 try {
-  const a = side('before', checkout(before));
+  const a = regrouped(side('before', checkout(before)));
   const b = side('after', checkout(after));
   const diffs: string[] = [];
   diff(a, b, '', diffs);
@@ -77,6 +77,66 @@ try {
   } else console.log(`The same, project by project (${out}).`);
 } finally {
   for (const dir of worktrees) spawnSync('git', ['-C', root, 'worktree', 'remove', '--force', dir]);
+}
+
+/**
+ * The before side as the planned regroupings of the card model have it (docs/plan/card-data-model.md),
+ * for a before side from a commit that had not made them yet; one that had is left as it is.
+ * W4, one hold: a stored card gets the `hold` its migration writes, a card as the UI gets it the
+ * `hold` in place of `paused`, `pausing`, `limitPaused`, `restartPaused`, `snoozed` and `parkingLot`.
+ * A pause or snooze counts from the migration, which reads as "now".
+ */
+function regrouped(value: unknown): unknown {
+  const rows = new Map<string, Record<string, unknown>>();
+  const walk = (v: unknown, visit: (o: Record<string, unknown>) => unknown): unknown => {
+    if (Array.isArray(v)) return v.map((x) => walk(x, visit));
+    if (!v || typeof v !== 'object') return v;
+    const o = visit(v as Record<string, unknown>) as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(o).map(([k, x]) => [k, walk(x, visit)]));
+  };
+  const isRow = (o: Record<string, unknown>) => typeof o.id === 'string' && 'project_id' in o && 'paused' in o && !('hold' in o);
+  // the stored cards first, whose pause at a safe point keeps its time
+  walk(value, (o) => (isRow(o) && rows.set(o.id as string, o), o));
+  const json = (x: unknown) => (typeof x === 'string' ? JSON.parse(x) : (x ?? null));
+  const storedHold = (r: Record<string, unknown>) => {
+    const paused = json(r.paused);
+    const snoozed = json(r.snoozed);
+    const held = paused?.held ? { held: paused.held } : {};
+    if (snoozed) return { ...snoozed, reason: 'snoozed', since: 'now', ...(paused ? { held: paused.held ?? [] } : {}) };
+    if (paused?.limit) {
+      const { attempts, until, statusBefore } = paused.limit;
+      return { reason: 'limit', since: 'now', attempts, ...(until ? { until } : {}), ...(statusBefore != null ? { statusBefore } : {}), ...held };
+    }
+    if (paused) return { reason: 'paused', since: 'now', ...held };
+    if (r.pausing) return { reason: 'pausing', since: r.pausing };
+    if (r.parking_lot) return { reason: 'parkingLot', since: r.parking_lot };
+    return null;
+  };
+  const OLD = ['paused', 'pausing', 'limitPaused', 'restartPaused', 'snoozed', 'parkingLot'];
+  const isItem = (o: Record<string, unknown>) => typeof o.id === 'string' && typeof o.kind === 'string' && !('project_id' in o) && OLD.some((k) => k in o);
+  return walk(value, (o) => {
+    if (isRow(o)) {
+      const hold = storedHold(o);
+      return { ...o, hold };
+    }
+    if (!isItem(o)) return o;
+    const { paused, pausing, limitPaused, restartPaused, snoozed, parkingLot, ...rest } = o;
+    const row = rows.get(o.id as string);
+    const hold = snoozed
+      ? { ...(snoozed as object), reason: 'snoozed', since: 'now' }
+      : limitPaused
+        ? { reason: 'limit', ...(row ? { since: 'now' } : {}), ...(row && o.limitedUntil ? { until: o.limitedUntil } : {}) }
+        : paused
+          ? { reason: 'paused', since: 'now' }
+          : pausing
+            ? { reason: 'pausing', since: row?.pausing }
+            : parkingLot
+              ? { reason: 'parkingLot', since: parkingLot }
+              : restartPaused
+                ? { reason: 'restart' }
+                : undefined;
+    return hold ? { ...rest, hold } : rest;
+  });
 }
 
 /** Where `a` and `b` differ, by path; objects compare by their keys, whatever their order. */
@@ -90,9 +150,23 @@ function diff(a: unknown, b: unknown, path: string, into: string[]) {
   if (a !== b) into.push(`${path}: ${JSON.stringify(a)?.slice(0, 120)} → ${JSON.stringify(b)?.slice(0, 120)}`);
 }
 
-/** Times written while reading (a card's `updated_at` as the board sweeps or notes a wait, say) differ by run; they read as "now". */
+/**
+ * Times written while reading (a card's `updated_at` as the board sweeps or notes a wait, say, or
+ * the time a migration gave a stored value) differ by run; they read as "now". A stored JSON object
+ * is read as the object it holds, so that times within it settle too.
+ */
 function settled(value: unknown, start: number): unknown {
-  return JSON.parse(JSON.stringify(value), (_, v) => (typeof v === 'string' && /^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(v) && Date.parse(v) >= start ? 'now' : v));
+  const settle = (_: string, v: unknown): unknown => {
+    if (typeof v !== 'string') return v;
+    if (/^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(v) && Date.parse(v) >= start) return 'now';
+    if (!v.startsWith('{')) return v;
+    try {
+      return JSON.parse(v, settle);
+    } catch {
+      return v;
+    }
+  };
+  return JSON.parse(JSON.stringify(value), settle);
 }
 
 /** Runs in the checkout `code`: reads every project of the database at `path` and writes it to `file`. */

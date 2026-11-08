@@ -6,7 +6,7 @@ import { Rate } from './feedback';
 import { CardMore } from './canvases';
 import { createContext, type CSSProperties, Fragment, type ReactNode, type RefObject, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { agentListens, answering, askable, type BackgroundTask, buildableOn, type CardAction, type Contribution, type HeldChanges, chapterAt, prototypeWorkstream, type CardEvent, type CardPatch, type Demo, type EarlierDemo, EXPORT_HTML_MAX, finished, finishedArchivable, finishingUp, handedOver, type Item, mergeableWith, type Mock, type NextStep, type PageTags, openQuestions, pausableNow, plannableAsPlan, type PrComment, type PrReviewEntry, type PullRequest, type Question, type Finding, type FindingPick, type Severity, SEVERITIES, type Clash as ClashFound, type RepoRef, snoozable, type Spot, started, stopped, stoppedArchivable, taskAuthor, withSupplemented } from '../core/types';
+import { agentListens, answering, askable, type BackgroundTask, buildableOn, type CardAction, type Contribution, type HeldChanges, chapterAt, prototypeWorkstream, type CardEvent, type CardPatch, type Demo, type EarlierDemo, EXPORT_HTML_MAX, finished, finishedArchivable, finishingUp, handedOver, type Item, mergeableWith, type Mock, type NextStep, type PageTags, openQuestions, pausableNow, plannableAsPlan, type PrComment, type PrReviewEntry, type PullRequest, type Question, type Finding, type FindingPick, type Severity, SEVERITIES, type Clash as ClashFound, type RepoRef, snoozable, type Spot, started, stopped, stoppedArchivable, taskAuthor, withSupplemented, snoozeOf, isPaused, isPausing, inParkingLot } from '../core/types';
 import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
@@ -205,7 +205,7 @@ export function Detail(p: Props) {
   const [parkedStart, setParkedStart] = useState<{ a: CardAction; done: ActDone } | null>(null);
   const act = (a: CardAction, done: ActDone): Promise<void> => {
     // starting a parked card takes it out of the parking lot: the owner confirms first
-    if (a.action === 'start' && item.parkingLot) {
+    if (a.action === 'start' && inParkingLot(item)) {
       setParkedStart({ a, done });
       return Promise.resolve();
     }
@@ -579,10 +579,10 @@ export function Detail(p: Props) {
       )}
       <KindLine kind={kind} item={item} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className="p-title">{shownTitle(item)}</div>}
-      <div className={['p-state', finishingUp(item) && 'finishing', (item.paused || item.snoozed || item.parkingLot) && 'paused', item.restartPaused && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.resolvingConflicts && 'resolving-conflicts', item.codeReview?.state === 'running' && 'reviewing'].filter(Boolean).join(' ')}>
-        {asksYou(item) ? <QuestionMark /> : item.restartPaused ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : item.parkingLot ? <Car size={13} aria-hidden /> : '●'} {stateLabel(item)}
-        {item.snoozed ? (
-          <span className="p-status"> · {snoozeWho(item.snoozed)}</span>
+      <div className={['p-state', finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.resolvingConflicts && 'resolving-conflicts', item.codeReview?.state === 'running' && 'reviewing'].filter(Boolean).join(' ')}>
+        {asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : '●'} {stateLabel(item)}
+        {snoozeOf(item) ? (
+          <span className="p-status"> · {snoozeWho(snoozeOf(item)!)}</span>
         ) : item.resolvingConflicts ? (
           <span className="p-status conflict"> · {t.resolvingConflicts}</span>
         ) : (
@@ -817,7 +817,7 @@ export function Detail(p: Props) {
           {item.newRepo?.due ? (
             <Armed label={t.repoPick.making(choice.name)} undo={t.undo} onUndo={() => act({ action: 'stayHere' }, { close: false })} />
           ) : (
-            !item.snoozed && (
+            !snoozeOf(item) && (
               item.newRepo ? <button className="btn primary" disabled={!!fresh && !fresh.ready} title={fresh?.hint} onClick={() => act({ action: 'start' }, { close: false })}>{fresh?.button ?? t.start}</button> : <StartAgent
                 draft={cardDraft(item.id)}
                 label={fresh?.button ?? t.start}
@@ -909,7 +909,7 @@ const archivedOn = (i: Item) => i.archivedAt && <span className="p-status"> · {
  * snoozed one changes its time on its line in the conversation).
  */
 function Later({ item, act }: { item: Item; act: (a: CardAction, done: ActDone) => Promise<void> }) {
-  if (!snoozable(item) || item.snoozed) return null;
+  if (!snoozable(item) || snoozeOf(item)) return null;
   return <SnoozeMenu label={t.snooze.button} onSnooze={(until) => void act({ action: 'snooze', until }, { close: false })} />;
 }
 
@@ -1053,9 +1053,9 @@ function IdeaView({
   const btn = (step: NextStep['step']) => (next ? (next.step === step ? 'btn primary suggested' : 'btn') : step === 'build' ? 'btn primary' : 'btn');
   return (
     <>
-      <div className={['p-state', finishingUp(item) && 'finishing', item.snoozed && 'paused'].filter(Boolean).join(' ')}>
+      <div className={['p-state', finishingUp(item) && 'finishing', snoozeOf(item) && 'paused'].filter(Boolean).join(' ')}>
         ● {stateLabel(item)}
-        {item.snoozed && <span className="p-status"> · {snoozeWho(item.snoozed)}</span>}
+        {snoozeOf(item) && <span className="p-status"> · {snoozeWho(snoozeOf(item)!)}</span>}
         {idea.thinking && <span className="p-status"> · {t.author.explorer} {t.idea.thinking}</span>}
         <Limited item={item} />
         {archivedOn(item)}
@@ -1574,7 +1574,7 @@ function Conversation({
   const held = item.held ?? [];
   // the line where the card was snoozed, while it still is, offers to wake it or change the time
   // (a planned card's conversation is a past one until it starts)
-  const snoozedAt = item.snoozed && (!past || item.snoozed.start) ? turns.shown.findLast((x) => snoozeLine(x.e))?.e.id : undefined;
+  const snoozedAt = snoozeOf(item) && (!past || snoozeOf(item)!.start) ? turns.shown.findLast((x) => snoozeLine(x.e))?.e.id : undefined;
   const explained = explainedFailure(item, events)?.id;
   const line = (turn: Turn) => (
     <Fragment key={turn.e.id}>
@@ -1604,7 +1604,7 @@ function Conversation({
       by={by}
       className={paused ? 'paused' : 'thinking'}
       agent={item.agentAtWork}
-      who={proposal ? t.revising : `${agent} ${paused ? t.pause.paused : item.pausing ? t.pause.pausingTalk : idea ? t.idea.thinking : question ? t.answer.reading : t.talk.working}`}
+      who={proposal ? t.revising : `${agent} ${paused ? t.pause.paused : isPausing(item) ? t.pause.pausingTalk : idea ? t.idea.thinking : question ? t.answer.reading : t.talk.working}`}
       head={
         paused ? (
           <button className="turn-resume" title={t.pause.resumeHint} onClick={() => turn(item.id, 'resume')}>
@@ -3501,7 +3501,7 @@ function TaskTalk({
         field
           ? {
               key: `${item.state}:${item.need ?? ''}:${field}:${key}`,
-              placeholder: { note: item.snoozed && !item.snoozed.waiting && !item.snoozed.start ? t.snooze.compose : item.paused || item.pausing ? t.pause.compose : askable(item) || item.followUp ? t.compose.followUp : asksAhead(item) ? t.compose.ahead : agentWorks(item) ? t.compose.working : holdsNotes(item) ? t.compose.queued : t.compose.idle, answer: t.compose.question, feedback: t.compose.review, demo: t.compose.demo, discuss: '', revise: t.compose.revise }[field],
+              placeholder: { note: snoozeOf(item) && !snoozeOf(item)!.waiting && !snoozeOf(item)!.start ? t.snooze.compose : isPaused(item) || isPausing(item) ? t.pause.compose : askable(item) || item.followUp ? t.compose.followUp : asksAhead(item) ? t.compose.ahead : agentWorks(item) ? t.compose.working : holdsNotes(item) ? t.compose.queued : t.compose.idle, answer: t.compose.question, feedback: t.compose.review, demo: t.compose.demo, discuss: '', revise: t.compose.revise }[field],
               listener,
               onWords: tell(field),
               onPicked: (text, [picks = []], images, replyTo) => act({ action: 'answer', text, picks, images, ...(replyTo ? { replyTo } : {}) }, { close: false }),

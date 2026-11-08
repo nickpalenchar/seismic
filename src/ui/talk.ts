@@ -3,7 +3,7 @@
 import { LANGUAGES } from '../core/locale';
 import { MESSAGES } from '../core/messages';
 import { asksAhead, holdsNotes } from '../core/queue';
-import { answering, askable, type CardEvent, type Demo, finishingUp, type Item, needsYou, openQuestions, ownWords, pausableNow, type Question, resumable, started, type Talk as Exchange } from '../core/types';
+import { answering, askable, type CardEvent, type Demo, finishingUp, type Item, needsYou, openQuestions, ownWords, pausableNow, type Question, resumable, started, type Talk as Exchange, snoozeOf } from '../core/types';
 import { readAnswer } from './answer';
 import type { Field } from './api';
 
@@ -478,7 +478,7 @@ export function ownerField(item: Pick<Item, 'state' | 'need' | 'question' | 'fin
  */
 export const runs = (i: Item) =>
   !needsYou(i) &&
-  !i.snoozed?.waiting &&
+  !snoozeOf(i)?.waiting &&
   (i.state === 'working' || answering(i) || !!i.finishing || !!i.landing || !!i.queue || (i.state === 'inPr' && !!i.pr) || !!i.idea?.thinking || !!i.thread?.thinking);
 
 /**
@@ -513,7 +513,7 @@ export function unseenTurns(talk: Talk, events: CardEvent[], seen = -1): Turn[] 
  * Whether the card's agent is at work on it, so its conversation ends with the agent at work: an
  * agent working on something, which the owner can pause (`pausableNow`), or a proposal reworked.
  */
-export const agentWorks = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'inTurn' | 'paused' | 'snoozed' | 'proposal'>) =>
+export const agentWorks = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'inTurn' | 'hold' | 'proposal'>) =>
   pausableNow(i) || (i.state === 'proposal' && !!i.proposal?.revising);
 
 /**

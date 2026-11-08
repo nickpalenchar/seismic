@@ -8,7 +8,7 @@
 import { useEffect, useRef } from 'react';
 import { AGENT_STAGES, type AgentStage, agentStage, byStage } from '../core/agents';
 import { waitsFor } from '../core/inbox';
-import type { Item } from '../core/types';
+import { inParkingLot, type Item } from '../core/types';
 import { ActivityTab } from './activity';
 import { CardFace, shownTitle } from './card';
 import { Docked } from './docked';
@@ -23,7 +23,7 @@ type Tab = 'queue' | 'all' | 'parked' | 'activity';
 export function AgentsSheet({ els, on, items, open, underway, onOpen, project, changed, onGo }: { els: Map<string, HTMLElement>; on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void; project: string; changed: unknown; onGo: (project: string, i: Item) => void }) {
   const [kept, setTab] = useStoredState<Tab>('obeya-agents-tab', 'queue');
   const tab: Tab = kept === 'queue' || kept === 'parked' || kept === 'activity' ? kept : 'all';
-  const parked = items.filter((i) => i.parkingLot && !i.archivedAt);
+  const parked = items.filter((i) => inParkingLot(i) && !i.archivedAt);
   const box = useRef<HTMLElement>(null);
   const q = useQueueSort(items, box);
   // the sheet closed or the tab changed under a drag: the row is not dropped anywhere
@@ -100,7 +100,7 @@ function AgentEntry({ item: i, els, here, underway, onOpen }: { item: Item; els?
   // what it waits for where it needs the owner, as its inbox entry says; else the line its card shows under its title
   const waits = stage === 'needsYou' ? waitsFor(i) : undefined;
   return (
-    <li ref={els && i.parkingLot ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined} className={`inbox-entry agent-entry stage-${stage ?? 'parked'}${here ? ' on' : ''}`} aria-current={here || undefined}>
+    <li ref={els && inParkingLot(i) ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined} className={`inbox-entry agent-entry stage-${stage ?? 'parked'}${here ? ' on' : ''}`} aria-current={here || undefined}>
       <CardFace
         item={i}
         size="s"

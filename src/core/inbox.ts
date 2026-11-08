@@ -2,7 +2,7 @@
 // of entries. Built once from what each project has waiting, so the desktop's inbox and the phone's
 // "Needs you" list the same entries. The phone puts the most recently updated first.
 
-import { handedOver, type Item, needsYou, type Talk, type Waiting, type Preference, type SettingProposal, type RepoRef } from './types';
+import { handedOver, type Item, needsYou, snoozeOf, type Talk, type Waiting, type Preference, type SettingProposal, type RepoRef } from './types';
 
 export interface InboxEntry {
   /** What the entry is known by in the list. */
@@ -62,7 +62,7 @@ export function inboxEntries(projects: { id: string; name: string }[], waiting: 
 }
 
 /** Whether the entry counts as waiting: a card snoozed while it waited is listed, but leaves the count until it comes back. */
-export const counted = (e: InboxEntry) => !e.card?.snoozed;
+export const counted = (e: InboxEntry) => !(e.card && snoozeOf(e.card));
 
 /**
  * What marks the entry read: the entry and the wait it stands for, with what it waits for. A card

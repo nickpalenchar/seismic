@@ -6,7 +6,7 @@
 // from. A wait ends once the card waited for is finished.
 
 import type { Bounds } from '../core/layout';
-import { finished, type Item } from '../core/types';
+import { finished, type Item, snoozeOf } from '../core/types';
 
 export interface Deps {
   /** The cards the hovered one waits for, directly or through others. */
@@ -20,7 +20,10 @@ export interface Deps {
 }
 
 const queued = (i: Item) => (i.queue && 'behind' in i.queue ? i.queue.behind : []);
-const snoozedOn = (i: Item) => (i.snoozed?.on ? [i.snoozed.on.card] : []);
+const snoozedOn = (i: Item) => {
+  const on = snoozeOf(i)?.on;
+  return on ? [on.card] : [];
+};
 
 /** The cards among `byId` that `i` waits for directly. */
 function waitsFor(i: Item, byId: Map<string, Item>): string[] {

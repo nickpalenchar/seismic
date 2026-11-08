@@ -8,9 +8,9 @@ import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { type Language, ownersLanguage, repositoryLanguage } from '../core/locale';
 import { MESSAGES } from '../core/messages';
-import { type CardEvent, formatQuestion, type Item, type Mock, NEXT_STEPS, type NextStep, type PlannedPrototype, type Question, type SettledPart } from '../core/types';
+import { type CardEvent, formatQuestion, type Item, type Mock, NEXT_STEPS, type NextStep, type PlannedPrototype, type Question, type SettledPart, isPaused, isPausing, type Hold } from '../core/types';
 import { type Asked, decisionLog, withPick } from './advisor';
-import { BadRequest, type Board, type Message, replyNote, type Unread } from './board';
+import { BadRequest, type Board, holdNow, type Message, replyNote, type Unread } from './board';
 import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool, BackgroundWait } from './runtime';
 import { imageNote } from './images';
 import { describeTool, SPOKEN } from './workers';
@@ -94,7 +94,7 @@ export class Explorers {
    */
   pause(cardId: string) {
     const card = this.idea(cardId);
-    if (!this.live.has(cardId)) throw new BadRequest('noAgent', card.paused ? 'the agent is paused already' : 'the agent is not working on anything');
+    if (!this.live.has(cardId)) throw new BadRequest('noAgent', isPaused(card) ? 'the agent is paused already' : 'the agent is not working on anything');
     this.interrupt(cardId, 'paused', true);
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.pausedByOwner);
   }
@@ -105,16 +105,16 @@ export class Explorers {
    */
   pauseAtSafePoint(cardId: string) {
     const card = this.idea(cardId);
-    if (!this.live.has(cardId) || card.pausing) throw new BadRequest('noAgent', card.paused || card.pausing ? 'the agent is paused already' : 'the agent is not working on anything');
-    this.o.board.work(cardId, { pausing: new Date().toISOString() });
+    if (!this.live.has(cardId) || isPausing(card)) throw new BadRequest('noAgent', isPaused(card) || isPausing(card) ? 'the agent is paused already' : 'the agent is not working on anything');
+    this.o.board.work(cardId, { hold: holdNow('pausing') });
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.pausing);
   }
 
   /** The owner lets the paused agent go on: it answers what it had not answered yet. One about to pause after its reply works on instead. */
   resume(cardId: string) {
     const card = this.idea(cardId);
-    if (card.pausing) return this.pauseTakenBack(cardId);
-    if (!card.paused) throw new BadRequest('notPaused', 'the agent is not paused');
+    if (isPausing(card)) return this.pauseTakenBack(cardId);
+    if (!isPaused(card)) throw new BadRequest('notPaused', 'the agent is not paused');
     // a reply already given left nothing unanswered: it goes on with what it did after it, its words no new reply
     const unanswered = !!this.o.board.idea(cardId).unread;
     this.send(card, unanswered ? 'Answer them now.' : RESUMED, [], !unanswered, [], true);
@@ -122,7 +122,7 @@ export class Explorers {
 
   /** The owner lets the agent about to pause after its reply go on after all (`resume`, or their words to it). */
   private pauseTakenBack(cardId: string) {
-    this.o.board.work(cardId, { pausing: null });
+    this.o.board.work(cardId, this.o.board.unheld(cardId, ['pausing']));
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.resumedByOwner);
   }
 
@@ -178,8 +178,8 @@ export class Explorers {
     live?.session.close();
     const card = this.o.board.item(cardId);
     if (card?.idea?.thinking) this.o.board.setIdea(cardId, { thinking: false });
-    if (paused) this.o.board.work(cardId, { paused: '{}', pausing: null });
-    else if (card?.paused || card?.pausing) this.o.board.work(cardId, { paused: null, pausing: null });
+    if (paused) this.o.board.work(cardId, { hold: holdNow('paused') });
+    else if (card && (isPaused(card) || isPausing(card))) this.o.board.work(cardId, this.o.board.unheld(cardId, ['paused', 'pausing', 'limit']));
   }
 
   /**
@@ -205,9 +205,9 @@ export class Explorers {
     for (const i of this.o.board.items()) {
       if (i.state !== 'idea' || !i.idea?.thinking) continue;
       // about to pause after its reply, which the restart cut off: it stays paused, its words unanswered
-      if (i.pausing) {
+      if (isPausing(i)) {
         this.o.board.setIdea(i.id, { thinking: false });
-        this.o.board.work(i.id, { paused: '{}', pausing: null });
+        this.o.board.work(i.id, { hold: holdNow('paused') });
         this.o.board.log(i.id, 'state', 'owner', this.o.board.t.worker.pausedByOwner);
         continue;
       }
@@ -237,7 +237,7 @@ export class Explorers {
   /** `owner`: the owner's words, which let a paused agent go on; what Seismic tells it waits with what it has not answered yet. */
   private send(card: Item, message: string, images: string[] = [], quiet = false, said: number[] = [], owner = false) {
     // the owner's words let an agent about to pause after its reply go on, as they do a paused one
-    if (owner && this.o.board.row(card.id).pausing) this.pauseTakenBack(card.id);
+    if (owner && this.o.board.holdOf(card.id)?.reason === 'pausing') this.pauseTakenBack(card.id);
     const live = this.live.get(card.id);
     if (live) {
       // queued, it goes in with whatever else came, which may well need a reply
@@ -252,12 +252,12 @@ export class Explorers {
     const row = this.o.board.row(card.id);
     // what an interrupted turn left unanswered goes first
     const { unread } = this.o.board.idea(card.id);
-    if (row.paused) {
+    if (row.hold && isPaused({ hold: JSON.parse(row.hold) as Hold })) {
       if (!owner) {
         this.o.board.setIdea(card.id, { unread: { why: unread?.why ?? 'paused', messages: [...(unread?.messages ?? []), { text: message, images, said }] } });
         return;
       }
-      this.o.board.work(card.id, { paused: null });
+      this.o.board.work(card.id, this.o.board.unheld(card.id, ['paused', 'limit']));
       this.o.board.log(card.id, 'state', 'owner', this.o.board.t.worker.resumedByOwner);
     }
     const current = [...(unread?.messages ?? []), { text: message, images, said }];
@@ -374,7 +374,7 @@ export class Explorers {
     live.said = undefined;
     live.quiet = false;
     // the owner asked it to pause once its reply was given: what was said meanwhile waits for them to let it go on
-    if (this.o.board.row(cardId).pausing) {
+    if (this.o.board.holdOf(cardId)?.reason === 'pausing') {
       live.current = [];
       this.interrupt(cardId, 'paused', true);
       this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.pausedByOwner);

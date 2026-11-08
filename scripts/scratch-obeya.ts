@@ -122,7 +122,7 @@
 // into the database:
 // state, need, statusLine, summary, question (with `permission`, `{ name, input, extra? }`: the tool call it asks
 // to allow, as a worker's permission question has it, `extra` the options extensions added), demo (`kind` defaults to video), queue (`behind` by key; `since` defaults to
-// now), snoozed (`{ on, state?, why? }`: its agent snoozed it until the card with key `on` gets to `state`, done by default), limitPaused (`{ until? }`: paused after three usage-limit refusals, until that ISO time or a manual retry), scope (files), branch (a working or waiting card without one gets the branch a start would
+// now), snoozed (`{ on, state?, why? }`: its agent snoozed it until the card with key `on` gets to `state`, done by default), limitPaused (`{ until? }`: paused after three usage-limit refusals, until that ISO time or a manual retry), hold (any other hold as stored, `Hold` in core/types.ts: `{ reason: 'paused' }`, `{ reason: 'snoozed', by: 'owner', until }`, `{ reason: 'parkingLot' }`; `since` defaults to now), scope (files), branch (a working or waiting card without one gets the branch a start would
 // have given it, which every started card has), createdAgo, archivedAgo, events ([{ kind, author, text, ago?, mocks?, spot?, token? }]; an idea's reply with `mocks` needs code that has them, an error's `token` (its session signed in with a token) too;
 // with events of kind `review`, the demos in `row.demos` and then `demo` go with those handovers in order, and a `spot` (a comment's
 // place in a demo video, `{ at, chapter?, demo? }`) names its demo by its place in that order; earlier demos need code that has them),
@@ -213,6 +213,8 @@ interface StageCard {
   snoozed?: { on: string; state?: string; why?: string };
   /** Paused after three usage-limit refusals, waiting for the account's reset at `until` (ISO time) or for a manual retry. */
   limitPaused?: { until?: string };
+  /** What holds the card, as stored (`Hold`); `since` defaults to now. */
+  hold?: { reason: string; since?: string } & Record<string, unknown>;
   scope?: string[];
   changes?: { kind: 'added' | 'modified' | 'deleted' | 'moved'; path: string; from?: string }[];
   branch?: string;
@@ -707,9 +709,10 @@ for (const [i, c] of stage.cards.entries()) {
   if (c.snoozed !== undefined) {
     const on = ids[c.snoozed.on] ?? fail(`card ${c.key ?? i}: snoozed names ${c.snoozed.on}, which does not exist`);
     const title = stage.cards.find((x) => x.key === c.snoozed!.on)?.title ?? '';
-    row.snoozed = { on: { card: on, title, state: c.snoozed.state ?? 'done' }, by: 'agent', ...(c.snoozed.why ? { why: c.snoozed.why } : {}) };
+    row.hold = { reason: 'snoozed', since: new Date().toISOString(), on: { card: on, title, state: c.snoozed.state ?? 'done' }, by: 'agent', ...(c.snoozed.why ? { why: c.snoozed.why } : {}) };
   }
-  if (c.limitPaused !== undefined) row.paused = JSON.stringify({ limit: { attempts: 3, ...c.limitPaused } });
+  if (c.limitPaused !== undefined) row.hold = { reason: 'limit', since: new Date().toISOString(), attempts: 3, ...c.limitPaused };
+  if (c.hold !== undefined) row.hold = { since: new Date().toISOString(), ...c.hold };
   if (c.scope !== undefined) row.scope = { files: c.scope, reason: '' };
   // a card at work or waiting for the owner has the branch its start gave it, as every started card
   // has: without one the card shows neither its conversation's field nor the question it waits on

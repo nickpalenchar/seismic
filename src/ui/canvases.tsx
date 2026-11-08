@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { Car, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { CANVAS_LUCIDE_ICONS } from '../core/canvas-icons';
 import type { Bounds } from '../core/layout';
-import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping } from '../core/types';
+import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping, inParkingLot } from '../core/types';
 import { api } from './api';
 import { CANVAS_EMOJIS, CanvasIcon, canvasText, lucideOf } from './canvasIcon';
 import { know, known } from './known';
@@ -375,7 +375,7 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   const others = canvases.filter((c) => c.id !== on?.id);
   const stopsToPark = parkableStopping(item);
   const canPark = parkable(item) || stopsToPark;
-  const parked = !!item.parkingLot && !item.archivedAt;
+  const parked = !!inParkingLot(item) && !item.archivedAt;
   if ((!others.length && !canPark && !parked) || item.archivedAt) return null;
   const parking = (action: 'park' | 'unpark') => {
     setOpen(false);

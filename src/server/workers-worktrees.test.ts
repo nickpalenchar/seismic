@@ -44,7 +44,7 @@ describe('a worktree per card', () => {
     workers.snooze(c.id, new Date(Date.now() + 3_600_000).toISOString());
     await started;
     expect(board.item(c.id)).toMatchObject({ state: 'planned' });
-    expect(board.item(c.id)!.snoozed).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('snoozed');
     expect(board.row(c.id).workstation).toBeNull();
     expect(board.events(c.id).some((e) => e.kind === 'error')).toBe(true);
     // started again on a branch of its own, its worker hears the words with its task
@@ -385,10 +385,10 @@ describe('a worktree per card', () => {
     expect(board.row(b.id).approved_at).toBeTruthy();
     expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', text: 'Paused until Seismic has restarted.' });
     // the card shows it paused for the restart, while that is due
-    expect(board.item(b.id)).toMatchObject({ restartPaused: true });
+    expect(board.item(b.id)).toMatchObject({ hold: { reason: 'restart' } });
     expect(board.item(b.id)!.inTurn).toBeUndefined();
     workers.restartDue(null);
-    expect(board.item(b.id)!.restartPaused).toBeUndefined();
+    expect(board.item(b.id)?.hold?.reason).not.toBe('restart');
   });
 
   test('an approval that could not land holds: the worker brings the branch up to date and it lands', async () => {

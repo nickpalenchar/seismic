@@ -18,8 +18,7 @@ Persistent (SQLite):
 - cards with everything shown on them or needed to resume them: kind, state, position, parent, the
   card they came from; the agent session with its pinned harness, model and effort (old unqualified
   sessions belong to Claude; Codex locators start `codex:`), workstation, branch and status line; the open question or
-  handover (with the reason when there is no demo); queue, scope, snooze (until when, by whom,
-  why); the pull request and what of it was already passed on to the worker; on a review card, the
+  handover (with the reason when there is no demo); queue, scope, the card's hold (below); the pull request and what of it was already passed on to the worker; on a review card, the
   contributor's pull request (author, whether maintainers may push, the head handed over, the
   checks and merge probe, the findings with what came of each, the change request waiting for the
   contributor); the code review of a card's work (the mode it was handed over under, the handover
@@ -37,8 +36,15 @@ Persistent (SQLite):
 - each session that worked on a card, with the harness, resolved model and effort it ran on (see
   Models and effort in Agents and workstations), and the owner's responses on approved work: the
   handover each is about, whom it credits, the card's context as it was, the answer and facets;
-- a worker paused by the usage limit keeps its consecutive refusal count, optional future reset,
-  and previous status line in the card’s existing pause JSON (`limit`); old pause records remain valid;
+- why a card's agent does not run now, or why the card is off the canvas: one hold per card, JSON
+  with its `reason` and `since`, as the owner's pause at a safe point (`pausing`), the owner's
+  pause (`paused`), the usage limit's pause after three refusals (`limit`: the refusal count, the
+  known reset as `until` if any, the status line before), a snooze (`snoozed`: until when, the card
+  it waits on, by whom, why, and whether it waited for the owner or is to start then) or the
+  parking lot (`parkingLot`). What Seismic had for a held worker meanwhile is kept with the hold
+  (`held`): always on a pause, on a snooze only where the owner snoozed a worker. These never hold
+  together: setting one replaces the one before, a snooze keeping what a pause held. The Koordinator's
+  queue and a waiting card's stopped app are kept apart, as they hold beside any of them;
 - card events (the conversation log, with the owner's screenshots and agents' mocks, and the
   producing agent's harness and model when known); the Koordinator's replies and looked-up answers
   each retain their own producing identity, never inferred for old messages; workstations
@@ -82,3 +88,12 @@ Seismic and put the copy in place of `obeya.db`.
 
 Derived, not stored: git, PR and CI state (read from git and GitHub), plan-doc content (read from
 the repository; the copy on the plan is only for the archive).
+
+Decisions:
+
+- One hold per card in place of separate pause, pause-at-safe-point, snooze and parking-lot columns
+  (2026-11-08): checked against the code and the live database, none of them holds together with
+  another, and two flags that could disagree (a paused card also snoozed) made every reader decide
+  which one wins. The pause for a due restart is not stored (it lasts only while Seismic waits to
+  restart) and shows as a hold of its own (`restart`) to the UI and agents. The migration counts a
+  pause or snooze from the moment it ran, as neither kept a time of its own.

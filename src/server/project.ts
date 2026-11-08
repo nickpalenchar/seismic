@@ -16,7 +16,7 @@ import type { RepoAdapter, RepoInfo } from '../adapters/types';
 import type { CardDiff } from '../core/diff';
 import type { Language } from '../core/locale';
 import type { HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
-import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type ProjectConfig, type ProjectDefaults, type ProjectDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, parkable, parkableStopping, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsPlan, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
+import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type ProjectConfig, type ProjectDefaults, type ProjectDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, parkable, parkableStopping, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsPlan, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup, snoozeOf, inParkingLot, type Hold } from '../core/types';
 import { appliedProjectSettings, projectAgentSetting, startAgentSetting } from './settings';
 import { asksAhead, holdsNotes } from '../core/queue';
 import { BadRequest, Board, withQuestions, pathOfRef, repoOfRef, replyNote, type StoredContribution } from './board';
@@ -518,14 +518,15 @@ export class ProjectRuntime {
     // and the Koordinator takes up the steps it waited on cards for
     this.commander.due(items);
     for (const i of items) {
-      if (i.limitPaused && i.paused && !i.repoDown && !this.board.project.paused) {
+      if (i.hold?.reason === 'limit' && i.hold.since && !i.repoDown && !this.board.project.paused) {
         this.repoOf(i.id).workers.wakeLimit(i.id, now);
       }
       // one whose repository does not run wakes once it is back
-      if (!i.snoozed || i.repoDown) continue;
-      const on = i.snoozed.on;
+      const s = snoozeOf(i);
+      if (!s || i.repoDown) continue;
+      const on = s.on;
       const met = on ? awaited(items.find((x) => x.id === on.card), on.state) : null;
-      if (!met && !(i.snoozed.until && Date.parse(i.snoozed.until) <= now)) continue;
+      if (!met && !(s.until && Date.parse(s.until) <= now)) continue;
       try {
         this.wake(i.id, true, met ?? undefined);
       } catch (e) {
@@ -543,8 +544,9 @@ export class ProjectRuntime {
     const iso = this.until(until);
     const card = this.board.item(cardId);
     if (!card || !snoozable(card)) throw new BadRequest('notSnoozable', 'the card is neither planned, at work nor waiting for the owner');
-    if (card.snoozed?.waiting || (!card.snoozed && needsYou(card))) return this.board.snooze(cardId, { ...(card.snoozed ?? { by: 'owner', waiting: true }), until: iso }, 'owner');
-    if (card.snoozed?.start || (!card.snoozed && plannedToStart(card))) return this.board.snooze(cardId, { ...(card.snoozed ?? { by: 'owner', start: true }), until: iso }, 'owner');
+    const s = this.board.snoozedOf(cardId);
+    if (s?.waiting || (!s && needsYou(card))) return this.board.snooze(cardId, { ...(s ?? { by: 'owner', waiting: true }), until: iso }, 'owner');
+    if (s?.start || (!s && plannedToStart(card))) return this.board.snooze(cardId, { ...(s ?? { by: 'owner', start: true }), until: iso }, 'owner');
     this.repoOf(cardId).workers.snooze(cardId, iso);
   }
 
@@ -562,9 +564,10 @@ export class ProjectRuntime {
    */
   private wake(cardId: string, timeUp: boolean, met?: Awaited) {
     const card = this.board.item(cardId);
-    if (!card?.snoozed) throw new BadRequest('notSnoozed', 'the card is not snoozed');
-    if (card.snoozed.waiting) return void this.board.unsnooze(cardId, timeUp ? 'time' : 'owner');
-    if (card.snoozed.start) {
+    const s = card && snoozeOf(card);
+    if (!s) throw new BadRequest('notSnoozed', 'the card is not snoozed');
+    if (s.waiting) return void this.board.unsnooze(cardId, timeUp ? 'time' : 'owner');
+    if (s.start) {
       this.repoOf(cardId).workers.startsNow(cardId, timeUp);
       // one to be started in a new repository makes it first
       if (card.newRepo) return this.intoNewRepo(cardId);
@@ -1764,12 +1767,12 @@ export class ProjectRuntime {
       throw new BadRequest('emptyText', 'text must be a non-empty string');
     switch (a.action) {
       case 'start':
-        if (a.agent && (card?.newRepo || card?.snoozed?.start)) throw new BadRequest('invalid', 'this start does not support an agent choice');
+        if (a.agent && (card?.newRepo || (card && snoozeOf(card)?.start))) throw new BadRequest('invalid', 'this start does not support an agent choice');
         if (card?.newRepo) return this.intoNewRepo(cardId);
         // starting a parked card takes it out of the parking lot
-        if (card?.parkingLot) this.unparkFromLot(cardId);
+        if (card && inParkingLot(card)) this.unparkFromLot(cardId);
         // one snoozed to start later starts now
-        if (this.board.item(cardId)?.snoozed?.start) return this.wake(cardId, false);
+        if (this.board.snoozedOf(cardId)?.start) return this.wake(cardId, false);
         return this.koordinator.request(cardId, a.agent === undefined ? undefined : startAgentSetting(a.agent));
       case 'stayHere':
         return this.stayHere(cardId);
@@ -1957,7 +1960,7 @@ export class ProjectRuntime {
     if (card.thread?.thinking) throw new BadRequest('ideaThinking', 'its agent is still reading; ideate it once the answer is there');
     if (!this.runs(card)) throw repoDown(card);
     // a paused agent's question goes into the discussion with the rest of the thread
-    this.board.work(cardId, { kind: 'task', state: 'idea', idea: JSON.stringify({ status: 'open', brief: '' }), session_id: null, paused: null, pausing: null });
+    this.board.work(cardId, { kind: 'task', state: 'idea', idea: JSON.stringify({ status: 'open', brief: '' }), session_id: null, ...this.board.unheld(cardId, ['paused', 'pausing', 'limit']) });
     this.board.log(cardId, 'state', 'owner', this.board.t.answer.asIdea);
     this.explorers.tell(cardId, this.answers.opening(cardId));
   }
@@ -2451,15 +2454,15 @@ export class ProjectRuntime {
     // waiting for the owner, its agent stops first
     const stopped = card.state === 'waiting' ? this.repoOf(cardId).workers.stop(cardId) : undefined;
     if (stopped) this.board.record(cardId, 'stopped', 'owner');
-    this.board.work(cardId, { parking_lot: new Date().toISOString(), snoozed: null });
+    this.board.work(cardId, { hold: JSON.stringify({ reason: 'parkingLot', since: new Date().toISOString() } satisfies Hold) });
     this.board.log(cardId, 'state', 'owner', this.board.t.worker.parkedInLot);
     return stopped;
   }
 
   /** The parked task goes back to its place on the canvas. */
   private unparkFromLot(cardId: string) {
-    if (!this.board.item(cardId)?.parkingLot) return;
-    this.board.work(cardId, { parking_lot: null });
+    if (this.board.holdOf(cardId)?.reason !== 'parkingLot') return;
+    this.board.work(cardId, { hold: null });
     this.board.log(cardId, 'state', 'owner', this.board.t.worker.unparkedFromLot);
   }
 

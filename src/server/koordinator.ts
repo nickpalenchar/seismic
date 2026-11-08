@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { RepoAdapter } from '../adapters/types';
 import { drawnWaits, inQueue, movable, notStarted, queueOrder, reach, waitsOn } from '../core/queue';
-import { type AgentAt, type AgentRole, type CardEvent, EVICT_HOLD_MS, finished, mergeRank, type Item, nameless, type Preference, START_ALL_HOLD_MS, type Wait } from '../core/types';
+import { type AgentAt, type AgentRole, type CardEvent, EVICT_HOLD_MS, finished, mergeRank, type Item, nameless, type Preference, START_ALL_HOLD_MS, type Wait, snoozeOf } from '../core/types';
 import { ACTIVE, BadRequest, type Board, contributionOf } from './board';
 import type { Utterance } from './store';
 import { type AgentRuntime, type AgentTool, waitQuietly } from './runtime';
@@ -259,7 +259,7 @@ export class Koordinator {
     const open = this.o.board.items().filter((i) => i.parent === plan.id && i.state === 'planned' && !i.queue);
     if (!open.length) throw new BadRequest('nothingToStart', 'the plan has no planned workstream left to start');
     // one the owner set aside to start later goes with them, so a workstream building on it waits for it
-    for (const w of open) if (w.snoozed?.start) this.o.board.unsnooze(w.id, 'owner');
+    for (const w of open) if (snoozeOf(w)?.start) this.o.board.unsnooze(w.id, 'owner');
     if (this.o.restarting?.()) {
       for (const w of open) {
         this.o.board.work(w.id, { agent_setting: null });

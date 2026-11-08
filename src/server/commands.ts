@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { currentAgent } from './agent-identity';
 import { CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
-import { AGENT_DEFAULTS, type AgentSetting, CANVAS_NAME_MAX, canvasNameProblem, MAIN_CANVAS, agentListens, answering, askable, type Awaited, awaited, type AwaitedState, blocksSaving, type ProjectConfig, finished, handedOver, type Item, type NextStep, type Notice, openQuestions, pausableNow, plannableAsPlan, halted, untouched, prototypeWorkstream, snoozable, SNOOZE_LIMIT, type Queue, type SpotInput, type Talk, type TalkAfter, type TalkQuote, type TalkRef } from '../core/types';
+import { AGENT_DEFAULTS, type AgentSetting, CANVAS_NAME_MAX, canvasNameProblem, MAIN_CANVAS, agentListens, answering, askable, type Awaited, awaited, type AwaitedState, blocksSaving, type ProjectConfig, finished, handedOver, type Item, type NextStep, type Notice, openQuestions, pausableNow, plannableAsPlan, halted, untouched, prototypeWorkstream, snoozable, SNOOZE_LIMIT, type Queue, type SpotInput, type Talk, type TalkAfter, type TalkQuote, type TalkRef, isPaused, isPausing, snoozeOf } from '../core/types';
 import { holdsNotes, notStarted } from '../core/queue';
 import { answerTag, fromAnswerTag } from './answers';
 import { BadRequest, type Board, excerpt, replyNote } from './board';
@@ -1231,11 +1231,11 @@ export class Commander {
         if (card.state !== 'working' && card.state !== 'waiting' && !card.finishing) return `no agent works on this card (${is})`;
         break;
       case 'pause':
-        if (card.paused) return 'its agent is paused already';
+        if (isPaused(card)) return 'its agent is paused already';
         if (!pausableNow(card)) return `its agent is not working on anything right now, so there is nothing to pause (${is})`;
         break;
       case 'resume':
-        if (!halted(card)) return card.snoozed ? `its agent is snoozed, not paused: wake wakes it (${is})` : `its agent is not paused (${is})`;
+        if (!halted(card)) return snoozeOf(card) ? `its agent is snoozed, not paused: wake wakes it (${is})` : `its agent is not paused (${is})`;
         break;
       case 'snooze': {
         if (!snoozable(card)) return `the card is neither planned, at work nor waiting for the owner, so there is nothing to snooze (${is})`;
@@ -1245,7 +1245,7 @@ export class Commander {
         return { do: 'snooze', card: card.id, until: new Date(at).toISOString() };
       }
       case 'wake':
-        if (!card.snoozed) return `the card is not snoozed (${is})`;
+        if (!snoozeOf(card)) return `the card is not snoozed (${is})`;
         break;
     }
     return { do: a.do, card: card.id };
@@ -1401,11 +1401,12 @@ export class Commander {
               : askable(i)
                 ? `${i.state}, its agent's session has ended; a note resumes it to answer`
                 : i.state;
-      const paused = i.snoozed
-        ? `; snoozed by ${i.snoozed.by === 'agent' ? 'its agent' : 'the owner'} until ${i.snoozed.on ? `the card “${i.snoozed.on.title}” ${i.snoozed.on.state === 'done' ? 'is done' : 'waits for the owner'}${i.snoozed.until ? `, ${when(i.snoozed.until)} at the latest` : ''}` : when(i.snoozed.until!)}${i.snoozed.why ? ` (then: ${clip(oneLine(i.snoozed.why), 120)})` : ''}${i.snoozed.waiting ? ': it waits for the owner again then, and is not on their list until then' : i.snoozed.start ? ': it starts then; start or wake starts it now' : ': nothing of its agent runs until then; a note or wake wakes it earlier'}`
-        : i.paused
+      const s = snoozeOf(i);
+      const paused = s
+        ? `; snoozed by ${s.by === 'agent' ? 'its agent' : 'the owner'} until ${s.on ? `the card “${s.on.title}” ${s.on.state === 'done' ? 'is done' : 'waits for the owner'}${s.until ? `, ${when(s.until)} at the latest` : ''}` : when(s.until!)}${s.why ? ` (then: ${clip(oneLine(s.why), 120)})` : ''}${s.waiting ? ': it waits for the owner again then, and is not on their list until then' : s.start ? ': it starts then; start or wake starts it now' : ': nothing of its agent runs until then; a note or wake wakes it earlier'}`
+        : isPaused(i)
         ? '; its agent is paused by the owner: nothing of it runs until resume or what the owner says to it, which it goes on with'
-        : i.pausing
+        : isPausing(i)
         ? '; the owner asked its agent to pause at a safe point: it ends its turn once the step it is in is done, and is paused then; resume or what the owner says to it lets it work on instead'
         : i.inTurn && i.state !== 'working'
           ? '; its agent is working on something right now'

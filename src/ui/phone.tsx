@@ -9,7 +9,7 @@
 import { ChevronLeft, Plus } from 'lucide-react';
 import { useRatePrompt } from './feedback';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { type ProjectInfo, type ProjectSnapshot, type CardPatch, finishedArchivable, type Item, nameless, needsYou, openQuestions, unreadAnswers, type Usage } from '../core/types';
+import { type ProjectInfo, type ProjectSnapshot, type CardPatch, finishedArchivable, type Item, nameless, needsYou, openQuestions, unreadAnswers, type Usage, snoozeOf } from '../core/types';
 import { ChatsHead } from './chats';
 import { api, beforeReload, cardsOn, onNotice, phoneInUse, setProject, useProject, type Where } from './api';
 import { enterBreaksLines } from './composer';
@@ -715,7 +715,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   // the tasks nobody has started yet (stopped ones and those set to start at a time among them), but nothing the lists above show already
   const planned = all.filter(({ item }) => plannedLater(item) && !runs(item) && !isUnderway(item.id));
   // what the project's "Archive done" would take, but nothing the lists above show already
-  const done = all.filter(({ item }) => finishedArchivable(item) && !needsYou(item) && !item.snoozed?.waiting && !runs(item) && !isUnderway(item.id));
+  const done = all.filter(({ item }) => finishedArchivable(item) && !needsYou(item) && !snoozeOf(item)?.waiting && !runs(item) && !isUnderway(item.id));
   return (
     <HoldToTalk.Provider value={press}>
       {feeds}
@@ -751,7 +751,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
           <h2>{t.phone.running}</h2>
           {/* nothing known yet (the server has not answered since the page loaded): no claim that nothing runs */}
           {/* a snoozed card at the end, after those at work now */}
-          {ordered.length > 0 && <Running entries={all.filter(({ item }) => runs(item) || isUnderway(item.id)).sort((a, b) => Number(!!a.item.snoozed) - Number(!!b.item.snoozed))} several={several} onOpen={openCard} />}
+          {ordered.length > 0 && <Running entries={all.filter(({ item }) => runs(item) || isUnderway(item.id)).sort((a, b) => Number(!!snoozeOf(a.item)) - Number(!!snoozeOf(b.item)))} several={several} onOpen={openCard} />}
         </section>
         {planned.length > 0 && <Folded label={t.phone.planned} entries={planned} several={several} open={plannedOpen} onToggle={togglePlanned} onOpen={openCard} />}
         {done.length > 0 && <Folded label={t.phone.done} entries={done} several={several} open={doneOpen} onToggle={toggleDone} onOpen={openCard} />}
@@ -839,7 +839,7 @@ function Running({ entries, several, onOpen }: { entries: { item: Item; project:
 }
 
 /** A task planned and not archived that neither waits for the owner nor got snoozed while it did: the phone's "Planned". */
-const plannedLater = (i: Item) => i.kind === 'task' && i.state === 'planned' && !i.archivedAt && !needsYou(i) && !i.snoozed?.waiting;
+const plannedLater = (i: Item) => i.kind === 'task' && i.state === 'planned' && !i.archivedAt && !needsYou(i) && !snoozeOf(i)?.waiting;
 
 /** Whether a folded list is open, kept in this tab under `key`, and the toggle that opens and closes it. */
 function useFolded(key: string): [boolean, () => void] {

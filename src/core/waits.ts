@@ -1,7 +1,7 @@
 // What a card waits for the owner for, and which cards started to: shared by the server's pushes to
 // the phone and the desktop notifications of the project page.
 import type { Messages } from './messages';
-import { type Item, needsYou } from './types';
+import { type Item, needsYou, snoozeOf } from './types';
 
 /** What a card waits for, as a push says it. */
 export type PushKind = Exclude<keyof Messages['push'], 'several'>;
@@ -25,7 +25,7 @@ export function kindOf(i: Item, before?: Item): PushKind {
 export function startedWaiting(before: ReadonlyMap<string, Item>, after: readonly Item[]): { item: Item; kind: PushKind }[] {
   return after.flatMap((i) => {
     const was = before.get(i.id);
-    if (i.superseded && was && !was.superseded && !i.snoozed) return [{ item: i, kind: 'superseded' as const }];
+    if (i.superseded && was && !was.superseded && !snoozeOf(i)) return [{ item: i, kind: 'superseded' as const }];
     return needsYou(i) && !(was && needsYou(was)) ? [{ item: i, kind: kindOf(i, was) }] : [];
   });
 }

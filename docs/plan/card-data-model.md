@@ -112,10 +112,18 @@ the same time will conflict (W3 most).
   aliased in a subquery is referenced unqualified. The equality check is
   `bun scripts/item-snapshot.ts [db] [--before <commit>]`: both sides read every project of a copy
   of the database, and the live one (2026-11-08, 9 projects, 496 cards) read the same.
-- [ ] **W4:** One hold value. First check which of the pause, limit, restart, snooze and
+- [x] **W4:** One hold value. First check which of the pause, limit, restart, snooze and
   parking-lot states can hold at the same time. Collapse the exclusive ones into one `hold`
   (`{ reason, since, until?, by?, … }`, plus the payload `paused` carries today) and migrate the
   existing values. `queue` and `parked` stay separate unless the check shows otherwise.
+  Done: `cards.hold` (`Hold` in core/types.ts: `pausing`, `paused`, `limit`, `snoozed`,
+  `parkingLot`) replaces `paused`, `pausing`, `snoozed` and `parking_lot`, which stay unread until
+  W8; `Item.hold` replaces `paused`, `pausing`, `limitPaused`, `restartPaused`, `snoozed` and
+  `parkingLot` (`restart` and an idea agent's `limit` are computed, never stored). The check: each
+  write of one cleared the others, and the live database (2026-11-08) had no card with two. The
+  only stored overlap was the owner's snooze of a worker, which wrote `paused` beside `snoozed` to
+  hold Seismic's messages: that list is the snooze's `held` now. `queue` and `parked` do hold beside
+  a hold, so they stay. The equality check differs from the snapshot before only by that regrouping.
 - [ ] **W5:** Grouped `Item`. Nested parts present only when a card has them: `agent`, `hold`,
   `idea`, `review`, `demo`, `plan`, `labels`; the ~10 core fields stay flat. Update the UI and the
   agents' readers.

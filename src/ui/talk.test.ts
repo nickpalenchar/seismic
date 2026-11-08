@@ -509,12 +509,12 @@ test('the conversation ends with the agent at work exactly while its agent works
   expect(agentWorks({ ...task, state: 'inPr' })).toBe(false);
   expect(agentWorks({ ...task, state: 'working' })).toBe(false);
   // paused: nothing of it runs
-  expect(agentWorks({ ...task, state: 'working', inTurn: true, paused: true })).toBe(false);
+  expect(agentWorks({ ...task, state: 'working', inTurn: true, hold: { reason: 'paused', since: '2026-10-18T00:00:00Z' } })).toBe(false);
   const idea = (thinking: boolean) => ({ status: 'open' as const, brief: '', thinking, yourTurn: false, questions: [], variants: [], mocks: [] });
   expect(agentWorks({ ...task, state: 'idea', idea: idea(true) })).toBe(true);
   expect(agentWorks({ ...task, state: 'idea', idea: idea(false) })).toBe(false);
   expect(agentWorks({ kind: 'question', state: 'done', thread: { talk: 1, thinking: true, answers: 0, files: 0 } })).toBe(true);
-  expect(agentWorks({ kind: 'question', state: 'done', thread: { talk: 1, answers: 0, files: 0 }, paused: true })).toBe(false);
+  expect(agentWorks({ kind: 'question', state: 'done', thread: { talk: 1, answers: 0, files: 0 }, hold: { reason: 'paused', since: '2026-10-18T00:00:00Z' } })).toBe(false);
   // a proposal reworked is at work too, but no agent there can be paused
   const reworked = { ...task, state: 'proposal' as const, proposal: { questions: [], revising: { words: 'kürzer' } } };
   expect(agentWorks(reworked)).toBe(true);
@@ -772,7 +772,7 @@ test('the snooze is a line, with what the agent did before it closed above it, a
   const earlier = ev('state', 'obeya', 'Woke up (snoozed by the agent)');
   expect(talkTurns([snoozed, earlier]).shown[1]).toMatchObject({ e: earlier, line: true });
   // a snoozed agent offers no pause, nor shows at work
-  expect(pausable({ kind: 'task', state: 'working', inTurn: true, snoozed: { until: '2026-10-18T00:05:00Z', by: 'agent' } })).toBe(false);
+  expect(pausable({ kind: 'task', state: 'working', inTurn: true, hold: { reason: 'snoozed', since: '2026-10-18T00:00:00Z', until: '2026-10-18T00:05:00Z', by: 'agent' } })).toBe(false);
 });
 
 test('the phone opens a card at work, or one with a question open, with its conversation up', () => {

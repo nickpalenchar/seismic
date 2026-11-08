@@ -1205,10 +1205,10 @@ describe('Koordinator starts all workstreams of a plan', () => {
     board.snooze(w2.id, { until, by: 'owner', start: true });
     docs = [{ ...docs[0]!, workstreams: [ws('W1', true), { ...ws('W2'), body: 'Text W2, neu' }, ws('W3'), ws('W4')] }];
     board.docsChanged();
-    expect(item(w2.id)).toMatchObject({ state: 'planned', body: 'Text W2, neu', snoozed: { until, start: true } });
+    expect(item(w2.id)).toMatchObject({ state: 'planned', body: 'Text W2, neu', hold: { reason: 'snoozed', until, start: true } });
     k.request(p.id);
     // a workstream that builds on it can wait for it
-    expect(item(w2.id).snoozed).toBeUndefined();
+    expect(item(w2.id)?.hold?.reason).not.toBe('snoozed');
     expect([w2, w3, w4].map((w) => item(w.id).queue)).toEqual([0, 1, 2].map(() => expect.objectContaining({ checking: true, together: p.id })));
   });
 
@@ -1222,7 +1222,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     docs = kept;
     board.docsChanged();
     expect(item(w2.id)).toMatchObject({ state: 'planned' });
-    expect(item(w2.id).snoozed).toBeUndefined();
+    expect(item(w2.id)?.hold?.reason).not.toBe('snoozed');
   });
 
   test('a workstream waits only for what comes before it, and every one has to be scheduled', async () => {

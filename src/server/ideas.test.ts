@@ -762,13 +762,13 @@ describe('an idea', () => {
     first.emit({ type: 'session', id: 'sess-1' });
     project.act(i.id, { action: 'pause' });
     expect(first.closed).toBe(true);
-    expect(item(i.id)).toMatchObject({ paused: true, idea: { status: 'open', thinking: false } });
+    expect(item(i.id)).toMatchObject({ hold: { reason: 'paused' }, idea: { status: 'open', thinking: false } });
     expect(() => project.act(i.id, { action: 'pause' })).toThrow('paused already');
     project.shutdown();
     project = open();
     const explorers = () => runtime.sessions.filter((x) => x.spec.tools.some((t) => t.name === 'update_brief')).length;
     expect(explorers()).toBe(1);
-    expect(item(i.id).paused).toBe(true);
+    expect(item(i.id)?.hold?.reason).toBe('paused');
     project.act(i.id, { action: 'resume' });
     const later = explorer();
     expect(later.spec.resume).toBe('sess-1');
@@ -776,7 +776,7 @@ describe('an idea', () => {
     expect(later.inbox[0]).toContain('exit code 137');
     expect(later.inbox[0]).toContain('Erstens.');
     expect(item(i.id)).toMatchObject({ idea: { thinking: true } });
-    expect(item(i.id).paused).toBeUndefined();
+    expect(item(i.id)?.hold?.reason).not.toBe('paused');
     expect(() => project.act(i.id, { action: 'resume' })).toThrow('not paused');
     turn(later, 'Zu Erstens.');
     expect(talk(i.id).at(-1)).toEqual(['explorer', 'Zu Erstens.']);
@@ -789,17 +789,17 @@ describe('an idea', () => {
     first.emit({ type: 'session', id: 'sess-1' });
     project.act(i.id, { action: 'pause', safePoint: true });
     expect(first.closed).toBe(false);
-    expect(item(i.id)).toMatchObject({ pausing: true, idea: { thinking: true } });
+    expect(item(i.id)).toMatchObject({ hold: { reason: 'pausing' }, idea: { thinking: true } });
     turn(first, 'Zu Erstens.');
     expect(talk(i.id).at(-1)).toEqual(['explorer', 'Zu Erstens.']);
     expect(first.closed).toBe(true);
-    expect(item(i.id)).toMatchObject({ paused: true, idea: { thinking: false } });
-    expect(item(i.id).pausing).toBeUndefined();
+    expect(item(i.id)).toMatchObject({ hold: { reason: 'paused' }, idea: { thinking: false } });
+    expect(item(i.id)?.hold?.reason).not.toBe('pausing');
     // the owner's words let it go on, as they do a paused one
     project.act(i.id, { action: 'discuss', text: 'Zweitens.' });
     expect(explorer().spec.resume).toBe('sess-1');
     expect(explorer().inbox[0]).toContain('Zweitens.');
-    expect(item(i.id).paused).toBeUndefined();
+    expect(item(i.id)?.hold?.reason).not.toBe('paused');
   });
 
   test("paused with its project's agents, an idea's agent holds the project's queue until it is resumed", async () => {
@@ -810,13 +810,13 @@ describe('an idea', () => {
     project.pauseAgents();
     expect(project.board.project.paused).toBe(true);
     turn(first, 'Zu Erstens.');
-    expect(item(i.id).paused).toBe(true);
+    expect(item(i.id)?.hold?.reason).toBe('paused');
     await heard();
     expect(project.board.project).toMatchObject({ paused: true, agents: { running: 0, paused: 1 } });
     project.resumeAgents();
     expect(project.board.project.paused).toBeUndefined();
     expect(explorer().spec.resume).toBe('sess-1');
-    expect(item(i.id).paused).toBeUndefined();
+    expect(item(i.id)?.hold?.reason).not.toBe('paused');
   });
 
   test('told more while paused, its agent goes on with that and what it had not answered; parked, it is no longer paused', () => {
@@ -828,11 +828,11 @@ describe('an idea', () => {
     const next = explorer();
     expect(next.inbox[0]).toContain('The owner paused you while you worked on a reply');
     expect(next.inbox[0]!.indexOf('Erstens.')).toBeLessThan(next.inbox[0]!.indexOf('Zweitens.'));
-    expect(item(i.id).paused).toBeUndefined();
+    expect(item(i.id)?.hold?.reason).not.toBe('paused');
 
     project.act(i.id, { action: 'pause' });
     project.act(i.id, { action: 'park' });
-    expect(item(i.id).paused).toBeUndefined();
+    expect(item(i.id)?.hold?.reason).not.toBe('paused');
     expect(item(i.id).idea).toMatchObject({ status: 'parked', thinking: false });
     project.act(i.id, { action: 'discuss', text: 'Drittens.' });
     expect(explorer().inbox[0]).toContain('The owner parked the idea while you were working on a reply');

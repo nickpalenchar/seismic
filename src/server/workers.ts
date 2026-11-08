@@ -18,8 +18,8 @@ import { type CardFile, docImages, fileKind, isImage, normalPath, shownFiles } f
 import { DEFAULT_DEMO_DIRECTORY, expandHome } from '../../plugin/skills/demo/lib/settings.ts';
 import { HANDOVER_ARTIFACTS, type HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
-import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, AWAITED_STATES, awaited, type BackgroundTask, pausable, pausableNow, type WorkerTurn, type CardLanding, type Demo, type DemoKind, type DemoPage, finished, formatQuestion, handedOver, type Item, type Mock, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type RestartReason, type Share, type Snooze, SNOOZE_LIMIT, type Spot, type Superseded, type SpotInput, started } from '../core/types';
-import { ACTIVE, BadRequest, type Board, replyNote, type Retracted, type StoredDemo, titleKey } from './board';
+import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, AWAITED_STATES, awaited, type BackgroundTask, AGENT_HOLDS, halted, type Hold, isPaused, isPausing, pausable, pausableNow, snoozeOf, type WorkerTurn, type CardLanding, type Demo, type DemoKind, type DemoPage, finished, formatQuestion, handedOver, type Item, type Mock, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type RestartReason, type Share, type Snooze, SNOOZE_LIMIT, type Spot, type Superseded, type SpotInput, started } from '../core/types';
+import { ACTIVE, BadRequest, type Board, holdNow, replyNote, type Retracted, type StoredDemo, titleKey } from './board';
 import { type Asked, decisionLog, toQuestion, withPick } from './advisor';
 import { checkArtifact, DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, OBEYA_PLUGIN, placeIn, readChapters } from './demo';
 import { artifactFiles } from './demo-page';
@@ -321,13 +321,8 @@ function pageHeardOf(share: Share | undefined): PageHeard {
   return { page: 'none' };
 }
 
-/** What is stored while the owner has paused the card's worker (`CardRow.paused`). */
-export interface PausedState {
-  /** A subscription limit pause survives restart, including its reset and retry budget. */
-  limit?: { attempts: number; until?: string; statusBefore?: string | null };
-  /** What Seismic had for the worker meanwhile (its pull request's review, the landing), and a message it had not taken in yet: it hears them once it goes on. */
-  held?: { text: string; images: string[] }[];
-}
+/** A hold that keeps what Seismic has for the worker (its pull request's review, the landing) until it goes on: a pause, the usage limit's, the owner's snooze. */
+type Holding = Extract<Hold, { reason: 'paused' | 'limit' | 'snoozed' }>;
 
 /**
  * A background task of the worker as Seismic follows it: whether it runs since an earlier turn, and
@@ -771,7 +766,7 @@ export class Workers {
     const contribution = contributionOf(row);
     const pr = contribution ? JSON.stringify({ url: contribution.url, number: contribution.number, seen: [], reported: [] } satisfies PrState) : null;
     // a fresh session knows of no app that was stopped
-    this.o.board.work(card.id, { state: 'working', need: null, detail: null, status_line: null, workstation: path, branch, session_id: null, agent_setting: selected ? JSON.stringify(selected) : null, pr, approved_at: null, parked: null, paused: null, pausing: null, snoozed: null, app: null });
+    this.o.board.work(card.id, { state: 'working', need: null, detail: null, status_line: null, workstation: path, branch, session_id: null, agent_setting: selected ? JSON.stringify(selected) : null, pr, approved_at: null, parked: null, ...this.o.board.unheld(card.id, AGENT_HOLDS), app: null });
     this.o.board.record(card.id, 'started', 'agent');
     const t = this.o.board.t.worker;
     this.o.board.log(card.id, 'state', 'obeya', this.folder ? t.startedInFolder : contribution ? t.reviewStarted(contribution.number, contribution.author) : t.started(branch));
@@ -789,7 +784,7 @@ export class Workers {
         else launch();
       },
       // planned again, as before the start
-      () => this.o.board.work(card.id, { state: 'planned', workstation: null, branch: row.branch, paused: null, pausing: null, snoozed: null }),
+      () => this.o.board.work(card.id, { state: 'planned', workstation: null, branch: row.branch, ...this.o.board.unheld(card.id, AGENT_HOLDS) }),
       true,
     );
   }
@@ -1184,7 +1179,7 @@ export class Workers {
       const said = log(true);
       if (text) this.o.onOwnerInput?.(card, 'note', text);
       // a note to a paused worker lets it go on, with the note
-      const how = card.paused ? 'with which they let you go on' : 'it does not stop you; adjust your plan if it changes anything';
+      const how = this.heldFor(cardId) ? 'with which they let you go on' : 'it does not stop you; adjust your plan if it changes anything';
       this.deliver(cardId, `A note from the owner${spoken ? ` (${SPOKEN})` : ''} (${how}):\n\n${words}`, images, true, said);
     } else if (askable(card)) this.followUp(card, text, images, spoken, replyTo, place);
     else throw new BadRequest('noAgent', 'no agent works on this card');
@@ -1705,7 +1700,7 @@ export class Workers {
       return this.endPrototype(cardId, 'discarded');
     }
     // approved, a card its worker snoozed on its handover wakes no more: the check it was to make again is done with
-    const unsnooze = () => card.snoozed && this.o.board.work(cardId, { snoozed: null });
+    const unsnooze = () => snoozeOf(card) && this.o.board.work(cardId, { hold: null });
     // in a folder without git, what it changed is in the folder already
     if (this.folder) {
       unsnooze();
@@ -2483,7 +2478,7 @@ export class Workers {
       this.whileFreeing(cardId, row.workstation, reading ? reading.catch(() => {}).then(removeLanded) : removeLanded(), 'freeing a landed workstation');
     }
     const landed = landedOf(row);
-    this.o.board.work(cardId, { landed: null, workstation: null, status_line: null, parked: null, paused: null, pausing: null, snoozed: null, app: null, ...(row.state === 'waiting' ? { state: landed?.unchanged ? 'done' : 'live', need: null, detail: null } : {}) });
+    this.o.board.work(cardId, { landed: null, workstation: null, status_line: null, parked: null, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null, ...(row.state === 'waiting' ? { state: landed?.unchanged ? 'done' : 'live', need: null, detail: null } : {}) });
     this.o.board.workDone(cardId);
     // the work retrospective read the card's runs when its work ended
     if (!landed?.followUp) this.o.onWorkEnded?.(cardId, row.workstation);
@@ -2511,7 +2506,7 @@ export class Workers {
     this.o.onWorkEnded?.(cardId, this.o.board.row(cardId).workstation);
     this.end(cardId);
     this.bump(cardId);
-    this.o.board.work(cardId, { paused: null, pausing: null, snoozed: null });
+    this.o.board.work(cardId, this.o.board.unheld(cardId, AGENT_HOLDS));
     const workstation = this.o.workstations.leasedBy(cardId);
     const { branch } = this.o.board.row(cardId);
     // the card goes anyway, its workstation once git has cleaned it; a leftover worktree does no harm
@@ -2997,7 +2992,7 @@ export class Workers {
     this.bump(cardId);
     const generation = this.generation.get(cardId);
     const path = this.o.board.row(cardId).workstation;
-    this.o.board.work(cardId, { state: 'planned', need: null, detail: null, pr: null, approved_at: null, paused: null, pausing: null, snoozed: null, app: null });
+    this.o.board.work(cardId, { state: 'planned', need: null, detail: null, pr: null, approved_at: null, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null });
     this.o.board.log(cardId, 'state', 'owner', card.pr ? this.o.board.t.worker.stoppedPrOpen(card.pr.number) : this.o.board.t.worker.stopped);
     return this.o.workstations.hasWork(cardId).then((keep) => {
       if (keep || this.generation.get(cardId) !== generation || this.o.board.row(cardId).workstation !== path) return;
@@ -3046,7 +3041,7 @@ export class Workers {
         // comments held back for the worker stay in the conversation
         this.takeHeld(cardId);
         this.end(cardId);
-        this.o.board.work(cardId, { state: 'planned', need: null, detail: null, pr: null, approved_at: null, paused: null, pausing: null, snoozed: null, app: null });
+        this.o.board.work(cardId, { state: 'planned', need: null, detail: null, pr: null, approved_at: null, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null });
         this.o.board.record(cardId, 'stopped', 'owner');
       }
       this.bump(cardId);
@@ -3087,7 +3082,7 @@ export class Workers {
    */
   pause(cardId: string) {
     const card = this.card(cardId);
-    if (!pausableNow(card)) throw new BadRequest('noAgent', card.paused ? 'the agent is paused already' : 'the agent is not working on anything');
+    if (!pausableNow(card)) throw new BadRequest('noAgent', isPaused(card) ? 'the agent is paused already' : 'the agent is not working on anything');
     this.halt(cardId);
   }
 
@@ -3100,11 +3095,11 @@ export class Workers {
    */
   pauseAtSafePoint(cardId: string) {
     const card = this.card(cardId);
-    if (!pausable(card)) throw new BadRequest('noAgent', card.paused || card.pausing ? 'the agent is paused already' : 'the agent is not working on anything');
+    if (!pausable(card)) throw new BadRequest('noAgent', halted(card) ? 'the agent is paused already' : 'the agent is not working on anything');
     const live = this.live.get(cardId);
     if (!live?.busy || live.limited) return this.halt(cardId);
     const limit = this.o.pauseLimit ?? PAUSE_LIMIT;
-    this.o.board.work(cardId, { pausing: new Date().toISOString() });
+    this.o.board.work(cardId, { hold: holdNow('pausing') });
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.pausing);
     live.session.send(pauseNotice(limit));
     clearTimeout(this.pausing.get(cardId));
@@ -3112,7 +3107,7 @@ export class Workers {
       cardId,
       setTimeout(() => {
         this.pausing.delete(cardId);
-        if (this.o.board.item(cardId)?.pausing) this.halt(cardId);
+        if (this.o.board.holdOf(cardId)?.reason === 'pausing') this.halt(cardId);
       }, limit),
     );
   }
@@ -3129,7 +3124,7 @@ export class Workers {
     this.reconnecting.delete(cardId);
     clearTimeout(this.pausing.get(cardId));
     this.pausing.delete(cardId);
-    this.o.board.work(cardId, { paused: JSON.stringify((pending ? { held: [pending] } : {}) satisfies PausedState), pausing: null });
+    this.o.board.work(cardId, { hold: JSON.stringify({ reason: 'paused', since: new Date().toISOString(), ...(pending ? { held: [pending] } : {}) } satisfies Hold) });
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.pausedByOwner);
     this.parkLater(cardId);
   }
@@ -3151,7 +3146,7 @@ export class Workers {
    */
   resume(cardId: string) {
     const card = this.card(cardId);
-    if (card.pausing) {
+    if (isPausing(card)) {
       this.pauseTakenBack(cardId);
       this.live.get(cardId)?.session.send(PAUSE_TAKEN_BACK);
       return;
@@ -3161,14 +3156,14 @@ export class Workers {
       this.deliver(cardId, LIMIT_LIFTED, [], true);
       return;
     }
-    if (!card.paused) throw new BadRequest('notPaused', 'the agent is not paused');
+    if (!isPaused(card)) throw new BadRequest('notPaused', 'the agent is not paused');
     this.deliver(cardId, '', [], true);
   }
 
   /** The coordinator's clock wakes a limit pause only at its recorded reset. */
   wakeLimit(cardId: string, now = Date.now()) {
-    const paused = this.pausedOf(cardId);
-    if (!paused?.limit?.until || Date.parse(paused.limit.until) > now) return;
+    const hold = this.o.board.holdOf(cardId);
+    if (hold?.reason !== 'limit' || !hold.until || Date.parse(hold.until) > now) return;
     this.deliver(cardId, LIMIT_LIFTED, [], true);
   }
 
@@ -3176,7 +3171,7 @@ export class Workers {
   private pauseTakenBack(cardId: string) {
     clearTimeout(this.pausing.get(cardId));
     this.pausing.delete(cardId);
-    this.o.board.work(cardId, { pausing: null });
+    this.o.board.work(cardId, this.o.board.unheld(cardId, ['pausing']));
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.resumedByOwner);
     const live = this.live.get(cardId);
     if (live) live.pauseHeld = false;
@@ -3269,19 +3264,19 @@ export class Workers {
    * time it goes on where it stopped. A worker snoozed already only gets the new time.
    */
   snooze(cardId: string, until: string) {
-    const card = this.card(cardId);
-    if (card.snoozed) return this.o.board.snooze(cardId, { ...card.snoozed, until, ...(card.snoozed.by === 'agent' ? { moved: true as const } : {}) }, 'owner');
+    this.card(cardId);
+    const snoozed = this.o.board.snoozedOf(cardId);
+    if (snoozed) return this.o.board.snooze(cardId, { ...snoozed, until, ...(snoozed.by === 'agent' ? { moved: true as const } : {}) }, 'owner');
     // a message the worker had not taken in yet goes to it with the rest, after what a pause held already
     const pending = this.live.get(cardId)?.pending;
-    const held = this.pausedOf(cardId)?.held ?? [];
+    const held = this.heldFor(cardId)?.held ?? [];
     this.end(cardId);
     this.bump(cardId);
     clearTimeout(this.reconnecting.get(cardId));
     this.reconnecting.delete(cardId);
     clearTimeout(this.pausing.get(cardId));
     this.pausing.delete(cardId);
-    this.o.board.work(cardId, { paused: JSON.stringify({ held: [...held, ...(pending ? [pending] : [])] } satisfies PausedState), pausing: null });
-    this.o.board.snooze(cardId, { until, by: 'owner' });
+    this.o.board.snooze(cardId, { until, by: 'owner', held: [...held, ...(pending ? [pending] : [])] });
     this.parkLater(cardId);
   }
 
@@ -3314,10 +3309,10 @@ export class Workers {
     this.o.board.work(cardId, { unheard: JSON.stringify([...this.unheard(cardId), { said: [], text, images: [] }] satisfies Unheard[]) });
   }
 
-  /** What the owner's pause holds for the worker, or null when it is not paused. */
-  private pausedOf(cardId: string): PausedState | null {
-    const paused = this.o.board.row(cardId).paused;
-    return paused ? (JSON.parse(paused) as PausedState) : null;
+  /** The hold that keeps what Seismic has for the worker until it goes on, or null when none does. */
+  private heldFor(cardId: string): Holding | null {
+    const h = this.o.board.holdOf(cardId);
+    return h && (h.reason === 'paused' || h.reason === 'limit' || (h.reason === 'snoozed' && h.held)) ? h : null;
   }
 
   /** After a restart (`repo`: of this repository's agents alone): resume every card whose worker was in the middle of a turn. */
@@ -3334,9 +3329,10 @@ export class Workers {
       const row = this.o.board.row(i.id);
       const landed = landedOf(row);
       // a snoozed worker sleeps on until its time, a restart notwithstanding
-      if (row.snoozed && !(JSON.parse(row.snoozed) as Snooze).waiting) {
+      const hold = this.o.board.holdOf(i.id);
+      if (hold?.reason === 'snoozed' && !hold.waiting) {
         // the owner's snooze holds what Seismic has for the worker, as a pause does
-        if (row.paused) this.pausedOverRestart(i.id, landed);
+        if (hold.held) this.pausedOverRestart(i.id, landed);
         else {
           this.parkLater(i.id);
           // a restart it waited for after the landing has happened: that wakes it
@@ -3349,12 +3345,13 @@ export class Workers {
       }
       // about to pause at a safe point, it paused for the restart: it stays paused (an idea's or
       // Question card's agent, which a restart of this repository's agents leaves running, pauses by itself)
-      if (row.pausing && !row.paused && i.kind !== 'question' && i.state !== 'idea') {
-        this.o.board.work(i.id, { paused: JSON.stringify({} satisfies PausedState), pausing: null });
+      const pausing = hold?.reason === 'pausing' && i.kind !== 'question' && i.state !== 'idea';
+      if (pausing) {
+        this.o.board.work(i.id, { hold: holdNow('paused') });
         this.o.board.log(i.id, 'state', 'owner', this.o.board.t.worker.pausedByOwner);
       }
       // the owner's pause holds across the restart
-      if (row.paused || (row.pausing && i.kind !== 'question' && i.state !== 'idea')) {
+      if (pausing || hold?.reason === 'paused' || hold?.reason === 'limit') {
         this.pausedOverRestart(i.id, landed);
         continue;
       }
@@ -3722,9 +3719,9 @@ export class Workers {
    * (`takesLater`), unread until then; other words go into the session's input at once.
    */
   private deliver(cardId: string, text: string, images: string[] = [], owner = false, said: number[] = [], timeUp = false, met?: Awaited) {
-    const paused = this.pausedOf(cardId);
-    if (paused && !owner) {
-      this.o.board.work(cardId, { paused: JSON.stringify({ ...paused, held: [...(paused.held ?? []), { text, images }] } satisfies PausedState) });
+    const holding = this.heldFor(cardId);
+    if (holding && !owner) {
+      this.o.board.work(cardId, { hold: JSON.stringify({ ...holding, held: [...(holding.held ?? []), { text, images }] } satisfies Hold) });
       return;
     }
     // a snoozed worker wakes: at its time, by the owner's words, or (snoozed by itself) by whatever Seismic has for it
@@ -3740,20 +3737,23 @@ export class Workers {
     }
     const wokeText = woke ? wokeNote(woke, timeUp, owner, !!text, met) : '';
     // the owner's words let a worker about to pause go on, as they do a paused one
-    if (owner && this.o.board.row(cardId).pausing) {
+    if (owner && this.o.board.holdOf(cardId)?.reason === 'pausing') {
       this.pauseTakenBack(cardId);
       text = [PAUSE_TAKEN_BACK, text].filter(Boolean).join('\n\n');
     }
-    if (paused) {
-      if (paused.limit) {
+    if (holding) {
+      if (holding.reason === 'limit') {
         const attempts = new LimitAttempts();
-        attempts.count = paused.limit.attempts;
+        attempts.count = holding.attempts;
         this.limitAttempts.set(cardId, attempts);
-        this.o.board.work(cardId, { status_line: paused.limit.statusBefore ?? null });
+        this.o.board.work(cardId, { status_line: holding.statusBefore ?? null });
       }
-      this.o.board.work(cardId, { paused: null });
-      if (!woke) this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.resumedByOwner);
-      const held = paused.held ?? [];
+      // a snooze it woke from is gone already
+      if (!woke) {
+        this.o.board.work(cardId, { hold: null });
+        this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.resumedByOwner);
+      }
+      const held = holding.held ?? [];
       text = [woke ? wokeText : RESUMED, ...(held.length ? [`While you were ${woke ? 'snoozed' : 'paused'}, Seismic had this for you:\n\n${held.map((h) => h.text).join('\n\n---\n\n')}`] : []), ...(text ? [`Then:\n\n${text}`] : [])].join('\n\n');
       images = [...held.flatMap((h) => h.images), ...images];
     } else if (woke) text = [wokeText, text].filter(Boolean).join('\n\n');
@@ -3802,7 +3802,7 @@ export class Workers {
   private takesLater(cardId: string): boolean {
     if (this.preparingFor(cardId)) return true;
     const live = this.live.get(cardId);
-    return !!live && live.busy && !live.waiting && !this.stopping.has(cardId) && !this.pausedOf(cardId);
+    return !!live && live.busy && !live.waiting && !this.stopping.has(cardId) && !this.heldFor(cardId);
   }
 
   /** Whether the card's worker waits for git to make its workstation ready, without a session yet. */
@@ -4063,11 +4063,14 @@ export class Workers {
             const pending = live.pending;
             this.end(cardId);
             this.o.board.work(cardId, {
-              paused: JSON.stringify({
-                limit: { attempts: attempts.count, ...(live.limitReset ? { until: new Date(live.limitReset).toISOString() } : {}), statusBefore: before },
+              hold: JSON.stringify({
+                reason: 'limit',
+                since: new Date().toISOString(),
+                attempts: attempts.count,
+                ...(live.limitReset ? { until: new Date(live.limitReset).toISOString() } : {}),
+                statusBefore: before,
                 ...(pending ? { held: [pending] } : {}),
-              } satisfies PausedState),
-              pausing: null,
+              } satisfies Hold),
               status_line: t.worker.limitPaused,
             });
             this.o.board.log(cardId, 'state', 'obeya', `${e.message.replace(/\.?\s*$/, '.')} ${t.worker.limitPaused}`);
@@ -4138,11 +4141,11 @@ export class Workers {
     const row = this.o.board.row(cardId);
     // it snoozed: its session ends (its background work with it), and Seismic resumes it at the time;
     // on its handover the snooze answers the owner's words, so waking it is at work again
-    if (snoozed && !handedOver && !more && row.snoozed) {
+    if (snoozed && !handedOver && !more && this.o.board.snoozedOf(cardId)) {
       if (answering(card)) this.answerTaken(cardId, true);
       return this.end(cardId);
     }
-    if (row.pausing && !more) {
+    if (this.o.board.holdOf(cardId)?.reason === 'pausing' && !more) {
       // it paused at a safe point, as the owner asked: its session ends, and it goes on once they let it
       if (!background) return this.pausedAtSafePoint(cardId, card, !!row.approved_at, handedOver, spoke);
       // its background work keeps the owner waiting, and the turn it starts hears so
@@ -4349,9 +4352,9 @@ export class Workers {
    */
   private waitsForOwner(cardId: string): boolean {
     const card = this.o.board.item(cardId);
-    if (!card || !(card.state === 'waiting' || (card.state === 'inPr' && card.pr) || card.paused || card.snoozed)) return false;
+    if (!card || !(card.state === 'waiting' || (card.state === 'inPr' && card.pr) || isPaused(card) || snoozeOf(card))) return false;
     // paused while taking in the owner's words on its handover, nothing of it runs either
-    if ((answering(card) && !card.paused) || this.live.get(cardId)?.busy) return false;
+    if ((answering(card) && !isPaused(card) && !snoozeOf(card)) || this.live.get(cardId)?.busy) return false;
     const row = this.o.board.row(cardId);
     return !!row.workstation && !row.parked;
   }
@@ -4476,7 +4479,7 @@ export class Workers {
       }
       const row = this.o.board.row(cardId);
       const card = this.o.board.item(cardId);
-      if (!current() || !card || !row.workstation || (!row.session_id && !pending) || card.snoozed) return;
+      if (!current() || !card || !row.workstation || (!row.session_id && !pending) || snoozeOf(card)) return;
       const working = busy || card.state === 'working' || card.state === 'inPr' || answering(card) || !!row.landed;
       if (!pending && !working) return;
       this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.hostBack(there.host.name));
@@ -4606,7 +4609,7 @@ export class Workers {
       // a question or a handover after a snooze in the same turn: the card waits for the owner instead
       if (live.snoozed) {
         live.snoozed = false;
-        this.o.board.work(cardId, { snoozed: null });
+        this.o.board.work(cardId, this.o.board.unheld(cardId, ['snoozed']));
       }
     };
     /**
@@ -5213,7 +5216,7 @@ export class Workers {
           if (live.handedOver) return 'Not snoozed: you asked or handed over in this turn, so the card waits for the owner.';
           // taking in the owner's words on its handover, it may snooze as they ask (check again in three days): the handover stands meanwhile
           if (!(card.state === 'working' || card.state === 'inPr' || card.finishing || answering(card))) return 'Not snoozed: the card waits for the owner; their answer or approval comes as your next message.';
-          if (card.pausing) return 'Not snoozed: the owner pauses you; end your turn, and once they let you go on, snooze then if it is still due.';
+          if (isPausing(card)) return 'Not snoozed: the owner pauses you; end your turn, and once they let you go on, snooze then if it is still due.';
           const named = typeof until === 'string' && until.trim() !== '';
           const at = named ? Date.parse(String(until)) : NaN;
           if (named && Number.isNaN(at)) return 'Not snoozed: give the time as ISO 8601 with your timezone offset (2026-10-31T08:00:00+01:00).';

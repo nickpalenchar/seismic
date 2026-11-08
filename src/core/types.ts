@@ -79,21 +79,33 @@ export type AgentDoing = 'working' | 'building' | 'thinking' | 'debugging' | 'pr
 /** Whether the worker is at a stage of its demo, which its card shows in green. */
 export const demoStage = (d: AgentDoing) => d.endsWith('Demo');
 
+/** The owner or the usage limit paused the card's agent: it waits to be resumed (the limit's at its reset, too). */
+export const isPaused = (i: Pick<Item, 'hold'>) => i.hold?.reason === 'paused' || i.hold?.reason === 'limit';
+
+/** The owner asked the card's agent to pause once it has brought its work to a safe point. */
+export const isPausing = (i: Pick<Item, 'hold'>) => i.hold?.reason === 'pausing';
+
+/** The card's snooze, while it is snoozed. */
+export const snoozeOf = (i: Pick<Item, 'hold'>): (Snooze & { since: string }) | undefined => (i.hold?.reason === 'snoozed' ? i.hold : undefined);
+
+/** The owner moved the card into the parking lot: off the canvas, in the Agents sheet's Parked tab. */
+export const inParkingLot = (i: Pick<Item, 'hold'>) => i.hold?.reason === 'parkingLot';
+
 /** The card's agent is snoozed (by itself or the owner, "Later"): it stops until its time, and neither pauses nor resumes meanwhile. */
-const snoozedAway = (i: Pick<Item, 'snoozed'>) => !!i.snoozed && !i.snoozed.waiting;
+const snoozedAway = (i: Pick<Item, 'hold'>) => !!snoozeOf(i) && !snoozeOf(i)!.waiting;
 
 /** The card's agent runs a turn the owner can pause at once (the pause on the bubble of its turn), also while it is about to pause at a safe point. */
-export const pausableNow = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'inTurn' | 'paused' | 'snoozed'>) =>
-  !i.paused && !snoozedAway(i) && (i.kind === 'question' ? !!i.thread?.thinking : i.state === 'idea' && i.idea ? i.idea.thinking : !!i.inTurn);
+export const pausableNow = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'inTurn' | 'hold'>) =>
+  !isPaused(i) && !snoozedAway(i) && (i.kind === 'question' ? !!i.thread?.thinking : i.state === 'idea' && i.idea ? i.idea.thinking : !!i.inTurn);
 
 /** The card's agent is at work and can be paused, at a safe point (the card's pause, the project's) or at once; not one about to pause already. */
-export const pausable = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'inTurn' | 'paused' | 'pausing' | 'snoozed'>) => !i.pausing && pausableNow(i);
+export const pausable = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'inTurn' | 'hold'>) => !isPausing(i) && pausableNow(i);
 
-/** The owner paused the card's agent, and it waits for them to resume it; a snoozed one, which holds what comes for it as a paused one does, waits for its time instead. */
-export const resumable = (i: Pick<Item, 'paused' | 'snoozed'>) => !!i.paused && !snoozedAway(i);
+/** The owner paused the card's agent, and it waits for them to resume it; a snoozed one waits for its time instead. */
+export const resumable = (i: Pick<Item, 'hold'>) => isPaused(i);
 
 /** The card's agent is paused, or about to pause at a safe point: what the card's ▶ and the project's resume let go on. */
-export const halted = (i: Pick<Item, 'paused' | 'pausing' | 'snoozed'>) => (!!i.paused || !!i.pausing) && !snoozedAway(i);
+export const halted = (i: Pick<Item, 'hold'>) => isPaused(i) || isPausing(i);
 
 /**
  * A finished card an agent worked on, on the project, with no agent on it now: what the owner asks
@@ -129,7 +141,7 @@ export const mergeRank = (i: Item): number => i.archivedAt ? 4 : finished(i.stat
 
 /** Only an unworked task or proposal can start a merge and dissolve. */
 export const canMergeFrom = (i: Item) =>
-  i.kind === 'task' && !i.parent && !i.archivedAt && !i.mergingInto && !i.snoozed && !i.repoDown && !i.prototypeOf && !i.becomesPlan &&
+  i.kind === 'task' && !i.parent && !i.archivedAt && !i.mergingInto && !snoozeOf(i) && !i.repoDown && !i.prototypeOf && !i.becomesPlan &&
   !i.proposal?.merge && !i.proposal?.idea && !i.proposal?.revising && !i.proposal?.acceptAfterRevision &&
   (untouched(i) || (i.state === 'proposal' && !i.branch && !i.workstation));
 
@@ -139,7 +151,7 @@ export const merging = (i: Pick<Item, 'state' | 'proposal'>) => !!i.proposal?.me
 /** A merge starts at an unworked card; its partner may have reached any stage. */
 export const mergeableWith = (p: Item, i: Item) =>
   canMergeFrom(p) && i.id !== p.id && i.kind === 'task' && i.state !== 'idea' && !i.parent &&
-  !i.mergingInto && !i.snoozed && !i.repoDown && !i.prototypeOf && !i.becomesPlan &&
+  !i.mergingInto && !snoozeOf(i) && !i.repoDown && !i.prototypeOf && !i.becomesPlan &&
   !i.proposal?.idea && !i.proposal?.merge && !i.proposal?.revising && !i.proposal?.acceptAfterRevision;
 
 /**
@@ -233,7 +245,7 @@ export const agentFailed = (i: Pick<Item, 'state' | 'need' | 'question' | 'answe
  * handover and questions while an unworked partner waits for the comparison.
  */
 export const needsYou = (i: Item) =>
-  !i.snoozed &&
+  !snoozeOf(i) &&
   (!i.mergingInto || mergeRank(i) > 1) &&
   ((!!i.proposal?.merge && !merging(i)) || (i.state === 'waiting' && !answering(i) && !i.landing && !(i.need !== 'question' && i.codeReview?.state === 'running')) || (i.state === 'proposal' && !i.proposal?.revising && !merging(i)) || !!i.superseded || (i.state === 'inPr' && [i.pr, ...(i.morePrs ?? [])].some((p) => p?.ready && !p.merged && !p.closed)) || (!!i.idea && i.idea.status === 'open' && i.idea.yourTurn && !i.idea.thinking));
 
@@ -257,7 +269,7 @@ export type Woke = 'time' | 'owner' | 'news' | 'needsYou' | { met: Awaited };
  */
 export function awaited(card: Item | undefined, state: AwaitedState): Awaited | null {
   if (!card) return 'gone';
-  if (finished(card.state) || (state === 'waitsForOwner' && needsYou({ ...card, snoozed: undefined }))) return 'reached';
+  if (finished(card.state) || (state === 'waitsForOwner' && needsYou({ ...card, hold: undefined }))) return 'reached';
   if (card.archivedAt) return 'archived';
   if (stopped(card)) return 'stopped';
   if (card.idea?.status === 'dropped') return 'dropped';
@@ -268,22 +280,22 @@ export function awaited(card: Item | undefined, state: AwaitedState): Awaited | 
 const workerAtWork = (i: Item) => i.kind === 'task' && (i.state === 'working' || i.state === 'inPr' || !!i.finishing || answering(i));
 
 /** A task planned and not with the Koordinator: snoozed, it starts at the time instead of now. */
-export const plannedToStart = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'parkingLot'>) => i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt && !i.parkingLot;
+export const plannedToStart = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'hold'>) => i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt && !inParkingLot(i);
 
 /** A task of the owner's that nothing runs for (planned or stopped, not queued) can go into the parking lot. */
-export const parkable = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'parkingLot' | 'parent' | 'prototypeOf'>) =>
-  i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt && !i.parkingLot && !i.parent && !i.prototypeOf;
+export const parkable = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'hold' | 'parent' | 'prototypeOf'>) =>
+  i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt && !inParkingLot(i) && !i.parent && !i.prototypeOf;
 
 /** A task of the owner's that waits for them (a handover, a question) goes into the parking lot too, stopped on the way. */
-export const parkableStopping = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'parkingLot' | 'parent' | 'prototypeOf' | 'landing' | 'finishing'>) =>
-  i.kind === 'task' && i.state === 'waiting' && !i.landing && !i.finishing && !i.queue && !i.archivedAt && !i.parkingLot && !i.parent && !i.prototypeOf;
+export const parkableStopping = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'hold' | 'parent' | 'prototypeOf' | 'landing' | 'finishing'>) =>
+  i.kind === 'task' && i.state === 'waiting' && !i.landing && !i.finishing && !i.queue && !i.archivedAt && !inParkingLot(i) && !i.parent && !i.prototypeOf;
 
 /**
  * A card the owner can snooze until a point in time ("Later"): one at work (its worker stops
  * until then, as on a pause), one that waits for them (it leaves them until then), or one planned
  * (it starts then); a snoozed card's time can be changed.
  */
-export const snoozable = (i: Item) => !i.archivedAt && (!!i.snoozed || needsYou(i) || workerAtWork(i) || plannedToStart(i));
+export const snoozable = (i: Item) => !i.archivedAt && (!!snoozeOf(i) || needsYou(i) || workerAtWork(i) || plannedToStart(i));
 
 /** Answers in the Koordinator's sheet the owner has not seen yet. */
 export const unreadAnswers = (talk: Talk[]) => talk.filter((x) => x.unread).length;
@@ -305,7 +317,7 @@ export const waitingOn = (s: Pick<ProjectSnapshot, 'items' | 'talk'>) => s.items
  */
 export type Waiting = Pick<ProjectSnapshot, 'items' | 'talk'> & Partial<Pick<ProjectSnapshot, 'preferences' | 'settingProposals' | 'project'>> & { proposalItems?: Item[] };
 export const waitingIn = (s: Pick<ProjectSnapshot, 'items' | 'talk'> & Partial<Pick<ProjectSnapshot, 'preferences' | 'settingProposals' | 'project'>>): Waiting => ({
-  items: s.items.filter((i) => needsYou(i) || !!i.snoozed?.waiting),
+  items: s.items.filter((i) => needsYou(i) || !!snoozeOf(i)?.waiting),
   talk: s.talk.filter((x) => x.unread),
   preferences: s.preferences, settingProposals: s.settingProposals, project: s.project, proposalItems: s.items.filter((i) => s.preferences?.some((p) => p.state === 'proposed' && p.cardId === i.id) || s.settingProposals?.some((p) => p.cards.some((c) => c.id === i.id))),
 });
@@ -516,27 +528,10 @@ export interface Item {
    * the Koordinator naming or checking it) waits for the account's usage limit: it goes on by itself then (ISO time).
    */
   limitedUntil?: string;
-  /** Three consecutive usage-limit refusals: paused until a known reset or a manual attempt. */
-  limitPaused?: true;
   /** Since when it waits for the owner (`needsYou`), for the phone view's "Needs you". */
   waitingSince?: string;
-  /**
-   * The owner paused the card's agent (its worker, the idea's agent, the Question card's agent):
-   * nothing of it runs, its session stays, and it goes on where it stopped with "Resume" or
-   * the owner's next words to it.
-   */
-  paused?: true;
-  /**
-   * The owner asked the card's agent to pause once it has brought its work to a safe point (the
-   * card's pause, the project's): it works on until its turn ends, and is `paused` then.
-   */
-  pausing?: true;
-  /** Its worker paused for a restart that is due (Seismic's, or its repository's agents'): it goes on by itself once that happened. */
-  restartPaused?: true;
-  /** Set aside until a point in time: nothing of its agent runs, and it does not wait for the owner meanwhile. */
-  snoozed?: Snooze;
-  /** Since when the owner parked it (ISO): off the canvas, in the Agents sheet's Parked tab, planned or stopped as before. */
-  parkingLot?: string;
+  /** Why the card's agent does not run now, or why the card is off the canvas: one reason at a time (`ItemHold`). */
+  hold?: ItemHold;
   /**
    * Where the app in the card's workstation runs, as its worker opens it (`http://localhost:5173`):
    * while the worker says it runs and Seismic has not stopped it. The card offers it to the owner to
@@ -596,11 +591,59 @@ export interface Item {
   suggested?: Label[];
 }
 
+/** A message Seismic holds for a paused or snoozed agent: it hears it once it goes on. */
+export interface HeldMessage {
+  text: string;
+  images: string[];
+}
+
+/**
+ * Why the card's agent does not run now, or why the card is off the canvas, as stored
+ * (`CardRow.hold`): one reason at a time, since when, and what that reason carries. Setting one
+ * replaces the one before (a snooze replaces a pause and keeps what it held).
+ *
+ * - `pausing`: the owner asked the agent to pause once its work is at a safe point; it works on
+ *   until its turn ends, and is `paused` then.
+ * - `paused`: the owner paused the agent (its worker, the idea's, the Question card's): nothing of it
+ *   runs, its session stays, and it goes on where it stopped with "Resume" or the owner's next words.
+ * - `limit`: three consecutive usage-limit refusals paused the worker until the known reset
+ *   (`until`) or a manual attempt; `attempts` and the status line before (`statusBefore`) are
+ *   restored when it goes on.
+ * - `snoozed`: set aside until a point in time or another card (`Snooze`).
+ * - `parkingLot`: the owner moved the card off the canvas, into the Agents sheet's Parked tab.
+ *
+ * `held`: what Seismic had for the agent meanwhile; a pause and a limit always hold it, a snooze
+ * only where the owner snoozed a worker (one that snoozed itself is woken by it instead).
+ */
+export type Hold =
+  | { reason: 'pausing'; since: string }
+  | { reason: 'paused'; since: string; held?: HeldMessage[] }
+  | { reason: 'limit'; since: string; until?: string; attempts: number; statusBefore?: string | null; held?: HeldMessage[] }
+  | (Snooze & { reason: 'snoozed'; since: string; held?: HeldMessage[] })
+  | { reason: 'parkingLot'; since: string };
+
+export type HoldReason = Hold['reason'];
+
+/** The holds on a card's agent, which its start, stop and landing let go of; not the parking lot, which holds the card. */
+export const AGENT_HOLDS: readonly HoldReason[] = ['pausing', 'paused', 'limit', 'snoozed'];
+
+/**
+ * A card's hold as the UI and the agents see it: the stored one without what it holds for the agent,
+ * or, with none stored, `restart` while its worker paused for a restart that is due (it goes on by
+ * itself once that happened), and `limit` without a time for an idea's or Question card's agent the
+ * usage limit paused.
+ */
+export type ItemHold =
+  | { reason: 'pausing' | 'paused' | 'parkingLot'; since: string }
+  | { reason: 'limit'; since?: string; until?: string }
+  | (Snooze & { reason: 'snoozed'; since: string })
+  | { reason: 'restart' };
+
 /** A year: no card is snoozed longer, nor set to start later than that. */
 export const SNOOZE_LIMIT = 366 * 24 * 60 * 60_000;
 
 /**
- * A card set aside until a point in time (`CardRow.snoozed`): by its worker, which has nothing to do
+ * A card set aside until a point in time (a `snoozed` hold): by its worker, which has nothing to do
  * until then (a test that runs for days, a check at midnight), or by the owner; or by its worker
  * until another card reaches a state (`on`). Seismic holds the time and the card and wakes it then;
  * the owner's words, "Wake now", or what Seismic has for an agent that snoozed itself wake it

@@ -56,7 +56,7 @@ test('a workstream waits for the open ones it builds on, started or not; a deliv
 });
 
 test('a card snoozed until another card gets somewhere waits for that card', () => {
-  const snoozed = { ...card('R'), snoozed: { on: { card: 'F', title: 'F', state: 'done' }, by: 'agent' } } as Item;
+  const snoozed = { ...card('R'), hold: { reason: 'snoozed', since: '2026-11-01', on: { card: 'F', title: 'F', state: 'done' }, by: 'agent' } } as Item;
   const all = [card('F'), snoozed, card('S', 'R')];
   const d = depsOf('R', all)!;
   expect([...d.before]).toEqual(['F']);
@@ -66,7 +66,7 @@ test('a card snoozed until another card gets somewhere waits for that card', () 
 });
 
 test('every direct wait on the project, of all kinds, not the chain; a finished card is waited for no longer', () => {
-  const snoozed = { ...card('R'), snoozed: { on: { card: 'A', title: 'A', state: 'done' }, by: 'agent' } } as Item;
+  const snoozed = { ...card('R'), hold: { reason: 'snoozed', since: '2026-11-01', on: { card: 'A', title: 'A', state: 'done' }, by: 'agent' } } as Item;
   const drawn = { ...card('M'), manualDependsOn: ['B'] } as Item;
   const done = { ...card('F'), state: 'done' } as Item;
   const all = [...items, snoozed, drawn, done, card('G', 'F'), { ...card('H'), state: 'live', manualDependsOn: ['A'] } as Item];
@@ -117,7 +117,7 @@ test("a finished card's dependencies stay as dim green lines, in a plan or not",
 test('a queued or snoozed card keeps its line from a finished card while it still records it', () => {
   const done = { ...card('F'), state: 'live' } as Item;
   const queued = card('Q', 'F');
-  const snoozed = { ...card('S'), snoozed: { on: { card: 'F', title: 'F', state: 'done' }, by: 'agent' } } as Item;
+  const snoozed = { ...card('S'), hold: { reason: 'snoozed', since: '2026-11-01', on: { card: 'F', title: 'F', state: 'done' }, by: 'agent' } } as Item;
   expect(settledAmong([done, queued, snoozed])).toEqual([
     { from: 'F', to: 'Q' },
     { from: 'F', to: 'S' },

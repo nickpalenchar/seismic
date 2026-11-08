@@ -13,10 +13,10 @@ import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { oneAtATime } from '../core/one-at-a-time';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { type AnswerFile, type AnswerRef, type CardEvent, type Item, pausable, pausableNow, type Talk, type TalkRef } from '../core/types';
+import { type AnswerFile, type AnswerRef, type CardEvent, type Item, pausable, pausableNow, type Talk, type TalkRef, isPaused, isPausing } from '../core/types';
 import type { AgentAt, AgentIdentity } from '../core/types';
 import { type Briefing, INFORM_RULES, inform, Interrupted, type OwnerAnswer } from './advisor';
-import { BadRequest, type Board, replyNote } from './board';
+import { BadRequest, type Board, holdNow, replyNote } from './board';
 import { imageNote } from './images';
 import type { PlanAgents } from './plan-agents';
 import type { AgentRuntime } from './runtime';
@@ -157,8 +157,8 @@ export class Answers {
     const thread = this.o.board.thread(cardId);
     const pending = [...(thread.pending ?? []), { text: spoken ? `(${SPOKEN}:) ${said}` : said, images, said: [e.id], ...(talk ? { talk } : {}) }];
     // the owner's words let a paused agent go on, with what it had not answered yet, and one about to pause read on
-    if (card.paused) this.goOn(cardId);
-    else if (card.pausing) this.pauseTakenBack(cardId);
+    if (isPaused(card)) this.goOn(cardId);
+    else if (isPausing(card)) this.pauseTakenBack(cardId);
     this.o.board.setThread(cardId, { thinking: true, pending });
     this.waiting.get(cardId)?.();
     this.queue(thread.talk, () => this.cardTurn(card.id));
@@ -171,7 +171,7 @@ export class Answers {
    */
   pause(cardId: string) {
     const card = this.questionCard(cardId);
-    if (!pausableNow(card)) throw new BadRequest('noAgent', card.paused ? 'the agent is paused already' : 'the agent is not working on anything');
+    if (!pausableNow(card)) throw new BadRequest('noAgent', isPaused(card) ? 'the agent is paused already' : 'the agent is not working on anything');
     this.halt(cardId);
     this.turnEnds.get(cardId)?.abort();
   }
@@ -183,15 +183,15 @@ export class Answers {
    */
   pauseAtSafePoint(cardId: string) {
     const card = this.questionCard(cardId);
-    if (!pausable(card)) throw new BadRequest('noAgent', card.paused || card.pausing ? 'the agent is paused already' : 'the agent is not working on anything');
+    if (!pausable(card)) throw new BadRequest('noAgent', isPaused(card) || isPausing(card) ? 'the agent is paused already' : 'the agent is not working on anything');
     if (!this.reading.has(cardId)) return this.halt(cardId);
-    this.o.board.work(cardId, { pausing: new Date().toISOString() });
+    this.o.board.work(cardId, { hold: holdNow('pausing') });
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.pausing);
   }
 
   /** Pauses the agent: what it was asked and has not answered stays pending. */
   private halt(cardId: string) {
-    this.o.board.work(cardId, { paused: '{}', pausing: null });
+    this.o.board.work(cardId, { hold: holdNow('paused') });
     this.o.board.setThread(cardId, { thinking: false });
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.pausedByOwner);
   }
@@ -199,8 +199,8 @@ export class Answers {
   /** The owner lets the paused agent go on: it answers what it was asked. One about to pause after its answer reads on instead. */
   resume(cardId: string) {
     const card = this.questionCard(cardId);
-    if (card.pausing) return this.pauseTakenBack(cardId);
-    if (!card.paused) throw new BadRequest('notPaused', 'the agent is not paused');
+    if (isPausing(card)) return this.pauseTakenBack(cardId);
+    if (!isPaused(card)) throw new BadRequest('notPaused', 'the agent is not paused');
     this.goOn(cardId);
     const thread = this.o.board.thread(cardId);
     // the owner may have taken back all it was asked meanwhile
@@ -211,12 +211,12 @@ export class Answers {
 
   /** The owner lets the agent about to pause after its answer read on after all (`resume`, or their words to it). */
   private pauseTakenBack(cardId: string) {
-    this.o.board.work(cardId, { pausing: null });
+    this.o.board.work(cardId, this.o.board.unheld(cardId, ['pausing']));
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.resumedByOwner);
   }
 
   private goOn(cardId: string) {
-    this.o.board.work(cardId, { paused: null });
+    this.o.board.work(cardId, this.o.board.unheld(cardId, ['paused', 'limit']));
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.resumedByOwner);
     this.resumed.add(cardId);
   }
@@ -240,7 +240,7 @@ export class Answers {
     for (const i of this.o.board.items()) {
       if (i.kind !== 'question' || !i.thread?.thinking) continue;
       // about to pause after its answer, which the restart cut off: it stays paused, what it was asked pending
-      if (i.pausing) {
+      if (isPausing(i)) {
         this.halt(i.id);
         continue;
       }
@@ -300,7 +300,7 @@ export class Answers {
     const stored = card?.kind === 'question' ? this.o.board.thread(cardId) : undefined;
     const taken = [...(stored?.pending ?? [])];
     // paused while it waited for its turn: it goes on once the owner lets it
-    if (!card || !stored || !taken.length || card.paused) return;
+    if (!card || !stored || !taken.length || isPaused(card)) return;
     const root = this.o.board.exchange(stored.talk);
     if (!root?.question) return;
     const { by, about, plan } = this.agentFor(root);
@@ -367,7 +367,7 @@ export class Answers {
       this.o.board.setThread(cardId, { answers: now.answers + 1, files: now.files + (a.files?.length ?? 0), thinking: left.length > 0, pending: left });
     }
     // the owner asked it to pause once its answer was given: what was asked meanwhile waits for them to let it go on
-    if (this.o.board.row(cardId).pausing) this.halt(cardId);
+    if (this.o.board.holdOf(cardId)?.reason === 'pausing') this.halt(cardId);
     this.o.board.notify({ cardId, text, inTalk: true });
     for (const p of taken) if (p.talk) this.answer(p.talk, root.question, text, by, a.files, a.agent);
   }

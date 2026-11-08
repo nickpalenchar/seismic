@@ -30,11 +30,11 @@ describe('the parking lot', () => {
   test('a planned task is parked, stays planned, leaves the Agents sheet\'s All tab and comes back', () => {
     const c = project.board.create({ title: 'Later', x: 0, y: 0 });
     project.act(c.id, { action: 'park' });
-    expect(item(c.id).parkingLot).toBeTruthy();
+    expect(item(c.id)?.hold?.reason).toBe('parkingLot');
     expect(item(c.id).state).toBe('planned');
     expect(agentStage(item(c.id))).toBeUndefined();
     project.act(c.id, { action: 'unpark' });
-    expect(item(c.id).parkingLot).toBeUndefined();
+    expect(item(c.id)?.hold?.reason).not.toBe('parkingLot');
     expect(agentStage(item(c.id))).toBe('planned');
   });
 
@@ -42,7 +42,7 @@ describe('the parking lot', () => {
     const c = project.board.create({ title: 'Later', x: 0, y: 0 });
     project.act(c.id, { action: 'park' });
     await project.act(c.id, { action: 'start' });
-    expect(item(c.id).parkingLot).toBeUndefined();
+    expect(item(c.id)?.hold?.reason).not.toBe('parkingLot');
   });
 
   test('a card that is parked already cannot be parked again', () => {
@@ -62,6 +62,6 @@ describe('the parking lot', () => {
     expect(item(c.id).state).toBe('waiting');
     await project.act(c.id, { action: 'park' });
     expect(item(c.id).state).toBe('planned');
-    expect(item(c.id).parkingLot).toBeTruthy();
+    expect(item(c.id)?.hold?.reason).toBe('parkingLot');
   });
 });

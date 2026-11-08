@@ -2,20 +2,20 @@
 // Card sizes): its kind, the line under its title, its state line with its marks, the pin while it
 // needs the owner, and the classes and colour of its state.
 
-import { agentFailed, answering, demoStage, finishingUp, handedOver, type Item, merging, needsYou, openQuestions, type PullRequest } from '../../core/types';
+import { agentFailed, answering, demoStage, finishingUp, handedOver, type Item, merging, needsYou, openQuestions, type PullRequest, snoozeOf, isPaused, isPausing, inParkingLot } from '../../core/types';
 import { excerpt, plain } from '../markdown';
 import { waitReason } from '../queue';
 import { snoozeWho } from '../snooze';
 import { becomesLabel, clock, snoozeWhen, stateLabel, t } from '../strings';
 
 /** Whether the card's state reads "Question for you": its agent asks and waits for the answer. */
-export const asksYou = (i: Item) => i.state === 'waiting' && i.need === 'question' && !agentFailed(i) && !i.answering && !i.answered && !i.paused && !i.pausing && !i.snoozed;
+export const asksYou = (i: Item) => i.state === 'waiting' && i.need === 'question' && !agentFailed(i) && !i.answering && !i.answered && !isPaused(i) && !isPausing(i) && !snoozeOf(i);
 
 /**
  * The colour a card's state gives its unfolded sheet: a snoozed card's is pencil grey, as on the
  * project; a demo whose worker takes in the owner's answer is at work.
  */
-export const shownState = (i: Item) => (i.snoozed ? 'muted' : i.kind === 'question' ? 'question' : answering(i) ? 'working' : agentFailed(i) ? 'error' : asksYou(i) ? 'asking' : i.state);
+export const shownState = (i: Item) => (snoozeOf(i) ? 'muted' : i.kind === 'question' ? 'question' : answering(i) ? 'working' : agentFailed(i) ? 'error' : asksYou(i) ? 'asking' : i.state);
 
 /**
  * The colour of a card's state in a list (S and XS), as its card on the project shows it: paused grey,
@@ -24,11 +24,11 @@ export const shownState = (i: Item) => (i.snoozed ? 'muted' : i.kind === 'questi
 export const cardTone = (i: Item, underway?: string): string =>
   underway || i.landing
     ? 'approved'
-    : i.snoozed || i.paused || i.parkingLot
+    : snoozeOf(i) || isPaused(i) || inParkingLot(i)
       ? 'muted'
       : i.kind === 'question'
         ? 'question'
-        : i.restartPaused || (i.queue && 'restart' in i.queue)
+        : (i.hold?.reason === 'restart') || (i.queue && 'restart' in i.queue)
           ? 'restart'
           : answering(i) || finishingUp(i)
             ? 'working'
@@ -57,11 +57,11 @@ export const cardClass = (item: Item, underway?: string) =>
     answering(item) && 'answering',
     asksYou(item) && 'asking',
     finishingUp(item) && 'finishing',
-    item.paused && 'paused',
-    item.restartPaused && 'restart-paused',
+    isPaused(item) && 'paused',
+    (item.hold?.reason === 'restart') && 'restart-paused',
     item.resolvingConflicts && 'resolving-conflicts',
-    (item.limitPaused || item.limitedUntil) && 'limit-paused',
-    item.snoozed && 'snoozed',
+    ((item.hold?.reason === 'limit') || item.limitedUntil) && 'limit-paused',
+    snoozeOf(item) && 'snoozed',
     item.queue && 'queued',
     item.queue && 'restart' in item.queue && 'restart-queued',
   ]
@@ -109,7 +109,7 @@ const firstLine = (md: string) =>
     .find(Boolean) ?? '';
 
 /** What the card's worker is doing in its turn, after its state line: a stage of its demo in green. */
-const doingNow = (item: Item) => (item.inTurn && !item.paused ? item.doing : undefined);
+const doingNow = (item: Item) => (item.inTurn && !isPaused(item) ? item.doing : undefined);
 
 /** A mark before the state: parked off the canvas, a usage limit waited out, a snooze, a restart due, a start waiting for a restart, a question for the owner. */
 export type StateMark = 'parked' | 'limit' | 'snooze' | 'restart' | 'restartQueue' | 'question';
@@ -159,9 +159,9 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
   const asked = openQuestions(item)[0]?.text;
   const meta =
     (item.repoDown ? t.repoDown.short : undefined) ??
-    (item.snoozed ? snoozeWho(item.snoozed) : undefined) ??
+    (snoozeOf(item) ? snoozeWho(snoozeOf(item)!) : undefined) ??
     (item.superseded ? (item.superseded.by ? t.superseded.byShort(plain(item.superseded.title ?? '')) : t.superseded.withdrawnShort) : undefined) ??
-    (item.limitPaused ? t.limitPaused : undefined) ??
+    ((item.hold?.reason === 'limit') ? t.limitPaused : undefined) ??
     (item.limitedUntil ? t.limitedUntil(clock(item.limitedUntil)) : undefined) ??
     (item.kind === 'question' && item.thread ? t.question.count(item.thread.answers, item.thread.files) : undefined) ??
     (asked === undefined ? undefined : excerpt(asked)) ??
@@ -174,10 +174,10 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
   const marks: StateMark[] = underway
     ? []
     : [
-        ...((item.parkingLot ? ['parked'] : []) as StateMark[]),
-        ...((item.limitPaused || item.limitedUntil ? ['limit'] : []) as StateMark[]),
-        ...((item.snoozed ? ['snooze'] : []) as StateMark[]),
-        ...((item.restartPaused ? ['restart'] : []) as StateMark[]),
+        ...((inParkingLot(item) ? ['parked'] : []) as StateMark[]),
+        ...(((item.hold?.reason === 'limit') || item.limitedUntil ? ['limit'] : []) as StateMark[]),
+        ...((snoozeOf(item) ? ['snooze'] : []) as StateMark[]),
+        ...(((item.hold?.reason === 'restart') ? ['restart'] : []) as StateMark[]),
         ...((item.queue && 'restart' in item.queue ? ['restartQueue'] : []) as StateMark[]),
         ...((asksYou(item) && !revising && !item.proposal?.merge ? ['question'] : []) as StateMark[]),
       ];

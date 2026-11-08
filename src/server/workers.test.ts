@@ -661,10 +661,10 @@ describe('workers', () => {
     expect(board.item(c.id)!.limitedUntil).toBeDefined();
     workers.resume(c.id);
     fail();
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
     workers.resume(c.id);
     fail();
-    expect(board.item(c.id)).toMatchObject({ paused: true, limitPaused: true });
+    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'limit' } });
     expect(board.item(c.id)!.limitedUntil).toBeUndefined();
     expect(workers.busyCards()).toEqual([]);
     expect(runtime.last.closed).toBe(true);
@@ -675,8 +675,8 @@ describe('workers', () => {
     workers.resume(c.id);
     await until(() => runtime.sessions.length > before);
     fail();
-    expect(board.item(c.id)).toMatchObject({ paused: true, limitPaused: true });
-    expect(JSON.parse(board.row(c.id).paused!).limit.attempts).toBe(4);
+    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'limit' } });
+    expect(JSON.parse(board.row(c.id).hold!).attempts).toBe(4);
   });
 
   test('a known reset wakes a capped worker only once; successful work clears the retry budget', async () => {
@@ -689,21 +689,21 @@ describe('workers', () => {
       runtime.last.emit({ type: 'error', message: 'Session limit', limit: { resetsAt: reset } });
       runtime.last.emit({ type: 'idle' });
     }
-    expect(board.item(c.id)).toMatchObject({ paused: true, limitPaused: true });
+    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'limit' } });
     const before = runtime.sessions.length;
     workers.wakeLimit(c.id, reset - 1);
     expect(runtime.sessions.length).toBe(before);
     workers.wakeLimit(c.id, reset + 11_000);
     await until(() => runtime.sessions.length > before);
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
     workers.wakeLimit(c.id, reset + 11_000);
     expect(runtime.sessions.length).toBe(before + 1);
     runtime.last.emit({ type: 'text', text: 'Continuing the export.' });
-    expect(board.item(c.id)!.limitPaused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('limit');
     expect(board.item(c.id)!.statusLine).toBe('Exporting');
     runtime.last.emit({ type: 'error', message: 'Session limit', limit: {} });
     runtime.last.emit({ type: 'idle' });
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
   });
 
   test('a worker the usage limit stopped goes on by itself once the limit lifts', async () => {
@@ -1558,7 +1558,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     workers.pause(c.id);
     expect(session.closed).toBe(true);
     expect(workers.busyCards()).toEqual([]);
-    expect(board.item(c.id)).toMatchObject({ state: 'working', paused: true });
+    expect(board.item(c.id)).toMatchObject({ state: 'working', hold: { reason: 'paused' } });
     expect(board.row(c.id)).toMatchObject({ workstation, branch, session_id: 'sess-1' });
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Paused.' });
     expect(() => workers.pause(c.id)).toThrow(BadRequest);
@@ -1569,7 +1569,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(runtime.last.spec.resume).toBe('sess-1');
     expect(runtime.last.inbox[0]).toContain('The owner paused you and has now let you go on');
     expect(runtime.last.inbox[0]).toContain('exit code 137');
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Resumed.' });
     expect(workers.busyCards().length).toBeGreaterThan(0);
     expect(() => workers.resume(c.id)).toThrow(BadRequest);
@@ -1582,7 +1582,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(runtime.last.spec.resume).toBe('sess-1');
     expect(runtime.last.inbox[0]).toContain('The owner paused you and has now let you go on');
     expect(runtime.last.inbox[0]).toContain('A note from the owner (with which they let you go on):\n\nNimm lieber CSV.');
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
   });
 
   test("what Seismic has for a paused worker waits until it goes on, and so does a message it had not taken in", async () => {
@@ -1592,7 +1592,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     const n = runtime.sessions.length;
     workers.prEvent(c.id, 'Check rot.', 'A check of your pull request failed: test.');
     expect(runtime.sessions.length).toBe(n);
-    expect(board.item(c.id)!.paused).toBe(true);
+    expect(board.item(c.id)?.hold?.reason).toBe('paused');
     workers.resume(c.id);
     const first = runtime.last.inbox[0]!;
     expect(first).toContain('While you were paused, Seismic had this for you');
@@ -1607,7 +1607,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     const n = runtime.sessions.length;
     workers.resumeAll();
     expect(runtime.sessions.length).toBe(n);
-    expect(board.item(c.id)!.paused).toBe(true);
+    expect(board.item(c.id)?.hold?.reason).toBe('paused');
     workers.resume(c.id);
     expect(runtime.last.spec.resume).toBe('sess-1');
   });
@@ -1617,9 +1617,9 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     workers.pause(c.id);
     await workers.stop(c.id);
     expect(state(c.id)).toBe('planned');
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
     await workers.start(c.id);
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
     expect(workers.busyCards().length).toBeGreaterThan(0);
   });
 
@@ -1646,7 +1646,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     workers.prEvent(c.id, 'Kommentar.', 'A review comment on your pull request: use CSV.');
     expect(board.item(c.id)!.inTurn).toBe(true);
     workers.pause(c.id);
-    expect(board.item(c.id)).toMatchObject({ state: 'inPr', paused: true });
+    expect(board.item(c.id)).toMatchObject({ state: 'inPr', hold: { reason: 'paused' } });
     expect(board.item(c.id)!.inTurn).toBeUndefined();
     workers.resume(c.id);
     expect(runtime.last.inbox[0]).toContain('The owner paused you and has now let you go on');
@@ -1667,7 +1667,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     const session = runtime.last;
     workers.pause(c.id);
     expect(session.closed).toBe(true);
-    expect(board.item(c.id)).toMatchObject({ state: 'waiting', need: 'demo', answering: true, paused: true, summary: 'Export gebaut.' });
+    expect(board.item(c.id)).toMatchObject({ state: 'waiting', need: 'demo', answering: true, hold: { reason: 'paused' }, summary: 'Export gebaut.' });
     expect(board.item(c.id)!.inTurn).toBeUndefined();
 
     workers.resume(c.id);
@@ -1676,7 +1676,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     // the words it had not taken in yet go along
     expect(runtime.last.inbox[0]).toContain('Bitte mit Kopfzeile.');
     expect(board.item(c.id)).toMatchObject({ state: 'waiting', answering: true, inTurn: true });
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
     await runtime.last.call('ready_for_review', { summary: 'Mit Kopfzeile.', demo: artifact() });
     runtime.last.emit({ type: 'idle' });
     expect(board.item(c.id)).toMatchObject({ state: 'waiting', need: 'demo' });
@@ -1698,7 +1698,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(runtime.last.inbox[0]).toContain('The owner paused you and has now let you go on');
     expect(runtime.last.inbox[0]).toContain('Und Fußzeile.');
     expect(board.item(c.id)).toMatchObject({ state: 'waiting', answering: true, inTurn: true });
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
   });
 
   test('pausing at a safe point tells the worker, which ends its turn once its step is done, and is paused then', async () => {
@@ -1708,8 +1708,8 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(session.closed).toBe(false);
     expect(session.inbox.at(-1)).toContain('The owner pauses you now');
     expect(session.inbox.at(-1)).toContain('after at most 15 minutes');
-    expect(board.item(c.id)).toMatchObject({ state: 'working', pausing: true, inTurn: true });
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)).toMatchObject({ state: 'working', hold: { reason: 'pausing' }, inTurn: true });
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
     expect(pausable(board.item(c.id)!)).toBe(false);
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Pausing once the work is at a safe point.' });
     expect(() => workers.pauseAtSafePoint(c.id)).toThrow('paused already');
@@ -1717,13 +1717,13 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     session.emit({ type: 'idle' });
     // no nudge and no question to the owner: it paused
     expect(session.closed).toBe(true);
-    expect(board.item(c.id)).toMatchObject({ state: 'working', paused: true });
-    expect(board.item(c.id)!.pausing).toBeUndefined();
+    expect(board.item(c.id)).toMatchObject({ state: 'working', hold: { reason: 'paused' } });
+    expect(board.item(c.id)?.hold?.reason).not.toBe('pausing');
     expect(board.item(c.id)!.question).toBeUndefined();
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Paused.' });
     workers.resume(c.id);
     expect(runtime.last.spec.resume).toBe('sess-1');
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
   });
 
   test('a worker about to pause can still be paused at once', async () => {
@@ -1732,8 +1732,8 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     workers.pauseAtSafePoint(c.id);
     workers.pause(c.id);
     expect(session.closed).toBe(true);
-    expect(board.item(c.id)).toMatchObject({ paused: true });
-    expect(board.item(c.id)!.pausing).toBeUndefined();
+    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'paused' } });
+    expect(board.item(c.id)?.hold?.reason).not.toBe('pausing');
   });
 
   test('a worker about to pause with its render still running hears, when the render wakes it, that the owner still waits', async () => {
@@ -1742,14 +1742,14 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     workers.pauseAtSafePoint(c.id);
     expect(session.toolStep()).toBeUndefined();
     session.emit({ type: 'idle', background: 1 });
-    expect(board.item(c.id)).toMatchObject({ pausing: true });
+    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'pausing' } });
     expect(session.closed).toBe(false);
     session.emit({ type: 'tool', name: 'Bash', input: { command: 'tail -2 render.log' } });
     expect(session.toolStep()).toContain('The owner still waits for you to pause');
     expect(session.toolStep()).toBeUndefined();
     session.emit({ type: 'idle' });
     expect(session.closed).toBe(true);
-    expect(board.item(c.id)).toMatchObject({ paused: true });
+    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'paused' } });
   });
 
   test("resuming a worker about to pause, or the owner's words to it, let it work on", async () => {
@@ -1758,7 +1758,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     workers.pauseAtSafePoint(c.id);
     workers.resume(c.id);
     expect(session.inbox.at(-1)).toBe('The owner no longer wants you to pause: go on with your work.');
-    expect(board.item(c.id)!.pausing).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('pausing');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Resumed.' });
     workers.pauseAtSafePoint(c.id);
     // between its steps, so the words go in at once
@@ -1766,9 +1766,9 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     workers.message(c.id, 'Nimm lieber CSV.');
     expect(session.inbox.at(-1)).toContain('The owner no longer wants you to pause');
     expect(session.inbox.at(-1)).toContain('Nimm lieber CSV.');
-    expect(board.item(c.id)!.pausing).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('pausing');
     session.emit({ type: 'idle' });
-    expect(board.item(c.id)!.paused).toBeUndefined();
+    expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
   });
 
   test('a worker that does not come to a safe point in time is paused at once', async () => {
@@ -1779,7 +1779,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(session.inbox.at(-1)).toContain('after at most 1 minute.');
     await new Promise((r) => setTimeout(r, 40));
     expect(session.closed).toBe(true);
-    expect(board.item(c.id)).toMatchObject({ paused: true });
+    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'paused' } });
   });
 
   test('a worker about to pause that hands over is paused on its handover, the card waiting for approval', async () => {
@@ -1791,7 +1791,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     workers.pauseAtSafePoint(c.id);
     await runtime.last.call('ready_for_review', { summary: 'Export gebaut.', demo: artifact() });
     runtime.last.emit({ type: 'idle' });
-    expect(board.item(c.id)).toMatchObject({ state: 'waiting', need: 'demo', paused: true });
+    expect(board.item(c.id)).toMatchObject({ state: 'waiting', need: 'demo', hold: { reason: 'paused' } });
   });
 
   test('a worker about to pause cannot snooze itself instead', async () => {
@@ -1800,8 +1800,8 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     const answer = await runtime.last.call('snooze', { until: new Date(Date.now() + 3_600_000).toISOString(), why: 'check the build' });
     expect(answer).toContain('Not snoozed: the owner pauses you');
     runtime.last.emit({ type: 'idle' });
-    expect(board.item(c.id)).toMatchObject({ paused: true });
-    expect(board.item(c.id)!.snoozed).toBeUndefined();
+    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'paused' } });
+    expect(board.item(c.id)?.hold?.reason).not.toBe('snoozed');
   });
 
   test('a worker about to pause when Seismic restarts stays paused after it', async () => {
@@ -1811,8 +1811,8 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     const n = runtime.sessions.length;
     workers.resumeAll();
     expect(runtime.sessions.length).toBe(n);
-    expect(board.item(c.id)).toMatchObject({ paused: true });
-    expect(board.item(c.id)!.pausing).toBeUndefined();
+    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'paused' } });
+    expect(board.item(c.id)?.hold?.reason).not.toBe('pausing');
     workers.resume(c.id);
     expect(runtime.last.spec.resume).toBe('sess-1');
   });

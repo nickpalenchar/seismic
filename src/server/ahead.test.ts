@@ -117,7 +117,7 @@ describe('asking on a card before its start', () => {
     const first = asker();
     project.act(card.id, { action: 'pause' });
     await until(() => first.closed);
-    expect(board().item(card.id)?.paused).toBeTruthy();
+    expect(board().item(card.id)?.hold?.reason).toBe('paused');
     expect(board().item(card.id)?.inTurn).toBeUndefined();
     project.act(card.id, { action: 'resume' });
     await until(() => asker() !== first);

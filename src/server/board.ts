@@ -35,6 +35,11 @@ import {
   type EarlierDemo,
   type ErrorCode,
   type Group,
+  AGENT_HOLDS,
+  type Hold,
+  type HeldMessage,
+  type HoldReason,
+  type ItemHold,
   type Snooze,
   type Woke,
   type Idea,
@@ -76,6 +81,7 @@ import {
   type Merge,
   needsYou,
   plannedToStart,
+  snoozeOf,
   type Notice,
   type WorkerTurn,
 } from '../core/types';
@@ -1815,7 +1821,7 @@ export class Board {
     }
     const at = new Date().toISOString();
     // a stopped card snoozed to start later starts no more: brought back, it is the owner's to start
-    this.store.transaction(() => ids.forEach((id) => this.store.cards.update(id, { archived_at: at, ...(this.snoozedOf(id)?.start ? { snoozed: null } : {}) })));
+    this.store.transaction(() => ids.forEach((id) => this.store.cards.update(id, { archived_at: at, ...(this.snoozedOf(id)?.start ? { hold: null } : {}) })));
     for (const id of ids) this.record(id, 'archived', 'owner');
     this.changed();
   }
@@ -1954,7 +1960,7 @@ export class Board {
     const row = this.store.cards.get(cardId);
     if (!row || row.workstation !== path) return this.changed();
     const working = row.state === 'working';
-    this.work(cardId, { workstation: null, app: null, parked: null, ...(working ? { state: 'planned', paused: null, pausing: null, snoozed: null } : {}) });
+    this.work(cardId, { workstation: null, app: null, parked: null, ...(working ? { state: 'planned', ...this.unheld(cardId, AGENT_HOLDS) } : {}) });
     if (!row.deleted_at) this.log(cardId, 'state', 'obeya', this.t.worker.workstationGone(path, working));
   }
 
@@ -2100,27 +2106,21 @@ export class Board {
       const turn = inTurn.get(i.id);
       if (!turn) return i;
       // a card that waits for the owner is not at work anyway: the restart holds nobody up there
-      if (turn.restartPaused) return needsYou(i) ? i : { ...i, restartPaused: true };
+      if (turn.restartPaused) return needsYou(i) || i.hold ? i : { ...i, hold: { reason: 'restart' } };
       const background = turn.tasks.length ? { background: turn.tasks } : {};
       // a turn that ended while its background work runs (the app served, say) holds the worker's slot,
       // but a card that waits for the owner then has nobody at work on it: only that work runs
       return turn.over && needsYou(i) ? { ...i, ...background } : { ...i, inTurn: true, ...(turn.doing ? { doing: turn.doing } : {}), ...background };
     });
-    const limitPauses = new Map(rows.filter((r) => r.paused).flatMap((r) => {
-      const p = JSON.parse(r.paused!) as { limit?: { until?: string } };
-      return p.limit ? [[r.id, p.limit] as const] : [];
-    }));
-    if (limitPauses.size) items = items.map((i) => {
-      const p = limitPauses.get(i.id);
-      return p ? { ...i, limitPaused: true, ...(p.until ? { limitedUntil: p.until } : {}) } : i;
-    });
+    // a worker the usage limit paused resumes at the known reset
+    items = items.map((i) => (i.hold?.reason === 'limit' && i.hold.until ? { ...i, limitedUntil: i.hold.until } : i));
     items = this.withoutStaleSnoozes(items, rows);
     items = this.withWaitingSince(items);
     items = this.withRate(items);
     // a card whose repository does not run on the project waits for it
     const running = new Set(this.project.repos.map((r) => r.id));
     if (items.some((i) => !running.has(i.repo))) items = items.map((i) => (running.has(i.repo) || i.kind === 'question' ? i : { ...i, repoDown: true }));
-    if (this.limits.size) items = items.map((i) => ({ ...i, ...this.limited(`card:${i.id}`) }));
+    if (this.limits.size) items = items.map((i) => this.limitedCard(i));
     if (this.atWork.size) items = items.map((i) => ({ ...i, ...this.agentAt('agentAtWork', `card:${i.id}`) }));
     if (this.landingPositions.size) items = items.map((i) => this.landingPositions.has(i.id) && i.landing ? { ...i, landingPosition: this.landingPositions.get(i.id)! } : i);
     this.itemsCache = items;
@@ -2151,6 +2151,12 @@ export class Board {
     return until === null ? { limitPaused: true } : until ? { limitedUntil: until } : {};
   }
 
+  /** The card with until when the usage limit holds back its agent, or held by it. */
+  private limitedCard(i: Item): Item {
+    const { limitedUntil, limitPaused } = this.limited(`card:${i.id}`);
+    return limitPaused ? (i.hold ? i : { ...i, hold: { reason: 'limit' } }) : limitedUntil ? { ...i, limitedUntil } : i;
+  }
+
   /** Cards that come from a card on another project name it, with that project. */
   private withElsewhere(items: Item[], rows: CardRow[]): Item[] {
     // a card on this project is not looked up: the others are, all at once
@@ -2173,25 +2179,48 @@ export class Board {
    */
   private withoutStaleSnoozes(items: Item[], rows: CardRow[]): Item[] {
     const shown = new Set(items.map((i) => i.id));
-    for (const r of rows) if (r.snoozed && !shown.has(r.id) && (JSON.parse(r.snoozed) as Snooze).start) this.store.cards.update(r.id, { snoozed: null });
+    for (const r of rows) if (r.hold && !shown.has(r.id) && snoozeOf({ hold: JSON.parse(r.hold) as Hold })?.start) this.store.cards.update(r.id, { hold: null });
     return items.map((i) => {
-      if (!i.snoozed?.waiting && !i.snoozed?.start) return i;
-      const { snoozed: _, ...awake } = i;
-      if (i.snoozed.waiting ? needsYou(awake) : plannedToStart(awake)) return i;
-      this.store.cards.update(i.id, { snoozed: null });
-      return awake;
+      const s = snoozeOf(i);
+      if (!s?.waiting && !s?.start) return i;
+      const { hold: _, ...awake } = i;
+      if (s.waiting ? needsYou(awake) : plannedToStart(awake)) return i;
+      const row = rows.find((r) => r.id === i.id);
+      const left = row?.hold ? awakeHold(JSON.parse(row.hold) as Hold) : null;
+      this.store.cards.update(i.id, { hold: left });
+      return left ? { ...awake, hold: itemHold(JSON.parse(left) as Hold) } : awake;
     });
   }
 
-  /** The card's snooze, or null when it is not snoozed. */
-  snoozedOf(cardId: string): Snooze | null {
-    const s = this.own(cardId).snoozed;
-    return s ? (JSON.parse(s) as Snooze) : null;
+  /** Why the card's agent does not run or the card is off the canvas, as stored; null when nothing holds it. */
+  holdOf(cardId: string): Hold | null {
+    const h = this.own(cardId).hold;
+    return h ? (JSON.parse(h) as Hold) : null;
   }
 
-  /** Snoozes the card until `until` (ISO) or the card it waits on, as `s` says, with the line in its conversation by whoever snoozed it (or changed the time). */
-  snooze(cardId: string, s: Snooze, by: 'agent' | 'owner' = s.by) {
-    this.work(cardId, { snoozed: JSON.stringify(s) });
+  /** The field that lets go of the card's hold if it is one of `reasons`; nothing when it is not. */
+  unheld(cardId: string, reasons: readonly HoldReason[]): { hold?: null } {
+    const h = this.holdOf(cardId);
+    return h && reasons.includes(h.reason) ? { hold: null } : {};
+  }
+
+  /** The card's snooze, or null when it is not snoozed. */
+  snoozedOf(cardId: string): Extract<Hold, { reason: 'snoozed' }> | null {
+    const h = this.holdOf(cardId);
+    return h?.reason === 'snoozed' ? h : null;
+  }
+
+  /**
+   * Snoozes the card until `until` (ISO) or the card it waits on, as `s` says, with the line in its
+   * conversation by whoever snoozed it (or changed the time). The snooze takes the place of what held
+   * the card before, and keeps what that held for the worker (`held`): a new time for a snooze, or a
+   * paused worker's card the owner snoozes while it waits for them, which is paused again once it wakes.
+   */
+  snooze(cardId: string, s: Snooze & { held?: HeldMessage[] }, by: 'agent' | 'owner' = s.by) {
+    const before = this.holdOf(cardId);
+    const held = s.held ?? (before?.reason === 'snoozed' ? before.held : before?.reason === 'paused' || before?.reason === 'limit' ? (before.held ?? []) : undefined);
+    const hold: Hold = { ...s, reason: 'snoozed', since: before?.reason === 'snoozed' ? before.since : new Date().toISOString(), ...(held ? { held } : {}) };
+    this.work(cardId, { hold: JSON.stringify(hold) });
     this.log(cardId, 'state', by === 'agent' ? 'worker' : 'owner', this.t.worker.snoozed(snoozeTerm(this.t, s), s.why));
   }
 
@@ -2203,7 +2232,7 @@ export class Board {
   unsnooze(cardId: string, woke: Woke): Snooze | null {
     const s = this.snoozedOf(cardId);
     if (!s) return null;
-    this.work(cardId, { snoozed: null });
+    this.work(cardId, { hold: awakeHold(s) });
     const why = this.t.worker.wokeWhy;
     this.log(cardId, 'state', woke === 'owner' ? 'owner' : 'obeya', this.t.worker.woke(typeof woke === 'object' ? (s.on ? why.card(s.on.title, woke.met, s.on.state) : why.time) : why[woke]));
     return s;
@@ -3540,6 +3569,22 @@ type Prototypes = {
 type PrototypeRef = Pick<CardRow, 'id' | 'prototype_of' | 'archived_at'>;
 
 /** Visible items: plans first, their workstreams in doc order, then manual cards. */
+/** A hold from now on, as stored. */
+export const holdNow = (reason: 'pausing' | 'paused'): string => JSON.stringify({ reason, since: new Date().toISOString() } satisfies Hold);
+
+/** What holds a card once its snooze ends: nothing, or the pause of a paused worker's card the owner snoozed while it waited for them. */
+function awakeHold(h: Hold): string | null {
+  return h.reason === 'snoozed' && h.waiting && h.held ? JSON.stringify({ reason: 'paused', since: h.since, held: h.held } satisfies Hold) : null;
+}
+
+/** What a card's hold shows to the UI and the agents: not what it holds for the agent, nor a limit pause's count. */
+function itemHold(h: Hold): ItemHold {
+  if (h.reason === 'limit') return { reason: 'limit', since: h.since, ...(h.until ? { until: h.until } : {}) };
+  if (h.reason !== 'snoozed') return { reason: h.reason, since: h.since };
+  const { held: _, ...shown } = h;
+  return shown;
+}
+
 export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?: Worked, themeNow?: ThemeNow): Item[] {
   const work = (r: CardRow) => workOf(r, worked, themeNow);
   const docByFile = new Map(docs.map((d) => [d.file, d]));
@@ -3798,10 +3843,7 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
     ...(detail.conflict && r.approved_at && r.state === 'working' ? { resolvingConflicts: true as const } : {}),
     ...(detail.blocked && handed && !r.approved_at ? { blocked: detail.blocked } : {}),
     ...(detail.modelsUnchanged && handed ? { modelsUnchanged: detail.modelsUnchanged } : {}),
-    ...(r.paused ? { paused: true } : {}),
-    ...(r.pausing && !r.paused ? { pausing: true } : {}),
-    ...(r.snoozed ? { snoozed: JSON.parse(r.snoozed) as Snooze } : {}),
-    ...(r.parking_lot ? { parkingLot: r.parking_lot } : {}),
+    ...(r.hold ? { hold: itemHold(JSON.parse(r.hold) as Hold) } : {}),
     ...(r.app && r.workstation && !r.parked ? { app: r.app } : {}),
   };
 }
@@ -4003,7 +4045,7 @@ function closesCycle(from: string, to: string, edges: [string, string][], items:
   const shown = new Set(items.map((i) => i.id));
   const all = [
     ...edges.filter(([a, b]) => shown.has(a) && shown.has(b)),
-    ...items.flatMap((i): [string, string][] => [...(i.buildsOn ?? []), ...(i.queue && 'behind' in i.queue ? i.queue.behind : []), ...(i.snoozed?.on ? [i.snoozed.on.card] : [])].map((before) => [before, i.id])),
+    ...items.flatMap((i): [string, string][] => [...(i.buildsOn ?? []), ...(i.queue && 'behind' in i.queue ? i.queue.behind : []), ...(snoozeOf(i)?.on ? [snoozeOf(i)!.on!.card] : [])].map((before) => [before, i.id])),
   ];
   const seen = new Set<string>();
   const visit = (id: string): boolean => {

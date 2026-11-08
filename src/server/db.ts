@@ -439,6 +439,25 @@ export const MIGRATIONS = [
      title TEXT
    );
    CREATE INDEX activity_card ON activity (card_id, id);`,
+  // one hold (`Hold`) in place of the pause, the pause at a safe point, the usage limit's pause, the
+  // snooze and the parking lot, which never hold together: a snooze of the owner's kept what it held
+  // for the worker in the pause, which moves into it; a pause or snooze that kept no time of its own
+  // counts from now. The old columns stay until the moved columns are dropped.
+  `ALTER TABLE \`cards\` ADD \`hold\` text;
+   UPDATE cards SET hold = CASE
+     WHEN snoozed IS NOT NULL THEN json_patch(
+       json_patch(snoozed, json_object('reason', 'snoozed', 'since', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))),
+       CASE WHEN paused IS NOT NULL THEN json_object('held', json(coalesce(json_extract(paused, '$.held'), '[]'))) ELSE '{}' END)
+     WHEN json_extract(paused, '$.limit') IS NOT NULL THEN json_patch(
+       json_object('reason', 'limit', 'since', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), 'attempts', json_extract(paused, '$.limit.attempts')),
+       json_object('until', json_extract(paused, '$.limit.until'), 'statusBefore', json_extract(paused, '$.limit.statusBefore'), 'held', json_extract(paused, '$.held')))
+     WHEN paused IS NOT NULL THEN json_patch(
+       json_object('reason', 'paused', 'since', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+       json_object('held', json_extract(paused, '$.held')))
+     WHEN pausing IS NOT NULL THEN json_object('reason', 'pausing', 'since', pausing)
+     WHEN parking_lot IS NOT NULL THEN json_object('reason', 'parkingLot', 'since', parking_lot)
+   END
+   WHERE snoozed IS NOT NULL OR paused IS NOT NULL OR pausing IS NOT NULL OR parking_lot IS NOT NULL;`,
 ];
 
 /** A database this Seismic cannot open as it is: it leaves it alone. */

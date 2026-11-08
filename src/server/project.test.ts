@@ -1024,7 +1024,7 @@ describe('the configuration changed while the project runs', () => {
     expect(item(card.id).state).toBe('planned');
     // its time come, the card set to start later waits on
     project.wakeDue(Date.now() + 120_000);
-    expect(item(later.id).snoozed).toBeDefined();
+    expect(item(later.id)?.hold?.reason).toBe('snoozed');
     await settle();
     expect(workers.sessions).toHaveLength(0);
     project.apply({ name: 'Produkt', repos: both });
@@ -1034,7 +1034,7 @@ describe('the configuration changed while the project runs', () => {
     const api_ = project.repos.find((r) => r.ref.id === 'api')!;
     expect(workers.last.spec.cwd).toBe(api_.workstations.leasedBy(card.id)!);
     project.wakeDue(Date.now() + 120_000);
-    expect(item(later.id).snoozed).toBeUndefined();
+    expect(item(later.id)?.hold?.reason).not.toBe('snoozed');
   });
 
   test("a restart of all of Seismic that comes meanwhile is what the workers hear of; the repository's restart still goes", async () => {
@@ -1570,12 +1570,12 @@ test("pausing a project's agents pauses each at work, holds the cards let start 
     // as the card's own pause: it brings its work to a safe point first, and counts as paused meanwhile
     expect(worker.closed).toBe(false);
     expect(worker.inbox.at(-1)).toContain('The owner pauses you now');
-    expect(c.board.item(a.id)!.pausing).toBe(true);
+    expect(c.board.item(a.id)?.hold?.reason).toBe('pausing');
     expect(c.board.project).toMatchObject({ paused: true, agents: { running: 0, paused: 1 } });
     worker.emit({ type: 'idle' });
     await heard();
     expect(worker.closed).toBe(true);
-    expect(c.board.item(a.id)!.paused).toBe(true);
+    expect(c.board.item(a.id)?.hold?.reason).toBe('paused');
     expect(c.board.project).toMatchObject({ paused: true, agents: { running: 0, paused: 1 } });
     // a card started meanwhile: the Koordinator judges it as ever, and it waits in the queue
     const workers = () => runtime.sessions.filter((s) => s.spec.role === 'worker').length;
@@ -1651,7 +1651,7 @@ test("a card the owner snoozed counts as no paused agent: resuming the project l
     expect(c.board.project.paused).toBeUndefined();
     // nor does resuming the project wake the snoozed one
     c.resumeAgents();
-    expect(c.board.item(later.id)!.snoozed).toMatchObject({ by: 'owner' });
+    expect(c.board.item(later.id)?.hold).toMatchObject({ by: 'owner' });
     expect(runtime.sessions.some((s) => s.spec.resume === 's-later')).toBe(false);
   } finally {
     c.shutdown();
@@ -1689,7 +1689,7 @@ test("a project's pause lasts while one of its paused agents cannot go on, its r
     expect(errors.lines.join('\n')).toContain(`the agent of ${gone.id} did not resume`);
     expect(runtime.sessions.some((s) => s.spec.resume === 's-front')).toBe(true);
     // the card that could not go on is still paused, and the cards let start still wait
-    expect(c.board.item(gone.id)!.paused).toBe(true);
+    expect(c.board.item(gone.id)?.hold?.reason).toBe('paused');
     await heard();
     expect(c.board.project).toMatchObject({ paused: true, agents: { paused: 1 } });
     // its repository back, it goes on, and the pause ends

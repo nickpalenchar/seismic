@@ -39,7 +39,7 @@ test('a card the owner just answered leaves the list; one that waits for nobody 
 });
 
 test('a card snoozed while it waited does not appear in the inbox', () => {
-  const snoozed = card('later', '2026-11-05T07:00:00Z', { snoozed: { until: '2026-11-06T08:00:00Z', waiting: true } as Item['snoozed'] });
+  const snoozed = card('later', '2026-11-05T07:00:00Z', { hold: { reason: 'snoozed', since: '2026-11-05T07:00:00Z', until: '2026-11-06T08:00:00Z', by: 'owner', waiting: true } });
   const e = inboxEntries([site, app], { site: w([snoozed, card('s', '2026-11-05T08:00:00Z')]), app: w([card('a', '2026-11-05T09:00:00Z')]) });
   expect(e.map((x) => x.card?.id)).toEqual(['a', 's']);
   expect(waitingCount(e)).toBe(2);

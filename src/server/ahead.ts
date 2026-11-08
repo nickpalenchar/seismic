@@ -8,9 +8,9 @@ import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { oneAtATime } from '../core/one-at-a-time';
 import { asksAhead } from '../core/queue';
 import { clip, messageOf } from '../core/text';
-import type { Item, WorkerTurn } from '../core/types';
+import { isPaused, isPausing, type Item, type WorkerTurn } from '../core/types';
 import { inform, Interrupted, type OwnerAnswer } from './advisor';
-import { BadRequest, type Board, replyNote } from './board';
+import { BadRequest, type Board, holdNow, replyNote } from './board';
 import { imageNote } from './images';
 import type { AgentRuntime } from './runtime';
 import { TO_OBEYA, toObeyaTool } from './to-obeya';
@@ -67,22 +67,22 @@ export class Ahead {
    */
   ask(cardId: string, text: string, images: string[], spoken: boolean, replyTo?: number) {
     const card = this.card(cardId);
-    const unread = this.reading.has(cardId) || !!card.paused;
+    const unread = this.reading.has(cardId) || isPaused(card);
     const e = this.o.board.log(cardId, 'talk', 'owner', text, { images, replyTo, unread });
     if (text) this.o.onOwnerInput?.(card, text);
     const quoted = replyTo ? this.o.board.quoted(cardId, replyTo) : undefined;
     const words = `${replyNote(quoted, 'koordinator')}${text}${imageNote(images)}`;
     this.store(cardId, [...this.pending(cardId), { said: [e.id], text: spoken ? `(${SPOKEN}:) ${words}` : words, images }]);
     // the owner's words let a paused agent go on, and one about to pause read on
-    if (card.paused) this.goOn(cardId);
-    else if (card.pausing) this.pauseTakenBack(cardId);
+    if (isPaused(card)) this.goOn(cardId);
+    else if (isPausing(card)) this.pauseTakenBack(cardId);
     this.start(cardId);
   }
 
   /** The owner pauses the agent while it reads: its session ends at once, and what it was asked stays pending. */
   pause(cardId: string) {
     const card = this.card(cardId);
-    if (card.paused || !this.busy.has(cardId)) throw new BadRequest('noAgent', card.paused ? 'the agent is paused already' : 'the agent is not working on anything');
+    if (isPaused(card) || !this.busy.has(cardId)) throw new BadRequest('noAgent', isPaused(card) ? 'the agent is paused already' : 'the agent is not working on anything');
     this.halt(cardId);
     this.ends.get(cardId)?.abort();
   }
@@ -90,17 +90,17 @@ export class Ahead {
   /** The owner pauses the agent at a safe point: it finishes the answer it reads for, and is paused then. One that has not begun is paused at once. */
   pauseAtSafePoint(cardId: string) {
     const card = this.card(cardId);
-    if (card.paused || card.pausing || !this.busy.has(cardId)) throw new BadRequest('noAgent', card.paused || card.pausing ? 'the agent is paused already' : 'the agent is not working on anything');
+    if (isPaused(card) || isPausing(card) || !this.busy.has(cardId)) throw new BadRequest('noAgent', isPaused(card) || isPausing(card) ? 'the agent is paused already' : 'the agent is not working on anything');
     if (!this.reading.has(cardId)) return this.halt(cardId);
-    this.o.board.work(cardId, { pausing: new Date().toISOString() });
+    this.o.board.work(cardId, { hold: holdNow('pausing') });
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.pausing);
   }
 
   /** The owner lets the paused agent go on: it answers what it was asked. One about to pause after its answer reads on instead. */
   resume(cardId: string) {
     const card = this.card(cardId);
-    if (card.pausing) return this.pauseTakenBack(cardId);
-    if (!card.paused) throw new BadRequest('notPaused', 'the agent is not paused');
+    if (isPausing(card)) return this.pauseTakenBack(cardId);
+    if (!isPaused(card)) throw new BadRequest('notPaused', 'the agent is not paused');
     this.goOn(cardId);
     this.start(cardId);
   }
@@ -117,7 +117,7 @@ export class Ahead {
 
   /** After a restart: what the owner asked and the agent had not answered gets its answer (not while it is paused). */
   resumeAll() {
-    for (const i of this.o.board.items()) if (asksAhead(i) && !i.paused && this.pending(i.id).length) this.start(i.id);
+    for (const i of this.o.board.items()) if (asksAhead(i) && !isPaused(i) && this.pending(i.id).length) this.start(i.id);
   }
 
   /**
@@ -160,7 +160,7 @@ export class Ahead {
     const card = this.o.board.item(cardId);
     const taken = card ? [...this.pending(cardId)] : [];
     // paused while it waited for its turn: it goes on once the owner lets it
-    if (!card || !asksAhead(card) || !taken.length || card.paused) {
+    if (!card || !asksAhead(card) || !taken.length || isPaused(card)) {
       this.busy.delete(cardId);
       this.o.board.changed();
       return;
@@ -197,7 +197,7 @@ export class Ahead {
       this.o.board.notify({ cardId, text, inTalk: true });
     }
     // asked to pause once its answer was given: what was said meanwhile waits for the owner to let it go on
-    if (this.o.board.row(cardId).pausing) return this.halt(cardId);
+    if (this.o.board.holdOf(cardId)?.reason === 'pausing') return this.halt(cardId);
     if (left.length) return void oneAtATime(this.turns, cardId, () => this.turn(cardId));
     this.busy.delete(cardId);
     this.o.board.changed();
@@ -263,18 +263,18 @@ export class Ahead {
 
   /** Pauses the agent: what it was asked stays pending. */
   private halt(cardId: string) {
-    this.o.board.work(cardId, { paused: '{}', pausing: null });
+    this.o.board.work(cardId, { hold: holdNow('paused') });
     this.busy.delete(cardId);
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.pausedByOwner);
   }
 
   private pauseTakenBack(cardId: string) {
-    this.o.board.work(cardId, { pausing: null });
+    this.o.board.work(cardId, this.o.board.unheld(cardId, ['pausing']));
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.resumedByOwner);
   }
 
   private goOn(cardId: string) {
-    this.o.board.work(cardId, { paused: null });
+    this.o.board.work(cardId, this.o.board.unheld(cardId, ['paused', 'limit']));
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.resumedByOwner);
     this.resumed.add(cardId);
   }

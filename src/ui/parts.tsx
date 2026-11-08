@@ -6,7 +6,7 @@ import { memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } fr
 import { createPortal } from 'react-dom';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
-import { agentFailed, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type SourceUpdate, stoppedArchivable } from '../core/types';
+import { agentFailed, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type SourceUpdate, stoppedArchivable, snoozeOf, isPausing } from '../core/types';
 import { CardMore } from './canvases';
 import { PlanTalk } from './koordinator';
 import { api } from './api';
@@ -62,11 +62,11 @@ export const PlayMark = () => (
 
 /** The same limit pause and manual retry on every card's conversation. */
 export function LimitNotice({ item }: { item: Item }) {
-  if (!item.limitPaused && !item.limitedUntil) return null;
+  if (!(item.hold?.reason === 'limit') && !item.limitedUntil) return null;
   return <div className="limit-notice">
     <HourglassMark />
-    <div>{item.limitPaused ? t.limitPaused : t.limitedUntil(clock(item.limitedUntil!))}
-      {item.limitPaused && item.limitedUntil && <div className="limit-reset">{t.limitedUntil(clock(item.limitedUntil))}</div>}
+    <div>{(item.hold?.reason === 'limit') ? t.limitPaused : t.limitedUntil(clock(item.limitedUntil!))}
+      {(item.hold?.reason === 'limit') && item.limitedUntil && <div className="limit-reset">{t.limitedUntil(clock(item.limitedUntil))}</div>}
     </div>
     <button onClick={() => void api.act(item.id, { action: 'resume' }).catch(console.error)}><PlayMark /> {t.limitTryAgain}</button>
   </div>;
@@ -83,7 +83,7 @@ function CardTurn({ item }: { item: Item }) {
   return (
     <button
       className={paused ? 'play turn resume' : 'play turn'}
-      title={item.pausing ? t.pause.takeBackHint : paused ? t.pause.resumeHint : t.pause.safeHint}
+      title={isPausing(item) ? t.pause.takeBackHint : paused ? t.pause.resumeHint : t.pause.safeHint}
       aria-label={paused ? t.pause.resume : t.pause.button}
       // the project would take the press as the start of a drag or a click that opens the card
       onPointerDown={(e) => e.stopPropagation()}
@@ -1370,7 +1370,7 @@ export function Minimap({
             width={b.w * k}
             height={b.h * k}
             rx={item.kind === 'plan' ? 1.5 : 0.5}
-            style={{ fill: item.kind === 'plan' ? 'var(--container-line)' : `var(--${item.snoozed ? 'muted' : agentFailed(item) ? 'error' : asksYou(item) ? 'asking' : item.state})` }}
+            style={{ fill: item.kind === 'plan' ? 'var(--container-line)' : `var(--${snoozeOf(item) ? 'muted' : agentFailed(item) ? 'error' : asksYou(item) ? 'asking' : item.state})` }}
             opacity={item.kind === 'plan' || needsYou(item) ? 1 : 0.55}
           />
         ))}

@@ -566,15 +566,15 @@ describe('a thread on a Question card', () => {
     const a = answerer();
     project.act(card.id, { action: 'pause', safePoint: true });
     expect(a.closed).toBe(false);
-    expect(board().item(card.id)).toMatchObject({ pausing: true, thread: { thinking: true } });
+    expect(board().item(card.id)).toMatchObject({ hold: { reason: 'pausing' }, thread: { thinking: true } });
     a.call('answer_owner', { text: 'Oktober: 12 ct.' });
     a.emit({ type: 'idle' });
     await settle();
     expect(board().events(card.id).filter((e) => e.kind === 'talk').at(-1)!.text).toBe('Oktober: 12 ct.');
-    expect(board().item(card.id)).toMatchObject({ paused: true, thread: { answers: 3 } });
-    expect(board().item(card.id)!.pausing).toBeUndefined();
+    expect(board().item(card.id)).toMatchObject({ hold: { reason: 'paused' }, thread: { answers: 3 } });
+    expect(board().item(card.id)?.hold?.reason).not.toBe('pausing');
     project.act(card.id, { action: 'resume' });
-    expect(board().item(card.id)!.paused).toBeUndefined();
+    expect(board().item(card.id)?.hold?.reason).not.toBe('paused');
   });
 
   test('its agent paused while it reads keeps what it was asked, stays paused across a restart, and answers it once resumed', async () => {
@@ -585,7 +585,7 @@ describe('a thread on a Question card', () => {
     project.act(card.id, { action: 'pause' });
     expect(a.closed).toBe(true);
     await settle();
-    expect(board().item(card.id)).toMatchObject({ paused: true, thread: { answers: 2 } });
+    expect(board().item(card.id)).toMatchObject({ hold: { reason: 'paused' }, thread: { answers: 2 } });
     expect(board().item(card.id)!.thread!.thinking).toBeUndefined();
     // nothing answered it: the question stands last
     expect(board().events(card.id).filter((e) => e.kind === 'talk').at(-1)!.text).toBe('und im Oktober?');
@@ -593,7 +593,7 @@ describe('a thread on a Question card', () => {
     project = open();
     await settle();
     expect(answerer()).toBe(a);
-    expect(board().item(card.id)!.paused).toBe(true);
+    expect(board().item(card.id)?.hold?.reason).toBe('paused');
     project.act(card.id, { action: 'resume' });
     await settle();
     const b = answerer();
@@ -602,7 +602,7 @@ describe('a thread on a Question card', () => {
     expect(b.inbox[0]).toContain('The owner paused you while you worked on your answer and has now let you go on');
     expect(b.inbox[0]).toContain('und im Oktober?');
     expect(board().item(card.id)).toMatchObject({ thread: { thinking: true } });
-    expect(board().item(card.id)!.paused).toBeUndefined();
+    expect(board().item(card.id)?.hold?.reason).not.toBe('paused');
     b.call('answer_owner', { text: 'Oktober: 12 ct.' });
     b.emit({ type: 'idle' });
     await settle();
@@ -619,7 +619,7 @@ describe('a thread on a Question card', () => {
     const b = answerer();
     expect(b.inbox[0]).toContain('The owner paused you');
     expect(b.inbox[0]!.indexOf('und im Oktober?')).toBeLessThan(b.inbox[0]!.indexOf('und November?'));
-    expect(board().item(card.id)!.paused).toBeUndefined();
+    expect(board().item(card.id)?.hold?.reason).not.toBe('paused');
   });
 
   test('its agent goes on reading while its background work runs, answers once that work wakes it, and can be paused meanwhile', async () => {
@@ -647,7 +647,7 @@ describe('a thread on a Question card', () => {
     project.act(card.id, { action: 'pause' });
     expect(b.closed).toBe(true);
     await settle();
-    expect(board().item(card.id)).toMatchObject({ paused: true, thread: { answers: 3 } });
+    expect(board().item(card.id)).toMatchObject({ hold: { reason: 'paused' }, thread: { answers: 3 } });
     expect(board().thread(card.id).pending).toEqual([expect.objectContaining({ text: expect.stringContaining('und November?') })]);
   });
 

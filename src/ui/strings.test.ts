@@ -43,7 +43,7 @@ test('a card whose agent answered the owner without a new demo says so instead o
 
 test('a card whose agent paused for a restart says so in place of being at work', () => {
   setLanguage('en', []);
-  expect(stateLabel({ state: 'working', restartPaused: true })).toBe('Paused, pending restart');
+  expect(stateLabel({ state: 'working', hold: { reason: 'restart' } })).toBe('Paused, pending restart');
   expect(stateLabel({ state: 'working' })).toBe('Agent at work');
   expect(stateLabel({ state: 'waiting', need: 'review', codeReview: { state: 'running' } })).toBe('Agent reviewing');
 });
