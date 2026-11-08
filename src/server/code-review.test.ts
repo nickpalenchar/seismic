@@ -529,4 +529,22 @@ describe('code reviews', () => {
     expect(reviewers()[0]!.closed).toBe(true);
     expect(board.item(id)?.review?.codeReview?.state).toBeUndefined();
   });
+
+  test('items the worker resubmitted while the commit is unchanged still get a review; the follow-up tool leaves the owner\'s other choices alone', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 3: 'ignore' });
+    // the follow-up tool refuses an item being fixed, one the owner closed, and any under review
+    expect(await worker().call('follow_up_task', { findings: [1], title: 'T', task: 'x' })).toContain('item 1 is fixing');
+    expect(await worker().call('follow_up_task', { findings: [3], title: 'T', task: 'x' })).toContain('item 3 is closed');
+    expect(statuses(id)).toEqual(['fixing', 'raised', 'closed']);
+    // resubmitted by tool, then handed over without a new commit: a review still starts
+    await worker().call('resubmit_review_item', { items: [{ number: 1 }] });
+    await worker().call('ready_for_review', { summary: 'Done.', demo: artifact() });
+    await until(() => reviewers().length === 2);
+    expect(reviewers()[1]!.inbox[0]).toContain('Under review');
+  });
 });

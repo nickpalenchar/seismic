@@ -990,7 +990,7 @@ export class Workers {
     const c = contributionOf(this.o.board.row(cardId));
     // on a card of the owner's, the findings are the items of its code review
     const code = c ? undefined : this.reviews.items(cardId);
-    const known = c ? c.findings?.map((f) => ({ id: f.id, state: f.status, settled: f.status !== 'open', card: f.card })) : code?.map((i) => ({ id: i.number, state: i.status, settled: i.status === 'underReview' || i.status === 'fixed' || !!i.card, card: i.card }));
+    const known = c ? c.findings?.map((f) => ({ id: f.id, state: f.status, settled: f.status !== 'open', card: f.card })) : code?.map((i) => ({ id: i.number, state: i.status, settled: !(i.status === 'raised' || i.status === 'reopened' || (i.status === 'followUp' && !i.card)), card: i.card }));
     if (!known?.length) return `Not made: your work has no code review with ${c ? 'findings' : 'items'}.`;
     if (!title) return 'Not made: the title is missing.';
     if (!task) return 'Not made: the task is missing.';

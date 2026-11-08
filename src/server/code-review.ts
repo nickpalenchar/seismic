@@ -125,8 +125,8 @@ export class CodeReviews {
       this.stopSession(cardId);
       review = undefined;
     }
-    // the same commit reviewed, or under review: the review stands for this handover, unless items were resubmitted since
-    const same = !!review && !!head && review.head === head && !resubmitted.length;
+    // the same commit reviewed, or under review: the review stands for this handover, unless items wait under review, which only a review verifies
+    const same = !!review && !!head && review.head === head && !resubmitted.length && !this.items(cardId).some((i) => i.status === 'underReview');
     if (review && same) review = { ...review, handover };
     this.save(cardId, { mode, handover, ...(review ? { review } : {}) });
     if (mode === 'auto' && !same) this.begin(cardId, head);
@@ -281,7 +281,7 @@ export class CodeReviews {
     // the review's own bundles, as far as they hold among the items the owner chose for later
     const bundles = [...new Set(later.map((f) => [f.number, ...(f.with ?? []).filter((x) => ids.has(x))].sort((a, b) => a - b)).filter((b) => b.length > 1).map((b) => b.join(' + ')))];
     const others = next.filter((i) => !fix.some((f) => f.number === i.number));
-    const group = (title: string, of: ReviewItem[]) => (of.length ? `${title}\n${of.map((i) => briefly(i)).join('\n')}` : '');
+    const group = (title: string, of: ReviewItem[]) => (of.length ? `${title}\n${of.map((i) => `${described(i)}${i.context ? `\n    The owner wrote: ${i.context}` : ''}${i.card ? `\n    Follow-up task: ${i.card}` : ''}`).join('\n')}` : '');
     return {
       note: [
         "The owner decided on items of the code review of your work (a separate agent reviewed your branch's diff against main, and its one list of items runs across all reviews), on the card; do it now:",
@@ -591,9 +591,6 @@ const where = (f: ReviewItem) => (f.file ? `${f.file}${f.line ? `:${f.line}` : '
 
 /** An item as the worker reads it in the owner's decision. */
 const described = (f: ReviewItem, viewer: ReviewItemWho = 'worker') => `  #${f.number} “${f.title}” (${[f.severity, where(f)].filter(Boolean).join(', ')}): ${f.text}${lastNote(f, viewer)}`;
-
-/** An item on one line, for the rest of the list. */
-const briefly = (f: ReviewItem) => `  #${f.number} “${f.title}” (${[f.severity, where(f)].filter(Boolean).join(', ')})${f.card ? ` (follow-up task: ${f.card})` : ''}`;
 
 /** Why an item came back or what the worker said of its fix, where its log says: the latest note of a reopening or resubmission, as `viewer` reads it. */
 const lastNote = (f: ReviewItem, viewer: ReviewItemWho = 'worker') => {

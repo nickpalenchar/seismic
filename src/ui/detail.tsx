@@ -377,7 +377,7 @@ export function Detail(p: Props) {
   const reviewRunning = cr?.state === 'running' || fixing || verifying;
   // choices on items picked but not sent yet: approving would drop them
   const unsent = Object.keys(unsentPicks ?? {}).filter((id) => cr?.items.some((r) => r.number === Number(id) && needsOwner(r))).length;
-  const asksReview = !!cr && cr.mode === 'manual' && (!cr.state || !!cr.stale || cr.state === 'failed');
+  const asksReview = !!cr && cr.mode === 'manual' && (!cr.state || !!cr.stale || cr.state === 'failed' || (cr.state === 'done' && verifying));
   const approveButton = item.review?.landing ? null : item.review?.contribution ? (
     <ApproveReview c={item.review?.contribution} act={act} />
   ) : inFolder ? (
