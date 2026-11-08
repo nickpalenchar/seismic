@@ -190,7 +190,7 @@ export const spotNote = (spot: Spot) => {
 };
 
 /** What is stored while landed work's worker finishes (`CardRow.landed`). */
-interface LandedState {
+export interface LandedState {
   commit?: string;
   /** Nothing landed: the work changed nothing in the repository, and the card is `done` rather than `live`. */
   unchanged?: boolean;
@@ -301,7 +301,7 @@ const NOT_LANDED = 'Since you handed over, the owner approved your work, but Sei
  * the lines of the log it carries: it takes them in with its next tool step's result, or, should
  * the turn end before one, as the message that starts the next.
  */
-interface Unheard {
+export interface Unheard {
   /** Informational news: accompanies a future turn, never starts one or enters a tool result. */
   nextTurn?: true;
   said: number[];
@@ -313,7 +313,7 @@ interface Unheard {
  * Where the card's demo page stood when its worker last heard of it (`CardRow.page_heard`): going
  * online, online at its address (showing an earlier demo than the latest), or on no page.
  */
-type PageHeard = { page: 'none' } | { page: 'going' } | { page: 'online'; url: string; stale?: true };
+export type PageHeard = { page: 'none' } | { page: 'going' } | { page: 'online'; url: string; stale?: true };
 
 function pageHeardOf(share: Share | undefined): PageHeard {
   if (share?.state === 'publishing') return { page: 'going' };
@@ -322,7 +322,7 @@ function pageHeardOf(share: Share | undefined): PageHeard {
 }
 
 /** What is stored while the owner has paused the card's worker (`CardRow.paused`). */
-interface PausedState {
+export interface PausedState {
   /** A subscription limit pause survives restart, including its reset and retry budget. */
   limit?: { attempts: number; until?: string; statusBefore?: string | null };
   /** What Seismic had for the worker meanwhile (its pull request's review, the landing), and a message it had not taken in yet: it hears them once it goes on. */

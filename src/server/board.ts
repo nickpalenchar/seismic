@@ -3839,7 +3839,7 @@ export function withQuestions(text: string, questions: Question[], picks: string
 }
 
 /** What is stored of a prototype: how it ended, once it did, and its worker's proposal to build the idea on it. */
-interface StoredPrototype {
+export interface StoredPrototype {
   /** The planned variant it shows. */
   variant?: string;
   end?: 'discarded' | 'built';

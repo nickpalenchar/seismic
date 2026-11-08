@@ -14,7 +14,7 @@ const subtle = crypto.subtle;
 async function setup(o: { status?: number } = {}) {
   const store = new Store(':memory:');
   const at = new Date().toISOString();
-  store.addDevice({ id: 'phone', name: 'iPhone · Safari', pairedAt: at, lastSeen: at, tokenHash: 'h' });
+  store.devices.add({ id: 'phone', name: 'iPhone · Safari', pairedAt: at, lastSeen: at, tokenHash: 'h' });
   const keys = (await subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])) as CryptoKeyPair;
   const auth = crypto.getRandomValues(new Uint8Array(16));
   const sent: { url: string; body: Uint8Array }[] = [];
@@ -172,11 +172,11 @@ describe('Push', () => {
   test('a subscription its push service no longer knows goes', async () => {
     const { push, store } = await setup({ status: 410 });
     expect(push.subscribed('phone')).toBe(true);
-    expect(store.devices()[0]!.push).toBe(true);
+    expect(store.devices.all()[0]!.push).toBe(true);
     push.waits([waits('c1')]);
     await push.settled();
     expect(push.subscribed('phone')).toBe(false);
-    expect(store.devices()[0]!.push).toBeUndefined();
+    expect(store.devices.all()[0]!.push).toBeUndefined();
   });
 
   test('a device unused for 90 days gets nothing, though it is not removed yet', async () => {
@@ -202,14 +202,14 @@ describe('Push', () => {
 
   test('a device removed takes its subscription with it', async () => {
     const { push, store } = await setup();
-    store.removeDevice('phone');
+    store.devices.remove('phone');
     expect(push.subscribed('phone')).toBe(false);
   });
 
   test('no device with notifications: nothing to send', async () => {
     const { push, sent, store, timers } = await setup();
     push.unsubscribe('phone');
-    expect(store.devices()[0]!.push).toBeUndefined();
+    expect(store.devices.all()[0]!.push).toBeUndefined();
     push.waits([waits('c1')]);
     await push.settled();
     expect(sent).toHaveLength(0);

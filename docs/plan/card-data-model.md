@@ -86,11 +86,18 @@ the same time will conflict (W3 most).
 - [ ] **W1:** Backup before migrating. Whenever a migration is pending, the store first writes
   `VACUUM INTO obeya.db.before-<version>` and keeps the last few. Test with a pending migration;
   document it in `docs/design/data.md`.
-- [ ] **W2:** Drizzle and `models/`, schema and infrastructure. Add the dependencies and describe
+- [x] **W2:** Drizzle and `models/`, schema and infrastructure. Add the dependencies and describe
   every current table in `src/server/models/` (checked against `drizzle-kit pull` on a migrated
   database). Add the test that the schema matches a database migrated from scratch. Prove the
   compiled binary still starts on all targets (`bun scripts/check-binary.ts`). Move one small
   table's queries over as the pattern.
+  Done: `models/schema.ts` lists every table; `devices` is the pattern, a class over the shared
+  connection (`store.devices.all()`), its JSON column typed and parsed by Drizzle. Found on the
+  way: drizzle-kit writes a primary key `NOT NULL` and a boolean default as `false`, where the old
+  migrations wrote neither, so `drizzle-kit push` (and `pull` → `generate` against a live
+  database) would rebuild every table. A new step's SQL is the diff of the Drizzle schema before
+  and after the change (`generateSQLiteMigration` of `drizzle-kit/api`), not against a database.
+  `drizzle-kit pull` needs `better-sqlite3` or `@libsql/client`, which are not dependencies.
 - [ ] **W3:** Drizzle, the queries. Split the rest of `Store` table by table into its model files;
   move the methods that span several tables into `store.ts`; move the direct SQL in `board.ts` and
   `data-export.ts` into the models. No schema change: pure refactoring, the equality check must

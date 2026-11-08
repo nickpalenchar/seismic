@@ -1,12 +1,18 @@
 import { Database } from 'bun:sqlite';
+import { type BunSQLiteDatabase, drizzle } from 'drizzle-orm/bun-sqlite';
 import { currentAgent } from './agent-identity';
 import type { ActivityCode, ActivityWho, AgentIdentity, AgentModel, Attribution, Feedback, FeedbackAnswer, WorkConfig } from '../core/types';
 import { mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import type { AnswerFile, AnswerRef, CardEvent, Chat, DeviceView, CardKind, CardState, Mock, Need, Preference, PreferenceState, ProposedSetting, RepoCommands, SettingProposal, SettingProposalState, Spot, Talk, TalkAfter, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../core/types';
+import type { AnswerFile, AnswerRef, CardEvent, Chat, CardKind, CardState, Mock, Need, Preference, PreferenceState, ProposedSetting, RepoCommands, SettingProposal, SettingProposalState, Spot, Talk, TalkAfter, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../core/types';
 import type { Place } from '../core/layout';
 import { MAIN_CANVAS } from '../core/types';
 import type { Wish } from '../core/wish';
+import { Devices } from './models/devices';
+import * as schema from './models/schema';
+
+/** The Drizzle connection the models query through: the store's own SQLite connection, so they share its transactions. */
+export type Db = BunSQLiteDatabase<typeof schema>;
 
 export interface CardRow {
   id: string;
@@ -750,6 +756,8 @@ function backUpBefore(db: Database, path: string, target: number) {
 
 export class Store {
   readonly db: Database;
+  readonly orm: Db;
+  readonly devices: Devices;
 
   constructor(path: string) {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
@@ -774,6 +782,8 @@ export class Store {
         this.db.run(`PRAGMA user_version = ${v + 1}`);
       })();
     }
+    this.orm = drizzle({ client: this.db, schema });
+    this.devices = new Devices(this.orm);
   }
 
   /** A project's name as last stored; none for a project this database has never seen. */
@@ -1778,39 +1788,6 @@ export class Store {
       this.db
         .query('INSERT INTO folder_cards (card_id, folder, state) VALUES ($c, $f, $s) ON CONFLICT(card_id) DO UPDATE SET folder = $f, state = $s')
         .run({ c: cardId, f: folder, s: state });
-  }
-
-  // ---------------------------------------------------------------- devices
-
-  devices(): DeviceView[] {
-    const rows = this.db.query('SELECT id, name, paired_at AS pairedAt, last_seen AS lastSeen, push IS NOT NULL AS push FROM devices ORDER BY paired_at').all() as (Omit<DeviceView, 'push'> & { push: number })[];
-    return rows.map(({ push, ...d }) => (push ? { ...d, push: true } : d));
-  }
-
-  /** The devices that get pushes, each with its subscription (JSON). */
-  pushes(): { id: string; name: string; push: string; lastSeen: string }[] {
-    return this.db.query('SELECT id, name, push, last_seen AS lastSeen FROM devices WHERE push IS NOT NULL').all() as { id: string; name: string; push: string; lastSeen: string }[];
-  }
-
-  /** A device's push subscription (JSON), or none any more. */
-  setPush(id: string, push: string | null) {
-    this.db.query('UPDATE devices SET push = $push WHERE id = $id').run({ id, push });
-  }
-
-  deviceByToken(hash: string): DeviceView | null {
-    return this.db.query('SELECT id, name, paired_at AS pairedAt, last_seen AS lastSeen FROM devices WHERE token_hash = $hash').get({ hash }) as DeviceView | null;
-  }
-
-  addDevice(d: DeviceView & { tokenHash: string }) {
-    this.db.query('INSERT INTO devices (id, token_hash, name, paired_at, last_seen) VALUES ($id, $hash, $name, $paired, $seen)').run({ id: d.id, hash: d.tokenHash, name: d.name, paired: d.pairedAt, seen: d.lastSeen });
-  }
-
-  deviceSeen(id: string, at: string) {
-    this.db.query('UPDATE devices SET last_seen = $at WHERE id = $id').run({ id, at });
-  }
-
-  removeDevice(id: string): boolean {
-    return this.db.query('DELETE FROM devices WHERE id = $id').run({ id }).changes > 0;
   }
 
   /**

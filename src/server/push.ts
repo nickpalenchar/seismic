@@ -15,7 +15,7 @@ import { type PushKind, plainTitle } from '../core/waits';
 import { BadRequest } from './board';
 import type { Store } from './db';
 import { UNUSED_MS } from './remote';
-import { newVapidJwk, type Post, type PushMessage, send, subscriptionOf, type Subscription, type Vapid, vapidOf } from './webpush';
+import { newVapidJwk, type Post, type PushMessage, send, subscriptionOf, type Vapid, vapidOf } from './webpush';
 
 /** How long after the owner last used a page at the machine nothing is pushed. */
 export const DESK_MS = 3 * 60_000;
@@ -102,17 +102,17 @@ export class Push {
   subscribe(device: string, input: unknown) {
     const sub = subscriptionOf(input);
     if (typeof sub === 'string') throw new BadRequest('invalid', sub);
-    this.store.setPush(device, JSON.stringify(sub));
+    this.store.devices.setPush(device, sub);
   }
 
   unsubscribe(device: string) {
-    this.store.setPush(device, null);
+    this.store.devices.setPush(device, null);
   }
 
   /** The devices that get pushes: not one unused for so long that it is no longer paired (remote.ts), even before it comes back and is removed. */
   private subscriptions() {
     const now = this.now();
-    return this.store.pushes().filter((p) => now - Date.parse(p.lastSeen) <= UNUSED_MS);
+    return this.store.devices.pushes().filter((p) => now - Date.parse(p.lastSeen) <= UNUSED_MS);
   }
 
   /** Whether `device` gets pushes. */
@@ -198,9 +198,9 @@ export class Push {
       await Promise.all(
         this.subscriptions().map(async ({ id, name, push }) => {
           try {
-            const status = await send(JSON.parse(push) as Subscription, message, vapid, this.post);
+            const status = await send(push, message, vapid, this.post);
             console.log(`Seismic: pushed “${message.title}” to ${name}: ${status === 201 ? 'taken' : status}`);
-            if (status === 404 || status === 410) this.store.setPush(id, null);
+            if (status === 404 || status === 410) this.store.devices.setPush(id, null);
           } catch (e) {
             console.warn(`Seismic: push to ${name} failed: ${(e as Error).message}`);
           }

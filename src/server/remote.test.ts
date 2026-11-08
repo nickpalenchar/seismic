@@ -306,7 +306,7 @@ describe('push', () => {
     // “Remove” takes the subscription with it
     expect(push.subscribed((await view()).devices[0]!.id)).toBe(true);
     await local(`/api/access/devices/${(await view()).devices[0]!.id}`, { method: 'DELETE' });
-    expect(store.pushes()).toEqual([]);
+    expect(store.devices.pushes()).toEqual([]);
   });
 
   test("the phone's page in view holds pushes off until it goes out of view or closes, without counting as the machine", async () => {

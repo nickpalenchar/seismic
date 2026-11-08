@@ -20,12 +20,14 @@
     "@types/d3-contour": "^3.0.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "drizzle-kit": "^0.31.11",
     "typescript": "^7.0.2"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.285",
     "@babel/parser": "^7.28.5",
     "d3-contour": "^4.0.2",
+    "drizzle-orm": "^0.45.4",
     "lucide-react": "^1.69.0",
     "pdfjs-dist": "^6.4.299",
     "playwright-core": "1.61.1",

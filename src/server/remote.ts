@@ -318,7 +318,7 @@ export class Access implements Gate {
       .find((c) => c.startsWith(`${DEVICE_COOKIE}=`))
       ?.slice(DEVICE_COOKIE.length + 1);
     if (!token) return null;
-    const d = this.store.deviceByToken(sha256(token));
+    const d = this.store.devices.byToken(sha256(token));
     if (!d) return null;
     const now = this.now();
     const seen = Date.parse(d.lastSeen);
@@ -326,18 +326,18 @@ export class Access implements Gate {
       this.remove(d.id);
       return null;
     }
-    if (now - seen > SEEN_EVERY_MS) this.store.deviceSeen(d.id, new Date(now).toISOString());
+    if (now - seen > SEEN_EVERY_MS) this.store.devices.seen(d.id, new Date(now).toISOString());
     return d;
   }
 
   devices(): DeviceView[] {
     const now = this.now();
-    return this.store.devices().filter((d) => now - Date.parse(d.lastSeen) <= UNUSED_MS);
+    return this.store.devices.all().filter((d) => now - Date.parse(d.lastSeen) <= UNUSED_MS);
   }
 
   /** Removes a device at once: its cookie lets nothing in any more, and its open pages lose their connection. */
   remove(id: string): boolean {
-    const gone = this.store.removeDevice(id);
+    const gone = this.store.devices.remove(id);
     if (gone) for (const fn of this.removedFns) fn(id);
     return gone;
   }
@@ -377,7 +377,7 @@ export class Access implements Gate {
     const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
     const at = new Date(this.now()).toISOString();
     const device: DeviceView = { id: crypto.randomUUID(), name: deviceName(userAgent), pairedAt: at, lastSeen: at };
-    this.store.addDevice({ ...device, tokenHash: sha256(token) });
+    this.store.devices.add({ ...device, tokenHash: sha256(token) });
     p.paired = device;
     console.log(`Seismic: ${device.name} paired`);
     return { token, device };
