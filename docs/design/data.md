@@ -34,9 +34,15 @@ Persistent (SQLite):
     review card, the contributor's pull request (author, whether maintainers may push, the head
     handed over, the checks and merge probe, the findings with what came of each, the change request
     waiting for the contributor); the code review of a card's work (the mode it was handed over
-    under, the handover it is for, and the latest review: the handover and commit it reviewed,
-    running (with its agent's session, which a restart resumes), done or failed with why, its
-    findings with what came of each);
+    under, the handover it is for, and the latest review run's metadata only: the handover and commit
+    it reviewed, running (with its agent's session, which a restart resumes), done or failed with why).
+    The items the runs raised are the one running list of the card's code review, rows of their own
+    beside the review part: an item per row, numbered per card across all runs (title, text,
+    severity, file and line, whether it is about security, the numbers of the items it is bundled
+    with, its status, the follow-up task made of it, the owner's context), and a row for every status
+    change of an item (when, who: reviewer, worker or owner; from which status, to which, an optional
+    note, and the handover or review run it came with). The review part keeps its row while the card
+    has items;
   - its demo part: the latest demo, the demo's shared page, what its worker last heard of that
     page, the files named as the result, the owner's comments held back while watching; each
     earlier demo a row of its own in handover order (the demo part keeps its row while it has any);

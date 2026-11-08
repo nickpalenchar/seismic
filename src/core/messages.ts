@@ -99,13 +99,20 @@ const en = {
     findingTaskMade: (n: number) => `Made a follow-up task from the review of PR #${n}.`,
     findingFix: 'fix it',
     findingIgnored: 'ignored',
+    findingReopened: 'reopened',
     findingTaskOf: (title: string) => `From the code review of “${title}”.`,
     findingTaskMadeOf: (title: string) => `Made a follow-up task from the code review of “${title}”.`,
     codeReviewStarted: 'Code review started.',
-    codeReviewDone: (n: number, counts: Record<Severity, number>) =>
-      n === 0 ? 'Code review: no findings.' : `Code review: ${n === 1 ? '1 finding' : `${n} findings`} (${SEVERITIES.filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`).join(', ')}).`,
+    codeReviewDone: (n: number, counts: Record<Severity, number>, fixed = 0, reopened = 0) => {
+      const parts = [
+        n ? `${n === 1 ? '1 new item' : `${n} new items`} (${SEVERITIES.filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`).join(', ')})` : '',
+        fixed ? `${fixed} fixed` : '',
+        reopened ? `${reopened} reopened` : '',
+      ].filter(Boolean);
+      return parts.length ? `Code review: ${parts.join(', ')}.` : 'Code review: nothing new.';
+    },
     codeReviewFailed: (why: string) => `Code review failed: ${why}`,
-    codeReviewNoFindings: 'It recorded no findings.',
+    codeReviewNoFindings: 'It recorded no review.',
     codeReviewInterrupted: 'Seismic restarted meanwhile.',
     codeReviewPaused: 'The code review pauses for Seismic’s restart and goes on after it.',
     codeReviewResumed: 'Seismic runs again: the code review goes on.',

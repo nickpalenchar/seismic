@@ -233,9 +233,9 @@ placeholder shows in full, on two lines where needed, since it often says what t
 message (the owner, 2026-10-17). Send is an arrow in a dark circle, as in chat apps; a button that
 starts something rather than sends keeps its words ("Start prototype").
 
-A review card's findings (see Review cards) stand above its demo, each with its choice; the findings
-of a code review (see Code reviews in Card lifecycle) stand in the card's Review tab, as the same
-element. What the owner chose stands above the field like a quote and goes out with its one Send, the
+A review card's findings (see Review cards) stand above its demo, each with its choice; the items
+of a code review (see Code reviews in Card lifecycle) stand in the card's Review tab, in the same
+style. What the owner chose stands above the field like a quote and goes out with its one Send, the
 words beside it.
 
 Under a task's title stand its branch (and plan doc) and the size of its change ("+120 −30 in 5 files"; where the card shows its change list, the size stands below the list instead): before landing the workstation against where its base branch was, uncommitted and new files
@@ -248,7 +248,7 @@ another machine). The owner rarely reads code, so it stays a quiet line.
 What a card's work made or changed is its result, shown on the left for folder and git cards alike.
 The top of the column has a row of tabs: "Video" first where there is a video, "Document" for an
 HTML artifact or named HTML result, "Schema change" for a named schema-change page, "Review" for
-the code review of the work where the project reviews it (its open findings counted beside the title
+the code review of the work where the project reviews it (the items that need the owner counted beside the title
 by severity, from dark purple through grey; "outdated" where it reviewed an earlier handover), and "Diff"
 for the underlying change list. Other named result files have tabs named after their files. Only
 available results have tabs; the first opens by default. The demo and named results show without

@@ -1102,10 +1102,63 @@ export interface Finding {
 export type FindingStatus = 'open' | 'sent' | 'fixed' | 'resolved' | 'dropped' | 'later';
 
 /**
+ * Where an item of a card's code review stands: `raised` by the reviewer, `fixing` (the owner chose
+ * "Fix it" and the worker is on it), `underReview` (the worker resubmitted it; the next review
+ * verifies it), `fixed` (the reviewer verified it), `reopened` (a fix did not hold, a fixed item
+ * regressed, the worker disputed it, or the owner reopened it), `closed` (the owner ignored it),
+ * `followUp` (the owner chose "As a follow-up task"). Raised and reopened items need the owner.
+ */
+export const REVIEW_ITEM_STATUSES = ['raised', 'fixing', 'underReview', 'fixed', 'reopened', 'closed', 'followUp'] as const;
+export type ReviewItemStatus = (typeof REVIEW_ITEM_STATUSES)[number];
+
+/** Who moved a code review item. */
+export type ReviewItemWho = 'reviewer' | 'worker' | 'owner';
+
+/** One status change of a code review item, as its log has it. */
+export interface ReviewItemEvent {
+  at: string;
+  who: ReviewItemWho;
+  /** None for the item being raised. */
+  from?: ReviewItemStatus;
+  to: ReviewItemStatus;
+  note?: string;
+  /** The handover (its event) or the review run (its start time) it happened at. */
+  handover?: number;
+  run?: string;
+}
+
+/**
+ * One item of the running list of a card's code review: numbered per card across all review runs, with
+ * the log of its status changes. The other items it is fixed with (`with`) and the follow-up task made
+ * of it (`card`) ride along.
+ */
+export interface ReviewItem {
+  number: number;
+  title: string;
+  text: string;
+  severity: Severity;
+  security?: boolean;
+  file?: string;
+  line?: number;
+  /** The other items its worker would fix, or make one follow-up task, with it (their numbers). */
+  with?: number[];
+  status: ReviewItemStatus;
+  /** The follow-up task the worker made of it. */
+  card?: string;
+  /** What the owner wrote on it, as the worker read it with the owner's choice. */
+  context?: string;
+  log: ReviewItemEvent[];
+}
+
+/** Whether the item waits for the owner. */
+export const needsOwner = (i: Pick<ReviewItem, 'status'>) => i.status === 'raised' || i.status === 'reopened';
+
+/**
  * The code review of a card's work as the card shows it: whether reviews start by themselves with a
- * handover or by the owner's "Start code review", and the review of the latest handover or of an
- * earlier one (`stale`). On a finding of it the owner decides `self` ("Fix it", the card's worker
- * fixes it) or `later` (a follow-up task).
+ * handover or by the owner's "Start code review", the latest review run (of the latest handover or of
+ * an earlier one, then `stale`) and the one list of items all runs add to. On an item that needs them
+ * the owner decides `self` ("Fix it", the card's worker fixes it) or `later` (a follow-up task), or
+ * ignores it.
  */
 export interface CodeReview {
   mode: CodeReviewMode;
@@ -1115,11 +1168,9 @@ export interface CodeReview {
   state?: 'running' | 'done' | 'failed';
   /** It reviewed an earlier handover than the latest. */
   stale?: true;
-  findings?: Finding[];
+  items: ReviewItem[];
   /** Why it failed. */
   error?: string;
-  /** Earlier review runs, oldest first; their findings and decisions are snapshots. */
-  previous?: { state: 'done' | 'failed'; findings: Finding[]; error?: string; at: string; agent?: AgentIdentity }[];
 }
 
 /** How a project's finished cards go into the archive (project setting "Cards archive"). */
@@ -1953,6 +2004,8 @@ export type CardAction =
   /** A card waiting for approval whose project reviews work on the owner's word ("Start code review"): a review of its latest handover starts. */
   | { action: 'codeReview' }
   | { action: 'stopCodeReview' }
+  /** The owner reopens an item of the card's code review that is closed or fixed. */
+  | { action: 'reopenReviewItem'; number: number }
   /** In a folder without git, on a card waiting for approval: what it changed there is put back as it was before ("Discard changes"). */
   | { action: 'undo' }
   /** Start a queued card although it may collide. */

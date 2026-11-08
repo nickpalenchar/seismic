@@ -23,7 +23,7 @@ export function agentStage(i: Item, underway = false): AgentStage | undefined {
   if (i.review?.landing || i.review?.landingPosition !== undefined || i.state === 'approved' || i.state === 'inPr') return 'landing';
   if (i.state === 'planned') return 'planned';
   if (i.state !== 'working' && i.state !== 'waiting') return undefined;
-  if (i.review?.codeReview?.findings?.some((f) => f.status === 'open' && f.decided === 'self')) return 'fixing';
+  if (i.review?.codeReview?.items.some((r) => r.status === 'fixing')) return 'fixing';
   return 'working';
 }
 

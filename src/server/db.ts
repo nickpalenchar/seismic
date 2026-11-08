@@ -625,6 +625,67 @@ export const MIGRATIONS = [
    CREATE INDEX \`cards_waiting\` ON \`cards\` (\`project_id\`) WHERE waiting_since IS NOT NULL;
    CREATE INDEX \`cards_canvas\` ON \`cards\` (\`canvas_id\`);
    PRAGMA foreign_keys=ON;`,
+  // the code review of a card's work as one running list: its items (`card_review_items`, numbered per
+  // card across all review runs) and the log of their status changes (`card_review_item_events`). The
+  // findings of the latest completed run become items (open: raised, decided to fix: fixing, fixed:
+  // under review, dropped: closed, later or decided for later: follow-up); the findings the owner
+  // ignored in earlier runs become closed items after them; earlier runs' snapshots are dropped.
+  `CREATE TABLE \`card_review_items\` (
+     \`card_id\` text NOT NULL,
+     \`number\` integer NOT NULL,
+     \`title\` text NOT NULL,
+     \`text\` text NOT NULL,
+     \`severity\` text NOT NULL,
+     \`file\` text,
+     \`line\` integer,
+     \`security\` integer DEFAULT false NOT NULL,
+     \`bundle\` text,
+     \`status\` text NOT NULL,
+     \`follow_up\` text,
+     \`context\` text,
+     PRIMARY KEY(\`card_id\`, \`number\`),
+     FOREIGN KEY (\`card_id\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action
+   );
+   CREATE TABLE \`card_review_item_events\` (
+     \`card_id\` text NOT NULL,
+     \`number\` integer NOT NULL,
+     \`position\` integer NOT NULL,
+     \`at\` text NOT NULL,
+     \`who\` text NOT NULL,
+     \`from\` text,
+     \`to\` text NOT NULL,
+     \`note\` text,
+     \`handover\` integer,
+     \`run\` text,
+     PRIMARY KEY(\`card_id\`, \`number\`, \`position\`)
+   );
+   CREATE INDEX \`card_review_item_events_card\` ON \`card_review_item_events\` (\`card_id\`);
+   CREATE TEMP TABLE review_source AS
+     SELECT card_id, code_review AS cr,
+       CASE WHEN json_extract(code_review, '$.review.state') = 'done' THEN '$.review.findings'
+         ELSE (SELECT '$.previous[' || p.key || '].findings' FROM json_each(code_review, '$.previous') p WHERE json_extract(p.value, '$.state') = 'done' ORDER BY p.key DESC LIMIT 1) END AS path,
+       strftime('%Y-%m-%dT%H:%M:%fZ', 'now') AS now
+     FROM card_reviews WHERE code_review IS NOT NULL;
+   INSERT INTO card_review_items (card_id, number, title, text, severity, file, line, security, bundle, status, follow_up)
+     SELECT s.card_id, json_extract(f.value, '$.id'), json_extract(f.value, '$.title'), json_extract(f.value, '$.text'), coalesce(json_extract(f.value, '$.severity'), 'minor'),
+       json_extract(f.value, '$.file'), json_extract(f.value, '$.line'), coalesce(json_extract(f.value, '$.security'), 0), json_extract(f.value, '$.with'),
+       CASE json_extract(f.value, '$.status')
+         WHEN 'fixed' THEN 'underReview' WHEN 'dropped' THEN 'closed' WHEN 'later' THEN 'followUp'
+         ELSE CASE json_extract(f.value, '$.decided') WHEN 'self' THEN 'fixing' WHEN 'later' THEN 'followUp' ELSE 'raised' END END,
+       json_extract(f.value, '$.card')
+     FROM review_source s, json_each(s.cr, s.path) f WHERE s.path IS NOT NULL;
+   INSERT INTO card_review_items (card_id, number, title, text, severity, file, line, security, status)
+     SELECT s.card_id,
+       coalesce((SELECT max(json_extract(v.value, '$.id')) FROM json_each(s.cr, s.path) v), 0) + ROW_NUMBER() OVER (PARTITION BY s.card_id ORDER BY ig.key),
+       json_extract(ig.value, '$.title'), json_extract(ig.value, '$.text'), 'minor', json_extract(ig.value, '$.file'), json_extract(ig.value, '$.line'), 0, 'closed'
+     FROM review_source s, json_each(s.cr, '$.ignored') ig;
+   INSERT INTO card_review_item_events (card_id, number, position, at, who, \`from\`, \`to\`)
+     SELECT i.card_id, i.number, 0, s.now, 'reviewer', NULL, 'raised' FROM card_review_items i JOIN review_source s ON s.card_id = i.card_id;
+   INSERT INTO card_review_item_events (card_id, number, position, at, who, \`from\`, \`to\`)
+     SELECT i.card_id, i.number, 1, s.now, CASE i.status WHEN 'underReview' THEN 'worker' ELSE 'owner' END, 'raised', i.status
+     FROM card_review_items i JOIN review_source s ON s.card_id = i.card_id WHERE i.status != 'raised';
+   DROP TABLE review_source;
+   UPDATE card_reviews SET code_review = json_remove(code_review, '$.previous', '$.ignored', '$.review.findings') WHERE code_review IS NOT NULL;`,
 ];
 
 /**

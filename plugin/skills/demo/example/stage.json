@@ -23,7 +23,7 @@
         { "kind": "talk", "author": "worker", "text": "The plan is in place." }
       ],
       "_row": "code_review makes the Review tab available. mode is the review setting; handover identifies the handover being reviewed. See the script header for other row fields.",
-      "row": { "code_review": { "mode": "auto", "handover": 1, "review": { "handover": 1, "state": "done", "findings": [], "at": "2026-01-01T12:00:00Z" } } }
+      "row": { "code_review": { "mode": "auto", "handover": 1, "review": { "handover": 1, "state": "done", "at": "2026-01-01T12:00:00Z" } } }
     }
   ]
 }

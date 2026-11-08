@@ -129,6 +129,7 @@
 // workstation (true: the card holds the next free clone, for a repository whose settings say clones; with
 // its branch checked out there, holding a commit where `branch` names it, of `branchFiles` (else of a `scratch.txt`; by path, a text or `{ from }` a file to copy); for one that works in worktrees, a branch is
 // required and the card gets a worktree of its own on it), prototypeOf (the key of the idea it is a prototype of),
+// reviewItems (the items of a card's code review, with `row.code_review` giving the review itself: `[{ number, title, text, severity?, file?, line?, security?, with?, status, card? (a key), context?, log?: [{ who, from?, to, note?, ago? }] }]`, where the code has them),
 // and `row` for any other column of `cards` (objects are stored as JSON; an idea's columns go into its
 // idea part where the code has the ideas table, `idea` as its `discussion`, and the columns of the other
 // parts into theirs, as the migration that brought their tables moved them; a
@@ -187,6 +188,20 @@ import { branchName } from '../src/server/workstations';
 import { opt } from './common';
 import { waitUp } from './wait-up';
 
+interface StageReviewItem {
+  number: number;
+  title: string;
+  text: string;
+  severity?: string;
+  file?: string;
+  line?: number;
+  security?: boolean;
+  with?: number[];
+  status: string;
+  card?: string;
+  context?: string;
+  log?: { who: string; from?: string; to: string; note?: string; ago?: string }[];
+}
 type StageEvent = NonNullable<StageCard['events']>[number];
 
 interface StageCard {
@@ -227,6 +242,7 @@ interface StageCard {
   workspace?: boolean;
   /** A prototype of the idea with this key. */
   prototypeOf?: string;
+  reviewItems?: StageReviewItem[];
   createdAgo?: string;
   archivedAgo?: string;
   events?: { kind: string; author: string; text: string; ago?: string; mocks?: { title: string; html: string }[]; spot?: { at: number; chapter?: string; demo?: number }; token?: boolean }[];
@@ -860,6 +876,20 @@ for (const [i, c] of stage.cards.entries()) {
   const missing = keys.filter((k) => !columns.has(k) && !inPart(k));
   if (missing.length) fail(`card ${c.key ?? i}: this code's database has no column ${missing.join(', ')}`);
   write(id, row);
+  if (c.reviewItems?.length) {
+    if (!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_review_items'").get()) fail(`card ${c.key ?? i}: this code's database has no review items`);
+    for (const it of c.reviewItems) {
+      db.query('INSERT INTO card_review_items (card_id, number, title, text, severity, file, line, security, bundle, status, follow_up, context) VALUES ($c, $n, $title, $text, $sev, $file, $line, $sec, $bundle, $status, $card, $context)').run({
+        c: id, n: it.number, title: it.title, text: it.text, sev: it.severity ?? 'minor', file: it.file ?? null, line: it.line ?? null, sec: it.security ? 1 : 0,
+        bundle: it.with ? JSON.stringify(it.with) : null, status: it.status, card: it.card ? (ids[it.card] ?? it.card) : null, context: it.context ?? null,
+      });
+      (it.log ?? []).forEach((e, position) =>
+        db.query('INSERT INTO card_review_item_events (card_id, number, position, at, who, "from", "to", note) VALUES ($c, $n, $p, $at, $who, $from, $to, $note)').run({
+          c: id, n: it.number, p: position, at: ago(e.ago ?? '0s'), who: e.who, from: e.from ?? null, to: e.to, note: e.note ?? null,
+        }),
+      );
+    }
+  }
   const reviews: { id: number; at: string }[] = [];
   const spots: [number, NonNullable<StageEvent['spot']>][] = [];
   for (const e of c.events ?? []) {

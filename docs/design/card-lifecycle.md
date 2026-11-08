@@ -176,7 +176,7 @@ handovers in order. A problem beyond the task is a proposal, not a line in the r
 
 #### Code reviews
 
-Review answers may be submitted to the current worker or to a new agent chosen by harness, model and effort. The latter starts a fresh session in the same workstation with the selected findings as its task context; the previous worker must have finished its turn.
+Review answers may be submitted to the current worker or to a new agent chosen by harness, model and effort. The latter starts a fresh session in the same workstation with the selected items as its task context; the previous worker must have finished its turn.
 
 A project may have the work of its cards reviewed before it lands (its settings sheet, "Code reviews",
 see The project settings in The canvas; off unless the owner turns it on, since reviews cost tokens).
@@ -187,17 +187,50 @@ approved work handed over again only to land.
 
 The reviewer is an agent of its own, not the worker: one session of the "Code reviews" group (see
 Models and effort in Agents and workstations), read-only, in the card's workstation. Its brief is the
-card's title and task, the files changed and the branch's diff against `main` (cut off at a size, the
-rest left to reading the files); its instructions are to review the repository's way (its CLAUDE.md
-and docs): correctness, security, quality, and whether the change fits the design docs. It changes
-nothing and records its findings once with a tool: each with a title, a sentence or two in the
-conversation language, a severity (blocker: an app crash, a very important secret exposed, or an
-unprotected database; critical: a clear exploit, severe degradation, or other major consequence;
-major: a real defect or a clear departure from the repository's rules; minor: worth fixing without
-holding the work up; low: a small issue with limited impact; info: a nitpick or an uncertain point
-worth flagging), the file and line, whether it is about security, and the findings one agent
-would fix with it in one go (a bundle, as on a review card). A review that ends without recording
-any failed; the card says why, and it can be started again.
+card's title and task, the files changed, the branch's diff against `main` (cut off at a size, the
+rest left to reading the files) and the card's whole list of review items with their statuses (below);
+its instructions are to review the repository's way (its CLAUDE.md and docs): correctness, security,
+quality, and whether the change fits the design docs. It changes nothing and records its review once
+with a tool, which does three things with the list: a verdict on each item that is under review
+(fixed, or not fixed with why), the regressions it finds among the fixed items (each with why), and
+the new items (each with a title, a sentence or two in the conversation language, a severity
+(blocker: an app crash, a very important secret exposed, or an unprotected database; critical: a
+clear exploit, severe degradation, or other major consequence; major: a real defect or a clear
+departure from the repository's rules; minor: worth fixing without holding the work up; low: a small
+issue with limited impact; info: a nitpick or an uncertain point worth flagging), the file and line,
+whether it is about security, and the items one agent would fix with it in one go (a bundle, as on a
+review card)). It raises nothing the list holds already, and nothing the owner closed. A review that
+gives no verdict on an item under review, or a verdict or regression on an item not in that status,
+is refused and does it again; one that ends without recording failed; the card says why, and it can
+be started again.
+
+##### The list of review items
+
+A card's code review is one running list of items, not a page per review run. Each review run adds
+to it, so an item keeps its number (#1, #2 …) for the whole life of the card, and so do the
+owner's choices on it. An item has a title, text, severity, file and line, whether it is about
+security, the items it is to be fixed with, its status, the follow-up task made of it and the
+owner's context, and a log of every change of status: when, by whom (reviewer, worker or owner),
+from which status to which, an optional note, and the handover or review run it came with. The
+status is shown as a pill:
+
+- **Raised**: the reviewer found it. Needs the owner.
+- **Fixing**: the owner chose "Fix it" and the worker is on it.
+- **Under review**: the worker resubmitted it (its handover resubmits every item it is fixing; the
+  log reads "Resubmitted → Under review"); the next review verifies it.
+- **Fixed** (green check): the reviewer verified it.
+- **Reopened**: needs the owner again, because the reviewer found the fix did not hold (its reason in
+  the log) or a fixed item regressed, because the worker disputed it, or because the owner reopened it.
+- **Closed**: the owner chose to ignore it.
+- **Follow-up**: the owner chose "As a follow-up task"; it links the task once the worker made it.
+
+On a raised or reopened item the owner chooses "Fix it", "As a follow-up task" or "Ignore" (Closed),
+and may "Write more context"; on a closed or fixed item "Reopen" puts it back as reopened. The
+worker hears the whole list with every choice the owner sends: first the items to fix now, then the
+fixed, the closed and the follow-ups (and, last, the others). It has tools of its own: to resubmit
+any item with a note (an item its work happens to fix though it is closed or a follow-up goes to the
+reviewer too) and to dispute an item it holds wrong, with its reasons, instead of changing code,
+which takes the item back to the owner as reopened.
 
 "Reviews happen" says when:
 
@@ -205,216 +238,62 @@ any failed; the card says why, and it can be started again.
   demo at once, but the owner is not notified (push, desktop notification) that it waits until the
   review has finished, whether the handover is the first or follows "Fix it". A "Review" tab stands after the deliverables, before Diff (see The files beside
   the demo in Conversation on the card): its running status, in the reviewing teal, names the reviewing harness and model
-  and has a "Stop review" button (the review is dropped and leaves nothing, as on approval), then it shows the findings, the open ones counted beside the tab's title by severity in colour.
-  A completed, current review with no findings shows a green checkmark beside the title.
+  and has a "Stop review" button (the review run is dropped and leaves nothing, as on approval; the list stays), and above the list shows the items, those that need the owner counted beside the tab's title by severity in colour.
+  A completed, current review with nothing open (no item raised, reopened, fixing or under review) shows a green checkmark beside the title.
   Blocker has a dark purple badge,
   critical a saturated red badge with white text, major a lighter red, minor orange, low yellow,
-  and info grey. The conversation notes the findings by severity when it is done, or says why it
-  failed.
+  and info grey. The conversation notes what a review did when it is done (the new items by severity, how many it
+  verified fixed or reopened), or says why it failed.
 - "Manually, at handover": nothing runs by itself. "Approve" stays first and primary; beside it
   "Start code review", in purple, until the latest handover is reviewed. The click runs exactly the
   automatic review and opens its tab.
 
 While either review runs, the card's state rule and status line turn blue-green and say "Agent
 reviewing"; it does not show an attention badge while the review runs. "Approve" becomes a yellow warning button, and stays one while
-the card's agent (the same or a new one) fixes findings the owner sent it, until its next handover:
-fixing is part of the review. A second, smaller line inside it says why: "Review in progress" or "Fixing in progress". Clicking it asks "Approve without Review?"
+the card's agent (the same or a new one) fixes items the owner sent it, and while items wait under review
+for the next review to verify them: fixing is part of the review. A second, smaller line inside it says why: "Review in progress" or "Fixing in progress". Clicking it asks "Approve without Review?"
 and explains that approval stops the in-progress review and moves straight to landing. The owner
 chooses "Stop Review & land" or "Continue review"; the latter leaves the review running.
 
-Changing the setting (or starting Seismic after it changed) reaches work already waiting for approval: with Manually a "Start code review" button appears, with Off the review goes. Automatically starts reviews at handovers only, never on work already waiting; findings are never settled by a setting change. Planned cards follow the setting once they hand over; cards already at work when it changed hand over without an automatic review (Manually still offers the button).
+Changing the setting (or starting Seismic after it changed) reaches work already waiting for approval: with Manually a "Start code review" button appears, with Off the review goes. Automatically starts reviews at handovers only, never on work already waiting; items are never settled by a setting change. Planned cards follow the setting once they hand over; cards already at work when it changed hand over without an automatic review (Manually still offers the button).
 
 Approval never waits for a review: approving while one runs stops it, and nothing of it stays. A
 handover makes the review before it stale unless the branch's commit is the one reviewed (an answer
 to the owner's words that changed no code keeps it): a review still running stops, and in automatic
-mode a new one starts; in manual mode the tab, findings and all, reads "outdated" and "Start code
+mode a new one starts; in manual mode the tab, items and all, reads "outdated" and "Start code
 review" returns. Stopping the card stops a running review too. A restart of Seismic waits for a
-review at work as for a worker in a turn: its agent hears of it, ends its turn without findings, and
+review at work as for a worker in a turn: its agent hears of it, ends its turn without recording, and
 goes on in the same session once Seismic runs again (a session that does not resume, another harness
 say, starts the review over); a review due while a restart waits starts after it. The card's log
 says it paused and went on; the tab reads running throughout. Only a review of work no longer waiting
 for approval after the restart failed ("Seismic restarted meanwhile").
 
-The Review tab lets the owner step through earlier completed reviews, in chronological order, as
-with earlier demos. Each shows its findings and the selections made on them at the time. Earlier
-reviews are read-only: their finding choices and submission controls are unavailable. The latest
-review remains selected by default, including while a newer review runs.
-
-The findings are the same element as a review card's (see Review cards in Landing), with the severity
-and where the finding is. On each open finding of the latest review the owner chooses "Fix it", "As
-a follow-up task" or "Ignore" (a second click takes it back; an ignored one is settled and leaves
-the list without reaching the worker, as on a review card). Every later review of the card's work
-is given the findings ignored or chosen as follow-up tasks in its earlier reviews, including the
-linked follow-up tasks where created, so it does not raise them again; the choices stand above the field and go to the
-worker with the card's one Send, with or without words of the owner's, exactly as on a review card.
-Each open finding also has a "Write more context" button at its bottom right, apart from the choices: it opens a text box and becomes "Save"; the saved words stand on the finding (button "Edit context") and go to the agent verbatim with the finding's decision, on review cards too. They are kept like the choices until sent and dropped with them; an ignored finding sends none. Finding numbers start again with every code review, so choices and context belong to the review they were written for: as soon as the card's review is another one, whichever tab is open, they are dropped, and a draft holding them from before this was tracked is dropped too.
-Approving while choices on findings are picked but not sent asks first: "Approve and close items" approves and drops them, "Go back" keeps them.
-The Review tab also offers "Submit answers" beneath the findings once a choice is made, so the
+The Review tab is the one list: the items that need the owner first (raised, reopened, the most
+severe first), then those fixing or under review, then the fixed, the closed and the follow-ups,
+folded to their head line (number, severity, title, status pill). A click on an item unfolds its text,
+where it is, its pill (after the text) and its log; the items that need the owner stand unfolded. The
+items are the same element as a review card's findings (see Review cards in Landing), with the
+severity and where the item is. A closed or fixed item has "Reopen" on its head line. A second click
+on a choice takes it back; an ignored item is closed at once and does not reach the worker, as on a
+review card. The choices stand above the field and go to the worker with the card's one Send, with
+or without words of the owner's, exactly as on a review card; as the numbers stay across reviews,
+choices and context in the draft survive a new review. Review answers can be sent while a review
+runs or after a handover that made the review outdated: the worker then hands over again, and
+that handover stops a review of the earlier commit.
+Each item that needs the owner also has a "Write more context" button at its bottom right, apart from the choices: it opens a text box and becomes "Save"; the saved words stand on the item (button "Edit context") and go to the agent verbatim with the item's decision, on review cards too. They are kept like the choices until sent and dropped with them; an ignored item sends none; once sent they stay on the item.
+Approving while choices on items are picked but not sent asks first: "Approve and close items" approves and drops them, "Go back" keeps them.
+The Review tab also offers "Submit answers" beneath the list once a choice is made, so the
 owner can send those choices without opening the conversation on a phone. Sending them takes the
 card straight into the agent's response, clearing "Waiting for you", its "Needs you" inbox count,
 and its notification while the agent works, as sending the same choices through the conversation does.
-The worker reads each finding in full (it did not write them) and fixes those to fix on its branch,
-handing over again with a new demo where the change shows; that handover marks them fixed. While
-the worker fixes them, those findings fold to their head line (number, title, severity) with a
-"Fixing" badge before the severity, so the ones still to decide stand out; a click on the head
-unfolds one. A finding
-it holds wrong it explains in its handover instead. Follow-up tasks it makes with a tool of its own,
-bundled as the owner's words say, else as the review bundled them: tasks beside the card, following up
-on it, started at once and waiting in the queue until its work has landed (the reason reads "Builds on
-it"); until each finding chosen has its task, the worker's handover and reply are refused. A finding
-made a follow-up task links it.
-
-### Approval and landing
-
-Where work lands through pull requests, the approve button reads "Freigeben (PR)": the card goes
-`in PR`, its worker opens the PR (until then "Approved · agent opening the PR"), and Seismic carries
-it through to the merge, which it does itself unless the settings leave the merge to people on the
-forge (see PR loop).
-
-Where the settings allow it (`direct`), "Straight to main" beside it pushes the work onto the
-default branch without a pull request, review or the PR's CI (see How work lands); only the button
-does, never words to the Koordinator. Where work lands on `main`, approval lands it at once.
-
-A review card, a contributor's pull request (see Review cards), reads "Merge (PR #5)": Seismic merges
-the head its worker reviewed, and the card is `live`; while a change request waits for the
-contributor it is `in PR`, "Waiting for the contributor".
-
-An approve click folds the card at once without waiting for the server: the canvas card says what is
-under way: first "being approved …" or "being pushed straight to main …", then the landing or its
-place in the repository’s landing queue (see How work lands). It no longer counts as needing the
-owner and is skipped by Tab, which goes on from the place of the card it opened last. A message with
-a spinner stands above the microphone, which the answer turns into the confirmation or, when the
-landing is refused, into the reason, with the card waiting for review again; a restart that cut the
-landing off gives the card back the same way.
-
-#### Feedback after approval
-
-The owner is asked how the agent did when the card goes into the archive by the owner's hand, as the
-project's "Cards archive" says (see Archive): where the owner archives cards ("Manually", the
-default), once the card is archived (its archive button, on the card or the project, or "all
-finished ones at once", which asks about each in turn); where cards archive themselves
-("Automatically, after landing"), once the approval has gone through (the card's button, work that
-changed nothing included). A workstream, which goes into the archive only with its plan, is asked
-about after its approval either way. Then a prompt stands
-right above the microphone, under the confirmation: "How well did the agent do “…”?" with five stars (Poor, Fair, Okay,
-Good, Excellent) and "Skip". A star saves the rating at once; then a comment
-field opens, optional, and "Skip" becomes "Done". The prompt stays until answered or
-skipped, also when the card goes into the archive meanwhile; another approval asks about its own card instead. Skipping records nothing: the card keeps
-asking. Every approved card (`approved`, `in PR`, `live`, `done`, archived too; archiving by hand,
-only once archived) whose latest
-handover has no response shows the same stars and comment under its conversation, and once answered
-shows the answer there to change; an unsent comment is a draft of the card's like any other. Saving
-goes its own way: approval and landing never wait for it, and a refused save shows its reason in the
-prompt, the approval standing. A response is about the latest handover (see Models and effort in
-Agents and workstations); approved again for the same handover (a retried landing), nothing new is
-asked once answered; work handed over anew asks afresh. Review cards of contributors' pull requests
-and prototypes are not asked about. "Feedback after approval" in Configuration → Notifications and limits turns
-the asking off and on for every open page at once; turned off, no card asks or shows a rating, and
-the responses given stay.
-
-#### Comparing ratings
-
-"Compare ratings" (beside "Feedback after approval" in the Configuration, and
-under the stars of every rated card; the logo's menu has it as "Agent performance") opens "Agent performance" over the page, as the configuration
-is: every response on every project (`/api/feedback`), grouped by whom it credits (see Models and
-effort in Agents and workstations). Each harness heads its rows, one per model and effort, the model
-as the session resolved it and an unknown field named unknown; work by several configurations
-("Several configurations") and work nothing was recorded of ("Not recorded") have rows of their
-own under "Not credited to one model", never counted for a model. Rows are ordered by harness,
-model and effort, never by score. Each says how many ratings it rests on, their average and
-comments; a row with fewer than five ratings is greyed and tagged "few". The main view shows
-each row's ratings split by stars as one bar ("Spread"); "Each rating" draws each rating as a
-dot on the scale from 1 to 5 with the median as a line, the dots of one rating scattered in a cloud
-that grows with their number (the same at every render), each dot the larger the newer its rating, in
-five steps: up to three days, a week, a month, two months, older; "Over time" puts above the table each
-model and effort's average per month as a line (from the first month with a rating to the last), a
-month of fewer than five ratings a hollow point, work credited to no one model without a line. The
-view chosen is kept per browser. With
-fewer than five ratings in all (after the filters), there is no table and no average, only the
-responses so far, each with whom it credits. The head counts responses, ratings and those credited
-to no one model. Filters: project, repository and plan (each only where there is more than one to
-choose, a plan as soon as there is one), and the period (all, the last 90 or 30 days, by when a
-response was last given). A click on a row lists its responses, the latest first: the card's title
-as it was (a link to the card: on this project it closes the dialog and opens the card, archived
-ones from the archive; on another, its address), plan, repository, project where they differ,
-date, stars and comment, and for mixed work the configurations that did it. A deleted card's
-response still counts and says so, its title without a link. Closed and opened
-again, the dialog keeps its filters and open row; it holds the keyboard's focus while open and
-gives it back to what opened it. A response with only a comment counts as a
-response, not a rating. The phone view has no dashboard.
-
-"Feedback log: every response by time" in the dashboard's head leads to the Agent Feedback Log, a
-page of its own in place of the project (`/p/<project>/feedback`), with the dashboard's filters as they
-were; its link "← Agent performance" leads back to that project with the dashboard open and the filters
-the two share, and so does the browser's Back. A page rather than a view in the dialog: a long list
-of responses wants the whole screen, and an address of its own keeps it across a reload and makes it
-a link (2026-11). It lists every response on every project, the newest first (by when it was last
-given), each with its date, card (a link to it, opening on its project, archived ones from the
-archive; a deleted card's title without one), stars ("no stars" for a comment alone), comment,
-whom it credits (for mixed work "Several configurations" with the configurations that did it),
-plan, repository and project. Filters: the dashboard's (period by when a response was last given),
-then harness, model and effort of the credited configuration (each where there is more than one to
-choose, an unknown value named unknown), which work credited to no one configuration never matches,
-and rating, whole stars or "no stars". Grouping: none, configuration (in the dashboard's order,
-mixed and unrecorded work last), plan, repository, project (by name, those without one last),
-week (from Monday) or month (the newest first); each section heads its responses with their count
-and average, and the column it groups by gives way to that heading. The head counts the responses
-shown of all. With no responses at all it says what fills it; when the filters leave nothing, it
-says so with "Clear filters". Filters and grouping stay in the address. Every control is a
-link, a select or a button, in reading order for the keyboard.
-
-### Live and done
-
-Merged (or landed on `main`) → `live`. The demo stays on the card. The worker hears that its work is
-on main and may finish what waited for that (see After landing).
-
-Work that changed nothing in the repository (a demo, an analysis, an answer) has nothing to land:
-when the handover finds no commits of the card's own (measured as in The Koordinator) and nothing
-uncommitted, the button reads "Beenden" with a line that no pull request follows, and approving makes
-the card `done` ("Erledigt"). The handover's answer tells the worker what the button will do, as
-Seismic sees the branch: close the card, or land the files it names. A worker knows the commits it made,
-not those its branch carried from before, and otherwise told the owner the opposite of what the card
-showed. A worker whose
-branch emptied after the approval closes the card with `close_unchanged`, refused while the
-workstation holds changes.
-
-A finished card an agent worked on keeps its field: a question there resumes that agent (see
-Questions after the work).
-
-### Archive
-
-The owner archives a finished card ("Archivieren" on it, its archive button on the canvas, or all
-finished ones at once in the archive); a prototype goes there when it ends (see Prototypes). The
-project setting "Cards archive" chooses between "Manually" (the default: only so) and
-"Automatically, after landing": then an owner's finished task goes into the archive by itself as
-soon as its work has landed (or closed without a change) and its worker is done after the landing,
-with a line in its log; a workstream still goes with its plan, and a card brought back from the
-archive stays on the canvas. The setting also decides when the owner is asked how the agent did
-(see Feedback after approval). A
-stopped task ("Stopped") can be archived one at a time, for the owner to come back to, beside "Start again" and "Delete"; not while it waits to start, nor while its workstation holds work that has not
-landed, or a clone keeps its branch since its workstation was taken (the button is greyed and says
-why), which would lie unseen in a clone. A stopped card opens
-like a card an agent worked on, the task as its conversation's first message.
-
-The archive (its button in the bar, or `A`) drops down like the queue: archived cards on a timeline
-by day, newest first, each at size XS (see Card sizes) beside the time it was archived, a plan with
-the count of its workstreams. One unfolds as on the canvas and can go
-back to its place; an ended prototype only shows, read-only, how it ended. A search field, focused on
-opening and kept between openings, filters by every typed word (case and accents aside) in title,
-text, summary, last status, state or kind, and a plan's goal and workstreams, marking the words in the
-titles. The list stays under the dim while a card from it is open, so the card folds back into it.
-
-### Plans end
-
-A plan ends when every workstream in its plan doc is ticked on the default branch, or when the
-doc is deleted: it moves into the archive with its workstreams, which are not listed on their own. A
-workstream still at work then (or its worker finishing after the landing) keeps the plan on the
-project until that worker is done. Opened from the archive, its sheet shows read-only the goal and
-workstreams as the doc last stood, each workstream with its conversation and demo. When the file
-comes back, or gets an open workstream, the plan returns to its place.
-
-Every plan's sheet holds its conversation with its plan agent (see Asking in a plan's
-sheet), lists its decisions and links the idea or task its plan doc came from (see Deciding).
+The worker reads each item in full (it did not write them) and fixes those to fix on its branch,
+handing over again with a new demo where the change shows; that handover resubmits them. While
+the worker fixes them the items fold to their head line with a "Fixing" pill, so the ones still to
+decide stand out. Follow-up tasks it makes with a tool of its own, bundled as the owner's words say,
+else as the review bundled them: tasks beside the card, following up on it, started at once and
+waiting in the queue until its work has landed (the reason reads "Builds on it"); until each item
+chosen has its task, the worker's handover and reply are refused. An item made a follow-up task
+links it. The project stops reviewing work (or the work stops landing on `main`): the list goes with the review.
 
 ### Decisions
 
@@ -422,14 +301,23 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
   work lands on `main`** (owner, 2026-11-05): automatic with the demo (the Review tab with its
   coloured counts) or manual at handover ("Approve" stays first and primary, "Start code review" second in purple:
   the everyday button keeps its place); the
-  owner sends findings to the worker to fix with the one Send, or makes them follow-up tasks. Off by
+  owner sends items to the worker to fix with the one Send, or makes them follow-up tasks. Off by
   default: reviews cost tokens, and nothing reviewed before. Rejected: the worker reviewing its own
   diff before handing over (no fresh eyes, no separate model, nothing the owner can start at
   handover); reviews of work through a pull request, which the forge's reviewers cover (a card of its
   own takes those up); approval waiting for the review.
 - **A review stands for a later handover of the same commit** (2026-11-05): an answer to the owner's
   words with ready_for_review and no new commit would otherwise start a new review each time, at its
-  cost, for a diff already reviewed.
+  cost, for a diff already reviewed (unless the handover resubmitted items, which a review must verify).
+
+- **A card's code review is one running list of items, which each run verifies and adds to** (owner,
+  2026-11-08): a page of findings per run, numbered anew, lost the owner's choices with every run and
+  counted a finding as fixed the moment the worker handed over, with nobody checking it. Now items
+  keep their numbers, each records its own log, the reviewer verifies what the worker resubmitted, and
+  an item it finds not fixed goes back to the owner as reopened (to decide again), not to the worker
+  alone. Only the code review of a card's own work uses the list; a contributor's review card keeps
+  its findings, which its worker rewrites. Rejected: keeping earlier runs as read-only snapshots (the
+  log of each item tells the history); the reviewer sending a not-fixed item straight back to the worker.
 
 - **The dashboard compares without ranking** (owner, 2026-11-03): ratings are the owner's judgement
   of single tasks, whose difficulty and kind count too, so rows keep a fixed order, always show how

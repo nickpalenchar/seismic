@@ -11,7 +11,7 @@ export { cardHolds, cardHoldsRelations } from './cards/holds';
 export { cardIdeas, cardIdeasRelations } from './cards/ideas';
 export { cardLabels, cardLabelsRelations } from './cards/labels';
 export { cardPlans, cardPlansRelations } from './cards/plans';
-export { cardReviews, cardReviewsRelations } from './cards/reviews';
+export { cardReviewItemEvents, cardReviewItems, cardReviews, cardReviewsRelations } from './cards/reviews';
 export { chats } from './chats';
 export { commands } from './commands';
 export { decisions } from './decisions';

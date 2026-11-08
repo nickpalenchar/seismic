@@ -34,6 +34,7 @@ const MOVED = [
 
 /** The database as it was before the columns that moved into the tables of a card's parts were dropped from `cards`. */
 function withMovedColumns(db: Database) {
+  for (const t of ['card_review_item_events', 'card_review_items']) db.run(`DROP TABLE IF EXISTS ${t}`);
   if (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = 'hold'").get()) return;
   for (const column of MOVED) db.run(`ALTER TABLE cards ADD COLUMN ${column}`);
   db.run('CREATE INDEX cards_prototypes ON cards (project_id, created_at) WHERE deleted_at IS NULL AND prototype_of IS NOT NULL');
@@ -544,7 +545,7 @@ test('a pull request, a demo with earlier ones, a plan, labels and a hold move i
 
     const after = new Store(path);
     const row = (id: string): Record<string, unknown> => after.cards.get(id)! as unknown as Record<string, unknown>;
-    expect(row(reviewed!).review).toEqual({ pr, contribution: null, codeReview: { mode: 'auto', handover: 3 } });
+    expect(row(reviewed!).review).toEqual({ pr, contribution: null, codeReview: { mode: 'auto', handover: 3 }, items: [] });
     expect(row(demoed!).demo).toEqual({ latest: demo('/c'), earlier: [demo('/a'), demo('/b')], share: { slug: 'csv' }, pageHeard: null, files: [{ path: 'r.md', caption: 'Report' }], held: [{ id: 4 }] });
     expect(row(planned!).plan).toEqual({ doc: { file: 'docs/plan/a.md', title: 'A' }, deps: null, collapsed: true, planDocs: null });
     // a suggestion of a label since cleared is gone; the owner's set to none stays theirs
@@ -557,6 +558,58 @@ test('a pull request, a demo with earlier ones, a plan, labels and a hold move i
     expect(row(held!).hold).toEqual({ reason: 'snoozed', since: '2026-11-08T10:00:00.000Z', until: '2026-11-09T08:00:00.000Z', by: 'owner' });
     expect(row(plain!)).toMatchObject({ review: null, demo: null, plan: null, labels: {}, hold: null });
     expect(after.cards.shared('c').map((r) => r.id)).toEqual([demoed!]);
+    expect(after.db.query('PRAGMA foreign_key_check').all()).toEqual([]);
+    after.db.close();
+  }));
+
+test('the latest completed run of a code review becomes the list of items, the ignored findings closed items after them; earlier runs are dropped', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.ensureProject('c', 'Shop');
+    const [done, running, plain] = s.addCards(Array.from({ length: 3 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 }))).map((r) => r.id);
+    const f = (id: number, status: string, over: Record<string, unknown> = {}) => ({ id, title: `T${id}`, text: `Text ${id}`, severity: 'major', status, ...over });
+    const findings = [
+      f(1, 'open'),
+      f(2, 'open', { decided: 'self', file: 'a.ts', line: 3, with: [3] }),
+      f(3, 'fixed', { security: true, with: [2] }),
+      f(4, 'dropped'),
+      f(5, 'later', { card: 'task-9' }),
+      f(6, 'open', { decided: 'later' }),
+    ];
+    const at = '2026-11-07T10:00:00.000Z';
+    const stored = { mode: 'auto', handover: 4, ignored: [{ title: 'Old nit', text: 'Ignored earlier', file: 'b.ts', line: 7 }, { title: 'Older nit', text: 'Ignored before' }], review: { handover: 4, state: 'done', findings, at }, previous: [{ handover: 2, state: 'done', findings: [f(1, 'open')], at }] };
+    // a running review of a later handover: the findings of the run before it are the list
+    const midway = { mode: 'auto', handover: 5, review: { handover: 5, state: 'running', findings: [], at }, previous: [{ handover: 4, state: 'failed', findings: [], at }, { handover: 3, state: 'done', findings: [f(1, 'open', { severity: 'minor' })], at }] };
+    s.updateCard(done!, { review: { codeReview: stored as never } });
+    s.updateCard(running!, { review: { codeReview: midway as never } });
+    s.db.run('DROP TABLE card_review_item_events');
+    s.db.run('DROP TABLE card_review_items');
+    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE \`card_review_items\`'))}`);
+    s.db.close();
+
+    const after = new Store(path);
+    const items = (id: string) => after.cards.get(id)!.review!.items;
+    expect(items(done!).map((i) => [i.number, i.status, i.title, i.severity])).toEqual([
+      [1, 'raised', 'T1', 'major'],
+      [2, 'fixing', 'T2', 'major'],
+      [3, 'underReview', 'T3', 'major'],
+      [4, 'closed', 'T4', 'major'],
+      [5, 'followUp', 'T5', 'major'],
+      [6, 'followUp', 'T6', 'major'],
+      [7, 'closed', 'Old nit', 'minor'],
+      [8, 'closed', 'Older nit', 'minor'],
+    ]);
+    expect(items(done!)[1]).toMatchObject({ file: 'a.ts', line: 3, with: [3] });
+    expect(items(done!)[2]).toMatchObject({ security: true });
+    expect(items(done!)[4]).toMatchObject({ card: 'task-9' });
+    expect(items(done!)[6]).toMatchObject({ file: 'b.ts', line: 7, text: 'Ignored earlier' });
+    expect(items(done!)[1]!.log.map((e) => [e.who, e.from, e.to])).toEqual([['reviewer', undefined, 'raised'], ['owner', 'raised', 'fixing']]);
+    expect(items(done!)[2]!.log.map((e) => e.who)).toEqual(['reviewer', 'worker']);
+    expect(items(running!).map((i) => [i.number, i.title, i.severity])).toEqual([[1, 'T1', 'minor']]);
+    expect(after.cards.get(plain!)!.review).toBeNull();
+    // the stored review keeps its metadata only
+    expect(after.cards.get(done!)!.review!.codeReview).toEqual({ mode: 'auto', handover: 4, review: { handover: 4, state: 'done', at } });
+    expect(after.cards.get(running!)!.review!.codeReview).toEqual({ mode: 'auto', handover: 5, review: { handover: 5, state: 'running', at } });
     expect(after.db.query('PRAGMA foreign_key_check').all()).toEqual([]);
     after.db.close();
   }));
@@ -662,7 +715,7 @@ test('a card gets a part once any of it is set and loses it once all of it is cl
   expect(s.cards.get(id)!.labels).toEqual({ priority: { value: 'high', by: 'owner' }, category: { value: null, by: 'owner' } });
   s.updateCard(id, { labels: { priority: null, category: { value: null, by: null } } });
   expect(s.cards.get(id)!.labels).toEqual({});
-  for (const t of ['card_reviews', 'card_demos', 'card_earlier_demos', 'card_plans', 'card_labels', 'card_holds']) expect(s.db.query(`SELECT COUNT(*) AS n FROM ${t}`).get()).toEqual({ n: 0 });
+  for (const t of ['card_reviews', 'card_review_items', 'card_review_item_events', 'card_demos', 'card_earlier_demos', 'card_plans', 'card_labels', 'card_holds']) expect(s.db.query(`SELECT COUNT(*) AS n FROM ${t}`).get()).toEqual({ n: 0 });
 });
 
 test('canvases: names unique per project in any case, ordered, a plan moves with its workstreams, a deleted one leaves its archive on main', () =>

@@ -9,7 +9,7 @@
 import { CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../core/labels';
 import { createHash } from 'node:crypto';
-import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type Harness, type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, type Finding, MAIN_CANVAS, type WorkConfig } from '../core/types';
+import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type Harness, type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig } from '../core/types';
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { arrangeWorkstreams, type Bounds, boundsOf, CARD_SIZE, freeSpotNear, GAP, MERGED_SIZE, type Place, PLAN_HEAD, placePlans, planDirNoteBox, placeWorkstreams, planSize, shapeOf, sizeOf, unionBounds } from '../core/layout';
@@ -181,19 +181,16 @@ export interface StoredContribution extends Contribution {
 }
 
 /**
- * The code review of a card's work (`CardRow.code_review`): the mode its project had at the card's
- * latest handover that is to be reviewed (`handover`, its event), and the latest review that ran,
- * of that handover or an earlier one (then it is stale).
+ * The code review of a card's work (`CardRow.review.codeReview`): the mode its project had at the
+ * card's latest handover that is to be reviewed (`handover`, its event), and the latest review run,
+ * of that handover or an earlier one (then it is stale). The items the runs raise are the card's
+ * `review.items`, one list across all runs.
  */
 export interface StoredCodeReview {
   mode: CodeReviewMode;
   handover: number;
   /** `head`: the branch's commit it reviewed, where git told it; `session`: its agent's session while it runs, which goes on after a restart. */
-  review?: { handover: number; head?: string; state: 'running' | 'done' | 'failed'; findings: Finding[]; error?: string; at: string; agent?: AgentIdentity; session?: string };
-  /** Completed runs replaced by a later review, in chronological order. */
-  previous?: NonNullable<StoredCodeReview['review']>[];
-  /** The findings the owner ignored in the card's earlier reviews, which the next review is told not to raise again. */
-  ignored?: { title: string; text: string; file?: string; line?: number }[];
+  review?: { handover: number; head?: string; state: 'running' | 'done' | 'failed'; error?: string; at: string; agent?: AgentIdentity; session?: string };
   /** An automatic review is about to start (git has not told the commit yet): the card shows it as running, so the handover is not announced before the review. */
   pending?: true;
 }
@@ -201,12 +198,12 @@ export interface StoredCodeReview {
 export const codeReviewOf = (r: Pick<CardRow, 'review'>): StoredCodeReview | null => r.review?.codeReview ?? null;
 
 /** A card's code review as the card shows it. */
-function shownCodeReview(c: StoredCodeReview): CodeReview {
+function shownCodeReview(c: StoredCodeReview, items: ReviewItem[]): CodeReview {
   const r = c.review;
   return {
     mode: c.mode,
-    ...(c.pending && r?.state !== 'running' ? { state: 'running' as const, findings: [] } : r ? { state: r.state, findings: r.findings, ...(r.agent ? { agent: r.agent } : {}), ...(r.error ? { error: r.error } : {}), ...(r.handover !== c.handover ? { stale: true as const } : {}) } : {}),
-    ...(c.previous?.length ? { previous: c.previous.filter((p) => p.state !== 'running').map(({ state, findings, error, at, agent }) => ({ state: state as 'done' | 'failed', findings, at, ...(error ? { error } : {}), ...(agent ? { agent } : {}) })) } : {}),
+    items,
+    ...(c.pending && r?.state !== 'running' ? { state: 'running' as const } : r ? { state: r.state, ...(r.agent ? { agent: r.agent } : {}), ...(r.error ? { error: r.error } : {}), ...(r.handover !== c.handover ? { stale: true as const } : {}) } : {}),
   };
 }
 
@@ -3854,7 +3851,7 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
         ...(pr?.url ? { pr: pullRequest(pr) } : {}),
         ...(pr?.more?.some((m) => m.url) ? { morePrs: pr.more.filter((m) => m.url).map(pullRequest) } : {}),
         ...(contribution ? { contribution: { url: contribution.url, number: contribution.number, author: contribution.author, title: contribution.title, canModify: contribution.canModify, ...(contribution.results ? { results: contribution.results } : {}), ...(contribution.findings ? { findings: contribution.findings } : {}), ...(contribution.requested ? { requested: contribution.requested } : {}), ...(contribution.held ? { held: { body: contribution.held.body, commits: contribution.held.commits, asks: contribution.held.asks } } : {}), ...(contribution.clash ? { clash: contribution.clash } : {}) } } : {}),
-        ...(codeReview ? { codeReview: shownCodeReview(codeReview) } : {}),
+        ...(codeReview ? { codeReview: shownCodeReview(codeReview, r.review?.items ?? []) } : {}),
         // a prototype that ended keeps the summary it was handed over with
         ...((detail.summary && handed) || ended ? { summary: detail.summary } : {}),
         ...(answering ? { answering: true as const } : {}),

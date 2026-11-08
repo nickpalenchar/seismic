@@ -114,8 +114,8 @@ describe('withSupplemented', () => {
 });
 
 test('a running code review does not ask for attention until it finishes', () => {
-  const reviewing = card({ state: 'waiting', need: 'review', review: { codeReview: { mode: 'auto', state: 'running', findings: [] } } });
+  const reviewing = card({ state: 'waiting', need: 'review', review: { codeReview: { mode: 'auto', state: 'running', items: [] } } });
   expect(needsYou(reviewing)).toBe(false);
-  expect(needsYou({ ...reviewing, review: { codeReview: { mode: 'auto', state: 'done', findings: [] } } })).toBe(true);
+  expect(needsYou({ ...reviewing, review: { codeReview: { mode: 'auto', state: 'done', items: [] } } })).toBe(true);
   expect(needsYou({ ...reviewing, need: 'question' })).toBe(true);
 });

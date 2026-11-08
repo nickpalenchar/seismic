@@ -24,6 +24,8 @@ const BY_CARD: [string, SQLiteTable & { cardId: SQLiteColumn }][] = [
   ['events', t.events],
   ['card_ideas', t.cardIdeas],
   ['card_reviews', t.cardReviews],
+  ['card_review_items', t.cardReviewItems],
+  ['card_review_item_events', t.cardReviewItemEvents],
   ['card_demos', t.cardDemos],
   ['card_earlier_demos', t.cardEarlierDemos],
   ['card_plans', t.cardPlans],

@@ -36,7 +36,7 @@ import { branchName, type CardWorkstations, type FileAt, gitSteps, ownFile, type
 import type { FolderWorkstations, UndoReport } from './folder';
 import { contributionOf, type PrState, type Shipped, type StoredContribution } from './board';
 import { type Doing, onTool, onToolDone, shownDoing, THINKING_AFTER } from './doing';
-import { type ChangeRoute, type Clash, type FindingPick, type CodeReviewSetting, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS, SEVERITIES, type Severity } from '../core/types';
+import { type ChangeRoute, type Clash, needsOwner, type FindingPick, type CodeReviewSetting, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS, SEVERITIES, type Severity } from '../core/types';
 import { dimensions, outside, tagsOf } from '../core/page-tags';
 import { gitAsync, gitOrNull } from './workstations';
 import { defaultBranchCommit } from './read-tree';
@@ -905,10 +905,10 @@ export class Workers {
    * Refuses a finding that is not open, and the worker's own change where the contributor allows no
    * maintainers' edits.
    */
-  private decide(cardId: string, decisions: Record<number, ChangeRoute>): { note: string; log: string } {
+  private decide(cardId: string, decisions: Record<number, ChangeRoute>, notes?: Record<number, string>): { note: string; log: string } {
     const c = contributionOf(this.o.board.row(cardId));
     // a card of the owner's decides on the findings of its code review
-    if (!c) return this.reviews.decide(cardId, decisions);
+    if (!c) return this.reviews.decide(cardId, decisions, notes);
     const t = this.o.board.t.worker;
     const picked = Object.entries(decisions).map(([id, route]) => {
       const f = c.findings?.find((x) => x.id === Number(id) && x.status === 'open' && !x.decided);
@@ -965,14 +965,18 @@ export class Workers {
    */
   private ignore(cardId: string, ids: number[]): void {
     const c = contributionOf(this.o.board.row(cardId));
-    const all = c ? c.findings : this.reviews.findings(cardId);
+    const t = this.o.board.t.worker;
+    if (!c) {
+      const closed = this.reviews.ignore(cardId, ids);
+      this.o.board.log(cardId, 'state', 'owner', closed.map((f) => t.findingDecided(f.number, f.title, t.findingIgnored)).join('\n'));
+      return;
+    }
+    const all = c.findings;
     const named = ids.map((id) => all?.find((f) => f.id === id && f.status === 'open' && !f.decided));
     const missing = ids.filter((_, i) => !named[i]);
     if (missing.length) throw new BadRequest('noFinding', `finding ${missing.join(', ')} is not open`);
     const findings = all!.map((f): Finding => (ids.includes(f.id) ? { ...f, status: 'dropped' } : f));
-    if (c) this.o.board.work(cardId, { review: { contribution: { ...c, findings } satisfies StoredContribution } });
-    else this.reviews.setFindings(cardId, findings);
-    const t = this.o.board.t.worker;
+    this.o.board.work(cardId, { review: { contribution: { ...c, findings } satisfies StoredContribution } });
     this.o.board.log(cardId, 'state', 'owner', named.map((f) => t.findingDecided(f!.id, f!.title, t.findingIgnored)).join('\n'));
   }
 
@@ -984,40 +988,61 @@ export class Workers {
    */
   private followUpTask(cardId: string, title: string, task: string, ids: number[]): string {
     const c = contributionOf(this.o.board.row(cardId));
-    // on a card of the owner's, the findings are its code review's
-    const all = c ? c.findings : this.reviews.findings(cardId);
-    if (!c && !all) return 'Not made: your work has no code review with findings.';
+    // on a card of the owner's, the findings are the items of its code review
+    const code = c ? undefined : this.reviews.items(cardId);
+    const known = c ? c.findings?.map((f) => ({ id: f.id, state: f.status, settled: f.status !== 'open', card: f.card })) : code?.map((i) => ({ id: i.number, state: i.status, settled: i.status === 'underReview' || i.status === 'fixed' || !!i.card, card: i.card }));
+    if (!known?.length) return `Not made: your work has no code review with ${c ? 'findings' : 'items'}.`;
     if (!title) return 'Not made: the title is missing.';
     if (!task) return 'Not made: the task is missing.';
     const named = [...new Set(ids)];
-    if (!named.length) return 'Not made: name the findings it is made of (findings, their numbers).';
-    const missing = named.filter((id) => !all?.some((f) => f.id === id));
-    if (missing.length) return `Not made: there is no finding ${missing.join(', ')}.`;
-    const settled = named.map((id) => all!.find((f) => f.id === id)!).filter((f) => f.status !== 'open');
-    if (settled.length) return `Not made: ${settled.map((f) => `finding ${f.id} is ${f.status}${f.card ? ' (a follow-up task already)' : ''}`).join('; ')}.`;
+    const noun = c ? 'finding' : 'item';
+    if (!named.length) return `Not made: name the ${noun}s it is made of (findings, their numbers).`;
+    const missing = named.filter((id) => !known.some((f) => f.id === id));
+    if (missing.length) return `Not made: there is no ${noun} ${missing.join(', ')}.`;
+    const settled = named.map((id) => known.find((f) => f.id === id)!).filter((f) => f.settled);
+    if (settled.length) return `Not made: ${settled.map((f) => `${noun} ${f.id} is ${f.state}${f.card ? ' (a follow-up task already)' : ''}`).join('; ')}.`;
     const t = this.o.board.t.worker;
     const body = clip(task, 19000);
     const of = this.o.board.item(cardId)?.title ?? '';
     const card = this.o.board.create({ title: clip(title, 200), body: c ? (body.includes(c.url) ? body : `${body}\n\n${t.findingTask(c.number, c.url)}`) : `${body}\n\n${t.findingTaskOf(of)}`, from: cardId }, undefined, 'owner');
     this.o.board.log(card.id, 'state', 'obeya', c ? t.findingTaskMade(c.number) : t.findingTaskMadeOf(of));
     this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.voice.madeFollowUp(card.title), { made: { card: card.id, title: card.title } });
-    const findings = all!.map((f): Finding => {
-      if (!named.includes(f.id)) return f;
-      const { decided: _, ...rest } = f;
-      return { ...rest, status: 'later', card: card.id };
-    });
-    if (c) this.o.board.work(cardId, { review: { contribution: { ...c, findings } satisfies StoredContribution } });
-    else this.reviews.setFindings(cardId, findings);
+    if (c) {
+      const findings = c.findings!.map((f): Finding => {
+        if (!named.includes(f.id)) return f;
+        const { decided: _, ...rest } = f;
+        return { ...rest, status: 'later', card: card.id };
+      });
+      this.o.board.work(cardId, { review: { contribution: { ...c, findings } satisfies StoredContribution } });
+    } else this.reviews.linkTask(cardId, named, card.id, card.title);
     this.o.onFollowUpTask?.(card.id, cardId);
     const owed = this.owedTasks(cardId);
-    return `Made: “${card.title}”, beside your card and queued behind it until ${c ? 'the PR is merged' : 'your work has landed'}, linked from ${named.length === 1 ? `finding ${named[0]}` : `findings ${named.join(', ')}`}.${owed ? ` Still to make: ${owed}.` : ''}`;
+    return `Made: “${card.title}”, beside your card and queued behind it until ${c ? 'the PR is merged' : 'your work has landed'}, linked from ${named.length === 1 ? `${noun} ${named[0]}` : `${noun}s ${named.join(', ')}`}.${owed ? ` Still to make: ${owed}.` : ''}`;
   }
 
   /** The findings the owner chose as follow-up tasks that have none yet (a review card's, or its code review's), as the worker reads them; none: undefined. */
   private owedTasks(cardId: string): string | undefined {
     const row = this.o.board.row(cardId);
-    const owed = (contributionOf(row)?.findings ?? this.reviews.findings(cardId))?.filter((f) => f.status === 'open' && f.decided === 'later') ?? [];
-    return owed.length ? `${owed.length === 1 ? 'finding' : 'findings'} ${owed.map((f) => `#${f.id} “${f.title}”`).join(', ')} (follow_up_task)` : undefined;
+    const c = contributionOf(row);
+    const owed = c ? (c.findings ?? []).filter((f) => f.status === 'open' && f.decided === 'later').map((f) => ({ id: f.id, title: f.title })) : this.reviews.owed(cardId).map((i) => ({ id: i.number, title: i.title }));
+    return owed.length ? `${owed.length === 1 ? (c ? 'finding' : 'item') : c ? 'findings' : 'items'} ${owed.map((f) => `#${f.id} “${f.title}”`).join(', ')} (follow_up_task)` : undefined;
+  }
+
+  /** The worker resubmits items of the code review of its work, with notes: they go under review. */
+  private resubmitItems(cardId: string, entries: { number: number; note?: string }[]): string {
+    if (!this.reviews.items(cardId).length) return 'Not resubmitted: your work has no code review items.';
+    if (!entries.length) return 'Not resubmitted: name the items (items, their numbers).';
+    const note = (e: { note?: string }) => (e.note?.trim() ? clip(e.note.trim(), 1000) : undefined);
+    const { done, refused } = this.reviews.resubmit(cardId, entries.map((e) => ({ number: Number(e.number), ...(note(e) ? { note: note(e)! } : {}) })));
+    return `${done.length ? `Resubmitted: ${done.map((i) => `#${i.number}`).join(', ')}, under review now.` : 'Nothing resubmitted.'}${refused.length ? ` Not resubmitted: ${refused.join('; ')}.` : ''}`;
+  }
+
+  /** The worker disputes items it is fixing: back to the owner, reopened. */
+  private disputeItems(cardId: string, entries: { number: number; note: string }[]): string {
+    if (!this.reviews.items(cardId).length) return 'Not disputed: your work has no code review items.';
+    if (entries.some((e) => !e.note?.trim())) return 'Not disputed: every item needs your reasons (note).';
+    const { done, refused } = this.reviews.dispute(cardId, entries.map((e) => ({ number: Number(e.number), note: clip(e.note.trim(), 1000) })));
+    return `${done.length ? `Disputed: ${done.map((i) => `#${i.number}`).join(', ')}, back with the owner as reopened.` : 'Nothing disputed.'}${refused.length ? ` Not disputed: ${refused.join('; ')}.` : ''}`;
   }
 
   /**
@@ -1083,8 +1108,8 @@ export class Workers {
   reviewWithNewAgent(cardId: string, picks: Record<number, FindingPick> | undefined, setting: AgentSetting, notes?: Record<number, string>) {
     const card = this.card(cardId);
     const live = this.live.get(cardId);
-    if (!handedOver(card) || !card.review?.codeReview || card.review.codeReview.stale || card.review.codeReview.state !== 'done' || !this.o.board.row(cardId).workstation)
-      throw new BadRequest('notReady', 'a current code review and its workstation are required');
+    if (!handedOver(card) || !card.review?.codeReview || !this.o.board.row(cardId).workstation)
+      throw new BadRequest('notReady', 'a code review and its workstation are required');
     if (live?.busy || live?.background) throw new BadRequest('notReady', 'the current agent is still working');
     const entries = Object.entries(picks ?? {});
     if (!entries.length) throw new BadRequest('noFinding', 'choose findings first');
@@ -1092,10 +1117,10 @@ export class Workers {
     const routed = Object.fromEntries(entries.filter(([, p]) => p !== 'ignore')) as Record<number, ChangeRoute>;
     // Validate every choice before changing any of them.
     for (const [id, route] of entries) {
-      if (!card.review.codeReview.findings?.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided) || route === 'contributor')
-        throw new BadRequest('noFinding', `finding ${id} is not open`);
+      if (!card.review.codeReview.items.some((i) => i.number === Number(id) && needsOwner(i)) || route === 'contributor')
+        throw new BadRequest('noFinding', `item ${id} does not wait for you`);
     }
-    const decided = Object.keys(routed).length ? withNotes(this.reviews.decide(cardId, routed), routed, notes) : undefined;
+    const decided = Object.keys(routed).length ? withNotes(this.reviews.decide(cardId, routed, notes), routed, notes) : undefined;
     if (ignored.length) this.ignore(cardId, ignored);
     if (!decided) return;
     this.o.board.record(cardId, 'reviewSent', 'owner');
@@ -1118,7 +1143,7 @@ export class Workers {
     const handover = handedOver(card);
     if (place && handover && !findings) return this.hold(card, text, images, spoken, replyTo, place);
     // on a review card, what the owner decided for its findings goes with the words, above them
-    const decided = findings ? withNotes(this.decide(cardId, findings), findings, notes) : undefined;
+    const decided = findings ? withNotes(this.decide(cardId, findings, notes), findings, notes) : undefined;
     if (decided) this.o.board.record(cardId, 'reviewSent', 'owner');
     const words = `${decided ? `${decided.note}\n\n` : ''}${this.words(cardId, text, images, replyTo, place)}`;
     // the log shows the owner's screenshots, not the stills that join them below
@@ -4859,9 +4884,21 @@ export class Workers {
         ? ([
             {
               name: 'follow_up_task',
-              description: `Make findings of the code review of your work that the owner chose as follow-up tasks (or asked for in words) a task of its own, beside your card and following up on it; it waits in the queue behind your card and starts once your work has landed. findings: the numbers of the findings it is made of, one or several that belong together; title: short and precise, in ${language}; task: what is to be done, in ${language}, written for the agent who will take it on and has seen neither your card nor the review: what is wrong and why, the files concerned, what done looks like. Seismic marks those findings as follow-up tasks, linking the task.`,
+              description: `Make items of the code review of your work that the owner chose as follow-up tasks (or asked for in words) a task of its own, beside your card and following up on it; it waits in the queue behind your card and starts once your work has landed. findings: the numbers of the items it is made of, one or several that belong together; title: short and precise, in ${language}; task: what is to be done, in ${language}, written for the agent who will take it on and has seen neither your card nor the review: what is wrong and why, the files concerned, what done looks like. Seismic marks those items as follow-ups, linking the task.`,
               schema: { findings: z.array(z.number().int()), title: z.string(), task: z.string() },
               run: ({ findings, title, task }) => this.followUpTask(cardId, String(title).trim(), String(task).trim(), (findings as number[]) ?? []),
+            },
+            {
+              name: 'resubmit_review_item',
+              description: `Resubmit items of the code review of your work to the reviewer, each with a note in ${language} on what you did: they go under review, and the next review verifies them. Your handover resubmits all the items you are fixing by itself; use this for an item the owner closed or made a follow-up that your work happens to fix, or to add a note to one.`,
+              schema: { items: z.array(z.object({ number: z.number().int(), note: z.string().optional() })) },
+              run: ({ items }) => this.resubmitItems(cardId, (items as { number: number; note?: string }[]) ?? []),
+            },
+            {
+              name: 'dispute_review_item',
+              description: `Dispute items of the code review of your work that you are fixing and hold wrong, each with your reasons in ${language}: they go back to the owner as reopened, who decides again. Change no code for an item you dispute.`,
+              schema: { items: z.array(z.object({ number: z.number().int(), note: z.string() })) },
+              run: ({ items }) => this.disputeItems(cardId, (items as { number: number; note: string }[]) ?? []),
             },
           ] satisfies AgentTool[])
         : []),

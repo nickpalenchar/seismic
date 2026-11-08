@@ -1833,6 +1833,8 @@ export class ProjectRuntime {
         return this.repoOf(cardId).workers.startCodeReview(cardId);
       case 'stopCodeReview':
         return this.repoOf(cardId).workers.reviews.cancel(cardId);
+      case 'reopenReviewItem':
+        return this.repoOf(cardId).workers.reviews.reopen(cardId, Number(a.number));
       case 'undo':
         return this.repoOf(cardId).workers.undo(cardId);
       case 'fold':

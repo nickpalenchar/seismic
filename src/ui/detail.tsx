@@ -6,7 +6,7 @@ import { Rate } from './feedback';
 import { CardMore } from './canvases';
 import { createContext, type CSSProperties, Fragment, type ReactNode, type RefObject, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { agentListens, answering, askable, type BackgroundTask, buildableOn, type CardAction, type Contribution, type HeldChanges, chapterAt, prototypeWorkstream, type CardEvent, type CardPatch, type Demo, type EarlierDemo, EXPORT_HTML_MAX, finished, finishedArchivable, finishingUp, handedOver, type Item, mergeableWith, type Mock, type NextStep, type PageTags, openQuestions, pausableNow, plannableAsPlan, type PrComment, type PrReviewEntry, type PullRequest, type Question, type Finding, type FindingPick, type Severity, SEVERITIES, type Clash as ClashFound, type RepoRef, snoozable, type Spot, started, stopped, stoppedArchivable, taskAuthor, withSupplemented, snoozeOf, isPaused, isPausing, inParkingLot } from '../core/types';
+import { agentListens, answering, askable, type BackgroundTask, buildableOn, type CardAction, type Contribution, type HeldChanges, chapterAt, prototypeWorkstream, type CardEvent, type CardPatch, type Demo, type EarlierDemo, EXPORT_HTML_MAX, finished, finishedArchivable, finishingUp, handedOver, type Item, mergeableWith, type Mock, type NextStep, type PageTags, openQuestions, pausableNow, plannableAsPlan, type PrComment, type PrReviewEntry, type PullRequest, type Question, type Finding, type FindingPick, type ReviewItem, needsOwner, type Severity, SEVERITIES, type Clash as ClashFound, type RepoRef, snoozable, type Spot, started, stopped, stoppedArchivable, taskAuthor, withSupplemented, snoozeOf, isPaused, isPausing, inParkingLot } from '../core/types';
 import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
@@ -371,11 +371,12 @@ export function Detail(p: Props) {
   const direct = pr && (item.review?.lands?.direct ?? !!repoRef?.direct);
   // a project that reviews work on the owner's word: the latest handover not reviewed yet (or its review failed)
   const cr = item.review?.codeReview;
-  // the agent fixing findings the owner sent it counts as part of the review: Approve warns the same way
-  const fixing = !!cr?.findings?.some((f) => f.status === 'open' && f.decided === 'self');
-  const reviewRunning = cr?.state === 'running' || fixing;
-  // choices on findings picked but not sent yet: approving would drop them
-  const unsent = Object.keys(unsentPicks ?? {}).filter((id) => cr?.findings?.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided)).length;
+  // the agent fixing items the owner sent it, and items waiting for the next review, count as part of the review: Approve warns the same way
+  const fixing = !!cr?.items.some((r) => r.status === 'fixing');
+  const verifying = !!cr?.items.some((r) => r.status === 'underReview');
+  const reviewRunning = cr?.state === 'running' || fixing || verifying;
+  // choices on items picked but not sent yet: approving would drop them
+  const unsent = Object.keys(unsentPicks ?? {}).filter((id) => cr?.items.some((r) => r.number === Number(id) && needsOwner(r))).length;
   const asksReview = !!cr && cr.mode === 'manual' && (!cr.state || !!cr.stale || cr.state === 'failed');
   const approveButton = item.review?.landing ? null : item.review?.contribution ? (
     <ApproveReview c={item.review?.contribution} act={act} />
@@ -391,7 +392,7 @@ export function Detail(p: Props) {
       {/* while yellow, a second line inside it says why, as on the start buttons */}
       <button className={reviewRunning ? 'btn review-warning start-agent-main' : 'btn primary'} onClick={() => unsent ? setConfirmUnsent(true) : reviewRunning ? setConfirmReviewApproval(true) : act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id })}>
         <span>{item.review?.noChange ? t.approveNoChange : pr ? t.approvePr : t.approve}</span>
-        {reviewRunning && <span className="start-agent-model">{cr?.state === 'running' ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>}
+        {reviewRunning && <span className="start-agent-model">{cr?.state === 'running' || (verifying && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>}
       </button>
       {unsent > 0 && confirmUnsent && createPortal(
         <div className="review-approval-cover" onClick={() => setConfirmUnsent(false)}>
@@ -2545,8 +2546,8 @@ function Findings({ item, decides, onPush }: { item: Item; decides: boolean; onP
  * follow-up task". The decisions stand in the card's draft and go out with the field's one Send. A
  * finding something came of says what; one made a follow-up task links that task.
  */
-/** Which code review the card's findings belong to: their numbers start again with each one. */
-const reviewKeyOf = (item: Item) => (item.review?.codeReview ? String(item.review.codeReview.previous?.length ?? 0) : undefined);
+/** Which numbering the card's finding choices belong to: a code review's items keep their numbers across reviews (a draft from the time reviews numbered findings anew is dropped once). */
+const reviewKeyOf = (item: Item) => (item.review?.codeReview ? 'items' : undefined);
 
 /** The draft's finding choices and context for the card's current review, read at render time. */
 const useFindingDraft = (item: Item) => findingDraft(useDraft(cardDraft(item.id)), reviewKeyOf(item));
@@ -2709,69 +2710,173 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
 
 /**
  * The Review tab of a card whose work its project reviews (design: Code reviews in Card lifecycle):
- * its label counts the open findings by severity in their colours, or shows the review running, and
- * "outdated" where it reviewed an earlier handover; its panel shows "Reviewing …", why it failed,
- * or the findings to decide on.
+ * its label counts the items that need the owner by severity in their colours, or shows the review
+ * running, and "outdated" where it reviewed an earlier handover; a check says nothing is open. Its
+ * panel is the one list of items.
  */
 function reviewTab(item: Item, act: (a: CardAction, done: ActDone) => void): { label: ReactNode; title?: string; panel: ReactNode } {
   const r = item.review!.codeReview!;
   const reviewer = r.agent && `${t.config.agents.harnesses[r.agent.harness]}${r.agent.model ? ` · ${r.agent.model}` : ''}`;
-  const findings = (r.findings ?? []).filter(shownFinding);
-  const open = findings.filter((f) => f.status === 'open');
-  const count = (s: Severity) => open.filter((f) => f.severity === s).length;
+  const waiting = r.items.filter(needsOwner);
+  const count = (s: Severity) => waiting.filter((i) => i.severity === s).length;
   const counts = SEVERITIES.map((s) => [s, count(s)] as const).filter(([, n]) => n > 0);
   const label = (
     <>
       {t.codeReview.tab}
       {r.state === 'running' && <span className="rv-running" aria-label={t.codeReview.running(reviewer)} />}
-      {r.state === 'done' && !r.stale && r.findings?.length === 0 && <Check className="rv-clean" aria-label={t.codeReview.findings(0, 0)} />}
-      {r.state === 'done' && counts.map(([s, n]) => <span key={s} className={`rv-count ${s}`}>●{n}</span>)}
+      {r.state === 'done' && !r.stale && !r.items.some((i) => needsOwner(i) || i.status === 'fixing' || i.status === 'underReview') && <Check className="rv-clean" aria-label={t.codeReview.items(r.items.length, 0)} />}
+      {counts.map(([s, n]) => <span key={s} className={`rv-count ${s}`}>●{n}</span>)}
       {r.stale && r.state !== 'running' && <span className="rv-outdated">{t.codeReview.outdated}</span>}
     </>
   );
-  // the review of an earlier handover is the owner's to read, not to decide on: its findings may be fixed by now
-  const decides = !!ownerField(item) && !finished(item.state) && !r.stale && r.state === 'done';
+  const decides = !!ownerField(item) && !finished(item.state);
   const again = r.mode === 'auto' && (r.state === 'failed' || !!r.stale) && handedOver(item) && !item.review?.landing;
-  const panel = <ReviewHistory item={item} act={act} decides={decides} again={again} reviewer={reviewer} />;
-  return { label, ...(r.state === 'done' && open.length ? { title: t.codeReview.counts(counts.map(([s, n]) => ({ severity: t.codeReview.severity[s], count: n }))) } : {}), panel };
+  const panel = <ReviewList item={item} act={act} decides={decides} again={again} reviewer={reviewer} />;
+  return { label, ...(waiting.length ? { title: t.codeReview.counts(counts.map(([s, n]) => ({ severity: t.codeReview.severity[s], count: n }))) } : {}), panel };
 }
 
-/** Keep an earlier review visible as new reviews arrive; only the latest permits decisions. */
-function ReviewHistory({ item, act, decides, again, reviewer }: { item: Item; act: (a: CardAction, done: ActDone) => void; decides: boolean; again: boolean; reviewer?: string }) {
+/** A line of an item's log: when, who, what happened (and why). */
+function logLine(e: ReviewItem['log'][number]): string {
+  const l = t.codeReview.log;
+  const what =
+    e.who === 'worker' && e.to === 'underReview'
+      ? l.resubmitted
+      : e.who === 'worker' && e.to === 'reopened'
+        ? `${l.disputed} → ${t.codeReview.status.reopened}`
+        : e.from === e.to
+          ? l.taskMade
+          : e.to === 'fixed'
+            ? `✓ ${t.codeReview.status.fixed}`
+            : t.codeReview.status[e.to];
+  return `${handedAt(e.at)} · ${l[e.who]} · ${what}${e.note ? `: ${e.note}` : ''}`;
+}
+
+/**
+ * The one list of a card's code review: the items that need the owner first (raised, reopened), then
+ * those the agent is on or the reviewer is to verify, then the fixed, closed and follow-ups, folded to
+ * their head line. A click on an item unfolds its text and its log. On an item that needs them the
+ * owner decides "Fix it", "As a follow-up task" or "Ignore", with context; a closed or fixed one
+ * can be reopened. The decisions stand in the card's draft and go out with the field's one Send.
+ */
+function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: (a: CardAction, done: ActDone) => void; decides: boolean; again: boolean; reviewer?: string }) {
   const r = item.review!.codeReview!;
-  const previous = r.previous ?? [];
-  const [shown, setShown] = useState<number | null>(null);
-  const selected = shown !== null && shown < previous.length ? previous[shown]! : r;
-  const current = selected === r;
-  const position = current ? previous.length : shown!;
-  const findings = current ? (selected.findings ?? []).filter(shownFinding) : (selected.findings ?? []);
-  const open = findings.filter((f) => f.status === 'open');
-  const selectedReviewer = selected.agent ? `${t.config.agents.harnesses[selected.agent.harness]}${selected.agent.model ? ` · ${selected.agent.model}` : ''}` : reviewer;
+  const cards = useContext(Cards);
+  const draft = cardDraft(item.id);
+  const picks = useFindingDraft(item).findings ?? {};
+  const pick = (n: number, route: FindingPick) =>
+    updateDraft(draft, (d) => {
+      const { [n]: was, ...rest } = d.findings ?? {};
+      return { findings: was === route ? rest : { ...rest, [n]: route } };
+    });
+  // items fold to their heads unless they need the owner; a click flips that
+  const [flipped, setFlipped] = useState<Set<number>>(new Set());
+  const flip = (n: number) =>
+    setFlipped((was) => {
+      const next = new Set(was);
+      if (!next.delete(n)) next.add(n);
+      return next;
+    });
+  const bySeverity = (a: ReviewItem, b: ReviewItem) => SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity) || a.number - b.number;
+  const order: ReviewItem['status'][] = ['fixed', 'closed', 'followUp'];
+  const sorted = [
+    ...r.items.filter(needsOwner).sort(bySeverity),
+    ...r.items.filter((i) => i.status === 'fixing' || i.status === 'underReview').sort((a, b) => a.number - b.number),
+    ...order.flatMap((s) => r.items.filter((i) => i.status === s).sort((a, b) => a.number - b.number)),
+  ];
+  const waiting = r.items.filter(needsOwner);
+  const choice = (i: ReviewItem, route: FindingPick, label: string, title: string) => (
+    <button className={`choice${picks[i.number] === route ? ' on' : ''}`} aria-pressed={picks[i.number] === route} title={title} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(i.number, route)}>
+      {label}
+    </button>
+  );
+  const one = (i: ReviewItem) => {
+    const waits = needsOwner(i);
+    const open = waits !== flipped.has(i.number);
+    const task = i.status === 'followUp' && i.card ? cards.items.find((x) => x.id === i.card) : undefined;
+    const pill = (
+      <span className={`f-pill ${i.status}`} title={t.codeReview.statusHint[i.status]}>
+        {i.status === 'fixed' && <Check size={11} strokeWidth={2.5} aria-hidden="true" />}
+        {t.codeReview.status[i.status]}
+      </span>
+    );
+    const cls = ['finding', 'ritem', i.security && 'security', i.severity, !waits && 'settled', !open && 'folded'].filter(Boolean).join(' ');
+    return (
+      <div key={i.number} className={cls}>
+        <div className="f-row">
+          <button className="f-head f-fold" aria-expanded={open} title={open ? t.codeReview.fold : t.codeReview.unfold} onClick={() => flip(i.number)}>
+            <span className="f-no">#{i.number}</span>
+            <span className={`f-sev ${i.severity}`}>{t.codeReview.severity[i.severity]}</span>
+            <b>{i.title}</b>
+            {i.security && <span className="f-tag">{t.review.security}</span>}
+            {!open && pill}
+            <span className="f-chevron">{open ? <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" /> : <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" />}</span>
+          </button>
+          {(i.status === 'closed' || i.status === 'fixed') && !finished(item.state) && !!ownerField(item) && (
+            <button className="link f-reopen" title={t.codeReview.reopenHint} onClick={() => act({ action: 'reopenReviewItem', number: i.number }, { close: false })}>
+              {t.codeReview.reopen}
+            </button>
+          )}
+        </div>
+        {open && (
+          <>
+            <div className="f-text">
+              <Inline md={i.text} /> {pill}
+            </div>
+            {i.file && (
+              <div className="f-where">
+                <code>{i.line ? `${i.file}:${i.line}` : i.file}</code>
+              </div>
+            )}
+            {!!i.with?.length && <div className="f-where">{t.codeReview.with(i.with)}</div>}
+            {i.status === 'followUp' && (
+              <div className="f-status">
+                {task ? (
+                  <a href="#" onClick={(e) => (e.preventDefault(), cards.open(task))}>
+                    {t.review.laterCard(plain(task.title))} →
+                  </a>
+                ) : (
+                  t.review.goingLater
+                )}
+              </div>
+            )}
+            {i.status === 'fixing' && <div className="f-status pending">{t.codeReview.goingFix}</div>}
+            {waits && decides && (
+              <>
+                <div className="choices single f-choices" role="group">
+                  {choice(i, 'self', t.codeReview.fix, t.codeReview.fixHint)}
+                  {choice(i, 'later', t.review.later, t.codeReview.laterHint)}
+                  {choice(i, 'ignore', t.review.ignore, t.review.ignoreHint)}
+                </div>
+                <FindingContext item={item} id={i.number} />
+              </>
+            )}
+            {!!i.context && !waits && <p className="f-note">{i.context}</p>}
+            <ol className="f-log">
+              {i.log.map((e, k) => (
+                <li key={k}>{logLine(e)}</li>
+              ))}
+            </ol>
+          </>
+        )}
+      </div>
+    );
+  };
   return (
     <section className="findings code-review">
-      {previous.length > 0 && <div className={current ? 'demo-versions review-versions' : 'demo-versions review-versions earlier'}>
-        <button className="step" disabled={position === 0} title={t.codeReview.older} aria-label={t.codeReview.older} onClick={() => setShown(position - 1)}>‹</button>
-        <span>{t.codeReview.version(position + 1, previous.length + 1, current)}{!current && ` · ${handedAt(previous[position]!.at)}`}</span>
-        <button className="step" disabled={current} title={t.codeReview.newer} aria-label={t.codeReview.newer} onClick={() => setShown(position + 1 === previous.length ? null : position + 1)}>›</button>
-        {!current && position < previous.length - 1 && <button className="link" onClick={() => setShown(null)}>{t.codeReview.toLatest}</button>}
-      </div>}
-      {current && r.stale && r.state !== 'running' && <p className="hint">{t.codeReview.staleHint}</p>}
-      {selected.state === 'running' ? (
+      {r.stale && r.state !== 'running' && <p className="hint">{t.codeReview.staleHint}</p>}
+      {r.state === 'running' && (
         <>
-          <p className="rv-busy">{t.codeReview.running(selectedReviewer)}</p>
+          <p className="rv-busy">{t.codeReview.running(reviewer)}</p>
           <p className="hint">{t.codeReview.runningHint}</p>
-          {current && <button className="btn" onClick={() => act({ action: 'stopCodeReview' }, { close: false })}>{t.codeReview.stop}</button>}
-        </>
-      ) : selected.state === 'failed' ? (
-        <p className="bad">{t.codeReview.failed(selected.error ?? '')}</p>
-      ) : (
-        <>
-          <h4 className="p-h">{!findings.length && selected.findings?.length ? t.codeReview.allIgnored : t.codeReview.findings(findings.length, open.length)}</h4>
-          <FindingList item={item} findings={findings} decides={current && decides} />
-          {current && decides && <ReviewSubmit item={item} />}
+          <button className="btn" onClick={() => act({ action: 'stopCodeReview' }, { close: false })}>{t.codeReview.stop}</button>
         </>
       )}
-      {current && again && (
+      {r.state === 'failed' && <p className="bad">{t.codeReview.failed(r.error ?? '')}</p>}
+      {(r.state === 'done' || r.items.length > 0) && <h4 className="p-h">{t.codeReview.items(r.items.length, waiting.length)}</h4>}
+      {sorted.map(one)}
+      {decides && waiting.length > 0 && <p className="hint">{t.codeReview.decideHint}</p>}
+      {decides && <ReviewSubmit item={item} />}
+      {again && (
         <button className="btn" onClick={() => act({ action: 'codeReview' }, { close: false })}>
           {t.codeReview.again}
         </button>
@@ -2786,7 +2891,7 @@ function ReviewSubmit({ item }: { item: Item }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const openOf = (choices: Record<string, FindingPick> | undefined) => Object.fromEntries(Object.entries(choices ?? {}).filter(([id]) =>
-    item.review?.codeReview?.findings?.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided),
+    item.review?.codeReview?.items.some((i) => i.number === Number(id) && needsOwner(i)),
   ));
   if (!Object.keys(openOf(useFindingDraft(item).findings)).length) return null;
   const submit = async (agent?: import('../core/types').AgentSetting) => {
@@ -2815,10 +2920,10 @@ function ReviewSubmit({ item }: { item: Item }) {
   );
 }
 
-/** The findings the owner decides on: a review card's, or those of the code review of a card's work (`code`). */
-export function findingsOf(item: Item): { findings: Finding[]; code: boolean } | null {
-  if (item.review?.contribution) return { findings: item.review.contribution.findings ?? [], code: false };
-  if (item.review?.codeReview?.findings) return { findings: item.review.codeReview.findings, code: true };
+/** The findings the owner decides on (their numbers, and those they would make one task with): a review card's open ones, or the items of a card's code review that wait for them (`code`). */
+export function findingsOf(item: Item): { open: { id: number; with?: number[] }[]; code: boolean } | null {
+  if (item.review?.contribution) return { open: (item.review.contribution.findings ?? []).filter((f) => f.status === 'open' && !f.decided).map((f) => ({ id: f.id, ...(f.with ? { with: f.with } : {}) })), code: false };
+  if (item.review?.codeReview) return { open: item.review.codeReview.items.filter(needsOwner).map((i) => ({ id: i.number, ...(i.with ? { with: i.with } : {}) })), code: true };
   return null;
 }
 
@@ -2953,8 +3058,8 @@ const bundled = (f: Finding) => f.status === 'open' || f.status === 'later';
  * become as they are bundled.
  */
 function DecidedChip({ item, decided }: { item: Item; decided: Record<string, FindingPick> }) {
-  const { findings, code } = findingsOf(item) ?? { findings: [], code: false };
-  const named = Object.entries(decided).filter(([id]) => findings.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided));
+  const { open: findings, code } = findingsOf(item) ?? { open: [], code: false };
+  const named = Object.entries(decided).filter(([id]) => findings.some((f) => f.id === Number(id)));
   if (!named.length) return null;
   const later = named.filter(([, route]) => route === 'later').map(([id]) => findings.find((f) => f.id === Number(id))!);
   const tasks = new Set(later.map((f) => [f.id, ...(f.with ?? []).filter((w) => later.some((l) => l.id === w))].sort((a, b) => a - b).join())).size;
@@ -3591,7 +3696,7 @@ function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkF
   const at = field && !field.listener && !options ? place : null;
   // the field of a review card or a card with a code review, where its agent hears the words: the owner's decisions on the findings go with them
   const decidable = !!field && !field.listener && !finished(item.state) ? findingsOf(item) : null;
-  const openOf = (all: Record<string, FindingPick> | undefined) => (decidable && all ? Object.fromEntries(Object.entries(all).filter(([id]) => decidable.findings.some((f) => f.id === Number(id) && f.status === 'open' && !f.decided))) : {});
+  const openOf = (all: Record<string, FindingPick> | undefined) => (decidable && all ? Object.fromEntries(Object.entries(all).filter(([id]) => decidable.open.some((f) => f.id === Number(id)))) : {});
   const decided = openOf(useFindingDraft(item).findings);
   const deciding = Object.keys(decided).length > 0;
   const send = async (words: string, images?: string[], to?: Reply['to']) => {

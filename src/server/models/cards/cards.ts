@@ -12,7 +12,7 @@ import { asHold, cardHolds } from './holds';
 import { type CardIdea, cardIdeas, type IdeaUpdate } from './ideas';
 import { asLabels, type CardLabels, cardLabels, type LabelsUpdate } from './labels';
 import { type CardPlan, cardPlans, type PlanUpdate } from './plans';
-import { type CardReview, cardReviews, type ReviewUpdate } from './reviews';
+import { asReview, type CardReview, cardReviewItemEvents, cardReviewItems, cardReviews, type ReviewUpdate } from './reviews';
 
 /** Every card, whatever its kind; what each column holds is described on `CardRow`. */
 export const cards = sqliteTable(
@@ -234,7 +234,10 @@ export const cardsRelations = relations(cards, ({ one, many }) => ({
 }));
 
 /** A card as its query reads it (`READ`), with its rows of the parts that have several. */
-type Read = Omit<CardRow, 'demo' | 'labels' | 'hold'> & {
+type Read = Omit<CardRow, 'demo' | 'labels' | 'hold' | 'review'> & {
+  review: Parameters<typeof asReview>[0];
+  reviewItems: Parameters<typeof asReview>[1];
+  reviewEvents: Parameters<typeof asReview>[2];
   demo: Parameters<typeof asDemo>[0];
   earlierDemos: Parameters<typeof asDemo>[1];
   labels: Parameters<typeof asLabels>[0];
@@ -242,8 +245,8 @@ type Read = Omit<CardRow, 'demo' | 'labels' | 'hold'> & {
 };
 
 /** A card as read, as `CardRow`: the parts whose rows need putting together, put together. */
-function toRow({ earlierDemos, demo, labels, hold, idea, review, plan, ...row }: Read): CardRow {
-  return { ...row, idea: keyless(idea), review: keyless(review), demo: asDemo(demo, earlierDemos), plan: keyless(plan), labels: asLabels(labels), hold: asHold(hold) };
+function toRow({ earlierDemos, demo, labels, hold, idea, review, reviewItems, reviewEvents, plan, ...row }: Read): CardRow {
+  return { ...row, idea: keyless(idea), review: asReview(review, reviewItems, reviewEvents), demo: asDemo(demo, earlierDemos), plan: keyless(plan), labels: asLabels(labels), hold: asHold(hold) };
 }
 
 /** A part as joined, without the card's id it was read with. */
@@ -272,6 +275,8 @@ export class Cards {
   private readonly open;
   private readonly earlier;
   private readonly labels;
+  private readonly reviewItems;
+  private readonly reviewEvents;
 
   constructor(private readonly db: Db) {
     this.taken = db.select({ one: sql`1` }).from(cards).where(eq(cards.short, sql.placeholder('short'))).prepare();
@@ -285,6 +290,8 @@ export class Cards {
       .orderBy(cardEarlierDemos.cardId, cardEarlierDemos.position)
       .prepare();
     this.labels = db.select({ cardId: cardLabels.cardId, label: cardLabels.label, value: cardLabels.value, by: cardLabels.by }).from(cardLabels).where(inArray(cardLabels.cardId, ids)).prepare();
+    this.reviewItems = db.select().from(cardReviewItems).where(inArray(cardReviewItems.cardId, ids)).prepare();
+    this.reviewEvents = db.select().from(cardReviewItemEvents).where(inArray(cardReviewItemEvents.cardId, ids)).prepare();
   }
 
   get(id: string): CardRow | null {
@@ -307,12 +314,15 @@ export class Cards {
 
   /** The cards as read with their one-row parts, with the parts they have several rows of, as `CardRow`. */
   private complete(rows: unknown[]): CardRow[] {
-    const read = rows as Omit<Read, 'earlierDemos' | 'labels'>[];
+    const read = rows as Omit<Read, 'earlierDemos' | 'labels' | 'reviewItems' | 'reviewEvents'>[];
     if (!read.length) return [];
     const ids = JSON.stringify(read.map((r) => r.id));
     const earlier = byCard(this.earlier.all({ ids }));
     const labels = byCard(this.labels.all({ ids }));
-    return read.map((r) => toRow({ ...r, earlierDemos: earlier.get(r.id) ?? [], labels: labels.get(r.id) ?? [] }));
+    const items = byCard(this.reviewItems.all({ ids }));
+    const events = byCard(this.reviewEvents.all({ ids }));
+    const withCard = <R extends object>(by: Map<string, Omit<R, 'cardId'>[]>, id: string) => (by.get(id) ?? []).map((r) => ({ ...r, cardId: id })) as R[];
+    return read.map((r) => toRow({ ...r, earlierDemos: earlier.get(r.id) ?? [], labels: labels.get(r.id) ?? [], reviewItems: withCard(items, r.id), reviewEvents: withCard(events, r.id) }));
   }
 
   /** The cards `where` selects, as read, in the order given. */

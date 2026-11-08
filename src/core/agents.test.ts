@@ -1,22 +1,22 @@
 import { expect, test } from 'bun:test';
 import { agentStage, byStage } from './agents';
-import type { Finding, Item } from './types';
+import type { Item, ReviewItem } from './types';
 
 const card = (id: string, over: Partial<Item> = {}): Item => ({ id, kind: 'task', state: 'working', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', ...over });
-const finding = (over: Partial<Finding>): Finding => ({ id: 1, title: 'f', text: '', status: 'open', ...over });
+const item = (status: ReviewItem['status']): ReviewItem => ({ number: 1, title: 'f', text: '', severity: 'minor', status, log: [] });
 
 test('a card at work is in the stage its agent is at', () => {
   expect(agentStage(card('a'))).toBe('working');
   expect(agentStage(card('a', { agent: { doing: 'recordingDemo' } }))).toBe('working');
   expect(agentStage(card('a', { agent: { doing: 'debugging' } }))).toBe('working');
-  expect(agentStage(card('a', { review: { codeReview: { mode: 'auto', state: 'done', findings: [finding({ decided: 'self' })] } } }))).toBe('fixing');
-  expect(agentStage(card('a', { review: { codeReview: { mode: 'auto', state: 'done', findings: [finding({ status: 'fixed', decided: 'self' }), finding({ decided: 'later' })] } } }))).toBe('working');
-  expect(agentStage(card('a', { state: 'waiting', need: 'demo', review: { codeReview: { mode: 'auto', state: 'running' } } }))).toBe('reviewing');
+  expect(agentStage(card('a', { review: { codeReview: { mode: 'auto', state: 'done', items: [item('fixing')] } } }))).toBe('fixing');
+  expect(agentStage(card('a', { review: { codeReview: { mode: 'auto', state: 'done', items: [item('underReview'), item('followUp')] } } }))).toBe('working');
+  expect(agentStage(card('a', { state: 'waiting', need: 'demo', review: { codeReview: { mode: 'auto', state: 'running', items: [] } } }))).toBe('reviewing');
 });
 
 test('whatever needs the owner leaves its own stage, of any kind', () => {
   expect(agentStage(card('a', { state: 'waiting', need: 'demo' }))).toBe('needsYou');
-  expect(agentStage(card('a', { state: 'waiting', need: 'question', review: { codeReview: { mode: 'auto', state: 'running' } } }))).toBe('needsYou');
+  expect(agentStage(card('a', { state: 'waiting', need: 'question', review: { codeReview: { mode: 'auto', state: 'running', items: [] } } }))).toBe('needsYou');
   expect(agentStage(card('a', { state: 'proposal' }))).toBe('needsYou');
   expect(agentStage(card('a', { kind: 'plan', state: 'waiting', need: 'question' }))).toBe('needsYou');
   // just answered: out of Needs you, as the inbox leaves it out, until the server moves the card on
