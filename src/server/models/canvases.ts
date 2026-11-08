@@ -58,7 +58,8 @@ export class Canvases {
 
   update(id: string, fields: Partial<Pick<CanvasRow, 'name' | 'icon'>>) {
     if (!Object.keys(fields).length) return;
-    this.db.update(canvases).set(fields).where(eq(canvases.id, id)).run();
+    // a field named without a value is cleared, as SQL binds it; Drizzle would leave it out
+    this.db.update(canvases).set(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v ?? null]))).where(eq(canvases.id, id)).run();
   }
 
   /** The project's canvases take this order (their ids, all of them). */
