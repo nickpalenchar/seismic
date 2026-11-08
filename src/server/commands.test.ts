@@ -1187,6 +1187,29 @@ describe('groups by voice', () => {
   });
 });
 
+describe('groups by voice on several canvases', () => {
+  test('rename_group finds the group on the canvas the owner looks at and checks the new name there only', async () => {
+    const ideas = board.createCanvas('Ideas');
+    const a = board.create({ title: 'Export', x: 0, y: 0 });
+    const b = board.create({ title: 'Dream', x: 0, y: 0, canvas: ideas.id });
+    const c = board.create({ title: 'Other', x: 400, y: 0, canvas: ideas.id });
+    board.createGroup('Billing', [a.id]);
+    const onIdeas = board.createGroup('Billing', [b.id]);
+    board.createGroup('Costs', [c.id]);
+    const k = commander();
+    const heard = k.hear('rename Billing to Payments', { place: { x: 0, y: 0, canvas: ideas.id } });
+    await settle();
+    const s = runtime.last;
+    // "Costs" is taken on Ideas only; "Payments" is free there
+    expect(s.call('act', { actions: [{ do: 'rename_group', group: 'Billing', text: 'Costs' }], confirm: '…' })).toContain('already on that canvas');
+    s.call('act', { actions: [{ do: 'rename_group', group: 'Billing', text: 'Payments' }], confirm: 'Done.' });
+    s.emit({ type: 'idle' });
+    k.arm((await heard).token!);
+    await new Promise((r) => setTimeout(r, 40));
+    expect(executed).toEqual([{ do: 'renameGroup', group: onIdeas.id, name: 'Payments' }]);
+  });
+});
+
 describe('canvases by voice', () => {
   test('the Koordinator sees the canvases and where the owner looks, and creates, changes, deletes and moves cards onto one', async () => {
     const ideas = board.createCanvas('Ideas', '💡');

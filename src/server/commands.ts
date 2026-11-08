@@ -244,6 +244,8 @@ interface Session {
   /** The command being read; `from`: the card whose agent passed it on. */
   reading?: {
     from?: string;
+    /** What the owner looked at when they spoke. */
+    focus?: Focus;
     finish: (commands: Command[], confirm: string, lookUp?: LookUp, more?: More) => string;
     /** The turn ended, with the error that ended it. */
     end: (error?: Error) => void;
@@ -1064,12 +1066,20 @@ export class Commander {
     }
     if (a.do === 'rename_group') {
       const groups = this.o.board.snapshot().groups;
-      const g = groups.find((x) => x.name.toLowerCase() === a.group?.trim().toLowerCase());
+      // group names are unique per canvas: the group is the one on the canvas the owner is looking at
+      const focus = s.reading?.focus ?? {};
+      const open = focus.card ? this.o.board.item(focus.card) : undefined;
+      const canvas = open?.canvas ?? this.o.board.canvasFor(focus.place);
+      const key = a.group?.trim().toLowerCase();
+      const named = groups.filter((x) => x.name.toLowerCase() === key);
+      const here = named.find((x) => x.canvas === canvas);
+      if (!here && named.length > 1) return `several canvases have a group ${a.group}; the owner is looking at a canvas that has none, so ask which one`;
+      const g = here ?? named[0];
       if (!g) return `there is no group ${a.group ?? '(none named)'}; the project has ${groups.map((x) => `"${x.name}"`).join(', ') || 'none'}`;
       const name = a.text?.replace(/\s+/g, ' ').trim();
       if (!name) return 'the new name is missing (text)';
       if (name.length > 60) return "a group's name has at most 60 characters";
-      if (groups.some((x) => x.id !== g.id && x.name.toLowerCase() === name.toLowerCase())) return `there is a group "${name}" already`;
+      if (groups.some((x) => x.id !== g.id && x.canvas === g.canvas && x.name.toLowerCase() === name.toLowerCase())) return `there is a group "${name}" already on that canvas`;
       return { do: 'renameGroup', group: g.id, name };
     }
     if (a.do === 'new_canvas' || a.do === 'change_canvas' || a.do === 'delete_canvas' || a.do === 'move_to_canvas') return this.canvasAction(a, s, all);
@@ -1253,6 +1263,7 @@ export class Commander {
     const ended = new Promise<Error | undefined>((end) => {
       s.reading = {
         ...(input.forwarded && focus.card ? { from: focus.card } : {}),
+        focus,
         finish: (commands, confirm, lookUp, more) => {
           if (decided) return 'Already decided.';
           decided = true;
