@@ -987,6 +987,8 @@ function Project({
     addressSet.current = true;
     const done = () => {
       addressSet.current = false;
+      // the owner switched to another project meanwhile: the address is that one's now
+      if (gone.current) return;
       history.replaceState(history.state, '', pathOf(openNow()));
     };
     // an address on another card than the one kept (a card on this project opened from another) opens that one
@@ -1032,7 +1034,8 @@ function Project({
   // (by a link in it) takes over that one's step. Changes take effect one after the other: a step
   // back is done once the browser says so.
   const addressChain = useRef(Promise.resolve());
-  const address = (change: () => void | Promise<void>) => void (addressChain.current = addressChain.current.then(change).catch(console.error));
+  // once this project has left the page (a switch to another), the address is no longer its own to change
+  const address = (change: () => void | Promise<void>) => void (addressChain.current = addressChain.current.then(() => (gone.current ? undefined : change())).catch(console.error));
   /** The step back this page asked the browser for, until it is done. */
   const stepBack = useRef<(() => void) | null>(null);
   /** While the page opens what the address names (as it loads, on Back or Forward): the address is set already. */
@@ -1082,6 +1085,7 @@ function Project({
   /** Opens what the address names; a code no card has leaves the project, at its address. */
   async function openAddress(code: string, quick: boolean) {
     const i = await namedBy(code);
+    if (gone.current) return;
     // by its short code, where it was named by its id
     history.replaceState(history.state, '', pathOf(i));
     if (!i) return;

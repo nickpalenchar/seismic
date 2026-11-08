@@ -68,7 +68,9 @@ export function setProject(id: string) {
   projectId = id;
 }
 /** A path in the shown project's API. */
-export const at = (path: string) => `/api/c/${encodeURIComponent(projectId)}${path}`;
+export const at = (path: string, project = projectId) => `/api/c/${encodeURIComponent(project)}${path}`;
+/** The project shown now, for work that ends after the owner may have switched to another. */
+export const shownProject = () => projectId;
 /**
  * The project each card is on, where the page shows the cards of several (the phone view). A call
  * about a card goes to its project even once another is in view: the card closing puts Seismic's in
@@ -308,19 +310,19 @@ export const api = {
   /** Puts the cards into the group, or with `null` into none. */
   assign: (cards: string[], group: string | null) => call<void>('POST', at('/assign'), { cards, group }),
   /** Stores a screenshot for a message; the message names it by the id. */
-  uploadImage: async (image: Blob) => {
-    const res = await fetch(at('/images'), { method: 'POST', headers: { 'content-type': image.type }, body: image });
+  uploadImage: async (image: Blob, project?: string) => {
+    const res = await fetch(at('/images', project), { method: 'POST', headers: { 'content-type': image.type }, body: image });
     await refused(res);
     return ((await res.json()) as { id: string }).id;
   },
   /** Stores another kind of file for a message; returns the path the agent reads it at. */
-  uploadFile: async (file: File) => {
-    const res = await fetch(at(`/files?name=${encodeURIComponent(file.name)}`), { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: file });
+  uploadFile: async (file: File, project?: string) => {
+    const res = await fetch(at(`/files?name=${encodeURIComponent(file.name)}`, project), { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: file });
     await refused(res);
     return ((await res.json()) as { path: string }).path;
   },
   /** Where a file dropped in the browser lies on Seismic's machine, if Seismic finds exactly one that fits its name, size and time. */
-  findFile: async (file: File) => (await call<{ path: string | null }>('POST', at('/files/find'), { name: file.name, size: file.size, modified: file.lastModified })).path,
+  findFile: async (file: File, project?: string) => (await call<{ path: string | null }>('POST', at('/files/find', project), { name: file.name, size: file.size, modified: file.lastModified })).path,
   /** An image the app's drop names by its path on this machine, as a file the page attaches. */
   localImage: async (path: string) => {
     const res = await fetch(at(`/files/local?path=${encodeURIComponent(path)}`));
