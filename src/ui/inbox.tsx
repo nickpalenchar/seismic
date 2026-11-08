@@ -44,7 +44,7 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
   const [filter, setFilter] = useStoredState<Filter>('obeya-inbox-filter', 'all');
   const [everywhere, setEverywhere] = useStoredState<boolean>('obeya-inbox-all-projects', false);
   const entries = current && !everywhere ? all.filter((e) => e.canvas === current) : all;
-  if (!entries.length && !(current && all.length)) return <p className="empty-inbox">{t.inbox.empty}</p>;
+  if (!entries.length && !current) return <p className="empty-inbox">{t.inbox.empty}</p>;
   // the open card's entry stays while the owner is at it, read or not
   const shown = filter === 'all' ? entries : entries.filter((e) => !isRead(e) || (!!e.card && e.card.id === open));
   // only a click on a button reads the entry, not one on the text around it
