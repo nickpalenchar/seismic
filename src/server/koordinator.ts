@@ -757,7 +757,10 @@ export class Koordinator {
       return true;
     }
     this.setQueue(cardId, { behind: [...inferred, ...drawn], reason: inferred.length ? reason : this.o.board.t.koordinator.drawn, ...(buildsOn.length && { buildsOn }), ...(drawn.length && { manualWait: drawn }) });
-    this.logWait(cardId, inferred, reason, drawn, (id) => name?.(id) ?? this.nameOf(items.find((i) => i.id === id) ?? this.o.board.card(id)!));
+    const nameFor = (id: string) => name?.(id) ?? this.nameOf(items.find((i) => i.id === id) ?? this.o.board.card(id)!);
+    this.logWait(cardId, inferred, reason, drawn, nameFor);
+    const t = this.o.board.t;
+    this.o.board.notify({ cardId, level: 'warning', text: t.koordinator.queuedWarning(t.quote(this.card(cardId).title), [...inferred, ...drawn].map(nameFor).join(', ')) });
     return false;
   }
 

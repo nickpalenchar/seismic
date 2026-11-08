@@ -341,6 +341,7 @@ const en = {
     followsReview: (n: number) => `A follow-up task from the review of PR #${n}; starts once the PR is merged.`,
     reviewClosed: (review: string) => `Back to planned: the PR of ${review} was closed without a merge. Start the follow-up task yourself if it is still needed.`,
     notStarted: (name: string) => `${name} (not started yet)`,
+    queuedWarning: (title: string, names: string) => `${title} is queued, not started: it waits for ${names}.`,
     waitsFor: (names: string, reason: string) => `Seismic: waits for ${names}. ${reason}`,
     drawn: 'You connected the cards; it starts once that is done.',
     drawnToo: (names: string) => `It also waits for ${names}: you connected the cards.`,

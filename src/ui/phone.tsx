@@ -489,6 +489,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
     () =>
       onNotice((n) => {
         if (n.made && n.token) return told.made(n.token, n.made);
+        if (n.level === 'warning') return showAck(noticeLine(n.text));
         const i = n.cardId ? byId(n.cardId) : undefined;
         told.show(i ? { id: i.id, title: plain(i.title) } : undefined, { confirm: noticeLine(n.text), ...(n.token ? { token: n.token } : {}), ...(n.undoMs ? { undoMs: n.undoMs } : {}), ...(n.talk ? { talk: n.talk } : {}), ...(n.inTalk && n.cardId ? { inCard: n.cardId } : {}) });
       }),

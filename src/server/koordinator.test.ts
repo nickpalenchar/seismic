@@ -214,7 +214,10 @@ describe('Koordinator', () => {
     k.request(b.id);
     await settle();
     expect(estimates().at(-1)!.inbox[0]).toContain('"A"');
+    const warned: { cardId?: string; level?: string; text: string }[] = [];
+    board.onNotice((n) => void warned.push(n));
     await scope(['src/a.ts', 'src/b.ts'], ['K1'], 'Beide ändern decide() in src/a.ts.');
+    expect(warned).toMatchObject([{ cardId: b.id, level: 'warning' }]);
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { behind: [a.id], reason: 'Beide ändern decide() in src/a.ts.' } });
     // the wait is in the Activity log once, with the card it waits for
     expect(activity(b.id)).toEqual([{ code: 'waitsForCard', who: 'obeya', otherId: a.id }]);

@@ -3436,6 +3436,8 @@ export interface Notice {
   /** The card it is about, named when another one is open. */
   cardId?: string;
   text: string;
+  /** `warning`: shown as a toast that stays until dismissed, with a link to the card (`cardId`) where it has one. */
+  level?: 'warning';
   token?: string;
   undoMs?: number;
   /** The owner asked to tell Seismic's makers something: the page opens the draft for them with it. */

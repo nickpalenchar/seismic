@@ -779,6 +779,7 @@ const en = {
     transcribing: (what: string) => `${what} · being written down …`,
     about: (title: string) => `“${title}”: `,
     goToCard: 'Go to card',
+    dismissWarning: 'Dismiss',
     goTo: (title: string) => `Go to “${title}”`,
     attach: 'Screenshot for the next voice message – or paste it with ⌘V or drop it on the microphone. Any other file dropped on it adds its path.',
     dictate: 'Hold to dictate into the field (or hold Space in the field)',

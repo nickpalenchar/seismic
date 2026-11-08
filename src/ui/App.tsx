@@ -64,7 +64,7 @@ import { useInboxRead } from './inboxRead';
 import { ProjectSettingsSheet } from './projectSettings';
 import { type InboxEntry, inboxEntries, readMark, waitingCount } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
-import { ACK_MS, noticeLine, tellers, useAck, voiceTarget } from './tell';
+import { ACK_MS, noticeLine, tellers, useAck, useWarnings, voiceTarget } from './tell';
 
 export function App() {
   const [phone] = useState(phoneView);
@@ -1082,6 +1082,10 @@ function Project({
 
   // ---------------------------------------------------------------- acknowledgement with undo
   const { showAck, showWait, fail, line: ackLine } = useAck();
+  const warnings = useWarnings((id) => {
+    const i = itemsRef.current.find((x) => x.id === id);
+    if (i) void open(i);
+  });
   const ratePrompt = useRatePrompt(items);
 
   /** The play button on a card: starts it, or one queued behind others despite the likely conflict. */
@@ -1292,6 +1296,7 @@ function Project({
         // the open card moved to another project (built in a new repository there): the page follows it
         // the cards a confirmed command made: its line offers to go to them
         if (n.made && n.token) return told.made(n.token, n.made);
+        if (n.level === 'warning') return warnings.show(noticeLine(n.text), n.cardId);
         const f = focusRef.current;
         if (n.movedTo && n.cardId && f?.type === 'card' && f.id === n.cardId) return location.assign(cardPath(n.movedTo, n.cardId));
         const i = itemsRef.current.find((x) => x.id === n.cardId);
@@ -2634,6 +2639,7 @@ function Project({
               told.drop(x);
               goToMade(c);
             }} />
+          {warnings.list}
           {ackLine}
           {/* nearest the microphone: a line going above it does not move the stars under a finger */}
           {ratePrompt.prompt}

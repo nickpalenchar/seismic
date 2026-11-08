@@ -72,6 +72,34 @@ export function useAck(aside = false) {
 }
 
 /**
+ * Warnings (a notice with `level: 'warning'`) as toasts that stay until dismissed, each with
+ * "Go to card" where it is about a card; `show` adds one, `list` renders them.
+ */
+export function useWarnings(goTo: (cardId: string) => void) {
+  const [warnings, setWarnings] = useState<{ key: number; text: string; cardId?: string }[]>([]);
+  const next = useRef(0);
+  const show = (text: string, cardId?: string) => setWarnings((w) => [...w, { key: next.current++, text, cardId }]);
+  const drop = (key: number) => setWarnings((w) => w.filter((x) => x.key !== key));
+  const list = warnings.map((w) => (
+    <div key={w.key} className="ack warning" role="alert">
+      <span>{w.text}</span>
+      {w.cardId && (
+        <button
+          onClick={() => {
+            goTo(w.cardId!);
+            drop(w.key);
+          }}
+        >
+          {t.voice.goToCard}
+        </button>
+      )}
+      <button onClick={() => drop(w.key)}>{t.voice.dismissWarning}</button>
+    </div>
+  ));
+  return { show, list };
+}
+
+/**
  * A notice as the line above the microphone shows it: an answer looked up comes in Markdown, the
  * line shows it plain, on one line and cut short; the sheet or the card has it in full.
  */
