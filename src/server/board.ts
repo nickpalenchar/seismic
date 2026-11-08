@@ -2061,14 +2061,14 @@ export class Board {
       // keeping and reopening docs archives and brings back their cards
       rows = this.store.cards.onProject(this.project.id);
     }
-    let items = toItems(rows, docs, this.home, this.worked, this.themeNow);
+    let items = withLivePartners(toItems(rows, docs, this.home, this.worked, this.themeNow));
     if (this.placeNew(docs, items, all, rows)) {
       // plans seen for the first time keep their doc too
       this.keepDocs(all, docs);
       // what reacts to changes hears of them too (the Koordinator reads what builds on what in a plan just come)
       this.tell();
       rows = this.store.cards.onProject(this.project.id);
-      items = toItems(rows, docs, this.home, this.worked, this.themeNow);
+      items = withLivePartners(toItems(rows, docs, this.home, this.worked, this.themeNow));
     }
     if (read) {
       // Older plans packed finished cards more tightly. Refit only plans whose finished
@@ -3590,6 +3590,18 @@ function itemHold(h: Hold): ItemHold {
   if (h.reason !== 'snoozed') return { reason: h.reason, since: h.since };
   const { held: _, ...shown } = h;
   return shown;
+}
+
+/** A suggested duplicate that is deleted or archived no longer counts: a card left without any is not a merge proposal. */
+export function withLivePartners(items: Item[]): Item[] {
+  const live = new Set(items.map((i) => i.id));
+  return items.map((i) => {
+    if (!i.possibleDuplicates) return i;
+    const ids = i.possibleDuplicates.filter((id) => live.has(id));
+    if (ids.length === i.possibleDuplicates.length) return i;
+    const { possibleDuplicates: _, ...rest } = i;
+    return ids.length ? { ...rest, possibleDuplicates: ids } : rest;
+  });
 }
 
 export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?: Worked, themeNow?: ThemeNow): Item[] {

@@ -109,6 +109,16 @@ describe('Koordinator', () => {
     expect(item(later.id).state).toBe('working');
   });
 
+  test('a possible duplicate whose partner is deleted no longer counts', async () => {
+    const earlier = card('Export invoices to CSV');
+    const later = card('Add CSV export for invoices');
+    k.request(later.id);
+    await scope(['src/export.ts'], [], 'Same export.', [], ['K1']);
+    expect(item(later.id).possibleDuplicates).toEqual([earlier.id]);
+    board.remove(earlier.id);
+    expect(item(later.id).possibleDuplicates).toBeUndefined();
+  });
+
   test('checking includes work awaiting review as a possible duplicate', async () => {
     const earlier = card('Export invoices as CSV');
     k.request(earlier.id);
