@@ -34,7 +34,10 @@ test('S shows chips, where, kind and since on top, the pin or the unread dot, th
   expect(entry).toContain('class="unread-dot"');
   expect(entry).not.toContain('f-pin');
   expect(entry).toContain('<div class="f-text">Pick one</div>');
-  expect(face({ item: asking, size: 's', unread: false })).not.toContain('unread-dot');
+  // once read, it shows the pin again
+  const read = face({ item: asking, size: 's', unread: false });
+  expect(read).not.toContain('unread-dot');
+  expect(read).toContain('f-pin asking');
 });
 
 test('XS keeps to two lines: the priority flag, title and pin, then the short state, kind, tail and as much of the meta line as fits', () => {

@@ -112,7 +112,7 @@ function FaceS({ item, where, underway, since, unread, title, text, children }: 
       <Title item={item} className="f-ttl">
         {unread && <UnreadDot />}
         <span className="f-ttl-text">{title ?? shownTitle(item)}</span>
-        {unread === undefined && s.pin && <Pin pin={s.pin} />}
+        {!unread && s.pin && <Pin pin={s.pin} />}
       </Title>
       <div className="f-state">
         <StateMarks marks={s.state.marks} />

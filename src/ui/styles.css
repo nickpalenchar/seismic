@@ -2109,7 +2109,7 @@ button.link:hover { text-decoration: underline; }
 .project-card-search ul { list-style: none; max-height: min(360px, 45vh); overflow-y: auto; margin: 6px 0 0; padding: 0; }
 .project-card-search li { padding: 7px 10px; border-radius: 3px; cursor: pointer; }
 .project-card-search li.on, .project-card-search li:hover { background: var(--chip); }
-@media (max-width: 760px) { .project-card-search li > span:first-child { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; } }
+@media (max-width: 760px) { .project-card-search .face-xs .f-ttl-text { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; } }
 #bar .card-search-button { padding-inline: 10px; font-family: var(--mono); }
 /* under the task field while it has the cursor, until a card was linked once */
 .p-body-field .card-refs-hint { position: absolute; top: 100%; left: 0; margin: 6px 0 0; }
