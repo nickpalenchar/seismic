@@ -2991,11 +2991,13 @@ body:has(#agents.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 #agents .agents-tabs { margin: 0 8px 4px; }
 #agents .agents-tabs .n { margin-left: 6px; border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--planned); }
 #agents .agents-empty { margin: 14px 8px; font-size: 13px; line-height: 1.45; }
-.agents-stage h3 { margin: 18px 8px 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.agents-stage h3 { margin: 18px 8px 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .agents-stage h3 .count { font-weight: 400; }
-.agents-stage .q-what .hint { display: inline-block; }
-.agents-stage .q-what .hint::first-letter { text-transform: uppercase; }
-.agents-stage .qlist li.on { background: color-mix(in srgb, var(--working) 10%, var(--card)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--working) 55%, transparent); }
+/* a card at work is a pane like an inbox entry, its state in the colour of its stage */
+.agent-entry .ttl { font-weight: 600; margin-top: 0; }
+.agent-entry .state { color: var(--working); }
+.agent-entry.stage-reviewing .state { color: var(--reviewing); }
+.agent-entry.stage-demo .state .doing { color: var(--approved); }
 .cs-pill .bar-icon { display: block; }
 .cs-pill { padding-inline: 10px; }
 .cs-pill .n.err { margin-left: 4px; }

@@ -1,11 +1,11 @@
 // The Agents sheet: slides out from the bar's robot button, which counts the queued cards in grey, and
 // holds two tabs. "Queue" lists the cards waiting to start in turn, dragged to their place as on a
 // waiting card (src/ui/queue.tsx); "Working" lists the cards whose agent is at work, grouped by the
-// stage it is at (src/core/agents.ts). A row opens its card.
+// stage it is at (src/core/agents.ts), each card a pane like an inbox entry. A row or its title opens its card.
 
 import { useEffect, useRef } from 'react';
-import { byStage } from '../core/agents';
-import { demoStage, type Item } from '../core/types';
+import { agentStage, byStage } from '../core/agents';
+import type { Item } from '../core/types';
 import { Docked } from './docked';
 import { plain } from './markdown';
 import { QueueList, useQueueSort } from './queue';
@@ -43,23 +43,40 @@ export function AgentsSheet({ on, items, open, onOpen }: { on: boolean; items: I
             <h3>
               {t.agents.stages[g.stage]} <span className="count">{g.items.length}</span>
             </h3>
-            <ol className="qlist">
+            <ul className="inbox-list">
               {g.items.map((i) => (
-                <li key={i.id} className={i.id === open ? 's-working on' : 's-working'} onClick={() => onOpen(i)}>
-                  <span className="dot" />
-                  <span className="q-what">
-                    {plain(i.title)}
-                    <br />
-                    <span className="hint">{i.doing && demoStage(i.doing) ? t.doing[i.doing] : stateLabel(i)}</span>
-                  </span>
-                </li>
+                <AgentEntry key={i.id} item={i} here={i.id === open} onOpen={onOpen} />
               ))}
-            </ol>
+            </ul>
           </section>
         ))
       ) : (
         <p className="hint agents-empty">{t.agents.noneWorking}</p>
       )}
     </Docked>
+  );
+}
+
+/** A card at work, as the inbox shows an entry: its title large, its state with what the agent does, its status line, and "Go to card". */
+function AgentEntry({ item: i, here, onOpen }: { item: Item; here: boolean; onOpen: (i: Item) => void }) {
+  const doing = i.doing && i.doing !== 'working' ? t.doing[i.doing] : '';
+  return (
+    <li className={`inbox-entry agent-entry stage-${agentStage(i)}${here ? ' on' : ''}`} aria-current={here || undefined}>
+      <div className="ttl">
+        <button type="button" className="ttl-link" onClick={() => onOpen(i)}>
+          {plain(i.title)}
+        </button>
+      </div>
+      <div className="state">
+        {stateLabel(i)}
+        {doing && <span className="doing"> · {doing}</span>}
+      </div>
+      {i.statusLine && <div className="text">{plain(i.statusLine)}</div>}
+      <div className="replies">
+        <button type="button" className="btn" onClick={() => onOpen(i)}>
+          {t.inbox.goToCard}
+        </button>
+      </div>
+    </li>
   );
 }

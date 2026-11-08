@@ -21,7 +21,8 @@ remembered per browser. "Queue" (with the same count) lists the waiting cards in
 what it waits for, dragged to its place (see The queue's order) and with a × that takes it out of
 the queue at once, as "Take out of the queue" on the card does (back to planned; no undo, starting
 it again is the way back); a row opens its card. "Working" lists the cards whose agent is at work,
-grouped by the stage it is at, in this order: "Working", "Code reviewing" (its code review runs,
+each a pane like an inbox entry (its title large, its state with what the agent does, its status
+line, "Go to card"), grouped by the stage it is at, in this order: "Working", "Code reviewing" (its code review runs,
 also while the card waits for the owner), "Review fixing" (its worker fixes findings the owner gave
 it, "Fix it") and "Making demo" (its worker prepares, records or finishes its demo); a stage without
 a card is left out. Planned, queued, finished and archived cards are not there, nor ideas,
