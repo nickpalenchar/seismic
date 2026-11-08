@@ -381,7 +381,7 @@ text box grows until the reason below it would leave view.
 ### Addresses
 
 The page's address names what it shows: `/p/<project>` a named project, `<project>` being its name as a
-slug (lowercase, accents folded, other characters one dash), or its id where the name would not tell
+slug (lowercase, accents folded, every run of characters other than letters and digits one dash; a project name needs at least one letter, so the slug is never empty), or its id where the name would not tell
 projects apart (two projects with the same slug, or a slug that is another project's id: ids keep
 opening their project). An address names a project by that part, else by id (links from before names,
 notifications), and a hand-typed name works too. An address naming no project says so and lists the

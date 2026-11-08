@@ -137,3 +137,24 @@ test('renaming the open project moves the address, its card and all, to the new 
   expect(followedPath('/p/store', [{ id: 'shop', name: 'Market' }], 'shop', { id: 'other', path: '/p/store' })).toBeNull();
   knowProjects([]);
 });
+
+test('a name without letters or digits has no slug, so the id addresses the project', () => {
+  const list = [
+    { id: 'p-dot', name: '.' },
+    { id: 'p-dots', name: '..' },
+    { id: 'p-ok', name: 'v1.2' },
+  ];
+  knowProjects(list);
+  expect(projectPath('p-dot')).toBe('/p/p-dot');
+  expect(projectPath('p-dots')).toBe('/p/p-dots');
+  expect(projectPath('p-ok')).toBe('/p/v1-2');
+  for (const id of ['p-dot', 'p-dots']) {
+    const { canvas } = readAddress({ pathname: projectPath(id), search: '' });
+    expect(projectNamed(list, canvas)?.id).toBe(id);
+  }
+  expect(projectNamed(list, 'v1.2')?.id).toBe('p-ok');
+  // typed by hand, the dots name nothing
+  expect(projectNamed(list, '.')).toBeUndefined();
+  expect(projectNamed(list, '..')).toBeUndefined();
+  knowProjects([]);
+});

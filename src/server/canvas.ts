@@ -1,7 +1,7 @@
 // One canvas and everything that works on it: its repositories (each with adapter, workspaces,
 // workers, plan agents and PR watcher), the board, the Koordinator and the voice commands.
 
-import { slug } from '../core/project-slug';
+import { idSlug as slug } from '../core/project-slug';
 import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { existsSync, mkdirSync, realpathSync, statSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';

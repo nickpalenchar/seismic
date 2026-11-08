@@ -1,4 +1,5 @@
 import { serverExtensions as extensions } from '../extensions/server';
+import { validProjectName } from '../core/project-slug';
 // Seismic's configuration: the canvases it serves, saved in `canvases.json` under its home. The owner
 // reads and edits it in its sheet, the Koordinator on their word. A saved change applies while
 // Seismic runs (`Canvases.apply`, see Live configuration in
@@ -107,7 +108,7 @@ function tidyApp(s: RepoSettings['app']): RepoSettings['app'] {
 export const configShape = z.array(
   z
     .object({
-      name: z.string().optional(),
+      name: z.string().refine((n) => !n.trim() || validProjectName(n), 'A project name needs at least one letter').optional(),
       id: z.string().optional(),
       oldNames: z.array(z.string()).optional(),
       repos: z.array(

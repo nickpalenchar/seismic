@@ -1,15 +1,16 @@
 // How a project shows in addresses (`/p/<segment>`): its name as a slug, its id where the name
 // would not tell projects apart. Server and page share it.
 
-/** A name as a lowercase address part: accents and ß folded, runs of other characters one dash. */
-export const slug = (s: string) =>
-  s
-    .replace(/ß/g, 'ss')
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9.-]+/g, '-')
-    .replace(/^-|-$/g, '');
+const fold = (s: string) => s.replace(/ß/g, 'ss').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/** A name as a lowercase address part: accents and ß folded, runs of anything but letters and digits one dash. */
+export const slug = (s: string) => fold(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+/** Like `slug`, but periods stay: for ids and file names, which have always kept them. */
+export const idSlug = (s: string) => fold(s).replace(/[^a-z0-9.-]+/g, '-').replace(/^-|-$/g, '');
+
+/** Whether a project name can be used: it has at least one letter, so its slug is never empty or only dashes. */
+export const validProjectName = (s: string) => /\p{L}/u.test(s);
 
 interface Named {
   id: string;
