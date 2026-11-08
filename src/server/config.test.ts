@@ -3,13 +3,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
-import { blocksSaving, type CanvasConfig, type ConfigView, type DemoSettingsView, type LanguageView } from '../core/types';
+import { blocksSaving, type ProjectConfig, type ConfigView, type DemoSettingsView, type LanguageView } from '../core/types';
 import { Board } from './board';
-import { CanvasRuntime, type StartFailure } from './canvas';
+import { ProjectRuntime, type StartFailure } from './project';
 import { clipProblems, Config, configShape, demoSettingsProblems, readConfigFile } from './config';
 import { Store } from './db';
 import { serve } from './server';
-import { CANVAS_SETTINGS, canvasAgentSetting, canvasDefaults, canvasDefaultsView, ownerLanguage, saveCanvasDefaults } from './settings';
+import { PROJECT_SETTINGS, projectAgentSetting, projectDefaults, projectDefaultsView, ownerLanguage, saveProjectDefaults } from './settings';
 import { asOwner, FakeRuntime, noForge, gitRepo, until } from './testing';
 import { git } from './workstations';
 
@@ -20,14 +20,14 @@ let api: string;
 let file: string;
 let restarts: number;
 let applied: number;
-/** The ids of the configurations the running canvases took over. */
+/** The ids of the configurations the running projects took over. */
 let taken: (string | null)[][];
 
 function repo(name: string) {
   return gitRepo(join(dir, name));
 }
 
-const config = (source: 'file' | 'args', started: CanvasConfig[], running: string[] = []) =>
+const config = (source: 'file' | 'args', started: ProjectConfig[], running: string[] = []) =>
   new Config({
     file,
     source,
@@ -47,7 +47,7 @@ beforeEach(() => {
   store = new Store(':memory:');
   web = repo('web');
   api = repo('api');
-  file = join(dir, 'home', 'canvases.json');
+  file = join(dir, 'home', 'projects.json');
   restarts = 0;
   applied = 0;
   taken = [];
@@ -55,14 +55,14 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe("Seismic's configuration", async () => {
-  test('keeps the canvas plan-baseline toggle when saving and reading configuration', async () => {
+  test('keeps the project plan-baseline toggle when saving and reading configuration', async () => {
     const c = config('file', [{ repos: [{ path: web }] }], ['web']);
     await c.save([{ planBaselines: false, repos: [{ path: web }] }]);
     expect(readConfigFile(file)[0]!.planBaselines).toBe(false);
     await c.save([{ planBaselines: true, repos: [{ path: web }] }]);
     expect(readConfigFile(file)[0]!.planBaselines).toBe(true);
   });
-  test('still reads the canvas toggle under its old name, projectBaselines', async () => {
+  test('still reads the project toggle under its old name, projectBaselines', async () => {
     mkdirSync(join(dir, "home"), { recursive: true });
     writeFileSync(file, JSON.stringify([{ projectBaselines: false, repos: [{ path: web }] }]));
     expect(readConfigFile(file)[0]!.planBaselines).toBe(false);
@@ -72,7 +72,7 @@ describe("Seismic's configuration", async () => {
     writeFileSync(file, JSON.stringify([{ repos: [{ path: web, workspaces: ['/c/1'], settings: { workspaces: 'clones' } }] }]));
     expect(readConfigFile(file)[0]!.repos[0]).toMatchObject({ workstations: ['/c/1'], settings: { workstations: 'clones' } });
   });
-  test('says what each canvas amounts to: its id, name, repositories and where their workers work', async () => {
+  test('says what each project amounts to: its id, name, repositories and where their workers work', async () => {
     api = gitRepo(join(dir, 'api-own'), { '.obeya/settings.json': '{ "workstations": "clones" }\n' });
     const c = config('args', [{ name: 'Produkt', repos: [{ path: web }, { path: api }] }], ['produkt']);
     expect(c.view()).toMatchObject({ file, source: 'args', running: ['produkt'], restarting: false, server: { port: 4417, restarts: true } });
@@ -99,7 +99,7 @@ describe("Seismic's configuration", async () => {
     expect(await mode({ settings: { workstations: 'worktrees' }, clones: 1 })).toBe('clones');
   });
 
-  test("says which clones of a running canvas's pool a configuration no longer names, and which card holds one", async () => {
+  test("says which clones of a running project's pool a configuration no longer names, and which card holds one", async () => {
     const c = config('file', [], ['web']);
     const board = new Board(store, { id: 'web', name: 'web', repos: [{ id: 'web', name: 'web', path: web, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     const made = [1, 2, 3].map((i) => gitRepo(join(dir, 'workspaces', 'web', String(i))));
@@ -129,29 +129,29 @@ describe("Seismic's configuration", async () => {
     writeFileSync(join(docs, '.obeya', 'settings.json'), '{ "checks": ["true"] }');
     const checked = await c.check([{ repos: [{ path: docs, git: false, clones: 2, hosts: [{ name: 'h', ssh: 'h', root: '~', clones: 1 }] }] }]);
     expect(checked.problems).toEqual([]);
-    expect(checked.canvases[0]!.repos[0]).toEqual({ path: docs, git: false });
+    expect(checked.projects[0]!.repos[0]).toEqual({ path: docs, git: false });
     expect(checked.resolved[0]!.repos[0]).toMatchObject({ id: 'dokumente', folder: true, values: { checks: { value: ['true'], source: 'repository' } } });
     expect((await c.check([{ repos: [{ path: join(dir, 'nowhere'), git: false }] }])).problems.map((p) => p.code)).toEqual(['noFolder']);
   });
 
-  test('finds what keeps a configuration from working, by canvas and repository', async () => {
+  test('finds what keeps a configuration from working, by project and repository', async () => {
     const c = config('file', []);
     const { problems } = (await c.check([
       { name: 'A', repos: [{ path: web }, { path: join(dir, 'nowhere') }] },
       { name: 'B', repos: [{ path: api, workstations: [join(dir, 'nowhere')] }] },
       { name: 'Leer', repos: [] },
     ]));
-    expect(problems.map(({ code, canvas, repo }) => ({ code, canvas, repo }))).toEqual([
-      { code: 'notRepo', canvas: 0, repo: 1 },
-      { code: 'notClone', canvas: 1, repo: 0 },
-      { code: 'noRepo', canvas: 2, repo: undefined },
+    expect(problems.map(({ code, project, repo }) => ({ code, project, repo }))).toEqual([
+      { code: 'notRepo', project: 0, repo: 1 },
+      { code: 'notClone', project: 1, repo: 0 },
+      { code: 'noRepo', project: 2, repo: undefined },
     ]);
     // the id follows the name, unless it is kept
     expect((await c.check([{ name: 'Neuer Name', id: 'web', repos: [{ path: web }] }])).resolved[0]).toMatchObject({ id: 'web', name: 'Neuer Name' });
-    expect((await c.check([{ name: 'Web', repos: [{ path: web }] }, { name: 'web', repos: [{ path: api }] }])).problems).toMatchObject([{ code: 'sameId', canvas: 1 }]);
-    // a repository once per canvas, by whatever path it is named
-    expect((await c.check([{ name: 'Web', repos: [{ path: web }, { path: api }, { path: `${web}/` }] }])).problems).toMatchObject([{ code: 'sameRepo', canvas: 0, repo: 2 }]);
-    expect((await c.check([])).problems.map((p) => p.code)).toEqual(['noCanvas']);
+    expect((await c.check([{ name: 'Web', repos: [{ path: web }] }, { name: 'web', repos: [{ path: api }] }])).problems).toMatchObject([{ code: 'sameId', project: 1 }]);
+    // a repository once per project, by whatever path it is named
+    expect((await c.check([{ name: 'Web', repos: [{ path: web }, { path: api }, { path: `${web}/` }] }])).problems).toMatchObject([{ code: 'sameRepo', project: 0, repo: 2 }]);
+    expect((await c.check([])).problems.map((p) => p.code)).toEqual(['noProject']);
     expect((await c.check([{ repos: [{ path: web, color: 'red' }] }])).problems.map((p) => p.code)).toEqual(['invalid']);
     expect((await c.check({})).problems.map((p) => p.code)).toEqual(['invalid']);
   });
@@ -172,7 +172,7 @@ describe("Seismic's configuration", async () => {
     const other = clone('api-clone', 'git@github.com:acme/api.git');
     const check = async (workstations: string[]) => (await c.check([{ repos: [{ path: web, workstations }] }])).problems;
     expect(await check([web, ssh, https, local])).toEqual([]);
-    expect(await check([ssh, other])).toMatchObject([{ code: 'otherClone', canvas: 0, repo: 0, detail: expect.stringContaining(other) }]);
+    expect(await check([ssh, other])).toMatchObject([{ code: 'otherClone', project: 0, repo: 0, detail: expect.stringContaining(other) }]);
     expect((await check([other])).filter(blocksSaving)).toHaveLength(1);
   });
 
@@ -186,8 +186,8 @@ describe("Seismic's configuration", async () => {
       for (const path of ['', '  ']) {
         const checked = await c.check([{ repos: [{ path: web }] }, { repos: [{ path }] }, { repos: [{ path, git: false }] }]);
         expect(checked.problems).toEqual([
-          { code: 'noPath', canvas: 1, repo: 0, detail: 'a repository needs a path' },
-          { code: 'noPath', canvas: 2, repo: 0, detail: 'a repository needs a path' },
+          { code: 'noPath', project: 1, repo: 0, detail: 'a repository needs a path' },
+          { code: 'noPath', project: 2, repo: 0, detail: 'a repository needs a path' },
         ]);
         expect(checked.resolved.map((r) => r?.name ?? null)).toEqual(['web', null, null]);
       }
@@ -209,26 +209,26 @@ describe("Seismic's configuration", async () => {
     Bun.spawnSync(['git', '-C', web, 'remote', 'add', 'origin', 'https://github.com/acme/web.git']);
     const host = { name: 'Box', ssh: 'me@box.local', root: '~/obeya/web', clones: 2 };
     const check = (repos: object[]) => c.check([{ repos }]);
-    expect(await check([{ path: web, hosts: [host, { name: ' ', ssh: '', root: '', clones: 1 }] }])).toMatchObject({ problems: [], canvases: [{ repos: [{ path: web, hosts: [host] }] }] });
-    expect((await check([{ path: web, hosts: [{ ...host, root: ' ' }] }])).canvases[0]!.repos[0]!.hosts).toEqual([{ ...host, root: '~/obeya' }]);
+    expect(await check([{ path: web, hosts: [host, { name: ' ', ssh: '', root: '', clones: 1 }] }])).toMatchObject({ problems: [], projects: [{ repos: [{ path: web, hosts: [host] }] }] });
+    expect((await check([{ path: web, hosts: [{ ...host, root: ' ' }] }])).projects[0]!.repos[0]!.hosts).toEqual([{ ...host, root: '~/obeya' }]);
     // slots here and there, 0 included (no new cards there); left out, as many as there are clones
-    expect((await check([{ path: web, slots: 0, hosts: [{ ...host, slots: 1 }] }])).canvases[0]!.repos[0]).toMatchObject({ slots: 0, hosts: [{ ...host, slots: 1 }] });
-    expect((await check([{ path: web, hosts: [host] }])).canvases[0]!.repos[0]).not.toHaveProperty('slots');
+    expect((await check([{ path: web, slots: 0, hosts: [{ ...host, slots: 1 }] }])).projects[0]!.repos[0]).toMatchObject({ slots: 0, hosts: [{ ...host, slots: 1 }] });
+    expect((await check([{ path: web, hosts: [host] }])).projects[0]!.repos[0]).not.toHaveProperty('slots');
     // landing on the main of this checkout, or no remote: the host could not clone it
     expect((await check([{ path: web, settings: { land: 'main' }, hosts: [host] }])).problems.map((p) => p.code)).toEqual(['hostRepo']);
     expect((await check([{ path: api, hosts: [host] }])).problems.map((p) => p.code)).toEqual(['hostRepo']);
     Bun.spawnSync(['git', '-C', api, 'remote', 'add', 'origin', 'https://github.com/acme/api.git']);
-    expect((await check([{ path: web, hosts: [host] }, { path: api, hosts: [{ ...host, ssh: 'other@box.local' }] }])).problems).toEqual([{ code: 'hostName', canvas: 0, repo: 1, detail: expect.stringContaining('me@box.local') }]);
+    expect((await check([{ path: web, hosts: [host] }, { path: api, hosts: [{ ...host, ssh: 'other@box.local' }] }])).problems).toEqual([{ code: 'hostName', project: 0, repo: 1, detail: expect.stringContaining('me@box.local') }]);
     expect((await check([{ path: web, hosts: [{ ...host, name: 'a/b' }] }])).problems.map((p) => p.code)).toEqual(['invalid']);
   });
 
-  test("a demo site a repository's settings still name is no longer read, and said so; a canvas's own is kept tidied", async () => {
+  test("a demo site a repository's settings still name is no longer read, and said so; a project's own is kept tidied", async () => {
     const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'deploy {dir}' };
     const own = gitRepo(join(dir, 'shop'), { '.obeya/settings.json': JSON.stringify({ setup: 'bun install', demo: { site } }) });
     const c = config('args', [{ repos: [{ path: web }] }]);
     const checked = await c.check([{ repos: [{ path: own }], demoSite: { url: 'https://demos.example.dev/', path: '/billing/' } }]);
-    expect(checked.problems.map((p) => [p.code, p.detail])).toEqual([['repoSettings', '.obeya/settings.json, demo.site: no longer read; a canvas chooses its demo site in its settings']]);
-    expect(checked.canvases[0]!.demoSite).toEqual({ url: 'https://demos.example.dev', path: 'billing' });
+    expect(checked.problems.map((p) => [p.code, p.detail])).toEqual([['repoSettings', '.obeya/settings.json, demo.site: no longer read; a project chooses its demo site in its settings']]);
+    expect(checked.projects[0]!.demoSite).toEqual({ url: 'https://demos.example.dev', path: 'billing' });
     // a path that is not one
     expect((await c.check([{ repos: [{ path: web }], demoSite: { url: 'https://demos.example.dev', path: 'Bil ling' } }])).problems.map((p) => p.code)).toEqual(['invalid']);
   });
@@ -237,14 +237,14 @@ describe("Seismic's configuration", async () => {
     const own = gitRepo(join(dir, 'shop'), { '.obeya/adapter/index.ts': "export default { name: 'shop' };\n", '.obeya/settings.json': '{ "setup": "bun install" }\n' });
     const c = config('args', [{ repos: [{ path: web }] }]);
     const checked = (await c.check([{ repos: [{ path: web }, { path: own }] }]));
-    expect(checked.problems).toEqual([{ code: 'adapterGone', canvas: 0, repo: 1, detail: '.obeya/adapter/ on the main branch is no longer read; what it says belongs in .obeya/settings.json' }]);
+    expect(checked.problems).toEqual([{ code: 'adapterGone', project: 0, repo: 1, detail: '.obeya/adapter/ on the main branch is no longer read; what it says belongs in .obeya/settings.json' }]);
     expect(checked.resolved[0]!.repos[1]).toMatchObject({ id: 'shop', adapterGone: true });
     expect(checked.resolved[0]!.repos[0]!.adapterGone).toBeUndefined();
     expect((await c.save([{ repos: [{ path: web }, { path: own }] }]))).toEqual({ restarting: true });
   });
 
-  test("keeps a canvas's home repository: leaving it out is a problem, moving it is not", async () => {
-    store.ensureCanvas('produkt', 'Produkt');
+  test("keeps a project's home repository: leaving it out is a problem, moving it is not", async () => {
+    store.ensureProject('produkt', 'Produkt');
     store.setSetting('produkt', 'home_repo', 'web');
     const c = config('file', []);
     expect((await c.check([{ name: 'Produkt', repos: [{ path: api }] }])).problems.map((p) => p.code)).toEqual(['homeMissing']);
@@ -280,9 +280,9 @@ describe("Seismic's configuration", async () => {
     expect(c.current()[0]!.oldNames).toEqual(['Store', 'Market']);
     // a new project by an old name, however written, or by the name now, is refused
     const taken = await c.check([...c.current(), { name: 'market', repos: [{ path: api }] }]);
-    expect(taken.problems).toMatchObject([{ code: 'oldNameTaken', canvas: 1, of: 'Bazaar', ofCanvas: 0 }]);
+    expect(taken.problems).toMatchObject([{ code: 'oldNameTaken', project: 1, of: 'Bazaar', ofProject: 0 }]);
     expect(taken.problems.filter(blocksSaving)).toHaveLength(1);
-    expect((await c.check([...c.current(), { name: 'Bazaar!', id: 'other', repos: [{ path: api }] }])).problems).toMatchObject([{ code: 'nameTaken', canvas: 1, of: 'Bazaar' }]);
+    expect((await c.check([...c.current(), { name: 'Bazaar!', id: 'other', repos: [{ path: api }] }])).problems).toMatchObject([{ code: 'nameTaken', project: 1, of: 'Bazaar' }]);
     // renamed back to an old name: its name again, no longer an old one
     await c.save([{ ...c.current()[0]!, name: 'Store' }]);
     expect(c.current()[0]!.oldNames).toEqual(['Market', 'Bazaar']);
@@ -293,7 +293,7 @@ describe("Seismic's configuration", async () => {
     await expect(c.save([{ ...c.current()[0]!, name: 'Shop' }, { name: 'Store', id: 'store2', repos: [{ path: api }] }])).rejects.toThrow('old name');
   });
 
-  test("a file from before canvases chose their demo site reads without a repository's site", async () => {
+  test("a file from before projects chose their demo site reads without a repository's site", async () => {
     const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'deploy {dir}' };
     mkdirSync(join(dir, 'home'));
     writeFileSync(file, JSON.stringify([{ repos: [{ path: web, settings: { setup: 'x', demo: { site: { ...site, language: 'de' } } } }] }]));
@@ -302,7 +302,7 @@ describe("Seismic's configuration", async () => {
     expect((await config('file', []).check([{ repos: [{ path: web, settings: { demo: { site } } }] }])).problems.map((p) => p.code)).not.toContain('invalid');
   });
 
-  test("saved from the file, the running canvases take it over without a restart: settings tidied, canvases and repositories as they come", async () => {
+  test("saved from the file, the running projects take it over without a restart: settings tidied, projects and repositories as they come", async () => {
     mkdirSync(join(dir, 'home'));
     writeFileSync(file, JSON.stringify([{ repos: [{ path: web }] }]));
     const c = config('file', [{ repos: [{ path: web }] }]);
@@ -324,24 +324,24 @@ describe("Seismic's configuration", async () => {
     expect(c.view().restarting).toBe(false);
   });
 
-  test("what does not run as configured is a problem at its canvas or repository that blocks nothing; „Erneut versuchen“ has the canvases take the configuration over again", async () => {
+  test("what does not run as configured is a problem at its project or repository that blocks nothing; „Erneut versuchen“ has the projects take the configuration over again", async () => {
     mkdirSync(join(dir, 'home'));
     const saved = [{ name: 'Web', repos: [{ path: web }] }, { name: 'API', repos: [{ path: api }, { path: web }] }];
     writeFileSync(file, JSON.stringify(saved));
     const failures: StartFailure[] = [
-      { canvas: 'web', detail: 'git broke' },
-      { canvas: 'api', repo: 'web', detail: 'no clone', before: true },
-      { canvas: 'gone', detail: 'no longer configured' },
+      { project: 'web', detail: 'git broke' },
+      { project: 'api', repo: 'web', detail: 'no clone', before: true },
+      { project: 'gone', detail: 'no longer configured' },
     ];
     const c = new Config({ file, source: 'file', started: saved, store, running: () => ['api'], server: { port: 4417, home: dir, permissionMode: 'auto' }, apply: (_, ids) => void taken.push(ids), failures: () => failures });
     const { problems } = await c.checkSaved();
     expect(problems).toEqual([
-      { code: 'canvasDown', canvas: 0, detail: 'git broke' },
-      { code: 'repoBefore', canvas: 1, repo: 1, detail: 'no clone' },
+      { code: 'projectDown', project: 0, detail: 'git broke' },
+      { code: 'repoBefore', project: 1, repo: 1, detail: 'no clone' },
     ]);
     expect(problems.filter(blocksSaving)).toEqual([]);
-    failures[1] = { canvas: 'api', repo: 'web', detail: 'no clone' };
-    expect((await c.checkSaved()).problems[1]).toMatchObject({ code: 'repoDown', canvas: 1, repo: 1 });
+    failures[1] = { project: 'api', repo: 'web', detail: 'no clone' };
+    expect((await c.checkSaved()).problems[1]).toMatchObject({ code: 'repoDown', project: 1, repo: 1 });
     expect(await c.retry()).toEqual({});
     expect(taken).toEqual([['web', 'api']]);
   });
@@ -372,7 +372,7 @@ describe("Seismic's configuration", async () => {
     const c = config('file', []);
     const { resolved, problems } = (await c.check([{ repos: [{ path: shop }] }]));
     expect(resolved[0]!.repos[0]!.values.checks).toEqual({ value: ['bun test'], source: 'repository' });
-    expect(problems).toEqual([{ code: 'repoSettings', canvas: 0, repo: 0, detail: '.obeya/settings.json, check: no such field (did you mean checks?)' }]);
+    expect(problems).toEqual([{ code: 'repoSettings', project: 0, repo: 0, detail: '.obeya/settings.json, check: no such field (did you mean checks?)' }]);
     expect(blocksSaving(problems[0]!)).toBe(false);
   });
 
@@ -416,7 +416,7 @@ describe("Seismic's configuration", async () => {
     expect(store.trustedCommands(own)).toEqual({ app: { stop: app.stop }, claude: { '.mcp.json': { id: expect.any(String), text: '{"mcpServers":{"x":{}}}' } } });
   });
 
-  test("a new canvas's repository, still only in the dialog's draft, can be trusted before the canvas is saved", async () => {
+  test("a new project's repository, still only in the dialog's draft, can be trusted before the project is saved", async () => {
     const own = gitRepo(join(dir, 'shop'), { '.obeya/settings.json': JSON.stringify({ app: { run: 'bun dev', stop: 'pkill -F .dev.pid' } }) });
     const c = config('file', []);
     const draft = [{ repos: [{ path: own }] }];
@@ -583,8 +583,8 @@ describe("Seismic's configuration", async () => {
   test('shows the file when Seismic runs from it, the command line until something is saved', async () => {
     mkdirSync(join(dir, 'home'));
     writeFileSync(file, JSON.stringify([{ name: 'Aus Datei', repos: [{ path: web }] }]));
-    expect(config('file', []).view().canvases).toEqual([{ name: 'Aus Datei', repos: [{ path: web }] }]);
-    expect(config('args', [{ repos: [{ path: api }] }]).view().canvases).toEqual([{ repos: [{ path: api }] }]);
+    expect(config('file', []).view().projects).toEqual([{ name: 'Aus Datei', repos: [{ path: web }] }]);
+    expect(config('args', [{ repos: [{ path: api }] }]).view().projects).toEqual([{ repos: [{ path: api }] }]);
   });
 
   test('a check reads each repository once, all of them at once, and never makes the server wait for git', async () => {
@@ -598,7 +598,7 @@ describe("Seismic's configuration", async () => {
     bun.spawnSync = (cmd, ...rest) => (calls.push(`waits: ${cmd.join(' ')}`), (spawnSync as (...a: unknown[]) => unknown)(cmd, ...rest));
     let checked;
     try {
-      // web is a repository of two canvases and a workstation of its own, beside a clone of it
+      // web is a repository of two projects and a workstation of its own, beside a clone of it
       checked = await c.check([{ repos: [{ path: web, workstations: [web, clone] }] }, { name: 'Zwei', repos: [{ path: web }, { path: api, settings: { branch: 'main' } }] }]);
     } finally {
       Object.assign(Bun, { spawn, spawnSync });
@@ -617,15 +617,15 @@ describe("Seismic's configuration", async () => {
 
 describe('the configuration over HTTP', () => {
   let server: ReturnType<typeof serve>;
-  let canvas: CanvasRuntime;
+  let project: ProjectRuntime;
   beforeEach(() => {
     const c = config('args', [{ repos: [{ path: web }] }], ['web']);
-    canvas = new CanvasRuntime({ repos: [{ path: web }] }, { store, home: dir, runtime: new FakeRuntime(), forge: noForge, config: c });
-    server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, c);
+    project = new ProjectRuntime({ repos: [{ path: web }] }, { store, home: dir, runtime: new FakeRuntime(), forge: noForge, config: c });
+    server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, c);
   });
   afterEach(() => {
     server.stop(true);
-    canvas.shutdown();
+    project.shutdown();
   });
   const { fetch } = asOwner(() => server);
   const call = async (method: string, path: string, body?: unknown) => {
@@ -635,12 +635,12 @@ describe('the configuration over HTTP', () => {
 
   test('reads, checks and saves it', async () => {
     const view = (await call('GET', '/api/config')).body as unknown as ConfigView;
-    expect(view.canvases).toEqual([{ repos: [{ path: web }] }]);
+    expect(view.projects).toEqual([{ repos: [{ path: web }] }]);
     expect(view.running).toEqual(['web']);
     expect((await call('GET', '/api/config/check')).body).toMatchObject({ resolved: [{ id: 'web', repos: [{ id: 'web' }] }], problems: [] });
 
     const checked = await call('POST', '/api/config/check', [{ name: 'Zwei', repos: [{ path: web }, { path: join(dir, 'nowhere') }] }]);
-    expect(checked.body.problems).toMatchObject([{ code: 'notRepo', canvas: 0, repo: 1 }]);
+    expect(checked.body.problems).toMatchObject([{ code: 'notRepo', project: 0, repo: 1 }]);
 
     const refused = await call('PUT', '/api/config', [{ repos: [{ path: join(dir, 'nowhere') }] }]);
     expect(refused).toMatchObject({ status: 400, body: { code: 'config' } });
@@ -736,7 +736,7 @@ describe('the configuration over HTTP', () => {
     mkdirSync(join(dir, 'home'));
     writeFileSync(file, JSON.stringify([{ repos: [{ path: web, settings: { checks: ['bun test'] } }] }]));
     const c = config('file', []);
-    const live = new CanvasRuntime({ repos: [{ path: web }] }, { store, home: dir, runtime: new FakeRuntime(), forge: noForge, config: c, settings: (p) => c.repoSettings(p) });
+    const live = new ProjectRuntime({ repos: [{ path: web }] }, { store, home: dir, runtime: new FakeRuntime(), forge: noForge, config: c, settings: (p) => c.repoSettings(p) });
     const at = serve([live], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, c);
     const post = async (path: string, body?: unknown) => {
       const res = await asOwner(() => at).fetch(new URL(path, at.url), { method: 'POST', ...(body === undefined ? {} : { body: JSON.stringify(body), headers: { 'content-type': 'application/json' } }) });
@@ -781,36 +781,36 @@ describe('the configuration over HTTP', () => {
   });
 
   test('a configuration command of the Koordinator saves it after the undo window', async () => {
-    await canvas.run({ do: 'configure', canvases: [{ name: 'Neu', repos: [{ path: web }] }] });
+    await project.run({ do: 'configure', projects: [{ name: 'Neu', repos: [{ path: web }] }] });
     expect(readConfigFile(file)).toEqual([{ name: 'Neu', repos: [{ path: web }] }]);
     expect(restarts).toBe(1);
   });
 });
 
 describe('a change the Koordinator makes', () => {
-  test('keeps a canvas over a folder without git as it is while it adds a repository to another canvas', async () => {
+  test('keeps a project over a folder without git as it is while it adds a repository to another project', async () => {
     const docs = join(dir, 'Dokumente');
     mkdirSync(docs);
-    const saved: CanvasConfig[] = [{ repos: [{ path: web }] }, { repos: [{ path: docs, git: false }] }];
+    const saved: ProjectConfig[] = [{ repos: [{ path: web }] }, { repos: [{ path: docs, git: false }] }];
     mkdirSync(join(dir, 'home'));
     writeFileSync(file, JSON.stringify(saved));
     const runtime = new FakeRuntime();
-    const canvas = new CanvasRuntime({ repos: [{ path: web }] }, { store, home: dir, runtime, forge: noForge, config: config('file', saved, ['web', 'dokumente']), commandDelayMs: 0 });
+    const project = new ProjectRuntime({ repos: [{ path: web }] }, { store, home: dir, runtime, forge: noForge, config: config('file', saved, ['web', 'dokumente']), commandDelayMs: 0 });
     try {
-      const heard = canvas.commander.hear('Nimm api auf die Leinwand web.', {});
+      const heard = project.commander.hear('Nimm api auf die Leinwand web.', {});
       await until(() => runtime.sessions.some((s) => s.spec.tools.some((t) => t.name === 'configure')));
       const k = runtime.sessions.find((s) => s.spec.tools.some((t) => t.name === 'configure'))!;
       // the configuration as the Koordinator reads it, with api added, through the tool's schema as its SDK hands the arguments on
-      const { canvases } = JSON.parse(await k.call('config', {})) as ConfigView;
+      const { projects } = JSON.parse(await k.call('config', {})) as ConfigView;
       const tool = k.spec.tools.find((t) => t.name === 'configure')!;
-      const args = z.object(tool.schema).parse({ canvases: [{ repos: [...canvases[0]!.repos, { path: api }] }, canvases[1]], confirm: 'api kommt auf die Leinwand web.' });
+      const args = z.object(tool.schema).parse({ projects: [{ repos: [...projects[0]!.repos, { path: api }] }, projects[1]], confirm: 'api kommt auf die Leinwand web.' });
       expect(await tool.run(args)).not.toContain('Nothing recorded');
       k.emit({ type: 'idle' });
-      canvas.commander.arm((await heard).token!);
+      project.commander.arm((await heard).token!);
       await until(() => readConfigFile(file).length === 2 && readConfigFile(file)[0]!.repos.length === 2);
       expect(readConfigFile(file)).toEqual([{ repos: [{ path: web }, { path: api }] }, { repos: [{ path: docs, git: false }] }]);
     } finally {
-      canvas.shutdown();
+      project.shutdown();
     }
   });
 });
@@ -864,115 +864,115 @@ function wav(seconds: number, rate = 16000) {
   return b;
 }
 
-describe('Canvas defaults', () => {
-  test('every canvas setting has a value in Canvas defaults', () => {
-    // what a canvas holds beside its identity (names, id) and repositories is a canvas setting; a new one needs its default
+describe('Project defaults', () => {
+  test('every project setting has a value in Project defaults', () => {
+    // what a project holds beside its identity (names, id) and repositories is a project setting; a new one needs its default
     const settings = Object.keys(configShape.element.shape).filter((k) => !['name', 'id', 'oldNames', 'repos'].includes(k));
     expect(settings.length).toBeGreaterThan(0);
-    const defaults = canvasDefaults(dir) as Record<string, unknown>;
+    const defaults = projectDefaults(dir) as Record<string, unknown>;
     for (const k of settings) {
-      expect(Object.keys(CANVAS_SETTINGS), `canvas setting ${k} has no entry in Canvas defaults`).toContain(k);
-      expect(defaults[k], `canvas setting ${k} has no default value`).toBeDefined();
+      expect(Object.keys(PROJECT_SETTINGS), `project setting ${k} has no entry in Project defaults`).toContain(k);
+      expect(defaults[k], `project setting ${k} has no default value`).toBeDefined();
     }
     expect(Object.keys(defaults).sort()).toEqual(settings.sort());
   });
 
   test('start with every label suggested, and keep what the owner saves of them', () => {
-    expect(canvasDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null } });
-    saveCanvasDefaults(dir, { suggest: { complexity: false } });
-    expect(canvasDefaults(dir)).toEqual({ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: false, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null });
+    expect(projectDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null } });
+    saveProjectDefaults(dir, { suggest: { complexity: false } });
+    expect(projectDefaults(dir)).toEqual({ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: false, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null });
     // cards are archived by hand until the owner chooses otherwise
-    saveCanvasDefaults(dir, { archive: 'landed' });
-    expect(canvasDefaults(dir).archive).toBe('landed');
-    expect(() => saveCanvasDefaults(dir, { archive: 'weekly' })).toThrow();
+    saveProjectDefaults(dir, { archive: 'landed' });
+    expect(projectDefaults(dir).archive).toBe('landed');
+    expect(() => saveProjectDefaults(dir, { archive: 'weekly' })).toThrow();
     // code reviews start off, and once on, with the demo, until the owner chooses otherwise
-    saveCanvasDefaults(dir, { codeReviews: { on: true, mode: 'manual' } });
-    expect(canvasDefaults(dir).codeReviews).toEqual({ on: true, mode: 'manual' });
-    expect(() => saveCanvasDefaults(dir, { codeReviews: { mode: 'sometimes' } })).toThrow();
+    saveProjectDefaults(dir, { codeReviews: { on: true, mode: 'manual' } });
+    expect(projectDefaults(dir).codeReviews).toEqual({ on: true, mode: 'manual' });
+    expect(() => saveProjectDefaults(dir, { codeReviews: { mode: 'sometimes' } })).toThrow();
     // other settings in the file stay
     expect(ownerLanguage(dir)).toBeDefined();
-    expect(() => saveCanvasDefaults(dir, { suggest: { colour: true } })).toThrow();
-    expect(() => saveCanvasDefaults(dir, { theme: 'dark' })).toThrow();
+    expect(() => saveProjectDefaults(dir, { suggest: { colour: true } })).toThrow();
+    expect(() => saveProjectDefaults(dir, { theme: 'dark' })).toThrow();
   });
 
-  test('are copied into a canvas when it is created; the canvases there are keep their own', async () => {
+  test('are copied into a project when it is created; the projects there are keep their own', async () => {
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, `${JSON.stringify([{ repos: [{ path: web }] }])}\n`);
     const c = config('file', [], ['web']);
-    saveCanvasDefaults(dir, { suggest: { priority: false } });
-    // a new canvas beside the existing one, which has no toggles of its own (all on)
+    saveProjectDefaults(dir, { suggest: { priority: false } });
+    // a new project beside the existing one, which has no toggles of its own (all on)
     await c.save([{ name: 'Web', repos: [{ path: web }] }, { repos: [{ path: api }] }]);
     expect(readConfigFile(file)).toEqual([
       { name: 'Web', repos: [{ path: web }] },
       { planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: false }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: api }] },
     ]);
-    // changing the defaults later leaves both alone, and what a new canvas sets itself is its own
-    saveCanvasDefaults(dir, { suggest: { category: false, priority: true } });
+    // changing the defaults later leaves both alone, and what a new project sets itself is its own
+    saveProjectDefaults(dir, { suggest: { category: false, priority: true } });
     const other = repo('other');
     await c.save([...readConfigFile(file), { suggest: { complexity: false }, repos: [{ path: other }] }]);
     expect(readConfigFile(file).map((x) => x.suggest)).toEqual([undefined, { category: true, complexity: true, priority: false }, { category: true, complexity: false, priority: true }]);
   });
 
-  test('plan tagging defaults apply to new canvases while existing canvases and explicit choices stay their own', async () => {
+  test('plan tagging defaults apply to new projects while existing projects and explicit choices stay their own', async () => {
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, JSON.stringify([{ repos: [{ path: web }] }]));
     const c = config('file', [], ['web']);
-    saveCanvasDefaults(dir, { planBaselines: false });
-    expect(canvasDefaults(dir).planBaselines).toBe(false);
+    saveProjectDefaults(dir, { planBaselines: false });
+    expect(projectDefaults(dir).planBaselines).toBe(false);
     await c.save([{ repos: [{ path: web }] }, { repos: [{ path: api }] }]);
     expect(readConfigFile(file).map((x) => x.planBaselines)).toEqual([undefined, false]);
-    saveCanvasDefaults(dir, { planBaselines: true });
+    saveProjectDefaults(dir, { planBaselines: true });
     const other = repo('explicit');
     await c.save([...readConfigFile(file), { planBaselines: false, repos: [{ path: other }] }]);
     expect(readConfigFile(file).map((x) => x.planBaselines)).toEqual([undefined, false, false]);
-    expect(() => saveCanvasDefaults(dir, { planBaselines: 'off' })).toThrow();
+    expect(() => saveProjectDefaults(dir, { planBaselines: 'off' })).toThrow();
   });
 
-  test('an existing canvas keeps its settings by id even when it is not running and its repositories change', async () => {
+  test('an existing project keeps its settings by id even when it is not running and its repositories change', async () => {
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, JSON.stringify([{ id: 'shop', repos: [{ path: web }] }]));
-    saveCanvasDefaults(dir, { suggest: { priority: false } });
+    saveProjectDefaults(dir, { suggest: { priority: false } });
     await config('file', []).save([{ id: 'shop', name: 'Store', repos: [{ path: api }] }]);
     expect(readConfigFile(file)[0]?.suggest).toBeUndefined();
   });
 });
 
-describe('The canvas settings', () => {
-  test('a canvas saves its own models over the configuration, and leaves the rest of it as it was', async () => {
+describe('The project settings', () => {
+  test('a project saves its own models over the configuration, and leaves the rest of it as it was', async () => {
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, `${JSON.stringify([{ name: 'Web', repos: [{ path: web }] }, { repos: [{ path: api }] }])}\n`);
     const c = config('file', [], ['web']);
-    await c.saveCanvas('web', { agents: { worker: { model: 'sonnet' }, chores: {} } });
+    await c.saveProject('web', { agents: { worker: { model: 'sonnet' }, chores: {} } });
     // an empty group says nothing and is not saved
     expect(readConfigFile(file)).toEqual([{ name: 'Web', agents: { worker: { model: 'sonnet' } }, repos: [{ path: web }] }, { repos: [{ path: api }] }]);
-    await c.saveCanvas('web', { agents: { worker: { harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } } } });
+    await c.saveProject('web', { agents: { worker: { harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } } } });
     expect(readConfigFile(file)[0]).toMatchObject({ agents: { worker: { harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } } } });
     // all groups back to the configuration's: no models of its own left
-    await c.saveCanvas('web', { agents: {} });
+    await c.saveProject('web', { agents: {} });
     expect(readConfigFile(file)[0]).toEqual({ name: 'Web', repos: [{ path: web }] });
-    await expect(c.saveCanvas('web', { agents: { worker: { model: 'gpt' } } })).rejects.toThrow();
-    await expect(c.saveCanvas('web', { name: 'Other' })).rejects.toThrow();
-    await expect(c.saveCanvas('nowhere', { suggest: { priority: false } })).rejects.toThrow();
+    await expect(c.saveProject('web', { agents: { worker: { model: 'gpt' } } })).rejects.toThrow();
+    await expect(c.saveProject('web', { name: 'Other' })).rejects.toThrow();
+    await expect(c.saveProject('nowhere', { suggest: { priority: false } })).rejects.toThrow();
     // changes sent at once all stay
-    await Promise.all([c.saveCanvas('web', { planBaselines: false }), c.saveCanvas('web', { suggest: { priority: false } })]);
+    await Promise.all([c.saveProject('web', { planBaselines: false }), c.saveProject('web', { suggest: { priority: false } })]);
     expect(readConfigFile(file)[0]).toMatchObject({ planBaselines: false, suggest: { priority: false } });
   });
 
-  test("a canvas's own model or effort goes over the configuration's; Codex workers it sets a model for run in Claude Code", () => {
+  test("a project's own model or effort goes over the configuration's; Codex workers it sets a model for run in Claude Code", () => {
     const base = { model: 'opus', effort: 'high' } as const;
-    expect(canvasAgentSetting('worker', base, undefined)).toBe(base);
-    expect(canvasAgentSetting('worker', base, { chores: { model: 'haiku' } })).toBe(base);
-    expect(canvasAgentSetting('worker', base, { worker: { effort: 'low' } })).toEqual({ model: 'opus', effort: 'low' });
+    expect(projectAgentSetting('worker', base, undefined)).toBe(base);
+    expect(projectAgentSetting('worker', base, { chores: { model: 'haiku' } })).toBe(base);
+    expect(projectAgentSetting('worker', base, { worker: { effort: 'low' } })).toEqual({ model: 'opus', effort: 'low' });
     const codex = { ...base, harness: 'codex', codex: { model: 'gpt-5', effort: 'high' } } as const;
-    expect(canvasAgentSetting('worker', codex, { worker: { model: 'sonnet' } })).toMatchObject({ model: 'sonnet', effort: 'high', harness: 'claude' });
-    expect(canvasAgentSetting('worker', codex, { worker: { effort: 'low' } })).toEqual({ ...codex, codex: { model: 'gpt-5', effort: 'low' } });
-    expect(canvasAgentSetting('worker', base, { worker: { harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } } })).toMatchObject({ harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } });
-    expect(canvasAgentSetting('worker', codex, { worker: { harness: 'claude', model: 'haiku' } })).toMatchObject({ harness: 'claude', model: 'haiku' });
+    expect(projectAgentSetting('worker', codex, { worker: { model: 'sonnet' } })).toMatchObject({ model: 'sonnet', effort: 'high', harness: 'claude' });
+    expect(projectAgentSetting('worker', codex, { worker: { effort: 'low' } })).toEqual({ ...codex, codex: { model: 'gpt-5', effort: 'low' } });
+    expect(projectAgentSetting('worker', base, { worker: { harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } } })).toMatchObject({ harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } });
+    expect(projectAgentSetting('worker', codex, { worker: { harness: 'claude', model: 'haiku' } })).toMatchObject({ harness: 'claude', model: 'haiku' });
   });
 
-  test('Canvas defaults hold no models: the configuration is their default', async () => {
-    expect(canvasDefaults(dir).agents).toEqual({});
-    expect(() => saveCanvasDefaults(dir, { agents: { worker: { model: 'sonnet' } } })).toThrow();
+  test('Project defaults hold no models: the configuration is their default', async () => {
+    expect(projectDefaults(dir).agents).toEqual({});
+    expect(() => saveProjectDefaults(dir, { agents: { worker: { model: 'sonnet' } } })).toThrow();
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, `${JSON.stringify([{ repos: [{ path: web }] }])}\n`);
     await config('file', [], ['web']).save([{ repos: [{ path: web }] }, { repos: [{ path: api }] }]);

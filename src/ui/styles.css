@@ -1,4 +1,4 @@
-/* Seismic's look (docs/design/the-canvas.md, "Visual identity"): index cards pinned to a wall. Titles in Newsreader, everything
+/* Seismic's look (docs/design/the-project.md, "Visual identity"): index cards pinned to a wall. Titles in Newsreader, everything
    else in IBM Plex Sans Condensed, both OFL and served from ./fonts with their licences. */
 @font-face { font-family: Newsreader; font-style: normal; font-weight: 300 800; font-display: swap;
   src: url(./fonts/newsreader-latin-opsz-normal.woff2) format("woff2"); }
@@ -77,14 +77,14 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
 .smart-link .sl-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; text-decoration: underline 1px currentColor; text-underline-offset: .18em; }
 .smart-link .prio { font-size: .9em; }
 a.smart-link:hover, a.smart-link:focus-visible { border-color: var(--working); background: color-mix(in srgb, var(--working) 8%, var(--chip)); outline: none; }
-/* a card no longer on the canvas: its title as the link had it, muted */
+/* a card no longer on the project: its title as the link had it, muted */
 .smart-link.gone { color: var(--muted); }
 .smart-link.gone .sl-title { text-decoration: none; }
 .smart-link.gone .sl-dot { background: transparent; border: 1px solid var(--muted); width: 5px; height: 5px; }
 /* headings are titles on paper, in the serif; the rest stays in the condensed sans */
 h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-family: var(--serif); font-weight: 600; letter-spacing: -.005em; }
 
-/* ---------- canvas ---------- */
+/* ---------- project ---------- */
 #viewport { position: fixed; inset: 0; cursor: grab; touch-action: none;
   background-image: radial-gradient(var(--dot) 1px, transparent 1px); }
 #viewport.panning { cursor: grabbing; }
@@ -262,7 +262,7 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-fami
 
 /* the pin that holds a card needing the owner: its disc (::before) and its pulse (::after) lie under
    its mark. The pulse only grows and fades, which the compositor does on its own: an animated
-   box-shadow repainted the card under it every frame, and on a zoomed-out canvas every repaint
+   box-shadow repainted the card under it every frame, and on a zoomed-out project every repaint
    rasterised the card a little differently, so the whole card flickered. */
 .badge { --pin: var(--waiting); position: absolute; isolation: isolate; top: -10px; right: -8px; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px;
   color: var(--on-ink); font: 700 13px/1 var(--serif); display: grid; place-items: center;
@@ -305,7 +305,7 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-fami
 .z-far .card.chip .ttl { font-size: 21px; line-height: 1.1; -webkit-line-clamp: 2; }
 
 /* ---------- chrome ---------- */
-/* a frosted strip the canvas slides under, so cards never run into the pills; it ends at the panels docked at the window's edges */
+/* a frosted strip the project slides under, so cards never run into the pills; it ends at the panels docked at the window's edges */
 #bar { position: fixed; top: 0; left: var(--left, 0px); right: var(--side, 0px); transition: right .45s cubic-bezier(.3,.9,.3,1), left .45s cubic-bezier(.3,.9,.3,1), padding-left .45s cubic-bezier(.3,.9,.3,1); height: 58px; padding: 0 14px; display: flex; align-items: center; gap: 10px; z-index: 21;
   background: color-mix(in srgb, var(--bg) 84%, transparent); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
   border-bottom: 1px solid var(--line); box-shadow: 0 6px 18px -12px rgba(30,25,15,.18); }
@@ -359,7 +359,7 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill.restart .tip p:last-child { margin: 0; }
 .pill.restart .tip ul { margin: 0 0 6px; padding-left: 18px; }
 .pill.restart:hover:not(:has(button:hover)) > .tip.why, .pill.restart button:hover > .tip.risk { display: block; }
-/* the navigation at the bar's left (src/ui/nav.tsx): the canvas's name, and under it the canvases,
+/* the navigation at the bar's left (src/ui/nav.tsx): the project's name, and under it the projects,
    each with the count of what waits for the owner there */
 .nav-pill { position: relative; }
 .nav-pill .switch { cursor: pointer; }
@@ -371,7 +371,7 @@ button.pill:hover { box-shadow: var(--lift); }
 .nav-menu { position: absolute; top: calc(100% + 6px); left: 0; width: min(360px, calc(100vw - 28px)); max-height: calc(100vh - 80px); overflow: auto; box-sizing: border-box;
   padding: 14px 14px 16px; background: var(--panel); border-radius: 3px; box-shadow: var(--lift); z-index: 30; }
 /* pinned: a sidebar docked to the window's left edge, from top to bottom, as the sheets are on the right;
-   above the dim of an open card (#dim), so it stays in view and switches canvas from there */
+   above the dim of an open card (#dim), so it stays in view and switches project from there */
 .nav-sheet { position: fixed; top: 0; left: 0; bottom: 0; width: 340px; box-sizing: border-box; background: var(--panel); border-right: 1px solid var(--line);
   z-index: 31; transform: translateX(calc(-100% - 1px)); visibility: hidden; transition: transform .45s cubic-bezier(.3,.9,.3,1), visibility 0s .45s;
   overflow: auto; padding: 14px 14px 30px; }
@@ -385,7 +385,7 @@ button.pill:hover { box-shadow: var(--lift); }
 .nav-pin { margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 3px;
   background: var(--chip); color: var(--muted); cursor: pointer; }
 .nav-pin:hover, .nav-pin.on { color: var(--ink); }
-.nav-canvases { list-style: none; margin: 0; padding: 0; }
+.nav-projects { list-style: none; margin: 0; padding: 0; }
 .nav-row { position: relative; }
 .nav-row + .nav-row { margin-top: 2px; }
 .nav-row a { display: flex; align-items: center; gap: 7px; padding: 6px 10px; border-radius: 6px; text-decoration: none; font-size: 13px; color: var(--muted); }
@@ -398,12 +398,12 @@ button.pill:hover { box-shadow: var(--lift); }
 .nav-new button { display: flex; align-items: center; gap: 7px; width: 100%; padding: 6px 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; color: var(--muted); cursor: pointer; text-align: left; }
 .nav-new button:hover { background: var(--chip); color: var(--ink); }
 .nav-row.on a { color: var(--ink); background: var(--chip); }
-.nav-row:has(.canvas-agents) a { padding-right: 46px; }
-/* a canvas's agents on its row: the moving line while one works there, which turns into a pause for
+.nav-row:has(.project-agents) a { padding-right: 46px; }
+/* a project's agents on its row: the moving line while one works there, which turns into a pause for
    all of them while the pointer is on the row; with only paused ones, a play on the same hover */
-.canvas-agents { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); width: 26px; height: 20px;
+.project-agents { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); width: 26px; height: 20px;
   display: flex; align-items: center; justify-content: center; --c: var(--working); }
-.canvas-agents.running::before { content: ""; width: 26px; height: 2px;
+.project-agents.running::before { content: ""; width: 26px; height: 2px;
   background: linear-gradient(90deg, var(--c) 0 50%, transparent 50%) 0 0 / 200% 100% no-repeat, color-mix(in srgb, var(--c) 22%, transparent);
   animation: draw 1.6s cubic-bezier(.5,0,.3,1) infinite; }
 /* faint like the pause on a card and on the bubble in its conversation, full under the pointer */
@@ -416,10 +416,10 @@ button.pill:hover { box-shadow: var(--lift); }
 .agents-tip { position: fixed; transform: translateY(-50%); padding: 6px 10px; border-radius: 3px; background: var(--panel); color: var(--ink);
   box-shadow: var(--lift); white-space: nowrap; font-size: 13px; pointer-events: none; z-index: 40; }
 .nav-row:is(:hover, :focus-within) .agents-turn { display: grid; }
-.nav-row:is(:hover, :focus-within) .canvas-agents::before { display: none; }
+.nav-row:is(:hover, :focus-within) .project-agents::before { display: none; }
 @media (hover: none) {
   .agents-turn { display: grid; }
-  .canvas-agents::before { display: none; }
+  .project-agents::before { display: none; }
 }
 .pill:is(.workstations, .usage) { position: relative; padding: 0; }
 #bar .pill:is(.workstations, .usage) { padding: 0; }
@@ -493,8 +493,8 @@ button.pill:hover { box-shadow: var(--lift); }
 .app-menu-list button { width: 100%; padding: 7px 10px; border: 0; border-radius: 2px; background: none; font: inherit; font-size: 14px; color: var(--ink); text-align: left; cursor: pointer; }
 .app-menu-list button:hover, .app-menu-list button:focus-visible { background: var(--chip); outline: none; }
 .app-menu-list .sep { margin: 5px 4px; border-top: 1px solid var(--line); }
-/* the open canvas's name, heading the bar beside the pinned navigation; set lower than the buttons' baseline so its capitals sit centred in the bar */
-.bar-canvas { margin: 0 6px 0 0; padding-left: 14px; border-left: 1px solid var(--line); max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* the open project's name, heading the bar beside the pinned navigation; set lower than the buttons' baseline so its capitals sit centred in the bar */
+.bar-project { margin: 0 6px 0 0; padding-left: 14px; border-left: 1px solid var(--line); max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   box-sizing: border-box; height: 34px; padding-top: 5px; font: 600 21px/29px var(--serif); }
 #bar .right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
 /* the traffic lights of the app's window on a Mac sit at the bar's left, or in the pinned navigation's head */
@@ -514,7 +514,7 @@ button.pill:hover { box-shadow: var(--lift); }
 #bar[data-fit~="2"] .config .bar-icon, #bar[data-fit~="3"] .archive .bar-icon, #bar[data-fit~="4"] .queue .bar-icon { display: block; }
 #bar[data-fit~="2"] .config, #bar[data-fit~="3"] :is(.archive .kpill, .new-card), #bar[data-fit~="4"] .queue .kpill { padding-inline: 10px; }
 #bar[data-fit~="5"] #workstations, #bar[data-fit~="5"] .help { display: none; }
-#bar[data-fit~="6"] .nav-pill .switch b, #bar[data-fit~="6"] .bar-canvas, #bar[data-fit~="6"] .new-card, #bar[data-fit~="6"] .card-search-button { display: none; }
+#bar[data-fit~="6"] .nav-pill .switch b, #bar[data-fit~="6"] .bar-project, #bar[data-fit~="6"] .new-card, #bar[data-fit~="6"] .card-search-button { display: none; }
 /* the bar's buttons are one height, whatever they hold: text, an icon, a count */
 #bar .pill, .pill.talk-pill { height: 34px; box-sizing: border-box; padding-block: 0; }
 #bar button.pill.help { width: 34px; height: 34px; }
@@ -745,11 +745,11 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .seg { display: inline-flex; background: var(--chip); border-radius: 3px; padding: 3px; gap: 2px; margin-top: 12px; }
 .seg button { border: 0; background: transparent; border-radius: 2px; padding: 4px 12px; font-size: 13px; cursor: pointer; color: var(--muted); }
 .seg button.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
-/* the repository a card is built in, with a new one's folder and whether it gets a canvas of its own */
+/* the repository a card is built in, with a new one's folder and whether it gets a project of its own */
 .repo-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
 .repo-new { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex: 0 1 560px; }
 .repo-path { flex: 1; min-width: 0; font: 13px var(--mono); padding: 6px 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
-.repo-canvas { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; cursor: pointer; }
+.repo-project { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; cursor: pointer; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
 /* a button's label stays on one line: a row too narrow for all of them goes on in a second row */
 .actions .btn { white-space: nowrap; padding: 7px 12px; }
@@ -1096,7 +1096,7 @@ span.cl-name { color: inherit; cursor: default; }
 .r-page { width: 100%; min-height: 120px; height: min(560px, 62vh); border: 1px solid var(--line); border-radius: 3px; background: #fff; display: block; }
 .r-pdf-pages { display: flex; flex-direction: column; gap: 8px; }
 .r-pdf-page { width: 100%; border: 1px solid var(--line); border-radius: 2px; background: #fff; overflow: hidden; }
-.r-pdf-page canvas { display: block; width: 100%; height: 100%; }
+.r-pdf-page project { display: block; width: 100%; height: 100%; }
 .r-pdf { width: 100%; height: max(480px, calc(100vh - 320px)); border: 1px solid var(--line); border-radius: 3px; background: #fff; display: block; }
 .r-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 6px; max-width: 420px; }
 .r-tile-name { font: 600 15px var(--cond); overflow-wrap: anywhere; }
@@ -1258,7 +1258,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .question.queue .actions { margin-top: 10px; }
 .question.queue .btn { background: var(--card); border: 1px solid var(--line); }
 /* the chain a queued card waits in: the card it waits for, the card itself (its title), a card that waits
-   for it, with the tags, rings and arrows of the canvas while the pointer is on a card; the card itself in green */
+   for it, with the tags, rings and arrows of the project while the pointer is on a card; the card itself in green */
 .q-chain { display: flex; flex-direction: column; align-items: flex-start; margin-top: 20px; }
 .q-chain .cover { margin-top: 0; }
 .q-chain .cover.own { cursor: default; padding-top: 14px; --dep: var(--approved); box-shadow: 0 0 0 2.5px var(--approved), var(--shadow); }
@@ -1465,7 +1465,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 #links { position: absolute; left: 0; top: 0; z-index: 1; overflow: visible; pointer-events: none; }
 #links path { fill: none; stroke: var(--proposal); stroke-width: 2; stroke-dasharray: 5 6; opacity: .7; }
 
-/* the sheets on the right are a column docked to the window's edge, from top to bottom; the canvas is
+/* the sheets on the right are a column docked to the window's edge, from top to bottom; the project is
    what remains to their left (--side, set by App.tsx) */
 .sheet { position: fixed; top: 0; right: 0; bottom: 0; width: var(--sheet-w, 380px); background: var(--panel); border-left: 1px solid var(--line);
   z-index: 25; transform: translateX(calc(100% + 1px)); visibility: hidden;
@@ -1515,7 +1515,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .a-search { position: relative; margin: 2px 0 8px; flex: 1; min-width: 0; }
 .a-head { display: flex; align-items: center; gap: 6px; }
 .a-full { flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin-bottom: 6px; border: 0; border-radius: 3px; background: var(--chip); color: var(--ink); cursor: pointer; }
-/* the archive over the whole canvas, below the bar; a card opened from it unfolds above (dim 30, panel 40) */
+/* the archive over the whole project, below the bar; a card opened from it unfolds above (dim 30, panel 40) */
 #archive-full { position: fixed; z-index: 28; top: 58px; bottom: 0; left: var(--left, 0px); right: var(--side, 0px); display: flex; flex-direction: column; background: var(--panel); }
 .a-full-head { display: flex; align-items: center; gap: 14px; padding: 12px 24px 6px; }
 .a-full-head h2 { margin: 0 0 6px; font-size: 18px; }
@@ -1572,7 +1572,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-nav .n { margin-left: auto; border-radius: 3px; padding: 0 7px; font-weight: 700; font-size: 12px; color: var(--on-ink); background: var(--planned); }
 .cfg-nav .n.err { background: var(--error); }
 .cfg-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--waiting); }
-/* Canvases: a heading over the canvases, each indented under it, and "+ Canvas" last */
+/* Projects: a heading over the projects, each indented under it, and "+ Project" last */
 .cfg-nav-title { display: flex; align-items: center; gap: 8px; padding: 8px 10px 4px; font-size: 14px; color: var(--muted); }
 .cfg-nav-group > ul { margin-bottom: 6px; }
 .cfg-nav-group > ul > li > button { padding-left: 24px; }
@@ -1589,9 +1589,9 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-close { position: absolute; right: 22px; top: 14px; border: 0; background: var(--chip); color: var(--ink); width: 32px; height: 32px; border-radius: 3px; cursor: pointer; z-index: 2; }
 .cfg-sec { max-width: 1180px; padding-bottom: 32px; }
 .cfg-sec[hidden] { display: none; }
-:is(#config, #prefs, #canvas-settings) code, #phone code { font: 12px var(--mono); overflow-wrap: anywhere; }
-:is(#config, #prefs, #canvas-settings) .warn { color: var(--warn); }
-:is(#config, #prefs, #canvas-settings) .p-error { margin: 6px 0 0; font-size: 13px; }
+:is(#config, #prefs, #project-settings) code, #phone code { font: 12px var(--mono); overflow-wrap: anywhere; }
+:is(#config, #prefs, #project-settings) .warn { color: var(--warn); }
+:is(#config, #prefs, #project-settings) .p-error { margin: 6px 0 0; font-size: 13px; }
 /* a repository's commands that wait for the owner's trust: each group's lines as a diff, the button below */
 .c-trust { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 8px; }
 .c-trust-group { align-self: stretch; }
@@ -1599,28 +1599,28 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .c-trust .d-lines { border-top: 1px solid var(--line); }
 /* fields sunk a little into the sheet, a shade darker than it with a firmer edge, so the page's structure
    reads at a glance; the one being typed in comes up to the sheet's own colour */
-:is(#config, #prefs, #canvas-settings) input, :is(#config, #prefs, #canvas-settings) select, :is(#config, #prefs, #canvas-settings) textarea { font: inherit; font-size: 13px; padding: 6px 9px; border-radius: 2px;
+:is(#config, #prefs, #project-settings) input, :is(#config, #prefs, #project-settings) select, :is(#config, #prefs, #project-settings) textarea { font: inherit; font-size: 13px; padding: 6px 9px; border-radius: 2px;
   border: 1px solid color-mix(in srgb, var(--ink) 16%, var(--panel)); background: color-mix(in srgb, var(--ink) 5%, var(--panel));
   box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 7%, transparent); color: var(--ink); outline: none; }
-:is(#config, #prefs, #canvas-settings) input:hover, :is(#config, #prefs, #canvas-settings) textarea:hover, :is(#config, #prefs, #canvas-settings) select:hover { border-color: color-mix(in srgb, var(--ink) 28%, var(--panel)); }
-:is(#config, #prefs, #canvas-settings) input:focus, :is(#config, #prefs, #canvas-settings) textarea:focus, :is(#config, #prefs, #canvas-settings) select:focus { border-color: var(--muted); background-color: var(--panel); }
+:is(#config, #prefs, #project-settings) input:hover, :is(#config, #prefs, #project-settings) textarea:hover, :is(#config, #prefs, #project-settings) select:hover { border-color: color-mix(in srgb, var(--ink) 28%, var(--panel)); }
+:is(#config, #prefs, #project-settings) input:focus, :is(#config, #prefs, #project-settings) textarea:focus, :is(#config, #prefs, #project-settings) select:focus { border-color: var(--muted); background-color: var(--panel); }
 /* a select's own arrow, drawn as two strokes in the muted ink, as far in from the right edge as the text is
    from the left; the browser's arrow sat almost on the edge and cannot be moved */
 #phone select { font: inherit; font-size: 13px; padding: 6px 9px; border-radius: 2px; border: 1px solid color-mix(in srgb, var(--ink) 16%, var(--panel));
   background: color-mix(in srgb, var(--ink) 5%, var(--panel)); color: var(--ink); }
-:is(#config, #prefs, #canvas-settings) select { appearance: none; -webkit-appearance: none; padding-right: 30px;
+:is(#config, #prefs, #project-settings) select { appearance: none; -webkit-appearance: none; padding-right: 30px;
   --arrow: color-mix(in srgb, var(--ink) 70%, transparent);
   background-image: linear-gradient(45deg, transparent 50%, var(--arrow) 50%, var(--arrow) calc(50% + 1.3px), transparent calc(50% + 1.3px)),
     linear-gradient(-45deg, transparent 50%, var(--arrow) 50%, var(--arrow) calc(50% + 1.3px), transparent calc(50% + 1.3px));
   background-size: 6px 6px; background-repeat: no-repeat; background-position: calc(100% - 18px) 55%, calc(100% - 12px) 55%; }
-:is(#config, #prefs, #canvas-settings) input::placeholder, :is(#config, #prefs, #canvas-settings) textarea::placeholder { color: color-mix(in srgb, var(--muted) 80%, var(--panel)); }
-:is(#config, #prefs, #canvas-settings) textarea { font: 12px var(--mono); resize: vertical; width: 100%; }
-:is(#config, #prefs, #canvas-settings) input[type="checkbox"] { width: auto; margin: 0; padding: 0; box-shadow: none; }
+:is(#config, #prefs, #project-settings) input::placeholder, :is(#config, #prefs, #project-settings) textarea::placeholder { color: color-mix(in srgb, var(--muted) 80%, var(--panel)); }
+:is(#config, #prefs, #project-settings) textarea { font: 12px var(--mono); resize: vertical; width: 100%; }
+:is(#config, #prefs, #project-settings) input[type="checkbox"] { width: auto; margin: 0; padding: 0; box-shadow: none; }
 /* A single on/off setting is a sliding switch; checkboxes stay for choosing several of a list */
-input.toggle, :is(#config, #prefs, #canvas-settings) input.toggle[type="checkbox"] { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 32px; height: 18px; margin: 0; padding: 0; border-radius: 9px;
+input.toggle, :is(#config, #prefs, #project-settings) input.toggle[type="checkbox"] { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 32px; height: 18px; margin: 0; padding: 0; border-radius: 9px;
   border: 0; box-shadow: none; cursor: pointer; background: color-mix(in srgb, var(--ink) 25%, var(--panel)); transition: background .15s; }
 input.toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .15s; }
-input.toggle:checked, :is(#config, #prefs, #canvas-settings) input.toggle:checked { background: var(--working); }
+input.toggle:checked, :is(#config, #prefs, #project-settings) input.toggle:checked { background: var(--working); }
 input.toggle:checked::after { transform: translateX(14px); }
 input.toggle:disabled { opacity: .5; cursor: default; }
 input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 2px; }
@@ -1642,7 +1642,7 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 #config .cfg-control > :is(.c-style, .c-sample) { font-family: inherit; font-size: 13px; line-height: 1.45; padding: 6px 8px; }
 .cfg-control > .seg { margin-top: 0; }
 .cfg-control .btn.small { margin-top: 6px; }
-:is(#config, #prefs, #canvas-settings) label.c-check { display: flex; gap: 8px; align-items: center; margin: 8px 0 0; font-size: 13px; }
+:is(#config, #prefs, #project-settings) label.c-check { display: flex; gap: 8px; align-items: center; margin: 8px 0 0; font-size: 13px; }
 .cfg-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 0 56px; align-items: start; }
 .cfg-cols > .c-setup > .cfg-head.sub { margin-top: 0; padding-top: 0; border-top: 0; }
 /* the save buttons stay in view at the foot of the section */
@@ -1657,22 +1657,22 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
   cursor: help; line-height: 0; opacity: 0; transition: opacity .12s; }
 .cfg-has-info:hover .cfg-info, .cfg-has-info:focus-within .cfg-info { opacity: 1; }
 .cfg-has-info:is(:hover, :focus-within) .cfg-has-info:not(:hover, :focus-within) .cfg-info { opacity: 0; }
-.cfg-info:hover, .cfg-info.on, :is(#config, #prefs, #canvas-settings) .cfg-info:focus-visible { opacity: 1; color: var(--ink); }
+.cfg-info:hover, .cfg-info.on, :is(#config, #prefs, #project-settings) .cfg-info:focus-visible { opacity: 1; color: var(--ink); }
 .cfg-info:focus-visible { outline: 1px solid var(--muted); outline-offset: 1px; border-radius: 50%; }
 .cfg-tip { position: fixed; z-index: 60; width: 340px; padding: 10px 14px; border-radius: 3px; background: var(--card); color: var(--ink);
   box-shadow: var(--lift); font-size: 13px; font-weight: 400; line-height: 1.45; white-space: normal; pointer-events: none; }
 .cfg-tip[hidden] { display: none; }
-/* a canvas: its name as a heading line, its repositories as a table below it */
-/* a canvas as its own page: its title line, then each repository under a heading of its own, its
+/* a project: its name as a heading line, its repositories as a table below it */
+/* a project as its own page: its title line, then each repository under a heading of its own, its
    settings in groups under small headings */
-.cfg-canvas { padding: 0 0 8px; }
-.cfg-canvas-head { display: flex; align-items: baseline; gap: 12px; margin-right: 48px; }
-.cfg-canvas-head h3 { margin: 0 0 6px; min-width: 0; overflow-wrap: anywhere; }
-.cfg-canvas-head .qmoves { margin-left: auto; align-self: center; }
-.cfg-canvas-head .qmoves + .c-del { margin-left: 0; }
-.cfg-canvas-head > .c-del { align-self: center; }
-.cfg-canvas-head .btn.qmove { margin-top: 0; padding: 2px 8px; }
-.cfg-canvas .cfg-name { width: 100%; max-width: 420px; }
+.cfg-project { padding: 0 0 8px; }
+.cfg-project-head { display: flex; align-items: baseline; gap: 12px; margin-right: 48px; }
+.cfg-project-head h3 { margin: 0 0 6px; min-width: 0; overflow-wrap: anywhere; }
+.cfg-project-head .qmoves { margin-left: auto; align-self: center; }
+.cfg-project-head .qmoves + .c-del { margin-left: 0; }
+.cfg-project-head > .c-del { align-self: center; }
+.cfg-project-head .btn.qmove { margin-top: 0; padding: 2px 8px; }
+.cfg-project .cfg-name { width: 100%; max-width: 420px; }
 .cfg-old-names { margin: 0; padding: 0; list-style: none; max-width: 420px; }
 .cfg-old-names li { display: flex; align-items: center; gap: 10px; min-height: 30px; }
 .cfg-old-names li > .c-del { margin-left: 0; }
@@ -1684,8 +1684,8 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 .btn.delete-old-name { color: #fff; background: var(--error); border-color: var(--error); }
 .cfg-host { display: contents; }
 /* labels line up with the top of their controls, which are often several lines high */
-.cfg-canvas .cfg-field { align-items: start; }
-.cfg-canvas .cfg-field > .cfg-label { padding-top: 7px; }
+.cfg-project .cfg-field { align-items: start; }
+.cfg-project .cfg-field > .cfg-label { padding-top: 7px; }
 .cfg-repo-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .cfg-repo-tabs > .seg { margin-top: 0; }
 .cfg-repo-tabs > .btn.small { margin-top: 0; }
@@ -1700,7 +1700,7 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 .cfg-group-head { margin: 0 0 2px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .cfg-group input[type=number] { width: 80px; }
 .cfg-existing { width: 100%; max-width: 640px; }
-:is(#config, #prefs, #canvas-settings) .cfg-existing { resize: none; overflow-y: hidden; }
+:is(#config, #prefs, #project-settings) .cfg-existing { resize: none; overflow-y: hidden; }
 .cfg-wide .cfg-control { max-width: 900px; }
 .cfg-add-repo { margin-top: 22px !important; }
 .cfg-clone-leaving { margin: 5px 0 0; font-size: 12.5px; line-height: 1.45; }
@@ -1735,9 +1735,9 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 .cfg-sub input, .cfg-sub textarea { width: 100%; }
 .cfg-host-rows { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.3fr) minmax(0, 1.5fr) auto auto 24px; gap: 6px 10px; align-items: center; }
 .cfg-host-rows input { min-width: 0; width: 100%; }
-:is(#config, #prefs, #canvas-settings) .cfg-host-clones { display: flex; align-items: center; gap: 6px; }
+:is(#config, #prefs, #project-settings) .cfg-host-clones { display: flex; align-items: center; gap: 6px; }
 .cfg-host-clones > .hint { font-size: 11.5px; }
-:is(#config, #prefs, #canvas-settings) .cfg-host-clones input { width: 64px; }
+:is(#config, #prefs, #project-settings) .cfg-host-clones input { width: 64px; }
 .cfg-hosts > .btn.small { margin-top: 0; }
 .cfg-host-rows + .btn.small { margin-top: 6px !important; }
 .cfg-agents { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(130px, .85fr) minmax(160px, 1fr) minmax(100px, .65fr); gap: 0 14px; align-items: center; max-width: 1000px; }
@@ -1766,10 +1766,10 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
   .cfg-agents > span:first-child { display: none; }
 }
 /* shared with the setup assistant */
-.c-canvas { margin: 16px 0 6px; padding: 12px 12px 10px; border: 1px solid var(--line); border-radius: 3px; }
-.c-canvas input, .c-canvas select, .c-canvas textarea { font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); outline: none; }
-.c-canvas input:focus, .c-canvas textarea:focus { border-color: var(--muted); }
-.c-canvas .p-error { margin: 4px 0 0; font-size: 12.5px; }
+.c-project { margin: 16px 0 6px; padding: 12px 12px 10px; border: 1px solid var(--line); border-radius: 3px; }
+.c-project input, .c-project select, .c-project textarea { font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); outline: none; }
+.c-project input:focus, .c-project textarea:focus { border-color: var(--muted); }
+.c-project .p-error { margin: 4px 0 0; font-size: 12.5px; }
 .c-id { font: 11.5px var(--mono); color: var(--muted); }
 .c-id.fresh { color: var(--warn); }
 .c-del { margin-left: auto; border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 0 2px; }
@@ -1778,7 +1778,7 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 /* a waste bin shows while the pointer or focus is on its entry; without a pointer that hovers, always */
 @media (hover: hover) {
   .c-remove { opacity: 0; transition: opacity .12s; }
-  .cfg-canvas-head:hover > .c-remove, .cfg-canvas-head:focus-within > .c-remove, .cfg-repo-path:hover > .c-remove, .cfg-repo-path:focus-within > .c-remove,
+  .cfg-project-head:hover > .c-remove, .cfg-project-head:focus-within > .c-remove, .cfg-repo-path:hover > .c-remove, .cfg-repo-path:focus-within > .c-remove,
   .cfg-host:hover > .c-remove, .cfg-host:focus-within > .c-remove, .cfg-old-names li:hover > .c-remove, .cfg-old-names li:focus-within > .c-remove { opacity: 1; }
 }
 .c-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
@@ -1802,8 +1802,8 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 .c-setup ul { list-style: none; padding: 0; margin: 6px 0; }
 .c-setup li { display: grid; grid-template-columns: 16px auto 1fr; column-gap: 8px; align-items: baseline; padding: 3px 0; font-size: 13px; }
 .c-setup li .hint { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
-:is(#config, #prefs, #canvas-settings) .c-setup li { padding: 5px 0; font-size: 13.5px; border-bottom: 1px solid var(--line); }
-:is(#config, #prefs, #canvas-settings) .c-setup li:last-child { border-bottom: 0; }
+:is(#config, #prefs, #project-settings) .c-setup li { padding: 5px 0; font-size: 13.5px; border-bottom: 1px solid var(--line); }
+:is(#config, #prefs, #project-settings) .c-setup li:last-child { border-bottom: 0; }
 .c-mark { font-weight: 700; text-align: center; color: var(--approved); }
 .c-setup li.missing .c-mark { color: var(--error); }
 .c-setup li.later .c-mark { color: var(--muted); }
@@ -1859,7 +1859,7 @@ button.link:hover { text-decoration: underline; }
 .sheet ul.decisions .hint { font-size: 11px; }
 
 /* ---------- push to talk (from the mock) ---------- */
-/* in the middle of the canvas, left of a sheet docked on the right */
+/* in the middle of the project, left of a sheet docked on the right */
 #ptt { position: fixed; left: calc(50% + (var(--left, 0px) - var(--side, 0px)) / 2); transition: left .45s cubic-bezier(.3,.9,.3,1); bottom: 46px; transform: translateX(-50%); z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 #mic { width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--card); box-shadow: var(--lift); cursor: pointer; display: grid; place-items: center; position: relative; touch-action: none; }
 #mic svg { width: 24px; height: 24px; }
@@ -1989,13 +1989,13 @@ button.link:hover { text-decoration: underline; }
 .card-menu li { align-items: center; justify-content: space-between; }
 .card-menu .cm-pill { min-width: 0; pointer-events: none; }
 .card-menu .cm-code { flex: none; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
-.canvas-card-search { position: fixed; z-index: 22; top: 62px; left: calc(var(--left, 0px) + 14px); width: min(360px, calc(100vw - var(--left, 0px) - var(--side, 0px) - 28px)); box-sizing: border-box; background: var(--panel); box-shadow: var(--shadow); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
-.canvas-card-search input { width: 100%; box-sizing: border-box; padding: 9px 10px; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; outline-offset: 2px; }
-.canvas-card-search ul { list-style: none; max-height: min(360px, 45vh); overflow-y: auto; margin: 6px 0 0; padding: 0; }
-.canvas-card-search li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 3px; cursor: pointer; }
-.canvas-card-search li.on, .canvas-card-search li:hover { background: var(--chip); }
-.canvas-card-search li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.canvas-card-search li small { flex: none; font-family: var(--mono); color: var(--muted); }
+.project-card-search { position: fixed; z-index: 22; top: 62px; left: calc(var(--left, 0px) + 14px); width: min(360px, calc(100vw - var(--left, 0px) - var(--side, 0px) - 28px)); box-sizing: border-box; background: var(--panel); box-shadow: var(--shadow); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
+.project-card-search input { width: 100%; box-sizing: border-box; padding: 9px 10px; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; outline-offset: 2px; }
+.project-card-search ul { list-style: none; max-height: min(360px, 45vh); overflow-y: auto; margin: 6px 0 0; padding: 0; }
+.project-card-search li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 3px; cursor: pointer; }
+.project-card-search li.on, .project-card-search li:hover { background: var(--chip); }
+.project-card-search li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-card-search li small { flex: none; font-family: var(--mono); color: var(--muted); }
 #bar .card-search-button { padding-inline: 10px; font-family: var(--mono); }
 /* under the task field while it has the cursor, until a card was linked once */
 .p-body-field .card-refs-hint { position: absolute; top: 100%; left: 0; margin: 6px 0 0; }
@@ -2102,15 +2102,15 @@ button.link:hover { text-decoration: underline; }
 
 #ringback { position: fixed; inset: 0; z-index: 70; cursor: crosshair; }
 #ringback .ring { position: absolute; width: 0; height: 0; }
-/* the canvas behind the ring and its names steps back under a frosted halo that fades out at its
-   edge, so they stand out on a busy canvas and the cards further away stay in view */
+/* the project behind the ring and its names steps back under a frosted halo that fades out at its
+   edge, so they stand out on a busy project and the cards further away stay in view */
 #ringback .ring .rhalo { position: absolute; left: -330px; top: -230px; width: 660px; height: 460px; border-radius: 50%;
   background: color-mix(in srgb, var(--bg) 72%, transparent);
   backdrop-filter: blur(4px) saturate(.6); -webkit-backdrop-filter: blur(4px) saturate(.6);
   mask-image: radial-gradient(closest-side, #000 62%, transparent); -webkit-mask-image: radial-gradient(closest-side, #000 62%, transparent);
   transform: scale(.3); opacity: 0; transition: transform .25s, opacity .25s; }
 #ringback .ring.open .rhalo { transform: scale(1); opacity: 1; }
-/* while the ring is open the canvas behind it holds still: under the blur every frame of an endless
+/* while the ring is open the project behind it holds still: under the blur every frame of an endless
    animation there (the selection's drifting dashes, a working card's line) would re-render the whole halo,
    and Chrome's screen capture (a screencast, a shared tab) skips about 0.27 s once that stops */
 #viewport.still *, #viewport.still *::before, #viewport.still *::after { animation-play-state: paused; }
@@ -2144,12 +2144,12 @@ button.link:hover { text-decoration: underline; }
 .rname { position: absolute; left: -80px; top: -16px; width: 160px; height: 32px; box-sizing: border-box; border-radius: 3px; border: 1.5px solid var(--working);
   background: var(--card); color: var(--ink); font: 14px var(--cond); padding: 0 12px; text-align: center; outline: none; box-shadow: 0 0 18px color-mix(in srgb, var(--working) 40%, transparent); }
 
-/* the setup assistant: the whole page on the first start, over the canvas from the settings */
+/* the setup assistant: the whole page on the first start, over the project from the settings */
 .setup { position: fixed; inset: 0; overflow-y: auto; z-index: 80; }
 .setup.first { background: var(--bg); }
 .setup.over { background: var(--dim); }
 .setup-page { max-width: 720px; margin: 48px auto; padding: 22px 28px 26px; background: var(--panel); border-radius: 3px; box-shadow: var(--lift); }
-/* over the canvas the dialog stays within the window: its head stays, the rest scrolls inside */
+/* over the project the dialog stays within the window: its head stays, the rest scrolls inside */
 .setup.over { display: flex; padding: 48px 24px; overflow: hidden; }
 .setup.over .setup-page { box-sizing: border-box; width: 100%; max-height: 100%; margin: 0 auto; display: flex; flex-direction: column; padding-right: 0; padding-bottom: 0; }
 .setup.over .setup-head { flex: none; padding-right: 28px; }
@@ -2256,14 +2256,14 @@ button.link:hover { text-decoration: underline; }
 .ph-home .ph-word { font: 600 22px/1 var(--serif); }
 .ph-back { display: inline-flex; align-items: center; gap: 2px; min-height: 40px; padding: 0 12px 0 6px; border: 0; border-radius: 3px;
   background: var(--chip); font-size: 16px; cursor: pointer; }
-.ph-canvas { margin-left: auto; color: var(--muted); font-size: 13px; }
+.ph-project { margin-left: auto; color: var(--muted); font-size: 13px; }
 .ph-quiet { position: sticky; top: 60px; z-index: 5; margin: 12px 0 0; padding: 10px 12px; border-radius: 3px; background: var(--ink); color: var(--bg); display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
 .ph-quiet b { font-weight: 600; font-size: 14.5px; }
 .ph-notify { margin: 14px 0 0; padding: 10px 12px; border-radius: 3px; border: 1px solid var(--line); background: var(--card); font-size: 14.5px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .ph-notify .btn { margin-top: 0; }
 .ph-section { margin-top: 22px; }
 .ph-section h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font: 600 21px/1.15 var(--serif); }
-/* the lists' rows are the cards of the canvas, as wide as the screen: the state's rule across the top, an idea's
+/* the lists' rows are the cards of the project, as wide as the screen: the state's rule across the top, an idea's
    stock, the owner's turn framed and pinned, the state line in its colour */
 /* one column held upright, two (or more) side by side once the screen is wide enough, the phone turned, say */
 .ph-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 14px; }
@@ -2293,7 +2293,7 @@ button.link:hover { text-decoration: underline; }
 .ph-fold .n { font: 600 13px/1 var(--cond); padding: 6px 8px; border-radius: 3px; background: var(--chip); color: var(--muted); text-box: trim-both cap alphabetic; }
 /* the cards snoozed while they waited stand under it, as far off as the cards from each other */
 .ph-none + .ph-list { margin-top: 14px; }
-/* the button for Seismic's conversation (the canvas's talk pill, a finger's size), left of the microphone in
+/* the button for Seismic's conversation (the project's talk pill, a finger's size), left of the microphone in
    reach of the thumb; inverted while the panel is open */
 .pill.ph-talk-open { position: fixed; z-index: 50; left: max(14px, env(safe-area-inset-left)); bottom: calc(30px + env(safe-area-inset-bottom));
   height: 44px; padding: 0 14px; color: var(--ink); cursor: pointer; }
@@ -2305,12 +2305,12 @@ button.link:hover { text-decoration: underline; }
   background: linear-gradient(90deg, var(--working) 0 50%, transparent 50%) 0 0 / 200% 100% no-repeat,
     color-mix(in srgb, var(--working) 22%, transparent);
   animation: draw 1.6s cubic-bezier(.5,0,.3,1) infinite; }
-.ph-kb .ph-view ~ :is(.ph-talk-open, .ph-canvas-pick) { display: none; }
-/* the canvas whose Seismic is spoken to, right of the microphone and its screenshot button: the phone's own picker opens */
-.pill.ph-canvas-pick { position: fixed; z-index: 50; right: max(14px, env(safe-area-inset-right)); bottom: calc(30px + env(safe-area-inset-bottom));
+.ph-kb .ph-view ~ :is(.ph-talk-open, .ph-project-pick) { display: none; }
+/* the project whose Seismic is spoken to, right of the microphone and its screenshot button: the phone's own picker opens */
+.pill.ph-project-pick { position: fixed; z-index: 50; right: max(14px, env(safe-area-inset-right)); bottom: calc(30px + env(safe-area-inset-bottom));
   height: 44px; box-sizing: border-box; padding: 0 12px; gap: 6px; max-width: calc(50vw - 106px); font-size: 15px; cursor: pointer; }
-.ph-canvas-pick .name { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-.ph-canvas-pick select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
+.ph-project-pick .name { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.ph-project-pick select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
 /* Seismic's conversation: a panel from below over the list, in the part of the screen the keyboard leaves;
    only the conversation scrolls, the field stands under it, and below that the room of the microphone */
 .ph-panel { --ph-h: 1; top: calc(100% * (1 - var(--ph-h))); bottom: auto; height: calc(100% * var(--ph-h)); z-index: 20; overflow: hidden; display: flex; flex-direction: column;
@@ -2422,12 +2422,12 @@ button.link:hover { text-decoration: underline; }
   .ph-view ~ #ptt .c-file { max-width: 104px; }
   .ph-view ~ #acks { left: calc((100vw - 112px - env(safe-area-inset-right)) / 2); bottom: calc(14px + env(safe-area-inset-bottom));
     width: calc(100vw - 112px - env(safe-area-inset-right) - 24px); }
-  /* the strip holds the rest that stood beside the microphone: the canvas picker at its top, the button for Seismic's
+  /* the strip holds the rest that stood beside the microphone: the project picker at its top, the button for Seismic's
      conversation at its bottom, both centred in it (`translate`, since a pressed button sets `transform`) */
-  .pill.ph-talk-open, .pill.ph-canvas-pick { left: auto; right: calc(56px + env(safe-area-inset-right)); translate: 50% 0; }
+  .pill.ph-talk-open, .pill.ph-project-pick { left: auto; right: calc(56px + env(safe-area-inset-right)); translate: 50% 0; }
   .pill.ph-talk-open { bottom: calc(14px + env(safe-area-inset-bottom)); }
   .ph-new, .ph-new:active { left: auto; right: calc(56px + env(safe-area-inset-right)); translate: 50% 0; top: calc(50% - 34px); bottom: auto; transform: none; }
-  .pill.ph-canvas-pick { top: 52px; bottom: auto; max-width: 104px; }
+  .pill.ph-project-pick { top: 52px; bottom: auto; max-width: 104px; }
   /* the panel needs no room under the field: the microphone stands beside it */
   .ph-grip { padding-top: 10px; }
   /* half of 400 px leaves no room for a conversation, and the video does not fit above it anyway */
@@ -2525,7 +2525,7 @@ button.link:hover { text-decoration: underline; }
 .tell-hint-x { flex: none; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--muted); cursor: pointer; }
 .tell-hint-x:hover { color: var(--ink); background: var(--chip); }
 
-/* this machine's demo sites (Configuration → Demos), adding one, and a canvas's demo site */
+/* this machine's demo sites (Configuration → Demos), adding one, and a project's demo site */
 .personal-site { margin-top: 32px; }
 .cfg-narrow { max-width: 620px; }
 .cfg-narrow > .seg { margin-top: 4px; }
@@ -2703,11 +2703,11 @@ button.link:hover { text-decoration: underline; }
 .perf-empty h3 { font-family: var(--serif); font-weight: 500; font-size: 20px; margin: 0 0 6px; }
 .perf-empty .btn { margin-top: 8px; }
 .rate-compare { margin-top: 6px; font-size: 13px; }
-:is(#config, #prefs, #canvas-settings) .cfg-perf { margin-top: 10px; }
+:is(#config, #prefs, #project-settings) .cfg-perf { margin-top: 10px; }
 @media (max-width: 700px) { #perf { padding: 10px; } .perf-main { padding: 20px 56px 24px 18px; } .perf-spread, .perf-dots { min-width: 100px; } }
 .perf-to-log { margin-left: auto; font-size: 13.5px; }
 a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: underline 1px currentColor; }
-/* the Agent Feedback Log: a page of its own in place of the canvas */
+/* the Agent Feedback Log: a page of its own in place of the project */
 #flog { position: fixed; inset: 0; overflow-y: auto; background: var(--panel); }
 .flog-main { max-width: 1500px; margin: 0 auto; padding: 22px 40px 48px; }
 .flog-back { display: inline-block; font-size: 13.5px; margin-bottom: 14px; }
@@ -2847,7 +2847,7 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .merge-callout.covered { background: color-mix(in srgb, #41a05a 14%, var(--card)); color: var(--ink); }
 .merge-callout.followUp { background: color-mix(in srgb, #d9a732 15%, var(--card)); color: var(--ink); }
 
-/* the inbox (src/ui/inbox.tsx): what waits for the owner on every canvas, a docked sheet on the desktop and
+/* the inbox (src/ui/inbox.tsx): what waits for the owner on every project, a docked sheet on the desktop and
    "Needs you" on the phone. Its entries are panes of glass of their own; the card open now gets a ring and
    a tint. Beside an open card it stays above the dim, so the owner works down the list */
 #inbox { padding: 20px 14px 30px; z-index: 31; }
@@ -2862,14 +2862,14 @@ body:has(#inbox.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .inbox-entry.on { background: color-mix(in srgb, var(--working) 10%, var(--card)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--working) 55%, transparent), var(--shadow); }
 .inbox-entry .where { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); }
 .inbox-entry .where svg { flex: none; }
-.inbox-entry .where .canvas { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inbox-entry .where .project { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inbox-entry .where .since { margin-left: auto; flex: none; }
 .inbox-entry .ttl { font-size: 16px; font-weight: 700; line-height: 1.25; margin-top: 4px; display: flex; align-items: flex-start; gap: 7px; }
 .inbox-entry.read .ttl { font-weight: 400; }
 .inbox-entry .ttl-link { all: unset; cursor: pointer; min-width: 0; }
 .inbox-entry .ttl-link:hover { text-decoration: underline; }
 .inbox-entry .ttl-link:focus-visible { text-decoration: underline; outline: 2px solid var(--working); outline-offset: 2px; border-radius: 3px; }
-/* an unread entry: an orange dot centred on the title's first line (or at the end of a proposal's canvas line) */
+/* an unread entry: an orange dot centred on the title's first line (or at the end of a proposal's project line) */
 .unread-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--waiting); margin-top: 6px; }
 .inbox-entry .where .unread-dot { margin: 0 0 0 auto; }
 .inbox-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 8px 12px; }
@@ -2902,30 +2902,30 @@ body:has(#inbox.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 :root[data-motion="reduce"] .flash { animation-duration: 2.4s !important; }
 :root[data-motion="reduce"] .card:hover { transform: none; }
 
-/* the canvas's settings, a sheet like the inbox (canvasSettings.tsx) */
-#canvas-settings { padding: 20px 22px 30px; z-index: 31; }
+/* the project's settings, a sheet like the inbox (projectSettings.tsx) */
+#project-settings { padding: 20px 22px 30px; z-index: 31; }
 .cs-pill .bar-icon { display: block; }
 .cs-pill { padding-inline: 10px; }
 .cs-pill .n.err { margin-left: 4px; }
 .cs-pill.on { background: var(--chip); color: var(--ink); }
-body:has(#canvas-settings.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
-#canvas-settings .cs-canvas { margin: 0 40px 2px 0; font-size: 12px; color: var(--muted); }
-#canvas-settings > .hint { margin: 0 0 6px; font-size: 12.5px; line-height: 1.45; }
-#canvas-settings .cfg-head { margin-top: 22px; }
-#canvas-settings .cfg-head h3 { margin: 0 0 4px; font-size: 16px; }
-#canvas-settings .cfg-head .hint { margin: 0; font-size: 12.5px; line-height: 1.45; }
-#canvas-settings .cfg-field { grid-template-columns: 1fr; row-gap: 2px; }
+body:has(#project-settings.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
+#project-settings .cs-project { margin: 0 40px 2px 0; font-size: 12px; color: var(--muted); }
+#project-settings > .hint { margin: 0 0 6px; font-size: 12.5px; line-height: 1.45; }
+#project-settings .cfg-head { margin-top: 22px; }
+#project-settings .cfg-head h3 { margin: 0 0 4px; font-size: 16px; }
+#project-settings .cfg-head .hint { margin: 0; font-size: 12.5px; line-height: 1.45; }
+#project-settings .cfg-field { grid-template-columns: 1fr; row-gap: 2px; }
 .cs-agents { display: flex; flex-direction: column; }
 .cs-agents .cfg-agent { padding: 10px 0 4px; }
 .cs-choice { display: grid; grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, .9fr)); gap: 8px; }
 .cs-choice select { min-width: 0; width: 100%; }
-#canvas-settings select:not(.own) { color: var(--muted); }
+#project-settings select:not(.own) { color: var(--muted); }
 .cs-more { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 13px; }
 .cs-more .hint { font-size: 12.5px; }
 .cs-more button.link { text-decoration: underline; font-size: 13.5px; }
 .cs-more .n.err { color: var(--warn); font-size: 12.5px; }
-/* a narrow window: the canvas's settings float over the whole page, down to the status bar */
-@media (max-width: 760px) { #canvas-settings.sheet { bottom: 46px; } body:has(#canvas-settings.on) .ptt-row { visibility: hidden; } }
+/* a narrow window: the project's settings float over the whole page, down to the status bar */
+@media (max-width: 760px) { #project-settings.sheet { bottom: 46px; } body:has(#project-settings.on) .ptt-row { visibility: hidden; } }
 /* beside the two-line Start agent button, the other action buttons take its height */
 .actions:has(> .start-agent) { align-items: stretch; }
 .actions:has(> .start-agent) > .snooze-box > .btn { flex: 1; }

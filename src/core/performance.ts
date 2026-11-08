@@ -8,7 +8,7 @@ import { AGENT_EFFORTS, type Feedback, type WorkConfig } from './types';
 export const FEW = 5;
 
 export interface PerformanceFilter {
-  canvas?: string;
+  project?: string;
   repo?: string;
   /** A plan's id. */
   plan?: string;
@@ -45,7 +45,7 @@ export interface Performance {
 export function filterFeedback(list: Feedback[], f: PerformanceFilter): Feedback[] {
   return list.filter(
     (x) =>
-      (!f.canvas || x.canvasId === f.canvas) &&
+      (!f.project || x.projectId === f.project) &&
       (!f.repo || x.repo === f.repo) &&
       (!f.plan || x.plan?.id === f.plan) &&
       (!f.since || (x.updatedAt ?? x.at) >= f.since),
@@ -110,13 +110,13 @@ export function performance(list: Feedback[]): Performance {
   };
 }
 
-/** What the filters can choose from: the canvases, repositories and plans responses were given in. */
+/** What the filters can choose from: the projects, repositories and plans responses were given in. */
 export function filterChoices(list: Feedback[]) {
-  const canvases = [...new Set(list.map((f) => f.canvasId))];
+  const projects = [...new Set(list.map((f) => f.projectId))];
   const repos = [...new Set(list.flatMap((f) => (f.repo ? [f.repo] : [])))].sort();
   const plans = new Map<string, string>();
   for (const f of list) if (f.plan) plans.set(f.plan.id, f.plan.title);
-  return { canvases, repos, plans: [...plans].map(([id, title]) => ({ id, title })).sort((a, b) => a.title.localeCompare(b.title)) };
+  return { projects, repos, plans: [...plans].map(([id, title]) => ({ id, title })).sort((a, b) => a.title.localeCompare(b.title)) };
 }
 
 export interface TrendPoint {

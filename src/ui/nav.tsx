@@ -1,20 +1,20 @@
-// The navigation at the bar's left: the canvas's name, and under it the canvases, each with the
+// The navigation at the bar's left: the project's name, and under it the projects, each with the
 // count of what waits for the owner there and its agents' pause. It opens as a list under its
-// button, or stays pinned as a sidebar docked on the left, the canvas the rest. What waits itself is
-// in the inbox (src/ui/inbox.tsx), on every canvas at once.
+// button, or stays pinned as a sidebar docked on the left, the project the rest. What waits itself is
+// in the inbox (src/ui/inbox.tsx), on every project at once.
 
 import { GitBranch, PanelLeft, Plus, PanelLeftClose } from 'lucide-react';
 import { useRef, useState } from 'react';
-import type { CanvasInfo } from '../core/types';
+import type { ProjectInfo } from '../core/types';
 import { projectPath } from './address';
-import { CanvasAgents } from './parts';
+import { ProjectAgents } from './parts';
 import { useMenuClose } from './queue';
 import { t } from './strings';
 
 /** How wide the navigation is, pinned as a sidebar. */
 export const NAV_W = 340;
-/** The least room the canvas keeps beside the pinned navigation and a sheet on the right; with less, it folds back into its button. */
-export const NAV_CANVAS_MIN = 480;
+/** The least room the project keeps beside the pinned navigation and a sheet on the right; with less, it folds back into its button. */
+export const NAV_PROJECT_MIN = 480;
 const PIN_KEY = 'obeya-nav-pinned';
 
 export const loadPinned = () => {
@@ -32,9 +32,9 @@ export const savePinned = (on: boolean) => {
 };
 
 interface ListProps {
-  canvas: CanvasInfo;
-  canvases: CanvasInfo[];
-  /** How many things wait for the owner on each canvas, this one's as this page sees it. */
+  project: ProjectInfo;
+  projects: ProjectInfo[];
+  /** How many things wait for the owner on each project, this one's as this page sees it. */
   counts: Record<string, number>;
   pinned: boolean;
   /** Pinning is offered: the window has room for the sidebar. */
@@ -49,13 +49,13 @@ export function NavPill(p: ListProps) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useMenuClose(open, box, () => setOpen(false), true);
-  const home = p.canvas.repos[0];
+  const home = p.project.repos[0];
   return (
     <div className="nav-pill" ref={box}>
       <button className={open ? 'pill switch on' : 'pill switch'} title={t.nav.button} aria-expanded={open} onClick={() => setOpen(!open)}>
-        <CanvasIcon />
-        <b>{p.canvas.name}</b>
-        <span className="hint lbl">{p.canvas.repos.length > 1 ? t.repos(p.canvas.repos.length) : home?.branch}</span>
+        <ProjectIcon />
+        <b>{p.project.name}</b>
+        <span className="hint lbl">{p.project.repos.length > 1 ? t.repos(p.project.repos.length) : home?.branch}</span>
         <span className="hint">▾</span>
       </button>
       {open && (
@@ -88,8 +88,8 @@ export function NavSheet({ on, ...p }: ListProps & { on: boolean }) {
   );
 }
 
-/** The canvases in the configuration's order, this one marked; a click on one switches there. */
-function NavList({ canvas, canvases, counts, pinned, pinnable, onPin, onNew, titlebar }: ListProps & { titlebar?: boolean }) {
+/** The projects in the configuration's order, this one marked; a click on one switches there. */
+function NavList({ project, projects, counts, pinned, pinnable, onPin, onNew, titlebar }: ListProps & { titlebar?: boolean }) {
   return (
     <>
       <div className="nav-head" {...(titlebar ? { 'data-tauri-drag-region': '' } : {})}>
@@ -100,13 +100,13 @@ function NavList({ canvas, canvases, counts, pinned, pinnable, onPin, onNew, tit
           </button>
         )}
       </div>
-      <ul className="nav-canvases">
-        {canvases.map((c) => {
+      <ul className="nav-projects">
+        {projects.map((c) => {
           const n = counts[c.id] ?? 0;
           return (
-            <li key={c.id} className={c.id === canvas.id ? 'nav-row on' : 'nav-row'}>
-              <a href={projectPath(c.id)} aria-current={c.id === canvas.id ? 'page' : undefined}>
-                <CanvasIcon />
+            <li key={c.id} className={c.id === project.id ? 'nav-row on' : 'nav-row'}>
+              <a href={projectPath(c.id)} aria-current={c.id === project.id ? 'page' : undefined}>
+                <ProjectIcon />
                 <b title={c.name}>{c.name}</b>
                 <span className="hint">{c.repos.map((r) => r.name).join(', ')}</span>
                 {n > 0 && (
@@ -115,7 +115,7 @@ function NavList({ canvas, canvases, counts, pinned, pinnable, onPin, onNew, tit
                   </span>
                 )}
               </a>
-              <CanvasAgents canvas={c} />
+              <ProjectAgents project={c} />
             </li>
           );
         })}
@@ -130,6 +130,6 @@ function NavList({ canvas, canvases, counts, pinned, pinnable, onPin, onNew, tit
   );
 }
 
-function CanvasIcon() {
+function ProjectIcon() {
   return <GitBranch size={15} strokeWidth={2} aria-hidden />;
 }

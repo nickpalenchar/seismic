@@ -9,23 +9,23 @@ const cards: Entity = {
   name: 'cards',
   fields: [
     { name: 'id', type: 'TEXT', pk: true },
-    { name: 'canvas_id', type: 'TEXT', ref: 'canvases.id' },
+    { name: 'project_id', type: 'TEXT', ref: 'projects.id' },
     { name: 'legacy_flag', type: 'INTEGER' },
     { name: 'title', type: 'TEXT' },
   ],
-  indexes: [{ name: 'cards_open', columns: ['canvas_id'] }],
+  indexes: [{ name: 'cards_open', columns: ['project_id'] }],
 };
-const canvases: Entity = { name: 'canvases', fields: [{ name: 'id', type: 'TEXT', pk: true }, { name: 'name', type: 'TEXT' }] };
+const projects: Entity = { name: 'projects', fields: [{ name: 'id', type: 'TEXT', pk: true }, { name: 'name', type: 'TEXT' }] };
 const devices: Entity = { name: 'devices', fields: [{ name: 'id', type: 'TEXT', pk: true }] };
 const users: Entity = { name: 'users', fields: [{ name: 'id', type: 'TEXT', pk: true }, { name: 'email', type: 'TEXT' }] };
 
 /** cards loses `legacy_flag`, gains `feedback_note` and an index, `title` becomes nullable; sessions, new, refers to cards and users; devices, unrelated, stays. */
 const change: SchemaChange = {
   sources: ['migrations/0042.sql'],
-  before: { entities: [canvases, cards, devices, users] },
+  before: { entities: [projects, cards, devices, users] },
   after: {
     entities: [
-      canvases,
+      projects,
       {
         ...cards,
         fields: [cards.fields[0]!, cards.fields[1]!, { name: 'title', type: 'TEXT', nullable: true }, { name: 'feedback_note', type: 'TEXT' }],
@@ -81,7 +81,7 @@ describe('the schema-change page', () => {
 
   test('is cut to the affected entities and their direct neighbours along the relations the change touches', () => {
     const shown = cut(diffModels(change.before, change.after)).map((s) => [s.entity.name, s.neighbour]);
-    // users: the new sessions refers to it; canvases only by a field of cards the change leaves alone; devices relates to nothing changed
+    // users: the new sessions refers to it; projects only by a field of cards the change leaves alone; devices relates to nothing changed
     expect(shown).toEqual([
       ['cards', false],
       ['sessions', false],
@@ -89,16 +89,16 @@ describe('the schema-change page', () => {
     ]);
     const html = renderSchemaPage(change);
     expect(html).not.toContain('data-entity="devices"');
-    expect(html).not.toContain('data-entity="canvases"');
+    expect(html).not.toContain('data-entity="projects"');
     // a neighbour shows its keys, the rest counted
     expect(html).toMatch(/data-entity="users"[\s\S]*?1 more field</);
     // a dropped or renamed entity brings those that refer to it
-    const dropped = cut(diffModels({ entities: [canvases, cards] }, { entities: [{ ...cards, fields: cards.fields.filter((f) => f.name !== 'canvas_id') }] }));
+    const dropped = cut(diffModels({ entities: [projects, cards] }, { entities: [{ ...cards, fields: cards.fields.filter((f) => f.name !== 'project_id') }] }));
     expect(dropped.map((s) => [s.entity.name, s.neighbour])).toEqual([
       ['cards', false],
-      ['canvases', false],
+      ['projects', false],
     ]);
-    const renamed = cut(diffModels({ entities: [canvases, cards] }, { entities: [{ ...canvases, name: 'boards', was: 'canvases' }, cards] }));
+    const renamed = cut(diffModels({ entities: [projects, cards] }, { entities: [{ ...projects, name: 'boards', was: 'projects' }, cards] }));
     expect(renamed.map((s) => [s.entity.name, s.neighbour])).toEqual([
       ['boards', false],
       ['cards', true],

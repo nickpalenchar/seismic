@@ -1,6 +1,6 @@
 // Where a card's worker works, and how approved work lands.
 //
-// `clones`: a pool of full clones per canvas, leased one card at a time (for repositories with tools
+// `clones`: a pool of full clones per project, leased one card at a time (for repositories with tools
 // that break in worktrees, or one app per clone), here and on other machines; a new card
 // takes a clone on the first machine whose busy workers leave it a slot (design: Hosts). `worktrees`: one worktree of the Seismic checkout per card,
 // created on start, as many in parallel as there are cards unless the repository has slots; kept
@@ -441,7 +441,7 @@ export interface WorkstationOptions {
   repoPath: string;
   /** Where worktrees and created clones go. */
   dir: string;
-  /** The repository on the canvas these workstations belong to; null is its home repository. */
+  /** The repository on the project these workstations belong to; null is its home repository. */
   repo?: string | null;
   /**
    * The machines its clones are on, in the order a new card looks for room (`host` null: this one),
@@ -512,7 +512,7 @@ export const shortageOf = (code: string) => (Object.keys(SHORT_CODE) as Workstat
 const SHORT_TEXT = { none: 'no workstation registered or all are leased', dirty: 'every free workstation has uncommitted changes', slots: 'every machine with a free workstation has as many busy workers as it has slots' };
 
 /**
- * Where a repository's cards work, as the workers, the Koordinator and the canvas use it: clones or
+ * Where a repository's cards work, as the workers, the Koordinator and the project use it: clones or
  * worktrees of a git repository (`Workstations`), or the folder itself where it has no git
  * (`FolderWorkstations` in `folder.ts`, which has no branches and lands nothing).
  */
@@ -606,7 +606,7 @@ export class Workstations implements CardWorkstations {
 
   constructor(
     private store: Store,
-    private canvasId: string,
+    private projectId: string,
     private o: WorkstationOptions,
   ) {}
 
@@ -629,7 +629,7 @@ export class Workstations implements CardWorkstations {
       } catch {}
       if (!origins.some((o) => sameRemote(o, origin))) throw new WorkstationError(`${path} is not a clone of ${origins.join(' or ')} (its origin is ${origin || 'unset'})`);
     }
-    this.store.addWorkstation(this.canvasId, path, this.o.repo ?? null);
+    this.store.addWorkstation(this.projectId, path, this.o.repo ?? null);
     if (retiring.has(path)) claimed.add(path);
     // a folder that stayed is back in the pool
     if (kept.delete(path)) this.o.changed?.();
@@ -751,7 +751,7 @@ export class Workstations implements CardWorkstations {
   }
 
   private async clearAway(path: string) {
-    // registered again, on any canvas, while it was looked at: it is a workstation again
+    // registered again, on any project, while it was looked at: it is a workstation again
     const taken = () => claimed.has(path) || this.store.hasWorkstation(path);
     const o = { origins: this.o.origins ?? [], main: branchSetting(this.o.repoPath) || undefined };
     // what the stop command leaves behind (a snapshot it writes, say) counts too: looked at again after it
@@ -818,7 +818,7 @@ export class Workstations implements CardWorkstations {
           const c = await host.run(helper, { cwd: path });
           if (c.code !== 0) throw new HostError(`${host.name}: ${c.stderr.trim()}`);
           await host.trust(path);
-          this.store.addWorkstation(this.canvasId, onHost(host.name, path), this.o.repo ?? null);
+          this.store.addWorkstation(this.projectId, onHost(host.name, path), this.o.repo ?? null);
           kept.delete(onHost(host.name, path));
         });
       }
@@ -839,7 +839,7 @@ export class Workstations implements CardWorkstations {
   }
 
   list() {
-    return this.store.workstations(this.canvasId, this.o.repo ?? null);
+    return this.store.workstations(this.projectId, this.o.repo ?? null);
   }
 
   leasedBy(cardId: string): string | null {
@@ -1263,7 +1263,7 @@ export class Workstations implements CardWorkstations {
     return landings.run(this.o.repoPath, () => this.announceLanding(cardId, () => this.land(cardId, branch, trailer)), turn);
   }
 
-  /** Successful landings in this repository, including those of another canvas. */
+  /** Successful landings in this repository, including those of another project. */
   watchLandings(listener: (notice: LandingNotice) => Promise<void>): () => void {
     const listeners = landingListeners.get(this.o.repoPath) ?? new Set();
     landingListeners.set(this.o.repoPath, listeners);
@@ -1962,7 +1962,7 @@ export class Workstations implements CardWorkstations {
    */
   private leaseWorktree(cardId: string, branch: string): Lease {
     const path = join(this.o.dir, cardId.slice(0, 8));
-    this.store.addWorkstation(this.canvasId, path, this.o.repo ?? null);
+    this.store.addWorkstation(this.projectId, path, this.o.repo ?? null);
     this.store.setLease(path, cardId);
     const removing = this.clears.get(path);
     if (!removing && existsSync(path) && !this.o.planOf?.(cardId)) return { path, ready: null };
@@ -1972,7 +1972,7 @@ export class Workstations implements CardWorkstations {
       async () => {
         await removing;
         // the card's again, where git removed it from the pool meanwhile; one git failed to remove is as it was
-        this.store.addWorkstation(this.canvasId, path, this.o.repo ?? null);
+        this.store.addWorkstation(this.projectId, path, this.o.repo ?? null);
         this.store.setLease(path, cardId);
         if (existsSync(path)) return path;
         mkdirSync(this.o.dir, { recursive: true });
@@ -2195,7 +2195,7 @@ export function parseChanges(diff: string): Change[] {
 
 /**
  * The main branches the owner set for repositories on this machine (`RepoSettings.branch`), by
- * the repository's path, each read when it is asked for: a running canvas registers its own.
+ * the repository's path, each read when it is asked for: a running project registers its own.
  */
 const branchSettings = new Map<string, () => string | undefined>();
 

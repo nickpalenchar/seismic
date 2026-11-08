@@ -40,7 +40,7 @@ without a handover).
 With every reply the agent says what it would do in the owner's place: the option it would pick for
 each question ("I would take this", with why) and the next step (answer first, build, split off a
 task, plan, prototype, park or drop, with why). The card marks the suggested button and options, the
-canvas card says it short ("Tip: prototype"), and the suggestion goes with the owner's next
+project card says it short ("Tip: prototype"), and the suggestion goes with the owner's next
 message. Every suggested step is a button that exists: answering needs open questions, splitting off
 a task needs one marked. The agent's instructions say what each step does to the rest of the idea
 (building ends the conversation and drops its prototypes, planned and running; splitting off keeps
@@ -98,10 +98,10 @@ anyway puts the unanswered questions into the task with the instruction to decid
 
 Beside it stands the repository picker of a card before work begins (see Projects and
 repositories), with "New repository …": an idea to be built in a repository that does not exist
-yet. Its agent picks that target from the conversation ("build it in ~/dev/super59, own canvas")
-with `plan_repo` (a folder and whether it gets a canvas of its own; the whole value each time, an
+yet. Its agent picks that target from the conversation ("build it in ~/dev/super59, own project")
+with `plan_repo` (a folder and whether it gets a project of its own; the whole value each time, an
 empty folder for none); the picker shows it, and what the owner picks there instead stands, the
-agent does not change it. On a canvas with one repository the picker shows only once a new
+agent does not change it. On a project with one repository the picker shows only once a new
 repository is picked, so a card without one looks as before. The button then names the target ("Build it like this in super59 (new)"), with a
 line under it on what the click does, and the click builds the idea there (see Building in a new
 repository).
@@ -114,10 +114,10 @@ Either way the idea's other prototypes are discarded, so one card remains.
 
 "Make a plan" starts a worker on the idea's card, shown as "Idea → Plan": it writes a plan
 doc with workstreams, which lands like any change. Its plan (the doc the landed work added to the
-plan directory) then takes the idea's place on the canvas (cards in its way move aside), links back
+plan directory) then takes the idea's place on the project (cards in its way move aside), links back
 to it and takes over its decisions, showing those of both; the idea goes to the archive once its
 worker is done (put back, it stays). A task made into a plan is linked the same way. The
-prototypes stay on the canvas and the plan doc's worker hears what each showed, so the doc builds on
+prototypes stay on the project and the plan doc's worker hears what each showed, so the doc builds on
 them; only the workstream built on the chosen prototype mentions prototypes. "Build this prototype"
 then builds that workstream (the owner may pick another, and picks one when the doc names none or
 several) on the prototype's branch and discards the other prototypes; while the doc is written, it
@@ -133,8 +133,8 @@ conversation and prototypes; the agent trims the brief to what is open and repli
 second way to break work up beside the plan doc: always one task and the remaining idea.
 
 "Park" and "Discard" leave the card with its brief; talking to it opens it again. A parked or
-dropped idea can be archived (in it, or its archive button on the canvas; not while a prototype of
-it is on the canvas, and then the button is not shown): in the archive it shows its brief and
+dropped idea can be archived (in it, or its archive button on the project; not while a prototype of
+it is on the project, and then the button is not shown): in the archive it shows its brief and
 conversation read-only and can go back to its place. Decisions from the conversation go into the
 decision log; lasting preferences are learned by the Koordinator (see Learning the owner's rules).
 
@@ -144,20 +144,20 @@ decision log; lasting preferences are learned by the Koordinator (see Learning t
 "build this in a new repo under ~/dev/super59") waits a few seconds in which "Undo", in
 the button's place ("Creates super59 …"), leaves everything as it was; the window does not outlive
 a restart of Seismic. What can be told at once is refused at once: no folder, a relative one, one that
-is a repository of a canvas already, canvases from the command line (nothing could start live). Then
+is a repository of a project already, projects from the command line (nothing could start live). Then
 Seismic, one step after the other:
 
 1. creates the folder where there is none and sets git up in it as "Set up a git repository here" does (see Setting up git in a folder): local only, no remote, nothing published. A
    folder that is a repository already is taken as it is; one inside another repository is refused.
-2. adds it to the configuration: a canvas of its own, unnamed, so named after the folder, which
-   starts at once (see Live configuration); without "own canvas" the repository joins the
-   card's canvas instead and the card stays there, in it.
+2. adds it to the configuration: a project of its own, unnamed, so named after the folder, which
+   starts at once (see Live configuration); without "own project" the repository joins the
+   card's project instead and the card stays there, in it.
 3. decides an idea as "Build it like this" does (its agent's session ends, its prototypes are discarded, the
-   decision log records the new repository), then moves the card to the new canvas whole: its
-   task, conversation, mocks, screenshots and decisions, into the canvas's repository, out of its
-   group (groups belong to a canvas). Nothing of it stays on the old canvas, whose sheet says where it went
-   with a link there; a card that follows from it, or it from one, names the other with its canvas
-   and "Open it there". A page that has the card open follows it to the new canvas.
+   decision log records the new repository), then moves the card to the new project whole: its
+   task, conversation, mocks, screenshots and decisions, into the project's repository, out of its
+   group (groups belong to a project). Nothing of it stays on the old project, whose sheet says where it went
+   with a link there; a card that follows from it, or it from one, names the other with its project
+   and "Open it there". A page that has the card open follows it to the new project.
 4. starts it there through the Koordinator. Its worker hears that the repository is new and sets it
    up beside the task: a CLAUDE.md with what the task says about working in it, and its settings with
    the `settings` skill (see Writing the settings).
@@ -174,7 +174,7 @@ owner never read.
 "Build it like this" does not wait: clicked during a reply, the idea is built once the agent has answered all
 it was told, with the brief it leaves, unless the reply asks questions; then nothing is built, the
 conversation says why, and the owner decides again. Meanwhile the panel stays open, the button reads
-"Builds after the reply …" with "Don’t build after all" beside it, and the canvas card says "builds after the reply". The agent hears of the click, as its brief becomes the task. A turn that ends without
+"Builds after the reply …" with "Don’t build after all" beside it, and the project card says "builds after the reply". The agent hears of the click, as its brief becomes the task. A turn that ends without
 a reply (an error, a restart), parking or dropping call the building off.
 
 Asked meanwhile to plan or split off, the Koordinator says that goes by a click after the reply;
@@ -188,7 +188,7 @@ when Seismic stopped.
 ### Decisions
 
 - **A discussion lives on a card, not in the conversation with the Koordinator** (2026-10-09): an
-  exploration parked on the canvas is found there again with its brief, and the Koordinator only
+  exploration parked on the project is found there again with its brief, and the Koordinator only
   passes the owner's words on. A question to Seismic asking for an opinion or a way forward becomes an
   idea card when no agent on the open card takes it (see Commands to the Koordinator); a wrong
   guess costs one card, undone with "Undo". Questions of fact stay in the conversation.
@@ -220,13 +220,13 @@ when Seismic stopped.
   HTML, and the owner sees simple options without a prototype.
 - **A plan links the idea it came from** by what the idea's landed work added to the plan
   directory, not by title or time.
-- **An idea to be built in a repository that does not exist yet gets it, and a canvas, from one
+- **An idea to be built in a repository that does not exist yet gets it, and a project, from one
   click, and moves there whole** (2026-10-28). Its agent picks the target from the conversation;
   the card's repository picker shows and changes it, and the button names it. Seismic sets up git
   itself (as for a folder without git) and moves the card with its brief, conversation and
   decisions, since its exploration agent's session ends with the building anyway. It was found on
   an idea where Seismic made a task to create the repository, its worker searched other repositories
-  and the database for how, copied the brief into `docs/` and waited for approval, the canvas then
-  came without the card, and a card made for it on the old canvas could not start there. Rejected: a
+  and the database for how, copied the brief into `docs/` and waited for approval, the project then
+  came without the card, and a card made for it on the old project could not start there. Rejected: a
   worker setting up the repository and copying the brief (searching, an approval, context only as a
   copy); only instructing the agents better (the detour would stay).

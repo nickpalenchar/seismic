@@ -1,4 +1,4 @@
-// The note on a repository's plan directory, beside the plans on the canvas: the docs there
+// The note on a repository's plan directory, beside the plans on the project: the docs there
 // that are not plans, each with its reason and "Als Plan aufbereiten", or, while the
 // repository has no plan doc yet, where the first one goes (which the owner can hide).
 
@@ -26,11 +26,11 @@ export function planDirBoxes(dirs: PlanDir[], placed: { item: Item; b: Bounds }[
 }
 
 /**
- * The empty notes the owner has hidden, per canvas in this browser: a hidden note stays away while
+ * The empty notes the owner has hidden, per project in this browser: a hidden note stays away while
  * its repository has no plan doc; a directory changed in the settings brings it back.
  */
-export function useHiddenEmptyNotes(canvas: string): [(d: PlanDir) => boolean, (d: PlanDir) => void] {
-  const [ids, setIds] = useStoredState<string[]>(`obeya-plan-dir-hidden-${canvas}`, []);
+export function useHiddenEmptyNotes(project: string): [(d: PlanDir) => boolean, (d: PlanDir) => void] {
+  const [ids, setIds] = useStoredState<string[]>(`obeya-plan-dir-hidden-${project}`, []);
   const isHidden = useCallback((d: PlanDir) => d.empty && ids.includes(noteId(d)), [ids]);
   const hide = (d: PlanDir) => setIds([...ids, noteId(d)]);
   return [isHidden, hide];
@@ -51,7 +51,7 @@ export function PlanDirNote({
   dir: PlanDir;
   b: Bounds;
   dragging: boolean;
-  /** The repository's name, when the canvas has several. */
+  /** The repository's name, when the project has several. */
   repo?: string;
   onPrepare: (dir: PlanDir, file: string) => void;
   onOpen: (cardId: string) => void;

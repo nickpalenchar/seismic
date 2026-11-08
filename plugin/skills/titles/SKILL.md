@@ -5,7 +5,7 @@ description: Write a short, precise title for an Seismic card from its task text
 
 # Naming a card
 
-Make the task recognizable on the canvas from its title alone. Use the language requested by the caller (the task's language when none is given) and
+Make the task recognizable on the project from its title alone. Use the language requested by the caller (the task's language when none is given) and
 keep the concrete role, component, action or symptom that distinguishes it from other work.
 Base the title on the task text and screenshots; use only details they support.
 

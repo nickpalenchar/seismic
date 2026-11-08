@@ -1,16 +1,16 @@
-// HTTP and WebSocket for the UI: one API per canvas under /api/c/<project>/.
+// HTTP and WebSocket for the UI: one API per project under /api/c/<project>/.
 
 import type { ServerWebSocket } from 'bun';
 import { extensionSettings, serverExtensions as extensions } from '../extensions/server';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { join, resolve } from 'node:path';
-import { agentListens, type CanvasInfo, type ChatElsewhere, type CanvasSettingsView, type CardAction, type ClientMessage, type CardPatch, type DeveloperView, type Item, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
+import { agentListens, type ProjectInfo, type ChatElsewhere, type ProjectSettingsView, type CardAction, type ClientMessage, type CardPatch, type DeveloperView, type Item, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
 import index from '../ui/index.html';
 import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
 import { type Dropped, findDropped, localImage } from './files';
-import type { CanvasRuntime } from './canvas';
+import type { ProjectRuntime } from './project';
 import { SiteSetup } from './site-setup';
 import { parsePlace } from '../core/layout';
 import { type Focus, type Heard, type Input, isField } from './commands';
@@ -27,7 +27,7 @@ import { AppUpdates, HandOver } from './app-update';
 import type { SourceUpdates } from './source-update';
 import { oldLinuxBun } from './repo';
 import { Store } from './db';
-import { canvasData, canvasCsv } from './data-export';
+import { projectData, projectCsv } from './data-export';
 import { Access } from './remote';
 import { Push, startedWaiting } from './push';
 import { worker } from '../ui/sw';
@@ -37,7 +37,7 @@ import { servePdfjs } from './pdfjs';
 import { Tailscale } from './tailscale';
 import { codexModels } from './codex-runtime';
 import { agyModels } from './agy-runtime';
-import { agentsView, canvasDefaultsView, feedbackPromptView, languageView, notificationsView, ownerLanguage, saveAgents, saveCanvasDefaults, saveCodexAutoReview, saveNotifications, saveFeedbackPrompt, saveLanguage, saveTheme, saveMotion, saveUsageMeter, themeView, motionView, usageMeterView } from './settings';
+import { agentsView, projectDefaultsView, feedbackPromptView, languageView, notificationsView, ownerLanguage, saveAgents, saveProjectDefaults, saveCodexAutoReview, saveNotifications, saveFeedbackPrompt, saveLanguage, saveTheme, saveMotion, saveUsageMeter, themeView, motionView, usageMeterView } from './settings';
 import { proposeTags, TagProposals } from './tag-proposal';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
@@ -58,9 +58,9 @@ function replyParam(p: string | null): number | TalkRef | undefined {
   return m[2] ? { talk: Number(m[1]), part: m[2] as TalkRef['part'] } : Number(m[1]) || undefined;
 }
 
-/** What the server knows of an open page's WebSocket: its canvas, the page, and the paired device it is on, if another. */
+/** What the server knows of an open page's WebSocket: its project, the page, and the paired device it is on, if another. */
 interface Socket {
-  canvas: string;
+  project: string;
   page: string;
   device?: string;
 }
@@ -71,9 +71,9 @@ export interface Voice {
   setup?: VoiceSetup;
 }
 
-/** The canvases a server serves: those that run now, and word whenever one starts, stops or changes (`Canvases`). */
+/** The projects a server serves: those that run now, and word whenever one starts, stops or changes (`Projects`). */
 export interface Served {
-  all(): CanvasRuntime[];
+  all(): ProjectRuntime[];
   onChange?(fn: () => void): () => void;
 }
 
@@ -115,7 +115,7 @@ export function serveNarration(narration: NarrationHost) {
 }
 
 export function serve(
-  served: Served | CanvasRuntime[],
+  served: Served | ProjectRuntime[],
   { transcriber, setup }: Voice,
   port: number,
   development = false,
@@ -140,11 +140,11 @@ export function serve(
   /** What the Developer section may do here; nothing by default. */
   developer: DeveloperView = { restart: false, rebuild: false, why: 'dev' },
 ) {
-  const canvases = Array.isArray(served) ? { all: () => served } : served;
+  const projects = Array.isArray(served) ? { all: () => served } : served;
   const sites = config
     ? new SiteSetup({
         home: config.home,
-        changed: () => canvases.all().forEach((c) => c.demoSitesChanged()),
+        changed: () => projects.all().forEach((c) => c.demoSitesChanged()),
         user: (() => {
           try {
             return userInfo().username;
@@ -156,14 +156,14 @@ export function serve(
     : undefined;
   const tagProposals = new TagProposals();
   /**
-   * Proposes the tags of a repository's site: read where it runs (its first canvas), from the cards
-   * of every canvas it is on, in the language of its demos (`language`: the dialog's, unsaved).
+   * Proposes the tags of a repository's site: read where it runs (its first project), from the cards
+   * of every project it is on, in the language of its demos (`language`: the dialog's, unsaved).
    */
   const proposeTagsFor = (home: string, input: unknown) => {
     const { path, current, language } = (input ?? {}) as { path?: unknown; current?: unknown; language?: unknown };
     if (typeof path !== 'string' || !path.trim()) throw new BadRequest('invalid', 'expected { path }');
-    const sources = canvases.all().flatMap((c) => c.tagSource(expandHome(path)) ?? []);
-    if (!sources.length) throw new BadRequest('invalid', 'the repository runs on no canvas');
+    const sources = projects.all().flatMap((c) => c.tagSource(expandHome(path)) ?? []);
+    if (!sources.length) throw new BadRequest('invalid', 'the repository runs on no project');
     const vocabulary = typeof current === 'object' && current ? parseTagLines(tagLines(current as PageTags)) : undefined;
     return tagProposals.start(path, () =>
       proposeTags({
@@ -176,7 +176,7 @@ export function serve(
       }),
     );
   };
-  const byId = new Map<string, CanvasRuntime>();
+  const byId = new Map<string, ProjectRuntime>();
   const handOver = new HandOver();
   const started = crypto.randomUUID();
   const sockets = new Map<string, Set<ServerWebSocket<Socket>>>();
@@ -184,35 +184,35 @@ export function serve(
   access.onRemoved((device) => {
     for (const set of sockets.values()) for (const ws of set) if (ws.data.device === device) ws.close(4401, 'device removed');
   });
-  /** The restart that waits, as canvas `id` sees it: Seismic's, else that of some of its repositories' agents. */
+  /** The restart that waits, as project `id` sees it: Seismic's, else that of some of its repositories' agents. */
   const pending = (id: string): PendingRestart | null => {
     const due = restarter?.due();
     if (!due) return byId.get(id)?.pendingRestart() ?? null;
-    const here = due.waiting.filter((w) => w.canvas === id);
-    // the others by canvas, named, each card by its title: a canvas's page knows only its own cards
+    const here = due.waiting.filter((w) => w.project === id);
+    // the others by project, named, each card by its title: a project's page knows only its own cards
     const elsewhere = new Map<string, string[]>();
     const items = new Map<string, Item[]>();
     for (const w of due.waiting) {
-      if (w.canvas === id) continue;
-      if (!items.has(w.canvas)) items.set(w.canvas, byId.get(w.canvas)?.board.items() ?? []);
-      const title = items.get(w.canvas)!.find((i) => i.id === w.card)?.title ?? w.card;
-      elsewhere.set(w.canvas, [...(elsewhere.get(w.canvas) ?? []), title]);
+      if (w.project === id) continue;
+      if (!items.has(w.project)) items.set(w.project, byId.get(w.project)?.board.items() ?? []);
+      const title = items.get(w.project)!.find((i) => i.id === w.card)?.title ?? w.card;
+      elsewhere.set(w.project, [...(elsewhere.get(w.project) ?? []), title]);
     }
     return {
       reason: due.reason,
       deadline: due.deadline,
       cards: here.map((w) => w.card),
-      elsewhere: [...elsewhere].map(([c, cards]) => ({ canvas: byId.get(c)?.board.canvas.name ?? c, cards })),
+      elsewhere: [...elsewhere].map(([c, cards]) => ({ project: byId.get(c)?.board.project.name ?? c, cards })),
       owner: due.owner,
     };
   };
-  /** What waits for the owner on each canvas: every page lists it in its navigation, the other canvases' too. */
+  /** What waits for the owner on each project: every page lists it in its navigation, the other projects' too. */
   const waiting: Record<string, Waiting> = {};
-  /** Each canvas's part of it as last sent, to send it again only when it changed. */
+  /** Each project's part of it as last sent, to send it again only when it changed. */
   const waitingSent: Record<string, string> = {};
   const waitingMessage = () => JSON.stringify({ type: 'waiting', waiting } satisfies ServerMessage);
   /** Takes in what waits on `c` now; whether that changed. */
-  const counted = (c: CanvasRuntime, snapshot = c.board.snapshot()) => {
+  const counted = (c: ProjectRuntime, snapshot = c.board.snapshot()) => {
     const w = waitingIn(snapshot);
     const text = JSON.stringify(w);
     if (text === waitingSent[c.id]) return false;
@@ -235,9 +235,9 @@ export function serve(
   usage?.onChange(() => everyone(JSON.stringify({ type: 'usage', usage: usage.current() } satisfies ServerMessage)));
   /** What tells the usage meter a page closed, by page. */
   const unwatch = new Map<string, () => void>();
-  /** What stops sending each canvas's changes to its pages. */
+  /** What stops sending each project's changes to its pages. */
   const detach = new Map<string, () => void>();
-  const attach = (c: CanvasRuntime) => {
+  const attach = (c: ProjectRuntime) => {
     byId.set(c.id, c);
     if (!sockets.has(c.id)) sockets.set(c.id, new Set());
     counted(c);
@@ -249,13 +249,13 @@ export function serve(
         const items = c.board.items();
         const started = startedWaiting(seen, items);
         seen = new Map(items.map((i) => [i.id, i]));
-        const several = canvases.all().length > 1;
+        const several = projects.all().length > 1;
         push.waits(
           started.map(({ item, kind }) => ({
             card: item.id,
             title: item.title,
             kind,
-            ...(several ? { canvas: c.board.canvas.name } : {}),
+            ...(several ? { project: c.board.project.name } : {}),
             still: () => {
               const now = c.board.item(item.id);
               return !!now && needsYou(now);
@@ -279,24 +279,24 @@ export function serve(
     ];
     detach.set(c.id, () => offs.forEach((off) => off()));
   };
-  /** The list the pages' canvas switchers show, as it was last sent. */
+  /** The list the pages' project switchers show, as it was last sent. */
   let listed = '';
-  /** Sends the canvases to every page where they changed (one started, stopped, renamed, or with other repositories). */
+  /** Sends the projects to every page where they changed (one started, stopped, renamed, or with other repositories). */
   const relist = () => {
-    const now = canvases.all().map((c) => c.board.canvas);
+    const now = projects.all().map((c) => c.board.project);
     const list = JSON.stringify(now);
     if (list === listed) return;
     const first = !listed;
     listed = list;
     if (first) return;
-    everyone(JSON.stringify({ type: 'canvases', canvases: now } satisfies ServerMessage));
+    everyone(JSON.stringify({ type: 'projects', projects: now } satisfies ServerMessage));
     everyone(waitingMessage());
   };
-  for (const c of canvases.all()) attach(c);
+  for (const c of projects.all()) attach(c);
   relist();
-  // a canvas started or stopped while Seismic runs: the pages of one that stopped go to another
-  canvases.onChange?.(() => {
-    const now = canvases.all();
+  // a project started or stopped while Seismic runs: the pages of one that stopped go to another
+  projects.onChange?.(() => {
+    const now = projects.all();
     for (const [id, c] of [...byId])
       if (!now.includes(c)) {
         detach.get(id)?.();
@@ -304,7 +304,7 @@ export function serve(
         byId.delete(id);
         delete waiting[id];
         delete waitingSent[id];
-        // the page asks for the canvases, and goes to the first there is
+        // the page asks for the projects, and goes to the first there is
         for (const ws of sockets.get(id) ?? []) ws.close();
         sockets.delete(id);
       }
@@ -313,7 +313,7 @@ export function serve(
   });
 
   /** A click the retrospective counts (a card deleted, a command taken back, a rule proposal decided on), once it went through. */
-  const click = <T>(c: CanvasRuntime, out: T): T => {
+  const click = <T>(c: ProjectRuntime, out: T): T => {
     c.koordinator.noticed();
     return out;
   };
@@ -329,12 +329,12 @@ export function serve(
       throw e;
     }
   };
-  /** A route on one canvas; an unknown canvas is a 404. */
+  /** A route on one project; an unknown project is a 404. */
   const on =
-    (fn: (c: CanvasRuntime, req: Req) => unknown | Promise<unknown>) =>
+    (fn: (c: ProjectRuntime, req: Req) => unknown | Promise<unknown>) =>
     (req: Req): Response | Promise<Response> => {
-      const c = byId.get(req.params.canvas!);
-      return c ? handle(() => fn(c, req)) : Response.json({ code: 'invalid', error: 'unknown canvas' }, { status: 404 });
+      const c = byId.get(req.params.project!);
+      return c ? handle(() => fn(c, req)) : Response.json({ code: 'invalid', error: 'unknown project' }, { status: 404 });
     };
   /** A route that needs what this server may run without (its configuration, voice setup, the setup assistant); a 404 without it. */
   const needs =
@@ -342,7 +342,7 @@ export function serve(
     (req: Request): Response | Promise<Response> =>
       x ? handle(() => fn(x, req)) : notFound();
   /** Nothing the owner said came through: Whisper understood nothing (`null`), or heard nothing. */
-  const unheard = (c: CanvasRuntime, text: string | null) => ({ confirm: text === null ? c.board.t.voice.notUnderstood : c.board.t.voice.nothingHeard, unheard: true });
+  const unheard = (c: ProjectRuntime, text: string | null) => ({ confirm: text === null ? c.board.t.voice.notUnderstood : c.board.t.voice.nothingHeard, unheard: true });
 
   /**
    * A restart waits for what the owner said on the server's own count too, until its answer is
@@ -351,8 +351,8 @@ export function serve(
    */
   let answering = 0;
   const holdingRestart =
-    <T,>(fn: (c: CanvasRuntime, req: Req) => Promise<T>) =>
-    async (c: CanvasRuntime, req: Req): Promise<T> => {
+    <T,>(fn: (c: ProjectRuntime, req: Req) => Promise<T>) =>
+    async (c: ProjectRuntime, req: Req): Promise<T> => {
       const holder = `request ${++answering}`;
       restarter?.hold(holder, ['voice']);
       try {
@@ -375,13 +375,13 @@ export function serve(
     for (const old of arrived) if (arrived.size > ARRIVED_KEPT) arrived.delete(old);
   };
 
-  /** The card or plan in view, and where on the canvas the owner was: as the page says, else what it last had in view. */
-  const focusOf = (req: Request, c?: CanvasRuntime): Focus => {
+  /** The card or plan in view, and where on the project the owner was: as the page says, else what it last had in view. */
+  const focusOf = (req: Request, c?: ProjectRuntime): Focus => {
     const q = new URL(req.url).searchParams;
     const place = parsePlace(q.get('place')) ?? c?.inView;
     return { ...(q.get('card') ? { card: q.get('card')! } : {}), ...(q.get('plan') ? { plan: q.get('plan')! } : {}), ...(place ? { place } : {}) };
   };
-  const transcribe = async (c: CanvasRuntime, audio: Blob) => {
+  const transcribe = async (c: ProjectRuntime, audio: Blob) => {
     const dir = mkdtempSync(join(tmpdir(), 'obeya-voice-'));
     // by what the browser recorded: a cloud service tells the format by the file's name
     const file = join(dir, `speech.${/mp4|m4a|aac/.test(audio.type) ? 'mp4' : /wav/.test(audio.type) ? 'wav' : /ogg/.test(audio.type) ? 'ogg' : 'webm'}`);
@@ -411,7 +411,7 @@ export function serve(
    * passes on what asks Seismic for something); else the Koordinator reads it. `null`: Whisper heard
    * nothing it could write down, which nobody should guess from.
    */
-  const heard = async (c: CanvasRuntime, text: string | null, focus: Focus, images: string[] = [], input: Input = {}) => {
+  const heard = async (c: ProjectRuntime, text: string | null, focus: Focus, images: string[] = [], input: Input = {}) => {
     // the owner sees only the confirmation; the transcript is for whoever reads the server's log
     console.log(`heard on ${c.id}: ${text === null ? '(not understood)' : text || '(nothing)'}`);
     // nothing heard or understood: screenshots shown with it stay in the browser for the next try
@@ -430,8 +430,8 @@ export function serve(
 
   const extensionRoutes: Record<string, Record<string, (req: Request) => Response | Promise<Response>>> = {};
   const extensionContext = {
-    settings: (canvas: string, repo: string) => {
-      const found = canvases.all().find((c) => c.id === canvas)?.repos.find((r) => r.ref.id === repo);
+    settings: (project: string, repo: string) => {
+      const found = projects.all().find((c) => c.id === project)?.repos.find((r) => r.ref.id === repo);
       return found ? extensionSettings(found.adapter) : undefined;
     },
   };
@@ -448,7 +448,7 @@ export function serve(
     routes: guarded({
       ...extensionRoutes,
       '/': index,
-      // a canvas, and a card open on it (`/p/<project>/c/<code>`): the page reads the address
+      // a project, and a card open on it (`/p/<project>/c/<code>`): the page reads the address
       '/p/*': index,
       '/c/*': index, // Existing bookmarks are upgraded by the page.
       // a browser on this machine signing in with a one-time link (owner.ts)
@@ -493,28 +493,28 @@ export function serve(
           return device ? handle(() => push.unsubscribe(device)) : onlyDevices();
         },
       },
-      '/api/canvases': { GET: () => Response.json(canvases.all().map((c) => c.board.canvas) satisfies CanvasInfo[]) },
-      // the chats with Seismic on every canvas that runs, the latest first
+      '/api/projects': { GET: () => Response.json(projects.all().map((c) => c.board.project) satisfies ProjectInfo[]) },
+      // the chats with Seismic on every project that runs, the latest first
       '/api/chats': {
         GET: () => {
-          const names = new Map(canvases.all().map((c) => [c.board.canvas.id, c.board.canvas.name]));
-          return Response.json((canvases.all()[0]?.board.everyChat() ?? []).flatMap((x) => (names.has(x.canvas) ? [{ ...x, canvasName: names.get(x.canvas)! }] : [])) satisfies ChatElsewhere[]);
+          const names = new Map(projects.all().map((c) => [c.board.project.id, c.board.project.name]));
+          return Response.json((projects.all()[0]?.board.everyChat() ?? []).flatMap((x) => (names.has(x.project) ? [{ ...x, projectName: names.get(x.project)! }] : [])) satisfies ChatElsewhere[]);
         },
       },
-      '/api/canvases/export': { GET: (req) => {
+      '/api/projects/export': { GET: (req) => {
         const url = new URL(req.url);
         const as = url.searchParams.get('as');
-        const ids = url.searchParams.getAll('canvas');
+        const ids = url.searchParams.getAll('project');
         if (as !== 'json' && as !== 'csv') return Response.json({ code: 'invalid', error: 'Choose CSV or JSON' }, { status: 400 });
-        const available = canvases.all();
-        const chosen = ids.length ? [...new Set(ids)] : available.map((c) => c.board.canvas.id);
-        if (!chosen.length || chosen.some((id) => !available.some((c) => c.board.canvas.id === id)))
-          return Response.json({ code: 'invalid', error: 'Unknown canvas' }, { status: 400 });
-        const data = canvasData(available[0]!.dataStore, chosen);
-        const body = as === 'csv' ? canvasCsv(data) : JSON.stringify(data, null, 2);
+        const available = projects.all();
+        const chosen = ids.length ? [...new Set(ids)] : available.map((c) => c.board.project.id);
+        if (!chosen.length || chosen.some((id) => !available.some((c) => c.board.project.id === id)))
+          return Response.json({ code: 'invalid', error: 'Unknown project' }, { status: 400 });
+        const data = projectData(available[0]!.dataStore, chosen);
+        const body = as === 'csv' ? projectCsv(data) : JSON.stringify(data, null, 2);
         return new Response(body, { headers: {
           'content-type': `${as === 'csv' ? 'text/csv' : 'application/json'}; charset=utf-8`,
-          'content-disposition': `attachment; filename="obeya-canvases.${as}"`,
+          'content-disposition': `attachment; filename="obeya-projects.${as}"`,
           'cache-control': 'no-store',
         } });
       } },
@@ -524,22 +524,22 @@ export function serve(
         PUT: needs(config, async (c, req) => c.save(await req.json())),
       },
       // the owner has the restart of a repository's agents that waits for them go ahead at once
-      '/api/c/:canvas/restart': { POST: on((c) => ({ restarting: c.restartNow() })) },
-      // the canvas's own settings, from the gear in the bar: read with Configuration's models they fall back on, saved into the configuration
-      '/api/c/:canvas/settings': {
-        GET: on((c) => (config ? { settings: c.settings(), agents: agentsView(config.home).agents } satisfies CanvasSettingsView : notFound())),
+      '/api/c/:project/restart': { POST: on((c) => ({ restarting: c.restartNow() })) },
+      // the project's own settings, from the gear in the bar: read with Configuration's models they fall back on, saved into the configuration
+      '/api/c/:project/settings': {
+        GET: on((c) => (config ? { settings: c.settings(), agents: agentsView(config.home).agents } satisfies ProjectSettingsView : notFound())),
         PUT: on(async (c, req) => {
           if (!config) return notFound();
-          await config.saveCanvas(c.id, await req.json());
-          return { settings: c.settings(), agents: agentsView(config.home).agents } satisfies CanvasSettingsView;
+          await config.saveProject(c.id, await req.json());
+          return { settings: c.settings(), agents: agentsView(config.home).agents } satisfies ProjectSettingsView;
         }),
       },
-      // "Initialize" at the canvas's demo site: its path on the site, with the empty overview, deployed
-      '/api/c/:canvas/demo-site': { GET: on((c) => c.siteState() ?? null) },
-      '/api/c/:canvas/demo-site/init': { POST: on(async (c, req) => c.initSite(await req.json()) ?? null) },
-      // the owner pauses the canvas's agents at work (and holds its queue), or resumes its paused ones
-      '/api/c/:canvas/pause': { POST: on((c) => c.pauseAgents()) },
-      '/api/c/:canvas/resume': { POST: on((c) => c.resumeAgents()) },
+      // "Initialize" at the project's demo site: its path on the site, with the empty overview, deployed
+      '/api/c/:project/demo-site': { GET: on((c) => c.siteState() ?? null) },
+      '/api/c/:project/demo-site/init': { POST: on(async (c, req) => c.initSite(await req.json()) ?? null) },
+      // the owner pauses the project's agents at work (and holds its queue), or resumes its paused ones
+      '/api/c/:project/pause': { POST: on((c) => c.pauseAgents()) },
+      '/api/c/:project/resume': { POST: on((c) => c.resumeAgents()) },
       // the owner has a restart that waits for workers go ahead at once
       '/api/restart': {
         POST: () =>
@@ -601,22 +601,22 @@ export function serve(
         GET: needs(config, (c) => notificationsView(c.home)),
         PUT: needs(config, async (c, req) => saveNotifications(c.home, await req.json())),
       },
-      // Canvas defaults: what a canvas created from now on starts with; the canvases there are keep their own settings
-      '/api/canvas-defaults': {
-        GET: needs(config, (c) => canvasDefaultsView(c.home)),
-        PUT: needs(config, async (c, req) => saveCanvasDefaults(c.home, await req.json())),
+      // Project defaults: what a project created from now on starts with; the projects there are keep their own settings
+      '/api/project-defaults': {
+        GET: needs(config, (c) => projectDefaultsView(c.home)),
+        PUT: needs(config, async (c, req) => saveProjectDefaults(c.home, await req.json())),
       },
-      // whether approving work asks for feedback on it: every canvas's cards follow at once; the responses given stay
+      // whether approving work asks for feedback on it: every project's cards follow at once; the responses given stay
       '/api/feedback-prompt': {
         GET: needs(config, (c) => feedbackPromptView(c.home)),
         PUT: needs(config, async (c, req) => {
           const view = saveFeedbackPrompt(c.home, await req.json());
-          canvases.all().forEach((x) => x.board.changed());
+          projects.all().forEach((x) => x.board.changed());
           return view;
         }),
       },
-      // every response the owner gave on agents' work, on every canvas: the performance dashboard groups them
-      '/api/feedback': { GET: () => handle(() => canvases.all()[0]?.board.allFeedback() ?? []) },
+      // every response the owner gave on agents' work, on every project: the performance dashboard groups them
+      '/api/feedback': { GET: () => handle(() => projects.all()[0]?.board.allFeedback() ?? []) },
       // the model and effort of each group of agents, read whenever one starts
       '/api/agents': {
         GET: needs(config, (c) => agentsView(c.home)),
@@ -639,7 +639,7 @@ export function serve(
       '/api/tag-proposal': {
         GET: needs(config, (_, req) => {
           const path = new URL(req.url).searchParams.get('path') ?? '';
-          return { job: tagProposals.job(path), available: !!path && canvases.all().some((c) => c.repos.some((r) => resolve(r.info.path) === resolve(expandHome(path)))) };
+          return { job: tagProposals.job(path), available: !!path && projects.all().some((c) => c.repos.some((r) => resolve(r.info.path) === resolve(expandHome(path)))) };
         }),
         POST: needs(config, async (c, req) => ({ job: proposeTagsFor(c.home, await req.json()) })),
         DELETE: needs(config, (_, req) => (tagProposals.doneWith(new URL(req.url).searchParams.get('path') ?? ''), {})),
@@ -653,7 +653,7 @@ export function serve(
         PUT: needs(setup, async (s, req) => s.useCloud(await req.json())),
         DELETE: needs(setup, (s) => s.useLocal()),
       },
-      // the setup assistant: what Seismic needs on this machine, installed, logged in; then the first canvas
+      // the setup assistant: what Seismic needs on this machine, installed, logged in; then the first project
       '/api/setup': { GET: needs(machine, (m) => m.view()) },
       '/api/setup/install': { POST: needs(machine, async (m, req) => m.install(await req.json())) },
       '/api/setup/login': { POST: needs(machine, async (m, req) => m.login(await req.json())) },
@@ -663,7 +663,7 @@ export function serve(
       // setting up git in a folder that has none: what the first commit holds, then the commit
       '/api/setup/git-preview': { POST: needs(machine, async (m, req) => m.gitPreview(await req.json())) },
       '/api/setup/git': { POST: needs(machine, async (m, req) => m.gitSetup(await req.json())) },
-      '/api/setup/canvas': { POST: needs(machine, async (m, req) => m.canvas(await req.json())) },
+      '/api/setup/project': { POST: needs(machine, async (m, req) => m.project(await req.json())) },
       // the system's folder dialog, open as long as the owner takes
       '/api/setup/pick': {
         POST: async (req, srv) => {
@@ -706,99 +706,99 @@ export function serve(
         GET: needs(config, (c) => c.checkSaved()),
         POST: needs(config, async (c, req) => c.check(await req.json())),
       },
-      '/api/c/:canvas/canvas': { GET: on((c) => c.board.snapshot()) },
-      '/api/c/:canvas/cards': { POST: on(async (c, req) => c.board.create((await req.json()) as NewCard)) },
+      '/api/c/:project/project': { GET: on((c) => c.board.snapshot()) },
+      '/api/c/:project/cards': { POST: on(async (c, req) => c.board.create((await req.json()) as NewCard)) },
       // from "Configuration", for a repository without settings of its own: the card that writes them
-      '/api/c/:canvas/adapter-setup': { POST: on(async (c, req) => c.adapterSetupCard(String(((await req.json()) as { repo?: unknown }).repo))) },
+      '/api/c/:project/adapter-setup': { POST: on(async (c, req) => c.adapterSetupCard(String(((await req.json()) as { repo?: unknown }).repo))) },
       // from the note on a plan directory: the card that prepares one of its docs as a plan, started
-      '/api/c/:canvas/prepare-plan-doc': {
+      '/api/c/:project/prepare-plan-doc': {
         POST: on(async (c, req) => {
           const { repo, file } = ((await req.json()) ?? {}) as { repo?: unknown; file?: unknown };
           return c.preparePlanDoc(String(repo), String(file));
         }),
       },
       // the owner moved the note on a repository's plan directory
-      '/api/c/:canvas/plan-dirs/:repo': {
+      '/api/c/:project/plan-dirs/:repo': {
         PATCH: on(async (c, req) => c.board.movePlanDirNote(req.params.repo!, await req.json())),
       },
-      '/api/c/:canvas/cards/:id': {
+      '/api/c/:project/cards/:id': {
         PATCH: on(async (c, req) => c.patch(req.params.id!, (await req.json()) as CardPatch)),
         DELETE: on((c, req) => click(c, c.remove(req.params.id!))),
       },
       // groups: a new one with its first cards (and a colour, when one comes back), a new name, the
       // end of one, and cards put into one (`group: null`: none)
-      '/api/c/:canvas/groups': {
+      '/api/c/:project/groups': {
         POST: on(async (c, req) => {
           const { name, cards, hue } = ((await req.json()) ?? {}) as { name?: string; cards?: string[]; hue?: number };
           return c.board.createGroup(name, cards, hue);
         }),
       },
-      '/api/c/:canvas/groups/:id': {
+      '/api/c/:project/groups/:id': {
         PATCH: on(async (c, req) => c.board.renameGroup(req.params.id!, (((await req.json()) ?? {}) as { name?: string }).name)),
         DELETE: on((c, req) => c.board.deleteGroup(req.params.id!)),
       },
-      '/api/c/:canvas/assign': {
+      '/api/c/:project/assign': {
         POST: on(async (c, req) => {
           const { cards, group } = ((await req.json()) ?? {}) as { cards?: string[]; group?: string | null };
           return c.board.group(cards, group ?? null);
         }),
       },
-      '/api/c/:canvas/dependencies': {
+      '/api/c/:project/dependencies': {
         POST: on(async (c, req) => { const { from, to, anchor } = await req.json() as { from: string; to: string; anchor?: import('../core/types').ManualAnchor }; c.board.connect(from, to, false, anchor); }),
         DELETE: on(async (c, req) => { const { from, to } = await req.json() as { from: string; to: string }; c.board.connect(from, to, true); }),
       },
-      '/api/c/:canvas/cards/:id/restore': { POST: on((c, req) => c.restore(req.params.id!)) },
-      '/api/c/:canvas/cards/:id/archive': { POST: on((c, req) => c.board.archive([req.params.id!])) },
-      '/api/c/:canvas/cards/:id/unarchive': { POST: on((c, req) => c.board.unarchive(req.params.id!)) },
+      '/api/c/:project/cards/:id/restore': { POST: on((c, req) => c.restore(req.params.id!)) },
+      '/api/c/:project/cards/:id/archive': { POST: on((c, req) => c.board.archive([req.params.id!])) },
+      '/api/c/:project/cards/:id/unarchive': { POST: on((c, req) => c.board.unarchive(req.params.id!)) },
       // the archive, newest first; posting archives every finished card of the owner's
-      '/api/c/:canvas/archive': { GET: on((c) => c.board.archived()), POST: on((c) => ({ ids: c.board.archiveDone() })) },
-      '/api/c/:canvas/cards/:id/act': { POST: on(async (c, req) => c.press(req.params.id!, (await req.json()) as CardAction)) },
+      '/api/c/:project/archive': { GET: on((c) => c.board.archived()), POST: on((c) => ({ ids: c.board.archiveDone() })) },
+      '/api/c/:project/cards/:id/act': { POST: on(async (c, req) => c.press(req.params.id!, (await req.json()) as CardAction)) },
       // a script acting as the card's agent, in a scratch Seismic whose workers are idle (scripts/scratch-obeya.ts --say)
-      '/api/c/:canvas/cards/:id/stand-in': { POST: on(async (c, req) => ({ result: await c.standIn(req.params.id!, (await req.json()) as Parameters<typeof c.standIn>[1]) })) },
-      '/api/c/:canvas/cards/:id/events': { GET: on((c, req) => c.board.events(req.params.id!)) },
+      '/api/c/:project/cards/:id/stand-in': { POST: on(async (c, req) => ({ result: await c.standIn(req.params.id!, (await req.json()) as Parameters<typeof c.standIn>[1]) })) },
+      '/api/c/:project/cards/:id/events': { GET: on((c, req) => c.board.events(req.params.id!)) },
       // the owner's responses on the card's approved work, and a new one (`{ answer, handover?, facets? }`); the same handover again replaces its answer
-      '/api/c/:canvas/cards/:id/feedback': {
+      '/api/c/:project/cards/:id/feedback': {
         GET: on((c, req) => c.board.feedback(req.params.id!)),
         POST: on(async (c, req) => c.board.giveFeedback(req.params.id!, await req.json().catch(() => null))),
       },
       // the skills the owner can ask the card's agent for by `/name`, for the field's menu
-      '/api/c/:canvas/cards/:id/skills': { GET: on((c, req) => c.skillsOf(req.params.id!)) },
+      '/api/c/:project/cards/:id/skills': { GET: on((c, req) => c.skillsOf(req.params.id!)) },
       // a screenshot for a message: uploaded first, the message then names it by id
-      '/api/c/:canvas/images': {
+      '/api/c/:project/images': {
         POST: on(async (c, req) => ({ id: c.images.save(new Uint8Array(await req.arrayBuffer()), req.headers.get('content-type') ?? '') })),
       },
       // a file of another kind for a message: Seismic keeps it, and the field gets its path (`?name`: what it was called)
-      '/api/c/:canvas/files': {
+      '/api/c/:project/files': {
         POST: on(async (c, req) => {
           if (Number(req.headers.get('content-length')) > MAX_FILE_BYTES) throw new BadRequest('fileTooLarge', `a file may have at most ${MAX_FILE_BYTES} bytes`);
           return { path: c.files.save(new Uint8Array(await req.arrayBuffer()), new URL(req.url).searchParams.get('name') ?? '') };
         }),
       },
       // a file of another kind dropped in a browser: where it lies on this machine, if Seismic finds exactly one that fits
-      '/api/c/:canvas/files/find': {
+      '/api/c/:project/files/find': {
         POST: on(async (_c, req) => ({ path: await findDropped((await req.json()) as Dropped) })),
       },
       // an image dropped in the app, which names it by its path: its bytes, for the page to attach it as a screenshot
-      '/api/c/:canvas/files/local': {
+      '/api/c/:project/files/local': {
         GET: on((_c, req) => {
           const image = localImage(new URL(req.url).searchParams.get('path') ?? '');
           if (!image) throw new BadRequest('imageType', 'no image on this machine');
           return new Response(Bun.file(image.file), { headers: { 'content-type': image.type, 'x-content-type-options': 'nosniff', 'content-security-policy': 'sandbox' } });
         }),
       },
-      '/api/c/:canvas/images/:file': {
+      '/api/c/:project/images/:file': {
         GET: (req) => {
-          const file = byId.get(req.params.canvas)?.images.path(req.params.file);
+          const file = byId.get(req.params.project)?.images.path(req.params.file);
           return file ? new Response(Bun.file(file), { headers: { 'cache-control': 'private, max-age=31536000, immutable' } }) : notFound();
         },
       },
       // what the card's work changes: its files with lines added and removed, with `?full` the diff too
-      '/api/c/:canvas/cards/:id/diff': { GET: on((c, req) => c.diff(req.params.id!, new URL(req.url).searchParams.has('full'))) },
+      '/api/c/:project/cards/:id/diff': { GET: on((c, req) => c.diff(req.params.id!, new URL(req.url).searchParams.has('full'))) },
       // the app running in the card's workstation: whether it answers, and the owner opening it to try it by hand
-      '/api/c/:canvas/cards/:id/app': { GET: on((c, req) => c.appUp(req.params.id!)) },
-      '/api/c/:canvas/cards/:id/app/open': {
+      '/api/c/:project/cards/:id/app': { GET: on((c, req) => c.appUp(req.params.id!)) },
+      '/api/c/:project/cards/:id/app/open': {
         GET: async (req) => {
-          const c = byId.get(req.params.canvas);
+          const c = byId.get(req.params.project);
           if (!c) return notFound();
           let url: string | null = null;
           try {
@@ -809,16 +809,16 @@ export function serve(
           return url ? Response.redirect(url, 302) : new Response(c.board.t.worker.appGone, { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
         },
       },
-      '/api/c/:canvas/cards/:id/plan': { GET: on((c, req) => c.board.planDoc(req.params.id!)) },
+      '/api/c/:project/cards/:id/plan': { GET: on((c, req) => c.board.planDoc(req.params.id!)) },
       // a plan's decisions and the idea it came from
-      '/api/c/:canvas/cards/:id/history': { GET: on((c, req) => c.board.planHistory(req.params.id!)) },
+      '/api/c/:project/cards/:id/history': { GET: on((c, req) => c.board.planHistory(req.params.id!)) },
       // the frame an idea's mock is written into
       '/api/mock-frame': { GET: () => serveMockFrame() },
       // an HTML artifact's page may load files from folders beside it
-      '/api/c/:canvas/cards/:id/demo/*': {
+      '/api/c/:project/cards/:id/demo/*': {
         GET: (req) => {
           try {
-            const demo = byId.get(req.params.canvas)?.board.demoFiles(req.params.id);
+            const demo = byId.get(req.params.project)?.board.demoFiles(req.params.id);
             const file = decodeURIComponent(new URL(req.url).pathname.split('/demo/').slice(1).join('/demo/'));
             return demo ? serveDemoFile(demo, file, req) : notFound();
           } catch {
@@ -827,11 +827,11 @@ export function serve(
         },
       },
       // a demo a later handover replaced, which the owner went back to
-      '/api/c/:canvas/cards/:id/demos/:n/*': {
+      '/api/c/:project/cards/:id/demos/:n/*': {
         GET: (req) => {
           try {
             const n = Number(req.params.n);
-            const demo = Number.isInteger(n) && n >= 0 ? byId.get(req.params.canvas)?.board.demoFiles(req.params.id, n) : null;
+            const demo = Number.isInteger(n) && n >= 0 ? byId.get(req.params.project)?.board.demoFiles(req.params.id, n) : null;
             const route = `/demos/${n}/`;
             const file = decodeURIComponent(new URL(req.url).pathname.split(route).slice(1).join(route));
             return demo ? serveDemoFile(demo, file, req, route) : notFound();
@@ -841,10 +841,10 @@ export function serve(
         },
       },
       // a file the card's work made or changed, for its left column; `?download` to save it
-      '/api/c/:canvas/cards/:id/files/*': {
+      '/api/c/:project/cards/:id/files/*': {
         GET: (req) => {
           try {
-            const c = byId.get(req.params.canvas);
+            const c = byId.get(req.params.project);
             const url = new URL(req.url);
             const file = decodeURIComponent(url.pathname.split('/files/').slice(1).join('/files/'));
             return c ? serveCardFile(file, url.searchParams.has('download'), req, (path) => c.cardFile(req.params.id, path)).catch(() => notFound()) : notFound();
@@ -854,7 +854,7 @@ export function serve(
         },
       },
       // opens a file of the card's work with the system's app (`show`: in its folder), on this machine only: from another device the browser downloads it
-      '/api/c/:canvas/cards/:id/open': {
+      '/api/c/:project/cards/:id/open': {
         POST: (req, srv) =>
           access.isLocal(req, srv)
             ? on(async (c, req) => {
@@ -865,12 +865,12 @@ export function serve(
             : onlyHere(),
       },
       // "Make it a card": a looked-up thread moves onto a Question card
-      '/api/c/:canvas/threads/:thread/card': { POST: on((c, req) => c.answers.toCard(Number(req.params.thread))) },
+      '/api/c/:project/threads/:thread/card': { POST: on((c, req) => c.answers.toCard(Number(req.params.thread))) },
       // a file a looked-up answer comes with; `?download` to save it
-      '/api/c/:canvas/threads/:thread/files/*': {
+      '/api/c/:project/threads/:thread/files/*': {
         GET: (req) => {
           try {
-            const c = byId.get(req.params.canvas);
+            const c = byId.get(req.params.project);
             const url = new URL(req.url);
             const file = decodeURIComponent(url.pathname.split('/files/').slice(1).join('/files/'));
             return c ? serveAnswerFile(c.answerDir(Number(req.params.thread)), file, url.searchParams.has('download'), req) : notFound();
@@ -880,7 +880,7 @@ export function serve(
         },
       },
       // opens an answer's file (`file`), or its thread's directory, with the system's app
-      '/api/c/:canvas/threads/:thread/open': {
+      '/api/c/:project/threads/:thread/open': {
         POST: (req, srv) =>
           access.isLocal(req, srv)
             ? on(async (c, req) => {
@@ -942,7 +942,7 @@ export function serve(
       // the owner pulls them: a fast-forward of the checkout, after which the self-update restarts Seismic once the workers paused
       '/api/source-update/pull': { POST: needs(sources, async (s) => (await s.pull(), { source: s.current() })) },
       // a demo as a file to pass on, where the repository has no share target (`?as=zip|html`)
-      '/api/c/:canvas/cards/:id/export': {
+      '/api/c/:project/cards/:id/export': {
         GET: on(async (c, req) => {
           const as = new URL(req.url).searchParams.get('as');
           if (as !== 'zip' && as !== 'html') throw new BadRequest('invalid', 'as must be zip or html');
@@ -954,7 +954,7 @@ export function serve(
       },
       // what the owner said (audio), for the open card's agent or the Koordinator; the body is the
       // recording, or a form with it (`audio`) and the words typed in the field before it (`text`)
-      '/api/c/:canvas/voice': {
+      '/api/c/:project/voice': {
         POST: on(holdingRestart(async (c, req) => {
           // screenshots shown with the recording (`?image=<id>`, repeated), checked before transcribing
           const params = new URL(req.url).searchParams;
@@ -995,14 +995,14 @@ export function serve(
       },
       // the owner started speaking: transcription and the Koordinator get ready meanwhile
       // whether the recording the page named `?sent=<id>` arrived, for a page that lost the answer
-      '/api/c/:canvas/voice/arrived/:id': { GET: on((_c, req) => ({ arrived: arrived.has(req.params.id!) })) },
-      '/api/c/:canvas/voice/warm': {
+      '/api/c/:project/voice/arrived/:id': { GET: on((_c, req) => ({ arrived: arrived.has(req.params.id!) })) },
+      '/api/c/:project/voice/warm': {
         POST: on((c) => {
           transcriber.warm?.();
           c.commander.warm();
         }),
       },
-      '/api/c/:canvas/command': {
+      '/api/c/:project/command': {
         POST: on(async (c, req) => {
           // `field`: typed into that field of the open card rather than into the Koordinator's sheet
           // `replyTo`: typed in reply to that message of the open card's conversation, or with no card open of the sheet (`TalkRef`)
@@ -1019,7 +1019,7 @@ export function serve(
         }),
       },
       // a wish or a bug for Seismic's makers: the issue's text as a small job writes it, for the owner to check and open on GitHub
-      '/api/c/:canvas/wish': {
+      '/api/c/:project/wish': {
         POST: on(async (c, req) => {
           const { said, answer, title, body, images, app } = ((await req.json()) ?? {}) as Record<string, unknown>;
           if (typeof said !== 'string' || !said.trim()) throw new BadRequest('emptyText', 'said must be a non-empty string');
@@ -1032,36 +1032,36 @@ export function serve(
           );
         }),
       },
-      '/api/c/:canvas/command/undo': {
+      '/api/c/:project/command/undo': {
         POST: on(async (c, req) => click(c, { undone: c.commander.undo(((await req.json()) as { token: string }).token) })),
       },
-      '/api/c/:canvas/preferences': {
+      '/api/c/:project/preferences': {
         POST: on(async (c, req) => {
           const { text, target } = (await req.json()) as { text: string; target?: string };
           c.remember(text, target ? { repos: [target] } : {});
         }),
       },
-      '/api/c/:canvas/preferences/:id': {
+      '/api/c/:project/preferences/:id': {
         PATCH: on(async (c, req) => c.board.setPreference(Number(req.params.id), ((await req.json()) as { text: string }).text)),
         DELETE: on((c, req) => c.board.setPreference(Number(req.params.id), null)),
       },
-      '/api/c/:canvas/preferences/:id/accept': {
+      '/api/c/:project/preferences/:id/accept': {
         POST: on(async (c, req) => {
           const { text, target } = (await req.json().catch(() => ({}))) as { text?: string; target?: string | null };
           return click(c, c.acceptRule(Number(req.params.id), text, target));
         }),
       },
-      '/api/c/:canvas/preferences/:id/reject': { POST: on((c, req) => click(c, c.rejectRule(Number(req.params.id)))) },
+      '/api/c/:project/preferences/:id/reject': { POST: on((c, req) => click(c, c.rejectRule(Number(req.params.id)))) },
       // a value for a repository's setting the work retrospective proposed: taken on this machine or for everyone (`where`), or rejected
-      '/api/c/:canvas/setting-proposals/:id/take': {
+      '/api/c/:project/setting-proposals/:id/take': {
         POST: on(async (c, req) => {
           const { where, value } = (await req.json().catch(() => ({}))) as { where?: unknown; value?: unknown };
           return click(c, (await c.takeSetting(Number(req.params.id), where, value)) ?? {});
         }),
       },
-      '/api/c/:canvas/setting-proposals/:id/reject': { POST: on((c, req) => click(c, c.rejectSetting(Number(req.params.id)))) },
+      '/api/c/:project/setting-proposals/:id/reject': { POST: on((c, req) => click(c, c.rejectSetting(Number(req.params.id)))) },
       // "Erneut teilen" for many outdated pages at once (or, with `tags`, the pages without tags): `count` of them, the newest demos first, or all (null)
-      '/api/c/:canvas/reshare': {
+      '/api/c/:project/reshare': {
         POST: on(async (c, req) => {
           const { count, tags } = (await req.json().catch(() => ({}))) as { count?: number | null; tags?: unknown };
           if (count != null && !(Number.isInteger(count) && count > 0)) throw new BadRequest('invalid', 'count must be a positive integer or null');
@@ -1071,11 +1071,11 @@ export function serve(
         // "Ausblenden": puts away what the finished run says, and the notice of outdated pages until a newer change
         DELETE: on((c) => c.sharing.dismissResharing()),
       },
-      '/api/c/:canvas/reshare/stop': { POST: on((c) => c.sharing.stopResharing()) },
+      '/api/c/:project/reshare/stop': { POST: on((c) => c.sharing.stopResharing()) },
       // the card's latest demo was narrated anew in its directory (the demo skill's `--revoice`)
-      '/api/c/:canvas/cards/:id/demo-rebuilt': { POST: on((c, req) => c.sharing.rebuilt(req.params.id!)) },
+      '/api/c/:project/cards/:id/demo-rebuilt': { POST: on((c, req) => c.sharing.rebuilt(req.params.id!)) },
       // the owner has the Koordinator's sheet in view: the answers waiting there are read; with `ids`, those a plan's sheet shows
-      '/api/c/:canvas/talk/read': {
+      '/api/c/:project/talk/read': {
         POST: on(async (c, req) => {
           const { ids } = (await req.json().catch(() => ({}))) as { ids?: unknown };
           if (ids !== undefined && !(Array.isArray(ids) && ids.every((i) => Number.isInteger(i)))) throw new BadRequest('invalid', 'ids must be a list of exchange ids');
@@ -1083,7 +1083,7 @@ export function serve(
         }),
       },
       // the owner starts a new chat with Seismic, or (`id`) goes back to an earlier one
-      '/api/c/:canvas/chat': {
+      '/api/c/:project/chat': {
         POST: on(async (c, req) => {
           const { id } = (await req.json().catch(() => ({}))) as { id?: unknown };
           if (id === undefined) return { chat: c.board.newChat() };
@@ -1092,7 +1092,7 @@ export function serve(
           return { chat: id };
         }),
       },
-      '/api/c/:canvas/chat/model': {
+      '/api/c/:project/chat/model': {
         POST: on(async (c, req) => {
           const { model } = (await req.json().catch(() => ({}))) as { model?: unknown };
           if (model !== null && model !== undefined && (typeof model !== 'string' || !['default', 'fable', 'opus', 'sonnet', 'haiku'].includes(model))) throw new BadRequest('invalid', 'unknown model');
@@ -1100,11 +1100,11 @@ export function serve(
         }),
       },
       // the owner no longer wants the step the Koordinator waits on a card for ("Stop waiting")
-      '/api/c/:canvas/talk/:id/unwait': {
+      '/api/c/:project/talk/:id/unwait': {
         POST: on(async (c, req) => ({ stopped: c.commander.unwait(Number(req.params.id), String(((await req.json().catch(() => ({}))) as { card?: unknown }).card ?? '')) })),
       },
-      '/api/c/:canvas/ws': (req, server) =>
-        byId.has(req.params.canvas) && server.upgrade(req, { data: { canvas: req.params.canvas, page: crypto.randomUUID(), device: access.deviceOf(req) } })
+      '/api/c/:project/ws': (req, server) =>
+        byId.has(req.params.project) && server.upgrade(req, { data: { project: req.params.project, page: crypto.randomUUID(), device: access.deviceOf(req) } })
           ? undefined
           : new Response('WebSocket expected', { status: 400 }),
     }, access),
@@ -1112,7 +1112,7 @@ export function serve(
     websocket: {
       data: {} as Socket,
       open: (ws: ServerWebSocket<Socket>) => {
-        const c = byId.get(ws.data.canvas);
+        const c = byId.get(ws.data.project);
         if (!c) return ws.close();
         sockets.get(c.id)!.add(ws);
         ws.send(JSON.stringify({ type: 'hello', server: started, ...(oldLinuxBun() ? { oldBun: Bun.version } : {}) } satisfies ServerMessage));
@@ -1128,7 +1128,7 @@ export function serve(
         for (const n of c.commander.undoable()) ws.send(JSON.stringify({ type: 'notice', ...n } satisfies ServerMessage));
       },
       close: (ws: ServerWebSocket<Socket>) => {
-        sockets.get(ws.data.canvas)?.delete(ws);
+        sockets.get(ws.data.project)?.delete(ws);
         unwatch.get(ws.data.page)?.();
         unwatch.delete(ws.data.page);
         restarter?.hold(ws.data.page);
@@ -1142,7 +1142,7 @@ export function serve(
           const msg = JSON.parse(String(text)) as ClientMessage;
           if (msg.type === 'ping') return void ws.send(JSON.stringify({ type: 'pong' } satisfies ServerMessage));
           if (msg.type === 'hold' && Array.isArray(msg.hold)) restarter?.hold(ws.data.page, msg.hold.filter((h) => h === 'video' || h === 'voice'));
-          if (msg.type === 'back') byId.get(ws.data.canvas)?.ownerBack();
+          if (msg.type === 'back') byId.get(ws.data.project)?.ownerBack();
           // back from the terminal, say, where the owner committed what stood in the way of a pull, or pulled
           if (msg.type === 'back') void sources?.check(false);
           // the owner uses a page at the machine or on their phone: what starts waiting meanwhile is not pushed
@@ -1152,12 +1152,12 @@ export function serve(
           if (msg.type === 'stall') {
             const stall = pageStall(msg);
             const { device } = ws.data;
-            const where = `${device ? (access.devices().find((d) => d.id === device)?.name ?? 'another device') : 'this machine'}, canvas ${ws.data.canvas}`;
+            const where = `${device ? (access.devices().find((d) => d.id === device)?.name ?? 'another device') : 'this machine'}, project ${ws.data.project}`;
             if (stall) stalls?.page(stall, where, ws.data.page);
           }
           if (msg.type === 'focus') {
             const seen = parsePlace(typeof msg.place === 'string' ? msg.place : undefined);
-            const c = byId.get(ws.data.canvas);
+            const c = byId.get(ws.data.project);
             if (seen && c) c.inView = seen;
           }
         } catch {}

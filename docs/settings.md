@@ -4,12 +4,12 @@ Seismic runs on any git repository as it is. What it cannot know by itself is ho
 works: how its app starts and stops, which checks a change must pass, how approved work lands, how
 a worker records a demo and where demos are shared. A repository says that in its settings,
 `.obeya/settings.json`, versioned with the code it describes (like `.vscode/settings.json`).
-"Configuration" shows them with the repository on its canvas's page and changes them without a line of
+"Configuration" shows them with the repository on its project's page and changes them without a line of
 code, for one machine or, with "Take over into the repository for everyone", for everyone.
 
 The quickest way to get them: in "Configuration", a repository without settings of its own has
 "Have an agent fill them in". It puts a card on the
-repository's canvas whose worker writes them with the `obeya:settings` skill: it reads the
+repository's project whose worker writes them with the `obeya:settings` skill: it reads the
 repository, starts the app, records a demo with it to prove the recipe, and asks you what it
 cannot find out (a login, test data). It also drafts the allow list of commands agents run there
 without asking (the `Bash` rules of `.claude/settings.json`, which Seismic applies to its Codex
@@ -59,7 +59,7 @@ its absolute path (or one from `~/`) in that machine's configuration, not in thi
 them there, and the agents on that machine tick their workstreams off there, outside any commit. One with a checklist under `## Workstreams` (or `## Arbeitspakete`) is a plan:
 each top-level item is a workstream (`- [ ] **W1:** Title. Details`), a ticked one has landed,
 and once every one is ticked the plan goes into the archive. Its goal is the first paragraph
-under `## Goal` (or `## Ziel`). Any other file there shows on the canvas in a note, with the
+under `## Goal` (or `## Ziel`). Any other file there shows on the project in a note, with the
 reason it is not a plan and "Als Plan aufbereiten", which has an agent add the checklist; a
 file that is meant to stay as it is (a template, an index) goes into `exclude`. Default:
 `{ "dir": "docs/plan", "exclude": ["TEMPLATE.md"] }`. The skill's check script
@@ -164,7 +164,7 @@ page for something to look at; the worker picks which, and runs the app for it a
 
 - `language`: `"de"` or `"en"`, the language of the repository's demos: their narration, chapters
   and report, and the pages they are shared on (the home repository's also names the language of
-  its canvas's overview). It goes before the narration language of the demo settings (each
+  its project's overview). It goes before the narration language of the demo settings (each
   machine's, in "Configuration"), which applies without it. Seismic gives it to its workers as
   `DEMO_LANGUAGE`, which the demo skill reads; a session without Seismic finds it in the repository's
   `.obeya/settings.json`. A voice that clones a clip uses the clip of this language, so each
@@ -175,7 +175,7 @@ page for something to look at; the worker picks which, and runs the app for it a
   must hold `video` or `html`. It goes before the list in each machine's demo settings
   (Configuration → Demos); without either, all three. Default: all.
 
-Where "Share" puts demos for colleagues is not a repository's setting: each canvas chooses one of
+Where "Share" puts demos for colleagues is not a repository's setting: each project chooses one of
 this machine's demo sites (Configuration → Demos) and a path on it, in its settings. A `site` here,
 which repositories named until 2026-11-06, is no longer read and shows as a problem.
 
@@ -187,25 +187,25 @@ repository's theme). A changed theme leaves the pages shared before it outdated,
 
 Each of the two is a setting of its own. Default: the demo settings' language and artifacts.
 
-### Not in the file: the canvas
+### Not in the file: the project
 
-The canvas a repository is on, its name and id, are in "Configuration" too. Without a name, a
-canvas is named after its first repository (the name in its `origin` URL, else its directory's).
+The project a repository is on, its name and id, are in "Configuration" too. Without a name, a
+project is named after its first repository (the name in its `origin` URL, else its directory's).
 
 ## Which value applies
 
 Every machine that runs Seismic on the repository reads `.obeya/settings.json`, a fresh clone
 included. Which value applies, highest first:
 
-1. The one set for this machine in "Configuration" (a repository's settings on its canvas's page; kept in
-   `canvases.json` in Seismic's home, never in the repository).
+1. The one set for this machine in "Configuration" (a repository's settings on its project's page; kept in
+   `projects.json` in Seismic's home, never in the repository).
 2. `.obeya/settings.json` **as the default branch has it**.
 3. What Seismic detects (`land`, the main branch).
 4. Seismic's default.
 
 "Configuration" shows each value with where it comes from ("from the repository" for the file).
 The file is read from the default branch (the local one when it has all of `origin`'s commits,
-else `origin`'s as last fetched), not from the checkout: the clones a canvas works in are on
+else `origin`'s as last fetched), not from the checkout: the clones a project works in are on
 cards' branches most of the time. So **a change committed on a branch does nothing yet**; it
 counts once it is on the default branch, and then without a restart (Seismic reads it again whenever
 it reads the default branch anew: a landing, a merged pull request, a fetch). The one exception is
@@ -276,7 +276,7 @@ into the repository for everyone".
    `app.run` says and open it; run `app.stop` and see it stop.
 3. **A demo comes out of `app.run`.** Record one with the demo skill, following the recipe and
    nothing else. This is what the settings skill does before it hands over.
-4. **On a canvas, once it is merged.** A canvas reads the settings from the default branch only,
+4. **On a project, once it is merged.** A project reads the settings from the default branch only,
    so steps 1–3 are what can be tried before the merge. Once they are on the default branch, the
    next card started gets its brief from them; new or changed commands wait in "Configuration"
    until you trust them.

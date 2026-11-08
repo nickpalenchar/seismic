@@ -67,10 +67,10 @@ not free the card. The card says so ("Waiting for W2 "…" (not started yet)", i
 queue's list and the plan's sheet), so the owner sees which to start first. Even with nothing in
 progress or queued, it skips this judgement only when no workstream of its plan is left unlanded.
 
-A dependency drawn by the owner (see Cards on the canvas) holds the card until the prerequisite has
+A dependency drawn by the owner (see Cards on the project) holds the card until the prerequisite has
 finished, including while that prerequisite is not started or stopped: a card started afterwards
 queues behind it once judged, and one in the queue when the arrow is drawn waits for it from then on,
-also one waiting only for a workstation or for the canvas's agents to resume. An arrow counts as a
+also one waiting only for a workstation or for the project's agents to resume. An arrow counts as a
 wait wherever the queue reads waits: a card held by one is never ahead of its prerequisite or
 among the cards that one may build on, a card does not pass it in the queue, and the arrows that
 would close a cycle with other arrows or waits are refused. An arrow holds a card only until it
@@ -83,7 +83,7 @@ inferred wait has ended. The card says that it waits because the owner connected
 waiting box, on its face and with a line in its conversation once the arrow holds it, with the
 inferred waits' own reason beside that where both hold it; an arrow is never given the reason of an
 inferred wait. Starting a card anyway while arrows hold it (its play
-button on the canvas or "Start anyway") asks first, naming the unfinished cards it was drawn to
+button on the project or "Start anyway") asks first, naming the unfinished cards it was drawn to
 wait for.
 
 #### Follow-up tasks of a review
@@ -127,13 +127,13 @@ card between, which each move up one place. The order decides who goes first onc
 free workstation, and which cards count as ahead when one is judged again.
 
 A card waiting for other cards shows, under what it waits for, the chain it waits in as small
-cards one above the other, in the look the canvas gives waits while the pointer is on a card (tags,
+cards one above the other, in the look the project gives waits while the pointer is on a card (tags,
 rings and arrows; see below): on top the card it waits for ("comes first"; the first, where it waits
 for several), then the card itself, its title alone, tagged "This card" in green, then a card that
 waits for it ("waits for it"; the first in the queue where several do). The cards above and below
-show their face as on the canvas and open in its place.
+show their face as on the project and open in its place.
 
-Each direct wait is a faint line on the canvas at all times (see Cards on the canvas). While the
+Each direct wait is a faint line on the project at all times (see Cards on the project). While the
 pointer is on a card, its waits show both ways over every step over the faint lines: the cards it
 waits for ("comes first") in purple and those waiting for it ("waits for it") in the waiting colour,
 each with a ring, its tag and an arrow from the card waited for to the card waiting, so the two
@@ -169,7 +169,7 @@ which. It may name a rule it changes, which takes the new text or, moved into a 
 The learner reads answers, notes and feedback to workers, an idea's discussion, the conversation
 with the Koordinator (a command once its undo window has passed), and text the owner writes in a
 card once they pause for a minute or act on it. It sees each input with the card's text, the owner's
-words of the last three days, the agent's last message before the input, the canvas's repositories,
+words of the last three days, the agent's last message before the input, the project's repositories,
 the active rules and the open and rejected proposals. Its signals: general phrasing ("always", "never",
 "from now on"), a correction of how an agent works, a repetition. At most one proposal per input.
 
@@ -187,7 +187,7 @@ proposes up to three rules, each with what it rests on ("From the retrospective:
 Open proposals stand as individual inbox entries with their occasion, the rule a change would
 replace, and where it goes ("Belongs in": the preferences or a repository's CLAUDE.md), which the
 owner may switch. The owner accepts, edits before accepting, or rejects; rejected ones are kept so
-the learner sees them. They count in the inbox across canvases. Active rules are managed in the Rules section of Seismic’s Preferences. The Koordinator gets the rules, numbered, with every command, and follows them
+the learner sees them. They count in the inbox across projects. Active rules are managed in the Rules section of Seismic’s Preferences. The Koordinator gets the rules, numbered, with every command, and follows them
 itself too.
 
 #### Rules for a CLAUDE.md
@@ -195,7 +195,7 @@ itself too.
 A rule for a CLAUDE.md goes into that repository's open card "Add to CLAUDE.md", or a new one; its
 worker writes the rules in the style of what is there. A new card is labelled Docs and Configuration at
 once, as set labels, not as suggestions: Seismic makes the card itself, so there is nothing to
-suggest (owner, 2026-11-05). No session is needed, and the canvas's suggestion toggles do not apply. The card starts by itself once no proposal waits any more (a waiting one might yet
+suggest (owner, 2026-11-05). No session is needed, and the project's suggestion toggles do not apply. The card starts by itself once no proposal waits any more (a waiting one might yet
 be switched to its repository), so several go in together.
 It lands like any card; until then the rule applies to no agent, afterwards through the CLAUDE.md
 alone.
@@ -214,18 +214,18 @@ The conversation is split into chats, so it does not grow into one long one. The
 into the chat open now; the sheet shows only that one. In the sheet's head, the icon at the left
 slides out the earlier chats over the conversation, the latest first, each named by the owner's
 first words in it, with when it was last talked in and its unread answers; a switch there shows
-this canvas's chats (labelled with the canvas's name, "This canvas" in small text below it; the
-default) or every canvas's ("All canvases", each with its
-canvas's name). Picking one opens it (on another canvas, that canvas's sheet with it); the icon at
+this project's chats (labelled with the project's name, "This project" in small text below it; the
+default) or every project's ("All projects", each with its
+project's name). Picking one opens it (on another project, that project's sheet with it); the icon at
 the right ("New chat") starts an empty one, greyed out while the open one is empty, and an empty
-chat left for another goes. Which chat is open is kept by the server per canvas, so the phone and
+chat left for another goes. Which chat is open is kept by the server per project, so the phone and
 every page talk in the same one. The phone's Seismic panel has the same head: the list from the menu
 icon at its top left, a new chat from the icon at its top right.
 
-The model selector beside the chat field applies to this chat on this canvas, on the phone and in
-the sheet alike. “Canvas setting” follows the configured Seismic model; a chosen Claude model
+The model selector beside the chat field applies to this chat on this project, on the phone and in
+the sheet alike. “Project setting” follows the configured Seismic model; a chosen Claude model
 overrides that setting for this chat. Changing the choice starts a fresh agent session for the next
-message while keeping this chat's conversation. A new chat starts with the canvas setting, and
+message while keeping this chat's conversation. A new chat starts with the project setting, and
 returning to an earlier chat restores its choice.
 
 An exchange the Koordinator takes up by itself (a wait met, a looked-up answer's step) goes into the
@@ -235,7 +235,7 @@ list's icon shows a dot and the chat its count, and opening the sheet for it whi
 has nothing unread opens that chat. Each chat is the Koordinator's memory while it is open (see
 Koordinator memory).
 
-The conversation does not list proposals or preferences; the inbox and Preferences hold them. What runs is not listed: the canvas shows it.
+The conversation does not list proposals or preferences; the inbox and Preferences hold them. What runs is not listed: the project shows it.
 
 Messages look like a card's: the owner's on the right, who and when above, markdown (each line a
 paragraph, each blank line an empty line as typed, lists, tables, code, nested quotes; the plan
@@ -337,7 +337,7 @@ goes there after the cards that need the owner; such answers keep an orange edge
 closes. An answer that arrives while the sheet is in view, or in a card's log, is read where it
 arrives. The quick turn's own reply waits the same way when it only answers, since a long one takes
 20 s and more and the owner may have moved on (2026-10-19). A confirmation of actions does not wait:
-the canvas shows what it did, with "Undo" above the microphone.
+the project shows what it did, with "Undo" above the microphone.
 
 The Koordinator hears each answer in full with the next command (so "yes" to a card it offered
 works), and it is part of its memory. A question still open at a restart is looked up again. A
@@ -407,7 +407,7 @@ of its own.
 
 ### Koordinator memory
 
-The owner's commands go to one ongoing session per canvas, so it understands "the other one too". It
+The owner's commands go to one ongoing session per project, so it understands "the other one too". It
 sees a card's open question, also one in a demo report, so "yes" is an answer, not an approval. An
 approval by word ("deploy it", "ship it") lands the way the repository sets; words that ask to
 bypass the pull request ("without a PR", "straight to main") approve nothing in a repository whose work
@@ -421,9 +421,9 @@ A session that fails (an error result, which the SDK may report as `success` wit
 replaced by a fresh one for the same command; if that fails too, the owner hears the reason ("Claude
 is not logged in on this machine: …"), not "not understood". Sessions are never resumed:
 after a restart, after 30 commands and when the owner opens another chat (see Chats), a fresh one
-starts from memory (the last 20 exchanges of the chat open now, the canvas's last 14 days, the
+starts from memory (the last 20 exchanges of the chat open now, the project's last 14 days, the
 newest five of that chat's looked-up answers in full). A new chat thus starts without the earlier
-conversation, but still knows the canvas's history.
+conversation, but still knows the project's history.
 
 ### Wishes for Seismic's makers
 
@@ -484,7 +484,7 @@ passed the words on through `to_seismic` hears that the owner finds the link und
 - **A card's change list is its own work, read without blocking** (2026-10-21, GitHub issue #2).
   Rejected: diffing each card in full against the main branch, one after the other on the server's
   thread: cards on a feature branch 766 commits ahead each counted the whole branch (30–70 s per
-  card on Windows), and every canvas lost its server connection for minutes.
+  card on Windows), and every project lost its server connection for minutes.
 - **A start that finds no workstation is a wait, not a failure** (2026-10-05), so a card the owner
   started starts by itself once a workstation frees up.
 - **The queue's list is reordered by dragging, not by one-place buttons** (2026-10-26): with more
@@ -544,7 +544,7 @@ passed the words on through `to_seismic` hears that the owner finds the link und
   about progress over time ("what has happened since yesterday?") and refers to cards by what happened.
 - **Chats, each the Koordinator's memory while open** (2026-11-06, the owner): one endless
   conversation grew long and mixed unrelated topics. A new chat forgets the earlier words but not
-  the canvas's history, since "what happened since yesterday?" must still work. The open chat is
-  the server's, per canvas, not the browser's, so voice, the phone and the desktop agree on where
+  the project's history, since "what happened since yesterday?" must still work. The open chat is
+  the server's, per project, not the browser's, so voice, the phone and the desktop agree on where
   words go. Rejected: a chat per browser tab, and looked-up threads as the unit (they are single
   questions, not conversations).

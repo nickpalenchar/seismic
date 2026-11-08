@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { currentAgent } from './agent-identity';
-import { AGENT_DEFAULTS, type AgentSetting, agentListens, answering, askable, type Awaited, awaited, type AwaitedState, blocksSaving, type CanvasConfig, finished, handedOver, type Item, type NextStep, type Notice, openQuestions, pausableNow, plannableAsPlan, halted, untouched, prototypeWorkstream, snoozable, SNOOZE_LIMIT, type Queue, type SpotInput, type Talk, type TalkAfter, type TalkQuote, type TalkRef } from '../core/types';
+import { AGENT_DEFAULTS, type AgentSetting, agentListens, answering, askable, type Awaited, awaited, type AwaitedState, blocksSaving, type ProjectConfig, finished, handedOver, type Item, type NextStep, type Notice, openQuestions, pausableNow, plannableAsPlan, halted, untouched, prototypeWorkstream, snoozable, SNOOZE_LIMIT, type Queue, type SpotInput, type Talk, type TalkAfter, type TalkQuote, type TalkRef } from '../core/types';
 import { holdsNotes, notStarted } from '../core/queue';
 import { answerTag, fromAnswerTag } from './answers';
 import { BadRequest, type Board, excerpt, replyNote } from './board';
@@ -20,17 +20,17 @@ import type { Wish } from '../core/wish';
 
 export type Command = (
   /**
-   * `from`: the card it follows up on; `place`: where the owner was on the canvas, for one without;
+   * `from`: the card it follows up on; `place`: where the owner was on the project, for one without;
    * `until` (ISO): it is planned and starts by itself then, as a planned card the owner snoozed.
    */
-  /** `canvas`: another canvas of this Seismic, where the card goes instead (into its home repository). */
-  | { do: 'newCard'; title: string; body: string; start: boolean; until?: string; repo?: string; from?: string; place?: Place; canvas?: string }
-  | { do: 'newIdea'; title: string; body: string; repo?: string; place?: Place; canvas?: string }
+  /** `project`: another project of this Seismic, where the card goes instead (into its home repository). */
+  | { do: 'newCard'; title: string; body: string; start: boolean; until?: string; repo?: string; from?: string; place?: Place; project?: string }
+  | { do: 'newIdea'; title: string; body: string; repo?: string; place?: Place; project?: string }
   /**
    * An idea is built, or a planned task started, in a repository that does not exist yet, at `path`:
-   * with a canvas of its own (`canvas`), or on this one.
+   * with a project of its own (`project`), or on this one.
    */
-  | { do: 'newRepo'; card: string; path: string; canvas: boolean }
+  | { do: 'newRepo'; card: string; path: string; project: boolean }
   /**
    * A review card for someone outside's pull request (`pr`: its number in the repository, or its
    * URL), started; `text`: what the owner added for the review. Where the PR has a card, that one
@@ -50,7 +50,7 @@ export type Command = (
   /** `revise`: the owner's words on a proposal, which an agent reworks it by. */
   | { do: 'note' | 'answer' | 'feedback' | 'discuss' | 'prototype' | 'revise'; card: string; text: string; spoken?: boolean }
   /** Saves Seismic's configuration, which then starts again with it. */
-  | { do: 'configure'; canvases: CanvasConfig[] }
+  | { do: 'configure'; projects: ProjectConfig[] }
   /**
    * Records a rule every agent follows, active at once, or with `repos` files it for those
    * repositories' CLAUDE.md; `replaces`: the rule (id) it changes, `card`: the card open when the owner said it.
@@ -58,7 +58,7 @@ export type Command = (
   | { do: 'remember'; text: string; replaces?: number; card?: string; repos?: string[] }
   /** Runs the work retrospective of a repository now. */
   | { do: 'workRetro'; repo: string }
-  /** Puts the cards into the group of that name, a new one when the canvas has none of that name. */
+  /** Puts the cards into the group of that name, a new one when the project has none of that name. */
   | { do: 'group'; cards: string[]; name: string }
   | { do: 'ungroup'; cards: string[] }
   | { do: 'renameGroup'; group: string; name: string }
@@ -126,7 +126,7 @@ export interface Heard {
 export interface Focus {
   card?: string;
   plan?: string;
-  /** Where on the canvas the owner was: a new card goes there. */
+  /** Where on the project the owner was: a new card goes there. */
   place?: Place;
 }
 
@@ -202,8 +202,8 @@ export interface CommanderOptions {
   imageFiles?: (ids?: string[]) => string[];
   /** Seismic's configuration: the Koordinator reads it, and changes it on the owner's word. */
   config?: Pick<Config, 'view' | 'check' | 'checkSaved'>;
-  /** The other canvases that run now: a new card or idea may go there. */
-  canvases?: () => { id: string; name: string }[];
+  /** The other projects that run now: a new card or idea may go there. */
+  projects?: () => { id: string; name: string }[];
   /** How long after the usage limit lifts the Koordinator reads the words it held, so that clocks a little apart do not matter. */
   limitMargin?: number;
   /** The Koordinator's model and effort; another one chosen since takes a new session. */
@@ -230,7 +230,7 @@ interface Session {
   tagOf: Map<string, string>;
   /** Commands it has read so far; the first one brings the memory. */
   read: number;
-  /** Up to where it knows the canvas's history; none before the first command. */
+  /** Up to where it knows the project's history; none before the first command. */
   since?: Mark;
   /** The rules as numbered in the latest message (their ids), for `remember` to name the one it changes. */
   rules: number[];
@@ -274,9 +274,9 @@ const ACTION = z.object({
   state: z.enum(['done', 'waits_for_owner']).optional(),
   on: z.string().optional(),
   pr: z.string().optional(),
-  canvas: z.string().optional(),
+  project: z.string().optional(),
   path: z.string().optional(),
-  own_canvas: z.boolean().optional(),
+  own_project: z.boolean().optional(),
 });
 type ActionArgs = z.infer<typeof ACTION>;
 
@@ -404,7 +404,7 @@ export class Commander {
     const commands = decision.commands.map((c): Command => {
       // a rule said with a card open has that card as its occasion
       if (c.do === 'remember') return card ? { ...c, card } : c;
-      // a new card lands where the owner was on the canvas; a follow-up goes beside the card it follows
+      // a new card lands where the owner was on the project; a follow-up goes beside the card it follows
       if (focus.place && ((c.do === 'newCard' && !c.from) || c.do === 'newIdea' || c.do === 'reviewPr')) c = { ...c, place: focus.place };
       if (c.do === 'reviewPr') return { ...c, spoken: !input.typed };
       const told =
@@ -545,7 +545,7 @@ export class Commander {
         const id = await this.run(command, w.talk, made);
         if (id && command.do === 'newCard') {
           made.set(command.title, id);
-          cards.push({ id, title: command.title, ...(command.canvas ? { canvas: command.canvas } : {}) });
+          cards.push({ id, title: command.title, ...(command.project ? { project: command.project } : {}) });
         }
       }
       this.waiting.delete(token);
@@ -740,7 +740,7 @@ export class Commander {
     this.o.board.notify({ text: heard.confirm, ...(card ? { cardId: card } : { talk }), ...(heard.token ? { token: heard.token, undoMs: this.delayMs } : {}), ...(heard.wish ? { wish: heard.wish } : {}) });
   }
 
-  /** Words Whisper should expect: Seismic's own, and the titles on the canvas. */
+  /** Words Whisper should expect: Seismic's own, and the titles on the project. */
   vocabulary(): string {
     const titles = this.o.board
       .snapshot()
@@ -784,7 +784,7 @@ export class Commander {
     const say = CONFIRM[language];
     const s: Session = { agent: null as unknown as AgentSession, ended: false, languages: this.languages(), choice: this.choice(), chat: this.o.board.chat(), tags: new Map(), tagOf: new Map(), read: 0, rules: [] };
     const finish = (commands: Command[], confirm: string, lookUp?: LookUp, more?: More) => (s.reading ? s.reading.finish(commands, confirm, lookUp, more) : 'No command to read.');
-    const repos = this.o.board.canvas.repos;
+    const repos = this.o.board.project.repos;
     const config = this.o.config;
     s.agent = this.o.runtime.start({
       cwd: this.o.cwd,
@@ -799,10 +799,10 @@ export class Commander {
           description: [
             'Do what the owner asked: one or more actions, in the order the owner said them. They run together after a short undo window, with one confirmation for all.',
             'Actions (card: the tag of the card; new_card and new_idea take none, except a follow-up):',
-            `- new_card: a new card. title short and precise, body what the owner asked for in their words, start false only when the owner says it should wait (“just note it”, “for later”, “do not start yet”), else true: work on it begins right away, as with a click on "Start agent" (checked for conflicts with work in progress, queued if need be); until when the owner names a time for the work (“early December”, “only on Monday”, “in two weeks”): it is planned now and starts by itself then, as with snooze on a planned card (the local time as for snooze, 08:00 on a day without an hour, the first of a month for its beginning)${repos.length > 1 ? ', repo the repository it belongs to (an id from the list)' : ''}; canvas: where the owner wants it on another canvas of this Seismic (“create a task on Super 59”), that canvas's name from the list, and it goes into that canvas's first repository. A follow-up of a card (for one of its findings, or something from its summary): card the tag of that card, and body the finding or passage in full, then what the owner added.`,
-            "- start: start work on a planned card; path and own_canvas as for build on an idea, where the owner wants a planned task of theirs nobody has worked on yet started in a repository that does not exist yet. On a queued card (waiting behind cards in progress or queued ahead of it) it starts it now, despite the likely merge conflict; a card Seismic is still checking starts by itself unless its changes likely conflict with work in progress. On a plan: all its planned workstreams go to Seismic together, which decides their order and which of them wait (for a dependency or a likely conflict); use it when the owner wants a plan's workstreams started (\"start the plan\", \"all workstreams\") rather than starting them one by one.",
+            `- new_card: a new card. title short and precise, body what the owner asked for in their words, start false only when the owner says it should wait (“just note it”, “for later”, “do not start yet”), else true: work on it begins right away, as with a click on "Start agent" (checked for conflicts with work in progress, queued if need be); until when the owner names a time for the work (“early December”, “only on Monday”, “in two weeks”): it is planned now and starts by itself then, as with snooze on a planned card (the local time as for snooze, 08:00 on a day without an hour, the first of a month for its beginning)${repos.length > 1 ? ', repo the repository it belongs to (an id from the list)' : ''}; project: where the owner wants it on another project of this Seismic (“create a task on Super 59”), that project's name from the list, and it goes into that project's first repository. A follow-up of a card (for one of its findings, or something from its summary): card the tag of that card, and body the finding or passage in full, then what the owner added.`,
+            "- start: start work on a planned card; path and own_project as for build on an idea, where the owner wants a planned task of theirs nobody has worked on yet started in a repository that does not exist yet. On a queued card (waiting behind cards in progress or queued ahead of it) it starts it now, despite the likely merge conflict; a card Seismic is still checking starts by itself unless its changes likely conflict with work in progress. On a plan: all its planned workstreams go to Seismic together, which decides their order and which of them wait (for a dependency or a likely conflict); use it when the owner wants a plan's workstreams started (\"start the plan\", \"all workstreams\") rather than starting them one by one.",
             '- dequeue: take a card out of the queue (waiting behind other cards, for a free workstation, or still being checked by Seismic); it goes back to planned and does not start until started again (“take … out of the queue”, “do not start … after all”).',
-            "- note: text to the agent working on a card (working, in PR, waiting, or live or done while its agent finishes after the landing), or for the agent that will take on a planned card (in the queue or not, stopped too), which gets it with the task once it starts; it doesn't stop it. Whatever the owner says to the agent: an instruction, a remark on its work, a question to it; never a question the owner asks you about the canvas.",
+            "- note: text to the agent working on a card (working, in PR, waiting, or live or done while its agent finishes after the landing), or for the agent that will take on a planned card (in the queue or not, stopped too), which gets it with the task once it starts; it doesn't stop it. Whatever the owner says to the agent: an instruction, a remark on its work, a question to it; never a question the owner asks you about the project.",
             "- answer: text as the answer to the card's open question: the agent's, or the one in its demo report (the demo then still waits for approval). A bare “yes” or “no” to a card with an open question is an answer, not an approval.",
             '- feedback: text as feedback on work waiting for review (demo or summary), a question about that work included; its agent takes it in while the work still waits for approval, and hands over anew when it changes something.',
             '- approve: approve work waiting for review; it lands the way its repository sets (on main, or as a pull request), also where the words of the owner release it (“deploy it”, “ship it”, “get it out”, “approve”). direct: true where the words ask to bypass the pull request itself (“without a PR”, “straight on main”, “bypass the PR”). accept: take a proposed card and start it (a proposed idea: its discussion opens; the open questions on it go along); idea: true when the owner wants a proposed task discussed as an idea first rather than built (“as an idea”, “discuss first”). dismiss: discard a proposed card, or one its agent withdrew or replaced since (the list says so; it goes, its worker stopped). keep: keep such a withdrawn or replaced card as it is. revise: text what the owner wants changed in a proposed card, or their thoughts on it (added, dropped, decided, put differently); an agent rewrites its text and questions by it in a minute or so, and accepting it waits for that (by a click once it is there).',
@@ -810,12 +810,12 @@ export class Commander {
             "- wait_for: a step you take later, once a card gets somewhere (start a card once another has landed; pass the owner's words on once a card waits for them). on: the card to wait on, its tag, or the title of a new_card in this same act (in “start Login once Export is done”: Export); it takes no card, since the card the step acts on (Login there) is named in text. state: done (the default: its work is on main, or it was closed without a change) or waits_for_owner (it asks the owner or hands its work over). text: the step, standing on its own, with what the owner asked for (names, paths, values) and cards by their titles (tags may change by then). Seismic wakes you once that card gets there, or no longer can (stopped, removed), and you take the step then; confirm says that you will. Nothing else wakes you for a later step. A new card you wait on gets in its body only its agent's part, without your step: its agent would try that step itself, and Seismic would refuse it. stop_waiting: you no longer wait on the card (on), when the owner no longer wants that step.",
             '- snooze: set a card aside until a point in time (“put that off until tomorrow morning”, “remind me of it on Monday”, “that later”), on a card at work (its agent stops until then, as on a pause, and goes on at the time), one waiting for the owner (it leaves their list until then; nothing goes to its agent), or a planned one not yet with Seismic (it starts at the time instead of now: “start only on Monday”); on a snoozed card it changes the time. until: the local time as YYYY-MM-DDTHH:MM, from Now above (“this evening” 18:00, “tomorrow morning” 08:00, “Monday” 08:00 next Monday). wake: a snoozed card now (“bring … back”, “wake … up”); a planned one starts then, as start does.',
             `- review_pr: a review card for a pull request someone outside opened, whenever the owner asks for a pull request to be reviewed (“Review PR #5”, “have a look at the PR” with its link), one review_pr for each pull request (“reviews for 5, 6 and 7”: three; a list you looked up: one for each in it). pr: its number or URL (it takes no card tag); text: what the owner adds for this review in their words (“look especially at security”, “the demo only on the phone”), else empty${repos.length > 1 ? ', repo the repository whose pull request it is (an id from the list)' : ''}. Its agent reviews the code, records a demo before and after, runs the checks and records its findings one by one on the card, where the owner decides on each and merges the PR; a task from new_card has none of that. A PR that has a review card already opens that one, and the text goes to its agent. confirm e.g. ${say.reviewPr}`,
-            `- new_idea: a new idea to think through with an exploration agent before anything is planned ("I want to think about …", "Idea: …"). title short and precise, body what the owner said about it, in their words${repos.length > 1 ? ', repo as for new_card' : ''}; canvas as for new_card.`,
+            `- new_idea: a new idea to think through with an exploration agent before anything is planned ("I want to think about …", "Idea: …"). title short and precise, body what the owner said about it, in their words${repos.length > 1 ? ', repo as for new_card' : ''}; project as for new_card.`,
             `- remember (no card): a rule the owner wants kept for all future work (“Remember: …”, “from now on always …”). text: the rule, short and general, in the owner's language; replaces: the number of a rule of the owner it changes or contradicts, also when it moves that rule into a CLAUDE.md. It goes to one of two places. The owner's rules, for how the agents work with the owner through Seismic whatever the repository (what to ask and what to decide alone, how to report, hand over and demo): leave repos out; it applies at once. A repository's CLAUDE.md, for anything about a repository (its conventions, product, tools, how its code is written, tested and landed, its UI and wording, taste in code even when it holds in every repository): repos the ids of the repositories it concerns (usually the open card's; every one when it holds in all of them); it goes into the repository's card ${t.quote(t.claudeMd.title)}, whose worker writes it into the CLAUDE.md. confirm says where it goes (${say.remember}).`,
             `- work_retro (no card): the work retrospective of a repository, now (“Do a work retrospective for the shop”): it reads the friction noted on the workers' runs of its finished cards since the last one and proposes cards (a script, a skill), CLAUDE.md lines or values for the repository's settings (checks, setup, soft paths, how to run the app for a demo) for what recurs on several cards; they come as proposals for the owner, and the owner hears when it is done. It also runs by itself: in a new repository after its first finished card, then after 2 more and 4 more, then every 10. repo: the repository's id (the one the owner names, else the open card's, else the first). confirm e.g. ${say.retro}`,
-            "- On a card in state idea: discuss (text: what the owner says in its discussion: a thought, a question, an answer to the idea's agent; it goes on at once, without undo), build (its brief becomes the task and a worker starts on it at once; while its agent works on a reply, or starts on one with a discuss in the same command, once that reply is there, unless the reply asks questions; it ends the discussion, and the idea's prototypes, planned and running, are thrown away; path: where the owner wants it built in a repository that does not exist yet (“build that in a new repo under ~/dev/super59”), its folder, absolute or from ~: Seismic creates the folder and a local git repository (no remote), a canvas of its own named after it, moves the idea there with its brief, conversation and decisions, and builds it there, after a few seconds in which the owner can take it back on the card; own_canvas: false where the owner wants the new repository on this canvas instead; the list says where the idea's agent or the owner chose a new repository already, and build without path builds it there), split_off (only where the list says its agent marked a part as settled: that part becomes a task of its own beside the idea, which a worker starts on at once, and the idea stays open with its discussion and its prototypes for what is still open), plan_doc (a big idea becomes a plan: an agent starts at once on its plan doc, and the plan then takes the idea's place), prototype (a worker builds a throwaway prototype shown as a demo on it, beside any others; text: what it should show, its approach first in a few words; empty: one prototype for each variant its agent planned that has none running yet, all at once, or without planned variants one of the idea as it stands), park (for later), drop (it stays on the canvas with its brief). Planning an idea, or splitting a task off it, waits for its agent's reply while it works on one, or starts on one in the same command: then pass what the owner said with discuss, and say that it goes by a click once the reply is there.",
+            "- On a card in state idea: discuss (text: what the owner says in its discussion: a thought, a question, an answer to the idea's agent; it goes on at once, without undo), build (its brief becomes the task and a worker starts on it at once; while its agent works on a reply, or starts on one with a discuss in the same command, once that reply is there, unless the reply asks questions; it ends the discussion, and the idea's prototypes, planned and running, are thrown away; path: where the owner wants it built in a repository that does not exist yet (“build that in a new repo under ~/dev/super59”), its folder, absolute or from ~: Seismic creates the folder and a local git repository (no remote), a project of its own named after it, moves the idea there with its brief, conversation and decisions, and builds it there, after a few seconds in which the owner can take it back on the card; own_project: false where the owner wants the new repository on this project instead; the list says where the idea's agent or the owner chose a new repository already, and build without path builds it there), split_off (only where the list says its agent marked a part as settled: that part becomes a task of its own beside the idea, which a worker starts on at once, and the idea stays open with its discussion and its prototypes for what is still open), plan_doc (a big idea becomes a plan: an agent starts at once on its plan doc, and the plan then takes the idea's place), prototype (a worker builds a throwaway prototype shown as a demo on it, beside any others; text: what it should show, its approach first in a few words; empty: one prototype for each variant its agent planned that has none running yet, all at once, or without planned variants one of the idea as it stands), park (for later), drop (it stays on the project with its brief). Planning an idea, or splitting a task off it, waits for its agent's reply while it works on one, or starts on one in the same command: then pass what the owner said with discuss, and say that it goes by a click once the reply is there.",
             "- plan_doc also on a planned task of the owner's that nobody has worked on yet (not with Seismic, no branch): an agent starts at once on a plan doc with workstreams from the task, and the plan then takes the task's place (“make a plan from that”).",
-            `- group: put cards into a group, shown on the canvas as a coloured territory behind them. cards: their tags; text: the group's name (group is only for rename_group), one the canvas has (see the list) or a new one, which is then created. A card is in one group at most, so this takes it out of its group. A workstream stands for its plan: the whole plan goes into the group. ungroup: take cards (cards) out of their group. rename_group: group the group's current name, text its new name. A group no card belongs to any more goes. confirm e.g. ${say.group}`,
+            `- group: put cards into a group, shown on the project as a coloured territory behind them. cards: their tags; text: the group's name (group is only for rename_group), one the project has (see the list) or a new one, which is then created. A card is in one group at most, so this takes it out of its group. A workstream stands for its plan: the whole plan goes into the group. ungroup: take cards (cards) out of their group. rename_group: group the group's current name, text its new name. A group no card belongs to any more goes. confirm e.g. ${say.group}`,
             `- merge: planned tasks that are one task (dictated twice, say, or follow-ups that belong together) become one. cards: their tags, the one that stays first (it keeps its place and group); title: a new title for the merged task, short and precise, that covers what all of them are about. Their texts go into it unchanged, each under its title, and the others go. delete: a planned task the owner no longer wants (card). Both only on planned tasks nobody has worked on yet (no branch; queued only while waiting behind other cards), merge only within one repository; a merged task waits for what any of them waited for; a proposal is dismissed instead, an idea dropped. confirm e.g. ${say.merge}`,
             '- On a prototype (a card marked prototype of an idea): build (the idea is built on this prototype\'s branch; its other prototypes are thrown away; when the idea became a plan, one of its workstreams is built on the branch instead: the one its plan doc builds on the prototype with, or cards: the tag of the one the owner names), drop (the prototype is thrown away into the archive). approve on a prototype also throws it away.',
             `- wish (no card): the owner wants Seismic's makers told something about Seismic itself: a wish, something missing, a bug (“Seismic, feedback: …”, “Tell the developers …”, “Wish for Seismic: …”). text: what they want the makers to know, in their words. It opens a draft for the owner to check and send on GitHub themselves; nothing goes out. Feedback on a card's work is feedback, and the developers of the repository's own app are the agents (a new card), not this. confirm e.g. ${say.wish}`,
@@ -866,7 +866,7 @@ export class Commander {
               {
                 name: 'config',
                 description: [
-                  "Read Seismic's configuration: the projects this Seismic serves (canvases), each with its repositories (path; git: false for a folder without git, whose cards work in it directly, with neither clones nor hosts; clones: clones to create, workstations: existing clones to use, slots: how many of its workers may be busy at once on this machine (as many as there are clones when left out, any number for repositories whose workers use worktrees), hosts: other machines over SSH its workers run on (name, ssh target, root directory there, clones, slots), a new card going to the first machine with a free slot, this one first; all but slots only for repositories whose workers use clones; settings: the values the owner set for this machine in front of the repository's .obeya/settings.json: main branch (branch), how approved work lands (land: main or pr; direct; autoMerge: false where the people on the forge merge a ready pull request instead of Seismic), checks, setup, planDocs, softPaths, workstations, prNoise, app (run: the recipe for running the app that every worker reads, in prose; stop and keep: the commands Seismic runs to stop a waiting card's app), language (of what lands in the repository: code, docs, commit messages; en or de, English when left out), demo's language, demo's site (title, url, deploy command line with {dir}, env, headers, maxFile, publish: approved where each approved card's latest demo goes on the site by itself; without one, \"Share\" exports a demo as a ZIP or one HTML file)), what they amount to (resolved: project id, as in /p/<id>, name, repository ids, whether workers use clones or worktrees, adapterGone where the repository still has an adapter module Seismic no longer reads, trust where commands of its settings or its own Claude Code settings are new or changed on its default branch and wait for the owner to trust them in the Configuration dialog (held: which groups; now and before: the commands), and values: each setting as it stands without this machine's, with its source), problems, which canvases run now (running), where it is saved (file; source: whether the running canvases come from that file or from the command line), and the server's settings from its command line (port, data directory, the agents' permission mode, whether it restarts by itself).",
+                  "Read Seismic's configuration: the projects this Seismic serves (projects), each with its repositories (path; git: false for a folder without git, whose cards work in it directly, with neither clones nor hosts; clones: clones to create, workstations: existing clones to use, slots: how many of its workers may be busy at once on this machine (as many as there are clones when left out, any number for repositories whose workers use worktrees), hosts: other machines over SSH its workers run on (name, ssh target, root directory there, clones, slots), a new card going to the first machine with a free slot, this one first; all but slots only for repositories whose workers use clones; settings: the values the owner set for this machine in front of the repository's .obeya/settings.json: main branch (branch), how approved work lands (land: main or pr; direct; autoMerge: false where the people on the forge merge a ready pull request instead of Seismic), checks, setup, planDocs, softPaths, workstations, prNoise, app (run: the recipe for running the app that every worker reads, in prose; stop and keep: the commands Seismic runs to stop a waiting card's app), language (of what lands in the repository: code, docs, commit messages; en or de, English when left out), demo's language, demo's site (title, url, deploy command line with {dir}, env, headers, maxFile, publish: approved where each approved card's latest demo goes on the site by itself; without one, \"Share\" exports a demo as a ZIP or one HTML file)), what they amount to (resolved: project id, as in /p/<id>, name, repository ids, whether workers use clones or worktrees, adapterGone where the repository still has an adapter module Seismic no longer reads, trust where commands of its settings or its own Claude Code settings are new or changed on its default branch and wait for the owner to trust them in the Configuration dialog (held: which groups; now and before: the commands), and values: each setting as it stands without this machine's, with its source), problems, which projects run now (running), where it is saved (file; source: whether the running projects come from that file or from the command line), and the server's settings from its command line (port, data directory, the agents' permission mode, whether it restarts by itself).",
                   'Call it for any question about the configuration, and before configure.',
                 ].join('\n'),
                 schema: {},
@@ -875,20 +875,20 @@ export class Commander {
               {
                 name: 'configure',
                 description: [
-                  "Change Seismic's configuration on the owner's word: canvases is the whole new list as config shows it (keep what the owner did not ask to change). It is saved after the undo window and applies while Seismic runs, without a restart: a new canvas or repository starts at once; a repository whose agents now work elsewhere (clones, workstations, slots, hosts, workstations in its settings) or that leaves has its agents restarted or stopped once they paused, the others working on.",
-                  "A canvas's id follows its name (without one, the first repository's name), unless id is set: to rename a canvas, set id to its current id (from resolved), or it becomes a new, empty canvas and its cards stay under the old id, unseen. The first repository a canvas was served with stays its home and must stay listed. Server settings (port, permission mode) are not part of it; they come from the command line.",
+                  "Change Seismic's configuration on the owner's word: projects is the whole new list as config shows it (keep what the owner did not ask to change). It is saved after the undo window and applies while Seismic runs, without a restart: a new project or repository starts at once; a repository whose agents now work elsewhere (clones, workstations, slots, hosts, workstations in its settings) or that leaves has its agents restarted or stopped once they paused, the others working on.",
+                  "A project's id follows its name (without one, the first repository's name), unless id is set: to rename a project, set id to its current id (from resolved), or it becomes a new, empty project and its cards stay under the old id, unseen. The first repository a project was served with stays its home and must stay listed. Server settings (port, permission mode) are not part of it; they come from the command line.",
                   `confirm: one short sentence in the owner's language saying what changes and, where a repository's agents restart for it, that they do once they paused, e.g. ${say.configure}`,
                 ].join('\n'),
                 schema: {
-                  canvases: configShape,
+                  projects: configShape,
                   confirm: z.string(),
                 },
-                run: async ({ canvases, confirm }: Record<string, unknown>) => {
-                  const { problems: all, canvases: checked } = await config.check(canvases);
+                run: async ({ projects, confirm }: Record<string, unknown>) => {
+                  const { problems: all, projects: checked } = await config.check(projects);
                   const problems = all.filter(blocksSaving);
                   if (problems.length)
                     return `Nothing recorded, the configuration does not work: ${problems.map((p) => p.detail).join('; ')}. Fix it and call configure again, or reply to the owner.`;
-                  return finish([{ do: 'configure', canvases: checked }], String(confirm));
+                  return finish([{ do: 'configure', projects: checked }], String(confirm));
                 },
               },
             ]
@@ -955,25 +955,25 @@ export class Commander {
     return `the idea's agent ${talked ? 'starts on a reply with the discuss in this command' : 'is still working on its reply'}, and building or planning waits for that reply, so the owner decides on the brief it leaves. Drop this action and pass what the owner said to the idea with discuss (one per idea), then say in confirm that ${c.do === 'planDoc' ? 'planning' : 'building'} goes by a click on the card once the reply is there.`;
   }
 
-  /** The other canvas an action names (by its name or id), or why there is none such; nothing where it names none or this one. */
-  private otherCanvas(name?: string): string | undefined {
+  /** The other project an action names (by its name or id), or why there is none such; nothing where it names none or this one. */
+  private otherProject(name?: string): string | undefined {
     const n = name?.trim().toLowerCase();
-    if (!n || n === this.o.board.canvas.id.toLowerCase() || n === this.o.board.canvas.name.toLowerCase()) return undefined;
-    const others = this.o.canvases?.() ?? [];
+    if (!n || n === this.o.board.project.id.toLowerCase() || n === this.o.board.project.name.toLowerCase()) return undefined;
+    const others = this.o.projects?.() ?? [];
     const c = others.find((x) => x.id.toLowerCase() === n || x.name.toLowerCase() === n);
     if (c) return c.id;
-    return `unknown canvas ${name}; ${others.length ? `the other canvases are ${others.map((x) => `"${x.name}"`).join(', ')}` : 'there is no other canvas'}`;
+    return `unknown project ${name}; ${others.length ? `the other projects are ${others.map((x) => `"${x.name}"`).join(', ')}` : 'there is no other project'}`;
   }
 
-  /** The repository an action names for a new card, where the canvas has more than one and it is among them. */
+  /** The repository an action names for a new card, where the project has more than one and it is among them. */
   private newCardRepo(a: ActionArgs): string | undefined {
-    const repos = this.o.board.canvas.repos;
+    const repos = this.o.board.project.repos;
     return repos.length > 1 && repos.some((r) => r.id === a.repo) ? a.repo : undefined;
   }
 
-  /** Why an action cannot be done: the repositories it names that the canvas does not have. */
+  /** Why an action cannot be done: the repositories it names that the project does not have. */
   private unknownRepo(names: string[]): string {
-    return `unknown repository ${names.join(', ')}; the canvas has ${this.o.board.canvas.repos.map((r) => r.id).join(', ')}`;
+    return `unknown repository ${names.join(', ')}; the project has ${this.o.board.project.repos.map((r) => r.id).join(', ')}`;
   }
 
   /** One action as a command, or why it cannot be done. */
@@ -1022,7 +1022,7 @@ export class Commander {
       if (!text) return 'the rule is missing';
       if (text.length > 500) return 'a rule has at most 500 characters';
       const repos = [...new Set(a.repos ?? [])];
-      const unknown = repos.filter((r) => !this.o.board.canvas.repos.some((x) => x.id === r));
+      const unknown = repos.filter((r) => !this.o.board.project.repos.some((x) => x.id === r));
       if (unknown.length) return this.unknownRepo(unknown);
       const to = repos.length ? { repos } : {};
       if (a.replaces === undefined) return { do: 'remember', text, ...to };
@@ -1031,7 +1031,7 @@ export class Commander {
       return { do: 'remember', text, replaces, ...to };
     }
     if (a.do === 'work_retro') {
-      if (a.repo && !this.o.board.canvas.repos.some((r) => r.id === a.repo)) return this.unknownRepo([a.repo]);
+      if (a.repo && !this.o.board.project.repos.some((r) => r.id === a.repo)) return this.unknownRepo([a.repo]);
       const open = a.card ? this.o.board.item(s.tags.get(a.card) ?? '')?.repo : undefined;
       return { do: 'workRetro', repo: a.repo ?? open ?? this.o.board.home };
     }
@@ -1054,7 +1054,7 @@ export class Commander {
     if (a.do === 'rename_group') {
       const groups = this.o.board.snapshot().groups;
       const g = groups.find((x) => x.name.toLowerCase() === a.group?.trim().toLowerCase());
-      if (!g) return `there is no group ${a.group ?? '(none named)'}; the canvas has ${groups.map((x) => `"${x.name}"`).join(', ') || 'none'}`;
+      if (!g) return `there is no group ${a.group ?? '(none named)'}; the project has ${groups.map((x) => `"${x.name}"`).join(', ') || 'none'}`;
       const name = a.text?.replace(/\s+/g, ' ').trim();
       if (!name) return 'the new name is missing (text)';
       if (name.length > 60) return "a group's name has at most 60 characters";
@@ -1087,9 +1087,9 @@ export class Commander {
       const repo = this.newCardRepo(a);
       return { do: 'reviewPr', pr, text: (a.text || a.body || '').trim(), ...(repo ? { repo } : {}) };
     }
-    const elsewhere = a.do === 'new_idea' || a.do === 'new_card' ? this.otherCanvas(a.canvas) : undefined;
+    const elsewhere = a.do === 'new_idea' || a.do === 'new_card' ? this.otherProject(a.project) : undefined;
     if (typeof elsewhere === 'string' && elsewhere.startsWith('unknown')) return elsewhere;
-    const there = elsewhere ? { canvas: elsewhere } : {};
+    const there = elsewhere ? { project: elsewhere } : {};
     if (a.do === 'new_idea') {
       if (!a.title?.trim()) return 'a new idea needs a title';
       const repo = elsewhere ? undefined : this.newCardRepo(a);
@@ -1097,8 +1097,8 @@ export class Commander {
     }
     if (a.do === 'new_card') {
       if (!a.title?.trim()) return 'a new card needs a title';
-      if (a.path?.trim() || a.own_canvas !== undefined)
-        return 'a new card takes no path or own_canvas (start and build do, on a card there already): its agent makes what its body asks for, a repository included, and a canvas for that repository follows with wait_for on the card';
+      if (a.path?.trim() || a.own_project !== undefined)
+        return 'a new card takes no path or own_project (start and build do, on a card there already): its agent makes what its body asks for, a repository included, and a project for that repository follows with wait_for on the card';
       const repo = elsewhere ? undefined : this.newCardRepo(a);
       const from = a.card ? s.tags.get(a.card) : undefined;
       if (a.card && (!from || !this.o.board.item(from))) return `unknown tag ${a.card}; give the card a follow-up comes from, or none`;
@@ -1140,7 +1140,7 @@ export class Commander {
       if (!folderPath(path)) return `${path} is no folder: give it absolute or from ~`;
       if (card.state !== 'idea' && (card.state !== 'planned' || card.source !== 'manual' || card.prototypeOf || card.queue || card.workstation || card.branch))
         return `only an idea, or a planned task of the owner's nobody has worked on yet and not with Seismic, is built in a new repository (${is})`;
-      return { do: 'newRepo', card: card.id, path, canvas: a.own_canvas !== false };
+      return { do: 'newRepo', card: card.id, path, project: a.own_project !== false };
     }
     switch (a.do) {
       case 'discuss':
@@ -1172,7 +1172,7 @@ export class Commander {
         if (card.state !== 'planned') return `only a planned card can be started (${is})`;
         if (card.queue && 'behind' in card.queue) return { do: 'force', card: card.id };
         if (card.queue && 'workstation' in card.queue) return 'the card waits for a free workstation and starts by itself once one is free';
-        if (card.queue && 'paused' in card.queue) return "the owner paused this canvas's agents: the card starts by itself once they resume them";
+        if (card.queue && 'paused' in card.queue) return "the owner paused this project's agents: the card starts by itself once they resume them";
         if (card.queue) return 'Seismic is still checking the card; it starts by itself unless it collides';
         break;
       case 'dequeue':
@@ -1180,7 +1180,7 @@ export class Commander {
         break;
       case 'approve': {
         if (!reviewable) return `the card does not wait for review (${is})`;
-        const repo = this.o.board.canvas.repos.find((r) => r.id === card.repo);
+        const repo = this.o.board.project.repos.find((r) => r.id === card.repo);
         // where work lands on main anyway, approving it directly is approving it
         if (!a.direct || !repo?.pullRequests) break;
         if (card.prototypeOf) return 'a prototype never lands; approving it throws it away';
@@ -1325,12 +1325,12 @@ export class Commander {
           : i.background?.length
             ? `; its agent's turn is over, its background work still runs (${i.background.map((b) => clip(oneLine(b.description), 80)).join('; ')})`
             : '';
-      const repo = this.o.board.canvas.repos.length > 1 ? ` in ${i.repo}` : '';
+      const repo = this.o.board.project.repos.length > 1 ? ` in ${i.repo}` : '';
       const idea = i.prototypeOf ? items.find((x) => x.id === i.prototypeOf) : undefined;
       const became = i.prototypeOf ? items.find((x) => x.kind === 'plan' && x.origin === i.prototypeOf) : undefined;
       const builds = became && prototypeWorkstream(items, became.id);
       const group = i.group ? groups.get(i.group) : undefined;
-      return `${tag(i.id)} [${state}${paused}] "${i.title}"${repo}${i.contribution ? ` (review card for PR #${i.contribution.number} by ${i.contribution.author})` : ''}${plan ? ` (plan "${plan.title}")` : ''}${group ? ` (group "${group}")` : ''}${became ? ` (prototype of the idea "${i.ideaTitle ?? ''}", which became the plan ${tag(became.id)} "${became.title}"${builds ? `; build starts its workstream ${tag(builds.id)} "${builds.title}" on it` : ''}${i.buildProposal ? '; its worker proposes to build on it' : ''})` : idea ? ` (prototype of ${tag(idea.id)} "${idea.title}"${i.buildProposal ? '; its worker proposes to build the idea on it' : ''})` : ''}${i.proposal ? ` — proposed ${i.proposal.idea ? 'idea' : 'task'}${i.proposal.startAt && i.state === 'proposal' ? `, to start ${when(i.proposal.startAt)} once accepted (it waits until then)` : ''}${i.proposal.revising ? `, being reworked by what the owner said${i.proposal.acceptAfterRevision ? `; accepted${i.proposal.acceptAfterRevision === 'idea' ? ' as an idea' : ''} once the new text is there, unless it asks questions` : ''}` : ''}` : ''}${i.superseded ? ` — the agent that proposed it ${i.superseded.by ? `replaced it by "${i.superseded.title ?? ''}"` : 'withdrew it'}${i.superseded.why ? ` (${clip(oneLine(i.superseded.why), 200)})` : ''}; the owner removes it (dismiss) or keeps it (keep)` : ''}${i.statusLine ? ` — status: ${clip(oneLine(i.statusLine), 160)}` : ''}${asks(i)}${i.idea?.next ? ` — its agent would ${NEXT_ACTION[i.idea.next.step]} next: ${clip(oneLine(i.idea.next.why), 200)}` : ''}${i.idea?.variants.length ? ` — prototypes its agent planned: ${i.idea.variants.map((v) => v.approach).join(', ')}` : ''}${i.idea?.split ? ` — task its agent marked to split off now (split_off): "${clip(oneLine(i.idea.split.title), 160)}"` : ''}${i.newRepo ? ` — to be built in a new repository ${i.newRepo.path || '(no folder named yet)'}${i.newRepo.canvas ? ' with a canvas of its own' : ' on this canvas'}, as ${i.newRepo.by === 'owner' ? 'the owner' : "its idea's agent"} chose${i.newRepo.due ? '; Seismic creates it in a few seconds unless the owner takes it back on the card' : ''}` : ''}`;
+      return `${tag(i.id)} [${state}${paused}] "${i.title}"${repo}${i.contribution ? ` (review card for PR #${i.contribution.number} by ${i.contribution.author})` : ''}${plan ? ` (plan "${plan.title}")` : ''}${group ? ` (group "${group}")` : ''}${became ? ` (prototype of the idea "${i.ideaTitle ?? ''}", which became the plan ${tag(became.id)} "${became.title}"${builds ? `; build starts its workstream ${tag(builds.id)} "${builds.title}" on it` : ''}${i.buildProposal ? '; its worker proposes to build on it' : ''})` : idea ? ` (prototype of ${tag(idea.id)} "${idea.title}"${i.buildProposal ? '; its worker proposes to build the idea on it' : ''})` : ''}${i.proposal ? ` — proposed ${i.proposal.idea ? 'idea' : 'task'}${i.proposal.startAt && i.state === 'proposal' ? `, to start ${when(i.proposal.startAt)} once accepted (it waits until then)` : ''}${i.proposal.revising ? `, being reworked by what the owner said${i.proposal.acceptAfterRevision ? `; accepted${i.proposal.acceptAfterRevision === 'idea' ? ' as an idea' : ''} once the new text is there, unless it asks questions` : ''}` : ''}` : ''}${i.superseded ? ` — the agent that proposed it ${i.superseded.by ? `replaced it by "${i.superseded.title ?? ''}"` : 'withdrew it'}${i.superseded.why ? ` (${clip(oneLine(i.superseded.why), 200)})` : ''}; the owner removes it (dismiss) or keeps it (keep)` : ''}${i.statusLine ? ` — status: ${clip(oneLine(i.statusLine), 160)}` : ''}${asks(i)}${i.idea?.next ? ` — its agent would ${NEXT_ACTION[i.idea.next.step]} next: ${clip(oneLine(i.idea.next.why), 200)}` : ''}${i.idea?.variants.length ? ` — prototypes its agent planned: ${i.idea.variants.map((v) => v.approach).join(', ')}` : ''}${i.idea?.split ? ` — task its agent marked to split off now (split_off): "${clip(oneLine(i.idea.split.title), 160)}"` : ''}${i.newRepo ? ` — to be built in a new repository ${i.newRepo.path || '(no folder named yet)'}${i.newRepo.project ? ' with a project of its own' : ' on this project'}, as ${i.newRepo.by === 'owner' ? 'the owner' : "its idea's agent"} chose${i.newRepo.due ? '; Seismic creates it in a few seconds unless the owner takes it back on the card' : ''}` : ''}`;
     };
     const step = (m: Moment) => {
       const card = items.find((i) => i.id === m.cardId);
@@ -1367,7 +1367,7 @@ export class Commander {
                     : t.question
                       ? ' (you were looking it up; no answer came)'
                       : '';
-                if (t.moved) return `- ${when(t.at)} the card "${t.moved.title}" moved to the canvas "${t.moved.canvasName}", in a new repository, and is built there`;
+                if (t.moved) return `- ${when(t.at)} the card "${t.moved.title}" moved to the project "${t.moved.projectName}", in a new repository, and is built there`;
                 const words = t.after
                   ? `${became(t.after)}, and you took up the step you had waited on it for`
                   : t.answered
@@ -1377,12 +1377,12 @@ export class Commander {
               })
               .join('\n')}`
           : 'This is a new chat: you have not talked with the owner in it yet.',
-        `What happened on the canvas in the last ${HISTORY_DAYS} days (oldest first):\n${steps.flatMap(step).join('\n') || '(nothing)'}`,
+        `What happened on the project in the last ${HISTORY_DAYS} days (oldest first):\n${steps.flatMap(step).join('\n') || '(nothing)'}`,
       ];
     } else {
       const steps = this.o.board.timeline(s.since!, NEWS_STEPS + 1);
       const more = steps.length > NEWS_STEPS ? steps.splice(0, steps.length - NEWS_STEPS).length : 0;
-      history = steps.length ? [`What happened on the canvas since the owner's last command:\n${more ? `- (${more} earlier steps left out)\n` : ''}${steps.flatMap(step).join('\n')}`] : [];
+      history = steps.length ? [`What happened on the project since the owner's last command:\n${more ? `- (${more} earlier steps left out)\n` : ''}${steps.flatMap(step).join('\n')}`] : [];
     }
     s.read++;
     s.since = mark;
@@ -1412,7 +1412,7 @@ export class Commander {
             `No words of the owner's this time: you take up a step you said you would take. ${when(input.after.at)} the owner ${input.after.said ? `said: "${input.after.said}"` : 'had a step of yours waiting'}, and you answered: "${input.after.promised}", waiting until the card "${input.after.title}" ${until(input.after.state)}, to then: ${input.after.then}`,
             `Now ${became(input.after)}.${this.awaitedCard(input.after.card, items, describe)}`,
             input.after.met === 'reached'
-              ? 'Take that step now, with act (and config before configure), as you said you would. Where it no longer fits what happened since (the card\'s summary, the canvas), tell the owner with reply instead. The owner reads your confirm as a notice and can take the actions back.'
+              ? 'Take that step now, with act (and config before configure), as you said you would. Where it no longer fits what happened since (the card\'s summary, the project), tell the owner with reply instead. The owner reads your confirm as a notice and can take the actions back.'
               : 'The step waited for something that did not happen: tell the owner with reply what became of the card and that you did not take the step, unless taking it still makes sense.',
           ]
         : input.forwarded
@@ -1432,7 +1432,7 @@ export class Commander {
             (focused ? replyNote(this.o.board.quoted(focused.id, input.replyTo), 'koordinator') : focus.card ? '' : talkReplyNote(this.o.board.quotedTalk(input.replyTo))).trim(),
           ].filter(Boolean)),
       ...(input.heldSince
-        ? [`The owner said this ${when(input.heldSince)}, but the account's usage limit kept you from reading it until now; the canvas may have changed since. Seismic told them it would read it once the limit lifted.`]
+        ? [`The owner said this ${when(input.heldSince)}, but the account's usage limit kept you from reading it until now; the project may have changed since. Seismic told them it would read it once the limit lifted.`]
         : []),
       ...(shots
         ? [
@@ -1440,17 +1440,17 @@ export class Commander {
           ]
         : []),
       focused && (input.after || input.answered) ? `They said it with this card open: ${describe(focused)}` : focused ? `The owner has this card open, so "it", "this" and a bare answer refer to it: ${describe(focused)}${this.report(focused)}` : plan ? `The owner is looking at the plan ${tag(plan.id)} "${plan.title}".` : 'No card is open: the owner speaks to you.',
-      `Cards on the canvas now:\n${relevant.map(describe).join('\n') || '(none)'}`,
+      `Cards on the project now:\n${relevant.map(describe).join('\n') || '(none)'}`,
       ...(plans.length ? [`Plans with workstreams to start:\n${plans.join('\n')}`] : []),
       ...(this.waits().length
         ? [`Cards you wait on, to take a step once each gets there (wait_for; stop_waiting drops one):\n${this.waits().map(({ talk, wait }) => `- ${tag(wait.card)} "${wait.title}" until it ${until(wait.state)} (since ${when(talk.at)}), then: ${wait.then}`).join('\n')}`]
         : []),
-      `Groups on the canvas: ${groupList.map((g) => `"${g.name}"`).join(', ') || '(none yet)'}`,
+      `Groups on the project: ${groupList.map((g) => `"${g.name}"`).join(', ') || '(none yet)'}`,
       rules.length
         ? `The owner's rules, which every agent follows (follow them yourself too):\n${rules.map((r, n) => `${n + 1}. ${r.text}`).join('\n')}`
         : 'The owner has recorded no rules yet.',
-      ...(this.o.canvases?.().length ? [`Other canvases of this Seismic (new_card and new_idea go there with canvas): ${this.o.canvases().map((c) => `"${c.name}"`).join(', ')}`] : []),
-      `Repositories on this canvas (the first is the default for a new card): ${this.o.board.canvas.repos.map((r) => `${r.id} (${r.name}${r.pullRequests ? `; approved work goes out as a pull request${r.direct ? ", or directly onto main by the card's button" : ''}` : ''})`).join(', ')}`,
+      ...(this.o.projects?.().length ? [`Other projects of this Seismic (new_card and new_idea go there with project): ${this.o.projects().map((c) => `"${c.name}"`).join(', ')}`] : []),
+      `Repositories on this project (the first is the default for a new card): ${this.o.board.project.repos.map((r) => `${r.id} (${r.name}${r.pullRequests ? `; approved work goes out as a pull request${r.direct ? ", or directly onto main by the card's button" : ''}` : ''})`).join(', ')}`,
     ].join('\n\n');
   }
 }
@@ -1482,7 +1482,7 @@ export function talkReplyNote(quoted: TalkQuote | undefined): string {
 /** A queued card's state as the Koordinator reads it. */
 function queued(q: Queue, items: Item[]): string {
   if ('checking' in q) return 'queued: Seismic checks it for merge conflicts';
-  if ('paused' in q) return "waits for the owner to resume this canvas's paused agents; starts by itself then";
+  if ('paused' in q) return "waits for the owner to resume this project's paused agents; starts by itself then";
   if ('workstation' in q && q.workstation === 'slots') return 'waits for a free slot (every machine with a free workstation has as many workers busy as it has slots); starts by itself once one is done';
   if ('workstation' in q) return `waits for a free workstation (${q.workstation === 'dirty' ? 'every free one has uncommitted changes' : 'all are leased'}); starts by itself once one is free`;
   const titles = q.behind
@@ -1539,7 +1539,7 @@ const CONFIRM: Record<Language, { act: string; words: string; remember: string; 
     reviewPr: '“I am starting a review card for PR #5, with an eye on security.”',
     group: '““Export” and “Discount” now belong to the group Billing.”',
     merge: '“I am merging “Login error” and “Sign in again” into “Sign in again: when and where”.”',
-    configure: '“The repository shop-web joins the canvas Shop.” / “shop-web gets a third clone; its agents restart once they paused.”',
+    configure: '“The repository shop-web joins the project Shop.” / “shop-web gets a third clone; its agents restart once they paused.”',
     lookUp: '“Let me look at the plan.” / “One moment, I am reading what the agent would do on “…”.”',
     lookUpThen: '“I am reading the open issues on GitHub and will then create a task for each.”',
     idea: '“New idea “Allowed database queries”, to think through with you.”',
@@ -1548,21 +1548,21 @@ const CONFIRM: Record<Language, { act: string; words: string; remember: string; 
 };
 
 const system = (language: Language, ui: Language) => `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents by voice or typing; the owner knows you simply as Seismic. Each message brings what the owner just said or typed. Speech is transcribed by speech recognition: words may be misheard, so read for what they most likely meant, using the card titles as vocabulary. Typed text stands as written.
+You are the Koordinator of Seismic, a project on which the owner directs coding agents by voice or typing; the owner knows you simply as Seismic. Each message brings what the owner just said or typed. Speech is transcribed by speech recognition: words may be misheard, so read for what they most likely meant, using the card titles as vocabulary. Typed text stands as written.
 
-This is one ongoing conversation. The owner refers back to it ("the card from before", "no, the other one", "that one too"), and to how the canvas developed: each message says what happened since the previous one, and the first brings your memory of earlier conversations and the canvas's recent history. Card tags (K1, K2, …) stay the same throughout this conversation. No agent works on a planned, live or done card (done: finished without any change to the code, so nothing landed), but a note to a live or done card whose line says so resumes the agent that did its work, to answer; a workstream of a plan takes its state from the plan's plan doc (checked off there means live).
+This is one ongoing conversation. The owner refers back to it ("the card from before", "no, the other one", "that one too"), and to how the project developed: each message says what happened since the previous one, and the first brings your memory of earlier conversations and the project's recent history. Card tags (K1, K2, …) stay the same throughout this conversation. No agent works on a planned, live or done card (done: finished without any change to the code, so nothing landed), but a note to a live or done card whose line says so resumes the agent that did its work, to answer; a workstream of a plan takes its state from the plan's plan doc (checked off there means live).
 
 For each message, call act, reply or look_up once, then end your turn:
-- act, with every action the owner asked for, in their order, on the cards they meant (the open card unless they name another). One sentence may hold several ("approve that and make a follow-up task …" is approve and new_card, with the open card as the one it follows up on): leave none out. A step that can only follow once a card gets somewhere (a canvas for the repository a new task creates, a start once another card has landed) is wait_for in the same act: Seismic wakes you when the card gets there, and you take the step then. Only a wait_for brings you back to a step: one your confirm promises for later needs it.
+- act, with every action the owner asked for, in their order, on the cards they meant (the open card unless they name another). One sentence may hold several ("approve that and make a follow-up task …" is approve and new_card, with the open card as the one it follows up on): leave none out. A step that can only follow once a card gets somewhere (a project for the repository a new task creates, a start once another card has landed) is wait_for in the same act: Seismic wakes you when the card gets there, and you take the step then. Only a wait_for brings you back to a step: one your confirm promises for later needs it.
 - reply, when the owner asks you a question of fact you can answer from what you know (the cards, their states and history, this conversation), also about the open card, or when nothing fits or it is unclear which card or what is meant.
 - look_up, when the answer needs reading or checking: what an agent would do on a card ("What would the agent do here if I start?"), what the plan says, how or why something works, what is on the machine or on GitHub (which file is newest, whether a script ran, what a release holds). Never reply that you cannot know or predict it; look it up. The answer follows in a few seconds. Also when the actions the owner asks for depend on such reading (a task for each open GitHub issue): look_up with then, and you take the actions yourself once the answer is in; confirm names both, the reading and the actions to follow.
 All three take confirm: one short sentence in the owner's language (two at most for an answer or several actions) the owner hears back, saying what will happen, naming the cards (${CONFIRM[language].act}). No preamble, no questions back unless you use reply. ${ownersLanguage(language)} A new card's or idea's title is in the owner's language too.
 ${LANGUAGES.map((l) => CONFIRM[l].words).join('\n')}
 A card's agent is Claude Code with the shell, git, gh and the web, on the machine its repository's workers run on: with the owner's permission it does any work there, in its repository or outside it (create a new repository, install a tool, convert files, run a script). Work the owner asks to have done is new_card, also when it is no change to code.
-What the owner wants Seismic's makers told (a wish for Seismic, a bug in it) is act with wish: it opens the owner's draft for them, which they send themselves. When what they ask of you is something Seismic itself has no feature for (on its canvas, with its cards, in how it tells them things), reply that it cannot, with wish: the owner gets a link to send that to the makers. What an agent can work out or make on the machine (a report or a chart from data there, such as the agents' session logs or the git history) is look_up or new_card, also where Seismic shows nothing of it.
-Questions about Seismic's configuration (which canvases and repositories it serves, their settings, clones, port) you answer with reply after reading it with config; a change to it the owner asks for is configure.
+What the owner wants Seismic's makers told (a wish for Seismic, a bug in it) is act with wish: it opens the owner's draft for them, which they send themselves. When what they ask of you is something Seismic itself has no feature for (on its project, with its cards, in how it tells them things), reply that it cannot, with wish: the owner gets a link to send that to the makers. What an agent can work out or make on the machine (a report or a chart from data there, such as the agents' session logs or the git history) is look_up or new_card, also where Seismic shows nothing of it.
+Questions about Seismic's configuration (which projects and repositories it serves, their settings, clones, port) you answer with reply after reading it with config; a change to it the owner asks for is configure.
 When the owner wants something kept for all future work ("Remember …", "from now on always …", "never again …"), that is remember, not a note to the open card's agent. Decide where it goes: only a rule on how the agents work with the owner through Seismic, whatever the repository, is one of the owner's rules (no repos); anything about a repository (named, "here", "in this repo", or about its code, UI, wording, tests, tools or product) goes into that repository's CLAUDE.md: pass repos. Leave the place out of the rule's text, and say in confirm where it went (for a CLAUDE.md: into the repository's card ${MESSAGES[ui].quote(MESSAGES[ui].claudeMd.title)}, which writes it into the file).
-What the owner says or types with a card open that an agent works on (working, in PR, waiting, waiting for review, finishing what remains, a live or done card a note resumes its agent on, an idea with its exploration agent) goes straight to that agent, not to you. The agent passes on to you what asks Seismic for something rather than the agent: approve, pause, stop, start, a follow-up or new card, a new idea, remember, grouping cards, an action on another card, a question about the canvas or another card, a wish or a bug for Seismic's makers. Such a message brings the agent's request and the owner's own words; that card is the open one. Do what the owner asked of Seismic, as with any command (act, reply or look_up); the agent has their words already, so pass nothing back to it as note, answer, feedback or discuss. Your confirm goes back to the agent and to the owner.
+What the owner says or types with a card open that an agent works on (working, in PR, waiting, waiting for review, finishing what remains, a live or done card a note resumes its agent on, an idea with its exploration agent) goes straight to that agent, not to you. The agent passes on to you what asks Seismic for something rather than the agent: approve, pause, stop, start, a follow-up or new card, a new idea, remember, grouping cards, an action on another card, a question about the project or another card, a wish or a bug for Seismic's makers. Such a message brings the agent's request and the owner's own words; that card is the open one. Do what the owner asked of Seismic, as with any command (act, reply or look_up); the agent has their words already, so pass nothing back to it as note, answer, feedback or discuss. Your confirm goes back to the agent and to the owner.
 When the open card is a proposal, what the owner says about it (what should be added, dropped, decided or put differently, or their thoughts on it) is revise with their words, unless they clearly accept or dismiss it or ask for something else.
 On an idea, "Do what you suggest" takes the step its agent would take next, as its line says; when that is answering, discuss with the options its agent would pick for its open questions. Wanting to think about something, rather than have it done, is new_idea. So is asking you for an opinion or a way forward rather than a fact ("What do you think we should do about this now?", "How should we approach …?", "What do you think of …?"): such a discussion belongs on an idea card, where its exploration agent opens it. body: the owner's words as they are (their screenshots go along); confirm names the idea (${CONFIRM[language].idea}). A question of fact (what the plan says, what happened, what an agent would do) stays reply or look_up. A wrong guess costs one idea card, which the owner takes back with undo, so go ahead.
 `.trim();

@@ -9,7 +9,7 @@ const store = () => {
 // `keepDrafts` holds its store for the rest of the page
 const s = store();
 
-test("a card's draft outlives the page: written down per canvas as it changes, taken back by the next page", () => {
+test("a card's draft outlives the page: written down per project as it changes, taken back by the next page", () => {
   const picks = { of: '[{"text":"Farbe?"}]', picks: [['Blau']] };
   s.setItem('obeya-drafts-shop', JSON.stringify({ [cardDraft('c9')]: { text: 'vom letzten Mal', images: ['img1'] }, [cardDraft('c5')]: { text: '', images: [], picks } }));
   const markup = { original: 'img0', marks: [{ kind: 'frame', x: 1, y: 2, w: 30, h: 40 }] };

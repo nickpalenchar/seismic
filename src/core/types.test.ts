@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CLONES, type FilledClones, type Item, needsYou, openPerGroup, type ResolvedCanvas, stoppedArchivable, type Talk, unreadPerPlan, withClones, withSupplemented } from './types';
+import { CLONES, type FilledClones, type Item, needsYou, openPerGroup, type ResolvedProject, stoppedArchivable, type Talk, unreadPerPlan, withClones, withSupplemented } from './types';
 
 const card = (over: Partial<Item>): Item => ({ id: 'x', kind: 'task', state: 'planned', title: '', body: '', x: 0, y: 0, source: 'manual', repo: 'r', ...over });
 
@@ -39,7 +39,7 @@ test("a plan's card counts its agent's answers that wait unread, asked in its sh
 });
 
 describe('withClones', () => {
-  const at = (...workstations: ('clones' | 'worktrees')[]): ResolvedCanvas => ({ id: 'c', name: 'c', repos: workstations.map((w) => ({ id: 'r', workstations: w, values: {} as never, shareTo: 'main' })) });
+  const at = (...workstations: ('clones' | 'worktrees')[]): ResolvedProject => ({ id: 'c', name: 'c', repos: workstations.map((w) => ({ id: 'r', workstations: w, values: {} as never, shareTo: 'main' })) });
 
   test('fills in a repository added in clones, once per path', () => {
     const saved = [{ repos: [{ path: '/a' }] }];

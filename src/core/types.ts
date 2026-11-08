@@ -86,17 +86,17 @@ const snoozedAway = (i: Pick<Item, 'snoozed'>) => !!i.snoozed && !i.snoozed.wait
 export const pausableNow = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'inTurn' | 'paused' | 'snoozed'>) =>
   !i.paused && !snoozedAway(i) && (i.kind === 'question' ? !!i.thread?.thinking : i.state === 'idea' && i.idea ? i.idea.thinking : !!i.inTurn);
 
-/** The card's agent is at work and can be paused, at a safe point (the card's pause, the canvas's) or at once; not one about to pause already. */
+/** The card's agent is at work and can be paused, at a safe point (the card's pause, the project's) or at once; not one about to pause already. */
 export const pausable = (i: Pick<Item, 'kind' | 'state' | 'idea' | 'thread' | 'inTurn' | 'paused' | 'pausing' | 'snoozed'>) => !i.pausing && pausableNow(i);
 
 /** The owner paused the card's agent, and it waits for them to resume it; a snoozed one, which holds what comes for it as a paused one does, waits for its time instead. */
 export const resumable = (i: Pick<Item, 'paused' | 'snoozed'>) => !!i.paused && !snoozedAway(i);
 
-/** The card's agent is paused, or about to pause at a safe point: what the card's ▶ and the canvas's resume let go on. */
+/** The card's agent is paused, or about to pause at a safe point: what the card's ▶ and the project's resume let go on. */
 export const halted = (i: Pick<Item, 'paused' | 'pausing' | 'snoozed'>) => (!!i.paused || !!i.pausing) && !snoozedAway(i);
 
 /**
- * A finished card an agent worked on, on the canvas, with no agent on it now: what the owner asks
+ * A finished card an agent worked on, on the project, with no agent on it now: what the owner asks
  * about it resumes the agent that did the work, which answers and ends again.
  */
 export const askable = (i: Pick<Item, 'state' | 'branch' | 'prototypeOf' | 'archivedAt' | 'finishing'>) =>
@@ -213,7 +213,7 @@ export function titleFrom(body: string): string {
  * and the agent is not at work on a reply (which may settle them), its proposal's while it is not
  * reworked, its worker's, its demo report's. The one place where each kind of card says which of its
  * questions are open: its conversation shows them at its end with the field under it set to answer
- * them, the canvas card and the phone's count show them, the Koordinator hears of them.
+ * them, the project card and the phone's count show them, the Koordinator hears of them.
  */
 export function openQuestions(i: Pick<Item, 'archivedAt' | 'state' | 'need' | 'question' | 'idea' | 'proposal'>): Question[] {
   if (i.archivedAt) return [];
@@ -287,22 +287,22 @@ export function unreadPerPlan(talk: Talk[]): Map<string, number> {
   return m;
 }
 
-/** What on a canvas waits for the owner: the cards that need them, and the Koordinator while an answer waits unread. */
-export const waitingOn = (s: Pick<CanvasSnapshot, 'items' | 'talk'>) => s.items.filter(needsYou).length + (unreadAnswers(s.talk) ? 1 : 0);
+/** What on a project waits for the owner: the cards that need them, and the Koordinator while an answer waits unread. */
+export const waitingOn = (s: Pick<ProjectSnapshot, 'items' | 'talk'>) => s.items.filter(needsYou).length + (unreadAnswers(s.talk) ? 1 : 0);
 
 /**
- * What of a canvas "Needs you" lists (the phone's, and the navigation on every other canvas's page):
+ * What of a project "Needs you" lists (the phone's, and the navigation on every other project's page):
  * the cards that need the owner and those snoozed while they did, and the Koordinator's answers that
  * wait unread.
  */
-export type Waiting = Pick<CanvasSnapshot, 'items' | 'talk'> & Partial<Pick<CanvasSnapshot, 'preferences' | 'settingProposals' | 'canvas'>> & { proposalItems?: Item[] };
-export const waitingIn = (s: Pick<CanvasSnapshot, 'items' | 'talk'> & Partial<Pick<CanvasSnapshot, 'preferences' | 'settingProposals' | 'canvas'>>): Waiting => ({
+export type Waiting = Pick<ProjectSnapshot, 'items' | 'talk'> & Partial<Pick<ProjectSnapshot, 'preferences' | 'settingProposals' | 'project'>> & { proposalItems?: Item[] };
+export const waitingIn = (s: Pick<ProjectSnapshot, 'items' | 'talk'> & Partial<Pick<ProjectSnapshot, 'preferences' | 'settingProposals' | 'project'>>): Waiting => ({
   items: s.items.filter((i) => needsYou(i) || !!i.snoozed?.waiting),
   talk: s.talk.filter((x) => x.unread),
-  preferences: s.preferences, settingProposals: s.settingProposals, canvas: s.canvas, proposalItems: s.items.filter((i) => s.preferences?.some((p) => p.state === 'proposed' && p.cardId === i.id) || s.settingProposals?.some((p) => p.cards.some((c) => c.id === i.id))),
+  preferences: s.preferences, settingProposals: s.settingProposals, project: s.project, proposalItems: s.items.filter((i) => s.preferences?.some((p) => p.state === 'proposed' && p.cardId === i.id) || s.settingProposals?.some((p) => p.cards.some((c) => c.id === i.id))),
 });
 
-/** One item on the canvas as the UI sees it: a stored card merged with what its plan doc says. */
+/** One item on the project as the UI sees it: a stored card merged with what its plan doc says. */
 /**
  * Who wrote a card's task: the owner (also through the Koordinator, from their words), the plan doc
  * of its workstream, Seismic (the work retrospective), the idea a prototype is for, or a worker whose
@@ -344,7 +344,7 @@ export interface Item {
   buildsOn?: string[];
   /** Cards connected by the owner that must finish before this card starts. */
   manualDependsOn?: string[];
-  /** Unfinished archived prerequisites, so their wait remains visible and enforceable off canvas. */
+  /** Unfinished archived prerequisites, so their wait remains visible and enforceable off project. */
   manualArchived?: Item[];
   /** Saved attachment points of the owner-drawn arrows, keyed by prerequisite. */
   manualAnchors?: Record<string, ManualAnchor>;
@@ -401,7 +401,7 @@ export interface Item {
   tags?: PageTags;
   /** The card it comes from: a proposal's source, a prototype's idea, or the card a follow-up follows up on. */
   from?: string;
-  /** With `from` on another canvas (a card moved there, or one made there by Seismic): that card's title and canvas. */
+  /** With `from` on another project (a card moved there, or one made there by Seismic): that card's title and project. */
   fromElsewhere?: Elsewhere;
   /** A card the work retrospective proposed: the cards and the friction on them it rests on. */
   retro?: string;
@@ -417,7 +417,7 @@ export interface Item {
   updatedAt?: string;
   /** An accepted proposal its agent withdrew or replaced since, while the card is not finished: the owner removes it or keeps it. */
   superseded?: Superseded;
-  /** The repository the card belongs to (an id from the canvas's `repos`). */
+  /** The repository the card belongs to (an id from the project's `repos`). */
   repo: string;
   /**
    * Before work begins on a task or an idea of the owner's: it is to be built in a repository that
@@ -426,7 +426,7 @@ export interface Item {
    */
   newRepo?: NewRepo;
   /**
-   * Its repository does not run on the canvas (it left the configuration, or did not start): its
+   * Its repository does not run on the project (it left the configuration, or did not start): its
    * agents take nothing until it is back, and no other repository's agents take it meanwhile.
    * Never on a Question card, whose agent reads only.
    */
@@ -452,7 +452,7 @@ export interface Item {
   /** A review card: the pull request of someone outside that the card reviews and, once approved, merges. */
   contribution?: Contribution;
   /**
-   * The code review of the card's work, where its canvas reviews work that lands on `main` and the
+   * The code review of the card's work, where its project reviews work that lands on `main` and the
    * card's does: present from its handover on (design: Code reviews in Card lifecycle).
    */
   codeReview?: CodeReview;
@@ -461,7 +461,7 @@ export interface Item {
    * doc keeps it open. A new run does the rest.
    */
   landedPart?: { commit?: string; pr?: { url: string; number: number } };
-  /** When the owner archived the card; archived cards are not on the canvas but in its archive. */
+  /** When the owner archived the card; archived cards are not on the project but in its archive. */
   archivedAt?: string;
   /** Ideas only: what the discussion has settled so far. */
   idea?: Idea;
@@ -475,11 +475,11 @@ export interface Item {
   prototypeEnd?: 'discarded' | 'built';
   /** A prototype built for a workstream of the plan its idea became: that workstream ("W6 \"Build the site\""). */
   builtInto?: string;
-  /** A prototype: its idea's title, wherever the idea is (on the canvas, or in the archive once it became a plan). */
+  /** A prototype: its idea's title, wherever the idea is (on the project, or in the archive once it became a plan). */
   ideaTitle?: string;
   /** A prototype whose worker proposes to build the idea on it: why, in its words. */
   buildProposal?: string;
-  /** Ideas: their prototypes, on the canvas or in the archive, the oldest first; each shows its demo on the idea. A workstream built on a prototype: that one. */
+  /** Ideas: their prototypes, on the project or in the archive, the oldest first; each shows its demo on the idea. A workstream built on a prototype: that one. */
   prototypes?: Item[];
   /** A card that was an idea, or a workstream of the plan an idea became, built on the branch of one of the idea's prototypes: that prototype. */
   builtOn?: string;
@@ -520,7 +520,7 @@ export interface Item {
   paused?: true;
   /**
    * The owner asked the card's agent to pause once it has brought its work to a safe point (the
-   * card's pause, the canvas's): it works on until its turn ends, and is `paused` then.
+   * card's pause, the project's): it works on until its turn ends, and is `paused` then.
    */
   pausing?: true;
   /** Its worker paused for a restart that is due (Seismic's, or its repository's agents'): it goes on by itself once that happened. */
@@ -568,7 +568,7 @@ export interface Item {
   mocks?: Mock[];
   /** An idea or a task of the owner's, decided as a plan: its worker writes the plan doc, and the plan takes its place. */
   becomesPlan?: boolean;
-  /** A plan the owner folded to its head: its workstreams are not shown on the canvas, only counted in it. */
+  /** A plan the owner folded to its head: its workstreams are not shown on the project, only counted in it. */
   collapsed?: true;
   /** The group the card belongs to (a `Group` id); a workstream's is its plan's. */
   group?: string;
@@ -597,7 +597,7 @@ export const SNOOZE_LIMIT = 366 * 24 * 60 * 60_000;
 export interface Snooze {
   /** When it wakes (ISO); without one, it wakes when the card it waits on gets there. */
   until?: string;
-  /** The card of the canvas it waits on (as its title read then), and what for: it wakes once that card got there, or no longer can. */
+  /** The card of the project it waits on (as its title read then), and what for: it wakes once that card got there, or no longer can. */
   on?: { card: string; title: string; state: AwaitedState };
   by: 'agent' | 'owner';
   /** What the agent does once it wakes, in its words. */
@@ -611,8 +611,8 @@ export interface Snooze {
 }
 
 /**
- * A group of cards on the canvas, shown as a coloured territory behind them. It exists while a card
- * belongs to it (on the canvas or in the archive).
+ * A group of cards on the project, shown as a coloured territory behind them. It exists while a card
+ * belongs to it (on the project or in the archive).
  */
 export interface Group {
   id: string;
@@ -721,7 +721,7 @@ export interface Decision {
 export interface PlanHistory {
   /** The plan's decisions and those of its idea, oldest first. */
   decisions: Decision[];
-  /** The idea the plan doc was written from, wherever it is now (on the canvas or archived). */
+  /** The idea the plan doc was written from, wherever it is now (on the project or archived). */
   origin: Item | null;
   /** The questions its plan agent answered (asked in its sheet or of Seismic) and their follow-ups, oldest first. */
   talk: Talk[];
@@ -729,7 +729,7 @@ export interface PlanHistory {
 
 /**
  * An idea under discussion with its exploration agent. `open` while it is discussed; parked or
- * dropped ideas stay on the canvas with their state, and talking to them opens them again.
+ * dropped ideas stay on the project with their state, and talking to them opens them again.
  */
 export interface Idea {
   status: 'open' | 'parked' | 'dropped';
@@ -960,14 +960,14 @@ export interface CodeReview {
   previous?: { state: 'done' | 'failed'; findings: Finding[]; error?: string; at: string; agent?: AgentIdentity }[];
 }
 
-/** How a canvas's finished cards go into the archive (canvas setting "Cards archive"). */
+/** How a project's finished cards go into the archive (project setting "Cards archive"). */
 export const CARD_ARCHIVING = ['manual', 'landed'] as const;
 export type CardArchiving = (typeof CARD_ARCHIVING)[number];
 
 export const CODE_REVIEW_MODES = ['auto', 'manual'] as const;
 export type CodeReviewMode = (typeof CODE_REVIEW_MODES)[number];
 
-/** Whether a canvas reviews the work that lands on `main`, and when. */
+/** Whether a project reviews the work that lands on `main`, and when. */
 export interface CodeReviewSetting {
   on: boolean;
   mode: CodeReviewMode;
@@ -1023,8 +1023,8 @@ export const PUSH_HOLD_MS = 8000;
  * plan), which hold it until they have landed, also while not started or stopped.
  * `manualWait`: those of `behind` that only an arrow the owner drew holds it for, not a wait the
  * Koordinator inferred; `buildsOn` names inferred waits alone.
- * `paused`: the Koordinator let it start, but the owner paused its canvas's agents; it starts once they resume them.
- * `begun`, on a card waiting for a workstation or a paused canvas: the owner started it anyway, or it
+ * `paused`: the Koordinator let it start, but the owner paused its project's agents; it starts once they resume them.
+ * `begun`, on a card waiting for a workstation or a paused project: the owner started it anyway, or it
  * was at work before (its workstation taken from it); the owner's arrows no longer hold it.
  */
 export type Queue = Wait & { since: string };
@@ -1101,7 +1101,7 @@ export interface DemoPage {
   title: string;
   /** Two to five sentences on what changes and why. */
   text: string;
-  /** The values of the site's vocabulary (the canvas's) the worker chose for each dimension; an empty list where none fits. */
+  /** The values of the site's vocabulary (the project's) the worker chose for each dimension; an empty list where none fits. */
   tags?: PageTags;
 }
 
@@ -1174,10 +1174,10 @@ export interface FeedbackAnswer {
 /** The owner's response on a card's approved work, with whom it credits as at the handover it is about. */
 export interface Feedback {
   id: number;
-  /** The card's id, the stable link to it (its address uses `short`), whatever canvas it is on now. */
+  /** The card's id, the stable link to it (its address uses `short`), whatever project it is on now. */
   cardId: string;
   short?: string;
-  canvasId: string;
+  projectId: string;
   /** The handover (its `review` event) the response is about: one response per handover. */
   handover: number;
   /** The card as it was when the response was given. */
@@ -1252,10 +1252,10 @@ export interface CardEvent {
   forwarded?: true;
   /**
    * A card made from this one: a worker's proposal or Seismic's follow-up, with its title then
-   * (`canvas`, when it went onto another canvas). The conversation shows it as an action, with
+   * (`project`, when it went onto another project). The conversation shows it as an action, with
    * the card's cover. The event's author distinguishes a proposal from a follow-up.
    */
-  made?: { card: string; title: string; canvas?: string };
+  made?: { card: string; title: string; project?: string };
   /**
    * An error of a session that signed in to Claude with a token (Seismic's `claude-token` or
    * `CLAUDE_CODE_OAUTH_TOKEN`; on another machine, without one, that machine's own login), not with
@@ -1295,21 +1295,21 @@ export interface Spot {
 /** A place in the demo video as the browser sends it with the owner's words: Seismic adds chapter and narration. */
 export type SpotInput = Pick<Spot, 'at' | 'still' | 'demo'>;
 
-export interface CanvasInfo {
+export interface ProjectInfo {
   id: string;
   name: string;
-  /** Names it had before (`CanvasConfig.oldNames`): an address with one of them leads to it. */
+  /** Names it had before (`ProjectConfig.oldNames`): an address with one of them leads to it. */
   oldNames?: string[];
-  /** The repositories on the canvas; the first is its home. */
+  /** The repositories on the project; the first is its home. */
   repos: RepoRef[];
   /** How many times which of its repositories do not run as the configuration has them changed: the page reads the configuration's problems again when it changes. */
   configRev?: number;
-  /** The owner paused the canvas's agents: cards the Koordinator lets start wait in the queue until they resume them. */
+  /** The owner paused the project's agents: cards the Koordinator lets start wait in the queue until they resume them. */
   paused?: true;
-  /** Its agents at work now (`pausable`) and those the owner paused or that are about to pause (`halted`), for the canvas switcher; absent while none is either. */
+  /** Its agents at work now (`pausable`) and those the owner paused or that are about to pause (`halted`), for the project switcher; absent while none is either. */
   agents?: { running: number; paused: number };
   /** The demo site its demos are shared on; absent without one. */
-  demoSite?: CanvasDemoSiteState;
+  demoSite?: ProjectDemoSiteState;
 }
 
 export interface RepoRef {
@@ -1319,17 +1319,17 @@ export interface RepoRef {
   branch: string;
   /** A folder without git: cards work in it directly, with no branches, landing, pull requests, prototypes or hosts. */
   folder?: true;
-  /** It has a share target: its canvas's demo site, initialized and deployable from this machine; without one demos are exported as a file. */
+  /** It has a share target: its project's demo site, initialized and deployable from this machine; without one demos are exported as a file. */
   share?: boolean;
-  /** Its canvas's demo site needs an env file this machine lacks (relative to Seismic's home): demos are exported meanwhile. */
+  /** Its project's demo site needs an env file this machine lacks (relative to Seismic's home): demos are exported meanwhile. */
   shareNeeds?: { site: string; file: string };
-  /** With `share`: each approved card's latest demo goes on the page by itself, unless the card opts out (the canvas's site publishes on approval). */
+  /** With `share`: each approved card's latest demo goes on the page by itself, unless the card opts out (the project's site publishes on approval). */
   shareOnApproval?: true;
-  /** With `share`: the vocabulary of tags the canvas names for its site, which a card's page takes its tags from. */
+  /** With `share`: the vocabulary of tags the project names for its site, which a card's page takes its tags from. */
   shareTags?: PageTags;
   /** With `share`: the site is unlisted. */
   shareUnlisted?: true;
-  /** Without `share`: why not: the canvas has no demo site (`none`), or its path is not initialized yet (`init`). */
+  /** Without `share`: why not: the project has no demo site (`none`), or its path is not initialized yet (`init`). */
   shareSite?: 'none' | 'init';
   /** Its approved work goes out as a pull request (else it lands on the default branch of the Seismic checkout). */
   pullRequests?: boolean;
@@ -1339,7 +1339,7 @@ export interface RepoRef {
   direct?: boolean;
   /**
    * How many times what the configuration's problems of the repository are read from changed on
-   * its default branch while the canvas runs (its `.obeya/settings.json`, a leftover
+   * its default branch while the project runs (its `.obeya/settings.json`, a leftover
    * `.obeya/adapter/`): the page reads the problems again when it changes.
    */
   configRev?: number;
@@ -1378,10 +1378,10 @@ export interface PoolHost {
 export interface PoolWorkstation {
   path: string;
   card?: string;
-  /** The holding card's title, also for a card not on the canvas (in the archive, say). */
+  /** The holding card's title, also for a card not on the project (in the archive, say). */
   title?: string;
-  /** The canvas of a holding card that lies on another canvas than the pool's. */
-  canvas?: string;
+  /** The project of a holding card that lies on another project than the pool's. */
+  project?: string;
   /** Its card may give it up for a card waiting for one ("Give to the waiting card": its worker stops, its work is kept on its branch). */
   takeable?: true;
   /** Its card gives it up once the undo window of "Give to the waiting card" is through. */
@@ -1405,30 +1405,30 @@ export interface BlockedClone {
   made?: true;
 }
 
-export interface CanvasSnapshot {
-  canvas: CanvasInfo;
+export interface ProjectSnapshot {
+  project: ProjectInfo;
   items: Item[];
-  /** The canvas's groups, the oldest first. */
+  /** The project's groups, the oldest first. */
   groups: Group[];
   preferences: Preference[];
-  /** The settings the work retrospective proposes for the canvas's repositories, waiting for the owner; none when none waits. */
+  /** The settings the work retrospective proposes for the project's repositories, waiting for the owner; none when none waits. */
   settingProposals?: SettingProposal[];
   /**
    * The owner's latest exchanges with the Koordinator in the current chat without an open card (those
-   * with one are in its log), and the answers that wait unread in the canvas's other chats.
+   * with one are in its log), and the answers that wait unread in the project's other chats.
    */
   talk: Talk[];
   /** The chat the owner talks in now (`Talk.chat`); its exchanges are those the sheet shows. */
   chat: number;
-  /** Model chosen for this chat; absent means the canvas's Seismic setting. */
+  /** Model chosen for this chat; absent means the project's Seismic setting. */
   chatModel?: AgentModel;
-  /** The canvas's chats with something said in them, the latest first. */
+  /** The project's chats with something said in them, the latest first. */
   chats: Chat[];
   /** The clone pools of the repositories that use clones; none when no repository does. */
   workstations?: ClonePool[];
   /** Shared pages their sites now write differently, and sharing many of them again; none when there is neither. */
   reshare?: Reshare;
-  /** The plan directories the canvas has a note about (`PlanDir`); none when it has none. */
+  /** The plan directories the project has a note about (`PlanDir`); none when it has none. */
   planDirs?: PlanDir[];
   /** The harness and model of the Koordinator's session that reads the owner's words, while one runs. */
   koordinatorAgent?: AgentIdentity;
@@ -1445,7 +1445,7 @@ export interface PlanDir {
   dir: string;
   empty: boolean;
   others: { file: string; reason: NotAPlan; preparing?: string }[];
-  /** Where the owner put the note, its top left on the canvas; without it, it stands above the plans. */
+  /** Where the owner put the note, its top left on the project; without it, it stands above the plans. */
   at?: { x: number; y: number };
 }
 
@@ -1480,9 +1480,9 @@ export interface Reshare {
 /** One of the owner's chats with Seismic: its exchanges, the Koordinator's memory while the owner talks in it. */
 export interface Chat {
   id: number;
-  /** Model chosen for this chat; absent means the canvas's Seismic setting. */
+  /** Model chosen for this chat; absent means the project's Seismic setting. */
   model?: AgentModel;
-  canvas: string;
+  project: string;
   /** The owner's first words in it; none where it only holds what Seismic said by itself. */
   title?: string;
   /** When something was last said in it. */
@@ -1491,9 +1491,9 @@ export interface Chat {
   unread?: number;
 }
 
-/** A chat as the list of every canvas's chats shows it, with its canvas's name. */
+/** A chat as the list of every project's chats shows it, with its project's name. */
 export interface ChatElsewhere extends Chat {
-  canvasName: string;
+  projectName: string;
 }
 
 /** One exchange between the owner and the Koordinator. */
@@ -1553,7 +1553,7 @@ export interface Talk {
   then?: string;
   /** Words of no one: the Koordinator took up the step it said it would take once the answer of that exchange was in. */
   answered?: number;
-  /** Words of no one: a card left this canvas for another, built there in a new repository. */
+  /** Words of no one: a card left this project for another, built there in a new repository. */
   moved?: TalkMoved;
   /**
    * Written in this plan's sheet: the words went straight to its plan agent as a question
@@ -1562,12 +1562,12 @@ export interface Talk {
   askedIn?: string;
 }
 
-/** A card that moved to another canvas: its id and title, and that canvas. */
+/** A card that moved to another project: its id and title, and that project. */
 export interface TalkMoved {
   card: string;
   title: string;
-  canvas: string;
-  canvasName: string;
+  project: string;
+  projectName: string;
 }
 
 /** A card the Koordinator waits on: until it is done or waits for the owner. */
@@ -1662,7 +1662,7 @@ export interface NewCard {
   /** Where it goes; left out for a follow-up, which goes below the card it comes from, and otherwise where there is room. */
   x?: number;
   y?: number;
-  /** A repository of the canvas; its home repository when left out (a follow-up's: that of its card). */
+  /** A repository of the project; its home repository when left out (a follow-up's: that of its card). */
   repo?: string;
   /** An idea to discuss before anything is planned. */
   idea?: boolean;
@@ -1674,14 +1674,14 @@ export interface NewCard {
 
 /**
  * A repository to be created for a card: its folder (absolute or from `~`; empty while the owner has
- * not named one yet) and whether it gets a canvas of its own, which the card moves to, or joins the
- * card's canvas. `by`: who chose it; what the owner chose, the idea's agent does not change.
+ * not named one yet) and whether it gets a project of its own, which the card moves to, or joins the
+ * card's project. `by`: who chose it; what the owner chose, the idea's agent does not change.
  * `due`: building or starting the card was clicked, and Seismic creates the repository then (ISO),
  * unless the owner takes it back meanwhile (`NEW_REPO_HOLD_MS`).
  */
 export interface NewRepo {
   path: string;
-  canvas: boolean;
+  project: boolean;
   by: 'owner' | 'agent';
   due?: string;
 }
@@ -1689,13 +1689,13 @@ export interface NewRepo {
 /** How long building a card in a new repository waits for the owner to take it back. */
 export const NEW_REPO_HOLD_MS = 8000;
 
-/** The name a new repository's folder gives it (and its canvas): the last part of its path. */
+/** The name a new repository's folder gives it (and its project): the last part of its path. */
 export const newRepoName = (path: string) => path.trim().replace(/[/\\]+$/, '').split(/[/\\]/).at(-1) ?? '';
 
-/** A card on another canvas, as a card that refers to it shows it. */
+/** A card on another project, as a card that refers to it shows it. */
 export interface Elsewhere {
-  canvas: string;
-  canvasName: string;
+  project: string;
+  projectName: string;
   title: string;
 }
 
@@ -1706,14 +1706,14 @@ export interface CardPatch {
   body?: string;
   state?: CardState;
   need?: Need | null;
-  /** Another repository of the canvas, before work on the card has begun. */
+  /** Another repository of the project, before work on the card has begun. */
   repo?: string;
-  /** A plan: folded to its head, its workstreams not shown on the canvas, or unfolded again. */
+  /** A plan: folded to its head, its workstreams not shown on the project, or unfolded again. */
   collapsed?: boolean;
   /** The task's screenshots, all of them (ids from `POST /api/c/<project>/images`). */
   images?: string[];
   /** Before work begins: a repository to create for the card (`by` is the owner's), or none (null). */
-  newRepo?: Pick<NewRepo, 'path' | 'canvas'> | null;
+  newRepo?: Pick<NewRepo, 'path' | 'project'> | null;
   /** The card's priority, or none (null); the owner's, as is each label set here: its suggested mark goes. */
   priority?: Priority | null;
   /** The card's category, or none (null). */
@@ -1724,7 +1724,7 @@ export interface CardPatch {
   complexity?: Complexity | null;
 }
 
-/** Owner actions on a card's work, posted to `/api/c/:canvas/cards/:id/act`. */
+/** Owner actions on a card's work, posted to `/api/c/:project/cards/:id/act`. */
 export type CardAction =
   /** On a plan: all its planned workstreams go to the Koordinator, which orders them. */
   | { action: 'start'; agent?: AgentSetting }
@@ -1780,7 +1780,7 @@ export type CardAction =
   | { action: 'editHeld'; body: string }
   /** `direct`: onto the default branch at once, without a pull request, where the repository allows it (`RepoRef.direct`). */
   | { action: 'approve'; direct?: boolean }
-  /** A card waiting for approval whose canvas reviews work on the owner's word ("Start code review"): a review of its latest handover starts. */
+  /** A card waiting for approval whose project reviews work on the owner's word ("Start code review"): a review of its latest handover starts. */
   | { action: 'codeReview' }
   /** In a folder without git, on a card waiting for approval: what it changed there is put back as it was before ("Discard changes"). */
   | { action: 'undo' }
@@ -1851,7 +1851,7 @@ export type CardAction =
   /**
    * Ideas: a worker builds a throwaway prototype and shows it as a demo on the idea; several may run
    * side by side. One per planned variant named in `variants` (by approach), and one for `text`.
-   * Neither: one per planned variant without a prototype on the canvas, or, without any planned,
+   * Neither: one per planned variant without a prototype on the project, or, without any planned,
    * the idea as it stands.
    */
   | { action: 'prototype'; text?: string; variants?: string[] }
@@ -1903,7 +1903,7 @@ export type ErrorCode =
   | 'dependencyCycle'
   /** An arrow to or from a plan or one of its workstreams, whose order comes from the plan doc. */
   | 'planDependency'
-  /** An action that needs the card's agents while its repository does not run on the canvas (`Item.repoDown`). */
+  /** An action that needs the card's agents while its repository does not run on the project (`Item.repoDown`). */
   | 'repoDown'
   | 'notPlanned'
   | 'queued'
@@ -1983,7 +1983,7 @@ export type ErrorCode =
   | 'fileTooLarge'
   /** Only a finished card of the owner's (or a stopped task, a parked or dropped idea) goes into the archive. */
   | 'notDone'
-  /** A stopped card whose workstation holds work stays on the canvas. */
+  /** A stopped card whose workstation holds work stays on the project. */
   | 'holdsWork'
   | 'notArchived'
   | 'notIdea'
@@ -2002,19 +2002,19 @@ export type ErrorCode =
   | 'prototypeRunning'
   /** The prototype's idea is becoming a plan: its plan doc is not there yet. */
   | 'planPending'
-  /** The prototype's idea is gone from the canvas, and no plan of it is there. */
+  /** The prototype's idea is gone from the project, and no plan of it is there. */
   | 'ideaGone'
   /** The prototype's idea became a plan whose plan doc does not say which workstream builds on it, and none was chosen. */
   | 'workstreamMissing'
   /** The workstream to build on a prototype was started already. */
   | 'workstreamStarted'
-  /** Every variant the idea's agent planned has its prototype on the canvas already. */
+  /** Every variant the idea's agent planned has its prototype on the project already. */
   | 'variantsRunning'
   /** A plan has no planned workstream left that is not already with the Koordinator. */
   | 'nothingToStart'
   /** The Koordinator could not read from a plan's plan doc which workstream builds on which, so it arranged nothing. */
   | 'arrangeFailed'
-  /** The action is for a prototype on the canvas, and the card is none. */
+  /** The action is for a prototype on the project, and the card is none. */
   | 'notPrototype'
   /** A discarded or built prototype stays in the archive; a new attempt is a new prototype. */
   | 'prototypeEnded'
@@ -2026,7 +2026,7 @@ export type ErrorCode =
   | 'notShared'
   /** Sharing many pages again: a run is under way already. */
   | 'reshareBusy'
-  /** Setup: the folder for the first canvas is no git repository. */
+  /** Setup: the folder for the first project is no git repository. */
   | 'notRepo'
   /** Setup: the folder a clone would go to exists already. */
   | 'cloneTarget'
@@ -2068,7 +2068,7 @@ export type ErrorCode =
   /** Malformed input: a bug in the UI rather than something the owner can fix. */
   | 'invalid';
 
-/** A repository on a canvas, as Seismic's configuration lists it (`canvases.json`). */
+/** A repository on a project, as Seismic's configuration lists it (`projects.json`). */
 export interface RepoConfig {
   path: string;
   /**
@@ -2123,7 +2123,7 @@ export interface SiteSetupJob {
   site?: string;
 }
 
-/** A proposal for the tags of a canvas's demo site, as the configuration follows it: running, then the tags and why, or the error. */
+/** A proposal for the tags of a project's demo site, as the configuration follows it: running, then the tags and why, or the error. */
 export interface TagProposalJob {
   running: boolean;
   tags?: PageTags;
@@ -2133,10 +2133,10 @@ export interface TagProposalJob {
 
 /**
  * A demo site this machine publishes to (`demo-sites.json` in Seismic's home): where it is served and
- * how it is deployed. A canvas chooses one and a path on it (`CanvasDemoSite`).
+ * how it is deployed. A project chooses one and a path on it (`ProjectDemoSite`).
  */
 export interface DemoSiteEntry {
-  /** Where the site is served, without a trailing slash: a canvas's pages lie at `url/<path>/<slug>/`. */
+  /** Where the site is served, without a trailing slash: a project's pages lie at `url/<path>/<slug>/`. */
   url: string;
   /** The command line that deploys the site's directory; `{dir}` stands for it. */
   deploy: string;
@@ -2160,11 +2160,11 @@ export interface DemoSitesView {
     host?: 'cloudflare' | 'github';
     project?: string;
     deploy: string;
-    /** Listed: an overview and a feed per canvas; unlisted: a random part in each page's address and nothing else. */
+    /** Listed: an overview and a feed per project; unlisted: a random part in each page's address and nothing else. */
     listed: boolean;
     /** The env file with its credentials this machine lacks, relative to Seismic's home. */
     needs?: string;
-    /** The paths canvases have initialized on it ('' for its root), as this machine last saw it. */
+    /** The paths projects have initialized on it ('' for its root), as this machine last saw it. */
     paths: string[];
   }[];
   /** The site being added, as far as it got. */
@@ -2173,34 +2173,34 @@ export interface DemoSitesView {
   cloudflareAccounts: string[];
 }
 
-/** The demo site a canvas shares its demos on: one of this machine's (`url`), and where on it. */
-export interface CanvasDemoSite {
+/** The demo site a project shares its demos on: one of this machine's (`url`), and where on it. */
+export interface ProjectDemoSite {
   /** The site, as this machine's list has it. */
   url: string;
-  /** Where the canvas's overview and pages lie on the site (`billing`, `team/billing`); its root where left out. */
+  /** Where the project's overview and pages lie on the site (`billing`, `team/billing`); its root where left out. */
   path?: string;
   /**
    * When a demo goes on the site: `approved`, the card's latest demo as the owner approves its work
    * (before it lands); without it, only when the owner clicks "Share".
    */
   publish?: 'approved';
-  /** The vocabulary the canvas's pages are tagged from: each dimension with its values, in the order the overview shows them. */
+  /** The vocabulary the project's pages are tagged from: each dimension with its values, in the order the overview shows them. */
   tags?: PageTags;
 }
 
-/** A canvas's demo site as the page shows it: chosen, initialized, and the initialization under way or failed. */
-export interface CanvasDemoSiteState {
+/** A project's demo site as the page shows it: chosen, initialized, and the initialization under way or failed. */
+export interface ProjectDemoSiteState {
   url: string;
   path: string;
-  /** The canvas's path is initialized on the site: its demos share there. */
+  /** The project's path is initialized on the site: its demos share there. */
   ready: boolean;
   /** "Initialize": running ("Creating demo site"), or why it failed. */
   init?: { running: boolean; error?: string };
 }
 
 /**
- * A static site the demos are shared on, as a canvas uses it: a site of this machine's list
- * (`DemoSiteEntry`) with what the canvas adds. Seismic keeps its directory (one subdirectory per page,
+ * A static site the demos are shared on, as a project uses it: a site of this machine's list
+ * (`DemoSiteEntry`) with what the project adds. Seismic keeps its directory (one subdirectory per page,
  * and the overviews), writes the pages with its own templates and runs the deploy command after each
  * change.
  */
@@ -2398,13 +2398,13 @@ export function repoShape({ settings, ...r }: RepoConfig): string {
 }
 
 /** Whether saving `after` over `before` restarts or stops some repository's agents: one that left, or whose shape changed (`repoShape`). */
-export function restartsAgents(before: CanvasConfig[], after: CanvasConfig[]): boolean {
-  const shapes = (canvases: CanvasConfig[]) => new Map(canvases.flatMap((c) => c.repos.map((r) => [r.path, repoShape(r)] as const)));
+export function restartsAgents(before: ProjectConfig[], after: ProjectConfig[]): boolean {
+  const shapes = (projects: ProjectConfig[]) => new Map(projects.flatMap((c) => c.repos.map((r) => [r.path, repoShape(r)] as const)));
   const now = shapes(after);
   return [...shapes(before)].some(([path, shape]) => now.get(path) !== shape);
 }
 
-/** The clones a repository gets whose settings say clones, the first canvas's or one added later: two cards run at once. */
+/** The clones a repository gets whose settings say clones, the first project's or one added later: two cards run at once. */
 export const CLONES = 2;
 
 /**
@@ -2423,7 +2423,7 @@ export type FilledClones = Map<string, 'filled' | 'withdrawn' | 'owner'>;
  * the owner has not touched it; `filled` keeps where each path stands, so a count of the owner's,
  * emptied included, stays as it is.
  */
-export function withClones(draft: CanvasConfig[], saved: CanvasConfig[], resolved: (ResolvedCanvas | null)[], filled: FilledClones): CanvasConfig[] | null {
+export function withClones(draft: ProjectConfig[], saved: ProjectConfig[], resolved: (ResolvedProject | null)[], filled: FilledClones): ProjectConfig[] | null {
   const known = new Set(saved.flatMap((c) => c.repos.map((r) => r.path.trim())));
   let changed = false;
   const next = draft.map((c, i) => ({
@@ -2465,10 +2465,10 @@ export interface HostConfig {
 }
 
 /**
- * A canvas's own settings, beside its name, id and repositories. Each has a value in Canvas
- * defaults, copied into a canvas when it is created (design: Canvas defaults).
+ * A project's own settings, beside its name, id and repositories. Each has a value in Project
+ * defaults, copied into a project when it is created (design: Project defaults).
  */
-export interface CanvasSettings {
+export interface ProjectSettings {
   /** Tag each plan’s starting commit and configure its workstream branches with it; on by default. */
   planBaselines?: boolean;
   /**
@@ -2477,47 +2477,47 @@ export interface CanvasSettings {
    * worker is done (`landed`; asked right after the approval).
    */
   archive?: CardArchiving;
-  /** Which labels Seismic suggests on the canvas's cards ("Seismic suggests"); all where left out. */
+  /** Which labels Seismic suggests on the project's cards ("Seismic suggests"); all where left out. */
   suggest?: SuggestSettings;
-  /** The canvas's own harness, model and effort for groups of its agents, over Configuration's; none where left out. */
-  agents?: CanvasAgents;
+  /** The project's own harness, model and effort for groups of its agents, over Configuration's; none where left out. */
+  agents?: ProjectAgents;
   /** Whether a separate agent reviews work that lands on `main`, with the demo or on the owner's word; off where left out. */
   codeReviews?: Partial<CodeReviewSetting>;
   /** The demo site its demos are shared on, and where on it; none where left out (demos are exported). */
-  demoSite?: CanvasDemoSite | null;
+  demoSite?: ProjectDemoSite | null;
 }
 
-/** A canvas's own harness, model or effort per group; a field left out follows Configuration's "Agents and models". */
-export type CanvasAgents = Partial<Record<AgentRole, Partial<AgentSetting>>>;
+/** A project's own harness, model or effort per group; a field left out follows Configuration's "Agents and models". */
+export type ProjectAgents = Partial<Record<AgentRole, Partial<AgentSetting>>>;
 
-/** The canvas settings sheet: the canvas's settings as they apply, and Configuration's models it falls back on. */
-export interface CanvasSettingsView {
-  settings: CanvasDefaults;
+/** The project settings sheet: the project's settings as they apply, and Configuration's models it falls back on. */
+export interface ProjectSettingsView {
+  settings: ProjectDefaults;
   agents: Record<AgentRole, AgentSetting>;
 }
 
-/** A canvas in Seismic's configuration. */
-export interface CanvasConfig extends CanvasSettings {
-  /** Names the canvas; its id follows. Without it, both are the first repository's name. */
+/** A project in Seismic's configuration. */
+export interface ProjectConfig extends ProjectSettings {
+  /** Names the project; its id follows. Without it, both are the first repository's name. */
   name?: string;
-  /** Keeps the canvas's id, and with it its cards, whatever its name says: set when a canvas is renamed. */
+  /** Keeps the project's id, and with it its cards, whatever its name says: set when a project is renamed. */
   id?: string;
   /** Names it had before, newest last: their addresses lead to it, and no other project may take them. */
   oldNames?: string[];
   repos: RepoConfig[];
 }
 
-/** Canvas defaults as they apply: every canvas setting with its value. */
-export type CanvasDefaults = Required<Omit<CanvasSettings, 'codeReviews'>> & { codeReviews: CodeReviewSetting };
+/** Project defaults as they apply: every project setting with its value. */
+export type ProjectDefaults = Required<Omit<ProjectSettings, 'codeReviews'>> & { codeReviews: CodeReviewSetting };
 
-/** Canvas defaults in Seismic's home, and the file they are saved in. */
-export interface CanvasDefaultsView {
+/** Project defaults in Seismic's home, and the file they are saved in. */
+export interface ProjectDefaultsView {
   file: string;
-  defaults: CanvasDefaults;
+  defaults: ProjectDefaults;
 }
 
-/** What a configuration amounts to: each canvas's id and name, and its repositories with their settings. */
-export interface ResolvedCanvas {
+/** What a configuration amounts to: each project's id and name, and its repositories with their settings. */
+export interface ResolvedProject {
   id: string;
   name: string;
   repos: {
@@ -2542,14 +2542,14 @@ export interface ResolvedCanvas {
     /** Where it goes out as a pull request, it may also be pushed straight onto `origin`'s main branch (`direct`). */
     shareDirect?: boolean;
     /**
-     * On a canvas that runs: the clones its pool loses with this configuration (path on its machine,
+     * On a project that runs: the clones its pool loses with this configuration (path on its machine,
      * the host where not here, the number where Seismic made it, the title of the card that holds it).
      */
     leaving?: LeavingClone[];
   }[];
 }
 
-/** A clone a repository's pool loses with a configuration (`ResolvedCanvas`). */
+/** A clone a repository's pool loses with a configuration (`ResolvedProject`). */
 export interface LeavingClone {
   path: string;
   host?: string;
@@ -2559,28 +2559,28 @@ export interface LeavingClone {
   card?: string;
 }
 
-/** Something in a configuration that keeps Seismic from starting with it; `canvas` and `repo` count from 0. */
+/** Something in a configuration that keeps Seismic from starting with it; `project` and `repo` count from 0. */
 export interface ConfigProblem {
   code: ConfigProblemCode;
-  canvas?: number;
+  project?: number;
   repo?: number;
   /** In English, for developers and the Koordinator. */
   detail: string;
   /** The name of the project the problem points to (the one a name is taken by). */
   of?: string;
   /** That project's place in the configuration, counting from 0. */
-  ofCanvas?: number;
+  ofProject?: number;
 }
 
 /** Whether a problem keeps the configuration from being saved: not one in the repository, which is fixed there. */
-/** Problems of the running canvases, not of the configuration: a canvas or repository that did not start as it has them (`StartFailure`). Saving the configuration, or "Try again", has them try again. */
-export const START_FAILED: ConfigProblemCode[] = ['canvasDown', 'repoDown', 'repoBefore'];
+/** Problems of the running projects, not of the configuration: a project or repository that did not start as it has them (`StartFailure`). Saving the configuration, or "Try again", has them try again. */
+export const START_FAILED: ConfigProblemCode[] = ['projectDown', 'repoDown', 'repoBefore'];
 
 export const blocksSaving = (p: ConfigProblem) => !['adapterGone', 'repoSettings', 'untrusted', ...START_FAILED].includes(p.code);
 
 export type ConfigProblemCode =
-  /** No canvas at all. */
-  | 'noCanvas'
+  /** No project at all. */
+  | 'noProject'
   | 'noRepo'
   /** A repository whose path is empty. */
   | 'noPath'
@@ -2588,17 +2588,17 @@ export type ConfigProblemCode =
   | 'notRepo'
   /** A folder without git (`RepoConfig.git` false) whose path is no folder. */
   | 'noFolder'
-  /** A repository the canvas has already, under this path or another. */
+  /** A repository the project has already, under this path or another. */
   | 'sameRepo'
   /** The repository still has a `.obeya/adapter/`, which Seismic no longer reads: its values belong in `.obeya/settings.json`. */
   | 'adapterGone'
-  /** Two canvases with the same id. */
+  /** Two projects with the same id. */
   | 'sameId'
   /** A name (as an address) another project has (`ConfigProblem.of`). */
   | 'nameTaken'
   /** A name (as an address) another project had before (`ConfigProblem.of`): its old addresses lead there. */
   | 'oldNameTaken'
-  /** The repository the canvas was first served with is missing. */
+  /** The repository the project was first served with is missing. */
   | 'homeMissing'
   /** A clone listed as a workstation that is no git repository. */
   | 'notClone'
@@ -2614,9 +2614,9 @@ export type ConfigProblemCode =
   | 'repoSettings'
   /** Commands of the repository, new or changed on its default branch, that wait for the owner to confirm them (`RepoTrust`). */
   | 'untrusted'
-  /** The canvas does not run: its home repository did not start (a git error, say). */
-  | 'canvasDown'
-  /** The repository did not start: it is left out of its canvas, its cards kept. */
+  /** The project does not run: its home repository did not start (a git error, say). */
+  | 'projectDown'
+  /** The repository did not start: it is left out of its project, its cards kept. */
   | 'repoDown'
   /** The repository's agents did not start as the configuration has them now: they work on as they were set up before. */
   | 'repoBefore'
@@ -2630,11 +2630,11 @@ export type ConfigProblemCode =
 export interface ConfigView {
   /** The file it is saved in. */
   file: string;
-  /** Where the running canvases come from: that file, or repositories named on the command line. */
+  /** Where the running projects come from: that file, or repositories named on the command line. */
   source: 'file' | 'args';
   /** As saved (or as given on the command line, before anything is saved). */
-  canvases: CanvasConfig[];
-  /** The ids of the canvases this server runs. */
+  projects: ProjectConfig[];
+  /** The ids of the projects this server runs. */
   running: string[];
   /**
    * Settings of the running server, from its command line; its version (`package.json`), and the
@@ -2648,9 +2648,9 @@ export interface ConfigView {
 /** A configuration checked: what it amounts to and what keeps it from working. */
 export interface ConfigChecked {
   /** As saved, tidied. */
-  canvases: CanvasConfig[];
-  /** What they amount to, by index; null for a canvas with a problem. */
-  resolved: (ResolvedCanvas | null)[];
+  projects: ProjectConfig[];
+  /** What they amount to, by index; null for a project with a problem. */
+  resolved: (ResolvedProject | null)[];
   problems: ConfigProblem[];
 }
 
@@ -2664,7 +2664,7 @@ export type SettingsShared =
 /** What saving the configuration did: Seismic starts again with it, or (repositories' settings alone) it applies at once. */
 export interface ConfigSaved {
   restarting: boolean;
-  /** Seismic runs with it now: canvases and repositories new in it started, settings apply as they are read, and agents whose repository's set-up changed restart once they paused. */
+  /** Seismic runs with it now: projects and repositories new in it started, settings apply as they are read, and agents whose repository's set-up changed restart once they paused. */
   applied?: boolean;
 }
 
@@ -3057,8 +3057,8 @@ export interface MachineJob {
   /** The last line of its output. */
   line: string;
   error?: string;
-  /** A clone that became the first canvas: its id, opened once Seismic runs it. */
-  canvas?: string;
+  /** A clone that became the first project: its id, opened once Seismic runs it. */
+  project?: string;
   /** Its main branch. */
   branch?: string;
   /** Seismic runs it now, or starts again with it by itself; else the owner starts Seismic again. */
@@ -3078,15 +3078,15 @@ export interface MachineView {
   cloneInto: string;
 }
 
-/** What choosing the first canvas did: it is saved, and Seismic runs it (`opens`), or the owner starts Seismic again. */
-export interface FirstCanvas {
-  canvas: string;
+/** What choosing the first project did: it is saved, and Seismic runs it (`opens`), or the owner starts Seismic again. */
+export interface FirstProject {
+  project: string;
   /** The repository's main branch, as Seismic found it. */
   branch: string;
   opens: boolean;
 }
 
-/** A folder for the first canvas, looked at before it is saved: whether it holds a repository, and on which main branch. */
+/** A folder for the first project, looked at before it is saved: whether it holds a repository, and on which main branch. */
 export interface SetupFolder {
   repo: boolean;
   branch?: string;
@@ -3170,20 +3170,20 @@ export interface SourceUpdate {
 /** What the owner does in an open page that a restart would cut off: watching a demo video, dictating. */
 export type OwnerHold = 'video' | 'voice';
 
-/** A restart that waits for workers to finish their turns, or for the owner, as one canvas sees it. */
+/** A restart that waits for workers to finish their turns, or for the owner, as one project sees it. */
 export interface PendingRestart {
   reason: RestartReason;
   /** When it goes ahead however busy the workers are (ms since the epoch). */
   deadline: number;
-  /** The cards on this canvas whose worker it waits for. */
+  /** The cards on this project whose worker it waits for. */
   cards: string[];
-  /** The workers on other canvases it waits for: each canvas (by name) with its cards' titles. */
-  elsewhere: { canvas: string; cards: string[] }[];
+  /** The workers on other projects it waits for: each project (by name) with its cards' titles. */
+  elsewhere: { project: string; cards: string[] }[];
   /** What the owner does in some open page that it waits for, past the deadline too. */
   owner: OwnerHold[];
   /** Only the agents of these repositories (by name) restart, for a change to their configuration; Seismic and the others work on. */
   repos?: string[];
-  /** The canvas left the configuration: it stops once its agents paused. */
+  /** The project left the configuration: it stops once its agents paused. */
   leaving?: boolean;
 }
 
@@ -3201,7 +3201,7 @@ export type ClientMessage =
   | { type: 'ping' }
   /**
    * What the owner has in view (sent on every change and when the page gets the focus back):
-   * `place`, the middle of the canvas in view and its bounds (`placeParam`), where a new card goes
+   * `place`, the middle of the project in view and its bounds (`placeParam`), where a new card goes
    * that a command without a place of its own makes.
    */
   | { type: 'focus'; place?: string }
@@ -3221,7 +3221,7 @@ export interface PageStall {
 
 /** Server → UI over the WebSocket. */
 export type ServerMessage =
-  | { type: 'snapshot'; snapshot: CanvasSnapshot }
+  | { type: 'snapshot'; snapshot: ProjectSnapshot }
   | { type: 'event'; event: CardEvent }
   /** A line taken out of the card's log: a comment the owner deleted before it went to the worker. */
   | { type: 'eventGone'; cardId: string; id: number }
@@ -3240,10 +3240,10 @@ export type ServerMessage =
   | { type: 'source'; source: SourceUpdate | null }
   /** On connect and whenever it changes: how much of its usage limits the account Claude Code runs with here has used, while the bar shows it. */
   | { type: 'usage'; usage: Usage | null }
-  /** On connect and whenever it changes: what waits for the owner on each canvas, by canvas id. */
+  /** On connect and whenever it changes: what waits for the owner on each project, by project id. */
   | { type: 'waiting'; waiting: Record<string, Waiting> }
-  /** Whenever a canvas starts, stops, or changes its name or repositories while Seismic runs. */
-  | { type: 'canvases'; canvases: CanvasInfo[] }
+  /** Whenever a project starts, stops, or changes its name or repositories while Seismic runs. */
+  | { type: 'projects'; projects: ProjectInfo[] }
   /** A line for the owner above the microphone, wherever they are. */
   | ({ type: 'notice' } & Notice);
 
@@ -3268,13 +3268,13 @@ export interface Notice {
   inTalk?: true;
   /** The page opens the card (`cardId`), unless the owner has another one open: the one a review of its PR asked for. */
   open?: true;
-  /** The card (`cardId`) moved to this canvas: a page that has it open follows it there. */
+  /** The card (`cardId`) moved to this project: a page that has it open follows it there. */
   movedTo?: string;
   /**
    * The cards the commands confirmed with `token` made, once they ran (after the undo window): the
-   * line that shows that confirmation offers to go to them; `canvas` where one went to another canvas.
+   * line that shows that confirmation offers to go to them; `project` where one went to another project.
    */
-  made?: { id: string; title: string; canvas?: string }[];
+  made?: { id: string; title: string; project?: string }[];
 }
 
 /** A skill (or command) of Claude Code the owner can ask a card's agent for by `/name` in their words. */
@@ -3287,10 +3287,10 @@ export interface Skill {
 }
 
 /**
- * The model and effort a group of a canvas's agents runs with: Configuration's, with the canvas's own
- * over it. A canvas's own model for its workers is one of Claude Code's, so it runs them in Claude Code; an effort alone keeps them where they are.
+ * The model and effort a group of a project's agents runs with: Configuration's, with the project's own
+ * over it. A project's own model for its workers is one of Claude Code's, so it runs them in Claude Code; an effort alone keeps them where they are.
  */
-export function canvasAgentSetting(role: AgentRole, base: AgentSetting, own: CanvasAgents | undefined): AgentSetting {
+export function projectAgentSetting(role: AgentRole, base: AgentSetting, own: ProjectAgents | undefined): AgentSetting {
   const mine = own?.[role];
   if (!mine || !Object.keys(mine).length) return base;
   if (mine.harness) {

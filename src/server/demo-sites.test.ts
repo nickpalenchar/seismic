@@ -140,16 +140,16 @@ test('the random part of an address carries at least 80 bits', () => {
   expect(new Set(Array.from({ length: 50 }, () => newToken())).size).toBe(50);
 });
 
-describe("sharing on the canvas's site", () => {
+describe("sharing on the project's site", () => {
   let board: Board;
   let source: ShareSource;
   let sharing: Sharing;
-  /** The canvas's site from the list, under a path. */
-  const canvasSite = (e: DemoSiteEntry, path = 'shop', extra: { publish?: 'approved' } = {}): ShareSource => ({ site: { site: { title: 'Shop', url: e.url, deploy: e.deploy, ...extra }, path, ...(e.secret ? { secret: e.secret } : {}) }, repo, title: 'Shop' });
+  /** The project's site from the list, under a path. */
+  const projectSite = (e: DemoSiteEntry, path = 'shop', extra: { publish?: 'approved' } = {}): ShareSource => ({ site: { site: { title: 'Shop', url: e.url, deploy: e.deploy, ...extra }, path, ...(e.secret ? { secret: e.secret } : {}) }, repo, title: 'Shop' });
   beforeEach(() => {
     board = new Board(new Store(':memory:'), { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: repo, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     writeSites(home, [entry()]);
-    source = canvasSite(entry());
+    source = projectSite(entry());
     sharing = new Sharing({ board, runtime: new FakeRuntime(), home, forge: noForge, sourceFor: () => source });
   });
   const card = () => {
@@ -179,7 +179,7 @@ describe("sharing on the canvas's site", () => {
   test('a listed site: no random part, an overview of the path listing the page, none at the root', async () => {
     const { secret: _, ...listed } = entry({ host: 'github', project: 'ada/obeya-demos' });
     writeSites(home, [listed]);
-    source = canvasSite(listed, 'team/shop');
+    source = projectSite(listed, 'team/shop');
     const id = card();
     sharing.share(id);
     const url = (await settled(id, 'shared'))!.url!;
@@ -190,11 +190,11 @@ describe("sharing on the canvas's site", () => {
     expect(existsSync(join(deployed(), MANIFEST))).toBe(true);
   });
 
-  test("a page stays where it went out: on the site and path it has, once the canvas chose another", async () => {
+  test("a page stays where it went out: on the site and path it has, once the project chose another", async () => {
     const id = card();
     sharing.share(id);
     const url = (await settled(id, 'shared'))!.url!;
-    source = canvasSite(entry(), 'elsewhere');
+    source = projectSite(entry(), 'elsewhere');
     sharing.unshare(id);
     await settled(id, undefined);
     expect(existsSync(join(deployed(), url.slice(URL_.length), 'demo.mp4'))).toBe(false);
@@ -211,11 +211,11 @@ describe("sharing on the canvas's site", () => {
     expect(board.events(id).some((e) => e.kind === 'error')).toBe(true);
   });
 
-  test("approving shares there where the canvas's site publishes on approval, unless the card opts out", async () => {
+  test("approving shares there where the project's site publishes on approval, unless the card opts out", async () => {
     const id = card();
     expect(sharing.approved(id)).toBeNull();
     expect(board.item(id)!.share).toBeUndefined();
-    source = canvasSite(entry(), 'shop', { publish: 'approved' });
+    source = projectSite(entry(), 'shop', { publish: 'approved' });
     expect(sharing.approved(id)).toStartWith(`Demo-Video: ${URL_}shop/`);
     expect((await settled(id, 'shared'))?.url).toStartWith(URL_);
     const other = card();

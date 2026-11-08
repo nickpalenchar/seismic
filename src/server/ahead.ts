@@ -55,7 +55,7 @@ export class Ahead {
 
   constructor(private o: AheadOptions) {}
 
-  /** The cards whose agent is in a turn, for the canvas to show it at work. */
+  /** The cards whose agent is in a turn, for the project to show it at work. */
   turnsShown(): Map<string, WorkerTurn> {
     return new Map([...this.busy].map((id) => [id, { tasks: [], over: false }]));
   }
@@ -215,7 +215,7 @@ export class Ahead {
       inform({
         runtime: this.o.runtime,
         cwd: this.o.pathFor(card),
-        system: `You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic.\n\n${AHEAD_RULES}${toObeya ? `\n\n${TO_OBEYA}` : ''}`,
+        system: `You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic.\n\n${AHEAD_RULES}${toObeya ? `\n\n${TO_OBEYA}` : ''}`,
         message: [message, this.o.preferences?.() ?? ''].filter(Boolean).join('\n\n'),
         onTool: (name, input) => {
           if (!name.startsWith('mcp__')) this.o.board.log(card.id, 'activity', 'koordinator', describeTool(name, input, this.o.board.t));

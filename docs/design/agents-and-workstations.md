@@ -4,7 +4,7 @@ A chapter of the [design doc](../design.md), whose header says how it is written
 
 ### Plan git baselines
 
-With the canvas setting `planBaselines` on (the default; the old key `projectBaselines` is still read), the first workstream started in a
+With the project setting `planBaselines` on (the default; the old key `projectBaselines` is still read), the first workstream started in a
 plan creates a local lightweight git tag `obeya/project/<plan-id>/baseline` at the default
 branch's commit from which work starts. Every workstream branch in that plan gets the same tag
 in its repository and the local git config `branch.<branch>.obeya-project-baseline` names it.
@@ -14,8 +14,8 @@ reference, through landings, restarts and plan or plan-doc renames. Clones, incl
 other hosts, receive the same tag and branch configuration. Tags are local; Seismic does not push
 them to the forge. A conflicting tag in a clone fails workstation preparation rather than moving it.
 
-The canvas's configuration and Project defaults offer "Create plan tags"; new canvases copy
-the default, while existing canvases keep their own setting. Turning it off stops creating tags and
+The project's configuration and Project defaults offer "Create plan tags"; new projects copy
+the default, while existing projects keep their own setting. Turning it off stops creating tags and
 configuring branches on subsequent starts; existing tags and branch links stay. Turning it back on
 reuses a plan's tag, or captures the current starting point if it has none. Manual tasks and
 folders without git have no plan baseline. Tagging an already active plan captures its next
@@ -225,8 +225,8 @@ small jobs (the work retrospective's notes and proposals, a shared demo page's t
 title and its suggested labels), and code reviews (see Code reviews in Card lifecycle). The Configuration dialog sets each group's model (Claude Code's default or an alias: Fable,
 Opus, Sonnet, Haiku) and effort (low to max) and marks the presets: Opus throughout, high effort for
 workers, exploration agents and code reviews, medium otherwise. Stored in `settings.json` under `agents`, only
-where it differs from the preset. A canvas may set a harness, model or effort of its own for any group (its
-settings sheet, see The project settings in The canvas), saved with the canvas in the configuration
+where it differs from the preset. A project may set a harness, model or effort of its own for any group (its
+settings sheet, see The project settings in The project), saved with the project in the configuration
 (`agents`, by group, with `harness`, Claude `model` and `effort`, and separate `codex` and `agy`
 model and effort choices); what it leaves open follows the Configuration's. Earlier project settings
 with a Claude model but no harness still select Claude Code even where Configuration selects another
@@ -336,7 +336,7 @@ from disk, after `app.stop` ran in it, if nothing would be lost: no uncommitted 
 detached HEAD with commits on no branch of `origin` (fetched with pruning) unless each file they
 change is as on `origin`'s main branch, so a branch squashed or rebased in its pull request counts as
 landed (where work lands on the local main, `origin` is the Seismic checkout). The folder is moved
-aside first, so a clone named again meanwhile (here or by another canvas) is never removed under a
+aside first, so a clone named again meanwhile (here or by another project) is never removed under a
 card. Otherwise it stays: the log says once what lies in it, the pool's list shows "stays: unlanded work in <path>", and a later start looks again; raising the number takes it back as it
 is. Clones the owner listed, and folders on a host no longer configured, are never touched. A
 workstation on this machine whose folder is gone (moved or deleted by hand) and that the configuration
@@ -381,7 +381,7 @@ a landed card's worktree and branch, to put a discarded prototype's clone back o
 Git does all of it in the background, one step after the other on the same workstation, and the
 workstation stays taken until git is done with it: no other card takes a clone half cleaned, and a
 card's worktree made again meanwhile is added once the old one is gone. The card itself moves at
-once (a discarded prototype into the archive, a deleted card off the canvas), and the pool shows the
+once (a discarded prototype into the archive, a deleted card off the project), and the pool shows the
 workstation free once git is through; a restart waits for git as for a landing. Landing finds the
 main branch the same way, without blocking.
 
@@ -418,9 +418,9 @@ work and clones taken, then each workstation on a line of its own, free ones inc
 the card in it, "free" or "blocked"; then how many cards wait for a workstation or a slot. While
 none is free and a card waits, "⋯" beside the cards whose clone may go to it (see Taking a card's
 workstation). The card
-is a link: a click closes the list, flies to the card and opens it; for a card on another canvas
-the page switches to that canvas at the card's address (see Addresses in The canvas), which opens
-it once the canvas has loaded. A card not on any canvas (archived, say) shows by its title without a link. A
+is a link: a click closes the list, flies to the card and opens it; for a card on another project
+the page switches to that project at the card's address (see Addresses in The project), which opens
+it once the project has loaded. A card not on any project (archived, say) shows by its title without a link. A
 repository in worktrees shows a dot per slot, and none without slots (no pill if all are so); its
 list names the cards' worktrees.
 
@@ -439,7 +439,7 @@ the pill for the reason.
 
 A repository may be a folder that is to stay without git: a family archive in a cloud drive, where a
 `.git` would mean sync conflicts and copies of every scan. Its configuration entry says `"git":
-false`; the first canvas and "+ Repository" offer it beside setting up git (see Setting up git in a
+false`; the first project and "+ Repository" offer it beside setting up git (see Setting up git in a
 folder). It has no branch, landing, pull requests, prototypes, hosts or clones, and the UI offers
 none of them (nor "For everyone, into the repository": `.obeya/settings.json` is written into the
 folder like any file). The folder is its own read checkout, its plan docs, settings and Claude Code
@@ -647,7 +647,7 @@ a container say, reuses pids). A host needs git, Claude Code and what the reposi
   cannot act once it dies itself, and a record can); report-only recovery (it leaves the processes
   running until the owner finds them); an app-process identity contract to keep apps alive through a
   crash (no ancestry shows which process the owner means to keep).
-- **Worktrees by default** (2026-10-14); a canvas whose configuration names clones keeps them.
+- **Worktrees by default** (2026-10-14); a project whose configuration names clones keeps them.
 - **A host's forwarded port reaches a server that answers only narration clips** (2026-10-16).
   Rejected: forwarding to Seismic itself, which let anyone on that machine run commands here.
 - **A finished card's question takes a temporary worktree when no clone is free** (2026-10-15).
@@ -664,7 +664,7 @@ a container say, reuses pids). A host needs git, Claude Code and what the reposi
   folder; asking when saving (a step more, and a leased clone is freed only later).
 - **A workstation whose folder is gone leaves the pool at once, even from its card** (2026-10-23):
   waiting for the card to give it back never ends, since nothing (git, `app.stop`) runs in a missing
-  folder, and the canvas showed every moved repository twice. Rejected: keeping it until the folder
+  folder, and the project showed every moved repository twice. Rejected: keeping it until the folder
   comes back (a moved home never does).
 - **A lease is given back from the card's state** (2026-10-21), whatever brought it there. Rejected:
   freeing only on a card's normal path, which left stopped, ticked-off workstreams holding clones.
@@ -672,7 +672,7 @@ a container say, reuses pids). A host needs git, Claude Code and what the reposi
   minute with five clones there) left Seismic unresponsive while a card waited.
 - **Git frees workstations in the background, the workstation taken until it is done** (2026-10-21):
   removing a worktree, or a checkout back to the main branch in a discarded prototype's clone, held
-  the server on every canvas in a large repository or over SSH. Rejected: freeing the workstation first
+  the server on every project in a large repository or over SSH. Rejected: freeing the workstation first
   and cleaning it afterwards (another card could take it half cleaned).
 - **The pool shows why a free clone goes to no card** (2026-10-26, GitHub issue #9): a clone with
   uncommitted changes counted as free in the pill while cards waited for one, with nothing saying
@@ -694,5 +694,5 @@ a container say, reuses pids). A host needs git, Claude Code and what the reposi
   say what it is for, and buttons in every row crowded the list).
 - **Free clones are chosen by their last look, the one taken looked at again** (2026-10-21): in a
   large repository (GitHub issue #2: 9,188 files, on Windows) or over SSH, `git status` in every free
-  clone at each look held the server, on every canvas. Rejected: asking git while choosing; a start
+  clone at each look held the server, on every project. Rejected: asking git while choosing; a start
   that waits for the look before taking a clone (slots and the queue would not see it taken meanwhile).

@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { generic } from '../adapters/generic';
 import type { RepoAdapter } from '../adapters/types';
 import { Board, type StoredContribution } from './board';
-import { CanvasRuntime } from './canvas';
+import { ProjectRuntime } from './project';
 import { Store } from './db';
 import type { ContributionInfo, Forge, PrStatus } from './forge';
 import { PrWatcher } from './pr-watcher';
@@ -779,45 +779,45 @@ describe('a review card', () => {
   });
 });
 
-describe('„Review PR #5“ on a canvas', () => {
-  let canvas: CanvasRuntime;
+describe('„Review PR #5“ on a project', () => {
+  let project: ProjectRuntime;
   beforeEach(() => {
     const store = new Store(':memory:');
     const home = join(dir, 'home');
     mkdirSync(home);
-    canvas = new CanvasRuntime({ name: 'Produkt', repos: [{ path: main, clones: 1, settings: { land: 'main' } }] }, { store, home, runtime, forge: fake.forge });
+    project = new ProjectRuntime({ name: 'Produkt', repos: [{ path: main, clones: 1, settings: { land: 'main' } }] }, { store, home, runtime, forge: fake.forge });
   });
-  afterEach(() => canvas.shutdown());
+  afterEach(() => project.shutdown());
 
   test('makes a review card with the owner’s words and starts it; asked again, the card it has gets the words', async () => {
-    const id = (await canvas.reviewPr({ do: 'reviewPr', pr: '5', text: 'Look at security especially.' }))!;
-    const card = canvas.board.item(id)!;
+    const id = (await project.reviewPr({ do: 'reviewPr', pr: '5', text: 'Look at security especially.' }))!;
+    const card = project.board.item(id)!;
     expect(card.title).toBe('PR #5: Watcher polls gh in the background');
     expect(card.body).toBe('Look at security especially.');
     expect(card.contribution).toMatchObject({ url: URL_, author: 'amerlander', canModify: true });
     // started: with no other card at work, at once
-    await until(() => canvas.board.row(id).state === 'working');
-    expect(await canvas.reviewPr({ do: 'reviewPr', pr: URL_, text: 'And the demo on the phone only.' })).toBe(id);
-    expect(canvas.board.events(id).some((e) => e.text === 'And the demo on the phone only.')).toBe(true);
+    await until(() => project.board.row(id).state === 'working');
+    expect(await project.reviewPr({ do: 'reviewPr', pr: URL_, text: 'And the demo on the phone only.' })).toBe(id);
+    expect(project.board.events(id).some((e) => e.text === 'And the demo on the phone only.')).toBe(true);
   });
 
   test('a PR one of Seismic’s workers opened opens that card', async () => {
-    const own = canvas.board.create({ title: 'Export', x: 0, y: 0 });
-    canvas.board.work(own.id, { state: 'inPr', pr: JSON.stringify({ url: URL_, number: 5, seen: [], reported: [] }) });
-    expect(await canvas.reviewPr({ do: 'reviewPr', pr: '5', text: '' })).toBe(own.id);
-    expect(canvas.board.snapshot().items.some((i) => i.contribution)).toBe(false);
+    const own = project.board.create({ title: 'Export', x: 0, y: 0 });
+    project.board.work(own.id, { state: 'inPr', pr: JSON.stringify({ url: URL_, number: 5, seen: [], reported: [] }) });
+    expect(await project.reviewPr({ do: 'reviewPr', pr: '5', text: '' })).toBe(own.id);
+    expect(project.board.snapshot().items.some((i) => i.contribution)).toBe(false);
   });
 
   test('a PR recorded in another form (a slash at the end, the host in capitals) opens its card too', async () => {
-    const own = canvas.board.create({ title: 'Export', x: 0, y: 0 });
-    canvas.board.work(own.id, { state: 'inPr', pr: JSON.stringify({ url: 'https://GitHub.com/acme/app/pull/5/', number: 5, seen: [], reported: [] }) });
-    expect(await canvas.reviewPr({ do: 'reviewPr', pr: URL_, text: '' })).toBe(own.id);
-    expect(canvas.board.snapshot().items.some((i) => i.contribution)).toBe(false);
+    const own = project.board.create({ title: 'Export', x: 0, y: 0 });
+    project.board.work(own.id, { state: 'inPr', pr: JSON.stringify({ url: 'https://GitHub.com/acme/app/pull/5/', number: 5, seen: [], reported: [] }) });
+    expect(await project.reviewPr({ do: 'reviewPr', pr: URL_, text: '' })).toBe(own.id);
+    expect(project.board.snapshot().items.some((i) => i.contribution)).toBe(false);
   });
 
   test('a closed PR gets no card', async () => {
     fake.info.state = 'CLOSED';
-    expect(await canvas.reviewPr({ do: 'reviewPr', pr: '5', text: '' })).toBeUndefined();
-    expect(canvas.board.snapshot().items.some((i) => i.contribution)).toBe(false);
+    expect(await project.reviewPr({ do: 'reviewPr', pr: '5', text: '' })).toBeUndefined();
+    expect(project.board.snapshot().items.some((i) => i.contribution)).toBe(false);
   });
 });

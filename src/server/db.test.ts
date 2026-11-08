@@ -22,6 +22,14 @@ function withPath(f: (path: string) => void) {
   }
 }
 
+/** The database as it was while projects were canvases: the migration that renamed them undone, for tests that rebuild an older one. */
+function asCanvases(db: Database) {
+  for (const { name } of db.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[])
+    if ((db.query(`PRAGMA table_info(${name})`).all() as { name: string }[]).some((c) => c.name === 'project_id')) db.run(`ALTER TABLE ${name} RENAME COLUMN project_id TO canvas_id`);
+  db.run('ALTER TABLE projects RENAME TO canvases');
+  if (db.query("SELECT 1 FROM sqlite_master WHERE name = 'chats_project'").get()) db.run('DROP INDEX chats_project; CREATE INDEX chats_canvas ON chats (canvas_id, opened)');
+}
+
 test('a database a newer Seismic wrote is left alone, not opened', () =>
   withPath((path) => {
     new Store(path).db.close();
@@ -35,7 +43,7 @@ test('a database a newer Seismic wrote is left alone, not opened', () =>
 test('a database an Seismic before the release left behind it is left alone, not opened', () =>
   withPath((path) => {
     const old = new Database(path);
-    old.run('CREATE TABLE canvases (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL)');
+    old.run('CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL)');
     old.run(`PRAGMA user_version = ${RELEASED - 1}`);
     old.close();
     expect(() => new Store(path)).toThrow(OlderDatabase);
@@ -45,12 +53,12 @@ test('a database an Seismic before the release left behind it is left alone, not
 test('what an Seismic before the release kept in earlier shapes is in today’s', () =>
   withPath((path) => {
     const s = new Store(path);
-    s.ensureCanvas('c', 'C');
+    s.ensureProject('c', 'C');
     const [video, answered, held, plan] = s.insert([
-      { canvas_id: 'c', kind: 'task', state: 'waiting', x: 0, y: 0 },
-      { canvas_id: 'c', kind: 'task', state: 'waiting', x: 0, y: 1 },
-      { canvas_id: 'c', kind: 'task', state: 'done', x: 0, y: 2 },
-      { canvas_id: 'c', kind: 'project' as 'plan', plan_ref: 'docs/plan/gone.md', title: 'Gone', x: 0, y: 3 },
+      { project_id: 'c', kind: 'task', state: 'waiting', x: 0, y: 0 },
+      { project_id: 'c', kind: 'task', state: 'waiting', x: 0, y: 1 },
+      { project_id: 'c', kind: 'task', state: 'done', x: 0, y: 2 },
+      { project_id: 'c', kind: 'project' as 'plan', plan_ref: 'docs/plan/gone.md', title: 'Gone', x: 0, y: 3 },
     ]);
     const log = (cardId: string, kind: CardEvent['kind'], author: CardEvent['author'], text: string) => s.addEvent({ cardId, kind, author, text });
     const first = log(answered!.id, 'review', 'worker', 'Done.');
@@ -106,8 +114,9 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     s.db.run('DROP INDEX talk_chat');
     s.db.run('ALTER TABLE talk DROP COLUMN chat');
     s.db.run('DROP TABLE chats');
-    s.addDecision({ canvas_id: 'c', plan_id: plan!.id, card_id: plan!.id, question: 'q', answer: 'a', by: 'plan' });
+    s.addDecision({ project_id: 'c', plan_id: plan!.id, card_id: plan!.id, question: 'q', answer: 'a', by: 'plan' });
     s.db.run("UPDATE decisions SET by = 'project'");
+    asCanvases(s.db);
     s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
     s.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
     s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
@@ -136,8 +145,8 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
 
 test('a card gets the shortest code no other card has: the start of its id, one digit longer for each card that shares it', () => {
   const s = new Store(':memory:');
-  s.ensureCanvas('c', 'C');
-  const [a] = s.insert([{ canvas_id: 'c', kind: 'task', x: 0, y: 0 }]);
+  s.ensureProject('c', 'C');
+  const [a] = s.insert([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
   expect(a!.short).toMatch(new RegExp(`^[0-9a-f]{${SHORT}}$`));
   expect(a!.id.replaceAll('-', '').startsWith(a!.short)).toBe(true);
   // ids that share their start with cards there are already
@@ -146,7 +155,7 @@ test('a card gets the shortest code no other card has: the start of its id, one 
   let n = 0;
   crypto.randomUUID = () => ids[n++] as ReturnType<typeof crypto.randomUUID>;
   try {
-    expect(s.insert([0, 1, 2].map((y) => ({ canvas_id: 'c', kind: 'task' as const, x: 0, y }))).map((r) => r.short)).toEqual(['abcdef', 'abcdef0', 'abcdef01']);
+    expect(s.insert([0, 1, 2].map((y) => ({ project_id: 'c', kind: 'task' as const, x: 0, y }))).map((r) => r.short)).toEqual(['abcdef', 'abcdef0', 'abcdef01']);
   } finally {
     crypto.randomUUID = real;
   }
@@ -155,9 +164,9 @@ test('a card gets the shortest code no other card has: the start of its id, one 
 test('the migration gives the cards there are codes of their own, longer where their ids start alike', () =>
   withPath((path) => {
     const s = new Store(path);
-    s.ensureCanvas('c', 'C');
+    s.ensureProject('c', 'C');
     const ids = ['12345678-0000-4000-8000-000000000001', '12345678-0000-4000-8000-000000000002', '1234aaaa-0000-4000-8000-000000000003', 'ffffffff-0000-4000-8000-000000000004'];
-    const insert = s.db.query("INSERT INTO cards (id, short, canvas_id, kind, x, y, created_at, updated_at) VALUES ($id, $id, 'c', 'task', 0, 0, '', '')");
+    const insert = s.db.query("INSERT INTO cards (id, short, project_id, kind, x, y, created_at, updated_at) VALUES ($id, $id, 'c', 'task', 0, 0, '', '')");
     for (const id of ids) insert.run({ id });
     s.db.run('DROP INDEX cards_short');
     s.db.run('ALTER TABLE cards DROP COLUMN short');
@@ -173,6 +182,7 @@ test('the migration gives the cards there are codes of their own, longer where t
     s.db.run('DROP INDEX talk_chat');
     s.db.run('ALTER TABLE talk DROP COLUMN chat');
     s.db.run('DROP TABLE chats');
+    asCanvases(s.db);
     s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
     s.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
     s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
@@ -186,14 +196,14 @@ test('the migration gives the cards there are codes of their own, longer where t
 test('the sessions of cards from before runs were recorded: the last as pinned, one for each other identity their agents spoke as', () =>
   withPath((path) => {
     const s = new Store(path);
-    s.ensureCanvas('c', 'C');
-    const [pinned, spoke, legacy, mixed, idle] = s.insert([0, 1, 2, 3, 4].map((y) => ({ canvas_id: 'c', kind: 'task' as const, x: 0, y })));
+    s.ensureProject('c', 'C');
+    const [pinned, spoke, legacy, mixed, idle] = s.insert([0, 1, 2, 3, 4].map((y) => ({ project_id: 'c', kind: 'task' as const, x: 0, y })));
     s.update(pinned!.id, { session_id: 's-1', agent_setting: JSON.stringify({ model: 'opus', effort: 'high' }) });
     s.update(spoke!.id, { session_id: 'codex:t-1', agent_setting: JSON.stringify({ model: 'opus', effort: 'high', harness: 'codex', codex: { model: 'gpt-x', effort: 'low' } }) });
     s.addEvent({ cardId: spoke!.id, kind: 'say', author: 'worker', text: 'On it.', agent: { harness: 'codex', model: 'gpt-x' } });
     s.addEvent({ cardId: spoke!.id, kind: 'say', author: 'koordinator', text: 'Not the worker.', agent: { harness: 'claude', model: 'claude-opus-5-5' } });
     s.update(legacy!.id, { session_id: 'old-claude' });
-    const [named] = s.insert([{ canvas_id: 'c', kind: 'task', x: 1, y: 0 }]);
+    const [named] = s.insert([{ project_id: 'c', kind: 'task', x: 1, y: 0 }]);
     s.update(named!.id, { session_id: 'codex:t-2', agent_setting: JSON.stringify({ model: 'opus', effort: 'high', harness: 'codex', codex: { model: 'gpt-y', effort: 'max' } }) });
     s.update(mixed!.id, { session_id: 's-3', agent_setting: JSON.stringify({ model: 'sonnet', effort: 'low' }) });
     s.addEvent({ cardId: mixed!.id, kind: 'say', author: 'worker', text: 'First.', agent: { harness: 'claude', model: 'claude-opus-5-5' } });
@@ -205,6 +215,7 @@ test('the sessions of cards from before runs were recorded: the last as pinned, 
     s.db.run('DROP INDEX talk_chat');
     s.db.run('ALTER TABLE talk DROP COLUMN chat');
     s.db.run('DROP TABLE chats');
+    asCanvases(s.db);
     s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
     s.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
     s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
@@ -232,10 +243,10 @@ test('the sessions of cards from before runs were recorded: the last as pinned, 
 test('runs and responses survive a restart, one response for each handover', () =>
   withPath((path) => {
     const s = new Store(path);
-    s.ensureCanvas('c', 'C');
-    const [card] = s.insert([{ canvas_id: 'c', kind: 'task', x: 0, y: 0, title: 'T' }]);
+    s.ensureProject('c', 'C');
+    const [card] = s.insert([{ project_id: 'c', kind: 'task', x: 0, y: 0, title: 'T' }]);
     s.recordRun(card!.id, 's-1', { harness: 'claude', model: 'm', effort: 'high' }, '2026-01-01T00:00:00.000Z');
-    const given = { cardId: card!.id, canvasId: 'c', handover: 7, title: 'T', attribution: 'single' as const, configs: [{ harness: 'claude' as const, model: 'm', effort: 'high' as const }], answer: { rating: 3 } };
+    const given = { cardId: card!.id, projectId: 'c', handover: 7, title: 'T', attribution: 'single' as const, configs: [{ harness: 'claude' as const, model: 'm', effort: 'high' as const }], answer: { rating: 3 } };
     const first = s.putFeedback(given);
     s.putFeedback({ ...given, configs: [], attribution: 'missing' });
     s.db.close();
@@ -247,7 +258,7 @@ test('runs and responses survive a restart, one response for each handover', () 
 
 test('chats: words go into the one opened last, a new one only once something was said, answers wait unread in theirs', () => {
   const store = new Store(':memory:');
-  store.db.run("INSERT INTO canvases (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01'), ('d', 'Site', '2026-11-01')");
+  store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01'), ('d', 'Site', '2026-11-01')");
   const first = store.chat('c');
   expect(store.chatModel('c')).toBeUndefined();
   store.setChatModel('c', 'sonnet');
@@ -276,7 +287,7 @@ test('chats: words go into the one opened last, a new one only once something wa
   expect(store.chatModel('c')).toBe('sonnet');
   expect(store.readTalk('c')).toBe(true);
   expect(store.openChat('d', first)).toBe(false);
-  expect(store.chats().map((x) => x.canvas).sort()).toEqual(['c', 'c', 'd']);
+  expect(store.chats().map((x) => x.project).sort()).toEqual(['c', 'c', 'd']);
   // a new chat left without a word in it goes once another is opened
   const empty = store.newChat('c');
   store.openChat('c', second);
@@ -286,7 +297,7 @@ test('chats: words go into the one opened last, a new one only once something wa
 
 test('a chat opened and a new one made in the same millisecond become current in turn', () => {
   const store = new Store(':memory:');
-  store.db.run("INSERT INTO canvases (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
+  store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
   const first = store.chat('c');
   store.addTalk('c', 'first', '', null);
   const second = store.newChat('c');
@@ -298,12 +309,13 @@ test('a chat opened and a new one made in the same millisecond become current in
   expect(third).not.toBe(second);
 });
 
-test('what was said before chats existed becomes one chat per canvas', () =>
+test('what was said before chats existed becomes one chat per project', () =>
   withPath((path) => {
     const store = new Store(path);
-    store.db.run("INSERT INTO canvases (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
+    store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
     store.addTalk('c', 'eins', 'A', null);
     store.addTalk('c', 'zwei', 'B', null);
+    asCanvases(store.db);
     store.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
     store.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
     store.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
@@ -317,4 +329,31 @@ test('what was said before chats existed becomes one chat per canvas', () =>
     expect(chats.map((x) => x.title)).toEqual(['eins']);
     expect(again.talk('c', 20, false, chats[0]!.id).map((t) => t.said)).toEqual(['eins', 'zwei']);
     again.db.close();
+  }));
+
+test('what an Seismic kept while projects were canvases is in today’s names, tables and stored JSON', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.ensureProject('c', 'Shop');
+    const [card] = s.insert([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
+    s.setSetting('c', 'paused', '');
+    s.addTalk('c', 'eins', 'A', null);
+    s.addMoved('c', { card: card!.id, title: 'T', project: 'd', projectName: 'Site' } as never, 'moved');
+    const made = s.addEvent({ cardId: card!.id, kind: 'say', author: 'worker', text: 'Made.' });
+    asCanvases(s.db);
+    s.db.run(`UPDATE talk SET moved = '{"card":"x","title":"T","canvas":"d","canvasName":"Site"}' WHERE moved IS NOT NULL`);
+    s.db.run(`UPDATE cards SET new_repo = '{"path":"/r","canvas":true,"by":"owner"}' WHERE id = '${card!.id}'`);
+    s.db.query('UPDATE events SET made = $made WHERE id = $id').run({ made: '{"card":"y","title":"U","canvas":"d"}', id: made.id });
+    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.length - 1}`);
+    s.db.close();
+
+    const after = new Store(path);
+    expect(after.projectName('c')).toBe('Shop');
+    expect(after.setting('c', 'paused')).toBe('');
+    expect(JSON.parse(after.card(card!.id)!.new_repo!)).toEqual({ path: '/r', by: 'owner', project: true });
+    expect(after.events(card!.id).find((e) => e.id === made.id)!.made).toEqual({ card: 'y', title: 'U', project: 'd' });
+    expect(after.talk('c', 20, false).find((t) => t.moved)!.moved).toEqual({ card: 'x', title: 'T', project: 'd', projectName: 'Site' });
+    const names = (after.db.query("SELECT name, sql FROM sqlite_master").all() as { name: string; sql: string | null }[]).filter((o) => /canvas/i.test(o.name + (o.sql ?? '')));
+    expect(names).toEqual([]);
+    after.db.close();
   }));

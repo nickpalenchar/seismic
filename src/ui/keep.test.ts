@@ -7,7 +7,7 @@ const store = () => {
 };
 const kept = (at: number): Kept => ({ at, card: 'c1', sheet: 'koordinator', scroll: [['["panel"]', 400]], drafts: [], video: { time: 23.5, playing: false } });
 
-test('what a reload kept comes back once, on its canvas', () => {
+test('what a reload kept comes back once, on its project', () => {
   const s = store();
   keep(s, 'obeya', kept(1000));
   expect(takeKept(s, 'shop', 2000)).toBeNull();
@@ -21,7 +21,7 @@ test('a page loaded long after starts afresh', () => {
   expect(takeKept(s, 'obeya', 1000 + 10 * 60_000)).toBeNull();
 });
 
-test("Seismic's sheet left open over a draft opens again on its canvas, closed or empty it stays closed", () => {
+test("Seismic's sheet left open over a draft opens again on its project, closed or empty it stays closed", () => {
   const s = store();
   leaveSheet(s, 'obeya', true);
   expect(takeSheetLeft(s, 'shop')).toBe(false);

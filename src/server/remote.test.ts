@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AccessView, Pairing } from '../core/types';
-import { CanvasRuntime } from './canvas';
+import { ProjectRuntime } from './project';
 import { Store } from './db';
 import { Access, deviceName, machineAddresses, PAIRING_MS, UNUSED_MS } from './remote';
 import { serve } from './server';
@@ -21,7 +21,7 @@ let store: Store;
 let access: Access;
 let server: ReturnType<typeof serve>;
 let clock: number;
-let canvas: CanvasRuntime;
+let project: ProjectRuntime;
 let push: Push;
 /** What went to the push service: to where. */
 let pushed: string[];
@@ -33,7 +33,7 @@ beforeEach(() => {
   store = new Store(':memory:');
   clock = Date.now();
   access = new Access({ store, home: dir, tailscale: new Tailscale(fakeTailscale(ts)), now: () => clock });
-  canvas = new CanvasRuntime({ repos: [{ path: main }] }, { store, home: dir, runtime: undefined as never, forge: noForge });
+  project = new ProjectRuntime({ repos: [{ path: main }] }, { store, home: dir, runtime: undefined as never, forge: noForge });
   pushed = [];
   push = new Push({
     store,
@@ -42,7 +42,7 @@ beforeEach(() => {
       return { status: 201, text: async () => '' };
     },
   });
-  server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, access, push);
+  server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, access, push);
 });
 afterEach(() => {
   access.stop();
@@ -161,13 +161,13 @@ describe('pairing', () => {
     const page = await viaTailnet('/');
     expect(page.status).toBe(401);
     expect(await page.text()).toContain('Dieses Gerät ist nicht mit Seismic verbunden');
-    expect(await (await viaTailnet('/api/canvases')).json()).toMatchObject({ code: 'notPaired' });
+    expect(await (await viaTailnet('/api/projects')).json()).toMatchObject({ code: 'notPaired' });
     expect(await opens({ host: NAME, 'x-forwarded-for': '100.64.0.7', origin: `https://${NAME}` })).toBeNull();
     // this machine itself needs none
-    expect((await local('/api/canvases')).status).toBe(200);
+    expect((await local('/api/projects')).status).toBe(200);
   });
 
-  test('the code from the QR code pairs the phone once; it then opens the canvas, until it is removed', async () => {
+  test('the code from the QR code pairs the phone once; it then opens the project, until it is removed', async () => {
     expect((await local('/api/access/pair', { method: 'POST' })).status).toBe(400);
     await turnOn();
     const p = await pairing();
@@ -287,18 +287,18 @@ describe('push', () => {
     // this machine gets none
     expect(await (await local('/api/push', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(await subscription()) })).json()).toMatchObject({ code: 'onlyDevices' });
 
-    const card = (title: string) => canvas.board.create({ title, body: '', x: 0, y: 0 }).id;
+    const card = (title: string) => project.board.create({ title, body: '', x: 0, y: 0 }).id;
     const a = card('Login');
-    canvas.board.work(a, { state: 'waiting', need: 'demo' });
+    project.board.work(a, { state: 'waiting', need: 'demo' });
     await until(async () => (await push.settled(), pushed.length === 1));
     expect(pushed).toEqual(['https://web.push.apple.com/QGx']);
 
-    // the owner at a page here: what starts waiting meanwhile stays on the canvas
+    // the owner at a page here: what starts waiting meanwhile stays on the project
     const page = new (asOwner(() => server).WebSocket)(new URL('/api/c/main/ws', server.url.href.replace('http', 'ws')));
     await new Promise((r) => (page.onopen = r));
     page.send(JSON.stringify({ type: 'here' }));
     await until(() => push.atDesk());
-    canvas.board.work(card('Export'), { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'CSV?', options: [] } }) });
+    project.board.work(card('Export'), { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'CSV?', options: [] } }) });
     await push.settled();
     expect(pushed).toHaveLength(1);
     page.close();

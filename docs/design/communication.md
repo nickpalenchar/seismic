@@ -22,8 +22,8 @@ visible on a card.
 - `propose_card(title, task, reason, idea?, questions?, replaces?, start_at?, repo?)` and
   `withdraw_proposal(title, why, replaced_by?)` (see Proposals): something it noticed outside its
   task, instead of doing it, or a follow-up due later (`start_at`). `repo` exists wherever Seismic
-  runs more than one repository: its description lists the ids and paths of the canvas's own and,
-  by canvas, those of the other canvases.
+  runs more than one repository: its description lists the ids and paths of the project's own and,
+  by project, those of the other projects.
 - `ready_for_review(summary, demo)`, whose summary is the report the owner reads. The demo's
   `question` (text, options, multiple, pick, pick_why) is asked and answered as with `ask`, while the
   card goes on waiting for approval (see Waiting for approval in Card lifecycle).
@@ -79,7 +79,7 @@ A light-blue bar and an hourglass mark the usage pause, with a visible way to tr
 The server watches reset times centrally without asking an agent. Its Koordinator periodically
 wakes all limit-paused workers whose recorded reset has passed, including after a server restart
 or the machine waking from sleep. Pauses with no known future reset stay paused until the owner
-tries again; a failed attempt cannot turn an old reset into a new retry loop. A canvas paused by
+tries again; a failed attempt cannot turn an old reset into a new retry loop. A project paused by
 the owner stays paused. A worker's limit pause stores the retry count, known reset and earlier
 status line with its existing pause record. On successful work its earlier status is restored.
 The conversation shows the limit where it happened. A worker stopped while taking in the owner's
@@ -105,8 +105,8 @@ bubble that shows the agent at work ("Agent at work") has a pause mark, faint. A
 shows only while the pointer is on the bubble, so a long run does not keep a button in view; on a
 touch screen it is always there. By voice "pause for a moment". Both pause at once.
 
-On the canvas, the card shows a faint pause while the pointer is on it, in the corner where other
-cards show their play and archive buttons (see The canvas), which pauses at a safe point instead:
+On the project, the card shows a faint pause while the pointer is on it, in the corner where other
+cards show their play and archive buttons (see The project), which pauses at a safe point instead:
 the agent brings its work to a clean stop first, as for a restart (see Waiting for the workers). A
 worker hears that the owner pauses it: it finishes the step it is in, starts nothing long, stops the
 background work it can start again and ends its turn, without handing over if it is not done. An
@@ -142,23 +142,23 @@ agent hears that it was paused and what ran was stopped (exit code 137), plus th
 what it had not answered. What Seismic had for a paused worker meanwhile (a review, a landing) goes
 along then. "Stop" stays in the card's action row: it ends the agent and plans the card again.
 
-### Pausing a canvas's agents
+### Pausing a project's agents
 
-With several canvases, each canvas's row in the navigation (see The navigation) shows the moving line of a card at work while
-at least one agent works on that canvas (any agent with a pause, as above). While the pointer is on
+With several projects, each project's row in the navigation (see The navigation) shows the moving line of a card at work while
+at least one agent works on that project (any agent with a pause, as above). While the pointer is on
 the row, the line turns into a pause button, faint like a card's, "pause x running agents" in its tooltip; with
 none at work but at least one paused, the row shows ▶ on the same hover, "resume x paused agents". On a touch screen the button is always there. Nothing else of it sits in the bar. The
 phone has none of it, to stay simple (owner, 2026-10-30): pausing is for the desktop.
 
 Pausing pauses each agent at work there as the pause on its card does, at a safe point; those about
-to pause count as paused already. As long as one of them is still paused (or about to be), the cards the Koordinator lets start on that canvas wait in the queue ("Waiting:
-canvas paused") instead of taking the slots that pausing freed. Resuming resumes every paused
-agent there, as "Resume" does, and the waiting cards start. Once none on the canvas is paused
+to pause count as paused already. As long as one of them is still paused (or about to be), the cards the Koordinator lets start on that project wait in the queue ("Waiting:
+project paused") instead of taking the slots that pausing freed. Resuming resumes every paused
+agent there, as "Resume" does, and the waiting cards start. Once none on the project is paused
 any more (the owner resumed each on its card, or their cards went), the queue runs again by itself;
-one that could not go on (its repository left the canvas) is still paused and keeps the queue held.
-A restart leaves it as it was: the cards stay paused and the canvas holds its queue. A snoozed card
+one that could not go on (its repository left the project) is still paused and keeps the queue held.
+A restart leaves it as it was: the cards stay paused and the project holds its queue. A snoozed card
 is not a paused agent, though its worker stopped the same way: it counts for neither number, the
-canvas's resume leaves it asleep, it holds no queue, and its card shows no ▶; it wakes at its time
+project's resume leaves it asleep, it holds no queue, and its card shows no ▶; it wakes at its time
 or by "Wake now".
 
 ### Snoozing a card
@@ -210,7 +210,7 @@ check); it hears what woke it (no words: the owner wants to know where things st
 again. For a worker the owner snoozed, such news waits. A question for the owner that arises
 meanwhile (its PR closed, a tool call to allow) ends the snooze.
 
-On the canvas a snoozed card is pushed back on greyed stock with a clock: "◷ Snoozed until
+On the project a snoozed card is pushed back on greyed stock with a clock: "◷ Snoozed until
 tomorrow, 00:05" (or "until "…" is done", with "at the latest …" when it has a time too), with who
 snoozed it and why. One waiting on another card shows that wait while the pointer is on either, as
 a queued card does (see The queue's order). It counts neither as at work nor as needing the owner; on the phone it stands at
@@ -264,7 +264,7 @@ the question for restart. Native user-input requests must use Seismic's `ask`.
 
 A worker answers a note or feedback with `reply`, saying what it changes or why nothing, and asks if
 the note is unclear. The closing words of a turn in which it replied mostly repeat the reply (often
-in English on a German canvas), so they fold under it as its last step, together with any steps in
+in English on a German project), so they fold under it as its last step, together with any steps in
 between; closing words after a handover are left out. Words followed by a further step stay its
 words.
 
@@ -330,22 +330,22 @@ as a learned preference does. Older answers agents gave in the owner's name stay
   newcomer finds a button that appears where the pointer goes, so none stays in view until its
   first use. Rejected: always visible; visible until used once. A touch screen, without hover,
   shows them all.
-- **The card's pause and the canvas's pause wait for a safe point; the bubble's pauses at once**
-  (2026-10-30, owner): pausing from the canvas sets work aside for later, and an agent cut off
+- **The card's pause and the project's pause wait for a safe point; the bubble's pauses at once**
+  (2026-10-30, owner): pausing from the project sets work aside for later, and an agent cut off
   mid-step leaves half-done work (a test run, a render, uncommitted edits) to sort out on resume. The
   bubble's pause stays for an agent going the wrong way. The safe point is the one restarts already
   use, with the same 15 minutes at most. Rejected: one pause for all three places (either cuts off
   work the owner only wanted set aside, or lets an agent go on that is going the wrong way); a turn
-  ending with a handover leaving the agent unpaused (a canvas whose agents all handed over would
+  ending with a handover leaving the agent unpaused (a project whose agents all handed over would
   start its queue again).
-- **A canvas pauses as its agents, each with its own pause** (2026-10-29, owner and maintainer, PR
-  #22): the owner with several canvases steers where the tokens go, pausing the less important
-  ones. The canvas has no state of its own beyond holding its queue: what shows and what resumes
+- **A project pauses as its agents, each with its own pause** (2026-10-29, owner and maintainer, PR
+  #22): the owner with several projects steers where the tokens go, pausing the less important
+  ones. The project has no state of its own beyond holding its queue: what shows and what resumes
   are its paused cards, and the pause lasts over restarts as theirs does. Holding the queue keeps
-  pausing a busy canvas from just swapping its running agents for its queued ones. Rejected: a
-  canvas-wide stop at a safe point with every session ended and everything for its workers held
-  (a state of its own beside the cards' pauses); a button beside the canvas pill (too close to
-  the one in the navigation, and in view all the time); a setting to start Seismic with every canvas
+  pausing a busy project from just swapping its running agents for its queued ones. Rejected: a
+  project-wide stop at a safe point with every session ended and everything for its workers held
+  (a state of its own beside the cards' pauses); a button beside the project pill (too close to
+  the one in the navigation, and in view all the time); a setting to start Seismic with every project
   paused (pauses last over restarts anyway).
 - **Waits of hours or days are a snooze Seismic holds** (2026-10-17). Rejected: workers keeping a turn
   open with chained background sleeps (the card looked busy for days and held a slot, every restart

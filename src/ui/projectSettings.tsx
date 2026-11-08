@@ -1,49 +1,49 @@
-// The canvas's own settings, a docked sheet on the right like the inbox, opened from the gear in the
+// The project's own settings, a docked sheet on the right like the inbox, opened from the gear in the
 // bar: models per group of agents over Configuration's, code reviews, the demo site, the labels Seismic
 // suggests, how cards go into the archive, plan tags.
-// Each change saves at once into the configuration; the rest of the canvas (name, repositories) is
-// in the Configuration dialog, which the sheet's foot opens at this canvas.
+// Each change saves at once into the configuration; the rest of the project (name, repositories) is
+// in the Configuration dialog, which the sheet's foot opens at this project.
 
 import { Fragment, useEffect, useState } from 'react';
-import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, harnessChoice, type AgentEffort, type AgentModel, type AgentRole, type CanvasAgents, type CanvasSettings, type CanvasSettingsView, type CodexModel, type Harness } from '../core/types';
+import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, harnessChoice, type AgentEffort, type AgentModel, type AgentRole, type ProjectAgents, type ProjectSettings, type ProjectSettingsView, type CodexModel, type Harness } from '../core/types';
 import { api } from './api';
-import { CanvasSiteField, CardArchiveField, CodeReviewField, Head, PlanBaselineField, SuggestField } from './config';
+import { ProjectSiteField, CardArchiveField, CodeReviewField, Head, PlanBaselineField, SuggestField } from './config';
 import { Docked } from './docked';
 import { failText, t } from './strings';
 
-/** The sheet of the canvas `canvas`; read afresh each time it opens or the Configuration over it closes. */
-export function CanvasSettingsSheet({ canvas, name, homePath, on, covered, problems, onConfig, onAddSite }: { canvas: string; name: string; /** The canvas's home repository, which proposing the demo site's tags reads. */ homePath?: string | undefined; /** Opens Configuration at the page that adds a demo site. */ onAddSite: () => void; on: boolean; /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */ covered: boolean; /** The configuration's problems, counted on the gear too. */ problems: number; onConfig: () => void }) {
-  const [view, setView] = useState<CanvasSettingsView | null>(null);
+/** The sheet of the project `project`; read afresh each time it opens or the Configuration over it closes. */
+export function ProjectSettingsSheet({ project, name, homePath, on, covered, problems, onConfig, onAddSite }: { project: string; name: string; /** The project's home repository, which proposing the demo site's tags reads. */ homePath?: string | undefined; /** Opens Configuration at the page that adds a demo site. */ onAddSite: () => void; on: boolean; /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */ covered: boolean; /** The configuration's problems, counted on the gear too. */ problems: number; onConfig: () => void }) {
+  const [view, setView] = useState<ProjectSettingsView | null>(null);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [catalogs, setCatalogs] = useState<Partial<Record<'codex' | 'agy', CodexModel[]>>>({});
   useEffect(() => {
     if (!on || covered) return;
     setStatus('');
-    api.canvasSettings(canvas).then(setView, (e) => setStatus(failText(e)));
-  }, [on, covered, canvas]);
+    api.projectSettings(project).then(setView, (e) => setStatus(failText(e)));
+  }, [on, covered, project]);
   useEffect(() => {
     if (!on) return;
     void Promise.all([api.codexModels(), api.agyModels()]).then(([codex, agy]) => setCatalogs({ codex, agy }), console.error);
   }, [on]);
-  const l = t.canvasSettings;
+  const l = t.projectSettings;
   const a = t.config.agents;
-  const save = async (s: CanvasSettings) => {
+  const save = async (s: ProjectSettings) => {
     // shown at once; the server's answer, or the view before on a refusal, follows
     const before = view;
-    setView((v) => v && { ...v, settings: { ...v.settings, ...s } as CanvasSettingsView['settings'] });
+    setView((v) => v && { ...v, settings: { ...v.settings, ...s } as ProjectSettingsView['settings'] });
     setBusy(true);
     setStatus('');
     try {
-      setView(await api.saveCanvasSettings(canvas, s));
+      setView(await api.saveProjectSettings(project, s));
     } catch (e) {
       setView(before);
       setStatus(failText(e));
     }
     setBusy(false);
   };
-  const choose = (role: AgentRole, change: Partial<CanvasAgents[AgentRole]> | null) => {
-    const own: CanvasAgents = { ...view!.settings.agents };
+  const choose = (role: AgentRole, change: Partial<ProjectAgents[AgentRole]> | null) => {
+    const own: ProjectAgents = { ...view!.settings.agents };
     if (change === null) delete own[role];
     else {
       const next = { ...own[role], ...change };
@@ -53,8 +53,8 @@ export function CanvasSettingsSheet({ canvas, name, homePath, on, covered, probl
     return save({ agents: own });
   };
   return (
-    <Docked id="canvas-settings" on={on} label={l.title}>
-      <p className="cs-canvas">{name}</p>
+    <Docked id="project-settings" on={on} label={l.title}>
+      <p className="cs-project">{name}</p>
       <h2>{l.title}</h2>
       <p className="hint">{l.hint}</p>
       {view && (
@@ -116,8 +116,8 @@ export function CanvasSettingsSheet({ canvas, name, homePath, on, covered, probl
           </div>
           <Head title={l.reviews} hint={t.config.codeReviews.hint} />
           <CodeReviewField bare value={view.settings.codeReviews} onChange={(codeReviews) => save({ codeReviews })} />
-          <Head title={l.site} hint={t.config.canvasSite.hint} />
-          <CanvasSiteField bare canvas={canvas} value={view.settings.demoSite} {...(homePath ? { homePath } : {})} language={null} onAddSite={onAddSite} onChange={(demoSite) => save({ demoSite })} />
+          <Head title={l.site} hint={t.config.projectSite.hint} />
+          <ProjectSiteField bare project={project} value={view.settings.demoSite} {...(homePath ? { homePath } : {})} language={null} onAddSite={onAddSite} onChange={(demoSite) => save({ demoSite })} />
           <Head title={l.cards} />
           <CardArchiveField value={view.settings.archive} onChange={(archive) => save({ archive })} />
           <Head title={l.labels} />

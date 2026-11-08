@@ -67,7 +67,7 @@ const de = {
   newCard: 'Neue Aufgabe',
   /** What the button for a new task says until the owner has double-clicked a task into being once. */
   newCardHint: { text: 'Eine neue Aufgabe legst du mit einem Doppelklick auf die Fläche an, an der Stelle, wo sie hin soll. Nach dem ersten Mal verschwindet dieser Button.', ok: 'Verstanden' },
-  /** The canvas under fingers (`touch.ts`): what the hints say in place of the mouse's clicks and Shift. */
+  /** The project under fingers (`touch.ts`): what the hints say in place of the mouse's clicks and Shift. */
   touch: {
     hold: 'Halte eine Karte gedrückt, um sie zu verschieben, oder die freie Fläche, um Karten mit dem Lasso zu markieren.',
     ok: 'Verstanden',
@@ -176,7 +176,7 @@ const de = {
     removed: (name: string) => `Gruppe „${name}“ gelöscht`,
     open: (n: number) => (n === 0 ? 'Keine offenen Aufgaben' : n === 1 ? '1 offene Aufgabe' : `${n} offene Aufgaben`),
   },
-  /** The cards marked on the canvas, to move them together or group them. */
+  /** The cards marked on the project, to move them together or group them. */
   marked: {
     count: (n: number) => (n === 1 ? '1 markiert' : `${n} markiert`),
     group: 'Gruppe …',
@@ -252,12 +252,12 @@ const de = {
   noneRuns: 'Kein Projekt läuft',
   noSuchProject: (name: string) => `Es gibt kein Projekt „${name}“. Vielleicht wurde es umbenannt.`,
   repos: (n: number) => `${n} Repositories`,
-  /** The pause and resume of a canvas's agents, on its row in the canvas switcher. */
-  canvasPause: {
+  /** The pause and resume of a project's agents, on its row in the project switcher. */
+  projectPause: {
     pause: (n: number) => (n === 1 ? '1 laufenden Agenten pausieren' : `${n} laufende Agenten pausieren`),
     resume: (n: number) => (n === 1 ? '1 pausierten Agenten fortsetzen' : `${n} pausierte Agenten fortsetzen`),
   },
-  /** The navigation at the bar's left: the canvases and what waits for the owner on each, as a list under it or pinned as a sidebar on the left. */
+  /** The navigation at the bar's left: the projects and what waits for the owner on each, as a list under it or pinned as a sidebar on the left. */
   nav: {
     button: 'Projekt wechseln',
     title: 'Projekte',
@@ -294,7 +294,7 @@ const de = {
   pause: {
     button: 'Pausieren',
     hint: 'Pausieren: hält den Agenten sofort an, auch mitten in einem Schritt, mit allem, was er gerade laufen hat. Er behält seine Sitzung und macht dort weiter, wo er war, sobald du „Weitermachen“ klickst oder ihm schreibst.',
-    /** The card's pause on the canvas, which lets the agent come to a safe point first. */
+    /** The card's pause on the project, which lets the agent come to a safe point first. */
     safeHint: 'Pausieren: der Agent bringt erst den Schritt zu Ende, an dem er gerade ist, und hält dann an. Er behält seine Sitzung und macht dort weiter, sobald du „Weitermachen“ klickst oder ihm schreibst.',
     resume: 'Weitermachen',
     resumeHint: 'Der Agent macht dort weiter, wo du ihn angehalten hast.',
@@ -380,11 +380,11 @@ const de = {
     pickWhy: (why: string) => `Der Agent würde so entscheiden: ${why}`,
   },
   proposedBy: (title: string) => `Vorgeschlagen vom Agenten der Aufgabe „${title}“.`,
-  proposedByElsewhere: (title: string, canvas: string) => `Vorgeschlagen vom Agenten der Aufgabe „${title}“ im Projekt „${canvas}“.`,
+  proposedByElsewhere: (title: string, project: string) => `Vorgeschlagen vom Agenten der Aufgabe „${title}“ im Projekt „${project}“.`,
   proposalShots: 'Die Screenshots beim Text gehen mit der Aufgabe mit.',
   proposalQuestionsHint: 'Mit „Antworten“ schreibt ein Agent den Vorschlag nach deiner Wahl neu. Übernimmst du gleich, steht deine Wahl als entschieden im Text; der Rest geht als offene Frage mit.',
   proposedByRetro: (basis: string) => `Aus der Arbeitsrückschau: ${basis}`,
-  /** Merging an unworked card with another: the button and its picker, the two as one on the canvas, the merged card to approve or separate. */
+  /** Merging an unworked card with another: the button and its picker, the two as one on the project, the merged card to approve or separate. */
   merge: {
     button: 'Zusammenführen mit',
     buttonHint: 'Diese Aufgabe mit einer anderen zusammenführen. Ein Agent vergleicht sie, du prüfst das Ergebnis.',
@@ -433,7 +433,7 @@ const de = {
   doing: { working: 'arbeitet', building: 'entwickelt', thinking: 'denkt nach', debugging: 'sucht einen Fehler', preparingDemo: 'bereitet die Demo vor', recordingDemo: 'nimmt die Demo auf', finalizingDemo: 'stellt die Demo fertig' },
   /** Beside the card's state while its worker resolves the conflicts that kept an approved card from landing. */
   resolvingConflicts: 'löst Konflikte',
-  /** A proposal its agent wants started later: when, on the proposal and short on its canvas card; the menu to change it, and accepting it. */
+  /** A proposal its agent wants started later: when, on the proposal and short on its project card; the menu to change it, and accepting it. */
   startAt: {
     line: (when: string) => `Startet ${when}`,
     short: (when: string) => `startet ${when}`,
@@ -448,7 +448,7 @@ const de = {
   limitTryAgain: 'Jetzt erneut versuchen',
   limitedUntil: (time: string) => `Nutzungslimit · weiter um ${time}`,
   revising: 'Wird nach deinen Worten überarbeitet …',
-  /** "Accept and start" during a revision: the line above the buttons before and after the click, the button while it waits, taking it back, and the same short on the canvas card. */
+  /** "Accept and start" during a revision: the line above the buttons before and after the click, the button while it waits, taking it back, and the same short on the project card. */
   acceptWaitsFor: (button: string) => `Der neue Text kommt gleich. „${button}“ wartet auf ihn und entfällt, wenn er noch Fragen hat.`,
   acceptWaitsHint: 'Übernommen wird, sobald der Vorschlag überarbeitet ist, außer er hat dann noch Fragen.',
   acceptWaits: (idea: boolean): string => (idea ? 'Übernimmt nach der Überarbeitung …' : 'Startet nach der Überarbeitung …'),
@@ -456,8 +456,8 @@ const de = {
   acceptsAfterRevision: 'danach übernommen',
   reviseHint: 'Sag oder schreib, was anders werden soll: ergänzen, streichen, entscheiden. Ein Agent schreibt Text und Fragen danach neu; was du nicht ansprichst, bleibt.',
   followUpOf: (title: string) => `Kommt von der Aufgabe „${title}“.`,
-  /** A card that comes from a card on another canvas; the link opens it there. */
-  fromElsewhere: (title: string, canvas: string) => `Kommt von „${title}“ im Projekt „${canvas}“.`,
+  /** A card that comes from a card on another project; the link opens it there. */
+  fromElsewhere: (title: string, project: string) => `Kommt von „${title}“ im Projekt „${project}“.`,
   openThere: 'Dort öffnen',
   /** The repository picker of a card before work begins, with a repository Seismic creates for it. */
   repoPick: {
@@ -468,10 +468,10 @@ const de = {
     named: (name: string) => `${name} (neu)`,
     path: 'Ordner',
     pathPlaceholder: '~/dev/name',
-    ownCanvas: 'eigenes Projekt',
-    ownCanvasHint: 'An: Das Repository bekommt ein eigenes Projekt, und die Karte zieht mit allem dorthin um. Aus: Es kommt zu diesem Projekt dazu.',
+    ownProject: 'eigenes Projekt',
+    ownProjectHint: 'An: Das Repository bekommt ein eigenes Projekt, und die Karte zieht mit allem dorthin um. Aus: Es kommt zu diesem Projekt dazu.',
     /** Under the buttons: what the click does. */
-    willMove: (path: string, canvas: string, idea: boolean) => `Legt das Repository ${path} und das Projekt „${canvas}“ an und nimmt die ${idea ? 'Idee' : 'Aufgabe'} mit allem dorthin mit.`,
+    willMove: (path: string, project: string, idea: boolean) => `Legt das Repository ${path} und das Projekt „${project}“ an und nimmt die ${idea ? 'Idee' : 'Aufgabe'} mit allem dorthin mit.`,
     willJoin: (path: string) => `Legt das Repository ${path} an; es kommt zu diesem Projekt dazu.`,
     noPath: 'Gib den Ordner des neuen Repositorys an.',
     build: (name: string) => `So bauen in ${name} (neu)`,
@@ -492,7 +492,7 @@ const de = {
     backgroundFor: (s: number) => `seit ${s < 60 ? `${s} s` : s < 3600 ? `${Math.floor(s / 60)} min` : `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} min`}`,
     question: 'Frage',
     handover: 'Übergabe',
-    // an action of Seismic's in the conversation: it made a follow-up card of this one, whose cover stands under it (or its title, where it is gone or on another canvas)
+    // an action of Seismic's in the conversation: it made a follow-up card of this one, whose cover stands under it (or its title, where it is gone or on another project)
     madeFollowUp: 'Folgekarte angelegt',
     proposedNewCard: 'Neue Karte vorgeschlagen',
     madeElsewhere: 'in einem anderen Projekt',
@@ -684,7 +684,7 @@ const de = {
     /** The arrow refused because the two cards would wait for each other. */
     cycle: (from: string, to: string) => `Kein Pfeil: „${from}“ wartet schon auf „${to}“, direkt oder über andere Karten. Die beiden würden aufeinander warten.`,
   },
-  /** A card whose repository does not run on the canvas (`Item.repoDown`): on the card, and in its panel. */
+  /** A card whose repository does not run on the project (`Item.repoDown`): on the card, and in its panel. */
   repoDown: {
     short: 'Repository läuft nicht',
     long: (repo: string) =>
@@ -848,7 +848,7 @@ const de = {
   },
   /** A review card: someone outside's pull request, which its agent reviews and the owner merges. */
   review: {
-    /** Above the title, on the canvas and on the open card. */
+    /** Above the title, on the project and on the open card. */
     kind: (n: number, author: string) => `PR #${n} · ${author}`,
     checks: (r: { checks: { name: string; passed: boolean }[]; mergeable: boolean }) =>
       [...r.checks.map((c) => `${c.passed ? '✓' : '✗'} ${c.name}`), r.mergeable ? '✓ konfliktfrei' : '✗ Konflikt mit main'].join(' · '),
@@ -1002,7 +1002,7 @@ const de = {
     agent: 'Agent',
     onForge: 'Im Pull Request',
     edited: (time: string) => `${time} überarbeitet`,
-    /** On the canvas: what the PR waits for first, after what the line names already (a red check, a conflict). */
+    /** On the project: what the PR waits for first, after what the line names already (a red check, a conflict). */
     waitShort: {
       conflict: 'Konflikt',
       behind: 'hinter dem Zielbranch',
@@ -1214,7 +1214,7 @@ const de = {
     unreadCount: (n: number) => (n === 1 ? 'Eine Antwort wartet auf dich' : `${n} Antworten warten auf dich`),
     chats: 'Chats',
     chatModel: 'Modell',
-    canvasModel: 'Projektvorgabe',
+    projectModel: 'Projektvorgabe',
     defaultModel: 'Claude-Standard',
     chatsOpen: 'Frühere Chats',
     newChat: 'Neuer Chat',
@@ -1253,7 +1253,7 @@ const de = {
     unwait: 'Nicht mehr warten',
     unwaitHint: 'Seismic lässt dann aus, was es für danach angekündigt hat',
     /** In place of the owner's words: what became of the card Seismic waited on, which it goes on with. */
-    moved: (title: string, canvas: string) => `„${title}“ ist in das Projekt „${canvas}“ umgezogen und wird dort im neuen Repository gebaut.`,
+    moved: (title: string, project: string) => `„${title}“ ist in das Projekt „${project}“ umgezogen und wird dort im neuen Repository gebaut.`,
     after: (title: string, met: Awaited, state: AwaitedState) =>
       `„${title}“ ${{ reached: state === 'done' ? 'ist erledigt' : 'wartet auf dich', gone: 'ist nicht mehr da', archived: 'ist archiviert', stopped: 'wurde gestoppt', dropped: 'wurde verworfen' }[met]}`,
     reshare: {
@@ -1352,7 +1352,7 @@ const de = {
     pickHint: 'Die Wahl des Agenten',
     kept: 'Karte behalten.',
   },
-  /** The inbox the bar's inbox button slides out (src/ui/inbox.tsx): everything that waits for the owner, on every canvas. */
+  /** The inbox the bar's inbox button slides out (src/ui/inbox.tsx): everything that waits for the owner, on every project. */
   inbox: {
     title: 'Posteingang',
     /** The bar's button, with how many things wait. */
@@ -1387,7 +1387,7 @@ const de = {
       [messages && (messages === 1 ? '1 neue Nachricht' : `${messages} neue Nachrichten`), questions && (questions === 1 ? '1 offene Frage' : `${questions} offene Fragen`)].filter(Boolean).join(', '),
     /** Closes the panel; dragging its top down does it too. */
     closeTalk: 'Schließen',
-    canvas: 'Projekt',
+    project: 'Projekt',
     notAnswering: (since: string) => `Seismic antwortet nicht · seit ${since}`,
     notAnsweringWhy: 'Vielleicht schläft der Rechner, oder Seismic läuft dort nicht. Sobald es wieder antwortet, ist die Seite wieder verbunden.',
     gone: 'Diese Karte gibt es nicht mehr.',
@@ -1414,7 +1414,7 @@ const de = {
       `Seismic läuft gerade mit den Repositories von der Kommandozeile. Speichern legt ${file} an; Seismic startet dann daraus, auch künftig, wenn es ohne Repositories gestartet wird.`,
     koordinator: 'Du kannst Seismic auch nach der Konfiguration fragen oder ihm sagen, was sich ändern soll.',
     askObeya: 'Seismic fragen',
-    sections: { canvases: 'Projekte', defaults: 'Projektvorgaben', agents: 'Agenten und Modelle', voice: 'Spracheingabe', demos: 'Demos', notices: 'Benachrichtigungen und Limits', devices: 'Von anderen Geräten', advanced: 'Erweitert', developer: 'Entwickler' },
+    sections: { projects: 'Projekte', defaults: 'Projektvorgaben', agents: 'Agenten und Modelle', voice: 'Spracheingabe', demos: 'Demos', notices: 'Benachrichtigungen und Limits', devices: 'Von anderen Geräten', advanced: 'Erweitert', developer: 'Entwickler' },
     developer: {
       hint: 'Für die Arbeit an Seismic selbst.',
       restart: 'Seismic neu starten',
@@ -1484,7 +1484,7 @@ const de = {
       effortsShort: { low: 'niedrig', medium: 'mittel', high: 'hoch', xhigh: 'sehr hoch', max: 'maximal' } satisfies Record<AgentEffort, string>,
       harnessesShort: { claude: 'Claude', codex: 'Codex', agy: 'Antigravity' },
     },
-    canvas: (n: number) => `Projekt ${n}`,
+    project: (n: number) => `Projekt ${n}`,
     name: 'Name',
     suggest: {
       title: 'Seismic schlägt vor',
@@ -1687,8 +1687,8 @@ const de = {
       },
     },
     removeRepo: 'Repository entfernen',
-    addCanvas: '+ Projekt',
-    removeCanvas: 'Projekt entfernen',
+    addProject: '+ Projekt',
+    removeProject: 'Projekt entfernen',
     moveUp: 'Nach oben',
     moveDown: 'Nach unten',
     server: 'Server (von der Kommandozeile)',
@@ -1720,7 +1720,7 @@ const de = {
     loading: 'Konfiguration wird geladen …',
     checking: 'Repositories werden geprüft …',
     problem: {
-      noCanvas: 'Seismic braucht mindestens ein Projekt.',
+      noProject: 'Seismic braucht mindestens ein Projekt.',
       noRepo: 'Ein Projekt braucht mindestens ein Repository.',
       noPath: 'Hier fehlt noch der Pfad.',
       notRepo: 'Unter diesem Pfad liegt kein git-Repository.',
@@ -1738,7 +1738,7 @@ const de = {
       repoSettings: 'Ein Wert in .obeya/settings.json des Repositorys gilt nicht; an seiner Stelle steht, was ohne ihn gilt:',
       untrusted: 'Das Repository bringt Befehle mit, die neu sind oder sich geändert haben. Seismic führt sie erst aus, wenn du ihnen vertraust:',
       adapterGone: 'Das Repository hat auf dem Hauptbranch noch ein .obeya/adapter/, das Seismic nicht mehr liest. Was darin steht, gehört in seine Einstellungen (.obeya/settings.json); „Von einem Agenten ausfüllen lassen“ übernimmt es:',
-      canvasDown: 'Dieses Projekt läuft nicht: Sein Heimat-Repository ließ sich nicht starten. Seine Karten bleiben gespeichert.',
+      projectDown: 'Dieses Projekt läuft nicht: Sein Heimat-Repository ließ sich nicht starten. Seine Karten bleiben gespeichert.',
       repoDown: 'Dieses Repository ließ sich nicht starten und fehlt in seinem Projekt: Seine Agenten arbeiten nicht, seine Karten bleiben gespeichert.',
       repoBefore: 'Die Agenten dieses Repositorys ließen sich mit dieser Konfiguration nicht starten: Sie arbeiten weiter wie vor der Änderung.',
       invalid: 'Die Konfiguration ist fehlerhaft.',
@@ -1939,7 +1939,7 @@ const de = {
       connectHint: 'Auf dem Rechner mit der Seite „Verbindungscode kopieren“ wählen und den Code hier einfügen. Ohne Zugangsdaten im Code veröffentlicht dieser Rechner mit seiner eigenen Anmeldung (wrangler login, gh auth login).',
       connectGo: 'Verbinden',
     },
-    canvasSite: {
+    projectSite: {
       label: 'Demo-Seite',
       hint: 'Wohin „Teilen“ die Demos dieses Projekts für die Kollegen bringt. Ohne Seite werden sie als Datei exportiert.',
       none: 'Keine: Demos als Datei exportieren',
@@ -2100,7 +2100,7 @@ const de = {
       change: 'Soll etwas nicht hinein: in eine .gitignore im Ordner eintragen und neu ansehen.',
       again: 'Neu ansehen',
       confirm: 'Einrichten und committen',
-      confirmCanvas: 'Einrichten, committen und Projekt anlegen',
+      confirmProject: 'Einrichten, committen und Projekt anlegen',
       cancel: 'Abbrechen',
       working: 'Wird eingerichtet …',
     },
@@ -2123,7 +2123,7 @@ const de = {
       stop: 'Seismic wird beendet (Strg-C oder SIGTERM). Ein zweites Strg-C im Terminal beendet es sofort.',
     } satisfies Record<RestartReason, string>,
     waits: 'Die Agenten wissen Bescheid und pausieren beim nächsten sicheren Punkt. Seismic wartet noch auf:',
-    on: (canvas: string) => `Im Projekt ${canvas}:`,
+    on: (project: string) => `Im Projekt ${project}:`,
     owner: {
       video: 'Du siehst ein Demo-Video: Seismic startet neu, sobald du es anhältst oder es zu Ende ist.',
       voice: 'Du diktierst: Seismic startet neu, sobald dein Diktat verarbeitet ist und nicht mehr zurückgenommen werden kann.',
@@ -2226,7 +2226,7 @@ const de = {
     config: 'Konfiguration',
     help: 'Bedienung: Maus und Tasten',
   },
-  canvasSettings: {
+  projectSettings: {
     button: 'Einstellungen dieses Projekts',
     title: 'Projekt-Einstellungen',
     hint: 'Gelten nur für dieses Projekt. Was du hier offen lässt, kommt aus der Konfiguration. Jede Änderung gilt sofort.',
@@ -2264,7 +2264,7 @@ const de = {
     noMatch: 'Keine Antworten zu diesen Filtern',
     clear: 'Filter zurücksetzen',
     tooFew: (n: number, few: number) => `${n === 0 ? 'Noch keine Sterne' : n === 1 ? 'Erst eine Bewertung' : `Erst ${n} Bewertungen`}: zu wenige, um Modelle zu vergleichen (ab ${few}). Bisher:`,
-    filters: { canvas: 'Projekt', repo: 'Repository', plan: 'Plan', period: 'Zeitraum', any: 'alle' },
+    filters: { project: 'Projekt', repo: 'Repository', plan: 'Plan', period: 'Zeitraum', any: 'alle' },
     periods: { all: 'gesamt', days: (n: number) => `letzte ${n} Tage` },
     views: { label: 'Ansicht', stars: 'Verteilung', dots: 'Jede Bewertung', trend: 'Im Zeitverlauf' },
     trendLabel: (months: number) => `Durchschnitt je Modell und Effort über ${months === 1 ? 'einen Monat' : `${months} Monate`}`,
@@ -2297,8 +2297,8 @@ const de = {
     filters: { harness: 'Harness', model: 'Modell', effort: 'Effort', rating: 'Bewertung' },
     stars: (s: number) => `${s} ${s === 1 ? 'Stern' : 'Sterne'}`,
     groupBy: 'Gruppieren nach',
-    groups: { none: 'nicht gruppiert', config: 'Konfiguration', plan: 'Plan', repo: 'Repository', canvas: 'Projekt', week: 'Woche', month: 'Monat' } as Record<string, string>,
-    cols: { when: 'Datum', card: 'Karte', stars: 'Sterne', comment: 'Kommentar', config: 'Konfiguration', plan: 'Plan', repo: 'Repository', canvas: 'Projekt' },
+    groups: { none: 'nicht gruppiert', config: 'Konfiguration', plan: 'Plan', repo: 'Repository', project: 'Projekt', week: 'Woche', month: 'Monat' } as Record<string, string>,
+    cols: { when: 'Datum', card: 'Karte', stars: 'Sterne', comment: 'Kommentar', config: 'Konfiguration', plan: 'Plan', repo: 'Repository', project: 'Projekt' },
     noPlan: 'Ohne Plan',
     noRepo: 'Ohne Repository',
     week: (monday: string) => `Woche ab ${new Date(`${monday}T12:00:00Z`).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`,
@@ -2334,11 +2334,11 @@ const de = {
       `${name}: ${busy} von ${slots} ${slots === 1 ? 'Slot' : 'Slots'} in Arbeit, ${taken} von ${total} ${total === 1 ? 'Klon' : 'Klonen'} belegt${total ? ':' : '.'}`,
     /** `listed`: the cards' worktrees follow. */
     worktreeSlots: (name: string, busy: number, slots: number, listed: boolean) => `${name}: ${busy} von ${slots} ${slots === 1 ? 'Slot' : 'Slots'} in Arbeit${listed ? ':' : '.'}`,
-    offCanvas: 'eine Karte, die nicht im Projekt liegt',
-    /** A card holding a workstation that is not on the canvas (in the archive, say). */
-    notOnCanvas: (title: string) => `${title} (nicht im Projekt)`,
-    /** Beside a card holding a workstation that lies on another canvas. */
-    onCanvas: (canvas: string) => `auf ${canvas}`,
+    offProject: 'eine Karte, die nicht im Projekt liegt',
+    /** A card holding a workstation that is not on the project (in the archive, say). */
+    notOnProject: (title: string) => `${title} (nicht im Projekt)`,
+    /** Beside a card holding a workstation that lies on another project. */
+    onProject: (project: string) => `auf ${project}`,
     /** In the list of workstations, for one no card holds. */
     freeRow: 'frei',
     blockedRow: 'blockiert',
@@ -2443,7 +2443,7 @@ const de = {
     buildWaits: 'Baut nach der Antwort …',
     buildWaitsHint: 'Gebaut wird, sobald die Antwort da ist, außer der Agent fragt noch etwas.',
     unbuild: 'Doch nicht bauen',
-    /** The same, short, on the canvas card. */
+    /** The same, short, on the project card. */
     buildsAfterReply: 'baut nach der Antwort',
     built: 'Die Idee wird gebaut; der Stand der Idee ist ihr Auftrag.',
     planned: 'Ein Agent schreibt jetzt das Plan-Doc; danach steht hier der Plan.',
@@ -2468,7 +2468,7 @@ const de = {
       park: () => 'Parken',
       drop: () => 'Verwerfen',
     } satisfies Record<NextStep['step'], (questions: number) => string>,
-    /** The same, short, on the canvas card of an idea that waits for the owner. */
+    /** The same, short, on the project card of an idea that waits for the owner. */
     suggests: {
       answer: 'Tipp: erst antworten',
       build: 'Tipp: so bauen',
@@ -2495,7 +2495,7 @@ const de = {
     builtInto: (idea: string, ws: string) => `Prototyp der Idee „${idea}“, gebaut als Workstream ${ws} ihres Plans: Der Workstream wird auf dem Branch dieses Prototyps gebaut.`,
     buildProposal: 'Der Agent schlägt vor, die Idee auf diesem Prototyp zu bauen',
     acceptBuild: 'Annehmen: so bauen',
-    /** On the canvas card of a prototype whose worker proposes building the idea on it. */
+    /** On the project card of a prototype whose worker proposes building the idea on it. */
     proposesBuild: 'Vorschlag: so bauen',
     /** An archived prototype, how it ended. */
     ended: { discarded: 'Prototyp · verworfen', built: 'Prototyp · gebaut' },
@@ -2533,7 +2533,7 @@ const de = {
     hint: '„/“ ruft einen Skill des Agenten auf.',
     loading: 'Skills werden geladen …',
   },
-  /** On an empty canvas: speaking first (and where its card lands), the double-click second. */
+  /** On an empty project: speaking first (and where its card lands), the double-click second. */
   empty: { none: 'Noch keine Aufgaben.', speak: 'Halte die Leertaste und sag, was Seismic bauen soll.', where: 'Die Karte erscheint dort, wo der Mauszeiger beim Loslassen steht.', click: 'Oder doppelklicke auf die Fläche, um selbst eine anzulegen.' },
 };
 
@@ -2753,7 +2753,7 @@ const en: Strings = {
   noneRuns: 'No project is running',
   noSuchProject: (name: string) => `There is no project “${name}”. It may have been renamed.`,
   repos: (n: number) => `${n} repositories`,
-  canvasPause: {
+  projectPause: {
     pause: (n: number) => (n === 1 ? 'Pause 1 running agent' : `Pause ${n} running agents`),
     resume: (n: number) => (n === 1 ? 'Resume 1 paused agent' : `Resume ${n} paused agents`),
   },
@@ -2864,7 +2864,7 @@ const en: Strings = {
     pickWhy: (why: string) => `The agent would decide this way: ${why}`,
   },
   proposedBy: (title: string) => `Proposed by the agent of the task “${title}”.`,
-  proposedByElsewhere: (title: string, canvas: string) => `Proposed by the agent of the task “${title}” in the project “${canvas}”.`,
+  proposedByElsewhere: (title: string, project: string) => `Proposed by the agent of the task “${title}” in the project “${project}”.`,
   proposalShots: 'The screenshots with the text go along with the task.',
   proposalQuestionsHint: 'With “Answer” an agent rewrites the proposal by your choice. If you accept it right away, your choice goes into the text as decided; the rest goes along as an open question.',
   proposedByRetro: (basis: string) => `From the work retrospective: ${basis}`,
@@ -2934,7 +2934,7 @@ const en: Strings = {
   acceptsAfterRevision: 'then accepted',
   reviseHint: 'Say or type what should change: add, drop, decide. An agent rewrites text and questions by it; what you do not mention stays.',
   followUpOf: (title: string) => `Follows from the task “${title}”.`,
-  fromElsewhere: (title: string, canvas: string) => `Comes from “${title}” in the project “${canvas}”.`,
+  fromElsewhere: (title: string, project: string) => `Comes from “${title}” in the project “${project}”.`,
   openThere: 'Open it there',
   repoPick: {
     label: 'Repository',
@@ -2943,9 +2943,9 @@ const en: Strings = {
     named: (name: string) => `${name} (new)`,
     path: 'Folder',
     pathPlaceholder: '~/dev/name',
-    ownCanvas: 'own project',
-    ownCanvasHint: 'On: the repository gets a project of its own, and the card moves there with everything. Off: it joins this project.',
-    willMove: (path: string, canvas: string, idea: boolean) => `Creates the repository ${path} and the project “${canvas}”, and takes the ${idea ? 'idea' : 'task'} there with everything.`,
+    ownProject: 'own project',
+    ownProjectHint: 'On: the repository gets a project of its own, and the card moves there with everything. Off: it joins this project.',
+    willMove: (path: string, project: string, idea: boolean) => `Creates the repository ${path} and the project “${project}”, and takes the ${idea ? 'idea' : 'task'} there with everything.`,
     willJoin: (path: string) => `Creates the repository ${path}; it joins this project.`,
     noPath: 'Give the folder of the new repository.',
     build: (name: string) => `Build it like this in ${name} (new)`,
@@ -3440,7 +3440,7 @@ const en: Strings = {
     agent: 'Agent',
     onForge: 'In the pull request',
     edited: (time: string) => `revised ${time}`,
-    /** On the canvas: what the PR waits for first, after what the line names already (a red check, a conflict). */
+    /** On the project: what the PR waits for first, after what the line names already (a red check, a conflict). */
     waitShort: {
       conflict: 'Conflict',
       behind: 'behind its base',
@@ -3644,7 +3644,7 @@ const en: Strings = {
     unreadCount: (n: number) => (n === 1 ? 'An answer waits for you' : `${n} answers wait for you`),
     chats: 'Chats',
     chatModel: 'Model',
-    canvasModel: 'Project setting',
+    projectModel: 'Project setting',
     defaultModel: 'Claude default',
     chatsOpen: 'Earlier chats',
     newChat: 'New chat',
@@ -3678,7 +3678,7 @@ const en: Strings = {
     waits: (title: string, state: AwaitedState) => `Waiting until “${title}” ${state === 'done' ? 'is done' : 'waits for you'}`,
     unwait: 'Stop waiting',
     unwaitHint: 'Seismic then leaves out what it said it would do afterwards',
-    moved: (title: string, canvas: string) => `“${title}” moved to the project “${canvas}” and is built there in its new repository.`,
+    moved: (title: string, project: string) => `“${title}” moved to the project “${project}” and is built there in its new repository.`,
     after: (title: string, met: Awaited, state: AwaitedState) =>
       `“${title}” ${{ reached: state === 'done' ? 'is done' : 'waits for you', gone: 'is gone', archived: 'was archived', stopped: 'was stopped', dropped: 'was dropped' }[met]}`,
     reshare: {
@@ -3800,7 +3800,7 @@ const en: Strings = {
     cardWaiting: (messages: number, questions: number) =>
       [messages && (messages === 1 ? '1 new message' : `${messages} new messages`), questions && (questions === 1 ? '1 open question' : `${questions} open questions`)].filter(Boolean).join(', '),
     closeTalk: 'Close',
-    canvas: 'Project',
+    project: 'Project',
     notAnswering: (since: string) => `Seismic is not answering · since ${since}`,
     notAnsweringWhy: 'The computer may be asleep, or Seismic is not running there. The page connects again as soon as it answers.',
     gone: 'This card no longer exists.',
@@ -3825,7 +3825,7 @@ const en: Strings = {
       `Seismic is running with the repositories from the command line. Saving creates ${file}; Seismic then starts from it, also in future when it is started without repositories.`,
     koordinator: 'You can also ask Seismic about the configuration or tell it what should change.',
     askObeya: 'Ask Seismic',
-    sections: { canvases: 'Projects', defaults: 'Project defaults', agents: 'Agents and models', voice: 'Voice input', demos: 'Demos', notices: 'Notifications and limits', devices: 'Other devices', advanced: 'Advanced', developer: 'Developer' },
+    sections: { projects: 'Projects', defaults: 'Project defaults', agents: 'Agents and models', voice: 'Voice input', demos: 'Demos', notices: 'Notifications and limits', devices: 'Other devices', advanced: 'Advanced', developer: 'Developer' },
     developer: {
       hint: 'For work on Seismic itself.',
       restart: 'Restart Seismic',
@@ -3893,7 +3893,7 @@ const en: Strings = {
       effortsShort: { low: 'low', medium: 'med.', high: 'high', xhigh: 'very high', max: 'maximum' },
       harnessesShort: { claude: 'Claude', codex: 'Codex', agy: 'Antigravity' },
     },
-    canvas: (n: number) => `Project ${n}`,
+    project: (n: number) => `Project ${n}`,
     name: 'Name',
     suggest: {
       title: 'Seismic suggests',
@@ -4097,8 +4097,8 @@ const en: Strings = {
       },
     },
     removeRepo: 'Remove repository',
-    addCanvas: '+ Project',
-    removeCanvas: 'Remove project',
+    addProject: '+ Project',
+    removeProject: 'Remove project',
     moveUp: 'Move up',
     moveDown: 'Move down',
     server: 'Server (from the command line)',
@@ -4130,7 +4130,7 @@ const en: Strings = {
     loading: 'Loading the configuration …',
     checking: 'Checking the repositories …',
     problem: {
-      noCanvas: 'Seismic needs at least one project.',
+      noProject: 'Seismic needs at least one project.',
       noRepo: 'A project needs at least one repository.',
       noPath: 'The path is missing.',
       notRepo: 'There is no git repository at this path.',
@@ -4148,7 +4148,7 @@ const en: Strings = {
       repoSettings: 'A value in the repository’s .obeya/settings.json does not count; what applies without it stands in its place:',
       untrusted: 'The repository brings commands that are new or changed. Seismic runs them only once you trust them:',
       adapterGone: 'The repository still has a .obeya/adapter/ on its main branch, which Seismic no longer reads. What it says belongs in its settings (.obeya/settings.json); “Have an agent fill them in” moves it there:',
-      canvasDown: 'This project is not running: its home repository did not start. Its cards are kept.',
+      projectDown: 'This project is not running: its home repository did not start. Its cards are kept.',
       repoDown: 'This repository did not start and is missing from its project: its agents are not working, its cards are kept.',
       repoBefore: 'This repository’s agents did not start with this configuration: they work on as before the change.',
       invalid: 'The configuration is invalid.',
@@ -4349,7 +4349,7 @@ const en: Strings = {
       connectHint: 'On the machine with the site, choose “Copy connection code” and paste the code here. Without credentials in the code, this machine publishes with its own login (wrangler login, gh auth login).',
       connectGo: 'Connect',
     },
-    canvasSite: {
+    projectSite: {
       label: 'Demo site',
       hint: 'Where “Share” puts this project’s demos for colleagues. Without a site they are exported as a file.',
       none: 'None: export demos as a file',
@@ -4509,7 +4509,7 @@ const en: Strings = {
       change: 'To keep something out: list it in a .gitignore in the folder and look again.',
       again: 'Look again',
       confirm: 'Set up and commit',
-      confirmCanvas: 'Set up, commit and create project',
+      confirmProject: 'Set up, commit and create project',
       cancel: 'Cancel',
       working: 'Setting up …',
     },
@@ -4532,7 +4532,7 @@ const en: Strings = {
       stop: 'Seismic is shutting down (Ctrl-C or SIGTERM). A second Ctrl-C in the terminal ends it at once.',
     },
     waits: 'The agents know and pause at the next safe point. Seismic is still waiting for:',
-    on: (canvas: string) => `In the project ${canvas}:`,
+    on: (project: string) => `In the project ${project}:`,
     owner: {
       video: 'You are watching a demo video: Seismic restarts as soon as you pause it or it ends.',
       voice: 'You are dictating: Seismic restarts as soon as your dictation is processed and can no longer be taken back.',
@@ -4633,7 +4633,7 @@ const en: Strings = {
     config: 'Configuration',
     help: 'Controls: mouse and keys',
   },
-  canvasSettings: {
+  projectSettings: {
     button: 'Settings of this project',
     title: 'Project settings',
     hint: 'They hold for this project only. What you leave open here comes from the configuration. Every change applies at once.',
@@ -4671,7 +4671,7 @@ const en: Strings = {
     noMatch: 'No responses match these filters',
     clear: 'Clear filters',
     tooFew: (n: number, few: number) => `${n === 0 ? 'No stars yet' : n === 1 ? 'Only one rating' : `Only ${n} ratings`}: too few to compare models (${few} or more). So far:`,
-    filters: { canvas: 'Project', repo: 'Repository', plan: 'Plan', period: 'Period', any: 'all' },
+    filters: { project: 'Project', repo: 'Repository', plan: 'Plan', period: 'Period', any: 'all' },
     periods: { all: 'all time', days: (n: number) => `last ${n} days` },
     views: { label: 'View', stars: 'Spread', dots: 'Each rating', trend: 'Over time' },
     trendLabel: (months: number) => `Average per model and effort over ${months === 1 ? 'one month' : `${months} months`}`,
@@ -4704,8 +4704,8 @@ const en: Strings = {
     filters: { harness: 'Harness', model: 'Model', effort: 'Effort', rating: 'Rating' },
     stars: (s: number) => `${s} ${s === 1 ? 'star' : 'stars'}`,
     groupBy: 'Group by',
-    groups: { none: 'no grouping', config: 'Configuration', plan: 'Plan', repo: 'Repository', canvas: 'Project', week: 'Week', month: 'Month' },
-    cols: { when: 'Date', card: 'Card', stars: 'Stars', comment: 'Comment', config: 'Configuration', plan: 'Plan', repo: 'Repository', canvas: 'Project' },
+    groups: { none: 'no grouping', config: 'Configuration', plan: 'Plan', repo: 'Repository', project: 'Project', week: 'Week', month: 'Month' },
+    cols: { when: 'Date', card: 'Card', stars: 'Stars', comment: 'Comment', config: 'Configuration', plan: 'Plan', repo: 'Repository', project: 'Project' },
     noPlan: 'No plan',
     noRepo: 'No repository',
     week: (monday: string) => `Week of ${new Date(`${monday}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`,
@@ -4736,9 +4736,9 @@ const en: Strings = {
     host: (name: string, busy: number, slots: number, taken: number, total: number) =>
       `${name}: ${busy} of ${slots} ${slots === 1 ? 'slot' : 'slots'} at work, ${taken} of ${total} ${total === 1 ? 'clone' : 'clones'} taken${total ? ':' : '.'}`,
     worktreeSlots: (name: string, busy: number, slots: number, listed: boolean) => `${name}: ${busy} of ${slots} ${slots === 1 ? 'slot' : 'slots'} at work${listed ? ':' : '.'}`,
-    offCanvas: 'a card that is not in the project',
-    notOnCanvas: (title: string) => `${title} (not in the project)`,
-    onCanvas: (canvas: string) => `on ${canvas}`,
+    offProject: 'a card that is not in the project',
+    notOnProject: (title: string) => `${title} (not in the project)`,
+    onProject: (project: string) => `on ${project}`,
     freeRow: 'free',
     blockedRow: 'blocked',
     kept: (path: string) => `stays: work not landed in ${path}`,

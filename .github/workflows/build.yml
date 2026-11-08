@@ -1,7 +1,7 @@
 # Builds Seismic on every platform it ships for, each on its own runner (no cross compilation, so the
 # smoke test runs where the build ran). A push to main that changes code (not only docs or the site)
 # builds the unsigned installers, checks the compiled server (scripts/check-binary.ts: a scratch
-# canvas answers, with the version, a repository's own adapter, Playwright and the adapter kit
+# project answers, with the version, a repository's own adapter, Playwright and the adapter kit
 # from the resources) and runs the tests and the type check; the installers stay a week as the
 # run's artifacts. A tag v<version of package.json> does the same and then makes a draft release
 # with every installer, SHA256SUMS and latest.json for the updater (scripts/release.ts), its notes

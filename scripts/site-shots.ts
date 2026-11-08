@@ -92,7 +92,7 @@ console.log('staged', staged.url);
 // then its head says "Arranging …", which a shot taken at once showed
 const settled = Date.now() + 3 * 60_000;
 while (Date.now() < settled) {
-  const snap = (await (await fetch(`${base}/api/c/tipjar/canvas`, { headers: ownerHeaders(join(staged.dir, 'home')) })).json()) as { items: { kind: string; arranging?: true }[] };
+  const snap = (await (await fetch(`${base}/api/c/tipjar/project`, { headers: ownerHeaders(join(staged.dir, 'home')) })).json()) as { items: { kind: string; arranging?: true }[] };
   if (!snap.items.some((i) => i.kind === 'plan' && i.arranging)) break;
   await new Promise((r) => setTimeout(r, 1000));
 }

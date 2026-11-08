@@ -775,7 +775,7 @@ describe('sharing many outdated pages again at once', () => {
   test('a page whose demo files were deleted is neither counted nor offered, and drops out of a run', async () => {
     const [a, b, c] = await outdated(3, 2, 1);
     rmSync(join(dir, `demo-${a!.id}`), { recursive: true });
-    // the canvas shows it with its next change
+    // the project shows it with its next change
     board.changed();
     expect(reshare()).toEqual({ outdated: 2, changes: changes(2) });
     expect(share(a!.id)).toEqual({ state: 'shared', url: expect.stringContaining(SITE_URL) });
@@ -1433,7 +1433,7 @@ describe('a repository’s theme', () => {
     expect(readFileSync(join(dir, 'deployed', 'index.html'), 'utf8')).toContain(`<style>${THEME.css}</style>`);
     expect(share(c.id)!.outdated).toBeUndefined();
 
-    // a new theme on the main branch: the canvas shows what it leaves outdated
+    // a new theme on the main branch: the project shows what it leaves outdated
     theme = { css: ':root { --accent: #b91c1c; }', hash: 'bbbbbbbbbbbbbbbb' };
     board.changed();
     expect(share(c.id)!.outdated).toEqual(['theme']);
@@ -1483,7 +1483,7 @@ describe('a repository’s theme', () => {
     expect(board.snapshot().reshare).toEqual({ outdated: 1, changes: [{ id: 'theme', pages: 1 }] });
   });
 
-  test('is asked for of shared pages alone, not of every card the canvas shows', async () => {
+  test('is asked for of shared pages alone, not of every card the project shows', async () => {
     theme = THEME;
     const asked: string[] = [];
     board.showThemes((repo) => (asked.push(repo), theme?.hash ?? null));

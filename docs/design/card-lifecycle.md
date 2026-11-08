@@ -2,7 +2,7 @@
 
 A chapter of the [design doc](../design.md), whose header says how it is written.
 
-A card is created by the owner (voice or canvas) or proposed by an agent, worked on by a worker,
+A card is created by the owner (voice or project) or proposed by an agent, worked on by a worker,
 handed over with a demo, approved, and lands; finished cards go to the archive.
 
 ### Proposals
@@ -31,7 +31,7 @@ wants to think it through first; by voice, "ideate it first".
 A follow-up that can only be done later (whether a bank has registered a form, two weeks on) is a
 proposal with a start time (`start_at`), not a sentence in a handover where it goes under. The owner
 decides on it now, and the card starts by itself at the time. The time stands under the proposal's
-text with "Change" (the "Later" menu, with "No set time"), and on the canvas card after its
+text with "Change" (the "Later" menu, with "No set time"), and on the project card after its
 state ("starts …"). Its one button, "Accept", plans the card and snoozes it until then, the
 proposal's reason as what it does then; at the time it starts like a started planned card (see
 Snoozing a card), at once if the time has passed. Its worker hears when the card was set to start
@@ -44,7 +44,7 @@ drops it. Starting after another card is done is the plan's order, not this.
 A worker takes back its own proposal with `withdraw_proposal`, or replaces it with `propose_card`'s
 `replaces`, naming it by title (Seismic matches the card's latest proposal of that title, case, quotes
 and markdown aside, and otherwise answers with the list of its proposals). A proposal still open goes
-from the canvas at once, also mid-rework, and the proposing card's conversation says so. It is kept
+from the project at once, also mid-rework, and the proposing card's conversation says so. It is kept
 as deleted with the mark, so the retrospective does not read it as dismissed by the owner. One the owner
 accepted already is only marked until it is finished: its card reads "Replaced by “…”" or "Withdrawn by its agent" and needs the owner, and its panel says by what and why, with "Remove" (as
 "Delete", with an undo) and "Keep". A finished card stays as it is.
@@ -66,7 +66,7 @@ text and its handover summary, where present. It reads no branch diff or reposit
 The survivor's text, branch, worker, demo, state and place stay untouched, while its worker can
 continue working during comparison.
 
-The pair shows together on the canvas, with a spinner while the comparison runs. Once ready it
+The pair shows together on the project, with a spinner while the comparison runs. Once ready it
 needs the owner. Its panel shows both originals above the merged card. Long originals start as
 previews; "Show all" expands them together. Only the panel scrolls; the result is complete
 and "Approve merge" and "Separate" stay reachable on desktop and phone.
@@ -83,7 +83,7 @@ Only approval removes the left card and creates the follow-up, as one transactio
 existing follow-ups move to the survivor, removing self arrows and duplicate arrows. The new
 follow-up is an ordinary planned task in the survivor's repository and group, placed beside it,
 with the existing dependency arrow waiting for the survivor to land. An archived survivor stays
-archived; its new follow-up is created on the canvas just the same. An archived stopped task
+archived; its new follow-up is created on the project just the same. An archived stopped task
 continues to hold the follow-up until its work lands; an archived finished task holds nothing. For unworked pairs approval
 instead gives the survivor the combined text and screenshots, with both proposals' questions kept
 as questions (or included in a planned task's text). The dissolved card is kept as deleted, marked
@@ -119,7 +119,7 @@ with the proposal's text and are the task's once accepted.
 The conversation stands beside the proposal as on an idea, its open questions at the end, a settled
 question where it was asked (see The conversation). Options picked and sent ("Answer") go to the
 reviser at once; accepting instead takes the picks into the text. While the rework runs the proposal
-shows "Being reworked" (on the canvas card in place of its state, which the kind line already
+shows "Being reworked" (on the project card in place of its state, which the kind line already
 names), cannot be edited or accepted with "Accept" alone, and does not count
 as needing the owner; words said meanwhile wait for the next rework. Then the conversation shows the
 reviser's reply, "Proposal revised." when the text changed, and any new questions. A reviser
@@ -130,7 +130,7 @@ restart starts again.
 the rework, like "So bauen" on an idea: clicked during one, the proposal is accepted once the new text
 is there, unless it still has questions, in which case it stays a proposal and the conversation says
 why. Meanwhile the button reads "Starts after the rework …" with "Don’t accept after all", and
-the canvas card's state line adds "then accepted". Accepting by voice during a rework is refused (see Commands
+the project card's state line adds "then accepted". Accepting by voice during a rework is refused (see Commands
 to the Koordinator).
 
 ### At work
@@ -178,8 +178,8 @@ handovers in order. A problem beyond the task is a proposal, not a line in the r
 
 Review answers may be submitted to the current worker or to a new agent chosen by harness, model and effort. The latter starts a fresh session in the same workstation with the selected findings as its task context; the previous worker must have finished its turn.
 
-A canvas may have the work of its cards reviewed before it lands (its settings sheet, "Code reviews",
-see The project settings in The canvas; off unless the owner turns it on, since reviews cost tokens).
+A project may have the work of its cards reviewed before it lands (its settings sheet, "Code reviews",
+see The project settings in The project; off unless the owner turns it on, since reviews cost tokens).
 Only work that lands on `main` is reviewed: a card whose work goes through a pull request (with the
 repository's `land: pr`, also where "Straight to main" would push it) is left to the forge's
 reviewers, and so are folders without git, review cards, prototypes, work that changes nothing and
@@ -279,7 +279,7 @@ A review card, a contributor's pull request (see Review cards), reads "Merge (PR
 the head its worker reviewed, and the card is `live`; while a change request waits for the
 contributor it is `in PR`, "Waiting for the contributor".
 
-An approve click folds the card at once without waiting for the server: the canvas card says what is
+An approve click folds the card at once without waiting for the server: the project card says what is
 under way: first "being approved …" or "being pushed straight to main …", then the landing or its
 place in the repository’s landing queue (see How work lands). It no longer counts as needing the
 owner and is skipped by Tab, which goes on from the place of the card it opened last. A message with
@@ -290,8 +290,8 @@ landing off gives the card back the same way.
 #### Feedback after approval
 
 The owner is asked how the agent did when the card goes into the archive by the owner's hand, as the
-canvas's "Cards archive" says (see Archive): where the owner archives cards ("Manually", the
-default), once the card is archived (its archive button, on the card or the canvas, or "all
+project's "Cards archive" says (see Archive): where the owner archives cards ("Manually", the
+default), once the card is archived (its archive button, on the card or the project, or "all
 finished ones at once", which asks about each in turn); where cards archive themselves
 ("Automatically, after landing"), once the approval has gone through (the card's button, work that
 changed nothing included). A workstream, which goes into the archive only with its plan, is asked
@@ -316,7 +316,7 @@ the responses given stay.
 
 "Compare ratings" (beside "Feedback after approval" in the Configuration, and
 under the stars of every rated card; the logo's menu has it as "Agent performance") opens "Agent performance" over the page, as the configuration
-is: every response on every canvas (`/api/feedback`), grouped by whom it credits (see Models and
+is: every response on every project (`/api/feedback`), grouped by whom it credits (see Models and
 effort in Agents and workstations). Each harness heads its rows, one per model and effort, the model
 as the session resolved it and an unknown field named unknown; work by several configurations
 ("Several configurations") and work nothing was recorded of ("Not recorded") have rows of their
@@ -332,11 +332,11 @@ month of fewer than five ratings a hollow point, work credited to no one model w
 view chosen is kept per browser. With
 fewer than five ratings in all (after the filters), there is no table and no average, only the
 responses so far, each with whom it credits. The head counts responses, ratings and those credited
-to no one model. Filters: canvas, repository and plan (each only where there is more than one to
+to no one model. Filters: project, repository and plan (each only where there is more than one to
 choose, a plan as soon as there is one), and the period (all, the last 90 or 30 days, by when a
 response was last given). A click on a row lists its responses, the latest first: the card's title
-as it was (a link to the card: on this canvas it closes the dialog and opens the card, archived
-ones from the archive; on another, its address), plan, repository, canvas where they differ,
+as it was (a link to the card: on this project it closes the dialog and opens the card, archived
+ones from the archive; on another, its address), plan, repository, project where they differ,
 date, stars and comment, and for mixed work the configurations that did it. A deleted card's
 response still counts and says so, its title without a link. Closed and opened
 again, the dialog keeps its filters and open row; it holds the keyboard's focus while open and
@@ -344,19 +344,19 @@ gives it back to what opened it. A response with only a comment counts as a
 response, not a rating. The phone view has no dashboard.
 
 "Feedback log: every response by time" in the dashboard's head leads to the Agent Feedback Log, a
-page of its own in place of the canvas (`/p/<project>/feedback`), with the dashboard's filters as they
-were; its link "← Agent performance" leads back to that canvas with the dashboard open and the filters
+page of its own in place of the project (`/p/<project>/feedback`), with the dashboard's filters as they
+were; its link "← Agent performance" leads back to that project with the dashboard open and the filters
 the two share, and so does the browser's Back. A page rather than a view in the dialog: a long list
 of responses wants the whole screen, and an address of its own keeps it across a reload and makes it
-a link (2026-11). It lists every response on every canvas, the newest first (by when it was last
-given), each with its date, card (a link to it, opening on its canvas, archived ones from the
+a link (2026-11). It lists every response on every project, the newest first (by when it was last
+given), each with its date, card (a link to it, opening on its project, archived ones from the
 archive; a deleted card's title without one), stars ("no stars" for a comment alone), comment,
 whom it credits (for mixed work "Several configurations" with the configurations that did it),
-plan, repository and canvas. Filters: the dashboard's (period by when a response was last given),
+plan, repository and project. Filters: the dashboard's (period by when a response was last given),
 then harness, model and effort of the credited configuration (each where there is more than one to
 choose, an unknown value named unknown), which work credited to no one configuration never matches,
 and rating, whole stars or "no stars". Grouping: none, configuration (in the dashboard's order,
-mixed and unrecorded work last), plan, repository, canvas (by name, those without one last),
+mixed and unrecorded work last), plan, repository, project (by name, those without one last),
 week (from Monday) or month (the newest first); each section heads its responses with their count
 and average, and the column it groups by gives way to that heading. The head counts the responses
 shown of all. With no responses at all it says what fills it; when the filters leave nothing, it
@@ -383,13 +383,13 @@ Questions after the work).
 
 ### Archive
 
-The owner archives a finished card ("Archivieren" on it, its archive button on the canvas, or all
+The owner archives a finished card ("Archivieren" on it, its archive button on the project, or all
 finished ones at once in the archive); a prototype goes there when it ends (see Prototypes). The
-canvas setting "Cards archive" chooses between "Manually" (the default: only so) and
+project setting "Cards archive" chooses between "Manually" (the default: only so) and
 "Automatically, after landing": then an owner's finished task goes into the archive by itself as
 soon as its work has landed (or closed without a change) and its worker is done after the landing,
 with a line in its log; a workstream still goes with its plan, and a card brought back from the
-archive stays on the canvas. The setting also decides when the owner is asked how the agent did
+archive stays on the project. The setting also decides when the owner is asked how the agent did
 (see Feedback after approval). A
 stopped task ("Stopped") can be archived one at a time, for the owner to come back to, beside "Start again" and "Delete"; not while it waits to start, nor while its workstation holds work that has not
 landed, or a clone keeps its branch since its workstation was taken (the button is greyed and says
@@ -397,7 +397,7 @@ why), which would lie unseen in a clone. A stopped card opens
 like a card an agent worked on, the task as its conversation's first message.
 
 The archive (its button in the bar, or `A`) drops down like the queue: archived cards on a timeline
-by day, newest first, labelled with their kind or state unless plain tasks. One unfolds as on the canvas and can go
+by day, newest first, labelled with their kind or state unless plain tasks. One unfolds as on the project and can go
 back to its place; an ended prototype only shows, read-only, how it ended. A search field, focused on
 opening and kept between openings, filters by every typed word (case and accents aside) in title,
 text, summary, last status or label, and a plan's goal and workstreams, marking the words in the
@@ -408,7 +408,7 @@ titles. The list stays under the dim while a card from it is open, so the card f
 A plan ends when every workstream in its plan doc is ticked on the default branch, or when the
 doc is deleted: it moves into the archive with its workstreams, which are not listed on their own. A
 workstream still at work then (or its worker finishing after the landing) keeps the plan on the
-canvas until that worker is done. Opened from the archive, its sheet shows read-only the goal and
+project until that worker is done. Opened from the archive, its sheet shows read-only the goal and
 workstreams as the doc last stood, each workstream with its conversation and demo. When the file
 comes back, or gets an open workstream, the plan returns to its place.
 
@@ -417,7 +417,7 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
 
 ### Decisions
 
-- **Code reviews are a canvas setting, by a separate agent of a model group of its own, only where
+- **Code reviews are a project setting, by a separate agent of a model group of its own, only where
   work lands on `main`** (owner, 2026-11-05): automatic with the demo (the Review tab with its
   coloured counts) or manual at handover ("Approve" stays first and primary, "Start code review" second in purple:
   the everyday button keeps its place); the
@@ -499,5 +499,5 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
   in the moment of approving; where cards archive themselves, there is no such moment, so the
   approval asks. Archiving by hand is the default.
 - **No card goes into the archive while its worker finishes after the landing** (2026-10-16):
-  workers are looked up among the cards on the canvas, so the worker of an archived card never ended
+  workers are looked up among the cards on the project, so the worker of an archived card never ended
   its turn and held its clone out of the owner's sight.

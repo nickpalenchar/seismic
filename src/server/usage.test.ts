@@ -108,7 +108,7 @@ test('fetched only while the bar shows them and a page is open; closed and forgo
   meter.stop();
 });
 
-test('a page that reloads or goes to another canvas finds the session and its numbers still there', async () => {
+test('a page that reloads or goes to another project finds the session and its numbers still there', async () => {
   const f = fakeSource();
   f.answers.push(usage(4));
   const meter = new UsageMeter(f.open, { on: true, everyMs: 60_000, lingerMs: 30 });

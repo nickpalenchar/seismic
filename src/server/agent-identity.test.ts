@@ -10,8 +10,8 @@ import { agentIdentity, currentAgent } from './agent-identity';
 
 test('concurrent sessions record resolved speaker snapshots, never current defaults or another session', async () => {
   const store = new Store(':memory:');
-  store.ensureCanvas('c', 'C');
-  const [a, b] = store.insert([{ canvas_id: 'c', kind: 'task', x: 0, y: 0 }, { canvas_id: 'c', kind: 'task', x: 1, y: 0 }]);
+  store.ensureProject('c', 'C');
+  const [a, b] = store.insert([{ project_id: 'c', kind: 'task', x: 0, y: 0 }, { project_id: 'c', kind: 'task', x: 1, y: 0 }]);
   const fake = new FakeRuntime();
   let choice: AgentSetting = { model: 'opus', effort: 'high' };
   const runtime = withAgentSetting(fake, () => choice);
@@ -52,8 +52,8 @@ test('speaker metadata survives a database reopen; reply and researched answer c
   const path = join(root, 'db');
   let store = new Store(path);
   try {
-    store.ensureCanvas('c', 'C');
-    const [card] = store.insert([{ canvas_id: 'c', kind: 'task', x: 0, y: 0 }]);
+    store.ensureProject('c', 'C');
+    const [card] = store.insert([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
     store.addEvent({ cardId: card!.id, kind: 'say', author: 'worker', text: 'Old unknown speaker' });
     const talk = store.addTalk('c', 'Question', '', null);
     agentIdentity.run({ harness: 'claude', model: 'opus' }, () => store.replyTalk(talk, 'Looking it up'));

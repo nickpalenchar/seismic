@@ -34,7 +34,7 @@ test('a response credits the session that did the work as it ran, through change
 
   const first = board.giveFeedback(card.id, { answer: { rating: 4 } });
   expect(first.configs).toEqual([claudeOpus]);
-  expect(first).toMatchObject({ cardId: card.id, short: board.row(card.id).short, canvasId: 'c', title: 'Zählerstände exportieren', repo: 'home', attribution: 'single', configs: [claudeOpus], credited: claudeOpus, answer: { rating: 4 } });
+  expect(first).toMatchObject({ cardId: card.id, short: board.row(card.id).short, projectId: 'c', title: 'Zählerstände exportieren', repo: 'home', attribution: 'single', configs: [claudeOpus], credited: claudeOpus, answer: { rating: 4 } });
   expect(first.plan).toBeUndefined();
   expect(first.updatedAt).toBeUndefined();
   // the same click twice is one response; a changed answer replaces it and keeps whom it credits
@@ -111,17 +111,17 @@ test('a legacy session resumed on today’s defaults is credited only with what 
   workers.shutdown();
 });
 
-test('a workstream’s response carries its plan; it follows the card to another canvas', () => {
+test('a workstream’s response carries its plan; it follows the card to another project', () => {
   const w = board.snapshot().items.find((i) => i.label === 'W1')!;
   board.log(w.id, 'review', 'worker', 'Done.');
   approve(w.id);
   const f = board.giveFeedback(w.id, { answer: { rating: 1 }, facets: { type: 'bug' } });
   expect(f).toMatchObject({ title: 'Title W1', plan: { id: w.parent, title: 'A', file: 'docs/plan/a.md' }, facets: { type: 'bug' } });
-  store.ensureCanvas('d', 'D');
+  store.ensureProject('d', 'D');
   store.moveCard(w.id, 'd', { x: 0, y: 0 });
-  expect(store.feedback({ cardId: w.id })[0]).toMatchObject({ id: f.id, canvasId: 'd', plan: { title: 'A' } });
-  // the dashboard reads every canvas's responses, from any canvas
-  expect(board.allFeedback().map((x) => [x.id, x.canvasId])).toEqual([[f.id, 'd']]);
+  expect(store.feedback({ cardId: w.id })[0]).toMatchObject({ id: f.id, projectId: 'd', plan: { title: 'A' } });
+  // the dashboard reads every project's responses, from any project
+  expect(board.allFeedback().map((x) => [x.id, x.projectId])).toEqual([[f.id, 'd']]);
   expect(board.allFeedback()[0]!.deleted).toBeUndefined();
 });
 
@@ -183,7 +183,7 @@ test('archiving after the landing, approved work asks for feedback until answere
   board.giveFeedback(card.id, { answer: { rating: 4, comment: 'Clean.' }, handover });
   expect(board.item(card.id)!.rate).toEqual({ handover, answer: { rating: 4, comment: 'Clean.' } });
   // read afresh, as after a restart
-  const again = new Board(store, board.canvas, () => ({ docs, dirs: [] }));
+  const again = new Board(store, board.project, () => ({ docs, dirs: [] }));
   again.archiving = () => 'landed';
   expect(again.item(card.id)!.rate).toEqual({ handover, answer: { rating: 4, comment: 'Clean.' } });
   // work handed over again after more work asks about its new handover
@@ -217,7 +217,7 @@ test('archiving by hand, a card asks for feedback once the owner archives it; a 
   // and takes the answer there
   board.giveFeedback(card.id, { answer: { rating: 4 }, handover });
   expect(board.card(card.id)!.rate).toEqual({ handover, answer: { rating: 4 } });
-  // back on the canvas, it waits to be archived again
+  // back on the project, it waits to be archived again
   board.unarchive(card.id);
   expect(board.item(card.id)!.rate).toBeUndefined();
   const w = board.snapshot().items.find((i) => i.label === 'W1')!;
@@ -254,7 +254,7 @@ test('turned off, no card asks for feedback and the responses given stay', () =>
   board.work(card.id, { state: 'approved', approved_at: new Date().toISOString() });
   board.giveFeedback(card.id, { answer: { rating: 5 } });
   let asks = false;
-  const off = new Board(store, board.canvas, () => ({ docs, dirs: [] }), undefined, undefined, () => 'de', undefined, () => asks);
+  const off = new Board(store, board.project, () => ({ docs, dirs: [] }), undefined, undefined, () => 'de', undefined, () => asks);
   off.archiving = () => 'landed';
   expect(off.item(card.id)!.rate).toBeUndefined();
   expect(off.feedback(card.id)).toHaveLength(1);

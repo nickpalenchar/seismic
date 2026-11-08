@@ -1,4 +1,4 @@
-// Watches the open pull requests of a canvas and passes what happens on them to the card's
+// Watches the open pull requests of a project and passes what happens on them to the card's
 // worker: new review comments, failed checks, conflicts. Once nothing is left for the worker, Seismic
 // merges it (the owner's approval covered that), unless the repository's settings leave the merge
 // to the people on the forge (`autoMerge` off). A card may have several pull requests (one in
@@ -20,7 +20,7 @@ const watched = (state: string | undefined) => state === 'inPr' || state === 'wa
 export class PrWatcher {
   private timer: ReturnType<typeof setInterval> | undefined;
   private polling = false;
-  /** Stopped (its canvas closed): a round still waiting for the forge leaves the cards alone. */
+  /** Stopped (its project closed): a round still waiting for the forge leaves the cards alone. */
   private stopped = false;
   /** When the last round began. */
   private polled = 0;
@@ -36,7 +36,7 @@ export class PrWatcher {
      * accounts whose comments are not review feedback (`prNoise`), and whether Seismic merges (`autoMerge`).
      */
     private settings: () => Pick<RepoAdapter, 'prNoise' | 'autoMerge'> = () => ({}),
-    /** On a canvas with several repositories: the one whose pull requests this watches. */
+    /** On a project with several repositories: the one whose pull requests this watches. */
     private repo?: string,
     /** Called at the end of every round (the read checkout fetches then). */
     private onRound?: () => void,
@@ -128,7 +128,7 @@ export class PrWatcher {
   /**
    * The card with its pull request at `url`, as it is after a wait for the forge; none where it
    * moved on meanwhile (approved, stopped, deleted, another PR, that one merged or closed) or the
-   * watcher stopped (its canvas closed).
+   * watcher stopped (its project closed).
    */
   private current(cardId: string, url: string): { state: string; pr: PrState } | null {
     const item = this.board.item(cardId);
@@ -293,7 +293,7 @@ export class PrWatcher {
           next.mergeError = reason;
           return this.save(cardId, next);
         }
-        // merged on the forge: a card that moved on meanwhile, or one on a canvas closed since, sees it at its next round
+        // merged on the forge: a card that moved on meanwhile, or one on a project closed since, sees it at its next round
         if (!this.current(cardId, pr.url!)) return;
         delete next.mergeError;
         this.save(cardId, next);

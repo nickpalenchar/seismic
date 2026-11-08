@@ -1,6 +1,6 @@
 // The Agent Feedback Log: every response the owner gave on agents' work, by time, the newest first,
 // filtered by the dashboard's filters and by whom a response credits and how it rated, and grouped
-// by configuration, plan, repository, canvas, week or month. Its state lives in the page's query,
+// by configuration, plan, repository, project, week or month. Its state lives in the page's query,
 // so the dashboard can open it with its own filters and a reload keeps it.
 import { configKey, filterFeedback, type PerformanceFilter, stars } from './performance';
 import { AGENT_EFFORTS, type Feedback, type WorkConfig } from './types';
@@ -18,8 +18,8 @@ export interface LogFilter extends Omit<PerformanceFilter, 'since'> {
   rating?: string;
 }
 
-export type LogGroup = 'none' | 'config' | 'plan' | 'repo' | 'canvas' | 'week' | 'month';
-export const LOG_GROUPS: LogGroup[] = ['none', 'config', 'plan', 'repo', 'canvas', 'week', 'month'];
+export type LogGroup = 'none' | 'config' | 'plan' | 'repo' | 'project' | 'week' | 'month';
+export const LOG_GROUPS: LogGroup[] = ['none', 'config', 'plan', 'repo', 'project', 'week', 'month'];
 
 export interface LogState {
   filter: LogFilter;
@@ -37,7 +37,7 @@ export const creditOf = (f: Feedback): WorkConfig | undefined => (f.attribution 
 export function filterLog(list: Feedback[], f: LogFilter, now = Date.now()): Feedback[] {
   const since = f.period && f.period !== 'all' ? new Date(now - Number(f.period) * DAY).toISOString() : undefined;
   const config = f.harness !== undefined || f.model !== undefined || f.effort !== undefined;
-  return filterFeedback(list, { canvas: f.canvas, repo: f.repo, plan: f.plan, ...(since ? { since } : {}) })
+  return filterFeedback(list, { project: f.project, repo: f.repo, plan: f.plan, ...(since ? { since } : {}) })
     .filter((x) => {
       if (config) {
         const c = creditOf(x);
@@ -83,7 +83,7 @@ export function weekOf(iso: string): string {
 }
 
 export interface LogSection {
-  /** What the responses share: a configuration's key (`harness|model|effort`, `mixed`, `missing`), a plan's id, a repository, a canvas, a week's Monday or a month (`2026-11`); empty where they have none. */
+  /** What the responses share: a configuration's key (`harness|model|effort`, `mixed`, `missing`), a plan's id, a repository, a project, a week's Monday or a month (`2026-11`); empty where they have none. */
   key: string;
   /** The credited configuration, in a section by configuration. */
   config?: WorkConfig;
@@ -104,8 +104,8 @@ function keyOf(f: Feedback, by: LogGroup): string {
       return f.plan?.id ?? '';
     case 'repo':
       return f.repo ?? '';
-    case 'canvas':
-      return f.canvasId;
+    case 'project':
+      return f.projectId;
     case 'week':
       return weekOf(givenAt(f));
     case 'month':
@@ -165,16 +165,16 @@ export function groupLog(list: Feedback[], by: LogGroup): LogSection[] {
   return all.sort((a, b) => none(a) - none(b) || name(a).localeCompare(name(b)));
 }
 
-const FILTER_KEYS = ['canvas', 'repo', 'plan', 'period', 'harness', 'model', 'effort', 'rating'] as const;
+const FILTER_KEYS = ['project', 'repo', 'plan', 'period', 'harness', 'model', 'effort', 'rating'] as const;
 /** The names the log's state takes in a query, and `performance`, which opens the dashboard with them. */
-export const LOG_KEYS = [...FILTER_KEYS, 'project', 'group', 'performance'];
+export const LOG_KEYS = [...FILTER_KEYS, 'canvas', 'group', 'performance'];
 
 /** The log's state from its query (`?plan=…&group=month`); what it does not know it leaves out. */
 export function readLogQuery(search: string): LogState {
   const q = new URLSearchParams(search);
   const filter: LogFilter = {};
   for (const k of FILTER_KEYS) {
-    const v = q.get(k) ?? (k === 'plan' ? q.get('project') : null);
+    const v = q.get(k) ?? (k === 'project' ? q.get('canvas') : null);
     if (v === null) continue;
     if (k === 'period') {
       if (PERIODS.includes(v as Period)) filter.period = v as Period;
@@ -183,7 +183,7 @@ export function readLogQuery(search: string): LogState {
     } else if (k === 'harness' || k === 'model' || k === 'effort') filter[k] = v;
     else if (v) filter[k] = v;
   }
-  const g = q.get('group') === 'project' ? 'plan' : q.get('group');
+  const g = q.get('group');
   return { filter, group: LOG_GROUPS.includes(g as LogGroup) ? (g as LogGroup) : 'none' };
 }
 

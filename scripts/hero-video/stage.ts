@@ -1,4 +1,4 @@
-// The canvas the hero video starts on, as a stage file for `scripts/scratch-obeya.ts`: the Tipjar app
+// The project the hero video starts on, as a stage file for `scripts/scratch-obeya.ts`: the Tipjar app
 // beside this file as the repository, a plan doc with three workstreams, and cards in the states the
 // video talks about. Positions are chosen so that the card the video creates lands in view and nothing
 // sits under the microphone or the minimap.

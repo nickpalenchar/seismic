@@ -1,5 +1,5 @@
-// The repository a card is built in, picked before work on it begins: one of the canvas's, or a
-// new one Seismic creates for it (its folder, and whether it gets a canvas of its own). Built once
+// The repository a card is built in, picked before work on it begins: one of the project's, or a
+// new one Seismic creates for it (its folder, and whether it gets a project of its own). Built once
 // for every kind of card that has a task before it starts (a planned task, an idea); the button
 // that starts or builds the card names a new one, so what the click does is clear before it.
 
@@ -10,7 +10,7 @@ import { t } from './strings';
 /** A new repository as the owner picks it on the card. */
 export interface FreshRepo {
   path: string;
-  canvas: boolean;
+  project: boolean;
 }
 
 export interface RepoChoice {
@@ -30,16 +30,16 @@ export interface RepoChoice {
  */
 export function useRepoChoice(item: Item, onEdit: (p: CardPatch) => void): RepoChoice {
   const [repo, setRepo] = useState(item.repo);
-  const [fresh, setFreshState] = useState<FreshRepo | null>(item.newRepo ? { path: item.newRepo.path, canvas: item.newRepo.canvas } : null);
+  const [fresh, setFreshState] = useState<FreshRepo | null>(item.newRepo ? { path: item.newRepo.path, project: item.newRepo.project } : null);
   // what the owner picked here and the server does not have yet: until it does, the card keeps showing it
   const mine = useRef<string | null>(null);
-  const key = (r: string, f: FreshRepo | null) => JSON.stringify([r, f?.path.trim() ?? null, f?.canvas ?? null]);
-  const stored = key(item.repo, item.newRepo ? { path: item.newRepo.path, canvas: item.newRepo.canvas } : null);
+  const key = (r: string, f: FreshRepo | null) => JSON.stringify([r, f?.path.trim() ?? null, f?.project ?? null]);
+  const stored = key(item.repo, item.newRepo ? { path: item.newRepo.path, project: item.newRepo.project } : null);
   useEffect(() => {
     if (mine.current !== null && mine.current !== stored) return;
     mine.current = null;
     setRepo(item.repo);
-    setFreshState(item.newRepo ? { path: item.newRepo.path, canvas: item.newRepo.canvas } : null);
+    setFreshState(item.newRepo ? { path: item.newRepo.path, project: item.newRepo.project } : null);
   }, [stored]);
   const setFresh = (f: FreshRepo) => {
     mine.current = key(repo, f);
@@ -56,19 +56,19 @@ export function useRepoChoice(item: Item, onEdit: (p: CardPatch) => void): RepoC
       setFreshState(null);
       onEdit({ repo: id, newRepo: null });
     },
-    pickNew: (start) => setFresh(fresh ?? { path: start, canvas: true }),
+    pickNew: (start) => setFresh(fresh ?? { path: start, project: true }),
     setFresh,
   };
 }
 
-/** Where a new repository's folder starts out: beside the canvas's first repository. */
+/** Where a new repository's folder starts out: beside the project's first repository. */
 const besideHome = (repos: RepoRef[]) => repos[0]?.path.replace(/[/\\][^/\\]+[/\\]?$/, '/') ?? '';
 
 /**
- * The picker: the canvas's repositories and "New repository …", which once picked shows its
- * folder and "own canvas". It stays out of the way: shown on a canvas with several
+ * The picker: the project's repositories and "New repository …", which once picked shows its
+ * folder and "own project". It stays out of the way: shown on a project with several
  * repositories, and where a new one is picked already (by the idea's agent, or the owner's words to
- * Seismic); a card of a canvas with one repository and no new one shows none. `fresh`: a new
+ * Seismic); a card of a project with one repository and no new one shows none. `fresh`: a new
  * repository may be picked (not on a proposal, whose acceptance starts it where it is).
  */
 export function RepoPick({ choice, repos, fresh = true }: { choice: RepoChoice; repos: RepoRef[]; fresh?: boolean }) {
@@ -116,9 +116,9 @@ export function RepoPick({ choice, repos, fresh = true }: { choice: RepoChoice; 
             maxLength={1000}
             onChange={(e) => choice.setFresh({ ...n, path: e.target.value })}
           />
-          <label className="repo-canvas" title={t.repoPick.ownCanvasHint}>
-            <input type="checkbox" role="switch" className="toggle" checked={n.canvas} onChange={(e) => choice.setFresh({ ...n, canvas: e.target.checked })} />
-            {t.repoPick.ownCanvas}
+          <label className="repo-project" title={t.repoPick.ownProjectHint}>
+            <input type="checkbox" role="switch" className="toggle" checked={n.project} onChange={(e) => choice.setFresh({ ...n, project: e.target.checked })} />
+            {t.repoPick.ownProject}
           </label>
         </div>
       )}
@@ -134,7 +134,7 @@ export function newRepoWords(choice: RepoChoice, idea: boolean): { button: strin
   if (!path || !choice.name) return { button: idea ? t.idea.build : t.start, hint: t.repoPick.noPath, ready: false };
   return {
     button: idea ? t.repoPick.build(choice.name) : t.repoPick.start(choice.name),
-    hint: n.canvas ? t.repoPick.willMove(path, choice.name, idea) : t.repoPick.willJoin(path),
+    hint: n.project ? t.repoPick.willMove(path, choice.name, idea) : t.repoPick.willJoin(path),
     ready: true,
   };
 }

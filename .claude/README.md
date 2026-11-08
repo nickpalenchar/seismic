@@ -1,4 +1,4 @@
-# Agent permission rules for this canvas
+# Agent permission rules for this project
 
 Review draft: [`.claude/settings.json`](settings.json) contains 29 allow rules for
 Claude Code sessions. Review this explanation and the file before trusting it in **Konfiguration**.
@@ -6,7 +6,7 @@ This change does not accept trust on the owner's behalf.
 
 ## What the draft is based on
 
-The Seismic canvas history was read on 2026-10-31, through event 492. It contained 16 permission
+The Seismic project history was read on 2026-10-31, through event 492. It contained 16 permission
 questions, all on **“Seismic should have a prompt to re-login when it encounters login errors”**:
 creating a demo directory, staging scratch instances (including `--code HEAD`), starting and
 driving the browser, running Codex review, tests, copying demo files, and generating/checking
@@ -61,7 +61,7 @@ The tables follow the JSON file's order. In the browser table, **B** is exactly
 
 | Allow rule | Reason and scope |
 | --- | --- |
-| `Bash(mkdir -p /Users/nick/demos/obeya-*)` | Creates this canvas's demo directories using the observed naming convention. Text pattern, not a path boundary. |
+| `Bash(mkdir -p /Users/nick/demos/obeya-*)` | Creates this project's demo directories using the observed naming convention. Text pattern, not a path boundary. |
 | `Bash(mkdir -p /tmp/obeya-*)` | Creates temporary staging/demo directories with the same namespace. The OS may resolve `/tmp` to `/private/tmp`; that spelling needs its own rule. |
 | `Bash(bun scripts/scratch-obeya.ts /tmp/obeya-*.json)` | Stages a scratch app from the observed temporary stage-file convention. |
 | `Bash(bun scripts/scratch-obeya.ts /Users/nick/demos/obeya-*/stage.json)` | Stages a fresh take from a demo's saved stage file, as the repository's demo recipe requests. |
@@ -110,7 +110,7 @@ and `codex exec --help` / `codex exec review --help` for the installed CLI.
 | Allow rule | Reason and scope |
 | --- | --- |
 | `Bash(node /Users/nick/harness/obeya/plugin/skills/demo/lib/setup.ts)` | Checks recording prerequisites and the configured voice. Does not allow voice installation commands. |
-| `Bash(node /Users/nick/demos/obeya-*/demo.ts)` | Runs a canvas demo's recording script. Grants that script's code the ability to run subprocesses, write files and use the configured voice service. |
+| `Bash(node /Users/nick/demos/obeya-*/demo.ts)` | Runs a project demo's recording script. Grants that script's code the ability to run subprocesses, write files and use the configured voice service. |
 | `Bash(node /Users/nick/demos/obeya-*/demo.ts --narration)` | Generates narration/cache for the observed demo preparation step. Hosted voice settings can incur charges. |
 | `Bash(node /Users/nick/demos/obeya-*/demo.ts --dry)` | Runs the scenes for validation without recording the finished video. The demo code still runs. |
 

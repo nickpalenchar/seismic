@@ -84,13 +84,13 @@ test('the notes list the commits since the version tag before that change what r
   git('init', '-q', '-b', 'main');
   commit('src/a.ts', 'First');
   git('tag', 'v0.1.0');
-  commit('src/b.ts', 'Faster canvas');
+  commit('src/b.ts', 'Faster project');
   git('tag', 'site-media');
   commit('docs/design.md', 'Record the plan');
   commit('README.md', 'Reword the README');
   commit('app/src/main.rs', 'Quit cleanly');
   git('tag', 'v0.2.0');
-  expect(notes(repo, 'v0.2.0')).toBe('- Quit cleanly\n- Faster canvas\n');
+  expect(notes(repo, 'v0.2.0')).toBe('- Quit cleanly\n- Faster project\n');
   expect(notes(repo, 'v0.1.0')).toBe('- The first release.\n');
 
   const many = Array.from({ length: 20 }, (_, i) => `- Change ${i + 1}`).join('\n');

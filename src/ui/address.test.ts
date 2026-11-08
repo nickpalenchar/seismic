@@ -3,23 +3,23 @@ import { followedPath, knowProjects, projectNamed, projectPath, cardPath, feedba
 
 const at = (url: string) => new URL(url, 'http://obeya');
 
-test('the path names the canvas and the card open on it', () => {
-  expect(readAddress(at('/p/shop'))).toEqual({ canvas: 'shop' });
-  expect(readAddress(at('/p/shop/'))).toEqual({ canvas: 'shop' });
-  expect(readAddress(at('/p/shop/c/a1b2c3?view=phone&talk'))).toEqual({ canvas: 'shop', card: 'a1b2c3' });
-  expect(readAddress(at('/p/my%20shop/c/a1b2c3'))).toEqual({ canvas: 'my shop', card: 'a1b2c3' });
+test('the path names the project and the card open on it', () => {
+  expect(readAddress(at('/p/shop'))).toEqual({ project: 'shop' });
+  expect(readAddress(at('/p/shop/'))).toEqual({ project: 'shop' });
+  expect(readAddress(at('/p/shop/c/a1b2c3?view=phone&talk'))).toEqual({ project: 'shop', card: 'a1b2c3' });
+  expect(readAddress(at('/p/my%20shop/c/a1b2c3'))).toEqual({ project: 'my shop', card: 'a1b2c3' });
   expect(readAddress(at('/'))).toEqual({});
   expect(readAddress(at('/p/shop/project/x'))).toEqual({});
 });
 
-test('the feedback log is a page of its own, opened from a canvas', () => {
+test('the feedback log is a page of its own, opened from a project', () => {
   expect(feedbackLogPath('my shop')).toBe('/p/my%20shop/feedback');
-  expect(readAddress(at('/p/my%20shop/feedback?group=month'))).toEqual({ canvas: 'my shop', page: 'feedback' });
+  expect(readAddress(at('/p/my%20shop/feedback?group=month'))).toEqual({ project: 'my shop', page: 'feedback' });
   expect(readAddress(at('/p/shop/feedback/x'))).toEqual({});
 });
 
 test('an address from before paths still names what it named', () => {
-  expect(readAddress(at('/?c=shop&card=1234'))).toEqual({ canvas: 'shop', card: '1234' });
+  expect(readAddress(at('/?c=shop&card=1234'))).toEqual({ project: 'shop', card: '1234' });
   expect(readAddress(at('/?card=1234'))).toEqual({ card: '1234' });
 });
 
@@ -47,9 +47,9 @@ test('the query keeps what the path does not say, flags as bare names', () => {
 });
 
 test('existing path bookmarks still resolve, including the feedback page', () => {
-  expect(readAddress(at('/c/my%20shop/card/ab12?view=phone&talk'))).toEqual({ canvas: 'my shop', card: 'ab12' });
-  expect(readAddress(at('/c/shop'))).toEqual({ canvas: 'shop' });
-  expect(readAddress(at('/c/shop/feedback'))).toEqual({ canvas: 'shop', page: 'feedback' });
+  expect(readAddress(at('/c/my%20shop/card/ab12?view=phone&talk'))).toEqual({ project: 'my shop', card: 'ab12' });
+  expect(readAddress(at('/c/shop'))).toEqual({ project: 'shop' });
+  expect(readAddress(at('/c/shop/feedback'))).toEqual({ project: 'shop', page: 'feedback' });
 });
 
 
@@ -132,7 +132,7 @@ test('renaming the open project moves the address, its card and all, to the new 
   expect(followedPath('/p/store/c/a1b2c3', [{ id: 'shop', name: 'Market' }], 'shop', was)).toBe('/p/market/c/a1b2c3');
   // a reload of the old address opens the project by its old name, then moves to the new one
   expect(followedPath('/p/store/feedback', [{ id: 'shop', name: 'Market', oldNames: ['Store'] }], 'shop', null)).toBe('/p/market/feedback');
-  // another project's address, before its canvas has arrived, stays
+  // another project's address, before its project has arrived, stays
   expect(followedPath('/p/blog', [{ id: 'shop', name: 'Market' }, { id: 'blog', name: 'Blog' }], 'shop', was)).toBeNull();
   expect(followedPath('/p/store', [{ id: 'shop', name: 'Market' }], 'shop', { id: 'other', path: '/p/store' })).toBeNull();
   knowProjects([]);
@@ -149,8 +149,8 @@ test('a name without letters or digits has no slug, so the id addresses the proj
   expect(projectPath('p-dots')).toBe('/p/p-dots');
   expect(projectPath('p-ok')).toBe('/p/v1-2');
   for (const id of ['p-dot', 'p-dots']) {
-    const { canvas } = readAddress({ pathname: projectPath(id), search: '' });
-    expect(projectNamed(list, canvas)?.id).toBe(id);
+    const { project } = readAddress({ pathname: projectPath(id), search: '' });
+    expect(projectNamed(list, project)?.id).toBe(id);
   }
   expect(projectNamed(list, 'v1.2')?.id).toBe('p-ok');
   // typed by hand, the dots name nothing

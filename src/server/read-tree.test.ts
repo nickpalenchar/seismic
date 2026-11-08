@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CanvasRuntime } from './canvas';
+import { ProjectRuntime } from './project';
 import { Store } from './db';
 import { ReadTree, refsSeal } from './read-tree';
 import { artifact, FakeRuntime, gitRepo, identify, noForge, until } from './testing';
@@ -17,7 +17,7 @@ let origin: string;
 let checkout: string;
 /** Another clone, from which work reaches `origin`. */
 let other: string;
-let canvas: CanvasRuntime | undefined;
+let project: ProjectRuntime | undefined;
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'obeya-read-'));
@@ -31,8 +31,8 @@ beforeEach(() => {
   }
 });
 afterEach(() => {
-  canvas?.shutdown();
-  canvas = undefined;
+  project?.shutdown();
+  project = undefined;
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -53,11 +53,11 @@ function push(files: Record<string, string | null>) {
 
 // its `origin` stands in for one on GitHub, where work goes out as pull requests
 function open(land: 'main' | 'pr' = 'pr') {
-  canvas = new CanvasRuntime({ name: 'Shop', repos: [{ path: checkout, settings: { land } }] }, { store: new Store(':memory:'), home: join(dir, 'home'), runtime: new FakeRuntime(), forge: noForge });
-  return canvas;
+  project = new ProjectRuntime({ name: 'Shop', repos: [{ path: checkout, settings: { land } }] }, { store: new Store(':memory:'), home: join(dir, 'home'), runtime: new FakeRuntime(), forge: noForge });
+  return project;
 }
 
-const plans = (c: CanvasRuntime) =>
+const plans = (c: ProjectRuntime) =>
   c.board
     .snapshot()
     .items.filter((i) => i.kind === 'plan')
@@ -65,7 +65,7 @@ const plans = (c: CanvasRuntime) =>
     .sort();
 
 describe('the Lesestand', () => {
-  test("is a worktree on the default branch: a card's branch in the checkout without the plan doc leaves the plan on the canvas", () => {
+  test("is a worktree on the default branch: a card's branch in the checkout without the plan doc leaves the plan on the project", () => {
     git(checkout, 'checkout', '--quiet', '-b', 'obeya/card');
     git(checkout, 'rm', '--quiet', 'docs/plan/export.md');
     git(checkout, 'commit', '--quiet', '-m', 'card');
@@ -91,7 +91,7 @@ describe('the Lesestand', () => {
     const c = open();
     expect(c.repos[0]!.read.path).toBe(join(dir, 'home', 'read', 'shop', 'origin'));
     expect(plans(c)).toEqual(['Export']);
-    expect(c.board.snapshot().canvas.repos[0]!.branch).toBe('master');
+    expect(c.board.snapshot().project.repos[0]!.branch).toBe('master');
   });
 
   test('shows a doc that reached origin once it refreshes, and lets a deleted one go', async () => {
@@ -251,11 +251,11 @@ describe("the seal of a repository's refs", () => {
 describe("a repository's settings for everyone", () => {
   const settings = (o: object) => `${JSON.stringify(o)}\n`;
   const openWatched = (repo: string, runtime = new FakeRuntime(), clones?: number) => {
-    canvas = new CanvasRuntime(
+    project = new ProjectRuntime(
       { name: 'Shop', repos: [{ path: repo, ...(clones ? { clones } : {}) }] },
       { store: new Store(':memory:'), home: join(dir, 'home'), runtime, forge: noForge, restartIntervalMs: 10 },
     );
-    return canvas;
+    return project;
   };
 
   test("a new version on the default branch applies without a restart; one that moves where the workers work restarts them", async () => {

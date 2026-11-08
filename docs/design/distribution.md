@@ -43,9 +43,9 @@ run or an earlier one, or `bun start` in a terminal, which then ends too), and t
 the stop waits for; quitting again goes ahead at once. The app ends when its server does; a server
 it started in this run that ends unasked shows the last lines of its log in a dialog. The server's output goes to `app.log` in the home. A second start
 brings the window to the front. On a Mac, closing the window keeps the app in the Dock, and the
-window has no title bar: the canvas's bar holds the traffic lights, centred on its height, and drags the
+window has no title bar: the project's bar holds the traffic lights, centred on its height, and drags the
 window (the pinned navigation's head, as tall, while it is pinned). Links
-leaving the canvas and new windows open in the default browser, as does "Open in browser" in the
+leaving the project and new windows open in the default browser, as does "Open in browser" in the
 settings (and the Mac's File menu). The shell itself opens them, a plain click on a link with
 `target=_blank` included; Tauri's opener plugin stays unregistered, since its link script takes such
 a click and hands it to the plugin over IPC, which the page may not call, so the click did nothing
@@ -124,7 +124,7 @@ of `app/`.
 linuxdeploy rewrites the library path of every program in an AppDir, which breaks Bun's binary (its
 code sits after the ELF's end), so the server goes into the AppImage after linuxdeploy and the image
 is packed again. `bun scripts/check-app.ts <program>` checks an installed app in its webview
-(canvas, microphone, video playback, browser button, second start, stop).
+(project, microphone, video playback, browser button, second start, stop).
 
 ### Builds
 
@@ -226,16 +226,16 @@ parallel chats (no Toyota, as in the README); "Seismic is built with Seismic."; 
 (downloads, `bun start`, GitHub; not the design doc, which is written for the agents working on
 Seismic).
 
-The pillars: the canvas, a canvas per product side by side in one Seismic; voice; the demo, set
+The pillars: the project, a project per product side by side in one Seismic; voice; the demo, set
 against testing the change by hand, not against code review, since the audience reads no code
 anyway, with a pointer to `demos.obeya.si`, the demos of Seismic's own development; the order cards
 run in, parallel where they can, one after the other where they must; the phone, what waits across
-all canvases and a demo opened from there, reaching Seismic over the owner's own private network,
+all projects and a demo opened from there, reaching Seismic over the owner's own private network,
 through no service of Seismic's. "From idea to main" switches (radios and CSS) between the three steps
 most cards take, shown first so the page reads simple at first sight (say the task, watch the demo,
 approve), and a card's longer way along a wall (an idea and its prototypes, the work, the demo with
 a round back for changes, the merge, an agent's proposal hanging off it), each step a card in its
-state as the canvas draws it. Only the demo carries the pin of a card waiting for the owner, so the
+state as the project draws it. Only the demo carries the pin of a card waiting for the owner, so the
 way reads as task, demo, done.
 
 `site/code-signing/` ("Code signing policy", linked under the downloads and in the footer) is what
@@ -264,7 +264,7 @@ at GitHub Pages' four A and four AAAA addresses and `www` is a CNAME to `sadilek
 ### Hero video
 
 The site's film is a real run recorded with Seismic's own demo pipeline (`scripts/hero-video/`, whose
-README says how to change, re-render and publish it) on a scratch canvas over Tipjar, a small tip
+README says how to change, re-render and publish it) on a scratch project over Tipjar, a small tip
 calculator with its own settings and plan doc. It goes through the main features once, from
 arranging the wall and an idea by voice through a real worker's demo, comments spoken into it and
 the approval to proposals and an idea discussed with its agent. About four minutes, as sharp as the
@@ -348,7 +348,7 @@ which Chrome leaves stale after a seek. Without JavaScript or the chapters file 
   Publishing stays the owner's click, since it reaches every installed app.
 - **Seismic is made known through a static English site on obeya.si that starts with the film**
   (2026-10-06): the calm, editorial film-first prototype, with the pillars as cards on a wall, a
-  card's way along the wall and "The big room" from a second. Rejected: a canvas the camera flies
+  card's way along the wall and "The big room" from a second. Rejected: a project the camera flies
   through while scrolling (built, then dropped: the scrolling felt odd).
 - **The hero video is a release asset** (2026-10-07). Rejected: git, which holds no video, and a
   video host, since the site loads nothing from a third party.

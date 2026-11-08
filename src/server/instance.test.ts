@@ -92,8 +92,8 @@ test('a second Seismic on the same home ends and says where the first runs; the 
     // the supervisor, which stays across restarts
     expect(i.pid).toBe(first.pid);
     // only with the owner's key from its home (owner.ts)
-    expect((await fetch(`${i.url}/api/canvases`)).status).toBe(401);
-    expect((await fetch(`${i.url}/api/canvases`, { headers: ownerHeaders(home) })).ok).toBe(true);
+    expect((await fetch(`${i.url}/api/projects`)).status).toBe(401);
+    expect((await fetch(`${i.url}/api/projects`, { headers: ownerHeaders(home) })).ok).toBe(true);
 
     const second = Bun.spawn([process.execPath, main, repo, '--port', '0'], { env, stdout: 'pipe', stderr: 'pipe' });
     expect(await second.exited).toBe(1);

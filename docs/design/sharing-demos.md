@@ -11,38 +11,38 @@ shared, the line holds the link, "Copy link" and "Stop sharing".
 #### Where a demo goes
 
 Where a site takes the demo, "Share" publishes it on a page there at once, without a hold; "Stop
-sharing" withdraws it as easily. The site is the one the card's canvas chose, under the canvas's
-path there (see A canvas's demo site), once that path is initialized and this machine can deploy to
+sharing" withdraws it as easily. The site is the one the card's project chose, under the project's
+path there (see A project's demo site), once that path is initialized and this machine can deploy to
 the site. Without one, it exports a file (see Export without a site), and the export box says why
 with a link into the project settings ("Choose a demo site", or "Initialize" while the path is not
 on the site yet). A page stays on the site and path it went out on: later versions, a withdrawal and
-the link to the PR or commit go there, even once the canvas chose another (as long as this machine
+the link to the PR or commit go there, even once the project chose another (as long as this machine
 still has that site). Pages go out one change at a time through one
-queue for all canvases, which resumes after a restart. The slug comes from the card's title and id
+queue for all projects, which resumes after a restart. The slug comes from the card's title and id
 once and stays, so the link survives republishing. The deploy's output goes into the card's log; a
 failure is logged as an error and leaves the card as it was.
 
 The page has a title and two to five sentences for colleagues who have never seen Seismic, which
-`ready_for_review` takes with every demo where the canvas shares on a site (`demo.page`); for a demo
+`ready_for_review` takes with every demo where the project shares on a site (`demo.page`); for a demo
 without them, a short read-only session writes them from the worker's last summary when the owner
 shares, kept with the demo from then on. Whether `ready_for_review` takes and requires the page is
-fixed when the worker's session starts: where sharing begins only later (the canvas's site is initialized later), the session hands over without one, since
+fixed when the worker's session starts: where sharing begins only later (the project's site is initialized later), the session hands over without one, since
 its tools' schema drops a page it does not know.
 
 #### Tags
 
-A canvas may name a vocabulary of tags for its demo site (`tags` of its `demoSite`): a few
+A project may name a vocabulary of tags for its demo site (`tags` of its `demoSite`): a few
 dimensions, each with its values, in the order the overview shows them (`{"Area": ["Billing",
-"Reports"], "Audience": ["Admins"]}`). The manifest carries it with the canvas's path, so every
+"Reports"], "Audience": ["Admins"]}`). The manifest carries it with the project's path, so every
 machine writes that path's overview with the same filter. Nobody adds to it:
 workers and the reading session choose from it, and the owner picks from it by hand. A page carries
 per dimension zero or more of its values; a dimension it has no key for has none chosen yet.
 
-The vocabulary need not be thought up by hand: under the field in the canvas's demo site,
-"Have an agent propose the tags" starts a read-only session in the canvas's home repository. It reads how the app is built (README, docs, the source tree)
-and the repository's cards on every canvas it is on, finished and open, archived ones included,
+The vocabulary need not be thought up by hand: under the field in the project's demo site,
+"Have an agent propose the tags" starts a read-only session in the project's home repository. It reads how the app is built (README, docs, the source tree)
+and the repository's cards on every project it is on, finished and open, archived ones included,
 each with its task and what its demos' pages say (or their chapters, or the handover's summary where
-there is no demo), the canvas's cards first and the archive's most recent first, up to a size. It
+there is no demo), the project's cards first and the archive's most recent first, up to a size. It
 keeps what of a vocabulary already in the field still fits, since pages carry those values, and
 proposes two to four dimensions, in the language of the repository's demos, with a few sentences
 why in the owner's language. The proposal goes into the field (in the project settings sheet saved at
@@ -160,7 +160,7 @@ away), the card lists "Theme changed" without a day beside the page changes, and
 entry counts its pages with them. "Hide" hides each of them until its repository's theme
 changes again or the page is shared again. The theme is read with the repository's settings, when
 its default branch moves (in a folder without git, when Seismic next reads the settings), not each
-time the canvas is drawn.
+time the project is drawn.
 
 A page published again with the same video keeps its date ("Shared on"), so the overview keeps its
 order; a new video dates it anew.
@@ -204,7 +204,7 @@ there yet, or never will be if the deploy fails (decided 2026-10-26).
 
 #### Publishing on approval
 
-A canvas's demo site may publish every approved demo by itself ("A demo goes on the site" "with
+A project's demo site may publish every approved demo by itself ("A demo goes on the site" "with
 the approval", `publish: "approved"` of its `demoSite`). There, until approval, the
 latest demo not on the page has a checkbox "Share on approval" (ticked) below the row of buttons that approves,
 which then reads "Share now". Unticked, approving shares nothing and the log says so. The choice
@@ -268,7 +268,7 @@ it is a page change (2026-11-07).
 A repository gives its shared pages a look of its own with one file, `.obeya/theme.css`, without a
 setting or anything in Seismic's UI: Seismic manages nothing of it. Like the settings, it is read from
 the default branch, not from a card's branch. Every page of the repository carries it, on whichever
-site, and so does an export (ZIP and HTML file); the overview of a canvas's path carries the theme
+site, and so does an export (ZIP and HTML file); the overview of a project's path carries the theme
 of the repository that published there last (the manifest keeps it with the path, so another
 machine's deploy writes the overview alike; the feed has no styling). An artifact in its frame stays
 untouched.
@@ -308,7 +308,7 @@ browser cannot seek in it otherwise.
 
 A site of this machine's list (see This machine's demo sites) has:
 
-- `url`: where it is served; a canvas's pages lie at `url/<path>/<slug>/`;
+- `url`: where it is served; a project's pages lie at `url/<path>/<slug>/`;
 - `deploy`: a command line, `{dir}` for the site's directory;
 - `env` (optional): a `KEY=value` file under Seismic's home with the deploy's credentials; a path
   outside the home is refused, and `${KEY}` comes from that file only;
@@ -316,8 +316,8 @@ A site of this machine's list (see This machine's demo sites) has:
   default); `host` and `project` where Seismic set it up; `secret` where it is unlisted (see Unlisted
   sites).
 
-A canvas's choice adds the rest: its path, its vocabulary of tags (see Tags), whether it publishes
-on approval; the title of its overview and of its pages' tabs is the canvas's name. A path's
+A project's choice adds the rest: its path, its vocabulary of tags (see Tags), whether it publishes
+on approval; the title of its overview and of its pages' tabs is the project's name. A path's
 overview is in the language of the home repository's demos (`demo.language`), else the narration
 language.
 
@@ -331,7 +331,7 @@ run with Seismic's Bun, so the line works on Windows. Any host that takes a dire
 Pages, Netlify, Vercel, `aws s3 sync`, `rsync`, a Pages branch, a script.
 
 The site lives in `sites/<key>/` under Seismic's home, the key from the URL's host and path, shared by
-all canvases on it. `site/` holds, under each canvas's path, a directory per page (demo files, `index.html`,
+all projects on it. `site/` holds, under each project's path, a directory per page (demo files, `index.html`,
 `meta.json`: kind, title, text, chapters, PR (or without one the commit: its address, and whether it is a comparison over several), first shared, last changed, a hash of the demo's own
 files, language, who shared it, its tags, and under `more` the later versions, their files in `2/`, `3/` …),
 the path's overview, dated by each page's newest version, and an Atom feed (`feed.xml`, linked from the
@@ -363,12 +363,12 @@ The demo sites are this machine's, kept in Seismic's home (`demo-sites.json`), n
 repository: a site's credentials are a person's, and a repository's settings would put a deploy
 line from a colleague's commit on this machine. Configuration → Demos lists them ("Demo sites"):
 each with its address (a link), its host and project or "entered by hand", listed or unlisted, the
-canvases' paths on it as this machine last saw them, a missing env file, "Copy connection code" and
+projects' paths on it as this machine last saw them, a missing env file, "Copy connection code" and
 "Remove from this machine" (asked once more: the pages and the project at the host stay, and only a
 machine that has the site can withdraw them). Below them, "Configure publishing site" opens a page
 of its own in place of the section (the dialog's navigation stays), with "Back to Demos" at the top;
-a canvas's "+ Add new site" opens Configuration at that page, and once the site is added the page
-goes back to the list, where the canvas can then choose it.
+a project's "+ Add new site" opens Configuration at that page, and once the site is added the page
+goes back to the list, where the project can then choose it.
 
 The page's switcher offers, in this order, each with a line under it:
 
@@ -413,31 +413,31 @@ before the list is taken the same way.
 
 The owner's personal site, kept in `personal-site.json` before there was a list, is read as the list's
 first site and moves into `demo-sites.json` with the list's next change; its ticks (private
-repositories, sharing on approval) are gone, as the canvas's choice covers both.
+repositories, sharing on approval) are gone, as the project's choice covers both.
 
-#### A canvas's demo site
+#### A project's demo site
 
-A canvas chooses its demo site in its settings (the sheet from the gear, see The project settings in
-The canvas, and its page in Configuration): "Demo site" offers "None: export demos as a file",
+A project chooses its demo site in its settings (the sheet from the gear, see The project settings in
+The project, and its page in Configuration): "Demo site" offers "None: export demos as a file",
 this machine's sites, and at the bottom "+ Add new site" (the page above). Once a site is chosen,
 "Path on the site" (`billing`, `team/billing`: up to three parts of lower-case letters, digits and
 hyphens; empty for the site's root) takes effect when the field is left, and while the path is not
 on the site, red text "Site requires setup, click Initialize" and "Initialize" (its tooltip names
-the address the overview will have). Initialize publishes the canvas's empty
+the address the overview will have). Initialize publishes the project's empty
 overview there (an unlisted site: a blank page) and registers the path in the site's manifest, with
-the canvas's name as title, the overview's language, the vocabulary and the theme; it is disabled
+the project's name as title, the overview's language, the vocabulary and the theme; it is disabled
 while it runs, and the status bar says "Creating demo site …" meanwhile, a failure shown at the
 field. From then on the field says "Ready" with the overview's link, and the vocabulary of tags and
 "A demo goes on the site" follow. A path counts as initialized as this machine's copy of the
 manifest has it; another machine joining the site initializes it again, which only pulls and
 deploys.
 
-Several canvases share a site, each under its path, from one machine or several: the site's
+Several projects share a site, each under its path, from one machine or several: the site's
 directory and manifest are one, so every deploy carries every path's pages, and each deploy writes
 every path's overview and feed from the manifest's entry for it. The site's root lists none of the
-paths (a blank page) unless a canvas has the root as its path, or pages from before the paths lie
-there (they keep their overview at the root). The canvas's setting is `demoSite` in the
-configuration (`{ "url", "path", "tags", "publish" }`); Project defaults have none (each canvas
+paths (a blank page) unless a project has the root as its path, or pages from before the paths lie
+there (they keep their overview at the root). The project's setting is `demoSite` in the
+configuration (`{ "url", "path", "tags", "publish" }`); Project defaults have none (each project
 chooses its own).
 
 #### Unlisted sites
@@ -558,7 +558,7 @@ another machine withdrew loses its link here, with a line naming the machine.
   Seismic (one more field for a name agents already commit under) and the host name (a computer, not a
   person).
 - **The credit line has no setting**: settings stay few; a static credit line is common practice.
-- **Pages are tagged from a fixed vocabulary of the canvas's site; the worker tags at
+- **Pages are tagged from a fixed vocabulary of the project's site; the worker tags at
   handover, a session fills gaps, the owner corrects on the card** (owner, 2026-10-28): with a
   hundred pages and more the overview needs a filter, and the worker knows the change best, at no
   extra cost. Rejected: a session tagging at every share (a session per approval, knowing less than
@@ -568,22 +568,22 @@ another machine withdrew loses its link here, with a line naming the machine.
   deciding in the field** (owner, 2026-11-02): the dimensions that fit an app show in its structure
   and in the changes made and planned on it, which the owner would otherwise have to survey by hand.
   Rejected: a card whose worker writes the settings (the owner wants the proposal where the field is,
-  and a worker cannot read the canvas's cards and demos).
+  and a worker cannot read the project's cards and demos).
 - **Links are copied one by one and as the filtered list** (owner, 2026-10-28): a demo goes to one
   person, or several on one topic into a mail, release notes or to a customer.
 - **A handover asks for the page only where the session's tools take one** (2026-10-29): a session
   resumed after a restart got its tools before the forge said the repository was public, so the
   page the worker sent was dropped and every handover refused for lacking it. Rejected: the page in
   every repository's tools (workers without a site would write pages nobody reads).
-- **Demo sites are this machine's, chosen per canvas with a path of its own; repositories name
-  none** (owner, 2026-11-06): where demos go is decided in one place, the canvas, and one site
-  serves several canvases, each under its path. A site goes on the list only once a publish there
-  went through, and a canvas's path is initialized with a click ("Initialize", "Creating demo site"
+- **Demo sites are this machine's, chosen per project with a path of its own; repositories name
+  none** (owner, 2026-11-06): where demos go is decided in one place, the project, and one site
+  serves several projects, each under its path. A site goes on the list only once a publish there
+  went through, and a project's path is initialized with a click ("Initialize", "Creating demo site"
   in the status bar) before its first share. The personal site became one site of the list, chosen
   like any other; Seismic's own `demos.obeya.si` was dropped from its settings. Rejected: a site in
   the repository's settings (2026-10-09 to 2026-11-06: a deploy line and an address from a
   colleague's commit, held until trusted, and a second, personal site as the fallback with ticks for
-  private repositories and approvals), one site per repository chosen on the machine, a canvas's
+  private repositories and approvals), one site per repository chosen on the machine, a project's
   site taking every path of its own without initializing (a typo in the path would publish to a new
   place unasked).
 - **Three hosts Seismic sets up: a public GitHub repository first, a private one, Cloudflare; another

@@ -1,4 +1,4 @@
-// Tags of a shared demo page, from the vocabulary its canvas names for its demo site: a
+// Tags of a shared demo page, from the vocabulary its project names for its demo site: a
 // few dimensions, each with its values, which workers and Seismic's reading session choose from and
 // add nothing to. A page carries per dimension zero or more of its values; a dimension it has no
 // key for has none chosen yet, and one holding a value the vocabulary no longer has counts as

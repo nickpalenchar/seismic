@@ -1,12 +1,12 @@
 // A throwaway Seismic with this checkout's code: in a fresh temp directory, an empty SEISMIC_HOME and a
-// new git repository as its only canvas, on a free port. Nothing of it touches ~/.obeya,
+// new git repository as its only project, on a free port. Nothing of it touches ~/.obeya,
 // ~/.obeya-dev or a repository another Seismic plans (two Seismics on one repository would make
 // worktrees and land on its main side by side); the directory is removed once the server ends.
 //
 //   bun run start:dev:throwaway [--keep] [--setup] [<main.ts args>]
 //
 // --keep leaves the directory behind (its path is printed) to look at after the server ended.
-// --setup starts without a canvas, so the page shows the setup assistant of a first start (the
+// --setup starts without a project, so the page shows the setup assistant of a first start (the
 // repository is still made, for the assistant to pick).
 // Further arguments go to src/server/main.ts as with `bun start` (its header describes them);
 // repositories given there replace the scratch one. The server runs with --dev: it does not
@@ -55,9 +55,9 @@ if (import.meta.main) {
   mkdirSync(home, { mode: 0o700 });
   scratchRepo(repo);
   const port = String(await freePort());
-  // without repositories on the command line, the canvases come from the home's canvases.json
+  // without repositories on the command line, the projects come from the home's projects.json
   if (!setup && !args.some((a) => !a.startsWith('-')))
-    writeFileSync(join(home, 'canvases.json'), JSON.stringify([{ name: 'Scratch', repos: [{ path: repo }] }], null, 2) + '\n');
+    writeFileSync(join(home, 'projects.json'), JSON.stringify([{ name: 'Scratch', repos: [{ path: repo }] }], null, 2) + '\n');
 
   console.error(`Throwaway Seismic in ${dir} (home, repo), port ${port}; ${keep ? 'kept' : 'removed'} once it ends`);
   const child = Bun.spawn(['bun', join(root, 'src/server/main.ts'), '--dev', ...args], {

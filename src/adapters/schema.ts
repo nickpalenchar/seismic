@@ -73,7 +73,7 @@ export function checkShared(made: Record<string, unknown>): { settings: SharedSe
 
 /**
  * Settings without the fields Seismic no longer has, and a line for each: `demo.site`, the demo site a
- * repository once named, which a canvas chooses now (its canvas settings). `workspaces`, the name
+ * repository once named, which a project chooses now (its project settings). `workspaces`, the name
  * `workstations` had before, still counts as it, without a line.
  */
 export function withoutGone(read: Record<string, unknown>): { settings: Record<string, unknown>; gone: string[] } {
@@ -82,7 +82,7 @@ export function withoutGone(read: Record<string, unknown>): { settings: Record<s
   if (!demo || typeof demo !== 'object' || !('site' in demo)) return { settings: made, gone: [] };
   const { site: _, ...rest } = demo;
   const { demo: __, ...others } = made;
-  return { settings: Object.keys(rest).length ? { ...others, demo: rest } : others, gone: ["demo.site: no longer read; a canvas chooses its demo site in its settings"] };
+  return { settings: Object.keys(rest).length ? { ...others, demo: rest } : others, gone: ["demo.site: no longer read; a project chooses its demo site in its settings"] };
 }
 
 /** `made` with a field's former name read as its name; where both are set, the name wins. */

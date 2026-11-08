@@ -1,4 +1,4 @@
-// Code reviews of a card's work where its canvas reviews work that lands on main: a separate,
+// Code reviews of a card's work where its project reviews work that lands on main: a separate,
 // read-only agent of the "Code reviews" group, started with the demo or on the owner's word, whose
 // findings the owner sends to the worker to fix or makes follow-up tasks.
 
@@ -18,7 +18,7 @@ eachTest();
 let setting: CodeReviewSetting;
 let followed: [string, string][];
 
-/** Workers on a canvas that reviews work as `on` and `mode` say, in a repository where work lands as `land` says. */
+/** Workers on a project that reviews work as `on` and `mode` say, in a repository where work lands as `land` says. */
 function reviewing(mode: CodeReviewSetting['mode'] = 'auto', on = true, land: RepoAdapter['land'] = 'main', reviewAgentSetting?: () => AgentSetting) {
   setting = { on, mode };
   followed = [];
@@ -80,7 +80,7 @@ describe('code reviews', () => {
     expect(board.item(id)!.codeReview?.agent).toEqual({ harness: 'claude', model: 'claude-opus-5-5' });
   });
 
-  test('are off unless the canvas turns them on: a handover gets no review', async () => {
+  test('are off unless the project turns them on: a handover gets no review', async () => {
     reviewing('auto', false);
     const id = await started();
     await handOver(id, 'export.ts');

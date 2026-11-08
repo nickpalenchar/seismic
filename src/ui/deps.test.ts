@@ -30,12 +30,12 @@ test('a card in the middle shows both ways', () => {
   expect([...d.first]).toEqual(['A B']);
 });
 
-test('a card without waits has none, and cards gone from the canvas are left out', () => {
+test('a card without waits has none, and cards gone from the project are left out', () => {
   expect(depsOf('E', items)).toBeUndefined();
   expect(depsOf('F', [card('F', 'gone')])).toBeUndefined();
 });
 
-test('a hovered card gone from the canvas, archived under the pointer, has none', () => {
+test('a hovered card gone from the project, archived under the pointer, has none', () => {
   expect(depsOf('C', items.filter((i) => i.id !== 'C'))).toBeUndefined();
 });
 
@@ -65,7 +65,7 @@ test('a card snoozed until another card gets somewhere waits for that card', () 
   expect(depsOf('R', [snoozed])).toBeUndefined();
 });
 
-test('every direct wait on the canvas, of all kinds, not the chain; a finished card is waited for no longer', () => {
+test('every direct wait on the project, of all kinds, not the chain; a finished card is waited for no longer', () => {
   const snoozed = { ...card('R'), snoozed: { on: { card: 'A', title: 'A', state: 'done' }, by: 'agent' } } as Item;
   const drawn = { ...card('M'), manualDependsOn: ['B'] } as Item;
   const done = { ...card('F'), state: 'done' } as Item;

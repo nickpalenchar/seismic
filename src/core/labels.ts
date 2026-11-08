@@ -1,4 +1,4 @@
-// A card's built-in labels, the owner's (design: The canvas): the fixed lists and the complexity
+// A card's built-in labels, the owner's (design: The project): the fixed lists and the complexity
 // scale, one place for the server, the UI and the skill that suggests them.
 
 /** A card's priorities, from the lowest to the highest. */
@@ -64,13 +64,13 @@ export const PRIORITY_NAMES: Record<Priority, string> = {
   critical: 'Critical',
 };
 
-/** The canvas's toggles for what Seismic suggests ("Seismic suggests"): category goes with its sub-category. */
+/** The project's toggles for what Seismic suggests ("Seismic suggests"): category goes with its sub-category. */
 export const SUGGEST_TOGGLES = ['category', 'complexity', 'priority'] as const;
 export type SuggestToggle = (typeof SUGGEST_TOGGLES)[number];
 export type SuggestToggles = Record<SuggestToggle, boolean>;
 export const SUGGEST_ALL: SuggestToggles = { category: true, complexity: true, priority: true };
 
-/** Which labels Seismic may suggest on a canvas; a toggle left out (a label added later, a canvas from before) is on. */
+/** Which labels Seismic may suggest on a project; a toggle left out (a label added later, a project from before) is on. */
 export type SuggestSettings = Partial<SuggestToggles>;
 
 /** Every toggle, each on where `s` leaves it out. */

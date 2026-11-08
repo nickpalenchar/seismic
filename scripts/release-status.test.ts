@@ -58,7 +58,7 @@ test('says what the release holds, how far GitHub is behind and how old the vide
   const { dir, git, commit } = repo('ready');
   commit('2026-10-08T10:00:00Z', 'package.json', JSON.stringify({ version: '0.1.0' }));
   git('', 'tag', 'v0.1.0');
-  commit('2026-10-10T10:00:00Z', 'src/ui/canvas.tsx', 'Pin the cards to a wall');
+  commit('2026-10-10T10:00:00Z', 'src/ui/project.tsx', 'Pin the cards to a wall');
   git('', 'tag', 'site-media');
   git('', 'push', '-q', 'origin', 'main');
   commit('2026-10-12T12:00:00Z', 'docs/design.md', 'Record the wall');

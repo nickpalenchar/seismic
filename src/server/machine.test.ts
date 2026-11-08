@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CLONES, type MachineView } from '../core/types';
 import { Board } from './board';
-import type { CanvasRuntime } from './canvas';
+import type { ProjectRuntime } from './project';
 import { Config } from './config';
 import { Store } from './db';
 import { claudeToken } from './hosts';
@@ -17,7 +17,7 @@ let dir: string;
 let home: string;
 let bin: string;
 let store: Store;
-/** The configurations the running canvases took over, as the test's Config handed them on. */
+/** The configurations the running projects took over, as the test's Config handed them on. */
 let applied: string[][];
 
 beforeEach(() => {
@@ -39,7 +39,7 @@ function fake(name: string, script: string) {
 
 const config = () =>
   new Config({
-    file: join(home, 'canvases.json'),
+    file: join(home, 'projects.json'),
     source: 'file',
     started: [],
     store,
@@ -197,21 +197,21 @@ describe('what Seismic needs on this machine', () => {
   });
 });
 
-describe('the first canvas', () => {
-  test('a repository folder becomes a canvas whose workers use worktrees, and Seismic runs it at once', async () => {
+describe('the first project', () => {
+  test('a repository folder becomes a project whose workers use worktrees, and Seismic runs it at once', async () => {
     const repo = gitRepo(join(dir, 'shop'));
     git(repo, 'branch', '-m', 'master');
-    const out = await setup().canvas({ path: repo });
-    expect(out).toEqual({ canvas: 'shop', branch: 'master', opens: true });
+    const out = await setup().project({ path: repo });
+    expect(out).toEqual({ project: 'shop', branch: 'master', opens: true });
     expect(applied).toEqual([['shop']]);
-    expect(JSON.parse(readFileSync(join(home, 'canvases.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo }] }]);
+    expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo }] }]);
     expect(readFileSync(join(home, WELCOME_FILE), 'utf8')).toBe('shop');
   });
 
   test('a repository whose settings say clones gets clones', async () => {
     const repo = gitRepo(join(dir, 'shop'), { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workstations": "clones" }\n' });
-    await setup().canvas({ path: repo });
-    expect(JSON.parse(readFileSync(join(home, 'canvases.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo, clones: CLONES }] }]);
+    await setup().project({ path: repo });
+    expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo, clones: CLONES }] }]);
   });
 
   test('says of a folder before it is saved whether it holds a repository, and its main branch', () => {
@@ -225,20 +225,20 @@ describe('the first canvas', () => {
 
   test('a folder without a repository is refused', async () => {
     mkdirSync(join(dir, 'empty'));
-    await expect(setup().canvas({ path: join(dir, 'empty') })).rejects.toMatchObject({ code: 'notRepo' });
-    expect(existsSync(join(home, 'canvases.json'))).toBe(false);
+    await expect(setup().project({ path: join(dir, 'empty') })).rejects.toMatchObject({ code: 'notRepo' });
+    expect(existsSync(join(home, 'projects.json'))).toBe(false);
   });
 
-  test('a folder without git becomes a canvas of its own kind, where the owner keeps it without git', async () => {
+  test('a folder without git becomes a project of its own kind, where the owner keeps it without git', async () => {
     const docs = join(dir, 'Dokumente');
     mkdirSync(docs);
     writeFileSync(join(docs, 'Scan.pdf'), '%PDF');
-    expect(await setup().canvas({ path: docs, git: false })).toEqual({ canvas: 'dokumente', branch: '', opens: true });
-    expect(JSON.parse(readFileSync(join(home, 'canvases.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: docs, git: false }] }]);
+    expect(await setup().project({ path: docs, git: false })).toEqual({ project: 'dokumente', branch: '', opens: true });
+    expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: docs, git: false }] }]);
     expect(existsSync(join(docs, '.git'))).toBe(false);
   });
 
-  test('a folder without git becomes a canvas once git is set up there', async () => {
+  test('a folder without git becomes a project once git is set up there', async () => {
     const shop = join(dir, 'shop');
     mkdirSync(join(shop, 'node_modules'), { recursive: true });
     writeFileSync(join(shop, 'node_modules', 'x.js'), '');
@@ -251,23 +251,23 @@ describe('the first canvas', () => {
       const s = setup();
       expect(s.gitPreview({ path: shop })).toMatchObject({ files: 2, ignored: ['node_modules/'] });
       expect(s.gitSetup({ path: shop })).toEqual({ branch: 'main' });
-      expect(await s.canvas({ path: shop })).toMatchObject({ canvas: 'shop', branch: 'main' });
+      expect(await s.project({ path: shop })).toMatchObject({ project: 'shop', branch: 'main' });
     } finally {
       if (before === undefined) delete process.env.GIT_CONFIG_GLOBAL;
       else process.env.GIT_CONFIG_GLOBAL = before;
     }
   });
 
-  test('a clone goes into a folder of its name and becomes the canvas', async () => {
+  test('a clone goes into a folder of its name and becomes the project', async () => {
     const origin = gitRepo(join(dir, 'origin', 'shop'));
     const s = new MachineSetup({ home, config: config() });
-    await s.canvas({ clone: origin, into: join(dir, 'code') });
+    await s.project({ clone: origin, into: join(dir, 'code') });
     let v = await s.view();
     for (let i = 0; v.job?.running && i < 100; i++) await Bun.sleep(50), (v = await s.view());
-    expect(v.job).toMatchObject({ kind: 'clone', running: false, canvas: 'shop', branch: 'main', opens: true });
+    expect(v.job).toMatchObject({ kind: 'clone', running: false, project: 'shop', branch: 'main', opens: true });
     expect(existsSync(join(dir, 'code', 'shop', '.git'))).toBe(true);
     // the folder is there now: a second clone into it is refused
-    await expect(new MachineSetup({ home, config: config() }).canvas({ clone: origin, into: join(dir, 'code') })).rejects.toMatchObject({ code: 'cloneTarget' });
+    await expect(new MachineSetup({ home, config: config() }).project({ clone: origin, into: join(dir, 'code') })).rejects.toMatchObject({ code: 'cloneTarget' });
   });
 
   test('names a clone after its repository', () => {
@@ -277,12 +277,12 @@ describe('the first canvas', () => {
     expect(cloneName('/srv/git/shop/')).toBe('shop');
   });
 
-  test('the canvas the assistant created gets one first card that says what to try', () => {
+  test('the project the assistant created gets one first card that says what to try', () => {
     const board = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'shop', name: 'Shop', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
-    const canvas = { id: 'shop', board } as unknown as CanvasRuntime;
+    const project = { id: 'shop', board } as unknown as ProjectRuntime;
     writeFileSync(join(home, WELCOME_FILE), 'shop');
-    welcome(home, [canvas]);
-    welcome(home, [canvas]);
+    welcome(home, [project]);
+    welcome(home, [project]);
     const cards = board.snapshot().items.filter((i) => i.kind === 'task');
     expect(cards.map((c) => c.title)).toEqual([board.t.welcome.title]);
     expect(existsSync(join(home, WELCOME_FILE))).toBe(false);

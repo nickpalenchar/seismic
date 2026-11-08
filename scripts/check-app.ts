@@ -6,7 +6,7 @@
 //
 // The program is Obeya.app/Contents/MacOS/obeya, obeya.exe where the installer put it, the AppImage,
 // or /usr/bin/obeya from the .deb. On a scratch repository and a scratch home it checks:
-//   - the app starts its server and its window shows the canvas, which knows it runs in the app;
+//   - the app starts its server and its window shows the project, which knows it runs in the app;
 //   - the microphone: the page gets a stream without being asked, and records it as src/ui/recorder.ts
 //     does (MediaRecorder; on Linux Web Audio's samples). --fake-mic gives WebView2 Chromium's fake
 //     device, for a machine without one; on Linux a PulseAudio source is needed, not a sink's
@@ -53,7 +53,7 @@ git('init', '-q', '-b', 'main');
 git('-c', 'user.name=Check', '-c', 'user.email=check@example.com', 'add', '.');
 git('-c', 'user.name=Check', '-c', 'user.email=check@example.com', 'commit', '-qm', 'init');
 mkdirSync(home);
-writeFileSync(join(home, 'canvases.json'), JSON.stringify([{ name: 'App check', repos: [{ path: repo }] }]));
+writeFileSync(join(home, 'projects.json'), JSON.stringify([{ name: 'App check', repos: [{ path: repo }] }]));
 
 // a demo video as the skill renders one: H.264 and AAC in MP4
 const video = join(dir, 'demo.mp4');
@@ -167,7 +167,7 @@ const entry = () => {
   }
 };
 const startApp = () => Bun.spawn([program], { env, stdout: 'ignore', stderr: 'ignore' });
-const answers = async (url: string) => (await fetch(`${url}/api/canvases`, { headers: ownerHeaders(home), signal: AbortSignal.timeout(2000) }).catch(() => null))?.ok === true;
+const answers = async (url: string) => (await fetch(`${url}/api/projects`, { headers: ownerHeaders(home), signal: AbortSignal.timeout(2000) }).catch(() => null))?.ok === true;
 
 /** The app's window (macOS), else the screen, as a PNG. */
 async function screenshot(pid: number, file: string) {
@@ -207,11 +207,11 @@ try {
     return `${e.url}, pid ${e.pid}`;
   });
   const page = await until('the page to report', 90_000, () => reports[0]).catch((e) => {
-    bad('the window shows the canvas', String(e.message));
+    bad('the window shows the project', String(e.message));
     return null;
   });
   if (page) {
-    await check('the window shows the canvas, which knows it runs in the app', () => {
+    await check('the window shows the project, which knows it runs in the app', () => {
       expect(String(page.location).startsWith(url), `the window shows ${page.location}`);
       expect(page.app, 'window.obeyaApp is missing');
       return String(page.userAgent);

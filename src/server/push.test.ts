@@ -94,15 +94,15 @@ describe('what starts waiting', () => {
 describe('Push', () => {
   test('a card that starts waiting is pushed at once, encrypted for the phone, and opens that card', async () => {
     const { push, sent, shown } = await setup();
-    push.waits([{ ...waits('c1'), canvas: 'Seismic' }]);
+    push.waits([{ ...waits('c1'), project: 'Seismic' }]);
     expect(await shown()).toEqual([{ title: 'c1', body: 'Demo bereit · Seismic', url: '/?card=c1', tag: 'c1' }]);
     expect(sent[0]!.url).toBe('https://web.push.apple.com/abc');
   });
 
-  test('the push of a card opens it at its address on its canvas, by its short code', async () => {
+  test('the push of a card opens it at its address on its project, by its short code', async () => {
     const { store, push, shown } = await setup();
-    store.ensureCanvas('shop', 'Shop');
-    const [card] = store.insert([{ canvas_id: 'shop', kind: 'task', state: 'waiting', x: 0, y: 0 }]);
+    store.ensureProject('shop', 'Shop');
+    const [card] = store.insert([{ project_id: 'shop', kind: 'task', state: 'waiting', x: 0, y: 0 }]);
     push.waits([waits(card!.id)]);
     expect((await shown())[0]!.url).toBe(`/p/shop/c/${card!.short}`);
   });

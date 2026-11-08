@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { CanvasSnapshot } from '../src/core/types';
+import type { ProjectSnapshot } from '../src/core/types';
 import { ownerHeaders } from '../src/server/owner';
 import { worked } from '../src/ui/talk';
 
@@ -44,8 +44,8 @@ test('stages a scratch Seismic with its cards in the states the stage file gives
   );
   const r = Bun.spawnSync([process.execPath, script, stage]);
   expect(r.stderr.toString()).toBe('');
-  const staged = JSON.parse(r.stdout.toString()) as { url: string; canvas: string; cards: Record<string, string> };
-  // a link that signs a browser in and opens the canvas
+  const staged = JSON.parse(r.stdout.toString()) as { url: string; project: string; cards: Record<string, string> };
+  // a link that signs a browser in and opens the project
   expect(staged.url).toStartWith(`http://127.0.0.1:${port}/login?token=`);
   const signed = await fetch(staged.url, { redirect: 'manual' });
   expect(await signed.text()).toContain('location.replace("/p/repo")');
@@ -59,7 +59,7 @@ test('stages a scratch Seismic with its cards in the states the stage file gives
   expect(Bun.spawnSync([process.execPath, script, '--login', String(port)]).stdout.toString().trim()).toBe(staged.url);
   // the API with the owner's key of its home
   const headers = ownerHeaders(join(dir, 'home'));
-  const { items } = (await (await fetch(`http://127.0.0.1:${port}/api/c/${staged.canvas}/canvas`, { headers })).json()) as CanvasSnapshot;
+  const { items } = (await (await fetch(`http://127.0.0.1:${port}/api/c/${staged.project}/project`, { headers })).json()) as ProjectSnapshot;
   const card = (key: string) => items.find((i) => i.id === staged.cards[key])!;
   expect(card('P')).toMatchObject({ kind: 'plan', x: 0, y: 0 });
   expect(card('W1')).toMatchObject({ label: 'W1', state: 'working', statusLine: 'Liest ein' });
@@ -67,7 +67,7 @@ test('stages a scratch Seismic with its cards in the states the stage file gives
   expect(card('B').queue).toMatchObject({ behind: [staged.cards.A], reason: 'Beide ändern src/config.ts.' });
   expect(card('C')).toMatchObject({ state: 'waiting', need: 'question', question: { text: 'Lang oder kurz?', options: ['Lang', 'Kurz'] } });
   // cards at work or waiting have the branch their start gave them: only then does the card show the
-  // conversation with the question and the field to answer it, on the canvas and on the phone
+  // conversation with the question and the field to answer it, on the project and on the phone
   expect(card('C').branch).toBe(`obeya/frage-${staged.cards.C!.slice(0, 6)}`);
   expect(card('W1').branch).toStartWith('obeya/konfiguration-');
   for (const key of ['A', 'C', 'H', 'W1']) expect(worked(card(key))).toBe(true);
@@ -75,15 +75,15 @@ test('stages a scratch Seismic with its cards in the states the stage file gives
   expect(card('D').from).toBe(staged.cards.C!);
   const created = Bun.spawnSync(['sqlite3', join(dir, 'home/obeya.db'), `SELECT created_at FROM cards WHERE id = '${staged.cards.A}'`]).stdout.toString();
   expect(Date.now() - Date.parse(created.trim())).toBeGreaterThan(7000_000);
-  const events = (await (await fetch(`http://127.0.0.1:${port}/api/c/${staged.canvas}/cards/${staged.cards.B}/events`, { headers })).json()) as { text: string }[];
+  const events = (await (await fetch(`http://127.0.0.1:${port}/api/c/${staged.project}/cards/${staged.cards.B}/events`, { headers })).json()) as { text: string }[];
   expect(events.map((e) => e.text)).toContain('wartet');
 }, 20_000);
 
 test("--say and --artifact act as a staged card's agent, through the server", async () => {
-  const staged = JSON.parse(readFileSync(join(dir, 'staged.json'), 'utf8')) as { canvas: string; cards: Record<string, string> };
+  const staged = JSON.parse(readFileSync(join(dir, 'staged.json'), 'utf8')) as { project: string; cards: Record<string, string> };
   const headers = ownerHeaders(join(dir, 'home'));
-  const api = async <T,>(path: string) => (await (await fetch(`http://127.0.0.1:${port}/api/c/${staged.canvas}${path}`, { headers })).json()) as T;
-  const card = async (key: string) => (await api<CanvasSnapshot>('/canvas')).items.find((i) => i.id === staged.cards[key])!;
+  const api = async <T,>(path: string) => (await (await fetch(`http://127.0.0.1:${port}/api/c/${staged.project}${path}`, { headers })).json()) as T;
+  const card = async (key: string) => (await api<ProjectSnapshot>('/project')).items.find((i) => i.id === staged.cards[key])!;
   const run = (...a: string[]) => Bun.spawnSync([process.execPath, script, ...a, '--dir', dir]);
   const say = run('--say', String(port), 'A', 'say', 'Reading the parser first.');
   expect(say.stderr.toString()).toBe('');

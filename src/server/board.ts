@@ -1,4 +1,4 @@
-// The canvas of one repository: stored cards merged with what the plan docs say.
+// The project of one repository: stored cards merged with what the plan docs say.
 //
 // Plan docs are read, never written. Their plans and workstreams get a stored row the first
 // time they appear, so the owner's placement survives; title, text and state always come from the
@@ -20,8 +20,8 @@ import { pageTags, untagged } from '../core/page-tags';
 import { allTicked, type OtherDoc, type PlanDoc, parsePlanDoc, withoutReference, type Workstream, workstreamAliases } from '../core/plan-doc';
 import {
   type AnswerFile,
-  type CanvasInfo,
-  type CanvasSnapshot,
+  type ProjectInfo,
+  type ProjectSnapshot,
   type CardEvent,
   type CardPatch,
   type ClonePool,
@@ -157,7 +157,7 @@ export interface StoredContribution extends Contribution {
 }
 
 /**
- * The code review of a card's work (`CardRow.code_review`): the mode its canvas had at the card's
+ * The code review of a card's work (`CardRow.code_review`): the mode its project had at the card's
  * latest handover that is to be reviewed (`handover`, its event), and the latest review that ran,
  * of that handover or an earlier one (then it is stale).
  */
@@ -276,7 +276,7 @@ export interface StoredShare {
   auto?: PageTags;
   /** The demo site the page is on, or goes to (its address in this machine's list); absent on pages from before (until 2026-11-06), found by their URL. */
   site?: string;
-  /** The canvas's path on that site the page lies under; its root where absent. */
+  /** The project's path on that site the page lies under; its root where absent. */
   path?: string;
   /** The site is unlisted: the page lies behind the random part of its address (`token`). */
   unlisted?: true;
@@ -449,7 +449,7 @@ export function excerpt(text: string, max: number): string {
 }
 
 /**
- * What the canvas's plan directories hold: the docs that are plans (a bare path for the home
+ * What the project's plan directories hold: the docs that are plans (a bare path for the home
  * repository, `<repo>:<path>` for another) and, per repository, the others with their reason.
  */
 export interface PlanRead {
@@ -465,19 +465,19 @@ export class Board {
   /** Whether the listeners are to hear of the changes made since they last did (`changed`). */
   private telling = false;
   private docs: PlanDoc[] | null = null;
-  /** The repositories on the canvas when `docs` were read. */
+  /** The repositories on the project when `docs` were read. */
   private docsOf = '';
   private dirs: PlanRead['dirs'] = [];
-  /** The docs whose plans were on the canvas at the last snapshot, to see one end or come back. */
+  /** The docs whose plans were on the project at the last snapshot, to see one end or come back. */
   private open: string | null = null;
-  private cache: CanvasSnapshot | null = null;
+  private cache: ProjectSnapshot | null = null;
   /** The snapshot's `items`, also while the rest of it is not built (`items`); gone with `cache`. */
   private itemsCache: Item[] | null = null;
   /** What `toItems` made of each card's row, for as long as the row stays the same; gone with any change but a write to one card (`work`). */
   private worked: Worked = new Map();
   /** The archive as `archived` built it; gone with `cache`, since it changes with the same writes. */
   private archiveItems: Item[] | null = null;
-  /** The canvas's prototypes, and those `withPrototypes` handed out so far; gone with `cache`. */
+  /** The project's prototypes, and those `withPrototypes` handed out so far; gone with `cache`. */
   private prototypeItems: Prototypes | null = null;
   private eventListeners = new Set<(e: CardEvent) => void>();
   private goneListeners = new Set<(cardId: string, id: number) => void>();
@@ -485,7 +485,7 @@ export class Board {
 
   constructor(
     private store: Store,
-    readonly canvas: CanvasInfo,
+    readonly project: ProjectInfo,
     private readDocs: () => PlanRead,
     /** The owner's screenshots, which a card's images must be among. */
     private images?: Pick<Images, 'resolve'>,
@@ -502,14 +502,14 @@ export class Board {
     readonly asksFeedback: () => boolean = () => true,
   ) {
     this.conversation = conversation ?? language;
-    store.ensureCanvas(canvas.id, canvas.name);
+    store.ensureProject(project.id, project.name);
     // a new card whose page closed before anything was written in it was never wanted
-    store.sweepUntitled(canvas.id, new Date(Date.now() - UNTITLED_GRACE_MS).toISOString());
+    store.sweepUntitled(project.id, new Date(Date.now() - UNTITLED_GRACE_MS).toISOString());
   }
 
   readonly conversation: () => Language;
 
-  /** How the canvas's finished cards go into the archive now (canvas setting `archive`); the tests archive by hand. */
+  /** How the project's finished cards go into the archive now (project setting `archive`); the tests archive by hand. */
   archiving: () => CardArchiving = () => 'manual';
 
   /** What Seismic says to the owner, in the interface language. */
@@ -517,9 +517,9 @@ export class Board {
     return MESSAGES[this.language()];
   }
 
-  /** The canvas's home repository: bare plan references and cards without a repository are its. */
+  /** The project's home repository: bare plan references and cards without a repository are its. */
   get home(): string {
-    return this.canvas.repos[0]!.id;
+    return this.project.repos[0]!.id;
   }
 
   onChange(fn: () => void): () => void {
@@ -538,7 +538,7 @@ export class Board {
     return () => this.goneListeners.delete(fn);
   }
 
-  /** Whoever shows the canvas (the server, to its pages) shows what Seismic tells the owner above the microphone. */
+  /** Whoever shows the project (the server, to its pages) shows what Seismic tells the owner above the microphone. */
   onNotice(fn: (n: Notice) => void): () => void {
     this.noticeListeners.add(fn);
     return () => this.noticeListeners.delete(fn);
@@ -592,7 +592,7 @@ export class Board {
   /**
    * Cards' rows changed, and nothing else: what the other cards' rows make stays (their demos' files
    * are looked at again with the next change of anything else). A landing writes to its card dozens
-   * of times, each read back at once, on a canvas of hundreds of cards with demos.
+   * of times, each read back at once, on a project of hundreds of cards with demos.
    */
   private changedRows() {
     this.cache = null;
@@ -612,7 +612,7 @@ export class Board {
         try {
           fn();
         } catch (e) {
-          console.error(`Seismic: reacting to a change on the canvas ${this.canvas.id} failed: ${messageOf(e)}`);
+          console.error(`Seismic: reacting to a change on the project ${this.project.id} failed: ${messageOf(e)}`);
         }
       }
     });
@@ -629,7 +629,7 @@ export class Board {
    * whose merge commit GitHub did not say, count as landed with it. Then the plan docs are read again.
    */
   lesestandMoved(repo: string, commit: string) {
-    for (const r of this.store.cards(this.canvas.id)) {
+    for (const r of this.store.cards(this.project.id)) {
       const s = r.shipped ? (JSON.parse(r.shipped) as Shipped) : null;
       if (!commit || !s?.fetch || (r.repo ?? (r.plan_ref ? repoOfRef(r.plan_ref, this.home) : this.home)) !== repo) continue;
       const { fetch: _, ...rest } = s;
@@ -645,7 +645,7 @@ export class Board {
    */
   private reopen(docs: PlanDoc[]) {
     const byFile = new Map(docs.map((d) => [d.file, d]));
-    for (const r of this.store.cards(this.canvas.id)) {
+    for (const r of this.store.cards(this.project.id)) {
       // a worker still finishing after the landing keeps its card until it is done (workDone)
       if (r.state !== 'live' || !r.plan_ref?.includes('#') || r.landed) continue;
       const hash = r.plan_ref.indexOf('#');
@@ -739,7 +739,7 @@ export class Board {
 
   /** The message of the sheet `ref` names, if it is one the owner can reply to there. */
   quotedTalk(ref: unknown): TalkQuote | undefined {
-    return isTalkRef(ref) ? this.store.sheetQuote(this.canvas.id, ref) : undefined;
+    return isTalkRef(ref) ? this.store.sheetQuote(this.project.id, ref) : undefined;
   }
 
   /** The message of the card's conversation the owner's words reply to, if `id` is one: what someone said, not a step or a state change. */
@@ -776,7 +776,7 @@ export class Board {
     return this.store.feedback({ cardId });
   }
 
-  /** Every response the owner gave, on every canvas (they share the store), the earliest first: what the performance dashboard reads. */
+  /** Every response the owner gave, on every project (they share the store), the earliest first: what the performance dashboard reads. */
   allFeedback(): Feedback[] {
     return this.store.feedback();
   }
@@ -803,7 +803,7 @@ export class Board {
     const plan = parent?.kind === 'plan' ? { id: parent.id, title: this.item(parent.id)?.title ?? parent.title ?? parent.plan_ref ?? '', ...(parent.plan_ref ? { file: parent.plan_ref } : {}) } : undefined;
     const saved = this.store.putFeedback({
       cardId,
-      canvasId: row.canvas_id,
+      projectId: row.project_id,
       handover: handover.id,
       title: before?.title ?? card?.title ?? row.title ?? '',
       repo: before ? before.repo : (row.repo ?? this.home),
@@ -847,9 +847,9 @@ export class Board {
     this.changedRows();
   }
 
-  /** The cards of the canvas, archived ones too, that were ever shared or are about to be. */
+  /** The cards of the project, archived ones too, that were ever shared or are about to be. */
   sharedRows(): CardRow[] {
-    return this.store.shared(this.canvas.id);
+    return this.store.shared(this.project.id);
   }
 
   /**
@@ -880,14 +880,14 @@ export class Board {
   private followUpSpot(fromId: string): { x: number; y: number } {
     const items = this.items();
     const from = items.find((i) => i.id === fromId);
-    // an archived card is not on the canvas: its follow-ups go where there is room
+    // an archived card is not on the project: its follow-ups go where there is room
     if (!from) return this.freeSpot();
     const earlier = items.filter((i) => i.from === fromId && i.state !== 'proposal' && !i.prototypeOf).length;
     return this.nearFree(items, below(boundsOf(from, items), earlier), undefined, true);
   }
 
   /**
-   * The free spot nearest `want` for a new card, clear of every plan and card on the canvas; in `view` if there is room there.
+   * The free spot nearest `want` for a new card, clear of every plan and card on the project; in `view` if there is room there.
    * With `close` (a card that belongs beside another), a spot more than about two cards away is no use: in a crowded area the card
    * stays at `want`, overlapping, so it remains in view of the card it follows.
    */
@@ -920,7 +920,7 @@ export class Board {
     const proposal = proposalOf(p);
     const [row] = this.store.insert([
       {
-        canvas_id: this.canvas.id,
+        project_id: this.project.id,
         kind: 'task',
         state: 'proposal',
         title: p.title.slice(0, 200),
@@ -945,7 +945,7 @@ export class Board {
    */
   retract(fromId: string, title: string, s: Superseded): Retracted {
     // the proposal that replaces it is not among those it may replace
-    const mine = this.store.proposalsFrom(this.canvas.id, fromId).filter((r) => r.id !== s.by);
+    const mine = this.store.proposalsFrom(this.project.id, fromId).filter((r) => r.id !== s.by);
     const row = mine.findLast((r) => titleKey(r.title ?? '') === titleKey(title));
     if (!row) return { kind: 'unknown', mine: mine.map((r) => ({ title: r.title ?? '', state: r.state ?? 'planned', gone: !!r.deleted_at })) };
     const proposal = storedProposal(row)!;
@@ -979,7 +979,7 @@ export class Board {
   proposeRetro(repo: string, p: { title: string; body: string; basis: string }): Item {
     const [row] = this.store.insert([
       {
-        canvas_id: this.canvas.id,
+        project_id: this.project.id,
         kind: 'task',
         state: 'proposal',
         title: p.title.slice(0, 200),
@@ -1011,19 +1011,19 @@ export class Board {
 
   /**
    * Makes the card that fills in a repository's settings for everyone, right of everything on the
-   * canvas, at the top: the owner's, or Seismic's proposal (`propose`) with why. Either way Seismic
+   * project, at the top: the owner's, or Seismic's proposal (`propose`) with why. Either way Seismic
    * proposes it no more.
    */
   setupCard(repo: string, name: string, propose = false): Item {
     this.checkRepo(repo);
     const { title, body, reason } = this.t.adapterSetup;
-    // clear of the note on the plan directory, as on a canvas that has nothing else yet
+    // clear of the note on the plan directory, as on a project that has nothing else yet
     const { items, planDirs = [] } = this.snapshot();
     const box = unionBounds([...items.filter((i) => !i.parent).map((i) => boundsOf(i, items)), ...planDirs.flatMap((d) => planDirNoteBox(d) ?? [])]);
     const at = box ? { x: box.x + box.w + 2 * GAP, y: box.y } : { x: 0, y: 0 };
     const [row] = this.store.insert([
       {
-        canvas_id: this.canvas.id,
+        project_id: this.project.id,
         kind: 'task',
         state: propose ? 'proposal' : 'planned',
         title: title(name),
@@ -1057,20 +1057,20 @@ export class Board {
 
   /** The cards the work retrospective proposed for a repository, with what became of them. */
   retroProposals(repo: string) {
-    return this.store.retroProposals(this.canvas.id, this.repoColumn(repo));
+    return this.store.retroProposals(this.project.id, this.repoColumn(repo));
   }
 
   /** A value for a repository's setting the work retrospective proposes: it waits in Seismic's sheet beside the rules. */
   proposeSetting(p: { repo: string; field: ProposedSetting; value: string | string[]; basis: string; cards: string[] }): number {
     this.checkRepo(p.repo);
-    const id = this.store.addSettingProposal(this.canvas.id, { ...p, basis: p.basis.slice(0, 2000) });
+    const id = this.store.addSettingProposal(this.project.id, { ...p, basis: p.basis.slice(0, 2000) });
     this.changed();
     return id;
   }
 
   /** The settings the work retrospective proposed, with what became of them: those of a repository, or all. */
   settingProposals(repo?: string) {
-    return this.store.settingProposals(this.canvas.id, repo);
+    return this.store.settingProposals(this.project.id, repo);
   }
 
   /** The waiting setting proposal; a BadRequest where it was decided meanwhile or never was. */
@@ -1083,39 +1083,39 @@ export class Board {
 
   /** The owner took a setting proposal (on this machine, or into the repository for everyone, with `value`) or rejected it; a rejected one is kept, so it does not come back. */
   decideSetting(id: number, state: Exclude<SettingProposalState, 'proposed'>, value?: string | string[]) {
-    if (!this.store.decideSettingProposal(this.canvas.id, id, state, value)) throw new BadRequest('unknownSetting', 'no such setting proposal');
+    if (!this.store.decideSettingProposal(this.project.id, id, state, value)) throw new BadRequest('unknownSetting', 'no such setting proposal');
     this.changed();
   }
 
   addFriction(repo: string, cardId: string, notes: FrictionNote[]) {
-    if (notes.length) this.store.addFriction(this.canvas.id, repo, cardId, notes);
+    if (notes.length) this.store.addFriction(this.project.id, repo, cardId, notes);
   }
 
   /** The friction noted on a repository's cards after `since` (all without), oldest first. */
   friction(repo: string, since: string | null): Friction[] {
-    return this.store.friction(this.canvas.id, repo, since);
+    return this.store.friction(this.project.id, repo, since);
   }
 
   decide(d: { plan_id: string | null; card_id: string; question: string; answer: string; by: 'owner' }) {
-    this.store.addDecision({ canvas_id: this.canvas.id, ...d });
+    this.store.addDecision({ project_id: this.project.id, ...d });
   }
 
   /** The decisions taken on one card, oldest first. */
   decisionsOn(cardId: string): Decision[] {
-    return this.store.cardDecisions(this.canvas.id, cardId).map(toDecision);
+    return this.store.cardDecisions(this.project.id, cardId).map(toDecision);
   }
 
   /** A plan's decisions, or with `null` those of standalone cards. */
   decisions(planId: string | null) {
-    return this.store.decisions(this.canvas.id, planId);
+    return this.store.decisions(this.project.id, planId);
   }
 
   setting(key: string): string | null {
-    return this.store.setting(this.canvas.id, key);
+    return this.store.setting(this.project.id, key);
   }
 
   setSetting(key: string, value: string) {
-    this.store.setSetting(this.canvas.id, key, value);
+    this.store.setSetting(this.project.id, key, value);
   }
 
   /** Sharing many outdated pages again, while it runs and until the owner puts its result away. */
@@ -1189,7 +1189,7 @@ export class Board {
     });
   }
 
-  /** The vocabulary of tags the canvas names for its demo site, for the pages without tags; none where it names none. */
+  /** The vocabulary of tags the project names for its demo site, for the pages without tags; none where it names none. */
   private vocabularyOf?: (repo: string) => PageTags | undefined;
 
   showVocabulary(of: (repo: string) => PageTags | undefined) {
@@ -1236,7 +1236,7 @@ export class Board {
   addQuestion(title: string, thread: StoredThread, session: string | undefined, repo: string | undefined, near?: string): Item {
     const at = near && this.item(near) ? this.followUpSpot(near) : this.freeSpot();
     const [row] = this.store.insert([
-      { canvas_id: this.canvas.id, kind: 'question', state: 'done', title: clip(oneLine(title), 160), body: '', ...at, repo: this.repoColumn(repo), ...(near && this.item(near) ? { group_id: this.groupOf(this.own(near)) } : {}) },
+      { project_id: this.project.id, kind: 'question', state: 'done', title: clip(oneLine(title), 160), body: '', ...at, repo: this.repoColumn(repo), ...(near && this.item(near) ? { group_id: this.groupOf(this.own(near)) } : {}) },
     ]);
     this.store.update(row!.id, { thread: JSON.stringify(thread), ...(session ? { session_id: session } : {}) });
     this.changed();
@@ -1250,7 +1250,7 @@ export class Board {
     const at = below(idea ? boundsOf(idea, items) : { x: 0, y: 0, w: 0, h: 0 }, items.filter((i) => i.prototypeOf === ideaId).length);
     const [row] = this.store.insert([
       {
-        canvas_id: this.canvas.id,
+        project_id: this.project.id,
         kind: 'task',
         state: 'planned',
         title: title.slice(0, 200),
@@ -1292,7 +1292,7 @@ export class Board {
    * returns its id. `replyTo`: the message of the sheet the words reply to.
    */
   addTalk(said: string, reply: string, cardId: string | null = null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number): number {
-    const id = this.store.addTalk(this.canvas.id, said, reply, cardId, lookUp, images, replyTo, after, askedIn, answered);
+    const id = this.store.addTalk(this.project.id, said, reply, cardId, lookUp, images, replyTo, after, askedIn, answered);
     this.changed();
     return id;
   }
@@ -1309,7 +1309,7 @@ export class Board {
    * they get a reply that says so, in the sheet or on the card that was open.
    */
   interruptTalk() {
-    const lost = this.store.interruptTalk(this.canvas.id, this.t.voice.interrupted);
+    const lost = this.store.interruptTalk(this.project.id, this.t.voice.interrupted);
     for (const x of lost) if (x.cardId && this.item(x.cardId)) this.log(x.cardId, 'say', 'koordinator', this.t.voice.interrupted, { reply: true });
     if (lost.length) this.changed();
   }
@@ -1322,7 +1322,7 @@ export class Board {
 
   /** The words the usage limit holds, oldest first: after a restart, the Koordinator reads them once it lifts. */
   heldTalk() {
-    return this.store.heldTalk(this.canvas.id);
+    return this.store.heldTalk(this.project.id);
   }
 
   /** The cards the Koordinator waits on after the exchange's reply, to take a step once each gets there. */
@@ -1333,7 +1333,7 @@ export class Board {
 
   /** The exchanges whose reply said the Koordinator waits on a card. */
   waitingTalk() {
-    return this.store.waitingTalk(this.canvas.id);
+    return this.store.waitingTalk(this.project.id);
   }
 
   /** The step the Koordinator takes once the exchange's looked-up answer is in, and where the owner was then; `null` once it has decided it. */
@@ -1343,7 +1343,7 @@ export class Board {
 
   /** Looked-up answers that are in whose step the Koordinator has not decided yet: after a restart, it takes them up. */
   answeredSteps() {
-    return this.store.answeredSteps(this.canvas.id);
+    return this.store.answeredSteps(this.project.id);
   }
 
   undoTalk(id: number) {
@@ -1353,7 +1353,7 @@ export class Board {
 
   /** A command waiting for "Undo" until `due`, kept across a restart (`Commander`). */
   holdCommand(token: string, due: number, body: unknown) {
-    this.store.holdCommand(this.canvas.id, token, new Date(due).toISOString(), JSON.stringify(body));
+    this.store.holdCommand(this.project.id, token, new Date(due).toISOString(), JSON.stringify(body));
   }
 
   dropCommand(token: string) {
@@ -1361,45 +1361,45 @@ export class Board {
   }
 
   heldCommands(): { token: string; due: number; body: unknown }[] {
-    return this.store.heldCommands(this.canvas.id).map((r) => ({ token: r.token, due: Date.parse(r.due), body: JSON.parse(r.body) as unknown }));
+    return this.store.heldCommands(this.project.id).map((r) => ({ token: r.token, due: Date.parse(r.due), body: JSON.parse(r.body) as unknown }));
   }
 
   talk(limit?: number) {
-    return this.store.talk(this.canvas.id, limit);
+    return this.store.talk(this.project.id, limit);
   }
 
   /** The latest exchanges of the chat the owner talks in now, oldest first: the Koordinator's memory. */
   chatTalk(limit: number) {
-    return this.store.talk(this.canvas.id, limit, false, this.store.chat(this.canvas.id));
+    return this.store.talk(this.project.id, limit, false, this.store.chat(this.project.id));
   }
 
   /** The chat the owner talks in now. */
   chat(): number {
-    return this.store.chat(this.canvas.id);
+    return this.store.chat(this.project.id);
   }
 
-  chatModel() { return this.store.chatModel(this.canvas.id); }
+  chatModel() { return this.store.chatModel(this.project.id); }
 
   setChatModel(model?: import('../core/types').AgentModel) {
-    this.store.setChatModel(this.canvas.id, model);
+    this.store.setChatModel(this.project.id, model);
     this.changed();
   }
 
   /** The owner starts a new chat with Seismic (the current one while nothing was said in it); returns it. */
   newChat(): number {
-    const id = this.store.newChat(this.canvas.id);
+    const id = this.store.newChat(this.project.id);
     this.changed();
     return id;
   }
 
-  /** The chats with Seismic on every canvas of the database, the latest first. */
+  /** The chats with Seismic on every project of the database, the latest first. */
   everyChat() {
     return this.store.chats();
   }
 
   /** The owner goes back to an earlier chat. */
   openChat(id: number) {
-    if (!this.store.openChat(this.canvas.id, id)) throw new BadRequest('invalid', 'unknown chat');
+    if (!this.store.openChat(this.project.id, id)) throw new BadRequest('invalid', 'unknown chat');
     this.changed();
   }
 
@@ -1425,19 +1425,19 @@ export class Board {
 
   /** The exchanges of a looked-up thread, oldest first. */
   threadTalk(thread: number) {
-    return this.store.thread(this.canvas.id, thread);
+    return this.store.thread(this.project.id, thread);
   }
 
   /** The thread is on a Question card from now on. */
   moveThread(thread: number, card: string) {
-    this.store.moveThread(this.canvas.id, thread, card);
+    this.store.moveThread(this.project.id, thread, card);
     this.changed();
   }
 
   /** The owner has the Koordinator's sheet in view: its answers are read. */
   /** The owner has Seismic's sheet in view, or (`ids`) those exchanges in a plan's sheet. */
   readTalk(ids?: number[]) {
-    if (this.store.readTalk(this.canvas.id, ids)) this.changed();
+    if (this.store.readTalk(this.project.id, ids)) this.changed();
   }
 
   exchange(id: number) {
@@ -1446,12 +1446,12 @@ export class Board {
 
   /** Questions the Koordinator is still looking up. */
   lookingUp(): number[] {
-    return this.store.lookingUp(this.canvas.id);
+    return this.store.lookingUp(this.project.id);
   }
 
   /** The cards' history after `since` (ISO time, or a `mark`), oldest first, at most the latest `limit` steps. */
   timeline(since: string | Mark, limit: number) {
-    return this.store.timeline(this.canvas.id, since, limit);
+    return this.store.timeline(this.project.id, since, limit);
   }
 
   /** Where the cards' history stands now. */
@@ -1461,17 +1461,17 @@ export class Board {
 
   /** What the owner said after `since` (ISO time), oldest first, at most the latest `limit`. */
   utterances(since: string, limit: number) {
-    return this.store.utterances(this.canvas.id, since, limit);
+    return this.store.utterances(this.project.id, since, limit);
   }
 
   /** Rule proposals the owner accepted or rejected after `since` (ISO time), oldest first. */
   decidedProposals(since: string) {
-    return this.store.decidedProposals(this.canvas.id, since);
+    return this.store.decidedProposals(this.project.id, since);
   }
 
   /** The owner's cards deleted after `since` (ISO time), oldest first. */
   removed(since: string) {
-    return this.store.removed(this.canvas.id, since);
+    return this.store.removed(this.project.id, since);
   }
 
   /**
@@ -1552,7 +1552,7 @@ export class Board {
    */
   revised(id: string, p?: { title: string; task: string; reason?: string; idea?: boolean; questions: Question[]; images?: string[] }): boolean {
     const row = this.store.card(id);
-    if (!row || row.canvas_id !== this.canvas.id || row.deleted_at || row.state !== 'proposal') return false;
+    if (!row || row.project_id !== this.project.id || row.deleted_at || row.state !== 'proposal') return false;
     const { revising: done, ...was } = storedProposal(row) ?? { questions: [] };
     // what the owner said meanwhile is the next rework's
     const next = done?.next?.length ? { revising: merged(done.next) } : {};
@@ -1601,7 +1601,7 @@ export class Board {
   /** The merged card as the agent wrote it, or why there is none; false when the proposal is not being merged (any more). */
   merged(id: string, r: Omit<Merge, 'with' | 'failed'> & { title: string; task: string } | { failed: string }, attempt?: string): boolean {
     const row = this.store.card(id);
-    if (!row || row.canvas_id !== this.canvas.id || row.deleted_at) return false;
+    if (!row || row.project_id !== this.project.id || row.deleted_at) return false;
     const proposal = storedProposal(row);
     const was = proposal?.merge;
     if (!was || (attempt !== undefined && was.attempt !== attempt) || was.task !== undefined || was.failed !== undefined) return false;
@@ -1618,7 +1618,7 @@ export class Board {
     const { merge, ...proposal } = storedProposal(row) ?? { questions: [] };
     if (!merge) throw new BadRequest('notProposal', 'the proposal is not merged with another card');
     const other = this.store.card(merge.with);
-    const there = other && other.canvas_id === this.canvas.id && !other.deleted_at && !other.archived_at;
+    const there = other && other.project_id === this.project.id && !other.deleted_at && !other.archived_at;
     this.store.update(id, { ...(merge.origin ?? {}), proposal: merge.temporaryProposal ? null : JSON.stringify(proposal satisfies Proposal) });
     // Both originals keep their exact place when separated.
     this.log(id, 'state', 'koordinator', this.t.koordinator.mergeSeparated(there ? (other.title ?? '') : ''));
@@ -1691,7 +1691,7 @@ export class Board {
   /** Move the dissolving card's relationships, removing self arrows and duplicates. */
   private retargetMerge(id: string, survivor: string) {
     const to = (ids: string[], own: string) => [...new Set(ids.map((x) => x === id ? survivor : x))].filter((x) => x !== own);
-    for (const r of this.store.cards(this.canvas.id)) {
+    for (const r of this.store.cards(this.project.id)) {
       if (r.from_id === id && r.id !== survivor) this.store.update(r.id, { from_id: survivor });
       const q = waitOf(r);
       if (r.id !== survivor && q?.behind.includes(id)) this.store.update(r.id, { queue: JSON.stringify({ ...q, behind: to(q.behind, r.id), ...(q.buildsOn && { buildsOn: to(q.buildsOn, r.id) }), ...(q.manualWait && { manualWait: to(q.manualWait, r.id) }) }) });
@@ -1708,7 +1708,7 @@ export class Board {
 
   // ---------------------------------------------------------------- archive
 
-  /** Takes finished cards, stopped tasks and parked or dropped ideas of the owner's off the canvas into its archive. */
+  /** Takes finished cards, stopped tasks and parked or dropped ideas of the owner's off the project into its archive. */
   archive(ids: string[]) {
     for (const id of ids) {
       const row = this.own(id);
@@ -1733,7 +1733,7 @@ export class Board {
     this.changed();
   }
 
-  /** Archives every finished card of the owner's on the canvas; returns their ids. */
+  /** Archives every finished card of the owner's on the project; returns their ids. */
   archiveDone(): string[] {
     const ids = this.snapshot()
       // a Question card is done when the owner says so, not with the finished work
@@ -1743,7 +1743,7 @@ export class Board {
     return ids;
   }
 
-  /** Puts an archived card back where it was on the canvas; a plan comes back with its doc. */
+  /** Puts an archived card back where it was on the project; a plan comes back with its doc. */
   unarchive(id: string) {
     const row = this.own(id);
     if (row.plan_ref) throw new BadRequest('planCard', 'a plan comes back when its plan doc does');
@@ -1752,7 +1752,7 @@ export class Board {
     if (row.prototype_of) throw new BadRequest('prototypeEnded', 'a discarded or built prototype stays in the archive');
     this.store.update(id, { archived_at: null });
     this.changed();
-    this.backOnCanvas(id);
+    this.backOnProject(id);
   }
 
   /**
@@ -1763,7 +1763,7 @@ export class Board {
     // the docs as they are now decide what is archived
     this.items();
     if (this.archiveItems) return this.archiveItems;
-    this.archiveItems = this.archiveOf(this.store.archived(this.canvas.id));
+    this.archiveItems = this.archiveOf(this.store.archived(this.project.id));
     return this.archiveItems;
   }
 
@@ -1778,21 +1778,21 @@ export class Board {
     return rows.flatMap((r) => {
       const at = { archivedAt: r.archived_at! };
       const own = byId.get(r.id);
-      const repoDown = own && !this.canvas.repos.some((r) => r.id === own.repo);
+      const repoDown = own && !this.project.repos.some((r) => r.id === own.repo);
       return own ? [{ ...own, ...at, ...(repoDown ? { repoDown: true } : {}) }, ...(kidsOf.get(r.id) ?? []).map((i) => ({ ...i, ...at }))] : [];
     });
   }
 
-  /** Any card of the canvas as the UI sees it: on the canvas, or in the archive. */
+  /** Any card of the project as the UI sees it: on the project, or in the archive. */
   card(id: string): Item | undefined {
     this.own(id);
     const item = this.item(id);
     if (item || this.archiveItems) return item ?? this.archiveItems!.find((i) => i.id === id);
-    // as the canvas has just read the docs: a plan whose doc went is archived by that
+    // as the project has just read the docs: a plan whose doc went is archived by that
     const row = this.own(id);
     // one card of the archive (a workstream with its plan), without building all of it: sharing pages again asks for one after another
     const parent = row.parent_id ? this.store.card(row.parent_id) : null;
-    const archived = row.archived_at ? row : parent?.archived_at && !parent.deleted_at && parent.canvas_id === this.canvas.id ? parent : null;
+    const archived = row.archived_at ? row : parent?.archived_at && !parent.deleted_at && parent.project_id === this.project.id ? parent : null;
     return archived ? this.archiveOf([archived]).find((i) => i.id === id) : undefined;
   }
 
@@ -1800,12 +1800,12 @@ export class Board {
   planHistory(id: string): PlanHistory {
     const row = this.own(id);
     if (row.kind !== 'plan') throw new BadRequest('invalid', 'not a plan');
-    const own = this.store.decisions(this.canvas.id, id, 500);
+    const own = this.store.decisions(this.project.id, id, 500);
     const origin = row.from_id ? this.store.card(row.from_id) : null;
-    const fromOrigin = origin && !origin.deleted_at ? this.store.cardDecisions(this.canvas.id, origin.id) : [];
+    const fromOrigin = origin && !origin.deleted_at ? this.store.cardDecisions(this.project.id, origin.id) : [];
     const decisions = [...fromOrigin, ...own].sort((a, b) => a.at.localeCompare(b.at) || a.id - b.id).map(toDecision);
     // what its plan agent answered: about the plan or one of its workstreams
-    const talk = this.store.talkAbout(this.canvas.id, [id, ...this.store.children([id]).map((c) => c.id)]);
+    const talk = this.store.talkAbout(this.project.id, [id, ...this.store.children([id]).map((c) => c.id)]);
     return { decisions, origin: origin && !origin.deleted_at ? (this.card(origin.id) ?? null) : null, talk };
   }
 
@@ -1829,7 +1829,7 @@ export class Board {
   leaseEnded(cardId: string, path: string): 'stale' | 'deleted' | 'ticked' | 'merged' | 'gone' | null {
     const row = this.store.card(cardId);
     if (!row) return 'stale';
-    if (row.canvas_id !== this.canvas.id) return null;
+    if (row.project_id !== this.project.id) return null;
     // a deleted card keeps its workstation named, to take it back when it is restored
     if (row.workstation !== path) return 'stale';
     if (row.landed) return null;
@@ -1840,13 +1840,13 @@ export class Board {
     if (hash < 0 || row.state === 'working' || row.state === 'waiting' || row.state === 'approved') return null;
     if (row.state === 'inPr' && !row.pr) return null;
     if (row.state === 'inPr' && tickedAhead(row)) return null;
-    // the docs are read the way the canvas reads them, which plans again a workstream only a part of which landed
+    // the docs are read the way the project reads them, which plans again a workstream only a part of which landed
     this.items();
     const doc = this.docs?.find((d) => d.file === row.plan_ref!.slice(0, hash));
     const w = doc?.workstreams.find((x) => x.key === row.plan_ref!.slice(hash + 1));
     // an open pull request goes on without the doc: its watcher sees it merged or closed; a repository
-    // not (yet) on the canvas has no docs read
-    if (!w) return row.state === 'inPr' || !this.canvas.repos.some((r) => r.id === repoOfRef(row.plan_ref!, this.home)) ? null : 'gone';
+    // not (yet) on the project has no docs read
+    if (!w) return row.state === 'inPr' || !this.project.repos.some((r) => r.id === repoOfRef(row.plan_ref!, this.home)) ? null : 'gone';
     if (!w.done || tickedAhead(row)) return null;
     return row.state === 'inPr' ? 'merged' : 'ticked';
   }
@@ -1854,7 +1854,7 @@ export class Board {
   /** The workstation at `path` was freed (`leaseEnded`); a deleted card keeps it named, to take it back when it is restored. */
   freed(cardId: string, path: string) {
     const row = this.store.card(cardId);
-    // the pool the canvas shows has a clone more
+    // the pool the project shows has a clone more
     if (!row || row.deleted_at || row.workstation !== path) return this.changed();
     this.work(cardId, { workstation: null, app: null, parked: null });
   }
@@ -1879,7 +1879,7 @@ export class Board {
   }
 
   /**
-   * Where the canvas archives cards once their work landed, the owner's finished card goes into the
+   * Where the project archives cards once their work landed, the owner's finished card goes into the
    * archive as soon as its worker is done after the landing, as "Archive all finished" would take it.
    */
   private archiveLanded(cardId: string): boolean {
@@ -1891,12 +1891,12 @@ export class Board {
     return true;
   }
 
-  /** The canvas as the UI sees it; built once per change (every write here ends in `changed`). */
-  snapshot(): CanvasSnapshot {
+  /** The project as the UI sees it; built once per change (every write here ends in `changed`). */
+  snapshot(): ProjectSnapshot {
     const items = this.items();
     if (this.cache) return this.cache;
-    const chat = this.store.chat(this.canvas.id);
-    const talk = this.store.sheet(this.canvas.id, chat, SHEET_TALK);
+    const chat = this.store.chat(this.project.id);
+    const talk = this.store.sheet(this.project.id, chat, SHEET_TALK);
     const reshare = this.reshare();
     const pools = this.clonePools();
     const planDirs = this.planDirs(this.docs!);
@@ -1907,15 +1907,15 @@ export class Board {
         return now === undefined ? p : { ...p, now };
       });
     this.cache = {
-      canvas: this.canvas,
+      project: this.project,
       items,
-      groups: this.store.groups(this.canvas.id).map(toGroup),
-      preferences: this.store.preferences(this.canvas.id, ['proposed', 'active']),
+      groups: this.store.groups(this.project.id).map(toGroup),
+      preferences: this.store.preferences(this.project.id, ['proposed', 'active']),
       ...(settingProposals.length ? { settingProposals } : {}),
       talk: this.limits.size || this.atWork.size ? talk.map((x) => ({ ...x, ...this.limited(`talk:${x.id}`), ...this.agentAt('lookUpAgent', `talk:${x.id}`) })) : talk,
       chat,
-      ...(this.store.chatModel(this.canvas.id) ? { chatModel: this.store.chatModel(this.canvas.id) } : {}),
-      chats: this.store.chats(this.canvas.id),
+      ...(this.store.chatModel(this.project.id) ? { chatModel: this.store.chatModel(this.project.id) } : {}),
+      chats: this.store.chats(this.project.id),
       ...(pools.length ? { workstations: pools } : {}),
       ...(reshare ? { reshare } : {}),
       ...(planDirs.length ? { planDirs } : {}),
@@ -1925,12 +1925,12 @@ export class Board {
   }
 
   /**
-   * The canvas's cards as the UI sees them (the snapshot's `items`), built once per change without
+   * The project's cards as the UI sees them (the snapshot's `items`), built once per change without
    * the rest of the snapshot: code that changes cards reads them back between its writes.
    */
   items(): Item[] {
-    // docs read before a repository joined the canvas lack its docs, which would count its workstreams gone
-    const repos = this.canvas.repos.map((r) => r.id).join('\n');
+    // docs read before a repository joined the project lack its docs, which would count its workstreams gone
+    const repos = this.project.repos.map((r) => r.id).join('\n');
     if (this.docs && this.docsOf !== repos) {
       this.docs = null;
       this.cache = null;
@@ -1946,7 +1946,7 @@ export class Board {
     }
     const all = this.docs;
     this.follow(all, read);
-    let rows = this.store.cards(this.canvas.id);
+    let rows = this.store.cards(this.project.id);
     const docs = this.openDocs(all, rows);
     const open = docs.map((d) => d.file).join('\n');
     if (read || open !== this.open) {
@@ -1954,7 +1954,7 @@ export class Board {
       this.keepDocs(all, docs);
       if (read) this.reopen(all);
       // keeping and reopening docs archives and brings back their cards
-      rows = this.store.cards(this.canvas.id);
+      rows = this.store.cards(this.project.id);
     }
     let items = toItems(rows, docs, this.home, this.worked, this.themeNow);
     if (this.placeNew(docs, items, all, rows)) {
@@ -1962,7 +1962,7 @@ export class Board {
       this.keepDocs(all, docs);
       // what reacts to changes hears of them too (the Koordinator reads what builds on what in a plan just come)
       this.tell();
-      rows = this.store.cards(this.canvas.id);
+      rows = this.store.cards(this.project.id);
       items = toItems(rows, docs, this.home, this.worked, this.themeNow);
     }
     if (read) {
@@ -1994,7 +1994,7 @@ export class Board {
     const manual = this.manualDependencies();
     if (manual.length) {
       const sources = new Set(manual.map(([from]) => from));
-      const archivedRows = this.store.archived(this.canvas.id).filter((r) => sources.has(r.id) && r.state && !finished(r.state));
+      const archivedRows = this.store.archived(this.project.id).filter((r) => sources.has(r.id) && r.state && !finished(r.state));
       const archivedAt = new Map(archivedRows.map((r) => [r.id, r.archived_at!]));
       const archived = toItems(archivedRows, [], this.home, this.worked, this.themeNow).filter(connectable).map((i) => ({ ...i, archivedAt: archivedAt.get(i.id)! }));
       const eligible = new Set([...items.filter(connectable), ...archived].map((i) => i.id));
@@ -2029,8 +2029,8 @@ export class Board {
     items = this.withoutStaleSnoozes(items, rows);
     items = this.withWaitingSince(items);
     items = this.withRate(items);
-    // a card whose repository does not run on the canvas waits for it
-    const running = new Set(this.canvas.repos.map((r) => r.id));
+    // a card whose repository does not run on the project waits for it
+    const running = new Set(this.project.repos.map((r) => r.id));
     if (items.some((i) => !running.has(i.repo))) items = items.map((i) => (running.has(i.repo) || i.kind === 'question' ? i : { ...i, repoDown: true }));
     if (this.limits.size) items = items.map((i) => ({ ...i, ...this.limited(`card:${i.id}`) }));
     if (this.atWork.size) items = items.map((i) => ({ ...i, ...this.agentAt('agentAtWork', `card:${i.id}`) }));
@@ -2063,16 +2063,16 @@ export class Board {
     return until === null ? { limitPaused: true } : until ? { limitedUntil: until } : {};
   }
 
-  /** Cards that come from a card on another canvas name it, with that canvas. */
+  /** Cards that come from a card on another project name it, with that project. */
   private withElsewhere(items: Item[], rows: CardRow[]): Item[] {
-    // a card on this canvas is not looked up: the others are, all at once
+    // a card on this project is not looked up: the others are, all at once
     const here = new Set(rows.map((r) => r.id));
     const ids = [...new Set(items.flatMap((i) => (i.from && !here.has(i.from) ? [i.from] : [])))];
-    const elsewhere = new Map(this.store.elsewhere(ids, this.canvas.id).map((o) => [o.id, o]));
+    const elsewhere = new Map(this.store.elsewhere(ids, this.project.id).map((o) => [o.id, o]));
     if (!elsewhere.size) return items;
     return items.map((i) => {
       const from = i.from ? elsewhere.get(i.from) : undefined;
-      return from ? { ...i, fromElsewhere: { canvas: from.canvas, canvasName: from.canvasName ?? from.canvas, title: from.title ?? '' } } : i;
+      return from ? { ...i, fromElsewhere: { project: from.project, projectName: from.projectName ?? from.project, title: from.title ?? '' } } : i;
     });
   }
 
@@ -2080,7 +2080,7 @@ export class Board {
    * A card the owner snoozed while it waited for them that no longer waits for them (they answered
    * it after all, its proposal is reworked, its idea parked) is snoozed no longer; nor is a planned
    * card snoozed to start later that is no longer planned to start (started, made an idea, archived),
-   * or no longer on the canvas (a workstream whose plan doc went or was ticked off): coming back after
+   * or no longer on the project (a workstream whose plan doc went or was ticked off): coming back after
    * its time, it would start unasked.
    */
   private withoutStaleSnoozes(items: Item[], rows: CardRow[]): Item[] {
@@ -2126,7 +2126,7 @@ export class Board {
    * database across restarts while it waits, and forgotten once it no longer does.
    */
   private withWaitingSince(items: Item[]): Item[] {
-    const known = this.store.waitingSince(this.canvas.id);
+    const known = this.store.waitingSince(this.project.id);
     const at = new Date().toISOString();
     const out = items.map((i) => {
       if (!needsYou(i)) return i;
@@ -2146,7 +2146,7 @@ export class Board {
   }
 
   /**
-   * The docs whose plans stand on the canvas: those with a workstream still open, and those
+   * The docs whose plans stand on the project: those with a workstream still open, and those
    * whose every workstream is ticked, or whose doc is gone (as it last stood), while one of their
    * cards is still at work (in progress, or its worker finishing after the landing). The others'
    * plans have ended.
@@ -2159,7 +2159,7 @@ export class Board {
     );
     const files = new Set(all.map((d) => d.file));
     const gone = this.store
-      .plans(this.canvas.id)
+      .plans(this.project.id)
       .filter((r) => r.plan && busy.has(r.plan_ref!) && !files.has(r.plan_ref!))
       .map((r) => JSON.parse(r.plan!) as PlanDoc);
     return [...all.filter((d) => !allTicked(d) || busy.has(d.file)), ...gone];
@@ -2169,8 +2169,8 @@ export class Board {
    * The notes on the plan directories: one for each that holds docs which are not plans, and
    * one for a repository with no plan doc that never had a plan, saying where the first goes.
    */
-  private planDirs(docs: PlanDoc[], rows = this.store.cards(this.canvas.id)): PlanDir[] {
-    const plans = this.store.plans(this.canvas.id);
+  private planDirs(docs: PlanDoc[], rows = this.store.cards(this.project.id)): PlanDir[] {
+    const plans = this.store.plans(this.project.id);
     const preparing = rows.filter((r) => !r.plan_ref && r.title && !finished(r.state ?? 'planned'));
     return this.dirs.flatMap(({ repo, dir, others }) => {
       const empty = !others.length && !docs.some((d) => repoOfRef(d.file, this.home) === repo) && !plans.some((p) => repoOfRef(p.plan_ref!, this.home) === repo);
@@ -2192,7 +2192,7 @@ export class Board {
   }
 
   private planDirNoteAt(repo: string): { at?: { x: number; y: number } } {
-    const at = this.store.setting(this.canvas.id, `plan_dir_note:${repo}`);
+    const at = this.store.setting(this.project.id, `plan_dir_note:${repo}`);
     return at ? { at: JSON.parse(at) as { x: number; y: number } } : {};
   }
 
@@ -2200,8 +2200,8 @@ export class Board {
   movePlanDirNote(repo: string, at: unknown) {
     const { x, y } = (at ?? {}) as { x?: unknown; y?: unknown };
     if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) throw new BadRequest('invalid', 'a place needs x and y');
-    if (!this.dirs.some((d) => d.repo === repo)) throw new BadRequest('invalid', 'no plan directory of that repository on the canvas');
-    this.store.setSetting(this.canvas.id, `plan_dir_note:${repo}`, JSON.stringify({ x: Math.round(x), y: Math.round(y) }));
+    if (!this.dirs.some((d) => d.repo === repo)) throw new BadRequest('invalid', 'no plan directory of that repository on the project');
+    this.store.setSetting(this.project.id, `plan_dir_note:${repo}`, JSON.stringify({ x: Math.round(x), y: Math.round(y) }));
     this.changed();
   }
 
@@ -2299,7 +2299,7 @@ export class Board {
     this.changed();
   }
 
-  /** The pools, each workstation a card holds with the card's title, also of a card not on the canvas, and the canvas of one on another. */
+  /** The pools, each workstation a card holds with the card's title, also of a card not on the project, and the project of one on another. */
   private clonePools(): ClonePool[] {
     return (this.pools?.() ?? []).map((p) => ({
       ...p,
@@ -2308,7 +2308,7 @@ export class Board {
         workstations: h.workstations.map((w) => {
           const row = w.card ? this.store.card(w.card) : null;
           if (!row) return w;
-          return { ...w, ...(row.title ? { title: row.title } : {}), ...(row.canvas_id !== this.canvas.id ? { canvas: row.canvas_id } : {}) };
+          return { ...w, ...(row.title ? { title: row.title } : {}), ...(row.project_id !== this.project.id ? { project: row.project_id } : {}) };
         }),
       })),
     }));
@@ -2351,7 +2351,7 @@ export class Board {
   }
 
   /**
-   * Ideas, and cards that were ideas, with their prototypes, wherever these are: on the canvas or in
+   * Ideas, and cards that were ideas, with their prototypes, wherever these are: on the project or in
    * the archive; a workstream built on a prototype with that one. A prototype knows its idea's
    * title, also once the idea is in the archive.
    */
@@ -2370,13 +2370,13 @@ export class Board {
   }
 
   /**
-   * Which cards of the canvas are prototypes, read once per change; each is made into an item when a
-   * card first needs it, once per change too: the canvas, the archive and every archived card looked
+   * Which cards of the project are prototypes, read once per change; each is made into an item when a
+   * card first needs it, once per change too: the project, the archive and every archived card looked
    * up on its own (sharing looks up hundreds in a row) need them.
    */
   private prototypes(): Prototypes {
     if (this.prototypeItems) return this.prototypeItems;
-    const rows = this.store.prototypes(this.canvas.id);
+    const rows = this.store.prototypes(this.project.id);
     this.prototypeItems = { rows, ofIdea: Map.groupBy(rows, (r) => r.prototype_of!), byId: new Map(rows.map((r) => [r.id, r])), items: new Map(), titles: new Map() };
     return this.prototypeItems;
   }
@@ -2398,16 +2398,16 @@ export class Board {
     return title;
   }
 
-  /** The plan an idea became, while it is on the canvas. */
+  /** The plan an idea became, while it is on the project. */
   planOf(ideaId: string): Item | undefined {
     return this.items().find((i) => i.kind === 'plan' && i.origin === ideaId);
   }
 
   // ---------------------------------------------------------------- preferences
 
-  /** The canvas's preferences in the given states, or all of them (rejected proposals too). */
+  /** The project's preferences in the given states, or all of them (rejected proposals too). */
   preferences(...states: PreferenceState[]) {
-    return this.store.preferences(this.canvas.id, states.length ? states : undefined);
+    return this.store.preferences(this.project.id, states.length ? states : undefined);
   }
 
   /** The owner's active preferences as agents read them; empty when there are none. */
@@ -2419,7 +2419,7 @@ export class Board {
   /** A rule the owner writes: active at once. */
   addPreference(text: string, cardId: string | null = null): number {
     const clean = checkPreference(text);
-    const id = this.store.addPreference(this.canvas.id, clean, cardId);
+    const id = this.store.addPreference(this.project.id, clean, cardId);
     this.changed();
     return id;
   }
@@ -2431,7 +2431,7 @@ export class Board {
   proposePreference(text: string, occasion: { cardId?: string; quote?: string; review?: boolean }, replaces?: number, target?: string): number {
     const clean = checkPreference(text);
     if (target !== undefined) this.checkRepo(target);
-    const id = this.store.addPreference(this.canvas.id, clean, occasion.cardId ?? null, {
+    const id = this.store.addPreference(this.project.id, clean, occasion.cardId ?? null, {
       quote: occasion.quote?.trim().slice(0, 2000) || undefined,
       review: occasion.review,
       replaces,
@@ -2442,7 +2442,7 @@ export class Board {
   }
 
   setPreference(id: number, text: string | null) {
-    if (!this.store.setPreference(this.canvas.id, id, text === null ? null : checkPreference(text)))
+    if (!this.store.setPreference(this.project.id, id, text === null ? null : checkPreference(text)))
       throw new BadRequest('unknownPreference', 'unknown preference');
     this.changed();
   }
@@ -2460,9 +2460,9 @@ export class Board {
     if (target) this.checkRepo(target);
     const repo = target === undefined ? p.target : (target ?? undefined);
     this.store.db.transaction(() => {
-      if (clean !== p.text) this.store.setPreference(this.canvas.id, id, clean);
-      if (p.replaces !== undefined && this.preferences('active').some((x) => x.id === p.replaces)) this.store.setPreference(this.canvas.id, p.replaces, null);
-      this.store.decideProposal(this.canvas.id, id, 'active', repo ?? null);
+      if (clean !== p.text) this.store.setPreference(this.project.id, id, clean);
+      if (p.replaces !== undefined && this.preferences('active').some((x) => x.id === p.replaces)) this.store.setPreference(this.project.id, p.replaces, null);
+      this.store.decideProposal(this.project.id, id, 'active', repo ?? null);
       if (repo) this.collect(repo, clean);
     })();
     this.changed();
@@ -2478,9 +2478,9 @@ export class Board {
     if (!repos.length) throw new BadRequest('invalid', 'no repository');
     for (const r of repos) this.checkRepo(r);
     this.store.db.transaction(() => {
-      if (replaces !== undefined) this.store.setPreference(this.canvas.id, replaces, null);
+      if (replaces !== undefined) this.store.setPreference(this.project.id, replaces, null);
       for (const repo of new Set(repos)) {
-        this.store.fileRule(this.canvas.id, clean, cardId, repo);
+        this.store.fileRule(this.project.id, clean, cardId, repo);
         this.collect(repo, clean);
       }
     })();
@@ -2513,7 +2513,7 @@ export class Board {
   }
 
   private checkRepo(repo: string) {
-    if (!this.canvas.repos.some((r) => r.id === repo)) throw new BadRequest('invalid', 'unknown repository');
+    if (!this.project.repos.some((r) => r.id === repo)) throw new BadRequest('invalid', 'unknown repository');
   }
 
   /** What a card's `repo` column holds for `repo`: nothing for the home repository. */
@@ -2528,7 +2528,7 @@ export class Board {
 
   /** The owner rejects a proposal; it is kept, so the same one does not come back. */
   rejectProposal(id: number) {
-    if (!this.store.decideProposal(this.canvas.id, id, 'rejected')) throw new BadRequest('unknownPreference', 'no such proposal');
+    if (!this.store.decideProposal(this.project.id, id, 'rejected')) throw new BadRequest('unknownPreference', 'no such proposal');
     this.changed();
   }
 
@@ -2539,7 +2539,7 @@ export class Board {
     const ids = this.groupable(cardIds);
     if (groupId !== null) this.ownGroup(groupId);
     this.store.setGroup(ids, groupId);
-    this.store.dropEmptyGroups(this.canvas.id);
+    this.store.dropEmptyGroups(this.project.id);
     this.changed();
   }
 
@@ -2552,12 +2552,12 @@ export class Board {
     const ids = this.groupable(cardIds);
     if (!ids.length) throw new BadRequest('invalid', 'a group needs a card');
     if (hue !== undefined && !(Number.isInteger(hue) && (hue as number) >= 0 && (hue as number) < 360)) throw new BadRequest('invalid', 'hue must be a whole number from 0 to 359');
-    const groups = this.store.groups(this.canvas.id);
+    const groups = this.store.groups(this.project.id);
     const g =
       groups.find((x) => x.name.toLowerCase() === n.toLowerCase()) ??
-      this.store.addGroup(this.canvas.id, n, (hue as number | undefined) ?? nextHue(groups.map((x) => x.hue)));
+      this.store.addGroup(this.project.id, n, (hue as number | undefined) ?? nextHue(groups.map((x) => x.hue)));
     this.store.setGroup(ids, g.id);
-    this.store.dropEmptyGroups(this.canvas.id);
+    this.store.dropEmptyGroups(this.project.id);
     this.changed();
     return toGroup(g);
   }
@@ -2565,21 +2565,21 @@ export class Board {
   renameGroup(id: string, name: unknown) {
     this.ownGroup(id);
     const n = this.groupName(name);
-    if (this.store.groups(this.canvas.id).some((g) => g.id !== id && g.name.toLowerCase() === n.toLowerCase()))
+    if (this.store.groups(this.project.id).some((g) => g.id !== id && g.name.toLowerCase() === n.toLowerCase()))
       throw new BadRequest('invalid', `there is a group named ${n} already`);
     this.store.renameGroup(id, n);
     this.changed();
   }
 
   /**
-   * Ends the group: its cards, on the canvas and in the archive, belong to none. Returns what
+   * Ends the group: its cards, on the project and in the archive, belong to none. Returns what
    * `createGroup` needs to bring it back.
    */
   deleteGroup(id: string): { group: Group; cards: string[] } {
     const g = this.ownGroup(id);
     const cards = this.store.groupCards(g.id);
     this.store.setGroup(cards, null);
-    this.store.dropEmptyGroups(this.canvas.id);
+    this.store.dropEmptyGroups(this.project.id);
     this.changed();
     return { group: toGroup(g), cards };
   }
@@ -2598,7 +2598,7 @@ export class Board {
 
   private ownGroup(id: unknown): GroupRow {
     const g = typeof id === 'string' ? this.store.group(id) : null;
-    if (!g || g.canvas_id !== this.canvas.id) throw new BadRequest('unknownGroup', 'unknown group');
+    if (!g || g.project_id !== this.project.id) throw new BadRequest('unknownGroup', 'unknown group');
     return g;
   }
 
@@ -2610,7 +2610,7 @@ export class Board {
   }
 
   /**
-   * `elsewhere`: the card on another canvas it follows up on (a card Seismic makes here from there); it
+   * `elsewhere`: the card on another project it follows up on (a card Seismic makes here from there); it
    * goes where `x` and `y` say, in no group.
    */
   create(n: NewCard, elsewhere?: string): Item {
@@ -2619,7 +2619,7 @@ export class Board {
     if (n.repo !== undefined) this.checkRepo(n.repo);
     const from = n.from !== undefined ? this.own(n.from) : undefined;
     if (from && n.idea) throw new BadRequest('invalid', 'an idea follows up on no card');
-    // without a place (the phone, which shows no canvas) it goes where there is room
+    // without a place (the phone, which shows no project) it goes where there is room
     const placed = n.x !== undefined || n.y !== undefined;
     if (!from && placed) {
       checkNumber(n.x, 'x');
@@ -2631,7 +2631,7 @@ export class Board {
     if (n.images !== undefined) this.checkImages(n.images);
     const [row] = this.store.insert([
       {
-        canvas_id: this.canvas.id,
+        project_id: this.project.id,
         kind: 'task',
         state: n.idea ? 'idea' : 'planned',
         title: n.title,
@@ -2673,11 +2673,11 @@ export class Board {
     }
     this.store.update(id, {
       ...fields,
-      // a repository of the canvas picked instead of a new one
-      // a repository of the canvas picked instead of a new one: the owner's pick, which the idea's agent leaves
+      // a repository of the project picked instead of a new one
+      // a repository of the project picked instead of a new one: the owner's pick, which the idea's agent leaves
       ...(repo !== undefined ? { repo: this.repoColumn(repo) } : {}),
       ...(newRepo !== undefined || repo !== undefined
-        ? { new_repo: JSON.stringify(newRepo ? ({ path: newRepo.path.trim(), canvas: newRepo.canvas, by: 'owner' } satisfies NewRepo) : ({ path: '', canvas: true, by: 'owner', none: true } satisfies StoredNewRepo)) }
+        ? { new_repo: JSON.stringify(newRepo ? ({ path: newRepo.path.trim(), project: newRepo.project, by: 'owner' } satisfies NewRepo) : ({ path: '', project: true, by: 'owner', none: true } satisfies StoredNewRepo)) }
         : {}),
       ...(images !== undefined ? { images: images.length ? JSON.stringify(images) : null } : {}),
       ...(collapsed !== undefined ? { collapsed: collapsed ? 1 : 0 } : {}),
@@ -2719,8 +2719,8 @@ export class Board {
   }
 
   private checkNewRepo(row: CardRow, n: unknown) {
-    if (n !== null && (typeof n !== 'object' || typeof (n as NewRepo).path !== 'string' || typeof (n as NewRepo).canvas !== 'boolean'))
-      throw new BadRequest('invalid', 'newRepo must be { path, canvas } or null');
+    if (n !== null && (typeof n !== 'object' || typeof (n as NewRepo).path !== 'string' || typeof (n as NewRepo).project !== 'boolean'))
+      throw new BadRequest('invalid', 'newRepo must be { path, project } or null');
     if (n && (n as NewRepo).path.length > 1000) throw new BadRequest('invalid', 'the path is too long');
     if (row.prototype_of || (row.state !== 'idea' && (row.state ?? 'planned') !== 'planned') || row.workstation)
       throw new BadRequest('invalid', 'a card gets a new repository only before work on it begins');
@@ -2746,9 +2746,9 @@ export class Board {
     return true;
   }
 
-  /** The owner's history of the canvas, in Seismic's sheet: the card left for another canvas. */
+  /** The owner's history of the project, in Seismic's sheet: the card left for another project. */
   moved(m: TalkMoved) {
-    this.store.addMoved(this.canvas.id, m, this.t.newRepo.movedAway(m.title, m.canvasName));
+    this.store.addMoved(this.project.id, m, this.t.newRepo.movedAway(m.title, m.projectName));
     this.changed();
   }
 
@@ -2778,7 +2778,7 @@ export class Board {
       ? { queue: JSON.stringify({ behind, reason: queued[0]!.reason, ...(buildsOn.length && { buildsOn }), ...(manualWait.length && { manualWait }), since: queued.map((q) => q.since).sort()[0]! }) }
       : {};
     this.store.update(keep, { title, body, images: images.length ? JSON.stringify(images) : null, ...(notes.length ? { unheard: JSON.stringify(notes) } : {}), ...queue });
-    for (const r of this.store.cards(this.canvas.id)) {
+    for (const r of this.store.cards(this.project.id)) {
       if (r.from_id && gone.has(r.from_id) && r.id !== keep) this.store.update(r.id, { from_id: keep });
       // a card that waited for one that goes waits for the merged task instead
       const w = r.id === keep ? undefined : waitOf(r);
@@ -2805,14 +2805,14 @@ export class Board {
 
   restore(id: string) {
     const row = this.store.card(id);
-    if (!row || row.canvas_id !== this.canvas.id) throw new BadRequest('unknownCard', 'unknown card');
+    if (!row || row.project_id !== this.project.id) throw new BadRequest('unknownCard', 'unknown card');
     this.store.update(id, { deleted_at: null });
     this.changed();
-    this.backOnCanvas(id);
+    this.backOnProject(id);
   }
 
   /** A card deleted or archived is back: its arrows too, but none that the arrows drawn meanwhile would make a cycle. */
-  private backOnCanvas(id: string) {
+  private backOnProject(id: string) {
     const items = this.items();
     const edges = this.manualDependencies();
     const kept = edges.filter(([a, b]) => a !== id && b !== id);
@@ -2827,21 +2827,21 @@ export class Board {
 
   private own(id: string): CardRow {
     const row = this.store.card(id);
-    if (!row || row.canvas_id !== this.canvas.id || row.deleted_at) throw new BadRequest('unknownCard', 'unknown card');
+    if (!row || row.project_id !== this.project.id || row.deleted_at) throw new BadRequest('unknownCard', 'unknown card');
     return row;
   }
 
   /**
    * Keeps each doc's last state on its plan. A plan whose doc is gone, or whose work is done
    * (not among the `open` docs, which keep it while a workstream's worker finishes after its landing),
-   * goes into the archive; one whose doc is back, or open again, returns to the canvas.
+   * goes into the archive; one whose doc is back, or open again, returns to the project.
    */
   private keepDocs(all: PlanDoc[], open: PlanDoc[]) {
     const byFile = new Map(all.map((d) => [d.file, d]));
     const shown = new Set(open.map((d) => d.file));
     const at = new Date().toISOString();
     this.store.db.transaction(() => {
-      for (const r of this.store.plans(this.canvas.id)) {
+      for (const r of this.store.plans(this.project.id)) {
         const doc = byFile.get(r.plan_ref!);
         const plan = doc ? JSON.stringify(doc) : r.plan;
         const archived_at = shown.has(r.plan_ref!) ? null : (r.archived_at ?? at);
@@ -2852,7 +2852,7 @@ export class Board {
 
   /** What the Koordinator read of a plan's plan doc about which workstream builds on which, and whether it is reading it now. */
   deps(planId: string): StoredDeps & { current: boolean } {
-    // the plan keeps its doc as the canvas last read it
+    // the plan keeps its doc as the project last read it
     this.items();
     const row = this.own(planId);
     if (row.kind !== 'plan' || !row.plan) throw new BadRequest('invalid', 'not a plan');
@@ -2862,10 +2862,10 @@ export class Board {
 
   /**
    * The plans whose plan doc the Koordinator is to read for which workstream builds on which
-   * (`arranging` on the canvas), from their rows: asked on every change, this builds no snapshot.
+   * (`arranging` on the project), from their rows: asked on every change, this builds no snapshot.
    */
   arranging(): string[] {
-    return this.store.plans(this.canvas.id).flatMap((r) => (!r.archived_at && r.deps && (JSON.parse(r.deps) as StoredDeps).reading ? [r.id] : []));
+    return this.store.plans(this.project.id).flatMap((r) => (!r.archived_at && r.deps && (JSON.parse(r.deps) as StoredDeps).reading ? [r.id] : []));
   }
 
   /** The Koordinator starts reading which workstream builds on which (`reading`), or has read it (`on`, for the doc as it stands now). */
@@ -2902,7 +2902,7 @@ export class Board {
   arrange(planId: string) {
     const items = this.items();
     const plan = items.find((i) => i.id === planId);
-    if (plan?.kind !== 'plan') throw new BadRequest('invalid', 'not a plan on the canvas');
+    if (plan?.kind !== 'plan') throw new BadRequest('invalid', 'not a plan on the project');
     const kids = items.filter((i) => i.parent === planId);
     const at = arrangeWorkstreams(kids);
     const moved = kids.map((k) => ({ ...k, ...at.get(k.id)! }));
@@ -2952,7 +2952,7 @@ export class Board {
     if (!read && !this.missing.size) return;
     this.pastOf.clear();
     const byFile = new Map(all.map((d) => [d.file, d]));
-    const plans = this.store.plans(this.canvas.id).filter((p) => byFile.has(p.plan_ref!));
+    const plans = this.store.plans(this.project.id).filter((p) => byFile.has(p.plan_ref!));
     // the doc as last read, with its whole text: only parsed where a card needs it
     const lastOf = new Map<string, PlanDoc | null>();
     const last = (p: CardRow) => (lastOf.has(p.id) ? lastOf.get(p.id)! : lastOf.set(p.id, p.plan ? (JSON.parse(p.plan) as PlanDoc) : null).get(p.id)!);
@@ -3072,7 +3072,7 @@ export class Board {
         doc.workstreams.forEach((w, i) => {
           const row = rows.get(w.key);
           if (row) this.store.update(row.id, at[i]!);
-          else this.store.insert([{ canvas_id: this.canvas.id, kind: 'task', parent_id: plan.id, plan_ref: ref(w.key), ...at[i]! }]);
+          else this.store.insert([{ project_id: this.project.id, kind: 'task', parent_id: plan.id, plan_ref: ref(w.key), ...at[i]! }]);
         });
       }
       // what the Koordinator read of which workstream builds on which goes with the cards
@@ -3158,7 +3158,7 @@ export class Board {
 
   /** A free spot for a card at the right of the plan, near its top. */
   private besidePlan(plan: CardRow): { x: number; y: number } {
-    const items = toItems(this.store.cards(this.canvas.id), this.docs ?? [], this.home);
+    const items = toItems(this.store.cards(this.project.id), this.docs ?? [], this.home);
     const p = items.find((i) => i.id === plan.id);
     if (!p) return { x: plan.x, y: plan.y };
     const box = boundsOf(p, items);
@@ -3173,7 +3173,7 @@ export class Board {
   private placeNew(docs: PlanDoc[], items: Item[], all: PlanDoc[], rows: CardRow[]): boolean {
     const byRef = new Map(rows.filter((r) => r.plan_ref).map((r) => [r.plan_ref!, r]));
     const add: NewRow[] = [];
-    const c = this.canvas.id;
+    const c = this.project.id;
 
     for (const doc of docs) {
       const plan = byRef.get(doc.file);
@@ -3183,13 +3183,13 @@ export class Board {
       const kids = items.filter((i) => i.parent === plan.id);
       const startY = kids.length ? Math.max(...kids.map((k) => k.y + sizeOf(k, items)[1])) + GAP : PLAN_HEAD;
       placeWorkstreams(missing, startY).forEach((pos, n) =>
-        add.push({ canvas_id: c, kind: 'task', parent_id: plan.id, plan_ref: `${doc.file}#${missing[n]!.key}`, ...pos }),
+        add.push({ project_id: c, kind: 'task', parent_id: plan.id, plan_ref: `${doc.file}#${missing[n]!.key}`, ...pos }),
       );
     }
     if (add.length) this.store.insert(add);
     const linked = this.linkOrigins(docs);
 
-    const known = new Set(this.store.plans(this.canvas.id).map((r) => r.plan_ref!));
+    const known = new Set(this.store.plans(this.project.id).map((r) => r.plan_ref!));
     const done = all.filter((d) => !docs.includes(d) && !known.has(d.file));
     const fresh = [...docs.filter((d) => !byRef.has(d.file)), ...done];
     if (!fresh.length) return add.length > 0 || linked;
@@ -3203,11 +3203,11 @@ export class Board {
     const notes = this.planDirs(all).flatMap((d) => planDirNoteBox(d) ?? []);
     const at = placePlans(unionBounds([...top.map((i) => boundsOf(i, items)), ...notes]), layouts.map((l) => l.size));
     layouts.forEach(({ doc, pos }, n) => {
-      const [plan] = this.store.insert([{ canvas_id: c, kind: 'plan', plan_ref: doc.file, ...at[n]! }]);
+      const [plan] = this.store.insert([{ project_id: c, kind: 'plan', plan_ref: doc.file, ...at[n]! }]);
       // a plan just come stands arranged by what builds on what, once the Koordinator has read that
       if (docs.includes(doc) && doc.workstreams.filter((w) => !w.done).length > 1) this.store.update(plan!.id, { deps: JSON.stringify({ reading: 'auto' } satisfies StoredDeps) });
       this.store.insert(
-        doc.workstreams.map((w, k) => ({ canvas_id: c, kind: 'task' as const, parent_id: plan!.id, plan_ref: `${doc.file}#${w.key}`, ...pos[k]! })),
+        doc.workstreams.map((w, k) => ({ project_id: c, kind: 'task' as const, parent_id: plan!.id, plan_ref: `${doc.file}#${w.key}`, ...pos[k]! })),
       );
     });
     this.linkOrigins(docs);
@@ -3216,15 +3216,15 @@ export class Board {
 
   /**
    * A plan whose doc the landed work of an idea (or a task planned as a plan) added remembers
-   * that card and takes its place, while the card is on the canvas. Returns whether any did.
+   * that card and takes its place, while the card is on the project. Returns whether any did.
    */
   private linkOrigins(docs: PlanDoc[]): boolean {
     const origin = new Map<string, string>();
     // a card writing its doc in a plan folder outside the repository names it from the start: it is its origin once approved
-    for (const r of this.store.withPlanDocs(this.canvas.id)) if (r.landed || r.state === 'live' || r.state === 'done') for (const ref of JSON.parse(r.plan_docs!) as string[]) origin.set(ref, r.id);
+    for (const r of this.store.withPlanDocs(this.project.id)) if (r.landed || r.state === 'live' || r.state === 'done') for (const ref of JSON.parse(r.plan_docs!) as string[]) origin.set(ref, r.id);
     if (!origin.size) return false;
     let linked = false;
-    for (const r of this.store.plans(this.canvas.id)) {
+    for (const r of this.store.plans(this.project.id)) {
       const from = !r.from_id ? origin.get(r.plan_ref!) : undefined;
       if (!from) continue;
       this.store.update(r.id, { from_id: from });
@@ -3236,11 +3236,11 @@ export class Board {
   }
 
   /**
-   * The plan goes where its idea is on the canvas. What the larger plan would cover moves
+   * The plan goes where its idea is on the project. What the larger plan would cover moves
    * aside by as much as it outgrows the idea: the cards below it down, those beside it to the right.
    */
   private takePlace(planId: string, ideaId: string, docs: PlanDoc[]) {
-    const items = toItems(this.store.cards(this.canvas.id), docs, this.home, undefined, this.themeNow);
+    const items = toItems(this.store.cards(this.project.id), docs, this.home, undefined, this.themeNow);
     const plan = items.find((i) => i.id === planId);
     const idea = items.find((i) => i.id === ideaId);
     if (!plan || !idea) return;
@@ -3261,13 +3261,13 @@ export class Board {
   /**
    * An idea or task whose plan doc is a plan goes to the archive once its worker is done: the plan
    * stands where it was and links it. Asked when the plan is linked and when the worker is done,
-   * once each; put back on the canvas, the idea stays. Returns whether it went.
+   * once each; put back on the project, the idea stays. Returns whether it went.
    */
   private retire(ideaId: string): boolean {
     const r = this.store.card(ideaId);
     // `done`: approved without a change, its doc written in a plan folder outside the repository
     if (!r || r.deleted_at || r.archived_at || (r.state !== 'live' && r.state !== 'done') || (r.landed && r.workstation)) return false;
-    if (!this.store.plans(this.canvas.id).some((p) => p.from_id === ideaId && !p.archived_at)) return false;
+    if (!this.store.plans(this.project.id).some((p) => p.from_id === ideaId && !p.archived_at)) return false;
     this.store.update(ideaId, { archived_at: new Date().toISOString() });
     this.log(ideaId, 'state', 'obeya', r.idea ? this.t.idea.becamePlan : this.t.idea.taskBecamePlan);
     return true;
@@ -3275,7 +3275,7 @@ export class Board {
 }
 
 /**
- * The repository a plan reference belongs to: `<repo>:<path>` for the canvas's other repositories,
+ * The repository a plan reference belongs to: `<repo>:<path>` for the project's other repositories,
  * a bare path for its home repository. The path is in the repository, or an absolute one of a plan
  * folder outside it (`/…`, or `C:/…` on Windows, which is no repository `C`).
  */
@@ -3306,7 +3306,7 @@ function tickedAhead(r: Pick<CardRow, 'plan_ref' | 'state' | 'branch'>): boolean
   return r.state === 'inPr' || (r.state === 'planned' && !!r.branch);
 }
 
-/** The canvas's prototypes for one change of the board: which cards they are, the items made of them so far, their ideas' titles. */
+/** The project's prototypes for one change of the board: which cards they are, the items made of them so far, their ideas' titles. */
 type Prototypes = {
   rows: PrototypeRef[];
   ofIdea: Map<string, PrototypeRef[]>;

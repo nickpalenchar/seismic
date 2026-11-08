@@ -1,6 +1,6 @@
 # Codex preview hardening, then Pi
 
-Seismic owns the canvas, workstations, conversations and owner decisions. Each harness owns its coding
+Seismic owns the project, workstations, conversations and owner decisions. Each harness owns its coding
 loop. A role (Koordinator, worker, explorer or small job) is not a harness or a model. The local
 Codex worker preview is described in the permanent design chapters; this plan tracks what remains.
 
@@ -79,7 +79,7 @@ Installed Codex CLI 0.162.0, on macOS, in scratch repositories and a scratch Sei
 - Native app-server transport and shared Seismic tools, file edits, reporting, active-turn messages,
   questions and owner replies, HTML handover, subprocess restart and restored tools.
 - Selecting Codex through the real settings UI and discovering account models without a model turn.
-- A real canvas card asking Blue/Green, restarting Seismic and changing the future default to Claude,
+- A real project card asking Blue/Green, restarting Seismic and changing the future default to Claude,
   then answering Blue and resuming the same Codex thread and resolved model.
 - Owner permission denial and subsequent allow decisions through the existing question UI.
 - Separate headless browser sessions for Codex and the test driver, desktop/mobile artifact checks,

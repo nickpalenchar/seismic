@@ -29,7 +29,7 @@ let refuse: string | undefined;
 let unreadable: string | undefined;
 /** The repository's settings, as the workers and each round of the watcher read them. */
 let settings: RepoAdapter;
-/** Cards whose PR the worker reported, as the canvas passes them to sharing. */
+/** Cards whose PR the worker reported, as the project passes them to sharing. */
 let opened: string[];
 /** The language of Seismic's interface, which the lines the watcher logs on a card speak. */
 let language: Language;

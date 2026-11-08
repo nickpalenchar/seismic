@@ -1,4 +1,4 @@
-// The code review of a card's work where its canvas reviews work that lands on main (design: Code
+// The code review of a card's work where its project reviews work that lands on main (design: Code
 // reviews in Card lifecycle): a separate, read-only agent of the "Code reviews" group reads the
 // branch's diff against main the repository's way and records graded findings,
 // which the card shows in its Review tab. It starts with each handover (`auto`) or on the
@@ -28,7 +28,7 @@ export interface CodeReviewOptions {
   runtime: AgentRuntime;
   agentSetting?: () => AgentSetting;
   workstations: Pick<CardWorkstations, 'diff'>;
-  /** On a canvas with several repositories: the one whose cards these are. */
+  /** On a project with several repositories: the one whose cards these are. */
   repo?: string;
 }
 
@@ -99,7 +99,7 @@ export class CodeReviews {
 
   /**
    * The worker handed over (`handover`, its event): `mode` where the work is to be reviewed (the
-   * canvas reviews work, and this work lands on main), else null, which drops a review the card had.
+   * project reviews work, and this work lands on main), else null, which drops a review the card had.
    * What the owner had the worker fix counts as fixed now. A review of the same commit stands for
    * this handover too; otherwise it is stale, and in `auto` a new one starts.
    */
@@ -136,7 +136,7 @@ export class CodeReviews {
   }
 
   /**
-   * The canvas's setting changed under work waiting for approval: `mode` where the work is reviewed
+   * The project's setting changed under work waiting for approval: `mode` where the work is reviewed
    * (null: not). Only the mode changes, a review the card had is dropped where there is none now, and
    * a card without one gets the manual start; findings stay as they are and nothing starts.
    */
@@ -160,7 +160,7 @@ export class CodeReviews {
   /** "Start code review": a review of the card's latest handover starts, where it has none that stands (or one that failed). */
   start(cardId: string): void {
     const c = codeReviewOf(this.o.board.row(cardId));
-    if (!c) throw new BadRequest('notReview', 'the card has no code review: its canvas reviews no work, or its work does not land on main');
+    if (!c) throw new BadRequest('notReview', 'the card has no code review: its project reviews no work, or its work does not land on main');
     if (c.review?.handover === c.handover && c.review.state !== 'failed') throw new BadRequest('notReview', 'the latest handover is reviewed already');
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.codeReviewStarted);
     const ws = this.o.board.row(cardId).workstation;

@@ -18,7 +18,7 @@ export function queueOrder(items: Item[]): Item[] {
 /**
  * The prerequisites the owner's arrows hold the card for: those not finished. An arrow holds a card
  * until it starts: not one at work, nor one the owner started anyway or that was at work before
- * (`begun`, waiting for a workstation or a paused canvas only to go on).
+ * (`begun`, waiting for a workstation or a paused project only to go on).
  */
 export function drawnWaits(card: Item, items: Item[]): string[] {
   if (card.state !== 'planned' || (card.queue && 'begun' in card.queue)) return [];

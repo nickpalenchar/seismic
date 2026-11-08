@@ -1,6 +1,6 @@
-// Seismic's own settings, in `settings.json` under its home beside `canvases.json` and `demo.json`:
+// Seismic's own settings, in `settings.json` under its home beside `projects.json` and `demo.json`:
 // the language of Seismic's interface and the one its agents talk to the owner in, light or dark, the model and effort of each group of
-// agents, how other devices reach Seismic (remote.ts), whether the bar shows the plan's usage limits (usage.ts), whether approving work asks for feedback on it, and the Canvas defaults a new canvas takes its own settings from. The owner chooses them in the settings sheet;
+// agents, how other devices reach Seismic (remote.ts), whether the bar shows the plan's usage limits (usage.ts), whether approving work asks for feedback on it, and the Project defaults a new project takes its own settings from. The owner chooses them in the settings sheet;
 // until then the system's language and look apply, the agents run as `AGENT_DEFAULTS` says, and
 // no other device reaches Seismic. Saving restarts nothing: the page loads again in the new
 // language, takes the new look at once, and the server reads the file whenever it needs the
@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { chosenConversationLanguage, chosenLanguage, conversationLanguageIn, OWNER_SETTINGS_FILE as SETTINGS_FILE, ownerLanguageIn, ownerSettingsWritten, systemLanguage } from '../../plugin/skills/demo/lib/language.ts';
 import { suggestToggles } from '../core/labels';
 import { type Language, LANGUAGES } from '../core/locale';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole, type AgentSetting, type AgentsView, type LanguageView, type RemoteSetting, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type CanvasAgents, type CanvasDefaults, type CanvasDefaultsView, type CanvasSettings, type CanvasDemoSite, choosesHarness, HARNESSES, CODE_REVIEW_MODES, CARD_ARCHIVING, type CodeReviewSetting } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole, type AgentSetting, type AgentsView, type LanguageView, type RemoteSetting, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type ProjectAgents, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ProjectDemoSite, choosesHarness, HARNESSES, CODE_REVIEW_MODES, CARD_ARCHIVING, type CodeReviewSetting } from '../core/types';
 import { BadRequest } from './board';
 
 interface Settings {
@@ -36,8 +36,8 @@ interface Settings {
   feedbackPrompt?: false;
   /** Whether a page notifies the owner on the desktop when a card needs them; absent until the owner has been asked. */
   notifications?: boolean;
-  /** Canvas defaults: what a new canvas's own settings start as; a setting left out has its built-in value. */
-  canvasDefaults?: CanvasSettings;
+  /** Project defaults: what a new project's own settings start as; a setting left out has its built-in value. */
+  projectDefaults?: ProjectSettings;
 }
 
 function read(home: string): Settings {
@@ -47,7 +47,7 @@ function read(home: string): Settings {
     const conversationLanguage = LANGUAGES.find((l) => l === o.conversationLanguage);
     const theme = THEMES.find((x) => x === o.theme);
     const motion = MOTIONS.find((x) => x === o.motion);
-    return { ...o, language, conversationLanguage, theme, motion, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === false ? false : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, canvasDefaults: canvasSettingsShape.safeParse(renamedBaselines(o.canvasDefaults)).data };
+    return { ...o, language, conversationLanguage, theme, motion, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === false ? false : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, projectDefaults: projectSettingsShape.safeParse(renamedBaselines(o.projectDefaults)).data };
   } catch {
     return {};
   }
@@ -134,15 +134,15 @@ export function saveNotifications(home: string, input: unknown): NotificationsVi
 
 const ownAgent = z.object({ model: z.enum(AGENT_MODELS).optional(), effort: z.enum(AGENT_EFFORTS).optional(), harness: z.enum(HARNESSES).optional(), codex: z.object({ model: z.string(), effort: z.enum(AGENT_EFFORTS) }).strict().optional(), agy: z.object({ model: z.string(), effort: z.enum(AGENT_EFFORTS) }).strict().optional() }).strict().optional();
 
-/** A canvas's settings as saved before `projectBaselines` became `planBaselines`: the old key is still read. */
+/** A project's settings as saved before `projectBaselines` became `planBaselines`: the old key is still read. */
 export function renamedBaselines(saved: unknown): unknown {
   if (!saved || typeof saved !== 'object' || !('projectBaselines' in saved)) return saved;
   const { projectBaselines, ...rest } = saved as Record<string, unknown>;
   return 'planBaselines' in rest ? rest : { ...rest, planBaselines: projectBaselines };
 }
 
-/** A canvas's own settings, as the configuration and Canvas defaults hold them. */
-export const canvasSettingsShape = z.object({
+/** A project's own settings, as the configuration and Project defaults hold them. */
+export const projectSettingsShape = z.object({
   planBaselines: z.boolean().optional(),
   archive: z.enum(CARD_ARCHIVING).optional(),
   suggest: z.object({ category: z.boolean().optional(), complexity: z.boolean().optional(), priority: z.boolean().optional() }).strict().optional(),
@@ -165,8 +165,8 @@ export const canvasSettingsShape = z.object({
     .optional(),
 });
 
-/** A canvas's demo site as it is saved: its address without a trailing slash, its path and tags without what is empty; none without an address. */
-function demoSite(saved: CanvasDemoSite | null | undefined): CanvasDemoSite | null {
+/** A project's demo site as it is saved: its address without a trailing slash, its path and tags without what is empty; none without an address. */
+function demoSite(saved: ProjectDemoSite | null | undefined): ProjectDemoSite | null {
   const url = saved?.url?.trim().replace(/\/+$/, '');
   if (!saved || !url) return null;
   const path = saved.path?.trim().replace(/^\/+|\/+$/g, '');
@@ -174,12 +174,12 @@ function demoSite(saved: CanvasDemoSite | null | undefined): CanvasDemoSite | nu
   return { url, ...(path ? { path } : {}), ...(saved.publish ? { publish: saved.publish } : {}), ...(tags.length ? { tags: Object.fromEntries(tags) } : {}) };
 }
 
-/** Whether and when a canvas reviews work that lands on main: off, and with the demo once turned on, where left out (reviews cost tokens). */
+/** Whether and when a project reviews work that lands on main: off, and with the demo once turned on, where left out (reviews cost tokens). */
 const codeReviews = (saved: Partial<CodeReviewSetting> | undefined): CodeReviewSetting => ({ on: saved?.on === true, mode: saved?.mode === 'manual' ? 'manual' : 'auto' });
 
-/** The groups a canvas sets a model or effort of its own for, without those it leaves to Configuration. */
-function canvasAgents(saved: CanvasAgents | undefined): CanvasAgents {
-  const out: CanvasAgents = {};
+/** The groups a project sets a model or effort of its own for, without those it leaves to Configuration. */
+function projectAgents(saved: ProjectAgents | undefined): ProjectAgents {
+  const out: ProjectAgents = {};
   for (const role of AGENT_ROLES) {
     const { harness, model, effort, codex, agy } = saved?.[role] ?? {};
     if (harness || model || effort || codex || agy) out[role] = { ...(harness ? { harness } : {}), ...(model ? { model } : {}), ...(effort ? { effort } : {}), ...(codex ? { codex } : {}), ...(agy ? { agy } : {}) };
@@ -188,68 +188,68 @@ function canvasAgents(saved: CanvasAgents | undefined): CanvasAgents {
 }
 
 /**
- * Each canvas setting as it applies, from its value as saved (none: its built-in default). A setting
- * added to `CanvasSettings` needs its entry here, and with it a value in Canvas defaults.
+ * Each project setting as it applies, from its value as saved (none: its built-in default). A setting
+ * added to `ProjectSettings` needs its entry here, and with it a value in Project defaults.
  */
-export const CANVAS_SETTINGS: { [K in keyof CanvasSettings]-?: (saved: CanvasSettings[K]) => CanvasDefaults[K] } = {
+export const PROJECT_SETTINGS: { [K in keyof ProjectSettings]-?: (saved: ProjectSettings[K]) => ProjectDefaults[K] } = {
   suggest: suggestToggles,
   planBaselines: (saved) => saved !== false,
   // the owner archives by hand where left out
   archive: (saved) => (saved === 'landed' ? 'landed' : 'manual'),
-  // the default of every canvas's models is Configuration's "Agents and models": none of its own
-  agents: canvasAgents,
+  // the default of every project's models is Configuration's "Agents and models": none of its own
+  agents: projectAgents,
   codeReviews,
-  // chosen per canvas, from this machine's sites: a new canvas has none until it chooses one
+  // chosen per project, from this machine's sites: a new project has none until it chooses one
   demoSite,
 };
 
-/** A value that says nothing: an empty group of a canvas's own models is not saved. */
+/** A value that says nothing: an empty group of a project's own models is not saved. */
 const empty = (v: unknown) => v === null || (!!v && typeof v === 'object' && !Object.keys(v).length);
 
-const canvasSetting = <K extends keyof CanvasSettings>(key: K, saved: CanvasSettings[K]): CanvasDefaults[K] => (CANVAS_SETTINGS[key] as (value: CanvasSettings[K]) => CanvasDefaults[K])(saved);
+const projectSetting = <K extends keyof ProjectSettings>(key: K, saved: ProjectSettings[K]): ProjectDefaults[K] => (PROJECT_SETTINGS[key] as (value: ProjectSettings[K]) => ProjectDefaults[K])(saved);
 
-const canvasSettingKeys = Object.keys(CANVAS_SETTINGS) as (keyof CanvasSettings)[];
+const projectSettingKeys = Object.keys(PROJECT_SETTINGS) as (keyof ProjectSettings)[];
 
-/** `s` with each canvas setting it holds as it applies; those it leaves out stay out. */
-export function tidyCanvasSettings(s: CanvasSettings): CanvasSettings {
-  return Object.fromEntries(canvasSettingKeys.filter((k) => s[k] !== undefined).map((k) => [k, canvasSetting(k, s[k])]).filter(([, v]) => !empty(v)));
+/** `s` with each project setting it holds as it applies; those it leaves out stay out. */
+export function tidyProjectSettings(s: ProjectSettings): ProjectSettings {
+  return Object.fromEntries(projectSettingKeys.filter((k) => s[k] !== undefined).map((k) => [k, projectSetting(k, s[k])]).filter(([, v]) => !empty(v)));
 }
 
-/** A canvas's settings as they apply: what it holds, else each setting's built-in value. */
-export const appliedCanvasSettings = (s: CanvasSettings): CanvasDefaults => Object.fromEntries(canvasSettingKeys.map((k) => [k, canvasSetting(k, s[k])])) as CanvasDefaults;
+/** A project's settings as they apply: what it holds, else each setting's built-in value. */
+export const appliedProjectSettings = (s: ProjectSettings): ProjectDefaults => Object.fromEntries(projectSettingKeys.map((k) => [k, projectSetting(k, s[k])])) as ProjectDefaults;
 
-export { canvasAgentSetting } from '../core/types';
+export { projectAgentSetting } from '../core/types';
 
-/** Canvas defaults as they apply: the owner's, else each setting's built-in value. */
-export function canvasDefaults(home: string): CanvasDefaults {
-  const saved = read(home).canvasDefaults ?? {};
-  return Object.fromEntries(canvasSettingKeys.map((k) => [k, canvasSetting(k, saved[k])])) as CanvasDefaults;
+/** Project defaults as they apply: the owner's, else each setting's built-in value. */
+export function projectDefaults(home: string): ProjectDefaults {
+  const saved = read(home).projectDefaults ?? {};
+  return Object.fromEntries(projectSettingKeys.map((k) => [k, projectSetting(k, saved[k])])) as ProjectDefaults;
 }
 
-export const canvasDefaultsView = (home: string): CanvasDefaultsView => ({ file: join(home, SETTINGS_FILE), defaults: canvasDefaults(home) });
+export const projectDefaultsView = (home: string): ProjectDefaultsView => ({ file: join(home, SETTINGS_FILE), defaults: projectDefaults(home) });
 
 /**
- * Saves the Canvas defaults given (`{ suggest: { … } }`); the canvases there are keep their own. Other settings in the file stay.
- * A canvas's models have Configuration's "Agents and models" as their default, and its demo site is
- * chosen on each canvas, so neither is among them.
+ * Saves the Project defaults given (`{ suggest: { … } }`); the projects there are keep their own. Other settings in the file stay.
+ * A project's models have Configuration's "Agents and models" as their default, and its demo site is
+ * chosen on each project, so neither is among them.
  */
-export function saveCanvasDefaults(home: string, input: unknown): CanvasDefaultsView {
-  const parsed = canvasSettingsShape.omit({ agents: true, demoSite: true }).strict().safeParse(input);
-  if (!parsed.success) throw new BadRequest('invalid', `canvas defaults: ${z.prettifyError(parsed.error)}`);
-  save(home, 'canvasDefaults', { ...canvasDefaults(home), ...tidyCanvasSettings(parsed.data) }, 'canvas defaults');
-  return canvasDefaultsView(home);
+export function saveProjectDefaults(home: string, input: unknown): ProjectDefaultsView {
+  const parsed = projectSettingsShape.omit({ agents: true, demoSite: true }).strict().safeParse(input);
+  if (!parsed.success) throw new BadRequest('invalid', `project defaults: ${z.prettifyError(parsed.error)}`);
+  save(home, 'projectDefaults', { ...projectDefaults(home), ...tidyProjectSettings(parsed.data) }, 'project defaults');
+  return projectDefaultsView(home);
 }
 
 /**
- * The configuration with Canvas defaults copied into each canvas `isNew` takes, for every setting
- * it does not set itself; the other canvases stay as they are.
+ * The configuration with Project defaults copied into each project `isNew` takes, for every setting
+ * it does not set itself; the other projects stay as they are.
  */
-export function withCanvasDefaults<C extends CanvasSettings>(canvases: C[], defaults: CanvasDefaults, isNew: (c: C, i: number) => boolean): C[] {
-  return canvases.map((c, i) => (isNew(c, i) ? { ...c, ...Object.fromEntries(canvasSettingKeys.filter((k) => c[k] === undefined && !empty(defaults[k])).map((k) => [k, defaults[k]])) } : c));
+export function withProjectDefaults<C extends ProjectSettings>(projects: C[], defaults: ProjectDefaults, isNew: (c: C, i: number) => boolean): C[] {
+  return projects.map((c, i) => (isNew(c, i) ? { ...c, ...Object.fromEntries(projectSettingKeys.filter((k) => c[k] === undefined && !empty(defaults[k])).map((k) => [k, defaults[k]])) } : c));
 }
 
 /** Saves one of the owner's choices, or with `null` takes it out; the other settings in the file stay. */
-function save<K extends 'language' | 'conversationLanguage' | 'theme' | 'motion' | 'remote' | 'usageMeter' | 'codexAutoReview' | 'feedbackPrompt' | 'notifications' | 'canvasDefaults'>(home: string, key: K, value: Settings[K] | null, what: string) {
+function save<K extends 'language' | 'conversationLanguage' | 'theme' | 'motion' | 'remote' | 'usageMeter' | 'codexAutoReview' | 'feedbackPrompt' | 'notifications' | 'projectDefaults'>(home: string, key: K, value: Settings[K] | null, what: string) {
   write(home, { ...read(home), [key]: value ?? undefined });
   console.log(`Seismic: ${what} saved to ${join(home, SETTINGS_FILE)}`);
 }

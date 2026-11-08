@@ -16,7 +16,7 @@ function fb(configs: WorkConfig[], answer: Feedback['answer'], more: Partial<Fee
     id: n,
     cardId: `card-${n}`,
     short: `k${n}`,
-    canvasId: 'c',
+    projectId: 'c',
     handover: n,
     title: `Card ${n}`,
     repo: 'home',
@@ -70,21 +70,21 @@ test('nothing given is an empty table', () => {
   expect(performance([])).toEqual({ rows: [], responses: 0, ratings: 0, uncredited: 0 });
 });
 
-test('filters by canvas, repository, plan and since when; the choices are what responses were given in', () => {
+test('filters by project, repository, plan and since when; the choices are what responses were given in', () => {
   const list = [
-    fb([opusHigh], { rating: 5 }, { canvasId: 'a', repo: 'web', plan: { id: 'p1', title: 'Billing' }, at: '2026-09-01T00:00:00.000Z' }),
-    fb([opusHigh], { rating: 4 }, { canvasId: 'b', repo: 'api', at: '2026-11-01T00:00:00.000Z' }),
+    fb([opusHigh], { rating: 5 }, { projectId: 'a', repo: 'web', plan: { id: 'p1', title: 'Billing' }, at: '2026-09-01T00:00:00.000Z' }),
+    fb([opusHigh], { rating: 4 }, { projectId: 'b', repo: 'api', at: '2026-11-01T00:00:00.000Z' }),
     // changed lately: counts from its change
-    fb([sonnet], { rating: 2 }, { canvasId: 'a', repo: 'api', plan: { id: 'p2', title: 'Auth' }, at: '2026-08-01T00:00:00.000Z', updatedAt: '2026-10-30T00:00:00.000Z' }),
+    fb([sonnet], { rating: 2 }, { projectId: 'a', repo: 'api', plan: { id: 'p2', title: 'Auth' }, at: '2026-08-01T00:00:00.000Z', updatedAt: '2026-10-30T00:00:00.000Z' }),
   ];
   const ids = (f: Parameters<typeof filterFeedback>[1]) => filterFeedback(list, f).map((x) => x.id);
   expect(ids({})).toEqual(list.map((x) => x.id));
-  expect(ids({ canvas: 'a' })).toEqual([list[0]!.id, list[2]!.id]);
+  expect(ids({ project: 'a' })).toEqual([list[0]!.id, list[2]!.id]);
   expect(ids({ repo: 'api' })).toEqual([list[1]!.id, list[2]!.id]);
   expect(ids({ plan: 'p1' })).toEqual([list[0]!.id]);
   expect(ids({ since: '2026-10-15T00:00:00.000Z' })).toEqual([list[1]!.id, list[2]!.id]);
-  expect(ids({ canvas: 'b', plan: 'p1' })).toEqual([]);
-  expect(filterChoices(list)).toEqual({ canvases: ['a', 'b'], repos: ['api', 'web'], plans: [{ id: 'p2', title: 'Auth' }, { id: 'p1', title: 'Billing' }] });
+  expect(ids({ project: 'b', plan: 'p1' })).toEqual([]);
+  expect(filterChoices(list)).toEqual({ projects: ['a', 'b'], repos: ['api', 'web'], plans: [{ id: 'p2', title: 'Auth' }, { id: 'p1', title: 'Billing' }] });
 });
 
 test('the trend is each row’s average per month, over every month from the first to the last', () => {

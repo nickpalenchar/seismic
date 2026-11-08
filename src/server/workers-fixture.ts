@@ -43,7 +43,7 @@ export const setLanguage = (l: 'de' | 'en') => void (language = l);
 export const setConversation = (l: 'de' | 'en') => void (conversation = l);
 
 /** `withOrigin`: clones come from a bare `origin`, as from a remote, instead of from the checkout. */
-/** `share`: the canvas shares demos on a site, with this vocabulary of tags where it names one. */
+/** `share`: the project shares demos on a site, with this vocabulary of tags where it names one. */
 export function setup(adapter: RepoAdapter, withOrigin = false, share?: { tags?: PageTags }) {
   dir = mkdtempSync(join(tmpdir(), 'obeya-workers-'));
   main = join(dir, 'main');

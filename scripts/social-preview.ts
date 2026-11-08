@@ -1,6 +1,6 @@
 // The repository's social preview on GitHub (the picture a link to github.com/sadilek/obeya shows
 // when it is shared): 1280×640, the wordmark and the site's headline beside the site's screenshot of
-// the canvas (`site/img/canvas.png`), in the site's palette and type. GitHub's API cannot set it: the
+// the project (`site/img/project.png`), in the site's palette and type. GitHub's API cannot set it: the
 // owner uploads the PNG under the repository's Settings → General → Social preview.
 //
 //   bun scripts/social-preview.ts [out.png]     (default dist/social-preview.png; needs Google Chrome)
@@ -20,7 +20,7 @@ const html = `<!doctype html>
   .text { position: absolute; left: 56px; top: 0; bottom: 0; width: 380px; display: flex; flex-direction: column; justify-content: center; }
   .text h1 { font-size: 46px; letter-spacing: -0.02em; margin: 40px 0 28px; }
   .text .eyebrow { margin: 0; font-size: 14px; }
-  .canvas { position: absolute; left: 464px; top: 105px; width: 760px; }
+  .project { position: absolute; left: 464px; top: 105px; width: 760px; }
 </style></head>
 <body>
   <div class="text">
@@ -28,7 +28,7 @@ const html = `<!doctype html>
     <h1>Direct coding agents like an engineering director.</h1>
     <p class="eyebrow">Open source · runs on your machine · obeya.si</p>
   </div>
-  <img class="canvas shot" src="img/canvas.png" alt="">
+  <img class="project shot" src="img/project.png" alt="">
 </body></html>`;
 
 // the page and the site's files from one origin, so the browser loads its fonts

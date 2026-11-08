@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CanvasRuntime } from './canvas';
+import { ProjectRuntime } from './project';
 import { Store } from './db';
 import { FakeRuntime, gitRepo, noForge, until } from './testing';
 
@@ -10,9 +10,9 @@ let dir: string;
 let main: string;
 let store: Store;
 let runtime: FakeRuntime;
-let canvas: CanvasRuntime;
+let project: ProjectRuntime;
 
-const open = () => new CanvasRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, permissionMode: 'acceptEdits', limitMargin: 10 });
+const open = () => new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, permissionMode: 'acceptEdits', limitMargin: 10 });
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'obeya-ahead-'));
@@ -20,14 +20,14 @@ beforeEach(() => {
   gitRepo(main);
   store = new Store(':memory:');
   runtime = new FakeRuntime();
-  canvas = open();
+  project = open();
 });
 afterEach(() => {
-  canvas.shutdown();
+  project.shutdown();
   rmSync(dir, { recursive: true, force: true });
 });
 
-const board = () => canvas.board;
+const board = () => project.board;
 const asker = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'answer_owner')).at(-1)!;
 const talk = (id: string) => board().events(id).filter((e) => e.kind === 'talk').map((e) => [e.author, e.text]);
 const planned = () => board().create({ title: 'Export invoices', body: 'Add a PDF export.', x: 0, y: 0 });
@@ -43,7 +43,7 @@ async function answers(text: string) {
 describe('asking on a card before its start', () => {
   test('words on a planned card are answered by an agent while the card stays planned', async () => {
     const card = planned();
-    canvas.tell(card.id, 'Is there a PDF library already?', [], false);
+    project.tell(card.id, 'Is there a PDF library already?', [], false);
     await until(() => asker());
     expect(asker().inbox[0]).toContain('Is there a PDF library already?');
     expect(asker().inbox[0]).toContain('Add a PDF export.');
@@ -62,11 +62,11 @@ describe('asking on a card before its start', () => {
 
   test('the next message resumes the session and what comes during a turn waits for the next one, unread', async () => {
     const card = planned();
-    canvas.tell(card.id, 'First?', [], false);
+    project.tell(card.id, 'First?', [], false);
     await until(() => asker());
     const first = asker();
     first.emit({ type: 'session', id: 's-1' });
-    canvas.tell(card.id, 'And second?', [], false);
+    project.tell(card.id, 'And second?', [], false);
     const waiting = board().events(card.id).find((e) => e.text === 'And second?')!;
     expect(waiting.unread).toBe(true);
     await answers('One.');
@@ -84,11 +84,11 @@ describe('asking on a card before its start', () => {
 
   test('a session that cannot be resumed is replaced by one that gets the conversation so far', async () => {
     const card = planned();
-    canvas.tell(card.id, 'First?', [], false);
+    project.tell(card.id, 'First?', [], false);
     await until(() => asker());
     asker().emit({ type: 'session', id: 's-1' });
     await answers('One.');
-    canvas.tell(card.id, 'Second?', [], false);
+    project.tell(card.id, 'Second?', [], false);
     await until(() => asker().spec.resume === 's-1');
     asker().emit({ type: 'error', message: 'no conversation found' });
     await until(() => !asker().spec.resume && asker().inbox[0]?.includes('First?'));
@@ -99,10 +99,10 @@ describe('asking on a card before its start', () => {
 
   test('the worker that starts the card gets the conversation with its task', async () => {
     const card = planned();
-    canvas.tell(card.id, 'Should it use jsPDF?', [], false);
+    project.tell(card.id, 'Should it use jsPDF?', [], false);
     await until(() => asker());
     await answers('Yes, it is small.');
-    canvas.act(card.id, { action: 'start' });
+    project.act(card.id, { action: 'start' });
     await until(() => runtime.sessions.some((s) => s.spec.role === 'worker'));
     const worker = runtime.sessions.find((s) => s.spec.role === 'worker')!;
     expect(worker.inbox[0]).toContain('Add a PDF export.');
@@ -112,14 +112,14 @@ describe('asking on a card before its start', () => {
 
   test('pausing ends the turn and keeps the question; resuming answers it', async () => {
     const card = planned();
-    canvas.tell(card.id, 'Question?', [], false);
+    project.tell(card.id, 'Question?', [], false);
     await until(() => asker());
     const first = asker();
-    canvas.act(card.id, { action: 'pause' });
+    project.act(card.id, { action: 'pause' });
     await until(() => first.closed);
     expect(board().item(card.id)?.paused).toBeTruthy();
     expect(board().item(card.id)?.inTurn).toBeUndefined();
-    canvas.act(card.id, { action: 'resume' });
+    project.act(card.id, { action: 'resume' });
     await until(() => asker() !== first);
     expect(asker().inbox[0]).toContain('Question?');
     await answers('Answer.');
@@ -128,11 +128,11 @@ describe('asking on a card before its start', () => {
 
   test('words not read yet can be taken back', async () => {
     const card = planned();
-    canvas.tell(card.id, 'First?', [], false);
+    project.tell(card.id, 'First?', [], false);
     await until(() => asker());
-    canvas.tell(card.id, 'Never mind this.', [], false);
+    project.tell(card.id, 'Never mind this.', [], false);
     const id = board().events(card.id).find((e) => e.text === 'Never mind this.')!.id;
-    canvas.act(card.id, { action: 'unsay', id });
+    project.act(card.id, { action: 'unsay', id });
     await answers('One.');
     expect(talk(card.id).map(([, t]) => t)).toEqual(['First?', 'One.']);
     expect(runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'answer_owner'))).toHaveLength(1);
@@ -141,18 +141,18 @@ describe('asking on a card before its start', () => {
   test('a stopped card keeps the notes for its worker: nothing answers them', () => {
     const card = planned();
     board().work(card.id, { branch: 'obeya/export', session_id: 'earlier' });
-    canvas.tell(card.id, 'Remember the logo.', [], false);
+    project.tell(card.id, 'Remember the logo.', [], false);
     expect(runtime.sessions.some((s) => s.spec.tools.some((t) => t.name === 'answer_owner'))).toBe(false);
     expect(board().events(card.id).some((e) => e.kind === 'hint' && e.unread)).toBe(true);
   });
 
   test('a question left unanswered by a restart is answered after it', async () => {
     const card = planned();
-    canvas.tell(card.id, 'Before the restart?', [], false);
+    project.tell(card.id, 'Before the restart?', [], false);
     await until(() => asker());
-    canvas.shutdown();
+    project.shutdown();
     runtime = new FakeRuntime();
-    canvas = open();
+    project = open();
     await until(() => runtime.sessions.some((s) => s.spec.tools.some((t) => t.name === 'answer_owner')));
     expect(asker().inbox[0]).toContain('Before the restart?');
   });

@@ -53,8 +53,8 @@ export function sizeOf(i: Item, all: Item[]): [number, number] {
   return [w, h];
 }
 
-/** The items the canvas shows: all but the workstreams of a collapsed plan, and a card merged with a proposal, which shows within it. */
-export function onCanvas(items: Item[]): Item[] {
+/** The items the project shows: all but the workstreams of a collapsed plan, and a card merged with a proposal, which shows within it. */
+export function onProject(items: Item[]): Item[] {
   const collapsed = new Set(items.flatMap((i) => (i.collapsed ? [i.id] : [])));
   return collapsed.size || items.some((i) => i.mergingInto) ? items.filter((i) => !i.mergingInto && (!i.parent || !collapsed.has(i.parent))) : items;
 }
@@ -187,7 +187,7 @@ export function arrangeWorkstreams(ws: Arrangeable[]): Map<string, { x: number; 
 /**
  * The spot nearest `want` where a card of `size` keeps GAP clear of everything in `taken`. Besides
  * `want` itself, the candidates are the positions flush beside the edges of what is taken; right of
- * everything there is always room. With `within` (the part of the canvas the owner has in view),
+ * everything there is always room. With `within` (the part of the project the owner has in view),
  * `want` moves inside it first and a free spot wholly inside it wins over a nearer one partly out.
  */
 export function freeSpotNear(want: { x: number; y: number }, size: readonly [number, number], taken: Bounds[], within?: Bounds): { x: number; y: number } {
@@ -217,7 +217,7 @@ export function freeSpotNear(want: { x: number; y: number }, size: readonly [num
   return best;
 }
 
-/** Where a new card should go: centred as near this point as there is room, inside `view` (the canvas the owner has in view) if there is room there. */
+/** Where a new card should go: centred as near this point as there is room, inside `view` (the project the owner has in view) if there is room there. */
 export interface Place {
   x: number;
   y: number;
@@ -247,7 +247,7 @@ export function planDirNoteHeight(d: PlanDir): number {
 /** Where the owner put the note on a plan directory, about; none while it stands beside the plans. */
 export const planDirNoteBox = (d: PlanDir): Bounds | undefined => d.at && { ...d.at, w: PLAN_DIR_NOTE_W, h: planDirNoteHeight(d) };
 
-/** Places new plans in a roughly square grid of columns below everything already on the canvas. */
+/** Places new plans in a roughly square grid of columns below everything already on the project. */
 export function placePlans(existing: Bounds | null, sizes: [number, number][]): { x: number; y: number }[] {
   const x0 = existing?.x ?? 0;
   let y = existing ? existing.y + existing.h + PLAN_GAP * 2 : 0;

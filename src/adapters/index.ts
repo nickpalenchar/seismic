@@ -30,7 +30,7 @@ const LIVE = SHARED_FIELDS.filter((f) => f !== 'workstations');
  * The repository's settings (`RepoSettings`: its `.obeya/settings.json` with this machine's in
  * front) in front of the defaults, each read from `settings` whenever it is asked for, so that a
  * changed value applies without a restart. `workstations` is read once: clones or worktrees are set
- * up when the canvas starts. Clones the configuration names (`clones`) go before the setting.
+ * up when the project starts. Clones the configuration names (`clones`) go before the setting.
  */
 export function withSettings(a: RepoAdapter, settings: () => RepoSettings | undefined, clones = false): RepoAdapter {
   const set = settings()?.workstations;

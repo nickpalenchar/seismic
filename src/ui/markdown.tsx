@@ -36,7 +36,7 @@ function bareUrl(s: string): string {
 
 /**
  * How a link to a card's address (`/p/<project>/c/<code>`) shows: as a smart link where the text
- * is shown among the canvas's cards; null for a link it does not take, which shows as its text.
+ * is shown among the project's cards; null for a link it does not take, which shows as its text.
  */
 export const CardRefs = createContext<((href: string, text: string) => ReactNode | null) | null>(null);
 

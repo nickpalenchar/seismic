@@ -8,13 +8,13 @@ const site = { id: 'site', name: 'Site' };
 const app = { id: 'app', name: 'App' };
 const w = (items: Item[], t: Talk[] = []): Waiting => ({ items, talk: t });
 
-test('entries of every canvas come in one list, the longest wait first', () => {
+test('entries of every project come in one list, the longest wait first', () => {
   const e = inboxEntries([site, app], {
     site: w([card('s-new', '2026-11-05T10:00:00Z'), card('s-old', '2026-11-05T08:00:00Z')]),
     app: w([card('a-mid', '2026-11-05T09:00:00Z')]),
   });
   expect(e.map((x) => x.card?.id)).toEqual(['s-old', 'a-mid', 's-new']);
-  expect(e.map((x) => x.canvasName)).toEqual(['Site', 'App', 'Site']);
+  expect(e.map((x) => x.projectName)).toEqual(['Site', 'App', 'Site']);
 });
 
 test('Seismic’s latest unread answer is an entry, placed by when it came', () => {
@@ -23,11 +23,11 @@ test('Seismic’s latest unread answer is an entry, placed by when it came', () 
     app: w([], [talk(1, '2026-11-05T07:00:00Z'), talk(2, '2026-11-05T09:00:00Z'), talk(3, '2026-11-05T10:00:00Z', false)]),
   });
   expect(e.map((x) => x.key)).toEqual(['site/s', 'app/obeya']);
-  expect(e[1]).toMatchObject({ canvas: 'app', text: 'answer 2', since: '2026-11-05T09:00:00Z' });
+  expect(e[1]).toMatchObject({ project: 'app', text: 'answer 2', since: '2026-11-05T09:00:00Z' });
   expect(e[1]!.card).toBeUndefined();
 });
 
-test('equal waits keep the canvases’ order and, within one, Tab’s', () => {
+test('equal waits keep the projects’ order and, within one, Tab’s', () => {
   const at = '2026-11-05T08:00:00Z';
   const e = inboxEntries([app, site], { site: w([card('s1', at), card('s2', at)]), app: w([card('a1', at)]) });
   expect(e.map((x) => x.card?.id)).toEqual(['a1', 's1', 's2']);
@@ -54,18 +54,18 @@ test('what the entry waits for: the question, else the handover’s summary', ()
   expect(e.map((x) => x.text)).toEqual(['Which one?', 'Done it.']);
 });
 
-test('a canvas the server has not reported yet adds nothing', () => {
+test('a project the server has not reported yet adds nothing', () => {
   expect(inboxEntries([site], {})).toEqual([]);
 });
 
- test('rule and setting proposals count separately on their canvas', () => {
+ test('rule and setting proposals count separately on their project', () => {
   const entries = inboxEntries([site, app], { site: { ...w([]), preferences: [{ id: 1, state: 'proposed', text: 'A rule' }, { id: 2, state: 'active', text: 'Active' }], settingProposals: [{ id: 1, repo: 'r', field: 'checks', value: 'test', basis: 'Check it', cards: [] }] }, app: w([]) });
   expect(entries.map((e) => e.key)).toEqual(['site/preference/1', 'site/setting/1']);
   expect(waitingCount(entries, 'site')).toBe(2);
  });
 
 
-test('mobile puts the latest card update first across canvases, including a refreshed handover', () => {
+test('mobile puts the latest card update first across projects, including a refreshed handover', () => {
   const old = '2026-11-05T08:00:00Z';
   const mid = '2026-11-05T09:00:00Z';
   const latest = '2026-11-05T10:00:00Z';

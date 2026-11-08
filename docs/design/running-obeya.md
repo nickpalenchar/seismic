@@ -4,11 +4,11 @@ A chapter of the [design doc](../design.md), whose header says how it is written
 
 ### Server
 
-Bun, TypeScript. HTTP + WebSocket to the UI, one API per canvas (`/api/c/<project>/…`,
-`/api/canvases` lists them); SQLite under `~/.obeya/`. `obeya <repo>…` starts one canvas with the
-given repositories (`--name` names it); `obeya` starts the canvases `~/.obeya/canvases.json` lists,
+Bun, TypeScript. HTTP + WebSocket to the UI, one API per project (`/api/c/<project>/…`,
+`/api/projects` lists them); SQLite under `~/.obeya/`. `obeya <repo>…` starts one project with the
+given repositories (`--name` names it); `obeya` starts the projects `~/.obeya/projects.json` lists,
 `obeya --config <file>` those of another file. Without that file (the first start) it serves no
-canvas, and the page is the setup assistant (see Setup assistant).
+project, and the page is the setup assistant (see Setup assistant).
 
 One Seismic per home: a running one writes its port and its supervisor's pid into `server.json` in
 its home, and a second start on that home says where the first runs and
@@ -21,7 +21,7 @@ where the new one is not set. What Seismic sets for its agents and the skills (`
 `SEISMIC_HOME`, `SEISMIC_AGENT_PID`, `SEISMIC_HOLDS_VOICE`) it sets under both names, since older checkouts
 and running agents still read the old ones.
 
-The app and a checkout share the home (`SEISMIC_HOME` moves it for both): canvases, settings, voices,
+The app and a checkout share the home (`SEISMIC_HOME` moves it for both): projects, settings, voices,
 models and worktrees carry over, and workers one paused the other resumes. The database starts from
 the schema Seismic was released with; later changes are migrations. An Seismic older than the database
 (`PRAGMA user_version` above its migrations) leaves it alone and says to update; a database a
@@ -131,15 +131,15 @@ switch's hint says. Workers on SSH hosts keep Seismic's machine awake, not their
 
 #### The phone view
 
-On a phone the page shows the phone view instead of the canvas, at the same address and from the
+On a phone the page shows the phone view instead of the project, at the same address and from the
 same bundle. A phone is a device with a coarse pointer whose screen's shorter side is under 600 px;
-a tablet and a narrow window at the desk keep the canvas. `?view=phone` or `?view=canvas` decides
-instead. The view is settled at load; turning the phone does not switch it. It uses each canvas's
+a tablet and a narrow window at the desk keep the project. `?view=phone` or `?view=project` decides
+instead. The view is settled at load; turning the phone does not switch it. It uses each project's
 own WebSocket. It shows four lists:
 
-- **"Needs you"**: the inbox (see The bar): what waits for the owner across every canvas in one
+- **"Needs you"**: the inbox (see The bar): what waits for the owner across every project in one
   list, most recently updated first, Seismic's unread answers among them. A new demo or another
-  card update moves that card to the top. Each entry names its canvas, says
+  card update moves that card to the top. Each entry names its project, says
   what it waits for (its state line: "Demo ready", "Question for you" …) and since when (the server
   keeps that across restarts), with the same one-click replies and "Go to card". Snoozed cards stand
   at the end (see Snoozing a card). The desktop's inbox shows the same entries with the longest
@@ -149,7 +149,7 @@ own WebSocket. It shows four lists:
   at the end. Every card that leaves "Needs you" without being done stands here.
 - **"Planned"**: the tasks no agent has started yet and that wait for nobody: planned ones (a follow-up
   the owner accepted, say), stopped ones, and those set to start at a time. Opened, a card offers
-  what it does on the canvas ("Start agent", "Later"), so a task can be started from the phone.
+  what it does on the project ("Start agent", "Later"), so a task can be started from the phone.
   Without this list an accepted proposal left the phone until it was started (2026-10-31).
 - **"Done"**: the finished cards that are not archived yet, those the archive's "Archive … done tasks" would take, and none the lists above hold.
 
@@ -158,20 +158,20 @@ hold many cards the owner rarely needs on the phone. Opened, the head moves up t
 cards show; it stays open while a card is open and over a reload, and is closed again in a new tab.
 Without such cards it is not there.
 
-The cards look as on the canvas, as wide as the screen and without the pin, their kind line led by
-the canvas's name where there are several; where two of at least
+The cards look as on the project, as wide as the screen and without the pin, their kind line led by
+the project's name where there are several; where two of at least
 340 px fit (the phone turned) they stand side by side.
 
-*Seismic's conversation* is a panel over the list, opened by the canvas's speech-bubble button with its
-unread count across canvases, left of the microphone at a finger's size, or by the card "Seismic answered". With several canvases a picker right of the microphone names whose Seismic it is, which
-is also whom the microphone speaks to with no card open (none with one canvas or a card open). The
+*Seismic's conversation* is a panel over the list, opened by the project's speech-bubble button with its
+unread count across projects, left of the microphone at a finger's size, or by the card "Seismic answered". With several projects a picker right of the microphone names whose Seismic it is, which
+is also whom the microphone speaks to with no card open (none with one project or a card open). The
 button opens the conversation an answer waits in when the picked one has none, and the picker
 follows. The panel holds the conversation, its field and below it room for the microphone, which
 never stands over the field; only the conversation scrolls. Its address is `?talk`; its answers count
 as read once it is open. A card opened from it opens over it; Back returns.
 
 The panel takes the part of the screen the keyboard leaves, its field right above the keyboard, as
-the whole page does (see The canvas, The on-screen keyboard). The panel's top is a grip, its whole row with the title (its buttons aside): the panel follows the finger and stays where let
+the whole page does (see The project, The on-screen keyboard). The panel's top is a grip, its whole row with the title (its buttons aside): the panel follows the finger and stays where let
 go, the page under it scrolling on until all of it can stand above the panel; within 15 % of the screen's top it takes the full height, within 15 % of the bottom it closes;
 let go while moving it glides on, slowing evenly, so a short swipe up fills the screen and one down
 closes it, while a finger still for 50 ms before lifting leaves it where it is. It opens at the full
@@ -181,11 +181,11 @@ The lines above the microphone (Seismic's reply, a confirmation with "Undo", a c
 read) are swiped aside to either side: past a third of their width or flicked they fly out, else
 spring back. Swiping takes nothing back: "Undo" goes unused, a command being read is carried out
 without its confirmation. Until the owner has swiped one in this browser, each line nudges aside once
-as a hint. The canvas has no such gesture.
+as a hint. The project has no such gesture.
 
 *A card* opens full screen at a tap, at its address `/p/<project>/c/<code>` (see Addresses in
-The canvas; a reload or restart opens it again); Back (the
-button, the browser's, Esc) returns to the list where it was scrolled. It is the canvas's detail view
+The project; a reload or restart opens it again); Back (the
+button, the browser's, Esc) returns to the list where it was scrolled. It is the project's detail view
 with the same answer options, demo, approve buttons and undo, its page the only thing that scrolls;
 plan docs and the configuration are not opened from there. Its conversation is in the same panel as
 Seismic's, at the card's address with `?talk`, opened by the button left of the microphone, whose number counts the
@@ -198,18 +198,18 @@ agent or Seismic is at work, the button carries a working card's moving line. Th
 with the first unseen message at the top of the panel, else at its end; new messages carry the
 orange edge (see The conversation). Beside a demo video the panel is a half sheet and the video
 scrolls into the upper half, so a comment at a place in the video ("Comment here" brings the
-panel up with the cursor in the field) is written with the video in view, as on the canvas; turned
+panel up with the cursor in the field) is written with the video in view, as on the project; turned
 sideways the panel opens at the full height there too.
 
-Calls go to the API of the canvas in view; a call or words about a card go to its own canvas's API,
-whichever is in view as they leave (closing a card puts Seismic's canvas in view before its last calls
+Calls go to the API of the project in view; a call or words about a card go to its own project's API,
+whichever is in view as they leave (closing a card puts Seismic's project in view before its last calls
 go).
 
 *A new card* comes from the plus button that stands in the microphone's place on the list (the
 microphone is back there while Seismic's conversation is open, and on an open card): it makes a task
-on the canvas whose Seismic the list speaks to, where there is room on it (the server places a card
+on the project whose Seismic the list speaks to, where there is room on it (the server places a card
 created without a position), and opens it with the cursor in its text. Left without a title, Seismic
-names it from its text; left empty, it goes, as on the canvas. Turned sideways it stands where the
+names it from its text; left empty, it goes, as on the project. Turned sideways it stands where the
 microphone does. The list gave up its microphone for it (owner, 2026-11-06): voice stays in the
 conversation and on cards. Rejected: a plus button beside the microphone.
 
@@ -239,7 +239,7 @@ owner may still tap does not move while something above it comes or goes: the ra
 nearest the microphone, the confirmations above it. Texts that name the space bar name the microphone. Enter breaks the line and only Send sends
 (a phone's Enter is its line break, and a half-written message cannot be taken back). The screenshot
 button offers photo library and camera, and marking a screenshot works with a finger. Drafts are kept
-per tab apart from the canvas's, the field of Seismic's conversation one per canvas.
+per tab apart from the project's, the field of Seismic's conversation one per project.
 
 *Turned sideways* (the screen under 600 px high) the microphone stands at the right edge, halfway up
 under the thumb, in a strip of its own beside the content, with the screenshot button above it, the
@@ -280,7 +280,7 @@ permission (iOS asks only after a tap), and the box stays until it is given or r
 page hands its subscription to the server (`PUT /api/push`) at every load. Over plain HTTP there are
 no pushes; the section "Other devices" says so and which devices have them on.
 
-*What is pushed:* a card that starts waiting for the owner, with what it waits for as the text ("Demo ready", "Question for you" …), its title and, with several canvases, its canvas; a failed landing
+*What is pushed:* a card that starts waiting for the owner, with what it waits for as the text ("Demo ready", "Question for you" …), its title and, with several projects, its project; a failed landing
 ("Landing failed"); a stuck worker (its turn failed or ended twice without a handover and
 Seismic made a question of it: "Agent is stuck"). Not Seismic's answers in its conversation (the
 owner asked from where they are), nor cards waiting already when Seismic starts.
@@ -288,7 +288,7 @@ owner asked from where they are), nor cards waiting already when Seismic starts.
 *Not while the owner uses Seismic:* nothing is pushed while a page on this machine was in use in the
 last three minutes, or while a page on a paired device is in use. A page is in use while in view and
 the owner moved, typed or scrolled or a video played within the last half minute (it reports that
-every 30 s and on coming into view); a canvas left in view with nobody at it holds nothing off. The
+every 30 s and on coming into view); a project left in view with nobody at it holds nothing off. The
 phone view is in use whenever in view, and its hold ends at once when it goes out of view, closes or
 is silent for 45 s. What starts waiting while the owner is there is not pushed later either.
 
@@ -304,16 +304,16 @@ card replaces the earlier.
 the phone view registers a service worker at `/sw.js`; neither needs pairing. The worker shows the
 pushes and keeps the page's shell, served from its cache when the network fails or takes over 3 s.
 So the app opened while the machine sleeps shows the phone view saying Seismic does not answer within
-about 7 s: the page waits 3 s for its language and canvases, then goes on with the browser's language
-and the canvases it last had. The worker requests the page anew rather than passing the request on:
+about 7 s: the page waits 3 s for its language and projects, then goes on with the browser's language
+and the projects it last had. The worker requests the page anew rather than passing the request on:
 Android's Chrome marks a home-screen launch `Sec-Fetch-Site: cross-site`, and passed on it loses
-`Sec-Fetch-Mode: navigate`, so *Its own site* would refuse it. The canvas page registers no worker.
+`Sec-Fetch-Mode: navigate`, so *Its own site* would refuse it. The project page registers no worker.
 
 #### Notifications on the desktop
 
-The canvas page tells the owner at the computer when a card starts to wait for them, by the same
+The project page tells the owner at the computer when a card starts to wait for them, by the same
 rules as the phone's pushes (*What is pushed*; the cards waiting as the page opens, or as another
-canvas is shown, are not news), but only while nobody is looking at the page: it is hidden or its
+project is shown, are not news), but only while nobody is looking at the page: it is hidden or its
 window is not focused. Several at once make one notification. In the app (Tauri) the notification is
 the system's, shown by the shell; in a browser it is the page's own, and clicking it opens the card.
 
@@ -327,7 +327,7 @@ own switch (see above).
 #### Stalls
 
 Seismic's server runs on one thread: while it computes or waits in a synchronous call (a git command,
-say), it answers no page and hears no agent, and the canvas seems frozen. Every stall of half a
+say), it answers no page and hears no agent, and the project seems frozen. Every stall of half a
 second or more goes into the server's output and into `stalls.log` in the home, which outlives
 restarts (past 1 MB it starts afresh, the one before kept as `stalls.previous.log`). An entry gives
 the time, the stall's length, the few places in the code where most of it went with their share
@@ -341,7 +341,7 @@ start per turn of the event loop, the rest in the next; starting one takes the t
 load many milliseconds.
 
 A page reports its own freezes of half a second or more over its WebSocket, and the server logs them
-in the same places, naming the device and the canvas: where the browser says where the time went
+in the same places, naming the device and the project: where the browser says where the time went
 (Chromium's long animation frames: the scripts by what invoked them, and style and layout), the
 largest parts; and the server's messages the page took in during the three seconds before, by type
 and size. Safari and Firefox tell only the length. A page finds its freezes by a heartbeat from a
@@ -392,22 +392,22 @@ taps and swipes into the simulator, which Safari's remote automation cannot) is 
 simulator, Settings › Apps › Safari › Advanced › "Remote Automation" is turned on by hand, so the part
 says so in a line.
 
-#### The first canvas
+#### The first project
 
 On the first start the page ends with "Where is your project?": two cards with a radio button each,
 "Already on this computer" (a folder: a path or the system's folder dialog) and "On GitHub / a
 server" (a clone: `owner/name` through `gh repo clone` where gh is logged in, else by URL; any git
 URL; into the home directory unless another is given). It shows the main branch Seismic found there. A
 folder without git gets the offer to set it up (see Setting up git in a folder), whose confirmation
-also creates the canvas. Seismic writes `canvases.json` (worktrees, or two clones when the repository's
-settings say clones), starts the canvas at once (see Live configuration) and the page opens it, with
+also creates the project. Seismic writes `projects.json` (worktrees, or two clones when the repository's
+settings say clones), starts the project at once (see Live configuration) and the page opens it, with
 a first card that says what to try. Later "Check setup" in the Configuration dialog opens the
-same list over the canvas, without the first canvas. A scratch Seismic with `"setup": true` starts like
+same list over the project, without the first project. A scratch Seismic with `"setup": true` starts like
 a first start.
 
 ### Setting up git in a folder
 
-Where the first canvas or "+ Repository" is given a folder in which git finds no repository, it
+Where the first project or "+ Repository" is given a folder in which git finds no repository, it
 offers "Use without git" (`"git": false` in its entry; see Folders without git) and "Set up a git repository here", each with a line on what it means. The latter first shows what the first
 commit would hold: the folder's entries with file counts and sizes, files from 1 MB listed as large,
 what stays out, and the default `.gitignore` (build output, dependencies, secrets: `node_modules/`,
@@ -461,7 +461,7 @@ recording, and while a command is in its undo window until it has run.
 
 While a restart waits, the status bar shows it at its left in place of "Online" ("Restart waits for N agents", "… for your video", "… for
 your dictation"; with agents only, until when at most); hovering names why and the cards it waits for,
-across canvases, and "Restart now" (`POST /api/restart`) has it go ahead at once, its hover
+across projects, and "Restart now" (`POST /api/restart`) has it go ahead at once, its hover
 saying what that cuts off.
 
 #### Keeping the page
@@ -541,12 +541,12 @@ workers are busy.
   without leaving Seismic).
 - **"Connect a phone" only in the configuration** (2026-10-16): a phone is connected once, so it
   takes no place in the bar. Rejected: a phone icon in the bar.
-- **The phone view is a view of its own in the same page, not the canvas made touch-capable**
+- **The phone view is a view of its own in the same page, not the project made touch-capable**
   (2026-10-16, plan "Seismic from the phone"): readable cards on 390 px mean mostly panning. It goes by
-  coarse pointer and short side, not window width, so a narrow window at the desk keeps the canvas.
-  It reuses the canvas's detail view, conversation, drafts and confirmations rather than copies. One
-  WebSocket per canvas rather than one stream for all: the server's messages stay as they are, and an owner has a
-  handful of canvases.
+  coarse pointer and short side, not window width, so a narrow window at the desk keeps the project.
+  It reuses the project's detail view, conversation, drafts and confirmations rather than copies. One
+  WebSocket per project rather than one stream for all: the server's messages stay as they are, and an owner has a
+  handful of projects.
 - **Done cards on the phone in a list of their own, closed by default** (2026-10-28, the owner):
   the owner wants to see what is done but not archived from the phone, without it pushing what
   waits and what runs further down.
@@ -562,7 +562,7 @@ workers are busy.
   Rejected: ntfy or a messenger (a third party for nothing Web Push lacks); a native app (nothing a
   home-screen web app cannot do here). WebCrypto rather than a library: the two RFCs are a few dozen
   lines, checked against RFC 8291's example. A page at the machine holds pushes off while in use, not
-  merely in view, or a canvas left open would hold them off until the screen locks.
+  merely in view, or a project left open would hold them off until the screen locks.
 - **No pushes while the owner uses the phone view either** (2026-10-17): they add nothing while the
   owner works through the cards there. Its hold ends the moment it goes out of view, not three
   minutes later, so what starts waiting right after the phone is locked is pushed.
@@ -586,10 +586,10 @@ workers are busy.
 - **Programs run without a window on Windows by default, not by an option at each call**
   (2026-11-01): one call forgotten brings the flashing windows back. A program meant to be seen asks
   for its window.
-- **What reacts to a change on the canvas hears of it once the code that changed it is through, once
-  for all it changed** (2026-10-31): a landing or a card moving on changes the canvas dozens of
-  times in a row, and each reaction asks for the canvas as the page sees it, which took a few
-  milliseconds to build on a canvas with hundreds of archived and shared cards; when many cards
+- **What reacts to a change on the project hears of it once the code that changed it is through, once
+  for all it changed** (2026-10-31): a landing or a card moving on changes the project dozens of
+  times in a row, and each reaction asks for the project as the page sees it, which took a few
+  milliseconds to build on a project with hundreds of archived and shared cards; when many cards
   landed one after another, the server stood still for half a second at a time. The cards alone
   (what code reads back between its writes) are built apart from the rest of that view (the sheet's
   outdated pages, the workstations, the notes on the plan directories), and one archived card is built
@@ -602,7 +602,7 @@ workers are busy.
   files are looked at again (a demo deleted by hand shows as gone then); and the reads each change
   makes find their cards through indexes rather than going through the archive. A run of thirty
   landings took a third of a second of CPU on a laptop and a second in CI, now a fifth of that.
-  Rejected: patching only the written card into the canvas's cards (what other cards show depends
+  Rejected: patching only the written card into the project's cards (what other cards show depends
   on it: an idea's prototypes, the waits, a card's place in a queue). The owner's settings file, asked for the
   language with every text the server writes, is read again only once it changed. Rejected: reacting to each change at once and
   only making the view cheaper (the reactions still build it once per change).
@@ -649,5 +649,5 @@ workers are busy.
 - **Tests run a file per process** (`bun test --parallel`, Bun 1.4+, 2026-10-15): one after the other
   the suite took 165 s, mostly waiting for git; in parallel 27 s. The longest file sets the run's
   length, so large test files are split by theme around a shared fixture.
-- **The first canvas is chosen with two cards and radio buttons**: pills read as buttons in a user
+- **The first project is chosen with two cards and radio buttons**: pills read as buttons in a user
   test, not as a choice.

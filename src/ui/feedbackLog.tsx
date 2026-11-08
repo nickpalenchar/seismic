@@ -1,12 +1,12 @@
 // The Agent Feedback Log: a page of its own, opened from the performance dashboard, listing every
-// response the owner gave on agents' work on every canvas, the newest first. It filters by the
+// response the owner gave on agents' work on every project, the newest first. It filters by the
 // dashboard's filters and by whom a response credits and how it rated, and groups by configuration,
-// plan, repository, canvas, week or month. Its filters and grouping stay in the address.
+// plan, repository, project, week or month. Its filters and grouping stay in the address.
 
 import { useEffect, useMemo, useState } from 'react';
 import { creditOf, filtered, filterLog, givenAt, groupLog, LOG_GROUPS, logChoices, logQuery, type LogFilter, type LogGroup, type LogSection, type LogState, PERIODS, readLogQuery } from '../core/feedback-log';
 import { filterChoices } from '../core/performance';
-import type { CanvasInfo, Feedback } from '../core/types';
+import type { ProjectInfo, Feedback } from '../core/types';
 import { projectPath, cardPath, feedbackLogPath } from './address';
 import { api } from './api';
 import { plain } from './markdown';
@@ -16,7 +16,7 @@ import { failText, t } from './strings';
 /** A filter's value for an unknown harness, model or effort (the empty string in the core), as a `<select>` can hold it apart from "all". */
 const UNKNOWN = '-';
 
-export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: string }) {
+export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here: string }) {
   const p = t.performance;
   const l = t.feedbackLog;
   const [all, setAll] = useState<Feedback[] | null>(null);
@@ -40,10 +40,10 @@ export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: 
   const sections = useMemo(() => groupLog(shown, group), [shown, group]);
   const choices = useMemo(() => filterChoices(all ?? []), [all]);
   const credits = useMemo(() => logChoices(all ?? []), [all]);
-  const canvasName = (id: string) => canvases.find((c) => c.id === id)?.name ?? id;
+  const projectName = (id: string) => projects.find((c) => c.id === id)?.name ?? id;
   const ratings = shown.filter((f) => typeof f.answer.rating === 'number').length;
-  // back to the dashboard on the canvas it was opened from, with the filters it shares
-  const shared = logQuery({ filter: { canvas: filter.canvas, repo: filter.repo, plan: filter.plan, period: filter.period } });
+  // back to the dashboard on the project it was opened from, with the filters it shares
+  const shared = logQuery({ filter: { project: filter.project, repo: filter.repo, plan: filter.plan, period: filter.period } });
   const back = `${projectPath(here)}${shared ? `${shared}&` : '?'}performance`;
   const clear = () => setFilter({});
 
@@ -55,8 +55,8 @@ export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: 
         return s.title ? plain(s.title) : l.noPlan;
       case 'repo':
         return s.key || l.noRepo;
-      case 'canvas':
-        return canvasName(s.key);
+      case 'project':
+        return projectName(s.key);
       case 'week':
         return l.week(s.key);
       case 'month':
@@ -112,7 +112,7 @@ export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: 
               </tr>
             )}
             {s.responses.map((f) => (
-              <Row key={f.id} f={f} canvasName={canvasName} without={group} />
+              <Row key={f.id} f={f} projectName={projectName} without={group} />
             ))}
           </tbody>
         ))}
@@ -135,7 +135,7 @@ export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: 
         {all && all.length > 0 && (
           <div className="perf-bar">
             <div className="perf-filters">
-              {choices.canvases.length > 1 && <Choice label={p.filters.canvas} value={filter.canvas} options={choices.canvases.map((id) => ({ id, name: canvasName(id) }))} onChange={(v) => set('canvas', v)} />}
+              {choices.projects.length > 1 && <Choice label={p.filters.project} value={filter.project} options={choices.projects.map((id) => ({ id, name: projectName(id) }))} onChange={(v) => set('project', v)} />}
               {choices.repos.length > 1 && <Choice label={p.filters.repo} value={filter.repo} options={choices.repos.map((id) => ({ id, name: id }))} onChange={(v) => set('repo', v)} />}
               {choices.plans.length > 0 && <Choice label={p.filters.plan} value={filter.plan} options={choices.plans.map(({ id, title }) => ({ id, name: plain(title) }))} onChange={(v) => set('plan', v)} />}
               <label className="perf-choice">
@@ -182,13 +182,13 @@ export function FeedbackLog({ canvases, here }: { canvases: CanvasInfo[]; here: 
 }
 
 /** The columns of what a response is filed under; grouped by one of them, its section heading says it instead. */
-const COLUMNS = ['config', 'plan', 'repo', 'canvas'] as const;
+const COLUMNS = ['config', 'plan', 'repo', 'project'] as const;
 
 const known = (v: string | undefined) => (v === '' ? UNKNOWN : v);
 const unknown = (v: string | undefined) => (v === UNKNOWN ? '' : v);
 
-/** One response: when, its card (a link back to it; a deleted card's title without), stars, comment, whom it credits, plan, repository and canvas. */
-function Row({ f, canvasName, without }: { f: Feedback; canvasName: (id: string) => string; without: LogGroup }) {
+/** One response: when, its card (a link back to it; a deleted card's title without), stars, comment, whom it credits, plan, repository and project. */
+function Row({ f, projectName, without }: { f: Feedback; projectName: (id: string) => string; without: LogGroup }) {
   const p = t.performance;
   const code = f.short ?? f.cardId;
   const name = plain(f.title) || code;
@@ -203,7 +203,7 @@ function Row({ f, canvasName, without }: { f: Feedback; canvasName: (id: string)
             {name} <span className="hint">{p.deleted}</span>
           </span>
         ) : (
-          <a className="link card-link" href={cardPath(f.canvasId, code)}>
+          <a className="link card-link" href={cardPath(f.projectId, code)}>
             {name}
           </a>
         )}
@@ -215,7 +215,7 @@ function Row({ f, canvasName, without }: { f: Feedback; canvasName: (id: string)
       {without !== 'config' && <td className={c ? undefined : 'perf-special'}>{config}</td>}
       {without !== 'plan' && <td>{f.plan ? plain(f.plan.title) : ''}</td>}
       {without !== 'repo' && <td>{f.repo ?? ''}</td>}
-      {without !== 'canvas' && <td>{canvasName(f.canvasId)}</td>}
+      {without !== 'project' && <td>{projectName(f.projectId)}</td>}
     </tr>
   );
 }

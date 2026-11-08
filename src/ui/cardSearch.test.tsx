@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { Item } from '../core/types';
 import { CardSearch } from './cardSearch';
 
-test('the canvas finder omits a card hidden inside a merge proposal', () => {
+test('the project finder omits a card hidden inside a merge proposal', () => {
   const card = (id: string, title: string, more: Partial<Item> = {}) => ({ id, short: id, title, state: 'planned', ...more }) as Item;
   const html = renderToStaticMarkup(createElement(CardSearch, {
     items: [card('hidden', 'Merged login card', { mergingInto: 'proposal' }), card('visible', 'Login settings')],
@@ -14,7 +14,7 @@ test('the canvas finder omits a card hidden inside a merge proposal', () => {
   expect(html).not.toContain('Merged login card');
 });
 
-test('the canvas finder offers cards beyond the link menu’s eight suggestions', () => {
+test('the project finder offers cards beyond the link menu’s eight suggestions', () => {
   const items = Array.from({ length: 12 }, (_, n) => ({ id: `card${n}`, short: `${n}`, title: `Matching card ${n}`, state: 'planned' }) as Item);
   const html = renderToStaticMarkup(createElement(CardSearch, { items, onOpen: () => {}, onClose: () => {} }));
   expect(html).toContain('Matching card 11');

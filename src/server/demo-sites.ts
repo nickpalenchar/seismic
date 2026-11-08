@@ -1,6 +1,6 @@
 // The demo sites this machine publishes to, kept in Seismic's home (`demo-sites.json`), not in any
-// repository: a site is a person's (its credentials are), and a canvas chooses one of them with a
-// path of its own (`CanvasDemoSite`), so several canvases share one site, each under its path.
+// repository: a site is a person's (its credentials are), and a project chooses one of them with a
+// path of its own (`ProjectDemoSite`), so several projects share one site, each under its path.
 //
 // A site Seismic set up at a host (Cloudflare Pages, GitHub Pages) names it and its project there; one
 // entered by hand names its deploy line. On Cloudflare Pages or from a private GitHub repository a
@@ -143,7 +143,7 @@ export const findSite = (home: string, url: string): DemoSiteEntry | undefined =
 /** The site of the list a page's address lies on; none where none of the list has it. */
 export const siteOfPage = (home: string, page: string): DemoSiteEntry | undefined => readSites(home).find((s) => page.startsWith(`${s.url}/`));
 
-/** A site of the list as a canvas shares on it: the title its overview and pages carry, and what the canvas adds. */
+/** A site of the list as a project shares on it: the title its overview and pages carry, and what the project adds. */
 export function demoSite(entry: DemoSiteEntry, title: string, extra: Pick<DemoSite, 'publish' | 'tags'> = {}): DemoSite {
   return {
     title,

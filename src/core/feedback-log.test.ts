@@ -15,7 +15,7 @@ function fb(configs: WorkConfig[], answer: Feedback['answer'], at: string, more:
     id: n,
     cardId: `card-${n}`,
     short: `k${n}`,
-    canvasId: 'c',
+    projectId: 'c',
     handover: n,
     title: `Card ${n}`,
     repo: 'home',
@@ -30,7 +30,7 @@ function fb(configs: WorkConfig[], answer: Feedback['answer'], at: string, more:
 
 const NOW = Date.parse('2026-11-04T12:00:00Z');
 const a = fb([opusHigh], { rating: 5, comment: 'Clean.' }, '2026-11-03', { plan: { id: 'p1', title: 'Voice' } });
-const b = fb([sonnet], { rating: 2 }, '2026-10-20', { repo: 'site', canvasId: 'd' });
+const b = fb([sonnet], { rating: 2 }, '2026-10-20', { repo: 'site', projectId: 'd' });
 const c = fb([opusHigh, codex], { rating: 4 }, '2026-09-01');
 const d = fb([], { comment: 'Only words.' }, '2026-11-02', { plan: { id: 'p2', title: 'Archive' } });
 const e = fb([codex], { rating: 3 }, '2026-08-15', { updatedAt: '2026-11-04T08:00:00.000Z' });
@@ -42,8 +42,8 @@ test('the log lists every response the newest first, by when it was last given',
   expect(ids(filterLog(all, {}, NOW))).toEqual(ids([e, a, d, f, b, c]));
 });
 
-test("the dashboard's filters narrow the log: canvas, repository, plan and period", () => {
-  expect(ids(filterLog(all, { canvas: 'd' }, NOW))).toEqual([b.id]);
+test("the dashboard's filters narrow the log: project, repository, plan and period", () => {
+  expect(ids(filterLog(all, { project: 'd' }, NOW))).toEqual([b.id]);
   expect(ids(filterLog(all, { repo: 'home', plan: 'p1' }, NOW))).toEqual([a.id]);
   // the last 30 days, by when a response was last given: e was changed yesterday
   expect(ids(filterLog(all, { period: '30' }, NOW))).toEqual(ids([e, a, d, f, b]));
@@ -97,22 +97,22 @@ test('grouped by time the newest first; within a section the newest first too', 
   expect(groupLog(filterLog(all, {}, NOW), 'week').map((s) => s.key)).toEqual(['2026-11-02', '2026-10-26', '2026-10-19', '2026-08-31']);
 });
 
-test('grouped by plan, repository or canvas by name, those without one last', () => {
+test('grouped by plan, repository or project by name, those without one last', () => {
   const p = groupLog(filterLog(all, {}, NOW), 'plan');
   expect(p.map((s) => s.title ?? s.key)).toEqual(['Archive', 'Voice', '']);
   expect(groupLog(all, 'repo').map((s) => s.key)).toEqual(['home', 'site']);
-  expect(groupLog(all, 'canvas').map((s) => s.key)).toEqual(['c', 'd']);
+  expect(groupLog(all, 'project').map((s) => s.key)).toEqual(['c', 'd']);
   expect(groupLog(all, 'none')).toHaveLength(1);
   expect(groupLog([], 'month')).toEqual([]);
 });
 
 test('the state round-trips through the query, leaving out what is not set or not known', () => {
-  const state = { filter: { canvas: 'c', plan: 'p1', period: '90' as const, model: '', rating: 'none' }, group: 'week' as const };
+  const state = { filter: { project: 'c', plan: 'p1', period: '90' as const, model: '', rating: 'none' }, group: 'week' as const };
   expect(readLogQuery(logQuery(state))).toEqual(state);
   expect(logQuery({ filter: { period: 'all' }, group: 'none' })).toBe('');
-  expect(readLogQuery('?period=7&rating=9&group=year&canvas=')).toEqual({ filter: {}, group: 'none' });
+  expect(readLogQuery('?period=7&rating=9&group=year&project=')).toEqual({ filter: {}, group: 'none' });
 });
 
-test('reads the old query names project and group=project as plan', () => {
-  expect(readLogQuery('?project=p1&group=project')).toEqual({ filter: { plan: 'p1' }, group: 'plan' });
+test('reads the old query name canvas as project', () => {
+  expect(readLogQuery('?canvas=p1')).toEqual({ filter: { project: 'p1' }, group: 'none' });
 });

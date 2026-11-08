@@ -95,7 +95,7 @@ async function run(harness: Harness, kind: Case) {
   const canary = spawn('python3', ['-c', 'import time\nwhile True: time.sleep(1)'], { detached: true, stdio: 'ignore' });
   canary.unref();
   const result: Record<string, unknown> = { harness, kind };
-  let staged: { port: number; pid: number; dir: string; canvas: string; cards: Record<string, string> } | undefined;
+  let staged: { port: number; pid: number; dir: string; project: string; cards: Record<string, string> } | undefined;
   let seen: Proc[] = [];
   let job = 0;
   let agent: Proc | undefined;
@@ -121,7 +121,7 @@ async function run(harness: Harness, kind: Case) {
     await api('/api/config/trust', { path: join(s.dir, 'repo'), seen: repo.trust.now, held: repo.trust.held });
     const worker = harness === 'codex' ? { model: 'default', effort: 'low', harness: 'codex', codex: { model: 'default', effort: 'low' } } : { model: 'sonnet', effort: 'low' };
     await api('/api/agents', { worker }, 'PUT');
-    await api(`/api/c/${s.canvas}/cards/${id}/act`, { action: 'start' });
+    await api(`/api/c/${s.project}/cards/${id}/act`, { action: 'start' });
 
     // the worker started the heartbeat, asked, and parking asked app.keep, which kept it
     const ready = () => {
@@ -181,7 +181,7 @@ async function run(harness: Harness, kind: Case) {
     if (kind === 'obeya-restart') {
       // the same home, as a supervisor would start it again after the crash
       const log = openSync(join(s.dir, 'server.log'), 'a');
-      const again = spawn(process.execPath, ['src/server/main.ts', '--config', join(s.dir, 'canvases.json'), '--port', String(s.port), '--dev'], {
+      const again = spawn(process.execPath, ['src/server/main.ts', '--config', join(s.dir, 'projects.json'), '--port', String(s.port), '--dev'], {
         cwd: ROOT, env: { ...probeEnv(), SEISMIC_HOME: home }, detached: true, stdio: ['ignore', log, log],
       });
       again.unref();
@@ -189,7 +189,7 @@ async function run(harness: Harness, kind: Case) {
       s.pid = again.pid!;
       let up = false;
       for (let i = 0; i < 240 && !up && alive(s.pid); i++) {
-        up = await fetch(`http://127.0.0.1:${s.port}/api/canvases`, { headers: { 'x-obeya-key': key } }).then((r) => r.ok, () => false);
+        up = await fetch(`http://127.0.0.1:${s.port}/api/projects`, { headers: { 'x-obeya-key': key } }).then((r) => r.ok, () => false);
         if (!up) await Bun.sleep(500);
       }
       await Bun.sleep(3000);

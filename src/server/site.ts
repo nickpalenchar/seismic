@@ -1,13 +1,13 @@
-// A static site Seismic keeps itself, one of this machine's demo sites (demo-sites.ts) as a canvas
+// A static site Seismic keeps itself, one of this machine's demo sites (demo-sites.ts) as a project
 // shares on it: the share target for hosts that take a directory and serve it as it is.
 //
 // The site lives under Seismic's home in `sites/<key>/`, the key made of its URL's host and path, so
-// every canvas sharing on the same site shares one directory (and the one queue all shares go
-// through, `serial` in share.ts). Its `site/` is what is deployed: under each canvas's path (`paths`
+// every project sharing on the same site shares one directory (and the one queue all shares go
+// through, `serial` in share.ts). Its `site/` is what is deployed: under each project's path (`paths`
 // in the manifest; '' for the root) one directory per page with the demo's files, its `index.html`
-// and a `meta.json`, plus that path's overview and feed. A canvas's path is initialized before its
+// and a `meta.json`, plus that path's overview and feed. A project's path is initialized before its
 // first page (`init`): its entry in the manifest, with the title, language, tag vocabulary and
-// theme its overview is written with, so that a deploy from any canvas or machine writes every
+// theme its overview is written with, so that a deploy from any project or machine writes every
 // path's overview alike. A host
 // deployment is a full snapshot of that directory, so each publish or withdrawal changes it and runs
 // the deploy line on the whole of it (`{dir}` in the line stands for it), with the `KEY=value` lines
@@ -94,7 +94,7 @@ interface Meta {
   by?: string;
   /** The later demo versions on the page, in order of handover, each in a directory of the page's (`dir`). */
   more?: MoreMeta[];
-  /** The page's tags from the site's vocabulary (the canvas's), by dimension; absent on pages without. */
+  /** The page's tags from the site's vocabulary (the project's), by dimension; absent on pages without. */
   tags?: PageTags;
 }
 
@@ -165,7 +165,7 @@ export function parseEnv(text: string): Record<string, string> {
 
 class Refused extends Error {}
 
-/** The site's manifest, at its root: every page with its files, the pages withdrawn, and the canvases' paths. */
+/** The site's manifest, at its root: every page with its files, the pages withdrawn, and the projects' paths. */
 export const MANIFEST = 'obeya-site.json';
 
 /** A page in the manifest, or a withdrawn one (a tombstone). Only the machine whose card it is changes a page, so its revision counts up. */
@@ -187,15 +187,15 @@ interface Manifest {
   machine: string;
   at: string;
   pages: Record<string, Entry>;
-  /** The canvases' paths on the site ('' for its root), each with what its overview is written with; absent on sites from before (until 2026-11-06). */
+  /** The projects' paths on the site ('' for its root), each with what its overview is written with; absent on sites from before (until 2026-11-06). */
   paths?: Record<string, PathInfo>;
 }
 
-/** A canvas's path on the site: what its overview and feed are written with. */
+/** A project's path on the site: what its overview and feed are written with. */
 interface PathInfo {
   title: string;
   language: PageLanguage;
-  /** The canvas's vocabulary of tags, for the overview's filter. */
+  /** The project's vocabulary of tags, for the overview's filter. */
   tags?: PageTags;
   /** The theme of the repository that published there last (its CSS), for the overview. */
   theme?: string;
@@ -221,7 +221,7 @@ export interface SiteOptions {
   checkWaits?: number[];
   /** The overview's words: the language the repository names for its demos (`demo.language`); without it the narration language of the demo settings. */
   language?: PageLanguage;
-  /** The canvas's path on the site, where its pages and overview lie (`billing`); '' (the root) without it. Its pages' places start with it. */
+  /** The project's path on the site, where its pages and overview lie (`billing`); '' (the root) without it. Its pages' places start with it. */
   path?: string;
   /** Who the pages published from here say shared them; git's name (`user.name`) in the repository without it. */
   by?: string;
@@ -262,7 +262,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
   const root = site.url.replace(/\/+$/, '');
   const unlisted = !!opts.unlisted;
   const own = opts.path ?? '';
-  /** What the canvas's path is written with now. */
+  /** What the project's path is written with now. */
   const ownInfo = (): PathInfo => {
     const theme = opts.theme?.()?.css;
     return { title: site.title, language: overviewLanguage(), ...(dimensions(site.tags).length ? { tags: site.tags } : {}), ...(theme ? { theme } : {}) };
@@ -431,7 +431,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
         writeFileSync(to, bytes);
       }
       rmSync(join(dir, slug), { recursive: true, force: true });
-      // a page under a canvas's path, or in the random part of its address, lies a level deeper
+      // a page under a project's path, or in the random part of its address, lies a level deeper
       mkdirSync(dirname(join(dir, slug)), { recursive: true });
       mkdirSync(into, { recursive: true });
       renameSync(into, join(dir, slug));
@@ -465,7 +465,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
    * Writes each path's overview and feed from the pages under it, and the headers of the artifacts'
    * files. An unlisted site has neither overview nor feed: its root, each path and its answer to an
    * address it lacks (`404.html`) are a blank page, so none leads to a page. A site from before the
-   * paths (none in its manifest) has its overview at the root, titled as the canvas's.
+   * paths (none in its manifest) has its overview at the root, titled as the project's.
    */
   const writeOverview = (m: Manifest) => {
     mkdirSync(dir, { recursive: true });
@@ -484,7 +484,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     }
     // a site from before the paths keeps its overview at the root while pages lie there
     const overviews: [string, PathInfo][] = at.length ? Object.entries(paths) : readPages(dir).length ? [['', ownInfo()]] : [];
-    // the root of a site whose canvases all have a path of their own lists none of them
+    // the root of a site whose projects all have a path of their own lists none of them
     if (!overviews.some(([p]) => p === '')) writeFileSync(join(dir, 'index.html'), BLANK_PAGE);
     for (const [p, info] of overviews) {
       const { tags: _, ...bare } = site;
@@ -556,7 +556,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
       const live = await readLive(env);
       const local = readLocal();
       const lost = await pull(local, live, env, log);
-      // the paths as the live site has them, the canvas's own as it is now
+      // the paths as the live site has them, the project's own as it is now
       const paths = { ...local.paths, ...live.paths };
       // a page going out under the path puts it there too, as Initialize does
       if (register || slug || own in paths) paths[own] = ownInfo();
@@ -763,15 +763,15 @@ function keepOutOfGit(dir: string) {
 }
 
 /**
- * A page's place on the site: its slug, under its canvas's path and on an unlisted site behind the
+ * A page's place on the site: its slug, under its project's path and on an unlisted site behind the
  * random part of its address (`<path>/<token>/<slug>`).
  */
 const isPage = (place: string) => /^[a-z0-9][a-z0-9-]{0,80}(\/[a-z0-9][a-z0-9-]{0,80}){0,4}$/.test(place);
 
-/** A canvas's path on a site: up to three lower-case words with hyphens, `/` between them; '' for the root. */
+/** A project's path on a site: up to three lower-case words with hyphens, `/` between them; '' for the root. */
 export const isSitePath = (path: string) => path === '' || /^[a-z0-9][a-z0-9-]{0,40}(\/[a-z0-9][a-z0-9-]{0,40}){0,2}$/.test(path);
 
-/** The paths canvases have initialized on the site, as this machine last wrote its manifest; a site from before the paths has none. */
+/** The paths projects have initialized on the site, as this machine last wrote its manifest; a site from before the paths has none. */
 export function sitePaths(home: string, site: Pick<DemoSite, 'url'>, secret?: string): string[] {
   const file = join(siteBase(home, site as DemoSite), 'site', secret ? `${secret}/${MANIFEST}` : MANIFEST);
   try {
@@ -866,7 +866,7 @@ const unlistedHeaders = () => `/*
 export function artifactHeaders(site: DemoSite, unlisted = false, paths: string[] = []): string {
   const u = new URL(site.url);
   const base = u.pathname.replace(/\/+$/, '');
-  // under each canvas's path, on an unlisted site behind the random part of the page's address
+  // under each project's path, on an unlisted site behind the random part of the page's address
   const prefixes = (paths.length ? paths : ['']).map((p) => (p ? `${base}/${p}` : base) + (unlisted ? '/:token' : ''));
   // an artifact as the page's first version, and as a later one in a directory of its own
   return prefixes

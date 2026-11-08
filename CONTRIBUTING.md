@@ -1,6 +1,6 @@
 # Contributing
 
-Seismic is built with Seismic. Its canvas over this repository holds the plans and tasks; agents
+Seismic is built with Seismic. Its project over this repository holds the plans and tasks; agents
 do most of the work on their cards, and every change comes back as a demo before it lands. The
 same steps work for you, with or without Seismic running.
 
@@ -38,7 +38,7 @@ second. Demo videos and voice recordings never go into git.
 ## The code
 
 - Bun and TypeScript throughout. `src/core/` is shared by server and UI, `src/server/` is the Bun
-  server with SQLite, `src/ui/` the React canvas, `src/adapters/` the repository adapters.
+  server with SQLite, `src/ui/` the React project, `src/adapters/` the repository adapters.
 - Code that drives agents is tested against the fake runtime in `src/server/testing.ts` and real
   git repositories in a temp directory.
 - Long-lived subprocesses in tests must exit when their test runner dies, even on `SIGKILL`.

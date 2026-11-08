@@ -27,7 +27,7 @@ The report page (`index.html` beside the video, for use without Seismic) holds t
 (what the change does, then what the owner needs to know beyond the video: a behaviour left out and
 why, what is open or unverified, a defect found in someone else's change; a few short paragraphs),
 the video with its chapters, the open question if any, and the provenance (branch, commits, stack).
-It wears Seismic's look, as the shared pages and the canvas do (frost: glass panes on the cool
+It wears Seismic's look, as the shared pages and the project do (frost: glass panes on the cool
 board, Inter, the teal accent, the owner's-turn orange for the open question), light or dark as
 the system is, and so does the schema-change page.
 Under Seismic the card shows the video and the handover summary instead, and a problem outside the
@@ -46,7 +46,7 @@ artifact.
 
 ### The demo settings and voices
 
-The demo settings (`demo.json` in Seismic's home) are the machine's, for every canvas: the narration
+The demo settings (`demo.json` in Seismic's home) are the machine's, for every project: the narration
 language (for narration, captions and report page; which one applies is under Language) and the
 voice, a provider that takes text and gives a WAV. A repository's `demo.language` reaches the skill
 as `DEMO_LANGUAGE` from Seismic, else from the `.obeya/settings.json` of the repository the skill runs
@@ -87,11 +87,11 @@ clone takes none: it continues its clip, so the sheet hides the style field for 
 speaker such as Founder, or a voice sample set for the narration language) and says so in a note. The style is part of the voice, so another one makes the
 clips anew and is another voice for Seismic to hold.
 
-English terms in German narration ("Branch", "Feature", "Canvas") are respelt for the voices that
+English terms in German narration ("Branch", "Feature", "Project") are respelt for the voices that
 read every word by the narration language's rules: Piper (through espeak-ng, which made "Feature"
 *fe-a-tu-re*) and `say`. The spoken form comes from a lexicon per language shipped with the skill
 ("Bräntsch", "Fietscher", "Kännwes", with inflected forms) and from a mark in the script,
-`{Canvas|Kännwes}`, which wins. Whole words are replaced, longest first, before the clip cache is
+`{Project|Kännwes}`, which wins. Whole words are replaced, longest first, before the clip cache is
 keyed on the spoken text, so a lexicon change re-synthesises only the clips it touches; captions
 show the written form. Other voices get the written form: Qwen3 sounded too German respelt, and the
 hosted voices read English. A term enters the lexicon only where Piper got it wrong and the
@@ -382,7 +382,7 @@ report, whether it was sharp), so it works on a demo of any director version.
 
 The card then shows it (`POST …/cards/<id>/demo-rebuilt`): the chapters are read again and the share
 page's text is written anew in the report's language. A demo on a shared page is withdrawn first,
-not changed under the page. `scripts/revoice-demos.ts` lists a canvas's latest re-voiceable demos
+not changed under the page. `scripts/revoice-demos.ts` lists a project's latest re-voiceable demos
 and has Seismic re-read and share them.
 
 #### Frames on time

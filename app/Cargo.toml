@@ -1,7 +1,7 @@
 [package]
 name = "obeya-app"
 version = "0.1.0"
-description = "Seismic: a spatial canvas for directing AI coding agents"
+description = "Seismic: a spatial project for directing AI coding agents"
 license = "MIT"
 edition = "2021"
 

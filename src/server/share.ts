@@ -1,11 +1,11 @@
 // Sharing a card's demo with colleagues, a video or an HTML artifact: a page outside Seismic, on the
-// static site Seismic keeps itself (the demo site its canvas chose, under the canvas's path, site.ts). Seismic writes
+// static site Seismic keeps itself (the demo site its project chose, under the project's path, site.ts). Seismic writes
 // the page's text when the worker did not. A page keeps the newest page change (page-changes.ts) it
 // was published after: one that lacks a change since is offered to share again ("Erneut teilen"),
 // with what that brings, on its card, or many at once from the Koordinator's sheet.
 // Once the card has a pull request, its description links the page and the page links it; work that
 // lands without one links the page in its commit's trailer, and the page links the commit. A
-// canvas without a site (or with one not initialized, or whose credentials are not on this machine)
+// project without a site (or with one not initialized, or whose credentials are not on this machine)
 // exports the demo instead: the same page as a ZIP with its files, or as one HTML file.
 // Pages of one target are on one site, so each publish names the others.
 
@@ -75,7 +75,7 @@ export interface SharePage {
   theme?: Theme;
 }
 
-/** A canvas's demo site as sharing uses it: the site with the canvas's title, tags and choices, its path there, and an unlisted site's secret. */
+/** A project's demo site as sharing uses it: the site with the project's title, tags and choices, its path there, and an unlisted site's secret. */
 export interface ShareSite {
   site: DemoSite;
   path: string;
@@ -83,9 +83,9 @@ export interface ShareSite {
 }
 
 /**
- * Where a card's demos may go: its canvas's demo site, once its path is initialized (none
- * meanwhile, and without one), its repository's checkout, and the canvas's name, the title of a page
- * that stays on a site the canvas no longer uses.
+ * Where a card's demos may go: its project's demo site, once its path is initialized (none
+ * meanwhile, and without one), its repository's checkout, and the project's name, the title of a page
+ * that stays on a site the project no longer uses.
  */
 export interface ShareSource {
   site: ShareSite | null;
@@ -123,7 +123,7 @@ export interface ShareTarget {
   pageUrl(slug: string): string;
   /** Deploys again what this machine has, for the pages `audit` found missing. */
   repair(shared: string[], log?: (text: string) => void): Promise<{ why?: string; said: string; gone?: Gone[] }>;
-  /** "Initialize": puts the canvas's path on the site, with its empty overview, and deploys. */
+  /** "Initialize": puts the project's path on the site, with its empty overview, and deploys. */
   init?(shared: string[], log?: (text: string) => void): Promise<{ why?: string; said: string; gone?: Gone[] }>;
 }
 
@@ -157,7 +157,7 @@ export interface SharingOptions {
 /** A site's deploy that has not finished by then is stopped (an upload of a few files takes seconds). */
 export const COMMAND_TIMEOUT = 15 * 60_000;
 
-/** The pages of all canvases go out one at a time: a site directory takes one change at a time. */
+/** The pages of all projects go out one at a time: a site directory takes one change at a time. */
 let chain: Promise<unknown> = Promise.resolve();
 export const serial = <T>(fn: () => Promise<T>): Promise<T> => {
   const next = chain.then(fn, fn);
@@ -187,7 +187,7 @@ export class Sharing {
   share(cardId: string, { demo: handover, add = false }: { demo?: number | undefined; add?: boolean } = {}) {
     const card = this.card(cardId);
     const demo = handover === undefined ? this.demo(cardId) : this.cardDemo(cardId, { handover, dir: '' });
-    if (card.prototypeOf || !demo || !this.target(card)) throw new BadRequest('noShare', 'the card has no demo, or its canvas shares none');
+    if (card.prototypeOf || !demo || !this.target(card)) throw new BadRequest('noShare', 'the card has no demo, or its project shares none');
     const s = this.stored(cardId);
     if (s?.state) throw new BadRequest('shareBusy', 'the page is being shared or withdrawn');
     const now: DemoRef[] = s?.url ? sharedDemos(s) : [];
@@ -203,8 +203,8 @@ export class Sharing {
   }
 
   /**
-   * The owner approved the card's work. Where its canvas's site publishes on approval
-   * (`publish` of the canvas's demo site), its latest demo goes on its page unless it is there: beside the versions
+   * The owner approved the card's work. Where its project's site publishes on approval
+   * (`publish` of the project's demo site), its latest demo goes on its page unless it is there: beside the versions
    * there where its worker said it only supplements them (with the demos it supplements), else in
    * their place. It goes out through
    * the queue like any share, so the landing does not wait for it; a failure goes into the card's
@@ -546,7 +546,7 @@ export class Sharing {
 
   /** Pages withdrawn on another machine: their cards here lose their link. */
   /**
-   * "Initialize": puts a canvas's path on its site, with the empty overview, and deploys, after
+   * "Initialize": puts a project's path on its site, with the empty overview, and deploys, after
    * any share under way (one site directory takes one change at a time). Why it failed, where it did.
    */
   init(site: ShareSite, repo: string, language?: PageLanguage): Promise<{ why?: string }> {
@@ -915,7 +915,7 @@ export class Sharing {
     this.o.board.log(cardId, 'activity', 'obeya', this.o.board.t.share.tagsChosen(shownTags(tags, tags).map(([d, v]) => `${d}: ${v.join(', ')}`).join(' · ') || '–'));
   }
 
-  /** The vocabulary of tags for the card's page: its canvas's; none where it names none. */
+  /** The vocabulary of tags for the card's page: its project's; none where it names none. */
   private vocabulary(card: Item): PageTags | undefined {
     const v = this.o.sourceFor(card)?.site?.site.tags;
     return v && dimensions(v).length ? v : undefined;
@@ -941,24 +941,24 @@ export class Sharing {
 
   /**
    * Where the card's page goes: where it is, once it is out or going out (where this machine still
-   * has that site); else its canvas's site, once its path is initialized and this machine can deploy
+   * has that site); else its project's site, once its path is initialized and this machine can deploy
    * there. Null where none takes it: its demos are exported.
    */
   private target(card: Item): ShareTarget | null {
     const s = this.stored(card.id);
-    // one going out since before pages named their site (until 2026-11-06) goes to the canvas's
+    // one going out since before pages named their site (until 2026-11-06) goes to the project's
     if (s?.url || s?.site) return this.storedTarget(card, s);
     return this.ownTarget(card);
   }
 
-  /** The canvas's site, under its path, where this machine has its credentials. */
+  /** The project's site, under its path, where this machine has its credentials. */
   private ownTarget(card: Item): ShareTarget | null {
     const src = this.o.sourceFor(card);
     if (!src?.site || siteMissing(this.o.home, src.site.site)) return null;
     return this.siteTarget(card, src.site);
   }
 
-  /** The site and path a page is on, or goes to: the canvas's, where it is the same, else that site of this machine's with the canvas's title. */
+  /** The site and path a page is on, or goes to: the project's, where it is the same, else that site of this machine's with the project's title. */
   private storedTarget(card: Item, s: StoredShare): ShareTarget | null {
     const src = this.o.sourceFor(card);
     if (!src) return null;
@@ -987,14 +987,14 @@ export class Sharing {
     });
   }
 
-  /** Whether approving the card puts its latest demo on its page: its canvas's site publishes on approval. */
+  /** Whether approving the card puts its latest demo on its page: its project's site publishes on approval. */
   private publishesOnApproval(card: Item): boolean {
     return this.o.sourceFor(card)?.site?.site.publish === 'approved';
   }
 
   /**
    * The card's share as a publish starts from it: a page that is out stays where it is; a new one
-   * goes to the canvas's site under its path, on an unlisted site with the random part of its
+   * goes to the project's site under its path, on an unlisted site with the random part of its
    * address, drawn once for the card, so its link stays the same when it is shared again.
    */
   private fresh(card: Item, s: StoredShare | null): StoredShare {
@@ -1011,7 +1011,7 @@ export class Sharing {
     return card;
   }
 
-  /** A card on the canvas or in the archive; none once it was deleted. */
+  /** A card on the project or in the archive; none once it was deleted. */
   private find(cardId: string): Item | undefined {
     try {
       return this.o.board.card(cardId);
@@ -1075,7 +1075,7 @@ export class Sharing {
     return d ? (JSON.parse(d) as Demo & { dir: string }) : null;
   }
 
-  /** The cards of the canvas, archived ones too, that were ever shared or are about to be, with their shares. */
+  /** The cards of the project, archived ones too, that were ever shared or are about to be, with their shares. */
   private shares(): { r: CardRow; s: StoredShare }[] {
     return this.o.board.sharedRows().map((r) => ({ r, s: JSON.parse(r.share!) as StoredShare }));
   }
@@ -1147,7 +1147,7 @@ function atRest({ state: _, refresh: __, again: ___, next: ____, retag: _____, .
 /** What a share keeps when its page is made anew or withdrawn: the owner's choices, and the random part of its address on an unlisted site. */
 const kept = (s: StoredShare): Pick<StoredShare, 'notOnApproval' | 'token'> => ({ ...(s.notOnApproval ? { notOnApproval: true as const } : {}), ...(s.token ? { token: s.token } : {}) });
 
-/** The page's place on its site: its slug, under its canvas's path, on an unlisted site behind the random part of its address. */
+/** The page's place on its site: its slug, under its project's path, on an unlisted site behind the random part of its address. */
 const pathOf = (s: StoredShare) => [s.path, (s.unlisted || s.personal) && s.token, s.slug].filter(Boolean).join('/');
 
 /** Which site and path a share's page is on, and whether it is unlisted, as it keeps them across a publish. */

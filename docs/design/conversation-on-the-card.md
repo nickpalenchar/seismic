@@ -24,17 +24,17 @@ looks, under its reply that it does, where that reply stands. On a Question card
 the card's own, so its reading is the card's agent at work.
 
 A card the worker proposes from a conversation appears there as "Proposed new card", above
-its clickable cover with the canvas's dashed proposal design. It stays visible outside the folded
+its clickable cover with the project's dashed proposal design. It stays visible outside the folded
 steps, including when the worker replies or hands over afterwards. The cover follows the card's
 current state once accepted; a replacement proposal gets its own entry, and a withdrawn one keeps
-its original title without a link. Proposals on another canvas link there.
+its original title without a link. Proposals on another project link there.
 
 A follow-up card Seismic makes of the card (asked for in words on it, passed on by its agent, or a
 review's follow-up task) is an action of Seismic's in its conversation, set apart from what is said:
 another colour and the small print's face, a dashed frame, "Seismic · Created a follow-up card" above the
-new card's cover in small, as the canvas shows it now (its state, its question). A click opens that
+new card's cover in small, as the project shows it now (its state, its question). A click opens that
 card by its address, in place, a modifier click in a tab of its own. One that went onto another
-canvas opens there; one gone from the canvas (archived, deleted) shows the title it had, not a link.
+project opens there; one gone from the project (archived, deleted) shows the title it had, not a link.
 The action is logged once the card exists, after the undo window, so a command taken back leaves
 none; until the agent's next message it waits with Seismic's reply to what the agent passed on, and
 goes under that message with it. A note the worker
@@ -110,7 +110,7 @@ It stays in the card's draft with the picks, written but not picked too. The own
 after it asked (said while it worked, they reached it after the question) go along and stay below
 the question, as everywhere in reading order: above it they would read as words the question took
 into account, and once it is answered and back in place they would jump below it. Anything of an
-agent's after the question leaves them where they were. The canvas card, the phone's count and
+agent's after the question leaves them where they were. The project card, the phone's count and
 the Koordinator name the same questions. How agents ask: see Questions go to the owner.
 
 Messages new to the owner (after the last event they had in view and their own last words) have an
@@ -248,7 +248,7 @@ another machine). The owner rarely reads code, so it stays a quiet line.
 What a card's work made or changed is its result, shown on the left for folder and git cards alike.
 The top of the column has a row of tabs: "Video" first where there is a video, "Document" for an
 HTML artifact or named HTML result, "Schema change" for a named schema-change page, "Review" for
-the code review of the work where the canvas reviews it (its open findings counted beside the title
+the code review of the work where the project reviews it (its open findings counted beside the title
 by severity, from dark purple through grey; "outdated" where it reviewed an earlier handover), and "Diff"
 for the underlying change list. Other named result files have tabs named after their files. Only
 available results have tabs; the first opens by default. The demo and named results show without
@@ -391,7 +391,7 @@ machine's list.
 ### Cards by `/` in the task text
 
 In a card's task text, while it can still be edited, `/` at the start of the text or of a word
-searches the canvas's cards: the words after it on the same line filter them, each of them in the
+searches the project's cards: the words after it on the same line filter them, each of them in the
 title (case aside) or the card's short code; titles that start with the search first, at most
 eight, neither the card itself nor what is archived. The menu opens just under the line being
 typed, from the slash on, only while something fits, each card as the smart link it will become,
@@ -408,7 +408,7 @@ Wherever a card's conversation shows text (the task as first message, the agents
 to a card's address is a **smart link**: a pill with a dot in the colour of the card's state, its
 title as it is now (not as it was when linked) in blue and underlined, and its priority where it has
 one; its tooltip is the card's state line, and a click opens the card as other card links do. A
-card no longer on the canvas (archived, deleted, or on another canvas) keeps the link's text in a
+card no longer on the project (archived, deleted, or on another project) keeps the link's text in a
 muted pill. Further facts a card comes to have (an assignee, labels, a due date) belong in the
 pill too, beside the priority, as long as it stays one line.
 
@@ -451,7 +451,7 @@ image.
   stays on its handover** (2026-10-09). Rejected: hiding the demo on feedback; moving the question
   to the newest handover, orange as if open.
 - **A follow-up card is an action with its cover** (owner, 2026-11-03): Seismic's confirmation alone
-  read as one more message, and the card it made had to be found on the canvas. The cover is the
+  read as one more message, and the card it made had to be found on the project. The cover is the
   card's live face, not a copy from the moment it was made, so it shows how far the follow-up got.
   Rejected: a state line with the title as a link, which reads as dialogue's small print and shows
   nothing of the card. Proposals an agent makes are not actions: they are its steps until the owner
@@ -489,7 +489,7 @@ image.
 - **The conversation stays where the owner scrolled** (2026-10-20). Rejected: every agent step
   jumping to the end.
 - **One rule for ended and for open questions on every card kind** (2026-10-21). Rejected: per-kind
-  logic, which disagreed between field, phone, canvas and Koordinator.
+  logic, which disagreed between field, phone, project and Koordinator.
 - **Screenshots as images in the message**, so the agent sees them without a step. Rejected: files
   to read (only where tool results carry no images).
 - **Other files go in by their own path** (owner, 2026-10-26), so the agent can also move or change
@@ -512,7 +512,7 @@ image.
   2026-10-15). Rejected: a free pen (rough on a trackpad) and a tool switch.
 - **The worker reports the app's address; the link shows only while it answers** (2026-10-16).
   Rejected: Seismic guessing ports (Docker listens elsewhere, only the worker knows the page), a mark
-  on the canvas card, starting a parked app from the link. Only the reported port is forwarded
+  on the project card, starting a parked app from the link. Only the reported port is forwarded
   (owner): more would need the worker to name them and keep their numbers here.
 - **A card's files are its result, in tabs beside the demo** (owner, 2026-10-21), named files first.
   Rejected: an open button per change-list entry (no place for the result, Markdown unread in the

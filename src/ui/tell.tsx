@@ -1,5 +1,5 @@
 // What the owner says or types reaches its target, and what they are told back, the same on the
-// canvas and in the phone view: the confirmation with "Undo" above the microphone, words
+// project and in the phone view: the confirmation with "Undo" above the microphone, words
 // handed on to the agent of the open card or to the Koordinator, and what the microphone says it
 // speaks to.
 

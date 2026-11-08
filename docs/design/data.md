@@ -7,9 +7,9 @@ and the repositories already know is read from them, not stored.
 
 Persistent (SQLite):
 
-- canvases, their per-project settings (home repository, whether the owner paused its agents, the card collecting each repository's
+- projects, their per-project settings (home repository, whether the owner paused its agents, the card collecting each repository's
   CLAUDE.md rules, the retrospective's and the work retrospective's counts and when they last ran), groups
-  and each card's group; owner-drawn dependencies between cards (the canvas setting `manual_dependencies`
+  and each card's group; owner-drawn dependencies between cards (the project setting `manual_dependencies`
   is a JSON list of `[from, to]` pairs, optionally followed by `{fromSide, toSide, offset}` for the
   chosen edges and the target's position along its edge; older pairs use automatic routing);
 - cards with everything shown on them or needed to resume them: kind, state, position, parent, the
@@ -30,7 +30,7 @@ Persistent (SQLite):
   it; an idea's brief, open questions and picks; a prototype's idea
   and outcome; a plan's plan doc as last read and the plan docs its landed work added; the priority the owner
   gave it (`priority`: `trivial`, `low`, `medium`, `high`, `veryHigh` or `critical`, null for none); its short
-  code for addresses (see Addresses in The canvas), unique across the database;
+  code for addresses (see Addresses in The project), unique across the database;
 - each session that worked on a card, with the harness, resolved model and effort it ran on (see
   Models and effort in Agents and workstations), and the owner's responses on approved work: the
   handover each is about, whom it credits, the card's context as it was, the answer and facets;
@@ -41,9 +41,9 @@ Persistent (SQLite):
   each retain their own producing identity, never inferred for old messages; workstations
   and their leases, what a card changed in a folder without git and its undo there;
 - the Koordinator's conversation with the owner, split into chats (each exchange in one; the
-  chat opened last per canvas is where new words go), and the threads of looked-up questions (the
+  chat opened last per project is where new words go), and the threads of looked-up questions (the
   question, its answer and files, the card it moved onto, the step to take once the answer is in),
-  and the cards that left the canvas for another;
+  and the cards that left the project for another;
 - confirmed commands waiting out their undo window;
 - shared demo pages (slug, link, what the page shows, the change it was published after, whether it
   is publishing or withdrawing) and a running re-share of outdated pages;

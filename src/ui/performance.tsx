@@ -1,4 +1,4 @@
-// The performance dashboard: the owner's responses on agents' work, on every canvas, grouped by the
+// The performance dashboard: the owner's responses on agents' work, on every project, grouped by the
 // harness, model and effort that did it. The main view is a table with each row's spread of stars;
 // the other draws each rating as a dot. Every row says how many ratings it rests on and is ordered by
 // what it is, not how well it did; with too few ratings in all, the responses stand alone, without
@@ -7,13 +7,13 @@
 import { createContext, Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { logQuery, type LogFilter, type Period } from '../core/feedback-log';
 import { ageStep, FEW, filterChoices, filterFeedback, performance, type PerformanceFilter, type PerformanceRow, scatter, stars, trend } from '../core/performance';
-import type { CanvasInfo, Feedback, WorkConfig } from '../core/types';
+import type { ProjectInfo, Feedback, WorkConfig } from '../core/types';
 import { cardPath, feedbackLogPath } from './address';
 import { api } from './api';
 import { plain } from './markdown';
 import { failText, t } from './strings';
 
-/** Opens the dashboard, where the page offers it (the canvas, not the phone view). */
+/** Opens the dashboard, where the page offers it (the project, not the phone view). */
 export const OpenPerformance = createContext<(() => void) | null>(null);
 
 type View = 'stars' | 'dots' | 'trend';
@@ -25,19 +25,19 @@ const DAY = 86_400_000;
 interface Props {
   on: boolean;
   onClose: () => void;
-  canvases: CanvasInfo[];
-  /** The canvas the page shows: its cards open in place, another canvas's at their address. */
+  projects: ProjectInfo[];
+  /** The project the page shows: its cards open in place, another project's at their address. */
   here: string;
   onOpenCard: (code: string) => void;
   /** The filters it opens with: those the feedback log had, coming back from it. */
   initial?: LogFilter;
 }
 
-export function PerformanceDialog({ on, onClose, canvases, here, onOpenCard, initial }: Props) {
+export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, initial }: Props) {
   const p = t.performance;
   const [all, setAll] = useState<Feedback[] | null>(null);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<PerformanceFilter>(() => ({ ...(initial?.canvas ? { canvas: initial.canvas } : {}), ...(initial?.repo ? { repo: initial.repo } : {}), ...(initial?.plan ? { plan: initial.plan } : {}) }));
+  const [filter, setFilter] = useState<PerformanceFilter>(() => ({ ...(initial?.project ? { project: initial.project } : {}), ...(initial?.repo ? { repo: initial.repo } : {}), ...(initial?.plan ? { plan: initial.plan } : {}) }));
   const [period, setPeriod] = useState<Period>(initial?.period ?? 'all');
   const [view, setViewState] = useState<View>(() => VIEWS.find((v) => v === localStorage.getItem(VIEW_KEY)) ?? 'stars');
   const setView = (v: View) => {
@@ -75,7 +75,7 @@ export function PerformanceDialog({ on, onClose, canvases, here, onOpenCard, ini
   const perf = useMemo(() => performance(shown), [shown]);
   const choices = useMemo(() => filterChoices(all ?? []), [all]);
   if (!on) return null;
-  const canvasName = (id: string) => canvases.find((c) => c.id === id)?.name ?? id;
+  const projectName = (id: string) => projects.find((c) => c.id === id)?.name ?? id;
   const link = (f: Feedback) => {
     const code = f.short ?? f.cardId;
     if (f.deleted)
@@ -87,9 +87,9 @@ export function PerformanceDialog({ on, onClose, canvases, here, onOpenCard, ini
     return (
       <a
         className="link card-link"
-        href={cardPath(f.canvasId, code)}
+        href={cardPath(f.projectId, code)}
         onClick={(e) => {
-          if (f.canvasId !== here || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          if (f.projectId !== here || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
           e.preventDefault();
           toCard.current = true;
           onClose();
@@ -100,7 +100,7 @@ export function PerformanceDialog({ on, onClose, canvases, here, onOpenCard, ini
       </a>
     );
   };
-  const filtered = !!(filter.canvas || filter.repo || filter.plan || period !== 'all');
+  const filtered = !!(filter.project || filter.repo || filter.plan || period !== 'all');
   // the log opens with the dashboard's filters; Back from it opens the dashboard again, with them
   const logFilter: LogFilter = { ...filter, period };
   const logQ = logQuery({ filter: logFilter });
@@ -130,7 +130,7 @@ export function PerformanceDialog({ on, onClose, canvases, here, onOpenCard, ini
     body = (
       <>
         <p className="hint perf-few-note">{p.tooFew(perf.ratings, FEW)}</p>
-        <Responses list={[...shown].reverse()} link={link} canvasName={canvasName} withConfig />
+        <Responses list={[...shown].reverse()} link={link} projectName={projectName} withConfig />
       </>
     );
   else {
@@ -191,7 +191,7 @@ export function PerformanceDialog({ on, onClose, canvases, here, onOpenCard, ini
                   {expanded && (
                     <tr className="perf-detail">
                       <td colSpan={5}>
-                        <Responses list={r.responses} link={link} canvasName={canvasName} withConfig={r.kind === 'mixed'} />
+                        <Responses list={r.responses} link={link} projectName={projectName} withConfig={r.kind === 'mixed'} />
                       </td>
                     </tr>
                   )}
@@ -238,8 +238,8 @@ export function PerformanceDialog({ on, onClose, canvases, here, onOpenCard, ini
           {all && all.length > 0 && (
             <div className="perf-bar">
               <div className="perf-filters">
-                {choices.canvases.length > 1 && (
-                  <Choice label={p.filters.canvas} value={filter.canvas} options={choices.canvases.map((id) => ({ id, name: canvasName(id) }))} onChange={(canvas) => setFilter({ ...filter, canvas })} />
+                {choices.projects.length > 1 && (
+                  <Choice label={p.filters.project} value={filter.project} options={choices.projects.map((id) => ({ id, name: projectName(id) }))} onChange={(project) => setFilter({ ...filter, project })} />
                 )}
                 {choices.repos.length > 1 && <Choice label={p.filters.repo} value={filter.repo} options={choices.repos.map((id) => ({ id, name: id }))} onChange={(repo) => setFilter({ ...filter, repo })} />}
                 {choices.plans.length > 0 && (
@@ -397,9 +397,9 @@ export function StarText({ rating }: { rating: number | undefined }) {
 }
 
 /** Responses, each with its card (a link back to it), plan, repository, when, the rating and the comment. */
-function Responses({ list, link, canvasName, withConfig }: { list: Feedback[]; link: (f: Feedback) => React.ReactNode; canvasName: (id: string) => string; withConfig?: boolean }) {
+function Responses({ list, link, projectName, withConfig }: { list: Feedback[]; link: (f: Feedback) => React.ReactNode; projectName: (id: string) => string; withConfig?: boolean }) {
   const p = t.performance;
-  const several = new Set(list.map((f) => f.canvasId)).size > 1;
+  const several = new Set(list.map((f) => f.projectId)).size > 1;
   return (
     <ul className="perf-responses">
       {list.map((f) => (
@@ -407,7 +407,7 @@ function Responses({ list, link, canvasName, withConfig }: { list: Feedback[]; l
           <div className="perf-r-main">
             {link(f)}
             <span className="hint perf-r-ctx">
-              {[f.plan ? plain(f.plan.title) : '', f.repo ?? '', several ? canvasName(f.canvasId) : '', p.when(new Date(f.updatedAt ?? f.at))].filter(Boolean).join(' · ')}
+              {[f.plan ? plain(f.plan.title) : '', f.repo ?? '', several ? projectName(f.projectId) : '', p.when(new Date(f.updatedAt ?? f.at))].filter(Boolean).join(' · ')}
             </span>
             {withConfig && <span className="hint perf-r-config">{f.attribution === 'missing' || !f.configs.length ? p.missing : f.configs.map((c) => configText(c, true)).join(' + ')}</span>}
             {f.answer.comment && <p className="perf-r-comment">{t.feedback.quoted(f.answer.comment)}</p>}

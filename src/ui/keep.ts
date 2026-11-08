@@ -29,21 +29,21 @@ export const ROOTS = ['panel', 'sheet', 'ksheet', 'nav', 'inbox', 'amenu', 'conf
 
 /** How old what was kept may be to come back: a restart takes seconds, a page reloaded much later starts afresh. */
 const FRESH_MS = 5 * 60_000;
-const key = (canvas: string) => `obeya-kept-${canvas}`;
+const key = (project: string) => `obeya-kept-${project}`;
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
-export function keep(store: Store, canvas: string, kept: Kept) {
+export function keep(store: Store, project: string, kept: Kept) {
   try {
-    store.setItem(key(canvas), JSON.stringify(kept));
+    store.setItem(key(project), JSON.stringify(kept));
   } catch {}
 }
 
 /** What the reload before this page kept, once. */
-export function takeKept(store: Store, canvas: string, now = Date.now()): Kept | null {
+export function takeKept(store: Store, project: string, now = Date.now()): Kept | null {
   try {
-    const raw = store.getItem(key(canvas));
-    store.removeItem(key(canvas));
+    const raw = store.getItem(key(project));
+    store.removeItem(key(project));
     const k = raw ? (JSON.parse(raw) as Kept) : null;
     return k && now - k.at < FRESH_MS ? k : null;
   } catch {
@@ -130,25 +130,25 @@ export function restore(k: Pick<Kept, 'scroll' | 'drafts' | 'video'>) {
   tick();
 }
 
-const sheetKey = (canvas: string) => `obeya-sheet-left-open-${canvas}`;
+const sheetKey = (project: string) => `obeya-sheet-left-open-${project}`;
 
 /**
- * Whether the owner left the canvas (for another canvas, or a reload) with Seismic's sheet open and
+ * Whether the owner left the project (for another project, or a reload) with Seismic's sheet open and
  * something typed in its field: back on it, the sheet is open again. An empty field, or a sheet
  * closed as they left, leaves it closed.
  */
-export function leaveSheet(store: Store, canvas: string, openWithDraft: boolean) {
+export function leaveSheet(store: Store, project: string, openWithDraft: boolean) {
   try {
-    if (openWithDraft) store.setItem(sheetKey(canvas), '1');
-    else store.removeItem(sheetKey(canvas));
+    if (openWithDraft) store.setItem(sheetKey(project), '1');
+    else store.removeItem(sheetKey(project));
   } catch {}
 }
 
-/** Whether the owner left the canvas with Seismic's sheet open over a draft, once. */
-export function takeSheetLeft(store: Store, canvas: string): boolean {
+/** Whether the owner left the project with Seismic's sheet open over a draft, once. */
+export function takeSheetLeft(store: Store, project: string): boolean {
   try {
-    const open = store.getItem(sheetKey(canvas)) === '1';
-    store.removeItem(sheetKey(canvas));
+    const open = store.getItem(sheetKey(project)) === '1';
+    store.removeItem(sheetKey(project));
     return open;
   } catch {
     return false;
@@ -157,7 +157,7 @@ export function takeSheetLeft(store: Store, canvas: string): boolean {
 
 const INBOX_KEY = 'obeya-inbox-open';
 
-/** Whether the inbox is open, for this tab and every canvas in it: it stays open as the owner switches canvas. */
+/** Whether the inbox is open, for this tab and every project in it: it stays open as the owner switches project. */
 export function keepInbox(store: Store, on: boolean) {
   try {
     if (on) store.setItem(INBOX_KEY, '1');
@@ -165,7 +165,7 @@ export function keepInbox(store: Store, on: boolean) {
   } catch {}
 }
 
-/** The inbox was open as this tab left the canvas before. */
+/** The inbox was open as this tab left the project before. */
 export function inboxKept(store: Store): boolean {
   try {
     return store.getItem(INBOX_KEY) === '1';

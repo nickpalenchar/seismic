@@ -3,8 +3,8 @@
 // keep theirs here rather than in the field itself, so the microphone sends what stands in the field
 // and dictates into it, and a draft outlives closing the card. Without a field to speak to, the
 // screenshots for the next recording lie beside the microphone, in a draft of their own (`MIC`).
-// These drafts (text, screenshots, picks, the message replied to) are written down per tab and canvas (`keepDrafts`), so they outlive a page load too:
-// switching to another canvas and back, or a restart. So are the marks on screenshots (`Markup`).
+// These drafts (text, screenshots, picks, the message replied to) are written down per tab and project (`keepDrafts`), so they outlive a page load too:
+// switching to another project and back, or a restart. So are the marks on screenshots (`Markup`).
 
 import type { AgentSetting, FindingPick } from '../core/types';
 import { useEffect, useSyncExternalStore } from 'react';
@@ -89,8 +89,8 @@ export const cardDraft = (id: string) => `card:${id}`;
 export const rateDraft = (id: string) => `rate:${id}`;
 /** The draft of the field in Seismic's sidebar. */
 export const OBEYA_DRAFT = 'obeya';
-/** The draft of the field under Seismic's conversation of a canvas, in the phone view, which shows every canvas. */
-export const obeyaDraft = (canvas: string) => `${OBEYA_DRAFT}:${canvas}`;
+/** The draft of the field under Seismic's conversation of a project, in the phone view, which shows every project. */
+export const obeyaDraft = (project: string) => `${OBEYA_DRAFT}:${project}`;
 /** The screenshots beside the microphone, where no field is spoken to. */
 export const MIC_DRAFT = 'mic';
 /** The field of the draft for Seismic's makers (`wish.tsx`). */
@@ -115,11 +115,11 @@ const subscribe = (fn: () => void) => {
 };
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
-/** The drafts that last beyond their field: the cards' (their feedback's comment too), the sidebar's (the phone view's per canvas) and the microphone's, not those of a field of its own. */
+/** The drafts that last beyond their field: the cards' (their feedback's comment too), the sidebar's (the phone view's per project) and the microphone's, not those of a field of its own. */
 const lasting = (key: string) => key.startsWith('card:') || key.startsWith('rate:') || key === OBEYA_DRAFT || key.startsWith(`${OBEYA_DRAFT}:`) || key === MIC_DRAFT || key === WISH_DRAFT;
-const storeKey = (canvas: string) => `obeya-drafts-${canvas}`;
-const markupsKey = (canvas: string) => `obeya-markups-${canvas}`;
-let kept: { store: Store; canvas: string } | null = null;
+const storeKey = (project: string) => `obeya-drafts-${project}`;
+const markupsKey = (project: string) => `obeya-markups-${project}`;
+let kept: { store: Store; project: string } | null = null;
 
 /**
  * A screenshot the owner marked in a field: the original and the marks on it, by the id of the
@@ -144,27 +144,27 @@ export function setMarkup(id: string, markup: Markup | null) {
   for (const old of markups.keys()) if (markups.size > KEPT_MARKUPS) markups.delete(old);
   if (!kept) return;
   try {
-    if (markups.size) kept.store.setItem(markupsKey(kept.canvas), JSON.stringify(Object.fromEntries(markups)));
-    else kept.store.removeItem(markupsKey(kept.canvas));
+    if (markups.size) kept.store.setItem(markupsKey(kept.project), JSON.stringify(Object.fromEntries(markups)));
+    else kept.store.removeItem(markupsKey(kept.project));
   } catch {}
 }
 
 /**
- * Takes back the canvas's drafts that `store` kept (the phone view's, which shows every canvas, under
+ * Takes back the project's drafts that `store` kept (the phone view's, which shows every project, under
  * a name of its own) and writes them down there from now on, text,
  * screenshots, picks and the message replied to, whenever they change, and the marks on the screenshots. Once per page;
  * later calls change nothing.
  */
-export function keepDrafts(store: Store, canvas: string) {
+export function keepDrafts(store: Store, project: string) {
   if (kept) return;
-  kept = { store, canvas };
+  kept = { store, project };
   try {
-    const saved = JSON.parse(store.getItem(storeKey(canvas)) ?? '{}') as Record<string, Kept>;
+    const saved = JSON.parse(store.getItem(storeKey(project)) ?? '{}') as Record<string, Kept>;
     for (const [key, { text, images, picks, reply, files, findings, findingNotes, findingNoteEdits, reviewKey, agent }] of Object.entries(saved))
       if (!drafts.has(key)) drafts.set(key, { ...EMPTY, text, images, ...(picks ? { picks } : {}), ...(reply ? { reply } : {}), ...(files ? { files } : {}), ...(findings ? { findings } : {}), ...(findingNotes ? { findingNotes } : {}), ...(findingNoteEdits ? { findingNoteEdits } : {}), ...(reviewKey ? { reviewKey } : {}), ...(agent ? { agent } : {}) });
   } catch {}
   try {
-    const saved = JSON.parse(store.getItem(markupsKey(canvas)) ?? '{}') as Record<string, Markup>;
+    const saved = JSON.parse(store.getItem(markupsKey(project)) ?? '{}') as Record<string, Markup>;
     for (const [id, m] of Object.entries(saved)) if (!markups.has(id)) markups.set(id, m);
   } catch {}
   listeners.add(writeDown);
@@ -178,8 +178,8 @@ function writeDown() {
     if (k) out[key] = k;
   }
   try {
-    if (Object.keys(out).length) kept.store.setItem(storeKey(kept.canvas), JSON.stringify(out));
-    else kept.store.removeItem(storeKey(kept.canvas));
+    if (Object.keys(out).length) kept.store.setItem(storeKey(kept.project), JSON.stringify(out));
+    else kept.store.removeItem(storeKey(kept.project));
   } catch {}
 }
 

@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Item } from '../core/types';
-import { setCanvas } from './api';
+import { setProject } from './api';
 import { smartLink } from './cardLink';
 import { cardHref, cardSearchAt, lines, linkText, matchingCards, type NodeLike, textOf } from './cardRefs';
 import { CardRefs, Inline } from './markdown';
@@ -35,7 +35,7 @@ test('every word of the search is in the title or is the short code; titles that
   expect(matchingCards(items, 'nothing')).toEqual([]);
 });
 
-test('the link menu keeps eight suggestions while the canvas finder can request all matches', () => {
+test('the link menu keeps eight suggestions while the project finder can request all matches', () => {
   const items = Array.from({ length: 12 }, (_, n) => card(`card${n}`, `Matching card ${n}`));
   expect(matchingCards(items, 'matching')).toHaveLength(8);
   expect(matchingCards(items, 'matching', undefined, Infinity)).toHaveLength(12);
@@ -45,8 +45,8 @@ test('a card\'s title as the text of its link, without brackets', () => {
   expect(linkText('Fix [the]  login')).toBe('Fix the login');
 });
 
-test('an address of a card names its canvas and code; another address none', () => {
-  expect(cardHref('/p/my%20canvas/c/ab12')).toEqual({ canvas: 'my canvas', code: 'ab12' });
+test('an address of a card names its project and code; another address none', () => {
+  expect(cardHref('/p/my%20project/c/ab12')).toEqual({ project: 'my project', code: 'ab12' });
   expect(cardHref('https://x.org/p/a/c/b')).toBeNull();
 });
 
@@ -79,8 +79,8 @@ test('what the field shows reads back as the text it was filled with', () => {
     expect(textOf(el('DIV', lines(md).map((ps) => el('DIV', ps.length ? ps.map((p) => (typeof p === 'string' ? text(p) : el('SPAN', [], { 'data-href': p.href, 'data-text': p.text }))) : [el('BR')]))))).toBe(md);
 });
 
-test('in a shown text a link to a card is a smart link: its state, current title and priority; one not on the canvas keeps its text, muted', () => {
-  setCanvas('o');
+test('in a shown text a link to a card is a smart link: its state, current title and priority; one not on the project keeps its text, muted', () => {
+  setProject('o');
   const items = [card('ab12xx', 'Login with Google', { state: 'working', priority: 'high' })];
   const md = 'Builds on [Login](/p/o/c/ab12) and [Gone](/p/o/c/zz99).';
   const html = renderToStaticMarkup(
@@ -95,5 +95,5 @@ test('in a shown text a link to a card is a smart link: its state, current title
 });
 
 test('links saved in earlier card conversations remain smart links', () => {
-  expect(cardHref('/c/my%20shop/card/ab12')).toEqual({ canvas: 'my shop', code: 'ab12' });
+  expect(cardHref('/c/my%20shop/card/ab12')).toEqual({ project: 'my shop', code: 'ab12' });
 });

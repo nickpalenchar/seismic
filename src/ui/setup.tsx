@@ -1,8 +1,8 @@
 // The setup assistant: what Seismic needs on this machine in one list (Claude Code and its login, git,
 // gh and its login, voice, demos), the needed parts apart from those that can wait, installed at a
 // click where Seismic can, with the command for the rest and a terminal for the logins. On the first
-// start (no canvas yet) it fills the page and ends with the first canvas, from a folder or a clone;
-// later the settings open it over the canvas.
+// start (no project yet) it fills the page and ends with the first project, from a folder or a clone;
+// later the settings open it over the project.
 
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
 import { CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, type GitSetupPreview, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type VoiceSetupItem } from '../core/types';
@@ -351,7 +351,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                 </div>
               )}
               {view.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id) === (shownPage === 'recommended')).map((section) => (
-                <section key={section.id} className={`c-canvas c-setup setup-${section.id}`}>
+                <section key={section.id} className={`c-project c-setup setup-${section.id}`}>
                   <div className="setup-sh">
                     <b>{s.sections[section.id].title}</b>
                     <span className={section.id === 'needed' ? 'setup-tag needed' : 'setup-tag'}>{section.id === 'needed' ? s.needed : s.optional}</span>
@@ -372,7 +372,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
               <button className="btn small" disabled={checking || running} onClick={recheck}>
                 {checking ? t.config.setup.checking : t.config.setup.recheck}
               </button>
-              {first && shownPage === 'required' && <FirstCanvas view={view} ready={ready(needed)} onView={setView} />}
+              {first && shownPage === 'required' && <FirstProject view={view} ready={ready(needed)} onView={setView} />}
             </>
           )}
         </div>
@@ -407,7 +407,7 @@ function Identity({ onSaved, onError }: { onSaved: (v: MachineView) => void; onE
   );
 }
 
-/** The language of the page before there is a canvas whose settings could change it. */
+/** The language of the page before there is a project whose settings could change it. */
 function LanguagePick() {
   const [chosen, setChosen] = useState<Language | null>(null);
   useEffect(() => {
@@ -430,36 +430,36 @@ function LanguagePick() {
   );
 }
 
-/** The first canvas: a repository's folder on this machine, or a clone of one. Seismic then starts again with it, and the page opens it. */
-function FirstCanvas({ view, ready, onView }: { view: MachineView; ready: boolean; onView: (v: MachineView) => void }) {
+/** The first project: a repository's folder on this machine, or a clone of one. Seismic then starts again with it, and the page opens it. */
+function FirstProject({ view, ready, onView }: { view: MachineView; ready: boolean; onView: (v: MachineView) => void }) {
   const [mode, setMode] = useState<'folder' | 'clone'>('folder');
   const [path, setPath] = useState('');
   const [clone, setClone] = useState('');
   const [into, setInto] = useState(view.cloneInto);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
-  const [saved, setSaved] = useState<{ canvas: string; branch?: string; opens: boolean } | null>(null);
+  const [saved, setSaved] = useState<{ project: string; branch?: string; opens: boolean } | null>(null);
   // the main branch of the folder named, once Seismic looked at it; or that it is a folder without git
   const found = useFolder(mode === 'folder' ? path.trim() : '');
   const s = t.setup;
   const failed = (e: unknown) => setStatus(failText(e, { detail: ['invalid', 'config'] }));
   const job = view.job?.kind === 'clone' ? view.job : undefined;
-  // a clone that ended as the first canvas
+  // a clone that ended as the first project
   useEffect(() => {
-    if (job && !job.running && job.canvas) setSaved({ canvas: job.canvas, branch: job.branch, opens: !!job.opens });
-  }, [job?.running, job?.canvas]);
+    if (job && !job.running && job.project) setSaved({ project: job.project, branch: job.branch, opens: !!job.opens });
+  }, [job?.running, job?.project]);
   const branch = saved?.branch ?? found?.branch;
   const noGit = !!found?.noGit;
-  // once Seismic runs with the canvas (by itself, or started again by the owner), the page opens it
+  // once Seismic runs with the project (by itself, or started again by the owner), the page opens it
   const opened = useRef(false);
   useEffect(() => {
     if (!saved) return;
     const timer = setInterval(
       () =>
-        api.canvases().then((list) => {
-          if (opened.current || !list.some((c) => c.id === saved.canvas)) return;
+        api.projects().then((list) => {
+          if (opened.current || !list.some((c) => c.id === saved.project)) return;
           opened.current = true;
-          location.href = projectPath(saved.canvas);
+          location.href = projectPath(saved.project);
         }, () => {}),
       1000,
     );
@@ -480,8 +480,8 @@ function FirstCanvas({ view, ready, onView }: { view: MachineView; ready: boolea
     setBusy(true);
     setStatus('');
     try {
-      const out = await api.setupCanvas(mode === 'folder' ? { path, ...(withoutGit ? { git: false as const } : {}) } : { clone, into });
-      if ('canvas' in out) setSaved(out);
+      const out = await api.setupProject(mode === 'folder' ? { path, ...(withoutGit ? { git: false as const } : {}) } : { clone, into });
+      if ('project' in out) setSaved(out);
       else onView(out);
     } catch (e) {
       failed(e);
@@ -490,7 +490,7 @@ function FirstCanvas({ view, ready, onView }: { view: MachineView; ready: boolea
   };
   const can = mode === 'folder' ? !!path.trim() : !!clone.trim();
   return (
-    <section className="c-canvas setup-first">
+    <section className="c-project setup-first">
       <div className="setup-sh">
         <b>{s.first.title}</b>
       </div>
@@ -525,7 +525,7 @@ function FirstCanvas({ view, ready, onView }: { view: MachineView; ready: boolea
                 </span>
               </label>
               {branch && <p className="hint setup-branch">{s.first.branch(branch)}</p>}
-              {noGit && <GitSetup key={path.trim()} path={path.trim()} confirm={s.git.confirmCanvas} onDone={() => create()} onFolder={() => create(true)} />}
+              {noGit && <GitSetup key={path.trim()} path={path.trim()} confirm={s.git.confirmProject} onDone={() => create()} onFolder={() => create(true)} />}
             </>
           ) : (
             <>
@@ -579,7 +579,7 @@ const IGNORED_SHOWN = 12;
  * A folder that has no git: the two ways on, each with what it means. Using it without git
  * (`onFolder`), or setting up git there: what the first commit holds (the folder's entries with
  * their sizes, large files marked, what stays out, the `.gitignore` Seismic writes), and only once the
- * owner confirms, the repository with its first commit. The first canvas and "+ Repository" in the
+ * owner confirms, the repository with its first commit. The first project and "+ Repository" in the
  * configuration both show it.
  */
 export function GitSetup({ path, confirm, onDone, onFolder }: { path: string; confirm: string; onDone: (branch: string) => void; onFolder: () => void }) {

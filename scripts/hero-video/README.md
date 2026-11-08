@@ -12,7 +12,7 @@ About four minutes, in English, in the owner's ElevenLabs voice, recorded at twi
 
 - `narration.ts`: what the video says, scene by scene. Review it as text before rendering.
 - `demo.ts`: the scenes, what each shows while its narration plays.
-- `stage.ts`: the canvas it starts on (cards, their states and places); the repository is `tipjar/`.
+- `stage.ts`: the project it starts on (cards, their states and places); the repository is `tipjar/`.
 - `tipjar/`: the example app, with its own settings (work lands on main, every change gets a demo)
   and a plan doc.
 - `render.ts`: renders in the owner's ElevenLabs voice (`eleven_v4`, which reads the audio tags in
@@ -95,6 +95,6 @@ play button: the big play button over it is a `<button>` in `site/index.html`, w
 starts the video (without JavaScript the browser's controls do). The poster is in git: when the
 opening changes, publish with `--poster`, then commit it and push `main`, which publishes it.
 
-GitHub plays no video in a README, so the repository's README plays a GIF of the canvas at work,
+GitHub plays no video in a README, so the repository's README plays a GIF of the project at work,
 `hero.loop.gif`, linked to the video on obeya.si. `publish.ts` cuts it from the video by the titles
 of two scenes (`LOOP` there: rename them when the scenes are renamed).

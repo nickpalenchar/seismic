@@ -1,11 +1,11 @@
 // What Seismic needs on this machine, as one list for the setup assistant: shown on the first start
-// (no canvases.json in Seismic's home), in the app and the checkout alike, and later from the
+// (no projects.json in Seismic's home), in the app and the checkout alike, and later from the
 // settings. Claude Code with a login and git are needed; gh with a login is for pull requests;
 // voice and demos are the checks the settings sheet makes (voice-setup.ts, the demo skill's
 // setup.ts). What installs without admin rights Seismic installs at a click (Claude Code and uv with
 // their official installers, the speech recognition through the voice's installation, a demo's voice);
 // system software comes with the command for this platform, which Seismic runs at a click where it
-// needs no password (Homebrew, winget); a login opens a terminal. Then the first canvas: a
+// needs no password (Homebrew, winget); a login opens a terminal. Then the first project: a
 // repository's folder, or a clone of one. A second page recommends more: on a Mac the pieces of
 // mobile development (Xcode, an iPhone simulator, Safari's remote automation).
 
@@ -17,12 +17,12 @@ import { dirname, join, resolve } from 'node:path';
 // by its path: the package exports no package.json, which Bun imports all the same but TypeScript does not
 import sdk from '../../node_modules/@anthropic-ai/claude-agent-sdk/package.json';
 import { DOCUMENT } from '../core/files';
-import { blocksSaving, CLONES, type FirstCanvas, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type GitSetupPreview } from '../core/types';
+import { blocksSaving, CLONES, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type GitSetupPreview } from '../core/types';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { checkSetup, type LinuxFamily, linuxFamily, output } from '../../plugin/skills/demo/lib/setup.ts';
 import { installVoice } from '../../plugin/skills/demo/lib/voices.ts';
 import { BadRequest } from './board';
-import type { CanvasRuntime } from './canvas';
+import type { ProjectRuntime } from './project';
 import type { Config } from './config';
 import { previewGitSetup, setUpGit, withoutGit } from './git-setup';
 import { saveClaudeToken } from './hosts';
@@ -189,16 +189,16 @@ function folderOf(input: unknown): string {
   return resolve(expandHome(path.trim()));
 }
 
-/** The marker of a canvas the assistant created: once it runs, it gets a first card that says what to try. */
+/** The marker of a project the assistant created: once it runs, it gets a first card that says what to try. */
 export const WELCOME_FILE = 'welcome';
 
-/** Puts the first card on the canvas the assistant created, once, when it runs. */
-export function welcome(home: string, canvases: CanvasRuntime[]) {
+/** Puts the first card on the project the assistant created, once, when it runs. */
+export function welcome(home: string, projects: ProjectRuntime[]) {
   const file = join(home, WELCOME_FILE);
   if (!existsSync(file)) return;
   const id = readFileSync(file, 'utf8').trim();
   rmSync(file, { force: true });
-  const c = canvases.find((x) => x.id === id);
+  const c = projects.find((x) => x.id === id);
   if (!c) return;
   const items = c.board.items();
   // right of the plan docs' plans the repository brings, at their top
@@ -512,7 +512,7 @@ export class MachineSetup {
     return { path: out ? out.replace(/(?<=.)[/\\]$/, '') : null };
   }
 
-  /** A folder the owner names for the first canvas: whether it holds a repository, and its main branch. */
+  /** A folder the owner names for the first project: whether it holds a repository, and its main branch. */
   folder(input: unknown): SetupFolder {
     const path = folderOf(input);
     try {
@@ -532,8 +532,8 @@ export class MachineSetup {
     return setUpGit(folderOf(input));
   }
 
-  /** The first canvas: a repository's folder, saved at once; or a clone of one, in the background. */
-  async canvas(input: unknown): Promise<FirstCanvas | MachineView> {
+  /** The first project: a repository's folder, saved at once; or a clone of one, in the background. */
+  async project(input: unknown): Promise<FirstProject | MachineView> {
     const { path, clone, into, git } = (input ?? {}) as { path?: unknown; clone?: unknown; into?: unknown; git?: unknown };
     if (typeof path === 'string' && path.trim()) return this.add(resolve(expandHome(path.trim())), git === false);
     if (typeof clone !== 'string' || !clone.trim()) throw new BadRequest('invalid', 'a folder or a repository to clone');
@@ -552,7 +552,7 @@ export class MachineSetup {
       { kind: 'clone' },
       async (log, job) => {
         await this.run(argv, log);
-        ({ canvas: job.canvas, branch: job.branch, opens: job.opens } = await this.add(dest));
+        ({ project: job.project, branch: job.branch, opens: job.opens } = await this.add(dest));
       },
       (e) => {
         console.error(`Seismic: cloning ${spec} failed: ${e.message}`);
@@ -561,8 +561,8 @@ export class MachineSetup {
     );
   }
 
-  /** Adds the repository as a canvas of its own and saves the configuration; Seismic runs it at once. `folder`: a folder that stays without git. */
-  private async add(path: string, folder = false): Promise<FirstCanvas> {
+  /** Adds the repository as a project of its own and saves the configuration; Seismic runs it at once. `folder`: a folder that stays without git. */
+  private async add(path: string, folder = false): Promise<FirstProject> {
     let next = [...this.o.config.current(), { repos: [{ path, ...(folder ? { git: false as const } : {}) }] }];
     let { problems, resolved } = await this.o.config.check(next);
     // a repository whose settings say clones gets two, so two cards can be worked on at once
@@ -572,9 +572,9 @@ export class MachineSetup {
     }
     const problem = problems.find(blocksSaving);
     if (problem) throw new BadRequest(problem.code === 'notRepo' ? 'notRepo' : 'config', problem.detail);
-    const canvas = resolved.at(-1)!.id;
-    writeFileSync(join(this.o.home, WELCOME_FILE), canvas);
+    const project = resolved.at(-1)!.id;
+    writeFileSync(join(this.o.home, WELCOME_FILE), project);
     const { restarting, applied } = await this.o.config.save(next);
-    return { canvas, branch: folder ? '' : repoInfo(path).branch, opens: restarting || !!applied };
+    return { project, branch: folder ? '' : repoInfo(path).branch, opens: restarting || !!applied };
   }
 }

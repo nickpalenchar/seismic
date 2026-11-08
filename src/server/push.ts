@@ -36,8 +36,8 @@ export interface Waits {
   card: string;
   title: string;
   kind: PushKind;
-  /** Its canvas's name, where Seismic has several. */
-  canvas?: string;
+  /** Its project's name, where Seismic has several. */
+  project?: string;
   /** Whether it still waits: one the owner took care of within the minute is not pushed. */
   still: () => boolean;
 }
@@ -180,15 +180,15 @@ export class Push {
     const m = MESSAGES[this.language()].push;
     if (cards.length === 1) {
       const w = cards[0]!;
-      return { title: clipped(plainTitle(w.title), 160), body: clipped([m[w.kind], w.canvas].filter(Boolean).join(' · '), 200), url: this.cardUrl(w.card), tag: w.card };
+      return { title: clipped(plainTitle(w.title), 160), body: clipped([m[w.kind], w.project].filter(Boolean).join(' · '), 200), url: this.cardUrl(w.card), tag: w.card };
     }
     return { title: m.several(cards.length), body: clipped(cards.map((w) => plainTitle(w.title)).join(' · '), 600), url: '/', tag: 'several' };
   }
 
-  /** Where tapping the push for a card leads: the card on its canvas, by its short code. */
+  /** Where tapping the push for a card leads: the card on its project, by its short code. */
   private cardUrl(id: string): string {
     const row = this.store.card(id);
-    return row ? `/p/${encodeURIComponent(row.canvas_id)}/c/${row.short}` : `/?card=${encodeURIComponent(id)}`;
+    return row ? `/p/${encodeURIComponent(row.project_id)}/c/${row.short}` : `/?card=${encodeURIComponent(id)}`;
   }
 
   /** Sends `message` to every device that gets pushes; a subscription its push service no longer knows goes. */

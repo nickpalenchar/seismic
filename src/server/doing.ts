@@ -1,5 +1,5 @@
 // What a card's worker is doing right now, as its card shows under the title while it works
-// (design: The canvas, "What the agent is doing"). Read from the agent's events alone: no
+// (design: The project, "What the agent is doing"). Read from the agent's events alone: no
 // instruction asks the agent to say it.
 
 import type { AgentDoing } from '../core/types';

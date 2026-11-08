@@ -17,18 +17,18 @@ test('a draft not saved yet comes back after a reload, until it is saved', () =>
   expect(s.m.size).toBe(0);
 });
 
-test('the canvases keep their draft with the ids they had, and each draft its own place', () => {
+test('the projects keep their draft with the ids they had, and each draft its own place', () => {
   const s = store();
   type K = { draft: { name: string }[]; origin: (string | null)[] };
   const of = (k: K) => k.draft;
   const saved = [{ name: 'obeya' }];
   const k: K = { draft: [{ name: 'Seismic' }], origin: ['obeya'] };
-  keepConfigDraft(s, 'canvases', k, saved, of);
+  keepConfigDraft(s, 'projects', k, saved, of);
   expect(keptConfigDraft(s, 'demo', {})).toBeNull();
-  expect(keptConfigDraft<K>(s, 'canvases', saved, of)).toEqual(k);
+  expect(keptConfigDraft<K>(s, 'projects', saved, of)).toEqual(k);
   // put back as saved: forgotten
-  keepConfigDraft(s, 'canvases', { draft: saved, origin: ['obeya'] }, saved, of);
-  expect(keptConfigDraft<K>(s, 'canvases', saved, of)).toBeNull();
+  keepConfigDraft(s, 'projects', { draft: saved, origin: ['obeya'] }, saved, of);
+  expect(keptConfigDraft<K>(s, 'projects', saved, of)).toBeNull();
 });
 
 test('a Qwen3 voice is a clone for a built-in speaker or a sample of the narration language', async () => {

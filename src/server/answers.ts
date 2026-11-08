@@ -27,7 +27,7 @@ import { clip, messageOf } from '../core/text';
 export interface AnswerOptions {
   board: Board;
   runtime: AgentRuntime;
-  /** The checkout the answer is read from: the card's repository, or the canvas's home. */
+  /** The checkout the answer is read from: the card's repository, or the project's home. */
   pathFor: (card: Item | undefined) => string;
   /** The task the card's worker gets at its start. */
   startBrief: (card: Item) => string | undefined;
@@ -177,7 +177,7 @@ export class Answers {
   }
 
   /**
-   * The owner pauses the Question card's agent at a safe point (the card's pause, the canvas's): it
+   * The owner pauses the Question card's agent at a safe point (the card's pause, the project's): it
    * finishes the answer it reads for, and is paused then, before it reads for what was asked
    * meanwhile. One whose turn has not begun yet is paused at once.
    */
@@ -411,7 +411,7 @@ export class Answers {
       inform({
         runtime: this.o.runtime,
         cwd: this.o.pathFor(c.about),
-        system: `You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic.\n\n${INFORM_RULES}${toObeya ? `\n\n${TO_OBEYA}` : ''}`,
+        system: `You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic.\n\n${INFORM_RULES}${toObeya ? `\n\n${TO_OBEYA}` : ''}`,
         message: [message, filesNote(dir), this.o.preferences?.() ?? ''].filter(Boolean).join('\n\n'),
         dir,
         onTool: c.onTool,
@@ -583,5 +583,5 @@ export const fromAnswerTag = (tag: string): number | undefined => {
 };
 
 /** A thread's output directory under Seismic's home: never in a repository, like demos. */
-export const answersDir = (home: string, canvas: string, thread: number) => join(home, 'answers', canvas, String(thread));
+export const answersDir = (home: string, project: string, thread: number) => join(home, 'answers', project, String(thread));
 

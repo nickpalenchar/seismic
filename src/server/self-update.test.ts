@@ -277,7 +277,7 @@ test('a rebuild installs the dependencies whatever changed', () => {
 
 test("the owner's rebuild turns a restart that waits into a rebuild, and a later restart keeps it one", async () => {
   const gone: string[] = [];
-  const r = new Restarter({ busy: () => [{ canvas: 'c', card: 'a' }], go: (reason) => gone.push(reason), patienceMs: 10_000, intervalMs: 10 });
+  const r = new Restarter({ busy: () => [{ project: 'c', card: 'a' }], go: (reason) => gone.push(reason), patienceMs: 10_000, intervalMs: 10 });
   r.request('code');
   r.request('rebuild');
   r.request('owner');
@@ -321,8 +321,8 @@ test('a restart with no worker busy goes ahead at once and never waits', () => {
 
 test('a restart that waits tells for whom, follows them, and goes once they are done', async () => {
   let busy: Busy[] = [
-    { canvas: 'c', card: 'a' },
-    { canvas: 'c', card: 'b' },
+    { project: 'c', card: 'a' },
+    { project: 'c', card: 'b' },
   ];
   let gone = 0;
   let changes = 0;
@@ -335,7 +335,7 @@ test('a restart that waits tells for whom, follows them, and goes once they are 
   expect(changes).toBe(1);
   busy = [busy[1]!];
   await wait(50);
-  expect(r.due()!.waiting).toEqual([{ canvas: 'c', card: 'b' }]);
+  expect(r.due()!.waiting).toEqual([{ project: 'c', card: 'b' }]);
   expect(changes).toBe(2);
   expect(gone).toBe(0);
   busy = [];
@@ -346,7 +346,7 @@ test('a restart that waits tells for whom, follows them, and goes once they are 
 
 test('the owner has a waiting restart go ahead now, once', async () => {
   let gone = 0;
-  const r = new Restarter({ busy: () => [{ canvas: 'c', card: 'a' }], go: () => gone++, patienceMs: 10_000, intervalMs: 10 });
+  const r = new Restarter({ busy: () => [{ project: 'c', card: 'a' }], go: () => gone++, patienceMs: 10_000, intervalMs: 10 });
   r.request('code');
   expect(r.now()).toBe(true);
   expect(gone).toBe(1);
@@ -360,14 +360,14 @@ test('the owner has a waiting restart go ahead now, once', async () => {
 test('a restart waits while the owner watches a video or dictates, past its patience too, and not for a page that let go', async () => {
   let gone = 0;
   let changes = 0;
-  const r = new Restarter({ busy: () => [{ canvas: 'c', card: 'a' }], go: () => gone++, patienceMs: 30, intervalMs: 10 });
+  const r = new Restarter({ busy: () => [{ project: 'c', card: 'a' }], go: () => gone++, patienceMs: 30, intervalMs: 10 });
   r.onChange(() => changes++);
   r.hold('page1', ['video']);
   r.hold('page2', ['voice', 'video']);
   r.hold('page3', ['voice']);
   r.hold('page3');
   r.request('code');
-  expect(r.due()).toMatchObject({ waiting: [{ canvas: 'c', card: 'a' }], owner: ['video', 'voice'] });
+  expect(r.due()).toMatchObject({ waiting: [{ project: 'c', card: 'a' }], owner: ['video', 'voice'] });
   await wait(80);
   expect(gone).toBe(0);
   r.hold('page2', ['voice']);
@@ -408,7 +408,7 @@ test('a restart with no worker busy waits for the owner alone', async () => {
 });
 
 test('a stop waits for the workers like a restart, but not for the owner, and goes as a stop', async () => {
-  let busy: Busy[] = [{ canvas: 'c', card: 'a' }];
+  let busy: Busy[] = [{ project: 'c', card: 'a' }];
   const gone: string[] = [];
   const r = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 10_000, intervalMs: 10 });
   r.hold('page', ['video']);
@@ -425,7 +425,7 @@ test('a stop waits for the workers like a restart, but not for the owner, and go
 
 test('a stop proceeds at its deadline even if a worker is still busy', async () => {
   const gone: string[] = [];
-  const r = new Restarter({ busy: () => [{ canvas: 'c', card: 'a' }], go: (reason) => gone.push(reason), patienceMs: 40, intervalMs: 10 });
+  const r = new Restarter({ busy: () => [{ project: 'c', card: 'a' }], go: (reason) => gone.push(reason), patienceMs: 40, intervalMs: 10 });
   r.request('stop');
   expect(gone).toEqual([]);
   await wait(100);
@@ -434,7 +434,7 @@ test('a stop proceeds at its deadline even if a worker is still busy', async () 
 
 test('a forced stop proceeds without waiting for a busy worker', async () => {
   const gone: [string, boolean][] = [];
-  const r = new Restarter({ busy: () => [{ canvas: 'c', card: 'a' }], go: (reason, forced) => gone.push([reason, forced]), patienceMs: 10_000, intervalMs: 10 });
+  const r = new Restarter({ busy: () => [{ project: 'c', card: 'a' }], go: (reason, forced) => gone.push([reason, forced]), patienceMs: 10_000, intervalMs: 10 });
   r.request('stop');
   expect(r.now()).toBe(true);
   expect(gone).toEqual([['stop', true]]);
@@ -445,7 +445,7 @@ test('a forced stop proceeds without waiting for a busy worker', async () => {
 test('a stop turns a restart that waits into a stop', async () => {
   const gone: string[] = [];
   let changes = 0;
-  const r = new Restarter({ busy: () => [{ canvas: 'c', card: 'a' }], go: (reason) => gone.push(reason), patienceMs: 10_000, intervalMs: 10 });
+  const r = new Restarter({ busy: () => [{ project: 'c', card: 'a' }], go: (reason) => gone.push(reason), patienceMs: 10_000, intervalMs: 10 });
   r.onChange(() => changes++);
   r.hold('page', ['voice']);
   r.request('code');
@@ -467,7 +467,7 @@ test('a stop with no worker busy goes at once, even while the owner watches a vi
 
 test('installing an update turns a restart that waits into an update, which waits for the owner too', async () => {
   const gone: string[] = [];
-  let busy: Busy[] = [{ canvas: 'c', card: 'a' }];
+  let busy: Busy[] = [{ project: 'c', card: 'a' }];
   const r = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 10_000, intervalMs: 10 });
   r.request('code');
   r.request('update');
@@ -486,7 +486,7 @@ test('installing an update turns a restart that waits into an update, which wait
 
 test('an update or a stop wins over a takeover by the app that waits, and new code does not', () => {
   const gone: string[] = [];
-  const r = new Restarter({ busy: () => [{ canvas: 'c', card: 'a' }], go: (reason) => gone.push(reason), patienceMs: 10_000, intervalMs: 10 });
+  const r = new Restarter({ busy: () => [{ project: 'c', card: 'a' }], go: (reason) => gone.push(reason), patienceMs: 10_000, intervalMs: 10 });
   r.request('takeover');
   r.request('config');
   expect(r.due()?.reason).toBe('takeover');
@@ -500,7 +500,7 @@ test('an update or a stop wins over a takeover by the app that waits, and new co
 
 test('a stop wins over an update that waits', () => {
   const gone: string[] = [];
-  const r = new Restarter({ busy: () => [{ canvas: 'c', card: 'a' }], go: (reason) => gone.push(reason), patienceMs: 10_000, intervalMs: 10 });
+  const r = new Restarter({ busy: () => [{ project: 'c', card: 'a' }], go: (reason) => gone.push(reason), patienceMs: 10_000, intervalMs: 10 });
   r.request('update');
   r.request('stop');
   expect(r.due()?.reason).toBe('stop');

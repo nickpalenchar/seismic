@@ -1,13 +1,13 @@
 import { ChevronDown, CircleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { AGENT_EFFORTS, AGENT_MODELS, canvasAgentSetting, type AgentEffort, type AgentModel, type AgentSetting, type CodexModel, type Harness } from '../core/types';
+import { AGENT_EFFORTS, AGENT_MODELS, projectAgentSetting, type AgentEffort, type AgentModel, type AgentSetting, type CodexModel, type Harness } from '../core/types';
 import { ApiError, api } from './api';
 import { useMenuClose } from './queue';
 import { updateDraft, useDraft } from './draft';
 import { failText, t } from './strings';
 
-/** What a worker on the shown canvas starts with: its own models over Configuration's. */
-const workerDefault = () => api.shownCanvasSettings().then((v) => canvasAgentSetting('worker', v.agents.worker, v.settings.agents));
+/** What a worker on the shown project starts with: its own models over Configuration's. */
+const workerDefault = () => api.shownProjectSettings().then((v) => projectAgentSetting('worker', v.agents.worker, v.settings.agents));
 
 export const describeAgent = (s: AgentSetting, short = false) => {
     const a = t.config.agents;

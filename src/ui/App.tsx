@@ -1,14 +1,14 @@
 import { clientExtensions as extensions } from '../extensions/client';
-// The canvas: camera, drag, unfold-in-place and the plan sheet.
+// The project: camera, drag, unfold-in-place and the plan sheet.
 
 import { useRatePrompt } from './feedback';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Archive, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
-import { type Bounds, boundsOf, CARD_SIZE, centre, onCanvas, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
-import { type CanvasInfo, type CanvasSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn } from '../core/types';
+import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
+import { type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
-import { api, ApiError, beforeReload, onNotice, quietAtStart, reportFocus, setCanvas, useCanvas } from './api';
+import { api, ApiError, beforeReload, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { GroupNames, growFrom, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
@@ -23,7 +23,7 @@ import { ArchivePill } from './archive';
 import { CardSearch } from './cardSearch';
 import { useBarFit } from './barFit';
 import { UsagePill } from './usage';
-import { ConfigDialog, Problem, showAddSite, showCanvasesSection, showDevicesSection, showNewCanvas, showRepoClones } from './config';
+import { ConfigDialog, Problem, showAddSite, showProjectsSection, showDevicesSection, showNewProject, showRepoClones } from './config';
 import { AppMenu, PrefsDialog } from './prefs';
 import { PhoneDialog } from './access';
 import { OpenPerformance, PerformanceDialog } from './performance';
@@ -51,62 +51,62 @@ import { videoOf } from './spot';
 import { CardView, cardClass, shownState, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clampWidth, loadWidths, saveWidths, SHEET_W, type SheetWidths, widthsIn } from './sheetWidth';
 import { clock, failText, t } from './strings';
-import { loadPinned, NAV_CANVAS_MIN, NAV_W, NavPill, NavSheet, savePinned } from './nav';
+import { loadPinned, NAV_PROJECT_MIN, NAV_W, NavPill, NavSheet, savePinned } from './nav';
 import { projectPath, cardPath, feedbackLogPath, followedPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { type QuickReply, sendReply } from './quickReply';
 import { Inbox } from './inbox';
 import { useInboxRead } from './inboxRead';
-import { CanvasSettingsSheet } from './canvasSettings';
+import { ProjectSettingsSheet } from './projectSettings';
 import { type InboxEntry, inboxEntries, readMark, waitingCount } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, voiceTarget } from './tell';
 
 export function App() {
   const [phone] = useState(phoneView);
-  const [canvases, setCanvases] = useState<CanvasInfo[] | null>(null);
+  const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
-    api.canvases().then(
+    api.projects().then(
       (list) => {
-        setCanvases(list);
-        if (phone) keepCanvases(list);
+        setProjects(list);
+        if (phone) keepProjects(list);
       },
       () => {
         setFailed(true);
-        if (phone) setCanvases((c) => c ?? keptCanvases());
+        if (phone) setProjects((c) => c ?? keptProjects());
       },
     );
-    // the app from the home screen while the machine sleeps: the phone view with the canvases it had, which says that Seismic does not answer
+    // the app from the home screen while the machine sleeps: the phone view with the projects it had, which says that Seismic does not answer
     if (!phone) return;
-    const h = setTimeout(() => setCanvases((c) => c ?? keptCanvases()), quietAtStart ? 0 : 3000);
+    const h = setTimeout(() => setProjects((c) => c ?? keptProjects()), quietAtStart ? 0 : 3000);
     return () => clearTimeout(h);
   }, []);
-  if (!canvases) return <Splash offline={failed} />;
-  // the canvas in the address, else the first
-  const { canvas: wanted, page } = readAddress();
-  knowProjects(canvases);
+  if (!projects) return <Splash offline={failed} />;
+  // the project in the address, else the first
+  const { project: wanted, page } = readAddress();
+  knowProjects(projects);
   // an address with no address part opens the first; one naming no project says so, rather than showing another's cards
-  const current = wanted ? projectNamed(canvases, wanted) : canvases[0];
-  if (!canvases.length) return <NoCanvas />;
-  if (!current) return <NoSuchProject name={wanted!} canvases={canvases} />;
-  // a phone gets every canvas's waits and work, and the cards full screen, instead of the canvas
-  if (phone) return <Phone canvases={canvases} />;
-  // the Agent Feedback Log, a page of its own in place of the canvas it was opened from
-  if (page === 'feedback') return <FeedbackLog canvases={canvases} here={current.id} />;
-  setCanvas(current.id);
+  const current = wanted ? projectNamed(projects, wanted) : projects[0];
+  if (!projects.length) return <NoProject />;
+  if (!current) return <NoSuchProject name={wanted!} projects={projects} />;
+  // a phone gets every project's waits and work, and the cards full screen, instead of the project
+  if (phone) return <Phone projects={projects} />;
+  // the Agent Feedback Log, a page of its own in place of the project it was opened from
+  if (page === 'feedback') return <FeedbackLog projects={projects} here={current.id} />;
+  setProject(current.id);
   keepDrafts(sessionStorage, current.id);
   keepWish(sessionStorage, current.id);
-  return <Live canvases={canvases} />;
+  return <Live projects={projects} />;
 }
 
 /** An address names a project that does not exist (a renamed one's old address, a typo): the projects there are, as links. */
-function NoSuchProject({ name, canvases }: { name: string; canvases: CanvasInfo[] }) {
+function NoSuchProject({ name, projects }: { name: string; projects: ProjectInfo[] }) {
   return (
     <div id="splash" className="none-runs">
       <Sign size={56} />
       <h2>{t.noSuchProject(name)}</h2>
       <ul>
-        {canvases.map((c) => (
+        {projects.map((c) => (
           <li key={c.id}>
             <a className="link" href={projectPath(c.id)}>
               {c.name}
@@ -119,18 +119,18 @@ function NoSuchProject({ name, canvases }: { name: string; canvases: CanvasInfo[
 }
 
 /**
- * No canvas runs: on the first start, with none configured yet, the setup assistant fills the page
+ * No project runs: on the first start, with none configured yet, the setup assistant fills the page
  * and creates one; where the configured ones did not start, the page says why, and "Try again"
- * opens the canvases once one runs.
+ * opens the projects once one runs.
  */
-function NoCanvas() {
+function NoProject() {
   const [down, setDown] = useState<ConfigProblem[] | null>(null);
-  const read = () => api.configCheck().then((c) => setDown(c.problems.filter((p) => p.code === 'canvasDown')), () => setDown([]));
+  const read = () => api.configCheck().then((c) => setDown(c.problems.filter((p) => p.code === 'projectDown')), () => setDown([]));
   useEffect(() => void read(), []);
   if (!down) return <Splash offline={false} />;
   if (!down.length) return <Setup first />;
   const retried = () =>
-    void api.canvases().then((list) => {
+    void api.projects().then((list) => {
       if (list.length) location.reload();
       else void read();
     }, console.error);
@@ -145,19 +145,19 @@ function NoCanvas() {
   );
 }
 
-/** While the page loads, and after a restart until the canvas is back: the sign in the middle, above "offline" when the server cannot be reached. */
-/** The canvases the phone view last had, for when the machine does not answer. */
-const KEPT_CANVASES = 'obeya-phone-canvases';
+/** While the page loads, and after a restart until the project is back: the sign in the middle, above "offline" when the server cannot be reached. */
+/** The projects the phone view last had, for when the machine does not answer. */
+const KEPT_PROJECTS = 'obeya-phone-projects';
 /** Set once the owner has drawn their first arrow between cards: what an arrow does no longer shows while drawing. */
 const DEP_KNOWN = 'obeya-dep-known';
-function keepCanvases(list: CanvasInfo[]) {
+function keepProjects(list: ProjectInfo[]) {
   try {
-    localStorage.setItem(KEPT_CANVASES, JSON.stringify(list));
+    localStorage.setItem(KEPT_PROJECTS, JSON.stringify(list));
   } catch {}
 }
-function keptCanvases(): CanvasInfo[] | null {
+function keptProjects(): ProjectInfo[] | null {
   try {
-    const list = JSON.parse(localStorage.getItem(KEPT_CANVASES) ?? 'null') as CanvasInfo[] | null;
+    const list = JSON.parse(localStorage.getItem(KEPT_PROJECTS) ?? 'null') as ProjectInfo[] | null;
     return list?.length ? list : null;
   } catch {
     return null;
@@ -190,11 +190,11 @@ function Splash({ offline }: { offline: boolean }) {
   );
 }
 
-function Live({ canvases: loaded }: { canvases: CanvasInfo[] }) {
-  const { snapshot, online, frozenSince, offlineSince, restart, update, source, usage, waiting, oldBun, canvases } = useCanvas();
+function Live({ projects: loaded }: { projects: ProjectInfo[] }) {
+  const { snapshot, online, frozenSince, offlineSince, restart, update, source, usage, waiting, oldBun, projects } = useProject();
   if (!snapshot) return <Splash offline={!online} />;
-  // a canvas started, stopped or renamed while the page is open: the switcher follows
-  return <Canvas snapshot={snapshot} online={online} downSince={offlineSince ?? frozenSince} frozen={frozenSince !== null} restart={restart} update={update} source={source} usage={usage} canvases={canvases ?? loaded} waiting={waiting} oldBun={oldBun} />;
+  // a project started, stopped or renamed while the page is open: the switcher follows
+  return <Project snapshot={snapshot} online={online} downSince={offlineSince ?? frozenSince} frozen={frozenSince !== null} restart={restart} update={update} source={source} usage={usage} projects={projects ?? loaded} waiting={waiting} oldBun={oldBun} />;
 }
 
 /** What is open, and the view to go back to: `prevCam` laid out beside the panels `prevSide`. */
@@ -220,9 +220,9 @@ async function soon<T>(get: () => T | undefined, ms = 3000): Promise<T | undefin
   return get();
 }
 
-const camKey = (canvasId: string) => `obeya-cam-${canvasId}`;
+const camKey = (projectId: string) => `obeya-cam-${projectId}`;
 
-function Canvas({
+function Project({
   snapshot,
   online,
   downSince,
@@ -231,11 +231,11 @@ function Canvas({
   update,
   source,
   usage,
-  canvases,
+  projects,
   waiting,
   oldBun,
 }: {
-  snapshot: CanvasSnapshot;
+  snapshot: ProjectSnapshot;
   online: boolean;
   /** Since when the server answers nothing (connection lost or frozen); null while it does. */
   downSince: number | null;
@@ -245,19 +245,19 @@ function Canvas({
   source: SourceUpdate | null;
   /** The plan's usage limits, while the bar shows them. */
   usage: Usage | null;
-  canvases: CanvasInfo[];
+  projects: ProjectInfo[];
   waiting: Record<string, Waiting>;
   /** The Bun the server runs on, when it is too old for it (docs/design/distribution.md, Builds). */
   oldBun: string | null;
 }) {
-  knowProjects(canvases);
+  knowProjects(projects);
   // a rename of this project, or an address by an old name: it follows to the name now, keeping the card and query
   const shownAt = useRef<{ id: string; path: string } | null>(null);
   useEffect(() => {
-    const to = followedPath(location.pathname, canvases, snapshot.canvas.id, shownAt.current);
-    shownAt.current = { id: snapshot.canvas.id, path: projectPath(snapshot.canvas.id) };
+    const to = followedPath(location.pathname, projects, snapshot.project.id, shownAt.current);
+    shownAt.current = { id: snapshot.project.id, path: projectPath(snapshot.project.id) };
     if (to) history.replaceState(history.state, '', `${to}${location.search}${location.hash}`);
-  }, [canvases, snapshot.canvas.id]);
+  }, [projects, snapshot.project.id]);
   // ---------------------------------------------------------------- items
   // Local positions win over the snapshot until the server echoes them back.
   const [moved, setMoved] = useState<Record<string, Pos>>({});
@@ -284,8 +284,8 @@ function Canvas({
       return keep.length === Object.keys(f).length ? f : Object.fromEntries(keep);
     });
     setPending((p) => (p.some((i) => byId.has(i.id)) ? p.filter((i) => !byId.has(i.id)) : p));
-    // a card replied to from "Needs you" stays under way while it still waits for the owner, also one on another canvas
-    const elsewhere = (id: string) => Object.entries(waiting).find(([c]) => c !== snapshot.canvas.id && waiting[c]!.items.some((i) => i.id === id))?.[1].items.find((i) => i.id === id);
+    // a card replied to from "Needs you" stays under way while it still waits for the owner, also one on another project
+    const elsewhere = (id: string) => Object.entries(waiting).find(([c]) => c !== snapshot.project.id && waiting[c]!.items.some((i) => i.id === id))?.[1].items.find((i) => i.id === id);
     setUnderway((u) => {
       const keep = Object.entries(u).filter(([id]) => {
         const i = byId.get(id) ?? elsewhere(id);
@@ -309,8 +309,8 @@ function Canvas({
   }, [snapshot, pending, moved, folded]);
   const itemsRef = useRef(items);
   itemsRef.current = items;
-  // the workstreams of a collapsed plan are not on the canvas: its marks stand for them
-  const placed = useMemo(() => onCanvas(items).map((item) => ({ item, b: boundsOf(item, items) })), [items]);
+  // the workstreams of a collapsed plan are not on the project: its marks stand for them
+  const placed = useMemo(() => onProject(items).map((item) => ({ item, b: boundsOf(item, items) })), [items]);
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const territories = useTerritories(placed, snapshot.groups);
   const kidsOf = useMemo(() => {
@@ -319,9 +319,9 @@ function Canvas({
     return m;
   }, [items]);
   const repliesIn = useMemo(() => unreadPerPlan(snapshot.talk), [snapshot.talk]);
-  // ideas with a prototype on the canvas, which stay out of the archive until it ends
+  // ideas with a prototype on the project, which stay out of the archive until it ends
   const prototyped = useMemo(() => new Set(items.flatMap((i) => (i.prototypeOf ? [i.prototypeOf] : []))), [items]);
-  const [noteHidden, hideNote] = useHiddenEmptyNotes(snapshot.canvas.id);
+  const [noteHidden, hideNote] = useHiddenEmptyNotes(snapshot.project.id);
   // where notes on plan directories were moved here, by repository, until the server echoes it back
   const [notesMoved, setNotesMoved] = useState<Record<string, Pos>>({});
   useEffect(() => {
@@ -338,14 +338,14 @@ function Canvas({
   }, [snapshot.planDirs, noteHidden, notesMoved]);
   const notes = useMemo(() => (planDirs ? planDirBoxes(planDirs, placed) : []), [planDirs, placed]);
   const all: Bounds = useMemo(() => unionBounds([...placed.map((p) => p.b), ...notes]) ?? { x: 0, y: 0, w: 1000, h: 600 }, [placed, notes]);
-  // what the view keeps in sight: the whole area the minimap panel shows, so anywhere on it can be scrolled to; an empty canvas has no limit
+  // what the view keeps in sight: the whole area the minimap panel shows, so anywhere on it can be scrolled to; an empty project has no limit
   const content = useMemo(() => (placed.length || notes.length ? [minimapArea(all)] : []), [placed, notes, all]);
   const contentRef = useRef(content);
   contentRef.current = content;
   const byId = (id: string) => itemsRef.current.find((i) => i.id === id);
-  /** Where a card stands on the canvas; a workstream of a collapsed plan, where its plan does. */
+  /** Where a card stands on the project; a workstream of a collapsed plan, where its plan does. */
   const bounds = (i: Item) => boundsOf(standsFor(i), itemsRef.current);
-  /** The card on the canvas that shows `i`: a workstream of a collapsed plan shows as a mark on its plan. */
+  /** The card on the project that shows `i`: a workstream of a collapsed plan shows as a mark on its plan. */
   const standsFor = (i: Item) => {
     const p = i.parent ? byId(i.parent) : undefined;
     return p?.collapsed ? p : i;
@@ -354,7 +354,7 @@ function Canvas({
   // ---------------------------------------------------------------- camera
   const [cam, setCam, camRef] = useLive<Cam>(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(camKey(snapshot.canvas.id)) ?? 'null');
+      const saved = JSON.parse(localStorage.getItem(camKey(snapshot.project.id)) ?? 'null');
       // saved as it would be without a sheet, which none is before the page opens one
       if (saved && [saved.x, saved.y, saved.s].every(Number.isFinite)) return keepInView(saved, content, { left: 0, top: TOP, right: innerWidth, bottom: innerHeight - BOTTOM });
     } catch {}
@@ -376,11 +376,11 @@ function Canvas({
     if (focusRef.current) return;
     const h = setTimeout(() => {
       try {
-        localStorage.setItem(camKey(snapshot.canvas.id), JSON.stringify(besideSheet(cam, camSide.current, NO_SIDES)));
+        localStorage.setItem(camKey(snapshot.project.id), JSON.stringify(besideSheet(cam, camSide.current, NO_SIDES)));
       } catch {}
     }, 300);
     return () => clearTimeout(h);
-  }, [cam, snapshot.canvas.id]);
+  }, [cam, snapshot.project.id]);
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const onResize = () => setTick((n) => n + 1);
@@ -402,19 +402,19 @@ function Canvas({
   const sheetWRef = useRef(sheetW);
   sheetWRef.current = sheetW;
   const [kOn, setKOn, kOnRef] = useLive(false);
-  // the inbox, a docked sheet like Seismic's: only one of them is open; it stays open across canvases
+  // the inbox, a docked sheet like Seismic's: only one of them is open; it stays open across projects
   const [inboxOn, setInboxOn, inboxOnRef] = useLive(() => inboxKept(sessionStorage));
   useEffect(() => keepInbox(sessionStorage, inboxOn), [inboxOn]);
   // what of the inbox the owner has read (src/ui/inboxRead.ts)
   const inboxRead = useInboxRead();
-  // the canvas's settings, a docked sheet like the inbox, from the gear in the bar (canvasSettings.tsx)
+  // the project's settings, a docked sheet like the inbox, from the gear in the bar (projectSettings.tsx)
   const [csOn, setCsOn, csOnRef] = useLive(false);
   // Seismic's sheet takes the inbox's place however it opens (its button, `?talk`, a reload), and the settings'
   useEffect(() => {
     if (kOn) setInboxOn(false);
     if (kOn) setCsOn(false);
   }, [kOn]);
-  // the inbox and the canvas's settings take each other's place
+  // the inbox and the project's settings take each other's place
   useEffect(() => {
     if (inboxOn) setCsOn(false);
   }, [inboxOn]);
@@ -428,14 +428,14 @@ function Canvas({
   };
   /**
    * What the panels docked at the window's edges take of it, as just set: the sheet on the right and
-   * the pinned navigation on the left; the canvas is what remains between them. A narrow window lays
-   * the sheet over the canvas instead (styles.css), and the navigation stays under its button, as it
-   * does where it would leave the canvas too little room beside the sheet: the two never stack.
+   * the pinned navigation on the left; the project is what remains between them. A narrow window lays
+   * the sheet over the project instead (styles.css), and the navigation stays under its button, as it
+   * does where it would leave the project too little room beside the sheet: the two never stack.
    */
   const sideNow = (): Sides => {
     const narrow = matchMedia(NARROW).matches;
     const right = narrow || !(kOnRef.current || inboxOnRef.current || csOnRef.current || sheetOnRef.current) ? 0 : sheetOnRef.current && readingRef.current ? sheetWRef.current.read : sheetWRef.current.sheet;
-    return { left: !narrow && pinnedRef.current && innerWidth - NAV_W - right >= NAV_CANVAS_MIN ? NAV_W : 0, right };
+    return { left: !narrow && pinnedRef.current && innerWidth - NAV_W - right >= NAV_PROJECT_MIN ? NAV_W : 0, right };
   };
   /** Opens Seismic's sheet or closes it; an open plan closes. */
   const toggleKoordinator = () => {
@@ -486,21 +486,21 @@ function Canvas({
   const [setupOn, setSetupOn] = useState(false);
   // what is wrong in the configuration as saved, marked on its button; read when the page loads,
   // after a save in the dialog, when a repository's settings change on its default branch, which
-  // the canvas counts in its repositories (`configRev`), and when a canvas or repository does not
-  // start, which the canvases count (theirs, and which of them run)
+  // the project counts in its repositories (`configRev`), and when a project or repository does not
+  // start, which the projects count (theirs, and which of them run)
   const [configProblems, setConfigProblems] = useState(0);
-  const configRevs = [...snapshot.canvas.repos.map((r) => `${r.id}:${r.configRev ?? 0}`), ...canvases.map((c) => `${c.id}:${c.configRev ?? 0}`), `${snapshot.canvas.configRev ?? 0}`].join(' ');
+  const configRevs = [...snapshot.project.repos.map((r) => `${r.id}:${r.configRev ?? 0}`), ...projects.map((c) => `${c.id}:${c.configRev ?? 0}`), `${snapshot.project.configRev ?? 0}`].join(' ');
   useEffect(() => void api.configCheck().then((c) => setConfigProblems(c.problems.length), console.error), [configRevs]);
   // the archive, read while its list is open; archived cards unfold from their row there
   const [archived, setArchived] = useState<Item[]>([]);
   const archivedRef = useRef(archived);
   archivedRef.current = archived;
-  /** The card `id`, on the canvas or else in the archive. */
+  /** The card `id`, on the project or else in the archive. */
   const itemOrArchived = (id: string) => byId(id) ?? items.flatMap((i) => i.manualArchived ?? []).find((i) => i.id === id) ?? archivedRef.current.find((i) => i.id === id);
   const archiveEls = useRef(new Map<string, HTMLElement>()).current;
   // rows of the plan sheet, where its archived workstreams and its idea unfold from
   const sheetEls = useRef(new Map<string, HTMLElement>()).current;
-  /** The element a card unfolds from and folds back to: on the canvas, or a row in the sheet it was opened from. */
+  /** The element a card unfolds from and folds back to: on the project, or a row in the sheet it was opened from. */
   const fromEl = (id: string, inPlan: boolean) =>
     els.get(id) ?? (inPlan ? (sheetEls.get(id) ?? archiveEls.get(id)) : (archiveEls.get(id) ?? sheetEls.get(id)));
   // an archived card opened from a plan's sheet, which the archive list may not hold
@@ -562,11 +562,11 @@ function Canvas({
     openDraft.current = { kind: i.kind, title: i.title, body: i.body, images: i.images ?? [] };
     setOpened(i.archivedAt ? i : null);
     // bring the card to the middle at a readable scale first, so the unfold starts where the eye is;
-    // an archived card is not on the canvas and unfolds from its row in the archive
+    // an archived card is not on the project and unfolds from its row in the archive
     if (!i.archivedAt) await flyOrJump(centreOnPoint(bounds(i), Math.max(camRef.current.s, 0.85), sideNow()), FLY_MS, quick);
     const el = fromEl(i.id, !!f);
     const panel = panelRef.current;
-    // nothing to unfold from: the canvas stays as it was, open for the next card
+    // nothing to unfold from: the project stays as it was, open for the next card
     if (!el || !panel) return setFocus(f);
     addressOpens(i, f ? itemOrArchived(f.id) : undefined);
     const r = el.getBoundingClientRect();
@@ -699,7 +699,7 @@ function Canvas({
   }
 
   /**
-   * Opens a card the server made just now (a thread moved onto a Question card), which the canvas
+   * Opens a card the server made just now (a thread moved onto a Question card), which the project
    * may not show yet; a card open now folds first.
    */
   async function openFresh(i: Item) {
@@ -715,7 +715,7 @@ function Canvas({
   }
 
   async function openPlan(p: Item, quick = false) {
-    // an archived plan is not on the canvas: its sheet takes the archive list's place
+    // an archived plan is not on the project: its sheet takes the archive list's place
     await planSheet(p, null, quick, !p.archivedAt);
   }
 
@@ -791,7 +791,7 @@ function Canvas({
     const f = focusRef.current;
     const plan = f?.type === 'plan' ? f.id : f?.type === 'card' ? f.plan?.id : undefined;
     const sheet: SideSheet | undefined = kOn ? 'koordinator' : inboxOn ? 'inbox' : csOn ? 'settings' : aOn ? 'archive' : undefined;
-    keep(sessionStorage, snapshot.canvas.id, {
+    keep(sessionStorage, snapshot.project.id, {
       at: Date.now(),
       ...(f?.type === 'card' ? { card: f.id } : {}),
       ...(plan ? { plan, reading: !!readingRef.current } : {}),
@@ -802,23 +802,23 @@ function Canvas({
     });
   };
   useEffect(() => beforeReload(() => keepNow.current()), []);
-  // Seismic's sheet left open over a draft comes back with the canvas; left empty or closed, it stays closed
+  // Seismic's sheet left open over a draft comes back with the project; left empty or closed, it stays closed
   useEffect(() => {
-    const away = () => leaveSheet(sessionStorage, snapshot.canvas.id, kOnRef.current && drafted(OBEYA_DRAFT));
+    const away = () => leaveSheet(sessionStorage, snapshot.project.id, kOnRef.current && drafted(OBEYA_DRAFT));
     addEventListener('pagehide', away);
     return () => removeEventListener('pagehide', away);
   }, []);
   useEffect(() => {
-    const k = takeKept(sessionStorage, snapshot.canvas.id);
-    const sheetLeft = takeSheetLeft(sessionStorage, snapshot.canvas.id);
-    // the canvas's own address, where the page came without one or with another canvas's; `?talk`
-    // (Seismic's answer in another canvas's navigation) opens Seismic's sheet, once
+    const k = takeKept(sessionStorage, snapshot.project.id);
+    const sheetLeft = takeSheetLeft(sessionStorage, snapshot.project.id);
+    // the project's own address, where the page came without one or with another project's; `?talk`
+    // (Seismic's answer in another project's navigation) opens Seismic's sheet, once
     const a = readAddress();
-    const code = !a.canvas || projectNamed(canvases, a.canvas)?.id === snapshot.canvas.id ? a.card : undefined;
+    const code = !a.project || projectNamed(projects, a.project)?.id === snapshot.project.id ? a.card : undefined;
     const talk = new URLSearchParams(location.search).has('talk');
-    history.replaceState(history.state, '', `${code ? cardPath(snapshot.canvas.id, code) : projectPath(snapshot.canvas.id)}${queryWithout(location.search, 'c', 'card', 'talk', ...(perfAtStart ? LOG_KEYS : []))}`);
+    history.replaceState(history.state, '', `${code ? cardPath(snapshot.project.id, code) : projectPath(snapshot.project.id)}${queryWithout(location.search, 'c', 'card', 'talk', ...(perfAtStart ? LOG_KEYS : []))}`);
     // what comes back is what the address names already; a kept card the address left out (a
-    // restart of the app's shell, a link to the canvas) gets its address once it is open
+    // restart of the app's shell, a link to the project) gets its address once it is open
     addressSet.current = true;
     const done = () => {
       addressSet.current = false;
@@ -826,7 +826,7 @@ function Canvas({
     };
     if (k) return void reopen(k).catch(console.error).finally(done);
     if (sheetLeft || talk) {
-      // beside the sheet at once, as the canvas comes back
+      // beside the sheet at once, as the project comes back
       quickSide.current = Date.now() + 2000;
       setKOn(true);
     }
@@ -844,7 +844,7 @@ function Canvas({
     await openAgain(k, true);
     restore(k);
   }
-  /** Opens the plan `k.plan` (its plan doc with `reading`) and the card `k.card` in it or on the canvas; an archived one from its row in the archive or the plan's sheet. */
+  /** Opens the plan `k.plan` (its plan doc with `reading`) and the card `k.card` in it or on the project; an archived one from its row in the archive or the plan's sheet. */
   async function openAgain(k: Pick<Kept, 'card' | 'plan' | 'reading'>, quick: boolean) {
     const find = async (id?: string) => (id ? namedBy(id) : undefined);
     // an archived plan's sheet lists its workstreams from the archive, which this loads
@@ -872,8 +872,8 @@ function Canvas({
     const f = focusRef.current;
     return f ? itemOrArchived(f.id) : undefined;
   };
-  const pathOf = (i: Item | undefined) => `${i ? cardPath(snapshot.canvas.id, i) : projectPath(snapshot.canvas.id)}${location.search}`;
-  /** `i` opens over `under` (the plan it is opened from, else the canvas). */
+  const pathOf = (i: Item | undefined) => `${i ? cardPath(snapshot.project.id, i) : projectPath(snapshot.project.id)}${location.search}`;
+  /** `i` opens over `under` (the plan it is opened from, else the project). */
   function addressOpens(i: Item, under: Item | undefined) {
     if (addressSet.current) return;
     address(() => {
@@ -883,7 +883,7 @@ function Canvas({
       else history.replaceState(history.state, '', pathOf(i));
     });
   }
-  /** What is open closes down to `under` (the plan still open, else the canvas). */
+  /** What is open closes down to `under` (the plan still open, else the project). */
   function addressCloses(under: Item | undefined) {
     if (addressSet.current) return;
     address(() => {
@@ -899,7 +899,7 @@ function Canvas({
       });
     });
   }
-  /** The card or plan an address (or an id) names, on the canvas or in the archive, which it loads where it has to. */
+  /** The card or plan an address (or an id) names, on the project or in the archive, which it loads where it has to. */
   async function namedBy(code: string) {
     const here = named(itemsRef.current, code) ?? named(archivedRef.current, code);
     if (here) return here;
@@ -908,7 +908,7 @@ function Canvas({
     setArchived(gone);
     return named(gone, code);
   }
-  /** Opens what the address names; a code no card has leaves the canvas, at its address. */
+  /** Opens what the address names; a code no card has leaves the project, at its address. */
   async function openAddress(code: string, quick: boolean) {
     const i = await namedBy(code);
     // by its short code, where it was named by its id
@@ -944,7 +944,7 @@ function Canvas({
       if (f?.type === 'card' && f.id !== i?.id) await closeCard({ keepUntitled: true });
       const p = focusRef.current;
       if (p?.type === 'plan' && p.id !== i?.id && i?.parent !== p.id) await closePlan(false);
-      // a code no card has any longer: openAddress leaves the canvas at its address
+      // a code no card has any longer: openAddress leaves the project at its address
       if (code && (!i || focusRef.current?.id !== i.id)) await openAddress(code, false);
     } finally {
       addressSet.current = false;
@@ -979,7 +979,7 @@ function Canvas({
     }
   }, [items]);
 
-  /** The archive button on a finished card or a parked or dropped idea: takes it off the canvas, with a moment to undo. */
+  /** The archive button on a finished card or a parked or dropped idea: takes it off the project, with a moment to undo. */
   const archiveCard = useCallback(async (i: Item) => {
     try {
       await api.archive(i.id);
@@ -1057,7 +1057,7 @@ function Canvas({
     }
   }, []);
 
-  /** The fold in a plan's head: collapsed, only its head and a mark for each workstream stay on the canvas. */
+  /** The fold in a plan's head: collapsed, only its head and a mark for each workstream stay on the project. */
   const collapse = useCallback(async (p: Item, collapsed: boolean) => {
     setFolded((f) => ({ ...f, [p.id]: collapsed }));
     try {
@@ -1076,7 +1076,7 @@ function Canvas({
   /** "Als Plan aufbereiten" on the note on a plan directory: a card whose agent prepares the doc, started at once. */
   const preparePlanDoc = useCallback(async (dir: PlanDir, file: string) => {
     try {
-      const card = await api.preparePlanDoc(snapshot.canvas.id, dir.repo, file);
+      const card = await api.preparePlanDoc(snapshot.project.id, dir.repo, file);
       showAck(t.planDir.started(plain(card.title)));
     } catch (e) {
       fail(e);
@@ -1100,13 +1100,13 @@ function Canvas({
       document.removeEventListener('mouseout', out);
     };
   }, []);
-  /** The canvas on the screen: beside the sheets, below the top bar and above the microphone. */
+  /** The project on the screen: beside the sheets, below the top bar and above the microphone. */
   const viewNow = () => {
     const side = sideNow();
     return { left: side.left, top: TOP, right: innerWidth - side.right, bottom: innerHeight - BOTTOM };
   };
   /**
-   * Where a card a command makes goes: under the pointer on the canvas, else in the middle of the
+   * Where a card a command makes goes: under the pointer on the project, else in the middle of the
    * view (`pointer` false: always there); with a card or plan open, in the view it goes back to.
    */
   const placeNow = (pointer = true): Place => {
@@ -1132,14 +1132,14 @@ function Canvas({
         (!!h.plan && sheetOnRef.current && !readingRef.current && focusRef.current?.type === 'plan' && focusRef.current.id === h.plan)),
   );
   const { tellAbout, tellTyped } = tellers(byId, told, fail, placeNow);
-  /** "Go to card" on a confirmation's line: the card it made opens (in place of one open), one made on another canvas opens there. */
-  function goToMade(c: { id: string; canvas?: string }) {
-    if (c.canvas && c.canvas !== snapshotRef.current.canvas.id) return location.assign(cardPath(c.canvas, c.id));
+  /** "Go to card" on a confirmation's line: the card it made opens (in place of one open), one made on another project opens there. */
+  function goToMade(c: { id: string; project?: string }) {
+    if (c.project && c.project !== snapshotRef.current.project.id) return location.assign(cardPath(c.project, c.id));
     newCardWatch.current = null;
     setKOn(false);
     void openNamed(c.id).catch(console.error);
   }
-  // a card Seismic asked to open before it was on the canvas
+  // a card Seismic asked to open before it was on the project
   const openSoon = useRef<{ id: string; until: number } | null>(null);
   useEffect(() => {
     const o = openSoon.current;
@@ -1171,14 +1171,14 @@ function Canvas({
   useEffect(
     () =>
       onNotice((n) => {
-        // the open card moved to another canvas (built in a new repository there): the page follows it
+        // the open card moved to another project (built in a new repository there): the page follows it
         // the cards a confirmed command made: its line offers to go to them
         if (n.made && n.token) return told.made(n.token, n.made);
         const f = focusRef.current;
         if (n.movedTo && n.cardId && f?.type === 'card' && f.id === n.cardId) return location.assign(cardPath(n.movedTo, n.cardId));
         const i = itemsRef.current.find((x) => x.id === n.cardId);
         if (n.wish) openWish(n.wish);
-        // the card a review of its PR asked for, unless the owner has another one open; one just made, once it is on the canvas
+        // the card a review of its PR asked for, unless the owner has another one open; one just made, once it is on the project
         if (n.open && n.cardId && !focusRef.current) {
           if (i) {
             setKOn(false);
@@ -1261,7 +1261,7 @@ function Canvas({
 
   // ---------------------------------------------------------------- pointer: pan, drag, click
   const viewportRef = useRef<HTMLDivElement>(null);
-  // `from`: where the press began; one that went nowhere is a click on the empty canvas
+  // `from`: where the press began; one that went nowhere is a click on the empty project
   const panRef = useRef<{ x: number; y: number; from: Pos } | null>(null);
   // a dragged card follows the world point it was picked up at, also while the view scrolls under it
   // (or the note on a plan directory, by its repository, with where it is now)
@@ -1273,7 +1273,7 @@ function Canvas({
   const [dragWith, setDragWith] = useState<string[]>([]);
   // the card the pointer is on, for the waits around it
   const [hoverId, setHoverId] = useState<string | null>(null);
-  // fingers on the canvas (touch.ts): whether the last press was one, and what the element under the first finger was
+  // fingers on the project (touch.ts): whether the last press was one, and what the element under the first finger was
   const [touchy, setTouchy] = useState(false);
   const touchyRef = useRef(false);
   const touchEl = useRef<Element | null>(null);
@@ -1289,7 +1289,7 @@ function Canvas({
     setHoldKnown(true);
   };
   const [connection, setConnection] = useState<{ from: string; side: Side; x: number; y: number; target?: string; anchor?: ManualAnchor } | null>(null);
-  // the dot under the pointer: the canvas renders again only when it changes
+  // the dot under the pointer: the project renders again only when it changes
   const [handle, setHandle] = useState<{ id: string; side: Side } | null>(null);
   const handleRef = useRef(handle);
   const showHandle = (h: { id: string; side: Side } | null) => {
@@ -1339,7 +1339,7 @@ function Canvas({
     pendingRemovals.current.delete(key);
     setRemoving((r) => r.filter((x) => x.key !== key));
   }
-  // Shift + drag on the canvas draws a lasso, Shift + click on a card takes it in or out: what is marked
+  // Shift + drag on the project draws a lasso, Shift + click on a card takes it in or out: what is marked
   // moves together and goes into a group at once through the colour ring
   const lassoRef = useRef<Pos[] | null>(null);
   const [lasso, setLasso] = useState<Pos[]>([]);
@@ -1358,7 +1358,7 @@ function Canvas({
   useEffect(() => {
     if (!markHint) return;
     const h = setTimeout(() => setMarkHint(null), 7000);
-    // the next click anywhere, a drag of the canvas or a scroll of it lets the hint go at once
+    // the next click anywhere, a drag of the project or a scroll of it lets the hint go at once
     const hide = () => setMarkHint(null);
     window.addEventListener('pointerdown', hide, true);
     window.addEventListener('wheel', hide, true);
@@ -1444,7 +1444,7 @@ function Canvas({
     e.preventDefault();
     setRing({ at: { x: e.clientX, y: e.clientY }, ids: marked.includes(i.id) ? marked : [i.id] });
   }
-  // the panels docked at the window's edges; the canvas, its edge indicators, the bar and the microphone keep between them
+  // the panels docked at the window's edges; the project, its edge indicators, the bar and the microphone keep between them
   const side = sideNow();
   const quickSide = useRef(0);
   useEffect(() => {
@@ -1511,7 +1511,7 @@ function Canvas({
       const conn = touch ? aimed(connection, e.clientX, e.clientY) : connection;
       const { from, side } = conn;
       const start = placed.find((p) => p.item.id === from)?.b;
-      // a click on the empty canvas makes the card that is to wait there, and connects it
+      // a click on the empty project makes the card that is to wait there, and connects it
       if (!conn.target && start && !(e.target as Element).closest('.item, .plan-dir, button')) {
         // the arrow's head stays where the owner clicked: the card lies behind it, its edge facing the arrow
         const startAt = handleAt(start, side), at = toWorld(camRef.current, e.clientX, e.clientY);
@@ -1565,7 +1565,7 @@ function Canvas({
     viewportRef.current!.setPointerCapture(e.pointerId);
   }
 
-  /** What a finger landed on, for touch.ts: a card or a plan's head by its id, a plan directory's note, or null for the empty canvas. */
+  /** What a finger landed on, for touch.ts: a card or a plan's head by its id, a plan directory's note, or null for the empty project. */
   function touchTarget(target: Element) {
     const note = target.closest<HTMLElement>('.plan-dir');
     if (note) return `note:${note.dataset.repo}`;
@@ -1597,8 +1597,8 @@ function Canvas({
         return x ? [{ id, start: { x: x.x, y: x.y } }] : [];
       });
       const moving = new Set([i.id, ...along.map((a) => a.id)]);
-      // the view scrolls as far as the rest of the canvas reaches, plus room to drop the cards beside it
-      const rest = onCanvas(itemsRef.current).filter((x) => !moving.has(x.id));
+      // the view scrolls as far as the rest of the project reaches, plus room to drop the cards beside it
+      const rest = onProject(itemsRef.current).filter((x) => !moving.has(x.id));
       const b = unionBounds([...moving].map((id) => bounds(byId(id)!)))!;
       const content = unionBounds(rest.map((x) => boundsOf(x, rest))) ?? b;
       const grab = toWorld(camRef.current, x, y);
@@ -1608,7 +1608,7 @@ function Canvas({
     return false;
   }
 
-  /** The held card comes off the canvas and follows the pointer, the view scrolling at the edges. */
+  /** The held card comes off the project and follows the pointer, the view scrolling at the edges. */
   function lift(d: Drag) {
     setDragId(d.id);
     setDragWith(d.with.map((w) => w.id));
@@ -1715,7 +1715,7 @@ function Canvas({
     const p = panRef.current;
     panRef.current = null;
     setPanning(false);
-    // a click on the empty canvas lets go of what is marked
+    // a click on the empty project lets go of what is marked
     if (p && Math.hypot(e.clientX - p.from.x, e.clientY - p.from.y) < 5) setSelection([]);
   }
 
@@ -1778,7 +1778,7 @@ function Canvas({
     if (!touchyRef.current) newCardAt(e.clientX, e.clientY);
   }
 
-  /** A double-click or double-tap at (x, y) on the empty canvas makes a new card there. */
+  /** A double-click or double-tap at (x, y) on the empty project makes a new card there. */
   function newCardAt(x: number, y: number) {
     // the pointer capture retargets the event to the viewport, so look at what is under the pointer
     if (focusRef.current || document.elementFromPoint(x, y)?.closest('.item, .plan-dir')) return;
@@ -1790,7 +1790,7 @@ function Canvas({
     }
   }
 
-  // what the fingers do on the canvas (touch.ts); the host gets this render's closures
+  // what the fingers do on the project (touch.ts); the host gets this render's closures
   const touchHost: ConstructorParameters<typeof Touches>[0] = {
     pan: (dx, dy) => {
       const c = camRef.current;
@@ -1798,7 +1798,7 @@ function Canvas({
     },
     pinch: (from, to) => setCam(kept(pinchCam(camRef.current, from, to))),
     tap: (_, target) => {
-      // a tap on the empty canvas lets go of what is marked, and of the card that showed its dots
+      // a tap on the empty project lets go of what is marked, and of the card that showed its dots
       if (!target) {
         setSelection([]);
         setTouchFocus(null);
@@ -1875,28 +1875,28 @@ function Canvas({
   const underwayRef = useRef(underway);
   underwayRef.current = underway;
   const yours = (i: Item) => needsYou(i) && !underwayRef.current[i.id];
-  // the inbox, what waits on every canvas: this one's as this page sees it, without what the owner just
-  // acted on (on any canvas: its reply is under way) and without answers in Seismic's sheet while it is open
+  // the inbox, what waits on every project: this one's as this page sees it, without what the owner just
+  // acted on (on any project: its reply is under way) and without answers in Seismic's sheet while it is open
   const here = waitingIn({ ...snapshot, items, talk: kOn ? [] : snapshot.talk });
-  const entries = inboxEntries(canvases, { ...waiting, [snapshot.canvas.id]: here }, (id) => !!underway[id]);
+  const entries = inboxEntries(projects, { ...waiting, [snapshot.project.id]: here }, (id) => !!underway[id]);
   // only what the owner has not read yet counts
   const attentionCount = waitingCount(entries, undefined, inboxRead.read);
-  const counts = Object.fromEntries(canvases.map((c) => [c.id, waitingCount(entries, c.id, inboxRead.read)]));
+  const counts = Object.fromEntries(projects.map((c) => [c.id, waitingCount(entries, c.id, inboxRead.read)]));
   // the open card's entry is read, and stays so while it is open, even as the card waits anew
-  const openEntry = openId ? entries.find((e) => e.card?.id === openId && e.canvas === snapshot.canvas.id) : undefined;
+  const openEntry = openId ? entries.find((e) => e.card?.id === openId && e.project === snapshot.project.id) : undefined;
   useEffect(() => {
     if (openEntry) inboxRead.markRead(openEntry);
   }, [openEntry && readMark(openEntry)]);
   // answers in Seismic's sheet the owner has not seen: Seismic waits for them like a card
   const unread = kOn ? 0 : unreadAnswers(snapshot.talk);
   const nav = {
-    canvas: snapshot.canvas,
-    canvases,
+    project: snapshot.project,
+    projects,
     counts,
     pinned,
-    pinnable: !matchMedia(NARROW).matches && innerWidth - NAV_W - side.right >= NAV_CANVAS_MIN,
+    pinnable: !matchMedia(NARROW).matches && innerWidth - NAV_W - side.right >= NAV_PROJECT_MIN,
     onPin: pin,
-    onNew: () => (showNewCanvas(), setPrefsOn(false), setCOn(true)),
+    onNew: () => (showNewProject(), setPrefsOn(false), setCOn(true)),
   };
   /** A one-click reply in the inbox: the entry leaves at once, a held one waits out "Undo", a refused one comes back with the reason. */
   const replyTo = (c: string, i: Item, r: QuickReply) =>
@@ -1917,7 +1917,7 @@ function Canvas({
     const all = itemsRef.current;
     const list: (Item | 'k')[] = [...all.filter(yours), ...(koordinator ? ['k' as const] : [])];
     if (!list.length || focusRef.current?.type === 'card') return;
-    // the one after the card Tab opened last, by its place on the canvas: that card may need the owner no longer
+    // the one after the card Tab opened last, by its place on the project: that card may need the owner no longer
     const key = (x: Item | 'k') => (x === 'k' ? 'k' : x.id);
     const at = (id: string | null) => (id === 'k' ? all.length : all.findIndex((i) => i.id === id));
     const last = at(attnLast.current);
@@ -1934,8 +1934,8 @@ function Canvas({
     setKOn(false);
     if (focusRef.current?.type === 'plan') closePlan(false);
   };
-  /** The canvas's settings slide out in place of another sheet, and close again. */
-  const toggleCanvasSettings = () => {
+  /** The project's settings slide out in place of another sheet, and close again. */
+  const toggleProjectSettings = () => {
     const open = !csOnRef.current;
     setCsOn(open);
     if (!open) return;
@@ -1944,13 +1944,13 @@ function Canvas({
     if (focusRef.current?.type === 'plan') closePlan(false);
   };
   /**
-   * "Go to card": the card opens beside the inbox, which stays open; one on another canvas opens
+   * "Go to card": the card opens beside the inbox, which stays open; one on another project opens
    * there, the inbox open beside it again. Seismic's answer opens its sheet in place of the inbox.
    */
   function goToEntry(e: InboxEntry) {
-    if (e.canvas !== snapshot.canvas.id) return location.assign(e.card ? cardPath(e.canvas, e.card) : `${projectPath(e.canvas)}?talk`);
+    if (e.project !== snapshot.project.id) return location.assign(e.card ? cardPath(e.project, e.card) : `${projectPath(e.project)}?talk`);
     if (!e.card) return kOnRef.current || toggleKoordinator();
-    // the entry's own copy opens it when the canvas no longer lists the card (it just left the inbox)
+    // the entry's own copy opens it when the project no longer lists the card (it just left the inbox)
     void openFresh(byId(e.card.id) ?? e.card);
   }
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
@@ -2177,7 +2177,7 @@ function Canvas({
                   dragging={item.id === dragId || dragWith.includes(item.id)}
                   pop={item.id === popId}
                   prototyped={prototyped.has(item.id)}
-                  showRepo={snapshot.canvas.repos.length > 1}
+                  showRepo={snapshot.project.repos.length > 1}
                   els={els}
                   onStart={startCard}
                   onArchive={archiveCard}
@@ -2196,14 +2196,14 @@ function Canvas({
                 dir={d}
                 b={notes[n]!}
                 dragging={dragId === `note:${d.repo}`}
-                {...(snapshot.canvas.repos.length > 1 ? { repo: snapshot.canvas.repos.find((r) => r.id === d.repo)?.name ?? d.repo } : {})}
+                {...(snapshot.project.repos.length > 1 ? { repo: snapshot.project.repos.find((r) => r.id === d.repo)?.name ?? d.repo } : {})}
                 onPrepare={preparePlanDoc}
                 onOpen={(id) => {
                   const i = byId(id);
                   if (i) open(i).catch(console.error);
                 }}
                 onChange={() => {
-                  showCanvasesSection();
+                  showProjectsSection();
                   setCOn(true);
                 }}
                 onHide={() => hideNote(d)}
@@ -2212,7 +2212,7 @@ function Canvas({
             <GroupNames shapes={territories.shapes} />
           </div>
         </div>
-        {/* on an empty canvas the camera centres the notes on the plan directories: the hint stands above them, with space between */}
+        {/* on an empty project the camera centres the notes on the plan directories: the hint stands above them, with space between */}
         {!items.length && (
           <div className={notes.length ? 'empty above-note' : 'empty'} {...(notes.length ? { style: { top: cam.y + Math.min(...notes.map((b) => b.y)) * cam.s - 48 } } : {})}>
             <p className="none">{t.empty.none}</p>
@@ -2260,7 +2260,7 @@ function Canvas({
           {extensions.map((e, i) => { const Slot = e.slots?.topBar; return Slot ? <Slot key={i} /> : null; })}
           <AppMenu
             onPerformance={openPerformance}
-            onFeedbackLog={() => location.assign(feedbackLogPath(snapshot.canvas.id))}
+            onFeedbackLog={() => location.assign(feedbackLogPath(snapshot.project.id))}
             onPrefs={openPrefs}
             onConfig={toggleConfig}
             onHelp={() => {
@@ -2268,10 +2268,10 @@ function Canvas({
               setHelpOn(true);
             }}
           />
-          {/* beside the pinned navigation the bar heads the canvas with its name, which the navigation's button gave before */}
+          {/* beside the pinned navigation the bar heads the project with its name, which the navigation's button gave before */}
           {side.left ? (
-            <h1 className="bar-canvas" title={snapshot.canvas.name} {...(window.obeyaApp?.platform === 'macos' ? { 'data-tauri-drag-region': '' } : {})}>
-              {snapshot.canvas.name}
+            <h1 className="bar-project" title={snapshot.project.name} {...(window.obeyaApp?.platform === 'macos' ? { 'data-tauri-drag-region': '' } : {})}>
+              {snapshot.project.name}
             </h1>
           ) : (
             <NavPill {...nav} />
@@ -2310,8 +2310,8 @@ function Canvas({
             {oldBun && <OldBunPill version={oldBun} />}
             {online && update && restart?.reason !== 'update' && <UpdatePill update={update} />}
             {online && source && <SourcePill source={source} />}
-            {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} canvas={snapshot.canvas} canvases={canvases} items={items} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => location.assign(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
-            <button className={csOn ? 'pill kpill cs-pill on' : 'pill kpill cs-pill'} title={t.canvasSettings.button} aria-label={t.canvasSettings.button} aria-expanded={csOn} onClick={toggleCanvasSettings}>
+            {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => location.assign(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
+            <button className={csOn ? 'pill kpill cs-pill on' : 'pill kpill cs-pill'} title={t.projectSettings.button} aria-label={t.projectSettings.button} aria-expanded={csOn} onClick={toggleProjectSettings}>
               <BarIcon icon={Settings} />
               {configProblems > 0 && (
                 <span className="n err" title={t.config.problemCount(configProblems)}>
@@ -2335,7 +2335,7 @@ function Canvas({
         <footer id="status">
           <div className="st-left">
             {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} /> : <span className="st online">{t.online}</span>}
-            {online && snapshot.canvas.demoSite?.init?.running && <span className="st site-init">{t.creatingSite}</span>}
+            {online && snapshot.project.demoSite?.init?.running && <span className="st site-init">{t.creatingSite}</span>}
           </div>
           <div className="st-mid" ref={setTargetSlot} />
           <div className="st-right">{online && usage && <UsagePill usage={usage} />}</div>
@@ -2350,10 +2350,10 @@ function Canvas({
           onJump={(wx, wy) => !focusRef.current && fly(viewOn(wx, wy), 500)}
           onFollow={(wx, wy) => !focusRef.current && chase(camRef.current, viewOn(wx, wy), setCam)}
         />
-        <Inbox entries={entries} current={snapshot.canvas.id} open={openId ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
-          onProposalCard={(canvas, card) => goToEntry({ key: card.id, canvas, canvasName: '', card, text: '', since: '' })}
-          onProposalConfig={(canvas, repo, setting) => { showRepoClones({ canvas, repo, field: 'settings', setting }); setCOn(true); }} />
-        <CanvasSettingsSheet canvas={snapshot.canvas.id} name={snapshot.canvas.name} homePath={snapshot.canvas.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showCanvasesSection(), setPrefsOn(false), setCOn(true))} />
+        <Inbox entries={entries} current={snapshot.project.id} open={openId ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
+          onProposalCard={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })}
+          onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
+        <ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showProjectsSection(), setPrefsOn(false), setCOn(true))} />
         <div id="dim" className={dim ? 'on' : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
         <WishDialog />
@@ -2370,18 +2370,18 @@ function Canvas({
                   key={openItem.id}
                   item={openItem}
                   all={[...new Map([...items, ...archived, ...items.flatMap((i) => i.manualArchived ?? [])].map((i) => [i.id, i])).values()]}
-                  repos={snapshot.canvas.repos}
+                  repos={snapshot.project.repos}
                   parent={openItem.parent ? itemOrArchived(openItem.parent) : undefined}
                   from={openItem.from ? itemOrArchived(openItem.from) : undefined}
                   onReadPlan={(plan, mark) => readPlan(plan, { mark })}
                   onClones={(repo, field) => {
-                    showRepoClones({ canvas: snapshot.canvas.id, repo, field });
+                    showRepoClones({ project: snapshot.project.id, repo, field });
                     setCOn(true);
                   }}
                   onDemoSites={() => {
-                    // the canvas chooses its demo site in its settings
+                    // the project chooses its demo site in its settings
                     closeCard();
-                    if (!csOnRef.current) toggleCanvasSettings();
+                    if (!csOnRef.current) toggleProjectSettings();
                   }}
                   onEdit={onEdit}
                   flush={flushEdit}
@@ -2396,17 +2396,17 @@ function Canvas({
         </div>
         <ConfigDialog
           on={cOn}
-          page={snapshot.canvas.id}
+          page={snapshot.project.id}
           onClose={() => setCOn(false)}
           onSetup={() => setSetupOn(true)}
           onTalk={talkFromConfig}
           onProblems={setConfigProblems}
           revs={configRevs}
           onConnect={() => (setCOn(false), setPhoneOn(true))}
-          onAsk={(text, canvas) => void told.tell(t.voice.reading(t.voice.koordinator), undefined, () => (canvas ? api.commandOn(canvas, text) : api.command(text, null, { place: placeNow() })))}
+          onAsk={(text, project) => void told.tell(t.voice.reading(t.voice.koordinator), undefined, () => (project ? api.commandOn(project, text) : api.command(text, null, { place: placeNow() })))}
         />
         <PrefsDialog
-          preferences={snapshot.preferences} repos={snapshot.canvas.repos}
+          preferences={snapshot.preferences} repos={snapshot.project.repos}
           on={prefsOn}
           onClose={() => setPrefsOn(false)}
           onConfig={() => {
@@ -2425,8 +2425,8 @@ function Canvas({
             }}
           />
         )}
-        <KoordinatorSheet on={kOn} onClose={toggleKoordinator} canvas={snapshot.canvas.id} canvasName={snapshot.canvas.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.canvas.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onCanvas={(c) => location.assign(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
-            showRepoClones({ canvas: snapshot.canvas.id, repo, field: 'settings', setting });
+        <KoordinatorSheet on={kOn} onClose={toggleKoordinator} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onProject={(c) => location.assign(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
+            showRepoClones({ project: snapshot.project.id, repo, field: 'settings', setting });
             setCOn(true);
           }} />
         <PushToTalk
@@ -2481,7 +2481,7 @@ function Canvas({
           {ratePrompt.prompt}
           <NotifyAsk {...notifyAsk} />
         </div>
-        <PerformanceDialog initial={perfAtStart} on={perfOn} onClose={() => setPerfOn(false)} canvases={canvases} here={snapshot.canvas.id} onOpenCard={(code) => void openNamed(code).catch(console.error)} />
+        <PerformanceDialog initial={perfAtStart} on={perfOn} onClose={() => setPerfOn(false)} projects={projects} here={snapshot.project.id} onOpenCard={(code) => void openNamed(code).catch(console.error)} />
       </div>
     </KoordinatorAgent.Provider>
     </OpenPerformance.Provider>
@@ -2490,8 +2490,8 @@ function Canvas({
 }
 
 /**
- * Where the unfolded card sits: in the middle of the canvas between the panels `side`, reaching over
- * the sheet where the canvas is too narrow for it, as tall as its content needs up to a limit, beyond
+ * Where the unfolded card sits: in the middle of the project between the panels `side`, reaching over
+ * the sheet where the project is too narrow for it, as tall as its content needs up to a limit, beyond
  * which it scrolls. Lays the content out at the final width
  * to measure it, so call it with the content rendered.
  */
@@ -2501,7 +2501,7 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides) {
   const wide = split(i);
   // a task an agent works on without a result yet is its conversation alone, and only as wide
   const want = wide ? 1600 : talkAlone(i) ? TALK_W : tall ? 980 : 900;
-  // the sheet lies dimmed under an open card, so a card wider than the canvas reaches over it; the
+  // the sheet lies dimmed under an open card, so a card wider than the project reaches over it; the
   // pinned navigation, which stays usable beside it, limits it unless the window leaves less than a
   // conversation's width beside the navigation
   const room = innerWidth - side.left - 80;
@@ -2546,7 +2546,7 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides) {
   const extra = under(H);
   // through --pb, which the card's sticky row of decisions reaches down over too (styles.css)
   if (extra) inner.style.setProperty('--pb', `${base + extra}px`);
-  // in the middle of the canvas where it fits there, else as near to it as the window allows
+  // in the middle of the project where it fits there, else as near to it as the window allows
   const lo = W <= room ? side.left + 40 : 40;
   return { left: `${Math.max(lo, Math.min(midX(side) - W / 2, innerWidth - W - 40))}px`, top: `${top(H)}px`, width: `${W}px`, height: `${H}px` };
 }

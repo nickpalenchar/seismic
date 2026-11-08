@@ -5,12 +5,12 @@
 //
 //   bun scripts/check-binary.ts <obeya> [--voice] [--demo] [--worker] [--port <n>] [--keep]
 //
-// Always: the canvas answers, the settings show the version and no checkout, the repository's own
+// Always: the project answers, the settings show the version and no checkout, the repository's own
 // settings are read, the demo setup finds Playwright among the resources, and a script run with the
 // binary's Bun (`BUN_BE_BUN`) runs. --voice installs Piper and Whisper through
 // the settings, speaks a sentence in the demo voice (tts.py from the resources) and gives it to
 // Seismic as a voice command; what Whisper heard must match. --demo renders a short demo of the
-// canvas with the skill's director from the resources (Node, a browser, ffmpeg and uv needed).
+// project with the skill's director from the resources (Node, a browser, ffmpeg and uv needed).
 // --worker starts a card with a real agent on the Claude Code `SEISMIC_CLAUDE` names, else the
 // machine's own, which commits a file and hands over an HTML artifact that is then shared on the
 // repository's demo site (served from the scratch directory). The Koordinator's answer to the voice command needs a Claude
@@ -95,7 +95,7 @@ git('init', '-q', '-b', 'main');
 git('add', '-A');
 git('commit', '-qm', 'init');
 mkdirSync(home, { recursive: true });
-const configFile = join(home, 'canvases.json');
+const configFile = join(home, 'projects.json');
 writeFileSync(configFile, JSON.stringify([{ name: 'Check', repos: [{ path: repo, clones: 1 }] }], null, 2));
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'en' }));
 writeFileSync(join(home, 'demo.json'), JSON.stringify({ language: 'en', voice: 'piper' }));
@@ -122,10 +122,10 @@ process.on('exit', () => {
 
 await check(`Seismic ${pkg.version} starts from ${binary}`, async () => {
   server = Bun.spawn([binary, '--port', String(port)], { cwd: dir, env, stdout: Bun.file(log), stderr: Bun.file(log), detached: !win });
-  await until('the canvas answers', 60_000, async () => (await fetch(`${base}/api/canvases`, { headers: ownerHeaders(home) })).ok);
+  await until('the project answers', 60_000, async () => (await fetch(`${base}/api/projects`, { headers: ownerHeaders(home) })).ok);
   return logText().split('\n')[0];
 });
-const canvas = 'check';
+const project = 'check';
 
 await check('the settings show the version and no checkout; the repository has its own settings', async () => {
   const view = await json('/api/config');
@@ -175,7 +175,7 @@ if (args.includes('--voice')) {
   });
   await check('voice: a sentence in the demo voice, heard as a command', async () => {
     const wav = await (await api('/api/demo-settings/sample', { json: { language: 'en', voice: 'piper' } })).arrayBuffer();
-    const res = await json(`/api/c/${canvas}/voice`, { method: 'POST', body: wav, headers: { 'content-type': 'audio/wav' } });
+    const res = await json(`/api/c/${project}/voice`, { method: 'POST', body: wav, headers: { 'content-type': 'audio/wav' } });
     const heard = /heard on check: (.*)/.exec(logText())?.[1] ?? '';
     expect(/voice sounds/i.test(heard), `heard “${heard}”`);
     return `heard “${heard}”; Seismic answered “${res.confirm}”`;
@@ -194,9 +194,9 @@ await runDemo(
   {
     title: 'Seismic from one file',
     baseUrl: ${JSON.stringify(base)},
-    login: async (page) => { await page.goto(${JSON.stringify(await loginLink(base, home, `/p/${canvas}`))}); },
-    open: async (d) => { await d.goto('/c/${canvas}'); await d.page.getByText('Configuration').first().waitFor(); },
-    scenes: [{ title: 'The canvas', say: 'This canvas is served by the compiled Seismic.', run: async (d) => { await d.untilSpoken(0.5); } }],
+    login: async (page) => { await page.goto(${JSON.stringify(await loginLink(base, home, `/p/${project}`))}); },
+    open: async (d) => { await d.goto('/c/${project}'); await d.page.getByText('Configuration').first().waitFor(); },
+    scenes: [{ title: 'The project', say: 'This project is served by the compiled Seismic.', run: async (d) => { await d.untilSpoken(0.5); } }],
     report: { summary: 'A check render.', meta: {} },
   },
   import.meta.dirname,
@@ -212,7 +212,7 @@ await runDemo(
       copyFileSync(shot, join(process.env.CHECK_ARTIFACTS, 'demo-failure.png'));
       copyFileSync(log, join(process.env.CHECK_ARTIFACTS, 'server.log'));
     }
-    expect(p.exitCode === 0, `exit ${p.exitCode}\n${out.slice(-3000)}\n${p.exitCode !== 0 ? pageConsole(demo, await loginLink(base, home, `/p/${canvas}`)) : ''}`);
+    expect(p.exitCode === 0, `exit ${p.exitCode}\n${out.slice(-3000)}\n${p.exitCode !== 0 ? pageConsole(demo, await loginLink(base, home, `/p/${project}`)) : ''}`);
     expect(Bun.file(join(demo, 'demo.mp4')).size > 0, 'no demo.mp4');
     return out.split('\n').find((l) => /video →/.test(l))?.trim();
   });
@@ -222,7 +222,7 @@ if (args.includes('--worker')) {
   const artifact = join(dir, 'artifact');
   let card = '';
   await check('worker: a real agent commits and hands over an HTML artifact', async () => {
-    const created = await json(`/api/c/${canvas}/cards`, {
+    const created = await json(`/api/c/${project}/cards`, {
       json: {
         title: 'Add hello.txt',
         body: `Create hello.txt containing "Hello from one file" and commit it. Then make an HTML artifact: ${artifact}/index.html with one heading "Hello". Hand over with ready_for_review, the artifact as the demo (kind html). Nothing else.`,
@@ -231,13 +231,13 @@ if (args.includes('--worker')) {
       },
     });
     card = created.id;
-    await api(`/api/c/${canvas}/cards/${card}/act`, { json: { action: 'start' } });
+    await api(`/api/c/${project}/cards/${card}/act`, { json: { action: 'start' } });
     const item = await until('the card is handed over', 20 * 60_000, async () => {
-      const it = (await json(`/api/c/${canvas}/canvas`)).items.find((i: { id: string }) => i.id === card);
+      const it = (await json(`/api/c/${project}/project`)).items.find((i: { id: string }) => i.id === card);
       if (it?.state === 'waiting' && it.need === 'question') throw new Error(`the agent asks: ${JSON.stringify(it.question)}`);
       return it?.state === 'waiting' && it;
     });
-    // the one clone of the canvas's one repository
+    // the one clone of the project's one repository
     const workstations = join(home, 'workspaces');
     const clone = join(workstations, readdirSync(workstations)[0]!, '1');
     const branchLog = Bun.spawnSync(['git', '-C', clone, 'log', '--oneline', '-1', '--', 'hello.txt'], { stdout: 'pipe' }).stdout.toString().trim();
@@ -246,18 +246,18 @@ if (args.includes('--worker')) {
   });
   if (card)
     await check("worker: the artifact is shared on the repository's demo site", async () => {
-      await api(`/api/c/${canvas}/cards/${card}/act`, { json: { action: 'share' } });
+      await api(`/api/c/${project}/cards/${card}/act`, { json: { action: 'share' } });
       const events = await until('the page is shared', 120_000, async () => {
-        const ev = (await json(`/api/c/${canvas}/cards/${card}/events`)) as { text?: string }[];
+        const ev = (await json(`/api/c/${project}/cards/${card}/events`)) as { text?: string }[];
         return ev.some((e) => (e.text ?? '').includes(siteUrl)) && ev;
       });
-      const url = (await json(`/api/c/${canvas}/canvas`)).items.find((i: { id: string }) => i.id === card)?.share?.url;
+      const url = (await json(`/api/c/${project}/project`)).items.find((i: { id: string }) => i.id === card)?.share?.url;
       expect(url && (await fetch(url)).ok, `the page ${url} is not on the site`);
       return events.map((e) => e.text ?? '').find((t) => t.includes(siteUrl));
     });
 }
 
-/** What the browser says loading the canvas once more, as the director launches it: for a render that failed. */
+/** What the browser says loading the project once more, as the director launches it: for a render that failed. */
 function pageConsole(demo: string, link: string | null): string {
   const chromium = join(resources, 'plugin', 'lib', 'chromium.ts');
   const script = join(demo, 'console.ts');

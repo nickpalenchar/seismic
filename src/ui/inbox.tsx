@@ -1,6 +1,6 @@
-// The inbox: what waits for the owner on every canvas, oldest wait first (src/core/inbox.ts). The
+// The inbox: what waits for the owner on every project, oldest wait first (src/core/inbox.ts). The
 // desktop slides it out as a sheet from the bar's inbox button; the phone lists it as "Needs you".
-// Each entry names its canvas small, its card large and what it waits for lighter ("Demo ready" on
+// Each entry names its project small, its card large and what it waits for lighter ("Demo ready" on
 // a handover, which is judged on the card); under it, the card's one-click replies
 // (src/ui/quickReply.ts), only its default primary, and "Go to card", always there and never the
 // primary one. Only a click on a button (the title included) reads an entry. Unread entries carry an orange dot and a bold title; the switch above the list shows
@@ -23,14 +23,14 @@ export const when = (iso: string | number) => (new Date(iso).toDateString() === 
 
 export interface InboxProps {
   entries: InboxEntry[];
-  /** The canvas shown now: without "All projects" only its entries are listed. Left out, every canvas's are. */
+  /** The project shown now: without "All projects" only its entries are listed. Left out, every project's are. */
   current?: string;
   /** The card open now: its entry is marked. */
   open?: string;
   onGo: (e: InboxEntry) => void;
-  onReply: (canvas: string, i: Item, r: QuickReply) => void;
-  onProposalCard: (canvas: string, i: Item) => void;
-  onProposalConfig?: (canvas: string, repo: string, field: string) => void;
+  onReply: (project: string, i: Item, r: QuickReply) => void;
+  onProposalCard: (project: string, i: Item) => void;
+  onProposalConfig?: (project: string, repo: string, field: string) => void;
   /** Whether the owner has read the entry. */
   isRead: (e: InboxEntry) => boolean;
   /** The owner clicked on the entry: it is read. */
@@ -43,7 +43,7 @@ type Filter = 'all' | 'unread';
 export function InboxList({ entries: all, current, open, onGo, onReply, onProposalCard, onProposalConfig, isRead, onRead }: InboxProps) {
   const [filter, setFilter] = useStoredState<Filter>('obeya-inbox-filter', 'all');
   const [everywhere, setEverywhere] = useStoredState<boolean>('obeya-inbox-all-projects', false);
-  const entries = current && !everywhere ? all.filter((e) => e.canvas === current) : all;
+  const entries = current && !everywhere ? all.filter((e) => e.project === current) : all;
   if (!entries.length && !current) return <p className="empty-inbox">{t.inbox.empty}</p>;
   // the open card's entry stays while the owner is at it, read or not
   const shown = filter === 'all' ? entries : entries.filter((e) => !isRead(e) || (!!e.card && e.card.id === open));
@@ -78,10 +78,10 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
           const cls = unread ? ' unread' : ' read';
           if (e.preference || e.setting) return (
             <li key={e.key} className={`inbox-entry proposal-entry${cls}`} onClickCapture={(ev) => readOnButton(ev, e)}>
-              <div className="where"><GitBranch size={12} aria-hidden /><span className="canvas">{e.canvasName}</span>{unread && dot}</div>
+              <div className="where"><GitBranch size={12} aria-hidden /><span className="project">{e.projectName}</span>{unread && dot}</div>
               <ul className="prefs proposals">
-                {e.preference && <ProposalRow p={e.preference} items={e.proposalItems ?? []} rules={e.rules ?? []} repos={e.repos ?? []} canvas={e.canvas} onOpen={(i) => onProposalCard(e.canvas, i)} />}
-                {e.setting && <SettingRow p={e.setting} items={e.proposalItems ?? []} repo={e.repos?.find((r) => r.id === e.setting!.repo)} canvas={e.canvas} onOpen={(i) => onProposalCard(e.canvas, i)} onConfig={onProposalConfig ? () => onProposalConfig(e.canvas, e.setting!.repo, e.setting!.field) : undefined} />}
+                {e.preference && <ProposalRow p={e.preference} items={e.proposalItems ?? []} rules={e.rules ?? []} repos={e.repos ?? []} project={e.project} onOpen={(i) => onProposalCard(e.project, i)} />}
+                {e.setting && <SettingRow p={e.setting} items={e.proposalItems ?? []} repo={e.repos?.find((r) => r.id === e.setting!.repo)} project={e.project} onOpen={(i) => onProposalCard(e.project, i)} onConfig={onProposalConfig ? () => onProposalConfig(e.project, e.setting!.repo, e.setting!.field) : undefined} />}
               </ul>
             </li>
           );
@@ -92,7 +92,7 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
             <li key={e.key} className={`inbox-entry${cls}${here ? ' on' : ''}`} aria-current={here || undefined} onClickCapture={(ev) => readOnButton(ev, e)}>
               <div className="where">
                 <GitBranch size={12} strokeWidth={2} aria-hidden />
-                <span className="canvas">{e.canvasName}</span>
+                <span className="project">{e.projectName}</span>
                 <span className="since">{when(e.since)}</span>
               </div>
               <div className="ttl">
@@ -106,7 +106,7 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
               {e.text && <div className="text">{i ? <Inline md={e.text} /> : plain(e.text)}</div>}
               <div className="replies">
                 {replies.map((r) => (
-                  <button key={r.label} type="button" className={r.primary ? 'btn primary' : 'btn'} title={r.title} onClick={() => onReply(e.canvas, i!, r)}>
+                  <button key={r.label} type="button" className={r.primary ? 'btn primary' : 'btn'} title={r.title} onClick={() => onReply(e.project, i!, r)}>
                     {r.label}
                   </button>
                 ))}

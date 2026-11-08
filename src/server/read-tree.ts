@@ -1,4 +1,4 @@
-// The read checkout of a repository: the directory on its default branch that the canvas reads plan
+// The read checkout of a repository: the directory on its default branch that the project reads plan
 // docs from and the agents that only read work in. Where work lands on the local main (Seismic's own
 // checkout), that is the checkout itself; otherwise the checkout is one of the pool's clones, on
 // whatever card's branch leased it last, and the read checkout is a detached worktree of it under
@@ -159,7 +159,7 @@ export class ReadTree {
   private stopped = false;
 
   /**
-   * Makes the worktree, or brings it up to date, before the canvas reads from it: the checkout,
+   * Makes the worktree, or brings it up to date, before the project reads from it: the checkout,
    * read meanwhile, may be on a card's branch. Only this first time does the server wait for git.
    */
   constructor(private o: ReadTreeOptions) {

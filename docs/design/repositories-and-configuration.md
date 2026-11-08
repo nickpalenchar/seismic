@@ -30,7 +30,7 @@ Its agent can take it back or replace it there as on its own project, and the wo
 reads the card it came from as with any follow-up.
 
 The UI opens `/p/<project>` (`/p/<project>/c/<code>` a card on it, `?talk` Seismic's sheet; see
-Addresses in The canvas); the navigation after the logo switches projects and lists what waits for
+Addresses in The project); the navigation after the logo switches projects and lists what waits for
 the owner on each, kept current on every page (see The navigation). Wherever projects are listed
 (the navigation, the phone) they
 stand in the configuration's order, so the owner sets it by moving them in the configuration dialog;
@@ -55,7 +55,7 @@ does not become the main branch; landing on the local main refuses while the che
 
 ### Read checkout
 
-Every git repository of a canvas has a directory on its main branch, the read checkout. Plan docs are
+Every git repository of a project has a directory on its main branch, the read checkout. Plan docs are
 read from it (unless outside the repository, see A plan folder outside the repository), and the
 agents that answer or judge rather than work on a card run in it: plan agents, ideas' exploration
 agents, the Koordinator (with its look-ups, learner and retrospective), the work retrospective and the
@@ -75,10 +75,10 @@ without `FETCH_HEAD`, so it is safe while a card leases the clone, then, where t
 forced detached checkout and a fresh read of the plan docs. A failed fetch is logged and retried next
 round. So a doc committed only in another clone, or only edited, does not show. Fetch and checkout
 run without blocking the server (in a repository of thousands of files a checkout takes a while);
-while git writes the files, the canvas keeps the plan docs it read before, since a doc missing for a
-moment would take its plan off the canvas and give back its workstreams' workstations. Moving the
+while git writes the files, the project keeps the plan docs it read before, since a doc missing for a
+moment would take its plan off the project and give back its workstreams' workstations. Moving the
 read checkout to the worktree when work now lands elsewhere runs the same way, the checkout read until
-the worktree is there. Only making it when the canvas starts waits for git: the checkout, the only
+the worktree is there. Only making it when the project starts waits for git: the checkout, the only
 thing to read meanwhile, may be on a card's branch.
 
 ### Plan docs
@@ -139,7 +139,7 @@ they are, and names each by its absolute path with forward slashes (so a Windows
 as a repository id), as the agents do. Workers on this machine get the folder as an extra directory:
 ticking a workstream there takes effect at once and goes into no commit, so the box says nothing of
 a landing: the card's work in progress still wins until it lands, and so does a stopped card with
-its branch, which stays stopped, keeps its workstation and holds its plan on the canvas (see A
+its branch, which stays stopped, keeps its workstation and holds its plan on the project (see A
 workstream's state). A doc "Make a plan" writes there cannot land, so Seismic names it at the
 start (the card's title, `-2` on a clash) and keeps it on the card; it shows as a plan once
 written, and the plan takes the card's place once approved (the card is done without a change).
@@ -156,9 +156,9 @@ landed, the doc is a plan. Meanwhile the doc's row shows "Being prepared" and op
 A repository with no plan doc that never had a plan gets a dashed note there instead: where Seismic
 looks, that "Make a plan" on an idea or task card writes the first doc there, and "Change
 directory", which opens the configuration at the repositories. Its × ("Hide") hides it for that
-repository and directory in this browser, since a canvas without plans is a normal state; another
+repository and directory in this browser, since a project without plans is a normal state; another
 plan directory brings it back. The note on docs that are no plans has no ×: each row is something
-to do. The owner drags either note like a card; from then on it stays there (stored with the canvas,
+to do. The owner drags either note like a card; from then on it stays there (stored with the project,
 the same in every browser) and new cards go clear of it. Until dragged, it follows the plans.
 
 #### A workstream's state
@@ -225,7 +225,7 @@ is also polled every 2 s against its state at the last read.
 ### Repository settings
 
 What Seismic knows about a repository is in its settings, in two layers: `.obeya/settings.json` in the
-repository, for everyone, and the `settings` of its entry in `canvases.json`, set for this machine in
+repository, for everyone, and the `settings` of its entry in `projects.json`, set for this machine in
 the configuration dialog, which also holds the main branch. The reference for every field is
 `docs/settings.md`, linked from the README.
 
@@ -246,7 +246,7 @@ value of its own (no checks); an empty main branch or plan directory is none. A 
 repository has neither locally nor on `origin` keeps the configuration from being saved.
 
 Settings are read where they are used, so saving them restarts nothing (see Live configuration); the
-canvases follow: the read checkout moves when work now lands elsewhere, the plan directory is watched
+projects follow: the read checkout moves when work now lands elsewhere, the plan directory is watched
 afresh, a repository now landing through pull requests gets its PR watcher (one leaving them keeps it for the
 pull requests still open), and the page shows the
 main branch and how work lands. `workstations` is the exception: changing it restarts that repository's
@@ -257,7 +257,7 @@ agents, as the dialog says at the field, which sits in the repository's row (see
 `.obeya/settings.json` (like `.vscode/settings.json`) is what a fresh clone brings: every value but
 the main branch, versioned and reviewed with the code it describes. It is read from the main branch,
 not the checkout, since clones are on cards' branches, perhaps from before the file changed: when a
-canvas starts, whenever the read checkout moves, and on save, by git without the server waiting for it;
+project starts, whenever the read checkout moves, and on save, by git without the server waiting for it;
 a save while the branches have not moved keeps the last read. A new version takes effect without a
 restart; one that changes `workstations` restarts the repository's agents once they paused (see
 Restarts for landed code).
@@ -280,7 +280,7 @@ The file's fields are checked against a schema. An unknown field (named with the
 meant: `check` → `checks`) or one of the wrong type does not count, a mistake inside it taking the
 whole field: the default stands in, the rest works. Each is the problem `repoSettings`, also in the
 log at start and on each new version. A `demo.site`, which repositories named until 2026-11-06, is
-one too: it is no longer read, as a canvas chooses its demo site (see Sharing demos). A main branch
+one too: it is no longer read, as a project chooses its demo site (see Sharing demos). A main branch
 still holding `.obeya/adapter/index.ts` is `adapterGone`: the module is not read, and the setup
 button (see Projects) offers to move it into the settings. Untrusted commands are `untrusted` (see
 Trusting a repository's commands). All of them are fixed in the repository (or trusted), so they
@@ -317,7 +317,7 @@ over into the file (but not a trusted `keep` that went beside them).
 Held groups are the problem `untrusted` in "Configuration": what each group does, a diff of the
 lines as last trusted against the main branch's now, and "Trust these commands", which trusts
 exactly what was shown (refused where it changed meanwhile; also for a repository not saved yet), and
-the canvases follow at once. Held values show "from the repository, not trusted yet". A worker's
+the projects follow at once. Held values show "from the repository, not trusted yet". A worker's
 own workstation may change Claude Code configuration: that counts while the main branch's is trusted
 and waits for trust once it lands; a Codex worker's does not count until trusted (its sandbox
 is what keeps it in bounds, and the configuration runs outside it). Trust covers the configuration, not the code it calls: a trusted
@@ -349,28 +349,28 @@ yet (commands documented after a list was written stayed uncovered).
 
 ### The configuration dialog
 
-The Advanced section exports one, several, or all configured canvases as JSON or CSV. The export
-contains every database record owned by the selected canvases, including archived and deleted
+The Advanced section exports one, several, or all configured projects as JSON or CSV. The export
+contains every database record owned by the selected projects, including archived and deleted
 cards, their events and agent runs, conversations with Seismic, decisions, preferences, feedback,
-and settings. JSON groups records by table; CSV has one row per record with its table, canvas ID,
+and settings. JSON groups records by table; CSV has one row per record with its table, project ID,
 and the complete row as JSON. Files held outside the database, such as screenshots, demos and
 repository files, are not embedded. The download is made locally and does not modify the data.
 
 The "Configuration" dialog covers the page but for a margin (a press there or Esc closes it,
 leaving what was open behind it as it was). Its close button stays at the top right however far
 the section scrolls, so a click meant to close never lands on what scrolled under it. What removes
-an entry (a canvas, a repository, a machine) is a waste bin, not a cross that passes for a close
-button, and shows only while the pointer or the focus is on its entry (a canvas: its title line; a repository: its path),
+an entry (a project, a repository, a machine) is a waste bin, not a cross that passes for a close
+button, and shows only while the pointer or the focus is on its entry (a project: its title line; a repository: its path),
 always where nothing hovers (touch). An unsaved draft survives per tab, also a reload or
 restart. Its sections, listed on the left and shown one at a time (the last one chosen per tab):
-Projects, a heading with each canvas indented under it as a section of its own and "+ Project"
+Projects, a heading with each project indented under it as a section of its own and "+ Project"
 last (see Projects), Project defaults (see Project defaults), Agents and models, Voice input, Demos, Notifications and limits
 (notifications on this computer, the usage limits in the bar, feedback after approval), Other
 devices (see Other devices), Advanced (the data export above) and Developer (see Restarting
 by hand in Running Seismic). Languages, light or dark, motion and the server are in "Preferences"
-behind the logo (see The logo's menu in The canvas). Below the sections "Check setup" and "Report a wish or a bug"
-(see Wishes for Seismic's makers). Each canvas in the list marks its unsaved changes and
-counts its problems in red; the heading counts the problems of no one canvas (none at all, say). Each section names the file it is saved in; settings are rows of label and control, no boxes in
+behind the logo (see The logo's menu in The project). Below the sections "Check setup" and "Report a wish or a bug"
+(see Wishes for Seismic's makers). Each project in the list marks its unsaved changes and
+counts its problems in red; the heading counts the problems of no one project (none at all, say). Each section names the file it is saved in; settings are rows of label and control, no boxes in
 boxes. What to know about a field sits behind an info icon at its label, shown only while the pointer
 or focus is on the field, its text appearing at once.
 
@@ -381,24 +381,24 @@ blocking the server.
 
 #### Projects
 
-A canvas chosen in the list fills the right side; first the one the page shows, then the last one
+A project chosen in the list fills the right side; first the one the page shows, then the last one
 chosen per tab, or the one a jump into the dialog names (a card waiting for a free clone, a proposal
 for a setting), scrolled to the field. Its page has a title line (name, id, whether it runs, and with
-several canvases ↑ and ↓ that move it one place, as in the queue), its name, its project settings
+several projects ↑ and ↓ that move it one place, as in the queue), its name, its project settings
 ("Seismic suggests": one toggle each for category with its sub-category, complexity and priority,
-the labels Seismic may fill on the canvas's cards where the owner left them empty; all on for a canvas
-that has none; its demo site, see A canvas's demo site in Sharing demos), and its repositories as tabs (the home repository first, each counting its problems), with "+ Repository" beside them;
-one repository shows at a time. A move is a change of the draft like any other. All canvases are
-saved together with "Save" at the bottom of every canvas's page, which says so while several
-have changes. Renaming a canvas keeps its id and cards.
+the labels Seismic may fill on the project's cards where the owner left them empty; all on for a project
+that has none; its demo site, see A project's demo site in Sharing demos), and its repositories as tabs (the home repository first, each counting its problems), with "+ Repository" beside them;
+one repository shows at a time. A move is a change of the draft like any other. All projects are
+saved together with "Save" at the bottom of every project's page, which says so while several
+have changes. Renaming a project keeps its id and cards.
 
-Saving a rename keeps the name before it among the canvas's old names (`oldNames` in the
-configuration, oldest first; compared as addresses, so "Store" and "store" are one name; a canvas
+Saving a rename keeps the name before it among the project's old names (`oldNames` in the
+configuration, oldest first; compared as addresses, so "Store" and "store" are one name; a project
 renamed back to an old name has it as its name again, no longer as an old one). Its addresses lead to
-the canvas (see Addresses in The canvas), and no other canvas may take it: a name another canvas has
+the project (see Addresses in The project), and no other project may take it: a name another project has
 now ("Name of project X, can't reuse.") or had before ("Old name of project X, can't reuse.", X a
-link to that canvas's page) is a problem at the name field that blocks saving, checked as the owner types, before the new canvas's
-repository is filled in; a save that renames one canvas and gives its old name to another in the same
+link to that project's page) is a problem at the name field that blocks saving, checked as the owner types, before the new project's
+repository is filled in; a save that renames one project and gives its old name to another in the same
 go is refused too. "Old names" under the name lists them, folded under their count from three on; a
 trash icon on hover over one deletes it after a warning ("This action may have unintended
 consequences, please read": card links with the old name stop loading, and a new project may take the
@@ -418,7 +418,7 @@ branch group.
 Klonen shows the existing clones ("Existing clones, one per line"), then the ones Seismic makes on top of them ("Also create
 new clones"), the slots, the sum ("4 clones on this machine in all (2 existing, 2 new)") and the
 other machines; Worktrees only the slots. With no clone the line warns that no card would start. For
-a running canvas it says which registered clones saving drops, which only once their card is done,
+a running project it says which registered clones saving drops, which only once their card is done,
 and that their folders go where nothing unlanded lies in them (an existing clone's folder stays).
 
 An existing clone belongs to the repository when it is the repository or its `origin` is the same
@@ -428,54 +428,54 @@ of the entry; switching back while the dialog is open restores them. A repositor
 gets two new clones, a number that goes when an existing clone is listed and returns when the list is
 emptied, unless the owner touched it.
 
-Problems (no git repository, a repository twice, two canvases with one id, a canvas's home repository
+Problems (no git repository, a repository twice, two projects with one id, a project's home repository
 left out, an empty path) show at the field and block saving (an empty path is never resolved, which
-would show the server's own working directory and its commands for a new canvas); a folder without git offers to set it
+would show the server's own working directory and its commands for a new project); a folder without git offers to set it
 up (see Setting up git in a folder). A repository's own settings problems (see Problems in the
 settings) show at it and block nothing. Technical detail folds under "Details"; each saved problem
-offers "Create a task to fix this", which asks the Koordinator of its canvas to create a task fixing
-it. The gear in the bar (see The project settings in The canvas) counts the saved configuration's problems in red, kept
+offers "Create a task to fix this", which asks the Koordinator of its project to create a task fixing
+it. The gear in the bar (see The project settings in The project) counts the saved configuration's problems in red, kept
 current also when a repository's settings change on its main branch; its sheet repeats the count beside
 "Open in Configuration".
 
 A repository with nothing in its own `.obeya/settings.json`, or with `adapterGone`, says that Seismic
 does not yet know how its app starts, which checks run and how to demo it, and offers "Have an
-agent fill them in" as soon as its path is checked, before the canvas is saved: the card
-"Set up Seismic for <repo>" (or the one still open) at the top right of that canvas, opened there.
+agent fill them in" as soon as its path is checked, before the project is saved: the card
+"Set up Seismic for <repo>" (or the one still open) at the top right of that project, opened there.
 Unsaved changes are saved first, as the hint says; only where saving restarts Seismic is the button
 off. Its worker uses `obeya:settings` and settles the plan directory: it looks for plans the
 repository already keeps (`docs/`, `rfcs/`, `adr/`, `PLAN*.md`, `TODO.md`) and asks the owner in its
 one question whether that directory or a new `docs/plan/` holds them.
 
-The canvas proposes the same card by itself: once a repository without settings of its own (a git
+The project proposes the same card by itself: once a repository without settings of its own (a git
 repository, not a folder) runs on it, the card waits there as "Proposed by Seismic", with the same
 title and text and the dialog's reason beside it. Accepted, it is the owner's card as the button
 makes it (no mark of an agent's proposal); the button, pressed while the proposal is open, accepts it
-as planned and opens it. Seismic proposes it once per repository and canvas: dismissed, accepted or made
+as planned and opens it. Seismic proposes it once per repository and project: dismissed, accepted or made
 from the dialog, it does not come back. A proposal still open goes by itself once the settings are on
 the main branch, withdrawn rather than dismissed.
 
 #### Project defaults
 
-A canvas's own settings (beside its name, id and repositories, the toggles "Seismic suggests", plan git baseline tags (see Plan git baselines in Agents and workstations), how cards go into the archive (see Archive in Card lifecycle),
-its demo site, and its own models (see The project settings in The canvas)) are saved with it in the configuration. "Project defaults" holds a value for each of them, saved on
-its own into `settings.json` in Seismic's home (`canvasDefaults`; a setting left out there has its
-built-in value, every toggle on). A canvas created from then on, wherever it is made (the dialog's
+A project's own settings (beside its name, id and repositories, the toggles "Seismic suggests", plan git baseline tags (see Plan git baselines in Agents and workstations), how cards go into the archive (see Archive in Card lifecycle),
+its demo site, and its own models (see The project settings in The project)) are saved with it in the configuration. "Project defaults" holds a value for each of them, saved on
+its own into `settings.json` in Seismic's home (`projectDefaults`; a setting left out there has its
+built-in value, every toggle on). A project created from then on, wherever it is made (the dialog's
 "+ Project", the Koordinator's `configure`, the setup assistant, building in a new repository with
-a canvas of its own), takes a copy of them for every setting it does not set itself; the dialog shows
-the copy on the new canvas's page before it is saved. Changing the defaults later leaves existing
-canvases alone: what they hold is theirs. A canvas counts as existing when the saved configuration
+a project of its own), takes a copy of them for every setting it does not set itself; the dialog shows
+the copy on the new project's page before it is saved. Changing the defaults later leaves existing
+projects alone: what they hold is theirs. A project counts as existing when the saved configuration
 has it by its id or its home repository, so a rename keeps its settings.
 
-A canvas's demo site has no default (none): a site and a path are each canvas's own, so Canvas
+A project's demo site has no default (none): a site and a path are each project's own, so Project
 defaults show the row as a line saying so and save none.
 
-A canvas's models are the exception that keeps the rule: their default is "Agents and models"
-itself, a canvas without models of its own follows it as it changes, so Project defaults show that
-row as a pointer there and save no models; a new canvas gets none of its own (`agents` left out).
+A project's models are the exception that keeps the rule: their default is "Agents and models"
+itself, a project without models of its own follows it as it changes, so Project defaults show that
+row as a pointer there and save no models; a new project gets none of its own (`agents` left out).
 
-The rule: every canvas setting has its value in Project defaults. A test lists the settings a canvas
-holds and fails for one without a default, so a setting added later cannot reach only the canvases
+The rule: every project setting has its value in Project defaults. A test lists the settings a project
+holds and fails for one without a default, so a setting added later cannot reach only the projects
 whose owner happens to open their page.
 
 #### Saving
@@ -503,27 +503,27 @@ not) and Project defaults into `settings.json` in Seismic's home.
 ### Live configuration
 
 A saved configuration, and a new version of a repository's `.obeya/settings.json`, apply while Seismic
-runs, without a restart or reload. A new canvas starts at once (the setup assistant's with its welcome
+runs, without a restart or reload. A new project starts at once (the setup assistant's with its welcome
 card), a changed one takes the change, a moved one moves in every list at once, a removed one stops once its agents paused, its cards kept. A
 new name, a new repository and settings that leave the agents where they work apply at once.
 
 What a repository's agents are set up by (its clones, existing workstations, slots, other machines,
-`workstations`) restarts that repository's agents alone; a repository that left the canvas stops. Its
+`workstations`) restarts that repository's agents alone; a repository that left the project stops. Its
 workers pause at a safe point (at most 15 minutes), the set-up starts again as configured, and they
 resume in their sessions; the other repositories work on. A worker landing such a change waits for
 it (see Restarts for landed code). The bar shows the wait like a restart's ("Configuration waits for …") with
-"Apply now" (see Self-update). Switchers follow canvases that start, stop or change; a page of
-a stopped canvas goes to the first canvas.
+"Apply now" (see Self-update). Switchers follow projects that start, stop or change; a page of
+a stopped project goes to the first project.
 
-A repository that does not start (a refused or unmakeable clone, a git error) never leaves a canvas
+A repository that does not start (a refused or unmakeable clone, a git error) never leaves a project
 half stopped: it starts again as it was before, with the problem shown at it, and failing that leaves
-the canvas, its cards kept. A canvas without its home repository does not run; the others do. These
-are problems of the running canvases: they block no save, count on the gear in the bar, and
-"Try again" applies the saved configuration again. Where no canvas started, the page says so
+the project, its cards kept. A project without its home repository does not run; the others do. These
+are problems of the running projects: they block no save, count on the gear in the bar, and
+"Try again" applies the saved configuration again. Where no project started, the page says so
 with the problems and that button instead of the setup assistant.
 
-The kept cards of a repository not running on its canvas (it left the configuration, or did not
-start) stay on the canvas marked "Repository not running", with why in their panel. Nothing reaches
+The kept cards of a repository not running on its project (it left the configuration, or did not
+start) stay on the project marked "Repository not running", with why in their panel. Nothing reaches
 their agents meanwhile: starting, messages, approving and the like are refused with that reason, a
 card set to start later or snoozed waits past its time, and a card the Koordinator was deciding on
 goes back to planned. Only what changes the board alone (moving it in the queue, dismissing,
@@ -581,13 +581,13 @@ Prompts only agents read stay English, with German examples of what the owner ma
 
 ### Decisions
 
-- **A canvas may span several repositories, and one Seismic serves several canvases.** Rejected: one
-  canvas per repository.
-- **A canvas belongs to a repository, not a checkout**, named after its `origin`, so clones share one.
-- **A worker's proposal may go to a repository of another canvas** (2026-10-30): a worker in a home
-  automation repository found the cause of its bug in Seismic, on another canvas; offered only its
-  own canvas's repositories, it filed the fix in its own, where it would have started in the wrong
-  repository. Rejected: keeping proposals on their own canvas, where the owner had to notice and
+- **A project may span several repositories, and one Seismic serves several projects.** Rejected: one
+  project per repository.
+- **A project belongs to a repository, not a checkout**, named after its `origin`, so clones share one.
+- **A worker's proposal may go to a repository of another project** (2026-10-30): a worker in a home
+  automation repository found the cause of its bug in Seismic, on another project; offered only its
+  own project's repositories, it filed the fix in its own, where it would have started in the wrong
+  repository. Rejected: keeping proposals on their own project, where the owner had to notice and
   make the card anew on the right one.
 - **What a repository says about itself is values in its own `.obeya/settings.json`**, read from the
   main branch (2026-10-15): set without code, in one place, outside Seismic's open-source repository.
@@ -596,7 +596,7 @@ Prompts only agents read stay English, with German examples of what the owner ma
   over is not read, with no migration before release.
 - **Settings are read where used, and configuration changes apply in the running process, restarting
   only the repository whose agents they concern** (2026-10-14). Rejected: restarting all of Seismic,
-  which waited for every worker on every canvas and reloaded the page for one added clone.
+  which waited for every worker on every project and reloaded the page for one added clone.
 - **One recipe for running the app, in prose; only what Seismic runs is a command** (2026-10-15).
   Rejected: structured fields (start, refresh after a backend change, a URL file), which guessed at
   categories many apps lack and were read as prose anyway; Seismic managing the app (starting it,
@@ -621,7 +621,7 @@ Prompts only agents read stay English, with German examples of what the owner ma
 - **Plan docs are plans by a checklist under `## Workstreams`.** Plan-doc sync stays open (see Open
   questions).
 - **The other `*.md` in the plan directory are not hidden** (2026-10-12): a repository with plans of
-  its own showed an empty canvas without a reason. Deferred: a lenient parser (`Tasks`, `Milestones`,
+  its own showed an empty project without a reason. Deferred: a lenient parser (`Tasks`, `Milestones`,
   `Phases`), which would turn design notes into plans; a repository's own format
   (`planDocs.read`). Rejected: an agent mapping any doc into workstreams in Seismic's database, against
   "plan docs are read, never written", with no box for workers to tick.
@@ -643,42 +643,42 @@ Prompts only agents read stay English, with German examples of what the owner ma
   (2026-10-21): done and remaining could not be told apart, nor what a running workstream was meant
   to do. Rejected: the text only as the conversation's first message.
 - **A plan doc with every workstream ticked ends its plan** (2026-10-12, the owner), or finished
-  plans kept in a repository stay on the canvas forever.
+  plans kept in a repository stay on the project forever.
 - **A plan doc that disappears ends its plan automatically** (2026-10-01); an explicit
   "finish" may sit on top later. Rejected: reading old content from git history (fragile).
-- **The configuration is the file `canvases.json`**, edited in the UI or by the Koordinator
+- **The configuration is the file `projects.json`**, edited in the UI or by the Koordinator
   (2026-10-01); saving a command-line configuration switches Seismic to the file. Building a card in a
-  new repository adds to it as well (2026-10-28), with the repository's canvas named after its
+  new repository adds to it as well (2026-10-28), with the repository's project named after its
   folder.
 - **"New repository …" is an entry of the card's repository picker, which shows only where there
   is a choice or a new repository is picked** (2026-10-28, the owner): a picker on every card of a
-  canvas with one repository made each card harder to use for a rare step. The owner says it (to the
+  project with one repository made each card harder to use for a rare step. The owner says it (to the
   idea's agent or to Seismic), and the picker then shows the target. Rejected: the picker always
   visible; a button of its own.
-- **A broken canvas or repository leaves the rest running** (2026-10-09).
+- **A broken project or repository leaves the rest running** (2026-10-09).
 - **The configuration shows before its check, whose git calls run in parallel off the server's
-  thread** (2026-10-15): run one after another (109 calls for three canvases), they froze the server,
+  thread** (2026-10-15): run one after another (109 calls for three projects), they froze the server,
   every page load included, for seconds; now 41 calls take about 60 ms.
 - **The configuration is a dialog nearly the window's size, sections on the left** (2026-10-09, the
   owner): visited now and then, not worked beside. Rejected: a narrow sidebar of nested frames.
-- **One canvas at a time, listed under Projects on the left; one repository at a time, as tabs;
-  settings always shown, in groups** (2026-10-28, the owner): all canvases one below the other, each
+- **One project at a time, listed under Projects on the left; one repository at a time, as tabs;
+  settings always shown, in groups** (2026-10-28, the owner): all projects one below the other, each
   repository's settings folded behind a line, made a long page in which the owner lost track of which
-  canvas a field belonged to, and a fold hid what was set. Saving stays one for all canvases, as the
-  file is one. Rejected: repositories as a third level of the list (the list stays the canvases).
+  project a field belonged to, and a fold hid what was set. Saving stays one for all projects, as the
+  file is one. Rejected: repositories as a third level of the list (the list stays the projects).
 - **Existing clones first, new ones on top, with the sum** (2026-10-21): with "Also create new clones" first, a
   colleague typed 2 beside 2 existing ones and got 4. Clone origins match across URL forms (https and
-  ssh clones of one repository otherwise kept a canvas from starting).
+  ssh clones of one repository otherwise kept a project from starting).
 - **The takeover into `.obeya/settings.json` saves pending changes itself** (2026-10-15), rather than
   being off with "Save first", which read as if saving were the takeover; the setup button says
   an agent fills in the settings.
 - **A repository without settings gets the setup card offered before saving and proposed on its
-  canvas** (2026-10-28, the owner): shown only once the canvas was saved and only in the dialog, the
-  button went unnoticed, and canvases ran with guessed settings. Once per repository, since a
-  proposal that comes back after a dismissal would nag. Rejected: a banner on the canvas (a second
+  project** (2026-10-28, the owner): shown only once the project was saved and only in the dialog, the
+  button went unnoticed, and projects ran with guessed settings. Once per repository, since a
+  proposal that comes back after a dismissal would nag. Rejected: a banner on the project (a second
   form of the same offer beside the proposal, which already has accept and dismiss).
 - **Interface, conversation and repository each have a language** (2026-10-20, the owner): switching
   the UI must not switch the agents' language or the language of what lands in git. The conversation
   defaults to English and changes only when the owner chooses another language or records an explicit
-  standing language preference. Rejected: a per-canvas override, since the conversation choice is
+  standing language preference. Rejected: a per-project override, since the conversation choice is
   app-wide.

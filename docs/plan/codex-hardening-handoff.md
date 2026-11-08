@@ -7,7 +7,7 @@ agent's model in dialogues, and check the missing Claude usage display without a
 They now want someone else to finish this work.
 
 Checkout: `/Users/nick/harness/obeya`, branch `feature/codex-support` at `5f4cb43` (`Enable native Codex task workers
-on the canvas`). **All changes described below are uncommitted. Nothing has been pushed.**
+on the project`). **All changes described below are uncommitted. Nothing has been pushed.**
 Ask the owner before committing; this repository commits on main. Do not discard the dirty files.
 Read `CLAUDE.md`, `docs/design.md` and the relevant design chapters before continuing.
 
@@ -34,7 +34,7 @@ not the initial integration. Other roles remain Claude. Pi is a later phase; do 
 8. **Obsolete permissions:** request resolution/turn completion abort and settle callbacks;
    `src/server/workers.ts` withdraws obsolete questions while session close preserves restartable
    questions. A subsequent queued permission can proceed.
-9. **Legacy skills:** `src/server/canvas.ts` respects an existing unqualified Claude session before
+9. **Legacy skills:** `src/server/project.ts` respects an existing unqualified Claude session before
    consulting today's Codex default when choosing the skill menu.
 
 **Important limitation:** process sampling is best-effort cleanup, not race-proof OS containment.
@@ -69,7 +69,7 @@ fit stage 5 and only hides usage at the smallest stage 6. This behavior is docum
 ### Docs
 
 Relevant permanent chapters were updated in `docs/design/`: agents-and-workstations, communication,
-conversation-on-the-card, data, the-canvas. `docs/plan/codex-runtime.md` contains the fix matrix,
+conversation-on-the-card, data, the-project. `docs/plan/codex-runtime.md` contains the fix matrix,
 evidence limits and remaining phase 1/Pi gates. Remove this handoff when it is no longer useful.
 
 ## Tests and evidence — distinguish passed from pending
@@ -91,7 +91,7 @@ The broad set was these 19 files:
 - `src/server/codex-rpc.test.ts`, `src/server/codex-runtime.test.ts`
 - `src/server/worker-runtime.test.ts`, `src/server/workers-harness.test.ts`
 - `src/server/runtime.test.ts`, `src/server/settings.test.ts`, `src/server/work-retro.test.ts`
-- `src/server/workers.test.ts`, `src/server/canvas.test.ts`, `src/server/db.test.ts`
+- `src/server/workers.test.ts`, `src/server/project.test.ts`, `src/server/db.test.ts`
 - `src/server/server.test.ts`, `src/server/commands.test.ts`, `src/server/answers.test.ts`
 - `src/ui/message.test.ts`, `src/ui/usage.test.ts`, `src/ui/barFit.test.ts`
 - `plugin/skills/browser/lib/browser.test.ts`
@@ -105,7 +105,7 @@ in this task. Earlier full-suite runs also hit timeouts under heavy concurrency.
 
 - Permanent permission/background regressions in `src/server/codex-runtime.test.ts`.
 - Real Workers obsolete-permission serialization regression in `src/server/workers.test.ts`.
-- Legacy session skill ownership regression in `src/server/canvas.test.ts`.
+- Legacy session skill ownership regression in `src/server/project.test.ts`.
 - New process tests: separately grouped child's heartbeat stops after app-server death, unrelated
   PID survives; awaited shutdown terminates an EOF/TERM-ignoring fake app-server.
 - Identity tests verify concurrent Claude/Codex isolation and SQLite persistence of distinct reply
@@ -142,7 +142,7 @@ The model is visible on open questions; sidebar reply/answer can show different 
 horizontal overflow checks passed. Compact Claude usage remains visible at fit 5.
 
 **Stopped:** scratch server PID **49856**, port **4492**, with idle workers.
-Home `/tmp/obeya-scratch-4492/home`, config `/tmp/obeya-scratch-4492/canvases.json`.
+Home `/tmp/obeya-scratch-4492/home`, config `/tmp/obeya-scratch-4492/projects.json`.
 This scratch database was seeded with identity fixtures for visual checks; it is not proof that
 those displayed messages came from live model calls. Unit tests cover actual provenance mechanics.
 

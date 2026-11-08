@@ -198,7 +198,7 @@ describe('workers', () => {
     const c = manual();
     await workers.start(c.id);
     let gone = 0;
-    const restarter = new Restarter({ busy: () => workers.busyCards().map((card) => ({ canvas: 'c', card })), go: () => gone++, intervalMs: 5 });
+    const restarter = new Restarter({ busy: () => workers.busyCards().map((card) => ({ project: 'c', card })), go: () => gone++, intervalMs: 5 });
     restarter.onChange(() => {
       const due = restarter.due();
       workers.restartDue(due && { reason: due.reason, deadline: due.deadline });
@@ -1257,13 +1257,13 @@ describe('workers', () => {
     expect(board.item(p.id)!.body).toBe('Der Knopf „Export“ heißt in src/ui/strings.ts noch „Exportieren“.\n\nOffene Fragen (nach bestem Wissen selbst entscheiden, im Zweifel die Standardlösung):\n- Welches Wort? (Export / Exportieren)');
   });
 
-  test('on a canvas with several repositories, a proposal goes to the one its agent names, else to its card’s', async () => {
+  test('on a project with several repositories, a proposal goes to the one its agent names, else to its card’s', async () => {
     const c = manual();
     await workers.start(c.id);
     // with one repository there is nothing to choose
     expect(runtime.last.spec.tools.find((t) => t.name === 'propose_card')!.description).not.toContain('repo:');
     await workers.stop(c.id);
-    board.canvas.repos.push({ id: 'site', name: 'Site', path: '/r/site', branch: 'main' });
+    board.project.repos.push({ id: 'site', name: 'Site', path: '/r/site', branch: 'main' });
     await workers.start(c.id);
     expect(runtime.last.spec.tools.find((t) => t.name === 'propose_card')!.description).toContain(`by its id: home (${main}, yours), site (/r/site); yours when left out.`);
     runtime.last.call('propose_card', { title: 'Hier', task: 'T', reason: 'R' });
@@ -1276,37 +1276,37 @@ describe('workers', () => {
     expect(board.snapshot().items.some((i) => i.title === 'Nirgends')).toBe(false);
   });
 
-  test('a proposal goes to a repository of another canvas, waits for the owner there, and its agent can take it back', async () => {
+  test('a proposal goes to a repository of another project, waits for the owner there, and its agent can take it back', async () => {
     const tools = new Board(store, { id: 'tools', name: 'Tools', repos: [{ id: 'tool', name: 'Tool', path: '/r/tool', branch: 'main' }, { id: 'docs', name: 'Docs', path: '/r/docs', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     const shop = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'docs', name: 'Docs', path: '/r/shop-docs', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, otherBoards: () => [board, tools, shop] }));
     const c = manual();
     await workers.start(c.id);
-    // with one repository of its own the worker sees those of the other canvases, by canvas
+    // with one repository of its own the worker sees those of the other projects, by project
     expect(runtime.last.spec.tools.find((t) => t.name === 'propose_card')!.description).toContain(
-      `by its id: home (${main}, yours); on other canvases, where the proposal then waits for the owner: on “Tools” tool (/r/tool), docs (/r/docs); on “Shop” docs (/r/shop-docs); yours when left out.`,
+      `by its id: home (${main}, yours); on other projects, where the proposal then waits for the owner: on “Tools” tool (/r/tool), docs (/r/docs); on “Shop” docs (/r/shop-docs); yours when left out.`,
     );
     expect(runtime.last.call('propose_card', { title: 'Ursache im Tool', task: 'T', reason: 'Die Ursache liegt im Tool.', repo: 'tool' })).toContain('Proposed');
     const p = tools.snapshot().items.find((i) => i.title === 'Ursache im Tool')!;
-    expect(p).toMatchObject({ state: 'proposal', repo: 'tool', from: c.id, fromElsewhere: { canvas: 'c', canvasName: 'C', title: 'Zählerstände exportieren' } });
+    expect(p).toMatchObject({ state: 'proposal', repo: 'tool', from: c.id, fromElsewhere: { project: 'c', projectName: 'C', title: 'Zählerstände exportieren' } });
     expect(board.snapshot().items.some((i) => i.title === 'Ursache im Tool')).toBe(false);
     expect(board.events(c.id).at(-1)!.text).toBe('Aufgabe vorgeschlagen im Projekt „Tools“: Ursache im Tool');
-    expect(board.events(c.id).at(-1)!.made).toEqual({ card: p.id, title: p.title, canvas: 'tools' });
-    // an id two other canvases have takes the path
-    expect(runtime.last.call('propose_card', { title: 'Doku', task: 'T', reason: 'R', repo: 'docs' })).toBe('Not proposed: several canvases have a repository docs; give its path instead: /r/docs, /r/shop-docs.');
+    expect(board.events(c.id).at(-1)!.made).toEqual({ card: p.id, title: p.title, project: 'tools' });
+    // an id two other projects have takes the path
+    expect(runtime.last.call('propose_card', { title: 'Doku', task: 'T', reason: 'R', repo: 'docs' })).toBe('Not proposed: several projects have a repository docs; give its path instead: /r/docs, /r/shop-docs.');
     runtime.last.call('propose_card', { title: 'Doku', task: 'T', reason: 'R', repo: '/r/shop-docs/' });
     expect(shop.snapshot().items.find((i) => i.title === 'Doku')!.repo).toBe('docs');
     // taken back there as here
-    expect(runtime.last.call('withdraw_proposal', { title: 'Ursache im Tool', why: 'Doch hier.' })).toContain('gone from the canvas');
+    expect(runtime.last.call('withdraw_proposal', { title: 'Ursache im Tool', why: 'Doch hier.' })).toContain('gone from the project');
     expect(tools.item(p.id)).toBeUndefined();
-    // the worker that takes on a card from another canvas hears where it comes from
+    // the worker that takes on a card from another project hears where it comes from
     await workers.stop(c.id);
     board.work(c.id, { state: 'live', detail: JSON.stringify({ summary: 'Export gebaut.' }) });
     const q = shop.snapshot().items.find((i) => i.title === 'Doku')!;
     const there = new Workers({ board: shop, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, otherBoards: () => [board, tools, shop] });
     shop.accept(q.id);
     await there.start(q.id);
-    expect(runtime.last.inbox[0]).toContain('This card follows up on the card “Zählerstände exportieren” on the canvas “C”. Its worker handed it over with this summary:\n\nExport gebaut.');
+    expect(runtime.last.inbox[0]).toContain('This card follows up on the card “Zählerstände exportieren” on the project “C”. Its worker handed it over with this summary:\n\nExport gebaut.');
     await there.stop(q.id);
   });
 
@@ -1317,7 +1317,7 @@ describe('workers', () => {
     runtime.last.call('propose_card', { title: 'Lange Schnitte', task: 'T', reason: 'R' });
     const p = board.snapshot().items.find((i) => i.state === 'proposal')!;
     const out = runtime.last.call('withdraw_proposal', { title: '„lange  Schnitte“', why: 'Die Diagnose war falsch.' }) as string;
-    expect(out).toContain('gone from the canvas');
+    expect(out).toContain('gone from the project');
     expect(board.item(p.id)).toBeUndefined();
     expect(board.events(c.id).some((e) => e.text === 'Zieht den Vorschlag „Lange Schnitte“ zurück: Die Diagnose war falsch.')).toBe(true);
     // the Rückschau reads deleted proposals as the owner's dismissals: this one was not

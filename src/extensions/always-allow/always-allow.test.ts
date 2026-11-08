@@ -6,7 +6,7 @@ import { generic } from '../../adapters/generic';
 import { readShared } from '../../adapters';
 import { AGENT_DEFAULTS } from '../../core/types';
 import { codexRules } from '../../server/allow-rules';
-import { CanvasRuntime } from '../../server/canvas';
+import { ProjectRuntime } from '../../server/project';
 import { Store } from '../../server/db';
 import { FakeRuntime, gitRepo, noForge, until } from '../../server/testing';
 import { commandsOf } from '../../server/trust';
@@ -19,7 +19,7 @@ describe('a permission question', () => {
   eachTest();
 
   test('„Immer erlauben“ allows the call, adds its rules where work lands on main, and the Claude session takes them; not offered where it goes through pull requests', async () => {
-    // the change itself is the canvas test's below
+    // the change itself is the project test's below
     const added: string[] = [];
     let fails = false;
     const asOwner = async <T,>(cwd: string): Promise<T> => {
@@ -71,11 +71,11 @@ test('a Codex command no rule covers is offered the rule that would; none for wh
   expect(alwaysRules({ name: 'Bash', input: { command: "/bin/zsh -lc 'bun run lint'" } }, { ...codex, landsOnMain: false })).toEqual([]);
 });
 
-describe('in a canvas', () => {
+describe('in a project', () => {
   let dir: string;
-  let canvas: CanvasRuntime | undefined;
+  let project: ProjectRuntime | undefined;
   afterEach(() => {
-    canvas?.shutdown();
+    project?.shutdown();
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -91,20 +91,20 @@ describe('in a canvas', () => {
     const store = new Store(':memory:');
     store.trustCommands(shop, commandsOf(readShared(shop)));
     const workers = new FakeRuntime();
-    canvas = new CanvasRuntime({ repos: [{ path: shop }] }, { store, home: dir, runtime: new FakeRuntime(), workerRuntime: workers, forge: noForge, agents: (role) => ({ ...AGENT_DEFAULTS[role], ...(role === 'worker' ? { harness: 'codex' as const } : {}) }) });
-    const card = canvas.board.create({ title: 'Karte', x: 0, y: 0 });
-    const r = canvas.repos[0]!;
+    project = new ProjectRuntime({ repos: [{ path: shop }] }, { store, home: dir, runtime: new FakeRuntime(), workerRuntime: workers, forge: noForge, agents: (role) => ({ ...AGENT_DEFAULTS[role], ...(role === 'worker' ? { harness: 'codex' as const } : {}) }) });
+    const card = project.board.create({ title: 'Karte', x: 0, y: 0 });
+    const r = project.repos[0]!;
     await r.workers.start(card.id);
     await until(() => workers.sessions.length > 0);
     const answer = workers.last.permission('Bash', { command: "/bin/zsh -lc 'bun run lint --fix'" });
-    await until(() => canvas!.board.item(card.id)!.state === 'waiting');
-    const q = canvas.board.item(card.id)!.question!;
+    await until(() => project!.board.item(card.id)!.state === 'waiting');
+    const q = project.board.item(card.id)!.question!;
     expect(q.options).toEqual(['Erlauben', 'Immer erlauben: bun run *', 'Ablehnen']);
     expect(q.text).toContain('.claude/settings.json auf main');
     r.workers.answer(card.id, 'Immer erlauben: bun run *');
     expect(await answer).toEqual({ allow: true });
-    await until(() => canvas!.board.events(card.id).some((e) => e.text.startsWith('In die Erlaubnisliste')));
-    expect(canvas.board.events(card.id).at(-1)!.text).toBe('In die Erlaubnisliste aufgenommen und auf main committet: bun run *');
+    await until(() => project!.board.events(card.id).some((e) => e.text.startsWith('In die Erlaubnisliste')));
+    expect(project.board.events(card.id).at(-1)!.text).toBe('In die Erlaubnisliste aufgenommen und auf main committet: bun run *');
     // on main for everyone, the Codex rules made again from the list, and trusted as the owner's
     const main = readShared(shop);
     expect(JSON.parse(main.claude!['.claude/settings.json']!.text)).toEqual({ permissions: { allow: ['Bash(bun test *)', 'Bash(bun run *)'] } });

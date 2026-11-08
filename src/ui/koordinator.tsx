@@ -30,19 +30,19 @@ import { scrollBehavior } from './motion';
 
 interface Props {
   on: boolean;
-  /** The canvas, whose sections stay open or closed as the owner left them. */
-  canvas: string;
-  canvasName: string;
+  /** The project, whose sections stay open or closed as the owner left them. */
+  project: string;
+  projectName: string;
   /** A command typed in the sheet, maybe in reply to a message of it: read like a spoken one; the conversation shows it at once. */
   onTell: (text: string, images?: string[], replyTo?: Reply['to']) => void;
   items: Item[];
   preferences: Preference[];
   /** Values for repositories' settings the work retrospective proposes. */
   settings: SettingProposal[];
-  /** The canvas's repositories, whose CLAUDE.md a proposal may go into. */
+  /** The project's repositories, whose CLAUDE.md a proposal may go into. */
   repos: RepoRef[];
   talk: Talk[];
-  /** The chat the owner talks in now, and the canvas's chats. */
+  /** The chat the owner talks in now, and the project's chats. */
   chat: number;
   chatModel?: AgentModel;
   chats: Chat[];
@@ -50,17 +50,17 @@ interface Props {
   onOpen: (i: Item) => void;
   /** Opens the configuration dialog at a repository's setting. */
   onConfig: (repo: string, setting: string) => void;
-  /** A chat of another canvas was opened: that canvas's sheet. */
-  onCanvas: (canvas: string) => void;
+  /** A chat of another project was opened: that project's sheet. */
+  onProject: (project: string) => void;
   /** Closes the sheet. */
   onClose: () => void;
 }
 
-export function KoordinatorSheet({ on, canvas, canvasName, items, repos, talk, chat, chatModel, chats, reshare, onOpen, onTell, onCanvas, onClose }: Props) {
+export function KoordinatorSheet({ on, project, projectName, items, repos, talk, chat, chatModel, chats, reshare, onOpen, onTell, onProject, onClose }: Props) {
   return (
     <Docked id="ksheet" on={on}>
-      <ChatsHead title={<h2>{t.koordinator.title}</h2>} canvas={canvas} canvasName={canvasName} chat={chat} chats={chats} talk={talk} onCanvas={onCanvas} onClose={onClose} />
-      <KoordinatorTalk on={on} canvas={canvas} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} />
+      <ChatsHead title={<h2>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} onProject={onProject} onClose={onClose} />
+      <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} />
 
       <div className="k-rest">
         {reshare && <ReshareBox r={reshare} items={items} onOpen={onOpen} />}
@@ -73,10 +73,10 @@ export function KoordinatorSheet({ on, canvas, canvasName, items, repos, talk, c
 
 /**
  * Seismic's conversation with the field under it, in the sheet and in the phone view; `draft` is the
- * field's (the sidebar's, or the phone view's for this canvas). `on`: the conversation is in view,
+ * field's (the sidebar's, or the phone view's for this project). `on`: the conversation is in view,
  * so the answers waiting in it are read.
  */
-export function KoordinatorTalk({ on, canvas, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = OBEYA_DRAFT }: Pick<Props, 'on' | 'canvas' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string }) {
+export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = OBEYA_DRAFT }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string }) {
   const talk = all.filter((x) => x.chat === undefined || x.chat === chat);
   const fresh = useRead(on, talk, (ids) => api.readTalk(ids));
   useEffect(() => {
@@ -94,8 +94,8 @@ export function KoordinatorTalk({ on, canvas, talk: all, chat, chatModel, chats,
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
       <Composer className="tell" draft={draft} placeholder={t.voice.typePlaceholder} obeya onSend={onTell} />
       <label className="chat-model">{t.koordinator.chatModel}
-        <select value={chatModel ?? ''} onChange={(e) => void api.setChatModel(canvas, e.target.value || undefined).catch(console.error)}>
-          <option value="">{t.koordinator.canvasModel}</option>
+        <select value={chatModel ?? ''} onChange={(e) => void api.setChatModel(project, e.target.value || undefined).catch(console.error)}>
+          <option value="">{t.koordinator.projectModel}</option>
           {AGENT_MODELS.map((model) => <option key={model} value={model}>{model === 'default' ? t.koordinator.defaultModel : model[0]!.toUpperCase() + model.slice(1)}</option>)}
         </select>
       </label>
@@ -104,11 +104,11 @@ export function KoordinatorTalk({ on, canvas, talk: all, chat, chatModel, chats,
   );
 }
 
-/** Where the canvas has seen a review card: the hint on "Review PR #5" is no longer shown. */
+/** Where the project has seen a review card: the hint on "Review PR #5" is no longer shown. */
 const REVIEW_KNOWN = 'obeya-review-pr-known';
 
 /**
- * Under Seismic's field, where a repository of the canvas is on a forge and until the owner has had a
+ * Under Seismic's field, where a repository of the project is on a forge and until the owner has had a
  * review card once or closed it: one quiet line on how to have someone else's pull request reviewed.
  */
 function ReviewHint({ items, repos }: { items: Item[]; repos: RepoRef[] }) {
@@ -240,7 +240,7 @@ function useRead(on: boolean, talk: Talk[], read: (ids: number[]) => Promise<unk
  */
 function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Talk[]; fresh: number[]; items: Item[]; onOpen: (i: Item) => void; draft: string; sheetOf?: string }) {
   const box = useRef<HTMLDivElement>(null);
-  // every change on the canvas brings a new snapshot: only what the owner just said takes the
+  // every change on the project brings a new snapshot: only what the owner just said takes the
   // conversation back to its end, so they can read further up in the meantime
   const onScroll = useStickToEnd(box, talk.at(-1)?.id, talk);
   if (!talk.length) return null;
@@ -256,16 +256,16 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
           const q = { talk: x.id, part, by, text };
           setReply(draft, { to: { talk: x.id, part }, quote: talkQuote(q) });
         };
-        // a thread moved onto a Question card goes on there, while the card is on the canvas; once it
+        // a thread moved onto a Question card goes on there, while the card is on the project; once it
         // is done (archived) or deleted, its answers stand here again
         const card = x.movedTo ? items.find((i) => i.id === x.movedTo) : undefined;
         const asked = x.askedIn && x.askedIn !== sheetOf ? items.find((i) => i.id === x.askedIn) : undefined;
-        // a card left for another canvas, built there in a new repository: a line with a link to it there
+        // a card left for another project, built there in a new repository: a line with a link to it there
         if (x.moved)
           return (
             <div key={x.id} className="note ev-state">
-              {clock(x.at)} · {t.koordinator.moved(plain(x.moved.title), x.moved.canvasName)}{' '}
-              <a className="link" href={cardPath(x.moved.canvas, x.moved.card)}>
+              {clock(x.at)} · {t.koordinator.moved(plain(x.moved.title), x.moved.projectName)}{' '}
+              <a className="link" href={cardPath(x.moved.project, x.moved.card)}>
                 {t.openThere}
               </a>
             </div>
@@ -419,14 +419,14 @@ function RuleEdit({ draft, setDraft, onEnter, onBlur }: { draft: string; setDraf
  * repository's CLAUDE.md): the owner accepts it, in their own words and for another place if they
  * like, or rejects it.
  */
-export function ProposalRow({ p, items, rules, repos, onOpen, canvas }: { p: Preference; items: Item[]; rules: Preference[]; repos: RepoRef[]; onOpen: (i: Item) => void; canvas?: string }) {
+export function ProposalRow({ p, items, rules, repos, onOpen, project }: { p: Preference; items: Item[]; rules: Preference[]; repos: RepoRef[]; onOpen: (i: Item) => void; project?: string }) {
   const [draft, setDraft] = useState<string | null>(null);
   const [target, setTarget] = useState(p.target ?? '');
   const [error, decide] = useAct();
   const card = p.cardId ? items.find((i) => i.id === p.cardId) : undefined;
   const replaced = p.replaces !== undefined ? rules.find((r) => r.id === p.replaces) : undefined;
   const accept = () =>
-    decide(() => api.acceptProposal(p.id, draft === null || draft.trim() === p.text ? undefined : draft.trim(), target === (p.target ?? '') ? undefined : target || null, canvas));
+    decide(() => api.acceptProposal(p.id, draft === null || draft.trim() === p.text ? undefined : draft.trim(), target === (p.target ?? '') ? undefined : target || null, project));
   const quote = p.quote && (p.quote.length > 200 ? `${p.quote.slice(0, 200).trimEnd()} …` : p.quote);
   return (
     <li className="proposal">
@@ -464,7 +464,7 @@ export function ProposalRow({ p, items, rules, repos, onOpen, canvas }: { p: Pre
             {t.koordinator.cancel}
           </button>
         )}
-        <button className="btn danger" onClick={() => decide(() => api.rejectProposal(p.id, canvas))}>
+        <button className="btn danger" onClick={() => decide(() => api.rejectProposal(p.id, project))}>
           {t.koordinator.reject}
         </button>
       </span>
@@ -507,7 +507,7 @@ const asText = (v: string | string[]) => (Array.isArray(v) ? v.join('\n') : v);
  * the value it would replace: the owner takes it, as it is or changed, on this machine or into the
  * repository for everyone (neither is the default: they choose each time), or rejects it.
  */
-export function SettingRow({ p, items, repo, onOpen, onConfig, canvas }: { p: SettingProposal; items: Item[]; repo: RepoRef | undefined; onOpen: (i: Item) => void; onConfig?: () => void; canvas?: string }) {
+export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: SettingProposal; items: Item[]; repo: RepoRef | undefined; onOpen: (i: Item) => void; onConfig?: () => void; project?: string }) {
   const [draft, setDraft] = useSettingDraft(p.id, asText(p.value));
   const field = useRef<HTMLTextAreaElement>(null);
   useFitHeight(field, draft);
@@ -522,7 +522,7 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, canvas }: { p: Se
   };
   const changed = draft.trim() !== asText(p.value);
   const edited = !changed ? undefined : list ? draft.split('\n').map((x) => x.trim()).filter(Boolean) : draft.trim();
-  const take = (where: 'machine' | 'repository') => decide(() => api.takeSetting(p.id, where, edited, canvas));
+  const take = (where: 'machine' | 'repository') => decide(() => api.takeSetting(p.id, where, edited, project));
   const now = p.now === undefined ? null : asText(p.now).trim();
   const branch = repo?.branch ?? 'main';
   const everyone = repo?.pullRequests ? k.forEveryonePr(branch) : k.forEveryoneMain(branch);
@@ -587,7 +587,7 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, canvas }: { p: Se
         {k.onMachine}: {k.onMachineHint} {k.forEveryone}: {everyone}
       </span>
       <span className="pref-actions">
-        <button className="btn danger" disabled={busy} onClick={() => decide(() => api.rejectSetting(p.id, canvas))}>
+        <button className="btn danger" disabled={busy} onClick={() => decide(() => api.rejectSetting(p.id, project))}>
           {k.reject}
         </button>
       </span>

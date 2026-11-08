@@ -1,5 +1,5 @@
 // Seismic's look (frost) for the pages the demo skill writes, the report page and the schema-change page:
-// the tokens of the shared demo pages (src/server/demo-page.ts) and the canvas (src/ui/frost.css), kept
+// the tokens of the shared demo pages (src/server/demo-page.ts) and the project (src/ui/frost.css), kept
 // here since the skill runs without Seismic's sources. Light and dark follow the system, or a
 // `data-theme` on the root as a host may set it. Inter where the viewer has it, the system's font else.
 

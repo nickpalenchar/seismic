@@ -77,7 +77,7 @@ const alive = (pid: number) => {
 
 const answers = async (url: string, home: string) => {
   try {
-    return (await fetch(`${url}/api/canvases`, { headers: ownerHeaders(home), signal: AbortSignal.timeout(1000) })).ok;
+    return (await fetch(`${url}/api/projects`, { headers: ownerHeaders(home), signal: AbortSignal.timeout(1000) })).ok;
   } catch {
     return false;
   }

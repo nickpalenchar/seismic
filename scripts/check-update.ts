@@ -197,7 +197,7 @@ try {
       });
       const again = await until('a server of the new app', 180_000, async () => {
         const e = serverEntry();
-        return e && e.pid !== first.pid && (await api('GET', '/api/canvases')) ? e : null;
+        return e && e.pid !== first.pid && (await api('GET', '/api/projects')) ? e : null;
       });
       return `exit ${code}, then pid ${again.pid}`;
     });

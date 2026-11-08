@@ -18,7 +18,7 @@ const out = path.join(dir, 'out');
 fs.mkdirSync(out);
 fs.writeFileSync(path.join(out, 'demo.mp4'), 'video');
 fs.writeFileSync(path.join(out, 'captions.vtt'), 'WEBVTT');
-const chapters = 'WEBVTT\n\n00:00:00.001 --> 00:00:20.099\nOne canvas\n\n00:00:20.099 --> 00:00:42.662\nYour wall\n\n00:00:42.662 --> 00:01:00.015\nThe agent starts\n';
+const chapters = 'WEBVTT\n\n00:00:00.001 --> 00:00:20.099\nOne project\n\n00:00:20.099 --> 00:00:42.662\nYour wall\n\n00:00:42.662 --> 00:01:00.015\nThe agent starts\n';
 fs.writeFileSync(path.join(out, 'chapters.vtt'), chapters);
 const bin = path.join(dir, 'bin');
 fs.mkdirSync(bin);

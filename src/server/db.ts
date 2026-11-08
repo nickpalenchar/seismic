@@ -9,7 +9,7 @@ import type { Wish } from '../core/wish';
 
 export interface CardRow {
   id: string;
-  canvas_id: string;
+  project_id: string;
   kind: CardKind;
   /** Null on plan cards: the state comes from the plan doc. */
   state: CardState | null;
@@ -45,15 +45,15 @@ export interface CardRow {
   pr: string | null;
   /** JSON, review cards only: the contributor's pull request the card reviews (`StoredContribution` in board.ts). */
   contribution: string | null;
-  /** JSON: the code review of the card's work where its canvas reviews work that lands on main (`StoredCodeReview` in board.ts). */
+  /** JSON: the code review of the card's work where its project reviews work that lands on main (`StoredCodeReview` in board.ts). */
   code_review: string | null;
-  /** The owner's card's repository on a canvas with several; null is the home repository. */
+  /** The owner's card's repository on a project with several; null is the home repository. */
   repo: string | null;
   /** JSON: the card's latest demo (`{ kind, dir, chapters, question? }`; no `kind` is a video). */
   demo: string | null;
   /** JSON: the demos of earlier handovers a later one replaced, the oldest first, each as `demo` was; append only. */
   demos: string | null;
-  /** When the owner took the finished card off the canvas into the archive. */
+  /** When the owner took the finished card off the project into the archive. */
   archived_at: string | null;
   /** JSON: an idea's status and brief (`{ status, brief }`). */
   idea: string | null;
@@ -114,7 +114,7 @@ export interface CardRow {
   files: string | null;
   /** JSON, plans only: which workstream builds on which, as the Koordinator read it from the plan doc (`StoredDeps` in board.ts). */
   deps: string | null;
-  /** 1 while the owner has a plan folded to its head: its workstreams are not shown on the canvas. */
+  /** 1 while the owner has a plan folded to its head: its workstreams are not shown on the project. */
   collapsed: number;
   /**
    * The clone (`ssh://<host>/…` on a host) that holds the newest state of the card's branch since
@@ -124,7 +124,7 @@ export interface CardRow {
   kept_in: string | null;
   /**
    * JSON: a repository to create for the card before work begins (`NewRepo`); once Seismic made it,
-   * `{ path, canvas, made: true }`, so its worker hears that the repository is new.
+   * `{ path, project, made: true }`, so its worker hears that the repository is new.
    */
   new_repo: string | null;
   /** What the card's worker last heard of its demo's page (`PageHeard` in workers.ts), so it hears of a change with its next step. */
@@ -158,7 +158,7 @@ export interface TalkWaitRow extends TalkWait {
 
 export interface GroupRow {
   id: string;
-  canvas_id: string;
+  project_id: string;
   name: string;
   hue: number;
   created_at: string;
@@ -195,7 +195,7 @@ export interface Utterance {
 
 export interface DecisionRow {
   id: number;
-  canvas_id: string;
+  project_id: string;
   plan_id: string | null;
   card_id: string;
   question: string;
@@ -579,6 +579,31 @@ export const MIGRATIONS = [
    ALTER TABLE cards RENAME COLUMN workspace TO workstation;
    UPDATE cards SET queue = json_set(json_remove(queue, '$.workspace'), '$.workstation', json_extract(queue, '$.workspace'))
     WHERE json_extract(queue, '$.workspace') IS NOT NULL;`,
+  // a project was a "canvas" before the word went to the container of cards inside a project: the
+  // table, every table's column pointing to it, the one index named after it, and the stored JSON
+  // that names it (a card moved to another project, a repository made with its own project, a card
+  // made on another project)
+  `ALTER TABLE canvases RENAME TO projects;
+   ALTER TABLE groups RENAME COLUMN canvas_id TO project_id;
+   ALTER TABLE cards RENAME COLUMN canvas_id TO project_id;
+   ALTER TABLE workstations RENAME COLUMN canvas_id TO project_id;
+   ALTER TABLE decisions RENAME COLUMN canvas_id TO project_id;
+   ALTER TABLE settings RENAME COLUMN canvas_id TO project_id;
+   ALTER TABLE preferences RENAME COLUMN canvas_id TO project_id;
+   ALTER TABLE talk RENAME COLUMN canvas_id TO project_id;
+   ALTER TABLE friction RENAME COLUMN canvas_id TO project_id;
+   ALTER TABLE commands RENAME COLUMN canvas_id TO project_id;
+   ALTER TABLE setting_proposals RENAME COLUMN canvas_id TO project_id;
+   ALTER TABLE feedback RENAME COLUMN canvas_id TO project_id;
+   ALTER TABLE chats RENAME COLUMN canvas_id TO project_id;
+   DROP INDEX chats_canvas;
+   CREATE INDEX chats_project ON chats (project_id, opened);
+   UPDATE talk SET moved = json_set(json_remove(moved, '$.canvas', '$.canvasName'), '$.project', json_extract(moved, '$.canvas'), '$.projectName', json_extract(moved, '$.canvasName'))
+    WHERE json_extract(moved, '$.canvas') IS NOT NULL;
+   UPDATE cards SET new_repo = json_set(json_remove(new_repo, '$.canvas'), '$.project', json(new_repo -> '$.canvas'))
+    WHERE json_extract(new_repo, '$.canvas') IS NOT NULL;
+   UPDATE events SET made = json_set(json_remove(made, '$.canvas'), '$.project', json_extract(made, '$.canvas'))
+    WHERE json_extract(made, '$.canvas') IS NOT NULL;`,
 ];
 
 const EVENT_COLUMNS = 'id, card_id AS cardId, at, kind, author, text, code, images, mocks, reply_to AS replyTo, spot, answer, picks, unread, read_after AS readAfter, wish, reply, forwarded, agent, token, made';
@@ -618,11 +643,11 @@ const eventOf = ({ code, images, mocks, replyTo, spot, answer, picks, unread, re
   ...(made ? { made: JSON.parse(made) as NonNullable<CardEvent['made']> } : {}),
 });
 
-export type NewRow = Pick<CardRow, 'canvas_id' | 'kind' | 'x' | 'y'> &
+export type NewRow = Pick<CardRow, 'project_id' | 'kind' | 'x' | 'y'> &
   Partial<Pick<CardRow, 'state' | 'title' | 'body' | 'parent_id' | 'plan_ref' | 'from_id' | 'repo' | 'idea' | 'prototype_of' | 'prototype' | 'images' | 'retro' | 'proposal' | 'group_id'>>;
 
 /** What `Store.update` may change on a card: all but what is set once at its creation, and its times. */
-export type RowUpdate = Partial<Omit<CardRow, 'id' | 'canvas_id' | 'parent_id' | 'plan_ref' | 'prototype_of' | 'retro' | 'created_at' | 'updated_at'>>;
+export type RowUpdate = Partial<Omit<CardRow, 'id' | 'project_id' | 'parent_id' | 'plan_ref' | 'prototype_of' | 'retro' | 'created_at' | 'updated_at'>>;
 
 /** A database this Seismic cannot open as it is: it leaves it alone. */
 export class UnusableDatabase extends Error {}
@@ -670,62 +695,62 @@ export class Store {
     }
   }
 
-  /** A canvas's name as last stored; none for a canvas this database has never seen. */
-  canvasName(id: string): string | null {
-    return (this.db.query('SELECT name FROM canvases WHERE id = $id').get({ id }) as { name: string } | null)?.name ?? null;
+  /** A project's name as last stored; none for a project this database has never seen. */
+  projectName(id: string): string | null {
+    return (this.db.query('SELECT name FROM projects WHERE id = $id').get({ id }) as { name: string } | null)?.name ?? null;
   }
 
   /**
-   * The card goes to another canvas, at `at`, with its history and decisions: into that canvas's
-   * home repository (`repo` null) and out of its group, which belongs to the canvas it leaves.
+   * The card goes to another project, at `at`, with its history and decisions: into that project's
+   * home repository (`repo` null) and out of its group, which belongs to the project it leaves.
    */
-  moveCard(id: string, canvasId: string, at: { x: number; y: number }, fields: RowUpdate = {}) {
+  moveCard(id: string, projectId: string, at: { x: number; y: number }, fields: RowUpdate = {}) {
     this.db.transaction(() => {
       this.update(id, { ...fields, x: at.x, y: at.y, repo: null, group_id: null });
-      this.db.query('UPDATE cards SET canvas_id = $c WHERE id = $id').run({ id, c: canvasId });
-      this.db.query('UPDATE decisions SET canvas_id = $c WHERE card_id = $id').run({ id, c: canvasId });
-      this.db.query('UPDATE feedback SET canvas_id = $c WHERE card_id = $id').run({ id, c: canvasId });
+      this.db.query('UPDATE cards SET project_id = $c WHERE id = $id').run({ id, c: projectId });
+      this.db.query('UPDATE decisions SET project_id = $c WHERE card_id = $id').run({ id, c: projectId });
+      this.db.query('UPDATE feedback SET project_id = $c WHERE card_id = $id').run({ id, c: projectId });
     })();
   }
 
-  ensureCanvas(id: string, name: string) {
+  ensureProject(id: string, name: string) {
     this.db
-      .query('INSERT INTO canvases (id, name, created_at) VALUES ($id, $name, $now) ON CONFLICT(id) DO UPDATE SET name = $name')
+      .query('INSERT INTO projects (id, name, created_at) VALUES ($id, $name, $now) ON CONFLICT(id) DO UPDATE SET name = $name')
       .run({ id, name, now: now() });
   }
 
-  /** Every card on the canvas: not deleted, not archived. */
-  cards(canvasId: string): CardRow[] {
-    return this.db.query('SELECT * FROM cards WHERE canvas_id = $c AND deleted_at IS NULL AND archived_at IS NULL').all({ c: canvasId }) as CardRow[];
+  /** Every card on the project: not deleted, not archived. */
+  cards(projectId: string): CardRow[] {
+    return this.db.query('SELECT * FROM cards WHERE project_id = $c AND deleted_at IS NULL AND archived_at IS NULL').all({ c: projectId }) as CardRow[];
   }
 
-  /** The canvas's cards, archived ones too, that were ever shared or are about to be. */
-  shared(canvasId: string): CardRow[] {
-    return this.db.query('SELECT * FROM cards WHERE canvas_id = $c AND deleted_at IS NULL AND share IS NOT NULL').all({ c: canvasId }) as CardRow[];
+  /** The project's cards, archived ones too, that were ever shared or are about to be. */
+  shared(projectId: string): CardRow[] {
+    return this.db.query('SELECT * FROM cards WHERE project_id = $c AND deleted_at IS NULL AND share IS NOT NULL').all({ c: projectId }) as CardRow[];
   }
 
-  /** The canvas's archive, the most recently archived first. */
-  archived(canvasId: string): CardRow[] {
+  /** The project's archive, the most recently archived first. */
+  archived(projectId: string): CardRow[] {
     return this.db
-      .query('SELECT * FROM cards WHERE canvas_id = $c AND deleted_at IS NULL AND archived_at IS NOT NULL ORDER BY archived_at DESC, created_at DESC')
-      .all({ c: canvasId }) as CardRow[];
+      .query('SELECT * FROM cards WHERE project_id = $c AND deleted_at IS NULL AND archived_at IS NOT NULL ORDER BY archived_at DESC, created_at DESC')
+      .all({ c: projectId }) as CardRow[];
   }
 
-  /** The canvas's plans, on the canvas or archived. */
-  plans(canvasId: string): CardRow[] {
-    return this.db.query("SELECT * FROM cards WHERE canvas_id = $c AND deleted_at IS NULL AND kind = 'plan' AND plan_ref IS NOT NULL").all({ c: canvasId }) as CardRow[];
+  /** The project's plans, on the project or archived. */
+  plans(projectId: string): CardRow[] {
+    return this.db.query("SELECT * FROM cards WHERE project_id = $c AND deleted_at IS NULL AND kind = 'plan' AND plan_ref IS NOT NULL").all({ c: projectId }) as CardRow[];
   }
 
-  /** The cards whose landed work added plan docs, on the canvas or archived. */
-  withPlanDocs(canvasId: string): CardRow[] {
-    return this.db.query('SELECT * FROM cards WHERE canvas_id = $c AND deleted_at IS NULL AND plan_docs IS NOT NULL').all({ c: canvasId }) as CardRow[];
+  /** The cards whose landed work added plan docs, on the project or archived. */
+  withPlanDocs(projectId: string): CardRow[] {
+    return this.db.query('SELECT * FROM cards WHERE project_id = $c AND deleted_at IS NULL AND plan_docs IS NOT NULL').all({ c: projectId }) as CardRow[];
   }
 
-  /** The canvas's prototypes, on the canvas or archived, the oldest first: which they are, without the rest of their rows. */
-  prototypes(canvasId: string): Pick<CardRow, 'id' | 'prototype_of' | 'archived_at'>[] {
+  /** The project's prototypes, on the project or archived, the oldest first: which they are, without the rest of their rows. */
+  prototypes(projectId: string): Pick<CardRow, 'id' | 'prototype_of' | 'archived_at'>[] {
     return this.db
-      .query('SELECT id, prototype_of, archived_at FROM cards WHERE canvas_id = $c AND deleted_at IS NULL AND prototype_of IS NOT NULL ORDER BY created_at, rowid')
-      .all({ c: canvasId }) as Pick<CardRow, 'id' | 'prototype_of' | 'archived_at'>[];
+      .query('SELECT id, prototype_of, archived_at FROM cards WHERE project_id = $c AND deleted_at IS NULL AND prototype_of IS NOT NULL ORDER BY created_at, rowid')
+      .all({ c: projectId }) as Pick<CardRow, 'id' | 'prototype_of' | 'archived_at'>[];
   }
 
   /** The workstreams of the given plans. */
@@ -737,31 +762,31 @@ export class Store {
   }
 
   /** Deletes the owner's cards left empty (no title, text or screenshots), created before `before`; returns how many. */
-  sweepUntitled(canvasId: string, before: string): number {
+  sweepUntitled(projectId: string, before: string): number {
     return this.db
       .query(
         `UPDATE cards SET deleted_at = $now
-         WHERE canvas_id = $c AND plan_ref IS NULL AND deleted_at IS NULL AND state = 'planned'
+         WHERE project_id = $c AND plan_ref IS NULL AND deleted_at IS NULL AND state = 'planned'
            AND TRIM(COALESCE(title, '')) = '' AND TRIM(COALESCE(body, '')) = '' AND images IS NULL
            AND created_at < $before`,
       )
-      .run({ c: canvasId, before, now: now() }).changes;
+      .run({ c: projectId, before, now: now() }).changes;
   }
 
   /** The proposals an agent made from a card, deleted and archived ones too, oldest first. */
-  proposalsFrom(canvasId: string, fromId: string): CardRow[] {
-    return this.db.query('SELECT * FROM cards WHERE canvas_id = $c AND from_id = $f AND proposal IS NOT NULL ORDER BY created_at, rowid').all({ c: canvasId, f: fromId }) as CardRow[];
+  proposalsFrom(projectId: string, fromId: string): CardRow[] {
+    return this.db.query('SELECT * FROM cards WHERE project_id = $c AND from_id = $f AND proposal IS NOT NULL ORDER BY created_at, rowid').all({ c: projectId, f: fromId }) as CardRow[];
   }
 
-  /** Of the given cards, those on another canvas than `canvasId` and not deleted: with their canvas, its name and their title. */
-  elsewhere(ids: string[], canvasId: string): { id: string; canvas: string; canvasName: string | null; title: string | null }[] {
+  /** Of the given cards, those on another project than `projectId` and not deleted: with their project, its name and their title. */
+  elsewhere(ids: string[], projectId: string): { id: string; project: string; projectName: string | null; title: string | null }[] {
     if (!ids.length) return [];
     return this.db
       .query(
-        `SELECT c.id, c.canvas_id AS canvas, v.name AS canvasName, c.title FROM cards c LEFT JOIN canvases v ON v.id = c.canvas_id
-         WHERE c.id IN (SELECT value FROM json_each($ids)) AND c.canvas_id != $c AND c.deleted_at IS NULL`,
+        `SELECT c.id, c.project_id AS project, v.name AS projectName, c.title FROM cards c LEFT JOIN projects v ON v.id = c.project_id
+         WHERE c.id IN (SELECT value FROM json_each($ids)) AND c.project_id != $c AND c.deleted_at IS NULL`,
       )
-      .all({ ids: JSON.stringify(ids), c: canvasId }) as { id: string; canvas: string; canvasName: string | null; title: string | null }[];
+      .all({ ids: JSON.stringify(ids), c: projectId }) as { id: string; project: string; projectName: string | null; title: string | null }[];
   }
 
   card(id: string): CardRow | null {
@@ -770,8 +795,8 @@ export class Store {
 
   insert(rows: NewRow[]): CardRow[] {
     const stmt = this.db.query(
-      `INSERT INTO cards (id, short, canvas_id, kind, state, title, body, x, y, parent_id, plan_ref, from_id, repo, idea, prototype_of, prototype, images, retro, proposal, group_id, created_at, updated_at)
-       VALUES ($id, $short, $canvas_id, $kind, $state, $title, $body, $x, $y, $parent_id, $plan_ref, $from_id, $repo, $idea, $prototype_of, $prototype, $images, $retro, $proposal, $group_id, $now, $now)`,
+      `INSERT INTO cards (id, short, project_id, kind, state, title, body, x, y, parent_id, plan_ref, from_id, repo, idea, prototype_of, prototype, images, retro, proposal, group_id, created_at, updated_at)
+       VALUES ($id, $short, $project_id, $kind, $state, $title, $body, $x, $y, $parent_id, $plan_ref, $from_id, $repo, $idea, $prototype_of, $prototype, $images, $retro, $proposal, $group_id, $now, $now)`,
     );
     const taken = this.db.query('SELECT 1 FROM cards WHERE short = $s');
     const ids = this.db.transaction(() =>
@@ -784,7 +809,7 @@ export class Store {
         stmt.run({
           id,
           short: hex.slice(0, n),
-          canvas_id: r.canvas_id,
+          project_id: r.project_id,
           kind: r.kind,
           state: r.state ?? null,
           title: r.title ?? null,
@@ -810,9 +835,9 @@ export class Store {
     return ids.map((id) => this.card(id)!);
   }
 
-  /** Since when each of the canvas's cards waits for the owner, for those that do. */
-  waitingSince(canvasId: string): Map<string, string> {
-    const rows = this.db.query('SELECT id, waiting_since AS since FROM cards WHERE canvas_id = $c AND waiting_since IS NOT NULL').all({ c: canvasId }) as { id: string; since: string }[];
+  /** Since when each of the project's cards waits for the owner, for those that do. */
+  waitingSince(projectId: string): Map<string, string> {
+    const rows = this.db.query('SELECT id, waiting_since AS since FROM cards WHERE project_id = $c AND waiting_since IS NOT NULL').all({ c: projectId }) as { id: string; since: string }[];
     return new Map(rows.map((r) => [r.id, r.since]));
   }
 
@@ -843,22 +868,22 @@ export class Store {
 
   // ---------------------------------------------------------------- groups
 
-  /** The canvas's groups, the oldest first. */
-  groups(canvasId: string): GroupRow[] {
-    return this.db.query('SELECT * FROM groups WHERE canvas_id = $c ORDER BY created_at, rowid').all({ c: canvasId }) as GroupRow[];
+  /** The project's groups, the oldest first. */
+  groups(projectId: string): GroupRow[] {
+    return this.db.query('SELECT * FROM groups WHERE project_id = $c ORDER BY created_at, rowid').all({ c: projectId }) as GroupRow[];
   }
 
   group(id: string): GroupRow | null {
     return (this.db.query('SELECT * FROM groups WHERE id = $id').get({ id }) as GroupRow | null) ?? null;
   }
 
-  addGroup(canvasId: string, name: string, hue: number): GroupRow {
+  addGroup(projectId: string, name: string, hue: number): GroupRow {
     const id = crypto.randomUUID();
-    this.db.query('INSERT INTO groups (id, canvas_id, name, hue, created_at) VALUES ($id, $c, $name, $hue, $now)').run({ id, c: canvasId, name, hue, now: now() });
+    this.db.query('INSERT INTO groups (id, project_id, name, hue, created_at) VALUES ($id, $c, $name, $hue, $now)').run({ id, c: projectId, name, hue, now: now() });
     return this.group(id)!;
   }
 
-  /** The cards in the group, on the canvas or in the archive. */
+  /** The cards in the group, on the project or in the archive. */
   groupCards(id: string): string[] {
     return (this.db.query('SELECT id FROM cards WHERE group_id = $id AND deleted_at IS NULL ORDER BY rowid').all({ id }) as { id: string }[]).map((r) => r.id);
   }
@@ -873,16 +898,16 @@ export class Store {
     this.db.transaction(() => cardIds.forEach((id) => stmt.run({ id, g: groupId, now: now() })))();
   }
 
-  /** Removes the groups no card belongs to, on the canvas or in the archive; returns how many. */
-  dropEmptyGroups(canvasId: string): number {
+  /** Removes the groups no card belongs to, on the project or in the archive; returns how many. */
+  dropEmptyGroups(projectId: string): number {
     return this.db.transaction(() => {
       // a deleted card that comes back has no group any more
       this.db
-        .query('UPDATE cards SET group_id = NULL WHERE canvas_id = $c AND deleted_at IS NOT NULL AND group_id IS NOT NULL')
-        .run({ c: canvasId });
+        .query('UPDATE cards SET group_id = NULL WHERE project_id = $c AND deleted_at IS NOT NULL AND group_id IS NOT NULL')
+        .run({ c: projectId });
       return this.db
-        .query('DELETE FROM groups WHERE canvas_id = $c AND id NOT IN (SELECT group_id FROM cards WHERE canvas_id = $c AND group_id IS NOT NULL)')
-        .run({ c: canvasId }).changes;
+        .query('DELETE FROM groups WHERE project_id = $c AND id NOT IN (SELECT group_id FROM cards WHERE project_id = $c AND group_id IS NOT NULL)')
+        .run({ c: projectId }).changes;
     })();
   }
 
@@ -961,18 +986,18 @@ export class Store {
 
   // ---------------------------------------------------------------- workstations
 
-  addWorkstation(canvasId: string, path: string, repo: string | null = null) {
-    this.db.query('INSERT INTO workstations (path, canvas_id, repo) VALUES ($path, $c, $repo) ON CONFLICT(path) DO NOTHING').run({ path, c: canvasId, repo });
+  addWorkstation(projectId: string, path: string, repo: string | null = null) {
+    this.db.query('INSERT INTO workstations (path, project_id, repo) VALUES ($path, $c, $repo) ON CONFLICT(path) DO NOTHING').run({ path, c: projectId, repo });
   }
 
-  /** The workstations of one repository on the canvas (`null`: its home repository). */
-  workstations(canvasId: string, repo: string | null = null): { path: string; card_id: string | null }[] {
+  /** The workstations of one repository on the project (`null`: its home repository). */
+  workstations(projectId: string, repo: string | null = null): { path: string; card_id: string | null }[] {
     return this.db
-      .query('SELECT path, card_id FROM workstations WHERE canvas_id = $c AND repo IS $repo ORDER BY path')
-      .all({ c: canvasId, repo }) as { path: string; card_id: string | null }[];
+      .query('SELECT path, card_id FROM workstations WHERE project_id = $c AND repo IS $repo ORDER BY path')
+      .all({ c: projectId, repo }) as { path: string; card_id: string | null }[];
   }
 
-  /** Whether a workstation is registered, on any canvas. */
+  /** Whether a workstation is registered, on any project. */
   hasWorkstation(path: string): boolean {
     return !!this.db.query('SELECT 1 FROM workstations WHERE path = $path').get({ path });
   }
@@ -989,32 +1014,32 @@ export class Store {
 
   addDecision(d: Omit<DecisionRow, 'id' | 'at'>) {
     this.db
-      .query('INSERT INTO decisions (canvas_id, plan_id, card_id, question, answer, by, at) VALUES ($canvas_id, $plan_id, $card_id, $question, $answer, $by, $at)')
+      .query('INSERT INTO decisions (project_id, plan_id, card_id, question, answer, by, at) VALUES ($project_id, $plan_id, $card_id, $question, $answer, $by, $at)')
       .run({ ...d, at: now() });
   }
 
   /** The decisions taken on one card outside any plan (an idea's, say). */
-  cardDecisions(canvasId: string, cardId: string): DecisionRow[] {
+  cardDecisions(projectId: string, cardId: string): DecisionRow[] {
     return this.db
-      .query('SELECT * FROM decisions WHERE canvas_id = $c AND card_id = $card AND plan_id IS NULL ORDER BY id')
-      .all({ c: canvasId, card: cardId }) as DecisionRow[];
+      .query('SELECT * FROM decisions WHERE project_id = $c AND card_id = $card AND plan_id IS NULL ORDER BY id')
+      .all({ c: projectId, card: cardId }) as DecisionRow[];
   }
 
-  /** A plan's decisions, or with `null` those of the canvas's standalone cards. */
-  decisions(canvasId: string, planId: string | null, limit = 40): DecisionRow[] {
+  /** A plan's decisions, or with `null` those of the project's standalone cards. */
+  decisions(projectId: string, planId: string | null, limit = 40): DecisionRow[] {
     return (
       this.db
-        .query('SELECT * FROM decisions WHERE canvas_id = $c AND plan_id IS $p ORDER BY id DESC LIMIT $limit')
-        .all({ c: canvasId, p: planId, limit }) as DecisionRow[]
+        .query('SELECT * FROM decisions WHERE project_id = $c AND plan_id IS $p ORDER BY id DESC LIMIT $limit')
+        .all({ c: projectId, p: planId, limit }) as DecisionRow[]
     ).reverse();
   }
 
   // ---------------------------------------------------------------- preferences
 
-  /** The canvas's preferences, oldest first: those in the given states, or all. */
-  preferences(canvasId: string, states?: PreferenceState[]): Preference[] {
+  /** The project's preferences, oldest first: those in the given states, or all. */
+  preferences(projectId: string, states?: PreferenceState[]): Preference[] {
     return (
-      this.db.query('SELECT * FROM preferences WHERE canvas_id = $c AND deleted_at IS NULL ORDER BY id').all({ c: canvasId }) as {
+      this.db.query('SELECT * FROM preferences WHERE project_id = $c AND deleted_at IS NULL ORDER BY id').all({ c: projectId }) as {
         id: number;
         text: string;
         card_id: string | null;
@@ -1039,7 +1064,7 @@ export class Store {
   }
 
   addPreference(
-    canvasId: string,
+    projectId: string,
     text: string,
     cardId: string | null,
     proposal?: { quote?: string; review?: boolean; replaces?: number; target?: string },
@@ -1047,11 +1072,11 @@ export class Store {
     return (
       this.db
         .query(
-          `INSERT INTO preferences (canvas_id, text, card_id, created_at, state, quote, review, replaces, target)
+          `INSERT INTO preferences (project_id, text, card_id, created_at, state, quote, review, replaces, target)
            VALUES ($c, $text, $cardId, $now, $state, $quote, $review, $replaces, $target) RETURNING id`,
         )
         .get({
-          c: canvasId,
+          c: projectId,
           text,
           cardId,
           now: now(),
@@ -1065,23 +1090,23 @@ export class Store {
   }
 
   /** A rule the owner gives outright for the CLAUDE.md of the repository `target`: filed at once, without a proposal. */
-  fileRule(canvasId: string, text: string, cardId: string | null, target: string): number {
+  fileRule(projectId: string, text: string, cardId: string | null, target: string): number {
     return (
       this.db
         .query(
-          `INSERT INTO preferences (canvas_id, text, card_id, created_at, state, target)
+          `INSERT INTO preferences (project_id, text, card_id, created_at, state, target)
            VALUES ($c, $text, $cardId, $now, 'filed', $target) RETURNING id`,
         )
-        .get({ c: canvasId, text, cardId, now: now(), target }) as { id: number }
+        .get({ c: projectId, text, cardId, now: now(), target }) as { id: number }
     ).id;
   }
 
-  /** Changes or (with `null`) deletes a preference of the canvas; returns whether it existed. */
-  setPreference(canvasId: string, id: number, text: string | null): boolean {
+  /** Changes or (with `null`) deletes a preference of the project; returns whether it existed. */
+  setPreference(projectId: string, id: number, text: string | null): boolean {
     const r =
       text === null
-        ? this.db.query('UPDATE preferences SET deleted_at = $now WHERE id = $id AND canvas_id = $c AND deleted_at IS NULL').run({ id, c: canvasId, now: now() })
-        : this.db.query('UPDATE preferences SET text = $text WHERE id = $id AND canvas_id = $c AND deleted_at IS NULL').run({ id, c: canvasId, text });
+        ? this.db.query('UPDATE preferences SET deleted_at = $now WHERE id = $id AND project_id = $c AND deleted_at IS NULL').run({ id, c: projectId, now: now() })
+        : this.db.query('UPDATE preferences SET text = $text WHERE id = $id AND project_id = $c AND deleted_at IS NULL').run({ id, c: projectId, text });
     return r.changes > 0;
   }
 
@@ -1089,98 +1114,98 @@ export class Store {
    * Accepts or rejects an open proposal; returns whether there was one. Accepted, it becomes an
    * active rule, or one filed for the repository `target`, whose CLAUDE.md it goes into.
    */
-  decideProposal(canvasId: string, id: number, state: 'active' | 'rejected', target?: string | null): boolean {
+  decideProposal(projectId: string, id: number, state: 'active' | 'rejected', target?: string | null): boolean {
     return (
       this.db
         .query(
           `UPDATE preferences SET state = $state, decided_at = $now, target = CASE WHEN $keep THEN target ELSE $target END
-           WHERE id = $id AND canvas_id = $c AND state = 'proposed' AND deleted_at IS NULL`,
+           WHERE id = $id AND project_id = $c AND state = 'proposed' AND deleted_at IS NULL`,
         )
-        .run({ id, c: canvasId, state: state === 'active' && target ? 'filed' : state, now: now(), keep: target === undefined, target: target ?? null }).changes > 0
+        .run({ id, c: projectId, state: state === 'active' && target ? 'filed' : state, now: now(), keep: target === undefined, target: target ?? null }).changes > 0
     );
   }
 
   // ---------------------------------------------------------------- the Koordinator's memory
 
-  /** The chat new words on the canvas go into: the one the owner opened last; a first one where there is none. */
-  chat(canvasId: string): number {
-    const r = this.db.query('SELECT id FROM chats WHERE canvas_id = $c ORDER BY opened DESC, id DESC LIMIT 1').get({ c: canvasId }) as { id: number } | null;
+  /** The chat new words on the project go into: the one the owner opened last; a first one where there is none. */
+  chat(projectId: string): number {
+    const r = this.db.query('SELECT id FROM chats WHERE project_id = $c ORDER BY opened DESC, id DESC LIMIT 1').get({ c: projectId }) as { id: number } | null;
     if (r) return r.id;
     const at = now();
-    return (this.db.query('INSERT INTO chats (canvas_id, at, opened) VALUES ($c, $at, $at) RETURNING id').get({ c: canvasId, at }) as { id: number }).id;
+    return (this.db.query('INSERT INTO chats (project_id, at, opened) VALUES ($c, $at, $at) RETURNING id').get({ c: projectId, at }) as { id: number }).id;
   }
 
-  chatModel(canvasId: string): AgentModel | undefined {
-    return (this.db.query('SELECT model FROM chats WHERE id = $id').get({ id: this.chat(canvasId) }) as { model: AgentModel | null }).model ?? undefined;
+  chatModel(projectId: string): AgentModel | undefined {
+    return (this.db.query('SELECT model FROM chats WHERE id = $id').get({ id: this.chat(projectId) }) as { model: AgentModel | null }).model ?? undefined;
   }
 
-  private nextChatOpening(canvasId: string): string {
-    const latest = this.db.query('SELECT MAX(opened) AS opened FROM chats WHERE canvas_id = $c').get({ c: canvasId }) as { opened: string | null };
+  private nextChatOpening(projectId: string): string {
+    const latest = this.db.query('SELECT MAX(opened) AS opened FROM chats WHERE project_id = $c').get({ c: projectId }) as { opened: string | null };
     return new Date(Math.max(Date.now(), latest.opened ? Date.parse(latest.opened) + 1 : 0)).toISOString();
   }
 
-  setChatModel(canvasId: string, model?: AgentModel): void {
-    this.db.query('UPDATE chats SET model = $model WHERE id = $id AND canvas_id = $c').run({ id: this.chat(canvasId), c: canvasId, model: model ?? null });
+  setChatModel(projectId: string, model?: AgentModel): void {
+    this.db.query('UPDATE chats SET model = $model WHERE id = $id AND project_id = $c').run({ id: this.chat(projectId), c: projectId, model: model ?? null });
   }
 
   /** A new chat to go on in; the current one while nothing was said in it yet. */
-  newChat(canvasId: string): number {
-    const current = this.chat(canvasId);
+  newChat(projectId: string): number {
+    const current = this.chat(projectId);
     if (!this.db.query('SELECT 1 FROM talk WHERE chat = $id').get({ id: current })) return current;
-    const at = this.nextChatOpening(canvasId);
-    return (this.db.query('INSERT INTO chats (canvas_id, at, opened) VALUES ($c, $at, $at) RETURNING id').get({ c: canvasId, at }) as { id: number }).id;
+    const at = this.nextChatOpening(projectId);
+    return (this.db.query('INSERT INTO chats (project_id, at, opened) VALUES ($c, $at, $at) RETURNING id').get({ c: projectId, at }) as { id: number }).id;
   }
 
-  /** The owner goes back to chat `id`: new words go into it. A chat left without a word in it goes. Whether `id` is the canvas's. */
-  openChat(canvasId: string, id: number): boolean {
-    if (!this.db.query('SELECT 1 FROM chats WHERE id = $id AND canvas_id = $c').get({ id, c: canvasId })) return false;
+  /** The owner goes back to chat `id`: new words go into it. A chat left without a word in it goes. Whether `id` is the project's. */
+  openChat(projectId: string, id: number): boolean {
+    if (!this.db.query('SELECT 1 FROM chats WHERE id = $id AND project_id = $c').get({ id, c: projectId })) return false;
     this.db.transaction(() => {
-      this.db.query('UPDATE chats SET opened = $at WHERE id = $id').run({ id, at: this.nextChatOpening(canvasId) });
-      this.db.query('DELETE FROM chats WHERE canvas_id = $c AND id != $id AND NOT EXISTS (SELECT 1 FROM talk WHERE talk.chat = chats.id)').run({ c: canvasId, id });
+      this.db.query('UPDATE chats SET opened = $at WHERE id = $id').run({ id, at: this.nextChatOpening(projectId) });
+      this.db.query('DELETE FROM chats WHERE project_id = $c AND id != $id AND NOT EXISTS (SELECT 1 FROM talk WHERE talk.chat = chats.id)').run({ c: projectId, id });
     })();
     return true;
   }
 
   /**
-   * The chats with something said in them, the latest first, of one canvas or (none named) of all:
+   * The chats with something said in them, the latest first, of one project or (none named) of all:
    * each with the owner's first words and when it was last talked in.
    */
-  chats(canvasId?: string, limit = 200): Chat[] {
+  chats(projectId?: string, limit = 200): Chat[] {
     return (
       this.db
         .query(
-          `SELECT h.id, h.canvas_id AS canvas, h.model, MAX(t.at) AS at,
+          `SELECT h.id, h.project_id AS project, h.model, MAX(t.at) AS at,
              (SELECT said FROM talk f WHERE f.chat = h.id AND f.said != '' ORDER BY f.id LIMIT 1) AS title,
              SUM(t.unread) AS unread
            FROM chats h JOIN talk t ON t.chat = h.id
-           WHERE ${canvasId ? 'h.canvas_id = $c' : '1'}
+           WHERE ${projectId ? 'h.project_id = $c' : '1'}
            GROUP BY h.id ORDER BY at DESC LIMIT $limit`,
         )
-        .all({ ...(canvasId ? { c: canvasId } : {}), limit }) as { id: number; canvas: string; model: AgentModel | null; at: string; title: string | null; unread: number }[]
-    ).map((r) => ({ id: r.id, canvas: r.canvas, at: r.at, ...(r.model ? { model: r.model } : {}), ...(r.title ? { title: r.title } : {}), ...(r.unread ? { unread: r.unread } : {}) }));
+        .all({ ...(projectId ? { c: projectId } : {}), limit }) as { id: number; project: string; model: AgentModel | null; at: string; title: string | null; unread: number }[]
+    ).map((r) => ({ id: r.id, project: r.project, at: r.at, ...(r.model ? { model: r.model } : {}), ...(r.title ? { title: r.title } : {}), ...(r.unread ? { unread: r.unread } : {}) }));
   }
 
-  /** An exchange of no one's in the canvas's sheet, `reply` saying the card moved to another canvas. */
-  addMoved(canvasId: string, moved: TalkMoved, reply: string): number {
+  /** An exchange of no one's in the project's sheet, `reply` saying the card moved to another project. */
+  addMoved(projectId: string, moved: TalkMoved, reply: string): number {
     return (
-      this.db.query("INSERT INTO talk (canvas_id, at, said, reply, moved, chat) VALUES ($c, $at, '', $reply, $moved, $chat) RETURNING id").get({ c: canvasId, at: now(), reply, moved: JSON.stringify(moved), chat: this.chat(canvasId) }) as {
+      this.db.query("INSERT INTO talk (project_id, at, said, reply, moved, chat) VALUES ($c, $at, '', $reply, $moved, $chat) RETURNING id").get({ c: projectId, at: now(), reply, moved: JSON.stringify(moved), chat: this.chat(projectId) }) as {
         id: number;
       }
     ).id;
   }
 
   /** An exchange in the current chat; one the Koordinator takes up by itself (`after`, `answered`) goes into the chat of the exchange it takes up. */
-  addTalk(canvasId: string, said: string, reply: string, cardId: string | null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number): number {
+  addTalk(projectId: string, said: string, reply: string, cardId: string | null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number): number {
     const from = after?.from ?? answered;
     const earlier = from === undefined ? undefined : ((this.db.query('SELECT chat FROM talk WHERE id = $id').get({ id: from }) as { chat: number | null } | null)?.chat ?? undefined);
     return (
       this.db
         .query(
-          'INSERT INTO talk (canvas_id, at, said, reply, card_id, question, about, images, reply_to, after_wait, asked_in, after_answer, chat) VALUES ($c, $at, $said, $reply, $cardId, $question, $about, $images, $replyTo, $after, $askedIn, $answered, $chat) RETURNING id',
+          'INSERT INTO talk (project_id, at, said, reply, card_id, question, about, images, reply_to, after_wait, asked_in, after_answer, chat) VALUES ($c, $at, $said, $reply, $cardId, $question, $about, $images, $replyTo, $after, $askedIn, $answered, $chat) RETURNING id',
         )
         .get({
-          c: canvasId,
-          chat: earlier ?? this.chat(canvasId),
+          c: projectId,
+          chat: earlier ?? this.chat(projectId),
           at: now(),
           said,
           reply,
@@ -1212,9 +1237,9 @@ export class Store {
    * Words the Koordinator was reading when Seismic stopped: they get `reply`; returns them. Words the
    * usage limit holds wait on; words asked in a plan's sheet the Koordinator never reads.
    */
-  interruptTalk(canvasId: string, reply: string): Talk[] {
-    const rows = this.db.query("SELECT * FROM talk WHERE canvas_id = $c AND reply = '' AND held IS NULL AND asked_in IS NULL ORDER BY id").all({ c: canvasId }) as TalkRow[];
-    this.db.query("UPDATE talk SET reply = $reply WHERE canvas_id = $c AND reply = '' AND held IS NULL AND asked_in IS NULL").run({ c: canvasId, reply });
+  interruptTalk(projectId: string, reply: string): Talk[] {
+    const rows = this.db.query("SELECT * FROM talk WHERE project_id = $c AND reply = '' AND held IS NULL AND asked_in IS NULL ORDER BY id").all({ c: projectId }) as TalkRow[];
+    this.db.query("UPDATE talk SET reply = $reply WHERE project_id = $c AND reply = '' AND held IS NULL AND asked_in IS NULL").run({ c: projectId, reply });
     return rows.map(toTalk);
   }
 
@@ -1224,8 +1249,8 @@ export class Store {
   }
 
   /** The words the usage limit holds, oldest first. */
-  heldTalk(canvasId: string): (Talk & { held: HeldTalk })[] {
-    return (this.db.query('SELECT * FROM talk WHERE canvas_id = $c AND held IS NOT NULL ORDER BY id').all({ c: canvasId }) as TalkRow[]).map((r) => ({ ...toTalk(r), held: JSON.parse(r.held!) as HeldTalk }));
+  heldTalk(projectId: string): (Talk & { held: HeldTalk })[] {
+    return (this.db.query('SELECT * FROM talk WHERE project_id = $c AND held IS NOT NULL ORDER BY id').all({ c: projectId }) as TalkRow[]).map((r) => ({ ...toTalk(r), held: JSON.parse(r.held!) as HeldTalk }));
   }
 
   /** The cards the Koordinator waits on after the exchange's reply; none once it no longer waits on any. */
@@ -1234,21 +1259,21 @@ export class Store {
   }
 
   /** The exchanges whose reply said the Koordinator waits on a card, oldest first. */
-  waitingTalk(canvasId: string): (Talk & { waiting: TalkWaitRow[] })[] {
-    return (this.db.query('SELECT * FROM talk WHERE canvas_id = $c AND waits IS NOT NULL ORDER BY id').all({ c: canvasId }) as TalkRow[]).map((r) => ({ ...toTalk(r), waiting: JSON.parse(r.waits!) as TalkWaitRow[] }));
+  waitingTalk(projectId: string): (Talk & { waiting: TalkWaitRow[] })[] {
+    return (this.db.query('SELECT * FROM talk WHERE project_id = $c AND waits IS NOT NULL ORDER BY id').all({ c: projectId }) as TalkRow[]).map((r) => ({ ...toTalk(r), waiting: JSON.parse(r.waits!) as TalkWaitRow[] }));
   }
 
   /**
    * The step the Koordinator takes once the exchange's looked-up answer is in, and where the owner
-   * was on the canvas when they asked for it; `null` once it has decided it.
+   * was on the project when they asked for it; `null` once it has decided it.
    */
   thenTalk(id: number, then: string | null, place?: Place) {
     this.db.query('UPDATE talk SET then_step = $then, then_place = $place WHERE id = $id').run({ id, then, place: then !== null && place ? JSON.stringify(place) : null });
   }
 
   /** Looked-up answers that are in, oldest first, whose step the Koordinator has not decided yet. */
-  answeredSteps(canvasId: string): Talk[] {
-    return (this.db.query('SELECT * FROM talk WHERE canvas_id = $c AND then_step IS NOT NULL AND answer IS NOT NULL ORDER BY id').all({ c: canvasId }) as TalkRow[]).map(toTalk);
+  answeredSteps(projectId: string): Talk[] {
+    return (this.db.query('SELECT * FROM talk WHERE project_id = $c AND then_step IS NOT NULL AND answer IS NOT NULL ORDER BY id').all({ c: projectId }) as TalkRow[]).map(toTalk);
   }
 
   undoTalk(id: number) {
@@ -1256,8 +1281,8 @@ export class Store {
   }
 
   /** A command that waits for "Undo" until `due`; `body` is what runs then, as JSON. */
-  holdCommand(canvasId: string, token: string, due: string, body: string) {
-    this.db.query('INSERT OR REPLACE INTO commands (token, canvas_id, due, body) VALUES ($token, $c, $due, $body)').run({ token, c: canvasId, due, body });
+  holdCommand(projectId: string, token: string, due: string, body: string) {
+    this.db.query('INSERT OR REPLACE INTO commands (token, project_id, due, body) VALUES ($token, $c, $due, $body)').run({ token, c: projectId, due, body });
   }
 
   dropCommand(token: string) {
@@ -1265,8 +1290,8 @@ export class Store {
   }
 
   /** The commands still waiting, oldest first: after a restart, those the stopped server held. */
-  heldCommands(canvasId: string): { token: string; due: string; body: string }[] {
-    return this.db.query('SELECT token, due, body FROM commands WHERE canvas_id = $c ORDER BY due').all({ c: canvasId }) as { token: string; due: string; body: string }[];
+  heldCommands(projectId: string): { token: string; due: string; body: string }[] {
+    return this.db.query('SELECT token, due, body FROM commands WHERE project_id = $c ORDER BY due').all({ c: projectId }) as { token: string; due: string; body: string }[];
   }
 
   /**
@@ -1291,8 +1316,8 @@ export class Store {
   }
 
   /** The exchanges of a thread, oldest first, with the session each was looked up in. */
-  thread(canvasId: string, thread: number): (Talk & { about?: string; session?: string })[] {
-    return (this.db.query('SELECT * FROM talk WHERE canvas_id = $c AND (id = $t OR thread = $t) ORDER BY id').all({ c: canvasId, t: thread }) as TalkRow[]).map((r) => ({
+  thread(projectId: string, thread: number): (Talk & { about?: string; session?: string })[] {
+    return (this.db.query('SELECT * FROM talk WHERE project_id = $c AND (id = $t OR thread = $t) ORDER BY id').all({ c: projectId, t: thread }) as TalkRow[]).map((r) => ({
       ...withContinues(this.db, r),
       ...(r.about ? { about: r.about } : {}),
       ...(r.session_id ? { session: r.session_id } : {}),
@@ -1300,55 +1325,55 @@ export class Store {
   }
 
   /** The thread moved onto a Question card: its exchanges, and every follow-up asked later, are answered there. */
-  moveThread(canvasId: string, thread: number, card: string) {
-    this.db.query('UPDATE talk SET card = $card, unread = 0 WHERE canvas_id = $c AND (id = $t OR thread = $t)').run({ c: canvasId, t: thread, card });
+  moveThread(projectId: string, thread: number, card: string) {
+    this.db.query('UPDATE talk SET card = $card, unread = 0 WHERE project_id = $c AND (id = $t OR thread = $t)').run({ c: projectId, t: thread, card });
   }
 
   /** The owner saw the sheet's answers, or (`ids`) those of a plan's sheet; whether any was unread. */
-  readTalk(canvasId: string, ids?: number[]): boolean {
+  readTalk(projectId: string, ids?: number[]): boolean {
     if (ids)
-      return this.db.query('UPDATE talk SET unread = 0 WHERE canvas_id = $c AND unread = 1 AND id IN (SELECT value FROM json_each($ids))').run({ c: canvasId, ids: JSON.stringify(ids) }).changes > 0;
-    return this.db.query('UPDATE talk SET unread = 0 WHERE canvas_id = $c AND unread = 1 AND chat = $chat').run({ c: canvasId, chat: this.chat(canvasId) }).changes > 0;
+      return this.db.query('UPDATE talk SET unread = 0 WHERE project_id = $c AND unread = 1 AND id IN (SELECT value FROM json_each($ids))').run({ c: projectId, ids: JSON.stringify(ids) }).changes > 0;
+    return this.db.query('UPDATE talk SET unread = 0 WHERE project_id = $c AND unread = 1 AND chat = $chat').run({ c: projectId, chat: this.chat(projectId) }).changes > 0;
   }
 
   /**
    * The latest exchanges of the threads about any of `about` (a plan and its workstreams), oldest
    * first: those its plan agent answers.
    */
-  talkAbout(canvasId: string, about: string[], limit = 100): Talk[] {
+  talkAbout(projectId: string, about: string[], limit = 100): Talk[] {
     return (
       this.db
         .query(
           `SELECT t.* FROM talk t JOIN talk r ON r.id = COALESCE(t.thread, t.id)
-           WHERE t.canvas_id = $c AND r.about IN (SELECT value FROM json_each($about)) ORDER BY t.id DESC LIMIT $limit`,
+           WHERE t.project_id = $c AND r.about IN (SELECT value FROM json_each($about)) ORDER BY t.id DESC LIMIT $limit`,
         )
-        .all({ c: canvasId, about: JSON.stringify(about), limit }) as TalkRow[]
+        .all({ c: projectId, about: JSON.stringify(about), limit }) as TalkRow[]
     )
       .reverse()
       .map((r) => withContinues(this.db, r));
   }
 
   /** The latest exchanges, oldest first; with `withoutCard`, only those without an open card; with `chat`, only that chat's. */
-  talk(canvasId: string, limit = 20, withoutCard = false, chat?: number): Talk[] {
+  talk(projectId: string, limit = 20, withoutCard = false, chat?: number): Talk[] {
     return (
       this.db
-        .query(`SELECT * FROM talk WHERE canvas_id = $c${withoutCard ? ' AND card_id IS NULL' : ''}${chat !== undefined ? ' AND chat = $chat' : ''} ORDER BY id DESC LIMIT $limit`)
-        .all({ c: canvasId, limit, ...(chat !== undefined ? { chat } : {}) }) as TalkRow[]
+        .query(`SELECT * FROM talk WHERE project_id = $c${withoutCard ? ' AND card_id IS NULL' : ''}${chat !== undefined ? ' AND chat = $chat' : ''} ORDER BY id DESC LIMIT $limit`)
+        .all({ c: projectId, limit, ...(chat !== undefined ? { chat } : {}) }) as TalkRow[]
     )
       .reverse()
       .map((r) => withContinues(this.db, r));
   }
 
-  /** What Seismic's sheet shows: the latest exchanges of chat `chat` without an open card, and the answers that wait unread in the canvas's other chats; oldest first. */
-  sheet(canvasId: string, chat: number, limit: number): Talk[] {
-    const elsewhere = this.db.query('SELECT * FROM talk WHERE canvas_id = $c AND unread = 1 AND chat != $chat ORDER BY id').all({ c: canvasId, chat }) as TalkRow[];
-    const here = this.talk(canvasId, limit, true, chat);
+  /** What Seismic's sheet shows: the latest exchanges of chat `chat` without an open card, and the answers that wait unread in the project's other chats; oldest first. */
+  sheet(projectId: string, chat: number, limit: number): Talk[] {
+    const elsewhere = this.db.query('SELECT * FROM talk WHERE project_id = $c AND unread = 1 AND chat != $chat ORDER BY id').all({ c: projectId, chat }) as TalkRow[];
+    const here = this.talk(projectId, limit, true, chat);
     return elsewhere.length ? [...elsewhere.map((r) => withContinues(this.db, r)), ...here].sort((a, b) => a.id - b.id) : here;
   }
 
-  /** A message of the canvas's sheet (an exchange with no card open), as a reply quotes it. */
-  sheetQuote(canvasId: string, ref: TalkRef): TalkQuote | undefined {
-    const sheet = this.db.query('SELECT 1 FROM talk WHERE id = $id AND canvas_id = $c AND card_id IS NULL').get({ id: ref.talk, c: canvasId });
+  /** A message of the project's sheet (an exchange with no card open), as a reply quotes it. */
+  sheetQuote(projectId: string, ref: TalkRef): TalkQuote | undefined {
+    const sheet = this.db.query('SELECT 1 FROM talk WHERE id = $id AND project_id = $c AND card_id IS NULL').get({ id: ref.talk, c: projectId });
     return sheet ? quotedTalk(this.db, ref) : undefined;
   }
 
@@ -1359,8 +1384,8 @@ export class Store {
   }
 
   /** Questions being looked up, oldest first. */
-  lookingUp(canvasId: string): number[] {
-    return (this.db.query('SELECT id FROM talk WHERE canvas_id = $c AND question IS NOT NULL AND answer IS NULL ORDER BY id').all({ c: canvasId }) as { id: number }[]).map((r) => r.id);
+  lookingUp(projectId: string): number[] {
+    return (this.db.query('SELECT id FROM talk WHERE project_id = $c AND question IS NOT NULL AND answer IS NULL ORDER BY id').all({ c: projectId }) as { id: number }[]).map((r) => r.id);
   }
 
   /**
@@ -1370,7 +1395,7 @@ export class Store {
    * since it, whatever its time; its time still counts, for an event that takes up the id of one the
    * owner deleted.
    */
-  timeline(canvasId: string, since: string | Mark, limit: number): Moment[] {
+  timeline(projectId: string, since: string | Mark, limit: number): Moment[] {
     const m = typeof since === 'string' ? { at: since, event: Number.MAX_SAFE_INTEGER, card: Number.MAX_SAFE_INTEGER } : since;
     return (
       this.db
@@ -1378,13 +1403,13 @@ export class Store {
           // within one millisecond, cards are created before anything happens to them, each in the order it was written
           `SELECT at, cardId, kind, author, text FROM (
              SELECT e.at, e.card_id AS cardId, e.kind, e.author, e.text, 1 AS phase, e.id AS seq FROM events e JOIN cards c ON c.id = e.card_id
-             WHERE c.canvas_id = $c AND c.deleted_at IS NULL AND (e.at > $since OR e.id > $event) AND e.kind IN ('state', 'question', 'answer', 'review', 'hint', 'error')
+             WHERE c.project_id = $c AND c.deleted_at IS NULL AND (e.at > $since OR e.id > $event) AND e.kind IN ('state', 'question', 'answer', 'review', 'hint', 'error')
              UNION ALL
              SELECT created_at, id, 'created', CASE WHEN from_id IS NULL THEN 'owner' ELSE 'worker' END, '', 0, rowid FROM cards
-             WHERE canvas_id = $c AND deleted_at IS NULL AND plan_ref IS NULL AND (created_at > $since OR rowid > $card)
+             WHERE project_id = $c AND deleted_at IS NULL AND plan_ref IS NULL AND (created_at > $since OR rowid > $card)
            ) ORDER BY at DESC, phase DESC, seq DESC LIMIT $limit`,
         )
-        .all({ c: canvasId, since: m.at, event: m.event, card: m.card, limit }) as Moment[]
+        .all({ c: projectId, since: m.at, event: m.event, card: m.card, limit }) as Moment[]
     ).reverse();
   }
 
@@ -1401,30 +1426,30 @@ export class Store {
    * feedback and answers to agents, an idea's discussion, and what they said to the Koordinator
    * (unless taken back).
    */
-  utterances(canvasId: string, since: string, limit: number): Utterance[] {
+  utterances(projectId: string, since: string, limit: number): Utterance[] {
     return (
       this.db
         .query(
           `SELECT at, cardId, title, kind, text FROM (
              SELECT e.at, e.card_id AS cardId, c.title, e.kind, e.text, e.id AS seq FROM events e JOIN cards c ON c.id = e.card_id
-             WHERE c.canvas_id = $c AND e.author = 'owner' AND e.kind IN ('hint', 'answer', 'talk') AND e.at > $since
+             WHERE c.project_id = $c AND e.author = 'owner' AND e.kind IN ('hint', 'answer', 'talk') AND e.at > $since
              UNION ALL
              SELECT t.at, t.card_id, c.title, 'say', t.said, t.id FROM talk t LEFT JOIN cards c ON c.id = t.card_id
-             WHERE t.canvas_id = $c AND t.undone = 0 AND t.after_wait IS NULL AND t.after_answer IS NULL AND t.moved IS NULL AND t.at > $since
+             WHERE t.project_id = $c AND t.undone = 0 AND t.after_wait IS NULL AND t.after_answer IS NULL AND t.moved IS NULL AND t.at > $since
            ) ORDER BY at DESC, seq DESC LIMIT $limit`,
         )
-        .all({ c: canvasId, since, limit }) as { at: string; cardId: string | null; title: string | null; kind: Utterance['kind']; text: string }[]
+        .all({ c: projectId, since, limit }) as { at: string; cardId: string | null; title: string | null; kind: Utterance['kind']; text: string }[]
     )
       .reverse()
       .map((r) => ({ at: r.at, kind: r.kind, text: r.text, ...(r.cardId ? { cardId: r.cardId } : {}), ...(r.title ? { title: r.title } : {}) }));
   }
 
   /** Proposals the owner accepted or rejected after `since` (ISO time), oldest first. */
-  decidedProposals(canvasId: string, since: string): { at: string; text: string; state: 'active' | 'rejected' | 'filed'; quote?: string; target?: string }[] {
+  decidedProposals(projectId: string, since: string): { at: string; text: string; state: 'active' | 'rejected' | 'filed'; quote?: string; target?: string }[] {
     return (
       this.db
-        .query(`SELECT decided_at AS at, text, state, quote, target FROM preferences WHERE canvas_id = $c AND decided_at > $since ORDER BY decided_at`)
-        .all({ c: canvasId, since }) as { at: string; text: string; state: 'active' | 'rejected' | 'filed'; quote: string | null; target: string | null }[]
+        .query(`SELECT decided_at AS at, text, state, quote, target FROM preferences WHERE project_id = $c AND decided_at > $since ORDER BY decided_at`)
+        .all({ c: projectId, since }) as { at: string; text: string; state: 'active' | 'rejected' | 'filed'; quote: string | null; target: string | null }[]
     ).map(({ quote, target, ...r }) => ({ ...r, ...(quote ? { quote } : {}), ...(target ? { target } : {}) }));
   }
 
@@ -1432,59 +1457,59 @@ export class Store {
    * Cards of the owner's deleted after `since` (ISO time), oldest first, with the state they had: a
    * worker's proposal the owner dismissed, say. Plan cards go with their plan doc, not by a click.
    */
-  removed(canvasId: string, since: string): { at: string; title: string; state: CardState }[] {
+  removed(projectId: string, since: string): { at: string; title: string; state: CardState }[] {
     // a proposal its agent withdrew went without the owner
     return this.db
       .query(
-        `SELECT deleted_at AS at, title, COALESCE(state, 'planned') AS state FROM cards WHERE canvas_id = $c AND plan_ref IS NULL AND deleted_at > $since
+        `SELECT deleted_at AS at, title, COALESCE(state, 'planned') AS state FROM cards WHERE project_id = $c AND plan_ref IS NULL AND deleted_at > $since
          AND NOT (state = 'proposal' AND json_extract(proposal, '$.superseded') IS NOT NULL) ORDER BY deleted_at`,
       )
-      .all({ c: canvasId, since }) as { at: string; title: string; state: CardState }[];
+      .all({ c: projectId, since }) as { at: string; title: string; state: CardState }[];
   }
 
   // ---------------------------------------------------------------- the work retrospective
 
-  addFriction(canvasId: string, repo: string, cardId: string, notes: FrictionNote[]) {
-    const stmt = this.db.query('INSERT INTO friction (canvas_id, repo, card_id, at, what, cost, fix) VALUES ($c, $repo, $card, $at, $what, $cost, $fix)');
+  addFriction(projectId: string, repo: string, cardId: string, notes: FrictionNote[]) {
+    const stmt = this.db.query('INSERT INTO friction (project_id, repo, card_id, at, what, cost, fix) VALUES ($c, $repo, $card, $at, $what, $cost, $fix)');
     const at = now();
-    this.db.transaction(() => notes.forEach((n) => stmt.run({ c: canvasId, repo, card: cardId, at, ...n })))();
+    this.db.transaction(() => notes.forEach((n) => stmt.run({ c: projectId, repo, card: cardId, at, ...n })))();
   }
 
   /** The friction noted on a repository's cards after `since` (ISO time; all without), oldest first, with each card's title. */
-  friction(canvasId: string, repo: string, since: string | null): Friction[] {
+  friction(projectId: string, repo: string, since: string | null): Friction[] {
     return this.db
       .query(
         `SELECT f.card_id AS cardId, COALESCE(c.title, '') AS title, f.at, f.what, f.cost, f.fix FROM friction f JOIN cards c ON c.id = f.card_id
-         WHERE f.canvas_id = $c AND f.repo = $repo AND f.at > $since ORDER BY f.at, f.id`,
+         WHERE f.project_id = $c AND f.repo = $repo AND f.at > $since ORDER BY f.at, f.id`,
       )
-      .all({ c: canvasId, repo, since: since ?? '' }) as Friction[];
+      .all({ c: projectId, repo, since: since ?? '' }) as Friction[];
   }
 
   /** The cards the work retrospective proposed for a repository (`null`: the home repository), oldest first, with what became of them. */
-  retroProposals(canvasId: string, repo: string | null): { title: string; retro: string; state: CardState; dismissed: boolean }[] {
+  retroProposals(projectId: string, repo: string | null): { title: string; retro: string; state: CardState; dismissed: boolean }[] {
     return (
       this.db
-        .query(`SELECT COALESCE(title, '') AS title, retro, COALESCE(state, 'planned') AS state, deleted_at FROM cards WHERE canvas_id = $c AND retro IS NOT NULL AND repo IS $repo ORDER BY created_at, rowid`)
-        .all({ c: canvasId, repo }) as { title: string; retro: string; state: CardState; deleted_at: string | null }[]
+        .query(`SELECT COALESCE(title, '') AS title, retro, COALESCE(state, 'planned') AS state, deleted_at FROM cards WHERE project_id = $c AND retro IS NOT NULL AND repo IS $repo ORDER BY created_at, rowid`)
+        .all({ c: projectId, repo }) as { title: string; retro: string; state: CardState; deleted_at: string | null }[]
     ).map(({ deleted_at, ...r }) => ({ ...r, dismissed: !!deleted_at && r.state === 'proposal' }));
   }
 
-  addSettingProposal(canvasId: string, p: Omit<SettingProposal, 'id' | 'cards'> & { cards: string[] }): number {
+  addSettingProposal(projectId: string, p: Omit<SettingProposal, 'id' | 'cards'> & { cards: string[] }): number {
     return (
       this.db
         .query(
-          `INSERT INTO setting_proposals (canvas_id, repo, field, value, basis, cards, created_at)
+          `INSERT INTO setting_proposals (project_id, repo, field, value, basis, cards, created_at)
            VALUES ($c, $repo, $field, $value, $basis, $cards, $now) RETURNING id`,
         )
-        .get({ c: canvasId, repo: p.repo, field: p.field, value: JSON.stringify(p.value), basis: p.basis, cards: JSON.stringify(p.cards), now: now() }) as { id: number }
+        .get({ c: projectId, repo: p.repo, field: p.field, value: JSON.stringify(p.value), basis: p.basis, cards: JSON.stringify(p.cards), now: now() }) as { id: number }
     ).id;
   }
 
   /** The settings the work retrospective proposed, oldest first, with what became of them: those of a repository, or all; the cards they rest on with their titles. */
-  settingProposals(canvasId: string, repo?: string): (SettingProposal & { state: SettingProposalState })[] {
+  settingProposals(projectId: string, repo?: string): (SettingProposal & { state: SettingProposalState })[] {
     const rows = this.db
-      .query(`SELECT * FROM setting_proposals WHERE canvas_id = $c AND ($repo IS NULL OR repo = $repo) ORDER BY id`)
-      .all({ c: canvasId, repo: repo ?? null }) as { id: number; repo: string; field: ProposedSetting; value: string; basis: string; cards: string; state: SettingProposalState }[];
+      .query(`SELECT * FROM setting_proposals WHERE project_id = $c AND ($repo IS NULL OR repo = $repo) ORDER BY id`)
+      .all({ c: projectId, repo: repo ?? null }) as { id: number; repo: string; field: ProposedSetting; value: string; basis: string; cards: string; state: SettingProposalState }[];
     const title = this.db.query(`SELECT COALESCE(title, '') AS title FROM cards WHERE id = $id`);
     return rows.map((r) => ({
       id: r.id,
@@ -1498,24 +1523,24 @@ export class Store {
   }
 
   /** Decides a waiting setting proposal, with the value the owner took; whether one waited. */
-  decideSettingProposal(canvasId: string, id: number, state: Exclude<SettingProposalState, 'proposed'>, value?: string | string[]): boolean {
+  decideSettingProposal(projectId: string, id: number, state: Exclude<SettingProposalState, 'proposed'>, value?: string | string[]): boolean {
     return (
       this.db
-        .query(`UPDATE setting_proposals SET state = $state, decided_at = $now, value = COALESCE($value, value) WHERE canvas_id = $c AND id = $id AND state = 'proposed'`)
-        .run({ c: canvasId, id, state, now: now(), value: value === undefined ? null : JSON.stringify(value) }).changes > 0
+        .query(`UPDATE setting_proposals SET state = $state, decided_at = $now, value = COALESCE($value, value) WHERE project_id = $c AND id = $id AND state = 'proposed'`)
+        .run({ c: projectId, id, state, now: now(), value: value === undefined ? null : JSON.stringify(value) }).changes > 0
     );
   }
 
   // ---------------------------------------------------------------- settings
 
-  setting(canvasId: string, key: string): string | null {
-    return (this.db.query('SELECT value FROM settings WHERE canvas_id = $c AND key = $key').get({ c: canvasId, key }) as { value: string } | null)?.value ?? null;
+  setting(projectId: string, key: string): string | null {
+    return (this.db.query('SELECT value FROM settings WHERE project_id = $c AND key = $key').get({ c: projectId, key }) as { value: string } | null)?.value ?? null;
   }
 
-  setSetting(canvasId: string, key: string, value: string) {
+  setSetting(projectId: string, key: string, value: string) {
     this.db
-      .query('INSERT INTO settings (canvas_id, key, value) VALUES ($c, $key, $value) ON CONFLICT(canvas_id, key) DO UPDATE SET value = $value')
-      .run({ c: canvasId, key, value });
+      .query('INSERT INTO settings (project_id, key, value) VALUES ($c, $key, $value) ON CONFLICT(project_id, key) DO UPDATE SET value = $value')
+      .run({ c: projectId, key, value });
   }
 
   // ---------------------------------------------------------------- trusted commands
@@ -1620,20 +1645,20 @@ export class Store {
    * The owner's response on the card's `handover`: a new one, or the one given before for the same
    * handover with its answer and facets replaced. Whom it credits stays as it was first recorded.
    */
-  putFeedback(f: Omit<Feedback, 'id' | 'at' | 'updatedAt' | 'cardId' | 'canvasId' | 'short'> & { cardId: string; canvasId: string }): Feedback {
+  putFeedback(f: Omit<Feedback, 'id' | 'at' | 'updatedAt' | 'cardId' | 'projectId' | 'short'> & { cardId: string; projectId: string }): Feedback {
     const credited = f.attribution === 'single' ? f.configs[0] : undefined;
     const context = { title: f.title, ...(f.repo ? { repo: f.repo } : {}), ...(f.plan ? { plan: f.plan } : {}) };
     const row = this.db
       .query(
-        `INSERT INTO feedback (card_id, canvas_id, handover, context, attribution, configs, harness, model, effort, answer, facets, created_at)
-         VALUES ($card, $canvas, $handover, $context, $attribution, $configs, $harness, $model, $effort, $answer, $facets, $at)
+        `INSERT INTO feedback (card_id, project_id, handover, context, attribution, configs, harness, model, effort, answer, facets, created_at)
+         VALUES ($card, $project, $handover, $context, $attribution, $configs, $harness, $model, $effort, $answer, $facets, $at)
          ON CONFLICT (card_id, handover) DO UPDATE SET answer = excluded.answer, facets = excluded.facets,
            updated_at = CASE WHEN answer IS excluded.answer AND facets IS excluded.facets THEN updated_at ELSE excluded.created_at END
          RETURNING id`,
       )
       .get({
         card: f.cardId,
-        canvas: f.canvasId,
+        project: f.projectId,
         handover: f.handover,
         context: JSON.stringify(context),
         attribution: f.attribution,
@@ -1676,7 +1701,7 @@ export class Store {
 interface FeedbackRow {
   id: number;
   card_id: string;
-  canvas_id: string;
+  project_id: string;
   handover: number;
   context: string;
   attribution: Attribution;
@@ -1696,7 +1721,7 @@ function feedbackOf(r: FeedbackRow): Feedback {
     id: r.id,
     cardId: r.card_id,
     ...(r.short ? { short: r.short } : {}),
-    canvasId: r.canvas_id,
+    projectId: r.project_id,
     handover: r.handover,
     ...context,
     attribution: r.attribution,

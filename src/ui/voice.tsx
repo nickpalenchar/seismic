@@ -47,7 +47,7 @@ const NOTE_MS = 6000;
 /**
  * Whether Seismic has the recording the page sent as `sent`, for a command whose answer the broken
  * connection lost: asked until Seismic answers, for as long as the page lives. A page going away
- * (another canvas, a reload) never hears, and gives nothing back.
+ * (another project, a reload) never hears, and gives nothing back.
  */
 async function arrived(sent: string): Promise<boolean> {
   for (let wait = 500; ; wait = Math.min(wait * 2, 8000)) {
@@ -176,7 +176,7 @@ export function usePushToTalk(
       if (reply) setReply(key, null);
       // the field gets them back only when Seismic says it has not taken the command: until
       // 2026-10-16 a connection that broke (the browser cutting it off as the page went to another
-      // canvas, say) counted as that, although Seismic had the command and read on, and the draft
+      // project, say) counted as that, although Seismic had the command and read on, and the draft
       // kept for the page's next load brought the screenshots back
       const name = recordingName();
       let failed = false;
@@ -383,7 +383,7 @@ export function useHeldByTouch<T extends HTMLElement>() {
  * when there is one. So do the paths of other files dropped on it, which show beside it by their
  * names while they wait there. Those for Seismic stay in view: they go into Seismic's field when it
  * opens, and back beside the microphone when it closes, the paths that still stand in its words too.
- * With a `slot` (the middle of the canvas's status bar) the line stands there, not under the microphone.
+ * With a `slot` (the middle of the project's status bar) the line stands there, not under the microphone.
  */
 export function PushToTalk({ phase, level, flat, target, field, slot, onDown }: { phase: Phase; level: number; flat: boolean; target: string | null; field: string | null; slot?: HTMLElement | null; onDown: () => void }) {
   const on = useFieldOn(field);

@@ -1,8 +1,8 @@
-// Re-voices the demos of a canvas's most recently approved cards in another language and shares
+// Re-voices the demos of a project's most recently approved cards in another language and shares
 // them, as was done for the 30 last Seismic demos when its demos went public in English.
 //
-//   bun scripts/revoice-demos.ts list [--canvas obeya] [--count 30] [--language en]
-//   bun scripts/revoice-demos.ts publish <card id>… [--canvas obeya]
+//   bun scripts/revoice-demos.ts list [--project obeya] [--count 30] [--language en]
+//   bun scripts/revoice-demos.ts publish <card id>… [--project obeya]
 //
 // `list`: the latest demo video of each of the `count` most recently approved cards whose demo kept
 // its frames, newest first, with where it stands: `translate` (re-voicing asks for its words in the
@@ -28,13 +28,13 @@ const option = (name: string, fallback: string) => {
   return i >= 0 && args[i + 1] ? args.splice(i, 2)[1]! : fallback;
 };
 const home = (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) || join(homedir(), '.obeya');
-const canvas = option('canvas', 'obeya');
+const project = option('project', 'obeya');
 const count = Number(option('count', '30'));
 const languageArg = option('language', 'en');
 const language = LANGUAGES.find((l) => l === languageArg);
 const [command, ...ids] = args;
 if (!language || !Number.isInteger(count) || (command !== 'list' && command !== 'publish') || (command === 'publish' && !ids.length)) {
-  console.error('usage: bun scripts/revoice-demos.ts list [--canvas obeya] [--count 30] [--language en]\n       bun scripts/revoice-demos.ts publish <card id>… [--canvas obeya]');
+  console.error('usage: bun scripts/revoice-demos.ts list [--project obeya] [--count 30] [--language en]\n       bun scripts/revoice-demos.ts publish <card id>… [--project obeya]');
   process.exit(2);
 }
 
@@ -71,11 +71,11 @@ function candidates(): (Row & { dir: string })[] {
   const rows = db
     .query<Row, string[]>(
       `SELECT c.id, c.title, c.demo, c.share, max(e.at) AS approved FROM cards c JOIN events e ON e.card_id = c.id
-       WHERE c.canvas_id = ? AND c.deleted_at IS NULL AND c.demo IS NOT NULL AND c.prototype_of IS NULL AND e.kind = 'state' AND e.author = 'owner'
+       WHERE c.project_id = ? AND c.deleted_at IS NULL AND c.demo IS NOT NULL AND c.prototype_of IS NULL AND e.kind = 'state' AND e.author = 'owner'
          AND e.text IN (${APPROVED.map(() => '?').join(', ')})
        GROUP BY c.id ORDER BY approved DESC`,
     )
-    .all(canvas, ...APPROVED);
+    .all(project, ...APPROVED);
   db.close();
   return rows
     .map((r) => ({ ...r, dir: (JSON.parse(r.demo) as { dir: string; kind: string }).dir, kind: (JSON.parse(r.demo) as { kind: string }).kind }))
@@ -92,7 +92,7 @@ if (command === 'list') {
   const instance = recorded(home);
   if (!instance) throw new Error(`no Seismic runs on ${home}`);
   const post = async (path: string, body?: unknown) => {
-    const res = await fetch(`${instance.url}/api/c/${canvas}${path}`, {
+    const res = await fetch(`${instance.url}/api/c/${project}${path}`, {
       method: 'POST',
       headers: { ...ownerHeaders(home), 'content-type': 'application/json' },
       ...(body ? { body: JSON.stringify(body) } : {}),
@@ -102,7 +102,7 @@ if (command === 'list') {
   const byId = new Map(candidates().map((r) => [r.id, r]));
   for (const id of ids) {
     const r = byId.get(id);
-    if (!r) throw new Error(`${id} is no card among the ${count} latest approved on ${canvas} whose demo kept its frames`);
+    if (!r) throw new Error(`${id} is no card among the ${count} latest approved on ${project} whose demo kept its frames`);
     const now = standing(r.dir, false);
     if (now !== 'revoiced' && now !== 'as is') throw new Error(`${id}: its demo is not re-voiced in ${language} (${r.dir})`);
     if (now === 'revoiced') await post(`/cards/${id}/demo-rebuilt`);

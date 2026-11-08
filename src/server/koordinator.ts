@@ -72,11 +72,11 @@ export interface RepoHands {
 export interface KoordinatorOptions {
   board: Board;
   runtime: AgentRuntime;
-  /** The repository of a card; a canvas may span several. */
+  /** The repository of a card; a project may span several. */
   repoFor: (card: Item) => RepoHands;
   /** Where the Koordinator reads for what the owner says without a card: the home repository's read checkout. */
   home: () => string;
-  /** Whether the owner paused the canvas's agents: a card the Koordinator lets start waits until they resume them (`{ paused }` in its queue). */
+  /** Whether the owner paused the project's agents: a card the Koordinator lets start waits until they resume them (`{ paused }` in its queue). */
   paused?: () => boolean;
   /** How long a plan's start, or taking a card's workstation, waits for the owner to take it back; START_ALL_HOLD_MS and EVICT_HOLD_MS by default. */
   holdMs?: number;
@@ -84,7 +84,7 @@ export interface KoordinatorOptions {
   reviewEvery?: number;
   /** The files of screenshots by their ids. */
   imageFiles?: (ids?: string[]) => string[];
-  /** Which labels the canvas lets Seismic suggest; a toggle not given is on, as are all without this. */
+  /** Which labels the project lets Seismic suggest; a toggle not given is on, as are all without this. */
   suggests?: () => Partial<SuggestToggles>;
 }
 
@@ -206,7 +206,7 @@ export class Koordinator {
   /** The owner wants the card worked on; a plan, all its planned workstreams. */
   request(cardId: string, setting?: import('../core/types').AgentSetting): void {
     const card = this.card(cardId);
-    if (card.repoDown) throw new BadRequest('repoDown', `the repository ${card.repo} of the card does not run on this canvas`);
+    if (card.repoDown) throw new BadRequest('repoDown', `the repository ${card.repo} of the card does not run on this project`);
     if (card.kind === 'plan') {
       if (setting) throw new BadRequest('invalid', 'choose an agent for an individual task');
       return this.requestAll(card);
@@ -427,7 +427,7 @@ export class Koordinator {
    * The owner said something, or clicked without words (a start, an approval, a dismissed
    * proposal): every `reviewEvery` of these, the retrospective reads the history since the last one,
    * after the learner has read the input that completed the count. The count is a setting of the
-   * canvas, so it survives a restart.
+   * project, so it survives a restart.
    */
   noticed() {
     const b = this.o.board;
@@ -473,7 +473,7 @@ export class Koordinator {
         },
         { name: 'done', description: 'Nothing (more) to propose.', schema: {}, run: () => finish('Fine. End your turn now.') },
       ],
-      brief: [`What happened on the canvas since the last retrospective, oldest first:\n${history.join('\n')}`, ...this.rules(null)].filter(Boolean).join('\n\n'),
+      brief: [`What happened on the project since the last retrospective, oldest first:\n${history.join('\n')}`, ...this.rules(null)].filter(Boolean).join('\n\n'),
     });
   }
 
@@ -524,7 +524,7 @@ export class Koordinator {
   }
 
   /**
-   * What the learner and the retrospective read about the rules: the canvas's repositories, the active
+   * What the learner and the retrospective read about the rules: the project's repositories, the active
    * rules (numbered, for `replaces`), the rules on their way into a CLAUDE.md, and the proposals
    * waiting or rejected.
    */
@@ -536,7 +536,7 @@ export class Koordinator {
     const list = (ps: Preference[]) => ps.map((p) => `- ${p.text}${where(p)}`).join('\n');
     const [open, filed, rejected] = [b.preferences('proposed'), b.preferences('filed'), b.preferences('rejected')];
     return [
-      `The canvas's repositories (ids for repos):\n${b.canvas.repos.map((r) => `- ${r.id}: ${r.name}, at ${r.path}${r.id === repo ? (card ? " (the card's)" : ' (the home repository)') : ''}`).join('\n')}`,
+      `The project's repositories (ids for repos):\n${b.project.repos.map((r) => `- ${r.id}: ${r.name}, at ${r.path}${r.id === repo ? (card ? " (the card's)" : ' (the home repository)') : ''}`).join('\n')}`,
       rules.length ? `Rules recorded so far:\n${rules.map((r, n) => `${n + 1}. ${r.text}`).join('\n')}` : 'No rules recorded so far.',
       filed.length ? `Rules the owner accepted for a repository's CLAUDE.md (in it or on their way; do not propose them again):\n${list(filed)}` : '',
       open.length ? `Proposals waiting for the owner (do not propose them again):\n${list(open)}` : '',
@@ -544,12 +544,12 @@ export class Koordinator {
     ];
   }
 
-  /** The repositories a proposal is for (none: the preference memory), or why they are not the canvas's. */
+  /** The repositories a proposal is for (none: the preference memory), or why they are not the project's. */
   private targets(repos: unknown): (string | undefined)[] | string {
     const ids = Array.isArray(repos) ? [...new Set(repos.map(String).filter(Boolean))] : [];
-    const known = this.o.board.canvas.repos.map((r) => r.id);
+    const known = this.o.board.project.repos.map((r) => r.id);
     const unknown = ids.filter((id) => !known.includes(id));
-    if (unknown.length) return `Unknown repository ${unknown.join(', ')}; the canvas has ${known.join(', ')}. Call propose again.`;
+    if (unknown.length) return `Unknown repository ${unknown.join(', ')}; the project has ${known.join(', ')}. Call propose again.`;
     return ids.length ? ids : [undefined];
   }
 
@@ -832,7 +832,7 @@ export class Koordinator {
     return !!i && (this.inProgress(i.repo).some((a) => a.id === id) || inQueue(i));
   }
 
-  /** `begun`: it waited, started anyway or at work before, for a workstation or the canvas's agents (see `Wait`). */
+  /** `begun`: it waited, started anyway or at work before, for a workstation or the project's agents (see `Wait`). */
   private startNow(cardId: string, why: string, begun?: boolean) {
     const since = this.o.board.item(cardId)?.queue?.since;
     this.setQueue(cardId, null);
@@ -850,7 +850,7 @@ export class Koordinator {
     const unheld = begun ? { begun: true as const } : {};
     if (this.o.paused?.()) {
       this.setQueue(cardId, { paused: true, ...unheld }, since);
-      this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.koordinator.canvasPaused);
+      this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.koordinator.projectPaused);
       return;
     }
     const refused = (e: unknown) => {
@@ -900,7 +900,7 @@ export class Koordinator {
     }
     for (const w of waiting) {
       // one whose repository does not run waits on until it is back; one giving up its workstation, until it has;
-      // one let start, until the owner resumes the canvas's agents
+      // one let start, until the owner resumes the project's agents
       if (w.repoDown || this.giving.has(w.id) || w.proposal?.merge || (w.mergingInto && mergeRank(w) <= 1)) continue;
       const begun = 'begun' in w.queue! && !!w.queue.begun;
       if (!('behind' in w.queue!)) {
@@ -913,14 +913,14 @@ export class Koordinator {
         }
       }
       if ('paused' in w.queue!) {
-        if (!paused) this.startNow(w.id, this.o.board.t.koordinator.canvasPlays, begun);
+        if (!paused) this.startNow(w.id, this.o.board.t.koordinator.projectPlays, begun);
         continue;
       }
       if ('workstation' in w.queue!) {
         // the slots the paused agents freed are not for it: it waits for them to resume
         if (paused) {
           this.setQueue(w.id, { paused: true, ...(begun && { begun }) }, w.queue!.since);
-          this.o.board.log(w.id, 'state', 'obeya', this.o.board.t.koordinator.canvasPaused);
+          this.o.board.log(w.id, 'state', 'obeya', this.o.board.t.koordinator.projectPaused);
           continue;
         }
         // a card whose branch a clone keeps takes one on that clone's machine: none there leaves the others to the cards behind it
@@ -1051,13 +1051,13 @@ export class Koordinator {
 
   // ---------------------------------------------------------------- labels
 
-  /** The canvas's toggles as they are now; all on where it has none. */
+  /** The project's toggles as they are now; all on where it has none. */
   suggests(): Partial<SuggestToggles> {
     return this.o.suggests?.() ?? {};
   }
 
   /**
-   * The labels to ask a session for on a card: empty, never set by the owner, and on the canvas's
+   * The labels to ask a session for on a card: empty, never set by the owner, and on the project's
    * toggles; none once a session was asked for the card. Asking marks the card as asked.
    */
   private labelsToAsk(cardId: string): Label[] {
@@ -1296,7 +1296,7 @@ export class Koordinator {
             .map((a) => {
               const q = a.queue!;
               const waitsFor =
-                'behind' in q ? q.behind.map((id) => `"${this.o.board.item(id)?.title ?? id}"`).join(', ') : 'workstation' in q ? 'a free workstation (its start is decided)' : 'paused' in q ? "the owner to resume the canvas's paused agents (its start is decided)" : '';
+                'behind' in q ? q.behind.map((id) => `"${this.o.board.item(id)?.title ?? id}"`).join(', ') : 'workstation' in q ? 'a free workstation (its start is decided)' : 'paused' in q ? "the owner to resume the project's paused agents (its start is decided)" : '';
               return [
                 `- ${tagOf(tags, a.id)}: "${a.title}"${a.body ? ` — ${a.body.split('\n')[0]!.slice(0, 200)}` : ''}`,
                 `  expected to change: ${(a.scope ?? []).filter(hard).join(', ') || '(no estimate)'}`,
@@ -1315,7 +1315,7 @@ export class Koordinator {
     this.chain = this.chain.then(fn).catch((e) => console.error('Koordinator:', e));
   }
 
-  /** The repository of a card it was deciding on stopped running on the canvas: the card is planned again, for the owner to start once it is back. */
+  /** The repository of a card it was deciding on stopped running on the project: the card is planned again, for the owner to start once it is back. */
   private repoGone(card: Item) {
     this.setQueue(card.id, null);
     this.o.board.log(card.id, 'state', 'obeya', this.o.board.t.koordinator.repoDown(card.repo));
@@ -1335,13 +1335,13 @@ export class Koordinator {
 }
 
 const NAME_SYSTEM = (language: string, labels: Label[] = []) =>
-  `You name a card on Seismic, a canvas on which the owner directs coding agents. The owner wrote the card's task (below) without a title. Give it one with the tool title, following the naming guide below, in ${language} unless an explicit standing preference names another language. The task's language does not change the title's language.${labels.length ? ` In the same call, give its ${labelWords(labels)}, judged as the labels guide below says.` : ''} Then end your turn.\n\n${titlesGuide()}${labels.length ? `\n\n${labelsGuide()}` : ''}`;
+  `You name a card on Seismic, a project on which the owner directs coding agents. The owner wrote the card's task (below) without a title. Give it one with the tool title, following the naming guide below, in ${language} unless an explicit standing preference names another language. The task's language does not change the title's language.${labels.length ? ` In the same call, give its ${labelWords(labels)}, judged as the labels guide below says.` : ''} Then end your turn.\n\n${titlesGuide()}${labels.length ? `\n\n${labelsGuide()}` : ''}`;
 
 const LABELS_SYSTEM = (labels: Label[]) =>
-  `You label a card on Seismic, a canvas on which the owner directs coding agents: its title, text and screenshots are below. Give its ${labelWords(labels)} with the tool labels, judged as the guide below says, from the card alone, without reading files. Then end your turn.\n\n${labelsGuide()}`;
+  `You label a card on Seismic, a project on which the owner directs coding agents: its title, text and screenshots are below. Give its ${labelWords(labels)} with the tool labels, judged as the guide below says, from the card alone, without reading files. Then end your turn.\n\n${labelsGuide()}`;
 
 const SYSTEM = (language: string) => `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workstation, and their branches are rebased onto the main branch one after the other. Your job here: before a card starts, estimate which files it will change, and judge whether running it next to the cards in progress is likely to end in merge conflicts. Only those keep it waiting, and for a workstream of a plan what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to conflict with one of them waits behind it rather than overtaking it.
+You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workstation, and their branches are rebased onto the main branch one after the other. Your job here: before a card starts, estimate which files it will change, and judge whether running it next to the cards in progress is likely to end in merge conflicts. Only those keep it waiting, and for a workstream of a plan what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to conflict with one of them waits behind it rather than overtaking it.
 
 Also check unfinished cards in this repository for the same requested outcome, including planned cards and work awaiting the owner's review. A possible duplicate is a substantially overlapping task, not merely a shared file or topic. Report its tag in duplicates; the card stays planned and the owner sees which card to compare before starting it again.
 
@@ -1359,7 +1359,7 @@ Keep it quick: this runs every time a card starts.
 `.trim();
 
 const FOLDER_SYSTEM = (language: string) => `
-You are the Koordinator of Seismic, a canvas on which the owner directs agents; the owner knows you simply as Seismic. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. Your job here: before a card starts, estimate which files and directories it will touch, and judge whether running it next to the cards in progress is likely to get in their way. Only those keep it waiting, and for a workstream of a plan what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to collide with one of them waits behind it rather than overtaking it.
+You are the Koordinator of Seismic, a project on which the owner directs agents; the owner knows you simply as Seismic. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. Your job here: before a card starts, estimate which files and directories it will touch, and judge whether running it next to the cards in progress is likely to get in their way. Only those keep it waiting, and for a workstream of a plan what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to collide with one of them waits behind it rather than overtaking it.
 
 Also check unfinished cards in this folder for the same requested outcome, including planned cards and work awaiting the owner's review. A possible duplicate is a substantially overlapping task, not merely a shared file or topic. Report its tag in duplicates; the card stays planned and the owner sees which card to compare before starting it again.
 
@@ -1377,7 +1377,7 @@ Keep it quick: this runs every time a card starts.
 `.trim();
 
 const DEPS_SYSTEM = `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents. The owner wants the workstreams of a plan arranged by what builds on what: what can start at once on the left, what builds on it to the right of it. Read the plan doc (and the repository only where the doc leaves it open; you cannot change files) and say for each workstream, delivered ones too, which workstreams it builds on.
+You are the Koordinator of Seismic, a project on which the owner directs coding agents. The owner wants the workstreams of a plan arranged by what builds on what: what can start at once on the left, what builds on it to the right of it. Read the plan doc (and the repository only where the doc leaves it open; you cannot change files) and say for each workstream, delivered ones too, which workstreams it builds on.
 
 A workstream builds on another when it needs code, an API, data, a document or a decision that the other one introduces, or when the plan says it comes after it, needs it or waits for it. Name only direct dependencies: when C builds on B and B on A, C names B, not A. Two workstreams that merely touch the same files, or that the plan lists one after the other without saying one needs the other, do not build on each other. A workstream may build on a delivered one.
 
@@ -1406,7 +1406,7 @@ const batchOf = (freed: boolean, folder: boolean) =>
 const FOLDER_SCHEDULE_SYSTEM = (language: string, freed: boolean) => {
   const b = batchOf(freed, true);
   return `
-You are the Koordinator of Seismic, a canvas on which the owner directs agents; the owner knows you simply as Seismic. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. ${b.situation}
+You are the Koordinator of Seismic, a project on which the owner directs agents; the owner knows you simply as Seismic. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. ${b.situation}
 
 A ${b.noun} waits for another when:
 - it depends on it: ${b.dependsOn}. It then waits until that one is done.
@@ -1429,7 +1429,7 @@ Both empty: it starts now. A ${b.noun} that waits starts by itself once what it 
 const SCHEDULE_SYSTEM = (language: string, freed: boolean) => {
   const b = batchOf(freed, false);
   return `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workstation, and their branches are rebased onto the main branch one after the other. ${b.situation}
+You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workstation, and their branches are rebased onto the main branch one after the other. ${b.situation}
 
 A ${b.noun} waits for another when:
 - it depends on it: ${b.dependsOn}. It then waits until that one has landed.
@@ -1456,16 +1456,16 @@ Both empty: it starts now. A ${b.noun} that waits starts by itself once what it 
 const WHERE_RULES_GO = `
 A rule goes to one of two places:
 - The preference memory, for rules at the level of Seismic: how the agents work with the owner through Seismic, whatever the repository. What to ask the owner and what to decide alone, how many options a question offers, how to report, hand over and demo, what to decide in the owner's name and what not. Leave repos out.
-- A repository's CLAUDE.md, for anything about a repository: its conventions, product requirements, tools, how its code is written, tested and landed, the UI and its wording, and taste in code too, even when it holds in every repository. There it is versioned, colleagues see it, and Claude Code follows it outside Seismic as well. Pass repos: the repository it concerns (usually the card's), or every repository of the canvas when it holds in all of them. A worker writes it into the CLAUDE.md once the owner accepts it; until that has landed, no agent follows it. If the repository's CLAUDE.md or docs say it already (you can read them), propose nothing.
+- A repository's CLAUDE.md, for anything about a repository: its conventions, product requirements, tools, how its code is written, tested and landed, the UI and its wording, and taste in code too, even when it holds in every repository. There it is versioned, colleagues see it, and Claude Code follows it outside Seismic as well. Pass repos: the repository it concerns (usually the card's), or every repository of the project when it holds in all of them. A worker writes it into the CLAUDE.md once the owner accepts it; until that has landed, no agent follows it. If the repository's CLAUDE.md or docs say it already (you can read them), propose nothing.
 `.trim();
 
 const REPOS_PARAM =
   "repos: the ids of the repositories whose CLAUDE.md the rule belongs in (one proposal each); leave it out for a rule on how agents work with the owner through Seismic.";
 
 const LEARN_SYSTEM = (language: string) => `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. You keep the owner's rules, so the owner never has to say the same thing twice.
+You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic. You keep the owner's rules, so the owner never has to say the same thing twice.
 
-You get one thing the owner just said: to the agent on a card, in the text of a card they wrote, or to you in conversation. With it you see the card, what the owner said in the last days, the agent's last message before it, the canvas's repositories, the rules recorded so far, and the proposals waiting for the owner or rejected by them. Decide whether it holds a lasting rule that should guide future work on other cards too: how to work, what to ask and what not, style, wording, testing, tools.
+You get one thing the owner just said: to the agent on a card, in the text of a card they wrote, or to you in conversation. With it you see the card, what the owner said in the last days, the agent's last message before it, the project's repositories, the rules recorded so far, and the proposals waiting for the owner or rejected by them. Decide whether it holds a lasting rule that should guide future work on other cards too: how to work, what to ask and what not, style, wording, testing, tools.
 
 ${WHERE_RULES_GO}
 
@@ -1487,11 +1487,11 @@ const REVIEW_COUNT = 'review_inputs';
 const REVIEW_SINCE = 'review_since';
 
 const REVIEW_SYSTEM = (language: string) => `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. You keep the owner's rules, so the owner never has to say the same thing twice.
+You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic. You keep the owner's rules, so the owner never has to say the same thing twice.
 
 ${WHERE_RULES_GO}
 
-This is the retrospective. You get what happened on the canvas since the last one, oldest first: what the owner said and clicked (notes, answers, feedback, approvals, starts against your advice, cards and proposals they deleted or dismissed, commands they took back, rule proposals they accepted or rejected), and what the agents asked and handed over. Each thing the owner said was already read on its own; look for what only shows across several moments and cards:
+This is the retrospective. You get what happened on the project since the last one, oldest first: what the owner said and clicked (notes, answers, feedback, approvals, starts against your advice, cards and proposals they deleted or dismissed, commands they took back, rule proposals they accepted or rejected), and what the agents asked and handed over. Each thing the owner said was already read on its own; look for what only shows across several moments and cards:
 - the same correction or feedback on different cards;
 - the same kind of question, answered the same way each time;
 - proposals of one kind the owner always dismisses, or always takes;

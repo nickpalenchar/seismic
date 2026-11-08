@@ -1,4 +1,4 @@
-// Seismic-the-app, behind its logo in the bar: a menu of the views about no one canvas (the agents'
+// Seismic-the-app, behind its logo in the bar: a menu of the views about no one project (the agents'
 // performance, the feedback log), the preferences and help; and the preferences dialog (language,
 // theme, motion, what is running), in the style of the configuration (config.tsx), which keeps what sets
 // up the work.
@@ -32,7 +32,7 @@ export interface AppMenuActions {
   onPerformance: () => void;
   onFeedbackLog: () => void;
   onPrefs: () => void;
-  /** The configuration: every canvas, its repositories, Seismic's agents, voice, demos. */
+  /** The configuration: every project, its repositories, Seismic's agents, voice, demos. */
   onConfig: () => void;
   onHelp: () => void;
 }

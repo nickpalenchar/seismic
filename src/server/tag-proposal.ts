@@ -1,5 +1,5 @@
 // "Suggest tags" at a demo site's tags: a read-only session reads the repository (how the app
-// is built: its areas, its users) and the cards of the canvases it is on (finished and open,
+// is built: its areas, its users) and the cards of the projects it is on (finished and open,
 // archived ones too, with what their demos show), and proposes a vocabulary of tags, which the
 // dialog puts into the field for the owner to change and save. It runs in the background, so the
 // dialog may close meanwhile and take the proposal in when it opens again.
@@ -25,7 +25,7 @@ export interface TagCard {
   demos: string[];
 }
 
-/** What the session reads of a repository's cards, from one canvas. */
+/** What the session reads of a repository's cards, from one project. */
 export function tagCards(items: Item[], summary: (id: string) => string | undefined): TagCard[] {
   return items
     .filter((i) => i.kind !== 'question')
@@ -112,7 +112,7 @@ function brief(o: TagRun): string {
     o.current && dimensions(o.current).length
       ? `The vocabulary in use now, a dimension per line:\n${tagLines(o.current)}`
       : 'The site has no vocabulary yet.',
-    o.cards.length ? `The cards of this repository (${o.cards.length}): those on the canvas, then the archive, the most recently archived first:` : 'There are no cards of this repository yet: propose from the repository alone.',
+    o.cards.length ? `The cards of this repository (${o.cards.length}): those on the project, then the archive, the most recently archived first:` : 'There are no cards of this repository yet: propose from the repository alone.',
   ].join('\n\n');
   let size = head.length;
   const lines: string[] = [];

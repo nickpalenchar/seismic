@@ -779,7 +779,7 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     expect(labellings()).toHaveLength(1);
   });
 
-  test('the canvas toggles say what is asked for; nothing left, no session at all', async () => {
+  test('the project toggles say what is asked for; nothing left, no session at all', async () => {
     let toggles: { category?: boolean; complexity?: boolean; priority?: boolean } = { category: false };
     k = new Koordinator({ board, runtime, home: () => dir, repoFor: () => ({ workers, workstations, adapter: generic, path: dir }), holdMs: 0, suggests: () => toggles });
     const a = card('A');
@@ -1471,7 +1471,7 @@ describe('preference memory', () => {
     k.learn(null, 'talk', 'Warum fragt der Agent immer nach Kleinkram?', { reply: 'Weil die Karte offen lässt, wie weit er gehen soll.' });
     await settle();
     const brief = learnSession().inbox[0]!;
-    expect(learnSession().spec.cwd).toBe(board.canvas.repos[0]!.path);
+    expect(learnSession().spec.cwd).toBe(board.project.repos[0]!.path);
     expect(brief).not.toContain('Card');
     expect(brief).toContain("The owner's question or remark to you: Warum fragt der Agent immer nach Kleinkram?");
     expect(brief).toContain('You replied: Weil die Karte offen lässt');
@@ -1483,9 +1483,9 @@ describe('preference memory', () => {
     const a = card('Export');
     k.learn(item(a.id), 'note', 'Tests schreiben wir hier immer auf Deutsch.');
     await settle();
-    expect(learnSession().inbox[0]).toContain(`The canvas's repositories (ids for repos):\n- home: Home, at ${board.canvas.repos[0]!.path} (the card's)`);
+    expect(learnSession().inbox[0]).toContain(`The project's repositories (ids for repos):\n- home: Home, at ${board.project.repos[0]!.path} (the card's)`);
     expect(learnSession().spec.system).toContain("A repository's CLAUDE.md, for anything about a repository");
-    // a repository the canvas does not have is refused, and the learner may try again
+    // a repository the project does not have is refused, and the learner may try again
     expect(learnSession().call('propose', { rule: 'Tests auf Deutsch benennen.', repos: ['web'] })).toContain('Unknown repository web');
     await learn('propose', { rule: 'Tests auf Deutsch benennen.', repos: ['home'] });
     const [p] = board.preferences('proposed');
@@ -1590,7 +1590,7 @@ describe('preference memory', () => {
 describe('Rückschau', () => {
   const texts = (state: 'proposed' | 'active') => board.preferences(state).map((p) => p.text);
   const reviews = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'done'));
-  const koordinator = () => new Koordinator({ board, runtime, home: () => board.canvas.repos[0]!.path, repoFor: () => ({ workers, workstations, adapter: generic, path: board.canvas.repos[0]!.path }), reviewEvery: 4 });
+  const koordinator = () => new Koordinator({ board, runtime, home: () => board.project.repos[0]!.path, repoFor: () => ({ workers, workstations, adapter: generic, path: board.project.repos[0]!.path }), reviewEvery: 4 });
 
   test('the retrospective receives the standing language rule for owner-facing proposals', async () => {
     board.addPreference('Agents speak to me in English only.');
@@ -1637,7 +1637,7 @@ describe('Rückschau', () => {
     expect(board.setting('review_inputs')).toBe('0');
 
     const s = reviews()[0]!;
-    expect(s.spec).toMatchObject({ cwd: board.canvas.repos[0]!.path, readOnly: true });
+    expect(s.spec).toMatchObject({ cwd: board.project.repos[0]!.path, readOnly: true });
     const brief = s.inbox[0]!;
     for (const line of [
       '"Export": the owner created the card',
@@ -1673,7 +1673,7 @@ describe('Rückschau', () => {
     const k1 = koordinator();
     for (let n = 0; n < 4; n++) k1.noticed();
     await settle();
-    // nothing on the canvas since: no session
+    // nothing on the project since: no session
     expect(reviews()).toHaveLength(0);
     board.log(card('A').id, 'hint', 'owner', 'X.');
     for (let n = 0; n < 4; n++) k1.noticed();
@@ -1746,7 +1746,7 @@ describe('Koordinator arranges a plan by what builds on what', () => {
     return r;
   }
 
-  test('a plan just come is read without anything else looking at the canvas first', async () => {
+  test('a plan just come is read without anything else looking at the project first', async () => {
     docs = [{ file: 'docs/plan/p.md', title: 'P', goal: 'Ziel P', workstreams: [ws('W1'), ws('W2')], markdown: '' }];
     board.docsChanged();
     await settle();

@@ -158,7 +158,7 @@ is presented without "I" or "we".
 - Write large numbers as words ("about fifteen thousand two hundred euros"); small ones as digits
   are fine. Avoid abbreviations the voice would spell out.
 - A foreign term that is not in the narration language's lexicon (`lib/lexicon.de.json`) gets
-  its spoken form in a mark, `{Canvas|Kännwes}`: the captions show "Canvas", Piper and
+  its spoken form in a mark, `{Project|Kännwes}`: the captions show "Project", Piper and
   `say` (which read every word by the narration language's rules) speak "Kännwes". Qwen3 gets
   no marks; a word it cannot read goes into its own lexicon (`lib/lexicon.qwen3.<language>.json`).
   The render names the words Qwen3 was heard saying differently (section 6). Add a respelling for

@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { serverExtensions, type ServerExtension } from '../server';
 import { clientExtensions, type ClientExtension } from '../client';
 
-const events: { type: string; canvas: string; card: string }[] = [];
+const events: { type: string; project: string; card: string }[] = [];
 const picked: unknown[] = [];
 (serverExtensions as ServerExtension[]).splice(0);
 (clientExtensions as ClientExtension[]).splice(0);
@@ -16,7 +16,7 @@ const picked: unknown[] = [];
 });
 (serverExtensions as ServerExtension[]).push({
   settings: { example: z.string().optional() },
-  routes: { '/api/extension-example': { GET: (_request, context) => Response.json({ settings: context.settings('canvas', 'repo') }) } },
+  routes: { '/api/extension-example': { GET: (_request, context) => Response.json({ settings: context.settings('project', 'repo') }) } },
   event: (event) => { events.push(event); },
   permission: {
     options: (request, context) => request.name === 'Bash' && context.landsOnMain ? [{ label: { en: 'Example', de: 'Beispiel' }, note: { en: 'Example note', de: 'Beispielnotiz' }, data: { rule: request.input.command } }] : [],
@@ -56,7 +56,7 @@ try {
 const { serve } = await import('../../server/server');
 const { asOwner, artifact } = await import('../../server/testing');
 let showRepo = false;
-const served = { all: () => showRepo ? [{ id: 'canvas', repos: [{ ref: { id: 'repo' }, adapter: { example: 'route value' } }] }] : [] };
+const served = { all: () => showRepo ? [{ id: 'project', repos: [{ ref: { id: 'repo' }, adapter: { example: 'route value' } }] }] : [] };
 const server = serve(served as never, { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
 try {
   const url = new URL('/api/extension-example', server.url);
@@ -84,7 +84,7 @@ try {
   await fixture.workers.start(card.id);
   // start() already waits for workstation preparation and the runtime launch.
   assert.equal(fixture.runtime.sessions.length, 1);
-  assert.deepEqual(events, [{ type: 'workerStarted', canvas: 'c', card: card.id, settings: { example: 'worker value' } }]);
+  assert.deepEqual(events, [{ type: 'workerStarted', project: 'c', card: card.id, settings: { example: 'worker value' } }]);
   // a permission question carries the extension's option; picked, the call runs with its updates
   const permitted = fixture.runtime.last.spec.askOwner!({ name: 'Bash', input: { command: 'make' } }, new AbortController().signal);
   await fixture.flush();

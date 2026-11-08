@@ -30,9 +30,9 @@ const de = {
   /** The headings of a taken proposal's questions in its text. */
   decided: 'Entschieden',
   openQuestions: 'Offene Fragen (nach bestem Wissen selbst entscheiden, im Zweifel die Standardlösung)',
-  /** Whisper's words to expect, before the titles on the canvas. */
+  /** Whisper's words to expect, before the titles on the project. */
   vocabulary: 'Seismic, Aufgabe, Folgeaufgabe, Karte, Workstream, Idee, Prototyp, parken, Demo, freigeben, Pull Request, Agent.',
-  /** In the log of a card the canvas archived by itself once its work landed. */
+  /** In the log of a card the project archived by itself once its work landed. */
   archivedLanded: 'Gelandet und fertig: Die Karte liegt jetzt im Archiv.',
   voice: {
     notUnderstood: 'Das habe ich nicht verstanden.',
@@ -246,8 +246,8 @@ const de = {
     limitStatus: 'Nutzungslimit',
     limitStatusUntil: (when: string) => `Nutzungslimit · weiter ${when}`,
     proposesBuild: (reason: string) => `Schlägt vor, die Idee auf diesem Prototyp zu bauen: ${reason}`,
-    proposedIdea: (title: string, canvas?: string) => `Idee vorgeschlagen${canvas ? ` im Projekt „${canvas}“` : ''}: ${title}`,
-    proposedCard: (title: string, canvas?: string) => `Aufgabe vorgeschlagen${canvas ? ` im Projekt „${canvas}“` : ''}: ${title}`,
+    proposedIdea: (title: string, project?: string) => `Idee vorgeschlagen${project ? ` im Projekt „${project}“` : ''}: ${title}`,
+    proposedCard: (title: string, project?: string) => `Aufgabe vorgeschlagen${project ? ` im Projekt „${project}“` : ''}: ${title}`,
     /** The agent's own earlier proposal, withdrawn or replaced (`by`: the proposal that takes its place). */
     withdrewProposal: (title: string, why?: string, by?: string) =>
       by ? `Ersetzt den Vorschlag „${title}“ durch „${by}“${why ? `: ${why}` : '.'}` : `Zieht den Vorschlag „${title}“ zurück${why ? `: ${why}` : '.'}`,
@@ -357,16 +357,16 @@ const de = {
     stayed: 'Neues Repository zurückgenommen: Die Karte bleibt, wie sie war.',
     failed: (why: string) => `Repository nicht angelegt, die Karte bleibt, wie sie war: ${why}`,
     noPath: 'Für das neue Repository fehlt der Ordner.',
-    taken: (path: string, canvas: string) => `Das Repository ${path} gibt es im Projekt „${canvas}“ schon; wähl es dort.`,
+    taken: (path: string, project: string) => `Das Repository ${path} gibt es im Projekt „${project}“ schon; wähl es dort.`,
     inside: (path: string, repo: string) => `${path} liegt im Repository ${repo}.`,
     notFolder: (path: string) => `${path} ist kein Ordner.`,
     fromCommandLine: 'Die Projekte kommen von der Kommandozeile; ein neues legt nur die Konfiguration an.',
     notStarted: (why: string) => `Das neue Projekt startet nicht: ${why}`,
-    /** In the card's conversation, once it is on the new canvas. */
+    /** In the card's conversation, once it is on the new project. */
     movedHere: (from: string, path: string, made: boolean) => `Aus dem Projekt „${from}“ hierher umgezogen. Das Repository ${path} ${made ? 'ist neu angelegt' : 'gab es schon'}.`,
     joined: (path: string, made: boolean) => `Das Repository ${path} ${made ? 'ist neu angelegt und ' : ''}gehört jetzt zu diesem Projekt; die Karte arbeitet darin.`,
-    /** In Seismic's sheet of the canvas the card left. */
-    movedAway: (title: string, canvas: string) => `„${title}“ ist in das Projekt „${canvas}“ umgezogen und wird dort gebaut.`,
+    /** In Seismic's sheet of the project the card left. */
+    movedAway: (title: string, project: string) => `„${title}“ ist in das Projekt „${project}“ umgezogen und wird dort gebaut.`,
     /** The answer the decision log records when an idea is built in a new repository. */
     buildAnswer: (path: string) => `So bauen, im neuen Repository ${path}.`,
   },
@@ -412,8 +412,8 @@ const de = {
     /** A card whose workstation the owner gave to another waits in the queue for the next one. */
     requeued: 'Wartet auf die nächste freie Workstation und macht dann auf ihrem Branch weiter.',
     slotFree: 'Ein Rechner hat wieder einen Slot frei; es geht los.',
-    canvasPaused: 'Die Agenten dieses Projekts sind pausiert: Die Aufgabe startet, sobald du sie fortsetzt.',
-    canvasPlays: 'Die Agenten dieses Projekts laufen wieder; es geht los.',
+    projectPaused: 'Die Agenten dieses Projekts sind pausiert: Die Aufgabe startet, sobald du sie fortsetzt.',
+    projectPlays: 'Die Agenten dieses Projekts laufen wieder; es geht los.',
     waitedDone: 'Worauf sie gewartet hat, ist erledigt; es geht los.',
     waitedDoneRecheck: 'Seismic: Worauf sie gewartet hat, ist erledigt; prüft neu gegen die laufende Arbeit.',
     waitedDoneTogether: 'Seismic: Worauf sie gewartet hat, ist erledigt; prüft sie zusammen mit den anderen Aufgaben, die jetzt frei sind.',
@@ -487,7 +487,7 @@ const de = {
     prComment: (artifact: boolean, url: string) => `${artifact ? 'Demo-Seite' : 'Demo-Video'}: ${url}`,
     notWithdrawnNoShare: 'Nicht zurückgezogen: Das Repository der Aufgabe teilt keine Demos mehr.',
     withdrawn: 'Die Seite ist zurückgezogen.',
-    // a site Seismic keeps (a canvas's demo site): why a page did not go out, or did not come down
+    // a site Seismic keeps (a project's demo site): why a page did not go out, or did not come down
     pageIncomplete: 'Der Seite fehlen Titel, Text oder das Verzeichnis der Demo.',
     fileMissing: (file: string, dir: string) => `${file} fehlt in ${dir}.`,
     fileTooLarge: (file: string, mib: string, max: string) => `${file} ist ${mib} MiB groß; die Site nimmt höchstens ${max} MiB pro Datei.`,
@@ -518,7 +518,7 @@ const de = {
       `Das Demo ist in seinem Verzeichnis neu vertont, auf ${language === 'en' ? 'Englisch' : 'Deutsch'}: Die Aufgabe zeigt es mit seinen neuen Kapiteln, und der Text seiner Seite wird beim Teilen neu geschrieben.`,
     prLine: (html: boolean): string => (html ? 'Demo-Seite' : 'Demo-Video'),
   },
-  /** The first card on the canvas the setup assistant created: what to try. */
+  /** The first card on the project the setup assistant created: what to try. */
   welcome: {
     title: 'Erste Aufgabe: etwas Kleines ändern',
     body: 'Schreib in diese Karte, was ein Agent in diesem Repository tun soll, zum Beispiel: „Ergänze im README, wie man das Projekt startet.“ Dann „Agent starten“: Er arbeitet auf einem eigenen Branch, fragt nach, wenn er etwas nicht selbst entscheiden soll, und zeigt dir zum Schluss eine Demo. Du gibst sie frei oder schreibst, was noch fehlt.\n\nWeitere Aufgaben legst du mit „+ Neue Aufgabe“ an, oder du sagst sie: Leertaste halten und sprechen. „Konfiguration“ → „Einrichtung prüfen“ prüft auch später, was Seismic auf diesem Rechner braucht.',
@@ -758,8 +758,8 @@ const en: Messages = {
     limitStatus: 'Usage limit',
     limitStatusUntil: (when: string) => `Usage limit · continues ${when}`,
     proposesBuild: (reason: string) => `Proposes building the idea on this prototype: ${reason}`,
-    proposedIdea: (title: string, canvas?: string) => `Proposed an idea${canvas ? ` in the project “${canvas}”` : ''}: ${title}`,
-    proposedCard: (title: string, canvas?: string) => `Proposed a task${canvas ? ` in the project “${canvas}”` : ''}: ${title}`,
+    proposedIdea: (title: string, project?: string) => `Proposed an idea${project ? ` in the project “${project}”` : ''}: ${title}`,
+    proposedCard: (title: string, project?: string) => `Proposed a task${project ? ` in the project “${project}”` : ''}: ${title}`,
     withdrewProposal: (title: string, why?: string, by?: string) =>
       by ? `Replaces the proposal “${title}” by “${by}”${why ? `: ${why}` : '.'}` : `Withdraws the proposal “${title}”${why ? `: ${why}` : '.'}`,
     superseded: (by?: string, why?: string) =>
@@ -860,14 +860,14 @@ const en: Messages = {
     stayed: 'New repository taken back: the card stays as it was.',
     failed: (why: string) => `Repository not created, the card stays as it was: ${why}`,
     noPath: 'The new repository has no folder yet.',
-    taken: (path: string, canvas: string) => `The repository ${path} is in the project “${canvas}” already; choose it there.`,
+    taken: (path: string, project: string) => `The repository ${path} is in the project “${project}” already; choose it there.`,
     inside: (path: string, repo: string) => `${path} lies inside the repository ${repo}.`,
     notFolder: (path: string) => `${path} is not a folder.`,
     fromCommandLine: 'The projects come from the command line; a new one would only go into the configuration.',
     notStarted: (why: string) => `The new project does not start: ${why}`,
     movedHere: (from: string, path: string, made: boolean) => `Moved here from the project “${from}”. The repository ${path} ${made ? 'is new' : 'existed already'}.`,
     joined: (path: string, made: boolean) => `The repository ${path} ${made ? 'is new and ' : ''}belongs to this project now; the card works in it.`,
-    movedAway: (title: string, canvas: string) => `“${title}” moved to the project “${canvas}” and is built there.`,
+    movedAway: (title: string, project: string) => `“${title}” moved to the project “${project}” and is built there.`,
     buildAnswer: (path: string) => `Build it like this, in the new repository ${path}.`,
   },
   proposal: {
@@ -908,8 +908,8 @@ const en: Messages = {
     workstationFree: 'A workstation is free; it starts.',
     requeued: 'Waits for the next free workstation and then goes on on its branch.',
     slotFree: 'A machine has a free slot again; it starts.',
-    canvasPaused: "This project's agents are paused: the task starts once you resume them.",
-    canvasPlays: "This project's agents run again; it starts.",
+    projectPaused: "This project's agents are paused: the task starts once you resume them.",
+    projectPlays: "This project's agents run again; it starts.",
     waitedDone: 'What it waited for is done; it starts.',
     waitedDoneRecheck: 'Seismic: what it waited for is done; checks it again against the work in progress.',
     waitedDoneTogether: 'Seismic: what it waited for is done; checks it together with the other tasks free now.',

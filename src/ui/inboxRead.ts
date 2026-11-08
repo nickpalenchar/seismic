@@ -28,7 +28,7 @@ export function useInboxRead(): { isRead: (e: InboxEntry) => boolean; read: (mar
     const mark = readMark(e);
     const kept = load();
     if (kept.at(-1) === mark) return;
-    // written at once: "Go to card" on another canvas leaves the page right after
+    // written at once: "Go to card" on another project leaves the page right after
     const list = [...kept.filter((x) => x !== mark), mark].slice(-KEEP);
     try {
       localStorage.setItem(READ, JSON.stringify(list));

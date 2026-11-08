@@ -1,14 +1,14 @@
 // A card's task field, where other cards are linked (`cardRefs.ts`): an editable text in which each
 // linked card stands as its smart link, a pill that the cursor steps over and that Backspace or
 // Delete takes out whole. The text is kept as markdown, a pill as the link to its card's address.
-// `/` and words of a title open a menu of the canvas's cards that fit, just under the line being
+// `/` and words of a title open a menu of the project's cards that fit, just under the line being
 // typed, each as the smart link it will become. The arrow keys mark, Enter, Tab or a click picks,
 // Escape closes it and leaves the card open. Picking puts the pill and a space in place of the search.
 
 import { type ClipboardEvent, forwardRef, useContext, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import type { Item } from '../core/types';
 import { cardPath } from './address';
-import { canvasOf } from './api';
+import { projectOf } from './api';
 import { SmartLink } from './cardLink';
 import { type CardSearch, cardSearchAt, knowsCardRefs, lines, linkText, matchingCards, referenced, textOf, usedCardRefs } from './cardRefs';
 import { Cards } from './message';
@@ -178,7 +178,7 @@ export const LinkField = forwardRef<
     r.deleteContents();
     const space = document.createTextNode('\u00a0');
     r.insertNode(space);
-    r.insertNode(pill(cardPath(canvasOf(card.id), card), linkText(card.title), card));
+    r.insertNode(pill(cardPath(projectOf(card.id), card), linkText(card.title), card));
     // the cursor after the space after it
     const sel = getSelection()!;
     sel.removeAllRanges();
@@ -247,7 +247,7 @@ function CardMenu({ cards, marked, onPick, at }: { cards: Item[]; marked: number
           <li key={c.id} role="option" aria-selected={i === marked} className={i === marked ? 'on' : undefined} onMouseDown={(e) => e.preventDefault()} onClick={() => onPick(c)}>
             {/* a click on it picks the card rather than opening it */}
             <span className="cm-pill">
-              <SmartLink href={cardPath(canvasOf(c.id), c)} text={c.title} />
+              <SmartLink href={cardPath(projectOf(c.id), c)} text={c.title} />
             </span>
             {c.short && <span className="cm-code">{c.short}</span>}
           </li>

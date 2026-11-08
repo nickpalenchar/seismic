@@ -749,7 +749,7 @@ describe('a worktree per card', () => {
 
     // Seismic starts again: the worker resumes its session in the worktree it had
     workers.shutdown();
-    const after = restarting(new Board(store, board.canvas, () => ({ docs: [doc], dirs: [] })));
+    const after = restarting(new Board(store, board.project, () => ({ docs: [doc], dirs: [] })));
     after.resumeAll();
     const resumed = runtime.last;
     expect(resumed).not.toBe(s);
@@ -889,7 +889,7 @@ describe('a worktree per card', () => {
     expect(board.events(c.id).at(-1)).toMatchObject({ author: 'obeya', kind: 'state' });
 
     workers.shutdown();
-    const after = new Workers({ board: new Board(store, board.canvas, () => ({ docs: [doc], dirs: [] })), runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
+    const after = new Workers({ board: new Board(store, board.project, () => ({ docs: [doc], dirs: [] })), runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
     after.resumeAll();
     const resumed = runtime.last;
     expect(resumed).not.toBe(s);
@@ -949,7 +949,7 @@ describe('a worktree per card', () => {
     expect(s.closed).toBe(false);
     expect(board.item(c.id)!.finishing).toBe(true);
     workers.shutdown();
-    const after = new Workers({ board: new Board(store, board.canvas, () => ({ docs: [doc], dirs: [] })), runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
+    const after = new Workers({ board: new Board(store, board.project, () => ({ docs: [doc], dirs: [] })), runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
     after.resumeAll();
     expect(runtime.last).not.toBe(s);
     expect(runtime.last.spec.resume).toBe('sess-1');

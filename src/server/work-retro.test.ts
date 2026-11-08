@@ -230,7 +230,7 @@ describe('Arbeitsrückschau', () => {
       },
       expect.objectContaining({ field: 'checks', value: ['bun test', 'bun run typecheck'], now: ['bun test'] }),
     ]);
-    // no card on the canvas: it waits with Seismic beside the rules
+    // no card on the project: it waits with Seismic beside the rules
     expect(board.snapshot().items.filter((i) => i.state === 'proposal')).toHaveLength(0);
 
     // the next retrospective hears what became of them

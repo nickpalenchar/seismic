@@ -61,9 +61,9 @@ export interface WorkerOptions {
    * `.obeya/settings.json`: how work lands where they say so, whatever a card's branch changes.
    */
   machineSettings?: () => RepoSettings | undefined;
-  /** Whether the repository's demos are shared on a page now (its canvas's demo site, initialized); none when left out. */
+  /** Whether the repository's demos are shared on a page now (its project's demo site, initialized); none when left out. */
   shares?: () => boolean;
-  /** The vocabulary of tags the canvas names for its demo site; none where it names none. */
+  /** The vocabulary of tags the project names for its demo site; none where it names none. */
   vocabulary?: () => PageTags | undefined;
   permissionMode?: PermissionMode;
   /** The owner's preferences, added to every worker's instructions. */
@@ -72,9 +72,9 @@ export interface WorkerOptions {
   takeAsked?: (cardId: string) => string | undefined;
   /** Called with everything the owner tells a worker, so lasting preferences can be learned. */
   onOwnerInput?: (card: Item, kind: 'answer' | 'note' | 'feedback', text: string, context?: InputContext) => void;
-  /** On a canvas with several repositories: the one these workers work in. */
+  /** On a project with several repositories: the one these workers work in. */
   repo?: string;
-  /** The boards of the other canvases this Seismic runs: a worker proposes a card in their repositories too. */
+  /** The boards of the other projects this Seismic runs: a worker proposes a card in their repositories too. */
   otherBoards?: () => Board[];
   /** The worker reported the card's pull request: a demo shared before gets its link. */
   onPrOpened?: (cardId: string) => void;
@@ -137,7 +137,7 @@ export interface WorkerOptions {
    * extensions change no repository.
    */
   asOwner?: <T>(cwd: string, change: (repo: { path: string; folder: boolean }) => Promise<T>) => Promise<T>;
-  /** Whether and when the canvas reviews work that lands on main (design: Code reviews in Card lifecycle); off when left out. */
+  /** Whether and when the project reviews work that lands on main (design: Code reviews in Card lifecycle); off when left out. */
   codeReviews?: () => CodeReviewSetting;
   /** Runs the code reviews' agents (the "Code reviews" group, in Claude Code or Codex); `runtime` when left out. */
   reviewRuntime?: AgentRuntime;
@@ -272,7 +272,7 @@ const retractedText = (r: Retracted, replaced: boolean): string => {
   const it = `“${r.title}”`;
   switch (r.kind) {
     case 'gone':
-      return `${it} was still open and is gone from the canvas.`;
+      return `${it} was still open and is gone from the project.`;
     case 'marked':
       return `The owner had taken ${it} on already (${r.state}): Seismic marks it as ${replaced ? 'replaced' : 'withdrawn'} and offers the owner to remove it.`;
     case 'finished':
@@ -603,7 +603,7 @@ function metNote(on: NonNullable<Snooze['on']>, met: Awaited): string {
     case 'reached':
       return on.state === 'done' ? `${cap(card)} is done: its work is on main, or it closed without a change.` : `${cap(card)} waits for the owner now (a question or a handover), or is done.`;
     case 'gone':
-      return `${cap(card)} is gone from the canvas.`;
+      return `${cap(card)} is gone from the project.`;
     case 'archived':
       return `${cap(card)} was archived.`;
     case 'stopped':
@@ -716,7 +716,7 @@ export class Workers {
   /** Ends the subscription to the board's changes. */
   private unwatch: () => void;
 
-  /** The code reviews of the cards' work, where the canvas reviews work that lands on main. */
+  /** The code reviews of the cards' work, where the project reviews work that lands on main. */
   readonly reviews: CodeReviews;
 
   constructor(private o: WorkerOptions) {
@@ -1620,9 +1620,9 @@ export class Workers {
   }
 
   /**
-   * The canvas's "Code reviews" setting changed (or Seismic started): work waiting for the owner's
-   * approval gets the "Start code review" button where the canvas reviews manually, and loses its
-   * review where the canvas reviews no more. Automatic reviews start at handovers only, never here;
+   * The project's "Code reviews" setting changed (or Seismic started): work waiting for the owner's
+   * approval gets the "Start code review" button where the project reviews manually, and loses its
+   * review where the project reviews no more. Automatic reviews start at handovers only, never here;
    * cards still at work or planned follow the setting when they hand over.
    */
   codeReviewsChanged(): Promise<void> {
@@ -1666,7 +1666,7 @@ export class Workers {
     return i.kind === 'task' && handedOver(i) && !answering(i) && i.state === 'waiting' && !this.o.board.row(cardId).approved_at && !i.landing && !this.landing.has(cardId) && !this.approving.has(cardId);
   }
 
-  /** The mode in which the canvas reviews this card's work at a handover, or null where it does not: the one rule for handovers and for a changed setting. */
+  /** The mode in which the project reviews this card's work at a handover, or null where it does not: the one rule for handovers and for a changed setting. */
   private reviewModeOf(row: CardRow, work: boolean, land?: 'main' | 'pr'): CodeReviewSetting['mode'] | null {
     if (this.folder || row.prototype_of || contributionOf(row)) return null;
     const reviews = this.o.codeReviews?.();
@@ -2470,7 +2470,7 @@ export class Workers {
     if (!landed?.followUp) this.o.onWorkEnded?.(cardId, row.workstation);
   }
 
-  /** The plan docs the card's branch adds, as plan references of the canvas. */
+  /** The plan docs the card's branch adds, as plan references of the project. */
   private async planDocsAdded(cardId: string): Promise<string[]> {
     // a plan folder outside the repository has nothing in the branch: such a card named its doc when it started
     if (!this.o.board.row(cardId).idea || outsidePlanDir(this.o.adapter.planDocs.dir)) return [];
@@ -3071,7 +3071,7 @@ export class Workers {
   }
 
   /**
-   * The owner pauses the card's worker at a safe point (the card's pause, the canvas's): it hears so
+   * The owner pauses the card's worker at a safe point (the card's pause, the project's): it hears so
    * and ends its turn once the step it is in is done, as for a restart, and is paused then as on
    * `pause`. Should it not have ended its turn after a while, it is paused at once. One with nothing
    * running that could be cut off midway (its workstation is being made ready, it waits for the usage
@@ -3227,7 +3227,7 @@ export class Workers {
   }
 
   /**
-   * The card of the canvas a worker means by `title`, to wait on: the one by that title (the open
+   * The card of the project a worker means by `title`, to wait on: the one by that title (the open
    * one, of several), else the one whose title holds it, if only one does; else why there is none.
    */
   private cardTitled(cardId: string, title: string): Item | string {
@@ -3239,7 +3239,7 @@ export class Workers {
     const near = items.filter((i) => !i.archivedAt && !finished(i.state) && titleKey(i.title).includes(key));
     if (near.length === 1) return near[0]!;
     if (near.length > 1) return `several cards have “${title}” in their title (${near.map((i) => `“${i.title}”`).join(', ')}); give one's full title.`;
-    return `no card on the canvas is called “${title}”.`;
+    return `no card on the project is called “${title}”.`;
   }
 
   /**
@@ -3366,7 +3366,7 @@ export class Workers {
 
   /**
    * A folder's cards handed over without a demo before Seismic kept which of them have files to show
-   * (`files` empty), on the canvas or archived: those whose change still has some get the list.
+   * (`files` empty), on the project or archived: those whose change still has some get the list.
    */
   private async listFiles() {
     if (!this.folder) return;
@@ -3613,7 +3613,7 @@ export class Workers {
   private extensionEvent(type: 'landed' | 'workerStarted', card: string) {
     for (const extension of extensions) {
       try {
-        const result = extension.event?.({ type, canvas: this.o.board.canvas.id, card, settings: extensionSettings(this.o.adapter) });
+        const result = extension.event?.({ type, project: this.o.board.project.id, card, settings: extensionSettings(this.o.adapter) });
         if (result) void result.catch((error) => console.error('Extension event failed:', error));
       } catch (error) { console.error('Extension event failed:', error); }
     }
@@ -4273,7 +4273,7 @@ export class Workers {
     if (!detail) return;
     const { answering, answered: before, ...rest } = JSON.parse(detail) as Record<string, unknown>;
     if (!answering) return;
-    // the worker's words alone end the card's wait for a handover: it takes the canvas's code review setting as it stands
+    // the worker's words alone end the card's wait for a handover: it takes the project's code review setting as it stands
     void this.codeReviewsChanged();
     const answered = spoke || !!before;
     this.o.board.work(cardId, { detail: JSON.stringify({ ...rest, ...(answered ? { answered: true } : {}) }) });
@@ -4574,10 +4574,10 @@ export class Workers {
     const shares = this.shares;
     // the vocabulary the page's tags come from, where the repository's site names one
     const vocabulary = shares ? dimensions(this.o.vocabulary?.()) : [];
-    // a proposal may go to another repository than the card's: of this canvas, or of another canvas this Seismic runs
-    const repos = this.o.board.canvas.repos;
+    // a proposal may go to another repository than the card's: of this project, or of another project this Seismic runs
+    const repos = this.o.board.project.repos;
     const ownRepo = this.o.repo ?? this.o.board.home;
-    const others = this.otherBoards().filter((b) => b.canvas.repos.length);
+    const others = this.otherBoards().filter((b) => b.project.repos.length);
     const anotherRepo = repos.length > 1 || others.length > 0;
     const handOver = () => {
       live.handedOver = true;
@@ -4604,8 +4604,8 @@ export class Workers {
       tools.map((t) => ({ ...t, run: (args) => (this.live.get(cardId) === live || live.standIn ? t.run(args) : 'This session has ended. Stop working and end your turn.') }));
     // a review card's tools to the contributor's pull request
     const review = contributionOf(this.o.board.row(cardId));
-    // the tools stand for the whole session, while the canvas's setting may change under it: every card of the owner's has the tool, which refuses where there are no findings
-    // a card whose work the canvas reviews makes the follow-up tasks the owner chooses of the review's findings
+    // the tools stand for the whole session, while the project's setting may change under it: every card of the owner's has the tool, which refuses where there are no findings
+    // a card whose work the project reviews makes the follow-up tasks the owner chooses of the review's findings
     const reviewed = !review && !this.folder && !this.o.board.row(cardId).prototype_of;
     return current([
       {
@@ -4711,11 +4711,11 @@ export class Workers {
               proposalTask('your card nor your session'),
               `reason: for the owner only, why you propose it, a sentence or two; it does not go to that agent.`,
               `questions: what the owner has to decide first (product behaviour, a trade-off), each with up to four short options; keep them out of task. The owner may answer them on the proposal; what they decided and what stays open go to the agent with the task.`,
-              `replaces: the title of an earlier proposal of yours this one takes the place of; Seismic takes that one off the canvas, or, if the owner has taken it on already, marks it as replaced and offers to remove it.`,
+              `replaces: the title of an earlier proposal of yours this one takes the place of; Seismic takes that one off the project, or, if the owner has taken it on already, marks it as replaced and offers to remove it.`,
               `start_at: when the card is to start, ISO 8601 with your timezone's offset (2026-11-04T08:00:00+01:00), for a task that can only be done later (whether a bank has registered a form two weeks on, say): accepted, it waits until then and starts by itself. Its agent then checks what it can and asks the owner for what only they can see.`,
               ...(anotherRepo
                 ? [
-                    `repo: the repository the change is to be made in, by its id: ${repos.map((r) => `${r.id} (${r.path}${r.id === ownRepo ? ', yours' : ''})`).join(', ')}${others.length ? `; on other canvases, where the proposal then waits for the owner: ${others.map((b) => `on “${b.canvas.name}” ${b.canvas.repos.map((r) => `${r.id} (${r.path})`).join(', ')}`).join('; ')}` : ''}; yours when left out.`,
+                    `repo: the repository the change is to be made in, by its id: ${repos.map((r) => `${r.id} (${r.path}${r.id === ownRepo ? ', yours' : ''})`).join(', ')}${others.length ? `; on other projects, where the proposal then waits for the owner: ${others.map((b) => `on “${b.project.name}” ${b.project.repos.map((r) => `${r.id} (${r.path})`).join(', ')}`).join('; ')}` : ''}; yours when left out.`,
                   ]
                 : []),
               `Everything in ${language}.`,
@@ -4749,9 +4749,9 @@ export class Workers {
                 ...(named ? { startAt: new Date(at).toISOString() } : {}),
                 ...(into ? { repo: into.repo } : {}),
               });
-              const there = board === this.o.board ? undefined : board.canvas.name;
+              const there = board === this.o.board ? undefined : board.project.name;
               this.o.board.log(cardId, 'activity', 'worker', idea ? this.o.board.t.worker.proposedIdea(p.title, there) : this.o.board.t.worker.proposedCard(p.title, there), {
-                made: { card: p.id, title: p.title, ...(there ? { canvas: board.canvas.id } : {}) },
+                made: { card: p.id, title: p.title, ...(there ? { project: board.project.id } : {}) },
               });
               const old = typeof replaces === 'string' && replaces.trim() ? replaces.trim() : undefined;
               return old ? `Proposed. ${this.retract(cardId, old, { by: p.id, title: p.title })}` : 'Proposed; the owner decides. Continue with your task.';
@@ -4764,7 +4764,7 @@ export class Workers {
             {
               name: 'withdraw_proposal',
               description: [
-                `Take back a card you proposed earlier (propose_card) that turned out wrong or needless, by its title. Still open, it goes from the canvas at once; if the owner has taken it on already, Seismic marks it as withdrawn and offers to remove it.`,
+                `Take back a card you proposed earlier (propose_card) that turned out wrong or needless, by its title. Still open, it goes from the project at once; if the owner has taken it on already, Seismic marks it as withdrawn and offers to remove it.`,
                 `replaced_by: the title of a proposal of yours that takes its place, when you made one already (a new one names the old with replaces instead).`,
                 `why: for the owner, a sentence, in ${language}.`,
               ].join(' '),
@@ -5072,7 +5072,7 @@ export class Workers {
             }
             const report = this.report(cardId, s);
             const e = this.o.board.log(cardId, 'review', 'worker', s);
-            // work that lands on main gets its code review where the canvas reviews work; work through a pull request gets the forge's reviewers
+            // work that lands on main gets its code review where the project reviews work; work through a pull request gets the forge's reviewers
             if (!review && !approved) void this.reviews.handedOver(cardId, e.id, this.reviewModeOf(row, work, land));
             // the demo report's question goes with the handover it came with, also once a later one keeps the demo
             if (demoJson) demoJson = JSON.stringify({ ...(JSON.parse(demoJson) as object), handover: e.id, at: e.at });
@@ -5181,7 +5181,7 @@ export class Workers {
       {
         name: 'snooze',
         description: [
-          `Snooze while there is nothing to do until a point in time further off than a background command can wait (a check at midnight, a test that runs for days, a report on the 31st), or until another card on this canvas gets somewhere (its fix is on main, its demo is ready).`,
+          `Snooze while there is nothing to do until a point in time further off than a background command can wait (a check at midnight, a test that runs for days, a report on the 31st), or until another card on this project gets somewhere (its fix is on main, its demo is ready).`,
           `until: that time, ISO 8601 with your timezone's offset (2026-10-31T08:00:00+01:00). card: the title of the card to wait on; state: what it is to reach, 'done' (its work is on main, or it closed without a change; the default) or 'waits_for_owner' (it asks the owner or hands its work over). Give until, card or both: Seismic wakes you at whichever comes first, and also when that card can no longer get there (stopped, archived, removed).`,
           `why: what you do then, in a few words in ${language}, shown on the card. Your session ends with your turn, and whatever you still run in the background with it; workstation and branch stay. Seismic resumes this session then, or earlier with a note from the owner or whatever else comes for you (a review, the landing). For checkpoints one after the other, snooze to the next one each time you wake. Then end your turn.`,
         ].join(' '),
@@ -5362,7 +5362,7 @@ export class Workers {
   }
 
   /** The worker takes back one of its proposals by title, or marks it replaced (`s.by`): what became of it, as the tool's result. */
-  /** The boards a card's proposals may be on: this canvas's, then those of the other canvases. */
+  /** The boards a card's proposals may be on: this project's, then those of the other projects. */
   private proposalBoards(): Board[] {
     return [this.o.board, ...this.otherBoards()];
   }
@@ -5373,23 +5373,23 @@ export class Workers {
 
   /**
    * The repository a worker names for its proposal (by id, name or path) and the board of its
-   * canvas: this canvas's first, then another canvas's; or why there is none.
+   * project: this project's first, then another project's; or why there is none.
    */
   private proposalRepo(wanted: string): { board: Board; repo: string } | string {
     const w = wanted.toLowerCase();
     const dir = (path: string) => path.replace(/[/\\]+$/, '');
     const named = (r: RepoRef) => r.id.toLowerCase() === w || r.name.toLowerCase() === w || dir(r.path) === dir(wanted);
-    const here = this.o.board.canvas.repos.find(named);
+    const here = this.o.board.project.repos.find(named);
     if (here) return { board: this.o.board, repo: here.id };
-    const found = this.otherBoards().flatMap((board) => board.canvas.repos.filter(named).map((r) => ({ board, repo: r.id, path: r.path })));
+    const found = this.otherBoards().flatMap((board) => board.project.repos.filter(named).map((r) => ({ board, repo: r.id, path: r.path })));
     if (found.length === 1) return found[0]!;
-    if (found.length > 1) return `Not proposed: several canvases have a repository ${wanted}; give its path instead: ${found.map((f) => f.path).join(', ')}.`;
-    const all = this.proposalBoards().flatMap((b) => b.canvas.repos.map((r) => r.id));
+    if (found.length > 1) return `Not proposed: several projects have a repository ${wanted}; give its path instead: ${found.map((f) => f.path).join(', ')}.`;
+    const all = this.proposalBoards().flatMap((b) => b.project.repos.map((r) => r.id));
     return `Not proposed: Seismic has no repository ${wanted}; give one of ${all.join(', ')}.`;
   }
 
   private retract(cardId: string, title: string, s: Superseded): string {
-    // the proposal may be on another canvas: where none of this card's has the title, the next one is asked
+    // the proposal may be on another project: where none of this card's has the title, the next one is asked
     const mine: Extract<Retracted, { kind: 'unknown' }>['mine'] = [];
     let r: Retracted = { kind: 'unknown', mine };
     for (const b of this.proposalBoards()) {
@@ -5457,7 +5457,7 @@ export class Workers {
     const language = ownersLanguage(this.o.board.conversation());
     const folder = !!this.folder;
     return `
-You are a worker agent directed through Seismic, a canvas on which the owner directs coding agents like an engineering director directs a team. ${
+You are a worker agent directed through Seismic, a project on which the owner directs coding agents like an engineering director directs a team. ${
       folder
         ? 'You work on exactly one card, directly in a folder that is not a git repository. Other workers may work on other cards in the same folder at the same time, and so may the owner.'
         : 'You work on exactly one card, in a workstation of the repository (a clone or worktree) that belongs to that card, on your own branch. Other workers may work on other cards at the same time in their own workstations.'
@@ -5539,12 +5539,12 @@ ${idea.idea.brief}` : '',
     // the owner's own words: the language the worker writes them in until they say more (`ownersLanguage`)
     if (card.mocks?.length) parts.push(mocksText(card.mocks));
     if (card.builtOn) parts.push(this.builtOnPrototype(card.builtOn, !!card.parent));
-    // the card it follows up on may be on another canvas (a proposal from a worker there)
+    // the card it follows up on may be on another project (a proposal from a worker there)
     const fromBoard = card.from && !card.prototypeOf ? this.proposalBoards().find((b) => b.item(card.from!) ?? b.archived().some((i) => i.id === card.from)) : undefined;
     const from = fromBoard ? fromBoard.item(card.from!) ?? fromBoard.archived().find((i) => i.id === card.from) : undefined;
     if (fromBoard && from) {
       const summary = fromBoard.summary(from.id)?.trim();
-      const there = fromBoard === this.o.board ? '' : ` on the canvas “${fromBoard.canvas.name}”`;
+      const there = fromBoard === this.o.board ? '' : ` on the project “${fromBoard.project.name}”`;
       parts.push(`This card follows up on the card “${from.title}”${there}.${summary ? ` Its worker handed it over with this summary:\n\n${summary}` : ''}`);
     }
     const shots = this.taskImages(card);

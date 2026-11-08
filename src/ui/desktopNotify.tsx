@@ -1,4 +1,4 @@
-// Desktop notifications (design: Notifications on the desktop): the canvas page tells the owner when
+// Desktop notifications (design: Notifications on the desktop): the project page tells the owner when
 // a card starts to wait for them while they are not looking at the page. In the app (Tauri) the
 // system's notification comes from the shell, in a browser from the page's own permission. Whether
 // it does is the owner's choice (Konfiguration → Benachrichtigungen und Limits), asked once at the first start.
@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MESSAGES } from '../core/messages';
 import { languageOf } from '../core/locale';
-import type { CanvasSnapshot, Item } from '../core/types';
+import type { ProjectSnapshot, Item } from '../core/types';
 import { plainTitle, startedWaiting } from '../core/waits';
 import { api } from './api';
 import { t } from './strings';
@@ -69,19 +69,19 @@ function useSetting(): [boolean | null | undefined, (on: boolean) => Promise<voi
   return [on, save];
 }
 
-/** Notifies when a card of the canvas starts to wait for the owner and nobody is looking at the page. */
-export function useDesktopNotifications(snapshot: CanvasSnapshot, onOpen: (item: Item) => void): { ask: boolean; answer: (on: boolean) => void } {
+/** Notifies when a card of the project starts to wait for the owner and nobody is looking at the page. */
+export function useDesktopNotifications(snapshot: ProjectSnapshot, onOpen: (item: Item) => void): { ask: boolean; answer: (on: boolean) => void } {
   const [on, save] = useSetting();
-  const seen = useRef<{ canvas: string; items: Map<string, Item> } | undefined>(undefined);
+  const seen = useRef<{ project: string; items: Map<string, Item> } | undefined>(undefined);
   const open = useRef(onOpen);
   open.current = onOpen;
   const onRef = useRef(on);
   onRef.current = on;
-  const canvas = snapshot.canvas;
+  const project = snapshot.project;
   useEffect(() => {
-    const before = seen.current?.canvas === canvas.id ? seen.current.items : undefined;
-    seen.current = { canvas: canvas.id, items: new Map(snapshot.items.map((i) => [i.id, i])) };
-    // what waits as the page opens, or as another canvas is shown, is not news
+    const before = seen.current?.project === project.id ? seen.current.items : undefined;
+    seen.current = { project: project.id, items: new Map(snapshot.items.map((i) => [i.id, i])) };
+    // what waits as the page opens, or as another project is shown, is not news
     if (!before || onRef.current !== true || attended()) return;
     const started = startedWaiting(before, snapshot.items);
     if (!started.length) return;
@@ -90,9 +90,9 @@ export function useDesktopNotifications(snapshot: CanvasSnapshot, onOpen: (item:
       const m = MESSAGES[languageOf(document.documentElement.lang) ?? 'de'].push;
       if (started.length > 1) return show(m.several(started.length), started.map((s) => plainTitle(s.item.title)).join(' · '));
       const { item, kind } = started[0] as (typeof started)[number];
-      return show(plainTitle(item.title), [m[kind], canvas.name].filter(Boolean).join(' · '), () => open.current(item));
+      return show(plainTitle(item.title), [m[kind], project.name].filter(Boolean).join(' · '), () => open.current(item));
     });
-  }, [snapshot.items, canvas.id]);
+  }, [snapshot.items, project.id]);
   return {
     ask: on === null && canNotify(),
     answer: (yes) => {

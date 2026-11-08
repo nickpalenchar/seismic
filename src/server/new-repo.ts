@@ -2,7 +2,7 @@
 // folder where there is none, then git as "Hier ein git-Repository einrichten" sets it up (the
 // default .gitignore, a first commit under git's name and e-mail), local only. A folder that is a
 // repository already is taken as it is. What it did can be taken back while the steps after it
-// (the canvas, the move) fail.
+// (the project, the move) fail.
 
 import { existsSync, mkdirSync, realpathSync, rmdirSync, rmSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';

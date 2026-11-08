@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TagProposalJob } from '../core/types';
-import { CanvasRuntime } from './canvas';
+import { ProjectRuntime } from './project';
 import { Config } from './config';
 import { Store } from './db';
 import { serve } from './server';
@@ -13,7 +13,7 @@ let dir: string;
 let repo: string;
 let store: Store;
 let runtime: FakeRuntime;
-let canvas: CanvasRuntime;
+let project: ProjectRuntime;
 let server: ReturnType<typeof serve>;
 
 beforeEach(() => {
@@ -21,7 +21,7 @@ beforeEach(() => {
   repo = gitRepo(join(dir, 'shop'), { 'README.md': 'A shop with a cart and invoices.\n' });
   store = new Store(':memory:');
   runtime = new FakeRuntime();
-  const file = join(dir, 'canvases.json');
+  const file = join(dir, 'projects.json');
   writeFileSync(file, JSON.stringify([{ repos: [{ path: repo }] }]));
   const config = new Config({
     file,
@@ -33,14 +33,14 @@ beforeEach(() => {
     restart: () => {},
     apply: () => {},
   });
-  canvas = new CanvasRuntime({ repos: [{ path: repo }] }, { store, home: dir, runtime, forge: noForge, config });
-  server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, config);
+  project = new ProjectRuntime({ repos: [{ path: repo }] }, { store, home: dir, runtime, forge: noForge, config });
+  server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, config);
   // a finished card with its demo, archived; an open one; a Question card, which is no change
-  const c = canvas.board.canvas.id;
+  const c = project.board.project.id;
   const [done] = store.insert([
-    { canvas_id: c, kind: 'task', state: 'live', title: 'Invoices as PDF', body: 'Customers download their invoice.', x: 0, y: 0 },
-    { canvas_id: c, kind: 'task', state: 'working', title: 'Coupons in the cart', body: 'A coupon code field in the cart.', x: 400, y: 0 },
-    { canvas_id: c, kind: 'question', state: 'done', title: 'How many orders last week?', body: '', x: 800, y: 0 },
+    { project_id: c, kind: 'task', state: 'live', title: 'Invoices as PDF', body: 'Customers download their invoice.', x: 0, y: 0 },
+    { project_id: c, kind: 'task', state: 'working', title: 'Coupons in the cart', body: 'A coupon code field in the cart.', x: 400, y: 0 },
+    { project_id: c, kind: 'question', state: 'done', title: 'How many orders last week?', body: '', x: 800, y: 0 },
   ]);
   const demo = join(dir, 'demos', done!.id);
   mkdirSync(demo, { recursive: true });
@@ -49,12 +49,12 @@ beforeEach(() => {
     demo: JSON.stringify({ dir: demo, kind: 'video', chapters: [[0, 'Download']], page: { title: 'Invoices to download', text: 'Customers get their invoice as a PDF from the order page.' } }),
     archived_at: new Date().toISOString(),
   });
-  canvas.board.changed();
+  project.board.changed();
 });
 
 afterEach(() => {
   server.stop(true);
-  canvas.shutdown();
+  project.shutdown();
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -100,7 +100,7 @@ describe('a proposal for the tags of a site', () => {
     expect((await call('GET', at(repo))).body.job).toBeNull();
   });
 
-  test('a session that ends without one leaves an error, and a repository on no canvas is refused', async () => {
+  test('a session that ends without one leaves an error, and a repository on no project is refused', async () => {
     await call('POST', '/api/tag-proposal', { path: repo });
     await until(() => proposer());
     proposer().emit({ type: 'idle' });

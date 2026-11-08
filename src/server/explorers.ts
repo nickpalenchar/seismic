@@ -100,7 +100,7 @@ export class Explorers {
   }
 
   /**
-   * The owner pauses the idea's agent at a safe point (the card's pause, the canvas's): it finishes
+   * The owner pauses the idea's agent at a safe point (the card's pause, the project's): it finishes
    * the reply it works on, and is paused then, before it takes up what was said meanwhile.
    */
   pauseAtSafePoint(cardId: string) {
@@ -169,7 +169,7 @@ export class Explorers {
   /**
    * Ends the idea's session; its id stays, so the conversation can go on later. A pause ends with it
    * (the idea parked, dropped, decided), unless it ends for one (`paused`): then the idea is paused
-   * in the same step, so the canvas never counts it as neither paused nor about to pause.
+   * in the same step, so the project never counts it as neither paused nor about to pause.
    */
   close(cardId: string, paused = false) {
     const live = this.live.get(cardId);
@@ -211,7 +211,7 @@ export class Explorers {
         this.o.board.log(i.id, 'state', 'owner', this.o.board.t.worker.pausedByOwner);
         continue;
       }
-      // with its repository not on the canvas, what it has not answered waits for the owner's next words
+      // with its repository not on the project, what it has not answered waits for the owner's next words
       if (this.o.board.row(i.id).session_id && !i.repoDown) this.send(i, 'Seismic was restarted while you worked on your reply. Answer the owner’s last message now.');
       else {
         this.o.board.setIdea(i.id, { thinking: false });
@@ -272,7 +272,7 @@ export class Explorers {
   }
 
   private launch(card: Item, current: Message[], message: string, resume: string | undefined, images: string[], quiet = false) {
-    // where it reads, first: without its repository on the canvas, nothing starts
+    // where it reads, first: without its repository on the project, nothing starts
     const cwd = this.o.pathFor(card);
     const preferences = this.o.preferences?.() ?? '';
     const live: Live = { session: undefined!, current, queue: [], replied: false, lastText: '', quiet, preferences, work: undefined! };
@@ -481,16 +481,16 @@ export class Explorers {
       },
       {
         name: 'plan_repo',
-        description: `When the owner wants the idea built in a repository that does not exist yet ("in a new repo under ~/dev/super59"): path, its folder (absolute or from ~), and canvas: true for a canvas of its own (the default), false where the owner wants the repository on this canvas beside the others. The card's repository picker then shows it, and its button builds it there: Seismic creates the folder and a local git repository (no remote, nothing published), a canvas named after it, moves this idea there with all it holds (brief, conversation, mocks, decisions) and builds it there; the worker hears the repository is new and sets it up (CLAUDE.md, Seismic's settings). The whole value each time; an empty path when it is to be built in an existing repository again. What the owner picked on the card stands: you do not change it.`,
-        schema: { path: z.string(), canvas: z.boolean().optional() },
-        run: ({ path, canvas }) => {
+        description: `When the owner wants the idea built in a repository that does not exist yet ("in a new repo under ~/dev/super59"): path, its folder (absolute or from ~), and project: true for a project of its own (the default), false where the owner wants the repository on this project beside the others. The card's repository picker then shows it, and its button builds it there: Seismic creates the folder and a local git repository (no remote, nothing published), a project named after it, moves this idea there with all it holds (brief, conversation, mocks, decisions) and builds it there; the worker hears the repository is new and sets it up (CLAUDE.md, Seismic's settings). The whole value each time; an empty path when it is to be built in an existing repository again. What the owner picked on the card stands: you do not change it.`,
+        schema: { path: z.string(), project: z.boolean().optional() },
+        run: ({ path, project }) => {
           const p = clip(String(path ?? '').trim(), 1000);
           if (p && !folderPath(p)) return `${p} is no folder: give it absolute or from ~.`;
-          const set = this.o.board.setNewRepo(cardId, p ? { path: p, canvas: canvas !== false, by: 'agent' } : null, 'agent');
+          const set = this.o.board.setNewRepo(cardId, p ? { path: p, project: project !== false, by: 'agent' } : null, 'agent');
           const now = this.o.board.newRepo(cardId);
           if (!set) return `The owner picked the repository on the card themselves${now?.path ? ` (a new one at ${now.path})` : ''}; it stays as they chose.`;
           this.o.board.log(cardId, 'activity', 'explorer', p ? t.plansRepo(p) : t.plansNoRepo);
-          return p ? `The card now builds it in a new repository at ${p}${canvas === false ? ' on this canvas' : ', with a canvas of its own'}.` : 'No new repository: it is built where the card says.';
+          return p ? `The card now builds it in a new repository at ${p}${project === false ? ' on this project' : ', with a project of its own'}.` : 'No new repository: it is built where the card says.';
         },
       },
       {
@@ -548,7 +548,7 @@ export class Explorers {
       mocks.length ? `The brief's mocks, shown under it (update_brief without mocks keeps them): ${mocks.map((m) => `“${m.title}”`).join(', ')}.` : '',
       variants.length ? `The prototypes you planned (plan_prototypes):\n${variants.map((v) => `- ${v.approach}: ${v.show}`).join('\n')}` : '',
       split ? `The part you marked to split off (plan_split): “${split.title}”.\n\n${split.brief}` : '',
-      repo ? `It is to be built in a new repository at ${repo.path || '(no folder named yet)'}${repo.canvas ? ', with a canvas of its own' : ' on this canvas'}, as ${repo.by === 'owner' ? 'the owner picked on the card' : 'you marked with plan_repo'}.` : '',
+      repo ? `It is to be built in a new repository at ${repo.path || '(no folder named yet)'}${repo.project ? ', with a project of its own' : ' on this project'}, as ${repo.by === 'owner' ? 'the owner picked on the card' : 'you marked with plan_repo'}.` : '',
       shown.length
         ? `The idea's prototypes${prototypes.length > shown.length ? ` (the latest ${shown.length} of ${prototypes.length})` : ''}:\n${shown.map((p) => `- “${p.title}”, ${prototypeState(p)}${p.summary ? `. Its summary: ${clip(p.summary, 2000)}` : ''}`).join('\n')}`
         : '',
@@ -578,7 +578,7 @@ const system = (language: Language, ui: Language, repository: Language, toObeya:
   const w = WORDS[language];
   const [goal, today, variants, decisions, open, effort] = w.parts.map((p) => `**${p}**`);
   return `
-You are the exploration agent of one idea on Seismic, a canvas on which the owner directs coding agents like an engineering director directs a team. The owner wants to think the idea through with you before anything is planned or built. It is one long conversation; it may go on days later.
+You are the exploration agent of one idea on Seismic, a project on which the owner directs coding agents like an engineering director directs a team. The owner wants to think the idea through with you before anything is planned or built. It is one long conversation; it may go on days later.
 
 Your sources are the code, the repository's docs and plan docs, and what the messages give you (decisions taken so far, the owner's preferences). You have the tools a worker has: what the discussion depends on beyond the text (the git history, files on this machine and their dates, a release, pull request or CI run on GitHub with gh, a page on the web), check rather than guess. Nothing you do yourself starts work.${toObeya ? `\n\n${TO_OBEYA}` : ''}
 

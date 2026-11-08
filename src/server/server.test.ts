@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { CardAction, ClientMessage, ServerMessage } from '../core/types';
 import type { Board } from './board';
-import { Canvases, CanvasRuntime } from './canvas';
+import { Projects, ProjectRuntime } from './project';
 import type { Command } from './commands';
 import { Store } from './db';
 import { AppUpdates } from './app-update';
@@ -26,24 +26,24 @@ let heardAudio: string[];
 /** What the fake Whisper writes, given the vocabulary it was prompted with. */
 let whisper: (vocabulary: string) => string | Transcript;
 let server: ReturnType<typeof serve>;
-let canvas: CanvasRuntime;
+let project: ProjectRuntime;
 let warmed: number;
 // how long a command waits for an undo; long enough that a loaded machine still undoes in time
 const DELAY_MS = 200;
 
-// A canvas in clone mode without any clone registered: every start fails for want of a workstation.
+// A project in clone mode without any clone registered: every start fails for want of a workstation.
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'obeya-server-'));
   const main = join(dir, 'main');
-  // settings of its own that work in clones, none registered; the canvas is named after the directory
+  // settings of its own that work in clones, none registered; the project is named after the directory
   gitRepo(main, { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workstations": "clones" }\n' });
   runtime = new FakeRuntime();
-  canvas = new CanvasRuntime({ repos: [{ path: main }] }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge, commandDelayMs: DELAY_MS });
-  board = canvas.board;
+  project = new ProjectRuntime({ repos: [{ path: main }] }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge, commandDelayMs: DELAY_MS });
+  board = project.board;
   executed = [];
   heardAudio = [];
   whisper = () => 'Neue Karte Export';
-  canvas.run = (c) => void executed.push(c);
+  project.run = (c) => void executed.push(c);
   warmed = 0;
   const transcriber = {
     transcribe: async (path: string, vocabulary: string) => {
@@ -53,7 +53,7 @@ beforeEach(() => {
     },
     warm: () => void warmed++,
   };
-  server = serve([canvas], { transcriber }, 0);
+  server = serve([project], { transcriber }, 0);
 });
 afterEach(() => {
   server.stop(true);
@@ -165,7 +165,7 @@ describe('who may', () => {
     const demo = artifact();
     writeFileSync(join(demo.dir, 'chart.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
     board.work(c.id, { state: 'waiting', need: 'review', demo: JSON.stringify(demo) });
-    // the frame itself, from the canvas, with the owner's cookie: to the path with its directory's cap
+    // the frame itself, from the project, with the owner's cookie: to the path with its directory's cap
     const frame = await at(api(`/cards/${c.id}/demo/index.html`), { 'sec-fetch-site': 'same-origin', 'sec-fetch-dest': 'iframe' }, { redirect: 'manual' });
     expect(frame.status).toBe(302);
     const capped = frame.headers.get('location')!;
@@ -257,22 +257,22 @@ describe('only the owner', () => {
     expect(set).toContain('HttpOnly; SameSite=Strict');
     const cookie = set.split(';')[0]!;
     expect((await bare('/', { headers: { cookie } })).status).toBe(200);
-    expect((await bare(api('/canvas'), { headers: { cookie } })).status).toBe(200);
+    expect((await bare(api('/project'), { headers: { cookie } })).status).toBe(200);
     expect(await opens({ cookie, origin: server.url.origin })).toBe(true);
     // another browser (Chrome beside Safari) with the same link, until the server stops; the same link from a second start
     expect((await bare(url)).headers.get('set-cookie')).toBe(set);
     expect(await link('/?c=main')).toBe(url);
     expect(await onward(await bare(url, { headers: { cookie } }))).toBe('/?c=main');
     // a cookie of the Seismic on another port, or with another key, names nobody
-    expect((await bare(api('/canvas'), { headers: { cookie: cookie.replace(`obeya-${server.port}`, `obeya-${server.port! + 1}`) } })).status).toBe(401);
-    expect((await bare(api('/canvas'), { headers: { cookie: `obeya-${server.port}=guessed` } })).status).toBe(401);
+    expect((await bare(api('/project'), { headers: { cookie: cookie.replace(`obeya-${server.port}`, `obeya-${server.port! + 1}`) } })).status).toBe(401);
+    expect((await bare(api('/project'), { headers: { cookie: `obeya-${server.port}=guessed` } })).status).toBe(401);
   });
 
   test('a link for one browser (through the system’s `open`) signs in only the first', async () => {
     const url = await link('/?c=main', true);
     expect(url).not.toBe(await link('/?c=main'));
     const cookie = (await bare(url)).headers.get('set-cookie')!.split(';')[0]!;
-    expect((await bare(api('/canvas'), { headers: { cookie } })).status).toBe(200);
+    expect((await bare(api('/project'), { headers: { cookie } })).status).toBe(200);
     const again = await bare(url);
     expect(again.status).toBe(401);
     expect(await again.text()).toContain('für einen einzigen Browser');
@@ -290,7 +290,7 @@ describe('only the owner', () => {
     expect((await bare('/?c=main', { headers: { 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'navigate', cookie } })).status).toBe(200);
   });
 
-  test('a canvas’s and a card’s address serve the page, to the owner only', async () => {
+  test('a project’s and a card’s address serve the page, to the owner only', async () => {
     const cookie = (await bare(await link())).headers.get('set-cookie')!.split(';')[0]!;
     const page = await bare('/p/main/c/a1b2c3', { headers: { cookie } });
     expect(page.status).toBe(200);
@@ -405,7 +405,7 @@ describe('plan docs', () => {
   test("a plan's plan doc is read as written; other cards have none", async () => {
     const md = '# Export\n\n## Goal\n\nCSV for landlords.\n\n## Workstreams\n\n- [ ] **W1:** CSV. Columns as in `docs/x.md`.\n\n## Notes\n\nMore.\n';
     // where plan docs are read: the Lesestand of the repository (a worktree on its default branch)
-    const read = canvas.repos[0]!.read.path;
+    const read = project.repos[0]!.read.path;
     mkdirSync(join(read, 'docs', 'plan'), { recursive: true });
     writeFileSync(join(read, 'docs', 'plan', 'export.md'), md);
     board.docsChanged();
@@ -444,7 +444,7 @@ describe('voice', () => {
     expect(executed).toEqual([{ do: 'newCard', title: 'Export', body: 'CSV', start: true }]);
   });
 
-  test('a card a recording makes carries where the owner was on the canvas; a follow-up does not', async () => {
+  test('a card a recording makes carries where the owner was on the project; a follow-up does not', async () => {
     const res = fetch(new URL(`${api('/voice')}?place=400,300,0,0,1200,800`, server.url), { method: 'POST', body: 'AUDIO' });
     const s = await briefed();
     s.call('act', { actions: [{ do: 'new_card', title: 'Export', body: 'CSV', start: false }, { do: 'new_idea', title: 'Mieter', body: '' }], confirm: 'Zwei neue Karten.' });
@@ -534,7 +534,7 @@ describe('voice', () => {
 
   test('a page that opens while a command waits for undo (a reload) offers "Rückgängig" again', async () => {
     const c = card();
-    canvas.commander.undoable = () => [{ text: '„A“ startet.', token: 'tok', undoMs: 3000, cardId: c.id }];
+    project.commander.undoable = () => [{ text: '„A“ startet.', token: 'tok', undoMs: 3000, cardId: c.id }];
     const messages: ServerMessage[] = [];
     const ws = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
     ws.onmessage = (e) => messages.push(JSON.parse(e.data));
@@ -561,9 +561,9 @@ describe('voice', () => {
   });
 
   test('a session that fails is replaced by a fresh one for the same command', async () => {
-    canvas.commander.warm();
+    project.commander.warm();
     const k = interpretation();
-    const heard = canvas.commander.hear('ähm', {});
+    const heard = project.commander.hear('ähm', {});
     await until(() => k.inbox.length);
     k.emit({ type: 'error', message: 'stale' });
     expect(k.closed).toBe(true);
@@ -576,9 +576,9 @@ describe('voice', () => {
 
   test('a session that fails again tells the owner why, not that they went unheard', async () => {
     const c = card();
-    canvas.commander.warm();
+    project.commander.warm();
     const k = interpretation();
-    const heard = canvas.commander.hear('starte A', { card: c.id });
+    const heard = project.commander.hear('starte A', { card: c.id });
     await until(() => k.inbox.length);
     k.emit({ type: 'error', message: 'Not logged in · Please run /login' });
     await until(() => interpretation() !== k);
@@ -592,7 +592,7 @@ describe('voice', () => {
 
   test("on a card an agent listens on, typed and spoken words go straight to it, without the Koordinator", async () => {
     const told: [string, string, string[], boolean][] = [];
-    canvas.tell = (cardId, text, images, spoken) => void told.push([cardId, text, images, spoken]);
+    project.tell = (cardId, text, images, spoken) => void told.push([cardId, text, images, spoken]);
     const c = card();
     board.work(c.id, { state: 'waiting', need: 'review' });
     const typed = (await (await post(api(`/command?card=${c.id}`), JSON.stringify({ text: 'gib das frei', field: 'feedback' }))).json()) as { quiet?: boolean };
@@ -619,7 +619,7 @@ describe('voice', () => {
 
   test('words typed or spoken in reply to a message of the card go to its agent with it', async () => {
     const told: (number | undefined)[] = [];
-    canvas.tell = (_cardId, _text, _images, _spoken, replyTo) => void told.push(replyTo);
+    project.tell = (_cardId, _text, _images, _spoken, replyTo) => void told.push(replyTo);
     const c = card();
     board.work(c.id, { state: 'working' });
     await post(api(`/command?card=${c.id}`), JSON.stringify({ text: 'nein, so', field: 'note', replyTo: 7 }));
@@ -631,7 +631,7 @@ describe('voice', () => {
 
   test('words typed or spoken in reply to a message of the sheet go to the Koordinator with it', async () => {
     const heard: unknown[] = [];
-    canvas.commander.hear = async (_text, _focus, _images, input = {}) => {
+    project.commander.hear = async (_text, _focus, _images, input = {}) => {
       heard.push(input.replyTo);
       return { confirm: 'Ok.' };
     };
@@ -644,7 +644,7 @@ describe('voice', () => {
 
   test('words dictated into a field come back without going anywhere; spoken at once, the field’s words go first', async () => {
     const told: string[] = [];
-    canvas.tell = (_cardId, text) => void told.push(text);
+    project.tell = (_cardId, text) => void told.push(text);
     const c = card();
     board.work(c.id, { state: 'working' });
     whisper = () => 'und hier fehlt der zweite Knopf';
@@ -671,7 +671,7 @@ describe('voice', () => {
 
   test('words typed or spoken about a place in the demo video go to its agent with it', async () => {
     const told: unknown[] = [];
-    canvas.tell = (_cardId, _text, _images, _spoken, _replyTo, spot) => void told.push(spot);
+    project.tell = (_cardId, _text, _images, _spoken, _replyTo, spot) => void told.push(spot);
     const c = card();
     board.work(c.id, { state: 'working' });
     await post(api(`/command?card=${c.id}`), JSON.stringify({ text: 'hier', field: 'note', spot: { at: 83.2 } }));
@@ -714,7 +714,7 @@ describe('screenshots', () => {
     const s = runtime.sessions.find((x) => x.spec.tools.some((t) => t.name === 'ready_for_review'))!;
     expect(s.inbox[0]).toContain('Der Knopf hier ist zu klein');
     expect(s.inbox[0]).toContain('attached a screenshot');
-    expect(s.images[0]).toEqual([canvas.images.path(id)!]);
+    expect(s.images[0]).toEqual([project.images.path(id)!]);
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'hint', author: 'owner', text: 'Der Knopf hier ist zu klein', images: [id] });
   });
 
@@ -738,7 +738,7 @@ describe('screenshots', () => {
     const koordinator = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'act')).at(-1);
     await until(() => koordinator()?.inbox.length);
     const k = koordinator()!;
-    expect(k.images[0]).toEqual([canvas.images.path(id)!]);
+    expect(k.images[0]).toEqual([project.images.path(id)!]);
     expect(k.inbox[0]).toContain('The owner attached a screenshot');
     k.call('act', {
       actions: [
@@ -768,7 +768,7 @@ describe('screenshots', () => {
     const koordinator = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'act')).at(-1);
     await until(() => koordinator()?.inbox.length);
     const k = koordinator()!;
-    expect(k.images[0]).toEqual([canvas.images.path(id)!]);
+    expect(k.images[0]).toEqual([project.images.path(id)!]);
     k.call('act', { actions: [{ do: 'new_card', title: 'Export', body: 'bricht um' }], confirm: 'Neue Karte „Export“.' });
     expect(await (await res).json()).not.toHaveProperty('unheard');
     await until(() => executed.length);
@@ -781,7 +781,7 @@ describe('screenshots', () => {
 
   test('a new card from a command keeps its screenshots; one said with a start goes to the task', async () => {
     const { id } = (await (await upload(png)).json()) as { id: string };
-    const run = CanvasRuntime.prototype.run.bind(canvas);
+    const run = ProjectRuntime.prototype.run.bind(project);
     run({ do: 'newCard', title: 'Seite bricht um', body: '', start: false, images: [id] });
     const made = board.snapshot().items.find((i) => i.title === 'Seite bricht um')!;
     expect(made.images).toEqual([id]);
@@ -810,7 +810,7 @@ describe('other files', () => {
   test('are kept under their name, which goes into a path, and their path comes back', async () => {
     const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 1, 2, 3]);
     const { path } = (await (await upload(pdf, 'Rechnung März 2026.pdf')).json()) as { path: string };
-    expect(path.startsWith(join(canvas.files.dir, ''))).toBe(true);
+    expect(path.startsWith(join(project.files.dir, ''))).toBe(true);
     expect(path).toMatch(/[0-9a-f-]{36}\/Rechnung-März-2026\.pdf$/);
     expect(new Uint8Array(readFileSync(path))).toEqual(pdf);
     // the same name twice: two files
@@ -818,14 +818,14 @@ describe('other files', () => {
     expect(again.path).not.toBe(path);
     // a name cannot lead out of its directory
     const out = (await (await upload(pdf, '../../obeya.db')).json()) as { path: string };
-    expect(dirname(dirname(out.path))).toBe(canvas.files.dir);
+    expect(dirname(dirname(out.path))).toBe(project.files.dir);
   });
 
 });
 
 describe('„Merk dir“', () => {
   test('adds a rule, changes the one it replaces, and adds it anew when that one is gone', () => {
-    const run = CanvasRuntime.prototype.run.bind(canvas);
+    const run = ProjectRuntime.prototype.run.bind(project);
     const c = card();
     run({ do: 'remember', text: 'Demos ohne Ton.', card: c.id });
     const [rule] = board.preferences('active');
@@ -839,8 +839,8 @@ describe('„Merk dir“', () => {
   });
 
   test('a rule about a repository goes straight into its card „CLAUDE.md ergänzen“, which starts once no proposal waits', async () => {
-    const run = CanvasRuntime.prototype.run.bind(canvas);
-    const repo = board.canvas.repos[0]!.id;
+    const run = ProjectRuntime.prototype.run.bind(project);
+    const repo = board.project.repos[0]!.id;
     const c = card();
     const waiting = board.proposePreference('Fragen mit höchstens drei Optionen.', {});
     const moved = board.addPreference('Tests auf Deutsch.');
@@ -856,7 +856,7 @@ describe('„Merk dir“', () => {
     expect(board.collecting(repo)!.body).toEndWith('- Tests auf Deutsch benennen.\n- Commits auf Englisch.');
     expect(await codeOf(post(api('/preferences'), JSON.stringify({ text: 'X.', target: 'nope' })))).toBe('invalid');
     expect(board.preferencesText()).toBe('');
-    canvas.rejectRule(waiting);
+    project.rejectRule(waiting);
     expect(board.item(collect.id)!.queue).toBeTruthy();
     expect(board.collecting(repo)).toBeUndefined();
   });
@@ -865,18 +865,18 @@ describe('„Merk dir“', () => {
 describe('the Developer section', () => {
   test('restarts or rebuilds Seismic where it may, waiting for the workers like any restart', async () => {
     const gone: string[] = [];
-    let busy = [{ canvas: 'main', card: 'k1' }];
+    let busy = [{ project: 'main', card: 'k1' }];
     const restarter = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 60_000, intervalMs: 10 });
     const transcriber = { transcribe: async () => ({ text: '', doubtful: false }) };
     // without the supervisor (--dev) neither goes
     server.stop(true);
-    server = serve([canvas], { transcriber }, 0, false, undefined, restarter);
+    server = serve([project], { transcriber }, 0, false, undefined, restarter);
     expect(await (await fetch(new URL('/api/developer', server.url))).json()).toEqual({ restart: false, rebuild: false, why: 'dev' });
     expect(await codeOf(post('/api/developer/restart', ''))).toBe('invalid');
     expect(restarter.due()).toBeNull();
 
     server.stop(true);
-    server = serve([canvas], { transcriber }, 0, false, undefined, restarter, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, { restart: true, rebuild: false, rebuildWhy: 'compiled' });
+    server = serve([project], { transcriber }, 0, false, undefined, restarter, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, { restart: true, rebuild: false, rebuildWhy: 'compiled' });
     expect(await codeOf(post('/api/developer/rebuild', ''))).toBe('invalid');
     expect(await codeOf(post('/api/developer/other', ''))).toBe('invalid');
     expect(await (await post('/api/developer/restart', '')).json()).toEqual({ requested: 'restart' });
@@ -888,13 +888,13 @@ describe('the Developer section', () => {
 });
 
 describe('a newer version of the app', () => {
-  test('shows on the canvas while the shell reports it, and installing it waits like a restart', async () => {
+  test('shows on the project while the shell reports it, and installing it waits like a restart', async () => {
     const gone: string[] = [];
-    let busy = [{ canvas: 'main', card: 'k1' }];
+    let busy = [{ project: 'main', card: 'k1' }];
     const restarter = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 60_000, intervalMs: 10 });
     const updates = new AppUpdates();
     server.stop(true);
-    server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
+    server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
     const messages: ServerMessage[] = [];
     const ws = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
     ws.onmessage = (e) => messages.push(JSON.parse(e.data));
@@ -927,7 +927,7 @@ describe('a newer version of the app', () => {
     const restarter = new Restarter({ busy: () => [], go: () => {} });
     const updates = new AppUpdates();
     server.stop(true);
-    server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
+    server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
     await post('/api/app-update', JSON.stringify({ version: '0.2.0', download: 'https://github.com/sadilek/obeya/releases/tag/v0.2.0' }));
     expect(updates.current()).toEqual({ version: '0.2.0', download: 'https://github.com/sadilek/obeya/releases/tag/v0.2.0' });
     expect(await codeOf(post('/api/app-update/install', ''))).toBe('invalid');
@@ -939,11 +939,11 @@ describe('a newer version of the app', () => {
 
   test('a shell installed from a checkout that built itself anew is installed without asking, as landed code is', async () => {
     const gone: string[] = [];
-    let busy = [{ canvas: 'main', card: 'k1' }];
+    let busy = [{ project: 'main', card: 'k1' }];
     const restarter = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 60_000, intervalMs: 10 });
     const updates = new AppUpdates();
     server.stop(true);
-    server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
+    server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
     expect(await (await post('/api/app-update', JSON.stringify({ rebuilt: true }))).json()).toEqual({ updating: true });
     // no button in the bar: the restart shows what it waits for
     expect(updates.current()).toBeNull();
@@ -957,10 +957,10 @@ describe('a newer version of the app', () => {
 
   test('the app taking over an Seismic that runs without it ends it once the workers paused, also when a restart for new code waits', async () => {
     const gone: string[] = [];
-    let busy = [{ canvas: 'main', card: 'k1' }];
+    let busy = [{ project: 'main', card: 'k1' }];
     const restarter = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 60_000, intervalMs: 10 });
     server.stop(true);
-    server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, new AppUpdates());
+    server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, new AppUpdates());
     restarter.request('code');
     expect(await (await post('/api/app-takeover', '')).json()).toEqual({ taking: true });
     await until(() => restarter.due()?.reason === 'takeover');
@@ -976,9 +976,9 @@ describe('a newer version of the app', () => {
 
   test('a new build of the shell starts again without the server, not while the owner speaks, and the page hands over what a reload keeps', async () => {
     const gone: string[] = [];
-    const restarter = new Restarter({ busy: () => [{ canvas: 'main', card: 'k1' }], go: (reason) => gone.push(reason) });
+    const restarter = new Restarter({ busy: () => [{ project: 'main', card: 'k1' }], go: (reason) => gone.push(reason) });
     server.stop(true);
-    server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, new AppUpdates());
+    server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, new AppUpdates());
     const ask = async (kept = '') => (await post('/api/app-rebuilt', JSON.stringify({ kept }))).json();
     // a worker in the middle of a turn does not hold it off: the server and its workers run on
     expect(await ask()).toEqual({ now: true, kept: false });
@@ -1001,7 +1001,7 @@ describe('a newer version of the app', () => {
 });
 
 describe('new commits on the upstream of the checkout Seismic runs from', () => {
-  test('show on the canvas, and the owner pulls them into the checkout', async () => {
+  test('show on the project, and the owner pulls them into the checkout', async () => {
     const up = join(dir, 'up');
     gitRepo(up, { 'src/a.ts': 'a\n' });
     const clone = join(dir, 'clone');
@@ -1011,7 +1011,7 @@ describe('new commits on the upstream of the checkout Seismic runs from', () => 
     git(up, 'commit', '--quiet', '-am', 'Faster');
     const sources = new SourceUpdates(clone);
     server.stop(true);
-    server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, sources);
+    server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, sources);
     const messages: ServerMessage[] = [];
     const ws = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
     ws.onmessage = (e) => messages.push(JSON.parse(e.data));
@@ -1051,7 +1051,7 @@ describe('the usage limits in the bar', () => {
     let closed = 0;
     const usage = new UsageMeter(() => ({ fetch: async () => ({ at: '2026-10-28T08:00:00.000Z', limits: [{ kind: 'session', group: 'session', percent: 7, severity: 'normal' }] }), close: () => void closed++ }), { on: true, lingerMs: 10 });
     server.stop(true);
-    server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, usage);
+    server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, usage);
     const messages: ServerMessage[] = [];
     const ws = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
     ws.onmessage = (e) => messages.push(JSON.parse(e.data));
@@ -1065,33 +1065,33 @@ describe('the usage limits in the bar', () => {
   });
 });
 
-test('a page that froze has its stall logged, with this machine and the canvas as where', async () => {
+test('a page that froze has its stall logged, with this machine and the project as where', async () => {
   const lines: string[] = [];
   server.stop(true);
-  server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, new Stalls({ home: dir, log: (l) => lines.push(l) }));
+  server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, new Stalls({ home: dir, log: (l) => lines.push(l) }));
   const ws = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
   await new Promise((r) => (ws.onopen = r));
   ws.send(JSON.stringify({ type: 'stall', ms: 200, scripts: [], before: [] } satisfies ClientMessage));
   ws.send(JSON.stringify({ type: 'stall', ms: 1300, scripts: [{ what: 'WebSocket.onmessage: (anonymous)', ms: 1200 }], before: [] } satisfies ClientMessage));
   await until(() => lines.length > 0);
   ws.close();
-  expect(lines).toEqual(['Seismic: a page (this machine, canvas main) stalled for 1.3 s; meanwhile it took no click or key', '  1.2 s WebSocket.onmessage: (anonymous)']);
+  expect(lines).toEqual(['Seismic: a page (this machine, project main) stalled for 1.3 s; meanwhile it took no click or key', '  1.2 s WebSocket.onmessage: (anonymous)']);
 });
 
 describe('a restart that waits', () => {
-  test('shows on the canvas with the cards it waits for, here and by title on the others, and goes ahead at the owner\'s word', async () => {
+  test('shows on the project with the cards it waits for, here and by title on the others, and goes ahead at the owner\'s word', async () => {
     const other = join(dir, 'other');
     gitRepo(other);
-    const second = new CanvasRuntime({ repos: [{ path: other }] }, { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge });
+    const second = new ProjectRuntime({ repos: [{ path: other }] }, { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge });
     const there = second.board.create({ title: 'Export als CSV', x: 0, y: 0 });
     let busy = [
-      { canvas: 'main', card: 'k1' },
-      { canvas: second.id, card: there.id },
+      { project: 'main', card: 'k1' },
+      { project: second.id, card: there.id },
     ];
     let gone = 0;
     const restarter = new Restarter({ busy: () => busy, go: () => gone++, patienceMs: 60_000, intervalMs: 10 });
     server.stop(true);
-    server = serve([canvas, second], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter);
+    server = serve([project, second], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter);
     const messages: ServerMessage[] = [];
     const ws = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
     ws.onmessage = (e) => messages.push(JSON.parse(e.data));
@@ -1103,7 +1103,7 @@ describe('a restart that waits', () => {
 
     restarter.request('code');
     await until(() => restarts().length === 2);
-    expect(restarts()[1]!.restart).toMatchObject({ reason: 'code', cards: ['k1'], elsewhere: [{ canvas: second.board.canvas.name, cards: ['Export als CSV'] }] });
+    expect(restarts()[1]!.restart).toMatchObject({ reason: 'code', cards: ['k1'], elsewhere: [{ project: second.board.project.name, cards: ['Export als CSV'] }] });
     busy = [busy[0]!];
     await until(() => restarts().length === 3);
     expect(restarts()[2]!.restart).toMatchObject({ cards: ['k1'], elsewhere: [] });
@@ -1117,7 +1117,7 @@ describe('a restart that waits', () => {
     let gone = 0;
     const restarter = new Restarter({ busy: () => [], go: () => gone++, patienceMs: 0, intervalMs: 10 });
     server.stop(true);
-    server = serve([canvas], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter);
+    server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter);
     const messages: ServerMessage[] = [];
     const connect = async () => {
       const ws = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
@@ -1153,7 +1153,7 @@ describe('a restart that waits', () => {
     let written = (_: string) => {};
     const writing = new Promise<string>((resolve) => (written = resolve));
     server.stop(true);
-    server = serve([canvas], { transcriber: { transcribe: async () => ({ text: await writing, doubtful: false }) } }, 0, false, undefined, restarter);
+    server = serve([project], { transcriber: { transcribe: async () => ({ text: await writing, doubtful: false }) } }, 0, false, undefined, restarter);
     const dictated = fetch(new URL(api('/voice?listen'), server.url), { method: 'POST', body: 'AUDIO' });
     await until(() => restarter['holds'].size === 1);
     restarter.request('code');
@@ -1167,14 +1167,14 @@ describe('a restart that waits', () => {
 });
 
 describe('cards that need the owner', () => {
-  test('reach every canvas\'s pages, so each page lists those of the others too', async () => {
+  test('reach every project\'s pages, so each page lists those of the others too', async () => {
     const other = join(dir, 'other');
     gitRepo(other);
-    const second = new CanvasRuntime({ repos: [{ path: other }] }, { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge });
+    const second = new ProjectRuntime({ repos: [{ path: other }] }, { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge });
     const waiting = second.board.create({ title: 'B', x: 0, y: 0 });
     second.board.work(waiting.id, { state: 'waiting', need: 'review' });
     server.stop(true);
-    server = serve([canvas, second], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
+    server = serve([project, second], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
     const messages: ServerMessage[] = [];
     const ws = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
     ws.onmessage = (e) => messages.push(JSON.parse(e.data));
@@ -1183,7 +1183,7 @@ describe('cards that need the owner', () => {
     await until(() => sent().length === 1);
     expect(titles(0)).toEqual({ main: [], other: ['B'] });
 
-    // a change to a waiting card on the other canvas reaches this one; one to a card that does not wait does not
+    // a change to a waiting card on the other project reaches this one; one to a card that does not wait does not
     second.board.patch(waiting.id, { title: 'B2' });
     await until(() => sent().length === 2);
     expect(titles(1)).toEqual({ main: [], other: ['B2'] });
@@ -1199,12 +1199,12 @@ describe('cards that need the owner', () => {
   });
 });
 
-describe('canvases that start and stop while Seismic runs', () => {
-  test('a new canvas is served at once and every page hears of it; the pages of one that stopped go elsewhere', async () => {
+describe('projects that start and stop while Seismic runs', () => {
+  test('a new project is served at once and every page hears of it; the pages of one that stopped go elsewhere', async () => {
     const other = join(dir, 'other');
     gitRepo(other);
-    const set = new Canvases([], { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge, restartIntervalMs: 5 });
-    const list = [canvas];
+    const set = new Projects([], { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge, restartIntervalMs: 5 });
+    const list = [project];
     server.stop(true);
     server = serve({ all: () => [...list, ...set.all()], onChange: (fn) => set.onChange(fn) }, { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
     const messages: ServerMessage[] = [];
@@ -1213,9 +1213,9 @@ describe('canvases that start and stop while Seismic runs', () => {
     await until(() => messages.some((m) => m.type === 'snapshot'));
 
     set.apply([{ name: 'Andere', repos: [{ path: other }] }], ['andere']);
-    await until(() => messages.some((m) => m.type === 'canvases'));
-    expect(messages.find((m) => m.type === 'canvases')).toMatchObject({ canvases: [{ id: 'main' }, { id: 'andere', name: 'Andere' }] });
-    const listed = (await (await fetch(new URL('/api/canvases', server.url))).json()) as { id: string }[];
+    await until(() => messages.some((m) => m.type === 'projects'));
+    expect(messages.find((m) => m.type === 'projects')).toMatchObject({ projects: [{ id: 'main' }, { id: 'andere', name: 'Andere' }] });
+    const listed = (await (await fetch(new URL('/api/projects', server.url))).json()) as { id: string }[];
     expect(listed.map((c) => c.id)).toEqual(['main', 'andere']);
     const theirs = new WebSocket(new URL('/api/c/andere/ws', server.url.href.replace('http', 'ws')));
     let closed = false;
@@ -1225,7 +1225,7 @@ describe('canvases that start and stop while Seismic runs', () => {
     // it leaves the configuration: nobody works on it, so it stops at once and its page is closed
     set.apply([], []);
     await until(() => closed);
-    expect(messages.filter((m) => m.type === 'canvases').at(-1)).toMatchObject({ canvases: [{ id: 'main' }] });
+    expect(messages.filter((m) => m.type === 'projects').at(-1)).toMatchObject({ projects: [{ id: 'main' }] });
     expect((await post('/api/c/andere/cards', JSON.stringify({ title: 'X', x: 0, y: 0 }))).status).toBe(404);
     ws.close();
   });
@@ -1242,9 +1242,9 @@ describe('landing approved work', () => {
     git(repo, 'fetch', '--quiet', 'origin');
     const pushing = join(dir, 'pushing');
     writeFileSync(join(origin, 'hooks/pre-receive'), `#!/bin/sh\ntouch '${pushing}'\nsleep 1\n`, { mode: 0o755 });
-    const pushed = new CanvasRuntime({ repos: [{ path: repo, clones: 2, settings: { land: 'pr', direct: true, workstations: 'clones' } }] }, { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge });
+    const pushed = new ProjectRuntime({ repos: [{ path: repo, clones: 2, settings: { land: 'pr', direct: true, workstations: 'clones' } }] }, { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge });
     server.stop(true);
-    server = serve([canvas, pushed], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
+    server = serve([project, pushed], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
     const handedOver = async (title: string) => {
       const c = pushed.board.create({ title, x: 0, y: 0 });
       await pushed.repoOf(c.id).workers.start(c.id);
@@ -1260,14 +1260,14 @@ describe('landing approved work', () => {
     };
     const a = await handedOver('A');
     const b = await handedOver('B');
-    const approve = (id: string) => post(`/api/c/${pushed.board.canvas.id}/cards/${id}/act`, JSON.stringify({ action: 'approve', direct: true }));
+    const approve = (id: string) => post(`/api/c/${pushed.board.project.id}/cards/${id}/act`, JSON.stringify({ action: 'approve', direct: true }));
 
     let answered = 0;
     const landings = [approve(a.id), approve(b.id)].map((r) => r.then((res) => (answered++, res)));
-    // while git pushes, the server answers other requests, on this canvas and the others
+    // while git pushes, the server answers other requests, on this project and the others
     await until(() => existsSync(pushing));
-    expect((await fetch(new URL(`/api/c/${pushed.board.canvas.id}/canvas`, server.url))).status).toBe(200);
-    expect((await fetch(new URL(api('/canvas'), server.url))).status).toBe(200);
+    expect((await fetch(new URL(`/api/c/${pushed.board.project.id}/project`, server.url))).status).toBe(200);
+    expect((await fetch(new URL(api('/project'), server.url))).status).toBe(200);
     expect(answered).toBe(0);
     // approving again while it lands is refused
     expect(await codeOf(approve(a.id))).toBe('notReady');
@@ -1293,12 +1293,12 @@ describe('starting a card', () => {
     const uploadPack = join(dir, 'slow-upload-pack');
     writeFileSync(uploadPack, slow('fetch', 'exec git-upload-pack "$@"\n'), { mode: 0o755 });
     const deps = (home: string) => ({ store: new Store(':memory:'), home: join(dir, home), runtime, forge: noForge });
-    const worktrees = new CanvasRuntime({ name: 'Worktrees', repos: [{ path: trees, settings: { workstations: 'worktrees' } }] }, deps('home-trees'));
-    const clones = new CanvasRuntime({ name: 'Clones', repos: [{ path: cloned, clones: 1, settings: { workstations: 'clones' } }] }, deps('home-clones'));
+    const worktrees = new ProjectRuntime({ name: 'Worktrees', repos: [{ path: trees, settings: { workstations: 'worktrees' } }] }, deps('home-trees'));
+    const clones = new ProjectRuntime({ name: 'Clones', repos: [{ path: cloned, clones: 1, settings: { workstations: 'clones' } }] }, deps('home-clones'));
     const [clone] = clones.repos[0]!.workstations.list();
     git(clone!.path, 'config', 'remote.origin.uploadpack', uploadPack);
     server.stop(true);
-    server = serve([canvas, worktrees, clones], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
+    server = serve([project, worktrees, clones], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
 
     const starts = [worktrees, clones].map((c) => {
       const card = c.board.create({ title: 'Langsamer Start', x: 0, y: 0 });
@@ -1311,7 +1311,7 @@ describe('starting a card', () => {
     await until(() => existsSync(join(marks, 'worktree')) && existsSync(join(marks, 'fetch')));
     for (const { c, card } of starts) {
       const before = Date.now();
-      const res = await fetch(new URL(`/api/c/${c.board.canvas.id}/canvas`, server.url));
+      const res = await fetch(new URL(`/api/c/${c.board.project.id}/project`, server.url));
       expect(res.status).toBe(200);
       expect(Date.now() - before).toBeLessThan(1000);
       const shown = ((await res.json()) as { items: { id: string; state: string; statusLine?: string }[] }).items.find((i) => i.id === card.id);
@@ -1319,7 +1319,7 @@ describe('starting a card', () => {
       // its worker waits for the workstation
       expect(runtime.sessions.some((s) => s.spec.cwd === c.board.row(card.id).workstation)).toBe(false);
     }
-    expect((await fetch(new URL(api('/canvas'), server.url))).status).toBe(200);
+    expect((await fetch(new URL(api('/project'), server.url))).status).toBe(200);
 
     for (const { c, card, started } of starts) {
       await started;
@@ -1342,7 +1342,7 @@ describe('the Lesestand and the free clones', () => {
     const checkout = join(dir, 'checkout');
     git(dir, 'clone', '--quiet', origin, checkout);
     // work goes out as pull requests: the Lesestand is a worktree of the checkout, apart from the pool's clone
-    const shop = new CanvasRuntime(
+    const shop = new ProjectRuntime(
       { name: 'Shop', repos: [{ path: checkout, clones: 1, settings: { land: 'pr', workstations: 'clones' } }] },
       { store: new Store(':memory:'), home: join(dir, 'home-shop'), runtime, forge: noForge },
     );
@@ -1361,11 +1361,11 @@ describe('the Lesestand and the free clones', () => {
     const [clone] = shop.repos[0]!.workstations.list();
     git(clone!.path, 'config', 'core.fsmonitor', slow('status', 'exit 1'));
     server.stop(true);
-    server = serve([canvas, shop], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
+    server = serve([project, shop], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
     const answers = async () => {
-      for (const c of [shop, canvas]) {
+      for (const c of [shop, project]) {
         const before = Date.now();
-        expect((await fetch(new URL(`/api/c/${c.board.canvas.id}/canvas`, server.url))).status).toBe(200);
+        expect((await fetch(new URL(`/api/c/${c.board.project.id}/project`, server.url))).status).toBe(200);
         expect(Date.now() - before).toBeLessThan(1000);
       }
     };
@@ -1383,7 +1383,7 @@ describe('the Lesestand and the free clones', () => {
     await refreshed;
     expect(plans()).toEqual(['Export', 'Import']);
 
-    // a minute on (the canvas shown before looked at the free clone for the Workstations pill), whether a card
+    // a minute on (the project shown before looked at the free clone for the Workstations pill), whether a card
     // may take it is answered at once, while git looks at it again in the background
     setSystemTime(new Date(Date.now() + RECHECK_MS));
     const before = Date.now();
@@ -1430,11 +1430,11 @@ describe('freeing and discarding workstations', () => {
     go('status');
     // a prototype in the pool's only clone, and a card in a worktree of its own
     const origin = gitRepo(join(dir, 'shop'), { 'guide.md': 'Guide\n', '.gitattributes': '*.md filter=slow\n' });
-    const shop = new CanvasRuntime(
+    const shop = new ProjectRuntime(
       { name: 'Shop', repos: [{ path: origin, clones: 1, settings: { land: 'pr', workstations: 'clones' } }] },
       { store: new Store(':memory:'), home: join(dir, 'home-shop'), runtime, forge: noForge },
     );
-    const tools = new CanvasRuntime(
+    const tools = new ProjectRuntime(
       { name: 'Tools', repos: [{ path: gitRepo(join(dir, 'tools')), settings: { land: 'main', workstations: 'worktrees' } }] },
       { store: new Store(':memory:'), home: join(dir, 'home-tools'), runtime, forge: noForge },
     );
@@ -1444,11 +1444,11 @@ describe('freeing and discarding workstations', () => {
     git(clone!.path, 'config', 'filter.slow.clean', 'cat');
     git(tools.repos[0]!.ref.path, 'config', 'core.fsmonitor', slow('status', 'exit 1'));
     server.stop(true);
-    server = serve([canvas, shop, tools], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
+    server = serve([project, shop, tools], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
     const answers = async () => {
-      for (const c of [shop, tools, canvas]) {
+      for (const c of [shop, tools, project]) {
         const before = Date.now();
-        expect((await fetch(new URL(`/api/c/${c.board.canvas.id}/canvas`, server.url))).status).toBe(200);
+        expect((await fetch(new URL(`/api/c/${c.board.project.id}/project`, server.url))).status).toBe(200);
         expect(Date.now() - before).toBeLessThan(1000);
       }
     };
@@ -1463,7 +1463,7 @@ describe('freeing and discarding workstations', () => {
     git(clone!.path, 'commit', '--quiet', '-am', 'Button');
     hold('checkout');
     const discarding = Date.now();
-    const discarded = await fetch(new URL(`/api/c/${shop.board.canvas.id}/cards/${prototype.id}/act`, server.url), {
+    const discarded = await fetch(new URL(`/api/c/${shop.board.project.id}/cards/${prototype.id}/act`, server.url), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ action: 'discard' }),

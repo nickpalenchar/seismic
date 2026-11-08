@@ -18,7 +18,7 @@ const FETCH_TIMEOUT_MS = 30_000;
 const MAX_SKIPPED = 14;
 /** Limits not fetched again for this long (Claude Code failing meanwhile) are no longer shown. */
 const STALE_MS = 5 * 60_000;
-/** How long the session and its numbers outlast the last page: a reload or a switch to another canvas opens the next one sooner. */
+/** How long the session and its numbers outlast the last page: a reload or a switch to another project opens the next one sooner. */
 export const USAGE_LINGER_MS = 30_000;
 
 /** Where the limits come from: asked again each round, closed once the bar no longer shows them. */
@@ -31,7 +31,7 @@ export interface UsageSource {
 /**
  * The limits for the bar: fetched now and every `everyMs` while the owner has the bar show them
  * (`setOn`) and a page is open (`watch`), from a source started for that and closed once neither
- * holds, a page closed `lingerMs` ago still counting as open (the page a reload or another canvas
+ * holds, a page closed `lingerMs` ago still counting as open (the page a reload or another project
  * opens next shows the numbers at once, without a session started anew). A source that fails is closed, and a later round starts a new one, after more rounds the
  * more often it failed (a Claude Code too old to answer would otherwise start a session a minute);
  * what it fetched last stands meanwhile, for a few minutes.

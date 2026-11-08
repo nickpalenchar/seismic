@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { boundsOf, onCanvas, PLAN_COLLAPSED, sizeOf } from '../core/layout';
+import { boundsOf, onProject, PLAN_COLLAPSED, sizeOf } from '../core/layout';
 import type { PlanDoc } from '../core/plan-doc';
 import { BadRequest, Board, pathOfRef, type PlanRead, repoOfRef } from './board';
 import { Store } from './db';
@@ -93,7 +93,7 @@ describe('plan docs', () => {
     expect(w4.y).toBeGreaterThan(lowest);
   });
 
-  test('a new plan is placed clear of everything on the canvas', () => {
+  test('a new plan is placed clear of everything on the project', () => {
     const first = board.snapshot().items;
     docs = [docA, docB];
     board.docsChanged();
@@ -111,14 +111,14 @@ describe('plan docs', () => {
     expect(items[0]).toMatchObject({ id: p.id, collapsed: true });
     expect(boundsOf(items[0]!, items)).toMatchObject({ w: PLAN_COLLAPSED[0], h: PLAN_COLLAPSED[1] });
     // its workstreams are still there, for its sheet and its marks
-    expect(onCanvas(items).map((i) => i.id)).toEqual([p.id]);
+    expect(onProject(items).map((i) => i.id)).toEqual([p.id]);
     expect(items.filter((i) => i.parent === p.id)).toHaveLength(3);
     expect(() => board.patch(p.id, { collapsed: 'yes' as never })).toThrow(BadRequest);
     expect(() => board.patch(items[1]!.id, { collapsed: true })).toThrow(BadRequest);
     board.patch(p.id, { collapsed: false });
     items = board.snapshot().items;
     expect(items[0]!.collapsed).toBeUndefined();
-    expect(onCanvas(items)).toHaveLength(4);
+    expect(onProject(items)).toHaveLength(4);
   });
 
   test('a card made without a place (from the phone) goes where there is room', () => {
@@ -126,7 +126,7 @@ describe('plan docs', () => {
     const items = board.snapshot().items;
     const mine = boundsOf(items.find((i) => i.id === c.id)!, items);
     const clear = (b: ReturnType<typeof boundsOf>) => mine.x + mine.w <= b.x || b.x + b.w <= mine.x || mine.y + mine.h <= b.y || b.y + b.h <= mine.y;
-    expect(onCanvas(items).filter((i) => i.id !== c.id && !i.parent).every((i) => clear(boundsOf(i, items)))).toBe(true);
+    expect(onProject(items).filter((i) => i.id !== c.id && !i.parent).every((i) => clear(boundsOf(i, items)))).toBe(true);
     expect(() => board.create({ title: '', x: 1 })).toThrow(BadRequest);
   });
 
@@ -232,7 +232,7 @@ describe('plan docs', () => {
     const [p, w1] = board.snapshot().items;
     docs = [];
     board.docsChanged();
-    // nothing looked at the canvas since the doc went
+    // nothing looked at the project since the doc went
     expect(board.card(p!.id)).toMatchObject({ kind: 'plan', title: 'A', archivedAt: expect.any(String) });
     board.changed();
     expect(board.card(w1!.id)).toEqual(board.archived()[1]!);
@@ -258,7 +258,7 @@ describe('plan docs', () => {
     expect(board.archived()).toEqual([]);
   });
 
-  test('a workstream still at work keeps its plan on the canvas once every box is ticked', () => {
+  test('a workstream still at work keeps its plan on the project once every box is ticked', () => {
     const w2 = board.snapshot().items.find((i) => i.label === 'W2')!;
     board.work(w2.id, { state: 'working' });
     docs = [{ ...docA, workstreams: docA.workstreams.map((w) => ({ ...w, done: true })) }];
@@ -412,8 +412,8 @@ describe('the archive of plans', () => {
     expect(b.origin).toBe(idea.id);
     const w1 = board.snapshot().items.find((i) => i.parent === b.id)!;
     // one answered in the owner's name, as a plan agent did before workers asked the owner directly
-    store.addDecision({ canvas_id: 'shop', plan_id: b.id, card_id: w1.id, question: 'Welche Spalten?', answer: 'Alle.', by: 'plan' });
-    // the idea's card leaves the canvas; the plan still finds it
+    store.addDecision({ project_id: 'shop', plan_id: b.id, card_id: w1.id, question: 'Welche Spalten?', answer: 'Alle.', by: 'plan' });
+    // the idea's card leaves the project; the plan still finds it
     board.archive([idea.id]);
     const h = board.planHistory(b.id);
     expect(h.decisions.map((d) => [d.cardId, d.answer, d.by])).toEqual([
@@ -466,7 +466,7 @@ describe('the archive of plans', () => {
     expect(board.item(idea.id)).toBeUndefined();
     expect(board.archived().find((i) => i.id === idea.id)).toMatchObject({ title: 'Idee B' });
     expect(board.events(idea.id).at(-1)!.text).toContain('an der Stelle der Idee');
-    // put back on the canvas, it stays
+    // put back on the project, it stays
     board.unarchive(idea.id);
     board.docsChanged();
     expect(board.item(idea.id)).toBeDefined();
@@ -552,7 +552,7 @@ describe('manual cards', () => {
     expect(ids).not.toContain(old.id);
   });
 
-  test('cards are persisted per canvas', () => {
+  test('cards are persisted per project', () => {
     board.create({ title: 'mine', x: 0, y: 0 });
     const other = new Board(store, { id: 'other', name: 'Other', repos: [{ id: 'home', name: 'Home', path: '/o', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     expect(other.snapshot().items).toEqual([]);
@@ -566,7 +566,7 @@ describe('archive', () => {
     return c;
   };
 
-  test('an archived card leaves the canvas and heads the archive until it goes back', async () => {
+  test('an archived card leaves the project and heads the archive until it goes back', async () => {
     const a = done('A');
     const b = done('B');
     board.archive([a.id]);
@@ -639,7 +639,7 @@ describe('archive', () => {
     expect(board.snapshot().items.find((i) => i.id === idea.id)).toMatchObject({ x: 30, y: 40, idea: { status: 'parked' } });
   });
 
-  test('archiving everything finished leaves the rest on the canvas', () => {
+  test('archiving everything finished leaves the rest on the project', () => {
     const a = done('A');
     const b = done('B');
     const open = board.create({ title: 'Open', x: 0, y: 0 });
@@ -786,7 +786,7 @@ describe('groups', () => {
     expect(board.snapshot().groups).toEqual([]);
   });
 
-  test('groups are kept per canvas', () => {
+  test('groups are kept per project', () => {
     const a = board.create({ title: 'A', x: 0, y: 0 });
     const g = board.createGroup('Hier', [a.id]);
     const other = new Board(store, { id: 'other', name: 'Other', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
@@ -882,7 +882,7 @@ describe('owner-drawn dependencies', () => {
     board.connect(b.id, c.id);
     expect(board.item(b.id)?.manualDependsOn).toEqual([a.id]);
     expect(refusal(() => board.connect(c.id, a.id))).toBe('dependencyCycle');
-    const reopened = new Board(store, board.canvas, () => ({ docs, dirs }));
+    const reopened = new Board(store, board.project, () => ({ docs, dirs }));
     expect(reopened.item(c.id)?.manualDependsOn).toEqual([b.id]);
     reopened.connect(a.id, b.id, true);
     expect(reopened.item(b.id)?.manualDependsOn).toBeUndefined();
@@ -936,7 +936,7 @@ test('manual attachment points survive reopening and legacy arrows remain readab
   const anchor = { fromSide: 'right', toSide: 'top', offset: 0.25 } as const;
   board.connect(a.id, b.id, false, anchor);
   board.connect(b.id, c.id);
-  const reopened = new Board(store, board.canvas, () => ({ docs, dirs }));
+  const reopened = new Board(store, board.project, () => ({ docs, dirs }));
   expect(reopened.item(b.id)?.manualAnchors?.[a.id]).toEqual(anchor);
   expect(reopened.item(c.id)?.manualDependsOn).toEqual([b.id]);
   expect(reopened.item(c.id)?.manualAnchors).toBeUndefined();

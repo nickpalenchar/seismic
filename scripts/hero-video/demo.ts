@@ -99,7 +99,7 @@ function partOf(text: string, phrase: string) {
 }
 
 /**
- * Pans the canvas until `target` stands in the middle, at the pace of a hand on a trackpad, so the
+ * Pans the project until `target` stands in the middle, at the pace of a hand on a trackpad, so the
  * viewer follows where the card is before it opens rather than seeing the camera jump.
  */
 async function bringIntoView(d: Director, target: Locator) {
@@ -127,7 +127,7 @@ const field = (d: Director) => d.page.locator('.composer.tell textarea');
 async function created() {
   const refused = path.join(staged.dir, 'home', 'replay-refused.txt');
   if (fs.existsSync(refused)) throw new Error(`the recording ${REPLAY} no longer fits: ${fs.readFileSync(refused, 'utf8').trim()}; record anew`);
-  const snap = (await (await fetch(`${base}/api/c/tipjar/canvas`, { headers: owner() })).json()) as {
+  const snap = (await (await fetch(`${base}/api/c/tipjar/project`, { headers: owner() })).json()) as {
     items: { title: string; state: string; statusLine?: string; answering?: true; held?: number[] }[];
   };
   return snap.items.find((x) => /split the bill/i.test(x.title));
@@ -257,7 +257,7 @@ async function pasteShot(d: Director) {
 }
 
 /**
- * The phone view of the same canvas (`?view=phone`) at an iPhone's size, in a phone's frame over the
+ * The phone view of the same project (`?view=phone`) at an iPhone's size, in a phone's frame over the
  * dimmed wall: laid in hidden and loaded, so that `.on` fades it in at once.
  */
 async function phone(d: Director) {
@@ -289,10 +289,10 @@ async function phone(d: Director) {
 
 const scenes: Scene[] = [
   {
-    title: 'One canvas',
-    say: narration.canvas,
+    title: 'One project',
+    say: narration.project,
     run: async (d) => {
-      const say = narration.canvas;
+      const say = narration.project;
       await saying(d, say, 'they show up as plans');
       await d.highlight(d.page.locator('.item.plan').first(), 'plan');
       await saying(d, say, 'The colour says');
@@ -684,7 +684,7 @@ await runDemo(
         };
       });
       // Seismic's sidebar opens with the proposed rules folded: the video shows the chat first
-      const snap = (await (await fetch(`${base}/api/c/tipjar/canvas`, { headers: owner() })).json()) as { preferences: { id: number; state: string }[] };
+      const snap = (await (await fetch(`${base}/api/c/tipjar/project`, { headers: owner() })).json()) as { preferences: { id: number; state: string }[] };
       const proposed = snap.preferences.filter((p) => p.state === 'proposed').map((p) => p.id);
       await d.page.addInitScript((ids) => localStorage.setItem('obeya-ksheet-tipjar', JSON.stringify({ proposalsClosed: ids })), proposed);
       // an owner who knows double-click, `?` and moving marked cards: the bar's New task and ? buttons
@@ -718,7 +718,7 @@ await runDemo(
     scenes: scenes.slice(0, SHORT ? 7 : undefined),
     report: {
       summary:
-        'The hero video for obeya.si: on a scratch canvas with the example app Tipjar, the owner groups and moves cards, an idea said into the microphone becomes a task, a message typed, pasted and spoken goes to Seismic in its sidebar, a real agent builds the task and records its demo, and the approval lands the change on main.',
+        'The hero video for obeya.si: on a scratch project with the example app Tipjar, the owner groups and moves cards, an idea said into the microphone becomes a task, a message typed, pasted and spoken goes to Seismic in its sidebar, a real agent builds the task and records its demo, and the approval lands the change on main.',
       meta: { Stack: `Scratch Seismic on port ${PORT} from this checkout, ${REPLAY ? `the agents played back from ${REPLAY}` : 'real workers'}, Seismic and Whisper real` },
     },
   },

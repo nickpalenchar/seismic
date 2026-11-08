@@ -22,7 +22,7 @@ const OUT = process.env.HERO_OUT ?? path.join((await import('../../plugin/skills
 const posterOnly = process.argv.includes('--poster-only');
 const poster = posterOnly || process.argv.includes('--poster');
 
-// The README's loop: the canvas at work, from a few seconds into the scene `from` to a few seconds
+// The README's loop: the project at work, from a few seconds into the scene `from` to a few seconds
 // into the scene `until` (named by their chapters, so it follows a new render), sped up, its last
 // frame held a moment before it starts again, as a GIF: GitHub plays no video in a README, but a GIF.
 const LOOP = { from: ['Your wall', 3], until: ['The agent starts', 5.5], speed: 1.5, hold: 1.5, width: 1280, fps: 12 } as const;

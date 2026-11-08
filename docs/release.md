@@ -39,7 +39,7 @@ machine's active account may lack the admin rights a workflow run or a rerun nee
      agent left (`<demos>/tipjar-split-the-bill*`; the newest is its shorter second demo, on the
      comments, which the script passes over), into `site/img/`: the
      desktop ones and the two of the phone view (`phone.png`, `phone-demo.png`), which the README
-     shows too (`canvas.png` and the phone's);
+     shows too (`project.png` and the phone's);
    - the video's poster, `node scripts/hero-video/publish.ts --poster-only`
      (it uploads nothing);
    - a copy of `demo.mp4`, `captions.vtt`, `chapters.vtt` and `review/` in `<demos>/obeya-v<version>/`,

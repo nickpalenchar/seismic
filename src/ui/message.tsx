@@ -68,7 +68,7 @@ export function Msg({
   );
 }
 
-/** The harness and model of the Koordinator's session that reads the owner's words, while one runs (the canvas's `koordinatorAgent`). */
+/** The harness and model of the Koordinator's session that reads the owner's words, while one runs (the project's `koordinatorAgent`). */
 export const KoordinatorAgent = createContext<AgentIdentity | undefined>(undefined);
 
 /** Under the owner's words while the Koordinator reads them, in the sheet and on a card alike. */
@@ -359,7 +359,7 @@ export function ThreadCard({ thread, card, onOpen }: { thread: number; card?: It
   );
 }
 
-/** The cards on the canvas, and how to open one (closing the card open), for a looked-up answer in a card's log. */
+/** The cards on the project, and how to open one (closing the card open), for a looked-up answer in a card's log. */
 export const Cards = createContext<{ items: Item[]; open: (i: Item) => void }>({ items: [], open: () => {} });
 
 /**

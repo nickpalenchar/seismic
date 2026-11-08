@@ -1,20 +1,20 @@
-// obeya [--config <canvases.json>]
-// obeya <repo>… [--name <canvas>] [--workstation <path>]… [--clones <n>]
+// obeya [--config <projects.json>]
+// obeya <repo>… [--name <project>] [--workstation <path>]… [--clones <n>]
 //   [--port <n>] [--dev] [--permission-mode <mode>] [--idle-workers | --record <dir> | --replay <dir>]
 //
-// Serves canvases at http://127.0.0.1:<port>, to the owner alone (owner.ts): it prints a link that
-// signs a browser in, and a second start while it runs prints a new one. Without repositories: the canvases the JSON file
+// Serves projects at http://127.0.0.1:<port>, to the owner alone (owner.ts): it prints a link that
+// signs a browser in, and a second start while it runs prints a new one. Without repositories: the projects the JSON file
 // lists, `[{ "name"?, "id"?, "repos": [{ "path", "workstations"?, "clones"? }] }]`, by default
-// $SEISMIC_HOME/canvases.json; while that does not exist, none, and the page shows the setup
-// assistant, which checks the machine and creates the first canvas (machine.ts). With repositories: one canvas with them (the first is its home;
+// $SEISMIC_HOME/projects.json; while that does not exist, none, and the page shows the setup
+// assistant, which checks the machine and creates the first project (machine.ts). With repositories: one project with them (the first is its home;
 // --workstation and --clones apply to it). Data lives in $SEISMIC_HOME/obeya.db (default
 // ~/.obeya).
 //
 // Without --dev the process supervises the server: it runs it as a child and starts it again
 // when the server exits to pick up new code on Seismic's own checkout (self-update.ts); new commits
 // on that checkout's upstream show in the bar, for the owner to pull (source-update.ts). A
-// configuration the owner saves applies while the server runs (config.ts, `Canvases`); saved while
-// the canvases came from the command line, it starts the server again, from the file from then on.
+// configuration the owner saves applies while the server runs (config.ts, `Projects`); saved while
+// the projects came from the command line, it starts the server again, from the file from then on.
 //
 // Ctrl-C, SIGTERM or `POST /api/stop` (the app, app/, and Windows, which has no SIGTERM) stops
 // Seismic the way a restart goes: workers in the middle of a turn hear of it and pause, and Seismic
@@ -45,8 +45,8 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { DeveloperView, RestartReason } from '../core/types';
-import { type CanvasConfig, Canvases } from './canvas';
-import { Config, CONFIG_FILE, expandConfig, readConfigFile } from './config';
+import { type ProjectConfig, Projects } from './project';
+import { adoptOldConfig, Config, CONFIG_FILE, expandConfig, readConfigFile } from './config';
 import { checkPlugin } from './demo';
 import { Store, UnusableDatabase } from './db';
 import { SessionRegistry, useSessionRegistry } from './session-registry';
@@ -116,6 +116,7 @@ extendPath();
 if (!COMPILED) addToPath(process.env, [dirname(process.execPath)]);
 // the demo skill's modules this server carries inside the binary find their files among the resources
 if (COMPILED) useLib(resource('plugin', 'skills', 'demo', 'lib'));
+if (!values.config) adoptOldConfig(home);
 const configFile = values.config ? resolve(expandHome(values.config)) : join(home, CONFIG_FILE);
 
 if (!seismicEnv('SUPERVISED')) {
@@ -149,7 +150,7 @@ if (!values.dev && !seismicEnv('SUPERVISED')) {
     else restarting(home, process.pid);
     if (stopping) process.exit(code === RESTART || code === RESTART_FROM_FILE ? 0 : code);
     if (code === RESTART_FROM_FILE) {
-      // the owner saved the configuration of canvases given on the command line: the file is it now
+      // the owner saved the configuration of projects given on the command line: the file is it now
       args = [
         '--config', configFile, '--port', values.port, '--permission-mode', values['permission-mode'],
         ...(values['idle-workers'] ? ['--idle-workers'] : []),
@@ -162,14 +163,14 @@ if (!values.dev && !seismicEnv('SUPERVISED')) {
   }
 }
 
-let started: CanvasConfig[];
+let started: ProjectConfig[];
 const source = values.config || !positionals.length ? 'file' : 'args';
 if (source === 'file' && !values.config && !existsSync(configFile)) {
   // the first start: the setup assistant creates the file
   started = [];
 } else if (source === 'file') {
   if (!existsSync(configFile)) {
-    console.error(`usage: obeya [--config <file>] | <repo>… [--name <canvas>] [--workstation <path>]… [--clones <n>]; [--port <n>] [--dev] [--permission-mode <mode>]
+    console.error(`usage: obeya [--config <file>] | <repo>… [--name <project>] [--workstation <path>]… [--clones <n>]; [--port <n>] [--dev] [--permission-mode <mode>]
 (without repositories Seismic reads ${configFile}, which does not exist)`);
     process.exit(2);
   }
@@ -216,12 +217,12 @@ const store = (() => {
 const own = seismicEnv('SUPERVISED') ? ownCheckout() : null;
 // the commit this server's code came from: what changed since decides what to install before a restart
 const ranFrom = own && headOf(own);
-let canvases: Canvases | undefined;
+let projects: Projects | undefined;
 let server: ReturnType<typeof serve> | undefined;
 let exitCode = RESTART;
-const live = () => canvases?.all() ?? [];
+const live = () => projects?.all() ?? [];
 /** Starts the server again once no worker is in the middle of a turn, or when the owner says so. */
-const busy = () => live().flatMap((c) => c.busy().map((card) => ({ canvas: c.id, card })));
+const busy = () => live().flatMap((c) => c.busy().map((card) => ({ project: c.id, card })));
 const leave = (reason: RestartReason, forced = false) => {
   server?.stop(true);
   if (reason === 'stop') return shutdown(0, forced);
@@ -281,12 +282,12 @@ const config = new Config({
   onSettings: () => {
     for (const c of live()) c.settingsChanged();
   },
-  apply: (configs, ids) => canvases?.apply(configs, ids),
-  failures: () => canvases?.failures() ?? [],
+  apply: (configs, ids) => projects?.apply(configs, ids),
+  failures: () => projects?.failures() ?? [],
   ...(seismicEnv('SUPERVISED')
     ? {
         restart: () => {
-          // canvases from the command line come from the saved file from now on
+          // projects from the command line come from the saved file from now on
           exitCode = RESTART_FROM_FILE;
           // after the answer is out: a restart with no worker to wait for stops this server at once
           setTimeout(() => restart('config', 'the configuration changed'), 100);
@@ -295,7 +296,7 @@ const config = new Config({
     : {}),
 });
 const runtime = agentRuntime();
-canvases = new Canvases(
+projects = new Projects(
   configs,
   {
     store,
@@ -319,7 +320,7 @@ canvases = new Canvases(
     codexAutoReview: () => agentsView(home).codexAutoReview,
     settings: (path) => config.repoSettings(path),
   },
-  // the canvas the setup assistant created gets a first card that says what to try
+  // the project the setup assistant created gets a first card that says what to try
   (c) => welcome(home, [c]),
 );
 /** The agents' runtime: the Agent SDK's, recorded (`--record`), or a recording played back (`--replay`). */
@@ -330,9 +331,9 @@ function agentRuntime() {
   rmSync(refusedFile, { force: true });
   return replayRuntime(resolve(values.replay), { home, refused: (why) => writeFileSync(refusedFile, `${why}\n`) });
 }
-const ids = canvases.all().map((c) => c.id);
+const ids = projects.all().map((c) => c.id);
 if (new Set(ids).size !== ids.length) {
-  console.error(`two canvases share an id: ${ids.join(', ')}; give them different names`);
+  console.error(`two projects share an id: ${ids.join(', ')}; give them different names`);
   process.exit(2);
 }
 const transcriber = new VoiceIn(home, new LocalTranscriber());
@@ -343,12 +344,12 @@ const sources = own ? new SourceUpdates(own) : undefined;
 // the plan's usage limits in the bar, while the owner has it show them and a page is open
 const usage = new UsageMeter(() => claudeUsage(home), { on: usageMeterView(home).on });
 const machine = new MachineSetup({ home, config, voice: voiceSetup });
-// the canvas the assistant created gets a first card that says what to try
-welcome(home, canvases.all());
+// the project the assistant created gets a first card that says what to try
+welcome(home, projects.all());
 const shutdown = async (code: number, forced = false) => {
   // Force while the sessions and their process identities are still available.
   const agents = forced ? endAgentsHere(true) : undefined;
-  canvases?.shutdown();
+  projects?.shutdown();
   usage.stop();
   demoSpace.stop();
   await (agents ?? endAgentsHere());
@@ -392,17 +393,17 @@ const stalls = new Stalls({ home }).start();
 const developer: DeveloperView = seismicEnv('SUPERVISED')
   ? { restart: true, rebuild: !!(own && ranFrom), ...(own && ranFrom ? {} : { rebuildWhy: 'compiled' as const }) }
   : { restart: false, rebuild: false, why: 'dev' };
-server = serve(canvases, { transcriber, setup: voiceSetup }, Number(values.port), values.dev, config, restarter, narration, machine, stop, updates, access, push, sources, usage, stalls, developer);
+server = serve(projects, { transcriber, setup: voiceSetup }, Number(values.port), values.dev, config, restarter, narration, machine, stop, updates, access, push, sources, usage, stalls, developer);
 claim(home, { pid: seismicEnv('SUPERVISED') ? process.ppid : process.pid, port: server.port!, url: `http://127.0.0.1:${server.port}`, version: VERSION, ...(seismicEnv('FROM_APP') ? { app: true } : {}) });
 // the address as a one-time link that signs a browser in (owner.ts)
 const link = access.owner.link(`http://127.0.0.1:${server.port}`);
-console.log(`Seismic ${own ? `from ${own}` : VERSION} on ${link} (${source === 'file' ? configFile : 'canvases from the command line'}), agents on ${claudeExecutable() ?? 'the Claude Code the Agent SDK brings'}`);
+console.log(`Seismic ${own ? `from ${own}` : VERSION} on ${link} (${source === 'file' ? configFile : 'projects from the command line'}), agents on ${claudeExecutable() ?? 'the Claude Code the Agent SDK brings'}`);
 // from the commit the server started from: a landing since is new code to it, not where it started
 if (own && ranFrom) watchOwnCode(own, ranFrom, (from, to) => restart('code', `${own} moved from ${from.slice(0, 7)} to ${to.slice(0, 7)}`));
 sources?.start();
-if (!canvases.all().length) console.log(`  no canvas yet: the setup assistant there checks this machine and creates the first`);
-for (const c of canvases.all()) {
-  console.log(`  ${c.board.canvas.name} (/p/${c.id})`);
+if (!projects.all().length) console.log(`  no project yet: the setup assistant there checks this machine and creates the first`);
+for (const c of projects.all()) {
+  console.log(`  ${c.board.project.name} (/p/${c.id})`);
   for (const r of c.repos)
     console.log(
       `    ${r.ref.id}: ${r.info.path} (${r.info.folder ? 'a folder without git: every card works in it' : r.adapter.workstations === 'worktrees' ? 'a worktree per card' : `clones: ${r.workstations.list().map((w) => w.path).join(', ') || 'none (--workstation or --clones)'}`})`,
@@ -410,8 +411,8 @@ for (const c of canvases.all()) {
 }
 const plugin = checkPlugin();
 if (plugin) console.warn(`Seismic: warning: ${plugin}`);
-// once the deadlock struck, the canvas does not load and cannot show its warning: the log says it too
+// once the deadlock struck, the project does not load and cannot show its warning: the log says it too
 if (oldLinuxBun())
   console.warn(
-    `Seismic: warning: Bun ${Bun.version} is too old; Seismic needs Bun 1.3.14 or later. On Linux this Bun can deadlock a thread of its work pool when a file watch closes, and then the canvas stops loading. Upgrade it with \`bun upgrade\` and start Seismic again.`,
+    `Seismic: warning: Bun ${Bun.version} is too old; Seismic needs Bun 1.3.14 or later. On Linux this Bun can deadlock a thread of its work pool when a file watch closes, and then the project stops loading. Upgrade it with \`bun upgrade\` and start Seismic again.`,
   );

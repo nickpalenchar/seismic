@@ -669,7 +669,7 @@ describe('handing over with a demo', () => {
     // a demo rendered again into the same directory replaced the files of the one before: nothing to go back to
     await runtime.last.call('ready_for_review', { summary: 'Neu aufgenommen.', demo: demo(second) });
     expect(board.item(c.id)!.demos!.map((d) => d.n)).toEqual([0]);
-    // demos are deleted to free space: one whose files are gone is no longer offered, from the canvas's next change on
+    // demos are deleted to free space: one whose files are gone is no longer offered, from the project's next change on
     rmSync(first.dir, { recursive: true, force: true });
     board.work(c.id, { status_line: 'Liest' });
     expect(board.item(c.id)!.demos).toBeUndefined();
@@ -747,7 +747,7 @@ describe('handing over with a demo', () => {
     setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, shares: () => shares }));
     const c = manual();
     await workers.start(c.id);
-    // the canvas's demo site is initialized only now
+    // the project's demo site is initialized only now
     shares = true;
     const tool = runtime.last.spec.tools!.find((t) => t.name === 'ready_for_review')!;
     const page = { title: 'Zählerstände als CSV', text: 'Vermieter laden die Zählerstände jetzt als CSV herunter.' };
@@ -757,7 +757,7 @@ describe('handing over with a demo', () => {
     expect(state(c.id)).toBe('waiting:demo');
   });
 
-  test("where the canvas names tags for its site, the page comes with them, each dimension's from its values alone", async () => {
+  test("where the project names tags for its site, the page comes with them, each dimension's from its values alone", async () => {
     rmSync(dir, { recursive: true, force: true });
     const tags = { Area: ['Billing', 'Reports'], Audience: ['Admins', 'Customers'] };
     setup({ ...generic, land: 'main', workstations: 'clones', app: { run: 'bun start' } }, false, { tags });

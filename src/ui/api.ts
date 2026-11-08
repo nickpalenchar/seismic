@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { AccessView, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, CanvasConfig, CanvasInfo, CanvasSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, CanvasDemoSiteState, DemoSitesView, TagProposalJob, PageTags, NarrationLanguage, FirstCanvas, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
-  CanvasDefaultsView,
-  CanvasSettings, CanvasSettingsView, DeveloperView, NotificationsView } from '../core/types';
+import type { AccessView, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
+  ProjectDefaultsView,
+  ProjectSettings, ProjectSettingsView, DeveloperView, NotificationsView } from '../core/types';
 import type { Wish } from '../core/wish';
 import { noteMessage, watchPageStalls } from './stalls';
 
@@ -62,30 +62,30 @@ async function download(path: string, fallback: string) {
 const query = (where: Where) =>
   !where ? '' : 'card' in where ? `?card=${encodeURIComponent(where.card)}` : `?plan=${encodeURIComponent(where.plan)}`;
 
-/** The canvas this page shows; every call goes to its API. */
-let canvasId = '';
-export function setCanvas(id: string) {
-  canvasId = id;
+/** The project this page shows; every call goes to its API. */
+let projectId = '';
+export function setProject(id: string) {
+  projectId = id;
 }
-/** A path in the shown canvas's API. */
-export const at = (path: string) => `/api/c/${encodeURIComponent(canvasId)}${path}`;
+/** A path in the shown project's API. */
+export const at = (path: string) => `/api/c/${encodeURIComponent(projectId)}${path}`;
 /**
- * The canvas each card is on, where the page shows the cards of several (the phone view). A call
- * about a card goes to its canvas even once another is in view: the card closing puts Seismic's in
+ * The project each card is on, where the page shows the cards of several (the phone view). A call
+ * about a card goes to its project even once another is in view: the card closing puts Seismic's in
  * view before the card's last calls (its held comments released, say) go out.
  */
-const canvasOfCard = new Map<string, string>();
-export function cardsOn(canvas: string, cards: string[]) {
-  for (const id of cards) canvasOfCard.set(id, canvas);
+const projectOfCard = new Map<string, string>();
+export function cardsOn(project: string, cards: string[]) {
+  for (const id of cards) projectOfCard.set(id, project);
 }
-/** The canvas of the card `id`: the one it is on where the page shows several, else the shown one. */
-export const canvasOf = (id: string) => canvasOfCard.get(id) ?? canvasId;
-/** A path in the API of the card's canvas, about the card or plan `id`. */
-export const cardAt = (id: string, path = '') => `/api/c/${encodeURIComponent(canvasOf(id))}/cards/${id}${path}`;
-/** A path in the API of the canvas of what the words are about, else of the shown one. */
+/** The project of the card `id`: the one it is on where the page shows several, else the shown one. */
+export const projectOf = (id: string) => projectOfCard.get(id) ?? projectId;
+/** A path in the API of the card's project, about the card or plan `id`. */
+export const cardAt = (id: string, path = '') => `/api/c/${encodeURIComponent(projectOf(id))}/cards/${id}${path}`;
+/** A path in the API of the project of what the words are about, else of the shown one. */
 const whereAt = (where: Where, path: string) => {
   const id = where && ('card' in where ? where.card : where.plan);
-  return id ? `/api/c/${encodeURIComponent(canvasOf(id))}${path}` : at(path);
+  return id ? `/api/c/${encodeURIComponent(projectOf(id))}${path}` : at(path);
 };
 /** Where a looked-up answer's file is served; `download` to save it. */
 export const answerFile = (thread: number, name: string, download = false) =>
@@ -142,17 +142,17 @@ export interface SiteHow {
 export type AddSiteInput = ({ host: 'cloudflare' | 'github'; unlisted?: false } & SiteHow) | { manual: { url: string; deploy: string; env?: string; maxFile?: number } };
 
 export const api = {
-  exportCanvases: (ids: string[], as: 'csv' | 'json') => download(`/api/canvases/export?as=${as}${ids.map((id) => `&canvas=${encodeURIComponent(id)}`).join('')}`, `obeya-canvases.${as}`),
-  canvases: () => call<CanvasInfo[]>('GET', '/api/canvases'),
-  canvas: (id: string) => call<CanvasSnapshot>('GET', `/api/c/${encodeURIComponent(id)}/canvas`),
-  /** Seismic's configuration, for all canvases. */
+  exportProjects: (ids: string[], as: 'csv' | 'json') => download(`/api/projects/export?as=${as}${ids.map((id) => `&project=${encodeURIComponent(id)}`).join('')}`, `obeya-projects.${as}`),
+  projects: () => call<ProjectInfo[]>('GET', '/api/projects'),
+  project: (id: string) => call<ProjectSnapshot>('GET', `/api/c/${encodeURIComponent(id)}/project`),
+  /** Seismic's configuration, for all projects. */
   config: () => call<ConfigView>('GET', '/api/config'),
   /** What the configuration as saved amounts to, and what is wrong with it: it reads every repository, so it comes after `config`. */
   configCheck: () => call<ConfigChecked>('GET', '/api/config/check'),
-  checkConfig: (canvases: CanvasConfig[]) => call<ConfigChecked>('POST', '/api/config/check', canvases),
+  checkConfig: (projects: ProjectConfig[]) => call<ConfigChecked>('POST', '/api/config/check', projects),
   retryStart: () => call<{}>('POST', '/api/config/retry'),
   /** Saves it; Seismic then starts again with it where something restarts it. */
-  saveConfig: (canvases: CanvasConfig[]) => call<ConfigSaved>('PUT', '/api/config', canvases),
+  saveConfig: (projects: ProjectConfig[]) => call<ConfigSaved>('PUT', '/api/config', projects),
   /** "Take over into the repository for everyone": the repository's settings for this machine into its `.obeya/settings.json`. */
   shareSettings: (path: string, direct = false) => call<SettingsShared>('POST', '/api/config/share-settings', { path, direct }),
   /** The owner confirms the repository's commands the dialog showed them (the groups `held` of `now`): they count from now on. */
@@ -183,20 +183,20 @@ export const api = {
   notifications: () => call<NotificationsView>('GET', '/api/notifications'),
   saveNotifications: (on: boolean) => call<NotificationsView>('PUT', '/api/notifications', { on }),
   feedbackPrompt: () => call<FeedbackPromptView>('GET', '/api/feedback-prompt'),
-  /** Every response the owner gave on agents' work, on every canvas. */
+  /** Every response the owner gave on agents' work, on every project. */
   allFeedback: () => call<Feedback[]>('GET', '/api/feedback'),
   saveFeedbackPrompt: (on: boolean) => call<FeedbackPromptView>('PUT', '/api/feedback-prompt', { on }),
-  /** Canvas defaults: what a new canvas's own settings start as. */
-  canvasDefaults: () => call<CanvasDefaultsView>('GET', '/api/canvas-defaults'),
-  saveCanvasDefaults: (d: CanvasSettings) => call<CanvasDefaultsView>('PUT', '/api/canvas-defaults', d),
-  /** A canvas's own settings, and Configuration's models they fall back on. */
-  canvasSettings: (canvas: string) => call<CanvasSettingsView>('GET', `/api/c/${encodeURIComponent(canvas)}/settings`),
-  /** Saves some of a canvas's own settings (`{ agents }`, `{ suggest }` …) into the configuration. */
-  saveCanvasSettings: (canvas: string, s: CanvasSettings) => call<CanvasSettingsView>('PUT', `/api/c/${encodeURIComponent(canvas)}/settings`, s),
+  /** Project defaults: what a new project's own settings start as. */
+  projectDefaults: () => call<ProjectDefaultsView>('GET', '/api/project-defaults'),
+  saveProjectDefaults: (d: ProjectSettings) => call<ProjectDefaultsView>('PUT', '/api/project-defaults', d),
+  /** A project's own settings, and Configuration's models they fall back on. */
+  projectSettings: (project: string) => call<ProjectSettingsView>('GET', `/api/c/${encodeURIComponent(project)}/settings`),
+  /** Saves some of a project's own settings (`{ agents }`, `{ suggest }` …) into the configuration. */
+  saveProjectSettings: (project: string, s: ProjectSettings) => call<ProjectSettingsView>('PUT', `/api/c/${encodeURIComponent(project)}/settings`, s),
   /** The model and effort of each group of agents. */
   agents: () => call<AgentsView>('GET', '/api/agents'),
-  /** The settings of the shown canvas, with Configuration's models as the base of its own. */
-  shownCanvasSettings: () => call<CanvasSettingsView>('GET', at('/settings')),
+  /** The settings of the shown project, with Configuration's models as the base of its own. */
+  shownProjectSettings: () => call<ProjectSettingsView>('GET', at('/settings')),
   codexModels: () => call<CodexModel[]>('GET', '/api/agents/codex-models'),
   agyModels: () => call<CodexModel[]>('GET', '/api/agents/agy-models'),
   /** Saves the model or the effort of one group. */
@@ -213,11 +213,11 @@ export const api = {
   setupIdentity: (name: string, email: string) => call<MachineView>('POST', '/api/setup/identity', { name, email }),
   /** A folder from the system's dialog; null when cancelled. */
   setupPick: (prompt: string) => call<{ path: string | null }>('POST', '/api/setup/pick', { prompt }),
-  /** The first canvas from a folder (saved at once) or a clone (the view follows it). */
+  /** The first project from a folder (saved at once) or a clone (the view follows it). */
   setupFolder: (path: string) => call<SetupFolder>('POST', '/api/setup/folder', { path }),
   setupGitPreview: (path: string) => call<GitSetupPreview>('POST', '/api/setup/git-preview', { path }),
   setupGit: (path: string) => call<{ branch: string }>('POST', '/api/setup/git', { path }),
-  setupCanvas: (input: { path: string; git?: false } | { clone: string; into: string }) => call<FirstCanvas | MachineView>('POST', '/api/setup/canvas', input),
+  setupProject: (input: { path: string; git?: false } | { clone: string; into: string }) => call<FirstProject | MachineView>('POST', '/api/setup/project', input),
   voiceSetup: () => call<VoiceSetupView>('GET', '/api/voice-setup'),
   installVoice: () => call<VoiceSetupView>('POST', '/api/voice-setup/install'),
   measureVoice: () => call<VoiceSetupView>('POST', '/api/voice-setup/measure'),
@@ -231,9 +231,9 @@ export const api = {
   connectDemoSite: (code: string) => call<DemoSitesView>('POST', '/api/demo-sites/connect', { code }),
   demoSiteCode: (url: string) => call<{ code: string }>('GET', `/api/demo-sites/code?url=${encodeURIComponent(url)}`),
   removeDemoSite: (url: string) => call<DemoSitesView>('DELETE', `/api/demo-sites?url=${encodeURIComponent(url)}`),
-  /** A canvas's demo site as it stands, and "Initialize": its path on the site, with the empty overview, deployed. */
-  canvasSite: (canvas: string) => call<CanvasDemoSiteState | null>('GET', `/api/c/${encodeURIComponent(canvas)}/demo-site`),
-  initCanvasSite: (canvas: string, url: string, path: string) => call<CanvasDemoSiteState | null>('POST', `/api/c/${encodeURIComponent(canvas)}/demo-site/init`, { url, path }),
+  /** A project's demo site as it stands, and "Initialize": its path on the site, with the empty overview, deployed. */
+  projectSite: (project: string) => call<ProjectDemoSiteState | null>('GET', `/api/c/${encodeURIComponent(project)}/demo-site`),
+  initProjectSite: (project: string, url: string, path: string) => call<ProjectDemoSiteState | null>('POST', `/api/c/${encodeURIComponent(project)}/demo-site/init`, { url, path }),
   proposeTags: (path: string, current: PageTags | undefined, language: NarrationLanguage | null) =>
     call<{ job: TagProposalJob }>('POST', '/api/tag-proposal', { path, ...(current ? { current } : {}), ...(language ? { language } : {}) }),
   tagProposal: (path: string) => call<{ job: TagProposalJob | null; available: boolean }>('GET', `/api/tag-proposal?path=${encodeURIComponent(path)}`),
@@ -251,12 +251,12 @@ export const api = {
   developerRestart: (what: 'restart' | 'rebuild') => call<{ requested: string }>('POST', `/api/developer/${what}`),
   /** Has a restart that waits for workers go ahead now; false when none waits. */
   restartNow: () => call<{ restarting: boolean }>('POST', '/api/restart'),
-  /** Has the restart of this canvas's repositories' agents that waits for them go ahead at once. */
+  /** Has the restart of this project's repositories' agents that waits for them go ahead at once. */
   restartReposNow: () => call<{ restarting: boolean }>('POST', at('/restart')),
-  /** Pauses the agents at work on a canvas; cards the Koordinator lets start there wait until they resume. */
-  pauseAgents: (canvas: string) => call<void>('POST', `/api/c/${encodeURIComponent(canvas)}/pause`),
-  /** Resumes a canvas's paused agents, and the cards waiting for that start. */
-  resumeAgents: (canvas: string) => call<void>('POST', `/api/c/${encodeURIComponent(canvas)}/resume`),
+  /** Pauses the agents at work on a project; cards the Koordinator lets start there wait until they resume. */
+  pauseAgents: (project: string) => call<void>('POST', `/api/c/${encodeURIComponent(project)}/pause`),
+  /** Resumes a project's paused agents, and the cards waiting for that start. */
+  resumeAgents: (project: string) => call<void>('POST', `/api/c/${encodeURIComponent(project)}/resume`),
   /** Installs the newer version of the app once the workers paused, as a restart waits for them. */
   installUpdate: () => call<{ updating: boolean }>('POST', '/api/app-update/install'),
   /** Fast-forwards the checkout Seismic runs from to its upstream; Seismic then restarts with the new code once the workers paused. */
@@ -264,11 +264,11 @@ export const api = {
   /** Draws or removes an owner-drawn arrow, `anchor` the edges and place it was drawn at; `keepalive` for one sent as the page goes. */
   dependency: (from: string, to: string, remove = false, keepalive = false, anchor?: import('../core/types').ManualAnchor) => call<void>(remove ? 'DELETE' : 'POST', at('/dependencies'), { from, to, ...(anchor ? { anchor } : {}) }, keepalive),
   create: (c: NewCard) => call<Item>('POST', at('/cards'), c),
-  /** The card that writes a repository's settings for everyone, on the canvas it belongs to (not necessarily the shown one). */
-  adapterSetup: (canvas: string, repo: string) => call<Item>('POST', `/api/c/${encodeURIComponent(canvas)}/adapter-setup`, { repo }),
+  /** The card that writes a repository's settings for everyone, on the project it belongs to (not necessarily the shown one). */
+  adapterSetup: (project: string, repo: string) => call<Item>('POST', `/api/c/${encodeURIComponent(project)}/adapter-setup`, { repo }),
   /** The note on a repository's plan directory stays where the owner put it (its top left). */
   movePlanDirNote: (repo: string, to: { x: number; y: number }) => call<void>('PATCH', at(`/plan-dirs/${encodeURIComponent(repo)}`), to),
-  preparePlanDoc: (canvas: string, repo: string, file: string) => call<Item>('POST', `/api/c/${encodeURIComponent(canvas)}/prepare-plan-doc`, { repo, file }),
+  preparePlanDoc: (project: string, repo: string, file: string) => call<Item>('POST', `/api/c/${encodeURIComponent(project)}/prepare-plan-doc`, { repo, file }),
   /** Downloads a card's demo as a ZIP of its page with the files, or as one HTML file. */
   exportDemo: (id: string, as: 'zip' | 'html', demo?: number) => download(cardAt(id, `/export?as=${as}${demo === undefined ? '' : `&demo=${demo}`}`), `demo.${as}`),
   /** The size of a card's demo video in bytes, the latest one or earlier one `n`; null when unknown. */
@@ -281,12 +281,12 @@ export const api = {
   patch: (id: string, p: CardPatch) => call<void>('PATCH', cardAt(id), p),
   remove: (id: string) => call<void>('DELETE', cardAt(id)),
   restore: (id: string) => call<void>('POST', cardAt(id, '/restore')),
-  /** Takes a finished card off the canvas into the archive. */
+  /** Takes a finished card off the project into the archive. */
   archive: (id: string) => call<void>('POST', cardAt(id, '/archive')),
   unarchive: (id: string) => call<void>('POST', cardAt(id, '/unarchive')),
   /** The archive, the most recently archived first. */
   archived: () => call<Item[]>('GET', at('/archive')),
-  /** Archives every finished card of the owner's on the canvas. */
+  /** Archives every finished card of the owner's on the project. */
   archiveDone: () => call<{ ids: string[] }>('POST', at('/archive')),
   /** An action on the card; `keepalive` for one sent as the page goes. */
   act: (id: string, a: CardAction, keepalive = false) => call<void>('POST', cardAt(id, '/act'), a, keepalive),
@@ -341,7 +341,7 @@ export const api = {
    * What the owner said about the card or plan in view, with the screenshots shown with it;
    * `replyTo`: in reply to that message of the card's conversation, or of the sheet; `text`: typed in the field
    * before it, which goes first; `listen`: dictated into a field, the words only come back; `spot`:
-   * about that place in the card's demo video; `place`: where on the canvas the owner was, for a card it makes;
+   * about that place in the card's demo video; `place`: where on the project the owner was, for a card it makes;
    * `sent`: the page's name for the recording, to ask whether it arrived (`voiceArrived`). A refusal
    * throws an ApiError; a connection that broke, anything else.
    */
@@ -375,8 +375,8 @@ export const api = {
   /** The same, typed; `field`: the field of the open card it was typed into. */
   command: (text: string, where: Where, { images, field, replyTo, spot, place }: { images?: string[]; field?: Field; replyTo?: number | TalkRef; spot?: SpotInput; place?: Place } = {}) =>
     call<Heard>('POST', whereAt(where, `/command${query(where)}${place ? `${where ? '&' : '?'}place=${placeParam(place)}` : ''}`), { text, ...(images?.length ? { images } : {}), ...(field ? { field } : {}), ...(replyTo ? { replyTo } : {}), ...(spot ? { spot } : {}) }),
-  /** A typed request to the Koordinator of another canvas, about nothing in view there. */
-  commandOn: (canvas: string, text: string) => call<Heard>('POST', `/api/c/${encodeURIComponent(canvas)}/command`, { text }),
+  /** A typed request to the Koordinator of another project, about nothing in view there. */
+  commandOn: (project: string, text: string) => call<Heard>('POST', `/api/c/${encodeURIComponent(project)}/command`, { text }),
   undo: (token: string) => call<{ undone: boolean }>('POST', at('/command/undo'), { token }),
   /** The issue for Seismic's makers as a small job writes it from the owner's words, reworking the draft so far; `app`: Seismic runs in its app. */
   writeWish: (w: { said: string; answer?: string; title?: string; body?: string; images?: string[]; app: boolean }) =>
@@ -387,12 +387,12 @@ export const api = {
   setPreference: (id: number, text: string | null) =>
     text === null ? call<void>('DELETE', at(`/preferences/${id}`)) : call<void>('PATCH', at(`/preferences/${id}`), { text }),
   /** Accepts a proposed rule, in the owner's words and for the place they chose (a repository, `null` for the preferences) when they changed these. */
-  acceptProposal: (id: number, text?: string, target?: string | null, canvas?: string) =>
-    call<void>('POST', canvas ? `/api/c/${encodeURIComponent(canvas)}/preferences/${id}/accept` : at(`/preferences/${id}/accept`), { ...(text === undefined ? {} : { text }), ...(target === undefined ? {} : { target }) }),
-  rejectProposal: (id: number, canvas?: string) => call<void>('POST', canvas ? `/api/c/${encodeURIComponent(canvas)}/preferences/${id}/reject` : at(`/preferences/${id}/reject`)),
+  acceptProposal: (id: number, text?: string, target?: string | null, project?: string) =>
+    call<void>('POST', project ? `/api/c/${encodeURIComponent(project)}/preferences/${id}/accept` : at(`/preferences/${id}/accept`), { ...(text === undefined ? {} : { text }), ...(target === undefined ? {} : { target }) }),
+  rejectProposal: (id: number, project?: string) => call<void>('POST', project ? `/api/c/${encodeURIComponent(project)}/preferences/${id}/reject` : at(`/preferences/${id}/reject`)),
   /** Takes a setting the work retrospective proposed, as it is or with the owner's `value`: on this machine, or into the repository for everyone. */
-  takeSetting: (id: number, where: 'machine' | 'repository', value?: string | string[], canvas?: string) => call<unknown>('POST', canvas ? `/api/c/${encodeURIComponent(canvas)}/setting-proposals/${id}/take` : at(`/setting-proposals/${id}/take`), { where, ...(value === undefined ? {} : { value }) }),
-  rejectSetting: (id: number, canvas?: string) => call<void>('POST', canvas ? `/api/c/${encodeURIComponent(canvas)}/setting-proposals/${id}/reject` : at(`/setting-proposals/${id}/reject`)),
+  takeSetting: (id: number, where: 'machine' | 'repository', value?: string | string[], project?: string) => call<unknown>('POST', project ? `/api/c/${encodeURIComponent(project)}/setting-proposals/${id}/take` : at(`/setting-proposals/${id}/take`), { where, ...(value === undefined ? {} : { value }) }),
+  rejectSetting: (id: number, project?: string) => call<void>('POST', project ? `/api/c/${encodeURIComponent(project)}/setting-proposals/${id}/reject` : at(`/setting-proposals/${id}/reject`)),
   /** Shares outdated pages again, the newest demos first: `count` of them, or all with null. */
   reshare: (count: number | null, tags = false) => call<void>('POST', at('/reshare'), { count, ...(tags ? { tags } : {}) }),
   stopReshare: () => call<void>('POST', at('/reshare/stop')),
@@ -401,24 +401,24 @@ export const api = {
   /** The owner has the Koordinator's sheet in view: the answers waiting there are read. */
   /** Seismic's sheet is in view, or (`ids`) these exchanges in a plan's sheet. */
   readTalk: (ids?: number[]) => call<void>('POST', at('/talk/read'), ids ? { ids } : undefined),
-  /** A new chat with Seismic on the shown canvas, or (`id`) an earlier one, of `canvas` where it is another. */
+  /** A new chat with Seismic on the shown project, or (`id`) an earlier one, of `project` where it is another. */
   newChat: () => call<{ chat: number }>('POST', at('/chat'), {}),
-  openChat: (id: number, canvas?: string) => call<{ chat: number }>('POST', canvas ? `/api/c/${encodeURIComponent(canvas)}/chat` : at('/chat'), { id }),
-  setChatModel: (canvas: string, model?: string) => call<void>('POST', `/api/c/${encodeURIComponent(canvas)}/chat/model`, { model: model ?? null }),
-  /** The chats with Seismic on every canvas that runs, the latest first. */
+  openChat: (id: number, project?: string) => call<{ chat: number }>('POST', project ? `/api/c/${encodeURIComponent(project)}/chat` : at('/chat'), { id }),
+  setChatModel: (project: string, model?: string) => call<void>('POST', `/api/c/${encodeURIComponent(project)}/chat/model`, { model: model ?? null }),
+  /** The chats with Seismic on every project that runs, the latest first. */
   everyChat: () => call<ChatElsewhere[]>('GET', '/api/chats'),
   /** Seismic no longer waits on the card after that exchange, to take the step it said it would. */
   unwait: (talk: number, card: string) => call<{ stopped: boolean }>('POST', at(`/talk/${talk}/unwait`), { card }),
 };
 
-// Log lines arrive over the canvas's WebSocket; whoever shows a card's log listens here.
+// Log lines arrive over the project's WebSocket; whoever shows a card's log listens here.
 const eventListeners = new Set<(e: CardEvent) => void>();
 export function onCardEvent(fn: (e: CardEvent) => void): () => void {
   eventListeners.add(fn);
   return () => eventListeners.delete(fn);
 }
 
-// A canvas's WebSocket is open again after it was lost: what was pushed meanwhile never arrived, so
+// A project's WebSocket is open again after it was lost: what was pushed meanwhile never arrived, so
 // whoever shows a card's log loads it anew (the agent may have read the owner's words meanwhile).
 const reconnectListeners = new Set<() => void>();
 export function onReconnect(fn: () => void): () => void {
@@ -436,7 +436,7 @@ export function onCardEventGone(fn: (cardId: string, id: number) => void): () =>
 // What Seismic tells the owner without a command of theirs to answer (an answer looked up, what a
 // request an agent passed on came to): it shows above the microphone, with "Undo" while actions wait.
 const noticeListeners = new Set<(n: Notice) => void>();
-/** Notices that came before anything showed them: those a page gets as it opens, before the canvas is drawn. */
+/** Notices that came before anything showed them: those a page gets as it opens, before the project is drawn. */
 let heldNotices: { n: Notice; at: number }[] = [];
 export function onNotice(fn: (n: Notice) => void): () => void {
   noticeListeners.add(fn);
@@ -454,7 +454,7 @@ function notice(n: Notice) {
 // What the owner does in this page that a restart would cut off, by who holds it (the demo video,
 // push-to-talk); the server hears every change, and again after a reconnect.
 const holds = new Map<string, OwnerHold>();
-/** The page's open WebSockets: one for the canvas it shows, one per canvas in the phone view. */
+/** The page's open WebSockets: one for the project it shows, one per project in the phone view. */
 const sockets = new Map<string, WebSocket>();
 const sendHolds = () => {
   for (const ws of sockets.values()) if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'hold', hold: [...new Set(holds.values())] } satisfies ClientMessage));
@@ -467,12 +467,12 @@ export function holdRestart(by: string, what: OwnerHold | null) {
   sendHolds();
 }
 
-// Where the owner looks on the canvas, for a card a command makes without a place of its own: the
+// Where the owner looks on the project, for a card a command makes without a place of its own: the
 // server hears every change, again after a reconnect, and when the page gets the focus back, so
 // the page the owner looked at last wins.
 let focusMessage: Extract<ClientMessage, { type: 'focus' }> | null = null;
 const sendFocus = () => {
-  const ws = sockets.get(canvasId);
+  const ws = sockets.get(projectId);
   if (focusMessage && ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(focusMessage));
 };
 export function reportFocus(place: Place) {
@@ -491,13 +491,13 @@ let inViewIsUse = false;
 /** The phone view: being in view is using it. */
 export const phoneInUse = () => void (inViewIsUse = true);
 const sendHere = () => {
-  const ws = sockets.get(canvasId);
+  const ws = sockets.get(projectId);
   if (document.visibilityState === 'visible' && ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'here' } satisfies ClientMessage));
 };
 if (typeof document !== 'undefined') {
   // a stall of this page goes into the server's log
   watchPageStalls((stall) => {
-    const ws = sockets.get(canvasId) ?? [...sockets.values()][0];
+    const ws = sockets.get(projectId) ?? [...sockets.values()][0];
     if (ws?.readyState !== WebSocket.OPEN) return false;
     ws.send(JSON.stringify({ type: 'stall', ...stall } satisfies ClientMessage));
     return true;
@@ -551,9 +551,9 @@ export async function takeHandOver() {
 }
 
 /**
- * The live canvas `id` (the shown one by default): the server pushes a snapshot on connect and after
+ * The live project `id` (the shown one by default): the server pushes a snapshot on connect and after
  * every change, the restart that waits, the newer version of the app there is, how many cards on
- * each canvas need the owner, and the Bun it runs on when that is too old. A lost connection is
+ * each project need the owner, and the Bun it runs on when that is too old. A lost connection is
  * tried again with a growing pause, and at once when the page comes back into view (a phone that
  * was locked).
  */
@@ -570,8 +570,8 @@ const PING_MS = 5000;
 /** How long a ping may stay unanswered before the page counts the server as frozen. */
 const FROZEN_MS = 10_000;
 
-export function useCanvas(id = canvasId): {
-  snapshot: CanvasSnapshot | null;
+export function useProject(id = projectId): {
+  snapshot: ProjectSnapshot | null;
   online: boolean;
   /** Since when the server does not answer; null while it does. */
   offlineSince: number | null;
@@ -583,13 +583,13 @@ export function useCanvas(id = canvasId): {
   source: SourceUpdate | null;
   /** The plan's usage limits, while the bar shows them. */
   usage: Usage | null;
-  /** What waits for the owner on each canvas, by canvas id. */
+  /** What waits for the owner on each project, by project id. */
   waiting: Record<string, Waiting>;
   oldBun: string | null;
-  /** The canvases as they changed while the page is open (one started, stopped or renamed); null until they do. */
-  canvases: CanvasInfo[] | null;
+  /** The projects as they changed while the page is open (one started, stopped or renamed); null until they do. */
+  projects: ProjectInfo[] | null;
 } {
-  const [snapshot, setSnapshot] = useState<CanvasSnapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<ProjectSnapshot | null>(null);
   // a page that loaded while the server answered nothing says so at once
   const [online, setOnline] = useState(!quietAtStart);
   const [offlineSince, setOfflineSince] = useState<number | null>(() => (quietAtStart ? Date.now() - QUIET_MS : null));
@@ -600,7 +600,7 @@ export function useCanvas(id = canvasId): {
   const [usage, setUsage] = useState<Usage | null>(null);
   const [waiting, setWaiting] = useState<Record<string, Waiting>>({});
   const [oldBun, setOldBun] = useState<string | null>(null);
-  const [canvases, setCanvases] = useState<CanvasInfo[] | null>(null);
+  const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
   useEffect(() => {
     let ws: WebSocket;
     let retry: ReturnType<typeof setTimeout>;
@@ -655,7 +655,7 @@ export function useCanvas(id = canvasId): {
         else if (msg.type === 'source') setSource(msg.source);
         else if (msg.type === 'usage') setUsage(msg.usage);
         else if (msg.type === 'waiting') setWaiting(msg.waiting);
-        else if (msg.type === 'canvases') setCanvases(msg.canvases);
+        else if (msg.type === 'projects') setProjects(msg.projects);
         else if (msg.type === 'event') for (const fn of eventListeners) fn(msg.event);
         else if (msg.type === 'eventGone') for (const fn of goneListeners) fn(msg.cardId, msg.id);
         else if (msg.type === 'notice') notice(msg);
@@ -667,10 +667,10 @@ export function useCanvas(id = canvasId): {
         setFrozenSince(null);
         setOnline(false);
         setOfflineSince((t) => t ?? outageStart);
-        // a canvas the configuration no longer has: the page goes to the first one there is; a
+        // a project the configuration no longer has: the page goes to the first one there is; a
         // device removed from Seismic's devices, or a browser whose cookie no longer names the
         // owner's key, gets the page that says how to connect or sign in again
-        api.canvases().then(
+        api.projects().then(
           (list) => list.some((c) => c.id === id) || location.replace('/'),
           (e) => e instanceof ApiError && (e.code === 'notPaired' || e.code === 'notOwner') && location.reload(),
         );
@@ -724,5 +724,5 @@ export function useCanvas(id = canvasId): {
       ws.close();
     };
   }, [id]);
-  return { snapshot, online, offlineSince, frozenSince, restart, update, source, usage, waiting, oldBun, canvases };
+  return { snapshot, online, offlineSince, frozenSince, restart, update, source, usage, waiting, oldBun, projects };
 }

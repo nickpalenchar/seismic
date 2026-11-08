@@ -81,11 +81,11 @@ export interface ReplyUi {
 }
 
 /**
- * Sends `r` for the card `i` on the canvas `canvas`: its entry leaves the list at once and comes back
+ * Sends `r` for the card `i` on the project `project`: its entry leaves the list at once and comes back
  * with the reason if the server refuses; a held one goes out once its undo has run out.
  */
-export function sendReply(canvas: string, i: Item, r: QuickReply, ui: ReplyUi) {
-  cardsOn(canvas, [i.id]);
+export function sendReply(project: string, i: Item, r: QuickReply, ui: ReplyUi) {
+  cardsOn(project, [i.id]);
   const title = plain(i.title);
   ui.mark(i.id, r.label);
   const refused = (e: unknown) => {

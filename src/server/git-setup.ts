@@ -1,4 +1,4 @@
-// Setting up git in a folder that has none, for the first canvas and "+ Repository" in the
+// Setting up git in a folder that has none, for the first project and "+ Repository" in the
 // configuration: first a preview of what the first commit holds (computed against a git directory
 // of its own in the temp directory, so looking changes nothing in the folder), then, once the owner
 // confirms, `git init`, a default `.gitignore` where the folder has none, and the first commit with

@@ -1,21 +1,21 @@
 import { serverExtensions as extensions } from '../extensions/server';
 import { validProjectName } from '../core/project-slug';
-// Seismic's configuration: the canvases it serves, saved in `canvases.json` under its home. The owner
+// Seismic's configuration: the projects it serves, saved in `projects.json` under its home. The owner
 // reads and edits it in its sheet, the Koordinator on their word. A saved change applies while
-// Seismic runs (`Canvases.apply`, see Live configuration in
+// Seismic runs (`Projects.apply`, see Live configuration in
 // docs/design/repositories-and-configuration.md): what a repository's agents are set up by
 // restarts that repository's agents alone, once they paused. The
 // repositories' settings (`RepoSettings`) are read where they are used, apply at once, and saving
 // them alone restarts nothing but where they change where the workers work.
 
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import { readShared, REPO_ADAPTER_DIR, REPO_SETTINGS_FILE } from '../adapters';
 import { renamedField, settingsShape, withoutGone as goneSettings } from '../adapters/schema';
 import { LANGUAGES } from '../core/locale';
-import { blocksSaving, type CanvasConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedCanvas, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines } from '../core/types';
+import { blocksSaving, type ProjectConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedProject, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines } from '../core/types';
 import {
   absoluteDirectory,
   DEMO_SETTINGS_FILE,
@@ -33,7 +33,7 @@ import { checkSetup, type SetupCheck } from '../../plugin/skills/demo/lib/setup.
 import { installState, installVoice, KEY_ENV, sample, voiceProblem } from '../../plugin/skills/demo/lib/voices.ts';
 import { slug } from '../core/project-slug';
 import { BadRequest } from './board';
-import { ConfigError, readingRepo, resolveCanvas, type StartFailure } from './canvas';
+import { ConfigError, readingRepo, resolveProject, type StartFailure } from './project';
 import type { Store } from './db';
 import { freshPath } from './path';
 import { sameRemote } from './repo';
@@ -42,22 +42,34 @@ import type { Forge } from './forge';
 import { commitShared, proposeShared, pushShared } from './shared-settings';
 import { gitCalls, gitSteps, leavingClones } from './workstations';
 import { VERSION } from './resources';
-import { canvasDefaults, canvasSettingsShape, renamedBaselines, tidyCanvasSettings, withCanvasDefaults } from './settings';
+import { projectDefaults, projectSettingsShape, renamedBaselines, tidyProjectSettings, withProjectDefaults } from './settings';
 import { canonical, commandsOf, heldGroups, trustHeld, trustTakenOver } from './trust';
 
-export const CONFIG_FILE = 'canvases.json';
+export const CONFIG_FILE = 'projects.json';
+/** What the configuration was called while projects were canvases; read once, when the new file is not there yet. */
+const OLD_CONFIG_FILE = 'canvases.json';
+
+/**
+ * Brings the configuration of a home from before the rename to its new file: copied, so an older
+ * Seismic started on the same home still finds its own. From then on the new file is the one read and written.
+ */
+export function adoptOldConfig(home: string) {
+  const file = join(home, CONFIG_FILE);
+  const old = join(home, OLD_CONFIG_FILE);
+  if (!existsSync(file) && existsSync(old)) copyFileSync(old, file);
+}
 
 /** Whether the configuration's repository `r` is the one at `path` (absolute). */
 const isAt = (r: { path: string }, path: string) => resolve(expandHome(r.path)) === path;
 
-/** The first repository of the configuration that `match` takes, with the index of its canvas and its own. */
-function locate(canvases: CanvasConfig[], match: (r: CanvasConfig['repos'][number]) => boolean) {
-  return canvases.flatMap((c, canvas) => c.repos.map((r, repo) => ({ r, canvas, repo }))).find(({ r }) => match(r));
+/** The first repository of the configuration that `match` takes, with the index of its project and its own. */
+function locate(projects: ProjectConfig[], match: (r: ProjectConfig['repos'][number]) => boolean) {
+  return projects.flatMap((c, project) => c.repos.map((r, repo) => ({ r, project, repo }))).find(({ r }) => match(r));
 }
 
 /** The configuration with its paths as the server uses them. */
-export function expandConfig(canvases: CanvasConfig[]): CanvasConfig[] {
-  return canvases.map((c) => ({
+export function expandConfig(projects: ProjectConfig[]): ProjectConfig[] {
+  return projects.map((c) => ({
     ...c,
     repos: c.repos.map((r) => ({ ...r, path: expandHome(r.path), ...(r.workstations ? { workstations: r.workstations.map(expandHome) } : {}) })),
   }));
@@ -104,7 +116,7 @@ function tidyApp(s: RepoSettings['app']): RepoSettings['app'] {
   return Object.keys(out).length ? out : undefined;
 }
 
-/** The canvases as the configuration lists them, from the dialog, the file and the Koordinator alike. */
+/** The projects as the configuration lists them, from the dialog, the file and the Koordinator alike. */
 export const configShape = z.array(
   z
     .object({
@@ -142,17 +154,17 @@ export const configShape = z.array(
           .strict(),
       ),
     })
-    .extend(canvasSettingsShape.shape)
+    .extend(projectSettingsShape.shape)
     .strict(),
 );
 
 /** The configuration as it is saved: no empty names, clone lists or counts. */
-function tidy(canvases: z.infer<typeof configShape>): CanvasConfig[] {
-  return canvases.map(({ name, id, oldNames, repos, ...settings }) => ({
+function tidy(projects: z.infer<typeof configShape>): ProjectConfig[] {
+  return projects.map(({ name, id, oldNames, repos, ...settings }) => ({
     ...(name?.trim() ? { name: name.trim() } : {}),
     ...(id?.trim() ? { id: id.trim() } : {}),
     ...withOldNames(oldNames ?? [], name?.trim()),
-    ...tidyCanvasSettings(settings),
+    ...tidyProjectSettings(settings),
     repos: repos.map((r) => {
       const workstations = (r.workstations ?? []).map((w) => w.trim()).filter(Boolean);
       // a host without a name or a machine is a row still being filled in
@@ -173,7 +185,7 @@ function tidy(canvases: z.infer<typeof configShape>): CanvasConfig[] {
 }
 
 /**
- * A canvas's old names as saved: each address once, the newest kept, none that is its name now (a
+ * A project's old names as saved: each address once, the newest kept, none that is its name now (a
  * project renamed back has its name again, not as an old one).
  */
 function withOldNames(names: string[], now: string | undefined): { oldNames?: string[] } {
@@ -192,32 +204,32 @@ function withOldNames(names: string[], now: string | undefined): { oldNames?: st
 }
 
 /**
- * The names no project may take because another has them (`names`, by index; null for a canvas
+ * The names no project may take because another has them (`names`, by index; null for a project
  * that neither resolves nor has a name), now or as an old name: compared as addresses. Of two projects with one
  * name, the later is told; one whose id is taken already (`sameId`) is not told again.
  */
 export function nameProblems(names: (string | null)[], oldNames: (string[] | undefined)[], skip: Set<number>): ConfigProblem[] {
   const problems: ConfigProblem[] = [];
-  names.forEach((name, canvas) => {
+  names.forEach((name, project) => {
     const s = name === null ? '' : slug(name);
-    if (!s || skip.has(canvas)) return;
-    const now = names.findIndex((n, j) => j < canvas && n !== null && slug(n) === s);
+    if (!s || skip.has(project)) return;
+    const now = names.findIndex((n, j) => j < project && n !== null && slug(n) === s);
     if (now >= 0) {
-      problems.push({ code: 'nameTaken', canvas, of: names[now]!, ofCanvas: now, detail: `canvas ${canvas + 1} is called "${name}" as is canvas ${now + 1}; give it another name` });
+      problems.push({ code: 'nameTaken', project, of: names[now]!, ofProject: now, detail: `project ${project + 1} is called "${name}" as is project ${now + 1}; give it another name` });
       return;
     }
-    const old = oldNames.findIndex((o, j) => j !== canvas && names[j] !== null && !!o?.some((n) => slug(n) === s));
-    if (old >= 0) problems.push({ code: 'oldNameTaken', canvas, of: names[old]!, ofCanvas: old, detail: `"${name}" is an old name of the project "${names[old]}", whose old addresses lead there; delete it there first to use it again` });
+    const old = oldNames.findIndex((o, j) => j !== project && names[j] !== null && !!o?.some((n) => slug(n) === s));
+    if (old >= 0) problems.push({ code: 'oldNameTaken', project, of: names[old]!, ofProject: old, detail: `"${name}" is an old name of the project "${names[old]}", whose old addresses lead there; delete it there first to use it again` });
   });
   return problems;
 }
 
 /**
- * The canvases with the name each had before this save (`before`, as saved, by id) among their old
+ * The projects with the name each had before this save (`before`, as saved, by id) among their old
  * names, where they were renamed.
  */
-function withRenames(canvases: CanvasConfig[], now: (ResolvedCanvas | null)[], before: (ResolvedCanvas | null)[]): CanvasConfig[] {
-  return canvases.map((c, i) => {
+function withRenames(projects: ProjectConfig[], now: (ResolvedProject | null)[], before: (ResolvedProject | null)[]): ProjectConfig[] {
+  return projects.map((c, i) => {
     const r = now[i];
     const was = r && before.find((b) => b?.id === r.id);
     if (!was || slug(was.name) === slug(r.name)) return c;
@@ -227,14 +239,14 @@ function withRenames(canvases: CanvasConfig[], now: (ResolvedCanvas | null)[], b
   });
 }
 
-/** Reads a configuration file; throws when it is no list of canvases. */
-export function readConfigFile(file: string): CanvasConfig[] {
+/** Reads a configuration file; throws when it is no list of projects. */
+export function readConfigFile(file: string): ProjectConfig[] {
   return tidy(configShape.parse(withoutGone(JSON.parse(readFileSync(file, 'utf8')))));
 }
 
 /**
  * A file as read, without the settings Seismic no longer has: a repository's share command (`file`
- * only), and its demo site (the canvas chooses one now); a repository's clones listed under
+ * only), and its demo site (the project chooses one now); a repository's clones listed under
  * `workspaces`, their name before, are its `workstations`.
  */
 function withoutGone(made: unknown, file = true): unknown {
@@ -255,12 +267,12 @@ function withoutGone(made: unknown, file = true): unknown {
 export interface ConfigOptions {
   /** Where it is saved. */
   file: string;
-  /** Whether the running canvases come from that file or from the command line. */
+  /** Whether the running projects come from that file or from the command line. */
   source: 'file' | 'args';
   /** The configuration the server started with, paths as given. */
-  started: CanvasConfig[];
+  started: ProjectConfig[];
   store: Store;
-  /** The ids of the canvases the server runs. */
+  /** The ids of the projects the server runs. */
   running: () => string[];
   /** The running server's settings; `commit` the one its checkout stands at (none for the compiled binary). */
   server: { port: number; home: string; permissionMode: string; commit?: string | null };
@@ -269,18 +281,18 @@ export interface ConfigOptions {
   /** The lock a heavy voice's sample waits for; the machine's (TTS_LOCK) unless a test gives its own. */
   ttsLock?: string;
   /**
-   * Starts Seismic again with the saved configuration, for canvases that came from the command line
+   * Starts Seismic again with the saved configuration, for projects that came from the command line
    * (the file is the configuration from then on); absent where nothing restarts it (--dev).
    */
   restart?: () => void;
   /**
-   * The running canvases take the saved configuration over without a restart (`Canvases.apply`):
-   * `ids` are its canvases' ids, null where one does not resolve.
+   * The running projects take the saved configuration over without a restart (`Projects.apply`):
+   * `ids` are its projects' ids, null where one does not resolve.
    */
-  apply?: (canvases: CanvasConfig[], ids: (string | null)[]) => void;
-  /** The canvases, and repositories of those that run, that do not run as the configuration has them (`Canvases.failures`). */
+  apply?: (projects: ProjectConfig[], ids: (string | null)[]) => void;
+  /** The projects, and repositories of those that run, that do not run as the configuration has them (`Projects.failures`). */
   failures?: () => StartFailure[];
-  /** Repositories' settings for everyone were committed: the running canvases read them again. */
+  /** Repositories' settings for everyone were committed: the running projects read them again. */
   onSettings?: () => void;
   /** Where "For everyone, into the repository" opens its pull request. */
   forge?: Forge;
@@ -371,20 +383,20 @@ export function clipProblems(s: DemoSettings): DemoVoiceCheck['clips'] {
 export class Config {
   private restarting = false;
   /** The file as last read, by its time and size: repositories' settings are read from it whenever they are used. */
-  private read?: { stamp: string; canvases: CanvasConfig[] };
+  private read?: { stamp: string; projects: ProjectConfig[] };
 
   constructor(private o: ConfigOptions) {}
 
   /** The configuration as saved, or as started when nothing is saved yet (or the file no longer reads). */
-  current(): CanvasConfig[] {
+  current(): ProjectConfig[] {
     if (this.o.source === 'file' && existsSync(this.o.file)) {
       try {
         const { mtimeMs, size } = statSync(this.o.file);
         const stamp = `${mtimeMs}:${size}`;
-        if (this.read?.stamp === stamp) return this.read.canvases;
-        const canvases = readConfigFile(this.o.file);
-        this.read = { stamp, canvases };
-        return canvases;
+        if (this.read?.stamp === stamp) return this.read.projects;
+        const projects = readConfigFile(this.o.file);
+        this.read = { stamp, projects };
+        return projects;
       } catch {}
     }
     return this.o.started;
@@ -430,7 +442,7 @@ export class Config {
   private dropSettings(path: string, drop: (s: RepoSettings) => void): boolean {
     if (this.o.source !== 'file' || !existsSync(this.o.file)) return false;
     let changed = false;
-    const canvases = this.current().map((c) => ({
+    const projects = this.current().map((c) => ({
       ...c,
       repos: c.repos.map((r) => {
         if (!isAt(r, path) || !r.settings) return r;
@@ -445,7 +457,7 @@ export class Config {
       }),
     }));
     if (!changed) return false;
-    writeFileSync(this.o.file, `${JSON.stringify(canvases, null, 2)}\n`);
+    writeFileSync(this.o.file, `${JSON.stringify(projects, null, 2)}\n`);
     this.read = undefined;
     return true;
   }
@@ -459,21 +471,21 @@ export class Config {
    * (`takenOver` then removes it). Says where it went for everyone; nothing for this machine.
    */
   async takeSetting(path: string, field: ProposedSetting, value: string | string[], where: 'machine' | 'repository'): Promise<SettingsShared | null> {
-    const canvases = this.current();
-    const at = locate(canvases, (r) => isAt(r, path));
+    const projects = this.current();
+    const at = locate(projects, (r) => isAt(r, path));
     if (!at) throw new BadRequest('invalid', `no repository ${path} in the configuration`);
     const patch = settingPatch(field, value);
     // on the configuration as it is then: a pull request opened meanwhile may have taken a while
     const onMachine = () => {
       const now = this.current();
       const here = locate(now, (r) => isAt(r, path)) ?? at;
-      return this.save(now.map((c, i) => (i !== here.canvas ? c : { ...c, repos: c.repos.map((r, j) => (j !== here.repo ? r : { ...r, settings: layerSettings(r.settings, patch) })) })));
+      return this.save(now.map((c, i) => (i !== here.project ? c : { ...c, repos: c.repos.map((r, j) => (j !== here.repo ? r : { ...r, settings: layerSettings(r.settings, patch) })) })));
     };
     if (where === 'machine') {
       await onMachine();
       return null;
     }
-    const to = (await this.check(canvases)).resolved[at.canvas]?.repos[at.repo]?.shareTo ?? 'main';
+    const to = (await this.check(projects)).resolved[at.project]?.repos[at.repo]?.shareTo ?? 'main';
     const done = await this.share(path, patch, to, field);
     if (to === 'pr') {
       await onMachine();
@@ -498,13 +510,13 @@ export class Config {
   async shareSettings(input: unknown): Promise<SettingsShared> {
     const parsed = z.object({ path: z.string(), direct: z.boolean().optional() }).safeParse(input);
     if (!parsed.success) throw new BadRequest('invalid', 'expected { path, direct? }');
-    const canvases = this.current();
-    const at = locate(canvases, (r) => r.path === parsed.data.path);
+    const projects = this.current();
+    const at = locate(projects, (r) => r.path === parsed.data.path);
     if (!at) throw new BadRequest('noSettings', `no repository ${parsed.data.path} in the configuration`);
     const { branch: _, ...mine } = at.r.settings ?? {};
     if (!Object.keys(mine).length) throw new BadRequest('noSettings', `${at.r.path}: nothing set on this machine to take over`);
     const repoPath = resolve(expandHome(at.r.path));
-    const resolved = (await this.check(canvases)).resolved[at.canvas];
+    const resolved = (await this.check(projects)).resolved[at.project];
     const to = resolved?.repos[at.repo]?.shareTo ?? 'main';
     if (to === 'pr' && parsed.data.direct) {
       if (!resolved?.repos[at.repo]?.shareDirect) throw new BadRequest('noDirect', `${repoPath}: work goes to main only through pull requests`);
@@ -540,7 +552,7 @@ export class Config {
 
   /**
    * The owner confirmed the commands of the repository at `path` (as the configuration names it,
-   * saved or still in the dialog's draft, a new canvas's say) that the dialog showed them: the
+   * saved or still in the dialog's draft, a new project's say) that the dialog showed them: the
    * groups `held` of `seen` (`RepoTrust`), which count from now on, as long as its default branch
    * has them so. Commands that changed there since are refused (`trustChanged`).
    */
@@ -562,7 +574,7 @@ export class Config {
     return {
       file: this.o.file,
       source: this.o.source,
-      canvases: this.current(),
+      projects: this.current(),
       running: this.o.running(),
       server: { commit: null, ...this.o.server, version: VERSION, restarts: !!this.o.restart },
       restarting: this.restarting,
@@ -570,32 +582,32 @@ export class Config {
   }
 
   /** The check of the configuration as saved while one runs: a page that loads and the dialog opening at the same time share it. */
-  private checking?: { canvases: CanvasConfig[]; done: Promise<ConfigChecked> };
+  private checking?: { projects: ProjectConfig[]; done: Promise<ConfigChecked> };
 
   /** `check` of the configuration as saved. */
   checkSaved(): Promise<ConfigChecked> {
-    const canvases = this.current();
-    if (this.checking?.canvases !== canvases) {
-      const done = this.check(canvases).finally(() => {
+    const projects = this.current();
+    if (this.checking?.projects !== projects) {
+      const done = this.check(projects).finally(() => {
         if (this.checking?.done === done) this.checking = undefined;
       });
-      this.checking = { canvases, done };
+      this.checking = { projects, done };
     }
     return this.checking.done;
   }
 
   /**
-   * Checks a configuration without saving it: every canvas resolves, and no two share an id. What
+   * Checks a configuration without saving it: every project resolves, and no two share an id. What
    * it reads of the repositories with git it reads once for each, all of them at once, without
    * blocking the server meanwhile.
    */
   async check(input: unknown): Promise<ConfigChecked> {
     // a draft the dialog kept from before may hold a site's language (the dialog never sends a share command)
     const parsed = configShape.safeParse(withoutGone(input, false));
-    if (!parsed.success) return { canvases: [], resolved: [], problems: [{ code: 'invalid', detail: z.prettifyError(parsed.error) }] };
-    const canvases = tidy(parsed.data);
-    const expanded = expandConfig(canvases);
-    // a repository whose path is still empty is read nowhere (`resolveCanvas` finds its path missing)
+    if (!parsed.success) return { projects: [], resolved: [], problems: [{ code: 'invalid', detail: z.prettifyError(parsed.error) }] };
+    const projects = tidy(parsed.data);
+    const expanded = expandConfig(projects);
+    // a repository whose path is still empty is read nowhere (`resolveProject` finds its path missing)
     const repos = expanded.flatMap((c) => c.repos).filter((r) => r.path);
     // a workstation needs only to be a repository; one that is also a repository of the configuration is read as that
     const paths = new Set(repos.map((r) => resolve(r.path)));
@@ -618,14 +630,14 @@ export class Config {
     const originOf = (path: string) => clones.get(path)?.origin ?? reads.get(path)?.info.remote ?? null;
     const read = (path: string) => reads.get(path) ?? null;
     const problems: ConfigProblem[] = [];
-    if (!canvases.length) problems.push({ code: 'noCanvas', detail: 'Seismic needs at least one canvas' });
+    if (!projects.length) problems.push({ code: 'noProject', detail: 'Seismic needs at least one project' });
     // a host's name stands for one machine across the configuration: its workstations are named by it
     const machines = new Map<string, string>();
-    const resolved = expanded.map((c, canvas): ResolvedCanvas | null => {
+    const resolved = expanded.map((c, project): ResolvedProject | null => {
       c.repos.forEach((r, repo) =>
         (r.workstations ?? []).forEach((w) => {
           if (!isRepo(resolve(w))) {
-            problems.push({ code: 'notClone', canvas, repo, detail: `workstation ${w} is not a git repository` });
+            problems.push({ code: 'notClone', project, repo, detail: `workstation ${w} is not a git repository` });
             return;
           }
           // the repository itself, or a clone of it: its origin is the repository's, or the repository (as `Workstations.register` has it)
@@ -633,37 +645,37 @@ export class Config {
           const origins = [own?.remote, own?.path].filter((x): x is string => !!x);
           const origin = originOf(resolve(w)) ?? '';
           if (own && !own.folder && resolve(w) !== own.path && !origins.some((o) => sameRemote(o, origin)))
-            problems.push({ code: 'otherClone', canvas, repo, detail: `${w} is not a clone of ${origins.join(' or ')} (its origin is ${origin || 'unset'})` });
+            problems.push({ code: 'otherClone', project, repo, detail: `${w} is not a clone of ${origins.join(' or ')} (its origin is ${origin || 'unset'})` });
         }),
       );
       c.repos.forEach((r, repo) => {
         const branch = r.settings?.branch;
-        if (branch && found.get(`${resolve(r.path)}\0${branch}`) === false) problems.push({ code: 'noBranch', canvas, repo, detail: `${r.path} has no branch ${branch}, neither here nor on origin` });
+        if (branch && found.get(`${resolve(r.path)}\0${branch}`) === false) problems.push({ code: 'noBranch', project, repo, detail: `${r.path} has no branch ${branch}, neither here nor on origin` });
       });
       c.repos.forEach((r, repo) =>
         (r.hosts ?? []).forEach((h) => {
           const other = machines.get(h.name);
-          if (other !== undefined && other !== h.ssh) problems.push({ code: 'hostName', canvas, repo, detail: `host ${h.name} connects to ${other} elsewhere, here to ${h.ssh}` });
+          if (other !== undefined && other !== h.ssh) problems.push({ code: 'hostName', project, repo, detail: `host ${h.name} connects to ${other} elsewhere, here to ${h.ssh}` });
           machines.set(h.name, h.ssh);
         }),
       );
       try {
-        const { id, name, repos } = resolveCanvas(c, this.o.store, undefined, undefined, read);
+        const { id, name, repos } = resolveProject(c, this.o.store, undefined, undefined, read);
         // the repositories in the order given, though the home one runs first
         const given = c.repos.map((r) => repos.find((x) => x.config === r)!);
         // what is wrong in a repository's settings for everyone is fixed there, not here: it keeps nothing from being saved
         c.repos.forEach((r, repo) => {
           const { adapter, read: got } = given[repo]!;
           if (got.adapterModule)
-            problems.push({ code: 'adapterGone', canvas, repo, detail: `${REPO_ADAPTER_DIR}/ on the main branch is no longer read; what it says belongs in ${REPO_SETTINGS_FILE}` });
+            problems.push({ code: 'adapterGone', project, repo, detail: `${REPO_ADAPTER_DIR}/ on the main branch is no longer read; what it says belongs in ${REPO_SETTINGS_FILE}` });
           if (r.hosts?.length) {
             const why = adapter.land === 'main' ? 'its work lands on the main of this checkout' : !got.info.remote ? 'it has no remote to clone from' : null;
-            if (why) problems.push({ code: 'hostRepo', canvas, repo, detail: `the repository cannot have workers on other machines: ${why}` });
+            if (why) problems.push({ code: 'hostRepo', project, repo, detail: `the repository cannot have workers on other machines: ${why}` });
           }
-          for (const detail of got.shared.problems) problems.push({ code: 'repoSettings', canvas, repo, detail });
+          for (const detail of got.shared.problems) problems.push({ code: 'repoSettings', project, repo, detail });
           const trust = trustOf(got.info.path, got.shared, r.settings, this.o.store);
           if (trust)
-            problems.push({ code: 'untrusted', canvas, repo, detail: `held until the owner confirms them: ${trust.held.flatMap((g) => commandLines(trust.now, g)).join('; ')}` });
+            problems.push({ code: 'untrusted', project, repo, detail: `held until the owner confirms them: ${trust.held.flatMap((g) => commandLines(trust.now, g)).join('; ')}` });
         });
         return {
           id,
@@ -686,38 +698,38 @@ export class Config {
         };
       } catch (e) {
         if (!(e instanceof ConfigError)) throw e;
-        problems.push({ code: e.code, canvas, ...(e.repo !== undefined ? { repo: e.repo } : {}), detail: e.message });
+        problems.push({ code: e.code, project, ...(e.repo !== undefined ? { repo: e.repo } : {}), detail: e.message });
         return null;
       }
     });
     const failures = this.o.failures?.() ?? [];
     const sameIds = new Set<number>();
-    resolved.forEach((r, canvas) => {
+    resolved.forEach((r, project) => {
       const first = resolved.findIndex((x) => x?.id === r?.id);
-      if (r && first !== canvas) {
-        problems.push({ code: 'sameId', canvas, detail: `canvas ${canvas + 1} has the id "${r.id}" of canvas ${first + 1}; give it another name` });
-        sameIds.add(canvas);
+      if (r && first !== project) {
+        problems.push({ code: 'sameId', project, detail: `project ${project + 1} has the id "${r.id}" of project ${first + 1}; give it another name` });
+        sameIds.add(project);
       }
-      // what does not run as it is configured, by the canvases and repositories it resolves to
-      for (const f of failures.filter((f) => f.canvas === r?.id)) {
+      // what does not run as it is configured, by the projects and repositories it resolves to
+      for (const f of failures.filter((f) => f.project === r?.id)) {
         if (f.repo === undefined) {
-          problems.push({ code: 'canvasDown', canvas, detail: f.detail });
+          problems.push({ code: 'projectDown', project, detail: f.detail });
           continue;
         }
         const repo = r!.repos.findIndex((x) => x.id === f.repo);
-        if (repo >= 0) problems.push({ code: f.before ? 'repoBefore' : 'repoDown', canvas, repo, detail: f.detail });
+        if (repo >= 0) problems.push({ code: f.before ? 'repoBefore' : 'repoDown', project, repo, detail: f.detail });
       }
     });
     // a new project's name is checked before its repository is: the owner types it first
-    problems.push(...nameProblems(resolved.map((r, i) => r?.name ?? canvases[i]!.name ?? null), canvases.map((c) => c.oldNames), sameIds));
-    return { canvases, resolved, problems };
+    problems.push(...nameProblems(resolved.map((r, i) => r?.name ?? projects[i]!.name ?? null), projects.map((c) => c.oldNames), sameIds));
+    return { projects, resolved, problems };
   }
 
-  /** The clones of a repository's pool (`repo` null: the canvas's home repository) that the configuration `r` no longer names. */
-  private leaving(canvas: string, repo: string | null, r: CanvasConfig['repos'][number], mode: 'clones' | 'worktrees') {
-    const rows = this.o.store.workstations(canvas, repo);
+  /** The clones of a repository's pool (`repo` null: the project's home repository) that the configuration `r` no longer names. */
+  private leaving(project: string, repo: string | null, r: ProjectConfig['repos'][number], mode: 'clones' | 'worktrees') {
+    const rows = this.o.store.workstations(project, repo);
     if (!rows.length) return [];
-    const dir = join(this.o.server.home, 'workspaces', canvas, ...(repo ? [repo] : []));
+    const dir = join(this.o.server.home, 'workspaces', project, ...(repo ? [repo] : []));
     const hosts = (r.hosts ?? []).map((h) => ({ name: h.name, clones: h.clones }));
     return leavingClones(rows, { dir, mode, listed: (r.workstations ?? []).map((w) => resolve(w)), clones: r.clones ?? 0, hosts }).map((c) => {
       const title = c.card ? (this.o.store.card(c.card)?.title ?? undefined) : undefined;
@@ -821,49 +833,49 @@ export class Config {
   }
 
   /**
-   * Saves a configuration that works, and the running canvases take it over (design: Live
+   * Saves a configuration that works, and the running projects take it over (design: Live
    * configuration). Where they came from the command line, Seismic starts again with it where
    * something restarts it.
    */
   /**
-   * "Try again": the running canvases take the saved configuration over again, as after a
+   * "Try again": the running projects take the saved configuration over again, as after a
    * save, so what did not start as it has them tries again.
    */
   async retry(): Promise<{}> {
     if (!this.o.apply) throw new BadRequest('config', 'this Seismic does not apply its configuration while it runs');
-    const { canvases, resolved } = await this.check(this.current());
-    this.o.apply(expandConfig(canvases), resolved.map((r) => r?.id ?? null));
+    const { projects, resolved } = await this.check(this.current());
+    this.o.apply(expandConfig(projects), resolved.map((r) => r?.id ?? null));
     return {};
   }
 
   /**
-   * Saves one canvas's own settings from its settings sheet (`{ agents }`, `{ suggest }` …), the rest of
+   * Saves one project's own settings from its settings sheet (`{ agents }`, `{ suggest }` …), the rest of
    * the configuration as it is saved; applies at once, as a save from the dialog does.
    */
-  saveCanvas(id: string, input: unknown): Promise<ConfigSaved> {
+  saveProject(id: string, input: unknown): Promise<ConfigSaved> {
     // one after the other: each reads the configuration the one before saved, so none undoes another
-    const saved = this.canvasSaves.then(() => this.saveCanvasNow(id, input));
-    this.canvasSaves = saved.catch(() => {});
+    const saved = this.projectSaves.then(() => this.saveProjectNow(id, input));
+    this.projectSaves = saved.catch(() => {});
     return saved;
   }
 
-  private canvasSaves: Promise<unknown> = Promise.resolve();
+  private projectSaves: Promise<unknown> = Promise.resolve();
 
-  private async saveCanvasNow(id: string, input: unknown): Promise<ConfigSaved> {
-    const parsed = canvasSettingsShape.strict().safeParse(input);
-    if (!parsed.success) throw new BadRequest('invalid', `canvas settings: ${z.prettifyError(parsed.error)}`);
+  private async saveProjectNow(id: string, input: unknown): Promise<ConfigSaved> {
+    const parsed = projectSettingsShape.strict().safeParse(input);
+    if (!parsed.success) throw new BadRequest('invalid', `project settings: ${z.prettifyError(parsed.error)}`);
     const current = this.current();
     const { resolved } = await this.check(current);
     const i = resolved.findIndex((r) => r?.id === id);
-    if (i < 0) throw new BadRequest('invalid', `the configuration has no canvas ${id}`);
+    if (i < 0) throw new BadRequest('invalid', `the configuration has no project ${id}`);
     return this.save(current.map((c, j) => (j === i ? { ...c, ...parsed.data } : c)));
   }
 
   async save(input: unknown): Promise<ConfigSaved> {
-    const { canvases: given, resolved, problems: all } = await this.check(input);
+    const { projects: given, resolved, problems: all } = await this.check(input);
     const problems = all.filter(blocksSaving);
     if (problems.length) throw new BadRequest('config', problems.map((p) => p.detail).join('; '));
-    // a canvas created now takes Canvas defaults for what it does not set itself: one this configuration
+    // a project created now takes Project defaults for what it does not set itself: one this configuration
     // already has (by its id, or its home repository, which a rename keeps) stays as it is
     const before = await this.check(this.current());
     const existing = new Set([...this.o.running(), ...before.resolved.flatMap((c) => c ? [c.id] : [])]);
@@ -872,13 +884,13 @@ export class Config {
     // a name freed by a rename and taken by another project in the same save: its old addresses would lead to two
     const taken = nameProblems(resolved.map((r) => r?.name ?? null), renamed.map((c) => c.oldNames), new Set());
     if (taken.length) throw new BadRequest('config', taken.map((p) => p.detail).join('; '));
-    const canvases = withCanvasDefaults(renamed, canvasDefaults(this.o.server.home), (c, i) => !existing.has(resolved[i]?.id ?? '') && !homes.has(c.repos[0] && resolve(expandHome(c.repos[0].path))));
+    const projects = withProjectDefaults(renamed, projectDefaults(this.o.server.home), (c, i) => !existing.has(resolved[i]?.id ?? '') && !homes.has(c.repos[0] && resolve(expandHome(c.repos[0].path))));
     mkdirSync(dirname(this.o.file), { recursive: true });
-    writeFileSync(this.o.file, `${JSON.stringify(canvases, null, 2)}\n`);
+    writeFileSync(this.o.file, `${JSON.stringify(projects, null, 2)}\n`);
     this.read = undefined;
     if (this.o.source === 'file' && !this.restarting && this.o.apply) {
       console.log(`Seismic: configuration saved to ${this.o.file}; it applies at once`);
-      this.o.apply(expandConfig(canvases), resolved.map((r) => r?.id ?? null));
+      this.o.apply(expandConfig(projects), resolved.map((r) => r?.id ?? null));
       return { restarting: false, applied: true };
     }
     console.log(`Seismic: configuration saved to ${this.o.file}`);

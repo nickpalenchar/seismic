@@ -1,5 +1,5 @@
 // Seismic's configuration, in a dialog over the page with its sections listed on the left: the
-// canvases it serves and their repositories, edited and saved together (Seismic then starts again
+// projects it serves and their repositories, edited and saved together (Seismic then starts again
 // with them), and the settings saved on their own (models, voice, demos, notifications, other
 // devices). Language, theme and the server are blocks of this file shown in the logo's preferences
 // dialog (prefs.tsx).
@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, CARD_ARCHIVING, type CardArchiving, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blocksSaving, type CanvasConfig, type CanvasDefaults, type CanvasDefaultsView, type CanvasSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type CanvasDemoSite, type CanvasDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedCanvas, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
+import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, CARD_ARCHIVING, type CardArchiving, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blocksSaving, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
 import { lineDiff } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { LANGUAGES } from '../core/locale';
@@ -45,34 +45,34 @@ declare global {
 
 type Checked = Pick<ConfigChecked, 'resolved' | 'problems'>;
 
-/** Hands the Koordinator a request; to the one of `canvas` where given, else to this page's. */
-type Ask = (text: string, canvas?: string) => void;
+/** Hands the Koordinator a request; to the one of `project` where given, else to this page's. */
+type Ask = (text: string, project?: string) => void;
 
 /** The dialog's sections, in the order its list shows them. */
-type Section = 'canvases' | 'defaults' | 'agents' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
-const SECTIONS: Section[] = ['canvases', 'defaults', 'agents', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
+type Section = 'projects' | 'defaults' | 'agents' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
+const SECTIONS: Section[] = ['projects', 'defaults', 'agents', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
 // the section shown, per tab: a save that restarts Seismic reloads the page, and the dialog comes back at it
 const SECTION_KEY = 'obeya-config-section';
 
-// the canvas shown in Canvases, per tab, by its place in the list
-const CANVAS_KEY = 'obeya-config-canvas';
+// the project shown in Projects, per tab, by its place in the list
+const PROJECT_KEY = 'obeya-config-project';
 
-/** Opens the dialog at the canvases next time, at the one the page shows, as from the note on a plan directory. */
-export const showCanvasesSection = () => {
-  sessionStorage.setItem(SECTION_KEY, 'canvases');
-  sessionStorage.removeItem(CANVAS_KEY);
+/** Opens the dialog at the projects next time, at the one the page shows, as from the note on a plan directory. */
+export const showProjectsSection = () => {
+  sessionStorage.setItem(SECTION_KEY, 'projects');
+  sessionStorage.removeItem(PROJECT_KEY);
 };
 
-const ADD_CANVAS_KEY = 'obeya-config-add-canvas';
+const ADD_PROJECT_KEY = 'obeya-config-add-project';
 /** Opens the dialog next time with a new project added to its list, as from "+ New project" in the navigation. */
-export const showNewCanvas = () => {
-  showCanvasesSection();
-  sessionStorage.setItem(ADD_CANVAS_KEY, '1');
+export const showNewProject = () => {
+  showProjectsSection();
+  sessionStorage.setItem(ADD_PROJECT_KEY, '1');
 };
 
-/** The canvas this tab showed last in the dialog, if any. */
-const keptCanvas = () => {
-  const n = Number(sessionStorage.getItem(CANVAS_KEY) ?? NaN);
+/** The project this tab showed last in the dialog, if any. */
+const keptProject = () => {
+  const n = Number(sessionStorage.getItem(PROJECT_KEY) ?? NaN);
   return Number.isInteger(n) && n >= 0 ? n : null;
 };
 
@@ -104,7 +104,7 @@ const keptSection = () => {
 
 /** A repository's clone count (or its slots, or one of its settings, folded open) to show and focus when the dialog opens. */
 export interface ConfigFocus {
-  canvas: string;
+  project: string;
   repo: string;
   field: 'clones' | 'slots' | 'settings';
   /** With `settings`: the setting to show. */
@@ -114,21 +114,21 @@ const FOCUS_KEY = 'obeya-config-focus';
 
 /** Opens the dialog next time at a repository's clone count or slots, as from a card waiting for a free clone or slot. */
 export const showRepoClones = (f: ConfigFocus) => {
-  showCanvasesSection();
+  showProjectsSection();
   sessionStorage.setItem(FOCUS_KEY, JSON.stringify(f));
 };
 
-/** The canvases' draft as written down, with the id each canvas had when loaded. */
-type KeptCanvases = { draft: CanvasConfig[]; origin: (string | null)[] };
-const ofKept = (k: KeptCanvases) => k.draft;
+/** The projects' draft as written down, with the id each project had when loaded. */
+type KeptProjects = { draft: ProjectConfig[]; origin: (string | null)[] };
+const ofKept = (k: KeptProjects) => k.draft;
 
 /**
- * The draft with the ids of its canvases once the check of the configuration as `loaded` resolved
- * them: a canvas without one yet gets the id of the loaded canvas with its repositories, and a
+ * The draft with the ids of its projects once the check of the configuration as `loaded` resolved
+ * them: a project without one yet gets the id of the loaded project with its repositories, and a
  * running one the owner renamed meanwhile keeps it, as a rename does once the id is known; one they
  * added has none.
  */
-function pinned(kept: KeptCanvases, loaded: CanvasConfig[], resolved: Checked['resolved'], running: string[]): KeptCanvases {
+function pinned(kept: KeptProjects, loaded: ProjectConfig[], resolved: Checked['resolved'], running: string[]): KeptProjects {
   const taken = new Set<number>();
   const out = kept.draft.map((c, i) => {
     if (kept.origin[i]) return { c, id: kept.origin[i]! };
@@ -148,27 +148,27 @@ const moved = <T,>(list: T[], from: number, to: number): T[] => {
   return out;
 };
 
-/** The check of `n` canvases with the one at `from` moved to `to`, as the draft's: its ids and problems stay with it until the draft is checked again. */
+/** The check of `n` projects with the one at `from` moved to `to`, as the draft's: its ids and problems stay with it until the draft is checked again. */
 function checkedMoved(c: Checked, n: number, from: number, to: number): Checked {
   const order = moved([...Array(n).keys()], from, to);
   return {
     resolved: order.map((i) => c.resolved[i] ?? null),
-    problems: c.problems.map((p) => (p.canvas === undefined ? p : { ...p, canvas: order.indexOf(p.canvas) })),
+    problems: c.problems.map((p) => (p.project === undefined ? p : { ...p, project: order.indexOf(p.project) })),
   };
 }
 
-export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProblems, onConnect, revs }: { on: boolean; /** The canvas the page shows: the one Canvases shows first. */ page?: string; onClose: () => void; onSetup: () => void; onAsk: Ask; onTalk: () => void; onProblems: (n: number) => void; onConnect: () => void; revs: string }) {
+export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProblems, onConnect, revs }: { on: boolean; /** The project the page shows: the one Projects shows first. */ page?: string; onClose: () => void; onSetup: () => void; onAsk: Ask; onTalk: () => void; onProblems: (n: number) => void; onConnect: () => void; revs: string }) {
   const [view, setView] = useState<ConfigView | null>(null);
-  const [draft, setDraft] = useState<CanvasConfig[]>([]);
+  const [draft, setDraft] = useState<ProjectConfig[]>([]);
   const [checked, setChecked] = useState<Checked | null>(null);
   // the check of the configuration as saved: it reads every repository, so it comes after the configuration
   const [saved, setSaved] = useState<Checked | null>(null);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [json, setJson] = useState(false);
-  // Canvas defaults: a canvas added here starts with them, as one made elsewhere does on the server
-  const [defaults, setDefaults] = useState<CanvasDefaultsView | null>(null);
-  const [section, setSectionState] = useState<Section>(() => keptSection() ?? 'canvases');
+  // Project defaults: a project added here starts with them, as one made elsewhere does on the server
+  const [defaults, setDefaults] = useState<ProjectDefaultsView | null>(null);
+  const [section, setSectionState] = useState<Section>(() => keptSection() ?? 'projects');
   // the page that adds a demo site, over the Demos section; kept across a reload
   const [addingSite, setAddingSiteState] = useState(() => !!sessionStorage.getItem(ADD_SITE_KEY));
   const setAddingSite = (on: boolean) => {
@@ -189,20 +189,20 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     window.addEventListener(ADD_SITE_EVENT, open);
     return () => window.removeEventListener(ADD_SITE_EVENT, open);
   }, []);
-  // the id each canvas of the draft had when loaded: renaming a running canvas keeps it, and its cards
+  // the id each project of the draft had when loaded: renaming a running project keeps it, and its cards
   const [origin, setOrigin] = useState<(string | null)[]>([]);
-  // a repository added here whose settings say clones gets as many as the first canvas's, once it is checked, until existing ones are listed
+  // a repository added here whose settings say clones gets as many as the first project's, once it is checked, until existing ones are listed
   const filled = useRef<FilledClones>(new Map());
-  // the canvases as loaded while their ids are unknown yet: those come with the check of the saved configuration
-  const unpinned = useRef<CanvasConfig[] | null>(null);
-  // counts the drafts loaded anew (reset, read again): a canvas of the one before is not one of this one
+  // the projects as loaded while their ids are unknown yet: those come with the check of the saved configuration
+  const unpinned = useRef<ProjectConfig[] | null>(null);
+  // counts the drafts loaded anew (reset, read again): a project of the one before is not one of this one
   const [loads, setLoads] = useState(0);
   const load = (v: ConfigView, c: Checked | null) => {
     setLoads((n) => n + 1);
     filled.current.clear();
-    setDraft(v.canvases);
-    setOrigin(c ? c.resolved.map((r) => r?.id ?? null) : v.canvases.map(() => null));
-    unpinned.current = c ? null : v.canvases;
+    setDraft(v.projects);
+    setOrigin(c ? c.resolved.map((r) => r?.id ?? null) : v.projects.map(() => null));
+    unpinned.current = c ? null : v.projects;
   };
   const now = useRef({ draft, origin, running: view?.running ?? [] });
   now.current = { draft, origin, running: view?.running ?? [] };
@@ -222,14 +222,14 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     }, console.error);
   };
 
-  // the field to show once the canvases are there; a new object each time, so a second jump to the same one still scrolls
+  // the field to show once the projects are there; a new object each time, so a second jump to the same one still scrolls
   const [focus, setFocus] = useState<ConfigFocus | null>(null);
 
-  // the canvas Canvases shows, by its place in the draft; until one is chosen, the field to show's or the page's, once their ids are known
-  const [pick, setPickState] = useState<number | null>(keptCanvas);
+  // the project Projects shows, by its place in the draft; until one is chosen, the field to show's or the page's, once their ids are known
+  const [pick, setPickState] = useState<number | null>(keptProject);
   const setPick = (i: number | null) => {
-    if (i === null) sessionStorage.removeItem(CANVAS_KEY);
-    else sessionStorage.setItem(CANVAS_KEY, String(i));
+    if (i === null) sessionStorage.removeItem(PROJECT_KEY);
+    else sessionStorage.setItem(PROJECT_KEY, String(i));
     setPickState(i);
   };
   const idAt = (i: number) => origin[i] ?? checked?.resolved[i]?.id ?? null;
@@ -244,7 +244,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
   }, [origin, checked, view]);
   const shown = Math.min(pick ?? 0, Math.max(0, draft.length - 1));
 
-  // a key per canvas that goes with it when it moves or one above it goes, and what is open in it with it
+  // a key per project that goes with it when it moves or one above it goes, and what is open in it with it
   const keys = useRef<number[]>([]);
   const nextKey = useRef(0);
   const keyed = useRef(loads);
@@ -253,12 +253,12 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     keys.current = draft.map(() => nextKey.current++);
   }
 
-  const changed = !!view && JSON.stringify(draft) !== JSON.stringify(view.canvases);
+  const changed = !!view && JSON.stringify(draft) !== JSON.stringify(view.projects);
   const changedRef = useRef(changed);
   changedRef.current = changed;
   // a draft not saved yet is written down as it changes: a reload (Seismic's restart) brings it back
   useEffect(() => {
-    if (view) keepConfigDraft<KeptCanvases>(sessionStorage, 'canvases', { draft, origin }, view.canvases, ofKept);
+    if (view) keepConfigDraft<KeptProjects>(sessionStorage, 'projects', { draft, origin }, view.projects, ofKept);
   }, [draft, origin, view]);
   // read afresh whenever the dialog opens: the Koordinator or the file may have changed it; a draft not saved yet stays, after a reload too
   useEffect(() => {
@@ -270,23 +270,23 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     sessionStorage.removeItem(FOCUS_KEY);
     const fo = f ? (JSON.parse(f) as ConfigFocus) : null;
     setFocus(fo);
-    // the canvas with the field to show, else the one this tab showed last, else the page's
-    const kept = keptCanvas();
-    wanted.current = fo?.canvas ?? (kept === null ? (page ?? null) : null);
+    // the project with the field to show, else the one this tab showed last, else the page's
+    const kept = keptProject();
+    wanted.current = fo?.project ?? (kept === null ? (page ?? null) : null);
     setPickState(fo ? null : kept);
     setSaved(null);
-    api.canvasDefaults().then(setDefaults, console.error);
+    api.projectDefaults().then(setDefaults, console.error);
     api.config().then((v) => {
       setView(v);
-      const kept = !changedRef.current && keptConfigDraft<KeptCanvases>(sessionStorage, 'canvases', v.canvases, ofKept);
+      const kept = !changedRef.current && keptConfigDraft<KeptProjects>(sessionStorage, 'projects', v.projects, ofKept);
       if (kept) {
         setLoads((n) => n + 1);
         setDraft(kept.draft);
         setOrigin(kept.origin);
-        unpinned.current = v.canvases;
+        unpinned.current = v.projects;
       } else if (!changedRef.current) load(v, null);
-      if (sessionStorage.getItem(ADD_CANVAS_KEY)) {
-        sessionStorage.removeItem(ADD_CANVAS_KEY);
+      if (sessionStorage.getItem(ADD_PROJECT_KEY)) {
+        sessionStorage.removeItem(ADD_PROJECT_KEY);
         setAddAsked((n) => n + 1);
       }
       setStatus(v.restarting ? t.config.saved : '');
@@ -302,9 +302,9 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     if (on && view) checkSaved();
   }, [revs]);
 
-  const take = (c: Checked, checkedDraft: CanvasConfig[]) => {
+  const take = (c: Checked, checkedDraft: ProjectConfig[]) => {
     setChecked(c);
-    const next = view && withClones(checkedDraft, view.canvases, c.resolved, filled.current);
+    const next = view && withClones(checkedDraft, view.projects, c.resolved, filled.current);
     if (next) setDraft(next);
   };
 
@@ -327,34 +327,34 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     const n = ++seq.current;
     api.checkConfig(draft).then((v) => n === seq.current && take(v, draft), console.error);
   };
-  // problems of no one canvas (none at all, the file broken): counted at the heading over them
-  const overall = problems.filter((p) => p.canvas === undefined);
-  // a canvas differs from the saved one with its id, or from the one at its place while ids are unknown; one added always
-  const canvasChanged = (i: number) => {
+  // problems of no one project (none at all, the file broken): counted at the heading over them
+  const overall = problems.filter((p) => p.project === undefined);
+  // a project differs from the saved one with its id, or from the one at its place while ids are unknown; one added always
+  const projectChanged = (i: number) => {
     if (!view || !changed) return false;
     const id = origin[i];
     const j = id && saved ? saved.resolved.findIndex((r) => r?.id === id) : i;
-    return j !== i || JSON.stringify(draft[i]) !== JSON.stringify(view.canvases[j]);
+    return j !== i || JSON.stringify(draft[i]) !== JSON.stringify(view.projects[j]);
   };
-  const canvasName = (x: CanvasConfig, i: number) => x.name?.trim() || checked?.resolved[i]?.name || c.canvas(i + 1);
-  const showCanvas = (i: number) => {
+  const projectName = (x: ProjectConfig, i: number) => x.name?.trim() || checked?.resolved[i]?.name || c.project(i + 1);
+  const showProject = (i: number) => {
     wanted.current = null;
     setFocus(null);
-    setSection('canvases');
+    setSection('projects');
     setPick(i);
   };
   const [addAsked, setAddAsked] = useState(0);
   // asked for from the navigation: the new project is added once the list has loaded
   useEffect(() => {
-    if (addAsked) addCanvas();
+    if (addAsked) addProject();
   }, [addAsked]);
-  const addCanvas = () => {
+  const addProject = () => {
     keys.current = [...keys.current, nextKey.current++];
     setDraft([...draft, { ...structuredClone(defaults?.defaults ?? {}), repos: [{ path: '' }] }]);
     setOrigin([...origin, null]);
-    showCanvas(draft.length);
+    showProject(draft.length);
   };
-  const setCanvas = (i: number, x: CanvasConfig | null) => {
+  const setProject = (i: number, x: ProjectConfig | null) => {
     if (x) return setDraft(draft.map((y, j) => (j === i ? x : y)));
     keys.current = keys.current.filter((_, j) => j !== i);
     setDraft(draft.filter((_, j) => j !== i));
@@ -362,7 +362,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     // the next one takes its place; after the last, the one before it
     setPick(Math.max(0, Math.min(i, draft.length - 2)));
   };
-  const moveCanvas = (from: number, to: number) => {
+  const moveProject = (from: number, to: number) => {
     keys.current = moved(keys.current, from, to);
     setDraft(moved(draft, from, to));
     setOrigin(moved(origin, from, to));
@@ -384,12 +384,12 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
           </div>
           <ul>
             {SECTIONS.map((s) =>
-              s === 'canvases' ? (
+              s === 'projects' ? (
                 <li key={s} className="cfg-nav-group">
-                  {/* a heading over the canvases, each of them a section of its own */}
+                  {/* a heading over the projects, each of them a section of its own */}
                   <span className="cfg-nav-title">
-                    {c.sections.canvases}
-                    {changed && !draft.some((_, i) => canvasChanged(i)) && <span className="cfg-dot" title={c.unsaved} />}
+                    {c.sections.projects}
+                    {changed && !draft.some((_, i) => projectChanged(i)) && <span className="cfg-dot" title={c.unsaved} />}
                     {overall.length > 0 && (
                       <span className="n err" title={c.problemCount(overall.length)}>
                         {overall.length}
@@ -398,13 +398,13 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                   </span>
                   <ul>
                     {draft.map((x, i) => {
-                      const on = section === 'canvases' && i === shown;
-                      const n = problems.filter((p) => p.canvas === i).length;
+                      const on = section === 'projects' && i === shown;
+                      const n = problems.filter((p) => p.project === i).length;
                       return (
                         <li key={keys.current[i]}>
-                          <button className={on ? 'on' : undefined} aria-current={on || undefined} onClick={() => showCanvas(i)}>
-                            <span className="cfg-nav-name">{canvasName(x, i)}</span>
-                            {canvasChanged(i) && <span className="cfg-dot" title={c.unsaved} />}
+                          <button className={on ? 'on' : undefined} aria-current={on || undefined} onClick={() => showProject(i)}>
+                            <span className="cfg-nav-name">{projectName(x, i)}</span>
+                            {projectChanged(i) && <span className="cfg-dot" title={c.unsaved} />}
                             {n > 0 && (
                               <span className="n err" title={c.problemCount(n)}>
                                 {n}
@@ -416,8 +416,8 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                     })}
                     {view && (
                       <li>
-                        <button className="cfg-nav-add" onClick={addCanvas}>
-                          {c.addCanvas}
+                        <button className="cfg-nav-add" onClick={addProject}>
+                          {c.addProject}
                         </button>
                       </li>
                     )}
@@ -444,27 +444,27 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
           ✕
         </button>
         <div className="cfg-main">
-          <section className="cfg-sec" hidden={section !== 'canvases'}>
+          <section className="cfg-sec" hidden={section !== 'projects'}>
             {!view ? (
               <>
-                <Head title={c.sections.canvases} />
+                <Head title={c.sections.projects} />
                 <p className="hint">{c.loading}</p>
               </>
             ) : (
-              <Canvases
+              <Projects
                 view={view}
                 draft={draft}
                 origin={origin}
                 n={shown}
-                canvasKey={keys.current[shown]}
+                projectKey={keys.current[shown]}
                 checked={checked}
                 changed={changed}
                 busy={busy}
                 focus={focus}
                 onAsk={onAsk}
                 onRecheck={recheck}
-                onCanvas={setCanvas}
-                onMove={moveCanvas}
+                onProject={setProject}
+                onMove={moveProject}
                 onShow={setPick}
                 onSave={async () => {
                   setBusy(true);
@@ -476,9 +476,9 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                     const fresh = applied ? await api.config() : null;
                     savedSeq.current++;
                     setSaved(checked);
-                    setView({ ...(fresh ?? view), canvases: draft, restarting });
+                    setView({ ...(fresh ?? view), projects: draft, restarting });
                     checkSaved();
-                    setStatus(restarting ? c.saved : applied ? (restartsAgents(view.canvases, draft) ? c.savedRestarts : c.savedApplied) : c.savedOnly);
+                    setStatus(restarting ? c.saved : applied ? (restartsAgents(view.projects, draft) ? c.savedRestarts : c.savedApplied) : c.savedOnly);
                     applies = !restarting;
                   } catch (e) {
                     setStatus(failText(e));
@@ -500,7 +500,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
             )}
           </section>
           <section className="cfg-sec" hidden={section !== 'defaults'}>
-            <CanvasDefaultsBlock view={defaults} onSaved={setDefaults} />
+            <ProjectDefaultsBlock view={defaults} onSaved={setDefaults} />
           </section>
           <section className="cfg-sec" hidden={section !== 'agents'}>
             <AgentsBlock on={on} />
@@ -525,7 +525,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
             <AccessSection on={on && section === 'devices'} onConnect={onConnect} />
           </section>
           <section className="cfg-sec" hidden={section !== 'advanced'}>
-            <CanvasExport canvases={draft} ids={origin} />
+            <ProjectExport projects={draft} ids={origin} />
           </section>
           <section className="cfg-sec" hidden={section !== 'developer'}>
             <DeveloperBlock on={on && section === 'developer'} />
@@ -536,21 +536,21 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
   );
 }
 
-function CanvasExport({ canvases, ids: savedIds }: { canvases: CanvasConfig[]; ids: (string | null)[] }) {
+function ProjectExport({ projects, ids: savedIds }: { projects: ProjectConfig[]; ids: (string | null)[] }) {
   const [selected, setSelected] = useState<string[] | null>(null);
   const [error, setError] = useState('');
-  const names = canvases.flatMap((canvas, i) => savedIds[i] ? [{ id: savedIds[i]!, name: canvas.name || savedIds[i]! }] : []);
-  const ids = selected === null ? names.map((canvas) => canvas.id) : selected.filter((id) => names.some((canvas) => canvas.id === id));
+  const names = projects.flatMap((project, i) => savedIds[i] ? [{ id: savedIds[i]!, name: project.name || savedIds[i]! }] : []);
+  const ids = selected === null ? names.map((project) => project.id) : selected.filter((id) => names.some((project) => project.id === id));
   const exportAs = async (as: 'csv' | 'json') => {
     setError('');
-    try { await api.exportCanvases(ids, as); } catch (e) { setError(failText(e)); }
+    try { await api.exportProjects(ids, as); } catch (e) { setError(failText(e)); }
   };
   return <>
     <Head title={t.config.sections.advanced} />
     <h3>{t.config.dataExport.title}</h3>
     <p className="hint">{t.config.dataExport.hint}</p>
     <label><input type="checkbox" checked={selected === null} onChange={() => setSelected(null)} /> {t.config.dataExport.all}</label>
-    {names.map((canvas) => <label key={canvas.id} style={{ display: 'block' }}><input type="checkbox" checked={selected === null || selected.includes(canvas.id)} onChange={(e) => setSelected(e.target.checked ? [...(selected ?? []), canvas.id] : (selected ?? names.map((n) => n.id)).filter((id) => id !== canvas.id))} /> {canvas.name}</label>)}
+    {names.map((project) => <label key={project.id} style={{ display: 'block' }}><input type="checkbox" checked={selected === null || selected.includes(project.id)} onChange={(e) => setSelected(e.target.checked ? [...(selected ?? []), project.id] : (selected ?? names.map((n) => n.id)).filter((id) => id !== project.id))} /> {project.name}</label>)}
     <p><button className="btn small" disabled={!ids.length} onClick={() => exportAs('csv')}>{t.config.dataExport.csv}</button>{' '}<button className="btn small" disabled={!ids.length} onClick={() => exportAs('json')}>{t.config.dataExport.json}</button></p>
     {error && <p role="alert">{error}</p>}
   </>;
@@ -669,25 +669,25 @@ function Info({ text }: { text: string }) {
 
 const TIP_WIDTH = 340;
 
-interface CanvasesProps {
+interface ProjectsProps {
   view: ConfigView;
-  draft: CanvasConfig[];
+  draft: ProjectConfig[];
   origin: (string | null)[];
-  /** The canvas shown, by its place in the draft. */
+  /** The project shown, by its place in the draft. */
   n: number;
-  /** Shows another canvas, by its place in the draft. */
+  /** Shows another project, by its place in the draft. */
   onShow: (n: number) => void;
   /** Its key, which goes with it when it moves: what is open in it stays with it. */
-  canvasKey: number | undefined;
+  projectKey: number | undefined;
   checked: Checked | null;
   changed: boolean;
   busy: boolean;
   focus: ConfigFocus | null;
   onAsk: Ask;
   onRecheck: () => void;
-  /** Changes the canvas at `i`, or removes it (`null`). */
-  onCanvas: (i: number, c: CanvasConfig | null) => void;
-  /** Moves the canvas at `from` to `to`: the order every list of canvases shows (the switcher, the phone). */
+  /** Changes the project at `i`, or removes it (`null`). */
+  onProject: (i: number, c: ProjectConfig | null) => void;
+  /** Moves the project at `from` to `to`: the order every list of projects shows (the switcher, the phone). */
   onMove: (from: number, to: number) => void;
   /** Saves the draft; says whether it was saved and applies without a restart. */
   onSave: () => Promise<boolean>;
@@ -699,13 +699,13 @@ interface CanvasesProps {
   onJson: () => void;
 }
 
-/** One canvas of the configuration with its repositories; all canvases are saved together, with the bar at the bottom. */
-function Canvases({ view, draft, origin, n, canvasKey, checked, changed, busy, focus, onAsk, onRecheck, onCanvas, onMove, onShow, onSave, onReset, onReload, status, json, onJson }: CanvasesProps) {
+/** One project of the configuration with its repositories; all projects are saved together, with the bar at the bottom. */
+function Projects({ view, draft, origin, n, projectKey, checked, changed, busy, focus, onAsk, onRecheck, onProject, onMove, onShow, onSave, onReset, onReload, status, json, onJson }: ProjectsProps) {
   const c = t.config;
   const problems = checked?.problems ?? [];
   // "For everyone" takes over what is saved: with changes in the dialog it saves them first, where that applies without a restart
   const prepare = changed && view.source === 'file' && !view.restarting && !problems.some(blocksSaving) ? onSave : undefined;
-  // a canvas with a problem has no id yet: which running canvas goes is only known once all resolve
+  // a project with a problem has no id yet: which running project goes is only known once all resolve
   const resolved = checked?.resolved ?? [];
   const gone = resolved.every(Boolean) ? view.running.filter((id) => !resolved.some((r) => r?.id === id)) : [];
   const file =
@@ -720,31 +720,31 @@ function Canvases({ view, draft, origin, n, canvasKey, checked, changed, busy, f
   return (
     <>
       {x ? (
-        <CanvasBlock
-          key={canvasKey}
+        <ProjectBlock
+          key={projectKey}
           n={n}
           {...(draft.length > 1 ? { onMove: (earlier: boolean) => onMove(n, earlier ? n - 1 : n + 1), last: n === draft.length - 1 } : {})}
-          canvas={x}
+          project={x}
           file={file}
           checking={!checked}
           resolved={checked?.resolved[n] ?? null}
           running={view.running}
           pin={origin[n] && view.running.includes(origin[n]) ? origin[n] : undefined}
           saved={!changed}
-          problems={problems.filter((p) => p.canvas === n)}
+          problems={problems.filter((p) => p.project === n)}
           focus={focus}
           ask={changed ? undefined : onAsk}
           onRecheck={onRecheck}
           onReload={onReload}
           {...(prepare ? { prepare } : {})}
-          onChange={(y) => onCanvas(n, y)}
+          onChange={(y) => onProject(n, y)}
           onShow={onShow}
         />
       ) : (
-        <Head title={c.sections.canvases} hint={file} />
+        <Head title={c.sections.projects} hint={file} />
       )}
       {problems
-        .filter((p) => p.canvas === undefined)
+        .filter((p) => p.project === undefined)
         .map((p, k) => (
           <Problem key={k} problem={p} where="" ask={changed ? undefined : onAsk} />
         ))}
@@ -1079,7 +1079,7 @@ function FeedbackBlock({ on }: { on: boolean }) {
   );
 }
 
-/** The toggles "Seismic suggests": on a canvas's page, and as Canvas defaults. */
+/** The toggles "Seismic suggests": on a project's page, and as Project defaults. */
 export function SuggestField({ value, onChange }: { value: SuggestSettings | undefined; onChange: (s: Record<SuggestToggle, boolean>) => void }) {
   const l = t.config.suggest;
   const on = suggestToggles(value);
@@ -1095,7 +1095,7 @@ export function SuggestField({ value, onChange }: { value: SuggestSettings | und
   );
 }
 
-/** Plan tagging uses the same control on a canvas and in Canvas defaults. */
+/** Plan tagging uses the same control on a project and in Project defaults. */
 export function PlanBaselineField({ value, onChange }: { value: boolean | undefined; onChange: (on: boolean) => void }) {
   return (
     <Field label={t.config.planBaselines} hint={t.config.planBaselinesHint}>
@@ -1107,7 +1107,7 @@ export function PlanBaselineField({ value, onChange }: { value: boolean | undefi
   );
 }
 
-/** How finished cards go into the archive ("Cards archive"): on a canvas's settings sheet and page, and in Canvas defaults. */
+/** How finished cards go into the archive ("Cards archive"): on a project's settings sheet and page, and in Project defaults. */
 export function CardArchiveField({ value, onChange }: { value: CardArchiving | undefined; onChange: (v: CardArchiving) => void }) {
   const l = t.config.archive;
   const now = value ?? 'manual';
@@ -1127,7 +1127,7 @@ export function CardArchiveField({ value, onChange }: { value: CardArchiving | u
 
 /**
  * Whether a separate agent reviews work that lands on main, and when ("Reviews happen"): the same
- * control on a canvas's settings sheet and page, and in Canvas defaults.
+ * control on a project's settings sheet and page, and in Project defaults.
  */
 export function CodeReviewField({ value, onChange, bare }: { value: Partial<CodeReviewSetting> | undefined; onChange: (v: CodeReviewSetting) => void; /** Under a heading of its own that names it (the settings sheet): the controls alone. */ bare?: boolean }) {
   const l = t.config.codeReviews;
@@ -1156,31 +1156,31 @@ export function CodeReviewField({ value, onChange, bare }: { value: Partial<Code
 }
 
 /**
- * Canvas defaults: what a canvas created from now on starts with, a value for every canvas setting
- * (`CANVAS_SETTINGS` on the server). Saved on each change; existing canvases keep their own.
+ * Project defaults: what a project created from now on starts with, a value for every project setting
+ * (`PROJECT_SETTINGS` on the server). Saved on each change; existing projects keep their own.
  */
-function CanvasDefaultsBlock({ view, onSaved }: { view: CanvasDefaultsView | null; onSaved: (v: CanvasDefaultsView) => void }) {
+function ProjectDefaultsBlock({ view, onSaved }: { view: ProjectDefaultsView | null; onSaved: (v: ProjectDefaultsView) => void }) {
   const [status, setStatus] = useState('');
   const c = t.config;
   if (!view) return <Head title={c.sections.defaults} />;
-  const save = async (d: CanvasSettings) => {
+  const save = async (d: ProjectSettings) => {
     setStatus('');
     try {
-      onSaved(await api.saveCanvasDefaults(d));
+      onSaved(await api.saveProjectDefaults(d));
     } catch (e) {
       setStatus(failText(e));
     }
   };
-  // a field for every canvas setting: one added to the defaults without a field here does not compile
-  const fields: { [K in keyof CanvasDefaults]: ReactNode } = {
+  // a field for every project setting: one added to the defaults without a field here does not compile
+  const fields: { [K in keyof ProjectDefaults]: ReactNode } = {
     suggest: <SuggestField value={view.defaults.suggest} onChange={(suggest) => save({ suggest })} />,
     planBaselines: <PlanBaselineField value={view.defaults.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />,
     archive: <CardArchiveField value={view.defaults.archive} onChange={(archive) => save({ archive })} />,
-    // a canvas's models default to "Agents and models": its own are chosen in its settings sheet
+    // a project's models default to "Agents and models": its own are chosen in its settings sheet
     agents: <Field label={c.defaults.agents}>{c.defaults.agentsValue}</Field>,
     codeReviews: <CodeReviewField value={view.defaults.codeReviews} onChange={(codeReviews) => save({ codeReviews })} />,
-    // a canvas chooses its demo site, and a path of its own there, in its settings
-    demoSite: <Field label={t.config.canvasSite.label}>{t.config.canvasSite.defaults}</Field>,
+    // a project chooses its demo site, and a path of its own there, in its settings
+    demoSite: <Field label={t.config.projectSite.label}>{t.config.projectSite.defaults}</Field>,
   };
   return (
     <>
@@ -1852,7 +1852,7 @@ const siteLabel = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/+$
 
 /**
  * Configuration → Demos: the demo sites this machine publishes to, each with its host, whether it
- * is listed, the canvases' paths on it, the code for another machine and removing it from this
+ * is listed, the projects' paths on it, the code for another machine and removing it from this
  * machine; and "Add a demo site".
  */
 function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that adds a site. */ onAdd: () => void }) {
@@ -1946,32 +1946,32 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
   );
 }
 
-/** Whether a path is one a canvas may have on a site: lower-case parts with hyphens, `/` between up to three; '' for the root. */
+/** Whether a path is one a project may have on a site: lower-case parts with hyphens, `/` between up to three; '' for the root. */
 const sitePathOk = (path: string) => path === '' || /^[a-z0-9][a-z0-9-]{0,40}(\/[a-z0-9][a-z0-9-]{0,40}){0,2}$/.test(path);
 
 /** A path as typed, as it is kept: without slashes at either end. */
 const tidyPath = (path: string) => path.trim().replace(/^\/+|\/+$/g, '');
 
 /**
- * A canvas's demo site, in its settings sheet and on its page in Configuration: one of this
+ * A project's demo site, in its settings sheet and on its page in Configuration: one of this
  * machine's sites ("+ Add new site" opens Configuration at the page that adds one), its path there, "Initialize" until the path is on the site ("Creating demo site" in the
- * status bar meanwhile), the vocabulary of tags and when a demo goes on the site. `canvas`: the
- * canvas's id where it runs (Initialize needs it). Path and tags take effect when the field is left.
+ * status bar meanwhile), the vocabulary of tags and when a demo goes on the site. `project`: the
+ * project's id where it runs (Initialize needs it). Path and tags take effect when the field is left.
  */
-export function CanvasSiteField({ canvas, value, onChange, homePath, language, bare, onAddSite = showAddSite }: { canvas: string | undefined; value: CanvasDemoSite | null | undefined; onChange: (v: CanvasDemoSite | null) => void; /** The canvas's home repository, which "Have an agent propose the tags" reads. */ homePath?: string; language: NarrationLanguage | null; /** Under a heading of its own that names it (the settings sheet): the controls alone. */ bare?: boolean; /** "+ Add new site": opens the page that adds one (in Configuration, where the field is). */ onAddSite?: () => void }) {
+export function ProjectSiteField({ project, value, onChange, homePath, language, bare, onAddSite = showAddSite }: { project: string | undefined; value: ProjectDemoSite | null | undefined; onChange: (v: ProjectDemoSite | null) => void; /** The project's home repository, which "Have an agent propose the tags" reads. */ homePath?: string; language: NarrationLanguage | null; /** Under a heading of its own that names it (the settings sheet): the controls alone. */ bare?: boolean; /** "+ Add new site": opens the page that adds one (in Configuration, where the field is). */ onAddSite?: () => void }) {
   const [view] = useDemoSites(true);
   const [path, setPath] = useState(value?.path ?? '');
-  const [init, setInit] = useState<CanvasDemoSiteState | null>(null);
+  const [init, setInit] = useState<ProjectDemoSiteState | null>(null);
   const [status, setStatus] = useState('');
-  const l = t.config.canvasSite;
+  const l = t.config.projectSite;
   const c = t.config.settings;
   useEffect(() => setPath(value?.path ?? ''), [value?.url, value?.path]);
-  // the initialization the canvas runs, from wherever it was started: followed until it ends
+  // the initialization the project runs, from wherever it was started: followed until it ends
   const running = !!init?.init?.running;
   useEffect(() => {
-    if (!canvas) return;
+    if (!project) return;
     const look = () =>
-      api.canvasSite(canvas).then((s) => {
+      api.projectSite(project).then((s) => {
         setInit(s);
         if (!s?.init?.running) void loadSites();
       }, console.error);
@@ -1979,7 +1979,7 @@ export function CanvasSiteField({ canvas, value, onChange, homePath, language, b
     if (!running) return;
     const timer = setInterval(look, 1000);
     return () => clearInterval(timer);
-  }, [canvas, running]);
+  }, [project, running]);
   const url = value?.url ?? '';
   const site = view?.sites.find((x) => x.url === url);
   const typed = tidyPath(path);
@@ -1994,7 +1994,7 @@ export function CanvasSiteField({ canvas, value, onChange, homePath, language, b
   const failed = init?.url === url && init.path === typed && !init.init?.running ? init.init?.error : undefined;
   const where = site ? `${siteLabel(site.url)}/${typed ? `${typed}/` : ''}` : '';
   const controls = (
-    <div className="cfg-sub canvas-site">
+    <div className="cfg-sub project-site">
       <label className="wide">
         {!bare && <span className="hint">{l.label}</span>}
         <select
@@ -2051,12 +2051,12 @@ export function CanvasSiteField({ canvas, value, onChange, homePath, language, b
                     <button
                       className="btn primary"
                       title={l.initHint(where)}
-                      disabled={running || !canvas || !!site.needs}
+                      disabled={running || !project || !!site.needs}
                       onClick={async () => {
                         setStatus('');
                         commitPath();
                         try {
-                          setInit(await api.initCanvasSite(canvas!, url, typed));
+                          setInit(await api.initProjectSite(project!, url, typed));
                         } catch (e) {
                           setStatus(failText(e));
                         }
@@ -2065,7 +2065,7 @@ export function CanvasSiteField({ canvas, value, onChange, homePath, language, b
                       {running ? l.initializing : l.initialize}
                     </button>
                   </div>
-                  {!canvas && <p className="hint">{l.saveFirst}</p>}
+                  {!project && <p className="hint">{l.saveFirst}</p>}
                   {site.needs && <p className="p-error">{t.config.sites.needs(site.needs)}</p>}
                 </>
               )}
@@ -2076,7 +2076,7 @@ export function CanvasSiteField({ canvas, value, onChange, homePath, language, b
               )}
             </div>
           )}
-          {/* what the canvas's pages carry, once its path is on the site */}
+          {/* what the project's pages carry, once its path is on the site */}
           {ready && (
             <>
           <label className="wide">
@@ -2251,20 +2251,20 @@ function VoiceBlock({ on }: { on: boolean }) {
   );
 }
 
-interface CanvasProps {
+interface ProjectProps {
   n: number;
-  /** Shows another canvas, by its place in the draft (the one a problem points to). */
+  /** Shows another project, by its place in the draft (the one a problem points to). */
   onShow: (n: number) => void;
-  canvas: CanvasConfig;
-  /** Where the canvases are saved, under its title. */
+  project: ProjectConfig;
+  /** Where the projects are saved, under its title. */
   file: ReactNode;
   /** The repositories are being checked: their ids and settings are still to come. */
   checking: boolean;
   resolved: ConfigChecked['resolved'][number];
   running: string[];
-  /** The id of the running canvas this one is: a new name keeps it. */
+  /** The id of the running project this one is: a new name keeps it. */
   pin?: string;
-  /** The configuration shown is the one saved: a running canvas is the one shown. */
+  /** The configuration shown is the one saved: a running project is the one shown. */
   saved: boolean;
   problems: ConfigProblem[];
   focus: ConfigFocus | null;
@@ -2274,33 +2274,33 @@ interface CanvasProps {
   onReload: () => Promise<void>;
   /** Saves the dialog's changes before settings are taken over for everyone; none where saving restarts Seismic. */
   prepare?: () => Promise<boolean>;
-  onChange: (c: CanvasConfig | null) => void;
-  /** Moves it one place up or down; none while it is the only canvas. */
+  onChange: (c: ProjectConfig | null) => void;
+  /** Moves it one place up or down; none while it is the only project. */
   onMove?: (earlier: boolean) => void;
-  /** It is the last canvas: it cannot move down. */
+  /** It is the last project: it cannot move down. */
   last?: boolean;
 }
 
-/** A canvas as its own page: its title with id, order and removal, its name, then each repository with its settings. */
-function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved, problems, focus, ask, onRecheck, onReload, prepare, onChange, onShow, onMove, last }: CanvasProps) {
+/** A project as its own page: its title with id, order and removal, its name, then each repository with its settings. */
+function ProjectBlock({ n, project, file, checking, resolved, running, pin, saved, problems, focus, ask, onRecheck, onReload, prepare, onChange, onShow, onMove, last }: ProjectProps) {
   const fresh = resolved && !running.includes(resolved.id);
-  // the Koordinator of the canvas with the problem, where it runs: a card for it goes there
+  // the Koordinator of the project with the problem, where it runs: a card for it goes there
   const askHere = ask && ((text: string) => ask(text, resolved && running.includes(resolved.id) ? resolved.id : undefined));
-  const here = t.config.canvas(n + 1);
-  const setRepo = (i: number, r: RepoConfig | null) => onChange({ ...canvas, repos: r ? canvas.repos.map((x, j) => (j === i ? r : x)) : canvas.repos.filter((_, j) => j !== i) });
+  const here = t.config.project(n + 1);
+  const setRepo = (i: number, r: RepoConfig | null) => onChange({ ...project, repos: r ? project.repos.map((x, j) => (j === i ? r : x)) : project.repos.filter((_, j) => j !== i) });
   // the repository shown: the home one, or the one with the field to show
   const [tab, setAt] = useState(0);
   useEffect(() => {
-    const i = focus && resolved?.id === focus.canvas ? resolved.repos.findIndex((r) => r?.id === focus.repo) : -1;
+    const i = focus && resolved?.id === focus.project ? resolved.repos.findIndex((r) => r?.id === focus.repo) : -1;
     if (i >= 0) setAt(i);
   }, [focus, resolved?.id]);
-  const at = Math.min(tab, canvas.repos.length - 1);
-  const repo = canvas.repos[at];
+  const at = Math.min(tab, project.repos.length - 1);
+  const repo = project.repos[at];
   return (
-    <div className="cfg-canvas">
+    <div className="cfg-project">
       <header className="cfg-head">
-        <div className="cfg-canvas-head">
-          <h3>{canvas.name?.trim() || resolved?.name || here}</h3>
+        <div className="cfg-project-head">
+          <h3>{project.name?.trim() || resolved?.name || here}</h3>
           {resolved && (
             <span className={fresh ? 'c-id fresh' : 'c-id'}>
               {projectPath(resolved.id)} · {fresh ? t.config.fresh : t.config.runs}
@@ -2318,7 +2318,7 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
               })}
             </span>
           )}
-          <RemoveButton label={t.config.removeCanvas} onClick={() => onChange(null)} />
+          <RemoveButton label={t.config.removeProject} onClick={() => onChange(null)} />
         </div>
         <p className="hint cfg-file">{file}</p>
         <p className="hint">{t.config.settings.hint}</p>
@@ -2328,10 +2328,10 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
         <input
           className="cfg-name"
           aria-label={t.config.name}
-          value={canvas.name ?? ''}
-          placeholder={resolved && !canvas.name ? t.config.nameAuto(resolved.name) : t.config.name}
+          value={project.name ?? ''}
+          placeholder={resolved && !project.name ? t.config.nameAuto(resolved.name) : t.config.name}
           onChange={(e) => {
-            const { name: _, ...rest } = canvas;
+            const { name: _, ...rest } = project;
             const kept = pin && !rest.id ? { ...rest, id: pin } : rest;
             onChange(e.target.value ? { ...kept, name: e.target.value } : kept);
           }}
@@ -2342,27 +2342,27 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
             <Problem key={k} problem={p} where={here} onShow={onShow} />
           ))}
       </Field>
-      {!!canvas.oldNames?.length && (
+      {!!project.oldNames?.length && (
         <OldNames
-          names={canvas.oldNames}
+          names={project.oldNames}
           onDelete={(name) => {
-            const { oldNames: _, ...rest } = canvas;
-            const left = canvas.oldNames!.filter((n) => n !== name);
+            const { oldNames: _, ...rest } = project;
+            const left = project.oldNames!.filter((n) => n !== name);
             onChange(left.length ? { ...rest, oldNames: left } : rest);
           }}
         />
       )}
-      <SuggestField value={canvas.suggest} onChange={(suggest) => onChange({ ...canvas, suggest })} />
-      <PlanBaselineField value={canvas.planBaselines} onChange={(planBaselines) => onChange({ ...canvas, planBaselines })} />
-      <CardArchiveField value={canvas.archive} onChange={(archive) => onChange({ ...canvas, archive })} />
-      <CodeReviewField value={canvas.codeReviews} onChange={(codeReviews) => onChange({ ...canvas, codeReviews })} />
-      <CanvasSiteField
-        canvas={resolved && running.includes(resolved.id) ? resolved.id : undefined}
-        value={canvas.demoSite}
-        homePath={canvas.repos[0]?.path}
+      <SuggestField value={project.suggest} onChange={(suggest) => onChange({ ...project, suggest })} />
+      <PlanBaselineField value={project.planBaselines} onChange={(planBaselines) => onChange({ ...project, planBaselines })} />
+      <CardArchiveField value={project.archive} onChange={(archive) => onChange({ ...project, archive })} />
+      <CodeReviewField value={project.codeReviews} onChange={(codeReviews) => onChange({ ...project, codeReviews })} />
+      <ProjectSiteField
+        project={resolved && running.includes(resolved.id) ? resolved.id : undefined}
+        value={project.demoSite}
+        homePath={project.repos[0]?.path}
         language={resolved?.repos[0]?.values.demo.language.value ?? null}
         onChange={(demoSite) => {
-          const { demoSite: _, ...rest } = canvas;
+          const { demoSite: _, ...rest } = project;
           onChange(demoSite ? { ...rest, demoSite } : rest);
         }}
       />
@@ -2375,7 +2375,7 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
       <Field label={t.config.repos}>
         <div className="cfg-repo-tabs">
           <div className="seg" role="tablist" aria-label={t.config.repos}>
-            {canvas.repos.map((r, i) => {
+            {project.repos.map((r, i) => {
               const k = problems.filter((p) => p.repo === i).length;
               return (
                 <button key={i} type="button" role="tab" aria-selected={i === at} className={i === at ? 'on' : undefined} onClick={() => setAt(i)}>
@@ -2388,8 +2388,8 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
           <button
             className="btn small"
             onClick={() => {
-              onChange({ ...canvas, repos: [...canvas.repos, { path: '' }] });
-              setAt(canvas.repos.length);
+              onChange({ ...project, repos: [...project.repos, { path: '' }] });
+              setAt(project.repos.length);
             }}
           >
             {t.config.addRepo}
@@ -2402,9 +2402,9 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
           repo={repo}
           home={at === 0}
           resolved={resolved?.repos[at]}
-          {...(resolved ? { canvasId: resolved.id } : {})}
+          {...(resolved ? { projectId: resolved.id } : {})}
           problems={problems.filter((p) => p.repo === at)}
-          {...(focus && resolved?.id === focus.canvas && resolved.repos[at]?.id === focus.repo ? { focus } : {})}
+          {...(focus && resolved?.id === focus.project && resolved.repos[at]?.id === focus.repo ? { focus } : {})}
           where={`${here}, ${t.config.repoAt(repo.path)}`}
           ask={askHere}
           onRecheck={onRecheck}
@@ -2422,9 +2422,9 @@ function CanvasBlock({ n, canvas, file, checking, resolved, running, pin, saved,
 interface RepoProps {
   repo: RepoConfig;
   home: boolean;
-  resolved?: ResolvedCanvas['repos'][number];
-  /** The canvas the repository is on, as checked: where a card for it goes, once the dialog's changes are saved. */
-  canvasId?: string;
+  resolved?: ResolvedProject['repos'][number];
+  /** The project the repository is on, as checked: where a card for it goes, once the dialog's changes are saved. */
+  projectId?: string;
   problems: ConfigProblem[];
   /** Its clone count or slots to scroll to and focus: the dialog was opened from a card waiting for a free clone or slot. */
   focus?: ConfigFocus;
@@ -2438,9 +2438,9 @@ interface RepoProps {
 }
 
 /** A repository's name on its tab: its id once checked, else its folder's name. */
-const repoName = (repo: RepoConfig, resolved: ResolvedCanvas['repos'][number] | undefined) => resolved?.id ?? (repo.path.trim().split(/[\\/]/).filter(Boolean).pop() || t.config.newRepo);
+const repoName = (repo: RepoConfig, resolved: ResolvedProject['repos'][number] | undefined) => resolved?.id ?? (repo.path.trim().split(/[\\/]/).filter(Boolean).pop() || t.config.newRepo);
 
-/** What "For everyone" needs of the dialog: whether the canvases are as saved (what is taken over), how to read them again, how to save them first. */
+/** What "For everyone" needs of the dialog: whether the projects are as saved (what is taken over), how to read them again, how to save them first. */
 interface Takeover {
   saved: boolean;
   /** Reads the saved configuration again: the server changed it. */
@@ -2449,7 +2449,7 @@ interface Takeover {
   prepare?: () => Promise<boolean>;
 }
 
-function RepoRow({ repo, home, resolved, canvasId, problems, focus, where, ask, onRecheck, takeover, onChange }: RepoProps) {
+function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask, onRecheck, takeover, onChange }: RepoProps) {
   const clonesBox = useRef<HTMLDivElement>(null);
   const [flash, setFlash] = useState(false);
   useEffect(() => {
@@ -2509,7 +2509,7 @@ function RepoRow({ repo, home, resolved, canvasId, problems, focus, where, ask, 
       {leaving}
     </Field>
   );
-  // a repository of the canvas: its path, what is wrong with it, then where its agents work and its settings, each group under a heading
+  // a repository of the project: its path, what is wrong with it, then where its agents work and its settings, each group under a heading
   return (
     <section className="cfg-repo">
       <Field label={t.config.path} hint={home || folder ? [...(home ? [t.config.home] : []), ...(folder ? [t.config.folderMode] : [])].join(' · ') : undefined}>
@@ -2529,8 +2529,8 @@ function RepoRow({ repo, home, resolved, canvasId, problems, focus, where, ask, 
           {p.code === 'untrusted' && resolved?.trust && <TrustCommands path={repo.path} trust={resolved.trust} onDone={onRecheck} />}
         </div>
       ))}
-      {/* a repository without settings of its own, or with an adapter module that said them: a card on its canvas writes them, also before the canvas is saved */}
-      {canvasId && resolved && !folder && (resolved.adapterGone || !fromRepository(resolved.values)) && <AdapterSetup canvas={canvasId} repo={resolved.id} takeover={takeover} />}
+      {/* a repository without settings of its own, or with an adapter module that said them: a card on its project writes them, also before the project is saved */}
+      {projectId && resolved && !folder && (resolved.adapterGone || !fromRepository(resolved.values)) && <AdapterSetup project={projectId} repo={resolved.id} takeover={takeover} />}
       {!folder && (resolved || clones) && (
         <div ref={clonesBox} className={flash ? 'cfg-group flash' : 'cfg-group'}>
           <h5 className="cfg-group-head">{t.config.groups.workstations}</h5>
@@ -2832,7 +2832,7 @@ function TagLines({ tags, placeholder, label, onChange }: { tags: PageTags | und
  * "Have an agent propose the tags" under the site's tags: a read-only agent reads the
  * repository and its cards with their demos and proposes a vocabulary, which goes into the field
  * for the owner to change and save; the tags before can be had back. Offered where the repository
- * runs on a canvas; a proposal that finished while the dialog was closed is taken in when it opens again.
+ * runs on a project; a proposal that finished while the dialog was closed is taken in when it opens again.
  */
 function TagProposal({ path, current, language, onTags }: { path: string; current: PageTags | undefined; language: NarrationLanguage | null; onTags: (tags: PageTags | undefined) => void }) {
   const [job, setJob] = useState<TagProposalJob | null>(null);
@@ -3019,7 +3019,7 @@ function slotsOf(value: string): number | undefined {
 }
 
 /**
- * Removes an entry of the configuration (a canvas, a repository, a host): a waste bin, so that it
+ * Removes an entry of the configuration (a project, a repository, a host): a waste bin, so that it
  * does not pass for the dialog's close button, shown while the pointer or focus is on its entry.
  */
 /** Problems of a project's name, shown at the name. */
@@ -3159,13 +3159,13 @@ const DETAILED: ConfigProblem['code'][] = ['adapterGone', 'repoSettings', 'hostN
  * what to fix, and a button that has the Koordinator create a task that fixes it (with the detail, which it reads).
  * What did not start as saved tries again with "Try again", where `retried` is given (called after it).
  */
-export function Problem({ problem, where, ask, retried, onShow }: { problem: ConfigProblem; where: string; ask?: (text: string) => void; retried?: () => void; /** Shows the canvas the problem points to (`ofCanvas`). */ onShow?: (n: number) => void }) {
+export function Problem({ problem, where, ask, retried, onShow }: { problem: ConfigProblem; where: string; ask?: (text: string) => void; retried?: () => void; /** Shows the project the problem points to (`ofProject`). */ onShow?: (n: number) => void }) {
   const [asked, setAsked] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState('');
   const text = problem.of && (problem.code === 'nameTaken' || problem.code === 'oldNameTaken') ? t.config[problem.code](problem.of) : t.config.problem[problem.code];
   // the project a name is taken by, as a link to its page
-  const named = problem.of && problem.ofCanvas !== undefined && onShow && (problem.code === 'nameTaken' || problem.code === 'oldNameTaken') ? t.config[problem.code]('\0').split('\0') : null;
+  const named = problem.of && problem.ofProject !== undefined && onShow && (problem.code === 'nameTaken' || problem.code === 'oldNameTaken') ? t.config[problem.code]('\0').split('\0') : null;
   const retry = async () => {
     setRetrying(true);
     setError('');
@@ -3183,7 +3183,7 @@ export function Problem({ problem, where, ask, retried, onShow }: { problem: Con
       {named ? (
         <>
           {named[0]}
-          <button type="button" className="link" onClick={() => onShow!(problem.ofCanvas!)}>
+          <button type="button" className="link" onClick={() => onShow!(problem.ofProject!)}>
             {problem.of}
           </button>
           {named[1]}
@@ -3273,10 +3273,10 @@ const blankOnly = (trust: RepoTrust, g: 'claude' | 'codex') =>
   });
 
 /**
- * Creates the card that writes the repository's settings for everyone, and opens it on its canvas;
- * the dialog's changes are saved first, so the canvas runs with the repository on it.
+ * Creates the card that writes the repository's settings for everyone, and opens it on its project;
+ * the dialog's changes are saved first, so the project runs with the repository on it.
  */
-function AdapterSetup({ canvas, repo, takeover }: { canvas: string; repo: string; takeover: Takeover }) {
+function AdapterSetup({ project, repo, takeover }: { project: string; repo: string; takeover: Takeover }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const { saved, prepare } = takeover;
@@ -3285,10 +3285,10 @@ function AdapterSetup({ canvas, repo, takeover }: { canvas: string; repo: string
     setError('');
     try {
       if (!saved && !(await prepare?.())) return setBusy(false);
-      const card = await api.adapterSetup(canvas, repo);
-      // the canvas loads with the card open, as after a restart
-      keep(sessionStorage, canvas, { at: Date.now(), card: card.id, scroll: [], drafts: [] });
-      location.assign(projectPath(canvas));
+      const card = await api.adapterSetup(project, repo);
+      // the project loads with the card open, as after a restart
+      keep(sessionStorage, project, { at: Date.now(), card: card.id, scroll: [], drafts: [] });
+      location.assign(projectPath(project));
     } catch (e) {
       setError(failText(e));
       setBusy(false);

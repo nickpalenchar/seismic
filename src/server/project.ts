@@ -1,4 +1,4 @@
-// One canvas and everything that works on it: its repositories (each with adapter, workstations,
+// One project and everything that works on it: its repositories (each with adapter, workstations,
 // workers, plan agents and PR watcher), the board, the Koordinator and the voice commands.
 
 import { idSlug as slug } from '../core/project-slug';
@@ -16,8 +16,8 @@ import type { RepoAdapter, RepoInfo } from '../adapters/types';
 import type { CardDiff } from '../core/diff';
 import type { Language } from '../core/locale';
 import type { HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
-import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type CanvasConfig, type CanvasDefaults, type CanvasDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsPlan, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
-import { appliedCanvasSettings, canvasAgentSetting, startAgentSetting } from './settings';
+import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type ProjectConfig, type ProjectDefaults, type ProjectDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsPlan, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
+import { appliedProjectSettings, projectAgentSetting, startAgentSetting } from './settings';
 import { asksAhead, holdsNotes } from '../core/queue';
 import { BadRequest, Board, withQuestions, pathOfRef, repoOfRef, replyNote, type StoredContribution } from './board';
 import type { FindingPick } from '../core/types';
@@ -45,7 +45,7 @@ import { type TagCard, tagCards } from './tag-proposal';
 import { commandsOf, heldGroups, withoutHeld } from './trust';
 import { bundledSkills, Skills } from './skills';
 
-/** The skill lists of all canvases: several share a repository, and the user's skills are the same on each. */
+/** The skill lists of all projects: several share a repository, and the user's skills are the same on each. */
 const sharedSkills = new Skills();
 import { OBEYA_PLUGIN } from './demo';
 import { changesCode, RESTART_PATIENCE_MS, whenIdle } from './self-update';
@@ -61,9 +61,9 @@ import { claudeToken, githubToken, hostName, registerHost } from './hosts';
 import { clip, messageOf, oneLine } from '../core/text';
 import { type WishDraft, type WishInput, writeWish } from './wish';
 
-export type { CanvasConfig, RepoConfig };
+export type { ProjectConfig, RepoConfig };
 
-export interface CanvasDeps {
+export interface ProjectDeps {
   store: Store;
   /** Seismic's data directory (workstations live under it). */
   home: string;
@@ -117,31 +117,31 @@ export interface CanvasDeps {
   restartIntervalMs?: number;
   /**
    * The settings the owner set for a repository on this machine, by its path, read whenever one is
-   * used (`Config.repoSettings`); those the canvas started with when left out.
+   * used (`Config.repoSettings`); those the project started with when left out.
    */
   settings?: (repoPath: string) => RepoSettings | undefined;
-  /** The canvas stopped while it ran: its home repository no longer starts (`Canvases` leaves it out). */
-  stopped?: (c: CanvasRuntime, why: string) => void;
-  /** The canvases that run now, this one among them (`Canvases`): a card goes to another one, or Seismic makes one there. */
-  canvases?: () => CanvasRuntime[];
+  /** The project stopped while it ran: its home repository no longer starts (`Projects` leaves it out). */
+  stopped?: (c: ProjectRuntime, why: string) => void;
+  /** The projects that run now, this one among them (`Projects`): a card goes to another one, or Seismic makes one there. */
+  projects?: () => ProjectRuntime[];
 }
 
 /**
- * A canvas or one of its repositories that does not run as the configuration has it, by their ids,
- * with why: a repository left out of its canvas (`repo`), or one that runs on as it was set up
- * before (`before`); without `repo`, the canvas is left out (its home repository did not start).
+ * A project or one of its repositories that does not run as the configuration has it, by their ids,
+ * with why: a repository left out of its project (`repo`), or one that runs on as it was set up
+ * before (`before`); without `repo`, the project is left out (its home repository did not start).
  */
 export interface StartFailure {
-  canvas: string;
+  project: string;
   repo?: string;
   detail: string;
   before?: true;
 }
 
-/** The home repository of a canvas did not start: the canvas does not run. */
+/** The home repository of a project did not start: the project does not run. */
 class HomeDown extends Error {
   constructor(
-    readonly canvas: string,
+    readonly project: string,
     cause: unknown,
   ) {
     super(messageOf(cause));
@@ -159,7 +159,7 @@ export interface RepoRuntime {
   planAgents: PlanAgents;
 }
 
-/** A repository as the canvas runs it, with what it was set up by and what stops what it set up. */
+/** A repository as the project runs it, with what it was set up by and what stops what it set up. */
 interface Repo extends RepoRuntime {
   /** Its entry in the configuration. */
   config: RepoConfig;
@@ -167,7 +167,7 @@ interface Repo extends RepoRuntime {
   stops: (() => void)[];
   /** Stops watching its plan docs. */
   docs?: () => void;
-  /** Its plan docs as last read from its read checkout: what the canvas shows while git moves the read checkout. */
+  /** Its plan docs as last read from its read checkout: what the project shows while git moves the read checkout. */
   planDocs?: ReturnType<typeof readPlanDocs>;
   /** Watches its pull requests, once its work went out as one; it stays for those still open. */
   prs?: PrWatcher;
@@ -181,7 +181,7 @@ interface Repo extends RepoRuntime {
 
 /**
  * A restart of some repositories' agents that waits for them to pause (their configuration
- * changed where they work, or they leave the canvas): the repositories by path, why, and until when
+ * changed where they work, or they leave the project): the repositories by path, why, and until when
  * at most.
  */
 interface RepoRestart {
@@ -198,7 +198,7 @@ const HOST_RETRY_MS = 2 * 60_000;
 /** How often Seismic looks for snoozed cards whose time has come. */
 const WAKE_EVERY_MS = 15_000;
 
-/** The owner's actions on a card that change only the board: they go also while its repository does not run on the canvas. */
+/** The owner's actions on a card that change only the board: they go also while its repository does not run on the project. */
 /** What waits while a card's new repository is about to be made (`NewRepo.due`): every other way on. */
 const DUE_REFUSES: CardAction['action'][] = ['start', 'force', 'build', 'planDoc', 'splitOff', 'prototype', 'snooze', 'startAt', 'accept'];
 
@@ -207,13 +207,13 @@ const MERGE_LEAVES: CardAction['action'][] = ['name'];
 
 const BOARD_ONLY: CardAction['action'][] = ['name', 'dequeue', 'reorder', 'startAt', 'dismiss', 'keep', 'park', 'drop', 'approveMerge', 'separate'];
 
-/** The card's repository does not run on the canvas: nothing goes to its agents (`Item.repoDown`). */
-const repoDown = (card: Item) => new BadRequest('repoDown', `the repository ${card.repo} of the card does not run on this canvas`);
+/** The card's repository does not run on the project: nothing goes to its agents (`Item.repoDown`). */
+const repoDown = (card: Item) => new BadRequest('repoDown', `the repository ${card.repo} of the card does not run on this project`);
 
 /** New repositories being made, one after the other (`makeNewRepo`). */
 let making: Promise<unknown> = Promise.resolve();
 
-export class CanvasRuntime {
+export class ProjectRuntime {
   readonly board: Board;
   readonly koordinator: Koordinator;
   /** The work retrospective: friction in the workers' runs, made into proposals. */
@@ -230,13 +230,13 @@ export class CanvasRuntime {
   readonly merges: Merges;
   /** The skills of the cards' agents, by repository. */
   private readonly skills: Skills;
-  /** Demos shared with colleagues, on the canvas's demo site. */
+  /** Demos shared with colleagues, on the project's demo site. */
   readonly sharing: Sharing;
   /** Its repositories, the home one first. */
   readonly repos: Repo[] = [];
   /** Its configuration as it runs now (the home repository first). */
-  private config: CanvasConfig;
-  /** The model and effort a group of the canvas's agents starts with now. */
+  private config: ProjectConfig;
+  /** The model and effort a group of the project's agents starts with now. */
   private agentFor: (role: AgentRole) => AgentSetting;
   /** By repository's path: what takes back where the main branch the owner set is read. */
   private branchSettings = new Map<string, () => void>();
@@ -248,25 +248,25 @@ export class CanvasRuntime {
   private adapterModules = new Map<string, boolean>();
   /** The restart of some repositories' agents that waits, if one does. */
   private pending: RepoRestart | null = null;
-  /** Set once the canvas stopped because its home repository did not start again. */
+  /** Set once the project stopped because its home repository did not start again. */
   private stopped = false;
-  /** Set once the canvas shut down: what git reads for it after that changes nothing. */
+  /** Set once the project shut down: what git reads for it after that changes nothing. */
   private shutDown = false;
   /** By repository's id: why it does not run as the configuration has it (`StartFailure`). */
   private failed = new Map<string, { detail: string; before?: true }>();
   /** The restart of all of Seismic that waits, if one does: it covers the repositories' too. */
   private obeyaDue: DueRestart | null = null;
-  /** The owner paused the canvas's agents (kept across restarts, `paused` of its stored settings): cards the Koordinator lets start wait until they resume them. */
+  /** The owner paused the project's agents (kept across restarts, `paused` of its stored settings): cards the Koordinator lets start wait until they resume them. */
   private paused = false;
   private pendingListeners = new Set<() => void>();
-  /** Set while the canvas leaves the configuration: called once its agents paused and it stopped. */
+  /** Set while the project leaves the configuration: called once its agents paused and it stopped. */
   private retiring: (() => void) | null = null;
   /** What the owner last said or typed to each card's agent, for the Koordinator to read beside a request the agent passes on. */
   private said = new Map<string, { text: string; spoken: boolean }>();
   /** Cards the owner is writing in, with their text before; a pause in typing hands it to the learner. */
   private writing = new Map<string, { before: string; timer: ReturnType<typeof setTimeout> }>();
   /**
-   * The part of the canvas the owner last had in view in a page (its middle and its bounds): a new
+   * The part of the project the owner last had in view in a page (its middle and its bounds): a new
    * card that comes without a place of its own (passed on by an agent, say) goes there.
    */
   inView: Place | undefined;
@@ -276,12 +276,12 @@ export class CanvasRuntime {
   /** What the code reviews' agents run on (`WorkerOptions.reviewRuntime`). */
   private reviewRuntime!: AgentRuntime;
 
-  /** The canvas's own settings as they apply (design: The canvas settings). */
-  settings(): CanvasDefaults { return appliedCanvasSettings(this.config); }
+  /** The project's own settings as they apply (design: The project settings). */
+  settings(): ProjectDefaults { return appliedProjectSettings(this.config); }
 
-  constructor(config: CanvasConfig, private deps: CanvasDeps) {
-    // Configuration's model and effort of each group, with the canvas's own over it (design: The canvas settings)
-    const agents = (role: AgentRole) => canvasAgentSetting(role, deps.agents?.(role) ?? AGENT_DEFAULTS[role], this.config?.agents);
+  constructor(config: ProjectConfig, private deps: ProjectDeps) {
+    // Configuration's model and effort of each group, with the project's own over it (design: The project settings)
+    const agents = (role: AgentRole) => projectAgentSetting(role, deps.agents?.(role) ?? AGENT_DEFAULTS[role], this.config?.agents);
     this.agentFor = agents;
     // the agents other than workers and Seismic's chat wait for the usage limit through it, each where it shows;
     // each names its harness and model where it shows at work
@@ -335,9 +335,9 @@ export class CanvasRuntime {
       try {
         this.addRepo(this.startRepo(resolved, i));
       } catch (e) {
-        // without its home repository the canvas does not start; another one is left out, its cards kept
+        // without its home repository the project does not start; another one is left out, its cards kept
         if (i === 0) throw new HomeDown(id, e);
-        console.error(`Seismic: ${x.read.info.path} does not start, left out of the canvas ${id}: ${messageOf(e)}`);
+        console.error(`Seismic: ${x.read.info.path} does not start, left out of the project ${id}: ${messageOf(e)}`);
         this.fail(x.ref.id, e);
       }
     });
@@ -432,7 +432,7 @@ export class CanvasRuntime {
       lookUp: (talk) => this.answers.lookUp(talk),
       onOwnerInput: (card, kind, text, reply) => this.koordinator.learn((card && board.item(card)) || null, kind, text, { reply }),
       ...(deps.config ? { config: deps.config } : {}),
-      canvases: () => (deps.canvases?.() ?? []).filter((c) => c !== this).map((c) => ({ id: c.id, name: c.board.canvas.name })),
+      projects: () => (deps.projects?.() ?? []).filter((c) => c !== this).map((c) => ({ id: c.id, name: c.board.project.name })),
       agentSetting: () => agents('koordinator'),
       ...(deps.commandDelayMs !== undefined ? { delayMs: deps.commandDelayMs } : {}),
     });
@@ -463,7 +463,7 @@ export class CanvasRuntime {
         const r = this.runs(card) ? this.repoOf(card) : undefined;
         if (!r) return null;
         const path = r.info.path;
-        return { site: this.shareSite(), repo: path, title: this.board.canvas.name, theme: () => this.themeOf(path) };
+        return { site: this.shareSite(), repo: path, title: this.board.project.name, theme: () => this.themeOf(path) };
       },
       languageFor: (card) => (this.runs(card) ? this.repoOf(card).adapter.demo?.language : undefined),
       onPage: (cardId, r) => {
@@ -472,10 +472,10 @@ export class CanvasRuntime {
       },
     });
     this.sharing.resume();
-    // the canvas's demo site, as the page shows it
+    // the project's demo site, as the page shows it
     const site = this.siteState();
-    if (site) board.canvas.demoSite = site;
-    // the pages without tags the Koordinator's sheet offers to tag, by the canvas's site
+    if (site) board.project.demoSite = site;
+    // the pages without tags the Koordinator's sheet offers to tag, by the project's site
     board.showVocabulary(() => this.vocabulary());
     // the pages a repository's new theme leaves outdated
     board.showThemes((repo) => {
@@ -516,7 +516,7 @@ export class CanvasRuntime {
     // and the Koordinator takes up the steps it waited on cards for
     this.commander.due(items);
     for (const i of items) {
-      if (i.limitPaused && i.paused && !i.repoDown && !this.board.canvas.paused) {
+      if (i.limitPaused && i.paused && !i.repoDown && !this.board.project.paused) {
         this.repoOf(i.id).workers.wakeLimit(i.id, now);
       }
       // one whose repository does not run wakes once it is back
@@ -572,7 +572,7 @@ export class CanvasRuntime {
   }
 
   get id() {
-    return this.board.canvas.id;
+    return this.board.project.id;
   }
 
   private preferences = () => this.board.preferencesText();
@@ -610,7 +610,7 @@ export class CanvasRuntime {
     return this.themes.get(path)!;
   }
 
-  /** `themeOf` for the canvas, which does not wait for it: undefined while it is read. */
+  /** `themeOf` for the project, which does not wait for it: undefined while it is read. */
   private themeKnown(path: string): Theme | null | undefined {
     if (!this.themes.has(path) && !this.themeReads.has(path)) this.readThemeOf(path, this.shared.get(path)?.obeyaTree);
     return this.themes.get(path);
@@ -645,7 +645,7 @@ export class CanvasRuntime {
   private heldOf(path: string): TrustGroup[] {
     let held = this.held.get(path);
     if (!held) {
-      // the configuration as it runs may not have a repository new on the canvas yet; the file has it
+      // the configuration as it runs may not have a repository new on the project yet; the file has it
       const mine = this.deps.settings ? this.deps.settings(path) : this.config?.repos.find((r) => resolve(r.path) === path)?.settings;
       held = heldGroups(commandsOf(this.shared.get(path)), this.deps.store.trustedCommands(path), mine);
       this.held.set(path, held);
@@ -654,7 +654,7 @@ export class CanvasRuntime {
     return held;
   }
 
-  /** The repository of the canvas that `cwd` lies in (its checkout, its read checkout, a workstation of it; the most specific, since the home repository's workstations hold the others'). */
+  /** The repository of the project that `cwd` lies in (its checkout, its read checkout, a workstation of it; the most specific, since the home repository's workstations hold the others'). */
   private repoAt(cwd: string): Repo | undefined {
     const depth = (dir: string) => (cwd === dir || cwd.startsWith(dir.endsWith(sep) || dir.endsWith('/') ? dir : `${dir}${dir.includes('://') ? '/' : sep}`) ? dir.length : -1);
     let best: { r: Repo; at: number } | undefined;
@@ -683,7 +683,7 @@ export class CanvasRuntime {
    */
   private asOwner = async <T>(cwd: string, change: (repo: { path: string; folder: boolean }) => Promise<T>): Promise<T> => {
     const repo = this.repoAt(cwd);
-    if (!repo) throw new Error('the workstation lies in no repository of the canvas');
+    if (!repo) throw new Error('the workstation lies in no repository of the project');
     const path = repo.info.path;
     const folder = !!repo.info.folder;
     const read = () => commandsOf(folder ? readSharedFiles(path) : readShared(path));
@@ -705,10 +705,10 @@ export class CanvasRuntime {
   };
 
   /**
-   * Whether an agent working in `cwd` works in a repository of the canvas (its checkout, its
+   * Whether an agent working in `cwd` works in a repository of the project (its checkout, its
    * read checkout, a workstation of it; the most specific, since the home repository's workstations hold
    * the others') whose own Claude Code configuration waits for the owner's trust. As the default
-   * branch has it now, not as the canvas last read it: a commit there that the canvas did not notice
+   * branch has it now, not as the project last read it: a commit there that the project did not notice
    * (on the checkout's main, from outside Seismic) is in the files the session reads. Agents start
    * often, many at once when work lands: what was read stands while the repository's refs did not
    * move (`refsSeal`), and git reads it again without the server waiting for it.
@@ -742,11 +742,11 @@ export class CanvasRuntime {
   }
 
   /**
-   * What a configuration of this canvas amounts to, with this machine's settings and the
-   * repositories' (`resolveCanvas`): those of a repository new here as its read has them.
+   * What a configuration of this project amounts to, with this machine's settings and the
+   * repositories' (`resolveProject`): those of a repository new here as its read has them.
    */
-  private resolve(config: CanvasConfig) {
-    return resolveCanvas(config, this.deps.store, this.settingsOf, this.sharedOf, (path, folder) => {
+  private resolve(config: ProjectConfig) {
+    return resolveProject(config, this.deps.store, this.settingsOf, this.sharedOf, (path, folder) => {
       const seal = folder ? null : refsSeal(path);
       const read = readRepo(path, folder);
       if (read && seal) this.readAt(path, seal, { shared: read.shared, adapterModule: read.adapterModule });
@@ -791,7 +791,7 @@ export class CanvasRuntime {
     } = resolved.repos[index]!;
     const isHome = index === 0;
     for (const p of this.shared.get(info.path)?.problems ?? []) console.warn(`Seismic: ${info.path}: ${p} (ignored)`);
-    // whether the canvas shares here, which the UI shows
+    // whether the project shares here, which the UI shows
     Object.assign(ref, this.shareRef());
     const stops: (() => void)[] = [];
     // filled in below; what is set up here reaches it once it is
@@ -897,7 +897,7 @@ export class CanvasRuntime {
       shares: () => !!repo.ref.share,
       vocabulary: () => this.vocabulary(),
       repo: ref.id,
-      otherBoards: () => (deps.canvases?.() ?? []).filter((c) => c !== this).map((c) => c.board),
+      otherBoards: () => (deps.projects?.() ?? []).filter((c) => c !== this).map((c) => c.board),
       preferences: this.preferences,
       takeAsked: (cardId) => this.ahead.takeAsked(cardId),
       onOwnerInput: (card, kind, text, context) => this.koordinator.learn(card, kind, text, context),
@@ -939,10 +939,10 @@ export class CanvasRuntime {
     return repo;
   }
 
-  /** Puts a repository set up by `startRepo` on the canvas, last. */
+  /** Puts a repository set up by `startRepo` on the project, last. */
   private addRepo(r: Repo) {
     this.repos.push(r);
-    this.board.canvas.repos.push(r.ref);
+    this.board.project.repos.push(r.ref);
     this.watch(r);
     this.proposeSetup(r);
   }
@@ -977,13 +977,13 @@ export class CanvasRuntime {
   }
 
   /**
-   * The configuration of the canvas changed while it runs (design: Live configuration). A new name
+   * The configuration of the project changed while it runs (design: Live configuration). A new name
    * applies at once, and so does a repository new on it. A repository whose agents now work
    * elsewhere (other clones, other machines, another adapter, worktrees instead of clones) or that
-   * left the canvas has its agents restarted once they paused, or stopped; the other repositories
+   * left the project has its agents restarted once they paused, or stopped; the other repositories
    * work on, and their settings apply as they are read.
    */
-  apply(next: CanvasConfig): Promise<void> | undefined {
+  apply(next: ProjectConfig): Promise<void> | undefined {
     // back in the configuration before it left: it stays, and so do its repositories
     if (this.retiring) {
       this.retiring = null;
@@ -994,21 +994,21 @@ export class CanvasRuntime {
     try {
       resolved = this.resolve(next);
     } catch (e) {
-      console.error(`Seismic: the new configuration of the canvas ${this.id} does not resolve; it runs on as it was: ${messageOf(e)}`);
+      console.error(`Seismic: the new configuration of the project ${this.id} does not resolve; it runs on as it was: ${messageOf(e)}`);
       return;
     }
     const reviewsBefore = JSON.stringify(this.settings().codeReviews);
     const archiveBefore = this.settings().archive;
     this.config = resolved.config;
-    const namesBefore = JSON.stringify([this.board.canvas.name, this.board.canvas.oldNames]);
-    if (resolved.name !== this.board.canvas.name) {
-      this.board.canvas.name = resolved.name;
-      this.deps.store.ensureCanvas(this.id, resolved.name);
-      console.log(`Seismic: the canvas ${this.id} is called ${resolved.name} now`);
+    const namesBefore = JSON.stringify([this.board.project.name, this.board.project.oldNames]);
+    if (resolved.name !== this.board.project.name) {
+      this.board.project.name = resolved.name;
+      this.deps.store.ensureProject(this.id, resolved.name);
+      console.log(`Seismic: the project ${this.id} is called ${resolved.name} now`);
     }
     this.showOldNames();
     // the pages' switchers and addresses follow the names
-    if (JSON.stringify([this.board.canvas.name, this.board.canvas.oldNames]) !== namesBefore) this.board.changed();
+    if (JSON.stringify([this.board.project.name, this.board.project.oldNames]) !== namesBefore) this.board.changed();
     // its demo site may be another, or under another path
     this.siteCredentials();
     const changed = this.repos.filter((r) => {
@@ -1018,34 +1018,34 @@ export class CanvasRuntime {
       return false;
     });
     if (changed.length) this.due(changed.map((r) => r.info.path), 'config');
-    // the restart went at once, and its home repository did not start: the canvas stopped
+    // the restart went at once, and its home repository did not start: the project stopped
     if (this.stopped) return;
     // a repository that did not start and left the configuration is no longer wrong
     for (const repo of this.failed.keys()) if (!resolved.repos.some((x) => x.ref.id === repo)) this.ran(repo);
-    // a repository new on the canvas starts at once; one whose restart waits starts with it
+    // a repository new on the project starts at once; one whose restart waits starts with it
     resolved.repos.forEach(({ read: { info } }, i) => {
       if (this.repos.some((r) => r.info.path === info.path) || this.pending?.paths.has(info.path)) return;
       let r: Repo;
       try {
         r = this.startRepo(resolved, i);
       } catch (e) {
-        console.error(`Seismic: ${info.path} does not start, left out of the canvas ${this.id}: ${messageOf(e)}`);
+        console.error(`Seismic: ${info.path} does not start, left out of the project ${this.id}: ${messageOf(e)}`);
         return this.fail(resolved.repos[i]!.ref.id, e);
       }
       this.addRepo(r);
       this.ran(r.ref.id);
-      console.log(`Seismic: ${info.path} is on the canvas ${this.id} now`);
+      console.log(`Seismic: ${info.path} is on the project ${this.id} now`);
       if (this.obeyaDue) r.workers.restartDue(this.obeyaDue);
       r.workers.resumeAll(true);
     });
     // whose approved cards ask for feedback depends on it
     if (this.settings().archive !== archiveBefore) this.board.changed();
-    // work already waiting for approval takes the canvas's new code review setting
+    // work already waiting for approval takes the project's new code review setting
     if (JSON.stringify(this.settings().codeReviews) !== reviewsBefore) for (const r of this.repos) (r.workers.holdAutoReviews(), void r.workers.codeReviewsChanged());
     return this.settingsChanged();
   }
 
-  /** The configuration no longer has the canvas: it stops once its agents paused, and then `done`. */
+  /** The configuration no longer has the project: it stops once its agents paused, and then `done`. */
   retire(done: () => void) {
     this.retiring = done;
     this.due(
@@ -1070,7 +1070,7 @@ export class CanvasRuntime {
     }
     const due = repoDue(p);
     for (const r of this.repos) if (paths.includes(r.info.path) && !this.obeyaDue) r.workers.restartDue(due);
-    console.log(`Seismic: ${this.retiring ? `the canvas ${this.id} leaves the configuration; it stops` : `restarting the agents of ${paths.join(', ')}`}${this.pendingBusy().length ? ' once they paused' : ''}`);
+    console.log(`Seismic: ${this.retiring ? `the project ${this.id} leaves the configuration; it stops` : `restarting the agents of ${paths.join(', ')}`}${this.pendingBusy().length ? ' once they paused' : ''}`);
     p.waiting = this.pendingBusy();
     this.emitPending();
     if (!fresh) return;
@@ -1098,7 +1098,7 @@ export class CanvasRuntime {
     return p ? this.repos.filter((r) => p.paths.has(r.info.path)).flatMap((r) => r.workers.busyCards()) : [];
   }
 
-  /** The restart of repositories' agents that waits is off (the canvas came back into the configuration): their workers hear so. */
+  /** The restart of repositories' agents that waits is off (the project came back into the configuration): their workers hear so. */
   private cancelPending() {
     const p = this.pending;
     if (!p) return;
@@ -1111,7 +1111,7 @@ export class CanvasRuntime {
   /**
    * Restarts the agents of the repositories the restart waited for: each one's set-up stops, and
    * starts again as the configuration has it now, its workers resuming where they paused; one that
-   * left the canvas stays stopped, its cards kept. A canvas that left the configuration stops.
+   * left the project stays stopped, its cards kept. A project that left the configuration stops.
    */
   private restartRepos() {
     const p = this.pending;
@@ -1122,7 +1122,7 @@ export class CanvasRuntime {
       const done = this.retiring;
       this.retiring = null;
       this.shutdown();
-      console.log(`Seismic: the canvas ${this.id} stopped; its cards are kept`);
+      console.log(`Seismic: the project ${this.id} stopped; its cards are kept`);
       done();
       return;
     }
@@ -1130,7 +1130,7 @@ export class CanvasRuntime {
     try {
       resolved = this.resolve(this.config);
     } catch (e) {
-      console.error(`Seismic: the configuration of the canvas ${this.id} does not resolve; its repositories run on as they were: ${messageOf(e)}`);
+      console.error(`Seismic: the configuration of the project ${this.id} does not resolve; its repositories run on as they were: ${messageOf(e)}`);
       for (const r of this.repos) if (p.paths.has(r.info.path)) r.workers.restartDue(this.obeyaDue);
       this.emitPending();
       return;
@@ -1147,7 +1147,7 @@ export class CanvasRuntime {
         if (was) this.ran(was.ref.id);
         this.branchSettings.get(path)?.();
         this.branchSettings.delete(path);
-        console.log(`Seismic: ${path} left the canvas ${this.id}; its cards are kept`);
+        console.log(`Seismic: ${path} left the project ${this.id}; its cards are kept`);
         continue;
       }
       const repo = resolved.repos[i]!.ref.id;
@@ -1157,7 +1157,7 @@ export class CanvasRuntime {
         this.ran(repo);
         console.log(`Seismic: restarted the agents of ${path}`);
       } catch (e) {
-        // it starts again as it was set up before; where that fails too, it leaves the canvas, its cards kept
+        // it starts again as it was set up before; where that fails too, it leaves the project, its cards kept
         console.error(`Seismic: the agents of ${path} do not start as the configuration has it now: ${messageOf(e)}`);
         try {
           if (was) {
@@ -1172,7 +1172,7 @@ export class CanvasRuntime {
       }
       if (!r) {
         if (at >= 0) this.repos.splice(at, 1);
-        if (!homeDown) console.log(`Seismic: ${path} is left out of the canvas ${this.id}; its cards are kept`);
+        if (!homeDown) console.log(`Seismic: ${path} is left out of the project ${this.id}; its cards are kept`);
         continue;
       }
       if (at >= 0) this.repos.splice(at, 1, r);
@@ -1180,15 +1180,15 @@ export class CanvasRuntime {
       started.push(r);
     }
     if (homeDown) {
-      // without its home repository the canvas does not run: it stops, its cards kept
+      // without its home repository the project does not run: it stops, its cards kept
       this.stopped = true;
       this.shutdown();
-      console.error(`Seismic: the home repository of the canvas ${this.id} does not start; the canvas stopped, its cards are kept`);
+      console.error(`Seismic: the home repository of the project ${this.id} does not start; the project stopped, its cards are kept`);
       this.emitPending();
       this.deps.stopped?.(this, messageOf(homeDown));
       return;
     }
-    this.board.canvas.repos.splice(0, this.board.canvas.repos.length, ...this.repos.map((r) => r.ref));
+    this.board.project.repos.splice(0, this.board.project.repos.length, ...this.repos.map((r) => r.ref));
     for (const r of started) {
       this.watch(r);
       if (this.obeyaDue) r.workers.restartDue(this.obeyaDue);
@@ -1198,9 +1198,9 @@ export class CanvasRuntime {
     this.emitPending();
   }
 
-  /** The repositories of the canvas that do not run as the configuration has it. */
+  /** The repositories of the project that do not run as the configuration has it. */
   failures(): StartFailure[] {
-    return [...this.failed].map(([repo, f]) => ({ canvas: this.id, repo, ...f }));
+    return [...this.failed].map(([repo, f]) => ({ project: this.id, repo, ...f }));
   }
 
   /** The repository did not start as the configuration has it (`before`: it runs on as it was set up before): the page reads the configuration's problems again. */
@@ -1215,12 +1215,12 @@ export class CanvasRuntime {
   }
 
   private failuresChanged() {
-    this.board.canvas.configRev = (this.board.canvas.configRev ?? 0) + 1;
+    this.board.project.configRev = (this.board.project.configRev ?? 0) + 1;
     this.board.changed();
   }
 
   /**
-   * The owner pauses the canvas's agents (design: Pausing a canvas's agents): each one at work now
+   * The owner pauses the project's agents (design: Pausing a project's agents): each one at work now
    * pauses at a safe point as its card's own pause has it, and until they resume them, the cards the
    * Koordinator lets start wait in the queue. With none at work, nothing changes.
    */
@@ -1234,16 +1234,16 @@ export class CanvasRuntime {
         console.error(`Seismic: the agent of ${i.id} did not pause: ${messageOf(e)}`);
       }
     }
-    // set once they paused: until then the canvas would count none paused, which ends its pause
+    // set once they paused: until then the project would count none paused, which ends its pause
     if (!paused) return;
     this.showPaused(true);
     this.board.changed();
   }
 
   /**
-   * The owner resumes the canvas's paused agents, and those about to pause: each goes on as its
+   * The owner resumes the project's paused agents, and those about to pause: each goes on as its
    * card's own resume has it, and the cards waiting for it start. Snoozed ones sleep on; one that
-   * cannot go on (its repository is down) stays paused, and so the canvas's pause lasts.
+   * cannot go on (its repository is down) stays paused, and so the project's pause lasts.
    */
   resumeAgents() {
     for (const i of this.board.items().filter(halted)) {
@@ -1264,26 +1264,26 @@ export class CanvasRuntime {
     return card?.kind === 'question' ? this.answers : card?.state === 'idea' ? this.explorers : card && asksAhead(card) ? this.ahead : this.repoOf(cardId).workers;
   }
 
-  /** The canvas's pause as it is stored and as the switchers show it. */
+  /** The project's pause as it is stored and as the switchers show it. */
   private showPaused(on: boolean) {
     this.paused = on;
     this.deps.store.setSetting(this.id, 'paused', on ? '1' : '');
-    if (on) this.board.canvas.paused = true;
-    else delete this.board.canvas.paused;
+    if (on) this.board.project.paused = true;
+    else delete this.board.project.paused;
   }
 
   /**
-   * Counts the canvas's agents at work and those the owner paused (or that are about to pause), for
+   * Counts the project's agents at work and those the owner paused (or that are about to pause), for
    * the switchers. Once none is either any more (the owner resumed each on its card, or their cards
-   * went), the canvas's pause ends.
+   * went), the project's pause ends.
    */
   private countAgents() {
     const items = this.board.items();
     const running = items.filter(pausable).length;
     const paused = items.filter(halted).length;
     if (this.paused && !paused) this.showPaused(false);
-    if (running || paused) this.board.canvas.agents = { running, paused };
-    else delete this.board.canvas.agents;
+    if (running || paused) this.board.project.agents = { running, paused };
+    else delete this.board.project.agents;
   }
 
   /** Restarts the repositories' agents the restart waits for at once, cutting off those still in a turn; false when none waits. */
@@ -1320,7 +1320,7 @@ export class CanvasRuntime {
 
   /**
    * The owner saved settings of the repositories (`RepoSettings`), or committed them for everyone
-   * (`.obeya/settings.json`): they are read where they are used; what the canvas set up
+   * (`.obeya/settings.json`): they are read where they are used; what the project set up
    * by them follows (`follow`), and a repository whose agents now work elsewhere restarts them.
    */
   settingsChanged(): Promise<void> {
@@ -1339,7 +1339,7 @@ export class CanvasRuntime {
    * Where the repository's agents now work elsewhere (clones or worktrees, set up when they start),
    * they restart once they paused (`due`); where demos are shared may have changed, and so may the
    * configuration's problems of the repository (`configRev`). Says which of these it came to:
-   * `follow` where the canvas follows what changed. What was read stands while the repository's
+   * `follow` where the project follows what changed. What was read stands while the repository's
    * refs did not move (`refsSeal`): the owner saved settings, say. Otherwise git reads without the
    * server waiting for it, the reads of a repository one after the other, so that one git answers
    * sooner does not undo a later one.
@@ -1439,7 +1439,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * What the canvas set up by the repositories' settings follows them: the read checkout where work
+   * What the project set up by the repositories' settings follows them: the read checkout where work
    * now lands elsewhere, the watched plan directory, the pull requests, what the page shows of
    * each repository.
    */
@@ -1456,7 +1456,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * The repository a card belongs to. One that does not run on the canvas (it left the
+   * The repository a card belongs to. One that does not run on the project (it left the
    * configuration, or did not start) has no agents to take the card: it waits for it, rather than
    * going to another repository's.
    */
@@ -1469,9 +1469,9 @@ export class CanvasRuntime {
   }
 
   /**
-   * What a proposal for the tags of the site of the repository at `path` reads on this canvas,
+   * What a proposal for the tags of the site of the repository at `path` reads on this project,
    * where it runs here: its checkout, the agents' runtime, the language of its demos, and its cards
-   * (`tagCards`), those on the canvas first, then the archive.
+   * (`tagCards`), those on the project first, then the archive.
    */
   tagSource(path: string): { cwd: string; runtime: AgentRuntime; language?: Language; cards: TagCard[] } | null {
     const r = this.repos.find((x) => resolve(x.info.path) === resolve(path));
@@ -1492,7 +1492,7 @@ export class CanvasRuntime {
     };
   }
 
-  /** Whether the card's repository runs on the canvas. */
+  /** Whether the card's repository runs on the project. */
   private runs(card: Item | string): boolean {
     const item = typeof card === 'string' ? this.board.card(card) : card;
     return !!item && this.repos.some((r) => r.ref.id === item.repo);
@@ -1621,7 +1621,7 @@ export class CanvasRuntime {
    */
   private fileRules() {
     if (this.board.preferences('proposed').length) return;
-    for (const r of this.board.canvas.repos) {
+    for (const r of this.board.project.repos) {
       const card = this.board.collecting(r.id);
       if (card) this.koordinator.request(card.id);
     }
@@ -1905,7 +1905,7 @@ export class CanvasRuntime {
     }
   }
 
-  /** The output directory of a looked-up thread of this canvas. */
+  /** The output directory of a looked-up thread of this project. */
   answerDir(thread: number): string {
     if (!Number.isInteger(thread) || !this.board.threadTalk(thread).length) throw new BadRequest('invalid', 'unknown thread');
     return answersDir(this.deps.home, this.id, thread);
@@ -1972,7 +1972,7 @@ export class CanvasRuntime {
    * The card whose worker fills in a repository's settings for everyone (`.obeya/settings.json`)
    * with the `settings` skill, for one that has none yet or still has an adapter module; one still
    * open for it is returned rather than a second made, Seismic's proposal of it taken on as planned.
-   * It goes right of everything on the canvas, at the top.
+   * It goes right of everything on the project, at the top.
    */
   adapterSetupCard(repo: string): Item {
     const r = this.repos.find((x) => x.ref.id === repo);
@@ -1997,7 +1997,7 @@ export class CanvasRuntime {
   /**
    * A doc in the plan directory that is not a plan: a card whose worker adds the workstream
    * checklist, started at once; once its change lands, the doc is a plan. It goes right of
-   * everything on the canvas, at the top, clear of the note on the plan directory at the left (and
+   * everything on the project, at the top, clear of the note on the plan directory at the left (and
    * of a note the owner put elsewhere).
    */
   preparePlanDoc(repo: string, file: string): Item {
@@ -2114,7 +2114,7 @@ export class CanvasRuntime {
       cardId,
       setTimeout(() => {
         this.newRepos.delete(cardId);
-        // one after the other, on any canvas: each adds to the configuration as the one before left it
+        // one after the other, on any project: each adds to the configuration as the one before left it
         making = making.then(() => this.makeNewRepo(cardId));
       }, due - Date.now()),
     );
@@ -2137,20 +2137,20 @@ export class CanvasRuntime {
     return true;
   }
 
-  /** Refuses a folder that is a repository of a canvas already: the card is to be built there instead. */
+  /** Refuses a folder that is a repository of a project already: the card is to be built there instead. */
   private taken(path: string) {
     const real = realPath(path);
-    for (const c of this.deps.canvases?.() ?? [this]) {
+    for (const c of this.deps.projects?.() ?? [this]) {
       const r = c.repos.find((x) => realPath(x.info.path) === real);
-      if (r) throw new BadRequest('newRepoPath', this.board.t.newRepo.taken(path, c.board.canvas.name));
+      if (r) throw new BadRequest('newRepoPath', this.board.t.newRepo.taken(path, c.board.project.name));
     }
   }
 
   /**
    * Makes the card's new repository and builds or starts the card there, one step after the other:
-   * the folder and git (`makeRepo`), the configuration with a canvas of its own named after it (or
-   * the repository on this canvas), then the card: an idea is decided as "Build it like this" decides it, and
-   * moves, with its history and decisions, to the new canvas, where it starts. A step that fails takes
+   * the folder and git (`makeRepo`), the configuration with a project of its own named after it (or
+   * the repository on this project), then the card: an idea is decided as "Build it like this" decides it, and
+   * moves, with its history and decisions, to the new project, where it starts. A step that fails takes
    * back those before it, and the card says why.
    */
   private async makeNewRepo(cardId: string) {
@@ -2168,11 +2168,11 @@ export class CanvasRuntime {
       undo.push(repo.undo);
       const { resolved } = await config.check(config.current());
       const here = resolved.findIndex((r) => r?.id === this.id);
-      if (here < 0) throw new Error(`the canvas ${this.id} is not in the configuration`);
+      if (here < 0) throw new Error(`the project ${this.id} is not in the configuration`);
       // on the configuration as it is now, and taken back from it as it is then: changes meanwhile stay
       const added = { path: target.path.trim() };
       const now = config.current();
-      const after = target.canvas ? [...now, { repos: [added] }] : now.map((c, i) => (i === here ? { ...c, repos: [...c.repos, added] } : c));
+      const after = target.project ? [...now, { repos: [added] }] : now.map((c, i) => (i === here ? { ...c, repos: [...c.repos, added] } : c));
       await config.save(after);
       const without = () =>
         config.current().flatMap((c) => {
@@ -2180,11 +2180,11 @@ export class CanvasRuntime {
           return repos.length ? [{ ...c, repos }] : [];
         });
       undo.push(() => config.save(without()));
-      if (!target.canvas) return this.joined(cardId, path, repo.made);
+      if (!target.project) return this.joined(cardId, path, repo.made);
       const checked = await config.check(after);
       const id = checked.resolved.at(-1)?.id;
-      const there = id ? this.deps.canvases?.().find((c) => c.id === id) : undefined;
-      if (!there) throw new Error(t.notStarted(checked.problems.filter((p) => p.canvas === after.length - 1).map((p) => p.detail).join('; ') || path));
+      const there = id ? this.deps.projects?.().find((c) => c.id === id) : undefined;
+      if (!there) throw new Error(t.notStarted(checked.problems.filter((p) => p.project === after.length - 1).map((p) => p.detail).join('; ') || path));
       this.moveTo(cardId, there, repo.made);
     } catch (e) {
       for (const step of undo.reverse()) {
@@ -2200,30 +2200,30 @@ export class CanvasRuntime {
     }
   }
 
-  /** The new repository joined this canvas: the card works in it, an idea built as "Build it like this" builds it. */
+  /** The new repository joined this project: the card works in it, an idea built as "Build it like this" builds it. */
   private joined(cardId: string, path: string, made: boolean) {
     const r = this.repos.find((x) => x.info.path === path);
-    if (!r) throw new Error(`${path} does not run on the canvas`);
+    if (!r) throw new Error(`${path} does not run on the project`);
     const card = this.board.item(cardId)!;
     const target = this.board.newRepo(cardId)!;
     this.board.patch(cardId, { repo: r.ref.id });
-    this.board.setNewRepo(cardId, { path: target.path, canvas: false, by: target.by, made: true });
+    this.board.setNewRepo(cardId, { path: target.path, project: false, by: target.by, made: true });
     this.board.log(cardId, 'state', 'obeya', this.board.t.newRepo.joined(target.path.trim(), made));
     if (card.state === 'idea') this.decided(card, { answer: this.board.t.newRepo.buildAnswer(target.path.trim()), log: this.board.t.idea.buildLog });
     this.koordinator.request(cardId);
   }
 
   /**
-   * The card leaves for the canvas `there`, whose home repository was made for it: an idea is
+   * The card leaves for the project `there`, whose home repository was made for it: an idea is
    * decided here first (its agent's session ends, its prototypes are discarded), then the card goes
-   * with its history, decisions and screenshots, out of its group, and starts there. This canvas's
+   * with its history, decisions and screenshots, out of its group, and starts there. This project's
    * sheet says where it went, and a page that has it open follows it.
    */
-  private moveTo(cardId: string, there: CanvasRuntime, made: boolean) {
+  private moveTo(cardId: string, there: ProjectRuntime, made: boolean) {
     const card = this.board.item(cardId)!;
     const target = this.board.newRepo(cardId)!;
     const shown = target.path.trim();
-    // the screenshots of the task and of its conversation, which the new canvas keeps under its own name
+    // the screenshots of the task and of its conversation, which the new project keeps under its own name
     const row = this.board.row(cardId);
     const shots = [...(row.images ? (JSON.parse(row.images) as string[]) : []), ...this.board.events(cardId).flatMap((e) => e.images ?? [])];
     this.images.copyTo(there.images, shots);
@@ -2232,13 +2232,13 @@ export class CanvasRuntime {
     this.writing.delete(cardId);
     this.said.delete(cardId);
     const at = there.board.freeSpot(there.inView);
-    this.deps.store.moveCard(cardId, there.id, at, { new_repo: JSON.stringify({ path: target.path, canvas: true, by: target.by, made: true }) });
+    this.deps.store.moveCard(cardId, there.id, at, { new_repo: JSON.stringify({ path: target.path, project: true, by: target.by, made: true }) });
     this.deps.store.dropEmptyGroups(this.id);
-    there.board.log(cardId, 'state', 'obeya', there.board.t.newRepo.movedHere(this.board.canvas.name, shown, made));
-    const moved = { card: cardId, title: card.title, canvas: there.id, canvasName: there.board.canvas.name };
+    there.board.log(cardId, 'state', 'obeya', there.board.t.newRepo.movedHere(this.board.project.name, shown, made));
+    const moved = { card: cardId, title: card.title, project: there.id, projectName: there.board.project.name };
     this.board.moved(moved);
-    this.commander.tell(`The card "${card.title}" moved to the canvas "${there.board.canvas.name}", in its new repository ${shown}, and is built there.`);
-    this.board.notify({ cardId, text: this.board.t.newRepo.movedAway(card.title, there.board.canvas.name), movedTo: there.id });
+    this.commander.tell(`The card "${card.title}" moved to the project "${there.board.project.name}", in its new repository ${shown}, and is built there.`);
+    this.board.notify({ cardId, text: this.board.t.newRepo.movedAway(card.title, there.board.project.name), movedTo: there.id });
     there.board.changed();
     there.koordinator.request(cardId);
   }
@@ -2302,7 +2302,7 @@ export class CanvasRuntime {
     if (plan) return this.buildWorkstreamOn(prototype, plan, workstreamId);
     const planning = this.board.item(prototype.prototypeOf!);
     if (planning?.becomesPlan) throw new BadRequest('planPending', 'the idea becomes a plan; build on the prototype once its plan doc has landed');
-    if (!planning) throw new BadRequest('ideaGone', 'the prototype’s idea is no longer on the canvas, and no plan of it is');
+    if (!planning) throw new BadRequest('ideaGone', 'the prototype’s idea is no longer on the project, and no plan of it is');
     const idea = this.settledIdea(prototype.prototypeOf!);
     const { workers } = this.repoOf(prototype);
     return workers.buildOn(prototype.id, idea).then(() => {
@@ -2333,7 +2333,7 @@ export class CanvasRuntime {
       });
   }
 
-  /** The idea's prototypes still on the canvas go into the archive as discarded. */
+  /** The idea's prototypes still on the project go into the archive as discarded. */
   private discardPrototypes(ideaId: string) {
     for (const p of this.board.items().filter((i) => i.prototypeOf === ideaId)) this.repoOf(p).workers.endPrototype(p.id, 'discarded', 'obeya');
   }
@@ -2430,7 +2430,7 @@ export class CanvasRuntime {
     return { file, row: { plan_docs: JSON.stringify([ref]) } };
   }
 
-  /** Parked or dropped, the idea stays on the canvas with its brief; what its agent has not answered yet waits for the conversation to go on. */
+  /** Parked or dropped, the idea stays on the project with its brief; what its agent has not answered yet waits for the conversation to go on. */
   private shelve(cardId: string, how: 'park' | 'drop') {
     const card = this.ideaCard(cardId);
     // parked or dropped in the undo window of its new repository: it is not built there
@@ -2446,7 +2446,7 @@ export class CanvasRuntime {
    * Workers build throwaway prototypes for the idea, each in its own workstation; they never land
    * themselves. One per planned variant chosen, each with its approach in its title, and one for
    * what the owner wrote. Neither chosen nor written: the planned variants that have no prototype
-   * on the canvas, or, with none planned, the idea as it stands.
+   * on the project, or, with none planned, the idea as it stands.
    */
   private prototype(cardId: string, what: string, chosen?: string[]) {
     const card = this.ideaCard(cardId);
@@ -2457,7 +2457,7 @@ export class CanvasRuntime {
     const running = new Set(this.board.items().flatMap((i) => (i.prototypeOf === cardId && i.variant ? [i.variant] : [])));
     const picked = chosen ? variants.filter((v) => chosen.includes(v.approach)) : what ? [] : variants.filter((v) => !running.has(v.approach));
     if (chosen?.length && !picked.length && !what) throw new BadRequest('invalid', 'none of the chosen variants is planned');
-    if (!chosen && !what && variants.length && !picked.length) throw new BadRequest('variantsRunning', 'every planned variant has its prototype on the canvas');
+    if (!chosen && !what && variants.length && !picked.length) throw new BadRequest('variantsRunning', 'every planned variant has its prototype on the project');
     const runs = picked.map((v) => {
       const others = variants.filter((o) => o !== v).map((o) => o.approach);
       return { approach: v.approach, task: others.length ? `${v.show}\n\n${t.onlyThisVariant(others.join(', '))}` : v.show, variant: v.approach };
@@ -2530,24 +2530,24 @@ export class CanvasRuntime {
   }
 
   /**
-   * A new card or idea the owner asked for on another canvas: made there as there, its screenshots
+   * A new card or idea the owner asked for on another project: made there as there, its screenshots
    * copied over; a follow-up of a card here goes there in no group and names that card. Its id, for
    * a wait in the same command.
    */
   private elsewhere(c: Extract<Command, { do: 'newCard' | 'newIdea' }>): unknown {
-    const there = this.deps.canvases?.().find((x) => x.id === c.canvas);
-    if (!there) throw new Error(`the canvas ${c.canvas} does not run`);
+    const there = this.deps.projects?.().find((x) => x.id === c.project);
+    if (!there) throw new Error(`the project ${c.project} does not run`);
     if (c.images?.length) this.images.copyTo(there.images, c.images);
-    const { canvas: _, place: __, repo: ___, ...rest } = c;
+    const { project: _, place: __, repo: ___, ...rest } = c;
     if (rest.do === 'newIdea') return there.run(rest);
     const { from, ...card } = rest;
     if (!from) return there.run(card);
     const id = there.followUp(card, from);
-    this.board.log(from, 'state', 'obeya', this.board.t.voice.madeFollowUp(c.title), { made: { card: id, title: c.title, canvas: there.id } });
+    this.board.log(from, 'state', 'obeya', this.board.t.voice.madeFollowUp(c.title), { made: { card: id, title: c.title, project: there.id } });
     return id;
   }
 
-  /** A card the Koordinator of another canvas makes here for the owner, following up on a card of its own. */
+  /** A card the Koordinator of another project makes here for the owner, following up on a card of its own. */
   followUp(c: Extract<Command, { do: 'newCard' }>, from: string): string {
     const card = this.board.create({ title: c.title, body: c.body, ...(c.images?.length ? { images: c.images } : {}), ...this.board.freeSpot(this.inView) }, from);
     this.board.log(card.id, 'state', 'owner', this.board.t.voice.created);
@@ -2568,12 +2568,12 @@ export class CanvasRuntime {
     switch (c.do) {
       case 'newCard':
       case 'newIdea':
-        if (c.canvas && c.canvas !== this.id) return this.elsewhere(c);
+        if (c.project && c.project !== this.id) return this.elsewhere(c);
         break;
       case 'newRepo': {
         const card = this.board.item(c.card);
         if (!card) throw new BadRequest('unknownCard', 'unknown card');
-        this.board.setNewRepo(c.card, { path: c.path, canvas: c.canvas, by: 'owner' });
+        this.board.setNewRepo(c.card, { path: c.path, project: c.project, by: 'owner' });
         return this.act(c.card, { action: card.state === 'idea' ? 'build' : 'start' });
       }
     }
@@ -2644,7 +2644,7 @@ export class CanvasRuntime {
       case 'snooze':
         return this.act(c.card, { action: 'snooze', until: c.until });
       case 'configure':
-        return this.deps.config?.save(c.canvases);
+        return this.deps.config?.save(c.projects);
       case 'remember':
         return this.remember(c.text, c);
       case 'workRetro':
@@ -2681,7 +2681,7 @@ export class CanvasRuntime {
 
   /**
    * "Review PR #5": a review card for the pull request someone outside opened, started at once, the
-   * owner's words with it as its task. A PR that has a card on the canvas already opens that one, and
+   * owner's words with it as its task. A PR that has a card on the project already opens that one, and
    * the words go to its worker. What goes wrong (no such PR, one closed) the owner hears.
    */
   async reviewPr(c: Extract<Command, { do: 'reviewPr' }>): Promise<string | undefined> {
@@ -2750,19 +2750,19 @@ export class CanvasRuntime {
     return this.repos.flatMap((r) => r.workers.busyCards());
   }
 
-  /** The owner came back to a page of this canvas: its open pull requests are looked at now, and its demo sites. */
+  /** The owner came back to a page of this project: its open pull requests are looked at now, and its demo sites. */
   ownerBack() {
     for (const r of this.repos) r.prs?.soon();
     this.sharing.soon();
     this.siteCredentials();
   }
 
-  /** This machine's demo sites changed (one added, connected or removed): the cards share on the canvas's, or export. */
-  /** Its old names on the canvas the pages list, so that their addresses lead here. */
+  /** This machine's demo sites changed (one added, connected or removed): the cards share on the project's, or export. */
+  /** Its old names on the project the pages list, so that their addresses lead here. */
   private showOldNames() {
     const old = this.config.oldNames;
-    if (old?.length) this.board.canvas.oldNames = [...old];
-    else delete this.board.canvas.oldNames;
+    if (old?.length) this.board.project.oldNames = [...old];
+    else delete this.board.project.oldNames;
   }
 
   demoSitesChanged() {
@@ -2773,7 +2773,7 @@ export class CanvasRuntime {
   private siteInit: { url: string; path: string; running: boolean; error?: string } | null = null;
 
   /**
-   * The canvas's demo site as sharing uses it: one of this machine's sites, with the canvas's
+   * The project's demo site as sharing uses it: one of this machine's sites, with the project's
    * name as its title, its tags and choices, once its path there is initialized; null before, and
    * without one.
    */
@@ -2783,17 +2783,17 @@ export class CanvasRuntime {
     if (!chosen || !entry) return null;
     const path = chosen.path ?? '';
     if (!sitePaths(this.deps.home, entry, entry.secret).includes(path)) return null;
-    const site = demoSite(entry, this.board.canvas.name, { ...(chosen.publish ? { publish: chosen.publish } : {}), ...(chosen.tags && dimensions(chosen.tags).length ? { tags: chosen.tags } : {}) });
+    const site = demoSite(entry, this.board.project.name, { ...(chosen.publish ? { publish: chosen.publish } : {}), ...(chosen.tags && dimensions(chosen.tags).length ? { tags: chosen.tags } : {}) });
     return { site, path, ...(entry.secret ? { secret: entry.secret } : {}) };
   }
 
-  /** The vocabulary of tags the canvas names for its demo site; none where it names none. */
+  /** The vocabulary of tags the project names for its demo site; none where it names none. */
   private vocabulary(): PageTags | undefined {
     const tags = this.config.demoSite?.tags;
     return tags && dimensions(tags).length ? tags : undefined;
   }
 
-  /** What the UI is told about sharing on the canvas: the same on each of its repositories. */
+  /** What the UI is told about sharing on the project: the same on each of its repositories. */
   private shareRef(): ShareRef {
     const chosen = this.config.demoSite;
     if (!chosen) return { shareSite: 'none' };
@@ -2805,8 +2805,8 @@ export class CanvasRuntime {
     return { share: true, ...(own.site.publish === 'approved' ? { shareOnApproval: true as const } : {}), ...(own.secret ? { shareUnlisted: true as const } : {}), ...tags };
   }
 
-  /** The canvas's demo site as the page shows it, with the initialization under way or failed. */
-  siteState(): CanvasDemoSiteState | undefined {
+  /** The project's demo site as the page shows it, with the initialization under way or failed. */
+  siteState(): ProjectDemoSiteState | undefined {
     const chosen = this.config.demoSite;
     if (!chosen) return undefined;
     const path = chosen.path ?? '';
@@ -2815,7 +2815,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * "Initialize": puts the canvas's path on one of this machine's sites, with its empty overview,
+   * "Initialize": puts the project's path on one of this machine's sites, with its empty overview,
    * and deploys; the status bar says "Creating demo site" meanwhile. The site and path come with
    * the request, as the owner may initialize before saving them.
    */
@@ -2829,7 +2829,7 @@ export class CanvasRuntime {
     if (siteMissing(this.deps.home, demoSite(entry, ''))) throw new BadRequest('invalid', 'this machine lacks the credentials of that site');
     const chosen = this.config.demoSite;
     const same = chosen?.url === entry.url && (chosen.path ?? '') === path;
-    const site = demoSite(entry, this.board.canvas.name, same ? { ...(chosen.publish ? { publish: chosen.publish } : {}), ...(chosen.tags ? { tags: chosen.tags } : {}) } : {});
+    const site = demoSite(entry, this.board.project.name, same ? { ...(chosen.publish ? { publish: chosen.publish } : {}), ...(chosen.tags ? { tags: chosen.tags } : {}) } : {});
     this.siteInit = { url: entry.url, path, running: true };
     this.siteCredentials(true);
     const home = this.repos[0];
@@ -2837,13 +2837,13 @@ export class CanvasRuntime {
     void this.sharing.init({ site, path, ...(entry.secret ? { secret: entry.secret } : {}) }, home?.info.path ?? this.deps.home, language).then((r) => {
       this.siteInit = { url: entry.url, path, running: false, ...(r.why ? { error: r.why } : {}) };
       if (r.why) console.error(`Seismic: creating the demo site ${siteName(site)}${path ? `/${path}` : ''} failed: ${r.why}`);
-      else console.log(`Seismic: the canvas ${this.id} shares its demos on ${siteName(site)}${path ? `/${path}` : ''} now`);
+      else console.log(`Seismic: the project ${this.id} shares its demos on ${siteName(site)}${path ? `/${path}` : ''} now`);
       this.siteCredentials(true);
     });
     return this.siteState();
   }
 
-  /** A site's env file placed or removed on this machine since, the canvas's site changed or its path initialized: its cards share there, or export. */
+  /** A site's env file placed or removed on this machine since, the project's site changed or its path initialized: its cards share there, or export. */
   private siteCredentials(force = false) {
     let changed = force;
     const next = this.shareRef();
@@ -2854,9 +2854,9 @@ export class CanvasRuntime {
       }
     }
     const state = this.siteState();
-    if (JSON.stringify(state) !== JSON.stringify(this.board.canvas.demoSite)) {
-      if (state) this.board.canvas.demoSite = state;
-      else delete this.board.canvas.demoSite;
+    if (JSON.stringify(state) !== JSON.stringify(this.board.project.demoSite)) {
+      if (state) this.board.project.demoSite = state;
+      else delete this.board.project.demoSite;
       changed = true;
     }
     if (changed) this.board.changed();
@@ -2895,39 +2895,39 @@ export function approachOf(what: string, max = 40): string {
 }
 
 /**
- * Starts the canvases; one that does not start is left out, with why in Seismic's log and in
+ * Starts the projects; one that does not start is left out, with why in Seismic's log and in
  * "Configuration" (which checks the configuration again, and shows `failed` of one whose home
  * repository did not start), and the others run.
  */
-export function startCanvases(configs: CanvasConfig[], deps: CanvasDeps, failed: (f: StartFailure) => void = () => {}): CanvasRuntime[] {
+export function startProjects(configs: ProjectConfig[], deps: ProjectDeps, failed: (f: StartFailure) => void = () => {}): ProjectRuntime[] {
   return configs.flatMap((c) => {
     try {
-      return new CanvasRuntime(c, deps);
+      return new ProjectRuntime(c, deps);
     } catch (e) {
       const why = e instanceof ConfigError || e instanceof HomeDown ? e.message : e instanceof Error ? (e.stack ?? e.message) : String(e);
-      console.error(`Seismic: the canvas ${c.name ?? c.id ?? c.repos[0]?.path} does not start, left out: ${why}`);
-      if (e instanceof HomeDown) failed({ canvas: e.canvas, detail: e.message });
+      console.error(`Seismic: the project ${c.name ?? c.id ?? c.repos[0]?.path} does not start, left out: ${why}`);
+      if (e instanceof HomeDown) failed({ project: e.project, detail: e.message });
       return [];
     }
   });
 }
 
 /**
- * The canvases Seismic serves, as its configuration has them while it runs (design: Live
- * configuration): a canvas new in it starts at once, one that changed takes the change
- * (`CanvasRuntime.apply`), one no longer in it stops once its agents paused, its cards kept.
+ * The projects Seismic serves, as its configuration has them while it runs (design: Live
+ * configuration): a project new in it starts at once, one that changed takes the change
+ * (`ProjectRuntime.apply`), one no longer in it stops once its agents paused, its cards kept.
  */
-export class Canvases {
-  private list: CanvasRuntime[];
+export class Projects {
+  private list: ProjectRuntime[];
   private listeners = new Set<() => void>();
-  /** By canvas's id: why one in the configuration does not run (its home repository did not start). */
+  /** By project's id: why one in the configuration does not run (its home repository did not start). */
   private down = new Map<string, string>();
 
   constructor(
-    configs: CanvasConfig[],
-    private deps: CanvasDeps,
-    /** A canvas started while Seismic runs. */
-    private started: (c: CanvasRuntime) => void = () => {},
+    configs: ProjectConfig[],
+    private deps: ProjectDeps,
+    /** A project started while Seismic runs. */
+    private started: (c: ProjectRuntime) => void = () => {},
   ) {
     this.deps = {
       ...deps,
@@ -2936,42 +2936,42 @@ export class Canvases {
         this.down.set(c.id, why);
         this.emit();
       },
-      canvases: () => this.list,
+      projects: () => this.list,
     };
     this.list = this.start(configs);
   }
 
-  /** Starts canvases, keeping why one did not. */
-  private start(configs: CanvasConfig[]): CanvasRuntime[] {
-    const list = startCanvases(configs, this.deps, (f) => this.down.set(f.canvas, f.detail));
+  /** Starts projects, keeping why one did not. */
+  private start(configs: ProjectConfig[]): ProjectRuntime[] {
+    const list = startProjects(configs, this.deps, (f) => this.down.set(f.project, f.detail));
     for (const c of list) this.down.delete(c.id);
     return list;
   }
 
-  /** The canvases, and repositories of those that run, that do not run as the configuration has them. */
+  /** The projects, and repositories of those that run, that do not run as the configuration has them. */
   failures(): StartFailure[] {
-    return [...[...this.down].map(([canvas, detail]) => ({ canvas, detail })), ...this.list.flatMap((c) => c.failures())];
+    return [...[...this.down].map(([project, detail]) => ({ project, detail })), ...this.list.flatMap((c) => c.failures())];
   }
 
-  all(): CanvasRuntime[] {
+  all(): ProjectRuntime[] {
     return this.list;
   }
 
-  get(id: string): CanvasRuntime | undefined {
+  get(id: string): ProjectRuntime | undefined {
     return this.list.find((c) => c.id === id);
   }
 
-  /** Calls `fn` whenever a canvas starts, stops, or changes its name or repositories. */
+  /** Calls `fn` whenever a project starts, stops, or changes its name or repositories. */
   onChange(fn: () => void): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
   }
 
   /**
-   * The configuration saved: `ids` are its canvases' ids as its check resolved them (null where one
-   * does not resolve; then no canvas leaves, since which one it is stays unknown).
+   * The configuration saved: `ids` are its projects' ids as its check resolved them (null where one
+   * does not resolve; then no project leaves, since which one it is stays unknown).
    */
-  apply(configs: CanvasConfig[], ids: (string | null)[]) {
+  apply(configs: ProjectConfig[], ids: (string | null)[]) {
     configs.forEach((config, i) => {
       const id = ids[i];
       if (!id) return;
@@ -2980,14 +2980,14 @@ export class Canvases {
       const [c] = this.start([config]);
       if (!c) return;
       this.list.push(c);
-      console.log(`Seismic: the canvas ${c.board.canvas.name} (/p/${c.id}) runs now`);
+      console.log(`Seismic: the project ${c.board.project.name} (/p/${c.id}) runs now`);
       this.started(c);
     });
-    // the configuration's order is the order canvases are listed in (the switcher, the phone); one leaving goes last
-    const at = (c: CanvasRuntime) => (ids.includes(c.id) ? ids.indexOf(c.id) : ids.length);
+    // the configuration's order is the order projects are listed in (the switcher, the phone); one leaving goes last
+    const at = (c: ProjectRuntime) => (ids.includes(c.id) ? ids.indexOf(c.id) : ids.length);
     this.list.sort((a, b) => at(a) - at(b));
     if (!ids.includes(null)) {
-      // a canvas that did not start and left the configuration is no longer wrong
+      // a project that did not start and left the configuration is no longer wrong
       for (const id of [...this.down.keys()]) if (!ids.includes(id)) this.down.delete(id);
       for (const c of [...this.list])
         if (!ids.includes(c.id))
@@ -2999,7 +2999,7 @@ export class Canvases {
     this.emit();
   }
 
-  /** Stops every canvas, for Seismic to end. */
+  /** Stops every project, for Seismic to end. */
   shutdown() {
     for (const c of this.list) c.shutdown();
   }
@@ -3009,7 +3009,7 @@ export class Canvases {
   }
 }
 
-/** Why a canvas's configuration does not work; `repo` is the index of the repository in question. */
+/** Why a project's configuration does not work; `repo` is the index of the repository in question. */
 export class ConfigError extends Error {
   constructor(
     readonly code: ConfigProblemCode,
@@ -3034,7 +3034,7 @@ export interface RepoRead {
 }
 
 /**
- * Reads a repository for `resolveCanvas`, as git steps; null where `path` is no git repository. A
+ * Reads a repository for `resolveProject`, as git steps; null where `path` is no git repository. A
  * folder without git (`folder`) is read as it is, without git: null where it is no directory.
  */
 export function* readingRepo(path: string, folder = false): GitSteps<RepoRead | null> {
@@ -3070,10 +3070,10 @@ function* readingSettings(path: string): GitSteps<DefaultRead> {
   return { shared, adapterModule };
 }
 
-/** Reads a repository for `resolveCanvas`, the server waiting; null where `path` is no git repository (no directory, for a `folder`). */
+/** Reads a repository for `resolveProject`, the server waiting; null where `path` is no git repository (no directory, for a `folder`). */
 export const readRepo = (path: string, folder = false): RepoRead | null => gitStepsSync(path, readingRepo(path, folder));
 
-/** A folder without git as `resolveCanvas` reads it: no remote, no branch, its `.obeya/settings.json` as the folder has it. */
+/** A folder without git as `resolveProject` reads it: no remote, no branch, its `.obeya/settings.json` as the folder has it. */
 function readFolder(path: string): RepoRead | null {
   try {
     if (!statSync(path).isDirectory()) return null;
@@ -3084,16 +3084,16 @@ function readFolder(path: string): RepoRead | null {
 }
 
 /**
- * What a canvas's configuration amounts to, without touching anything: its repositories (home
+ * What a project's configuration amounts to, without touching anything: its repositories (home
  * first), each with Seismic's defaults and in front of them the repository's `.obeya/settings.json`
  * (`shared`: where they are read, by the repository's path; as `read` read them when left out) and
  * this machine's settings (`settings`: where a repository's are read; its entry's when left out),
- * each with its id and its settings without this machine's (`values`), and the canvas's id and
+ * each with its id and its settings without this machine's (`values`), and the project's id and
  * name. `read` reads each repository, by its absolute path (git, waiting for it, when left out).
  * Throws a ConfigError.
  */
-export function resolveCanvas(
-  config: CanvasConfig,
+export function resolveProject(
+  config: ProjectConfig,
   store: Store,
   settings: (r: RepoConfig) => () => RepoSettings | undefined = (r) => () => r.settings,
   shared?: (path: string) => () => SharedSettings | undefined,
@@ -3101,7 +3101,7 @@ export function resolveCanvas(
   /** What a handover may bring where a repository names nothing: the demo settings' list. */
   artifacts?: () => HandoverArtifact[] | undefined,
 ) {
-  if (!config.repos.length) throw new ConfigError('noRepo', 'a canvas needs at least one repository');
+  if (!config.repos.length) throw new ConfigError('noRepo', 'a project needs at least one repository');
   const reads = config.repos.map((r, i) => {
     // an empty path names nothing: resolved, it would be the server's own working directory
     if (!r.path.trim()) throw new ConfigError('noPath', 'a repository needs a path', i);
@@ -3110,9 +3110,9 @@ export function resolveCanvas(
     if (!got) throw folder ? new ConfigError('noFolder', `${r.path} is no folder`, i) : new ConfigError('notRepo', `${r.path} is not a git repository`, i);
     return got;
   });
-  // a repository runs once on a canvas: twice, it would have two of everything, its plan docs' note too
+  // a repository runs once on a project: twice, it would have two of everything, its plan docs' note too
   reads.forEach(({ info }, i) => {
-    if (reads.findIndex((x) => x.info.path === info.path) < i) throw new ConfigError('sameRepo', `${config.repos[i]!.path} is on the canvas already`, i);
+    if (reads.findIndex((x) => x.info.path === info.path) < i) throw new ConfigError('sameRepo', `${config.repos[i]!.path} is on the project already`, i);
   });
   const sharedOf =
     shared ??
@@ -3124,12 +3124,12 @@ export function resolveCanvas(
   const refsOf = () => uniqueRefs(repos.map((x) => x.read.info), repos.map((x) => x.adapter));
   let refs = refsOf();
   const id = config.id ? slug(config.id) : config.name ? slug(config.name) : slug(repoName(reads[0]!.info));
-  // the home repository is fixed when the canvas is first served: bare plan references, cards
+  // the home repository is fixed when the project is first served: bare plan references, cards
   // without a repository and the home workstation directory are its, whatever the order later
   const stored = store.setting(id, 'home_repo');
   if (stored && stored !== refs[0]!.id) {
     const at = refs.findIndex((r) => r.id === stored);
-    if (at < 0) throw new ConfigError('homeMissing', `canvas ${id}: its home repository "${stored}" is not configured; list it (first or anywhere)`);
+    if (at < 0) throw new ConfigError('homeMissing', `project ${id}: its home repository "${stored}" is not configured; list it (first or anywhere)`);
     repos = [repos[at]!, ...repos.filter((_, i) => i !== at)];
     refs = refsOf();
   }
@@ -3143,11 +3143,11 @@ export function resolveCanvas(
   };
 }
 
-/** What `resolveCanvas` resolved. */
-type Resolved = ReturnType<typeof resolveCanvas>;
+/** What `resolveProject` resolved. */
+type Resolved = ReturnType<typeof resolveProject>;
 
 /**
- * How a canvas runs a repository: Seismic's defaults with the repository's `shared` settings and this
+ * How a project runs a repository: Seismic's defaults with the repository's `shared` settings and this
  * machine's `settings` in front, each read when it is asked for; its workers work in clones where
  * the configuration names some.
  */
@@ -3168,7 +3168,7 @@ export function listedClones(r: RepoConfig, info: RepoInfo, layered: RepoSetting
 /** Whether a repository's configuration names clones for its workers (to create, existing ones, on other machines). */
 export const namesClones = (r: RepoConfig, info: RepoInfo, layered: RepoSettings | undefined) => !!r.clones || !!listedClones(r, info, layered).length || !!r.hosts?.length;
 
-/** Repository ids unique on the canvas: the repository's name, with a number when two share one. */
+/** Repository ids unique on the project: the repository's name, with a number when two share one. */
 function uniqueRefs(infos: RepoInfo[], adapters: RepoAdapter[]): RepoRef[] {
   const seen = new Map<string, number>();
   return infos.map((info, i) => {
@@ -3193,7 +3193,7 @@ function onServer(info: RepoInfo): boolean {
   return !!url && (/^(https?|ssh|git):\/\//i.test(url) || /^[^/\\\s:]{2,}:/.test(url));
 }
 
-/** What a repository's ref says of its settings, which may change while the canvas runs: its main branch, how work lands. */
+/** What a repository's ref says of its settings, which may change while the project runs: its main branch, how work lands. */
 function settled(info: RepoInfo, adapter: RepoAdapter): Pick<RepoRef, 'branch' | 'pullRequests' | 'direct' | 'folder' | 'forge'> {
   if (info.folder) return { branch: '', folder: true };
   return {

@@ -1,4 +1,4 @@
-// The archive: finished and stopped cards and parked or dropped ideas taken off the canvas and plans whose plan doc is
+// The archive: finished and stopped cards and parked or dropped ideas taken off the project and plans whose plan doc is
 // gone, the most recently archived first, listed under the bar's button as the queue is. A plan's
 // workstreams belong to it and are not listed on their own. A field over the list filters it as
 // the owner types.
@@ -19,7 +19,7 @@ interface Props {
   held: boolean;
   /** The archive as the server sends it, newest first; a plan is followed by its workstreams. */
   archived: Item[];
-  /** Finished cards of the owner's still on the canvas. */
+  /** Finished cards of the owner's still on the project. */
   done: number;
   onOpen: (i: Item) => void;
   onArchiveDone: () => void;

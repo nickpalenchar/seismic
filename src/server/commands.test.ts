@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, setSystemTime, test } from 'bun:test';
-import { type AgentSetting, type CanvasConfig, type ConfigProblem, type ConfigView, type Notice, waitingOn } from '../core/types';
+import { type AgentSetting, type ProjectConfig, type ConfigProblem, type ConfigView, type Notice, waitingOn } from '../core/types';
 import { Board } from './board';
 import { type Command, Commander } from './commands';
 import { Store } from './db';
@@ -99,7 +99,7 @@ describe('the Koordinator remembers', () => {
     // Export keeps K1, the new card gets the next tag
     expect(second.brief).toContain('K1 [planned] "Export"');
     expect(second.brief).toContain('K2 [planned] "Login"');
-    expect(second.brief).toContain("What happened on the canvas since the owner's last command:");
+    expect(second.brief).toContain("What happened on the project since the owner's last command:");
     expect(second.brief).toContain('K1 "Export": the agent asked: CSV oder Excel?');
     expect(second.brief).toContain('K2 "Login": new card');
     expect(second.brief).not.toContain('You have not talked');
@@ -665,7 +665,7 @@ describe('the Koordinator remembers', () => {
     expect(board.events(a.id).at(-1)).toMatchObject({ kind: 'say', author: 'koordinator', text: 'Seismic startete neu, bevor ich das gelesen hatte. Bitte noch einmal.' });
   });
 
-  test('a new session, after a restart, starts from the stored conversation and the canvas history', async () => {
+  test('a new session, after a restart, starts from the stored conversation and the project history', async () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     await say(commander(), 'starte Export', 'act', { actions: [{ do: 'start', card: 'K1' }], confirm: '„Export“ startet.' });
     board.log(a.id, 'state', 'obeya', 'Agent gestartet auf obeya/export.');
@@ -1030,9 +1030,9 @@ describe('„Merk dir“', () => {
     const heard = k.hear('merk dir: in Home Tests immer auf Deutsch', {});
     await settle();
     const s = runtime.last;
-    expect(s.inbox.at(-1)).toContain('Repositories on this canvas (the first is the default for a new card): home (Home)');
+    expect(s.inbox.at(-1)).toContain('Repositories on this project (the first is the default for a new card): home (Home)');
     expect(s.spec.tools.find((t) => t.name === 'act')!.description).toContain('„CLAUDE.md ergänzen“');
-    expect(s.call('act', { actions: [{ do: 'remember', text: 'Tests auf Deutsch.', repos: ['web'] }], confirm: '…' })).toContain('unknown repository web; the canvas has home');
+    expect(s.call('act', { actions: [{ do: 'remember', text: 'Tests auf Deutsch.', repos: ['web'] }], confirm: '…' })).toContain('unknown repository web; the project has home');
     s.call('act', { actions: [{ do: 'remember', text: 'Tests auf Deutsch.', repos: ['home', 'home'] }], confirm: 'Kommt in die CLAUDE.md von Home.' });
     s.emit({ type: 'idle' });
     const { token, confirm } = await heard;
@@ -1083,17 +1083,17 @@ describe('what the owner says to the Koordinator is offered for learning', () =>
 });
 
 describe("the Koordinator and Seismic's configuration", () => {
-  const view = { file: '/h/canvases.json', source: 'file', canvases: [{ name: 'Seismic', repos: [{ path: '/r' }] }], running: ['obeya'] } as unknown as ConfigView;
+  const view = { file: '/h/projects.json', source: 'file', projects: [{ name: 'Seismic', repos: [{ path: '/r' }] }], running: ['obeya'] } as unknown as ConfigView;
   const config = {
     view: () => view,
     check: async (input: unknown) => {
-      const canvases = input as CanvasConfig[];
-      const problems: ConfigProblem[] = canvases.some((c) => c.repos.some((r) => r.path === '/nirgends'))
-        ? [{ code: 'notRepo', canvas: 0, repo: 0, detail: '/nirgends is not a git repository' }]
+      const projects = input as ProjectConfig[];
+      const problems: ConfigProblem[] = projects.some((c) => c.repos.some((r) => r.path === '/nirgends'))
+        ? [{ code: 'notRepo', project: 0, repo: 0, detail: '/nirgends is not a git repository' }]
         : [];
-      return { canvases, resolved: [], problems };
+      return { projects, resolved: [], problems };
     },
-    checkSaved: () => config.check(view.canvases),
+    checkSaved: () => config.check(view.projects),
   };
   const withConfig = () => new Commander({ board, runtime, cwd: '/r', execute: (c) => void executed.push(c), delayMs: 20, config });
 
@@ -1101,7 +1101,7 @@ describe("the Koordinator and Seismic's configuration", () => {
     const k = withConfig();
     const heard = k.hear('welche Leinwände gibt es?', {});
     await settle();
-    expect(JSON.parse(await runtime.last.call('config', {}))).toMatchObject({ file: '/h/canvases.json', running: ['obeya'], problems: [] });
+    expect(JSON.parse(await runtime.last.call('config', {}))).toMatchObject({ file: '/h/projects.json', running: ['obeya'], problems: [] });
     runtime.last.call('reply', { confirm: 'Eine: Seismic.' });
     runtime.last.emit({ type: 'idle' });
     expect(await heard).toEqual({ confirm: 'Eine: Seismic.', talk: 1 });
@@ -1113,16 +1113,16 @@ describe("the Koordinator and Seismic's configuration", () => {
     await settle();
     const s = runtime.last;
     const bad = [{ name: 'Seismic', repos: [{ path: '/r' }, { path: '/nirgends' }] }];
-    expect(await s.call('configure', { canvases: bad, confirm: 'Ok.' })).toContain('/nirgends is not a git repository');
+    expect(await s.call('configure', { projects: bad, confirm: 'Ok.' })).toContain('/nirgends is not a git repository');
     const good = [{ name: 'Seismic', repos: [{ path: '/r' }, { path: '/r2' }] }];
-    await s.call('configure', { canvases: good, confirm: 'Das Repository r2 kommt dazu; Seismic startet danach neu.' });
+    await s.call('configure', { projects: good, confirm: 'Das Repository r2 kommt dazu; Seismic startet danach neu.' });
     s.emit({ type: 'idle' });
     const h = await heard;
     expect(h.confirm).toBe('Das Repository r2 kommt dazu; Seismic startet danach neu.');
     k.arm(h.token!);
     expect(executed).toEqual([]);
     await new Promise((r) => setTimeout(r, 40));
-    expect(executed).toEqual([{ do: 'configure', canvases: good }]);
+    expect(executed).toEqual([{ do: 'configure', projects: good }]);
   });
 
   test('without it, the Koordinator has no such tools', async () => {
@@ -1162,10 +1162,10 @@ describe('groups by voice', () => {
     const s = runtime.last;
     expect(s.inbox[0]).toContain('K1 [planned] "Export" (group "Abrechnung")');
     expect(s.inbox[0]).toContain('K2 [planned] "Rabatt"\n');
-    expect(s.inbox[0]).toContain('Groups on the canvas: "Abrechnung"');
+    expect(s.inbox[0]).toContain('Groups on the project: "Abrechnung"');
     expect(s.call('act', { actions: [{ do: 'group', cards: ['K2'] }], confirm: '…' })).toContain("the group's name is missing");
     expect(s.call('act', { actions: [{ do: 'group', cards: ['K9'], text: 'X' }], confirm: '…' })).toContain('unknown tag K9');
-    expect(s.call('act', { actions: [{ do: 'rename_group', group: 'Einkauf', text: 'X' }], confirm: '…' })).toContain('there is no group Einkauf; the canvas has "Abrechnung"');
+    expect(s.call('act', { actions: [{ do: 'rename_group', group: 'Einkauf', text: 'X' }], confirm: '…' })).toContain('there is no group Einkauf; the project has "Abrechnung"');
     s.call('act', {
       actions: [
         { do: 'group', cards: ['K2'], text: ' Abrechnung ' },
@@ -1351,7 +1351,7 @@ describe('snoozing by voice', () => {
 });
 
 describe('a step the Koordinator takes once a card gets somewhere', () => {
-  /** Runs commands as the canvas does: a new card is created, and its id comes back for a wait on it. */
+  /** Runs commands as the project does: a new card is created, and its id comes back for a wait on it. */
   const making = () =>
     new Commander({
       board,
@@ -1540,7 +1540,7 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
 });
 
 describe('a step the Koordinator takes once it has looked something up', () => {
-  /** Runs commands as the canvas does; a question it looks up is answered when the test says. */
+  /** Runs commands as the project does; a question it looks up is answered when the test says. */
   const looking = (asked: number[] = []) =>
     new Commander({
       board,
@@ -1654,21 +1654,21 @@ describe('a step the Koordinator takes once it has looked something up', () => {
   });
 });
 
-describe('other canvases and new repositories', () => {
-  test('a new card or idea goes onto another canvas the owner names; one the Seismic does not have is refused with those it has', async () => {
-    const k = new Commander({ board, runtime, cwd: '/r', execute: (c) => void executed.push(c), delayMs: 20, canvases: () => [{ id: 'super59', name: 'Super 59' }] });
+describe('other projects and new repositories', () => {
+  test('a new card or idea goes onto another project the owner names; one the Seismic does not have is refused with those it has', async () => {
+    const k = new Commander({ board, runtime, cwd: '/r', execute: (c) => void executed.push(c), delayMs: 20, projects: () => [{ id: 'super59', name: 'Super 59' }] });
     const heard = k.hear('leg auf Super 59 eine Aufgabe Termine an', {});
     await settle();
     const s = runtime.last;
-    expect(s.inbox.at(-1)).toContain('Other canvases of this Seismic (new_card and new_idea go there with canvas): "Super 59"');
-    expect(s.call('act', { actions: [{ do: 'new_idea', title: 'X', canvas: 'Shop' }], confirm: '…' })).toContain('unknown canvas Shop; the other canvases are "Super 59"');
-    s.call('act', { actions: [{ do: 'new_card', title: 'Termine', body: 'Termine.', canvas: 'Super 59' }, { do: 'new_idea', title: 'Hier', canvas: 'C' }], confirm: 'Lege „Termine“ auf Super 59 an.' });
+    expect(s.inbox.at(-1)).toContain('Other projects of this Seismic (new_card and new_idea go there with project): "Super 59"');
+    expect(s.call('act', { actions: [{ do: 'new_idea', title: 'X', project: 'Shop' }], confirm: '…' })).toContain('unknown project Shop; the other projects are "Super 59"');
+    s.call('act', { actions: [{ do: 'new_card', title: 'Termine', body: 'Termine.', project: 'Super 59' }, { do: 'new_idea', title: 'Hier', project: 'C' }], confirm: 'Lege „Termine“ auf Super 59 an.' });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await until(() => executed.length === 2);
-    expect(executed[0]).toMatchObject({ do: 'newCard', title: 'Termine', canvas: 'super59' });
-    // this canvas by its name is no other one
-    expect(executed[1]).not.toHaveProperty('canvas');
+    expect(executed[0]).toMatchObject({ do: 'newCard', title: 'Termine', project: 'super59' });
+    // this project by its name is no other one
+    expect(executed[1]).not.toHaveProperty('project');
   });
 
   test('„bau das in einem neuen Repo unter …“ builds an idea, or starts a planned task, in a new repository; a card already at work is refused', async () => {
@@ -1680,11 +1680,11 @@ describe('other canvases and new repositories', () => {
     await settle();
     const s = runtime.last;
     expect(s.call('act', { actions: [{ do: 'build', card: 'K1', path: 'dev/super59' }], confirm: '…' })).toContain('give it absolute or from ~');
-    expect(s.call('act', { actions: [{ do: 'start', card: 'K2', path: '~/dev/export', own_canvas: false }], confirm: '…' })).toContain('only an idea, or a planned task');
+    expect(s.call('act', { actions: [{ do: 'start', card: 'K2', path: '~/dev/export', own_project: false }], confirm: '…' })).toContain('only an idea, or a planned task');
     s.call('act', { actions: [{ do: 'build', card: 'K1', path: '~/dev/super59' }], confirm: 'Baue es in ~/dev/super59.' });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await until(() => executed.length);
-    expect(executed[0]).toEqual({ do: 'newRepo', card: idea.id, path: '~/dev/super59', canvas: true });
+    expect(executed[0]).toEqual({ do: 'newRepo', card: idea.id, path: '~/dev/super59', project: true });
   });
 });

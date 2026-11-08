@@ -9,7 +9,7 @@ import { agentListens, answering, askable, type BackgroundTask, buildableOn, typ
 import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
-import { ApiError, api, canvasOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onReconnect } from './api';
+import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onReconnect } from './api';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
 import { DuplicateMergePreview, MergeButton, MergeView } from './merge';
@@ -66,9 +66,9 @@ type Tell = (text: string, images: string[] | undefined, field: Field, replyTo?:
 
 interface Props {
   item: Item;
-  /** Every item on the canvas, to name the cards a queued card waits for. */
+  /** Every item on the project, to name the cards a queued card waits for. */
   all: Item[];
-  /** The canvas's repositories; with several, the card names its own and a planned one can move. */
+  /** The project's repositories; with several, the card names its own and a planned one can move. */
   repos: RepoRef[];
   parent?: Item;
   /** The card it came from: a proposal's source, a prototype's idea, a follow-up's card. */
@@ -82,7 +82,7 @@ interface Props {
   onReadPlan?: (plan: Item, mark?: string) => void;
   /** Opens the configuration at the clone count (or the slots) of a repository: the card waits for a free clone or slot. Not in the phone view. */
   onClones?: (repo: string, field: 'clones' | 'slots') => void;
-  /** Opens the canvas's settings, where it chooses its demo site. */
+  /** Opens the project's settings, where it chooses its demo site. */
   onDemoSites?: () => void;
   onTell: Tell;
 }
@@ -94,9 +94,9 @@ function WaitsFor({ queue, all }: { queue: Behind; all: Item[] }) {
 }
 
 /**
- * The chain a queued card waits in, top to bottom as its waits run on the canvas: the card it waits
+ * The chain a queued card waits in, top to bottom as its waits run on the project: the card it waits
  * for (the first where it waits for several), the card itself (its title only), and a card that waits
- * for it (the first in the queue where several do), tagged and ringed as on the canvas while the
+ * for it (the first in the queue where several do), tagged and ringed as on the project while the
  * pointer is on the card. The cards above and below open in its place.
  */
 function QueueChain({ item, all }: { item: Item; all: Item[] }) {
@@ -108,7 +108,7 @@ function QueueChain({ item, all }: { item: Item; all: Item[] }) {
   const cover = (card: Item, dep: 'before' | 'after') => (
     <a
       className={`${cardClass(card)} cover dep-${dep}`}
-      href={cardPath(canvasOf(card.id), card)}
+      href={cardPath(projectOf(card.id), card)}
       onClick={(m) => {
         if (m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
         m.preventDefault();
@@ -186,7 +186,7 @@ export function Detail(p: Props) {
   const run = async (fn: () => Promise<void>, done: ActDone) => {
     setError('');
     const answered = p.flush().then(fn);
-    // what takes the server a while (a push onto main) does not hold the card open: the canvas shows it under way
+    // what takes the server a while (a push onto main) does not hold the card open: the project shows it under way
     if (done.close && done.pending) return p.onDone(done, { card: item.id, title: plain(item.title), answered });
     try {
       await answered;
@@ -204,7 +204,7 @@ export function Detail(p: Props) {
       // the agent picked in the Start menu is spent once the start is accepted, not before
       if (a.action === 'start' || (a.action === 'accept' && a.start !== false)) updateDraft(cardDraft(item.id), { agent: undefined });
     }, done);
-  // the repository the card is to be built in, before work on it begins: one of the canvas's or a new one
+  // the repository the card is to be built in, before work on it begins: one of the project's or a new one
   const choice = useRepoChoice(item, p.onEdit);
   // in a folder without git the card's change list takes the place of its branch
   const inFolder = !!p.repos.find((r) => r.id === item.repo)?.folder;
@@ -370,7 +370,7 @@ export function Detail(p: Props) {
   const repoRef = p.repos.find((r) => r.id === item.repo);
   const pr = !inFolder && !item.noChange && (item.lands?.land ?? (repoRef?.pullRequests ? 'pr' : 'main')) === 'pr';
   const direct = pr && (item.lands?.direct ?? !!repoRef?.direct);
-  // a canvas that reviews work on the owner's word: the latest handover not reviewed yet (or its review failed)
+  // a project that reviews work on the owner's word: the latest handover not reviewed yet (or its review failed)
   const cr = item.codeReview;
   // the agent fixing findings the owner sent it counts as part of the review: Approve warns the same way
   const fixing = !!cr?.findings?.some((f) => f.status === 'open' && f.decided === 'self');
@@ -934,7 +934,7 @@ function ApproveReview({ c, act }: { c: Contribution; act: (a: CardAction, done:
 function SupersededBox({ item, all, act, onDelete }: { item: Item; all: Item[]; act: (a: CardAction, done: ActDone) => Promise<void>; onDelete: () => void }) {
   const s = item.superseded;
   if (!s) return null;
-  // the replacement under its title now, if it is still on the canvas
+  // the replacement under its title now, if it is still on the project
   const replacement = s.by ? all.find((x) => x.id === s.by) : undefined;
   return (
     <div className="question superseded">
@@ -952,15 +952,15 @@ function SupersededBox({ item, all, act, onDelete }: { item: Item; all: Item[]; 
   );
 }
 
-/** Where the card a card comes from opens on its other canvas. */
-const elsewhereHref = (item: Item) => cardPath(item.fromElsewhere!.canvas, item.from!);
+/** Where the card a card comes from opens on its other project. */
+const elsewhereHref = (item: Item) => cardPath(item.fromElsewhere!.project, item.from!);
 
-/** A card that comes from a card on another canvas: which, and a link that opens it there. */
+/** A card that comes from a card on another project: which, and a link that opens it there. */
 function FromElsewhere({ item }: { item: Item }) {
   const e = item.fromElsewhere!;
   return (
     <p className="hint">
-      {t.fromElsewhere(plain(e.title), e.canvasName)}{' '}
+      {t.fromElsewhere(plain(e.title), e.projectName)}{' '}
       <a className="link" href={elsewhereHref(item)}>
         {t.openThere}
       </a>
@@ -968,7 +968,7 @@ function FromElsewhere({ item }: { item: Item }) {
   );
 }
 
-/** On a card whose repository does not run on the canvas: no agent works on it until that is back. */
+/** On a card whose repository does not run on the project: no agent works on it until that is back. */
 function RepoDownBox({ item }: { item: Item }) {
   if (!item.repoDown) return null;
   return (
@@ -1061,7 +1061,7 @@ function IdeaView({
           </>
         }
         talk={
-          // an archived idea is read only: it comes back onto the canvas before anyone talks to it again
+          // an archived idea is read only: it comes back onto the project before anyone talks to it again
           item.archivedAt ? (
             <Talk item={item} past />
           ) : (
@@ -1117,7 +1117,7 @@ function IdeaView({
               <Armed label={t.idea.buildWaits} undo={t.idea.unbuild} onUndo={() => act({ action: 'unbuild' }, { close: false })} />
             ) : (
               // while the agent works, the click waits for its reply in view; else the panel closes on the built card;
-              // built in a new repository, it stays open for "Undo" and then follows the card to its canvas
+              // built in a new repository, it stays open for "Undo" and then follows the card to its project
               fresh ? (
                 <button className={btn('build')} disabled={!fresh.ready} title={fresh.hint} onClick={() => guard(() => void act({ action: 'build' }, { close: false }))}>
                   {fresh.button}
@@ -1152,7 +1152,7 @@ function IdeaView({
               </button>
             )}
             <Later item={item} act={act} />
-            {/* not while a prototype of it is on the canvas */}
+            {/* not while a prototype of it is on the project */}
             {idea.status !== 'open' && !item.prototypes?.some((p) => !p.archivedAt) && <ArchiveButton item={item} run={run} />}
             <button className="btn danger" onClick={onDelete}>
               {t.delete}
@@ -1274,10 +1274,10 @@ function ProposalView({
             {!!item.images?.length && <p className="hint">{t.proposalShots}</p>}
             {!idea && <StartAt item={item} act={act} />}
             {from && <p className="hint"><Naming text={t.proposedBy} cards={[{ card: from }]} />{item.proposal?.reason && <> {item.proposal.reason}</>}</p>}
-            {/* proposed by the agent of a card on another canvas, whose repository this is */}
+            {/* proposed by the agent of a card on another project, whose repository this is */}
             {!from && item.fromElsewhere && (
               <p className="hint">
-                {t.proposedByElsewhere(plain(item.fromElsewhere.title), item.fromElsewhere.canvasName)}
+                {t.proposedByElsewhere(plain(item.fromElsewhere.title), item.fromElsewhere.projectName)}
                 {item.proposal?.reason && <> {item.proposal.reason}</>}{' '}
                 <a className="link" href={elsewhereHref(item)}>
                   {t.openThere}
@@ -1760,22 +1760,22 @@ function Line({ turn, snoozed, explained, ...rest }: { turn: Turn; snoozed?: Ite
 /**
  * A card made from this conversation, set apart from what is said: a proposal or follow-up,
  * as a compact cover that opens it by its address (in place, as a card named in a text
- * does). A card on another canvas opens there; one gone from the canvas shows its title, not a link.
+ * does). A card on another project opens there; one gone from the project shows its title, not a link.
  */
 function Made({ e, fresh }: { e: CardEvent; fresh?: boolean }) {
   const cards = useContext(Cards);
   const made = e.made!;
   const proposed = e.author === 'worker';
   const [elsewhere, setElsewhere] = useState<Item | null>();
-  // A proposal can be accepted or withdrawn on its other canvas. Refresh when this conversation
+  // A proposal can be accepted or withdrawn on its other project. Refresh when this conversation
   // changes (the proposing agent retracts it), and when returning from another tab's decision.
   useEffect(() => {
-    if (!made.canvas) return;
+    if (!made.project) return;
     let active = true;
     let latest = 0;
     const refresh = () => {
       const request = ++latest;
-      return api.canvas(made.canvas!).then(
+      return api.project(made.project!).then(
         (snapshot) => { if (active && request === latest) setElsewhere(snapshot.items.find((i) => i.id === made.card) ?? null); },
         () => { if (active && request === latest) setElsewhere(null); },
       );
@@ -1785,8 +1785,8 @@ function Made({ e, fresh }: { e: CardEvent; fresh?: boolean }) {
     const reconnect = onReconnect(refresh);
     window.addEventListener('focus', refresh);
     return () => { active = false; events(); reconnect(); window.removeEventListener('focus', refresh); };
-  }, [made.canvas, made.card, e.cardId]);
-  const card = made.canvas ? elsewhere : cards.items.find((i) => i.id === made.card);
+  }, [made.project, made.card, e.cardId]);
+  const card = made.project ? elsewhere : cards.items.find((i) => i.id === made.card);
   const who = (
     <>
       <SquarePlus className="action-mark" size={13} strokeWidth={1.75} aria-hidden="true" />
@@ -1804,9 +1804,9 @@ function Made({ e, fresh }: { e: CardEvent; fresh?: boolean }) {
       {card && !card.archivedAt ? (
         <a
           className={`${cardClass(card)} cover`}
-          href={cardPath(made.canvas ?? canvasOf(card.id), card)}
+          href={cardPath(made.project ?? projectOf(card.id), card)}
           onClick={(m) => {
-            if (made.canvas || m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
+            if (made.project || m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
             m.preventDefault();
             cards.open(card);
           }}
@@ -1814,7 +1814,7 @@ function Made({ e, fresh }: { e: CardEvent; fresh?: boolean }) {
           <CardFace item={card} />
         </a>
       ) : (
-        <div className="card cover gone">{bare(made.canvas && elsewhere === undefined ? t.talk.madeElsewhere : t.talk.madeGone)}</div>
+        <div className="card cover gone">{bare(made.project && elsewhere === undefined ? t.talk.madeElsewhere : t.talk.madeGone)}</div>
       )}
     </Msg>
   );
@@ -2684,7 +2684,7 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
 }
 
 /**
- * The Review tab of a card whose work its canvas reviews (design: Code reviews in Card lifecycle):
+ * The Review tab of a card whose work its project reviews (design: Code reviews in Card lifecycle):
  * its label counts the open findings by severity in their colours, or shows the review running, and
  * "outdated" where it reviewed an earlier handover; its panel shows "Reviewing …", why it failed,
  * or the findings to decide on.
@@ -3295,9 +3295,9 @@ function ExportBox({
   demo: Demo;
   run: Run;
   needs?: { site: string; file: string } | undefined;
-  /** Why the canvas shares on no site: it has none, or its path there is not initialized yet. */
+  /** Why the project shares on no site: it has none, or its path there is not initialized yet. */
   site?: 'none' | 'init' | undefined;
-  /** Opens the canvas's settings, where it chooses its demo site. */
+  /** Opens the project's settings, where it chooses its demo site. */
   onDemoSites?: (() => void) | undefined;
 }) {
   const [open, setOpen] = useState(false);
@@ -3359,11 +3359,11 @@ function ExportBox({
 
 /**
  * Takes a finished card or a parked or dropped idea into the archive, or an archived one back onto
- * the canvas; `className`, `label` and `hint` dress the button that archives.
+ * the project; `className`, `label` and `hint` dress the button that archives.
  */
 function ArchiveButton({ item, run, className = 'btn', label = t.archive.archive, hint }: { item: Item; run: Run; className?: string; label?: string; hint?: string }) {
   const title = plain(item.title);
-  // a stopped task whose workstation holds work stays on the canvas; the button says why
+  // a stopped task whose workstation holds work stays on the project; the button says why
   const held = stopped(item) && !stoppedArchivable(item);
   return item.archivedAt ? (
     <button className="btn" onClick={() => run(() => api.unarchive(item.id), { close: true, ack: t.archive.unarchived(title) })}>
@@ -3517,11 +3517,11 @@ function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNo
 /**
  * Where a card's conversation goes instead of its column: the phone view's panel from below (`el`,
  * null while the panel is closed), which `open` brings up, with the cursor in the field when `focus`;
- * None on the canvas.
+ * None on the project.
  */
 export const TalkElsewhere = createContext<{ el: HTMLElement | null; open: (focus?: boolean) => void } | null>(null);
 
-/** A card's conversation: in its column, or where `TalkElsewhere` puts it. `bare`: no column of its own on the canvas. */
+/** A card's conversation: in its column, or where `TalkElsewhere` puts it. `bare`: no column of its own on the project. */
 function TalkColumn({ children, bare }: { children: ReactNode; bare?: boolean }) {
   const away = useContext(TalkElsewhere);
   if (away) return away.el && createPortal(children, away.el);

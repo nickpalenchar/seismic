@@ -67,7 +67,7 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
 /** Set once the owner opened the legend with `?`: the bar's `?` button goes. */
 export const HELP_KEY_KNOWN = 'obeya-help-key-known';
 
-/** Set once the owner created a task by double-click on the canvas: the bar's button for a new task goes. */
+/** Set once the owner created a task by double-click on the project: the bar's button for a new task goes. */
 export const DOUBLE_CLICK_KNOWN = 'obeya-double-click-known';
 
 /** What the bar's button for a new task opens: a task is created by double-click; a click beside it, Esc or the button closes it. */

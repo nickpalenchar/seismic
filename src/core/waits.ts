@@ -1,5 +1,5 @@
 // What a card waits for the owner for, and which cards started to: shared by the server's pushes to
-// the phone and the desktop notifications of the canvas page.
+// the phone and the desktop notifications of the project page.
 import type { Messages } from './messages';
 import { type Item, needsYou } from './types';
 

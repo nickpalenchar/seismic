@@ -1,5 +1,5 @@
 // Adding demo sites to this machine's list from the configuration (Configuration → Demos, and a
-// canvas's "Add a demo site …"): set up at a host (Cloudflare Pages, GitHub Pages), entered by hand,
+// project's "Add a demo site …"): set up at a host (Cloudflare Pages, GitHub Pages), entered by hand,
 // or connected with another machine's code. A site goes on the list only once Seismic has published to
 // it: it reads the live site's manifest, takes over what is there and deploys it again unchanged
 // (a new site's blank page, an existing one's pages), so a site whose deploy line or credentials do
@@ -17,7 +17,7 @@ import { messageOf } from '../core/text';
 
 export interface SiteSetupOptions {
   home: string;
-  /** The list changed: every canvas tells its cards where they share now. */
+  /** The list changed: every project tells its cards where they share now. */
   changed: () => void;
   /** Who runs Seismic here, for a new site's name at Cloudflare. */
   user?: string;
@@ -119,7 +119,7 @@ export class SiteSetup {
     return { code: connectionCode(this.o.home, site) };
   }
 
-  /** "Remove from this machine": canvases here no longer share there; the pages online stay, as does the project at the host. */
+  /** "Remove from this machine": projects here no longer share there; the pages online stay, as does the project at the host. */
   remove(input: unknown): DemoSitesView {
     const url = (input as { url?: unknown } | null)?.url;
     if (typeof url !== 'string' || !findSite(this.o.home, url)) throw new BadRequest('invalid', 'no such demo site on this machine');

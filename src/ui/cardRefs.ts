@@ -1,4 +1,4 @@
-// Other cards named in a card's text: `/` in its task field opens a menu of the canvas's cards whose
+// Other cards named in a card's text: `/` in its task field opens a menu of the project's cards whose
 // titles fit what follows, and the one picked stands in the text as a markdown link to its address
 // (`[Title](/p/<project>/c/<code>)`); the field shows it as a pill (`cardMenu.tsx`), and so does
 // every place that shows the text: a smart link, with the card's state, its current title and its
@@ -55,18 +55,18 @@ export const linkText = (title: string) => title.replace(/[[\]]/g, '').replace(/
 const HREF = /^\/p\/([^/]+)\/c\/([^/?#]+)$/;
 const LEGACY_HREF = /^\/c\/([^/]+)\/card\/([^/?#]+)$/;
 
-/** The canvas and card code an address of a card names; null for any other address. */
-export function cardHref(href: string): { canvas: string; code: string } | null {
+/** The project and card code an address of a card names; null for any other address. */
+export function cardHref(href: string): { project: string; code: string } | null {
   const m = HREF.exec(href) ?? LEGACY_HREF.exec(href);
   if (!m) return null;
   try {
-    return { canvas: decodeURIComponent(m[1]!), code: decodeURIComponent(m[2]!) };
+    return { project: decodeURIComponent(m[1]!), code: decodeURIComponent(m[2]!) };
   } catch {
     return null;
   }
 }
 
-/** The card a link names among the canvas's `items`; undefined where it is not among them. */
+/** The card a link names among the project's `items`; undefined where it is not among them. */
 export const referenced = (items: Item[], href: string): Item | undefined => {
   const at = cardHref(href);
   return at ? named(items, at.code) : undefined;

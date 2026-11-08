@@ -84,7 +84,7 @@ try {
   await waitFor(() => resumedTool && idleSince(resume), 'subprocess restart, resume and restored tool');
   if (readFileSync(join(cwd, 'result.txt'), 'utf8') !== 'START\nSTEERED\nRESUMED\n') throw new Error('Resumed file edit missing');
   console.log('\nPASS: edit, Seismic tool, active-turn message, ask/reply, HTML handover, process restart/resume and persisted tool.');
-  console.log('Not a full canvas acceptance test: permissions, background command cleanup, trust and card lifecycle remain rollout gates.');
+  console.log('Not a full project acceptance test: permissions, background command cleanup, trust and card lifecycle remain rollout gates.');
 } finally {
   session?.close();
   await session?.done;

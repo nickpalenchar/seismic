@@ -4,7 +4,7 @@ How Seismic works and why, written for an experienced engineer who would rebuild
 features, however different the rebuild would look. A sentence belongs here if that engineer would
 need it:
 
-- behaviour seen from outside: by the owner on the canvas and the phone, by the agents (their tools
+- behaviour seen from outside: by the owner on the project and the phone, by the agents (their tools
   and what their prompts promise), and by repositories (the settings format, what lands in git, the
   files Seismic writes);
 - data and wire formats a rebuild must stay compatible with;
@@ -39,15 +39,15 @@ touches, and keep those current in the same change.
   (later starts, taking back, reworking by words), at work, waiting for approval (the handover
   report), approval and landing (feedback after it, comparing ratings), live and done, archive, how plans end.
 - [Communication](design/communication.md) — how workers and Seismic exchange messages: a worker's
-  tools, turns that end without a handover, pausing an agent or a canvas's agents, snoozing a card, waiting without
+  tools, turns that end without a handover, pausing an agent or a project's agents, snoozing a card, waiting without
   blocking, refused and confirmed tool calls, notes and replies, questions go to the owner.
 - [Conversation on the card](design/conversation-on-the-card.md) — what the owner sees and does in
   a card's conversation: messages, reading order, replying to a message, the task as first message,
   card layout (the files beside the demo, trying the app by hand), screenshots and marking them,
   other files by their path, skills by `/`, cards by `/` in the task text and smart links.
-- [The canvas](design/the-canvas.md) — the UI around the cards: the bar, creating cards, cards on
-  the canvas (a plan arranged by its dependencies), moving around, unfolding a card, addresses
-  (a card's permalink, Back and Forward), sheets, visual identity, groups on the canvas, refusals.
+- [The project](design/the-project.md) — the UI around the cards: the bar, creating cards, cards on
+  the project (a plan arranged by its dependencies), moving around, unfolding a card, addresses
+  (a card's permalink, Back and Forward), sheets, visual identity, groups on the project, refusals.
 - [Agents and workstations](design/agents-and-workstations.md) — how agents run and where: agents,
   models and effort, workstations (slots, the pool in the bar), folders without git, parking, hosts
   (running there, logins and files, a dropped connection).
@@ -55,7 +55,7 @@ touches, and keep those current in the same change.
   (watching the PR, ready to merge, the PR on the card), review cards for a contributor's pull
   request (own changes wait for the approval, unpushed commits it collides with), after landing
   (restarts for landed code, finishing, questions after the work).
-- [The Koordinator](design/the-koordinator.md) — the per-canvas agent the UI calls Seismic:
+- [The Koordinator](design/the-koordinator.md) — the per-project agent the UI calls Seismic:
   scheduling and the queue, learning the owner's rules (retrospective, rules for a CLAUDE.md), its
   sheet and its chats, work retrospective, looked-up questions and threads, Question cards, its memory, wishes for
   Seismic's makers.
@@ -69,8 +69,8 @@ touches, and keep those current in the same change.
 - [Sharing demos](design/sharing-demos.md) — demos on a page of their own for colleagues: where a
   demo goes, tags, several versions on one page, publishing (on approval too), outdated pages, the page
   and the pull request, export without a site, a repository's theme, static sites, this machine's
-  demo sites and a canvas's site with its path, unlisted sites, several machines on one site.
-- [Repositories and configuration](design/repositories-and-configuration.md) — canvases and
+  demo sites and a project's site with its path, unlisted sites, several machines on one site.
+- [Repositories and configuration](design/repositories-and-configuration.md) — projects and
   repositories, main branch, read checkout, plan docs (and how Seismic reads them), repository settings
   (`.obeya/settings.json`, problems, trusting commands, writing them), the configuration dialog,
   live configuration, language.
@@ -85,7 +85,7 @@ touches, and keep those current in the same change.
 ## Goal
 
 A spatial workspace for directing AI coding agents the way an engineering director directs a team:
-every task and every plan is a card on one canvas; agents do the work in the background; the
+every task and every plan is a card on one project; agents do the work in the background; the
 human keeps every essential decision — made by voice, from a narrated demo video, without reading
 code or cycling through terminals.
 
@@ -94,10 +94,10 @@ on the walls and decisions are made in front of the wall.
 
 ## Principles
 
-- **One surface.** Everything starts on the canvas. Detail unfolds in place, animated, and folds
+- **One surface.** Everything starts on the project. Detail unfolds in place, animated, and folds
   back; nothing opens a new window, and the view never jumps.
 - **Space is memory.** A card keeps the position its owner gave it and a fixed, readable size. A
-  screen too small for everything shows a section of the canvas, never shrunken cards.
+  screen too small for everything shows a section of the project, never shrunken cards.
 - **Decisions, not supervision.** The owner is pulled in only for a decision: a demo to approve, a
   question only they can answer, a proposal. Everything else runs.
 - **Every change gets a demo.** Its length follows the size of the change, not its kind: a small one
@@ -121,24 +121,24 @@ on the walls and decisions are made in front of the wall.
 ## Concepts
 
 - **Project** — the named whole spanning one or more repositories; one Seismic serves several
-  projects. Each has a spatial canvas of cards. Code and storage still call a project a canvas; existing
-  configuration, API and storage fields named `canvas` or `canvases` keep their format. A *plan* is
+  projects. Each has a spatial project of cards. Code and storage still call a project a project; existing
+  configuration, API and storage fields named `project` or `projects` keep their format. A *plan* is
   the card backed by a plan doc, a container for workstreams within a project; the word "project"
   names only the app (decided 2026-11-07, so that no word means two things).
-- **Cards** — everything on the canvas is a card: a task, an idea, a prototype, a Question card (a
+- **Cards** — everything on the project is a card: a task, an idea, a prototype, a Question card (a
   thread of looked-up answers, see Looked-up threads), or a plan, a container backed by a plan doc
   whose workstreams are its child cards. Tasks have no further kind: fixing a bug or adding
   something is worked on the same way, so the owner picks none and a task's card names none; the
   other cards say what they are (idea, prototype, workstream number, plan). The UI and the
   Koordinator call a task *Aufgabe* and a follow-up *Folgeaufgabe*, never *Karte*; *Karte* is only a
-  card on the canvas as such (moving, grouping, "Close card or plan").
-- **Groups** — besides by place, the owner sorts the canvas by group: a group has a name and a
+  card on the project as such (moving, grouping, "Close card or plan").
+- **Groups** — besides by place, the owner sorts the project by group: a group has a name and a
   colour, and a card belongs to none or one; a plan belongs as a whole, with its workstreams. A
   proposal, a follow-up and a prototype come into the group of the card they come from, a plan
   written from an idea or a task into that card's; after that the group is the card's own. Moving a
   card never changes its group: in another group's territory it stands as an island. A group exists
-  while a card belongs to it, on the canvas or in the archive; the last card leaving it ends it, and
-  so does deleting it, which takes all its cards out (see Groups on the canvas).
+  while a card belongs to it, on the project or in the archive; the last card leaving it ends it, and
+  so does deleting it, which takes all its cards out (see Groups on the project).
 - **States** — `idea` → `planned` → `working` → `waiting` (demo ready | question) → `approved` → `in
   PR` → `live`, or `done` when the work changed no code; an agent's `proposal` is started when
   accepted. Every handover brings a demo; where the repository has no recipe for running its app
@@ -151,7 +151,7 @@ on the walls and decisions are made in front of the wall.
     workstream; the owner asks it in the plan's sheet, or asks Seismic, which passes the question on.
   - *Exploration agent*, one per idea, long-lived, with a worker's tools: discusses the idea with
     the owner and keeps its brief.
-  - *Koordinator* (Chief of Staff), one per canvas: takes voice input on the open canvas, creates
+  - *Koordinator* (Chief of Staff), one per project: takes voice input on the open project, creates
     and assigns cards, runs the workstation pool, keeps the preference memory, and schedules the work
     so that cards likely to conflict on merge are queued rather than run together (see Scheduling).
     The UI calls it *Seismic* in both languages: its replies, its sheet, the line under the microphone
@@ -185,7 +185,7 @@ on the walls and decisions are made in front of the wall.
 - **Agents may propose cards.**
 - **Open source** under the MIT licence, copyright Daniel Sadilek, in a public repository on GitHub
   (2026-10-06). Code, tests and docs name no other work projects. The README is written for
-  strangers: the idea, a loop of the canvas at work, the site's screenshots of the canvas and the
+  strangers: the idea, a loop of the project at work, the site's screenshots of the project and the
   phone view (taken again at every release, so the README has no picture of its own that could go
   stale), the status, requirements, a quick start, how to connect a phone, a link to obeya.si, and
   near the end one sentence welcoming issues and pull requests, without asking for a star, which
@@ -193,22 +193,22 @@ on the walls and decisions are made in front of the wall.
   `user-attachments` link no API makes), and a release asset shows as a download; so the loop is a
   GIF cut from the hero video (see Hero video), linked to the video on obeya.si (`#film`), which is
   always the current one (2026-10-19). Rejected: the video's first frame with a play button drawn on
-  it, which beside the loop would show two near-identical canvases. `CONTRIBUTING.md` says how Seismic
+  it, which beside the loop would show two near-identical projects. `CONTRIBUTING.md` says how Seismic
   is built with Seismic (design doc, plan docs, cards, demos) and what a pull request from outside
   brings.
 - **The repository on GitHub is made to be found** (2026-10-19): its homepage is obeya.si; its
   topics are a dozen that people search for and that have active topic pages (`claude-code`,
-  `ai-agents`, `coding-agents`, `infinite-canvas` and the like; not `spatial-canvas`, with 15
+  `ai-agents`, `coding-agents`, `infinite-project` and the like; not `spatial-project`, with 15
   repositories). Its social preview (the wordmark and the site's headline beside the screenshot of
-  the canvas) is made by `bun scripts/social-preview.ts`; GitHub's API cannot set it, so the owner
-  uploads it when the canvas has changed enough.
+  the project) is made by `bun scripts/social-preview.ts`; GitHub's API cannot set it, so the owner
+  uploads it when the project has changed enough.
 - **Agents run through official harnesses and their own logins**, not subscription tokens reused
   against a model API. Claude Code is the default; local Git task workers can select the installed
   Codex CLI (preview). Roles and harnesses are separate: keeping the Koordinator on Claude during
   this rollout does not make Claude a required supervisor of other harnesses (2026-10-30).
 - **No business and no cloud service for now** (2026-10-06): being known comes first. Considered and
   parked: hosting demos for sharing, remote access from the phone through a relay, voice as a
-  service, a team canvas, a subscription covering the costs. Hosted agents were ruled out.
+  service, a team project, a subscription covering the costs. Hosted agents were ruled out.
 
 ## Open questions
 

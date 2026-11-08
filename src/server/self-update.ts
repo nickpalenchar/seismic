@@ -44,7 +44,7 @@ export function whenIdle(busy: () => boolean, fn: () => void, patienceMs = RESTA
 
 /** A worker a restart waits for. */
 export interface Busy {
-  canvas: string;
+  project: string;
   card: string;
 }
 
@@ -184,7 +184,7 @@ export class Restarter {
 // a rebuild outranks a plain restart, so the owner's asking for one is not lost to a restart that waits already
 const OUTRANKS: Record<RestartReason, number> = { code: 0, config: 0, repository: 0, owner: 0, rebuild: 1, takeover: 2, update: 3, stop: 4 };
 
-const key = (b: Busy[]) => b.map((x) => `${x.canvas}/${x.card}`).join(' ');
+const key = (b: Busy[]) => b.map((x) => `${x.project}/${x.card}`).join(' ');
 
 /** Whether the commits from `from` to `to` change code, not only docs (unknown counts as code); without the server waiting for git. */
 export async function changesCode(checkout: string, from: string, to: string): Promise<boolean> {

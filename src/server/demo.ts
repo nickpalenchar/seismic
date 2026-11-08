@@ -234,7 +234,7 @@ function servedFrom(req: Request): string | undefined {
 /**
  * A file of a worker's directory (an HTML artifact's, a looked-up answer's), never one outside it.
  * It is the worker's, so it runs sandboxed: scripts yes, but in an origin of its own, without
- * Seismic's API or the canvas's storage, and connecting to nothing but the address of the files beside
+ * Seismic's API or the project's storage, and connecting to nothing but the address of the files beside
  * it (`pagePolicy`, `OWN_CONNECTIONS`). A `page` tells its frame its height, so the frame grows to it
  * instead of scrolling inside, and what the owner marks in it, to quote it. Opened in a window of its own (a link on the card), a file that may run
  * scripts (HTML, SVG) comes in a frame of a page around it (`framed`): alone in its window a page

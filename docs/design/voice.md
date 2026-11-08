@@ -23,7 +23,7 @@ before a recording would count (600 ms in all) it is typed after all. While Spac
 is read-only: Chrome on the Mac hides the pointer at every key pressed into an editable field, and
 the repeating key made it flicker.
 
-A field being spoken into is framed, and the line in the middle of the status bar (see The canvas,
+A field being spoken into is framed, and the line in the middle of the status bar (see The project,
 The status bar; on the phone, under the microphone) says "→ into the field · send with Enter", then
 "Writing it down …"; nothing heard leaves the field as it was and says so. Otherwise that line names who hears the words and what goes with them
 ("→ Agent · Task: … with text and 1 screenshot").
@@ -32,8 +32,8 @@ The status bar; on the phone, under the microphone) says "→ into the field · 
 
 A field's draft (text, screenshots, options picked for the questions above it, the quoted message)
 lives outside the field, so the microphone reads and writes it and it outlives closing the card.
-Picks count only while the same questions stand. Drafts are kept per tab and canvas in session
-storage as they change, so they survive a canvas switch and a restart.
+Picks count only while the same questions stand. Drafts are kept per tab and project in session
+storage as they change, so they survive a project switch and a restart.
 
 #### The microphone
 
@@ -123,13 +123,13 @@ field waits there for the agent that takes the card on (see Card layout).
 #### Passing a request on to Seismic
 
 Words that ask Seismic rather than the agent (approve, pause, stop, start, a follow-up or new card,
-"Merk dir", grouping, an action on another card, a question about the canvas or another card) the
+"Merk dir", grouping, an action on another card, a question about the project or another card) the
 agent passes on with `to_seismic(request)`, one tool shared by workers, prototypes' workers and
 exploration agents. The Koordinator reads the request with the owner's own words beside it (the
 newest on the card after a restart) and the card in focus, as any command. Where the owner has said
 nothing on the card yet, the task stands in for their words if the owner gave it (typed it, had the
-Koordinator write it, or accepted an agent's proposal): "create a repo and a canvas for it"
-becomes a task ending in a request for the canvas, which the Koordinator then creates, unless it
+Koordinator write it, or accepted an agent's proposal): "create a repo and a project for it"
+becomes a task ending in a request for the project, which the Koordinator then creates, unless it
 already waits on the card for that step (see A step once a card gets somewhere). An unaccepted
 proposal is no such task: words an agent read in a proposal, a file or a pull request comment are no
 request of the owner's.
@@ -175,10 +175,10 @@ What comes without a pointer (a request an agent passed on) uses the view a page
 page reports it over its WebSocket on every change and when its window gets the focus back. The
 camera flies only when the card landed out of view.
 
-A new card or idea may go onto another canvas the owner names ("put a task on Super 59"),
-into that canvas's home repository, with the command's screenshots; the Koordinator hears the other
-canvases' names with every command. A follow-up made there names the card it follows here, with its
-canvas. "Build that in a new repo under ~/dev/super59" builds an idea, or starts a planned task
+A new card or idea may go onto another project the owner names ("put a task on Super 59"),
+into that project's home repository, with the command's screenshots; the Koordinator hears the other
+projects' names with every command. A follow-up made there names the card it follows here, with its
+project. "Build that in a new repo under ~/dev/super59" builds an idea, or starts a planned task
 nobody has worked on, in a new repository (see Building in a new repository); the card's own undo
 window follows the command's.
 
@@ -207,14 +207,14 @@ run after the undo window.
 
 "Review PR #5" (or a pull request's link, "look at the PR") makes a review card for a
 contributor's pull request and starts it; a number is the PR of the card's repository (the first on
-a canvas with several, unless the owner names one). Several pull requests in one sentence ("Reviews
+a project with several, unless the owner names one). Several pull requests in one sentence ("Reviews
 for 5, 6 and 7"), or a list the Koordinator looks up first ("for the new pull requests"), get a
 review card each; a task from a new card never stands in for one. The Koordinator's list of the
 cards marks review cards with their PR, and its history says "new review card" for each, so a task
 merely titled like a review is told apart. What the owner adds ("look especially at
 security") becomes its task. A PR with a card already opens that card, unless the owner has another
 one open, and the words go to its worker; one Seismic cannot read, or closed, gets none, and the owner
-reads why. On a canvas with a repository whose origin is on a server, one muted line under Seismic's
+reads why. On a project with a repository whose origin is on a server, one muted line under Seismic's
 field names the command until a review card was there once or the owner closes it with × (see
 Review cards); it stays quiet since the feature is a special one (the owner, 2026-10-27).
 
@@ -228,7 +228,7 @@ feedback the Koordinator passes on ("tell the export, …") waits for undo like 
 #### A step once a card gets somewhere
 
 What can only follow once a card gets somewhere (starting "Login" once "Export" has landed, a new
-card on another canvas once a task here is done) the Koordinator waits for, as a worker snoozes: `wait_for`
+card on another project once a task here is done) the Koordinator waits for, as a worker snoozes: `wait_for`
 on a card, or on a new card of the same act, until it is done (default) or waits for the owner, with
 the step written to stand on its own (cards named by title, since another session tags cards anew). A card already there or a step without
 text is refused. The waited-on card's agent may read the step in its task; it asks Seismic for it in
@@ -268,7 +268,7 @@ One confirmation covers all actions of a command; they run in order a few second
 the owner, so "Undo" takes back anything, an approval included. A page opened in that window
 shows the confirmation with "Undo" for the rest of it. Only talk to an idea goes on at once: it
 changes nothing. Once a command that made a task has run, its confirmation's line offers "Go to card"
-(one button per task, named, when it made several; one on another canvas opens there) and stays
+(one button per task, named, when it made several; one on another project opens there) and stays
 fifteen seconds longer for it: the confirmation comes before the task exists, so the task's id reaches the
 page by a notice once the window is over.
 
@@ -301,7 +301,7 @@ phone, that card's conversation panel).
 Pressing Space (or focusing a field the Koordinator reads) prepares while the owner speaks: the
 sidecar loads its model (not with a cloud service) and the Koordinator's session starts (one that
 fails is replaced once, for the same command). From letting go to the confirmation takes about
-2.8 s on a small canvas, the first command after a start included, 2 s of it the Koordinator's turn;
+2.8 s on a small project, the first command after a start included, 2 s of it the Koordinator's turn;
 the undo window starts with the confirmation.
 
 ### No voice out
@@ -313,7 +313,7 @@ Koordinator's sheet and the line above the mic. Demo narration is separate (see 
 
 - **Push-to-talk only in Seismic's window** (owner, 2026-10-29). Rejected: a key held while another
   app is in front, heard and recorded by the app's shell, which sent the command to wherever the
-  owner had last been in Seismic: from the other app the owner could not tell which canvas and card
+  owner had last been in Seismic: from the other app the owner could not tell which project and card
   that was.
 - **The focus decides between dictating and sending** (2026-10-12). Rejected: always dictating (two
   steps per message), always sending at once (lost what was typed), a field in view deciding (on a
@@ -370,10 +370,10 @@ Koordinator's sheet and the line above the mic. Demo narration is separate (see 
   (still a card and a workstation for minutes of reading, and its agent chose proposals unasked); the
   look-up agent acting itself (a second actor beside the Koordinator, and an agent may answer
   without passing anything on).
-- **The Koordinator makes cards on other canvases** (2026-10-28), though it works per canvas:
+- **The Koordinator makes cards on other projects** (2026-10-28), though it works per project:
   "put a card on Super 59" said elsewhere, or a step it waited for, failed twice on one
-  idea, and a card it then made on the wrong canvas could not start there. Its other actions stay
-  on its own canvas.
+  idea, and a card it then made on the wrong project could not start there. Its other actions stay
+  on its own project.
 - **The Koordinator merges and deletes planned tasks** (2026-10-31, the review of PR #33: too many
   follow-up tasks, and Seismic could only group them). Only tasks nobody has worked on, since a branch
   or a workstation holds work a merge would lose or split; a merge keeps every text unchanged under its

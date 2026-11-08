@@ -11,7 +11,7 @@
 //   bun scripts/scratch-obeya.ts --artifact <port> <card key> <file> [<summary>]
 //
 // Prints one JSON line, also kept in <dir>/staged.json:
-//   { "url", "port", "dir", "home", "repo", "database", "log", "canvas", "pid", "from", "cards": { "<key>": "<card id>" }, "record"?, "replay"? }
+//   { "url", "port", "dir", "home", "repo", "database", "log", "project", "pid", "from", "cards": { "<key>": "<card id>" }, "record"?, "replay"? }
 // `home` is its SEISMIC_HOME, `repo` the staged repository, `database` its state (home/obeya.db),
 // `log` the server's output. --list prints a JSON line for each scratch Seismic staged by this script
 // whose server still runs: { "port", "url", "dir", "home", "repo", "database", "log", "stage", "code"? }.
@@ -74,7 +74,7 @@
 //
 // The stage file (JSON; every field but `cards` optional):
 //   {
-//     "name": "Shop", "canvases": ["Website"], "language": "en", "conversation": "de",
+//     "name": "Shop", "projects": ["Website"], "language": "en", "conversation": "de",
 //     "clones": 2, "mainBranch": "master",
 //     "poolCheckout": true, "slots": 3,
 //     "hosts": [{ "name": "Workhorse", "ssh": "me@workhorse.local", "clones": 2, "slots": 2 }],
@@ -116,7 +116,7 @@
 // write them in that language. `language` is the interface's; `conversation`, the language agents
 // write the owner in before the owner's words say otherwise, follows it where left out.
 // A card is created (x and y default to a free place; `idea`, `repo`, `from` as in
-// POST /api/c/<canvas>/cards) unless it names a plan doc's `plan` or `workstream` (label; with
+// POST /api/c/<project>/cards) unless it names a plan doc's `plan` or `workstream` (label; with
 // several plan docs "docs/plan/x.md#W1"), which exist already. Then its fields are written straight
 // into the database:
 // state, need, statusLine, summary, question (with `permission`, `{ name, input, extra? }`: the tool call it asks
@@ -130,7 +130,7 @@
 // required and the card gets a worktree of its own on it), prototypeOf (the key of the idea it is a prototype of),
 // and `row` for any other column of `cards` (objects are stored as JSON; a
 // review card's `row.contribution` naming one of `pulls` gets that PR's head as `reviewed` where it names none). Times: "90s", "15m", "2h",
-// "3d" ago. `mainBranch` is the branch the repositories are on (default `main`). With `forgeClone`, the forge that plays `pulls` keeps its repository in <dir>/forge, a clone the PRs' heads are in, so that what lands on the local main is not on the forge until pushed; the contributors' repositories are that one too, so a push onto a PR's branch moves its head. `"setup": true` serves no canvas (no configuration, no repository given): the first start,
+// "3d" ago. `mainBranch` is the branch the repositories are on (default `main`). With `forgeClone`, the forge that plays `pulls` keeps its repository in <dir>/forge, a clone the PRs' heads are in, so that what lands on the local main is not on the forge until pushed; the contributors' repositories are that one too, so a push onto a PR's branch moves its head. `"setup": true` serves no project (no configuration, no repository given): the first start,
 // which shows the setup assistant; the repository is still made, for the assistant to pick, and
 // `cards` may be empty. `"git": false` makes the repository a folder without git (a card's `workstation: true` then
 // is the folder itself, and its `changes`, as `[{ "kind": "added", "path": "…" }]` with `from` for a move, are what it
@@ -144,12 +144,12 @@
 // host at the same path, so that Seismic clones it there as it would a remote; staging afresh
 // removes <dir> there first. A host with `"gone": true` held its clones once and does not answer
 // now (an `ssh` target nobody resolves, say): nothing goes there, and its clones are registered as if
-// Seismic had made them. `name` names the canvas the cards go on; `repoName` names its repository's
-// directory (<dir>/repo by default), and so its id; `repos` adds further repositories to that canvas,
+// Seismic had made them. `name` names the project the cards go on; `repoName` names its repository's
+// directory (<dir>/repo by default), and so its id; `repos` adds further repositories to that project,
 // `[{ "name": "promo", "files": { … } }]`, each in <dir>/<name> with that id, which a card's `repo`
-// names; `canvases` adds further ones by
-// name, each over a repository of its own (<dir>/repo-2, …); a card goes on one of them by its `canvas` (the name). Preferences are active unless `state` says otherwise; `card` and `replaces` name keys;
-// `target` is the repository whose CLAUDE.md a rule is for (the canvas id names the home one).
+// names; `projects` adds further ones by
+// name, each over a repository of its own (<dir>/repo-2, …); a card goes on one of them by its `project` (the name). Preferences are active unless `state` says otherwise; `card` and `replaces` name keys;
+// `target` is the repository whose CLAUDE.md a rule is for (the project id names the home one).
 // What a learned rule's occasion is (card, quote, review), `replaces` and `target` need code that has them.
 // Groups are created through the API with their cards (keys; a workstream stands for its plan),
 // in their colours by order. `talk` is the conversation with the Koordinator, oldest first (`card` a key;
@@ -160,15 +160,15 @@
 // Seismic's makers starts from, `{ said, answer? }`, for the link under the reply; `askedIn`: the key of
 // the plan whose sheet the words were written in, straight to its plan agent, with an empty `reply`;
 // `chat`: a number that puts the exchanges with the same one into one chat, 0 by default, the chat
-// talked in last being the one open; needs code that has chats; `canvas`: the name of a canvas of
-// `canvases` it was said on). `friction` is what the work retrospective noted on a card's
+// talked in last being the one open; needs code that has chats; `project`: the name of a project of
+// `projects` it was said on). `friction` is what the work retrospective noted on a card's
 // runs (`card` a key), read by its next retrospective; `settingProposals` are values for a
 // repository's settings it proposed (`field`: checks, setup, softPaths or run; `cards` keys;
-// `repo` defaults to the canvas's home repository); both need code that has them. `feedback` are the
+// `repo` defaults to the project's home repository); both need code that has them. `feedback` are the
 // owner's responses on cards' approved work (`card` a key), about the card's latest handover (a
 // `review` event, or none), crediting `configs` as the work ran (none: nothing recorded; two or
 // more: mixed); `title` and `plan` (a title) stand for the card's as they were; needs code that has them.
-// Seismic proposes a card that fills in the settings of a repository without any ("Set up Seismic for …"); staging dismisses it on every canvas, unless `"setupProposals": true` keeps it.
+// Seismic proposes a card that fills in the settings of a repository without any ("Set up Seismic for …"); staging dismisses it on every project, unless `"setupProposals": true` keeps it.
 
 import { Database } from 'bun:sqlite';
 import { spawn, spawnSync } from 'node:child_process';
@@ -176,7 +176,7 @@ import { copyFileSync, cpSync, existsSync, linkSync, mkdirSync, openSync, readdi
 import { basename, dirname, join, resolve } from 'node:path';
 import { demoSettingsHere } from '../plugin/skills/demo/lib/settings.ts';
 import { type Language, LANGUAGES } from '../src/core/locale';
-import type { CanvasSnapshot, ConfigChecked, Item } from '../src/core/types';
+import type { ProjectSnapshot, ConfigChecked, Item } from '../src/core/types';
 import { loginLink, ownerHeaders } from '../src/server/owner';
 import { findTailscale, type ServeEntry, Tailscale } from '../src/server/tailscale';
 import { mayRecordInto } from '../src/server/replay';
@@ -197,8 +197,8 @@ interface StageCard {
   from?: string;
   plan?: string;
   workstream?: string;
-  /** The name of one of `canvases` the card goes on, instead of the first canvas. */
-  canvas?: string;
+  /** The name of one of `projects` the card goes on, instead of the first project. */
+  project?: string;
   state?: string;
   need?: string | null;
   statusLine?: string;
@@ -229,22 +229,22 @@ interface StageCard {
 }
 
 interface Stage {
-  /** No canvas: Seismic's first start, with the setup assistant. */
+  /** No project: Seismic's first start, with the setup assistant. */
   setup?: boolean;
   /** Keeps Seismic's proposal to fill in the settings of a repository that has none. */
   setupProposals?: boolean;
-  /** Names the canvas the cards go on. */
+  /** Names the project the cards go on. */
   name?: string;
   /** The language of the scratch Seismic's interface; the demos' where the script runs without it. */
   language?: Language;
   /** The owner's conversation language; the interface's without it. */
   conversation?: Language;
-  /** The directory of the canvas's repository under the scratch directory, and so its id (default `repo`). */
+  /** The directory of the project's repository under the scratch directory, and so its id (default `repo`). */
   repoName?: string;
-  /** Further repositories on the canvas the cards go on, each in a directory of its name, which is its id. */
+  /** Further repositories on the project the cards go on, each in a directory of its name, which is its id. */
   repos?: { name: string; files?: Record<string, string> }[];
-  /** Further canvases by name, each over a repository of its own, without cards: to switch between canvases. */
-  canvases?: string[];
+  /** Further projects by name, each over a repository of its own, without cards: to switch between projects. */
+  projects?: string[];
   /** Without it (and without --port) the script picks a free one. */
   port?: number;
   dir?: string;
@@ -269,7 +269,7 @@ interface Stage {
   /** A directory whose contents go into the repository first (a small folder of documents, binaries included). */
   copy?: string;
   /**
-   * Pull requests someone outside opened on the canvas's repository, played by a forge in a file
+   * Pull requests someone outside opened on the project's repository, played by a forge in a file
    * (src/server/file-forge.ts): each a commit of `files` on the main branch, its head as
    * `refs/pull/<number>/head` in the repository. Their URLs are GitHub's for `forgeRepo` (default
    * `acme/<repoName>`), the repository's origin too, which git of the scratch Seismic reads as the
@@ -301,7 +301,7 @@ interface Stage {
     answer?: string;
     answerBy?: string;
     chat?: number;
-    canvas?: string;
+    project?: string;
     follows?: number;
     files?: { name: string; caption: string; content?: string; from?: string }[];
     unread?: boolean;
@@ -344,8 +344,8 @@ if (stopPort) {
 const loginPort = opt('login');
 if (loginPort) {
   const d = dirOf(Number(loginPort));
-  const canvas = existsSync(join(d, 'staged.json')) ? (JSON.parse(readFileSync(join(d, 'staged.json'), 'utf8')) as { canvas?: string }).canvas : undefined;
-  const link = await loginLink(`http://127.0.0.1:${loginPort}`, join(d, 'home'), canvas ? `/p/${canvas}` : '/');
+  const project = existsSync(join(d, 'staged.json')) ? (JSON.parse(readFileSync(join(d, 'staged.json'), 'utf8')) as { project?: string }).project : undefined;
+  const link = await loginLink(`http://127.0.0.1:${loginPort}`, join(d, 'home'), project ? `/p/${project}` : '/');
   if (!link) fail(`no scratch Seismic of ${d} answers on port ${loginPort}`);
   console.log(link);
   process.exit(0);
@@ -455,7 +455,7 @@ if (stage.pulls?.length) {
   // its origin is the forge's repository, which git of the scratch Seismic finds in the repository itself
   if (!stage.poolCheckout && !stage.hosts?.length) run('git', ['remote', 'add', 'origin', `git@github.com:${slug}.git`], repo);
 }
-// the further repositories of the canvas
+// the further repositories of the project
 const others = (stage.repos ?? []).map((r) => {
   const path = join(dir, r.name);
   mkdirSync(path, { recursive: true });
@@ -467,8 +467,8 @@ const others = (stage.repos ?? []).map((r) => {
   initRepo(path);
   return { path, ...(stage.clones ? { clones: stage.clones } : {}) };
 });
-// the repositories of the further canvases
-const further = (stage.canvases ?? []).map((name, i) => {
+// the repositories of the further projects
+const further = (stage.projects ?? []).map((name, i) => {
   const path = join(dir, `repo-${i + 2}`);
   mkdirSync(path, { recursive: true });
   writeFileSync(join(path, 'README.md'), `# ${name}\n`);
@@ -541,7 +541,7 @@ const env = {
     : {}),
 };
 // a pool's workstations live in the configuration, which the command line cannot give
-const configFile = join(dir, 'canvases.json');
+const configFile = join(dir, 'projects.json');
 const configured = folder || !!stage.poolCheckout || !!stage.settings || stage.slots !== undefined || !!stage.hosts?.length || !!stage.name || further.length > 0 || others.length > 0;
 if (configured)
   writeFileSync(
@@ -569,9 +569,9 @@ if (configured)
       2,
     ),
   );
-const canvasArgs = stage.setup ? [] : configured ? ['--config', configFile] : [repo, ...(stage.clones ? ['--clones', String(stage.clones)] : [])];
+const projectArgs = stage.setup ? [] : configured ? ['--config', configFile] : [repo, ...(stage.clones ? ['--clones', String(stage.clones)] : [])];
 const serverArgs = [
-  ...canvasArgs,
+  ...projectArgs,
   '--port',
   String(port),
   ...(supervised ? [] : ['--dev']),
@@ -589,7 +589,7 @@ server.unref();
 writeFileSync(join(dir, 'server.pid'), String(server.pid));
 let exited: number | null = null;
 server.on('exit', (c) => (exited = c ?? -1));
-const started = await waitUp(`${base}/api/canvases`, {
+const started = await waitUp(`${base}/api/projects`, {
   headers: owner,
   exited: () => exited,
   limit: 5 * 60_000,
@@ -607,9 +607,9 @@ if (stage.setup) {
   console.log(JSON.stringify(staged));
   process.exit(0);
 }
-const allCanvases = (await (await fetch(`${base}/api/canvases`, { headers: owner })).json()) as { id: string; name: string }[];
-const canvas = allCanvases[0]!.id;
-const api = async (method: string, path: string, body?: unknown, on = canvas) => {
+const allProjects = (await (await fetch(`${base}/api/projects`, { headers: owner })).json()) as { id: string; name: string }[];
+const project = allProjects[0]!.id;
+const api = async (method: string, path: string, body?: unknown, on = project) => {
   const r = await fetch(`${base}/api/c/${on}${path}`, {
     method,
     headers: { ...owner, 'content-type': 'application/json' },
@@ -623,7 +623,7 @@ const api = async (method: string, path: string, body?: unknown, on = canvas) =>
 // the repositories' commands trusted as staged, as "Trust these commands" does
 if (stage.trusted) {
   const checked = (await (await fetch(`${base}/api/config/check`, { headers: owner })).json()) as ConfigChecked;
-  for (const [i, c] of checked.canvases.entries())
+  for (const [i, c] of checked.projects.entries())
     for (const [j, r] of c.repos.entries()) {
       const trust = checked.resolved[i]?.repos[j]?.trust;
       if (!trust) continue;
@@ -632,14 +632,14 @@ if (stage.trusted) {
     }
 }
 
-// Seismic's proposal to fill in a repository's settings, on every canvas, unless the stage keeps it
+// Seismic's proposal to fill in a repository's settings, on every project, unless the stage keeps it
 if (!stage.setupProposals)
-  for (const c of allCanvases)
-    for (const i of ((await api('GET', '/canvas', undefined, c.id)) as CanvasSnapshot).items)
+  for (const c of allProjects)
+    for (const i of ((await api('GET', '/project', undefined, c.id)) as ProjectSnapshot).items)
       if (i.state === 'proposal' && i.proposal?.setup) await api('POST', `/cards/${i.id}/act`, { action: 'dismiss' }, c.id);
 
 // the cards: created through the API, the plan doc's looked up, then their fields written directly
-const snapshot = (await api('GET', '/canvas')) as CanvasSnapshot;
+const snapshot = (await api('GET', '/project')) as ProjectSnapshot;
 const ids: Record<string, string> = {};
 const below = Math.max(0, ...snapshot.items.map((x) => x.y)) + 400;
 let placed = 0;
@@ -656,7 +656,7 @@ for (const [i, c] of stage.cards.entries()) {
     if (c.from && !ids[c.from]) fail(`card ${c.key ?? i}: "from" names ${c.from}, which comes later or does not exist`);
     // without a place: in rows of four below the plan docs (a follow-up goes below its card)
     const at = c.from || (c.x !== undefined && c.y !== undefined) ? {} : { x: 40 + 360 * (placed % 4), y: below + 220 * Math.floor(placed++ / 4) };
-    const on = c.canvas ? (allCanvases.find((x) => x.name === c.canvas)?.id ?? fail(`card ${c.key ?? i}: no canvas named ${c.canvas}`)) : canvas;
+    const on = c.project ? (allProjects.find((x) => x.name === c.project)?.id ?? fail(`card ${c.key ?? i}: no project named ${c.project}`)) : project;
     const created = await api('POST', '/cards', {
       // code before cards lost their kind (--code) still asks for one; later code ignores it
       kind: 'feature',
@@ -671,7 +671,7 @@ for (const [i, c] of stage.cards.entries()) {
     }, on);
     id = created.id;
   }
-  if (!id) fail(`card ${c.key ?? i}: no ${c.plan ? `plan for ${c.plan}` : `workstream ${c.workstream}`} on the canvas`);
+  if (!id) fail(`card ${c.key ?? i}: no ${c.plan ? `plan for ${c.plan}` : `workstream ${c.workstream}`} on the project`);
   ids[c.key ?? String(i)] = id!;
 }
 
@@ -681,7 +681,7 @@ db.run('PRAGMA busy_timeout = 10000');
 const WS = db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'workstations'").get() ? 'workstations' : 'workspaces';
 for (const h of stage.hosts ?? [])
   for (let n = 1; h.gone && n <= h.clones; n++)
-    db.query(`INSERT INTO ${WS} (path, canvas_id, repo) VALUES ($path, $c, NULL) ON CONFLICT(path) DO NOTHING`).run({ path: `ssh://${h.name}${rootOn(h)}/${n}`, c: canvas });
+    db.query(`INSERT INTO ${WS} (path, project_id, repo) VALUES ($path, $c, NULL) ON CONFLICT(path) DO NOTHING`).run({ path: `ssh://${h.name}${rootOn(h)}/${n}`, c: project });
 const columns = new Set((db.query('PRAGMA table_info(cards)').all() as { name: string }[]).map((c) => c.name));
 for (const [i, c] of stage.cards.entries()) {
   const id = idOf(c, i);
@@ -723,19 +723,19 @@ for (const [i, c] of stage.cards.entries()) {
       s: JSON.stringify({ held: true, undo: null, changes: c.changes ?? [] }),
     });
   } else if (workstation) {
-    // a card on a further repository of the canvas (`repos`) works in a workstation of that one
+    // a card on a further repository of the project (`repos`) works in a workstation of that one
     const other = c.repo && c.repo !== (stage.repoName ?? 'repo') ? c.repo : null;
     const checkout = other ? join(dir, other) : repo;
     const free = db.query(`SELECT path FROM ${WS} WHERE card_id IS NULL AND repo IS $r ORDER BY path`).get({ r: other }) as { path: string } | null;
     // no clones: the repository works in worktrees, one per card under Seismic's home
     const tree = !free && !!branch && !stage.clones;
     if (!free && !tree) fail(`card ${c.key ?? i}: no free clone for it ("clones" in the stage, settings that say clones), nor a branch for a worktree`);
-    const path = tree ? join(home, 'workspaces', canvas, id.slice(0, 8)) : free!.path;
+    const path = tree ? join(home, 'workspaces', project, id.slice(0, 8)) : free!.path;
     if (tree) {
       mkdirSync(dirname(path), { recursive: true });
       run('git', ['worktree', 'add', '-q', '-b', branch!, path, mainBranch], checkout);
-      if (other) db.query(`INSERT INTO ${WS} (path, canvas_id, card_id, repo) VALUES ($path, $c, $id, $r)`).run({ path, c: canvas, id, r: other });
-      else db.query(`INSERT INTO ${WS} (path, canvas_id, card_id) VALUES ($path, $c, $id)`).run({ path, c: canvas, id });
+      if (other) db.query(`INSERT INTO ${WS} (path, project_id, card_id, repo) VALUES ($path, $c, $id, $r)`).run({ path, c: project, id, r: other });
+      else db.query(`INSERT INTO ${WS} (path, project_id, card_id) VALUES ($path, $c, $id)`).run({ path, c: project, id });
     } else {
       db.query(`UPDATE ${WS} SET card_id = $id WHERE path = $path`).run({ id, path });
       if (branch) run('git', ['checkout', '-q', '-b', branch], path);
@@ -805,7 +805,7 @@ for (const [i, c] of stage.cards.entries()) {
 const prefIds: Record<string, number> = {};
 for (const [i, p] of (stage.preferences ?? []).entries()) {
   const row: Record<string, string | number | null> = {
-    canvas_id: canvas,
+    project_id: project,
     text: p.text,
     created_at: new Date().toISOString(),
     card_id: p.card ? (ids[p.card] ?? fail(`preference ${p.key ?? i}: card ${p.card} does not exist`)) : null,
@@ -826,7 +826,7 @@ const chats = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND n
 const chatIds = new Map<string, number>();
 for (const [i, x] of (stage.talk ?? []).entries()) {
   const row: Record<string, string | number | null> = {
-    canvas_id: x.canvas ? (allCanvases.find((c) => c.name === x.canvas)?.id ?? fail(`talk ${i}: no canvas named ${x.canvas}`)) : canvas,
+    project_id: x.project ? (allProjects.find((c) => c.name === x.project)?.id ?? fail(`talk ${i}: no project named ${x.project}`)) : project,
     at: ago(x.ago ?? '0s'),
     said: x.said,
     reply: x.reply,
@@ -845,9 +845,9 @@ for (const [i, x] of (stage.talk ?? []).entries()) {
   }
   if (x.files?.length) row.files = JSON.stringify(x.files.map((f) => ({ name: f.name, caption: f.caption })));
   if (chats) {
-    const key = `${row.canvas_id}/${x.chat ?? 0}`;
+    const key = `${row.project_id}/${x.chat ?? 0}`;
     let chat = chatIds.get(key);
-    if (chat === undefined) chatIds.set(key, (chat = (db.query('INSERT INTO chats (canvas_id, at, opened) VALUES ($c, $at, $at) RETURNING id').get({ c: row.canvas_id as string, at: row.at as string }) as { id: number }).id));
+    if (chat === undefined) chatIds.set(key, (chat = (db.query('INSERT INTO chats (project_id, at, opened) VALUES ($c, $at, $at) RETURNING id').get({ c: row.project_id as string, at: row.at as string }) as { id: number }).id));
     // the chat talked in last is the one open
     db.query('UPDATE chats SET opened = $at WHERE id = $id AND opened < $at').run({ id: chat, at: row.at as string });
     row.chat = chat;
@@ -858,17 +858,17 @@ for (const [i, x] of (stage.talk ?? []).entries()) {
   const thread = typeof row.thread === 'number' ? row.thread : id;
   threadOf.set(id, thread);
   for (const f of x.files ?? []) {
-    const to = join(home, 'answers', canvas, String(thread), f.name);
+    const to = join(home, 'answers', project, String(thread), f.name);
     mkdirSync(dirname(to), { recursive: true });
     writeFileSync(to, f.from ? readFileSync(f.from) : (f.content ?? ''));
   }
 }
 // the empty chat the server opened before the staged ones came is none of the stage's
 if (chats && chatIds.size) db.run('DELETE FROM chats WHERE id NOT IN (SELECT chat FROM talk WHERE chat IS NOT NULL)');
-const homeRepo = () => (db.query(`SELECT value FROM settings WHERE canvas_id = $c AND key = 'home_repo'`).get({ c: canvas }) as { value: string } | null)?.value ?? canvas;
+const homeRepo = () => (db.query(`SELECT value FROM settings WHERE project_id = $c AND key = 'home_repo'`).get({ c: project }) as { value: string } | null)?.value ?? project;
 for (const [i, f] of (stage.friction ?? []).entries())
-  db.query('INSERT INTO friction (canvas_id, repo, card_id, at, what, cost, fix) VALUES ($c, $repo, $card, $at, $what, $cost, $fix)').run({
-    c: canvas,
+  db.query('INSERT INTO friction (project_id, repo, card_id, at, what, cost, fix) VALUES ($c, $repo, $card, $at, $what, $cost, $fix)').run({
+    c: project,
     repo: f.repo ?? homeRepo(),
     card: ids[f.card] ?? fail(`friction ${i}: card ${f.card} does not exist`),
     at: ago(f.ago ?? '0s'),
@@ -878,7 +878,7 @@ for (const [i, f] of (stage.friction ?? []).entries())
   });
 for (const [i, f] of (stage.feedback ?? []).entries()) {
   const id = ids[f.card] ?? fail(`feedback ${i}: card ${f.card} does not exist`);
-  const row = db.query('SELECT canvas_id, title, repo, parent_id FROM cards WHERE id = $id').get({ id }) as { canvas_id: string; title: string | null; repo: string | null; parent_id: string | null };
+  const row = db.query('SELECT project_id, title, repo, parent_id FROM cards WHERE id = $id').get({ id }) as { project_id: string; title: string | null; repo: string | null; parent_id: string | null };
   const handover = (db.query(`SELECT max(id) AS h FROM events WHERE card_id = $id AND kind = 'review'`).get({ id }) as { h: number | null }).h ?? i;
   const configs = f.configs ?? [];
   const attribution = !configs.length ? 'missing' : configs.length > 1 ? 'mixed' : 'single';
@@ -886,13 +886,13 @@ for (const [i, f] of (stage.feedback ?? []).entries()) {
   const plan = f.plan ? { id: row.parent_id ?? `plan-${f.plan}`, title: f.plan } : undefined;
   const answer = { ...(f.rating !== undefined ? { rating: f.rating } : {}), ...(f.comment ? { comment: f.comment } : {}) };
   db.query(
-    `INSERT INTO feedback (card_id, canvas_id, handover, context, attribution, configs, harness, model, effort, answer, created_at)
+    `INSERT INTO feedback (card_id, project_id, handover, context, attribution, configs, harness, model, effort, answer, created_at)
      VALUES ($card, $c, $handover, $context, $attribution, $configs, $harness, $model, $effort, $answer, $at)`,
   ).run({
     card: id,
-    c: row.canvas_id,
+    c: row.project_id,
     handover,
-    context: JSON.stringify({ title: f.title ?? row.title ?? '', repo: row.repo ?? (db.query(`SELECT value FROM settings WHERE canvas_id = $c AND key = 'home_repo'`).get({ c: row.canvas_id }) as { value: string } | null)?.value ?? row.canvas_id, ...(plan ? { plan } : {}) }),
+    context: JSON.stringify({ title: f.title ?? row.title ?? '', repo: row.repo ?? (db.query(`SELECT value FROM settings WHERE project_id = $c AND key = 'home_repo'`).get({ c: row.project_id }) as { value: string } | null)?.value ?? row.project_id, ...(plan ? { plan } : {}) }),
     attribution,
     configs: JSON.stringify(configs),
     harness: credited?.harness ?? null,
@@ -903,8 +903,8 @@ for (const [i, f] of (stage.feedback ?? []).entries()) {
   });
 }
 for (const [i, p] of (stage.settingProposals ?? []).entries())
-  db.query('INSERT INTO setting_proposals (canvas_id, repo, field, value, basis, cards, created_at) VALUES ($c, $repo, $field, $value, $basis, $cards, $at)').run({
-    c: canvas,
+  db.query('INSERT INTO setting_proposals (project_id, repo, field, value, basis, cards, created_at) VALUES ($c, $repo, $field, $value, $basis, $cards, $at)').run({
+    c: project,
     repo: p.repo ?? homeRepo(),
     field: p.field,
     value: JSON.stringify(p.value),
@@ -913,19 +913,19 @@ for (const [i, p] of (stage.settingProposals ?? []).entries())
     at: new Date().toISOString(),
   });
 db.close();
-// the server keeps a snapshot of the canvas: a change through the API makes it read the database anew
-for (const on of allCanvases) {
-  // a plan or workstream is on the home canvas: a stage of plan cards alone has nothing else to move
-  const first = stage.cards.find((c) => (c.plan || c.workstream ? on.id === canvas : c.canvas ? c.canvas === on.name : on.id === canvas));
+// the server keeps a snapshot of the project: a change through the API makes it read the database anew
+for (const on of allProjects) {
+  // a plan or workstream is on the home project: a stage of plan cards alone has nothing else to move
+  const first = stage.cards.find((c) => (c.plan || c.workstream ? on.id === project : c.project ? c.project === on.name : on.id === project));
   if (!first) continue;
-  const c = ((await api('GET', '/canvas', undefined, on.id)) as CanvasSnapshot).items.find((x: Item) => x.id === idOf(first, stage.cards.indexOf(first)))!;
+  const c = ((await api('GET', '/project', undefined, on.id)) as ProjectSnapshot).items.find((x: Item) => x.id === idOf(first, stage.cards.indexOf(first)))!;
   await api('PATCH', `/cards/${c.id}`, { x: c.x, y: c.y }, on.id);
 }
 
 for (const g of stage.groups ?? [])
   await api('POST', '/groups', { name: g.name, cards: g.cards.map((k) => ids[k] ?? fail(`group ${g.name}: card ${k} does not exist`)) });
 
-const staged = { url: (await loginLink(base, home, `/p/${canvas}`)) ?? `${base}/p/${canvas}`, port, ...pathsAt(dir, repo, log), canvas, pid: server.pid, from, cards: ids, ...(record ? { record } : {}), ...(replay ? { replay } : {}) };
+const staged = { url: (await loginLink(base, home, `/p/${project}`)) ?? `${base}/p/${project}`, port, ...pathsAt(dir, repo, log), project, pid: server.pid, from, cards: ids, ...(record ? { record } : {}), ...(replay ? { replay } : {}) };
 writeFileSync(join(dir, 'staged.json'), JSON.stringify(staged, null, 2));
 console.log(JSON.stringify(staged));
 process.exit(0);
@@ -1198,8 +1198,8 @@ function copyArtifact(from: string, to: string) {
 function scratchAt(port: number) {
   const d = dirOf(port);
   if (!existsSync(join(d, 'staged.json'))) fail(`no scratch Seismic staged in ${d}`);
-  const staged = JSON.parse(readFileSync(join(d, 'staged.json'), 'utf8')) as { canvas: string; cards: Record<string, string> };
-  return { base: `http://127.0.0.1:${port}/api/c/${staged.canvas}`, cards: staged.cards, headers: ownerHeaders(join(d, 'home')) };
+  const staged = JSON.parse(readFileSync(join(d, 'staged.json'), 'utf8')) as { project: string; cards: Record<string, string> };
+  return { base: `http://127.0.0.1:${port}/api/c/${staged.project}`, cards: staged.cards, headers: ownerHeaders(join(d, 'home')) };
 }
 
 function cardOf(port: number, key: string) {
@@ -1209,8 +1209,8 @@ function cardOf(port: number, key: string) {
 
 async function stagedCard(port: number, key: string): Promise<Item> {
   const { base, headers, id } = cardOf(port, key);
-  const r = await fetch(`${base}/canvas`, { headers }).catch(() => fail(`no scratch Seismic answers on port ${port}`));
-  return ((await r.json()) as CanvasSnapshot).items.find((i) => i.id === id) ?? fail(`card ${key} is not on the canvas`);
+  const r = await fetch(`${base}/project`, { headers }).catch(() => fail(`no scratch Seismic answers on port ${port}`));
+  return ((await r.json()) as ProjectSnapshot).items.find((i) => i.id === id) ?? fail(`card ${key} is not on the project`);
 }
 
 /** The card's agent says or does `act`, through the server (`Workers.standIn`); returns what the agent would have read back. */

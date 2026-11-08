@@ -7,7 +7,7 @@ import { type Notice, waitingOn } from '../core/types';
 import { inform } from './advisor';
 import { agentIdentity } from './agent-identity';
 import { answersDir } from './answers';
-import { CanvasRuntime } from './canvas';
+import { ProjectRuntime } from './project';
 import { serveAnswerFile } from './demo';
 import type { Focus } from './commands';
 import { Store } from './db';
@@ -17,11 +17,11 @@ let dir: string;
 let main: string;
 let store: Store;
 let runtime: FakeRuntime;
-let canvas: CanvasRuntime;
+let project: ProjectRuntime;
 let notices: Notice[];
 
 const open = () => {
-  const c = new CanvasRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, permissionMode: 'acceptEdits', limitMargin: 10 });
+  const c = new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, permissionMode: 'acceptEdits', limitMargin: 10 });
   c.board.onNotice((n) => notices.push(n));
   return c;
 };
@@ -33,22 +33,22 @@ beforeEach(() => {
   store = new Store(':memory:');
   runtime = new FakeRuntime();
   notices = [];
-  canvas = open();
+  project = open();
 });
 afterEach(() => {
-  canvas.shutdown();
+  project.shutdown();
   rmSync(dir, { recursive: true, force: true });
 });
 
 const settle = (ms = 5) => new Promise((r) => setTimeout(r, ms));
-const board = () => canvas.board;
+const board = () => project.board;
 const workstream = () => board().snapshot().items.find((i) => i.label === 'W4')!;
 const isKoordinator = (s: FakeSession) => s.spec.tools.some((t) => t.name === 'look_up');
 const answerer = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'answer_owner')).at(-1)!;
 
 /** Says `text` with `focus`; the Koordinator reads it with `tool`. */
 async function say(text: string, focus: Focus, tool: string, args: Record<string, unknown>) {
-  const heard = canvas.commander.hear(text, focus);
+  const heard = project.commander.hear(text, focus);
   await settle();
   const s = runtime.sessions.filter(isKoordinator).at(-1)!;
   s.call(tool, args);
@@ -136,7 +136,7 @@ describe('a question the Koordinator looks up', () => {
     const tag = /(K\d+) \[planned\] "Login"/.exec(first.brief)![1];
     await say('was würde der agent bei login machen?', {}, 'look_up', { question: 'What would the worker do on Login?', card: tag, confirm: 'Moment, ich lese nach.' });
     const a = answerer();
-    expect(a.spec.system).toContain('You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic.');
+    expect(a.spec.system).toContain('You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic.');
     expect(a.spec.role).toBe('koordinator');
     expect(a.spec.readOnly).toBeUndefined();
     expect(a.spec.permissionMode).toBe('acceptEdits');
@@ -159,7 +159,7 @@ describe('a question the Koordinator looks up', () => {
   });
 
   test('an unknown card tag goes back to the Koordinator', async () => {
-    const heard = canvas.commander.hear('was macht X?', {});
+    const heard = project.commander.hear('was macht X?', {});
     await settle();
     const s = runtime.sessions.find(isKoordinator)!;
     expect(s.call('look_up', { question: 'X?', card: 'K9', confirm: 'Moment.' })).toContain('Unknown tag K9');
@@ -182,8 +182,8 @@ describe('a question the Koordinator looks up', () => {
 
     // a fresh session gets the newest five answers in full, older ones clipped
     for (let n = 1; n <= 4; n++) asked(`frage ${n}`, `Antwort ${n}.`);
-    canvas.shutdown();
-    canvas = open();
+    project.shutdown();
+    project = open();
     const fresh = await say('und?', {}, 'reply', { confirm: 'Ja.' });
     expect(fresh.brief).toContain(answer);
     expect(fresh.brief).toContain('Antwort 4.');
@@ -194,9 +194,9 @@ describe('a question the Koordinator looks up', () => {
   test('a question still being looked up when Seismic restarts is looked up again', async () => {
     const w4 = workstream();
     await say('was würde der agent tun?', { card: w4.id }, 'look_up', { question: 'What would the worker do?', confirm: 'Ich schaue nach.' });
-    canvas.shutdown();
+    project.shutdown();
     const before = runtime.sessions.length;
-    canvas = open();
+    project = open();
     await settle();
     expect(runtime.sessions.length).toBe(before + 1);
     expect(answerer().inbox[0]).toContain('What would the worker do?');
@@ -282,8 +282,8 @@ describe('a look-up the usage limit stops', () => {
     expect(Date.parse(talk().limitedUntil!)).toBeGreaterThan(Date.now());
     expect(a.closed).toBe(false);
     // Seismic restarts: the question is looked up again, runs into the limit again and waits anew
-    canvas.shutdown();
-    canvas = open();
+    project.shutdown();
+    project = open();
     await settle();
     expect(answerer()).not.toBe(a);
     a = answerer();
@@ -341,8 +341,8 @@ describe('a looked-up answer goes on', () => {
     expect(runtime.sessions.length).toBe(sessions + 1);
     expect(a.spec.resume).toBe('look-1');
     expect(a.inbox[0]).toContain('The owner follows up on your answer. They said: "und im Oktober?"');
-    expect(a.inbox[0]).toContain(answersDir(dir, canvas.id, first));
-    expect(a.spec.dirs).toEqual([answersDir(dir, canvas.id, first)]);
+    expect(a.inbox[0]).toContain(answersDir(dir, project.id, first));
+    expect(a.spec.dirs).toEqual([answersDir(dir, project.id, first)]);
     expect(board().talk().at(-1)).toMatchObject({ thread: first, follows: first, continues: 'Are the September credits right?' });
     a.call('answer_owner', { text: 'Oktober bisher auch.' });
     a.emit({ type: 'idle' });
@@ -351,7 +351,7 @@ describe('a looked-up answer goes on', () => {
   });
 
   test('an unknown answer tag goes back to the Koordinator', async () => {
-    canvas.commander.hear('und weiter?', {});
+    project.commander.hear('und weiter?', {});
     await settle();
     const s = runtime.sessions.filter(isKoordinator).at(-1)!;
     expect(s.call('look_up', { question: 'More?', follows: 'A99', confirm: 'Moment.' })).toContain('Unknown answer A99');
@@ -394,7 +394,7 @@ describe('a looked-up answer goes on', () => {
   test("an answer comes with files in its thread's directory; a path outside it is refused", async () => {
     await say('mach mir eine tabelle', {}, 'look_up', { question: 'A table of the credits?', confirm: 'Moment.' });
     const thread = board().talk().at(-1)!.id;
-    const out = answersDir(dir, canvas.id, thread);
+    const out = answersDir(dir, project.id, thread);
     const a = answerer();
     writeFileSync(join(out, 'credits.csv'), 'a,b\n');
     mkdirSync(join(out, 'charts'));
@@ -431,7 +431,7 @@ describe('a looked-up answer goes on', () => {
     expect(await page.text()).toContain('obeyaHeight');
     expect(serve('credits.csv', true).headers.get('content-disposition')).toContain('credits.csv');
     expect(serve('../secret.txt').status).toBe(404);
-    expect(() => canvas.answerDir(thread + 100)).toThrow();
+    expect(() => project.answerDir(thread + 100)).toThrow();
   });
 
   test("an answer in a card's log carries its thread, and a follow-up there resumes its agent", async () => {
@@ -458,14 +458,14 @@ describe('a thread on a Question card', () => {
   /** A thread of two answers in the sheet, moved onto a card. */
   async function moved() {
     const first = await lookedUp('stimmen die septembergutschriften?', 'September feed-in credits: correct?', 'Ja.', 'look-1');
-    const out = answersDir(dir, canvas.id, first);
+    const out = answersDir(dir, project.id, first);
     await say('mach ein excel', {}, 'look_up', { question: 'An Excel of the numbers?', follows: `A${first}`, confirm: 'Moment.' });
     const a = answerer();
     writeFileSync(join(out, 'numbers.xlsx'), 'x');
     a.call('answer_owner', { text: 'Hier die Tabelle.', files: [{ path: 'numbers.xlsx', caption: 'Die Viertelstunden' }] });
     a.emit({ type: 'idle' });
     await settle();
-    const card = canvas.answers.toCard(first);
+    const card = project.answers.toCard(first);
     return { first, card };
   }
 
@@ -482,21 +482,21 @@ describe('a thread on a Question card', () => {
     // the sheet points to the card instead
     expect(board().talk().filter((x) => x.thread === first).every((x) => x.movedTo === card.id)).toBe(true);
     // moved again, it is the same card
-    expect(canvas.answers.toCard(first).id).toBe(card.id);
+    expect(project.answers.toCard(first).id).toBe(card.id);
 
     // the owner's words on the card go straight to that agent, with to_seismic for what asks Seismic
-    canvas.tell(card.id, 'und im Oktober?', [], false);
+    project.tell(card.id, 'und im Oktober?', [], false);
     expect(board().item(card.id)!.thread!.thinking).toBe(true);
     const a = answerer();
     expect(a.spec.resume).toBe('look-1');
     expect(a.spec.tools.map((t) => t.name)).toContain('to_seismic');
     expect(a.inbox[0]).toContain('und im Oktober?');
     // what comes while it reads waits for its turn, unread until then, and can be taken back
-    canvas.tell(card.id, 'und November?', [], true);
-    canvas.tell(card.id, 'und Dezember?', [], false);
+    project.tell(card.id, 'und November?', [], true);
+    project.tell(card.id, 'und Dezember?', [], false);
     const [november, december] = board().events(card.id).slice(-2);
     expect([november!.unread, december!.unread]).toEqual([true, true]);
-    canvas.press(card.id, { action: 'unsay', id: december!.id });
+    project.press(card.id, { action: 'unsay', id: december!.id });
     const sessions = runtime.sessions.length;
     a.call('answer_owner', { text: 'Oktober: 12 ct.' });
     a.emit({ type: 'idle' });
@@ -519,7 +519,7 @@ describe('a thread on a Question card', () => {
     const first = await lookedUp('question', 'Research?', 'Answer.', 'look-identity');
     const identity = { harness: 'claude' as const, model: 'research-model' };
     store.answerTalk(first, 'Answer.', 'koordinator', [], identity);
-    const card = canvas.answers.toCard(first);
+    const card = project.answers.toCard(first);
     expect(board().events(card.id).find((e) => e.text === 'Answer.')?.agent).toEqual(identity);
     const reply = board().log(card.id, 'say', 'koordinator', 'Reply.', { agent: identity });
     expect(reply.agent).toEqual(identity);
@@ -540,7 +540,7 @@ describe('a thread on a Question card', () => {
   test('moving a historical answer does not attribute it to the agent moving it', async () => {
     const first = await lookedUp('old question', 'Old research?', 'Old answer.', 'old-session');
     store.answerTalk(first, 'Old answer.', 'koordinator');
-    const card = agentIdentity.run({ harness: 'codex', model: 'unrelated' }, () => canvas.answers.toCard(first));
+    const card = agentIdentity.run({ harness: 'codex', model: 'unrelated' }, () => project.answers.toCard(first));
     expect(board().events(card.id).find((e) => e.text === 'Old answer.')?.agent).toBeUndefined();
   });
 
@@ -562,9 +562,9 @@ describe('a thread on a Question card', () => {
 
   test('its agent paused at a safe point gives its answer first, and is paused then', async () => {
     const { card } = await moved();
-    canvas.tell(card.id, 'und im Oktober?', [], false);
+    project.tell(card.id, 'und im Oktober?', [], false);
     const a = answerer();
-    canvas.act(card.id, { action: 'pause', safePoint: true });
+    project.act(card.id, { action: 'pause', safePoint: true });
     expect(a.closed).toBe(false);
     expect(board().item(card.id)).toMatchObject({ pausing: true, thread: { thinking: true } });
     a.call('answer_owner', { text: 'Oktober: 12 ct.' });
@@ -573,28 +573,28 @@ describe('a thread on a Question card', () => {
     expect(board().events(card.id).filter((e) => e.kind === 'talk').at(-1)!.text).toBe('Oktober: 12 ct.');
     expect(board().item(card.id)).toMatchObject({ paused: true, thread: { answers: 3 } });
     expect(board().item(card.id)!.pausing).toBeUndefined();
-    canvas.act(card.id, { action: 'resume' });
+    project.act(card.id, { action: 'resume' });
     expect(board().item(card.id)!.paused).toBeUndefined();
   });
 
   test('its agent paused while it reads keeps what it was asked, stays paused across a restart, and answers it once resumed', async () => {
     const { card } = await moved();
-    expect(() => canvas.act(card.id, { action: 'pause' })).toThrow('not working on anything');
-    canvas.tell(card.id, 'und im Oktober?', [], false);
+    expect(() => project.act(card.id, { action: 'pause' })).toThrow('not working on anything');
+    project.tell(card.id, 'und im Oktober?', [], false);
     const a = answerer();
-    canvas.act(card.id, { action: 'pause' });
+    project.act(card.id, { action: 'pause' });
     expect(a.closed).toBe(true);
     await settle();
     expect(board().item(card.id)).toMatchObject({ paused: true, thread: { answers: 2 } });
     expect(board().item(card.id)!.thread!.thinking).toBeUndefined();
     // nothing answered it: the question stands last
     expect(board().events(card.id).filter((e) => e.kind === 'talk').at(-1)!.text).toBe('und im Oktober?');
-    canvas.shutdown();
-    canvas = open();
+    project.shutdown();
+    project = open();
     await settle();
     expect(answerer()).toBe(a);
     expect(board().item(card.id)!.paused).toBe(true);
-    canvas.act(card.id, { action: 'resume' });
+    project.act(card.id, { action: 'resume' });
     await settle();
     const b = answerer();
     expect(b).not.toBe(a);
@@ -611,10 +611,10 @@ describe('a thread on a Question card', () => {
 
   test('asked more while paused, its agent goes on with that and what it was asked before', async () => {
     const { card } = await moved();
-    canvas.tell(card.id, 'und im Oktober?', [], false);
-    canvas.act(card.id, { action: 'pause' });
+    project.tell(card.id, 'und im Oktober?', [], false);
+    project.act(card.id, { action: 'pause' });
     await settle();
-    canvas.tell(card.id, 'und November?', [], false);
+    project.tell(card.id, 'und November?', [], false);
     await settle();
     const b = answerer();
     expect(b.inbox[0]).toContain('The owner paused you');
@@ -624,7 +624,7 @@ describe('a thread on a Question card', () => {
 
   test('its agent goes on reading while its background work runs, answers once that work wakes it, and can be paused meanwhile', async () => {
     const { card } = await moved();
-    canvas.tell(card.id, 'und im Oktober?', [], false);
+    project.tell(card.id, 'und im Oktober?', [], false);
     const a = answerer();
     a.emit({ type: 'background', tasks: [{ id: 'b1', description: 'Query October' }] });
     a.emit({ type: 'text', text: 'The October query runs.' });
@@ -641,10 +641,10 @@ describe('a thread on a Question card', () => {
     expect(board().events(card.id).filter((e) => e.kind === 'talk').at(-1)!.text).toBe('Oktober: 12 ct.');
 
     // paused while it waits for the work: what it was asked stays for when it goes on
-    canvas.tell(card.id, 'und November?', [], false);
+    project.tell(card.id, 'und November?', [], false);
     const b = answerer();
     b.emit({ type: 'idle', background: 1 });
-    canvas.act(card.id, { action: 'pause' });
+    project.act(card.id, { action: 'pause' });
     expect(b.closed).toBe(true);
     await settle();
     expect(board().item(card.id)).toMatchObject({ paused: true, thread: { answers: 3 } });
@@ -653,12 +653,12 @@ describe('a thread on a Question card', () => {
 
   test("while its agent waits for its background work, the owner's words go into its session at once, and its answer answers them too", async () => {
     const { card } = await moved();
-    canvas.tell(card.id, 'lade die Daten für 2024', [], false);
+    project.tell(card.id, 'lade die Daten für 2024', [], false);
     const a = answerer();
     const sessions = runtime.sessions.length;
     a.emit({ type: 'background', tasks: [{ id: 'b1', description: 'Download 2024' }] });
     // what comes while it works on its turn waits, unread
-    canvas.tell(card.id, 'mit Dezember', [], false);
+    project.tell(card.id, 'mit Dezember', [], false);
     expect(board().events(card.id).at(-1)!.unread).toBe(true);
     expect(a.inbox).toHaveLength(1);
     // its turn ends waiting for the download: those words go in now
@@ -670,12 +670,12 @@ describe('a thread on a Question card', () => {
     expect(board().events(card.id).find((e) => e.text === 'mit Dezember')!.unread).toBeUndefined();
     // the agent takes them in and waits again; what the owner writes now goes in at once, read
     a.emit({ type: 'idle', background: 1 });
-    canvas.tell(card.id, 'stopp, nimm 2023', [], false);
+    project.tell(card.id, 'stopp, nimm 2023', [], false);
     const stop = board().events(card.id).at(-1)!;
     expect(stop.unread).toBeFalsy();
     expect(a.inbox).toHaveLength(3);
     expect(a.inbox[2]).toContain('stopp, nimm 2023');
-    expect(() => canvas.press(card.id, { action: 'unsay', id: stop.id })).toThrow('read these words already');
+    expect(() => project.press(card.id, { action: 'unsay', id: stop.id })).toThrow('read these words already');
     // one answer answers all of it, in the same session, and nothing waits for another turn
     a.emit({ type: 'background', tasks: [] });
     a.call('answer_owner', { text: '2023 mit Dezember: 14 ct.' });
@@ -690,15 +690,15 @@ describe('a thread on a Question card', () => {
 
   test('words wait for the next turn once the work ended, and a session that fails after it heard them hands them to the fresh one', async () => {
     const { card } = await moved();
-    canvas.tell(card.id, 'lade die Daten für 2024', [], false);
+    project.tell(card.id, 'lade die Daten für 2024', [], false);
     const a = answerer();
     a.emit({ type: 'idle', background: 1 });
-    canvas.tell(card.id, 'stopp, nimm 2023', [], false);
+    project.tell(card.id, 'stopp, nimm 2023', [], false);
     expect(a.inbox).toHaveLength(2);
     // the work ended and is about to wake the agent: what comes now waits for its turn, unread
     a.emit({ type: 'idle', background: 1 });
     a.emit({ type: 'background', tasks: [] });
-    canvas.tell(card.id, 'und Dezember?', [], false);
+    project.tell(card.id, 'und Dezember?', [], false);
     expect(board().events(card.id).at(-1)!.unread).toBe(true);
     expect(a.inbox).toHaveLength(2);
     // a message still to come keeps the turn going
@@ -716,7 +716,7 @@ describe('a thread on a Question card', () => {
     expect(b.inbox[0]).toContain('lade die Daten für 2024');
     expect(b.inbox[0]).toContain('stopp, nimm 2023');
     expect(b.inbox[0]).not.toContain('und Dezember?');
-    canvas.tell(card.id, 'und Januar?', [], false);
+    project.tell(card.id, 'und Januar?', [], false);
     expect(a.inbox).toHaveLength(2);
     expect(board().events(card.id).at(-1)!.unread).toBe(true);
     b.call('answer_owner', { text: '2023: 14 ct.' });
@@ -730,7 +730,7 @@ describe('a thread on a Question card', () => {
 
   test("its agent's bubble at work names the harness and model of the session that reads, and nothing once it ended", async () => {
     const { card } = await moved();
-    canvas.tell(card.id, 'und im Oktober?', [], false);
+    project.tell(card.id, 'und im Oktober?', [], false);
     const a = answerer();
     expect(board().item(card.id)!.agentAtWork).toEqual({ harness: 'claude', model: 'opus' });
     a.emit({ type: 'session', id: 'q-1', model: 'claude-opus-5-5' });
@@ -744,7 +744,7 @@ describe('a thread on a Question card', () => {
 
   test('its agent the usage limit stops waits on the card and answers once the limit lifts; paused meanwhile, it waits no more', async () => {
     const { card } = await moved();
-    canvas.tell(card.id, 'und im Oktober?', [], false);
+    project.tell(card.id, 'und im Oktober?', [], false);
     const a = answerer();
     limit(a, 20);
     await settle();
@@ -758,21 +758,21 @@ describe('a thread on a Question card', () => {
     await settle();
     expect(board().events(card.id).filter((e) => e.kind === 'talk').at(-1)!.text).toBe('Oktober: 12 ct.');
 
-    canvas.tell(card.id, 'und November?', [], false);
+    project.tell(card.id, 'und November?', [], false);
     const b = answerer();
     limit(b, 10_000);
     await settle();
     expect(board().item(card.id)!.limitedUntil).toBeDefined();
-    canvas.act(card.id, { action: 'pause' });
+    project.act(card.id, { action: 'pause' });
     expect(b.closed).toBe(true);
     expect(board().item(card.id)!.limitedUntil).toBeUndefined();
   });
 
   test('what the card asked when Seismic stopped is asked again', async () => {
     const { card } = await moved();
-    canvas.tell(card.id, 'und im Oktober?', [], false);
-    canvas.shutdown();
-    canvas = open();
+    project.tell(card.id, 'und im Oktober?', [], false);
+    project.shutdown();
+    project = open();
     await settle();
     const a = answerer();
     expect(a.inbox[0]).toContain('und im Oktober?');
@@ -784,7 +784,7 @@ describe('a thread on a Question card', () => {
 
   test('"Ideate" makes it an idea whose exploration agent starts from the thread; "Done" archives it', async () => {
     const { first, card } = await moved();
-    canvas.act(card.id, { action: 'asIdea' });
+    project.act(card.id, { action: 'asIdea' });
     const idea = board().item(card.id)!;
     expect(idea).toMatchObject({ kind: 'task', state: 'idea' });
     const explorer = runtime.sessions.at(-1)!;
@@ -792,16 +792,16 @@ describe('a thread on a Question card', () => {
     expect(explorer.spec.resume).toBeUndefined();
     expect(explorer.inbox[0]).toContain('Seismic: Hier die Tabelle.');
     expect(explorer.inbox[0]).toContain('numbers.xlsx – Die Viertelstunden');
-    expect(explorer.inbox[0]).toContain(answersDir(dir, canvas.id, first));
+    expect(explorer.inbox[0]).toContain(answersDir(dir, project.id, first));
     // the thread is where it starts, once: it is no idea discussed before
     expect(explorer.inbox[0]).not.toContain('discussed before');
 
     const other = await lookedUp('noch eine frage', 'Another?', 'Ja.', 'look-9');
-    const done = canvas.answers.toCard(other);
+    const done = project.answers.toCard(other);
     board().archive([done.id]);
     expect(board().item(done.id)).toBeUndefined();
     // put back by moving the thread again
-    expect(canvas.answers.toCard(other).id).toBe(done.id);
+    expect(project.answers.toCard(other).id).toBe(done.id);
     expect(board().item(done.id)).toBeDefined();
   });
 });
@@ -810,7 +810,7 @@ describe("a question asked in a plan's sheet", () => {
   const plan = () => board().snapshot().items.find((i) => i.kind === 'plan')!;
   /** Asks in the plan's sheet; the plan agent answers it in session `session`. */
   async function asked(text: string, answer: string, session = 'plan-1', extra: { images?: string[]; replyTo?: { talk: number; part: 'said' | 'answer' } } = {}) {
-    canvas.press(plan().id, { action: 'consult', text, ...extra });
+    project.press(plan().id, { action: 'consult', text, ...extra });
     await settle();
     const a = answerer();
     a.emit({ type: 'session', id: session });
@@ -821,7 +821,7 @@ describe("a question asked in a plan's sheet", () => {
   }
 
   test('goes straight to its plan agent, with its screenshots, and stands in the sheet with the answer', async () => {
-    const shot = canvas.images.save(new Uint8Array([1, 2, 3]), 'image/png');
+    const shot = project.images.save(new Uint8Array([1, 2, 3]), 'image/png');
     const { a, talk } = await asked('Warum wartet W4 auf das Go?', 'Weil der Shop live geht.', 'plan-1', { images: [shot] });
     // no Koordinator read the words first
     expect(runtime.sessions.some(isKoordinator)).toBe(false);
@@ -829,7 +829,7 @@ describe("a question asked in a plan's sheet", () => {
     expect(a.spec.tools.map((t) => t.name)).toContain('to_seismic');
     expect(a.inbox[0]).toContain("The owner wrote to you in the plan's sheet in Seismic");
     expect(a.inbox[0]).toContain('Warum wartet W4 auf das Go?');
-    expect(a.images[0]).toEqual([canvas.images.path(shot)!]);
+    expect(a.images[0]).toEqual([project.images.path(shot)!]);
     expect(board().row(plan().id).session_id).toBe('plan-1');
     expect(talk).toMatchObject({ said: 'Warum wartet W4 auf das Go?', askedIn: plan().id, question: 'Warum wartet W4 auf das Go?', answer: 'Weil der Shop live geht.', answerBy: 'plan', images: [shot] });
     expect(talk.reply).toBeUndefined();
@@ -860,7 +860,7 @@ describe("a question asked in a plan's sheet", () => {
   });
 
   test("passes on with to_seismic what asks Seismic, which reads it with the plan open", async () => {
-    canvas.press(plan().id, { action: 'consult', text: 'Starte bitte W4.' });
+    project.press(plan().id, { action: 'consult', text: 'Starte bitte W4.' });
     await settle();
     const a = answerer();
     const passed = a.call('to_seismic', { request: 'Start W4.' });
@@ -876,10 +876,10 @@ describe("a question asked in a plan's sheet", () => {
   });
 
   test('still being answered when Seismic restarts, it is asked again; "Make it a card" puts its card beside the plan', async () => {
-    canvas.press(plan().id, { action: 'consult', text: 'Was fehlt noch?' });
+    project.press(plan().id, { action: 'consult', text: 'Was fehlt noch?' });
     await settle();
-    canvas.shutdown();
-    canvas = open();
+    project.shutdown();
+    project = open();
     await settle();
     const talk = board().talk().at(-1)!;
     // Seismic never read the words, so they get no reply of its own at the restart
@@ -889,7 +889,7 @@ describe("a question asked in a plan's sheet", () => {
     a.call('answer_owner', { text: 'Nur W4.' });
     a.emit({ type: 'idle' });
     await settle();
-    const card = canvas.answers.toCard(talk.id);
+    const card = project.answers.toCard(talk.id);
     expect(card).toMatchObject({ kind: 'question', title: 'Was fehlt noch?' });
     const p = plan();
     expect(Math.abs(card.x - p.x) + Math.abs(card.y - p.y)).toBeLessThan(2000);
@@ -898,7 +898,7 @@ describe("a question asked in a plan's sheet", () => {
 
 describe('the agents at work in the sheet', () => {
   test('the Koordinator reading and the agent looking a question up are named by their own sessions, never by the defaults', async () => {
-    const heard = canvas.commander.hear('was steht im plan zu login?', {});
+    const heard = project.commander.hear('was steht im plan zu login?', {});
     await settle();
     const k = runtime.sessions.filter(isKoordinator).at(-1)!;
     expect(board().snapshot().koordinatorAgent).toEqual({ harness: 'claude', model: 'opus' });

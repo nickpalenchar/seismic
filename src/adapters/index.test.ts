@@ -107,10 +107,10 @@ describe('.obeya/settings.json', () => {
     // the language of what lands in the repository stands beside that of its demos
     expect(parseShared(JSON.stringify({ language: 'de', demo: { language: 'en' } })).settings).toEqual({ language: 'de', demo: { language: 'en' } });
     expect(parseShared(JSON.stringify({ language: 'fr' })).problems).toHaveLength(1);
-    // a demo site, which a canvas chooses now, goes alone: the rest stays
+    // a demo site, which a project chooses now, goes alone: the rest stays
     const old = parseShared(JSON.stringify({ demo: { site, language: 'de' } }));
     expect(old.settings).toEqual({ demo: { language: 'de' } });
-    expect(old.problems).toEqual(['.obeya/settings.json, demo.site: no longer read; a canvas chooses its demo site in its settings']);
+    expect(old.problems).toEqual(['.obeya/settings.json, demo.site: no longer read; a project chooses its demo site in its settings']);
     const read = parseShared(JSON.stringify({ app: { ...app, stp: 'x' }, demo: { howToRun: 'bun dev' }, stack: { start: 'bun dev' } }));
     expect(read.settings).toEqual({});
     expect(read.problems).toEqual([

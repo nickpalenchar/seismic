@@ -57,8 +57,8 @@ on the default branch.
 
 Landing runs git without blocking the server. Landings of one repository run one after the other;
 the active card says "Landing on main", and waiting approvals say "Waiting to land · 1st in line"
-(2nd, …), moving up as each landing finishes. The same status appears on the canvas, the
-phone and the opened card. Positions are per repository across canvases and cover both local
+(2nd, …), moving up as each landing finishes. The same status appears on the project, the
+phone and the opened card. Positions are per repository across projects and cover both local
 landings and direct pushes; unrelated repositories proceed independently. A stopped waiting card
 leaves the queue without running git; failures and completed landings clear the status. Once git
 starts, stopping the card is refused until it finishes. A card whose work is landing refuses
@@ -71,7 +71,7 @@ After work reaches main (a local landing, a direct push or a known PR merge), ot
 progress in the same repository hear about it only where the landed files overlap files they have
 changed themselves, committed or not, including new and deleted files and both sides of a rename.
 Soft paths do not count, by the same repository setting as Scheduling; an estimated scope alone is
-no overlap. Cards on other canvases of that repository count too. Each notice names the landed
+no overlap. Cards on other projects of that repository count too. Each notice names the landed
 commits' subjects and overlapping files and suggests considering a rebase now rather than at
 handover; the worker decides whether and when. The notice waits for its next turn, without
 interrupting a turn or waking an idle worker or a card waiting for the owner. It survives a restart.
@@ -192,7 +192,7 @@ with it ("look especially at security", "the demo on the phone only") becomes th
 top of the fixed review below. A PR that has a card already opens that card, and the words go to its
 worker; one closed or merged gets none. Seismic never makes such a card by itself and does not list
 open PRs. The card starts as any (see Scheduling) and names the PR's number, author and link above
-its title, on the canvas and opened.
+its title, on the project and opened.
 
 Its workstation stands on the PR's head (`refs/pull/<n>/head`, which GitHub and Forgejo both keep),
 fetched from `origin` where that is the PR's repository, else from the repository on its forge. Its
@@ -224,7 +224,7 @@ bracket of its own on the card ("Findings 2 + 4: one follow-up task") while its 
 made one, and picks nothing for the others: the choice stays per finding. Above them stand the
 checks on the head and the merge probe ("✓ bun test · ✓ no conflicts"), and a collision with
 unpushed commits on the local `main` where there is one (see Unpushed commits the PR collides
-with); on the canvas the card shows them on one line ("Review: 2 findings open (1 security)"). The handover brings the checks'
+with); on the project the card shows them on one line ("Review: 2 findings open (1 security)"). The handover brings the checks'
 results and the merge probe; a handover without findings recorded (an empty list where there are
 none) is refused. The findings are for the owner: nothing of them reaches the contributor unless the
 owner sends it. Seismic records the head the worker handed over.
@@ -345,7 +345,7 @@ brings the PR up to date with it: itself on the card's branch where the contribu
 maintainers' edits (pushed with the next approval, as Own changes wait for the approval says),
 else by a change request to them; then it hands over again. The other is to
 merge anyway, which leaves `main` unpushed (below). The approve button then reads "Merge
-anyway (PR #5)", and the card on the canvas says "⚠ collides with local main". A collision the card did
+anyway (PR #5)", and the card on the project says "⚠ collides with local main". A collision the card did
 not show yet when the owner clicks ("Merge" while a landing just moved `main`) holds the merge
 back once and shows itself; a second click merges.
 
@@ -447,7 +447,7 @@ A card no agent worked on, a prototype or an archived card has no field.
   GitHub issue #6, from a contributor's pull request). Rejected: gh run synchronously, one call after
   the other: each is a round trip to GitHub (a second idle, several under load, ten and more when
   GitHub is slow), so with two open PRs the server answered nothing for up to 40 s every two minutes
-  (canvas switches, conversations and demo videos hung).
+  (project switches, conversations and demo videos hung).
 - **A PR's forge is told by its URL's host; GitHub Enterprise is GitHub on another host**
   (2026-10-26, GitHub issue #16; host 2026-10-29; Enterprise Cloud 2026-10-30). A host is
   GitHub's when it is github.com or a subdomain, Enterprise Cloud's `*.ghe.com` (gh may reach it
@@ -490,7 +490,7 @@ A card no agent worked on, a prototype or an archived card has no field.
   to watch such PRs.
 - **A contributor's pull request is reviewed on a card of its own, an Seismic feature** (2026-10-27).
   The flow holds for any repository on a forge; what a repository has of its own comes from its
-  settings (`app.run`), its canvas's demo site, its conventions and the forge's merge methods, with no new
+  settings (`app.run`), its project's demo site, its conventions and the forge's merge methods, with no new
   setting. Rejected: a skill `review-pr` (Seismic would know nothing of the review: the card said
   "Close, no PR follows", comment and merge ran outside it, a push after the review went
   unnoticed); a repository setting; a card for every open PR (a stranger's code runs on the owner's

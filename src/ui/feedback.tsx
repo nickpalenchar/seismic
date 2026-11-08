@@ -1,5 +1,5 @@
 // The owner's feedback on an agent's approved work: 1 to 5 stars and an optional comment, the same
-// on the canvas and on the phone. Right after an approval it asks above the microphone, where the
+// on the project and on the phone. Right after an approval it asks above the microphone, where the
 // owner can skip it; the card itself keeps asking until it is answered, and shows the answer after.
 // Saving goes its own way: approval and landing never wait for it, nor fail with it.
 
@@ -127,7 +127,7 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
  * The prompt after an approval or archiving: `ask` it for a card (or, archiving several at once, for
  * each in turn) once that went through; it shows while the card's approved work takes feedback and
  * has none yet, and stays until answered or skipped. Another approval asks about its own card instead.
- * A card that is not on the canvas (archived, by the owner or by itself after landing) is looked up
+ * A card that is not on the project (archived, by the owner or by itself after landing) is looked up
  * in the archive.
  */
 export function useRatePrompt(items: Item[]) {
@@ -139,7 +139,7 @@ export function useRatePrompt(items: Item[]) {
   const looked = !!card && !!archive?.covers.has(card);
   const away = looked ? archive!.items.find((i) => i.id === card) : undefined;
   const found = here?.rate ? here : away?.rate ? away : undefined;
-  // the card as last shown: it stays while the archive is read after it left the canvas
+  // the card as last shown: it stays while the archive is read after it left the project
   const shown = useRef<Item | undefined>(undefined);
   if (found) shown.current = found;
   const item = found ?? (!looked && shown.current?.id === card ? shown.current : undefined);

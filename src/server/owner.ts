@@ -95,7 +95,7 @@ const same = (a: string, b: string) => {
  * On to `next` from a page of Seismic's own rather than with a redirect: a link opened from another
  * site or app (the app's shell navigates its window from its own `tauri:` page) starts a cross-site
  * navigation, and a browser sends a `SameSite=Strict` cookie on none of its redirects, so the
- * canvas would get no cookie. Going on from this page, the navigation is the site's own.
+ * project would get no cookie. Going on from this page, the navigation is the site's own.
  */
 function onward(next: string, headers: Record<string, string> = {}): Response {
   const attr = next.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');

@@ -9,7 +9,7 @@
 //   bun run dev [<main.ts args>]    # the same, with hot reload (--hot, --dev)
 //
 // SEISMIC_HOME and SEISMIC_PORT (or --port) still win when set. A first start without arguments on a
-// home with no canvases.json gets one with this checkout as its only canvas, so the code can be
+// home with no projects.json gets one with this checkout as its only project, so the code can be
 // tried at once; copy a database over (stop both first) to start from real cards. Everything else
 // is src/server/main.ts, whose header describes the arguments.
 
@@ -31,8 +31,9 @@ if (import.meta.main) {
   const home = (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) ?? join(homedir(), dev ? '.obeya-dev' : '.obeya');
   const env = { ...process.env, ...(dev ? { SEISMIC_HOME: home, SEISMIC_PORT: (process.env.SEISMIC_PORT ?? process.env.OBEYA_PORT) ?? DEFAULT_PORT } : {}) };
 
-  // without arguments the canvases come from the home's canvases.json
-  const config = join(home, 'canvases.json');
+  // without arguments the projects come from the home's projects.json
+  (await import('../src/server/config')).adoptOldConfig(home);
+  const config = join(home, 'projects.json');
   if (dev && args.length === 0 && !existsSync(config)) {
     mkdirSync(home, { recursive: true, mode: 0o700 });
     writeFileSync(config, JSON.stringify([{ name: 'Seismic', repos: [{ path: root }] }], null, 2) + '\n');

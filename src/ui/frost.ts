@@ -26,7 +26,7 @@ export function watchMoves(world: HTMLElement, root: HTMLElement, settle = SETTL
   };
 }
 
-/** Follows the canvas's world as React mounts and replaces it (switching canvases, the phone view). */
+/** Follows the canvas's world as React mounts and replaces it (switching projects, the phone view). */
 function follow(): void {
   let world: HTMLElement | null = null;
   let stop = () => {};

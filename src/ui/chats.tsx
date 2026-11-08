@@ -1,5 +1,5 @@
 // Seismic's chats, in the head of its conversation (the sheet, the phone's panel): the button at the
-// left slides out the earlier chats, this canvas's or every canvas's, the one at the right starts
+// left slides out the earlier chats, this project's or every project's, the one at the right starts
 // a new chat. What the owner says goes into the chat open now; the Koordinator remembers that one.
 
 import { Menu, SquarePen, X } from 'lucide-react';
@@ -14,20 +14,20 @@ import { clock, failText, shortDay, t } from './strings';
 interface Props {
   /** The heading between the two buttons. */
   title: ReactNode;
-  canvas: string;
-  /** The canvas's name, on the switch to its own chats. */
-  canvasName: string;
-  /** The chat open now, the canvas's chats with something said in them, and what the sheet holds (answers unread in other chats among it). */
+  project: string;
+  /** The project's name, on the switch to its own chats. */
+  projectName: string;
+  /** The chat open now, the project's chats with something said in them, and what the sheet holds (answers unread in other chats among it). */
   chat: number;
   chats: Chat[];
   talk: Talk[];
-  /** A chat of another canvas was opened there: show that canvas's conversation. */
-  onCanvas: (canvas: string) => void;
+  /** A chat of another project was opened there: show that project's conversation. */
+  onProject: (project: string) => void;
   /** The sheet's close button, at the head's right end. */
   onClose?: () => void;
 }
 
-export function ChatsHead({ title, canvas, canvasName, chat, chats, talk, onCanvas, onClose }: Props) {
+export function ChatsHead({ title, project, projectName, chat, chats, talk, onProject, onClose }: Props) {
   const [open, setOpen] = useState(false);
   const [all, setAll] = useStoredState('obeya-chats-all', false);
   const [every, setEvery] = useState<ChatElsewhere[] | null>(null);
@@ -63,11 +63,11 @@ export function ChatsHead({ title, canvas, canvasName, chat, chats, talk, onCanv
   }, [open]);
 
   const go = (c: Chat) => {
-    if (c.id === chat && c.canvas === canvas) return setOpen(false);
-    api.openChat(c.id, c.canvas === canvas ? undefined : c.canvas).then(
+    if (c.id === chat && c.project === project) return setOpen(false);
+    api.openChat(c.id, c.project === project ? undefined : c.project).then(
       () => {
         setOpen(false);
-        if (c.canvas !== canvas) onCanvas(c.canvas);
+        if (c.project !== project) onProject(c.project);
       },
       (e) => setError(failText(e)),
     );
@@ -76,7 +76,7 @@ export function ChatsHead({ title, canvas, canvasName, chat, chats, talk, onCanv
     setOpen(false);
     api.newChat().catch(console.error);
   };
-  const shown: (Chat & { canvasName?: string })[] = all ? (every ?? []) : chats;
+  const shown: (Chat & { projectName?: string })[] = all ? (every ?? []) : chats;
 
   return (
     // on the phone the head is the panel's grip: a press on it drags the panel, one on its buttons does not
@@ -114,7 +114,7 @@ export function ChatsHead({ title, canvas, canvasName, chat, chats, talk, onCanv
               </div>
               <div className="chats-scope" role="radiogroup">
                 <button role="radio" aria-checked={!all} className={!all ? 'on' : undefined} onClick={() => setAll(false)}>
-                  <span className="chats-scope-name">{canvasName}</span>
+                  <span className="chats-scope-name">{projectName}</span>
                   <small>{t.koordinator.chatsHere}</small>
                 </button>
                 <button role="radio" aria-checked={all} className={all ? 'on' : undefined} onClick={() => setAll(true)}>
@@ -132,11 +132,11 @@ export function ChatsHead({ title, canvas, canvasName, chat, chats, talk, onCanv
                 )}
                 {shown.map((c) => (
                   <li key={c.id}>
-                    <button className={['chat-row', c.id === chat && c.canvas === canvas && 'on'].filter(Boolean).join(' ')} onClick={() => go(c)}>
+                    <button className={['chat-row', c.id === chat && c.project === project && 'on'].filter(Boolean).join(' ')} onClick={() => go(c)}>
                       <span className={c.title ? 'chat-title' : 'chat-title by-obeya'}>{c.title ? plain(c.title) : t.koordinator.chatByObeya}</span>
                       <span className="chat-meta">
                         {when(c.at)}
-                        {c.canvasName && ` · ${c.canvasName}`}
+                        {c.projectName && ` · ${c.projectName}`}
                         {c.unread ? (
                           <span className="chat-unread" title={t.koordinator.unreadCount(c.unread)}>
                             {c.unread}

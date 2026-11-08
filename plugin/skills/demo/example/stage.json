@@ -2,7 +2,7 @@
   "_comment": "Copy this input file into your demo directory, edit it, then run bun scripts/scratch-obeya.ts <path>/stage.json. The printed staged.json is output, not input. Full schema: ../../../../scripts/scratch-obeya.ts (header). Omit port to choose a free one.",
   "_language": "Use English for the interface and text below to match an English demo.",
   "language": "en",
-  "_name": "Name of the scratch canvas.",
+  "_name": "Name of the scratch project.",
   "name": "Example project",
   "_plans": "Paths and contents of plan documents created in the scratch repository. Replace the snippet with your own.",
   "plans": {

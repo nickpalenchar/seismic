@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { DemoSite } from '../adapters/types';
 import { MESSAGES } from '../core/messages';
 import { Board } from './board';
-import { CanvasRuntime } from './canvas';
+import { ProjectRuntime } from './project';
 import { Store } from './db';
 import { writeSites } from './demo-sites';
 import type { SharePage, ShareTarget } from './share';
@@ -768,30 +768,30 @@ describe('sharing to a site', () => {
   });
 });
 
-test("a canvas's demo site: Initialize puts its path on it, and the canvas says the env file it lacks, until it is there", async () => {
+test("a project's demo site: Initialize puts its path on it, and the project says the env file it lacks, until it is there", async () => {
   const shop = gitRepo(join(dir, 'shop'), { 'docs/plan/plan.md': '# Laden\n\n## Goal\n\nG.\n', 'deploy.ts': DEPLOY });
   const url = URL_.replace(/\/$/, '');
   writeSites(home, [{ url, deploy: `deploy.ts {dir} ${dir}`, env: 'sites/demos/deploy.env' }]);
-  const canvas = new CanvasRuntime({ name: 'Laden', repos: [{ path: shop }], demoSite: { url, path: 'laden' } }, { store: new Store(':memory:'), home, runtime: new FakeRuntime(), forge: noForge });
+  const project = new ProjectRuntime({ name: 'Laden', repos: [{ path: shop }], demoSite: { url, path: 'laden' } }, { store: new Store(':memory:'), home, runtime: new FakeRuntime(), forge: noForge });
   try {
-    expect(canvas.board.canvas.repos[0]).toMatchObject({ shareSite: 'init' });
-    expect(canvas.initSite({ url, path: 'laden' })).toMatchObject({ init: { running: true } });
-    expect(() => canvas.initSite({ url, path: 'laden' })).toThrow('being created');
-    for (let i = 0; i < 300 && canvas.board.canvas.demoSite?.init?.running; i++) await Bun.sleep(10);
-    expect(canvas.board.canvas.demoSite).toEqual({ url, path: 'laden', ready: true, init: { running: false } });
-    expect(canvas.board.canvas.repos[0]!.share).toBe(true);
-    // the canvas's empty overview, titled with its name; the root lists none
+    expect(project.board.project.repos[0]).toMatchObject({ shareSite: 'init' });
+    expect(project.initSite({ url, path: 'laden' })).toMatchObject({ init: { running: true } });
+    expect(() => project.initSite({ url, path: 'laden' })).toThrow('being created');
+    for (let i = 0; i < 300 && project.board.project.demoSite?.init?.running; i++) await Bun.sleep(10);
+    expect(project.board.project.demoSite).toEqual({ url, path: 'laden', ready: true, init: { running: false } });
+    expect(project.board.project.repos[0]!.share).toBe(true);
+    // the project's empty overview, titled with its name; the root lists none
     expect(readFileSync(join(deployed(), 'laden/index.html'), 'utf8')).toContain('<h1>Laden</h1>');
     expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).not.toContain('Laden');
     rmSync(join(home, 'sites/demos/deploy.env'));
-    canvas.ownerBack();
-    expect(canvas.board.canvas.repos[0]).toMatchObject({ shareNeeds: { site: siteName(SITE()), file: 'sites/demos/deploy.env' } });
-    expect(canvas.board.canvas.repos[0]!.share).toBeUndefined();
+    project.ownerBack();
+    expect(project.board.project.repos[0]).toMatchObject({ shareNeeds: { site: siteName(SITE()), file: 'sites/demos/deploy.env' } });
+    expect(project.board.project.repos[0]!.share).toBeUndefined();
     writeFileSync(join(home, 'sites/demos/deploy.env'), 'TOKEN=1\n');
-    canvas.ownerBack();
-    expect(canvas.board.canvas.repos[0]!.share).toBe(true);
-    expect(canvas.board.canvas.repos[0]!.shareNeeds).toBeUndefined();
+    project.ownerBack();
+    expect(project.board.project.repos[0]!.share).toBe(true);
+    expect(project.board.project.repos[0]!.shareNeeds).toBeUndefined();
   } finally {
-    canvas.shutdown();
+    project.shutdown();
   }
 });

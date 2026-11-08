@@ -24,5 +24,5 @@ test('the seam list names every core file that imports the registry', () => {
     return e.isDirectory() ? files(path) : [path];
   });
   const callers = files('src').map((path) => path.replaceAll('\\', '/')).filter((path) => !path.startsWith('src/extensions/') && /\.(ts|tsx)$/.test(path) && /from ['"]\.\.\/extensions\/(client|server)['"]/.test(readFileSync(path, 'utf8')));
-  expect<string[]>([...SEAM_FILES].sort()).toEqual(['src/extensions/index.ts', 'src/extensions/client.ts', 'src/extensions/server.ts', 'src/ui/config.tsx', 'src/server/canvas.ts', 'src/server/runtime.ts', ...callers].sort());
+  expect<string[]>([...SEAM_FILES].sort()).toEqual(['src/extensions/index.ts', 'src/extensions/client.ts', 'src/extensions/server.ts', 'src/ui/config.tsx', 'src/server/project.ts', 'src/server/runtime.ts', ...callers].sort());
 });

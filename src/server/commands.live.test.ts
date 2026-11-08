@@ -16,7 +16,7 @@ import { Board } from './board';
 import { type Command, Commander } from './commands';
 import { Config } from './config';
 import { Store } from './db';
-import { AGENT_DEFAULTS, type CanvasConfig, type ConfigView } from '../core/types';
+import { AGENT_DEFAULTS, type ProjectConfig, type ConfigView } from '../core/types';
 import { type AgentRuntime, sdkRuntime, withAgentSetting } from './runtime';
 import { gitRepo } from './testing';
 
@@ -55,7 +55,7 @@ const CASES: [string, string, string | null, boolean, Command['do'][]][] = [
   ['working', 'mach eine Folgeaufgabe für den Excel-Export', 'Create a follow-up card for an Excel export of this card.', false, ['newCard']],
   ['working', 'Merk dir: Exporte immer mit Kopfzeile', 'The owner wants Seismic to remember: exports always with a header row.', true, ['remember']],
   ['working', 'halt an, ich will das anders angehen', 'Stop the agent on this card.', false, ['stop']],
-  ['working', 'Was ist seit gestern auf der Leinwand passiert?', 'What happened on the canvas since yesterday?', true, []],
+  ['working', 'Was ist seit gestern auf der Leinwand passiert?', 'What happened on the project since yesterday?', true, []],
   ['working', 'starte auch gleich Login', 'Start the card Login.', false, ['start']],
   ['working', 'pack das in die Gruppe Abrechnung', 'Put this card into the group Abrechnung.', false, ['group']],
   ['question', 'mach eine Folgeaufgabe: Import aus CSV', 'Create a follow-up card: import from CSV.', true, ['newCard']],
@@ -118,7 +118,7 @@ const NEW_TASKS: [string, 'de' | 'en', boolean | 'later'][] = [
   ['Make a card to add the tip presets in two weeks, once the new prices are out', 'en', 'later'],
 ];
 
-/** The new card one sentence makes on a canvas like the one in the hero video: whether it starts. */
+/** The new card one sentence makes on a project like the one in the hero video: whether it starts. */
 async function newTask(text: string, language: 'de' | 'en') {
   const board = new Board(new Store(':memory:'), { id: 'c', name: 'Tipjar', repos: [{ id: 'tipjar', name: 'Tipjar', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }), undefined, undefined, () => language);
   board.work(board.create({ title: 'Dark mode', x: 0, y: 0 }).id, { state: 'live' });
@@ -154,7 +154,7 @@ const NO_CARD: [string, boolean, Command['do'][]][] = [
   ['Was hältst du davon, die Exporte nachts laufen zu lassen?', false, ['newIdea']],
   ['Was steht im Plan zu den Exporten?', true, []],
   ['Was ist seit gestern passiert?', false, []],
-  ['Kannst du mir ein neues repo in ~/dev/kassenbuch und einen entsprechenden Seismic canvas anlegen? Privater account, erstmal nicht nach GitHub.', true, ['newCard']],
+  ['Kannst du mir ein neues repo in ~/dev/kassenbuch und einen entsprechenden Seismic project anlegen? Privater account, erstmal nicht nach GitHub.', true, ['newCard']],
   ['Installier mir ffmpeg auf dem Rechner', false, ['newCard']],
 ];
 
@@ -166,10 +166,10 @@ async function noCard(text: string, typed: boolean) {
   board.create({ title: 'Zählerstände nachtragen', x: 0, y: 0 });
   const executed: Command[] = [];
   const runtime = withAgentSetting(sdkRuntime, () => AGENT_DEFAULTS.koordinator);
-  // the configuration as Seismic serves it, one canvas on a repository that exists
+  // the configuration as Seismic serves it, one project on a repository that exists
   const home = cwd();
   const started = [{ name: 'C', repos: [{ path: gitRepo(join(home, 'home')) }] }];
-  const config = new Config({ file: join(home, 'canvases.json'), source: 'file', started, store: new Store(':memory:'), running: () => ['c'], server: { port: 4417, home, permissionMode: 'auto' } });
+  const config = new Config({ file: join(home, 'projects.json'), source: 'file', started, store: new Store(':memory:'), running: () => ['c'], server: { port: 4417, home, permissionMode: 'auto' } });
   const k = new Commander({ board, runtime, cwd: cwd(), config, execute: (c) => void executed.push(c), delayMs: 1 });
   const heard = await k.hear(text, {}, [], typed ? { typed: true } : {});
   if (heard.token) k.arm(heard.token);
@@ -272,7 +272,7 @@ const LATER: [string, Command['do'][], string | null][] = [
 ];
 
 /**
- * The owner's request from the conversation before (a repository and a canvas for it), which only a
+ * The owner's request from the conversation before (a repository and a project for it), which only a
  * card's agent can begin: the Koordinator waits on that card, and takes the step once it is done.
  */
 async function later(text: string) {
@@ -282,11 +282,11 @@ async function later(text: string) {
   // a folder no repository is in yet, as on the owner's machine then: the Koordinator may look
   const place = join(cwd(), 'recipes');
   board.addTalk(
-    `Kannst du mir ein neues Repo in ${place} und einen entsprechenden Seismic canvas anlegen? Privater Account, erstmal nicht nach GitHub.`,
-    `I can't create a repository myself; Seismic can only put a canvas on one that already exists. Run \`mkdir -p ${place} && cd ${place} && git init -b main && git commit --allow-empty -m "Start"\`. Tell me once it's there, and I'll add the canvas “Recipes”.`,
+    `Kannst du mir ein neues Repo in ${place} und einen entsprechenden Seismic project anlegen? Privater Account, erstmal nicht nach GitHub.`,
+    `I can't create a repository myself; Seismic can only put a project on one that already exists. Run \`mkdir -p ${place} && cd ${place} && git init -b main && git commit --allow-empty -m "Start"\`. Tell me once it's there, and I'll add the project “Recipes”.`,
   );
-  const view = { file: '/h/canvases.json', source: 'file', canvases: [{ name: 'Seismic', repos: [{ path: '/r' }] }], running: ['obeya'] } as unknown as ConfigView;
-  const config = { view: () => view, check: async (canvases: unknown) => ({ canvases: canvases as CanvasConfig[], resolved: [], problems: [] }), checkSaved: async () => ({ canvases: view.canvases, resolved: [], problems: [] }) };
+  const view = { file: '/h/projects.json', source: 'file', projects: [{ name: 'Seismic', repos: [{ path: '/r' }] }], running: ['obeya'] } as unknown as ConfigView;
+  const config = { view: () => view, check: async (projects: unknown) => ({ projects: projects as ProjectConfig[], resolved: [], problems: [] }), checkSaved: async () => ({ projects: view.projects, resolved: [], problems: [] }) };
   const executed: Command[] = [];
   const runtime = withAgentSetting(sdkRuntime, () => AGENT_DEFAULTS.koordinator);
   const k = new Commander({
@@ -326,7 +326,7 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
     const results = await Promise.all(LATER.flatMap((c) => [c, c, c]).map(async ([text, want, on]) => ({ text, want, on, got: await later(text) })));
     const configured = (r: (typeof results)[number]) =>
       r.want.includes('newCard')
-        ? r.got.after?.some((c) => c.do === 'configure' && c.canvases.some((x) => x.repos.some((y) => y.path.includes('recipes'))))
+        ? r.got.after?.some((c) => c.do === 'configure' && c.projects.some((x) => x.repos.some((y) => y.path.includes('recipes'))))
         : r.got.after?.some((c) => c.do === 'start');
     const wrong = results.filter((r) => JSON.stringify(r.got.now) !== JSON.stringify(r.want) || (r.on !== null && r.got.on !== r.on) || !configured(r));
     for (const r of results)
@@ -338,7 +338,7 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
 
 /**
  * What the owner says to have pull requests reviewed (several in one sentence, or the step taken
- * once the open ones are looked up), on a canvas whose history holds tasks titled like reviews
+ * once the open ones are looked up), on a project whose history holds tasks titled like reviews
  * beside a review card, and the number of review cards expected: one for each pull request.
  */
 const REVIEWS: [string, number][] = [

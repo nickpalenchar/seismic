@@ -1,4 +1,4 @@
-// Presentational pieces of the canvas. State and camera live in App.tsx.
+// Presentational pieces of the project. State and camera live in App.tsx.
 
 import { Archive, ChevronDown, ChevronRight, CircleHelp, Columns3, GitMerge, MessageSquare, Pause, Play, RotateCw, Square } from 'lucide-react';
 import { Docked } from './docked';
@@ -6,7 +6,7 @@ import { memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } fr
 import { createPortal } from 'react-dom';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
-import { agentFailed, answering, type AppUpdate, type CanvasInfo, type BlockedClone, type ClonePool, demoStage, finished, finishedArchivable, finishingUp, handedOver, type Item, merging, needsYou, openQuestions, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type PullRequest, type SourceUpdate, stoppedArchivable, titleFrom } from '../core/types';
+import { agentFailed, answering, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, demoStage, finished, finishedArchivable, finishingUp, handedOver, type Item, merging, needsYou, openQuestions, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type PullRequest, type SourceUpdate, stoppedArchivable, titleFrom } from '../core/types';
 import { PlanTalk } from './koordinator';
 import { api } from './api';
 import type { Cam, Sides } from './camera';
@@ -29,7 +29,7 @@ const firstLine = (md: string) =>
 
 /** What of a workstream planned again has landed: its pull request, else its commit. */
 /** The state whose colour an open card wears: a demo whose worker takes in the owner's answer is at work. */
-/** The colour a card's state gives its unfolded sheet: a snoozed card's is pencil grey, as on the canvas. */
+/** The colour a card's state gives its unfolded sheet: a snoozed card's is pencil grey, as on the project. */
 export const shownState = (i: Item) => (i.snoozed ? 'muted' : i.kind === 'question' ? 'question' : answering(i) ? 'working' : agentFailed(i) ? 'error' : asksYou(i) ? 'asking' : i.state);
 
 /** Whether the card's state reads "Question for you": its agent asks and waits for the answer. */
@@ -43,7 +43,7 @@ export const QuestionMark = () => (
 /** A card's pull requests still open as far as Seismic knows: its own and those in other repositories. */
 export const openPrs = (item: Item): PullRequest[] => [...(item.pr ? [item.pr] : []), ...(item.morePrs ?? [])].filter((p) => !p.merged && !p.closed);
 
-/** A pull request's line on the canvas: its checks, a conflict, whether it is ready, and else what it waits for first. */
+/** A pull request's line on the project: its checks, a conflict, whether it is ready, and else what it waits for first. */
 const prShort = (p: PullRequest) => {
   // a red check and a conflict the line names already
   const wait = p.ready ? undefined : p.waits?.find((w) => w !== 'conflict' && w !== 'checksFailed');
@@ -52,7 +52,7 @@ const prShort = (p: PullRequest) => {
 
 export const landedRef = (l: NonNullable<Item['landedPart']>) => (l.pr ? `PR #${l.pr.number}` : (l.commit?.slice(0, 7) ?? ''));
 
-/** The button for the conversation with Seismic (the canvas's top bar, the phone view's): a speech bubble. */
+/** The button for the conversation with Seismic (the project's top bar, the phone view's): a speech bubble. */
 export function TalkIcon() {
   return <MessageSquare size={17} strokeWidth={2} aria-hidden />;
 }
@@ -63,18 +63,18 @@ interface CardProps {
   item: Item;
   /** An unworked card merged with another card: that card, shown glued to it. */
   partner?: Item;
-  /** On a canvas with several repositories, cards name theirs. */
+  /** On a project with several repositories, cards name theirs. */
   showRepo: boolean;
   b: Bounds;
   lifted: boolean;
   dragging: boolean;
   pop: boolean;
-  /** A prototype of this idea is on the canvas, which keeps the idea from the archive. */
+  /** A prototype of this idea is on the project, which keeps the idea from the archive. */
   prototyped: boolean;
   els: Map<string, HTMLElement>;
   /** Starts a planned card, or one queued behind others despite the likely conflict. */
   onStart: (item: Item) => void;
-  /** Takes a finished card or a parked or dropped idea off the canvas into the archive. */
+  /** Takes a finished card or a parked or dropped idea off the project into the archive. */
   onArchive: (item: Item) => void;
   /** While the pointer is on a card with waits: this one is it, comes before it, or waits for it. */
   dep?: 'self' | 'before' | 'after';
@@ -118,7 +118,7 @@ export function LimitNotice({ item }: { item: Item }) {
 }
 
 /**
- * On a card on the canvas, the pause of its agent at work, at a safe point, or the resume of its
+ * On a card on the project, the pause of its agent at work, at a safe point, or the resume of its
  * paused one (or of one about to pause, which then works on): where a card's play and archive
  * buttons stand, faint, while the pointer is on the card.
  */
@@ -130,7 +130,7 @@ function CardTurn({ item }: { item: Item }) {
       className={paused ? 'play turn resume' : 'play turn'}
       title={item.pausing ? t.pause.takeBackHint : paused ? t.pause.resumeHint : t.pause.safeHint}
       aria-label={paused ? t.pause.resume : t.pause.button}
-      // the canvas would take the press as the start of a drag or a click that opens the card
+      // the project would take the press as the start of a drag or a click that opens the card
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation();
@@ -143,7 +143,7 @@ function CardTurn({ item }: { item: Item }) {
 }
 
 /**
- * On a card on the canvas that Seismic is checking before its start, the Stop that calls the start
+ * On a card on the project that Seismic is checking before its start, the Stop that calls the start
  * off: where its play stood, faint like the pause of an agent at work.
  */
 function CardCheckStop({ item }: { item: Item }) {
@@ -153,7 +153,7 @@ function CardCheckStop({ item }: { item: Item }) {
       className="play turn"
       title={t.queue.checkingStopHint}
       aria-label={t.stop}
-      // the canvas would take the press as the start of a drag or a click that opens the card
+      // the project would take the press as the start of a drag or a click that opens the card
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation();
@@ -209,8 +209,8 @@ export const cardClass = (item: Item, underway?: string) =>
     .join(' ');
 
 /**
- * What a card says on its face, on the canvas and in the phone view's lists alike: its kind (after
- * `where` it is, its repository or canvas), its title, a line of its text, its state line in its
+ * What a card says on its face, on the project and in the phone view's lists alike: its kind (after
+ * `where` it is, its repository or project), its title, a line of its text, its state line in its
  * state's colour (`since` after it) and the pin while it needs the owner. A `chip`, a delivered
  * workstream, shows only its title, after its label, so it still reads as its workstream.
  */
@@ -286,7 +286,7 @@ export function CardFace({ item, where, underway, since, chip }: { item: Item; w
 }
 
 /**
- * An unworked card merged with another card (`partner`), on the canvas: both cards side by side, glued by
+ * An unworked card merged with another card (`partner`), on the project: both cards side by side, glued by
  * a spinner while an agent merges them, and by the merge mark once the merged card waits for the owner.
  */
 function MergedPair({ item, partner, showRepo }: { item: Item; partner?: Item; showRepo: boolean }) {
@@ -318,7 +318,7 @@ export const CardView = memo(
     // a card the Koordinator is checking has nothing to start yet
     const startable = !item.proposal?.merge && !item.mergingInto && item.state === 'planned' && (!item.queue || 'behind' in item.queue);
     // as "Archivieren" in the unfolded card: a finished card of the owner's whose agent is done, a
-    // stopped task, or a parked or dropped idea without a prototype on the canvas
+    // stopped task, or a parked or dropped idea without a prototype on the project
     const archivable =
       !item.archivedAt &&
       (finishedArchivable(item) || stoppedArchivable(item) || (!!item.idea && item.idea.status !== 'open' && !prototyped));
@@ -350,7 +350,7 @@ export const CardView = memo(
             className="play"
             title={item.queue ? t.queue.force : t.start}
             aria-label={item.queue ? t.queue.force : t.start}
-            // the canvas would take the press as the start of a drag or a click that opens the card
+            // the project would take the press as the start of a drag or a click that opens the card
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
@@ -382,12 +382,12 @@ export const CardView = memo(
 );
 
 /**
- * A canvas's agents on its row in the switcher (design: Pausing a canvas's agents): while one works
+ * A project's agents on its row in the switcher (design: Pausing a project's agents): while one works
  * there, the moving line of a card at work, which turns into a pause for all of them while the
  * pointer is on the row; with none at work but some paused, a play that resumes them, on the same
  * hover. Where nothing hovers (touch), the button shows throughout.
  */
-export function CanvasAgents({ canvas }: { canvas: CanvasInfo }) {
+export function ProjectAgents({ project }: { project: ProjectInfo }) {
   const [asked, setAsked] = useState(false);
   const [tip, setTip] = useState<{ x: number; y: number } | null>(null);
   // a scroll moves the button from under the tip
@@ -397,16 +397,16 @@ export function CanvasAgents({ canvas }: { canvas: CanvasInfo }) {
     document.addEventListener('scroll', hide, true);
     return () => document.removeEventListener('scroll', hide, true);
   }, [tip]);
-  const a = canvas.agents;
+  const a = project.agents;
   if (!a) return null;
   const pause = a.running > 0;
-  const label = pause ? t.canvasPause.pause(a.running) : t.canvasPause.resume(a.paused);
+  const label = pause ? t.projectPause.pause(a.running) : t.projectPause.resume(a.paused);
   const click = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setAsked(true);
     setTip(null);
-    (pause ? api.pauseAgents(canvas.id) : api.resumeAgents(canvas.id)).catch(console.error).finally(() => setAsked(false));
+    (pause ? api.pauseAgents(project.id) : api.resumeAgents(project.id)).catch(console.error).finally(() => setAsked(false));
   };
   const show = (e: { currentTarget: Element }) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -414,8 +414,8 @@ export function CanvasAgents({ canvas }: { canvas: CanvasInfo }) {
   };
   const hide = () => setTip(null);
   return (
-    <span className={pause ? 'canvas-agents running' : 'canvas-agents'}>
-      <button type="button" className="agents-turn" aria-label={`${label}: ${canvas.name}`} disabled={asked} onClick={click} onPointerEnter={show} onPointerLeave={hide} onFocus={(e) => e.currentTarget.matches(':focus-visible') && show(e)} onBlur={hide}>
+    <span className={pause ? 'project-agents running' : 'project-agents'}>
+      <button type="button" className="agents-turn" aria-label={`${label}: ${project.name}`} disabled={asked} onClick={click} onPointerEnter={show} onPointerLeave={hide} onFocus={(e) => e.currentTarget.matches(':focus-visible') && show(e)} onBlur={hide}>
         {pause ? <PauseMark /> : <PlayMark />}
       </button>
       {tip &&
@@ -494,7 +494,7 @@ function ReposRestartPill({ restart, items }: { restart: PendingRestart; items: 
 /**
  * The pill of either restart: what it waits for (`say`), with `until` until when, and a button
  * (`now`, its risk on hover) that has it go ahead through `go`, saying `going` once it does. On
- * hover why (`why`), the cards it waits for here and on the other canvases (`elsewhere`), and
+ * hover why (`why`), the cards it waits for here and on the other projects (`elsewhere`), and
  * what follows (`after`).
  */
 function Pill({ restart, items, elsewhere = [], go, going, say, until, now, risk, why, after }: {
@@ -549,8 +549,8 @@ function Pill({ restart, items, elsewhere = [], go, going, say, until, now, risk
               </ul>
             )}
             {elsewhere.map((c) => (
-              <div key={c.canvas} className="elsewhere">
-                <p className="hint">{t.restart.on(c.canvas)}</p>
+              <div key={c.project} className="elsewhere">
+                <p className="hint">{t.restart.on(c.project)}</p>
                 <ul>
                   {c.cards.map((x, i) => (
                     <li key={i}>{plain(x)}</li>
@@ -649,7 +649,7 @@ export function SourcePill({ source }: { source: SourceUpdate }) {
 
 /**
  * The Bun the server runs on is too old (on Linux, before 1.3.14): it can deadlock, and then the
- * canvas stops loading. It stays in the bar for as long as the server runs on it; what to do, on hover.
+ * project stops loading. It stays in the bar for as long as the server runs on it; what to do, on hover.
  */
 export function OldBunPill({ version }: { version: string }) {
   return (
@@ -674,18 +674,18 @@ export function OldBunPill({ version }: { version: string }) {
  * pale while the card holds it otherwise, orange while free but blocked), or per slot of a
  * repository in worktrees, and how many new cards could start now. Hovering or clicking it drops
  * down each machine's slots and each of its workstations by path with the card in it, which opens
- * the card (`onOpen`; `onElsewhere` one on another canvas), and why a blocked clone goes to no card
+ * the card (`onOpen`; `onElsewhere` one on another project), and why a blocked clone goes to no card
  * and what to do about it. While every clone is taken and a card waits for one, a faint "⋯" beside
  * a card opens what gives its clone to the one waiting longest (`onTake`); during the undo window
  * the row offers "Undo" (`onKeep`).
  */
-export function WorkstationsPill({ pools, canvas, canvases, items, onOpen, onElsewhere, onTake, onKeep }: {
+export function WorkstationsPill({ pools, project, projects, items, onOpen, onElsewhere, onTake, onKeep }: {
   pools: ClonePool[];
-  canvas: CanvasInfo;
-  canvases: CanvasInfo[];
+  project: ProjectInfo;
+  projects: ProjectInfo[];
   items: Item[];
   onOpen: (i: Item) => void;
-  onElsewhere: (canvas: string, card: string) => void;
+  onElsewhere: (project: string, card: string) => void;
   onTake: (i: Item) => void;
   onKeep: (i: Item) => void;
 }) {
@@ -710,7 +710,7 @@ export function WorkstationsPill({ pools, canvas, canvases, items, onOpen, onEls
     };
   }, [open]);
   const several = pools.length > 1;
-  const name = (repo: string) => canvas.repos.find((r) => r.id === repo)?.name ?? repo;
+  const name = (repo: string) => project.repos.find((r) => r.id === repo)?.name ?? repo;
   const forWorkstation = items.filter((i) => (i.queue && 'workstation' in i.queue && i.queue.workstation !== 'slots') || i.waitsForClone).length;
   const forSlot = items.filter((i) => i.queue && 'workstation' in i.queue && i.queue.workstation === 'slots').length;
   // a clone is taken from its card only while none is free and a card of its repository waits for one
@@ -780,7 +780,7 @@ export function WorkstationsPill({ pools, canvas, canvases, items, onOpen, onEls
                   <WorkstationRows
                     host={h}
                     items={items}
-                    canvases={canvases}
+                    projects={projects}
                     onOpen={(i) => opened(() => onOpen(i))}
                     onElsewhere={(c, card) => opened(() => onElsewhere(c, card))}
                     onTake={wanted(p) ? onTake : undefined}
@@ -811,12 +811,12 @@ export function WorkstationsPill({ pools, canvas, canvases, items, onOpen, onEls
  * that may give its clone up, which opens the one action and what it does; a card giving it up has
  * "Undo" (`onKeep`) instead.
  */
-function WorkstationRows({ host, items, canvases, onOpen, onElsewhere, onTake, onKeep }: {
+function WorkstationRows({ host, items, projects, onOpen, onElsewhere, onTake, onKeep }: {
   host: PoolHost;
   items: Item[];
-  canvases: CanvasInfo[];
+  projects: ProjectInfo[];
   onOpen: (i: Item) => void;
-  onElsewhere: (canvas: string, card: string) => void;
+  onElsewhere: (project: string, card: string) => void;
   onTake?: (i: Item) => void;
   onKeep: (i: Item) => void;
 }) {
@@ -826,10 +826,10 @@ function WorkstationRows({ host, items, canvases, onOpen, onElsewhere, onTake, o
   return (
     <ul className="ws-list">
       {host.workstations.map((w) => {
-        const item = w.card && !w.canvas ? items.find((i) => i.id === w.card) : undefined;
+        const item = w.card && !w.project ? items.find((i) => i.id === w.card) : undefined;
         const busy = !!w.card && host.busy.includes(w.card);
         const state = busy ? 'on' : w.card ? 'held' : blocked.has(w.path) ? 'blocked' : 'free';
-        const there = w.canvas && canvases.find((c) => c.id === w.canvas);
+        const there = w.project && projects.find((c) => c.id === w.project);
         return (
           <li key={w.path} className={state}>
             <i aria-hidden />
@@ -847,10 +847,10 @@ function WorkstationRows({ host, items, canvases, onOpen, onElsewhere, onTake, o
                   <a className="from" onClick={() => onElsewhere(there.id, w.card!)}>
                     {plain(w.title ?? '')}
                   </a>
-                  <span className="hint"> · {t.workstations.onCanvas(there.name)}</span>
+                  <span className="hint"> · {t.workstations.onProject(there.name)}</span>
                 </>
               ) : w.card ? (
-                <span className="hint">{w.title ? t.workstations.notOnCanvas(plain(w.title)) : t.workstations.offCanvas}</span>
+                <span className="hint">{w.title ? t.workstations.notOnProject(plain(w.title)) : t.workstations.offProject}</span>
               ) : (
                 <span className={state === 'blocked' ? 'warn' : 'hint'}>{state === 'blocked' ? t.workstations.blockedRow : t.workstations.freeRow}</span>
               )}
@@ -949,7 +949,7 @@ export const PlanView = memo(
     const waiting = kids.filter(needsYou).length;
     const startable = startableIn(kids);
     const collapsed = !!item.collapsed;
-    // the canvas would take the press as the start of a drag or a click that opens the plan
+    // the project would take the press as the start of a drag or a click that opens the plan
     const own = (e: React.PointerEvent) => e.stopPropagation();
     return (
       <div className={`item plan s-${item.state}${collapsed ? ' collapsed' : ''}`} data-id={item.id} style={{ left: b.x, top: b.y, width: b.w, height: b.h, zIndex: 0 }}>
@@ -971,7 +971,7 @@ export const PlanView = memo(
           <span className="kind">{t.kind.plan}</span>
           {hasLabels(item) && <span className="head-labels"><LabelMarks item={item} /></span>}
           <span className="progress">{t.progress(live, kids.length)}</span>
-          {/* collapsed, its workstreams are not on the canvas to arrange; its sheet still has the button */}
+          {/* collapsed, its workstreams are not on the project to arrange; its sheet still has the button */}
           {!collapsed && (item.arranging || arrangeable(kids)) && (
             <button
               className="head-btn arrange"
@@ -1135,15 +1135,15 @@ export function Links({ placed, waits, standsFor }: { placed: { item: Item; b: B
 }
 
 /**
- * The width of a wait's line in canvas pixels at zoom `s`, the same faint or highlighted, so that
+ * The width of a wait's line in project pixels at zoom `s`, the same faint or highlighted, so that
  * the pointer on a card only changes its colour; never thinner on screen than a hair when zoomed out.
  */
 /** The head at the end of a wait's line, in a box of 9 by 8 that points right. */
 const DEP_HEAD = 'M0,0 L9,4 L0,8 z';
 
 /**
- * A wait's arrow outside the canvas, straight down from the card waited for to the card waiting, drawn
- * as on the canvas while the pointer is on a card: `lit-first` towards the card it is about, `lit` away from it.
+ * A wait's arrow outside the project, straight down from the card waited for to the card waiting, drawn
+ * as on the project while the pointer is on a card: `lit-first` towards the card it is about, `lit` away from it.
  */
 export function DepArrow({ cls, length = 30 }: { cls: 'lit' | 'lit-first'; length?: number }) {
   const w = depWidth(1);
@@ -1158,11 +1158,11 @@ export function DepArrow({ cls, length = 30 }: { cls: 'lit' | 'lit-first'; lengt
 }
 
 export const depWidth = (s: number) => Math.max(2, 1.6 / s);
-/** The length of the arrow head at the end of a wait's line, in canvas pixels: six widths of its line. */
+/** The length of the arrow head at the end of a wait's line, in project pixels: six widths of its line. */
 export const depHead = (s: number) => 6 * depWidth(s);
 
 /**
- * Every direct wait between cards on the canvas as a faint line, from the card waited for to the
+ * Every direct wait between cards on the project as a faint line, from the card waited for to the
  * card waiting; while the pointer is on a card, the waits around it (`lit`) in the waiting colour
  * instead (`first`: the waits on the way to it in the colour of what comes first). A workstream of a collapsed plan stands for its plan (`standsFor`). A dependency
  * whose prerequisite is finished (`settled`) stays as a dim green line to the card it unlocked.
@@ -1254,7 +1254,7 @@ export function Sheet({
 }: {
   planCard?: Item;
   kids: Item[];
-  /** Every card on the canvas, to name the cards a workstream waits for. */
+  /** Every card on the project, to name the cards a workstream waits for. */
   all: Item[];
   on: boolean;
   reading: { mark?: string } | null;
@@ -1265,9 +1265,9 @@ export function Sheet({
   onStartAll: (planCard: Item, count: number) => void;
   /** Puts the workstreams in columns by what builds on what. */
   onArrange: (planCard: Item) => void;
-  /** Where the cards opened from the sheet unfold from (an archived plan's are not on the canvas). */
+  /** Where the cards opened from the sheet unfold from (an archived plan's are not on the project). */
   els: Map<string, HTMLElement>;
-  /** Changes when the canvas does, so the decisions are read again. */
+  /** Changes when the project does, so the decisions are read again. */
   version: unknown;
 }) {
   const [loaded, setLoaded] = useState<{ id: string; h: PlanHistory; opening: number } | null>(null);
@@ -1419,7 +1419,7 @@ export function Sheet({
 
 // ------------------------------------------------------------------ overlays
 
-/** Chips at the edge of the canvas pointing at off-screen cards that need the owner; `side`: the panels docked at the window's edges. */
+/** Chips at the edge of the project pointing at off-screen cards that need the owner; `side`: the panels docked at the window's edges. */
 export function Edges({ cam, targets, side, onOpen }: { cam: Cam; targets: { item: Item; b: Bounds }[]; side: Sides; onOpen: (i: Item) => void }) {
   const positions = new Map(edgeChipPositions(targets.map(({ item, b }) => ({ id: item.id, b })), cam, side, innerWidth, innerHeight).map((p) => [p.id, p]));
   return (
@@ -1462,7 +1462,7 @@ export function Minimap({
   onFollow,
 }: {
   cam: Cam;
-  /** The panels docked at the window's edges: the canvas shows between them. */
+  /** The panels docked at the window's edges: the project shows between them. */
   side: Sides;
   all: Bounds;
   placed: { item: Item; b: Bounds }[];

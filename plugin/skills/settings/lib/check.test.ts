@@ -39,9 +39,9 @@ describe('check.ts', () => {
     expect(code).toBe(1);
   });
 
-  test('reports a demo site, which a canvas chooses now', () => {
+  test('reports a demo site, which a project chooses now', () => {
     const { code, out } = check({ demo: { site: SITE } });
-    expect(out).toContain('- .obeya/settings.json, demo.site: no longer read; a canvas chooses its demo site in its settings');
+    expect(out).toContain('- .obeya/settings.json, demo.site: no longer read; a project chooses its demo site in its settings');
     expect(code).toBe(1);
   });
 

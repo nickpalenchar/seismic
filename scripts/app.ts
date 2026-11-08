@@ -127,7 +127,7 @@ if (process.platform === 'darwin') {
   copyFileSync(join(APP, 'icons', '128x128@2x.png'), icon);
   const entries = join(data, 'applications');
   mkdirSync(entries, { recursive: true });
-  const desktop = ['[Desktop Entry]', 'Type=Application', `Name=${NAME}`, 'Comment=A canvas for directing AI coding agents', `Exec="${exe}"`, `Icon=${icon}`, 'Terminal=false', 'Categories=Development;', 'StartupWMClass=obeya', ''];
+  const desktop = ['[Desktop Entry]', 'Type=Application', `Name=${NAME}`, 'Comment=A project for directing AI coding agents', `Exec="${exe}"`, `Icon=${icon}`, 'Terminal=false', 'Categories=Development;', 'StartupWMClass=obeya', ''];
   writeFileSync(join(entries, 'obeya-checkout.desktop'), desktop.join('\n'));
   if (Bun.which('update-desktop-database')) Bun.spawnSync(['update-desktop-database', entries]);
   console.log(`app: installed ${exe}, in the applications menu as ${NAME}`);

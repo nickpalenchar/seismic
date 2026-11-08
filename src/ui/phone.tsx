@@ -1,17 +1,17 @@
-// The phone view: on a phone the page shows, instead of the canvas, what waits for the owner across
-// every canvas ("Needs you"), what runs ("Running") and, folded away until opened, what is done but not
+// The phone view: on a phone the page shows, instead of the project, what waits for the owner across
+// every project ("Needs you"), what runs ("Running") and, folded away until opened, what is done but not
 // archived yet ("Done"); Seismic's conversation is a panel of its own that
-// comes up from below. A card opens full screen with the canvas's own detail view (answer options,
+// comes up from below. A card opens full screen with the project's own detail view (answer options,
 // demo, approve buttons), its conversation in the same panel, and Back returns to the list. The microphone is held by touch; Enter breaks the line, only Send sends;
 // the list itself has a plus button in the microphone's place, which makes a card and opens it (the microphone is back with a panel open);
-// what was typed but not sent survives a reload. It holds one WebSocket per canvas.
+// what was typed but not sent survives a reload. It holds one WebSocket per project.
 
 import { ChevronLeft, Plus } from 'lucide-react';
 import { useRatePrompt } from './feedback';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { type CanvasInfo, type CanvasSnapshot, type CardPatch, finishedArchivable, type Item, nameless, needsYou, openQuestions, unreadAnswers, type Usage } from '../core/types';
+import { type ProjectInfo, type ProjectSnapshot, type CardPatch, finishedArchivable, type Item, nameless, needsYou, openQuestions, unreadAnswers, type Usage } from '../core/types';
 import { ChatsHead } from './chats';
-import { api, beforeReload, cardsOn, onNotice, phoneInUse, setCanvas, useCanvas, type Where } from './api';
+import { api, beforeReload, cardsOn, onNotice, phoneInUse, setProject, useProject, type Where } from './api';
 import { enterBreaksLines } from './composer';
 import { InboxList, when } from './inbox';
 import { inboxEntries, readMark } from '../core/inbox';
@@ -38,19 +38,19 @@ import { scrollBehavior } from './motion';
 
 /**
  * Whether the page shows the phone view: on a phone, which has a coarse pointer and a short side
- * under 600 px whichever way it is held (a tablet and a narrow window at the desk keep the canvas).
- * `?view=phone` or `?view=canvas` in the address decides instead.
+ * under 600 px whichever way it is held (a tablet and a narrow window at the desk keep the project).
+ * `?view=phone` or `?view=project` in the address decides instead.
  */
 export function phoneView(): boolean {
   const asked = new URLSearchParams(location.search).get('view');
-  if (asked === 'phone' || asked === 'canvas') return asked === 'phone';
+  if (asked === 'phone' || asked === 'project') return asked === 'phone';
   return matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600;
 }
 
-/** The phone view keeps its drafts apart from any canvas's: it shows every canvas. */
+/** The phone view keeps its drafts apart from any project's: it shows every project. */
 const DRAFTS = '@phone';
-/** The canvas whose Seismic the conversation at the bottom is with, as the owner last picked it. */
-const OBEYA_CANVAS = 'obeya-phone-canvas';
+/** The project whose Seismic the conversation at the bottom is with, as the owner last picked it. */
+const OBEYA_PROJECT = 'obeya-phone-project';
 /** Whether the owner opened "Planned" or "Done" in this tab; each starts closed. */
 const PLANNED_OPEN = 'obeya-phone-planned';
 const DONE_OPEN = 'obeya-phone-done';
@@ -151,7 +151,7 @@ function tapOpensKeyboard() {
 
 /** When something began: the time today, else the day. */
 
-export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
+export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   keepDrafts(sessionStorage, DRAFTS);
   useState(() => {
     forTouch();
@@ -160,19 +160,19 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   });
   useEffect(watchKeyboard, []);
   useEffect(tapOpensKeyboard, []);
-  const [canvases, setCanvases] = useState(loaded);
-  // the canvases it last had, while the server did not answer: the list the server sends once it does
-  useEffect(() => setCanvases(loaded), [loaded]);
-  knowProjects(canvases);
-  const [snaps, setSnaps] = useState<Record<string, CanvasSnapshot>>({});
+  const [projects, setProjects] = useState(loaded);
+  // the projects it last had, while the server did not answer: the list the server sends once it does
+  useEffect(() => setProjects(loaded), [loaded]);
+  knowProjects(projects);
+  const [snaps, setSnaps] = useState<Record<string, ProjectSnapshot>>({});
   const snapsRef = useRef(snaps);
   snapsRef.current = snaps;
   const [offline, setOffline] = useState<Record<string, number | null>>({});
-  // the canvases whose connection is open but answers nothing
+  // the projects whose connection is open but answers nothing
   const [frozen, setFrozen] = useState<Record<string, boolean>>({});
-  // the plan's usage limits, the same over every canvas's connection
+  // the plan's usage limits, the same over every project's connection
   const [usage, setUsage] = useState<Usage | null>(null);
-  const feed = (id: string, live: ReturnType<typeof useCanvas>) => {
+  const feed = (id: string, live: ReturnType<typeof useProject>) => {
     setUsage(live.usage);
     if (live.snapshot) setSnaps((s) => (s[id] === live.snapshot ? s : { ...s, [id]: live.snapshot! }));
     // a socket that is open but answers nothing (frozen) counts as not answering, like a lost one
@@ -180,19 +180,19 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     setOffline((o) => (o[id] === down ? o : { ...o, [id]: down }));
     const isFrozen = live.offlineSince === null && live.frozenSince !== null;
     setFrozen((f) => (f[id] === isFrozen ? f : { ...f, [id]: isFrozen }));
-    if (live.canvases) setCanvases(live.canvases);
+    if (live.projects) setProjects(live.projects);
   };
 
   // ---------------------------------------------------------------- what is open
   const [open, setOpenState] = useState<string | null>(cardInAddress);
   /**
-   * The address with `card` open on its canvas (or the canvas of Seismic's conversation with none),
+   * The address with `card` open on its project (or the project of Seismic's conversation with none),
    * and that conversation open or not, keeping what else it holds (`?view=phone`, say).
    */
   const addressWith = ({ card, talk }: { card: string | null; talk: boolean }) => {
     const x = card ? allRef.current.find((c) => c.item.id === card) : undefined;
     // a card not known yet (the snapshots still on their way) keeps the address that named it
-    const path = !card ? projectPath(obeyaRef.current) : x ? cardPath(x.canvas.id, x.item) : location.pathname;
+    const path = !card ? projectPath(obeyaRef.current) : x ? cardPath(x.project.id, x.item) : location.pathname;
     const q = queryWithout(location.search, 'c', 'card', 'talk');
     return `${path}${talk ? (q ? `${q}&talk` : '?talk') : q}`;
   };
@@ -308,8 +308,8 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   }, [open]);
 
   // ---------------------------------------------------------------- the cards
-  const ordered = canvases.filter((c) => snaps[c.id]);
-  const all = useMemo(() => ordered.flatMap((c) => snaps[c.id]!.items.map((item) => ({ item, canvas: c }))), [snaps, canvases]);
+  const ordered = projects.filter((c) => snaps[c.id]);
+  const all = useMemo(() => ordered.flatMap((c) => snaps[c.id]!.items.map((item) => ({ item, project: c }))), [snaps, projects]);
   const allRef = useRef(all);
   allRef.current = all;
   const byId = (id: string) => allRef.current.find((x) => x.item.id === id)?.item;
@@ -322,13 +322,13 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     history.replaceState(history.state, '', addressWith({ card: id, talk: talkRef.current }));
   }, [all]);
   // a project renamed: the address names it as it is called now, the open card's included
-  const listed = useRef(canvases);
+  const listed = useRef(projects);
   useEffect(() => {
-    if (listed.current === canvases) return;
-    listed.current = canvases;
+    if (listed.current === projects) return;
+    listed.current = projects;
     const now = addressWith({ card: openRef.current, talk: talkRef.current });
     if (now !== `${location.pathname}${location.search}`) history.replaceState(history.state, '', now);
-  }, [canvases]);
+  }, [projects]);
   // approved cards the server is still landing: they need the owner no longer
   const [underway, setUnderway] = useState<string[]>([]);
   // a card replied to from "Needs you" stays under way while it still waits for the owner
@@ -344,25 +344,25 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   );
   const opened = open ? all.find((x) => x.item.id === open) : undefined;
 
-  // the canvas whose Seismic is spoken to without a card open
-  const [obeyaCanvas, setObeyaCanvasState] = useState(() => {
-    const wanted = readAddress().canvas;
-    return (projectNamed(canvases, wanted) ?? canvases.find((c) => c.id === localStorage.getItem(OBEYA_CANVAS)) ?? canvases[0]!).id;
+  // the project whose Seismic is spoken to without a card open
+  const [obeyaProject, setObeyaProjectState] = useState(() => {
+    const wanted = readAddress().project;
+    return (projectNamed(projects, wanted) ?? projects.find((c) => c.id === localStorage.getItem(OBEYA_PROJECT)) ?? projects[0]!).id;
   });
-  const obeyaId = canvases.some((c) => c.id === obeyaCanvas) ? obeyaCanvas : canvases[0]!.id;
+  const obeyaId = projects.some((c) => c.id === obeyaProject) ? obeyaProject : projects[0]!.id;
   const obeyaRef = useRef(obeyaId);
   obeyaRef.current = obeyaId;
-  const setObeyaCanvas = (id: string) => {
+  const setObeyaProject = (id: string) => {
     // at once, for the address of the conversation opened next
     obeyaRef.current = id;
-    setObeyaCanvasState(id);
+    setObeyaProjectState(id);
     try {
-      localStorage.setItem(OBEYA_CANVAS, id);
+      localStorage.setItem(OBEYA_PROJECT, id);
     } catch {}
   };
-  // every call goes to the API of the canvas in view: the open card's, else Seismic's
-  setCanvas(opened?.canvas.id ?? obeyaId);
-  // and every call about a card to its canvas's
+  // every call goes to the API of the project in view: the open card's, else Seismic's
+  setProject(opened?.project.id ?? obeyaId);
+  // and every call about a card to its project's
   for (const c of ordered) cardsOn(c.id, snaps[c.id]!.items.map((i) => i.id));
 
   // ---------------------------------------------------------------- edits of the open card
@@ -395,7 +395,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   };
   useEffect(() => beforeReload(() => void flushEdit().catch(console.error)), []);
   // a card of the owner's left without a title (Back, the browser's own, a push opening another): one
-  // left empty was not wanted and goes, one with a task Seismic names, as on the canvas
+  // left empty was not wanted and goes, one with a task Seismic names, as on the project
   const deleting = useRef<string | null>(null);
   const was = useRef(open);
   useEffect(() => {
@@ -420,7 +420,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     if (making) return;
     setMaking(true);
     try {
-      // on the canvas whose Seismic the list speaks to, where there is room on it
+      // on the project whose Seismic the list speaks to, where there is room on it
       const card = await api.create({ title: '' });
       beingWritten.add(card.id);
       setMade(card.id);
@@ -436,7 +436,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
     if (openRef.current || talkRef.current) return;
     openId(made);
   }, [made, all]);
-  // the card just made is written in its text first, as on the canvas: Seismic names it from that
+  // the card just made is written in its text first, as on the project: Seismic names it from that
   useEffect(() => {
     if (!open || !beingWritten.has(open) || !opened || opened.item.title) return;
     const body = document.querySelector<HTMLElement>('#ph-card .p-body');
@@ -554,8 +554,8 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   const quiet = quietSince !== null && (isFrozen || Date.now() - quietSince >= QUIET_MS);
   const unresponsive = isFrozen && Date.now() - quietSince! >= UNRESPONSIVE_MS;
 
-  const feeds = canvases.map((c) => <Feed key={c.id} id={c.id} onChange={feed} />);
-  const several = canvases.length > 1;
+  const feeds = projects.map((c) => <Feed key={c.id} id={c.id} onChange={feed} />);
+  const several = projects.length > 1;
   const banner = quiet && (
     <div className="ph-quiet" role="status">
       <b>{isFrozen ? (unresponsive ? t.unresponsiveSince(when(quietSince!)) : t.notResponding) : t.phone.notAnswering(when(quietSince!))}</b>
@@ -638,7 +638,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   }, [openEntry && readMark(openEntry)]);
 
   if (open) {
-    const c = opened?.canvas;
+    const c = opened?.project;
     const items = c ? snaps[c.id]!.items : [];
     const i = opened?.item;
     return (
@@ -650,7 +650,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
               <ChevronLeft size={18} strokeWidth={2.25} aria-hidden="true" />
               {t.phone.back}
             </button>
-            {c && several && <span className="ph-canvas">{c.name}</span>}
+            {c && several && <span className="ph-project">{c.name}</span>}
           </header>
           {banner}
           <div className="card-sheet ph-sheet">
@@ -662,7 +662,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
                   key={i.id}
                   item={i}
                   all={items}
-                  repos={snaps[c.id]!.canvas.repos}
+                  repos={snaps[c.id]!.project.repos}
                   parent={i.parent ? items.find((x) => x.id === i.parent) : undefined}
                   from={i.from ? items.find((x) => x.id === i.from) : undefined}
                   onEdit={onEdit}
@@ -676,7 +676,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
               </Cards.Provider>
             ) : (
               // the snapshots are still on their way, or the card went (archived, deleted)
-              Object.keys(snaps).length === canvases.length && <p className="hint">{t.phone.gone}</p>
+              Object.keys(snaps).length === projects.length && <p className="hint">{t.phone.gone}</p>
             )}
           </div>
         </div>
@@ -707,13 +707,13 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   /** The panel, with the conversation an answer waits unread in when the one last picked has none. */
   const openTalkNewest = () => {
     const waiting = ordered.find((c) => unreadOf(c.id));
-    if (!unreadOf(obeyaId) && waiting) setObeyaCanvas(waiting.id);
+    if (!unreadOf(obeyaId) && waiting) setObeyaProject(waiting.id);
     openTalk();
   };
   const shown = talk && !closing;
   // the tasks nobody has started yet (stopped ones and those set to start at a time among them), but nothing the lists above show already
   const planned = all.filter(({ item }) => plannedLater(item) && !runs(item) && !isUnderway(item.id));
-  // what the canvas's "Archive done" would take, but nothing the lists above show already
+  // what the project's "Archive done" would take, but nothing the lists above show already
   const done = all.filter(({ item }) => finishedArchivable(item) && !needsYou(item) && !item.snoozed?.waiting && !runs(item) && !isUnderway(item.id));
   return (
     <HoldToTalk.Provider value={press}>
@@ -734,10 +734,10 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
             onRead={inboxRead.markRead}
             onGo={(e) => {
               if (e.card) return openCard(e.card);
-              setObeyaCanvas(e.canvas);
+              setObeyaProject(e.project);
               openTalk();
             }}
-            onProposalCard={(_canvas, i) => openCard(i)}
+            onProposalCard={(_project, i) => openCard(i)}
             onReply={(c, i, r) =>
               sendReply(c, i, r, {
                 mark: (id, what) => setUnderway((u) => (what === null ? u.filter((x) => x !== id) : [...u.filter((x) => x !== id), id])),
@@ -758,7 +758,7 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
       {talk && (
         <TalkPanel
           title={t.koordinator.title}
-          head={obeyaSnap && <ChatsHead title={<span className="ph-word">{t.koordinator.title}</span>} canvas={obeyaId} canvasName={obeyaSnap.canvas.name} chat={obeyaSnap.chat} chats={obeyaSnap.chats} talk={obeyaSnap.talk} onCanvas={setObeyaCanvas} />}
+          head={obeyaSnap && <ChatsHead title={<span className="ph-word">{t.koordinator.title}</span>} project={obeyaId} projectName={obeyaSnap.project.name} chat={obeyaSnap.chat} chats={obeyaSnap.chats} talk={obeyaSnap.talk} onProject={setObeyaProject} />}
           label={t.phone.talkTitle}
           banner={banner}
           onClose={closeTalk}
@@ -770,13 +770,13 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
               <KoordinatorAgent.Provider value={obeyaSnap.koordinatorAgent}>
               <KoordinatorTalk
                 on
-                canvas={obeyaId}
+                project={obeyaId}
                 talk={obeyaSnap.talk}
                 chat={obeyaSnap.chat}
                 chatModel={obeyaSnap.chatModel}
                 chats={obeyaSnap.chats}
                 items={obeyaSnap.items}
-                repos={obeyaSnap.canvas.repos}
+                repos={obeyaSnap.project.repos}
                 onOpen={openCard}
                 onTell={(text, images, replyTo) => void tellTyped(text, images, null, undefined, replyTo)}
                 draft={obeyaDraft(obeyaId)}
@@ -787,13 +787,13 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
         </TalkPanel>
       )}
       <TalkButton label={t.phone.talkTitle} shown={shown} n={unread} count={t.koordinator.unreadCount(unread)} working={ordered.some((c) => obeyaWorks(snaps[c.id]!.talk))} onClick={() => (talk ? leaveTalk.current?.() : openTalkNewest())} />
-      {/* right of the microphone, with several canvases: whose Seismic the microphone and the panel speak to */}
+      {/* right of the microphone, with several projects: whose Seismic the microphone and the panel speak to */}
       {several && (
-        <label className="pill ph-canvas-pick">
-          <span className="name">{canvases.find((c) => c.id === obeyaId)?.name}</span>
+        <label className="pill ph-project-pick">
+          <span className="name">{projects.find((c) => c.id === obeyaId)?.name}</span>
           <span className="hint">▾</span>
-          <select value={obeyaId} aria-label={t.phone.canvas} onChange={(e) => setObeyaCanvas(e.target.value)}>
-            {canvases.map((c) => (
+          <select value={obeyaId} aria-label={t.phone.project} onChange={(e) => setObeyaProject(e.target.value)}>
+            {projects.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -814,19 +814,19 @@ export function Phone({ canvases: loaded }: { canvases: CanvasInfo[] }) {
   );
 }
 
-/** One canvas's live snapshot, handed up as it changes. */
-function Feed({ id, onChange }: { id: string; onChange: (id: string, live: ReturnType<typeof useCanvas>) => void }) {
-  const live = useCanvas(id);
-  useEffect(() => onChange(id, live), [live.snapshot, live.offlineSince, live.frozenSince, live.canvases, live.usage]);
+/** One project's live snapshot, handed up as it changes. */
+function Feed({ id, onChange }: { id: string; onChange: (id: string, live: ReturnType<typeof useProject>) => void }) {
+  const live = useProject(id);
+  useEffect(() => onChange(id, live), [live.snapshot, live.offlineSince, live.frozenSince, live.projects, live.usage]);
   return null;
 }
 
-/** The cards at work, each with its status line, as their cards on the canvas show them. */
-function Running({ entries, several, onOpen }: { entries: { item: Item; canvas: CanvasInfo }[]; several: boolean; onOpen: (i: Item) => void }) {
+/** The cards at work, each with its status line, as their cards on the project show them. */
+function Running({ entries, several, onOpen }: { entries: { item: Item; project: ProjectInfo }[]; several: boolean; onOpen: (i: Item) => void }) {
   if (!entries.length) return <p className="ph-none">{t.phone.nothingRuns}</p>;
   return (
     <ul className="ph-list">
-      {entries.map(({ item: i, canvas: c }) => (
+      {entries.map(({ item: i, project: c }) => (
         <li key={i.id}>
           <button className={`${cardClass(i)} ph-card`} onClick={() => onOpen(i)}>
             <CardFace item={i} where={several ? c.name : undefined} />
@@ -858,7 +858,7 @@ function useFolded(key: string): [boolean, () => void] {
  * The cards planned or done, below the others: a head with their count that opens and closes the
  * list. Opened, the head moves to the top of the screen so the cards below it show.
  */
-function Folded({ label, entries, several, open, onToggle, onOpen }: { label: string; entries: { item: Item; canvas: CanvasInfo }[]; several: boolean; open: boolean; onToggle: () => void; onOpen: (i: Item) => void }) {
+function Folded({ label, entries, several, open, onToggle, onOpen }: { label: string; entries: { item: Item; project: ProjectInfo }[]; several: boolean; open: boolean; onToggle: () => void; onOpen: (i: Item) => void }) {
   const head = useRef<HTMLElement>(null);
   const opened = useRef(false);
   useEffect(() => {
@@ -882,7 +882,7 @@ function Folded({ label, entries, several, open, onToggle, onOpen }: { label: st
       </h2>
       {open && (
         <ul className="ph-list">
-          {entries.map(({ item: i, canvas: c }) => (
+          {entries.map(({ item: i, project: c }) => (
             <li key={i.id}>
               <button className={`${cardClass(i)} ph-card`} onClick={() => onOpen(i)}>
                 <CardFace item={i} where={several ? c.name : undefined} />
@@ -896,7 +896,7 @@ function Folded({ label, entries, several, open, onToggle, onOpen }: { label: st
 }
 
 /**
- * Left of the microphone, in reach of the thumb, as the canvas's top bar has it: opens the conversation
+ * Left of the microphone, in reach of the thumb, as the project's top bar has it: opens the conversation
  * of what is in view as a panel, and closes it while it is open (inverted then). `n`: what waits there;
  * `working`: the conversation shows an agent (or Seismic) at work, which the moving line of a working card says.
  */

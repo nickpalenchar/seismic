@@ -1,4 +1,4 @@
-// Seismic's suggestion of a card's labels (design: The canvas): the plugin's labels skill guides the
+// Seismic's suggestion of a card's labels (design: The project): the plugin's labels skill guides the
 // short session that judges them, as part of the naming call or a call of its own at the start.
 
 import { readFileSync } from 'node:fs';

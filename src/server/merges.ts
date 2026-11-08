@@ -119,7 +119,7 @@ export class Merges {
   }
 }
 
-const SYSTEM = `You compare two cards on Seismic, a canvas on which the owner directs coding agents. Compare only the supplied card texts and handover summary, without reading repository files or branch diffs. Use their text and the survivor's handover summary as evidence.
+const SYSTEM = `You compare two cards on Seismic, a project on which the owner directs coding agents. Compare only the supplied card texts and handover summary, without reading repository files or branch diffs. Use their text and the survivor's handover summary as evidence.
 When both are unworked, write the one card both become: include everything either asks for once, preserving their words where they agree. Questions stay questions.
 When the right card has progressed, it stays exactly as it is. Mark whether the left title and each exact part of its task are covered, including a request expressed only in the title. If all work is covered, return covered. Otherwise return followUp with a standalone task containing only the extra work, and the left card's screenshots and questions relevant to that extra work. Only mark work covered when the supplied text or summary supports that judgement. The owner checks your comparison before approving.
 Then call merge_cards once and end your turn.`;

@@ -707,7 +707,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
     /** Seismic starts again, the doc still gone, and the worker resumes. */
     const restart = () => {
       workers.shutdown();
-      const b = new Board(store, board.canvas, () => ({ docs: [], dirs: [] }));
+      const b = new Board(store, board.project, () => ({ docs: [], dirs: [] }));
       setWorkers(restarting(b));
       workers.resumeAll();
       return b;
@@ -887,7 +887,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     await flush();
     expect(spaces.leasedBy(c.id)).toBeNull();
     expect(spaces.leasable()).toBe(true);
-    // the pool the canvas shows has it free
+    // the pool the project shows has it free
     expect(taken()).toEqual([]);
     board.restore(c.id);
     workers.restored(c.id);
@@ -1061,7 +1061,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     expect(stopped(board.item(w.id)!)).toBe(true);
     expect(spaces.leasedBy(w.id)).toBe(clone);
     expect(board.events(w.id).map((e) => e.text)).not.toContain('Im Plan-Doc abgehakt: Workstation freigegeben.');
-    // its plan, every box ticked, stays on the canvas with it
+    // its plan, every box ticked, stays on the project with it
     expect(board.item(w.parent!)).toBeDefined();
     // started again, its work lands, and the box counts: the plan ends once its worker is done
     await workers.start(w.id);

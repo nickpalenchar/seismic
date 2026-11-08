@@ -1,4 +1,4 @@
-// Seismic as an app: a window on the canvas of the compiled server (`obeya-server`, a sidecar beside
+// Seismic as an app: a window on the project of the compiled server (`obeya-server`, a sidecar beside
 // this program, built by scripts/build-app.ts), which the shell starts and stops.
 //
 // - One Seismic per home: when one runs on the home already ($SEISMIC_HOME/server.json, written by the
@@ -13,7 +13,7 @@
 // - Every request to the server names the owner's key from the home (`owner.key`,
 //   src/server/owner.ts); the window signs in through a link the shell asks the server for
 //   (`POST /api/login-link`).
-// - Links to anything but the canvas, and new windows, open in the default browser; so does
+// - Links to anything but the project, and new windows, open in the default browser; so does
 //   "Im Browser öffnen" (the page offers it when it finds `window.obeyaApp`, the macOS menu too),
 //   through a link that signs that one browser in.
 // - The page gets the microphone without asking (it records only while Space or the mic button is
@@ -21,7 +21,7 @@
 // - Downloads go into the Downloads folder and are shown there.
 // - A newer release is downloaded in the background, shown in the bar and installed when the owner
 //   says so, once the workers paused (update.rs).
-// - SEISMIC_APP_CHECK=<url of a module>: the page imports it once the canvas has loaded
+// - SEISMIC_APP_CHECK=<url of a module>: the page imports it once the project has loaded
 //   (scripts/check-app.ts checks the microphone and video in the webview that way).
 // - SEISMIC_CHECKOUT=<checkout>: started from a checkout (`bun run app`, scripts/app.ts), the shell
 //   starts `bun <checkout>/src/server/main.ts` (SEISMIC_BUN names the bun) instead of the sidecar,
@@ -96,7 +96,7 @@ pub(crate) struct Seismic {
   pub(crate) stopping: AtomicBool,
   /// The shell starts again (`relaunch`): leaving, it does not stop the server.
   relaunching: AtomicBool,
-  /// Where the window opens: the page it showed before the shell started again, else the canvas.
+  /// Where the window opens: the page it showed before the shell started again, else the project.
   first: Mutex<Option<String>>,
 }
 
@@ -108,7 +108,7 @@ impl Seismic {
     }
   }
 
-  /// Whether `url` is the canvas or the page the shell shows until it answers.
+  /// Whether `url` is the project or the page the shell shows until it answers.
   fn ours(&self, url: &Url) -> bool {
     let port = self.port.load(Ordering::SeqCst);
     url.scheme() == "tauri"
@@ -175,7 +175,7 @@ pub(crate) fn post(port: u16, path: &str, body: &serde_json::Value) -> Option<se
 }
 
 fn answers(port: u16) -> bool {
-  http(port, "GET", "/api/canvases") == Some(200)
+  http(port, "GET", "/api/projects") == Some(200)
 }
 
 pub(crate) fn home() -> PathBuf {
@@ -365,7 +365,7 @@ pub(crate) fn no_window(cmd: &mut Command) {
   let _ = cmd;
 }
 
-/// Brings up the Seismic of this home (the running one, else a new server) and shows its canvas;
+/// Brings up the Seismic of this home (the running one, else a new server) and shows its project;
 /// ends the app when that server has ended.
 fn serve(app: AppHandle, obeya: Arc<Seismic>, updates: Arc<update::Updates>) {
   let home = home();
@@ -397,7 +397,7 @@ enum Started {
   Beaten,
 }
 
-/// Starts the server, shows its canvas once it answers, and waits for it to end.
+/// Starts the server, shows its project once it answers, and waits for it to end.
 fn start(app: &AppHandle, obeya: &Seismic, updates: &update::Updates, home: &Path, attach: &dyn Fn(u16)) -> Started {
   let Some(log) = log_file(home) else {
     fail(
@@ -488,7 +488,7 @@ fn watch(app: &AppHandle, obeya: &Seismic, home: &Path) -> bool {
   }
 }
 
-/// Shows the canvas once it answers, signed in, and tells it to stop when the owner quit meanwhile.
+/// Shows the project once it answers, signed in, and tells it to stop when the owner quit meanwhile.
 fn navigate(app: &AppHandle, obeya: &Seismic) {
   let (Some(_), Some(w)) = (obeya.url(), main_window(app)) else { return };
   let next = obeya.first.lock().unwrap().take().unwrap_or_else(|| "/".into());
@@ -508,7 +508,7 @@ fn quit(app: &AppHandle, obeya: &Seismic) -> bool {
     0 => true,
     port => {
       if first {
-        // the canvas shows what the stop waits for
+        // the project shows what the stop waits for
         show(app);
       }
       http(port, "POST", "/api/stop").is_some()
@@ -715,7 +715,7 @@ fn window(app: &AppHandle, obeya: Arc<Seismic>, placed: Option<&Placed>) -> taur
       .visible(p.visible),
     None => builder,
   };
-  // on a Mac the window has no title bar of its own: the canvas's bar is it, with the traffic lights in it,
+  // on a Mac the window has no title bar of its own: the project's bar is it, with the traffic lights in it,
   // centred on the bar's height (58 px, #bar in src/ui/styles.css). tao makes the title bar the buttons'
   // height plus y and leaves them 9 px above its bottom: the 14 px buttons' centre is y - 2 from the top
   #[cfg(target_os = "macos")]
@@ -777,7 +777,7 @@ fn main() {
     // on a link with target=_blank and hands it to the plugin over IPC, which the page may not call
     // (capabilities/window.json), so the click would do nothing; the shell opens such links itself
     .plugin(tauri_plugin_dialog::init())
-    // system notifications, which the canvas page asks for when a card needs the owner (capabilities/window.json)
+    // system notifications, which the project page asks for when a card needs the owner (capabilities/window.json)
     .plugin(tauri_plugin_notification::init())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .setup(move |app| {

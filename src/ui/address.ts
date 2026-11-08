@@ -1,29 +1,29 @@
-// The page's address: `/p/<project>` shows a canvas, `/p/<project>/c/<code>` a card open on it,
+// The page's address: `/p/<project>` shows a project, `/p/<project>/c/<code>` a card open on it,
 // the code being the card's short code or its whole id, `/p/<project>/feedback` the Agent Feedback
-// Log, a page of its own opened from that canvas. What else the page shows (the phone view,
+// Log, a page of its own opened from that project. What else the page shows (the phone view,
 // the conversation open on the phone) stays in the query.
 import { projectAt, projectSegment } from '../core/project-slug';
 import type { Item } from '../core/types';
 
 export interface Address {
-  canvas?: string;
+  project?: string;
   /** A card's code or id, as the address has it. */
   card?: string;
-  /** A page in place of the canvas. */
+  /** A page in place of the project. */
   page?: 'feedback';
 }
 
 const PATH = /^\/p\/([^/]+)(?:\/c\/([^/]+)|\/(feedback))?\/?$/;
 const LEGACY_PATH = /^\/c\/([^/]+)(?:\/card\/([^/]+)|\/(feedback))?\/?$/;
 
-/** What an address names; the query of addresses before paths (`?c=<canvas>&card=<id>`) too. */
+/** What an address names; the query of addresses before paths (`?c=<project>&card=<id>`) too. */
 export function readAddress(at: { pathname: string; search: string } = location): Address {
   const m = PATH.exec(at.pathname) ?? LEGACY_PATH.exec(at.pathname);
-  if (m) return { canvas: decodeURIComponent(m[1]!), ...(m[2] ? { card: decodeURIComponent(m[2]) } : {}), ...(m[3] ? { page: 'feedback' as const } : {}) };
+  if (m) return { project: decodeURIComponent(m[1]!), ...(m[2] ? { card: decodeURIComponent(m[2]) } : {}), ...(m[3] ? { page: 'feedback' as const } : {}) };
   const q = new URLSearchParams(at.search);
-  const canvas = q.get('c');
+  const project = q.get('c');
   const card = q.get('card');
-  return { ...(canvas ? { canvas } : {}), ...(card ? { card } : {}) };
+  return { ...(project ? { project } : {}), ...(card ? { card } : {}) };
 }
 
 let known: { id: string; name: string }[] = [];
@@ -33,13 +33,13 @@ export const knowProjects = (projects: { id: string; name: string }[]) => {
   known = projects;
 };
 
-/** The project an address part (`Address.canvas`) names among `projects`: by its name, else by its id. */
+/** The project an address part (`Address.project`) names among `projects`: by its name, else by its id. */
 export const projectNamed = <T extends { id: string; name: string }>(projects: T[], segment: string | undefined) => projectAt(projects, segment);
 
 /** The address of a project by its id: its name as the owner sees it, its id while the page does not know it. */
-export const projectPath = (canvas: string) => {
-  const p = known.find((c) => c.id === canvas);
-  return `/p/${encodeURIComponent(p ? projectSegment(p, known) : canvas)}`;
+export const projectPath = (project: string) => {
+  const p = known.find((c) => c.id === project);
+  return `/p/${encodeURIComponent(p ? projectSegment(p, known) : project)}`;
 };
 
 /**
@@ -57,12 +57,12 @@ export function followedPath(pathname: string, projects: { id: string; name: str
   return ours ? `${now}${pathname.slice(seg[0].length)}` : null;
 }
 
-/** The Agent Feedback Log, opened from a canvas: its link back to the dashboard leads there. */
-export const feedbackLogPath = (canvas: string) => `${projectPath(canvas)}/feedback`;
+/** The Agent Feedback Log, opened from a project: its link back to the dashboard leads there. */
+export const feedbackLogPath = (project: string) => `${projectPath(project)}/feedback`;
 
-/** The address of a card on its canvas: by its short code where it has one. */
-export const cardPath = (canvas: string, card: Pick<Item, 'id' | 'short'> | string) =>
-  `${projectPath(canvas)}/c/${encodeURIComponent(typeof card === 'string' ? card : (card.short ?? card.id))}`;
+/** The address of a card on its project: by its short code where it has one. */
+export const cardPath = (project: string, card: Pick<Item, 'id' | 'short'> | string) =>
+  `${projectPath(project)}/c/${encodeURIComponent(typeof card === 'string' ? card : (card.short ?? card.id))}`;
 
 /** The card an address names among `items`, by its code or its id. */
 export const named = <T extends Pick<Item, 'id' | 'short'>>(items: T[], code: string): T | undefined =>
@@ -76,10 +76,10 @@ export function queryWithout(search: string, ...names: string[]): string {
   return s ? `?${s}` : '';
 }
 
-/** An address from before paths (`/?c=<canvas>&card=<id>`) in today's form, in place; a link or bookmark of then still opens what it named. */
+/** An address from before paths (`/?c=<project>&card=<id>`) in today's form, in place; a link or bookmark of then still opens what it named. */
 export function upgradeAddress() {
   if (location.pathname !== '/' && !LEGACY_PATH.test(location.pathname)) return;
-  const { canvas, card, page } = readAddress();
-  if (!canvas) return;
-  history.replaceState(history.state, '', `${card ? cardPath(canvas, card) : page === 'feedback' ? feedbackLogPath(canvas) : projectPath(canvas)}${queryWithout(location.search, 'c', 'card')}${location.hash}`);
+  const { project, card, page } = readAddress();
+  if (!project) return;
+  history.replaceState(history.state, '', `${card ? cardPath(project, card) : page === 'feedback' ? feedbackLogPath(project) : projectPath(project)}${queryWithout(location.search, 'c', 'card')}${location.hash}`);
 }

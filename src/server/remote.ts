@@ -299,7 +299,7 @@ export class Access implements Gate {
     return this.notPairedPage(false);
   }
 
-  /** `/login`: a browser on this machine signs in with a one-time link; another device goes to the canvas, or to how to connect. */
+  /** `/login`: a browser on this machine signs in with a one-time link; another device goes to the project, or to how to connect. */
   loginRoute(req: Request, server: Bun.Server<unknown>): Response {
     return this.isLocal(req, server) ? this.owner.login(req, server.port!) : new Response(null, { status: 303, headers: { location: '/' } });
   }
@@ -385,7 +385,7 @@ export class Access implements Gate {
 
   /**
    * `/pair`: the address in the QR code (`?code=`) or the form of the page for devices not paired
-   * yet. A device with the right code gets its cookie and goes to the canvas.
+   * yet. A device with the right code gets its cookie and goes to the project.
    */
   async pairRoute(req: Request, server: Bun.Server<unknown>): Promise<Response> {
     if (this.isLocal(req, server) || this.device(req)) return new Response(null, { status: 303, headers: { location: '/' } });

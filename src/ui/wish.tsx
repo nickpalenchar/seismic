@@ -3,7 +3,7 @@
 // something, and from the link under a reply that says Seismic cannot do what they asked. What the
 // owner writes or says in its field a small job writes up as a GitHub issue in English; title and
 // body stand editable as they go out, and "Open on GitHub" opens the prefilled issue for the
-// owner to submit under their own account. The draft is kept per tab and canvas, like every input.
+// owner to submit under their own account. The draft is kept per tab and project, like every input.
 
 import { MessageCircle } from 'lucide-react';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
@@ -71,10 +71,10 @@ function writeAgain() {
   }, Math.min(Math.max(0, Date.parse(a.until) - Date.now()), 2 ** 31 - 1));
 }
 
-/** Takes back the canvas's draft that `store` kept, and writes it down there from now on. Once per page. */
-export function keepWish(store: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, canvas: string) {
+/** Takes back the project's draft that `store` kept, and writes it down there from now on. Once per page. */
+export function keepWish(store: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, project: string) {
   if (kept) return;
-  kept = { store, key: `obeya-wish-${canvas}` };
+  kept = { store, key: `obeya-wish-${project}` };
   try {
     const issue = JSON.parse(store.getItem(kept.key) ?? 'null') as Issue | null;
     if (issue && typeof issue.title === 'string' && typeof issue.body === 'string') state = { ...state, issue: { ...issue, images: issue.images ?? [] } };
