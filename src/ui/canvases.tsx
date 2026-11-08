@@ -345,9 +345,14 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   useMenuClose(open, box, () => setOpen(false), true, menu);
   useEffect(() => {
     if (!open || !floating) return;
-    const away = () => setOpen(false);
-    addEventListener('wheel', away, { passive: true });
-    return () => removeEventListener('wheel', away);
+    // the camera moving (a pan, a zoom, a flight) moves the button away from the menu
+    const from = box.current?.getBoundingClientRect();
+    let frame = requestAnimationFrame(function watch() {
+      const b = box.current?.getBoundingClientRect();
+      if (!b || !from || Math.abs(b.left - from.left) > 1 || Math.abs(b.top - from.top) > 1 || Math.abs(b.width - from.width) > 1) return setOpen(false);
+      frame = requestAnimationFrame(watch);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [open, floating]);
   useLayoutEffect(() => {
     const m = menu.current;

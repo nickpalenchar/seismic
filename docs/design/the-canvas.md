@@ -563,7 +563,7 @@ The open card's "⋯" beside its labels offers "Move to canvas" with the project
 the canvas shown stays, and a line confirms where it went. A plan's container has the same "⋯" at
 the end of its head, shown while the pointer is on the plan (always on touch): the plan goes with
 all its workstreams. Its menu stands over the page, at the size of the page rather than the zoom,
-opens under the button or, without room there, above it, scrolling where neither side holds it, and closes when the canvas is panned or zoomed under it. Esc closes the menu alone, the open card or plan staying open. A wait whose other card lies on another
+opens under the button or, without room there, above it, scrolling where neither side holds it, and closes when the canvas moves under it (a pan, a zoom, a flight of the view). Esc closes the menu alone, the open card or plan staying open. A wait whose other card lies on another
 canvas ends in a stub: a short faint arrow into the card from the left (what it waits for) or out
 of it to the right (what waits for it), ending at a round button with the other canvas's icon that
 names the card and canvas on hover and opens that card there.
