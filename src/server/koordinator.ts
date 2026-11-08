@@ -1348,6 +1348,8 @@ export class Koordinator {
   private setQueue(cardId: string, q: Wait | null, keep?: string) {
     const since = keep ?? this.o.board.item(cardId)?.queue?.since ?? new Date().toISOString();
     this.o.board.work(cardId, { queue: q ? JSON.stringify({ ...q, since }) : null });
+    if (q && 'behind' in q && q.behind.length) this.o.board.record(cardId, 'waitsForCard', 'obeya', { other: q.behind[0]!, again: (l) => l.code === 'waitsForCard' && q.behind.includes(l.otherId ?? '') });
+    else if (q && 'workstation' in q) this.o.board.record(cardId, 'waitsForWorkstation', 'obeya', { again: (l) => l.code === 'waitsForWorkstation' });
   }
 
   private card(id: string): Item {

@@ -3371,3 +3371,33 @@ export function projectAgentSetting(role: AgentRole, base: AgentSetting, own: Pr
   return { ...base, ...mine, ...(base.harness && base.harness !== 'claude' ? { harness: 'claude' as const } : {}) };
 }
 
+
+/** What happened on a card, as the Activity log records it (the text of a line is built in the UI). */
+export const ACTIVITY_CODES = ['created', 'proposed', 'archived', 'deleted', 'stopped', 'reviewSent', 'approved', 'started', 'landed', 'waitsForCard', 'waitsForWorkstation', 'usageLimit'] as const;
+export type ActivityCode = (typeof ACTIVITY_CODES)[number];
+
+/** Who did it: the owner, the agent of the card, or Seismic itself. */
+export type ActivityWho = 'owner' | 'agent' | 'obeya';
+
+/** One line of the Activity log. The card is shown as it is now; a deleted card keeps its title (`deleted`). */
+export interface ActivityEntry {
+  id: number;
+  at: string;
+  who: ActivityWho;
+  code: ActivityCode;
+  project: string;
+  projectName: string;
+  card: Item;
+  /** Deleted since: no link. */
+  deleted?: true;
+  /** The card it waits for (`waitsForCard`). */
+  other?: { id: string; title: string };
+  /** The harness whose usage limit stopped it (`usageLimit`). */
+  harness?: Harness;
+}
+
+/** A page of the log, newest first; `more` when older lines exist. */
+export interface ActivityPage {
+  entries: ActivityEntry[];
+  more: boolean;
+}

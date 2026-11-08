@@ -9,7 +9,7 @@
 import { CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../core/labels';
 import { createHash } from 'node:crypto';
-import { type AgentAt, type AgentIdentity, type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, type Finding, MAIN_CANVAS, type WorkConfig } from '../core/types';
+import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type Harness, type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, type Finding, MAIN_CANVAS, type WorkConfig } from '../core/types';
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { arrangeWorkstreams, type Bounds, boundsOf, CARD_SIZE, freeSpotNear, GAP, MERGED_SIZE, type Place, PLAN_HEAD, placePlans, planDirNoteBox, placeWorkstreams, planSize, shapeOf, sizeOf, unionBounds } from '../core/layout';
@@ -79,7 +79,7 @@ import {
   type Notice,
   type WorkerTurn,
 } from '../core/types';
-import type { CanvasRow, CardRow, DecisionRow, Friction, FrictionNote, GroupRow, HeldTalk, Mark, NewRow, RowUpdate, Store, TalkWaitRow } from './db';
+import type { ActivityRow, CanvasRow, CardRow, DecisionRow, Friction, FrictionNote, GroupRow, HeldTalk, Mark, NewRow, RowUpdate, Store, TalkWaitRow } from './db';
 import { attribute, checkedFeedback } from './feedback';
 import type { Images } from './images';
 import { branchName, CARD_BRANCH } from './workstations';
@@ -960,6 +960,7 @@ export class Board {
     ]);
     // its questions stand in its conversation as the proposing agent asked them, and stay there once settled
     for (const q of proposal.questions) this.log(row!.id, 'question', 'worker', formatQuestion(q, this.language()));
+    this.record(row!.id, 'proposed', 'agent');
     this.changed();
     return this.itemOf(row!);
   }
@@ -1018,6 +1019,7 @@ export class Board {
         proposal: JSON.stringify(proposalOf({})),
       },
     ]);
+    this.record(row!.id, 'proposed', 'obeya');
     this.changed();
     return this.itemOf(row!);
   }
@@ -1738,6 +1740,45 @@ export class Board {
     }));
   }
 
+  // ---------------------------------------------------------------- activity
+
+  /**
+   * Writes what happened on a card to the Activity log. `again` tells the latest line of the card
+   * that is the same one (a wait read again), which is not written twice.
+   */
+  record(cardId: string, code: ActivityCode, who: ActivityWho, extra: { other?: string; harness?: string; again?: Parameters<Store['addActivity']>[1] } = {}) {
+    this.store.addActivity({ cardId, code, who, ...(extra.other ? { otherId: extra.other } : {}), ...(extra.harness ? { harness: extra.harness } : {}) }, extra.again);
+  }
+
+  /** The newest `limit` + 1 lines of these projects' logs older than line `before`. */
+  activityRows(projectIds: string[], before: number | undefined, limit: number): ActivityRow[] {
+    return this.store.activity(projectIds, before, limit);
+  }
+
+  /** The Activity log's lines of these rows, as entries: each card as it is now, a deleted one with the title it had. */
+  activityEntries(rows: ActivityRow[], projectName: string): ActivityEntry[] {
+    const cards = new Map(this.store.cardsById(rows.filter((r) => r.projectId === this.project.id).map((r) => r.cardId)).map((c) => [c.id, c]));
+    return rows.flatMap((r): ActivityEntry[] => {
+      const row = cards.get(r.cardId);
+      if (!row) return [];
+      const card = this.itemOf(row);
+      return [
+        {
+          id: r.id,
+          at: r.at,
+          who: r.who,
+          code: r.code,
+          project: r.projectId,
+          projectName,
+          card,
+          ...(row.deleted_at ? { deleted: true as const } : {}),
+          ...(r.otherId ? { other: { id: r.otherId, title: r.otherTitle ?? '' } } : {}),
+          ...(r.harness ? { harness: r.harness as Harness } : {}),
+        },
+      ];
+    });
+  }
+
   // ---------------------------------------------------------------- archive
 
   /** Takes finished cards, stopped tasks and parked or dropped ideas of the owner's off the project into its archive. */
@@ -1762,6 +1803,7 @@ export class Board {
     const at = new Date().toISOString();
     // a stopped card snoozed to start later starts no more: brought back, it is the owner's to start
     this.store.db.transaction(() => ids.forEach((id) => this.store.update(id, { archived_at: at, ...(this.snoozedOf(id)?.start ? { snoozed: null } : {}) })))();
+    for (const id of ids) this.record(id, 'archived', 'owner');
     this.changed();
   }
 
@@ -2243,6 +2285,12 @@ export class Board {
    * `card:<id>` and `talk:<id>`. Held in memory: after a restart they run into the limit again.
    */
   private limits = new Map<string, string | null>();
+
+  /** The harness a card's agent setting names, when it names one. */
+  private agentSettingHarness(cardId: string): Harness | undefined {
+    const s = this.store.card(cardId)?.agent_setting;
+    return s ? ((JSON.parse(s) as { harness?: Harness }).harness ?? 'claude') : undefined;
+  }
   private limitRetries = new Map<string, () => void>();
 
   retryLimit(card: string): boolean {
@@ -2262,6 +2310,10 @@ export class Board {
     else this.limitRetries.delete(key);
     const iso = until === undefined ? undefined : until === null ? null : new Date(until).toISOString();
     if (this.limits.get(key) === iso) return;
+    if (iso !== undefined && 'card' in at) {
+      const harness = this.atWork.get(key)?.agent.harness ?? this.agentSettingHarness(at.card);
+      this.record(at.card, 'usageLimit', 'obeya', { ...(harness ? { harness } : {}), again: (l) => l.code === 'usageLimit' && l.harness === (harness ?? null) });
+    }
     if (iso !== undefined) this.limits.set(key, iso);
     else this.limits.delete(key);
     this.changed();
@@ -2750,7 +2802,7 @@ export class Board {
    * `elsewhere`: the card on another project it follows up on (a card Seismic makes here from there); it
    * goes where `x` and `y` say, in no group.
    */
-  create(n: NewCard, elsewhere?: string): Item {
+  create(n: NewCard, elsewhere?: string, by?: ActivityWho): Item {
     checkText(n.title, 'title', 200);
     if (n.body !== undefined) checkText(n.body, 'body', 20000);
     if (n.repo !== undefined) this.checkRepo(n.repo);
@@ -2784,6 +2836,7 @@ export class Board {
         ...(n.idea ? { idea: JSON.stringify({ status: 'open', brief: '' } satisfies StoredIdea) } : {}),
       },
     ]);
+    if (by) this.record(row!.id, 'created', by);
     this.changed();
     return this.itemOf(row!);
   }
@@ -2941,6 +2994,7 @@ export class Board {
   remove(id: string) {
     if (this.own(id).plan_ref) throw new BadRequest('planCard', 'plan cards are removed in the plan doc');
     this.store.update(id, { deleted_at: new Date().toISOString() });
+    this.record(id, 'deleted', 'owner');
     this.changed();
   }
 

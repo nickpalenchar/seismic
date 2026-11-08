@@ -1,6 +1,6 @@
 import { Database } from 'bun:sqlite';
 import { currentAgent } from './agent-identity';
-import type { AgentIdentity, AgentModel, Attribution, Feedback, FeedbackAnswer, WorkConfig } from '../core/types';
+import type { ActivityCode, ActivityWho, AgentIdentity, AgentModel, Attribution, Feedback, FeedbackAnswer, WorkConfig } from '../core/types';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { AnswerFile, AnswerRef, CardEvent, Chat, DeviceView, CardKind, CardState, Mock, Need, Preference, PreferenceState, ProposedSetting, RepoCommands, SettingProposal, SettingProposalState, Spot, Talk, TalkAfter, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../core/types';
@@ -190,6 +190,19 @@ export interface Mark {
   at: string;
   event: number;
   card: number;
+}
+
+/** A line of the Activity log as stored, with the project of its card and the title of the card it waits for. */
+export interface ActivityRow {
+  id: number;
+  at: string;
+  who: ActivityWho;
+  code: ActivityCode;
+  cardId: string;
+  otherId: string | null;
+  otherTitle: string | null;
+  harness: string | null;
+  projectId: string;
 }
 
 /** A step in a card's history, as the Koordinator reads it; `created` marks a card of the owner's or a proposal. */
@@ -640,6 +653,17 @@ export const MIGRATIONS = [
    CREATE INDEX cards_canvas ON cards (canvas_id);`,
   // a card parked off the canvas, since when (ISO)
   'ALTER TABLE cards ADD COLUMN parking_lot TEXT;',
+  // the Activity log: what happened on a card, typed (`ActivityCode`), by whom, with the card it waits for or the harness whose limit stopped it
+  `CREATE TABLE activity (
+     id INTEGER PRIMARY KEY,
+     at TEXT NOT NULL,
+     card_id TEXT NOT NULL REFERENCES cards(id),
+     who TEXT NOT NULL,
+     code TEXT NOT NULL,
+     other_id TEXT REFERENCES cards(id),
+     harness TEXT
+   );
+   CREATE INDEX activity_card ON activity (card_id, id);`,
 ];
 
 const EVENT_COLUMNS = 'id, card_id AS cardId, at, kind, author, text, code, images, mocks, reply_to AS replyTo, spot, answer, picks, unread, read_after AS readAfter, wish, reply, forwarded, agent, token, made';
@@ -908,6 +932,12 @@ export class Store {
     return (this.db.query('SELECT * FROM cards WHERE id = $id').get({ id }) as CardRow | null) ?? null;
   }
 
+  /** The rows of these cards, deleted or archived ones too. */
+  cardsById(ids: string[]): CardRow[] {
+    if (!ids.length) return [];
+    return this.db.query('SELECT * FROM cards WHERE id IN (SELECT value FROM json_each($ids))').all({ ids: JSON.stringify(ids) }) as CardRow[];
+  }
+
   insert(rows: NewRow[]): CardRow[] {
     const stmt = this.db.query(
       `INSERT INTO cards (id, short, project_id, canvas_id, kind, state, title, body, x, y, parent_id, plan_ref, from_id, repo, idea, prototype_of, prototype, images, retro, proposal, group_id, created_at, updated_at)
@@ -1031,6 +1061,35 @@ export class Store {
         .query('DELETE FROM groups WHERE project_id = $c AND id NOT IN (SELECT group_id FROM cards WHERE project_id = $c AND group_id IS NOT NULL)')
         .run({ c: projectId }).changes;
     })();
+  }
+
+  // ---------------------------------------------------------------- activity
+
+  /**
+   * Writes a line of the Activity log. A card waiting or limited repeats itself as its waits are read
+   * again: `again` says which latest line of the card is the same one, and then nothing is written.
+   */
+  addActivity(a: { cardId: string; code: ActivityCode; who: ActivityWho; otherId?: string; harness?: string }, again?: (last: { code: ActivityCode; otherId: string | null; harness: string | null }) => boolean): boolean {
+    if (again) {
+      const last = this.db.query('SELECT code, other_id AS otherId, harness FROM activity WHERE card_id = $c ORDER BY id DESC LIMIT 1').get({ c: a.cardId }) as { code: ActivityCode; otherId: string | null; harness: string | null } | null;
+      if (last && again(last)) return false;
+    }
+    this.db
+      .query('INSERT INTO activity (at, card_id, who, code, other_id, harness) VALUES ($at, $cardId, $who, $code, $otherId, $harness)')
+      .run({ at: now(), cardId: a.cardId, who: a.who, code: a.code, otherId: a.otherId ?? null, harness: a.harness ?? null });
+    return true;
+  }
+
+  /** The newest `limit` lines of the log of these projects (all when none are named) older than line `before`, newest first; one more than asked comes back when older lines remain. */
+  activity(projectIds: string[] | null, before: number | undefined, limit: number): ActivityRow[] {
+    return this.db
+      .query(
+        `SELECT a.id, a.at, a.who, a.code, a.card_id AS cardId, a.other_id AS otherId, a.harness, c.project_id AS projectId, o.title AS otherTitle
+         FROM activity a JOIN cards c ON c.id = a.card_id LEFT JOIN cards o ON o.id = a.other_id
+         WHERE ($before IS NULL OR a.id < $before) AND ($projects IS NULL OR c.project_id IN (SELECT value FROM json_each($projects)))
+         ORDER BY a.id DESC LIMIT $limit`,
+      )
+      .all({ before: before ?? null, projects: projectIds ? JSON.stringify(projectIds) : null, limit: limit + 1 }) as ActivityRow[];
   }
 
   // ---------------------------------------------------------------- events

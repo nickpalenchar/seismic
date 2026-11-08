@@ -772,6 +772,7 @@ export class Workers {
     const pr = contribution ? JSON.stringify({ url: contribution.url, number: contribution.number, seen: [], reported: [] } satisfies PrState) : null;
     // a fresh session knows of no app that was stopped
     this.o.board.work(card.id, { state: 'working', need: null, detail: null, status_line: null, workstation: path, branch, session_id: null, agent_setting: selected ? JSON.stringify(selected) : null, pr, approved_at: null, parked: null, paused: null, pausing: null, snoozed: null, app: null });
+    this.o.board.record(card.id, 'started', 'agent');
     const t = this.o.board.t.worker;
     this.o.board.log(card.id, 'state', 'obeya', this.folder ? t.startedInFolder : contribution ? t.reviewStarted(contribution.number, contribution.author) : t.started(branch));
     if (selected) this.o.board.log(card.id, 'state', 'obeya', t.startedWith(selected.harness === 'codex' && selected.codex ? `Codex · ${selected.codex.model} · ${selected.codex.effort}` : selected.harness === 'agy' && selected.agy ? `Antigravity · ${selected.agy.model} · ${selected.agy.effort}` : `Claude Code · ${selected.model} · ${selected.effort}`));
@@ -1002,7 +1003,7 @@ export class Workers {
     const t = this.o.board.t.worker;
     const body = clip(task, 19000);
     const of = this.o.board.item(cardId)?.title ?? '';
-    const card = this.o.board.create({ title: clip(title, 200), body: c ? (body.includes(c.url) ? body : `${body}\n\n${t.findingTask(c.number, c.url)}`) : `${body}\n\n${t.findingTaskOf(of)}`, from: cardId });
+    const card = this.o.board.create({ title: clip(title, 200), body: c ? (body.includes(c.url) ? body : `${body}\n\n${t.findingTask(c.number, c.url)}`) : `${body}\n\n${t.findingTaskOf(of)}`, from: cardId }, undefined, 'owner');
     this.o.board.log(card.id, 'state', 'obeya', c ? t.findingTaskMade(c.number) : t.findingTaskMadeOf(of));
     this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.voice.madeFollowUp(card.title), { made: { card: card.id, title: card.title } });
     const findings = all!.map((f): Finding => {
@@ -1102,6 +1103,7 @@ export class Workers {
     const decided = Object.keys(routed).length ? withNotes(this.reviews.decide(cardId, routed), routed, notes) : undefined;
     if (ignored.length) this.ignore(cardId, ignored);
     if (!decided) return;
+    this.o.board.record(cardId, 'reviewSent', 'owner');
     this.end(cardId);
     this.takingIn(cardId);
     this.o.board.log(cardId, 'hint', 'owner', decided.log);
@@ -1122,6 +1124,7 @@ export class Workers {
     if (place && handover && !findings) return this.hold(card, text, images, spoken, replyTo, place);
     // on a review card, what the owner decided for its findings goes with the words, above them
     const decided = findings ? withNotes(this.decide(cardId, findings), findings, notes) : undefined;
+    if (decided) this.o.board.record(cardId, 'reviewSent', 'owner');
     const words = `${decided ? `${decided.note}\n\n` : ''}${this.words(cardId, text, images, replyTo, place)}`;
     // the log shows the owner's screenshots, not the stills that join them below
     const shots = images;
@@ -1524,6 +1527,7 @@ export class Workers {
     if (!card || !handedOver(card)) return void this.takeHeld(cardId);
     const held = this.takeHeld(cardId);
     if (!held) return;
+    this.o.board.record(cardId, 'reviewSent', 'owner');
     this.takingIn(cardId);
     this.deliver(
       cardId,
@@ -1687,6 +1691,7 @@ export class Workers {
   async approve(cardId: string, { direct = false }: { direct?: boolean } = {}) {
     const card = this.card(cardId);
     if (!handedOver(card) || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
+    this.o.board.record(cardId, 'approved', 'owner');
     if (card.contribution) {
       if (direct) throw new BadRequest('noDirect', 'a review card merges its pull request');
       return this.mergeContribution(cardId);
@@ -2260,6 +2265,7 @@ export class Workers {
       landed: JSON.stringify({ commit: result.to, ...(restarts ? { restarts } : {}), ...(page.waits ? { page: true } : {}) } satisfies LandedState),
       shipped: JSON.stringify({ commit: result.to, base: result.from } satisfies Shipped),
     });
+    this.o.board.record(cardId, 'landed', 'obeya');
     const t = this.o.board.t.worker;
     if (direct) this.o.board.log(cardId, 'state', by, by === 'owner' ? t.approvedDirect : t.landedDirect);
     else this.o.board.log(cardId, 'state', by, by === 'owner' ? t.approvedMain : t.landedMain);
@@ -2668,6 +2674,7 @@ export class Workers {
       landed: JSON.stringify({ ...(commit ? { commit } : {}), ...(page.waits ? { page: true } : {}) } satisfies LandedState),
       shipped: JSON.stringify(shipped),
     });
+    this.o.board.record(cardId, 'landed', 'obeya');
     this.o.board.log(cardId, 'state', 'obeya', note);
     this.extensionEvent('landed', cardId);
     this.o.onMerged?.(cardId);
@@ -3047,6 +3054,7 @@ export class Workers {
       }
       // deleted meanwhile: its row stays, to be restored without the clone
       this.o.board.work(cardId, { workstation: null, parked: null, app: null, ...(kept ? { kept_in: kept } : {}) });
+      if (active) this.o.board.record(cardId, 'stopped', 'owner');
       this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.evicted(path));
       return active;
     } finally {

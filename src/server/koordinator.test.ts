@@ -38,6 +38,9 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
+/** The Activity log's lines of a card, oldest first. */
+const activity = (id: string) => board.activityRows(['c'], undefined, 100).filter((r) => r.cardId === id).reverse().map(({ code, who, otherId }) => ({ code, who, otherId }));
+
 /**
  * Lets the Koordinator go on until it waits for an estimate or has decided, and the cards it started
  * have their workstation: before an estimate, git reads the branches of the cards in progress, which takes a moment.
@@ -183,6 +186,8 @@ describe('Koordinator', () => {
     expect(estimates().at(-1)!.inbox[0]).toContain('"A"');
     await scope(['src/a.ts', 'src/b.ts'], ['K1'], 'Beide ändern decide() in src/a.ts.');
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { behind: [a.id], reason: 'Beide ändern decide() in src/a.ts.' } });
+    // the wait is in the Activity log once, with the card it waits for
+    expect(activity(b.id)).toEqual([{ code: 'waitsForCard', who: 'obeya', otherId: a.id }]);
 
     const wa = board.row(a.id).workstation!;
     writeFileSync(join(wa, 'a.ts'), 'a');
@@ -883,6 +888,7 @@ describe('Koordinator waits for a free workstation', () => {
     await scope(['src/b.ts']);
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none' } });
     expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', text: expect.stringContaining('starts as soon as one is free') });
+    expect(activity(b.id)).toEqual([{ code: 'waitsForWorkstation', who: 'obeya', otherId: null }]);
     expect(board.events(b.id).some((e) => e.kind === 'error')).toBe(false);
 
     await workers.stop(a.id);

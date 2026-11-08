@@ -5,7 +5,7 @@ import { extensionSettings, serverExtensions as extensions } from '../extensions
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { join, resolve } from 'node:path';
-import { agentListens, type ProjectInfo, type ChatElsewhere, type ProjectSettingsView, type CardAction, type ClientMessage, type CardPatch, type DeveloperView, type Item, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
+import { type ActivityPage, agentListens, type ProjectInfo, type ChatElsewhere, type ProjectSettingsView, type CardAction, type ClientMessage, type CardPatch, type DeveloperView, type Item, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
 import index from '../ui/index.html';
 import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
@@ -494,6 +494,23 @@ export function serve(
         },
       },
       '/api/projects': { GET: () => Response.json(projects.all().map((c) => c.board.project) satisfies ProjectInfo[]) },
+      // the Activity log, newest first: the project's lines, or every project's (`all`); `before` pages back from a line's id
+      '/api/activity': {
+        GET: (req) =>
+          handle(() => {
+            const q = new URL(req.url).searchParams;
+            const all = projects.all();
+            const here = all.find((c) => c.board.project.id === q.get('project'));
+            const scope = q.get('all') ? all : here ? [here] : [];
+            const limit = Math.min(Math.max(Number(q.get('limit')) || 30, 1), 100);
+            const before = q.get('before') ? Number(q.get('before')) : undefined;
+            const rows = scope[0]?.board.activityRows(scope.map((c) => c.board.project.id), before, limit) ?? [];
+            const more = rows.length > limit;
+            const page = rows.slice(0, limit);
+            const entries = scope.flatMap((c) => c.board.activityEntries(page, c.board.project.name));
+            return { entries: entries.sort((x, y) => y.id - x.id), more } satisfies ActivityPage;
+          }),
+      },
       // the chats with Seismic on every project that runs, the latest first
       '/api/chats': {
         GET: () => {
@@ -707,7 +724,7 @@ export function serve(
         POST: needs(config, async (c, req) => c.check(await req.json())),
       },
       '/api/c/:project/project': { GET: on((c) => c.board.snapshot()) },
-      '/api/c/:project/cards': { POST: on(async (c, req) => c.board.create((await req.json()) as NewCard)) },
+      '/api/c/:project/cards': { POST: on(async (c, req) => c.board.create((await req.json()) as NewCard, undefined, 'owner')) },
       // from "Configuration", for a repository without settings of its own: the card that writes them
       '/api/c/:project/adapter-setup': { POST: on(async (c, req) => c.adapterSetupCard(String(((await req.json()) as { repo?: unknown }).repo))) },
       // from the note on a plan directory: the card that prepares one of its docs as a plan, started

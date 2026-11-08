@@ -1786,8 +1786,11 @@ export class ProjectRuntime {
         return this.koordinator.arrange(cardId);
       case 'reorder':
         return this.koordinator.reorder(cardId, !!a.earlier, a.places ?? 1);
-      case 'stop':
-        return this.repoOf(cardId).workers.stop(cardId);
+      case 'stop': {
+        const stopped = this.repoOf(cardId).workers.stop(cardId);
+        this.board.record(cardId, 'stopped', 'owner');
+        return stopped;
+      }
       case 'pause':
         return a.safePoint ? this.agentOf(cardId).pauseAtSafePoint(cardId) : this.agentOf(cardId).pause(cardId);
       case 'resume':
@@ -2266,7 +2269,7 @@ export class ProjectRuntime {
     const t = this.board.t.idea;
     const shown = this.board.events(cardId).flatMap((e) => (e.kind === 'talk' && e.author === 'owner' ? (e.images ?? []) : []));
     const images = [...new Set([...(idea.images ?? []), ...shown])].slice(-MAX_IMAGES);
-    const task = this.board.create({ title: split.title, body: `${split.brief}\n\n${t.settledTask(idea.title)}`, from: cardId, ...(images.length ? { images } : {}) });
+    const task = this.board.create({ title: split.title, body: `${split.brief}\n\n${t.settledTask(idea.title)}`, from: cardId, ...(images.length ? { images } : {}) }, undefined, 'owner');
     this.board.log(task.id, 'state', 'owner', t.settledFrom(idea.title));
     this.board.setIdea(cardId, { split: undefined });
     this.board.decide({ plan_id: null, card_id: cardId, question: t.howOn(idea.title), answer: t.splitOffAnswer(split.title), by: 'owner' });
@@ -2574,7 +2577,7 @@ export class ProjectRuntime {
 
   /** A card the Koordinator of another project makes here for the owner, following up on a card of its own. */
   followUp(c: Extract<Command, { do: 'newCard' }>, from: string): string {
-    const card = this.board.create({ title: c.title, body: c.body, ...(c.images?.length ? { images: c.images } : {}), ...this.board.freeSpot(this.inView) }, from);
+    const card = this.board.create({ title: c.title, body: c.body, ...(c.images?.length ? { images: c.images } : {}), ...this.board.freeSpot(this.inView) }, from, 'owner');
     this.board.log(card.id, 'state', 'owner', this.board.t.voice.created);
     if (c.until && Date.parse(c.until) > Date.now()) this.snooze(card.id, c.until);
     else if (c.start || c.until) this.koordinator.request(card.id);
@@ -2611,7 +2614,7 @@ export class ProjectRuntime {
           ...(c.repo ? { repo: c.repo } : {}),
           ...(c.images?.length ? { images: c.images } : {}),
           ...at,
-        });
+        }, undefined, 'owner');
         this.board.log(card.id, 'state', 'owner', this.board.t.voice.created);
         // the card it follows up on shows it in its conversation
         if (c.from) this.board.log(c.from, 'state', 'obeya', this.board.t.voice.madeFollowUp(card.title), { made: { card: card.id, title: card.title } });
@@ -2623,7 +2626,7 @@ export class ProjectRuntime {
       case 'reviewPr':
         return this.reviewPr(c);
       case 'newIdea': {
-        const card = this.board.create({ idea: true, title: c.title, body: c.body, ...(c.repo ? { repo: c.repo } : {}), ...this.board.freeSpot(c.place ?? this.inView) });
+        const card = this.board.create({ idea: true, title: c.title, body: c.body, ...(c.repo ? { repo: c.repo } : {}), ...this.board.freeSpot(c.place ?? this.inView) }, undefined, 'owner');
         this.board.log(card.id, 'state', 'owner', this.board.t.voice.created);
         // the agent opens the discussion with what the owner said
         this.explorers.discuss(card.id, c.body.trim() || c.title, true, this.images.resolve(c.images));
@@ -2754,7 +2757,7 @@ export class ProjectRuntime {
       return fail(messageOf(e));
     }
     if (info.state !== 'OPEN') return fail(t.review.notOpen(info.state === 'MERGED'));
-    const card = this.board.create({ title: `PR #${ref.number}: ${info.title}`.slice(0, 200), body: c.text, repo: repo.ref.id, ...this.board.freeSpot(c.place ?? this.inView) });
+    const card = this.board.create({ title: `PR #${ref.number}: ${info.title}`.slice(0, 200), body: c.text, repo: repo.ref.id, ...this.board.freeSpot(c.place ?? this.inView) }, undefined, 'owner');
     const stored: StoredContribution = {
       url,
       number: ref.number,
