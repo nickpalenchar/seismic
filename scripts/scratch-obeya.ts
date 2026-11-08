@@ -695,30 +695,49 @@ const IDEA_COLUMNS: Record<string, string> = { idea: 'discussion', prototype_of:
 const ideaColumns = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_ideas'").get();
 /**
  * Code with tables of their own for a card's review, demo and plan parts, its labels and its hold
- * reads them there: what the stage wrote into the card's columns of those goes into them, as the
- * migration that brought them moved it.
+ * reads them there: the columns of those the stage wrote (`written`) go into them, as the migration
+ * that brought them moved them, beside what the server keeps there already (a plan's doc).
  */
 const partTables = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_holds'").get();
-function copyParts(id: string) {
+/** Each one-row part's table, by the card column that moved into it and its name there. */
+const PART_COLUMNS: Record<string, Record<string, string>> = {
+  card_reviews: { pr: 'pr', contribution: 'contribution', code_review: 'code_review' },
+  card_demos: { demo: 'latest', share: 'share', page_heard: 'page_heard', files: 'files', held: 'held' },
+  card_plans: { plan: 'doc', deps: 'deps', collapsed: 'collapsed', plan_docs: 'plan_docs' },
+};
+const LABEL_COLUMNS = ['category', 'subcategory', 'complexity', 'priority', 'suggested_labels', 'owner_labels'];
+function copyParts(id: string, written: string[]) {
   if (!partTables) return;
-  for (const t of ['card_reviews', 'card_demos', 'card_earlier_demos', 'card_plans', 'card_labels', 'card_holds']) db.query(`DELETE FROM ${t} WHERE card_id = $id`).run({ id });
-  const label = (l: string, v = l) =>
-    `INSERT INTO card_labels (card_id, label, value, by) SELECT id, '${l}', ${v}, CASE WHEN EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = '${l}') THEN 'owner'
-       WHEN ${l} IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(suggested_labels) WHERE value = '${l}') THEN 'suggestion' END
-     FROM cards WHERE id = $id AND (${l} IS NOT NULL OR EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = '${l}'))`;
-  for (const q of [
-    'INSERT INTO card_reviews (card_id, pr, contribution, code_review) SELECT id, pr, contribution, code_review FROM cards WHERE id = $id AND (pr IS NOT NULL OR contribution IS NOT NULL OR code_review IS NOT NULL)',
-    'INSERT INTO card_demos (card_id, latest, share, page_heard, files, held) SELECT id, demo, share, page_heard, files, held FROM cards WHERE id = $id AND (demo IS NOT NULL OR share IS NOT NULL OR page_heard IS NOT NULL OR files IS NOT NULL OR held IS NOT NULL OR json_array_length(demos) > 0)',
-    'INSERT INTO card_earlier_demos (card_id, position, demo) SELECT c.id, CAST(d.key AS INTEGER), d.value FROM cards c, json_each(c.demos) d WHERE c.id = $id AND c.demos IS NOT NULL',
-    'INSERT INTO card_plans (card_id, doc, deps, collapsed, plan_docs) SELECT id, plan, deps, collapsed, plan_docs FROM cards WHERE id = $id AND (plan IS NOT NULL OR deps IS NOT NULL OR collapsed != 0 OR plan_docs IS NOT NULL)',
-    label('category'),
-    label('subcategory'),
-    label('complexity', 'CAST(complexity AS TEXT)'),
-    label('priority'),
-    `INSERT INTO card_holds (card_id, reason, since, detail) SELECT id, json_extract(hold, '$.reason'), coalesce(json_extract(hold, '$.since'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-       nullif(json_remove(hold, '$.reason', '$.since'), '{}') FROM cards WHERE id = $id AND hold IS NOT NULL`,
-  ])
-    db.query(q).run({ id });
+  for (const [table, moved] of Object.entries(PART_COLUMNS)) {
+    const from = written.filter((k) => k in moved);
+    if (!from.length) continue;
+    const to = from.map((k) => moved[k]!);
+    db.query(
+      `INSERT INTO ${table} (card_id, ${to.join(', ')}) SELECT id, ${from.join(', ')} FROM cards WHERE id = $id ON CONFLICT (card_id) DO UPDATE SET ${to.map((c) => `${c} = excluded.${c}`).join(', ')}`,
+    ).run({ id });
+  }
+  if (written.includes('demos')) {
+    db.query('DELETE FROM card_earlier_demos WHERE card_id = $id').run({ id });
+    db.query('INSERT INTO card_earlier_demos (card_id, position, demo) SELECT c.id, CAST(d.key AS INTEGER), d.value FROM cards c, json_each(c.demos) d WHERE c.id = $id AND c.demos IS NOT NULL').run({ id });
+    // the demo part has its row while it has earlier demos
+    db.query('INSERT INTO card_demos (card_id) SELECT card_id FROM card_earlier_demos WHERE card_id = $id LIMIT 1 ON CONFLICT (card_id) DO NOTHING').run({ id });
+  }
+  if (written.some((k) => LABEL_COLUMNS.includes(k))) {
+    db.query('DELETE FROM card_labels WHERE card_id = $id').run({ id });
+    for (const l of LABEL_COLUMNS.slice(0, 4))
+      db.query(
+        `INSERT INTO card_labels (card_id, label, value, by) SELECT id, '${l}', ${l === 'complexity' ? 'CAST(complexity AS TEXT)' : l}, CASE WHEN EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = '${l}') THEN 'owner'
+           WHEN ${l} IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(suggested_labels) WHERE value = '${l}') THEN 'suggestion' END
+         FROM cards WHERE id = $id AND (${l} IS NOT NULL OR EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = '${l}'))`,
+      ).run({ id });
+  }
+  if (written.includes('hold')) {
+    db.query('DELETE FROM card_holds WHERE card_id = $id').run({ id });
+    db.query(
+      `INSERT INTO card_holds (card_id, reason, since, detail) SELECT id, json_extract(hold, '$.reason'), coalesce(json_extract(hold, '$.since'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+         nullif(json_remove(hold, '$.reason', '$.since'), '{}') FROM cards WHERE id = $id AND hold IS NOT NULL`,
+    ).run({ id });
+  }
 }
 for (const [i, c] of stage.cards.entries()) {
   const id = idOf(c, i);
@@ -847,7 +866,7 @@ for (const [i, c] of stage.cards.entries()) {
   }
   for (const [event, { demo, ...spot }] of spots)
     db.query('UPDATE events SET spot = $spot WHERE id = $id').run({ id: event, spot: JSON.stringify({ ...spot, ...(demo !== undefined && reviews[demo] ? { demo: reviews[demo].id } : {}) }) });
-  copyParts(id);
+  copyParts(id, [...own, ...(reviews.length && (demo || c.row?.demos) ? ['demos', 'demo'] : [])]);
 }
 const prefIds: Record<string, number> = {};
 for (const [i, p] of (stage.preferences ?? []).entries()) {

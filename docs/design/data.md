@@ -15,36 +15,39 @@ Persistent (SQLite):
   and each card's group; owner-drawn dependencies between cards (the project setting `manual_dependencies`
   is a JSON list of `[from, to]` pairs, optionally followed by `{fromSide, toSide, offset}` for the
   chosen edges and the target's position along its edge; older pairs use automatic routing);
-- cards with everything shown on them or needed to resume them: kind, state, position, parent, the
-  card they came from; the agent session with its pinned harness, model and effort (old unqualified
-  sessions belong to Claude; Codex locators start `codex:`), workstation, branch and status line; the open question or
-  handover (with the reason when there is no demo); queue, scope, the card's hold (below); the pull request and what of it was already passed on to the worker; on a review card, the
-  contributor's pull request (author, whether maintainers may push, the head handed over, the
-  checks and merge probe, the findings with what came of each, the change request waiting for the
-  contributor); the code review of a card's work (the mode it was handed over under, the handover
-  it is for, and the latest review: the handover and commit it reviewed, running (with its agent's
-  session, which a restart resumes), done or failed with why, its findings with what came of each); an approval held until the work can land; landed work whose worker still finishes;
-  a waiting card's stopped app; the clone that keeps a card's branch since its workstation was taken
-  from it;
-  proposals waiting for the owner; a merge draft on an unworked proposal or planned task (partner,
-  original place, combined text or exact coverage parts, optional follow-up with its screenshots and
-  question references, and the texts and handover compared so stale approval can be refused); the new repository a card is to be built in, and that Seismic made
-  it; an idea's brief, open questions and picks; a prototype's idea
-  and outcome; a plan's plan doc as last read and the plan docs its landed work added; the priority the owner
-  gave it (`priority`: `trivial`, `low`, `medium`, `high`, `veryHigh` or `critical`, null for none); its short
-  code for addresses (see Addresses in The canvas), unique across the database;
+- cards with what every card has and what its agent needs to resume: kind, state, position,
+  parent, the card they came from; the agent session with its pinned harness, model and effort (old
+  unqualified sessions belong to Claude; Codex locators start `codex:`), workstation, branch and
+  status line; the open question or handover (with the reason when there is no demo); queue,
+  scope; an approval held until the work can land; landed work whose worker still finishes; a
+  waiting card's stopped app; the clone that keeps a card's branch since its workstation was taken
+  from it; a merge draft on an unworked proposal or planned task (partner, original place, combined
+  text or exact coverage parts, optional follow-up with its screenshots and question references, and
+  the texts and handover compared so stale approval can be refused); its short code for addresses
+  (see Addresses in The canvas), unique across the database;
 - what belongs to one feature of a card lives in a table of its own beside the card, keyed by the
-  card, with a row only while any of it is set (the row goes once all of it is cleared): its idea
-  part (the idea's discussion, a prototype's idea and outcome, a worker's proposal, the prototype it
-  is built on, that it becomes a plan, a new repository); its review part (its pull request, a
-  contributor's it reviews, the code review of its work); its demo part (the latest demo, the demo's
-  shared page, what its worker last heard of that page, the files named as the result, the owner's
-  comments held back while watching), with each earlier demo a row of its own in handover order;
-  its plan part (a plan's doc as last read, which workstream builds on which, whether the owner
-  folded it, the plan docs a card's landed work added); its labels, a row per label with its value
-  (stored as text, the complexity too; none where the owner set it to none) and who set it (the
-  owner, whose labels Seismic never suggests again; Seismic's suggestion, which the owner has not
-  touched; or no one known, for a value from before the two were told apart); and its hold (below).
+  card, with a row only while any of it is set (the row goes once all of it is cleared):
+  - its idea part: an idea's discussion (brief, open questions and picks), a prototype's idea and
+    outcome, a worker's proposal waiting for the owner (and once accepted), the prototype it is built
+    on, that it becomes a plan, the new repository it is to be built in and that Seismic made it;
+  - its review part: the pull request and what of it was already passed on to the worker; on a
+    review card, the contributor's pull request (author, whether maintainers may push, the head
+    handed over, the checks and merge probe, the findings with what came of each, the change request
+    waiting for the contributor); the code review of a card's work (the mode it was handed over
+    under, the handover it is for, and the latest review: the handover and commit it reviewed,
+    running (with its agent's session, which a restart resumes), done or failed with why, its
+    findings with what came of each);
+  - its demo part: the latest demo, the demo's shared page, what its worker last heard of that
+    page, the files named as the result, the owner's comments held back while watching; each
+    earlier demo a row of its own in handover order (the demo part keeps its row while it has any);
+  - its plan part: a plan's plan doc as last read, which workstream builds on which, whether the
+    owner folded it, and the plan docs a card's landed work added;
+  - its labels, a row per label with its value (stored as text, the complexity too; none where the
+    owner set it to none; the priority one of `trivial`, `low`, `medium`, `high`, `veryHigh` or
+    `critical`) and who set it (the owner, whose labels Seismic never suggests again; Seismic's
+    suggestion, which the owner has not touched; or no one known, for a value from before the two
+    were told apart);
+  - its hold (below).
   What is a JSON value inside these rows stays one;
 - each session that worked on a card, with the harness, resolved model and effort it ran on (see
   Models and effort in Agents and workstations), and the owner's responses on approved work: the
