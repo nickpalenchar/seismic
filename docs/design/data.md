@@ -33,11 +33,24 @@ Persistent (SQLite):
   and outcome; a plan's plan doc as last read and the plan docs its landed work added; the priority the owner
   gave it (`priority`: `trivial`, `low`, `medium`, `high`, `veryHigh` or `critical`, null for none); its short
   code for addresses (see Addresses in The canvas), unique across the database;
+- what belongs to one feature of a card lives in a table of its own beside the card, keyed by the
+  card, with a row only while any of it is set (the row goes once all of it is cleared): its idea
+  part (the idea's discussion, a prototype's idea and outcome, a worker's proposal, the prototype it
+  is built on, that it becomes a plan, a new repository); its review part (its pull request, a
+  contributor's it reviews, the code review of its work); its demo part (the latest demo, the demo's
+  shared page, what its worker last heard of that page, the files named as the result, the owner's
+  comments held back while watching), with each earlier demo a row of its own in handover order;
+  its plan part (a plan's doc as last read, which workstream builds on which, whether the owner
+  folded it, the plan docs a card's landed work added); its labels, a row per label with its value
+  (stored as text, the complexity too; none where the owner set it to none) and who set it (the
+  owner, whose labels Seismic never suggests again; Seismic's suggestion, which the owner has not
+  touched; or no one known, for a value from before the two were told apart); and its hold (below).
+  What is a JSON value inside these rows stays one;
 - each session that worked on a card, with the harness, resolved model and effort it ran on (see
   Models and effort in Agents and workstations), and the owner's responses on approved work: the
   handover each is about, whom it credits, the card's context as it was, the answer and facets;
-- why a card's agent does not run now, or why the card is off the canvas: one hold per card, JSON
-  with its `reason` and `since`, as the owner's pause at a safe point (`pausing`), the owner's
+- why a card's agent does not run now, or why the card is off the canvas: one hold per card, its
+  `reason` and `since` as columns and what the reason carries as JSON beside them, as the owner's pause at a safe point (`pausing`), the owner's
   pause (`paused`), the usage limit's pause after three refusals (`limit`: the refusal count, the
   known reset as `until` if any, the status line before), a snooze (`snoozed`: until when, the card
   it waits on, by whom, why, and whether it waited for the owner or is to start then) or the
@@ -97,3 +110,12 @@ Decisions:
   which one wins. The pause for a due restart is not stored (it lasts only while Seismic waits to
   restart) and shows as a hold of its own (`restart`) to the UI and agents. The migration counts a
   pause or snooze from the moment it ran, as neither kept a time of its own.
+- A card's feature groups (idea, review, demo, plan, labels, hold) in tables of their own rather than
+  as columns of the card (2026-11-08): the card had grown to about 70 columns, most set on few cards,
+  and each group's fields are read and written together. JSON values stay JSON inside their table
+  (nothing queries into them); only real lists became rows (earlier demos, labels). The labels'
+  two JSON lists of which labels were the owner's and which suggested became who set each one; a
+  suggestion of a label since cleared had nothing left to mark and was not carried over. The agent
+  and run fields stay on the card, which nearly every card has. The cards are read with their
+  one-row groups joined and the many-row ones in one query for all cards read: a subquery per group
+  made reading a project's cards take about twice the time.
