@@ -334,8 +334,8 @@ list says a card's title, state or labels in a way of its own:
   agent is doing; and the pin while it needs the owner. Zoomed out, only the label chips of the top
   line stay, enlarged.
 - **S** is a compact row of up to four lines, for the inbox and the Agents sheet's "All": the label
-  chips, then where, kind and since when; the title with the pin, or in the inbox the unread dot in
-  its place; the state line; then what the card waits for (else the line under its title), in at
+  chips, then where, kind and since when; the title with the pin (in the inbox, drawn subtle, see below, the pin and the unread dot sit
+  in the card's top-right corner); the state line; then what the card waits for (else the line under its title), in at
   most two lines. The top line and the state line stay one line on any width: the chips keep their
   size and where/kind/since is cut with an ellipsis. The entry's buttons stand below it.
 - **XS** is two lines with the least, for `/` search, the queue, the archive (with the time it was
@@ -361,7 +361,7 @@ short words are one table beside the state line's own words, not chosen per list
 Any size can be drawn **subtle**, for places that hold many cards (the inbox shows its entries so):
 the pin becomes a small dot inside the card's top-right corner (an unread entry's dot takes that
 place too), the state line is plain and muted instead of bold in the state's colour, and there is no
-moving line under a working card. A part the size does not show anyway stays as it is.
+moving line under a working card; an M card also loses the colour strip along its top, and an XS card's state dot turns muted. A part the size does not show anyway stays as it is.
 
 
 #### Priorities
