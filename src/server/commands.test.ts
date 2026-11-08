@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, setSystemTime, test } from 'bun:test';
 import { type AgentSetting, type ProjectConfig, type ConfigProblem, type ConfigView, type Notice, waitingOn } from '../core/types';
 import { Board } from './board';
 import { type Command, Commander } from './commands';
-import { Store } from './db';
+import { Store } from './store';
 import { FakeRuntime, type FakeSession, until } from './testing';
 
 let store: Store;
@@ -602,7 +602,7 @@ describe('the Koordinator remembers', () => {
     expect(board.snapshot().talk.at(-1)!.replyTo).toEqual({ talk: first!.id, part: 'reply', by: 'koordinator', text: 'Zwei: “Export” und “Login”.' });
     expect(await reply('nochmal', { talk: first!.id, part: 'said' })).toContain('[In reply to their own earlier message: “wie viele Karten laufen?”]');
     // a looked-up answer goes by its tag, to follow up on it
-    store.answerTalk(first!.id, 'Export wartet auf dich.', 'plan');
+    store.talk.answer(first!.id, 'Export wartet auf dich.', 'plan');
     expect(await reply('warum?', { talk: first!.id, part: 'answer' })).toContain(`[In reply to the answer A${first!.id} the plan's agent looked up: “Export wartet auf dich.”]`);
     // what is no message of the sheet is dropped, and the words go alone
     const a = board.create({ title: 'Export', x: 0, y: 0 });
@@ -792,7 +792,7 @@ describe('the usage limit', () => {
     // not tried itself: the limit held the words before it
     expect(runtime.sessions).toHaveLength(2);
     expect(board.snapshot().talk.map((t) => !!t.heldUntil)).toEqual([true]);
-    expect(store.heldTalk('c').map((t) => t.said)).toEqual(['hallo', 'starte ihn']);
+    expect(store.talk.held('c').map((t) => t.said)).toEqual(['hallo', 'starte ihn']);
     expect(board.events(a.id).map((e) => [e.author, e.text.slice(0, 30)])).toEqual([
       ['owner', 'starte ihn'],
       ['koordinator', 'The usage limit is reached. I '],
@@ -809,7 +809,7 @@ describe('the usage limit', () => {
     runtime.last.emit({ type: 'idle' });
     await until(() => board.events(a.id).length === 3);
     expect(board.events(a.id).at(-1)).toMatchObject({ author: 'koordinator', text: '“Export” startet.' });
-    expect(store.heldTalk('c')).toEqual([]);
+    expect(store.talk.held('c')).toEqual([]);
   });
 
   test('held words survive a restart and are read once the limit lifts', async () => {
@@ -819,8 +819,8 @@ describe('the usage limit', () => {
     lifts(10_000);
     await heard;
     // Seismic restarts, shortly before the limit lifts: the words are not cut off, and a new Commander reads them
-    const [x] = store.heldTalk('c');
-    store.holdTalk(x!.id, { ...x!.held, until: new Date(Date.now() + 30).toISOString() });
+    const [x] = store.talk.held('c');
+    store.talk.hold(x!.id, { ...x!.held, until: new Date(Date.now() + 30).toISOString() });
     board.interruptTalk();
     expect(board.snapshot().talk[0]!.reply).toBeUndefined();
     limited().resume();
@@ -828,7 +828,7 @@ describe('the usage limit', () => {
     runtime.last.call('reply', { confirm: 'Nichts.' });
     runtime.last.emit({ type: 'idle' });
     await until(() => board.snapshot().talk[0]!.reply === 'Nichts.');
-    expect(store.heldTalk('c')).toEqual([]);
+    expect(store.talk.held('c')).toEqual([]);
   });
 });
 

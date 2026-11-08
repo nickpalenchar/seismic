@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { boundsOf, onProject, PLAN_COLLAPSED, sizeOf } from '../core/layout';
 import type { PlanDoc } from '../core/plan-doc';
 import { BadRequest, Board, pathOfRef, type PlanRead, repoOfRef } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { heard } from './testing';
 
 const ws = (key: string, done = false) => ({ key, label: key, title: `Title ${key}`, body: `Body ${key}`, done, inReview: false });
@@ -60,7 +60,7 @@ describe('plan docs', () => {
     const initial = board.snapshot().items;
     const kids = initial.filter((i) => i.parent);
     // The old four-chip row, with the open card immediately below it.
-    kids.forEach((k, n) => store.update(k.id, n < 4 ? { x: 30 + n * 216, y: 78 } : { x: 30, y: 162 }));
+    kids.forEach((k, n) => store.cards.update(k.id, n < 4 ? { x: 30 + n * 216, y: 78 } : { x: 30, y: 162 }));
     board.docsChanged();
     const repaired = board.snapshot().items;
     const boxes = repaired.filter((i) => i.parent).map((i) => boundsOf(i, repaired));
@@ -75,9 +75,9 @@ describe('plan docs', () => {
   test('refitting hidden completed cards keeps a collapsed plan beside its neighbours', () => {
     docs = [{ ...docA, workstreams: [ws('W1', true), ws('W2', true), ws('W3')] }];
     const [plan, w1, w2, w3] = board.snapshot().items;
-    store.update(w1!.id, { x: 30, y: 78 });
-    store.update(w2!.id, { x: 246, y: 78 });
-    store.update(w3!.id, { x: 30, y: 162 });
+    store.cards.update(w1!.id, { x: 30, y: 78 });
+    store.cards.update(w2!.id, { x: 246, y: 78 });
+    store.cards.update(w3!.id, { x: 30, y: 162 });
     board.patch(plan!.id, { collapsed: true });
     board.create({ title: 'Neighbour', x: plan!.x + 500, y: plan!.y });
     board.docsChanged();
@@ -302,7 +302,7 @@ describe('plan docs', () => {
     // and stays there, read again
     board.docsChanged();
     expect(board.archived().map((i) => i.title)).toEqual(['B', 'Title W1']);
-    expect(store.plans('shop')).toHaveLength(2);
+    expect(store.cards.plans('shop')).toHaveLength(2);
   });
 
   test('work in progress wins over a ticked-off workstream until it has landed', () => {
@@ -422,7 +422,7 @@ describe('the archive of plans', () => {
     expect(b.origin).toBe(idea.id);
     const w1 = board.snapshot().items.find((i) => i.parent === b.id)!;
     // one answered in the owner's name, as a plan agent did before workers asked the owner directly
-    store.addDecision({ project_id: 'shop', plan_id: b.id, card_id: w1.id, question: 'Welche Spalten?', answer: 'Alle.', by: 'plan' });
+    store.decisions.add({ projectId: 'shop', planId: b.id, cardId: w1.id, question: 'Welche Spalten?', answer: 'Alle.', by: 'plan' });
     // the idea's card leaves the project; the plan still finds it
     board.archive([idea.id]);
     const h = board.planHistory(b.id);
@@ -904,7 +904,7 @@ describe('canvases', () => {
   test('a plan written from an idea takes its place on the idea canvas, with its workstreams', () => {
     const ideas = board.createCanvas('Ideas');
     const idea = board.create({ title: 'Idea', x: 100, y: 100, idea: true, canvas: ideas.id });
-    store.update(idea.id, { plan_docs: JSON.stringify(['docs/plan/b.md']), state: 'live', landed: '{}' });
+    store.cards.update(idea.id, { plan_docs: JSON.stringify(['docs/plan/b.md']), state: 'live', landed: '{}' });
     docs = [docA, docB];
     board.docsChanged();
     const items = board.snapshot().items;
@@ -923,7 +923,7 @@ describe('waiting since', () => {
     const since = board.item(c.id)!.waitingSince;
     store.db.query("UPDATE cards SET updated_at = '2020-01-01T00:00:00Z' WHERE id = ?").run(c.id);
     board.work(c.id, { detail: JSON.stringify({ summary: 'Revised demo ready' }) });
-    expect(board.item(c.id)!.updatedAt).toBe(store.card(c.id)!.updated_at);
+    expect(board.item(c.id)!.updatedAt).toBe(store.cards.get(c.id)!.updated_at);
     expect(Date.parse(board.item(c.id)!.updatedAt!)).toBeGreaterThan(Date.parse('2020-01-01T00:00:00Z'));
     expect(board.item(c.id)!.waitingSince).toBe(since);
   });
@@ -941,7 +941,7 @@ describe('waiting since', () => {
     expect(again.item(c.id)!.waitingSince).toBe(since);
     board.work(c.id, { state: 'working', need: null });
     expect(board.item(c.id)!.waitingSince).toBeUndefined();
-    expect(store.waitingSince('shop').size).toBe(0);
+    expect(store.cards.waitingSince('shop').size).toBe(0);
   });
 });
 

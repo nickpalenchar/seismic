@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AgentAt, AgentIdentity, AgentSetting } from '../core/types';
-import { Store } from './db';
+import { Store } from './store';
 import { withAgentSetting } from './runtime';
 import { FakeRuntime } from './testing';
 import { agentIdentity, currentAgent } from './agent-identity';
@@ -11,7 +11,7 @@ import { agentIdentity, currentAgent } from './agent-identity';
 test('concurrent sessions record resolved speaker snapshots, never current defaults or another session', async () => {
   const store = new Store(':memory:');
   store.ensureProject('c', 'C');
-  const [a, b] = store.insert([{ project_id: 'c', kind: 'task', x: 0, y: 0 }, { project_id: 'c', kind: 'task', x: 1, y: 0 }]);
+  const [a, b] = store.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0 }, { project_id: 'c', kind: 'task', x: 1, y: 0 }]);
   const fake = new FakeRuntime();
   let choice: AgentSetting = { model: 'opus', effort: 'high' };
   const runtime = withAgentSetting(fake, () => choice);
@@ -19,12 +19,12 @@ test('concurrent sessions record resolved speaker snapshots, never current defau
     cwd: '.', system: '', role: 'worker',
     tools: [{ name: 'report', description: '', schema: {}, run: async () => {
       await Bun.sleep(1);
-      store.addEvent({ cardId, kind: 'report', author: 'worker', text: 'Tool report' });
-      store.addEvent({ cardId, kind: 'say', author: 'owner', text: 'Owner is not a model' });
-      store.addEvent({ cardId, kind: 'report', author: 'obeya', text: 'System is not a model' });
+      store.events.add({ cardId, kind: 'report', author: 'worker', text: 'Tool report' });
+      store.events.add({ cardId, kind: 'say', author: 'owner', text: 'Owner is not a model' });
+      store.events.add({ cardId, kind: 'report', author: 'obeya', text: 'System is not a model' });
       return 'ok';
     } }],
-    onEvent: (e) => { if (e.type === 'text') store.addEvent({ cardId, kind: 'say', author: 'worker', text: e.text }); },
+    onEvent: (e) => { if (e.type === 'text') store.events.add({ cardId, kind: 'say', author: 'worker', text: e.text }); },
   });
   try {
     const first = start(a!.id);
@@ -38,7 +38,7 @@ test('concurrent sessions record resolved speaker snapshots, never current defau
     codex.emit({ type: 'text', text: 'Second' });
     choice = { model: 'haiku', effort: 'low' };
     await Promise.all([claude.call('report', {}), codex.call('report', {})]);
-    const eventsA = store.events(a!.id), eventsB = store.events(b!.id);
+    const eventsA = store.events.of(a!.id), eventsB = store.events.of(b!.id);
     for (const e of eventsA.filter((e) => e.author === 'worker')) expect(e.agent).toEqual({ harness: 'claude', model: 'claude-opus-resolved' });
     for (const e of eventsB.filter((e) => e.author === 'worker')) expect(e.agent).toEqual({ harness: 'codex', model: 'gpt-resolved' });
     for (const e of [...eventsA, ...eventsB].filter((e) => e.author !== 'worker')) expect(e.agent).toBeUndefined();
@@ -53,18 +53,18 @@ test('speaker metadata survives a database reopen; reply and researched answer c
   let store = new Store(path);
   try {
     store.ensureProject('c', 'C');
-    const [card] = store.insert([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
-    store.addEvent({ cardId: card!.id, kind: 'say', author: 'worker', text: 'Old unknown speaker' });
+    const [card] = store.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
+    store.events.add({ cardId: card!.id, kind: 'say', author: 'worker', text: 'Old unknown speaker' });
     const talk = store.addTalk('c', 'Question', '', null);
-    agentIdentity.run({ harness: 'claude', model: 'opus' }, () => store.replyTalk(talk, 'Looking it up'));
+    agentIdentity.run({ harness: 'claude', model: 'opus' }, () => store.talk.reply(talk, 'Looking it up'));
     agentIdentity.run({ harness: 'codex', model: 'gpt-research' }, () => {
-      store.answerTalk(talk, 'Research result', 'plan');
-      store.addEvent({ cardId: card!.id, kind: 'say', author: 'worker', text: 'Recorded' });
+      store.talk.answer(talk, 'Research result', 'plan');
+      store.events.add({ cardId: card!.id, kind: 'say', author: 'worker', text: 'Recorded' });
     });
     store.db.close(); store = new Store(path);
-    expect(store.talk('c')[0]).toMatchObject({ replyAgent: { harness: 'claude', model: 'opus' }, answerAgent: { harness: 'codex', model: 'gpt-research' } });
-    expect(store.events(card!.id).find((e) => e.text === 'Recorded')!.agent).toEqual({ harness: 'codex', model: 'gpt-research' });
-    expect(store.events(card!.id).find((e) => e.text === 'Old unknown speaker')!.agent).toBeUndefined();
+    expect(store.talk.latest('c')[0]).toMatchObject({ replyAgent: { harness: 'claude', model: 'opus' }, answerAgent: { harness: 'codex', model: 'gpt-research' } });
+    expect(store.events.of(card!.id).find((e) => e.text === 'Recorded')!.agent).toEqual({ harness: 'codex', model: 'gpt-research' });
+    expect(store.events.of(card!.id).find((e) => e.text === 'Old unknown speaker')!.agent).toBeUndefined();
   } finally { store.db.close(); rmSync(root, { recursive: true, force: true }); }
 });
 

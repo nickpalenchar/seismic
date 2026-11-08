@@ -7,7 +7,7 @@ import { suggestable } from '../core/labels';
 import { AGENT_DEFAULTS, type CardAction, type RepoConfig, type RepoSettings } from '../core/types';
 import type { BadRequest, StoredContribution } from './board';
 import { Projects, ProjectRuntime, startProjects } from './project';
-import { Store } from './db';
+import { Store } from './store';
 import { readShared } from '../adapters';
 import { commandsOf } from './trust';
 import { artifact, FakeRuntime, gitRepo, heard, identify, noForge, until } from './testing';
@@ -292,11 +292,11 @@ describe('a project with several repositories', () => {
     expect(item(p.id).state).toBe('planned');
     // as the work retrospective made them before
     const q = project.board.proposeRetro('web', { title: 'Skill für Demos', body: 'Ein Skill.', basis: 'Demos scheitern.' });
-    store.update(q.id, { proposal: null });
+    store.cards.update(q.id, { proposal: null });
     project.act(q.id, { action: 'accept', start: false });
     expect(item(q.id).state).toBe('planned');
     const r = project.board.proposeRetro('web', { title: 'Regel für Tests', body: 'Eine Regel.', basis: 'Tests fehlen.' });
-    store.update(r.id, { proposal: null });
+    store.cards.update(r.id, { proposal: null });
     project.act(r.id, { action: 'accept', idea: true });
     expect(item(r.id).state).toBe('idea');
   });
@@ -706,7 +706,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     expect(runtime.last.spec).toMatchObject({ untrusted: true, system: expect.stringContaining("The repository's CLAUDE.md:\n\nRun the tests with bun test.") });
     const rev = project.board.project.repos[0]!.configRev ?? 0;
 
-    store.trustCommands(shop, commandsOf(readShared(shop)));
+    store.trustedCommands.trust(shop, commandsOf(readShared(shop)));
     await project.settingsChanged();
     expect(r.adapter.app).toEqual({ run: 'bun dev', stop: 'pkill -F .dev.pid' });
     expect(project.board.project.repos[0]!.configRev).toBe(rev + 1);
@@ -1167,7 +1167,7 @@ describe('the projects Seismic serves', () => {
     expect(changes).toBeGreaterThan(0);
     expect(set.failures()).toEqual([{ project: 'web', detail: expect.stringContaining(`${forWeb} is not a clone of`) }]);
     expect(again.lines.join('\n')).toContain('the home repository of the project web does not start; the project stopped');
-    expect(store.cards('web').map((c) => c.id)).toContain(keep.id);
+    expect(store.cards.onProject('web').map((c) => c.id)).toContain(keep.id);
     set.shutdown();
     project = new ProjectRuntime({ repos: [{ path: api, settings: { land: 'pr' } }] }, { store: new Store(':memory:'), home: dir, runtime: new FakeRuntime(), forge: noForge });
   });
@@ -1208,7 +1208,7 @@ describe('the projects Seismic serves', () => {
     // nobody at work on it: it stops at once
     expect(set.all().map((c) => c.id)).toEqual(['api']);
     expect(changes).toBeGreaterThan(1);
-    expect(store.cards('web').map((c) => c.id)).toContain(keep.id);
+    expect(store.cards.onProject('web').map((c) => c.id)).toContain(keep.id);
     set.shutdown();
     // the project variable the other tests shut down after them
     project = new ProjectRuntime({ repos: [{ path: web, settings: { land: 'pr' } }] }, { store: new Store(':memory:'), home: dir, runtime: new FakeRuntime(), forge: noForge });

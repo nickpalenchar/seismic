@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AccessView, Pairing } from '../core/types';
 import { ProjectRuntime } from './project';
-import { Store } from './db';
+import { Store } from './store';
 import { Access, deviceName, machineAddresses, PAIRING_MS, UNUSED_MS } from './remote';
 import { serve } from './server';
 import { Tailscale } from './tailscale';

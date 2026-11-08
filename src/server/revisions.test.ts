@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { agentListens, type Item } from '../core/types';
 import { ProjectRuntime } from './project';
-import { Store } from './db';
+import { Store } from './store';
 import { FakeRuntime, type FakeSession, gitRepo, noForge } from './testing';
 
 let dir: string;

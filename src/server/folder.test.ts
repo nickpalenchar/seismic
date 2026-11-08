@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Store } from './db';
+import { Store } from './store';
 import { compare, FolderWorkstations, merge, type Manifest, type ToolCall, walk } from './folder';
 
 let dir: string;

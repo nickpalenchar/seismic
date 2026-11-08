@@ -7,7 +7,7 @@ import type { RepoAdapter } from '../adapters/types';
 import type { Language } from '../core/locale';
 import { needsYou } from '../core/types';
 import { Board } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { ghCli, makeGhForge, type Forge, type PrStatus } from './forge';
 import { PrWatcher } from './pr-watcher';
 import { artifact, FakeRuntime, fakeGh, gitRepo, noContributions, until } from './testing';

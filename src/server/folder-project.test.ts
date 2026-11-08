@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, w
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectRuntime } from './project';
-import { Store } from './db';
+import { Store } from './store';
 import type { FolderWorkstations } from './folder';
 import { artifact, FakeRuntime, noForge } from './testing';
 

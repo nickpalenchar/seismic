@@ -14,7 +14,7 @@ import type { CardDiff, DiffFile, FolderChange, FolderChanges } from '../core/di
 import { cardDiff } from '../core/diff';
 import type { PoolHost } from '../core/types';
 import { messageOf } from '../core/text';
-import type { Store } from './db';
+import type { Store } from './store';
 import { spawnOutput } from './spawn';
 import { type CardWorkstations, type Change, type FileAt, GIT, ownFile, type LandProblem, type Landed, type Lease, WorkstationError } from './workstations';
 
@@ -441,7 +441,7 @@ export class FolderWorkstations implements CardWorkstations {
 
   private rec(cardId: string): FolderCard | null {
     if (!this.records.has(cardId)) {
-      const json = this.store.folderCard(cardId);
+      const json = this.store.folderCards.get(cardId);
       this.records.set(cardId, json ? (JSON.parse(json) as FolderCard) : null);
     }
     return this.records.get(cardId)!;
@@ -449,7 +449,7 @@ export class FolderWorkstations implements CardWorkstations {
 
   private save(cardId: string, rec: FolderCard | null) {
     this.records.set(cardId, rec);
-    this.store.setFolderCard(cardId, this.root, rec ? JSON.stringify(rec) : null);
+    this.store.folderCards.set(cardId, this.root, rec ? JSON.stringify(rec) : null);
   }
 
   private undoDir(cardId: string) {

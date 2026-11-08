@@ -30,7 +30,7 @@ import type { Theme } from './theme';
 import { type Forge, landedUrl, parsePrUrl } from './forge';
 import type { AgentRuntime } from './runtime';
 import { readSession } from './koordinator';
-import type { CardRow } from './db';
+import type { CardRow } from './models/cards/cards';
 import { branchName, gitAsync } from './workstations';
 import { originOf } from './forgejo';
 import { zip } from './zip';

@@ -9,7 +9,7 @@ import type { RepoAdapter } from '../adapters/types';
 import { drawnWaits, inQueue, movable, notStarted, queueOrder, reach, waitsOn } from '../core/queue';
 import { type AgentAt, type AgentRole, type CardEvent, EVICT_HOLD_MS, finished, mergeRank, type Item, nameless, type Preference, START_ALL_HOLD_MS, type Wait } from '../core/types';
 import { ACTIVE, BadRequest, type Board, contributionOf } from './board';
-import type { Utterance } from './db';
+import type { Utterance } from './store';
 import { type AgentRuntime, type AgentTool, waitQuietly } from './runtime';
 import type { Workers } from './workers';
 import { type CardWorkstations, type Change, RECHECK_MS, shortageOf } from './workstations';

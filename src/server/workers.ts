@@ -40,7 +40,7 @@ import { type ChangeRoute, type Clash, type FindingPick, type CodeReviewSetting,
 import { dimensions, outside, tagsOf } from '../core/page-tags';
 import { gitAsync, gitOrNull } from './workstations';
 import { defaultBranchCommit } from './read-tree';
-import type { CardRow } from './db';
+import type { CardRow } from './models/cards/cards';
 import { workConfig } from './feedback';
 import { type DataSignal, dataModelSignals, isSchemaPage, SIGNALS_NAMED } from './data-models';
 import { type Forge, parsePrUrl, sameRepo } from './forge';
@@ -3889,7 +3889,7 @@ export class Workers {
     const fresh = this.o.board.decisions(live.plan.id).filter((d) => d.id > live.plan!.decision);
     if (!fresh.length) return;
     live.plan.decision = fresh.at(-1)!.id;
-    const others = fresh.filter((d) => d.card_id !== cardId);
+    const others = fresh.filter((d) => d.cardId !== cardId);
     return others.length ? `Decisions taken in this plan while you work:\n${decisionLog(others)}` : undefined;
   }
 

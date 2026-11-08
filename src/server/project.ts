@@ -23,7 +23,7 @@ import { BadRequest, Board, withQuestions, pathOfRef, repoOfRef, replyNote, type
 import type { FindingPick } from '../core/types';
 import { type Command, Commander } from './commands';
 import type { Config } from './config';
-import type { Store } from './db';
+import type { Store } from './store';
 import { Explorers } from './explorers';
 import { Files } from './files';
 import { Images, MAX_IMAGES } from './images';
@@ -312,8 +312,8 @@ export class ProjectRuntime {
     );
     const board = this.board;
     this.showOldNames();
-    if (!stored) deps.store.setSetting(id, 'home_repo', repos[0]!.ref.id);
-    if (deps.store.setting(id, 'paused') === '1') this.showPaused(true);
+    if (!stored) deps.store.settings.set(id, 'home_repo', repos[0]!.ref.id);
+    if (deps.store.settings.get(id, 'paused') === '1') this.showPaused(true);
 
     this.workRetro = new WorkRetro({
       board,
@@ -649,7 +649,7 @@ export class ProjectRuntime {
     if (!held) {
       // the configuration as it runs may not have a repository new on the project yet; the file has it
       const mine = this.deps.settings ? this.deps.settings(path) : this.config?.repos.find((r) => resolve(r.path) === path)?.settings;
-      held = heldGroups(commandsOf(this.shared.get(path)), this.deps.store.trustedCommands(path), mine);
+      held = heldGroups(commandsOf(this.shared.get(path)), this.deps.store.trustedCommands.get(path), mine);
       this.held.set(path, held);
       if (held.length) console.warn(`Seismic: ${path}: ${held.join(', ')} of its settings wait for the owner's confirmation in Configuration (held)`);
     }
@@ -675,7 +675,7 @@ export class ProjectRuntime {
    */
   private allowRules = (cwd: string): string[] => {
     const repo = this.repoAt(cwd);
-    const file = repo && this.deps.store.trustedCommands(repo.info.path)?.claude?.['.claude/settings.json'];
+    const file = repo && this.deps.store.trustedCommands.get(repo.info.path)?.claude?.['.claude/settings.json'];
     return file ? bashRules(file.text) : [];
   };
 
@@ -689,13 +689,13 @@ export class ProjectRuntime {
     const path = repo.info.path;
     const folder = !!repo.info.folder;
     const read = () => commandsOf(folder ? readSharedFiles(path) : readShared(path));
-    const trusted = this.deps.store.trustedCommands(path);
+    const trusted = this.deps.store.trustedCommands.get(path);
     const held = heldGroups(read(), trusted);
     const done = await change({ path, folder });
     const now = read();
     const next = { ...trusted };
     for (const g of ['claude', 'codex'] as const) if (!held.includes(g) && now[g] !== undefined) next[g] = now[g] as never;
-    this.deps.store.trustCommands(path, next);
+    this.deps.store.trustedCommands.trust(path, next);
     void this.settingsChanged();
     return done;
   };
@@ -703,7 +703,7 @@ export class ProjectRuntime {
   /** The Codex configuration of the repository `cwd` lies in as the owner last trusted it (`withCodexTrust`); none where nothing was. */
   private codexTrusted = (cwd: string) => {
     const repo = this.repoAt(cwd);
-    return repo ? this.deps.store.trustedCommands(repo.info.path)?.codex : undefined;
+    return repo ? this.deps.store.trustedCommands.get(repo.info.path)?.codex : undefined;
   };
 
   /**
@@ -720,7 +720,7 @@ export class ProjectRuntime {
     if (!best) return false;
     const path = best.info.path;
     const mine = this.deps.settings ? this.deps.settings(path) : best.config.settings;
-    const trusted = this.deps.store.trustedCommands(path);
+    const trusted = this.deps.store.trustedCommands.get(path);
     const held = (read: SharedRead) => heldGroups(commandsOf(read), trusted, mine).includes('claude');
     // a folder without git is read as it is
     if (best.info.folder) return held(readSharedFiles(path));
@@ -1269,7 +1269,7 @@ export class ProjectRuntime {
   /** The project's pause as it is stored and as the switchers show it. */
   private showPaused(on: boolean) {
     this.paused = on;
-    this.deps.store.setSetting(this.id, 'paused', on ? '1' : '');
+    this.deps.store.settings.set(this.id, 'paused', on ? '1' : '');
     if (on) this.board.project.paused = true;
     else delete this.board.project.paused;
   }
@@ -2437,7 +2437,7 @@ export class ProjectRuntime {
     const at = (file: string) => (outside ? file : join(r.info.path, file));
     const name = slug(card.title).slice(0, 60).replace(/^[.-]+|[.-]+$/g, '') || 'plan';
     // nor one another card was given and has not written yet
-    const given = new Set(this.deps.store.withPlanDocs(this.id).flatMap((row) => (JSON.parse(row.plan_docs!) as string[]).map(pathOfRef)));
+    const given = new Set(this.deps.store.cards.withPlanDocs(this.id).flatMap((row) => (JSON.parse(row.plan_docs!) as string[]).map(pathOfRef)));
     let file = `${dir}/${name}.md`;
     for (let n = 2; existsSync(at(file)) || given.has(file); n++) file = `${dir}/${name}-${n}.md`;
     const ref = r.ref.id === this.repos[0]!.ref.id ? file : `${r.ref.id}:${file}`;
@@ -3165,7 +3165,7 @@ export function resolveProject(
   const id = config.id ? slug(config.id) : config.name ? slug(config.name) : slug(repoName(reads[0]!.info));
   // the home repository is fixed when the project is first served: bare plan references, cards
   // without a repository and the home workstation directory are its, whatever the order later
-  const stored = store.setting(id, 'home_repo');
+  const stored = store.settings.get(id, 'home_repo');
   if (stored && stored !== refs[0]!.id) {
     const at = refs.findIndex((r) => r.id === stored);
     if (at < 0) throw new ConfigError('homeMissing', `project ${id}: its home repository "${stored}" is not configured; list it (first or anywhere)`);

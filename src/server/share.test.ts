@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { DemoSite } from '../adapters/types';
 import { BadRequest, Board } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { EXPORT_HTML_MAX } from '../core/types';
 import type { Forge } from './forge';
 import { demoPageHtml } from './demo-page';

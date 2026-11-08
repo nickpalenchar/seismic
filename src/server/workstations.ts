@@ -12,7 +12,7 @@ import { hostname } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { type CardDiff, cardDiff } from '../core/diff';
 import type { BlockedClone, PoolHost, WorkstationShortage } from '../core/types';
-import type { Store } from './db';
+import type { Store } from './store';
 import { HostError, hostName, LOST, onHost, remote, sh as shWord, type SshHost, TOKEN_HELPER, TOKEN_HELPER_ARGS } from './hosts';
 import { runAppCommand } from './app-command';
 import { messageOf } from '../core/text';
@@ -629,7 +629,7 @@ export class Workstations implements CardWorkstations {
       } catch {}
       if (!origins.some((o) => sameRemote(o, origin))) throw new WorkstationError(`${path} is not a clone of ${origins.join(' or ')} (its origin is ${origin || 'unset'})`);
     }
-    this.store.addWorkstation(this.projectId, path, this.o.repo ?? null);
+    this.store.workstations.add(this.projectId, path, this.o.repo ?? null);
     if (retiring.has(path)) claimed.add(path);
     // a folder that stayed is back in the pool
     if (kept.delete(path)) this.o.changed?.();
@@ -662,7 +662,7 @@ export class Workstations implements CardWorkstations {
     for (const w of this.list()) {
       if (hostName(w.path) !== host || named.includes(w.path)) continue;
       if (this.gone(w.path, w.card_id)) {
-        this.store.removeWorkstation(w.path);
+        this.store.workstations.remove(w.path);
         this.leaving.delete(w.path);
         if (w.card_id) lost.push({ card: w.card_id, path: w.path });
         continue;
@@ -670,7 +670,7 @@ export class Workstations implements CardWorkstations {
       if (!this.isClone(w.path)) continue;
       if (w.card_id) this.leaving.add(w.path);
       else {
-        this.store.removeWorkstation(w.path);
+        this.store.workstations.remove(w.path);
         this.retire(w.path);
       }
     }
@@ -703,7 +703,7 @@ export class Workstations implements CardWorkstations {
     for (const name of names) {
       if (CLONE_NAME.test(name) && !pool.has(join(this.o.dir, name))) this.retire(join(this.o.dir, name));
       // one whose removal a stop of Seismic cut off
-      if (TRASH_NAME.test(name) && !this.store.hasWorkstation(join(this.o.dir, name))) void rm(join(this.o.dir, name), { recursive: true, force: true }).catch(() => {});
+      if (TRASH_NAME.test(name) && !this.store.workstations.has(join(this.o.dir, name))) void rm(join(this.o.dir, name), { recursive: true, force: true }).catch(() => {});
     }
   }
 
@@ -737,7 +737,7 @@ export class Workstations implements CardWorkstations {
    * answer is asked again at the next start. One the owner listed is never touched.
    */
   private retire(path: string) {
-    if (!this.made(path) || retiring.has(path) || this.store.hasWorkstation(path)) return;
+    if (!this.made(path) || retiring.has(path) || this.store.workstations.has(path)) return;
     claimed.delete(path);
     retiring.set(
       path,
@@ -752,7 +752,7 @@ export class Workstations implements CardWorkstations {
 
   private async clearAway(path: string) {
     // registered again, on any project, while it was looked at: it is a workstation again
-    const taken = () => claimed.has(path) || this.store.hasWorkstation(path);
+    const taken = () => claimed.has(path) || this.store.workstations.has(path);
     const o = { origins: this.o.origins ?? [], main: branchSetting(this.o.repoPath) || undefined };
     // what the stop command leaves behind (a snapshot it writes, say) counts too: looked at again after it
     for (const after of [false, true]) {
@@ -818,7 +818,7 @@ export class Workstations implements CardWorkstations {
           const c = await host.run(helper, { cwd: path });
           if (c.code !== 0) throw new HostError(`${host.name}: ${c.stderr.trim()}`);
           await host.trust(path);
-          this.store.addWorkstation(this.projectId, onHost(host.name, path), this.o.repo ?? null);
+          this.store.workstations.add(this.projectId, onHost(host.name, path), this.o.repo ?? null);
           kept.delete(onHost(host.name, path));
         });
       }
@@ -839,7 +839,7 @@ export class Workstations implements CardWorkstations {
   }
 
   list() {
-    return this.store.workstations(this.projectId, this.o.repo ?? null);
+    return this.store.workstations.of(this.projectId, this.o.repo ?? null);
   }
 
   leasedBy(cardId: string): string | null {
@@ -1172,12 +1172,12 @@ export class Workstations implements CardWorkstations {
   /** Frees a clone or worktree for other cards; a clone the configuration no longer names leaves the pool, and its folder goes where nothing would be lost. */
   private free(path: string) {
     if (!this.leaving.delete(path)) {
-      this.store.setLease(path, null);
+      this.store.workstations.lease(path, null);
       // what the card left in it decides whether the next one takes it
       if (this.cloned(path) && !this.looks.has(path)) void this.look(path);
       return;
     }
-    this.store.removeWorkstation(path);
+    this.store.workstations.remove(path);
     this.retire(path);
   }
 
@@ -1204,7 +1204,7 @@ export class Workstations implements CardWorkstations {
         if ((await gitAsync(path, 'status', '--porcelain').catch(() => null)) !== '') return false;
         if ((await gitAsync(this.o.repoPath, 'worktree', 'remove', path).catch(() => null)) === null) return false;
       }
-      this.store.removeWorkstation(path);
+      this.store.workstations.remove(path);
       return true;
     });
   }
@@ -1222,7 +1222,7 @@ export class Workstations implements CardWorkstations {
   retake(cardId: string, path: string): boolean {
     if (this.leasedBy(cardId)) return true;
     if (this.o.mode !== 'clones' || !this.list().some((w) => w.path === path && !w.card_id)) return false;
-    this.store.setLease(path, cardId);
+    this.store.workstations.lease(path, cardId);
     return true;
   }
 
@@ -1633,7 +1633,7 @@ export class Workstations implements CardWorkstations {
     const ws = this.leasedBy(cardId);
     if (!ws) return;
     if (this.cloned(ws)) return this.release(cardId);
-    this.store.removeWorkstation(ws);
+    this.store.workstations.remove(ws);
     await this.clearing(ws, async () => {
       if (existsSync(ws)) await gitAsync(this.o.repoPath, 'worktree', 'remove', '--force', ws);
       try {
@@ -1653,7 +1653,7 @@ export class Workstations implements CardWorkstations {
     const ws = this.leasedBy(cardId);
     if (!ws) return;
     if (!this.cloned(ws)) {
-      this.store.removeWorkstation(ws);
+      this.store.workstations.remove(ws);
       return this.clearing(ws, async () => {
         if (existsSync(ws)) await gitAsync(this.o.repoPath, 'worktree', 'remove', '--force', ws);
         if (await gitAsync(this.o.repoPath, 'branch', '--list', branch)) await gitAsync(this.o.repoPath, 'branch', '--quiet', '-D', branch);
@@ -1699,7 +1699,7 @@ export class Workstations implements CardWorkstations {
         if (now !== branch) await gitAsync(repo, 'branch', '-m', now, branch).catch(() => {});
         throw new WorkstationError(moved);
       }
-      this.store.setLease(path, to);
+      this.store.workstations.lease(path, to);
       return { path, branch: now };
     });
   }
@@ -1910,7 +1910,7 @@ export class Workstations implements CardWorkstations {
 
   /** Leases a free clone to the card; what was last seen of it while free no longer counts. */
   private take(path: string, cardId: string) {
-    this.store.setLease(path, cardId);
+    this.store.workstations.lease(path, cardId);
     this.looks.delete(path);
   }
 
@@ -1962,8 +1962,8 @@ export class Workstations implements CardWorkstations {
    */
   private leaseWorktree(cardId: string, branch: string): Lease {
     const path = join(this.o.dir, cardId.slice(0, 8));
-    this.store.addWorkstation(this.projectId, path, this.o.repo ?? null);
-    this.store.setLease(path, cardId);
+    this.store.workstations.add(this.projectId, path, this.o.repo ?? null);
+    this.store.workstations.lease(path, cardId);
     const removing = this.clears.get(path);
     if (!removing && existsSync(path) && !this.o.planOf?.(cardId)) return { path, ready: null };
     return this.prepare(
@@ -1972,15 +1972,15 @@ export class Workstations implements CardWorkstations {
       async () => {
         await removing;
         // the card's again, where git removed it from the pool meanwhile; one git failed to remove is as it was
-        this.store.addWorkstation(this.projectId, path, this.o.repo ?? null);
-        this.store.setLease(path, cardId);
+        this.store.workstations.add(this.projectId, path, this.o.repo ?? null);
+        this.store.workstations.lease(path, cardId);
         if (existsSync(path)) return path;
         mkdirSync(this.o.dir, { recursive: true });
         if ((await gitAsync(this.o.repoPath, 'branch', '--list', branch)) !== '') await gitAsync(this.o.repoPath, 'worktree', 'add', '--quiet', path, branch);
         else await gitAsync(this.o.repoPath, 'worktree', 'add', '--quiet', '-b', branch, path, await this.mainAsync(this.o.repoPath));
         return path;
       },
-      () => this.store.removeWorkstation(path),
+      () => this.store.workstations.remove(path),
     );
   }
 

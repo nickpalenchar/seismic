@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import type { SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
 import { generic } from '../adapters/generic';
 import { Board } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { HostError, hostName, onHost, registerHost, remote, sessionFiles, type SshHost } from './hosts';
 import { runAppCommand } from './app-command';
 import { type AgentEvent, sdkRuntime } from './runtime';

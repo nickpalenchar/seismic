@@ -737,7 +737,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
       const w = await landWaiting();
       const plan = board.snapshot().items.find((i) => i.kind === 'plan')!;
       // as Seismic did before: archived at the landing, its worker unseen
-      store.update(plan.id, { archived_at: new Date().toISOString() });
+      store.cards.update(plan.id, { archived_at: new Date().toISOString() });
       const after = restart();
       expect(after.item(plan.id)).toBeDefined();
       expect(after.item(w.id)!.finishing).toBe(true);
@@ -950,7 +950,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     const c = manual();
     await workers.start(c.id);
     // closed as done, its worker through, and only the lease left behind (by an Seismic before this one)
-    store.update(c.id, { state: 'done', landed: null });
+    store.cards.update(c.id, { state: 'done', landed: null });
     expect(spaces.leasable()).toBe(false);
     const fresh = restart();
     await flush();
@@ -962,7 +962,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
   test('a lease its card knows nothing of goes back to the pool; the card keeps what it names', async () => {
     const c = manual();
     await workers.start(c.id);
-    store.update(c.id, { state: 'planned', workstation: null });
+    store.cards.update(c.id, { state: 'planned', workstation: null });
     restart();
     expect(spaces.leasedBy(c.id)).toBeNull();
     expect(spaces.leasable()).toBe(true);

@@ -4,7 +4,8 @@ import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { CardEvent } from '../core/types';
-import { MIGRATIONS, NewerDatabase, OlderDatabase, RELEASED, SHORT, Store } from './db';
+import { MIGRATIONS, NewerDatabase, OlderDatabase, RELEASED, SHORT } from './db';
+import { Store } from './store';
 
 const version = (path: string) => {
   const db = new Database(path);
@@ -62,21 +63,21 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
   withPath((path) => {
     const s = new Store(path);
     s.ensureProject('c', 'C');
-    const [video, answered, held, plan] = s.insert([
+    const [video, answered, held, plan] = s.addCards([
       { project_id: 'c', kind: 'task', state: 'waiting', x: 0, y: 0 },
       { project_id: 'c', kind: 'task', state: 'waiting', x: 0, y: 1 },
       { project_id: 'c', kind: 'task', state: 'done', x: 0, y: 2 },
       { project_id: 'c', kind: 'project' as 'plan', plan_ref: 'docs/plan/gone.md', title: 'Gone', x: 0, y: 3 },
     ]);
-    const log = (cardId: string, kind: CardEvent['kind'], author: CardEvent['author'], text: string) => s.addEvent({ cardId, kind, author, text });
+    const log = (cardId: string, kind: CardEvent['kind'], author: CardEvent['author'], text: string) => s.events.add({ cardId, kind, author, text });
     const first = log(answered!.id, 'review', 'worker', 'Done.');
     log(answered!.id, 'answer', 'owner', 'Yes');
     log(answered!.id, 'review', 'worker', 'Done again.');
     const paused = log(video!.id, 'state', 'owner', 'Paused. The agent goes on when you click “Resume” or write to it.');
-    s.update(video!.id, { demo: JSON.stringify({ dir: '/d', chapters: [], answering: true }) });
-    s.update(answered!.id, { demo: JSON.stringify({ kind: 'video', dir: '/d', chapters: [], question: 'Q?', answer: 'Yes' }) });
-    s.update(held!.id, { share: JSON.stringify({ slug: 's', state: 'pending', dir: '/d', shown: { title: 'T', text: '', chapters: [] } }) });
-    s.setSetting('c', 'work_retro_since:app', '2026-10-01T00:00:00Z');
+    s.cards.update(video!.id, { demo: JSON.stringify({ dir: '/d', chapters: [], answering: true }) });
+    s.cards.update(answered!.id, { demo: JSON.stringify({ kind: 'video', dir: '/d', chapters: [], question: 'Q?', answer: 'Yes' }) });
+    s.cards.update(held!.id, { share: JSON.stringify({ slug: 's', state: 'pending', dir: '/d', shown: { title: 'T', text: '', chapters: [] } }) });
+    s.settings.set('c', 'work_retro_since:app', '2026-10-01T00:00:00Z');
     // the schema as released: without the columns and indexes later migrations add
     for (const index of ['cards_open', 'cards_plan_docs', 'cards_prototypes', 'cards_waiting', 'cards_shared']) s.db.run(`DROP INDEX ${index}`);
     s.db.run('ALTER TABLE talk DROP COLUMN reply_to');
@@ -122,7 +123,7 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     s.db.run('DROP INDEX talk_chat');
     s.db.run('ALTER TABLE talk DROP COLUMN chat');
     s.db.run('DROP TABLE chats');
-    s.addDecision({ project_id: 'c', plan_id: plan!.id, card_id: plan!.id, question: 'q', answer: 'a', by: 'plan' });
+    s.decisions.add({ projectId: 'c', planId: plan!.id, cardId: plan!.id, question: 'q', answer: 'a', by: 'plan' });
     s.db.run("UPDATE decisions SET by = 'project'");
     asCanvases(s.db);
     s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
@@ -134,27 +135,27 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     s.db.close();
 
     const after = new Store(path);
-    expect(after.decisions('c', plan!.id)[0]!.by).toBe('plan');
-    expect(JSON.parse(after.card(video!.id)!.demo!)).toEqual({ dir: '/d', chapters: [], kind: 'video' });
-    expect(JSON.parse(after.card(video!.id)!.detail!)).toEqual({ answering: true });
-    expect(after.events(video!.id).find((e) => e.id === paused.id)!.text).toBe('Paused.');
-    expect(JSON.parse(after.card(answered!.id)!.demo!).handover).toBe(first.id);
-    expect(JSON.parse(after.card(held!.id)!.share!)).toMatchObject({ state: 'publishing', shown: { kind: 'video' } });
-    expect(after.card(plan!.id)!.kind).toBe('plan');
-    expect(JSON.parse(after.card(plan!.id)!.plan!)).toEqual({ file: 'docs/plan/gone.md', title: 'Gone', goal: '', workstreams: [], markdown: '' });
-    expect(after.setting('c', 'work_retro_runs:app')).toBe('3');
-    expect(after.card(video!.id)!.agent_setting).toBeNull();
-    expect(after.card(video!.id)!.workstation).toBe('/w/1');
-    expect(JSON.parse(after.card(video!.id)!.queue!)).toEqual({ since: '2026-01-01', workstation: 'dirty', begun: true });
-    expect(after.workstations('c')).toEqual([{ path: '/w/1', card_id: video!.id }]);
-    expect(after.card(video!.id)!.short).toBe(video!.id.replaceAll('-', '').slice(0, SHORT));
+    expect(after.decisions.of('c', plan!.id)[0]!.by).toBe('plan');
+    expect(JSON.parse(after.cards.get(video!.id)!.demo!)).toEqual({ dir: '/d', chapters: [], kind: 'video' });
+    expect(JSON.parse(after.cards.get(video!.id)!.detail!)).toEqual({ answering: true });
+    expect(after.events.of(video!.id).find((e) => e.id === paused.id)!.text).toBe('Paused.');
+    expect(JSON.parse(after.cards.get(answered!.id)!.demo!).handover).toBe(first.id);
+    expect(JSON.parse(after.cards.get(held!.id)!.share!)).toMatchObject({ state: 'publishing', shown: { kind: 'video' } });
+    expect(after.cards.get(plan!.id)!.kind).toBe('plan');
+    expect(JSON.parse(after.cards.get(plan!.id)!.plan!)).toEqual({ file: 'docs/plan/gone.md', title: 'Gone', goal: '', workstreams: [], markdown: '' });
+    expect(after.settings.get('c', 'work_retro_runs:app')).toBe('3');
+    expect(after.cards.get(video!.id)!.agent_setting).toBeNull();
+    expect(after.cards.get(video!.id)!.workstation).toBe('/w/1');
+    expect(JSON.parse(after.cards.get(video!.id)!.queue!)).toEqual({ since: '2026-01-01', workstation: 'dirty', begun: true });
+    expect(after.workstations.of('c')).toEqual([{ path: '/w/1', card_id: video!.id }]);
+    expect(after.cards.get(video!.id)!.short).toBe(video!.id.replaceAll('-', '').slice(0, SHORT));
     after.db.close();
   }));
 
 test('a card gets the shortest code no other card has: the start of its id, one digit longer for each card that shares it', () => {
   const s = new Store(':memory:');
   s.ensureProject('c', 'C');
-  const [a] = s.insert([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
+  const [a] = s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
   expect(a!.short).toMatch(new RegExp(`^[0-9a-f]{${SHORT}}$`));
   expect(a!.id.replaceAll('-', '').startsWith(a!.short)).toBe(true);
   // ids that share their start with cards there are already
@@ -163,7 +164,7 @@ test('a card gets the shortest code no other card has: the start of its id, one 
   let n = 0;
   crypto.randomUUID = () => ids[n++] as ReturnType<typeof crypto.randomUUID>;
   try {
-    expect(s.insert([0, 1, 2].map((y) => ({ project_id: 'c', kind: 'task' as const, x: 0, y }))).map((r) => r.short)).toEqual(['abcdef', 'abcdef0', 'abcdef01']);
+    expect(s.addCards([0, 1, 2].map((y) => ({ project_id: 'c', kind: 'task' as const, x: 0, y }))).map((r) => r.short)).toEqual(['abcdef', 'abcdef0', 'abcdef01']);
   } finally {
     crypto.randomUUID = real;
   }
@@ -197,7 +198,7 @@ test('the migration gives the cards there are codes of their own, longer where t
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD COLUMN short'))}`);
     s.db.close();
     const after = new Store(path);
-    expect(ids.map((id) => after.card(id)!.short)).toEqual(['12345678000040008000000000000001', '12345678000040008000000000000002', '1234aa', 'ffffff']);
+    expect(ids.map((id) => after.cards.get(id)!.short)).toEqual(['12345678000040008000000000000001', '12345678000040008000000000000002', '1234aa', 'ffffff']);
     after.db.close();
   }));
 
@@ -205,17 +206,17 @@ test('the sessions of cards from before runs were recorded: the last as pinned, 
   withPath((path) => {
     const s = new Store(path);
     s.ensureProject('c', 'C');
-    const [pinned, spoke, legacy, mixed, idle] = s.insert([0, 1, 2, 3, 4].map((y) => ({ project_id: 'c', kind: 'task' as const, x: 0, y })));
-    s.update(pinned!.id, { session_id: 's-1', agent_setting: JSON.stringify({ model: 'opus', effort: 'high' }) });
-    s.update(spoke!.id, { session_id: 'codex:t-1', agent_setting: JSON.stringify({ model: 'opus', effort: 'high', harness: 'codex', codex: { model: 'gpt-x', effort: 'low' } }) });
-    s.addEvent({ cardId: spoke!.id, kind: 'say', author: 'worker', text: 'On it.', agent: { harness: 'codex', model: 'gpt-x' } });
-    s.addEvent({ cardId: spoke!.id, kind: 'say', author: 'koordinator', text: 'Not the worker.', agent: { harness: 'claude', model: 'claude-opus-5-5' } });
-    s.update(legacy!.id, { session_id: 'old-claude' });
-    const [named] = s.insert([{ project_id: 'c', kind: 'task', x: 1, y: 0 }]);
-    s.update(named!.id, { session_id: 'codex:t-2', agent_setting: JSON.stringify({ model: 'opus', effort: 'high', harness: 'codex', codex: { model: 'gpt-y', effort: 'max' } }) });
-    s.update(mixed!.id, { session_id: 's-3', agent_setting: JSON.stringify({ model: 'sonnet', effort: 'low' }) });
-    s.addEvent({ cardId: mixed!.id, kind: 'say', author: 'worker', text: 'First.', agent: { harness: 'claude', model: 'claude-opus-5-5' } });
-    s.addEvent({ cardId: mixed!.id, kind: 'say', author: 'worker', text: 'Second.', agent: { harness: 'claude', model: 'claude-sonnet-5-5' } });
+    const [pinned, spoke, legacy, mixed, idle] = s.addCards([0, 1, 2, 3, 4].map((y) => ({ project_id: 'c', kind: 'task' as const, x: 0, y })));
+    s.cards.update(pinned!.id, { session_id: 's-1', agent_setting: JSON.stringify({ model: 'opus', effort: 'high' }) });
+    s.cards.update(spoke!.id, { session_id: 'codex:t-1', agent_setting: JSON.stringify({ model: 'opus', effort: 'high', harness: 'codex', codex: { model: 'gpt-x', effort: 'low' } }) });
+    s.events.add({ cardId: spoke!.id, kind: 'say', author: 'worker', text: 'On it.', agent: { harness: 'codex', model: 'gpt-x' } });
+    s.events.add({ cardId: spoke!.id, kind: 'say', author: 'koordinator', text: 'Not the worker.', agent: { harness: 'claude', model: 'claude-opus-5-5' } });
+    s.cards.update(legacy!.id, { session_id: 'old-claude' });
+    const [named] = s.addCards([{ project_id: 'c', kind: 'task', x: 1, y: 0 }]);
+    s.cards.update(named!.id, { session_id: 'codex:t-2', agent_setting: JSON.stringify({ model: 'opus', effort: 'high', harness: 'codex', codex: { model: 'gpt-y', effort: 'max' } }) });
+    s.cards.update(mixed!.id, { session_id: 's-3', agent_setting: JSON.stringify({ model: 'sonnet', effort: 'low' }) });
+    s.events.add({ cardId: mixed!.id, kind: 'say', author: 'worker', text: 'First.', agent: { harness: 'claude', model: 'claude-opus-5-5' } });
+    s.events.add({ cardId: mixed!.id, kind: 'say', author: 'worker', text: 'Second.', agent: { harness: 'claude', model: 'claude-sonnet-5-5' } });
     s.db.run('DROP TABLE agent_runs');
     s.db.run('DROP TABLE feedback');
     s.db.run('ALTER TABLE cards DROP COLUMN priority');
@@ -231,7 +232,7 @@ test('the sessions of cards from before runs were recorded: the last as pinned, 
     s.db.close();
 
     const after = new Store(path);
-    const runs = (id: string) => after.runs(id).map(({ at: _, ...r }) => r);
+    const runs = (id: string) => after.agentRuns.of(id).map(({ at: _, ...r }) => r);
     expect(runs(pinned!.id)).toEqual([{ session: 's-1', harness: 'claude', model: null, effort: 'high', requested: 'opus' }]);
     expect(runs(spoke!.id)).toEqual([{ session: 'codex:t-1', harness: 'codex', model: 'gpt-x', effort: 'low', requested: 'gpt-x' }]);
     expect(runs(named!.id)).toEqual([{ session: 'codex:t-2', harness: 'codex', model: 'gpt-y', effort: 'max', requested: 'gpt-y' }]);
@@ -243,7 +244,7 @@ test('the sessions of cards from before runs were recorded: the last as pinned, 
     ]);
     expect(runs(idle!.id)).toEqual([]);
     // heard again, a run learns what was unknown and keeps what it knew
-    after.recordRun(pinned!.id, 's-1', { harness: 'codex', model: 'claude-opus-5-5', effort: 'low' });
+    after.agentRuns.record(pinned!.id, 's-1', { harness: 'codex', model: 'claude-opus-5-5', effort: 'low' });
     expect(runs(pinned!.id)).toEqual([{ session: 's-1', harness: 'claude', model: 'claude-opus-5-5', effort: 'high', requested: 'opus' }]);
     after.db.close();
   }));
@@ -252,68 +253,68 @@ test('runs and responses survive a restart, one response for each handover', () 
   withPath((path) => {
     const s = new Store(path);
     s.ensureProject('c', 'C');
-    const [card] = s.insert([{ project_id: 'c', kind: 'task', x: 0, y: 0, title: 'T' }]);
-    s.recordRun(card!.id, 's-1', { harness: 'claude', model: 'm', effort: 'high' }, '2026-01-01T00:00:00.000Z');
+    const [card] = s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0, title: 'T' }]);
+    s.agentRuns.record(card!.id, 's-1', { harness: 'claude', model: 'm', effort: 'high' }, '2026-01-01T00:00:00.000Z');
     const given = { cardId: card!.id, projectId: 'c', handover: 7, title: 'T', attribution: 'single' as const, configs: [{ harness: 'claude' as const, model: 'm', effort: 'high' as const }], answer: { rating: 3 } };
-    const first = s.putFeedback(given);
-    s.putFeedback({ ...given, configs: [], attribution: 'missing' });
+    const first = s.feedback.put(given);
+    s.feedback.put({ ...given, configs: [], attribution: 'missing' });
     s.db.close();
     const after = new Store(path);
-    expect(after.runs(card!.id)).toHaveLength(1);
-    expect(after.feedback()).toEqual([first]);
+    expect(after.agentRuns.of(card!.id)).toHaveLength(1);
+    expect(after.feedback.of()).toEqual([first]);
     after.db.close();
   }));
 
 test('chats: words go into the one opened last, a new one only once something was said, answers wait unread in theirs', () => {
   const store = new Store(':memory:');
   store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01'), ('d', 'Site', '2026-11-01')");
-  const first = store.chat('c');
-  expect(store.chatModel('c')).toBeUndefined();
-  store.setChatModel('c', 'sonnet');
-  expect(store.chatModel('c')).toBe('sonnet');
-  expect(store.newChat('c')).toBe(first);
+  const first = store.chats.current('c');
+  expect(store.chats.model('c')).toBeUndefined();
+  store.chats.setModel('c', 'sonnet');
+  expect(store.chats.model('c')).toBe('sonnet');
+  expect(store.chats.start('c')).toBe(first);
   const asked = store.addTalk('c', 'wie viele Tests?', '', null, { question: 'wie viele Tests?', about: null });
-  const second = store.newChat('c');
+  const second = store.chats.start('c');
   expect(second).not.toBe(first);
-  expect(store.chatModel('c')).toBeUndefined();
+  expect(store.chats.model('c')).toBeUndefined();
   store.addTalk('c', 'hallo', 'Hallo!', null);
   store.addTalk('d', 'anderswo', 'Ja.', null);
   // the answer comes in the chat it was asked in, while the owner talks in another
-  store.answerTalk(asked, '42', 'koordinator');
-  expect(store.sheet('c', second, 30).map((t) => [t.said, t.chat, !!t.unread])).toEqual([
+  store.talk.answer(asked, '42', 'koordinator');
+  expect(store.talk.sheet('c', second, 30).map((t) => [t.said, t.chat, !!t.unread])).toEqual([
     ['wie viele Tests?', first, true],
     ['hallo', second, false],
   ]);
-  expect(store.chats('c').map((x) => [x.title, x.unread])).toEqual([
+  expect(store.chats.list('c').map((x) => [x.title, x.unread])).toEqual([
     ['hallo', undefined],
     ['wie viele Tests?', 1],
   ]);
   // only the chat in view is read
   expect(store.readTalk('c')).toBe(false);
-  expect(store.openChat('c', first)).toBe(true);
-  expect(store.chat('c')).toBe(first);
-  expect(store.chatModel('c')).toBe('sonnet');
+  expect(store.chats.open('c', first)).toBe(true);
+  expect(store.chats.current('c')).toBe(first);
+  expect(store.chats.model('c')).toBe('sonnet');
   expect(store.readTalk('c')).toBe(true);
-  expect(store.openChat('d', first)).toBe(false);
-  expect(store.chats().map((x) => x.project).sort()).toEqual(['c', 'c', 'd']);
+  expect(store.chats.open('d', first)).toBe(false);
+  expect(store.chats.list().map((x) => x.project).sort()).toEqual(['c', 'c', 'd']);
   // a new chat left without a word in it goes once another is opened
-  const empty = store.newChat('c');
-  store.openChat('c', second);
-  expect(store.chats('c').map((x) => x.id)).not.toContain(empty);
+  const empty = store.chats.start('c');
+  store.chats.open('c', second);
+  expect(store.chats.list('c').map((x) => x.id)).not.toContain(empty);
   expect(store.db.query('SELECT 1 FROM chats WHERE id = $id').get({ id: empty })).toBeNull();
 });
 
 test('a chat opened and a new one made in the same millisecond become current in turn', () => {
   const store = new Store(':memory:');
   store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
-  const first = store.chat('c');
+  const first = store.chats.current('c');
   store.addTalk('c', 'first', '', null);
-  const second = store.newChat('c');
+  const second = store.chats.start('c');
   store.addTalk('c', 'second', '', null);
-  store.openChat('c', first);
-  expect(store.chat('c')).toBe(first);
-  const third = store.newChat('c');
-  expect(store.chat('c')).toBe(third);
+  store.chats.open('c', first);
+  expect(store.chats.current('c')).toBe(first);
+  const third = store.chats.start('c');
+  expect(store.chats.current('c')).toBe(third);
   expect(third).not.toBe(second);
 });
 
@@ -333,9 +334,9 @@ test('what was said before chats existed becomes one chat per project', () =>
     store.db.run('DROP TABLE chats');
     store.db.close();
     const again = new Store(path);
-    const chats = again.chats('c');
+    const chats = again.chats.list('c');
     expect(chats.map((x) => x.title)).toEqual(['eins']);
-    expect(again.talk('c', 20, false, chats[0]!.id).map((t) => t.said)).toEqual(['eins', 'zwei']);
+    expect(again.talk.latest('c', 20, false, chats[0]!.id).map((t) => t.said)).toEqual(['eins', 'zwei']);
     again.db.close();
   }));
 
@@ -343,11 +344,11 @@ test('what an Seismic kept while projects were canvases is in today’s names, t
   withPath((path) => {
     const s = new Store(path);
     s.ensureProject('c', 'Shop');
-    const [card] = s.insert([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
-    s.setSetting('c', 'paused', '');
+    const [card] = s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
+    s.settings.set('c', 'paused', '');
     s.addTalk('c', 'eins', 'A', null);
     s.addMoved('c', { card: card!.id, title: 'T', project: 'd', projectName: 'Site' } as never, 'moved');
-    const made = s.addEvent({ cardId: card!.id, kind: 'say', author: 'worker', text: 'Made.' });
+    const made = s.events.add({ cardId: card!.id, kind: 'say', author: 'worker', text: 'Made.' });
     asCanvases(s.db);
     s.db.run(`UPDATE talk SET moved = '{"card":"x","title":"T","canvas":"d","canvasName":"Site"}' WHERE moved IS NOT NULL`);
     s.db.run(`UPDATE cards SET new_repo = '{"path":"/r","canvas":true,"by":"owner"}' WHERE id = '${card!.id}'`);
@@ -356,11 +357,11 @@ test('what an Seismic kept while projects were canvases is in today’s names, t
     s.db.close();
 
     const after = new Store(path);
-    expect(after.projectName('c')).toBe('Shop');
-    expect(after.setting('c', 'paused')).toBe('');
-    expect(JSON.parse(after.card(card!.id)!.new_repo!)).toEqual({ path: '/r', by: 'owner', project: true });
-    expect(after.events(card!.id).find((e) => e.id === made.id)!.made).toEqual({ card: 'y', title: 'U', project: 'd' });
-    expect(after.talk('c', 20, false).find((t) => t.moved)!.moved).toEqual({ card: 'x', title: 'T', project: 'd', projectName: 'Site' });
+    expect(after.projects.name('c')).toBe('Shop');
+    expect(after.settings.get('c', 'paused')).toBe('');
+    expect(JSON.parse(after.cards.get(card!.id)!.new_repo!)).toEqual({ path: '/r', by: 'owner', project: true });
+    expect(after.events.of(card!.id).find((e) => e.id === made.id)!.made).toEqual({ card: 'y', title: 'U', project: 'd' });
+    expect(after.talk.latest('c', 20, false).find((t) => t.moved)!.moved).toEqual({ card: 'x', title: 'T', project: 'd', projectName: 'Site' });
     // what names a canvas now is the canvas layer's, which came after
     const layer = (o: { name: string; sql: string | null }) => /^(canvases|canvases_name|cards_canvas|sqlite_autoindex_canvases_1)$/.test(o.name);
     const names = (after.db.query('SELECT name, sql FROM sqlite_master').all() as { name: string; sql: string | null }[])
@@ -374,26 +375,26 @@ test('the migration gives every project a canvas main holding all its cards and 
     const s = new Store(path);
     s.ensureProject('c', 'Shop');
     s.ensureProject('d', 'Site');
-    const [a, plan] = s.insert([
+    const [a, plan] = s.addCards([
       { project_id: 'c', kind: 'task', x: 0, y: 0 },
       { project_id: 'c', kind: 'plan', plan_ref: 'docs/plan/a.md', x: 0, y: 0 },
     ]);
-    const [kid] = s.insert([{ project_id: 'c', kind: 'task', parent_id: plan!.id, plan_ref: 'docs/plan/a.md#w1', x: 0, y: 0 }]);
-    const [b] = s.insert([{ project_id: 'd', kind: 'task', x: 0, y: 0 }]);
-    s.update(b!.id, { archived_at: '2026-11-01' });
-    const g = s.addGroup('c', 'Billing', 200);
-    s.setGroup([a!.id], g.id);
+    const [kid] = s.addCards([{ project_id: 'c', kind: 'task', parent_id: plan!.id, plan_ref: 'docs/plan/a.md#w1', x: 0, y: 0 }]);
+    const [b] = s.addCards([{ project_id: 'd', kind: 'task', x: 0, y: 0 }]);
+    s.cards.update(b!.id, { archived_at: '2026-11-01' });
+    const g = s.groups.add('c', 'Billing', 200, s.canvases.main('c'));
+    s.cards.setGroup([a!.id], g.id);
     s.db.run('DROP TABLE activity');
     withoutCanvases(s.db);
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE canvases'))}`);
     s.db.close();
 
     const after = new Store(path);
-    for (const p of ['c', 'd']) expect(after.canvases(p).map((v) => [v.name, v.position])).toEqual([['main', 0]]);
-    const main = after.mainCanvas('c');
-    expect([a, plan, kid].map((r) => after.card(r!.id)!.canvas_id)).toEqual([main, main, main]);
-    expect(after.card(b!.id)!.canvas_id).toBe(after.mainCanvas('d'));
-    expect(after.group(g.id)!.canvas_id).toBe(main);
+    for (const p of ['c', 'd']) expect(after.canvases.of(p).map((v) => [v.name, v.position])).toEqual([['main', 0]]);
+    const main = after.canvases.main('c');
+    expect([a, plan, kid].map((r) => after.cards.get(r!.id)!.canvas_id)).toEqual([main, main, main]);
+    expect(after.cards.get(b!.id)!.canvas_id).toBe(after.canvases.main('d'));
+    expect(after.groups.get(g.id)!.canvasId).toBe(main);
     expect(after.db.query('PRAGMA foreign_key_check').all()).toEqual([]);
     after.db.close();
   }));
@@ -403,35 +404,35 @@ test('canvases: names unique per project in any case, ordered, a plan moves with
     const s = new Store(path);
     s.ensureProject('c', 'Shop');
     s.ensureProject('d', 'Site');
-    const ideas = s.addCanvas('c', 'Ideas', '💡');
-    s.addCanvas('d', 'Ideas', null);
-    expect(() => s.addCanvas('c', 'ideas', null)).toThrow();
-    const later = s.addCanvas('c', 'Later', null);
-    expect(s.canvases('c').map((v) => v.name)).toEqual(['main', 'Ideas', 'Later']);
-    s.orderCanvases([later.id, s.mainCanvas('c'), ideas.id]);
-    expect(s.canvases('c').map((v) => v.name)).toEqual(['Later', 'main', 'Ideas']);
-    const [plan] = s.insert([{ project_id: 'c', kind: 'plan', plan_ref: 'p.md', x: 0, y: 0 }]);
-    const [kid] = s.insert([{ project_id: 'c', kind: 'task', parent_id: plan!.id, plan_ref: 'p.md#w', x: 0, y: 0 }]);
-    expect(kid!.canvas_id).toBe(s.mainCanvas('c'));
-    s.setCanvas([plan!.id], ideas.id);
-    expect([s.card(plan!.id)!.canvas_id, s.card(kid!.id)!.canvas_id]).toEqual([ideas.id, ideas.id]);
-    const [old] = s.insert([{ project_id: 'c', canvas_id: later.id, kind: 'task', x: 0, y: 0 }]);
-    s.update(old!.id, { archived_at: '2026-11-01' });
-    expect(s.cardsOnCanvas(later.id)).toBe(0);
-    s.deleteCanvas(later.id, s.mainCanvas('c'));
-    expect(s.card(old!.id)!.canvas_id).toBe(s.mainCanvas('c'));
-    expect(s.canvases('c').map((v) => [v.name, v.position])).toEqual([['main', 0], ['Ideas', 1]]);
+    const ideas = s.canvases.add('c', 'Ideas', '💡');
+    s.canvases.add('d', 'Ideas', null);
+    expect(() => s.canvases.add('c', 'ideas', null)).toThrow();
+    const later = s.canvases.add('c', 'Later', null);
+    expect(s.canvases.of('c').map((v) => v.name)).toEqual(['main', 'Ideas', 'Later']);
+    s.canvases.order([later.id, s.canvases.main('c'), ideas.id]);
+    expect(s.canvases.of('c').map((v) => v.name)).toEqual(['Later', 'main', 'Ideas']);
+    const [plan] = s.addCards([{ project_id: 'c', kind: 'plan', plan_ref: 'p.md', x: 0, y: 0 }]);
+    const [kid] = s.addCards([{ project_id: 'c', kind: 'task', parent_id: plan!.id, plan_ref: 'p.md#w', x: 0, y: 0 }]);
+    expect(kid!.canvas_id).toBe(s.canvases.main('c'));
+    s.cards.setCanvas([plan!.id], ideas.id);
+    expect([s.cards.get(plan!.id)!.canvas_id, s.cards.get(kid!.id)!.canvas_id]).toEqual([ideas.id, ideas.id]);
+    const [old] = s.addCards([{ project_id: 'c', canvas_id: later.id, kind: 'task', x: 0, y: 0 }]);
+    s.cards.update(old!.id, { archived_at: '2026-11-01' });
+    expect(s.cards.onCanvas(later.id)).toBe(0);
+    s.deleteCanvas(later.id, s.canvases.main('c'));
+    expect(s.cards.get(old!.id)!.canvas_id).toBe(s.canvases.main('c'));
+    expect(s.canvases.of('c').map((v) => [v.name, v.position])).toEqual([['main', 0], ['Ideas', 1]]);
     // groups of a deleted canvas merge into main's group of the same name
-    const gone = s.addCanvas('c', 'Gone', null);
-    const keep = s.addGroup('c', 'Billing', 1, s.mainCanvas('c'));
-    const dupe = s.addGroup('c', 'billing', 2, gone.id);
-    const solo = s.addGroup('c', 'Solo', 3, gone.id);
-    const [a] = s.insert([{ project_id: 'c', canvas_id: gone.id, kind: 'task', group_id: dupe.id, x: 0, y: 0 }]);
-    s.update(a!.id, { archived_at: '2026-11-01' });
-    s.deleteCanvas(gone.id, s.mainCanvas('c'));
-    expect(s.card(a!.id)!.group_id).toBe(keep.id);
-    expect(s.group(dupe.id)).toBeNull();
-    expect(s.group(solo.id)!.canvas_id).toBe(s.mainCanvas('c'));
+    const gone = s.canvases.add('c', 'Gone', null);
+    const keep = s.groups.add('c', 'Billing', 1, s.canvases.main('c'));
+    const dupe = s.groups.add('c', 'billing', 2, gone.id);
+    const solo = s.groups.add('c', 'Solo', 3, gone.id);
+    const [a] = s.addCards([{ project_id: 'c', canvas_id: gone.id, kind: 'task', group_id: dupe.id, x: 0, y: 0 }]);
+    s.cards.update(a!.id, { archived_at: '2026-11-01' });
+    s.deleteCanvas(gone.id, s.canvases.main('c'));
+    expect(s.cards.get(a!.id)!.group_id).toBe(keep.id);
+    expect(s.groups.get(dupe.id)).toBeNull();
+    expect(s.groups.get(solo.id)!.canvasId).toBe(s.canvases.main('c'));
     s.db.close();
   }));
 

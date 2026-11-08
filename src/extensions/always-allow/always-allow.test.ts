@@ -7,7 +7,7 @@ import { readShared } from '../../adapters';
 import { AGENT_DEFAULTS } from '../../core/types';
 import { codexRules } from '../../server/allow-rules';
 import { ProjectRuntime } from '../../server/project';
-import { Store } from '../../server/db';
+import { Store } from '../../server/store';
 import { FakeRuntime, gitRepo, noForge, until } from '../../server/testing';
 import { commandsOf } from '../../server/trust';
 import { Workers } from '../../server/workers';
@@ -89,7 +89,7 @@ describe('in a project', () => {
       '.codex/rules/obeya.rules': codexRules(JSON.stringify(allow), '`bun scripts/codex-rules.ts`').file,
     });
     const store = new Store(':memory:');
-    store.trustCommands(shop, commandsOf(readShared(shop)));
+    store.trustedCommands.trust(shop, commandsOf(readShared(shop)));
     const workers = new FakeRuntime();
     project = new ProjectRuntime({ repos: [{ path: shop }] }, { store, home: dir, runtime: new FakeRuntime(), workerRuntime: workers, forge: noForge, agents: (role) => ({ ...AGENT_DEFAULTS[role], ...(role === 'worker' ? { harness: 'codex' as const } : {}) }) });
     const card = project.board.create({ title: 'Karte', x: 0, y: 0 });
@@ -111,7 +111,7 @@ describe('in a project', () => {
     expect(main.codex!['.codex/rules/obeya.rules']!.text).toContain('prefix_rule(pattern=["bun","run"], decision="allow")');
     expect(git(shop, 'log', '-1', '--format=%s')).toBe('Allow for agents: Bash(bun run *)');
     expect(git(shop, 'status', '--porcelain')).toBe('');
-    expect(store.trustedCommands(shop)).toEqual(commandsOf(main));
+    expect(store.trustedCommands.get(shop)).toEqual(commandsOf(main));
     // the next such command is not asked
     expect(await workers.last.permission('Bash', { command: "/bin/zsh -lc 'bun run build'" })).toEqual({ allow: true });
   });

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectRuntime } from './project';
-import { Store } from './db';
+import { Store } from './store';
 import { FakeRuntime, gitRepo, noForge, until } from './testing';
 
 let dir: string;

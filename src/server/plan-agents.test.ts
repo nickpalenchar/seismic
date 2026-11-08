@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from 'bun:test';
 import type { PlanDoc } from '../core/plan-doc';
 import { Board } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { PlanAgents } from './plan-agents';
 import { FakeRuntime } from './testing';
 

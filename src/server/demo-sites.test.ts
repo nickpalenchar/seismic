@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MESSAGES } from '../core/messages';
 import { Board } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { connect, connectionCode, findSite, newToken, readSites, SITES_FILE, writeSites } from './demo-sites';
 import type { DemoSiteEntry } from '../core/types';
 import type { SharePage, ShareSource } from './share';

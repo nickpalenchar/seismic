@@ -7,7 +7,7 @@ import { blocksSaving, type ProjectConfig, type ConfigView, type DemoSettingsVie
 import { Board } from './board';
 import { ProjectRuntime, type StartFailure } from './project';
 import { clipProblems, Config, configShape, demoSettingsProblems, readConfigFile } from './config';
-import { Store } from './db';
+import { Store } from './store';
 import { serve } from './server';
 import { PROJECT_SETTINGS, projectAgentSetting, projectDefaults, projectDefaultsView, ownerLanguage, saveProjectDefaults } from './settings';
 import { asOwner, FakeRuntime, noForge, gitRepo, until } from './testing';
@@ -108,8 +108,8 @@ describe("Seismic's configuration", async () => {
     const tree = join(dir, 'workspaces', 'web', '12345678');
     mkdirSync(tree, { recursive: true });
     writeFileSync(join(tree, '.git'), 'gitdir: elsewhere\n');
-    for (const p of [...made, own, tree, 'ssh://gpu/far/1', 'ssh://gpu/far/2']) store.addWorkstation('web', p);
-    store.setLease(made[2]!, board.create({ title: 'Login', x: 0, y: 0 }).id);
+    for (const p of [...made, own, tree, 'ssh://gpu/far/1', 'ssh://gpu/far/2']) store.workstations.add('web', p);
+    store.workstations.lease(made[2]!, board.create({ title: 'Login', x: 0, y: 0 }).id);
     const leaving = async (r: object) => (await c.check([{ repos: [{ path: web, ...r }] }])).resolved[0]!.repos[0]!.leaving;
     expect(await leaving({ clones: 3, workstations: [own], hosts: [{ name: 'gpu', ssh: 'gpu', root: '/far', clones: 2 }] })).toBeUndefined();
     expect(await leaving({ clones: 1, hosts: [{ name: 'gpu', ssh: 'gpu', root: '/far', clones: 1 }] })).toEqual([
@@ -245,7 +245,7 @@ describe("Seismic's configuration", async () => {
 
   test("keeps a project's home repository: leaving it out is a problem, moving it is not", async () => {
     store.ensureProject('produkt', 'Produkt');
-    store.setSetting('produkt', 'home_repo', 'web');
+    store.settings.set('produkt', 'home_repo', 'web');
     const c = config('file', []);
     expect((await c.check([{ name: 'Produkt', repos: [{ path: api }] }])).problems.map((p) => p.code)).toEqual(['homeMissing']);
     const moved = (await c.check([{ name: 'Produkt', repos: [{ path: api }, { path: web }] }]));
@@ -413,7 +413,7 @@ describe("Seismic's configuration", async () => {
     const shown = (await c.checkSaved()).resolved[0]!.repos[0]!.trust!;
     expect(shown.held).toEqual(['claude']);
     c.trust({ path: own, seen: shown.now, held: shown.held });
-    expect(store.trustedCommands(own)).toEqual({ app: { stop: app.stop }, claude: { '.mcp.json': { id: expect.any(String), text: '{"mcpServers":{"x":{}}}' } } });
+    expect(store.trustedCommands.get(own)).toEqual({ app: { stop: app.stop }, claude: { '.mcp.json': { id: expect.any(String), text: '{"mcpServers":{"x":{}}}' } } });
   });
 
   test("a new project's repository, still only in the dialog's draft, can be trusted before the project is saved", async () => {

@@ -3,7 +3,7 @@ import { mkdtempSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Item } from '../core/types';
-import { Store } from './db';
+import { Store } from './store';
 import { UNUSED_MS } from './remote';
 import { DESK_MS, DEVICE_MS, kindOf, plainTitle, Push, startedWaiting, type Waits } from './push';
 import { b64u, type Bytes, fromB64u, type Post } from './webpush';
@@ -102,7 +102,7 @@ describe('Push', () => {
   test('the push of a card opens it at its address on its project, by its short code', async () => {
     const { store, push, shown } = await setup();
     store.ensureProject('shop', 'Shop');
-    const [card] = store.insert([{ project_id: 'shop', kind: 'task', state: 'waiting', x: 0, y: 0 }]);
+    const [card] = store.addCards([{ project_id: 'shop', kind: 'task', state: 'waiting', x: 0, y: 0 }]);
     push.waits([waits(card!.id)]);
     expect((await shown())[0]!.url).toBe(`/p/shop/c/${card!.short}`);
   });

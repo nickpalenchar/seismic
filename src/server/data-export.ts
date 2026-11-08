@@ -1,26 +1,46 @@
-import type { Store } from './db';
+import { inArray, sql } from 'drizzle-orm';
+import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
+import { stored } from './models/common';
+import * as t from './models/schema';
+import type { Store } from './store';
 
-/** All records owned by the selected projects, including archived and deleted cards. */
+/** The tables that hold a project's records, under their names in the database, by its id or its cards'. */
+const BY_PROJECT: [string, SQLiteTable & { projectId: SQLiteColumn }][] = [
+  ['canvases', t.canvases],
+  ['groups', t.groups],
+  ['cards', t.cards],
+  ['chats', t.chats],
+  ['workstations', t.workstations],
+  ['decisions', t.decisions],
+  ['settings', t.settings],
+  ['preferences', t.preferences],
+  ['talk', t.talk],
+  ['friction', t.friction],
+  ['commands', t.commands],
+  ['setting_proposals', t.settingProposals],
+  ['feedback', t.feedback],
+];
+const BY_CARD: [string, SQLiteTable & { cardId: SQLiteColumn }][] = [
+  ['events', t.events],
+  ['agent_runs', t.agentRuns],
+  ['folder_cards', t.folderCards],
+];
+
+/** All records owned by the selected projects, including archived and deleted cards, each row as stored. */
 export function projectData(store: Store, ids: string[]) {
-  const db = store.db;
-  const names = db.query('SELECT * FROM projects WHERE id IN (SELECT value FROM json_each($ids)) ORDER BY name, id').all({ ids: JSON.stringify(ids) }) as { id: string; name: string; created_at: string }[];
-  const selected = JSON.stringify(names.map((c) => c.id));
-  const byProject = ['canvases', 'groups', 'cards', 'chats', 'workstations', 'decisions', 'settings', 'preferences', 'talk', 'friction', 'commands', 'setting_proposals', 'feedback'];
-  const byCard = ['events', 'agent_runs', 'folder_cards'];
+  const db = store.orm;
+  const names = db
+    .select(stored(t.projects))
+    .from(t.projects)
+    .where(inArray(t.projects.id, sql`(SELECT value FROM json_each(${JSON.stringify(ids)}))`))
+    .orderBy(t.projects.name, t.projects.id)
+    .all() as { id: string; name: string; created_at: string }[];
+  const selected = sql`(SELECT value FROM json_each(${JSON.stringify(names.map((c) => c.id))}))`;
   const tables: Record<string, Record<string, unknown>[]> = { projects: names };
-  for (const table of byProject) {
-    if (!tableExists(store, table)) continue;
-    tables[table] = db.query(`SELECT * FROM ${table} WHERE project_id IN (SELECT value FROM json_each($ids))`).all({ ids: selected }) as Record<string, unknown>[];
-  }
-  for (const table of byCard) {
-    if (!tableExists(store, table)) continue;
-    tables[table] = db.query(`SELECT * FROM ${table} WHERE card_id IN (SELECT id FROM cards WHERE project_id IN (SELECT value FROM json_each($ids)))`).all({ ids: selected }) as Record<string, unknown>[];
-  }
+  for (const [name, table] of BY_PROJECT) tables[name] = db.select(stored(table)).from(table).where(inArray(table.projectId, selected)).all();
+  const cards = db.select({ id: t.cards.id }).from(t.cards).where(inArray(t.cards.projectId, selected));
+  for (const [name, table] of BY_CARD) tables[name] = db.select(stored(table)).from(table).where(inArray(table.cardId, cards)).all();
   return { format: 'obeya-project-export', version: 1, exportedAt: new Date().toISOString(), tables };
-}
-
-function tableExists(store: Store, name: string) {
-  return !!store.db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $name").get({ name });
 }
 
 export function projectCsv(data: ReturnType<typeof projectData>): string {

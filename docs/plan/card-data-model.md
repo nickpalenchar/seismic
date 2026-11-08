@@ -98,10 +98,20 @@ the same time will conflict (W3 most).
   database) would rebuild every table. A new step's SQL is the diff of the Drizzle schema before
   and after the change (`generateSQLiteMigration` of `drizzle-kit/api`), not against a database.
   `drizzle-kit pull` needs `better-sqlite3` or `@libsql/client`, which are not dependencies.
-- [ ] **W3:** Drizzle, the queries. Split the rest of `Store` table by table into its model files;
+- [x] **W3:** Drizzle, the queries. Split the rest of `Store` table by table into its model files;
   move the methods that span several tables into `store.ts`; move the direct SQL in `board.ts` and
   `data-export.ts` into the models. No schema change: pure refactoring, the equality check must
   match exactly. The riskiest package: it touches every query.
+  Done: every table's queries are in its model (`store.cards.get(id)`, `store.talk.sheet(…)`);
+  `Store` (`store.ts`) holds the models and what spans them (moving a card, deleting a canvas,
+  adding cards, the Koordinator's timeline). The card's row keeps its stored shape (`CardRow`,
+  JSON as text) until W5–W7 regroup it: its callers parse it themselves. Transactions go through
+  `atomic`/`Store.transaction`, SQLite's own, which nest as savepoints; Drizzle's `transaction`
+  opens with `BEGIN` and cannot nest. Drizzle quirks met: `get()` of a raw `sql` query returns the
+  row as an array; `run()` is typed as nothing though it returns the changes; a `sql` field
+  aliased in a subquery is referenced unqualified. The equality check is
+  `bun scripts/item-snapshot.ts [db] [--before <commit>]`: both sides read every project of a copy
+  of the database, and the live one (2026-11-08, 9 projects, 496 cards) read the same.
 - [ ] **W4:** One hold value. First check which of the pause, limit, restart, snooze and
   parking-lot states can hold at the same time. Collapse the exclusive ones into one `hold`
   (`{ reason, since, until?, by?, … }`, plus the payload `paused` carries today) and migrate the

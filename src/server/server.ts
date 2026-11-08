@@ -26,7 +26,7 @@ import type { VoiceSetup } from './voice-setup';
 import { AppUpdates, HandOver } from './app-update';
 import type { SourceUpdates } from './source-update';
 import { oldLinuxBun } from './repo';
-import { Store } from './db';
+import { Store } from './store';
 import { projectData, projectCsv } from './data-export';
 import { Access } from './remote';
 import { Push, startedWaiting } from './push';

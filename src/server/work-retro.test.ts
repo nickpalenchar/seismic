@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { generic } from '../adapters/generic';
 import { Board } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { artifact, FakeRuntime, type FakeSession, gitRepo } from './testing';
 import { WorkRetro } from './work-retro';
 import { Workers } from './workers';

@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Board } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { gitRepo, identify, until } from './testing';
 import { addTrailer, defaultBranch, git, Workstations } from './workstations';
 
@@ -697,8 +697,8 @@ describe('clones the configuration no longer names', () => {
     spaces.register(own, [origin]);
     // a worktree from before the repository went over to clones, under the home Seismic had then
     const old = join(dir, 'old-home', 'a7d7c689');
-    store.addWorkstation('c', old);
-    store.setLease(old, b);
+    store.workstations.add('c', old);
+    store.workstations.lease(old, b);
     board.work(a, { state: 'working', workstation: held.path, branch: 'obeya/a' });
     board.work(b, { state: 'planned', workstation: old, branch: 'obeya/b' });
     // the owner moved the listed clone and the held one away; the old home is gone with its worktree
@@ -726,8 +726,8 @@ describe('clones the configuration no longer names', () => {
     const spaces = new Workstations(store, 'c', { mode: 'worktrees', repoPath: join(dir, 'main'), dir: ws });
     const a = board.create({ title: 'A', x: 0, y: 0 }).id;
     const path = join(ws, a.slice(0, 8));
-    store.addWorkstation('c', path);
-    store.setLease(path, a);
+    store.workstations.add('c', path);
+    store.workstations.lease(path, a);
     expect(spaces.keepOnly(null, [])).toEqual([]);
     expect(spaces.leasedBy(a)).toBe(path);
   });

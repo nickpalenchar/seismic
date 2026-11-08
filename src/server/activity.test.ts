@@ -84,7 +84,7 @@ describe('the Activity log', () => {
     const d = board.create({ title: 'First', x: 0, y: 0 });
     board.remove(d.id);
     board.restore(d.id);
-    store.update(d.id, { title: 'Second' });
+    store.cards.update(d.id, { title: 'Second' });
     board.remove(d.id);
     const entries = board.activityEntries(board.activityRows(['c'], undefined, 100), 'C');
     expect(entries.filter((e) => e.card.id === d.id).map((e) => e.card.title)).toEqual(['Second', 'First']);

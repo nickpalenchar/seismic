@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { TagProposalJob } from '../core/types';
 import { ProjectRuntime } from './project';
 import { Config } from './config';
-import { Store } from './db';
+import { Store } from './store';
 import { serve } from './server';
 import { asOwner, FakeRuntime, gitRepo, noForge, until } from './testing';
 
@@ -37,7 +37,7 @@ beforeEach(() => {
   server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, config);
   // a finished card with its demo, archived; an open one; a Question card, which is no change
   const c = project.board.project.id;
-  const [done] = store.insert([
+  const [done] = store.addCards([
     { project_id: c, kind: 'task', state: 'live', title: 'Invoices as PDF', body: 'Customers download their invoice.', x: 0, y: 0 },
     { project_id: c, kind: 'task', state: 'working', title: 'Coupons in the cart', body: 'A coupon code field in the cart.', x: 400, y: 0 },
     { project_id: c, kind: 'question', state: 'done', title: 'How many orders last week?', body: '', x: 800, y: 0 },
@@ -45,7 +45,7 @@ beforeEach(() => {
   const demo = join(dir, 'demos', done!.id);
   mkdirSync(demo, { recursive: true });
   writeFileSync(join(demo, 'demo.mp4'), 'video');
-  store.update(done!.id, {
+  store.cards.update(done!.id, {
     demo: JSON.stringify({ dir: demo, kind: 'video', chapters: [[0, 'Download']], page: { title: 'Invoices to download', text: 'Customers get their invoice as a PDF from the order page.' } }),
     archived_at: new Date().toISOString(),
   });

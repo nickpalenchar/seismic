@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { generic } from '../adapters/generic';
 import type { PlanDoc } from '../core/plan-doc';
 import { BadRequest, Board, type StoredContribution } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { Koordinator, overlaps } from './koordinator';
 import { move, queueOrder, reach } from '../core/queue';
 import { artifact, FakeRuntime, type FakeSession, gitRepo } from './testing';

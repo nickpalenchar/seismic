@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { Store } from './db';
+import { Store } from './store';
 import { projectCsv, projectData } from './data-export';
 
 test('exports only the chosen project with its card and conversation, including deleted records', () => {

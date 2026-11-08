@@ -6,7 +6,7 @@ import type { DemoSite } from '../adapters/types';
 import { MESSAGES } from '../core/messages';
 import { Board } from './board';
 import { ProjectRuntime } from './project';
-import { Store } from './db';
+import { Store } from './store';
 import { writeSites } from './demo-sites';
 import type { SharePage, ShareTarget } from './share';
 import { Sharing } from './share';

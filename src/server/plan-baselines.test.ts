@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Board } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { gitRepo, identify } from './testing';
 import { git, gitOrNull, planBaselineTag, Workstations } from './workstations';
 

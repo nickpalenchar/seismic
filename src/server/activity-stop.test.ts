@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Store } from './db';
+import { Store } from './store';
 import { ProjectRuntime } from './project';
 import { FakeRuntime, gitRepo, noForge, until } from './testing';
 

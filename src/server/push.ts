@@ -13,7 +13,7 @@ import type { Language } from '../core/locale';
 import { MESSAGES } from '../core/messages';
 import { type PushKind, plainTitle } from '../core/waits';
 import { BadRequest } from './board';
-import type { Store } from './db';
+import type { Store } from './store';
 import { UNUSED_MS } from './remote';
 import { newVapidJwk, type Post, type PushMessage, send, subscriptionOf, type Vapid, vapidOf } from './webpush';
 
@@ -187,7 +187,7 @@ export class Push {
 
   /** Where tapping the push for a card leads: the card on its project, by its short code. */
   private cardUrl(id: string): string {
-    const row = this.store.card(id);
+    const row = this.store.cards.get(id);
     return row ? `/p/${encodeURIComponent(row.project_id)}/c/${row.short}` : `/?card=${encodeURIComponent(id)}`;
   }
 

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { placeWorkstreams } from '../core/layout';
 import { type PlanDoc, parsePlanDoc } from '../core/plan-doc';
 import { Board, LEAVE_AFTER_MS } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { planHistory } from './repo';
 import { gitRepo } from './testing';
 import { branchName, git } from './workstations';
@@ -38,9 +38,9 @@ const read = (d: PlanDoc) => {
   return kids();
 };
 /** An agent worked on the card while it showed `title`: its branch is named after it. */
-const work = (id: string, title: string, fields: Parameters<Store['update']>[1] = {}) => {
+const work = (id: string, title: string, fields: Parameters<Store['cards']['update']>[1] = {}) => {
   const branch = branchName(title, id);
-  store.update(id, { session_id: 's', ...fields });
+  store.cards.update(id, { session_id: 's', ...fields });
   board.log(id, 'state', 'obeya', `Agent gestartet auf ${branch}.`);
   board.docsChanged();
 };
@@ -180,7 +180,7 @@ describe('a doc in a plan folder outside the repository', () => {
     board.changed();
     board.snapshot();
     expect(board.snapshot().items.some((i) => i.id === b!.id)).toBe(false);
-    store.update(b!.id, { workstation: null });
+    store.cards.update(b!.id, { workstation: null });
     board.changed();
     expect(board.snapshot().items.find((i) => i.id === b!.id)).toMatchObject({ title: '3B Auth zusammenführen', body: 'One auth service.', state: 'planned', source: 'manual' });
   });
@@ -250,7 +250,7 @@ describe('cards of a doc read by an older Seismic', () => {
     work(b!.id, '3B Auth zusammenführen', { state: 'planned' });
     // the doc changed while the older Seismic did not look: 3B is first now
     const moved = parse([OLD[1]!, OLD[0]!, OLD[2]!]);
-    store.update(store.plans('c')[0]!.id, { plan: JSON.stringify(positional(moved)) });
+    store.cards.update(store.cards.plans('c')[0]!.id, { plan: JSON.stringify(positional(moved)) });
     const after = read(moved);
     expect(after.find((k) => k.label === '3B')!.id).toBe(b!.id);
     expect(after.find((k) => k.label === '1G')!.id).not.toBe(b!.id);
@@ -275,7 +275,7 @@ describe('cards of a doc read by an older Seismic, as workers left it', () => {
     ]);
     expect(board.archived()).toEqual([]);
     // no card the move dropped reads as one the owner deleted
-    expect(store.removed('c', since)).toEqual([]);
+    expect(store.cards.removed('c', since)).toEqual([]);
   });
 });
 

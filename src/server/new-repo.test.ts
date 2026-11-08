@@ -6,7 +6,7 @@ import type { Notice } from '../core/types';
 import type { BadRequest } from './board';
 import { Projects } from './project';
 import { Config } from './config';
-import { Store } from './db';
+import { Store } from './store';
 import { FakeRuntime, gitRepo, noForge, until } from './testing';
 import { git } from './workstations';
 

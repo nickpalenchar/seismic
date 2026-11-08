@@ -100,14 +100,14 @@ test('a legacy session resumed on today’s defaults is credited only with what 
   using(() => opus);
   workers.resumeAll();
   runtime.last.emit({ type: 'session', id: 'legacy', model: 'claude-sonnet-5-5' });
-  expect(store.runs(card.id)).toMatchObject([{ session: 'legacy', harness: 'claude', model: 'claude-sonnet-5-5', effort: null }]);
-  expect(store.runs(card.id)[0]!.requested).toBeUndefined();
+  expect(store.agentRuns.of(card.id)).toMatchObject([{ session: 'legacy', harness: 'claude', model: 'claude-sonnet-5-5', effort: null }]);
+  expect(store.agentRuns.of(card.id)[0]!.requested).toBeUndefined();
   // restarted before the session names itself, the defaults pinned for it meanwhile are not taken for what it ran on
   workers.shutdown();
   await flush();
   workers.resumeAll();
   runtime.last.emit({ type: 'session', id: 'legacy', model: 'claude-sonnet-5-5' });
-  expect(store.runs(card.id)).toMatchObject([{ session: 'legacy', harness: 'claude', model: 'claude-sonnet-5-5', effort: null }]);
+  expect(store.agentRuns.of(card.id)).toMatchObject([{ session: 'legacy', harness: 'claude', model: 'claude-sonnet-5-5', effort: null }]);
   workers.shutdown();
 });
 
@@ -119,7 +119,7 @@ test('a workstream’s response carries its plan; it follows the card to another
   expect(f).toMatchObject({ title: 'Title W1', plan: { id: w.parent, title: 'A', file: 'docs/plan/a.md' }, facets: { type: 'bug' } });
   store.ensureProject('d', 'D');
   store.moveCard(w.id, 'd', { x: 0, y: 0 });
-  expect(store.feedback({ cardId: w.id })[0]).toMatchObject({ id: f.id, projectId: 'd', plan: { title: 'A' } });
+  expect(store.feedback.of({ cardId: w.id })[0]).toMatchObject({ id: f.id, projectId: 'd', plan: { title: 'A' } });
   // the dashboard reads every project's responses, from any project
   expect(board.allFeedback().map((x) => [x.id, x.projectId])).toEqual([[f.id, 'd']]);
   expect(board.allFeedback()[0]!.deleted).toBeUndefined();
@@ -173,7 +173,7 @@ test('archiving after the landing, approved work asks for feedback until answere
   board.archiving = () => 'landed';
   const card = manual();
   board.log(card.id, 'review', 'worker', 'Done.');
-  const handover = store.handover(card.id)!.id;
+  const handover = store.events.handover(card.id)!.id;
   // waiting for approval, nothing is asked yet
   expect(board.item(card.id)!.rate).toBeUndefined();
   board.work(card.id, { state: 'approved', approved_at: new Date().toISOString() });
@@ -190,7 +190,7 @@ test('archiving after the landing, approved work asks for feedback until answere
   board.work(card.id, { state: 'waiting' });
   board.log(card.id, 'review', 'worker', 'Done again.');
   board.work(card.id, { state: 'approved' });
-  expect(board.item(card.id)!.rate).toEqual({ handover: store.handover(card.id)!.id });
+  expect(board.item(card.id)!.rate).toEqual({ handover: store.events.handover(card.id)!.id });
 });
 
 test('work that changed nothing asks too once done; a prompt left unanswered stays', () => {
@@ -198,7 +198,7 @@ test('work that changed nothing asks too once done; a prompt left unanswered sta
   const card = manual();
   board.log(card.id, 'review', 'worker', 'Nothing to change.');
   board.work(card.id, { state: 'done', approved_at: new Date().toISOString() });
-  expect(board.item(card.id)!.rate).toEqual({ handover: store.handover(card.id)!.id });
+  expect(board.item(card.id)!.rate).toEqual({ handover: store.events.handover(card.id)!.id });
   // a card nobody handed work over on asks nothing
   const bare = manual();
   board.work(bare.id, { state: 'done' });
@@ -208,7 +208,7 @@ test('work that changed nothing asks too once done; a prompt left unanswered sta
 test('archiving by hand, a card asks for feedback once the owner archives it; a workstream, which goes with its plan, once approved', () => {
   const card = manual();
   board.log(card.id, 'review', 'worker', 'Done.');
-  const handover = store.handover(card.id)!.id;
+  const handover = store.events.handover(card.id)!.id;
   board.work(card.id, { state: 'live', approved_at: new Date().toISOString() });
   expect(board.item(card.id)!.rate).toBeUndefined();
   board.archive([card.id]);
@@ -223,7 +223,7 @@ test('archiving by hand, a card asks for feedback once the owner archives it; a 
   const w = board.snapshot().items.find((i) => i.label === 'W1')!;
   board.log(w.id, 'review', 'worker', 'Done.');
   board.work(w.id, { state: 'approved', approved_at: new Date().toISOString() });
-  expect(board.item(w.id)!.rate).toEqual({ handover: store.handover(w.id)!.id });
+  expect(board.item(w.id)!.rate).toEqual({ handover: store.events.handover(w.id)!.id });
 });
 
 test('archiving after the landing, a finished card goes into the archive once its worker is done, and one still at work stays', () => {

@@ -6,7 +6,7 @@ import { CLONES, type MachineView } from '../core/types';
 import { Board } from './board';
 import type { ProjectRuntime } from './project';
 import { Config } from './config';
-import { Store } from './db';
+import { Store } from './store';
 import { claudeToken } from './hosts';
 import { cloneName, machineHint, MachineSetup, runnable, WELCOME_FILE, welcome } from './machine';
 import { gitRepo } from './testing';

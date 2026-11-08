@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { Board } from './board';
 import { type Command, Commander } from './commands';
 import { Config } from './config';
-import { Store } from './db';
+import { Store } from './store';
 import { AGENT_DEFAULTS, type ProjectConfig, type ConfigView } from '../core/types';
 import { type AgentRuntime, sdkRuntime, withAgentSetting } from './runtime';
 import { gitRepo } from './testing';

@@ -10,7 +10,7 @@ import { answersDir } from './answers';
 import { ProjectRuntime } from './project';
 import { serveAnswerFile } from './demo';
 import type { Focus } from './commands';
-import { Store } from './db';
+import { Store } from './store';
 import { FakeRuntime, noForge, type FakeSession, gitRepo, until } from './testing';
 
 let dir: string;
@@ -518,7 +518,7 @@ describe('a thread on a Question card', () => {
   test('explicit speaker identities survive card logging and moving a researched answer', async () => {
     const first = await lookedUp('question', 'Research?', 'Answer.', 'look-identity');
     const identity = { harness: 'claude' as const, model: 'research-model' };
-    store.answerTalk(first, 'Answer.', 'koordinator', [], identity);
+    store.talk.answer(first, 'Answer.', 'koordinator', [], identity);
     const card = project.answers.toCard(first);
     expect(board().events(card.id).find((e) => e.text === 'Answer.')?.agent).toEqual(identity);
     const reply = board().log(card.id, 'say', 'koordinator', 'Reply.', { agent: identity });
@@ -539,7 +539,7 @@ describe('a thread on a Question card', () => {
 
   test('moving a historical answer does not attribute it to the agent moving it', async () => {
     const first = await lookedUp('old question', 'Old research?', 'Old answer.', 'old-session');
-    store.answerTalk(first, 'Old answer.', 'koordinator');
+    store.talk.answer(first, 'Old answer.', 'koordinator');
     const card = agentIdentity.run({ harness: 'codex', model: 'unrelated' }, () => project.answers.toCard(first));
     expect(board().events(card.id).find((e) => e.text === 'Old answer.')?.agent).toBeUndefined();
   });

@@ -10,7 +10,7 @@ import { generic } from '../adapters/generic';
 import type { RepoAdapter } from '../adapters/types';
 import { Board, type StoredContribution } from './board';
 import { ProjectRuntime } from './project';
-import { Store } from './db';
+import { Store } from './store';
 import type { ContributionInfo, Forge, PrStatus } from './forge';
 import { PrWatcher } from './pr-watcher';
 import { artifact, FakeRuntime, gitRepo, identify, until } from './testing';

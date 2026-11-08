@@ -6,7 +6,7 @@ import { MERGED_SIZE, onProject, sizeOf } from '../core/layout';
 import { type Item, mergeableWith, mergeRank, needsYou, openQuestions } from '../core/types';
 import { mergeCandidates } from '../ui/merge';
 import { ProjectRuntime } from './project';
-import { Store } from './db';
+import { Store } from './store';
 import { Merges } from './merges';
 import { FakeRuntime, gitRepo, noForge } from './testing';
 
@@ -164,7 +164,7 @@ describe('folding into a progressed survivor', () => {
     board().work(planned.id, { state: state === 'archived' ? 'done' : state, branch: 'keep-my-branch', detail: JSON.stringify({ summary: 'CSV encoding and dates are fixed.' }) });
     if (state === 'archived') board().archive([planned.id]);
     board().items();
-    const before = store.card(planned.id)!;
+    const before = store.cards.get(planned.id)!;
     project.act(p.id, { action: 'merge', with: planned.id });
     expect(merger()!.inbox[0]).toContain('CSV encoding and dates are fixed.');
     expect(merger()!.spec.system).toContain('without reading repository files or branch diffs');
@@ -172,11 +172,11 @@ describe('folding into a progressed survivor', () => {
     const draft = board().item(p.id)!.proposal!.merge!;
     expect(draft.title).toBe(before.title!);
     expect(draft.task).toBe(before.body!);
-    expect(store.card(planned.id)).toEqual(before);
+    expect(store.cards.get(planned.id)).toEqual(before);
     expect(board().item(p.id)).toBeDefined();
     expect(needsYou(board().item(p.id)!)).toBe(true);
     project.act(p.id, { action: 'approveMerge' });
-    expect(store.card(planned.id)).toEqual(before);
+    expect(store.cards.get(planned.id)).toEqual(before);
     expect(board().item(p.id)).toBeUndefined();
     expect(board().card(planned.id)?.archivedAt !== undefined).toBe(state === 'archived');
   });
@@ -189,7 +189,7 @@ describe('folding into a progressed survivor', () => {
     board().connect(prerequisite.id, p.id);
     board().connect(p.id, child.id);
     board().items();
-    const before = store.card(planned.id)!;
+    const before = store.cards.get(planned.id)!;
     project.act(p.id, { action: 'merge', with: planned.id });
     await finishMerge({ outcome: 'followUp', titleCovered: false, parts: [{ text: p.body, covered: false }], followUp: { title: 'Fix CSV encoding', task: 'Fix the encoding of exported umlauts.', images: [], questions: [0] } });
     expect(board().items().some((i) => i.title === 'Fix CSV encoding')).toBe(false);
@@ -204,19 +204,19 @@ describe('folding into a progressed survivor', () => {
     expect(board().item(child.id)!.from).toBe(planned.id);
     expect(board().manualDependencies().map(([a, b]) => [a, b])).toContainEqual([prerequisite.id, planned.id]);
     expect(board().manualDependencies().map(([a, b]) => [a, b])).toContainEqual([planned.id, child.id]);
-    expect(store.card(planned.id)).toEqual(before);
+    expect(store.cards.get(planned.id)).toEqual(before);
   });
 
   test('a planned task can start a merge and separate with no proposal metadata left behind', async () => {
     const a = board().create({ title: 'XLSX too', body: 'Add CSV. Also XLSX.', x: 10, y: 20 });
     const b = board().create({ title: 'CSV', body: 'Add CSV.', x: 500, y: 20 });
     board().work(b.id, { state: 'working', branch: 'csv' });
-    const original = store.card(a.id)!;
+    const original = store.cards.get(a.id)!;
     project.act(a.id, { action: 'merge', with: b.id });
     await finishMerge({ outcome: 'followUp', titleCovered: false, parts: [{ text: 'Add CSV.', covered: true }, { text: ' Also XLSX.', covered: false }], followUp: { title: 'XLSX', task: 'Add XLSX.', images: [], questions: [] } });
     expect(board().item(a.id)!.proposal!.merge!.task).toBe('Add CSV.');
     project.act(a.id, { action: 'separate' });
-    const { updated_at: _, waiting_since: __, ...after } = store.card(a.id)!;
+    const { updated_at: _, waiting_since: __, ...after } = store.cards.get(a.id)!;
     const { updated_at: ___, waiting_since: ____, ...before } = original;
     expect(after).toEqual(before);
     expect(board().items()).toHaveLength(2);

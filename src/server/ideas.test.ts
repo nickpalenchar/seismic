@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectRuntime } from './project';
-import { Store } from './db';
+import { Store } from './store';
 import { Explorers } from './explorers';
 import { FakeRuntime, noForge, type FakeSession, gitRepo, heard, identify, until } from './testing';
 import { git } from './workstations';
@@ -92,7 +92,7 @@ describe('an idea', () => {
       ['owner', 'Lass uns das durchdenken.'],
       ['explorer', 'CSV oder PDF?'],
     ]);
-    expect(board().decisions(null)).toMatchObject([{ card_id: i.id, question: 'Format?', answer: 'CSV', by: 'owner' }]);
+    expect(board().decisions(null)).toMatchObject([{ cardId: i.id, question: 'Format?', answer: 'CSV', by: 'owner' }]);
   });
 
   test('keeps what its agent read and thought on the way to a reply, but not its words after it', () => {
@@ -666,7 +666,7 @@ describe('an idea', () => {
     expect(item(i.id).state).toBe('idea');
     s.emit({ type: 'idle' });
     expect(item(i.id)).toMatchObject({ state: 'planned', body: '**Ziel:** CSV- und PDF-Export.' });
-    expect(board().decisions(null)).toMatchObject([{ card_id: i.id, answer: 'Build it as the idea stands.' }]);
+    expect(board().decisions(null)).toMatchObject([{ cardId: i.id, answer: 'Build it as the idea stands.' }]);
   });
 
   test('built during its agent’s reply, it is not built when the reply asks questions', () => {
@@ -1125,7 +1125,7 @@ describe('a prototype', () => {
     await settle();
     expect(git(otherWs, 'branch', '--list', otherBranch)).toBe('');
     expect(prototypes(i.id)).toEqual([]);
-    expect(board().decisions(null).at(-1)).toMatchObject({ card_id: i.id, answer: `Build it, on the prototype “${chosen!.title}”.` });
+    expect(board().decisions(null).at(-1)).toMatchObject({ cardId: i.id, answer: `Build it, on the prototype “${chosen!.title}”.` });
 
     // its worker goes on from the branch: the brief, the prototype's handover and the owner's answers
     await settle();
@@ -1247,7 +1247,7 @@ describe('a prototype', () => {
     expect(archived(film!.id)).toMatchObject({ prototypeEnd: 'built', builtInto: 'W2 “Seite bauen”', ideaTitle: 'Webseite' });
     expect(archived(manifest!.id)).toMatchObject({ prototypeEnd: 'discarded' });
     expect(prototypes(i.id)).toEqual([]);
-    expect(board().decisions(plan.id).at(-1)).toMatchObject({ card_id: w2!.id, answer: `On the prototype “${film!.title}”.` });
+    expect(board().decisions(plan.id).at(-1)).toMatchObject({ cardId: w2!.id, answer: `On the prototype “${film!.title}”.` });
     // the Koordinator estimates the scope of the plan doc's card first, then decides on the
     // workstream, which may build on W1 or W3: they have not landed
     await until(() => {
@@ -1306,7 +1306,7 @@ describe('a prototype', () => {
     expect(item(i.id).idea!.variants.map((v) => v.approach)).toEqual(['P1 lokal', 'P2 Cloud']);
     expect(item(i.id).idea!.split).toBeUndefined();
     expect(item(p1!.id).state).toBe('working');
-    expect(board().decisions(null).at(-1)).toMatchObject({ card_id: i.id, answer: 'Split off a task: “Lese-Lern-App: Spiel und Lernlogik”.' });
+    expect(board().decisions(null).at(-1)).toMatchObject({ cardId: i.id, answer: 'Split off a task: “Lese-Lern-App: Spiel und Lernlogik”.' });
     expect(board().events(i.id).some((e) => e.text === 'Task split off: “Lese-Lern-App: Spiel und Lernlogik” is now a task of its own; what is open stays here.')).toBe(true);
     // its agent hears what became of the part, and trims the brief to what is open
     const told = explorer();

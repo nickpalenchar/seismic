@@ -1,7 +1,7 @@
 import { eq, isNotNull, sql } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { DeviceView } from '../../core/types';
-import type { Db } from '../db';
+import type { Db } from './common';
 import { type Subscription, subscriptionOf } from '../webpush';
 
 /** The devices paired to reach Seismic from another machine, each known by the hash of its cookie. */

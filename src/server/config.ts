@@ -34,7 +34,7 @@ import { installState, installVoice, KEY_ENV, sample, voiceProblem } from '../..
 import { slug } from '../core/project-slug';
 import { BadRequest } from './board';
 import { ConfigError, readingRepo, resolveProject, type StartFailure } from './project';
-import type { Store } from './db';
+import type { Store } from './store';
 import { freshPath } from './path';
 import { sameRemote } from './repo';
 import type { DemoSpace } from './demo-space';
@@ -327,7 +327,7 @@ const demoShape = z
 /** The repository's commands that wait for the owner's confirmation (`heldGroups`), with what they were when last confirmed; none where none do. */
 function trustOf(path: string, read: Parameters<typeof commandsOf>[0], mine: RepoSettings | undefined, store: Store): RepoTrust | undefined {
   const now = commandsOf(read);
-  const before = store.trustedCommands(path);
+  const before = store.trustedCommands.get(path);
   const held = heldGroups(now, before, mine);
   return held.length ? { held, now, ...(before ? { before } : {}) } : undefined;
 }
@@ -416,8 +416,8 @@ export class Config {
   takenOver(path: string, before: SharedSettings | undefined, after: SharedSettings | undefined) {
     if (!after) return;
     // commands the owner set here are theirs in the file too: they need no confirming
-    const trusted = trustTakenOver(this.o.store.trustedCommands(path), after, this.repoSettings(path));
-    if (trusted) this.o.store.trustCommands(path, trusted);
+    const trusted = trustTakenOver(this.o.store.trustedCommands.get(path), after, this.repoSettings(path));
+    if (trusted) this.o.store.trustedCommands.trust(path, trusted);
     const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
     const changed = this.dropSettings(path, (s) => {
       for (const k of SHARED_FIELDS) {
@@ -564,7 +564,7 @@ export class Config {
     const now = commandsOf(readShared(repoPath));
     if (canonical(now) !== canonical(parsed.data.seen)) throw new BadRequest('trustChanged', `${repoPath}: its commands changed on the default branch since they were shown`);
     // only the groups the dialog showed: one this machine's values (saved or in the draft) stand in for it did not
-    this.o.store.trustCommands(repoPath, trustHeld(this.o.store.trustedCommands(repoPath), now, parsed.data.held.filter((g) => now[g] !== undefined)));
+    this.o.store.trustedCommands.trust(repoPath, trustHeld(this.o.store.trustedCommands.get(repoPath), now, parsed.data.held.filter((g) => now[g] !== undefined)));
     console.log(`Seismic: the owner confirmed the commands of ${repoPath}`);
     this.o.onSettings?.();
   }
@@ -727,12 +727,12 @@ export class Config {
 
   /** The clones of a repository's pool (`repo` null: the project's home repository) that the configuration `r` no longer names. */
   private leaving(project: string, repo: string | null, r: ProjectConfig['repos'][number], mode: 'clones' | 'worktrees') {
-    const rows = this.o.store.workstations(project, repo);
+    const rows = this.o.store.workstations.of(project, repo);
     if (!rows.length) return [];
     const dir = join(this.o.server.home, 'workspaces', project, ...(repo ? [repo] : []));
     const hosts = (r.hosts ?? []).map((h) => ({ name: h.name, clones: h.clones }));
     return leavingClones(rows, { dir, mode, listed: (r.workstations ?? []).map((w) => resolve(w)), clones: r.clones ?? 0, hosts }).map((c) => {
-      const title = c.card ? (this.o.store.card(c.card)?.title ?? undefined) : undefined;
+      const title = c.card ? (this.o.store.cards.get(c.card)?.title ?? undefined) : undefined;
       const { card: _, ...rest } = c;
       return { ...rest, ...(title !== undefined ? { card: title } : {}) };
     });

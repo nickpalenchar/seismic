@@ -11,7 +11,7 @@ import { generic } from '../adapters/generic';
 import type { RepoAdapter } from '../adapters/types';
 import type { PlanDoc } from '../core/plan-doc';
 import { Board } from './board';
-import { Store } from './db';
+import { Store } from './store';
 import { FakeRuntime, gitRepo, identify } from './testing';
 import { Workers } from './workers';
 import { GIT, git, Workstations } from './workstations';

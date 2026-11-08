@@ -6,7 +6,7 @@ import type { CardAction, ClientMessage, ServerMessage } from '../core/types';
 import type { Board } from './board';
 import { Projects, ProjectRuntime } from './project';
 import type { Command } from './commands';
-import { Store } from './db';
+import { Store } from './store';
 import { AppUpdates } from './app-update';
 import { Restarter } from './self-update';
 import { SourceUpdates } from './source-update';

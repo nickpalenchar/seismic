@@ -3,7 +3,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writ
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectRuntime } from './project';
-import { Store } from './db';
+import { Store } from './store';
 import { ReadTree, refsSeal } from './read-tree';
 import { artifact, FakeRuntime, gitRepo, identify, noForge, until } from './testing';
 import { git } from './workstations';
