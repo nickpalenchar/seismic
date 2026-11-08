@@ -20,7 +20,7 @@ export const cardHolds = sqliteTable('card_holds', {
 
 export const cardHoldsRelations = relations(cardHolds, ({ one }) => ({ card: one(cards, { fields: [cardHolds.cardId], references: [cards.id] }) }));
 
-/** The hold as its row has it (`with: { hold: … }`), as `Hold`; none where there is no row. */
+/** The hold as its row has it, as `Hold`; none where there is no row. */
 export function asHold(row: { reason: HoldReason; since: string; detail: Record<string, unknown> | null } | null | undefined): Hold | null {
   return row ? ({ reason: row.reason, since: row.since, ...row.detail } as Hold) : null;
 }

@@ -37,7 +37,7 @@ export type CardLabels = { [L in Label]?: CardLabel<L> };
 /** Labels to set on a card; `null` takes one off. */
 export type LabelsUpdate = { [L in Label]?: CardLabel<L> | null };
 
-/** The labels of a card as its rows have them (`with: { labels }`). */
+/** The labels of a card as its rows have them (`Cards.rows`). */
 export function asLabels(rows: { label: Label; value: string | null; by: LabelBy | null }[]): CardLabels {
   return Object.fromEntries(
     rows.filter((r) => LABELS.includes(r.label)).map((r) => [r.label, { value: r.value !== null && r.label === 'complexity' ? Number(r.value) : r.value, by: r.by }]),

@@ -1,4 +1,4 @@
-import { asc, eq, relations, sql } from 'drizzle-orm';
+import { eq, relations, sql } from 'drizzle-orm';
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { CardFile } from '../../../core/files';
 import type { StoredDemo, StoredShare } from '../../board';
@@ -56,15 +56,12 @@ export type DemoUpdate = Partial<CardDemo>;
 
 const EMPTY: Omit<CardDemo, 'earlier'> = { latest: null, share: null, pageHeard: null, files: null, held: null };
 
-/** The demo part of a card as read (`with: { demo, earlierDemos }`), or none where it has none. */
+/** The demo part of a card as read (its row of `cardDemos`, its earlier demos), or none where it has none. */
 export function asDemo(own: (Omit<CardDemo, 'earlier'> & { cardId?: string }) | null | undefined, earlier: { demo: StoredDemo }[]): CardDemo | null {
   if (!own && !earlier.length) return null;
   const { cardId: _, ...fields } = { ...EMPTY, ...own };
   return { ...fields, earlier: earlier.map((e) => e.demo) };
 }
-
-/** How the earlier demos are read with a card: the oldest first. */
-export const EARLIER = { columns: { demo: true as const }, orderBy: [asc(cardEarlierDemos.position)] };
 
 /** The demo parts' queries (`Store.demos`); they are read with their cards (`Cards`). */
 export class Demos {

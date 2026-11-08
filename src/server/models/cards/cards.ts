@@ -10,7 +10,7 @@ import type { Scope } from '../../koordinator';
 import type { LandedState, PageHeard, Unheard } from '../../workers';
 import { groups } from '../groups';
 import { projects } from '../projects';
-import { asDemo, type CardDemo, cardDemos, cardEarlierDemos, type DemoUpdate, EARLIER } from './demos';
+import { asDemo, type CardDemo, cardDemos, cardEarlierDemos, type DemoUpdate } from './demos';
 import { asHold, cardHolds } from './holds';
 import { type CardIdea, cardIdeas, type IdeaUpdate } from './ideas';
 import { asLabels, type CardLabels, cardLabels, type LabelsUpdate } from './labels';
@@ -250,13 +250,21 @@ const own = Object.fromEntries(
     .filter((c) => !MOVED.has(c.name))
     .map((c) => [c.name, sql`${c}`.as(c.name)]),
 );
-const noKey = { columns: { cardId: false } } as const;
-/** How a card is read: its own columns as stored, with its parts from their tables (`toRow` makes it a `CardRow`). */
+/**
+ * How a card is read: its own columns as stored, with its one-row parts joined (none where it has
+ * no row: Drizzle reads a left-joined table as null where its first column, the key, is); its earlier demos and
+ * labels come after, for all the cards read at once (`Cards.rows`). Joins rather than relational
+ * queries: those read each part in a subquery of its own, which made reading a project's cards
+ * take about twice as long.
+ */
 const READ = {
-  columns: {},
-  extras: own,
-  with: { idea: noKey, review: noKey, demo: noKey, earlierDemos: EARLIER, plan: noKey, labels: { columns: { label: true, value: true, by: true } }, hold: noKey },
-} as const;
+  ...own,
+  idea: getTableColumns(cardIdeas),
+  review: getTableColumns(cardReviews),
+  demo: getTableColumns(cardDemos),
+  plan: getTableColumns(cardPlans),
+  hold: getTableColumns(cardHolds),
+};
 /** Each column's key in `cards` by its name in the database. */
 const keyOf = new Map(Object.entries(getTableColumns(cards)).map(([key, c]) => [c.name, key]));
 
@@ -281,7 +289,7 @@ export const cardsRelations = relations(cards, ({ one, many }) => ({
   hold: one(cardHolds, { fields: [cards.id], references: [cardHolds.cardId] }),
 }));
 
-/** A card as the relational query reads it (`READ`). */
+/** A card as its query reads it (`READ`), with its rows of the parts that have several. */
 type Read = Omit<CardRow, 'demo' | 'labels' | 'hold'> & {
   demo: Parameters<typeof asDemo>[0];
   earlierDemos: Parameters<typeof asDemo>[1];
@@ -289,33 +297,83 @@ type Read = Omit<CardRow, 'demo' | 'labels' | 'hold'> & {
   hold: Parameters<typeof asHold>[0];
 };
 
-/** A card as the relational query reads it (`READ`), as `CardRow`: the parts whose rows need putting together, put together. */
-function toRow({ earlierDemos, demo, labels, hold, ...row }: Read): CardRow {
-  return { ...row, demo: asDemo(demo, earlierDemos), labels: asLabels(labels), hold: asHold(hold) };
+/** A card as read, as `CardRow`: the parts whose rows need putting together, put together. */
+function toRow({ earlierDemos, demo, labels, hold, idea, review, plan, ...row }: Read): CardRow {
+  return { ...row, idea: keyless(idea), review: keyless(review), demo: asDemo(demo, earlierDemos), plan: keyless(plan), labels: asLabels(labels), hold: asHold(hold) };
+}
+
+/** A part as joined, without the card's id it was read with. */
+function keyless<T extends object>(part: T | null): Omit<T, 'cardId'> | null {
+  if (!part) return null;
+  const { cardId: _, ...rest } = part as T & { cardId?: string };
+  return rest;
+}
+
+/** The rows of a part with several per card, of the cards `ids`, by card, each card's in order. */
+function byCard<R extends { cardId: string }>(rows: R[]): Map<string, Omit<R, 'cardId'>[]> {
+  const by = new Map<string, Omit<R, 'cardId'>[]>();
+  for (const { cardId, ...r } of rows) (by.get(cardId) ?? by.set(cardId, []).get(cardId)!).push(r);
+  return by;
 }
 
 const open = (projectId: string) => and(eq(cards.projectId, projectId), isNull(cards.deletedAt));
-/** A card with a worker's proposal, waiting or accepted. Its table under a name of its own: a relational query reads every column of `cards_idea` as one of the card's. */
+/** A card with a worker's proposal, waiting or accepted. */
 const proposed = sql`EXISTS (SELECT 1 FROM card_ideas i WHERE i.card_id = ${cards.id} AND i.proposal IS NOT NULL)`;
 
 /** The cards' queries (`Store.cards`): rows as `CardRow` has them, the card's own columns as stored. */
 export class Cards {
-  private readonly byId;
   private readonly taken;
+  // the reads every change of a project makes, prepared once: building a query costs more than running it
+  private readonly byId;
+  private readonly open;
+  private readonly earlier;
+  private readonly labels;
 
   constructor(private readonly db: Db) {
-    this.byId = db.query.cards.findFirst({ ...READ, where: eq(cards.id, sql.placeholder('id')) }).prepare();
     this.taken = db.select({ one: sql`1` }).from(cards).where(eq(cards.short, sql.placeholder('short'))).prepare();
+    this.byId = this.select(eq(cards.id, sql.placeholder('id'))).prepare();
+    this.open = this.select(and(eq(cards.projectId, sql.placeholder('project')), isNull(cards.deletedAt), isNull(cards.archivedAt))).prepare();
+    const ids = sql`(SELECT value FROM json_each(${sql.placeholder('ids')}))`;
+    this.earlier = db
+      .select({ cardId: cardEarlierDemos.cardId, demo: cardEarlierDemos.demo })
+      .from(cardEarlierDemos)
+      .where(inArray(cardEarlierDemos.cardId, ids))
+      .orderBy(cardEarlierDemos.cardId, cardEarlierDemos.position)
+      .prepare();
+    this.labels = db.select({ cardId: cardLabels.cardId, label: cardLabels.label, value: cardLabels.value, by: cardLabels.by }).from(cardLabels).where(inArray(cardLabels.cardId, ids)).prepare();
   }
 
   get(id: string): CardRow | null {
-    const row = this.byId.get({ id }) as Read | undefined;
-    return row ? toRow(row) : null;
+    return this.complete(this.byId.all({ id }))[0] ?? null;
   }
 
-  /** The cards `where` selects, as read (`READ`), in the order given. */
-  private rows(where: SQL | undefined, orderBy?: SQL[]): CardRow[] {
-    return this.db.query.cards.findMany({ ...READ, where, ...(orderBy ? { orderBy } : {}) }).sync().map((r) => toRow(r as unknown as Read));
+  /** The cards `where` selects with their one-row parts (`READ`), in the order given. */
+  private select(where: SQL | undefined, orderBy: SQL[] = []) {
+    return this.db
+      .select(READ)
+      .from(cards)
+      .leftJoin(cardIdeas, eq(cardIdeas.cardId, cards.id))
+      .leftJoin(cardReviews, eq(cardReviews.cardId, cards.id))
+      .leftJoin(cardDemos, eq(cardDemos.cardId, cards.id))
+      .leftJoin(cardPlans, eq(cardPlans.cardId, cards.id))
+      .leftJoin(cardHolds, eq(cardHolds.cardId, cards.id))
+      .where(where)
+      .orderBy(...orderBy);
+  }
+
+  /** The cards as read with their one-row parts, with the parts they have several rows of, as `CardRow`. */
+  private complete(rows: unknown[]): CardRow[] {
+    const read = rows as Omit<Read, 'earlierDemos' | 'labels'>[];
+    if (!read.length) return [];
+    const ids = JSON.stringify(read.map((r) => r.id));
+    const earlier = byCard(this.earlier.all({ ids }));
+    const labels = byCard(this.labels.all({ ids }));
+    return read.map((r) => toRow({ ...r, earlierDemos: earlier.get(r.id) ?? [], labels: labels.get(r.id) ?? [] }));
+  }
+
+  /** The cards `where` selects, as read, in the order given. */
+  private rows(where: SQL | undefined, orderBy: SQL[] = []): CardRow[] {
+    return this.complete(this.select(where, orderBy).all());
   }
 
   /** The rows of these cards, deleted or archived ones too. */
@@ -326,7 +384,7 @@ export class Cards {
 
   /** Every card on the project: not deleted, not archived. */
   onProject(projectId: string): CardRow[] {
-    return this.rows(and(open(projectId), isNull(cards.archivedAt)));
+    return this.complete(this.open.all({ project: projectId }));
   }
 
   /** The project's cards, archived ones too, that were ever shared or are about to be. */
