@@ -22,8 +22,14 @@ function withPath(f: (path: string) => void) {
   }
 }
 
-/** The database as it was while projects were canvases: the migration that renamed them undone, for tests that rebuild an older one. */
+/** The database as it was before projects had canvases: the migration that brought them undone. */
+function withoutCanvases(db: Database) {
+  db.run('DROP INDEX cards_canvas; ALTER TABLE cards DROP COLUMN canvas_id; ALTER TABLE groups DROP COLUMN canvas_id; DROP TABLE canvases');
+}
+
+/** The database as it was while projects were canvases: the migrations that renamed them and brought canvases undone, for tests that rebuild an older one. */
 function asCanvases(db: Database) {
+  withoutCanvases(db);
   for (const { name } of db.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[])
     if ((db.query(`PRAGMA table_info(${name})`).all() as { name: string }[]).some((c) => c.name === 'project_id')) db.run(`ALTER TABLE ${name} RENAME COLUMN project_id TO canvas_id`);
   db.run('ALTER TABLE projects RENAME TO canvases');
@@ -344,7 +350,7 @@ test('what an Seismic kept while projects were canvases is in today’s names, t
     s.db.run(`UPDATE talk SET moved = '{"card":"x","title":"T","canvas":"d","canvasName":"Site"}' WHERE moved IS NOT NULL`);
     s.db.run(`UPDATE cards SET new_repo = '{"path":"/r","canvas":true,"by":"owner"}' WHERE id = '${card!.id}'`);
     s.db.query('UPDATE events SET made = $made WHERE id = $id').run({ made: '{"card":"y","title":"U","canvas":"d"}', id: made.id });
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.length - 1}`);
+    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes("ALTER TABLE canvases RENAME TO projects"))}`);
     s.db.close();
 
     const after = new Store(path);
@@ -353,7 +359,64 @@ test('what an Seismic kept while projects were canvases is in today’s names, t
     expect(JSON.parse(after.card(card!.id)!.new_repo!)).toEqual({ path: '/r', by: 'owner', project: true });
     expect(after.events(card!.id).find((e) => e.id === made.id)!.made).toEqual({ card: 'y', title: 'U', project: 'd' });
     expect(after.talk('c', 20, false).find((t) => t.moved)!.moved).toEqual({ card: 'x', title: 'T', project: 'd', projectName: 'Site' });
-    const names = (after.db.query("SELECT name, sql FROM sqlite_master").all() as { name: string; sql: string | null }[]).filter((o) => /canvas/i.test(o.name + (o.sql ?? '')));
+    // what names a canvas now is the canvas layer's, which came after
+    const layer = (o: { name: string; sql: string | null }) => /^(canvases|canvases_name|cards_canvas|sqlite_autoindex_canvases_1)$/.test(o.name);
+    const names = (after.db.query('SELECT name, sql FROM sqlite_master').all() as { name: string; sql: string | null }[])
+      .filter((o) => !layer(o) && /canvas/i.test(o.name + (o.sql ?? '').replace(/, canvas_id TEXT/, '')));
     expect(names).toEqual([]);
     after.db.close();
+  }));
+
+test('the migration gives every project a canvas main holding all its cards and groups', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.ensureProject('c', 'Shop');
+    s.ensureProject('d', 'Site');
+    const [a, plan] = s.insert([
+      { project_id: 'c', kind: 'task', x: 0, y: 0 },
+      { project_id: 'c', kind: 'plan', plan_ref: 'docs/plan/a.md', x: 0, y: 0 },
+    ]);
+    const [kid] = s.insert([{ project_id: 'c', kind: 'task', parent_id: plan!.id, plan_ref: 'docs/plan/a.md#w1', x: 0, y: 0 }]);
+    const [b] = s.insert([{ project_id: 'd', kind: 'task', x: 0, y: 0 }]);
+    s.update(b!.id, { archived_at: '2026-11-01' });
+    const g = s.addGroup('c', 'Billing', 200);
+    s.setGroup([a!.id], g.id);
+    withoutCanvases(s.db);
+    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.length - 1}`);
+    s.db.close();
+
+    const after = new Store(path);
+    for (const p of ['c', 'd']) expect(after.canvases(p).map((v) => [v.name, v.position])).toEqual([['main', 0]]);
+    const main = after.mainCanvas('c');
+    expect([a, plan, kid].map((r) => after.card(r!.id)!.canvas_id)).toEqual([main, main, main]);
+    expect(after.card(b!.id)!.canvas_id).toBe(after.mainCanvas('d'));
+    expect(after.group(g.id)!.canvas_id).toBe(main);
+    expect(after.db.query('PRAGMA foreign_key_check').all()).toEqual([]);
+    after.db.close();
+  }));
+
+test('canvases: names unique per project in any case, ordered, a plan moves with its workstreams, a deleted one leaves its archive on main', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.ensureProject('c', 'Shop');
+    s.ensureProject('d', 'Site');
+    const ideas = s.addCanvas('c', 'Ideas', '💡');
+    s.addCanvas('d', 'Ideas', null);
+    expect(() => s.addCanvas('c', 'ideas', null)).toThrow();
+    const later = s.addCanvas('c', 'Later', null);
+    expect(s.canvases('c').map((v) => v.name)).toEqual(['main', 'Ideas', 'Later']);
+    s.orderCanvases([later.id, s.mainCanvas('c'), ideas.id]);
+    expect(s.canvases('c').map((v) => v.name)).toEqual(['Later', 'main', 'Ideas']);
+    const [plan] = s.insert([{ project_id: 'c', kind: 'plan', plan_ref: 'p.md', x: 0, y: 0 }]);
+    const [kid] = s.insert([{ project_id: 'c', kind: 'task', parent_id: plan!.id, plan_ref: 'p.md#w', x: 0, y: 0 }]);
+    expect(kid!.canvas_id).toBe(s.mainCanvas('c'));
+    s.setCanvas([plan!.id], ideas.id);
+    expect([s.card(plan!.id)!.canvas_id, s.card(kid!.id)!.canvas_id]).toEqual([ideas.id, ideas.id]);
+    const [old] = s.insert([{ project_id: 'c', canvas_id: later.id, kind: 'task', x: 0, y: 0 }]);
+    s.update(old!.id, { archived_at: '2026-11-01' });
+    expect(s.cardsOnCanvas(later.id)).toBe(0);
+    s.deleteCanvas(later.id, s.mainCanvas('c'));
+    expect(s.card(old!.id)!.canvas_id).toBe(s.mainCanvas('c'));
+    expect(s.canvases('c').map((v) => [v.name, v.position])).toEqual([['main', 0], ['Ideas', 1]]);
+    s.db.close();
   }));

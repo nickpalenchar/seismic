@@ -8,7 +8,7 @@
 
 import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../core/labels';
 import { createHash } from 'node:crypto';
-import type { AgentAt, AgentIdentity, CodeReview, CodeReviewMode, CardArchiving, Feedback, Finding, WorkConfig } from '../core/types';
+import { type AgentAt, type AgentIdentity, type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, type Finding, MAIN_CANVAS, type WorkConfig } from '../core/types';
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { arrangeWorkstreams, type Bounds, boundsOf, CARD_SIZE, freeSpotNear, GAP, MERGED_SIZE, type Place, PLAN_HEAD, placePlans, planDirNoteBox, placeWorkstreams, planSize, shapeOf, sizeOf, unionBounds } from '../core/layout';
@@ -78,7 +78,7 @@ import {
   type Notice,
   type WorkerTurn,
 } from '../core/types';
-import type { CardRow, DecisionRow, Friction, FrictionNote, GroupRow, HeldTalk, Mark, NewRow, RowUpdate, Store, TalkWaitRow } from './db';
+import type { CanvasRow, CardRow, DecisionRow, Friction, FrictionNote, GroupRow, HeldTalk, Mark, NewRow, RowUpdate, Store, TalkWaitRow } from './db';
 import { attribute, checkedFeedback } from './feedback';
 import type { Images } from './images';
 import { branchName, CARD_BRANCH } from './workstations';
@@ -509,6 +509,9 @@ export class Board {
 
   readonly conversation: () => Language;
 
+  /** Where the owner last looked on the project in a page (`ProjectRuntime.inView`): Seismic's new cards go on its canvas. */
+  looking: () => Place | undefined = () => undefined;
+
   /** How the project's finished cards go into the archive now (project setting `archive`); the tests archive by hand. */
   archiving: () => CardArchiving = () => 'manual';
 
@@ -857,8 +860,28 @@ export class Board {
    * they have in view), the free spot nearest the card centred on it, in view if there is room there; else a column
    * right of everything, below what is already there.
    */
-  freeSpot(place?: Place): { x: number; y: number } {
-    const items = this.items();
+  freeSpot(place?: Place): { x: number; y: number; canvas: string } {
+    const canvas = this.canvasFor(place);
+    return { ...this.spotOn(canvas, place?.canvas === canvas || !place?.canvas ? place : undefined), canvas };
+  }
+
+  /**
+   * The canvas a card nobody placed goes on: the one `place` names, else the one the owner last
+   * looked at, else `main`; one that is gone counts as none.
+   */
+  canvasFor(place?: Place): string {
+    const ids = new Set(this.store.canvases(this.project.id).map((c) => c.id));
+    const named = [place?.canvas, this.looking()?.canvas].find((c) => c && ids.has(c));
+    return named ?? this.store.mainCanvas(this.project.id);
+  }
+
+  /** The cards on one canvas of the project. */
+  private on(canvas: string, items = this.items()): Item[] {
+    return items.filter((i) => i.canvas === canvas);
+  }
+
+  private spotOn(canvas: string, place?: Place): { x: number; y: number } {
+    const items = this.on(canvas);
     if (place) {
       const [w, h] = CARD_SIZE.task;
       const at = this.nearFree(items, { x: place.x - w / 2, y: place.y - h / 2 }, place.view);
@@ -878,10 +901,10 @@ export class Board {
    * something is in the way there (the card's own plan, for a workstream), the nearest free spot.
    */
   private followUpSpot(fromId: string): { x: number; y: number } {
-    const items = this.items();
-    const from = items.find((i) => i.id === fromId);
-    // an archived card is not on the project: its follow-ups go where there is room
-    if (!from) return this.freeSpot();
+    const from = this.items().find((i) => i.id === fromId);
+    // an archived card is not on the project: its follow-ups go where there is room on its canvas
+    if (!from) return this.spotOn(this.store.card(fromId)?.canvas_id ?? this.canvasFor());
+    const items = this.on(from.canvas!);
     const earlier = items.filter((i) => i.from === fromId && i.state !== 'proposal' && !i.prototypeOf).length;
     return this.nearFree(items, below(boundsOf(from, items), earlier), undefined, true);
   }
@@ -914,13 +937,15 @@ export class Board {
   /** An agent's proposal from card `fromId`: in the repository it names (`p.repo`), else in that card's. */
   propose(fromId: string, p: { title: string; task: string; reason?: string; idea?: boolean; questions?: Question[]; startAt?: string; repo?: string }): Item {
     if (p.repo !== undefined) this.checkRepo(p.repo);
-    const items = this.items();
-    const from = items.find((i) => i.id === fromId);
-    const at = from ? this.nearFree(items, below(boundsOf(from, items)), undefined, true) : this.freeSpot();
+    const from = this.items().find((i) => i.id === fromId);
+    const canvas = from?.canvas ?? this.store.card(fromId)?.canvas_id ?? this.canvasFor();
+    const items = this.on(canvas);
+    const at = from ? this.nearFree(items, below(boundsOf(from, items)), undefined, true) : this.spotOn(canvas);
     const proposal = proposalOf(p);
     const [row] = this.store.insert([
       {
         project_id: this.project.id,
+        canvas_id: canvas,
         kind: 'task',
         state: 'proposal',
         title: p.title.slice(0, 200),
@@ -977,14 +1002,16 @@ export class Board {
    * in a free spot, with what it rests on (`basis`).
    */
   proposeRetro(repo: string, p: { title: string; body: string; basis: string }): Item {
+    const { canvas, ...at } = this.freeSpot();
     const [row] = this.store.insert([
       {
         project_id: this.project.id,
+        canvas_id: canvas,
         kind: 'task',
         state: 'proposal',
         title: p.title.slice(0, 200),
         body: p.body.slice(0, 20000),
-        ...this.freeSpot(),
+        ...at,
         repo: this.repoColumn(repo),
         retro: p.basis.slice(0, 2000),
         proposal: JSON.stringify(proposalOf({})),
@@ -1017,8 +1044,9 @@ export class Board {
   setupCard(repo: string, name: string, propose = false): Item {
     this.checkRepo(repo);
     const { title, body, reason } = this.t.adapterSetup;
-    // clear of the note on the plan directory, as on a project that has nothing else yet
-    const { items, planDirs = [] } = this.snapshot();
+    // on `main`, clear of the note on the plan directory, as on a project that has nothing else yet
+    const { planDirs = [] } = this.snapshot();
+    const items = this.on(this.store.mainCanvas(this.project.id));
     const box = unionBounds([...items.filter((i) => !i.parent).map((i) => boundsOf(i, items)), ...planDirs.flatMap((d) => planDirNoteBox(d) ?? [])]);
     const at = box ? { x: box.x + box.w + 2 * GAP, y: box.y } : { x: 0, y: 0 };
     const [row] = this.store.insert([
@@ -1234,9 +1262,10 @@ export class Board {
    * or where there is room: its question as its title, the agent's session going on.
    */
   addQuestion(title: string, thread: StoredThread, session: string | undefined, repo: string | undefined, near?: string): Item {
-    const at = near && this.item(near) ? this.followUpSpot(near) : this.freeSpot();
+    const nearRow = near && this.item(near) ? this.own(near) : undefined;
+    const { canvas, ...at } = nearRow ? { ...this.followUpSpot(nearRow.id), canvas: nearRow.canvas_id } : this.freeSpot();
     const [row] = this.store.insert([
-      { project_id: this.project.id, kind: 'question', state: 'done', title: clip(oneLine(title), 160), body: '', ...at, repo: this.repoColumn(repo), ...(near && this.item(near) ? { group_id: this.groupOf(this.own(near)) } : {}) },
+      { project_id: this.project.id, canvas_id: canvas, kind: 'question', state: 'done', title: clip(oneLine(title), 160), body: '', ...at, repo: this.repoColumn(repo), ...(near && this.item(near) ? { group_id: this.groupOf(this.own(near)) } : {}) },
     ]);
     this.store.update(row!.id, { thread: JSON.stringify(thread), ...(session ? { session_id: session } : {}) });
     this.changed();
@@ -1245,12 +1274,14 @@ export class Board {
 
   /** A card whose worker builds a throwaway prototype for the idea; placed below it, beside the prototypes already there. */
   addPrototype(ideaId: string, title: string, body: string, variant?: string): Item {
-    const items = this.items();
+    const canvas = this.store.card(ideaId)?.canvas_id ?? this.canvasFor();
+    const items = this.on(canvas);
     const idea = items.find((i) => i.id === ideaId);
     const at = below(idea ? boundsOf(idea, items) : { x: 0, y: 0, w: 0, h: 0 }, items.filter((i) => i.prototypeOf === ideaId).length);
     const [row] = this.store.insert([
       {
         project_id: this.project.id,
+        canvas_id: canvas,
         kind: 'task',
         state: 'planned',
         title: title.slice(0, 200),
@@ -1657,7 +1688,7 @@ export class Board {
           const f = merge.followUp;
           const next = this.create({ title: f.title, body: withQuestions(f.task, f.questions.map((n) => proposal.questions[n]!).filter(Boolean), [], this.t), from: other.id, repo: other.repo, images: f.images });
           // Even an archived survivor keeps its place; the new task is placed beside it.
-          const at = this.nearFree(this.items(), { x: other.x + CARD_SIZE.task[0] + 40, y: other.y }, undefined, true);
+          const at = this.nearFree(this.on(keep.canvas_id), { x: other.x + CARD_SIZE.task[0] + 40, y: other.y }, undefined, true);
           this.store.update(next.id, at);
           this.setManualDependencies([...this.manualDependencies(), [other.id, next.id]]);
         }
@@ -1672,8 +1703,8 @@ export class Board {
           title,
           body: task.slice(0, 20000),
           images: images.length ? JSON.stringify(images) : null,
-          x: row.x,
-          y: row.y,
+          // it takes the proposal's place, where that is on its canvas
+          ...(row.canvas_id === keep.canvas_id ? { x: row.x, y: row.y } : {}),
           ...(keep.state === 'proposal' && kept ? { proposal: JSON.stringify({ ...kept, questions: [...kept.questions, ...added] } satisfies Proposal) } : {}),
         });
       }
@@ -1908,6 +1939,7 @@ export class Board {
       });
     this.cache = {
       project: this.project,
+      canvases: this.canvases(),
       items,
       groups: this.store.groups(this.project.id).map(toGroup),
       preferences: this.store.preferences(this.project.id, ['proposed', 'active']),
@@ -2537,7 +2569,8 @@ export class Board {
   /** Puts the cards into the group, or with `null` into none; a workstream stands for its plan. */
   group(cardIds: unknown, groupId: string | null) {
     const ids = this.groupable(cardIds);
-    if (groupId !== null) this.ownGroup(groupId);
+    const g = groupId === null ? null : this.ownGroup(groupId);
+    if (g && ids.some((id) => this.own(id).canvas_id !== g.canvas_id)) throw new BadRequest('invalid', 'a group holds cards of its own canvas only');
     this.store.setGroup(ids, groupId);
     this.store.dropEmptyGroups(this.project.id);
     this.changed();
@@ -2552,10 +2585,14 @@ export class Board {
     const ids = this.groupable(cardIds);
     if (!ids.length) throw new BadRequest('invalid', 'a group needs a card');
     if (hue !== undefined && !(Number.isInteger(hue) && (hue as number) >= 0 && (hue as number) < 360)) throw new BadRequest('invalid', 'hue must be a whole number from 0 to 359');
-    const groups = this.store.groups(this.project.id);
+    const canvases = new Set(ids.map((id) => this.own(id).canvas_id));
+    if (canvases.size > 1) throw new BadRequest('invalid', 'a group holds cards of one canvas');
+    const [canvas] = canvases as Set<string>;
+    // a group's name is its canvas's; its colour differs from those of the groups beside it there
+    const groups = this.store.groups(this.project.id).filter((x) => x.canvas_id === canvas);
     const g =
       groups.find((x) => x.name.toLowerCase() === n.toLowerCase()) ??
-      this.store.addGroup(this.project.id, n, (hue as number | undefined) ?? nextHue(groups.map((x) => x.hue)));
+      this.store.addGroup(this.project.id, n, (hue as number | undefined) ?? nextHue(groups.map((x) => x.hue)), canvas);
     this.store.setGroup(ids, g.id);
     this.store.dropEmptyGroups(this.project.id);
     this.changed();
@@ -2563,9 +2600,9 @@ export class Board {
   }
 
   renameGroup(id: string, name: unknown) {
-    this.ownGroup(id);
+    const own = this.ownGroup(id);
     const n = this.groupName(name);
-    if (this.store.groups(this.project.id).some((g) => g.id !== id && g.name.toLowerCase() === n.toLowerCase()))
+    if (this.store.groups(this.project.id).some((g) => g.id !== id && g.canvas_id === own.canvas_id && g.name.toLowerCase() === n.toLowerCase()))
       throw new BadRequest('invalid', `there is a group named ${n} already`);
     this.store.renameGroup(id, n);
     this.changed();
@@ -2582,6 +2619,104 @@ export class Board {
     this.store.dropEmptyGroups(this.project.id);
     this.changed();
     return { group: toGroup(g), cards };
+  }
+
+  // ---------------------------------------------------------------- canvases
+
+  /** The project's canvases in the owner's order. */
+  canvases(): Canvas[] {
+    return this.store.canvases(this.project.id).map(toCanvas);
+  }
+
+  /** A new canvas, last in the order, with nothing on it. */
+  createCanvas(name: unknown, icon?: unknown): Canvas {
+    const n = this.canvasName(name);
+    const c = this.store.addCanvas(this.project.id, n, icon === undefined ? null : this.canvasIcon(icon));
+    this.changed();
+    return toCanvas(c);
+  }
+
+  /**
+   * Renames the canvas, changes its icon (`null` takes it away) or moves it to another place in the
+   * order (`position`, from 1). `main` keeps its name.
+   */
+  updateCanvas(id: string, p: { name?: unknown; icon?: unknown; position?: unknown }): Canvas {
+    const c = this.ownCanvas(id);
+    const fields: { name?: string; icon?: string | null } = {};
+    if (p.name !== undefined) {
+      const n = this.canvasName(p.name, id);
+      if (c.name === MAIN_CANVAS && n !== MAIN_CANVAS) throw new BadRequest('invalid', `the canvas ${MAIN_CANVAS} keeps its name`);
+      fields.name = n;
+    }
+    if (p.icon !== undefined) fields.icon = p.icon === null ? null : this.canvasIcon(p.icon);
+    const all = this.store.canvases(this.project.id);
+    if (p.position !== undefined && !(Number.isInteger(p.position) && (p.position as number) >= 1 && (p.position as number) <= all.length))
+      throw new BadRequest('invalid', `position must be a whole number from 1 to ${all.length}`);
+    this.store.db.transaction(() => {
+      this.store.updateCanvas(id, fields);
+      if (p.position !== undefined) {
+        const rest = all.filter((x) => x.id !== id).map((x) => x.id);
+        rest.splice((p.position as number) - 1, 0, id);
+        this.store.orderCanvases(rest);
+      }
+    })();
+    this.changed();
+    return toCanvas(this.store.canvas(id)!);
+  }
+
+  /**
+   * Deletes a canvas without cards on it; never `main`. Its archived cards go to `main`, where they
+   * come back from the archive.
+   */
+  deleteCanvas(id: string) {
+    const c = this.ownCanvas(id);
+    if (c.name === MAIN_CANVAS) throw new BadRequest('canvasInUse', `the canvas ${MAIN_CANVAS} cannot be deleted`);
+    const n = this.store.cardsOnCanvas(id);
+    if (n) throw new BadRequest('canvasInUse', `only an empty canvas can be deleted; ${c.name} has ${n} card${n === 1 ? '' : 's'}`);
+    this.store.deleteCanvas(id, this.store.mainCanvas(this.project.id));
+    this.changed();
+  }
+
+  /**
+   * The cards go onto another canvas of the project, each at a free spot there (a workstream with
+   * its plan, a plan with its workstreams), out of their groups, which stay where they were.
+   */
+  moveToCanvas(cardIds: unknown, canvasId: string) {
+    const to = this.ownCanvas(canvasId).id;
+    const ids = this.groupable(cardIds).filter((id) => this.own(id).canvas_id !== to);
+    for (const id of ids) {
+      const at = this.spotOn(to);
+      this.store.db.transaction(() => {
+        this.store.setCanvas([id], to);
+        this.store.update(id, at);
+      })();
+      this.changedRows();
+    }
+    this.store.dropEmptyGroups(this.project.id);
+    this.changed();
+  }
+
+  private ownCanvas(id: unknown): CanvasRow {
+    const c = typeof id === 'string' ? this.store.canvas(id) : null;
+    if (!c || c.project_id !== this.project.id) throw new BadRequest('unknownCanvas', 'unknown canvas');
+    return c;
+  }
+
+  /** A canvas's name as given, checked: unique in the project in any case (but for canvas `self`), never a number from 1 to 999. */
+  private canvasName(name: unknown, self?: string): string {
+    checkText(name, 'name', CANVAS_NAME_MAX);
+    const n = (name as string).replace(/\s+/g, ' ').trim();
+    const problem = canvasNameProblem(n);
+    if (problem === 'empty') throw new BadRequest('emptyText', 'a canvas needs a name');
+    if (problem === 'number') throw new BadRequest('invalid', 'a canvas cannot be named by a number from 1 to 999, which names canvases by their place');
+    if (this.store.canvases(this.project.id).some((c) => c.id !== self && c.name.toLowerCase() === n.toLowerCase())) throw new BadRequest('invalid', `there is a canvas named ${n} already`);
+    return n;
+  }
+
+  /** An icon as given, checked: a short text without spaces (an emoji, or `lucide:<name>`). */
+  private canvasIcon(icon: unknown): string {
+    if (typeof icon !== 'string' || !icon.trim() || icon.length > 40 || /\s/.test(icon.trim())) throw new BadRequest('invalid', 'icon must be an emoji or lucide:<name>');
+    return icon.trim();
   }
 
   /** The group a card's new offspring (a proposal, a follow-up, a package, a prototype) goes into. */
@@ -2625,13 +2760,17 @@ export class Board {
       checkNumber(n.x, 'x');
       checkNumber(n.y, 'y');
     }
-    const at = from ? this.followUpSpot(from.id) : placed ? { x: n.x!, y: n.y! } : this.freeSpot();
+    if (n.canvas !== undefined) this.ownCanvas(n.canvas);
+    // a follow-up goes on its card's canvas, any other where it says, else where the owner looks
+    const canvas = from ? from.canvas_id : (n.canvas ?? this.canvasFor());
+    const at = from ? this.followUpSpot(from.id) : placed ? { x: n.x!, y: n.y! } : this.spotOn(canvas);
     // a follow-up stays in the repository of the card it comes from unless told otherwise
     const repo = n.repo ?? (from ? (from.repo ?? this.home) : undefined);
     if (n.images !== undefined) this.checkImages(n.images);
     const [row] = this.store.insert([
       {
         project_id: this.project.id,
+        canvas_id: canvas,
         kind: 'task',
         state: n.idea ? 'idea' : 'planned',
         title: n.title,
@@ -3158,7 +3297,7 @@ export class Board {
 
   /** A free spot for a card at the right of the plan, near its top. */
   private besidePlan(plan: CardRow): { x: number; y: number } {
-    const items = toItems(this.store.cards(this.project.id), this.docs ?? [], this.home);
+    const items = this.on(plan.canvas_id, toItems(this.store.cards(this.project.id), this.docs ?? [], this.home));
     const p = items.find((i) => i.id === plan.id);
     if (!p) return { x: plan.x, y: plan.y };
     const box = boundsOf(p, items);
@@ -3198,12 +3337,15 @@ export class Board {
       const kids = pos.map((p, n) => ({ kind: 'task' as const, state: d.workstreams[n]!.done ? ('live' as const) : ('planned' as const), parent: 'p', ...p }));
       return { doc: d, pos, size: planSize(kids) };
     });
-    const top = items.filter((i) => !i.parent);
+    // plans found in a repository go on `main`
+    const main = this.store.mainCanvas(this.project.id);
+    const onMain = this.on(main, items);
+    const top = onMain.filter((i) => !i.parent);
     // below a note the owner put there too
     const notes = this.planDirs(all).flatMap((d) => planDirNoteBox(d) ?? []);
-    const at = placePlans(unionBounds([...top.map((i) => boundsOf(i, items)), ...notes]), layouts.map((l) => l.size));
+    const at = placePlans(unionBounds([...top.map((i) => boundsOf(i, onMain)), ...notes]), layouts.map((l) => l.size));
     layouts.forEach(({ doc, pos }, n) => {
-      const [plan] = this.store.insert([{ project_id: c, kind: 'plan', plan_ref: doc.file, ...at[n]! }]);
+      const [plan] = this.store.insert([{ project_id: c, canvas_id: main, kind: 'plan', plan_ref: doc.file, ...at[n]! }]);
       // a plan just come stands arranged by what builds on what, once the Koordinator has read that
       if (docs.includes(doc) && doc.workstreams.filter((w) => !w.done).length > 1) this.store.update(plan!.id, { deps: JSON.stringify({ reading: 'auto' } satisfies StoredDeps) });
       this.store.insert(
@@ -3240,10 +3382,14 @@ export class Board {
    * aside by as much as it outgrows the idea: the cards below it down, those beside it to the right.
    */
   private takePlace(planId: string, ideaId: string, docs: PlanDoc[]) {
-    const items = toItems(this.store.cards(this.project.id), docs, this.home, undefined, this.themeNow);
-    const plan = items.find((i) => i.id === planId);
-    const idea = items.find((i) => i.id === ideaId);
+    // on the idea's canvas, with its workstreams
+    const ideaCanvas = this.store.card(ideaId)?.canvas_id;
+    if (ideaCanvas && this.store.card(planId)?.canvas_id !== ideaCanvas) this.store.setCanvas([planId], ideaCanvas);
+    const all = toItems(this.store.cards(this.project.id), docs, this.home, undefined, this.themeNow);
+    const plan = all.find((i) => i.id === planId);
+    const idea = all.find((i) => i.id === ideaId);
     if (!plan || !idea) return;
+    const items = this.on(idea.canvas!, all);
     const [iw, ih] = sizeOf(idea, items);
     const [pw, ph] = sizeOf(plan, items);
     const moves: [string, { x: number; y: number }][] = [[plan.id, { x: idea.x, y: idea.y }]];
@@ -3325,6 +3471,8 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
   // what each workstream builds on, by its plan's reading of the doc
   const depsOf = new Map(rows.flatMap((r) => (r.kind === 'plan' && r.deps ? [[r.id, JSON.parse(r.deps) as StoredDeps]] : [])));
   const idOfRef = new Map(rows.flatMap((r) => (r.plan_ref ? [[r.plan_ref, r.id]] : [])));
+  // a workstream is on its plan's canvas
+  const canvasOf = new Map(rows.flatMap((r) => (r.kind === 'plan' ? [[r.id, r.canvas_id]] : [])));
   const plans: Item[] = [];
   const workstreams: { item: Item; order: number }[] = [];
   const manual: Item[] = [];
@@ -3342,6 +3490,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
         y: r.y,
         source: 'manual',
         repo: r.repo ?? home,
+        ...(r.canvas_id ? { canvas: r.canvas_id } : {}),
         createdAt: r.created_at,
         ...work(r),
         ...(r.state === 'idea' ? { idea: ideaOf(r) } : r.idea ? decided(r) : {}),
@@ -3373,6 +3522,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
         y: r.y,
         source: 'plan',
         repo: repoOfRef(doc.file, home),
+        ...(r.canvas_id ? { canvas: r.canvas_id } : {}),
         plan: { file: doc.file, goal: doc.goal },
         ...(depsOf.get(r.id)?.reading ? { arranging: true as const } : {}),
         ...(r.collapsed ? { collapsed: true } : {}),
@@ -3408,6 +3558,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
         parent: r.parent_id,
         source: 'plan',
         repo: repoOfRef(r.plan_ref, home),
+        ...((canvasOf.get(r.parent_id) ?? r.canvas_id) ? { canvas: canvasOf.get(r.parent_id) ?? r.canvas_id } : {}),
         ...(w.label ? { label: w.label } : {}),
         ...work(r),
         ...(shipped ? { landedPart: { ...(shipped.commit ? { commit: shipped.commit } : {}), ...(shipped.pr ? { pr: shipped.pr } : {}) } } : {}),
@@ -3744,7 +3895,9 @@ function checkPreference(v: unknown): string {
   return v.trim();
 }
 
-const toGroup = (g: GroupRow): Group => ({ id: g.id, name: g.name, hue: g.hue });
+const toCanvas = (c: CanvasRow): Canvas => ({ id: c.id, name: c.name, ...(c.icon ? { icon: c.icon } : {}) });
+
+const toGroup = (g: GroupRow): Group => ({ id: g.id, name: g.name, hue: g.hue, canvas: g.canvas_id });
 
 /** Group colours, apart from each other and from the states' colours on the cards; then the golden angle. */
 const HUES = [200, 28, 150, 280, 345, 55, 175, 100];

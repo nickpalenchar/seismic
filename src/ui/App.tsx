@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Archive, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
-import { type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn } from '../core/types';
+import { canvasOfHash, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { GroupNames, growFrom, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
@@ -220,7 +220,8 @@ async function soon<T>(get: () => T | undefined, ms = 3000): Promise<T | undefin
   return get();
 }
 
-const camKey = (projectId: string) => `obeya-cam-${projectId}`;
+/** Where the camera on a canvas is kept: the project's first canvas has the key the whole project had before it had several. */
+const camKey = (projectId: string, canvas?: string) => `obeya-cam-${projectId}${canvas ? `#${canvas}` : ''}`;
 
 function Project({
   snapshot,
@@ -309,8 +310,31 @@ function Project({
   }, [snapshot, pending, moved, folded]);
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  // ---------------------------------------------------------------- canvases
+  // the canvas shown is the one the address's hash names (`#main`, `#2`), else the first; each has a layout of its own
+  const [hash, setHash] = useState(() => location.hash);
+  useEffect(() => {
+    const on = () => setHash(location.hash);
+    addEventListener('hashchange', on);
+    return () => removeEventListener('hashchange', on);
+  }, []);
+  const canvases = useMemo(() => snapshot.canvases ?? [], [snapshot.canvases]);
+  const shownCanvas = canvasOfHash(canvases, hash);
+  const canvasId = shownCanvas?.id;
+  const canvasRef = useRef(canvasId);
+  canvasRef.current = canvasId;
+  /** Shows another canvas of the project; the address names it. */
+  const showCanvas = (id: string) => {
+    const c = canvases.find((x) => x.id === id);
+    if (!c || id === canvasRef.current) return;
+    const to = `#${encodeURIComponent(c.name)}`;
+    history.replaceState(history.state, '', `${location.pathname}${location.search}${to}`);
+    flushSync(() => setHash(to));
+  };
+  /** Whether the card is on the canvas shown (one the server has not placed on any yet counts as on the first). */
+  const onShown = useCallback((i: Item) => !canvasId || (i.canvas ?? canvases[0]?.id) === canvasId, [canvasId, canvases]);
   // the workstreams of a collapsed plan are not on the project: its marks stand for them
-  const placed = useMemo(() => onProject(items).map((item) => ({ item, b: boundsOf(item, items) })), [items]);
+  const placed = useMemo(() => onProject(items.filter(onShown)).map((item) => ({ item, b: boundsOf(item, items) })), [items, onShown]);
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const territories = useTerritories(placed, snapshot.groups);
   const kidsOf = useMemo(() => {
@@ -333,9 +357,11 @@ function Project({
   }, [snapshot]);
   // a fresh array only when what is shown changes: the camera keeps the notes in sight
   const planDirs = useMemo(() => {
+    // they stand beside the plans found in the repositories, which are on `main`
+    if (shownCanvas && shownCanvas.name !== MAIN_CANVAS) return undefined;
     const shown = snapshot.planDirs?.filter((d) => !noteHidden(d)).map((d) => (notesMoved[d.repo] ? { ...d, at: notesMoved[d.repo] } : d));
     return shown?.length ? shown : undefined;
-  }, [snapshot.planDirs, noteHidden, notesMoved]);
+  }, [snapshot.planDirs, noteHidden, notesMoved, shownCanvas?.name]);
   const notes = useMemo(() => (planDirs ? planDirBoxes(planDirs, placed) : []), [planDirs, placed]);
   const all: Bounds = useMemo(() => unionBounds([...placed.map((p) => p.b), ...notes]) ?? { x: 0, y: 0, w: 1000, h: 600 }, [placed, notes]);
   // what the view keeps in sight: the whole area the minimap panel shows, so anywhere on it can be scrolled to; an empty project has no limit
@@ -354,7 +380,7 @@ function Project({
   // ---------------------------------------------------------------- camera
   const [cam, setCam, camRef] = useLive<Cam>(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(camKey(snapshot.project.id)) ?? 'null');
+      const saved = JSON.parse(localStorage.getItem(camKey(snapshot.project.id, canvasId === canvases[0]?.id ? undefined : canvasId)) ?? 'null');
       // saved as it would be without a sheet, which none is before the page opens one
       if (saved && [saved.x, saved.y, saved.s].every(Number.isFinite)) return keepInView(saved, content, { left: 0, top: TOP, right: innerWidth, bottom: innerHeight - BOTTOM });
     } catch {}
@@ -376,11 +402,25 @@ function Project({
     if (focusRef.current) return;
     const h = setTimeout(() => {
       try {
-        localStorage.setItem(camKey(snapshot.project.id), JSON.stringify(besideSheet(cam, camSide.current, NO_SIDES)));
+        localStorage.setItem(camKey(snapshot.project.id, camCanvas.current), JSON.stringify(besideSheet(cam, camSide.current, NO_SIDES)));
       } catch {}
     }, 300);
     return () => clearTimeout(h);
   }, [cam, snapshot.project.id]);
+  // the canvas the camera shows (none: the first); another canvas brings back the view kept for it, or one on all of it
+  const camCanvas = useRef(canvasId === canvases[0]?.id ? undefined : canvasId);
+  useEffect(() => {
+    const key = canvasId === canvases[0]?.id ? undefined : canvasId;
+    if (key === camCanvas.current) return;
+    camCanvas.current = key;
+    let to: Cam | undefined;
+    try {
+      const saved = JSON.parse(localStorage.getItem(camKey(snapshot.project.id, key)) ?? 'null');
+      if (saved && [saved.x, saved.y, saved.s].every(Number.isFinite)) to = besideSheet(saved, NO_SIDES, sideNow());
+    } catch {}
+    camSide.current = sideNow();
+    setCam(to ?? centreOn(all, 1));
+  }, [canvasId]);
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const onResize = () => setTick((n) => n + 1);
@@ -557,6 +597,8 @@ function Project({
     const quick = reload || hold;
     const f = focusRef.current;
     if (f?.type === 'card') return;
+    // a card on another canvas opens there
+    if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt) showCanvas(i.canvas);
     if (i.kind === 'plan') return openPlan(i);
     setFocus({ type: 'card', id: i.id, prevCam: camRef.current, prevSide: camSide.current, plan: f });
     openDraft.current = { kind: i.kind, title: i.title, body: i.body, images: i.images ?? [] };
@@ -771,7 +813,7 @@ function Project({
   /** A new card centred at `world`; `made` runs once it exists, before it opens. */
   async function createAt(world: Pos, made?: (card: Item) => Promise<unknown>) {
     const [w, h] = CARD_SIZE.task;
-    const card = await api.create({ title: '', x: Math.round(world.x - w / 2), y: Math.round(world.y - h / 2) });
+    const card = await api.create({ title: '', x: Math.round(world.x - w / 2), y: Math.round(world.y - h / 2), ...(canvasRef.current ? { canvas: canvasRef.current } : {}) });
     await made?.(card);
     beingWritten.add(card.id);
     flushSync(() => {
@@ -1111,7 +1153,8 @@ function Project({
    */
   const placeNow = (pointer = true): Place => {
     const f = focusRef.current;
-    return placeIn(f ? back(f) : camRef.current, viewNow(), f || !pointer ? null : pointerAt.current);
+    const at = placeIn(f ? back(f) : camRef.current, viewNow(), f || !pointer ? null : pointerAt.current);
+    return canvasRef.current ? { ...at, canvas: canvasRef.current } : at;
   };
   // a command that makes a card: when it appears out of view, the camera goes there
   const newCardWatch = useRef<{ known: Set<string>; until: number } | null>(null);
@@ -1257,7 +1300,7 @@ function Project({
   useEffect(() => {
     const h = setTimeout(() => reportFocus(placeNow(false)), 300);
     return () => clearTimeout(h);
-  }, [focus?.type, focus?.id, cam, tick, kOn, sheetOn, sheetW.sheet]);
+  }, [focus?.type, focus?.id, cam, tick, kOn, sheetOn, sheetW.sheet, canvasId]);
 
   // ---------------------------------------------------------------- pointer: pan, drag, click
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -1598,7 +1641,7 @@ function Project({
       });
       const moving = new Set([i.id, ...along.map((a) => a.id)]);
       // the view scrolls as far as the rest of the project reaches, plus room to drop the cards beside it
-      const rest = onProject(itemsRef.current).filter((x) => !moving.has(x.id));
+      const rest = onProject(itemsRef.current.filter(onShown)).filter((x) => !moving.has(x.id));
       const b = unionBounds([...moving].map((id) => bounds(byId(id)!)))!;
       const content = unionBounds(rest.map((x) => boundsOf(x, rest))) ?? b;
       const grab = toWorld(camRef.current, x, y);
@@ -2213,7 +2256,7 @@ function Project({
           </div>
         </div>
         {/* on an empty project the camera centres the notes on the plan directories: the hint stands above them, with space between */}
-        {!items.length && (
+        {!placed.length && (
           <div className={notes.length ? 'empty above-note' : 'empty'} {...(notes.length ? { style: { top: cam.y + Math.min(...notes.map((b) => b.y)) * cam.s - 48 } } : {})}>
             <p className="none">{t.empty.none}</p>
             <p>{t.empty.speak}</p>

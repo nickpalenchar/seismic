@@ -737,6 +737,22 @@ export function serve(
         PATCH: on(async (c, req) => c.board.renameGroup(req.params.id!, (((await req.json()) ?? {}) as { name?: string }).name)),
         DELETE: on((c, req) => c.board.deleteGroup(req.params.id!)),
       },
+      // canvases: a new one (with an icon), a new name, icon (`null`: none) or place in the order (`position`, from 1),
+      // the end of an empty one, and cards moved onto one
+      '/api/c/:project/canvases': {
+        GET: on((c) => c.board.canvases()),
+        POST: on(async (c, req) => {
+          const { name, icon } = ((await req.json()) ?? {}) as { name?: unknown; icon?: unknown };
+          return c.board.createCanvas(name, icon);
+        }),
+      },
+      '/api/c/:project/canvases/:id': {
+        PATCH: on(async (c, req) => c.board.updateCanvas(req.params.id!, ((await req.json()) ?? {}) as { name?: unknown; icon?: unknown; position?: unknown })),
+        DELETE: on((c, req) => c.board.deleteCanvas(req.params.id!)),
+      },
+      '/api/c/:project/canvases/:id/cards': {
+        POST: on(async (c, req) => c.board.moveToCanvas((((await req.json()) ?? {}) as { cards?: unknown }).cards, req.params.id!)),
+      },
       '/api/c/:project/assign': {
         POST: on(async (c, req) => {
           const { cards, group } = ((await req.json()) ?? {}) as { cards?: string[]; group?: string | null };

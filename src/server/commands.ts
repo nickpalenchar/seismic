@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { currentAgent } from './agent-identity';
-import { AGENT_DEFAULTS, type AgentSetting, agentListens, answering, askable, type Awaited, awaited, type AwaitedState, blocksSaving, type ProjectConfig, finished, handedOver, type Item, type NextStep, type Notice, openQuestions, pausableNow, plannableAsPlan, halted, untouched, prototypeWorkstream, snoozable, SNOOZE_LIMIT, type Queue, type SpotInput, type Talk, type TalkAfter, type TalkQuote, type TalkRef } from '../core/types';
+import { AGENT_DEFAULTS, type AgentSetting, CANVAS_NAME_MAX, canvasNameProblem, MAIN_CANVAS, agentListens, answering, askable, type Awaited, awaited, type AwaitedState, blocksSaving, type ProjectConfig, finished, handedOver, type Item, type NextStep, type Notice, openQuestions, pausableNow, plannableAsPlan, halted, untouched, prototypeWorkstream, snoozable, SNOOZE_LIMIT, type Queue, type SpotInput, type Talk, type TalkAfter, type TalkQuote, type TalkRef } from '../core/types';
 import { holdsNotes, notStarted } from '../core/queue';
 import { answerTag, fromAnswerTag } from './answers';
 import { BadRequest, type Board, excerpt, replyNote } from './board';
@@ -62,6 +62,12 @@ export type Command = (
   | { do: 'group'; cards: string[]; name: string }
   | { do: 'ungroup'; cards: string[] }
   | { do: 'renameGroup'; group: string; name: string }
+  /** Canvases of the project: a new one, one renamed, its icon changed (`null`: none) or moved in the order (`position`, from 1), an empty one deleted, cards moved onto one. */
+  | { do: 'newCanvas'; name: string; icon?: string }
+  | { do: 'changeCanvas'; canvas: string; name?: string; icon?: string | null; position?: number }
+  | { do: 'deleteCanvas'; canvas: string }
+  /** `newCanvas`: instead of `canvas`, the canvas of that name a new canvas action of the same command creates. */
+  | ({ do: 'moveToCanvas'; cards: string[] } & ({ canvas: string } | { newCanvas: string }))
   /**
    * The Koordinator waits until the card is done or waits for the owner, and then takes the step
    * `then`; `newCard`: instead of `card`, the card of that title a new card action of the same command creates.
@@ -253,7 +259,7 @@ type More = { wish?: string; cannot?: boolean };
 type Decision = { commands: Command[]; confirm: string; lookUp?: LookUp; agent?: import('../core/types').AgentIdentity } & More;
 
 /** The actions `act` takes, as the Koordinator names them. */
-const ACTIONS = ['new_card', 'new_idea', 'review_pr', 'start', 'dequeue', 'note', 'answer', 'feedback', 'approve', 'accept', 'dismiss', 'keep', 'revise', 'stop', 'pause', 'resume', 'snooze', 'wake', 'discuss', 'build', 'split_off', 'plan_doc', 'prototype', 'park', 'drop', 'remember', 'work_retro', 'group', 'ungroup', 'rename_group', 'merge', 'delete', 'wait_for', 'stop_waiting', 'wish'] as const;
+const ACTIONS = ['new_card', 'new_idea', 'review_pr', 'start', 'dequeue', 'note', 'answer', 'feedback', 'approve', 'accept', 'dismiss', 'keep', 'revise', 'stop', 'pause', 'resume', 'snooze', 'wake', 'discuss', 'build', 'split_off', 'plan_doc', 'prototype', 'park', 'drop', 'remember', 'work_retro', 'group', 'ungroup', 'rename_group', 'new_canvas', 'change_canvas', 'delete_canvas', 'move_to_canvas', 'merge', 'delete', 'wait_for', 'stop_waiting', 'wish'] as const;
 
 /** What `act` gets for one action. */
 const ACTION = z.object({
@@ -268,6 +274,9 @@ const ACTION = z.object({
   repos: z.array(z.string()).optional(),
   cards: z.array(z.string()).optional(),
   group: z.string().optional(),
+  canvas: z.string().optional(),
+  icon: z.string().optional(),
+  position: z.number().int().optional(),
   direct: z.boolean().optional(),
   idea: z.boolean().optional(),
   until: z.string().optional(),
@@ -816,6 +825,7 @@ export class Commander {
             "- On a card in state idea: discuss (text: what the owner says in its discussion: a thought, a question, an answer to the idea's agent; it goes on at once, without undo), build (its brief becomes the task and a worker starts on it at once; while its agent works on a reply, or starts on one with a discuss in the same command, once that reply is there, unless the reply asks questions; it ends the discussion, and the idea's prototypes, planned and running, are thrown away; path: where the owner wants it built in a repository that does not exist yet (“build that in a new repo under ~/dev/super59”), its folder, absolute or from ~: Seismic creates the folder and a local git repository (no remote), a project of its own named after it, moves the idea there with its brief, conversation and decisions, and builds it there, after a few seconds in which the owner can take it back on the card; own_project: false where the owner wants the new repository on this project instead; the list says where the idea's agent or the owner chose a new repository already, and build without path builds it there), split_off (only where the list says its agent marked a part as settled: that part becomes a task of its own beside the idea, which a worker starts on at once, and the idea stays open with its discussion and its prototypes for what is still open), plan_doc (a big idea becomes a plan: an agent starts at once on its plan doc, and the plan then takes the idea's place), prototype (a worker builds a throwaway prototype shown as a demo on it, beside any others; text: what it should show, its approach first in a few words; empty: one prototype for each variant its agent planned that has none running yet, all at once, or without planned variants one of the idea as it stands), park (for later), drop (it stays on the project with its brief). Planning an idea, or splitting a task off it, waits for its agent's reply while it works on one, or starts on one in the same command: then pass what the owner said with discuss, and say that it goes by a click once the reply is there.",
             "- plan_doc also on a planned task of the owner's that nobody has worked on yet (not with Seismic, no branch): an agent starts at once on a plan doc with workstreams from the task, and the plan then takes the task's place (“make a plan from that”).",
             `- group: put cards into a group, shown on the project as a coloured territory behind them. cards: their tags; text: the group's name (group is only for rename_group), one the project has (see the list) or a new one, which is then created. A card is in one group at most, so this takes it out of its group. A workstream stands for its plan: the whole plan goes into the group. ungroup: take cards (cards) out of their group. rename_group: group the group's current name, text its new name. A group no card belongs to any more goes. confirm e.g. ${say.group}`,
+            `- new_canvas (no card): a new canvas of the project, a sheet of its own with its own cards, switched like a spreadsheet's tabs. text: its name, short, unique in the project, never a number from 1 to 999; icon: an emoji for it, when the owner names or describes one. change_canvas: canvas (its name, or its place in the order: 1 is the first) renamed (text: its new name), its icon changed (icon; an empty one takes it away) or moved in the order (position: its new place, 1 is the first); "${MAIN_CANVAS}" keeps its name. delete_canvas: canvas, only once no card is on it (move them first), never "${MAIN_CANVAS}"; its archived cards go to "${MAIN_CANVAS}". move_to_canvas: cards (their tags) onto canvas (also one a new_canvas earlier in this act creates), each to a free spot there, out of its group; a workstream takes its whole plan along. New cards go on the canvas the owner is looking at, follow-ups on their card's.`,
             `- merge: planned tasks that are one task (dictated twice, say, or follow-ups that belong together) become one. cards: their tags, the one that stays first (it keeps its place and group); title: a new title for the merged task, short and precise, that covers what all of them are about. Their texts go into it unchanged, each under its title, and the others go. delete: a planned task the owner no longer wants (card). Both only on planned tasks nobody has worked on yet (no branch; queued only while waiting behind other cards), merge only within one repository; a merged task waits for what any of them waited for; a proposal is dismissed instead, an idea dropped. confirm e.g. ${say.merge}`,
             '- On a prototype (a card marked prototype of an idea): build (the idea is built on this prototype\'s branch; its other prototypes are thrown away; when the idea became a plan, one of its workstreams is built on the branch instead: the one its plan doc builds on the prototype with, or cards: the tag of the one the owner names), drop (the prototype is thrown away into the archive). approve on a prototype also throws it away.',
             `- wish (no card): the owner wants Seismic's makers told something about Seismic itself: a wish, something missing, a bug (“Seismic, feedback: …”, “Tell the developers …”, “Wish for Seismic: …”). text: what they want the makers to know, in their words. It opens a draft for the owner to check and send on GitHub themselves; nothing goes out. Feedback on a card's work is feedback, and the developers of the repository's own app are the agents (a new card), not this. confirm e.g. ${say.wish}`,
@@ -1061,6 +1071,7 @@ export class Commander {
       if (groups.some((x) => x.id !== g.id && x.name.toLowerCase() === name.toLowerCase())) return `there is a group "${name}" already`;
       return { do: 'renameGroup', group: g.id, name };
     }
+    if (a.do === 'new_canvas' || a.do === 'change_canvas' || a.do === 'delete_canvas' || a.do === 'move_to_canvas') return this.canvasAction(a, s, all);
     if (a.do === 'merge' || a.do === 'delete') {
       const tags = [...new Set([...(a.card ? [a.card] : []), ...(a.cards ?? [])])];
       if (!tags.length) return a.do === 'merge' ? 'name the cards with cards (their tags, the one that stays first)' : 'name the card (its tag)';
@@ -1281,10 +1292,70 @@ export class Commander {
     return summary ? `\n\nIts worker's summary:\n${summary}` : '';
   }
 
+  /** A canvas action as `act` takes it, checked against the project's canvases; else what is wrong with it. */
+  private canvasAction(a: ActionArgs, s: Session, all: ActionArgs[]): Command | string {
+    const canvases = this.o.board.canvases();
+    const names = canvases.map((c) => `"${c.name}"`).join(', ');
+    const named = (n: string | undefined) => {
+      const key = n?.trim().toLowerCase();
+      // by its name, or by its place in the order (`2`)
+      return canvases.find((c) => c.name.toLowerCase() === key) ?? (key && /^\d+$/.test(key) ? canvases[Number(key) - 1] : undefined);
+    };
+    const name = a.text?.replace(/\s+/g, ' ').trim();
+    const nameProblem = (n: string, self?: string) => {
+      const p = canvasNameProblem(n);
+      if (p === 'empty') return "the canvas's name is missing (text)";
+      if (p === 'tooLong') return `a canvas's name has at most ${CANVAS_NAME_MAX} characters`;
+      if (p === 'number') return 'a canvas cannot be named by a number from 1 to 999';
+      if (canvases.some((c) => c.id !== self && c.name.toLowerCase() === n.toLowerCase())) return `there is a canvas "${n}" already`;
+      return undefined;
+    };
+    if (a.do === 'new_canvas') {
+      const why = nameProblem(name ?? '');
+      return why ?? { do: 'newCanvas', name: name!, ...(a.icon?.trim() ? { icon: a.icon.trim() } : {}) };
+    }
+    const c = named(a.canvas);
+    // a canvas the same act creates first
+    const made = !c && a.do === 'move_to_canvas' ? all.find((x) => x.do === 'new_canvas' && x.text?.replace(/\s+/g, ' ').trim().toLowerCase() === a.canvas?.trim().toLowerCase()) : undefined;
+    if (!c && !made) return `there is no canvas ${a.canvas ?? '(none named)'}; the project has ${names}, or name one a new_canvas of this act creates`;
+    if (a.do === 'move_to_canvas') {
+      const tags = [...new Set([...(a.cards ?? []), ...(a.card ? [a.card] : [])])];
+      if (!tags.length) return 'name the cards with cards (their tags)';
+      const cards: string[] = [];
+      for (const t of tags) {
+        const id = s.tags.get(t);
+        if (!id || !this.o.board.item(id)) return `unknown tag ${t}`;
+        cards.push(id);
+      }
+      return c ? { do: 'moveToCanvas', cards, canvas: c.id } : { do: 'moveToCanvas', cards, newCanvas: made!.text!.replace(/\s+/g, ' ').trim() };
+    }
+    if (!c) return `there is no canvas ${a.canvas ?? '(none named)'}; the project has ${names}`;
+    if (a.do === 'delete_canvas') {
+      if (c.name === MAIN_CANVAS) return `the canvas ${MAIN_CANVAS} cannot be deleted`;
+      // the cards a move_to_canvas before it in this act takes elsewhere are gone from it by then
+      const before = all.slice(0, all.indexOf(a)).filter((x) => x.do === 'move_to_canvas' && named(x.canvas)?.id !== c.id);
+      const leaving = new Set(before.flatMap((x) => [...(x.cards ?? []), ...(x.card ? [x.card] : [])]).flatMap((t) => s.tags.get(t) ?? []));
+      const items = this.o.board.snapshot().items;
+      const on = items.filter((i) => i.canvas === c.id && !i.parent && !leaving.has(i.id) && !items.some((w) => w.parent === i.id && leaving.has(w.id))).length;
+      return on ? `only an empty canvas can be deleted; "${c.name}" has ${on} card${on === 1 ? '' : 's'} (move_to_canvas earlier in this act takes them elsewhere)` : { do: 'deleteCanvas', canvas: c.id };
+    }
+    if (name !== undefined && name !== c.name) {
+      if (c.name === MAIN_CANVAS) return `the canvas ${MAIN_CANVAS} keeps its name`;
+      const why = nameProblem(name, c.id);
+      if (why) return why;
+    }
+    if (a.position !== undefined && (a.position < 1 || a.position > canvases.length)) return `position is a place from 1 to ${canvases.length}`;
+    const icon = a.icon === undefined ? undefined : a.icon.trim() || null;
+    if (name === undefined && icon === undefined && a.position === undefined) return 'say what changes: text (a new name), icon or position';
+    return { do: 'changeCanvas', canvas: c.id, ...(name !== undefined && name !== c.name ? { name } : {}), ...(icon !== undefined ? { icon } : {}), ...(a.position !== undefined ? { position: a.position } : {}) };
+  }
+
   /** The message for one command: what the Koordinator needs to know besides what it already knows. */
   private brief(s: Session, transcript: string, focus: Focus, input: Input, shots = 0): string {
-    const { items, groups: groupList } = this.o.board.snapshot();
+    const { items, groups: groupList, canvases: canvasList } = this.o.board.snapshot();
     const groups = new Map(groupList.map((g) => [g.id, g.name]));
+    const canvasName = new Map(canvasList.map((c) => [c.id, c.name]));
+    const looking = canvasName.get(this.o.board.canvasFor(focus.place));
     const relevant = items.filter((i) => i.kind !== 'plan' && (!finished(i.state) || i.finishing || i.kind === 'question' || i.id === focus.card));
     const tag = (id: string) => {
       let t = s.tagOf.get(id);
@@ -1330,7 +1401,7 @@ export class Commander {
       const became = i.prototypeOf ? items.find((x) => x.kind === 'plan' && x.origin === i.prototypeOf) : undefined;
       const builds = became && prototypeWorkstream(items, became.id);
       const group = i.group ? groups.get(i.group) : undefined;
-      return `${tag(i.id)} [${state}${paused}] "${i.title}"${repo}${i.contribution ? ` (review card for PR #${i.contribution.number} by ${i.contribution.author})` : ''}${plan ? ` (plan "${plan.title}")` : ''}${group ? ` (group "${group}")` : ''}${became ? ` (prototype of the idea "${i.ideaTitle ?? ''}", which became the plan ${tag(became.id)} "${became.title}"${builds ? `; build starts its workstream ${tag(builds.id)} "${builds.title}" on it` : ''}${i.buildProposal ? '; its worker proposes to build on it' : ''})` : idea ? ` (prototype of ${tag(idea.id)} "${idea.title}"${i.buildProposal ? '; its worker proposes to build the idea on it' : ''})` : ''}${i.proposal ? ` — proposed ${i.proposal.idea ? 'idea' : 'task'}${i.proposal.startAt && i.state === 'proposal' ? `, to start ${when(i.proposal.startAt)} once accepted (it waits until then)` : ''}${i.proposal.revising ? `, being reworked by what the owner said${i.proposal.acceptAfterRevision ? `; accepted${i.proposal.acceptAfterRevision === 'idea' ? ' as an idea' : ''} once the new text is there, unless it asks questions` : ''}` : ''}` : ''}${i.superseded ? ` — the agent that proposed it ${i.superseded.by ? `replaced it by "${i.superseded.title ?? ''}"` : 'withdrew it'}${i.superseded.why ? ` (${clip(oneLine(i.superseded.why), 200)})` : ''}; the owner removes it (dismiss) or keeps it (keep)` : ''}${i.statusLine ? ` — status: ${clip(oneLine(i.statusLine), 160)}` : ''}${asks(i)}${i.idea?.next ? ` — its agent would ${NEXT_ACTION[i.idea.next.step]} next: ${clip(oneLine(i.idea.next.why), 200)}` : ''}${i.idea?.variants.length ? ` — prototypes its agent planned: ${i.idea.variants.map((v) => v.approach).join(', ')}` : ''}${i.idea?.split ? ` — task its agent marked to split off now (split_off): "${clip(oneLine(i.idea.split.title), 160)}"` : ''}${i.newRepo ? ` — to be built in a new repository ${i.newRepo.path || '(no folder named yet)'}${i.newRepo.project ? ' with a project of its own' : ' on this project'}, as ${i.newRepo.by === 'owner' ? 'the owner' : "its idea's agent"} chose${i.newRepo.due ? '; Seismic creates it in a few seconds unless the owner takes it back on the card' : ''}` : ''}`;
+      return `${tag(i.id)} [${state}${paused}] "${i.title}"${repo}${i.contribution ? ` (review card for PR #${i.contribution.number} by ${i.contribution.author})` : ''}${plan ? ` (plan "${plan.title}")` : ''}${group ? ` (group "${group}")` : ''}${canvasList.length > 1 && i.canvas ? ` (canvas "${canvasName.get(i.canvas)}")` : ''}${became ? ` (prototype of the idea "${i.ideaTitle ?? ''}", which became the plan ${tag(became.id)} "${became.title}"${builds ? `; build starts its workstream ${tag(builds.id)} "${builds.title}" on it` : ''}${i.buildProposal ? '; its worker proposes to build on it' : ''})` : idea ? ` (prototype of ${tag(idea.id)} "${idea.title}"${i.buildProposal ? '; its worker proposes to build the idea on it' : ''})` : ''}${i.proposal ? ` — proposed ${i.proposal.idea ? 'idea' : 'task'}${i.proposal.startAt && i.state === 'proposal' ? `, to start ${when(i.proposal.startAt)} once accepted (it waits until then)` : ''}${i.proposal.revising ? `, being reworked by what the owner said${i.proposal.acceptAfterRevision ? `; accepted${i.proposal.acceptAfterRevision === 'idea' ? ' as an idea' : ''} once the new text is there, unless it asks questions` : ''}` : ''}` : ''}${i.superseded ? ` — the agent that proposed it ${i.superseded.by ? `replaced it by "${i.superseded.title ?? ''}"` : 'withdrew it'}${i.superseded.why ? ` (${clip(oneLine(i.superseded.why), 200)})` : ''}; the owner removes it (dismiss) or keeps it (keep)` : ''}${i.statusLine ? ` — status: ${clip(oneLine(i.statusLine), 160)}` : ''}${asks(i)}${i.idea?.next ? ` — its agent would ${NEXT_ACTION[i.idea.next.step]} next: ${clip(oneLine(i.idea.next.why), 200)}` : ''}${i.idea?.variants.length ? ` — prototypes its agent planned: ${i.idea.variants.map((v) => v.approach).join(', ')}` : ''}${i.idea?.split ? ` — task its agent marked to split off now (split_off): "${clip(oneLine(i.idea.split.title), 160)}"` : ''}${i.newRepo ? ` — to be built in a new repository ${i.newRepo.path || '(no folder named yet)'}${i.newRepo.project ? ' with a project of its own' : ' on this project'}, as ${i.newRepo.by === 'owner' ? 'the owner' : "its idea's agent"} chose${i.newRepo.due ? '; Seismic creates it in a few seconds unless the owner takes it back on the card' : ''}` : ''}`;
     };
     const step = (m: Moment) => {
       const card = items.find((i) => i.id === m.cardId);
@@ -1445,7 +1516,8 @@ export class Commander {
       ...(this.waits().length
         ? [`Cards you wait on, to take a step once each gets there (wait_for; stop_waiting drops one):\n${this.waits().map(({ talk, wait }) => `- ${tag(wait.card)} "${wait.title}" until it ${until(wait.state)} (since ${when(talk.at)}), then: ${wait.then}`).join('\n')}`]
         : []),
-      `Groups on the project: ${groupList.map((g) => `"${g.name}"`).join(', ') || '(none yet)'}`,
+      `Groups on the project: ${groupList.map((g) => `"${g.name}"${canvasList.length > 1 ? ` (on ${canvasName.get(g.canvas ?? '')})` : ''}`).join(', ') || '(none yet)'}`,
+      `Canvases of the project, in their order: ${canvasList.map((c) => `"${c.name}"${c.icon ? ` (icon ${c.icon})` : ''}`).join(', ')}${looking ? `; the owner is looking at "${looking}"` : ''}`,
       rules.length
         ? `The owner's rules, which every agent follows (follow them yourself too):\n${rules.map((r, n) => `${n + 1}. ${r.text}`).join('\n')}`
         : 'The owner has recorded no rules yet.',

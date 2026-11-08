@@ -5,11 +5,14 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { AnswerFile, AnswerRef, CardEvent, Chat, DeviceView, CardKind, CardState, Mock, Need, Preference, PreferenceState, ProposedSetting, RepoCommands, SettingProposal, SettingProposalState, Spot, Talk, TalkAfter, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../core/types';
 import type { Place } from '../core/layout';
+import { MAIN_CANVAS } from '../core/types';
 import type { Wish } from '../core/wish';
 
 export interface CardRow {
   id: string;
   project_id: string;
+  /** The canvas of the project it is on; a workstream's is its plan's. */
+  canvas_id: string;
   kind: CardKind;
   /** Null on plan cards: the state comes from the plan doc. */
   state: CardState | null;
@@ -159,8 +162,20 @@ export interface TalkWaitRow extends TalkWait {
 export interface GroupRow {
   id: string;
   project_id: string;
+  /** The canvas its cards are on. */
+  canvas_id: string;
   name: string;
   hue: number;
+  created_at: string;
+}
+
+export interface CanvasRow {
+  id: string;
+  project_id: string;
+  name: string;
+  icon: string | null;
+  /** Its place in the project's order, from 0; the first opens when the project does. */
+  position: number;
   created_at: string;
 }
 
@@ -604,6 +619,23 @@ export const MIGRATIONS = [
     WHERE json_extract(new_repo, '$.canvas') IS NOT NULL;
    UPDATE events SET made = json_set(json_remove(made, '$.canvas'), '$.project', json_extract(made, '$.canvas'))
     WHERE json_extract(made, '$.canvas') IS NOT NULL;`,
+  // a project holds its cards on canvases: each gets "main", which holds every card and group it had
+  // (`canvas_id` carries no foreign key, which would keep it from ever being dropped; the store keeps it valid)
+  `CREATE TABLE canvases (
+     id TEXT PRIMARY KEY,
+     project_id TEXT NOT NULL REFERENCES projects(id),
+     name TEXT NOT NULL,
+     icon TEXT,
+     position INTEGER NOT NULL,
+     created_at TEXT NOT NULL
+   );
+   CREATE UNIQUE INDEX canvases_name ON canvases (project_id, name COLLATE NOCASE);
+   INSERT INTO canvases (id, project_id, name, position, created_at) SELECT lower(hex(randomblob(16))), id, 'main', 0, created_at FROM projects;
+   ALTER TABLE cards ADD COLUMN canvas_id TEXT;
+   ALTER TABLE groups ADD COLUMN canvas_id TEXT;
+   UPDATE cards SET canvas_id = (SELECT c.id FROM canvases c WHERE c.project_id = cards.project_id);
+   UPDATE groups SET canvas_id = (SELECT c.id FROM canvases c WHERE c.project_id = groups.project_id);
+   CREATE INDEX cards_canvas ON cards (canvas_id);`,
 ];
 
 const EVENT_COLUMNS = 'id, card_id AS cardId, at, kind, author, text, code, images, mocks, reply_to AS replyTo, spot, answer, picks, unread, read_after AS readAfter, wish, reply, forwarded, agent, token, made';
@@ -643,11 +675,12 @@ const eventOf = ({ code, images, mocks, replyTo, spot, answer, picks, unread, re
   ...(made ? { made: JSON.parse(made) as NonNullable<CardEvent['made']> } : {}),
 });
 
+/** A card to store; without `canvas_id` it goes on its plan's canvas (a workstream), else on the project's `main`. */
 export type NewRow = Pick<CardRow, 'project_id' | 'kind' | 'x' | 'y'> &
-  Partial<Pick<CardRow, 'state' | 'title' | 'body' | 'parent_id' | 'plan_ref' | 'from_id' | 'repo' | 'idea' | 'prototype_of' | 'prototype' | 'images' | 'retro' | 'proposal' | 'group_id'>>;
+  Partial<Pick<CardRow, 'canvas_id' | 'state' | 'title' | 'body' | 'parent_id' | 'plan_ref' | 'from_id' | 'repo' | 'idea' | 'prototype_of' | 'prototype' | 'images' | 'retro' | 'proposal' | 'group_id'>>;
 
 /** What `Store.update` may change on a card: all but what is set once at its creation, and its times. */
-export type RowUpdate = Partial<Omit<CardRow, 'id' | 'project_id' | 'parent_id' | 'plan_ref' | 'prototype_of' | 'retro' | 'created_at' | 'updated_at'>>;
+export type RowUpdate = Partial<Omit<CardRow, 'id' | 'project_id' | 'canvas_id' | 'parent_id' | 'plan_ref' | 'prototype_of' | 'retro' | 'created_at' | 'updated_at'>>;
 
 /** A database this Seismic cannot open as it is: it leaves it alone. */
 export class UnusableDatabase extends Error {}
@@ -701,22 +734,92 @@ export class Store {
   }
 
   /**
-   * The card goes to another project, at `at`, with its history and decisions: into that project's
+   * The card goes to another project, at `at` on its canvas `canvasId` (else its `main`), with its history and decisions: into that project's
    * home repository (`repo` null) and out of its group, which belongs to the project it leaves.
    */
-  moveCard(id: string, projectId: string, at: { x: number; y: number }, fields: RowUpdate = {}) {
+  moveCard(id: string, projectId: string, at: { x: number; y: number }, fields: RowUpdate = {}, canvasId?: string) {
     this.db.transaction(() => {
       this.update(id, { ...fields, x: at.x, y: at.y, repo: null, group_id: null });
-      this.db.query('UPDATE cards SET project_id = $c WHERE id = $id').run({ id, c: projectId });
+      this.db.query('UPDATE cards SET project_id = $c, canvas_id = $v WHERE id = $id').run({ id, c: projectId, v: canvasId ?? this.mainCanvas(projectId) });
       this.db.query('UPDATE decisions SET project_id = $c WHERE card_id = $id').run({ id, c: projectId });
       this.db.query('UPDATE feedback SET project_id = $c WHERE card_id = $id').run({ id, c: projectId });
     })();
   }
 
+  /** The project is known by this name, with its canvas `main` once it has none. */
   ensureProject(id: string, name: string) {
+    this.db.transaction(() => {
+      this.db
+        .query('INSERT INTO projects (id, name, created_at) VALUES ($id, $name, $now) ON CONFLICT(id) DO UPDATE SET name = $name')
+        .run({ id, name, now: now() });
+      if (!this.db.query('SELECT 1 FROM canvases WHERE project_id = $id').get({ id })) this.insertCanvas(id, MAIN_CANVAS, null);
+    })();
+  }
+
+  // ---------------------------------------------------------------- canvases
+
+  /** The project's canvases in the owner's order. */
+  canvases(projectId: string): CanvasRow[] {
+    return this.db.query('SELECT * FROM canvases WHERE project_id = $c ORDER BY position, rowid').all({ c: projectId }) as CanvasRow[];
+  }
+
+  canvas(id: string): CanvasRow | null {
+    return (this.db.query('SELECT * FROM canvases WHERE id = $id').get({ id }) as CanvasRow | null) ?? null;
+  }
+
+  /** The id of the project's canvas `main`, which every project has from `ensureProject` on (or from here, for a project stored without it). */
+  mainCanvas(projectId: string): string {
+    const row = this.db.query('SELECT id FROM canvases WHERE project_id = $c AND name = $main').get({ c: projectId, main: MAIN_CANVAS }) as { id: string } | null;
+    return row?.id ?? this.insertCanvas(projectId, MAIN_CANVAS, null);
+  }
+
+  /** A new canvas, last in the project's order. */
+  addCanvas(projectId: string, name: string, icon: string | null): CanvasRow {
+    return this.canvas(this.insertCanvas(projectId, name, icon))!;
+  }
+
+  private insertCanvas(projectId: string, name: string, icon: string | null): string {
+    const id = crypto.randomUUID();
     this.db
-      .query('INSERT INTO projects (id, name, created_at) VALUES ($id, $name, $now) ON CONFLICT(id) DO UPDATE SET name = $name')
-      .run({ id, name, now: now() });
+      .query(
+        'INSERT INTO canvases (id, project_id, name, icon, position, created_at) VALUES ($id, $c, $name, $icon, (SELECT COALESCE(MAX(position) + 1, 0) FROM canvases WHERE project_id = $c), $now)',
+      )
+      .run({ id, c: projectId, name, icon, now: now() });
+    return id;
+  }
+
+  updateCanvas(id: string, fields: Partial<Pick<CanvasRow, 'name' | 'icon'>>) {
+    const keys = Object.keys(fields) as (keyof typeof fields)[];
+    if (!keys.length) return;
+    this.db.query(`UPDATE canvases SET ${keys.map((k) => `${k} = $${k}`).join(', ')} WHERE id = $id`).run({ ...fields, id });
+  }
+
+  /** The project's canvases take this order (their ids, all of them). */
+  orderCanvases(ids: string[]) {
+    const stmt = this.db.query('UPDATE canvases SET position = $p WHERE id = $id');
+    this.db.transaction(() => ids.forEach((id, p) => stmt.run({ id, p })))();
+  }
+
+  /** How many cards are on the canvas: on the project, not archived or deleted. */
+  cardsOnCanvas(id: string): number {
+    return (this.db.query('SELECT count(*) AS n FROM cards WHERE canvas_id = $id AND deleted_at IS NULL AND archived_at IS NULL').get({ id }) as { n: number }).n;
+  }
+
+  /** The canvas goes; what is left of it (archived and deleted cards, their groups) goes to canvas `into`, where it comes back. */
+  deleteCanvas(id: string, into: string) {
+    this.db.transaction(() => {
+      this.db.query('UPDATE cards SET canvas_id = $into WHERE canvas_id = $id').run({ id, into });
+      this.db.query('UPDATE groups SET canvas_id = $into WHERE canvas_id = $id').run({ id, into });
+      this.db.query('DELETE FROM canvases WHERE id = $id').run({ id });
+      const left = this.db.query('SELECT id FROM canvases WHERE project_id = (SELECT project_id FROM canvases WHERE id = $into) ORDER BY position, rowid').all({ into }) as { id: string }[];
+      this.orderCanvases(left.map((r) => r.id));
+    })();
+  }
+
+  /** The cards (plans with their workstreams) go onto the canvas, out of their groups, which stay on the canvas they leave. */
+  setCanvas(cardIds: string[], canvasId: string) {
+    const stmt = this.db.query('UPDATE cards SET canvas_id = $v, group_id = NULL, updated_at = $now WHERE id = $id OR parent_id = $id');
+    this.db.transaction(() => cardIds.forEach((id) => stmt.run({ id, v: canvasId, now: now() })))();
   }
 
   /** Every card on the project: not deleted, not archived. */
@@ -795,10 +898,13 @@ export class Store {
 
   insert(rows: NewRow[]): CardRow[] {
     const stmt = this.db.query(
-      `INSERT INTO cards (id, short, project_id, kind, state, title, body, x, y, parent_id, plan_ref, from_id, repo, idea, prototype_of, prototype, images, retro, proposal, group_id, created_at, updated_at)
-       VALUES ($id, $short, $project_id, $kind, $state, $title, $body, $x, $y, $parent_id, $plan_ref, $from_id, $repo, $idea, $prototype_of, $prototype, $images, $retro, $proposal, $group_id, $now, $now)`,
+      `INSERT INTO cards (id, short, project_id, canvas_id, kind, state, title, body, x, y, parent_id, plan_ref, from_id, repo, idea, prototype_of, prototype, images, retro, proposal, group_id, created_at, updated_at)
+       VALUES ($id, $short, $project_id, $canvas_id, $kind, $state, $title, $body, $x, $y, $parent_id, $plan_ref, $from_id, $repo, $idea, $prototype_of, $prototype, $images, $retro, $proposal, $group_id, $now, $now)`,
     );
     const taken = this.db.query('SELECT 1 FROM cards WHERE short = $s');
+    const mains = new Map<string, string>();
+    const canvasOf = (r: NewRow) =>
+      r.canvas_id ?? (r.parent_id ? this.card(r.parent_id)?.canvas_id : undefined) ?? mains.get(r.project_id) ?? mains.set(r.project_id, this.mainCanvas(r.project_id)).get(r.project_id)!;
     const ids = this.db.transaction(() =>
       rows.map((r) => {
         const id = crypto.randomUUID();
@@ -810,6 +916,7 @@ export class Store {
           id,
           short: hex.slice(0, n),
           project_id: r.project_id,
+          canvas_id: canvasOf(r),
           kind: r.kind,
           state: r.state ?? null,
           title: r.title ?? null,
@@ -877,9 +984,12 @@ export class Store {
     return (this.db.query('SELECT * FROM groups WHERE id = $id').get({ id }) as GroupRow | null) ?? null;
   }
 
-  addGroup(projectId: string, name: string, hue: number): GroupRow {
+  /** A new group on canvas `canvasId` (else the project's `main`). */
+  addGroup(projectId: string, name: string, hue: number, canvasId?: string): GroupRow {
     const id = crypto.randomUUID();
-    this.db.query('INSERT INTO groups (id, project_id, name, hue, created_at) VALUES ($id, $c, $name, $hue, $now)').run({ id, c: projectId, name, hue, now: now() });
+    this.db
+      .query('INSERT INTO groups (id, project_id, canvas_id, name, hue, created_at) VALUES ($id, $c, $v, $name, $hue, $now)')
+      .run({ id, c: projectId, v: canvasId ?? this.mainCanvas(projectId), name, hue, now: now() });
     return this.group(id)!;
   }
 

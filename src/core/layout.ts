@@ -217,22 +217,28 @@ export function freeSpotNear(want: { x: number; y: number }, size: readonly [num
   return best;
 }
 
-/** Where a new card should go: centred as near this point as there is room, inside `view` (the project the owner has in view) if there is room there. */
+/**
+ * Where a new card should go: centred as near this point as there is room, inside `view` (the project the owner has in view) if there is room there,
+ * on `canvas` (a `Canvas` id; the project's `main` when left out).
+ */
 export interface Place {
   x: number;
   y: number;
   view?: Bounds;
+  canvas?: string;
 }
 
-/** A place as a request carries it (`?place=`): `x,y`, then the view's `x,y,w,h`. */
-export const placeParam = (p: Place) => [p.x, p.y, ...(p.view ? [p.view.x, p.view.y, p.view.w, p.view.h] : [])].map(Math.round).join(',');
+/** A place as a request carries it (`?place=`): `x,y`, then the view's `x,y,w,h`, then `;` and the canvas. */
+export const placeParam = (p: Place) =>
+  [p.x, p.y, ...(p.view ? [p.view.x, p.view.y, p.view.w, p.view.h] : [])].map(Math.round).join(',') + (p.canvas ? `;${p.canvas}` : '');
 
 /** The place in a request's `?place=`; anything else is none. */
 export function parsePlace(s: string | null | undefined): Place | undefined {
-  const n = s?.split(',').map(Number) ?? [];
+  const [at, canvas] = (s ?? '').split(';', 2);
+  const n = at?.split(',').map(Number) ?? [];
   if ((n.length !== 2 && n.length !== 6) || !n.every(Number.isFinite)) return undefined;
   const [x, y, vx, vy, vw, vh] = n as [number, number, number?, number?, number?, number?];
-  return { x, y, ...(vw !== undefined && vw > 0 && vh! > 0 ? { view: { x: vx!, y: vy!, w: vw, h: vh! } } : {}) };
+  return { x, y, ...(vw !== undefined && vw > 0 && vh! > 0 ? { view: { x: vx!, y: vy!, w: vw, h: vh! } } : {}), ...(canvas ? { canvas } : {}) };
 }
 
 /** How wide the note on a plan directory is (`PlanDir`). */

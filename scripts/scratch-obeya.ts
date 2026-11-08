@@ -104,6 +104,7 @@
 //       { "text": "…", "state": "proposed", "target": "<repo id>" }
 //     ],
 //     "groups": [{ "name": "Abrechnung", "cards": ["A", "B", "P"] }],
+//     "canvases": [{ "name": "Billing", "icon": "💶", "cards": ["A", "B"] }],
 //     "friction": [{ "card": "A", "what": "…", "cost": "…", "fix": "…", "ago": "1h" }],
 //     "feedback": [{ "card": "C", "rating": 4, "comment": "…", "configs": [{ "harness": "claude", "model": "claude-opus-5-5", "effort": "high" }], "ago": "2d" }],
 //     "settingProposals": [{ "field": "run", "value": "bun run dev", "basis": "…", "cards": ["A", "B"] }],
@@ -289,6 +290,8 @@ interface Stage {
   cards: StageCard[];
   preferences?: { key?: string; text: string; state?: string; card?: string; quote?: string; review?: boolean; replaces?: string; target?: string }[];
   groups?: { name: string; cards: string[] }[];
+  /** Canvases of the home project after `main`, in order, with the cards on them (at their places); groups come after. */
+  canvases?: { name: string; icon?: string; cards?: string[] }[];
   friction?: { card: string; what: string; cost: string; fix: string; ago?: string; repo?: string }[];
   feedback?: { card: string; rating?: number; comment?: string; configs?: { harness: string | null; model: string | null; effort: string | null }[]; ago?: string; title?: string; plan?: string }[];
   settingProposals?: { field: string; value: string | string[]; basis: string; cards: string[]; repo?: string }[];
@@ -920,6 +923,19 @@ for (const on of allProjects) {
   if (!first) continue;
   const c = ((await api('GET', '/project', undefined, on.id)) as ProjectSnapshot).items.find((x: Item) => x.id === idOf(first, stage.cards.indexOf(first)))!;
   await api('PATCH', `/cards/${c.id}`, { x: c.x, y: c.y }, on.id);
+}
+
+for (const v of stage.canvases ?? []) {
+  const canvas = (await api('POST', '/canvases', { name: v.name, ...(v.icon ? { icon: v.icon } : {}) })) as { id: string };
+  const on = (v.cards ?? []).map((k) => ids[k] ?? fail(`canvas ${v.name}: card ${k} does not exist`));
+  if (!on.length) continue;
+  const before = ((await api('GET', '/project')) as ProjectSnapshot).items;
+  await api('POST', `/canvases/${canvas.id}/cards`, { cards: on });
+  // the cards keep the places the stage gives them
+  for (const id of on) {
+    const c = before.find((x: Item) => x.id === id);
+    if (c && !c.parent) await api('PATCH', `/cards/${id}`, { x: c.x, y: c.y });
+  }
 }
 
 for (const g of stage.groups ?? [])

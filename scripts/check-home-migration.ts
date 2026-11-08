@@ -8,7 +8,8 @@
 // those clones (a folder without git is copied), so the read checkouts Seismic makes never land in the real repositories; the
 // workstation leases of the database stay, with their paths moved into the copy (the checkouts are not).
 // Then it starts the server (`--idle-workers`) and asserts: the schema is migrated and holds no
-// name with "canvas", every project of the configuration is served with the cards the database
+// name with "canvas" but the canvas layer's, every project has a canvas "main" holding all its cards and groups (for a home
+// from before canvases), every project of the configuration is served with the cards the database
 // holds for it, no table lost a row, and every screenshot an event refers to is found as it was in the home. Exits 1
 // with the reasons otherwise.
 
@@ -33,7 +34,8 @@ const expect = (ok: boolean, what: string) => {
 // Everything the home persists but the checkouts (`workspaces/`, `read/`: gigabytes, and worktrees
 // that point back into the real repositories) and the voice models. The database goes through
 // SQLite's own snapshot, since a running Seismic writes to it while it is copied.
-const NOT_COPIED = new Set(['workspaces', 'read', 'voices']);
+// `server.json` names the Seismic running on the home, which would keep the copy's from starting.
+const NOT_COPIED = new Set(['workspaces', 'read', 'voices', 'server.json']);
 for (const f of readdirSync(source)) {
   if (/^obeya\.db/.test(f)) continue;
   if (!NOT_COPIED.has(f)) cpSync(join(source, f), join(home, f), { recursive: true });
@@ -86,6 +88,9 @@ writeFileSync(file, JSON.stringify(config, null, 2));
 
 // the database: what it holds before, and no workstation leases
 const db = new Database(join(home, 'obeya.db'));
+function tablesBefore() {
+  return (db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[]).map((t) => t.name);
+}
 const count = (sql: string) => (db.query(sql).get() as { n: number }).n;
 const before = (db.query('PRAGMA user_version').get() as { user_version: number }).user_version;
 const leases = count('SELECT count(*) n FROM ' + (db.query("SELECT 1 FROM sqlite_master WHERE name = 'workstations'").get() ? 'workstations' : 'workspaces'));
@@ -98,8 +103,9 @@ const moved = (col: string) => `replace(${col}, '${join(source, 'workspaces')}',
 for (const t of ['workstations', 'workspaces']) if (db.query('SELECT 1 FROM sqlite_master WHERE name = ?').get(t)) db.run(`UPDATE ${t} SET path = ${moved('path')}`);
 for (const c of ['workstation', 'workspace']) if (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = ?").get(c)) db.run(`UPDATE cards SET ${c} = ${moved(c)} WHERE ${c} IS NOT NULL`);
 // every row of every table, to compare after the migration (a table renamed since keeps its count)
-const RENAMED: Record<string, string> = { canvases: 'projects', workspaces: 'workstations' };
-const tables = (db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[]).map((t) => t.name);
+// (a home with both `canvases` and `projects` is past the canvas layer, whose `canvases` keeps its name)
+const RENAMED: Record<string, string> = tablesBefore().includes('projects') ? { workspaces: 'workstations' } : { canvases: 'projects', workspaces: 'workstations' };
+const tables = tablesBefore();
 const rowsBefore = Object.fromEntries(tables.map((t) => [RENAMED[t] ?? t, count(`SELECT count(*) n FROM "${t}"`)]));
 const openIds = (db.query(`SELECT ${projectColumn} p, id FROM cards WHERE deleted_at IS NULL AND archived_at IS NULL`).all() as { p: string; id: string }[]).reduce<Record<string, string[]>>((m, r) => ((m[r.p] ??= []).push(r.id), m), {});
 const shots = (db.query("SELECT images FROM events WHERE images IS NOT NULL AND images != '[]'").all() as { images: string }[]).flatMap((r) => JSON.parse(r.images) as string[]);
@@ -150,14 +156,27 @@ try {
   }
   const check = new Database(join(home, 'obeya.db'), { readonly: true });
   const after = (check.query('PRAGMA user_version').get() as { user_version: number }).user_version;
-  const left = check.query("SELECT name FROM sqlite_master WHERE sql LIKE '%anvas%' OR name LIKE '%anvas%'").all();
+  // the canvas layer's own names: its table, indexes, and the column cards and groups point to it with
+  const layer = /^(canvases|canvases_name|cards_canvas|sqlite_autoindex_canvases_1)$/;
+  const left = (check.query('SELECT name, sql FROM sqlite_master').all() as { name: string; sql: string | null }[]).filter(
+    (o) => !layer.test(o.name) && /canvas/i.test(o.name + (o.sql ?? '').replace(/, canvas_id TEXT/, '')),
+  );
+  const hadCanvases = tables.includes('canvases') && tables.includes('projects');
+  if (!hadCanvases && check.query("SELECT 1 FROM sqlite_master WHERE name = 'canvases'").get()) {
+    const mains = check.query("SELECT project_id p, id FROM canvases WHERE name = 'main'").all() as { p: string; id: string }[];
+    const projectsInDb = (check.query('SELECT id FROM projects').all() as { id: string }[]).map((r) => r.id);
+    expect(projectsInDb.every((p) => mains.filter((m) => m.p === p).length === 1), `every project of the database has one canvas "main" (${projectsInDb.length} projects)`);
+    const off = (t: string) => (check.query(`SELECT count(*) n FROM ${t} x WHERE canvas_id IS NULL OR canvas_id != (SELECT id FROM canvases c WHERE c.project_id = x.project_id AND c.name = 'main')`).get() as { n: number }).n;
+    expect(off('cards') === 0 && off('groups') === 0, `every card and group is on its project's "main" (${off('cards')} cards, ${off('groups')} groups elsewhere)`);
+  }
   expect(after > before || before === after, `schema ${before} -> ${after}`);
   const rowsAfter = Object.fromEntries(Object.keys(rowsBefore).map((t) => [t, (check.query(`SELECT count(*) n FROM "${t}"`).get() as { n: number }).n]));
   // the server may add rows while it starts (chats, a project row); none of the home's may go
   // (the leases are the exception: the server forgets those whose checkout is not there, as in the copy)
   const gone = Object.keys(rowsBefore).filter((t) => t !== 'workstations' && rowsAfter[t]! < rowsBefore[t]!);
   expect(gone.length === 0, `no table lost rows in the migration (${Object.keys(rowsBefore).length} tables, ${Object.values(rowsBefore).reduce((a, b) => a + b, 0)} rows before; workstation leases ${rowsBefore.workstations} -> ${rowsAfter.workstations}${gone.map((t) => `; ${t}: ${rowsBefore[t]} -> ${rowsAfter[t]}`).join('')})`);
-  expect(left.length === 0, 'no name with "canvas" is left in the schema');
+  expect(!!check.query("SELECT 1 FROM sqlite_master WHERE name = 'canvases'").get(), 'the canvas layer is there');
+  expect(left.length === 0, `no name with "canvas" is left in the schema but the canvas layer's${left.length ? `: ${left.map((o) => o.name).join(', ')}` : ''}`);
   expect(check.query('PRAGMA foreign_key_check').all().length === 0, 'no foreign key is violated');
   check.close();
   expect(!/\b(Error|error:)/.test(readFileSync(log, 'utf8').replace(/\x1b\[[0-9;]*m/g, '')), `the server log has no error (${log})`);

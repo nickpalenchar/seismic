@@ -1187,6 +1187,49 @@ describe('groups by voice', () => {
   });
 });
 
+describe('canvases by voice', () => {
+  test('the Koordinator sees the canvases and where the owner looks, and creates, changes, deletes and moves cards onto one', async () => {
+    const ideas = board.createCanvas('Ideas', '💡');
+    const later = board.createCanvas('Later');
+    const a = board.create({ title: 'Export', x: 0, y: 0 });
+    board.create({ title: 'Dream', x: 0, y: 0, canvas: ideas.id });
+    const k = commander();
+    const heard = k.hear('leg Export auf Ideas, mach ein Canvas Billing und lösch Later', { place: { x: 0, y: 0, canvas: ideas.id } });
+    await settle();
+    const s = runtime.last;
+    expect(s.inbox[0]).toContain('K1 [planned] "Export" (canvas "main")');
+    expect(s.inbox[0]).toContain('"Dream" (canvas "Ideas")');
+    expect(s.inbox[0]).toContain('Canvases of the project, in their order: "main", "Ideas" (icon 💡), "Later"; the owner is looking at "Ideas"');
+    expect(s.call('act', { actions: [{ do: 'new_canvas', text: '7' }], confirm: '…' })).toContain('a number from 1 to 999');
+    expect(s.call('act', { actions: [{ do: 'new_canvas', text: 'ideas' }], confirm: '…' })).toContain('there is a canvas "ideas" already');
+    expect(s.call('act', { actions: [{ do: 'change_canvas', canvas: 'main', text: 'Start' }], confirm: '…' })).toContain('keeps its name');
+    expect(s.call('act', { actions: [{ do: 'delete_canvas', canvas: 'Ideas' }], confirm: '…' })).toContain('only an empty canvas can be deleted');
+    // emptied first in the same act, it goes
+    expect(s.call('act', { actions: [{ do: 'move_to_canvas', cards: ['K2'], canvas: 'main' }, { do: 'delete_canvas', canvas: 'Ideas' }, { do: 'new_canvas', text: '7' }], confirm: '…' })).not.toContain('only an empty canvas');
+    expect(s.call('act', { actions: [{ do: 'move_to_canvas', cards: ['K1'], canvas: 'Nope' }], confirm: '…' })).toContain('there is no canvas Nope; the project has "main", "Ideas", "Later"');
+    s.call('act', {
+      actions: [
+        { do: 'move_to_canvas', cards: ['K1'], canvas: 'ideas' },
+        { do: 'new_canvas', text: 'Billing', icon: '💶' },
+        { do: 'move_to_canvas', cards: ['K1'], canvas: 'billing' },
+        { do: 'change_canvas', canvas: '2', icon: '', position: 1 },
+        { do: 'delete_canvas', canvas: 'Later' },
+      ],
+      confirm: 'Export liegt jetzt auf Ideas, Billing ist da, Later ist weg.',
+    });
+    s.emit({ type: 'idle' });
+    k.arm((await heard).token!);
+    await new Promise((r) => setTimeout(r, 40));
+    expect(executed).toEqual([
+      { do: 'moveToCanvas', cards: [a.id], canvas: ideas.id },
+      { do: 'newCanvas', name: 'Billing', icon: '💶' },
+      { do: 'moveToCanvas', cards: [a.id], newCanvas: 'Billing' },
+      { do: 'changeCanvas', canvas: ideas.id, icon: null, position: 1 },
+      { do: 'deleteCanvas', canvas: later.id },
+    ]);
+  });
+});
+
 describe('merging and deleting planned tasks by voice', () => {
   test('the Koordinator merges planned tasks of one repository nobody has worked on, the first staying, and deletes one; it is refused for others', async () => {
     const a = board.create({ title: 'Login error', x: 0, y: 0 });

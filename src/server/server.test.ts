@@ -370,6 +370,30 @@ describe('liveness', () => {
   });
 });
 
+describe('canvases', () => {
+  test('are created, renamed, reordered, given cards and deleted once empty; main stays', async () => {
+    const a = card();
+    const send = (method: string, path: string, body?: unknown) =>
+      fetch(new URL(api(path), server.url), { method, headers: { 'content-type': 'application/json' }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+    const main = board.snapshot().canvases[0]!;
+    expect(main.name).toBe('main');
+    const ideas = (await (await send('POST', '/canvases', { name: 'Ideas', icon: '💡' })).json()) as { id: string };
+    expect(ideas).toMatchObject({ name: 'Ideas', icon: '💡' });
+    expect(await codeOf(send('POST', '/canvases', { name: '12' }))).toBe('invalid');
+    expect((await (await send('PATCH', `/canvases/${ideas.id}`, { name: 'Thoughts', position: 1 })).json())).toMatchObject({ name: 'Thoughts' });
+    expect(((await (await send('GET', '/canvases')).json()) as { name: string }[]).map((c) => c.name)).toEqual(['Thoughts', 'main']);
+    expect((await send('POST', `/canvases/${ideas.id}/cards`, { cards: [a.id] })).status).toBe(204);
+    expect(board.snapshot().items.find((i) => i.id === a.id)!.canvas).toBe(ideas.id);
+    expect(await codeOf(send('DELETE', `/canvases/${ideas.id}`))).toBe('canvasInUse');
+    expect(await codeOf(send('DELETE', `/canvases/${main.id}`))).toBe('canvasInUse');
+    expect(await codeOf(send('PATCH', `/canvases/${main.id}`, { name: 'Start' }))).toBe('invalid');
+    expect((await send('POST', `/canvases/${main.id}/cards`, { cards: [a.id] })).status).toBe(204);
+    expect((await send('DELETE', `/canvases/${ideas.id}`)).status).toBe(204);
+    expect(await codeOf(send('DELETE', `/canvases/${ideas.id}`))).toBe('unknownCanvas');
+    expect(board.snapshot().canvases.map((c) => c.name)).toEqual(['main']);
+  });
+});
+
 describe('groups', () => {
   test('are created with cards, renamed and assigned, and every page hears of it', async () => {
     const [a, b] = [card(), card()];
@@ -393,7 +417,7 @@ describe('groups', () => {
     expect(await codeOf(patch(g.id, JSON.stringify({ name: 'X' })))).toBe('unknownGroup');
     const h = (await (await post(api('/groups'), JSON.stringify({ name: 'Infra', cards: [a.id], hue: 77 }))).json()) as { id: string };
     const del = await fetch(new URL(api(`/groups/${h.id}`), server.url), { method: 'DELETE' });
-    expect(await del.json()).toEqual({ group: { id: h.id, name: 'Infra', hue: 77 }, cards: [a.id] });
+    expect(await del.json()).toMatchObject({ group: { id: h.id, name: 'Infra', hue: 77 }, cards: [a.id] });
     expect(board.snapshot().groups).toEqual([]);
     expect(await codeOf(post(api('/groups'), JSON.stringify({ name: '', cards: [a.id] })))).toBe('emptyText');
     expect(await codeOf(post(api('/assign'), 'null'))).toBe('invalid');

@@ -694,6 +694,8 @@ const de = {
   error: {
     unknownCard: 'Das gibt es nicht mehr.',
     unknownGroup: 'Diese Gruppe gibt es nicht mehr.',
+    unknownCanvas: 'Dieses Canvas gibt es nicht mehr.',
+    canvasInUse: 'Nur ein leeres Canvas lässt sich löschen, und „main“ nie.',
     plan: 'Ein Plan wird über seine Workstreams bearbeitet, nicht als Ganzes.',
     dependencyCycle: 'Kein Pfeil: Die beiden Karten würden aufeinander warten, weil die erste schon auf die zweite wartet, direkt oder über andere Karten.',
     planDependency: 'Kein Pfeil: Pläne und ihre Workstreams bekommen ihre Reihenfolge aus dem Plan-Doc.',
@@ -3145,6 +3147,8 @@ const en: Strings = {
   error: {
     unknownCard: 'That no longer exists.',
     unknownGroup: 'This group no longer exists.',
+    unknownCanvas: 'This canvas no longer exists.',
+    canvasInUse: 'Only an empty canvas can be deleted, and never “main”.',
     plan: 'A plan is worked on through its workstreams, not as a whole.',
     dependencyCycle: 'No arrow: the two cards would wait for each other, because the first already waits for the second, directly or through other cards.',
     planDependency: 'No arrow: plans and their workstreams take their order from the plan doc.',

@@ -572,6 +572,8 @@ export interface Item {
   collapsed?: true;
   /** The group the card belongs to (a `Group` id); a workstream's is its plan's. */
   group?: string;
+  /** The canvas of the project the card is on (a `Canvas` id); a workstream's is its plan's. */
+  canvas?: string;
   /** The card's priority, a label only: it changes no order. None until set. */
   priority?: Priority;
   /** The card's category (`labels.ts`), none until set. */
@@ -619,6 +621,48 @@ export interface Group {
   name: string;
   /** Its colour's hue, 0–359. */
   hue: number;
+  /** The canvas its cards are on (a `Canvas` id). */
+  canvas?: string;
+}
+
+/**
+ * A container of cards inside a project, at least one per project: each card and group is on one,
+ * with a layout of its own. One is named `main` (`MAIN_CANVAS`), which cannot be renamed or deleted.
+ */
+export interface Canvas {
+  id: string;
+  /** Unique in the project (in any case), never a number from 1 to 999, which address canvases by their place. */
+  name: string;
+  /** An emoji, or `lucide:<name>` for one of Lucide's icons; none until chosen. */
+  icon?: string;
+}
+
+/** The canvas every project has, which holds what was there before it had several. */
+export const MAIN_CANVAS = 'main';
+
+export const CANVAS_NAME_MAX = 40;
+
+/**
+ * The canvas an address's hash names: `#<name>` (in any case), `#<n>` its place in the order (`#1`
+ * is the first), and without a hash, or with one that names none, the first.
+ */
+export function canvasOfHash<C extends Pick<Canvas, 'name'>>(canvases: C[], hash: string): C | undefined {
+  let h = hash.replace(/^#/, '');
+  try {
+    h = decodeURIComponent(h);
+  } catch {}
+  const key = h.trim().toLowerCase();
+  const n = /^\d+$/.test(key) ? Number(key) : 0;
+  return (n >= 1 ? canvases[n - 1] : undefined) ?? canvases.find((c) => c.name.toLowerCase() === key) ?? canvases[0];
+}
+
+/** Why a canvas cannot be named so; none when it can. A number from 1 to 999 names a canvas by its place (`#2`). */
+export function canvasNameProblem(name: string): 'empty' | 'tooLong' | 'number' | undefined {
+  const n = name.trim();
+  if (!n) return 'empty';
+  if (n.length > CANVAS_NAME_MAX) return 'tooLong';
+  if (/^\d+$/.test(n) && Number(n) >= 1 && Number(n) <= 999) return 'number';
+  return undefined;
 }
 
 /**
@@ -1407,6 +1451,8 @@ export interface BlockedClone {
 
 export interface ProjectSnapshot {
   project: ProjectInfo;
+  /** The project's canvases in the owner's order; the first is the one the project opens on. */
+  canvases: Canvas[];
   items: Item[];
   /** The project's groups, the oldest first. */
   groups: Group[];
@@ -1670,6 +1716,8 @@ export interface NewCard {
   from?: string;
   /** Screenshots for the task (ids from `POST /api/c/<project>/images`). */
   images?: string[];
+  /** The canvas it goes on (a `Canvas` id); a follow-up's is its card's, else the project's `main`. */
+  canvas?: string;
 }
 
 /**
@@ -1899,6 +1947,9 @@ export type ErrorCode =
   | 'onlyDevices'
   /** A group that no card belongs to any more, so it is gone. */
   | 'unknownGroup'
+  | 'unknownCanvas'
+  /** Deleting a canvas that still has cards, or `main`. */
+  | 'canvasInUse'
   | 'plan'
   /** An arrow between cards that would make them wait for each other, directly or through other cards. */
   | 'dependencyCycle'

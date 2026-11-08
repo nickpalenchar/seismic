@@ -324,6 +324,7 @@ export class ProjectRuntime {
     });
     board.showSettings(this.settingsNow);
     board.archiving = () => this.settings().archive;
+    board.looking = () => this.inView;
     board.readPlanHistory((ref) => {
       const repo = this.repos.find((r) => r.ref.id === repoOfRef(ref, board.home));
       const path = pathOfRef(ref);
@@ -2234,7 +2235,7 @@ export class ProjectRuntime {
     this.writing.delete(cardId);
     this.said.delete(cardId);
     const at = there.board.freeSpot(there.inView);
-    this.deps.store.moveCard(cardId, there.id, at, { new_repo: JSON.stringify({ path: target.path, project: true, by: target.by, made: true }) });
+    this.deps.store.moveCard(cardId, there.id, at, { new_repo: JSON.stringify({ path: target.path, project: true, by: target.by, made: true }) }, at.canvas);
     this.deps.store.dropEmptyGroups(this.id);
     there.board.log(cardId, 'state', 'obeya', there.board.t.newRepo.movedHere(this.board.project.name, shown, made));
     const moved = { card: cardId, title: card.title, project: there.id, projectName: there.board.project.name };
@@ -2657,6 +2658,15 @@ export class ProjectRuntime {
         return this.board.group(c.cards, null);
       case 'renameGroup':
         return this.board.renameGroup(c.group, c.name);
+      case 'newCanvas':
+        return void this.board.createCanvas(c.name, c.icon);
+      case 'changeCanvas':
+        return void this.board.updateCanvas(c.canvas, { name: c.name, icon: c.icon, position: c.position });
+      case 'deleteCanvas':
+        return this.board.deleteCanvas(c.canvas);
+      case 'moveToCanvas':
+        // onto a canvas a new canvas action of the same command made
+        return this.board.moveToCanvas(c.cards, 'canvas' in c ? c.canvas : (this.board.canvases().find((x) => x.name.toLowerCase() === c.newCanvas.toLowerCase())?.id ?? ''));
       case 'merge':
         return this.merge(c.card, c.others, c.title);
       case 'delete':

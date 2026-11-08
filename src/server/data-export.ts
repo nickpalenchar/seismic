@@ -5,7 +5,7 @@ export function projectData(store: Store, ids: string[]) {
   const db = store.db;
   const names = db.query('SELECT * FROM projects WHERE id IN (SELECT value FROM json_each($ids)) ORDER BY name, id').all({ ids: JSON.stringify(ids) }) as { id: string; name: string; created_at: string }[];
   const selected = JSON.stringify(names.map((c) => c.id));
-  const byProject = ['groups', 'cards', 'chats', 'workstations', 'decisions', 'settings', 'preferences', 'talk', 'friction', 'commands', 'setting_proposals', 'feedback'];
+  const byProject = ['canvases', 'groups', 'cards', 'chats', 'workstations', 'decisions', 'settings', 'preferences', 'talk', 'friction', 'commands', 'setting_proposals', 'feedback'];
   const byCard = ['events', 'agent_runs', 'folder_cards'];
   const tables: Record<string, Record<string, unknown>[]> = { projects: names };
   for (const table of byProject) {

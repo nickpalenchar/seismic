@@ -797,6 +797,113 @@ describe('groups', () => {
   });
 });
 
+describe('canvases', () => {
+  const code = (fn: () => unknown) => {
+    try {
+      fn();
+    } catch (e) {
+      return (e as BadRequest).code;
+    }
+  };
+  const canvasOf = (id: string) => board.snapshot().items.find((i) => i.id === id)?.canvas;
+
+  test('a project starts with main, which holds its plans and cards; names are unique, never 1 to 999, main keeps its name and stays', () => {
+    const { canvases, items } = board.snapshot();
+    expect(canvases.map((c) => c.name)).toEqual(['main']);
+    const main = canvases[0]!.id;
+    expect(items.every((i) => i.canvas === main)).toBe(true);
+    const ideas = board.createCanvas('Ideas', '💡');
+    expect(ideas).toMatchObject({ name: 'Ideas', icon: '💡' });
+    expect(code(() => board.createCanvas('ideas'))).toBe('invalid');
+    expect(code(() => board.createCanvas('2'))).toBe('invalid');
+    expect(code(() => board.createCanvas('999'))).toBe('invalid');
+    expect(board.createCanvas('2026').name).toBe('2026');
+    expect(code(() => board.createCanvas('  '))).toBe('emptyText');
+    expect(code(() => board.createCanvas('x'.repeat(41)))).toBe('invalid');
+    expect(code(() => board.updateCanvas(main, { name: 'Start' }))).toBe('invalid');
+    expect(code(() => board.deleteCanvas(main))).toBe('canvasInUse');
+    expect(code(() => board.updateCanvas('nope', { name: 'X' }))).toBe('unknownCanvas');
+    board.updateCanvas(ideas.id, { name: 'Thoughts', icon: 'lucide:lightbulb', position: 1 });
+    expect(board.snapshot().canvases.map((c) => [c.name, c.icon])).toEqual([['Thoughts', 'lucide:lightbulb'], ['main', undefined], ['2026', undefined]]);
+    board.updateCanvas(ideas.id, { icon: null, position: 3 });
+    expect(board.snapshot().canvases.map((c) => [c.name, c.icon])).toEqual([['main', undefined], ['2026', undefined], ['Thoughts', undefined]]);
+    expect(code(() => board.updateCanvas(ideas.id, { position: 4 }))).toBe('invalid');
+  });
+
+  test('cards land where they belong: where they say or the owner looks, follow-ups, proposals and prototypes beside their card', () => {
+    const ideas = board.createCanvas('Ideas');
+    const main = board.snapshot().canvases[0]!.id;
+    expect(canvasOf(board.create({ title: 'Here', x: 0, y: 0 }).id)).toBe(main);
+    const idea = board.create({ title: 'Idea', x: 0, y: 0, idea: true, canvas: ideas.id });
+    expect(canvasOf(idea.id)).toBe(ideas.id);
+    expect(code(() => board.create({ title: 'X', canvas: 'nope' }))).toBe('unknownCanvas');
+    const follow = board.create({ title: 'Follow-up', from: idea.id });
+    expect(canvasOf(follow.id)).toBe(ideas.id);
+    expect(canvasOf(board.propose(idea.id, { title: 'Proposal', task: 'T' }).id)).toBe(ideas.id);
+    expect(canvasOf(board.addPrototype(idea.id, 'Prototype', 'P').id)).toBe(ideas.id);
+    // Seismic puts its cards where the owner looks
+    board.looking = () => ({ x: 0, y: 0, canvas: ideas.id });
+    expect(board.freeSpot().canvas).toBe(ideas.id);
+    expect(canvasOf(board.create({ title: 'Seen', ...board.freeSpot() }).id)).toBe(ideas.id);
+    expect(canvasOf(board.proposeRetro('home', { title: 'Retro', body: 'B', basis: 'b' }).id)).toBe(ideas.id);
+    expect(board.freeSpot({ x: 0, y: 0, canvas: main }).canvas).toBe(main);
+    // a canvas that is gone counts as none
+    board.looking = () => ({ x: 0, y: 0, canvas: 'gone' });
+    expect(board.freeSpot().canvas).toBe(main);
+  });
+
+  test('a free spot is free of the cards of its own canvas only', () => {
+    const ideas = board.createCanvas('Ideas');
+    const main = board.snapshot().canvases[0]!.id;
+    const want = board.freeSpot({ x: 2000, y: 2000, canvas: ideas.id });
+    board.create({ title: 'Here', x: want.x, y: want.y, canvas: main });
+    // taken on main, still free on Ideas
+    expect(board.freeSpot({ x: 2000, y: 2000, canvas: ideas.id })).toEqual(want);
+    expect(board.freeSpot({ x: 2000, y: 2000, canvas: main })).not.toMatchObject({ x: want.x, y: want.y });
+  });
+
+  test('moving cards: a workstream takes its plan along, groups stay behind, only an empty canvas can be deleted and its archive goes to main', () => {
+    const later = board.createCanvas('Later');
+    const main = board.snapshot().canvases[0]!.id;
+    const [plan, w1] = board.snapshot().items;
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const b = board.create({ title: 'B', x: 400, y: 0 });
+    const g = board.createGroup('Billing', [a.id, b.id]);
+    board.moveToCanvas([w1!.id, a.id], later.id);
+    const items = board.snapshot().items;
+    expect(items.filter((i) => i.id === plan!.id || i.parent === plan!.id).every((i) => i.canvas === later.id)).toBe(true);
+    expect(items.find((i) => i.id === a.id)).toMatchObject({ canvas: later.id });
+    expect(items.find((i) => i.id === a.id)!.group).toBeUndefined();
+    expect(items.find((i) => i.id === b.id)).toMatchObject({ canvas: main, group: g.id });
+    // a group holds the cards of one canvas
+    expect(code(() => board.createGroup('Mixed', [a.id, b.id]))).toBe('invalid');
+    expect(code(() => board.group([a.id], g.id))).toBe('invalid');
+    expect(code(() => board.deleteCanvas(later.id))).toBe('canvasInUse');
+    expect(code(() => board.moveToCanvas([a.id], 'nope'))).toBe('unknownCanvas');
+    board.moveToCanvas([plan!.id], main);
+    board.work(a.id, { state: 'live' });
+    board.archive([a.id]);
+    board.deleteCanvas(later.id);
+    expect(board.snapshot().canvases.map((c) => c.name)).toEqual(['main']);
+    board.unarchive(a.id);
+    expect(canvasOf(a.id)).toBe(main);
+  });
+
+  test('a plan written from an idea takes its place on the idea canvas, with its workstreams', () => {
+    const ideas = board.createCanvas('Ideas');
+    const idea = board.create({ title: 'Idea', x: 100, y: 100, idea: true, canvas: ideas.id });
+    store.update(idea.id, { plan_docs: JSON.stringify(['docs/plan/b.md']), state: 'live', landed: '{}' });
+    docs = [docA, docB];
+    board.docsChanged();
+    const items = board.snapshot().items;
+    const plan = items.find((i) => i.plan?.file === 'docs/plan/b.md')!;
+    expect(plan).toMatchObject({ canvas: ideas.id, x: 100, y: 100, origin: idea.id });
+    expect(items.filter((i) => i.parent === plan.id).every((i) => i.canvas === ideas.id)).toBe(true);
+    // a plan found in the repository is on main
+    expect(items.find((i) => i.plan?.file === 'docs/plan/a.md')!.canvas).toBe(board.snapshot().canvases[0]!.id);
+  });
+});
+
 describe('waiting since', () => {
   test('card updates expose the stored update time without resetting the wait', () => {
     const c = board.create({ title: 'Updated demo', x: 0, y: 0 });

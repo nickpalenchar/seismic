@@ -509,6 +509,34 @@ calm and modern without looking like a stock component kit.
   fields and chips have soft corners; dots, the microphone, spinners and the pin stay round. The
   site and shared demo pages keep their own look.
 
+### Canvases
+
+A project holds its cards on canvases, at least one: each card and group is on exactly one, a
+workstream on its plan's. Layout, minimap, edge indicators, groups and the free spots new cards go
+to are each canvas's own; repositories, settings, the demo site, the inbox count and Seismic stay
+the project's. Every project has the canvas "main", which holds what the project had before it had
+several (the database migration put every card and group there); it cannot be renamed or deleted.
+Other canvases have a name unique in the project (in any case), never a number from 1 to 999,
+since `#2` names a canvas by its place, an optional icon (an emoji, or `lucide:<name>`), and a place
+in the owner's order. Only a canvas without cards can be deleted; its archived cards go to "main",
+where they come back from the archive.
+
+Where a new card goes: one the owner makes goes on the canvas they are on; a follow-up, a proposal,
+a prototype and a Question card on the canvas of the card they come from; a plan found in a
+repository on "main", with its workstreams; a plan written from an idea takes the idea's place on
+the idea's canvas. What Seismic makes without a card to follow (a card it is told to make, a
+retrospective's proposal) goes on the canvas the owner last had in view in a page, else "main".
+Moving cards onto another canvas puts each at a free spot there and out of its group, which belongs
+to the canvas it leaves; a workstream moves with its whole plan. A card moved to another project
+goes onto the canvas the owner last looked at there.
+
+The page shows the canvas its address's hash names: `#<name>`, `#<n>` its place in the order
+(`#1` the first), none (or one naming no canvas) the first. Opening a card on another canvas, from
+search, the inbox or a link, switches to it and the hash names it. The camera is kept per canvas.
+The API (`/api/c/<project>/canvases`) creates, renames, re-icons, reorders and deletes canvases and
+moves cards onto one; the Koordinator has the same as `new_canvas`, `change_canvas`,
+`delete_canvas` and `move_to_canvas`, and sees each card's canvas and which one the owner looks at.
+
 ### Groups on the canvas
 
 A group shows as a territory behind its cards: a soft glowing outline over a faint area in its
@@ -545,6 +573,7 @@ pale, a candidate for deleting. Behind the ring the canvas steps back under a fr
 still. Moving towards a ball picks it, a click takes it, Esc closes the ring. The picked group's ×
 deletes it (its cards, archived ones too, belong to none), with "Undo".
 
+A group belongs to one canvas and holds only cards on it; group names are unique per canvas.
 The Koordinator has the tools `group` (by name; a new name creates the group), `ungroup` and
 `rename_group`, and sees each card's group.
 
@@ -556,6 +585,11 @@ code, a generic one otherwise.
 
 ### Decisions
 
+- **A canvas's cards and groups point to it without a database foreign key** (2026-11-07): SQLite
+  cannot drop a column that is part of one, and a column added to an existing table cannot be
+  required either; the server sets it on every card and group it writes, falling back to "main".
+  "main" is known by its name, which is why it keeps it. Rejected: a flag for the first canvas (the
+  owner may reorder, and `/p/<project>` opens whichever is first).
 - **The bar says "Online" only while the server answers** (owner, 2026-11-07): an open WebSocket
   proves nothing when the server's event loop is frozen, so the page pings every 5 s and any
   message counts as an answer. Ten seconds without one reads "Server not responding …"; from
