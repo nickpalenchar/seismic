@@ -216,7 +216,7 @@ export function Detail(p: Props) {
       if (a.action === 'approve' || a.action === 'pushChanges') await saveHeld(item.id);
       await api.act(item.id, a);
       // the agent picked in the Start menu is spent once the start is accepted, not before
-      if (a.action === 'start' || (a.action === 'accept' && a.start !== false)) updateDraft(cardDraft(item.id), { agent: undefined });
+      if (a.action === 'start' || a.action === 'force' || (a.action === 'accept' && a.start !== false)) updateDraft(cardDraft(item.id), { agent: undefined });
     }, done);
   // the repository the card is to be built in, before work on it begins: one of the project's or a new one
   const choice = useRepoChoice(item, p.onEdit);
@@ -534,12 +534,13 @@ export function Detail(p: Props) {
             <StartAgent
               draft={cardDraft(item.id)}
               tone="btn"
+              saved={item.agent?.workerSetting}
               label={t.queue.force}
-              codexAllowed={!inFolder && !item.contribution}
+              codexAllowed={!inFolder && !item.review?.contribution}
               onStart={(agent) => {
                 const waiting = manualPrerequisites(item, all);
                 if (waiting.length && !window.confirm(t.queue.confirmManualStart(waiting.map((card) => plain(card.title)).join(', ')))) return;
-                act({ action: 'force', ...(agent ? { agent } : {}) }, { close: true, ack: forcedText(item.queue) });
+                return act({ action: 'force', ...(agent ? { agent } : {}) }, { close: true, ack: forcedText(item.queue) });
               }}
             />
             <button className="btn" onClick={() => act({ action: 'dequeue' }, { close: false })}>

@@ -3857,7 +3857,7 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
     ...(r.hold ? { hold: itemHold(JSON.parse(r.hold) as Hold) } : {}),
     ...parts({
       agent: {
-        ...(r.session_id && r.agent_setting ? { workerSetting: JSON.parse(r.agent_setting) as ItemAgent['workerSetting'] } : {}),
+        ...((r.session_id || r.queue) && r.agent_setting ? { workerSetting: JSON.parse(r.agent_setting) as ItemAgent['workerSetting'] } : {}),
         ...(r.status_line ? { statusLine: r.status_line } : {}),
         ...(r.branch ? { branch: r.branch } : {}),
         // a workstation on another machine as ssh and scp write it

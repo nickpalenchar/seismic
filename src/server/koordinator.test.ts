@@ -131,6 +131,7 @@ describe('Koordinator', () => {
     k.request(b.id, chosen);
     await scope(['src/a.ts'], ['K1']);
     expect(JSON.parse(board.row(b.id).agent_setting!)).toEqual(chosen);
+    expect(item(b.id).agent?.workerSetting).toEqual(chosen);
     k.force(b.id);
     await settle();
     expect(workerOf(b.id).spec.setting).toEqual(chosen);

@@ -55,7 +55,7 @@ say) are judged together, in one turn as a plan's start is (see Starting a whole
 sees them in their order in the queue, keeps that order unless a dependency or a likely conflict
 asks for another, and says which start now and which wait for which, so the first in the queue
 does not start blind to one after it that it should build on or would collide with; a card alone
-starts at once where nothing runs. "Start anyway" starts it at the owner's own risk. While it waits
+starts at once where nothing runs. "Start anyway" starts it at the owner's own risk; like Start, it shows in small text the agent it will start with (the one chosen when the card was started, else the project's default) and a chevron picks another harness, model and effort for this start only. While it waits
 it keeps its full card and its conversation, where Seismic answers what the owner asks (see Card layout); spoken words there go to
 the Koordinator.
 

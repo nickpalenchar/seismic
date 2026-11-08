@@ -23,7 +23,7 @@ const stands = (models: CodexModel[], c: { model: string; effort: AgentEffort })
 };
 
 /** A choice for this start only. The ordinary button continues to use the current default. */
-export function StartAgent({ label, disabled, title, codexAllowed = true, selectionOnly = false, hint, draft, tone = 'btn primary', suggested = false, onStart }: { tone?: string; suggested?: boolean; label: string; disabled?: boolean; title?: string; codexAllowed?: boolean; selectionOnly?: boolean; hint?: string; draft?: string; onStart: (setting?: AgentSetting) => void | Promise<void> }) {
+export function StartAgent({ label, disabled, title, codexAllowed = true, selectionOnly = false, hint, draft, saved, tone = 'btn primary', suggested = false, onStart }: { tone?: string; suggested?: boolean; label: string; disabled?: boolean; title?: string; codexAllowed?: boolean; selectionOnly?: boolean; hint?: string; draft?: string; saved?: AgentSetting; onStart: (setting?: AgentSetting) => void | Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [setting, setSetting] = useState<AgentSetting | null>(null);
   const [models, setModels] = useState<CodexModel[] | null>(null);
@@ -133,7 +133,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     touched.current = false;
     ++request.current; setLoading(false);
     setSetting(null); setInitial(null); setError(''); setModels(null); setModelsOf(null);
-    workerDefault().then((v) => { if (active) { setSetting(picked ?? v); setInitial(v); } }).catch((e) => { if (active) setError(e instanceof ApiError ? e.message : failText(e)); });
+    workerDefault().then((v) => { if (active) { setSetting(picked ?? saved ?? v); setInitial(v); } }).catch((e) => { if (active) setError(e instanceof ApiError ? e.message : failText(e)); });
     return () => { active = false; };
   }, [open, attempt]);
   // the keyboard lands in the menu once it has its choices, and back on the chevron when it closes
@@ -162,7 +162,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     <div className={suggested ? 'start-agent-buttons suggested' : 'start-agent-buttons'}>
       <button className={selectionOnly ? "btn code-review" : `${tone} start-agent-main`} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} aria-haspopup={selectionOnly ? "true" : undefined} aria-expanded={selectionOnly ? open : undefined} onClick={() => { if (selectionOnly) return setOpen(!open); void startPicked(); }}>
         <span>{label}</span>
-        {!selectionOnly && (picked ?? currentDefault) && <span className="start-agent-model">{describeAgent((picked ?? currentDefault)!, true)}</span>}
+        {!selectionOnly && (picked ?? saved ?? currentDefault) && <span className="start-agent-model">{describeAgent((picked ?? saved ?? currentDefault)!, true)}</span>}
       </button>
       {!selectionOnly && <button type="button" ref={chevron} className={`${tone} start-agent-chevron`} disabled={disabled || starting} aria-label={a.chooseStart} aria-haspopup="true" aria-expanded={open} title={a.chooseStart} onClick={() => (open ? close() : setOpen(true))}>
         <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
