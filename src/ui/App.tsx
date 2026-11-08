@@ -4,7 +4,7 @@ import { clientExtensions as extensions } from '../extensions/client';
 import { useRatePrompt } from './feedback';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Archive, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
+import { Archive, Bot, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
 import { type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
@@ -34,7 +34,9 @@ import { LOG_KEYS, readLogQuery } from '../core/feedback-log';
 import { Setup } from './setup';
 import { Phone, phoneView } from './phone';
 import { KoordinatorSheet } from './koordinator';
-import { closeBarMenus, forcedText, QueuePill } from './queue';
+import { closeBarMenus, forcedText } from './queue';
+import { queueOrder } from '../core/queue';
+import { AgentsSheet } from './agents';
 import { depsOf, handleAt, manualPrerequisites, nearestHandle, settledAmong, type Side, SIDES, waitsAmong } from './deps';
 import { anchoredPath, nearestEdge } from './manualLinks';
 import type { ManualAnchor } from '../core/types';
@@ -488,15 +490,26 @@ function Project({
   const inboxRead = useInboxRead();
   // the project's settings, a docked sheet like the inbox, from the gear in the bar (projectSettings.tsx)
   const [csOn, setCsOn, csOnRef] = useLive(false);
-  // Seismic's sheet takes the inbox's place however it opens (its button, `?talk`, a reload), and the settings'
+  // the agents, a docked sheet like the inbox, from the robot in the bar: the queue and the cards at work (agents.tsx)
+  const [agentsOn, setAgentsOn, agentsOnRef] = useLive(false);
+  // Seismic's sheet takes the inbox's place however it opens (its button, `?talk`, a reload), and the settings' and the agents'
   useEffect(() => {
     if (kOn) setInboxOn(false);
     if (kOn) setCsOn(false);
+    if (kOn) setAgentsOn(false);
   }, [kOn]);
-  // the inbox and the project's settings take each other's place
+  // the inbox, the project's settings and the agents take each other's place
   useEffect(() => {
     if (inboxOn) setCsOn(false);
+    if (inboxOn) setAgentsOn(false);
   }, [inboxOn]);
+  useEffect(() => {
+    if (csOn) setAgentsOn(false);
+  }, [csOn]);
+  useEffect(() => {
+    if (agentsOn) setInboxOn(false);
+    if (agentsOn) setCsOn(false);
+  }, [agentsOn]);
   const [aOn, setAOn, aOnRef] = useLive(false);
   const [cOn, setCOn, cOnRef] = useLive(false);
   // the navigation pinned as a sidebar on the left (src/ui/nav.tsx)
@@ -513,7 +526,7 @@ function Project({
    */
   const sideNow = (): Sides => {
     const narrow = matchMedia(NARROW).matches;
-    const right = narrow || !(kOnRef.current || inboxOnRef.current || csOnRef.current || sheetOnRef.current) ? 0 : sheetOnRef.current && readingRef.current ? sheetWRef.current.read : sheetWRef.current.sheet;
+    const right = narrow || !(kOnRef.current || inboxOnRef.current || csOnRef.current || agentsOnRef.current || sheetOnRef.current) ? 0 : sheetOnRef.current && readingRef.current ? sheetWRef.current.read : sheetWRef.current.sheet;
     return { left: !narrow && pinnedRef.current && innerWidth - NAV_W - right >= NAV_PROJECT_MIN ? NAV_W : 0, right };
   };
   /** Opens Seismic's sheet or closes it; an open plan closes. */
@@ -820,6 +833,7 @@ function Project({
     setKOn(false);
     setInboxOn(false);
     setCsOn(false);
+    setAgentsOn(false);
     setAOn(false);
     if (inView) await flyOrJump(camFor(bounds(p), sideNow()), 700, quick);
   }
@@ -889,7 +903,7 @@ function Project({
     flushEdit().catch(console.error);
     const f = focusRef.current;
     const plan = f?.type === 'plan' ? f.id : f?.type === 'card' ? f.plan?.id : undefined;
-    const sheet: SideSheet | undefined = kOn ? 'koordinator' : inboxOn ? 'inbox' : csOn ? 'settings' : aOn ? 'archive' : undefined;
+    const sheet: SideSheet | undefined = kOn ? 'koordinator' : inboxOn ? 'inbox' : csOn ? 'settings' : agentsOn ? 'agents' : aOn ? 'archive' : undefined;
     keep(sessionStorage, snapshot.project.id, {
       at: Date.now(),
       ...(f?.type === 'card' ? { card: f.id } : {}),
@@ -937,6 +951,7 @@ function Project({
     if (k.sheet === 'koordinator') setKOn(true);
     else if (k.sheet === 'inbox') setInboxOn(true);
     else if (k.sheet === 'settings') setCsOn(true);
+    else if (k.sheet === 'agents') setAgentsOn(true);
     else if (k.sheet === 'archive') setAOn(true);
     if (k.config) setCOn(true);
     if (k.prefs) setPrefsOn(true);
@@ -1562,7 +1577,7 @@ function Project({
   }, [side.left, side.right]);
 
   // the grip at the open sheet's left edge widens or narrows it; reading a plan doc has its own width
-  const gripOn = kOn || inboxOn || csOn || sheetOn;
+  const gripOn = kOn || inboxOn || csOn || agentsOn || sheetOn;
   const gripKind = !!reading && sheetOn ? 'read' : 'sheet';
   const gripRef = useRef<{ x: number; w: number; kind: 'sheet' | 'read' } | null>(null);
   const [resizing, setResizing] = useState(false);
@@ -1982,6 +1997,8 @@ function Project({
   const entries = inboxEntries(projects, { ...waiting, [snapshot.project.id]: here }, (id) => !!underway[id]);
   // only what the owner has not read yet counts
   const attentionCount = waitingCount(entries, undefined, inboxRead.read);
+  // the cards waiting in the queue, counted in grey on the agents' button
+  const queued = queueOrder(items).length;
   const counts = Object.fromEntries(projects.map((c) => [c.id, waitingCount(entries, c.id, inboxRead.read)]));
   // the open card's entry is read, and stays so while it is open, even as the card waits anew
   const openEntry = openId ? entries.find((e) => e.card?.id === openId && e.project === snapshot.project.id) : undefined;
@@ -2042,6 +2059,14 @@ function Project({
     if (!open) return;
     setKOn(false);
     setInboxOn(false);
+    if (focusRef.current?.type === 'plan') closePlan(false);
+  };
+  /** The agents slide out in place of another sheet, and close again. */
+  const toggleAgents = () => {
+    const open = !agentsOnRef.current;
+    setAgentsOn(open);
+    if (!open) return;
+    setKOn(false);
     if (focusRef.current?.type === 'plan') closePlan(false);
   };
   /**
@@ -2133,8 +2158,8 @@ function Project({
     }
     if (e.key === 'Escape' && connection) { setConnection(null); return; }
     if (e.key === 'Escape') {
-      // a screenshot or demo shown large closes first, a card's diff, the queue's list, the navigation's and a card's "⋯"; the card or plan stays open
-      if (document.querySelector('.lightbox, .demo-zoom, .artifact-image-close, .queue-menu, .nav-menu, .diff-view, .start-agent-menu, .card-more-menu')) return;
+      // a screenshot or demo shown large closes first, a card's diff, the navigation's list and a card's "⋯"; the card or plan stays open
+      if (document.querySelector('.lightbox, .demo-zoom, .artifact-image-close, .nav-menu, .diff-view, .start-agent-menu, .card-more-menu')) return;
       // so does the quote of a message the owner was replying to: in the field with the cursor, the open card's, the sidebar's
       const quoting = [focusedDraft(), f?.type === 'card' || f?.type === 'plan' ? cardDraft(f.id) : null, kOnRef.current ? OBEYA_DRAFT : null].find((k) => k && fieldOn(k) && replyOn(k));
       if (quoting) return setReply(quoting, null);
@@ -2147,6 +2172,7 @@ function Project({
       else if (kOnRef.current) setKOn(false);
       else if (inboxOnRef.current && f?.type !== 'plan') setInboxOn(false);
       else if (csOnRef.current && f?.type !== 'plan') setCsOn(false);
+      else if (agentsOnRef.current && f?.type !== 'plan') setAgentsOn(false);
       else if (f?.type === 'plan' && readingRef.current && sheetPlan) readPlan(sheetPlan, null);
       else if (f?.type === 'plan') closePlan();
       return;
@@ -2397,7 +2423,6 @@ function Project({
             els={archiveEls}
             icon={<BarIcon icon={Archive} />}
           />
-          <QueuePill items={items} onOpen={open} />
           {!focus && <button className="pill card-search-button" title={t.cardSearch.shortcut} aria-label={t.cardSearch.shortcut} aria-expanded={cardSearchOn} onClick={() => { closeBarMenus(); setCardSearchOn((on) => !on); }}>
             <BarIcon icon={Search} /> <span>/</span>
           </button>}
@@ -2427,6 +2452,10 @@ function Project({
                   {configProblems}
                 </span>
               )}
+            </button>
+            <button className={agentsOn ? 'pill kpill agents-pill on' : 'pill kpill agents-pill'} title={t.agents.button(queued)} aria-label={t.agents.button(queued)} aria-expanded={agentsOn} onClick={toggleAgents}>
+              <BarIcon icon={Bot} />
+              {queued > 0 && <span className="n">{queued}</span>}
             </button>
             <button className={inboxOn ? 'pill kpill inbox-pill on' : 'pill kpill inbox-pill'} id="attention" title={t.inbox.button(attentionCount)} aria-label={t.inbox.button(attentionCount)} aria-expanded={inboxOn} onClick={toggleInbox}>
               <BarIcon icon={Inbox2} />
@@ -2463,6 +2492,7 @@ function Project({
         <Inbox entries={entries} current={snapshot.project.id} open={openId ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
           onProposalCard={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })}
           onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
+        <AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} onOpen={open} />
         <ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showProjectsSection(), setPrefsOn(false), setCOn(true))} />
         <div id="dim" className={dim ? 'on' : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
@@ -2565,7 +2595,7 @@ function Project({
           {talkButton}
         </div>
         {gripOn && !kOn && (
-          <button id="sheet-close" title={t.close} onClick={() => (sheetOn ? closePlan() : (setInboxOn(false), setCsOn(false)))}>
+          <button id="sheet-close" title={t.close} onClick={() => (sheetOn ? closePlan() : (setInboxOn(false), setCsOn(false), setAgentsOn(false)))}>
             ✕
           </button>
         )}

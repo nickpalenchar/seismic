@@ -597,8 +597,6 @@ const de = {
   },
   stopped: 'Agent gestoppt.',
   queue: {
-    button: 'Warteschlange',
-    count: (n: number) => (n === 0 ? 'Keine Aufgabe in der Warteschlange' : n === 1 ? 'Eine Aufgabe in der Warteschlange' : `${n} Aufgaben in der Warteschlange`),
     empty: 'Keine Aufgabe wartet. Eine Aufgabe, die mit laufender Arbeit in Konflikt käme oder keine freie Workstation findet, reiht sich hier ein.',
     checking: 'Seismic prüft',
     waiting: 'In der Warteschlange',
@@ -1356,6 +1354,15 @@ const de = {
     kept: 'Karte behalten.',
   },
   /** The inbox the bar's inbox button slides out (src/ui/inbox.tsx): everything that waits for the owner, on every project. */
+  agents: {
+    title: 'Agenten',
+    /** The bar's button, with how many cards wait in the queue. */
+    button: (n: number) => (n === 0 ? 'Agenten: keine Aufgabe in der Warteschlange' : n === 1 ? 'Agenten: eine Aufgabe in der Warteschlange' : `Agenten: ${n} Aufgaben in der Warteschlange`),
+    tabs: { queue: 'Warteschlange', working: 'Bei der Arbeit' },
+    /** The stages "Working" groups its cards by. */
+    stages: { working: 'Arbeitet', reviewing: 'Code-Review', fixing: 'Behebt Review-Befunde', demo: 'Macht die Demo' },
+    noneWorking: 'Gerade arbeitet kein Agent.',
+  },
   inbox: {
     title: 'Posteingang',
     /** The bar's button, with how many things wait. */
@@ -3098,8 +3105,6 @@ const en: Strings = {
   },
   stopped: 'Agent stopped.',
   queue: {
-    button: 'Queue',
-    count: (n: number) => (n === 0 ? 'No task in the queue' : n === 1 ? 'One task in the queue' : `${n} tasks in the queue`),
     empty: 'No task waits. A task that would conflict with work in progress, or finds no free workstation, lines up here.',
     checking: 'Seismic checking',
     waiting: 'In the queue',
@@ -3812,6 +3817,13 @@ const en: Strings = {
     answered: (option: string) => `Answered: ${option}`,
     pickHint: 'The agent’s choice',
     kept: 'Card kept.',
+  },
+  agents: {
+    title: 'Agents',
+    button: (n: number) => (n === 0 ? 'Agents: no task in the queue' : n === 1 ? 'Agents: one task in the queue' : `Agents: ${n} tasks in the queue`),
+    tabs: { queue: 'Queue', working: 'Working' },
+    stages: { working: 'Working', reviewing: 'Code reviewing', fixing: 'Review fixing', demo: 'Making demo' },
+    noneWorking: 'No agent is at work right now.',
   },
   inbox: {
     title: 'Inbox',

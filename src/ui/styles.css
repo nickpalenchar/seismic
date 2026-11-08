@@ -515,10 +515,9 @@ button.pill:hover { box-shadow: var(--lift); }
 .bar-sign, .bar-icon { display: none; }
 #bar[data-fit~="1"] .bar-word, #bar[data-fit~="1"] .nav-pill .lbl { display: none; }
 #bar[data-fit~="1"] .bar-sign { display: block; line-height: 0; }
-#bar[data-fit~="2"] :is(#workstations, .config) .lbl, #bar[data-fit~="3"] :is(.archive, .new-card) .lbl,
-  #bar[data-fit~="4"] .queue .lbl { display: none; }
-#bar[data-fit~="2"] .config .bar-icon, #bar[data-fit~="3"] .archive .bar-icon, #bar[data-fit~="4"] .queue .bar-icon { display: block; }
-#bar[data-fit~="2"] .config, #bar[data-fit~="3"] :is(.archive .kpill, .new-card), #bar[data-fit~="4"] .queue .kpill { padding-inline: 10px; }
+#bar[data-fit~="2"] :is(#workstations, .config) .lbl, #bar[data-fit~="3"] :is(.archive, .new-card) .lbl { display: none; }
+#bar[data-fit~="2"] .config .bar-icon, #bar[data-fit~="3"] .archive .bar-icon { display: block; }
+#bar[data-fit~="2"] .config, #bar[data-fit~="3"] :is(.archive .kpill, .new-card) { padding-inline: 10px; }
 #bar[data-fit~="5"] #workstations, #bar[data-fit~="5"] .help { display: none; }
 #bar[data-fit~="6"] .nav-pill .switch b, #bar[data-fit~="6"] .bar-project, #bar[data-fit~="6"] .new-card, #bar[data-fit~="6"] .card-search-button { display: none; }
 /* the bar's buttons are one height, whatever they hold: text, an icon, a count */
@@ -568,6 +567,9 @@ button.pill:hover { box-shadow: var(--lift); }
 .inbox-pill .bar-icon { display: block; }
 .inbox-pill .n { background: var(--waiting); }
 .inbox-pill.on { background: var(--chip); color: var(--ink); }
+/* the agents' button counts the queued cards in grey (src/ui/agents.tsx) */
+.agents-pill .bar-icon { display: block; }
+.agents-pill.on { background: var(--chip); color: var(--ink); }
 .reshare { margin-top: 16px; }
 .reshare .bar { flex-basis: 100%; height: 4px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--proposal) 18%, transparent); }
 .reshare .bar > span { display: block; height: 100%; background: var(--proposal); transition: width 0.3s; }
@@ -2981,6 +2983,19 @@ body:has(#inbox.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 
 /* the project's settings, a sheet like the inbox (projectSettings.tsx) */
 #project-settings { padding: 20px 22px 30px; z-index: 31; }
+/* the agents (src/ui/agents.tsx): the queue and the cards at work by stage, a docked sheet like the inbox,
+   above the dim beside an open card */
+#agents { padding: 20px 14px 30px; z-index: 31; }
+#agents h2 { padding: 0 8px; }
+body:has(#agents.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
+#agents .agents-tabs { margin: 0 8px 4px; }
+#agents .agents-tabs .n { margin-left: 6px; border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--planned); }
+#agents .agents-empty { margin: 14px 8px; font-size: 13px; line-height: 1.45; }
+.agents-stage h3 { margin: 18px 8px 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.agents-stage h3 .count { font-weight: 400; }
+.agents-stage .q-what .hint { display: inline-block; }
+.agents-stage .q-what .hint::first-letter { text-transform: uppercase; }
+.agents-stage .qlist li.on { background: color-mix(in srgb, var(--working) 10%, var(--card)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--working) 55%, transparent); }
 .cs-pill .bar-icon { display: block; }
 .cs-pill { padding-inline: 10px; }
 .cs-pill .n.err { margin-left: 4px; }

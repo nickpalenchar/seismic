@@ -10,13 +10,24 @@ and arrow remains available as the canvas moves.
 
 ### The bar
 
-Left, first the logo with a small chevron, which opens Seismic's menu (see The logo's menu); then, after the navigation's button (see The navigation): the archive's button (see Card lifecycle), the queue's and "New
-task". The queue's button counts the waiting cards; a click lists them in turn, each with what it
-waits for, buttons to move it and a × that takes it out of the queue at once, as "Take out of the queue" on the card does (back to planned; no
-undo, starting it again is the way back); a row opens its card. The navigation's, the archive's and
-the queue's lists close on a click beside them and on Esc. Seismic's button is the rightmost (see
-Sheets), the inbox's just before it, and the gear of the project settings before that (see The project
-settings).
+Left, first the logo with a small chevron, which opens Seismic's menu (see The logo's menu); then, after the navigation's button (see The navigation): the archive's button (see Card lifecycle) and "New
+task". The navigation's and the archive's lists close on a click beside them and on Esc. Seismic's
+button is the rightmost (see Sheets), the inbox's just before it, the agents' (a robot) before that,
+and the gear of the project settings before that (see The project settings).
+
+The agents' button counts in grey the cards waiting in the queue, and only those; its click slides
+out the Agents sheet, a sheet like the inbox (see Sheets), with two tabs, the one chosen last
+remembered per browser. "Queue" (with the same count) lists the waiting cards in turn, each with
+what it waits for, dragged to its place (see The queue's order) and with a × that takes it out of
+the queue at once, as "Take out of the queue" on the card does (back to planned; no undo, starting
+it again is the way back); a row opens its card. "Working" lists the cards whose agent is at work,
+grouped by the stage it is at, in this order: "Working", "Code reviewing" (its code review runs,
+also while the card waits for the owner), "Review fixing" (its worker fixes findings the owner gave
+it, "Fix it") and "Making demo" (its worker prepares, records or finishes its demo); a stage without
+a card is left out. Planned, queued, finished and archived cards are not there, nor ideas,
+proposals and cards that wait for the owner, which the inbox holds. The queue moved here from a list
+under its own button in the bar so that what the agents do and what waits for them stand in one
+place (owner, 2026-11-07).
 
 The search button opens a small card finder below the bar. On the canvas, `/` opens it when no text
 field has focus. It searches non-archived cards by title words or short code, in the same order as
@@ -419,13 +430,13 @@ Card faces on the canvas link nothing, since a click there opens the card itself
 
 ### Sheets
 
-The sheets (Seismic's, a plan's, a plan doc being read, the inbox, the project settings) are a sidebar docked to the window's right
+The sheets (Seismic's, a plan's, a plan doc being read, the inbox, the agents, the project settings) are a sidebar docked to the window's right
 edge, full height; the pinned navigation is one on the left edge. The canvas is the rest between
 them: the top bar, the microphone and its confirmations, the edge indicators, the minimap and an
 unfolding card all keep to it. Opening, closing or resizing a sheet, or pinning the navigation,
 shifts the view so its middle stays in the middle of the rest. A card opened beside a sheet
 returns beside whatever sheet is open when it closes; a plan's sheet stays, dimmed, while one of
-its cards is open, and the inbox stays undimmed beside any card. A narrow window lays the sheet over the canvas.
+its cards is open, and the inbox and the agents stay undimmed beside any card. A narrow window lays the sheet over the canvas.
 
 Seismic's button, a speech bubble with its counts, stays where it is when its sheet opens and becomes
 the sidebar's top corner that closes it; the sheet is headed "Seismic". Other sheets have a ✕.

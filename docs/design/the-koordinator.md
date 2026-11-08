@@ -113,7 +113,7 @@ starts.
 #### The queue's order
 
 Cards whose turn comes together go longest-waiting first. The owner sets the order where the waits
-leave it open: in the queue's list a row is dragged to any place, by the grip at its left with a
+leave it open: in the Agents sheet's "Queue" tab a row is dragged to any place, by the grip at its left with a
 mouse or a finger (a finger elsewhere on the list scrolls it), or with a mouse by the row itself;
 the rows it passes make room, and the list scrolls at its edges. On a waiting card (which says its
 place), "Earlier" and "Later" swap it with its neighbour, and "Show the queue" unfolds the

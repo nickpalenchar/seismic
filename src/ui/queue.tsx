@@ -1,10 +1,10 @@
-// The queue: the bar's button with its count and the list under it, where a row is dragged to its
+// The queue: the list in the Agents sheet's "Queue" tab (src/ui/agents.tsx), where a row is dragged to its
 // place by its grip (or, with a mouse, by itself), as far as its waits let it; pulled farther, it says
 // why it stops. A row's × takes its card out. On the card, two buttons move it one place earlier or
 // later; one whose way is blocked by a wait says why when clicked (and on hover), and at the head or
 // the end of the queue it is greyed out. The card also unfolds the queue, where it alone is dragged.
 
-import { GripVertical, List } from 'lucide-react';
+import { GripVertical } from 'lucide-react';
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
 import { move, movable, notStarted, queueOrder, reach } from '../core/queue';
 import type { Item } from '../core/types';
@@ -36,48 +36,9 @@ export function useMenuClose(on: boolean, box: RefObject<HTMLElement | null>, cl
 /** Make room for another bar interaction opened from a keyboard shortcut. */
 export const closeBarMenus = () => dispatchEvent(new Event('obeya:close-bar-menus'));
 
-/** The bar's queue button: how many cards wait; a click lists them under it, in turn, to open or move. */
-export function QueuePill({ items, onOpen }: { items: Item[]; onOpen: (i: Item) => void }) {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  const list = useRef<HTMLDivElement>(null);
-  const q = useQueueSort(items, list);
-  const queued = q.queued;
-  useMenuClose(open, box, () => setOpen(false), true);
-  // the list closed under a drag: the row is not dropped anywhere
-  useEffect(() => {
-    if (!open) q.sort.cancel();
-  }, [open]);
-  return (
-    <div className="menu-pill queue" ref={box}>
-      <button className={open ? 'pill kpill on' : 'pill kpill'} title={t.queue.count(queued.length)} aria-expanded={open} onClick={() => setOpen(!open)}>
-        <List className="bar-icon" size={16} strokeWidth={2} aria-hidden />
-        <span className="lbl">{t.queue.button}</span>
-        {queued.length > 0 && <span className="n">{queued.length}</span>}
-      </button>
-      {open && (
-        <div className="bar-menu queue-menu" ref={list}>
-          {queued.length ? (
-            <QueueList
-              items={items}
-              q={q}
-              onOpen={(i) => {
-                setOpen(false);
-                onOpen(i);
-              }}
-            />
-          ) : (
-            <p className="hint">{t.queue.empty}</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /**
- * The queue's order to drag in: in the bar's list every card that may move, on a waiting card
- * (`own`) only that card. Held by what stays mounted while the list folds and unfolds, so that a
+ * The queue's order to drag in: in the Agents sheet every card that may move, on a waiting card
+ * (`own`) only that card. Held by what stays mounted while the list shows and hides, so that a
  * drop shown ahead of the server keeps the next drag from starting from the old order.
  */
 export function useQueueSort(items: Item[], scroller: RefObject<HTMLElement | null>, own?: string) {
@@ -104,8 +65,8 @@ export function useQueueSort(items: Item[], scroller: RefObject<HTMLElement | nu
 }
 
 /**
- * The waiting cards in turn, a row dragged to its place as far as its waits let it. In the bar's
- * list (`onOpen`) a row opens its card and its × takes it out of the queue; on a waiting card the
+ * The waiting cards in turn, a row dragged to its place as far as its waits let it. In the Agents
+ * sheet (`onOpen`) a row opens its card and its × takes it out of the queue; on a waiting card the
  * other rows stand there to show where it is.
  */
 export function QueueList({ items, q, onOpen }: { items: Item[]; q: ReturnType<typeof useQueueSort>; onOpen?: (i: Item) => void }) {
@@ -159,7 +120,7 @@ export function waitText(q: Behind, items: Item[], name?: (id: string) => string
 
 type Sort = ReturnType<typeof useSortable>;
 
-/** A card in the queue, with its grip and what it waits for; in the bar's list (`onOpen`) also the × that takes it out of the queue. */
+/** A card in the queue, with its grip and what it waits for; in the Agents sheet (`onOpen`) also the × that takes it out of the queue. */
 function QueueRow(p: {
   item: Item;
   items: Item[];
