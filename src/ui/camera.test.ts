@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { besideSheet, type Cam, NO_SIDES, CHASE_MS, chaseStep, DROP_ROOM, dragLimit, EDGE_ZONE, edgeScroll, KEEP, keepInView, placeIn, shows } from './camera';
+import { besideSheet, camKey, type Cam, NO_SIDES, CHASE_MS, chaseStep, DROP_ROOM, dragLimit, EDGE_ZONE, edgeScroll, KEEP, keepInView, placeIn, shows } from './camera';
 
 const view = { left: 0, top: 70, right: 1000, bottom: 800 };
 const cam: Cam = { x: 0, y: 0, s: 1 };
@@ -143,4 +143,12 @@ test('a card shows when it lies wholly in the view', () => {
   expect(shows(cam, view, { x: 100, y: 100, w: 300, h: 136 })).toBe(true);
   expect(shows(cam, view, { x: 800, y: 100, w: 300, h: 136 })).toBe(false);
   expect(shows(cam, view, { x: 100, y: 0, w: 300, h: 136 })).toBe(false);
+});
+
+test('a canvas keeps its saved view key wherever it stands in the order', () => {
+  const main = { id: 'c1', name: 'main' };
+  const other = { id: 'c2', name: 'Ideas' };
+  expect(camKey('p', main)).toBe('obeya-cam-p');
+  expect(camKey('p', other)).toBe('obeya-cam-p#c2');
+  expect(camKey('p')).toBe('obeya-cam-p');
 });

@@ -11,7 +11,7 @@ import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { GroupNames, growFrom, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
-import { besideSheet, BOTTOM, type Cam, camFor, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
+import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
 import { clip } from '../core/text';
 import { type ActDone, Detail, type Pending } from './detail';
@@ -221,7 +221,6 @@ async function soon<T>(get: () => T | undefined, ms = 3000): Promise<T | undefin
 }
 
 /** Where the camera on a canvas is kept: the project's first canvas has the key the whole project had before it had several. */
-const camKey = (projectId: string, canvas?: string) => `obeya-cam-${projectId}${canvas ? `#${canvas}` : ''}`;
 
 function Project({
   snapshot,
@@ -382,7 +381,7 @@ function Project({
   // ---------------------------------------------------------------- camera
   const [cam, setCam, camRef] = useLive<Cam>(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(camKey(snapshot.project.id, canvasId === canvases[0]?.id ? undefined : canvasId)) ?? 'null');
+      const saved = JSON.parse(localStorage.getItem(camKey(snapshot.project.id, canvases.find((c) => c.id === canvasId))) ?? 'null');
       // saved as it would be without a sheet, which none is before the page opens one
       if (saved && [saved.x, saved.y, saved.s].every(Number.isFinite)) return keepInView(saved, content, { left: 0, top: TOP, right: innerWidth, bottom: innerHeight - BOTTOM });
     } catch {}
@@ -404,20 +403,20 @@ function Project({
     if (focusRef.current) return;
     const h = setTimeout(() => {
       try {
-        localStorage.setItem(camKey(snapshot.project.id, camCanvas.current), JSON.stringify(besideSheet(cam, camSide.current, NO_SIDES)));
+        localStorage.setItem(camCanvas.current, JSON.stringify(besideSheet(cam, camSide.current, NO_SIDES)));
       } catch {}
     }, 300);
     return () => clearTimeout(h);
   }, [cam, snapshot.project.id]);
-  // the canvas the camera shows (none: the first); another canvas brings back the view kept for it, or one on all of it
-  const camCanvas = useRef(canvasId === canvases[0]?.id ? undefined : canvasId);
+  // the storage key of the canvas the camera shows; another canvas brings back the view kept for it, or one on all of it
+  const camCanvas = useRef(camKey(snapshot.project.id, canvases.find((c) => c.id === canvasId)));
   useEffect(() => {
-    const key = canvasId === canvases[0]?.id ? undefined : canvasId;
+    const key = camKey(snapshot.project.id, canvases.find((c) => c.id === canvasId));
     if (key === camCanvas.current) return;
     camCanvas.current = key;
     let to: Cam | undefined;
     try {
-      const saved = JSON.parse(localStorage.getItem(camKey(snapshot.project.id, key)) ?? 'null');
+      const saved = JSON.parse(localStorage.getItem(key) ?? 'null');
       if (saved && [saved.x, saved.y, saved.s].every(Number.isFinite)) to = besideSheet(saved, NO_SIDES, sideNow());
     } catch {}
     camSide.current = sideNow();

@@ -1,6 +1,7 @@
 // Camera math, from the mock: a world transform (translate, then scale) and animated flights.
 
 import type { Bounds, Place } from '../core/layout';
+import { MAIN_CANVAS } from '../core/types';
 import { reducedMotion } from './motion';
 
 export interface Cam {
@@ -10,6 +11,14 @@ export interface Cam {
 }
 
 /** Cards keep a readable size; zooming out stops here, and a small screen shows a section. */
+/**
+ * Where a canvas's view is kept in localStorage. The canvas named `main` holds what a project had
+ * before canvases, so it keeps the project-wide key of those days; any other canvas has its id,
+ * so reordering moves no view to another canvas.
+ */
+export const camKey = (projectId: string, canvas?: { id: string; name: string }) =>
+  `obeya-cam-${projectId}${canvas && canvas.name !== MAIN_CANVAS ? `#${canvas.id}` : ''}`;
+
 export const MIN_ZOOM = 0.55;
 export const MAX_ZOOM = 2;
 /** Below this scale cards drop their details. */
