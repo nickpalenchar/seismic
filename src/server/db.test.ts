@@ -637,3 +637,22 @@ test('a pending migration is preceded by a backup of the database, and only the 
     }
     expect(readdirSync(dir).sort()).toEqual(names);
   }));
+
+test('a retried migration keeps the backup of the first attempt, the state before the upgrade', () =>
+  withPath((path) => {
+    new Store(path).db.close();
+    const before = RELEASED + MIGRATIONS.length;
+    MIGRATIONS.push('CREATE TABLE step_one (id INTEGER)', 'THIS IS NOT SQL');
+    try {
+      expect(() => new Store(path)).toThrow();
+      expect(version(path)).toBe(before + 1);
+      MIGRATIONS[MIGRATIONS.length - 1] = 'CREATE TABLE step_two (id INTEGER)';
+      new Store(path).db.close();
+    } finally {
+      MIGRATIONS.length -= 2;
+    }
+    const copy = new Database(`${path}.before-${before + 2}`);
+    expect(copy.query('PRAGMA user_version').get()).toEqual({ user_version: before });
+    expect(copy.query("SELECT 1 FROM sqlite_master WHERE name = 'step_one'").get()).toBeNull();
+    copy.close();
+  }));

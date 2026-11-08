@@ -1,6 +1,6 @@
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
-import { mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { type Db, SHORT } from './models/common';
 import * as schema from './models/schema';
@@ -587,8 +587,8 @@ export const BACKUPS_KEPT = 3;
 /** A consistent copy of the database as it is before migrating to `target`, with only the newest backups kept. */
 function backUpBefore(db: Database, path: string, target: number) {
   const copy = `${path}.before-${target}`;
-  rmSync(copy, { force: true });
-  db.run('VACUUM INTO ?', [copy]);
+  // a retry after a step failed halfway finds the copy of the first attempt, the state before the upgrade: it stays
+  if (!existsSync(copy)) db.run('VACUUM INTO ?', [copy]);
   const prefix = `${basename(path)}.before-`;
   const old = readdirSync(dirname(path))
     .filter((f) => f.startsWith(prefix) && /^\d+$/.test(f.slice(prefix.length)))

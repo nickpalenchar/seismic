@@ -99,7 +99,8 @@ Migrations: the schema version is tracked in the database; each step runs in its
 a failure leaves the database at the previous version, and an older Seismic refuses a newer
 database. Whenever a step is pending on an existing database, Seismic first writes a consistent copy
 (`VACUUM INTO`) beside it as `obeya.db.before-<version>`, the version being migrated to, and keeps
-the newest three. A fresh database and one already up to date are not copied. To roll back, stop
+the newest three. A retry after a step failed halfway keeps the first copy of that version, the
+state before the upgrade. A fresh database and one already up to date are not copied. To roll back, stop
 Seismic and put the copy in place of `obeya.db`.
 
 Derived, not stored: git, PR and CI state (read from git and GitHub), plan-doc content (read from
