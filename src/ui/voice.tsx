@@ -14,7 +14,7 @@ import { createContext, useEffect, useRef, useState } from 'react';
 import type { Place } from '../core/layout';
 import type { Notice } from '../core/types';
 import { ApiError, api, type Heard, holdRestart, type Where } from './api';
-import { beginDictation, dictate, draftOf, focusedDraft, insertFiles, MIC_DRAFT, moveFiles, moveImages, takesImages, toObeya, updateDraft, useDraft, useFieldOn, uploaded, useFocusedDraft, wordsOf } from './draft';
+import { appended, beginDictation, dictate, draftIn, draftOf, focusedDraft, insertFiles, MIC_DRAFT, moveFiles, moveImages, takesImages, toObeya, updateDraft, useDraft, useFieldOn, uploaded, useFocusedDraft, wordsOf } from './draft';
 import type { ToastStore } from './components/toast';
 import { toldLines } from './components/told';
 import { type Recording, record } from './recorder';
@@ -180,6 +180,7 @@ export function usePushToTalk(
       // project, say) counted as that, although Seismic had the command and read on, and the draft
       // kept for the page's next load brought the screenshots back
       const name = recordingName();
+      const back = draftIn(key);
       let failed = false;
       const h = await send(r.target, async () => {
         try {
@@ -191,8 +192,9 @@ export function usePushToTalk(
         }
       });
       if (!h.unheard && !failed) return;
-      updateDraft(key, (d) => ({ text: [text, d.text].filter((x) => x.trim()).join(' '), images: [...images, ...d.images.filter((id) => !images.includes(id))] }));
-      if (reply && !replyOn(key)) setReply(key, reply);
+      // into the draft kept for the project it was said on, where the owner has switched to another meanwhile
+      back.update((d) => ({ text: [text, d.text].filter((x) => x.trim()).join(' '), images: [...images, ...d.images.filter((id) => !images.includes(id))] }));
+      if (back.here() && reply && !replyOn(key)) setReply(key, reply);
     }).finally(() => setWriting((n) => n - 1));
   }
 
@@ -200,12 +202,15 @@ export function usePushToTalk(
   async function into(key: string, target: Where, audio: Blob | null) {
     if (!audio) return updateDraft(key, { dictation: '' });
     updateDraft(key, { dictation: 'writing' });
+    const draft = draftIn(key);
     let h: Heard;
     try {
       h = await api.voice(audio, target, { listen: true });
     } catch (e) {
       h = { confirm: failText(e, { offline: t.voice.failed }), unheard: true };
     }
+    // the owner switched to another project meanwhile: the words go to the end of the draft kept for the one they were said on
+    if (!draft.here()) return void (h.text && !h.unheard && draft.update((d) => ({ text: appended(d.text, h.text!) })));
     if (!h.unheard && h.text) dictate(key, h.text);
     const note = h.unheard ? h.confirm : '';
     updateDraft(key, { dictation: '', note });

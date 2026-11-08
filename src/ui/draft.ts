@@ -200,6 +200,31 @@ export function updateDraft(key: string, change: Partial<Draft> | ((d: Draft) =>
 }
 
 /**
+ * Changes to draft `key` from work that starts now and ends later (an upload): `update` applies them
+ * to the draft while its project is shown, and to the draft kept for that project once the owner
+ * has switched to another, so neither loses or gains anything of the other. `here` says which.
+ */
+export function draftIn(key: string): { here: () => boolean; update: (change: Partial<Draft> | ((d: Draft) => Partial<Draft>)) => void } {
+  const at = kept;
+  const here = () => kept === at || !lasting(key);
+  return {
+    here,
+    update: (change) => {
+      if (here()) return updateDraft(key, change);
+      try {
+        const saved = JSON.parse(at!.store.getItem(storeKey(at!.project)) ?? '{}') as Record<string, Kept>;
+        const d: Draft = { ...EMPTY, ...saved[key] };
+        const k = keptOf({ ...d, ...(typeof change === 'function' ? change(d) : change) });
+        if (k) saved[key] = k;
+        else delete saved[key];
+        if (Object.keys(saved).length) at!.store.setItem(storeKey(at!.project), JSON.stringify(saved));
+        else at!.store.removeItem(storeKey(at!.project));
+      } catch {}
+    },
+  };
+}
+
+/**
  * Words the owner took back before anyone read them go back into the draft, with their
  * screenshots, when it is empty; else they are gone, as the newer words in it count.
  */

@@ -128,6 +128,7 @@ export const closeWish = () => set({ open: false, sent: undefined });
 async function write(w: Wish, images: string[], { base, seed }: { base?: { title: string; body: string } | null; seed?: true } = {}) {
   const before = base === undefined ? state.issue : base;
   const from = seed ? w : state.issue?.from;
+  const at = kept;
   set({ writing: true, error: '' });
   try {
     const out = await api.writeWish({
@@ -139,9 +140,15 @@ async function write(w: Wish, images: string[], { base, seed }: { base?: { title
     });
     const shots = base === undefined ? [...(state.issue?.images ?? []), ...images] : (state.issue?.images ?? images);
     const limited = out.limitedUntil ? { again: { wish: w, images, until: out.limitedUntil, base: before ? { title: before.title, body: before.body } : null } } : {};
-    set({ writing: false, issue: { title: out.title, body: out.body, images: shots, ...(out.raw ? { raw: true as const } : {}), ...limited, ...(from ? { from } : {}) } });
+    const issue: Issue = { title: out.title, body: out.body, images: shots, ...(out.raw ? { raw: true as const } : {}), ...limited, ...(from ? { from } : {}) };
+    if (kept === at) set({ writing: false, issue });
+    // the owner switched to another project meanwhile: the draft goes to the project it was written on
+    else if (at)
+      try {
+        at.store.setItem(at.key, JSON.stringify(issue));
+      } catch {}
   } catch (e) {
-    set({ writing: false, error: e instanceof ApiError ? errorText(e.code) : t.offlineError });
+    if (kept === at) set({ writing: false, error: e instanceof ApiError ? errorText(e.code) : t.offlineError });
   }
 }
 
@@ -172,6 +179,7 @@ async function png(id: string): Promise<Blob> {
 async function send(issue: Issue) {
   const { url, trimmed } = issueUrl(issue.title.trim(), issue.body.trim(), t.wish.cut);
   const shot = issue.images[0];
+  const at = kept;
   const lines = [t.wish.sent];
   try {
     if (shot) {
@@ -185,6 +193,14 @@ async function send(issue: Issue) {
     lines.push(t.wish.clipFailed);
   }
   window.open(url, '_blank', 'noopener');
+  if (kept !== at) {
+    // sent from the project before the owner switched: its draft is done there, this project's stays
+    if (at)
+      try {
+        at.store.removeItem(at.key);
+      } catch {}
+    return;
+  }
   const next = state.pending;
   set({ issue: null, sent: next ? [...lines, t.wish.sentNext] : lines, pending: undefined });
   if (next) void write(next, [], { seed: true });

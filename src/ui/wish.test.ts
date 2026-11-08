@@ -60,3 +60,17 @@ test("switching to another project within the page shows that project's draft, a
   keepWish(store, 'shop');
   expect(wishNow().issue?.title).toBe('On shop');
 });
+
+test('a draft still being written when the owner switches projects goes to the project it was asked on', async () => {
+  m.set(KEY, JSON.stringify({ title: '', body: '', images: [] }));
+  m.delete('obeya-wish-blog');
+  keepWish(store, 'shop');
+  openWish({ said: 'The tabs flicker.' });
+  keepWish(store, 'blog');
+  await written();
+  expect(wishNow().issue).toBeNull();
+  expect(m.get('obeya-wish-blog')).toBeUndefined();
+  expect(JSON.parse(m.get(KEY)!).title).toBe('Issue: The tabs flicker.');
+  keepWish(store, 'shop');
+  expect(wishNow().issue?.title).toBe('Issue: The tabs flicker.');
+});

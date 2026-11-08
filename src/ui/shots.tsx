@@ -9,7 +9,7 @@ import { createPortal } from 'react-dom';
 import { IMAGE_TYPES, MAX_FILE_BYTES, MAX_IMAGE_BYTES } from '../core/types';
 import { api, ApiError, at } from './api';
 import { droppedPath, withBytes } from './appDrop';
-import { draftOf, dropDraft, insertFiles, markupOf, pathWord, setMarkup, updateDraft, useDraft } from './draft';
+import { appended, draftIn, draftOf, dropDraft, insertFiles, markupOf, pathWord, setMarkup, updateDraft, useDraft } from './draft';
 import { know, known } from './known';
 import { badgeOf, CLICK_PX, drawMarks, EDGE, type Mark, markOf, markSize, type Point, RED, roundedRect } from './marks';
 import { confirmPasteHint, pastedShots, pickedShots, usePasteHint } from './pasteHint';
@@ -60,16 +60,18 @@ export async function attachTo(key: string, files: File[], added?: () => void) {
   let arrived = 0;
   if (!files.length) return arrived;
   updateDraft(key, (d) => ({ error: '', uploading: d.uploading + files.length }));
+  // a switch to another project meanwhile: they go to the draft of the project they were added on
+  const into = draftIn(key);
   for (const f of files) {
     try {
       const id = await api.uploadImage(await prepareImage(await withBytes(f)));
-      updateDraft(key, (d) => ({ images: [...d.images, id] }));
+      into.update((d) => ({ images: [...d.images, id] }));
       arrived++;
-      added?.();
+      if (into.here()) added?.();
     } catch (e) {
-      updateDraft(key, { error: failText(e) });
+      into.update({ error: failText(e) });
     } finally {
-      updateDraft(key, (d) => ({ uploading: d.uploading - 1 }));
+      into.update((d) => ({ uploading: d.uploading - 1 }));
     }
   }
   return arrived;
@@ -85,16 +87,22 @@ export async function fileTo(key: string, files: File[], put: (path: string) => 
   let arrived = 0;
   if (!files.length) return arrived;
   updateDraft(key, (d) => ({ error: '', uploading: d.uploading + files.length }));
+  const into = draftIn(key);
   for (const f of files) {
     try {
       const own = droppedPath(f) ?? (await api.findFile(f).catch(() => null));
       if (!own && f.size > MAX_FILE_BYTES) throw new ApiError('fileTooLarge', '');
-      put(own ?? (await api.uploadFile(f)));
+      const path = own ?? (await api.uploadFile(f));
+      if (into.here()) put(path);
+      else {
+        const word = pathWord(path);
+        into.update((d) => ({ text: appended(d.text, word), files: [...(d.files ?? []), word] }));
+      }
       arrived++;
     } catch (e) {
-      updateDraft(key, { error: failText(e) });
+      into.update({ error: failText(e) });
     } finally {
-      updateDraft(key, (d) => ({ uploading: d.uploading - 1 }));
+      into.update((d) => ({ uploading: d.uploading - 1 }));
     }
   }
   return arrived;
@@ -161,14 +169,17 @@ export function useShotInput({ draft, initial = [], onChange, off = false, put }
       };
       if (!marks.length) return into(original);
       updateDraft(key, (d) => ({ error: '', marking: [...d.marking, id] }));
+      const draft = draftIn(key);
       try {
         const next = await api.uploadImage(await markedImage(imageUrl(original), marks));
+        // a switch to another project meanwhile: the marked image takes the original's place in the draft kept for the one it was marked on
+        if (!draft.here()) return draft.update((d) => ({ images: d.images.map((x) => (x === id ? next : x)) }));
         setMarkup(next, { original, marks });
         into(next);
       } catch (e) {
-        failed(e);
+        if (draft.here()) failed(e);
       } finally {
-        updateDraft(key, (d) => ({ marking: d.marking.filter((x) => x !== id) }));
+        draft.update((d) => ({ marking: d.marking.filter((x) => x !== id) }));
       }
     },
     /** After sending: the field is empty again, or without those sent while more were added. */

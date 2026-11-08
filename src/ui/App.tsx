@@ -2,7 +2,7 @@ import { clientExtensions as extensions } from '../extensions/client';
 // The project: camera, drag, unfold-in-place and the plan sheet.
 
 import { useRatePrompt } from './feedback';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Archive, Bot, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
@@ -466,14 +466,19 @@ function Project({
   const flyOrJump = async (to: Cam, ms: number, jump: boolean) => (jump ? ((camSide.current = sideNow()), setCam(to)) : fly(to, ms));
   /** The view `f` was opened from, beside the sheets as they are now. */
   const back = (f: Focus) => besideSheet(f.prevCam, f.prevSide, sideNow());
+  /** The camera's save still waiting for the view to rest, which a switch to another project does at once. */
+  const camDue = useRef<(() => void) | null>(null);
   useEffect(() => {
     document.documentElement.style.setProperty('--s', String(cam.s));
     if (focusRef.current) return;
-    const h = setTimeout(() => {
+    const save = () => {
+      camDue.current = null;
       try {
         localStorage.setItem(camCanvas.current, JSON.stringify(besideSheet(cam, camSide.current, NO_SIDES)));
       } catch {}
-    }, 300);
+    };
+    camDue.current = save;
+    const h = setTimeout(save, 300);
     return () => clearTimeout(h);
   }, [cam, snapshot.project.id]);
   // the storage key of the canvas the camera shows; another canvas brings back the view kept for it, or one on all of it
@@ -944,6 +949,15 @@ function Project({
     });
   };
   useEffect(() => beforeReload(() => keepNow.current()), []);
+  // a switch to another project within the page: what was open comes back with this project, as after a
+  // reload; before the page leaves it, while its open things are still there to be read
+  useLayoutEffect(
+    () => () => {
+      keepNow.current();
+      camDue.current?.();
+    },
+    [],
+  );
   // Seismic's sheet left open over a draft comes back with the project; left empty or closed, it stays closed
   useEffect(() => {
     const away = () => leaveSheet(sessionStorage, snapshot.project.id, kOnRef.current && drafted(OBEYA_DRAFT));
@@ -955,7 +969,7 @@ function Project({
     };
   }, []);
   useEffect(() => {
-    const k = takeKept(sessionStorage, snapshot.project.id);
+    let k = takeKept(sessionStorage, snapshot.project.id);
     const sheetLeft = takeSheetLeft(sessionStorage, snapshot.project.id);
     // the project's own address, where the page came without one or with another project's; `?talk`
     // (Seismic's answer in another project's navigation) opens Seismic's sheet, once
@@ -970,6 +984,9 @@ function Project({
       addressSet.current = false;
       history.replaceState(history.state, '', pathOf(openNow()));
     };
+    // an address on another card than the one kept (a card on this project opened from another) opens that one
+    if (k && code && named(itemsRef.current, code)?.id !== k.card) k = { ...k, card: code, plan: undefined, scroll: [], drafts: [], video: undefined };
+    if (k && talk) k = { ...k, sheet: 'koordinator' };
     if (k) return void reopen(k).catch(console.error).finally(done);
     if (sheetLeft || talk) {
       // beside the sheet at once, as the project comes back

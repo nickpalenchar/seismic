@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { appended, cardDraft, findingDraft, pathWord, wordsOf, draftOf, dropDraft, giveBack, insert, insertFiles, keepDrafts, reviewReset, MIC_DRAFT, markupOf, moveFiles, moveImages, OBEYA_DRAFT, setMarkup, updateDraft, withoutWords } from './draft';
+import { appended, cardDraft, draftIn, findingDraft, pathWord, wordsOf, draftOf, dropDraft, giveBack, insert, insertFiles, keepDrafts, reviewReset, MIC_DRAFT, markupOf, moveFiles, moveImages, OBEYA_DRAFT, setMarkup, updateDraft, withoutWords } from './draft';
 
 const store = () => {
   const m = new Map<string, string>();
@@ -159,4 +159,18 @@ test('switching to another project within the page puts its drafts in place of t
   expect(draftOf(OBEYA_DRAFT).text).toBe('to Seismic on shop');
   expect(draftOf(cardDraft('a1')).text).toBe('on shop');
   expect(draftOf(cardDraft('b1')).text).toBe('');
+});
+
+test('an upload that ends after a switch to another project goes to the draft of the project it started on', () => {
+  keepDrafts(s, 'shop');
+  updateDraft(OBEYA_DRAFT, { text: 'with a shot' });
+  const into = draftIn(OBEYA_DRAFT);
+  keepDrafts(s, 'blog');
+  expect(into.here()).toBe(false);
+  into.update((d) => ({ images: [...d.images, 'img9'] }));
+  expect(draftOf(OBEYA_DRAFT).images).toEqual([]);
+  expect(JSON.parse(s.getItem('obeya-drafts-shop')!)[OBEYA_DRAFT]).toEqual({ text: 'with a shot', images: ['img9'] });
+  keepDrafts(s, 'shop');
+  expect(draftOf(OBEYA_DRAFT).images).toEqual(['img9']);
+  expect(draftIn(OBEYA_DRAFT).here()).toBe(true);
 });
