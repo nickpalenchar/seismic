@@ -6,10 +6,10 @@
 // The copy holds the database, the JSON files and the screenshots and files the cards refer to. Each
 // repository of the configuration is cloned locally into the copy and the configuration points at
 // those clones, so the read checkouts Seismic makes never land in the real repositories; the
-// workstation leases of the database are dropped for the same reason (their number is reported).
+// workstation leases of the database stay, with their paths moved into the copy (the checkouts are not).
 // Then it starts the server (`--idle-workers`) and asserts: the schema is migrated and holds no
 // name with "canvas", every project of the configuration is served with the cards the database
-// holds for it, and every screenshot an event refers to is found as it was in the home. Exits 1
+// holds for it, no table lost a row, and every screenshot an event refers to is found as it was in the home. Exits 1
 // with the reasons otherwise.
 
 import { Database } from 'bun:sqlite';
@@ -69,11 +69,20 @@ const before = (db.query('PRAGMA user_version').get() as { user_version: number 
 const leases = count('SELECT count(*) n FROM ' + (db.query("SELECT 1 FROM sqlite_master WHERE name = 'workstations'").get() ? 'workstations' : 'workspaces'));
 const projectColumn = (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = 'project_id'").get() ? 'project_id' : 'canvas_id');
 const cardsBy = Object.fromEntries((db.query(`SELECT ${projectColumn} id, count(*) n FROM cards WHERE deleted_at IS NULL AND archived_at IS NULL GROUP BY ${projectColumn}`).all() as { id: string; n: number }[]).map((r) => [r.id, r.n]));
-for (const t of ['workstations', 'workspaces']) if (db.query('SELECT 1 FROM sqlite_master WHERE name = ?').get(t)) db.run(`DELETE FROM ${t}`);
-for (const c of ['workstation', 'workspace']) if (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = ?").get(c)) db.run(`UPDATE cards SET ${c} = NULL`);
+// The leases stay, with their paths moved into the copy, where the checkouts are not (copying them
+// would copy gigabytes and git worktrees that point back into the real repositories): the cards
+// that were at work come up with their workstation gone, which is what the server has to cope with.
+const moved = (col: string) => `replace(${col}, '${join(source, 'workspaces')}', '${join(home, 'workspaces')}')`;
+for (const t of ['workstations', 'workspaces']) if (db.query('SELECT 1 FROM sqlite_master WHERE name = ?').get(t)) db.run(`UPDATE ${t} SET path = ${moved('path')}`);
+for (const c of ['workstation', 'workspace']) if (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = ?").get(c)) db.run(`UPDATE cards SET ${c} = ${moved(c)} WHERE ${c} IS NOT NULL`);
+// every row of every table, to compare after the migration (a table renamed since keeps its count)
+const RENAMED: Record<string, string> = { canvases: 'projects', workspaces: 'workstations' };
+const tables = (db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[]).map((t) => t.name);
+const rowsBefore = Object.fromEntries(tables.map((t) => [RENAMED[t] ?? t, count(`SELECT count(*) n FROM "${t}"`)]));
+const openIds = (db.query(`SELECT ${projectColumn} p, id FROM cards WHERE deleted_at IS NULL AND archived_at IS NULL`).all() as { p: string; id: string }[]).reduce<Record<string, string[]>>((m, r) => ((m[r.p] ??= []).push(r.id), m), {});
 const shots = (db.query("SELECT images FROM events WHERE images IS NOT NULL AND images != '[]'").all() as { images: string }[]).flatMap((r) => JSON.parse(r.images) as string[]);
 db.close();
-console.log(`home copy ${home}: schema ${before}, ${Object.values(cardsBy).reduce((a, b) => a + b, 0)} cards on the projects, ${leases} workstation leases dropped, ${shots.length} screenshots referred to`);
+console.log(`home copy ${home}: schema ${before}, ${Object.values(cardsBy).reduce((a, b) => a + b, 0)} cards on the projects, ${leases} workstation leases kept (checkouts not copied), ${shots.length} screenshots referred to`);
 
 // the server
 const port = await new Promise<number>((res) => {
@@ -101,8 +110,10 @@ try {
     expect(projects.length === config.length, `all ${config.length} projects of ${CONFIG_FILE} are served (${projects.map((p) => p.id).join(', ')})`);
     for (const p of projects) {
       const r = await fetch(`${base}/api/c/${encodeURIComponent(p.id)}/project`, { headers: owner });
-      const snap = r.ok ? ((await r.json()) as { items: unknown[] }) : null;
-      expect(!!snap && snap.items.length >= Math.min(cardsBy[p.id] ?? 0, 1) && snap.items.length <= (cardsBy[p.id] ?? 0) + 1000, `${p.id}: snapshot loads with ${snap?.items.length ?? '–'} items (${cardsBy[p.id] ?? 0} cards in the database)`);
+      const snap = r.ok ? ((await r.json()) as { items: { id: string }[] }) : null;
+      const shown = new Set((snap?.items ?? []).map((i) => i.id));
+      const lost = (openIds[p.id] ?? []).filter((id) => !shown.has(id));
+      expect(!!snap && lost.length === 0, `${p.id}: the snapshot shows all ${(openIds[p.id] ?? []).length} open cards of the database${lost.length ? `; missing ${lost.join(', ')}` : ''}`);
     }
     const missing = [...new Set(shots)].filter((id) => !existsSync(join(home, 'images')) || !readdirSync(join(home, 'images'), { recursive: true }).some((f) => String(f).includes(id)));
     const missingAtSource = [...new Set(shots)].filter((id) => !readdirSync(join(source, 'images'), { recursive: true }).some((f) => String(f).includes(id)));
@@ -112,6 +123,11 @@ try {
   const after = (check.query('PRAGMA user_version').get() as { user_version: number }).user_version;
   const left = check.query("SELECT name FROM sqlite_master WHERE sql LIKE '%anvas%' OR name LIKE '%anvas%'").all();
   expect(after > before || before === after, `schema ${before} -> ${after}`);
+  const rowsAfter = Object.fromEntries(Object.keys(rowsBefore).map((t) => [t, (check.query(`SELECT count(*) n FROM "${t}"`).get() as { n: number }).n]));
+  // the server may add rows while it starts (chats, a project row); none of the home's may go
+  // (the leases are the exception: the server forgets those whose checkout is not there, as in the copy)
+  const gone = Object.keys(rowsBefore).filter((t) => t !== 'workstations' && rowsAfter[t]! < rowsBefore[t]!);
+  expect(gone.length === 0, `no table lost rows in the migration (${Object.keys(rowsBefore).length} tables, ${Object.values(rowsBefore).reduce((a, b) => a + b, 0)} rows before; workstation leases ${rowsBefore.workstations} -> ${rowsAfter.workstations}${gone.map((t) => `; ${t}: ${rowsBefore[t]} -> ${rowsAfter[t]}`).join('')})`);
   expect(left.length === 0, 'no name with "canvas" is left in the schema');
   expect(check.query('PRAGMA foreign_key_check').all().length === 0, 'no foreign key is violated');
   check.close();
