@@ -119,6 +119,18 @@ describe('Koordinator', () => {
     expect(item(later.id).possibleDuplicates).toBeUndefined();
   });
 
+  test('an archived stopped card does not keep a merge proposal for a deleted partner', async () => {
+    const earlier = card('Export invoices to CSV');
+    const later = card('Add CSV export for invoices');
+    k.request(later.id);
+    await scope(['src/export.ts'], [], 'Same export.', [], ['K1']);
+    board.work(later.id, { branch: 'obeya/add-csv-export' });
+    board.archive([later.id]);
+    expect(board.archived().find((i) => i.id === later.id)?.possibleDuplicates).toEqual([earlier.id]);
+    board.remove(earlier.id);
+    expect(board.archived().find((i) => i.id === later.id)?.possibleDuplicates).toBeUndefined();
+  });
+
   test('checking includes work awaiting review as a possible duplicate', async () => {
     const earlier = card('Export invoices as CSV');
     k.request(earlier.id);

@@ -1876,7 +1876,7 @@ export class Board {
     const plans = rows.filter((r) => r.plan_ref);
     const docs = plans.map((r) => r.plan!.doc!);
     const kids = this.store.cards.children(plans.map((r) => r.id));
-    const items = this.withRate(this.withPrototypes(toItems([...rows, ...kids], docs, this.home, this.worked, this.themeNow)), true);
+    const items = this.withRate(this.withPrototypes(this.withActivePartners(toItems([...rows, ...kids], docs, this.home, this.worked, this.themeNow))), true);
     const byId = new Map(items.map((i) => [i.id, i]));
     const kidsOf = Map.groupBy(items.filter((i) => i.parent), (i) => i.parent!);
     return rows.flatMap((r) => {
@@ -2101,7 +2101,7 @@ export class Board {
       const sources = new Set(manual.map(([from]) => from));
       const archivedRows = this.store.cards.archived(this.project.id).filter((r) => sources.has(r.id) && r.state && !finished(r.state));
       const archivedAt = new Map(archivedRows.map((r) => [r.id, r.archived_at!]));
-      const archived = toItems(archivedRows, [], this.home, this.worked, this.themeNow).filter(connectable).map((i) => ({ ...i, archivedAt: archivedAt.get(i.id)! }));
+      const archived = this.withActivePartners(toItems(archivedRows, [], this.home, this.worked, this.themeNow)).filter(connectable).map((i) => ({ ...i, archivedAt: archivedAt.get(i.id)! }));
       const eligible = new Set([...items.filter(connectable), ...archived].map((i) => i.id));
       items = items.map((i) => {
         const edges = eligible.has(i.id) ? manual.filter(([from, to]) => to === i.id && eligible.has(from)) : [];
@@ -2667,7 +2667,13 @@ export class Board {
 
   /** A card just stored, as the UI sees it. */
   private itemOf(row: CardRow): Item {
-    return toItems([row], [], this.home, undefined, this.themeNow)[0]!;
+    return this.withActivePartners(toItems([row], [], this.home, undefined, this.themeNow))[0]!;
+  }
+
+  /** Items whose suggested duplicates are checked against the project's active cards, for items built from some rows only. */
+  private withActivePartners(items: Item[]): Item[] {
+    if (!items.some((i) => i.possibleDuplicates)) return items;
+    return withLivePartners(items, new Set(this.store.cards.onProject(this.project.id).map((r) => r.id)));
   }
 
   /** The owner rejects a proposal; it is kept, so the same one does not come back. */
@@ -3593,8 +3599,7 @@ function itemHold(h: Hold): ItemHold {
 }
 
 /** A suggested duplicate that is deleted or archived no longer counts: a card left without any is not a merge proposal. */
-export function withLivePartners(items: Item[]): Item[] {
-  const live = new Set(items.map((i) => i.id));
+export function withLivePartners(items: Item[], live = new Set(items.map((i) => i.id))): Item[] {
   return items.map((i) => {
     if (!i.possibleDuplicates) return i;
     const ids = i.possibleDuplicates.filter((id) => live.has(id));
