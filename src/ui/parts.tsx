@@ -205,6 +205,7 @@ export const cardClass = (item: Item, underway?: string) =>
     (item.limitPaused || item.limitedUntil) && 'limit-paused',
     item.snoozed && 'snoozed',
     item.queue && 'queued',
+    item.queue && 'restart' in item.queue && 'restart-queued',
   ]
     .filter(Boolean)
     .join(' ');
@@ -248,6 +249,7 @@ export function CardFace({ item, where, underway, since, chip }: { item: Item; w
     (item.queue && 'behind' in item.queue ? excerpt(waitReason(item.queue)) : undefined) ??
     (item.queue && 'workstation' in item.queue ? t.queue.workstationWhy[item.queue.workstation] : undefined) ??
     (item.queue && 'paused' in item.queue ? t.queue.pausedWhy : undefined) ??
+    (item.queue && 'restart' in item.queue ? t.queue.restartWhy : undefined) ??
     status ??
     (item.idea ? firstLine(item.idea.brief) || firstLine(item.body) : firstLine(item.body));
   return (
@@ -267,6 +269,7 @@ export function CardFace({ item, where, underway, since, chip }: { item: Item; w
         {(item.limitPaused || item.limitedUntil) && !underway && <HourglassMark />}
         {item.snoozed && !underway && <ClockMark />}
         {item.restartPaused && !underway && <RestartMark />}
+        {item.queue && 'restart' in item.queue && !underway && <HourglassMark />}
         {asksYou(item) && !underway && !revising && !item.proposal?.merge && <QuestionMark />}
         {/* one line on the card, cut short rather than running into the text above it */}
         <span className="state-text">

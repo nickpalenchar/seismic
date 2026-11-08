@@ -547,6 +547,9 @@ const en = {
   queue: {
     empty: 'No task waits. A task that would conflict with work in progress, or finds no free workstation, lines up here.',
     checking: 'Seismic checking',
+    restart: 'Starting after restart',
+    restartWhy: 'Waits for the pending restart.',
+    restartLong: 'Seismic is about to restart. The task is checked and starts once it is back.',
     waiting: 'In the queue',
     checkingLong: 'Seismic checks for possible duplicate cards and likely merge conflicts with work in progress.',
     checkingStopHint: 'Calls off the start while Seismic checks: the task is planned again, and starting it again checks it afresh.',
@@ -2575,6 +2578,8 @@ export const stateLabel = (i: { demos?: { asked?: true }[]; kind?: string; threa
     : i.queue
     ? 'checking' in i.queue
       ? t.queue.checking
+      : 'restart' in i.queue
+        ? t.queue.restart
       : 'paused' in i.queue
         ? t.queue.paused
       : 'workstation' in i.queue

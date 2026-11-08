@@ -353,6 +353,7 @@ const en = {
     requeued: 'Waits for the next free workstation and then goes on on its branch.',
     slotFree: 'A machine has a free slot again; it starts.',
     projectPaused: "This project's agents are paused: the task starts once you resume them.",
+    restartPending: 'Seismic is about to restart: the task is checked and starts once it is back.',
     projectPlays: "This project's agents run again; it starts.",
     waitedDone: 'What it waited for is done; it starts.',
     waitedDoneRecheck: 'Seismic: what it waited for is done; checks it again against the work in progress.',

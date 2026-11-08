@@ -78,6 +78,8 @@ export interface KoordinatorOptions {
   home: () => string;
   /** Whether the owner paused the project's agents: a card the Koordinator lets start waits until they resume them (`{ paused }` in its queue). */
   paused?: () => boolean;
+  /** Whether Seismic, or this project's agents, are about to restart: a card started meanwhile waits for it (`{ restart }` in its queue) instead of being checked. */
+  restarting?: () => boolean;
   /** How long a plan's start, or taking a card's workstation, waits for the owner to take it back; START_ALL_HOLD_MS and EVICT_HOLD_MS by default. */
   holdMs?: number;
   /** After how many of the owner's inputs the retrospective runs; REVIEW_EVERY by default. */
@@ -214,6 +216,11 @@ export class Koordinator {
     if (card.state !== 'planned') throw new BadRequest('notPlanned', 'only a planned card can be started');
     if (card.queue) throw new BadRequest('queued', 'the card is already with Seismic');
     this.o.board.work(cardId, { agent_setting: setting ? JSON.stringify(setting) : null });
+    if (this.o.restarting?.()) {
+      this.setQueue(cardId, { restart: true });
+      this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.koordinator.restartPending);
+      return;
+    }
     this.setQueue(cardId, { checking: true });
     this.suggestAtStart(cardId);
     this.serial(() => this.decide(cardId));
@@ -248,6 +255,14 @@ export class Koordinator {
     if (!open.length) throw new BadRequest('nothingToStart', 'the plan has no planned workstream left to start');
     // one the owner set aside to start later goes with them, so a workstream building on it waits for it
     for (const w of open) if (w.snoozed?.start) this.o.board.unsnooze(w.id, 'owner');
+    if (this.o.restarting?.()) {
+      for (const w of open) {
+        this.o.board.work(w.id, { agent_setting: null });
+        this.setQueue(w.id, { restart: true });
+        this.o.board.log(w.id, 'state', 'obeya', this.o.board.t.koordinator.restartPending);
+      }
+      return;
+    }
     const now = Date.now();
     open.forEach((w, n) => this.o.board.work(w.id, { agent_setting: null, queue: JSON.stringify({ checking: true, together: plan.id, since: new Date(now + n).toISOString() }) }));
     this.o.board.log(plan.id, 'state', 'owner', this.o.board.t.koordinator.allStarted(open.map((w) => w.label ?? w.title).join(', ')));
@@ -912,6 +927,14 @@ export class Koordinator {
           continue;
         }
       }
+      if ('restart' in w.queue!) {
+        // the restart is through (or called off): it is checked now as when it was started
+        if (!this.o.restarting?.()) {
+          this.setQueue(w.id, { checking: true }, w.queue!.since);
+          this.serial(() => this.decide(w.id));
+        }
+        continue;
+      }
       if ('paused' in w.queue!) {
         if (!paused) this.startNow(w.id, this.o.board.t.koordinator.projectPlays, begun);
         continue;
@@ -1296,7 +1319,7 @@ export class Koordinator {
             .map((a) => {
               const q = a.queue!;
               const waitsFor =
-                'behind' in q ? q.behind.map((id) => `"${this.o.board.item(id)?.title ?? id}"`).join(', ') : 'workstation' in q ? 'a free workstation (its start is decided)' : 'paused' in q ? "the owner to resume the project's paused agents (its start is decided)" : '';
+                'behind' in q ? q.behind.map((id) => `"${this.o.board.item(id)?.title ?? id}"`).join(', ') : 'workstation' in q ? 'a free workstation (its start is decided)' : 'paused' in q ? "the owner to resume the project's paused agents (its start is decided)" : 'restart' in q ? "Seismic's restart (it is not yet checked)" : '';
               return [
                 `- ${tagOf(tags, a.id)}: "${a.title}"${a.body ? ` — ${a.body.split('\n')[0]!.slice(0, 200)}` : ''}`,
                 `  expected to change: ${(a.scope ?? []).filter(hard).join(', ') || '(no estimate)'}`,

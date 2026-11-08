@@ -20,8 +20,10 @@ let workers: Workers;
 let workstations: Workstations;
 let k: Koordinator;
 let docs: PlanDoc[];
+let restarting = false;
 
 beforeEach(() => {
+  restarting = false;
   dir = mkdtempSync(join(tmpdir(), 'obeya-k-'));
   const main = join(dir, 'main');
   gitRepo(main);
@@ -32,7 +34,7 @@ beforeEach(() => {
   workstations = new Workstations(store, 'c', { mode: 'worktrees', repoPath: main, dir: join(dir, 'ws') });
   runtime = new FakeRuntime();
   workers = new Workers({ board, runtime, workstations, adapter });
-  k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workstations, adapter, path: main }), holdMs: 0 });
+  k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workstations, adapter, path: main }), holdMs: 0, restarting: () => restarting });
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -143,6 +145,19 @@ describe('Koordinator', () => {
     await scope(['src/b.ts']);
     expect(workerOf(b.id).spec.setting).toMatchObject({ model: 'opus', effort: 'high' });
   });
+  test('a card started while a restart is pending skips the check and is checked once the restart is through', async () => {
+    restarting = true;
+    const a = card('A');
+    k.request(a.id);
+    await settle();
+    expect(item(a.id).queue).toMatchObject({ restart: true });
+    expect(estimates()).toHaveLength(0);
+    restarting = false;
+    board.changed();
+    await settle();
+    expect(item(a.id).state).toBe('working');
+  });
+
   test('a card with nothing in progress starts at once; its scope is estimated afterwards', async () => {
     board.addPreference('Agents speak to me in English only.');
     const a = card('A');

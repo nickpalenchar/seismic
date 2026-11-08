@@ -362,6 +362,7 @@ export class ProjectRuntime {
       runtime: deps.runtime,
       home: () => this.repos[0]!.read.path,
       paused: () => this.paused,
+      restarting: () => !!this.obeyaDue || !!this.pending,
       repoFor: (card) => {
         const r = this.repoOf(card);
         return { workers: r.workers, workstations: r.workstations, adapter: r.adapter, path: r.read.path, folder: !!r.info.folder };

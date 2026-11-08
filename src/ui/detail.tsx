@@ -23,7 +23,7 @@ import { Branch } from './diff';
 import { ResultFiles, REVIEW } from './files';
 import { DiscardChanges, FolderBox, FolderLine, useFolderDiff } from './folder';
 import { LabelMarks, LabelPicks } from './labels';
-import { asksYou, CardFace, cardClass, DepArrow, landedRef, LimitNotice, PauseMark, PlayMark, QuestionMark, RestartMark, shownTitle } from './parts';
+import { asksYou, CardFace, cardClass, DepArrow, HourglassMark, landedRef, LimitNotice, PauseMark, PlayMark, QuestionMark, RestartMark, shownTitle } from './parts';
 import { asksAhead, holdsNotes, queueOrder } from '../core/queue';
 import { forcedText, QueueList, scrollerOf, useMenuClose, useQueueMove, useQueueSort, waitText, type Behind } from './queue';
 import { dimensions, shownTags } from '../core/page-tags';
@@ -497,6 +497,16 @@ export function Detail(p: Props) {
             </button>
           </div>
         </>
+      ) : 'restart' in item.queue ? (
+        <>
+          <div className="q-text">{t.queue.restartLong}</div>
+          <QueuePlace item={item} items={all} />
+          <div className="actions">
+            <button className="btn" onClick={() => act({ action: 'dequeue' }, { close: false })}>
+              {t.queue.dequeue}
+            </button>
+          </div>
+        </>
       ) : 'paused' in item.queue ? (
         <>
           <div className="q-text">{t.queue.pausedLong}</div>
@@ -580,8 +590,8 @@ export function Detail(p: Props) {
       )}
       <KindLine kind={kind} item={item} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className="p-title">{shownTitle(item)}</div>}
-      <div className={['p-state', finishingUp(item) && 'finishing', (item.paused || item.snoozed || item.parkingLot) && 'paused', item.restartPaused && 'restart-paused', item.resolvingConflicts && 'resolving-conflicts', item.codeReview?.state === 'running' && 'reviewing'].filter(Boolean).join(' ')}>
-        {asksYou(item) ? <QuestionMark /> : item.restartPaused ? <RestartMark /> : item.parkingLot ? <Car size={13} aria-hidden /> : '●'} {stateLabel(item)}
+      <div className={['p-state', finishingUp(item) && 'finishing', (item.paused || item.snoozed || item.parkingLot) && 'paused', item.restartPaused && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.resolvingConflicts && 'resolving-conflicts', item.codeReview?.state === 'running' && 'reviewing'].filter(Boolean).join(' ')}>
+        {asksYou(item) ? <QuestionMark /> : item.restartPaused ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : item.parkingLot ? <Car size={13} aria-hidden /> : '●'} {stateLabel(item)}
         {item.snoozed ? (
           <span className="p-status"> · {snoozeWho(item.snoozed)}</span>
         ) : item.resolvingConflicts ? (

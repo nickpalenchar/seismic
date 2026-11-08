@@ -1194,6 +1194,7 @@ export class Commander {
         if (card.state !== 'planned') return `only a planned card can be started (${is})`;
         if (card.queue && 'behind' in card.queue) return { do: 'force', card: card.id };
         if (card.queue && 'workstation' in card.queue) return 'the card waits for a free workstation and starts by itself once one is free';
+        if (card.queue && 'restart' in card.queue) return 'Seismic is about to restart: the card is checked and starts by itself once it is back';
         if (card.queue && 'paused' in card.queue) return "the owner paused this project's agents: the card starts by itself once they resume them";
         if (card.queue) return 'Seismic is still checking the card; it starts by itself unless it collides';
         break;
@@ -1568,6 +1569,7 @@ export function talkReplyNote(quoted: TalkQuote | undefined): string {
 /** A queued card's state as the Koordinator reads it. */
 function queued(q: Queue, items: Item[]): string {
   if ('checking' in q) return 'queued: Seismic checks it for merge conflicts';
+  if ('restart' in q) return 'waits for the pending restart of Seismic; is checked then and starts by itself';
   if ('paused' in q) return "waits for the owner to resume this project's paused agents; starts by itself then";
   if ('workstation' in q && q.workstation === 'slots') return 'waits for a free slot (every machine with a free workstation has as many workers busy as it has slots); starts by itself once one is done';
   if ('workstation' in q) return `waits for a free workstation (${q.workstation === 'dirty' ? 'every free one has uncommitted changes' : 'all are leased'}); starts by itself once one is free`;

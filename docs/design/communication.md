@@ -156,6 +156,7 @@ project paused") instead of taking the slots that pausing freed. Resuming resume
 agent there, as "Resume" does, and the waiting cards start. Once none on the canvas is paused
 any more (the owner resumed each on its card, or their cards went), the queue runs again by itself;
 one that could not go on (its repository left the project) is still paused and keeps the queue held.
+A card started while a restart is pending (Seismic's, or its repositories' agents') skips the check and shows "Starting after restart" in ice blue with an hourglass; once the restart is through it is checked and starts as any card.
 A restart leaves it as it was: the cards stay paused and the project holds its queue. A snoozed card
 is not a paused agent, though its worker stopped the same way: it counts for neither number, the
 project's resume leaves it asleep, it holds no queue, and its card shows no ▶; it wakes at its time

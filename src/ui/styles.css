@@ -246,12 +246,15 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-fami
 /* its agent paused for a restart that is due: ice blue stock, the line stands still behind a circular arrow */
 .card.restart-paused { --c: var(--restart); background-color: color-mix(in srgb, var(--restart) 16%, var(--card)); }
 .card.restart-paused .state::after { display: none; }
+/* started while a restart is pending: the same ice blue, behind an hourglass */
+.card.restart-queued { --c: var(--restart); background-color: color-mix(in srgb, var(--restart) 16%, var(--card)); }
+.card.restart-queued .state::after { display: none; }
 .p-state.restart-paused { --c: var(--restart); }
 /* the worker resolves rebase conflicts: the state text in orange, with the italic note beside it */
 .card.resolving-conflicts .state, .p-state.resolving-conflicts { --c: var(--waiting); }
 .card .state .doing.conflict, .p-state .p-status.conflict { color: var(--waiting); font-style: italic; font-weight: 500; }
 .p-state .restart-mark { vertical-align: -1px; }
-.card .state .clock-mark, .card .state .question-mark, .card .state .restart-mark { flex: none; margin-right: -2px; }
+.card .state .clock-mark, .card .state .question-mark, .card .state .restart-mark, .card .state .hourglass-mark { flex: none; margin-right: -2px; }
 /* a question from its agent: the owner's turn in dark yellow, its rule, frame and pin, the pin with "?" */
 .card.asking { --c: var(--asking); }
 .card.asking .badge { --pin: var(--asking); }
@@ -3049,3 +3052,4 @@ body:has(#project-settings.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .description-edit .card-refs-hint { margin: 6px 0; }
 .chat-model { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--muted); font-size: 12px; }
 .chat-model select { color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; font: inherit; }
+.card .state .hourglass-mark { width: 9px; height: 12px; }

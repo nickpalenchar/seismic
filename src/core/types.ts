@@ -1089,7 +1089,7 @@ export type Queue = Wait & { since: string };
  * What a card in the queue waits for (`Queue`). `together`: judged in one turn with the cards of the
  * same key, a plan's workstreams started at once (the plan's id) or cards freed at once (`freed:…`).
  */
-export type Wait = { checking: true; together?: string } | { behind: string[]; reason: string; buildsOn?: string[]; manualWait?: string[] } | { workstation: WorkstationShortage; begun?: true } | { paused: true; begun?: true };
+export type Wait = { checking: true; together?: string } | { behind: string[]; reason: string; buildsOn?: string[]; manualWait?: string[] } | { workstation: WorkstationShortage; begun?: true } | { paused: true; begun?: true } | { restart: true };
 
 /** Why a card waits to start: no clone free (`none`), the free ones dirty, or every machine with a clean free one busy to its slots (`slots`). */
 export type WorkstationShortage = 'none' | 'dirty' | 'slots';
