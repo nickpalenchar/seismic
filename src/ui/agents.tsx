@@ -41,7 +41,7 @@ export function AgentsSheet({ els, on, items, open, underway, onOpen }: { els: M
           <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : undefined} onClick={() => setTab(k)}>
             {t.agents.tabs[k]}
             {k === 'queue' && q.queued.length > 0 && <span className="n">{q.queued.length}</span>}
-            {k === 'parked' && parked.length > 0 && <span className="n">{parked.length}</span>}
+            {k === 'parked' && parked.length > 0 && <span className="count">{parked.length}</span>}
           </button>
         ))}
       </div>
