@@ -1142,7 +1142,8 @@ span.cl-name { color: inherit; cursor: default; }
 :is(.msg.action, .q-chain) .cover .kind { font-size: 11px; }
 :is(.msg.action, .q-chain) .cover .ttl { font-size: 15px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 :is(.msg.action, .q-chain) .cover .meta { font-size: 12.5px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
-:is(.msg.action, .q-chain) .cover .state { position: static; margin-top: 6px; font-size: 11.5px; }
+/* relative, so the moving line of a card at work stays under its state line, inside the cover */
+:is(.msg.action, .q-chain) .cover .state { position: relative; inset: auto; margin-top: 6px; font-size: 11.5px; }
 :is(.msg.action, .q-chain) .cover .badge { display: none; }
 :is(.msg.action, .q-chain) .cover.gone { cursor: default; box-shadow: none; opacity: .7; }
 :is(.msg.action, .q-chain) .cover.gone:hover { transform: none; }
