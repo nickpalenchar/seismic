@@ -148,7 +148,8 @@ remembered per browser ("All" until one was chosen):
   the same one-click replies and "Go to card". Snoozed cards stand at the end (see Snoozing a card).
   The desktop's inbox shows the same entries with the latest wait first; both share the entry
   layout and actions, the unread dot and the "Unread | All" switch. Then "Working", "Code reviewing",
-  "Review fixing", "Landing" and "Planned" as on the desktop, snoozed cards at the end of each, and
+  "Review fixing", "Landing" and "Planned" as on the desktop ("Working" also holding the ideas and
+  questions an agent is at, which the desktop finds on the canvas), snoozed cards at the end of each, and
   last, on the phone only, "Done": the finished cards not archived yet (those the archive's "Archive
   … done tasks" would take), hidden until its chip is tapped. A planned card opened offers what it
   does on the canvas ("Start agent", "Later"), so a task can be started from the phone.
@@ -550,9 +551,9 @@ workers are busy.
 - **The phone's home is the Agents view** (2026-11-08, the owner): one way of looking at the cards
   on the desk and the phone, instead of the phone's own lists ("Needs you", "Running", folded
   "Planned" and "Done"). "Needs you" keeps the inbox's one-click replies, since answering is what the
-  phone is mostly for; chips of stages without cards are left out (the row has room for few); what
-  "Running" held that the Agents view leaves out (an idea's agent thinking) is reached from the
-  canvas. Done cards stay reachable as a stage of their own, hidden by default (owner, 2026-10-28:
+  phone is mostly for; chips of stages without cards are left out (the row has room for few); an
+  idea or question whose agent is at work stands under "Working", since the phone has no canvas to
+  find it on. Done cards stay reachable as a stage of their own, hidden by default (owner, 2026-10-28:
   what is done but not archived, without pushing what waits and runs further down).
 - **Phone conversations are a panel from below, sized with a grip** (2026-10-17). Rejected: the
   conversation as a box in the scrolling page (a scroll area inside another, and the page scrolled

@@ -725,6 +725,8 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
     if (inInbox.has(i.id) || i.archivedAt || inParkingLot(i)) return undefined;
     const s = agentStage(i, isUnderway(i.id));
     if (s && s !== 'needsYou') return s;
+    // an idea's or a question's agent at work: the phone has no canvas to find it on, so it stands under "Working"
+    if (!s && !i.queue && runs(i)) return 'working';
     if (!s && finishedArchivable(i) && !needsYou(i) && !snoozeOf(i)?.waiting && !runs(i) && !isUnderway(i.id)) return 'done';
     return undefined;
   };
