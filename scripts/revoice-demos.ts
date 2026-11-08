@@ -70,8 +70,8 @@ function candidates(): (Row & { dir: string })[] {
   const db = new Database(join(home, 'obeya.db'), { readonly: true });
   const rows = db
     .query<Row, string[]>(
-      `SELECT c.id, c.title, c.demo, c.share, max(e.at) AS approved FROM cards c JOIN events e ON e.card_id = c.id
-       WHERE c.project_id = ? AND c.deleted_at IS NULL AND c.demo IS NOT NULL AND NOT EXISTS (SELECT 1 FROM card_ideas i WHERE i.card_id = c.id AND i.prototype_of IS NOT NULL) AND e.kind = 'state' AND e.author = 'owner'
+      `SELECT c.id, c.title, d.latest AS demo, d.share, max(e.at) AS approved FROM cards c JOIN card_demos d ON d.card_id = c.id JOIN events e ON e.card_id = c.id
+       WHERE c.project_id = ? AND c.deleted_at IS NULL AND d.latest IS NOT NULL AND NOT EXISTS (SELECT 1 FROM card_ideas i WHERE i.card_id = c.id AND i.prototype_of IS NOT NULL) AND e.kind = 'state' AND e.author = 'owner'
          AND e.text IN (${APPROVED.map(() => '?').join(', ')})
        GROUP BY c.id ORDER BY approved DESC`,
     )

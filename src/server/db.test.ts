@@ -23,8 +23,25 @@ function withPath(f: (path: string) => void) {
   }
 }
 
+/** The columns of `cards` that moved into the tables of a card's parts, as they were added to it. */
+const MOVED = [
+  'pr TEXT', 'demo TEXT', 'idea TEXT', 'prototype_of TEXT REFERENCES cards(id)', 'plan TEXT', 'plan_docs TEXT', 'prototype TEXT',
+  'built_on TEXT REFERENCES cards(id)', 'share TEXT', 'proposal TEXT', 'held TEXT', 'becomes_plan INTEGER NOT NULL DEFAULT 0', 'paused TEXT',
+  'demos TEXT', 'snoozed TEXT', 'files TEXT', 'deps TEXT', 'collapsed INTEGER NOT NULL DEFAULT 0', 'contribution TEXT', 'new_repo TEXT',
+  'page_heard TEXT', 'pausing TEXT', 'priority TEXT', 'category TEXT', 'subcategory TEXT', 'complexity INTEGER', 'suggested_labels TEXT',
+  'owner_labels TEXT', 'code_review TEXT', 'parking_lot TEXT', 'hold TEXT',
+];
+
+/** The database as it was before the columns that moved into the tables of a card's parts were dropped from `cards`. */
+function withMovedColumns(db: Database) {
+  if (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = 'hold'").get()) return;
+  for (const column of MOVED) db.run(`ALTER TABLE cards ADD COLUMN ${column}`);
+  db.run('CREATE INDEX cards_prototypes ON cards (project_id, created_at) WHERE deleted_at IS NULL AND prototype_of IS NOT NULL');
+}
+
 /** The database as it was before a card's review, demo and plan parts, labels and hold had tables of their own. */
 function withoutParts(db: Database) {
+  withMovedColumns(db);
   if (!db.query("SELECT 1 FROM sqlite_master WHERE name = 'card_holds'").get()) return;
   for (const t of ['card_reviews', 'card_demos', 'card_earlier_demos', 'card_plans', 'card_labels', 'card_holds']) db.run(`DROP TABLE ${t}`);
   db.run('CREATE INDEX cards_plan_docs ON cards (project_id) WHERE deleted_at IS NULL AND plan_docs IS NOT NULL');
@@ -85,6 +102,7 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     log(answered!.id, 'answer', 'owner', 'Yes');
     log(answered!.id, 'review', 'worker', 'Done again.');
     const paused = log(video!.id, 'state', 'owner', 'Paused. The agent goes on when you click “Resume” or write to it.');
+    withMovedColumns(s.db);
     const set = (id: string, column: string, value: object) => s.db.run(`UPDATE cards SET ${column} = ? WHERE id = ?`, [JSON.stringify(value), id]);
     set(video!.id, 'demo', { dir: '/d', chapters: [], answering: true });
     set(answered!.id, 'demo', { kind: 'video', dir: '/d', chapters: [], question: 'Q?', answer: 'Yes' });
@@ -231,6 +249,7 @@ test('the sessions of cards from before runs were recorded: the last as pinned, 
     s.cards.update(mixed!.id, { session_id: 's-3', agent_setting: JSON.stringify({ model: 'sonnet', effort: 'low' }) });
     s.events.add({ cardId: mixed!.id, kind: 'say', author: 'worker', text: 'First.', agent: { harness: 'claude', model: 'claude-opus-5-5' } });
     s.events.add({ cardId: mixed!.id, kind: 'say', author: 'worker', text: 'Second.', agent: { harness: 'claude', model: 'claude-sonnet-5-5' } });
+    withMovedColumns(s.db);
     s.db.run('DROP TABLE agent_runs');
     s.db.run('DROP TABLE feedback');
     s.db.run('ALTER TABLE cards DROP COLUMN priority');
@@ -379,7 +398,7 @@ test('what an Seismic kept while projects were canvases is in today’s names, t
     // what names a canvas now is the canvas layer's, which came after
     const layer = (o: { name: string; sql: string | null }) => /^(canvases|canvases_name|cards_canvas|sqlite_autoindex_canvases_1)$/.test(o.name);
     const names = (after.db.query('SELECT name, sql FROM sqlite_master').all() as { name: string; sql: string | null }[])
-      .filter((o) => !layer(o) && /canvas/i.test(o.name + (o.sql ?? '').replace(/, canvas_id TEXT/, '')));
+      .filter((o) => !layer(o) && /canvas/i.test(o.name + (o.sql ?? '').replace(/,\s*`?canvas_id`? text/i, '')));
     expect(names).toEqual([]);
     after.db.close();
   }));
@@ -540,6 +559,63 @@ test('a pull request, a demo with earlier ones, a plan, labels and a hold move i
     expect(after.cards.shared('c').map((r) => r.id)).toEqual([demoed!]);
     expect(after.db.query('PRAGMA foreign_key_check').all()).toEqual([]);
     after.db.close();
+  }));
+
+test('the columns that moved into the tables of the parts leave cards; each card keeps its own fields, its rowid and what refers to it', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.ensureProject('c', 'Shop');
+    const [plan, gone, kid] = s.addCards([
+      { project_id: 'c', kind: 'plan', plan_ref: 'docs/plan/a.md', x: 0, y: 0 },
+      { project_id: 'c', kind: 'task', x: 1, y: 0 },
+      { project_id: 'c', kind: 'task', x: 2, y: 0 },
+    ]);
+    s.db.query('UPDATE cards SET parent_id = $p, plan_ref = $r, status_line = $l WHERE id = $id').run({ p: plan!.id, r: 'docs/plan/a.md#W1', l: 'Testing', id: kid!.id });
+    // a gap in the rowids, which the Koordinator's marks count cards by
+    s.db.run('DELETE FROM cards WHERE id = ?', [gone!.id]);
+    const said = s.events.add({ cardId: kid!.id, kind: 'say', author: 'worker', text: 'On it.' });
+    s.updateCard(kid!.id, { review: { pr: { url: 'https://github.com/a/b/pull/1', number: 1, seen: [], reported: [] } as never }, hold: { reason: 'parkingLot', since: '2026-11-08T10:00:00.000Z' } });
+    const rowids = () => s.db.query('SELECT id, rowid FROM cards ORDER BY rowid').all();
+    const before = rowids();
+    withMovedColumns(s.db);
+    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('__new_cards'))}`);
+    s.db.close();
+
+    const after = new Store(path);
+    const columns = (after.db.query("SELECT name FROM pragma_table_info('cards')").all() as { name: string }[]).map((c) => c.name);
+    expect(columns.filter((c) => MOVED.some((m) => m.split(' ')[0] === c))).toEqual([]);
+    expect(after.db.query('SELECT id, rowid FROM cards ORDER BY rowid').all()).toEqual(before);
+    expect(after.cards.get(kid!.id)).toMatchObject({ parent_id: plan!.id, plan_ref: 'docs/plan/a.md#W1', status_line: 'Testing', review: { pr: { number: 1 } }, hold: { reason: 'parkingLot' } });
+    expect(after.events.of(kid!.id).map((e) => e.id)).toContain(said.id);
+    expect(after.db.query('PRAGMA foreign_key_check').all()).toEqual([]);
+    expect(after.db.query('PRAGMA foreign_keys').get()).toEqual({ foreign_keys: 1 });
+    expect(() => after.db.run("UPDATE cards SET parent_id = 'nowhere' WHERE id = ?", [kid!.id])).toThrow();
+    // a project's cards are read without going through its archive, as before
+    for (const db of [after.db, new Store(':memory:').db]) {
+      const plan = db.query("EXPLAIN QUERY PLAN SELECT id FROM cards WHERE project_id = 'c' AND deleted_at IS NULL AND archived_at IS NULL").all() as { detail: string }[];
+      expect(plan.map((p) => p.detail).join()).toContain('cards_open');
+    }
+    after.db.close();
+  }));
+
+test('a step that builds a table anew fails if it leaves a reference to a row that is gone, leaving the database where it was', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.ensureProject('c', 'Shop');
+    s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
+    s.db.close();
+    const before = RELEASED + MIGRATIONS.length;
+    MIGRATIONS.push("PRAGMA foreign_keys=OFF;\nDELETE FROM projects WHERE id = 'c';\nPRAGMA foreign_keys=ON;");
+    try {
+      expect(() => new Store(path)).toThrow('leaves references to rows that are gone');
+    } finally {
+      MIGRATIONS.pop();
+    }
+    expect(version(path)).toBe(before);
+    const again = new Store(path);
+    expect(again.projects.name('c')).toBe('Shop');
+    expect(again.db.query('PRAGMA foreign_keys').get()).toEqual({ foreign_keys: 1 });
+    again.db.close();
   }));
 
 test('a card gets a part once any of it is set and loses it once all of it is cleared; a label set to nothing by nobody goes', () => {

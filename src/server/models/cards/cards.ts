@@ -1,13 +1,10 @@
 import { and, asc, count, desc, eq, getTableColumns, inArray, isNotNull, isNull, ne, relations, type SQL, sql } from 'drizzle-orm';
-import { type AnySQLiteColumn, index, integer, real, sqliteTable, text, unique, uniqueIndex } from 'drizzle-orm/sqlite-core';
-import type { CardFile } from '../../../core/files';
-import type { Category, Complexity, Label, Priority, Subcategory } from '../../../core/labels';
-import type { PlanDoc } from '../../../core/plan-doc';
+import { type AnySQLiteColumn, index, real, sqliteTable, text, unique, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import type { AgentSetting, CardKind, CardState, Hold, Need, Queue } from '../../../core/types';
 import { atomic, changes, type Db, now, SHORT } from '../common';
-import type { PrState, Shipped, StoredCodeReview, StoredContribution, StoredDemo, StoredDeps, StoredShare, StoredThread } from '../../board';
+import type { Shipped, StoredThread } from '../../board';
 import type { Scope } from '../../koordinator';
-import type { LandedState, PageHeard, Unheard } from '../../workers';
+import type { LandedState, Unheard } from '../../workers';
 import { groups } from '../groups';
 import { projects } from '../projects';
 import { asDemo, type CardDemo, cardDemos, cardEarlierDemos, type DemoUpdate } from './demos';
@@ -43,63 +40,25 @@ export const cards = sqliteTable(
     fromId: text('from_id').references((): AnySQLiteColumn => cards.id),
     scope: text({ mode: 'json' }).$type<Scope>(),
     queue: text({ mode: 'json' }).$type<Queue>(),
-    /** Not read since the reviews table took its place, nor are `contribution` and `code_review`: kept until the moved columns are dropped. */
-    pr: text({ mode: 'json' }).$type<PrState>(),
     repo: text(),
-    /** Not read since the demos tables took its place, nor are `demos`, `share`, `page_heard`, `files` and `held`: kept until the moved columns are dropped. */
-    demo: text({ mode: 'json' }).$type<StoredDemo>(),
     archivedAt: text('archived_at'),
-    /** Not read since the ideas table took its place, nor are `prototype_of`, `prototype`, `proposal`, `built_on`, `becomes_plan` and `new_repo`: kept until the moved columns are dropped. */
-    idea: text(),
-    prototypeOf: text('prototype_of').references((): AnySQLiteColumn => cards.id),
     approvedAt: text('approved_at'),
     landed: text({ mode: 'json' }).$type<LandedState>(),
     images: text({ mode: 'json' }).$type<string[]>(),
-    /** Not read since the plans table took its place, nor are `plan_docs`, `deps` and `collapsed`: kept until the moved columns are dropped. */
-    plan: text({ mode: 'json' }).$type<PlanDoc>(),
-    planDocs: text('plan_docs', { mode: 'json' }).$type<string[]>(),
-    prototype: text(),
-    builtOn: text('built_on').references((): AnySQLiteColumn => cards.id),
-    share: text({ mode: 'json' }).$type<StoredShare>(),
     retro: text(),
-    proposal: text(),
     groupId: text('group_id').references(() => groups.id),
     shipped: text({ mode: 'json' }).$type<Shipped>(),
     parked: text(),
-    held: text({ mode: 'json' }).$type<{ id: number }[]>(),
-    becomesPlan: integer('becomes_plan', { mode: 'boolean' }).notNull().default(false),
     thread: text({ mode: 'json' }).$type<StoredThread>(),
-    /** Not read since `hold` took its place, nor are `snoozed`, `pausing` and `parking_lot`: kept until the moved columns are dropped. */
-    paused: text({ mode: 'json' }),
     unheard: text({ mode: 'json' }).$type<Unheard[]>(),
     app: text(),
-    demos: text({ mode: 'json' }).$type<StoredDemo[]>(),
     waitingSince: text('waiting_since'),
-    snoozed: text({ mode: 'json' }),
-    files: text({ mode: 'json' }).$type<CardFile[]>(),
-    deps: text({ mode: 'json' }).$type<StoredDeps>(),
-    collapsed: integer({ mode: 'boolean' }).notNull().default(false),
     keptIn: text('kept_in'),
-    contribution: text({ mode: 'json' }).$type<StoredContribution>(),
-    newRepo: text('new_repo'),
-    pageHeard: text('page_heard', { mode: 'json' }).$type<PageHeard>(),
-    pausing: text(),
     agentSetting: text('agent_setting', { mode: 'json' }).$type<AgentSetting>(),
     /** Set on every card (`SHORT` in db.ts); nullable only because it was added to a table that had rows. */
     short: text(),
-    /** Not read since the labels table took its place, nor are `category`, `subcategory`, `complexity`, `suggested_labels` and `owner_labels`: kept until the moved columns are dropped. */
-    priority: text().$type<Priority>(),
-    category: text().$type<Category>(),
-    subcategory: text().$type<Subcategory>(),
-    complexity: integer().$type<Complexity>(),
-    suggestedLabels: text('suggested_labels', { mode: 'json' }).$type<Label[]>(),
-    ownerLabels: text('owner_labels', { mode: 'json' }).$type<Label[]>(),
-    codeReview: text('code_review', { mode: 'json' }).$type<StoredCodeReview>(),
     /** No foreign key, which would keep a canvas from ever being dropped: the store keeps it valid. */
     canvasId: text('canvas_id'),
-    parkingLot: text('parking_lot'),
-    /** Not read since the holds table took its place: kept until the moved columns are dropped. */
-    hold: text({ mode: 'json' }),
   },
   (t) => [
     unique().on(t.projectId, t.planRef),
@@ -107,7 +66,6 @@ export const cards = sqliteTable(
     index('cards_canvas').on(t.canvasId),
     // the cards each change of a project reads, without going through its archive
     index('cards_open').on(t.projectId).where(sql`deleted_at IS NULL AND archived_at IS NULL`),
-    index('cards_prototypes').on(t.projectId, t.createdAt).where(sql`deleted_at IS NULL AND prototype_of IS NOT NULL`),
     index('cards_waiting').on(t.projectId).where(sql`waiting_since IS NOT NULL`),
   ],
 );
@@ -234,22 +192,8 @@ export type CardUpdate = RowUpdate & PartsUpdate;
 /** What a new card is stored with: the fields of `NewRow`, its own and its times. */
 const NEW_FIELDS = ['id', 'short', 'project_id', 'canvas_id', 'kind', 'state', 'title', 'body', 'x', 'y', 'parent_id', 'plan_ref', 'from_id', 'repo', 'images', 'retro', 'group_id', 'created_at', 'updated_at'] as const;
 
-/** The columns of `cards` that moved into a table of their own, kept until they are dropped and no longer read. */
-const MOVED = new Set([
-  ...['idea', 'prototype_of', 'prototype', 'proposal', 'built_on', 'becomes_plan', 'new_repo'],
-  ...['paused', 'pausing', 'snoozed', 'parking_lot', 'hold'],
-  ...['pr', 'contribution', 'code_review'],
-  ...['demo', 'demos', 'share', 'page_heard', 'files', 'held'],
-  ...['plan', 'deps', 'collapsed', 'plan_docs'],
-  ...['priority', 'category', 'subcategory', 'complexity', 'suggested_labels', 'owner_labels'],
-]);
-
 /** The card's own columns as stored (JSON as its text), as `CardRow` has them. */
-const own = Object.fromEntries(
-  Object.values(getTableColumns(cards))
-    .filter((c) => !MOVED.has(c.name))
-    .map((c) => [c.name, sql`${c}`.as(c.name)]),
-);
+const own = Object.fromEntries(Object.values(getTableColumns(cards)).map((c) => [c.name, sql`${c}`.as(c.name)]));
 /**
  * How a card is read: its own columns as stored, with its one-row parts joined (none where it has
  * no row: Drizzle reads a left-joined table as null where its first column, the key, is); its earlier demos and
@@ -273,7 +217,7 @@ function asStored(fields: Record<string, unknown>): Record<string, SQL> {
   return Object.fromEntries(
     Object.entries(fields).map(([name, v]) => {
       const key = keyOf.get(name);
-      if (!key || MOVED.has(name)) throw new Error(`cards has no column ${name}`);
+      if (!key) throw new Error(`cards has no column ${name}`);
       return [key, sql`${v ?? null}`];
     }),
   );

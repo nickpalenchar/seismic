@@ -695,8 +695,8 @@ const IDEA_COLUMNS: Record<string, string> = { idea: 'discussion', prototype_of:
 const ideaColumns = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_ideas'").get();
 /**
  * Code with tables of their own for a card's review, demo and plan parts, its labels and its hold
- * reads them there: the columns of those the stage wrote (`written`) go into them, as the migration
- * that brought them moved them, beside what the server keeps there already (a plan's doc).
+ * keeps them there: what the stage gives under the columns that moved into them goes into them, as
+ * the migration that brought them moved it, beside what the server keeps there already (a plan's doc).
  */
 const partTables = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_holds'").get();
 /** Each one-row part's table, by the card column that moved into it and its name there. */
@@ -705,38 +705,68 @@ const PART_COLUMNS: Record<string, Record<string, string>> = {
   card_demos: { demo: 'latest', share: 'share', page_heard: 'page_heard', files: 'files', held: 'held' },
   card_plans: { plan: 'doc', deps: 'deps', collapsed: 'collapsed', plan_docs: 'plan_docs' },
 };
-const LABEL_COLUMNS = ['category', 'subcategory', 'complexity', 'priority', 'suggested_labels', 'owner_labels'];
-function copyParts(id: string, written: string[]) {
+const LABELS = ['category', 'subcategory', 'complexity', 'priority'];
+/** Whether this code keeps a card's field, by its column in `cards` before the parts had tables, in a part's table. */
+const inPart = (k: string) =>
+  (ideaColumns && k in IDEA_COLUMNS) ||
+  (partTables && (k === 'demos' || k === 'hold' || [...LABELS, 'suggested_labels', 'owner_labels'].includes(k) || Object.values(PART_COLUMNS).some((m) => k in m)));
+/** Writes a card's fields, by their columns in `cards` before the parts had tables: into `cards`, or where this code keeps them, into its parts' tables. */
+function write(id: string, fields: Record<string, unknown>) {
+  const keys = Object.keys(fields).filter((k) => fields[k] !== undefined);
+  const value = (k: string) => (typeof fields[k] === 'object' && fields[k] !== null ? JSON.stringify(fields[k]) : (fields[k] as string | number | null));
+  const own = keys.filter((k) => !inPart(k));
+  if (own.length)
+    db.query(`UPDATE cards SET ${own.map((k) => `${k} = $${k}`).join(', ')} WHERE id = $id`).run({ id, ...Object.fromEntries(own.map((k) => [k, value(k)])) } as Record<string, string | number | null>);
+  // the idea itself is its part's discussion
+  const idea = ideaColumns ? keys.filter((k) => k in IDEA_COLUMNS) : [];
+  if (idea.length) {
+    const cols = idea.map((k) => IDEA_COLUMNS[k]!);
+    db.query(`INSERT INTO card_ideas (card_id, ${cols.join(', ')}) VALUES ($id, ${idea.map((k) => `$${k}`).join(', ')}) ON CONFLICT (card_id) DO UPDATE SET ${cols.map((c, n) => `${c} = $${idea[n]}`).join(', ')}`).run({
+      id,
+      ...Object.fromEntries(idea.map((k) => [k, k === 'becomes_plan' ? Number(!!fields[k]) : value(k)])),
+    } as Record<string, string | number | null>);
+  }
   if (!partTables) return;
   for (const [table, moved] of Object.entries(PART_COLUMNS)) {
-    const from = written.filter((k) => k in moved);
+    const from = keys.filter((k) => k in moved);
     if (!from.length) continue;
     const to = from.map((k) => moved[k]!);
-    db.query(
-      `INSERT INTO ${table} (card_id, ${to.join(', ')}) SELECT id, ${from.join(', ')} FROM cards WHERE id = $id ON CONFLICT (card_id) DO UPDATE SET ${to.map((c) => `${c} = excluded.${c}`).join(', ')}`,
-    ).run({ id });
+    db.query(`INSERT INTO ${table} (card_id, ${to.join(', ')}) VALUES ($id, ${from.map((k) => `$${k}`).join(', ')}) ON CONFLICT (card_id) DO UPDATE SET ${to.map((c) => `${c} = excluded.${c}`).join(', ')}`).run({
+      id,
+      ...Object.fromEntries(from.map((k) => [k, k === 'collapsed' ? Number(!!fields[k]) : value(k)])),
+    } as Record<string, string | number | null>);
   }
-  if (written.includes('demos')) {
+  if (keys.includes('demos')) {
+    const earlier = (fields.demos ?? []) as unknown[];
     db.query('DELETE FROM card_earlier_demos WHERE card_id = $id').run({ id });
-    db.query('INSERT INTO card_earlier_demos (card_id, position, demo) SELECT c.id, CAST(d.key AS INTEGER), d.value FROM cards c, json_each(c.demos) d WHERE c.id = $id AND c.demos IS NOT NULL').run({ id });
+    for (const [n, d] of earlier.entries()) db.query('INSERT INTO card_earlier_demos (card_id, position, demo) VALUES ($id, $n, $d)').run({ id, n, d: JSON.stringify(d) });
     // the demo part has its row while it has earlier demos
-    db.query('INSERT INTO card_demos (card_id) SELECT card_id FROM card_earlier_demos WHERE card_id = $id LIMIT 1 ON CONFLICT (card_id) DO NOTHING').run({ id });
+    if (earlier.length) db.query('INSERT INTO card_demos (card_id) VALUES ($id) ON CONFLICT (card_id) DO NOTHING').run({ id });
   }
-  if (written.some((k) => LABEL_COLUMNS.includes(k))) {
+  if (keys.some((k) => [...LABELS, 'suggested_labels', 'owner_labels'].includes(k))) {
+    // a label with who set it: the owner where `owner_labels` names it, else Seismic where `suggested_labels` does and it has a value
+    const owner = (fields.owner_labels ?? []) as string[];
+    const suggested = (fields.suggested_labels ?? []) as string[];
     db.query('DELETE FROM card_labels WHERE card_id = $id').run({ id });
-    for (const l of LABEL_COLUMNS.slice(0, 4))
-      db.query(
-        `INSERT INTO card_labels (card_id, label, value, by) SELECT id, '${l}', ${l === 'complexity' ? 'CAST(complexity AS TEXT)' : l}, CASE WHEN EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = '${l}') THEN 'owner'
-           WHEN ${l} IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(suggested_labels) WHERE value = '${l}') THEN 'suggestion' END
-         FROM cards WHERE id = $id AND (${l} IS NOT NULL OR EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = '${l}'))`,
-      ).run({ id });
+    for (const l of LABELS) {
+      const v = (fields[l] ?? null) as string | number | null;
+      if (v === null && !owner.includes(l)) continue;
+      const by = owner.includes(l) ? 'owner' : v !== null && suggested.includes(l) ? 'suggestion' : null;
+      db.query('INSERT INTO card_labels (card_id, label, value, by) VALUES ($id, $l, $v, $by)').run({ id, l, v: v === null ? null : String(v), by });
+    }
   }
-  if (written.includes('hold')) {
+  if (keys.includes('hold')) {
     db.query('DELETE FROM card_holds WHERE card_id = $id').run({ id });
-    db.query(
-      `INSERT INTO card_holds (card_id, reason, since, detail) SELECT id, json_extract(hold, '$.reason'), coalesce(json_extract(hold, '$.since'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-         nullif(json_remove(hold, '$.reason', '$.since'), '{}') FROM cards WHERE id = $id AND hold IS NOT NULL`,
-    ).run({ id });
+    const hold = fields.hold as { reason: string; since?: string } | null;
+    if (hold) {
+      const { reason, since, ...detail } = hold;
+      db.query('INSERT INTO card_holds (card_id, reason, since, detail) VALUES ($id, $reason, $since, $detail)').run({
+        id,
+        reason,
+        since: since ?? new Date().toISOString(),
+        detail: Object.keys(detail).length ? JSON.stringify(detail) : null,
+      });
+    }
   }
 }
 for (const [i, c] of stage.cards.entries()) {
@@ -823,21 +853,9 @@ for (const [i, c] of stage.cards.entries()) {
     delete row.workstation;
   }
   const keys = Object.keys(row).filter((k) => row[k] !== undefined);
-  const missing = keys.filter((k) => !columns.has(k));
+  const missing = keys.filter((k) => !columns.has(k) && !inPart(k));
   if (missing.length) fail(`card ${c.key ?? i}: this code's database has no column ${missing.join(', ')}`);
-  const value = (k: string) => (typeof row[k] === 'object' && row[k] !== null ? JSON.stringify(row[k]) : (row[k] as string | number | null));
-  // code with the ideas table keeps a card's idea part there, the idea itself as its discussion
-  const ideaKeys = ideaColumns ? keys.filter((k) => k in IDEA_COLUMNS) : [];
-  const own = keys.filter((k) => !ideaKeys.includes(k));
-  if (own.length)
-    db.query(`UPDATE cards SET ${own.map((k) => `${k} = $${k}`).join(', ')} WHERE id = $id`).run({ id, ...Object.fromEntries(own.map((k) => [k, value(k)])) } as Record<string, string | number | null>);
-  if (ideaKeys.length) {
-    const cols = ideaKeys.map((k) => IDEA_COLUMNS[k]!);
-    db.query(`INSERT INTO card_ideas (card_id, ${cols.join(', ')}) VALUES ($id, ${ideaKeys.map((k) => `$${k}`).join(', ')}) ON CONFLICT (card_id) DO UPDATE SET ${cols.map((c, n) => `${c} = $${ideaKeys[n]}`).join(', ')}`).run({
-      id,
-      ...Object.fromEntries(ideaKeys.map((k) => [k, k === 'becomes_plan' ? Number(!!row[k]) : value(k)])),
-    } as Record<string, string | number | null>);
-  }
+  write(id, row);
   const reviews: { id: number; at: string }[] = [];
   const spots: [number, NonNullable<StageEvent['spot']>][] = [];
   for (const e of c.events ?? []) {
@@ -858,15 +876,13 @@ for (const [i, c] of stage.cards.entries()) {
   if (reviews.length && (demo || c.row?.demos)) {
     const earlier = (c.row?.demos ?? []) as Record<string, unknown>[];
     const handed = (d: Record<string, unknown>, i: number) => (reviews[i] ? { ...d, kind: d.kind ?? 'video', handover: reviews[i].id, at: reviews[i].at } : d);
-    db.query('UPDATE cards SET demos = $demos, demo = $demo WHERE id = $id').run({
-      id,
-      demos: earlier.length ? JSON.stringify(earlier.map(handed)) : null,
-      demo: demo ? JSON.stringify(handed({ kind: 'video', ...demo }, earlier.length)) : null,
+    write(id, {
+      demos: earlier.length ? earlier.map(handed) : null,
+      demo: demo ? handed({ kind: 'video', ...demo }, earlier.length) : null,
     });
   }
   for (const [event, { demo, ...spot }] of spots)
     db.query('UPDATE events SET spot = $spot WHERE id = $id').run({ id: event, spot: JSON.stringify({ ...spot, ...(demo !== undefined && reviews[demo] ? { demo: reviews[demo].id } : {}) }) });
-  copyParts(id, [...own, ...(reviews.length && (demo || c.row?.demos) ? ['demos', 'demo'] : [])]);
 }
 const prefIds: Record<string, number> = {};
 for (const [i, p] of (stage.preferences ?? []).entries()) {

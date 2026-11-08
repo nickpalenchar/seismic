@@ -101,7 +101,12 @@ database. Whenever a step is pending on an existing database, Seismic first writ
 (`VACUUM INTO`) beside it as `obeya.db.before-<version>`, the version being migrated to, and keeps
 the newest three. A retry after a step failed halfway keeps the first copy of that version, the
 state before the upgrade. A fresh database and one already up to date are not copied. To roll back, stop
-Seismic and put the copy in place of `obeya.db`.
+Seismic and put the copy in place of `obeya.db`. A step that builds a table anew (SQLite cannot drop
+a column that is a foreign key) drops the old table, which foreign keys refuse while other tables
+refer to it, and they can be turned off only outside a transaction: such a step runs with them off
+and fails, like any other, if it leaves a reference to a row that is gone where there was none
+before. A table built anew keeps each row's rowid: the Koordinator's marks of how far it has read
+the cards' history count cards by it.
 
 Derived, not stored: git, PR and CI state (read from git and GitHub), plan-doc content (read from
 the repository; the copy on the plan is only for the archive).
@@ -122,4 +127,17 @@ Decisions:
   suggestion of a label since cleared had nothing left to mark and was not carried over. The agent
   and run fields stay on the card, which nearly every card has. The cards are read with their
   one-row groups joined and the many-row ones in one query for all cards read: a subquery per group
-  made reading a project's cards take about twice the time.
+  made reading a project's cards take about twice the time. The card's columns that moved were
+  dropped in a step of their own after the move had run on the live database and every value was
+  found in the new tables; the backup before that step still has them.
+- The data layer on Drizzle ORM, one model per table holding its definition and its queries, with
+  what spans several tables in one composition layer (2026-11-08): the hand-written store had grown
+  to one class over every table with its rows parsed by hand. The migrations stay Seismic's own
+  numbered steps: Drizzle's migrator was rejected, as it needs a baseline for every existing
+  database and reads its migrations from a folder the single compiled binary would have to carry. A
+  new step is drizzle-kit's diff of the schema before and after the change, not of the schema
+  against a database: drizzle-kit writes a primary key `NOT NULL` and a boolean default as `false`
+  where the earlier steps wrote neither, so a diff against a live database would rebuild every
+  table. A test holds the Drizzle schema to the database the steps build from scratch, and a change
+  to the data layer is checked by reading every project of a copy of the live database with the
+  code before and after it, which must read the same apart from a planned regrouping.

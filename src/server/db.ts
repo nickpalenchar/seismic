@@ -560,7 +560,79 @@ export const MIGRATIONS = [
    INSERT INTO card_holds (card_id, reason, since, detail)
      SELECT id, json_extract(hold, '$.reason'), coalesce(json_extract(hold, '$.since'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
        nullif(json_remove(hold, '$.reason', '$.since'), '{}') FROM cards WHERE hold IS NOT NULL;`,
+  // the columns of `cards` whose values moved into the tables of its parts (the steps above), dropped:
+  // the table is built anew without them, since two of them are foreign keys, which SQLite cannot
+  // drop; each card keeps its rowid, which the Koordinator's marks count cards by. The unique index
+  // comes before the others, as it did: where two indexes serve a query alike, SQLite takes the one
+  // made later, and reading a project's cards is to go through `cards_open`, not the archive too
+  `PRAGMA foreign_keys=OFF;
+   CREATE TABLE \`__new_cards\` (
+     \`id\` text PRIMARY KEY NOT NULL,
+     \`project_id\` text NOT NULL,
+     \`kind\` text NOT NULL,
+     \`state\` text,
+     \`need\` text,
+     \`title\` text,
+     \`body\` text,
+     \`x\` real NOT NULL,
+     \`y\` real NOT NULL,
+     \`parent_id\` text,
+     \`plan_ref\` text,
+     \`created_at\` text NOT NULL,
+     \`updated_at\` text NOT NULL,
+     \`deleted_at\` text,
+     \`session_id\` text,
+     \`workstation\` text,
+     \`branch\` text,
+     \`status_line\` text,
+     \`detail\` text,
+     \`from_id\` text,
+     \`scope\` text,
+     \`queue\` text,
+     \`repo\` text,
+     \`archived_at\` text,
+     \`approved_at\` text,
+     \`landed\` text,
+     \`images\` text,
+     \`retro\` text,
+     \`group_id\` text,
+     \`shipped\` text,
+     \`parked\` text,
+     \`thread\` text,
+     \`unheard\` text,
+     \`app\` text,
+     \`waiting_since\` text,
+     \`kept_in\` text,
+     \`agent_setting\` text,
+     \`short\` text,
+     \`canvas_id\` text,
+     FOREIGN KEY (\`project_id\`) REFERENCES \`projects\`(\`id\`) ON UPDATE no action ON DELETE no action,
+     FOREIGN KEY (\`parent_id\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action,
+     FOREIGN KEY (\`from_id\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action,
+     FOREIGN KEY (\`group_id\`) REFERENCES \`groups\`(\`id\`) ON UPDATE no action ON DELETE no action
+   );
+   INSERT INTO \`__new_cards\` (rowid, id, project_id, kind, state, need, title, body, x, y, parent_id, plan_ref, created_at, updated_at, deleted_at, session_id,
+       workstation, branch, status_line, detail, from_id, scope, queue, repo, archived_at, approved_at, landed, images, retro, group_id, shipped, parked,
+       thread, unheard, app, waiting_since, kept_in, agent_setting, short, canvas_id)
+     SELECT rowid, id, project_id, kind, state, need, title, body, x, y, parent_id, plan_ref, created_at, updated_at, deleted_at, session_id,
+       workstation, branch, status_line, detail, from_id, scope, queue, repo, archived_at, approved_at, landed, images, retro, group_id, shipped, parked,
+       thread, unheard, app, waiting_since, kept_in, agent_setting, short, canvas_id FROM \`cards\`;
+   DROP TABLE \`cards\`;
+   ALTER TABLE \`__new_cards\` RENAME TO \`cards\`;
+   CREATE UNIQUE INDEX \`cards_project_id_plan_ref_unique\` ON \`cards\` (\`project_id\`,\`plan_ref\`);
+   CREATE UNIQUE INDEX \`cards_short\` ON \`cards\` (\`short\`);
+   CREATE INDEX \`cards_open\` ON \`cards\` (\`project_id\`) WHERE deleted_at IS NULL AND archived_at IS NULL;
+   CREATE INDEX \`cards_waiting\` ON \`cards\` (\`project_id\`) WHERE waiting_since IS NOT NULL;
+   CREATE INDEX \`cards_canvas\` ON \`cards\` (\`canvas_id\`);
+   PRAGMA foreign_keys=ON;`,
 ];
+
+/**
+ * How drizzle-kit opens a step that builds a table anew: dropping the old table others refer to is
+ * what foreign keys refuse. The runner turns them off around such a step, and the step fails if it
+ * leaves a reference to a row that is gone where there was none before.
+ */
+const FOREIGN_KEYS_OFF = 'PRAGMA foreign_keys=OFF;';
 
 /** A database this Seismic cannot open as it is: it leaves it alone. */
 export class UnusableDatabase extends Error {}
@@ -616,10 +688,21 @@ export function openDatabase(path: string): { client: Database; orm: Db } {
     })();
   if (user_version >= RELEASED && user_version < latest && path !== ':memory:') backUpBefore(client, path, latest);
   for (let v = Math.max(user_version, RELEASED); v < latest; v++) {
-    client.transaction(() => {
-      client.run(MIGRATIONS[v - RELEASED]!);
-      client.run(`PRAGMA user_version = ${v + 1}`);
-    })();
+    const step = MIGRATIONS[v - RELEASED]!;
+    // foreign keys can only be turned off outside a transaction (inside, drizzle-kit's pragma does nothing)
+    const unchecked = step.startsWith(FOREIGN_KEYS_OFF);
+    if (unchecked) client.run('PRAGMA foreign_keys = OFF');
+    const dangling = () => (unchecked ? (client.query('PRAGMA foreign_key_check').all() as unknown[]).length : 0);
+    try {
+      client.transaction(() => {
+        const before = dangling();
+        client.run(step);
+        if (dangling() > before) throw new Error(`migration ${v + 1} leaves references to rows that are gone`);
+        client.run(`PRAGMA user_version = ${v + 1}`);
+      })();
+    } finally {
+      if (unchecked) client.run('PRAGMA foreign_keys = ON');
+    }
   }
   return { client, orm: drizzle({ client, schema }) };
 }

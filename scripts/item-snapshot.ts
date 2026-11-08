@@ -1,5 +1,5 @@
-// The equality check of a change to the data layer (docs/plan/card-data-model.md, "Migrating
-// safely"): reads every project of a database as the code of two commits sees it, each on a copy of
+// The equality check of a change to the data layer (docs/design/data.md, the decision on the data
+// layer): reads every project of a database as the code of two commits sees it, each on a copy of
 // its own, and says where they differ.
 //   bun scripts/item-snapshot.ts [db] [--before <commit>] [--after <commit>] [--out <dir>]
 // `db` defaults to ~/.obeya/obeya.db, which is only read (through SQLite's own snapshot, as a
@@ -80,11 +80,12 @@ try {
 }
 
 /**
- * The before side as the planned regroupings of the card model have it (docs/plan/card-data-model.md),
+ * The before side as the planned regroupings of the card model have it (docs/design/data.md),
  * for a before side from a commit that had not made them yet; one that had is left as it is.
  * W4, one hold: a stored card gets the `hold` its migration writes, a card as the UI gets it the
  * `hold` in place of `paused`, `pausing`, `limitPaused`, `restartPaused`, `snoozed` and `parkingLot`.
  * A pause or snooze counts from the migration, which reads as "now". W5: then grouped (`grouped`).
+ * W8: a stored card has none of the columns whose values moved into its parts' tables.
  */
 function regrouped(value: unknown): unknown {
   const rows = new Map<string, Record<string, unknown>>();
@@ -137,7 +138,9 @@ function regrouped(value: unknown): unknown {
                 : undefined;
     return hold ? { ...rest, hold } : rest;
   });
-  return grouped(held);
+  const MOVED = ['pr', 'demo', 'idea', 'prototype_of', 'plan', 'plan_docs', 'prototype', 'built_on', 'share', 'proposal', 'held', 'becomes_plan', 'paused', 'demos', 'snoozed', 'files', 'deps', 'collapsed', 'contribution', 'new_repo', 'page_heard', 'pausing', 'priority', 'category', 'subcategory', 'complexity', 'suggested_labels', 'owner_labels', 'code_review', 'parking_lot', 'hold'];
+  const isCard = (o: Record<string, unknown>) => typeof o.id === 'string' && 'project_id' in o && 'short' in o && 'kind' in o;
+  return grouped(walk(held, (o) => (isCard(o) ? Object.fromEntries(Object.entries(o).filter(([k]) => !MOVED.includes(k))) : o)));
 }
 
 /**
@@ -226,13 +229,17 @@ async function inner(code: string, path: string, file: string) {
     return f ? store[m][f](...a) : store[m](...a);
   };
   const projects = store.db.query('SELECT id, name FROM projects ORDER BY id').all() as { id: string; name: string }[];
+  // a plan card's doc, in its plan part where the code has that table (W7)
+  const DOCS = store.db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_plans'").get()
+    ? "SELECT p.doc AS plan FROM cards c JOIN card_plans p ON p.card_id = c.id WHERE c.project_id = $p AND c.kind = 'plan' AND c.deleted_at IS NULL AND c.archived_at IS NULL AND p.doc IS NOT NULL ORDER BY c.rowid"
+    : "SELECT plan FROM cards WHERE project_id = $p AND kind = 'plan' AND deleted_at IS NULL AND archived_at IS NULL AND plan IS NOT NULL ORDER BY rowid";
   // the projects under a key of their own, so none can share its id with what spans them
   const result: { projects: Record<string, unknown>; [k: string]: unknown } = { projects: {} };
   for (const p of projects) {
     const home = read('setting', 'settings.get', p.id, 'home_repo') ?? 'home';
     const others = (store.db.query('SELECT DISTINCT repo FROM cards WHERE project_id = $p AND repo IS NOT NULL AND repo != $home').all({ p: p.id, home }) as { repo: string }[]).map((r) => r.repo);
     const repos = [home, ...others].map((id) => ({ id, name: id, path: join(tmpdir(), 'obeya-item-snapshot-none', id), branch: 'main' }));
-    const docs = (store.db.query("SELECT plan FROM cards WHERE project_id = $p AND kind = 'plan' AND deleted_at IS NULL AND archived_at IS NULL AND plan IS NOT NULL").all({ p: p.id }) as { plan: string }[]).map((r) => JSON.parse(r.plan));
+    const docs = (store.db.query(DOCS).all({ p: p.id }) as { plan: string }[]).map((r) => JSON.parse(r.plan));
     const board = new Board(store, { id: p.id, name: p.name, repos }, () => ({ docs, dirs: [] }), undefined, () => true);
     const snapshot = board.snapshot();
     const archived = board.archived();
