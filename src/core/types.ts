@@ -1956,7 +1956,7 @@ export type CardAction =
   /** In a folder without git, on a card waiting for approval: what it changed there is put back as it was before ("Discard changes"). */
   | { action: 'undo' }
   /** Start a queued card although it may collide. */
-  | { action: 'force' }
+  | { action: 'force'; agent?: AgentSetting }
   /**
    * The Workstations list: the card's clone goes to the cards waiting for one, after the undo window
    * (EVICT_HOLD_MS); its worker stops, its uncommitted work is kept on its branch, and it goes on

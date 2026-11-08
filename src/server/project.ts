@@ -1779,7 +1779,7 @@ export class ProjectRuntime {
       case 'name':
         return void this.koordinator.name(cardId);
       case 'force':
-        return this.koordinator.force(cardId);
+        return this.koordinator.force(cardId, a.agent === undefined ? undefined : startAgentSetting(a.agent));
       case 'dequeue':
         return this.koordinator.dequeue(cardId);
       case 'takeWorkstation':

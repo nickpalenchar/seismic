@@ -375,10 +375,11 @@ export class Koordinator {
   }
 
   /** Start a queued card anyway: should it wait for a workstation then, the owner's arrows no longer hold it. */
-  force(cardId: string) {
+  force(cardId: string, setting?: import('../core/types').AgentSetting) {
     const card = this.card(cardId);
     if (!card.queue || !('behind' in card.queue)) throw new BadRequest('notQueued', 'the card is not waiting');
     const since = card.queue.since;
+    if (setting) this.o.board.work(cardId, { agent_setting: JSON.stringify(setting) });
     this.setQueue(cardId, null);
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.koordinator.startedDespite);
     this.launch(cardId, since, true);

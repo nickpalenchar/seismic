@@ -531,16 +531,17 @@ export function Detail(p: Props) {
           <QueueChain item={item} all={all} />
           <QueuePlace item={item} items={all} />
           <div className="actions">
-            <button
-              className="btn"
-              onClick={() => {
+            <StartAgent
+              draft={cardDraft(item.id)}
+              tone="btn"
+              label={t.queue.force}
+              codexAllowed={!inFolder && !item.contribution}
+              onStart={(agent) => {
                 const waiting = manualPrerequisites(item, all);
                 if (waiting.length && !window.confirm(t.queue.confirmManualStart(waiting.map((card) => plain(card.title)).join(', ')))) return;
-                act({ action: 'force' }, { close: true, ack: forcedText(item.queue) });
+                act({ action: 'force', ...(agent ? { agent } : {}) }, { close: true, ack: forcedText(item.queue) });
               }}
-            >
-              {t.queue.force}
-            </button>
+            />
             <button className="btn" onClick={() => act({ action: 'dequeue' }, { close: false })}>
               {t.queue.dequeue}
             </button>

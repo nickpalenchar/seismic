@@ -136,6 +136,19 @@ describe('Koordinator', () => {
     expect(workerOf(b.id).spec.setting).toEqual(chosen);
   });
 
+  test('a choice made while forcing a queued card reaches the worker', async () => {
+    const a = card('A');
+    k.request(a.id);
+    await scope(['src/a.ts']);
+    const b = card('B');
+    k.request(b.id);
+    await scope(['src/a.ts'], ['K1']);
+    const chosen = { model: 'sonnet' as const, effort: 'low' as const };
+    k.force(b.id, chosen);
+    await settle();
+    expect(workerOf(b.id).spec.setting).toEqual(chosen);
+  });
+
   test('taking a choice out of the queue and starting normally uses the default', async () => {
     const a = card('A');
     k.request(a.id); await scope(['src/a.ts']);
