@@ -58,7 +58,7 @@ to the edge from top to bottom, the canvas moved aside, one sheet open at a time
 grip; the button's second click, the sheet's ✕ and Esc close it. Opened, it stays open as the owner
 switches project (per tab), until they close it or open another sheet.
 
-The desktop's inbox lists the shown project's entries; a switch "All projects", right-aligned on the line of the All | Unread filter, lists every project's entries in one list (off by default, remembered). The list is ordered newest first by the time shown on the entry;
+The desktop's inbox lists the shown project's entries; a switch "All projects", right-aligned on the line of the Unread | All filter, lists every project's entries in one list (off by default, remembered). The list is ordered newest first by the time shown on the entry;
 cards snoozed while they waited stand at the end (see Snoozing a card). The phone's "Needs you"
 shares the entries, layout and actions, but sorts by last update, newest first: a refreshed demo
 moves its card to the top (see The phone view). An entry is a pane of glass of its own: its
@@ -730,7 +730,7 @@ code, a generic one otherwise.
   earlier look, index cards pinned to a wall (2026-10-10), stays upstream's.
 - **The inbox button opens an inbox instead of jumping to the next card** (owner, 2026-11-01): with
   several things waiting, a jump hides what the others are and cannot answer anything. Entries are
-  newest first on desktop (owner, 2026-11-08; replaces oldest wait first, 2026-11-05), as in a mail inbox,
+  newest first on desktop (owner, 2026-11-08), as in a mail inbox,
   with "Unread" the default filter so what is still to do stays short.
   Mobile uses newest update first (owner, 2026-11-07), so a refreshed demo rises to the top.
   Rejected: keeping the jump on the button (Tab keeps it).
