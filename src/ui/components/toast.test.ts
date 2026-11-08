@@ -41,9 +41,9 @@ describe('the toast store', () => {
     s.show({ slot: 'ack', kind: 'wait', text: 'Approving' });
     s.show({ kind: 'warning', text: 'Queued', dismiss: true });
     s.show({ slot: 'ack', kind: 'confirm', text: 'Approved' });
-    expect(texts()).toEqual(['Reading', 'Approved', 'Queued']);
+    expect(texts()).toEqual(['Reading', 'Queued', 'Approved']);
     s.show({ kind: 'warning', text: 'Queued too', dismiss: true });
-    expect(texts()).toEqual(['Reading', 'Approved', 'Queued', 'Queued too']);
+    expect(texts()).toEqual(['Reading', 'Queued', 'Approved', 'Queued too']);
   });
 
   test('a toast goes after its time; one without stays until dismissed', () => {
@@ -58,6 +58,14 @@ describe('the toast store', () => {
     expect(texts()).toEqual(['Queued']);
     s.remove(w);
     expect(texts()).toEqual([]);
+  });
+
+  test('a toast that replaces another stands even where the old one\'s maker takes it away again', () => {
+    const { s, texts } = store();
+    const old: number = s.show({ slot: 'ack', kind: 'wait', text: 'Approving', onGone: () => s.remove(old) });
+    const id = s.show({ slot: 'ack', kind: 'confirm', text: 'Approved' });
+    expect(texts()).toEqual(['Approved']);
+    expect(s.has(id)).toBe(true);
   });
 
   test('a replaced toast takes its timer with it', () => {

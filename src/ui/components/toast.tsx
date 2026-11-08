@@ -84,16 +84,14 @@ export function toastStore(onChange: (list: Toast[]) => void = () => {}, clock: 
   }
   const toast = ({ stayMs: _s, undoMs: _u, onGone: _g, ...rest }: Partial<ToastInit>) => rest;
 
-  /** Adds a toast, newest last, or puts it in the place of the one in its slot; gives its id. */
+  /** Adds a toast, newest last (nearest the microphone), taking away the one in its slot; gives its id. */
   function show(init: ToastInit): number {
     const id = ++next;
     const old = init.slot ? list.find((x) => x.slot === init.slot) : undefined;
-    const item = { id, ...toast(init) } as Toast;
-    if (old) {
-      gone(old.id);
-      list = list.map((x) => (x === old ? item : x));
-    } else list = [...list, item];
+    list = [...list.filter((x) => x !== old), { id, ...toast(init) } as Toast];
     time(id, init);
+    // whoever made the old one hears it is gone once the new one stands, whatever they do then
+    if (old) gone(old.id);
     changed();
     return id;
   }
