@@ -200,8 +200,8 @@ Notifications and limits turns it on again (on until then). The phone view shows
 The numbers come from the data behind Claude Code's `/usage`: one idle Claude Code session, which
 sends no prompt and so uses none of the limits, is asked a little over every minute (it keeps an
 answer for a minute) while the setting is on and a page of Seismic is open, and closed once neither
-holds, half a minute after the last page closed: a reload or a switch to another project, which loads
-the page anew, finds the numbers there and shows them in the bar from its first frame. Nothing shows for a login without plan limits (an API key, a cloud provider), a Claude Code
+holds, half a minute after the last page closed: a reload, or a switch to another project, finds the
+numbers there and shows them as soon as its connection opens. Nothing shows for a login without plan limits (an API key, a cloud provider), a Claude Code
 too old to answer, or numbers that could not be fetched again for five minutes. The workers on other
 machines may use other logins; the bar shows this machine's. The lists the status bar opens
 open upwards.
@@ -212,7 +212,15 @@ The bar's left holds the project picker. Its button names the project and its ho
 count of repositories); a click lists the projects under it in the configuration's order, the open
 one marked. Each names its repositories and, in the orange of a waiting card, how many things wait
 for the owner there (the inbox's entries on that project), and carries its agents' pause (see
-Pausing a project's agents). A click on one switches there. The list ends with "New project", which opens the configuration's
+Pausing a project's agents). A click on one switches there within the page, without loading it
+again: the canvas of the project before goes, the other's comes in its place as on a page load (its
+camera, the card or sheet kept for it, Seismic's sheet as left; see Sheets), and every input keeps
+its draft per project. The switch is a step in the browser's history (Back returns to the project
+before), and a click with a modifier opens the project in a tab of its own. The same holds where
+the page goes to a card on another project (the inbox, a confirmation's "Go to card", the
+workstations, Seismic's answer elsewhere). Decided 2026-11-08 (owner): a reload for each switch
+loaded the whole app again; rejected: keeping every project mounted at once (a connection and a
+canvas each, for projects not looked at). The list ends with "New project", which opens the configuration's
 Projects section with a new, empty project already added to its list, ready to fill in. What waits itself is in the inbox (see
 The bar), not here.
 

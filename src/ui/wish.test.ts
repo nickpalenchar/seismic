@@ -49,3 +49,14 @@ test('a draft with text or screenshots stays, and the new wish waits for the own
     expect(calls).toHaveLength(0);
   }
 });
+
+test("switching to another project within the page shows that project's draft, and the one before keeps its own", () => {
+  m.set(KEY, JSON.stringify({ title: 'On shop', body: '', images: [] }));
+  m.set('obeya-wish-blog', JSON.stringify({ title: 'On blog', body: '', images: [] }));
+  keepWish(store, 'shop');
+  keepWish(store, 'blog');
+  expect(wishNow().issue?.title).toBe('On blog');
+  expect(JSON.parse(m.get(KEY)!).title).toBe('On shop');
+  keepWish(store, 'shop');
+  expect(wishNow().issue?.title).toBe('On shop');
+});

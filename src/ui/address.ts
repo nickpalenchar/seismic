@@ -57,6 +57,15 @@ export function followedPath(pathname: string, projects: { id: string; name: str
   return ours ? `${now}${pathname.slice(seg[0].length)}` : null;
 }
 
+/**
+ * Goes to `path` (another project, a card on it) within the page, as a link would but without
+ * loading it again: a step in the history, Back returns.
+ */
+export function goTo(path: string) {
+  history.pushState(null, '', path);
+  dispatchEvent(new PopStateEvent('popstate', { state: null }));
+}
+
 /** The Agent Feedback Log, opened from a project: its link back to the dashboard leads there. */
 export const feedbackLogPath = (project: string) => `${projectPath(project)}/feedback`;
 

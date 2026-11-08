@@ -152,11 +152,16 @@ export function setMarkup(id: string, markup: Markup | null) {
 /**
  * Takes back the project's drafts that `store` kept (the phone view's, which shows every project, under
  * a name of its own) and writes them down there from now on, text,
- * screenshots, picks and the message replied to, whenever they change, and the marks on the screenshots. Once per page;
- * later calls change nothing.
+ * screenshots, picks and the message replied to, whenever they change, and the marks on the screenshots. A call for
+ * another project (the owner switched to it within the page) puts its drafts in place of the one's before.
  */
 export function keepDrafts(store: Store, project: string) {
-  if (kept) return;
+  if (kept?.project === project && kept.store === store) return;
+  // the owner switched projects within the page: the drafts of the one before are written down under its name already
+  if (kept) {
+    for (const key of [...drafts.keys()]) if (lasting(key)) drafts.delete(key);
+    markups.clear();
+  }
   kept = { store, project };
   try {
     const saved = JSON.parse(store.getItem(storeKey(project)) ?? '{}') as Record<string, Kept>;
@@ -168,6 +173,7 @@ export function keepDrafts(store: Store, project: string) {
     for (const [id, m] of Object.entries(saved)) if (!markups.has(id)) markups.set(id, m);
   } catch {}
   listeners.add(writeDown);
+  changed();
 }
 
 function writeDown() {

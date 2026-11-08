@@ -144,3 +144,19 @@ test('findingDraft hides choices and context of another review until the reset c
   expect(findingDraft(d, '0').findings).toEqual({ '1': 'self' });
   expect(findingDraft(d, '1')).toEqual({});
 });
+
+test('switching to another project within the page puts its drafts in place of those of the one before, which stay written down', () => {
+  updateDraft(cardDraft('a1'), { text: 'on shop' });
+  updateDraft(OBEYA_DRAFT, { text: 'to Seismic on shop' });
+  s.setItem('obeya-drafts-blog', JSON.stringify({ [OBEYA_DRAFT]: { text: 'to Seismic on blog', images: [] } }));
+  keepDrafts(s, 'blog');
+  expect(draftOf(OBEYA_DRAFT).text).toBe('to Seismic on blog');
+  expect(draftOf(cardDraft('a1')).text).toBe('');
+  updateDraft(cardDraft('b1'), { text: 'on blog' });
+  expect(Object.keys(JSON.parse(s.getItem('obeya-drafts-blog')!))).toEqual([OBEYA_DRAFT, cardDraft('b1')]);
+  // and back: the first project's drafts are there as it left them
+  keepDrafts(s, 'shop');
+  expect(draftOf(OBEYA_DRAFT).text).toBe('to Seismic on shop');
+  expect(draftOf(cardDraft('a1')).text).toBe('on shop');
+  expect(draftOf(cardDraft('b1')).text).toBe('');
+});

@@ -58,7 +58,7 @@ import { CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links
 import { clampWidth, loadWidths, saveWidths, SHEET_W, type SheetWidths, widthsIn } from './sheetWidth';
 import { clock, failText, t } from './strings';
 import { loadPinned, NAV_PROJECT_MIN, NAV_W, NavPill, NavSheet, savePinned } from './nav';
-import { projectPath, cardPath, feedbackLogPath, followedPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
+import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { type QuickReply, sendReply } from './quickReply';
 import { Inbox } from './inbox';
 import { useInboxRead } from './inboxRead';
@@ -71,6 +71,14 @@ export function App() {
   const [phone] = useState(phoneView);
   const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
   const [failed, setFailed] = useState(false);
+  // another project picked in the switcher, or Back and Forward between projects: the page shows it without loading again
+  const [, followed] = useState(0);
+  useEffect(() => {
+    if (phone) return;
+    const on = () => followed((n) => n + 1);
+    addEventListener('popstate', on);
+    return () => removeEventListener('popstate', on);
+  }, []);
   useEffect(() => {
     api.projects().then(
       (list) => {
@@ -99,10 +107,24 @@ export function App() {
   if (phone) return <Phone projects={projects} />;
   // the Agent Feedback Log, a page of its own in place of the project it was opened from
   if (page === 'feedback') return <FeedbackLog projects={projects} here={current.id} />;
-  setProject(current.id);
-  keepDrafts(sessionStorage, current.id);
-  keepWish(sessionStorage, current.id);
-  return <Live projects={projects} />;
+  return <Shown id={current.id} projects={projects} onProjects={setProjects} />;
+}
+
+/**
+ * The project `id`, which another takes the place of in the page when the owner switches: the one
+ * shown before goes first (what it writes down as it goes, its drafts, still under its own name),
+ * then the page's drafts and calls turn to the new one, which loads as on a page load.
+ */
+function Shown({ id, projects, onProjects }: { id: string; projects: ProjectInfo[]; onProjects: (list: ProjectInfo[]) => void }) {
+  const [ready, setReady] = useState<string | null>(null);
+  useEffect(() => {
+    setProject(id);
+    keepDrafts(sessionStorage, id);
+    keepWish(sessionStorage, id);
+    setReady(id);
+  }, [id]);
+  if (ready !== id) return <Splash offline={false} />;
+  return <Live key={id} projects={projects} onProjects={onProjects} />;
 }
 
 /** An address names a project that does not exist (a renamed one's old address, a typo): the projects there are, as links. */
@@ -196,8 +218,10 @@ function Splash({ offline }: { offline: boolean }) {
   );
 }
 
-function Live({ projects: loaded }: { projects: ProjectInfo[] }) {
+function Live({ projects: loaded, onProjects }: { projects: ProjectInfo[]; onProjects: (list: ProjectInfo[]) => void }) {
   const { snapshot, online, frozenSince, offlineSince, restart, update, source, usage, waiting, oldBun, projects } = useProject();
+  // the page knows a project started or renamed meanwhile when the owner switches to it
+  useEffect(() => void (projects && onProjects(projects)), [projects]);
   if (!snapshot) return <Splash offline={!online} />;
   // a project started, stopped or renamed while the page is open: the switcher follows
   return <Project snapshot={snapshot} online={online} downSince={offlineSince ?? frozenSince} frozen={frozenSince !== null} restart={restart} update={update} source={source} usage={usage} projects={projects ?? loaded} waiting={waiting} oldBun={oldBun} />;
@@ -257,6 +281,8 @@ function Project({
   oldBun: string | null;
 }) {
   knowProjects(projects);
+  const projectsRef = useRef(projects);
+  projectsRef.current = projects;
   // a rename of this project, or an address by an old name: it follows to the name now, keeping the card and query
   const shownAt = useRef<{ id: string; path: string } | null>(null);
   useEffect(() => {
@@ -922,7 +948,11 @@ function Project({
   useEffect(() => {
     const away = () => leaveSheet(sessionStorage, snapshot.project.id, kOnRef.current && drafted(OBEYA_DRAFT));
     addEventListener('pagehide', away);
-    return () => removeEventListener('pagehide', away);
+    return () => {
+      removeEventListener('pagehide', away);
+      // the owner switched to another project
+      away();
+    };
   }, []);
   useEffect(() => {
     const k = takeKept(sessionStorage, snapshot.project.id);
@@ -1072,6 +1102,9 @@ function Project({
   follow.current = followAddress;
   useEffect(() => {
     const pop = () => {
+      // an address on another project: the page switches there (App), this one goes
+      const a = readAddress().project;
+      if (a && projectNamed(projectsRef.current, a)?.id !== snapshotRef.current.project.id) return;
       const done = stepBack.current;
       stepBack.current = null;
       if (done) done();
@@ -1260,7 +1293,7 @@ function Project({
   const { tellAbout, tellTyped } = tellers(byId, told, fail, placeNow);
   /** "Go to card" on a confirmation's line: the card it made opens (in place of one open), one made on another project opens there. */
   function goToMade(c: { id: string; project?: string }) {
-    if (c.project && c.project !== snapshotRef.current.project.id) return location.assign(cardPath(c.project, c.id));
+    if (c.project && c.project !== snapshotRef.current.project.id) return goTo(cardPath(c.project, c.id));
     newCardWatch.current = null;
     setKOn(false);
     void openNamed(c.id).catch(console.error);
@@ -1302,7 +1335,7 @@ function Project({
         if (n.made && n.token) return told.made(n.token, n.made);
         if (n.level === 'warning') return warnings.show(noticeLine(n.text), n.cardId);
         const f = focusRef.current;
-        if (n.movedTo && n.cardId && f?.type === 'card' && f.id === n.cardId) return location.assign(cardPath(n.movedTo, n.cardId));
+        if (n.movedTo && n.cardId && f?.type === 'card' && f.id === n.cardId) return goTo(cardPath(n.movedTo, n.cardId));
         const i = itemsRef.current.find((x) => x.id === n.cardId);
         if (n.wish) openWish(n.wish);
         // the card a review of its PR asked for, unless the owner has another one open; one just made, once it is on the project
@@ -2100,7 +2133,7 @@ function Project({
    * there, the inbox open beside it again. Seismic's answer opens its sheet in place of the inbox.
    */
   function goToEntry(e: InboxEntry) {
-    if (e.project !== snapshot.project.id) return location.assign(e.card ? cardPath(e.project, e.card) : `${projectPath(e.project)}?talk`);
+    if (e.project !== snapshot.project.id) return goTo(e.card ? cardPath(e.project, e.card) : `${projectPath(e.project)}?talk`);
     if (!e.card) return kOnRef.current || toggleKoordinator();
     // the entry's own copy opens it when the project no longer lists the card (it just left the inbox)
     void openFresh(byId(e.card.id) ?? e.card);
@@ -2471,7 +2504,7 @@ function Project({
             {oldBun && <OldBunPill version={oldBun} />}
             {online && update && restart?.reason !== 'update' && <UpdatePill update={update} />}
             {online && source && <SourcePill source={source} />}
-            {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => location.assign(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
+            {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => goTo(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
             <button className={csOn ? 'pill kpill cs-pill on' : 'pill kpill cs-pill'} title={t.projectSettings.button} aria-label={t.projectSettings.button} aria-expanded={csOn} onClick={toggleProjectSettings}>
               <BarIcon icon={Settings} />
               {configProblems > 0 && (
@@ -2592,7 +2625,7 @@ function Project({
             }}
           />
         )}
-        <KoordinatorSheet on={kOn} onClose={toggleKoordinator} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onProject={(c) => location.assign(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
+        <KoordinatorSheet on={kOn} onClose={toggleKoordinator} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
             showRepoClones({ project: snapshot.project.id, repo, field: 'settings', setting });
             setCOn(true);
           }} />

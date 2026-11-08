@@ -71,15 +71,19 @@ function writeAgain() {
   }, Math.min(Math.max(0, Date.parse(a.until) - Date.now()), 2 ** 31 - 1));
 }
 
-/** Takes back the project's draft that `store` kept, and writes it down there from now on. Once per page. */
+/** Takes back the project's draft that `store` kept, and writes it down there from now on; for another project (switched to within the page), in place of the one's before. */
 export function keepWish(store: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, project: string) {
-  if (kept) return;
-  kept = { store, key: `obeya-wish-${project}` };
+  const key = `obeya-wish-${project}`;
+  if (kept?.key === key && kept.store === store) return;
+  // the project before keeps its draft under its own name
+  if (kept) state = { open: false, issue: null, writing: false, error: '' };
+  kept = { store, key };
   try {
     const issue = JSON.parse(store.getItem(kept.key) ?? 'null') as Issue | null;
     if (issue && typeof issue.title === 'string' && typeof issue.body === 'string') state = { ...state, issue: { ...issue, images: issue.images ?? [] } };
   } catch {}
   writeAgain();
+  for (const fn of listeners) fn();
 }
 
 export const useWish = () =>
