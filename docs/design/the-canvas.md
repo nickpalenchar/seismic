@@ -519,7 +519,8 @@ several (the database migration put every card and group there); it cannot be re
 Other canvases have a name unique in the project (in any case), never a number from 1 to 999,
 since `#2` names a canvas by its place, an optional icon (one emoji, or `lucide:<name>` of a curated set of Lucide icons; anything else is refused), and a place
 in the owner's order. Only a canvas without cards can be deleted; its archived cards go to "main",
-where they come back from the archive.
+where they come back from the archive. Its groups go to "main" too; one whose name "main" already
+has (in any case) is merged into that group, so "main" never holds two groups of a name.
 
 Where a new card goes: one the owner makes goes on the canvas they are on; a follow-up, a proposal,
 a prototype and a Question card on the canvas of the card they come from; a plan found in a

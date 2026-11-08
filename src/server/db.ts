@@ -805,10 +805,18 @@ export class Store {
     return (this.db.query('SELECT count(*) AS n FROM cards WHERE canvas_id = $id AND deleted_at IS NULL AND archived_at IS NULL').get({ id }) as { n: number }).n;
   }
 
-  /** The canvas goes; what is left of it (archived and deleted cards, their groups) goes to canvas `into`, where it comes back. */
+  /** The canvas goes; what is left of it (archived and deleted cards, their groups) goes to canvas `into`, where it comes back; a group whose name `into` has already (in any case) is merged into that one. */
   deleteCanvas(id: string, into: string) {
     this.db.transaction(() => {
       this.db.query('UPDATE cards SET canvas_id = $into WHERE canvas_id = $id').run({ id, into });
+      const twins = this.db
+        .query('SELECT g.id AS gone, (SELECT k.id FROM groups k WHERE k.canvas_id = $into AND lower(k.name) = lower(g.name) ORDER BY k.created_at, k.rowid LIMIT 1) AS kept FROM groups g WHERE g.canvas_id = $id')
+        .all({ id, into }) as { gone: string; kept: string | null }[];
+      for (const { gone, kept } of twins) {
+        if (!kept) continue;
+        this.db.query('UPDATE cards SET group_id = $kept WHERE group_id = $gone').run({ gone, kept });
+        this.db.query('DELETE FROM groups WHERE id = $gone').run({ gone });
+      }
       this.db.query('UPDATE groups SET canvas_id = $into WHERE canvas_id = $id').run({ id, into });
       this.db.query('DELETE FROM canvases WHERE id = $id').run({ id });
       const left = this.db.query('SELECT id FROM canvases WHERE project_id = (SELECT project_id FROM canvases WHERE id = $into) ORDER BY position, rowid').all({ into }) as { id: string }[];

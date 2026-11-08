@@ -418,5 +418,16 @@ test('canvases: names unique per project in any case, ordered, a plan moves with
     s.deleteCanvas(later.id, s.mainCanvas('c'));
     expect(s.card(old!.id)!.canvas_id).toBe(s.mainCanvas('c'));
     expect(s.canvases('c').map((v) => [v.name, v.position])).toEqual([['main', 0], ['Ideas', 1]]);
+    // groups of a deleted canvas merge into main's group of the same name
+    const gone = s.addCanvas('c', 'Gone', null);
+    const keep = s.addGroup('c', 'Billing', 1, s.mainCanvas('c'));
+    const dupe = s.addGroup('c', 'billing', 2, gone.id);
+    const solo = s.addGroup('c', 'Solo', 3, gone.id);
+    const [a] = s.insert([{ project_id: 'c', canvas_id: gone.id, kind: 'task', group_id: dupe.id, x: 0, y: 0 }]);
+    s.update(a!.id, { archived_at: '2026-11-01' });
+    s.deleteCanvas(gone.id, s.mainCanvas('c'));
+    expect(s.card(a!.id)!.group_id).toBe(keep.id);
+    expect(s.group(dupe.id)).toBeNull();
+    expect(s.group(solo.id)!.canvas_id).toBe(s.mainCanvas('c'));
     s.db.close();
   }));
