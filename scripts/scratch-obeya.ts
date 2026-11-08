@@ -749,8 +749,8 @@ function write(id: string, fields: Record<string, unknown>) {
     const now = (l: string) => (l in fields ? fields[l] : had.find((r) => r.label === l)?.value) ?? null;
     const by = (who: string) => had.filter((r) => r.by === who).map((r) => r.label);
     // a label with who set it: the owner where `owner_labels` names it, else Seismic where `suggested_labels` does and it has a value
-    const owner = (fields.owner_labels ?? by('owner')) as string[];
-    const suggested = (fields.suggested_labels ?? by('suggestion')) as string[];
+    const owner = ('owner_labels' in fields ? (fields.owner_labels ?? []) : by('owner')) as string[];
+    const suggested = ('suggested_labels' in fields ? (fields.suggested_labels ?? []) : by('suggestion')) as string[];
     db.query('DELETE FROM card_labels WHERE card_id = $id').run({ id });
     for (const l of LABELS) {
       const v = now(l) as string | number | null;

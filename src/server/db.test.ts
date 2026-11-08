@@ -618,6 +618,26 @@ test('a step that builds a table anew fails if it leaves a reference to a row th
     again.db.close();
   }));
 
+test('a step that builds a table anew fails if it leaves another reference dangling, even where it clears one there was', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.ensureProject('c', 'Shop');
+    s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
+    s.db.close();
+    // a reference to a card that is gone from before, written without foreign keys
+    const raw = new Database(path);
+    raw.run("INSERT INTO activity (at, card_id, who, code) VALUES ('2026-11-08', 'gone', 'owner', 'created')");
+    raw.close();
+    const before = RELEASED + MIGRATIONS.length;
+    MIGRATIONS.push("PRAGMA foreign_keys=OFF;\nDELETE FROM activity WHERE card_id = 'gone';\nINSERT INTO activity (at, card_id, who, code) VALUES ('2026-11-08', 'also gone', 'owner', 'created');\nPRAGMA foreign_keys=ON;");
+    try {
+      expect(() => new Store(path)).toThrow('leaves references to rows that are gone');
+    } finally {
+      MIGRATIONS.pop();
+    }
+    expect(version(path)).toBe(before);
+  }));
+
 test('a card gets a part once any of it is set and loses it once all of it is cleared; a label set to nothing by nobody goes', () => {
   const s = new Store(':memory:');
   s.ensureProject('c', 'Shop');

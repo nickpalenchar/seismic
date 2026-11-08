@@ -692,12 +692,20 @@ export function openDatabase(path: string): { client: Database; orm: Db } {
     // foreign keys can only be turned off outside a transaction (inside, drizzle-kit's pragma does nothing)
     const unchecked = step.startsWith(FOREIGN_KEYS_OFF);
     if (unchecked) client.run('PRAGMA foreign_keys = OFF');
-    const dangling = () => (unchecked ? (client.query('PRAGMA foreign_key_check').all() as unknown[]).length : 0);
+    // each reference to a row that is gone: its table, row, the table it refers to and the value it refers by
+    const dangling = () =>
+      unchecked
+        ? (client.query('PRAGMA foreign_key_check').all() as { table: string; rowid: number | null; parent: string; fkid: number }[]).map((r) => {
+            const from = (client.query(`PRAGMA foreign_key_list("${r.table}")`).all() as { id: number; from: string }[]).filter((k) => k.id === r.fkid).map((k) => `"${k.from}"`);
+            const value = r.rowid === null ? null : client.query(`SELECT ${from.join(', ')} FROM "${r.table}" WHERE rowid = ?`).get(r.rowid);
+            return JSON.stringify([r.table, r.rowid, r.parent, value]);
+          })
+        : [];
     try {
       client.transaction(() => {
-        const before = dangling();
+        const before = new Set(dangling());
         client.run(step);
-        if (dangling() > before) throw new Error(`migration ${v + 1} leaves references to rows that are gone`);
+        if (dangling().some((r) => !before.has(r))) throw new Error(`migration ${v + 1} leaves references to rows that are gone`);
         client.run(`PRAGMA user_version = ${v + 1}`);
       })();
     } finally {
