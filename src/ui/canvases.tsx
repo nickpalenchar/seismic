@@ -5,10 +5,10 @@
 
 import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Car, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { CANVAS_LUCIDE_ICONS } from '../core/canvas-icons';
 import type { Bounds } from '../core/layout';
-import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS } from '../core/types';
+import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable } from '../core/types';
 import { api } from './api';
 import { CANVAS_EMOJIS, CanvasIcon, canvasText, lucideOf } from './canvasIcon';
 import { know, known } from './known';
@@ -372,7 +372,13 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   }, [open, at]);
   const on = canvasOf(canvases, item);
   const others = canvases.filter((c) => c.id !== on?.id);
-  if (!others.length || item.archivedAt) return null;
+  const canPark = parkable(item);
+  const parked = !!item.parkingLot && !item.archivedAt;
+  if ((!others.length && !canPark && !parked) || item.archivedAt) return null;
+  const parking = (action: 'park' | 'unpark') => {
+    setOpen(false);
+    void api.act(item.id, { action }).catch(console.error);
+  };
   const toggle = () => {
     const b = box.current?.getBoundingClientRect();
     if (floating && b) setAt({ left: b.left, top: b.bottom + 4 });
@@ -380,8 +386,16 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   };
   const list = (
     <div ref={menu} className={`prio-menu card-more-menu${floating ? ' floating' : ''}`} role="menu" {...(floating && at ? { style: at } : {})}>
-      <div className="cm-head">{t.canvases.moveTo}</div>
-      {others.map((c) => (
+      {(canPark || parked) && (
+        <button role="menuitem" title={canPark ? t.parking.parkHint : undefined} onClick={() => parking(canPark ? 'park' : 'unpark')}>
+          <span className="lopt">
+            <Car size={14} aria-hidden />
+            {canPark ? t.parking.park : t.parking.unpark}
+          </span>
+        </button>
+      )}
+      {others.length > 0 && !parked && <div className="cm-head">{t.canvases.moveTo}</div>}
+      {!parked && others.map((c) => (
         <button
           key={c.id}
           role="menuitem"
@@ -400,7 +414,7 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   );
   return (
     <span className="prio-pick card-more" ref={box}>
-      <button className="prio-btn" title={t.canvases.more} aria-label={t.canvases.more} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
+      <button className="prio-btn" title={canPark || parked ? t.parking.menu : t.canvases.more} aria-label={canPark || parked ? t.parking.menu : t.canvases.more} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
         <MoreHorizontal size={14} aria-hidden />
       </button>
       {open && (floating ? createPortal(list, document.body) : list)}

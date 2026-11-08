@@ -1,4 +1,4 @@
-import { Check, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, Play, Plus, Share, SquarePlus, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Car, Check, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, Play, Plus, Share, SquarePlus, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
 // The unfolded card: what it is, what its worker does, and what the owner decides.
 
@@ -198,7 +198,16 @@ export function Detail(p: Props) {
     }
   };
   // an approval that posts the text for the PR takes the owner's edit of it as it stands, saved or not
-  const act = (a: CardAction, done: ActDone) =>
+  const [parkedStart, setParkedStart] = useState<{ a: CardAction; done: ActDone } | null>(null);
+  const act = (a: CardAction, done: ActDone): Promise<void> => {
+    // starting a parked card takes it out of the parking lot: the owner confirms first
+    if (a.action === 'start' && item.parkingLot) {
+      setParkedStart({ a, done });
+      return Promise.resolve();
+    }
+    return actNow(a, done);
+  };
+  const actNow = (a: CardAction, done: ActDone) =>
     run(async () => {
       if (a.action === 'approve' || a.action === 'pushChanges') await saveHeld(item.id);
       await api.act(item.id, a);
@@ -557,10 +566,22 @@ export function Detail(p: Props) {
 
   return (
     <CardRefs.Provider value={smartLink}><DescriptionEdit.Provider value={p.onEdit}>
+      {parkedStart && createPortal(
+        <div className="review-approval-cover" onClick={() => setParkedStart(null)}>
+          <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="parked-start-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setParkedStart(null); } }}>
+            <h2 id="parked-start-title">{t.parking.confirmTitle}</h2>
+            <p>{t.parking.confirmText}</p>
+            <div className="review-approval-actions">
+              <button className="btn primary" onClick={() => { const s = parkedStart; setParkedStart(null); void actNow(s.a, s.done); }}>{t.parking.confirm}</button>
+              <button className="btn" autoFocus onClick={() => setParkedStart(null)}>{t.parking.back}</button>
+            </div>
+          </div>
+        </div>, document.body,
+      )}
       <KindLine kind={kind} item={item} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className="p-title">{shownTitle(item)}</div>}
-      <div className={['p-state', finishingUp(item) && 'finishing', (item.paused || item.snoozed) && 'paused', item.restartPaused && 'restart-paused', item.resolvingConflicts && 'resolving-conflicts', item.codeReview?.state === 'running' && 'reviewing'].filter(Boolean).join(' ')}>
-        {asksYou(item) ? <QuestionMark /> : item.restartPaused ? <RestartMark /> : '●'} {stateLabel(item)}
+      <div className={['p-state', finishingUp(item) && 'finishing', (item.paused || item.snoozed || item.parkingLot) && 'paused', item.restartPaused && 'restart-paused', item.resolvingConflicts && 'resolving-conflicts', item.codeReview?.state === 'running' && 'reviewing'].filter(Boolean).join(' ')}>
+        {asksYou(item) ? <QuestionMark /> : item.restartPaused ? <RestartMark /> : item.parkingLot ? <Car size={13} aria-hidden /> : '●'} {stateLabel(item)}
         {item.snoozed ? (
           <span className="p-status"> · {snoozeWho(item.snoozed)}</span>
         ) : item.resolvingConflicts ? (

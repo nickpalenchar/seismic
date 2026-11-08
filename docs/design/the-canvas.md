@@ -16,7 +16,7 @@ button is the rightmost (see Sheets), the inbox's just before it, the agents' (a
 and the gear of the project settings before that (see The project settings).
 
 The agents' button counts in grey the cards waiting in the queue, and only those; its click slides
-out the Agents sheet, a sheet like the inbox (see Sheets), with two tabs, the one chosen last
+out the Agents sheet, a sheet like the inbox (see Sheets), with three tabs, the one chosen last
 remembered per browser. "Queue" (with the same count) lists the waiting cards in turn, each with
 what it waits for, dragged to its place (see The queue's order) and with a × that takes it out of
 the queue at once, as "Take out of the queue" on the card does (back to planned; no undo, starting
@@ -30,8 +30,16 @@ it, "Fix it"), "Landing" (approved and landing, or in a pull request) and "Plann
 not queued). A stage without a card shows no heading at all. Under the Queue | All switch, only
 on "All", a chip per stage with its count, tinted while its group shows, shows or hides that group
 at a click; what is hidden is remembered per browser. Queued cards are only in
-"Queue"; finished and archived cards, and ideas the owner has nothing to answer on, are not
+"Queue"; parked cards only in "Parked"; finished and archived cards, and ideas the owner has nothing to answer on, are not
 listed.
+
+"Parked" is the parking lot. A planned or stopped task that is not queued (nothing runs for it)
+is parked with "Park" in its "⋯" menu (the open card's, and on the canvas); parked, it is off the
+canvas and lists here as a pane like those of "All", its state "Parked" with a car icon. It stays
+planned or stopped underneath, so its buttons are those of a card that is not running; it does not
+start by itself or from its start time. Starting it asks first: "This takes the card out of the
+parking lot" with "Unpark and start" or "Go back". "Unpark" in the same menu puts it back on the
+canvas without starting it. Opening a parked card unfolds it from its row, without flying anywhere.
 
 The search button opens a small card finder below the bar. On the canvas, `/` opens it when no text
 field has focus. It searches non-archived cards by title words or short code, in the same order as

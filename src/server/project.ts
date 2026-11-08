@@ -16,7 +16,7 @@ import type { RepoAdapter, RepoInfo } from '../adapters/types';
 import type { CardDiff } from '../core/diff';
 import type { Language } from '../core/locale';
 import type { HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
-import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type ProjectConfig, type ProjectDefaults, type ProjectDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsPlan, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
+import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type ProjectConfig, type ProjectDefaults, type ProjectDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, parkable, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsPlan, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup } from '../core/types';
 import { appliedProjectSettings, projectAgentSetting, startAgentSetting } from './settings';
 import { asksAhead, holdsNotes } from '../core/queue';
 import { BadRequest, Board, withQuestions, pathOfRef, repoOfRef, replyNote, type StoredContribution } from './board';
@@ -205,7 +205,7 @@ const DUE_REFUSES: CardAction['action'][] = ['start', 'force', 'build', 'planDoc
 /** What the owner may do on a card while it is merged with a proposal: nothing that changes what it is. */
 const MERGE_LEAVES: CardAction['action'][] = ['name'];
 
-const BOARD_ONLY: CardAction['action'][] = ['name', 'dequeue', 'reorder', 'startAt', 'dismiss', 'keep', 'park', 'drop', 'approveMerge', 'separate'];
+const BOARD_ONLY: CardAction['action'][] = ['name', 'dequeue', 'reorder', 'startAt', 'dismiss', 'keep', 'park', 'unpark', 'drop', 'approveMerge', 'separate'];
 
 /** The card's repository does not run on the project: nothing goes to its agents (`Item.repoDown`). */
 const repoDown = (card: Item) => new BadRequest('repoDown', `the repository ${card.repo} of the card does not run on this project`);
@@ -1764,6 +1764,8 @@ export class ProjectRuntime {
       case 'start':
         if (a.agent && (card?.newRepo || card?.snoozed?.start)) throw new BadRequest('invalid', 'this start does not support an agent choice');
         if (card?.newRepo) return this.intoNewRepo(cardId);
+        // starting a parked card takes it out of the parking lot
+        if (card?.parkingLot) this.unparkFromLot(cardId);
         // one snoozed to start later starts now
         if (this.board.item(cardId)?.snoozed?.start) return this.wake(cardId, false);
         return this.koordinator.request(cardId, a.agent === undefined ? undefined : startAgentSetting(a.agent));
@@ -1873,8 +1875,12 @@ export class ProjectRuntime {
       case 'planDoc':
         return this.planDoc(cardId);
       case 'park':
+        if (card?.kind === 'task') return this.parkInLot(cardId);
+        return this.shelve(cardId, 'park');
+      case 'unpark':
+        return this.unparkFromLot(cardId);
       case 'drop':
-        return this.shelve(cardId, a.action);
+        return this.shelve(cardId, 'drop');
       case 'prototype':
         if (a.variants !== undefined && (!Array.isArray(a.variants) || a.variants.length > 20 || a.variants.some((v) => typeof v !== 'string')))
           throw new BadRequest('invalid', 'variants must be a list of the planned approaches');
@@ -2431,6 +2437,21 @@ export class ProjectRuntime {
     for (let n = 2; existsSync(at(file)) || given.has(file); n++) file = `${dir}/${name}-${n}.md`;
     const ref = r.ref.id === this.repos[0]!.ref.id ? file : `${r.ref.id}:${file}`;
     return { file, row: { plan_docs: JSON.stringify([ref]) } };
+  }
+
+  /** A planned or stopped task goes into the parking lot: off the canvas, listed in the Agents sheet's Parked tab. */
+  private parkInLot(cardId: string) {
+    const card = this.board.item(cardId);
+    if (!card || !parkable(card)) throw new BadRequest('notParkable', 'only a planned or stopped task that is not queued can be parked');
+    this.board.work(cardId, { parking_lot: new Date().toISOString(), snoozed: null });
+    this.board.log(cardId, 'state', 'owner', this.board.t.worker.parkedInLot);
+  }
+
+  /** The parked task goes back to its place on the canvas. */
+  private unparkFromLot(cardId: string) {
+    if (!this.board.item(cardId)?.parkingLot) return;
+    this.board.work(cardId, { parking_lot: null });
+    this.board.log(cardId, 'state', 'owner', this.board.t.worker.unparkedFromLot);
   }
 
   /** Parked or dropped, the idea stays on the project with its brief; what its agent has not answered yet waits for the conversation to go on. */

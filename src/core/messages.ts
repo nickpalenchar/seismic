@@ -161,6 +161,8 @@ const en = {
         `“${title}” ${{ reached: state === 'done' ? 'is done' : 'waits for you', gone: 'is gone', archived: 'was archived', stopped: 'was stopped', dropped: 'was dropped' }[met]}`,
     },
     parked: 'Stopped the app in the workstation while the card waits. The agent starts it again when it needs it.',
+    parkedInLot: 'Moved into the parking lot.',
+    unparkedFromLot: 'Taken out of the parking lot.',
     parkKept: 'The app in the workstation keeps running while the card waits: it holds data that should stay. To have it stopped anyway, tell the agent.',
     parkFailed: (output: string) => `Stopping the app in the workstation failed: ${output}`,
     /** The page the owner's browser gets for a card whose app no longer runs. */

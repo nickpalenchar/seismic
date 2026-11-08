@@ -3726,6 +3726,7 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
     ...(r.paused ? { paused: true } : {}),
     ...(r.pausing && !r.paused ? { pausing: true } : {}),
     ...(r.snoozed ? { snoozed: JSON.parse(r.snoozed) as Snooze } : {}),
+    ...(r.parking_lot ? { parkingLot: r.parking_lot } : {}),
     ...(r.app && r.workstation && !r.parked ? { app: r.app } : {}),
   };
 }

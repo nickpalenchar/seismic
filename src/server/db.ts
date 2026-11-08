@@ -113,6 +113,8 @@ export interface CardRow {
   waiting_since: string | null;
   /** JSON, while the card is snoozed until a point in time (`Snooze`): Seismic wakes it then. */
   snoozed: string | null;
+  /** When the owner moved the card into the parking lot (ISO): off the canvas, listed in the Agents sheet's Parked tab; null while it is on the canvas. */
+  parking_lot: string | null;
   /** JSON: the files its worker named as the result at its latest handover that named any (`CardFile[]`). */
   files: string | null;
   /** JSON, plans only: which workstream builds on which, as the Koordinator read it from the plan doc (`StoredDeps` in board.ts). */
@@ -453,6 +455,8 @@ export const MIGRATIONS = [
   'ALTER TABLE talk ADD COLUMN held TEXT;',
   // a card set aside until a point in time, by its worker or the owner (JSON `Snooze`)
   'ALTER TABLE cards ADD COLUMN snoozed TEXT;',
+  // a card parked off the canvas, since when (ISO)
+  'ALTER TABLE cards ADD COLUMN parking_lot TEXT;',
   // cards the Koordinator waits on to take a step then (JSON `TalkWaitRow[]`), and the exchange it took that step up in (JSON `TalkAfter`)
   'ALTER TABLE talk ADD COLUMN waits TEXT; ALTER TABLE talk ADD COLUMN after_wait TEXT;',
   // what a card changed in a folder without git, and the undo it has there (JSON `FolderCard`, folder.ts)

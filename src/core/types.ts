@@ -268,7 +268,11 @@ export function awaited(card: Item | undefined, state: AwaitedState): Awaited | 
 const workerAtWork = (i: Item) => i.kind === 'task' && (i.state === 'working' || i.state === 'inPr' || !!i.finishing || answering(i));
 
 /** A task planned and not with the Koordinator: snoozed, it starts at the time instead of now. */
-export const plannedToStart = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt'>) => i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt;
+export const plannedToStart = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'parkingLot'>) => i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt && !i.parkingLot;
+
+/** A task of the owner's that nothing runs for (planned or stopped, not queued) can go into the parking lot. */
+export const parkable = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'parkingLot' | 'parent' | 'prototypeOf'>) =>
+  i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt && !i.parkingLot && !i.parent && !i.prototypeOf;
 
 /**
  * A card the owner can snooze until a point in time ("Later"): one at work (its worker stops
@@ -527,6 +531,8 @@ export interface Item {
   restartPaused?: true;
   /** Set aside until a point in time: nothing of its agent runs, and it does not wait for the owner meanwhile. */
   snoozed?: Snooze;
+  /** Since when the owner parked it (ISO): off the canvas, in the Agents sheet's Parked tab, planned or stopped as before. */
+  parkingLot?: string;
   /**
    * Where the app in the card's workstation runs, as its worker opens it (`http://localhost:5173`):
    * while the worker says it runs and Seismic has not stopped it. The card offers it to the owner to
@@ -1901,7 +1907,10 @@ export type CardAction =
   | { action: 'splitOff' }
   /** Ideas, and planned tasks of the owner's nobody has worked on: a planned card whose worker writes a plan doc from the brief or the task. */
   | { action: 'planDoc' }
+  /** Ideas: parked, kept with the brief. Planned or stopped tasks: moved into the parking lot, off the canvas. */
   | { action: 'park' }
+  /** A task in the parking lot goes back to its place on the canvas. */
+  | { action: 'unpark' }
   | { action: 'drop' }
   /**
    * Ideas: a worker builds a throwaway prototype and shows it as a demo on the idea; several may run
@@ -2044,6 +2053,7 @@ export type ErrorCode =
   /** A stopped card whose workstation holds work stays on the project. */
   | 'holdsWork'
   | 'notArchived'
+  | 'notParkable'
   | 'notIdea'
   /** Merging or deleting by the Koordinator: the card is no planned task nobody has worked on (any more). */
   | 'notUntouched'

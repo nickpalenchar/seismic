@@ -363,6 +363,7 @@ function Project({
     const waiting: Record<string, number> = {};
     const used = new Set<string>();
     for (const i of items) {
+      if (i.parkingLot) continue;
       const c = i.canvas ?? canvases[0]?.id;
       if (!c) continue;
       used.add(c);
@@ -373,7 +374,7 @@ function Project({
   /** Whether the card is on the canvas shown (one the server has not placed on any yet counts as on the first). */
   const onShown = useCallback((i: Item) => !canvasId || (i.canvas ?? canvases[0]?.id) === canvasId, [canvasId, canvases]);
   // the workstreams of a collapsed plan are not on the project: its marks stand for them
-  const placed = useMemo(() => onProject(items.filter(onShown)).map((item) => ({ item, b: boundsOf(item, items) })), [items, onShown]);
+  const placed = useMemo(() => onProject(items.filter((i) => onShown(i) && !i.parkingLot)).map((item) => ({ item, b: boundsOf(item, items) })), [items, onShown]);
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   // the groups of the canvas shown: a group holds the cards of its own canvas only
   const groups = useMemo(() => snapshot.groups.filter((g) => !canvasId || (g.canvas ?? canvases[0]?.id) === canvasId), [snapshot.groups, canvasId, canvases]);
@@ -650,14 +651,14 @@ function Project({
     const f = focusRef.current;
     if (f?.type === 'card') return;
     // a card on another canvas opens there
-    if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt) showCanvas(i.canvas);
+    if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt && !i.parkingLot) showCanvas(i.canvas);
     if (i.kind === 'plan') return openPlan(i);
     setFocus({ type: 'card', id: i.id, prevCam: camRef.current, prevSide: camSide.current, plan: f });
     openDraft.current = { kind: i.kind, title: i.title, body: i.body, images: i.images ?? [] };
     setOpened(i.archivedAt ? i : null);
     // bring the card to the middle at a readable scale first, so the unfold starts where the eye is;
     // an archived card is not on the project and unfolds from its row in the archive
-    if (!i.archivedAt) await flyOrJump(centreOnPoint(bounds(i), Math.max(camRef.current.s, 0.85), sideNow()), FLY_MS, quick);
+    if (!i.archivedAt && !i.parkingLot) await flyOrJump(centreOnPoint(bounds(i), Math.max(camRef.current.s, 0.85), sideNow()), FLY_MS, quick);
     const el = fromEl(i.id, !!f);
     const panel = panelRef.current;
     // nothing to unfold from: the project stays as it was, open for the next card
@@ -2492,7 +2493,7 @@ function Project({
         <Inbox entries={entries} current={snapshot.project.id} open={(focus?.type === 'card' ? focus.id : openId) ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
           onProposalCard={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })}
           onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
-        <AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} />
+        <AgentsSheet els={sheetEls} on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} />
         <ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showProjectsSection(), setPrefsOn(false), setCOn(true))} />
         <div id="dim" className={dim ? 'on' : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}

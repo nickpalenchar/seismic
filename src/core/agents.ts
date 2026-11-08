@@ -1,6 +1,6 @@
 // What the Agents sheet's "All" tab lists: the project's cards in the stage of their lifecycle they
 // are at, first those that need the owner, whatever their kind. Queued cards are in the "Queue" tab
-// instead; finished and archived cards, and ideas the owner has nothing to answer on, are not listed.
+// instead; finished, archived and parked cards (the "Parked" tab lists those), and ideas the owner has nothing to answer on, are not listed.
 
 import { type Item, needsYou } from './types';
 
@@ -16,7 +16,7 @@ export type AgentStage = (typeof AGENT_STAGES)[number];
  * no longer needs them while the server catches up.
  */
 export function agentStage(i: Item, underway = false): AgentStage | undefined {
-  if (i.archivedAt) return undefined;
+  if (i.archivedAt || i.parkingLot) return undefined;
   if (needsYou(i) && !underway) return 'needsYou';
   if (i.kind !== 'task' || i.queue) return undefined;
   if (i.codeReview?.state === 'running') return 'reviewing';

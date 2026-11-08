@@ -4,6 +4,7 @@
 // those that need the owner first (src/core/agents.ts), each card a pane like an inbox entry, under
 // a chip per stage that shows or hides its group. A row's title or "Go to card" opens its card.
 
+import { Car } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { AGENT_STAGES, type AgentStage, agentStage, byStage } from '../core/agents';
 import { waitsFor } from '../core/inbox';
@@ -14,12 +15,13 @@ import { QueueList, useQueueSort } from './queue';
 import { useStoredState } from './stored';
 import { stateLabel, t } from './strings';
 
-type Tab = 'queue' | 'all';
+type Tab = 'queue' | 'all' | 'parked';
 
 /** The desktop's Agents sheet, docked on the right like the inbox. */
-export function AgentsSheet({ on, items, open, underway, onOpen }: { on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void }) {
+export function AgentsSheet({ els, on, items, open, underway, onOpen }: { els: Map<string, HTMLElement>; on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void }) {
   const [kept, setTab] = useStoredState<Tab>('obeya-agents-tab', 'queue');
-  const tab: Tab = kept === 'queue' ? 'queue' : 'all';
+  const tab: Tab = kept === 'queue' || kept === 'parked' ? kept : 'all';
+  const parked = items.filter((i) => i.parkingLot && !i.archivedAt);
   const box = useRef<HTMLElement>(null);
   const q = useQueueSort(items, box);
   // the sheet closed or the tab changed under a drag: the row is not dropped anywhere
@@ -35,15 +37,26 @@ export function AgentsSheet({ on, items, open, underway, onOpen }: { on: boolean
     <Docked id="agents" ref={box} on={on} label={t.agents.title}>
       <h2>{t.agents.title}</h2>
       <div className="seg agents-tabs" role="tablist" aria-label={t.agents.title}>
-        {(['queue', 'all'] as const).map((k) => (
+        {(['queue', 'all', 'parked'] as const).map((k) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : undefined} onClick={() => setTab(k)}>
             {t.agents.tabs[k]}
             {k === 'queue' && q.queued.length > 0 && <span className="n">{q.queued.length}</span>}
+            {k === 'parked' && parked.length > 0 && <span className="n">{parked.length}</span>}
           </button>
         ))}
       </div>
       {tab === 'queue' ? (
         q.queued.length ? <QueueList items={items} q={q} onOpen={onOpen} /> : <p className="hint agents-empty">{t.queue.empty}</p>
+      ) : tab === 'parked' ? (
+        parked.length ? (
+          <ul className="inbox-list">
+            {parked.map((i) => (
+              <AgentEntry key={i.id} item={i} els={els} here={i.id === open} underway={underway(i.id)} onOpen={onOpen} />
+            ))}
+          </ul>
+        ) : (
+          <p className="hint agents-empty">{t.agents.noneParked}</p>
+        )
       ) : (
         <>
           <div className="agents-filter" role="group" aria-label={t.agents.filter}>
@@ -78,19 +91,19 @@ export function AgentsSheet({ on, items, open, underway, onOpen }: { on: boolean
 }
 
 /** A card, as the inbox shows an entry: its title large, its state with what the agent does, what it waits for or its status line, and "Go to card". */
-function AgentEntry({ item: i, here, underway, onOpen }: { item: Item; here: boolean; underway: boolean; onOpen: (i: Item) => void }) {
+function AgentEntry({ item: i, els, here, underway, onOpen }: { item: Item; els?: Map<string, HTMLElement>; here: boolean; underway: boolean; onOpen: (i: Item) => void }) {
   const doing = i.doing && i.doing !== 'working' ? t.doing[i.doing] : '';
   // what it waits for where it needs the owner, as its inbox entry says, else what its agent reported last
   const text = agentStage(i, underway) === 'needsYou' ? waitsFor(i) : i.statusLine;
   return (
-    <li className={`inbox-entry agent-entry stage-${agentStage(i, underway)}${here ? ' on' : ''}`} aria-current={here || undefined}>
+    <li ref={els && i.parkingLot ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined} className={`inbox-entry agent-entry stage-${agentStage(i, underway) ?? 'parked'}${here ? ' on' : ''}`} aria-current={here || undefined}>
       <div className="ttl">
         <button type="button" className="ttl-link" onClick={() => onOpen(i)}>
           {plain(i.title)}
         </button>
       </div>
       <div className="state">
-        {stateLabel(i)}
+        {i.parkingLot && <Car size={13} aria-hidden />} {stateLabel(i)}
         {doing && <span className={i.doing && demoStage(i.doing) ? 'doing demo' : 'doing'}> · {doing}</span>}
       </div>
       {text && <div className="text"><Inline md={text} /></div>}

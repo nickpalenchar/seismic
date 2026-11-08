@@ -683,6 +683,7 @@ const en = {
     notDone: 'Only your own task that is live, done or stopped, or a parked or dropped idea, can be archived.',
     holdsWork: 'Its branch holds work that has not landed. Start the task again or delete it.',
     notArchived: 'This is no longer in the archive.',
+    notParkable: 'Only a planned or stopped task that is not queued can be parked.',
     notIdea: 'This is not an idea (any more).',
     notUntouched: 'Only planned tasks nobody has worked on yet can be merged or deleted.',
     otherRepos: 'Only tasks of the same repository can be merged.',
@@ -1258,10 +1259,23 @@ const en = {
     pickHint: 'The agent’s choice',
     kept: 'Card kept.',
   },
+  parking: {
+    state: 'Parked',
+    park: 'Park',
+    parkHint: 'Moves the card off the canvas into the parking lot in the Agents sheet.',
+    unpark: 'Unpark',
+    parked: 'Card parked.',
+    menu: 'Card actions',
+    confirmTitle: 'Start a parked card',
+    confirmText: 'This takes the card out of the parking lot, back onto the canvas, and starts the agent.',
+    confirm: 'Unpark and start',
+    back: 'Go back',
+  },
   agents: {
     title: 'Agents',
     button: (n: number) => (n === 0 ? 'Agents: no task in the queue' : n === 1 ? 'Agents: one task in the queue' : `Agents: ${n} tasks in the queue`),
-    tabs: { queue: 'Queue', all: 'All' },
+    tabs: { queue: 'Queue', all: 'All', parked: 'Parked' },
+    noneParked: 'No parked cards.',
     stages: { needsYou: 'Needs you', working: 'Working', reviewing: 'Code reviewing', fixing: 'Review fixing', landing: 'Landing', planned: 'Planned' },
     none: 'No cards.',
     filter: 'Show groups',
@@ -2515,13 +2529,15 @@ const number = (n: number, digits = 0) => n.toLocaleString(locale, { maximumFrac
 /** English ordinal: 2nd, 3rd, 11th. */
 const ordinal = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 >= 11 && n % 100 <= 13 ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 
-export const stateLabel = (i: { demos?: { asked?: true }[]; kind?: string; thread?: { thinking?: boolean }; state: CardState; landing?: true; landingPosition?: number; need?: Need; pr?: unknown; contribution?: unknown; queue?: Queue; idea?: Idea; question?: { stuck?: true }; answering?: true; answered?: true; finishing?: boolean; followUp?: boolean; paused?: true; pausing?: true; restartPaused?: true; snoozed?: Snooze; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } }; branch?: string; codeReview?: { state?: string } }) =>
+export const stateLabel = (i: { demos?: { asked?: true }[]; kind?: string; thread?: { thinking?: boolean }; state: CardState; landing?: true; landingPosition?: number; need?: Need; pr?: unknown; contribution?: unknown; queue?: Queue; idea?: Idea; question?: { stuck?: true }; answering?: true; answered?: true; finishing?: boolean; followUp?: boolean; paused?: true; pausing?: true; restartPaused?: true; snoozed?: Snooze; parkingLot?: string; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } }; branch?: string; codeReview?: { state?: string } }) =>
   i.landingPosition !== undefined
     ? t.landingPosition(i.landingPosition)
     : i.landing
     ? t.approving
     : i.proposal?.merge
     ? i.proposal.merge.failed !== undefined ? t.merge.failedShort : i.proposal.merge.task === undefined ? t.merge.mergingShort : t.merge.mergedShort
+    : i.parkingLot
+    ? t.parking.state
     : i.snoozed
     ? i.snoozed.on
       ? t.snooze.on(i.snoozed.on.title, i.snoozed.on.state, i.snoozed.until && snoozeWhen(i.snoozed.until))
