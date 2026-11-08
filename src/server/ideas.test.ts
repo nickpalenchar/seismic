@@ -604,7 +604,7 @@ describe('an idea', () => {
     expect(item(i.id).idea!.status).toBe('dropped');
     project.act(i.id, { action: 'discuss', text: 'Doch nochmal.' });
     expect(item(i.id).idea!.status).toBe('open');
-    expect(() => project.act(board().create({ title: 'X', x: 0, y: 0 }).id, { action: 'park' })).toThrow('not an idea');
+    expect(() => project.act(board().create({ title: 'X', x: 0, y: 0 }).id, { action: 'drop' })).toThrow('not an idea');
   });
 
   test('a planned card of the owner’s can become an idea first, and its agent opens the discussion with what the card says', () => {
