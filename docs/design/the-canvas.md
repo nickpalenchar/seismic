@@ -43,7 +43,7 @@ to the edge from top to bottom, the canvas moved aside, one sheet open at a time
 grip; the button's second click, the sheet's ✕ and Esc close it. Opened, it stays open as the owner
 switches canvas (per tab), until they close it or open another sheet.
 
-The inbox lists every entry across canvases in one list, the one that has waited longest first;
+The desktop's inbox lists the shown canvas's entries; a switch "All projects", right-aligned on the line of the All | Unread filter, lists every canvas's entries in one list (off by default, remembered). The list is ordered with the one that has waited longest first;
 cards snoozed while they waited stand at the end (see Snoozing a card). The phone's "Needs you"
 shares the entries, layout and actions, but sorts by last update, newest first: a refreshed demo
 moves its card to the top (see The phone view). An entry is a pane of glass of its own: its

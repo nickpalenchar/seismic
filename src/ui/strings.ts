@@ -1364,6 +1364,7 @@ const de = {
     all: 'Alle',
     unread: 'Ungelesen',
     noneUnread: 'Nichts Ungelesenes.',
+    allProjects: 'Alle Projekte',
   },
   phone: {
     forYou: 'Braucht dich',
@@ -3782,6 +3783,7 @@ const en: Strings = {
     all: 'All',
     unread: 'Unread',
     noneUnread: 'Nothing unread.',
+    allProjects: 'All projects',
   },
   phone: {
     forYou: 'Needs you',

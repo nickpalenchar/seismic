@@ -2871,7 +2871,9 @@ body:has(#inbox.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 /* an unread entry: an orange dot centred on the title's first line (or at the end of a proposal's canvas line) */
 .unread-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--waiting); margin-top: 6px; }
 .inbox-entry .where .unread-dot { margin: 0 0 0 auto; }
-.inbox-filter { margin: 0 0 12px 8px; }
+.inbox-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 8px 12px; }
+.inbox-bar .inbox-filter { margin: 0; }
+.inbox-all-projects { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
 .ph-section .inbox-filter { margin-left: 0; }
 .inbox-entry .state { font-size: 12px; color: var(--waiting); font-weight: 600; margin-top: 3px; }
 /* a question from the card's agent: the dark yellow of the card's frame */

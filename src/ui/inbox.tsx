@@ -23,6 +23,8 @@ export const when = (iso: string | number) => (new Date(iso).toDateString() === 
 
 export interface InboxProps {
   entries: InboxEntry[];
+  /** The canvas shown now: without "All projects" only its entries are listed. Left out, every canvas's are. */
+  current?: string;
   /** The card open now: its entry is marked. */
   open?: string;
   onGo: (e: InboxEntry) => void;
@@ -38,9 +40,11 @@ export interface InboxProps {
 type Filter = 'all' | 'unread';
 
 /** The entries as a list, the same on the desktop's sheet and the phone. */
-export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProposalConfig, isRead, onRead }: InboxProps) {
+export function InboxList({ entries: all, current, open, onGo, onReply, onProposalCard, onProposalConfig, isRead, onRead }: InboxProps) {
   const [filter, setFilter] = useStoredState<Filter>('obeya-inbox-filter', 'all');
-  if (!entries.length) return <p className="empty-inbox">{t.inbox.empty}</p>;
+  const [everywhere, setEverywhere] = useStoredState<boolean>('obeya-inbox-all-projects', false);
+  const entries = current && !everywhere ? all.filter((e) => e.canvas === current) : all;
+  if (!entries.length && !(current && all.length)) return <p className="empty-inbox">{t.inbox.empty}</p>;
   // the open card's entry stays while the owner is at it, read or not
   const shown = filter === 'all' ? entries : entries.filter((e) => !isRead(e) || (!!e.card && e.card.id === open));
   // only a click on a button reads the entry, not one on the text around it
@@ -51,6 +55,7 @@ export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProp
   const dot = <span className="unread-dot" role="img" aria-label={t.inbox.unread} />;
   return (
     <>
+      <div className="inbox-bar">
       <div className="seg inbox-filter" role="radiogroup" aria-label={t.inbox.filter}>
         {(['all', 'unread'] as const).map((f) => (
           <button key={f} type="button" role="radio" aria-checked={filter === f} className={filter === f ? 'on' : undefined} onClick={() => setFilter(f)}>
@@ -58,7 +63,15 @@ export function InboxList({ entries, open, onGo, onReply, onProposalCard, onProp
           </button>
         ))}
       </div>
-      {!shown.length && <p className="empty-inbox">{t.inbox.noneUnread}</p>}
+        {current && (
+          <label className="inbox-all-projects">
+            <input type="checkbox" role="switch" className="toggle" checked={everywhere} onChange={(ev) => setEverywhere(ev.target.checked)} />
+            {t.inbox.allProjects}
+          </label>
+        )}
+      </div>
+      {!entries.length && <p className="empty-inbox">{t.inbox.empty}</p>}
+      {!!entries.length && !shown.length && <p className="empty-inbox">{t.inbox.noneUnread}</p>}
       <ul className="inbox-list">
         {shown.map((e) => {
           const unread = !isRead(e);

@@ -2350,7 +2350,7 @@ function Canvas({
           onJump={(wx, wy) => !focusRef.current && fly(viewOn(wx, wy), 500)}
           onFollow={(wx, wy) => !focusRef.current && chase(camRef.current, viewOn(wx, wy), setCam)}
         />
-        <Inbox entries={entries} open={openId ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
+        <Inbox entries={entries} current={snapshot.canvas.id} open={openId ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
           onProposalCard={(canvas, card) => goToEntry({ key: card.id, canvas, canvasName: '', card, text: '', since: '' })}
           onProposalConfig={(canvas, repo, setting) => { showRepoClones({ canvas, repo, field: 'settings', setting }); setCOn(true); }} />
         <CanvasSettingsSheet canvas={snapshot.canvas.id} name={snapshot.canvas.name} homePath={snapshot.canvas.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showCanvasesSection(), setPrefsOn(false), setCOn(true))} />
