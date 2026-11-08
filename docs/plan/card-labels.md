@@ -68,7 +68,7 @@ this Seismic, never in plan docs, and not told to agents.
 - [x] **W5:** "Add to CLAUDE.md" is labelled. The card the Koordinator makes for rules of a
   CLAUDE.md gets category Docs and sub-category Configuration when it is made, as set labels rather
   than suggestions since Seismic makes the card itself (owner, 2026-11-05), regardless of the toggles
-  and without a session, so the owner can tell it apart on the project.
+  and without a session, so the owner can tell it apart on the canvas.
 - [ ] **W6:** Design docs. Move what passes the rebuild test into the chapters: the labels and the
   suggested state into The project (beside Priorities), the toggles and Project defaults with the
   sync rule into Repositories and configuration (the configuration dialog), the suggestion into the

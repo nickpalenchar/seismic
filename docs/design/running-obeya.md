@@ -149,7 +149,7 @@ own WebSocket. It shows four lists:
   at the end. Every card that leaves "Needs you" without being done stands here.
 - **"Planned"**: the tasks no agent has started yet and that wait for nobody: planned ones (a follow-up
   the owner accepted, say), stopped ones, and those set to start at a time. Opened, a card offers
-  what it does on the project ("Start agent", "Later"), so a task can be started from the phone.
+  what it does on the canvas ("Start agent", "Later"), so a task can be started from the phone.
   Without this list an accepted proposal left the phone until it was started (2026-10-31).
 - **"Done"**: the finished cards that are not archived yet, those the archive's "Archive … done tasks" would take, and none the lists above hold.
 
@@ -158,7 +158,7 @@ hold many cards the owner rarely needs on the phone. Opened, the head moves up t
 cards show; it stays open while a card is open and over a reload, and is closed again in a new tab.
 Without such cards it is not there.
 
-The cards look as on the project, as wide as the screen and without the pin, their kind line led by
+The cards look as on the canvas, as wide as the screen and without the pin, their kind line led by
 the project's name where there are several; where two of at least
 340 px fit (the phone turned) they stand side by side.
 
@@ -171,7 +171,7 @@ never stands over the field; only the conversation scrolls. Its address is `?tal
 as read once it is open. A card opened from it opens over it; Back returns.
 
 The panel takes the part of the screen the keyboard leaves, its field right above the keyboard, as
-the whole page does (see The project, The on-screen keyboard). The panel's top is a grip, its whole row with the title (its buttons aside): the panel follows the finger and stays where let
+the whole page does (see The canvas, The on-screen keyboard). The panel's top is a grip, its whole row with the title (its buttons aside): the panel follows the finger and stays where let
 go, the page under it scrolling on until all of it can stand above the panel; within 15 % of the screen's top it takes the full height, within 15 % of the bottom it closes;
 let go while moving it glides on, slowing evenly, so a short swipe up fills the screen and one down
 closes it, while a finger still for 50 ms before lifting leaves it where it is. It opens at the full
@@ -198,7 +198,7 @@ agent or Seismic is at work, the button carries a working card's moving line. Th
 with the first unseen message at the top of the panel, else at its end; new messages carry the
 orange edge (see The conversation). Beside a demo video the panel is a half sheet and the video
 scrolls into the upper half, so a comment at a place in the video ("Comment here" brings the
-panel up with the cursor in the field) is written with the video in view, as on the project; turned
+panel up with the cursor in the field) is written with the video in view, as on the canvas; turned
 sideways the panel opens at the full height there too.
 
 Calls go to the API of the project in view; a call or words about a card go to its own project's API,
@@ -207,9 +207,9 @@ go).
 
 *A new card* comes from the plus button that stands in the microphone's place on the list (the
 microphone is back there while Seismic's conversation is open, and on an open card): it makes a task
-on the project whose Seismic the list speaks to, where there is room on it (the server places a card
+in the project whose Seismic the list speaks to, where there is room on it (the server places a card
 created without a position), and opens it with the cursor in its text. Left without a title, Seismic
-names it from its text; left empty, it goes, as on the project. Turned sideways it stands where the
+names it from its text; left empty, it goes, as on the canvas. Turned sideways it stands where the
 microphone does. The list gave up its microphone for it (owner, 2026-11-06): voice stays in the
 conversation and on cards. Rejected: a plus button beside the microphone.
 
@@ -586,7 +586,7 @@ workers are busy.
 - **Programs run without a window on Windows by default, not by an option at each call**
   (2026-11-01): one call forgotten brings the flashing windows back. A program meant to be seen asks
   for its window.
-- **What reacts to a change on the project hears of it once the code that changed it is through, once
+- **What reacts to a change on the canvas hears of it once the code that changed it is through, once
   for all it changed** (2026-10-31): a landing or a card moving on changes the project dozens of
   times in a row, and each reaction asks for the project as the page sees it, which took a few
   milliseconds to build on a project with hundreds of archived and shared cards; when many cards

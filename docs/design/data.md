@@ -30,7 +30,7 @@ Persistent (SQLite):
   it; an idea's brief, open questions and picks; a prototype's idea
   and outcome; a plan's plan doc as last read and the plan docs its landed work added; the priority the owner
   gave it (`priority`: `trivial`, `low`, `medium`, `high`, `veryHigh` or `critical`, null for none); its short
-  code for addresses (see Addresses in The project), unique across the database;
+  code for addresses (see Addresses in The canvas), unique across the database;
 - each session that worked on a card, with the harness, resolved model and effort it ran on (see
   Models and effort in Agents and workstations), and the owner's responses on approved work: the
   handover each is about, whom it credits, the card's context as it was, the answer and facets;
@@ -52,13 +52,13 @@ Persistent (SQLite):
   the work retrospective proposed from it.
 
 Files under `~/.obeya/` (the same for the app and a checkout): the database (`obeya.db`), the
-owner's screenshots (`images/<canvas>/`), other files the owner dropped into a field
-(`files/<canvas>/<uuid>/<name>`), the configuration (`canvases.json`), the settings
+owner's screenshots (`images/<project>/`), other files the owner dropped into a field
+(`files/<project>/<uuid>/<name>`), the configuration (`projects.json`), the settings
 (`settings.json`, `demo.json`, `voice.json`), where the running Seismic answers (`server.json`), the
 `tailscale serve` entry Seismic made (`tailscale-serve.json`), the key it signs pushes with
 (`vapid.json`), the app's server log (`app.log`), the stalls of the server and its pages (`stalls.log`, see Running Seismic), voices and models (`voices/`), the workers'
 clones and worktrees (`workspaces/`, the name it had before workstations were called so), the read checkout's worktrees (`read/`), the cards' undo in
-folders without git (`undo/`), the files of looked-up answers (`answers/<canvas>/<thread>/`), the
+folders without git (`undo/`), the files of looked-up answers (`answers/<project>/<thread>/`), the
 static sites Seismic keeps (`sites/<key>/`), the env files their repositories' settings name
 (relative to the home, `sites/demos/deploy.env`, say), and `share/`, the directory deploys run in.
 

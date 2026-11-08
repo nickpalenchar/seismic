@@ -59,7 +59,7 @@ its absolute path (or one from `~/`) in that machine's configuration, not in thi
 them there, and the agents on that machine tick their workstreams off there, outside any commit. One with a checklist under `## Workstreams` (or `## Arbeitspakete`) is a plan:
 each top-level item is a workstream (`- [ ] **W1:** Title. Details`), a ticked one has landed,
 and once every one is ticked the plan goes into the archive. Its goal is the first paragraph
-under `## Goal` (or `## Ziel`). Any other file there shows on the project in a note, with the
+under `## Goal` (or `## Ziel`). Any other file there shows on the canvas in a note, with the
 reason it is not a plan and "Als Plan aufbereiten", which has an agent add the checklist; a
 file that is meant to stay as it is (a template, an index) goes into `exclude`. Default:
 `{ "dir": "docs/plan", "exclude": ["TEMPLATE.md"] }`. The skill's check script

@@ -57,7 +57,7 @@ on the default branch.
 
 Landing runs git without blocking the server. Landings of one repository run one after the other;
 the active card says "Landing on main", and waiting approvals say "Waiting to land · 1st in line"
-(2nd, …), moving up as each landing finishes. The same status appears on the project, the
+(2nd, …), moving up as each landing finishes. The same status appears on the canvas, the
 phone and the opened card. Positions are per repository across projects and cover both local
 landings and direct pushes; unrelated repositories proceed independently. A stopped waiting card
 leaves the queue without running git; failures and completed landings clear the status. Once git
@@ -192,7 +192,7 @@ with it ("look especially at security", "the demo on the phone only") becomes th
 top of the fixed review below. A PR that has a card already opens that card, and the words go to its
 worker; one closed or merged gets none. Seismic never makes such a card by itself and does not list
 open PRs. The card starts as any (see Scheduling) and names the PR's number, author and link above
-its title, on the project and opened.
+its title, on the canvas and opened.
 
 Its workstation stands on the PR's head (`refs/pull/<n>/head`, which GitHub and Forgejo both keep),
 fetched from `origin` where that is the PR's repository, else from the repository on its forge. Its
@@ -224,7 +224,7 @@ bracket of its own on the card ("Findings 2 + 4: one follow-up task") while its 
 made one, and picks nothing for the others: the choice stays per finding. Above them stand the
 checks on the head and the merge probe ("✓ bun test · ✓ no conflicts"), and a collision with
 unpushed commits on the local `main` where there is one (see Unpushed commits the PR collides
-with); on the project the card shows them on one line ("Review: 2 findings open (1 security)"). The handover brings the checks'
+with); on the canvas the card shows them on one line ("Review: 2 findings open (1 security)"). The handover brings the checks'
 results and the merge probe; a handover without findings recorded (an empty list where there are
 none) is refused. The findings are for the owner: nothing of them reaches the contributor unless the
 owner sends it. Seismic records the head the worker handed over.
@@ -345,7 +345,7 @@ brings the PR up to date with it: itself on the card's branch where the contribu
 maintainers' edits (pushed with the next approval, as Own changes wait for the approval says),
 else by a change request to them; then it hands over again. The other is to
 merge anyway, which leaves `main` unpushed (below). The approve button then reads "Merge
-anyway (PR #5)", and the card on the project says "⚠ collides with local main". A collision the card did
+anyway (PR #5)", and the card on the canvas says "⚠ collides with local main". A collision the card did
 not show yet when the owner clicks ("Merge" while a landing just moved `main`) holds the merge
 back once and shows itself; a second click merges.
 

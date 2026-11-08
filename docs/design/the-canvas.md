@@ -34,22 +34,22 @@ beneath the unfolded card and returns when it folds back. Its button, Esc (once 
 click on the archive's button in the bar leaves it, closing the archive.
 
 The inbox button, beside Seismic's at the bar's right, shows an inbox icon and counts, in the orange
-of a waiting card, everything that waits for the owner on every canvas and that they have not read
-yet (see Read and unread below): the cards that need them, per canvas one for Seismic's answers
-waiting unread, and each open rule or setting proposal. The navigation's count per canvas counts the
+of a waiting card, everything that waits for the owner on every project and that they have not read
+yet (see Read and unread below): the cards that need them, per project one for Seismic's answers
+waiting unread, and each open rule or setting proposal. The navigation's count per project counts the
 same way. Its click slides out the inbox from the right
 instead of jumping to a card. The inbox is a sheet like Seismic's and a plan's (see Sheets): docked
 to the edge from top to bottom, the canvas moved aside, one sheet open at a time, the same width and
 grip; the button's second click, the sheet's ✕ and Esc close it. Opened, it stays open as the owner
-switches canvas (per tab), until they close it or open another sheet.
+switches project (per tab), until they close it or open another sheet.
 
-The desktop's inbox lists the shown canvas's entries; a switch "All projects", right-aligned on the line of the All | Unread filter, lists every canvas's entries in one list (off by default, remembered). The list is ordered with the one that has waited longest first;
+The desktop's inbox lists the shown project's entries; a switch "All projects", right-aligned on the line of the All | Unread filter, lists every project's entries in one list (off by default, remembered). The list is ordered with the one that has waited longest first;
 cards snoozed while they waited stand at the end (see Snoozing a card). The phone's "Needs you"
 shares the entries, layout and actions, but sorts by last update, newest first: a refreshed demo
 moves its card to the top (see The phone view). An entry is a pane of glass of its own: its
-canvas small on top (name and icon, with since when it waits), the card's title large, its state
+project small on top (name and icon, with since when it waits), the card's title large, its state
 ("Demo ready", "Question for you" …) and, lighter, what the card waits for (the question, the
-summary, the proposal's text). Rule and setting proposals offer their decisions directly in the inbox. Seismic's latest unread answer on a canvas is an entry too, placed by
+summary, the proposal's text). Rule and setting proposals offer their decisions directly in the inbox. Seismic's latest unread answer on a project is an entry too, placed by
 when it came, and leads to Seismic's sheet there.
 
 Under an entry stand the buttons that answer it in one click, the same as its card's own, and of
@@ -67,7 +67,7 @@ answer, a dismissal) is sent only once its "Undo" has run out, or as the page cl
 goes at once, with the undo a card's removal always has.
 
 "Go to card" ("Go to Seismic" on Seismic's answer) is on every entry, last and never primary, even
-alone. It opens the card beside the inbox, on this canvas or by switching to the card's canvas,
+alone. It opens the card beside the inbox, on this project or by switching to the card's project,
 where the inbox is open again beside it. Unlike a plan's sheet, the inbox is not dimmed while a
 card is open: the open card's entry is marked with a ring and a tint, and the owner works down the
 list from there.
@@ -81,8 +81,8 @@ looking at it. Only unread entries count on the inbox button. A switch "All | Un
 list shows every entry or only the unread ones; with "Unread", the open card's entry stays listed
 until the owner moves on, so it does not vanish under them. The switch's choice and what was read
 are kept per browser, like what of a conversation was seen (the phone and the desk each have their
-own). Tab still goes through the cards of this canvas that need the owner and Seismic's
-answers (see the legend), never another canvas's.
+own). Tab still goes through the cards of this project that need the owner and Seismic's
+answers (see the legend), never another project's.
 
 The bar has no hint line. `?` (or the round `?` button) shows the legend of mouse and keys, ending
 with the link "Report a wish or a bug" (see Wishes for Seismic's makers). The button only teaches
@@ -92,7 +92,7 @@ browser).
 The buttons always fit: when the contents outgrow the bar (a wide sheet, a narrow window), it gives
 up in steps the logo's wordmark (the sign and chevron stay) and branch, then labels a few at a time, then the workstation pool and `?`, and in
 the smallest bar all but the sheets' buttons (the inbox's keeping its count) and the navigation's,
-which loses the canvas's name. The step is measured from the actual contents, since the same
+which loses the project's name. The step is measured from the actual contents, since the same
 width may hold a short or a long branch, one clone or three.
 
 The logo (three chevrons in blues, `src/ui/logo/seismic_logo.png`; the wordmark "Seismic" in Newsreader) opens
@@ -101,9 +101,9 @@ favicon and the app icon's source (`scripts/logo.py`).
 
 #### The logo's menu
 
-A click on the logo lists what belongs to Seismic as a whole rather than to one canvas, in three groups:
+A click on the logo lists what belongs to Seismic as a whole rather than to one project, in three groups:
 views ("Agent performance", which opens the performance dashboard over the page; "Feedback log", the
-log's page), "Preferences" and "Configuration" (the dialog of every canvas, see The configuration
+log's page), "Preferences" and "Configuration" (the dialog of every project, see The configuration
 dialog in Repositories and configuration), and help ("Controls: mouse and keys", the legend `?` shows; "Report a wish or a bug"). A click beside it or Esc closes it, as with the bar's other lists. The chevron is
 there because the logo alone does not look clickable. The phone view has no such menu: it shows none
 of these.
@@ -116,28 +116,28 @@ showed, and a link in it opens the Configuration.
 ### The project settings
 
 The gear in the bar (an icon without a label, the configuration's problems counted on it in red)
-slides out the open canvas's settings, a sheet like the inbox (see Sheets): docked to the right edge
+slides out the open project's settings, a sheet like the inbox (see Sheets): docked to the right edge
 in a wide window, one sheet at a time, its second click, its ✕ and Esc close it; a narrow window
 lays it over the whole page down to the status bar, the microphone hidden behind it. It is headed
-"Project settings" under the canvas's name and holds what applies to this canvas alone, each change
+"Project settings" under the project's name and holds what applies to this project alone, each change
 saved into the configuration at once and applied without a restart:
 
 - Models: for each group of agents (see Models and effort in Agents and workstations) a harness,
   model and effort. Left open, each shows Configuration's value and follows it as it
-  changes; a value chosen is the canvas's own. Running agents keep theirs; the next to start take it.
+  changes; a value chosen is the project's own. Running agents keep theirs; the next to start take it.
 - Code reviews: "Review the work", off unless turned on; once on, "Reviews happen" "Automatically,
   with the demo" or "Manually, at handover", and the line that this applies only to work that lands
   on `main` ("Work that goes through a pull request is reviewed on the forge"). See Code reviews in
   Card lifecycle.
-- Demo site: where "Share" puts the canvas's demos, one of this machine's sites with a path of its
-  own, "Initialize", the vocabulary of tags and when a demo goes on the site (see A canvas's demo
+- Demo site: where "Share" puts the project's demos, one of this machine's sites with a path of its
+  own, "Initialize", the vocabulary of tags and when a demo goes on the site (see A project's demo
   site in Sharing demos).
 - Cards: "Cards archive", "Manually" (the default) or "Automatically, after landing" (see Archive
   in Card lifecycle).
 - Labels: the toggles "Seismic suggests" (see Projects in Repositories and configuration).
 - Plans: plan git baseline tags.
 
-Its foot opens the Configuration at this canvas's page for its name, repositories and the rest.
+Its foot opens the Configuration at this project's page for its name, repositories and the rest.
 
 
 A thin frosted bar along the bottom, between the sheets docked at the edges, with three places.
@@ -145,8 +145,8 @@ Left, the connection: "Online" in light green; in orange text without a backgrou
 connection is gone, "Server not responding …" while it is open but the server answers nothing (see
 the decision on the status bar's liveness), and "No connection since <time>" or "Unresponsive since
 <time>" from 2½ minutes on; while a restart waits, that instead, in ice blue (see Running Seismic,
-the restart); beside it "Creating demo site …" while the canvas's demo site is being initialized
-(see A canvas's demo site in Sharing demos). In the middle, whom the microphone speaks to (see Voice). It stays above an open
+the restart); beside it "Creating demo site …" while the project's demo site is being initialized
+(see A project's demo site in Sharing demos). In the middle, whom the microphone speaks to (see Voice). It stays above an open
 card's dimming, so that line stays readable while a card is open; the microphone sits just above
 the bar. Right, the usage limits of the Claude plan that Claude Code on this machine is logged in
 with, behind the small mark of the harness they belong to (Claude Code's; other harnesses get their
@@ -159,7 +159,7 @@ Notifications and limits turns it on again (on until then). The phone view shows
 The numbers come from the data behind Claude Code's `/usage`: one idle Claude Code session, which
 sends no prompt and so uses none of the limits, is asked a little over every minute (it keeps an
 answer for a minute) while the setting is on and a page of Seismic is open, and closed once neither
-holds, half a minute after the last page closed: a reload or a switch to another canvas, which loads
+holds, half a minute after the last page closed: a reload or a switch to another project, which loads
 the page anew, finds the numbers there and shows them in the bar from its first frame. Nothing shows for a login without plan limits (an API key, a cloud provider), a Claude Code
 too old to answer, or numbers that could not be fetched again for five minutes. The workers on other
 machines may use other logins; the bar shows this machine's. The lists the status bar opens
@@ -167,20 +167,20 @@ open upwards.
 
 ### The navigation
 
-The bar's left holds the canvas picker. Its button names the canvas and its home branch (or its
-count of repositories); a click lists the canvases under it in the configuration's order, the open
+The bar's left holds the project picker. Its button names the project and its home branch (or its
+count of repositories); a click lists the projects under it in the configuration's order, the open
 one marked. Each names its repositories and, in the orange of a waiting card, how many things wait
-for the owner there (the inbox's entries on that canvas), and carries its agents' pause (see
-Pausing a canvas's agents). A click on one switches there. The list ends with "New project", which opens the configuration's
-Canvases section with a new, empty project already added to its list, ready to fill in. What waits itself is in the inbox (see
+for the owner there (the inbox's entries on that project), and carries its agents' pause (see
+Pausing a project's agents). A click on one switches there. The list ends with "New project", which opens the configuration's
+Projects section with a new, empty project already added to its list, ready to fill in. What waits itself is in the inbox (see
 The bar), not here.
 
 The list's head has a button that pins it as a sidebar docked to the window's left edge, full
 height, as the sheets are on the right (see Sheets); the same button, pressed, unpins it. Pinned,
-the bar's button is gone (the sidebar is its place now) and the open canvas's name heads the bar in
-its stead, so which canvas is open reads at a glance; pinning holds per browser, on every canvas.
+the bar's button is gone (the sidebar is its place now) and the open project's name heads the bar in
+its stead, so which project is open reads at a glance; pinning holds per browser, on every project.
 Unlike a sheet it is not dimmed while a card is open. A narrow window, or one that would leave the
-canvas less than about a column of cards beside the sidebar and an open sheet, folds it back into
+project less than about a column of cards beside the sidebar and an open sheet, folds it back into
 the bar's button until there is room again: the two sidebars never stack, neither over each other
 nor side by side on one edge. In the app on a Mac the sidebar reaches up to the window's top, so the
 traffic lights move from the bar into its head, which stays in place as the list scrolls and drags
@@ -400,12 +400,12 @@ card is made, and never changes, so a link stays good; existing cards got theirs
 was migrated, each the shortest start of its id no other card shared. Opening an address (a link, a
 bookmark, a reload) opens that card at once, without the flight; an archived one unfolds from its
 row in the archive, an archived workstream from its plan's sheet; a code no card has leaves the
-canvas open at its own address. Existing `/c/<canvas>`, `/c/<canvas>/card/<code>` and `/c/<canvas>/feedback` addresses,
-and query addresses (`/?c=<canvas>&card=<id>`), are rewritten to this form, so old links and bookmarks keep working. What else the page shows that is
-not a place (`?view=phone`, the phone's open conversation `?talk`; on the canvas `?talk` opens
-Seismic's sheet once, as the inbox's link to an answer on another canvas does) stays in the query.
-`/p/<project>/feedback` is the Agent Feedback Log in place of that canvas (see Comparing ratings in
-Card lifecycle), and `?performance` on a canvas opens the performance dashboard once.
+project open at its own address. Existing `/c/<project>`, `/c/<project>/card/<code>` and `/c/<project>/feedback` addresses,
+and query addresses (`/?c=<project>&card=<id>`), are rewritten to this form, so old links and bookmarks keep working. What else the page shows that is
+not a place (`?view=phone`, the phone's open conversation `?talk`; on the project `?talk` opens
+Seismic's sheet once, as the inbox's link to an answer on another project does) stays in the query.
+`/p/<project>/feedback` is the Agent Feedback Log in place of that project (see Comparing ratings in
+Card lifecycle), and `?performance` on a project opens the performance dashboard once.
 
 Opening a card or a plan is a step in the browser's history, on the canvas as on the phone: Back
 closes it again, and closing it (Esc, the close button) goes back that step, so Back after closing
@@ -429,9 +429,9 @@ its cards is open, and the inbox stays undimmed beside any card. A narrow window
 
 Seismic's button, a speech bubble with its counts, stays where it is when its sheet opens and becomes
 the sidebar's top corner that closes it; the sheet is headed "Seismic". Other sheets have a ✕.
-Leaving a canvas (for another, or a reload) with Seismic's sheet open and something entered in its
+Leaving a project (for another, or a reload) with Seismic's sheet open and something entered in its
 field brings the sheet back open on return; with the field empty, or the sheet closed on leaving
-(a draft in it or not), the canvas comes back with it closed (owner, 2026-10-30): an open sheet
+(a draft in it or not), the project comes back with it closed (owner, 2026-10-30): an open sheet
 with words in it is work in progress, an empty one was only a glance.
 
 Esc closes a sheet, from a text field in it too, unless a field being edited takes it to cancel the
@@ -566,7 +566,7 @@ code, a generic one otherwise.
 - **Status, voice target and usage in one status bar at the bottom** (owner, 2026-11-05): the
   connection, a waiting restart, whom the microphone speaks to and the usage limits used to be pills
   in the top bar and a line under the microphone; gathered along the bottom, the top bar keeps the
-  canvas's controls and the state of Seismic reads in one place. Rejected: keeping them in the top bar,
+  project's controls and the state of Seismic reads in one place. Rejected: keeping them in the top bar,
   where they crowded the buttons and dropped out first in a narrow window.
 - **What the agent does is read from its steps** (owner, 2026-11-03): the word on a working card
   comes from the tool calls, their results and the pauses between them, so it costs the agent nothing
@@ -578,20 +578,20 @@ code, a generic one otherwise.
   code is stored, not derived from the cards there are at the time, so a later card whose id starts
   alike cannot make an earlier link ambiguous. Rejected: query parameters (`?c=`, `?card=`), and
   the whole id in the address, which is long to read and pass on.
-- **A canvas's own settings behind a gear in the bar** (owner, 2026-11-05): settings that differ
-  from canvas to canvas (models first, then the labels Seismic suggests) belong one click from the
-  canvas, in a sheet beside the cards rather than in a dialog over them. What the canvas leaves open
-  follows the Configuration, so a change there still reaches every canvas that did not choose
+- **A project's own settings behind a gear in the bar** (owner, 2026-11-05): settings that differ
+  from project to project (models first, then the labels Seismic suggests) belong one click from the
+  project, in a sheet beside the cards rather than in a dialog over them. What the project leaves open
+  follows the Configuration, so a change there still reaches every project that did not choose
   otherwise. The gear took the bar's "Configuration" button's place, which moved to the logo's menu
   and the sheet's foot: two settings buttons side by side would leave the owner guessing which is
-  which. Rejected: copying Configuration's models into each canvas (a later change there would reach
-  no existing canvas), and the canvas's page in the Configuration dialog as the only place.
-- **The inbox on the right, the navigation a canvas picker** (owner, 2026-11-05, fork; replaces "One
-  navigation on the left for canvases and what waits", 2026-11-02): what waits is worked down in a
-  list beside the cards it opens, across canvases, and a list on the left that closed on every click
-  or grouped entries by canvas hid which wait was oldest. Shared entries, layout and actions on
+  which. Rejected: copying Configuration's models into each project (a later change there would reach
+  no existing project), and the project's page in the Configuration dialog as the only place.
+- **The inbox on the right, the navigation a project picker** (owner, 2026-11-05, fork; replaces "One
+  navigation on the left for projects and what waits", 2026-11-02): what waits is worked down in a
+  list beside the cards it opens, across projects, and a list on the left that closed on every click
+  or grouped entries by project hid which wait was oldest. Shared entries, layout and actions on
   desktop and phone keep their behavior consistent; the desktop sorts oldest wait first and the
-  phone newest update first. Each canvas keeps its own count in the picker.
+  phone newest update first. Each project keeps its own count in the picker.
   Rejected: the inbox taking over the pinned left sidebar (a bigger change to upstream's
   navigation), and tabs inside the left element (not really separate). It competes with Seismic's
   sheet for the right edge; one sheet at a time settles that.
@@ -684,7 +684,7 @@ code, a generic one otherwise.
   it changes, the bar shows nothing until Seismic follows.
 - **The usage limits outlast the last page by half a minute** (2026-10-29). Rejected: closing the
   session and forgetting the numbers with the last page, which left the bar without them for the
-  seconds a new session takes after every switch of canvas.
+  seconds a new session takes after every switch of project.
 - **The usage limits' list opens on a click, not on hover** (owner, 2026-11-02), as the bar's other
   menus do. Rejected: hovering, which spread the list over the canvas whenever the pointer crossed
   the bar.
@@ -693,10 +693,10 @@ code, a generic one otherwise.
   queue's order in The Koordinator). Rejected: priorities that also order the queue (the owner chose a
   label only).
 - **The logo opens a plain dropdown for Seismic as a whole** (2026-11-04, the owner): views about no
-  one canvas and a single "Preferences" entry sit behind the logo; the menu names the dialog, not
+  one project and a single "Preferences" entry sit behind the logo; the menu names the dialog, not
   each of its sections. The Configuration keeps what sets up the work, notifications, usage limits
   and other devices included; only language, theme and the server moved out. Rejected for now: a pinnable slide-out, since none of
-  its entries is a view kept open beside the canvas yet; a pin can follow if one becomes that.
+  its entries is a view kept open beside the project yet; a pin can follow if one becomes that.
 - **The bar measures what fits** (2026-10-12). Rejected: container queries on the bar's width, which
   let a long branch or a large pool push buttons under the sheet.
 - **An unfolded card is as large as its content, up to the room it has** (2026-10-08, 2026-10-21).

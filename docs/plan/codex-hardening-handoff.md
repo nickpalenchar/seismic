@@ -7,7 +7,7 @@ agent's model in dialogues, and check the missing Claude usage display without a
 They now want someone else to finish this work.
 
 Checkout: `/Users/nick/harness/obeya`, branch `feature/codex-support` at `5f4cb43` (`Enable native Codex task workers
-on the project`). **All changes described below are uncommitted. Nothing has been pushed.**
+on the canvas`). **All changes described below are uncommitted. Nothing has been pushed.**
 Ask the owner before committing; this repository commits on main. Do not discard the dirty files.
 Read `CLAUDE.md`, `docs/design.md` and the relevant design chapters before continuing.
 

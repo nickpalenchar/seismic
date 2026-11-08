@@ -114,10 +114,10 @@ Either way the idea's other prototypes are discarded, so one card remains.
 
 "Make a plan" starts a worker on the idea's card, shown as "Idea → Plan": it writes a plan
 doc with workstreams, which lands like any change. Its plan (the doc the landed work added to the
-plan directory) then takes the idea's place on the project (cards in its way move aside), links back
+plan directory) then takes the idea's place on the canvas (cards in its way move aside), links back
 to it and takes over its decisions, showing those of both; the idea goes to the archive once its
 worker is done (put back, it stays). A task made into a plan is linked the same way. The
-prototypes stay on the project and the plan doc's worker hears what each showed, so the doc builds on
+prototypes stay on the canvas and the plan doc's worker hears what each showed, so the doc builds on
 them; only the workstream built on the chosen prototype mentions prototypes. "Build this prototype"
 then builds that workstream (the owner may pick another, and picks one when the doc names none or
 several) on the prototype's branch and discards the other prototypes; while the doc is written, it
@@ -133,8 +133,8 @@ conversation and prototypes; the agent trims the brief to what is open and repli
 second way to break work up beside the plan doc: always one task and the remaining idea.
 
 "Park" and "Discard" leave the card with its brief; talking to it opens it again. A parked or
-dropped idea can be archived (in it, or its archive button on the project; not while a prototype of
-it is on the project, and then the button is not shown): in the archive it shows its brief and
+dropped idea can be archived (in it, or its archive button on the canvas; not while a prototype of
+it is on the canvas, and then the button is not shown): in the archive it shows its brief and
 conversation read-only and can go back to its place. Decisions from the conversation go into the
 decision log; lasting preferences are learned by the Koordinator (see Learning the owner's rules).
 
@@ -174,7 +174,7 @@ owner never read.
 "Build it like this" does not wait: clicked during a reply, the idea is built once the agent has answered all
 it was told, with the brief it leaves, unless the reply asks questions; then nothing is built, the
 conversation says why, and the owner decides again. Meanwhile the panel stays open, the button reads
-"Builds after the reply …" with "Don’t build after all" beside it, and the project card says "builds after the reply". The agent hears of the click, as its brief becomes the task. A turn that ends without
+"Builds after the reply …" with "Don’t build after all" beside it, and the canvas card says "builds after the reply". The agent hears of the click, as its brief becomes the task. A turn that ends without
 a reply (an error, a restart), parking or dropping call the building off.
 
 Asked meanwhile to plan or split off, the Koordinator says that goes by a click after the reply;
@@ -188,7 +188,7 @@ when Seismic stopped.
 ### Decisions
 
 - **A discussion lives on a card, not in the conversation with the Koordinator** (2026-10-09): an
-  exploration parked on the project is found there again with its brief, and the Koordinator only
+  exploration parked on the canvas is found there again with its brief, and the Koordinator only
   passes the owner's words on. A question to Seismic asking for an opinion or a way forward becomes an
   idea card when no agent on the open card takes it (see Commands to the Koordinator); a wrong
   guess costs one card, undone with "Undo". Questions of fact stay in the conversation.

@@ -31,7 +31,7 @@ wants to think it through first; by voice, "ideate it first".
 A follow-up that can only be done later (whether a bank has registered a form, two weeks on) is a
 proposal with a start time (`start_at`), not a sentence in a handover where it goes under. The owner
 decides on it now, and the card starts by itself at the time. The time stands under the proposal's
-text with "Change" (the "Later" menu, with "No set time"), and on the project card after its
+text with "Change" (the "Later" menu, with "No set time"), and on the canvas card after its
 state ("starts …"). Its one button, "Accept", plans the card and snoozes it until then, the
 proposal's reason as what it does then; at the time it starts like a started planned card (see
 Snoozing a card), at once if the time has passed. Its worker hears when the card was set to start
@@ -66,7 +66,7 @@ text and its handover summary, where present. It reads no branch diff or reposit
 The survivor's text, branch, worker, demo, state and place stay untouched, while its worker can
 continue working during comparison.
 
-The pair shows together on the project, with a spinner while the comparison runs. Once ready it
+The pair shows together on the canvas, with a spinner while the comparison runs. Once ready it
 needs the owner. Its panel shows both originals above the merged card. Long originals start as
 previews; "Show all" expands them together. Only the panel scrolls; the result is complete
 and "Approve merge" and "Separate" stay reachable on desktop and phone.
@@ -83,7 +83,7 @@ Only approval removes the left card and creates the follow-up, as one transactio
 existing follow-ups move to the survivor, removing self arrows and duplicate arrows. The new
 follow-up is an ordinary planned task in the survivor's repository and group, placed beside it,
 with the existing dependency arrow waiting for the survivor to land. An archived survivor stays
-archived; its new follow-up is created on the project just the same. An archived stopped task
+archived; its new follow-up is created on the canvas just the same. An archived stopped task
 continues to hold the follow-up until its work lands; an archived finished task holds nothing. For unworked pairs approval
 instead gives the survivor the combined text and screenshots, with both proposals' questions kept
 as questions (or included in a planned task's text). The dissolved card is kept as deleted, marked
@@ -119,7 +119,7 @@ with the proposal's text and are the task's once accepted.
 The conversation stands beside the proposal as on an idea, its open questions at the end, a settled
 question where it was asked (see The conversation). Options picked and sent ("Answer") go to the
 reviser at once; accepting instead takes the picks into the text. While the rework runs the proposal
-shows "Being reworked" (on the project card in place of its state, which the kind line already
+shows "Being reworked" (on the canvas card in place of its state, which the kind line already
 names), cannot be edited or accepted with "Accept" alone, and does not count
 as needing the owner; words said meanwhile wait for the next rework. Then the conversation shows the
 reviser's reply, "Proposal revised." when the text changed, and any new questions. A reviser
@@ -130,7 +130,7 @@ restart starts again.
 the rework, like "So bauen" on an idea: clicked during one, the proposal is accepted once the new text
 is there, unless it still has questions, in which case it stays a proposal and the conversation says
 why. Meanwhile the button reads "Starts after the rework …" with "Don’t accept after all", and
-the project card's state line adds "then accepted". Accepting by voice during a rework is refused (see Commands
+the canvas card's state line adds "then accepted". Accepting by voice during a rework is refused (see Commands
 to the Koordinator).
 
 ### At work
@@ -179,7 +179,7 @@ handovers in order. A problem beyond the task is a proposal, not a line in the r
 Review answers may be submitted to the current worker or to a new agent chosen by harness, model and effort. The latter starts a fresh session in the same workstation with the selected findings as its task context; the previous worker must have finished its turn.
 
 A project may have the work of its cards reviewed before it lands (its settings sheet, "Code reviews",
-see The project settings in The project; off unless the owner turns it on, since reviews cost tokens).
+see The project settings in The canvas; off unless the owner turns it on, since reviews cost tokens).
 Only work that lands on `main` is reviewed: a card whose work goes through a pull request (with the
 repository's `land: pr`, also where "Straight to main" would push it) is left to the forge's
 reviewers, and so are folders without git, review cards, prototypes, work that changes nothing and
@@ -279,7 +279,7 @@ A review card, a contributor's pull request (see Review cards), reads "Merge (PR
 the head its worker reviewed, and the card is `live`; while a change request waits for the
 contributor it is `in PR`, "Waiting for the contributor".
 
-An approve click folds the card at once without waiting for the server: the project card says what is
+An approve click folds the card at once without waiting for the server: the canvas card says what is
 under way: first "being approved …" or "being pushed straight to main …", then the landing or its
 place in the repository’s landing queue (see How work lands). It no longer counts as needing the
 owner and is skipped by Tab, which goes on from the place of the card it opened last. A message with
@@ -383,13 +383,13 @@ Questions after the work).
 
 ### Archive
 
-The owner archives a finished card ("Archivieren" on it, its archive button on the project, or all
+The owner archives a finished card ("Archivieren" on it, its archive button on the canvas, or all
 finished ones at once in the archive); a prototype goes there when it ends (see Prototypes). The
 project setting "Cards archive" chooses between "Manually" (the default: only so) and
 "Automatically, after landing": then an owner's finished task goes into the archive by itself as
 soon as its work has landed (or closed without a change) and its worker is done after the landing,
 with a line in its log; a workstream still goes with its plan, and a card brought back from the
-archive stays on the project. The setting also decides when the owner is asked how the agent did
+archive stays on the canvas. The setting also decides when the owner is asked how the agent did
 (see Feedback after approval). A
 stopped task ("Stopped") can be archived one at a time, for the owner to come back to, beside "Start again" and "Delete"; not while it waits to start, nor while its workstation holds work that has not
 landed, or a clone keeps its branch since its workstation was taken (the button is greyed and says
@@ -397,7 +397,7 @@ why), which would lie unseen in a clone. A stopped card opens
 like a card an agent worked on, the task as its conversation's first message.
 
 The archive (its button in the bar, or `A`) drops down like the queue: archived cards on a timeline
-by day, newest first, labelled with their kind or state unless plain tasks. One unfolds as on the project and can go
+by day, newest first, labelled with their kind or state unless plain tasks. One unfolds as on the canvas and can go
 back to its place; an ended prototype only shows, read-only, how it ended. A search field, focused on
 opening and kept between openings, filters by every typed word (case and accents aside) in title,
 text, summary, last status or label, and a plan's goal and workstreams, marking the words in the
@@ -499,5 +499,5 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
   in the moment of approving; where cards archive themselves, there is no such moment, so the
   approval asks. Archiving by hand is the default.
 - **No card goes into the archive while its worker finishes after the landing** (2026-10-16):
-  workers are looked up among the cards on the project, so the worker of an archived card never ended
+  workers are looked up among the cards on the canvas, so the worker of an archived card never ended
   its turn and held its clone out of the owner's sight.

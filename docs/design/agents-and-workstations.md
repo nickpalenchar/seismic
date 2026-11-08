@@ -226,7 +226,7 @@ title and its suggested labels), and code reviews (see Code reviews in Card life
 Opus, Sonnet, Haiku) and effort (low to max) and marks the presets: Opus throughout, high effort for
 workers, exploration agents and code reviews, medium otherwise. Stored in `settings.json` under `agents`, only
 where it differs from the preset. A project may set a harness, model or effort of its own for any group (its
-settings sheet, see The project settings in The project), saved with the project in the configuration
+settings sheet, see The project settings in The canvas), saved with the project in the configuration
 (`agents`, by group, with `harness`, Claude `model` and `effort`, and separate `codex` and `agy`
 model and effort choices); what it leaves open follows the Configuration's. Earlier project settings
 with a Claude model but no harness still select Claude Code even where Configuration selects another
@@ -293,7 +293,7 @@ A card works in a worktree of its own, unless the repository's settings say clon
 configuration names some (`clones`, `workstations` or `hosts`). Worktrees: any number in parallel
 unless the repository has `slots`. Clones (for tools that break in a worktree, or an app stack per
 clone): a pool, each clone leased by one card. `clones` is how many Seismic makes in its own directory
-(`workspaces/<canvas>/<repo>/1..n`), on top of the existing ones `workstations` lists (on the command
+(`workspaces/<project>/<repo>/1..n`), on top of the existing ones `workstations` lists (on the command
 line `--clones <n>`, `--workstation <path>`); the Configuration dialog shows the sum. Where work lands
 on the local main, the checkout itself is never one of them, even where `workstations` lists it: work
 lands there, the read checkout is read there, and a card's branch checked out in it stopped every
@@ -381,7 +381,7 @@ a landed card's worktree and branch, to put a discarded prototype's clone back o
 Git does all of it in the background, one step after the other on the same workstation, and the
 workstation stays taken until git is done with it: no other card takes a clone half cleaned, and a
 card's worktree made again meanwhile is added once the old one is gone. The card itself moves at
-once (a discarded prototype into the archive, a deleted card off the project), and the pool shows the
+once (a discarded prototype into the archive, a deleted card off the canvas), and the pool shows the
 workstation free once git is through; a restart waits for git as for a landing. Landing finds the
 main branch the same way, without blocking.
 
@@ -419,7 +419,7 @@ the card in it, "free" or "blocked"; then how many cards wait for a workstation 
 none is free and a card waits, "⋯" beside the cards whose clone may go to it (see Taking a card's
 workstation). The card
 is a link: a click closes the list, flies to the card and opens it; for a card on another project
-the page switches to that project at the card's address (see Addresses in The project), which opens
+the page switches to that project at the card's address (see Addresses in The canvas), which opens
 it once the project has loaded. A card not on any project (archived, say) shows by its title without a link. A
 repository in worktrees shows a dot per slot, and none without slots (no pill if all are so); its
 list names the cards' worktrees.
@@ -475,7 +475,7 @@ file's name or line counts opening its diff, with "See the whole diff" beside it
 **Undo.** "Discard changes" on a card waiting for approval puts back what the card changed after
 eight seconds in which the button counts down and a hint beside it says a second click calls it
 off, since this undo cannot
-itself be undone. Before a card's first write, Seismic prepares it under `undo/<canvas>/<repo>/<card>`
+itself be undone. Before a card's first write, Seismic prepares it under `undo/<project>/<repo>/<card>`
 in its home: where the file system clones (APFS `clonefile`, reflink on btrfs and XFS; probed with
 `COPYFILE_FICLONE_FORCE`), a clone of the whole folder, sharing bytes until a file changes (8.1 GB in
 0.86 s, no space taken): full undo. Elsewhere (another volume, NTFS, ext4, Windows' ReFS and Dev

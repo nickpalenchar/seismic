@@ -11,7 +11,7 @@ shared, the line holds the link, "Copy link" and "Stop sharing".
 #### Where a demo goes
 
 Where a site takes the demo, "Share" publishes it on a page there at once, without a hold; "Stop
-sharing" withdraws it as easily. The site is the one the card's project chose, under the project's
+sharing" withdraws it as easily. The site is the one the card's project chose, under the canvas's
 path there (see A project's demo site), once that path is initialized and this machine can deploy to
 the site. Without one, it exports a file (see Export without a site), and the export box says why
 with a link into the project settings ("Choose a demo site", or "Initialize" while the path is not
@@ -418,7 +418,7 @@ repositories, sharing on approval) are gone, as the project's choice covers both
 #### A project's demo site
 
 A project chooses its demo site in its settings (the sheet from the gear, see The project settings in
-The project, and its page in Configuration): "Demo site" offers "None: export demos as a file",
+The canvas, and its page in Configuration): "Demo site" offers "None: export demos as a file",
 this machine's sites, and at the bottom "+ Add new site" (the page above). Once a site is chosen,
 "Path on the site" (`billing`, `team/billing`: up to three parts of lower-case letters, digits and
 hyphens; empty for the site's root) takes effect when the field is left, and while the path is not

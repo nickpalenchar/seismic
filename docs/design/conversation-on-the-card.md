@@ -110,7 +110,7 @@ It stays in the card's draft with the picks, written but not picked too. The own
 after it asked (said while it worked, they reached it after the question) go along and stay below
 the question, as everywhere in reading order: above it they would read as words the question took
 into account, and once it is answered and back in place they would jump below it. Anything of an
-agent's after the question leaves them where they were. The project card, the phone's count and
+agent's after the question leaves them where they were. The canvas card, the phone's count and
 the Koordinator name the same questions. How agents ask: see Questions go to the owner.
 
 Messages new to the owner (after the last event they had in view and their own last words) have an
@@ -340,7 +340,7 @@ a page where a dropped file lies, so Seismic looks for it on its own machine: Sp
 (or when that finds none) Downloads, Desktop, Documents (also under OneDrive) a few levels deep and
 the home itself, hidden folders left out; a file counts only with the same name, size and time
 (within two seconds), and only if exactly one fits. Otherwise (a browser on another device, two
-copies, a file elsewhere) Seismic keeps a copy under its home (`files/<canvas>/`, at most 100 MB, in a
+copies, a file elsewhere) Seismic keeps a copy under its home (`files/<project>/`, at most 100 MB, in a
 folder of its own under its name made one word) and the copy's path goes in.
 
 The path goes into the field's text at the cursor while the field has it (⌘Z takes it back), else
@@ -408,7 +408,7 @@ Wherever a card's conversation shows text (the task as first message, the agents
 to a card's address is a **smart link**: a pill with a dot in the colour of the card's state, its
 title as it is now (not as it was when linked) in blue and underlined, and its priority where it has
 one; its tooltip is the card's state line, and a click opens the card as other card links do. A
-card no longer on the project (archived, deleted, or on another project) keeps the link's text in a
+card no longer on the canvas (archived, deleted, or on another project) keeps the link's text in a
 muted pill. Further facts a card comes to have (an assignee, labels, a due date) belong in the
 pill too, beside the priority, as long as it stays one line.
 
@@ -451,7 +451,7 @@ image.
   stays on its handover** (2026-10-09). Rejected: hiding the demo on feedback; moving the question
   to the newest handover, orange as if open.
 - **A follow-up card is an action with its cover** (owner, 2026-11-03): Seismic's confirmation alone
-  read as one more message, and the card it made had to be found on the project. The cover is the
+  read as one more message, and the card it made had to be found on the canvas. The cover is the
   card's live face, not a copy from the moment it was made, so it shows how far the follow-up got.
   Rejected: a state line with the title as a link, which reads as dialogue's small print and shows
   nothing of the card. Proposals an agent makes are not actions: they are its steps until the owner
@@ -512,7 +512,7 @@ image.
   2026-10-15). Rejected: a free pen (rough on a trackpad) and a tool switch.
 - **The worker reports the app's address; the link shows only while it answers** (2026-10-16).
   Rejected: Seismic guessing ports (Docker listens elsewhere, only the worker knows the page), a mark
-  on the project card, starting a parked app from the link. Only the reported port is forwarded
+  on the canvas card, starting a parked app from the link. Only the reported port is forwarded
   (owner): more would need the worker to name them and keep their numbers here.
 - **A card's files are its result, in tabs beside the demo** (owner, 2026-10-21), named files first.
   Rejected: an open button per change-list entry (no place for the result, Markdown unread in the

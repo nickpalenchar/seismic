@@ -4,7 +4,7 @@ How Seismic works and why, written for an experienced engineer who would rebuild
 features, however different the rebuild would look. A sentence belongs here if that engineer would
 need it:
 
-- behaviour seen from outside: by the owner on the project and the phone, by the agents (their tools
+- behaviour seen from outside: by the owner on the canvas and the phone, by the agents (their tools
   and what their prompts promise), and by repositories (the settings format, what lands in git, the
   files Seismic writes);
 - data and wire formats a rebuild must stay compatible with;
@@ -47,7 +47,7 @@ touches, and keep those current in the same change.
   other files by their path, skills by `/`, cards by `/` in the task text and smart links.
 - [The project](design/the-project.md) — the UI around the cards: the bar, creating cards, cards on
   the project (a plan arranged by its dependencies), moving around, unfolding a card, addresses
-  (a card's permalink, Back and Forward), sheets, visual identity, groups on the project, refusals.
+  (a card's permalink, Back and Forward), sheets, visual identity, groups on the canvas, refusals.
 - [Agents and workstations](design/agents-and-workstations.md) — how agents run and where: agents,
   models and effort, workstations (slots, the pool in the bar), folders without git, parking, hosts
   (running there, logins and files, a dropped connection).
@@ -94,7 +94,7 @@ on the walls and decisions are made in front of the wall.
 
 ## Principles
 
-- **One surface.** Everything starts on the project. Detail unfolds in place, animated, and folds
+- **One surface.** Everything starts on the canvas. Detail unfolds in place, animated, and folds
   back; nothing opens a new window, and the view never jumps.
 - **Space is memory.** A card keeps the position its owner gave it and a fixed, readable size. A
   screen too small for everything shows a section of the project, never shrunken cards.
@@ -121,24 +121,24 @@ on the walls and decisions are made in front of the wall.
 ## Concepts
 
 - **Project** — the named whole spanning one or more repositories; one Seismic serves several
-  projects. Each has a spatial project of cards. Code and storage still call a project a project; existing
-  configuration, API and storage fields named `project` or `projects` keep their format. A *plan* is
+  projects. Each has a spatial canvas of cards. Code, storage, the API and the agents' tools call it a project too
+  (renamed from "canvas", 2026-11-07, to free that word for the container of cards inside a project). A *plan* is
   the card backed by a plan doc, a container for workstreams within a project; the word "project"
   names only the app (decided 2026-11-07, so that no word means two things).
-- **Cards** — everything on the project is a card: a task, an idea, a prototype, a Question card (a
+- **Cards** — everything on the canvas is a card: a task, an idea, a prototype, a Question card (a
   thread of looked-up answers, see Looked-up threads), or a plan, a container backed by a plan doc
   whose workstreams are its child cards. Tasks have no further kind: fixing a bug or adding
   something is worked on the same way, so the owner picks none and a task's card names none; the
   other cards say what they are (idea, prototype, workstream number, plan). The UI and the
   Koordinator call a task *Aufgabe* and a follow-up *Folgeaufgabe*, never *Karte*; *Karte* is only a
-  card on the project as such (moving, grouping, "Close card or plan").
+  card on the canvas as such (moving, grouping, "Close card or plan").
 - **Groups** — besides by place, the owner sorts the project by group: a group has a name and a
   colour, and a card belongs to none or one; a plan belongs as a whole, with its workstreams. A
   proposal, a follow-up and a prototype come into the group of the card they come from, a plan
   written from an idea or a task into that card's; after that the group is the card's own. Moving a
   card never changes its group: in another group's territory it stands as an island. A group exists
-  while a card belongs to it, on the project or in the archive; the last card leaving it ends it, and
-  so does deleting it, which takes all its cards out (see Groups on the project).
+  while a card belongs to it, on the canvas or in the archive; the last card leaving it ends it, and
+  so does deleting it, which takes all its cards out (see Groups on the canvas).
 - **States** — `idea` → `planned` → `working` → `waiting` (demo ready | question) → `approved` → `in
   PR` → `live`, or `done` when the work changed no code; an agent's `proposal` is started when
   accepted. Every handover brings a demo; where the repository has no recipe for running its app
@@ -198,7 +198,7 @@ on the walls and decisions are made in front of the wall.
   brings.
 - **The repository on GitHub is made to be found** (2026-10-19): its homepage is obeya.si; its
   topics are a dozen that people search for and that have active topic pages (`claude-code`,
-  `ai-agents`, `coding-agents`, `infinite-project` and the like; not `spatial-project`, with 15
+  `ai-agents`, `coding-agents`, `infinite-canvas` and the like; not `spatial-canvas`, with 15
   repositories). Its social preview (the wordmark and the site's headline beside the screenshot of
   the project) is made by `bun scripts/social-preview.ts`; GitHub's API cannot set it, so the owner
   uploads it when the project has changed enough.

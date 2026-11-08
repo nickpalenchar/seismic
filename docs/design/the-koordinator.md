@@ -67,7 +67,7 @@ not free the card. The card says so ("Waiting for W2 "…" (not started yet)", i
 queue's list and the plan's sheet), so the owner sees which to start first. Even with nothing in
 progress or queued, it skips this judgement only when no workstream of its plan is left unlanded.
 
-A dependency drawn by the owner (see Cards on the project) holds the card until the prerequisite has
+A dependency drawn by the owner (see Cards on the canvas) holds the card until the prerequisite has
 finished, including while that prerequisite is not started or stopped: a card started afterwards
 queues behind it once judged, and one in the queue when the arrow is drawn waits for it from then on,
 also one waiting only for a workstation or for the project's agents to resume. An arrow counts as a
@@ -83,7 +83,7 @@ inferred wait has ended. The card says that it waits because the owner connected
 waiting box, on its face and with a line in its conversation once the arrow holds it, with the
 inferred waits' own reason beside that where both hold it; an arrow is never given the reason of an
 inferred wait. Starting a card anyway while arrows hold it (its play
-button on the project or "Start anyway") asks first, naming the unfinished cards it was drawn to
+button on the canvas or "Start anyway") asks first, naming the unfinished cards it was drawn to
 wait for.
 
 #### Follow-up tasks of a review
@@ -131,9 +131,9 @@ cards one above the other, in the look the project gives waits while the pointer
 rings and arrows; see below): on top the card it waits for ("comes first"; the first, where it waits
 for several), then the card itself, its title alone, tagged "This card" in green, then a card that
 waits for it ("waits for it"; the first in the queue where several do). The cards above and below
-show their face as on the project and open in its place.
+show their face as on the canvas and open in its place.
 
-Each direct wait is a faint line on the project at all times (see Cards on the project). While the
+Each direct wait is a faint line on the canvas at all times (see Cards on the canvas). While the
 pointer is on a card, its waits show both ways over every step over the faint lines: the cards it
 waits for ("comes first") in purple and those waiting for it ("waits for it") in the waiting colour,
 each with a ring, its tag and an arrow from the card waited for to the card waiting, so the two
@@ -359,7 +359,7 @@ should it never wake it, its last words are the answer.
 
 #### Files with an answer
 
-Every thread has an output directory outside every repository, `~/.obeya/answers/<canvas>/<thread>/`
+Every thread has an output directory outside every repository, `~/.obeya/answers/<project>/<thread>/`
 (never in git), given to the agent as a directory of its own: files the owner asks for or that help
 (a spreadsheet, a chart, the scripts behind them, a draft) go there, and the answer names them with
 a caption; a path outside it is refused. Under the answer they show: a page in the sandboxed frame

@@ -106,7 +106,7 @@ shows only while the pointer is on the bubble, so a long run does not keep a but
 touch screen it is always there. By voice "pause for a moment". Both pause at once.
 
 On the project, the card shows a faint pause while the pointer is on it, in the corner where other
-cards show their play and archive buttons (see The project), which pauses at a safe point instead:
+cards show their play and archive buttons (see The canvas), which pauses at a safe point instead:
 the agent brings its work to a clean stop first, as for a restart (see Waiting for the workers). A
 worker hears that the owner pauses it: it finishes the step it is in, starts nothing long, stops the
 background work it can start again and ends its turn, without handing over if it is not done. An
@@ -153,7 +153,7 @@ phone has none of it, to stay simple (owner, 2026-10-30): pausing is for the des
 Pausing pauses each agent at work there as the pause on its card does, at a safe point; those about
 to pause count as paused already. As long as one of them is still paused (or about to be), the cards the Koordinator lets start on that project wait in the queue ("Waiting:
 project paused") instead of taking the slots that pausing freed. Resuming resumes every paused
-agent there, as "Resume" does, and the waiting cards start. Once none on the project is paused
+agent there, as "Resume" does, and the waiting cards start. Once none on the canvas is paused
 any more (the owner resumed each on its card, or their cards went), the queue runs again by itself;
 one that could not go on (its repository left the project) is still paused and keeps the queue held.
 A restart leaves it as it was: the cards stay paused and the project holds its queue. A snoozed card

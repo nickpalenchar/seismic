@@ -30,7 +30,7 @@ Its agent can take it back or replace it there as on its own project, and the wo
 reads the card it came from as with any follow-up.
 
 The UI opens `/p/<project>` (`/p/<project>/c/<code>` a card on it, `?talk` Seismic's sheet; see
-Addresses in The project); the navigation after the logo switches projects and lists what waits for
+Addresses in The canvas); the navigation after the logo switches projects and lists what waits for
 the owner on each, kept current on every page (see The navigation). Wherever projects are listed
 (the navigation, the phone) they
 stand in the configuration's order, so the owner sets it by moving them in the configuration dialog;
@@ -64,7 +64,7 @@ voice commands' session. A folder without git is its own read checkout (see Fold
 Where work lands on the local main, the read checkout is the configured checkout itself, which is always
 on main, uncommitted plan docs included. Otherwise the configured checkout is often a pool clone on a
 card's branch, so the read checkout is a detached worktree of it under Seismic's home
-(`read/<canvas>/<repo>`), at the local main where that has everything `origin`'s has, else at
+(`read/<project>/<repo>`), at the local main where that has everything `origin`'s has, else at
 `origin`'s; the clone's `git status` stays clean, so leasing is unaffected. Where no worktree can be
 made, or an old one cannot be removed (on Windows, while an agent works in it), the checkout is read
 and the next refresh tries again. Hooks do not run for it.
@@ -76,7 +76,7 @@ forced detached checkout and a fresh read of the plan docs. A failed fetch is lo
 round. So a doc committed only in another clone, or only edited, does not show. Fetch and checkout
 run without blocking the server (in a repository of thousands of files a checkout takes a while);
 while git writes the files, the project keeps the plan docs it read before, since a doc missing for a
-moment would take its plan off the project and give back its workstreams' workstations. Moving the
+moment would take its plan off the canvas and give back its workstreams' workstations. Moving the
 read checkout to the worktree when work now lands elsewhere runs the same way, the checkout read until
 the worktree is there. Only making it when the project starts waits for git: the checkout, the only
 thing to read meanwhile, may be on a card's branch.
@@ -139,7 +139,7 @@ they are, and names each by its absolute path with forward slashes (so a Windows
 as a repository id), as the agents do. Workers on this machine get the folder as an extra directory:
 ticking a workstream there takes effect at once and goes into no commit, so the box says nothing of
 a landing: the card's work in progress still wins until it lands, and so does a stopped card with
-its branch, which stays stopped, keeps its workstation and holds its plan on the project (see A
+its branch, which stays stopped, keeps its workstation and holds its plan on the canvas (see A
 workstream's state). A doc "Make a plan" writes there cannot land, so Seismic names it at the
 start (the card's title, `-2` on a clash) and keeps it on the card; it shows as a plan once
 written, and the plan takes the card's place once approved (the card is done without a change).
@@ -368,7 +368,7 @@ last (see Projects), Project defaults (see Project defaults), Agents and models,
 (notifications on this computer, the usage limits in the bar, feedback after approval), Other
 devices (see Other devices), Advanced (the data export above) and Developer (see Restarting
 by hand in Running Seismic). Languages, light or dark, motion and the server are in "Preferences"
-behind the logo (see The logo's menu in The project). Below the sections "Check setup" and "Report a wish or a bug"
+behind the logo (see The logo's menu in The canvas). Below the sections "Check setup" and "Report a wish or a bug"
 (see Wishes for Seismic's makers). Each project in the list marks its unsaved changes and
 counts its problems in red; the heading counts the problems of no one project (none at all, say). Each section names the file it is saved in; settings are rows of label and control, no boxes in
 boxes. What to know about a field sits behind an info icon at its label, shown only while the pointer
@@ -386,7 +386,7 @@ chosen per tab, or the one a jump into the dialog names (a card waiting for a fr
 for a setting), scrolled to the field. Its page has a title line (name, id, whether it runs, and with
 several projects ↑ and ↓ that move it one place, as in the queue), its name, its project settings
 ("Seismic suggests": one toggle each for category with its sub-category, complexity and priority,
-the labels Seismic may fill on the project's cards where the owner left them empty; all on for a project
+the labels Seismic may fill on the canvas's cards where the owner left them empty; all on for a project
 that has none; its demo site, see A project's demo site in Sharing demos), and its repositories as tabs (the home repository first, each counting its problems), with "+ Repository" beside them;
 one repository shows at a time. A move is a change of the draft like any other. All projects are
 saved together with "Save" at the bottom of every project's page, which says so while several
@@ -395,7 +395,7 @@ have changes. Renaming a project keeps its id and cards.
 Saving a rename keeps the name before it among the project's old names (`oldNames` in the
 configuration, oldest first; compared as addresses, so "Store" and "store" are one name; a project
 renamed back to an old name has it as its name again, no longer as an old one). Its addresses lead to
-the project (see Addresses in The project), and no other project may take it: a name another project has
+the project (see Addresses in The canvas), and no other project may take it: a name another project has
 now ("Name of project X, can't reuse.") or had before ("Old name of project X, can't reuse.", X a
 link to that project's page) is a problem at the name field that blocks saving, checked as the owner types, before the new project's
 repository is filled in; a save that renames one project and gives its old name to another in the same
@@ -434,7 +434,7 @@ would show the server's own working directory and its commands for a new project
 up (see Setting up git in a folder). A repository's own settings problems (see Problems in the
 settings) show at it and block nothing. Technical detail folds under "Details"; each saved problem
 offers "Create a task to fix this", which asks the Koordinator of its project to create a task fixing
-it. The gear in the bar (see The project settings in The project) counts the saved configuration's problems in red, kept
+it. The gear in the bar (see The project settings in The canvas) counts the saved configuration's problems in red, kept
 current also when a repository's settings change on its main branch; its sheet repeats the count beside
 "Open in Configuration".
 
@@ -458,7 +458,7 @@ the main branch, withdrawn rather than dismissed.
 #### Project defaults
 
 A project's own settings (beside its name, id and repositories, the toggles "Seismic suggests", plan git baseline tags (see Plan git baselines in Agents and workstations), how cards go into the archive (see Archive in Card lifecycle),
-its demo site, and its own models (see The project settings in The project)) are saved with it in the configuration. "Project defaults" holds a value for each of them, saved on
+its demo site, and its own models (see The project settings in The canvas)) are saved with it in the configuration. "Project defaults" holds a value for each of them, saved on
 its own into `settings.json` in Seismic's home (`projectDefaults`; a setting left out there has its
 built-in value, every toggle on). A project created from then on, wherever it is made (the dialog's
 "+ Project", the Koordinator's `configure`, the setup assistant, building in a new repository with
@@ -523,7 +523,7 @@ are problems of the running projects: they block no save, count on the gear in t
 with the problems and that button instead of the setup assistant.
 
 The kept cards of a repository not running on its project (it left the configuration, or did not
-start) stay on the project marked "Repository not running", with why in their panel. Nothing reaches
+start) stay on the canvas marked "Repository not running", with why in their panel. Nothing reaches
 their agents meanwhile: starting, messages, approving and the like are refused with that reason, a
 card set to start later or snoozed waits past its time, and a card the Koordinator was deciding on
 goes back to planned. Only what changes the board alone (moving it in the queue, dismissing,
@@ -621,7 +621,7 @@ Prompts only agents read stay English, with German examples of what the owner ma
 - **Plan docs are plans by a checklist under `## Workstreams`.** Plan-doc sync stays open (see Open
   questions).
 - **The other `*.md` in the plan directory are not hidden** (2026-10-12): a repository with plans of
-  its own showed an empty project without a reason. Deferred: a lenient parser (`Tasks`, `Milestones`,
+  its own showed an empty canvas without a reason. Deferred: a lenient parser (`Tasks`, `Milestones`,
   `Phases`), which would turn design notes into plans; a repository's own format
   (`planDocs.read`). Rejected: an agent mapping any doc into workstreams in Seismic's database, against
   "plan docs are read, never written", with no box for workers to tick.
@@ -643,11 +643,11 @@ Prompts only agents read stay English, with German examples of what the owner ma
   (2026-10-21): done and remaining could not be told apart, nor what a running workstream was meant
   to do. Rejected: the text only as the conversation's first message.
 - **A plan doc with every workstream ticked ends its plan** (2026-10-12, the owner), or finished
-  plans kept in a repository stay on the project forever.
+  plans kept in a repository stay on the canvas forever.
 - **A plan doc that disappears ends its plan automatically** (2026-10-01); an explicit
   "finish" may sit on top later. Rejected: reading old content from git history (fragile).
 - **The configuration is the file `projects.json`**, edited in the UI or by the Koordinator
-  (2026-10-01); saving a command-line configuration switches Seismic to the file. Building a card in a
+  (2026-10-01); saving a command-line configuration switches Seismic to the file. It was `canvases.json` while projects were called canvases; a home that has only that file gets it copied to `projects.json` once, and the new file is the one read and written from then on (2026-11-07). Building a card in a
   new repository adds to it as well (2026-10-28), with the repository's project named after its
   folder.
 - **"New repository …" is an entry of the card's repository picker, which shows only where there
@@ -675,7 +675,7 @@ Prompts only agents read stay English, with German examples of what the owner ma
 - **A repository without settings gets the setup card offered before saving and proposed on its
   project** (2026-10-28, the owner): shown only once the project was saved and only in the dialog, the
   button went unnoticed, and projects ran with guessed settings. Once per repository, since a
-  proposal that comes back after a dismissal would nag. Rejected: a banner on the project (a second
+  proposal that comes back after a dismissal would nag. Rejected: a banner on the canvas (a second
   form of the same offer beside the proposal, which already has accept and dismiss).
 - **Interface, conversation and repository each have a language** (2026-10-20, the owner): switching
   the UI must not switch the agents' language or the language of what lands in git. The conversation

@@ -23,7 +23,7 @@ before a recording would count (600 ms in all) it is typed after all. While Spac
 is read-only: Chrome on the Mac hides the pointer at every key pressed into an editable field, and
 the repeating key made it flicker.
 
-A field being spoken into is framed, and the line in the middle of the status bar (see The project,
+A field being spoken into is framed, and the line in the middle of the status bar (see The canvas,
 The status bar; on the phone, under the microphone) says "→ into the field · send with Enter", then
 "Writing it down …"; nothing heard leaves the field as it was and says so. Otherwise that line names who hears the words and what goes with them
 ("→ Agent · Task: … with text and 1 screenshot").
