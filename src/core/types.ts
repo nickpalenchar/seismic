@@ -1782,6 +1782,7 @@ export type CardAction =
   | { action: 'approve'; direct?: boolean }
   /** A card waiting for approval whose project reviews work on the owner's word ("Start code review"): a review of its latest handover starts. */
   | { action: 'codeReview' }
+  | { action: 'stopCodeReview' }
   /** In a folder without git, on a card waiting for approval: what it changed there is put back as it was before ("Discard changes"). */
   | { action: 'undo' }
   /** Start a queued card although it may collide. */

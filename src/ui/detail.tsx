@@ -2736,6 +2736,7 @@ function ReviewHistory({ item, act, decides, again, reviewer }: { item: Item; ac
         <>
           <p className="rv-busy">{t.codeReview.running(selectedReviewer)}</p>
           <p className="hint">{t.codeReview.runningHint}</p>
+          {current && <button className="btn" onClick={() => act({ action: 'stopCodeReview' }, { close: false })}>{t.codeReview.stop}</button>}
         </>
       ) : selected.state === 'failed' ? (
         <p className="bad">{t.codeReview.failed(selected.error ?? '')}</p>

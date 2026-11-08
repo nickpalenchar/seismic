@@ -1820,6 +1820,8 @@ export class ProjectRuntime {
         return this.repoOf(cardId).workers.approve(cardId, { direct: !!a.direct });
       case 'codeReview':
         return this.repoOf(cardId).workers.startCodeReview(cardId);
+      case 'stopCodeReview':
+        return this.repoOf(cardId).workers.reviews.cancel(cardId);
       case 'undo':
         return this.repoOf(cardId).workers.undo(cardId);
       case 'fold':

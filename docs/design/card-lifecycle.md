@@ -204,8 +204,8 @@ any failed; the card says why, and it can be started again.
 - "Automatically, with the demo": the review starts as the worker hands over, and the card shows the
   demo at once, but the owner is not notified (push, desktop notification) that it waits until the
   review has finished, whether the handover is the first or follows "Fix it". A "Review" tab stands after the deliverables, before Diff (see The files beside
-  the demo in Conversation on the card): its running status names the reviewing harness and model,
-  then it shows the findings, the open ones counted beside the tab's title by severity in colour.
+  the demo in Conversation on the card): its running status, in the reviewing teal, names the reviewing harness and model
+  and has a "Stop review" button (the review is dropped and leaves nothing, as on approval), then it shows the findings, the open ones counted beside the tab's title by severity in colour.
   A completed, current review with no findings shows a green checkmark beside the title.
   Blocker has a dark purple badge,
   critical a saturated red badge with white text, major a lighter red, minor orange, low yellow,
