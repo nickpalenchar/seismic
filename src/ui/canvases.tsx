@@ -508,3 +508,92 @@ export function OtherCanvas({ item, named = false }: { item: Item; named?: boole
     </span>
   );
 }
+
+// ------------------------------------------------------------------ canvas ring
+
+const RING_RADIUS = 84;
+const RING_LABEL_RADIUS = 124;
+
+/**
+ * The ring of a right click where the project's setting "Right click on a card" says canvases: a ball
+ * with the icon of each canvas around `at` (screen), its name beside it. Moving towards a ball or
+ * its name picks it, a click takes it and the cards move there; the canvas the cards are on, or a
+ * click in the middle, closes the ring. Built like the colour ring of groups (groups.tsx).
+ */
+export function CanvasRing({ at: pointer, count, canvases, shown, onPick, onClose }: { at: { x: number; y: number }; count: number; canvases: Canvas[]; shown?: string | undefined; onPick: (c: Canvas) => void; onClose: () => void }) {
+  const mx = RING_LABEL_RADIUS + 150;
+  const my = RING_LABEL_RADIUS + 24;
+  const at = { x: Math.min(Math.max(pointer.x, mx), innerWidth - mx), y: Math.min(Math.max(pointer.y, my + 50), innerHeight - my) };
+  const [hot, setHot] = useState(-1);
+  const [open, setOpen] = useState(false);
+  const angle = (k: number) => -Math.PI / 2 + (k * 2 * Math.PI) / canvases.length;
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setOpen(true));
+    // Escape closes the ring before anything else hears it
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      onClose();
+    };
+    addEventListener('keydown', key, true);
+    return () => (cancelAnimationFrame(frame), removeEventListener('keydown', key, true));
+  }, []);
+  /** The ball in the direction of the pointer; none near the middle. */
+  function aimed(e: React.PointerEvent): number {
+    const dx = e.clientX - at.x;
+    const dy = e.clientY - at.y;
+    if (Math.hypot(dx, dy) < 30) return -1;
+    const a = Math.atan2(dy, dx);
+    let best = 0;
+    let bd = Infinity;
+    canvases.forEach((_, k) => {
+      const d = Math.abs(Math.atan2(Math.sin(a - angle(k)), Math.cos(a - angle(k))));
+      if (d < bd) [bd, best] = [d, k];
+    });
+    return best;
+  }
+  function pick(k: number) {
+    const c = canvases[k];
+    if (!c || c.id === shown) return onClose();
+    onPick(c);
+  }
+  const hc = canvases[hot];
+  const caption = hc ? (hc.id === shown ? t.canvases.ringHere : hc.name) : t.canvases.ringCaption(count);
+  return (
+    <div id="ringback" onPointerMove={(e) => setHot(aimed(e))} onPointerDown={(e) => (e.preventDefault(), pick(aimed(e)))} onContextMenu={(e) => e.preventDefault()}>
+      <div className={`ring${open ? ' open' : ''}`} style={{ left: at.x, top: at.y }}>
+        <div className="rhalo" />
+        {canvases.map((c, k) => (
+          <div
+            key={c.id}
+            className={`ball canvas${k === hot ? ' hot' : ''}${c.id === shown ? ' here' : ''}`}
+            aria-label={c.name}
+            style={{ '--h': 215, '--bx': `${Math.cos(angle(k)) * RING_RADIUS}px`, '--by': `${Math.sin(angle(k)) * RING_RADIUS}px`, transitionDelay: `${k * 28}ms` } as React.CSSProperties}
+          >
+            <CanvasIcon canvas={c} size={18} />
+          </div>
+        ))}
+        {canvases.map((c, k) => (
+          <div
+            key={`n-${c.id}`}
+            className={`gtag${k === hot ? ' hot' : ''}${c.id === shown ? ' vacant' : ''}`}
+            title={c.name}
+            style={{
+              '--h': 215,
+              maxWidth: 140,
+              left: Math.cos(angle(k)) * RING_LABEL_RADIUS,
+              top: Math.sin(angle(k)) * RING_LABEL_RADIUS,
+              transform: `translate(${((Math.cos(angle(k)) - 1) / 2) * 100}%, ${((Math.sin(angle(k)) - 1) / 2) * 100}%)`,
+              transitionDelay: `${k * 28 + 80}ms`,
+            } as React.CSSProperties}
+            onPointerMove={(e) => (e.stopPropagation(), setHot(k))}
+            onPointerDown={(e) => (e.preventDefault(), e.stopPropagation(), pick(k))}
+          >
+            <span>{c.name}</span>
+          </div>
+        ))}
+        <div className="rcap">{caption}</div>
+      </div>
+    </div>
+  );
+}

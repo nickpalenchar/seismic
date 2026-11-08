@@ -6,14 +6,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Archive, Bot, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
-import { type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn } from '../core/types';
+import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { GroupNames, growFrom, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
-import { Canvases, CanvasStubs, CanvasTabs, stubsOf } from './canvases';
+import { CanvasRing, Canvases, CanvasStubs, CanvasTabs, stubsOf } from './canvases';
 import { canvasText } from './canvasIcon';
 import { clip } from '../core/text';
 import { type ActDone, Detail, type Pending } from './detail';
@@ -585,6 +585,7 @@ function Project({
   const [configProblems, setConfigProblems] = useState(0);
   const configRevs = [...snapshot.project.repos.map((r) => `${r.id}:${r.configRev ?? 0}`), ...projects.map((c) => `${c.id}:${c.configRev ?? 0}`), `${snapshot.project.configRev ?? 0}`].join(' ');
   useEffect(() => void api.configCheck().then((c) => setConfigProblems(c.problems.length), console.error), [configRevs]);
+  useEffect(() => void api.shownProjectSettings().then((v) => setRightClick(v.settings.rightClick), () => {}), [snapshot.project.id, csOn, cOn, configRevs]);
   // the archive, read while its list is open; archived cards unfold from their row there
   const [archived, setArchived] = useState<Item[]>([]);
   const archivedRef = useRef(archived);
@@ -1486,7 +1487,9 @@ function Project({
       window.removeEventListener('wheel', hide, true);
     };
   }, [markHint]);
-  const [ring, setRing] = useState<{ at: Pos; ids: string[] } | null>(null);
+  const [ring, setRing] = useState<{ at: Pos; ids: string[]; kind: RightClick } | null>(null);
+  // what a right click on a card opens, as the project's settings say (read again when the settings sheet or Configuration closes)
+  const [rightClick, setRightClick] = useState<RightClick>('groups');
   const markedBox = unionBounds(placed.filter((p) => marked.includes(p.item.id)).map((p) => p.b));
   /** Where the line for what is marked stands: over its top right corner, below it where the bar leaves no room, always in view. */
   const markedAt = (b: Bounds) => {
@@ -1560,7 +1563,20 @@ function Project({
     if (i?.parent) i = byId(i.parent);
     if (!i) return;
     e.preventDefault();
-    setRing({ at: { x: e.clientX, y: e.clientY }, ids: marked.includes(i.id) ? marked : [i.id] });
+    setRing({ at: { x: e.clientX, y: e.clientY }, ids: marked.includes(i.id) ? marked : [i.id], kind: rightClick });
+  }
+  /** The ring of canvases: the cards it is for go onto the canvas picked (a plan with its workstreams), with "Undo" back to the canvases they were on. */
+  async function moveRing(to: Canvas) {
+    const r = ring!;
+    setRing(null);
+    const from = r.ids.map((id) => [id, byId(id)?.canvas ?? canvases[0]?.id] as const);
+    try {
+      await api.moveToCanvas(r.ids, to.id);
+      const names = r.ids.length === 1 ? plain(byId(r.ids[0]!)?.title ?? '') || titleFrom(byId(r.ids[0]!)?.body ?? '') : t.canvases.cards(r.ids.length);
+      showAck(t.canvases.moved(names, canvasText(to)), () => Promise.all([...new Set(from.map(([, c]) => c))].map((c) => c && api.moveToCanvas(from.filter(([, x]) => x === c).map(([id]) => id), c))).then(() => {}));
+    } catch (err) {
+      fail(err);
+    }
   }
   // the panels docked at the window's edges; the project, its edge indicators, the bar and the microphone keep between them
   const side = sideNow();
@@ -2364,7 +2380,7 @@ function Project({
             {...markedAt(markedBox)}
             count={marked.length}
             {...(!moveKnown && marked.length > 1 ? { hint: touchy ? t.touch.move : t.marked.move } : {})}
-            onGroup={(at) => setRing({ at, ids: marked })}
+            onGroup={(at) => setRing({ at, ids: marked, kind: 'groups' })}
           />
         )}
         {markHint && <MarkHint key={markHint.key} at={markHint.at} text={touchy ? t.touch.markHowTo : t.marked.howTo} />}
@@ -2379,7 +2395,8 @@ function Project({
             {connection.target ? t.deps.waits(titleOf(connection.from), titleOf(connection.target)) : (touchy ? t.touch.pick : t.deps.pick)(titleOf(connection.from))}
           </p>
         )}
-        {ring && (
+        {ring?.kind === 'canvases' && <CanvasRing at={ring.at} count={ring.ids.length} canvases={canvases} shown={canvasId} onPick={(c) => void moveRing(c)} onClose={() => setRing(null)} />}
+        {ring?.kind === 'groups' && (
           <Ring
             at={ring.at}
             count={ring.ids.length}

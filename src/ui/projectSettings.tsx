@@ -1,13 +1,13 @@
 // The project's own settings, a docked sheet on the right like the inbox, opened from the gear in the
 // bar: models per group of agents over Configuration's, code reviews, the demo site, the labels Seismic
-// suggests, how cards go into the archive, plan tags.
+// suggests, how cards go into the archive, what a right click on a card does, plan tags.
 // Each change saves at once into the configuration; the rest of the project (name, repositories) is
 // in the Configuration dialog, which the sheet's foot opens at this project.
 
 import { Fragment, useEffect, useState } from 'react';
 import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, harnessChoice, type AgentEffort, type AgentModel, type AgentRole, type ProjectAgents, type ProjectSettings, type ProjectSettingsView, type CodexModel, type Harness } from '../core/types';
 import { api } from './api';
-import { ProjectSiteField, CardArchiveField, CodeReviewField, Head, PlanBaselineField, SuggestField } from './config';
+import { ProjectSiteField, CardArchiveField, RightClickField, CodeReviewField, Head, PlanBaselineField, SuggestField } from './config';
 import { Docked } from './docked';
 import { failText, t } from './strings';
 
@@ -120,6 +120,7 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
           <ProjectSiteField bare project={project} value={view.settings.demoSite} {...(homePath ? { homePath } : {})} language={null} onAddSite={onAddSite} onChange={(demoSite) => save({ demoSite })} />
           <Head title={l.cards} />
           <CardArchiveField value={view.settings.archive} onChange={(archive) => save({ archive })} />
+          <RightClickField value={view.settings.rightClick} onChange={(rightClick) => save({ rightClick })} />
           <Head title={l.labels} />
           <SuggestField value={view.settings.suggest} onChange={(suggest) => save({ suggest })} />
           <Head title={l.plans} />

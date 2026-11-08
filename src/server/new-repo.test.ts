@@ -88,7 +88,7 @@ describe('building an idea in a new repository', () => {
     expect(git(path, 'log', '--format=%an %s')).toBe('Ada Lovelace First commit');
     expect(existsSync(join(path, '.gitignore'))).toBe(true);
     expect(git(path, 'remote')).toBe('');
-    expect(JSON.parse(readFileSync(join(dir, 'projects.json'), 'utf8')).at(-1)).toEqual({ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path }] });
+    expect(JSON.parse(readFileSync(join(dir, 'projects.json'), 'utf8')).at(-1)).toEqual({ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path }] });
     expect(there.board.project.name).toBe('super59');
     // the card is there, decided as „So bauen“ decides it, with its conversation, decisions and screenshot, out of its group
     await until(() => there.board.item(card.id)?.queue || there.board.item(card.id)?.state === 'working');

@@ -879,9 +879,9 @@ describe('Project defaults', () => {
   });
 
   test('start with every label suggested, and keep what the owner saves of them', () => {
-    expect(projectDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null } });
+    expect(projectDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null } });
     saveProjectDefaults(dir, { suggest: { complexity: false } });
-    expect(projectDefaults(dir)).toEqual({ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: false, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null });
+    expect(projectDefaults(dir)).toEqual({ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: false, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null });
     // cards are archived by hand until the owner chooses otherwise
     saveProjectDefaults(dir, { archive: 'landed' });
     expect(projectDefaults(dir).archive).toBe('landed');
@@ -905,7 +905,7 @@ describe('Project defaults', () => {
     await c.save([{ name: 'Web', repos: [{ path: web }] }, { repos: [{ path: api }] }]);
     expect(readConfigFile(file)).toEqual([
       { name: 'Web', repos: [{ path: web }] },
-      { planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: false }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: api }] },
+      { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: false }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: api }] },
     ]);
     // changing the defaults later leaves both alone, and what a new project sets itself is its own
     saveProjectDefaults(dir, { suggest: { category: false, priority: true } });

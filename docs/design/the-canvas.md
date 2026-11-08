@@ -171,7 +171,8 @@ saved into the configuration at once and applied without a restart:
   own, "Initialize", the vocabulary of tags and when a demo goes on the site (see A project's demo
   site in Sharing demos).
 - Cards: "Cards archive", "Manually" (the default) or "Automatically, after landing" (see Archive
-  in Card lifecycle).
+  in Card lifecycle); "Right click on a card", "Manage groups" (the default: the colour ring, see
+  Groups) or "Manage canvases" (a ring of the project's canvases, see Canvases).
 - Labels: the toggles "Seismic suggests" (see Projects in Repositories and configuration).
 - Plans: plan git baseline tags.
 
@@ -419,6 +420,7 @@ are off over the canvas, so a pinch zooms the canvas, not the page.
   card it starts from cancels. A card's play button stands on every startable card.
 - A long press opens no browser menu and selects no text; the colour ring, at the desk also on a
   right click, is reached through the marked cards' "Group …".
+  (With the project setting "Right click on a card" at "Manage canvases", a right click opens the canvas ring instead.)
 
 *The on-screen keyboard* (a tablet's, and the phone view's alike) takes the bottom of the screen and
 nothing else: the page stands in the part the keyboard leaves, its bar at the top of the screen and
@@ -644,6 +646,11 @@ opens under the button or, without room there, above it, scrolling where neither
 canvas ends in a stub: a short faint arrow into the card from the left (what it waits for) or out
 of it to the right (what waits for it), ending at a round button with the other canvas's icon that
 names the card and canvas on hover and opens that card there.
+With the project setting "Right click on a card" at "Manage canvases", a right click on a card (or on a
+marked one: all marked) blooms a ring of the project's canvases around the pointer, built like the colour ring
+(a ball with the canvas's icon, its name beside it, Esc or a click in the middle closes it). A click on one moves
+the card (a plan with its workstreams, all marked cards) there with a line and "Undo"; the canvas shown
+stays and its own ball does nothing. "Group …" on the marked cards still opens the colour ring.
 The API (`/api/c/<project>/canvases`) creates, renames, re-icons, reorders and deletes canvases and
 moves cards onto one; the Koordinator has the same as `new_canvas`, `change_canvas`,
 `delete_canvas` and `move_to_canvas`, and sees each card's canvas and which one the owner looks at.
@@ -677,7 +684,7 @@ card was moved alone, how to mark several (gone after a few seconds, or at once 
 canvas drag or scroll); beside two or more marked cards, that dragging one moves
 them all.
 
-Assigning: "Group …", or a right click on a card (that card, a workstream's plan, or all marked ones if it is among
+Assigning: "Group …", or a right click on a card where the project's "Right click on a card" is "Manage groups", its default (that card, a workstream's plan, or all marked ones if it is among
 them), opens a ring of colour balls: the groups, "+" (a new group, named in place) and "∅" (none).
 Each group's name stands beside its ball with its count of cards still to be done (not finished, archived or a dropped idea; a plan by its workstreams); a group at 0 goes
 pale, a candidate for deleting. Behind the ring the canvas steps back under a frosted halo and holds

@@ -457,7 +457,7 @@ the main branch, withdrawn rather than dismissed.
 
 #### Project defaults
 
-A project's own settings (beside its name, id and repositories, the toggles "Seismic suggests", plan git baseline tags (see Plan git baselines in Agents and workstations), how cards go into the archive (see Archive in Card lifecycle),
+A project's own settings (beside its name, id and repositories, the toggles "Seismic suggests", plan git baseline tags (see Plan git baselines in Agents and workstations), how cards go into the archive (see Archive in Card lifecycle), what a right click on a card opens (groups or canvases),
 its demo site, and its own models (see The project settings in The canvas)) are saved with it in the configuration. "Project defaults" holds a value for each of them, saved on
 its own into `settings.json` in Seismic's home (`projectDefaults`; a setting left out there has its
 built-in value, every toggle on). A project created from then on, wherever it is made (the dialog's

@@ -1020,6 +1020,10 @@ export interface CodeReview {
 export const CARD_ARCHIVING = ['manual', 'landed'] as const;
 export type CardArchiving = (typeof CARD_ARCHIVING)[number];
 
+/** What a right click on a card opens (project setting "Right click"): the colour ring of its groups, or a ring of the project's canvases to move it to. */
+export const RIGHT_CLICK = ['groups', 'canvases'] as const;
+export type RightClick = (typeof RIGHT_CLICK)[number];
+
 export const CODE_REVIEW_MODES = ['auto', 'manual'] as const;
 export type CodeReviewMode = (typeof CODE_REVIEW_MODES)[number];
 
@@ -2545,6 +2549,8 @@ export interface ProjectSettings {
    * worker is done (`landed`; asked right after the approval).
    */
   archive?: CardArchiving;
+  /** What a right click on a card does: manage its group (the default) or its canvas. */
+  rightClick?: RightClick;
   /** Which labels Seismic suggests on the project's cards ("Seismic suggests"); all where left out. */
   suggest?: SuggestSettings;
   /** The project's own harness, model and effort for groups of its agents, over Configuration's; none where left out. */

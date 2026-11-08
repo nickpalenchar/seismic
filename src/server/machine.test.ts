@@ -204,14 +204,14 @@ describe('the first project', () => {
     const out = await setup().project({ path: repo });
     expect(out).toEqual({ project: 'shop', branch: 'master', opens: true });
     expect(applied).toEqual([['shop']]);
-    expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo }] }]);
+    expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo }] }]);
     expect(readFileSync(join(home, WELCOME_FILE), 'utf8')).toBe('shop');
   });
 
   test('a repository whose settings say clones gets clones', async () => {
     const repo = gitRepo(join(dir, 'shop'), { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workstations": "clones" }\n' });
     await setup().project({ path: repo });
-    expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo, clones: CLONES }] }]);
+    expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo, clones: CLONES }] }]);
   });
 
   test('says of a folder before it is saved whether it holds a repository, and its main branch', () => {
@@ -234,7 +234,7 @@ describe('the first project', () => {
     mkdirSync(docs);
     writeFileSync(join(docs, 'Scan.pdf'), '%PDF');
     expect(await setup().project({ path: docs, git: false })).toEqual({ project: 'dokumente', branch: '', opens: true });
-    expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: docs, git: false }] }]);
+    expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: docs, git: false }] }]);
     expect(existsSync(join(docs, '.git'))).toBe(false);
   });
 

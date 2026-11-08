@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { chosenConversationLanguage, chosenLanguage, conversationLanguageIn, OWNER_SETTINGS_FILE as SETTINGS_FILE, ownerLanguageIn, ownerSettingsWritten, systemLanguage } from '../../plugin/skills/demo/lib/language.ts';
 import { suggestToggles } from '../core/labels';
 import { type Language, LANGUAGES } from '../core/locale';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole, type AgentSetting, type AgentsView, type LanguageView, type RemoteSetting, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type ProjectAgents, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ProjectDemoSite, choosesHarness, HARNESSES, CODE_REVIEW_MODES, CARD_ARCHIVING, type CodeReviewSetting } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole, type AgentSetting, type AgentsView, type LanguageView, type RemoteSetting, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type ProjectAgents, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ProjectDemoSite, choosesHarness, HARNESSES, CODE_REVIEW_MODES, CARD_ARCHIVING, RIGHT_CLICK, type CodeReviewSetting } from '../core/types';
 import { BadRequest } from './board';
 
 interface Settings {
@@ -145,6 +145,7 @@ export function renamedBaselines(saved: unknown): unknown {
 export const projectSettingsShape = z.object({
   planBaselines: z.boolean().optional(),
   archive: z.enum(CARD_ARCHIVING).optional(),
+  rightClick: z.enum(RIGHT_CLICK).optional(),
   suggest: z.object({ category: z.boolean().optional(), complexity: z.boolean().optional(), priority: z.boolean().optional() }).strict().optional(),
   agents: z.object({ koordinator: ownAgent, worker: ownAgent, explorer: ownAgent, chores: ownAgent, review: ownAgent }).strict().optional(),
   codeReviews: z.object({ on: z.boolean().optional(), mode: z.enum(CODE_REVIEW_MODES).optional() }).strict().optional(),
@@ -196,6 +197,8 @@ export const PROJECT_SETTINGS: { [K in keyof ProjectSettings]-?: (saved: Project
   planBaselines: (saved) => saved !== false,
   // the owner archives by hand where left out
   archive: (saved) => (saved === 'landed' ? 'landed' : 'manual'),
+  // a right click manages groups where left out
+  rightClick: (saved) => (saved === 'canvases' ? 'canvases' : 'groups'),
   // the default of every project's models is Configuration's "Agents and models": none of its own
   agents: projectAgents,
   codeReviews,

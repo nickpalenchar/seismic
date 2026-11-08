@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, CARD_ARCHIVING, type CardArchiving, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blocksSaving, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
+import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blocksSaving, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
 import { lineDiff } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { LANGUAGES } from '../core/locale';
@@ -1125,6 +1125,24 @@ export function CardArchiveField({ value, onChange }: { value: CardArchiving | u
   );
 }
 
+/** What a right click on a card opens ("Right click on a card"): on a project's settings sheet and page, and in Project defaults. */
+export function RightClickField({ value, onChange }: { value: RightClick | undefined; onChange: (v: RightClick) => void }) {
+  const l = t.config.rightClick;
+  const now = value ?? 'groups';
+  return (
+    <Field label={<>{l.title} <Info text={l.hint} /></>}>
+      <div className="cr-field" role="radiogroup" aria-label={l.title}>
+        {RIGHT_CLICK.map((mode) => (
+          <label key={mode} className="c-check">
+            <input type="radio" checked={now === mode} onChange={() => onChange(mode)} />
+            {l[mode]}
+          </label>
+        ))}
+      </div>
+    </Field>
+  );
+}
+
 /**
  * Whether a separate agent reviews work that lands on main, and when ("Reviews happen"): the same
  * control on a project's settings sheet and page, and in Project defaults.
@@ -1176,6 +1194,7 @@ function ProjectDefaultsBlock({ view, onSaved }: { view: ProjectDefaultsView | n
     suggest: <SuggestField value={view.defaults.suggest} onChange={(suggest) => save({ suggest })} />,
     planBaselines: <PlanBaselineField value={view.defaults.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />,
     archive: <CardArchiveField value={view.defaults.archive} onChange={(archive) => save({ archive })} />,
+    rightClick: <RightClickField value={view.defaults.rightClick} onChange={(rightClick) => save({ rightClick })} />,
     // a project's models default to "Agents and models": its own are chosen in its settings sheet
     agents: <Field label={c.defaults.agents}>{c.defaults.agentsValue}</Field>,
     codeReviews: <CodeReviewField value={view.defaults.codeReviews} onChange={(codeReviews) => save({ codeReviews })} />,
@@ -2355,6 +2374,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
       <SuggestField value={project.suggest} onChange={(suggest) => onChange({ ...project, suggest })} />
       <PlanBaselineField value={project.planBaselines} onChange={(planBaselines) => onChange({ ...project, planBaselines })} />
       <CardArchiveField value={project.archive} onChange={(archive) => onChange({ ...project, archive })} />
+      <RightClickField value={project.rightClick} onChange={(rightClick) => onChange({ ...project, rightClick })} />
       <CodeReviewField value={project.codeReviews} onChange={(codeReviews) => onChange({ ...project, codeReviews })} />
       <ProjectSiteField
         project={resolved && running.includes(resolved.id) ? resolved.id : undefined}
