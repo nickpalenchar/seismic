@@ -32,8 +32,9 @@ import { failText, forTouch, t } from './strings';
 import { UsagePill } from './usage';
 import { agentWorks, beingWritten, cardTalk, koordinatorReads, obeyaWorks, opensWithTalk, runs, unseen } from './talk';
 import { seenOf } from './seen';
-import { noticeLine, tellers, useAck } from './tell';
-import { HoldToTalk, PushToTalk, ToldList, usePushToTalk, useTold } from './voice';
+import { noticeLine, tellers, useAck, useWarnings } from './tell';
+import { Toasts, useToasts } from './components/toast';
+import { HoldToTalk, PushToTalk, usePushToTalk, useTold } from './voice';
 import { projectPath, cardPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { scrollBehavior } from './motion';
 
@@ -446,10 +447,12 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   }, [open, !!opened]);
 
   // ---------------------------------------------------------------- voice and confirmations
-  const { showAck, showWait, fail, line: ackLine } = useAck(true);
+  const toasts = useToasts();
+  const { showAck, showWait, fail } = useAck(toasts.store);
+  const warnings = useWarnings(toasts.store, (id) => openId(id));
   const ratePrompt = useRatePrompt(useMemo(() => all.map((x) => x.item), [all]));
   // the reply stands in Seismic's conversation, open in front of the owner: no line above the microphone
-  const told = useTold(() => {}, (h) => talkRef.current && (h.inCard ? openRef.current === h.inCard : !!snapsRef.current[obeyaRef.current]?.talk.some((x) => x.id === h.talk)));
+  const told = useTold(toasts.store, () => {}, (h) => talkRef.current && (h.inCard ? openRef.current === h.inCard : !!snapsRef.current[obeyaRef.current]?.talk.some((x) => x.id === h.talk)), (c) => openId(c.id));
   const { tellAbout, tellTyped } = tellers(byId, told, fail, () => undefined);
   const where = (): Where => (openRef.current ? { card: openRef.current } : null);
   /** The draft of the field that speaks to `target`: the open card's, or the one under Seismic's conversation. */
@@ -489,7 +492,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
     () =>
       onNotice((n) => {
         if (n.made && n.token) return told.made(n.token, n.made);
-        if (n.level === 'warning') return showAck(noticeLine(n.text));
+        if (n.level === 'warning') return warnings.show(noticeLine(n.text), n.cardId);
         const i = n.cardId ? byId(n.cardId) : undefined;
         told.show(i ? { id: i.id, title: plain(i.title) } : undefined, { confirm: noticeLine(n.text), ...(n.token ? { token: n.token } : {}), ...(n.undoMs ? { undoMs: n.undoMs } : {}), ...(n.talk ? { talk: n.talk } : {}), ...(n.inTalk && n.cardId ? { inCard: n.cardId } : {}) });
       }),
@@ -566,11 +569,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   );
   const acks = (
       <div id="acks">
-        <ToldList told={told.told} open={open ?? undefined} onUndo={told.undo} onGo={(c, x) => {
-          told.drop(x);
-          openId(c.id);
-        }} aside onGone={told.drop} />
-        {ackLine}
+        <Toasts toasts={toasts} open={open ?? undefined} aside />
         {/* nearest the microphone: a line going above it does not move the stars under a finger */}
         {ratePrompt.prompt}
       </div>

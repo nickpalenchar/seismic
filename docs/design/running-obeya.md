@@ -177,8 +177,8 @@ let go while moving it glides on, slowing evenly, so a short swipe up fills the 
 closes it, while a finger still for 50 ms before lifting leaves it where it is. It opens at the full
 height (half beside a demo video). The button, Back and Esc close it.
 
-The lines above the microphone (Seismic's reply, a confirmation with "Undo", a command still being
-read) are swiped aside to either side: past a third of their width or flicked they fly out, else
+The toasts above the microphone (see The toast stack: Seismic's reply, a confirmation with "Undo",
+a command still being read, a warning, which stays there until dismissed as on the project) are swiped aside to either side: past a third of their width or flicked they fly out, else
 spring back. Swiping takes nothing back: "Undo" goes unused, a command being read is carried out
 without its confirmation. Until the owner has swiped one in this browser, each line nudges aside once
 as a hint. The project has no such gesture.

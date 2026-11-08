@@ -50,7 +50,8 @@ import { PlanDirNote, planDirBoxes, useHiddenEmptyNotes } from './planDirs';
 import { pastedShots } from './pasteHint';
 import { attachTo, imageFiles } from './shots';
 import { cardDraft, drafted, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, OBEYA_DRAFT, takesImages } from './draft';
-import { HoldToTalk, PushToTalk, SPACE_SHOWS_MS, TAP_MS, ToldList, usePushToTalk, useTold } from './voice';
+import { HoldToTalk, PushToTalk, SPACE_SHOWS_MS, TAP_MS, usePushToTalk, useTold } from './voice';
+import { Toasts, useToasts } from './components/toast';
 import { videoOf } from './spot';
 import { cardClass, shownState } from './card';
 import { CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
@@ -1081,8 +1082,9 @@ function Project({
   }, []);
 
   // ---------------------------------------------------------------- acknowledgement with undo
-  const { showAck, showWait, fail, line: ackLine } = useAck();
-  const warnings = useWarnings((id) => {
+  const toasts = useToasts();
+  const { showAck, showWait, fail } = useAck(toasts.store);
+  const warnings = useWarnings(toasts.store, (id) => {
     const i = itemsRef.current.find((x) => x.id === id);
     if (i) void open(i);
   });
@@ -1246,12 +1248,14 @@ function Project({
   }
   // the reply stands in Seismic's sheet, or the answer in the plan's sheet, open in front of the owner: no line above the microphone
   const told = useTold(
+    toasts.store,
     onHeard,
     (h) =>
       !cOnRef.current &&
       ((kOnRef.current && snapshotRef.current.talk.some((x) => x.id === h.talk && x.chat === snapshotRef.current.chat)) ||
         (!!h.inCard && focusRef.current?.type === 'card' && focusRef.current.id === h.inCard) ||
         (!!h.plan && sheetOnRef.current && !readingRef.current && focusRef.current?.type === 'plan' && focusRef.current.id === h.plan)),
+    (c) => goToMade(c),
   );
   const { tellAbout, tellTyped } = tellers(byId, told, fail, placeNow);
   /** "Go to card" on a confirmation's line: the card it made opens (in place of one open), one made on another project opens there. */
@@ -2635,12 +2639,7 @@ function Project({
         />
         {/* commands on their way and confirmations, stacked above the microphone */}
         <div id="acks">
-          <ToldList told={told.told} open={focus?.type === 'card' ? focus.id : undefined} onUndo={told.undo} onGo={(c, x) => {
-              told.drop(x);
-              goToMade(c);
-            }} />
-          {warnings.list}
-          {ackLine}
+          <Toasts toasts={toasts} open={focus?.type === 'card' ? focus.id : undefined} />
           {/* nearest the microphone: a line going above it does not move the stars under a finger */}
           {ratePrompt.prompt}
           <NotifyAsk {...notifyAsk} />

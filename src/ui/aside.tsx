@@ -32,13 +32,13 @@ function swipedOnce(): boolean {
  * A line above the microphone; with `on` (the phone) the owner swipes it aside and `onGone` drops
  * it. Without `on` it is a plain line.
  */
-export function Aside({ on, onGone, id, className, children }: { on: boolean; onGone: () => void; id?: string; className: string; children: ReactNode }) {
+export function Aside({ on, onGone, id, className, role, children }: { on: boolean; onGone: () => void; id?: string; className: string; role?: string; children: ReactNode }) {
   const [dx, setDx] = useState(0);
   const [settling, setSettling] = useState(false);
   const [held, setHeld] = useState(false);
   const press = useRef<{ id: number; x: number; y: number; dragging: boolean; last: { x: number; t: number }; v: number } | null>(null);
   const dragged = useRef(false);
-  if (!on) return <div id={id} className={className}>{children}</div>;
+  if (!on) return <div id={id} className={className} role={role}>{children}</div>;
 
   function letGo(e: React.PointerEvent<HTMLDivElement>) {
     const p = press.current;
@@ -75,6 +75,7 @@ export function Aside({ on, onGone, id, className, children }: { on: boolean; on
   return (
     <div
       id={id}
+      role={role}
       className={`${className} aside${!held && !swipedOnce() ? ' nudge' : ''}`}
       style={style}
       onPointerDown={(e) => {

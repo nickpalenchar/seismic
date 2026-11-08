@@ -296,6 +296,28 @@ A reply standing in the open sheet gets no line, unless it has "Undo", which the
 nor does an answer Seismic looked up while the conversation of the card it stands on is open (on the
 phone, that card's conversation panel).
 
+#### The toast stack
+
+Everything Seismic tells the owner in passing stands in one stack of toasts: in the bottom right
+corner of the project, above the microphone on the phone, newest nearest the microphone. There are
+four kinds, the same on both:
+
+- a *confirmation* of what the owner did on the page (archived, approved, a failure), dark, with
+  "Undo" while the action still waits; it goes after seven seconds;
+- *still at it*, dark with a spinner, for what the server has not answered yet (an approval
+  landing); it stays until its confirmation takes its place;
+- a *warning* about something that went another way than the owner expects (a card the check
+  queued instead of starting), light with a coloured ring, with "Go to card" where it is about a
+  card and "Dismiss"; it stays until the owner acts on it;
+- a *command's line* (see Commands on their way), muted with a spinner while read, then dark
+  as its confirmation, with "Undo" for the undo window and "Go to card" for the tasks it made.
+
+A confirmation or a still-at-it takes the place of the one before, as the page only ever reports
+the owner's last action; command lines and warnings stack, each standing for something of its own.
+A toast about a card names it in bold only while another card is open, and offers no "Go to card"
+for the card already open. On the phone each toast can also be swiped aside (see the phone view in
+Running Seismic).
+
 ### Voice latency
 
 Pressing Space (or focusing a field the Koordinator reads) prepares while the owner speaks: the
@@ -311,6 +333,10 @@ Koordinator's sheet and the line above the mic. Demo narration is separate (see 
 
 ### Decisions
 
+- **One toast stack, built once** (owner, 2026-11-08): every kind of toast goes through the same
+  list and the same drawing, so the phone shows what the project shows (a warning there vanished
+  after seven seconds while it stayed on the project). Rejected: a shared look only, which left
+  three places deciding what stays and what replaces.
 - **Push-to-talk only in Seismic's window** (owner, 2026-10-29). Rejected: a key held while another
   app is in front, heard and recorded by the app's shell, which sent the command to wherever the
   owner had last been in Seismic: from the other app the owner could not tell which project and card

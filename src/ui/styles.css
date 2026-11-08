@@ -2069,27 +2069,26 @@ button.link:hover { text-decoration: underline; }
 .fold-body { padding: 0 0 10px 18px; }
 .fold-body > .hint:first-child { margin-top: 0; }
 
-/* confirmations, and each command while the Koordinator reads it, stacked in the bottom right corner, newest last */
+/* the toasts (confirmations, what the server is still at, warnings, each command's line), stacked in the bottom right corner, newest last */
 #acks { position: fixed; right: calc(var(--side, 0px) + 14px); transition: right .45s cubic-bezier(.3,.9,.3,1); bottom: 46px; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
-.ack { background: var(--ink); color: var(--bg); border-radius: 3px; padding: 12px 16px; max-width: min(560px, max(300px, calc((100vw - var(--left, 0px) - var(--side, 0px)) / 2 - 110px)), calc(100vw - var(--left, 0px) - var(--side, 0px) - 32px)); font-size: 14px;
-  display: flex; gap: 14px; align-items: center; pointer-events: auto; animation: ack-in .25s; }
-@keyframes ack-in { from { opacity: 0; transform: translateY(12px); } }
-.ack b { font-weight: 600; }
-.ack.wait::before { content: ""; flex: none; width: 12px; height: 12px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--bg) 25%, transparent); border-top-color: var(--bg); animation: spin .8s linear infinite; }
-.ack button { background: transparent; border: 1px solid color-mix(in srgb, var(--bg) 40%, transparent); color: var(--bg); border-radius: 2px; padding: 3px 10px; cursor: pointer; flex: none; }
+.toast { background: var(--ink); color: var(--bg); border-radius: 3px; padding: 12px 16px; max-width: min(560px, max(300px, calc((100vw - var(--left, 0px) - var(--side, 0px)) / 2 - 110px)), calc(100vw - var(--left, 0px) - var(--side, 0px) - 32px)); font-size: 14px;
+  display: flex; gap: 14px; align-items: center; pointer-events: auto; animation: toast-in .25s; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px); } }
+.toast b { font-weight: 600; }
+.toast.wait::before { content: ""; flex: none; width: 12px; height: 12px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--bg) 25%, transparent); border-top-color: var(--bg); animation: spin .8s linear infinite; }
+.toast button { background: transparent; border: 1px solid color-mix(in srgb, var(--bg) 40%, transparent); color: var(--bg); border-radius: 2px; padding: 3px 10px; cursor: pointer; flex: none; }
 /* a line with a button for each of several new cards: the words above, the buttons wrapping under them */
-.ack.several { flex-wrap: wrap; gap: 10px 8px; }
-.ack.several > span { flex-basis: 100%; }
-.ack.several button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#ack:not(.on) { display: none; }
-.ack.warning { background: var(--card); color: var(--ink); box-shadow: var(--shadow); outline: 2px solid var(--warn); }
-.ack.warning button { border-color: var(--warn); color: var(--warn); }
-.ack.reading { background: var(--card); color: var(--muted); box-shadow: var(--shadow); padding: 7px 14px; font-size: 13px; }
-.ack.reading::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--working); animation: spin .8s linear infinite; }
+.toast.several { flex-wrap: wrap; gap: 10px 8px; }
+.toast.several > span { flex-basis: 100%; }
+.toast.several button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast.warning { background: var(--card); color: var(--ink); box-shadow: var(--shadow); outline: 2px solid var(--warn); }
+.toast.warning button { border-color: var(--warn); color: var(--warn); }
+.toast.reading { background: var(--card); color: var(--muted); box-shadow: var(--shadow); padding: 7px 14px; font-size: 13px; }
+.toast.reading::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--working); animation: spin .8s linear infinite; }
 /* on the phone a line is swiped aside to be rid of it; until that has happened once, each nudges aside and back */
-.ack.aside { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-.ack.aside.nudge:not(.reading) { animation: ack-in .25s, ack-nudge .9s .7s ease-in-out; }
-@keyframes ack-nudge { 30% { transform: translateX(36px); } 55% { transform: translateX(-10px); } 75%, 100% { transform: none; } }
+.toast.aside { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.toast.aside.nudge:not(.reading) { animation: toast-in .25s, toast-nudge .9s .7s ease-in-out; }
+@keyframes toast-nudge { 30% { transform: translateX(36px); } 55% { transform: translateX(-10px); } 75%, 100% { transform: none; } }
 .c-listener { flex-basis: 100%; margin-top: -4px; font-size: 11.5px; color: var(--muted); }
 .c-listener.c-dictation, .c-listener.c-dictation b { color: var(--working); }
 .c-listener.c-note { color: var(--warn); }
@@ -2501,7 +2500,10 @@ button.link:hover { text-decoration: underline; }
 .ph-view ~ #acks { right: auto; transform: translateX(-50%); align-items: center; transition: none; }
 .ph-view ~ #ptt { bottom: calc(18px + env(safe-area-inset-bottom)); }
 .ph-view ~ #acks { bottom: calc(91px + env(safe-area-inset-bottom)); width: calc(100vw - 24px); }
-.ph-view ~ #acks .ack { max-width: 100%; }
+.ph-view ~ #acks .toast { max-width: 100%; }
+/* a warning's words take the phone's width, its buttons under them */
+.ph-view ~ #acks .toast.warning { flex-wrap: wrap; justify-content: flex-end; gap: 10px 8px; }
+.ph-view ~ #acks .toast.warning > span { flex-basis: 100%; }
 .ph-view ~ #ptt #mic { width: 68px; height: 68px; }
 /* the list's plus button, in the microphone's place and of its size: a new card */
 .ph-new { position: fixed; z-index: 50; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%);
@@ -2754,7 +2756,7 @@ button.link:hover { text-decoration: underline; }
 .rate-comment textarea { flex: 1; min-height: 3.2em; resize: vertical; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
 .rate-given { margin: 0; color: var(--muted); font-style: italic; }
 .rate .hint, .rate .p-error { margin: 8px 0 0; }
-.rate-pop { pointer-events: auto; animation: ack-in .25s; }
+.rate-pop { pointer-events: auto; animation: toast-in .25s; }
 .rate.prompt { margin: 0; width: min(560px, calc(100vw - var(--left, 0px) - var(--side, 0px) - 32px)); background: var(--card); box-shadow: var(--lift); border-color: transparent; }
 @media (pointer: coarse) { .star { font-size: 28px; padding: 0 5px; } }
 

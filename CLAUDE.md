@@ -27,7 +27,7 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
 - File edits with complex content, quotes or special characters go through Read + Write, not `sed`,
   to avoid shell escaping problems.
 - `src/core/` is shared by server and UI (types, plan-doc parser, layout); `src/server/` is the
-  Bun server with SQLite; `src/ui/` the React canvas; `src/adapters/` what Seismic knows of a repository (its defaults, its settings).
+  Bun server with SQLite; `src/ui/` the React canvas, with `src/ui/components/` for UI pieces shared across views (starting with toasts: one store, one component, every toast goes through it); `src/adapters/` what Seismic knows of a repository (its defaults, its settings).
 - Code that drives agents is tested against the fake runtime in `src/server/testing.ts` and real
   git repositories in a temp directory (`gitRepo` there; git calls are what makes tests slow).
   Live runs go against a scratch git repository with a plan doc and a scratch `SEISMIC_HOME` (never

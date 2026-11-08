@@ -15,7 +15,7 @@ import type { Place } from '../core/layout';
 import type { Notice } from '../core/types';
 import { ApiError, api, confirmShownMs, type Heard, holdRestart, undoShownMs, type Where } from './api';
 import { beginDictation, dictate, draftOf, focusedDraft, insertFiles, MIC_DRAFT, moveFiles, moveImages, takesImages, toObeya, updateDraft, useDraft, useFieldOn, uploaded, useFocusedDraft, wordsOf } from './draft';
-import { Aside } from './aside';
+import type { ToastStore } from './components/toast';
 import { type Recording, record } from './recorder';
 import { AttachButton, ShotStrip, useShotInput } from './shots';
 import { replyOn, setReply, useReply } from './reply';
@@ -225,134 +225,112 @@ export function usePushToTalk(
 const MADE_SHOWN_MS = 15_000;
 
 /** A command on its way: while it is transcribed or the Koordinator reads it, then its confirmation. */
-export interface Told {
-  id: number;
-  /** What the line says meanwhile: the card in view, and what happens to the words; null for typed words, which the conversation shows at once. */
-  pending: string | null;
+interface Told {
+  /** Its toast, while it has one: a typed command's comes with its confirmation. */
+  toast?: number;
   /** The card it was said to, named in the confirmation when another card is open by then. */
   card?: { id: string; title: string };
   heard?: Heard;
-  /** "Undo" shows while the command still waits. */
-  undo?: boolean;
-  /** The cards the command made, once it ran: the line offers to go to them. */
-  made?: NonNullable<Notice['made']>;
 }
 
 /**
- * Commands spoken or typed, each with its own line from sending to its confirmation; one that went
- * out quietly (to the open card's agent) leaves no line. The server reads them one after the other.
- * `show` adds a confirmation that comes without a request: a request a card's agent passed on.
- * `made` gives a confirmation's line the cards its commands made, once they ran, and keeps it a while longer.
- * `inView` says whether the conversation the owner looks at shows the reply already: then it gets
- * no line, unless it has "Undo", which only the line offers.
+ * Commands spoken or typed, each with its own line in the toast stack from sending to its
+ * confirmation; one that went out quietly (to the open card's agent) leaves no line. The server
+ * reads them one after the other. `show` adds a confirmation that comes without a request: a
+ * request a card's agent passed on. `made` gives a confirmation's line the cards its commands made
+ * ("Go to card", which `onGo` follows), once they ran, and keeps it a while longer. `inView` says
+ * whether the conversation the owner looks at shows the reply already: then it gets no line, unless
+ * it has "Undo", which only the line offers.
  */
-export function useTold(onHeard: (h: Heard) => void, inView: (h: Heard) => boolean = () => false) {
-  const [told, setTold] = useState<Told[]>([]);
-  const toldRef = useRef(told);
-  toldRef.current = told;
-  const next = useRef(0);
-  const update = (id: number, fn: (x: Told) => Told | null) => setTold((ts) => ts.flatMap((x) => (x.id === id ? (fn(x) ?? []) : [x])));
-  const gone = useRef(new Map<number, ReturnType<typeof setTimeout>>());
-  /** The line goes `ms` from now. */
-  function goneIn(id: number, ms: number) {
-    clearTimeout(gone.current.get(id));
-    gone.current.set(
-      id,
-      setTimeout(() => {
-        gone.current.delete(id);
-        update(id, () => null);
-      }, ms),
-    );
+export function useTold(
+  toasts: ToastStore,
+  onHeard: (h: Heard) => void,
+  inView: (h: Heard) => boolean = () => false,
+  onGo: (card: NonNullable<Notice['made']>[number]) => void = () => {},
+) {
+  const lines = useRef(new Set<Told>());
+  const onGoRef = useRef(onGo);
+  onGoRef.current = onGo;
+  const [reading, setReading] = useState(false);
+  const changed = () => setReading([...lines.current].some((x) => !x.heard));
+  /** The command is done with: its line goes, and a confirmation still to come shows nowhere. */
+  function forget(x: Told) {
+    if (!lines.current.delete(x)) return;
+    if (x.toast !== undefined) toasts.remove(x.toast);
+    changed();
   }
 
-  function settle(id: number, h: Heard) {
-    if (h.quiet || (!h.token && inView(h))) return update(id, () => null);
+  function settle(x: Told, h: Heard) {
+    if (!lines.current.has(x)) return;
+    if (h.quiet || (!h.token && inView(h))) return forget(x);
+    x.heard = h;
+    changed();
     const undo = !!(h.token && h.undoMs);
-    update(id, (x) => ({ ...x, heard: h, undo }));
-    if (undo) setTimeout(() => update(id, (x) => ({ ...x, undo: false })), undoShownMs(h.undoMs!));
-    goneIn(id, confirmShownMs(h.undoMs));
+    const line = {
+      kind: 'command' as const,
+      text: h.confirm,
+      reading: false,
+      ...(x.card ? { card: x.card } : {}),
+      undo: undo ? () => void undoIt(x) : undefined,
+      ...(undo ? { undoMs: undoShownMs(h.undoMs!) } : {}),
+      stayMs: confirmShownMs(h.undoMs),
+    };
+    if (x.toast !== undefined) toasts.update(x.toast, line);
+    else x.toast = toasts.show({ ...line, onGone: () => forget(x) });
   }
 
   function made(token: string, cards: NonNullable<Notice['made']>) {
-    const x = toldRef.current.find((y) => y.heard?.token === token);
-    if (!x) return;
-    update(x.id, (y) => ({ ...y, made: cards }));
-    goneIn(x.id, MADE_SHOWN_MS);
+    const x = [...lines.current].find((y) => y.heard?.token === token);
+    if (x?.toast === undefined) return;
+    toasts.update(x.toast, { go: cards.map((c) => ({ id: c.id, label: cards.length > 1 ? t.voice.goTo(c.title) : t.voice.goToCard, run: () => onGoRef.current(c) })), stayMs: MADE_SHOWN_MS });
   }
 
   async function tell(pending: string | null, card: Told['card'], request: () => Promise<Heard>): Promise<Heard> {
-    const id = ++next.current;
-    setTold((ts) => [...ts, { id, pending, ...(card ? { card } : {}) }]);
+    const x: Told = card ? { card } : {};
+    lines.current.add(x);
+    changed();
+    // typed words show in the conversation at once: their line comes with the confirmation
+    if (pending) x.toast = toasts.show({ kind: 'command', text: pending, reading: true, ...(card ? { card } : {}), onGone: () => forget(x) });
     let h: Heard;
     try {
       h = await request();
     } catch (e) {
       h = { confirm: failText(e, { offline: t.voice.failed }) };
     }
-    settle(id, h);
+    settle(x, h);
     onHeard(h);
     return h;
   }
 
   function show(card: Told['card'], h: Heard) {
     // the server offers a command's undo again when the connection comes back: one line for it
-    if (h.token && toldRef.current.some((x) => x.heard?.token === h.token)) return;
-    const id = ++next.current;
-    setTold((ts) => [...ts, { id, pending: '', ...(card ? { card } : {}) }]);
-    settle(id, h);
+    if (h.token && [...lines.current].some((x) => x.heard?.token === h.token)) return;
+    const x: Told = card ? { card } : {};
+    lines.current.add(x);
+    settle(x, h);
   }
 
-  async function undo(x: Told) {
-    update(x.id, (y) => ({ ...y, undo: false }));
+  async function undoIt(x: Told) {
+    const id = x.toast!;
+    toasts.update(id, { undo: undefined });
     try {
       const { undone } = await api.undo(x.heard!.token!);
-      update(x.id, (y) => (undone ? null : { ...y, heard: { confirm: t.voice.tooLate } }));
+      if (undone) return toasts.remove(id);
+      // no longer its command's line: an offer of its undo the server makes again gets a line of its own
+      x.heard = { confirm: t.voice.tooLate };
+      toasts.update(id, { text: t.voice.tooLate });
     } catch {
-      update(x.id, (y) => ({ ...y, heard: { confirm: t.offlineError } }));
+      x.heard = { confirm: t.offlineError };
+      toasts.update(id, { text: t.offlineError });
     }
   }
 
   // a restart waits while Seismic reads what the owner said or typed
-  const reading = told.some((x) => !x.heard);
   useEffect(() => {
     holdRestart('told', reading ? 'voice' : null);
     return () => holdRestart('told', null);
   }, [reading]);
-  /** A line the owner swiped aside: gone, and the confirmation of a command still read does not follow. */
-  const drop = (x: Told) => update(x.id, () => null);
-  return { told, tell, show, made, undo, drop };
-}
-
-/**
- * The commands on their way, above the microphone, oldest first; `open`: the card open now. With
- * `aside` (the phone) the owner swipes a line away, and `onGone` drops it.
- */
-export function ToldList({ told, open, onUndo, onGo, aside = false, onGone }: { told: Told[]; open?: string; onUndo: (x: Told) => void; onGo: (card: NonNullable<Told['made']>[number], x: Told) => void; aside?: boolean; onGone?: (x: Told) => void }) {
-  return (
-    <>
-      {told.map((x) => (x.heard || x.pending) && (
-        <Aside key={x.id} on={aside} onGone={() => onGone?.(x)} className={`ack told ${x.heard ? 'heard' : 'reading'}${!x.undo && (x.made?.length ?? 0) > 1 ? ' several' : ''}`}>
-          <span>
-            {x.heard ? (
-              <>
-                {x.card && x.card.id !== open && <b>{t.voice.about(x.card.title)}</b>}
-                {x.heard.confirm}
-              </>
-            ) : (
-              x.pending
-            )}
-          </span>
-          {x.undo && <button onClick={() => onUndo(x)}>{t.undo}</button>}
-          {!x.undo &&
-            x.made?.filter((c) => c.id !== open).map((c) => (
-              <button key={c.id} onClick={() => onGo(c, x)}>
-                {x.made!.length > 1 ? t.voice.goTo(c.title) : t.voice.goToCard}
-              </button>
-            ))}
-        </Aside>
-      ))}
-    </>
-  );
+  return { tell, show, made };
 }
 
 /**

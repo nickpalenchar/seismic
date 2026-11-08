@@ -3,38 +3,43 @@
 // handed on to the agent of the open card or to the Koordinator, and what the microphone says it
 // speaks to.
 
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { Place } from '../core/layout';
 import { agentListens, type Item, type TalkRef } from '../core/types';
-import { Aside } from './aside';
 import { api, ApiError, type Field, type Heard, type Where } from './api';
 import { clip } from '../core/text';
 import { excerpt, plain } from './markdown';
 import { sent, take, videoOf } from './spot';
 import { failText, t } from './strings';
 import type { useTold } from './voice';
+import type { ToastStore } from './components/toast';
 
 /** How long a confirmation stays, and its "Undo" unless the action waits longer. */
 export const ACK_MS = 7000;
 
 /**
- * The confirmation above the microphone: `showAck` with "Undo" while the action still waits,
- * `showWait` for what the server is still at, `fail` for what went wrong; `line` shows it. With
- * `aside` (the phone) the owner swipes it away.
+ * The confirmation above the microphone, one at a time, each taking the place of the one before:
+ * `showAck` with "Undo" while the action still waits, `showWait` for what the server is still at,
+ * `fail` for what went wrong.
  */
-export function useAck(aside = false) {
-  const [ack, setAck] = useState<{ text: string; undo?: () => unknown; wait?: boolean } | null>(null);
-  const [ackOn, setAckOn] = useState(false);
-  const ackTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const undoTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+export function useAck(toasts: ToastStore) {
   /** A confirmation; with `undo`, "Undo" shows for `undoMs` (while the server still waits). */
   function showAck(text: string, undo?: () => unknown, undoMs = ACK_MS) {
-    setAck({ text, undo });
-    setAckOn(true);
-    clearTimeout(ackTimer.current);
-    clearTimeout(undoTimer.current);
-    if (undo) undoTimer.current = setTimeout(() => setAck((a) => (a && a.text === text ? { text } : a)), Math.max(0, undoMs - 400));
-    ackTimer.current = setTimeout(() => setAckOn(false), ACK_MS);
+    const id: number = toasts.show({
+      slot: 'ack',
+      kind: 'confirm',
+      text,
+      stayMs: ACK_MS,
+      ...(undo
+        ? {
+            undo: () => {
+              undo();
+              toasts.remove(id);
+            },
+            undoMs: Math.max(0, undoMs - 400),
+          }
+        : {}),
+    });
   }
   /** What went wrong, in place of the confirmation; what the server did not refuse also goes to the console. */
   function fail(e: unknown) {
@@ -42,61 +47,20 @@ export function useAck(aside = false) {
     showAck(failText(e));
   }
   /** What the server is still at: stays, turning, until a confirmation takes its place. */
-  function showWait(text: string) {
-    setAck({ text, wait: true });
-    setAckOn(true);
-    clearTimeout(ackTimer.current);
-    clearTimeout(undoTimer.current);
-  }
-  function gone() {
-    setAckOn(false);
-    clearTimeout(ackTimer.current);
-    clearTimeout(undoTimer.current);
-  }
-  const line = (
-    <Aside id="ack" on={aside} onGone={gone} className={`ack${ackOn ? ' on' : ''}${ack?.wait ? ' wait' : ''}`}>
-      <span>{ack?.text}</span>
-      {ack?.undo && (
-        <button
-          onClick={() => {
-            ack.undo?.();
-            setAckOn(false);
-          }}
-        >
-          {t.undo}
-        </button>
-      )}
-    </Aside>
-  );
-  return { showAck, showWait, fail, line };
+  const showWait = (text: string) => void toasts.show({ slot: 'ack', kind: 'wait', text });
+  return { showAck, showWait, fail };
 }
 
 /**
  * Warnings (a notice with `level: 'warning'`) as toasts that stay until dismissed, each with
- * "Go to card" where it is about a card; `show` adds one, `list` renders them.
+ * "Go to card" where it is about a card; `show` adds one.
  */
-export function useWarnings(goTo: (cardId: string) => void) {
-  const [warnings, setWarnings] = useState<{ key: number; text: string; cardId?: string }[]>([]);
-  const next = useRef(0);
-  const show = (text: string, cardId?: string) => setWarnings((w) => [...w, { key: next.current++, text, cardId }]);
-  const drop = (key: number) => setWarnings((w) => w.filter((x) => x.key !== key));
-  const list = warnings.map((w) => (
-    <div key={w.key} className="ack warning" role="alert">
-      <span>{w.text}</span>
-      {w.cardId && (
-        <button
-          onClick={() => {
-            goTo(w.cardId!);
-            drop(w.key);
-          }}
-        >
-          {t.voice.goToCard}
-        </button>
-      )}
-      <button onClick={() => drop(w.key)}>{t.voice.dismissWarning}</button>
-    </div>
-  ));
-  return { show, list };
+export function useWarnings(toasts: ToastStore, goTo: (cardId: string) => void) {
+  const goToRef = useRef(goTo);
+  goToRef.current = goTo;
+  const show = (text: string, cardId?: string) =>
+    void toasts.show({ kind: 'warning', text, dismiss: true, go: cardId ? [{ id: cardId, label: t.voice.goToCard, run: () => goToRef.current(cardId) }] : [] });
+  return { show };
 }
 
 /**
