@@ -52,7 +52,7 @@ title it had and is no link. It shows the open project's lines, or with the inbo
 switch every project's, each marked with its project; older lines load as the list is scrolled,
 back to the first one recorded, and new ones arrive over the same push as everything else, above
 the lines already loaded without skipping any (more new lines than a page start the list over).
-Recorded: the owner creating a card, archiving, deleting, stopping, approving, and sending review
+Recorded: the owner creating a card (a follow-up card an approved merge creates included), archiving, deleting, stopping, approving, and sending review
 items or findings to the agent; an agent proposing a card or starting on one; work landing on main;
 a card queued behind another card or for want of a free workstation; an agent stopped by its
 harness's usage limit. Not recorded: a handover waiting (the inbox shows that), snoozing and

@@ -197,6 +197,7 @@ describe('folding into a progressed survivor', () => {
     const next = board().items().find((i) => i.title === 'Fix CSV encoding')!;
     expect(next.state).toBe('planned');
     expect(next.from).toBe(planned.id);
+    expect(board().activityRows([project.id], undefined, 100).some((r) => r.cardId === next.id && r.code === 'created' && r.who === 'owner')).toBe(true);
     expect(next.repo).toBe(planned.repo);
     expect(next.body).toStartWith('Fix the encoding of exported umlauts.');
     expect(next.body).toContain('Which encoding?');

@@ -1710,7 +1710,7 @@ export class Board {
       if (merge.outcome) {
         if (merge.followUp) {
           const f = merge.followUp;
-          const next = this.create({ title: f.title, body: withQuestions(f.task, f.questions.map((n) => proposal.questions[n]!).filter(Boolean), [], this.t), from: other.id, repo: other.repo, images: f.images });
+          const next = this.create({ title: f.title, body: withQuestions(f.task, f.questions.map((n) => proposal.questions[n]!).filter(Boolean), [], this.t), from: other.id, repo: other.repo, images: f.images }, undefined, 'owner');
           // Even an archived survivor keeps its place; the new task is placed beside it.
           const at = this.nearFree(this.on(keep.canvas_id), { x: other.x + CARD_SIZE.task[0] + 40, y: other.y }, undefined, true);
           this.store.cards.update(next.id, at);
