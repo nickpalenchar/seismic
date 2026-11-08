@@ -3,9 +3,9 @@
 // outside the copy:
 //   bun scripts/check-home-migration.ts [home]      (default: ~/.obeya; the home itself is never written)
 //
-// The copy holds the database, the JSON files and the screenshots and files the cards refer to. Each
-// repository of the configuration is cloned locally into the copy and the configuration points at
-// those clones, so the read checkouts Seismic makes never land in the real repositories; the
+// The copy holds the database (a SQLite snapshot), the JSON and key files and every directory of files the home
+// keeps but the checkouts. Each git repository of the configuration is cloned locally into the copy and the configuration points at
+// those clones (a folder without git is copied), so the read checkouts Seismic makes never land in the real repositories; the
 // workstation leases of the database stay, with their paths moved into the copy (the checkouts are not).
 // Then it starts the server (`--idle-workers`) and asserts: the schema is migrated and holds no
 // name with "canvas", every project of the configuration is served with the cards the database
@@ -14,7 +14,7 @@
 
 import { Database } from 'bun:sqlite';
 import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
@@ -30,10 +30,23 @@ const expect = (ok: boolean, what: string) => {
   if (!ok) failures.push(what);
 };
 
+// Everything the home persists but the checkouts (`workspaces/`, `read/`: gigabytes, and worktrees
+// that point back into the real repositories) and the voice models. The database goes through
+// SQLite's own snapshot, since a running Seismic writes to it while it is copied.
+const NOT_COPIED = new Set(['workspaces', 'read', 'voices']);
 for (const f of readdirSync(source)) {
-  if (/^(obeya\.db.*|[A-Za-z0-9._-]+\.(json|key))$/.test(f)) cpSync(join(source, f), join(home, f));
-  else if (['images', 'files'].includes(f)) cpSync(join(source, f), join(home, f), { recursive: true });
+  if (/^obeya\.db/.test(f)) continue;
+  if (!NOT_COPIED.has(f)) cpSync(join(source, f), join(home, f), { recursive: true });
 }
+if (existsSync(join(source, 'obeya.db'))) {
+  const live = new Database(join(source, 'obeya.db'), { readonly: true });
+  live.run(`VACUUM INTO '${join(home, 'obeya.db').replaceAll("'", "''")}'`);
+  live.close();
+}
+/** Every file under `dir`, relative, with its size. */
+const listing = (dir: string) => (existsSync(dir) ? (readdirSync(dir, { recursive: true, withFileTypes: true }) as { name: string; parentPath: string; isFile(): boolean }[]).filter((e) => e.isFile()).map((e) => `${join(e.parentPath, e.name).slice(dir.length)}:${statSync(join(e.parentPath, e.name)).size}`).sort() : []);
+const DIRS = readdirSync(home, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
+const filesBefore = Object.fromEntries(DIRS.map((d) => [d, listing(join(home, d))]));
 adoptOldConfig(home);
 
 // repositories: local clones inside the copy
@@ -47,6 +60,15 @@ for (const p of config)
     // the folder keeps its name: a project's home repository is named by it
     const to = join(home, 'repos', String(n++), basename(real));
     mkdirSync(join(home, 'repos', String(n - 1)), { recursive: true });
+    // a folder without git is copied as it is
+    if (r.git === false) {
+      if (existsSync(real)) cpSync(real, to, { recursive: true });
+      else mkdirSync(to, { recursive: true });
+      r.path = to;
+      delete r.workstations;
+      delete r.hosts;
+      continue;
+    }
     const cloned = existsSync(real) && spawnSync('git', ['clone', '--quiet', '--local', real, to]).status === 0;
     if (!cloned) mkdirSync(to, { recursive: true });
     else {
@@ -115,9 +137,16 @@ try {
       const lost = (openIds[p.id] ?? []).filter((id) => !shown.has(id));
       expect(!!snap && lost.length === 0, `${p.id}: the snapshot shows all ${(openIds[p.id] ?? []).length} open cards of the database${lost.length ? `; missing ${lost.join(', ')}` : ''}`);
     }
-    const missing = [...new Set(shots)].filter((id) => !existsSync(join(home, 'images')) || !readdirSync(join(home, 'images'), { recursive: true }).some((f) => String(f).includes(id)));
-    const missingAtSource = [...new Set(shots)].filter((id) => !readdirSync(join(source, 'images'), { recursive: true }).some((f) => String(f).includes(id)));
-    expect(missing.length === missingAtSource.length, `screenshots found as in the home (${missing.length} missing, ${missingAtSource.length} in the home itself)`);
+    const found = (root: string, id: string) => existsSync(root) && readdirSync(root, { recursive: true }).some((f) => String(f).includes(id));
+    const missing = [...new Set(shots)].filter((id) => !found(join(home, 'images'), id));
+    const missingAtSource = new Set([...new Set(shots)].filter((id) => !found(join(source, 'images'), id)));
+    expect(missing.every((id) => missingAtSource.has(id)), `every screenshot the home has is found (${shots.length} referred to; ${missingAtSource.size} already missing in the home itself: ${[...missingAtSource].join(', ') || 'none'})`);
+    // and what the server does to the files it keeps: none goes
+    const lostFiles = DIRS.flatMap((d) => {
+      const now = new Set(listing(join(home, d)));
+      return filesBefore[d]!.filter((f) => !now.has(f)).map((f) => `${d}${f}`);
+    });
+    expect(lostFiles.length === 0, `no file of ${DIRS.join(', ')} was lost (${Object.values(filesBefore).flat().length} files)${lostFiles.length ? `: ${lostFiles.slice(0, 5).join(', ')}` : ''}`);
   }
   const check = new Database(join(home, 'obeya.db'), { readonly: true });
   const after = (check.query('PRAGMA user_version').get() as { user_version: number }).user_version;
