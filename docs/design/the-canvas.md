@@ -214,8 +214,9 @@ one marked. Each names its repositories and, in the orange of a waiting card, ho
 for the owner there (the inbox's entries on that project), and carries its agents' pause (see
 Pausing a project's agents). A click on one switches there within the page, without loading it
 again: the canvas of the project before goes, the other's comes in its place as on a page load (its
-camera, the card or sheet kept for it, Seismic's sheet as left; see Sheets), and every input keeps
-its draft per project. The switch is a step in the browser's history (Back returns to the project
+camera, the card, sheet and scroll positions it was left with, Seismic's sheet as left; see Sheets),
+and every input keeps its draft per project: a screenshot, a dictation or a wish draft that is still
+under way at the switch ends up in the draft of the project it was started on. The switch is a step in the browser's history (Back returns to the project
 before), and a click with a modifier opens the project in a tab of its own. The same holds where
 the page goes to a card on another project (the inbox, a confirmation's "Go to card", the
 workstations, Seismic's answer elsewhere). Decided 2026-11-08 (owner): a reload for each switch
