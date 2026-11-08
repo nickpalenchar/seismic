@@ -353,13 +353,14 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
 .pin-dot.asking { --pin: var(--asking); }
 .pin-dot.failed { --pin: var(--error); }
 .face.subtle { position: relative; }
-.face.subtle .f-ttl { padding-right: 14px; }
+.face.subtle :is(.f-top, .f-ttl) { padding-right: 14px; }
 .face.subtle .f-state, .face.subtle .f-state .doing.demo, .face.subtle .f-state .landed-part { color: var(--muted); font-weight: 400; }
 .face.subtle .f-state .landed-part { border-color: var(--line); }
+.face.subtle .f-state :is(.doing, .doing.conflict, .doing.demo) { color: var(--muted); font-style: normal; font-weight: 400; }
 .face.subtle .f-line .f-state { color: inherit; font-weight: 400; }
 .card .state.subtle { color: var(--muted); font-weight: 400; }
 .card .state.subtle::after { display: none; }
-.card .state.subtle .doing.demo { color: var(--muted); font-weight: 400; }
+.card .state.subtle :is(.doing, .doing.conflict, .doing.demo) { color: var(--muted); font-style: normal; font-weight: 400; }
 .face-xs { gap: 2px; }
 .face-xs .f-ttl { font-size: 14px; line-height: 1.3; }
 .face-xs .f-ttl-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
