@@ -1875,7 +1875,7 @@ export class ProjectRuntime {
       case 'planDoc':
         return this.planDoc(cardId);
       case 'park':
-        if (card?.kind === 'task') return this.parkInLot(cardId);
+        if (card?.state !== 'idea') return this.parkInLot(cardId);
         return this.shelve(cardId, 'park');
       case 'unpark':
         return this.unparkFromLot(cardId);
