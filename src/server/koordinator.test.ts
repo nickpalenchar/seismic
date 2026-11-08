@@ -161,6 +161,24 @@ describe('Koordinator', () => {
     expect(item(a.id).state).toBe('working');
   });
 
+  test('a drawn dependency does not replace the restart wait; the check after the restart applies it', async () => {
+    restarting = true;
+    const pre = card('Prerequisite');
+    const a = card('A');
+    board.connect(pre.id, a.id);
+    k.request(a.id);
+    await settle();
+    board.changed();
+    await settle();
+    expect(item(a.id).queue).toMatchObject({ restart: true });
+    restarting = false;
+    board.changed();
+    await settle();
+    expect(item(a.id).state).toBe('planned');
+    expect(item(a.id).queue).not.toMatchObject({ restart: true });
+    expect(item(a.id).queue).toMatchObject({ behind: [pre.id] });
+  });
+
   test('a card with nothing in progress starts at once; its scope is estimated afterwards', async () => {
     board.addPreference('Agents speak to me in English only.');
     const a = card('A');

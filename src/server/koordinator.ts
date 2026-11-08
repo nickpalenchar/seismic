@@ -918,7 +918,8 @@ export class Koordinator {
       // one let start, until the owner resumes the project's agents
       if (w.repoDown || this.giving.has(w.id) || w.proposal?.merge || (w.mergingInto && mergeRank(w) <= 1)) continue;
       const begun = 'begun' in w.queue! && !!w.queue.begun;
-      if (!('behind' in w.queue!)) {
+      if (!('behind' in w.queue!) && !('restart' in w.queue!)) {
+        // (a restart wait stays: the check after the restart applies the arrow)
         // an arrow the owner drew since it was let start holds it as one drawn before
         const drawn = drawnWaits(w, items);
         if (drawn.length) {
