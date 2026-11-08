@@ -8,7 +8,7 @@ import type { Item } from '../../core/types';
 import { OtherCanvas, useOtherCanvas } from '../canvases';
 import { t } from '../strings';
 import { hasLabels, LabelMarks, PriorityMark } from './labels';
-import { Pin, shownTitle, StateMarks, StateText, Title, UnreadDot } from './pieces';
+import { Pin, PinDot, shownTitle, StateMarks, StateText, Title, UnreadDot } from './pieces';
 import { cardKind, cardSummary, cardTone } from './summary';
 
 export type CardSize = 'm' | 's' | 'xs';
@@ -33,6 +33,8 @@ export interface CardFaceProps {
   text?: ReactNode;
   /** XS: the end of the second line (what it waits for, what it builds on). */
   tail?: ReactNode;
+  /** Less visual noise (the inbox): the pin is a small dot in the top-right corner, the state line is muted and plain, no moving line. What the size does not show anyway stays as it is. */
+  subtle?: boolean;
   /** S: under the face (the entry's buttons). */
   children?: ReactNode;
 }
@@ -59,7 +61,7 @@ export function CardFace(p: CardFaceProps) {
  * line in its state's colour (`since` after it) and the pin while it needs the owner. A `chip`, a
  * delivered workstream, shows only its title, after its label, so it still reads as its workstream.
  */
-function FaceM({ item, where, underway, since, chip }: CardFaceProps) {
+function FaceM({ item, where, underway, since, chip, subtle }: CardFaceProps) {
   const s = cardSummary(item, underway);
   // a plain task says nothing of its kind: that it is one shows
   const label = [item.state === 'proposal' && t.proposalMark, where, s.kind].filter(Boolean);
@@ -80,14 +82,14 @@ function FaceM({ item, where, underway, since, chip }: CardFaceProps) {
         ) : undefined}
       </Title>
       {s.meta && <div className="meta">{s.meta}</div>}
-      <div className={s.state.live ? 'state doing-now' : 'state'}>
+      <div className={['state', s.state.live && 'doing-now', subtle && 'subtle'].filter(Boolean).join(' ')}>
         <StateMarks marks={s.state.marks} />
         {/* one line on the card, cut short rather than running into the text above it */}
         <span className="state-text">
           <StateText state={s.state} since={since} />
         </span>
       </div>
-      {s.pin && <div className={s.pin.failed ? 'badge pulse failed' : 'badge pulse'}>{s.pin.mark}</div>}
+      {s.pin && (subtle ? <PinDot pin={s.pin} /> : <div className={s.pin.failed ? 'badge pulse failed' : 'badge pulse'}>{s.pin.mark}</div>)}
     </>
   );
 }
@@ -97,12 +99,12 @@ function FaceM({ item, where, underway, since, chip }: CardFaceProps) {
  * its title with the pin, or the dot of an unread entry; its state line; then the line under its
  * title or what it waits for (`text`), in at most two lines.
  */
-function FaceS({ item, where, underway, since, unread, title, text, children }: CardFaceProps) {
+function FaceS({ item, where, underway, since, unread, subtle, title, text, children }: CardFaceProps) {
   const s = cardSummary(item, underway);
   const top = [where, item.state === 'proposal' && t.proposalMark, s.kind, since];
   const under = text ?? s.meta;
   return (
-    <div className="face face-s" style={tone(item, underway)}>
+    <div className={subtle ? 'face face-s subtle' : 'face face-s'} style={tone(item, underway)}>
       {(hasLabels(item) || top.some(Boolean)) && (
         <div className="f-top">
           <LabelMarks item={item} />
@@ -110,9 +112,9 @@ function FaceS({ item, where, underway, since, unread, title, text, children }: 
         </div>
       )}
       <Title item={item} className="f-ttl">
-        {unread && <UnreadDot />}
+        {unread && !subtle && <UnreadDot />}
         <span className="f-ttl-text">{title ?? shownTitle(item)}</span>
-        {!unread && s.pin && <Pin pin={s.pin} />}
+        {!unread && s.pin && !subtle && <Pin pin={s.pin} />}
       </Title>
       <div className="f-state">
         <StateMarks marks={s.state.marks} />
@@ -121,6 +123,7 @@ function FaceS({ item, where, underway, since, unread, title, text, children }: 
         </span>
       </div>
       {under && <div className="f-text">{under}</div>}
+      {subtle && (unread ? <UnreadDot /> : s.pin && <PinDot pin={s.pin} />)}
       {children}
     </div>
   );
@@ -132,20 +135,21 @@ function FaceS({ item, where, underway, since, unread, title, text, children }: 
  * short word of its state, its kind, the other canvas it is on, the list's `tail`, and as much of the
  * line under its title as fits.
  */
-function FaceXS({ item, underway, title, text, tail }: CardFaceProps) {
+function FaceXS({ item, underway, subtle, title, text, tail }: CardFaceProps) {
   const s = cardSummary(item, underway);
   const other = useOtherCanvas(item);
   // a workstream's label before its title says what it is; an idea's state says it already
   const kind = item.parent ? '' : cardKind(item);
   const under = text ?? s.meta;
   return (
-    <span className="face face-xs" style={tone(item, underway)}>
+    <span className={subtle ? 'face face-xs subtle' : 'face face-xs'} style={tone(item, underway)}>
       <Title item={item} className="f-ttl" inline>
         {item.labels?.priority && <PriorityMark priority={item.labels.priority} suggested={!!item.labels.suggested?.includes('priority')} bare />}
         {item.parent && item.plan?.label && <span className="ws-no">{item.plan.label}</span>}
         <span className="f-ttl-text">{title ?? shownTitle(item)}</span>
-        {s.pin && <Pin pin={s.pin} />}
+        {s.pin && !subtle && <Pin pin={s.pin} />}
       </Title>
+      {subtle && s.pin && <PinDot pin={s.pin} />}
       <span className="f-line">
         <span className={item.state === 'proposal' ? 'f-dot proposal' : 'f-dot'} />
         <span className="f-words">

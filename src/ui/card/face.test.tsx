@@ -75,3 +75,17 @@ test("a card's kind word, the same on its face, its open card and the archive", 
   expect(cardKind(card({ idea: { prototypeOf: 'i' } }))).toBe('Prototype');
   expect(cardKind(card({ review: { contribution: { number: 7, author: 'ann' } } } as Partial<Item>))).toBe('PR #7 · ann');
 });
+
+test('subtle: the pin is a small dot in the corner, the state line is plain, and a size without a pin shows no dot', () => {
+  const s = face({ item: asking, size: 's', subtle: true });
+  expect(s).toContain('class="face face-s subtle"');
+  expect(s).toContain('class="pin-dot asking"');
+  expect(s).not.toContain('f-pin');
+  expect(face({ item: asking, size: 's', subtle: true, unread: true })).toContain('class="unread-dot"');
+  expect(face({ item: asking, size: 'xs', subtle: true })).toContain('pin-dot');
+  const m = face({ item: asking, subtle: true });
+  expect(m).toContain('state subtle');
+  expect(m).toContain('pin-dot');
+  expect(m).not.toContain('badge');
+  expect(face({ item: card({ state: 'working' }), subtle: true })).not.toContain('pin-dot');
+});

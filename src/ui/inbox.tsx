@@ -107,6 +107,7 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
                 <CardFace
                   item={i}
                   size="s"
+                  subtle
                   unread={unread}
                   where={
                     <>

@@ -348,6 +348,18 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
 .face-s .f-state > .state-text { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .face-s .f-text { margin-top: 4px; font-size: 13px; line-height: 1.4; color: var(--muted);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+/* subtle: the pin is a small dot inside the top-right corner, the state line plain and muted, no moving line */
+.pin-dot { --pin: var(--waiting); position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--pin); }
+.pin-dot.asking { --pin: var(--asking); }
+.pin-dot.failed { --pin: var(--error); }
+.face.subtle { position: relative; }
+.face.subtle .f-ttl { padding-right: 14px; }
+.face.subtle .f-state, .face.subtle .f-state .doing.demo, .face.subtle .f-state .landed-part { color: var(--muted); font-weight: 400; }
+.face.subtle .f-state .landed-part { border-color: var(--line); }
+.face.subtle .f-line .f-state { color: inherit; font-weight: 400; }
+.card .state.subtle { color: var(--muted); font-weight: 400; }
+.card .state.subtle::after { display: none; }
+.card .state.subtle .doing.demo { color: var(--muted); font-weight: 400; }
 .face-xs { gap: 2px; }
 .face-xs .f-ttl { font-size: 14px; line-height: 1.3; }
 .face-xs .f-ttl-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2991,6 +3003,7 @@ body:has(#inbox.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .inbox-entry .ttl-link:focus-visible { text-decoration: underline; outline: 2px solid var(--working); outline-offset: 2px; border-radius: 3px; }
 /* an unread entry: an orange dot centred on the title's first line (or at the end of a proposal's project line) */
 .unread-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--waiting); margin-top: 6px; }
+.face.subtle > .unread-dot { position: absolute; top: 8px; right: 8px; margin: 0; }
 .inbox-entry .where .unread-dot { margin: 0 0 0 auto; }
 .inbox-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 8px 12px; }
 .inbox-bar .inbox-filter { margin: 0; }

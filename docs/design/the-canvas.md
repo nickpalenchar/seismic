@@ -358,6 +358,12 @@ priority stays, as what decides where in a list to look first, on the title line
 its short word so that the rest of the line can say what the card is about (owner, 2026-11-08). The
 short words are one table beside the state line's own words, not chosen per list.
 
+Any size can be drawn **subtle**, for places that hold many cards (the inbox shows its entries so):
+the pin becomes a small dot inside the card's top-right corner (an unread entry's dot takes that
+place too), the state line is plain and muted instead of bold in the state's colour, and there is no
+moving line under a working card. A part the size does not show anyway stays as it is.
+
+
 #### Priorities
 
 The owner gives any card a priority: Trivial, Low, Medium, High, Very high or Critical ("Trivial",

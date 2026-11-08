@@ -69,5 +69,10 @@ export const Pin = ({ pin }: { pin: NonNullable<CardSummary['pin']> }) => (
   </span>
 );
 
+/** The pin of a subtle card: a small dot in the card's top-right corner, in the pin's colour, saying only that the card wants the owner. */
+export const PinDot = ({ pin }: { pin: NonNullable<CardSummary['pin']> }) => (
+  <span className={['pin-dot', pin.failed && 'failed', pin.asking && 'asking'].filter(Boolean).join(' ')} role="img" aria-label={t.phone.forYou} title={t.phone.forYou} />
+);
+
 /** The orange dot of an inbox entry the owner has not read yet. */
 export const UnreadDot = () => <span className="unread-dot" role="img" aria-label={t.inbox.unread} />;
