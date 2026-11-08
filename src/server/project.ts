@@ -1318,6 +1318,7 @@ export class ProjectRuntime {
 
   private emitPending() {
     for (const fn of this.pendingListeners) fn();
+    this.koordinator.restartChanged();
   }
 
   /**
@@ -2902,6 +2903,7 @@ export class ProjectRuntime {
   /** Seismic is about to restart, or no longer is: the workers hear so and pause for it (or for their repository's restart that waits). */
   restartDue(due: DueRestart | null) {
     this.obeyaDue = due;
+    this.koordinator.restartChanged();
     const p = this.pending;
     for (const r of this.repos) r.workers.restartDue(due ?? (p?.paths.has(r.info.path) ? repoDue(p) : null));
   }

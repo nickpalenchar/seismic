@@ -161,6 +161,18 @@ describe('Koordinator', () => {
     expect(item(a.id).state).toBe('working');
   });
 
+  test('a card waiting for a restart is checked once the restart ends, with no other change on the board', async () => {
+    restarting = true;
+    const a = card('A');
+    k.request(a.id);
+    await settle();
+    expect(item(a.id).queue).toMatchObject({ restart: true });
+    restarting = false;
+    k.restartChanged();
+    await settle();
+    expect(item(a.id).state).toBe('working');
+  });
+
   test('a drawn dependency does not replace the restart wait; the check after the restart applies it', async () => {
     restarting = true;
     const pre = card('Prerequisite');

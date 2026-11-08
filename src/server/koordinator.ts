@@ -145,6 +145,11 @@ export class Koordinator {
     this.readPendingDeps();
   }
 
+  /** A restart began, went on or ended: the cards waiting for it are looked at again. */
+  restartChanged() {
+    this.scheduleDrain();
+  }
+
   shutdown() {
     clearTimeout(this.recheck);
     for (const t of this.evictions.values()) clearTimeout(t);
@@ -933,7 +938,7 @@ export class Koordinator {
         if (!this.o.restarting?.()) {
           this.setQueue(w.id, { checking: true }, w.queue!.since);
           this.serial(() => this.decide(w.id));
-        }
+        } else again = true;
         continue;
       }
       if ('paused' in w.queue!) {
