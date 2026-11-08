@@ -37,19 +37,31 @@ test('S shows chips, where, kind and since on top, the pin or the unread dot, th
   expect(face({ item: asking, size: 's', unread: false })).not.toContain('unread-dot');
 });
 
-test('XS keeps to two lines: title and pin, then only the priority flag, the state, the kind and the tail', () => {
+test('XS keeps to two lines: the priority flag, title and pin, then the short state, kind, tail and as much of the meta line as fits', () => {
   const html = face({ item: { ...asking, kind: 'plan' }, size: 'xs', tail: 'Waits for “Export”.' });
   expect(html).not.toContain('lchip');
-  expect(html).toContain('class="prio prio-high bare" title="High"');
+  expect(html).toMatch(/^<span class="face face-xs"[^>]*><span class="f-ttl"><span class="prio prio-high bare" title="High">/);
   expect(html).not.toContain('>High<');
-  expect(html).toContain('<span class="f-state">Question for you</span> · Plan · Waits for “Export”.');
-  expect(html).toContain('<span class="f-pin asking" title="Needs you">?</span>');
-  expect(html).not.toContain('Serif or sans');
+  expect(html).toContain('<span class="f-pin asking" title="Needs you">?</span></span>');
+  expect(html).toContain('<span class="f-state">Question</span> · Plan · Waits for “Export”. · Serif or sans?</span>');
+  // the plan's sheet shows a workstream's text below in full, without it in the line
+  expect(face({ item: asking, size: 'xs', text: false })).toContain('<span class="f-state">Question</span></span>');
   // a workstream names itself by its label before the title; an idea does not say "Idea" twice
   const ws = face({ item: card({ parent: 'p', label: 'W2' }), size: 'xs' });
   expect(ws).toContain('<span class="ws-no">W2</span>');
   expect(ws).not.toContain('Workstream');
-  expect(face({ item: card({ state: 'idea', idea: { status: 'open', brief: '', questions: [] } } as unknown as Partial<Item>), size: 'xs' })).toContain('<span class="f-state">Idea</span></span>');
+  expect(face({ item: card({ state: 'idea', body: '', idea: { status: 'open', brief: '', questions: [] } } as unknown as Partial<Item>), size: 'xs' })).toContain('<span class="f-state">Idea</span></span>');
+});
+
+test("the smallest face says a card's state in a word or two, from one table", () => {
+  const xs = (more: Partial<Item>) => face({ item: card({ body: '', ...more }), size: 'xs' }).match(/<span class="f-state">([^<]*)</)?.[1];
+  expect(xs({ state: 'working' })).toBe('Working');
+  expect(xs({ state: 'waiting', need: 'demo' })).toBe('Demo ready');
+  expect(xs({ state: 'waiting', need: 'question', question: { text: 'Which?', options: [] } } as Partial<Item>)).toBe('Question');
+  expect(xs({ queue: { behind: ['x'], reason: 'r', since: 'now' } } as Partial<Item>)).toBe('Queued');
+  expect(xs({ state: 'planned' })).toBe('Planned');
+  // M and S keep the state's own words
+  expect(face({ item: card({ state: 'working' }) })).toContain('Agent at work');
 });
 
 test("a card's kind word, the same on its face, its open card and the archive", () => {

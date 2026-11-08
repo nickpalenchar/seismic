@@ -123,6 +123,8 @@ export interface CardSummary {
   state: {
     /** What the server does with the card after the owner's click, else its state. */
     label: string;
+    /** The same in a word or two, as the smallest face says it. */
+    short: string;
     marks: StateMark[];
     /** The part of it that has landed already: its pull request or commit. */
     landed?: string;
@@ -197,6 +199,7 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
     meta,
     state: {
       label: underway ?? (revising ? t.revisingShort : stateLabel(item)),
+      short: underway ?? (revising ? t.revisingShort : stateLabel(item, true)),
       marks,
       landed: item.landedPart && landedRef(item.landedPart),
       notes,

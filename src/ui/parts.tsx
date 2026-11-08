@@ -1232,6 +1232,8 @@ export function Sheet({
                 <CardFace
                   item={k}
                   size="xs"
+                  // its text from the plan doc stands below in full
+                  text={false}
                   tail={
                     k.queue && 'behind' in k.queue
                       ? t.queue.behind(waitedOn(k.queue.behind, all, (id) => sibling(id, kids, all)))

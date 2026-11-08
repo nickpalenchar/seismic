@@ -337,9 +337,12 @@ list says a card's title, state or labels in a way of its own:
   most two lines. The entry's buttons stand below it.
 - **XS** is two lines with the least, for `/` search, the queue, the archive (with the time it was
   archived beside it), a plan's sheet, the merge picker, and the cards before and after a queued
-  card in its chain on the open card: the title (a workstream's after its label) with the pin; then
-  the priority's flag alone, the dot and word of its state in its colour, its kind, the other canvas
-  it is on, and what the list adds (what it waits for, what it builds on, "Archived").
+  card in its chain on the open card: the priority's flag alone, then the title (a workstream's
+  after its label) with the pin; below, the dot and the short word of its state in its colour
+  ("Working", "Demo ready", "Question", "Queued"; a state without a short word keeps its own), its
+  kind, the other canvas it is on, what the list adds (what it waits for, what it builds on,
+  "Archived") and, in grey, as much of the line under its title as fits, cut off with "…". A plan's
+  sheet leaves that line out, as it shows the workstream's text from the plan doc below in full.
 
 Card links in text, the edge indicators and the minimap are no faces: they only name a card (a link
 with its priority's flag).
@@ -347,7 +350,9 @@ with its priority's flag).
 Decision (2026-11-08): one face in three sizes for every surface, rather than each list drawing a row
 of its own: search showed neither state nor priority, and the rows drifted apart with every change to
 the card. XS leaves out category, sub-category and complexity so that it stays two lines; the
-priority stays, as what decides where in a list to look first.
+priority stays, as what decides where in a list to look first, on the title line, and the state takes
+its short word so that the rest of the line can say what the card is about (owner, 2026-11-08). The
+short words are one table beside the state line's own words, not chosen per list.
 
 #### Priorities
 

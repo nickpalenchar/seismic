@@ -29,7 +29,7 @@ export interface CardFaceProps {
   unread?: boolean;
   /** S and XS: in place of the title (a button that opens the card, the search words marked in it). */
   title?: ReactNode;
-  /** S: in place of the line under the title (what the card waits for). */
+  /** S and XS: in place of the line under the title (what the card waits for); `false` leaves it out. */
   text?: ReactNode;
   /** XS: the end of the second line (what it waits for, what it builds on). */
   tail?: ReactNode;
@@ -128,30 +128,33 @@ function FaceS({ item, where, underway, since, unread, title, text, children }: 
 
 /**
  * XS, two lines with the least (search, the queue, the archive, a plan's sheet, the merge picker):
- * its title (a workstream's after its label) with the pin; then its priority's flag, the dot and
- * word of its state, its kind, the other canvas it is on and the list's `tail`.
+ * its priority's flag and its title (a workstream's after its label) with the pin; then the dot and
+ * short word of its state, its kind, the other canvas it is on, the list's `tail`, and as much of the
+ * line under its title as fits.
  */
-function FaceXS({ item, underway, title, tail }: CardFaceProps) {
+function FaceXS({ item, underway, title, text, tail }: CardFaceProps) {
   const s = cardSummary(item, underway);
   const other = useOtherCanvas(item);
   // a workstream's label before its title says what it is; an idea's state says it already
   const kind = item.parent ? '' : cardKind(item);
+  const under = text ?? s.meta;
   return (
     <span className="face face-xs" style={tone(item, underway)}>
       <Title item={item} className="f-ttl" inline>
+        {item.priority && <PriorityMark priority={item.priority} suggested={!!item.suggested?.includes('priority')} bare />}
         {item.parent && item.label && <span className="ws-no">{item.label}</span>}
         <span className="f-ttl-text">{title ?? shownTitle(item)}</span>
         {s.pin && <Pin pin={s.pin} />}
       </Title>
       <span className="f-line">
-        {item.priority && <PriorityMark priority={item.priority} suggested={!!item.suggested?.includes('priority')} bare />}
         <span className={item.state === 'proposal' ? 'f-dot proposal' : 'f-dot'} />
         <span className="f-words">
           {dotted([
-            <span className="f-state">{s.state.label}</span>,
-            kind !== s.state.label && kind,
+            <span className="f-state">{s.state.short}</span>,
+            kind !== s.state.short && kind,
             other && <OtherCanvas item={item} named />,
             tail,
+            under,
           ])}
         </span>
       </span>
