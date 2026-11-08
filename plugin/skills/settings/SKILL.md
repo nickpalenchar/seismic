@@ -43,7 +43,7 @@ Find out, from the files rather than by guessing:
   `## Arbeitspakete`): each top-level item is a workstream (`- [ ] **W1:** Title. Details`), a
   ticked one has landed, and once all are ticked the plan goes into the archive. Its goal is the
   first paragraph under `## Goal` (or `## Ziel`). A doc in that directory without such a checklist
-  shows on the canvas as one that is not a plan, with "Als Plan aufbereiten", which has an
+  shows in the project as one that is not a plan, with "Als Plan aufbereiten", which has an
   agent add the checklist in the doc's own style. Design notes and ADRs that plan nothing belong
   elsewhere, or in `planDocs.exclude`. Plans that git ignores are not on the default branch Seismic
   reads: their folder's absolute path goes into the owner's configuration on their machine
@@ -54,7 +54,7 @@ Find out, from the files rather than by guessing:
 Some things only the owner knows: the login for a demo when no seed makes one, which test data
 shows the app well, whether approved work may go straight
 onto the default branch, and where plan docs go: the directory of plans you found (its docs then converted with "Als Plan
-aufbereiten" on the canvas), or a new `docs/plan/`. Where your briefing names more than one agent
+aufbereiten" in the project), or a new `docs/plan/`. Where your briefing names more than one agent
 harness that can work on this machine, the owner also picks which of them the allow list (step 4)
 is set up for: that question is always asked, with each harness as an option and several
 pickable. Collect them and ask in one question

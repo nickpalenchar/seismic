@@ -45,7 +45,7 @@ touches, and keep those current in the same change.
   a card's conversation: messages, reading order, replying to a message, the task as first message,
   card layout (the files beside the demo, trying the app by hand), screenshots and marking them,
   other files by their path, skills by `/`, cards by `/` in the task text and smart links.
-- [The project](design/the-project.md) — the UI around the cards: the bar, creating cards, cards on
+- [The canvas](design/the-canvas.md) — the UI around the cards: the bar, creating cards, cards on
   the project (a plan arranged by its dependencies), moving around, unfolding a card, addresses
   (a card's permalink, Back and Forward), sheets, visual identity, groups on the canvas, refusals.
 - [Agents and workstations](design/agents-and-workstations.md) — how agents run and where: agents,

@@ -101,12 +101,12 @@
   <section class="pillars">
     <article class="pillar">
       <div class="text">
-        <span class="tag blue">Canvas</span>
+        <span class="tag blue">Project</span>
         <h2>Space is memory.</h2>
         <p>Every task is a card you place where it belongs, and there it stays. Plans hold their workstreams; related work sits together.
           You know where things are the way you know where things are in a room. The state is a colour, not a column:
           a card does not move when its agent is done.
-          Each product you build gets a canvas of its own, over one repository or several, and one Seismic runs them all side by side.</p>
+          Each product you build is a project of its own, over one repository or several, and one Seismic runs them all side by side.</p>
         <ul class="legend">
           <li><i class="dot blue"></i>Agent working</li>
           <li><i class="dot amber"></i>Waiting for you</li>
@@ -154,7 +154,7 @@
       <div class="text">
         <span class="tag pink">Phone</span>
         <h2>The wall in your pocket.</h2>
-        <p>Away from the desk, your phone shows what waits for you across all your canvases, and what is running.
+        <p>Away from the desk, your phone shows what waits for you across all your projects, and what is running.
           Watch a demo and approve it, answer a question, or hold the microphone and say a new task.
           A notification tells you when a card needs you.</p>
         <p class="aside">Seismic keeps running on your computer and reaches your phone over your own private network, Tailscale or another VPN.
@@ -269,7 +269,7 @@
           <li><b>Linux</b> <a href="https://github.com/sadilek/obeya/releases/latest/download/Obeya-Linux-x86_64.AppImage">AppImage x64</a> <a href="https://github.com/sadilek/obeya/releases/latest/download/Obeya-Linux-aarch64.AppImage">arm64</a>
             <a href="https://github.com/sadilek/obeya/releases/latest/download/obeya_amd64.deb">.deb x64</a> <a href="https://github.com/sadilek/obeya/releases/latest/download/obeya_arm64.deb">arm64</a></li>
         </ul>
-        <p class="small">On its first start Seismic checks for Claude Code, git and gh, installs what it can and opens your first canvas.
+        <p class="small">On its first start Seismic checks for Claude Code, git and gh, installs what it can and opens your first project.
           The Windows installer is not signed yet (applied for at the SignPath Foundation): when SmartScreen warns, choose “More info”, then “Run anyway”.
           <a href="code-signing/">Code signing policy</a></p>
       </div>
@@ -277,7 +277,7 @@
         <h3>From source</h3>
 <pre><code><span class="c"># needs Bun, Claude Code (logged in), git and gh</span>
 git clone https://github.com/sadilek/obeya && cd obeya
-<span class="c"># the same setup, then your first canvas</span>
+<span class="c"># the same setup, then your first project</span>
 bun install && bun start</code></pre>
         <p class="small">The wall opens on <code>http://127.0.0.1:4417</code>, through the link Seismic prints, which signs your browser in. The app and the source share their data in <code>~/.obeya</code>.</p>
         <div class="cta">

@@ -6,7 +6,7 @@ import { languageOf } from '../core/locale';
 import { AGENT_DEFAULTS, type AgentSetting } from '../core/types';
 import { withAgentSetting } from './runtime';
 import { OWNER_SETTINGS_FILE as SETTINGS_FILE, systemLanguage } from '../../plugin/skills/demo/lib/language.ts';
-import { agentSetting, agentsView, conversationLanguage, languageView, ownerLanguage, saveAgents, saveCodexAutoReview, saveLanguage, saveTheme, saveMotion, motionView, saveUsageMeter, themeView, usageMeterView, feedbackPromptView, saveFeedbackPrompt, notificationsView, saveNotifications, startAgentSetting } from './settings';
+import { agentSetting, agentsView, conversationLanguage, languageView, ownerLanguage, saveAgents, saveCodexAutoReview, saveLanguage, saveTheme, saveMotion, motionView, saveUsageMeter, themeView, usageMeterView, feedbackPromptView, saveFeedbackPrompt, projectDefaults, saveProjectDefaults, notificationsView, saveNotifications, startAgentSetting } from './settings';
 import { FakeRuntime } from './testing';
 
 const homes: string[] = [];
@@ -215,4 +215,18 @@ test("Codex's automatic review decides for Codex workers until the owner turns i
   expect(saveCodexAutoReview(home, { on: true }).codexAutoReview).toBe(true);
   expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({});
   for (const bad of [{}, { on: 'yes' }, null]) expect(() => saveCodexAutoReview(home, bad)).toThrow();
+});
+
+test('the defaults saved while projects were canvases (`canvasDefaults`) still apply and move to `projectDefaults` once saved', () => {
+  const home = mkdtempSync(join(tmpdir(), 'obeya-settings-'));
+  try {
+    writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ theme: 'dark', canvasDefaults: { archive: 'manual' } }));
+    expect(projectDefaults(home).archive).toBe('manual');
+    saveProjectDefaults(home, { archive: 'landed' });
+    const file = JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'));
+    expect(file).toMatchObject({ theme: 'dark', projectDefaults: { archive: 'landed' } });
+    expect(file).not.toHaveProperty('canvasDefaults');
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
 });

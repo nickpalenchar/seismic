@@ -47,7 +47,7 @@ function read(home: string): Settings {
     const conversationLanguage = LANGUAGES.find((l) => l === o.conversationLanguage);
     const theme = THEMES.find((x) => x === o.theme);
     const motion = MOTIONS.find((x) => x === o.motion);
-    return { ...o, language, conversationLanguage, theme, motion, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === false ? false : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, projectDefaults: projectSettingsShape.safeParse(renamedBaselines(o.projectDefaults)).data };
+    return { ...o, language, conversationLanguage, theme, motion, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === false ? false : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, projectDefaults: projectSettingsShape.safeParse(renamedBaselines(o.projectDefaults ?? o.canvasDefaults)).data };
   } catch {
     return {};
   }
@@ -250,7 +250,8 @@ export function withProjectDefaults<C extends ProjectSettings>(projects: C[], de
 
 /** Saves one of the owner's choices, or with `null` takes it out; the other settings in the file stay. */
 function save<K extends 'language' | 'conversationLanguage' | 'theme' | 'motion' | 'remote' | 'usageMeter' | 'codexAutoReview' | 'feedbackPrompt' | 'notifications' | 'projectDefaults'>(home: string, key: K, value: Settings[K] | null, what: string) {
-  write(home, { ...read(home), [key]: value ?? undefined });
+  // `canvasDefaults` is what `projectDefaults` was called while projects were canvases: read, and gone once saved
+  write(home, { ...read(home), canvasDefaults: undefined, [key]: value ?? undefined } as Settings);
   console.log(`Seismic: ${what} saved to ${join(home, SETTINGS_FILE)}`);
 }
 

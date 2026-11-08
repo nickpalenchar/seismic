@@ -1,4 +1,4 @@
-/* Seismic's look (docs/design/the-project.md, "Visual identity"): index cards pinned to a wall. Titles in Newsreader, everything
+/* Seismic's look (docs/design/the-canvas.md, "Visual identity"): index cards pinned to a wall. Titles in Newsreader, everything
    else in IBM Plex Sans Condensed, both OFL and served from ./fonts with their licences. */
 @font-face { font-family: Newsreader; font-style: normal; font-weight: 300 800; font-display: swap;
   src: url(./fonts/newsreader-latin-opsz-normal.woff2) format("woff2"); }

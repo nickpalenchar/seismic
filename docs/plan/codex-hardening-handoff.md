@@ -69,7 +69,7 @@ fit stage 5 and only hides usage at the smallest stage 6. This behavior is docum
 ### Docs
 
 Relevant permanent chapters were updated in `docs/design/`: agents-and-workstations, communication,
-conversation-on-the-card, data, the-project. `docs/plan/codex-runtime.md` contains the fix matrix,
+conversation-on-the-card, data, the-canvas. `docs/plan/codex-runtime.md` contains the fix matrix,
 evidence limits and remaining phase 1/Pi gates. Remove this handoff when it is no longer useful.
 
 ## Tests and evidence — distinguish passed from pending
