@@ -554,8 +554,14 @@ test('a card gets a part once any of it is set and loses it once all of it is cl
   expect(row.updated_at >= was).toBe(true);
   expect(row.demo).toMatchObject({ latest: { dir: '/d' }, earlier: [{ dir: '/v' }] });
   expect([row.plan?.collapsed, row.review, row.hold]).toEqual([true, null, null]);
-  s.updateCard(id, { demo: { latest: null, earlier: [] }, plan: { collapsed: false } });
+  // the demo part keeps its row while it has earlier demos, whatever else of it is cleared
+  s.updateCard(id, { demo: { latest: null } });
+  expect(s.db.query('SELECT COUNT(*) AS n FROM card_demos').get()).toEqual({ n: 1 });
+  s.updateCard(id, { demo: { earlier: [] }, plan: { collapsed: false } });
   expect([s.cards.get(id)!.demo, s.cards.get(id)!.plan]).toEqual([null, null]);
+  s.updateCard(id, { demo: { earlier: [{ kind: 'video', dir: '/v', chapters: [] }] } });
+  expect(s.db.query('SELECT COUNT(*) AS n FROM card_demos').get()).toEqual({ n: 1 });
+  s.updateCard(id, { demo: { earlier: [] } });
   s.updateCard(id, { labels: { priority: { value: 'high', by: 'owner' }, category: { value: null, by: 'owner' } } });
   expect(s.cards.get(id)!.labels).toEqual({ priority: { value: 'high', by: 'owner' }, category: { value: null, by: 'owner' } });
   s.updateCard(id, { labels: { priority: null, category: { value: null, by: null } } });

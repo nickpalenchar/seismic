@@ -3,15 +3,15 @@ import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlit
 import type { CardFile } from '../../../core/files';
 import type { StoredDemo, StoredShare } from '../../board';
 import type { PageHeard } from '../../workers';
-import type { Db } from '../common';
+import { atomic, type Db } from '../common';
 import { cards } from './cards';
 import { setPart } from './part';
 
 /**
  * A card's demo part (`Item.demo`): its latest demo, the demo's page for colleagues, what its worker
  * last heard of that page, the files it named as the result, and the owner's comments held back
- * while they watch. A card has a row here once any of it is set, and none again once all of it is
- * cleared; the demos of earlier handovers are rows of `cardEarlierDemos`.
+ * while they watch. A card has a row here once any of it is set or it has earlier demos, and none
+ * again once all of it is cleared; the demos of earlier handovers are rows of `cardEarlierDemos`.
  */
 export const cardDemos = sqliteTable(
   'card_demos',
@@ -67,11 +67,19 @@ export function asDemo(own: (Omit<CardDemo, 'earlier'> & { cardId?: string }) | 
 export class Demos {
   constructor(private readonly db: Db) {}
 
-  /** Sets fields of the card's demo part: its row comes once any is set, and goes once none is; `earlier` replaces the earlier demos. */
+  /**
+   * Sets fields of the card's demo part: its row comes once any is set or it has earlier demos, and
+   * goes once neither holds; `earlier` replaces the earlier demos.
+   */
   set(cardId: string, { earlier, ...fields }: DemoUpdate) {
-    setPart(this.db, cardDemos, EMPTY, cardId, fields);
-    if (!earlier) return;
-    this.db.delete(cardEarlierDemos).where(eq(cardEarlierDemos.cardId, cardId)).run();
-    if (earlier.length) this.db.insert(cardEarlierDemos).values(earlier.map((demo, position) => ({ cardId, position, demo }))).run();
+    if (!earlier && !Object.keys(fields).length) return;
+    atomic(this.db, () => {
+      if (earlier) {
+        this.db.delete(cardEarlierDemos).where(eq(cardEarlierDemos.cardId, cardId)).run();
+        if (earlier.length) this.db.insert(cardEarlierDemos).values(earlier.map((demo, position) => ({ cardId, position, demo }))).run();
+      }
+      const more = earlier ? earlier.length > 0 : !!this.db.select({ one: sql`1` }).from(cardEarlierDemos).where(eq(cardEarlierDemos.cardId, cardId)).get();
+      setPart(this.db, cardDemos, EMPTY, cardId, fields, more);
+    });
   }
 }

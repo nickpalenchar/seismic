@@ -708,7 +708,7 @@ function copyParts(id: string) {
      FROM cards WHERE id = $id AND (${l} IS NOT NULL OR EXISTS (SELECT 1 FROM json_each(owner_labels) WHERE value = '${l}'))`;
   for (const q of [
     'INSERT INTO card_reviews (card_id, pr, contribution, code_review) SELECT id, pr, contribution, code_review FROM cards WHERE id = $id AND (pr IS NOT NULL OR contribution IS NOT NULL OR code_review IS NOT NULL)',
-    'INSERT INTO card_demos (card_id, latest, share, page_heard, files, held) SELECT id, demo, share, page_heard, files, held FROM cards WHERE id = $id AND (demo IS NOT NULL OR share IS NOT NULL OR page_heard IS NOT NULL OR files IS NOT NULL OR held IS NOT NULL)',
+    'INSERT INTO card_demos (card_id, latest, share, page_heard, files, held) SELECT id, demo, share, page_heard, files, held FROM cards WHERE id = $id AND (demo IS NOT NULL OR share IS NOT NULL OR page_heard IS NOT NULL OR files IS NOT NULL OR held IS NOT NULL OR json_array_length(demos) > 0)',
     'INSERT INTO card_earlier_demos (card_id, position, demo) SELECT c.id, CAST(d.key AS INTEGER), d.value FROM cards c, json_each(c.demos) d WHERE c.id = $id AND c.demos IS NOT NULL',
     'INSERT INTO card_plans (card_id, doc, deps, collapsed, plan_docs) SELECT id, plan, deps, collapsed, plan_docs FROM cards WHERE id = $id AND (plan IS NOT NULL OR deps IS NOT NULL OR collapsed != 0 OR plan_docs IS NOT NULL)',
     label('category'),

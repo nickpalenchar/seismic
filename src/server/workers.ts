@@ -4101,7 +4101,7 @@ export class Workers {
     } catch (e) {
       // the Seismic checkout is in the way: the card waits for the owner, who approves again
       if (!(e instanceof BadRequest)) return this.o.board.log(cardId, 'error', 'obeya', messageOf(e));
-      this.o.board.work(cardId, { state: 'waiting', need: this.o.board.row(cardId).demo ? 'demo' : 'review', status_line: null });
+      this.o.board.work(cardId, { state: 'waiting', need: this.o.board.row(cardId).demo?.latest ? 'demo' : 'review', status_line: null });
       this.o.board.log(cardId, 'error', 'obeya', e.message, { code: e.code });
     }
   }

@@ -6,13 +6,13 @@ import type { Db } from '../common';
 
 /**
  * Sets fields of the card's part in `table` (keyed by `cardId`): its row comes once any field
- * differs from `empty`, and goes once none does.
+ * differs from `empty`, or the part has rows elsewhere (`more`), and goes once neither holds.
  */
-export function setPart<T extends Record<string, unknown>>(db: Db, table: SQLiteTable & { cardId: SQLiteColumn }, empty: T, cardId: string, fields: Partial<T>) {
-  if (!Object.keys(fields).length) return;
+export function setPart<T extends Record<string, unknown>>(db: Db, table: SQLiteTable & { cardId: SQLiteColumn }, empty: T, cardId: string, fields: Partial<T>, more?: boolean) {
+  if (!Object.keys(fields).length && more === undefined) return;
   const was = db.select().from(table).where(eq(table.cardId, cardId)).get() as (T & { cardId: string }) | undefined;
   const { cardId: _, ...next } = { ...empty, ...was, ...fields } as T & { cardId?: string };
-  const none = Object.entries(next).every(([k, v]) => v === undefined || v === empty[k]);
+  const none = !more && Object.entries(next).every(([k, v]) => v === undefined || v === empty[k]);
   if (none) {
     if (was) db.delete(table).where(eq(table.cardId, cardId)).run();
   } else if (was) db.update(table).set(next).where(eq(table.cardId, cardId)).run();
