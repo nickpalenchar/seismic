@@ -19,6 +19,9 @@ test('whatever needs the owner leaves its own stage, of any kind', () => {
   expect(agentStage(card('a', { state: 'waiting', need: 'question', codeReview: { mode: 'auto', state: 'running' } }))).toBe('needsYou');
   expect(agentStage(card('a', { state: 'proposal' }))).toBe('needsYou');
   expect(agentStage(card('a', { kind: 'plan', state: 'waiting', need: 'question' }))).toBe('needsYou');
+  // just answered: out of Needs you, as the inbox leaves it out, until the server moves the card on
+  expect(agentStage(card('a', { state: 'waiting', need: 'question' }), true)).toBe('working');
+  expect(byStage([card('a', { state: 'proposal' })], (id) => id === 'a')).toEqual([]);
 });
 
 test('approved work and work in a pull request is landing; a planned card not queued is planned', () => {

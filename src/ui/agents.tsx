@@ -17,7 +17,7 @@ import { stateLabel, t } from './strings';
 type Tab = 'queue' | 'all';
 
 /** The desktop's Agents sheet, docked on the right like the inbox. */
-export function AgentsSheet({ on, items, open, onOpen }: { on: boolean; items: Item[]; open?: string; onOpen: (i: Item) => void }) {
+export function AgentsSheet({ on, items, open, underway, onOpen }: { on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void }) {
   const [kept, setTab] = useStoredState<Tab>('obeya-agents-tab', 'queue');
   const tab: Tab = kept === 'queue' ? 'queue' : 'all';
   const box = useRef<HTMLElement>(null);
@@ -26,7 +26,7 @@ export function AgentsSheet({ on, items, open, onOpen }: { on: boolean; items: I
   useEffect(() => {
     if (!on || tab !== 'queue') q.sort.cancel();
   }, [on, tab]);
-  const groups = byStage(items);
+  const groups = byStage(items, underway);
   // the groups the owner switched off with their chips above the list
   const [hidden, setHidden] = useStoredState<AgentStage[]>('obeya-agents-hidden', []);
   const count = (s: AgentStage) => groups.find((g) => g.stage === s)?.items.length ?? 0;
@@ -65,7 +65,7 @@ export function AgentsSheet({ on, items, open, onOpen }: { on: boolean; items: I
             </h3>
             <ul className="inbox-list">
               {g.items.map((i) => (
-                <AgentEntry key={i.id} item={i} here={i.id === open} onOpen={onOpen} />
+                <AgentEntry key={i.id} item={i} here={i.id === open} underway={underway(i.id)} onOpen={onOpen} />
               ))}
             </ul>
           </section>
@@ -78,12 +78,12 @@ export function AgentsSheet({ on, items, open, onOpen }: { on: boolean; items: I
 }
 
 /** A card, as the inbox shows an entry: its title large, its state with what the agent does, what it waits for or its status line, and "Go to card". */
-function AgentEntry({ item: i, here, onOpen }: { item: Item; here: boolean; onOpen: (i: Item) => void }) {
+function AgentEntry({ item: i, here, underway, onOpen }: { item: Item; here: boolean; underway: boolean; onOpen: (i: Item) => void }) {
   const doing = i.doing && i.doing !== 'working' ? t.doing[i.doing] : '';
   // what it waits for where it needs the owner, as its inbox entry says, else what its agent reported last
-  const text = agentStage(i) === 'needsYou' ? waitsFor(i) : i.statusLine;
+  const text = agentStage(i, underway) === 'needsYou' ? waitsFor(i) : i.statusLine;
   return (
-    <li className={`inbox-entry agent-entry stage-${agentStage(i)}${here ? ' on' : ''}`} aria-current={here || undefined}>
+    <li className={`inbox-entry agent-entry stage-${agentStage(i, underway)}${here ? ' on' : ''}`} aria-current={here || undefined}>
       <div className="ttl">
         <button type="button" className="ttl-link" onClick={() => onOpen(i)}>
           {plain(i.title)}

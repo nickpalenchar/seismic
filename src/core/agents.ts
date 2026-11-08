@@ -12,11 +12,12 @@ export type AgentStage = (typeof AGENT_STAGES)[number];
  * The stage the card is at, or none for a card "All" leaves out: it needs the owner (taken out of
  * its own stage), its code review runs, its worker fixes the findings the owner gave it or is
  * otherwise at work (making its demo included, which the card's state line tells), its work is landing (approved, in a pull request), or it is
- * planned and not queued.
+ * planned and not queued. A card the owner just acted on (`underway`, as the inbox leaves it out)
+ * no longer needs them while the server catches up.
  */
-export function agentStage(i: Item): AgentStage | undefined {
+export function agentStage(i: Item, underway = false): AgentStage | undefined {
   if (i.archivedAt) return undefined;
-  if (needsYou(i)) return 'needsYou';
+  if (needsYou(i) && !underway) return 'needsYou';
   if (i.kind !== 'task' || i.queue) return undefined;
   if (i.codeReview?.state === 'running') return 'reviewing';
   if (i.landing || i.landingPosition !== undefined || i.state === 'approved' || i.state === 'inPr') return 'landing';
@@ -27,6 +28,6 @@ export function agentStage(i: Item): AgentStage | undefined {
 }
 
 /** The cards by stage, in the order of `AGENT_STAGES`; a stage without a card is left out. */
-export function byStage(items: Item[]): { stage: AgentStage; items: Item[] }[] {
-  return AGENT_STAGES.map((stage) => ({ stage, items: items.filter((i) => agentStage(i) === stage) })).filter((g) => g.items.length);
+export function byStage(items: Item[], underway: (id: string) => boolean = () => false): { stage: AgentStage; items: Item[] }[] {
+  return AGENT_STAGES.map((stage) => ({ stage, items: items.filter((i) => agentStage(i, underway(i.id)) === stage) })).filter((g) => g.items.length);
 }
