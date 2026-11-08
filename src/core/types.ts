@@ -3379,7 +3379,7 @@ export type ActivityCode = (typeof ACTIVITY_CODES)[number];
 /** Who did it: the owner, the agent of the card, or Seismic itself. */
 export type ActivityWho = 'owner' | 'agent' | 'obeya';
 
-/** One line of the Activity log. The card is shown as it is now; a deleted card keeps its title (`deleted`). */
+/** One line of the Activity log. The card is shown as it is now, a deleted one marked (`deleted`); a deletion's line names it by the title it had then. */
 export interface ActivityEntry {
   id: number;
   at: string;

@@ -202,6 +202,8 @@ export interface ActivityRow {
   otherId: string | null;
   otherTitle: string | null;
   harness: string | null;
+  /** The card's title when it was deleted, on a `deleted` line. */
+  title: string | null;
   projectId: string;
 }
 
@@ -653,7 +655,7 @@ export const MIGRATIONS = [
    CREATE INDEX cards_canvas ON cards (canvas_id);`,
   // a card parked off the canvas, since when (ISO)
   'ALTER TABLE cards ADD COLUMN parking_lot TEXT;',
-  // the Activity log: what happened on a card, typed (`ActivityCode`), by whom, with the card it waits for or the harness whose limit stopped it
+  // the Activity log: what happened on a card, typed (`ActivityCode`), by whom, with the card it waits for, the harness whose limit stopped it, or the title of a card it deleted
   `CREATE TABLE activity (
      id INTEGER PRIMARY KEY,
      at TEXT NOT NULL,
@@ -661,7 +663,8 @@ export const MIGRATIONS = [
      who TEXT NOT NULL,
      code TEXT NOT NULL,
      other_id TEXT REFERENCES cards(id),
-     harness TEXT
+     harness TEXT,
+     title TEXT
    );
    CREATE INDEX activity_card ON activity (card_id, id);`,
 ];
@@ -1069,14 +1072,14 @@ export class Store {
    * Writes a line of the Activity log. A card waiting or limited repeats itself as its waits are read
    * again: `again` says which latest line of the card is the same one, and then nothing is written.
    */
-  addActivity(a: { cardId: string; code: ActivityCode; who: ActivityWho; otherId?: string; harness?: string }, again?: (last: { code: ActivityCode; otherId: string | null; harness: string | null }) => boolean): boolean {
+  addActivity(a: { cardId: string; code: ActivityCode; who: ActivityWho; otherId?: string; harness?: string; title?: string }, again?: (last: { code: ActivityCode; otherId: string | null; harness: string | null }) => boolean): boolean {
     if (again) {
       const last = this.db.query('SELECT code, other_id AS otherId, harness FROM activity WHERE card_id = $c ORDER BY id DESC LIMIT 1').get({ c: a.cardId }) as { code: ActivityCode; otherId: string | null; harness: string | null } | null;
       if (last && again(last)) return false;
     }
     this.db
-      .query('INSERT INTO activity (at, card_id, who, code, other_id, harness) VALUES ($at, $cardId, $who, $code, $otherId, $harness)')
-      .run({ at: now(), cardId: a.cardId, who: a.who, code: a.code, otherId: a.otherId ?? null, harness: a.harness ?? null });
+      .query('INSERT INTO activity (at, card_id, who, code, other_id, harness, title) VALUES ($at, $cardId, $who, $code, $otherId, $harness, $title)')
+      .run({ at: now(), cardId: a.cardId, who: a.who, code: a.code, otherId: a.otherId ?? null, harness: a.harness ?? null, title: a.title ?? null });
     return true;
   }
 
@@ -1084,7 +1087,7 @@ export class Store {
   activity(projectIds: string[] | null, before: number | undefined, limit: number): ActivityRow[] {
     return this.db
       .query(
-        `SELECT a.id, a.at, a.who, a.code, a.card_id AS cardId, a.other_id AS otherId, a.harness, c.project_id AS projectId, o.title AS otherTitle
+        `SELECT a.id, a.at, a.who, a.code, a.card_id AS cardId, a.other_id AS otherId, a.harness, a.title, c.project_id AS projectId, o.title AS otherTitle
          FROM activity a JOIN cards c ON c.id = a.card_id LEFT JOIN cards o ON o.id = a.other_id
          WHERE ($before IS NULL OR a.id < $before) AND ($projects IS NULL OR c.project_id IN (SELECT value FROM json_each($projects)))
          ORDER BY a.id DESC LIMIT $limit`,

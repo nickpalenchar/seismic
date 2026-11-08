@@ -1746,8 +1746,8 @@ export class Board {
    * Writes what happened on a card to the Activity log. `again` tells the latest line of the card
    * that is the same one (a wait read again), which is not written twice.
    */
-  record(cardId: string, code: ActivityCode, who: ActivityWho, extra: { other?: string; harness?: string; again?: Parameters<Store['addActivity']>[1] } = {}) {
-    this.store.addActivity({ cardId, code, who, ...(extra.other ? { otherId: extra.other } : {}), ...(extra.harness ? { harness: extra.harness } : {}) }, extra.again);
+  record(cardId: string, code: ActivityCode, who: ActivityWho, extra: { other?: string; harness?: string; title?: string; again?: Parameters<Store['addActivity']>[1] } = {}) {
+    this.store.addActivity({ cardId, code, who, ...(extra.other ? { otherId: extra.other } : {}), ...(extra.harness ? { harness: extra.harness } : {}), ...(extra.title !== undefined ? { title: extra.title } : {}) }, extra.again);
   }
 
   /** The newest `limit` + 1 lines of these projects' logs older than line `before`. */
@@ -1755,13 +1755,15 @@ export class Board {
     return this.store.activity(projectIds, before, limit);
   }
 
-  /** The Activity log's lines of these rows, as entries: each card as it is now, a deleted one with the title it had. */
+  /** The Activity log's lines of these rows, as entries: each card as it is now, a deletion with the title the card had then. */
   activityEntries(rows: ActivityRow[], projectName: string): ActivityEntry[] {
     const cards = new Map(this.store.cardsById(rows.filter((r) => r.projectId === this.project.id).map((r) => r.cardId)).map((c) => [c.id, c]));
     return rows.flatMap((r): ActivityEntry[] => {
       const row = cards.get(r.cardId);
       if (!row) return [];
-      const card = this.itemOf(row);
+      const now = this.itemOf(row);
+      // deleted, restored, renamed and deleted again: each deletion names the card as it was then
+      const card = r.title !== null ? { ...now, title: r.title } : now;
       return [
         {
           id: r.id,
@@ -2286,6 +2288,9 @@ export class Board {
    */
   private limits = new Map<string, string | null>();
 
+  /** The places whose usage limit cleared since Seismic started: a limit there again is a stop of its own, logged even right after the last one. */
+  private limitsCleared = new Set<string>();
+
   /** The harness a card's agent setting names, when it names one. */
   private agentSettingHarness(cardId: string): Harness | undefined {
     const s = this.store.card(cardId)?.agent_setting;
@@ -2310,12 +2315,16 @@ export class Board {
     else this.limitRetries.delete(key);
     const iso = until === undefined ? undefined : until === null ? null : new Date(until).toISOString();
     if (this.limits.get(key) === iso) return;
-    if (iso !== undefined && 'card' in at) {
+    // a limit read again while it holds is the same stop; one read again after a restart is told by the log's latest line
+    if (iso !== undefined && 'card' in at && !this.limits.has(key)) {
       const harness = this.atWork.get(key)?.agent.harness ?? this.agentSettingHarness(at.card);
-      this.record(at.card, 'usageLimit', 'obeya', { ...(harness ? { harness } : {}), again: (l) => l.code === 'usageLimit' && l.harness === (harness ?? null) });
+      const again = this.limitsCleared.has(key) ? undefined : (l: { code: ActivityCode; harness: string | null }) => l.code === 'usageLimit' && l.harness === (harness ?? null);
+      this.record(at.card, 'usageLimit', 'obeya', { ...(harness ? { harness } : {}), ...(again ? { again } : {}) });
     }
-    if (iso !== undefined) this.limits.set(key, iso);
-    else this.limits.delete(key);
+    if (iso !== undefined) {
+      this.limits.set(key, iso);
+      this.limitsCleared.delete(key);
+    } else if (this.limits.delete(key)) this.limitsCleared.add(key);
     this.changed();
   }
 
@@ -2992,9 +3001,10 @@ export class Board {
 
   /** Manual cards only; a plan card goes away with its workstream. */
   remove(id: string) {
-    if (this.own(id).plan_ref) throw new BadRequest('planCard', 'plan cards are removed in the plan doc');
+    const row = this.own(id);
+    if (row.plan_ref) throw new BadRequest('planCard', 'plan cards are removed in the plan doc');
     this.store.update(id, { deleted_at: new Date().toISOString() });
-    this.record(id, 'deleted', 'owner');
+    this.record(id, 'deleted', 'owner', { title: row.title ?? '' });
     this.changed();
   }
 

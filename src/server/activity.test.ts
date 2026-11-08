@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { artifact } from './testing';
-import { board, eachTest, flush, manual, runtime, workers } from './workers-fixture';
+import { board, eachTest, flush, manual, runtime, store, workers } from './workers-fixture';
 import { git } from './workstations';
 
 eachTest();
@@ -69,6 +69,25 @@ describe('the Activity log', () => {
     board.waitsForLimit({ card: c.id }, Date.now() + 60_000);
     board.waitsForLimit({ card: c.id }, Date.now() + 90_000);
     expect(log(c.id).filter((l) => l === 'obeya:usageLimit')).toHaveLength(1);
+  });
+
+  test('usageLimit: a limit that cleared and comes again is a stop of its own', async () => {
+    const c = manual();
+    await workers.start(c.id);
+    board.waitsForLimit({ card: c.id }, Date.now() + 60_000);
+    board.waitsForLimit({ card: c.id }, undefined);
+    board.waitsForLimit({ card: c.id }, Date.now() + 90_000);
+    expect(log(c.id).filter((l) => l === 'obeya:usageLimit')).toHaveLength(2);
+  });
+
+  test('deleted: each deletion keeps the title the card had then', () => {
+    const d = board.create({ title: 'First', x: 0, y: 0 });
+    board.remove(d.id);
+    board.restore(d.id);
+    store.update(d.id, { title: 'Second' });
+    board.remove(d.id);
+    const entries = board.activityEntries(board.activityRows(['c'], undefined, 100), 'C');
+    expect(entries.filter((e) => e.card.id === d.id).map((e) => e.card.title)).toEqual(['Second', 'First']);
   });
 
   test('paging: older lines come after `before`, and `more` tells there are some', () => {
