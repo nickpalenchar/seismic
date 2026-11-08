@@ -531,8 +531,10 @@ to the canvas it leaves; a workstream moves with its whole plan. A card moved to
 goes onto the canvas the owner last looked at there.
 
 The page shows the canvas its address's hash names: `#<name>`, `#<n>` its place in the order
-(`#1` the first), none (or one naming no canvas) the first. Opening a card on another canvas, from
-search, the inbox or a link, switches to it and the hash names it. The camera is kept per canvas.
+(`#1` the first), none (or one naming no canvas) the first; the hash stays in the address as the
+page loads and as cards open and close, so a reload shows the same canvas. Opening a card or a plan
+on another canvas, from search, the inbox or a link, switches to it and the hash names it. Grouping
+offers the groups of the canvas shown only. The camera is kept per canvas.
 The API (`/api/c/<project>/canvases`) creates, renames, re-icons, reorders and deletes canvases and
 moves cards onto one; the Koordinator has the same as `new_canvas`, `change_canvas`,
 `delete_canvas` and `move_to_canvas`, and sees each card's canvas and which one the owner looks at.

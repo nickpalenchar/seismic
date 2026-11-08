@@ -336,7 +336,9 @@ function Project({
   // the workstreams of a collapsed plan are not on the project: its marks stand for them
   const placed = useMemo(() => onProject(items.filter(onShown)).map((item) => ({ item, b: boundsOf(item, items) })), [items, onShown]);
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
-  const territories = useTerritories(placed, snapshot.groups);
+  // the groups of the canvas shown: a group holds the cards of its own canvas only
+  const groups = useMemo(() => snapshot.groups.filter((g) => !canvasId || (g.canvas ?? canvases[0]?.id) === canvasId), [snapshot.groups, canvasId, canvases]);
+  const territories = useTerritories(placed, groups);
   const kidsOf = useMemo(() => {
     const m = new Map<string, Item[]>();
     for (const i of items) if (i.parent) m.set(i.parent, [...(m.get(i.parent) ?? []), i]);
@@ -770,6 +772,8 @@ function Project({
 
   /** Shows the plan in the sheet, its workstreams or (`r`) its plan doc, and with `inView` flies to it. */
   async function planSheet(p: Item, r: { mark?: string } | null, quick: boolean, inView: boolean) {
+    // a plan on another canvas opens there
+    if (p.canvas && p.canvas !== canvasRef.current && !p.archivedAt) showCanvas(p.canvas);
     const f = focusRef.current;
     setFocus(f?.type === 'plan' ? { ...f, id: p.id } : { type: 'plan', id: p.id, prevCam: camRef.current, prevSide: camSide.current });
     addressOpens(p, undefined);
@@ -858,7 +862,7 @@ function Project({
     const a = readAddress();
     const code = !a.project || projectNamed(projects, a.project)?.id === snapshot.project.id ? a.card : undefined;
     const talk = new URLSearchParams(location.search).has('talk');
-    history.replaceState(history.state, '', `${code ? cardPath(snapshot.project.id, code) : projectPath(snapshot.project.id)}${queryWithout(location.search, 'c', 'card', 'talk', ...(perfAtStart ? LOG_KEYS : []))}`);
+    history.replaceState(history.state, '', `${code ? cardPath(snapshot.project.id, code) : projectPath(snapshot.project.id)}${queryWithout(location.search, 'c', 'card', 'talk', ...(perfAtStart ? LOG_KEYS : []))}${location.hash}`);
     // what comes back is what the address names already; a kept card the address left out (a
     // restart of the app's shell, a link to the project) gets its address once it is open
     addressSet.current = true;
@@ -914,7 +918,8 @@ function Project({
     const f = focusRef.current;
     return f ? itemOrArchived(f.id) : undefined;
   };
-  const pathOf = (i: Item | undefined) => `${i ? cardPath(snapshot.project.id, i) : projectPath(snapshot.project.id)}${location.search}`;
+  // the hash names the canvas shown, which a card opened there is on too
+  const pathOf = (i: Item | undefined) => `${i ? cardPath(snapshot.project.id, i) : projectPath(snapshot.project.id)}${location.search}${location.hash}`;
   /** `i` opens over `under` (the plan it is opened from, else the project). */
   function addressOpens(i: Item, under: Item | undefined) {
     if (addressSet.current) return;
@@ -2289,7 +2294,7 @@ function Project({
           <Ring
             at={ring.at}
             count={ring.ids.length}
-            groups={snapshot.groups}
+            groups={groups}
             open={openPerGroup(snapshot.items)}
             onPick={(group) => assignGroup({ group })}
             onCreate={(name) => assignGroup({ name })}
