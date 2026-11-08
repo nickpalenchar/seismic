@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { CardEvent } from '../core/types';
 import { MIGRATIONS, NewerDatabase, OlderDatabase, RELEASED, SHORT, Store } from './db';
 
@@ -433,4 +433,36 @@ test('canvases: names unique per project in any case, ordered, a plan moves with
     expect(s.group(dupe.id)).toBeNull();
     expect(s.group(solo.id)!.canvas_id).toBe(s.mainCanvas('c'));
     s.db.close();
+  }));
+
+test('a pending migration is preceded by a backup of the database, and only the newest are kept', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.db.run("INSERT INTO projects (id, name, created_at) VALUES ('p', 'keep me', 1)");
+    s.db.close();
+    const dir = dirname(path);
+    for (const v of [1, 2, 3, 4]) writeFileSync(`${path}.before-${v}`, 'old');
+    const before = RELEASED + MIGRATIONS.length;
+    MIGRATIONS.push('CREATE TABLE backup_probe (id INTEGER)');
+    try {
+      new Store(path).db.close();
+    } finally {
+      MIGRATIONS.pop();
+    }
+    const copy = new Database(`${path}.before-${before + 1}`);
+    expect(copy.query('PRAGMA user_version').get()).toEqual({ user_version: before });
+    expect(copy.query("SELECT name FROM projects WHERE id = 'p'").get()).toEqual({ name: 'keep me' });
+    expect(copy.query("SELECT 1 FROM sqlite_master WHERE name = 'backup_probe'").get()).toBeNull();
+    copy.close();
+    expect(version(path)).toBe(before + 1);
+    expect(readdirSync(dir).filter((f) => f.includes('.before-')).sort()).toEqual(['obeya.db.before-3', 'obeya.db.before-4', `obeya.db.before-${before + 1}`]);
+    // up to date and fresh databases are not backed up
+    const names = readdirSync(dir).sort();
+    MIGRATIONS.push('CREATE TABLE backup_probe (id INTEGER)');
+    try {
+      new Store(path).db.close();
+    } finally {
+      MIGRATIONS.pop();
+    }
+    expect(readdirSync(dir).sort()).toEqual(names);
   }));

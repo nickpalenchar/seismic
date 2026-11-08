@@ -1,8 +1,8 @@
 import { Database } from 'bun:sqlite';
 import { currentAgent } from './agent-identity';
 import type { ActivityCode, ActivityWho, AgentIdentity, AgentModel, Attribution, Feedback, FeedbackAnswer, WorkConfig } from '../core/types';
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import type { AnswerFile, AnswerRef, CardEvent, Chat, DeviceView, CardKind, CardState, Mock, Need, Preference, PreferenceState, ProposedSetting, RepoCommands, SettingProposal, SettingProposalState, Spot, Talk, TalkAfter, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../core/types';
 import type { Place } from '../core/layout';
 import { MAIN_CANVAS } from '../core/types';
@@ -732,6 +732,22 @@ export class OlderDatabase extends UnusableDatabase {
   }
 }
 
+/** How many `<db>.before-<version>` backups stay beside the database. */
+export const BACKUPS_KEPT = 3;
+
+/** A consistent copy of the database as it is before migrating to `target`, with only the newest backups kept. */
+function backUpBefore(db: Database, path: string, target: number) {
+  const copy = `${path}.before-${target}`;
+  rmSync(copy, { force: true });
+  db.run('VACUUM INTO ?', [copy]);
+  const prefix = `${basename(path)}.before-`;
+  const old = readdirSync(dirname(path))
+    .filter((f) => f.startsWith(prefix) && /^\d+$/.test(f.slice(prefix.length)))
+    .sort((a, b) => Number(b.slice(prefix.length)) - Number(a.slice(prefix.length)))
+    .slice(BACKUPS_KEPT);
+  for (const f of old) rmSync(join(dirname(path), f), { force: true });
+}
+
 export class Store {
   readonly db: Database;
 
@@ -751,6 +767,7 @@ export class Store {
         this.db.run(SCHEMA);
         this.db.run(`PRAGMA user_version = ${RELEASED}`);
       })();
+    if (user_version >= RELEASED && user_version < latest && path !== ':memory:') backUpBefore(this.db, path, latest);
     for (let v = Math.max(user_version, RELEASED); v < latest; v++) {
       this.db.transaction(() => {
         this.db.run(MIGRATIONS[v - RELEASED]!);

@@ -73,5 +73,12 @@ folders without git (`undo/`), the files of looked-up answers (`answers/<project
 static sites Seismic keeps (`sites/<key>/`), the env files their repositories' settings name
 (relative to the home, `sites/demos/deploy.env`, say), and `share/`, the directory deploys run in.
 
+Migrations: the schema version is tracked in the database; each step runs in its own transaction, so
+a failure leaves the database at the previous version, and an older Seismic refuses a newer
+database. Whenever a step is pending on an existing database, Seismic first writes a consistent copy
+(`VACUUM INTO`) beside it as `obeya.db.before-<version>`, the version being migrated to, and keeps
+the newest three. A fresh database and one already up to date are not copied. To roll back, stop
+Seismic and put the copy in place of `obeya.db`.
+
 Derived, not stored: git, PR and CI state (read from git and GitHub), plan-doc content (read from
 the repository; the copy on the plan is only for the archive).
