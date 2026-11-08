@@ -100,7 +100,6 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     s.db.run('ALTER TABLE cards DROP COLUMN kept_in');
     s.db.run('ALTER TABLE cards DROP COLUMN contribution');
     s.db.run('ALTER TABLE cards DROP COLUMN new_repo');
-    s.db.run('ALTER TABLE cards DROP COLUMN parking_lot');
     s.db.run('ALTER TABLE talk DROP COLUMN moved');
     s.db.run('ALTER TABLE cards DROP COLUMN page_heard');
     s.db.run('ALTER TABLE events DROP COLUMN forwarded');
