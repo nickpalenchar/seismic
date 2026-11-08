@@ -1196,17 +1196,34 @@ describe('groups by voice on several canvases', () => {
     board.createGroup('Billing', [a.id]);
     const onIdeas = board.createGroup('Billing', [b.id]);
     board.createGroup('Costs', [c.id]);
+    const d = board.create({ title: 'Archive', x: 800, y: 0 });
+    board.createGroup('Archive', [d.id]);
+    // grouping a card of Ideas under "Billing" joins the group of Ideas, not the one on main
+    const e = board.create({ title: 'Joiner', x: 800, y: 0, canvas: ideas.id });
+    expect(board.createGroup('Billing', [e.id]).id).toBe(onIdeas.id);
     const k = commander();
     const heard = k.hear('rename Billing to Payments', { place: { x: 0, y: 0, canvas: ideas.id } });
     await settle();
     const s = runtime.last;
     // "Costs" is taken on Ideas only; "Payments" is free there
     expect(s.call('act', { actions: [{ do: 'rename_group', group: 'Billing', text: 'Costs' }], confirm: '…' })).toContain('already on that canvas');
-    s.call('act', { actions: [{ do: 'rename_group', group: 'Billing', text: 'Payments' }], confirm: 'Done.' });
+    // "Archive" exists on main only, so it is free on Ideas
+    s.call('act', {
+      actions: [
+        { do: 'rename_group', group: 'Billing', text: 'Payments' },
+        { do: 'rename_group', group: 'Costs', text: 'Archive' },
+        { do: 'group', cards: ['K3'], text: 'Billing' },
+      ],
+      confirm: 'Done.',
+    });
     s.emit({ type: 'idle' });
     k.arm((await heard).token!);
     await new Promise((r) => setTimeout(r, 40));
-    expect(executed).toEqual([{ do: 'renameGroup', group: onIdeas.id, name: 'Payments' }]);
+    expect(executed.slice(0, 2)).toEqual([
+      { do: 'renameGroup', group: onIdeas.id, name: 'Payments' },
+      { do: 'renameGroup', group: expect.any(String), name: 'Archive' },
+    ]);
+    expect(executed[2]).toMatchObject({ do: 'group', name: 'Billing' });
   });
 });
 
