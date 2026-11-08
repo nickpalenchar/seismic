@@ -2492,7 +2492,7 @@ function Project({
         <Inbox entries={entries} current={snapshot.project.id} open={openId ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
           onProposalCard={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })}
           onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
-        <AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} onOpen={open} />
+        <AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} onOpen={(i) => void openFresh(i)} />
         <ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showProjectsSection(), setPrefsOn(false), setCOn(true))} />
         <div id="dim" className={dim ? 'on' : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
