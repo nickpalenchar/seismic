@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
+import { confirmShownMs, type Heard, undoShownMs } from '../api';
+import { t } from '../strings';
 import { type Clock, toastStore } from './toast';
+import { MADE_SHOWN_MS, toldLines } from './told';
 
 /** A clock the test moves on by hand. */
 function fakeClock() {
@@ -113,5 +116,162 @@ describe('the toast store', () => {
     s.remove(a);
     tick(100);
     expect(gone).toEqual(['c', 'a', 'b']);
+  });
+});
+
+describe('the lines of commands', () => {
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+  function told(opts: { inView?: (h: Heard) => boolean; undo?: (token: string) => Promise<{ undone: boolean }> } = {}) {
+    const c = fakeClock();
+    const s = toastStore(() => {}, c.clock);
+    const heard: Heard[] = [];
+    const went: string[] = [];
+    const reading: boolean[] = [];
+    const l = toldLines({
+      toasts: s,
+      onHeard: (h) => heard.push(h),
+      inView: opts.inView ?? (() => false),
+      onGo: (card) => went.push(card.id),
+      undo: opts.undo ?? (async () => ({ undone: true })),
+      onReading: (r) => reading.push(r),
+    });
+    /** A command whose reply the test delivers by hand. */
+    function command(pending: string | null) {
+      let reply!: (h: Heard) => void;
+      const done = l.tell(pending, undefined, () => new Promise<Heard>((r) => (reply = r)));
+      return { reply: async (h: Heard) => (reply(h), await done) };
+    }
+    return { ...c, s, l, heard, went, reading, command, texts: () => s.list().map((x) => x.text) };
+  }
+
+  test('a spoken command\'s reading line turns into its confirmation; a typed one has no line until then', async () => {
+    const { s, command, texts } = told();
+    const spoken = command('Reading …');
+    expect(texts()).toEqual(['Reading …']);
+    expect(s.list()[0]!.reading).toBe(true);
+    await spoken.reply({ confirm: 'Done' });
+    expect(texts()).toEqual(['Done']);
+    expect(s.list()[0]!.reading).toBe(false);
+
+    const typed = command(null);
+    expect(texts()).toEqual(['Done']);
+    await typed.reply({ confirm: 'Also done' });
+    expect(texts()).toEqual(['Done', 'Also done']);
+  });
+
+  test('"Undo" shows for the undo window and the line goes after the confirmation time', async () => {
+    const { s, command, tick } = told();
+    const id = command('Reading …');
+    await id.reply({ confirm: 'Archived', token: 'a', undoMs: 10_000 });
+    expect(s.list()[0]!.undo).toBeDefined();
+    tick(undoShownMs(10_000) - 1);
+    expect(s.list()[0]!.undo).toBeDefined();
+    tick(1);
+    expect(s.list()).toHaveLength(1);
+    expect(s.list()[0]!.undo).toBeUndefined();
+    tick(confirmShownMs(10_000) - undoShownMs(10_000) - 1);
+    expect(s.list()).toHaveLength(1);
+    tick(1);
+    expect(s.list()).toEqual([]);
+  });
+
+  test('a confirmation without undo goes after the shortest confirmation time', async () => {
+    const { s, command, tick } = told();
+    await command(null).reply({ confirm: 'Done' });
+    tick(confirmShownMs() - 1);
+    expect(s.list()).toHaveLength(1);
+    tick(1);
+    expect(s.list()).toEqual([]);
+  });
+
+  test('made() adds "Go to card" buttons and keeps the line 15 s longer', async () => {
+    const { s, l, command, tick, went } = told();
+    await command(null).reply({ confirm: 'Made', token: 'm' });
+    tick(3000);
+    l.made('m', [{ id: 'c1', title: 'One' }]);
+    expect(s.list()[0]!.go!.map((g) => g.label)).toEqual([t.voice.goToCard]);
+    s.list()[0]!.go![0]!.run();
+    expect(went).toEqual(['c1']);
+    tick(MADE_SHOWN_MS - 1);
+    expect(s.list()).toHaveLength(1);
+    tick(1);
+    expect(s.list()).toEqual([]);
+
+    await command(null).reply({ confirm: 'Two', token: 'n' });
+    l.made('n', [{ id: 'c1', title: 'One' }, { id: 'c2', title: 'Two' }]);
+    expect(s.list()[0]!.go!.map((g) => g.label)).toEqual([t.voice.goTo('One'), t.voice.goTo('Two')]);
+    l.made('unknown', [{ id: 'c3', title: 'Three' }]);
+    expect(s.list()[0]!.go).toHaveLength(2);
+  });
+
+  test('a quiet reply, or one the open conversation shows, gets no line, unless it has "Undo"', async () => {
+    const { s, command, heard } = told({ inView: () => true });
+    await command('Reading …').reply({ confirm: 'Quiet', quiet: true });
+    expect(s.list()).toEqual([]);
+    await command('Reading …').reply({ confirm: 'In view' });
+    expect(s.list()).toEqual([]);
+    await command(null).reply({ confirm: 'In view', token: 'u', undoMs: 5000 });
+    expect(s.list().map((x) => x.text)).toEqual(['In view']);
+    expect(s.list()[0]!.undo).toBeDefined();
+    expect(heard).toHaveLength(3);
+  });
+
+  test('a line dismissed or swiped away while its command is read gets no confirmation later', async () => {
+    const { s, command, texts } = told();
+    const a = command('Reading …');
+    s.remove(s.list()[0]!.id);
+    await a.reply({ confirm: 'Late' });
+    expect(texts()).toEqual([]);
+
+    // a typed command's line was never there: nothing to dismiss, it gets its line
+    const b = command(null);
+    await b.reply({ confirm: 'On time' });
+    expect(texts()).toEqual(['On time']);
+  });
+
+  test('a failed Undo frees the token: the server\'s renewed offer gets a line again', async () => {
+    const { s, l, command, texts } = told({ undo: async () => Promise.reject(new Error('offline')) });
+    await command(null).reply({ confirm: 'Archived', token: 'k', undoMs: 10_000 });
+    s.list()[0]!.undo!();
+    await flush();
+    expect(texts()).toEqual([t.offlineError]);
+    expect(s.list()[0]!.undo).toBeUndefined();
+    l.show(undefined, { confirm: 'Archived', token: 'k', undoMs: 10_000 });
+    expect(texts()).toEqual([t.offlineError, 'Archived']);
+  });
+
+  test('a too-late Undo frees the token; a done one removes the line', async () => {
+    let undone = false;
+    const { s, l, command, texts } = told({ undo: async () => ({ undone }) });
+    await command(null).reply({ confirm: 'Archived', token: 'k', undoMs: 10_000 });
+    s.list()[0]!.undo!();
+    await flush();
+    expect(texts()).toEqual([t.voice.tooLate]);
+    l.show(undefined, { confirm: 'Archived', token: 'k', undoMs: 10_000 });
+    expect(texts()).toEqual([t.voice.tooLate, 'Archived']);
+
+    undone = true;
+    s.list()[1]!.undo!();
+    await flush();
+    expect(texts()).toEqual([t.voice.tooLate]);
+  });
+
+  test('show() makes no second line for a token that already has one', async () => {
+    const { s, l, command, texts } = told();
+    await command(null).reply({ confirm: 'Archived', token: 'k', undoMs: 10_000 });
+    l.show(undefined, { confirm: 'Archived', token: 'k', undoMs: 10_000 });
+    expect(texts()).toEqual(['Archived']);
+    l.show(undefined, { confirm: 'Another', token: 'j' });
+    l.show({ id: 'c', title: 'C' }, { confirm: 'No token' });
+    expect(texts()).toEqual(['Archived', 'Another', 'No token']);
+    expect(s.list()[2]!.card).toEqual({ id: 'c', title: 'C' });
+  });
+
+  test('a restart is held while a command is read', async () => {
+    const { command, reading } = told();
+    const a = command('Reading …');
+    expect(reading.at(-1)).toBe(true);
+    await a.reply({ confirm: 'Done' });
+    expect(reading.at(-1)).toBe(false);
   });
 });

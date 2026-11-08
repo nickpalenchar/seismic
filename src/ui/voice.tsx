@@ -13,9 +13,10 @@ import { Mic } from 'lucide-react';
 import { createContext, useEffect, useRef, useState } from 'react';
 import type { Place } from '../core/layout';
 import type { Notice } from '../core/types';
-import { ApiError, api, confirmShownMs, type Heard, holdRestart, undoShownMs, type Where } from './api';
+import { ApiError, api, type Heard, holdRestart, type Where } from './api';
 import { beginDictation, dictate, draftOf, focusedDraft, insertFiles, MIC_DRAFT, moveFiles, moveImages, takesImages, toObeya, updateDraft, useDraft, useFieldOn, uploaded, useFocusedDraft, wordsOf } from './draft';
 import type { ToastStore } from './components/toast';
+import { toldLines } from './components/told';
 import { type Recording, record } from './recorder';
 import { AttachButton, ShotStrip, useShotInput } from './shots';
 import { replyOn, setReply, useReply } from './reply';
@@ -221,18 +222,6 @@ export function usePushToTalk(
   return { phase: shown ? phase : 'idle', level, flat, start, stop };
 }
 
-/** How long a confirmation's line stays once it offers to go to the cards its command made: time to read it and reach for the button. */
-const MADE_SHOWN_MS = 15_000;
-
-/** A command on its way: while it is transcribed or the Koordinator reads it, then its confirmation. */
-interface Told {
-  /** Its toast, while it has one: a typed command's comes with its confirmation. */
-  toast?: number;
-  /** The card it was said to, named in the confirmation when another card is open by then. */
-  card?: { id: string; title: string };
-  heard?: Heard;
-}
-
 /**
  * Commands spoken or typed, each with its own line in the toast stack from sending to its
  * confirmation; one that went out quietly (to the open card's agent) leaves no line. The server
@@ -248,89 +237,19 @@ export function useTold(
   inView: (h: Heard) => boolean = () => false,
   onGo: (card: NonNullable<Notice['made']>[number]) => void = () => {},
 ) {
-  const lines = useRef(new Set<Told>());
-  const onGoRef = useRef(onGo);
-  onGoRef.current = onGo;
+  // the lines outlive renders: they call what the latest render passed
+  const latest = useRef({ onHeard, inView, onGo });
+  latest.current = { onHeard, inView, onGo };
   const [reading, setReading] = useState(false);
-  const changed = () => setReading([...lines.current].some((x) => !x.heard));
-  /** The command is done with: its line goes, and a confirmation still to come shows nowhere. */
-  function forget(x: Told) {
-    if (!lines.current.delete(x)) return;
-    if (x.toast !== undefined) toasts.remove(x.toast);
-    changed();
-  }
-
-  function settle(x: Told, h: Heard) {
-    if (!lines.current.has(x)) return;
-    if (h.quiet || (!h.token && inView(h))) return forget(x);
-    x.heard = h;
-    changed();
-    const undo = !!(h.token && h.undoMs);
-    const line = {
-      kind: 'command' as const,
-      text: h.confirm,
-      reading: false,
-      ...(x.card ? { card: x.card } : {}),
-      undo: undo ? () => void undoIt(x) : undefined,
-      ...(undo ? { undoMs: undoShownMs(h.undoMs!) } : {}),
-      stayMs: confirmShownMs(h.undoMs),
-    };
-    if (x.toast !== undefined) toasts.update(x.toast, line);
-    else x.toast = toasts.show({ ...line, onGone: () => forget(x) });
-  }
-
-  function made(token: string, cards: NonNullable<Notice['made']>) {
-    const x = [...lines.current].find((y) => y.heard?.token === token);
-    if (x?.toast === undefined) return;
-    toasts.update(x.toast, { go: cards.map((c) => ({ id: c.id, label: cards.length > 1 ? t.voice.goTo(c.title) : t.voice.goToCard, run: () => onGoRef.current(c) })), stayMs: MADE_SHOWN_MS });
-  }
-
-  async function tell(pending: string | null, card: Told['card'], request: () => Promise<Heard>): Promise<Heard> {
-    const x: Told = card ? { card } : {};
-    lines.current.add(x);
-    changed();
-    // typed words show in the conversation at once: their line comes with the confirmation
-    if (pending) x.toast = toasts.show({ kind: 'command', text: pending, reading: true, ...(card ? { card } : {}), onGone: () => forget(x) });
-    let h: Heard;
-    try {
-      h = await request();
-    } catch (e) {
-      h = { confirm: failText(e, { offline: t.voice.failed }) };
-    }
-    settle(x, h);
-    onHeard(h);
-    return h;
-  }
-
-  function show(card: Told['card'], h: Heard) {
-    // the server offers a command's undo again when the connection comes back: one line for it
-    if (h.token && [...lines.current].some((x) => x.heard?.token === h.token)) return;
-    const x: Told = card ? { card } : {};
-    lines.current.add(x);
-    settle(x, h);
-  }
-
-  async function undoIt(x: Told) {
-    const id = x.toast!;
-    toasts.update(id, { undo: undefined });
-    try {
-      const { undone } = await api.undo(x.heard!.token!);
-      if (undone) return toasts.remove(id);
-      // no longer its command's line: an offer of its undo the server makes again gets a line of its own
-      x.heard = { confirm: t.voice.tooLate };
-      toasts.update(id, { text: t.voice.tooLate });
-    } catch {
-      x.heard = { confirm: t.offlineError };
-      toasts.update(id, { text: t.offlineError });
-    }
-  }
+  const told = useRef<ReturnType<typeof toldLines> | undefined>(undefined);
+  told.current ??= toldLines({ toasts, onHeard: (h) => latest.current.onHeard(h), inView: (h) => latest.current.inView(h), onGo: (c) => latest.current.onGo(c), undo: (token) => api.undo(token), onReading: setReading });
 
   // a restart waits while Seismic reads what the owner said or typed
   useEffect(() => {
     holdRestart('told', reading ? 'voice' : null);
     return () => holdRestart('told', null);
   }, [reading]);
-  return { tell, show, made };
+  return told.current;
 }
 
 /**
