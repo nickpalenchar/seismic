@@ -26,7 +26,7 @@ file alone is not enough. Planned tasks are shortlisted by overlapping task word
 active work is considered. Seismic names the other card on the checked card, leaves it planned, and
 lets the owner compare, merge or remove the cards, or start it again without repeating the warning
 for unchanged text. Below the card's description it shows both original cards side by side, as in
-the merge comparison, with a prominent status. Beside "Start agent", a joined purple "Attempt
+the merge comparison, with a prominent status. Until it is dismissed or started, the card's state reads "Merge proposed" in proposal violet (with a lightbulb icon in the open card) on every surface instead of grey "Planned". Beside "Start agent", a joined purple "Attempt
 merge" and secondary "Dismiss merge" pair either opens the existing agent-assisted merge flow or
 sets aside the suggestion. This applies to cards started alone and to cards scheduled together.
 
