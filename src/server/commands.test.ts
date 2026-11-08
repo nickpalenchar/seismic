@@ -1212,7 +1212,6 @@ describe('groups by voice on several canvases', () => {
       actions: [
         { do: 'rename_group', group: 'Billing', text: 'Payments' },
         { do: 'rename_group', group: 'Costs', text: 'Archive' },
-        { do: 'group', cards: ['K3'], text: 'Billing' },
       ],
       confirm: 'Done.',
     });
@@ -1223,7 +1222,29 @@ describe('groups by voice on several canvases', () => {
       { do: 'renameGroup', group: onIdeas.id, name: 'Payments' },
       { do: 'renameGroup', group: expect.any(String), name: 'Archive' },
     ]);
-    expect(executed[2]).toMatchObject({ do: 'group', name: 'Billing' });
+  });
+
+  test('group puts a card of the shown canvas into the group of that name there while another canvas has one too', async () => {
+    const ideas = board.createCanvas('Ideas');
+    const a = board.create({ title: 'Export', x: 0, y: 0 });
+    const b = board.create({ title: 'Dream', x: 0, y: 0, canvas: ideas.id });
+    const c = board.create({ title: 'Joiner', x: 400, y: 0, canvas: ideas.id });
+    const onMain = board.createGroup('Billing', [a.id]);
+    const onIdeas = board.createGroup('Billing', [b.id]);
+    expect(onIdeas.id).not.toBe(onMain.id);
+    const k = commander();
+    const heard = k.hear('put Joiner into Billing', { place: { x: 0, y: 0, canvas: ideas.id } });
+    await settle();
+    const s = runtime.last;
+    s.call('act', { actions: [{ do: 'group', cards: ['K3'], text: 'Billing' }], confirm: 'Done.' });
+    s.emit({ type: 'idle' });
+    k.arm((await heard).token!);
+    await new Promise((r) => setTimeout(r, 40));
+    expect(executed).toEqual([{ do: 'group', cards: [c.id], name: 'Billing' }]);
+    // run as the project does: the card joins the group on its own canvas, no new group appears
+    board.createGroup('Billing', [c.id]);
+    expect(board.item(c.id)?.group).toBe(onIdeas.id);
+    expect(board.snapshot().groups.filter((g) => g.name === 'Billing')).toHaveLength(2);
   });
 });
 
