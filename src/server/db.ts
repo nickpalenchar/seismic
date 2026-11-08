@@ -455,8 +455,6 @@ export const MIGRATIONS = [
   'ALTER TABLE talk ADD COLUMN held TEXT;',
   // a card set aside until a point in time, by its worker or the owner (JSON `Snooze`)
   'ALTER TABLE cards ADD COLUMN snoozed TEXT;',
-  // a card parked off the canvas, since when (ISO)
-  'ALTER TABLE cards ADD COLUMN parking_lot TEXT;',
   // cards the Koordinator waits on to take a step then (JSON `TalkWaitRow[]`), and the exchange it took that step up in (JSON `TalkAfter`)
   'ALTER TABLE talk ADD COLUMN waits TEXT; ALTER TABLE talk ADD COLUMN after_wait TEXT;',
   // what a card changed in a folder without git, and the undo it has there (JSON `FolderCard`, folder.ts)
@@ -640,6 +638,8 @@ export const MIGRATIONS = [
    UPDATE cards SET canvas_id = (SELECT c.id FROM canvases c WHERE c.project_id = cards.project_id);
    UPDATE groups SET canvas_id = (SELECT c.id FROM canvases c WHERE c.project_id = groups.project_id);
    CREATE INDEX cards_canvas ON cards (canvas_id);`,
+  // a card parked off the canvas, since when (ISO)
+  'ALTER TABLE cards ADD COLUMN parking_lot TEXT;',
 ];
 
 const EVENT_COLUMNS = 'id, card_id AS cardId, at, kind, author, text, code, images, mocks, reply_to AS replyTo, spot, answer, picks, unread, read_after AS readAfter, wish, reply, forwarded, agent, token, made';

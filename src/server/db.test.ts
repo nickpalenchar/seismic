@@ -22,8 +22,9 @@ function withPath(f: (path: string) => void) {
   }
 }
 
-/** The database as it was before projects had canvases: the migration that brought them undone. */
+/** The database as it was before projects had canvases: the migration that brought them undone, and the ones after it. */
 function withoutCanvases(db: Database) {
+  db.run('ALTER TABLE cards DROP COLUMN parking_lot');
   db.run('DROP INDEX cards_canvas; ALTER TABLE cards DROP COLUMN canvas_id; ALTER TABLE groups DROP COLUMN canvas_id; DROP TABLE canvases');
 }
 
@@ -382,7 +383,7 @@ test('the migration gives every project a canvas main holding all its cards and 
     const g = s.addGroup('c', 'Billing', 200);
     s.setGroup([a!.id], g.id);
     withoutCanvases(s.db);
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.length - 1}`);
+    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE canvases'))}`);
     s.db.close();
 
     const after = new Store(path);
