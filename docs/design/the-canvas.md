@@ -62,6 +62,8 @@ planned or stopped underneath, so its buttons are those of a card that is not ru
 start by itself or from its start time. Starting it asks first: "This takes the card out of the
 parking lot" with "Unpark and start" or "Go back". "Unpark" in the same menu puts it back on the
 canvas without starting it. Opening a parked card unfolds it from its row, without flying anywhere.
+A snoozed card is hidden and listed here the same way, though it is not in the parking lot: it
+returns to its place on the canvas when it wakes.
 
 The Queue view ("Queue" in the left menu) is the queue as a full-page view: the waiting cards in
 turn, dragged to their place as in "Todo", a row opening its card.

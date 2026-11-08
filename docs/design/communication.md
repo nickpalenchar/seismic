@@ -213,7 +213,7 @@ check); it hears what woke it (no words: the owner wants to know where things st
 again. For a worker the owner snoozed, such news waits. A question for the owner that arises
 meanwhile (its PR closed, a tool call to allow) ends the snooze.
 
-On the project a snoozed card is pushed back on greyed stock with a clock: "◷ Snoozed until
+A snoozed card is off the canvas and lists under "Parked" with the parking lot's cards (see the canvas chapter), its state line reading "◷ Snoozed until
 tomorrow, 00:05" (or "until "…" is done", with "at the latest …" when it has a time too), with who
 snoozed it and why. One waiting on another card shows that wait while the pointer is on either, as
 a queued card does (see The queue's order). It counts neither as at work nor as needing the owner; on the phone it stands at
