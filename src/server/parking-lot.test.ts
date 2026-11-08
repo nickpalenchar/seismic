@@ -57,8 +57,8 @@ describe('the parking lot', () => {
     project = new ProjectRuntime({ repos: [{ path: join(dir, 'main'), clones: 1, settings: { land: 'main' } }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10 });
     const c = project.board.create({ title: 'Ask', x: 0, y: 0 });
     await project.act(c.id, { action: 'start' });
-    await new Promise((r) => setTimeout(r, 100));
-    runtime.last.call('ask', { question: 'CSV or Excel?', options: ['CSV', 'Excel'] });
+    for (let n = 0; n < 100 && !runtime.sessions.some((x) => x.spec.tools?.some((t) => t.name === 'ask')); n++) await new Promise((r) => setTimeout(r, 50));
+    runtime.sessions.find((x) => x.spec.tools?.some((t) => t.name === 'ask'))!.call('ask', { question: 'CSV or Excel?', options: ['CSV', 'Excel'] });
     expect(item(c.id).state).toBe('waiting');
     await project.act(c.id, { action: 'park' });
     expect(item(c.id).state).toBe('planned');
