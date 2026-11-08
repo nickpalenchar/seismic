@@ -228,6 +228,16 @@ describe('plan docs', () => {
     expect(board.archived()).toEqual([]);
   });
 
+  test('a workstream\'s Activity line carries the workstream, also once its plan is archived', () => {
+    const [p, , w2] = board.snapshot().items;
+    board.record(w2!.id, 'started', 'agent');
+    const entry = () => board.activityEntries(board.activityRows(['shop'], undefined, 10), 'Shop');
+    expect(entry()).toEqual([expect.objectContaining({ code: 'started', card: expect.objectContaining({ id: w2!.id, label: 'W2', parent: p!.id }) })]);
+    docs = [];
+    board.docsChanged();
+    expect(entry()).toEqual([expect.objectContaining({ card: expect.objectContaining({ id: w2!.id, title: 'Title W2', archivedAt: expect.any(String) }) })]);
+  });
+
   test('one card of the archive is as the archive shows it, also asked for first after its doc went', () => {
     const [p, w1] = board.snapshot().items;
     docs = [];

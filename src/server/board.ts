@@ -1758,10 +1758,14 @@ export class Board {
   /** The Activity log's lines of these rows, as entries: each card as it is now, a deletion with the title the card had then. */
   activityEntries(rows: ActivityRow[], projectName: string): ActivityEntry[] {
     const cards = new Map(this.store.cardsById(rows.filter((r) => r.projectId === this.project.id).map((r) => r.cardId)).map((c) => [c.id, c]));
+    // a workstream is only an item with its plan doc read, which the board's items have and a single row's lacks
+    const live = new Map(this.items().map((i) => [i.id, i]));
     return rows.flatMap((r): ActivityEntry[] => {
       const row = cards.get(r.cardId);
       if (!row) return [];
-      const now = this.itemOf(row);
+      // a workstream whose plan went is shown as the archive has it; a deleted one is no item, and its lines are left out like those of a card that no longer exists
+      const now: Item | undefined = live.get(row.id) ?? (!row.plan_ref ? this.itemOf(row) : row.deleted_at ? undefined : this.card(row.id));
+      if (!now) return [];
       // deleted, restored, renamed and deleted again: each deletion names the card as it was then
       const card = r.title !== null ? { ...now, title: r.title } : now;
       return [
