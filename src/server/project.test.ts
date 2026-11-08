@@ -292,11 +292,11 @@ describe('a project with several repositories', () => {
     expect(item(p.id).state).toBe('planned');
     // as the work retrospective made them before
     const q = project.board.proposeRetro('web', { title: 'Skill für Demos', body: 'Ein Skill.', basis: 'Demos scheitern.' });
-    store.cards.update(q.id, { proposal: null });
+    store.updateCard(q.id, {}, { proposal: null });
     project.act(q.id, { action: 'accept', start: false });
     expect(item(q.id).state).toBe('planned');
     const r = project.board.proposeRetro('web', { title: 'Regel für Tests', body: 'Eine Regel.', basis: 'Tests fehlen.' });
-    store.cards.update(r.id, { proposal: null });
+    store.updateCard(r.id, {}, { proposal: null });
     project.act(r.id, { action: 'accept', idea: true });
     expect(item(r.id).state).toBe('idea');
   });

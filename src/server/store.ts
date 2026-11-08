@@ -7,6 +7,7 @@ import { Activity } from './models/activity';
 import { AgentRuns } from './models/agent-runs';
 import { Canvases } from './models/canvases';
 import { type CardRow, Cards, type NewRow, type RowUpdate } from './models/cards/cards';
+import { type IdeaUpdate, Ideas } from './models/cards/ideas';
 import { Chats } from './models/chats';
 import { Commands } from './models/commands';
 import { atomic, type Db, now } from './models/common';
@@ -63,6 +64,7 @@ export class Store {
   readonly projects: Projects;
   readonly canvases: Canvases;
   readonly cards: Cards;
+  readonly ideas: Ideas;
   readonly groups: Groups;
   readonly activity: Activity;
   readonly events: Events;
@@ -88,6 +90,7 @@ export class Store {
     this.projects = new Projects(orm);
     this.canvases = new Canvases(orm);
     this.cards = new Cards(orm);
+    this.ideas = new Ideas(orm);
     this.groups = new Groups(orm);
     this.activity = new Activity(orm);
     this.events = new Events(orm);
@@ -121,24 +124,36 @@ export class Store {
   }
 
   /**
-   * Stores new cards: each on the canvas it names, else a workstream on its plan's, else on its
-   * project's `main`.
+   * Stores new cards, with their idea parts: each on the canvas it names, else a workstream on its
+   * plan's, else on its project's `main`.
    */
   addCards(rows: NewRow[]): CardRow[] {
     const mains = new Map<string, string>();
     const main = (projectId: string) => mains.get(projectId) ?? mains.set(projectId, this.canvases.main(projectId)).get(projectId)!;
-    return this.transaction(() =>
-      this.cards.insert(rows.map((r) => ({ ...r, canvas_id: r.canvas_id ?? (r.parent_id ? this.cards.get(r.parent_id)?.canvas_id : undefined) ?? main(r.project_id) }))),
-    );
+    const ids = this.transaction(() => {
+      const ids = this.cards.insert(rows.map(({ idea: _, ...r }) => ({ ...r, canvas_id: r.canvas_id ?? (r.parent_id ? this.cards.get(r.parent_id)?.canvas_id : undefined) ?? main(r.project_id) })));
+      rows.forEach((r, i) => r.idea && this.ideas.set(ids[i]!, r.idea));
+      return ids;
+    });
+    return ids.map((id) => this.cards.get(id)!);
+  }
+
+  /** Changes the card's own fields and those of its idea part, in one transaction. */
+  updateCard(id: string, fields: RowUpdate, idea: IdeaUpdate = {}) {
+    this.transaction(() => {
+      this.ideas.set(id, idea);
+      if (Object.keys(fields).length) this.cards.update(id, fields);
+      else if (Object.keys(idea).length) this.cards.touch(id);
+    });
   }
 
   /**
    * The card goes to another project, at `at` on its canvas `canvasId` (else its `main`), with its history and decisions: into that project's
-   * home repository (`repo` null) and out of its group, which belongs to the project it leaves.
+   * home repository (`repo` null) and out of its group, which belongs to the project it leaves; `idea` changes its idea part on the way.
    */
-  moveCard(id: string, projectId: string, at: { x: number; y: number }, fields: RowUpdate = {}, canvasId?: string) {
+  moveCard(id: string, projectId: string, at: { x: number; y: number }, idea: IdeaUpdate = {}, canvasId?: string) {
     this.transaction(() => {
-      this.cards.update(id, { ...fields, x: at.x, y: at.y, repo: null, group_id: null });
+      this.updateCard(id, { x: at.x, y: at.y, repo: null, group_id: null }, idea);
       this.cards.setProject(id, projectId, canvasId ?? this.canvases.main(projectId));
       this.decisions.setProject(id, projectId);
       this.feedback.setProject(id, projectId);

@@ -44,7 +44,7 @@ beforeAll(() => {
   // ideas tried out in prototypes, most of them in the archive by now with their prototypes, many of those shared
   const idea = store.addCards(Array.from({ length: 80 }, (_, n) => ({ project_id: c, kind: 'task' as const, state: 'idea' as const, title: `Idea ${n}`, body, x: n * 400, y: 9000 })));
   ideas = idea.map((r) => r.id);
-  const prototypes = store.addCards(idea.flatMap((r, n) => Array.from({ length: 4 }, (_, v) => ({ project_id: c, kind: 'task' as const, state: 'live' as const, title: `Idea ${n}, variant ${v}`, body, x: n * 400 + v * 100, y: 9300, from_id: r.id, prototype_of: r.id }))));
+  const prototypes = store.addCards(idea.flatMap((r, n) => Array.from({ length: 4 }, (_, v) => ({ project_id: c, kind: 'task' as const, state: 'live' as const, title: `Idea ${n}, variant ${v}`, body, x: n * 400 + v * 100, y: 9300, from_id: r.id, idea: { prototypeOf: r.id } }))));
   prototypes.forEach((r, n) => {
     const demo = join(dir, 'demos', r.id);
     mkdirSync(demo, { recursive: true });
@@ -116,7 +116,7 @@ test('an archived card looked up on its own is the card the archive lists, with 
   const board = project.board;
   board.changed();
   const idea = ideas[3]!;
-  const prototype = store.cards.prototypes(board.project.id).find((r) => r.prototype_of === idea)!.id;
+  const prototype = store.ideas.prototypes(board.project.id).find((r) => r.prototype_of === idea)!.id;
   const alone = [board.card(idea), board.card(prototype)];
   expect(alone[0]!.idea!.prototypes!.map((p) => p.title)).toEqual([0, 1, 2, 3].map((v) => `Idea 3, variant ${v}`));
   expect(alone[1]!.idea?.ideaTitle).toBe('Idea 3');

@@ -240,11 +240,11 @@ describe('the agent snoozes until another card gets somewhere', () => {
 
   test('an idea whose questions wait for the owner waits for them', async () => {
     const idea = board().create({ idea: true, title: 'Export-Formate', body: 'Welche?', x: 0, y: 0 });
-    board().work(idea.id, { idea: JSON.stringify({ status: 'open', brief: '', yourTurn: false, thinking: true, questions: [] }) });
+    board().work(idea.id, {}, { discussion: { status: 'open', brief: '', yourTurn: false, thinking: true, questions: [] } });
     const { s } = await atWork();
     s.call('snooze', { card: 'Export-Formate', state: 'waits_for_owner', why: 'x' });
     s.emit({ type: 'idle' });
-    board().work(idea.id, { idea: JSON.stringify({ status: 'open', brief: '', yourTurn: true, questions: [] }) });
+    board().work(idea.id, {}, { discussion: { status: 'open', brief: '', yourTurn: true, questions: [] } });
     project.wakeDue();
     expect(runtime.last.inbox[0]).toContain('waits for the owner now');
   });
@@ -355,7 +355,7 @@ describe('the owner snoozes a card', () => {
 
   test('an idea whose agent replied, until tomorrow; a queued card or a past time is refused', () => {
     const i = board().create({ idea: true, title: 'Export', body: 'Vermieter wollen ihn.', x: 0, y: 0 });
-    board().work(i.id, { idea: JSON.stringify({ status: 'open', brief: '', yourTurn: true, questions: [] }) });
+    board().work(i.id, {}, { discussion: { status: 'open', brief: '', yourTurn: true, questions: [] } });
     expect(needsYou(item(i.id))).toBe(true);
     project.act(i.id, { action: 'snooze', until: later(20 * HOUR) });
     expect(item(i.id)?.hold).toMatchObject({ waiting: true });

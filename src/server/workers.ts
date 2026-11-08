@@ -34,7 +34,7 @@ import { runAppCommand } from './app-command';
 import { readingShared } from '../adapters';
 import { branchName, type CardWorkstations, type FileAt, gitSteps, ownFile, type Landed, type Lease, type PullStopped, shortageOf, together, WorkstationError, type Workstations } from './workstations';
 import type { FolderWorkstations, UndoReport } from './folder';
-import { contributionOf, type PrState, type Shipped, type StoredContribution, type StoredNewRepo } from './board';
+import { contributionOf, type PrState, type Shipped, type StoredContribution } from './board';
 import { type Doing, onTool, onToolDone, shownDoing, THINKING_AFTER } from './doing';
 import { type ChangeRoute, type Clash, type FindingPick, type CodeReviewSetting, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS, SEVERITIES, type Severity } from '../core/types';
 import { dimensions, outside, tagsOf } from '../core/page-tags';
@@ -1667,7 +1667,7 @@ export class Workers {
 
   /** The mode in which the project reviews this card's work at a handover, or null where it does not: the one rule for handovers and for a changed setting. */
   private reviewModeOf(row: CardRow, work: boolean, land?: 'main' | 'pr'): CodeReviewSetting['mode'] | null {
-    if (this.folder || row.prototype_of || contributionOf(row)) return null;
+    if (this.folder || row.idea?.prototypeOf || contributionOf(row)) return null;
     const reviews = this.o.codeReviews?.();
     if (!reviews?.on || !work || land !== 'main') return null;
     // a card at work when the setting changed hands over unreviewed in automatic mode (its flag goes with the handover's detail)
@@ -2487,7 +2487,7 @@ export class Workers {
   /** The plan docs the card's branch adds, as plan references of the project. */
   private async planDocsAdded(cardId: string): Promise<string[]> {
     // a plan folder outside the repository has nothing in the branch: such a card named its doc when it started
-    if (!this.o.board.row(cardId).idea || outsidePlanDir(this.o.adapter.planDocs.dir)) return [];
+    if (!this.o.board.row(cardId).idea?.discussion || outsidePlanDir(this.o.adapter.planDocs.dir)) return [];
     const home = !this.o.repo || this.o.repo === this.o.board.home;
     return (await this.o.workstations.addedFiles(cardId, this.o.adapter.planDocs.dir))
       .filter((f) => f.endsWith('.md') && !this.o.adapter.planDocs.exclude.some((x) => f.endsWith(`/${x}`)))
@@ -2528,7 +2528,7 @@ export class Workers {
     const { workstation, branch } = this.o.board.row(prototypeId);
     if (!workstation || !branch) throw new BadRequest('noWorkstation', 'the prototype has no workstation to build on');
     const built = asBadRequestAsync(this.o.workstations.transfer(prototypeId, idea.id, branch, branchName(idea.title, idea.id))).then((moved) => {
-      this.o.board.work(idea.id, { workstation: moved.path, branch: moved.branch, built_on: prototypeId });
+      this.o.board.work(idea.id, { workstation: moved.path, branch: moved.branch }, { builtOn: prototypeId });
       this.endPrototype(prototypeId, 'built', 'owner', into);
       return moved;
     });
@@ -3016,7 +3016,7 @@ export class Workers {
       return false;
     }
     const state = row.state ?? 'planned';
-    return !!row.workstation && !row.landed && !row.prototype_of && (state === 'working' || state === 'waiting' || state === 'planned');
+    return !!row.workstation && !row.landed && !row.idea?.prototypeOf && (state === 'working' || state === 'waiting' || state === 'planned');
   }
 
   /**
@@ -3676,8 +3676,8 @@ export class Workers {
           setting,
           ...(dirs.length ? { dirs } : {}),
           ...(review ? { untrusted: true } : {}),
-          system: `${this.system(preferences, !!row.prototype_of, this.o.board.item(cardId))}${setting.harness && setting.harness !== 'claude' && !live.host && !review ? `\n\n${live.autoReview ? EXEC_LANE_AUTO_NOTE : EXEC_LANE_NOTE}` : ''}${notes ? `\n\nThe repository's CLAUDE.md, as its default branch has it:\n\n${notes}` : ''}`,
-          tools: this.tools(cardId, live, !!row.prototype_of),
+          system: `${this.system(preferences, !!row.idea?.prototypeOf, this.o.board.item(cardId))}${setting.harness && setting.harness !== 'claude' && !live.host && !review ? `\n\n${live.autoReview ? EXEC_LANE_AUTO_NOTE : EXEC_LANE_NOTE}` : ''}${notes ? `\n\nThe repository's CLAUDE.md, as its default branch has it:\n\n${notes}` : ''}`,
+          tools: this.tools(cardId, live, !!row.idea?.prototypeOf),
           plugins: [OBEYA_PLUGIN],
           ...(env ? { env } : {}),
           contextUpdate: () =>
@@ -4630,7 +4630,7 @@ export class Workers {
     const review = contributionOf(this.o.board.row(cardId));
     // the tools stand for the whole session, while the project's setting may change under it: every card of the owner's has the tool, which refuses where there are no findings
     // a card whose work the project reviews makes the follow-up tasks the owner chooses of the review's findings
-    const reviewed = !review && !this.folder && !this.o.board.row(cardId).prototype_of;
+    const reviewed = !review && !this.folder && !this.o.board.row(cardId).idea?.prototypeOf;
     return current([
       {
         name: 'report',
@@ -5595,8 +5595,7 @@ ${idea.idea.discussion.brief}` : '',
           : `You are on branch ${branch}, fresh from the default branch.`,
     );
     if (this.o.adapter.setup) parts.push(`First run \`${this.o.adapter.setup}\` in the clone.`);
-    const made = this.o.board.row(card.id).new_repo;
-    const isNew = !!made && !!(JSON.parse(made) as StoredNewRepo).made;
+    const isNew = !!this.o.board.row(card.id).idea?.newRepo?.made;
     if (isNew)
       parts.push(
         `This repository is new: Seismic created it for this card with a first commit of what its folder held (a default .gitignore, else nothing). It is local only, with no remote. Besides the task, set it up as part of your work: a CLAUDE.md with what the task says about how to work in this repository, and its Seismic settings (\`.obeya/settings.json\`) with the skill \`obeya:settings\`, as the card “${this.o.board.t.adapterSetup.title(basename(this.o.repoPath ?? ''))}” would.`,

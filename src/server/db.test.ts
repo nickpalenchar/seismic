@@ -25,6 +25,7 @@ function withPath(f: (path: string) => void) {
 
 /** The database as it was before projects had canvases: the migration that brought them undone, and the ones after it. */
 function withoutCanvases(db: Database) {
+  db.run('DROP TABLE card_ideas');
   db.run('ALTER TABLE cards DROP COLUMN hold');
   db.run('ALTER TABLE cards DROP COLUMN parking_lot');
   db.run('DROP INDEX cards_canvas; ALTER TABLE cards DROP COLUMN canvas_id; ALTER TABLE groups DROP COLUMN canvas_id; DROP TABLE canvases');
@@ -360,7 +361,7 @@ test('what an Seismic kept while projects were canvases is in today’s names, t
     const after = new Store(path);
     expect(after.projects.name('c')).toBe('Shop');
     expect(after.settings.get('c', 'paused')).toBe('');
-    expect(JSON.parse(after.cards.get(card!.id)!.new_repo!)).toEqual({ path: '/r', by: 'owner', project: true });
+    expect(after.cards.get(card!.id)!.idea!.newRepo).toEqual({ path: '/r', by: 'owner', project: true });
     expect(after.events.of(card!.id).find((e) => e.id === made.id)!.made).toEqual({ card: 'y', title: 'U', project: 'd' });
     expect(after.talk.latest('c', 20, false).find((t) => t.moved)!.moved).toEqual({ card: 'x', title: 'T', project: 'd', projectName: 'Site' });
     // what names a canvas now is the canvas layer's, which came after
@@ -406,6 +407,7 @@ test('the pause, the pause at a safe point, the usage limit, the snooze and the 
     s.ensureProject('c', 'Shop');
     const rows = s.addCards(Array.from({ length: 8 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 })));
     const [paused, idea, pausing, limit, snoozed, ownerSnoozed, parked, free] = rows.map((r) => r.id);
+    s.db.run('DROP TABLE card_ideas');
     s.db.run('ALTER TABLE cards DROP COLUMN hold');
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD `hold`'))}`);
     const set = (id: string, column: string, value: string) => s.db.run(`UPDATE cards SET ${column} = ? WHERE id = ?`, [value, id]);
@@ -436,6 +438,52 @@ test('the pause, the pause at a safe point, the usage limit, the snooze and the 
     expect(hold(free!)).toBeNull();
     after.db.close();
   }));
+
+test('an idea, a prototype, a proposal, a card built on a prototype, one that becomes a plan and one for a new repository move into the ideas table', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.ensureProject('c', 'Shop');
+    const rows = s.addCards(Array.from({ length: 7 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 })));
+    const [idea, prototype, proposed, built, plan, repo, plain] = rows.map((r) => r.id);
+    s.db.run('DROP TABLE card_ideas');
+    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE `card_ideas`'))}`);
+    const set = (id: string, column: string, value: string | number) => s.db.run(`UPDATE cards SET ${column} = ? WHERE id = ?`, [value, id]);
+    set(idea!, 'idea', JSON.stringify({ status: 'open', brief: 'A shop', yourTurn: true }));
+    set(prototype!, 'prototype_of', idea!);
+    set(prototype!, 'prototype', JSON.stringify({ variant: 'Plain HTML', proposal: 'Build on me' }));
+    set(proposed!, 'proposal', JSON.stringify({ reason: 'Tests fail', questions: [] }));
+    set(built!, 'built_on', prototype!);
+    set(plan!, 'becomes_plan', 1);
+    set(repo!, 'new_repo', JSON.stringify({ path: '/r', project: true, by: 'owner' }));
+    s.db.close();
+
+    const after = new Store(path);
+    const idea_ = (id: string) => after.cards.get(id)!.idea;
+    const none = { discussion: null, prototypeOf: null, prototype: null, proposal: null, builtOn: null, becomesPlan: false, newRepo: null };
+    expect(idea_(idea!)).toEqual({ ...none, discussion: { status: 'open', brief: 'A shop', yourTurn: true } });
+    expect(idea_(prototype!)).toEqual({ ...none, prototypeOf: idea!, prototype: { variant: 'Plain HTML', proposal: 'Build on me' } });
+    expect(idea_(proposed!)).toEqual({ ...none, proposal: { reason: 'Tests fail', questions: [] } });
+    expect(idea_(built!)).toEqual({ ...none, builtOn: prototype! });
+    expect(idea_(plan!)).toEqual({ ...none, becomesPlan: true });
+    expect(idea_(repo!)).toEqual({ ...none, newRepo: { path: '/r', project: true, by: 'owner' } });
+    expect(idea_(plain!)).toBeNull();
+    expect(after.ideas.prototypes('c')).toEqual([{ id: prototype!, prototype_of: idea!, archived_at: null }]);
+    expect(after.db.query('PRAGMA foreign_key_check').all()).toEqual([]);
+    after.db.close();
+  }));
+
+test('a card gets its idea part once any of it is set, and loses it once all of it is cleared', () => {
+  const s = new Store(':memory:');
+  s.ensureProject('c', 'Shop');
+  const [card] = s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0, idea: { proposal: { questions: [] } } }]);
+  expect(card!.idea?.proposal).toEqual({ questions: [] });
+  s.updateCard(card!.id, {}, { becomesPlan: true });
+  expect(s.cards.get(card!.id)!.idea).toMatchObject({ proposal: { questions: [] }, becomesPlan: true });
+  expect(s.cards.proposalsFrom('c', card!.id)).toEqual([]);
+  s.updateCard(card!.id, {}, { proposal: null, becomesPlan: false });
+  expect(s.cards.get(card!.id)!.idea).toBeNull();
+  expect(s.db.query('SELECT COUNT(*) AS n FROM card_ideas').get()).toEqual({ n: 0 });
+});
 
 test('canvases: names unique per project in any case, ordered, a plan moves with its workstreams, a deleted one leaves its archive on main', () =>
   withPath((path) => {

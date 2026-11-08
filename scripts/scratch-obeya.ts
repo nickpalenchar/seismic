@@ -129,7 +129,8 @@
 // workstation (true: the card holds the next free clone, for a repository whose settings say clones; with
 // its branch checked out there, holding a commit where `branch` names it, of `branchFiles` (else of a `scratch.txt`; by path, a text or `{ from }` a file to copy); for one that works in worktrees, a branch is
 // required and the card gets a worktree of its own on it), prototypeOf (the key of the idea it is a prototype of),
-// and `row` for any other column of `cards` (objects are stored as JSON; a
+// and `row` for any other column of `cards` (objects are stored as JSON; an idea's columns go into its
+// idea part where the code has the ideas table, `idea` as its `discussion`; a
 // review card's `row.contribution` naming one of `pulls` gets that PR's head as `reviewed` where it names none). Times: "90s", "15m", "2h",
 // "3d" ago. `mainBranch` is the branch the repositories are on (default `main`). With `forgeClone`, the forge that plays `pulls` keeps its repository in <dir>/forge, a clone the PRs' heads are in, so that what lands on the local main is not on the forge until pushed; the contributors' repositories are that one too, so a push onto a PR's branch moves its head. `"setup": true` serves no project (no configuration, no repository given): the first start,
 // which shows the setup assistant; the repository is still made, for the assistant to pick, and
@@ -688,6 +689,9 @@ for (const h of stage.hosts ?? [])
   for (let n = 1; h.gone && n <= h.clones; n++)
     db.query(`INSERT INTO ${WS} (path, project_id, repo) VALUES ($path, $c, NULL) ON CONFLICT(path) DO NOTHING`).run({ path: `ssh://${h.name}${rootOn(h)}/${n}`, c: project });
 const columns = new Set((db.query('PRAGMA table_info(cards)').all() as { name: string }[]).map((c) => c.name));
+/** A card's columns that code with the ideas table keeps there, under their names in it. */
+const IDEA_COLUMNS: Record<string, string> = { idea: 'discussion', prototype_of: 'prototype_of', prototype: 'prototype', proposal: 'proposal', built_on: 'built_on', becomes_plan: 'becomes_plan', new_repo: 'new_repo' };
+const ideaColumns = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_ideas'").get();
 for (const [i, c] of stage.cards.entries()) {
   const id = idOf(c, i);
   const row: Record<string, unknown> = {};
@@ -774,11 +778,19 @@ for (const [i, c] of stage.cards.entries()) {
   const keys = Object.keys(row).filter((k) => row[k] !== undefined);
   const missing = keys.filter((k) => !columns.has(k));
   if (missing.length) fail(`card ${c.key ?? i}: this code's database has no column ${missing.join(', ')}`);
-  if (keys.length)
-    db.query(`UPDATE cards SET ${keys.map((k) => `${k} = $${k}`).join(', ')} WHERE id = $id`).run({
+  const value = (k: string) => (typeof row[k] === 'object' && row[k] !== null ? JSON.stringify(row[k]) : (row[k] as string | number | null));
+  // code with the ideas table keeps a card's idea part there, the idea itself as its discussion
+  const ideaKeys = ideaColumns ? keys.filter((k) => k in IDEA_COLUMNS) : [];
+  const own = keys.filter((k) => !ideaKeys.includes(k));
+  if (own.length)
+    db.query(`UPDATE cards SET ${own.map((k) => `${k} = $${k}`).join(', ')} WHERE id = $id`).run({ id, ...Object.fromEntries(own.map((k) => [k, value(k)])) } as Record<string, string | number | null>);
+  if (ideaKeys.length) {
+    const cols = ideaKeys.map((k) => IDEA_COLUMNS[k]!);
+    db.query(`INSERT INTO card_ideas (card_id, ${cols.join(', ')}) VALUES ($id, ${ideaKeys.map((k) => `$${k}`).join(', ')}) ON CONFLICT (card_id) DO UPDATE SET ${cols.map((c, n) => `${c} = $${ideaKeys[n]}`).join(', ')}`).run({
       id,
-      ...Object.fromEntries(keys.map((k) => [k, typeof row[k] === 'object' && row[k] !== null ? JSON.stringify(row[k]) : (row[k] as string | number | null)])),
+      ...Object.fromEntries(ideaKeys.map((k) => [k, k === 'becomes_plan' ? Number(!!row[k]) : value(k)])),
     } as Record<string, string | number | null>);
+  }
   const reviews: { id: number; at: string }[] = [];
   const spots: [number, NonNullable<StageEvent['spot']>][] = [];
   for (const e of c.events ?? []) {

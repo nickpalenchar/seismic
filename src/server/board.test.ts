@@ -492,7 +492,7 @@ describe('the archive of plans', () => {
 
   test('a task planned as a plan gives way to it as an idea does', () => {
     const task = board.create({ title: 'Aufgabe B', x: 900, y: 40 });
-    board.work(task.id, { becomes_plan: 1 });
+    board.work(task.id, {}, { becomesPlan: true });
     expect(board.item(task.id)).toMatchObject({ idea: { becomesPlan: true } });
     expect(board.item(task.id)!.idea?.brief).toBeUndefined();
     board.work(task.id, { state: 'live' });

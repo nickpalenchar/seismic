@@ -1960,7 +1960,7 @@ export class ProjectRuntime {
     if (card.thread?.thinking) throw new BadRequest('ideaThinking', 'its agent is still reading; ideate it once the answer is there');
     if (!this.runs(card)) throw repoDown(card);
     // a paused agent's question goes into the discussion with the rest of the thread
-    this.board.work(cardId, { kind: 'task', state: 'idea', idea: JSON.stringify({ status: 'open', brief: '' }), session_id: null, ...this.board.unheld(cardId, ['paused', 'pausing', 'limit']) });
+    this.board.work(cardId, { kind: 'task', state: 'idea', session_id: null, ...this.board.unheld(cardId, ['paused', 'pausing', 'limit']) }, { discussion: { status: 'open', brief: '' } });
     this.board.log(cardId, 'state', 'owner', this.board.t.answer.asIdea);
     this.explorers.tell(cardId, this.answers.opening(cardId));
   }
@@ -1970,8 +1970,8 @@ export class ProjectRuntime {
     clearTimeout(this.writing.get(cardId)?.timer);
     this.writing.delete(cardId);
     this.keepHere(cardId);
-    const { state, landed, workstation, prototype_of } = this.board.row(cardId);
-    if (prototype_of) return this.repoOf(cardId).workers.endPrototype(cardId, 'discarded');
+    const { state, landed, workstation, idea } = this.board.row(cardId);
+    if (idea?.prototypeOf) return this.repoOf(cardId).workers.endPrototype(cardId, 'discarded');
     if ((state === 'working' || state === 'waiting' || (landed && workstation)) && this.runs(cardId)) void this.repoOf(cardId).workers.stop(cardId);
     if (state === 'idea') this.explorers.close(cardId);
     // work thrown away ended too (finished work counted when it landed); the retrospective reads in its repository
@@ -2249,7 +2249,7 @@ export class ProjectRuntime {
     this.writing.delete(cardId);
     this.said.delete(cardId);
     const at = there.board.freeSpot(there.inView);
-    this.deps.store.moveCard(cardId, there.id, at, { new_repo: JSON.stringify({ path: target.path, project: true, by: target.by, made: true }) }, at.canvas);
+    this.deps.store.moveCard(cardId, there.id, at, { newRepo: { path: target.path, project: true, by: target.by, made: true } }, at.canvas);
     this.deps.store.dropEmptyGroups(this.id);
     there.board.log(cardId, 'state', 'obeya', there.board.t.newRepo.movedHere(this.board.project.name, shown, made));
     const moved = { card: cardId, title: card.title, project: there.id, projectName: there.board.project.name };
@@ -2385,7 +2385,6 @@ export class ProjectRuntime {
     this.explorers.close(cardId);
     this.board.work(cardId, {
       state: 'planned',
-      becomes_plan: 1,
       ...outside?.row,
       body: [
         t.planDocTask(dir, false, outside?.file),
@@ -2403,7 +2402,7 @@ export class ProjectRuntime {
       ]
         .filter(Boolean)
         .join('\n\n'),
-    });
+    }, { becomesPlan: true });
     this.board.decide({ plan_id: null, card_id: cardId, question: t.howOn(card.title), answer: t.planDocAnswer, by: 'owner' });
     this.board.log(cardId, 'state', 'owner', t.planDocLog);
     this.koordinator.request(cardId);
@@ -2419,7 +2418,7 @@ export class ProjectRuntime {
     const t = this.board.t.idea;
     const dir = this.repoOf(card).adapter.planDocs.dir;
     const outside = this.outsidePlanDoc(card);
-    this.board.work(card.id, { becomes_plan: 1, ...outside?.row, body: [t.planDocTask(dir, true, outside?.file), t.planDocCard(card.title), card.body.trim()].filter(Boolean).join('\n\n') });
+    this.board.work(card.id, { ...outside?.row, body: [t.planDocTask(dir, true, outside?.file), t.planDocCard(card.title), card.body.trim()].filter(Boolean).join('\n\n') }, { becomesPlan: true });
     this.board.decide({ plan_id: null, card_id: card.id, question: t.howOnTask(card.title), answer: t.planDocAnswer, by: 'owner' });
     this.board.log(card.id, 'state', 'owner', t.planDocTaskLog);
     this.koordinator.request(card.id);

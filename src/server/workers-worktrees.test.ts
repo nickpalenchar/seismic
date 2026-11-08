@@ -242,7 +242,7 @@ describe('a worktree per card', () => {
     expect(board.item(prototype.id)).toBeUndefined();
     expect(board.archived().find((i) => i.id === prototype.id)).toMatchObject({ idea: { prototypeEnd: 'built' } });
 
-    board.work(idea.id, { state: 'planned', workstation: moved.path, branch: moved.branch, built_on: prototype.id });
+    board.work(idea.id, { state: 'planned', workstation: moved.path, branch: moved.branch }, { builtOn: prototype.id });
     await workers.start(idea.id);
     expect(board.row(idea.id).workstation).toBe(path);
     const session = runtime.last;

@@ -458,6 +458,26 @@ export const MIGRATIONS = [
      WHEN parking_lot IS NOT NULL THEN json_object('reason', 'parkingLot', 'since', parking_lot)
    END
    WHERE snoozed IS NOT NULL OR paused IS NOT NULL OR pausing IS NOT NULL OR parking_lot IS NOT NULL;`,
+  // a card's idea part in a table of its own (`card_ideas`), for the cards that have any of it; the
+  // idea's own column is its discussion there. The old columns stay until the moved columns are dropped.
+  `CREATE TABLE \`card_ideas\` (
+     \`card_id\` text PRIMARY KEY NOT NULL,
+     \`discussion\` text,
+     \`prototype_of\` text,
+     \`prototype\` text,
+     \`proposal\` text,
+     \`built_on\` text,
+     \`becomes_plan\` integer DEFAULT false NOT NULL,
+     \`new_repo\` text,
+     FOREIGN KEY (\`card_id\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action,
+     FOREIGN KEY (\`prototype_of\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action,
+     FOREIGN KEY (\`built_on\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action
+   );
+   CREATE INDEX \`card_ideas_prototype_of\` ON \`card_ideas\` (\`prototype_of\`) WHERE prototype_of IS NOT NULL;
+   INSERT INTO card_ideas (card_id, discussion, prototype_of, prototype, proposal, built_on, becomes_plan, new_repo)
+     SELECT id, idea, prototype_of, prototype, proposal, built_on, becomes_plan, new_repo FROM cards
+     WHERE idea IS NOT NULL OR prototype_of IS NOT NULL OR prototype IS NOT NULL OR proposal IS NOT NULL
+       OR built_on IS NOT NULL OR becomes_plan != 0 OR new_repo IS NOT NULL;`,
 ];
 
 /** A database this Seismic cannot open as it is: it leaves it alone. */

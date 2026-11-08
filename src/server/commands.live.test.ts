@@ -82,7 +82,8 @@ async function hear(state: string, text: string, request: string | null, typed: 
   const login = board.create({ title: 'Login', x: 0, y: 0 });
   if (state === 'queued') board.work(login.id, { state: 'working' });
   const card = board.create({ title: 'Export als CSV', x: 0, y: 0 });
-  board.work(card.id, Object.fromEntries(Object.entries(STATES[state]!).map(([k, v]) => [k, v.replace('LOGIN', login.id)])));
+  const { proposal, ...fields } = Object.fromEntries(Object.entries(STATES[state]!).map(([k, v]) => [k, v.replace('LOGIN', login.id)]));
+  board.work(card.id, fields, proposal ? { proposal: JSON.parse(proposal) } : {});
   const executed: Command[] = [];
   // what the session said: a command not understood shows why (not logged in, an API error)
   const said: string[] = [];

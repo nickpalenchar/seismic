@@ -139,9 +139,29 @@ the same time will conflict (W3 most).
   handover's fields from `detail`; `proposal`, `retro` and `mergingInto` went to `idea`, as the
   proposal column goes to the ideas table, and the owner's arrows to `plan`. The equality check
   regroups a before side that had the fields flat.
-- [ ] **W6:** Ideas → `models/cards/ideas.ts` (pilot). Moves `idea`, `prototype`, `prototype_of`,
+- [x] **W6:** Ideas → `models/cards/ideas.ts` (pilot). Moves `idea`, `prototype`, `prototype_of`,
   `proposal`, `built_on`, `becomes_plan` and `new_repo`, read through Drizzle's relational queries
   (`with: { idea: true }`). Settles the pattern for the rest.
+  Done: `card_ideas` (key `card_id`), the idea's own column named `discussion` there, as on
+  `Item.idea`; a card has a row once any of it is set and loses it once all is cleared
+  (`Ideas.set`). The pattern for W7:
+  - **Table and relation** in the part's model file, a `one` relation from `cards` named after the
+    `Item` part (`cardsRelations` in cards.ts), both exported from `schema.ts`. The migration step is
+    the `generateSQLiteMigration` diff plus an `INSERT … SELECT` of the cards that have any of it.
+  - **Reads**: `Cards` reads every row with `db.query.cards.findMany({ columns: {}, extras: <own
+    columns as stored>, with: { idea: … } })`, so `CardRow` keeps the card's own columns as stored
+    and gains the part, typed and parsed by Drizzle (`row.idea?.proposal`), or `null`. The moved
+    columns stay in the Drizzle `cards` table, untyped, left out of `CardRow` (`MOVED`), and writing
+    one throws, until W8. A filter on a part's column inside a relational query names its table
+    under an alias of its own (`card_ideas i`): Drizzle reads every column of the part's table there
+    as one of the card's. A query that is about the part (the prototypes) lives in its model, joined
+    to `cards`.
+  - **Writes**: the part's model writes only its table; `Store.updateCard(id, fields, idea)` and
+    `addCards` (a `NewRow`'s `idea`) put card and part together in one transaction, the card counting
+    as changed (`updated_at`) when only its part did; `Board.work` takes the part as its third
+    argument. Values are objects, no `JSON.stringify` at the caller.
+  - The project export gains the part's table (by card); the equality check on the live database
+    (2026-11-08) differed only by that table.
 - [ ] **W7:** One table each, one card per table: reviews (`pr`, `contribution`, `code_review`);
   demos (`demo`, `share`, `page_heard`, `files`, `held`, with earlier `demos` as rows); plans
   (`plan`, `deps`, `collapsed`, `plan_docs`); labels; holds.
