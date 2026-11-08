@@ -9,7 +9,7 @@ import { AGENT_STAGES, type AgentStage, agentStage, byStage } from '../core/agen
 import { waitsFor } from '../core/inbox';
 import { demoStage, type Item } from '../core/types';
 import { Docked } from './docked';
-import { plain } from './markdown';
+import { Inline, plain } from './markdown';
 import { QueueList, useQueueSort } from './queue';
 import { useStoredState } from './stored';
 import { stateLabel, t } from './strings';
@@ -93,7 +93,7 @@ function AgentEntry({ item: i, here, underway, onOpen }: { item: Item; here: boo
         {stateLabel(i)}
         {doing && <span className={i.doing && demoStage(i.doing) ? 'doing demo' : 'doing'}> · {doing}</span>}
       </div>
-      {text && <div className="text">{plain(text)}</div>}
+      {text && <div className="text"><Inline md={text} /></div>}
       <div className="replies">
         <button type="button" className="btn" onClick={() => onOpen(i)}>
           {t.inbox.goToCard}
