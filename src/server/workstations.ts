@@ -2317,6 +2317,32 @@ const stale = (look: (Seen & { at: number }) | undefined) => !look || Date.now()
 
 const sameSeen = (a: Seen, b: Seen) => a.found === b.found && a.more === b.more && a.error === b.error && (a.files ?? []).join('\n') === (b.files ?? []).join('\n');
 
+/** The paths in `git status --porcelain -z`: unquoted, each entry `XY path` ended by NUL; a rename or copy is followed by the path it came from. */
+function porcelainFiles(out: string): string[] {
+  const files: string[] = [];
+  const entries = out.split('\0');
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i]!;
+    if (!e) continue;
+    files.push(e.slice(3));
+    if (e[0] === 'R' || e[0] === 'C') i++;
+  }
+  return files;
+}
+
+/**
+ * What a checkout has uncommitted (untracked files too): the changed paths, and the diff of the tracked
+ * ones against HEAD cut at `limit` characters, so that a worker on a branch of its own, perhaps on
+ * another machine, can read what the checkout holds.
+ */
+export async function workingChanges(path: string, limit: number): Promise<{ files: string[]; diff: string; cut: boolean }> {
+  const status = await gitRun(path, ['status', '--porcelain', '-z', '--untracked-files=all']);
+  if (status.code !== 0) throw new WorkspaceError(`git status in ${path}: ${(status.stderr || status.stdout).trim()}`);
+  const diff = await gitRun(path, ['diff', 'HEAD', '--no-color']);
+  const text = diff.code === 0 ? diff.stdout : '';
+  return { files: porcelainFiles(status.stdout), diff: text.slice(0, limit), cut: text.length > limit };
+}
+
 /** Whether a clone is clean, has uncommitted changes (and which), git fails in it, or is not there; without blocking the server. */
 async function cloneState(path: string): Promise<Seen> {
   try {
@@ -2331,14 +2357,7 @@ async function cloneState(path: string): Promise<Seen> {
     if (r.code !== 0) return { found: 'broken', error: (r.stderr || r.stdout).trim() || `exit code ${r.code}` };
     if (r.stdout === '') return { found: 'clean' };
     // `XY path`, unquoted, each ended by NUL; a rename or copy is followed by the path it came from
-    const files: string[] = [];
-    const entries = r.stdout.split('\0');
-    for (let i = 0; i < entries.length; i++) {
-      const e = entries[i]!;
-      if (!e) continue;
-      files.push(e.slice(3));
-      if (e[0] === 'R' || e[0] === 'C') i++;
-    }
+    const files = porcelainFiles(r.stdout);
     return { found: 'dirty', files: files.slice(0, SEEN_FILES), ...(files.length > SEEN_FILES ? { more: files.length - SEEN_FILES } : {}) };
   } catch (e) {
     return { found: 'broken', error: messageOf(e) };

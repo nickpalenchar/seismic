@@ -54,7 +54,7 @@ import { isSitePath, siteMissing, siteName, sitePaths } from './site';
 import { demoSite, findSite } from './demo-sites';
 import { dimensions } from '../core/page-tags';
 import { type DueRestart, Workers } from './workers';
-import { branchSetting, type CardWorkstations, defaultBranchAsync, type FileAt, type FileVersions, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, gitAsync, Workstations } from './workstations';
+import { branchSetting, type CardWorkstations, defaultBranchAsync, type FileAt, type FileVersions, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, workingChanges, Workstations } from './workstations';
 import { FolderWorkstations } from './folder';
 import { readingTheme, readTheme, type Theme } from './theme';
 import { claudeToken, githubToken, hostName, registerHost } from './hosts';
@@ -340,7 +340,7 @@ export class ProjectRuntime {
     });
     // the Koordinator needs the workers, and the workers ask it: it is set right after them
     // a canvas without cards is new: its repositories' working changes are worth a card
-    const fresh = deps.store.cards(id).length === 0;
+    const fresh = !deps.store.hasCards(id);
     repos.forEach((x, i) => {
       try {
         this.addRepo(this.startRepo(resolved, i), fresh);
@@ -995,11 +995,10 @@ export class ProjectRuntime {
   /** Proposes finishing the uncommitted changes a repository new on the canvas comes with (`Board.proposeFinishChanges`). */
   private proposeFinishChanges(r: Repo) {
     if (!this.deps.setupProposals || r.info.folder) return;
-    gitAsync(r.info.path, 'status', '--porcelain', '--untracked-files=all')
-      .then((out) => {
+    workingChanges(r.info.path, 6000)
+      .then(({ files, diff, cut }) => {
         if (this.stopped) return;
-        const files = out.split('\n').map((l) => l.replace(/^\s*\S+\s+/, '')).filter(Boolean);
-        this.board.proposeFinishChanges(r.ref.id, files);
+        this.board.proposeFinishChanges(r.ref.id, r.info.path, files, diff, cut);
       })
       .catch(() => {});
   }

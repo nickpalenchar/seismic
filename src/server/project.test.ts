@@ -638,18 +638,37 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     const clean = gitRepo(join(dir, 'clean'), { 'README.md': 'Clean\n' });
     writeFileSync(join(shop, 'README.md'), 'Shop, edited\n');
     writeFileSync(join(shop, 'cart.ts'), 'export {};\n');
+    writeFileSync(join(shop, 'Übersicht.md'), 'x\n');
+    git(shop, 'mv', 'README.md', 'LIESMICH.md');
     canvas.shutdown();
     const store = new Store(':memory:');
     const start = (repos: { path: string }[]) => new CanvasRuntime({ repos }, { store, home: dir, runtime, forge: noForge, setupProposals: true });
     const finish = () => canvas.board.snapshot().items.filter((i) => i.title === 'Offene Änderungen abschließen');
     canvas = start([{ path: shop }, { path: clean }]);
     await until(() => finish().length === 1);
-    expect(finish()[0]).toMatchObject({ state: 'proposal', repo: 'shop', body: expect.stringMatching(/`README.md`[\s\S]*`cart.ts`/) });
+    expect(finish()[0]).toMatchObject({ state: 'proposal', repo: 'shop', body: expect.stringMatching(/`LIESMICH.md`[\s\S]*`cart.ts`[\s\S]*`Übersicht.md`[\s\S]*```diff/) });
+    expect(finish()[0]).toMatchObject({ body: expect.not.stringContaining('README.md`') });
     canvas.act(finish()[0]!.id, { action: 'dismiss' });
     canvas.shutdown();
     canvas = start([{ path: shop }, { path: clean }]);
     await new Promise((r) => setTimeout(r, 200));
     expect(finish()).toEqual([]);
+  });
+
+  test('a project whose cards are all archived is not new: a repository with changes gets no proposal', async () => {
+    fresh();
+    const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n' });
+    canvas.shutdown();
+    const store = new Store(':memory:');
+    const start = () => new CanvasRuntime({ repos: [{ path: shop }] }, { store, home: dir, runtime, forge: noForge, setupProposals: true });
+    canvas = start();
+    const card = canvas.board.create({ title: 'Old', body: 'x' });
+    store.update(card.id, { archived_at: new Date().toISOString() });
+    canvas.shutdown();
+    writeFileSync(join(shop, 'new.ts'), 'export {};\n');
+    canvas = start();
+    await new Promise((r) => setTimeout(r, 300));
+    expect(canvas.board.snapshot().items.filter((i) => i.title === 'Offene Änderungen abschließen')).toEqual([]);
   });
 
   test('dismissed, the proposal does not come back; still open, it goes once the repository has settings', async () => {

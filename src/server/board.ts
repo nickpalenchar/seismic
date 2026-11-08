@@ -1142,7 +1142,7 @@ export class Board {
    * Seismic proposes finishing the uncommitted changes (`files`, as `git status` lists them) a new
    * repository came with, once per repository: dismissed or accepted, it does not come back.
    */
-  proposeFinishChanges(repo: string, files: string[]) {
+  proposeFinishChanges(repo: string, path: string, files: string[], diff: string, cut: boolean) {
     const key = `${FINISH_CARD_SETTING}${repo}`;
     if (this.setting(key) || !files.length) return;
     this.checkRepo(repo);
@@ -1154,7 +1154,7 @@ export class Board {
         kind: 'task',
         state: 'proposal',
         title,
-        body: body(shown, files.length - shown.length),
+        body: body(path, shown, files.length - shown.length, diff, cut),
         ...this.freeSpot(),
         repo: this.repoColumn(repo),
         proposal: JSON.stringify({ ...proposalOf({ reason }), finish: true } satisfies Proposal),
