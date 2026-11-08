@@ -7,7 +7,7 @@ const finding = (over: Partial<Finding>): Finding => ({ id: 1, title: 'f', text:
 
 test('a card at work is in the stage its agent is at', () => {
   expect(agentStage(card('a'))).toBe('working');
-  expect(agentStage(card('a', { doing: 'recordingDemo' }))).toBe('demo');
+  expect(agentStage(card('a', { doing: 'recordingDemo' }))).toBe('working');
   expect(agentStage(card('a', { doing: 'debugging' }))).toBe('working');
   expect(agentStage(card('a', { codeReview: { mode: 'auto', state: 'done', findings: [finding({ decided: 'self' })] } }))).toBe('fixing');
   expect(agentStage(card('a', { codeReview: { mode: 'auto', state: 'done', findings: [finding({ status: 'fixed', decided: 'self' }), finding({ decided: 'later' })] } }))).toBe('working');
@@ -35,5 +35,5 @@ test('queued, finished, archived cards, other kinds and ideas without a question
 
 test('the stages come in their order, empty ones left out', () => {
   const g = byStage([card('p', { state: 'planned' }), card('d', { doing: 'preparingDemo' }), card('w1'), card('n', { state: 'waiting', need: 'review' }), card('w2')]);
-  expect(g.map((x) => [x.stage, x.items.map((i) => i.id)])).toEqual([['needsYou', ['n']], ['working', ['w1', 'w2']], ['demo', ['d']], ['planned', ['p']]]);
+  expect(g.map((x) => [x.stage, x.items.map((i) => i.id)])).toEqual([['needsYou', ['n']], ['working', ['d', 'w1', 'w2']], ['planned', ['p']]]);
 });

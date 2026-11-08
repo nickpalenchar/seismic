@@ -1,13 +1,13 @@
 // The Agents sheet: slides out from the bar's robot button, which counts the queued cards in grey, and
 // holds two tabs. "Queue" lists the cards waiting to start in turn, dragged to their place as on a
 // waiting card (src/ui/queue.tsx); "All" lists the project's other cards by the stage they are at,
-// those that need the owner first (src/core/agents.ts), each card a pane like an inbox entry. A row
-// or its title opens its card.
+// those that need the owner first (src/core/agents.ts), each card a pane like an inbox entry, under
+// a chip per stage that shows or hides its group. A row's title or "Go to card" opens its card.
 
 import { useEffect, useRef } from 'react';
-import { agentStage, byStage } from '../core/agents';
+import { AGENT_STAGES, type AgentStage, agentStage, byStage } from '../core/agents';
 import { waitsFor } from '../core/inbox';
-import type { Item } from '../core/types';
+import { demoStage, type Item } from '../core/types';
 import { Docked } from './docked';
 import { plain } from './markdown';
 import { QueueList, useQueueSort } from './queue';
@@ -27,6 +27,10 @@ export function AgentsSheet({ on, items, open, onOpen }: { on: boolean; items: I
     if (!on || tab !== 'queue') q.sort.cancel();
   }, [on, tab]);
   const groups = byStage(items);
+  // the groups the owner switched off with their chips above the list
+  const [hidden, setHidden] = useStoredState<AgentStage[]>('obeya-agents-hidden', []);
+  const count = (s: AgentStage) => groups.find((g) => g.stage === s)?.items.length ?? 0;
+  const shown = groups.filter((g) => !hidden.includes(g.stage));
   return (
     <Docked id="agents" ref={box} on={on} label={t.agents.title}>
       <h2>{t.agents.title}</h2>
@@ -40,8 +44,21 @@ export function AgentsSheet({ on, items, open, onOpen }: { on: boolean; items: I
       </div>
       {tab === 'queue' ? (
         q.queued.length ? <QueueList items={items} q={q} onOpen={onOpen} /> : <p className="hint agents-empty">{t.queue.empty}</p>
-      ) : groups.length ? (
-        groups.map((g) => (
+      ) : (
+        <>
+          <div className="agents-filter" role="group" aria-label={t.agents.filter}>
+            {AGENT_STAGES.map((s) => (
+              <button key={s} type="button" className={`chip stage-${s}${count(s) ? '' : ' none'}`} aria-pressed={!hidden.includes(s)} onClick={() => setHidden(hidden.includes(s) ? hidden.filter((x) => x !== s) : [...hidden, s])}>
+                {t.agents.stages[s]} <span className="count">{count(s)}</span>
+              </button>
+            ))}
+          </div>
+          {!groups.length ? (
+            <p className="hint agents-empty">{t.agents.none}</p>
+          ) : !shown.length ? (
+            <p className="hint agents-empty">{t.agents.allHidden}</p>
+          ) : (
+            shown.map((g) => (
           <section key={g.stage} className="agents-stage">
             <h3>
               {t.agents.stages[g.stage]} <span className="count">{g.items.length}</span>
@@ -52,9 +69,9 @@ export function AgentsSheet({ on, items, open, onOpen }: { on: boolean; items: I
               ))}
             </ul>
           </section>
-        ))
-      ) : (
-        <p className="hint agents-empty">{t.agents.none}</p>
+            ))
+          )}
+        </>
       )}
     </Docked>
   );
@@ -74,7 +91,7 @@ function AgentEntry({ item: i, here, onOpen }: { item: Item; here: boolean; onOp
       </div>
       <div className="state">
         {stateLabel(i)}
-        {doing && <span className="doing"> · {doing}</span>}
+        {doing && <span className={i.doing && demoStage(i.doing) ? 'doing demo' : 'doing'}> · {doing}</span>}
       </div>
       {text && <div className="text">{plain(text)}</div>}
       <div className="replies">

@@ -3000,7 +3000,19 @@ body:has(#agents.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .agent-entry.stage-needsYou .state { color: var(--waiting); }
 .agent-entry.stage-landing .state { color: var(--approved); }
 .agent-entry.stage-planned .state { color: var(--muted); }
-.agent-entry.stage-demo .state .doing { color: var(--approved); }
+.agent-entry .state .doing { color: var(--muted); }
+.agent-entry .state .doing.demo { color: var(--approved); }
+/* the chips above "All": one per stage, tinted in its colour while its group shows */
+.agents-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 8px 0; }
+.agents-filter .chip { --c: var(--working); display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; color: var(--muted); }
+.agents-filter .chip[aria-pressed=true] { background: color-mix(in srgb, var(--c) 16%, var(--card)); border-color: color-mix(in srgb, var(--c) 55%, transparent); color: var(--ink); }
+.agents-filter .chip .count { font-weight: 700; font-size: 11.5px; }
+.agents-filter .chip.none { opacity: .55; }
+.agents-filter .stage-needsYou { --c: var(--waiting); }
+.agents-filter .stage-reviewing { --c: var(--reviewing); }
+.agents-filter .stage-landing { --c: var(--approved); }
+.agents-filter .stage-planned { --c: var(--planned); }
 .cs-pill .bar-icon { display: block; }
 .cs-pill { padding-inline: 10px; }
 .cs-pill .n.err { margin-left: 4px; }

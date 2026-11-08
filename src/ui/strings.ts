@@ -1360,8 +1360,11 @@ const de = {
     button: (n: number) => (n === 0 ? 'Agenten: keine Aufgabe in der Warteschlange' : n === 1 ? 'Agenten: eine Aufgabe in der Warteschlange' : `Agenten: ${n} Aufgaben in der Warteschlange`),
     tabs: { queue: 'Warteschlange', all: 'Alle' },
     /** The stages "All" groups its cards by. */
-    stages: { needsYou: 'Braucht dich', working: 'Arbeitet', reviewing: 'Code-Review', fixing: 'Behebt Review-Befunde', demo: 'Macht die Demo', landing: 'Wird übernommen', planned: 'Geplant' },
+    stages: { needsYou: 'Braucht dich', working: 'Arbeitet', reviewing: 'Code-Review', fixing: 'Behebt Review-Befunde', landing: 'Wird übernommen', planned: 'Geplant' },
     none: 'Keine Karten.',
+    /** The chips above "All" that show or hide a group. */
+    filter: 'Gruppen zeigen',
+    allHidden: 'Alle Gruppen ausgeblendet. Tippe oben auf eine, um sie zu zeigen.',
   },
   inbox: {
     title: 'Posteingang',
@@ -3822,8 +3825,10 @@ const en: Strings = {
     title: 'Agents',
     button: (n: number) => (n === 0 ? 'Agents: no task in the queue' : n === 1 ? 'Agents: one task in the queue' : `Agents: ${n} tasks in the queue`),
     tabs: { queue: 'Queue', all: 'All' },
-    stages: { needsYou: 'Needs you', working: 'Working', reviewing: 'Code reviewing', fixing: 'Review fixing', demo: 'Making demo', landing: 'Landing', planned: 'Planned' },
+    stages: { needsYou: 'Needs you', working: 'Working', reviewing: 'Code reviewing', fixing: 'Review fixing', landing: 'Landing', planned: 'Planned' },
     none: 'No cards.',
+    filter: 'Show groups',
+    allHidden: 'All groups are hidden. Tap one above to show it.',
   },
   inbox: {
     title: 'Inbox',

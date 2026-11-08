@@ -23,11 +23,13 @@ the queue at once, as "Take out of the queue" on the card does (back to planned;
 it again is the way back); a row opens its card. "All" lists the project's other cards, each a
 pane like an inbox entry (its title large, its state with what the agent does, what it waits for
 or its status line, "Go to card"), grouped by stage, in this order: "Needs you" (every card the
-inbox lists, whatever its kind, taken out of the stage it would be in), "Working", "Code
-reviewing" (its code review runs, also while the card waits for the owner), "Review fixing" (its
-worker fixes findings the owner gave it, "Fix it"), "Making demo" (its worker prepares, records or
-finishes its demo), "Landing" (approved and landing, or in a pull request) and "Planned" (not
-started, not queued). A stage without a card shows no heading at all. Queued cards are only in
+inbox lists, whatever its kind, taken out of the stage it would be in), "Working" (a
+worker making its demo too, which its state line says), "Code reviewing" (its code review runs,
+also while the card waits for the owner), "Review fixing" (its worker fixes findings the owner gave
+it, "Fix it"), "Landing" (approved and landing, or in a pull request) and "Planned" (not started,
+not queued). A stage without a card shows no heading at all. Under the Queue | All switch, only
+on "All", a chip per stage with its count, tinted while its group shows, shows or hides that group
+at a click; what is hidden is remembered per browser. Queued cards are only in
 "Queue"; finished and archived cards, and ideas the owner has nothing to answer on, are not
 listed. The queue moved here from a list under its own button in the bar so that what the agents
 do and what waits for them stand in one place (owner, 2026-11-07).
