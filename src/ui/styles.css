@@ -134,7 +134,7 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl, .timeline .a-ttl { font-fami
 .plan:hover > .head .plan-more, .plan > .head .plan-more:has([aria-expanded="true"]) { opacity: 1; }
 @media (hover: none) { .plan > .head .plan-more { opacity: 1; } }
 .plan > .head:has(.card-more) { padding-right: 10px; }
-.card-more-menu.floating { position: fixed; right: auto; z-index: 60; }
+.card-more-menu.floating { position: fixed; right: auto; z-index: 60; max-height: calc(100vh - 16px); overflow-y: auto; }
 .plan > .head { padding-left: 12px; }
 /* folds the plan to its head and back; always in sight, so it is found */
 .plan > .head .fold { flex: none; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; margin-right: -4px;

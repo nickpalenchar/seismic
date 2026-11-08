@@ -354,6 +354,16 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
     if (!open || !m) return;
     const over = m.getBoundingClientRect().right - (document.documentElement.clientWidth - 8);
     if (over > 0) m.style.left = `${(floating ? m.getBoundingClientRect().left : 0) - over}px`;
+    // floating, it stays on the page, which does not scroll: under the button, else above it, else on the
+    // side with more room, as high as that room and scrolling
+    const b = box.current?.getBoundingClientRect();
+    if (!floating || !b) return;
+    const under = document.documentElement.clientHeight - 8 - (b.bottom + 4);
+    const above = b.top - 4 - 8;
+    const h = m.scrollHeight;
+    const down = h <= under || (h > above && under >= above);
+    m.style.maxHeight = `${Math.min(h, down ? under : above)}px`;
+    m.style.top = `${down ? b.bottom + 4 : b.top - 4 - Math.min(h, above)}px`;
   }, [open, at]);
   const on = canvasOf(canvases, item);
   const others = canvases.filter((c) => c.id !== on?.id);
