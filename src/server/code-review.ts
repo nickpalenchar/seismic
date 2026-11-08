@@ -142,7 +142,7 @@ export class CodeReviews {
     if (!mode) {
       if (!had) return;
       this.stopSession(cardId);
-      this.save(cardId, null);
+      this.o.board.work(cardId, { review: { codeReview: null, items: [] } });
     } else if (mode === 'manual' && !had) this.save(cardId, { mode, handover });
     else if (had && mode === 'manual' && had.mode !== mode) this.save(cardId, { ...had, mode });
   }
