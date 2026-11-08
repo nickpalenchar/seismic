@@ -17,4 +17,4 @@ export interface RepoInfo {
 }
 
 /** The repository's settings in front of Seismic's defaults: a field with a default is always there. */
-export type RepoAdapter = SharedSettings & Required<Pick<SharedSettings, 'planDocs' | 'land' | 'softPaths' | 'workspaces' | 'language'>>;
+export type RepoAdapter = SharedSettings & Required<Pick<SharedSettings, 'planDocs' | 'land' | 'softPaths' | 'workstations' | 'language'>>;

@@ -32,7 +32,7 @@ in `package.json`, work landing through pull requests on GitHub, demos shared on
   "setup": "pnpm install",
   "planDocs": { "dir": "docs/plan", "exclude": ["TEMPLATE.md"] },
   "softPaths": ["docs/"],
-  "workspaces": "clones",
+  "workstations": "clones",
   "prNoise": ["vercel[bot]", "codecov[bot]"],
   "language": "en",
   "app": {
@@ -68,7 +68,7 @@ others are not.
 
 ### `setup` — a command
 
-What a worker runs first in a fresh workspace, typically installing dependencies. Default: none.
+What a worker runs first in a fresh workstation, typically installing dependencies. Default: none.
 
 ### `checks` — commands
 
@@ -106,15 +106,15 @@ Paths whose edits never count as a conflict between two cards' branches (a trail
 directory): Seismic resolves them itself when it rebases. Use it for docs that many cards touch.
 Default: `["docs/plan/"]`.
 
-### `workspaces` — `"clones"` or `"worktrees"`
+### `workstations` — `"clones"` or `"worktrees"`
 
 Where workers work. `clones`: a pool of full clones per repository, leased by one card at a time;
 the number comes from "Configuration" (clones to create, or existing ones to use). Use it when
-every workspace runs its own app (ports, a database, Docker) or the tools break in a git
+every workstation runs its own app (ports, a database, Docker) or the tools break in a git
 worktree. `worktrees`: a git worktree of the configured checkout per card, any number in parallel
 unless "Configuration" gives the repository slots. Default: `worktrees`. A repository whose
 configuration names clones (clones to create, existing ones, or other machines) works in clones
-whatever the settings say.
+whatever the settings say. Its name before, `workspaces`, is still read.
 
 ### `prNoise` — account names
 
@@ -142,9 +142,9 @@ them itself; how the app starts and where it is, the workers find from the recip
   to stop afterwards. Every worker gets it in its brief word for word, not only for its demo;
   `bun lib/recipe.ts` of the demo skill prints it. Without one, each worker finds out from the
   repository how to run the app.
-- `stop`: stops the app in a workspace, and does nothing where none runs. With it, Seismic parks a
+- `stop`: stops the app in a workstation, and does nothing where none runs. With it, Seismic parks a
   card that waits for the owner (handed over, asked, its pull request open) once its worker has
-  nothing running and five minutes have passed: it runs `stop` in the workspace (through `sh -c`,
+  nothing running and five minutes have passed: it runs `stop` in the workstation (through `sh -c`,
   `cmd /c` on Windows), so a waiting card costs disk, not memory. The worker's next message tells
   it the app was stopped; it starts it again as the recipe says when it needs it. A stop that
   fails is an error on the card. An app the owner opened from the card to try it by hand ("Open
@@ -209,7 +209,7 @@ else `origin`'s as last fetched), not from the checkout: the clones a canvas wor
 cards' branches most of the time. So **a change committed on a branch does nothing yet**; it
 counts once it is on the default branch, and then without a restart (Seismic reads it again whenever
 it reads the default branch anew: a landing, a merged pull request, a fetch). The one exception is
-`workspaces`: clones or worktrees are set up when a repository's agents start, so a change to it
+`workstations`: clones or worktrees are set up when a repository's agents start, so a change to it
 restarts that repository's agents once they paused; Seismic and the other repositories work on.
 
 The main branch is not in the file, since it says where the file is read from: a fresh clone has
@@ -269,7 +269,7 @@ into the repository for everyone".
    bun ~/dev/obeya/plugin/skills/settings/lib/check.ts
    ```
 
-   It prints what Seismic makes of them (setup, checks, landing, workspaces, the plan docs, the
+   It prints what Seismic makes of them (setup, checks, landing, workstations, the plan docs, the
    app's recipe and commands) and every problem "Configuration" would report for them, and
    exits with 1 when there is one. A worker runs it as `bun ${CLAUDE_SKILL_DIR}/lib/check.ts`.
 2. **The commands work.** Run `setup` and each of `checks` in a fresh clone; start the app as

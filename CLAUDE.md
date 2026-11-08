@@ -72,7 +72,7 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
   button, the conversation history, starting ("Build it like this", "Accept and start") while the agent
   is still working) is built once in shared code and works the same on each of them; no card kind
   gets its own variant.
-- The phone view stays as simple as possible: not every desktop view belongs on it (the workspaces
+- The phone view stays as simple as possible: not every desktop view belongs on it (the workstations
   list, say, stays desktop-only). What it does show follows the desktop version: same controls,
   icons, button states and card layout, departing from it only where the small screen requires.
   A tap on a button while the keyboard is open does what the button does on the first tap; it

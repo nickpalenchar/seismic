@@ -6,7 +6,7 @@ import { BadRequest, Board } from './board';
 import { artifact, until } from './testing';
 import { Workers } from './workers';
 import { board, dir, doc, eachTest, flush, main, manual, runtime, setDocs, setup, setWorkers, spaces, state, store, workers, ws } from './workers-fixture';
-import { GIT, git, gitOrNull } from './workspaces';
+import { GIT, git, gitOrNull } from './workstations';
 
 eachTest();
 
@@ -14,7 +14,7 @@ describe('a worktree per card', () => {
   beforeEach(async () => {
     await workers?.freed();
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'worktrees' });
+    setup({ ...generic, land: 'main', workstations: 'worktrees' });
   });
 
   const commitIn = (path: string, file: string, msg: string) => {
@@ -29,7 +29,7 @@ describe('a worktree per card', () => {
     board.work(c.id, { branch: 'main' });
     await workers.start(c.id);
     expect(board.item(c.id)!.state).toBe('planned');
-    expect(board.row(c.id)).toMatchObject({ workspace: null, branch: 'main', status_line: null });
+    expect(board.row(c.id)).toMatchObject({ workstation: null, branch: 'main', status_line: null });
     expect(spaces.list()).toEqual([]);
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'error', author: 'obeya', text: expect.stringContaining('git worktree add') });
     expect(runtime.sessions).toHaveLength(0);
@@ -45,7 +45,7 @@ describe('a worktree per card', () => {
     await started;
     expect(board.item(c.id)).toMatchObject({ state: 'planned' });
     expect(board.item(c.id)!.snoozed).toBeUndefined();
-    expect(board.row(c.id).workspace).toBeNull();
+    expect(board.row(c.id).workstation).toBeNull();
     expect(board.events(c.id).some((e) => e.kind === 'error')).toBe(true);
     // started again on a branch of its own, its worker hears the words with its task
     board.work(c.id, { branch: null });
@@ -69,13 +69,13 @@ describe('a worktree per card', () => {
     writeFileSync(join(main, '.git/hooks/post-checkout'), '#!/bin/sh\nsleep 0.3\n', { mode: 0o755 });
     const c = manual();
     const started = workers.start(c.id);
-    expect(board.item(c.id)).toMatchObject({ state: 'working', statusLine: 'Bereitet den Workspace vor …' });
+    expect(board.item(c.id)).toMatchObject({ state: 'working', statusLine: 'Bereitet die Workstation vor …' });
     // it holds a slot, and a restart waits for it
     expect(workers.inTurn()).toEqual([c.id]);
     expect(workers.busyCards()).toEqual([c.id]);
     await workers.stop(c.id);
     expect(board.item(c.id)!.state).toBe('planned');
-    expect(board.row(c.id).workspace).toBeNull();
+    expect(board.row(c.id).workstation).toBeNull();
     await started;
     expect(runtime.sessions).toHaveLength(0);
     expect(board.item(c.id)!.statusLine).toBeUndefined();
@@ -84,7 +84,7 @@ describe('a worktree per card', () => {
 
     // started again, its worktree is there: its worker starts at once
     await workers.start(c.id);
-    expect(runtime.last.spec.cwd).toBe(board.row(c.id).workspace!);
+    expect(runtime.last.spec.cwd).toBe(board.row(c.id).workstation!);
 
     // the owner's words while git works go to the worker that starts
     const d = board.create({ title: 'Ablesung importieren', x: 0, y: 0 });
@@ -102,13 +102,13 @@ describe('a worktree per card', () => {
     const b = board.create({ title: 'Zweite Karte', x: 0, y: 0 });
     await workers.start(a.id);
     await workers.start(b.id);
-    const wa = board.row(a.id).workspace!;
-    const wb = board.row(b.id).workspace!;
+    const wa = board.row(a.id).workstation!;
+    const wb = board.row(b.id).workstation!;
     expect(wa).not.toBe(wb);
     commitIn(wa, 'a.ts', 'A');
     commitIn(wb, 'b.ts', 'B');
     for (const c of [a, b]) {
-      const session = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workspace)!;
+      const session = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workstation)!;
       await session.call('ready_for_review', { summary: 'S', demo: artifact() });
       session.emit({ type: 'idle' });
       await workers.approve(c.id);
@@ -127,7 +127,7 @@ describe('a worktree per card', () => {
     commitIn(main, 'base.ts', 'Auf master');
     const a = manual();
     await workers.start(a.id);
-    const wa = board.row(a.id).workspace!;
+    const wa = board.row(a.id).workstation!;
     expect(git(wa, 'log', '--format=%s', '-1')).toBe('Auf master');
     commitIn(wa, 'a.ts', 'A');
     expect((await spaces.changes(a.id)).map((c) => c.file)).toEqual(['a.ts']);
@@ -144,7 +144,7 @@ describe('a worktree per card', () => {
     git(main, 'checkout', '--quiet', 'main');
     const a = manual();
     await workers.start(a.id);
-    const wa = board.row(a.id).workspace!;
+    const wa = board.row(a.id).workstation!;
     // the worker goes onto the long-lived branch and builds on it
     git(wa, 'reset', '--quiet', '--hard', 'feature');
     commitIn(wa, 'a.ts', 'A');
@@ -157,7 +157,7 @@ describe('a worktree per card', () => {
     commitIn(main, 'main.ts', 'On main');
     const b = board.create({ title: 'Zweite Karte', x: 0, y: 0 });
     await workers.start(b.id);
-    const wb = board.row(b.id).workspace!;
+    const wb = board.row(b.id).workstation!;
     git(wb, 'reset', '--quiet', '--hard', 'HEAD~1');
     commitIn(wb, 'b.ts', 'B');
     git(wb, 'merge', '--quiet', '--no-edit', 'main');
@@ -174,7 +174,7 @@ describe('a worktree per card', () => {
     commitIn(main, 'voice.ts', 'Voice');
     const a = manual();
     await workers.start(a.id);
-    const wa = board.row(a.id).workspace!;
+    const wa = board.row(a.id).workstation!;
     // a pull rebases main's unpushed commit onto what came from origin: the card's branch keeps it as it was
     git(main, 'reset', '--quiet', '--hard', 'HEAD~1');
     commitIn(main, 'upstream.ts', 'Upstream');
@@ -201,11 +201,11 @@ describe('a worktree per card', () => {
   test("a card's branch that another card is built on still holds the first card's work", async () => {
     const a = manual();
     await workers.start(a.id);
-    const wa = board.row(a.id).workspace!;
+    const wa = board.row(a.id).workstation!;
     commitIn(wa, 'a.ts', 'A');
     const b = board.create({ title: 'Zweite Karte', x: 0, y: 0 });
     await workers.start(b.id);
-    const wb = board.row(b.id).workspace!;
+    const wb = board.row(b.id).workstation!;
     git(wb, 'reset', '--quiet', '--hard', board.row(a.id).branch!);
     commitIn(wb, 'b.ts', 'B');
     expect((await spaces.changes(a.id)).map((c) => c.file)).toEqual(['a.ts']);
@@ -215,7 +215,7 @@ describe('a worktree per card', () => {
   test('a branch that changes thousands of files gives the Koordinator the changed lines of the first 200', async () => {
     const a = manual();
     await workers.start(a.id);
-    const wa = board.row(a.id).workspace!;
+    const wa = board.row(a.id).workstation!;
     for (let n = 0; n < 250; n++) writeFileSync(join(wa, `f${String(n).padStart(3, '0')}.ts`), 'one\ntwo\n');
     git(wa, 'add', '.');
     git(wa, 'commit', '--quiet', '-m', 'many');
@@ -228,7 +228,7 @@ describe('a worktree per card', () => {
     const idea = board.create({ idea: true, title: 'Logo', x: 0, y: 0 });
     const prototype = board.addPrototype(idea.id, 'Prototyp: Logo – Wortmarke', 'Wortmarke');
     await workers.start(prototype.id);
-    const path = board.row(prototype.id).workspace!;
+    const path = board.row(prototype.id).workstation!;
     const old = board.row(prototype.id).branch!;
     commitIn(path, 'logo.svg', 'Prototyp Wortmarke');
     const moved = await workers.buildOn(prototype.id, board.item(idea.id)!);
@@ -242,9 +242,9 @@ describe('a worktree per card', () => {
     expect(board.item(prototype.id)).toBeUndefined();
     expect(board.archived().find((i) => i.id === prototype.id)).toMatchObject({ prototypeEnd: 'built' });
 
-    board.work(idea.id, { state: 'planned', workspace: moved.path, branch: moved.branch, built_on: prototype.id });
+    board.work(idea.id, { state: 'planned', workstation: moved.path, branch: moved.branch, built_on: prototype.id });
     await workers.start(idea.id);
-    expect(board.row(idea.id).workspace).toBe(path);
+    expect(board.row(idea.id).workstation).toBe(path);
     const session = runtime.last;
     expect(session.spec.cwd).toBe(path);
     commitIn(path, 'logo.test.ts', 'Logo mit Tests');
@@ -265,10 +265,10 @@ describe('a worktree per card', () => {
     const b = board.create({ title: 'Zweite Karte', x: 0, y: 0 });
     await workers.start(a.id);
     await workers.start(b.id);
-    commitIn(board.row(a.id).workspace!, 'same.ts', 'A');
-    commitIn(board.row(b.id).workspace!, 'same.ts', 'B');
-    const sa = runtime.sessions.find((s) => s.spec.cwd === board.row(a.id).workspace)!;
-    const sb = runtime.sessions.find((s) => s.spec.cwd === board.row(b.id).workspace)!;
+    commitIn(board.row(a.id).workstation!, 'same.ts', 'A');
+    commitIn(board.row(b.id).workstation!, 'same.ts', 'B');
+    const sa = runtime.sessions.find((s) => s.spec.cwd === board.row(a.id).workstation)!;
+    const sb = runtime.sessions.find((s) => s.spec.cwd === board.row(b.id).workstation)!;
     await sa.call('ready_for_review', { summary: 'S', demo: artifact() });
     await workers.approve(a.id);
     await sb.call('ready_for_review', { summary: 'S', demo: artifact() });
@@ -281,9 +281,9 @@ describe('a worktree per card', () => {
     // the owner has local edits in the Seismic checkout on a file the card changes
     const c = board.create({ title: 'Dritte', x: 0, y: 0 });
     await workers.start(c.id);
-    commitIn(board.row(c.id).workspace!, 'mine.ts', 'C');
+    commitIn(board.row(c.id).workstation!, 'mine.ts', 'C');
     writeFileSync(join(main, 'mine.ts'), 'local edit');
-    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workspace)!;
+    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workstation)!;
     await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
     sc.emit({ type: 'idle' });
     const err = await workers.approve(c.id).catch((e) => e);
@@ -309,10 +309,10 @@ describe('a worktree per card', () => {
     git(main, 'commit', '--quiet', '-m', 'mine');
     const c = manual();
     await workers.start(c.id);
-    commitIn(board.row(c.id).workspace!, 'mine.ts', 'card\nb\nc\n');
+    commitIn(board.row(c.id).workstation!, 'mine.ts', 'card\nb\nc\n');
     writeFileSync(join(main, 'mine.ts'), 'a\nb\nowner\n');
     writeFileSync(join(main, 'other.ts'), 'unrelated');
-    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workspace)!;
+    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workstation)!;
     await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
     sc.emit({ type: 'idle' });
     expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
@@ -324,7 +324,7 @@ describe('a worktree per card', () => {
     expect(sc.inbox.at(-1)).toContain('moved those changes into your branch');
     expect(sc.inbox.at(-1)).toContain('the approval holds');
     expect(sc.inbox.at(-1)).not.toContain('could not land it on main:');
-    const ws = board.row(c.id).workspace!;
+    const ws = board.row(c.id).workstation!;
     expect(git(ws, 'log', '-1', '--format=%s')).toContain('folded into this card');
     expect(git(ws, 'show', 'HEAD:mine.ts')).toBe('card\nb\nowner');
     expect(git(main, 'diff', '--name-only')).toBe('');
@@ -339,9 +339,9 @@ describe('a worktree per card', () => {
   test('folded in for a new demo, a conflict stays under way for the worker, and the owner approves anew', async () => {
     const c = manual();
     await workers.start(c.id);
-    commitIn(board.row(c.id).workspace!, 'shared.ts', 'card\n');
+    commitIn(board.row(c.id).workstation!, 'shared.ts', 'card\n');
     writeFileSync(join(main, 'shared.ts'), 'owner\n');
-    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workspace)!;
+    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workstation)!;
     await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
     sc.emit({ type: 'idle' });
     await workers.approve(c.id).catch(() => {});
@@ -350,7 +350,7 @@ describe('a worktree per card', () => {
     expect(board.row(c.id).approved_at).toBeNull();
     expect(sc.inbox.at(-1)).toContain('git cherry-pick --continue');
     expect(sc.inbox.at(-1)).toContain('make a new demo');
-    expect(gitOrNull(board.row(c.id).workspace!, 'rev-parse', '-q', '--verify', 'CHERRY_PICK_HEAD')).not.toBeNull();
+    expect(gitOrNull(board.row(c.id).workstation!, 'rev-parse', '-q', '--verify', 'CHERRY_PICK_HEAD')).not.toBeNull();
     expect(git(main, 'status', '--porcelain')).toBe('');
     expect(git(main, 'rev-parse', 'refs/obeya/folded/' + c.id)).toBeTruthy();
   });
@@ -360,10 +360,10 @@ describe('a worktree per card', () => {
     const b = board.create({ title: 'Zweite Karte', x: 0, y: 0 });
     await workers.start(a.id);
     await workers.start(b.id);
-    commitIn(board.row(a.id).workspace!, 'same.ts', 'A');
-    commitIn(board.row(b.id).workspace!, 'same.ts', 'B');
-    const sa = runtime.sessions.find((s) => s.spec.cwd === board.row(a.id).workspace)!;
-    const sb = runtime.sessions.find((s) => s.spec.cwd === board.row(b.id).workspace)!;
+    commitIn(board.row(a.id).workstation!, 'same.ts', 'A');
+    commitIn(board.row(b.id).workstation!, 'same.ts', 'B');
+    const sa = runtime.sessions.find((s) => s.spec.cwd === board.row(a.id).workstation)!;
+    const sb = runtime.sessions.find((s) => s.spec.cwd === board.row(b.id).workstation)!;
     await sa.call('ready_for_review', { summary: 'S', demo: artifact() });
     await workers.approve(a.id);
     await sb.call('ready_for_review', { summary: 'S', demo: artifact() });
@@ -393,7 +393,7 @@ describe('a worktree per card', () => {
 
   test('an approval that could not land holds: the worker brings the branch up to date and it lands', async () => {
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'worktrees', app: { run: 'bun start' } });
+    setup({ ...generic, land: 'main', workstations: 'worktrees', app: { run: 'bun start' } });
     const demo = join(dir, 'demo');
     mkdirSync(demo);
     writeFileSync(join(demo, 'demo.mp4'), '0');
@@ -403,10 +403,10 @@ describe('a worktree per card', () => {
     const b = board.create({ title: 'Zweite Karte', x: 0, y: 0 });
     await workers.start(a.id);
     await workers.start(b.id);
-    const wb = board.row(b.id).workspace!;
-    commitIn(board.row(a.id).workspace!, 'same.ts', 'A');
+    const wb = board.row(b.id).workstation!;
+    commitIn(board.row(a.id).workstation!, 'same.ts', 'A');
     commitIn(wb, 'same.ts', 'B');
-    const sa = runtime.sessions.find((s) => s.spec.cwd === board.row(a.id).workspace)!;
+    const sa = runtime.sessions.find((s) => s.spec.cwd === board.row(a.id).workstation)!;
     const sb = runtime.sessions.find((s) => s.spec.cwd === wb)!;
     await sa.call('ready_for_review', handOver);
     await workers.approve(a.id);
@@ -432,7 +432,7 @@ describe('a worktree per card', () => {
   test('feedback instead of an approval is reviewed again; a blocked checkout waits for the owner', async () => {
     const c = manual();
     await workers.start(c.id);
-    const wc = board.row(c.id).workspace!;
+    const wc = board.row(c.id).workstation!;
     commitIn(wc, 'c.ts', 'C');
     commitIn(main, 'c.ts', 'main');
     const sc = runtime.last;
@@ -462,7 +462,7 @@ describe('a worktree per card', () => {
   test('a checkout found on another branch with everything committed goes back on main by itself, and the work lands', async () => {
     const c = manual();
     await workers.start(c.id);
-    commitIn(board.row(c.id).workspace!, 'c.ts', 'C');
+    commitIn(board.row(c.id).workstation!, 'c.ts', 'C');
     // an agent worked in the Seismic checkout on a branch of its own
     git(main, 'checkout', '--quiet', '-b', 'foundation');
     commitIn(main, 'stray.ts', 'Stray');
@@ -481,7 +481,7 @@ describe('a worktree per card', () => {
   test('a checkout found on another branch with uncommitted changes goes to the worker, the approval held', async () => {
     const c = manual();
     await workers.start(c.id);
-    const wc = board.row(c.id).workspace!;
+    const wc = board.row(c.id).workstation!;
     commitIn(wc, 'c.ts', 'C');
     git(main, 'checkout', '--quiet', '-b', 'foundation');
     writeFileSync(join(main, 'stray.ts'), 'not committed');
@@ -509,7 +509,7 @@ describe('a worktree per card', () => {
   test('commits that conflict one by one but not as a whole land as one commit', async () => {
     const c = manual();
     await workers.start(c.id);
-    const wc = board.row(c.id).workspace!;
+    const wc = board.row(c.id).workstation!;
     const trailer = 'Co-Authored-By: W <w@example.com>';
     writeFileSync(join(wc, 'same.ts'), 'C draft');
     git(wc, 'add', '.');
@@ -531,7 +531,7 @@ describe('a worktree per card', () => {
   test('after landing, the worker finishes what remains in its worktree; then worktree and branch go', async () => {
     const c = manual();
     await workers.start(c.id);
-    const wc = board.row(c.id).workspace!;
+    const wc = board.row(c.id).workstation!;
     const branch = board.row(c.id).branch!;
     commitIn(wc, 'c.ts', 'C');
     const s = runtime.last;
@@ -554,17 +554,17 @@ describe('a worktree per card', () => {
     expect(s.closed).toBe(true);
     expect(board.item(c.id)!.finishing).toBeUndefined();
     await workers.freed();
-    expect(board.row(c.id).workspace).toBeNull();
+    expect(board.row(c.id).workstation).toBeNull();
     expect(git(main, 'worktree', 'list').split('\n')).toHaveLength(1);
     expect(git(main, 'branch', '--list', branch)).toBe('');
   });
 
-  test('asked about a live card, its worker is resumed in a fresh workspace, answers, and ends again', async () => {
+  test('asked about a live card, its worker is resumed in a fresh workstation, answers, and ends again', async () => {
     const ended: string[] = [];
-    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones' }, onWorkEnded: (id) => void ended.push(id) }));
+    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, onWorkEnded: (id) => void ended.push(id) }));
     const c = manual();
     await workers.start(c.id);
-    commitIn(board.row(c.id).workspace!, 'c.ts', 'C');
+    commitIn(board.row(c.id).workstation!, 'c.ts', 'C');
     const s = runtime.last;
     s.emit({ type: 'session', id: 'sess-1' });
     await s.call('ready_for_review', { summary: 'S', demo: artifact() });
@@ -581,7 +581,7 @@ describe('a worktree per card', () => {
     const f = runtime.last;
     expect(f).not.toBe(s);
     expect(f.spec.resume).toBe('sess-1');
-    expect(board.row(c.id).workspace).toBe(f.spec.cwd);
+    expect(board.row(c.id).workstation).toBe(f.spec.cwd);
     expect(f.inbox[0]).toContain('The owner asks about this card (spoken');
     expect(f.inbox[0]).toContain('Its work is on main');
     expect(f.inbox[0]).toContain('Wie lade ich das Video hoch?');
@@ -603,7 +603,7 @@ describe('a worktree per card', () => {
     expect(state(c.id)).toBe('live');
     expect(board.item(c.id)!.finishing).toBeUndefined();
     expect(board.item(c.id)!.followUp).toBeUndefined();
-    expect(board.row(c.id).workspace).toBeNull();
+    expect(board.row(c.id).workstation).toBeNull();
     expect(board.row(c.id).landed).toBeNull();
     // the Arbeitsrückschau read the card's runs when its work ended
     expect(ended).toEqual([c.id]);
@@ -629,10 +629,10 @@ describe('a worktree per card', () => {
   /** A card whose work landed from the only clone, which another card holds now. */
   async function landedWithoutClone() {
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'clones' });
+    setup({ ...generic, land: 'main', workstations: 'clones' });
     const c = manual();
     await workers.start(c.id);
-    const clone = board.row(c.id).workspace!;
+    const clone = board.row(c.id).workstation!;
     const branch = board.row(c.id).branch!;
     commitIn(clone, 'c.ts', 'C');
     const s = runtime.last;
@@ -643,7 +643,7 @@ describe('a worktree per card', () => {
     s.emit({ type: 'idle' });
     const d = board.create({ title: 'Andere Karte', x: 0, y: 200 });
     await workers.start(d.id);
-    expect(board.row(d.id).workspace).toBe(clone);
+    expect(board.row(d.id).workstation).toBe(clone);
     return { c, d, clone, branch };
   }
 
@@ -653,7 +653,7 @@ describe('a worktree per card', () => {
     await workers.prepared();
     const f = runtime.last;
     expect(f.spec.resume).toBe('sess-1');
-    const tree = board.row(c.id).workspace!;
+    const tree = board.row(c.id).workstation!;
     expect(f.spec.cwd).toBe(tree);
     expect(tree).toBe(join(dir, 'ws', 'follow-up', c.id.slice(0, 8)));
     expect(git(tree, 'rev-parse', 'HEAD')).toBe(git(clone, 'rev-parse', branch));
@@ -667,7 +667,7 @@ describe('a worktree per card', () => {
     f.emit({ type: 'idle' });
     expect(f.closed).toBe(true);
     expect(board.item(c.id)!.finishing).toBeUndefined();
-    expect(board.row(c.id).workspace).toBeNull();
+    expect(board.row(c.id).workstation).toBeNull();
     // removed in the background, its entry in the clone pruned
     await until(() => !existsSync(tree) && gitOrNull(clone, 'worktree', 'list')?.split('\n').length === 1);
   });
@@ -677,13 +677,13 @@ describe('a worktree per card', () => {
     workers.message(c.id, 'Läuft die Demo noch?');
     await workers.prepared();
     const f = runtime.last;
-    const tree = board.row(c.id).workspace!;
+    const tree = board.row(c.id).workstation!;
     expect(f.call('need_clone', {})).toContain('Recorded');
     f.emit({ type: 'idle' });
     expect(f.closed).toBe(true);
     await until(() => !existsSync(tree));
-    expect(board.row(c.id).workspace).toBeNull();
-    expect(board.item(c.id)).toMatchObject({ state: 'live', finishing: true, followUp: true, waitsForClone: true, statusLine: 'Wartet auf Workspace' });
+    expect(board.row(c.id).workstation).toBeNull();
+    expect(board.item(c.id)).toMatchObject({ state: 'live', finishing: true, followUp: true, waitsForClone: true, statusLine: 'Wartet auf Workstation' });
     // the owner's words meanwhile wait for it
     workers.message(c.id, 'Und die Untertitel?');
     expect(runtime.last).toBe(f);
@@ -726,13 +726,13 @@ describe('a worktree per card', () => {
 
   test('a worker whose remaining work needs the new code waits for the restart and goes on after it', async () => {
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'worktrees' });
+    setup({ ...generic, land: 'main', workstations: 'worktrees' });
     const restarting = (b: Board) =>
-      new Workers({ board: b, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'worktrees' }, restartsFor: () => 'obeya' });
+      new Workers({ board: b, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, restartsFor: () => 'obeya' });
     setWorkers(restarting(board));
     const c = manual();
     await workers.start(c.id);
-    const wc = board.row(c.id).workspace!;
+    const wc = board.row(c.id).workstation!;
     commitIn(wc, 'c.ts', 'C');
     const s = runtime.last;
     s.emit({ type: 'session', id: 'sess-1' });
@@ -758,7 +758,7 @@ describe('a worktree per card', () => {
     expect(resumed.inbox[0]).toContain('runs main with your change now');
     resumed.emit({ type: 'idle' });
     expect(resumed.closed).toBe(true);
-    expect(board.row(c.id).workspace).toBeNull();
+    expect(board.row(c.id).workstation).toBeNull();
     expect(board.row(c.id).landed).toBeNull();
     await after.freed();
   });
@@ -783,7 +783,7 @@ describe('a worktree per card', () => {
   test('work approved while its worker ends a reply lands, and the worker still hears so and finishes what remains', async () => {
     const c = manual();
     await workers.start(c.id);
-    const wc = board.row(c.id).workspace!;
+    const wc = board.row(c.id).workstation!;
     commitIn(wc, 'c.ts', 'C');
     const s = runtime.last;
     await s.call('ready_for_review', { summary: 'S', demo: artifact() });
@@ -797,18 +797,18 @@ describe('a worktree per card', () => {
     s.emit({ type: 'text', text: 'Nothing is published yet.' });
     s.emit({ type: 'idle', more: true });
     expect(s.closed).toBe(false);
-    expect(board.row(c.id).workspace).toBe(wc);
+    expect(board.row(c.id).workstation).toBe(wc);
     expect(board.item(c.id)!.finishing).toBe(true);
     s.emit({ type: 'tool', name: 'Bash', input: { command: 'node scripts/publish.ts' } });
     s.emit({ type: 'idle' });
     expect(s.closed).toBe(true);
-    expect(board.row(c.id).workspace).toBeNull();
+    expect(board.row(c.id).workstation).toBeNull();
   });
 
   test('stopping a worker that finishes after the landing frees its worktree; the card stays live', async () => {
     const c = manual();
     await workers.start(c.id);
-    commitIn(board.row(c.id).workspace!, 'c.ts', 'C');
+    commitIn(board.row(c.id).workstation!, 'c.ts', 'C');
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
     runtime.last.emit({ type: 'idle' });
     await workers.approve(c.id);
@@ -816,14 +816,14 @@ describe('a worktree per card', () => {
     expect(state(c.id)).toBe('live');
     expect(runtime.last.closed).toBe(true);
     await workers.freed();
-    expect(board.row(c.id).workspace).toBeNull();
+    expect(board.row(c.id).workstation).toBeNull();
     expect(git(main, 'worktree', 'list').split('\n')).toHaveLength(1);
   });
 
   test('a turn after the landing that an error cut off is tried once more, then goes to the owner; the card does not finish', async () => {
     const c = manual();
     await workers.start(c.id);
-    commitIn(board.row(c.id).workspace!, 'c.ts', 'C');
+    commitIn(board.row(c.id).workstation!, 'c.ts', 'C');
     const s = runtime.last;
     await s.call('ready_for_review', { summary: 'S', demo: artifact() });
     s.emit({ type: 'idle' });
@@ -853,7 +853,7 @@ describe('a worktree per card', () => {
   test('a worker that works on by itself after its failed turn went to the owner takes the question back, and the card stays live', async () => {
     const c = manual();
     await workers.start(c.id);
-    commitIn(board.row(c.id).workspace!, 'c.ts', 'C');
+    commitIn(board.row(c.id).workstation!, 'c.ts', 'C');
     const s = runtime.last;
     await s.call('ready_for_review', { summary: 'S', demo: artifact() });
     s.emit({ type: 'idle' });
@@ -867,10 +867,10 @@ describe('a worktree per card', () => {
     expect(state(c.id)).toBe('live');
   });
 
-  test('a worker that pauses after the landing for a restart it was told of keeps its workspace, and goes on after the restart', async () => {
+  test('a worker that pauses after the landing for a restart it was told of keeps its workstation, and goes on after the restart', async () => {
     const c = manual();
     await workers.start(c.id);
-    const wc = board.row(c.id).workspace!;
+    const wc = board.row(c.id).workstation!;
     commitIn(wc, 'c.ts', 'C');
     const s = runtime.last;
     s.emit({ type: 'session', id: 'sess-1' });
@@ -885,11 +885,11 @@ describe('a worktree per card', () => {
     expect(s.closed).toBe(false);
     expect(workers.busyCards()).toEqual([]);
     expect(board.item(c.id)!.finishing).toBe(true);
-    expect(board.row(c.id).workspace).toBe(wc);
+    expect(board.row(c.id).workstation).toBe(wc);
     expect(board.events(c.id).at(-1)).toMatchObject({ author: 'obeya', kind: 'state' });
 
     workers.shutdown();
-    const after = new Workers({ board: new Board(store, board.canvas, () => ({ docs: [doc], dirs: [] })), runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'worktrees' } });
+    const after = new Workers({ board: new Board(store, board.canvas, () => ({ docs: [doc], dirs: [] })), runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
     after.resumeAll();
     const resumed = runtime.last;
     expect(resumed).not.toBe(s);
@@ -898,15 +898,15 @@ describe('a worktree per card', () => {
     expect(resumed.inbox[0]).toContain('If you had paused for the restart, go on from there.');
     resumed.emit({ type: 'idle' });
     expect(resumed.closed).toBe(true);
-    expect(board.row(c.id).workspace).toBeNull();
+    expect(board.row(c.id).workstation).toBeNull();
     await after.freed();
   });
 
-  test('after the landing, a worker waiting for a deploy in the background keeps its workspace until the watcher wakes it', async () => {
-    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'worktrees' }, backgroundGrace: 5 }));
+  test('after the landing, a worker waiting for a deploy in the background keeps its workstation until the watcher wakes it', async () => {
+    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, backgroundGrace: 5 }));
     const c = manual();
     await workers.start(c.id);
-    const wc = board.row(c.id).workspace!;
+    const wc = board.row(c.id).workstation!;
     commitIn(wc, 'c.ts', 'C');
     const s = runtime.last;
     await s.call('ready_for_review', { summary: 'S', demo: artifact() });
@@ -921,19 +921,19 @@ describe('a worktree per card', () => {
     expect(s.closed).toBe(false);
     expect(workers.busyCards().length).toBeGreaterThan(0);
     expect(board.item(c.id)!.finishing).toBe(true);
-    expect(board.row(c.id).workspace).toBe(wc);
+    expect(board.row(c.id).workstation).toBe(wc);
     // the deploy is done: the watcher ends and wakes the worker, which does what remained
     s.emit({ type: 'background', tasks: [] });
     s.emit({ type: 'tool', name: 'Bash', input: { command: 'bun scripts/send.ts' } });
     s.emit({ type: 'idle', background: 0 });
     expect(s.closed).toBe(true);
-    expect(board.row(c.id).workspace).toBeNull();
+    expect(board.row(c.id).workstation).toBeNull();
   });
 
   test('a turn after the landing that an error cut off while a restart is due waits for the restart, which resumes it', async () => {
     const c = manual();
     await workers.start(c.id);
-    commitIn(board.row(c.id).workspace!, 'c.ts', 'C');
+    commitIn(board.row(c.id).workstation!, 'c.ts', 'C');
     const s = runtime.last;
     s.emit({ type: 'session', id: 'sess-1' });
     await s.call('ready_for_review', { summary: 'S', demo: artifact() });
@@ -949,17 +949,17 @@ describe('a worktree per card', () => {
     expect(s.closed).toBe(false);
     expect(board.item(c.id)!.finishing).toBe(true);
     workers.shutdown();
-    const after = new Workers({ board: new Board(store, board.canvas, () => ({ docs: [doc], dirs: [] })), runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'worktrees' } });
+    const after = new Workers({ board: new Board(store, board.canvas, () => ({ docs: [doc], dirs: [] })), runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
     after.resumeAll();
     expect(runtime.last).not.toBe(s);
     expect(runtime.last.spec.resume).toBe('sess-1');
   });
 
   test('a turn after the landing that the usage limit stopped waits for the limit and goes on; the card does not finish', async () => {
-    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'worktrees' }, limitMargin: 30 }));
+    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, limitMargin: 30 }));
     const c = manual();
     await workers.start(c.id);
-    commitIn(board.row(c.id).workspace!, 'c.ts', 'C');
+    commitIn(board.row(c.id).workstation!, 'c.ts', 'C');
     const s = runtime.last;
     await s.call('ready_for_review', { summary: 'S', demo: artifact() });
     s.emit({ type: 'idle' });
@@ -990,7 +990,7 @@ describe('a worktree per card', () => {
     const i = board.create({ idea: true, title: 'Groß', x: 0, y: 0 });
     board.work(i.id, { state: 'planned' });
     await workers.start(i.id);
-    const wi = board.row(i.id).workspace!;
+    const wi = board.row(i.id).workstation!;
     mkdirSync(join(wi, 'docs/plan'), { recursive: true });
     writeFileSync(join(wi, 'docs/plan/README.md'), 'x');
     commitIn(wi, 'docs/plan/gross.md', '# Groß');
@@ -1013,18 +1013,18 @@ describe('a worktree per card', () => {
   test('a stopped card keeps its worktree and picks it up again', async () => {
     const a = manual();
     await workers.start(a.id);
-    const wa = board.row(a.id).workspace!;
+    const wa = board.row(a.id).workstation!;
     writeFileSync(join(wa, 'draft.ts'), 'draft');
     await workers.stop(a.id);
     await workers.start(a.id);
-    expect(board.row(a.id).workspace).toBe(wa);
+    expect(board.row(a.id).workstation).toBe(wa);
     expect(git(wa, 'status', '--porcelain')).toContain('draft.ts');
   });
 
   test('a deleted card loses its worktree once nothing in it is uncommitted; its branch stays, and a restored card starts there again', async () => {
     const a = manual();
     await workers.start(a.id);
-    const wa = board.row(a.id).workspace!;
+    const wa = board.row(a.id).workstation!;
     const branch = board.row(a.id).branch!;
     commitIn(wa, 'a.ts', 'A');
     await workers.stop(a.id);
@@ -1037,13 +1037,13 @@ describe('a worktree per card', () => {
     board.restore(a.id);
     workers.restored(a.id);
     await workers.start(a.id);
-    expect(git(board.row(a.id).workspace!, 'log', '--format=%s', '-1')).toBe('A');
+    expect(git(board.row(a.id).workstation!, 'log', '--format=%s', '-1')).toBe('A');
   });
 
   test('a deleted card whose worktree holds uncommitted changes keeps it as it is', async () => {
     const a = manual();
     await workers.start(a.id);
-    const wa = board.row(a.id).workspace!;
+    const wa = board.row(a.id).workstation!;
     writeFileSync(join(wa, 'draft.ts'), 'draft');
     await workers.stop(a.id);
     board.remove(a.id);

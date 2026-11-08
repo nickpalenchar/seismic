@@ -90,7 +90,7 @@ the key: the legend says so, and once the key has been used the button is gone f
 browser).
 
 The buttons always fit: when the contents outgrow the bar (a wide sheet, a narrow window), it gives
-up in steps the logo's wordmark (the sign and chevron stay) and branch, then labels a few at a time, then the workspace pool and `?`, and in
+up in steps the logo's wordmark (the sign and chevron stay) and branch, then labels a few at a time, then the workstation pool and `?`, and in
 the smallest bar all but the sheets' buttons (the inbox's keeping its count) and the navigation's,
 which loses the canvas's name. The step is measured from the actual contents, since the same
 width may hold a short or a long branch, one clone or three.
@@ -122,7 +122,7 @@ lays it over the whole page down to the status bar, the microphone hidden behind
 "Project settings" under the canvas's name and holds what applies to this canvas alone, each change
 saved into the configuration at once and applied without a restart:
 
-- Models: for each group of agents (see Models and effort in Agents and workspaces) a harness,
+- Models: for each group of agents (see Models and effort in Agents and workstations) a harness,
   model and effort. Left open, each shows Configuration's value and follows it as it
   changes; a value chosen is the canvas's own. Running agents keep theirs; the next to start take it.
 - Code reviews: "Review the work", off unless turned on; once on, "Reviews happen" "Automatically,

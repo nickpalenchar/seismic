@@ -48,7 +48,7 @@ import { attachTo, imageFiles } from './shots';
 import { cardDraft, drafted, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, OBEYA_DRAFT, takesImages } from './draft';
 import { HoldToTalk, PushToTalk, SPACE_SHOWS_MS, TAP_MS, ToldList, usePushToTalk, useTold } from './voice';
 import { videoOf } from './spot';
-import { CardView, cardClass, shownState, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkspacesPill } from './parts';
+import { CardView, cardClass, shownState, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clampWidth, loadWidths, saveWidths, SHEET_W, type SheetWidths, widthsIn } from './sheetWidth';
 import { clock, failText, t } from './strings';
 import { loadPinned, NAV_CANVAS_MIN, NAV_W, NavPill, NavSheet, savePinned } from './nav';
@@ -1015,21 +1015,21 @@ function Canvas({
   }, []);
 
   /**
-   * "Give to the waiting card" in the Workspaces list: the card's clone goes to the card waiting longest once the
+   * "Give to the waiting card" in the Workstations list: the card's clone goes to the card waiting longest once the
    * undo window is through; "Undo" (here or in its row) takes that back meanwhile.
    */
-  const keepWorkspace = useCallback(async (i: Item) => {
+  const keepWorkstation = useCallback(async (i: Item) => {
     try {
-      await api.act(i.id, { action: 'keepWorkspace' });
-      showAck(t.workspaces.keptBack(plain(i.title)));
+      await api.act(i.id, { action: 'keepWorkstation' });
+      showAck(t.workstations.keptBack(plain(i.title)));
     } catch (e) {
       showAck(e instanceof ApiError && e.code === 'notEvictable' ? t.voice.tooLate : failText(e));
     }
   }, []);
-  const takeWorkspace = useCallback(async (i: Item) => {
+  const takeWorkstation = useCallback(async (i: Item) => {
     try {
-      await api.act(i.id, { action: 'takeWorkspace' });
-      showAck(t.workspaces.taken(plain(i.title)), () => keepWorkspace(i), EVICT_HOLD_MS);
+      await api.act(i.id, { action: 'takeWorkstation' });
+      showAck(t.workstations.taken(plain(i.title)), () => keepWorkstation(i), EVICT_HOLD_MS);
     } catch (e) {
       fail(e);
     }
@@ -2310,7 +2310,7 @@ function Canvas({
             {oldBun && <OldBunPill version={oldBun} />}
             {online && update && restart?.reason !== 'update' && <UpdatePill update={update} />}
             {online && source && <SourcePill source={source} />}
-            {snapshot.workspaces && <WorkspacesPill pools={snapshot.workspaces} canvas={snapshot.canvas} canvases={canvases} items={items} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => location.assign(cardPath(c, card))} onTake={takeWorkspace} onKeep={keepWorkspace} />}
+            {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} canvas={snapshot.canvas} canvases={canvases} items={items} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => location.assign(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
             <button className={csOn ? 'pill kpill cs-pill on' : 'pill kpill cs-pill'} title={t.canvasSettings.button} aria-label={t.canvasSettings.button} aria-expanded={csOn} onClick={toggleCanvasSettings}>
               <BarIcon icon={Settings} />
               {configProblems > 0 && (

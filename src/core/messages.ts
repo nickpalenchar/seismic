@@ -165,23 +165,23 @@ const de = {
     merged: 'Pull Request gemergt. Live.',
     /** A workstream in its pull request whose box the plan doc on the default branch ticks off, though the pull request's watcher saw no merge. */
     mergedTicked: 'Im Plan-Doc auf dem Hauptbranch abgehakt: Pull Request gilt als gemergt. Live.',
-    /** A workstream no worker was on (stopped) is ticked off in its plan doc: its workspace goes back to the pool. */
-    tickedFreed: 'Im Plan-Doc abgehakt: Workspace freigegeben.',
-    /** A workstream no worker was on (stopped) is no longer in the plan doc on the default branch: its workspace goes back to the pool. */
-    goneFreed: 'Nicht mehr im Plan-Doc auf dem Hauptbranch: Workspace freigegeben.',
-    /** The card's workspace left the pool, its folder moved or deleted by hand; a card at work is planned again. */
-    workspaceGone: (path: string, planned: boolean) =>
-      `Den Workspace ${path} gibt es nicht mehr: freigegeben${planned ? ', die Karte ist wieder geplant' : ''}. Der nächste Start nimmt einen anderen.`,
+    /** A workstream no worker was on (stopped) is ticked off in its plan doc: its workstation goes back to the pool. */
+    tickedFreed: 'Im Plan-Doc abgehakt: Workstation freigegeben.',
+    /** A workstream no worker was on (stopped) is no longer in the plan doc on the default branch: its workstation goes back to the pool. */
+    goneFreed: 'Nicht mehr im Plan-Doc auf dem Hauptbranch: Workstation freigegeben.',
+    /** The card's workstation left the pool, its folder moved or deleted by hand; a card at work is planned again. */
+    workstationGone: (path: string, planned: boolean) =>
+      `Die Workstation ${path} gibt es nicht mehr: freigegeben${planned ? ', die Karte ist wieder geplant' : ''}. Der nächste Start nimmt eine andere.`,
     prClosed: 'Pull Request ohne Merge geschlossen.',
     prClosedQuestion: 'Der Pull Request wurde geschlossen, ohne gemergt zu werden. Wie geht es weiter?',
     reopen: 'Neu eröffnen',
     discardWork: 'Die Arbeit verwerfen',
     stopped: 'Gestoppt.',
-    /** The owner took the card's clone from it for a card waiting for one (the Workspaces list). */
-    evicting: 'Gibt den Workspace ab …',
+    /** The owner took the card's clone from it for a card waiting for one (the Workstations list). */
+    evicting: 'Gibt die Workstation ab …',
     evicted: (path: string) =>
-      `Workspace entzogen: ${path} geht an eine wartende Aufgabe. Nicht committete Arbeit liegt als Commit auf dem Branch; beim nächsten Start ist sie wieder da, als nicht committete Änderungen.`,
-    evictFailed: (why: string) => `Der Workspace ließ sich nicht abgeben (${why}); die Aufgabe ist gestoppt und behält ihn.`,
+      `Workstation entzogen: ${path} geht an eine wartende Aufgabe. Nicht committete Arbeit liegt als Commit auf dem Branch; beim nächsten Start ist sie wieder da, als nicht committete Änderungen.`,
+    evictFailed: (why: string) => `Die Workstation ließ sich nicht abgeben (${why}); die Aufgabe ist gestoppt und behält sie.`,
     /** The owner paused the worker at a safe point: it brings its work there first. */
     pausing: 'Hält an, sobald die Arbeit an einem sicheren Punkt ist.',
     /** The owner paused the worker, and let it go on again. */
@@ -203,9 +203,9 @@ const de = {
       card: (title: string, met: Awaited, state: AwaitedState) =>
         `„${title}“ ${{ reached: state === 'done' ? 'ist erledigt' : 'wartet auf dich', gone: 'ist nicht mehr da', archived: 'ist archiviert', stopped: 'wurde gestoppt', dropped: 'wurde verworfen' }[met]}`,
     },
-    parked: 'App im Workspace gestoppt, solange die Karte wartet. Der Agent startet sie wieder, wenn er sie braucht.',
-    parkKept: 'Die App im Workspace läuft weiter, während die Karte wartet: Sie hält Daten, die bleiben sollen. Soll sie trotzdem gestoppt werden, sag es dem Agenten.',
-    parkFailed: (output: string) => `Die App im Workspace zu stoppen, ist fehlgeschlagen: ${output}`,
+    parked: 'App in der Workstation gestoppt, solange die Karte wartet. Der Agent startet sie wieder, wenn er sie braucht.',
+    parkKept: 'Die App in der Workstation läuft weiter, während die Karte wartet: Sie hält Daten, die bleiben sollen. Soll sie trotzdem gestoppt werden, sag es dem Agenten.',
+    parkFailed: (output: string) => `Die App in der Workstation zu stoppen, ist fehlgeschlagen: ${output}`,
     /** The page the owner's browser gets for a card whose app no longer runs. */
     appGone: 'Die App dieser Karte läuft nicht mehr. Soll der Agent sie wieder starten, sag es ihm auf der Karte.',
     stoppedPrOpen: (n: number) => `Gestoppt. Pull Request #${n} bleibt offen.`,
@@ -260,11 +260,11 @@ const de = {
     landingOverlap: (subjects: string[], files: string[]) => `Auf main gelandet: ${subjects.join('; ')}. Überschneidung: ${files.join(', ')}. Der Agent hört es mit seinem nächsten Zug und entscheidet, ob er jetzt rebasen möchte.`,
     waitsForRestart: 'Wartet auf den Neustart von Seismic mit der neuen Version',
     needsClone: 'Braucht für die Antwort einen vollen Klon',
-    waitsForWorkspace: 'Wartet auf Workspace',
+    waitsForWorkstation: 'Wartet auf Workstation',
     waitsForClone: 'Die Nachfrage wartet auf den nächsten freien Klon und geht dann von selbst weiter.',
     cloneFree: 'Ein Klon ist frei: Der Agent antwortet dort weiter.',
-    preparingWorkspace: 'Bereitet den Workspace vor …',
-    workspaceFailed: (detail: string) => `Der Workspace ließ sich nicht vorbereiten: ${detail}`,
+    preparingWorkstation: 'Bereitet die Workstation vor …',
+    workstationFailed: (detail: string) => `Die Workstation ließ sich nicht vorbereiten: ${detail}`,
   },
   /** "Review PR #5" to Seismic: a review card for someone outside's pull request. */
   review: {
@@ -408,9 +408,9 @@ const de = {
     togetherStarts: 'Gemeinsam mit den anderen Workstreams eingeplant; startet jetzt.',
     planned: (started: number, of: number) => `Eingeplant: ${started} von ${of} Workstreams starten jetzt, die anderen warten.`,
     says: (why: string) => `Seismic: ${why}`,
-    workspaceFree: 'Ein Workspace ist frei; es geht los.',
-    /** A card whose workspace the owner gave to another waits in the queue for the next one. */
-    requeued: 'Wartet auf den nächsten freien Workspace und macht dann auf ihrem Branch weiter.',
+    workstationFree: 'Eine Workstation ist frei; es geht los.',
+    /** A card whose workstation the owner gave to another waits in the queue for the next one. */
+    requeued: 'Wartet auf die nächste freie Workstation und macht dann auf ihrem Branch weiter.',
     slotFree: 'Ein Rechner hat wieder einen Slot frei; es geht los.',
     canvasPaused: 'Die Agenten dieses Projekts sind pausiert: Die Aufgabe startet, sobald du sie fortsetzt.',
     canvasPlays: 'Die Agenten dieses Projekts laufen wieder; es geht los.',
@@ -419,9 +419,9 @@ const de = {
     waitedDoneTogether: 'Seismic: Worauf sie gewartet hat, ist erledigt; prüft sie zusammen mit den anderen Aufgaben, die jetzt frei sind.',
     freedStarts: 'Zusammen mit den anderen frei gewordenen Aufgaben geprüft; startet jetzt.',
     freedFailed: (why: string) => `Seismic konnte die frei gewordenen Aufgaben nicht gemeinsam prüfen (${why}) und prüft sie einzeln.`,
-    noWorkspace: 'Kein Workspace frei: Alle sind belegt oder es ist keiner eingerichtet. Die Aufgabe startet, sobald einer frei wird.',
-    dirtyWorkspaces: 'Kein Workspace frei: Jeder freie hat noch nicht committete Änderungen. Die Aufgabe startet, sobald einer sauber ist.',
-    noSlot: 'Kein Slot frei: Auf jedem Rechner mit freiem Workspace arbeiten so viele Agenten, wie er Slots hat. Die Aufgabe startet, sobald einer fertig ist.',
+    noWorkstation: 'Keine Workstation frei: Alle sind belegt oder es ist keine eingerichtet. Die Aufgabe startet, sobald eine frei wird.',
+    dirtyWorkstations: 'Keine Workstation frei: Jede freie hat noch nicht committete Änderungen. Die Aufgabe startet, sobald eine sauber ist.',
+    noSlot: 'Kein Slot frei: Auf jedem Rechner mit freier Workstation arbeiten so viele Agenten, wie er Slots hat. Die Aufgabe startet, sobald einer fertig ist.',
     ruleTaken: (rule: string) => `Regel aufgenommen: „${rule}“`,
     revised: 'Vorschlag überarbeitet.',
     reviseFailed: (why: string) => `Überarbeiten ging nicht: ${why}`,
@@ -691,19 +691,19 @@ const en: Messages = {
     prototypeDiscardedOnIdea: (title: string) => `Prototype “${title}” discarded; it is in the archive with its demo.`,
     merged: 'Pull request merged. Live.',
     mergedTicked: 'Ticked off in the plan doc on the default branch: the pull request counts as merged. Live.',
-    tickedFreed: 'Ticked off in the plan doc: workspace freed.',
-    goneFreed: 'No longer in the plan doc on the default branch: workspace freed.',
-    workspaceGone: (path: string, planned: boolean) =>
-      `The workspace ${path} no longer exists: freed${planned ? ', the card is planned again' : ''}. The next start takes another.`,
+    tickedFreed: 'Ticked off in the plan doc: workstation freed.',
+    goneFreed: 'No longer in the plan doc on the default branch: workstation freed.',
+    workstationGone: (path: string, planned: boolean) =>
+      `The workstation ${path} no longer exists: freed${planned ? ', the card is planned again' : ''}. The next start takes another.`,
     prClosed: 'Pull request closed without a merge.',
     prClosedQuestion: 'The pull request was closed without being merged. How should it go on?',
     reopen: 'Reopen it',
     discardWork: 'Discard the work',
     stopped: 'Stopped.',
-    evicting: 'Giving up the workspace …',
+    evicting: 'Giving up the workstation …',
     evicted: (path: string) =>
-      `Workspace taken away: ${path} goes to a waiting task. Uncommitted work is kept in a commit on the branch; at the next start it is back, as uncommitted changes.`,
-    evictFailed: (why: string) => `The workspace could not be given up (${why}); the task is stopped and keeps it.`,
+      `Workstation taken away: ${path} goes to a waiting task. Uncommitted work is kept in a commit on the branch; at the next start it is back, as uncommitted changes.`,
+    evictFailed: (why: string) => `The workstation could not be given up (${why}); the task is stopped and keeps it.`,
     pausing: 'Pausing once the work is at a safe point.',
     pausedByOwner: 'Paused.',
     resumedByOwner: 'Resumed.',
@@ -718,9 +718,9 @@ const en: Messages = {
       card: (title: string, met: Awaited, state: AwaitedState) =>
         `“${title}” ${{ reached: state === 'done' ? 'is done' : 'waits for you', gone: 'is gone', archived: 'was archived', stopped: 'was stopped', dropped: 'was dropped' }[met]}`,
     },
-    parked: 'Stopped the app in the workspace while the card waits. The agent starts it again when it needs it.',
-    parkKept: 'The app in the workspace keeps running while the card waits: it holds data that should stay. To have it stopped anyway, tell the agent.',
-    parkFailed: (output: string) => `Stopping the app in the workspace failed: ${output}`,
+    parked: 'Stopped the app in the workstation while the card waits. The agent starts it again when it needs it.',
+    parkKept: 'The app in the workstation keeps running while the card waits: it holds data that should stay. To have it stopped anyway, tell the agent.',
+    parkFailed: (output: string) => `Stopping the app in the workstation failed: ${output}`,
     /** The page the owner's browser gets for a card whose app no longer runs. */
     appGone: 'The app of this card no longer runs. To have the agent start it again, tell it on the card.',
     stoppedPrOpen: (n: number) => `Stopped. Pull request #${n} stays open.`,
@@ -770,11 +770,11 @@ const en: Messages = {
     landingOverlap: (subjects: string[], files: string[]) => `Landed on main: ${subjects.join('; ')}. Overlapping files: ${files.join(', ')}. The agent hears this on its next turn and decides whether to rebase now.`,
     waitsForRestart: 'Waits for Seismic to restart with the new version',
     needsClone: 'Needs a full clone to answer',
-    waitsForWorkspace: 'Waiting for a workspace',
+    waitsForWorkstation: 'Waiting for a workstation',
     waitsForClone: 'The follow-up waits for the next free clone and then goes on by itself.',
     cloneFree: 'A clone is free: the agent goes on answering there.',
-    preparingWorkspace: 'Preparing the workspace …',
-    workspaceFailed: (detail: string) => `The workspace could not be prepared: ${detail}`,
+    preparingWorkstation: 'Preparing the workstation …',
+    workstationFailed: (detail: string) => `The workstation could not be prepared: ${detail}`,
   },
   review: {
     failed: (pr: string, why: string) => `No review card for PR ${/^\d+$/.test(pr) ? `#${pr}` : pr}: ${why}`,
@@ -905,8 +905,8 @@ const en: Messages = {
     togetherStarts: 'Planned together with the other workstreams; starts now.',
     planned: (started: number, of: number) => `Planned: ${started} of ${of} workstreams start now, the others wait.`,
     says: (why: string) => `Seismic: ${why}`,
-    workspaceFree: 'A workspace is free; it starts.',
-    requeued: 'Waits for the next free workspace and then goes on on its branch.',
+    workstationFree: 'A workstation is free; it starts.',
+    requeued: 'Waits for the next free workstation and then goes on on its branch.',
     slotFree: 'A machine has a free slot again; it starts.',
     canvasPaused: "This project's agents are paused: the task starts once you resume them.",
     canvasPlays: "This project's agents run again; it starts.",
@@ -915,9 +915,9 @@ const en: Messages = {
     waitedDoneTogether: 'Seismic: what it waited for is done; checks it together with the other tasks free now.',
     freedStarts: 'Checked together with the other tasks freed at the same time; starts now.',
     freedFailed: (why: string) => `Seismic could not check the freed tasks together (${why}); it checks them one by one.`,
-    noWorkspace: 'No workspace free: all are taken or none is set up. The task starts as soon as one is free.',
-    dirtyWorkspaces: 'No workspace free: every free one has uncommitted changes. The task starts as soon as one is clean.',
-    noSlot: 'No slot free: every machine with a free workspace has as many agents at work as it has slots. The task starts as soon as one is done.',
+    noWorkstation: 'No workstation free: all are taken or none is set up. The task starts as soon as one is free.',
+    dirtyWorkstations: 'No workstation free: every free one has uncommitted changes. The task starts as soon as one is clean.',
+    noSlot: 'No slot free: every machine with a free workstation has as many agents at work as it has slots. The task starts as soon as one is done.',
     ruleTaken: (rule: string) => `Rule added: “${rule}”`,
     revised: 'Proposal revised.',
     reviseFailed: (why: string) => `Revising did not work: ${why}`,

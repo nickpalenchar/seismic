@@ -238,9 +238,9 @@ of a code review (see Code reviews in Card lifecycle) stand in the card's Review
 element. What the owner chose stands above the field like a quote and goes out with its one Send, the
 words beside it.
 
-Under a task's title stand its branch (and plan doc) and the size of its change ("+120 −30 in 5 files"; where the card shows its change list, the size stands below the list instead): before landing the workspace against where its base branch was, uncommitted and new files
+Under a task's title stand its branch (and plan doc) and the size of its change ("+120 −30 in 5 files"; where the card shows its change list, the size stands below the list instead): before landing the workstation against where its base branch was, uncommitted and new files
 included; after, what the landing put on the default branch (an archived card keeps it). A click
-shows the whole diff over the page; "Copy path" copies the workspace's directory (`host:/dir` on
+shows the whole diff over the page; "Copy path" copies the workstation's directory (`host:/dir` on
 another machine). The owner rarely reads code, so it stays a quiet line.
 
 #### The files beside the demo
@@ -283,7 +283,7 @@ or the work changes it.
 
 Seismic serves only the files the card made or changed and images their Markdown shows, nothing else
 and no link the card made; on a branch it reads git's NUL-separated name list, as diff headers
-misread names with spaces (`x b/notes.md`). It reads from the workspace while there is one, else the
+misread names with spaces (`x b/notes.md`). It reads from the workstation while there is one, else the
 landed commit or branch (to open a landed card's file, the checkout's copy). Files are served like
 an HTML artifact (see The demo on the card), except a PDF: no browser shows one in a sandboxed frame
 or under a CSP sandbox, so it comes unsandboxed with `nosniff` and a policy allowing nothing
@@ -295,14 +295,14 @@ under the address of its version, so a browser caches it for good.
 
 #### Trying the app by hand
 
-"Open app ↗" at the end of the branch line opens the app running in the card's workspace in a new
+"Open app ↗" at the end of the branch line opens the app running in the card's workstation in a new
 tab; a plain link, as it is rarely wanted. The worker reports the address with `app_running(url)`
-(an empty url when it stops it); the card keeps it until cleared, parked or the workspace goes. The
+(an empty url when it stops it); the card keeps it until cleared, parked or the workstation goes. The
 link shows only while the app answers (any HTTP answer, probed by the open card). It goes through
 Seismic, which keeps the app running at least 30 minutes after, so parking does not stop it under the
 owner.
 
-For a workspace on another machine (see Hosts) the probe and link go through an `ssh -L` forward of
+For a workstation on another machine (see Hosts) the probe and link go through an `ssh -L` forward of
 that one port to a system-picked free port here (never the same number, which a local clone's stack
 may need), made at the first probe, ended when the app is no longer offered or Seismic stops; its
 remote command waits on stdin so it dies with Seismic. A dropped forward is remade on the same port,
@@ -434,7 +434,7 @@ image.
   below waited unanswered until the start, so the owner could not talk a task over before deciding to
   start it. Typed words now get an answering agent's reply at once and the card stays planned.
   Rejected: turning the card into an idea on the first message (it changes what the card is and its
-  buttons, for what is a question); a worker started to answer (it needs a workspace, and starting is
+  buttons, for what is a question); a worker started to answer (it needs a workstation, and starting is
   the owner's decision).
 - **A planned card takes notes for its agent** (2026-10-30, GitHub issue #24): a scheduled task
   offered only to start it or to snooze it, so what the owner thought of meanwhile (what to watch

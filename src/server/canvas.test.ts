@@ -11,7 +11,7 @@ import { Store } from './db';
 import { readShared } from '../adapters';
 import { commandsOf } from './trust';
 import { artifact, FakeRuntime, gitRepo, heard, identify, noForge, until } from './testing';
-import { git, gitOrNull, planBaselineTag, HERE } from './workspaces';
+import { git, gitOrNull, planBaselineTag, HERE } from './workstations';
 import { type SkillPlace, Skills } from './skills';
 import { OBEYA_PLUGIN } from './demo';
 import { STALL_MS } from './stalls';
@@ -49,7 +49,7 @@ afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-// the timers' work done, and the workers it started at work in their workspaces
+// the timers' work done, and the workers it started at work in their workstations
 const settle = async () => {
   await new Promise((r) => setTimeout(r, 5));
   await Promise.all(canvas.repos.map((r) => r.workers.prepared()));
@@ -106,8 +106,8 @@ describe('a canvas with several repositories', () => {
     expect([home.repo, other.repo]).toEqual(['web', 'api']);
     await canvas.repoOf(other.id).workers.start(other.id);
     await canvas.repoOf(home.id).workers.start(home.id);
-    expect(canvas.board.row(other.id).workspace).toBe(join(dir, 'workspaces/produkt/api/1'));
-    expect(canvas.board.row(home.id).workspace).toBe(join(dir, 'workspaces/produkt/1'));
+    expect(canvas.board.row(other.id).workstation).toBe(join(dir, 'workspaces/produkt/api/1'));
+    expect(canvas.board.row(home.id).workstation).toBe(join(dir, 'workspaces/produkt/1'));
     expect(() => canvas.board.create({ title: 'X', x: 0, y: 0, repo: 'nope' })).toThrow();
   });
 
@@ -127,20 +127,20 @@ describe('a canvas with several repositories', () => {
 
   test("the snapshot counts each repository's clones by machine, the cards that hold one and those at work, and lists each clone with its card", async () => {
     const here = (cards: string[], busy: string[]) => ({
-      hosts: [{ name: HERE, here: true, slots: 1, total: 1, cards, busy, workspaces: [{ path: expect.any(String), ...(cards[0] ? { card: cards[0], title: 'Andere', takeable: true as const } : {}) }] }],
+      hosts: [{ name: HERE, here: true, slots: 1, total: 1, cards, busy, workstations: [{ path: expect.any(String), ...(cards[0] ? { card: cards[0], title: 'Andere', takeable: true as const } : {}) }] }],
     });
-    expect(canvas.board.snapshot().workspaces).toEqual([
+    expect(canvas.board.snapshot().workstations).toEqual([
       { repo: 'web', ...here([], []) },
       { repo: 'api', ...here([], []) },
     ]);
     const other = canvas.board.create({ title: 'Andere', x: 0, y: 0, repo: 'api' });
     await canvas.repoOf(other.id).workers.start(other.id);
-    expect(canvas.board.snapshot().workspaces).toEqual([
+    expect(canvas.board.snapshot().workstations).toEqual([
       { repo: 'web', ...here([], []) },
       { repo: 'api', ...here([other.id], [other.id]) },
     ]);
     await canvas.repoOf(other.id).workers.stop(other.id);
-    expect(canvas.board.snapshot().workspaces![1]).toEqual({ repo: 'api', ...here([], []) });
+    expect(canvas.board.snapshot().workstations![1]).toEqual({ repo: 'api', ...here([], []) });
   });
 
   test("a stopped workstream of a repository after the first keeps its clone when Seismic starts again", async () => {
@@ -151,15 +151,15 @@ describe('a canvas with several repositories', () => {
     canvas = start();
     const w = canvas.board.snapshot().items.find((i) => i.label === 'W1' && i.repo === 'api')!;
     await canvas.repoOf(w.id).workers.start(w.id);
-    const clone = canvas.board.row(w.id).workspace!;
+    const clone = canvas.board.row(w.id).workstation!;
     writeFileSync(join(clone, 'x.ts'), 'export {}\n');
     git(clone, 'add', '.');
     git(clone, 'commit', '--quiet', '-m', 'X');
     await canvas.repoOf(w.id).workers.stop(w.id);
     canvas.shutdown();
     canvas = start();
-    expect(canvas.repoOf(w.id).workspaces.leasedBy(w.id)).toBe(clone);
-    expect(canvas.board.row(w.id).workspace).toBe(clone);
+    expect(canvas.repoOf(w.id).workstations.leasedBy(w.id)).toBe(clone);
+    expect(canvas.board.row(w.id).workstation).toBe(clone);
   });
 
   test('cards of different repositories never wait for each other', async () => {
@@ -415,8 +415,8 @@ test("the cards' workers run on their own runtime when one is given (a scratch S
   canvas.act(a.id, { action: 'start' });
   await settle();
   expect(item(a.id).state).toBe('working');
-  expect(workers.sessions.map((s) => s.spec.cwd)).toEqual([canvas.board.row(a.id).workspace!]);
-  expect(runtime.sessions.some((s) => s.spec.cwd === canvas.board.row(a.id).workspace)).toBe(false);
+  expect(workers.sessions.map((s) => s.spec.cwd)).toEqual([canvas.board.row(a.id).workstation!]);
+  expect(runtime.sessions.some((s) => s.spec.cwd === canvas.board.row(a.id).workstation)).toBe(false);
 });
 
 describe('where the settings do not say how work lands', () => {
@@ -431,7 +431,7 @@ describe('where the settings do not say how work lands', () => {
     expect(canvas.board.snapshot().canvas.repos[0]!.pullRequests).toBeUndefined();
     const card = canvas.board.create({ title: 'Readme', x: 0, y: 0 });
     await canvas.repos[0]!.workers.start(card.id);
-    const ws = canvas.board.row(card.id).workspace!;
+    const ws = canvas.board.row(card.id).workstation!;
     identify(ws);
     writeFileSync(join(ws, 'README.md'), 'Shop\n');
     git(ws, 'commit', '--quiet', '-am', 'Readme');
@@ -464,12 +464,12 @@ describe('many landings and agent starts at once', () => {
     canvas = new CanvasRuntime({ repos: [{ path: shop }] }, { store: new Store(':memory:'), home: dir, runtime, workerRuntime: workers, forge: noForge });
     const w = canvas.repos[0]!.workers;
     const cards = ['A', 'B', 'C', 'D', 'E', 'F'].map((title) => canvas.board.create({ title, x: 0, y: 0 }));
-    const sessionOf = (id: string) => workers.sessions.find((s) => s.spec.cwd === canvas.board.row(id).workspace);
+    const sessionOf = (id: string) => workers.sessions.find((s) => s.spec.cwd === canvas.board.row(id).workstation);
     // four handed over, each with a commit of its own
     for (const c of cards.slice(0, 4)) {
       await w.start(c.id);
       await until(() => !!sessionOf(c.id));
-      const ws = canvas.board.row(c.id).workspace!;
+      const ws = canvas.board.row(c.id).workstation!;
       writeFileSync(join(ws, `${c.title}.md`), `${c.title}\n`);
       git(ws, 'add', '-A');
       git(ws, 'commit', '--quiet', '-m', c.title);
@@ -520,7 +520,7 @@ describe("a repository's settings for this machine", () => {
     expect(canvas.board.snapshot().canvas.repos[0]!.pullRequests).toBe(true);
     const card = canvas.board.create({ title: 'Readme', x: 0, y: 0 });
     await canvas.repos[0]!.workers.start(card.id);
-    const ws = canvas.board.row(card.id).workspace!;
+    const ws = canvas.board.row(card.id).workstation!;
     // a worktree's config is the checkout's
     identify(shop);
     writeFileSync(join(ws, 'README.md'), 'Shop\n');
@@ -553,7 +553,7 @@ describe("a repository's settings for this machine", () => {
     expect(canvas.board.snapshot().canvas.repos[0]!.branch).toBe('release');
     const card = canvas.board.create({ title: 'A', x: 0, y: 0 });
     await canvas.repos[0]!.workers.start(card.id);
-    expect(git(canvas.board.row(card.id).workspace!, 'log', '-1', '--format=%s').trim()).toBe('Release');
+    expect(git(canvas.board.row(card.id).workstation!, 'log', '-1', '--format=%s').trim()).toBe('Release');
     settings = undefined;
     await canvas.settingsChanged();
     expect(canvas.board.snapshot().canvas.repos[0]!.branch).toBe('main');
@@ -702,7 +702,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     expect(r.adapter.app).toEqual({ run: 'bun dev' });
     const card = canvas.board.create({ title: 'Karte', x: 0, y: 0 });
     await r.workers.start(card.id);
-    // a worker in its workspace, and an agent that only reads in the checkout
+    // a worker in its workstation, and an agent that only reads in the checkout
     expect(runtime.last.spec).toMatchObject({ untrusted: true, system: expect.stringContaining("The repository's CLAUDE.md:\n\nRun the tests with bun test.") });
     const rev = canvas.board.canvas.repos[0]!.configRev ?? 0;
 
@@ -770,7 +770,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     expect(workers.last.spec.setting).toMatchObject({ model: 'opus', effort: 'high' });
   });
 
-  test("a repository's agents go by its own Claude Code configuration, not by the home repository's whose workspaces hold its own", async () => {
+  test("a repository's agents go by its own Claude Code configuration, not by the home repository's whose workstations hold its own", async () => {
     const api = join(dir, 'api');
     mkdirSync(join(api, '.claude'), { recursive: true });
     writeFileSync(join(api, '.claude/settings.json'), '{ "hooks": {} }\n');
@@ -802,7 +802,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     await canvas.settingsChanged();
     expect(canvas.pendingRestart()).toBeNull();
     const before = canvas.repos[0]!;
-    writeFileSync(join(shop, '.obeya/settings.json'), '{ "land": "main", "workspaces": "clones" }\n');
+    writeFileSync(join(shop, '.obeya/settings.json'), '{ "land": "main", "workstations": "clones" }\n');
     git(shop, 'commit', '--quiet', '-am', 'Clones');
     await canvas.settingsChanged();
     // the worker at work hears of it and pauses; the restart waits for it
@@ -811,7 +811,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     expect(canvas.repos[0]).toBe(before);
     session.emit({ type: 'idle' });
     await until(() => canvas.repos[0] !== before);
-    expect(canvas.repos[0]!.workspaces.mode).toBe('clones');
+    expect(canvas.repos[0]!.workstations.mode).toBe('clones');
     expect(canvas.pendingRestart()).toBeNull();
     expect(session.closed).toBe(true);
     expect(workers.last.spec.resume).toBe('sess-a');
@@ -876,7 +876,7 @@ describe('the configuration changed while the canvas runs', () => {
     expect(a.session.inbox.join()).not.toContain('restart');
     w.session.emit({ type: 'idle' });
     await until(() => canvas.repos[0] !== webBefore);
-    expect(canvas.repos[0]!.workspaces.list()).toHaveLength(2);
+    expect(canvas.repos[0]!.workstations.list()).toHaveLength(2);
     expect(canvas.repos[1]).toBe(apiBefore);
     expect(a.session.closed).toBe(false);
     expect(w.session.closed).toBe(true);
@@ -886,17 +886,17 @@ describe('the configuration changed while the canvas runs', () => {
   test('clones the configuration no longer names leave the pool: a free one at once, one a card holds once it gives it back', async () => {
     const own = join(dir, 'x-own');
     git(dir, 'clone', '--quiet', web, own);
-    open([{ path: web, settings: { land: 'pr' }, clones: 2, workspaces: [own] }]);
-    expect(canvas.repos[0]!.workspaces.list()).toHaveLength(3);
+    open([{ path: web, settings: { land: 'pr' }, clones: 2, workstations: [own] }]);
+    expect(canvas.repos[0]!.workstations.list()).toHaveLength(3);
     const w = await atWork('web', 'W');
-    const held = canvas.repos[0]!.workspaces.leasedBy(w.card.id)!;
-    const [made1, made2] = canvas.repos[0]!.workspaces.list().map((x) => x.path);
+    const held = canvas.repos[0]!.workstations.leasedBy(w.card.id)!;
+    const [made1, made2] = canvas.repos[0]!.workstations.list().map((x) => x.path);
     expect(held).toBe(made1!);
     const before = canvas.repos[0]!;
-    canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, workspaces: [own] }] });
+    canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, workstations: [own] }] });
     w.session.emit({ type: 'idle' });
     await until(() => canvas.repos[0] !== before);
-    const spaces = canvas.repos[0]!.workspaces;
+    const spaces = canvas.repos[0]!.workstations;
     expect(spaces.list().map((x) => x.path)).toEqual([held, own]);
     // the free clone Seismic made goes from disk at once, the one the card holds once it gives it back; the owner's stays
     await until(() => !existsSync(made2!));
@@ -907,20 +907,20 @@ describe('the configuration changed while the canvas runs', () => {
     expect(existsSync(join(own, '.git'))).toBe(true);
   });
 
-  test('the checkout among the workspaces stays out of them where work lands on its main, and is one where work goes out as pull requests', () => {
+  test('the checkout among the workstations stays out of them where work lands on its main, and is one where work goes out as pull requests', () => {
     const own = join(dir, 'x-own');
     git(dir, 'clone', '--quiet', web, own);
-    open([{ path: web, settings: { land: 'main' }, workspaces: [web, own] }]);
-    expect(canvas.repos[0]!.workspaces.list().map((x) => x.path)).toEqual([own]);
-    open([{ path: web, settings: { land: 'pr' }, workspaces: [web, own] }]);
-    expect(canvas.repos[0]!.workspaces.list().map((x) => x.path).sort()).toEqual([web, own].sort());
+    open([{ path: web, settings: { land: 'main' }, workstations: [web, own] }]);
+    expect(canvas.repos[0]!.workstations.list().map((x) => x.path)).toEqual([own]);
+    open([{ path: web, settings: { land: 'pr' }, workstations: [web, own] }]);
+    expect(canvas.repos[0]!.workstations.list().map((x) => x.path).sort()).toEqual([web, own].sort());
   });
 
-  test('a checkout listed as the only workspace where work lands on its main leaves the cards in worktrees, as without the list', async () => {
-    open([{ path: web, settings: { land: 'main' }, workspaces: [web] }]);
-    expect(canvas.repos[0]!.workspaces.mode).toBe('worktrees');
+  test('a checkout listed as the only workstation where work lands on its main leaves the cards in worktrees, as without the list', async () => {
+    open([{ path: web, settings: { land: 'main' }, workstations: [web] }]);
+    expect(canvas.repos[0]!.workstations.mode).toBe('worktrees');
     const w = await atWork('web', 'W');
-    expect(canvas.repos[0]!.workspaces.leasedBy(w.card.id)).not.toBe(web);
+    expect(canvas.repos[0]!.workstations.leasedBy(w.card.id)).not.toBe(web);
     expect(git(web, 'branch', '--show-current')).toBe('main');
   });
 
@@ -928,7 +928,7 @@ describe('the configuration changed while the canvas runs', () => {
     open([{ path: web, settings: { land: 'pr' }, clones: 2 }]);
     const v = await atWork('web', 'V');
     const w = await atWork('web', 'W');
-    const held = canvas.repos[0]!.workspaces.leasedBy(w.card.id)!;
+    const held = canvas.repos[0]!.workstations.leasedBy(w.card.id)!;
     const before = canvas.repos[0]!;
     canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 1 }] });
     v.session.emit({ type: 'idle' });
@@ -939,22 +939,22 @@ describe('the configuration changed while the canvas runs', () => {
     git(held, 'commit', '--quiet', '--allow-empty', '-m', 'work');
     git(held, 'push', '--quiet', 'origin', 'HEAD');
     await canvas.repos[0]!.workers.stop(w.card.id);
-    expect(canvas.repos[0]!.workspaces.leasedBy(w.card.id)).toBe(held);
+    expect(canvas.repos[0]!.workstations.leasedBy(w.card.id)).toBe(held);
     canvas.board.remove(w.card.id);
     await until(() => !existsSync(held));
-    expect(canvas.repos[0]!.workspaces.list().map((x) => x.card_id)).toEqual([v.card.id]);
+    expect(canvas.repos[0]!.workstations.list().map((x) => x.card_id)).toEqual([v.card.id]);
   });
 
   test('with no clones to create and none listed the pool is empty; gone over to worktrees, a card keeps its clone until it gives it back', async () => {
     open([{ path: web, settings: { land: 'pr' }, clones: 2 }]);
     const w = await atWork('web', 'W');
-    const [held, free] = canvas.repos[0]!.workspaces.list().map((x) => x.path) as [string, string];
+    const [held, free] = canvas.repos[0]!.workstations.list().map((x) => x.path) as [string, string];
     const before = canvas.repos[0]!;
     // the number emptied: the repository's settings say nothing, so it goes over to worktrees
     canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }] });
     w.session.emit({ type: 'idle' });
     await until(() => canvas.repos[0] !== before);
-    const spaces = canvas.repos[0]!.workspaces;
+    const spaces = canvas.repos[0]!.workstations;
     expect(spaces.mode).toBe('worktrees');
     expect(spaces.list().map((x) => x.path)).toEqual([held]);
     await until(() => !existsSync(free));
@@ -967,13 +967,13 @@ describe('the configuration changed while the canvas runs', () => {
   });
 
   test('clones set to 0 in a repository whose settings say clones: no clone is left', async () => {
-    open([{ path: web, settings: { land: 'pr', workspaces: 'clones' }, clones: 1 }]);
-    const [made] = canvas.repos[0]!.workspaces.list().map((x) => x.path) as [string];
+    open([{ path: web, settings: { land: 'pr', workstations: 'clones' }, clones: 1 }]);
+    const [made] = canvas.repos[0]!.workstations.list().map((x) => x.path) as [string];
     const before = canvas.repos[0]!;
-    canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr', workspaces: 'clones' }, clones: 0 }] });
+    canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr', workstations: 'clones' }, clones: 0 }] });
     await until(() => canvas.repos[0] !== before);
-    expect(canvas.repos[0]!.workspaces.mode).toBe('clones');
-    expect(canvas.repos[0]!.workspaces.list()).toEqual([]);
+    expect(canvas.repos[0]!.workstations.mode).toBe('clones');
+    expect(canvas.repos[0]!.workstations.list()).toEqual([]);
     await until(() => !existsSync(made));
   });
 
@@ -1032,7 +1032,7 @@ describe('the configuration changed while the canvas runs', () => {
     canvas.act(card.id, { action: 'start' });
     await until(() => workers.sessions.length === 1);
     const api_ = canvas.repos.find((r) => r.ref.id === 'api')!;
-    expect(workers.last.spec.cwd).toBe(api_.workspaces.leasedBy(card.id)!);
+    expect(workers.last.spec.cwd).toBe(api_.workstations.leasedBy(card.id)!);
     canvas.wakeDue(Date.now() + 120_000);
     expect(item(later.id).snoozed).toBeUndefined();
   });
@@ -1047,7 +1047,7 @@ describe('the configuration changed while the canvas runs', () => {
     expect(canvas.pendingRestart()?.repos).toEqual(['web']);
   });
 
-  /** A clone of the repository at `of`, which a configuration may list as a workspace of it. */
+  /** A clone of the repository at `of`, which a configuration may list as a workstation of it. */
   const cloneOf = (of: string, name: string) => {
     const path = join(dir, name);
     git(dir, 'clone', '--quiet', of, path);
@@ -1059,16 +1059,16 @@ describe('the configuration changed while the canvas runs', () => {
     const w = await atWork('web', 'W');
     const before = canvas.repos[0]!;
     const rev = canvas.board.canvas.configRev ?? 0;
-    // a clone of another repository listed for it: its workspaces refuse it as it starts
+    // a clone of another repository listed for it: its workstations refuse it as it starts
     const wrong = cloneOf(api, 'x-api');
     const errors = quiet();
-    canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 1, workspaces: [wrong] }] });
+    canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 1, workstations: [wrong] }] });
     w.session.emit({ type: 'idle' });
     await until(() => canvas.repos[0] !== before);
     errors.restore();
     expect(errors.lines.join('\n')).toContain(`the agents of ${web} do not start as the configuration has it now`);
     expect(canvas.board.canvas.repos.map((r) => r.id)).toEqual(['web']);
-    expect(canvas.repos[0]!.workspaces.list().map((x) => x.path)).toEqual(before.workspaces.list().map((x) => x.path));
+    expect(canvas.repos[0]!.workstations.list().map((x) => x.path)).toEqual(before.workstations.list().map((x) => x.path));
     expect(canvas.failures()).toEqual([{ canvas: 'produkt', repo: 'web', before: true, detail: expect.stringContaining(`${wrong} is not a clone of`) }]);
     expect(canvas.board.canvas.configRev).toBe(rev + 1);
     // its worker resumed where it paused
@@ -1078,7 +1078,7 @@ describe('the configuration changed while the canvas runs', () => {
     canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 2 }] });
     workers.last.emit({ type: 'idle' });
     await until(() => canvas.repos[0] !== now);
-    expect(canvas.repos[0]!.workspaces.list()).toHaveLength(2);
+    expect(canvas.repos[0]!.workstations.list()).toHaveLength(2);
     expect(canvas.failures()).toEqual([]);
     expect(canvas.board.canvas.configRev).toBe(rev + 2);
   });
@@ -1087,13 +1087,13 @@ describe('the configuration changed while the canvas runs', () => {
     const own = cloneOf(api, 'x-own');
     open([
       { path: web, settings: { land: 'pr' } },
-      { path: api, settings: { land: 'pr' }, workspaces: [own] },
+      { path: api, settings: { land: 'pr' }, workstations: [own] },
     ]);
     const a = await atWork('api', 'A');
     // the listed clone now belongs to another repository: the set-up before fails as well
     git(own, 'remote', 'set-url', 'origin', web);
     const errors = quiet();
-    canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' }, workspaces: [own], clones: 1 }] });
+    canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' }, workstations: [own], clones: 1 }] });
     a.session.emit({ type: 'idle' });
     await until(() => canvas.repos.length === 1);
     errors.restore();
@@ -1108,16 +1108,16 @@ describe('the configuration changed while the canvas runs', () => {
     expect(workers.sessions).toHaveLength(sessions);
     // the cause fixed, the configuration taken over again (a save, „Erneut versuchen“) starts it at once
     git(own, 'remote', 'set-url', 'origin', api);
-    canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' }, workspaces: [own], clones: 1 }] });
+    canvas.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' }, workstations: [own], clones: 1 }] });
     expect(canvas.board.canvas.repos.map((r) => r.id)).toEqual(['web', 'api']);
-    expect(canvas.repos[1]!.workspaces.list()).toHaveLength(2);
+    expect(canvas.repos[1]!.workstations.list()).toHaveLength(2);
     expect(canvas.failures()).toEqual([]);
     // the card works again, in its own repository
     expect(item(a.card.id).repoDown).toBeUndefined();
     canvas.act(a.card.id, { action: 'message', text: 'Weiter' });
     await until(() => workers.sessions.length > sessions);
     expect(workers.last.spec.resume).toBe('sess-A');
-    expect(workers.last.spec.cwd).toBe(canvas.repos[1]!.workspaces.leasedBy(a.card.id)!);
+    expect(workers.last.spec.cwd).toBe(canvas.repos[1]!.workstations.leasedBy(a.card.id)!);
   });
 });
 
@@ -1128,14 +1128,14 @@ describe('the canvases Seismic serves', () => {
     const api = repo('api', 'API');
     const shop = repo('shop', 'Shop');
     canvas.shutdown();
-    // a clone listed for web and one listed for shop that belong to api: their workspaces refuse them
+    // a clone listed for web and one listed for shop that belong to api: their workstations refuse them
     const forWeb = join(dir, 'x-web');
     const forShop = join(dir, 'x-shop');
     git(dir, 'clone', '--quiet', api, forWeb);
     git(dir, 'clone', '--quiet', api, forShop);
     const configs = [
-      { name: 'Web', repos: [{ path: web, settings: { land: 'pr' as const }, workspaces: [forWeb] }] },
-      { name: 'API', repos: [{ path: api, settings: { land: 'pr' as const } }, { path: shop, settings: { land: 'pr' as const }, workspaces: [forShop] }] },
+      { name: 'Web', repos: [{ path: web, settings: { land: 'pr' as const }, workstations: [forWeb] }] },
+      { name: 'API', repos: [{ path: api, settings: { land: 'pr' as const } }, { path: shop, settings: { land: 'pr' as const }, workstations: [forShop] }] },
     ];
     const store = new Store(':memory:');
     const errors = quiet();
@@ -1221,10 +1221,10 @@ test('a clone registered for a repository must be one of it', () => {
   const api = repo('api', 'API');
   git(dir, 'clone', '--quiet', api, join(dir, 'api-clone'));
   const deps = { store: new Store(':memory:'), home: dir, runtime: new FakeRuntime(), forge: noForge };
-  expect(() => new CanvasRuntime({ repos: [{ path: web, workspaces: [join(dir, 'api-clone')] }] }, deps)).toThrow('is not a clone of');
+  expect(() => new CanvasRuntime({ repos: [{ path: web, workstations: [join(dir, 'api-clone')] }] }, deps)).toThrow('is not a clone of');
   // the repository itself counts too, though it has no origin (where work lands on its main, it stays out of the pool)
-  canvas = new CanvasRuntime({ repos: [{ path: api, settings: { land: 'pr' }, workspaces: [api, join(dir, 'api-clone')] }] }, deps);
-  expect(canvas.repos[0]!.workspaces.list()).toHaveLength(2);
+  canvas = new CanvasRuntime({ repos: [{ path: api, settings: { land: 'pr' }, workstations: [api, join(dir, 'api-clone')] }] }, deps);
+  expect(canvas.repos[0]!.workstations.list()).toHaveLength(2);
 });
 
 test('clones of the repository count as its own whether their origin is over https or ssh', () => {
@@ -1239,8 +1239,8 @@ test('clones of the repository count as its own whether their origin is over htt
   git(clones[0]!, 'remote', 'set-url', 'origin', 'https://github.com/acme/shop');
   git(clones[1]!, 'remote', 'set-url', 'origin', 'ssh://git@github.com/acme/shop.git');
   git(clones[2]!, 'remote', 'set-url', 'origin', 'git@github.com:acme/shop.git');
-  canvas = new CanvasRuntime({ repos: [{ path: shop, workspaces: clones, settings: { land: 'pr' } }] }, { store: new Store(':memory:'), home: dir, runtime: new FakeRuntime(), forge: noForge });
-  expect(canvas.repos[0]!.workspaces.list()).toHaveLength(3);
+  canvas = new CanvasRuntime({ repos: [{ path: shop, workstations: clones, settings: { land: 'pr' } }] }, { store: new Store(':memory:'), home: dir, runtime: new FakeRuntime(), forge: noForge });
+  expect(canvas.repos[0]!.workstations.list()).toHaveLength(3);
 });
 
 test('canvas ids read well', () => {
@@ -1767,10 +1767,10 @@ describe('owner-drawn dependencies in the queue', () => {
     return x;
   }
 
-  test('a card waiting for a workspace that an arrow then holds is not ahead of its prerequisite, so the two never wait for each other', async () => {
+  test('a card waiting for a workstation that an arrow then holds is not ahead of its prerequisite, so the two never wait for each other', async () => {
     await atWork('Running');
     const a = canvas.board.create({ title: 'A', x: 0, y: 0 });
-    canvas.board.work(a.id, { queue: JSON.stringify({ workspace: 'none', since: new Date(Date.now() - 1000).toISOString() }) });
+    canvas.board.work(a.id, { queue: JSON.stringify({ workstation: 'none', since: new Date(Date.now() - 1000).toISOString() }) });
     await settle();
     const b = canvas.board.create({ title: 'B', x: 400, y: 0 });
     canvas.board.connect(b.id, a.id);
@@ -1826,7 +1826,7 @@ describe('owner-drawn dependencies in the queue', () => {
   test('an arrow drawn while a card is judged keeps it from waiting for the card the arrow holds', async () => {
     await atWork('Running');
     const a = canvas.board.create({ title: 'A', x: 0, y: 0 });
-    canvas.board.work(a.id, { queue: JSON.stringify({ workspace: 'none', since: new Date(Date.now() - 1000).toISOString() }) });
+    canvas.board.work(a.id, { queue: JSON.stringify({ workstation: 'none', since: new Date(Date.now() - 1000).toISOString() }) });
     const b = canvas.board.create({ title: 'B', x: 400, y: 0 });
     canvas.act(b.id, { action: 'start' });
     await until(() => estimate()?.inbox[0]);
@@ -1842,13 +1842,13 @@ describe('owner-drawn dependencies in the queue', () => {
     const b = canvas.board.create({ title: 'B', x: 0, y: 200 });
     const c = canvas.board.create({ title: 'C', x: 400, y: 0 });
     const since = new Date().toISOString();
-    for (const x of [a, b]) canvas.board.work(x.id, { queue: JSON.stringify({ workspace: 'none', since }) });
+    for (const x of [a, b]) canvas.board.work(x.id, { queue: JSON.stringify({ workstation: 'none', since }) });
     canvas.board.work(c.id, { queue: JSON.stringify({ behind: [a.id, b.id], reason: 'R', manualWait: [b.id], since }) });
     canvas.board.merge(a.id, [b.id], 'A and B');
     expect(canvas.board.row(c.id).queue).toBe(JSON.stringify({ behind: [a.id], reason: 'R', since }));
   });
 
-  test('a card started anyway waits for a workspace without an arrow holding it again', async () => {
+  test('a card started anyway waits for a workstation without an arrow holding it again', async () => {
     const x = await atWork('Running');
     const p = canvas.board.create({ title: 'Prerequisite', x: 0, y: 0 });
     const a = canvas.board.create({ title: 'A', x: 400, y: 0 });
@@ -1858,7 +1858,7 @@ describe('owner-drawn dependencies in the queue', () => {
     expect(item(a.id).queue).toMatchObject({ behind: [p.id], manualWait: [p.id] });
     canvas.act(a.id, { action: 'force' });
     await settle();
-    expect(item(a.id).queue).toMatchObject({ workspace: 'none', begun: true });
+    expect(item(a.id).queue).toMatchObject({ workstation: 'none', begun: true });
     await canvas.repoOf(x.id).workers.stop(x.id);
     await until(() => item(a.id).state === 'working');
   });
@@ -1872,16 +1872,16 @@ test('plan baselines default on, remain separate per plan, and the canvas toggle
     await canvas.repoOf(card.id).workers.start(card.id);
     const row = canvas.board.row(card.id);
     const tag = planBaselineTag(card.parent!);
-    expect(git(row.workspace!, 'config', '--get', `branch.${row.branch}.obeya-project-baseline`)).toBe(tag);
+    expect(git(row.workstation!, 'config', '--get', `branch.${row.branch}.obeya-project-baseline`)).toBe(tag);
     expect(canvas.board.events(card.id).some((e) => e.text.includes(tag))).toBe(true);
     await canvas.repoOf(card.id).workers.stop(card.id);
   }
   expect(planBaselineTag(a!.parent!)).not.toBe(planBaselineTag(b!.parent!));
   await canvas.apply({ name: 'Produkt', planBaselines: false, repos: canvas.repos.map((r) => r.config) });
   const repo = canvas.repoOf(a!.id);
-  const kept = repo.workspaces.list().find((w) => gitOrNull(w.path, 'branch', '--show-current') === canvas.board.row(a!.id).branch)!.path;
+  const kept = repo.workstations.list().find((w) => gitOrNull(w.path, 'branch', '--show-current') === canvas.board.row(a!.id).branch)!.path;
   git(kept, 'config', '--remove-section', `branch.${canvas.board.row(a!.id).branch}`);
   await repo.workers.start(a!.id);
   const row = canvas.board.row(a!.id);
-  expect(gitOrNull(row.workspace!, 'config', '--get', `branch.${row.branch}.obeya-project-baseline`)).toBeNull();
+  expect(gitOrNull(row.workstation!, 'config', '--get', `branch.${row.branch}.obeya-project-baseline`)).toBeNull();
 });

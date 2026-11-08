@@ -11,7 +11,7 @@ import { Store } from './db';
 import { serve } from './server';
 import { CANVAS_SETTINGS, canvasAgentSetting, canvasDefaults, canvasDefaultsView, ownerLanguage, saveCanvasDefaults } from './settings';
 import { asOwner, FakeRuntime, noForge, gitRepo, until } from './testing';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 let dir: string;
 let store: Store;
@@ -67,8 +67,13 @@ describe("Seismic's configuration", async () => {
     writeFileSync(file, JSON.stringify([{ projectBaselines: false, repos: [{ path: web }] }]));
     expect(readConfigFile(file)[0]!.planBaselines).toBe(false);
   });
+  test('still reads clones and settings under the old name of workstations, workspaces', async () => {
+    mkdirSync(join(dir, 'home'), { recursive: true });
+    writeFileSync(file, JSON.stringify([{ repos: [{ path: web, workspaces: ['/c/1'], settings: { workspaces: 'clones' } }] }]));
+    expect(readConfigFile(file)[0]!.repos[0]).toMatchObject({ workstations: ['/c/1'], settings: { workstations: 'clones' } });
+  });
   test('says what each canvas amounts to: its id, name, repositories and where their workers work', async () => {
-    api = gitRepo(join(dir, 'api-own'), { '.obeya/settings.json': '{ "workspaces": "clones" }\n' });
+    api = gitRepo(join(dir, 'api-own'), { '.obeya/settings.json': '{ "workstations": "clones" }\n' });
     const c = config('args', [{ name: 'Produkt', repos: [{ path: web }, { path: api }] }], ['produkt']);
     expect(c.view()).toMatchObject({ file, source: 'args', running: ['produkt'], restarting: false, server: { port: 4417, restarts: true } });
     const checked = await c.checkSaved();
@@ -78,8 +83,8 @@ describe("Seismic's configuration", async () => {
         id: 'produkt',
         name: 'Produkt',
         repos: [
-          { id: 'web', workspaces: 'worktrees' },
-          { id: 'api-own', workspaces: 'clones' },
+          { id: 'web', workstations: 'worktrees' },
+          { id: 'api-own', workstations: 'clones' },
         ],
       },
     ]);
@@ -87,11 +92,11 @@ describe("Seismic's configuration", async () => {
 
   test('a repository whose configuration names clones works in clones, whatever its settings say', async () => {
     const c = config('file', []);
-    const mode = async (r: object) => (await c.check([{ repos: [{ path: web, ...r }] }])).resolved[0]!.repos[0]!.workspaces;
+    const mode = async (r: object) => (await c.check([{ repos: [{ path: web, ...r }] }])).resolved[0]!.repos[0]!.workstations;
     expect(await mode({})).toBe('worktrees');
     expect(await mode({ clones: 2 })).toBe('clones');
-    expect(await mode({ workspaces: [api] })).toBe('clones');
-    expect(await mode({ settings: { workspaces: 'worktrees' }, clones: 1 })).toBe('clones');
+    expect(await mode({ workstations: [api] })).toBe('clones');
+    expect(await mode({ settings: { workstations: 'worktrees' }, clones: 1 })).toBe('clones');
   });
 
   test("says which clones of a running canvas's pool a configuration no longer names, and which card holds one", async () => {
@@ -103,10 +108,10 @@ describe("Seismic's configuration", async () => {
     const tree = join(dir, 'workspaces', 'web', '12345678');
     mkdirSync(tree, { recursive: true });
     writeFileSync(join(tree, '.git'), 'gitdir: elsewhere\n');
-    for (const p of [...made, own, tree, 'ssh://gpu/far/1', 'ssh://gpu/far/2']) store.addWorkspace('web', p);
+    for (const p of [...made, own, tree, 'ssh://gpu/far/1', 'ssh://gpu/far/2']) store.addWorkstation('web', p);
     store.setLease(made[2]!, board.create({ title: 'Login', x: 0, y: 0 }).id);
     const leaving = async (r: object) => (await c.check([{ repos: [{ path: web, ...r }] }])).resolved[0]!.repos[0]!.leaving;
-    expect(await leaving({ clones: 3, workspaces: [own], hosts: [{ name: 'gpu', ssh: 'gpu', root: '/far', clones: 2 }] })).toBeUndefined();
+    expect(await leaving({ clones: 3, workstations: [own], hosts: [{ name: 'gpu', ssh: 'gpu', root: '/far', clones: 2 }] })).toBeUndefined();
     expect(await leaving({ clones: 1, hosts: [{ name: 'gpu', ssh: 'gpu', root: '/far', clones: 1 }] })).toEqual([
       { path: own },
       { path: made[1]!, made: 2 },
@@ -114,7 +119,7 @@ describe("Seismic's configuration", async () => {
       { path: '/far/2', host: 'gpu', made: 2 },
     ]);
     // in worktrees, every clone leaves
-    expect((await leaving({ settings: { workspaces: 'worktrees' } }))?.map((x) => x.path)).toEqual([own, ...made, '/far/1', '/far/2']);
+    expect((await leaving({ settings: { workstations: 'worktrees' } }))?.map((x) => x.path)).toEqual([own, ...made, '/far/1', '/far/2']);
   });
 
   test('a folder without git is checked as a folder, and keeps neither clones nor hosts', async () => {
@@ -133,7 +138,7 @@ describe("Seismic's configuration", async () => {
     const c = config('file', []);
     const { problems } = (await c.check([
       { name: 'A', repos: [{ path: web }, { path: join(dir, 'nowhere') }] },
-      { name: 'B', repos: [{ path: api, workspaces: [join(dir, 'nowhere')] }] },
+      { name: 'B', repos: [{ path: api, workstations: [join(dir, 'nowhere')] }] },
       { name: 'Leer', repos: [] },
     ]));
     expect(problems.map(({ code, canvas, repo }) => ({ code, canvas, repo }))).toEqual([
@@ -165,7 +170,7 @@ describe("Seismic's configuration", async () => {
     const local = join(dir, 'web-local');
     git(dir, 'clone', '--quiet', web, local);
     const other = clone('api-clone', 'git@github.com:acme/api.git');
-    const check = async (workspaces: string[]) => (await c.check([{ repos: [{ path: web, workspaces }] }])).problems;
+    const check = async (workstations: string[]) => (await c.check([{ repos: [{ path: web, workstations }] }])).problems;
     expect(await check([web, ssh, https, local])).toEqual([]);
     expect(await check([ssh, other])).toMatchObject([{ code: 'otherClone', canvas: 0, repo: 0, detail: expect.stringContaining(other) }]);
     expect((await check([other])).filter(blocksSaving)).toHaveLength(1);
@@ -255,7 +260,7 @@ describe("Seismic's configuration", async () => {
     expect(existsSync(file)).toBe(false);
     expect(restarts).toBe(0);
 
-    expect((await c.save([{ name: ' ', repos: [{ path: web, workspaces: [' '], clones: 0 }, { path: api, clones: 2 }] }]))).toEqual({ restarting: true });
+    expect((await c.save([{ name: ' ', repos: [{ path: web, workstations: [' '], clones: 0 }, { path: api, clones: 2 }] }]))).toEqual({ restarting: true });
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual([{ repos: [{ path: web }, { path: api, clones: 2 }] }]);
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web }, { path: api, clones: 2 }] }]);
     expect(restarts).toBe(1);
@@ -312,7 +317,7 @@ describe("Seismic's configuration", async () => {
     // the language of the repository's demos, beside its site or alone
     (await c.save([{ repos: [{ path: web, settings: { demo: { language: 'en' } } }] }]));
     expect(c.repoSettings(web)).toEqual({ demo: { language: 'en' } });
-    expect((await c.save([{ repos: [{ path: web, settings: { workspaces: 'clones' } }] }]))).toEqual({ restarting: false, applied: true });
+    expect((await c.save([{ repos: [{ path: web, settings: { workstations: 'clones' } }] }]))).toEqual({ restarting: false, applied: true });
     expect((await c.save([{ repos: [{ path: web, clones: 2 }] }, { name: 'API', repos: [{ path: api }] }]))).toEqual({ restarting: false, applied: true });
     expect(taken).toEqual([['web'], ['web'], ['web'], ['web'], ['web', 'api']]);
     expect(restarts).toBe(0);
@@ -349,14 +354,14 @@ describe("Seismic's configuration", async () => {
       land: { value: 'main', source: 'detected' },
       checks: { value: [], source: 'default' },
       planDocs: { value: { dir: 'docs/plan' }, source: 'default' },
-      workspaces: { value: 'worktrees', source: 'default' },
+      workstations: { value: 'worktrees', source: 'default' },
       app: { run: { value: '', source: 'default' } },
     });
     // this machine's own come on top, in the draft: the values beside them stay what they would be without
     const own = gitRepo(join(dir, 'own'), { '.obeya/settings.json': '{ "land": "main", "checks": ["bun test"], "app": { "run": "bun dev" } }\n' });
     const ownValues = (await c.check([{ repos: [{ path: own, settings: { land: 'pr' } }] }])).resolved[0]!.repos[0]!.values;
     expect(ownValues).toMatchObject({ land: { value: 'main', source: 'repository' }, checks: { source: 'repository' }, planDocs: { source: 'default' }, app: { run: { source: 'repository' } } });
-    expect((await values({ clones: 1 })).workspaces).toEqual({ value: 'clones', source: 'clones' });
+    expect((await values({ clones: 1 })).workstations).toEqual({ value: 'clones', source: 'clones' });
     const problems = async (branch: string) => (await c.check([{ repos: [{ path: web, settings: { branch } }] }])).problems.map((p) => p.code);
     expect(await problems('main')).toEqual([]);
     expect(await problems('nope')).toEqual(['noBranch']);
@@ -593,8 +598,8 @@ describe("Seismic's configuration", async () => {
     bun.spawnSync = (cmd, ...rest) => (calls.push(`waits: ${cmd.join(' ')}`), (spawnSync as (...a: unknown[]) => unknown)(cmd, ...rest));
     let checked;
     try {
-      // web is a repository of two canvases and a workspace of its own, beside a clone of it
-      checked = await c.check([{ repos: [{ path: web, workspaces: [web, clone] }] }, { name: 'Zwei', repos: [{ path: web }, { path: api, settings: { branch: 'main' } }] }]);
+      // web is a repository of two canvases and a workstation of its own, beside a clone of it
+      checked = await c.check([{ repos: [{ path: web, workstations: [web, clone] }] }, { name: 'Zwei', repos: [{ path: web }, { path: api, settings: { branch: 'main' } }] }]);
     } finally {
       Object.assign(Bun, { spawn, spawnSync });
     }

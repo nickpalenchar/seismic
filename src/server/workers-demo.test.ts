@@ -15,18 +15,18 @@ import { board, dir, eachTest, manual, runtime, setup, setWorkers, spaces, state
 eachTest();
 
 describe('parking: the app of a card that waits for the owner', () => {
-  /** Workers whose settings stop the app by writing `parked.log` in the workspace, after a grace of `grace` ms. */
+  /** Workers whose settings stop the app by writing `parked.log` in the workstation, after a grace of `grace` ms. */
   const parking = (more: Partial<NonNullable<RepoAdapter['app']>> = {}, grace = 10, tryGrace?: number) => {
     setWorkers(new Workers({
       board,
       runtime,
-      workspaces: spaces,
-      adapter: { ...generic, land: 'main', workspaces: 'clones', app: { run: 'Start it with `bun run stack`.', stop: 'echo stopped >> parked.log', ...more } },
+      workstations: spaces,
+      adapter: { ...generic, land: 'main', workstations: 'clones', app: { run: 'Start it with `bun run stack`.', stop: 'echo stopped >> parked.log', ...more } },
       parkGrace: grace,
       ...(tryGrace !== undefined ? { tryGrace } : {}),
     }));
   };
-  const stopped = (id: string) => existsSync(join(board.row(id).workspace!, 'parked.log'));
+  const stopped = (id: string) => existsSync(join(board.row(id).workstation!, 'parked.log'));
   const handOver = async () => {
     const c = manual();
     await workers.start(c.id);
@@ -39,13 +39,13 @@ describe('parking: the app of a card that waits for the owner', () => {
     parking();
     const c = await handOver();
     expect(state(c.id)).toBe('waiting:demo');
-    expect(runtime.last.inbox[0]).toContain('While the card waits for the owner, Seismic stops the app in your workspace');
+    expect(runtime.last.inbox[0]).toContain('While the card waits for the owner, Seismic stops the app in your workstation');
     await until(() => board.row(c.id).parked);
     expect(stopped(c.id)).toBe(true);
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: board.t.worker.parked });
     workers.message(c.id, 'Bitte noch die Spalte umbenennen.');
     expect(runtime.last.inbox.at(-1)).toContain('Bitte noch die Spalte umbenennen.');
-    expect(runtime.last.inbox.at(-1)).toContain('Seismic stopped the app in your workspace (`echo stopped >> parked.log`)');
+    expect(runtime.last.inbox.at(-1)).toContain('Seismic stopped the app in your workstation (`echo stopped >> parked.log`)');
     expect(runtime.last.inbox.at(-1)).toContain('start it again as the recipe in your brief says');
     expect(board.row(c.id).parked).toBeNull();
     // only once: the message after that says nothing of it
@@ -58,7 +58,7 @@ describe('parking: the app of a card that waits for the owner', () => {
     parking({ run: undefined });
     const c = await handOver();
     expect(runtime.last.inbox[0]).not.toContain('How to run the app:');
-    expect(runtime.last.inbox[0]).toContain('While the card waits for the owner, Seismic stops the app in your workspace');
+    expect(runtime.last.inbox[0]).toContain('While the card waits for the owner, Seismic stops the app in your workstation');
     await until(() => board.row(c.id).parked);
     workers.message(c.id, 'Noch eine Spalte.');
     expect(runtime.last.inbox.at(-1)).toContain('When you need it again, start it again.');
@@ -73,7 +73,7 @@ describe('parking: the app of a card that waits for the owner', () => {
     expect(stopped(c.id)).toBe(true);
     workers.resume(c.id);
     expect(runtime.last.inbox[0]).toContain('The owner paused you and has now let you go on');
-    expect(runtime.last.inbox[0]).toContain('Seismic stopped the app in your workspace');
+    expect(runtime.last.inbox[0]).toContain('Seismic stopped the app in your workstation');
   });
 
   test('an answer within the grace keeps the app running', async () => {
@@ -119,7 +119,7 @@ describe('parking: the app of a card that waits for the owner', () => {
   test('a session that dies with the app it started is not parked again as if the app kept running', async () => {
     parking({ keep: 'echo keep >> keep.log; exit 0' });
     const c = await handOver();
-    const kept = () => (existsSync(join(board.row(c.id).workspace!, 'keep.log')) ? 1 : 0);
+    const kept = () => (existsSync(join(board.row(c.id).workstation!, 'keep.log')) ? 1 : 0);
     await until(() => board.events(c.id).at(-1)!.text === board.t.worker.parkKept);
     board.work(c.id, { app: 'http://localhost:5173' });
     runtime.last.emit({ type: 'error', message: 'Codex app-server exited (SIGKILL)', ended: true });
@@ -250,7 +250,7 @@ describe('handing over with a demo', () => {
 
   test('the worker gets the demo skill from the plugin that comes with Seismic, its brief names it, and it knows where Seismic is', async () => {
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'clones', app: { run: 'bun start' } });
+    setup({ ...generic, land: 'main', workstations: 'clones', app: { run: 'bun start' } });
     const c = manual();
     await workers.start(c.id);
     expect(runtime.last.spec.plugins).toEqual([OBEYA_PLUGIN]);
@@ -263,7 +263,7 @@ describe('handing over with a demo', () => {
 
   test("a repository that names the language of its demos gives it to the worker's demo skill", async () => {
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'clones', demo: { language: 'en' } });
+    setup({ ...generic, land: 'main', workstations: 'clones', demo: { language: 'en' } });
     await workers.start(manual().id);
     expect(runtime.last.spec.env).toEqual({ OBEYA_URL: 'http://127.0.0.1:4417', DEMO_LANGUAGE: 'en' });
     // named in its instructions too: an HTML artifact is written without the skill, which reads it
@@ -273,12 +273,12 @@ describe('handing over with a demo', () => {
 
   test("a repository that names no language for its demos has its worker demo in the demo settings' narration language, else the conversation's", async () => {
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'clones' });
+    setup({ ...generic, land: 'main', workstations: 'clones' });
     await workers.start(manual().id);
     expect(runtime.last.spec.system).toContain("A demo (its narration, report, or an HTML artifact's words) is in German, whatever language the owner talks in.");
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'clones' });
-    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones' }, demoLanguage: () => 'en' }));
+    setup({ ...generic, land: 'main', workstations: 'clones' });
+    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, demoLanguage: () => 'en' }));
     await workers.start(manual().id);
     expect(runtime.last.spec.system).toContain("A demo (its narration, report, or an HTML artifact's words) is in English, whatever language the owner talks in.");
   });
@@ -287,8 +287,8 @@ describe('handing over with a demo', () => {
     await workers.start(manual().id);
     expect(runtime.last.inbox[0]).toContain('an index.html in a new directory under ~/demos (never in git)');
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'clones' });
-    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones' }, demoDirectory: () => '/opt/work/demos' }));
+    setup({ ...generic, land: 'main', workstations: 'clones' });
+    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, demoDirectory: () => '/opt/work/demos' }));
     await workers.start(manual().id);
     expect(runtime.last.inbox[0]).toContain('an index.html in a new directory under /opt/work/demos (never in git)');
   });
@@ -299,8 +299,8 @@ describe('handing over with a demo', () => {
     expect(runtime.last.inbox[0]).toContain('schema-change page');
     rmSync(dir, { recursive: true, force: true });
     // the demo settings allow HTML and nothing else
-    setup({ ...generic, land: 'main', workspaces: 'clones' });
-    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones' }, demoArtifacts: () => ['html'] }));
+    setup({ ...generic, land: 'main', workstations: 'clones' });
+    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, demoArtifacts: () => ['html'] }));
     const h = manual();
     await workers.start(h.id);
     const brief = runtime.last.inbox[0]!;
@@ -310,8 +310,8 @@ describe('handing over with a demo', () => {
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: { ...artifact(), kind: 'html' } })).toContain('Recorded');
     rmSync(dir, { recursive: true, force: true });
     // the repository's own list goes before the machine's
-    setup({ ...generic, land: 'main', workspaces: 'clones' });
-    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones', demo: { artifacts: ['video'] } }, demoArtifacts: () => ['html'] }));
+    setup({ ...generic, land: 'main', workstations: 'clones' });
+    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones', demo: { artifacts: ['video'] } }, demoArtifacts: () => ['html'] }));
     await workers.start(manual().id);
     expect(runtime.last.inbox[0]).not.toContain('make an HTML artifact instead');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: { ...artifact(), kind: 'html' } })).toContain('do not allow an HTML artifact');
@@ -639,7 +639,7 @@ describe('handing over with a demo', () => {
 
   test('after feedback, the worker may hand over again without a new demo: the one on the card stands', async () => {
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'clones', app: { run: 'bun start' } });
+    setup({ ...generic, land: 'main', workstations: 'clones', app: { run: 'bun start' } });
     const c = manual();
     await workers.start(c.id);
     await runtime.last.call('ready_for_review', { summary: 'S', demo: demo(demoDir()) });
@@ -720,7 +720,7 @@ describe('handing over with a demo', () => {
 
   test('where demos are shared, a video or an artifact comes with its page for colleagues, kept with the demo', async () => {
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'clones', app: { run: 'bun start' } }, false, {});
+    setup({ ...generic, land: 'main', workstations: 'clones', app: { run: 'bun start' } }, false, {});
     const c = manual();
     await workers.start(c.id);
     expect(runtime.last.inbox[0]).toContain('share the demo, a video or an HTML artifact, with colleagues');
@@ -744,7 +744,7 @@ describe('handing over with a demo', () => {
 
   test('a session whose tools took no page when it started is not asked for one once the repository shares', async () => {
     let shares = false;
-    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones' }, shares: () => shares }));
+    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, shares: () => shares }));
     const c = manual();
     await workers.start(c.id);
     // the canvas's demo site is initialized only now
@@ -760,7 +760,7 @@ describe('handing over with a demo', () => {
   test("where the canvas names tags for its site, the page comes with them, each dimension's from its values alone", async () => {
     rmSync(dir, { recursive: true, force: true });
     const tags = { Area: ['Billing', 'Reports'], Audience: ['Admins', 'Customers'] };
-    setup({ ...generic, land: 'main', workspaces: 'clones', app: { run: 'bun start' } }, false, { tags });
+    setup({ ...generic, land: 'main', workstations: 'clones', app: { run: 'bun start' } }, false, { tags });
     const c = manual();
     await workers.start(c.id);
     expect(runtime.last.inbox[0]).toContain('hand it over with that page (title, text, tags)');
@@ -784,7 +784,7 @@ describe('handing over with a demo', () => {
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: demo(demoDir(), ['Nur eins']) })).toContain('Not handed over');
     expect(state(c.id)).toBe('working');
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'clones', app: { run: 'bun start' } });
+    setup({ ...generic, land: 'main', workstations: 'clones', app: { run: 'bun start' } });
     const d = manual();
     await workers.start(d.id);
     expect(runtime.last.inbox[0]).toContain('How to run the app: bun start');
@@ -810,7 +810,7 @@ describe('handing over with a demo', () => {
 
   test('every handover brings a demo: one without is refused; without a recipe the worker finds out how to run the app', async () => {
     rmSync(dir, { recursive: true, force: true });
-    setup({ ...generic, land: 'main', workspaces: 'clones' });
+    setup({ ...generic, land: 'main', workstations: 'clones' });
     const c = manual();
     await workers.start(c.id);
     expect(runtime.last.inbox[0]).toContain('Then show the owner the result with a demo');
@@ -835,7 +835,7 @@ describe('comments on places in the demo video', () => {
   /** A card waiting with a demo of two scenes, the second narrated in two sentences. */
   const waiting = async (question?: string) => {
     images = new Images(join(dir, 'images'));
-    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: generic, imageFiles: (ids = []) => ids.flatMap((i) => images.path(i) ?? []), releaseDelay: 5, holdGrace: 60_000 }));
+    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: generic, imageFiles: (ids = []) => ids.flatMap((i) => images.path(i) ?? []), releaseDelay: 5, holdGrace: 60_000 }));
     const d = join(dir, 'demo');
     mkdirSync(d, { recursive: true });
     writeFileSync(join(d, 'demo.mp4'), 'x');
@@ -921,7 +921,7 @@ describe('comments on places in the demo video', () => {
 
   test('all deleted, nothing goes, also once the wait is over', async () => {
     const c = await waiting();
-    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: generic, holdGrace: 10 }));
+    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: generic, holdGrace: 10 }));
     const n = runtime.last.inbox.length;
     workers.message(c.id, 'Doch nicht.', [], false, undefined, { at: 1 });
     workers.unsay(c.id, board.events(c.id).at(-1)!.id);
@@ -945,7 +945,7 @@ describe('comments on places in the demo video', () => {
 
   test('go without a sign from the owner once the last one has waited long enough, also after a restart', async () => {
     const c = await waiting();
-    setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: generic, holdGrace: 10 }));
+    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: generic, holdGrace: 10 }));
     const n = runtime.last.inbox.length;
     workers.message(c.id, 'Hier.', [], false, undefined, { at: 1 });
     workers.shutdown();

@@ -11,7 +11,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileS
 import { StringDecoder } from 'node:string_decoder';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { z } from 'zod';
-import { GIT } from './workspaces';
+import { GIT } from './workstations';
 import { AGENT_EFFORTS, type CodexModel } from '../core/types';
 import { messageOf } from '../core/text';
 import { which } from './path';
@@ -55,7 +55,7 @@ export async function agyModels(): Promise<CodexModel[]> {
 function supported(spec: AgentSpec) {
   const unsupported = [
     !isAbsolute(spec.cwd) || spec.cwd.startsWith('ssh://') ? 'non-local working directory' : '',
-    spec.dirs?.some((d) => !isAbsolute(d)) ? 'non-local additional workspace roots' : '',
+    spec.dirs?.some((d) => !isAbsolute(d)) ? 'non-local additional workstation roots' : '',
     spec.watch ? 'before/after mutation hooks' : '',
     spec.plugins?.length ? 'Claude plugins' : '',
   ].filter(Boolean);
@@ -90,18 +90,18 @@ export function agyArgs(spec: Pick<AgentSpec, 'resume' | 'model' | 'effort' | 'r
   ];
 }
 
-/** The workspace file `agy` reads MCP servers from; the session writes it and takes it away again. */
+/** The workstation file `agy` reads MCP servers from; the session writes it and takes it away again. */
 const MCP_CONFIG = join('.agents', 'mcp_config.json');
 const OURS = /"serverUrl":\s*"http:\/\/127\.0\.0\.1:\d+\/mcp"/;
 
 /**
- * Registers the endpoint with `agy` for this workspace only (never the owner's own configuration),
+ * Registers the endpoint with `agy` for this workstation only (never the owner's own configuration),
  * out of reach of `git add -A` (the repository's `info/exclude`). A file of the repository's own is
  * not overwritten.
  */
 function installMcpConfig(cwd: string, endpoint: { url: string; token: string }): () => void {
   const file = join(cwd, MCP_CONFIG);
-  if (existsSync(file) && !OURS.test(readFileSync(file, 'utf8'))) throw new Error(`Antigravity cannot start here: the workspace has its own ${MCP_CONFIG}`);
+  if (existsSync(file) && !OURS.test(readFileSync(file, 'utf8'))) throw new Error(`Antigravity cannot start here: the workstation has its own ${MCP_CONFIG}`);
   const exclude = spawnSync(GIT, ['-C', cwd, 'rev-parse', '--path-format=absolute', '--git-path', 'info/exclude'], { encoding: 'utf8', windowsHide: true });
   if (exclude.status === 0) {
     const path = exclude.stdout.trim();
@@ -111,7 +111,7 @@ function installMcpConfig(cwd: string, endpoint: { url: string; token: string })
   }
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${JSON.stringify({ mcpServers: { [AGY_SERVER]: { disabled: false, serverUrl: endpoint.url, headers: { Authorization: `Bearer ${endpoint.token}` } } } }, null, 2)}\n`, { mode: 0o600 });
-  return () => { try { rmSync(file, { force: true }); } catch { /* the workspace is gone */ } };
+  return () => { try { rmSync(file, { force: true }); } catch { /* the workstation is gone */ } };
 }
 
 const frame = z.object({

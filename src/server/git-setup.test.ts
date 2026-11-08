@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DEFAULT_GITIGNORE, previewGitSetup, setUpGit, withoutGit } from './git-setup';
 import { gitRepo } from './testing';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 let dir: string;
 let folder: string;

@@ -14,7 +14,7 @@ Persistent (SQLite):
   chosen edges and the target's position along its edge; older pairs use automatic routing);
 - cards with everything shown on them or needed to resume them: kind, state, position, parent, the
   card they came from; the agent session with its pinned harness, model and effort (old unqualified
-  sessions belong to Claude; Codex locators start `codex:`), workspace, branch and status line; the open question or
+  sessions belong to Claude; Codex locators start `codex:`), workstation, branch and status line; the open question or
   handover (with the reason when there is no demo); queue, scope, snooze (until when, by whom,
   why); the pull request and what of it was already passed on to the worker; on a review card, the
   contributor's pull request (author, whether maintainers may push, the head handed over, the
@@ -22,7 +22,7 @@ Persistent (SQLite):
   contributor); the code review of a card's work (the mode it was handed over under, the handover
   it is for, and the latest review: the handover and commit it reviewed, running (with its agent's
   session, which a restart resumes), done or failed with why, its findings with what came of each); an approval held until the work can land; landed work whose worker still finishes;
-  a waiting card's stopped app; the clone that keeps a card's branch since its workspace was taken
+  a waiting card's stopped app; the clone that keeps a card's branch since its workstation was taken
   from it;
   proposals waiting for the owner; a merge draft on an unworked proposal or planned task (partner,
   original place, combined text or exact coverage parts, optional follow-up with its screenshots and
@@ -32,13 +32,13 @@ Persistent (SQLite):
   gave it (`priority`: `trivial`, `low`, `medium`, `high`, `veryHigh` or `critical`, null for none); its short
   code for addresses (see Addresses in The canvas), unique across the database;
 - each session that worked on a card, with the harness, resolved model and effort it ran on (see
-  Models and effort in Agents and workspaces), and the owner's responses on approved work: the
+  Models and effort in Agents and workstations), and the owner's responses on approved work: the
   handover each is about, whom it credits, the card's context as it was, the answer and facets;
 - a worker paused by the usage limit keeps its consecutive refusal count, optional future reset,
   and previous status line in the card’s existing pause JSON (`limit`); old pause records remain valid;
 - card events (the conversation log, with the owner's screenshots and agents' mocks, and the
   producing agent's harness and model when known); the Koordinator's replies and looked-up answers
-  each retain their own producing identity, never inferred for old messages; workspaces
+  each retain their own producing identity, never inferred for old messages; workstations
   and their leases, what a card changed in a folder without git and its undo there;
 - the Koordinator's conversation with the owner, split into chats (each exchange in one; the
   chat opened last per canvas is where new words go), and the threads of looked-up questions (the
@@ -57,7 +57,7 @@ owner's screenshots (`images/<canvas>/`), other files the owner dropped into a f
 (`settings.json`, `demo.json`, `voice.json`), where the running Seismic answers (`server.json`), the
 `tailscale serve` entry Seismic made (`tailscale-serve.json`), the key it signs pushes with
 (`vapid.json`), the app's server log (`app.log`), the stalls of the server and its pages (`stalls.log`, see Running Seismic), voices and models (`voices/`), the workers'
-clones and worktrees (`workspaces/`), the read checkout's worktrees (`read/`), the cards' undo in
+clones and worktrees (`workspaces/`, the name it had before workstations were called so), the read checkout's worktrees (`read/`), the cards' undo in
 folders without git (`undo/`), the files of looked-up answers (`answers/<canvas>/<thread>/`), the
 static sites Seismic keeps (`sites/<key>/`), the env files their repositories' settings name
 (relative to the home, `sites/demos/deploy.env`, say), and `share/`, the directory deploys run in.

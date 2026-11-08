@@ -7,21 +7,21 @@ import type { PermissionRequest } from './runtime';
 import { gitRepo } from './testing';
 
 let root: string;
-let workspace: string;
+let workstation: string;
 let asked: PermissionRequest[];
 let answer: { allow: true } | { allow: false; message: string };
 
 beforeEach(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), 'obeya-exec-')));
-  workspace = join(root, 'ws');
-  gitRepo(workspace);
+  workstation = join(root, 'ws');
+  gitRepo(workstation);
   asked = [];
   answer = { allow: true };
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 const lane = (rules: string[] = [], places: string[] = []): ExecLane => ({
-  workspace,
+  workstation,
   places: () => places,
   rules: () => rules,
   ask: async (r) => (asked.push(r), answer),
@@ -30,10 +30,10 @@ const tool = (l: ExecLane, name: string) => execTools(l).find((t) => t.name === 
 const run = (l: ExecLane, args: Record<string, unknown>) => Promise.resolve(tool(l, 'run').run(args));
 const git = (l: ExecLane, ...args: string[]) => Promise.resolve(tool(l, 'git').run({ args }));
 
-test('a command the allow list covers runs without asking, in the workspace', async () => {
+test('a command the allow list covers runs without asking, in the workstation', async () => {
   const out = await run(lane(['pwd']), { command: 'pwd' });
   expect(out).toContain('exit code 0');
-  expect(out).toContain(workspace);
+  expect(out).toContain(workstation);
   expect(asked).toEqual([]);
 });
 
@@ -58,9 +58,9 @@ test("with Codex's automatic review, a command the list does not cover is not as
 
 test('a declined command does not run', async () => {
   answer = { allow: false, message: 'No, not that.' };
-  const out = await run(lane(), { command: `touch ${join(workspace, 'made')}` });
+  const out = await run(lane(), { command: `touch ${join(workstation, 'made')}` });
   expect(out).toBe('Not run: No, not that.');
-  expect(await Bun.file(join(workspace, 'made')).exists()).toBe(false);
+  expect(await Bun.file(join(workstation, 'made')).exists()).toBe(false);
 });
 
 test('a pipe is never covered by a rule for its first command', async () => {
@@ -69,16 +69,16 @@ test('a pipe is never covered by a rule for its first command', async () => {
   expect(asked).toHaveLength(1);
 });
 
-test('cwd: the workspace, its subdirectories, the places named; nothing else', async () => {
+test('cwd: the workstation, its subdirectories, the places named; nothing else', async () => {
   const demos = join(root, 'demos');
   mkdirSync(demos);
-  mkdirSync(join(workspace, 'sub'));
+  mkdirSync(join(workstation, 'sub'));
   const outside = join(root, 'outside');
   mkdirSync(outside);
-  symlinkSync(outside, join(workspace, 'link'));
+  symlinkSync(outside, join(workstation, 'link'));
   const l = lane([], [demos]);
-  expect(placeFor(l, undefined)).toBe(workspace);
-  expect(placeFor(l, 'sub')).toBe(join(workspace, 'sub'));
+  expect(placeFor(l, undefined)).toBe(workstation);
+  expect(placeFor(l, 'sub')).toBe(join(workstation, 'sub'));
   expect(placeFor(l, demos)).toBe(demos);
   expect(placeFor(l, outside)).toBeNull();
   expect(placeFor(l, '..')).toBeNull();
@@ -115,8 +115,8 @@ test('the command has no stdin and the environment of Seismic without a Claude s
   }
 });
 
-test('git commits in the workspace without asking', async () => {
-  writeFileSync(join(workspace, 'a.txt'), 'a\n');
+test('git commits in the workstation without asking', async () => {
+  writeFileSync(join(workstation, 'a.txt'), 'a\n');
   expect(await git(lane(), 'add', 'a.txt')).toContain('exit code 0');
   expect(await git(lane(), 'commit', '-m', 'Add a')).toContain('exit code 0');
   expect(await git(lane(), 'log', '--oneline')).toContain('Add a');

@@ -272,13 +272,13 @@ describe('plan docs', () => {
 
   test('a workstream whose worker finishes after the landing keeps its plan, as its doc last stood, once the doc is gone', () => {
     const w2 = board.snapshot().items.find((i) => i.label === 'W2')!;
-    board.work(w2.id, { state: 'live', landed: JSON.stringify({ commit: 'abc' }), workspace: '/ws/1' });
+    board.work(w2.id, { state: 'live', landed: JSON.stringify({ commit: 'abc' }), workstation: '/ws/1' });
     docs = [];
     board.docsChanged();
     expect(board.snapshot().items.map((i) => i.label ?? i.title)).toEqual(['A', 'W1', 'W2', 'W3']);
     expect(board.archived()).toEqual([]);
     // its worker done, the docs read again
-    board.work(w2.id, { landed: null, workspace: null });
+    board.work(w2.id, { landed: null, workstation: null });
     board.docsChanged();
     expect(board.snapshot().items).toEqual([]);
     expect(board.archived()[0]!.title).toBe('A');
@@ -442,7 +442,7 @@ describe('the archive of plans', () => {
     const below = board.create({ title: 'Darunter', x: 900, y: 240 });
     const beside = board.create({ title: 'Daneben', x: 1240, y: 40 });
     const away = board.create({ title: 'Weit weg', x: 3000, y: 900 });
-    board.work(idea.id, { state: 'live', landed: '{}', workspace: '/ws/1' });
+    board.work(idea.id, { state: 'live', landed: '{}', workstation: '/ws/1' });
     board.planDocsLanded(idea.id, ['docs/plan/b.md']);
     docs = [docA, docB];
     board.docsChanged();
@@ -461,7 +461,7 @@ describe('the archive of plans', () => {
     }
     // its worker still finishes after the landing
     expect(board.item(idea.id)).toBeDefined();
-    board.work(idea.id, { landed: null, workspace: null });
+    board.work(idea.id, { landed: null, workstation: null });
     board.workDone(idea.id);
     expect(board.item(idea.id)).toBeUndefined();
     expect(board.archived().find((i) => i.id === idea.id)).toMatchObject({ title: 'Idee B' });
@@ -591,13 +591,13 @@ describe('archive', () => {
     expect(board.archived()).toEqual([]);
   });
 
-  test('a stopped task goes into the archive with its conversation, unless its workspace holds work or it waits to start', () => {
+  test('a stopped task goes into the archive with its conversation, unless its workstation holds work or it waits to start', () => {
     const c = board.create({ title: 'Frage', body: 'Stimmt die Rechnung?', x: 50, y: 60 });
-    board.work(c.id, { branch: 'obeya/frage-1', workspace: '/tmp/clone-1' });
+    board.work(c.id, { branch: 'obeya/frage-1', workstation: '/tmp/clone-1' });
     board.log(c.id, 'talk', 'worker', 'Sie stimmt.');
     board.log(c.id, 'state', 'owner', 'Gestoppt.');
     expect(() => board.archive([c.id])).toThrow(expect.objectContaining({ code: 'holdsWork' }));
-    board.work(c.id, { workspace: null, queue: JSON.stringify({ checking: true, since: new Date().toISOString() }) });
+    board.work(c.id, { workstation: null, queue: JSON.stringify({ checking: true, since: new Date().toISOString() }) });
     expect(() => board.archive([c.id])).toThrow(expect.objectContaining({ code: 'notDone' }));
     board.work(c.id, { queue: null });
     // archiving everything finished leaves it alone: it was stopped, not done
@@ -726,7 +726,7 @@ describe('groups', () => {
   test('a plan written from an idea takes its group', () => {
     const idea = board.create({ idea: true, title: 'Idee B', x: 900, y: 40 });
     const g = board.createGroup('Ideen', [idea.id]);
-    board.work(idea.id, { state: 'live', landed: '{}', workspace: '/ws/1' });
+    board.work(idea.id, { state: 'live', landed: '{}', workstation: '/ws/1' });
     board.planDocsLanded(idea.id, ['docs/plan/b.md']);
     docs = [docA, docB];
     board.docsChanged();

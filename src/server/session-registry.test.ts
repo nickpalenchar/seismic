@@ -153,7 +153,7 @@ test.skipIf(!supported)('a record from a foreign host or an unreadable one never
   expect(alive(job.pid!)).toBe(true);
 });
 
-test.skipIf(!supported)('a workspace whose old session could not be ended is reported until it is', async () => {
+test.skipIf(!supported)('a workstation whose old session could not be ended is reported until it is', async () => {
   const root = scratch();
   const ready = join(root, '..', 'ready');
   const dead = owner(root, ready, 1);

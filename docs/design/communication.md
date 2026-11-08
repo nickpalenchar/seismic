@@ -27,8 +27,8 @@ visible on a card.
 - `ready_for_review(summary, demo)`, whose summary is the report the owner reads. The demo's
   `question` (text, options, multiple, pick, pick_why) is asked and answered as with `ask`, while the
   card goes on waiting for approval (see Waiting for approval in Card lifecycle).
-- `app_running(url)`: where the app in its workspace opens, for the owner to try by hand (see Trying
-  the app by hand); for a workspace on another machine Seismic forwards the port.
+- `app_running(url)`: where the app in its workstation opens, for the owner to try by hand (see Trying
+  the app by hand); for a workstation on another machine Seismic forwards the port.
 - `snooze(until, why, card, state)` (see Snoozing a card).
 - `to_seismic(request)`: what the owner's words ask of Seismic rather than of the worker (see Passing a
   request on to Seismic).
@@ -55,7 +55,7 @@ with an error". A worker that then works on by itself takes that question back.
 
 A turn that ends while the worker's own background work runs (a render, a test suite, a watcher) is
 not such a turn: the work wakes the worker, so Seismic waits, also after the landing, where an ended
-turn would otherwise finish the card and remove its workspace. The SDK reports each change in how
+turn would otherwise finish the card and remove its workstation. The SDK reports each change in how
 much background work runs; Seismic waits as long as some does, bounded by the work's own limits (two
 hours for a background command, half an hour for a watcher; three hours for a session that never
 says the work ended). It nudges only ten minutes after the work ended without a sign of life. A turn
@@ -72,7 +72,7 @@ reports used up, else the time its message names ("try again at 10:41 PM.", on t
 clock). Seismic waits for a future reset, with a ten-second clock margin. Without a reset it
 tries again after fifteen minutes, or after a minute if the reported reset has passed. Three
 consecutive refused turns exhaust this retry budget: a worker's session closes and releases its
-slot, while its card and workspace stay. A failed manual attempt pauses it immediately again;
+slot, while its card and workstation stay. A failed manual attempt pauses it immediately again;
 actual text or a tool step clears the budget. Duplicate errors from one refused turn count once.
 A light-blue bar and an hourglass mark the usage pause, with a visible way to try again now.
 
@@ -115,7 +115,7 @@ idea's or Question card's agent finishes the reply it works on. Meanwhile the ca
 however it ends (with a handover or a question too), the agent is paused as by the bubble's pause;
 background work the worker let run keeps it from pausing until it ends, and the turn that work
 starts hears that the owner still waits. A worker that has not ended its turn after 15 minutes is
-paused at once. One with nothing running that could be cut off (its workspace still being made
+paused at once. One with nothing running that could be cut off (its workstation still being made
 ready, waiting for the usage limit) pauses at once. A restart meanwhile leaves it paused. On the
 same hover, a paused card, and one about to pause, shows a faint ▶ there, which resumes it as
 "Resume" does; the one about to pause hears that it works on instead, and so it does with the
@@ -131,7 +131,7 @@ described it, with how long it has run, counting from when Seismic first saw it 
 start time); the SDK's own housekeeping does not show.
 
 Pausing (at once, or once the turn has ended) ends the session, mid-step if need be, with whatever
-it ran, and keeps the card's state and the session. A worker keeps workspace and branch, frees its slot, and its app is parked
+it ran, and keeps the card's state and the session. A worker keeps workstation and branch, frees its slot, and its app is parked
 after the grace; one paused on its handover leaves the card waiting for approval ("Demo ready ·
 agent paused"), Approve included. An idea's or Question card's agent keeps what it had not
 answered. The bubble stays where the agent stopped, in pencil grey, "Agent paused · ▶
@@ -172,7 +172,7 @@ stays background work.
 The worker calls `snooze` with `until`, or `card` (exact title, else a part only one open card's
 title holds) with `state` `done` (default) or `waits_for_owner`, or both, waking at whichever comes
 first, and ends its turn. A card already there or a time already past is refused. It takes effect
-without asking the owner; the session ends, background work with it; workspace and branch stay, the
+without asking the owner; the session ends, background work with it; workstation and branch stay, the
 slot frees, the app is parked, and no nudge follows. It is allowed only while the card is at work
 (started, in its PR, finishing after the landing) or its worker takes in the owner's words on its
 handover, and the owner is not pausing it (the pause would end at the snooze's time); a question or

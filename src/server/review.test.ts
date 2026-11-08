@@ -15,7 +15,7 @@ import type { ContributionInfo, Forge, PrStatus } from './forge';
 import { PrWatcher } from './pr-watcher';
 import { artifact, FakeRuntime, gitRepo, identify, until } from './testing';
 import { Workers } from './workers';
-import { git, Workspaces } from './workspaces';
+import { git, Workstations } from './workstations';
 
 const URL_ = 'https://github.com/acme/app/pull/5';
 
@@ -86,15 +86,15 @@ beforeEach(() => {
   push('poll.ts');
   const store = new Store(':memory:');
   board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
-  const workspaces = new Workspaces(store, 'c', { mode: 'clones', repoPath: main, dir: join(dir, 'ws') });
-  workspaces.ensureClones(main, 1);
+  const workstations = new Workstations(store, 'c', { mode: 'clones', repoPath: main, dir: join(dir, 'ws') });
+  workstations.ensureClones(main, 1);
   runtime = new FakeRuntime();
   // the PR's branch in the contributor's repository, where Seismic pushes the worker's own commits
   fake = fakeForge(() => git(origin, 'rev-parse', 'contrib'));
   approvals = [];
   followed = [];
-  const settings: RepoAdapter = { ...generic, land: 'main', workspaces: 'clones', checks: ['bun test'] };
-  workers = new Workers({ board, runtime, workspaces, adapter: settings, forge: fake.forge, repoPath: main, remote: origin, pulls: workspaces, pushHold: 10, pushSettle: 1, onApproval: (id) => (approvals.push(id), null), onFollowUpTask: (task, review) => followed.push([task, review]) });
+  const settings: RepoAdapter = { ...generic, land: 'main', workstations: 'clones', checks: ['bun test'] };
+  workers = new Workers({ board, runtime, workstations, adapter: settings, forge: fake.forge, repoPath: main, remote: origin, pulls: workstations, pushHold: 10, pushSettle: 1, onApproval: (id) => (approvals.push(id), null), onFollowUpTask: (task, review) => followed.push([task, review]) });
   watcher = new PrWatcher(board, workers, fake.forge, () => main, () => settings);
 });
 afterEach(() => {
@@ -114,7 +114,7 @@ async function reviewCard(canModify = true) {
 
 /** The worker's own change on its branch: a commit of `file` on top of the PR's head; returns the branch's head. */
 function commitOwn(id: string, file: string) {
-  const ws = board.row(id).workspace!;
+  const ws = board.row(id).workstation!;
   identify(ws);
   writeFileSync(join(ws, file), `${file}\n`);
   git(ws, 'add', '.');
@@ -158,7 +158,7 @@ const probed = (id: string) => (workers as unknown as { probeClash(id: string): 
 describe('a review card', () => {
   test('starts on the PR head, its worker told to read the diff before running any of it', async () => {
     const id = await reviewCard();
-    const ws = board.row(id).workspace!;
+    const ws = board.row(id).workstation!;
     expect(git(ws, 'rev-parse', 'HEAD').trim()).toBe(prHead);
     const brief = runtime.last.inbox[0]!;
     expect(brief).toContain('pull request #5 by amerlander');
@@ -608,7 +608,7 @@ describe('a review card', () => {
     expect(board.events(id).some((e) => e.text === board.t.worker.pullStopped('Polls every minute', 'Poll more often'))).toBe(true);
     expect(board.item(x)!.statusLine).toBe(board.t.worker.resolvingStatus(5));
     // the worker rebases the unpushed commit onto origin's main with the merge, the conflict resolved
-    const ws = board.row(x).workspace!;
+    const ws = board.row(x).workstation!;
     const upstream = git(origin, 'rev-parse', 'main').trim();
     git(ws, 'fetch', '--quiet', main, before, upstream);
     git(ws, 'checkout', '--quiet', '-B', 'resolve', before);
@@ -623,7 +623,7 @@ describe('a review card', () => {
     expect(board.item(x)!.statusLine).toBeUndefined();
     // its session ends with its turn
     resolver.emit({ type: 'idle' });
-    await until(() => !board.row(x).workspace && !existsSync(ws));
+    await until(() => !board.row(x).workstation && !existsSync(ws));
   });
 
   test('„main pushen“ puts the unpushed commits on the remote after its undo window, and the agent brings the PR up to date', async () => {
@@ -656,13 +656,13 @@ describe('a review card', () => {
     await workers.approve(id);
     await until(() => runtime.sessions.length === 2);
     const resolver = runtime.last;
-    const ws = board.row(x).workspace!;
+    const ws = board.row(x).workstation!;
     resolver.call('report', { status: 'Looking' });
     resolver.emit({ type: 'idle' });
     expect(resolver.inbox.at(-1)).toContain('still stopped');
     resolver.emit({ type: 'idle' });
     expect(board.events(id).at(-1)!.text).toBe(board.t.worker.pullUnresolved('Polls every minute', 'poll.ts', board.t.worker.resolverGaveUp));
-    await until(() => !board.row(x).workspace && !existsSync(ws));
+    await until(() => !board.row(x).workstation && !existsSync(ws));
   });
 
   test('a head pushed after the handover is not merged: the worker reviews it', async () => {
@@ -695,7 +695,7 @@ describe('a review card', () => {
     // not fetched yet: its branch does not build on the PR's head, so it cannot hand over
     expect(await runtime.last.call('ready_for_review', { summary: 'S', review: results })).toContain('does not build on it');
     // put on top, it hands over again, and approving pushes onto the new head
-    const ws = board.row(id).workspace!;
+    const ws = board.row(id).workstation!;
     git(ws, 'fetch', '--quiet', origin, 'refs/pull/5/head');
     git(ws, 'rebase', '--quiet', 'FETCH_HEAD');
     const head = git(ws, 'rev-parse', 'HEAD').trim();

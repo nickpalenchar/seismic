@@ -1,6 +1,6 @@
 # Codex preview hardening, then Pi
 
-Seismic owns the canvas, workspaces, conversations and owner decisions. Each harness owns its coding
+Seismic owns the canvas, workstations, conversations and owner decisions. Each harness owns its coding
 loop. A role (Koordinator, worker, explorer or small job) is not a harness or a model. The local
 Codex worker preview is described in the permanent design chapters; this plan tracks what remains.
 
@@ -27,7 +27,7 @@ Harden the local Codex worker preview and complete its remaining acceptance and 
   recovery of observed processes after an Seismic crash. This is not a Codex preview gate; it is
   a Pi gate. Recovery must not kill another live Seismic instance's processes or unrelated processes.
   Done for Codex on macOS and Linux (container); see "Recovery boundary" below. The lifetimes and
-  the recovery are now in `docs/design/agents-and-workspaces.md` (Lifetimes).
+  the recovery are now in `docs/design/agents-and-workstations.md` (Lifetimes).
   Launching agents through the liveness supervisor, and what must hold before that, belongs here
   (see "Liveness-pipe prototype: evaluation").
 - [x] **W4:** Liveness-pipe prototype. Evaluated (2026-11-01): the two failure cases that reverted
@@ -47,9 +47,9 @@ Harden the local Codex worker preview and complete its remaining acceptance and 
 - [x] **W7:** Active session identity. Done (2026-11-02): the working and reading bubbles name the
   harness and model of the session at work; see `docs/design/conversation-on-the-card.md`.
 - [x] **W8:** Codex configuration trust. Done (2026-11-02): `.codex/` is the trust group `codex`
-  of the repository-trust dialog; a Codex worker loads it only where its workspace's `.codex/` is
+  of the repository-trust dialog; a Codex worker loads it only where its workstation's `.codex/` is
   to the byte what the owner trusted, checked at every start and resume, with Codex's own layer
-  report (`config/read`) checked before a thread runs. See `docs/design/agents-and-workspaces.md`
+  report (`config/read`) checked before a thread runs. See `docs/design/agents-and-workstations.md`
   (Native Codex workers). Verified against Codex CLI 0.162.0 on macOS: the per-session trust
   override wins over the user's `[projects]` in both directions, project layers above the
   checkout are never read, and the workspace-write sandbox refuses creating or writing `.codex/`.
@@ -59,7 +59,7 @@ Harden the local Codex worker preview and complete its remaining acceptance and 
   (Claude-shaped input and `permissionDecision: deny`) and work, but only once trusted in the user's
   own `config.toml`; session-level hooks stay untrusted and never run. And none is needed: steering
   lands during a running foreground command, which then continues as a background terminal. Now in
-  `docs/design/agents-and-workspaces.md` (Native Codex workers). Still open, and W8's: if Seismic ever
+  `docs/design/agents-and-workstations.md` (Native Codex workers). Still open, and W8's: if Seismic ever
   manages Codex hooks, that is a write into the user's configuration.
 - [x] **W10:** Transcripts and retrospectives. Done (2026-11-03): decided to build it. A Codex worker's run is read from its
   rollout like a Claude transcript, so its cards feed the work retrospective. Now in
@@ -121,7 +121,7 @@ shared UI rendering and desktop/sidebar/phone screenshots cover the labels. Old 
 relabelled from current defaults; active working and reading bubbles name the session at work (W7).
 Claude usage is independent of the worker harness: a live idle
 Claude SDK fetch and the scratch UI both show it. The compact toolbar keeps percentages after
-hiding the workspace pool; only its smallest stage hides them. No Codex usage is added.
+hiding the workstation pool; only its smallest stage hides them. No Codex usage is added.
 
 ### Verification limits
 
@@ -287,7 +287,7 @@ rules are in the design chapter, Lifetimes). Differences from the proposal, with
   live tracker's group signal stays. Also from that review: a record that cannot be read now is
   retried, not quarantined; a file that cannot be removed keeps the record; a replaced pid with a
   new creation time is republished.
-- **Record content:** also the working directory, so that a new Codex session in a workspace whose
+- **Record content:** also the working directory, so that a new Codex session in a workstation whose
   old session could not be accounted for refuses to start (the proposal's "session that can safely
   resume versus one whose old writer is unaccounted for"). Refusing is only for Codex so far.
 - **Visibility** is the server's log; an unrecovered record is reported again at each start. Not on
@@ -351,7 +351,7 @@ not a production registry, a startup sweep or proof that an identity is safe to 
   External operations and remote hosts are not assumed to be session-owned. An app that needs an
   independent lifetime cannot be identified or protected by ancestry alone; no such handoff is
   specified yet. An ordinary session end and owner-pipe EOF both trigger cleanup, while a graceful
-  server stop waits for busy turns as described above. No command-line search or workspace-wide
+  server stop waits for busy turns as described above. No command-line search or workstation-wide
   kill is an ownership boundary.
 - **Ownership:** the supervisor holds an exclusive, kernel-backed per-generation lease while it can
   own or clean up the session. Another Seismic instance or startup sweeper must acquire that same

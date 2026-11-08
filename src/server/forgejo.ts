@@ -4,7 +4,7 @@
 import { messageOf } from '../core/text';
 import { type Forge, type PrStatus, parsePrUrl, verdictOf, withBodyFile } from './forge';
 import { spawnOutput } from './spawn';
-import { GIT } from './workspaces';
+import { GIT } from './workstations';
 
 /**
  * One call of the API below `<base>/api/v1/`; returns the parsed answer (undefined for an empty one)
@@ -288,7 +288,7 @@ export const makeForgejoForge = (forgejo: Api, origin: (cwd: string) => Promise<
 };
 
 /**
- * Logins by workspace and repository, read from git for a while: each round of the watcher makes
+ * Logins by workstation and repository, read from git for a while: each round of the watcher makes
  * several calls, some side by side, which wait for the one reading.
  */
 const logins = new Map<string, { auth: Promise<string>; at: number }>();

@@ -3,7 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { artifact, identify, until } from './testing';
 import { board, dir, eachTest, main, manual, runtime, setWorkers, setup, spaces, workers } from './workers-fixture';
-import { git } from './workspaces';
+import { git } from './workstations';
 import { cardTalk } from '../ui/talk';
 import { generic } from '../adapters/generic';
 import { Workers } from './workers';
@@ -18,7 +18,7 @@ async function card(files: Record<string, string>, subject = 'Update checkout') 
   const c = manual();
   await workers.start(c.id);
   const session = runtime.last;
-  const cwd = board.row(c.id).workspace!;
+  const cwd = board.row(c.id).workstation!;
   for (const [file, text] of Object.entries(files)) {
     mkdirSync(join(cwd, file, '..'), { recursive: true });
     writeFileSync(join(cwd, file), text);
@@ -169,10 +169,10 @@ test('a forge merge notifies overlapping workers using the merged commit', async
 });
 
 
-test('a direct push notifies from the workspace even while the checkout stays behind', async () => {
+test('a direct push notifies from the workstation even while the checkout stays behind', async () => {
   workers.shutdown();
   rmSync(dir, { recursive: true, force: true });
-  setup({ ...generic, land: 'pr', direct: true, workspaces: 'clones' }, true);
+  setup({ ...generic, land: 'pr', direct: true, workstations: 'clones' }, true);
   const a = await card({ 'shared.ts': 'pushed' }, 'Push checkout directly'); await a.handOver();
   const b = await card({ 'shared.ts': 'in progress' });
   await workers.approve(a.id, { direct: true });
@@ -197,7 +197,7 @@ test('an overlap notice already being read survives replacing the workers at res
   await until(() => reading);
   expect(workers.busyCards()).toContain(a.id);
   workers.shutdown();
-  setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, land: 'main', workspaces: 'clones' } }));
+  setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }));
   release();
   await until(() => !!board.row(b.id).unheard);
   workers.message(b.id, 'Please continue after the restart.');

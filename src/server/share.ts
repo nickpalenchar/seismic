@@ -31,7 +31,7 @@ import { type Forge, landedUrl, parsePrUrl } from './forge';
 import type { AgentRuntime } from './runtime';
 import { readSession } from './koordinator';
 import type { CardRow } from './db';
-import { branchName, gitAsync } from './workspaces';
+import { branchName, gitAsync } from './workstations';
 import { originOf } from './forgejo';
 import { zip } from './zip';
 import { messageOf } from '../core/text';
@@ -128,9 +128,9 @@ export interface ShareTarget {
 }
 
 /**
- * Where a site's deploy runs, under Seismic's home: not in the checkout, which is often a workspace
+ * Where a site's deploy runs, under Seismic's home: not in the checkout, which is often a workstation
  * of the pool too, and a file a command leaves in its working directory (`wrangler pages deploy`
- * writes its cache there) would keep the workspace from being leased until someone cleans up.
+ * writes its cache there) would keep the workstation from being leased until someone cleans up.
  */
 export const SHARE_CWD = 'share';
 

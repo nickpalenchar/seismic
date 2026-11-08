@@ -3,7 +3,7 @@ import { defaultBranchCommit } from '../server/read-tree';
 import { onGitHub } from '../server/repo';
 import { HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { type ClaudeFile, type HandoverArtifact, isNested, SHARED_FIELDS, type NESTED_SETTINGS, type NestedSetting, type RepoSettings, type RepoValues, type SharedSettings } from '../core/types';
-import { detectedBranch, type GitSteps, gitStepsSync, isFolder } from '../server/workspaces';
+import { detectedBranch, type GitSteps, gitStepsSync, isFolder } from '../server/workstations';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { generic } from './generic';
@@ -23,18 +23,18 @@ export const defaultsFor = (repo: RepoInfo): RepoAdapter => ({ ...generic, land:
  */
 export const detectedLand = (repo: RepoInfo): RepoAdapter['land'] => (repo.remote && onGitHub(repo.remote) ? 'pr' : 'main');
 
-/** The fields of the settings read each time they are asked for: all but `workspaces`. */
-const LIVE = SHARED_FIELDS.filter((f) => f !== 'workspaces');
+/** The fields of the settings read each time they are asked for: all but `workstations`. */
+const LIVE = SHARED_FIELDS.filter((f) => f !== 'workstations');
 
 /**
  * The repository's settings (`RepoSettings`: its `.obeya/settings.json` with this machine's in
  * front) in front of the defaults, each read from `settings` whenever it is asked for, so that a
- * changed value applies without a restart. `workspaces` is read once: clones or worktrees are set
+ * changed value applies without a restart. `workstations` is read once: clones or worktrees are set
  * up when the canvas starts. Clones the configuration names (`clones`) go before the setting.
  */
 export function withSettings(a: RepoAdapter, settings: () => RepoSettings | undefined, clones = false): RepoAdapter {
-  const set = settings()?.workspaces;
-  const b: RepoAdapter = { ...a, workspaces: clones ? 'clones' : (set ?? a.workspaces) };
+  const set = settings()?.workstations;
+  const b: RepoAdapter = { ...a, workstations: clones ? 'clones' : (set ?? a.workstations) };
   for (const field of LIVE)
     Object.defineProperty(b, field, {
       enumerable: true,
@@ -77,7 +77,7 @@ export function repoValues(repo: RepoInfo, clones = false, shared: SharedSetting
     setup: value(a.setup ?? '', 'setup'),
     planDocs: value(a.planDocs, 'planDocs'),
     softPaths: value(a.softPaths, 'softPaths'),
-    workspaces: clones ? { value: 'clones', source: 'clones' } : value(a.workspaces, 'workspaces'),
+    workstations: clones ? { value: 'clones', source: 'clones' } : value(a.workstations, 'workstations'),
     prNoise: value(a.prNoise ?? [], 'prNoise'),
     language: value(a.language, 'language'),
     app: { run: nested('app', 'run', ''), stop: nested('app', 'stop', ''), keep: nested('app', 'keep', '') },

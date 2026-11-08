@@ -1,5 +1,5 @@
 import { normalize, overlaps } from '../core/path-overlap';
-import type { LandingNotice } from './workspaces';
+import type { LandingNotice } from './workstations';
 import { LimitAttempts, limitWatch } from './limit-watch';
 // Workers: one agent session per card, in a leased clone. Seismic is the mailbox between the
 // worker and the owner; every exchange lands in the card's conversation.
@@ -32,13 +32,13 @@ import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE, execTools } from './exec-tools';
 import { type Forward, HOST_DIR, hostName, remote } from './hosts';
 import { runAppCommand } from './app-command';
 import { readingShared } from '../adapters';
-import { branchName, type CardWorkspaces, type FileAt, gitSteps, ownFile, type Landed, type Lease, type PullStopped, shortageOf, together, WorkspaceError, type Workspaces } from './workspaces';
-import type { FolderWorkspaces, UndoReport } from './folder';
+import { branchName, type CardWorkstations, type FileAt, gitSteps, ownFile, type Landed, type Lease, type PullStopped, shortageOf, together, WorkstationError, type Workstations } from './workstations';
+import type { FolderWorkstations, UndoReport } from './folder';
 import { contributionOf, type PrState, type Shipped, type StoredContribution, type StoredNewRepo } from './board';
 import { type Doing, onTool, onToolDone, shownDoing, THINKING_AFTER } from './doing';
 import { type ChangeRoute, type Clash, type FindingPick, type CodeReviewSetting, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS, SEVERITIES, type Severity } from '../core/types';
 import { dimensions, outside, tagsOf } from '../core/page-tags';
-import { gitAsync, gitOrNull } from './workspaces';
+import { gitAsync, gitOrNull } from './workstations';
 import { defaultBranchCommit } from './read-tree';
 import type { CardRow } from './db';
 import { workConfig } from './feedback';
@@ -54,7 +54,7 @@ export interface WorkerOptions {
   agentSetting?: () => AgentSetting;
   /** Whether a Codex worker's approvals go to Codex's own automatic review rather than the owner; to the owner when left out. */
   codexAutoReview?: () => boolean;
-  workspaces: CardWorkspaces;
+  workstations: CardWorkstations;
   adapter: RepoAdapter;
   /**
    * The settings the owner set for the repository on this machine, in front of its
@@ -100,7 +100,7 @@ export interface WorkerOptions {
   backgroundLimit?: number;
   /** How long a worker asked to pause at a safe point has for it, before Seismic pauses it at once. */
   pauseLimit?: number;
-  /** How long a card waits for the owner, its worker idle, before Seismic stops its workspace's app (`app.stop`). */
+  /** How long a card waits for the owner, its worker idle, before Seismic stops its workstation's app (`app.stop`). */
   parkGrace?: number;
   /** How long after the owner last opened the card's app Seismic leaves it running at the least, for them to try it by hand. */
   tryGrace?: number;
@@ -120,7 +120,7 @@ export interface WorkerOptions {
    * Whether Seismic starts again for work that landed (`obeya`): it runs from this repository's
    * checkout and the work changed code; or only this repository's agents do (`repo`): the work
    * changed where they work (its own adapter, its `.obeya/settings.json`). `pushedFrom` is the
-   * workspace work was pushed from straight to the remote's main, which leaves the checkout as it is.
+   * workstation work was pushed from straight to the remote's main, which leaves the checkout as it is.
    */
   restartsFor?: (landed: Landed, pushedFrom?: string) => Promise<'obeya' | 'repo' | false> | 'obeya' | 'repo' | false;
   /** Added to every worker's environment: where Seismic is (`SEISMIC_URL`), for a demo's narration. */
@@ -147,21 +147,21 @@ export interface WorkerOptions {
   /** The directory demos go into on this machine (the demo settings'); `~/demos` when left out. */
   demoDirectory?: () => string;
   /** A card's work ended (landed, closed without a change, a prototype discarded or built): its runs can be read now. */
-  onWorkEnded?: (cardId: string, workspace: string | null) => void;
+  onWorkEnded?: (cardId: string, workstation: string | null) => void;
   /** Passes on to the Koordinator what the owner's words to a card's worker ask of Seismic (`to_seismic`); without it the worker has no such tool. */
   toObeya?: (cardId: string, request: string) => Promise<string>;
   /** Where pull requests live: a review card's is read, commented on and merged through it. */
   forge?: Forge;
-  /** The repository's checkout, where the forge's calls run for a card without a workspace on this machine. */
+  /** The repository's checkout, where the forge's calls run for a card without a workstation on this machine. */
   repoPath?: string;
   /** The URL of the checkout's `origin`, where a review card's PR head is fetched from when it is that repository. */
   remote?: string | null;
   /**
    * What happens to the checkout's main around a review card's merge where work lands on it
-   * (`Workspaces`): before the merge, whether its unpushed commits would stop the pull of it; after,
+   * (`Workstations`): before the merge, whether its unpushed commits would stop the pull of it; after,
    * the pull, and where that stops, the landing of the rebase a worker resolved.
    */
-  pulls?: Pick<Workspaces, 'pullMain' | 'pushMain' | 'clashBeforeMerge' | 'landResolution' | 'landingOf'>;
+  pulls?: Pick<Workstations, 'pullMain' | 'pushMain' | 'clashBeforeMerge' | 'landResolution' | 'landingOf'>;
   /** How long pushing main for a review card waits for the owner's "Undo"; PUSH_HOLD_MS when left out. */
   pushHold?: number;
   /** How long Seismic waits between looks at whether the forge shows a review card's pushed commits as the PR's head; a second when left out. */
@@ -204,7 +204,7 @@ interface LandedState {
   followUp?: boolean;
   /** The follow-up runs in a temporary worktree (`followUpTree`), no clone being free: it goes once the follow-up ends. */
   worktree?: boolean;
-  /** The follow-up's worker needs a full clone: without a workspace, it waits for the next free one (`takeClone`). */
+  /** The follow-up's worker needs a full clone: without a workstation, it waits for the next free one (`takeClone`). */
   needsClone?: boolean;
   /**
    * Not a landing of its own: pulling a review card's merged PR (`card`, PR `pr`) into the local
@@ -229,7 +229,7 @@ const settled = ({ restarts: _, waits: __, ...l }: LandedState): LandedState => 
 /** What the card's row stores while landed work's worker finishes; null while nothing has landed. */
 const landedOf = (row: { landed: string | null }): LandedState | null => (row.landed ? (JSON.parse(row.landed) as LandedState) : null);
 
-/** What `f` returns; a workspace it cannot have is the request's error. */
+/** What `f` returns; a workstation it cannot have is the request's error. */
 /** A path with its links resolved, or as it is where it cannot be (gone). */
 const realpathOr = (path: string) => {
   try {
@@ -243,7 +243,7 @@ function asBadRequest<T>(f: () => T): T {
   try {
     return f();
   } catch (e) {
-    if (e instanceof WorkspaceError) throw new BadRequest(e.code, e.message);
+    if (e instanceof WorkstationError) throw new BadRequest(e.code, e.message);
     throw e;
   }
 }
@@ -253,7 +253,7 @@ async function asBadRequestAsync<T>(p: Promise<T>): Promise<T> {
   try {
     return await p;
   } catch (e) {
-    if (e instanceof WorkspaceError) throw new BadRequest(e.code, e.message);
+    if (e instanceof WorkstationError) throw new BadRequest(e.code, e.message);
     throw e;
   }
 }
@@ -367,7 +367,7 @@ interface Live {
   session: AgentSession;
   /** A Codex worker whose approvals Codex's automatic review decides, not the owner. */
   autoReview?: boolean;
-  /** The machine its workspace is on (null: the one Seismic runs on), where it holds a slot while in a turn. */
+  /** The machine its workstation is on (null: the one Seismic runs on), where it holds a slot while in a turn. */
   host: string | null;
   /** Whether the worker called `ask` or `ready_for_review` in the current turn. */
   handedOver: boolean;
@@ -386,7 +386,7 @@ interface Live {
   acted: boolean;
   nudged: boolean;
   lastText: string;
-  /** The session died and ended the work it had started, the app in the workspace with it: nothing is left to park. */
+  /** The session died and ended the work it had started, the app in the workstation with it: nothing is left to park. */
   ended?: true;
   /** The error the worker's last turn failed with (not logged in, say); gone once it says or does something. */
   failed?: string;
@@ -505,7 +505,7 @@ const END_TURN = 'Recorded. End your turn now without further work; the reply ar
 const RECONNECT_MS = 30_000;
 
 const hostResumed = (host: string) =>
-  `The connection to ${host}, the machine your workspace is on, dropped, and your session ended with it. Whatever you had running there may have been stopped with it: background commands, servers you started, and a command still running in your turn. Run again what you still need, and go on from there.`;
+  `The connection to ${host}, the machine your workstation is on, dropped, and your session ended with it. Whatever you had running there may have been stopped with it: background commands, servers you started, and a command still running in your turn. Run again what you still need, and go on from there.`;
 
 const RESTARTED =
   'Seismic was restarted. Whatever you had running then was stopped with it: background commands, servers you started, and a command still running in your turn (its result shows exit code 137). Run again what you still need. If you had paused for the restart, go on from there.';
@@ -640,7 +640,7 @@ function wokeNote(s: Snooze, timeUp: boolean, owner: boolean, words: boolean, me
 const AFTER_RESTART = 'If something that remains needs Seismic to run your change, call after_restart and end your turn: Seismic tells you once it runs it.';
 
 const AFTER_LANDING =
-  'Your workspace and this session stay until you end a turn with nothing left to wait for (a question, the restart); then both end. Commits you make here no longer land.';
+  'Your workstation and this session stay until you end a turn with nothing left to wait for (a question, the restart); then both end. Commits you make here no longer land.';
 
 const AFTER_DONE = 'This session stays until you end a turn with nothing left to wait for (a question, say); then it ends.';
 
@@ -648,12 +648,12 @@ const FOLLOW_UP_FOLDER =
   "Answer with reply (ask, for a decision that is the owner's). What you change in the folder now counts as this card's, as before, but can no longer be undone from the card: a change the owner's words call for that is more than a small correction becomes a card of its own (propose_card). The session ends once you end a turn with nothing left to wait for.";
 
 const FOLLOW_UP =
-  "Answer with reply (ask, for a decision that is the owner's). Commits you make here do not land: a change to the code the owner's words call for becomes a card of its own (propose_card). Workspace and session end once you end a turn with nothing left to wait for.";
+  "Answer with reply (ask, for a decision that is the owner's). Commits you make here do not land: a change to the code the owner's words call for becomes a card of its own (propose_card). Workstation and session end once you end a turn with nothing left to wait for.";
 
 const IN_WORKTREE =
   "No clone of the repository was free, so this is a temporary worktree, where the repository's app and tooling may not run. If answering needs a full clone, call need_clone and end your turn: Seismic resumes you in the next free clone.";
 
-/** How long taking a card's workspace waits for its ended session to finish its step before git keeps its work. */
+/** How long taking a card's workstation waits for its ended session to finish its step before git keeps its work. */
 const EVICT_SESSION_WAIT = 30_000;
 
 export class Workers {
@@ -670,16 +670,16 @@ export class Workers {
   private approving = new Set<string>();
   /** Review cards whose "Push main, adapt the PR" waits out its undo window (`pushMainFor`), or runs. */
   private pushingMain = new Map<string, ReturnType<typeof setTimeout> | true>();
-  /** Merged cards whose branch git reads the added plan docs of: their workspace goes once it has (`finish`). */
+  /** Merged cards whose branch git reads the added plan docs of: their workstation goes once it has (`finish`). */
   private reading = new Map<string, Promise<void>>();
   /** The files whose signs of a data-model change a card's handover was refused for once (`dataModels`): the next 'unchanged' for them stands. */
   private dataBounced = new Map<string, Set<string>>();
   /**
-   * Cards whose workspace git is making ready before their worker goes on (`whenReady`), with the
+   * Cards whose workstation git is making ready before their worker goes on (`whenReady`), with the
    * machine it is on: the server answers meanwhile, the card holds a slot there, and a restart waits.
    */
   private preparing = new Map<string, { host: string | null; done: Promise<void> }>();
-  /** Whether these workers were shut down: a workspace made ready afterwards starts no worker. */
+  /** Whether these workers were shut down: a workstation made ready afterwards starts no worker. */
   private shut = false;
   /** Bumped whenever a card's work starts, stops or ends: replies and tool calls from before are stale. */
   private generation = new Map<string, number>();
@@ -689,8 +689,8 @@ export class Workers {
   private parking = new Map<string, ReturnType<typeof setTimeout>>();
   /** When the owner last opened a card's app to try it by hand, by card. */
   private tried = new Map<string, number>();
-  /** The forwards to the apps of cards whose workspace is on another machine, by card: the address forwarded, from which workspace, and the port here it had last. */
-  private forwards = new Map<string, { app: string; workspace: string; forward: Forward; port?: number }>();
+  /** The forwards to the apps of cards whose workstation is on another machine, by card: the address forwarded, from which workstation, and the port here it had last. */
+  private forwards = new Map<string, { app: string; workstation: string; forward: Forward; port?: number }>();
   /** Cards whose stack is being stopped: a message to their worker waits until it is. */
   private stopping = new Map<string, Promise<void>>();
   /** Cards whose session on another machine was cut off, waiting for that machine to answer again. */
@@ -704,7 +704,7 @@ export class Workers {
   /** Worktrees their cards are done with that still hold uncommitted changes: they stay (`settleLeases`). */
   private kept = new Set<string>();
   /**
-   * Workspaces git is freeing now (a landed card's, a discarded prototype's, one its card is done
+   * Workstations git is freeing now (a landed card's, a discarded prototype's, one its card is done
    * with), by path, with the card that held them: the server answers meanwhile, and a restart waits.
    */
   private freeing = new Map<string, { card: string; done: Promise<void> }>();
@@ -720,23 +720,23 @@ export class Workers {
   readonly reviews: CodeReviews;
 
   constructor(private o: WorkerOptions) {
-    this.reviews = new CodeReviews({ board: o.board, runtime: o.reviewRuntime ?? o.runtime, workspaces: o.workspaces, ...(o.reviewAgentSetting ? { agentSetting: o.reviewAgentSetting } : {}), ...(o.repo ? { repo: o.repo } : {}) });
+    this.reviews = new CodeReviews({ board: o.board, runtime: o.reviewRuntime ?? o.runtime, workstations: o.workstations, ...(o.reviewAgentSetting ? { agentSetting: o.reviewAgentSetting } : {}), ...(o.repo ? { repo: o.repo } : {}) });
     // what a worker does shows on its card while it is in a turn, and only then can it be paused
     o.board.showTurns(() => this.turnsShown());
-    this.unwatchLandings = o.workspaces.watchLandings?.((notice) => this.landingNotice(notice));
-    // a forward to a card's app ends once the card no longer offers it: cleared, parked, its workspace gone
+    this.unwatchLandings = o.workstations.watchLandings?.((notice) => this.landingNotice(notice));
+    // a forward to a card's app ends once the card no longer offers it: cleared, parked, its workstation gone
     this.unwatch = o.board.onChange(() => {
       for (const [id, f] of this.forwards) {
         const card = this.o.board.item(id);
-        if (card?.app !== f.app || this.o.board.row(id).workspace !== f.workspace) this.unforward(id);
+        if (card?.app !== f.app || this.o.board.row(id).workstation !== f.workstation) this.unforward(id);
       }
       this.settleLater();
     });
   }
 
   /** The folder without git the cards work in, where the repository is one (design: Folders without git). */
-  private get folder(): FolderWorkspaces | null {
-    return this.o.workspaces.mode === 'folder' ? (this.o.workspaces as FolderWorkspaces) : null;
+  private get folder(): FolderWorkstations | null {
+    return this.o.workstations.mode === 'folder' ? (this.o.workstations as FolderWorkstations) : null;
   }
 
   /** Whether a video demo here may go to a page for colleagues, which the worker then writes. */
@@ -747,8 +747,8 @@ export class Workers {
   // ---------------------------------------------------------------- owner actions
 
   /**
-   * Starts the card's worker. The card is at work at once, its workspace taken; the worker starts
-   * once git has made that ready, which the promise waits for. Refusals (`notPlanned`, no workspace
+   * Starts the card's worker. The card is at work at once, its workstation taken; the worker starts
+   * once git has made that ready, which the promise waits for. Refusals (`notPlanned`, no workstation
    * free) throw at once; where the clone it took turns out not to be clean and no other is, the card
    * is planned again and the promise rejects with that shortage.
    */
@@ -757,13 +757,13 @@ export class Workers {
     this.limitAttempts.delete(cardId);
     if (card.kind === 'plan') throw new BadRequest('plan', 'a plan is worked on through its workstreams');
     if (card.state !== 'planned') throw new BadRequest('notPlanned', 'only a planned card can be started');
-    if (this.evicting.has(card.id)) throw new BadRequest('evicting', 'its workspace is being given to another card');
+    if (this.evicting.has(card.id)) throw new BadRequest('evicting', 'its workstation is being given to another card');
     // once work has begun the branch stays the card's, whatever the title says now
     const row = this.o.board.row(card.id);
     // a workstream planned again after a part landed: the branch of that part may still be in a clone
     const shipped = row.shipped ? (JSON.parse(row.shipped) as Shipped) : null;
     const branch = row.branch ?? `${branchName(card.title, card.id)}${shipped ? `-${shipped.commit?.slice(0, 7) ?? 'rest'}` : ''}`;
-    const { path, ready } = asBadRequest(() => this.o.workspaces.lease(card.id, branch, { from: row.kept_in }));
+    const { path, ready } = asBadRequest(() => this.o.workstations.lease(card.id, branch, { from: row.kept_in }));
     this.bump(card.id);
     // the run before is not resumed, but the work retrospective still reads it
     if (row.session_id) this.o.board.log(card.id, 'state', 'obeya', this.o.board.t.worker.restarted(this.o.board.t.worker.earlierRun(row.session_id)));
@@ -771,7 +771,7 @@ export class Workers {
     const contribution = contributionOf(row);
     const pr = contribution ? JSON.stringify({ url: contribution.url, number: contribution.number, seen: [], reported: [] } satisfies PrState) : null;
     // a fresh session knows of no app that was stopped
-    this.o.board.work(card.id, { state: 'working', need: null, detail: null, status_line: null, workspace: path, branch, session_id: null, agent_setting: selected ? JSON.stringify(selected) : null, pr, approved_at: null, parked: null, paused: null, pausing: null, snoozed: null, app: null });
+    this.o.board.work(card.id, { state: 'working', need: null, detail: null, status_line: null, workstation: path, branch, session_id: null, agent_setting: selected ? JSON.stringify(selected) : null, pr, approved_at: null, parked: null, paused: null, pausing: null, snoozed: null, app: null });
     const t = this.o.board.t.worker;
     this.o.board.log(card.id, 'state', 'obeya', this.folder ? t.startedInFolder : contribution ? t.reviewStarted(contribution.number, contribution.author) : t.started(branch));
     if (selected) this.o.board.log(card.id, 'state', 'obeya', t.startedWith(selected.harness === 'codex' && selected.codex ? `Codex · ${selected.codex.model} · ${selected.codex.effort}` : selected.harness === 'agy' && selected.agy ? `Antigravity · ${selected.agy.model} · ${selected.agy.effort}` : `Claude Code · ${selected.model} · ${selected.effort}`));
@@ -781,24 +781,24 @@ export class Workers {
       card.id,
       ready,
       () => {
-        // the branch is in this workspace now
+        // the branch is in this workstation now
         if (row.kept_in) this.o.board.work(card.id, { kept_in: null });
-        // a review card's workspace stands on the pull request's head before its worker starts
+        // a review card's workstation stands on the pull request's head before its worker starts
         if (contribution) this.onPrHead(card.id, branch, contribution, launch);
         else launch();
       },
       // planned again, as before the start
-      () => this.o.board.work(card.id, { state: 'planned', workspace: null, branch: row.branch, paused: null, pausing: null, snoozed: null }),
+      () => this.o.board.work(card.id, { state: 'planned', workstation: null, branch: row.branch, paused: null, pausing: null, snoozed: null }),
       true,
     );
   }
 
   /**
-   * Runs `go` (the worker starts, or goes on) once git has made the card's workspace ready
+   * Runs `go` (the worker starts, or goes on) once git has made the card's workstation ready
    * (`Lease.ready`; at once when it is), unless the card was stopped, snoozed or started anew
-   * meanwhile; until then its status line says that its workspace is being prepared. Where git
+   * meanwhile; until then its status line says that its workstation is being prepared. Where git
    * fails, `undo` puts the card back as it was, whatever came meanwhile, as long as the card still
-   * names the workspace, and its conversation says why. `queues`: where no clean clone was left, the
+   * names the workstation, and its conversation says why. `queues`: where no clean clone was left, the
    * promise rejects with the shortage instead, for the Koordinator to queue the card as when there is
    * none at once.
    */
@@ -808,8 +808,8 @@ export class Workers {
       return Promise.resolve();
     }
     const generation = this.generation.get(cardId);
-    const line = this.o.board.t.worker.preparingWorkspace;
-    const path = this.o.board.row(cardId).workspace;
+    const line = this.o.board.t.worker.preparingWorkstation;
+    const path = this.o.board.row(cardId).workstation;
     const settle = (then: () => void, always = false) => {
       if (this.preparing.get(cardId)?.done === waited) this.preparing.delete(cardId);
       // Seismic stopped meanwhile: a new run takes the card on
@@ -831,19 +831,19 @@ export class Workers {
       (at) => {
         // the clone it was given had uncommitted changes when git looked again: it holds the one that took its place,
         // also where it was snoozed or started anew meanwhile
-        if (at !== path && !this.shut && this.o.board.row(cardId).workspace === path) this.o.board.work(cardId, { workspace: at });
+        if (at !== path && !this.shut && this.o.board.row(cardId).workstation === path) this.o.board.work(cardId, { workstation: at });
         settle(go);
       },
       (e: unknown) => {
-        const short = queues && e instanceof WorkspaceError && !!shortageOf(e.code);
+        const short = queues && e instanceof WorkstationError && !!shortageOf(e.code);
         let undone = false;
         settle(() => {
-          if (this.o.board.row(cardId).workspace !== path) return;
+          if (this.o.board.row(cardId).workstation !== path) return;
           undo();
           undone = true;
-          if (!short) this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.worker.workspaceFailed(messageOf(e)));
+          if (!short) this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.worker.workstationFailed(messageOf(e)));
         }, true);
-        if (short && undone) throw new BadRequest((e as WorkspaceError).code, messageOf(e));
+        if (short && undone) throw new BadRequest((e as WorkstationError).code, messageOf(e));
       },
     );
     const waited = done.catch(() => {});
@@ -853,20 +853,20 @@ export class Workers {
   }
 
   /**
-   * Puts the review card's workspace on the head of its pull request (`refs/pull/<n>/head`, which
+   * Puts the review card's workstation on the head of its pull request (`refs/pull/<n>/head`, which
    * GitHub and Forgejo both have), fetched from the repository's `origin` where that is the PR's
    * repository, else from the PR's repository on its forge; then `then` runs, with what went wrong
    * where git could not, unless the card was stopped or started anew meanwhile.
    */
   private onPrHead(cardId: string, branch: string, c: StoredContribution, then: (problem: string | null) => void) {
     const generation = this.generation.get(cardId);
-    const ws = this.o.board.row(cardId).workspace;
+    const ws = this.o.board.row(cardId).workstation;
     const source = this.prSource(c);
-    // stopped while git fetched, the workspace may be another card's by now: it is left as it is
-    const still = () => !this.shut && this.generation.get(cardId) === generation && this.o.board.row(cardId).workspace === ws;
+    // stopped while git fetched, the workstation may be another card's by now: it is left as it is
+    const still = () => !this.shut && this.generation.get(cardId) === generation && this.o.board.row(cardId).workstation === ws;
     const fetched = ws
       ? gitAsync(ws, 'fetch', '--quiet', source, `refs/pull/${c.number}/head`).then(() => (still() ? gitAsync(ws, 'checkout', '--quiet', '-B', branch, 'FETCH_HEAD') : ''))
-      : Promise.reject(new Error('the card has no workspace'));
+      : Promise.reject(new Error('the card has no workstation'));
     void fetched.then(
       () => null,
       (e: unknown) => messageOf(e),
@@ -895,9 +895,9 @@ export class Workers {
     return (commit && gitOrNull(this.o.repoPath, 'show', `${commit}:CLAUDE.md`)?.trim()) || '';
   }
 
-  /** Where a review card's forge calls run: its workspace on this machine, else the repository's checkout. */
+  /** Where a review card's forge calls run: its workstation on this machine, else the repository's checkout. */
   private forgeCwd(cardId: string): string {
-    const ws = this.o.board.row(cardId).workspace;
+    const ws = this.o.board.row(cardId).workstation;
     return ws && !hostName(ws) ? ws : (this.o.repoPath ?? process.cwd());
   }
 
@@ -1083,12 +1083,12 @@ export class Workers {
    * conversation the words reply to, which the worker reads above them; `spot`: the place in the
    * demo video they are about. Such words on a handover are held back while the owner watches (`hold`).
    */
-  /** Route review decisions to a fresh session in the same workspace. */
+  /** Route review decisions to a fresh session in the same workstation. */
   reviewWithNewAgent(cardId: string, picks: Record<number, FindingPick> | undefined, setting: AgentSetting, notes?: Record<number, string>) {
     const card = this.card(cardId);
     const live = this.live.get(cardId);
-    if (!handedOver(card) || !card.codeReview || card.codeReview.stale || card.codeReview.state !== 'done' || !this.o.board.row(cardId).workspace)
-      throw new BadRequest('notReady', 'a current code review and its workspace are required');
+    if (!handedOver(card) || !card.codeReview || card.codeReview.stale || card.codeReview.state !== 'done' || !this.o.board.row(cardId).workstation)
+      throw new BadRequest('notReady', 'a current code review and its workstation are required');
     if (live?.busy || live?.background) throw new BadRequest('notReady', 'the current agent is still working');
     const entries = Object.entries(picks ?? {});
     if (!entries.length) throw new BadRequest('noFinding', 'choose findings first');
@@ -1189,7 +1189,7 @@ export class Workers {
 
   /**
    * The owner asks about a card whose work is over: its worker's session is resumed in a fresh
-   * workspace on the card's branch, as after a landing, and ends again once the worker has answered.
+   * workstation on the card's branch, as after a landing, and ends again once the worker has answered.
    */
   private followUp(card: Item, text: string, images: string[], spoken: boolean, replyTo?: number, place?: Spot) {
     const row = this.o.board.row(card.id);
@@ -1202,7 +1202,7 @@ export class Workers {
         [
           this.folder
             ? `The owner asks about this card${spoken ? ` (${SPOKEN})` : ''}. It is done, and your session had ended; it goes on in the folder ${path}, which other cards and the owner may have changed since.`
-            : `The owner asks about this card${spoken ? ` (${SPOKEN})` : ''}. ${card.state === 'done' ? 'It was closed without a change to the repository' : `Its work is on main${commit ? ` (${commit.slice(0, 7)})` : ''}`}, and your session had ended; it goes on in a fresh workspace ${worktree ? 'at the head of' : 'on'} the branch ${row.branch}, where main may have moved on since.`,
+            : `The owner asks about this card${spoken ? ` (${SPOKEN})` : ''}. ${card.state === 'done' ? 'It was closed without a change to the repository' : `Its work is on main${commit ? ` (${commit.slice(0, 7)})` : ''}`}, and your session had ended; it goes on in a fresh workstation ${worktree ? 'at the head of' : 'on'} the branch ${row.branch}, where main may have moved on since.`,
           this.words(card.id, text, images.slice(stills.length), replyTo, place),
           this.folder ? FOLLOW_UP_FOLDER : FOLLOW_UP,
           ...(worktree ? [IN_WORKTREE] : []),
@@ -1216,10 +1216,10 @@ export class Workers {
   }
 
   /**
-   * Resumes the session of a card whose work is over in a fresh workspace on its branch, a temporary
+   * Resumes the session of a card whose work is over in a fresh workstation on its branch, a temporary
    * worktree where no clone is free (the worker hears `message` for it), `extra` in its landed state
-   * (`followUp`). `before` runs once the workspace is taken, before the worker hears anything.
-   * Throws where the card can have no workspace.
+   * (`followUp`). `before` runs once the workstation is taken, before the worker hears anything.
+   * Throws where the card can have no workstation.
    */
   private resumeFinished(card: Item, extra: LandedState, message: (path: string, worktree: boolean) => string, images: string[] = [], before?: () => void, failed?: () => void) {
     const row = this.o.board.row(card.id);
@@ -1227,19 +1227,19 @@ export class Workers {
     let worktree = false;
     try {
       // the owner's question does not wait for a slot
-      lease = this.o.workspaces.lease(card.id, row.branch!, { overSlots: true });
+      lease = this.o.workstations.lease(card.id, row.branch!, { overSlots: true });
     } catch (e) {
-      if (!(e instanceof WorkspaceError)) throw e;
+      if (!(e instanceof WorkstationError)) throw e;
       if (!shortageOf(e.code)) throw new BadRequest(e.code, e.message);
       // nor for a clone: a worktree takes none
-      lease = asBadRequest(() => this.o.workspaces.followUpTree(card.id, row.branch!));
+      lease = asBadRequest(() => this.o.workstations.followUpTree(card.id, row.branch!));
       worktree = true;
     }
     const { path, ready } = lease;
     this.bump(card.id);
     const commit = row.shipped ? (JSON.parse(row.shipped) as Shipped).commit : undefined;
     const landed: LandedState = { ...(card.state === 'done' ? { unchanged: true } : commit ? { commit } : {}), followUp: true, ...(worktree ? { worktree } : {}), ...extra };
-    this.o.board.work(card.id, { workspace: path, landed: JSON.stringify(landed), status_line: null, app: null });
+    this.o.board.work(card.id, { workstation: path, landed: JSON.stringify(landed), status_line: null, app: null });
     before?.();
     const text = message(path, worktree);
     void this.whenReady(
@@ -1250,19 +1250,19 @@ export class Workers {
         if (row.session_id) this.launch(card.id, text, row.session_id, images);
         else this.launch(card.id, `You worked on the card “${card.title}”:\n\n${card.body}\n\n${text}`, undefined, [...this.taskImages(card), ...images]);
       },
-      // the question stands in the conversation, without a workspace to answer it in
+      // the question stands in the conversation, without a workstation to answer it in
       () => {
-        this.o.workspaces.release(card.id);
-        this.o.board.work(card.id, { workspace: null, landed: row.landed });
+        this.o.workstations.release(card.id);
+        this.o.board.work(card.id, { workstation: null, landed: row.landed });
         failed?.();
       },
     );
   }
 
-  /** Whether the card's follow-up waits for a full clone, its worker without a workspace. */
+  /** Whether the card's follow-up waits for a full clone, its worker without a workstation. */
   private waitsForClone(cardId: string): boolean {
     const row = this.o.board.row(cardId);
-    return !row.workspace && !!landedOf(row)?.needsClone;
+    return !row.workstation && !!landedOf(row)?.needsClone;
   }
 
   /**
@@ -1274,8 +1274,8 @@ export class Workers {
     this.bump(cardId);
     const row = this.o.board.row(cardId);
     const { worktree: _, ...landed } = landedOf(row)!;
-    this.removeTree(row.workspace);
-    this.o.board.work(cardId, { workspace: null, landed: JSON.stringify(landed), status_line: this.o.board.t.worker.waitsForWorkspace });
+    this.removeTree(row.workstation);
+    this.o.board.work(cardId, { workstation: null, landed: JSON.stringify(landed), status_line: this.o.board.t.worker.waitsForWorkstation });
     this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.waitsForClone);
     this.takeClone(cardId);
   }
@@ -1289,21 +1289,21 @@ export class Workers {
     const row = this.o.board.row(cardId);
     let lease: Lease;
     try {
-      lease = this.o.workspaces.lease(cardId, row.branch!, { overSlots: true });
+      lease = this.o.workstations.lease(cardId, row.branch!, { overSlots: true });
     } catch (e) {
-      if (!(e instanceof WorkspaceError && shortageOf(e.code))) console.error(`a clone for the follow-up on ${cardId}:`, e);
+      if (!(e instanceof WorkstationError && shortageOf(e.code))) console.error(`a clone for the follow-up on ${cardId}:`, e);
       return false;
     }
     const { needsClone: _, ...landed } = landedOf(row)!;
     this.bump(cardId);
-    this.o.board.work(cardId, { workspace: lease.path, landed: JSON.stringify(landed), status_line: null, app: null });
+    this.o.board.work(cardId, { workstation: lease.path, landed: JSON.stringify(landed), status_line: null, app: null });
     this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.cloneFree);
     void this.whenReady(
       cardId,
       lease.ready,
       () => this.deliver(cardId, `A clone is free now: you go on in it, a full clone on the branch ${row.branch}. Answer the owner's question there.\n\n${FOLLOW_UP}`),
       // it waits for the next free clone again
-      () => this.o.board.work(cardId, { workspace: null, landed: row.landed, status_line: this.o.board.t.worker.waitsForWorkspace }),
+      () => this.o.board.work(cardId, { workstation: null, landed: row.landed, status_line: this.o.board.t.worker.waitsForWorkstation }),
     );
     return true;
   }
@@ -1316,7 +1316,7 @@ export class Workers {
   /** Removes a follow-up's temporary worktree; one left behind does no harm. */
   private removeTree(path: string | null) {
     if (!path) return;
-    this.o.workspaces.removeFollowUpTree(path).catch((e: unknown) => console.error(`removing the follow-up worktree ${path}:`, e));
+    this.o.workstations.removeFollowUpTree(path).catch((e: unknown) => console.error(`removing the follow-up worktree ${path}:`, e));
   }
 
   /**
@@ -1590,7 +1590,7 @@ export class Workers {
     this.landing.add(cardId);
     let folded;
     try {
-      folded = await this.o.workspaces.foldMain(cardId, row.branch!);
+      folded = await this.o.workstations.foldMain(cardId, row.branch!);
     } finally {
       this.landing.delete(cardId);
     }
@@ -1608,7 +1608,7 @@ export class Workers {
         `The owner approved your work, but the Seismic checkout had uncommitted changes of theirs to files your branch changes too, so it could not land. At the owner's word, Seismic moved those changes into your branch, as the commit ${folded.commit!.slice(0, 7)} on top of your work (also under refs/obeya/folded/${cardId})${folded.kept ? '' : ', and set those files back in the checkout'}:\n${files}`,
         ...(folded.kept ? ['The owner edited those files once more while Seismic folded them, so the checkout keeps its copies: if they still stand in the way once you hand over, the owner is offered to fold them in again.'] : []),
         folded.conflict
-          ? 'The commit conflicts with your work: the cherry-pick is still under way in your workspace. Resolve it (git cherry-pick --continue), so that the owner\'s changes and yours both hold.'
+          ? 'The commit conflicts with your work: the cherry-pick is still under way in your workstation. Resolve it (git cherry-pick --continue), so that the owner\'s changes and yours both hold.'
           : 'Look at what the commit changes and work it in, so that the owner\'s changes and yours both hold: keep the commit, or fold it into yours.',
         land
           ? 'Then run the checks and hand over again: the approval holds, and Seismic lands the work without asking the owner again, with the demo already on the card.'
@@ -1648,7 +1648,7 @@ export class Workers {
       if (i.kind !== 'task' || (this.o.repo && i.repo !== this.o.repo)) continue;
       try {
         if (!this.catchable(i.id)) continue;
-        const [work, { land }] = await Promise.all([this.o.workspaces.hasWork(i.id), this.landingOf(i.id)]);
+        const [work, { land }] = await Promise.all([this.o.workstations.hasWork(i.id), this.landingOf(i.id)]);
         // the card may have moved on during the git calls: look again before writing
         if (!this.catchable(i.id)) continue;
         const e = this.o.board.events(i.id).findLast((x) => x.kind === 'review' && x.author === 'worker');
@@ -1719,7 +1719,7 @@ export class Workers {
     let lands: { land: 'main' | 'pr'; direct: boolean };
     let work: boolean;
     try {
-      [lands, work] = await Promise.all([this.landingOf(cardId), this.o.workspaces.hasWork(cardId)]);
+      [lands, work] = await Promise.all([this.landingOf(cardId), this.o.workstations.hasWork(cardId)]);
     } finally {
       this.approving.delete(cardId);
     }
@@ -1892,19 +1892,19 @@ export class Workers {
 
   /**
    * The worker's own commits held on a review card go onto the PR's branch in the contributor's
-   * repository, fast-forward only, from its workspace and without its hooks (the PR's code ran there).
+   * repository, fast-forward only, from its workstation and without its hooks (the PR's code ran there).
    * A push the forge rejects as not a fast-forward is a push of the contributor's meanwhile, which
    * goes back to the worker as a moved head would; any other refusal stays with the owner.
    */
   private async pushHeld(cardId: string, c: StoredContribution & { held?: object }): Promise<void> {
     const t = this.o.board.t.worker;
-    const ws = this.o.board.row(cardId).workspace;
+    const ws = this.o.board.row(cardId).workstation;
     const to = pushTarget(c);
     const refuse = (reason: string) => {
       this.o.board.log(cardId, 'error', 'obeya', t.pushRefused(reason));
       return new BadRequest('pushRefused', reason);
     };
-    if (!ws) throw refuse('the card has no workspace');
+    if (!ws) throw refuse('the card has no workstation');
     if (!to) throw refuse('the forge names no branch of the pull request to push to');
     try {
       await gitAsync(ws, '-c', 'core.hooksPath=/dev/null', 'push', '--quiet', to.repo, `${c.reviewed}:refs/heads/${to.branch}`);
@@ -2017,7 +2017,7 @@ export class Workers {
     if (!body.trim()) return 'Not sent: the review has no text.';
     const generation = this.generation.get(cardId);
     // the head the request is about, where no handover named one yet: a push after it is news for the worker
-    const ws = this.o.board.row(cardId).workspace;
+    const ws = this.o.board.row(cardId).workstation;
     const head = c.reviewed ?? (ws ? await gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : undefined);
     let url: string | void;
     try {
@@ -2058,12 +2058,12 @@ export class Workers {
    * since the worker fetched, or the branch was rewritten.
    */
   private async ownCommits(cardId: string, c: StoredContribution): Promise<OwnCommits | string> {
-    const ws = this.o.board.row(cardId).workspace ?? '';
+    const ws = this.o.board.row(cardId).workstation ?? '';
     let head: string;
     try {
       head = await gitAsync(ws, 'rev-parse', 'HEAD');
     } catch (e) {
-      return `Not handed over: Seismic could not read your branch's head (${messageOf(e)}). Check the workspace, then call ready_for_review again.`;
+      return `Not handed over: Seismic could not read your branch's head (${messageOf(e)}). Check the workstation, then call ready_for_review again.`;
     }
     if (!this.o.forge) return { head, base: head, commits: 0 };
     let base: string;
@@ -2120,7 +2120,7 @@ export class Workers {
 
   /**
    * "Discard changes" in a folder without git, on a card waiting for approval: what its worker
-   * changed there is put back as it was (`FolderWorkspaces.undo`), but what someone changed since
+   * changed there is put back as it was (`FolderWorkstations.undo`), but what someone changed since
    * and what no copy was kept of. The card goes on waiting for the owner, its log says what was put
    * back and what not, and its worker hears it with its next message.
    */
@@ -2162,7 +2162,7 @@ export class Workers {
    */
   async landingOf(cardId: string): Promise<{ land: 'main' | 'pr'; direct: boolean; own?: CardLanding }> {
     const repo = { land: this.o.adapter.land, direct: !!this.o.adapter.direct };
-    const fork = await this.o.workspaces.forkPoint(cardId);
+    const fork = await this.o.workstations.forkPoint(cardId);
     if (!fork) return repo;
     const [now, before] = await gitSteps(fork.ws, together(readingShared('HEAD'), readingShared(fork.base)));
     const machine = this.o.machineSettings?.();
@@ -2215,7 +2215,7 @@ export class Workers {
       if (n === 0) this.landingActive.add(cardId);
       this.o.board.showLandingPosition(cardId, n);
     } };
-    const result = await (direct ? this.o.workspaces.pushToMain(cardId, trailer, turn) : this.o.workspaces.landOnMain(cardId, row.branch!, trailer, turn));
+    const result = await (direct ? this.o.workstations.pushToMain(cardId, trailer, turn) : this.o.workstations.landOnMain(cardId, row.branch!, trailer, turn));
     if (signal?.aborted) return;
     if ('code' in result && !result.worker) {
       // the worker hears it with its next step, so it does not tell the owner the card still waits for their approval as if nothing had happened
@@ -2248,7 +2248,7 @@ export class Workers {
     if (this.unheard(cardId).some((u) => u.text.startsWith(NOT_LANDED))) this.o.board.work(cardId, { unheard: JSON.stringify(this.unheardBut(cardId, NOT_LANDED)) });
     this.o.board.planDocsLanded(cardId, added);
     this.bump(cardId);
-    const restartFor = (await this.o.restartsFor?.(result, direct ? (row.workspace ?? undefined) : undefined)) ?? false;
+    const restartFor = (await this.o.restartsFor?.(result, direct ? (row.workstation ?? undefined) : undefined)) ?? false;
     const restarts = !!restartFor;
     const page = this.pageNote(cardId);
     this.o.board.work(cardId, {
@@ -2278,7 +2278,7 @@ export class Workers {
         sw
           ? `The Seismic checkout was on ${sw.branch ? `the branch ${sw.branch}` : `a detached HEAD at ${sw.commit}`}, not on main: Seismic switched it to main to land your work.` +
             (sw.commits
-              ? ` ${sw.branch ?? sw.commit} has ${sw.commits === 1 ? 'a commit' : `${sw.commits} commits`} main does not: if ${sw.commits === 1 ? 'it is' : 'they are'} work of yours, made there instead of in your workspace, ${sw.commits === 1 ? 'it' : 'they'} did not land with it; tell the owner.`
+              ? ` ${sw.branch ?? sw.commit} has ${sw.commits === 1 ? 'a commit' : `${sw.commits} commits`} main does not: if ${sw.commits === 1 ? 'it is' : 'they are'} work of yours, made there instead of in your workstation, ${sw.commits === 1 ? 'it' : 'they'} did not land with it; tell the owner.`
               : '')
           : '',
         restartFor === 'obeya'
@@ -2304,7 +2304,7 @@ export class Workers {
     if (!hard.size) return;
     const candidates = this.o.board.items().filter((c) => c.id !== notice.cardId && c.repo === repo && ACTIVE.includes(c.state) && c.kind !== 'plan' && !c.prototypeOf);
     await Promise.all(candidates.map(async (c) => {
-      const changed = await this.o.workspaces.changedFiles(c.id, undefined, true);
+      const changed = await this.o.workstations.changedFiles(c.id, undefined, true);
       const files = [...new Set(changed.filter((f) => hard.has(f)))].sort();
       const now = this.o.board.item(c.id);
       if (!files.length || !now || !ACTIVE.includes(now.state)) return;
@@ -2439,35 +2439,35 @@ export class Workers {
 
   /**
    * Landed work's worker hears about it and may finish what remains (a migration, say) in its
-   * workspace, which stays until then. Without a session to tell, the workspace goes at once.
+   * workstation, which stays until then. Without a session to tell, the workstation goes at once.
    */
   private afterLanding(cardId: string, message: string, images: string[] = [], owner = false) {
     const row = this.o.board.row(cardId);
-    if (!row.workspace || (!this.live.has(cardId) && !row.session_id)) return this.finish(cardId);
+    if (!row.workstation || (!this.live.has(cardId) && !row.session_id)) return this.finish(cardId);
     this.deliver(cardId, message, images, owner);
   }
 
-  /** Landed work's worker is done: its session ends and its workspace is freed. */
+  /** Landed work's worker is done: its session ends and its workstation is freed. */
   private finish(cardId: string) {
     this.end(cardId);
     this.bump(cardId);
     const row = this.o.board.row(cardId);
     const worktree = this.inWorktree(cardId);
-    // the plan docs its branch adds are read before its workspace goes
+    // the plan docs its branch adds are read before its workstation goes
     const reading = this.reading.get(cardId);
     if (worktree) {
-      if (reading) void reading.finally(() => this.removeTree(row.workspace));
-      else this.removeTree(row.workspace);
-    } else if (row.workspace) {
-      const removeLanded = () => this.o.workspaces.removeLanded(cardId, row.branch ?? '');
+      if (reading) void reading.finally(() => this.removeTree(row.workstation));
+      else this.removeTree(row.workstation);
+    } else if (row.workstation) {
+      const removeLanded = () => this.o.workstations.removeLanded(cardId, row.branch ?? '');
       // the card is done either way; a leftover worktree does no harm
-      this.whileFreeing(cardId, row.workspace, reading ? reading.catch(() => {}).then(removeLanded) : removeLanded(), 'freeing a landed workspace');
+      this.whileFreeing(cardId, row.workstation, reading ? reading.catch(() => {}).then(removeLanded) : removeLanded(), 'freeing a landed workstation');
     }
     const landed = landedOf(row);
-    this.o.board.work(cardId, { landed: null, workspace: null, status_line: null, parked: null, paused: null, pausing: null, snoozed: null, app: null, ...(row.state === 'waiting' ? { state: landed?.unchanged ? 'done' : 'live', need: null, detail: null } : {}) });
+    this.o.board.work(cardId, { landed: null, workstation: null, status_line: null, parked: null, paused: null, pausing: null, snoozed: null, app: null, ...(row.state === 'waiting' ? { state: landed?.unchanged ? 'done' : 'live', need: null, detail: null } : {}) });
     this.o.board.workDone(cardId);
     // the work retrospective read the card's runs when its work ended
-    if (!landed?.followUp) this.o.onWorkEnded?.(cardId, row.workspace);
+    if (!landed?.followUp) this.o.onWorkEnded?.(cardId, row.workstation);
   }
 
   /** The plan docs the card's branch adds, as plan references of the canvas. */
@@ -2475,28 +2475,28 @@ export class Workers {
     // a plan folder outside the repository has nothing in the branch: such a card named its doc when it started
     if (!this.o.board.row(cardId).idea || outsidePlanDir(this.o.adapter.planDocs.dir)) return [];
     const home = !this.o.repo || this.o.repo === this.o.board.home;
-    return (await this.o.workspaces.addedFiles(cardId, this.o.adapter.planDocs.dir))
+    return (await this.o.workstations.addedFiles(cardId, this.o.adapter.planDocs.dir))
       .filter((f) => f.endsWith('.md') && !this.o.adapter.planDocs.exclude.some((x) => f.endsWith(`/${x}`)))
       .map((f) => (home ? f : `${this.o.repo}:${f}`));
   }
 
   /**
    * A prototype has served its purpose, whatever its state: its worker stops and the card goes into
-   * the archive with its log, demo and summary. Discarded, its workspace and branch are thrown away;
+   * the archive with its log, demo and summary. Discarded, its workstation and branch are thrown away;
    * built, they went to its idea, or the workstream `into`, before (`buildOn`). Git cleans the
-   * workspace in the background; it is free once git is done.
+   * workstation in the background; it is free once git is done.
    */
   endPrototype(cardId: string, end: 'discarded' | 'built', by: 'owner' | 'obeya' = 'owner', into?: string) {
     const card = this.card(cardId);
     if (!card.prototypeOf) throw new BadRequest('notPrototype', 'not a prototype');
-    this.o.onWorkEnded?.(cardId, this.o.board.row(cardId).workspace);
+    this.o.onWorkEnded?.(cardId, this.o.board.row(cardId).workstation);
     this.end(cardId);
     this.bump(cardId);
     this.o.board.work(cardId, { paused: null, pausing: null, snoozed: null });
-    const workspace = this.o.workspaces.leasedBy(cardId);
+    const workstation = this.o.workstations.leasedBy(cardId);
     const { branch } = this.o.board.row(cardId);
-    // the card goes anyway, its workspace once git has cleaned it; a leftover worktree does no harm
-    if (workspace) this.whileFreeing(cardId, workspace, this.o.workspaces.discard(cardId, branch ?? ''), 'discarding a prototype');
+    // the card goes anyway, its workstation once git has cleaned it; a leftover worktree does no harm
+    if (workstation) this.whileFreeing(cardId, workstation, this.o.workstations.discard(cardId, branch ?? ''), 'discarding a prototype');
     const idea = this.o.board.card(card.prototypeOf);
     const t = this.o.board.t.worker;
     this.o.board.log(cardId, 'state', by, end === 'discarded' ? t.prototypeDiscarded : into ? t.prototypeBuiltInto(into) : t.prototypeBuilt(idea?.title ?? ''));
@@ -2506,47 +2506,47 @@ export class Workers {
 
   /**
    * The idea, or the workstream `into` names of the plan it became, is built on this prototype:
-   * its workspace and branch (renamed for that card) go to the card, which names them before the
-   * prototype ends as built (a lease its card does not name is freed). Settles with the workspace
+   * its workstation and branch (renamed for that card) go to the card, which names them before the
+   * prototype ends as built (a lease its card does not name is freed). Settles with the workstation
    * and branch the card has now, once git has renamed the branch.
    */
   buildOn(prototypeId: string, idea: Item, into?: string): Promise<{ path: string; branch: string }> {
-    const { workspace, branch } = this.o.board.row(prototypeId);
-    if (!workspace || !branch) throw new BadRequest('noWorkspace', 'the prototype has no workspace to build on');
-    const built = asBadRequestAsync(this.o.workspaces.transfer(prototypeId, idea.id, branch, branchName(idea.title, idea.id))).then((moved) => {
-      this.o.board.work(idea.id, { workspace: moved.path, branch: moved.branch, built_on: prototypeId });
+    const { workstation, branch } = this.o.board.row(prototypeId);
+    if (!workstation || !branch) throw new BadRequest('noWorkstation', 'the prototype has no workstation to build on');
+    const built = asBadRequestAsync(this.o.workstations.transfer(prototypeId, idea.id, branch, branchName(idea.title, idea.id))).then((moved) => {
+      this.o.board.work(idea.id, { workstation: moved.path, branch: moved.branch, built_on: prototypeId });
       this.endPrototype(prototypeId, 'built', 'owner', into);
       return moved;
     });
-    // until the card names the workspace, its lease is not settled, and a restart waits for git
-    this.whileFreeing(prototypeId, workspace, built, 'building on a prototype');
+    // until the card names the workstation, its lease is not settled, and a restart waits for git
+    this.whileFreeing(prototypeId, workstation, built, 'building on a prototype');
     return built;
   }
 
   /**
    * What the card's work changes: once it landed, what the landing put on the default branch;
-   * before, its branch in its workspace so far. Null when neither is there to read.
+   * before, its branch in its workstation so far. Null when neither is there to read.
    */
   diff(cardId: string, full: boolean): Promise<CardDiff | null> {
     const row = this.o.board.row(cardId);
     const shipped = row.shipped ? (JSON.parse(row.shipped) as Shipped) : null;
-    // landed work's workspace, while its worker finishes, has nothing left against the default branch
-    if (row.state === 'live' && shipped?.commit && shipped.base) return this.o.workspaces.landedDiff(shipped.base, shipped.commit, full);
-    return this.o.workspaces.diff(cardId, full);
+    // landed work's workstation, while its worker finishes, has nothing left against the default branch
+    if (row.state === 'live' && shipped?.commit && shipped.base) return this.o.workstations.landedDiff(shipped.base, shipped.commit, full);
+    return this.o.workstations.diff(cardId, full);
   }
 
-  /** The files of the card's change as they are now, as `diff` reads it, by a list no file name can pass for another in (`CardWorkspaces.changedFiles`). */
+  /** The files of the card's change as they are now, as `diff` reads it, by a list no file name can pass for another in (`CardWorkstations.changedFiles`). */
   changedFiles(cardId: string): Promise<string[]> {
     const row = this.o.board.row(cardId);
     const shipped = row.shipped ? (JSON.parse(row.shipped) as Shipped) : null;
-    if (row.state === 'live' && shipped?.commit && shipped.base) return this.o.workspaces.changedFiles(cardId, { base: shipped.base, commit: shipped.commit });
-    return this.o.workspaces.changedFiles(cardId);
+    if (row.state === 'live' && shipped?.commit && shipped.base) return this.o.workstations.changedFiles(cardId, { base: shipped.base, commit: shipped.commit });
+    return this.o.workstations.changedFiles(cardId);
   }
 
   /**
    * A file of the card's work, as its left column shows it: only one its change made or changed
    * (`changedFiles`), or an image a Markdown file of it shows from beside it, never any other file
-   * of the workspace or the folder, nor a link standing for one. From its workspace (or the folder)
+   * of the workstation or the folder, nor a link standing for one. From its workstation (or the folder)
    * while it has one here, else from the commit it landed with or its branch. `local`: a file on
    * disk to open, for a landed card the checkout's copy. Null where it is none of those, or nothing
    * holds it.
@@ -2563,7 +2563,7 @@ export class Workers {
     const beside = (row.files ? (JSON.parse(row.files) as CardFile[]) : []).find((f) => f.dir && f.path === path);
     if (beside) return ownFile(beside.dir!, path);
     const changed = await this.changedFiles(cardId);
-    const at = (p: string, onDisk = local) => this.o.workspaces.fileOf(cardId, p, ref, onDisk);
+    const at = (p: string, onDisk = local) => this.o.workstations.fileOf(cardId, p, ref, onDisk);
     if (changed.includes(path)) return at(path);
     if (!isImage(path)) return null;
     for (const doc of changed.filter((p) => fileKind(p) === 'markdown')) {
@@ -2576,7 +2576,7 @@ export class Workers {
 
   /**
    * The files a worker names as its result at its handover, as paths of its change relative to the
-   * workspace (or folder), or as files in `demoDir`, the directory of the demo it hands over (else
+   * workstation (or folder), or as files in `demoDir`, the directory of the demo it hands over (else
    * the one on the card), by their absolute paths; what is wrong instead, for the worker to fix.
    */
   /**
@@ -2611,11 +2611,11 @@ export class Workers {
 
   private async namedFiles(cardId: string, files: { path: string; caption: string }[], demoDir?: string): Promise<CardFile[] | string> {
     const row = this.o.board.row(cardId);
-    const ws = (row.workspace ?? '').replace(/^ssh:\/\/[^/]+/, '');
-    const roots = [ws, ...(ws && !hostName(row.workspace) ? [realpathOr(ws)] : [])].filter(Boolean);
+    const ws = (row.workstation ?? '').replace(/^ssh:\/\/[^/]+/, '');
+    const roots = [ws, ...(ws && !hostName(row.workstation) ? [realpathOr(ws)] : [])].filter(Boolean);
     const shown = demoDir ?? (row.demo ? (JSON.parse(row.demo) as StoredDemo).dir : undefined);
     // a demo made on another machine is checked once it is copied here
-    const onHost = !!demoDir && !!hostName(row.workspace);
+    const onHost = !!demoDir && !!hostName(row.workstation);
     const demoRoots = shown ? [...new Set([shown, ...(onHost ? [] : [realpathOr(shown)])])] : [];
     const changed = await this.changedFiles(cardId);
     const out: CardFile[] = [];
@@ -2642,17 +2642,17 @@ export class Workers {
 
   /**
    * The card's pull request was merged, with `commit` the merge put on the base branch where GitHub
-   * said: the work is live, the workspace free.
+   * said: the work is live, the workstation free.
    */
   merged(cardId: string, commit?: string, note = this.o.board.t.worker.merged, comments?: Comments) {
     this.bump(cardId);
     this.refuseAsked(cardId, 'meanwhile your pull request was merged, and the card is live.');
     // a review card's PR where work lands on the local main: the checkout gets the merge, as the owner would pull it
     if (contributionOf(this.o.board.row(cardId)) && this.pulls()) void this.pullAfterMerge(cardId);
-    // git reads them without blocking the server; the workspace goes only once it has (`finish`)
+    // git reads them without blocking the server; the workstation goes only once it has (`finish`)
     const added = Promise.all([
       this.planDocsAdded(cardId).then((a) => this.o.board.planDocsLanded(cardId, a)),
-      commit ? this.o.workspaces.noticeMerged?.(cardId, commit) : undefined,
+      commit ? this.o.workstations.noticeMerged?.(cardId, commit) : undefined,
     ]).then(() => {});
     this.reading.set(cardId, added);
     void added.finally(() => this.reading.get(cardId) === added && this.reading.delete(cardId));
@@ -2710,7 +2710,7 @@ export class Workers {
 
   /**
    * Whether pulling a review card's PR, once merged, into the local main would stop on a conflict
-   * with its unpushed commits (`Workspaces.clashBeforeMerge`), named with the card that landed the
+   * with its unpushed commits (`Workstations.clashBeforeMerge`), named with the card that landed the
    * commit it stops at. Kept on the card for the owner to see before the merge; undefined where it
    * cannot tell (no head reviewed yet, git failed), which leaves what the card shows.
    */
@@ -2738,7 +2738,7 @@ export class Workers {
   /**
    * "Push main, adapt the PR" on a review card whose PR collides with unpushed commits on the
    * local main: once the undo window is through (`keepMainFor` takes it back), the local main goes
-   * to `origin` (`Workspaces.pushMain`), so the PR now conflicts there, and the card's worker brings
+   * to `origin` (`Workstations.pushMain`), so the PR now conflicts there, and the card's worker brings
    * the PR up to date with it, itself where the contributor allows maintainers' edits, else by a
    * change request to them. A push that fails says why on the card, which stays with the owner.
    */
@@ -2831,7 +2831,7 @@ export class Workers {
    * unpushed commits (`stopped`), and was taken back. Those commits were never pushed, so a worker
    * may rebase them onto the remote's main: the worker of the card whose commit conflicts, else the
    * review card's own, each while its session can go on (finishing after its landing, or resumed in
-   * a fresh workspace as for a question). It hands over the resolution, which lands without the
+   * a fresh workstation as for a question). It hands over the resolution, which lands without the
    * owner (`landResolved`). Where no worker can take it, the review card says what is left to do.
    */
   private async resolvePull(reviewId: string, stopped: PullStopped) {
@@ -2859,10 +2859,10 @@ export class Workers {
     const landed = landedOf(this.o.board.row(resolver));
     if (landed && item.finishing) {
       this.o.board.work(resolver, { landed: JSON.stringify({ ...landed, resolve: resolving } satisfies LandedState), status_line: t.resolvingStatus(c.number) });
-      this.deliver(resolver, message(this.o.board.row(resolver).workspace ?? ''));
+      this.deliver(resolver, message(this.o.board.row(resolver).workstation ?? ''));
       return;
     }
-    // no workspace to resolve it in: the owner pulls by hand
+    // no workstation to resolve it in: the owner pulls by hand
     const failed = () => {
       if (this.o.board.card(resolver)) this.o.board.work(resolver, { status_line: null });
       if (this.o.board.card(reviewId)) this.o.board.log(reviewId, 'error', 'obeya', t.pullUnresolved(stopped.subject, stopped.files.join(', '), t.noResolver));
@@ -2884,9 +2884,9 @@ export class Workers {
     const commits = s.unpushed === 1 ? 'one commit' : `${s.unpushed} commits`;
     return [
       `Seismic merged pull request #${r.pr} (${r.url}) on the forge, but pulling the merge into the local main of the Seismic checkout (${repo}) stopped on a conflict: the local main has ${commits} nobody pushed yet, and ${own ? 'the commit of your card' : 'its commit'} ${s.commit.slice(0, 7)} (“${s.subject}”) conflicts with the pull request in ${s.files.join(', ')}. Seismic took the pull back: the local main is as it was, at ${s.main.slice(0, 7)}.`,
-      `Those commits were never pushed, so you may rebase them: that rewrites no published history. Resolve it in your workspace (${path}):`,
+      `Those commits were never pushed, so you may rebase them: that rewrites no published history. Resolve it in your workstation (${path}):`,
       [
-        `1. Put a branch of your own at the local main as it stood: git checkout -B <branch> ${s.main}. Commit what you still have in the workspace first. Where the workspace lacks those commits, fetch them from the checkout first: git fetch ${repo} ${s.main} ${s.upstream}.`,
+        `1. Put a branch of your own at the local main as it stood: git checkout -B <branch> ${s.main}. Commit what you still have in the workstation first. Where the workstation lacks those commits, fetch them from the checkout first: git fetch ${repo} ${s.main} ${s.upstream}.`,
         `2. Rebase it onto ${s.upstream}, origin's main with the merge: git rebase ${s.upstream}. Resolve each conflict so that both the pull request's change and the local commits keep doing what they did.`,
         `3. Run ${checks.length ? `the checks (${checks.map((x) => `\`${x}\``).join(', ')})` : 'the repository’s checks'}.`,
         '4. Call ready_for_review with a summary of how you resolved it, without a demo. Seismic then puts the local main at your HEAD, with whatever landed on it meanwhile on top. Do not push.',
@@ -2909,13 +2909,13 @@ export class Workers {
 
   /**
    * The worker handed over the stopped pull it resolved (`resolvePull`): the checkout's main goes to
-   * its workspace's `HEAD`, and the review card's log says main has its merge. Returns what the
-   * worker hears; what is in its workspace's way it fixes, what is in the checkout's goes to the owner.
+   * its workstation's `HEAD`, and the review card's log says main has its merge. Returns what the
+   * worker hears; what is in its workstation's way it fixes, what is in the checkout's goes to the owner.
    */
   private async landResolved(cardId: string, r: Resolving): Promise<string> {
     const t = this.o.board.t.worker;
     const row = this.o.board.row(cardId);
-    const res = await this.pulls()!.landResolution(row.workspace ?? '', { main: r.stopped.main, upstream: r.stopped.upstream });
+    const res = await this.pulls()!.landResolution(row.workstation ?? '', { main: r.stopped.main, upstream: r.stopped.upstream });
     const landed = landedOf(this.o.board.row(cardId));
     const { resolve: _, ...rest } = landed ?? {};
     const done = () => this.o.board.work(cardId, { landed: JSON.stringify(rest satisfies LandedState), status_line: null });
@@ -2956,7 +2956,7 @@ export class Workers {
   }
 
   /**
-   * The owner stops the card's worker: the card is planned again at once. Its workspace stays with
+   * The owner stops the card's worker: the card is planned again at once. Its workstation stays with
    * it where it holds work, so that starting again goes on from there, and is given back otherwise
    * once git has told (`hasWork`, without blocking the server), unless the card started again meanwhile.
    */
@@ -2976,23 +2976,23 @@ export class Workers {
     this.end(cardId);
     this.bump(cardId);
     const generation = this.generation.get(cardId);
-    const path = this.o.board.row(cardId).workspace;
+    const path = this.o.board.row(cardId).workstation;
     this.o.board.work(cardId, { state: 'planned', need: null, detail: null, pr: null, approved_at: null, paused: null, pausing: null, snoozed: null, app: null });
     this.o.board.log(cardId, 'state', 'owner', card.pr ? this.o.board.t.worker.stoppedPrOpen(card.pr.number) : this.o.board.t.worker.stopped);
-    return this.o.workspaces.hasWork(cardId).then((keep) => {
-      if (keep || this.generation.get(cardId) !== generation || this.o.board.row(cardId).workspace !== path) return;
-      this.o.workspaces.release(cardId);
-      this.o.board.work(cardId, { workspace: null });
+    return this.o.workstations.hasWork(cardId).then((keep) => {
+      if (keep || this.generation.get(cardId) !== generation || this.o.board.row(cardId).workstation !== path) return;
+      this.o.workstations.release(cardId);
+      this.o.board.work(cardId, { workstation: null });
     });
   }
 
   /**
-   * Whether the owner may take the card's workspace from it for another card (`evict`): a clone it
+   * Whether the owner may take the card's workstation from it for another card (`evict`): a clone it
    * holds while at work, waiting for the owner, or stopped with work in it; not once its work has
    * landed, nor a prototype's.
    */
   evictable(cardId: string): boolean {
-    if (this.o.workspaces.mode !== 'clones' || this.evicting.has(cardId)) return false;
+    if (this.o.workstations.mode !== 'clones' || this.evicting.has(cardId)) return false;
     // from the row: the pools the board's snapshot shows ask for each card
     let row: CardRow;
     try {
@@ -3001,7 +3001,7 @@ export class Workers {
       return false;
     }
     const state = row.state ?? 'planned';
-    return !!row.workspace && !row.landed && !row.prototype_of && (state === 'working' || state === 'waiting' || state === 'planned');
+    return !!row.workstation && !row.landed && !row.prototype_of && (state === 'working' || state === 'waiting' || state === 'planned');
   }
 
   /**
@@ -3009,7 +3009,7 @@ export class Workers {
    * `stop` (the card planned), the app there stops (`app.stop`, whatever `app.keep` says: another
    * card works there next), and its uncommitted work goes into a commit on its branch, which stays in
    * that clone (`kept_in`) until the card's next start takes it to the clone it gets then, the work
-   * uncommitted again (`Workspaces.evict`). Settles once the clone is free, with whether the card's
+   * uncommitted again (`Workstations.evict`). Settles once the clone is free, with whether the card's
    * worker was on it (the Koordinator queues it again then); where git fails, the card keeps the
    * clone, as a stopped card with work does.
    */
@@ -3017,7 +3017,7 @@ export class Workers {
     if (!this.evictable(cardId)) throw new BadRequest('notEvictable', 'the card holds no clone that can be taken from it');
     const card = this.card(cardId);
     const active = card.state !== 'planned';
-    const path = this.o.board.row(cardId).workspace!;
+    const path = this.o.board.row(cardId).workstation!;
     this.evicting.add(cardId);
     try {
       // its session ends before git keeps its work, and a stop still asking git (`stop`) gives nothing back afterwards
@@ -3040,13 +3040,13 @@ export class Workers {
       }
       let kept: string | null;
       try {
-        kept = await this.o.workspaces.evict(cardId);
+        kept = await this.o.workstations.evict(cardId);
       } catch (e) {
         this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.worker.evictFailed(messageOf(e)));
         return false;
       }
       // deleted meanwhile: its row stays, to be restored without the clone
-      this.o.board.work(cardId, { workspace: null, parked: null, app: null, ...(kept ? { kept_in: kept } : {}) });
+      this.o.board.work(cardId, { workstation: null, parked: null, app: null, ...(kept ? { kept_in: kept } : {}) });
       this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.evicted(path));
       return active;
     } finally {
@@ -3058,7 +3058,7 @@ export class Workers {
   /**
    * The owner pauses the card's worker while it is in a turn: its session ends at once, in the
    * middle of a step if need be, and whatever it ran with it (background work included). Card,
-   * state, workspace, branch and session stay; the slot it held is free. It goes on where it stopped
+   * state, workstation, branch and session stay; the slot it held is free. It goes on where it stopped
    * once the owner resumes it or writes to it (`deliver`); what Seismic has for it meanwhile waits
    * until then, and its app is parked like a waiting card's. A worker taking in the owner's
    * words on its handover is paused the same way: the card still waits for approval, and the
@@ -3074,7 +3074,7 @@ export class Workers {
    * The owner pauses the card's worker at a safe point (the card's pause, the canvas's): it hears so
    * and ends its turn once the step it is in is done, as for a restart, and is paused then as on
    * `pause`. Should it not have ended its turn after a while, it is paused at once. One with nothing
-   * running that could be cut off midway (its workspace is being made ready, it waits for the usage
+   * running that could be cut off midway (its workstation is being made ready, it waits for the usage
    * limit) is paused at once.
    */
   pauseAtSafePoint(cardId: string) {
@@ -3337,13 +3337,13 @@ export class Workers {
         this.pausedOverRestart(i.id, landed);
         continue;
       }
-      if (landed && row.workspace) {
+      if (landed && row.workstation) {
         this.resumeLanded(i, landed, row.session_id, repo);
         continue;
       }
       // a worker taking in the owner's words on its handover was in the middle of a turn too
       if (answering(i)) {
-        if (row.workspace && row.session_id) this.launch(i.id, restarted, row.session_id);
+        if (row.workstation && row.session_id) this.launch(i.id, restarted, row.session_id);
         else this.answerTaken(i.id);
         continue;
       }
@@ -3354,7 +3354,7 @@ export class Workers {
         continue;
       }
       if (i.state !== 'working' && i.state !== 'inPr') continue;
-      if (!row.workspace) continue;
+      if (!row.workstation) continue;
       if (row.session_id) this.launch(i.id, restarted, row.session_id);
       // it never reported a session: start one with the card
       else if (i.state === 'working') this.launch(i.id, this.briefing(i, row.branch ?? '', true), undefined, this.taskImages(i));
@@ -3397,7 +3397,7 @@ export class Workers {
   }
 
   /**
-   * Frees the workspaces of cards that will not work in them again, which would otherwise stay
+   * Frees the workstations of cards that will not work in them again, which would otherwise stay
    * taken for good, a restart notwithstanding (`leaseEnded`): one its card no longer names or is done
    * with, a deleted card's, and a workstream's that no worker is on (stopped, say, and its work
    * merged by hand) once the plan doc on the default branch ticks it off or no longer has it. A
@@ -3406,8 +3406,8 @@ export class Workers {
    */
   private settleLeases() {
     if (this.folder) return;
-    for (const { path, card_id: id } of this.o.workspaces.list()) {
-      // a workspace being made ready is freed once git is done, and so is one git is freeing
+    for (const { path, card_id: id } of this.o.workstations.list()) {
+      // a workstation being made ready is freed once git is done, and so is one git is freeing
       if (!id || this.kept.has(path) || this.preparing.has(id) || this.freeing.has(path)) continue;
       const ended = this.o.board.leaseEnded(id, path);
       if (!ended) continue;
@@ -3415,7 +3415,7 @@ export class Workers {
         this.merged(id, undefined, this.o.board.t.worker.mergedTicked);
         continue;
       }
-      const abandoned = this.o.workspaces.abandon(path).then(
+      const abandoned = this.o.workstations.abandon(path).then(
         (freed) => {
           // a worktree with uncommitted changes stays, and is not looked at again until Seismic starts anew
           if (!freed) return void this.kept.add(path);
@@ -3426,17 +3426,17 @@ export class Workers {
           if (ended === 'gone') this.o.board.log(id, 'state', 'obeya', this.o.board.t.worker.goneFreed);
         },
         (e: unknown) => {
-          console.error('freeing the workspace of a card done with it:', e);
+          console.error('freeing the workstation of a card done with it:', e);
           this.kept.add(path);
         },
       );
-      this.whileFreeing(id, path, abandoned, 'freeing the workspace of a card done with it');
+      this.whileFreeing(id, path, abandoned, 'freeing the workstation of a card done with it');
     }
   }
 
   /**
-   * Git frees the card's workspace at `path` in the background (`freeing`): the board changes once
-   * it is done, the pool having a workspace more. What goes wrong is logged under `what`.
+   * Git frees the card's workstation at `path` in the background (`freeing`): the board changes once
+   * it is done, the pool having a workstation more. What goes wrong is logged under `what`.
    */
   private whileFreeing(cardId: string, path: string, done: Promise<unknown>, what: string) {
     const freeing: { card: string; done: Promise<void> } = { card: cardId, done: Promise.resolve() };
@@ -3450,18 +3450,18 @@ export class Workers {
     this.freeing.set(path, freeing);
   }
 
-  /** Settles once the workspaces git is freeing now are free: for tests, as `prepared`. */
+  /** Settles once the workstations git is freeing now are free: for tests, as `prepared`. */
   async freed(): Promise<void> {
     while (this.freeing.size) await Promise.all([...this.freeing.values()].map((f) => f.done));
   }
 
-  /** A deleted card is restored: it takes back the workspace it had, where it can; else its next start takes another. */
+  /** A deleted card is restored: it takes back the workstation it had, where it can; else its next start takes another. */
   restored(cardId: string) {
     const row = this.o.board.row(cardId);
-    if (!row.workspace) return;
-    this.kept.delete(row.workspace);
-    if (this.o.workspaces.retake(cardId, row.workspace)) this.o.board.changed();
-    else this.o.board.work(cardId, { workspace: null, app: null, parked: null });
+    if (!row.workstation) return;
+    this.kept.delete(row.workstation);
+    if (this.o.workstations.retake(cardId, row.workstation)) this.o.board.changed();
+    else this.o.board.work(cardId, { workstation: null, app: null, parked: null });
   }
 
   /** After a restart, a paused worker stays paused: a restart it waited for has happened, which it hears once it goes on. */
@@ -3482,12 +3482,12 @@ export class Workers {
     this.launch(card.id, l.restarts ? `${repo ? 'Seismic runs' : 'Seismic has started again and runs'} main with your change now. ${restarted}` : restarted, session);
   }
 
-  /** Settles once the workspaces git is making ready now are ready (or failed), their workers started: for a start begun elsewhere (the Koordinator, the owner's question). */
+  /** Settles once the workstations git is making ready now are ready (or failed), their workers started: for a start begun elsewhere (the Koordinator, the owner's question). */
   async prepared(): Promise<void> {
     while (this.preparing.size) await Promise.all([...this.preparing.values()].map((p) => p.done));
   }
 
-  /** The cards whose worker is in a turn, and those whose workspace is made ready for it, each holding a slot on its machine. */
+  /** The cards whose worker is in a turn, and those whose workstation is made ready for it, each holding a slot on its machine. */
   inTurn(): string[] {
     return [...new Set([...[...this.live].filter(([, l]) => l.busy).map(([id]) => id), ...this.preparing.keys()])];
   }
@@ -3505,7 +3505,7 @@ export class Workers {
       const live = this.live.get(id);
       if (live) return live.host;
       // a clone that turned out dirty gave way to one on another machine, perhaps
-      const at = this.o.workspaces.leasedBy(id);
+      const at = this.o.workstations.leasedBy(id);
       return at ? hostName(at) : this.preparing.get(id)!.host;
     };
     return this.inTurn().filter((id) => on(id) === host).length;
@@ -3513,7 +3513,7 @@ export class Workers {
 
   /**
    * The cards whose worker is in the middle of a turn (or whose ended turn waits for its background
-   * work), and those whose workspace is being made ready, freed or taken from them (`evict`), whose work is landing, or whose landed changes are still
+   * work), and those whose workstation is being made ready, freed or taken from them (`evict`), whose work is landing, or whose landed changes are still
    * being read for plan docs and overlap notices: a restart would cut off git midway. And those whose code review's agent is at work.
    */
   busyCards(): string[] {
@@ -3570,12 +3570,12 @@ export class Workers {
   /** Where a permission question of the card's worker comes from, for the extensions' options on it. */
   private permissionContext(cardId: string): PermissionContext | null {
     const row = this.o.board.row(cardId);
-    if (!row.workspace) return null;
+    if (!row.workstation) return null;
     let harness: PermissionContext['harness'] = 'claude';
     try {
       if ((row.agent_setting ? (JSON.parse(row.agent_setting) as AgentSetting) : null)?.harness === 'codex') harness = 'codex';
     } catch {}
-    return { harness, cwd: row.workspace, landsOnMain: !!this.folder || this.o.adapter.land === 'main', language: this.o.board.language(), settings: extensionSettings(this.o.adapter) };
+    return { harness, cwd: row.workstation, landsOnMain: !!this.folder || this.o.adapter.land === 'main', language: this.o.board.language(), settings: extensionSettings(this.o.adapter) };
   }
 
   /** The options extensions add to a permission question, each with the extension's place in the registry. */
@@ -3621,7 +3621,7 @@ export class Workers {
 
   private launch(cardId: string, message: string, resume?: string, images: string[] = [], reviewOnly = false) {
     const row = this.o.board.row(cardId);
-    if (!row.workspace) throw new Error(`card ${cardId} has no workspace to work in`);
+    if (!row.workstation) throw new Error(`card ${cardId} has no workstation to work in`);
     // A legacy unqualified session belongs to Claude regardless of today's worker default.
     const chosen = this.o.agentSetting?.() ?? AGENT_DEFAULTS.worker;
     const setting: AgentSetting = row.agent_setting ? JSON.parse(row.agent_setting) : resume ? { model: chosen.model, effort: chosen.effort } : chosen;
@@ -3629,7 +3629,7 @@ export class Workers {
     if (!row.agent_setting && resume) this.o.board.recordRun(cardId, resume, { harness: 'claude', model: null, effort: null });
     this.o.board.work(cardId, { agent_setting: JSON.stringify(setting) });
     const preferences = this.o.preferences?.() ?? '';
-    const live: Live = { session: undefined!, ...(setting.harness === 'codex' && this.o.codexAutoReview?.() ? { autoReview: true } : {}), host: hostName(row.workspace), handedOver: false, acted: false, nudged: false, lastText: '', busy: true, background: 0, tasks: new Map(), stalled: false, preferences, ...(!row.agent_setting && resume ? { guessed: true as const } : {}) };
+    const live: Live = { session: undefined!, ...(setting.harness === 'codex' && this.o.codexAutoReview?.() ? { autoReview: true } : {}), host: hostName(row.workstation), handedOver: false, acted: false, nudged: false, lastText: '', busy: true, background: 0, tasks: new Map(), stalled: false, preferences, ...(!row.agent_setting && resume ? { guessed: true as const } : {}) };
     const plan = this.o.board.item(cardId)?.parent;
     if (plan && !reviewOnly) live.plan = { id: plan, decision: this.o.board.decisions(plan).at(-1)?.id ?? 0 };
     this.live.set(cardId, live);
@@ -3642,17 +3642,17 @@ export class Workers {
     const env = this.env();
     // a plan folder outside the repository is the worker's to tick its workstream in, on this machine
     const plans = live.host ? null : outsidePlanDir(this.o.adapter.planDocs.dir);
-    // a Codex worker's sandbox writes only in its workspace and the temporary directories: the demos directory, where it makes the demos it hands over, is the one more place it may write
+    // a Codex worker's sandbox writes only in its workstation and the temporary directories: the demos directory, where it makes the demos it hands over, is the one more place it may write
     const demos = live.host || !setting.harness || setting.harness === 'claude' ? null : expandHome(this.demosDir(cardId));
     const dirs = [plans, demos && isAbsolute(demos) && existsSync(demos) ? demos : null].filter((d): d is string => !!d);
-    // a review card's workspace holds a stranger's code: its Claude Code settings (hooks, MCP servers) and
+    // a review card's workstation holds a stranger's code: its Claude Code settings (hooks, MCP servers) and
     // CLAUDE.md are the contributor's, so the session reads none of them, the default branch's CLAUDE.md instead
     const review = !!contributionOf(row);
     const notes = review ? this.mainNotes() : '';
     try {
       live.session = this.o.runtime.start(
         {
-          cwd: row.workspace,
+          cwd: row.workstation,
           role: 'worker',
           at: { card: cardId },
           setting,
@@ -3746,7 +3746,7 @@ export class Workers {
       });
       return;
     }
-    // its worker starts once its workspace is ready and hears them then, or, should git fail, the next start's does
+    // its worker starts once its workstation is ready and hears them then, or, should git fail, the next start's does
     if ((said.length && this.takesLater(cardId)) || this.preparingFor(cardId)) {
       this.o.board.work(cardId, { unheard: JSON.stringify([...this.unheard(cardId), { said, text, images }] satisfies Unheard[]) });
       return;
@@ -3784,7 +3784,7 @@ export class Workers {
     return !!live && live.busy && !live.waiting && !this.stopping.has(cardId) && !this.pausedOf(cardId);
   }
 
-  /** Whether the card's worker waits for git to make its workspace ready, without a session yet. */
+  /** Whether the card's worker waits for git to make its workstation ready, without a session yet. */
   private preparingFor(cardId: string): boolean {
     return this.preparing.has(cardId) && !this.live.has(cardId);
   }
@@ -3935,7 +3935,7 @@ export class Workers {
 
   /**
    * Whether the worker is in a turn. It holds a slot on its machine meanwhile: the board hears of
-   * each change, so the Workspaces pill shows it and a card waiting for a slot starts once one frees.
+   * each change, so the Workstations pill shows it and a card waiting for a slot starts once one frees.
    */
   private setBusy(live: Live, busy: boolean) {
     if (live.busy === busy) return;
@@ -4171,7 +4171,7 @@ export class Workers {
       }
       if (landed.needsClone) return this.awaitClone(cardId);
       if (landed.resolve && !live.failed && !live.limited && !(this.restart && live.toldRestart)) return this.unresolved(cardId, live, landed.resolve);
-      // it paused for the restart, which resumes it with its workspace
+      // it paused for the restart, which resumes it with its workstation
       if (this.restart && live.toldRestart && !live.failed) return this.pausedForRestart(cardId, live);
       if (live.limited) return this.waitForLimit(cardId, live, live.limited);
       if (live.failed) return this.failedAfterLanding(cardId, live);
@@ -4323,7 +4323,7 @@ export class Workers {
   // ---------------------------------------------------------------- parking
 
   /**
-   * Whether the card waits for the owner with its workspace and nothing of its worker's running:
+   * Whether the card waits for the owner with its workstation and nothing of its worker's running:
    * handed over, asked, or its pull request open, and the worker's turn over, background work included.
    */
   private waitsForOwner(cardId: string): boolean {
@@ -4332,7 +4332,7 @@ export class Workers {
     // paused while taking in the owner's words on its handover, nothing of it runs either
     if ((answering(card) && !card.paused) || this.live.get(cardId)?.busy) return false;
     const row = this.o.board.row(cardId);
-    return !!row.workspace && !row.parked;
+    return !!row.workstation && !row.parked;
   }
 
   /** A card that waits for the owner has its app stopped once a quick reply has not come (`app.stop`). */
@@ -4352,15 +4352,15 @@ export class Workers {
 
   /**
    * Where the owner's browser reaches the app the card's worker said runs: its address, or for a
-   * workspace on another machine that address's port forwarded here (only that port: a page that
+   * workstation on another machine that address's port forwarded here (only that port: a page that
    * talks to another port there finds nothing here). The forward is made when first asked for and
    * made again when its connection dropped, on the port it had if that is still free.
    */
   private async appAt(cardId: string): Promise<string | null> {
     const app = this.o.board.item(cardId)?.app;
-    const workspace = this.o.board.row(cardId).workspace;
-    if (!app || !workspace) return null;
-    const there = remote(workspace);
+    const workstation = this.o.board.row(cardId).workstation;
+    if (!app || !workstation) return null;
+    const there = remote(workstation);
     if (!there) return app;
     let url: URL;
     try {
@@ -4378,7 +4378,7 @@ export class Workers {
     if (!f) {
       const host = url.hostname.replace(/^\[(.*)\]$/, '$1');
       const port = Number(url.port) || (url.protocol === 'https:' ? 443 : 80);
-      f = { app, workspace, forward: there.host.forward(host === '0.0.0.0' || host === '::' ? 'localhost' : host, port, prefer), port: prefer };
+      f = { app, workstation, forward: there.host.forward(host === '0.0.0.0' || host === '::' ? 'localhost' : host, port, prefer), port: prefer };
       this.forwards.set(cardId, f);
     }
     const local = await f.forward.ready;
@@ -4427,7 +4427,7 @@ export class Workers {
   }
 
   /**
-   * The connection to the machine the card's workspace is on is gone, and the session with it (as
+   * The connection to the machine the card's workstation is on is gone, and the session with it (as
    * at a restart of Seismic): once that machine answers again, the session resumes by its id, with
    * the message it had not yet taken, else told what happened if it was at work (or waited for its
    * background work). A session that never started there (the host could not be reached to get
@@ -4435,7 +4435,7 @@ export class Workers {
    * for the owner meanwhile needs no session until their next message.
    */
   private lost(cardId: string, live: Live) {
-    const there = remote(this.o.board.row(cardId).workspace);
+    const there = remote(this.o.board.row(cardId).workstation);
     if (!there) return;
     this.live.delete(cardId);
     clearTimeout(live.waiting);
@@ -4455,7 +4455,7 @@ export class Workers {
       }
       const row = this.o.board.row(cardId);
       const card = this.o.board.item(cardId);
-      if (!current() || !card || !row.workspace || (!row.session_id && !pending) || card.snoozed) return;
+      if (!current() || !card || !row.workstation || (!row.session_id && !pending) || card.snoozed) return;
       const working = busy || card.state === 'working' || card.state === 'inPr' || answering(card) || !!row.landed;
       if (!pending && !working) return;
       this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.hostBack(there.host.name));
@@ -4471,7 +4471,7 @@ export class Workers {
    */
   private async demoHere(cardId: string, dir: string): Promise<{ dir: string } | { wrong: string }> {
     try {
-      const there = remote(this.o.board.row(cardId).workspace);
+      const there = remote(this.o.board.row(cardId).workstation);
       if (!there) return { dir };
       const copy = there.host.localCopy(dir);
       await there.host.copyFrom(dir, copy);
@@ -4481,20 +4481,20 @@ export class Workers {
     }
   }
 
-  /** Stops the app in the card's workspace, unless it holds what must stay (`app.keep`). */
+  /** Stops the app in the card's workstation, unless it holds what must stay (`app.keep`). */
   private async park(cardId: string) {
     const { stop, keep } = this.o.adapter.app ?? {};
     // the settings lost the command since the grace began
     if (!stop) return;
-    const workspace = this.o.board.row(cardId).workspace!;
+    const workstation = this.o.board.row(cardId).workstation!;
     const generation = this.generation.get(cardId);
-    if (keep && (await runAppCommand(workspace, keep)).ok) {
+    if (keep && (await runAppCommand(workstation, keep)).ok) {
       // the session died meanwhile and took the app: it does not keep running
       if (this.generation.get(cardId) === generation && !this.live.get(cardId)?.ended) this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.parkKept);
       return;
     }
-    const result = await runAppCommand(workspace, stop);
-    // the card's work ended or started afresh meanwhile: its row is no longer this workspace's
+    const result = await runAppCommand(workstation, stop);
+    // the card's work ended or started afresh meanwhile: its row is no longer this workstation's
     if (this.generation.get(cardId) !== generation) return;
     if (!result.ok) {
       this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.worker.parkFailed(clip(result.output, 600)));
@@ -4506,7 +4506,7 @@ export class Workers {
 
   private parkedNote(): string {
     const { stop, run } = this.o.adapter.app ?? {};
-    return `While the card waited, Seismic stopped the app in your workspace${stop ? ` (\`${stop}\`)` : ''} to free the machine. When you need it again, start it again${run?.trim() ? ' as the recipe in your brief says' : ''}.`;
+    return `While the card waited, Seismic stopped the app in your workstation${stop ? ` (\`${stop}\`)` : ''} to free the machine. When you need it again, start it again${run?.trim() ? ' as the recipe in your brief says' : ''}.`;
   }
 
   /**
@@ -4976,7 +4976,7 @@ export class Workers {
           const handOverWork = (d: Demo | undefined, named: CardFile[] | undefined, shows: boolean): Promise<string> =>
             review
               ? this.ownCommits(cardId, review).then((mine) => (typeof mine === 'string' ? mine : handOverNow(d, named, shows, true, undefined, mine)))
-              : Promise.all([this.o.workspaces.hasWork(cardId), this.landingOf(cardId)]).then(async ([work, { own, land }]) =>
+              : Promise.all([this.o.workstations.hasWork(cardId), this.landingOf(cardId)]).then(async ([work, { own, land }]) =>
                   handOverNow(
                     d,
                     named,
@@ -4984,9 +4984,9 @@ export class Workers {
                     work,
                     own,
                     undefined,
-                    work && !this.folder ? await this.o.workspaces.changedFiles(cardId) : undefined,
+                    work && !this.folder ? await this.o.workstations.changedFiles(cardId) : undefined,
                     // what the branch shows of a data-model change, unless the worker says it has one
-                    work && !this.folder && declared !== 'changed' && this.artifacts().includes('schema') ? dataModelSignals((await this.o.workspaces.diff(cardId, true))?.patch ?? '') : [],
+                    work && !this.folder && declared !== 'changed' && this.artifacts().includes('schema') ? dataModelSignals((await this.o.workstations.diff(cardId, true))?.patch ?? '') : [],
                     land,
                   ),
                 );
@@ -5123,7 +5123,7 @@ export class Workers {
           };
           // a demo made on another machine is served and shared from its copy here
           const handOverWith = (named?: CardFile[]): string | Promise<string> => {
-            if (given && hostName(this.o.board.row(cardId).workspace))
+            if (given && hostName(this.o.board.row(cardId).workstation))
               return this.demoHere(cardId, given.dir).then((here) =>
                 'wrong' in here
                   ? `Not handed over: the demo could not be copied to the owner's machine (${here.wrong}). Check the directory, then call ready_for_review again.`
@@ -5156,7 +5156,7 @@ export class Workers {
           if (row.landed) return 'Not recorded: the card is finished already.';
           // a review card whose pull request was closed lands nothing, whatever its branch holds
           if (contributionOf(row)?.closed) return [`Recorded: the card is done.`, this.close(cardId, 'worker'), AFTER_LANDING].filter(Boolean).join(' ');
-          const work = await this.o.workspaces.hasWork(cardId);
+          const work = await this.o.workstations.hasWork(cardId);
           const pr = row.pr ? (JSON.parse(row.pr) as PrState) : null;
           if (!row.approved_at && !(pr && !pr.url)) return 'Not recorded: only work the owner approved can be closed, and only before its pull request is open. Hand it over with ready_for_review first.';
           if (work)
@@ -5183,7 +5183,7 @@ export class Workers {
         description: [
           `Snooze while there is nothing to do until a point in time further off than a background command can wait (a check at midnight, a test that runs for days, a report on the 31st), or until another card on this canvas gets somewhere (its fix is on main, its demo is ready).`,
           `until: that time, ISO 8601 with your timezone's offset (2026-10-31T08:00:00+01:00). card: the title of the card to wait on; state: what it is to reach, 'done' (its work is on main, or it closed without a change; the default) or 'waits_for_owner' (it asks the owner or hands its work over). Give until, card or both: Seismic wakes you at whichever comes first, and also when that card can no longer get there (stopped, archived, removed).`,
-          `why: what you do then, in a few words in ${language}, shown on the card. Your session ends with your turn, and whatever you still run in the background with it; workspace and branch stay. Seismic resumes this session then, or earlier with a note from the owner or whatever else comes for you (a review, the landing). For checkpoints one after the other, snooze to the next one each time you wake. Then end your turn.`,
+          `why: what you do then, in a few words in ${language}, shown on the card. Your session ends with your turn, and whatever you still run in the background with it; workstation and branch stay. Seismic resumes this session then, or earlier with a note from the owner or whatever else comes for you (a review, the landing). For checkpoints one after the other, snooze to the next one each time you wake. Then end your turn.`,
         ].join(' '),
         schema: { until: z.string().optional(), why: z.string(), card: z.string().optional(), state: z.enum(['done', 'waits_for_owner']).optional() },
         run: ({ until, why, card: title, state }) => {
@@ -5221,7 +5221,7 @@ export class Workers {
       },
       {
         name: 'app_running',
-        description: `The app runs in your workspace and opens in a browser: its address as you open it (http://localhost:5173, say), so the owner can open it from the card to try it by hand while it runs. Again each time you start it anew or its address changes; an empty url once you stop it.`,
+        description: `The app runs in your workstation and opens in a browser: its address as you open it (http://localhost:5173, say), so the owner can open it from the card to try it by hand while it runs. Again each time you start it anew or its address changes; an empty url once you stop it.`,
         schema: { url: z.string() },
         run: ({ url }) => {
           const u = String(url).trim();
@@ -5265,16 +5265,16 @@ export class Workers {
 
   /**
    * A Codex worker on this machine gets `seismic_run` and `seismic_git`: Seismic runs what its sandbox
-   * keeps from it (`exec-tools.ts`). Not a review card's worker: its workspace holds a stranger's code.
+   * keeps from it (`exec-tools.ts`). Not a review card's worker: its workstation holds a stranger's code.
    */
   private execLane(cardId: string, live: Live): AgentTool[] {
     const row = this.o.board.row(cardId);
-    if (!this.usesExecLane(row, live) || !row.workspace) return [];
-    const workspace = row.workspace;
+    if (!this.usesExecLane(row, live) || !row.workstation) return [];
+    const workstation = row.workstation;
     return execTools({
-      workspace,
+      workstation,
       places: () => ['/tmp', '/private/tmp', tmpdir(), expandHome(this.demosDir(cardId))],
-      rules: () => this.o.allowRules?.(workspace) ?? [],
+      rules: () => this.o.allowRules?.(workstation) ?? [],
       ask: (request) => this.askOwner(cardId, live, request, new AbortController().signal),
       ...(this.env() ? { env: this.env()! } : {}),
       ...(live.autoReview ? { auto: true } : {}),
@@ -5460,7 +5460,7 @@ export class Workers {
 You are a worker agent directed through Seismic, a canvas on which the owner directs coding agents like an engineering director directs a team. ${
       folder
         ? 'You work on exactly one card, directly in a folder that is not a git repository. Other workers may work on other cards in the same folder at the same time, and so may the owner.'
-        : 'You work on exactly one card, in a workspace of the repository (a clone or worktree) that belongs to that card, on your own branch. Other workers may work on other cards at the same time in their own workspaces.'
+        : 'You work on exactly one card, in a workstation of the repository (a clone or worktree) that belongs to that card, on your own branch. Other workers may work on other cards at the same time in their own workstations.'
     }
 
 The owner does not watch you work and does not read code. They see your card's conversation: your status lines, questions, replies and handovers. Talk to them only through the Seismic tools. Use their names as shown in your tool list (in Claude Code, with the mcp__seismic__ prefix):
@@ -5477,7 +5477,7 @@ ${
     }
 ${this.o.toObeya ? `\n${TO_OBEYA}\n` : ''}
 Rules:
-${folder ? '- Others work in the same folder at the same time: leave what your card is not about as it is.' : card?.contribution ? "- Commit your work on your branch in this workspace. Do not push (Seismic pushes your commits onto the pull request's branch once the owner approves), do not open pull requests, do not switch branches." : '- Commit your work on your branch in this workspace. Do not push, do not open pull requests, do not switch branches.'}
+${folder ? '- Others work in the same folder at the same time: leave what your card is not about as it is.' : card?.contribution ? "- Commit your work on your branch in this workstation. Do not push (Seismic pushes your commits onto the pull request's branch once the owner approves), do not open pull requests, do not switch branches." : '- Commit your work on your branch in this workstation. Do not push, do not open pull requests, do not switch branches.'}
 - Follow the repository's own instructions (CLAUDE.md and docs).
 - Owner-facing text (report, reply, ask, ${prototype ? 'propose_build' : 'propose_card'}, ready_for_review) is in the owner's language, short and concrete. What you write between tool calls also shows on the card for the owner, folded under your next message: keep it brief and in the owner's language too. ${language} The docs you read and the owner's standing preferences do not count as the owner's words.
 - ${repositoryLanguage(this.o.adapter.language, folder)} A demo (its narration, report, or an HTML artifact's words) is in ${LANGUAGE_NAMES[this.demoLanguage()]}, whatever language the owner talks in.${this.o.adapter.demo?.language ? ` This repository's settings name ${LANGUAGE_NAMES[this.o.adapter.demo.language]} for its demos, which holds over the narration language of the demo settings.` : ''}
@@ -5499,21 +5499,21 @@ ${folder ? '- Others work in the same folder at the same time: leave what your c
 
   /** Where the card's worker puts its demos: the demo settings' directory, on another machine that machine's default (the settings stay here). */
   private demosDir(cardId: string): string {
-    return remote(this.o.board.row(cardId).workspace) ? DEFAULT_DEMO_DIRECTORY : (this.o.demoDirectory?.() ?? DEFAULT_DEMO_DIRECTORY);
+    return remote(this.o.board.row(cardId).workstation) ? DEFAULT_DEMO_DIRECTORY : (this.o.demoDirectory?.() ?? DEFAULT_DEMO_DIRECTORY);
   }
 
   /**
    * The demo skill as a worker hears of it: by its name in the session and, for a session that
-   * does not know it, by its file, on the machine the card's workspace is on.
+   * does not know it, by its file, on the machine the card's workstation is on.
    */
   private demoSkill(cardId: string): string {
-    const there = remote(this.o.board.row(cardId).workspace);
+    const there = remote(this.o.board.row(cardId).workstation);
     const [name, file] = there ? [DEMO_SKILL, `~/${HOST_DIR}/${basename(OBEYA_PLUGIN)}/skills/demo/SKILL.md`] : [demoSkillName(), DEMO_SKILL_FILE];
     return `the demo skill (\`${name}\`; if your session does not know it, read its file ${file} and follow that)`;
   }
 
   /**
-   * `headProblem`: on a review card's start, why its workspace is not on the PR's head (null where
+   * `headProblem`: on a review card's start, why its workstation is not on the PR's head (null where
    * it is), so the worker fetches it itself.
    */
   private briefing(card: Item, branch: string, resumed = false, headProblem?: string | null): string {
@@ -5585,8 +5585,8 @@ ${idea.idea.brief}` : '',
     }
     const allowed = this.artifacts();
     const { run, stop } = this.o.adapter.app ?? {};
-    const parking = stop ? ' While the card waits for the owner, Seismic stops the app in your workspace; your next message then says so.' : '';
-    const far = hostName(this.o.board.row(card.id).workspace) ? " (this workspace is on another machine: Seismic forwards that address's port, and only that one, to the owner's)" : '';
+    const parking = stop ? ' While the card waits for the owner, Seismic stops the app in your workstation; your next message then says so.' : '';
+    const far = hostName(this.o.board.row(card.id).workstation) ? " (this workstation is on another machine: Seismic forwards that address's port, and only that one, to the owner's)" : '';
     const tryIt = ` Once it runs and opens in a browser, give its address with app_running, so the owner can try it by hand from the card${far}.`;
     if (run?.trim()) parts.push(`How to run the app: ${run.trim()}${parking}${tryIt}`);
     else parts.push(`${parking}${tryIt}`.trim());
@@ -5631,10 +5631,10 @@ ${idea.idea.brief}` : '',
       `This card reviews pull request #${c.number} by ${c.author}, who is not the owner: “${c.title}” (${c.url}). The owner asked for the review; once they approve your handover, Seismic merges exactly the head you reviewed. You never merge it yourself.`,
       card.body.trim() ? `What the owner said with it, on top of the review below:\n\n${card.body.trim()}` : '',
       headProblem
-        ? `Seismic could not put your workspace on the PR's head (${headProblem}). Fetch ${ref} from ${source} into your branch ${branch} yourself (git fetch, then git checkout -B ${branch} FETCH_HEAD).`
+        ? `Seismic could not put your workstation on the PR's head (${headProblem}). Fetch ${ref} from ${source} into your branch ${branch} yourself (git fetch, then git checkout -B ${branch} FETCH_HEAD).`
         : resumed && headProblem === undefined
           ? `You are on branch ${branch}, which holds the PR's head as you reviewed it before. Fetch ${ref} from ${source} to see whether it moved.`
-          : `Your workspace is on branch ${branch}, at the PR's head (${ref}, fetched from ${source}).`,
+          : `Your workstation is on branch ${branch}, at the PR's head (${ref}, fetched from ${source}).`,
       [
         'The code is a stranger’s, and whatever of it runs, runs on the owner’s machine. So work in this order:',
         '1. Before you run anything of it (an install, the tests, the app, a script), read its diff against the merge base with the default branch. Look for network access, install and postinstall scripts, new dependencies, changed test and build scripts and their configuration, and access to files outside the repository. Where something looks suspicious, run nothing and ask the owner, saying what you found and where.',
@@ -5663,7 +5663,7 @@ ${idea.idea.brief}` : '',
   private folderBriefing(cardId: string, parts: string[], resumed: boolean): string {
     const changed = this.folder!.changed(cardId).length;
     parts.push(
-      `You work directly in the folder ${this.o.board.row(cardId).workspace}, which is not a git repository: what you change there is there at once, for everyone.${resumed && changed ? ` Your card changed ${changed === 1 ? 'one file' : `${changed} files`} there before; the card lists them.` : ''}`,
+      `You work directly in the folder ${this.o.board.row(cardId).workstation}, which is not a git repository: what you change there is there at once, for everyone.${resumed && changed ? ` Your card changed ${changed === 1 ? 'one file' : `${changed} files`} there before; the card lists them.` : ''}`,
     );
     if (this.o.adapter.setup) parts.push(`First run \`${this.o.adapter.setup}\` in the folder.`);
     const run = this.o.adapter.app?.run?.trim();

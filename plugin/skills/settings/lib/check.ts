@@ -39,7 +39,7 @@ console.log(
     `settings from ${settingsFile}: ${Object.keys(shared.settings ?? {}).join(', ') || '(none)'}`,
     `setup: ${show(adapter.setup)}`,
     `checks: ${show(adapter.checks)}`,
-    `land: ${adapter.land}${adapter.direct ? ' (direct allowed)' : ''}${adapter.land === 'pr' && adapter.autoMerge === false ? ' (merged by its team, not by Seismic)' : ''}, workspaces: ${adapter.workspaces}`,
+    `land: ${adapter.land}${adapter.direct ? ' (direct allowed)' : ''}${adapter.land === 'pr' && adapter.autoMerge === false ? ' (merged by its team, not by Seismic)' : ''}, workstations: ${adapter.workstations}`,
     `planDocs: ${show(adapter.planDocs)}, softPaths: ${show(adapter.softPaths)}`,
     ...planLines,
     `app.run: ${adapter.app?.run || '(none: each worker finds out from the repository how to run the app)'}`,

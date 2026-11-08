@@ -29,7 +29,7 @@ export interface CardRow {
   /** JSON AgentSetting pinned before a worker starts; null on legacy Claude sessions. */
   agent_setting: string | null;
   /** Leased clone and branch while a worker has the card. */
-  workspace: string | null;
+  workstation: string | null;
   branch: string | null;
   /** The worker's latest `report`. */
   status_line: string | null;
@@ -62,7 +62,7 @@ export interface CardRow {
   /** When the owner approved work that could not land yet; its next handover lands without asking again. */
   approved_at: string | null;
   /**
-   * JSON, while the card's work is on main and its worker finishes what remains (its workspace and
+   * JSON, while the card's work is on main and its worker finishes what remains (its workstation and
    * session are kept until then): `{ commit?, restart? }`, `restart` when it waits for Seismic to run the change.
    */
   landed: string | null;
@@ -90,7 +90,7 @@ export interface CardRow {
    * planned again once the read checkout holds that commit.
    */
   shipped: string | null;
-  /** When Seismic stopped the app in the card's workspace while the card waited (Parking); gone once its worker heard so. */
+  /** When Seismic stopped the app in the card's workstation while the card waited (Parking); gone once its worker heard so. */
   parked: string | null;
   /** JSON: the owner's comments on places in the demo video Seismic holds back while they watch (event ids, `Item.held`). */
   held: string | null;
@@ -104,7 +104,7 @@ export interface CardRow {
   pausing: string | null;
   /** JSON: the owner's words Seismic holds for the card's worker until it takes them in, at its next tool step or turn (`Unheard` in workers.ts). */
   unheard: string | null;
-  /** The address its worker opens the app in the card's workspace at, while it runs (`app_running`); gone once Seismic stops the app or the workspace goes. */
+  /** The address its worker opens the app in the card's workstation at, while it runs (`app_running`); gone once Seismic stops the app or the workstation goes. */
   app: string | null;
   /** Since when the card waits for the owner (`needsYou`), kept while it does; null while it does not. */
   waiting_since: string | null;
@@ -118,7 +118,7 @@ export interface CardRow {
   collapsed: number;
   /**
    * The clone (`ssh://<host>/…` on a host) that holds the newest state of the card's branch since
-   * the owner took its workspace from it, its uncommitted work in a commit of Seismic's on top; gone
+   * the owner took its workstation from it, its uncommitted work in a commit of Seismic's on top; gone
    * once the card works in a clone again, which takes the branch from there.
    */
   kept_in: string | null;
@@ -410,7 +410,7 @@ export const MIGRATIONS = [
         AND NOT EXISTS (SELECT 1 FROM settings r WHERE r.canvas_id = s.canvas_id AND r.key = 'work_retro_runs:' || substr(s.key, 18));`,
   // the message of the sheet the owner's words reply to (JSON `TalkRef`)
   'ALTER TABLE talk ADD COLUMN reply_to TEXT;',
-  // where the app in a card's workspace runs, for the owner to try it by hand
+  // where the app in a card's workstation runs, for the owner to try it by hand
   'ALTER TABLE cards ADD COLUMN app TEXT;',
   // devices paired to reach Seismic from another machine: the hash of each one's cookie
   `CREATE TABLE devices (
@@ -456,7 +456,7 @@ export const MIGRATIONS = [
   'ALTER TABLE talk ADD COLUMN asked_in TEXT;',
   // Seismic's reply on a card that answers the owner's words without acting on them: it stands in the conversation
   'ALTER TABLE events ADD COLUMN reply INTEGER;',
-  // the clone holding a card's branch since the owner took its workspace from it
+  // the clone holding a card's branch since the owner took its workstation from it
   'ALTER TABLE cards ADD COLUMN kept_in TEXT;',
   // a review card: the pull request of someone outside it reviews (JSON `StoredContribution`)
   'ALTER TABLE cards ADD COLUMN contribution TEXT;',
@@ -573,6 +573,12 @@ export const MIGRATIONS = [
    UPDATE feedback SET context = json_set(json_remove(context, '$.project'), '$.plan', json_extract(context, '$.project')) WHERE json_extract(context, '$.project') IS NOT NULL;
    ALTER TABLE cards RENAME COLUMN becomes_project TO becomes_plan;
    ALTER TABLE decisions RENAME COLUMN project_id TO plan_id;`,
+  // a workstation was a "workspace" before the word went to the instance level: the table, the
+  // card's column, and a card's wait for a free one (JSON `Queue`)
+  `ALTER TABLE workspaces RENAME TO workstations;
+   ALTER TABLE cards RENAME COLUMN workspace TO workstation;
+   UPDATE cards SET queue = json_set(json_remove(queue, '$.workspace'), '$.workstation', json_extract(queue, '$.workspace'))
+    WHERE json_extract(queue, '$.workspace') IS NOT NULL;`,
 ];
 
 const EVENT_COLUMNS = 'id, card_id AS cardId, at, kind, author, text, code, images, mocks, reply_to AS replyTo, spot, answer, picks, unread, read_after AS readAfter, wish, reply, forwarded, agent, token, made';
@@ -953,30 +959,30 @@ export class Store {
     return row ? eventOf(row) : undefined;
   }
 
-  // ---------------------------------------------------------------- workspaces
+  // ---------------------------------------------------------------- workstations
 
-  addWorkspace(canvasId: string, path: string, repo: string | null = null) {
-    this.db.query('INSERT INTO workspaces (path, canvas_id, repo) VALUES ($path, $c, $repo) ON CONFLICT(path) DO NOTHING').run({ path, c: canvasId, repo });
+  addWorkstation(canvasId: string, path: string, repo: string | null = null) {
+    this.db.query('INSERT INTO workstations (path, canvas_id, repo) VALUES ($path, $c, $repo) ON CONFLICT(path) DO NOTHING').run({ path, c: canvasId, repo });
   }
 
-  /** The workspaces of one repository on the canvas (`null`: its home repository). */
-  workspaces(canvasId: string, repo: string | null = null): { path: string; card_id: string | null }[] {
+  /** The workstations of one repository on the canvas (`null`: its home repository). */
+  workstations(canvasId: string, repo: string | null = null): { path: string; card_id: string | null }[] {
     return this.db
-      .query('SELECT path, card_id FROM workspaces WHERE canvas_id = $c AND repo IS $repo ORDER BY path')
+      .query('SELECT path, card_id FROM workstations WHERE canvas_id = $c AND repo IS $repo ORDER BY path')
       .all({ c: canvasId, repo }) as { path: string; card_id: string | null }[];
   }
 
-  /** Whether a workspace is registered, on any canvas. */
-  hasWorkspace(path: string): boolean {
-    return !!this.db.query('SELECT 1 FROM workspaces WHERE path = $path').get({ path });
+  /** Whether a workstation is registered, on any canvas. */
+  hasWorkstation(path: string): boolean {
+    return !!this.db.query('SELECT 1 FROM workstations WHERE path = $path').get({ path });
   }
 
-  removeWorkspace(path: string) {
-    this.db.query('DELETE FROM workspaces WHERE path = $path').run({ path });
+  removeWorkstation(path: string) {
+    this.db.query('DELETE FROM workstations WHERE path = $path').run({ path });
   }
 
   setLease(path: string, cardId: string | null) {
-    this.db.query('UPDATE workspaces SET card_id = $cardId WHERE path = $path').run({ path, cardId });
+    this.db.query('UPDATE workstations SET card_id = $cardId WHERE path = $path').run({ path, cardId });
   }
 
   // ---------------------------------------------------------------- decisions

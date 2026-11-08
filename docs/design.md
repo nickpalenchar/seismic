@@ -48,8 +48,8 @@ touches, and keep those current in the same change.
 - [The canvas](design/the-canvas.md) — the UI around the cards: the bar, creating cards, cards on
   the canvas (a plan arranged by its dependencies), moving around, unfolding a card, addresses
   (a card's permalink, Back and Forward), sheets, visual identity, groups on the canvas, refusals.
-- [Agents and workspaces](design/agents-and-workspaces.md) — how agents run and where: agents,
-  models and effort, workspaces (slots, the pool in the bar), folders without git, parking, hosts
+- [Agents and workstations](design/agents-and-workstations.md) — how agents run and where: agents,
+  models and effort, workstations (slots, the pool in the bar), folders without git, parking, hosts
   (running there, logins and files, a dropped connection).
 - [Landing](design/landing.md) — how approved work reaches `main`: how work lands, the PR loop
   (watching the PR, ready to merge, the PR on the card), review cards for a contributor's pull
@@ -120,8 +120,8 @@ on the walls and decisions are made in front of the wall.
 
 ## Concepts
 
-- **Project** — the named workspace spanning one or more repositories; one Seismic serves several
-  projects. Each has a spatial canvas of cards. The UI calls these workspaces projects; existing
+- **Project** — the named whole spanning one or more repositories; one Seismic serves several
+  projects. Each has a spatial canvas of cards. Code and storage still call a project a canvas; existing
   configuration, API and storage fields named `canvas` or `canvases` keep their format. A *plan* is
   the card backed by a plan doc, a container for workstreams within a project; the word "project"
   names only the app (decided 2026-11-07, so that no word means two things).
@@ -152,11 +152,17 @@ on the walls and decisions are made in front of the wall.
   - *Exploration agent*, one per idea, long-lived, with a worker's tools: discusses the idea with
     the owner and keeps its brief.
   - *Koordinator* (Chief of Staff), one per canvas: takes voice input on the open canvas, creates
-    and assigns cards, runs the workspace pool, keeps the preference memory, and schedules the work
+    and assigns cards, runs the workstation pool, keeps the preference memory, and schedules the work
     so that cards likely to conflict on merge are queued rather than run together (see Scheduling).
     The UI calls it *Seismic* in both languages: its replies, its sheet, the line under the microphone
     and its log lines on cards; its button at the top right is a speech-bubble icon with its counts,
     tooltip "Seismic (C)". Prompts tell the agents the owner knows it as Seismic.
+- **Workstation** — where an agent works: a card's own checkout of a repository, a clone from the
+  pool or a git worktree. Called a *workspace* until 2026-11-07, a word now kept for the whole
+  instance (all projects, later several users); the old names still read as the new ones (the
+  repository setting `workspaces`, a repository's `workspaces` list in the configuration,
+  `--workspace` on the command line), and the directory under Seismic's home keeps the name
+  `workspaces/`, since moving it would move checkouts agents are at work and resume sessions in.
 - **Preference memory** — rules distilled from the owner's answers and corrections ("questions to me
   with at most three options", "solve rebase conflicts yourself") or said outright ("Merk dir: …"),
   shared by all agents and kept by the Koordinator. A learned rule is a proposal until the owner
@@ -213,7 +219,7 @@ on the walls and decisions are made in front of the wall.
   image when the other machines are full, stopped some minutes after the card's last turn (disk
   kept), started again on the owner's next message, terminated once the work has landed, with a cap
   on concurrent instances; image, network and IAM in the using repository's infrastructure.
-  Estimated from the measurement under Agents and workspaces, Decisions: about $25 a month with the
+  Estimated from the measurement under Agents and workstations, Decisions: about $25 a month with the
   Mac alone at that load, nearly nothing with a second machine, $190–290 a month on demand at 36
   agents. Worth it only if parking and SSH hosts leave the owner short of slots. Reaching them, and
   a second machine away from home, would need more than plain SSH on the home network (Tailscale,

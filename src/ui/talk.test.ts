@@ -676,7 +676,7 @@ test("the usage limit that stopped the agent's turn is a line where it happened;
   expect(talkTurns([note, reply, run, limit])).toMatchObject({ shown: [{ e: note }, { e: reply }, { e: limit, line: true }], pending: [run] });
   // the owner wrote after the limit: the line stands above their words, not folded into the reply to them
   const more = ev('hint', 'owner', 'mach weiter');
-  const parked = ev('state', 'obeya', 'Stopped the app in the workspace while the card waits.');
+  const parked = ev('state', 'obeya', 'Stopped the app in the workstation while the card waits.');
   const now = ev('activity', 'worker', '$ python3 report.py');
   const t = talkTurns([note, reply, run, limit, parked, more, now]);
   expect(t.shown.map((x) => x.e)).toEqual([note, reply, run, limit, more]);

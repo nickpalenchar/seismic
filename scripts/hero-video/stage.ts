@@ -51,7 +51,7 @@ export function writeStage(file: string) {
         y: 330,
         row: { retro: 'On three cards the agent first searched for how to serve the app before it recorded its demo.' },
       },
-      // working without an agent: no workspace, so a scratch Seismic with real workers leaves it be
+      // working without an agent: no workstation, so a scratch Seismic with real workers leaves it be
       { key: 'C', title: 'Run the tests on every push', body: 'A GitHub Actions workflow runs bun test on every push and pull request.', state: 'working', statusLine: 'Writing the workflow', scope: ['.github/workflows/test.yml'], x: 610, y: 110 },
       { key: 'I', title: 'App icon', body: 'An icon for the home screen.', state: 'waiting', need: 'question', question: { text: 'Which of the three drafts should become the icon?', options: ['The jar', 'The coin', 'The receipt'] }, scope: ['icon.svg'], x: 610, y: 290 },
       {

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { BadRequest } from './board';
 import { identify } from './testing';
 import { board, eachTest, main, manual, runtime, spaces, state, workers } from './workers-fixture';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 eachTest();
 
@@ -14,25 +14,25 @@ async function until(done: () => boolean) {
   await workers.freed();
 }
 
-describe("taking a card's workspace", () => {
+describe("taking a card's workstation", () => {
   test('the worker stops, its uncommitted work goes into a commit on its branch, and the clone is free and clean', async () => {
     const c = manual();
     await workers.start(c.id);
-    const { workspace, branch } = board.row(c.id);
-    writeFileSync(join(workspace!, 'work.ts'), 'x');
-    git(workspace!, 'add', '.');
-    git(workspace!, 'commit', '--quiet', '-m', 'Work');
-    writeFileSync(join(workspace!, 'README.md'), 'changed\n');
-    writeFileSync(join(workspace!, 'new.ts'), 'new');
+    const { workstation, branch } = board.row(c.id);
+    writeFileSync(join(workstation!, 'work.ts'), 'x');
+    git(workstation!, 'add', '.');
+    git(workstation!, 'commit', '--quiet', '-m', 'Work');
+    writeFileSync(join(workstation!, 'README.md'), 'changed\n');
+    writeFileSync(join(workstation!, 'new.ts'), 'new');
 
     expect(await workers.evict(c.id)).toBe(true);
     expect(state(c.id)).toBe('planned');
     expect(runtime.last.closed).toBe(true);
-    expect(board.row(c.id)).toMatchObject({ workspace: null, branch, kept_in: workspace });
-    expect(spaces.list()).toEqual([{ path: workspace!, card_id: null }]);
-    expect(git(workspace!, 'status', '--porcelain')).toBe('');
-    expect(git(workspace!, 'log', '--format=%s', '-2', branch!).split('\n')).toEqual(['Uncommitted work, kept by Seismic as the card\'s workspace went to another card', 'Work']);
-    expect(board.events(c.id).at(-1)!.text).toContain(workspace!);
+    expect(board.row(c.id)).toMatchObject({ workstation: null, branch, kept_in: workstation });
+    expect(spaces.list()).toEqual([{ path: workstation!, card_id: null }]);
+    expect(git(workstation!, 'status', '--porcelain')).toBe('');
+    expect(git(workstation!, 'log', '--format=%s', '-2', branch!).split('\n')).toEqual(['Uncommitted work, kept by Seismic as the card\'s workstation went to another card', 'Work']);
+    expect(board.events(c.id).at(-1)!.text).toContain(workstation!);
     // a card holding no clone has none to give
     expect(workers.evictable(c.id)).toBe(false);
     await expect(workers.evict(c.id)).rejects.toThrow(BadRequest);
@@ -43,7 +43,7 @@ describe("taking a card's workspace", () => {
     for (const w of spaces.list()) identify(w.path);
     const c = manual();
     await workers.start(c.id);
-    const { workspace: first, branch } = board.row(c.id);
+    const { workstation: first, branch } = board.row(c.id);
     writeFileSync(join(first!, 'work.ts'), 'x');
     git(first!, 'add', '.');
     git(first!, 'commit', '--quiet', '-m', 'Work');
@@ -56,11 +56,11 @@ describe("taking a card's workspace", () => {
     // another card takes the clone the branch was kept in, and the other one is free again
     const d = manual();
     await workers.start(d.id);
-    expect(board.row(d.id).workspace).toBe(first);
+    expect(board.row(d.id).workstation).toBe(first);
     await workers.stop(e.id);
     await workers.start(c.id);
     await workers.prepared();
-    const second = board.row(c.id).workspace!;
+    const second = board.row(c.id).workstation!;
     expect(second).not.toBe(first);
     expect(board.row(c.id).kept_in).toBeNull();
     expect(git(second, 'branch', '--show-current')).toBe(branch!);
@@ -78,7 +78,7 @@ describe("taking a card's workspace", () => {
     for (const w of spaces.list()) identify(w.path);
     const c = manual();
     await workers.start(c.id);
-    const { workspace: first, branch } = board.row(c.id);
+    const { workstation: first, branch } = board.row(c.id);
     writeFileSync(join(first!, 'new.ts'), 'new');
     const e = manual();
     await workers.start(e.id);
@@ -88,7 +88,7 @@ describe("taking a card's workspace", () => {
     await workers.stop(e.id);
 
     void workers.start(c.id);
-    const second = board.row(c.id).workspace!;
+    const second = board.row(c.id).workstation!;
     await workers.stop(c.id);
     await until(() => !spaces.list().some((w) => w.card_id === c.id));
     expect(second).not.toBe(first);
@@ -109,15 +109,15 @@ describe("taking a card's workspace", () => {
 
     await workers.start(c.id);
     await workers.prepared();
-    const { workspace } = board.row(c.id);
-    writeFileSync(join(workspace!, 'new.ts'), 'new');
+    const { workstation } = board.row(c.id);
+    writeFileSync(join(workstation!, 'new.ts'), 'new');
     await workers.stop(c.id);
-    expect(board.row(c.id).workspace).toBe(workspace);
+    expect(board.row(c.id).workstation).toBe(workstation);
     // a stopped card stays where it was: no worker was on it
     expect(await workers.evict(c.id)).toBe(false);
-    expect(board.row(c.id)).toMatchObject({ workspace: null, kept_in: workspace });
+    expect(board.row(c.id)).toMatchObject({ workstation: null, kept_in: workstation });
 
-    board.work(c.id, { workspace, landed: JSON.stringify({}) });
+    board.work(c.id, { workstation, landed: JSON.stringify({}) });
     expect(workers.evictable(c.id)).toBe(false);
   });
 });

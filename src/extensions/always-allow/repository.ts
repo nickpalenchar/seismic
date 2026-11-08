@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnOutput } from '../../server/spawn';
-import { defaultBranch, GIT } from '../../server/workspaces';
+import { defaultBranch, GIT } from '../../server/workstations';
 import { ALLOW_FILE, CODEX_RULES_FILE, codexRulesAgain, withAllowed } from './rules';
 
 async function git(repoPath: string, args: string[], o: { env?: Record<string, string>; stdin?: string } = {}) {

@@ -16,7 +16,7 @@ import type { PoolHost } from '../core/types';
 import { messageOf } from '../core/text';
 import type { Store } from './db';
 import { spawnOutput } from './spawn';
-import { type CardWorkspaces, type Change, type FileAt, GIT, ownFile, type LandProblem, type Landed, type Lease, WorkspaceError } from './workspaces';
+import { type CardWorkstations, type Change, type FileAt, GIT, ownFile, type LandProblem, type Landed, type Lease, WorkstationError } from './workstations';
 
 /** A file or directory as the manifest has it. */
 export interface Entry {
@@ -254,7 +254,7 @@ interface Tracked {
 
 /** A card's record in its folder (`folder_cards`). */
 export interface FolderCard {
-  /** It works in the folder (a workspace it holds, as a clone would be held). */
+  /** It works in the folder (a workstation it holds, as a clone would be held). */
   held?: true;
   /** Its work is over: nothing is undone any more; a follow-up's changes are still its own. */
   done?: true;
@@ -395,10 +395,10 @@ export interface FolderOptions {
 }
 
 /**
- * The folder as every card's workspace: no branches, nothing lands. Keeps the folder's manifest as
+ * The folder as every card's workstation: no branches, nothing lands. Keeps the folder's manifest as
  * last read, the windows of the tool calls running in it, and each card's changes and undo.
  */
-export class FolderWorkspaces implements CardWorkspaces {
+export class FolderWorkstations implements CardWorkstations {
   readonly mode = 'folder' as const;
   readonly pooled = false;
   /** The folder with its links resolved: what the manifest is of. */
@@ -462,7 +462,7 @@ export class FolderWorkspaces implements CardWorkspaces {
     void rm(this.undoDir(cardId), { recursive: true, force: true }).catch((e) => console.error(`removing the undo of ${cardId}:`, messageOf(e)));
   }
 
-  // ---------------------------------------------------------------- as a workspace
+  // ---------------------------------------------------------------- as a workstation
 
   list() {
     return [];
@@ -501,7 +501,7 @@ export class FolderWorkspaces implements CardWorkspaces {
     this.dropUndo(cardId);
   }
 
-  /** The folder is no pool: no card's workspace goes to another. */
+  /** The folder is no pool: no card's workstation goes to another. */
   async evict(): Promise<string | null> {
     return null;
   }
@@ -559,7 +559,7 @@ export class FolderWorkspaces implements CardWorkspaces {
   }
 
   async transfer(): Promise<{ path: string; branch: string }> {
-    throw new WorkspaceError('a folder without git has no branch to build on');
+    throw new WorkstationError('a folder without git has no branch to build on');
   }
 
   followUpTree(cardId: string): Lease {
@@ -863,7 +863,7 @@ export class FolderWorkspaces implements CardWorkspaces {
     const rec = this.rec(cardId);
     const report: UndoReport = { undone: [], changedSince: [], lost: [], shared: [] };
     if (!rec) return report;
-    if (rec.done) throw new WorkspaceError('the card is done: nothing of it is undone any more');
+    if (rec.done) throw new WorkstationError('the card is done: nothing of it is undone any more');
     await this.ready.get(cardId);
     try {
       return await this.putBack(cardId, rec, report);

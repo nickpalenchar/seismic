@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { Forge } from './forge';
 import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, PermissionAnswer } from './runtime';
-import { git } from './workspaces';
+import { git } from './workstations';
 import { KEY_HEADER, keyOf } from './owner';
 
 /** The calls of a forge that only review cards make, for a fake forge of a test that has none. */
@@ -47,7 +47,7 @@ export class FakeSession implements AgentSession {
   call(name: string, args: Record<string, unknown>) {
     return this.spec.tools.find((t) => t.name === name)!.run(args);
   }
-  /** A tool call of the agent that does `act` in its workspace, with the hooks that watch it before and after. */
+  /** A tool call of the agent that does `act` in its workstation, with the hooks that watch it before and after. */
   async use(name: string, input: Record<string, unknown>, act: () => unknown = () => {}) {
     const call = { id: `call-${++FakeSession.calls}`, name, input };
     await this.spec.watch?.before(call);

@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { CUT_MS, GAP_MS, paced, readRecording, recordingRuntime, replayRuntime, Swap } from './replay';
 import type { AgentEvent, AgentSpec, AgentTool } from './runtime';
 import { FakeRuntime, gitRepo, identify, until } from './testing';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 const THEN = '3f2a9c4e-1b7d-4e8a-9c3f-5d6e7f8a9b0c';
 const NOW = 'b81c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e';
@@ -117,7 +117,7 @@ test('an agent the recording has none for ends each turn at once', async () => {
   expect(other.events).toEqual([{ type: 'idle' }, { type: 'idle' }]);
 });
 
-test('a handover plays the recorded commits into the workspace of today and its demo back where it was', async () => {
+test('a handover plays the recorded commits into the workstation of today and its demo back where it was', async () => {
   const root = mkdtempSync(join(tmpdir(), 'replay-'));
   const rec = join(root, 'rec');
   const worker = (dir: string, calls: Record<string, unknown>[], events: AgentEvent[] = []): AgentSpec => ({
@@ -138,7 +138,7 @@ test('a handover plays the recorded commits into the workspace of today and its 
     ],
     onEvent: (e) => events.push(e),
   });
-  // recorded: the worker commits on its branch and records a demo outside the workspace
+  // recorded: the worker commits on its branch and records a demo outside the workstation
   const a = join(root, 'a');
   gitRepo(join(a, 'ws'), { 'calc.js': 'export const tip = 0.15;\n' });
   identify(join(a, 'ws'));
@@ -156,7 +156,7 @@ test('a handover plays the recorded commits into the workspace of today and its 
   fake.last.emit({ type: 'idle' });
   expect(then[0]).toMatchObject({ log: 'Split the bill', video: 'the video' });
 
-  // played back: a workspace whose main is another commit of the same files, and no demo yet
+  // played back: a workstation whose main is another commit of the same files, and no demo yet
   const b = join(root, 'b');
   gitRepo(join(b, 'ws'), { 'calc.js': 'export const tip = 0.15;\n' });
   identify(join(b, 'ws'));
@@ -195,7 +195,7 @@ test('the ids a text held then and holds now stand for each other, their starts 
   expect(swap.deep({ list: [`for ${THEN}`], n: 3 })).toEqual({ list: [`for ${NOW}`], n: 3 });
 });
 
-test("a worker's commits go into the workspace at its next call; rewritten ones as one commit of what changed, none where it is there already", async () => {
+test("a worker's commits go into the workstation at its next call; rewritten ones as one commit of what changed, none where it is there already", async () => {
   const root = mkdtempSync(join(tmpdir(), 'replay-'));
   const rec = join(root, 'rec');
   const worker = (dir: string, seen: string[], events: AgentEvent[] = []): AgentSpec => ({

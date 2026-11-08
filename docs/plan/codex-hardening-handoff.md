@@ -68,7 +68,7 @@ fit stage 5 and only hides usage at the smallest stage 6. This behavior is docum
 
 ### Docs
 
-Relevant permanent chapters were updated in `docs/design/`: agents-and-workspaces, communication,
+Relevant permanent chapters were updated in `docs/design/`: agents-and-workstations, communication,
 conversation-on-the-card, data, the-canvas. `docs/plan/codex-runtime.md` contains the fix matrix,
 evidence limits and remaining phase 1/Pi gates. Remove this handoff when it is no longer useful.
 
@@ -118,7 +118,7 @@ in this task. Earlier full-suite runs also hit timeouts under heavy concurrency.
   deltas. The turn and streamed response started, but the probe killed the app-server before a full
   completion report. Do not claim that a complete report was received.
 - Live mixed Claude/Codex cards were blocked earlier by Claude OAuth expiry. Deterministic mixed
-  isolation passed with fake runtimes and real Git workspaces. Later usage-fetch success is not a
+  isolation passed with fake runtimes and real Git workstations. Later usage-fetch success is not a
   rerun of mixed live cards. Do not change owner credentials to force a test.
 
 ### Required second review: incomplete

@@ -81,7 +81,7 @@ import {
 import type { CardRow, DecisionRow, Friction, FrictionNote, GroupRow, HeldTalk, Mark, NewRow, RowUpdate, Store, TalkWaitRow } from './db';
 import { attribute, checkedFeedback } from './feedback';
 import type { Images } from './images';
-import { branchName, CARD_BRANCH } from './workspaces';
+import { branchName, CARD_BRANCH } from './workstations';
 import { clip, messageOf, oneLine } from '../core/text';
 import type { Wish } from '../core/wish';
 
@@ -840,7 +840,7 @@ export class Board {
     return this.items().find((i) => i.id === id);
   }
 
-  /** Changes a card's work fields (state, session, workspace …); for the agents, not the owner. */
+  /** Changes a card's work fields (state, session, workstation …); for the agents, not the owner. */
   work(id: string, fields: RowUpdate) {
     this.own(id);
     this.store.update(id, fields);
@@ -1276,13 +1276,13 @@ export class Board {
 
   /**
    * A prototype has served its purpose: discarded or built, it goes into the archive with its log,
-   * demo and summary, and never comes back. Its workspace is no longer its own.
+   * demo and summary, and never comes back. Its workstation is no longer its own.
    */
   endPrototype(id: string, end: 'discarded' | 'built', into?: string) {
     const row = this.own(id);
     if (!row.prototype_of) throw new BadRequest('notPrototype', 'not a prototype');
     const { proposal: _, ...kept } = storedPrototype(row);
-    this.work(id, { prototype: JSON.stringify({ ...kept, end, ...(into ? { into } : {}) } satisfies StoredPrototype), archived_at: new Date().toISOString(), need: null, status_line: null, workspace: null, queue: null });
+    this.work(id, { prototype: JSON.stringify({ ...kept, end, ...(into ? { into } : {}) } satisfies StoredPrototype), archived_at: new Date().toISOString(), need: null, status_line: null, workstation: null, queue: null });
   }
 
   // ---------------------------------------------------------------- the Koordinator's memory
@@ -1718,14 +1718,14 @@ export class Board {
         if (this.items().some((i) => i.prototypeOf === id)) throw new BadRequest('prototypeRunning', 'a prototype for this idea is still running');
         continue;
       }
-      // a stopped task goes with its conversation, for the owner to come back to; work its workspace holds would be left unseen
+      // a stopped task goes with its conversation, for the owner to come back to; work its workstation holds would be left unseen
       if (row.state === 'planned' && row.branch && row.kind === 'task' && !row.prototype_of) {
         if (row.queue) throw new BadRequest('notDone', 'the card waits to be started');
-        if (row.workspace || row.kept_in) throw new BadRequest('holdsWork', 'its workspace holds work that has not landed');
+        if (row.workstation || row.kept_in) throw new BadRequest('holdsWork', 'its workstation holds work that has not landed');
         continue;
       }
       if (!row.state || !finished(row.state)) throw new BadRequest('notDone', 'only a finished or stopped card can be archived');
-      if (row.landed && row.workspace) throw new BadRequest('notDone', 'its agent still finishes what remains after the landing');
+      if (row.landed && row.workstation) throw new BadRequest('notDone', 'its agent still finishes what remains after the landing');
     }
     const at = new Date().toISOString();
     // a stopped card snoozed to start later starts no more: brought back, it is the owner's to start
@@ -1819,8 +1819,8 @@ export class Board {
   }
 
   /**
-   * Why the card holding the workspace at `path` will not work in it again, where it will not: the
-   * card does not name it as its workspace, or its work is over and its worker done (`stale`: the
+   * Why the card holding the workstation at `path` will not work in it again, where it will not: the
+   * card does not name it as its workstation, or its work is over and its worker done (`stale`: the
    * lease outlived what it was for); it was deleted; or it is a workstream no worker is on whose box
    * the plan doc on the default branch ticks off (`ticked`; `merged` while it is in its pull request,
    * which the doc says has been merged), or that the doc there no longer has (`gone`). A box ticked
@@ -1830,11 +1830,11 @@ export class Board {
     const row = this.store.card(cardId);
     if (!row) return 'stale';
     if (row.canvas_id !== this.canvas.id) return null;
-    // a deleted card keeps its workspace named, to take it back when it is restored
-    if (row.workspace !== path) return 'stale';
+    // a deleted card keeps its workstation named, to take it back when it is restored
+    if (row.workstation !== path) return 'stale';
     if (row.landed) return null;
     if (row.deleted_at) return 'deleted';
-    // what remained after the landing is done: the worker that did it gave the workspace up
+    // what remained after the landing is done: the worker that did it gave the workstation up
     if (row.state && finished(row.state)) return 'stale';
     const hash = row.plan_ref?.indexOf('#') ?? -1;
     if (hash < 0 || row.state === 'working' || row.state === 'waiting' || row.state === 'approved') return null;
@@ -1851,24 +1851,24 @@ export class Board {
     return row.state === 'inPr' ? 'merged' : 'ticked';
   }
 
-  /** The workspace at `path` was freed (`leaseEnded`); a deleted card keeps it named, to take it back when it is restored. */
+  /** The workstation at `path` was freed (`leaseEnded`); a deleted card keeps it named, to take it back when it is restored. */
   freed(cardId: string, path: string) {
     const row = this.store.card(cardId);
     // the pool the canvas shows has a clone more
-    if (!row || row.deleted_at || row.workspace !== path) return this.changed();
-    this.work(cardId, { workspace: null, app: null, parked: null });
+    if (!row || row.deleted_at || row.workstation !== path) return this.changed();
+    this.work(cardId, { workstation: null, app: null, parked: null });
   }
 
   /**
-   * The card's workspace at `path` left the pool, its folder gone: the card names none any more, one
-   * at work is planned again, and its next start takes another workspace.
+   * The card's workstation at `path` left the pool, its folder gone: the card names none any more, one
+   * at work is planned again, and its next start takes another workstation.
    */
-  workspaceGone(cardId: string, path: string) {
+  workstationGone(cardId: string, path: string) {
     const row = this.store.card(cardId);
-    if (!row || row.workspace !== path) return this.changed();
+    if (!row || row.workstation !== path) return this.changed();
     const working = row.state === 'working';
-    this.work(cardId, { workspace: null, app: null, parked: null, ...(working ? { state: 'planned', paused: null, pausing: null, snoozed: null } : {}) });
-    if (!row.deleted_at) this.log(cardId, 'state', 'obeya', this.t.worker.workspaceGone(path, working));
+    this.work(cardId, { workstation: null, app: null, parked: null, ...(working ? { state: 'planned', paused: null, pausing: null, snoozed: null } : {}) });
+    if (!row.deleted_at) this.log(cardId, 'state', 'obeya', this.t.worker.workstationGone(path, working));
   }
 
   /** A card's landed work is done, its worker gone: a card whose plan doc is a plan now gives way to it. */
@@ -1885,7 +1885,7 @@ export class Board {
   private archiveLanded(cardId: string): boolean {
     if (this.archiving() !== 'landed') return false;
     const r = this.store.card(cardId);
-    if (!r || r.deleted_at || r.archived_at || r.plan_ref || r.kind !== 'task' || r.prototype_of || !r.state || !finished(r.state) || r.workspace) return false;
+    if (!r || r.deleted_at || r.archived_at || r.plan_ref || r.kind !== 'task' || r.prototype_of || !r.state || !finished(r.state) || r.workstation) return false;
     this.store.update(cardId, { archived_at: new Date().toISOString() });
     this.log(cardId, 'state', 'obeya', this.t.archivedLanded);
     return true;
@@ -1916,7 +1916,7 @@ export class Board {
       chat,
       ...(this.store.chatModel(this.canvas.id) ? { chatModel: this.store.chatModel(this.canvas.id) } : {}),
       chats: this.store.chats(this.canvas.id),
-      ...(pools.length ? { workspaces: pools } : {}),
+      ...(pools.length ? { workstations: pools } : {}),
       ...(reshare ? { reshare } : {}),
       ...(planDirs.length ? { planDirs } : {}),
       ...this.agentAt('koordinatorAgent', 'koordinator'),
@@ -2154,7 +2154,7 @@ export class Board {
   private openDocs(all: PlanDoc[], rows: CardRow[]): PlanDoc[] {
     const busy = new Set(
       rows
-        .filter((r) => r.plan_ref?.includes('#') && ((r.state && ACTIVE.includes(r.state)) || (r.landed && r.workspace) || tickedAhead(r)))
+        .filter((r) => r.plan_ref?.includes('#') && ((r.state && ACTIVE.includes(r.state)) || (r.landed && r.workstation) || tickedAhead(r)))
         .map((r) => r.plan_ref!.slice(0, r.plan_ref!.indexOf('#'))),
     );
     const files = new Set(all.map((d) => d.file));
@@ -2299,13 +2299,13 @@ export class Board {
     this.changed();
   }
 
-  /** The pools, each workspace a card holds with the card's title, also of a card not on the canvas, and the canvas of one on another. */
+  /** The pools, each workstation a card holds with the card's title, also of a card not on the canvas, and the canvas of one on another. */
   private clonePools(): ClonePool[] {
     return (this.pools?.() ?? []).map((p) => ({
       ...p,
       hosts: p.hosts.map((h) => ({
         ...h,
-        workspaces: h.workspaces.map((w) => {
+        workstations: h.workstations.map((w) => {
           const row = w.card ? this.store.card(w.card) : null;
           if (!row) return w;
           return { ...w, ...(row.title ? { title: row.title } : {}), ...(row.canvas_id !== this.canvas.id ? { canvas: row.canvas_id } : {}) };
@@ -2664,12 +2664,12 @@ export class Board {
     const { repo, images, collapsed, newRepo, ...fields } = p;
     if (newRepo !== undefined) this.checkNewRepo(row, newRepo);
     // a planned card of the owner's may become an idea again, to be discussed first
-    if (p.state === 'idea' && row.state !== 'idea' && (row.plan_ref || (row.state ?? 'planned') !== 'planned' || row.workspace))
+    if (p.state === 'idea' && row.state !== 'idea' && (row.plan_ref || (row.state ?? 'planned') !== 'planned' || row.workstation))
       throw new BadRequest('invalid', 'only a planned card of your own that has not been worked on can become an idea');
     if (repo !== undefined) {
       this.checkRepo(repo);
-      // its workspace and branch belong to the repository it started in
-      if ((row.state !== 'idea' && (row.state ?? 'planned') !== 'planned') || row.workspace) throw new BadRequest('invalid', 'a card changes repository only before work begins');
+      // its workstation and branch belong to the repository it started in
+      if ((row.state !== 'idea' && (row.state ?? 'planned') !== 'planned') || row.workstation) throw new BadRequest('invalid', 'a card changes repository only before work begins');
     }
     this.store.update(id, {
       ...fields,
@@ -2722,7 +2722,7 @@ export class Board {
     if (n !== null && (typeof n !== 'object' || typeof (n as NewRepo).path !== 'string' || typeof (n as NewRepo).canvas !== 'boolean'))
       throw new BadRequest('invalid', 'newRepo must be { path, canvas } or null');
     if (n && (n as NewRepo).path.length > 1000) throw new BadRequest('invalid', 'the path is too long');
-    if (row.prototype_of || (row.state !== 'idea' && (row.state ?? 'planned') !== 'planned') || row.workspace)
+    if (row.prototype_of || (row.state !== 'idea' && (row.state ?? 'planned') !== 'planned') || row.workstation)
       throw new BadRequest('invalid', 'a card gets a new repository only before work on it begins');
     if (this.newRepo(row.id)?.due) throw new BadRequest('newRepoDue', 'the new repository is being made');
   }
@@ -2942,7 +2942,7 @@ export class Board {
    * workstream the doc no longer lists, while the doc is there, leaves the plan once an agent
    * worked on it, with its log, as a card of its own (`leave`); one nobody worked on just goes from
    * view. It remembers what the workstream was right away, and leaves only once it holds no
-   * workspace it is not at work in, and, for a doc in a plan folder outside the repository, which
+   * workstation it is not at work in, and, for a doc in a plan folder outside the repository, which
    * is written in place, once the workstream stayed away for `LEAVE_AFTER_MS`. With `read` (the docs
    * were read again), a plan read before workstreams had keys of their own (`#n`, their place in
    * the doc) moves its cards onto those keys first (`rekey`). Between reads, only waiting cards
@@ -2986,9 +2986,9 @@ export class Board {
         if (!worked(k)) continue;
         if (known) this.remember(k, known);
         const since = this.missing.get(k.id) ?? now;
-        // a stopped card gives its workspace back first, as a workstream no longer in the doc does (`leaseEnded`);
+        // a stopped card gives its workstation back first, as a workstream no longer in the doc does (`leaseEnded`);
         // a doc written in place may lack an item only while it is being edited
-        if ((k.workspace && !atWork(k)) || (outsideRef(doc.file) && now - since < LEAVE_AFTER_MS)) {
+        if ((k.workstation && !atWork(k)) || (outsideRef(doc.file) && now - since < LEAVE_AFTER_MS)) {
           waiting.add(k.id);
           this.missing.set(k.id, since);
           continue;
@@ -3057,8 +3057,8 @@ export class Board {
       }
       for (const k of leaving) {
         const w = this.identity(k, doc.file, before, true);
-        if ((atWork(k) || !k.workspace) && !outsideRef(doc.file)) this.leave(k, plan, w, this.t.idea.leftOther(doc.title));
-        // a stopped card gives its workspace back first, and a doc outside the repository may lack an item
+        if ((atWork(k) || !k.workstation) && !outsideRef(doc.file)) this.leave(k, plan, w, this.t.idea.leftOther(doc.title));
+        // a stopped card gives its workstation back first, and a doc outside the repository may lack an item
         // only for a moment: it leaves later (`follow`), with what it remembers
         else {
           this.store.replan(k.id, `${plan.plan_ref}#~${k.id.slice(0, 6)}`, plan.id);
@@ -3266,7 +3266,7 @@ export class Board {
   private retire(ideaId: string): boolean {
     const r = this.store.card(ideaId);
     // `done`: approved without a change, its doc written in a plan folder outside the repository
-    if (!r || r.deleted_at || r.archived_at || (r.state !== 'live' && r.state !== 'done') || (r.landed && r.workspace)) return false;
+    if (!r || r.deleted_at || r.archived_at || (r.state !== 'live' && r.state !== 'done') || (r.landed && r.workstation)) return false;
     if (!this.store.plans(this.canvas.id).some((p) => p.from_id === ideaId && !p.archived_at)) return false;
     this.store.update(ideaId, { archived_at: new Date().toISOString() });
     this.log(ideaId, 'state', 'obeya', r.idea ? this.t.idea.becamePlan : this.t.idea.taskBecamePlan);
@@ -3466,7 +3466,7 @@ const keyOfRef = (ref: string | null): string | null => (ref?.includes('#') ? re
 const worked = (r: CardRow) => !!(r.session_id || r.branch || r.shipped || r.landed || (r.state && r.state !== 'planned'));
 
 /** Whether an agent is at work on the card: in progress, or finishing after the landing. */
-const atWork = (r: CardRow) => !!((r.state && ACTIVE.includes(r.state)) || (r.landed && r.workspace));
+const atWork = (r: CardRow) => !!((r.state && ACTIVE.includes(r.state)) || (r.landed && r.workstation));
 
 /** Whether a branch named after a title (`branchName`, its `slug`) was named after the workstream's, with or without its label before it. */
 const named = (w: Pick<Workstream, 'label' | 'title'>, slug: string) =>
@@ -3481,7 +3481,7 @@ export type StoredNewRepo = NewRepo & { made?: true; none?: true };
 /** A card's new repository while it is still to be made, before work on the card begins. */
 function newRepoOf(r: CardRow): Pick<Item, 'newRepo'> {
   const n = r.new_repo ? (JSON.parse(r.new_repo) as StoredNewRepo) : null;
-  if (!n || n.made || n.none || (r.state !== 'idea' && (r.state ?? 'planned') !== 'planned') || r.workspace) return {};
+  if (!n || n.made || n.none || (r.state !== 'idea' && (r.state ?? 'planned') !== 'planned') || r.workstation) return {};
   const { made: _, ...newRepo } = n;
   return { newRepo };
 }
@@ -3561,10 +3561,10 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
     ...(Object.keys(tags).length ? { tags } : {}),
     ...(r.from_id ? { from: r.from_id } : {}),
     ...(r.branch ? { branch: r.branch } : {}),
-    // a workspace on another machine as ssh and scp write it
-    ...(r.workspace ? { workspace: r.workspace.replace(/^ssh:\/\/([^/]+)/, '$1:') } : {}),
+    // a workstation on another machine as ssh and scp write it
+    ...(r.workstation ? { workstation: r.workstation.replace(/^ssh:\/\/([^/]+)/, '$1:') } : {}),
     ...(r.kept_in ? { keptIn: r.kept_in.replace(/^ssh:\/\/([^/]+)/, '$1:') } : {}),
-    ...(landed && (r.workspace || landed.needsClone) ? { finishing: true, ...(landed.followUp && !landed.resolve ? { followUp: true } : {}), ...(landed.needsClone && !r.workspace ? { waitsForClone: true } : {}) } : {}),
+    ...(landed && (r.workstation || landed.needsClone) ? { finishing: true, ...(landed.followUp && !landed.resolve ? { followUp: true } : {}), ...(landed.needsClone && !r.workstation ? { waitsForClone: true } : {}) } : {}),
     ...(detail.noChange && handed ? { noChange: true } : {}),
     ...(detail.lands && handed ? { lands: detail.lands } : {}),
     ...(detail.conflict && r.approved_at && r.state === 'working' ? { resolvingConflicts: true as const } : {}),
@@ -3573,7 +3573,7 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
     ...(r.paused ? { paused: true } : {}),
     ...(r.pausing && !r.paused ? { pausing: true } : {}),
     ...(r.snoozed ? { snoozed: JSON.parse(r.snoozed) as Snooze } : {}),
-    ...(r.app && r.workspace && !r.parked ? { app: r.app } : {}),
+    ...(r.app && r.workstation && !r.parked ? { app: r.app } : {}),
   };
 }
 

@@ -54,7 +54,7 @@ const spec: AgentSpec = {
     { name: 'ask', description: 'Ask the owner a question, then end the turn.', schema: { question: z.string() }, run: ({ question: text }) => { question = true; console.log(`ASK ${String(text)}`); return 'Question recorded. End this turn and wait for the owner response.'; } },
     { name: 'ready_for_review', description: 'Hand an artifact to the owner, then end the turn.', schema: { path: z.string() }, run: ({ path }) => { artifact = true; artifactPath = String(path); console.log(`ARTIFACT ${String(path)}`); return 'Artifact recorded. End this turn and wait for review.'; } },
   ],
-  askOwner: async (request) => { console.log(`DENY ${request.name} ${JSON.stringify(request.input)}`); return { allow: false, message: 'Probe refuses permissions outside its workspace' }; },
+  askOwner: async (request) => { console.log(`DENY ${request.name} ${JSON.stringify(request.input)}`); return { allow: false, message: 'Probe refuses permissions outside its workstation' }; },
   onEvent: (event) => {
     events.push(event);
     if (event.type === 'session') sessionId = event.id;

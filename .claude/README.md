@@ -41,7 +41,7 @@ The two Codex rules are exact so a trailing wildcard cannot add a sandbox overri
 
 The `/Users/nick/…` paths intentionally match the commands recorded on this machine. They do
 not match another user's paths or an installed plugin at another location. The relative Bun
-commands are intended to run from a card's repository workspace; they are not bound to a
+commands are intended to run from a card's repository workstation; they are not bound to a
 particular checkout by these patterns.
 
 ## Every rule and why it is here

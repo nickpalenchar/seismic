@@ -39,7 +39,7 @@ test("a plan's card counts its agent's answers that wait unread, asked in its sh
 });
 
 describe('withClones', () => {
-  const at = (...workspaces: ('clones' | 'worktrees')[]): ResolvedCanvas => ({ id: 'c', name: 'c', repos: workspaces.map((w) => ({ id: 'r', workspaces: w, values: {} as never, shareTo: 'main' })) });
+  const at = (...workstations: ('clones' | 'worktrees')[]): ResolvedCanvas => ({ id: 'c', name: 'c', repos: workstations.map((w) => ({ id: 'r', workstations: w, values: {} as never, shareTo: 'main' })) });
 
   test('fills in a repository added in clones, once per path', () => {
     const saved = [{ repos: [{ path: '/a' }] }];
@@ -57,11 +57,11 @@ describe('withClones', () => {
     const added = withClones([{ repos: [{ path: '/b' }] }], [], resolved, filled)!;
     expect(added[0]!.repos[0]!.clones).toBe(CLONES);
     // two existing clones beside it would make four: the dialog's 2 goes
-    const listed = withClones([{ repos: [{ path: '/b', clones: CLONES, workspaces: ['/b2', '/b3'] }] }], [], resolved, filled);
-    expect(listed).toEqual([{ repos: [{ path: '/b', workspaces: ['/b2', '/b3'] }] }]);
+    const listed = withClones([{ repos: [{ path: '/b', clones: CLONES, workstations: ['/b2', '/b3'] }] }], [], resolved, filled);
+    expect(listed).toEqual([{ repos: [{ path: '/b', workstations: ['/b2', '/b3'] }] }]);
     // a blank line lists none
-    expect(withClones([{ repos: [{ path: '/b', workspaces: ['/b2'] }] }], [], resolved, filled)).toBeNull();
-    expect(withClones([{ repos: [{ path: '/b', workspaces: [' '] }] }], [], resolved, filled)).toEqual([{ repos: [{ path: '/b', workspaces: [' '], clones: CLONES }] }]);
+    expect(withClones([{ repos: [{ path: '/b', workstations: ['/b2'] }] }], [], resolved, filled)).toBeNull();
+    expect(withClones([{ repos: [{ path: '/b', workstations: [' '] }] }], [], resolved, filled)).toEqual([{ repos: [{ path: '/b', workstations: [' '], clones: CLONES }] }]);
   });
 
   test('never touches a count the owner typed or changed', () => {
@@ -70,30 +70,30 @@ describe('withClones', () => {
     const typed = new Map() as FilledClones;
     withClones([{ repos: [{ path: '/b' }] }], [], resolved, typed);
     expect(withClones([{ repos: [{ path: '/b', clones: 3 }] }], [], resolved, typed)).toBeNull();
-    expect(withClones([{ repos: [{ path: '/b', clones: 3, workspaces: ['/b2'] }] }], [], resolved, typed)).toBeNull();
+    expect(withClones([{ repos: [{ path: '/b', clones: 3, workstations: ['/b2'] }] }], [], resolved, typed)).toBeNull();
     // typed while the dialog's count was out for existing clones
     const back = new Map() as FilledClones;
     withClones([{ repos: [{ path: '/b' }] }], [], resolved, back);
-    withClones([{ repos: [{ path: '/b', clones: CLONES, workspaces: ['/b2'] }] }], [], resolved, back);
-    expect(withClones([{ repos: [{ path: '/b', clones: 1, workspaces: ['/b2'] }] }], [], resolved, back)).toBeNull();
+    withClones([{ repos: [{ path: '/b', clones: CLONES, workstations: ['/b2'] }] }], [], resolved, back);
+    expect(withClones([{ repos: [{ path: '/b', clones: 1, workstations: ['/b2'] }] }], [], resolved, back)).toBeNull();
     expect(withClones([{ repos: [{ path: '/b', clones: 1 }] }], [], resolved, back)).toBeNull();
     // listed before the path was checked: nothing is filled in, and emptying the list fills it in
     const first = new Map() as FilledClones;
-    expect(withClones([{ repos: [{ path: '/b', workspaces: ['/b2'] }] }], [], resolved, first)).toBeNull();
-    expect(withClones([{ repos: [{ path: '/b', workspaces: [] }] }], [], resolved, first)).toEqual([{ repos: [{ path: '/b', workspaces: [], clones: CLONES }] }]);
+    expect(withClones([{ repos: [{ path: '/b', workstations: ['/b2'] }] }], [], resolved, first)).toBeNull();
+    expect(withClones([{ repos: [{ path: '/b', workstations: [] }] }], [], resolved, first)).toEqual([{ repos: [{ path: '/b', workstations: [], clones: CLONES }] }]);
   });
 
   test('leaves worktrees, counts of its own and repositories not checked yet', () => {
-    const draft = [{ repos: [{ path: '/w' }, { path: '/n', clones: 0 }, { path: '/l', workspaces: ['/x'] }, { path: '' }] }, { repos: [{ path: '/u' }] }];
+    const draft = [{ repos: [{ path: '/w' }, { path: '/n', clones: 0 }, { path: '/l', workstations: ['/x'] }, { path: '' }] }, { repos: [{ path: '/u' }] }];
     expect(withClones(draft, [], [at('worktrees', 'clones', 'clones', 'clones'), null], new Map())).toBeNull();
   });
 });
 
-test('a stopped task goes into the archive while nothing waits to start it and its workspace holds no work', () => {
+test('a stopped task goes into the archive while nothing waits to start it and its workstation holds no work', () => {
   const stoppedTask = { kind: 'task', state: 'planned', branch: 'obeya/x', source: 'manual' } as const;
   expect(stoppedArchivable(stoppedTask)).toBe(true);
   expect(stoppedArchivable({ ...stoppedTask, branch: undefined })).toBe(false);
-  expect(stoppedArchivable({ ...stoppedTask, workspace: '/clones/1' })).toBe(false);
+  expect(stoppedArchivable({ ...stoppedTask, workstation: '/clones/1' })).toBe(false);
   expect(stoppedArchivable({ ...stoppedTask, queue: { checking: true, since: '' } })).toBe(false);
   expect(stoppedArchivable({ ...stoppedTask, source: 'plan' })).toBe(false);
   expect(stoppedArchivable({ ...stoppedTask, prototypeOf: 'idea' })).toBe(false);

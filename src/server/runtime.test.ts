@@ -6,7 +6,7 @@ import { type AgentEvent, askOwner, BOUNDED_WAITS, Inbox, backgroundWork, denied
 import { readShared } from '../adapters';
 import { commandsOf } from './trust';
 import { gitRepo as repoWith } from './testing';
-import { git } from './workspaces';
+import { git } from './workstations';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { FakeRuntime } from './testing';
@@ -394,7 +394,7 @@ test('a Codex agent is not asked for a command the owner-confirmed allow list co
   expect(seen.at(-1)!.spec).toBe(claude);
 });
 
-test("a Codex agent loads the repository's .codex only where its workspace has it as the owner trusted it, asked at every start", () => {
+test("a Codex agent loads the repository's .codex only where its workstation has it as the owner trusted it, asked at every start", () => {
   const dir = mkdtempSync(join(tmpdir(), 'obeya-codex-trust-'));
   try {
     const repo = repoWith(join(dir, 'repo'), { '.codex/config.toml': 'model = "x"\n' });
@@ -404,7 +404,7 @@ test("a Codex agent loads the repository's .codex only where its workspace has i
     const spec = (over: Record<string, unknown> = {}) => ({ cwd: repo, system: '', tools: [], onEvent: () => {}, setting: { harness: 'codex' }, ...over }) as never;
     wrapped.start(spec());
     expect(seen.at(-1)!.codexConfig).toBe(true);
-    // changed in the workspace since (by the card, or a rebase onto a change not trusted yet)
+    // changed in the workstation since (by the card, or a rebase onto a change not trusted yet)
     writeFileSync(join(repo, '.codex/config.toml'), 'model = "x"\n[mcp_servers.x]\ncommand = "x"\n');
     wrapped.start(spec());
     expect(seen.at(-1)!.codexConfig).toBeUndefined();

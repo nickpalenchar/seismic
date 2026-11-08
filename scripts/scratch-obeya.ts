@@ -125,17 +125,17 @@
 // have given it, which every started card has), createdAgo, archivedAgo, events ([{ kind, author, text, ago?, mocks?, spot?, token? }]; an idea's reply with `mocks` needs code that has them, an error's `token` (its session signed in with a token) too;
 // with events of kind `review`, the demos in `row.demos` and then `demo` go with those handovers in order, and a `spot` (a comment's
 // place in a demo video, `{ at, chapter?, demo? }`) names its demo by its place in that order; earlier demos need code that has them),
-// workspace (true: the card holds the next free clone, for a repository whose settings say clones; with
+// workstation (true: the card holds the next free clone, for a repository whose settings say clones; with
 // its branch checked out there, holding a commit where `branch` names it, of `branchFiles` (else of a `scratch.txt`; by path, a text or `{ from }` a file to copy); for one that works in worktrees, a branch is
 // required and the card gets a worktree of its own on it), prototypeOf (the key of the idea it is a prototype of),
 // and `row` for any other column of `cards` (objects are stored as JSON; a
 // review card's `row.contribution` naming one of `pulls` gets that PR's head as `reviewed` where it names none). Times: "90s", "15m", "2h",
 // "3d" ago. `mainBranch` is the branch the repositories are on (default `main`). With `forgeClone`, the forge that plays `pulls` keeps its repository in <dir>/forge, a clone the PRs' heads are in, so that what lands on the local main is not on the forge until pushed; the contributors' repositories are that one too, so a push onto a PR's branch moves its head. `"setup": true` serves no canvas (no configuration, no repository given): the first start,
 // which shows the setup assistant; the repository is still made, for the assistant to pick, and
-// `cards` may be empty. `"git": false` makes the repository a folder without git (a card's `workspace: true` then
+// `cards` may be empty. `"git": false` makes the repository a folder without git (a card's `workstation: true` then
 // is the folder itself, and its `changes`, as `[{ "kind": "added", "path": "…" }]` with `from` for a move, are what it
-// changed there: the files are as `files` and `copy` leave them, a changed one without a copy from before), and `copy` copies a directory into it first (documents, binaries). The repository has settings of its own where `files` hold `.obeya/settings.json` (a demo site among them, say). `poolCheckout` makes the repository's checkout a workspace of the pool too
-// (`workspaces` in the configuration), as a pool of clones often has it, with a bare origin in
+// changed there: the files are as `files` and `copy` leave them, a changed one without a copy from before), and `copy` copies a directory into it first (documents, binaries). The repository has settings of its own where `files` hold `.obeya/settings.json` (a demo site among them, say). `poolCheckout` makes the repository's checkout a workstation of the pool too
+// (`workstations` in the configuration), as a pool of clones often has it, with a bare origin in
 // <dir>; `settings` are the repository's settings on this machine, in the configuration (a plan
 // folder outside the repository, which only they may name); with either, the server
 // starts from a configuration file in <dir>. `slots` caps the workers busy at once on this machine
@@ -180,7 +180,7 @@ import type { CanvasSnapshot, ConfigChecked, Item } from '../src/core/types';
 import { loginLink, ownerHeaders } from '../src/server/owner';
 import { findTailscale, type ServeEntry, Tailscale } from '../src/server/tailscale';
 import { mayRecordInto } from '../src/server/replay';
-import { branchName } from '../src/server/workspaces';
+import { branchName } from '../src/server/workstations';
 import { opt } from './common';
 import { waitUp } from './wait-up';
 
@@ -217,6 +217,8 @@ interface StageCard {
   branch?: string;
   /** Files the card's branch commits (instead of a `scratch.txt`): by path, its text, or `{ from }` a file to copy (a PDF, say). */
   branchFiles?: Record<string, string | { from: string }>;
+  workstation?: boolean;
+  /** `workstation`'s name before, still read for stage files written then. */
   workspace?: boolean;
   /** A prototype of the idea with this key. */
   prototypeOf?: string;
@@ -250,7 +252,7 @@ interface Stage {
   mainBranch?: string;
   /** Clones for the workers, who then work in clones whatever the settings say: real workers need one each. */
   clones?: number;
-  /** The repository's checkout is a workspace of the pool too. */
+  /** The repository's checkout is a workstation of the pool too. */
   poolCheckout?: boolean;
   /** The repository's settings on this machine, in the configuration (a plan folder outside it, say). */
   settings?: Record<string, unknown>;
@@ -413,7 +415,7 @@ for (const [path, text] of Object.entries(files)) {
 }
 const folder = stage.git === false;
 if (!folder) initRepo(repo);
-// a workspace of the pool is a clone of the repository's origin, the checkout included
+// a workstation of the pool is a clone of the repository's origin, the checkout included
 if (stage.poolCheckout || stage.hosts?.length) {
   run('git', ['clone', '-q', '--bare', repo, join(dir, 'scratch.git')], dir);
   run('git', ['remote', 'add', 'origin', join(dir, 'scratch.git')], repo);
@@ -538,7 +540,7 @@ const env = {
       }
     : {}),
 };
-// a pool's workspaces live in the configuration, which the command line cannot give
+// a pool's workstations live in the configuration, which the command line cannot give
 const configFile = join(dir, 'canvases.json');
 const configured = folder || !!stage.poolCheckout || !!stage.settings || stage.slots !== undefined || !!stage.hosts?.length || !!stage.name || further.length > 0 || others.length > 0;
 if (configured)
@@ -553,7 +555,7 @@ if (configured)
               path: repo,
               ...(folder ? { git: false } : {}),
               ...(stage.clones ? { clones: stage.clones } : {}),
-              ...(stage.poolCheckout ? { workspaces: [repo] } : {}),
+              ...(stage.poolCheckout ? { workstations: [repo] } : {}),
               ...(stage.settings ? { settings: stage.settings } : {}),
               ...(stage.slots !== undefined ? { slots: stage.slots } : {}),
               ...(stage.hosts?.length ? { hosts: stage.hosts.map(({ gone: _, ...h }) => ({ ...h, root: rootOn(h) })) } : {}),
@@ -675,9 +677,11 @@ for (const [i, c] of stage.cards.entries()) {
 
 const db = new Database(join(home, 'obeya.db'), { strict: true });
 db.run('PRAGMA busy_timeout = 10000');
+// code from before workstations were renamed (`--code`) keeps them in `workspaces`, a card's in `workspace`
+const WS = db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'workstations'").get() ? 'workstations' : 'workspaces';
 for (const h of stage.hosts ?? [])
   for (let n = 1; h.gone && n <= h.clones; n++)
-    db.query('INSERT INTO workspaces (path, canvas_id, repo) VALUES ($path, $c, NULL) ON CONFLICT(path) DO NOTHING').run({ path: `ssh://${h.name}${rootOn(h)}/${n}`, c: canvas });
+    db.query(`INSERT INTO ${WS} (path, canvas_id, repo) VALUES ($path, $c, NULL) ON CONFLICT(path) DO NOTHING`).run({ path: `ssh://${h.name}${rootOn(h)}/${n}`, c: canvas });
 const columns = new Set((db.query('PRAGMA table_info(cards)').all() as { name: string }[]).map((c) => c.name));
 for (const [i, c] of stage.cards.entries()) {
   const id = idOf(c, i);
@@ -708,20 +712,21 @@ for (const [i, c] of stage.cards.entries()) {
   // has: without one the card shows neither its conversation's field nor the question it waits on
   const branch = c.branch ?? (c.state === 'working' || c.state === 'waiting' ? branchName(c.title ?? snapshot.items.find((x) => x.id === id)?.title ?? '', id) : undefined);
   if (branch !== undefined) row.branch = branch;
-  if (c.workspace && folder) {
+  const workstation = c.workstation ?? c.workspace;
+  if (workstation && folder) {
     // every card works in the folder itself, with a record of what it changed there (folder.ts)
-    row.workspace = repo;
+    row.workstation = repo;
     row.branch = branch ?? `obeya/${id.slice(0, 6)}`;
     db.query('INSERT INTO folder_cards (card_id, folder, state) VALUES ($id, $f, $s) ON CONFLICT(card_id) DO NOTHING').run({
       id,
       f: realpathSync(repo),
       s: JSON.stringify({ held: true, undo: null, changes: c.changes ?? [] }),
     });
-  } else if (c.workspace) {
-    // a card on a further repository of the canvas (`repos`) works in a workspace of that one
+  } else if (workstation) {
+    // a card on a further repository of the canvas (`repos`) works in a workstation of that one
     const other = c.repo && c.repo !== (stage.repoName ?? 'repo') ? c.repo : null;
     const checkout = other ? join(dir, other) : repo;
-    const free = db.query('SELECT path FROM workspaces WHERE card_id IS NULL AND repo IS $r ORDER BY path').get({ r: other }) as { path: string } | null;
+    const free = db.query(`SELECT path FROM ${WS} WHERE card_id IS NULL AND repo IS $r ORDER BY path`).get({ r: other }) as { path: string } | null;
     // no clones: the repository works in worktrees, one per card under Seismic's home
     const tree = !free && !!branch && !stage.clones;
     if (!free && !tree) fail(`card ${c.key ?? i}: no free clone for it ("clones" in the stage, settings that say clones), nor a branch for a worktree`);
@@ -729,13 +734,13 @@ for (const [i, c] of stage.cards.entries()) {
     if (tree) {
       mkdirSync(dirname(path), { recursive: true });
       run('git', ['worktree', 'add', '-q', '-b', branch!, path, mainBranch], checkout);
-      if (other) db.query('INSERT INTO workspaces (path, canvas_id, card_id, repo) VALUES ($path, $c, $id, $r)').run({ path, c: canvas, id, r: other });
-      else db.query('INSERT INTO workspaces (path, canvas_id, card_id) VALUES ($path, $c, $id)').run({ path, c: canvas, id });
+      if (other) db.query(`INSERT INTO ${WS} (path, canvas_id, card_id, repo) VALUES ($path, $c, $id, $r)`).run({ path, c: canvas, id, r: other });
+      else db.query(`INSERT INTO ${WS} (path, canvas_id, card_id) VALUES ($path, $c, $id)`).run({ path, c: canvas, id });
     } else {
-      db.query('UPDATE workspaces SET card_id = $id WHERE path = $path').run({ id, path });
+      db.query(`UPDATE ${WS} SET card_id = $id WHERE path = $path`).run({ id, path });
       if (branch) run('git', ['checkout', '-q', '-b', branch], path);
     }
-    row.workspace = path;
+    row.workstation = path;
     if (c.branch) {
       // a commit of its own, where the stage names no files for it
       if (!c.branchFiles || !Object.keys(c.branchFiles).length) writeFileSync(join(path, 'scratch.txt'), `${c.title ?? c.branch}\n`);
@@ -756,6 +761,10 @@ for (const [i, c] of stage.cards.entries()) {
   const contribution = row.contribution as { number?: number; reviewed?: string } | undefined;
   const pull = contribution && !contribution.reviewed && prHeads.get(contribution.number ?? -1);
   if (pull) row.contribution = { ...contribution, reviewed: pull };
+  if (WS === 'workspaces' && 'workstation' in row) {
+    row.workspace = row.workstation;
+    delete row.workstation;
+  }
   const keys = Object.keys(row).filter((k) => row[k] !== undefined);
   const missing = keys.filter((k) => !columns.has(k));
   if (missing.length) fail(`card ${c.key ?? i}: this code's database has no column ${missing.join(', ')}`);

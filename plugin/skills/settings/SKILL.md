@@ -21,14 +21,14 @@ Find out, from the files rather than by guessing:
 - **Setup and checks**: the package manager and its lock file (`package.json` scripts, `Makefile`,
   `justfile`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Gemfile` …). The CI configuration
   (`.github/workflows/`, `.gitlab-ci.yml`, …) says which checks a change must pass and in which
-  order; take those that run on one machine in minutes, without services the workspace lacks.
+  order; take those that run on one machine in minutes, without services the workstation lacks.
 - **The app**: README, CONTRIBUTING, CLAUDE.md or AGENTS.md, `docker-compose.yml` /
   `compose.yaml`, `.env.example`, `Procfile`, dev scripts. What kind of app it is (a web app, a CLI,
   a desktop or mobile app), what starts in which order, which ports it takes (fixed ones mean one
-  app per clone: `workspaces: 'clones'`), what to do after which kind of change (restart a
+  app per clone: `workstations: 'clones'`), what to do after which kind of change (restart a
   service, reload the page, rebuild; nothing where it reloads by itself), where it gives its
   address (a file it writes, the console), migrations, seed data, and how to stop the app of one
-  workspace (`app.stop`; `app.keep` where some hold data that must stay).
+  workstation (`app.stop`; `app.keep` where some hold data that must stay).
 - **An adapter module from before**: a `.obeya/adapter/index.ts` held what the settings hold now
   (how the app runs). Seismic no longer reads it: take its values over, then delete
   `.obeya/adapter/`. What it held that is set on each machine in "Konfiguration" goes into your
@@ -65,7 +65,7 @@ an environment variable), never itself.
 ## 3. Write `.obeya/settings.json`
 
 Start from the example in the reference and keep only the fields that differ from Seismic's
-defaults: `setup`, `checks`, `land`, `direct`, `autoMerge`, `planDocs`, `softPaths`, `workspaces`, `prNoise`,
+defaults: `setup`, `checks`, `land`, `direct`, `autoMerge`, `planDocs`, `softPaths`, `workstations`, `prNoise`,
 `app` with `run`, `stop` and `keep`.
 
 `app.run` is the part that decides whether workers can run and show their work. Write it for a
@@ -97,8 +97,8 @@ Gather the commands an agent working here runs: the `setup` and `checks` you wro
 `app.run` and of stopping the app, the scripts (`package.json`, `Makefile`, `justfile`, `bin/`,
 `scripts/`), the commands README, CONTRIBUTING, CLAUDE.md or AGENTS.md and CI tell a developer to
 run, and code generators, linters and formatters. Keep the list to what runs inside the
-workspace and can be undone: tests, builds, type checks, linters, the dev server, installing from
-the lock file. Leave out what publishes, deploys, deletes outside the workspace, pushes or touches
+workstation and can be undone: tests, builds, type checks, linters, the dev server, installing from
+the lock file. Leave out what publishes, deploys, deletes outside the workstation, pushes or touches
 real accounts and data.
 
 A rule is `Bash(<command>)`: the exact command, or with `*` for any text (`Bash(bun test *)`
@@ -123,7 +123,7 @@ before trusting them.
 
 ## 5. Prove it
 
-- Run `setup` and every command of `checks` in this workspace, as a worker will.
+- Run `setup` and every command of `checks` in this workstation, as a worker will.
 - Follow `app.run` word for word, as if you had never seen the project: start the
   app, open it, log in. Where the recipe falls short (a step missing, a port taken, data that is
   not there), fix the recipe, not just the running app, and run it again from the start.

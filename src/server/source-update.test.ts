@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SourceUpdates } from './source-update';
 import { gitRepo } from './testing';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 let dir: string;
 /** Where Seismic's repository is published (`origin`), and the clone Seismic runs from. */

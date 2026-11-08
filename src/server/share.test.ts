@@ -13,7 +13,7 @@ import { siteKey } from './site';
 import { missedChanges, PAGE_CHANGES, pagesVersion } from '../core/page-changes';
 import type { Theme } from './theme';
 import { FakeRuntime, gitRepo, noContributions } from './testing';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 let dir: string;
 let board: Board;
@@ -209,7 +209,7 @@ describe('sharing a demo', () => {
     expect(share(c.id)!.url).toBe(`${SITE_URL}${slug}/`);
   });
 
-  test("a deploy that leaves wrangler's cache in the repository leaves its checkout clean, so its workspace can still be leased", async () => {
+  test("a deploy that leaves wrangler's cache in the repository leaves its checkout clean, so its workstation can still be leased", async () => {
     const repo = gitRepo(join(dir, 'checkout'));
     sharing = make(repo);
     const c = card();

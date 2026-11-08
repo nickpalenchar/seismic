@@ -2,7 +2,7 @@
 // `.obeya/settings.json`, which a fresh clone brings with it. Where work lands on the main branch
 // they are committed there; where it goes through pull requests, the commit goes out as one, or,
 // where work may go straight to main as well, is pushed there. None of them touches what the
-// checkout has beside the file, nor a card's workspace.
+// checkout has beside the file, nor a card's workstation.
 
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -11,7 +11,7 @@ import { parseShared, REPO_SETTINGS_FILE } from '../adapters';
 import { layerSettings, SHARED_FIELDS, type SettingsShared, type SharedSettings } from '../core/types';
 import { BadRequest } from './board';
 import type { Forge } from './forge';
-import { defaultBranch, GIT } from './workspaces';
+import { defaultBranch, GIT } from './workstations';
 import { messageOf } from '../core/text';
 import { spawnOutput } from './spawn';
 

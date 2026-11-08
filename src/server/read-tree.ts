@@ -7,7 +7,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { branchSetting, type Branches, CARD_BRANCH, detachedTree, detectingBranch, GIT, type GitSteps, gitOrNull, gitSteps, gitStepsSync, isFolder, readingBranches } from './workspaces';
+import { branchSetting, type Branches, CARD_BRANCH, detachedTree, detectingBranch, GIT, type GitSteps, gitOrNull, gitSteps, gitStepsSync, isFolder, readingBranches } from './workstations';
 
 const gitIn =
   (path: string) =>

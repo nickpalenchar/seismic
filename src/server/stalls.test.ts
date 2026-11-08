@@ -12,19 +12,19 @@ const trace = (...frames: Trace['frames']): Trace => ({ timestamp: 0, frames });
 const times = (n: number, t: Trace) => Array.from({ length: n }, () => t);
 
 test('a sample is placed by the runtime function it was in and the code of Seismic that called it, a library’s frames left out', () => {
-  expect(placeOf(trace(native('spawnSync'), at('git', 'workspaces.ts', 77), { name: 'x', sourceURL: '/repo/node_modules/lib/a.js', line: 1, column: 1 }, at('approve', 'workers.ts', 1285)))).toBe(
-    'spawnSync ← git (workspaces.ts:77) ← approve (workers.ts:1285)',
+  expect(placeOf(trace(native('spawnSync'), at('git', 'workstations.ts', 77), { name: 'x', sourceURL: '/repo/node_modules/lib/a.js', line: 1, column: 1 }, at('approve', 'workers.ts', 1285)))).toBe(
+    'spawnSync ← git (workstations.ts:77) ← approve (workers.ts:1285)',
   );
   expect(placeOf(trace(at('', 'board.ts', 12)))).toBe('(anonymous) (board.ts:12)');
   expect(placeOf(trace())).toBe('(no JavaScript: garbage collection or the runtime itself)');
 });
 
 test('a stall names where its samples were, by share, and the processes it waited for', () => {
-  const git = trace(native('spawnSync'), at('git', 'workspaces.ts', 77), at('hasWork', 'workspaces.ts', 900));
+  const git = trace(native('spawnSync'), at('git', 'workstations.ts', 77), at('hasWork', 'workstations.ts', 900));
   const json = trace(native('stringify'), at('snapshot', 'board.ts', 2401));
   expect(describeStall(2400, [...times(900, git), ...times(300, json)], [{ argv: ['/usr/bin/git', '-C', '/repo', 'status', '--porcelain'], ms: 1800 }], 2)).toEqual([
     'Seismic: the server stalled for 2.4 s; meanwhile it answered no page and heard no agent',
-    '   75% spawnSync ← git (workspaces.ts:77) ← hasWork (workspaces.ts:900)',
+    '   75% spawnSync ← git (workstations.ts:77) ← hasWork (workstations.ts:900)',
     '   25% stringify ← snapshot (board.ts:2401)',
     '  waited 1.8 s for: git -C /repo status --porcelain',
   ]);

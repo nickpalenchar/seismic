@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Busy, headSeal, installDependencies, reinstallDependencies, ownCheckout, Restarter, symbolicTarget, watchOwnCode, whenIdle } from './self-update';
 import { gitRepo } from './testing';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 let repo: string;
 let stop = () => {};

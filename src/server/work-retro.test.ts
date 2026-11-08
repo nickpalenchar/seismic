@@ -8,7 +8,7 @@ import { Store } from './db';
 import { artifact, FakeRuntime, type FakeSession, gitRepo } from './testing';
 import { WorkRetro } from './work-retro';
 import { Workers } from './workers';
-import { Workspaces } from './workspaces';
+import { Workstations } from './workstations';
 
 const SAMPLE = join(import.meta.dir, 'fixtures', 'transcript.jsonl');
 const CODEX = join(import.meta.dir, 'fixtures', 'codex-rollout.jsonl');
@@ -30,8 +30,8 @@ beforeEach(() => {
   runtime = new FakeRuntime();
   files = {};
   retro = new WorkRetro({ board, runtime, pathFor: () => main, transcript: (id) => files[id] ?? null, every: 3, ramp: [] });
-  const workspaces = new Workspaces(store, 'c', { mode: 'worktrees', repoPath: main, dir: join(dir, 'ws') });
-  workers = new Workers({ board, runtime, workspaces, adapter: { ...generic, land: 'main', workspaces: 'worktrees' }, onWorkEnded: (id, ws) => retro.ended(id, ws) });
+  const workstations = new Workstations(store, 'c', { mode: 'worktrees', repoPath: main, dir: join(dir, 'ws') });
+  workers = new Workers({ board, runtime, workstations, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, onWorkEnded: (id, ws) => retro.ended(id, ws) });
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 

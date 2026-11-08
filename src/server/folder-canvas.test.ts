@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CanvasRuntime } from './canvas';
 import { Store } from './db';
-import type { FolderWorkspaces } from './folder';
+import type { FolderWorkstations } from './folder';
 import { artifact, FakeRuntime, noForge } from './testing';
 
 let dir: string;
@@ -24,7 +24,7 @@ beforeEach(async () => {
   writeFileSync(join(docs, '.obeya-note.txt'), 'x\n');
   runtime = new FakeRuntime();
   canvas = new CanvasRuntime({ repos: [{ path: docs, git: false }] }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge });
-  await (canvas.repos[0]!.workspaces as FolderWorkspaces).read;
+  await (canvas.repos[0]!.workstations as FolderWorkstations).read;
 });
 afterEach(() => {
   canvas.shutdown();
@@ -47,7 +47,7 @@ describe('a canvas over a folder without git', () => {
     const a = runtime.last;
     await workers.start(letter.id);
     const b = runtime.last;
-    expect(canvas.board.row(sort.id).workspace).toBe(docs);
+    expect(canvas.board.row(sort.id).workstation).toBe(docs);
     expect(a.spec.cwd).toBe(docs);
     expect(a.spec.system).toContain('directly in a folder that is not a git repository');
     await a.use('Bash', { command: 'mkdir -p Tax/2025 && mv Scans/scan-1.pdf Tax/2025/' }, () => {
@@ -60,7 +60,7 @@ describe('a canvas over a folder without git', () => {
     expect(await listOf(sort.id)).toEqual(['moved Scans/scan-1.pdf → Tax/2025/scan-1.pdf', 'added Tax', 'added Tax/2025']);
     expect(await listOf(letter.id)).toEqual(['added Estate/Reply.md', 'modified Estate/Inventory.md']);
     // the Koordinator sees what each changed
-    expect((await canvas.repos[0]!.workspaces.changes(letter.id)).map((c) => c.file)).toEqual(['Estate/Reply.md', 'Estate/Inventory.md']);
+    expect((await canvas.repos[0]!.workstations.changes(letter.id)).map((c) => c.file)).toEqual(['Estate/Reply.md', 'Estate/Inventory.md']);
 
     // a handover without a demo: the change list shows what changed
     expect(await a.call('ready_for_review', { summary: 'Sorted.' })).toContain('Recorded');

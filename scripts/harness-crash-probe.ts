@@ -115,7 +115,7 @@ async function run(harness: Harness, kind: Case) {
     };
     db = new Database(join(home, 'obeya.db'), { readonly: true });
     const id = s.cards.probe!;
-    const card = () => db!.query('select state, need, paused, workspace, detail, session_id from cards where id = ?').get(id) as Record<string, string | null> | null;
+    const card = () => db!.query('select state, need, paused, workstation, detail, session_id from cards where id = ?').get(id) as Record<string, string | null> | null;
     const check = await api('/api/config/check', undefined, 'GET');
     const repo = check.resolved[0].repos[0];
     await api('/api/config/trust', { path: join(s.dir, 'repo'), seen: repo.trust.now, held: repo.trust.held });
@@ -126,23 +126,23 @@ async function run(harness: Harness, kind: Case) {
     // the worker started the heartbeat, asked, and parking asked app.keep, which kept it
     const ready = () => {
       const c = card();
-      const w = c?.workspace;
+      const w = c?.workstation;
       return !!w && c?.state === 'waiting' && c.need === 'question' && tickIn(w) > 0 && read(join(w, 'keep.log')).includes('keep');
     };
     const end = Date.now() + 6 * 60_000;
     while (Date.now() < end && !ready() && alive(s.pid)) await Bun.sleep(500);
     const before = card();
-    const workspace = before?.workspace ?? '';
+    const workstation = before?.workstation ?? '';
     if (!ready()) {
       const log = read(join(s.dir, 'server.log'));
-      return Object.assign(result, { status: 'blocked', why: alive(s.pid) ? 'worker did not reach the question with a kept heartbeat in 6 minutes' : 'scratch Seismic exited', card: before, heartbeat: workspace ? read(join(workspace, 'app.tick')) : '', logTail: log.slice(-1500) });
+      return Object.assign(result, { status: 'blocked', why: alive(s.pid) ? 'worker did not reach the question with a kept heartbeat in 6 minutes' : 'scratch Seismic exited', card: before, heartbeat: workstation ? read(join(workstation, 'app.tick')) : '', logTail: log.slice(-1500) });
     }
-    job = Number(read(join(workspace, 'app.pid')));
+    job = Number(read(join(workstation, 'app.pid')));
     const rows = table();
     seen = descendants(s.pid, rows);
-    // the worker's agent: the server's own child working in the card's workspace (the Koordinator's works elsewhere)
-    agent = seen.find((p) => p.ppid === s.pid && /claude|codex/.test(p.command) && real(cwdOf(p.pid)) === real(workspace));
-    if (!agent) throw new Error(`no agent process in ${workspace} among ${JSON.stringify(seen.filter((p) => p.ppid === s.pid))}`);
+    // the worker's agent: the server's own child working in the card's workstation (the Koordinator's works elsewhere)
+    agent = seen.find((p) => p.ppid === s.pid && /claude|codex/.test(p.command) && real(cwdOf(p.pid)) === real(workstation));
+    if (!agent) throw new Error(`no agent process in ${workstation} among ${JSON.stringify(seen.filter((p) => p.ppid === s.pid))}`);
     const jobRow = rows.find((p) => p.pid === job);
     const server = rows.find((p) => p.pid === s.pid)!;
     result.before = {
@@ -152,20 +152,20 @@ async function run(harness: Harness, kind: Case) {
       app: jobRow ? { pid: job, ppid: jobRow.ppid, pgid: jobRow.pgid, ownGroup: jobRow.pgid !== agent.pgid && jobRow.pgid !== server.pgid, underAgent: seen.some((p) => p.pid === job) } : { pid: job, missing: true },
       heartbeats: heartbeats(work).length,
       canary: { pid: canary.pid, underServer: seen.some((p) => p.pid === canary.pid) },
-      keep: read(join(workspace, 'keep.log')),
-      stop: read(join(workspace, 'stop.log')),
+      keep: read(join(workstation, 'keep.log')),
+      stop: read(join(workstation, 'stop.log')),
     };
-    const tick = tickIn(workspace);
+    const tick = tickIn(workstation);
     const lastEvent = (db.query('select max(id) as id from events where card_id = ?').get(id) as { id: number | null }).id ?? 0;
     kill(kind === 'agent-death' ? agent.pid : s.pid);
     const sweptBefore = read(join(s.dir, 'server.log')).length;
     await Bun.sleep(8000);
-    const after = tickIn(workspace);
+    const after = tickIn(workstation);
     result.after = {
       appAlive: alive(job),
       ticksDuring8s: after - tick,
       // a heartbeat started after the crash writes the same files
-      appPidNow: Number(read(join(workspace, 'app.pid'))),
+      appPidNow: Number(read(join(workstation, 'app.pid'))),
       heartbeats: heartbeats(work).map((p) => ({ pid: p.pid, ppid: p.ppid, pgid: p.pgid })),
       agentAlive: alive(agent.pid),
       serverAlive: alive(s.pid),
@@ -174,8 +174,8 @@ async function run(harness: Harness, kind: Case) {
       survivors: seen.filter((p) => p.pid !== job && alive(p.pid) && stillOurs(p)).map((p) => ({ pid: p.pid, command: p.command.slice(0, 100) })),
       card: card(),
       events: (db.query('select kind, author, substr(text, 1, 160) as text from events where card_id = ? and id > ? order by id').all(id, lastEvent) as unknown[]),
-      keep: read(join(workspace, 'keep.log')),
-      stop: read(join(workspace, 'stop.log')),
+      keep: read(join(workstation, 'keep.log')),
+      stop: read(join(workstation, 'stop.log')),
       serverLog: read(join(s.dir, 'server.log')).split('\n').filter((l) => /error|exit|died|stopp|kill|park/i.test(l)).slice(-12),
     };
     if (kind === 'obeya-restart') {
@@ -193,12 +193,12 @@ async function run(harness: Harness, kind: Case) {
         if (!up) await Bun.sleep(500);
       }
       await Bun.sleep(3000);
-      const tickA = tickIn(workspace);
+      const tickA = tickIn(workstation);
       await Bun.sleep(1000);
       result.restart = {
         up,
         appAlive: alive(job),
-        ticksIn1s: tickIn(workspace) - tickA,
+        ticksIn1s: tickIn(workstation) - tickA,
         heartbeats: heartbeats(work).length,
         agentAlive: alive(agent.pid),
         canaryAlive: alive(canary.pid!),

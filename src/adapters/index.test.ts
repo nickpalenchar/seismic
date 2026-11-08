@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { repoInfo } from '../server/repo';
 import { gitRepo } from '../server/testing';
-import { git } from '../server/workspaces';
+import { git } from '../server/workstations';
 import { layerSettings, type RepoSettings } from '../core/types';
 import { defaultsFor, hasAdapterModule, parseShared, readShared, readSharedFiles, repoValues, withSettings } from '.';
 import { generic } from './generic';
@@ -20,7 +20,7 @@ describe('defaultsFor', () => {
     const root = join(import.meta.dir, '../..');
     const read = parseShared(readFileSync(join(root, '.obeya/settings.json'), 'utf8'));
     expect(read.problems).toEqual([]);
-    expect(read.settings).toMatchObject({ land: 'main', workspaces: 'worktrees', checks: ['bun test --parallel', 'bun run typecheck'] });
+    expect(read.settings).toMatchObject({ land: 'main', workstations: 'worktrees', checks: ['bun test --parallel', 'bun run typecheck'] });
   });
 
   test('lands through pull requests where origin is on GitHub, else on the main branch', () => {
@@ -49,11 +49,11 @@ describe('defaultsFor', () => {
 
 describe('withSettings', () => {
   test("reads the settings whenever a field is asked for; clones or worktrees once", () => {
-    let s: RepoSettings | undefined = { land: 'main', workspaces: 'clones' };
+    let s: RepoSettings | undefined = { land: 'main', workstations: 'clones' };
     const a = withSettings({ ...generic, checks: ['bun test'] }, () => s);
-    expect([a.land, a.checks, a.workspaces]).toEqual(['main', ['bun test'], 'clones']);
-    s = { checks: [], workspaces: 'worktrees' };
-    expect([a.land, a.checks, a.workspaces]).toEqual(['pr', [], 'clones']);
+    expect([a.land, a.checks, a.workstations]).toEqual(['main', ['bun test'], 'clones']);
+    s = { checks: [], workstations: 'worktrees' };
+    expect([a.land, a.checks, a.workstations]).toEqual(['pr', [], 'clones']);
     // the defaults say nothing about the app or the demo site
     expect([a.app, a.demo]).toEqual([undefined, undefined]);
     s = { app: { run: 'Start it with `bun dev`.' } };
@@ -61,7 +61,7 @@ describe('withSettings', () => {
     s = { demo: { language: 'en' } };
     expect(a.demo).toEqual({ language: 'en' });
     // the configuration's clones go before the setting
-    expect(withSettings(generic, () => ({ workspaces: 'worktrees' }), true).workspaces).toBe('clones');
+    expect(withSettings(generic, () => ({ workstations: 'worktrees' }), true).workstations).toBe('clones');
   });
 
   test("the app's fields each come from where they are set", () => {

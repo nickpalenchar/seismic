@@ -3,12 +3,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, s
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store } from './db';
-import { compare, FolderWorkspaces, merge, type Manifest, type ToolCall, walk } from './folder';
+import { compare, FolderWorkstations, merge, type Manifest, type ToolCall, walk } from './folder';
 
 let dir: string;
 let folder: string;
 let store: Store;
-let ws: FolderWorkspaces;
+let ws: FolderWorkstations;
 
 const bytes = (n: number, seed: number) => Uint8Array.from({ length: n }, (_, i) => (i * seed + 7) % 251);
 
@@ -22,7 +22,7 @@ beforeEach(async () => {
   writeFileSync(join(folder, 'Nachlass', 'Liste.txt'), 'Konten\n');
   writeFileSync(join(folder, 'Zähler.png'), bytes(3000, 5));
   store = new Store(':memory:');
-  ws = new FolderWorkspaces(store, { path: folder, dir: join(dir, 'undo') });
+  ws = new FolderWorkstations(store, { path: folder, dir: join(dir, 'undo') });
   await ws.read;
 });
 
@@ -119,7 +119,7 @@ describe('undo', () => {
   });
 
   test('without a clone, moves, what the editing tools overwrite and the text files come back; a script\'s binary does not', async () => {
-    ws = new FolderWorkspaces(store, { path: folder, dir: join(dir, 'undo'), clone: false });
+    ws = new FolderWorkstations(store, { path: folder, dir: join(dir, 'undo'), clone: false });
     await ws.read;
     ws.lease('a');
     writeFileSync(join(folder, 'Brief.docx'), bytes(800, 13));

@@ -66,7 +66,7 @@ HTML after the brief.
 ### Prototypes
 
 "Have a prototype built", when talking is not enough: a worker builds a throwaway prototype in its own
-workspace, on a card of its own below the idea, and records a demo. Several may run side by side,
+workstation, on a card of its own below the idea, and records a demo. Several may run side by side,
 one per approach, each titled with it ("Prototype: logo – wordmark").
 
 When the brief plans prototypes of several variants, the agent passes them to Seismic
@@ -86,7 +86,7 @@ it.
 
 A prototype never lands and does not count for collisions. It ends in the archive with log, demo and
 summary ("Prototype · discarded" or "Prototype · built"), never to come back; a new attempt is a new
-prototype. "Discard" (also approving or deleting it) throws its workspace and branch away;
+prototype. "Discard" (also approving or deleting it) throws its workstation and branch away;
 "Build this prototype" (or accepting its worker's proposal) builds the idea on it (see Deciding).
 
 ### Deciding
@@ -106,7 +106,7 @@ repository is picked, so a card without one looks as before. The button then nam
 line under it on what the click does, and the click builds the idea there (see Building in a new
 repository).
 
-"Build this prototype" does the same on that prototype's branch: its workspace and branch become
+"Build this prototype" does the same on that prototype's branch: its workstation and branch become
 the idea's, and the worker hears that the branch holds a throwaway prototype, to take over what
 carries and bring it to production quality (tests, checks, docs, shortcuts removed), with the
 prototype's handover and the owner's answers. The decision log says "Build it like this, on prototype "…"".

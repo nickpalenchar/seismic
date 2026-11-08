@@ -6,7 +6,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import type { ContributionInfo, Forge, PrStatus } from './forge';
-import { gitAsync } from './workspaces';
+import { gitAsync } from './workstations';
 
 /** One pull request in the file. */
 export interface FilePr {

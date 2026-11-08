@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { Board } from './board';
 import { Store } from './db';
 import { gitRepo, identify } from './testing';
-import { git, gitOrNull, planBaselineTag, Workspaces } from './workspaces';
+import { git, gitOrNull, planBaselineTag, Workstations } from './workstations';
 
 let dir: string;
 beforeEach(() => (dir = mkdtempSync(join(tmpdir(), 'obeya-baseline-'))));
@@ -20,7 +20,7 @@ describe('plan git baselines', () => {
       const board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: repo, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
       const ids = ['A', 'B', 'C'].map((title) => board.create({ title, x: 0, y: 0 }).id);
       const options = { mode, repoPath: repo, dir: join(dir, 'ws'), planOf: () => 'plan-1' };
-      let spaces = new Workspaces(store, 'c', options);
+      let spaces = new Workstations(store, 'c', options);
       if (mode === 'clones') spaces.ensureClones(repo, 3);
       const original = git(repo, 'rev-parse', 'main');
       const tag = planBaselineTag('plan-1');
@@ -31,7 +31,7 @@ describe('plan git baselines', () => {
         expect(git(lease.path, 'config', '--get', `branch.obeya/w${n}.obeya-project-baseline`)).toBe(tag);
       }
       git(repo, 'commit', '--quiet', '--allow-empty', '-m', 'Other work landed');
-      spaces = new Workspaces(store, 'c', options);
+      spaces = new Workstations(store, 'c', options);
       const next = spaces.lease(ids[2]!, 'obeya/later');
       await next.ready;
       expect(git(next.path, 'rev-parse', 'HEAD')).toBe(git(repo, 'rev-parse', 'main'));
@@ -40,13 +40,13 @@ describe('plan git baselines', () => {
     });
   }
 
-  test('disabled starts create no tag; enabling on an existing workspace configures it without moving its branch', async () => {
+  test('disabled starts create no tag; enabling on an existing workstation configures it without moving its branch', async () => {
     const repo = gitRepo(join(dir, 'repo'));
     const store = new Store(':memory:');
     const board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: repo, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     const id = board.create({ title: 'A', x: 0, y: 0 }).id;
     let enabled = false;
-    const spaces = new Workspaces(store, 'c', { mode: 'worktrees', repoPath: repo, dir: join(dir, 'ws'), planOf: () => enabled ? 'p' : undefined });
+    const spaces = new Workstations(store, 'c', { mode: 'worktrees', repoPath: repo, dir: join(dir, 'ws'), planOf: () => enabled ? 'p' : undefined });
     const first = spaces.lease(id, 'obeya/a');
     await first.ready;
     expect(git(repo, 'tag', '--list')).toBe('');
@@ -68,7 +68,7 @@ describe('plan git baselines', () => {
     const id = board.create({ title: 'A', x: 0, y: 0 }).id;
     const tag = planBaselineTag('p');
     git(repo, 'tag', tag);
-    const spaces = new Workspaces(store, 'c', { mode: 'clones', repoPath: repo, dir: join(dir, 'ws'), planOf: () => 'p' });
+    const spaces = new Workstations(store, 'c', { mode: 'clones', repoPath: repo, dir: join(dir, 'ws'), planOf: () => 'p' });
     const [clone] = spaces.ensureClones(repo, 1);
     identify(clone!);
     git(clone!, 'commit', '--quiet', '--allow-empty', '-m', 'Other commit');

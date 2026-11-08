@@ -82,10 +82,10 @@ export function FolderLine({ item, diff, sizeBelow }: { item: Item; diff: CardDi
           )}
         </>
       )}
-      {item.workspace && (
+      {item.workstation && (
         <>
           {' · '}
-          <button className={copied ? 'link copied' : 'link'} title={item.workspace} onClick={() => copy(item.workspace!)}>
+          <button className={copied ? 'link copied' : 'link'} title={item.workstation} onClick={() => copy(item.workstation!)}>
             {copied ? t.diff.copied : t.diff.copyPath}
           </button>
         </>

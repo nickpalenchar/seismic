@@ -6,7 +6,7 @@ import { CanvasRuntime } from './canvas';
 import { Store } from './db';
 import { ReadTree, refsSeal } from './read-tree';
 import { artifact, FakeRuntime, gitRepo, identify, noForge, until } from './testing';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 const doc = (title: string, ticked = '') =>
   `# ${title}\n\n## Goal\n\nG.\n\n## Workstreams\n\n- [${ticked.includes('W1') ? 'x' : ' '}] **W1:** Eins.\n- [${ticked.includes('W2') ? 'x' : ' '}] **W2:** Zwei.\n`;
@@ -276,22 +276,22 @@ describe("a repository's settings for everyone", () => {
     expect(c.pendingRestart()).toBeNull();
 
     // where its workers work changes: with none of them at work, they restart at once, in clones
-    push({ '.obeya/settings.json': settings({ land: 'pr', workspaces: 'clones' }) });
+    push({ '.obeya/settings.json': settings({ land: 'pr', workstations: 'clones' }) });
     await repo.read.refresh();
     expect(c.repos[0]).not.toBe(repo);
-    expect(c.repos[0]!.workspaces.mode).toBe('clones');
+    expect(c.repos[0]!.workstations.mode).toBe('clones');
   });
 
   test('changed by work that lands on the local main applies at once; where it moves the workers, its worker hears that they restart', async () => {
     // a repository without a remote whose settings land work on its main
-    const repo = gitRepo(join(dir, 'local'), { '.obeya/settings.json': settings({ land: 'main', workspaces: 'worktrees' }) });
+    const repo = gitRepo(join(dir, 'local'), { '.obeya/settings.json': settings({ land: 'main', workstations: 'worktrees' }) });
     const runtime = new FakeRuntime();
     const c = openWatched(repo, runtime);
     const land = async (title: string, files: Record<string, string>) => {
       const card = c.board.create({ title, x: 0, y: 0 });
       await c.repos[0]!.workers.start(card.id);
       runtime.last.emit({ type: 'session', id: `session-${title}` });
-      const ws = c.board.row(card.id).workspace!;
+      const ws = c.board.row(card.id).workstation!;
       for (const [f, text] of Object.entries(files)) {
         mkdirSync(join(ws, f, '..'), { recursive: true });
         writeFileSync(join(ws, f), text);
@@ -306,14 +306,14 @@ describe("a repository's settings for everyone", () => {
     };
     expect((await land('Readme', { 'README.md': 'Local\n' })).told).not.toContain('after_restart');
     runtime.last.emit({ type: 'idle' });
-    const { told } = await land('Checks', { '.obeya/settings.json': settings({ land: 'main', workspaces: 'worktrees', checks: ['bun test'] }) });
+    const { told } = await land('Checks', { '.obeya/settings.json': settings({ land: 'main', workstations: 'worktrees', checks: ['bun test'] }) });
     expect(told).not.toContain('after_restart');
     expect(c.repos[0]!.adapter.checks).toEqual(['bun test']);
     runtime.last.emit({ type: 'idle' });
 
     // to clones: the worker in its turn hears of the restart and holds it up until it pauses
     const before = c.repos[0];
-    const clones = await land('Clones', { '.obeya/settings.json': settings({ land: 'main', workspaces: 'clones' }) });
+    const clones = await land('Clones', { '.obeya/settings.json': settings({ land: 'main', workstations: 'clones' }) });
     expect(clones.told).toContain('call after_restart');
     expect(clones.told).toContain("restart this repository's agents");
     expect(c.pendingRestart()).toMatchObject({ reason: 'repository', repos: ['local'], cards: [clones.card.id] });
@@ -322,7 +322,7 @@ describe("a repository's settings for everyone", () => {
     landed.emit({ type: 'idle' });
     await until(() => c.repos[0] !== before);
     expect(c.pendingRestart()).toBeNull();
-    expect(c.repos[0]!.workspaces.mode).toBe('clones');
+    expect(c.repos[0]!.workstations.mode).toBe('clones');
     expect(landed.closed).toBe(true);
     expect(runtime.last).not.toBe(landed);
     expect(runtime.last.spec.resume).toBe('session-Clones');
@@ -330,11 +330,11 @@ describe("a repository's settings for everyone", () => {
   });
 
   test('changed by work pushed straight onto the remote main applies once Seismic fetches it, without a restart', async () => {
-    push({ '.obeya/settings.json': settings({ land: 'pr', direct: true, workspaces: 'clones' }) });
+    push({ '.obeya/settings.json': settings({ land: 'pr', direct: true, workstations: 'clones' }) });
     git(checkout, 'pull', '--quiet');
     const runtime = new FakeRuntime();
     const c = openWatched(checkout, runtime, 1);
-    for (const w of c.repos[0]!.workspaces.list()) identify(w.path);
+    for (const w of c.repos[0]!.workstations.list()) identify(w.path);
     const workers = c.repos[0]!.workers;
     const pushed = async (title: string, file: string, text: string) => {
       const card = c.board.create({ title, x: 0, y: 0 });
@@ -342,7 +342,7 @@ describe("a repository's settings for everyone", () => {
       await workers.start(card.id);
       // the lease fetched main as the remote has it: its agent starts once git has read it there
       await until(() => runtime.sessions.length > started);
-      const ws = c.board.row(card.id).workspace!;
+      const ws = c.board.row(card.id).workstation!;
       mkdirSync(join(ws, file, '..'), { recursive: true });
       writeFileSync(join(ws, file), text);
       git(ws, 'add', '-A');
@@ -356,7 +356,7 @@ describe("a repository's settings for everyone", () => {
       return told;
     };
     expect(await pushed('Readme', 'README.md', 'Shop\n')).not.toContain('after_restart');
-    expect(await pushed('Checks', '.obeya/settings.json', settings({ land: 'pr', direct: true, workspaces: 'clones', checks: ['bun test'] }))).not.toContain('after_restart');
+    expect(await pushed('Checks', '.obeya/settings.json', settings({ land: 'pr', direct: true, workstations: 'clones', checks: ['bun test'] }))).not.toContain('after_restart');
     await c.repos[0]!.read.refresh();
     expect(c.repos[0]!.workers).toBe(workers);
     expect(c.repos[0]!.adapter.checks).toEqual(['bun test']);

@@ -109,7 +109,10 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     s.addDecision({ canvas_id: 'c', plan_id: plan!.id, card_id: plan!.id, question: 'q', answer: 'a', by: 'plan' });
     s.db.run("UPDATE decisions SET by = 'project'");
     s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
+    s.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
     s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
+    s.db.query('INSERT INTO workspaces (path, canvas_id, card_id) VALUES ($path, $c, $card)').run({ path: '/w/1', c: 'c', card: video!.id });
+    s.db.query(`UPDATE cards SET workspace = '/w/1', queue = '{"since":"2026-01-01","workspace":"dirty","begun":true}' WHERE id = $id`).run({ id: video!.id });
     s.db.run(`PRAGMA user_version = ${RELEASED}`);
     s.db.close();
 
@@ -124,6 +127,9 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     expect(JSON.parse(after.card(plan!.id)!.plan!)).toEqual({ file: 'docs/plan/gone.md', title: 'Gone', goal: '', workstreams: [], markdown: '' });
     expect(after.setting('c', 'work_retro_runs:app')).toBe('3');
     expect(after.card(video!.id)!.agent_setting).toBeNull();
+    expect(after.card(video!.id)!.workstation).toBe('/w/1');
+    expect(JSON.parse(after.card(video!.id)!.queue!)).toEqual({ since: '2026-01-01', workstation: 'dirty', begun: true });
+    expect(after.workstations('c')).toEqual([{ path: '/w/1', card_id: video!.id }]);
     expect(after.card(video!.id)!.short).toBe(video!.id.replaceAll('-', '').slice(0, SHORT));
     after.db.close();
   }));
@@ -168,6 +174,7 @@ test('the migration gives the cards there are codes of their own, longer where t
     s.db.run('ALTER TABLE talk DROP COLUMN chat');
     s.db.run('DROP TABLE chats');
     s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
+    s.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
     s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD COLUMN short'))}`);
     s.db.close();
@@ -199,6 +206,7 @@ test('the sessions of cards from before runs were recorded: the last as pinned, 
     s.db.run('ALTER TABLE talk DROP COLUMN chat');
     s.db.run('DROP TABLE chats');
     s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
+    s.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
     s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE agent_runs'))}`);
     s.db.close();
@@ -297,6 +305,7 @@ test('what was said before chats existed becomes one chat per canvas', () =>
     store.addTalk('c', 'eins', 'A', null);
     store.addTalk('c', 'zwei', 'B', null);
     store.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
+    store.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
     store.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
     store.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE chats'))}`);
     store.db.run('DROP INDEX talk_chat');

@@ -24,7 +24,7 @@ once more. Commits that conflict one by one but not as a whole land squashed. Th
 with a shared demo carries the trailer `Demo-Video: <url>` (see Publishing on approval). Uncommitted
 work or a real conflict sends the card back to its worker with the approval kept: its next handover
 lands by itself, without a new demo. A local checkout found on another branch (or none), because an
-agent worked in the project folder instead of its workspace or the owner switched it, Seismic switches back to
+agent worked in the project folder instead of its workstation or the owner switched it, Seismic switches back to
 `main` itself where nothing there is uncommitted or untracked, no merge or rebase is under way and a
 detached `HEAD` stands on a commit some ref holds; the card's log says from where, and the worker
 hears it with the landing, along with commits on that branch that `main` lacks, which may be its own
@@ -39,7 +39,7 @@ Uncommitted changes in the checkout to files the card changes too (staged or not
 does not ignore) are named on the card with an offer to fold them into it: "Fold in and land"
 or "Fold in, new demo". Either makes those changes one commit on the checkout's `main` (kept
 under `refs/obeya/folded/<card>`, the checkout's index beside it under `…-index`), picks it onto the
-card's branch in its workspace, and sets those files back in the checkout; its other uncommitted
+card's branch in its workstation, and sets those files back in the checkout; its other uncommitted
 changes stay, and so do those files where they were edited again while git picked. A pick that conflicts stays under
 way for the worker. The worker works the changes in and hands over again: with the first button the
 approval holds and that handover lands without a new demo, with the second it brings a new demo for
@@ -86,7 +86,7 @@ github.com or an Enterprise server (`https://<host>/<owner>/<repo>/pull/<n>`), o
 (`…/pulls/<n>`, also below a path). The host decides the forge, and Seismic records the URL with
 that forge's path: a Codeberg PR reported as `…/pull/<n>` (which Codeberg answers with 404) as
 `…/pulls/<n>`. Work that also needs a pull request in another repository (one that is no
-workspace of the card) gets it reported the same way, a call for each: the card's own is the one in
+workstation of the card) gets it reported the same way, a call for each: the card's own is the one in
 its repository (by `origin`), which its landing names; one elsewhere is watched beside it, a PR
 reported again (opened again after it was closed) as before, and one in the card's repository
 reported anew replaces the card's own. Whatever form a URL was recorded in, each call reads it afresh: gh gets GitHub's
@@ -194,7 +194,7 @@ worker; one closed or merged gets none. Seismic never makes such a card by itsel
 open PRs. The card starts as any (see Scheduling) and names the PR's number, author and link above
 its title, on the canvas and opened.
 
-Its workspace stands on the PR's head (`refs/pull/<n>/head`, which GitHub and Forgejo both keep),
+Its workstation stands on the PR's head (`refs/pull/<n>/head`, which GitHub and Forgejo both keep),
 fetched from `origin` where that is the PR's repository, else from the repository on its forge. Its
 Claude Code settings and CLAUDE.md there are the contributor's: the worker's session reads none of
 them (hooks and MCP servers would run before anyone looked), and gets the default branch's CLAUDE.md
@@ -314,7 +314,7 @@ The approve button names what it does:
 
 On the approval Seismic acts, not the worker: it pushes the card's branch onto the PR's branch in the
 contributor's repository (the head repository and branch the forge names), fast-forward only and
-without the workspace's git hooks, since the PR's code ran there; then it posts the text with the
+without the workstation's git hooks, since the PR's code ran there; then it posts the text with the
 owner's account, as a comment, or with requests as one review asking for changes, and marks the
 findings fixed or sent, linking the post. A merge after it is pinned to the head just pushed. A push
 the contributor's repository rejects as no fast-forward is a push of theirs that the forge had not
@@ -351,16 +351,16 @@ back once and shows itself; a second click merges.
 
 After the merge, a pull that would stop is not made, and a worker resolves it instead: the worker
 of the card whose landing holds the commit it stops at, else the review card's own, while its
-session can go on (finishing after its landing, or resumed in a fresh workspace as for a question
+session can go on (finishing after its landing, or resumed in a fresh workstation as for a question
 after the work). It hears the pull request, the commit, the files and where the local `main` and
-the remote's stood; it rebases the unpushed commits onto the remote's `main` in its workspace,
+the remote's stood; it rebases the unpushed commits onto the remote's `main` in its workstation,
 resolves the conflict, runs the checks and hands over with `ready_for_review`, without a demo.
 Seismic then puts the local `main` at the worker's `HEAD` with whatever landed on it meanwhile on top,
 without the owner (`git reset --keep`, so uncommitted changes in the checkout survive or stop it);
 those commits were never pushed, so no published history is rewritten. The cards that landed them
 name the rebased commits from then on. Both cards' conversations
 say what happened, and the resolving card's status line names the PR. What is wrong in the
-worker's workspace (its `HEAD` not on the merge, the commits landed meanwhile conflicting with its
+worker's workstation (its `HEAD` not on the merge, the commits landed meanwhile conflicting with its
 own) goes back to it; what blocks the checkout goes to the owner. A worker that ends its turn
 without handing over is reminded once, then the pull goes to the owner, as it does where no worker
 can take it: the review card says which commit conflicts, in which files, and asks them to pull by
@@ -375,8 +375,8 @@ and checks and conflicts only show on the card.
 ### After landing
 
 The worker is told its work is on main (or its PR merged) and may finish what remains in its
-workspace (the card is `live`, "Live · agent working"; notes, pause and "Stop" work as usual).
-Ending a turn with nothing to wait for ends its session and frees the workspace. That message (and
+workstation (the card is `live`, "Live · agent working"; notes, pause and "Stop" work as usual).
+Ending a turn with nothing to wait for ends its session and frees the workstation. That message (and
 the one for work closed without a change) also names the demo's page, which the worker links where it
 points people at the work, such as an issue it closes (see The page and the landing). Work approved while
 a reply's turn ends lands, and the landing notice starts a turn of its own: each message Seismic sends
@@ -385,7 +385,7 @@ taken mid-turn), and the session stays until the turn that took the last one end
 
 #### Restarts for landed code
 
-When the landing changed Seismic's own code, or `workspaces` in a repository's settings (see Live
+When the landing changed Seismic's own code, or `workstations` in a repository's settings (see Live
 configuration), the worker is told Seismic, or that repository's agents, restart with it; other
 settings changes apply at once. What needs the new code waits through `after_restart`: the worker
 ends its turn, the restart happens, and the resumed worker hears its change now runs. Work pushed
@@ -407,9 +407,9 @@ a follow-up), its status line shown, and a workstream keeps task size instead of
 #### Questions after the work
 
 What the owner says on a finished card whose worker has ended (typed, or spoken with the card open)
-resumes that session in a fresh workspace on the card's branch (see A finished card's question).
+resumes that session in a fresh workstation on the card's branch (see A finished card's question).
 The card stays `live` or `done`, "agent answering"; the worker answers with `reply`, and its turn's
-end frees the workspace. One that needs a full clone (`need_clone`) reads "Waiting for a workspace"
+end frees the workstation. One that needs a full clone (`need_clone`) reads "Waiting for a workstation"
 until one is free; "Stop" ends the wait. Commits there do not land: a change becomes a card of its own (`propose_card`).
 A card no agent worked on, a prototype or an archived card has no field.
 
@@ -562,7 +562,7 @@ A card no agent worked on, a prototype or an archived card has no field.
   merging instead of fast-forwarding (a merge commit on `main`).
 - **The review reads the diff before anything of it runs; its findings go to the owner** (2026-10-27),
   to the contributor only when the owner sends them.
-- **The worker keeps workspace and session until done**, so the agent that knows the change does
+- **The worker keeps workstation and session until done**, so the agent that knows the change does
   what it needs once on main, at the cost of one short worker turn per landing.
 - **The landing notice is a turn of its own** (2026-10-13). Rejected: counting the reply's turn,
   which ended the session before the worker heard.

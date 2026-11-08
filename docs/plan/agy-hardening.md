@@ -1,6 +1,6 @@
 # Antigravity preview hardening
 
-The Antigravity (`agy`) worker preview is described in `docs/design/agents-and-workspaces.md`
+The Antigravity (`agy`) worker preview is described in `docs/design/agents-and-workstations.md`
 (Antigravity workers). This plan tracks what the preview leaves out, at the level Codex has.
 
 ## Goal

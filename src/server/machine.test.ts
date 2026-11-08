@@ -11,7 +11,7 @@ import { claudeToken } from './hosts';
 import { cloneName, machineHint, MachineSetup, runnable, WELCOME_FILE, welcome } from './machine';
 import { gitRepo } from './testing';
 import { VoiceSetup } from './voice-setup';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 let dir: string;
 let home: string;
@@ -209,7 +209,7 @@ describe('the first canvas', () => {
   });
 
   test('a repository whose settings say clones gets clones', async () => {
-    const repo = gitRepo(join(dir, 'shop'), { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workspaces": "clones" }\n' });
+    const repo = gitRepo(join(dir, 'shop'), { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workstations": "clones" }\n' });
     await setup().canvas({ path: repo });
     expect(JSON.parse(readFileSync(join(home, 'canvases.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', suggest: { category: true, complexity: true, priority: true }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo, clones: CLONES }] }]);
   });

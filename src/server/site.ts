@@ -64,7 +64,7 @@ import { pagePolicy, sealed, withHeightReport, withImageViewer } from '../core/f
 import { DEMO_FILES, OWN_CONNECTIONS } from './demo';
 import { BUN_ENV } from './resources';
 import { spawnOutput } from './spawn';
-import { HERE } from './workspaces';
+import { HERE } from './workstations';
 import { BLANK_PAGE, GITHUB_PAGES, githubPagesDeploy } from './site-hosts';
 import { COMMAND_TIMEOUT, commandWords, SHARE_CWD, type SharePage, type ShareTarget, scriptArgv, tail } from './share';
 import { messageOf } from '../core/text';
@@ -747,7 +747,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
 
 /**
  * What a deploy leaves in the repository it runs in (wrangler's cache, `.wrangler/`) goes into the
- * repository's own exclude file, so a workspace does not count as changed for it and stays free to
+ * repository's own exclude file, so a workstation does not count as changed for it and stays free to
  * lease. Nothing where the directory is no git repository.
  */
 function keepOutOfGit(dir: string) {

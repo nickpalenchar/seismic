@@ -408,7 +408,7 @@ export const makeGhForge = (
     // the repository's own merge methods (some allow squash only); squash first where it allows several
     const allows = JSON.parse(await run(at, 'api', `repos/${ref.owner}/${ref.repo}`, '--jq', '{squash: .allow_squash_merge, merge: .allow_merge_commit, rebase: .allow_rebase_merge}')) as Record<string, boolean>;
     const method = (['squash', 'merge', 'rebase'] as const).find((m) => allows[m] !== false) ?? 'squash';
-    // no --delete-branch: that also switches branches in the workspace; the repository deletes merged branches or not
+    // no --delete-branch: that also switches branches in the workstation; the repository deletes merged branches or not
     await run(at, 'pr', 'merge', ghUrl(url), `--${method}`, '--match-head-commit', head);
     try {
       return (await run(at, 'pr', 'view', ghUrl(url), '--json', 'mergeCommit', '--jq', '.mergeCommit.oid')).trim() || undefined;

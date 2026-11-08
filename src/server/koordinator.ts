@@ -12,7 +12,7 @@ import { ACTIVE, BadRequest, type Board, contributionOf } from './board';
 import type { Utterance } from './db';
 import { type AgentRuntime, type AgentTool, waitQuietly } from './runtime';
 import type { Workers } from './workers';
-import { type CardWorkspaces, type Change, RECHECK_MS, shortageOf } from './workspaces';
+import { type CardWorkstations, type Change, RECHECK_MS, shortageOf } from './workstations';
 import { LANGUAGE_NAMES } from '../core/locale';
 import { clip, messageOf } from '../core/text';
 import { type Label, type Labels, suggestable, type SuggestToggles } from '../core/labels';
@@ -61,7 +61,7 @@ export interface Scope {
 /** What the Koordinator needs of the repository a card belongs to. */
 export interface RepoHands {
   workers: Workers;
-  workspaces: CardWorkspaces;
+  workstations: CardWorkstations;
   adapter: RepoAdapter;
   /** Where the Koordinator reads (scopes, questions): the repository's read checkout. */
   path: string;
@@ -78,7 +78,7 @@ export interface KoordinatorOptions {
   home: () => string;
   /** Whether the owner paused the canvas's agents: a card the Koordinator lets start waits until they resume them (`{ paused }` in its queue). */
   paused?: () => boolean;
-  /** How long a plan's start, or taking a card's workspace, waits for the owner to take it back; START_ALL_HOLD_MS and EVICT_HOLD_MS by default. */
+  /** How long a plan's start, or taking a card's workstation, waits for the owner to take it back; START_ALL_HOLD_MS and EVICT_HOLD_MS by default. */
   holdMs?: number;
   /** After how many of the owner's inputs the retrospective runs; REVIEW_EVERY by default. */
   reviewEvery?: number;
@@ -108,7 +108,7 @@ export class Koordinator {
   private chain: Promise<unknown> = Promise.resolve();
   private learning: Promise<unknown> = Promise.resolve();
   private draining = false;
-  /** A look again at cards waiting for a workspace, which can free up without a change of the board (a dirty clone cleaned up). */
+  /** A look again at cards waiting for a workstation, which can free up without a change of the board (a dirty clone cleaned up). */
   private recheck?: ReturnType<typeof setTimeout>;
   /** Cards being named now: asked again, the same session answers. */
   private naming = new Map<string, Promise<void>>();
@@ -118,9 +118,9 @@ export class Koordinator {
   /** The plans whose plan doc it reads now for which workstream builds on which. */
   private readingDeps = new Map<string, Promise<void>>();
 
-  /** Cards whose workspace the owner takes from them, while the undo window runs (`evict`). */
+  /** Cards whose workstation the owner takes from them, while the undo window runs (`evict`). */
   private evictions = new Map<string, ReturnType<typeof setTimeout>>();
-  /** Cards giving up their workspace now, the undo window through: queued already, they start once that is done. */
+  /** Cards giving up their workstation now, the undo window through: queued already, they start once that is done. */
   private giving = new Set<string>();
 
   constructor(private o: KoordinatorOptions) {
@@ -149,10 +149,10 @@ export class Koordinator {
   }
 
   /**
-   * The owner takes the card's clone from it for the cards waiting for one (the Workspaces list):
+   * The owner takes the card's clone from it for the cards waiting for one (the Workstations list):
    * after a few seconds in which `keep` takes that back, its worker stops and the clone is free
    * (`Workers.evict`), for the card that waits longest. A card whose worker was on it waits in the
-   * queue behind those waiting already, and goes on on its branch once a workspace is free again; a
+   * queue behind those waiting already, and goes on on its branch once a workstation is free again; a
    * card stopped before stays planned.
    */
   evict(cardId: string) {
@@ -170,10 +170,10 @@ export class Koordinator {
         return this.o.board.changed();
       }
       // queued at once, so that a card waiting behind it for a likely conflict keeps waiting; at work
-      // already, it goes on once a workspace is free, whatever arrows the owner draws meanwhile
+      // already, it goes on once a workstation is free, whatever arrows the owner draws meanwhile
       const active = now.state !== 'planned';
       if (active && !now.queue) {
-        this.setQueue(cardId, { workspace: 'none', begun: true });
+        this.setQueue(cardId, { workstation: 'none', begun: true });
         this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.koordinator.requeued);
       }
       this.giving.add(cardId);
@@ -189,16 +189,16 @@ export class Koordinator {
     this.o.board.changed();
   }
 
-  /** The owner takes back taking the card's workspace while the undo window runs: it keeps it, nothing happened. */
+  /** The owner takes back taking the card's workstation while the undo window runs: it keeps it, nothing happened. */
   keep(cardId: string) {
     const t = this.evictions.get(cardId);
-    if (!t) throw new BadRequest('notEvictable', 'the card is not giving up its workspace');
+    if (!t) throw new BadRequest('notEvictable', 'the card is not giving up its workstation');
     clearTimeout(t);
     this.evictions.delete(cardId);
     this.o.board.changed();
   }
 
-  /** Whether the card's workspace goes to another card once the undo window is through (`evict`). */
+  /** Whether the card's workstation goes to another card once the undo window is through (`evict`). */
   evicting(cardId: string): boolean {
     return this.evictions.has(cardId);
   }
@@ -354,7 +354,7 @@ export class Koordinator {
       .sort((a, b) => a.queue!.since.localeCompare(b.queue!.since));
   }
 
-  /** Start a queued card anyway: should it wait for a workspace then, the owner's arrows no longer hold it. */
+  /** Start a queued card anyway: should it wait for a workstation then, the owner's arrows no longer hold it. */
   force(cardId: string) {
     const card = this.card(cardId);
     if (!card.queue || !('behind' in card.queue)) throw new BadRequest('notQueued', 'the card is not waiting');
@@ -832,7 +832,7 @@ export class Koordinator {
     return !!i && (this.inProgress(i.repo).some((a) => a.id === id) || inQueue(i));
   }
 
-  /** `begun`: it waited, started anyway or at work before, for a workspace or the canvas's agents (see `Wait`). */
+  /** `begun`: it waited, started anyway or at work before, for a workstation or the canvas's agents (see `Wait`). */
   private startNow(cardId: string, why: string, begun?: boolean) {
     const since = this.o.board.item(cardId)?.queue?.since;
     this.setQueue(cardId, null);
@@ -841,7 +841,7 @@ export class Koordinator {
   }
 
   /**
-   * Starts the card's worker. Without a free workspace the card waits for one, in its place in the
+   * Starts the card's worker. Without a free workstation the card waits for one, in its place in the
    * queue (`since`), and starts once one is free; any other failure is logged and leaves it planned.
    */
   private launch(cardId: string, since?: string, begun?: boolean) {
@@ -856,11 +856,11 @@ export class Koordinator {
     const refused = (e: unknown) => {
       const shortage = e instanceof BadRequest ? shortageOf(e.code) : undefined;
       if (!shortage) return this.o.board.log(cardId, 'error', 'obeya', messageOf(e), { code: e instanceof BadRequest ? e.code : undefined });
-      this.setQueue(cardId, { workspace: shortage, ...unheld }, since);
-      this.o.board.log(cardId, 'state', 'obeya', { none: this.o.board.t.koordinator.noWorkspace, dirty: this.o.board.t.koordinator.dirtyWorkspaces, slots: this.o.board.t.koordinator.noSlot }[shortage]);
+      this.setQueue(cardId, { workstation: shortage, ...unheld }, since);
+      this.o.board.log(cardId, 'state', 'obeya', { none: this.o.board.t.koordinator.noWorkstation, dirty: this.o.board.t.koordinator.dirtyWorkstations, slots: this.o.board.t.koordinator.noSlot }[shortage]);
     };
     try {
-      // git makes its workspace ready in the background; what goes wrong there its card says itself, but that the clone
+      // git makes its workstation ready in the background; what goes wrong there its card says itself, but that the clone
       // it took was not clean and no other is, which queues it as when there is none at once
       const saved = this.o.board.row(cardId).agent_setting;
       this.o.repoFor(card).workers.start(cardId, saved ? JSON.parse(saved) : undefined).catch(refused);
@@ -886,7 +886,7 @@ export class Koordinator {
     const active = new Set([...this.inProgress(), ...items.filter(inQueue)].map((i) => i.id));
     // the card waiting longest goes first: one queued later must not take its turn
     const waiting = queueOrder(items).filter(movable);
-    // a repository whose workspaces are taken by a card waiting longer is not asked again
+    // a repository whose workstations are taken by a card waiting longer is not asked again
     const full = new Set<string | undefined>();
     // cards waiting for a clone on one machine (`near`) that has none: asked again after a while, as for a full repository
     let again = false;
@@ -896,10 +896,10 @@ export class Koordinator {
     // the owner's question to a finished card whose agent needs a full clone goes before queued cards
     for (const f of items.filter((i) => i.waitsForClone && !i.repoDown)) {
       const hands = this.o.repoFor(f);
-      if (full.has(f.repo) || !hands.workspaces.leasable(true) || !hands.workers.takeClone(f.id)) full.add(f.repo);
+      if (full.has(f.repo) || !hands.workstations.leasable(true) || !hands.workers.takeClone(f.id)) full.add(f.repo);
     }
     for (const w of waiting) {
-      // one whose repository does not run waits on until it is back; one giving up its workspace, until it has;
+      // one whose repository does not run waits on until it is back; one giving up its workstation, until it has;
       // one let start, until the owner resumes the canvas's agents
       if (w.repoDown || this.giving.has(w.id) || w.proposal?.merge || (w.mergingInto && mergeRank(w) <= 1)) continue;
       const begun = 'begun' in w.queue! && !!w.queue.begun;
@@ -916,7 +916,7 @@ export class Koordinator {
         if (!paused) this.startNow(w.id, this.o.board.t.koordinator.canvasPlays, begun);
         continue;
       }
-      if ('workspace' in w.queue!) {
+      if ('workstation' in w.queue!) {
         // the slots the paused agents freed are not for it: it waits for them to resume
         if (paused) {
           this.setQueue(w.id, { paused: true, ...(begun && { begun }) }, w.queue!.since);
@@ -925,12 +925,12 @@ export class Koordinator {
         }
         // a card whose branch a clone keeps takes one on that clone's machine: none there leaves the others to the cards behind it
         const near = this.o.board.row(w.id).kept_in;
-        if (full.has(w.repo) || !this.o.repoFor(w).workspaces.leasable(false, near)) {
+        if (full.has(w.repo) || !this.o.repoFor(w).workstations.leasable(false, near)) {
           if (near) again = true;
           else full.add(w.repo);
           continue;
         }
-        this.startNow(w.id, w.queue!.workspace === 'slots' ? this.o.board.t.koordinator.slotFree : this.o.board.t.koordinator.workspaceFree, begun);
+        this.startNow(w.id, w.queue!.workstation === 'slots' ? this.o.board.t.koordinator.slotFree : this.o.board.t.koordinator.workstationFree, begun);
         if (this.o.board.item(w.id)?.queue) full.add(w.repo);
         continue;
       }
@@ -1276,7 +1276,7 @@ export class Koordinator {
     const described = folder ? (c: Change) => `${c.file} (${c.regions[0] ?? 'changed'})` : describe;
     const hard = (f: string) => !soft.some((s) => overlaps(normalize(f), s));
     // git reads the branches side by side, without holding up the server
-    const changes = await Promise.all(active.map((a) => this.o.repoFor(a).workspaces.changes(a.id)));
+    const changes = await Promise.all(active.map((a) => this.o.repoFor(a).workstations.changes(a.id)));
     return [
       active.length
         ? `Cards in progress:\n${active
@@ -1296,7 +1296,7 @@ export class Koordinator {
             .map((a) => {
               const q = a.queue!;
               const waitsFor =
-                'behind' in q ? q.behind.map((id) => `"${this.o.board.item(id)?.title ?? id}"`).join(', ') : 'workspace' in q ? 'a free workspace (its start is decided)' : 'paused' in q ? "the owner to resume the canvas's paused agents (its start is decided)" : '';
+                'behind' in q ? q.behind.map((id) => `"${this.o.board.item(id)?.title ?? id}"`).join(', ') : 'workstation' in q ? 'a free workstation (its start is decided)' : 'paused' in q ? "the owner to resume the canvas's paused agents (its start is decided)" : '';
               return [
                 `- ${tagOf(tags, a.id)}: "${a.title}"${a.body ? ` — ${a.body.split('\n')[0]!.slice(0, 200)}` : ''}`,
                 `  expected to change: ${(a.scope ?? []).filter(hard).join(', ') || '(no estimate)'}`,
@@ -1341,7 +1341,7 @@ const LABELS_SYSTEM = (labels: Label[]) =>
   `You label a card on Seismic, a canvas on which the owner directs coding agents: its title, text and screenshots are below. Give its ${labelWords(labels)} with the tool labels, judged as the guide below says, from the card alone, without reading files. Then end your turn.\n\n${labelsGuide()}`;
 
 const SYSTEM = (language: string) => `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workspace, and their branches are rebased onto the main branch one after the other. Your job here: before a card starts, estimate which files it will change, and judge whether running it next to the cards in progress is likely to end in merge conflicts. Only those keep it waiting, and for a workstream of a plan what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to conflict with one of them waits behind it rather than overtaking it.
+You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workstation, and their branches are rebased onto the main branch one after the other. Your job here: before a card starts, estimate which files it will change, and judge whether running it next to the cards in progress is likely to end in merge conflicts. Only those keep it waiting, and for a workstream of a plan what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to conflict with one of them waits behind it rather than overtaking it.
 
 Also check unfinished cards in this repository for the same requested outcome, including planned cards and work awaiting the owner's review. A possible duplicate is a substantially overlapping task, not merely a shared file or topic. Report its tag in duplicates; the card stays planned and the owner sees which card to compare before starting it again.
 
@@ -1429,7 +1429,7 @@ Both empty: it starts now. A ${b.noun} that waits starts by itself once what it 
 const SCHEDULE_SYSTEM = (language: string, freed: boolean) => {
   const b = batchOf(freed, false);
   return `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workspace, and their branches are rebased onto the main branch one after the other. ${b.situation}
+You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workstation, and their branches are rebased onto the main branch one after the other. ${b.situation}
 
 A ${b.noun} waits for another when:
 - it depends on it: ${b.dependsOn}. It then waits until that one has landed.

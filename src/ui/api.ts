@@ -327,11 +327,11 @@ export const api = {
   giveFeedback: (id: string, handover: number, answer: FeedbackAnswer) => call<Feedback>('POST', cardAt(id, '/feedback'), { handover, answer }),
   /** The skills the owner can ask the card's agent for by `/name`. */
   skills: (id: string) => call<Skill[]>('GET', cardAt(id, '/skills')),
-  /** Whether the app in the card's workspace answers now. */
+  /** Whether the app in the card's workstation answers now. */
   appUp: async (id: string) => (await call<{ up: boolean }>('GET', cardAt(id, '/app'))).up,
   /** Where the owner's browser opens the card's app: through Seismic, which keeps it running a while after. */
   appOpen: (id: string) => cardAt(id, '/app/open'),
-  /** What the card's work changes (null: nothing to read, no workspace and not landed); `full`: with the diff itself. */
+  /** What the card's work changes (null: nothing to read, no workstation and not landed); `full`: with the diff itself. */
   diff: async (id: string, full = false) => (await call<CardDiff | undefined>('GET', cardAt(id, `/diff${full ? '?full' : ''}`))) ?? null,
   /** A plan's plan doc as written. */
   planDoc: (id: string) => call<{ file: string; markdown: string }>('GET', cardAt(id, '/plan')),

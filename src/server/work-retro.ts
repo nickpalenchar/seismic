@@ -41,7 +41,7 @@ interface Ended {
   title: string;
   repo: string;
   sessions: string[];
-  workspace: string | null;
+  workstation: string | null;
 }
 
 export class WorkRetro {
@@ -54,7 +54,7 @@ export class WorkRetro {
    * A card's work ended: landed, closed without a change, or thrown away. Its runs are read now,
    * before the card goes; a card that never ran counts for nothing.
    */
-  ended(cardId: string, workspace: string | null = null) {
+  ended(cardId: string, workstation: string | null = null) {
     const b = this.o.board;
     let row;
     try {
@@ -64,7 +64,7 @@ export class WorkRetro {
     }
     const sessions = [...new Set([...earlierRuns(b.events(cardId)), ...(row.session_id ? [row.session_id] : [])])];
     if (!sessions.length) return;
-    const card: Ended = { id: cardId, title: row.title ?? '', repo: row.repo ?? b.home, sessions, workspace: workspace ?? row.workspace };
+    const card: Ended = { id: cardId, title: row.title ?? '', repo: row.repo ?? b.home, sessions, workstation: workstation ?? row.workstation };
     const due = this.count(card.repo);
     this.serial(() => this.notes(card));
     if (due) this.serial(() => this.retro(card.repo));
@@ -115,13 +115,13 @@ export class WorkRetro {
     // a worker on another machine left its transcripts there
     let there: ReturnType<typeof remote> = null;
     try {
-      there = remote(card.workspace);
+      there = remote(card.workstation);
     } catch {
       // a host no longer in the configuration: its runs are not read
       return;
     }
     // Codex runs on this machine only
-    const files = await Promise.all(card.sessions.map((s) => (there && !/^(codex|agy):/.test(s) ? there.host.transcript(s, there.path) : find(s, card.workspace))));
+    const files = await Promise.all(card.sessions.map((s) => (there && !/^(codex|agy):/.test(s) ? there.host.transcript(s, there.path) : find(s, card.workstation))));
     const runs = files.map(excerptOf).filter((e): e is Excerpt => !!e);
     const text = excerptText(runs);
     if (!text) return;
@@ -319,7 +319,7 @@ const runsKey = (repo: string) => `work_retro_runs:${repo}`;
 /** What each setting a retrospective may propose is for, as the sessions read it. */
 const SETTING_MEANING: Record<ProposedSetting, string> = {
   checks: 'the commands a worker runs before it hands its work over',
-  setup: 'the command that prepares a fresh workspace, e.g. installs dependencies',
+  setup: 'the command that prepares a fresh workstation, e.g. installs dependencies',
   softPaths: 'paths (a trailing / covers a directory) whose edits never count as a merge conflict between two cards, resolved when a branch is rebased, e.g. docs',
   run: '"How to run the app": the recipe every worker reads, in prose: how to start the app, what to do after which kind of change, where it gives its address, the login and test data for a demo',
 };
@@ -335,7 +335,7 @@ function settingValue(field: ProposedSetting, value: unknown): string | string[]
 }
 
 const NOTES_SYSTEM = (language: string) => `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Each worker works on one card in its own workspace of a repository. You look back at how a worker worked, so that future runs in this repository go faster.
+You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Each worker works on one card in its own workstation of a repository. You look back at how a worker worked, so that future runs in this repository go faster.
 
 You get an excerpt of one card's run from its transcript: tool calls that failed, with their errors; similar calls in a row (a failed one followed by its correction, or one command again and again); files written whole more than once; the worker's words around them; and how many tool calls the run took, and after how many it first changed a file.
 
@@ -344,21 +344,21 @@ Note the friction a change to the repository would prevent in future runs:
 - a script that failed and was rewritten;
 - a long search for how to start, run, test or demo something;
 - a tool or check used wrongly, a missing piece of knowledge about the repository;
-- working out what one of the repository's settings in Seismic (listed with the card, where they are) would have said: how to run the app, which checks to run, how to prepare a fresh workspace. Its fix names the setting and the value the run shows works: the commands as the worker finally ran them.
+- working out what one of the repository's settings in Seismic (listed with the card, where they are) would have said: how to run the app, which checks to run, how to prepare a fresh workstation. Its fix names the setting and the value the run shows works: the commands as the worker finally ran them.
 Not friction: a test or type check failing on the change being made and then fixed (that is the work itself), one quick slip corrected at once at no cost, a call blocked by a rule that then worked the other way at once.
 
 Note 0 to 3, the costliest first; most runs have one or none. Call note for each: what (concretely: the command, the file, the error), cost (the steps or time it took, a wrong turn), fix (what would have prevented it: a script, a skill, a line in the CLAUDE.md, a clearer error message; concretely). In ${language}, a sentence each: the owner reads them on the card. You may read the repository (you cannot change it) to check whether that already exists. Then call done.
 `.trim();
 
 const RETRO_SYSTEM = (language: string, ui: Language, repository: Language) => `
-You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Each worker works on one card in its own workspace of a repository. This is the work retrospective for the repository you are in (you cannot change it): you get the friction noted on its workers' runs since the last one, card by card, and propose what would make future runs cheaper.
+You are the Koordinator of Seismic, a canvas on which the owner directs coding agents; the owner knows you simply as Seismic. Each worker works on one card in its own workstation of a repository. This is the work retrospective for the repository you are in (you cannot change it): you get the friction noted on its workers' runs since the last one, card by card, and propose what would make future runs cheaper.
 
 Look for friction that recurs on at least two different cards, the same detour taken again and again, and that a change to the repository would prevent:
 - a script (scripts/…) for what workers keep putting together by hand or keep getting wrong;
 - a skill (.claude/skills/…) for a procedure they keep fumbling;
 - a fix to a tool, a check or an error message that misleads;
 - a line in the repository's CLAUDE.md, for knowledge they lacked;
-- a value for one of the repository's settings in Seismic (listed after the friction, as they are now), where workers each worked out what it would have told them: how to run the app (run), which checks to run, the setup of a fresh workspace. Seismic hands a setting to every worker where it needs it, so where one holds the knowledge it beats a CLAUDE.md line.
+- a value for one of the repository's settings in Seismic (listed after the friction, as they are now), where workers each worked out what it would have told them: how to run the app (run), which checks to run, the setup of a fresh workstation. Seismic hands a setting to every worker where it needs it, so where one holds the knowledge it beats a CLAUDE.md line.
 Read the repository first: its CLAUDE.md, its docs, scripts and skills. Propose nothing it has already; where it has it but the workers did not find it, propose making it findable (a CLAUDE.md line). Skills of the user (~/.claude/skills) are out of scope.
 
 Propose at most ${WORK_RETRO_PROPOSALS}, only for patterns on at least two cards and only what you expect the owner to take; most of the time that is fewer, or none.

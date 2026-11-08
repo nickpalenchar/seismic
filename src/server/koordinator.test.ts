@@ -10,14 +10,14 @@ import { Koordinator, overlaps } from './koordinator';
 import { move, queueOrder, reach } from '../core/queue';
 import { artifact, FakeRuntime, type FakeSession, gitRepo } from './testing';
 import { Workers } from './workers';
-import { git, HERE, parseChanges, Workspaces } from './workspaces';
+import { git, HERE, parseChanges, Workstations } from './workstations';
 import { withLimitWait } from './runtime';
 
 let dir: string;
 let board: Board;
 let runtime: FakeRuntime;
 let workers: Workers;
-let workspaces: Workspaces;
+let workstations: Workstations;
 let k: Koordinator;
 let docs: PlanDoc[];
 
@@ -28,30 +28,30 @@ beforeEach(() => {
   const store = new Store(':memory:');
   docs = [];
   board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs, dirs: [] }));
-  const adapter = { ...generic, land: 'main' as const, workspaces: 'worktrees' as const, softPaths: ['docs/'] };
-  workspaces = new Workspaces(store, 'c', { mode: 'worktrees', repoPath: main, dir: join(dir, 'ws') });
+  const adapter = { ...generic, land: 'main' as const, workstations: 'worktrees' as const, softPaths: ['docs/'] };
+  workstations = new Workstations(store, 'c', { mode: 'worktrees', repoPath: main, dir: join(dir, 'ws') });
   runtime = new FakeRuntime();
-  workers = new Workers({ board, runtime, workspaces, adapter });
-  k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workspaces, adapter, path: main }), holdMs: 0 });
+  workers = new Workers({ board, runtime, workstations, adapter });
+  k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workstations, adapter, path: main }), holdMs: 0 });
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 /**
  * Lets the Koordinator go on until it waits for an estimate or has decided, and the cards it started
- * have their workspace: before an estimate, git reads the branches of the cards in progress, which takes a moment.
+ * have their workstation: before an estimate, git reads the branches of the cards in progress, which takes a moment.
  */
 async function settle() {
   await Bun.sleep(5);
   const asking = () => runtime.sessions.some((s) => !s.closed && s.spec.tools.some((t) => t.name === 'scope' || t.name === 'schedule'));
   const judging = () => board.snapshot().items.some((i) => i.queue && 'checking' in i.queue) && !asking();
   for (const end = Date.now() + 1000; judging() && Date.now() < end; ) await Bun.sleep(2);
-  // the workers it started at work in their workspaces
+  // the workers it started at work in their workstations
   await workers.prepared();
 }
 const card = (title: string) => board.create({ title, x: 0, y: 0 });
 const item = (id: string) => board.item(id)!;
 const estimates = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'scope'));
-const workerOf = (id: string) => runtime.sessions.find((s) => s.spec.cwd === board.row(id).workspace)!;
+const workerOf = (id: string) => runtime.sessions.find((s) => s.spec.cwd === board.row(id).workstation)!;
 
 /** Answers the latest open estimate. */
 async function scope(files: string[], conflicts: string[] = [], reason = 'Grund.', buildsOn: string[] = [], duplicates: string[] = []) {
@@ -169,7 +169,7 @@ describe('Koordinator', () => {
     await scope(['src/a.ts', 'src/b.ts'], ['K1'], 'Beide ändern decide() in src/a.ts.');
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { behind: [a.id], reason: 'Beide ändern decide() in src/a.ts.' } });
 
-    const wa = board.row(a.id).workspace!;
+    const wa = board.row(a.id).workstation!;
     writeFileSync(join(wa, 'a.ts'), 'a');
     git(wa, 'add', '.');
     git(wa, 'commit', '--quiet', '-m', 'A');
@@ -194,7 +194,7 @@ describe('Koordinator', () => {
     const a = card('A');
     k.request(a.id);
     await scope(['src/a.ts', 'docs/plan.md']);
-    const wa = board.row(a.id).workspace!;
+    const wa = board.row(a.id).workstation!;
     writeFileSync(join(wa, 'README.md'), 'hello\nworld\n');
     git(wa, 'add', '.');
     git(wa, 'commit', '--quiet', '-m', 'A');
@@ -467,7 +467,7 @@ describe('Koordinator', () => {
     const wait = (title: string, ms: number, behind?: string) => {
       const c = card(title);
       const since = new Date(t0 + ms).toISOString();
-      board.work(c.id, { queue: JSON.stringify(behind ? { behind: [behind], reason: 'Grund.', since } : { workspace: 'none', since }) });
+      board.work(c.id, { queue: JSON.stringify(behind ? { behind: [behind], reason: 'Grund.', since } : { workstation: 'none', since }) });
       return c;
     };
     // B and C came in the same millisecond; E waits for B
@@ -502,7 +502,7 @@ describe('Koordinator', () => {
   });
 
   test('an estimate the usage limit stops waits on the card, and the card is judged once the limit lifts', async () => {
-    k = new Koordinator({ board, runtime: withLimitWait(runtime, 10), home: () => dir, repoFor: () => ({ workers, workspaces, adapter: generic, path: dir }), holdMs: 0 });
+    k = new Koordinator({ board, runtime: withLimitWait(runtime, 10), home: () => dir, repoFor: () => ({ workers, workstations, adapter: generic, path: dir }), holdMs: 0 });
     const a = card('A');
     k.request(a.id);
     await scope(['src/a.ts']);
@@ -687,7 +687,7 @@ describe('Koordinator names a card the owner left without a title', () => {
   });
 
   test('a naming the usage limit stops waits on the card, and names it once the limit lifts', async () => {
-    k = new Koordinator({ board, runtime: withLimitWait(runtime, 10), home: () => dir, repoFor: () => ({ workers, workspaces, adapter: generic, path: dir }), holdMs: 0 });
+    k = new Koordinator({ board, runtime: withLimitWait(runtime, 10), home: () => dir, repoFor: () => ({ workers, workstations, adapter: generic, path: dir }), holdMs: 0 });
     const a = task('Erste Zeile\nmehr');
     const naming = k.name(a.id);
     const s = namings()[0]!;
@@ -781,7 +781,7 @@ describe('Koordinator suggests the labels the owner left empty', () => {
 
   test('the canvas toggles say what is asked for; nothing left, no session at all', async () => {
     let toggles: { category?: boolean; complexity?: boolean; priority?: boolean } = { category: false };
-    k = new Koordinator({ board, runtime, home: () => dir, repoFor: () => ({ workers, workspaces, adapter: generic, path: dir }), holdMs: 0, suggests: () => toggles });
+    k = new Koordinator({ board, runtime, home: () => dir, repoFor: () => ({ workers, workstations, adapter: generic, path: dir }), holdMs: 0, suggests: () => toggles });
     const a = card('A');
     k.request(a.id);
     await settle();
@@ -806,7 +806,7 @@ describe('Koordinator suggests the labels the owner left empty', () => {
   });
 
   test.each([true, false])('CLAUDE.md cards get fixed labels at creation, not suggested, with session toggles %s', async (on) => {
-    k = new Koordinator({ board, runtime, home: () => dir, repoFor: () => ({ workers, workspaces, adapter: generic, path: dir }), holdMs: 0,
+    k = new Koordinator({ board, runtime, home: () => dir, repoFor: () => ({ workers, workstations, adapter: generic, path: dir }), holdMs: 0,
       suggests: () => ({ category: on, complexity: on, priority: on }) });
     board.fileRule('Use ISO dates.', ['home']);
     const collect = board.collecting('home')!;
@@ -837,7 +837,7 @@ describe('Koordinator suggests the labels the owner left empty', () => {
   });
 });
 
-describe('Koordinator waits for a free workspace', () => {
+describe('Koordinator waits for a free workstation', () => {
   let clones: string[];
 
   /** A pool of `n` clones instead of worktrees: cards wait when all are leased, or with `slots` when that many workers are busy. */
@@ -845,20 +845,20 @@ describe('Koordinator waits for a free workspace', () => {
     const main = join(dir, 'main');
     const store = new Store(':memory:');
     board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs, dirs: [] }));
-    const adapter = { ...generic, land: 'main' as const, workspaces: 'clones' as const };
-    workspaces = new Workspaces(store, 'c', {
+    const adapter = { ...generic, land: 'main' as const, workstations: 'clones' as const };
+    workstations = new Workstations(store, 'c', {
       mode: 'clones',
       repoPath: main,
       dir: join(dir, 'clones'),
       ...(slots !== undefined ? { machines: [{ host: null, slots }], busy: () => workers.busyOn(null) } : {}),
     });
-    workspaces.ensureClones(main, n);
-    clones = workspaces.list().map((w) => w.path);
-    workers = new Workers({ board, runtime, workspaces, adapter });
-    k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workspaces, adapter, path: main }), holdMs: 0 });
+    workstations.ensureClones(main, n);
+    clones = workstations.list().map((w) => w.path);
+    workers = new Workers({ board, runtime, workstations, adapter });
+    k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workstations, adapter, path: main }), holdMs: 0 });
   }
 
-  test('a card the Koordinator lets start waits for a workspace, and starts once one is free', async () => {
+  test('a card the Koordinator lets start waits for a workstation, and starts once one is free', async () => {
     pool(1);
     const a = card('A');
     k.request(a.id);
@@ -866,16 +866,16 @@ describe('Koordinator waits for a free workspace', () => {
     const b = card('B');
     k.request(b.id);
     await scope(['src/b.ts']);
-    expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workspace: 'none' } });
-    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', text: expect.stringContaining('sobald einer frei wird') });
+    expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none' } });
+    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', text: expect.stringContaining('sobald eine frei wird') });
     expect(board.events(b.id).some((e) => e.kind === 'error')).toBe(false);
 
     await workers.stop(a.id);
     await settle();
     expect(item(b.id).state).toBe('working');
-    expect(board.row(b.id).workspace).toBe(clones[0]!);
+    expect(board.row(b.id).workstation).toBe(clones[0]!);
     expect(item(b.id).queue).toBeUndefined();
-    expect(board.events(b.id).some((e) => e.text.includes('Ein Workspace ist frei'))).toBe(true);
+    expect(board.events(b.id).some((e) => e.text.includes('Eine Workstation ist frei'))).toBe(true);
   });
 
   test("a follow-up whose agent needs a full clone takes the next free one, before a queued card", async () => {
@@ -894,11 +894,11 @@ describe('Koordinator waits for a free workspace', () => {
     const b = card('B');
     k.request(b.id);
     await scope(['src/b.ts']);
-    expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workspace: 'none' } });
+    expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none' } });
 
     workers.message(f.id, 'Läuft die Demo?');
     await workers.prepared();
-    expect(board.row(f.id).workspace).not.toBe(clones[0]!);
+    expect(board.row(f.id).workstation).not.toBe(clones[0]!);
     workerOf(f.id).call('need_clone', {});
     workerOf(f.id).emit({ type: 'idle' });
     await settle();
@@ -906,9 +906,9 @@ describe('Koordinator waits for a free workspace', () => {
 
     await workers.stop(a.id);
     await settle();
-    expect(board.row(f.id).workspace).toBe(clones[0]!);
+    expect(board.row(f.id).workstation).toBe(clones[0]!);
     expect(runtime.last.spec).toMatchObject({ cwd: clones[0]!, resume: 'sess-f' });
-    expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workspace: 'none' } });
+    expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none' } });
   });
 
   test('a card waits for a slot while the busy workers fill them, and starts once a turn ends', async () => {
@@ -919,39 +919,39 @@ describe('Koordinator waits for a free workspace', () => {
     const b = card('B');
     k.request(b.id);
     await scope(['src/b.ts']);
-    expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workspace: 'slots' } });
+    expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workstation: 'slots' } });
     expect(board.events(b.id).at(-1)!.text).toContain('Kein Slot frei');
-    expect(workspaces.pool(workers.inTurn())).toEqual([expect.objectContaining({ here: true, slots: 1, total: 3, cards: [a.id], busy: [a.id] })]);
+    expect(workstations.pool(workers.inTurn())).toEqual([expect.objectContaining({ here: true, slots: 1, total: 3, cards: [a.id], busy: [a.id] })]);
 
     // A asks the owner: its clone stays its own, its slot is free
     await workerOf(a.id).call('ask', { question: 'Welche Farbe?' });
     workerOf(a.id).emit({ type: 'idle' });
     await settle();
     expect(item(b.id).state).toBe('working');
-    expect(board.row(b.id).workspace).not.toBe(board.row(a.id).workspace);
+    expect(board.row(b.id).workstation).not.toBe(board.row(a.id).workstation);
     expect(board.events(b.id).some((e) => e.text.includes('wieder einen Slot frei'))).toBe(true);
-    expect(workspaces.pool(workers.inTurn())[0]).toMatchObject({ cards: [a.id, b.id], busy: [b.id] });
+    expect(workstations.pool(workers.inTurn())[0]).toMatchObject({ cards: [a.id, b.id], busy: [b.id] });
   });
 
   test('in worktrees, a card waits for a slot only once the repository has slots', async () => {
     const main = join(dir, 'main');
     const store = new Store(':memory:');
     board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs, dirs: [] }));
-    workspaces = new Workspaces(store, 'c', { mode: 'worktrees', repoPath: main, dir: join(dir, 'ws'), machines: [{ host: null, slots: 1 }], busy: () => workers.busyOn(null) });
-    const adapter = { ...generic, land: 'main' as const, workspaces: 'worktrees' as const };
-    workers = new Workers({ board, runtime, workspaces, adapter });
-    k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workspaces, adapter, path: main }), holdMs: 0 });
-    expect(workspaces.pooled).toBe(true);
+    workstations = new Workstations(store, 'c', { mode: 'worktrees', repoPath: main, dir: join(dir, 'ws'), machines: [{ host: null, slots: 1 }], busy: () => workers.busyOn(null) });
+    const adapter = { ...generic, land: 'main' as const, workstations: 'worktrees' as const };
+    workers = new Workers({ board, runtime, workstations, adapter });
+    k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workstations, adapter, path: main }), holdMs: 0 });
+    expect(workstations.pooled).toBe(true);
     const a = card('A');
     k.request(a.id);
     await scope(['src/a.ts']);
     const b = card('B');
     k.request(b.id);
     await scope(['src/b.ts']);
-    expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workspace: 'slots' } });
+    expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workstation: 'slots' } });
     expect(board.events(b.id).at(-1)!.text).toContain('Kein Slot frei');
-    expect(workspaces.pool(workers.inTurn())).toEqual([
-      { name: HERE, here: true, worktrees: true, slots: 1, total: 1, cards: [a.id], busy: [a.id], workspaces: [{ path: expect.any(String), card: a.id }] },
+    expect(workstations.pool(workers.inTurn())).toEqual([
+      { name: HERE, here: true, worktrees: true, slots: 1, total: 1, cards: [a.id], busy: [a.id], workstations: [{ path: expect.any(String), card: a.id }] },
     ]);
 
     // A asks the owner: its worktree stays its own, its slot is free
@@ -960,11 +960,11 @@ describe('Koordinator waits for a free workspace', () => {
     await settle();
     expect(item(b.id).state).toBe('working');
     expect(board.events(b.id).some((e) => e.text.includes('wieder einen Slot frei'))).toBe(true);
-    expect(workspaces.pool(workers.inTurn())[0]).toMatchObject({ cards: [b.id], busy: [b.id] });
+    expect(workstations.pool(workers.inTurn())[0]).toMatchObject({ cards: [b.id], busy: [b.id] });
   });
 
   test('in worktrees without slots, any number of cards work at once', async () => {
-    expect(workspaces.pooled).toBe(false);
+    expect(workstations.pooled).toBe(false);
     const cards = ['A', 'B', 'C'].map((t) => card(t));
     for (const [i, c] of cards.entries()) {
       k.request(c.id);
@@ -973,7 +973,7 @@ describe('Koordinator waits for a free workspace', () => {
     expect(cards.map((c) => item(c.id).state)).toEqual(['working', 'working', 'working']);
   });
 
-  test('the card waiting longest gets the workspace; a card behind a waiting one waits too', async () => {
+  test('the card waiting longest gets the workstation; a card behind a waiting one waits too', async () => {
     pool(1);
     const a = card('A');
     k.request(a.id);
@@ -985,32 +985,32 @@ describe('Koordinator waits for a free workspace', () => {
     k.request(c.id);
     await settle();
     // B is ahead of C in the queue, so C is judged against it
-    expect(estimates().at(-1)!.inbox[0]).toContain('a free workspace');
+    expect(estimates().at(-1)!.inbox[0]).toContain('a free workstation');
     await scope(['src/c.ts']);
     const d = card('D');
     k.request(d.id);
     await scope(['src/b.ts'], ['K2']);
-    expect(item(c.id).queue).toMatchObject({ workspace: 'none' });
+    expect(item(c.id).queue).toMatchObject({ workstation: 'none' });
     expect(item(d.id).queue).toMatchObject({ behind: [b.id] });
 
     await workers.stop(a.id);
     await settle();
     expect(item(b.id).state).toBe('working');
-    expect(item(c.id).queue).toMatchObject({ workspace: 'none' });
+    expect(item(c.id).queue).toMatchObject({ workstation: 'none' });
     expect(item(d.id).queue).toMatchObject({ behind: [b.id] });
   });
 
-  test('every free workspace with uncommitted changes: the card waits until one is clean', async () => {
+  test('every free workstation with uncommitted changes: the card waits until one is clean', async () => {
     pool(2);
     const a = card('A');
     k.request(a.id);
     await scope(['src/a.ts']);
-    const free = clones.find((p) => p !== board.row(a.id).workspace)!;
+    const free = clones.find((p) => p !== board.row(a.id).workstation)!;
     writeFileSync(join(free, 'stray.txt'), 'x');
     const b = card('B');
     k.request(b.id);
     await scope(['src/b.ts']);
-    expect(item(b.id).queue).toMatchObject({ workspace: 'dirty' });
+    expect(item(b.id).queue).toMatchObject({ workstation: 'dirty' });
 
     rmSync(join(free, 'stray.txt'));
     // a dirty clone is not asked again on every change of the board, but once another one frees up
@@ -1044,27 +1044,27 @@ describe('Koordinator waits for a free workspace', () => {
     const a = card('A');
     k.request(a.id);
     await scope(['src/a.ts']);
-    const at = board.row(a.id).workspace!;
+    const at = board.row(a.id).workstation!;
     writeFileSync(join(at, 'a.ts'), 'halb fertig\n');
     const b = card('B');
     k.request(b.id);
     await scope(['src/b.ts']);
-    expect(item(b.id)).toMatchObject({ queue: { workspace: 'none' } });
+    expect(item(b.id)).toMatchObject({ queue: { workstation: 'none' } });
     expect(workers.evictable(a.id)).toBe(true);
 
     k.evict(a.id);
     await until(() => item(b.id).state === 'working');
-    expect(board.row(b.id).workspace).toBe(clones[0]!);
-    expect(item(a.id)).toMatchObject({ state: 'planned', queue: { workspace: 'none' } });
-    expect(board.row(a.id)).toMatchObject({ workspace: null, kept_in: clones[0]! });
+    expect(board.row(b.id).workstation).toBe(clones[0]!);
+    expect(item(a.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none' } });
+    expect(board.row(a.id)).toMatchObject({ workstation: null, kept_in: clones[0]! });
     expect(runtime.sessions.find((s) => s.spec.cwd === at && s.closed)).toBeDefined();
     // the work A had not committed is in a commit on its branch
     expect(git(at, 'show', '--stat', '--format=%B', board.row(a.id).branch!)).toContain('a.ts');
-    expect(board.events(a.id).some((e) => e.text.startsWith('Workspace entzogen'))).toBe(true);
+    expect(board.events(a.id).some((e) => e.text.startsWith('Workstation entzogen'))).toBe(true);
 
     await workers.stop(b.id);
     await until(() => item(a.id).state === 'working');
-    expect(board.row(a.id)).toMatchObject({ workspace: clones[0]!, kept_in: null });
+    expect(board.row(a.id)).toMatchObject({ workstation: clones[0]!, kept_in: null });
     expect(git(at, 'status', '--porcelain')).toBe('?? a.ts');
     expect(git(at, 'log', '-1', '--format=%B')).not.toContain('Obeya-Kept');
   });
@@ -1080,14 +1080,14 @@ describe('Koordinator waits for a free workspace', () => {
     await scope(['src/b.ts']);
     k.evict(a.id);
     await until(() => item(b.id).state === 'working');
-    expect(item(a.id)).toMatchObject({ state: 'planned', queue: { workspace: 'none', begun: true } });
+    expect(item(a.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none', begun: true } });
     await workers.stop(b.id);
     await until(() => item(a.id).state === 'working');
   });
 
   test("taking a card's clone waits a few seconds, in which the owner takes it back", async () => {
     pool(1);
-    k = new Koordinator({ board, runtime, home: () => join(dir, 'main'), repoFor: () => ({ workers, workspaces, adapter: generic, path: join(dir, 'main') }), holdMs: 40 });
+    k = new Koordinator({ board, runtime, home: () => join(dir, 'main'), repoFor: () => ({ workers, workstations, adapter: generic, path: join(dir, 'main') }), holdMs: 40 });
     const a = card('A');
     await workers.start(a.id);
     await workers.prepared();
@@ -1097,7 +1097,7 @@ describe('Koordinator waits for a free workspace', () => {
     k.keep(a.id);
     await Bun.sleep(80);
     expect(item(a.id).state).toBe('working');
-    expect(board.row(a.id).workspace).toBe(clones[0]!);
+    expect(board.row(a.id).workstation).toBe(clones[0]!);
     expect(() => k.keep(a.id)).toThrow(BadRequest);
   });
 });
@@ -1278,9 +1278,9 @@ describe('Koordinator starts all workstreams of a plan', () => {
     expect(() => k.request(p.id)).toThrow(expect.objectContaining({ code: 'nothingToStart' }));
   });
 
-  /** Lands a card in progress: a commit in its workspace, handed over and approved. */
+  /** Lands a card in progress: a commit in its workstation, handed over and approved. */
   async function land(id: string) {
-    const w = board.row(id).workspace!;
+    const w = board.row(id).workstation!;
     writeFileSync(join(w, `${id}.ts`), id);
     git(w, 'add', '.');
     git(w, 'commit', '--quiet', '-m', id);
@@ -1355,7 +1355,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
   });
 
   test('the start waits a few seconds, in which the owner can take it back', async () => {
-    k = new Koordinator({ board, runtime, home: () => dir, repoFor: () => ({ workers, workspaces, adapter: generic, path: dir }), holdMs: 40 });
+    k = new Koordinator({ board, runtime, home: () => dir, repoFor: () => ({ workers, workstations, adapter: generic, path: dir }), holdMs: 40 });
     const { p, w2, w3, w4 } = plan();
     k.request(p.id);
     await Bun.sleep(5);
@@ -1562,8 +1562,8 @@ describe('preference memory', () => {
     const w = new Workers({
       board,
       runtime,
-      workspaces,
-      adapter: { ...generic, land: 'main', workspaces: 'worktrees', softPaths: [] },
+      workstations,
+      adapter: { ...generic, land: 'main', workstations: 'worktrees', softPaths: [] },
       preferences: () => board.preferencesText(),
       onOwnerInput: (_c, kind, text) => heard.push(`${kind}:${text}`),
     });
@@ -1590,7 +1590,7 @@ describe('preference memory', () => {
 describe('Rückschau', () => {
   const texts = (state: 'proposed' | 'active') => board.preferences(state).map((p) => p.text);
   const reviews = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'done'));
-  const koordinator = () => new Koordinator({ board, runtime, home: () => board.canvas.repos[0]!.path, repoFor: () => ({ workers, workspaces, adapter: generic, path: board.canvas.repos[0]!.path }), reviewEvery: 4 });
+  const koordinator = () => new Koordinator({ board, runtime, home: () => board.canvas.repos[0]!.path, repoFor: () => ({ workers, workstations, adapter: generic, path: board.canvas.repos[0]!.path }), reviewEvery: 4 });
 
   test('the retrospective receives the standing language rule for owner-facing proposals', async () => {
     board.addPreference('Agents speak to me in English only.');

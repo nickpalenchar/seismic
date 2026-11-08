@@ -15,7 +15,7 @@ import type { NarrationHost } from './narration';
 import { Stalls } from './stalls';
 import { serve, serveNarration } from './server';
 import { artifact, asOwner, FakeRuntime, gitRepo, identify, noForge, until } from './testing';
-import { git, RECHECK_MS } from './workspaces';
+import { git, RECHECK_MS } from './workstations';
 import type { Transcript } from './voice';
 
 let dir: string;
@@ -31,12 +31,12 @@ let warmed: number;
 // how long a command waits for an undo; long enough that a loaded machine still undoes in time
 const DELAY_MS = 200;
 
-// A canvas in clone mode without any clone registered: every start fails for want of a workspace.
+// A canvas in clone mode without any clone registered: every start fails for want of a workstation.
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'obeya-server-'));
   const main = join(dir, 'main');
   // settings of its own that work in clones, none registered; the canvas is named after the directory
-  gitRepo(main, { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workspaces": "clones" }\n' });
+  gitRepo(main, { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workstations": "clones" }\n' });
   runtime = new FakeRuntime();
   canvas = new CanvasRuntime({ repos: [{ path: main }] }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge, commandDelayMs: DELAY_MS });
   board = canvas.board;
@@ -98,11 +98,11 @@ describe('refused requests', () => {
     expect(await codeOf(act(c.id, { action: 'start' }))).toBe('queued');
   });
 
-  test('a start without a free workspace waits for one', async () => {
+  test('a start without a free workstation waits for one', async () => {
     const c = card();
     expect((await act(c.id, { action: 'start' })).status).toBe(204);
-    await until(() => board.item(c.id)!.queue && 'workspace' in board.item(c.id)!.queue!);
-    expect(board.item(c.id)).toMatchObject({ state: 'planned', queue: { workspace: 'none' } });
+    await until(() => board.item(c.id)!.queue && 'workstation' in board.item(c.id)!.queue!);
+    expect(board.item(c.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none' } });
     expect(board.events(c.id).some((e) => e.kind === 'error')).toBe(false);
   });
 });
@@ -327,7 +327,7 @@ describe("a card's app", () => {
     const open = () => fetch(new URL(api(`/cards/${c.id}/app/open`), server.url), { redirect: 'manual' });
     const app = Bun.serve({ port: 0, fetch: () => new Response('Shop') });
     try {
-      board.work(c.id, { state: 'waiting', need: 'review', workspace: join(dir, 'ws'), app: `http://localhost:${app.port}/` });
+      board.work(c.id, { state: 'waiting', need: 'review', workstation: join(dir, 'ws'), app: `http://localhost:${app.port}/` });
       expect(await (await fetch(new URL(api(`/cards/${c.id}/app`), server.url))).json()).toEqual({ up: true });
       const there = await open();
       expect(there.status).toBe(302);
@@ -699,7 +699,7 @@ describe('screenshots', () => {
     fetch(new URL(api('/images'), server.url), { method: 'POST', headers: { 'content-type': type }, body });
   const working = () => {
     const c = card();
-    board.work(c.id, { state: 'working', workspace: dir, session_id: 'sess-1' });
+    board.work(c.id, { state: 'working', workstation: dir, session_id: 'sess-1' });
     return c;
   };
 
@@ -733,7 +733,7 @@ describe('screenshots', () => {
   test("a typed command's screenshots go to the Koordinator and to the cards it creates or concerns", async () => {
     const { id } = (await (await upload(png)).json()) as { id: string };
     const c = card();
-    board.work(c.id, { state: 'working', workspace: dir, session_id: 'sess-1' });
+    board.work(c.id, { state: 'working', workstation: dir, session_id: 'sess-1' });
     const res = post(api('/command'), JSON.stringify({ text: 'Neue Karte: diese Seite bricht um, und sag A, dass es so aussieht', images: [id] }));
     const koordinator = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'act')).at(-1);
     await until(() => koordinator()?.inbox.length);
@@ -1242,14 +1242,14 @@ describe('landing approved work', () => {
     git(repo, 'fetch', '--quiet', 'origin');
     const pushing = join(dir, 'pushing');
     writeFileSync(join(origin, 'hooks/pre-receive'), `#!/bin/sh\ntouch '${pushing}'\nsleep 1\n`, { mode: 0o755 });
-    const pushed = new CanvasRuntime({ repos: [{ path: repo, clones: 2, settings: { land: 'pr', direct: true, workspaces: 'clones' } }] }, { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge });
+    const pushed = new CanvasRuntime({ repos: [{ path: repo, clones: 2, settings: { land: 'pr', direct: true, workstations: 'clones' } }] }, { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge });
     server.stop(true);
     server = serve([canvas, pushed], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
     const handedOver = async (title: string) => {
       const c = pushed.board.create({ title, x: 0, y: 0 });
       await pushed.repoOf(c.id).workers.start(c.id);
       const session = runtime.last;
-      const clone = pushed.board.row(c.id).workspace!;
+      const clone = pushed.board.row(c.id).workstation!;
       identify(clone);
       writeFileSync(join(clone, `${title}.ts`), title);
       git(clone, 'add', '.');
@@ -1293,9 +1293,9 @@ describe('starting a card', () => {
     const uploadPack = join(dir, 'slow-upload-pack');
     writeFileSync(uploadPack, slow('fetch', 'exec git-upload-pack "$@"\n'), { mode: 0o755 });
     const deps = (home: string) => ({ store: new Store(':memory:'), home: join(dir, home), runtime, forge: noForge });
-    const worktrees = new CanvasRuntime({ name: 'Worktrees', repos: [{ path: trees, settings: { workspaces: 'worktrees' } }] }, deps('home-trees'));
-    const clones = new CanvasRuntime({ name: 'Clones', repos: [{ path: cloned, clones: 1, settings: { workspaces: 'clones' } }] }, deps('home-clones'));
-    const [clone] = clones.repos[0]!.workspaces.list();
+    const worktrees = new CanvasRuntime({ name: 'Worktrees', repos: [{ path: trees, settings: { workstations: 'worktrees' } }] }, deps('home-trees'));
+    const clones = new CanvasRuntime({ name: 'Clones', repos: [{ path: cloned, clones: 1, settings: { workstations: 'clones' } }] }, deps('home-clones'));
+    const [clone] = clones.repos[0]!.workstations.list();
     git(clone!.path, 'config', 'remote.origin.uploadpack', uploadPack);
     server.stop(true);
     server = serve([canvas, worktrees, clones], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
@@ -1304,7 +1304,7 @@ describe('starting a card', () => {
       const card = c.board.create({ title: 'Langsamer Start', x: 0, y: 0 });
       const before = Date.now();
       const started = c.repos[0]!.workers.start(card.id);
-      // the start takes the workspace and returns; git goes on in the background
+      // the start takes the workstation and returns; git goes on in the background
       expect(Date.now() - before).toBeLessThan(1000);
       return { c, card, started };
     });
@@ -1315,15 +1315,15 @@ describe('starting a card', () => {
       expect(res.status).toBe(200);
       expect(Date.now() - before).toBeLessThan(1000);
       const shown = ((await res.json()) as { items: { id: string; state: string; statusLine?: string }[] }).items.find((i) => i.id === card.id);
-      expect(shown).toMatchObject({ state: 'working', statusLine: c.board.t.worker.preparingWorkspace });
-      // its worker waits for the workspace
-      expect(runtime.sessions.some((s) => s.spec.cwd === c.board.row(card.id).workspace)).toBe(false);
+      expect(shown).toMatchObject({ state: 'working', statusLine: c.board.t.worker.preparingWorkstation });
+      // its worker waits for the workstation
+      expect(runtime.sessions.some((s) => s.spec.cwd === c.board.row(card.id).workstation)).toBe(false);
     }
     expect((await fetch(new URL(api('/canvas'), server.url))).status).toBe(200);
 
     for (const { c, card, started } of starts) {
       await started;
-      const ws = c.board.row(card.id).workspace!;
+      const ws = c.board.row(card.id).workstation!;
       expect(git(ws, 'branch', '--show-current')).toBe(c.board.row(card.id).branch!);
       expect(runtime.sessions.find((s) => s.spec.cwd === ws)!.inbox[0]).toContain('Langsamer Start');
       expect(c.board.item(card.id)!.statusLine).toBeUndefined();
@@ -1343,7 +1343,7 @@ describe('the Lesestand and the free clones', () => {
     git(dir, 'clone', '--quiet', origin, checkout);
     // work goes out as pull requests: the Lesestand is a worktree of the checkout, apart from the pool's clone
     const shop = new CanvasRuntime(
-      { name: 'Shop', repos: [{ path: checkout, clones: 1, settings: { land: 'pr', workspaces: 'clones' } }] },
+      { name: 'Shop', repos: [{ path: checkout, clones: 1, settings: { land: 'pr', workstations: 'clones' } }] },
       { store: new Store(':memory:'), home: join(dir, 'home-shop'), runtime, forge: noForge },
     );
     const plans = () => shop.board.snapshot().items.filter((i) => i.kind === 'plan').map((p) => p.title).sort();
@@ -1358,7 +1358,7 @@ describe('the Lesestand and the free clones', () => {
     const go = (mark: string) => writeFileSync(join(marks, `${mark}.go`), '');
     const hold = (mark: string) => rmSync(join(marks, `${mark}.go`), { force: true });
     git(checkout, 'config', 'filter.slow.smudge', slow('checkout', 'cat'));
-    const [clone] = shop.repos[0]!.workspaces.list();
+    const [clone] = shop.repos[0]!.workstations.list();
     git(clone!.path, 'config', 'core.fsmonitor', slow('status', 'exit 1'));
     server.stop(true);
     server = serve([canvas, shop], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
@@ -1383,11 +1383,11 @@ describe('the Lesestand and the free clones', () => {
     await refreshed;
     expect(plans()).toEqual(['Export', 'Import']);
 
-    // a minute on (the canvas shown before looked at the free clone for the Workspaces pill), whether a card
+    // a minute on (the canvas shown before looked at the free clone for the Workstations pill), whether a card
     // may take it is answered at once, while git looks at it again in the background
     setSystemTime(new Date(Date.now() + RECHECK_MS));
     const before = Date.now();
-    expect(shop.repos[0]!.workspaces.leasable()).toBe(true);
+    expect(shop.repos[0]!.workstations.leasable()).toBe(true);
     expect(Date.now() - before).toBeLessThan(1000);
     await until(() => existsSync(join(marks, 'status')));
     await answers();
@@ -1400,7 +1400,7 @@ describe('the Lesestand and the free clones', () => {
     const starting = Date.now();
     const started = shop.repos[0]!.workers.start(card.id);
     expect(Date.now() - starting).toBeLessThan(1000);
-    expect(shop.board.row(card.id).workspace).toBe(clone!.path);
+    expect(shop.board.row(card.id).workstation).toBe(clone!.path);
     await until(() => existsSync(join(marks, 'status')));
     await answers();
     expect(runtime.sessions.some((s) => s.spec.cwd === clone!.path)).toBe(false);
@@ -1411,8 +1411,8 @@ describe('the Lesestand and the free clones', () => {
   }, 15_000);
 });
 
-describe('freeing and discarding workspaces', () => {
-  test('while git frees a worktree or cleans a discarded prototype’s clone, slowly, the server answers; the workspace is free once git is done', async () => {
+describe('freeing and discarding workstations', () => {
+  test('while git frees a worktree or cleans a discarded prototype’s clone, slowly, the server answers; the workstation is free once git is done', async () => {
     const marks = join(dir, 'marks');
     mkdirSync(marks);
     // git that takes its time (a large repository, a clone on another machine): it goes on once the test lets it
@@ -1431,14 +1431,14 @@ describe('freeing and discarding workspaces', () => {
     // a prototype in the pool's only clone, and a card in a worktree of its own
     const origin = gitRepo(join(dir, 'shop'), { 'guide.md': 'Guide\n', '.gitattributes': '*.md filter=slow\n' });
     const shop = new CanvasRuntime(
-      { name: 'Shop', repos: [{ path: origin, clones: 1, settings: { land: 'pr', workspaces: 'clones' } }] },
+      { name: 'Shop', repos: [{ path: origin, clones: 1, settings: { land: 'pr', workstations: 'clones' } }] },
       { store: new Store(':memory:'), home: join(dir, 'home-shop'), runtime, forge: noForge },
     );
     const tools = new CanvasRuntime(
-      { name: 'Tools', repos: [{ path: gitRepo(join(dir, 'tools')), settings: { land: 'main', workspaces: 'worktrees' } }] },
+      { name: 'Tools', repos: [{ path: gitRepo(join(dir, 'tools')), settings: { land: 'main', workstations: 'worktrees' } }] },
       { store: new Store(':memory:'), home: join(dir, 'home-tools'), runtime, forge: noForge },
     );
-    const [clone] = shop.repos[0]!.workspaces.list();
+    const [clone] = shop.repos[0]!.workstations.list();
     // writing a file of the default branch back into the clone, and `git status` in the worktree, wait for the test
     git(clone!.path, 'config', 'filter.slow.smudge', slow('checkout', 'cat'));
     git(clone!.path, 'config', 'filter.slow.clean', 'cat');
@@ -1474,11 +1474,11 @@ describe('freeing and discarding workspaces', () => {
     await until(() => existsSync(join(marks, 'checkout')));
     await answers();
     // half cleaned, the clone is no other card's yet
-    expect(shop.repos[0]!.workspaces.list()).toEqual([{ path: clone!.path, card_id: prototype.id }]);
-    expect(shop.repos[0]!.workspaces.leasable()).toBe(false);
+    expect(shop.repos[0]!.workstations.list()).toEqual([{ path: clone!.path, card_id: prototype.id }]);
+    expect(shop.repos[0]!.workstations.leasable()).toBe(false);
     go('checkout');
     await shop.repos[0]!.workers.freed();
-    expect(shop.repos[0]!.workspaces.list()).toEqual([{ path: clone!.path, card_id: null }]);
+    expect(shop.repos[0]!.workstations.list()).toEqual([{ path: clone!.path, card_id: null }]);
     expect(git(clone!.path, 'branch', '--list', 'obeya/*')).toBe('');
     expect(git(clone!.path, 'status', '--porcelain')).toBe('');
 
@@ -1486,7 +1486,7 @@ describe('freeing and discarding workspaces', () => {
     const card = tools.board.create({ title: 'Lint', x: 0, y: 0 });
     await tools.repos[0]!.workers.start(card.id);
     await tools.repos[0]!.workers.prepared();
-    const tree = tools.board.row(card.id).workspace!;
+    const tree = tools.board.row(card.id).workstation!;
     writeFileSync(join(tree, 'lint.ts'), 'lint\n');
     git(tree, 'add', '.');
     git(tree, 'commit', '--quiet', '-m', 'Lint');
@@ -1498,11 +1498,11 @@ describe('freeing and discarding workspaces', () => {
     await until(() => existsSync(join(marks, 'status')));
     await answers();
     expect(existsSync(tree)).toBe(true);
-    expect(tools.repos[0]!.workspaces.leasedBy(card.id)).toBe(tree);
+    expect(tools.repos[0]!.workstations.leasedBy(card.id)).toBe(tree);
     go('status');
     await until(() => !existsSync(tree));
     await tools.repos[0]!.workers.freed();
-    expect(tools.repos[0]!.workspaces.list()).toEqual([]);
+    expect(tools.repos[0]!.workstations.list()).toEqual([]);
     shop.shutdown();
     tools.shutdown();
   }, 20_000);

@@ -12,6 +12,11 @@ test('repository settings retain their existing validation', () => {
   expect(SEAM_FILES).toContain('src/server/server.ts');
 });
 
+test('a repository setting under its old name counts as the new one, which wins where both are set', () => {
+  expect(checkShared({ workspaces: 'clones' })).toEqual({ settings: { workstations: 'clones' }, problems: [] });
+  expect(checkShared({ workspaces: 'clones', workstations: 'worktrees' })).toEqual({ settings: { workstations: 'worktrees' }, problems: [] });
+});
+
 
 test('the seam list names every core file that imports the registry', () => {
   const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {

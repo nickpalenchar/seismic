@@ -1,4 +1,4 @@
-## Agents and workspaces
+## Agents and workstations
 
 A chapter of the [design doc](../design.md), whose header says how it is written.
 
@@ -8,11 +8,11 @@ With the canvas setting `planBaselines` on (the default; the old key `projectBas
 plan creates a local lightweight git tag `obeya/project/<plan-id>/baseline` at the default
 branch's commit from which work starts. Every workstream branch in that plan gets the same tag
 in its repository and the local git config `branch.<branch>.obeya-project-baseline` names it.
-The card's conversation records the tag and commit after its workspace is prepared. A later
+The card's conversation records the tag and commit after its workstation is prepared. A later
 workstream still starts from the current default branch; the tag remains the plan's original
 reference, through landings, restarts and plan or plan-doc renames. Clones, including those on
 other hosts, receive the same tag and branch configuration. Tags are local; Seismic does not push
-them to the forge. A conflicting tag in a clone fails workspace preparation rather than moving it.
+them to the forge. A conflicting tag in a clone fails workstation preparation rather than moving it.
 
 The canvas's configuration and Project defaults offer "Create plan tags"; new canvases copy
 the default, while existing canvases keep their own setting. Turning it off stops creating tags and
@@ -56,10 +56,10 @@ worker by itself.
 
 Task workers can instead use the installed Codex CLI's app-server, with its own login. Seismic finds
 `codex` on the server process's PATH, or the native executable named by `SEISMIC_CODEX`; a repository
-or per-session environment cannot select a different executable. Only local Git workspaces are
+or per-session environment cannot select a different executable. Only local Git workstations are
 supported: no SSH, folders without Git, contributor reviews, or record/replay. The repository's own
 Codex configuration (its `.codex/`: settings, hooks, MCP servers, rules, which run outside Codex's
-sandbox and approvals) is loaded only where the workspace's `.codex/` is, to the byte, what the owner
+sandbox and approvals) is loaded only where the workstation's `.codex/` is, to the byte, what the owner
 last trusted for the repository (the `codex` group, see Trusting a repository's commands), checked
 at every start and resume; otherwise, and with a symbolic link in it (Codex would read a file the
 owner never saw), the session loads none of it and works without. Seismic tells Codex so per session,
@@ -68,11 +68,11 @@ for the checkout and, from a linked worktree, the main checkout, which is how Co
 before any thread runs checks Codex's own account of the layers it reads (`config/read`): a project
 layer it should not load ends the start. Codex reads no project layer above the checkout's top level
 (Codex CLI 0.162.0). Codex's sandbox keeps a worker from writing `.codex/` itself; a change there
-reaches the workspace through the owner (a granted command, a rebase) and counts once trusted.
+reaches the workstation through the owner (a granted command, a rebase) and counts once trusted.
 What Seismic compares and what Codex then reads are two reads: a process outside the sandbox that
 swaps a file between them is not caught. Instructions (`AGENTS.md`) and repository skills are not
 configuration and are not held, as a repository's CLAUDE.md is not.
-Decided 2026-11-02: stricter than for Claude, whose workspace changes count while the main branch's
+Decided 2026-11-02: stricter than for Claude, whose workstation changes count while the main branch's
 are trusted, since Codex's configuration runs outside the sandbox Seismic relies on; rejected:
 refusing any `.codex/` (it stopped Codex workers in every repository with one, Seismic's own
 included). The user's global Codex configuration is trusted.
@@ -81,12 +81,12 @@ does not stop a Codex worker, which reads none of it: the worker starts as it wo
 the allow-list shortcut below (no command runs unasked on that list until the owner has trusted the
 configuration). Decided 2026-11-02; rejected: refusing it, as before, which stopped Codex workers in
 every repository with a change to `.claude/` not trusted yet, for no protection. A review card, whose
-workspace holds a stranger's code, stays refused for Codex.
+workstation holds a stranger's code, stays refused for Codex.
 Other roles, setup and the usage meter remain Claude-based. A Codex worker's runs feed the
 work retrospective like a Claude worker's (its rollout is read, see `the-koordinator.md`). An
 unsupported capability fails visibly, never by substituting Claude.
 
-Codex keeps its native workspace-write sandbox (its workspace and the temporary directories, plus the
+Codex keeps its native workspace-write sandbox (its workstation and the temporary directories, plus the
 demos directory where it makes the demos it hands over; `SEISMIC_CODEX_SANDBOX=danger-full-access` (or the
 older name `OBEYA_CODEX_SANDBOX`) in
 Seismic's environment lifts the sandbox for every Codex worker, a stopgap, with Codex asking only for
@@ -108,7 +108,7 @@ plain: one or more programs joined by `&&`, `;` or new lines, each covered by a 
 the shell Codex wraps it in; leading `NAME=value` assignments (not `PATH`, `GIT_*` and the like) and
 output redirected to a file under a temporary directory or `2>&1` are looked through, and so is
 setting the shell up in front of covered commands without a rule of its own: `source` (or `.`) of
-an existing file, symlinks resolved, outside every place the worker writes (its workspace, the
+an existing file, symlinks resolved, outside every place the worker writes (its workstation, the
 demos directory, the temporary directories), and `nvm use` with at most a version, `--lts` and
 `--silent`, neither with a variable set in front (`NVM_DIR=…` would choose what it loads). A leading `~/` in a command or a rule is the home directory. Pipes, `||`,
 substitution, heredocs, other redirection, other `~` and `..` in a path never ride on a rule. Decided
@@ -131,7 +131,7 @@ What the sandbox keeps from a Codex worker (network, a browser, a local server, 
 worktree, whose `.git` lies in the main repository, the demos) goes through two tools Seismic runs
 itself with the owner's rights, for workers on this machine that are not review cards:
 `seismic_run` (a shell line; covered by the allow list it runs at once, else the owner is asked as for
-any permission; runs in the workspace, a temporary directory or the demos directory, symlinks and
+any permission; runs in the workstation, a temporary directory or the demos directory, symlinks and
 `..` resolved; no stdin, a timeout of 300 s by default and 1800 s at most that ends everything the
 command started, output cut to its start and end) and `seismic_git` (add, commit, rebase, merge, reset
 and the other worktree commands, never push, remote, config or options that run a program or move the
@@ -204,10 +204,10 @@ the headless turn (checked against agy 1.5.2).
 
 `agy` can only reach tools through an MCP server it connects to, so Seismic runs one localhost HTTP
 endpoint (Streamable HTTP with JSON replies, a port of its own) for all `agy` sessions. A session
-registers its tools under a token of its own and hands `agy` the endpoint through the workspace's
+registers its tools under a token of its own and hands `agy` the endpoint through the workstation's
 `.agents/mcp_config.json` (a bearer header), never through the owner's global configuration. The file
 is kept out of git by the repository's `info/exclude`, removed when the session ends, and a
-workspace's own file of that name stops the start rather than being overwritten. Tool names carry the
+workstation's own file of that name stops the start rather than being overwritten. Tool names carry the
 `seismic_` prefix; each result carries the context updates as for Codex.
 
 Models come from `agy models`; efforts are low to max. A usage-limit failure of a turn is recognised
@@ -260,7 +260,7 @@ picker stays accessible even when its saved choice is unavailable. While a start
 catalog, its choice is locked and repeated clicks cannot start another worker; an accepted start
 clears it, a failed one keeps it. The menu is reachable by keyboard (focus moves into it, Esc closes it and
 returns to the chevron without closing the card). The choice is stored on the card when it is
-requested, kept while the task is scheduled or waits for a workspace, taken back with the queue
+requested, kept while the task is scheduled or waits for a workstation, taken back with the queue
 entry, recorded in the card's conversation at the start, and does not alter the configuration; from
 the start on, the pinning above holds it. Unavailable choices (Codex where it does not apply) and
 catalog or default-loading errors are visible, with a retry; a selected unavailable model is not
@@ -287,27 +287,27 @@ recorded get their last session as its pinned setting has it, from their last st
 worker's messages name one, and a run of unknown effort for each other identity those messages
 carry; where they carry two, neither is taken for the pinned session.
 
-### Workspaces
+### Workstations
 
 A card works in a worktree of its own, unless the repository's settings say clones or its
-configuration names some (`clones`, `workspaces` or `hosts`). Worktrees: any number in parallel
+configuration names some (`clones`, `workstations` or `hosts`). Worktrees: any number in parallel
 unless the repository has `slots`. Clones (for tools that break in a worktree, or an app stack per
 clone): a pool, each clone leased by one card. `clones` is how many Seismic makes in its own directory
-(`workspaces/<canvas>/<repo>/1..n`), on top of the existing ones `workspaces` lists (on the command
-line `--clones <n>`, `--workspace <path>`); the Configuration dialog shows the sum. Where work lands
-on the local main, the checkout itself is never one of them, even where `workspaces` lists it: work
+(`workspaces/<canvas>/<repo>/1..n`), on top of the existing ones `workstations` lists (on the command
+line `--clones <n>`, `--workstation <path>`); the Configuration dialog shows the sum. Where work lands
+on the local main, the checkout itself is never one of them, even where `workstations` lists it: work
 lands there, the read checkout is read there, and a card's branch checked out in it stopped every
 landing (2026-10-30, a tester's report). The dialog does not count it and says why; listed alone,
 the cards work in worktrees, as without the list. A card keeps its
-workspace across stop and restart until its work has landed and its worker finished what remains.
+workstation across stop and restart until its work has landed and its worker finished what remains.
 
-Starting a card does not block the server: the workspace is taken at once (so slots and the queue
+Starting a card does not block the server: the workstation is taken at once (so slots and the queue
 see it taken), and git makes it ready in the background: `git worktree add` (a minute in a large
 repository on Windows), or a clone's fetch and checkout of the card's branch (over SSH on a host),
 the temporary worktree of a finished card's question likewise. Meanwhile the card is at work, its
-status line "Preparing the workspace …"; it holds a slot, a restart waits for it, and the
+status line "Preparing the workstation …"; it holds a slot, a restart waits for it, and the
 owner's words wait unread until the worker starts with its task. A card stopped meanwhile gives
-the workspace back once git is done. Where git fails, the workspace goes back, the card returns to
+the workstation back once git is done. Where git fails, the workstation goes back, the card returns to
 where it was (planned, its snooze gone, the words kept for its next start) and its conversation
 says why; a clone git failed on is passed over for a while, like a dirty one, so a fetch that keeps
 failing does not take it again and again.
@@ -321,10 +321,10 @@ looks for a free clone (at every change of the board while cards wait for one, a
 looked at yet; a look that changes the answer changes the board, so a waiting card takes a clone
 turned clean. The clone a card takes is looked at again before it works there: one no longer clean
 is given back and the next one taken, and where none is left the card goes back to planned and waits
-in the queue as when none is free at once. What else Seismic asks git about a card's workspace runs in
+in the queue as when none is free at once. What else Seismic asks git about a card's workstation runs in
 the background as well: whether it holds work (uncommitted changes, commits beyond the main branch),
 where its branch left the main branch, and the plan docs its branch adds. A stopped card is planned
-at once and gives its workspace back once git has said that it holds nothing (not if it started
+at once and gives its workstation back once git has said that it holds nothing (not if it started
 again meanwhile); an approval ends the owner's turn at once, the card landing (`approved_at`), and
 lands the work, opens the pull request or closes the card once git has told which; a handover is
 recorded once git has told whether it changes anything.
@@ -339,19 +339,19 @@ landed (where work lands on the local main, `origin` is the Seismic checkout). T
 aside first, so a clone named again meanwhile (here or by another canvas) is never removed under a
 card. Otherwise it stays: the log says once what lies in it, the pool's list shows "stays: unlanded work in <path>", and a later start looks again; raising the number takes it back as it
 is. Clones the owner listed, and folders on a host no longer configured, are never touched. A
-workspace on this machine whose folder is gone (moved or deleted by hand) and that the configuration
-no longer names leaves at once, clone or worktree, held or not: its card names no workspace any
+workstation on this machine whose folder is gone (moved or deleted by hand) and that the configuration
+no longer names leaves at once, clone or worktree, held or not: its card names no workstation any
 more, one at work is planned again, its log says so, and its next start takes another. Only a
 card's own worktree, where the repository makes them, stays the card's.
 
-A card gives its workspace back once it will not work there again, checked at every board change and
+A card gives its workstation back once it will not work there again, checked at every board change and
 at start: deleted; a workstream no worker is on once the plan doc on the default branch ticks it off
 or no longer has it; or a lease that outlived its card's work (finished and its worker done, or the
-card names another workspace). A clone keeps the card's branch and the rest and is free for others
+card names another workstation). A clone keeps the card's branch and the rest and is free for others
 once clean; a worktree goes once nothing in it is uncommitted, its branch kept. A deleted card
 brought back with the undo takes its clone back if still free, else another at its next start.
 
-#### Taking a card's workspace
+#### Taking a card's workstation
 
 While every clone of a repository is taken (or blocked) and a card waits for one (or a finished
 card's question for a clone), the pool's list has a faint "⋯" beside each card that holds a clone
@@ -362,27 +362,27 @@ the confirmation, and in the row, which says "giving it up") takes it back, the 
 as with "Stop", the app in the clone stops (`app.stop`, whatever `app.keep` says, since another
 card works there next), and what is uncommitted there (untracked files too, ignored ones aside)
 goes into a commit of Seismic's on the branch, marked by the trailer `Obeya-Kept: uncommitted work`.
-The clone is then free and clean; the card is planned without a workspace and remembers the clone
-that keeps its branch. A card whose worker was on it waits in the queue for a workspace, behind the
+The clone is then free and clean; the card is planned without a workstation and remembers the clone
+that keeps its branch. A card whose worker was on it waits in the queue for a workstation, behind the
 cards that waited already, and starts again once one is free; a card stopped before stays planned.
 Its next start takes that clone if it is free, else another on the same machine (git takes the
 branch from one clone to another only there, so the card waits for one of that machine's): the
 clone fetches the branch from the one that kept it, which then drops its copy, and the commit of
 Seismic's is taken apart again, its work uncommitted as before. The worker is a new session, as with
 "Start again", told that the branch holds earlier work, perhaps uncommitted. The undo window is not
-kept across a restart of Seismic: the card then keeps its workspace. Repositories in worktrees have
+kept across a restart of Seismic: the card then keeps its workstation. Repositories in worktrees have
 no such button: a worktree is the card's own, and a card waiting for a slot gets one when a busy
 worker is paused or stopped.
 
-Giving a workspace back does not block the server either: in a large repository (a checkout of
+Giving a workstation back does not block the server either: in a large repository (a checkout of
 thousands of files) or over SSH, git takes a while to look into a worktree and remove it, to remove
 a landed card's worktree and branch, to put a discarded prototype's clone back on the main branch
 (its changes and branch thrown away), or to rename the branch of a prototype an idea is built on.
-Git does all of it in the background, one step after the other on the same workspace, and the
-workspace stays taken until git is done with it: no other card takes a clone half cleaned, and a
+Git does all of it in the background, one step after the other on the same workstation, and the
+workstation stays taken until git is done with it: no other card takes a clone half cleaned, and a
 card's worktree made again meanwhile is added once the old one is gone. The card itself moves at
 once (a discarded prototype into the archive, a deleted card off the canvas), and the pool shows the
-workspace free once git is through; a restart waits for git as for a landing. Landing finds the
+workstation free once git is through; a restart waits for git as for a landing. Landing finds the
 main branch the same way, without blocking.
 
 #### Slots
@@ -402,29 +402,29 @@ The owner's question to a finished card waits for neither slot nor clone. It tak
 clone if there is one, else a temporary worktree (hooks off) detached at the head of the card's
 branch, from the clone here that holds the branch or else the configured checkout (at `origin`'s
 copy of the branch, else the default branch), under
-`follow-up/<card>` in the repository's workspaces directory, removed when the follow-up ends. Its
+`follow-up/<card>` in the repository's workstations directory, removed when the follow-up ends. Its
 worker is told the app stack may not run there; if it needs it, it calls `need_clone`, tells the
-owner with `reply` and ends its turn, and the card waits for the next clean free clone ("Waiting for a workspace"), ahead of queued cards, where its session resumes by itself; what the owner says
+owner with `reply` and ends its turn, and the card waits for the next clean free clone ("Waiting for a workstation"), ahead of queued cards, where its session resumes by itself; what the owner says
 meanwhile waits for it.
 
 #### The pool in the bar
 
-For each repository in clones the top bar shows the pool ("Workspaces"): per machine (named once
+For each repository in clones the top bar shows the pool ("Workstations"): per machine (named once
 there is more than one) a dot per clone, solid while its card's worker is at work, pale while merely
 held, orange while free but blocked, and how many new cards could start ("2 free", "all taken",
 "none free · 1 blocked"). Hovering or clicking it drops down a list: per machine its slots at
-work and clones taken, then each workspace on a line of its own, free ones included, with its path
+work and clones taken, then each workstation on a line of its own, free ones included, with its path
 (cut at the front where too long, so its end stays readable), the dot the pill shows for it, and
-the card in it, "free" or "blocked"; then how many cards wait for a workspace or a slot. While
+the card in it, "free" or "blocked"; then how many cards wait for a workstation or a slot. While
 none is free and a card waits, "⋯" beside the cards whose clone may go to it (see Taking a card's
-workspace). The card
+workstation). The card
 is a link: a click closes the list, flies to the card and opens it; for a card on another canvas
 the page switches to that canvas at the card's address (see Addresses in The canvas), which opens
 it once the canvas has loaded. A card not on any canvas (archived, say) shows by its title without a link. A
 repository in worktrees shows a dot per slot, and none without slots (no pill if all are so); its
 list names the cards' worktrees.
 
-A free clone is blocked when the last look at it (see Workspaces) says no new card gets it: it has
+A free clone is blocked when the last look at it (see Workstations) says no new card gets it: it has
 uncommitted or untracked changes (the list names the first five files), git fails in it, its
 folder is missing, its machine does not answer over SSH (one line per machine), or git failed making
 it ready for a card in the last minute. Blocked clones do not count as free, and the list says in
@@ -432,7 +432,7 @@ orange, per clone, why and what puts it right: commit or discard the changes; re
 a clone Seismic made, which its next start makes again; clone it again or take the path out of the
 configuration; check the network and SSH access. Showing the pool looks again, in the background,
 at free clones whose look is old by the same measure or that were never looked at, so the pill tells
-before a card waits what a waiting card would find. A card queued for want of a workspace points to
+before a card waits what a waiting card would find. A card queued for want of a workstation points to
 the pill for the reason.
 
 ### Folders without git
@@ -491,7 +491,7 @@ done or discarded, and is made afresh if its worker goes on.
 ### Parking
 
 A card waiting for the owner (handed over, asked, pull request open), its worker idle, has the app in
-its workspace stopped after five minutes, so a quick reply does not pay for a restart
+its workstation stopped after five minutes, so a quick reply does not pay for a restart
 (`SEISMIC_PARK_GRACE`, in seconds, for demos and live checks). Seismic runs the settings' `app.stop`
 there (once the owner trusted it, see Trusting a repository's commands), unless `app.keep` exits 0
 (the app holds data that must stay; the card says it keeps running, unless the session died and
@@ -500,7 +500,7 @@ card runs at least 30 minutes (see Trying the app by hand). The card's log says 
 and the next message to the worker tells it to start the app again as the recipe says; a message
 arriving during the stop waits for it. A failed stop is an error on the card; the worker hears
 nothing of it. After a restart,
-waiting cards are parked the same way. Only processes go; the workspace stays the card's.
+waiting cards are parked the same way. Only processes go; the workstation stays the card's.
 
 ### Lifetimes
 
@@ -517,7 +517,7 @@ for another.
   of Seismic alike (macOS, real agents, both harnesses). A harness added later says what it observes;
   it never claims more than it checked. A card whose agent died while Seismic runs keeps its state, with
   the exit as an error line in its log.
-- **The app**: what serves the card's workspace for the owner to try, started by a worker as the
+- **The app**: what serves the card's workstation for the owner to try, started by a worker as the
   repository's `app.run` says. Parking, "Stop", handing a clone over and discarding end it with
   `app.stop`; `app.keep` and the 30 minutes after "Open app" hold it back from parking only.
   Seismic never ends an app by process identity. An app started by a Codex native terminal is session
@@ -548,7 +548,7 @@ pid still shows the recorded creation time are ended, each by its own pid and wi
 descendants, never by process group (a group number proves nothing about who else is in it, unlike
 in a live session); every other process is left alone. The record goes once none of them runs. If one does, or
 the signal is refused, the record stays, the next start tries again, and a new Codex session in that
-workspace refuses to start meanwhile, so a second writer never works beside an old one. The sweep
+workstation refuses to start meanwhile, so a second writer never works beside an old one. The sweep
 reports each outcome in the server's log (card pages do not show it).
 
 Limits, by nature of numeric signalling: between the check and the signal the process can end and
@@ -571,7 +571,7 @@ as `ssh://<host>/<path>`; a new card goes there when the machines before it have
 
 #### Running there
 
-Every git call, stack command and worker session in such a workspace runs there through `ssh`,
+Every git call, stack command and worker session in such a workstation runs there through `ssh`,
 unseen by its callers: `ssh <target> exec sh -c '…'` with the installers' directories on the `PATH`;
 `exec`, so a shell that forks for a command (dash) does not stay as the session's parent under
 another pid. One shared connection where `ControlMaster` exists (not Windows), its sockets in
@@ -634,15 +634,15 @@ a container say, reuses pids). A host needs git, Claude Code and what the reposi
   with which they answered from the text, or said they could not see, what they could have checked.
 - **Seismic's tools are allowed by a hook** (2026-10-10). Rejected: `allowedTools`, which makes the SDK
   log a `CLAUDE_SDK_CAN_USE_TOOL_SHADOWED` warning with a stack trace at every worker start.
-- **Workers run on more than one machine, capped by busy workers rather than workspaces**
+- **Workers run on more than one machine, capped by busy workers rather than workstations**
   (2026-10-10). Measured on the owner's Mac (M4 Pro, 48 GB), 1–8 Oct 2026: workers were in a turn for
-  74 of the 963 worker-hours they held a workspace (8 %), at most 8 at once, busy beyond 3 at once for
+  74 of the 963 worker-hours they held a workstation (8 %), at most 8 at once, busy beyond 3 at once for
   17.6 worker-hours in 5 working days; the 5–9 held clones' app stacks filled the 48 GB and 20 GB of
   swap, while Claude Code took 2.3 GB. So waiting cards park, machines count slots for busy workers,
   and a card finding none goes to another machine, where it stays until its work lands. Rejected:
   clones as the only cap; stacks running until stopped by hand.
 - **Crash recovery by record and lease, ending only what was observed and still has its recorded
-  identity** (2026-11-02). Rejected: a command-line or workspace-wide search for stray agents
+  identity** (2026-11-02). Rejected: a command-line or workstation-wide search for stray agents
   (could hit another Seismic's or unrelated processes); a liveness pipe or supervisor alone (it
   cannot act once it dies itself, and a record can); report-only recovery (it leaves the processes
   running until the owner finds them); an app-process identity contract to keep apps alive through a
@@ -662,7 +662,7 @@ a container say, reuses pids). A host needs git, Claude Code and what the reposi
 - **The pool follows the configuration; a clone leaving it is deleted** (2026-10-21), so a lowered
   number gives disk space and app stacks back. Rejected: clones staying once registered; leaving the
   folder; asking when saving (a step more, and a leased clone is freed only later).
-- **A workspace whose folder is gone leaves the pool at once, even from its card** (2026-10-23):
+- **A workstation whose folder is gone leaves the pool at once, even from its card** (2026-10-23):
   waiting for the card to give it back never ends, since nothing (git, `app.stop`) runs in a missing
   folder, and the canvas showed every moved repository twice. Rejected: keeping it until the folder
   comes back (a moved home never does).
@@ -670,15 +670,15 @@ a container say, reuses pids). A host needs git, Claude Code and what the reposi
   freeing only on a card's normal path, which left stopped, ticked-off workstreams holding clones.
 - **An unreachable host fails fast** (2026-10-12): asking it on every look for a free clone (almost a
   minute with five clones there) left Seismic unresponsive while a card waited.
-- **Git frees workspaces in the background, the workspace taken until it is done** (2026-10-21):
+- **Git frees workstations in the background, the workstation taken until it is done** (2026-10-21):
   removing a worktree, or a checkout back to the main branch in a discarded prototype's clone, held
-  the server on every canvas in a large repository or over SSH. Rejected: freeing the workspace first
+  the server on every canvas in a large repository or over SSH. Rejected: freeing the workstation first
   and cleaning it afterwards (another card could take it half cleaned).
 - **The pool shows why a free clone goes to no card** (2026-10-26, GitHub issue #9): a clone with
   uncommitted changes counted as free in the pill while cards waited for one, with nothing saying
-  why; the card's own line ("The free workspaces have uncommitted changes") named
+  why; the card's own line ("The free workstations have uncommitted changes") named
   neither the clone nor the files.
-- **The pool lists each workspace with its path and card** (2026-10-26, GitHub issue #10): a summary
+- **The pool lists each workstation with its path and card** (2026-10-26, GitHub issue #10): a summary
   of counts and titles did not say which folder a card works in, nor which clone is free, and gave
   no way to the card. A click opens the list as well as hovering, so its links can be reached and it
   works by touch. Rejected: a path cut at its end (the clone's number and the repository are at the

@@ -304,7 +304,7 @@ session what the agent got (role, instructions, its tools with descriptions and 
 message) and then, in the order they happened and with their times, its events, its calls of
 Seismic's tools with their arguments and results, the messages sent to it, the context updates taken
 after its steps, and its end where it ended by itself. A worker's call also keeps the commits made
-in its workspace since its call before (a git bundle), and a handover a copy of the demo it names,
+in its workstation since its call before (a git bundle), and a handover a copy of the demo it names,
 without the demo's work files. The take's cuts go in too: the demo copies them in after the take,
 or, for a recording in the demo's directory, the first playback takes them from there while they
 are still the recorded take's.
@@ -314,9 +314,9 @@ tools, the one with the same first message where several are left (so that two w
 another order each get their own). Its events go out again, its calls run Seismic's tools of the code
 being run with the recorded arguments, a step recorded after a message waits until that message
 comes, and one that read a context update (the owner's words in the middle of a turn) until there
-is one. Before a worker's call its recorded commits go onto the card's workspace, picked one by one;
+is one. Before a worker's call its recorded commits go onto the card's workstation, picked one by one;
 rewritten ones (an amend, a rebase) go as one commit of what they changed, or not at all where the
-workspace holds that already (a rebase the landing of today did too). Before a handover the demo
+workstation holds that already (a rebase the landing of today did too). Before a handover the demo
 goes back where it was. Everything else is Seismic's own code as it stands: card states, layout, held
 comments, the handover, the landing; the page is always live, so a change to the UI never breaks a
 playback. Card ids, branches, commits and paths differ in every staging: where a text the agent got
@@ -673,7 +673,7 @@ translate or install, the first-fullscreen hint), which would catch taps meant f
   same recorded calls, so after pairing ids they are as recorded, and what differs is a change to
   Seismic's prompts or tools that the recording no longer fits.
 - **Ids are paired from what the agent got** (2026-10-22), not kept by the stage's keys: the card
-  the hero video's agents create has no key, and its id, branch and workspace reach the agents only
+  the hero video's agents create has no key, and its id, branch and workstation reach the agents only
   in what Seismic tells them.
 - **A playback keeps the recorded pace except across the take's cuts** (2026-10-22): the scenes then
   find the agents where the recorded take found them (the worker still at work when the video looks

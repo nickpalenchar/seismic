@@ -794,7 +794,7 @@ export function serve(
       },
       // what the card's work changes: its files with lines added and removed, with `?full` the diff too
       '/api/c/:canvas/cards/:id/diff': { GET: on((c, req) => c.diff(req.params.id!, new URL(req.url).searchParams.has('full'))) },
-      // the app running in the card's workspace: whether it answers, and the owner opening it to try it by hand
+      // the app running in the card's workstation: whether it answers, and the owner opening it to try it by hand
       '/api/c/:canvas/cards/:id/app': { GET: on((c, req) => c.appUp(req.params.id!)) },
       '/api/c/:canvas/cards/:id/app/open': {
         GET: async (req) => {

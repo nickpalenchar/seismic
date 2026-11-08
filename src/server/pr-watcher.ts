@@ -29,7 +29,7 @@ export class PrWatcher {
     private board: Board,
     private workers: Workers,
     private forge: Forge,
-    /** Where the forge's calls run for a card (its workspace, else the Seismic checkout). */
+    /** Where the forge's calls run for a card (its workstation, else the Seismic checkout). */
     private cwd: (cardId: string) => string,
     /**
      * The repository's settings, asked each round since they may change while the watcher runs:

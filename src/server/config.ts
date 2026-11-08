@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import { readShared, REPO_ADAPTER_DIR, REPO_SETTINGS_FILE } from '../adapters';
-import { settingsShape, withoutGone as goneSettings } from '../adapters/schema';
+import { renamedField, settingsShape, withoutGone as goneSettings } from '../adapters/schema';
 import { LANGUAGES } from '../core/locale';
 import { blocksSaving, type CanvasConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedCanvas, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines } from '../core/types';
 import {
@@ -40,7 +40,7 @@ import { sameRemote } from './repo';
 import type { DemoSpace } from './demo-space';
 import type { Forge } from './forge';
 import { commitShared, proposeShared, pushShared } from './shared-settings';
-import { gitCalls, gitSteps, leavingClones } from './workspaces';
+import { gitCalls, gitSteps, leavingClones } from './workstations';
 import { VERSION } from './resources';
 import { canvasDefaults, canvasSettingsShape, renamedBaselines, tidyCanvasSettings, withCanvasDefaults } from './settings';
 import { canonical, commandsOf, heldGroups, trustHeld, trustTakenOver } from './trust';
@@ -59,7 +59,7 @@ function locate(canvases: CanvasConfig[], match: (r: CanvasConfig['repos'][numbe
 export function expandConfig(canvases: CanvasConfig[]): CanvasConfig[] {
   return canvases.map((c) => ({
     ...c,
-    repos: c.repos.map((r) => ({ ...r, path: expandHome(r.path), ...(r.workspaces ? { workspaces: r.workspaces.map(expandHome) } : {}) })),
+    repos: c.repos.map((r) => ({ ...r, path: expandHome(r.path), ...(r.workstations ? { workstations: r.workstations.map(expandHome) } : {}) })),
   }));
 }
 
@@ -85,7 +85,7 @@ function tidySettings(s: z.infer<typeof settingsShape> | undefined): RepoSetting
     ...(s.setup !== undefined ? { setup: s.setup.trim() } : {}),
     ...(dir ? { planDocs: { dir, exclude: list(s.planDocs!.exclude)! } } : {}),
     ...(s.softPaths ? { softPaths: list(s.softPaths)! } : {}),
-    ...(s.workspaces ? { workspaces: s.workspaces } : {}),
+    ...(s.workstations ? { workstations: s.workstations } : {}),
     ...(s.prNoise ? { prNoise: list(s.prNoise)! } : {}),
     ...(s.language ? { language: s.language } : {}),
     ...(app ? { app } : {}),
@@ -116,7 +116,7 @@ export const configShape = z.array(
           .object({
             path: z.string(),
             git: z.literal(false).optional(),
-            workspaces: z.array(z.string()).optional(),
+            workstations: z.array(z.string()).optional(),
             clones: z.number().int().min(0).max(20).optional(),
             slots: z.number().int().min(0).max(20).optional(),
             hosts: z
@@ -154,7 +154,7 @@ function tidy(canvases: z.infer<typeof configShape>): CanvasConfig[] {
     ...withOldNames(oldNames ?? [], name?.trim()),
     ...tidyCanvasSettings(settings),
     repos: repos.map((r) => {
-      const workspaces = (r.workspaces ?? []).map((w) => w.trim()).filter(Boolean);
+      const workstations = (r.workstations ?? []).map((w) => w.trim()).filter(Boolean);
       // a host without a name or a machine is a row still being filled in
       const hosts = (r.hosts ?? []).map((h) => ({ name: h.name.trim(), ssh: h.ssh.trim(), root: h.root.trim() || '~/obeya', clones: h.clones, ...(h.slots !== undefined ? { slots: h.slots } : {}) })).filter((h) => h.name && h.ssh);
       const settings = tidySettings(r.settings);
@@ -162,7 +162,7 @@ function tidy(canvases: z.infer<typeof configShape>): CanvasConfig[] {
       if (r.git === false) return { path: r.path.trim(), git: false as const, ...(settings ? { settings } : {}) };
       return {
         path: r.path.trim(),
-        ...(workspaces.length ? { workspaces } : {}),
+        ...(workstations.length ? { workstations } : {}),
         ...(r.clones ? { clones: r.clones } : {}),
         ...(r.slots !== undefined ? { slots: r.slots } : {}),
         ...(hosts.length ? { hosts } : {}),
@@ -234,14 +234,17 @@ export function readConfigFile(file: string): CanvasConfig[] {
 
 /**
  * A file as read, without the settings Seismic no longer has: a repository's share command (`file`
- * only), and its demo site (the canvas chooses one now).
+ * only), and its demo site (the canvas chooses one now); a repository's clones listed under
+ * `workspaces`, their name before, are its `workstations`.
  */
 function withoutGone(made: unknown, file = true): unknown {
   if (Array.isArray(made))
     for (const [n, c] of made.entries()) {
       made[n] = renamedBaselines(c);
-      for (const r of Array.isArray(c?.repos) ? c.repos : []) {
-        if (!r || typeof r !== 'object') continue;
+      const repos = Array.isArray(c?.repos) ? c.repos : [];
+      for (const [i, read] of repos.entries()) {
+        if (!read || typeof read !== 'object') continue;
+        const r: Record<string, any> = (repos[i] = renamedField(read as Record<string, unknown>, 'workspaces', 'workstations'));
         if (file) delete r.share;
         if (r.settings && typeof r.settings === 'object') r.settings = goneSettings(r.settings).settings;
       }
@@ -594,16 +597,16 @@ export class Config {
     const expanded = expandConfig(canvases);
     // a repository whose path is still empty is read nowhere (`resolveCanvas` finds its path missing)
     const repos = expanded.flatMap((c) => c.repos).filter((r) => r.path);
-    // a workspace needs only to be a repository; one that is also a repository of the configuration is read as that
+    // a workstation needs only to be a repository; one that is also a repository of the configuration is read as that
     const paths = new Set(repos.map((r) => resolve(r.path)));
     // a folder without git is read as it is
     const folders = new Set(repos.filter((r) => r.git === false).map((r) => resolve(r.path)));
-    const workspaces = new Set(repos.flatMap((r) => (r.workspaces ?? []).map((w) => resolve(w))).filter((w) => !paths.has(w)));
+    const workstations = new Set(repos.flatMap((r) => (r.workstations ?? []).map((w) => resolve(w))).filter((w) => !paths.has(w)));
     const branches = repos.flatMap((r) => (r.settings?.branch && existsSync(r.path) ? [{ path: resolve(r.path), branch: r.settings.branch }] : []));
     const [reads, clones, found] = await Promise.all([
       Promise.all([...paths].map(async (p) => [p, await gitSteps(p, readingRepo(p, folders.has(p)))] as const)).then((x) => new Map(x)),
       Promise.all(
-        [...workspaces].map(async (w) => {
+        [...workstations].map(async (w) => {
           const [dir, origin] = await gitSteps(w, gitCalls(['rev-parse', '--git-dir'], ['remote', 'get-url', 'origin']));
           return [w, dir != null ? { origin: origin ?? null } : null] as const;
         }),
@@ -611,21 +614,21 @@ export class Config {
       Promise.all(branches.map(async (b) => [`${b.path}\0${b.branch}`, await hasBranch(b.path, b.branch)] as const)).then((x) => new Map(x)),
     ]);
     const isRepo = (path: string) => !!(clones.get(path) ?? reads.get(path));
-    /** The `origin` of a workspace that is a git repository. */
+    /** The `origin` of a workstation that is a git repository. */
     const originOf = (path: string) => clones.get(path)?.origin ?? reads.get(path)?.info.remote ?? null;
     const read = (path: string) => reads.get(path) ?? null;
     const problems: ConfigProblem[] = [];
     if (!canvases.length) problems.push({ code: 'noCanvas', detail: 'Seismic needs at least one canvas' });
-    // a host's name stands for one machine across the configuration: its workspaces are named by it
+    // a host's name stands for one machine across the configuration: its workstations are named by it
     const machines = new Map<string, string>();
     const resolved = expanded.map((c, canvas): ResolvedCanvas | null => {
       c.repos.forEach((r, repo) =>
-        (r.workspaces ?? []).forEach((w) => {
+        (r.workstations ?? []).forEach((w) => {
           if (!isRepo(resolve(w))) {
-            problems.push({ code: 'notClone', canvas, repo, detail: `workspace ${w} is not a git repository` });
+            problems.push({ code: 'notClone', canvas, repo, detail: `workstation ${w} is not a git repository` });
             return;
           }
-          // the repository itself, or a clone of it: its origin is the repository's, or the repository (as `Workspaces.register` has it)
+          // the repository itself, or a clone of it: its origin is the repository's, or the repository (as `Workstations.register` has it)
           const own = read(resolve(r.path))?.info;
           const origins = [own?.remote, own?.path].filter((x): x is string => !!x);
           const origin = originOf(resolve(w)) ?? '';
@@ -667,10 +670,10 @@ export class Config {
           name,
           repos: given.map(({ config: r, ref, adapter, read: got, values }) => {
             const trust = trustOf(got.info.path, got.shared, r.settings, this.o.store);
-            const leaving = got.info.folder ? [] : this.leaving(id, ref.id === repos[0]!.ref.id ? null : ref.id, r, adapter.workspaces);
+            const leaving = got.info.folder ? [] : this.leaving(id, ref.id === repos[0]!.ref.id ? null : ref.id, r, adapter.workstations);
             return {
             id: ref.id,
-            workspaces: adapter.workspaces,
+            workstations: adapter.workstations,
             ...(got.info.folder ? { folder: true as const } : {}),
             ...(got.adapterModule ? { adapterGone: true } : {}),
             values: markHeld(values(), trust),
@@ -712,11 +715,11 @@ export class Config {
 
   /** The clones of a repository's pool (`repo` null: the canvas's home repository) that the configuration `r` no longer names. */
   private leaving(canvas: string, repo: string | null, r: CanvasConfig['repos'][number], mode: 'clones' | 'worktrees') {
-    const rows = this.o.store.workspaces(canvas, repo);
+    const rows = this.o.store.workstations(canvas, repo);
     if (!rows.length) return [];
     const dir = join(this.o.server.home, 'workspaces', canvas, ...(repo ? [repo] : []));
     const hosts = (r.hosts ?? []).map((h) => ({ name: h.name, clones: h.clones }));
-    return leavingClones(rows, { dir, mode, listed: (r.workspaces ?? []).map((w) => resolve(w)), clones: r.clones ?? 0, hosts }).map((c) => {
+    return leavingClones(rows, { dir, mode, listed: (r.workstations ?? []).map((w) => resolve(w)), clones: r.clones ?? 0, hosts }).map((c) => {
       const title = c.card ? (this.o.store.card(c.card)?.title ?? undefined) : undefined;
       const { card: _, ...rest } = c;
       return { ...rest, ...(title !== undefined ? { card: title } : {}) };

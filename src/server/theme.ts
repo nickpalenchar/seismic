@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { themeData } from './artifact-copy';
 import { demoFile } from './demo-page';
-import { GIT, isFolder } from './workspaces';
+import { GIT, isFolder } from './workstations';
 
 /** The directory a repository's theme is in, and the theme's file there. */
 export const THEME_DIR = '.obeya';

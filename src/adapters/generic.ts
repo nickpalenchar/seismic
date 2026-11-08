@@ -12,6 +12,6 @@ export const generic: RepoAdapter = {
   planDocs: { dir: 'docs/plan', exclude: ['TEMPLATE.md'] },
   language: 'en',
   land: 'pr',
-  workspaces: 'worktrees',
+  workstations: 'worktrees',
   softPaths: ['docs/plan/'],
 };

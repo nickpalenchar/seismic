@@ -39,7 +39,7 @@ function useChange(item: Item, given: CardDiff | null | undefined): CardDiff | n
     return () => {
       gone = true;
     };
-  }, [own, item.id, item.state, item.need, item.summary, item.workspace, JSON.stringify(item.files)]);
+  }, [own, item.id, item.state, item.need, item.summary, item.workstation, JSON.stringify(item.files)]);
   return own ? diff : given;
 }
 

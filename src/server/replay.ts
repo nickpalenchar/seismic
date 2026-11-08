@@ -5,7 +5,7 @@
 // first line what the agent got (role, instructions, tools, first message), each further line one
 // thing that happened in it, in order: an event of the session, a call of one of Seismic's tools with
 // its arguments and result, a message sent to it, a context update taken after a tool step. A
-// worker's call also keeps the commits it made in its workspace since its call before
+// worker's call also keeps the commits it made in its workstation since its call before
 // (`session-<n>/<k>.bundle`), a handover (`ready_for_review`) a copy of the demo it names
 // (`session-<n>/demo-<k>/`). `cuts.json`, which the demo copies in after
 // the take, holds what the take cut out (`Director.skip`, wall clock).
@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { z } from 'zod';
 import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, AgentTool } from './runtime';
-import { gitAsync } from './workspaces';
+import { gitAsync } from './workstations';
 import { messageOf } from '../core/text';
 
 /** What an agent was given of a tool: what the fingerprint of a recording covers. */
@@ -56,7 +56,7 @@ export type Entry = { seq: number; at: number } & (
 );
 
 /**
- * The workspace's commits at a worker's call: `bundle` (in the recording) holds `to`, which follows
+ * The workstation's commits at a worker's call: `bundle` (in the recording) holds `to`, which follows
  * `from`; `rewritten` where it does not descend from it (an amended commit, a branch rebased).
  */
 interface Head {
@@ -110,7 +110,7 @@ export function recordingRuntime(inner: AgentRuntime, dir: string, home: string)
   mkdirSync(dir, { recursive: true });
   if (!existsSync(join(dir, 'meta.json'))) writeFileSync(join(dir, 'meta.json'), `${JSON.stringify({ version: 1, home, at: Date.now() } satisfies Meta, null, 1)}\n`);
   let sessions = readdirSync(dir).filter((f) => /^session-\d+\.jsonl$/.test(f)).length;
-  // the last commit recorded of each workspace: the next call's commits follow it
+  // the last commit recorded of each workstation: the next call's commits follow it
   const heads = new Map<string, Promise<string | undefined>>();
   return {
     start(spec, firstMessage, images) {
@@ -262,7 +262,7 @@ export class Swap {
   path(then: string, now: string) {
     if (then === now || this.paths.some(([t]) => t === then)) return;
     this.paths.push([then, now]);
-    // the longest first: a workspace before the home it lies in
+    // the longest first: a workstation before the home it lies in
     this.paths.sort((a, b) => b[0].length - a[0].length);
     this.moves = new RegExp(this.paths.map(([t]) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
   }
@@ -290,7 +290,7 @@ export class Swap {
       const y = b[i]!;
       if (x === y || this.tokens.has(x)) return;
       this.tokens.set(x, y);
-      // a card's id stands in its branch and its workspace by its start
+      // a card's id stands in its branch and its workstation by its start
       if (x.length === 36 && y.length === 36) for (const k of [6, 8]) if (!this.tokens.has(x.slice(0, k))) this.tokens.set(x.slice(0, k), y.slice(0, k));
     });
   }
@@ -532,7 +532,7 @@ function play(rec: Recorded, spec: AgentSpec, p: Player): AgentSession {
       if (e.head) await commits(e.head);
       if (e.demo) cpSync(join(p.dir, e.demo.copy), swap.text(e.demo.dir), { recursive: true });
     } catch (error) {
-      return `the recorded work of ${e.name} does not go into the workspace: ${messageOf(error)}`;
+      return `the recorded work of ${e.name} does not go into the workstation: ${messageOf(error)}`;
     }
     const result = await tool.run(swap.deep(e.args));
     swap.learn(e.result, result);
@@ -540,7 +540,7 @@ function play(rec: Recorded, spec: AgentSpec, p: Player): AgentSession {
     if (swap.text(e.result) !== result) p.log(`${who}: ${e.name} answers otherwise than recorded: ${firstDifference(swap.text(e.result), result)}`);
     return undefined;
   };
-  /** The recorded commits since the worker's call before, onto what the workspace holds now. */
+  /** The recorded commits since the worker's call before, onto what the workstation holds now. */
   const commits = async (head: Head) => {
     const cwd = spec.cwd;
     const ref = `refs/obeya-replay/${head.to}`;

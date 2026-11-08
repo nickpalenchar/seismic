@@ -4,7 +4,7 @@ A chapter of the [design doc](../design.md), whose header says how it is written
 
 ### Projects and repositories
 
-Each repository on a project has its own settings, workspaces, workers, plan agents and PR watcher;
+Each repository on a project has its own settings, workstations, workers, plan agents and PR watcher;
 the project has one board and one Koordinator, whose collision checks stay within a repository. The
 first repository is the project's home; the others' plan docs are referenced as `<repo>:<path>`. The
 owner's cards carry their repository, chosen in the panel before work begins (home by default); on a
@@ -76,7 +76,7 @@ forced detached checkout and a fresh read of the plan docs. A failed fetch is lo
 round. So a doc committed only in another clone, or only edited, does not show. Fetch and checkout
 run without blocking the server (in a repository of thousands of files a checkout takes a while);
 while git writes the files, the canvas keeps the plan docs it read before, since a doc missing for a
-moment would take its plan off the canvas and give back its workstreams' workspaces. Moving the
+moment would take its plan off the canvas and give back its workstreams' workstations. Moving the
 read checkout to the worktree when work now lands elsewhere runs the same way, the checkout read until
 the worktree is there. Only making it when the canvas starts waits for git: the checkout, the only
 thing to read meanwhile, may be on a card's branch.
@@ -116,7 +116,7 @@ A card whose workstream the doc no longer lists, while the doc is there, leaves 
 agent worked on it: as a task of its own, with its log, under the workstream's label and title and
 its text as the doc last had them, its log saying why. Finished (live or done, or planned again
 after a part landed), it goes into the archive; at work or stopped, it stands beside the plan. A
-stopped card holding a workspace gives the workspace back first. A doc in a plan folder outside the
+stopped card holding a workstation gives the workstation back first. A doc in a plan folder outside the
 repository is written in place, an item moved in two edits, so its card leaves only once the
 workstream stayed away for five minutes; back before that, it keeps its card. A card nobody worked
 on just goes.
@@ -139,7 +139,7 @@ they are, and names each by its absolute path with forward slashes (so a Windows
 as a repository id), as the agents do. Workers on this machine get the folder as an extra directory:
 ticking a workstream there takes effect at once and goes into no commit, so the box says nothing of
 a landing: the card's work in progress still wins until it lands, and so does a stopped card with
-its branch, which stays stopped, keeps its workspace and holds its plan on the canvas (see A
+its branch, which stays stopped, keeps its workstation and holds its plan on the canvas (see A
 workstream's state). A doc "Make a plan" writes there cannot land, so Seismic names it at the
 start (the card's title, `-2` on a clash) and keeps it on the card; it shows as a plan once
 written, and the plan takes the card's place once approved (the card is done without a change).
@@ -185,9 +185,9 @@ clone returns to the pool. That needs the box in the repository: a box in a plan
 is ticked by the worker before the merge, often before the pull request is open, so there only the
 watcher sees the merge (GitHub issue #41, 2026-11-02: approved cards read as merged at once and
 their PRs were never merged). Likewise a stopped workstream whose box the main branch ticks off is
-done elsewhere: it shows `live`, its clone returns to the pool ("Ticked off in the plan doc: workspace
+done elsewhere: it shows `live`, its clone returns to the pool ("Ticked off in the plan doc: workstation
 freed.") and its branch stays there. A box in a plan folder outside the repository leaves a
-stopped card as it is (2026-11-02: such cards read as live and lost their workspace with nothing
+stopped card as it is (2026-11-02: such cards read as live and lost their workstation with nothing
 landed).
 
 #### Reading a plan doc
@@ -229,7 +229,7 @@ repository, for everyone, and the `settings` of its entry in `canvases.json`, se
 the configuration dialog, which also holds the main branch. The reference for every field is
 `docs/settings.md`, linked from the README.
 
-The fields: `land`, `direct`, `autoMerge`, `checks`, `setup`, `planDocs`, `softPaths`, `workspaces`,
+The fields: `land`, `direct`, `autoMerge`, `checks`, `setup`, `planDocs`, `softPaths`, `workstations`,
 `prNoise`, `language` (see Language), `app` (`run`, `stop`, `keep`) and `demo` (`language`, `site`:
 see Static sites; `artifacts`: see Handover artifacts). Only what Seismic itself acts on is a command: `stop` and `keep` park a waiting card
 (see Parking). `run` is prose, for any kind of app (a web app, a CLI, a desktop or mobile app):
@@ -249,7 +249,7 @@ Settings are read where they are used, so saving them restarts nothing (see Live
 canvases follow: the read checkout moves when work now lands elsewhere, the plan directory is watched
 afresh, a repository now landing through pull requests gets its PR watcher (one leaving them keeps it for the
 pull requests still open), and the page shows the
-main branch and how work lands. `workspaces` is the exception: changing it restarts that repository's
+main branch and how work lands. `workstations` is the exception: changing it restarts that repository's
 agents, as the dialog says at the field, which sits in the repository's row (see Projects).
 
 #### `.obeya/settings.json`
@@ -259,7 +259,7 @@ the main branch, versioned and reviewed with the code it describes. It is read f
 not the checkout, since clones are on cards' branches, perhaps from before the file changed: when a
 canvas starts, whenever the read checkout moves, and on save, by git without the server waiting for it;
 a save while the branches have not moved keeps the last read. A new version takes effect without a
-restart; one that changes `workspaces` restarts the repository's agents once they paused (see
+restart; one that changes `workstations` restarts the repository's agents once they paused (see
 Restarts for landed code).
 
 "Take over into the repository for everyone" below the form takes this machine's saved values (but the main
@@ -304,7 +304,7 @@ under `.claude/` and `.mcp.json`) and `codex` (each file under `.codex/`). A gro
 has otherwise is held: the settings are read without it (no stop or keep, no site; demos are
 exported), and an agent working in the repository starts with `settingSources: ['user']` and gets
 its directory's CLAUDE.md in its instructions instead (not on another machine); a Codex worker
-loads the repository's Codex configuration only where its workspace has it exactly as trusted (see
+loads the repository's Codex configuration only where its workstation has it exactly as trusted (see
 Native Codex workers). Trust is worked out afresh at each agent start
 from the main branch as it is then, a commit made there outside Seismic included. What was read there
 last stands while the repository's own branches, `origin`'s, its packed refs and the branch its
@@ -318,7 +318,7 @@ Held groups are the problem `untrusted` in "Configuration": what each group does
 lines as last trusted against the main branch's now, and "Trust these commands", which trusts
 exactly what was shown (refused where it changed meanwhile; also for a repository not saved yet), and
 the canvases follow at once. Held values show "from the repository, not trusted yet". A worker's
-own workspace may change Claude Code configuration: that counts while the main branch's is trusted
+own workstation may change Claude Code configuration: that counts while the main branch's is trusted
 and waits for trust once it lands; a Codex worker's does not count until trusted (its sandbox
 is what keeps it in bounds, and the configuration runs outside it). Trust covers the configuration, not the code it calls: a trusted
 hook runs whatever its script says now, as the checks do.
@@ -412,7 +412,7 @@ source, the clones, slots and other machines), branch and landing (main branch, 
 auto-merge, accounts without review, soft paths), app and checks (setup, checks, "How to run
 the app" in a large text field, "Stop while a card waits", the keep condition once there is
 one), plans and language (plan docs, "Repository language"), demos ("Demo language", the
-artifacts a handover may bring), then "Take over into the repository for everyone". A folder without git has no workspace or
+artifacts a handover may bring), then "Take over into the repository for everyone". A folder without git has no workstation or
 branch group.
 
 Klonen shows the existing clones ("Existing clones, one per line"), then the ones Seismic makes on top of them ("Also create
@@ -457,7 +457,7 @@ the main branch, withdrawn rather than dismissed.
 
 #### Project defaults
 
-A canvas's own settings (beside its name, id and repositories, the toggles "Seismic suggests", plan git baseline tags (see Plan git baselines in Agents and workspaces), how cards go into the archive (see Archive in Card lifecycle),
+A canvas's own settings (beside its name, id and repositories, the toggles "Seismic suggests", plan git baseline tags (see Plan git baselines in Agents and workstations), how cards go into the archive (see Archive in Card lifecycle),
 its demo site, and its own models (see The project settings in The canvas)) are saved with it in the configuration. "Project defaults" holds a value for each of them, saved on
 its own into `settings.json` in Seismic's home (`canvasDefaults`; a setting left out there has its
 built-in value, every toggle on). A canvas created from then on, wherever it is made (the dialog's
@@ -507,8 +507,8 @@ runs, without a restart or reload. A new canvas starts at once (the setup assist
 card), a changed one takes the change, a moved one moves in every list at once, a removed one stops once its agents paused, its cards kept. A
 new name, a new repository and settings that leave the agents where they work apply at once.
 
-What a repository's agents are set up by (its clones, existing workspaces, slots, other machines,
-`workspaces`) restarts that repository's agents alone; a repository that left the canvas stops. Its
+What a repository's agents are set up by (its clones, existing workstations, slots, other machines,
+`workstations`) restarts that repository's agents alone; a repository that left the canvas stops. Its
 workers pause at a safe point (at most 15 minutes), the set-up starts again as configured, and they
 resume in their sessions; the other repositories work on. A worker landing such a change waits for
 it (see Restarts for landed code). The bar shows the wait like a restart's ("Configuration waits for …") with
@@ -527,9 +527,9 @@ start) stay on the canvas marked "Repository not running", with why in their pan
 their agents meanwhile: starting, messages, approving and the like are refused with that reason, a
 card set to start later or snoozed waits past its time, and a card the Koordinator was deciding on
 goes back to planned. Only what changes the board alone (moving it in the queue, dismissing,
-parking) still goes. Once the repository runs again, the cards work as before, in its workspaces.
+parking) still goes. Once the repository runs again, the cards work as before, in its workstations.
 Decided 2026-10-21: no other repository's agents take such a card, the home repository's included,
-since its worker would work in the wrong repository's workspace. Question cards are exempt: their
+since its worker would work in the wrong repository's workstation. Question cards are exempt: their
 agent only reads, and looks a question about such a card up in the home repository.
 
 ### Language

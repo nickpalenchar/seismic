@@ -324,7 +324,7 @@ language.
 The deploy runs at the root of the card's repository (its checkout Seismic reads from; `share/` under
 Seismic's home when adding a site, which has no repository), with `SEISMIC_HOME` and `SEISMIC_REPO` set.
 What wrangler leaves there (`.wrangler/`) goes into the repository's own exclude file
-(`.git/info/exclude`), so a checkout that is also a pool workspace stays clean and can be leased.
+(`.git/info/exclude`), so a checkout that is also a pool workstation stays clean and can be leased.
 Its words are split at spaces outside quotes; a program or script given as a relative path is found
 in the card's repository (in Seismic's home when adding the site); `.ts` and `.js`
 run with Seismic's Bun, so the line works on Windows. Any host that takes a directory fits: Cloudflare
@@ -532,7 +532,7 @@ another machine withdrew loses its link here, with a line naming the machine.
 - **Deploys run at the root of the card's repository, wrangler's cache excluded from git there**
   (owner, 2026-11-06): a deploy line written for the repository finds its scripts and configuration
   as from a terminal there. Rejected (2026-10-05 to 2026-11-06): `share/` under Seismic's home, chosen
-  because wrangler's cache in the checkout kept a pool workspace from being leased, which the
+  because wrangler's cache in the checkout kept a pool workstation from being leased, which the
   exclude entry now prevents.
 - **A repository's theme is a file in it, `.obeya/theme.css`, not settings** (owner, 2026-11-01):
   a stylesheet gives full freedom (colours, fonts, spacing, a logo), and Seismic manages nothing of

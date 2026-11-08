@@ -65,8 +65,8 @@ try {
   assert.deepEqual(await (await asOwner(() => server).fetch(url)).json(), { settings: { example: 'route value' } });
 } finally { server.stop(true); }
 const fixture = await import('../../server/workers-fixture');
-const { git } = await import('../../server/workspaces');
-fixture.setup({ ...generic, land: 'main', workspaces: 'clones', ...{ example: 'worker value' } });
+const { git } = await import('../../server/workstations');
+fixture.setup({ ...generic, land: 'main', workstations: 'clones', ...{ example: 'worker value' } });
 try {
   // A runtime that cannot start must not tell extensions that a worker started.
   const start = fixture.runtime.start.bind(fixture.runtime);
@@ -82,7 +82,7 @@ try {
 
   const card = fixture.manual();
   await fixture.workers.start(card.id);
-  // start() already waits for workspace preparation and the runtime launch.
+  // start() already waits for workstation preparation and the runtime launch.
   assert.equal(fixture.runtime.sessions.length, 1);
   assert.deepEqual(events, [{ type: 'workerStarted', canvas: 'c', card: card.id, settings: { example: 'worker value' } }]);
   // a permission question carries the extension's option; picked, the call runs with its updates
@@ -95,10 +95,10 @@ try {
   assert.deepEqual(await permitted, { allow: true, permissions: [{ type: 'setMode', mode: 'acceptEdits', destination: 'session' }] });
   assert.deepEqual(picked, [[{ rule: 'make' }, 'claude', { example: 'worker value' }]]);
   assert.equal(fixture.board.events(card.id).at(-1)!.text, 'Example picked');
-  const workspace = fixture.board.row(card.id).workspace!;
-  writeFileSync(join(workspace, 'example.txt'), 'example');
-  git(workspace, 'add', 'example.txt');
-  git(workspace, 'commit', '--quiet', '-m', 'Example');
+  const workstation = fixture.board.row(card.id).workstation!;
+  writeFileSync(join(workstation, 'example.txt'), 'example');
+  git(workstation, 'add', 'example.txt');
+  git(workstation, 'commit', '--quiet', '-m', 'Example');
   await fixture.runtime.last.call('ready_for_review', { summary: 'Example', demo: artifact() });
   await fixture.workers.approve(card.id);
   assert.deepEqual(events.map((e) => e.type), ['workerStarted', 'landed']);

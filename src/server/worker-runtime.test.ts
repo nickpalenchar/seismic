@@ -53,7 +53,7 @@ test('rejects a bare local folder even when no watch hooks were supplied', async
   const { runtime, spec, cwd, events, codex, claude } = fixture({ setting });
   rmSync(join(cwd, '.git'), { recursive: true, force: true });
   await runtime.start(spec).done;
-  expect(events).toContainEqual(expect.objectContaining({ type: 'error', message: 'Codex workers currently require a local Git workspace' }));
+  expect(events).toContainEqual(expect.objectContaining({ type: 'error', message: 'Codex workers currently require a local Git workstation' }));
   expect(codex.sessions).toHaveLength(0); expect(claude.sessions).toHaveLength(0);
 });
 

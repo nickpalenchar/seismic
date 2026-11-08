@@ -29,7 +29,7 @@ const coreShape = z
     setup: z.string().optional(),
     planDocs: planDocs.optional(),
     softPaths: strings.optional(),
-    workspaces: z.enum(['clones', 'worktrees']).optional(),
+    workstations: z.enum(['clones', 'worktrees']).optional(),
     prNoise: strings.optional(),
     language: z.enum(LANGUAGES).optional(),
     app: app.optional(),
@@ -73,14 +73,23 @@ export function checkShared(made: Record<string, unknown>): { settings: SharedSe
 
 /**
  * Settings without the fields Seismic no longer has, and a line for each: `demo.site`, the demo site a
- * repository once named, which a canvas chooses now (its canvas settings).
+ * repository once named, which a canvas chooses now (its canvas settings). `workspaces`, the name
+ * `workstations` had before, still counts as it, without a line.
  */
-export function withoutGone(made: Record<string, unknown>): { settings: Record<string, unknown>; gone: string[] } {
+export function withoutGone(read: Record<string, unknown>): { settings: Record<string, unknown>; gone: string[] } {
+  const made = renamedField(read, 'workspaces', 'workstations');
   const demo = made.demo as Record<string, unknown> | undefined;
   if (!demo || typeof demo !== 'object' || !('site' in demo)) return { settings: made, gone: [] };
   const { site: _, ...rest } = demo;
   const { demo: __, ...others } = made;
   return { settings: Object.keys(rest).length ? { ...others, demo: rest } : others, gone: ["demo.site: no longer read; a canvas chooses its demo site in its settings"] };
+}
+
+/** `made` with a field's former name read as its name; where both are set, the name wins. */
+export function renamedField(made: Record<string, unknown>, was: string, now: string): Record<string, unknown> {
+  if (!(was in made)) return made;
+  const { [was]: value, ...rest } = made;
+  return now in rest ? rest : { ...rest, [now]: value };
 }
 
 /** `made` without the top-level fields `shape` refuses, and a line for each problem; `known` names the fields of each object, for a guess at a misspelt one. */

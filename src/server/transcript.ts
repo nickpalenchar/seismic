@@ -1,5 +1,5 @@
 // The excerpt of a worker's run for the work retrospective, drawn without a model from the Agent
-// SDK's transcript (`<projects>/<workspace path>/<session id>.jsonl`) or Codex's rollout
+// SDK's transcript (`<projects>/<workstation path>/<session id>.jsonl`) or Codex's rollout
 // (`<codex home>/sessions/<year>/<month>/<day>/rollout-<time>-<thread id>.jsonl`): where the worker
 // went wrong and corrected itself. Both formats are their harness's own and may change: whatever
 // cannot be read is left out, and a file that cannot be read at all gives no excerpt rather than
@@ -328,7 +328,7 @@ function similar(a: { tool: string; key: string }, b: { tool: string; key: strin
   return (2 * shared) / (x.length + y.length) >= SIMILAR;
 }
 
-/** What makes two calls the same attempt: a command without its `cd` into the workspace, else the file or pattern. */
+/** What makes two calls the same attempt: a command without its `cd` into the workstation, else the file or pattern. */
 function keyOf(tool: string, input: Record<string, unknown>): string {
   if (tool === 'Bash') return str(input.command).replace(/^\s*cd\s+\S+\s*&&\s*/, '').trim();
   return str(input.file_path) || str(input.path) || str(input.pattern) || str(input.url) || str(input.skill);

@@ -8,7 +8,7 @@ import { pagePolicy, withHeightReport, withImageViewer, withMarkReport } from '.
 import { chapterAt, type DemoKind } from '../core/types';
 import { filesKey, ownOrigin } from './access';
 import { demoFile, esc } from './demo-page';
-import type { FileAt } from './workspaces';
+import type { FileAt } from './workstations';
 import { resource } from './resources';
 
 /**

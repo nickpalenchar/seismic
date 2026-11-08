@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { dataModelSignals, isSchemaPage } from './data-models';
 import { artifact } from './testing';
 import { board, eachTest, manual, runtime, workers } from './workers-fixture';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 eachTest();
 
@@ -12,7 +12,7 @@ eachTest();
 async function cardWith(files: Record<string, string>) {
   const c = manual();
   await workers.start(c.id);
-  const ws = board.row(c.id).workspace!;
+  const ws = board.row(c.id).workstation!;
   for (const [file, text] of Object.entries(files)) {
     mkdirSync(dirname(join(ws, file)), { recursive: true });
     writeFileSync(join(ws, file), text);
@@ -106,7 +106,7 @@ describe('a handover says whether its change alters persisted data models', () =
     expect(await call()).toContain('Not handed over');
     expect(await call()).toContain('Recorded');
     workers.message(c.id, 'Noch eine Tabelle.');
-    const ws = board.row(c.id).workspace!;
+    const ws = board.row(c.id).workstation!;
     writeFileSync(join(ws, 'schema.sql'), 'CREATE TABLE t (id INTEGER);\n');
     git(ws, 'add', '-A');
     git(ws, 'commit', '--quiet', '-m', 'table');

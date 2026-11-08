@@ -10,7 +10,7 @@ import { board, eachTest, flush, manual, runtime, setWorkers, spaces, workers } 
 eachTest();
 const codex: AgentSetting = { ...AGENT_DEFAULTS.worker, harness: 'codex', codex: { model: 'test-codex', effort: 'low' } };
 function using(choice: () => AgentSetting) {
-  setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, workspaces: 'clones', land: 'main' }, agentSetting: choice }));
+  setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'main' }, agentSetting: choice }));
 }
 
 test('pins before first session id and resumes the same harness after settings change and server restart', async () => {
@@ -69,7 +69,7 @@ test('a worker restarted deliberately takes the new default instead of its old h
 
 /** The `dirs` a worker with this setting starts with, the demos directory being `demos`. */
 async function dirsWith(choice: AgentSetting, demos: () => string) {
-  setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, workspaces: 'clones', land: 'main' }, agentSetting: () => choice, demoDirectory: demos }));
+  setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'main' }, agentSetting: () => choice, demoDirectory: demos }));
   await workers.start(manual().id);
   const dirs = runtime.last.spec.dirs;
   workers.shutdown();
@@ -123,7 +123,7 @@ test('a Claude worker has neither', async () => {
 
 /** The spec a worker with this setting starts with, Codex's automatic review on. */
 async function autoSpec(choice: AgentSetting) {
-  setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, workspaces: 'clones', land: 'main' }, agentSetting: () => choice, codexAutoReview: () => true }));
+  setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'main' }, agentSetting: () => choice, codexAutoReview: () => true }));
   await workers.start(manual().id);
   const spec = runtime.last.spec;
   workers.shutdown();

@@ -245,7 +245,7 @@ export function CardFace({ item, where, underway, since, chip }: { item: Item; w
     (item.kind === 'question' && item.thread ? t.question.count(item.thread.answers, item.thread.files) : undefined) ??
     (asked === undefined ? undefined : excerpt(asked)) ??
     (item.queue && 'behind' in item.queue ? excerpt(waitReason(item.queue)) : undefined) ??
-    (item.queue && 'workspace' in item.queue ? t.queue.workspaceWhy[item.queue.workspace] : undefined) ??
+    (item.queue && 'workstation' in item.queue ? t.queue.workstationWhy[item.queue.workstation] : undefined) ??
     (item.queue && 'paused' in item.queue ? t.queue.pausedWhy : undefined) ??
     status ??
     (item.idea ? firstLine(item.idea.brief) || firstLine(item.body) : firstLine(item.body));
@@ -673,13 +673,13 @@ export function OldBunPill({ version }: { version: string }) {
  * Each repository's pool by machine: a dot per clone (solid while its card's worker is at work,
  * pale while the card holds it otherwise, orange while free but blocked), or per slot of a
  * repository in worktrees, and how many new cards could start now. Hovering or clicking it drops
- * down each machine's slots and each of its workspaces by path with the card in it, which opens
+ * down each machine's slots and each of its workstations by path with the card in it, which opens
  * the card (`onOpen`; `onElsewhere` one on another canvas), and why a blocked clone goes to no card
  * and what to do about it. While every clone is taken and a card waits for one, a faint "⋯" beside
  * a card opens what gives its clone to the one waiting longest (`onTake`); during the undo window
  * the row offers "Undo" (`onKeep`).
  */
-export function WorkspacesPill({ pools, canvas, canvases, items, onOpen, onElsewhere, onTake, onKeep }: {
+export function WorkstationsPill({ pools, canvas, canvases, items, onOpen, onElsewhere, onTake, onKeep }: {
   pools: ClonePool[];
   canvas: CanvasInfo;
   canvases: CanvasInfo[];
@@ -711,11 +711,11 @@ export function WorkspacesPill({ pools, canvas, canvases, items, onOpen, onElsew
   }, [open]);
   const several = pools.length > 1;
   const name = (repo: string) => canvas.repos.find((r) => r.id === repo)?.name ?? repo;
-  const forWorkspace = items.filter((i) => (i.queue && 'workspace' in i.queue && i.queue.workspace !== 'slots') || i.waitsForClone).length;
-  const forSlot = items.filter((i) => i.queue && 'workspace' in i.queue && i.queue.workspace === 'slots').length;
+  const forWorkstation = items.filter((i) => (i.queue && 'workstation' in i.queue && i.queue.workstation !== 'slots') || i.waitsForClone).length;
+  const forSlot = items.filter((i) => i.queue && 'workstation' in i.queue && i.queue.workstation === 'slots').length;
   // a clone is taken from its card only while none is free and a card of its repository waits for one
   const wanted = (p: ClonePool) =>
-    p.hosts.every((h) => h.cards.length + blocked(h) >= h.total) && items.some((i) => i.repo === p.repo && ((i.queue && 'workspace' in i.queue) || i.waitsForClone));
+    p.hosts.every((h) => h.cards.length + blocked(h) >= h.total) && items.some((i) => i.repo === p.repo && ((i.queue && 'workstation' in i.queue) || i.waitsForClone));
   const blocked = (h: PoolHost) => h.blocked?.length ?? 0;
   // a new card takes a free clone that is not blocked, on a machine whose busy workers leave it a slot
   const room = (h: PoolHost) => Math.max(0, Math.min(h.slots - h.busy.length, h.total - h.cards.length - blocked(h)));
@@ -733,12 +733,12 @@ export function WorkspacesPill({ pools, canvas, canvases, items, onOpen, onElsew
   return (
     <div
       ref={ref}
-      className={['pill workspaces', full && 'full', open && 'open', shut && 'shut'].filter(Boolean).join(' ')}
-      id="workspaces"
+      className={['pill workstations', full && 'full', open && 'open', shut && 'shut'].filter(Boolean).join(' ')}
+      id="workstations"
       onPointerLeave={() => setShut(false)}
     >
       <button className="face" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span className="lbl">{t.workspaces.label}</span>
+        <span className="lbl">{t.workstations.label}</span>
         {pools.map((p) => {
           const hosts = named(p);
           return (
@@ -754,14 +754,14 @@ export function WorkspacesPill({ pools, canvas, canvases, items, onOpen, onElsew
                   </span>
                 </span>
               ))}
-              <b>{t.workspaces.free(free(p), total(p), blockedIn(p))}</b>
-              {blockedIn(p) > 0 && <b className="warn">{t.workspaces.blockedCount(blockedIn(p))}</b>}
+              <b>{t.workstations.free(free(p), total(p), blockedIn(p))}</b>
+              {blockedIn(p) > 0 && <b className="warn">{t.workstations.blockedCount(blockedIn(p))}</b>}
             </span>
           );
         })}
         <span className="hint drop">▾</span>
       </button>
-      <div className="tip" role="dialog" aria-label={t.workspaces.label}>
+      <div className="tip" role="dialog" aria-label={t.workstations.label}>
         {pools.map((p) => (
           <div key={p.repo}>
             {several && (
@@ -773,11 +773,11 @@ export function WorkspacesPill({ pools, canvas, canvases, items, onOpen, onElsew
               <div key={h.name}>
                 <p>
                   {h.worktrees
-                    ? t.workspaces.worktreeSlots(h.name, h.busy.length, h.slots, h.workspaces.length > 0)
-                    : t.workspaces.host(h.name, h.busy.length, h.slots, h.cards.length, h.total)}
+                    ? t.workstations.worktreeSlots(h.name, h.busy.length, h.slots, h.workstations.length > 0)
+                    : t.workstations.host(h.name, h.busy.length, h.slots, h.cards.length, h.total)}
                 </p>
-                {h.workspaces.length > 0 && (
-                  <WorkspaceRows
+                {h.workstations.length > 0 && (
+                  <WorkstationRows
                     host={h}
                     items={items}
                     canvases={canvases}
@@ -789,7 +789,7 @@ export function WorkspacesPill({ pools, canvas, canvases, items, onOpen, onElsew
                 )}
                 {h.kept?.map((path) => (
                   <p key={path} className="hint">
-                    {t.workspaces.kept(path)}
+                    {t.workstations.kept(path)}
                   </p>
                 ))}
                 <BlockedClones host={h} />
@@ -797,21 +797,21 @@ export function WorkspacesPill({ pools, canvas, canvases, items, onOpen, onElsew
             ))}
           </div>
         ))}
-        {forWorkspace > 0 && <p>{t.workspaces.waiting(forWorkspace)}</p>}
-        {forSlot > 0 && <p>{t.workspaces.waitingSlot(forSlot)}</p>}
+        {forWorkstation > 0 && <p>{t.workstations.waiting(forWorkstation)}</p>}
+        {forSlot > 0 && <p>{t.workstations.waitingSlot(forSlot)}</p>}
       </div>
     </div>
   );
 }
 
 /**
- * A machine's workspaces, one per line: the dot the pill shows for it, its path (cut at the front
+ * A machine's workstations, one per line: the dot the pill shows for it, its path (cut at the front
  * where it is too long, so its end stays), and the card in it, which opens on a click; or that it
  * is free, or blocked. With `onTake` (a card waits, none is free), a faint "⋯" beside each card
  * that may give its clone up, which opens the one action and what it does; a card giving it up has
  * "Undo" (`onKeep`) instead.
  */
-function WorkspaceRows({ host, items, canvases, onOpen, onElsewhere, onTake, onKeep }: {
+function WorkstationRows({ host, items, canvases, onOpen, onElsewhere, onTake, onKeep }: {
   host: PoolHost;
   items: Item[];
   canvases: CanvasInfo[];
@@ -825,7 +825,7 @@ function WorkspaceRows({ host, items, canvases, onOpen, onElsewhere, onTake, onK
   const [more, setMore] = useState<string | null>(null);
   return (
     <ul className="ws-list">
-      {host.workspaces.map((w) => {
+      {host.workstations.map((w) => {
         const item = w.card && !w.canvas ? items.find((i) => i.id === w.card) : undefined;
         const busy = !!w.card && host.busy.includes(w.card);
         const state = busy ? 'on' : w.card ? 'held' : blocked.has(w.path) ? 'blocked' : 'free';
@@ -847,24 +847,24 @@ function WorkspaceRows({ host, items, canvases, onOpen, onElsewhere, onTake, onK
                   <a className="from" onClick={() => onElsewhere(there.id, w.card!)}>
                     {plain(w.title ?? '')}
                   </a>
-                  <span className="hint"> · {t.workspaces.onCanvas(there.name)}</span>
+                  <span className="hint"> · {t.workstations.onCanvas(there.name)}</span>
                 </>
               ) : w.card ? (
-                <span className="hint">{w.title ? t.workspaces.notOnCanvas(plain(w.title)) : t.workspaces.offCanvas}</span>
+                <span className="hint">{w.title ? t.workstations.notOnCanvas(plain(w.title)) : t.workstations.offCanvas}</span>
               ) : (
-                <span className={state === 'blocked' ? 'warn' : 'hint'}>{state === 'blocked' ? t.workspaces.blockedRow : t.workspaces.freeRow}</span>
+                <span className={state === 'blocked' ? 'warn' : 'hint'}>{state === 'blocked' ? t.workstations.blockedRow : t.workstations.freeRow}</span>
               )}
-              {busy && !w.leaving && <span className="hint"> · {t.workspaces.atWork}</span>}
+              {busy && !w.leaving && <span className="hint"> · {t.workstations.atWork}</span>}
               {item && w.leaving && (
                 <>
-                  <span className="hint"> · {t.workspaces.leaving}</span>
+                  <span className="hint"> · {t.workstations.leaving}</span>
                   <button className="btn ws-take" onClick={() => onKeep(item)}>
                     {t.undo}
                   </button>
                 </>
               )}
               {item && w.takeable && onTake && (
-                <button className="ws-more" title={t.workspaces.more} aria-label={t.workspaces.more} aria-expanded={more === w.path} onClick={() => setMore(more === w.path ? null : w.path)}>
+                <button className="ws-more" title={t.workstations.more} aria-label={t.workstations.more} aria-expanded={more === w.path} onClick={() => setMore(more === w.path ? null : w.path)}>
                   ⋯
                 </button>
               )}
@@ -878,9 +878,9 @@ function WorkspaceRows({ host, items, canvases, onOpen, onElsewhere, onTake, onK
                     onTake(item);
                   }}
                 >
-                  {t.workspaces.take}
+                  {t.workstations.take}
                 </button>
-                <span className="hint">{t.workspaces.takeWhat}</span>
+                <span className="hint">{t.workstations.takeWhat}</span>
               </div>
             )}
           </li>
@@ -895,7 +895,7 @@ function BlockedClones({ host }: { host: PoolHost }) {
   const all = host.blocked ?? [];
   const away = all.filter((b) => b.why === 'unreachable').map((b) => b.path);
   const line = (b: BlockedClone) => {
-    const tb = t.workspaces.blocked;
+    const tb = t.workstations.blocked;
     switch (b.why) {
       case 'dirty':
         return tb.dirty(b.path, b.files ?? [], b.more ?? 0);

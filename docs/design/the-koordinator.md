@@ -70,13 +70,13 @@ progress or queued, it skips this judgement only when no workstream of its plan 
 A dependency drawn by the owner (see Cards on the canvas) holds the card until the prerequisite has
 finished, including while that prerequisite is not started or stopped: a card started afterwards
 queues behind it once judged, and one in the queue when the arrow is drawn waits for it from then on,
-also one waiting only for a workspace or for the canvas's agents to resume. An arrow counts as a
+also one waiting only for a workstation or for the canvas's agents to resume. An arrow counts as a
 wait wherever the queue reads waits: a card held by one is never ahead of its prerequisite or
 among the cards that one may build on, a card does not pass it in the queue, and the arrows that
 would close a cycle with other arrows or waits are refused. An arrow holds a card only until it
 starts: one running or stopped by the owner afterwards (planned again, held anew once started
-again), one the owner started anyway ("Start anyway") and one whose workspace was taken from it
-go on once a workspace is free, whatever arrows are drawn. An arrow is kept apart from the waits the
+again), one the owner started anyway ("Start anyway") and one whose workstation was taken from it
+go on once a workstation is free, whatever arrows are drawn. An arrow is kept apart from the waits the
 Koordinator inferred: removing it leaves exactly those (a likely conflict still holds only while
 the other card is in progress), and where both name the same card, the arrow holds on once the
 inferred wait has ended. The card says that it waits because the owner connected the cards, in its
@@ -99,12 +99,12 @@ card is finished already is judged as any card. While it waits it is a task nobo
 the Koordinator may merge it with others (the merged task waits for what any of them waited for, in
 the place of the first queued) or delete it.
 
-#### Waiting for a workspace
+#### Waiting for a workstation
 
-A card let start while no workspace is free (all clones leased, or every free one dirty) waits in
-its place in the queue ("Waiting for a workspace"), counting as ahead of the cards after it, and starts
+A card let start while no workstation is free (all clones leased, or every free one dirty) waits in
+its place in the queue ("Waiting for a workstation"), counting as ahead of the cards after it, and starts
 by itself once one is free (looked for at every change of the board, and for dirty clones at least
-once a minute, since they can turn clean without one; see Workspaces for how free clones are looked at). Its reason ends in a link ("Change the number of
+once a minute, since they can turn clean without one; see Workstations for how free clones are looked at). Its reason ends in a link ("Change the number of
 clones", or "Change the number of slots") that opens the configuration at that setting, since the owner may
 not know the pool is the limit nor where it is set. A start that fails for another reason drops the
 card back to planned, showing the error as the reason. Waiting cards are picked up again when Seismic
@@ -124,7 +124,7 @@ one waiting for it, or one being judged, and a card being judged does not move; 
 at the last place it may take and, pulled farther, says why, and such a button stays grey and says
 why when clicked. A drop moves it there in one step: it passes each
 card between, which each move up one place. The order decides who goes first once free, who gets a
-free workspace, and which cards count as ahead when one is judged again.
+free workstation, and which cards count as ahead when one is judged again.
 
 A card waiting for other cards shows, under what it waits for, the chain it waits in as small
 cards one above the other, in the look the canvas gives waits while the pointer is on a card (tags,
@@ -255,7 +255,7 @@ friction) and result (feature cards and setting values, not only rules). It runs
 When a card's work ends (landed, closed without a change, a prototype discarded or built, or deleted
 unfinished), Seismic draws an excerpt from its runs' transcripts without a model. The Agent SDK keeps
 them at `<CLAUDE_CONFIG_DIR or ~/.claude>/projects/<cwd, non-alphanumerics as "-">/<session
-id>.jsonl`, also after the workspace is gone; Seismic looks there first, then in every directory, as
+id>.jsonl`, also after the workstation is gone; Seismic looks there first, then in every directory, as
 the naming may change. A Codex worker's run is its rollout, `<CODEX_HOME or
 ~/.codex>/sessions/<year>/<month>/<day>/rollout-<time>-<thread id>.jsonl` (or the archive beside
 it), found by the thread id of the session (`codex:<thread id>`); it is read through the finished
@@ -485,8 +485,8 @@ passed the words on through `to_seismic` hears that the owner finds the link und
   Rejected: diffing each card in full against the main branch, one after the other on the server's
   thread: cards on a feature branch 766 commits ahead each counted the whole branch (30–70 s per
   card on Windows), and every canvas lost its server connection for minutes.
-- **A start that finds no workspace is a wait, not a failure** (2026-10-05), so a card the owner
-  started starts by itself once a workspace frees up.
+- **A start that finds no workstation is a wait, not a failure** (2026-10-05), so a card the owner
+  started starts by itself once a workstation frees up.
 - **The queue's list is reordered by dragging, not by one-place buttons** (2026-10-26): with more
   than a few cards waiting, a card going from last to first took a click per place, and buttons
   beside the drag were redundant (owner). The drag knows the waits: the row stops where they stop it
@@ -523,7 +523,7 @@ passed the words on through `to_seismic` hears that the owner finds the link und
   configuration (the owner), hence its head, the link into the dialog and the value edited in place.
   Rejected: a "Change" button opening it (the owner could not tell what it did), hand-over
   summaries saying how the app ran (longer, and the notes carry it), and proposing landing, main
-  branch or workspace mode (choices, not knowledge friction reveals). The ramp for new repositories
+  branch or workstation mode (choices, not knowledge friction reveals). The ramp for new repositories
   exists because 10 cards made the first improvements late.
 - **The sheet's conversation looks like a card's** (2026-10-09): one look and one field for every
   conversation.

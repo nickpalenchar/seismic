@@ -599,7 +599,7 @@ const de = {
   queue: {
     button: 'Warteschlange',
     count: (n: number) => (n === 0 ? 'Keine Aufgabe in der Warteschlange' : n === 1 ? 'Eine Aufgabe in der Warteschlange' : `${n} Aufgaben in der Warteschlange`),
-    empty: 'Keine Aufgabe wartet. Eine Aufgabe, die mit laufender Arbeit in Konflikt käme oder keinen freien Workspace findet, reiht sich hier ein.',
+    empty: 'Keine Aufgabe wartet. Eine Aufgabe, die mit laufender Arbeit in Konflikt käme oder keine freie Workstation findet, reiht sich hier ein.',
     checking: 'Seismic prüft',
     waiting: 'In der Warteschlange',
     checkingLong: 'Seismic prüft, ob die Aufgabe einer anderen Karte gleicht oder mit laufender Arbeit wahrscheinlich in Merge-Konflikte gerät.',
@@ -611,20 +611,20 @@ const de = {
     /** After a wait Seismic inferred, the cards the owner's arrows hold it for besides. */
     drawnToo: (cards: { title: string; notStarted: boolean }[]) =>
       `Außerdem wartet sie auf ${cards.map((c) => `„${c.title}“${c.notStarted ? ' (noch nicht gestartet)' : ''}`).join(', ')}: Du hast die Karten verbunden.`,
-    workspace: 'Wartet auf Workspace',
+    workstation: 'Wartet auf Workstation',
     slot: 'Wartet auf freien Slot',
     paused: 'Wartet: Projekt pausiert',
     pausedWhy: 'Die Agenten dieses Projekts sind pausiert.',
     pausedLong: 'Die Agenten dieses Projekts sind pausiert: Die Aufgabe startet von selbst, sobald du sie fortsetzt (▶ beim Projekt in der Projektliste).',
-    /** On the card: why it waits for a workspace. */
-    workspaceWhy: { none: 'Alle Workspaces sind belegt.', dirty: 'Die freien Workspaces haben nicht committete Änderungen.', slots: 'Alle Slots sind belegt.' },
-    workspaceLong: {
-      none: 'Kein Workspace frei: Alle sind belegt, die freien blockiert, oder es ist keiner eingerichtet. Die Aufgabe startet von selbst, sobald einer frei wird. Was einen Workspace blockiert, zeigt „Workspaces“ oben in der Leiste.',
-      dirty: 'Kein Workspace frei: Jeder freie hat noch nicht committete Änderungen. Die Aufgabe startet von selbst, sobald einer sauber ist. Welche Dateien es sind, zeigt „Workspaces“ oben in der Leiste.',
-      slots: 'Kein Slot frei: Auf jedem Rechner mit freiem Workspace arbeiten so viele Agenten, wie er Slots hat. Die Aufgabe startet von selbst, sobald einer fertig ist.',
+    /** On the card: why it waits for a workstation. */
+    workstationWhy: { none: 'Alle Workstations sind belegt.', dirty: 'Die freien Workstations haben nicht committete Änderungen.', slots: 'Alle Slots sind belegt.' },
+    workstationLong: {
+      none: 'Keine Workstation frei: Alle sind belegt, die freien blockiert, oder es ist keine eingerichtet. Die Aufgabe startet von selbst, sobald eine frei wird. Was eine Workstation blockiert, zeigt „Workstations“ oben in der Leiste.',
+      dirty: 'Keine Workstation frei: Jede freie hat noch nicht committete Änderungen. Die Aufgabe startet von selbst, sobald eine sauber ist. Welche Dateien es sind, zeigt „Workstations“ oben in der Leiste.',
+      slots: 'Kein Slot frei: Auf jedem Rechner mit freier Workstation arbeiten so viele Agenten, wie er Slots hat. Die Aufgabe startet von selbst, sobald einer fertig ist.',
     },
     /** On the card: opens the configuration at the repository's clone count, or its slots. */
-    workspaceConfig: { none: 'Anzahl der Klone ändern', dirty: 'Anzahl der Klone ändern', slots: 'Anzahl der Slots ändern' },
+    workstationConfig: { none: 'Anzahl der Klone ändern', dirty: 'Anzahl der Klone ändern', slots: 'Anzahl der Slots ändern' },
     force: 'Trotzdem starten',
     dequeue: 'Aus der Warteschlange nehmen',
     drag: 'Ziehen, um die Aufgabe an einen anderen Platz zu stellen',
@@ -700,8 +700,8 @@ const de = {
     notPlanned: 'Nur eine geplante Aufgabe kann gestartet werden.',
     queued: 'Die Aufgabe liegt schon bei Seismic.',
     notQueued: 'Die Aufgabe wartet nicht in der Warteschlange.',
-    notEvictable: 'Diesen Workspace kann die Karte nicht abgeben.',
-    evicting: 'Die Aufgabe gibt gerade ihren Workspace ab; starte sie gleich noch einmal.',
+    notEvictable: 'Diese Workstation kann die Karte nicht abgeben.',
+    evicting: 'Die Aufgabe gibt gerade ihre Workstation ab; starte sie gleich noch einmal.',
     newRepoDue: 'Seismic legt das neue Repository gerade an.',
     newRepoPath: 'Für das neue Repository fehlt der Ordner.',
     newRepoGone: 'Zu spät: Seismic legt das Repository schon an.',
@@ -736,10 +736,10 @@ const de = {
     notMergeable: 'Diese Aufgaben lassen sich gerade nicht zusammenführen. Starte von einer unbearbeiteten Aufgabe und wähle eine verfügbare Partneraufgabe.',
     mergeChanged: 'Die Aufgaben haben sich seit dem Vergleich geändert. Trenne sie und führe sie erneut zusammen.',
     planCard: 'Das kommt aus dem Plan-Dokument; geändert wird es dort.',
-    noWorkspace: 'Kein Workspace frei: Alle sind belegt oder es ist keiner eingerichtet.',
-    dirtyWorkspaces: 'Kein Workspace frei: Jeder freie hat noch nicht committete Änderungen.',
-    noSlot: 'Kein Slot frei: Auf jedem Rechner mit freiem Workspace arbeiten so viele Agenten, wie er Slots hat.',
-    workspace: 'Der Workspace für den Agenten ließ sich nicht vorbereiten (git-Fehler).',
+    noWorkstation: 'Keine Workstation frei: Alle sind belegt oder es ist keine eingerichtet.',
+    dirtyWorkstations: 'Keine Workstation frei: Jede freie hat noch nicht committete Änderungen.',
+    noSlot: 'Kein Slot frei: Auf jedem Rechner mit freier Workstation arbeiten so viele Agenten, wie er Slots hat.',
+    workstation: 'Die Workstation für den Agenten ließ sich nicht vorbereiten (git-Fehler).',
     emptyText: 'Bitte zuerst einen Text eingeben.',
     unknownPreference: 'Diese Präferenz gibt es nicht mehr.',
     unknownSetting: 'Über diesen Vorschlag ist schon entschieden.',
@@ -773,7 +773,7 @@ const de = {
     nothingOutdated: 'Keine geteilte Demo ist veraltet.',
     exportTooLarge: 'Das Video ist zu groß für eine einzelne HTML-Datei; als ZIP geht es.',
     exportNotAlone: 'Die Seite lädt Dateien neben ihrer index.html; sie geht nur als ZIP.',
-    landDirty: 'Nicht gelandet: Im Workspace liegen noch nicht committete Änderungen. Der Agent kümmert sich darum; danach landet die Arbeit ohne neue Freigabe.',
+    landDirty: 'Nicht gelandet: In der Workstation liegen noch nicht committete Änderungen. Der Agent kümmert sich darum; danach landet die Arbeit ohne neue Freigabe.',
     landConflict: 'Nicht gelandet: Beim Rebase auf main gab es Konflikte. Der Agent löst sie; danach landet die Arbeit ohne neue Freigabe.',
     landEmpty: 'Nicht gelandet: Der Branch enthält keine Commits. Der Agent sieht nach; danach landet die Arbeit ohne neue Freigabe.',
     landCheckout: 'Nicht gelandet: Der Seismic-Checkout steht nicht auf main und hat nicht committete Änderungen. Der Agent kümmert sich darum; danach landet die Arbeit ohne neue Freigabe.',
@@ -844,7 +844,7 @@ const de = {
   },
   app: {
     open: 'App öffnen',
-    hint: (where: string) => `Die App dieser Karte läuft gerade im Workspace (${where}): zum Ausprobieren von Hand. Seismic lässt sie danach noch mindestens 30 Minuten laufen.`,
+    hint: (where: string) => `Die App dieser Karte läuft gerade in der Workstation (${where}): zum Ausprobieren von Hand. Seismic lässt sie danach noch mindestens 30 Minuten laufen.`,
   },
   /** A review card: someone outside's pull request, which its agent reviews and the owner merges. */
   review: {
@@ -1462,12 +1462,12 @@ const de = {
       harnesses: { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity' },
       codexDefault: 'Codex-Kontostandard',
       agyDefault: 'Antigravity-Kontostandard',
-      agyScope: 'Vorschau: Antigravity (agy) arbeitet in lokalen Git-Workspaces mit deinem persönlichen Google-Login, vollautomatisch in der Betriebssystem-Sandbox und ohne Berechtigungsfragen; Code-Reviews laufen schreibgeschützt. SSH, Ordner ohne Git und Beitrags-Reviews sind noch nicht unterstützt. Die Nutzungsanzeige und die übrigen Rollen bleiben bei Claude Code.',
+      agyScope: 'Vorschau: Antigravity (agy) arbeitet in lokalen Git-Workstations mit deinem persönlichen Google-Login, vollautomatisch in der Betriebssystem-Sandbox und ohne Berechtigungsfragen; Code-Reviews laufen schreibgeschützt. SSH, Ordner ohne Git und Beitrags-Reviews sind noch nicht unterstützt. Die Nutzungsanzeige und die übrigen Rollen bleiben bei Claude Code.',
       loadingModels: 'Modelle werden geladen …',
       reloadModels: 'Modelle erneut laden',
       codexAutoReview: 'Codex’ automatische Prüfung entscheidet über Berechtigungen',
       codexAutoReviewHint: 'An: Was ein Codex-Agent an einer Aufgabe außerhalb seiner Sandbox tun will (Netzwerk, ein lokaler Server, Git-Schreibzugriffe), beurteilt Codex’ eigener Prüfer, wie der Auto-Modus bei Claude Code; keine Berechtigungsfrage erreicht die Karte. Aus: Du wirst jedes Mal auf der Karte gefragt.',
-      codexScope: 'Vorschau: Codex arbeitet in lokalen Git-Workspaces mit seinem eigenen Login. SSH, Ordner ohne Git und Beitrags-Reviews sind noch nicht unterstützt; die Konfiguration des Repositorys unter .codex laden sie erst, wenn du ihr in der Konfiguration vertraut hast. Die Nutzungsanzeige und die übrigen Rollen bleiben bei Claude Code.',
+      codexScope: 'Vorschau: Codex arbeitet in lokalen Git-Workstations mit seinem eigenen Login. SSH, Ordner ohne Git und Beitrags-Reviews sind noch nicht unterstützt; die Konfiguration des Repositorys unter .codex laden sie erst, wenn du ihr in der Konfiguration vertraut hast. Die Nutzungsanzeige und die übrigen Rollen bleiben bei Claude Code.',
       hint: 'Harness, Modell und Effort gelten für neue Sitzungen. Laufende und nach einem Neustart fortgesetzte Aufgaben behalten ihre Auswahl. Voreingestellt ist Claude Code mit Opus.',
       model: 'Modell',
       effort: 'Effort',
@@ -1539,11 +1539,11 @@ const de = {
     newRepo: 'Neues Repository',
     repos: 'Repositories',
     savesAll: 'Speichern nimmt die Änderungen aller Projekte mit; links markiert.',
-    groups: { workspaces: 'Wo die Agenten arbeiten', landing: 'Branch und Landen', app: 'App und Prüfungen', plans: 'Pläne und Sprache', demos: 'Demos' },
+    groups: { workstations: 'Wo die Agenten arbeiten', landing: 'Branch und Landen', app: 'App und Prüfungen', plans: 'Pläne und Sprache', demos: 'Demos' },
     trust: {
       app: 'App stoppen und behalten (app.stop, app.keep): Seismic führt sie aus, wenn eine Karte wartet. Bis dahin bleibt die App laufen.',
       claude: 'Claude-Code-Konfiguration des Repositorys (.claude/, .mcp.json): Agenten führen ihre Hooks und MCP-Server ohne Rückfrage aus. Bis dahin arbeiten sie ohne sie.',
-      codex: 'Codex-Konfiguration des Repositorys (.codex/): Codex-Worker laden ihre Einstellungen, Hooks, MCP-Server und Regeln und führen sie außerhalb ihrer Sandbox aus. Bis dahin, und in einem Workspace, in dem sie anders ist, arbeiten sie ohne sie.',
+      codex: 'Codex-Konfiguration des Repositorys (.codex/): Codex-Worker laden ihre Einstellungen, Hooks, MCP-Server und Regeln und führen sie außerhalb ihrer Sandbox aus. Bis dahin, und in einer Workstation, in der sie anders ist, arbeiten sie ohne sie.',
       trust: 'Diesen Befehlen vertrauen',
       blankOnly: (files: string) => `In ${files} hat sich nur Leerraum am Anfang oder Ende geändert, den die Ansicht nicht zeigt. Er kann entscheiden, ob ein Hook läuft.`,
     },
@@ -1588,7 +1588,7 @@ const de = {
         : existing + made === 1
           ? 'Ein Klon auf diesem Rechner.'
           : `Zusammen ${existing + made} Klone auf diesem Rechner${existing && made ? ` (${existing} ${existing === 1 ? 'vorhandener' : 'vorhandene'}, ${made} ${made === 1 ? 'neuer' : 'neue'})` : ''}.`,
-    workspaces: 'Vorhandene Klone, einer pro Zeile',
+    workstations: 'Vorhandene Klone, einer pro Zeile',
     cloneIsRepo: 'Der Ordner des Repositories selbst ist kein Klon für Agenten: Dort landet die fertige Arbeit auf main.',
     slots: 'Slots hier',
     slotsAll: 'alle',
@@ -1631,9 +1631,9 @@ const de = {
       planExclude: 'ausgenommen, mit Komma getrennt',
       softPaths: 'Weiche Pfade',
       softPathsHint: 'Pfade, deren Änderungen nie als Konflikt zwischen zwei Aufgaben zählen (Doku, Plan-Dokumente), einer pro Zeile; ein / am Ende nimmt ein Verzeichnis.',
-      workspaces: 'Agenten arbeiten in',
+      workstations: 'Agenten arbeiten in',
       workIn: { worktrees: 'Worktrees', clones: 'Klonen' },
-      workspacesHint: 'Ändern startet die Agenten dieses Repositorys neu, sobald keiner mitten in einem Schritt ist; Seismic und alle anderen arbeiten weiter.',
+      workstationsHint: 'Ändern startet die Agenten dieses Repositorys neu, sobald keiner mitten in einem Schritt ist; Seismic und alle anderen arbeiten weiter.',
       prNoise: 'Konten ohne Review',
       prNoiseHint: 'Konten, deren Kommentare an Pull Requests kein Review sind (Deploy-Bots), eines pro Zeile.',
       run: 'So läuft die App',
@@ -2138,10 +2138,10 @@ const de = {
     nowStop: 'Jetzt beenden',
     nowUpdate: 'Jetzt aktualisieren',
     nowRisk:
-      'Ohne zu warten: Die Agenten werden mitten im Schritt unterbrochen. Was sie gerade laufen lassen (Tests, Builds, gestartete Server, eine Demo-Aufnahme), wird gestoppt. Nach dem Neustart machen sie in ihrer Sitzung weiter und erfahren davon, müssen Abgebrochenes aber neu anstoßen; eine halb fertige Änderung liegt bis dahin unfertig im Workspace.',
+      'Ohne zu warten: Die Agenten werden mitten im Schritt unterbrochen. Was sie gerade laufen lassen (Tests, Builds, gestartete Server, eine Demo-Aufnahme), wird gestoppt. Nach dem Neustart machen sie in ihrer Sitzung weiter und erfahren davon, müssen Abgebrochenes aber neu anstoßen; eine halb fertige Änderung liegt bis dahin unfertig in der Workstation.',
     nowOwner: 'Ohne zu warten: Dein Video oder Diktat wird unterbrochen. Was offen war, ist danach wieder offen, das Video an derselben Stelle.',
     nowRiskStop:
-      'Ohne zu warten: Die Agenten werden mitten im Schritt unterbrochen. Was sie gerade laufen lassen (Tests, Builds, gestartete Server, eine Demo-Aufnahme), wird gestoppt. Beim nächsten Start machen sie in ihrer Sitzung weiter und erfahren davon, müssen Abgebrochenes aber neu anstoßen; eine halb fertige Änderung liegt bis dahin unfertig im Workspace.',
+      'Ohne zu warten: Die Agenten werden mitten im Schritt unterbrochen. Was sie gerade laufen lassen (Tests, Builds, gestartete Server, eine Demo-Aufnahme), wird gestoppt. Beim nächsten Start machen sie in ihrer Sitzung weiter und erfahren davon, müssen Abgebrochenes aber neu anstoßen; eine halb fertige Änderung liegt bis dahin unfertig in der Workstation.',
     going: 'Seismic startet neu …',
     goingStop: 'Seismic wird beendet …',
     goingUpdate: 'Seismic wird aktualisiert …',
@@ -2325,8 +2325,8 @@ const de = {
       hint: 'Wie viel vom Sitzungs- und vom Wochenlimit des Claude-Abos verbraucht ist, mit dem Claude Code auf diesem Rechner angemeldet ist: jede Minute neu, solange eine Seite von Seismic offen ist. Mit einem API-Schlüssel gibt es keine Limits zu zeigen. Gilt sofort.',
     },
   },
-  workspaces: {
-    label: 'Workspaces',
+  workstations: {
+    label: 'Workstations',
     free: (n: number, total: number, blocked = 0) => (total === 0 ? 'keine eingerichtet' : n > 0 ? `${n} frei` : blocked ? 'keiner frei' : 'alle belegt'),
     /** Beside how many are free: the free clones no new card gets now. */
     blockedCount: (n: number) => `· ${n} blockiert`,
@@ -2335,11 +2335,11 @@ const de = {
     /** `listed`: the cards' worktrees follow. */
     worktreeSlots: (name: string, busy: number, slots: number, listed: boolean) => `${name}: ${busy} von ${slots} ${slots === 1 ? 'Slot' : 'Slots'} in Arbeit${listed ? ':' : '.'}`,
     offCanvas: 'eine Karte, die nicht im Projekt liegt',
-    /** A card holding a workspace that is not on the canvas (in the archive, say). */
+    /** A card holding a workstation that is not on the canvas (in the archive, say). */
     notOnCanvas: (title: string) => `${title} (nicht im Projekt)`,
-    /** Beside a card holding a workspace that lies on another canvas. */
+    /** Beside a card holding a workstation that lies on another canvas. */
     onCanvas: (canvas: string) => `auf ${canvas}`,
-    /** In the list of workspaces, for one no card holds. */
+    /** In the list of workstations, for one no card holds. */
     freeRow: 'frei',
     blockedRow: 'blockiert',
     kept: (path: string) => `bleibt: nicht gelandete Arbeit in ${path}`,
@@ -2359,18 +2359,18 @@ const de = {
         `git konnte ${path} eben nicht für eine Karte vorbereiten: ${error}. Seismic versucht es in einer Minute wieder; scheitert es weiter, prüfe dort Netz und Zugang zum Remote.`,
     },
     atWork: 'arbeitet',
-    waiting: (n: number) => (n === 1 ? '1 Karte wartet auf einen freien Workspace.' : `${n} Karten warten auf einen freien Workspace.`),
+    waiting: (n: number) => (n === 1 ? '1 Karte wartet auf eine freie Workstation.' : `${n} Karten warten auf eine freie Workstation.`),
     waitingSlot: (n: number) => (n === 1 ? '1 Karte wartet auf einen freien Slot.' : `${n} Karten warten auf einen freien Slot.`),
     /** Beside a card in the list while every clone is taken and a card waits: opens what gives its clone away. */
     more: 'Mehr',
-    /** Behind "⋯": its workspace goes to the card waiting longest. */
+    /** Behind "⋯": its workstation goes to the card waiting longest. */
     take: 'An wartende Karte abgeben',
     takeWhat:
-      'Die Karte, die am längsten wartet, bekommt diesen Workspace. Der Agent dieser Karte stoppt; was er nicht committet hat, bleibt als Commit auf ihrem Branch. Sie wartet dann selbst und macht dort weiter, sobald wieder einer frei ist.',
-    /** Beside a card whose workspace goes once the undo window is through. */
+      'Die Karte, die am längsten wartet, bekommt diese Workstation. Der Agent dieser Karte stoppt; was er nicht committet hat, bleibt als Commit auf ihrem Branch. Sie wartet dann selbst und macht dort weiter, sobald wieder eine frei ist.',
+    /** Beside a card whose workstation goes once the undo window is through. */
     leaving: 'gibt ihn ab',
-    taken: (title: string) => `„${title}“ gibt ihren Workspace ab.`,
-    keptBack: (title: string) => `„${title}“ behält ihren Workspace.`,
+    taken: (title: string) => `„${title}“ gibt ihre Workstation ab.`,
+    keptBack: (title: string) => `„${title}“ behält ihre Workstation.`,
   },
   archive: {
     button: 'Archiv',
@@ -2385,7 +2385,7 @@ const de = {
     archive: 'Archivieren',
     archiveDone: (n: number) => (n === 1 ? '1 erledigte Aufgabe archivieren' : `${n} erledigte Aufgaben archivieren`),
     unarchive: 'Zurück in das Projekt',
-    /** Why a stopped task whose workspace holds work cannot go into the archive. */
+    /** Why a stopped task whose workstation holds work cannot go into the archive. */
     holdsWork: 'Auf dem Branch liegt Arbeit, die noch nicht gelandet ist: neu starten oder löschen.',
     archived: (title: string) => `„${title}“ archiviert.`,
     archivedMany: (n: number) => (n === 1 ? '1 Aufgabe archiviert.' : `${n} Aufgaben archiviert.`),
@@ -3063,7 +3063,7 @@ const en: Strings = {
   queue: {
     button: 'Queue',
     count: (n: number) => (n === 0 ? 'No task in the queue' : n === 1 ? 'One task in the queue' : `${n} tasks in the queue`),
-    empty: 'No task waits. A task that would conflict with work in progress, or finds no free workspace, lines up here.',
+    empty: 'No task waits. A task that would conflict with work in progress, or finds no free workstation, lines up here.',
     checking: 'Seismic checking',
     waiting: 'In the queue',
     checkingLong: 'Seismic checks for possible duplicate cards and likely merge conflicts with work in progress.',
@@ -3073,18 +3073,18 @@ const en: Strings = {
     drawn: 'You connected the cards; it starts once that is done.',
     drawnToo: (cards: { title: string; notStarted: boolean }[]) =>
       `It also waits for ${cards.map((c) => `“${c.title}”${c.notStarted ? ' (not started yet)' : ''}`).join(', ')}: you connected the cards.`,
-    workspace: 'Waiting for a workspace',
+    workstation: 'Waiting for a workstation',
     slot: 'Waiting for a free slot',
     paused: 'Waiting: project paused',
     pausedWhy: "This project's agents are paused.",
     pausedLong: "This project's agents are paused: the task starts by itself once you resume them (▶ in the project's row in the project list).",
-    workspaceWhy: { none: 'All workspaces are taken.', dirty: 'The free workspaces have uncommitted changes.', slots: 'All slots are taken.' },
-    workspaceLong: {
-      none: 'No workspace free: all are taken, the free ones blocked, or none is set up. The task starts by itself as soon as one is free. “Workspaces” in the bar at the top shows what blocks one.',
-      dirty: 'No workspace free: every free one has uncommitted changes. The task starts by itself as soon as one is clean. “Workspaces” in the bar at the top shows which files they are.',
-      slots: 'No slot free: every machine with a free workspace has as many agents at work as it has slots. The task starts by itself as soon as one is done.',
+    workstationWhy: { none: 'All workstations are taken.', dirty: 'The free workstations have uncommitted changes.', slots: 'All slots are taken.' },
+    workstationLong: {
+      none: 'No workstation free: all are taken, the free ones blocked, or none is set up. The task starts by itself as soon as one is free. “Workstations” in the bar at the top shows what blocks one.',
+      dirty: 'No workstation free: every free one has uncommitted changes. The task starts by itself as soon as one is clean. “Workstations” in the bar at the top shows which files they are.',
+      slots: 'No slot free: every machine with a free workstation has as many agents at work as it has slots. The task starts by itself as soon as one is done.',
     },
-    workspaceConfig: { none: 'Change the number of clones', dirty: 'Change the number of clones', slots: 'Change the number of slots' },
+    workstationConfig: { none: 'Change the number of clones', dirty: 'Change the number of clones', slots: 'Change the number of slots' },
     force: 'Start anyway',
     dequeue: 'Take out of the queue',
     drag: 'Drag to move the task to another place',
@@ -3150,8 +3150,8 @@ const en: Strings = {
     notPlanned: 'Only a planned task can be started.',
     queued: 'The task is already with Seismic.',
     notQueued: 'The task is not waiting in the queue.',
-    notEvictable: 'This card cannot give up this workspace.',
-    evicting: 'The task is giving up its workspace right now; start it again in a moment.',
+    notEvictable: 'This card cannot give up this workstation.',
+    evicting: 'The task is giving up its workstation right now; start it again in a moment.',
     newRepoDue: 'Seismic is creating the new repository right now.',
     newRepoPath: 'The new repository has no folder yet.',
     newRepoGone: 'Too late: Seismic is creating the repository already.',
@@ -3186,10 +3186,10 @@ const en: Strings = {
     notMergeable: 'These tasks cannot be merged right now. Start from an unworked task and choose an available partner.',
     mergeChanged: 'The tasks changed since this comparison. Separate them and merge again.',
     planCard: 'This comes from the plan doc; it is changed there.',
-    noWorkspace: 'No workspace free: all are taken or none is set up.',
-    dirtyWorkspaces: 'No workspace free: every free one has uncommitted changes.',
-    noSlot: 'No slot free: every machine with a free workspace has as many agents at work as it has slots.',
-    workspace: 'The workspace for the agent could not be prepared (git error).',
+    noWorkstation: 'No workstation free: all are taken or none is set up.',
+    dirtyWorkstations: 'No workstation free: every free one has uncommitted changes.',
+    noSlot: 'No slot free: every machine with a free workstation has as many agents at work as it has slots.',
+    workstation: 'The workstation for the agent could not be prepared (git error).',
     emptyText: 'Please enter some text first.',
     unknownPreference: 'This preference no longer exists.',
     unknownSetting: 'This proposal has been decided already.',
@@ -3223,7 +3223,7 @@ const en: Strings = {
     nothingOutdated: 'No shared demo is outdated.',
     exportTooLarge: 'The video is too large for a single HTML file; a ZIP works.',
     exportNotAlone: 'The page loads files beside its index.html; it only goes as a ZIP.',
-    landDirty: 'Not landed: the workspace still has uncommitted changes. The agent sees to them; then the work lands without another approval.',
+    landDirty: 'Not landed: the workstation still has uncommitted changes. The agent sees to them; then the work lands without another approval.',
     landConflict: 'Not landed: rebasing onto main ran into conflicts. The agent resolves them; then the work lands without another approval.',
     landEmpty: 'Not landed: the branch has no commits. The agent looks into it; then the work lands without another approval.',
     landPush: 'Not landed: the push to main was rejected. Please check why and approve again.',
@@ -3285,7 +3285,7 @@ const en: Strings = {
   },
   app: {
     open: 'Open app',
-    hint: (where: string) => `This card's app is running in its workspace (${where}): to try it by hand. Seismic keeps it running for at least 30 minutes after.`,
+    hint: (where: string) => `This card's app is running in its workstation (${where}): to try it by hand. Seismic keeps it running for at least 30 minutes after.`,
   },
   review: {
     kind: (n: number, author: string) => `PR #${n} · ${author}`,
@@ -3872,12 +3872,12 @@ const en: Strings = {
       harnesses: { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity' },
       codexDefault: 'Codex account default',
       agyDefault: 'Antigravity account default',
-      agyScope: 'Preview: Antigravity (agy) works in local Git workspaces with your personal Google login, fully automatic inside the operating system’s sandbox and without permission questions; code reviews run read-only. SSH, folders without Git and contribution reviews are not supported yet. The usage meter and other roles remain Claude-based.',
+      agyScope: 'Preview: Antigravity (agy) works in local Git workstations with your personal Google login, fully automatic inside the operating system’s sandbox and without permission questions; code reviews run read-only. SSH, folders without Git and contribution reviews are not supported yet. The usage meter and other roles remain Claude-based.',
       loadingModels: 'Loading models…',
       reloadModels: 'Reload models',
       codexAutoReview: 'Codex’s automatic review decides permissions',
       codexAutoReviewHint: 'On: what a Codex agent on a task wants to do outside its sandbox (network, a local server, git writes) is judged by Codex’s own reviewer, as auto mode does for Claude Code; no permission question reaches the card. Off: you are asked on the card each time.',
-      codexScope: 'Preview: Codex uses its own login in local Git workspaces. SSH, folders without Git and contribution reviews are not supported yet; a repository’s .codex configuration is loaded only once you trust it in the configuration. The usage meter and other roles remain Claude-based.',
+      codexScope: 'Preview: Codex uses its own login in local Git workstations. SSH, folders without Git and contribution reviews are not supported yet; a repository’s .codex configuration is loaded only once you trust it in the configuration. The usage meter and other roles remain Claude-based.',
       hint: 'Harness, model and effort apply to new sessions. Running tasks and tasks resumed after a restart keep their selection. The default is Claude Code with Opus.',
       model: 'Model',
       effort: 'Effort',
@@ -3948,11 +3948,11 @@ const en: Strings = {
     newRepo: 'New repository',
     repos: 'Repositories',
     savesAll: 'Saving takes the changes of all projects; marked on the left.',
-    groups: { workspaces: 'Where agents work', landing: 'Branch and landing', app: 'App and checks', plans: 'Plans and language', demos: 'Demos' },
+    groups: { workstations: 'Where agents work', landing: 'Branch and landing', app: 'App and checks', plans: 'Plans and language', demos: 'Demos' },
     trust: {
       app: 'Stopping and keeping the app (app.stop, app.keep): Seismic runs them while a card waits. Until then the app keeps running.',
       claude: 'The repository’s Claude Code configuration (.claude/, .mcp.json): agents run its hooks and MCP servers without asking. Until then they work without it.',
-      codex: 'The repository’s Codex configuration (.codex/): Codex workers load its settings, hooks, MCP servers and rules, and run them outside their sandbox. Until then, and in a workspace where it differs, they work without it.',
+      codex: 'The repository’s Codex configuration (.codex/): Codex workers load its settings, hooks, MCP servers and rules, and run them outside their sandbox. Until then, and in a workstation where it differs, they work without it.',
       trust: 'Trust these commands',
       blankOnly: (files: string) => `In ${files} only space at the start or end changed, which the view does not show. It can decide whether a hook runs.`,
     },
@@ -3998,7 +3998,7 @@ const en: Strings = {
         : existing + made === 1
           ? 'One clone on this machine.'
           : `${existing + made} clones on this machine in all${existing && made ? ` (${existing} existing, ${made} new)` : ''}.`,
-    workspaces: 'Existing clones, one per line',
+    workstations: 'Existing clones, one per line',
     cloneIsRepo: "The repository's own folder is no clone for agents: finished work lands on its main there.",
     slots: 'Slots here',
     slotsAll: 'all',
@@ -4034,16 +4034,16 @@ const en: Strings = {
       checks: 'Checks',
       checksHint: 'Commands an agent runs before handing over, one per line.',
       setup: 'Setup',
-      setupHint: 'Command an agent runs first in its workspace (dependencies).',
+      setupHint: 'Command an agent runs first in its workstation (dependencies).',
       planDocs: 'Plan docs',
       planDir: 'Directory',
       planDocsHint: 'A path in the repository is read from the main branch. An absolute path (or ~/…) is a folder on this machine outside git, for plans that stay out of the repository: Seismic reads it there, and the agents tick their workstreams off there.',
       planExclude: 'excluded, comma-separated',
       softPaths: 'Soft paths',
       softPathsHint: 'Paths whose edits never count as a conflict between two tasks (docs, plan docs), one per line; a trailing / covers a directory.',
-      workspaces: 'Agents work in',
+      workstations: 'Agents work in',
       workIn: { worktrees: 'worktrees', clones: 'clones' },
-      workspacesHint: "Changing it restarts this repository's agents once none is in the middle of a step; Seismic and everyone else work on.",
+      workstationsHint: "Changing it restarts this repository's agents once none is in the middle of a step; Seismic and everyone else work on.",
       prNoise: 'Accounts without review',
       prNoiseHint: 'Accounts whose pull request comments are not review feedback (deploy bots), one per line.',
       run: 'How to run the app',
@@ -4547,10 +4547,10 @@ const en: Strings = {
     nowStop: 'Shut down now',
     nowUpdate: 'Update now',
     nowRisk:
-      'Without waiting: the agents are cut off mid-step. What they are running (tests, builds, servers they started, a demo recording) is stopped. After the restart they carry on in their session and learn of it, but have to start again what was cut off; a half-finished change lies unfinished in the workspace until then.',
+      'Without waiting: the agents are cut off mid-step. What they are running (tests, builds, servers they started, a demo recording) is stopped. After the restart they carry on in their session and learn of it, but have to start again what was cut off; a half-finished change lies unfinished in the workstation until then.',
     nowOwner: 'Without waiting: your video or dictation is cut off. What was open is open again afterwards, the video at the same place.',
     nowRiskStop:
-      'Without waiting: the agents are cut off mid-step. What they are running (tests, builds, servers they started, a demo recording) is stopped. At the next start they carry on in their session and learn of it, but have to start again what was cut off; a half-finished change lies unfinished in the workspace until then.',
+      'Without waiting: the agents are cut off mid-step. What they are running (tests, builds, servers they started, a demo recording) is stopped. At the next start they carry on in their session and learn of it, but have to start again what was cut off; a half-finished change lies unfinished in the workstation until then.',
     going: 'Seismic is restarting …',
     goingStop: 'Seismic is shutting down …',
     goingUpdate: 'Seismic is updating …',
@@ -4729,8 +4729,8 @@ const en: Strings = {
       hint: 'How much of the session and the weekly limit is used of the Claude plan that Claude Code on this machine is logged in with: every minute, while a page of Seismic is open. With an API key there are no limits to show. Applies at once.',
     },
   },
-  workspaces: {
-    label: 'Workspaces',
+  workstations: {
+    label: 'Workstations',
     free: (n: number, total: number, blocked = 0) => (total === 0 ? 'none set up' : n > 0 ? `${n} free` : blocked ? 'none free' : 'all taken'),
     blockedCount: (n: number) => `· ${n} blocked`,
     host: (name: string, busy: number, slots: number, taken: number, total: number) =>
@@ -4755,15 +4755,15 @@ const en: Strings = {
         `git could not make ${path} ready for a card just now: ${error}. Seismic tries again in a minute; if it keeps failing, check the network and access to the remote there.`,
     },
     atWork: 'at work',
-    waiting: (n: number) => (n === 1 ? '1 card is waiting for a free workspace.' : `${n} cards are waiting for a free workspace.`),
+    waiting: (n: number) => (n === 1 ? '1 card is waiting for a free workstation.' : `${n} cards are waiting for a free workstation.`),
     waitingSlot: (n: number) => (n === 1 ? '1 card is waiting for a free slot.' : `${n} cards are waiting for a free slot.`),
     more: 'More',
     take: 'Give to the waiting card',
     takeWhat:
-      "The card waiting longest gets this workspace. This card's agent stops; what it has not committed is kept in a commit on its branch. The card then waits itself and goes on there once one is free again.",
+      "The card waiting longest gets this workstation. This card's agent stops; what it has not committed is kept in a commit on its branch. The card then waits itself and goes on there once one is free again.",
     leaving: 'giving it up',
-    taken: (title: string) => `“${title}” gives up its workspace.`,
-    keptBack: (title: string) => `“${title}” keeps its workspace.`,
+    taken: (title: string) => `“${title}” gives up its workstation.`,
+    keptBack: (title: string) => `“${title}” keeps its workstation.`,
   },
   archive: {
     button: 'Archive',
@@ -5032,10 +5032,10 @@ export const stateLabel = (i: { demos?: { asked?: true }[]; kind?: string; threa
       ? t.queue.checking
       : 'paused' in i.queue
         ? t.queue.paused
-      : 'workspace' in i.queue
-        ? i.queue.workspace === 'slots'
+      : 'workstation' in i.queue
+        ? i.queue.workstation === 'slots'
           ? t.queue.slot
-          : t.queue.workspace
+          : t.queue.workstation
         : t.queue.waiting
     : i.state === 'waiting' && i.need
       ? i.answering

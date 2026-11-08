@@ -238,8 +238,8 @@ if (args.includes('--worker')) {
       return it?.state === 'waiting' && it;
     });
     // the one clone of the canvas's one repository
-    const workspaces = join(home, 'workspaces');
-    const clone = join(workspaces, readdirSync(workspaces)[0]!, '1');
+    const workstations = join(home, 'workspaces');
+    const clone = join(workstations, readdirSync(workstations)[0]!, '1');
     const branchLog = Bun.spawnSync(['git', '-C', clone, 'log', '--oneline', '-1', '--', 'hello.txt'], { stdout: 'pipe' }).stdout.toString().trim();
     expect(branchLog, 'no commit with hello.txt in the clone');
     return `${item.need}; ${branchLog}`;

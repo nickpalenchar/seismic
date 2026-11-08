@@ -7,7 +7,7 @@ import { codexLimit, codexSandbox, createCodexRuntime, projectTrust } from './co
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { gitRepo } from './testing';
 import { execTools } from './exec-tools';
-import { git } from './workspaces';
+import { git } from './workstations';
 import type { AgentEvent, AgentSession, AgentSpec } from './runtime';
 
 const model = { model: 'codex-test', isDefault: true, supportedReasoningEfforts: [{ reasoningEffort: 'high' }], inputModalities: ['text', 'image'] };
@@ -78,9 +78,9 @@ test('handshake enables experimental tools; model is discovered and names normal
 
 test('execution tools are exposed and callable with a single Seismic prefix', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'obeya-codex-exec-'));
-  const workspace = gitRepo(join(dir, 'repo'));
+  const workstation = gitRepo(join(dir, 'repo'));
   try {
-    const tools = execTools({ workspace, places: () => [], rules: () => ['pwd'], ask: async () => ({ allow: false, message: 'denied' }) });
+    const tools = execTools({ workstation, places: () => [], rules: () => ['pwd'], ask: async () => ({ allow: false, message: 'denied' }) });
     const { wire } = fixture({ tools });
     await until(() => wire.n === 1);
     const start = wire.calls.find((c) => c.method === 'thread/start')!;
@@ -520,13 +520,13 @@ test("with auto review, Codex's own reviewer decides on approvals, a refusal sho
   await until(() => wire.n === 1);
   expect(wire.calls.find((c) => c.method === 'thread/start')?.params).toMatchObject({ approvalPolicy: 'on-request', approvalsReviewer: 'auto_review', sandbox: 'workspace-write' });
   const review = (status: string, action: Record<string, unknown>) =>
-    wire.handlers.notification('item/autoApprovalReview/completed', { threadId: 'thread-1', turnId: 'turn-1', reviewId: 'r', review: { status, riskLevel: 'high', rationale: 'Deletes files outside the workspace' }, action });
+    wire.handlers.notification('item/autoApprovalReview/completed', { threadId: 'thread-1', turnId: 'turn-1', reviewId: 'r', review: { status, riskLevel: 'high', rationale: 'Deletes files outside the workstation' }, action });
   review('approved', { type: 'command', command: 'curl -sI https://example.com', cwd: '/w', source: 'shell' });
   review('denied', { type: 'command', command: 'rm -rf ~/x', cwd: '/w', source: 'shell' });
   review('denied', { type: 'networkAccess', host: 'evil.test', port: 443, protocol: 'https', target: 'https://evil.test' });
   expect(events.filter((e) => e.type === 'denied')).toEqual([
-    { type: 'denied', name: 'Bash', input: { command: 'rm -rf ~/x' }, by: 'classifier', reason: 'Deletes files outside the workspace' },
-    { type: 'denied', name: 'Network: https://evil.test', input: {}, by: 'classifier', reason: 'Deletes files outside the workspace' },
+    { type: 'denied', name: 'Bash', input: { command: 'rm -rf ~/x' }, by: 'classifier', reason: 'Deletes files outside the workstation' },
+    { type: 'denied', name: 'Network: https://evil.test', input: {}, by: 'classifier', reason: 'Deletes files outside the workstation' },
   ]);
   for (const spec of [{}, { autoReview: true, readOnly: true }]) {
     const { wire } = fixture(spec);

@@ -1,13 +1,13 @@
 // obeya [--config <canvases.json>]
-// obeya <repo>… [--name <canvas>] [--workspace <path>]… [--clones <n>]
+// obeya <repo>… [--name <canvas>] [--workstation <path>]… [--clones <n>]
 //   [--port <n>] [--dev] [--permission-mode <mode>] [--idle-workers | --record <dir> | --replay <dir>]
 //
 // Serves canvases at http://127.0.0.1:<port>, to the owner alone (owner.ts): it prints a link that
 // signs a browser in, and a second start while it runs prints a new one. Without repositories: the canvases the JSON file
-// lists, `[{ "name"?, "id"?, "repos": [{ "path", "workspaces"?, "clones"? }] }]`, by default
+// lists, `[{ "name"?, "id"?, "repos": [{ "path", "workstations"?, "clones"? }] }]`, by default
 // $SEISMIC_HOME/canvases.json; while that does not exist, none, and the page shows the setup
 // assistant, which checks the machine and creates the first canvas (machine.ts). With repositories: one canvas with them (the first is its home;
-// --workspace and --clones apply to it). Data lives in $SEISMIC_HOME/obeya.db (default
+// --workstation and --clones apply to it). Data lives in $SEISMIC_HOME/obeya.db (default
 // ~/.obeya).
 //
 // Without --dev the process supervises the server: it runs it as a child and starts it again
@@ -92,6 +92,8 @@ const { values, positionals } = parseArgs({
     name: { type: 'string' },
     port: { type: 'string', default: seismicEnv('PORT') ?? '4417' },
     dev: { type: 'boolean', default: false },
+    workstation: { type: 'string', multiple: true, default: [] },
+    // its name before
     workspace: { type: 'string', multiple: true, default: [] },
     clones: { type: 'string' },
     'permission-mode': { type: 'string', default: 'auto' },
@@ -167,7 +169,7 @@ if (source === 'file' && !values.config && !existsSync(configFile)) {
   started = [];
 } else if (source === 'file') {
   if (!existsSync(configFile)) {
-    console.error(`usage: obeya [--config <file>] | <repo>… [--name <canvas>] [--workspace <path>]… [--clones <n>]; [--port <n>] [--dev] [--permission-mode <mode>]
+    console.error(`usage: obeya [--config <file>] | <repo>… [--name <canvas>] [--workstation <path>]… [--clones <n>]; [--port <n>] [--dev] [--permission-mode <mode>]
 (without repositories Seismic reads ${configFile}, which does not exist)`);
     process.exit(2);
   }
@@ -180,7 +182,7 @@ if (source === 'file' && !values.config && !existsSync(configFile)) {
         i === 0
           ? {
               path: resolve(expandHome(path)),
-              ...(values.workspace.length ? { workspaces: values.workspace.map((w) => resolve(expandHome(w))) } : {}),
+              ...(values.workstation.length + values.workspace.length ? { workstations: [...values.workstation, ...values.workspace].map((w) => resolve(expandHome(w))) } : {}),
               ...(values.clones ? { clones: Number(values.clones) } : {}),
             }
           : { path: resolve(expandHome(path)) },
@@ -403,7 +405,7 @@ for (const c of canvases.all()) {
   console.log(`  ${c.board.canvas.name} (/p/${c.id})`);
   for (const r of c.repos)
     console.log(
-      `    ${r.ref.id}: ${r.info.path} (${r.info.folder ? 'a folder without git: every card works in it' : r.adapter.workspaces === 'worktrees' ? 'a worktree per card' : `clones: ${r.workspaces.list().map((w) => w.path).join(', ') || 'none (--workspace or --clones)'}`})`,
+      `    ${r.ref.id}: ${r.info.path} (${r.info.folder ? 'a folder without git: every card works in it' : r.adapter.workstations === 'worktrees' ? 'a worktree per card' : `clones: ${r.workstations.list().map((w) => w.path).join(', ') || 'none (--workstation or --clones)'}`})`,
     );
 }
 const plugin = checkPlugin();

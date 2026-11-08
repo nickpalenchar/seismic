@@ -14,7 +14,7 @@ import { Board } from './board';
 import { Store } from './db';
 import { FakeRuntime, gitRepo, identify } from './testing';
 import { Workers } from './workers';
-import { GIT, git, Workspaces } from './workspaces';
+import { GIT, git, Workstations } from './workstations';
 
 export const ws = (key: string) => ({ key, label: key, title: `Title ${key}`, body: 'Body', done: false, inReview: false });
 export const doc: PlanDoc = { file: 'docs/plan/a.md', title: 'A', goal: 'Goal', workstreams: [ws('W1')], markdown: '' };
@@ -25,7 +25,7 @@ export let board: Board;
 export let docs: PlanDoc[];
 export let runtime: FakeRuntime;
 export let workers: Workers;
-export let spaces: Workspaces;
+export let spaces: Workstations;
 export let store: Store;
 /** With `setup(adapter, true)`: the bare repository the clones come from and push to. */
 export let origin: string;
@@ -57,18 +57,18 @@ export function setup(adapter: RepoAdapter, withOrigin = false, share?: { tags?:
   language = 'de';
   conversation = undefined;
   board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs, dirs: [] }), undefined, holds, () => language, () => conversation ?? language);
-  const workspaces = new Workspaces(store, 'c', { mode: adapter.workspaces, repoPath: main, dir: join(dir, 'ws') });
-  spaces = workspaces;
-  if (adapter.workspaces === 'clones') {
-    workspaces.ensureClones(withOrigin ? origin : main, 1);
-    for (const w of workspaces.list()) identify(w.path);
+  const workstations = new Workstations(store, 'c', { mode: adapter.workstations, repoPath: main, dir: join(dir, 'ws') });
+  spaces = workstations;
+  if (adapter.workstations === 'clones') {
+    workstations.ensureClones(withOrigin ? origin : main, 1);
+    for (const w of workstations.list()) identify(w.path);
   }
   runtime = new FakeRuntime();
   merged = [];
   workers = new Workers({
     board,
     runtime,
-    workspaces,
+    workstations,
     adapter,
     onMerged: (cardId) => void merged.push(cardId),
     env: { OBEYA_URL: 'http://127.0.0.1:4417' },
@@ -85,14 +85,14 @@ export function eachTest() {
     setup({
       ...generic,
       land: 'main',
-      workspaces: 'clones',
+      workstations: 'clones',
       setup: 'bun install',
       checks: ['bun test'],
       app: { run: 'Start it with `bun run stack`; after an API change, `bun run api:restart`. The URL is in `.stack.env` under WEB_URL.' },
     }),
   );
   afterEach(async () => {
-    // git freeing a workspace in the background is done before its repository goes
+    // git freeing a workstation in the background is done before its repository goes
     await workers?.freed();
     rmSync(dir, { recursive: true, force: true });
   });

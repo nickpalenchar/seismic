@@ -39,7 +39,7 @@ const STATES: Record<string, Record<string, string>> = {
   demo: { state: 'waiting', need: 'demo', demo: DEMO },
   review: { state: 'waiting', need: 'review' },
   inPr: { state: 'inPr' },
-  finishing: { state: 'live', workspace: '/w', landed: '{}' },
+  finishing: { state: 'live', workstation: '/w', landed: '{}' },
   planned: { state: 'planned' },
   // LOGIN: the card „Login“, which it waits for
   queued: { state: 'planned', queue: JSON.stringify({ behind: ['LOGIN'], reason: 'Beide ändern die Sitzungsverwaltung.' }) },

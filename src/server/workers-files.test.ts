@@ -5,7 +5,7 @@ import { pagePolicy } from '../core/frame';
 import { serveCardFile } from './demo';
 import { artifact } from './testing';
 import { board, eachTest, main, manual, runtime, spaces, workers } from './workers-fixture';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 eachTest();
 
@@ -18,7 +18,7 @@ async function reportCard() {
   git(main, 'commit', '--quiet', '-m', 'chart');
   const c = manual();
   await workers.start(c.id);
-  const ws = board.row(c.id).workspace!;
+  const ws = board.row(c.id).workstation!;
   writeFileSync(join(ws, 'docs', 'report.md'), '# Report\n\n![Chart](chart.png)\n');
   writeFileSync(join(ws, 'README.md'), 'hello again\n');
   git(ws, 'add', '-A');
@@ -32,7 +32,7 @@ describe('the files a card names as its result', () => {
     const refused = await runtime.last.call('ready_for_review', { summary: 'Fertig.', demo: artifact(), files: [{ path: 'notes.md', caption: 'Notizen' }] });
     expect(refused).toContain('Not handed over: notes.md is not among the files your card made or changed');
     expect(board.item(c.id)!.state).toBe('working');
-    // an absolute path in the workspace counts as the path in the repository
+    // an absolute path in the workstation counts as the path in the repository
     const done = await runtime.last.call('ready_for_review', { summary: 'Fertig.', demo: artifact(), files: [{ path: join(ws, 'docs', 'report.md'), caption: 'Der  Bericht\n' }] });
     expect(done).toContain('Recorded');
     expect(board.item(c.id)!.files).toEqual([{ path: 'docs/report.md', caption: 'Der Bericht' }]);
@@ -45,9 +45,9 @@ describe('the files a card names as its result', () => {
     expect(board.item(c.id)!.files).toBeUndefined();
   });
 
-  test('Seismic serves a file the card made or changed, and an image a Markdown file of it shows; no other file of the workspace', async () => {
+  test('Seismic serves a file the card made or changed, and an image a Markdown file of it shows; no other file of the workstation', async () => {
     const { c } = await reportCard();
-    const ws = realpathSync(board.row(c.id).workspace!);
+    const ws = realpathSync(board.row(c.id).workstation!);
     expect(await workers.file(c.id, 'docs/report.md')).toEqual({ path: join(ws, 'docs', 'report.md') });
     expect(await workers.file(c.id, './README.md')).toEqual({ path: join(ws, 'README.md') });
     // unchanged, but the report shows it
@@ -55,7 +55,7 @@ describe('the files a card names as its result', () => {
     expect(await workers.file(c.id, 'notes.md')).toBeNull();
     expect(await workers.file(c.id, '.git/config')).toBeNull();
     expect(await workers.file(c.id, '../main/notes.md')).toBeNull();
-    // a link the card made stands for no other file of the workspace
+    // a link the card made stands for no other file of the workstation
     symlinkSync('../notes.md', join(ws, 'docs', 'link.md'));
     expect((await workers.diff(c.id, false))!.files.map((f) => f.file)).toContain('docs/link.md');
     expect(await workers.file(c.id, 'docs/link.md')).toBeNull();
@@ -67,7 +67,7 @@ describe('the files a card names as its result', () => {
     expect(await workers.file(c.id, 'x b/notes.md')).toEqual({ path: join(ws, 'x b', 'notes.md') });
   });
 
-  test('without its workspace, a file comes from a commit in the repository', async () => {
+  test('without its workstation, a file comes from a commit in the repository', async () => {
     await reportCard();
     const at = await spaces.fileOf('gone', 'docs/chart.png', 'main');
     expect(at && 'data' in at && new TextDecoder().decode(at.data)).toBe('png');

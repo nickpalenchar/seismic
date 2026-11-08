@@ -1,4 +1,4 @@
-// Other machines that workers run on, reached over SSH (design: Hosts). A workspace on one is
+// Other machines that workers run on, reached over SSH (design: Hosts). A workstation on one is
 // named `ssh://<host>/<path there>`: git, the stack commands of the repository's settings and the worker's Claude Code
 // run there through `ssh`, and files cross at fixed points (the plugin before a session, the owner's
 // screenshots with a message, a demo directory at a handover). Nothing secret is stored there:
@@ -17,13 +17,13 @@ import { resource } from './resources';
 import { OWN_GROUP, spawnOutput } from './spawn';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 
-/** Where a workspace on another machine says which machine it is on. */
+/** Where a workstation on another machine says which machine it is on. */
 const PREFIX = 'ssh://';
 
-/** The workspace `path` on the host `name`, as Seismic names it. */
+/** The workstation `path` on the host `name`, as Seismic names it. */
 export const onHost = (name: string, path: string) => `${PREFIX}${name}${path.startsWith('/') ? '' : '/'}${path}`;
 
-/** The host a workspace is on and its path there; null for a workspace on this machine. */
+/** The host a workstation is on and its path there; null for a workstation on this machine. */
 export function remote(path: string | null | undefined): { host: SshHost; path: string } | null {
   const name = hostName(path);
   if (name === null) return null;
@@ -32,7 +32,7 @@ export function remote(path: string | null | undefined): { host: SshHost; path: 
   return { host, path: path!.slice(PREFIX.length + name.length) || '/' };
 }
 
-/** The name of the host a workspace is on, null for this machine; also for a host no longer configured. */
+/** The name of the host a workstation is on, null for this machine; also for a host no longer configured. */
 export function hostName(path: string | null | undefined): string | null {
   if (!path?.startsWith(PREFIX)) return null;
   return path.slice(PREFIX.length).split('/')[0]!;
@@ -100,7 +100,7 @@ export interface HostOptions {
 /** A machine reached over SSH. */
 export class SshHost {
   private prepared?: Promise<string>;
-  /** Tokens by the workspace root they are for (a repository's clones there): its GitHub login. */
+  /** Tokens by the workstation root they are for (a repository's clones there): its GitHub login. */
   private tokens: { root: string; token: () => string | undefined }[] = [];
   /** When the connection last failed, while the host has not answered since; whether it is being asked again. */
   private down?: { at: number; asking?: boolean };
@@ -120,7 +120,7 @@ export class SshHost {
     return ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'ServerAliveInterval=15', '-o', 'ServerAliveCountMax=3', ...shared, '-T'];
   }
 
-  /** The workspaces under `root` (a repository's clones) use this GitHub login for git and gh. */
+  /** The workstations under `root` (a repository's clones) use this GitHub login for git and gh. */
   tokenFor(root: string, token: () => string | undefined) {
     this.tokens.push({ root, token });
   }

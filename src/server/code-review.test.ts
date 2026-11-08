@@ -10,7 +10,7 @@ import type { RepoAdapter } from '../adapters/types';
 import { type AgentSetting, type CodeReviewSetting, needsYou, type Severity } from '../core/types';
 import { artifact, type FakeSession, until } from './testing';
 import { Workers } from './workers';
-import { git } from './workspaces';
+import { git } from './workstations';
 import { board, eachTest, manual, runtime, setWorkers, spaces, state, workers } from './workers-fixture';
 
 eachTest();
@@ -26,8 +26,8 @@ function reviewing(mode: CodeReviewSetting['mode'] = 'auto', on = true, land: Re
     new Workers({
       board,
       runtime,
-      workspaces: spaces,
-      adapter: { ...generic, land, workspaces: 'clones' },
+      workstations: spaces,
+      adapter: { ...generic, land, workstations: 'clones' },
       codeReviews: () => setting,
       ...(reviewAgentSetting ? { reviewAgentSetting } : {}),
       onFollowUpTask: (task, of) => followed.push([task, of]),
@@ -40,7 +40,7 @@ const worker = () => runtime.sessions.filter((s) => s.spec.role !== 'review').at
 
 /** The worker commits `file` on its branch and hands over with a demo; its turn ends. */
 async function handOver(id: string, file: string) {
-  const ws = board.row(id).workspace!;
+  const ws = board.row(id).workstation!;
   writeFileSync(join(ws, file), `${file}\n`);
   git(ws, 'add', '.');
   git(ws, 'commit', '--quiet', '-m', file);
@@ -150,7 +150,7 @@ describe('code reviews', () => {
     expect(r.spec.system).toContain('- Agents speak and write to me in English only.');
     expect(r.spec.tools.find((t) => t.name === 'findings')!.description).toContain('unless an explicit standing preference names another language');
     expect(r.spec.readOnly).toBe(true);
-    expect(r.spec.cwd).toBe(board.row(id).workspace!);
+    expect(r.spec.cwd).toBe(board.row(id).workstation!);
     expect(r.inbox[0]).toContain('Zählerstände exportieren');
     expect(r.inbox[0]).toContain('+export.ts');
     expect(r.spec.system).toContain('CLAUDE.md');

@@ -38,12 +38,12 @@ export const finished = (s: CardState) => s === 'live' || s === 'done';
 /** A card an agent worked on until the owner stopped it: planned again, its branch stays the card's. */
 export const stopped = (i: Pick<Item, 'state' | 'branch'>) => i.state === 'planned' && !!i.branch;
 /**
- * A stopped card of the owner's the archive may take: nothing waits to start it, and its workspace
+ * A stopped card of the owner's the archive may take: nothing waits to start it, and its workstation
  * holds no work (a branch with commits or changes keeps it, and archiving would leave that work
  * unseen in a clone).
  */
-export const stoppedArchivable = (i: Pick<Item, 'state' | 'branch' | 'source' | 'queue' | 'workspace' | 'keptIn' | 'prototypeOf' | 'kind'>) =>
-  stopped(i) && i.source === 'manual' && i.kind === 'task' && !i.prototypeOf && !i.queue && !i.workspace && !i.keptIn;
+export const stoppedArchivable = (i: Pick<Item, 'state' | 'branch' | 'source' | 'queue' | 'workstation' | 'keptIn' | 'prototypeOf' | 'kind'>) =>
+  stopped(i) && i.source === 'manual' && i.kind === 'task' && !i.prototypeOf && !i.queue && !i.workstation && !i.keptIn;
 /** A finished card of the owner's whose agent is done: the archive may take it. */
 export const finishedArchivable = (i: Pick<Item, 'state' | 'source' | 'finishing'>) => finished(i.state) && i.source === 'manual' && !i.finishing;
 /** A finished card whose agent still works: after the landing, or answering a follow-up question. */
@@ -118,11 +118,11 @@ export const buildableOn = (i: Item) => i.state === 'planned' && !i.branch && !i
 
 /**
  * A planned task nobody has worked on yet, which the Koordinator may merge with others or delete:
- * no branch, no workspace, not with the Koordinator unless it waits there behind other cards (a
+ * no branch, no workstation, not with the Koordinator unless it waits there behind other cards (a
  * review's follow-up task waiting for the PR's merge, say), and no prototype nor becoming a plan.
  */
 export const untouched = (i: Item) =>
-  i.kind === 'task' && i.source === 'manual' && i.state === 'planned' && !i.branch && !i.workspace && (!i.queue || 'behind' in i.queue) && !i.prototypeOf && !i.becomesPlan;
+  i.kind === 'task' && i.source === 'manual' && i.state === 'planned' && !i.branch && !i.workstation && (!i.queue || 'behind' in i.queue) && !i.prototypeOf && !i.becomesPlan;
 
 /** Progress decides which card dissolves. Unstarted pairs still combine their text. */
 export const mergeRank = (i: Item): number => i.archivedAt ? 4 : finished(i.state) ? 3 : i.state === 'proposal' ? 0 : untouched(i) ? 1 : 2;
@@ -131,7 +131,7 @@ export const mergeRank = (i: Item): number => i.archivedAt ? 4 : finished(i.stat
 export const canMergeFrom = (i: Item) =>
   i.kind === 'task' && !i.parent && !i.archivedAt && !i.mergingInto && !i.snoozed && !i.repoDown && !i.prototypeOf && !i.becomesPlan &&
   !i.proposal?.merge && !i.proposal?.idea && !i.proposal?.revising && !i.proposal?.acceptAfterRevision &&
-  (untouched(i) || (i.state === 'proposal' && !i.branch && !i.workspace));
+  (untouched(i) || (i.state === 'proposal' && !i.branch && !i.workstation));
 
 /** The read-only agent is still comparing the cards. */
 export const merging = (i: Pick<Item, 'state' | 'proposal'>) => !!i.proposal?.merge && i.proposal.merge.task === undefined && i.proposal.merge.failed === undefined;
@@ -432,9 +432,9 @@ export interface Item {
    */
   repoDown?: true;
   branch?: string;
-  /** Where the branch is checked out, while the card has a workspace: a directory, `host:/dir` on another machine. */
-  workspace?: string;
-  /** The clone that keeps its branch since its workspace was taken from it, until it works again (the same form as `workspace`). */
+  /** Where the branch is checked out, while the card has a workstation: a directory, `host:/dir` on another machine. */
+  workstation?: string;
+  /** The clone that keeps its branch since its workstation was taken from it, until it works again (the same form as `workstation`). */
   keptIn?: string;
   /** Files the Koordinator expects the card to change. */
   scope?: string[];
@@ -487,7 +487,7 @@ export interface Item {
   finishing?: boolean;
   /** While `finishing`: nothing just landed, the owner asked about the finished card and its agent answers. */
   followUp?: boolean;
-  /** While `followUp`: its agent needs a full clone to answer and waits, without a workspace, for the next free one. */
+  /** While `followUp`: its agent needs a full clone to answer and waits, without a workstation, for the next free one. */
   waitsForClone?: true;
   /**
    * Its worker is in a turn right now, its background work included (a render, a watcher): what it
@@ -528,7 +528,7 @@ export interface Item {
   /** Set aside until a point in time: nothing of its agent runs, and it does not wait for the owner meanwhile. */
   snoozed?: Snooze;
   /**
-   * Where the app in the card's workspace runs, as its worker opens it (`http://localhost:5173`):
+   * Where the app in the card's workstation runs, as its worker opens it (`http://localhost:5173`):
    * while the worker says it runs and Seismic has not stopped it. The card offers it to the owner to
    * try by hand, once it answers.
    */
@@ -1008,7 +1008,7 @@ export type PrReviewEntry = { author: string; mine?: boolean; at: string; thread
  */
 export const START_ALL_HOLD_MS = 8000;
 
-/** How long taking a card's workspace from it (the Workspaces list) waits for the owner's "Undo". */
+/** How long taking a card's workstation from it (the Workstations list) waits for the owner's "Undo". */
 export const EVICT_HOLD_MS = 8000;
 
 /** How long pushing main for a review card whose PR collides with unpushed commits waits for the owner's "Undo". */
@@ -1017,15 +1017,15 @@ export const PUSH_HOLD_MS = 8000;
 /**
  * `since`: when the card came to the Koordinator; of the cards whose turn comes, the one waiting
  * longest goes first. `together`: the plan whose workstreams the Koordinator judges all at once.
- * `workspace`: the Koordinator let the card start, but no workspace was free for it (`none`: all
+ * `workstation`: the Koordinator let the card start, but no workstation was free for it (`none`: all
  * leased or none set up; `dirty`: every free one has uncommitted changes); it starts once one is.
  * `behind`: the cards it waits for; `buildsOn`: those of them it builds on (workstreams of its
  * plan), which hold it until they have landed, also while not started or stopped.
  * `manualWait`: those of `behind` that only an arrow the owner drew holds it for, not a wait the
  * Koordinator inferred; `buildsOn` names inferred waits alone.
  * `paused`: the Koordinator let it start, but the owner paused its canvas's agents; it starts once they resume them.
- * `begun`, on a card waiting for a workspace or a paused canvas: the owner started it anyway, or it
- * was at work before (its workspace taken from it); the owner's arrows no longer hold it.
+ * `begun`, on a card waiting for a workstation or a paused canvas: the owner started it anyway, or it
+ * was at work before (its workstation taken from it); the owner's arrows no longer hold it.
  */
 export type Queue = Wait & { since: string };
 
@@ -1033,10 +1033,10 @@ export type Queue = Wait & { since: string };
  * What a card in the queue waits for (`Queue`). `together`: judged in one turn with the cards of the
  * same key, a plan's workstreams started at once (the plan's id) or cards freed at once (`freed:…`).
  */
-export type Wait = { checking: true; together?: string } | { behind: string[]; reason: string; buildsOn?: string[]; manualWait?: string[] } | { workspace: WorkspaceShortage; begun?: true } | { paused: true; begun?: true };
+export type Wait = { checking: true; together?: string } | { behind: string[]; reason: string; buildsOn?: string[]; manualWait?: string[] } | { workstation: WorkstationShortage; begun?: true } | { paused: true; begun?: true };
 
 /** Why a card waits to start: no clone free (`none`), the free ones dirty, or every machine with a clean free one busy to its slots (`slots`). */
-export type WorkspaceShortage = 'none' | 'dirty' | 'slots';
+export type WorkstationShortage = 'none' | 'dirty' | 'slots';
 
 /**
  * How a demo shows the work: a narrated `video` of something that happens, or an `html` artifact
@@ -1371,11 +1371,11 @@ export interface PoolHost {
   /** Its free clones no new card gets now, by their last look; none when every free clone can be taken. */
   blocked?: BlockedClone[];
   /** Each of its clones (free ones too), or worktrees, by path there and with the card that holds it. */
-  workspaces: PoolWorkspace[];
+  workstations: PoolWorkstation[];
 }
 
 /** A clone or worktree in the pool: its path on its machine, the card holding it (`card`, `title`). */
-export interface PoolWorkspace {
+export interface PoolWorkstation {
   path: string;
   card?: string;
   /** The holding card's title, also for a card not on the canvas (in the archive, say). */
@@ -1425,7 +1425,7 @@ export interface CanvasSnapshot {
   /** The canvas's chats with something said in them, the latest first. */
   chats: Chat[];
   /** The clone pools of the repositories that use clones; none when no repository does. */
-  workspaces?: ClonePool[];
+  workstations?: ClonePool[];
   /** Shared pages their sites now write differently, and sharing many of them again; none when there is neither. */
   reshare?: Reshare;
   /** The plan directories the canvas has a note about (`PlanDir`); none when it has none. */
@@ -1787,12 +1787,12 @@ export type CardAction =
   /** Start a queued card although it may collide. */
   | { action: 'force' }
   /**
-   * The Workspaces list: the card's clone goes to the cards waiting for one, after the undo window
+   * The Workstations list: the card's clone goes to the cards waiting for one, after the undo window
    * (EVICT_HOLD_MS); its worker stops, its uncommitted work is kept on its branch, and it goes on
-   * there once it has a workspace again. `keepWorkspace` takes it back within the window.
+   * there once it has a workstation again. `keepWorkstation` takes it back within the window.
    */
-  | { action: 'takeWorkspace' }
-  | { action: 'keepWorkspace' }
+  | { action: 'takeWorkstation' }
+  | { action: 'keepWorkstation' }
   /** On a plan: takes back a start of all its workstreams while the Koordinator has not planned them yet. */
   | { action: 'dequeue' }
   /**
@@ -1956,11 +1956,11 @@ export type ErrorCode =
   /** The comparison no longer matches the cards the owner would approve. */
   | 'mergeChanged'
   | 'planCard'
-  | 'noWorkspace'
-  | 'dirtyWorkspaces'
-  /** Taking a card's workspace from it: it holds no clone that may be taken (worktrees, its work landed, a prototype's), or one is being taken already. */
+  | 'noWorkstation'
+  | 'dirtyWorkstations'
+  /** Taking a card's workstation from it: it holds no clone that may be taken (worktrees, its work landed, a prototype's), or one is being taken already. */
   | 'notEvictable'
-  /** Starting a card while its workspace is being given to another. */
+  /** Starting a card while its workstation is being given to another. */
   | 'evicting'
   /** Changing a card's new repository, or starting it, while Seismic is about to make it (`NewRepo.due`). */
   | 'newRepoDue'
@@ -1970,7 +1970,7 @@ export type ErrorCode =
   | 'newRepoGone'
   /** Every machine with a clean free clone has as many workers busy as it has slots. */
   | 'noSlot'
-  | 'workspace'
+  | 'workstation'
   | 'emptyText'
   /** The cloud service for voice in failed or refused the check's sentence (the detail says what it said). */
   | 'voiceCloud'
@@ -1983,7 +1983,7 @@ export type ErrorCode =
   | 'fileTooLarge'
   /** Only a finished card of the owner's (or a stopped task, a parked or dropped idea) goes into the archive. */
   | 'notDone'
-  /** A stopped card whose workspace holds work stays on the canvas. */
+  /** A stopped card whose workstation holds work stays on the canvas. */
   | 'holdsWork'
   | 'notArchived'
   | 'notIdea'
@@ -2076,8 +2076,8 @@ export interface RepoConfig {
    * the folder itself, nothing lands, and each card lists what it changed (design: Folders without git).
    */
   git?: false;
-  /** Clones to register as workspaces (adapters that use clones). */
-  workspaces?: string[];
+  /** Clones to register as workstations (adapters that use clones). */
+  workstations?: string[];
   /** Clones to create under Seismic's home (adapters that use clones). */
   clones?: number;
   /** How many of its workers may be busy at once on this machine; left out, as many as it has clones, or any number in worktrees. */
@@ -2101,12 +2101,12 @@ export interface AppSettings {
    */
   run?: string;
   /**
-   * Stops the app in a workspace, and does nothing where none runs. Seismic runs it there when the
+   * Stops the app in a workstation, and does nothing where none runs. Seismic runs it there when the
    * card waits for the owner and its worker has nothing running (Parking), and tells the worker with
    * its next message.
    */
   stop?: string;
-  /** Exits 0 when the workspace's app holds what must not be lost (a restored database, say): Seismic then leaves it running. */
+  /** Exits 0 when the workstation's app holds what must not be lost (a restored database, say): Seismic then leaves it running. */
   keep?: string;
 }
 
@@ -2235,7 +2235,7 @@ export interface DemoSite {
 /**
  * What Seismic needs to know about how a repository works, and its main branch, as the owner sets
  * them in the configuration dialog for this machine (design: Repository settings). Read where they
- * are used: saving them restarts nothing, but for `workspaces`, which restarts the repository's agents.
+ * are used: saving them restarts nothing, but for `workstations`, which restarts the repository's agents.
  */
 export interface RepoSettings {
   /** Its main branch, where cards start from and work lands; detected where left out (`defaultBranch`). */
@@ -2270,7 +2270,7 @@ export interface RepoSettings {
    */
   softPaths?: string[];
   /** Workers get full clones from a pool, or a worktree of the Seismic checkout per card. */
-  workspaces?: 'clones' | 'worktrees';
+  workstations?: 'clones' | 'worktrees';
   /** Accounts whose pull request comments are not review feedback (deploy bots and the like). */
   prNoise?: string[];
   /**
@@ -2301,7 +2301,7 @@ export type SharedSettings = Omit<RepoSettings, 'branch'>;
 export type CardLanding = Partial<Pick<RepoSettings, 'land' | 'direct'>>;
 
 /** The fields of `SharedSettings`, in the dialog's order. */
-export const SHARED_FIELDS = ['land', 'direct', 'autoMerge', 'checks', 'setup', 'planDocs', 'softPaths', 'workspaces', 'prNoise', 'language', 'app', 'demo'] as const satisfies readonly (keyof SharedSettings)[];
+export const SHARED_FIELDS = ['land', 'direct', 'autoMerge', 'checks', 'setup', 'planDocs', 'softPaths', 'workstations', 'prNoise', 'language', 'app', 'demo'] as const satisfies readonly (keyof SharedSettings)[];
 
 /** The settings made of fields that are each set, layered and taken over on their own, and their fields. */
 export const NESTED_SETTINGS = { app: ['run', 'stop', 'keep'], demo: ['language', 'artifacts'] } as const satisfies { [K in keyof RepoSettings]?: readonly (keyof NonNullable<RepoSettings[K]>)[] };
@@ -2319,7 +2319,7 @@ export function layerSettings<T extends RepoSettings>(under: T | undefined, over
 
 /**
  * Where a repository's setting comes from where this machine sets none, highest first: the
- * repository's `.obeya/settings.json`, the clones the configuration names (`workspaces` only),
+ * repository's `.obeya/settings.json`, the clones the configuration names (`workstations` only),
  * detection (main branch, landing), Seismic's default.
  */
 export type SettingSource = 'repository' | 'clones' | 'detected' | 'default';
@@ -2382,7 +2382,7 @@ export interface RepoValues {
   setup: SettingValue<string>;
   planDocs: SettingValue<{ dir: string; exclude: string[] }>;
   softPaths: SettingValue<string[]>;
-  workspaces: SettingValue<'clones' | 'worktrees'>;
+  workstations: SettingValue<'clones' | 'worktrees'>;
   prNoise: SettingValue<string[]>;
   language: SettingValue<Language>;
   app: { run: SettingValue<string>; stop: SettingValue<string>; keep: SettingValue<string> };
@@ -2394,7 +2394,7 @@ export interface RepoValues {
  * where its workers work): where it differs, the repository's agents restart with it.
  */
 export function repoShape({ settings, ...r }: RepoConfig): string {
-  return JSON.stringify({ ...r, workIn: settings?.workspaces });
+  return JSON.stringify({ ...r, workIn: settings?.workstations });
 }
 
 /** Whether saving `after` over `before` restarts or stops some repository's agents: one that left, or whose shape changed (`repoShape`). */
@@ -2430,8 +2430,8 @@ export function withClones(draft: CanvasConfig[], saved: CanvasConfig[], resolve
     ...c,
     repos: c.repos.map((r, j) => {
       const path = r.path.trim();
-      if (!path || known.has(path) || resolved[i]?.repos[j]?.workspaces !== 'clones') return r;
-      const existing = !!r.workspaces?.some((w) => w.trim());
+      if (!path || known.has(path) || resolved[i]?.repos[j]?.workstations !== 'clones') return r;
+      const existing = !!r.workstations?.some((w) => w.trim());
       const state = filled.get(path);
       if (state === 'owner') return r;
       // the count is no longer the one the dialog left: the owner's from now on
@@ -2452,7 +2452,7 @@ export function withClones(draft: CanvasConfig[], saved: CanvasConfig[], resolve
 
 /** A machine reached over SSH that a repository's workers run on, in clones of their own there. */
 export interface HostConfig {
-  /** What the owner calls it; workspaces there are named by it. */
+  /** What the owner calls it; workstations there are named by it. */
   name: string;
   /** What `ssh` connects to: `user@machine`, or a name from `~/.ssh/config`. */
   ssh: string;
@@ -2522,7 +2522,7 @@ export interface ResolvedCanvas {
   name: string;
   repos: {
     id: string;
-    workspaces: 'clones' | 'worktrees';
+    workstations: 'clones' | 'worktrees';
     /** A folder without git (`RepoConfig.git` false): no branch, landing, clones or hosts. */
     folder?: true;
     /**
@@ -2600,9 +2600,9 @@ export type ConfigProblemCode =
   | 'oldNameTaken'
   /** The repository the canvas was first served with is missing. */
   | 'homeMissing'
-  /** A clone listed as a workspace that is no git repository. */
+  /** A clone listed as a workstation that is no git repository. */
   | 'notClone'
-  /** A clone listed as a workspace whose origin is another repository's. */
+  /** A clone listed as a workstation whose origin is another repository's. */
   | 'otherClone'
   /** A host that cannot work for the repository: its workers use worktrees, or its work does not go out through a remote. */
   | 'hostRepo'

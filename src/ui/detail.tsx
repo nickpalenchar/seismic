@@ -497,13 +497,13 @@ export function Detail(p: Props) {
             </button>
           </div>
         </>
-      ) : 'workspace' in item.queue ? (
+      ) : 'workstation' in item.queue ? (
         <>
           <div className="q-text">
-            {t.queue.workspaceLong[item.queue.workspace]}{' '}
+            {t.queue.workstationLong[item.queue.workstation]}{' '}
             {p.onClones && (
-              <button className="link" onClick={() => p.onClones?.(item.repo, item.queue && 'workspace' in item.queue && item.queue.workspace === 'slots' ? 'slots' : 'clones')}>
-                {t.queue.workspaceConfig[item.queue.workspace]}
+              <button className="link" onClick={() => p.onClones?.(item.repo, item.queue && 'workstation' in item.queue && item.queue.workstation === 'slots' ? 'slots' : 'clones')}>
+                {t.queue.workstationConfig[item.queue.workstation]}
               </button>
             )}
           </div>
@@ -3363,7 +3363,7 @@ function ExportBox({
  */
 function ArchiveButton({ item, run, className = 'btn', label = t.archive.archive, hint }: { item: Item; run: Run; className?: string; label?: string; hint?: string }) {
   const title = plain(item.title);
-  // a stopped task whose workspace holds work stays on the canvas; the button says why
+  // a stopped task whose workstation holds work stays on the canvas; the button says why
   const held = stopped(item) && !stoppedArchivable(item);
   return item.archivedAt ? (
     <button className="btn" onClick={() => run(() => api.unarchive(item.id), { close: true, ack: t.archive.unarchived(title) })}>

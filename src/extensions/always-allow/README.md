@@ -27,7 +27,7 @@ option is not offered there.
 Decided 2026-11-03 (owner): one list for everyone, committed at once; rejected: the card's branch
 (the rule would wait for the landing and be lost with a discarded card) and
 `.claude/settings.local.json` on this machine (Codex has no per-project file of its own outside the
-repository, and the cards' workspaces would not have it, so Seismic would have to apply it to both
+repository, and the cards' workstations would not have it, so Seismic would have to apply it to both
 harnesses itself).
 
 ## What it uses of the seam

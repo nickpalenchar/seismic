@@ -78,7 +78,7 @@ export type AgentEvent =
    * The turn failed. `limit` when the account's usage limit stopped it (the five-hour session
    * limit, say): it lifts again at `resetsAt` (milliseconds) when the API said when. `ended` when
    * the session died with it and took the work it had started along (a Codex app-server's
-   * descendants), the app in the workspace included. `token` when the session signed in with a token
+   * descendants), the app in the workstation included. `token` when the session signed in with a token
    * rather than this machine's account (`CardEvent.token`).
    */
   | { type: 'error'; message: string; limit?: { resetsAt?: number }; ended?: true; token?: true };
@@ -100,7 +100,7 @@ export interface PermissionRequest {
 export type PermissionAnswer = { allow: true; permissions?: PermissionUpdate[] } | { allow: false; message: string };
 
 export interface AgentSpec {
-  /** Where the agent works; a workspace on another machine (`ssh://<host>/…`) runs it there (`hosts.ts`). */
+  /** Where the agent works; a workstation on another machine (`ssh://<host>/…`) runs it there (`hosts.ts`). */
   cwd: string;
   /** Appended to the default system prompt. */
   system: string;
@@ -156,7 +156,7 @@ export interface AgentSpec {
   contextUpdate?: () => string | undefined;
   /**
    * Told before and after each tool call of the agent and its subagents, and waited for: what a
-   * call changes in a folder without git becomes the card's (`FolderWorkspaces.watch`).
+   * call changes in a folder without git becomes the card's (`FolderWorkstations.watch`).
    */
   watch?: ToolWatch;
   /**
@@ -277,9 +277,9 @@ export function networkOnly(input: Record<string, unknown>): boolean {
 
 /**
  * A runtime whose Codex agents load the repository's own Codex configuration (`codexConfig`) only
- * where the workspace's `.codex/` is exactly what the owner trusted for the repository `cwd` lies
+ * where the workstation's `.codex/` is exactly what the owner trusted for the repository `cwd` lies
  * in (`trusted`, `codexAsTrusted`), checked at every start and resume: one new on the default branch,
- * or changed in the workspace since (by the card, or a rebase onto a change not trusted yet), is not
+ * or changed in the workstation since (by the card, or a rebase onto a change not trusted yet), is not
  * loaded until the owner trusts it.
  */
 export function withCodexTrust(runtime: AgentRuntime, trusted: (cwd: string) => Record<string, ClaudeFile> | undefined): AgentRuntime {

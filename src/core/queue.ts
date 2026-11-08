@@ -4,7 +4,7 @@
 
 import { finished, type Item } from './types';
 
-/** Waiting to start: being judged, behind others, or for a workspace. */
+/** Waiting to start: being judged, behind others, or for a workstation. */
 export const inQueue = (i: Pick<Item, 'state' | 'queue'>) => i.state === 'planned' && !!i.queue;
 
 /** A card the Koordinator has decided on and that waits: the owner may move it. One being judged stays where it is. */
@@ -18,7 +18,7 @@ export function queueOrder(items: Item[]): Item[] {
 /**
  * The prerequisites the owner's arrows hold the card for: those not finished. An arrow holds a card
  * until it starts: not one at work, nor one the owner started anyway or that was at work before
- * (`begun`, waiting for a workspace or a paused canvas only to go on).
+ * (`begun`, waiting for a workstation or a paused canvas only to go on).
  */
 export function drawnWaits(card: Item, items: Item[]): string[] {
   if (card.state !== 'planned' || (card.queue && 'begun' in card.queue)) return [];

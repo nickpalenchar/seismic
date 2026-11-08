@@ -135,12 +135,12 @@ test('sourcing a file the agent cannot change and nvm use need no rule in front 
   const dir = mkdtempSync(join(homedir(), '.obeya-allow-test-'));
   const temp = mkdtempSync(join(tmpdir(), 'obeya-allow-test-'));
   try {
-    const workspace = join(dir, 'workspace');
+    const workstation = join(dir, 'workstation');
     const demos = join(dir, 'demos');
-    for (const d of [workspace, demos]) mkdirSync(d);
-    for (const f of [join(dir, 'nvm.sh'), join(dir, 'env.sh'), join(workspace, 'env.sh'), join(demos, 'env.sh'), join(temp, 'env.sh')]) writeFileSync(f, '');
+    for (const d of [workstation, demos]) mkdirSync(d);
+    for (const f of [join(dir, 'nvm.sh'), join(dir, 'env.sh'), join(workstation, 'env.sh'), join(demos, 'env.sh'), join(temp, 'env.sh')]) writeFileSync(f, '');
     const nvm = `~/${basename(dir)}/nvm.sh`;
-    const writable = [workspace, demos];
+    const writable = [workstation, demos];
     const pnpm = ['pnpm -C * install *', 'pnpm -C * test'];
     const install = 'pnpm -C papercrane install --frozen-lockfile && pnpm -C extension install --frozen-lockfile';
     const ok = (script: string) => allowed(pnpm, zsh(script), undefined, writable);
@@ -148,9 +148,9 @@ test('sourcing a file the agent cannot change and nvm use need no rule in front 
     expect(ok(`. ${dir}/env.sh && nvm use --silent lts/iron && pnpm -C x test`)).toBe(true);
     expect(ok('nvm use && pnpm -C x test')).toBe(true);
     expect(ok('nvm use --lts && pnpm -C x test')).toBe(true);
-    // a file the agent writes (its workspace, the demos, a temporary directory), relative, or through a link into one
-    symlinkSync(join(workspace, 'evil.sh'), join(dir, 'link.sh'));
-    for (const file of [`${workspace}/env.sh`, `${demos}/env.sh`, `${temp}/env.sh`, `${dir}/missing.sh`, 'env.sh', './env.sh', `${dir}/link.sh`, `${workspace}/../env.sh`])
+    // a file the agent writes (its workstation, the demos, a temporary directory), relative, or through a link into one
+    symlinkSync(join(workstation, 'evil.sh'), join(dir, 'link.sh'));
+    for (const file of [`${workstation}/env.sh`, `${demos}/env.sh`, `${temp}/env.sh`, `${dir}/missing.sh`, 'env.sh', './env.sh', `${dir}/link.sh`, `${workstation}/../env.sh`])
       expect([file, ok(`source ${file} && pnpm -C x test`)]).toEqual([file, false]);
     // only in front, only with a covered command after it, nothing but setup
     for (const script of [
@@ -163,8 +163,8 @@ test('sourcing a file the agent cannot change and nvm use need no rule in front 
       'nvm use 24 --delete-prefix && pnpm -C x test',
       'nvm use 24 20 && pnpm -C x test',
       'nvm use -s && pnpm -C x test',
-      `NVM_DIR=${workspace} source ${nvm} && pnpm -C x test`,
-      `source ${nvm} && NVM_DIR=${workspace} nvm use 24 && pnpm -C x test`,
+      `NVM_DIR=${workstation} source ${nvm} && pnpm -C x test`,
+      `source ${nvm} && NVM_DIR=${workstation} nvm use 24 && pnpm -C x test`,
     ]) expect([script, ok(script)]).toEqual([script, false]);
     // where it is not known what the agent writes, a source rides on no rule
     expect(allowed(pnpm, zsh(`source ${nvm} && pnpm -C x test`))).toBe(false);

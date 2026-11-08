@@ -8,7 +8,7 @@ import { agyArgs, READ_ONLY_PERMISSIONS, agyLimit, createAgyRuntime, nativeTool,
 import { handleMcp, registerAgyTools, wireTools } from './agy-mcp';
 import type { AgentEvent, AgentSession, AgentSpec, AgentTool } from './runtime';
 import { gitRepo, until } from './testing';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 const fake = join(import.meta.dir, 'fixtures', 'fake-agy.ts');
 const launch = (_command: string, args: string[], options: Parameters<Parameters<typeof createAgyRuntime>[0] & {}>[2]) => spawn('bun', [fake, ...args], { ...options, stdio: ['pipe', 'pipe', 'pipe'] });
@@ -16,7 +16,7 @@ const sessions: AgentSession[] = [];
 const dirs: string[] = [];
 afterEach(async () => { for (const s of sessions.splice(0)) { s.close(); await s.done; } for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
 
-function workspace() {
+function workstation() {
   const dir = mkdtempSync(join(tmpdir(), 'agy-'));
   dirs.push(dir);
   const repo = join(dir, 'repo');
@@ -36,7 +36,7 @@ test('flags: full auto inside the sandbox, read-only by permission rules, resume
 });
 
 test('a session runs a turn, calls a Seismic tool over the MCP endpoint and ends idle', async () => {
-  const repo = workspace();
+  const repo = workstation();
   const events: AgentEvent[] = [];
   const asked: unknown[] = [];
   const ask: AgentTool = { name: 'ask', description: 'ask', schema: { question: z.string() }, run: (a) => { asked.push(a); return 'the answer'; } };
@@ -56,7 +56,7 @@ test('a session runs a turn, calls a Seismic tool over the MCP endpoint and ends
 });
 
 test('a second message waits for the turn, a failed turn reports the usage limit, resume names the conversation', async () => {
-  const repo = workspace();
+  const repo = workstation();
   const events: AgentEvent[] = [];
   const session = start(spec(repo, events, { resume: 'agy:old-conv' }), 'FAIL');
   session.send('next');
@@ -67,7 +67,7 @@ test('a second message waits for the turn, a failed turn reports the usage limit
 });
 
 test('the MCP registration stays out of git and goes with the session', async () => {
-  const repo = workspace();
+  const repo = workstation();
   const events: AgentEvent[] = [];
   const session = start(spec(repo, events), 'hi');
   await until(() => events.some((e) => e.type === 'idle'));
@@ -99,7 +99,7 @@ test('tool calls validate arguments and report failures to the model', async () 
 });
 
 test('unsupported cases fail visibly', () => {
-  const repo = workspace();
+  const repo = workstation();
   expect(() => start(spec('ssh://host/x', []))).toThrow('non-local');
   expect(() => start(spec(repo, [], { resume: 'codex:abc' }))).toThrow('agy: session');
   expect(() => start(spec(repo, [], { watch: {} as never }))).toThrow('before/after');

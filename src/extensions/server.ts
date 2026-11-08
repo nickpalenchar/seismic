@@ -12,7 +12,7 @@ export type Settings = Record<string, unknown>;
 export interface PermissionContext {
   /** The asking agent's harness. */
   harness: 'claude' | 'codex';
-  /** The card's workspace, where the agent works. */
+  /** The card's workstation, where the agent works. */
   cwd: string;
   /** Whether the card's work goes onto the main branch by itself (a folder without git counts so), not through pull requests. */
   landsOnMain: boolean;

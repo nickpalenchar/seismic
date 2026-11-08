@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, parse } from 'node:path';
 import type { RepoAdapter, RepoInfo } from '../adapters/types';
 import { type OtherDoc, type PlanDoc, parsePlanDoc, type Workstream } from '../core/plan-doc';
-import { defaultBranch, gitOrNull } from './workspaces';
+import { defaultBranch, gitOrNull } from './workstations';
 
 export function repoInfo(path: string): RepoInfo {
   if (gitOrNull(path, 'rev-parse', '--git-dir') === null) throw new Error(`${path} is not a git repository`);

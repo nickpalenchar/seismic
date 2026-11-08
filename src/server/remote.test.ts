@@ -28,7 +28,7 @@ let pushed: string[];
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'obeya-remote-'));
-  const main = gitRepo(join(dir, 'main'), { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workspaces": "clones" }\n' });
+  const main = gitRepo(join(dir, 'main'), { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workstations": "clones" }\n' });
   ts = join(dir, 'ts');
   store = new Store(':memory:');
   clock = Date.now();

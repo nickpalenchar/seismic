@@ -12,11 +12,11 @@ import { ghCli, makeGhForge, type Forge, type PrStatus } from './forge';
 import { PrWatcher } from './pr-watcher';
 import { artifact, FakeRuntime, fakeGh, gitRepo, noContributions, until } from './testing';
 import { Workers } from './workers';
-import { git, Workspaces } from './workspaces';
+import { git, Workstations } from './workstations';
 
 let dir: string;
 let main: string;
-let workspaces: Workspaces;
+let workstations: Workstations;
 let board: Board;
 let runtime: FakeRuntime;
 let workers: Workers;
@@ -42,12 +42,12 @@ beforeEach(() => {
   const store = new Store(':memory:');
   language = 'de';
   board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs: [], dirs: [] }), undefined, undefined, () => language);
-  workspaces = new Workspaces(store, 'c', { mode: 'clones', repoPath: main, dir: join(dir, 'ws') });
-  workspaces.ensureClones(main, 1);
+  workstations = new Workstations(store, 'c', { mode: 'clones', repoPath: main, dir: join(dir, 'ws') });
+  workstations.ensureClones(main, 1);
   runtime = new FakeRuntime();
   opened = [];
-  settings = { ...generic, land: 'pr', workspaces: 'clones', prNoise: ['deploy-bot'] };
-  workers = new Workers({ board, runtime, workspaces, adapter: settings, onPrOpened: (id) => opened.push(id) });
+  settings = { ...generic, land: 'pr', workstations: 'clones', prNoise: ['deploy-bot'] };
+  workers = new Workers({ board, runtime, workstations, adapter: settings, onPrOpened: (id) => opened.push(id) });
   status = { state: 'OPEN', mergeable: 'MERGEABLE', mergeState: 'CLEAN', head: 'aaa', author: 'owner', checks: [], comments: [] };
   merges = [];
   refuse = undefined;
@@ -78,7 +78,7 @@ const state = (id: string) => {
 
 /** Work on the card's branch, so approving it goes out as a pull request. */
 function commit(cardId: string) {
-  const clone = board.row(cardId).workspace!;
+  const clone = board.row(cardId).workstation!;
   writeFileSync(join(clone, 'export.ts'), '');
   git(clone, 'add', '.');
   git(clone, 'commit', '--quiet', '-m', 'Export');
@@ -538,7 +538,7 @@ describe('watching', () => {
     expect(board.item(id)!.finishing).toBe(true);
     runtime.last.emit({ type: 'idle' });
     expect(runtime.last.closed).toBe(true);
-    expect(board.row(id).workspace).toBeNull();
+    expect(board.row(id).workstation).toBeNull();
     // the clone goes once git has read which plan docs the branch adds
     await new Promise((r) => setTimeout(r, 0));
 
@@ -679,7 +679,7 @@ describe('gh slow to answer', () => {
   });
 
   test('a PR gh does not answer for holds up neither the other cards nor the round past its timeout', async () => {
-    workspaces.ensureClones(main, 2);
+    workstations.ensureClones(main, 2);
     const slow = await inPr();
     runtime.last.call('pr_opened', { url: URL_ });
     runtime.last.emit({ type: 'idle' });
@@ -703,7 +703,7 @@ describe('pull requests in several repositories', () => {
   let statuses: Record<string, PrStatus>;
 
   beforeEach(() => {
-    workers = new Workers({ board, runtime, workspaces, adapter: settings, remote: 'git@github.com:acme/app.git' });
+    workers = new Workers({ board, runtime, workstations, adapter: settings, remote: 'git@github.com:acme/app.git' });
     const open = (): PrStatus => ({ state: 'OPEN', mergeable: 'MERGEABLE', mergeState: 'CLEAN', head: 'aaa', author: 'owner', checks: [{ name: 'CI', state: 'pending' }], comments: [] });
     statuses = { [URL_]: open(), [OTHER]: { ...open(), head: 'ddd' } };
     const forge: Forge = {

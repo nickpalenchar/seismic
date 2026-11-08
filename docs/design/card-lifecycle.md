@@ -135,7 +135,7 @@ to the Koordinator).
 
 ### At work
 
-`working`: the worker leases a workspace, implements, runs the checks the repository's settings name,
+`working`: the worker leases a workstation, implements, runs the checks the repository's settings name,
 and records the demo.
 
 ### Waiting for approval
@@ -176,7 +176,7 @@ handovers in order. A problem beyond the task is a proposal, not a line in the r
 
 #### Code reviews
 
-Review answers may be submitted to the current worker or to a new agent chosen by harness, model and effort. The latter starts a fresh session in the same workspace with the selected findings as its task context; the previous worker must have finished its turn.
+Review answers may be submitted to the current worker or to a new agent chosen by harness, model and effort. The latter starts a fresh session in the same workstation with the selected findings as its task context; the previous worker must have finished its turn.
 
 A canvas may have the work of its cards reviewed before it lands (its settings sheet, "Code reviews",
 see The project settings in The canvas; off unless the owner turns it on, since reviews cost tokens).
@@ -186,7 +186,7 @@ reviewers, and so are folders without git, review cards, prototypes, work that c
 approved work handed over again only to land.
 
 The reviewer is an agent of its own, not the worker: one session of the "Code reviews" group (see
-Models and effort in Agents and workspaces), read-only, in the card's workspace. Its brief is the
+Models and effort in Agents and workstations), read-only, in the card's workstation. Its brief is the
 card's title and task, the files changed and the branch's diff against `main` (cut off at a size, the
 rest left to reading the files); its instructions are to review the repository's way (its CLAUDE.md
 and docs): correctness, security, quality, and whether the change fits the design docs. It changes
@@ -306,7 +306,7 @@ handover has no response shows the same stars and comment under its conversation
 shows the answer there to change; an unsent comment is a draft of the card's like any other. Saving
 goes its own way: approval and landing never wait for it, and a refused save shows its reason in the
 prompt, the approval standing. A response is about the latest handover (see Models and effort in
-Agents and workspaces); approved again for the same handover (a retried landing), nothing new is
+Agents and workstations); approved again for the same handover (a retried landing), nothing new is
 asked once answered; work handed over anew asks afresh. Review cards of contributors' pull requests
 and prototypes are not asked about. "Feedback after approval" in Configuration → Notifications and limits turns
 the asking off and on for every open page at once; turned off, no card asks or shows a rating, and
@@ -317,7 +317,7 @@ the responses given stay.
 "Compare ratings" (beside "Feedback after approval" in the Configuration, and
 under the stars of every rated card; the logo's menu has it as "Agent performance") opens "Agent performance" over the page, as the configuration
 is: every response on every canvas (`/api/feedback`), grouped by whom it credits (see Models and
-effort in Agents and workspaces). Each harness heads its rows, one per model and effort, the model
+effort in Agents and workstations). Each harness heads its rows, one per model and effort, the model
 as the session resolved it and an unknown field named unknown; work by several configurations
 ("Several configurations") and work nothing was recorded of ("Not recorded") have rows of their
 own under "Not credited to one model", never counted for a model. Rows are ordered by harness,
@@ -376,7 +376,7 @@ Seismic sees the branch: close the card, or land the files it names. A worker kn
 not those its branch carried from before, and otherwise told the owner the opposite of what the card
 showed. A worker whose
 branch emptied after the approval closes the card with `close_unchanged`, refused while the
-workspace holds changes.
+workstation holds changes.
 
 A finished card an agent worked on keeps its field: a question there resumes that agent (see
 Questions after the work).
@@ -391,8 +391,8 @@ soon as its work has landed (or closed without a change) and its worker is done 
 with a line in its log; a workstream still goes with its plan, and a card brought back from the
 archive stays on the canvas. The setting also decides when the owner is asked how the agent did
 (see Feedback after approval). A
-stopped task ("Stopped") can be archived one at a time, for the owner to come back to, beside "Start again" and "Delete"; not while it waits to start, nor while its workspace holds work that has not
-landed, or a clone keeps its branch since its workspace was taken (the button is greyed and says
+stopped task ("Stopped") can be archived one at a time, for the owner to come back to, beside "Start again" and "Delete"; not while it waits to start, nor while its workstation holds work that has not
+landed, or a clone keeps its branch since its workstation was taken (the button is greyed and says
 why), which would lie unseen in a clone. A stopped card opens
 like a card an agent worked on, the task as its conversation's first message.
 
@@ -487,7 +487,7 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
 - **An approve click folds the card at once.** Rejected: the card staying open with no sign of the
   click until the push was through.
 - **Work without a change ends in `done`, not `live`** (2026-10-02). Seismic reads it from the
-  workspace, not from the worker's word. The owner still approves it: its demo or summary is the
+  workstation, not from the worker's word. The owner still approves it: its demo or summary is the
   result. Rejected: waiting in `in PR` for a PR that never comes.
 - **A finished card keeps a field for questions to its agent** (2026-10-08).
 - **What the owner archives**: only their own finished cards, ideas once parked or dropped (a parked

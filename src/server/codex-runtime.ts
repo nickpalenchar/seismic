@@ -4,7 +4,7 @@ import { basename, dirname, isAbsolute, join } from 'node:path';
 import { homedir } from 'node:os';
 import { realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { GIT } from './workspaces';
+import { GIT } from './workstations';
 import type { CodexModel } from '../core/types';
 import { z } from 'zod';
 import { messageOf } from '../core/text';
@@ -125,10 +125,10 @@ type Connect = (spec: AgentSpec, handlers: CodexHandlers) => CodexConnection;
 const connectInstalled: Connect = (spec, handlers) => {
   const executable = installedCodex();
   if (!executable) throw new Error('Installed Codex executable unavailable; set SEISMIC_CODEX to its native executable path');
-  // An earlier Seismic crashed and its sweep could not end this workspace's old session: a new one
+  // An earlier Seismic crashed and its sweep could not end this workstation's old session: a new one
   // could write beside it. The sweep tries again when Seismic next starts.
   const left = sessionRegistry()?.unaccounted(spec.cwd);
-  if (left?.length) throw new Error(`An earlier session in this workspace left processes that are still running (${left.map((l) => l.label).join('; ')}); Seismic tries to end them when it starts`);
+  if (left?.length) throw new Error(`An earlier session in this workstation left processes that are still running (${left.map((l) => l.label).join('; ')}); Seismic tries to end them when it starts`);
   return codexConnection({
     command: executable,
     args: ['app-server', '--listen', 'stdio://', '-c', projectTrust(spec.cwd, !!spec.codexConfig)],
@@ -139,7 +139,7 @@ const connectInstalled: Connect = (spec, handlers) => {
 };
 
 /**
- * The sandbox a Codex worker runs in: Codex's `workspace-write`, which keeps it in its workspace
+ * The sandbox a Codex worker runs in: Codex's `workspace-write`, which keeps it in its workstation
  * and the temporary directories with no network. `SEISMIC_CODEX_SANDBOX=danger-full-access` in the
  * environment of Seismic lifts it, for a time when the sandbox stops work more than it protects
  * (loopback servers, browsers, the demos); Codex then asks only for what it holds dangerous. The
@@ -164,7 +164,7 @@ function supported(spec: AgentSpec) {
     !isAbsolute(spec.cwd) || spec.cwd.startsWith('ssh://') ? 'non-local working directory' : '',
     spec.untrusted ? 'untrusted repository configuration' : '',
     spec.plugins?.length ? 'Claude plugins' : '',
-    spec.dirs?.some((d) => !isAbsolute(d)) ? 'non-local additional workspace roots' : '',
+    spec.dirs?.some((d) => !isAbsolute(d)) ? 'non-local additional workstation roots' : '',
     spec.watch ? 'before/after mutation hooks' : '',
     spec.permissionMode && spec.permissionMode !== 'default' ? `permission mode ${spec.permissionMode}` : '',
     // Also covers interpreters selected by a CLI shim's /usr/bin/env shebang.
@@ -455,7 +455,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
 /**
  * Codex's own account of the configuration it reads in `spec.cwd` agrees with the trust it was
  * started with: no project layer when the repository's is not trusted (`codexConfig`), and none
- * but the workspace's own `.codex/` when it is. Anything else ends the start, before a thread runs.
+ * but the workstation's own `.codex/` when it is. Anything else ends the start, before a thread runs.
  */
 async function checkProjectConfig(connection: CodexConnection, spec: AgentSpec) {
   const { layers } = configLayers.parse(await connection.request('config/read', { cwd: spec.cwd, includeLayers: true }));

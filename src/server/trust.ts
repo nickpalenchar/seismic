@@ -79,15 +79,15 @@ export function trustTakenOver(trusted: RepoCommands | null, after: SharedSettin
   return changed ? next : null;
 }
 
-/** A file's contents as git names them (its blob's object id; SHA-256 in a repository whose ids are that long), so that a workspace's file compares with one read from a commit. */
+/** A file's contents as git names them (its blob's object id; SHA-256 in a repository whose ids are that long), so that a workstation's file compares with one read from a commit. */
 function blobId(bytes: Uint8Array, sha256: boolean): string {
   return new Bun.CryptoHasher(sha256 ? 'sha256' : 'sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
 }
 
 /**
- * Whether the Codex configuration of the workspace `dir` (everything under its `.codex/`, as the
+ * Whether the Codex configuration of the workstation `dir` (everything under its `.codex/`, as the
  * files are now, a change of the card's own included) is to the byte what the owner trusted
- * (`trusted`, by git object). None trusted, or none in the workspace, is no match: there is nothing
+ * (`trusted`, by git object). None trusted, or none in the workstation, is no match: there is nothing
  * to load. Nor is one with a symbolic link: Codex reads the file it points to, which may lie where
  * the agent can write and which the owner never saw.
  */

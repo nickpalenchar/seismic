@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readShared } from '../adapters';
 import { gitRepo } from './testing';
-import { git } from './workspaces';
+import { git } from './workstations';
 import { canonical, codexAsTrusted, commandsOf, heldGroups, trustTakenOver, withoutHeld } from './trust';
 
 describe("a repository's commands", () => {
@@ -45,7 +45,7 @@ describe("a repository's commands", () => {
   });
 });
 
-describe("a workspace's Codex configuration", () => {
+describe("a workstation's Codex configuration", () => {
   const dir = mkdtempSync(join(tmpdir(), 'obeya-codex-trust-'));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 

@@ -1,4 +1,4 @@
-// One canvas and everything that works on it: its repositories (each with adapter, workspaces,
+// One canvas and everything that works on it: its repositories (each with adapter, workstations,
 // workers, plan agents and PR watcher), the board, the Koordinator and the voice commands.
 
 import { idSlug as slug } from '../core/project-slug';
@@ -54,8 +54,8 @@ import { isSitePath, siteMissing, siteName, sitePaths } from './site';
 import { demoSite, findSite } from './demo-sites';
 import { dimensions } from '../core/page-tags';
 import { type DueRestart, Workers } from './workers';
-import { branchSetting, type CardWorkspaces, defaultBranch, type FileAt, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, Workspaces } from './workspaces';
-import { FolderWorkspaces } from './folder';
+import { branchSetting, type CardWorkstations, defaultBranch, type FileAt, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, Workstations } from './workstations';
+import { FolderWorkstations } from './folder';
 import { readingTheme, readTheme, type Theme } from './theme';
 import { claudeToken, githubToken, hostName, registerHost } from './hosts';
 import { clip, messageOf, oneLine } from '../core/text';
@@ -65,7 +65,7 @@ export type { CanvasConfig, RepoConfig };
 
 export interface CanvasDeps {
   store: Store;
-  /** Seismic's data directory (workspaces live under it). */
+  /** Seismic's data directory (workstations live under it). */
   home: string;
   runtime: AgentRuntime;
   /** The skills the cards' agents know (`skillsOf`); Claude Code on this machine tells, when left out. */
@@ -154,7 +154,7 @@ export interface RepoRuntime {
   adapter: RepoAdapter;
   /** Its read checkout: the default branch, where plan docs are read and the agents that only read work. */
   read: ReadTree;
-  workspaces: CardWorkspaces;
+  workstations: CardWorkstations;
   workers: Workers;
   planAgents: PlanAgents;
 }
@@ -343,13 +343,13 @@ export class CanvasRuntime {
     });
     board.showPools(() =>
       this.repos
-        .filter((r) => r.workspaces.pooled)
+        .filter((r) => r.workstations.pooled)
         .map((r) => ({
           repo: r.ref.id,
-          hosts: r.workspaces.pool(r.workers.inTurn()).map((h) => ({
+          hosts: r.workstations.pool(r.workers.inTurn()).map((h) => ({
             ...h,
             // what the owner may take from its card for a card waiting for one, and what goes once the undo window is through
-            workspaces: h.workspaces.map((w) =>
+            workstations: h.workstations.map((w) =>
               !w.card ? w : this.koordinator?.evicting(w.card) ? { ...w, leaving: true as const } : r.workers.evictable(w.card) ? { ...w, takeable: true as const } : w,
             ),
           })),
@@ -363,7 +363,7 @@ export class CanvasRuntime {
       paused: () => this.paused,
       repoFor: (card) => {
         const r = this.repoOf(card);
-        return { workers: r.workers, workspaces: r.workspaces, adapter: r.adapter, path: r.read.path, folder: !!r.info.folder };
+        return { workers: r.workers, workstations: r.workstations, adapter: r.adapter, path: r.read.path, folder: !!r.info.folder };
       },
       imageFiles: this.imageFiles,
       // the toggles as the configuration has them now: a saved change applies to the next suggestion
@@ -654,12 +654,12 @@ export class CanvasRuntime {
     return held;
   }
 
-  /** The repository of the canvas that `cwd` lies in (its checkout, its read checkout, a workspace of it; the most specific, since the home repository's workspaces hold the others'). */
+  /** The repository of the canvas that `cwd` lies in (its checkout, its read checkout, a workstation of it; the most specific, since the home repository's workstations hold the others'). */
   private repoAt(cwd: string): Repo | undefined {
     const depth = (dir: string) => (cwd === dir || cwd.startsWith(dir.endsWith(sep) || dir.endsWith('/') ? dir : `${dir}${dir.includes('://') ? '/' : sep}`) ? dir.length : -1);
     let best: { r: Repo; at: number } | undefined;
     for (const r of this.repos)
-      for (const dir of [r.info.path, r.read.path, r.workspaces.dir, ...r.workspaces.list().map((w) => w.path)]) {
+      for (const dir of [r.info.path, r.read.path, r.workstations.dir, ...r.workstations.list().map((w) => w.path)]) {
         const at = depth(dir);
         if (at >= 0 && (!best || at > best.at)) best = { r, at };
       }
@@ -683,7 +683,7 @@ export class CanvasRuntime {
    */
   private asOwner = async <T>(cwd: string, change: (repo: { path: string; folder: boolean }) => Promise<T>): Promise<T> => {
     const repo = this.repoAt(cwd);
-    if (!repo) throw new Error('the workspace lies in no repository of the canvas');
+    if (!repo) throw new Error('the workstation lies in no repository of the canvas');
     const path = repo.info.path;
     const folder = !!repo.info.folder;
     const read = () => commandsOf(folder ? readSharedFiles(path) : readShared(path));
@@ -706,7 +706,7 @@ export class CanvasRuntime {
 
   /**
    * Whether an agent working in `cwd` works in a repository of the canvas (its checkout, its
-   * read checkout, a workspace of it; the most specific, since the home repository's workspaces hold
+   * read checkout, a workstation of it; the most specific, since the home repository's workstations hold
    * the others') whose own Claude Code configuration waits for the owner's trust. As the default
    * branch has it now, not as the canvas last read it: a commit there that the canvas did not notice
    * (on the checkout's main, from outside Seismic) is in the files the session reads. Agents start
@@ -777,7 +777,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * Sets up the repository at `index` of a resolved configuration: its read checkout, workspaces (clones
+   * Sets up the repository at `index` of a resolved configuration: its read checkout, workstations (clones
    * here and on other machines), plan agents and workers. Its workers resume nothing yet.
    */
   private startRepo(resolved: Resolved, index: number): Repo {
@@ -810,17 +810,19 @@ export class CanvasRuntime {
       },
     });
     stops.push(() => read.stop());
-    const remoteHosts = !folder && info.remote && adapter.workspaces === 'clones' && adapter.land !== 'main' ? (rc.hosts ?? []) : [];
+    const remoteHosts = !folder && info.remote && adapter.workstations === 'clones' && adapter.land !== 'main' ? (rc.hosts ?? []) : [];
     // the workers set up below say how many are busy where
     let workers!: Workers;
-    let workspaces: CardWorkspaces;
+    let workstations: CardWorkstations;
     if (folder)
       // every card works in the folder itself; what each changed, and its undo, under Seismic's home
-      workspaces = new FolderWorkspaces(deps.store, { path: info.path, dir: join(deps.home, 'undo', resolved.id, ref.id) });
+      workstations = new FolderWorkstations(deps.store, { path: info.path, dir: join(deps.home, 'undo', resolved.id, ref.id) });
     else {
-      const git = new Workspaces(deps.store, resolved.id, {
-        mode: adapter.workspaces,
+      const git = new Workstations(deps.store, resolved.id, {
+        mode: adapter.workstations,
         repoPath: info.path,
+        // `workspaces/` keeps the name the directory had before workstations were called so: moving it would
+        // move the checkouts agents work and resume their sessions in
         dir: isHome ? join(deps.home, 'workspaces', resolved.id) : join(deps.home, 'workspaces', resolved.id, ref.id),
         repo: isHome ? null : ref.id,
         machines: [{ host: null, ...(rc.slots !== undefined ? { slots: rc.slots } : {}) }, ...remoteHosts.map((h) => ({ host: h.name, ...(h.slots !== undefined ? { slots: h.slots } : {}) }))],
@@ -832,7 +834,7 @@ export class CanvasRuntime {
         changed: () => board.changed(),
       });
       const named: string[] = [];
-      if (adapter.workspaces === 'clones') {
+      if (adapter.workstations === 'clones') {
         // a clone registered for this repository must be one of it
         for (const w of listedClones(rc, info, { land: adapter.land })) {
           git.register(w, [info.remote, info.path].filter((x): x is string => !!x));
@@ -844,12 +846,12 @@ export class CanvasRuntime {
       // the pool is what the configuration names now (in worktrees, no clone): clones here it no longer names leave it,
       // and those on hosts no longer in use (on a host still in use, once its clones are in place); worktrees are the cards' own
       // a folder moved or deleted by hand leaves at once, and its card takes another at its next start
-      for (const { card, path } of git.keepOnly(null, named)) board.workspaceGone(card, path);
+      for (const { card, path } of git.keepOnly(null, named)) board.workstationGone(card, path);
       const hosts = new Set(remoteHosts.map((h) => h.name));
       for (const host of new Set(git.list().map((w) => hostName(w.path)))) if (host !== null && !hosts.has(host)) git.keepOnly(host, []);
       // the folders of Seismic's clones that left the pool earlier go once nothing in them would be lost
       git.sweep();
-      workspaces = git;
+      workstations = git;
     }
     // clones on other machines, made in the background: a host that is off now gets them once it answers
     if (remoteHosts.length) {
@@ -863,7 +865,7 @@ export class CanvasRuntime {
         // the log tells what goes wrong once, not at every try while the host stays off
         let told: string | null = null;
         const ensure = async () => {
-          const wrong = await (workspaces as Workspaces).ensureHostClones(host, h.root, info.remote!, h.clones, token);
+          const wrong = await (workstations as Workstations).ensureHostClones(host, h.root, info.remote!, h.clones, token);
           if (stopped) return;
           if (!wrong) {
             if (told) console.log(`clones on ${h.name}: in place`);
@@ -886,7 +888,7 @@ export class CanvasRuntime {
       codeReviews: () => this.settings().codeReviews,
       reviewRuntime: this.reviewRuntime,
       reviewAgentSetting: () => this.agentFor('review'),
-      workspaces,
+      workstations,
       adapter,
       machineSettings: this.settingsOf(rc),
       allowRules: this.allowRules,
@@ -920,12 +922,12 @@ export class CanvasRuntime {
         return moved === 'due' ? 'repo' : false;
       },
       imageFiles: this.imageFiles,
-      onWorkEnded: (cardId, workspace) => this.workRetro.ended(cardId, workspace),
+      onWorkEnded: (cardId, workstation) => this.workRetro.ended(cardId, workstation),
       toObeya: this.toObeya,
       forge: deps.forge,
       repoPath: info.path,
       remote: originUrl(info),
-      ...(workspaces instanceof Workspaces ? { pulls: workspaces } : {}),
+      ...(workstations instanceof Workstations ? { pulls: workstations } : {}),
       ...(deps.permissionMode ? { permissionMode: deps.permissionMode } : {}),
       ...(deps.workerEnv ? { env: deps.workerEnv } : {}),
       demoLanguage: () => readDemoSettings(deps.home).language,
@@ -933,7 +935,7 @@ export class CanvasRuntime {
       demoDirectory: () => demoDirectory(readDemoSettings(deps.home)),
       ...(deps.parkGrace !== undefined ? { parkGrace: deps.parkGrace } : {}),
     });
-    Object.assign(repo, { ref, info, adapter, read, workspaces, workers, planAgents });
+    Object.assign(repo, { ref, info, adapter, read, workstations, workers, planAgents });
     return repo;
   }
 
@@ -970,7 +972,7 @@ export class CanvasRuntime {
   private watchPrs(r: Repo) {
     if (!this.deps.watch || r.prs) return;
     const board = this.board;
-    r.prs = new PrWatcher(board, r.workers, this.deps.forge, (cardId) => localDir(board.row(cardId).workspace) ?? r.info.path, () => r.adapter, r.ref.id, () => void r.read.refresh());
+    r.prs = new PrWatcher(board, r.workers, this.deps.forge, (cardId) => localDir(board.row(cardId).workstation) ?? r.info.path, () => r.adapter, r.ref.id, () => void r.read.refresh());
     r.prs.start(this.deps.prPollMs);
   }
 
@@ -1397,8 +1399,8 @@ export class CanvasRuntime {
       this.proposeSetup(r);
     }
     const layered = layerSettings<RepoSettings>(this.sharedOf(path)(), this.settingsOf(r.config)());
-    const workIn = r.info.folder ? 'folder' : namesClones(r.config, r.info, layered) ? 'clones' : (layered?.workspaces ?? defaultsFor(r.info).workspaces);
-    if (workIn !== r.workspaces.mode) {
+    const workIn = r.info.folder ? 'folder' : namesClones(r.config, r.info, layered) ? 'clones' : (layered?.workstations ?? defaultsFor(r.info).workstations);
+    if (workIn !== r.workstations.mode) {
       this.due([path], shared ? 'repository' : 'config');
       return 'due';
     }
@@ -1521,7 +1523,7 @@ export class CanvasRuntime {
     return this.skills.of({ cwd, plugins: idea ? [] : [OBEYA_PLUGIN], untrusted: (!idea && !!card.contribution) || (await this.claudeHeld(cwd)) });
   }
 
-  /** Whether the app in the card's workspace answers, for the owner to try it by hand (`Workers.appUp`). */
+  /** Whether the app in the card's workstation answers, for the owner to try it by hand (`Workers.appUp`). */
   async appUp(cardId: string): Promise<{ up: boolean }> {
     return { up: await this.repoOf(cardId).workers.appUp(cardId) };
   }
@@ -1772,9 +1774,9 @@ export class CanvasRuntime {
         return this.koordinator.force(cardId);
       case 'dequeue':
         return this.koordinator.dequeue(cardId);
-      case 'takeWorkspace':
+      case 'takeWorkstation':
         return this.koordinator.evict(cardId);
-      case 'keepWorkspace':
+      case 'keepWorkstation':
         return this.koordinator.keep(cardId);
       case 'arrange':
         return this.koordinator.arrange(cardId);
@@ -1951,16 +1953,16 @@ export class CanvasRuntime {
     clearTimeout(this.writing.get(cardId)?.timer);
     this.writing.delete(cardId);
     this.keepHere(cardId);
-    const { state, landed, workspace, prototype_of } = this.board.row(cardId);
+    const { state, landed, workstation, prototype_of } = this.board.row(cardId);
     if (prototype_of) return this.repoOf(cardId).workers.endPrototype(cardId, 'discarded');
-    if ((state === 'working' || state === 'waiting' || (landed && workspace)) && this.runs(cardId)) void this.repoOf(cardId).workers.stop(cardId);
+    if ((state === 'working' || state === 'waiting' || (landed && workstation)) && this.runs(cardId)) void this.repoOf(cardId).workers.stop(cardId);
     if (state === 'idea') this.explorers.close(cardId);
     // work thrown away ended too (finished work counted when it landed); the retrospective reads in its repository
-    else if ((!state || !finished(state)) && this.runs(cardId)) this.workRetro.ended(cardId, workspace);
+    else if ((!state || !finished(state)) && this.runs(cardId)) this.workRetro.ended(cardId, workstation);
     this.board.remove(cardId);
   }
 
-  /** Brings a deleted card back (the owner's undo), with the workspace it had where that is still free. */
+  /** Brings a deleted card back (the owner's undo), with the workstation it had where that is still free. */
   restore(cardId: string) {
     this.board.restore(cardId);
     if (this.runs(cardId)) this.repoOf(cardId).workers.restored(cardId);
@@ -2289,7 +2291,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * The idea is built on this prototype: the prototype's workspace and branch become the idea's,
+   * The idea is built on this prototype: the prototype's workstation and branch become the idea's,
    * whose worker goes on from there with the brief, the prototype's handover and the owner's answers
    * on it. The prototype goes into the archive as built, the idea's other prototypes as discarded.
    * What stands in the way is thrown at once; git renames the branch in the background.
@@ -2441,7 +2443,7 @@ export class CanvasRuntime {
   }
 
   /**
-   * Workers build throwaway prototypes for the idea, each in its own workspace; they never land
+   * Workers build throwaway prototypes for the idea, each in its own workstation; they never land
    * themselves. One per planned variant chosen, each with its approach in its title, and one for
    * what the owner wrote. Neither chosen nor written: the planned variants that have no prototype
    * on the canvas, or, with none planned, the idea as it stands.
@@ -2699,7 +2701,7 @@ export class CanvasRuntime {
     const ref = parsePrUrl(url, github);
     if (!ref) return fail(url);
     url = ref.url;
-    // a pull request of another repository would be merged there, from a workspace of this one
+    // a pull request of another repository would be merged there, from a workstation of this one
     const origin = originUrl(repo.info);
     if (origin && !sameRepo(origin, ref.owner, ref.repo)) return fail(t.review.otherRepo(repo.ref.id));
     // a card of the PR's own (one of Seismic's workers opened it) is the card for it too, also where
@@ -3123,7 +3125,7 @@ export function resolveCanvas(
   let refs = refsOf();
   const id = config.id ? slug(config.id) : config.name ? slug(config.name) : slug(repoName(reads[0]!.info));
   // the home repository is fixed when the canvas is first served: bare plan references, cards
-  // without a repository and the home workspace directory are its, whatever the order later
+  // without a repository and the home workstation directory are its, whatever the order later
   const stored = store.setting(id, 'home_repo');
   if (stored && stored !== refs[0]!.id) {
     const at = refs.findIndex((r) => r.id === stored);
@@ -3160,7 +3162,7 @@ export function repoAdapter(r: RepoConfig, info: RepoInfo, settings: () => RepoS
  */
 export function listedClones(r: RepoConfig, info: RepoInfo, layered: RepoSettings | undefined): string[] {
   const landsHere = (layered?.land ?? defaultsFor(info).land) === 'main';
-  return (r.workspaces ?? []).map((w) => resolve(w)).filter((w) => !landsHere || w !== resolve(info.path));
+  return (r.workstations ?? []).map((w) => resolve(w)).filter((w) => !landsHere || w !== resolve(info.path));
 }
 
 /** Whether a repository's configuration names clones for its workers (to create, existing ones, on other machines). */
@@ -3223,5 +3225,5 @@ function sameDir(a: string, b: string): boolean {
   }
 }
 
-/** A workspace as a directory on this machine, for a program that runs here (gh on a pull request's URL); none for one on another machine. */
-const localDir = (workspace: string | null) => (workspace && !hostName(workspace) ? workspace : null);
+/** A workstation as a directory on this machine, for a program that runs here (gh on a pull request's URL); none for one on another machine. */
+const localDir = (workstation: string | null) => (workstation && !hostName(workstation) ? workstation : null);

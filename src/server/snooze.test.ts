@@ -452,7 +452,7 @@ describe('the Koordinator waits on a card', () => {
 });
 
 describe('a card that starts later', () => {
-  // the timers' work done, and the workers it started at work in their workspaces
+  // the timers' work done, and the workers it started at work in their workstations
   const settle = async () => {
     await new Promise((r) => setTimeout(r, 5));
     await Promise.all(canvas.repos.map((r) => r.workers.prepared()));

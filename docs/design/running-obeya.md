@@ -501,7 +501,7 @@ goes, only nothing starts again: workers in a turn are told Seismic is about to 
 safe point, and Seismic ends once none is in a turn (at most 15 minutes). The bar shows it ("Shutdown
 waits for N agents", "Shut down now"), and "Shut down now" or a second Ctrl-C forces it: Seismic
 signals its known agent processes without waiting for their ordinary shutdown escalation. This is
-best-effort cleanup, not containment of processes it never observed (see Agents and workspaces).
+best-effort cleanup, not containment of processes it never observed (see Agents and workstations).
 Supervisor and server both get the terminal's Ctrl-C, so signals within a second count as one press.
 A stop does not wait for the owner's video or dictation (the owner asked for it), and turns a
 waiting restart into a stop. The next start resumes the stopped workers.
@@ -592,7 +592,7 @@ workers are busy.
   milliseconds to build on a canvas with hundreds of archived and shared cards; when many cards
   landed one after another, the server stood still for half a second at a time. The cards alone
   (what code reads back between its writes) are built apart from the rest of that view (the sheet's
-  outdated pages, the workspaces, the notes on the plan directories), and one archived card is built
+  outdated pages, the workstations, the notes on the plan directories), and one archived card is built
   without the whole archive. Which cards are prototypes (an idea lists its own, archived ones too)
   is read once per change, and each is made into a card when one first needs it, once per change
   too, not again for every card looked up: a pass of sharing looks up every shared card, hundreds of

@@ -28,7 +28,7 @@ export function Branch({ item, sizeBelow }: { item: Item; sizeBelow?: boolean })
     return () => {
       gone = true;
     };
-  }, [item.id, item.state, item.need, item.statusLine, item.workspace, item.summary]);
+  }, [item.id, item.state, item.need, item.statusLine, item.workstation, item.summary]);
   const size = diff && diffSize(diff.files);
   return (
     <>
@@ -45,10 +45,10 @@ export function Branch({ item, sizeBelow }: { item: Item; sizeBelow?: boolean })
           )}
         </>
       )}
-      {item.workspace && (
+      {item.workstation && (
         <>
           {' · '}
-          <CopyPath path={item.workspace} />
+          <CopyPath path={item.workstation} />
         </>
       )}
       <AppLink item={item} />
@@ -61,7 +61,7 @@ export function Branch({ item, sizeBelow }: { item: Item; sizeBelow?: boolean })
 const APP_LOOK_MS = 10_000;
 
 /**
- * The app running in the card's workspace, while it answers: a link beside the workspace's path for
+ * The app running in the card's workstation, while it answers: a link beside the workstation's path for
  * the owner to try it by hand, opened through Seismic, which keeps it running a while after.
  */
 function AppLink({ item }: { item: Item }) {
@@ -84,7 +84,7 @@ function AppLink({ item }: { item: Item }) {
     where = new URL(item.app).host;
   } catch {}
   // on another machine, reached here through a forward of that port
-  const host = /^([^/:\\]{2,}):\//.exec(item.workspace ?? '')?.[1];
+  const host = /^([^/:\\]{2,}):\//.exec(item.workstation ?? '')?.[1];
   if (host) where = `${host}, ${where}`;
   return (
     <>

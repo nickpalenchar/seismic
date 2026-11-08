@@ -2469,18 +2469,18 @@ function RepoRow({ repo, home, resolved, canvasId, problems, focus, where, ask, 
   const landsHere = (repo.settings?.land ?? resolved?.values.land.value) === 'main';
   const itself = (w: string) => landsHere && w.trim().replace(/\/+$/, '') === repo.path.trim().replace(/\/+$/, '');
   // clones the configuration names (to make, existing ones, on hosts) put the repository in clones whatever its settings say
-  const named = !!repo.clones || (repo.workspaces ?? []).some((w) => w.trim() && !itself(w)) || !!repo.hosts?.length;
-  const base = resolved?.values.workspaces;
+  const named = !!repo.clones || (repo.workstations ?? []).some((w) => w.trim() && !itself(w)) || !!repo.hosts?.length;
+  const base = resolved?.values.workstations;
   // what the repository's settings say without this machine's, where the check could tell it apart from the clones named
   const known = base && base.source !== 'clones' ? base.value : undefined;
-  const own = repo.settings?.workspaces;
-  const workIn = named ? 'clones' : (own ?? known ?? resolved?.workspaces ?? 'worktrees');
+  const own = repo.settings?.workstations;
+  const workIn = named ? 'clones' : (own ?? known ?? resolved?.workstations ?? 'worktrees');
   const clones = !folder && workIn === 'clones';
   const existing = useRef<HTMLTextAreaElement>(null);
-  const existingText = (repo.workspaces ?? []).join('\n');
+  const existingText = (repo.workstations ?? []).join('\n');
   useFitHeight(existing, existingText, clones);
   // the clones named, put aside while the owner switches to worktrees, back with a switch to clones
-  const parked = useRef<Pick<RepoConfig, 'clones' | 'workspaces' | 'hosts'>>({});
+  const parked = useRef<Pick<RepoConfig, 'clones' | 'workstations' | 'hosts'>>({});
   const without = <K extends keyof RepoConfig>(k: K, v: RepoConfig[K] | undefined, from: RepoConfig = repo): RepoConfig => {
     const next = { ...from };
     if (v === undefined) delete next[k];
@@ -2490,17 +2490,17 @@ function RepoRow({ repo, home, resolved, canvasId, problems, focus, where, ask, 
   // "Agents work in": this machine's setting where the repository's says otherwise; worktrees put the clones named aside
   const setWorkIn = (mode: 'clones' | 'worktrees') => {
     if (mode === workIn) return;
-    const { workspaces: _, ...others } = repo.settings ?? {};
-    const settings = known === mode ? others : { ...others, workspaces: mode };
+    const { workstations: _, ...others } = repo.settings ?? {};
+    const settings = known === mode ? others : { ...others, workstations: mode };
     let next = without('settings', Object.keys(settings).length ? settings : undefined);
     if (mode === 'worktrees') {
-      parked.current = { ...(repo.clones !== undefined ? { clones: repo.clones } : {}), ...(repo.workspaces ? { workspaces: repo.workspaces } : {}), ...(repo.hosts ? { hosts: repo.hosts } : {}) };
-      next = without('hosts', undefined, without('workspaces', undefined, without('clones', undefined, next)));
+      parked.current = { ...(repo.clones !== undefined ? { clones: repo.clones } : {}), ...(repo.workstations ? { workstations: repo.workstations } : {}), ...(repo.hosts ? { hosts: repo.hosts } : {}) };
+      next = without('hosts', undefined, without('workstations', undefined, without('clones', undefined, next)));
     } else next = { ...next, ...parked.current };
     onChange(next);
   };
   const source = named ? t.config.settings.source.clones : own !== undefined ? t.config.settings.source.machine : base ? t.config.settings.source[base.source] : undefined;
-  const listed = (repo.workspaces ?? []).filter((w) => w.trim() && !itself(w)).length;
+  const listed = (repo.workstations ?? []).filter((w) => w.trim() && !itself(w)).length;
   // what saving does to the clones registered now: those it no longer names leave the pool, a card's once it is done
   const leaving = resolved?.leaving?.length ? <p className="hint cfg-clone-leaving">{t.config.cloneLeaving(resolved.leaving.map((c) => (c.card ? { ...c, card: plain(c.card) } : c)))}</p> : null;
   const slots = (hint: string, placeholder: string) => (
@@ -2533,15 +2533,15 @@ function RepoRow({ repo, home, resolved, canvasId, problems, focus, where, ask, 
       {canvasId && resolved && !folder && (resolved.adapterGone || !fromRepository(resolved.values)) && <AdapterSetup canvas={canvasId} repo={resolved.id} takeover={takeover} />}
       {!folder && (resolved || clones) && (
         <div ref={clonesBox} className={flash ? 'cfg-group flash' : 'cfg-group'}>
-          <h5 className="cfg-group-head">{t.config.groups.workspaces}</h5>
+          <h5 className="cfg-group-head">{t.config.groups.workstations}</h5>
           <div className="cfg-field cfg-setting cfg-has-info">
             <div className="cfg-label">
-              {t.config.settings.workspaces}
+              {t.config.settings.workstations}
               {source && <span className={source === t.config.settings.source.machine ? 'cfg-source here' : 'cfg-source'}>{source}</span>}
-              <Info text={t.config.settings.workspacesHint} />
+              <Info text={t.config.settings.workstationsHint} />
             </div>
             <div className="cfg-control">
-              <div className="seg" role="radiogroup" aria-label={t.config.settings.workspaces}>
+              <div className="seg" role="radiogroup" aria-label={t.config.settings.workstations}>
                 {(['worktrees', 'clones'] as const).map((x) => (
                   <button key={x} type="button" role="radio" aria-checked={workIn === x} className={workIn === x ? 'on' : undefined} onClick={() => setWorkIn(x)}>
                     {t.config.settings.workIn[x]}
@@ -2552,20 +2552,20 @@ function RepoRow({ repo, home, resolved, canvasId, problems, focus, where, ask, 
           </div>
           {clones ? (
             <>
-              <Field label={t.config.workspaces}>
+              <Field label={t.config.workstations}>
                 <textarea
                   ref={existing}
                   className="cfg-existing"
                   rows={2}
                   spellCheck={false}
-                  aria-label={t.config.workspaces}
+                  aria-label={t.config.workstations}
                   value={existingText}
                   onChange={(e) => {
                     const list = e.target.value.split('\n');
-                    onChange(without('workspaces', list.some((w) => w.trim()) ? list : undefined));
+                    onChange(without('workstations', list.some((w) => w.trim()) ? list : undefined));
                   }}
                 />
-                {(repo.workspaces ?? []).some(itself) && <p className="hint">{t.config.cloneIsRepo}</p>}
+                {(repo.workstations ?? []).some(itself) && <p className="hint">{t.config.cloneIsRepo}</p>}
               </Field>
               <Field className="cfg-clone-count" label={<>{t.config.clones} <Info text={t.config.clonesHint} /></>}>
                 <input type="number" min={0} max={20} aria-label={t.config.clones} placeholder="0" value={repo.clones ?? ''} onChange={(e) => onChange(without('clones', Number(e.target.value) || undefined))} />
@@ -2634,7 +2634,7 @@ function RepoSettingsBlock({
 }: {
   /** The setting to scroll to and mark: the dialog was opened from a proposal for it. */
   show: ConfigFocus | undefined;
-  /** A folder without git: what is about branches, landing and workspaces does not apply. */
+  /** A folder without git: what is about branches, landing and workstations does not apply. */
   folder: boolean;
   repo: RepoConfig;
   values: RepoValues;

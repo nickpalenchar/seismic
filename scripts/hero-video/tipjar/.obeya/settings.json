@@ -1,7 +1,7 @@
 {
   "checks": ["bun test"],
   "land": "main",
-  "workspaces": "worktrees",
+  "workstations": "worktrees",
   "app": {
     "run": "The app is static: serve your worktree with `python3 -m http.server <a free port> -d <worktree>` and open `/index.html`; after a change, reload the page. Keep a demo under a minute."
   }

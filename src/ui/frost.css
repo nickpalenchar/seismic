@@ -111,7 +111,7 @@ code { border-radius: 5px; }
 .sheet { border-radius: 0; border-right: 0; }
 .nav-sheet { border-radius: 0; border-left: 0; }
 /* menus and tips: solid, as most open from the top bar, whose own blur would keep theirs from reaching the canvas */
-.nav-menu, .bar-menu, .prio-menu, .snooze-menu, .agents-tip, .pill:is(.restart, .workspaces, .usage) .tip, .qlist li .q-held {
+.nav-menu, .bar-menu, .prio-menu, .snooze-menu, .agents-tip, .pill:is(.restart, .workstations, .usage) .tip, .qlist li .q-held {
   background: var(--panel); border: 1px solid var(--glass-edge); border-radius: 12px; }
 /* the questions stacked by the microphone (rating, notifications): solid too, so where the screen is narrow and
    they stand over the microphone, it does not show through them */

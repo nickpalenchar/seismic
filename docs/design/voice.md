@@ -200,7 +200,7 @@ screenshots and the notes the owner left on them, and the others go. What follow
 review findings that linked them, and cards waiting for them in the queue, then point at the one
 that stays; started ones waiting in the queue make it wait for what any of them waited for, in the
 place of the first queued. A planned task the owner no longer wants is deleted. Both hold only for
-planned tasks nobody has worked on yet (no branch, no workspace, queued only while waiting behind
+planned tasks nobody has worked on yet (no branch, no workstation, queued only while waiting behind
 other cards; not a proposal, an idea, a workstream of a plan doc or a prototype), merging
 only within one repository; for anything else Seismic refuses with the reason. Like every command they
 run after the undo window.
@@ -367,7 +367,7 @@ Koordinator's sheet and the line above the mic. Demo narration is separate (see 
   2026-10-30). "Create a card for each open issue" made a task whose agent read the issues
   and proposed a card for each: the owner had a card more and accepted every proposal by hand,
   where they expected the cards. Rejected: that agent passing the cards on with `to_seismic`
-  (still a card and a workspace for minutes of reading, and its agent chose proposals unasked); the
+  (still a card and a workstation for minutes of reading, and its agent chose proposals unasked); the
   look-up agent acting itself (a second actor beside the Koordinator, and an agent may answer
   without passing anything on).
 - **The Koordinator makes cards on other canvases** (2026-10-28), though it works per canvas:
@@ -376,7 +376,7 @@ Koordinator's sheet and the line above the mic. Demo narration is separate (see 
   on its own canvas.
 - **The Koordinator merges and deletes planned tasks** (2026-10-31, the review of PR #33: too many
   follow-up tasks, and Seismic could only group them). Only tasks nobody has worked on, since a branch
-  or a workspace holds work a merge would lose or split; a merge keeps every text unchanged under its
+  or a workstation holds work a merge would lose or split; a merge keeps every text unchanged under its
   title rather than rewriting them, so nothing the owner said gets lost in a summary. Rejected:
   merging into a new card (it would lose the first card's place, group and history).
 - **Reviews of several pull requests are review cards too** (2026-11-02). Asked for several at once,
@@ -387,9 +387,9 @@ Koordinator's sheet and the line above the mic. Demo narration is separate (see 
   facts the Koordinator reads (review cards marked in its list and history, `review_pr` once for each
   pull request, the step after a look-up naming its action). Rejected: refusing a new card titled
   like a review (titles such as a review's follow-up are legitimate); letting a card's agent turn its
-  task into a review card (a review card's safety rests on how it starts: a workspace on the PR's
+  task into a review card (a review card's safety rests on how it starts: a workstation on the PR's
   head and a session that reads none of the contributor's settings; a task that already ran in its
-  own workspace needs a new card anyway, which the owner gets by saying "Review PR #…" on it).
+  own workstation needs a new card anyway, which the owner gets by saying "Review PR #…" on it).
 - **The Koordinator's model stays**: Sonnet, Haiku or a shorter prompt saved nothing reliable.
 - **Seismic does not speak** (2026-10-08): spoken confirmations and answers distracted the owner, who
   reads them anyway.

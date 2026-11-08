@@ -16,7 +16,7 @@ import { runAppCommand } from './app-command';
 import { type AgentEvent, sdkRuntime } from './runtime';
 import { FakeRuntime, fakeSsh, gitRepo, identify, until } from './testing';
 import { Workers } from './workers';
-import { git, gitAsync, HERE, RECHECK_MS, Workspaces } from './workspaces';
+import { git, gitAsync, HERE, RECHECK_MS, Workstations } from './workstations';
 
 let dir: string;
 let ssh: string;
@@ -34,7 +34,7 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-describe('a workspace on a host', () => {
+describe('a workstation on a host', () => {
   test('is named by its host, and found again by that name', () => {
     const path = onHost(name, '/srv/clones/1');
     expect(path).toBe(`ssh://${name}/srv/clones/1`);
@@ -192,7 +192,7 @@ describe('a session on a host', () => {
 
 describe('clones on a host', () => {
   let origin: string;
-  let spaces: Workspaces;
+  let spaces: Workstations;
   let store: Store;
   let board: Board;
 
@@ -202,7 +202,7 @@ describe('clones on a host', () => {
     git(dir, 'clone', '--quiet', '--bare', join(dir, 'main'), origin);
     store = new Store(':memory:');
     board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: join(dir, 'main'), branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
-    spaces = new Workspaces(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: join(dir, 'ws') });
+    spaces = new Workstations(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: join(dir, 'ws') });
   });
 
   test('are made there, leased after those here, and land through the remote', async () => {
@@ -240,7 +240,7 @@ describe('clones on a host', () => {
 
   test('take a new card on the first machine with a free slot, here first', async () => {
     let workers!: Workers;
-    spaces = new Workspaces(store, 'c', {
+    spaces = new Workstations(store, 'c', {
       mode: 'clones',
       repoPath: join(dir, 'main'),
       dir: join(dir, 'ws'),
@@ -250,26 +250,26 @@ describe('clones on a host', () => {
     spaces.ensureClones(origin, 2);
     expect(await spaces.ensureHostClones(host, join(dir, 'far'), origin, 2, () => undefined)).toBeNull();
     const runtime = new FakeRuntime();
-    workers = new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, workspaces: 'clones', land: 'pr' } });
+    workers = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' } });
     const [a, b, c] = ['A', 'B', 'C'].map((title) => board.create({ title, x: 0, y: 0 }).id) as [string, string, string];
     await workers.start(a);
-    expect(board.row(a).workspace).toBe(join(dir, 'ws', '1'));
+    expect(board.row(a).workstation).toBe(join(dir, 'ws', '1'));
     // the slot here is taken by A at work, though a clone here is free
     await workers.start(b);
-    expect(board.row(b).workspace).toBe(onHost(name, join(dir, 'far', '1')));
+    expect(board.row(b).workstation).toBe(onHost(name, join(dir, 'far', '1')));
     expect(() => workers.start(c)).toThrow(expect.objectContaining({ code: 'noSlot' }));
     expect(spaces.leasable()).toBe(false);
     expect(spaces.pool(workers.inTurn())).toEqual([
-      { name: HERE, here: true, slots: 1, total: 2, cards: [a], busy: [a], workspaces: [{ path: join(dir, 'ws', '1'), card: a }, { path: join(dir, 'ws', '2') }] },
-      { name, slots: 1, total: 2, cards: [b], busy: [b], workspaces: [{ path: join(dir, 'far', '1'), card: b }, { path: join(dir, 'far', '2') }] },
+      { name: HERE, here: true, slots: 1, total: 2, cards: [a], busy: [a], workstations: [{ path: join(dir, 'ws', '1'), card: a }, { path: join(dir, 'ws', '2') }] },
+      { name, slots: 1, total: 2, cards: [b], busy: [b], workstations: [{ path: join(dir, 'far', '1'), card: b }, { path: join(dir, 'far', '2') }] },
     ]);
     // A asks the owner and holds its clone, but no slot
-    const sa = runtime.sessions.find((s) => s.spec.cwd === board.row(a).workspace)!;
+    const sa = runtime.sessions.find((s) => s.spec.cwd === board.row(a).workstation)!;
     await sa.call('ask', { question: 'Welche Farbe?' });
     sa.emit({ type: 'idle' });
     expect(spaces.leasable()).toBe(true);
     await workers.start(c);
-    expect(board.row(c).workspace).toBe(join(dir, 'ws', '2'));
+    expect(board.row(c).workstation).toBe(join(dir, 'ws', '2'));
     // the owner's question to a card whose work is over does not wait for a slot
     const d = board.create({ title: 'D', x: 0, y: 0 }).id;
     const lease = spaces.lease(d, 'obeya/d', { overSlots: true });
@@ -347,10 +347,10 @@ describe('a worker on a host', () => {
     git(dir, 'clone', '--quiet', '--bare', join(dir, 'main'), origin);
     const store = new Store(':memory:');
     const board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: join(dir, 'main'), branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
-    const spaces = new Workspaces(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: join(dir, 'ws') });
+    const spaces = new Workstations(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: join(dir, 'ws') });
     expect(await spaces.ensureHostClones(host, join(dir, 'far'), origin, 1, () => undefined)).toBeNull();
     const runtime = new FakeRuntime();
-    const workers = new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, workspaces: 'clones', land: 'pr' }, reconnectMs: 20 });
+    const workers = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' }, reconnectMs: 20 });
     const card = board.create({ title: 'Weit weg', x: 0, y: 0 });
     await workers.start(card.id);
     const first = runtime.last;
@@ -407,10 +407,10 @@ describe('a worker on a host', () => {
     git(dir, 'clone', '--quiet', '--bare', join(dir, 'main'), origin);
     const store = new Store(':memory:');
     const board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: join(dir, 'main'), branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
-    const spaces = new Workspaces(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: join(dir, 'ws') });
+    const spaces = new Workstations(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: join(dir, 'ws') });
     expect(await spaces.ensureHostClones(host, join(dir, 'far'), origin, 1, () => undefined)).toBeNull();
     const runtime = new FakeRuntime();
-    const workers = new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, workspaces: 'clones', land: 'pr' }, reconnectMs: 20 });
+    const workers = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' }, reconnectMs: 20 });
     const card = board.create({ title: 'Weit weg', body: 'Eine Wochenansicht.', x: 0, y: 0 });
     await workers.start(card.id);
     // the host goes before the session reports an id: getting it ready failed
@@ -431,7 +431,7 @@ describe('the app of a card on a host', () => {
   let board: Board;
   let runtime: FakeRuntime;
   let workers: Workers;
-  let spaces: Workspaces;
+  let spaces: Workstations;
   let apps: ReturnType<typeof Bun.serve>[];
   /** An app running there (the stand-in's host is this machine), answering with its name. */
   const app = (name: string) => {
@@ -450,10 +450,10 @@ describe('the app of a card on a host', () => {
     git(dir, 'clone', '--quiet', '--bare', join(dir, 'main'), origin);
     const store = new Store(':memory:');
     board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: join(dir, 'main'), branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
-    spaces = new Workspaces(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: join(dir, 'ws') });
+    spaces = new Workstations(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: join(dir, 'ws') });
     expect(await spaces.ensureHostClones(host, join(dir, 'far'), origin, 1, () => undefined)).toBeNull();
     runtime = new FakeRuntime();
-    workers = new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, workspaces: 'clones', land: 'pr' } });
+    workers = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' } });
   });
   afterEach(() => {
     workers.shutdown();
@@ -484,7 +484,7 @@ describe('the app of a card on a host', () => {
     await closed(second);
     expect(await workers.appUp(card.id)).toBe(false);
     expect(await workers.openApp(card.id)).toBeNull();
-    // the workspace goes with the card's work
+    // the workstation goes with the card's work
     runtime.last.call('app_running', { url: app('dritte') });
     const third = (await workers.openApp(card.id))!;
     expect(await answers(third)).toBe('dritte');
@@ -512,7 +512,7 @@ describe('the app of a card on a host', () => {
 
   test('ends when the card is parked', async () => {
     workers.shutdown();
-    workers = new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, workspaces: 'clones', land: 'pr', app: { run: 'true', stop: 'true' } }, parkGrace: 10, tryGrace: 0 });
+    workers = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr', app: { run: 'true', stop: 'true' } }, parkGrace: 10, tryGrace: 0 });
     const card = board.create({ title: 'Weit weg', x: 0, y: 0 });
     await workers.start(card.id);
     runtime.last.call('app_running', { url: app('da') });

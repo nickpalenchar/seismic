@@ -9,8 +9,8 @@
 import { z } from 'zod';
 import { BadRequest, type Board, codeReviewOf, type StoredCodeReview } from './board';
 import { type AgentRuntime, type AgentSession, type AgentTool, waitQuietly } from './runtime';
-import { gitAsync } from './workspaces';
-import type { CardWorkspaces } from './workspaces';
+import { gitAsync } from './workstations';
+import type { CardWorkstations } from './workstations';
 import { harnessChoice, type AgentSetting, type AgentIdentity, type ChangeRoute, type CodeReviewMode, type Finding, type Severity, SEVERITIES } from '../core/types';
 import { LANGUAGE_NAMES } from '../core/locale';
 import { clip, messageOf } from '../core/text';
@@ -27,7 +27,7 @@ export interface CodeReviewOptions {
   /** Runs the review agent, in the harness, model and effort of the "Code reviews" group. */
   runtime: AgentRuntime;
   agentSetting?: () => AgentSetting;
-  workspaces: Pick<CardWorkspaces, 'diff'>;
+  workstations: Pick<CardWorkstations, 'diff'>;
   /** On a canvas with several repositories: the one whose cards these are. */
   repo?: string;
 }
@@ -114,8 +114,8 @@ export class CodeReviews {
     if (mode === 'auto' && had) this.save(cardId, { ...had, mode, handover, pending: true });
     else if (mode === 'auto') this.save(cardId, { mode, handover, pending: true });
     this.paused.delete(cardId);
-    const ws = this.o.board.row(cardId).workspace;
-    // awaited also without a workspace: the handover is recorded before anything starts
+    const ws = this.o.board.row(cardId).workstation;
+    // awaited also without a workstation: the handover is recorded before anything starts
     const head = await (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined));
     if (!this.o.board.item(cardId)) return;
     // a newer handover came while git answered: its own continuation decides, and keeps the card pending until then
@@ -163,7 +163,7 @@ export class CodeReviews {
     if (!c) throw new BadRequest('notReview', 'the card has no code review: its canvas reviews no work, or its work does not land on main');
     if (c.review?.handover === c.handover && c.review.state !== 'failed') throw new BadRequest('notReview', 'the latest handover is reviewed already');
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.codeReviewStarted);
-    const ws = this.o.board.row(cardId).workspace;
+    const ws = this.o.board.row(cardId).workstation;
     void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => this.begin(cardId, head));
   }
 
@@ -286,8 +286,8 @@ export class CodeReviews {
   private async run(cardId: string, run: object, setting?: AgentSetting, resume?: string): Promise<void> {
     const b = this.o.board;
     const row = b.row(cardId);
-    const ws = row.workspace;
-    const diff = ws && !resume ? await this.o.workspaces.diff(cardId, true).catch(() => null) : null;
+    const ws = row.workstation;
+    const diff = ws && !resume ? await this.o.workstations.diff(cardId, true).catch(() => null) : null;
     if (this.running.get(cardId)?.run !== run) return;
     if (!ws || (!resume && !diff?.patch)) return this.finish(cardId, run, undefined, b.t.worker.codeReviewNoDiff);
     const card = b.item(cardId);

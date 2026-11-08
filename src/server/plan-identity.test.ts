@@ -8,7 +8,7 @@ import { Board, LEAVE_AFTER_MS } from './board';
 import { Store } from './db';
 import { planHistory } from './repo';
 import { gitRepo } from './testing';
-import { branchName, git } from './workspaces';
+import { branchName, git } from './workstations';
 
 const FILE = 'docs/plan/audit.md';
 const md = (items: string[]) => `# Audit\n\n## Goal\n\nFix the findings.\n\n## Workstreams\n\n${items.map((i) => `- ${i}`).join('\n')}\n`;
@@ -171,16 +171,16 @@ describe('a doc in a plan folder outside the repository', () => {
     expect(board.archived().find((i) => i.id === g!.id)).toMatchObject({ title: '1G Testlücken schließen', body: 'Only tests.', state: 'done' });
   });
 
-  test('a stopped card leaves once it gave its workspace back, under the title and text the doc had', () => {
+  test('a stopped card leaves once it gave its workstation back, under the title and text the doc had', () => {
     const [, b] = read(outside(OLD));
-    work(b!.id, '3B Auth zusammenführen', { state: 'planned', branch: `obeya/3b-auth-zusammenfuhren-${b!.id.slice(0, 6)}`, workspace: '/ws/1' });
+    work(b!.id, '3B Auth zusammenführen', { state: 'planned', branch: `obeya/3b-auth-zusammenfuhren-${b!.id.slice(0, 6)}`, workstation: '/ws/1' });
     const t = Date.now();
     read(outside([OLD[0]!, OLD[2]!]));
     setSystemTime(new Date(t + LEAVE_AFTER_MS + 1000));
     board.changed();
     board.snapshot();
     expect(board.snapshot().items.some((i) => i.id === b!.id)).toBe(false);
-    store.update(b!.id, { workspace: null });
+    store.update(b!.id, { workstation: null });
     board.changed();
     expect(board.snapshot().items.find((i) => i.id === b!.id)).toMatchObject({ title: '3B Auth zusammenführen', body: 'One auth service.', state: 'planned', source: 'manual' });
   });

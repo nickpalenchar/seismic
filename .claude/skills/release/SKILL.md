@@ -58,7 +58,7 @@ approval: push, tag, build, draft, video on the site, and the owner publishing.
 Landing the version restarts Seismic. Call `after_restart` and end the turn; go on once Seismic says
 it runs your change.
 
-**Steps 5 and 6.** Your workspace stands at what landed: tag its `HEAD`, after checking that its
+**Steps 5 and 6.** Your workstation stands at what landed: tag its `HEAD`, after checking that its
 `package.json` has the version. Push `main` first, then the tag.
 
 **Step 7, the build.** Watch the run in the background and end the turn. When it fails, read the

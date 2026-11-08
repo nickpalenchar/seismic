@@ -11,7 +11,7 @@ eachTest();
 const opus: AgentSetting = { model: 'opus', effort: 'high' };
 const codex: AgentSetting = { ...AGENT_DEFAULTS.worker, harness: 'codex', codex: { model: 'default', effort: 'low' } };
 function using(choice: () => AgentSetting) {
-  setWorkers(new Workers({ board, runtime, workspaces: spaces, adapter: { ...generic, workspaces: 'clones', land: 'main' }, agentSetting: choice }));
+  setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'main' }, agentSetting: choice }));
 }
 const handOver = () => runtime.last.call('ready_for_review', { summary: 'Done.', demo: artifact() });
 const approve = (id: string) => board.work(id, { approved_at: new Date().toISOString() });
@@ -229,8 +229,8 @@ test('archiving by hand, a card asks for feedback once the owner archives it; a 
 test('archiving after the landing, a finished card goes into the archive once its worker is done, and one still at work stays', () => {
   board.archiving = () => 'landed';
   const card = manual();
-  board.work(card.id, { state: 'live', workspace: '/tmp/somewhere', landed: '{}' });
-  board.work(card.id, { workspace: null, landed: null });
+  board.work(card.id, { state: 'live', workstation: '/tmp/somewhere', landed: '{}' });
+  board.work(card.id, { workstation: null, landed: null });
   board.workDone(card.id);
   expect(board.snapshot().items.some((i) => i.id === card.id)).toBe(false);
   expect(board.archived().map((i) => i.id)).toContain(card.id);

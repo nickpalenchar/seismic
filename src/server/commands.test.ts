@@ -444,7 +444,7 @@ describe('the Koordinator remembers', () => {
 
   test('a landed card whose agent finishes what remains still takes notes', async () => {
     const a = board.create({ title: 'Archiv', x: 0, y: 0 });
-    board.work(a.id, { state: 'live', workspace: '/w', landed: '{}' });
+    board.work(a.id, { state: 'live', workstation: '/w', landed: '{}' });
     const k = commander();
     const { brief, heard } = await say(k, 'sag Archiv, es soll auch die alten Karten nachtragen', 'act', {
       actions: [{ do: 'note', card: 'K1', text: 'Auch die alten Karten nachtragen.' }],
@@ -857,7 +857,7 @@ describe('what the agent of a card passes on from the owner\'s words', () => {
     demo: { state: 'waiting', need: 'demo', demo: DEMO },
     review: { state: 'waiting', need: 'review' },
     inPr: { state: 'inPr' },
-    finishing: { state: 'live', workspace: '/w', landed: '{}' },
+    finishing: { state: 'live', workstation: '/w', landed: '{}' },
   };
   const open = (state: string) => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });

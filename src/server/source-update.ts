@@ -10,7 +10,7 @@ import { inert } from '../core/inert';
 import type { SourceUpdate } from '../core/types';
 import { BadRequest } from './board';
 import { spawnOutput } from './spawn';
-import { GIT } from './workspaces';
+import { GIT } from './workstations';
 
 /** How often the upstream is fetched. */
 export const FETCH_EVERY_MS = 60 * 60_000;

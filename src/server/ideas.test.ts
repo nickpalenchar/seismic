@@ -6,7 +6,7 @@ import { CanvasRuntime } from './canvas';
 import { Store } from './db';
 import { Explorers } from './explorers';
 import { FakeRuntime, noForge, type FakeSession, gitRepo, heard, identify, until } from './testing';
-import { git } from './workspaces';
+import { git } from './workstations';
 
 let dir: string;
 let main: string;
@@ -27,13 +27,13 @@ beforeEach(() => {
   canvas = open();
 });
 afterEach(async () => {
-  // git freeing a workspace in the background is done before its repository goes
+  // git freeing a workstation in the background is done before its repository goes
   await Promise.all(canvas.repos.map((r) => r.workers.freed()));
   canvas.shutdown();
   rmSync(dir, { recursive: true, force: true });
 });
 
-// the timers' work done, and the workers it started at work in their workspaces
+// the timers' work done, and the workers it started at work in their workstations
 const settle = async (ms = 5) => {
   await new Promise((r) => setTimeout(r, ms));
   await Promise.all(canvas.repos.map((r) => r.workers.prepared()));
@@ -60,7 +60,7 @@ const turn = (s: FakeSession, reply: string, extra?: () => void) => {
 };
 
 describe('an idea', () => {
-  test('starts as an idea: no worker, no workspace, nothing with the Koordinator', () => {
+  test('starts as an idea: no worker, no workstation, nothing with the Koordinator', () => {
     const i = idea();
     expect(item(i.id)).toMatchObject({ state: 'idea', idea: { status: 'open', brief: '', thinking: false, yourTurn: false, questions: [] } });
     expect(runtime.sessions).toHaveLength(0);
@@ -573,7 +573,7 @@ describe('an idea', () => {
     expect(item(twin.id).body).toContain('export-fur-vermieter-3.md');
     await settle();
     const worker = runtime.sessions.find((s) => s.spec.tools.some((t) => t.name === 'ready_for_review'))!;
-    // the folder is the worker's to write in, as its workspace
+    // the folder is the worker's to write in, as its workstation
     expect(worker.spec.dirs).toEqual([plans.replaceAll('\\', '/')]);
     writeFileSync(file, '# Export\n\n## Ziel\n\nExport.\n\n## Workstreams\n\n- [ ] **W1:** CSV. Zuerst.\n');
     board().docsChanged();
@@ -925,8 +925,8 @@ describe('a prototype', () => {
   };
   const workers = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'ready_for_review'));
   const worker = () => workers()[0]!;
-  /** The worker of a card: workers start once git has prepared their workspaces, in no set order. */
-  const workerOf = (cardId: string) => workers().find((w) => w.spec.cwd === board().row(cardId).workspace)!;
+  /** The worker of a card: workers start once git has prepared their workstations, in no set order. */
+  const workerOf = (cardId: string) => workers().find((w) => w.spec.cwd === board().row(cardId).workstation)!;
   const prototypes = (ideaId: string) =>
     board()
       .snapshot()
@@ -934,7 +934,7 @@ describe('a prototype', () => {
   const archived = (id: string) => board().archived().find((i) => i.id === id);
   /** The prototype's worker commits something on its branch, as a real one would. */
   const commit = (cardId: string, file: string) => {
-    const ws = board().row(cardId).workspace!;
+    const ws = board().row(cardId).workstation!;
     identify(ws);
     writeFileSync(join(ws, file), 'prototyp\n');
     git(ws, 'add', '.');
@@ -971,7 +971,7 @@ describe('a prototype', () => {
     // a prototype never lands, so it holds no files for the Koordinator
     expect(canvas.koordinator.inProgress()).toEqual([]);
 
-    const ws = board().row(prototype!.id).workspace!;
+    const ws = board().row(prototype!.id).workstation!;
     const branch = board().row(prototype!.id).branch!;
     await handOver(w, 'Knopf gebaut.');
     // the demo stays the prototype's, and shows on the idea under its title
@@ -989,7 +989,7 @@ describe('a prototype', () => {
     await settle();
     expect(git(main, 'branch', '--list', branch)).toBe('');
     expect(git(ws, 'branch', '--list', branch)).toBe('');
-    expect(canvas.repos[0]!.workspaces.leasedBy(prototype!.id)).toBeNull();
+    expect(canvas.repos[0]!.workstations.leasedBy(prototype!.id)).toBeNull();
     // in the archive with its demo, summary and log, and it stays there
     expect(archived(prototype!.id)).toMatchObject({ prototypeEnd: 'discarded', summary: 'Knopf gebaut.', demo: { chapters: [[0, 'Knopf']] } });
     expect(board().demoFiles(prototype!.id)).toEqual({ dir: join(dir, 'demo'), kind: 'video' });
@@ -1097,28 +1097,28 @@ describe('a prototype', () => {
     w!.call('ask', { question: 'Knopf oben oder unten?', options: ['oben', 'unten'] });
     canvas.act(chosen!.id, { action: 'answer', text: 'oben' });
     await handOver(w!, 'Knopf oben gebaut; Export als CSV.');
-    const ws = board().row(chosen!.id).workspace!;
-    const otherWs = board().row(other!.id).workspace!;
+    const ws = board().row(chosen!.id).workstation!;
+    const otherWs = board().row(other!.id).workstation!;
     const otherBranch = board().row(other!.id).branch!;
     // the idea's agent takes in the answer, then the handover
     explorer().emit({ type: 'idle' });
     explorer().emit({ type: 'idle' });
 
     await canvas.act(chosen!.id, { action: 'buildPrototype' });
-    // the idea is the feature now, in the prototype's workspace, on its branch under the idea's name
+    // the idea is the feature now, in the prototype's workstation, on its branch under the idea's name
     const built = item(i.id);
     expect(built).toMatchObject({ state: 'planned', body: '**Ziel:** CSV-Export.', builtOn: chosen!.id });
     expect(built.idea).toBeUndefined();
     const row = board().row(i.id);
-    expect(row.workspace).toBe(ws);
+    expect(row.workstation).toBe(ws);
     expect(row.branch).toMatch(/^obeya\/export-fur-vermieter-/);
     expect(git(ws, 'branch', '--show-current')).toBe(row.branch!);
     expect(git(ws, 'log', '--format=%s', '-1')).toBe('Prototyp knopf.txt');
-    expect(canvas.repos[0]!.workspaces.leasedBy(i.id)).toBe(ws);
+    expect(canvas.repos[0]!.workstations.leasedBy(i.id)).toBe(ws);
     // the chosen prototype goes into the archive as built, its worker stopped
     expect(w!.closed).toBe(true);
     expect(archived(chosen!.id)).toMatchObject({ prototypeEnd: 'built', summary: 'Knopf oben gebaut; Export als CSV.' });
-    expect(canvas.repos[0]!.workspaces.leasedBy(chosen!.id)).toBeNull();
+    expect(canvas.repos[0]!.workstations.leasedBy(chosen!.id)).toBeNull();
     // the other one is discarded with its code
     expect(wOther!.closed).toBe(true);
     expect(archived(other!.id)).toMatchObject({ prototypeEnd: 'discarded' });
@@ -1235,14 +1235,14 @@ describe('a prototype', () => {
     expect(() => canvas.act(film!.id, { action: 'buildPrototype', workstream: w1!.id })).toThrow(expect.objectContaining({ code: 'workstreamStarted' }));
     expect(() => canvas.act(film!.id, { action: 'buildPrototype', workstream: i.id })).toThrow(expect.objectContaining({ code: 'invalid' }));
 
-    const ws = board().row(film!.id).workspace!;
+    const ws = board().row(film!.id).workstation!;
     // once the other one is under way, the plan doc names the workstream to build on the prototype
     board().work(w3!.id, { branch: 'obeya/aufraeumen' });
     await canvas.act(film!.id, { action: 'buildPrototype' });
-    // the workstream takes over the prototype's workspace and branch, and starts
+    // the workstream takes over the prototype's workstation and branch, and starts
     expect(item(w2!.id).builtOn).toBe(film!.id);
     expect(item(w2!.id).prototypes!.map((p) => p.id)).toEqual([film!.id]);
-    expect(board().row(w2!.id).workspace).toBe(ws);
+    expect(board().row(w2!.id).workstation).toBe(ws);
     expect(git(ws, 'log', '--format=%s', '-1')).toBe('Prototyp film.html');
     expect(archived(film!.id)).toMatchObject({ prototypeEnd: 'built', builtInto: 'W2 „Seite bauen“', ideaTitle: 'Webseite' });
     expect(archived(manifest!.id)).toMatchObject({ prototypeEnd: 'discarded' });
@@ -1260,7 +1260,7 @@ describe('a prototype', () => {
     expect(brief).toContain('This is workstream W2 of the plan “Webseite”.');
   });
 
-  test('deleting a prototype discards it into the archive, workspace and all', async () => {
+  test('deleting a prototype discards it into the archive, workstation and all', async () => {
     const i = idea();
     canvas.act(i.id, { action: 'prototype', text: 'Knopf' });
     await settle();
@@ -1268,7 +1268,7 @@ describe('a prototype', () => {
     canvas.remove(prototype!.id);
     expect(archived(prototype!.id)).toMatchObject({ prototypeEnd: 'discarded' });
     await settle();
-    expect(canvas.repos[0]!.workspaces.leasedBy(prototype!.id)).toBeNull();
+    expect(canvas.repos[0]!.workstations.leasedBy(prototype!.id)).toBeNull();
     expect(() => canvas.act(i.id, { action: 'buildPrototype' })).toThrow('not a prototype');
   });
 

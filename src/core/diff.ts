@@ -1,10 +1,10 @@
 // What a card's work changes in its repository, as `git diff` shows it: the server sums it up for
 // the line beside the card's branch, the UI shows it file by file.
 
-/** A card's change: the branch in its workspace so far, or what landed; in a folder without git, what the card changed there. */
+/** A card's change: the branch in its workstation so far, or what landed; in a folder without git, what the card changed there. */
 export interface CardDiff {
   /**
-   * `branch`: the workspace's branch against the default branch, committed or not; `landed`: what
+   * `branch`: the workstation's branch against the default branch, committed or not; `landed`: what
    * the landing put on the default branch; `folder`: what the card changed in a folder without git
    * (`folder` holds the list, `patch` the text files' diffs).
    */

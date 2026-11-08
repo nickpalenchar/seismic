@@ -1,6 +1,6 @@
-// The tools a Codex worker reaches what its sandbox keeps from it through (docs/design/agents-and-workspaces.md):
+// The tools a Codex worker reaches what its sandbox keeps from it through (docs/design/agents-and-workstations.md):
 // network, a browser, a local server, a git write in a worktree (its `.git` lies in the main
-// repository, outside the workspace), a place outside the workspace. Seismic runs the call itself,
+// repository, outside the workstation), a place outside the workstation. Seismic runs the call itself,
 // on the owner's machine and with the owner's rights; what makes that safe is the gate (the
 // repository's confirmed allow list, else the owner is asked) and the places a command may run in,
 // not a sandbox. Claude workers have no use for them: their own tools and the same allow list cover this.
@@ -14,8 +14,8 @@ import { cleanEnv, endWithAgents, type AgentTool, type PermissionAnswer, type Pe
 import { OWN_GROUP } from './spawn';
 
 export interface ExecLane {
-  /** The card's workspace on this machine: where commands run by default, and where git works. */
-  workspace: string;
+  /** The card's workstation on this machine: where commands run by default, and where git works. */
+  workstation: string;
   /** Other places a command may run in (the temporary directories, the demos directory). */
   places: () => string[];
   /** The `Bash` rules of the allow list the owner confirmed; a command all of whose parts they cover runs without a question. */
@@ -51,10 +51,10 @@ function realDirectory(dir: string, base: string): string | null {
 const within = (dir: string, root: string) => dir === root || dir.startsWith(root.endsWith(sep) ? root : root + sep);
 
 /** The directory a command runs in: `cwd` where it is one of the places allowed, else null. */
-export function placeFor(lane: Pick<ExecLane, 'workspace' | 'places'>, cwd: string | undefined): string | null {
-  const dir = realDirectory(cwd?.trim() || '.', lane.workspace);
+export function placeFor(lane: Pick<ExecLane, 'workstation' | 'places'>, cwd: string | undefined): string | null {
+  const dir = realDirectory(cwd?.trim() || '.', lane.workstation);
   if (!dir) return null;
-  const roots = [lane.workspace, ...lane.places()].map((r) => realDirectory(r, lane.workspace)).filter((r): r is string => !!r);
+  const roots = [lane.workstation, ...lane.places()].map((r) => realDirectory(r, lane.workstation)).filter((r): r is string => !!r);
   return roots.some((r) => within(dir, r)) ? dir : null;
 }
 
@@ -115,23 +115,23 @@ export function gitRefusal(args: string[]): string | null {
 
 /** What a Codex worker's system prompt says of its two tools: what they are for, in terms of what its own shell cannot do. */
 export const EXEC_LANE_NOTE =
-  'Your own shell is sandboxed: it writes only in your workspace and the temporary directories, has no network and cannot reach a local server, and cannot write your worktree’s .git. ' +
-  'The tools seismic_run (a shell command outside the sandbox) and seismic_git (git in your workspace) do what it cannot: git writes such as add, commit and rebase, installing packages, running a browser or a local app, recording a demo, writing into the demos directory.';
+  'Your own shell is sandboxed: it writes only in your workstation and the temporary directories, has no network and cannot reach a local server, and cannot write your worktree’s .git. ' +
+  'The tools seismic_run (a shell command outside the sandbox) and seismic_git (git in your workstation) do what it cannot: git writes such as add, commit and rebase, installing packages, running a browser or a local app, recording a demo, writing into the demos directory.';
 
 /** The same for a worker whose approvals Codex's automatic review decides. */
 export const EXEC_LANE_AUTO_NOTE =
-  'Your own shell is sandboxed: it writes only in your workspace and the temporary directories, has no network and cannot reach a local server, and cannot write your worktree’s .git. ' +
+  'Your own shell is sandboxed: it writes only in your workstation and the temporary directories, has no network and cannot reach a local server, and cannot write your worktree’s .git. ' +
   'For a command the sandbox stops, request escalated permissions: Codex’s automatic review decides, nobody is asked. ' +
-  'seismic_git (git in your workspace) does git writes such as add, commit and rebase without one, seismic_run the commands the repository’s allow list covers.';
+  'seismic_git (git in your workstation) does git writes such as add, commit and rebase without one, seismic_run the commands the repository’s allow list covers.';
 
-/** Execution tools for a Codex worker whose workspace lies on this machine. */
+/** Execution tools for a Codex worker whose workstation lies on this machine. */
 export function execTools(lane: ExecLane): AgentTool[] {
   const env = { ...lane.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true', GIT_SEQUENCE_EDITOR: 'true', CI: '1' };
   return [
     {
       name: 'run',
       description:
-        'Runs a shell command outside your sandbox, on the owner’s machine: for what the sandbox keeps from your own shell (network, a browser, a local server, files outside the workspace). Runs in the workspace, a temporary directory or the demos directory (`cwd`). ' +
+        'Runs a shell command outside your sandbox, on the owner’s machine: for what the sandbox keeps from your own shell (network, a browser, a local server, files outside the workstation). Runs in the workstation, a temporary directory or the demos directory (`cwd`). ' +
         (lane.auto
           ? 'Only commands the repository’s allow list covers run; run any other in your own shell with escalated permissions. '
           : 'Commands the repository’s allow list covers run at once; any other waits for the owner’s answer. ') +
@@ -139,7 +139,7 @@ export function execTools(lane: ExecLane): AgentTool[] {
         'Output longer than a few thousand lines comes back as its start and end.',
       schema: {
         command: z.string().describe('The shell line to run'),
-        cwd: z.string().optional().describe('Directory to run in: relative to the workspace, or absolute in a temporary or the demos directory (default: the workspace)'),
+        cwd: z.string().optional().describe('Directory to run in: relative to the workstation, or absolute in a temporary or the demos directory (default: the workstation)'),
         timeout_seconds: z.number().int().positive().optional().describe(`Default ${DEFAULT_TIMEOUT}, at most ${MAX_TIMEOUT}`),
         reason: z.string().optional().describe('Why, in a few words: shown to the owner where they are asked'),
       },
@@ -147,8 +147,8 @@ export function execTools(lane: ExecLane): AgentTool[] {
         const command = typeof args.command === 'string' ? args.command.trim() : '';
         if (!command) return 'Not run: no command.';
         const cwd = placeFor(lane, typeof args.cwd === 'string' ? args.cwd : undefined);
-        if (!cwd) return 'Not run: cwd is not a directory in the workspace, a temporary directory or the demos directory.';
-        if (!allowed(lane.rules(), command, undefined, [lane.workspace, ...lane.places()])) {
+        if (!cwd) return 'Not run: cwd is not a directory in the workstation, a temporary directory or the demos directory.';
+        if (!allowed(lane.rules(), command, undefined, [lane.workstation, ...lane.places()])) {
           if (lane.auto) return 'Not run: the repository’s allow list does not cover it. Run it in your own shell and request escalated permissions there; Codex’s automatic review decides.';
           const answer = await lane.ask({ name: 'Bash', input: { command }, ...(typeof args.reason === 'string' && args.reason ? { reason: args.reason } : {}) });
           if (!answer.allow) return `Not run: ${answer.message}`;
@@ -160,14 +160,14 @@ export function execTools(lane: ExecLane): AgentTool[] {
     {
       name: 'git',
       description:
-        'Runs git in your workspace, outside your sandbox (a worktree’s .git lies in the main repository, which your own shell cannot write): ' +
+        'Runs git in your workstation, outside your sandbox (a worktree’s .git lies in the main repository, which your own shell cannot write): ' +
         `${[...GIT_ALLOWED].join(', ')}. No push and no settings; Seismic lands your branch. Pass the arguments after "git" as a list.`,
       schema: { args: z.array(z.string()).min(1).describe('The arguments after "git", e.g. ["commit", "-m", "Fix the export"]') },
       run: async (args) => {
         const list = Array.isArray(args.args) ? args.args.map(String) : [];
         const refusal = gitRefusal(list);
         if (refusal) return `Not run: ${refusal}`;
-        return execute('git', list, { cwd: lane.workspace, env, shell: false, seconds: DEFAULT_TIMEOUT });
+        return execute('git', list, { cwd: lane.workstation, env, shell: false, seconds: DEFAULT_TIMEOUT });
       },
     },
   ];

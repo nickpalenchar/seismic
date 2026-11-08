@@ -566,7 +566,7 @@ export class MachineSetup {
     let next = [...this.o.config.current(), { repos: [{ path, ...(folder ? { git: false as const } : {}) }] }];
     let { problems, resolved } = await this.o.config.check(next);
     // a repository whose settings say clones gets two, so two cards can be worked on at once
-    if (!folder && resolved.at(-1)?.repos[0]?.workspaces === 'clones') {
+    if (!folder && resolved.at(-1)?.repos[0]?.workstations === 'clones') {
       next = [...next.slice(0, -1), { repos: [{ path, clones: CLONES }] }];
       ({ problems, resolved } = await this.o.config.check(next));
     }
