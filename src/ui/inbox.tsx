@@ -26,7 +26,7 @@ export interface InboxProps {
   entries: InboxEntry[];
   /** The project shown now: without "All projects" only its entries are listed. Left out, every project's are. */
   current?: string;
-  /** The card open now: its entry is marked. */
+  /** The card open now, or flying open: its entry is marked, and stays listed while read. */
   open?: string;
   onGo: (e: InboxEntry) => void;
   onReply: (project: string, i: Item, r: QuickReply) => void;
@@ -48,7 +48,9 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
   if (!entries.length && !current) return <p className="empty-inbox">{t.inbox.empty}</p>;
   // the open card's entry stays while the owner is at it, read or not
   const shown = filter === 'all' ? entries : entries.filter((e) => !isRead(e) || (!!e.card && e.card.id === open));
-  // only a click on a button reads the entry, not one on the text around it
+  // only a click on a button reads the entry, not one on the text around it; read as the click
+  // bubbles up, after the button's own action: read in the capture phase, the entry leaves the
+  // "Unread" list before the click reaches its button, which then neither opens nor answers
   const readOnButton = (ev: MouseEvent, e: InboxEntry) => {
     const hit = (ev.target as Element).closest('button, a');
     if (hit?.tagName === 'BUTTON') onRead(e);
@@ -78,7 +80,7 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
           const unread = !isRead(e);
           const cls = unread ? ' unread' : ' read';
           if (e.preference || e.setting) return (
-            <li key={e.key} className={`inbox-entry proposal-entry${cls}`} onClickCapture={(ev) => readOnButton(ev, e)}>
+            <li key={e.key} className={`inbox-entry proposal-entry${cls}`} onClick={(ev) => readOnButton(ev, e)}>
               <div className="where"><GitBranch size={12} aria-hidden /><span className="project">{e.projectName}</span>{unread && dot}</div>
               <ul className="prefs proposals">
                 {e.preference && <ProposalRow p={e.preference} items={e.proposalItems ?? []} rules={e.rules ?? []} repos={e.repos ?? []} project={e.project} onOpen={(i) => onProposalCard(e.project, i)} />}
@@ -90,7 +92,7 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
           const replies = i ? quickReplies(i) : [];
           const here = !!i && i.id === open;
           return (
-            <li key={e.key} className={`inbox-entry${cls}${here ? ' on' : ''}`} aria-current={here || undefined} onClickCapture={(ev) => readOnButton(ev, e)}>
+            <li key={e.key} className={`inbox-entry${cls}${here ? ' on' : ''}`} aria-current={here || undefined} onClick={(ev) => readOnButton(ev, e)}>
               <div className="where">
                 <GitBranch size={12} strokeWidth={2} aria-hidden />
                 <span className="project">{e.projectName}</span>
