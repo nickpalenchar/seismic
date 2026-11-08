@@ -337,7 +337,8 @@ list says a card's title, state or labels in a way of its own:
 - **XS** is two lines with the least, for `/` search, the queue, the archive (with the time it was
   archived beside it), a plan's sheet, the merge picker, and the cards before and after a queued
   card in its chain on the open card: the priority's flag alone, then the title (a workstream's
-  after its label) with the pin; below, the dot and the short word of its state in its colour
+  after its label) with the pin, cut off with "…" on one line at every width, phones included, so
+  that the state line always keeps its place; below, the dot and the short word of its state in its colour
   ("Working", "Demo ready", "Question", "Queued"; a state without a short word keeps its own), its
   kind, the other canvas it is on, what the list adds (what it waits for, what it builds on,
   "Archived") and, in grey, as much of the line under its title as fits, cut off with "…". A plan's
