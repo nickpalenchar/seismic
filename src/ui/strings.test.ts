@@ -65,3 +65,15 @@ test('a stopped card keeps the words it showed, and says what it waits for when 
   expect(stoppedAtOf(at({ state: 'working' }))?.status).toBe('Agent at work');
   expect(stoppedAtOf(at({ state: 'working' }, { queue: { behind: [] } }))).toBeUndefined();
 });
+
+test('a stopped card keeps the hold and the colour it showed', () => {
+  setLanguage('en', []);
+  const at = (stoppedAt: object) => ({ state: 'planned' as const, agent: { branch: 'b', stoppedAt: stoppedAt as never } });
+  const paused = at({ state: 'working', hold: { reason: 'paused', since: 'x' } });
+  expect(stateLabel(paused)).toBe('Stopped at Agent paused');
+  expect(stoppedAtOf(paused)?.tone).toBe('tone-paused');
+  expect(stoppedAtOf(at({ state: 'waiting', need: 'review', reviewing: true }))?.tone).toBe('tone-reviewing');
+  expect(stoppedAtOf(at({ state: 'waiting', need: 'review', answering: true }))?.tone).toBe('s-working');
+  expect(stoppedAtOf(at({ state: 'waiting', need: 'question', question: { stuck: true } }))?.tone).toBe('tone-failed');
+  expect(stoppedAtOf(at({ state: 'waiting', need: 'demo' }))?.tone).toBe('s-waiting');
+});

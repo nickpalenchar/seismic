@@ -433,7 +433,7 @@ why), which would lie unseen in a clone. A stopped card opens
 like a card an agent worked on, the task as its conversation's first message.
 A card the owner stopped remembers the state it stood in at that moment (working, or waiting with what it
 waited for) until it starts again, and its state line says "Stopped at" in grey followed by that state's
-usual words and colour ("Stopped at Demo ready", the status in orange; "2nd demo ready", "Agent reviewing" and the like carry over). While the card waits in a queue to start again or is parked, its state line says that instead. A card stopped before this was
+usual words and colour ("Stopped at Demo ready", the status in orange; "2nd demo ready", "Agent reviewing" and the like carry over, with their holds and colours: paused in grey, reviewing in teal, a failed question in red). While the card waits in a queue to start again or is parked, its state line says that instead. A card stopped before this was
 recorded says just "Stopped".
 
 The archive (its button in the bar, or `A`) drops down like the queue: archived cards on a timeline

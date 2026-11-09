@@ -447,10 +447,12 @@ export interface StoppedAt {
   answering?: true;
   answered?: true;
   reviewing?: true;
+  /** The hold on its agent it showed (paused, snoozed, pending a restart …); the stop let it go. */
+  hold?: Exclude<Item['hold'], undefined | { reason: 'parkingLot' }>;
 }
 
 /** What the card shows now, to say later where it was stopped. */
-export const stoppedAtOf = (i: Pick<Item, 'state' | 'need' | 'question' | 'demo' | 'review'>): StoppedAt => {
+export const stoppedAtOf = (i: Pick<Item, 'state' | 'need' | 'question' | 'demo' | 'review' | 'hold'>): StoppedAt => {
   const earlier = i.demo?.earlier?.filter((d) => !d.asked).length ?? 0;
   return {
     state: i.state,
@@ -460,6 +462,7 @@ export const stoppedAtOf = (i: Pick<Item, 'state' | 'need' | 'question' | 'demo'
     ...(i.review?.answering ? { answering: true as const } : {}),
     ...(i.review?.answered ? { answered: true as const } : {}),
     ...(i.review?.codeReview?.state === 'running' ? { reviewing: true as const } : {}),
+    ...(i.hold && i.hold.reason !== 'parkingLot' ? { hold: i.hold } : {}),
   };
 };
 

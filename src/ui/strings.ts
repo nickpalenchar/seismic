@@ -2695,17 +2695,32 @@ export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; 
 /** The fields of a card as it showed when it was stopped, as `stateLabel` reads them. */
 const stoppedFrom = (at: StoppedAt) => ({
   state: at.state,
+  hold: at.hold,
   need: at.need,
   question: at.question,
   review: { ...(at.answering && { answering: true as const }), ...(at.answered && { answered: true as const }), ...(at.reviewing && { codeReview: { state: 'running' } }) },
   demo: { earlier: Array.from({ length: at.earlier ?? 0 }, () => ({})) },
 });
 
+/** The class of the colour the state line gave the words it stopped at: paused, restart, reviewing, failed and asking as on a live card. */
+const stoppedTone = (at: StoppedAt) =>
+  at.hold?.reason === 'restart'
+    ? 'tone-restart'
+    : at.hold
+      ? at.hold.reason === 'pausing' ? `s-${at.state}` : 'tone-paused'
+      : at.reviewing
+        ? 'tone-reviewing'
+        : at.answering
+          ? 's-working'
+          : at.need === 'question'
+            ? at.question?.stuck ? 'tone-failed' : 's-asking'
+            : `s-${at.state}`;
+
 /** A stopped card that remembers where it stood: "Stopped at" in grey, then that state in its own colour (`tone`, a class). */
 export const stoppedAtOf = (i: Pick<Item, 'state' | 'agent' | 'queue' | 'hold'>) => {
   const at = i.agent?.stoppedAt;
   // queued to start again or in the parking lot, its state line says that instead
-  return at && stopped(i) && !i.queue && !inParkingLot(i) ? { prefix: t.stoppedAt, status: stateLabel(stoppedFrom(at)), tone: at.need === 'question' ? 's-asking' : `s-${at.state}` } : undefined;
+  return at && stopped(i) && !i.queue && !inParkingLot(i) ? { prefix: t.stoppedAt, status: stateLabel(stoppedFrom(at)), tone: stoppedTone(at) } : undefined;
 };
 
 /** An idea or a task decided as a plan, until the plan takes its place; a card that was an idea has the brief it was decided on. */
