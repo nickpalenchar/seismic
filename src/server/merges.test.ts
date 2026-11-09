@@ -243,6 +243,28 @@ describe('folding into a progressed survivor', () => {
     expect(board().item(b.id)!.body).toBe('A and B task');
   });
 
+  test('two unworked plan-doc cards combine and the survivor still becomes a plan; a plan-doc card and a task do not merge', async () => {
+    const a = board().create({ title: 'New menu', body: 'Write a plan doc: a new menu', x: 0, y: 0 });
+    const b = board().create({ title: 'Menu sorting', body: 'Write a plan doc: sort the menu', x: 400, y: 0 });
+    const task = board().create({ title: 'Menu icons', body: 'Icons in the menu', x: 800, y: 0 });
+    board().work(a.id, { idea: { becomesPlan: true } });
+    board().work(b.id, { idea: { becomesPlan: true } });
+    expect(mergeableWith(board().item(a.id)!, board().item(task.id)!)).toBe(false);
+    expect(mergeableWith(board().item(task.id)!, board().item(a.id)!)).toBe(false);
+    // one whose plan doc is being written already is no partner
+    board().work(b.id, { state: 'working' });
+    expect(mergeableWith(board().item(a.id)!, board().item(b.id)!)).toBe(false);
+    board().work(b.id, { state: 'planned' });
+    project.act(a.id, { action: 'merge', with: b.id });
+    expect(merger()!.inbox[0]).toContain('Both cards are unworked.');
+    await finishMerge({ title: 'Menu', task: 'Write a plan doc: a new menu, sorted' });
+    project.act(a.id, { action: 'approveMerge' });
+    expect(board().item(a.id)).toBeUndefined();
+    const kept = board().item(b.id)!;
+    expect(kept.body).toBe('Write a plan doc: a new menu, sorted');
+    expect(kept.idea?.becomesPlan).toBe(true);
+  });
+
   test('an incomplete coverage map is refused, and changed survivor text requires a new comparison', async () => {
     const { p, planned } = cards();
     board().work(planned.id, { state: 'working', branch: 'csv' });

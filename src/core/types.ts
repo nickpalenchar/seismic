@@ -136,14 +136,21 @@ export const buildableOn = (i: Item) => i.state === 'planned' && !i.agent?.branc
 export const untouched = (i: Item) =>
   i.kind === 'task' && i.source === 'manual' && i.state === 'planned' && !i.agent?.branch && !i.agent?.workstation && (!i.queue || 'behind' in i.queue) && !i.idea?.prototypeOf && !i.idea?.becomesPlan;
 
-/** Progress decides which card dissolves. Unstarted pairs still combine their text. */
-export const mergeRank = (i: Item): number => i.archivedAt ? 4 : finished(i.state) ? 3 : i.state === 'proposal' ? 0 : untouched(i) ? 1 : 2;
+/**
+ * A card decided as a plan whose worker has not started on the plan doc yet: it merges only with
+ * another such card, so the one card both become still writes a plan doc and the plan takes its place.
+ */
+export const unworkedPlanDoc = (i: Item) =>
+  i.kind === 'task' && !!i.idea?.becomesPlan && i.state === 'planned' && !i.agent?.branch && !i.agent?.workstation && (!i.queue || 'behind' in i.queue);
 
-/** Only an unworked task or proposal can start a merge and dissolve. */
+/** Progress decides which card dissolves. Unstarted pairs still combine their text. */
+export const mergeRank = (i: Item): number => i.archivedAt ? 4 : finished(i.state) ? 3 : i.state === 'proposal' ? 0 : untouched(i) || unworkedPlanDoc(i) ? 1 : 2;
+
+/** Only an unworked task or proposal can start a merge and dissolve; an idea's plan doc card with prototypes keeps them. */
 export const canMergeFrom = (i: Item) =>
-  i.kind === 'task' && !i.parent && !i.archivedAt && !i.idea?.mergingInto && !snoozeOf(i) && !i.repoDown && !i.idea?.prototypeOf && !i.idea?.becomesPlan &&
+  i.kind === 'task' && !i.parent && !i.archivedAt && !i.idea?.mergingInto && !snoozeOf(i) && !i.repoDown && !i.idea?.prototypeOf && !i.idea?.prototypes?.length &&
   !i.idea?.proposal?.merge && !i.idea?.proposal?.idea && !i.idea?.proposal?.revising && !i.idea?.proposal?.acceptAfterRevision &&
-  (untouched(i) || (i.state === 'proposal' && !i.agent?.branch && !i.agent?.workstation));
+  (untouched(i) || unworkedPlanDoc(i) || (i.state === 'proposal' && !i.agent?.branch && !i.agent?.workstation));
 
 /** The read-only agent is still comparing the cards. */
 export const merging = (i: Pick<Item, 'state' | 'idea'>) => {
@@ -154,7 +161,7 @@ export const merging = (i: Pick<Item, 'state' | 'idea'>) => {
 /** A merge starts at an unworked card; its partner may have reached any stage. */
 export const mergeableWith = (p: Item, i: Item) =>
   canMergeFrom(p) && i.id !== p.id && i.kind === 'task' && i.state !== 'idea' && !i.parent &&
-  !i.idea?.mergingInto && !snoozeOf(i) && !i.repoDown && !i.idea?.prototypeOf && !i.idea?.becomesPlan &&
+  !i.idea?.mergingInto && !snoozeOf(i) && !i.repoDown && !i.idea?.prototypeOf && (p.idea?.becomesPlan ? unworkedPlanDoc(i) && !i.idea?.prototypes?.length : !i.idea?.becomesPlan) &&
   !i.idea?.proposal?.idea && !i.idea?.proposal?.merge && !i.idea?.proposal?.revising && !i.idea?.proposal?.acceptAfterRevision;
 
 /**

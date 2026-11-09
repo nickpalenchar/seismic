@@ -56,6 +56,12 @@ The picker searches titles and texts, listing planned tasks and proposals first,
 done/live and archived tasks, newest first within each group, each at size XS (see Card sizes). It excludes itself, workstreams,
 ideas and prototypes, snoozed cards, cards being merged or reworked, and repositories that are down.
 Two started tasks cannot merge with each other.
+A card decided as a plan (its worker writes the plan doc) merges only with another such card whose
+worker has not started either: the card both become still writes one plan doc, which takes its
+place. An idea's card with prototypes does not dissolve, so its prototypes keep their idea.
+Decision (2026-11-09): the start check flagged two plan-doc cards as duplicates while merging was
+closed to them, leaving "Merge proposed" without a way to merge; merging into an ordinary task
+was rejected, as the plan would lose its place.
 
 The furthest-along card survives: proposal, planned, in progress (including stopped tasks with a
 branch), done/live, archived. The dissolving card is on the left and the survivor on the right.
