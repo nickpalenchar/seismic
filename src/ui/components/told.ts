@@ -41,10 +41,10 @@ export function toldLines({ toasts, onHeard, inView, onGo, undo: undoRequest, on
 
   function settle(x: Told, h: Heard) {
     if (!lines.has(x)) return;
-    if (h.quiet || (!h.token && inView(h))) return forget(x);
+    const undo = !!(h.token && h.undoMs);
+    if (h.quiet || (!undo && inView(h))) return forget(x);
     x.heard = h;
     changed();
-    const undo = !!(h.token && h.undoMs);
     const line = {
       kind: 'command' as const,
       text: h.confirm,
