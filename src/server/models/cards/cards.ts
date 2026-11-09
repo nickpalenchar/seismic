@@ -344,12 +344,6 @@ export class Cards {
     return this.complete(this.open.all({ project: projectId }));
   }
 
-  /** The ids of the cards on the project: not deleted, not archived, and not a workstream of an archived plan. */
-  activeIds(projectId: string): string[] {
-    const planGone = sql`EXISTS (SELECT 1 FROM cards p WHERE p.id = ${cards.parentId} AND (p.archived_at IS NOT NULL OR p.deleted_at IS NOT NULL))`;
-    return this.db.select({ id: cards.id }).from(cards).where(and(eq(cards.projectId, projectId), isNull(cards.deletedAt), isNull(cards.archivedAt), sql`NOT ${planGone}`)).all().map((r) => r.id);
-  }
-
   /** The project's cards, archived ones too, that were ever shared or are about to be. */
   shared(projectId: string): CardRow[] {
     return this.rows(and(open(projectId), sql`EXISTS (SELECT 1 FROM card_demos d WHERE d.card_id = ${cards.id} AND d.share IS NOT NULL)`));

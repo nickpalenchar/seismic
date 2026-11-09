@@ -504,8 +504,8 @@ export class Board {
   private archiveItems: Item[] | null = null;
   /** The project's prototypes, and those `withPrototypes` handed out so far; gone with `cache`. */
   private prototypeItems: Prototypes | null = null;
-  /** The ids of the project's active cards, for `withActivePartners`; gone with `cache`. */
-  private activeIds: Set<string> | null = null;
+  /** The ids of the cards `items` shows on the project, for `withActivePartners`; gone with `cache`. */
+  private visibleIds: Set<string> | null = null;
   private eventListeners = new Set<(e: CardEvent) => void>();
   private goneListeners = new Set<(cardId: string, id: number) => void>();
   private noticeListeners = new Set<(n: Notice) => void>();
@@ -629,7 +629,7 @@ export class Board {
     this.itemsCache = null;
     this.archiveItems = null;
     this.prototypeItems = null;
-    this.activeIds = null;
+    this.visibleIds = null;
     this.tell();
   }
 
@@ -2045,7 +2045,7 @@ export class Board {
       this.itemsCache = null;
       this.archiveItems = null;
       this.prototypeItems = null;
-      this.activeIds = null;
+      this.visibleIds = null;
     }
     if (this.itemsCache) return this.itemsCache;
     const read = !this.docs;
@@ -2066,6 +2066,7 @@ export class Board {
       rows = this.store.cards.onProject(this.project.id);
     }
     let items = withLivePartners(toItems(rows, docs, this.home, this.worked, this.themeNow));
+    this.visibleIds = new Set(items.map((i) => i.id));
     if (this.placeNew(docs, items, all, rows)) {
       // plans seen for the first time keep their doc too
       this.keepDocs(all, docs);
@@ -2073,6 +2074,7 @@ export class Board {
       this.tell();
       rows = this.store.cards.onProject(this.project.id);
       items = withLivePartners(toItems(rows, docs, this.home, this.worked, this.themeNow));
+      this.visibleIds = new Set(items.map((i) => i.id));
     }
     if (read) {
       // Older plans packed finished cards more tightly. Refit only plans whose finished
@@ -2674,10 +2676,10 @@ export class Board {
     return this.withActivePartners(toItems([row], [], this.home, undefined, this.themeNow))[0]!;
   }
 
-  /** Items whose suggested duplicates are checked against the project's active cards, for items built from some rows only. */
+  /** Items whose suggested duplicates are checked against the cards `items` shows, for items built from some rows only. */
   private withActivePartners(items: Item[]): Item[] {
     if (!items.some((i) => i.possibleDuplicates)) return items;
-    return withLivePartners(items, (this.activeIds ??= new Set(this.store.cards.activeIds(this.project.id))));
+    return withLivePartners(items, (this.visibleIds ?? new Set(this.items().map((i) => i.id))));
   }
 
   /** The owner rejects a proposal; it is kept, so the same one does not come back. */

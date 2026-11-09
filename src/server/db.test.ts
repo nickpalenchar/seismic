@@ -806,18 +806,3 @@ test('a retried migration keeps the backup of the first attempt, the state befor
     expect(copy.query("SELECT 1 FROM sqlite_master WHERE name = 'step_one'").get()).toBeNull();
     copy.close();
   }));
-
-test('active card ids leave out deleted and archived cards and the workstreams of an archived plan', () => {
-  const s = new Store(':memory:');
-  s.ensureProject('c', 'C');
-  const [task, gone, plan] = s.addCards([
-    { project_id: 'c', kind: 'task', x: 0, y: 0 },
-    { project_id: 'c', kind: 'task', x: 0, y: 1 },
-    { project_id: 'c', kind: 'plan', x: 0, y: 2 },
-  ]);
-  const [stream] = s.addCards([{ project_id: 'c', kind: 'plan', x: 0, y: 3, parent_id: plan!.id }]);
-  expect(s.cards.activeIds('c').sort()).toEqual([task!.id, gone!.id, plan!.id, stream!.id].sort());
-  s.updateCard(gone!.id, { archived_at: new Date().toISOString() });
-  s.updateCard(plan!.id, { archived_at: new Date().toISOString() });
-  expect(s.cards.activeIds('c')).toEqual([task!.id]);
-});
