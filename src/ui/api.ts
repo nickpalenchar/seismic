@@ -85,9 +85,9 @@ export const projectOf = (id: string) => projectOfCard.get(id) ?? projectId;
 /** A path in the API of the card's project, about the card or plan `id`. */
 export const cardAt = (id: string, path = '') => `/api/c/${encodeURIComponent(projectOf(id))}/cards/${id}${path}`;
 /** A path in the API of the project of what the words are about, else of the shown one. */
-const whereAt = (where: Where, path: string) => {
+const whereAt = (where: Where, path: string, project?: string) => {
   const id = where && ('card' in where ? where.card : where.plan);
-  return id ? `/api/c/${encodeURIComponent(projectOf(id))}${path}` : at(path);
+  return id ? `/api/c/${encodeURIComponent(projectOf(id))}${path}` : at(path, project);
 };
 /** Where a looked-up answer's file is served; `download` to save it. */
 export const answerFile = (thread: number, name: string, download = false) =>
@@ -356,7 +356,7 @@ export const api = {
   voice: async (
     audio: Blob,
     where: Where,
-    { images = [], replyTo, text, listen, spot, place, sent }: { images?: string[]; replyTo?: number | TalkRef; text?: string; listen?: boolean; spot?: SpotInput; place?: Place; sent?: string } = {},
+    { images = [], replyTo, text, listen, spot, place, sent, project }: { images?: string[]; replyTo?: number | TalkRef; text?: string; listen?: boolean; spot?: SpotInput; place?: Place; sent?: string; project?: string } = {},
   ) => {
     const q = [
       ...(sent ? [`sent=${encodeURIComponent(sent)}`] : []),
@@ -372,12 +372,12 @@ export const api = {
       body.set('audio', audio);
       body.set('text', text);
     }
-    const res = await fetch(whereAt(where, `/voice${query(where)}${q && (where ? '&' : '?')}${q}`), { method: 'POST', body });
+    const res = await fetch(whereAt(where, `/voice${query(where)}${q && (where ? '&' : '?')}${q}`, project), { method: 'POST', body });
     await refused(res);
     return (await res.json()) as Heard;
   },
   /** Whether the recording `voice` sent as `sent` arrived whole. */
-  voiceArrived: async (sent: string) => (await call<{ arrived: boolean }>('GET', at(`/voice/arrived/${encodeURIComponent(sent)}`))).arrived,
+  voiceArrived: async (sent: string, project?: string) => (await call<{ arrived: boolean }>('GET', at(`/voice/arrived/${encodeURIComponent(sent)}`, project))).arrived,
   /** The owner started speaking (or typing a command): Seismic gets ready to read it. */
   warmVoice: () => fetch(at('/voice/warm'), { method: 'POST' }).catch(() => {}),
   /** The same, typed; `field`: the field of the open card it was typed into. */

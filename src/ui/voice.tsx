@@ -13,7 +13,7 @@ import { Mic } from 'lucide-react';
 import { createContext, useEffect, useRef, useState } from 'react';
 import type { Place } from '../core/layout';
 import type { Notice } from '../core/types';
-import { ApiError, api, type Heard, holdRestart, type Where } from './api';
+import { ApiError, api, type Heard, holdRestart, shownProject, type Where } from './api';
 import { appended, beginDictation, dictate, draftIn, draftOf, focusedDraft, insertFiles, MIC_DRAFT, moveFiles, moveImages, takesImages, toObeya, updateDraft, useDraft, useFieldOn, uploaded, useFocusedDraft, wordsOf } from './draft';
 import type { ToastStore } from './components/toast';
 import { toldLines } from './components/told';
@@ -50,10 +50,10 @@ const NOTE_MS = 6000;
  * connection lost: asked until Seismic answers, for as long as the page lives. A page going away
  * (another project, a reload) never hears, and gives nothing back.
  */
-async function arrived(sent: string): Promise<boolean> {
+async function arrived(sent: string, project: string): Promise<boolean> {
   for (let wait = 500; ; wait = Math.min(wait * 2, 8000)) {
     try {
-      return await api.voiceArrived(sent);
+      return await api.voiceArrived(sent, project);
     } catch {
       await new Promise((r) => setTimeout(r, wait));
     }
@@ -163,30 +163,34 @@ export function usePushToTalk(
     const at = r.into ? undefined : place();
     setPhase('idle');
     setWriting((n) => n + 1);
+    // the project and field it was said on, before the audio is ready: the owner may switch to another project meanwhile
+    const project = shownProject();
+    const key = r.into ?? field(r.target);
+    const back = draftIn(key);
     void r.recording.stop().then(async (audio) => {
-      if (r.into) return into(r.into, r.target, length < TAP_MS ? null : audio);
+      if (r.into) return into(r.into, r.target, length < TAP_MS ? null : audio, back, project);
       // a tap is not a command
       if (length < TAP_MS) return;
-      // what stands in the field goes out with the words and leaves it; nothing heard, it comes back
-      const key = field(r.target);
-      await uploaded(key);
-      const { text, images } = draftOf(key);
-      updateDraft(key, (d) => ({ text: '', images: d.images.filter((id) => !images.includes(id)) }));
+      // what stands in the field goes out with the words and leaves it; nothing heard, it comes back.
+      // Switched away already, the field there keeps it: the words go alone
+      const here = back.here();
+      if (here) await uploaded(key);
+      const { text, images } = here ? draftOf(key) : { text: '', images: [] as string[] };
+      if (here) updateDraft(key, (d) => ({ text: '', images: d.images.filter((id) => !images.includes(id)) }));
       // said in reply to the message the field quotes, as typed words are
-      const reply = replyOn(key);
+      const reply = here ? replyOn(key) : null;
       if (reply) setReply(key, null);
       // the field gets them back only when Seismic says it has not taken the command: until
       // 2026-10-16 a connection that broke (the browser cutting it off as the page went to another
       // project, say) counted as that, although Seismic had the command and read on, and the draft
       // kept for the page's next load brought the screenshots back
       const name = recordingName();
-      const back = draftIn(key);
       let failed = false;
       const h = await send(r.target, async () => {
         try {
-          return await api.voice(audio, r.target, { images, replyTo: reply?.to, text, spot: await sent(r.spot), place: at, sent: name });
+          return await api.voice(audio, r.target, { images, replyTo: reply?.to, text, spot: await sent(r.spot), place: at, sent: name, project });
         } catch (e) {
-          if (!(e instanceof ApiError) && (await arrived(name))) return { confirm: t.voice.answerLost };
+          if (!(e instanceof ApiError) && (await arrived(name, project))) return { confirm: t.voice.answerLost };
           failed = true;
           throw e;
         }
@@ -199,13 +203,12 @@ export function usePushToTalk(
   }
 
   /** A dictation: what was heard goes into the field at its cursor; nothing heard leaves the field as it was, and says so. */
-  async function into(key: string, target: Where, audio: Blob | null) {
-    if (!audio) return updateDraft(key, { dictation: '' });
-    updateDraft(key, { dictation: 'writing' });
-    const draft = draftIn(key);
+  async function into(key: string, target: Where, audio: Blob | null, draft: ReturnType<typeof draftIn>, project: string) {
+    if (!audio) return draft.update({ dictation: '' });
+    draft.update({ dictation: 'writing' });
     let h: Heard;
     try {
-      h = await api.voice(audio, target, { listen: true });
+      h = await api.voice(audio, target, { listen: true, project });
     } catch (e) {
       h = { confirm: failText(e, { offline: t.voice.failed }), unheard: true };
     }

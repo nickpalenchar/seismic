@@ -4,7 +4,7 @@
 // the agent to read them (`fileTo`).
 
 import { Image as ImageIcon, Undo2 } from 'lucide-react';
-import { type ClipboardEvent, type DragEvent, type MouseEvent, type PointerEvent, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { type ClipboardEvent, type DragEvent, type MouseEvent, type PointerEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IMAGE_TYPES, MAX_FILE_BYTES, MAX_IMAGE_BYTES } from '../core/types';
 import { api, ApiError, at, shownProject } from './api';
@@ -111,6 +111,9 @@ export async function fileTo(key: string, files: File[], put: (path: string) => 
   return arrived;
 }
 
+/** How many fields of their own have been made in this page, which numbers the next. */
+let fields = 0;
+
 /**
  * Screenshots going into a text field: pasted, dropped or picked, uploaded at once. They belong to
  * the field's `draft` (`draft.ts`), or without one to this field alone. `onChange` hears every
@@ -118,7 +121,8 @@ export async function fileTo(key: string, files: File[], put: (path: string) => 
  * go in by their path (`fileTo`): into the draft's text, or by `put` for a field that keeps its text itself.
  */
 export function useShotInput({ draft, initial = [], onChange, off = false, put }: { draft?: string; initial?: string[]; onChange?: (ids: string[]) => void; off?: boolean; put?: (path: string) => void } = {}) {
-  const own = useId();
+  // a key of this field's own, never one a field shown later takes again (as `useId` may, at the same place)
+  const [own] = useState(() => ++fields);
   const key = draft ?? `shots:${own}`;
   // a field of its own starts with its screenshots, and they go with it
   useState(() => !draft && initial.length && updateDraft(key, { images: initial }));
