@@ -184,10 +184,13 @@ Review answers may be submitted to the current worker or to a new agent chosen b
 
 A project may have the work of its cards reviewed before it lands (its settings sheet, "Code reviews",
 see The project settings in The canvas; off unless the owner turns it on, since reviews cost tokens).
-Only work that lands on `main` is reviewed: a card whose work goes through a pull request (with the
-repository's `land: pr`, also where "Straight to main" would push it) is left to the forge's
-reviewers, and so are folders without git, review cards, prototypes, work that changes nothing and
-approved work handed over again only to land.
+Work is reviewed whatever its landing: onto `main`, or through a pull request (`land: pr`, also where
+"Straight to main" would push it). The review runs at the handover, before the owner approves, so
+the pull request opens with code that was reviewed; the forge's reviewers come on top of it, and
+the fixes the worker makes for their comments are judged by them, not reviewed again. Findings left
+open are not posted on the pull request; they stay on the card. Folders without git, review cards,
+prototypes, work that changes nothing and approved work handed over again only to land are not
+reviewed.
 
 The reviewer is an agent of its own, not the worker: one session of the "Code reviews" group (see
 Models and effort in Agents and workstations), read-only, in the card's workstation. Its brief is the
@@ -481,8 +484,9 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
   an ordinary task (the plan would lose its place, or the task would become a plan nobody chose);
   leaving plan-doc cards out of merging, with only "Dismiss merge" on a flagged pair.
 
-- **Code reviews are a project setting, by a separate agent of a model group of its own, only where
-  work lands on `main`** (owner, 2026-11-05): automatic with the demo (the Review tab with its
+- **Code reviews are a project setting, by a separate agent of a model group of its own, for every
+  card in a git repository** (owner, 2026-11-05; widened from work landing on `main` to work going
+  through a pull request, 2026-11-08): automatic with the demo (the Review tab with its
   coloured counts) or manual at handover ("Approve" stays first and primary, "Start code review" second in purple:
   the everyday button keeps its place); the
   owner sends items to the worker to fix with the one Send, or makes them follow-up tasks. Off by

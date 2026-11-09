@@ -1,4 +1,4 @@
-// The code review of a card's work where its project reviews work that lands on main (design: Code
+// The code review of a card's work where its project reviews work (design: Code
 // reviews in Card lifecycle): a separate, read-only agent of the "Code reviews" group reads the
 // branch's diff against main the repository's way and adds graded items to the card's one running
 // list, which its Review tab shows; it also verifies what the worker resubmitted as fixed and
@@ -101,7 +101,7 @@ export class CodeReviews {
 
   /**
    * The worker handed over (`handover`, its event): `mode` where the work is to be reviewed (the
-   * project reviews work, and this work lands on main), else null, which drops a review the card had
+   * project reviews work, and this work is in a git repository), else null, which drops a review the card had
    * with its items. What the owner had the worker fix goes under review now: the next review verifies
    * it. A review of the same commit stands for this handover too, unless it resubmitted items;
    * otherwise it is stale, and in `auto` a new one starts.
@@ -164,7 +164,7 @@ export class CodeReviews {
   /** "Start code review": a review of the card's latest handover starts, where it has none that stands (or one that failed). */
   start(cardId: string): void {
     const c = codeReviewOf(this.o.board.row(cardId));
-    if (!c) throw new BadRequest('notReview', 'the card has no code review: its project reviews no work, or its work does not land on main');
+    if (!c) throw new BadRequest('notReview', 'the card has no code review: its project reviews no work');
     if (c.review?.handover === c.handover && c.review.state !== 'failed' && !this.items(cardId).some((i) => i.status === 'underReview')) throw new BadRequest('notReview', 'the latest handover is reviewed already');
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.codeReviewStarted);
     const ws = this.o.board.row(cardId).workstation;

@@ -46,6 +46,10 @@ approval holds and that handover lands without a new demo, with the second it br
 the owner to approve. Changes gone from the checkout meanwhile leave nothing to fold: the first
 button then lands at once.
 
+A `pr` repository's work is code-reviewed at the handover like any other (see Code reviews in Card
+lifecycle), before the owner approves and the pull request opens; the loop below is unchanged and
+its fixes are judged by the forge's reviewers alone.
+
 Where a `pr` repository's settings allow `direct`, the owner may approve "Straight to main": in the
 card's clone or worktree Seismic fetches, rebases onto `origin/<default>` and runs `git push origin
 HEAD:<default>`, never forced. A push refused because the branch moved is rebased and pushed once
@@ -53,7 +57,8 @@ more; any other refusal (protection, rights) goes to the owner, the card back in
 go back to the worker as above, and its next handover is pushed directly too. A card already in its
 PR does not switch. The local checkout is left alone; the read checkout is refreshed at once, so plan docs
 the card adds show as plans, and the worker hears its work is on main. Seismic does not watch the CI
-on the default branch.
+on the default branch. Its hint reads "Straight to main: no review, push to origin/main", and
+"reviewed by Obeya" instead of "no review" once a review of the current handover is done.
 
 Landing runs git without blocking the server. Landings of one repository run one after the other;
 the active card says "Landing on main", and waiting approvals say "Waiting to land · 1st in line"

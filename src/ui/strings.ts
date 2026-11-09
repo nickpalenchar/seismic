@@ -327,7 +327,7 @@ const en = {
   approve: 'Approve',
   approvePr: 'Approve (PR)',
   approveDirect: MESSAGES.en.approveDirect,
-  directHint: 'Straight to main: no review, push to origin/main',
+  directHint: (reviewed: boolean) => `Straight to main: ${reviewed ? 'reviewed by Obeya' : 'no review'}, push to origin/main`,
   approveNoChange: 'Close',
   noChangeHint: 'No change to the code: Close finishes the card without a pull request.',
   modelsUnchanged: (why: string) => `The change looks like it alters stored data; the agent says it does not: ${why}`,
@@ -1505,7 +1505,7 @@ const en = {
       when: 'Reviews happen',
       auto: 'Automatically, with the demo',
       manual: 'Manually, at handover',
-      scope: 'Applies only to work that lands on main. Work that goes through a pull request is reviewed on the forge.',
+      scope: 'Reviews the work before it lands or its pull request opens.',
     },
     archive: {
       title: 'Cards archive',

@@ -225,8 +225,8 @@ saved into the configuration at once and applied without a restart:
   model and effort. Left open, each shows Configuration's value and follows it as it
   changes; a value chosen is the project's own. Running agents keep theirs; the next to start take it.
 - Code reviews: "Review the work", off unless turned on; once on, "Reviews happen" "Automatically,
-  with the demo" or "Manually, at handover", and the line that this applies only to work that lands
-  on `main` ("Work that goes through a pull request is reviewed on the forge"). See Code reviews in
+  with the demo" or "Manually, at handover", and the line "Reviews the work before it lands or its
+  pull request opens": every card in a git repository, whatever its landing. See Code reviews in
   Card lifecycle.
 - Demo site: where "Share" puts the project's demos, one of this machine's sites with a path of its
   own, "Initialize", the vocabulary of tags and when a demo goes on the site (see A project's demo

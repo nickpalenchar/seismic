@@ -1670,11 +1670,11 @@ export class Workers {
       if (i.kind !== 'task' || (this.o.repo && i.repo !== this.o.repo)) continue;
       try {
         if (!this.catchable(i.id)) continue;
-        const [work, { land }] = await Promise.all([this.o.workstations.hasWork(i.id), this.landingOf(i.id)]);
+        const work = await this.o.workstations.hasWork(i.id);
         // the card may have moved on during the git calls: look again before writing
         if (!this.catchable(i.id)) continue;
         const e = this.o.board.events(i.id).findLast((x) => x.kind === 'review' && x.author === 'worker');
-        if (e) this.reviews.applyMode(i.id, e.id, this.reviewModeOf(this.o.board.row(i.id), work, land));
+        if (e) this.reviews.applyMode(i.id, e.id, this.reviewModeOf(this.o.board.row(i.id), work));
       } catch (err) {
         console.error(`Seismic: the code review setting did not reach card ${i.id}: ${err instanceof Error ? err.message : err}`);
       }
@@ -1689,10 +1689,10 @@ export class Workers {
   }
 
   /** The mode in which the project reviews this card's work at a handover, or null where it does not: the one rule for handovers and for a changed setting. */
-  private reviewModeOf(row: CardRow, work: boolean, land?: 'main' | 'pr'): CodeReviewSetting['mode'] | null {
+  private reviewModeOf(row: CardRow, work: boolean, ): CodeReviewSetting['mode'] | null {
     if (this.folder || row.idea?.prototypeOf || contributionOf(row)) return null;
     const reviews = this.o.codeReviews?.();
-    if (!reviews?.on || !work || land !== 'main') return null;
+    if (!reviews?.on || !work) return null;
     // a card at work when the setting changed hands over unreviewed in automatic mode (its flag goes with the handover's detail)
     if (reviews.mode === 'auto' && row.detail && (JSON.parse(row.detail) as { noAutoReview?: boolean }).noAutoReview) return null;
     return reviews.mode;
@@ -5050,7 +5050,7 @@ export class Workers {
           const handOverWork = (d: Demo | undefined, named: CardFile[] | undefined, shows: boolean): Promise<string> =>
             review
               ? this.ownCommits(cardId, review).then((mine) => (typeof mine === 'string' ? mine : handOverNow(d, named, shows, true, undefined, mine)))
-              : Promise.all([this.o.workstations.hasWork(cardId), this.landingOf(cardId)]).then(async ([work, { own, land }]) =>
+              : Promise.all([this.o.workstations.hasWork(cardId), this.landingOf(cardId)]).then(async ([work, { own }]) =>
                   handOverNow(
                     d,
                     named,
@@ -5061,7 +5061,6 @@ export class Workers {
                     work && !this.folder ? await this.o.workstations.changedFiles(cardId) : undefined,
                     // what the branch shows of a data-model change, unless the worker says it has one
                     work && !this.folder && declared !== 'changed' && this.artifacts().includes('schema') ? dataModelSignals((await this.o.workstations.diff(cardId, true))?.patch ?? '') : [],
-                    land,
                   ),
                 );
           const handOverNow = (
@@ -5073,7 +5072,6 @@ export class Workers {
             mine?: OwnCommits,
             changed?: string[],
             signals: DataSignal[] = [],
-            land?: 'main' | 'pr',
           ): string => {
             // reading what the change shows takes a while, in which the owner may stop or replace the session
             if (this.live.get(cardId) !== live && !live.standIn) return 'This session has ended. Stop working and end your turn.';
@@ -5146,8 +5144,8 @@ export class Workers {
             }
             const report = this.report(cardId, s);
             const e = this.o.board.log(cardId, 'review', 'worker', s);
-            // work that lands on main gets its code review where the project reviews work; work through a pull request gets the forge's reviewers
-            if (!review && !approved) void this.reviews.handedOver(cardId, e.id, this.reviewModeOf(row, work, land));
+            // work in a git repository gets its code review where the project reviews work, whatever its landing; the forge's reviewers come after it
+            if (!review && !approved) void this.reviews.handedOver(cardId, e.id, this.reviewModeOf(row, work));
             // the demo report's question goes with the handover it came with, also once a later one keeps the demo
             if (demoJson) demoJson = JSON.stringify({ ...(JSON.parse(demoJson) as object), handover: e.id, at: e.at });
             // the demo it replaces stays with the card, for the owner to go back to; so do a question's drafts, which are no handover's result

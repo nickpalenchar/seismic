@@ -136,12 +136,21 @@ describe('code reviews', () => {
     expect(board.item(id)!.review?.codeReview).toBeUndefined();
   });
 
-  test('work that goes through a pull request gets none: the forge reviews it', async () => {
+  test('work that goes through a pull request is reviewed before the PR opens', async () => {
     reviewing('auto', true, 'pr');
     const id = await started();
     await handOver(id, 'export.ts');
-    await new Promise((r) => setTimeout(r, 30));
-    expect(board.item(id)!.review?.codeReview).toBeUndefined();
+    expect(state(id)).toBe('waiting:demo');
+    await until(() => reviewers().length === 1);
+    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'auto', state: 'running', items: [] });
+  });
+
+  test('work that goes through a pull request gets "Start code review" in manual mode', async () => {
+    reviewing('manual', true, 'pr');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => !!board.item(id)!.review?.codeReview);
+    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'manual', items: [] });
     expect(reviewers()).toHaveLength(0);
   });
 

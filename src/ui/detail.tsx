@@ -390,6 +390,7 @@ export function Detail(p: Props) {
   const reviewRunning = cr?.state === 'running' || fixing || verifying;
   // choices on items picked but not sent yet: approving would drop them
   const unsent = Object.keys(unsentPicks ?? {}).filter((id) => cr?.items.some((r) => r.number === Number(id) && needsOwner(r))).length;
+  const reviewed = cr?.state === 'done' && !cr.stale;
   const asksReview = !!cr && cr.mode === 'manual' && (!cr.state || !!cr.stale || cr.state === 'failed' || (cr.state === 'done' && verifying));
   const approveButton = item.review?.landing ? null : item.review?.contribution ? (
     <ApproveReview c={item.review?.contribution} act={act} />
@@ -436,7 +437,7 @@ export function Detail(p: Props) {
         </Button>
       )}
       {direct && (
-        <Button title={t.directHint} onClick={() => act({ action: 'approve', direct: true }, { close: true, ack: t.approvedDirect, pending: t.approvingDirect, rate: item.id })}>
+        <Button title={t.directHint(reviewed)} onClick={() => act({ action: 'approve', direct: true }, { close: true, ack: t.approvedDirect, pending: t.approvingDirect, rate: item.id })}>
           {t.approveDirect}
         </Button>
       )}
@@ -891,7 +892,7 @@ export function Detail(p: Props) {
       {review && item.demo?.latest && sharing && !item.demo.latest.asked && (shares?.share || item.demo.share) && sharesLater(item, item.demo.latest, !!shares?.shareOnApproval) && <ShareOnApproval item={item} act={act} />}
       {review && item.review?.noChange && !item.idea?.prototypeOf && <p className="hint">{inFolder ? t.folder.noChangeHint : t.noChangeHint}</p>}
       {review && item.review?.modelsUnchanged && <p className="hint">{t.modelsUnchanged(item.review.modelsUnchanged)}</p>}
-      {review && direct && !item.idea?.prototypeOf && <p className="hint">{t.directHint}</p>}
+      {review && direct && !item.idea?.prototypeOf && <p className="hint">{t.directHint(reviewed)}</p>}
       </>}
     </DescriptionEdit.Provider></CardRefs.Provider>
   );
