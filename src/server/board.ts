@@ -504,6 +504,8 @@ export class Board {
   private archiveItems: Item[] | null = null;
   /** The project's prototypes, and those `withPrototypes` handed out so far; gone with `cache`. */
   private prototypeItems: Prototypes | null = null;
+  /** The ids of the project's active cards, for `withActivePartners`; gone with `cache`. */
+  private activeIds: Set<string> | null = null;
   private eventListeners = new Set<(e: CardEvent) => void>();
   private goneListeners = new Set<(cardId: string, id: number) => void>();
   private noticeListeners = new Set<(n: Notice) => void>();
@@ -627,6 +629,7 @@ export class Board {
     this.itemsCache = null;
     this.archiveItems = null;
     this.prototypeItems = null;
+    this.activeIds = null;
     this.tell();
   }
 
@@ -2042,6 +2045,7 @@ export class Board {
       this.itemsCache = null;
       this.archiveItems = null;
       this.prototypeItems = null;
+      this.activeIds = null;
     }
     if (this.itemsCache) return this.itemsCache;
     const read = !this.docs;
@@ -2673,7 +2677,7 @@ export class Board {
   /** Items whose suggested duplicates are checked against the project's active cards, for items built from some rows only. */
   private withActivePartners(items: Item[]): Item[] {
     if (!items.some((i) => i.possibleDuplicates)) return items;
-    return withLivePartners(items, new Set(this.store.cards.onProject(this.project.id).map((r) => r.id)));
+    return withLivePartners(items, (this.activeIds ??= new Set(this.store.cards.activeIds(this.project.id))));
   }
 
   /** The owner rejects a proposal; it is kept, so the same one does not come back. */
