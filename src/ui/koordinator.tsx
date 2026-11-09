@@ -444,7 +444,7 @@ export function ProposalRow({ p, items, rules, repos, onOpen, project }: { p: Pr
           </>
         ) : (
           <>
-            {card && <CardLink card={card} title={card.title} onOpen={onOpen} className="from" />}
+            {card && <CardLink card={card} title={card.title} onOpen={onOpen} />}
             {card && quote && ': '}
             {quote && <q>{quote}</q>}
           </>
@@ -569,7 +569,7 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
           return (
             <Fragment key={c.id}>
               {i > 0 && ', '}
-              <CardLink card={card} title={c.title} onOpen={onOpen} className="from" />
+              <CardLink card={card} title={c.title} onOpen={onOpen} />
             </Fragment>
           );
         })}
@@ -642,7 +642,7 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
                   const card = items.find((i) => i.id === f.id);
                   return (
                     <span key={f.id} className="failed">
-                      <CardLink card={card} title={f.title} onOpen={onOpen} className="from" />
+                      <CardLink card={card} title={f.title} onOpen={onOpen} />
                     </span>
                   );
                 })}

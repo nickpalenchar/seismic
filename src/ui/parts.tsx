@@ -14,7 +14,7 @@ import type { Cam, Sides } from './camera';
 import type { Shape } from './groups';
 import { Doc, Inline, plain } from './markdown';
 import { Body } from './message';
-import { waitedOn } from './queue';
+import { Waiting } from './queue';
 import { asksYou, CardFace, cardClass, hasLabels, HourglassMark, LabelMarks, LabelPicks, shownState } from './card';
 import { scrollBehavior } from './motion';
 import { clock, shortDay, stateLabel, t } from './strings';
@@ -1238,7 +1238,7 @@ export function Sheet({
                   text={false}
                   tail={
                     k.queue && 'behind' in k.queue
-                      ? t.queue.behind(waitedOn(k.queue.behind, all, (id) => sibling(id, kids, all)))
+                      ? <Waiting ids={k.queue.behind} items={all} name={(id) => sibling(id, kids, all)} />
                       : !finished(k.state) && !!k.plan?.buildsOn?.length && t.plan.buildsOn(k.plan.buildsOn.map((id) => sibling(id, kids, all)))
                   }
                 />

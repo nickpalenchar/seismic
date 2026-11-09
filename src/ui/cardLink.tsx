@@ -8,28 +8,15 @@ import { projectOf } from './api';
 import { cardHref, referenced } from './cardRefs';
 import { plain } from './markdown';
 import { Cards } from './message';
-import { PriorityMark } from './card';
-import { stateLabel } from './strings';
+import { CardFace } from './card';
 
 /** The card by `title` (its own by default); plain text where it is not on the project. `onOpen` in place of the `Cards` around it. */
-export function CardLink({ card, title, onOpen, className = 'link card-link' }: { card: Item | undefined; title?: string; onOpen?: (i: Item) => void; className?: string }) {
+export function CardLink({ card, title, onOpen }: { card: Item | undefined; title?: string; onOpen?: (i: Item) => void }) {
   const cards = useContext(Cards);
   const text = plain(title ?? card?.title ?? '');
   // an archived card is not on the project to unfold from
   if (!card || card.archivedAt) return <>{text}</>;
-  return (
-    <a
-      className={className}
-      href={cardPath(projectOf(card.id), card)}
-      onClick={(e) => {
-        if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        e.preventDefault();
-        (onOpen ?? cards.open)(card);
-      }}
-    >
-      {text}
-    </a>
-  );
+  return <CardFace item={card} size="inline" title={text} href={cardPath(projectOf(card.id), card)} onOpen={() => (onOpen ?? cards.open)(card)} />;
 }
 
 const MARK = '\u0000';
@@ -66,22 +53,7 @@ export function SmartLink({ href, text }: { href: string; text: string }) {
       </span>
     );
   }
-  return (
-    <a
-      className={`smart-link s-${card.state}`}
-      href={cardPath(projectOf(card.id), card)}
-      title={stateLabel(card)}
-      onClick={(e) => {
-        if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        e.preventDefault();
-        cards.open(card);
-      }}
-    >
-      <span className="sl-dot" />
-      <span className="sl-title">{plain(card.title || text)}</span>
-      {card.labels?.priority && <PriorityMark priority={card.labels.priority} />}
-    </a>
-  );
+  return <CardFace item={card} size="inline" title={plain(card.title || text)} href={cardPath(projectOf(card.id), card)} onOpen={() => cards.open(card)} />;
 }
 
 /** For `CardRefs`: a link to a card's address as a smart link, null for any other. */

@@ -575,7 +575,9 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   );
   const acks = (
       <div id="acks">
-        <Toasts toasts={toasts} open={open ?? undefined} aside />
+        <Cards.Provider value={{ items: opened?.project ? (snaps[opened.project.id]?.items ?? []) : [], open: openCard }}>
+          <Toasts toasts={toasts} open={open ?? undefined} aside />
+        </Cards.Provider>
         {/* nearest the microphone: a line going above it does not move the stars under a finger */}
         {ratePrompt.prompt}
       </div>

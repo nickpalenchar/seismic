@@ -3,8 +3,10 @@
 // for each spoken or typed command. Which of them replace and which stack, how long each stays and
 // how long it offers "Undo" is said per toast; one component draws them all.
 
-import { useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { Aside } from '../aside';
+import { CardLink } from '../cardLink';
+import { Cards } from '../message';
 import { t } from '../strings';
 
 /**
@@ -149,12 +151,25 @@ export function Toasts({ toasts, open, aside = false }: { toasts: ReturnType<typ
   );
 }
 
+/** The card a toast is about, as an inline card where it is on the project, else its title in bold. */
+function ToastCard({ card }: { card: { id: string; title: string } }) {
+  const cards = useContext(Cards);
+  const item = cards.items.find((i) => i.id === card.id);
+  if (!item || item.archivedAt) return <b>{t.voice.about(card.title)}</b>;
+  return (
+    <>
+      <CardLink card={item} title={card.title} />
+      {': '}
+    </>
+  );
+}
+
 export function ToastLine({ toast: x, open, aside, onGone }: { toast: Toast; open?: string; aside: boolean; onGone: () => void }) {
   const go = x.undo ? [] : (x.go ?? []).filter((c) => c.id !== open);
   return (
     <Aside on={aside} onGone={onGone} className={`toast ${x.kind}${x.reading ? ' reading' : ''}${go.length > 1 ? ' several' : ''}`} role={x.kind === 'warning' ? 'alert' : undefined}>
       <span>
-        {x.card && x.card.id !== open && !x.reading && <b>{t.voice.about(x.card.title)}</b>}
+        {x.card && x.card.id !== open && !x.reading && <ToastCard card={x.card} />}
         {x.text}
       </span>
       {x.undo && <button onClick={() => x.undo?.()}>{t.undo}</button>}

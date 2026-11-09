@@ -321,7 +321,7 @@ see Scheduling.
 
 #### Card sizes
 
-A card has one face, which every place that shows a card draws in one of three sizes, so that no
+A card has one face, which every place that shows a card draws in one of four sizes, so that no
 list says a card's title, state or labels in a way of its own:
 
 - **M** is the card on the canvas, also two merged cards side by side, the phone's Agents view (its queue aside) and a follow-up made in a conversation. Its top line holds the label
@@ -347,10 +347,15 @@ list says a card's title, state or labels in a way of its own:
   "Archived") and, in grey, as much of the line under its title as fits, cut off with "…". A plan's
   sheet leaves that line out, as it shows the workstream's text from the plan doc below in full.
 
-Card links in text, the edge indicators and the minimap are no faces: they only name a card (a link
-with its priority's flag).
+- **Inline** is a card named within a line of text: a pill with a dot in the colour of its state, its
+  title as it is now in blue and underlined, and its priority where it has one; the state line is its
+  tooltip and a click opens the card. Every reference to a card in running text draws it so: a smart
+  link in a conversation, what a queued card waits for (in its detail, the queue, a plan's sheet), the
+  cards a message or the Koordinator names, and the card a toast is about.
 
-Decision (2026-11-08): one face in three sizes for every surface, rather than each list drawing a row
+The edge indicators and the minimap are no faces: they only name a card.
+
+Decision (2026-11-08): one face in four sizes for every surface, rather than each list drawing a row
 of its own: search showed neither state nor priority, and the rows drifted apart with every change to
 the card. XS leaves out category, sub-category and complexity so that it stays two lines; the
 priority stays, as what decides where in a list to look first, on the title line, and the state takes

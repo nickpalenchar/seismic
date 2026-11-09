@@ -2639,7 +2639,9 @@ function Project({
         />
         {/* commands on their way and confirmations, stacked above the microphone */}
         <div id="acks">
-          <Toasts toasts={toasts} open={focus?.type === 'card' ? focus.id : undefined} />
+          <Cards.Provider value={{ items, open: (i) => void openFresh(i) }}>
+            <Toasts toasts={toasts} open={focus?.type === 'card' ? focus.id : undefined} />
+          </Cards.Provider>
           {/* nearest the microphone: a line going above it does not move the stars under a finger */}
           {ratePrompt.prompt}
           <NotifyAsk {...notifyAsk} />

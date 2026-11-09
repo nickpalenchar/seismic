@@ -1,17 +1,17 @@
-// A card's face, the one every surface that shows a card draws, in three sizes (design: Card sizes):
+// A card's face, the one every surface that shows a card draws, in four sizes (design: Card sizes):
 // M, the card on the project; S, a compact row of up to four lines (the inbox); XS, two lines with
-// the least (search and the other lists). A surface adds what is its own around the face (buttons,
+// the least (search and the other lists); inline, a pill within a line of text. A surface adds what is its own around the face (buttons,
 // a grip, an ×) and in its slots, never a title, state or labels of its own.
 
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import type { Item } from '../../core/types';
 import { OtherCanvas, useOtherCanvas } from '../canvases';
-import { t } from '../strings';
+import { stateLabel, t } from '../strings';
 import { hasLabels, LabelMarks, PriorityMark } from './labels';
 import { Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
 import { cardKind, cardSummary, cardTone } from './summary';
 
-export type CardSize = 'm' | 's' | 'xs';
+export type CardSize = 'm' | 's' | 'xs' | 'inline';
 
 export interface CardFaceProps {
   item: Item;
@@ -35,6 +35,9 @@ export interface CardFaceProps {
   tail?: ReactNode;
   /** Less visual noise (the inbox): the pin is a small dot in the top-right corner, the state line is muted and plain, no moving line. What the size does not show anyway stays as it is. */
   subtle?: boolean;
+  /** Inline: the pill is a link to this address, opening the card through `onOpen`. */
+  href?: string;
+  onOpen?: () => void;
   /** S: under the face (the entry's buttons). */
   children?: ReactNode;
 }
@@ -52,7 +55,38 @@ const dotted = (parts: ReactNode[]) =>
 const tone = (item: Item, underway?: string) => ({ '--c': `var(--${cardTone(item, underway)})` }) as CSSProperties;
 
 export function CardFace(p: CardFaceProps) {
-  return p.size === 'xs' ? <FaceXS {...p} /> : p.size === 's' ? <FaceS {...p} /> : <FaceM {...p} />;
+  return p.size === 'inline' ? <FaceInline {...p} /> : p.size === 'xs' ? <FaceXS {...p} /> : p.size === 's' ? <FaceS {...p} /> : <FaceM {...p} />;
+}
+
+/**
+ * Inline, a card named within a line of text: a pill with a dot in the colour of its state, its title
+ * as it is now (blue and underlined, as links are) and its priority where it has one; its state line
+ * is the tooltip. With `href` it is a link that `onOpen` follows on a plain click.
+ */
+function FaceInline({ item, title, href, onOpen }: CardFaceProps) {
+  const body = (
+    <>
+      <span className="sl-dot" />
+      <span className="sl-title">{title ?? shownTitle(item)}</span>
+      {item.labels?.priority && <PriorityMark priority={item.labels.priority} />}
+    </>
+  );
+  const cls = `smart-link s-${item.state}`;
+  if (!href) return <span className={cls}>{body}</span>;
+  return (
+    <a
+      className={cls}
+      href={href}
+      title={stateLabel(item)}
+      onClick={(e) => {
+        if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        onOpen?.();
+      }}
+    >
+      {body}
+    </a>
+  );
 }
 
 /**
