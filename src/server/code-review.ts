@@ -581,17 +581,22 @@ const nextNumber = (items: ReviewItem[]) => items.reduce((n, i) => Math.max(n, i
 
 /**
  * Why a recorded review cannot be taken, or nothing: a verdict for an item outside the run's
- * `scope` (those under review when its brief was written), none for one inside it, a regression of
- * one that is not fixed, a verdict of not fixed or a regression without why.
+ * `scope` (those under review when its brief was written), none for one inside it, two verdicts
+ * or two regressions on the same item, a regression of one that is not fixed, a verdict of not fixed or a regression without why.
  */
 function checkRecorded(items: ReviewItem[], scope: number[], r: Recorded): string | undefined {
   const status = (n: number) => items.find((i) => i.number === n)?.status;
   const named = new Set(r.verdicts.map((v) => v.number));
   const twice = (ns: number[]) => [...new Set(ns.filter((n, i) => ns.indexOf(n) !== i))];
   const doubled = twice(r.verdicts.map((v) => v.number));
-  if (doubled.length) return `${doubled.map((n) => `#${n}`).join(', ')} ${doubled.length === 1 ? 'has' : 'have'} more than one verdict; give one verdict for each item.`;
   const regressedTwice = twice(r.regressions.map((g) => g.number));
-  if (regressedTwice.length) return `${regressedTwice.map((n) => `#${n}`).join(', ')} ${regressedTwice.length === 1 ? 'is' : 'are'} named more than once among the regressions; name each item once.`;
+  if (doubled.length || regressedTwice.length)
+    return [
+      doubled.length && `${doubled.map((n) => `#${n}`).join(', ')} ${doubled.length === 1 ? 'has' : 'have'} more than one verdict; give one verdict for each item.`,
+      regressedTwice.length && `${regressedTwice.map((n) => `#${n}`).join(', ')} ${regressedTwice.length === 1 ? 'is' : 'are'} named more than once among the regressions; name each item once.`,
+    ]
+      .filter(Boolean)
+      .join(' ');
   const stray = r.verdicts.filter((v) => !scope.includes(v.number)).map((v) => v.number);
   if (stray.length) return `${stray.map((n) => `#${n}`).join(', ')} ${stray.length === 1 ? 'is' : 'are'} not under review in your brief, so a verdict on ${stray.length === 1 ? 'it' : 'them'} is not taken.`;
   const missing = scope.filter((n) => !named.has(n));

@@ -404,6 +404,9 @@ describe('code reviews', () => {
     // an item named twice, among the verdicts or the regressions, is refused
     expect(reviewers()[3]!.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 1, fixed: false, why: 'Still open.' }], regressions: [], items: [] })).toContain('#1 has more than one verdict');
     expect(reviewers()[3]!.call('review', { verdicts: [{ number: 1, fixed: true }], regressions: [{ number: 2, why: 'a' }, { number: 2, why: 'b' }], items: [] })).toContain('#2 is named more than once');
+    const both = reviewers()[3]!.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 1, fixed: true }], regressions: [{ number: 2, why: 'a' }, { number: 2, why: 'b' }], items: [] });
+    expect(both).toContain('#1 has more than one verdict');
+    expect(both).toContain('#2 is named more than once');
   });
 
   test('the worker resubmits any item with a note, and disputes one it holds wrong', async () => {
