@@ -1,6 +1,6 @@
 ## The canvas
 
-A chapter of the [design doc](../design.md), whose header says how it is written. Several canvases per project, switched by tabs, are planned in [Several canvases per project](../plan/multi-canvas.md). A rearranged chrome (a dockable left menu, a slimmer bar with a floating row, registered dock views, full-page views and a bottom-centre view switcher) is planned in [A new UI menu](../plan/ui-menu.md).
+A chapter of the [design doc](../design.md), whose header says how it is written. Several canvases per project, switched by tabs, are planned in [Several canvases per project](../plan/multi-canvas.md). A rearranged chrome (a dockable left menu, a slimmer bar with a floating row, registered dock views, full-page views and a bottom-centre view switcher) is planned in [A new UI menu](../plan/ui-menu.md). Reusable UI components on Radix Primitives, replacing every hand-built control, are planned in [Reusable UI components on Radix](../plan/ui-components.md).
 
 The UI is a browser app with a custom canvas: camera with fly-to, unfold-in-place, semantic zoom,
 edge indicators, minimap, a frosted top bar the canvas slides under, and a status bar along the bottom.
