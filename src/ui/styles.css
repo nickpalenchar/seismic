@@ -256,6 +256,7 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
 .stopped-status { color: var(--c); }
 .stopped-status.s-asking { --c: var(--asking); }
 .stopped-status.tone-paused { --c: var(--muted); }
+.stopped-status.tone-limit { --c: #56859d; }
 .stopped-status.tone-restart { --c: var(--restart); }
 .stopped-status.tone-reviewing { --c: var(--reviewing); }
 .stopped-status.tone-failed { --c: var(--error); }

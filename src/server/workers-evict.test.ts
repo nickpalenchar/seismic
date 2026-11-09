@@ -28,6 +28,7 @@ describe("taking a card's workstation", () => {
     expect(await workers.evict(c.id)).toBe(true);
     expect(state(c.id)).toBe('planned');
     expect(runtime.last.closed).toBe(true);
+    expect(board.item(c.id)!.agent?.stoppedAt).toEqual({ state: 'working' });
     expect(board.row(c.id)).toMatchObject({ workstation: null, branch, kept_in: workstation });
     expect(spaces.list()).toEqual([{ path: workstation!, card_id: null }]);
     expect(git(workstation!, 'status', '--porcelain')).toBe('');

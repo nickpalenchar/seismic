@@ -2707,7 +2707,7 @@ const stoppedTone = (at: StoppedAt) =>
   at.hold?.reason === 'restart'
     ? 'tone-restart'
     : at.hold
-      ? at.hold.reason === 'pausing' ? `s-${at.state}` : 'tone-paused'
+      ? at.hold.reason === 'pausing' ? `s-${at.state}` : at.hold.reason === 'limit' ? 'tone-limit' : 'tone-paused'
       : at.reviewing
         ? 'tone-reviewing'
         : at.answering

@@ -3066,7 +3066,7 @@ export class Workers {
         // comments held back for the worker stay in the conversation
         this.takeHeld(cardId);
         this.end(cardId);
-        this.o.board.work(cardId, { state: 'planned', need: null, detail: null, review: { pr: null }, approved_at: null, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null });
+        this.o.board.work(cardId, { state: 'planned', need: null, detail: null, review: { pr: null }, approved_at: null, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null, stopped_at: JSON.stringify(stoppedAtOf(card)) });
         this.o.board.record(cardId, 'stopped', 'owner');
       }
       this.bump(cardId);

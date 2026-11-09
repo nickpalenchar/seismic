@@ -72,6 +72,7 @@ test('a stopped card keeps the hold and the colour it showed', () => {
   const paused = at({ state: 'working', hold: { reason: 'paused', since: 'x' } });
   expect(stateLabel(paused)).toBe('Stopped at Agent paused');
   expect(stoppedAtOf(paused)?.tone).toBe('tone-paused');
+  expect(stoppedAtOf(at({ state: 'working', hold: { reason: 'limit' } }))?.tone).toBe('tone-limit');
   expect(stoppedAtOf(at({ state: 'waiting', need: 'review', reviewing: true }))?.tone).toBe('tone-reviewing');
   expect(stoppedAtOf(at({ state: 'waiting', need: 'review', answering: true }))?.tone).toBe('s-working');
   expect(stoppedAtOf(at({ state: 'waiting', need: 'question', question: { stuck: true } }))?.tone).toBe('tone-failed');
