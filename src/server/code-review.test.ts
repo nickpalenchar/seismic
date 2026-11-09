@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { generic } from '../adapters/generic';
 import type { RepoAdapter } from '../adapters/types';
 import { type AgentSetting, type CodeReviewSetting, needsYou, type ReviewItem, type ReviewItemEvent, type ReviewItemStatus, type Severity } from '../core/types';
-import { reopenings } from './code-review';
+import { described, listed, reopenings } from './code-review';
 import { artifact, type FakeSession, until } from './testing';
 import { Workers } from './workers';
 import { git } from './workstations';
@@ -733,5 +733,14 @@ describe('history of a reopened item', () => {
     };
     expect(reopenings(item)).toBe(2);
     expect(reopenings({ ...item, log: [] })).toBe(0);
+    const worker = described(item);
+    for (const n of ['checked A', 'race A', 'checked B', 'race B']) expect(worker).toContain(n);
+    expect(worker.indexOf('race A')).toBeLessThan(worker.indexOf('race B'));
+    // the reviewer reads the count and the history of an item under review and of a fixed one
+    for (const status of ['underReview', 'fixed'] as const) {
+      const brief = listed([{ ...item, status }]);
+      expect(brief).toContain('Reopened 2 times before');
+      expect(brief).toContain('race A');
+    }
   });
 });

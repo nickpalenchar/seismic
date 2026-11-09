@@ -505,11 +505,10 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
   log of each item tells the history); the reviewer sending a not-fixed item straight back to the worker.
 
 - **"Not fixed" means the original problem, and new flaws become new items** (owner, 2026-11-08): the
-  reviewer may not raise what the list holds, so a new race beside item #1 could only come back as
-  "#1 not fixed", and one item was reopened three times for three different races. Now a flaw the fix
-  introduced is a new item, the reviewer sees how often an item was reopened and escalates from the
-  third time, and the worker fixes the cause everywhere in the code path and sees the whole history of
-  an item. Rejected for now: asking the owner after two reopenings whether to accept the risk.
+  reviewer may not raise what the list holds, so a new flaw beside an item could only come back as
+  "not fixed" on it, and items were reopened again and again. Now a flaw the fix introduced is a new
+  item, the reviewer sees how often an item was reopened and escalates from the third time, and the
+  worker fixes the cause everywhere in the code path and sees the whole history of an item. Rejected for now: asking the owner after two reopenings whether to accept the risk.
 
 - **The dashboard compares without ranking** (owner, 2026-11-03): ratings are the owner's judgement
   of single tasks, whose difficulty and kind count too, so rows keep a fixed order, always show how

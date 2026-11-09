@@ -641,7 +641,7 @@ export function bundled(items: ReviewItem[], named: [number, number[]][]): Revie
 const where = (f: ReviewItem) => (f.file ? `${f.file}${f.line ? `:${f.line}` : ''}` : '');
 
 /** An item as the worker reads it in the owner's decision. */
-const described = (f: ReviewItem, viewer: ReviewItemWho = 'worker') => `  #${f.number} “${f.title}” (${[f.severity, where(f)].filter(Boolean).join(', ')}): ${f.text}${lastNote(f, viewer)}`;
+export const described = (f: ReviewItem, viewer: ReviewItemWho = 'worker') => `  #${f.number} “${f.title}” (${[f.severity, where(f)].filter(Boolean).join(', ')}): ${f.text}${lastNote(f, viewer)}`;
 
 /** How often the item came back to the owner: reopened by the reviewer, the worker or the owner. */
 export const reopenings = (f: ReviewItem) => f.log.filter((x) => x.to === 'reopened').length;
@@ -659,7 +659,7 @@ const lastNote = (f: ReviewItem, viewer: ReviewItemWho = 'worker') => {
 };
 
 /** The review's list as the review agent reads it in its brief: every item with its status, by what the review has to do with it. */
-function listed(items: ReviewItem[]): string {
+export function listed(items: ReviewItem[]): string {
   if (!items.length) return 'The running list of this work\'s review items is empty: nothing was raised before.';
   const of = (...s: ReviewItemStatus[]) => items.filter((i) => s.includes(i.status));
   const full = (i: ReviewItem) => `${described(i, 'reviewer')}${reopenings(i) ? `\n    Reopened ${reopenings(i)} time${reopenings(i) === 1 ? '' : 's'} before.` : ''}${i.context ? `\n    The owner wrote: ${i.context}` : ''}`.replace(/^ {2}/, '- ');
@@ -668,7 +668,7 @@ function listed(items: ReviewItem[]): string {
   return [
     'The running list of review items of this work, numbered across all earlier reviews, with their statuses:',
     part('Under review (the worker resubmitted them as fixed; give each a verdict, from the code as it is now):', of('underReview'), full),
-    part('Fixed (an earlier review verified them; report one as a regression only where the diff shows its problem again):', of('fixed'), short),
+    part('Fixed (an earlier review verified them; report one as a regression only where the diff shows its problem again):', of('fixed'), full),
     part('Raised or reopened (waiting for the owner; do not raise them again):', of('raised', 'reopened'), short),
     part('Fixing (the worker is on them; leave them out):', of('fixing'), short),
     part('Closed (the owner ignored them; do not raise them or anything like them again):', of('closed'), short),
