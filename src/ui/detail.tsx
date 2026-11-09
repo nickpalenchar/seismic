@@ -2847,7 +2847,7 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
                   {choice(i, 'later', t.review.later, t.codeReview.laterHint)}
                   {choice(i, 'ignore', t.review.ignore, t.review.ignoreHint)}
                 </div>
-                <FindingContext item={item} id={i.number} />
+                <FindingContext item={item} id={i.number} {...(i.context ? { kept: i.context } : {})} />
               </>
             )}
             {!!i.context && !waits && <p className="f-note">{i.context}</p>}
@@ -3003,10 +3003,11 @@ function Blocked({ item, act }: { item: Item; act: (a: CardAction, done: ActDone
  * a text box and turns into "Save"; the saved words show on the finding and go verbatim to the
  * agent with the finding's decision.
  */
-function FindingContext({ item, id }: { item: Item; id: number }) {
+/** `kept`: the context an earlier choice on the item sent, which stands until the owner saves new context. */
+function FindingContext({ item, id, kept }: { item: Item; id: number; kept?: string }) {
   const draft = cardDraft(item.id);
   const { findingNotes, findingNoteEdits } = useFindingDraft(item);
-  const saved = findingNotes?.[id] ?? '';
+  const saved = findingNotes?.[id] ?? kept ?? '';
   const edit = findingNoteEdits?.[id];
   const editing = edit !== undefined;
   // what is typed lives in the draft too, so it survives closing the card and reloads, but only Save makes it context to send

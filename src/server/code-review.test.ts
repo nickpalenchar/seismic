@@ -480,6 +480,38 @@ describe('code reviews', () => {
     await review(id, reviewers()[1]!, [], [{ number: 1, fixed: true }]);
   });
 
+  test('a follow-up owed its task cannot be resubmitted; merging that task into another keeps the link', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    workers.message(id, '', [], false, undefined, undefined, { 2: 'later' });
+    expect(await worker().call('resubmit_review_item', { items: [{ number: 2, note: 'Fixed it too.' }] })).toContain('#2 is to be a follow-up task first');
+    await worker().call('follow_up_task', { findings: [2], title: 'Serialize exports', task: 'Two exports at once overwrite each other.' });
+    const task = board.items().find((i) => i.title === 'Serialize exports')!;
+    const other = board.create({ title: 'Export queue' });
+    board.merge(other.id, [task.id], 'Export queue');
+    expect(itemsOf(id)[1]!.card).toBe(other.id);
+  });
+
+  test('items left under review after a done review get one after a restart', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    // as a list carried over from before puts them: under review, with the review done
+    board.work(id, { review: { items: itemsOf(id).map((i) => (i.number === 1 ? { ...i, status: 'underReview' as const } : i)) } });
+    workers.shutdown();
+    reviewing('auto');
+    workers.resumeAll();
+    await until(() => reviewers().length === 2);
+    expect(reviewers()[1]!.inbox[0]).toContain('Under review');
+    await review(id, reviewers()[1]!, [], [{ number: 1, fixed: true }]);
+    expect(statuses(id)).toEqual(['fixed', 'raised', 'raised']);
+  });
+
   test('context the owner wrote on an item goes with it when they decide on it again', async () => {
     reviewing('auto');
     const id = await started();

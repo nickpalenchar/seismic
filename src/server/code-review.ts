@@ -91,6 +91,12 @@ export class CodeReviews {
         this.resume(i.id);
       } else this.finish(i.id, null, undefined, this.o.board.t.worker.codeReviewInterrupted);
     }
+    // items waiting under review after a review that is done (resubmitted as it ended, or carried over from an older list): in automatic mode the next review verifies them
+    for (const i of this.o.board.items()) {
+      if (!i.review?.codeReview || (this.o.repo && i.repo !== this.o.repo) || this.running.has(i.id)) continue;
+      const c = codeReviewOf(this.o.board.row(i.id));
+      if (c?.review?.state === 'done' && !c.pending) this.verifyLeft(i.id, c.review.at);
+    }
   }
 
   /**
@@ -192,8 +198,8 @@ export class CodeReviews {
 
   /**
    * The worker resubmits items (by number, with a note) for the reviewer to verify: they go under
-   * review. A note on one under review already joins its log; refuses one fixed, and one under
-   * review without a note. `done` are the items moved, `noted` those under review that got a note.
+   * review. A note on one under review already joins its log; refuses one fixed, one under review
+   * without a note, and a follow-up still owed its task. `done` are the items moved, `noted` those under review that got a note.
    */
   resubmit(cardId: string, entries: { number: number; note?: string }[], who: ReviewItemWho = 'worker', handover?: number): { done: ReviewItem[]; noted: ReviewItem[]; refused: string[] } {
     const items = this.items(cardId);
@@ -207,6 +213,8 @@ export class CodeReviews {
         next = moved(next, e.number, 'underReview', who, e.note, handover !== undefined ? { handover } : {});
         noted.push(i.number);
       } else if (i.status === 'underReview' || i.status === 'fixed') refused.push(`#${i.number} is ${i.status === 'fixed' ? 'fixed' : 'under review'} already`);
+      // the task the owner chose for it is owed first: once made, the item can go to the reviewer
+      else if (i.status === 'followUp' && !i.card) refused.push(`#${i.number} is to be a follow-up task first (follow_up_task)`);
       else next = moved(next, e.number, 'underReview', who, e.note, handover !== undefined ? { handover } : {});
     }
     if (next !== items) this.setItems(cardId, next);
@@ -489,14 +497,19 @@ export class CodeReviews {
     this.save(cardId, { ...c, review: { ...review, state: failed ? 'failed' : 'done', ...(failed ? { error: failed } : {}) } });
     const count = (s: Severity) => result.raised.filter((f) => f.severity === s).length;
     this.o.board.log(cardId, 'state', 'obeya', failed ? t.codeReviewFailed(failed) : t.codeReviewDone(result.raised.length, Object.fromEntries(SEVERITIES.map((s) => [s, count(s)])) as Record<Severity, number>, result.fixed, result.reopened));
-    // items the worker resubmitted while it ran were not in its brief: in automatic mode the next review verifies them now
-    if (!failed && c.mode === 'auto' && this.waits(cardId) && this.items(cardId).some((i) => i.status === 'underReview')) {
-      const ws = this.o.board.row(cardId).workstation;
-      void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
-        const now = codeReviewOf(this.o.board.row(cardId));
-        if (now?.mode === 'auto' && !now.pending && now.review?.state === 'done' && now.review.at === review.at) this.begin(cardId, head);
-      });
-    }
+    // items the worker resubmitted while it ran were not in its brief: the next review verifies them now
+    if (!failed) this.verifyLeft(cardId, review.at);
+  }
+
+  /** In automatic mode, items still under review after the review run `at` is done get the next review. */
+  private verifyLeft(cardId: string, at: string): void {
+    if (codeReviewOf(this.o.board.row(cardId))?.mode !== 'auto' || !this.waits(cardId) || !this.items(cardId).some((i) => i.status === 'underReview')) return;
+    const ws = this.o.board.row(cardId).workstation;
+    void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
+      if (!this.o.board.item(cardId)) return;
+      const now = codeReviewOf(this.o.board.row(cardId));
+      if (now?.mode === 'auto' && !now.pending && now.review?.state === 'done' && now.review.at === at) this.begin(cardId, head);
+    });
   }
 
   /**

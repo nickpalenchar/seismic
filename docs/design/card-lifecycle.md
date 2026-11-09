@@ -202,7 +202,8 @@ whether it is about security, and the items one agent would fix with it in one g
 review card)). It raises nothing the list holds already, and nothing the owner closed. Its verdicts
 are on the items under review when its brief was written (kept across a restart that resumes its session; a session without them starts over):
 one the worker resubmits while it runs is not in its brief, and waits for the next review, which in
-automatic mode starts as soon as this one is done (in manual mode "Start code review" returns). A review
+automatic mode starts as soon as this one is done, or after a restart for items a done review left
+under review (in manual mode "Start code review" returns). A review
 that gives no verdict on an item of its brief under review, a verdict on any other, a regression of
 an item not fixed, or a verdict of not fixed or a regression without why, is refused and does it again; one that ends without recording failed; the card says why, and it can
 be started again.
@@ -231,7 +232,7 @@ On a raised or reopened item the owner chooses "Fix it", "As a follow-up task" o
 and may "Write more context"; on a closed or fixed item "Reopen" puts it back as reopened. The
 worker hears the whole list with every choice the owner sends: first the items to fix now, then the
 fixed, the closed and the follow-ups (and, last, the others). It has tools of its own: to resubmit
-any item with a note (an item its work happens to fix though it is closed or a follow-up goes to the
+any item with a note (an item its work happens to fix though it is closed or a follow-up whose task it made goes to the
 reviewer too; a note on an item already under review joins its log for the reviewer) and to dispute an item it holds wrong, with its reasons, instead of changing code,
 which takes the item back to the owner as reopened.
 
@@ -283,7 +284,7 @@ or without words of the owner's, exactly as on a review card; as the numbers sta
 choices and context in the draft survive a new review. Review answers can be sent while a review
 runs or after a handover that made the review outdated: the worker then hands over again, and
 that handover stops a review of the earlier commit.
-Each item that needs the owner also has a "Write more context" button at its bottom right, apart from the choices: it opens a text box and becomes "Save"; the saved words stand on the item (button "Edit context") and go to the agent verbatim with the item's decision, on review cards too. They are kept like the choices until sent and dropped with them; an ignored item sends none; once sent they stay on the item.
+Each item that needs the owner also has a "Write more context" button at its bottom right, apart from the choices: it opens a text box and becomes "Save"; the saved words stand on the item (button "Edit context") and go to the agent verbatim with the item's decision, on review cards too. They are kept like the choices until sent and dropped with them; an ignored item sends none; once sent they stay on the item, and when it needs the owner again they stand there to edit, going with the next decision unless replaced.
 Approving while choices on items are picked but not sent asks first: "Approve and close items" approves and drops them, "Go back" keeps them.
 The Review tab also offers "Submit answers" beneath the list once a choice is made, so the
 owner can send those choices without opening the conversation on a phone. Sending them takes the

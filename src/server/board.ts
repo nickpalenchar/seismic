@@ -3035,6 +3035,8 @@ export class Board {
       }
       const c = contributionOf(r);
       if (c?.findings?.some((f) => f.card && gone.has(f.card))) this.store.updateCard(r.id, { review: { contribution: { ...c, findings: c.findings.map((f) => (f.card && gone.has(f.card) ? { ...f, card: keep } : f)) } } });
+      const items = r.review?.items;
+      if (items?.some((i) => i.card && gone.has(i.card))) this.store.updateCard(r.id, { review: { items: items.map((i) => (i.card && gone.has(i.card) ? { ...i, card: keep } : i)) } });
     }
     this.log(keep, 'state', 'obeya', this.t.voice.merged(rest.map((r) => r.title ?? '')));
     this.changed();
