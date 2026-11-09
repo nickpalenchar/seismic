@@ -451,7 +451,49 @@ describe('code reviews', () => {
     expect(second.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 3, fixed: true }], regressions: [], items: [] })).toContain('#3 is not under review in your brief');
     await review(id, second, [], [{ number: 1, fixed: true }]);
     expect(statuses(id)).toEqual(['fixed', 'raised', 'underReview']);
+    // the next review starts by itself and verifies #3
+    await until(() => reviewers().length === 3);
+    const third = reviewers()[2]!;
+    expect(third.inbox[0]).toContain('The worker wrote: Named it.');
+    await until(() => board.row(id).review?.codeReview?.review?.scope?.length === 1);
+    expect(board.row(id).review?.codeReview?.review?.scope).toEqual([3]);
+    await review(id, third, [], [{ number: 3, fixed: true }]);
+    expect(statuses(id)).toEqual(['fixed', 'raised', 'fixed']);
     expect(board.row(id).review?.codeReview?.review?.scope).toBeUndefined();
+  });
+
+  test('a handover of the same commit leaves a running review that verifies its items alone', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    workers.message(id, '', [], false, undefined, undefined, { 1: 'self' });
+    await handOver(id, 'fix.ts');
+    await until(() => reviewers().length === 2);
+    await until(() => !!board.row(id).review?.codeReview?.review?.scope);
+    // the worker answers without changing code and hands over again: the running review stands
+    await worker().call('ready_for_review', { summary: 'Nothing changed.', demo: artifact() });
+    await until(() => !board.row(id).review?.codeReview?.pending);
+    expect(reviewers()).toHaveLength(2);
+    expect(reviewers()[1]!.closed).toBeFalsy();
+    await review(id, reviewers()[1]!, [], [{ number: 1, fixed: true }]);
+  });
+
+  test('context the owner wrote on an item goes with it when they decide on it again', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    workers.message(id, '', [], false, undefined, undefined, { 1: 'self' }, { 1: 'Use a parameter.' });
+    await handOver(id, 'fix.ts');
+    await until(() => reviewers().length === 2);
+    await review(id, reviewers()[1]!, [], [{ number: 1, fixed: true }]);
+    workers.reviews.reopen(id, 1);
+    workers.message(id, '', [], false, undefined, undefined, { 1: 'self' });
+    expect(worker().inbox.at(-1)).toContain('- Fix these now:\n  #1 “SQL built from input”');
+    expect(worker().inbox.at(-1)).toMatch(/Fix these now:\n  #1[^\n]*\n(    .*\n)*    The owner wrote: Use a parameter\./);
   });
 
   test('a review resumed after a restart keeps the verdicts of its brief; an item resubmitted while it paused waits for the next review', async () => {
@@ -476,6 +518,7 @@ describe('code reviews', () => {
     expect(again.spec.resume).toBe('review-2');
     await review(id, again, [], [{ number: 1, fixed: true }]);
     expect(statuses(id)).toEqual(['fixed', 'raised', 'underReview']);
+    await until(() => reviewers().length === 4);
   });
 
   test('"Ignore" closes an item without a word to the worker; Reopen brings a closed or fixed one back', async () => {

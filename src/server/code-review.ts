@@ -125,8 +125,9 @@ export class CodeReviews {
       this.stopSession(cardId);
       review = undefined;
     }
-    // the same commit reviewed, or under review: the review stands for this handover, unless items wait under review, which only a review verifies
-    const same = !!review && !!head && review.head === head && !resubmitted.length && !this.items(cardId).some((i) => i.status === 'underReview');
+    // the same commit reviewed, or under review: the review stands for this handover, unless items wait under review that it does not verify
+    const unverified = this.items(cardId).some((i) => i.status === 'underReview' && !(review?.state === 'running' && review.scope?.includes(i.number)));
+    const same = !!review && !!head && review.head === head && !resubmitted.length && !unverified;
     if (review && same) review = { ...review, handover };
     this.save(cardId, { mode, handover, ...(review ? { review } : {}) });
     if (mode === 'auto' && !same) this.begin(cardId, head);
@@ -280,6 +281,8 @@ export class CodeReviews {
     }, items);
     this.setItems(cardId, next);
     const after = (n: number) => next.find((x) => x.number === n)!;
+    // the owner's context kept from an earlier choice goes with the item, unless this Send brings new context (which follows the note)
+    const kept = (f: ReviewItem) => `${described(f)}${f.context && !notes[f.number]?.trim() ? `\n    The owner wrote: ${f.context}` : ''}`;
     const fix = picked.filter((p) => p.route === 'self').map((p) => after(p.i.number));
     const later = picked.filter((p) => p.route === 'later').map((p) => after(p.i.number));
     const ids = new Set(later.map((f) => f.number));
@@ -291,10 +294,10 @@ export class CodeReviews {
       note: [
         "The owner decided on items of the code review of your work (a separate agent reviewed your branch's diff against main, and its one list of items runs across all reviews), on the card; do it now:",
         fix.length
-          ? `- Fix these now:\n${fix.map((f) => described(f)).join('\n')}\n  Fix them on your branch, run the checks, and hand over again (ready_for_review), with a new demo where the change shows; where nothing of it shows, the demo on the card stands. Your handover resubmits all of them to the reviewer, who verifies each. An item you hold wrong: dispute_review_item with your reasons instead of changing the code, which takes it back to the owner.`
+          ? `- Fix these now:\n${fix.map(kept).join('\n')}\n  Fix them on your branch, run the checks, and hand over again (ready_for_review), with a new demo where the change shows; where nothing of it shows, the demo on the card stands. Your handover resubmits all of them to the reviewer, who verifies each. An item you hold wrong: dispute_review_item with your reasons instead of changing the code, which takes it back to the owner.`
           : '',
         later.length
-          ? `- As follow-up tasks:\n${later.map((f) => described(f)).join('\n')}\n  Make them tasks of their own with follow_up_task, before anything else ends your turn. Items that belong together become one task: as the owner's words below say first (“2 and 3 together”, “combine them as you see fit”, “all separate”); without a word on it, ${bundles.length ? `as the review bundled them (${bundles.map((b) => `items ${b}`).join('; ')}), the others one each` : 'one task each'}. Write each task for the agent who will take it on and has seen neither your card nor the review: what is wrong and why, the files concerned, what done looks like.`
+          ? `- As follow-up tasks:\n${later.map(kept).join('\n')}\n  Make them tasks of their own with follow_up_task, before anything else ends your turn. Items that belong together become one task: as the owner's words below say first (“2 and 3 together”, “combine them as you see fit”, “all separate”); without a word on it, ${bundles.length ? `as the review bundled them (${bundles.map((b) => `items ${b}`).join('; ')}), the others one each` : 'one task each'}. Write each task for the agent who will take it on and has seen neither your card nor the review: what is wrong and why, the files concerned, what done looks like.`
           : '',
         'The whole list of the review, for your context:',
         group('Fixed (the reviewer verified them):', others.filter((i) => i.status === 'fixed')),
@@ -486,6 +489,14 @@ export class CodeReviews {
     this.save(cardId, { ...c, review: { ...review, state: failed ? 'failed' : 'done', ...(failed ? { error: failed } : {}) } });
     const count = (s: Severity) => result.raised.filter((f) => f.severity === s).length;
     this.o.board.log(cardId, 'state', 'obeya', failed ? t.codeReviewFailed(failed) : t.codeReviewDone(result.raised.length, Object.fromEntries(SEVERITIES.map((s) => [s, count(s)])) as Record<Severity, number>, result.fixed, result.reopened));
+    // items the worker resubmitted while it ran were not in its brief: in automatic mode the next review verifies them now
+    if (!failed && c.mode === 'auto' && this.waits(cardId) && this.items(cardId).some((i) => i.status === 'underReview')) {
+      const ws = this.o.board.row(cardId).workstation;
+      void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
+        const now = codeReviewOf(this.o.board.row(cardId));
+        if (!now?.pending && now?.review?.state === 'done' && now.review.at === review.at) this.begin(cardId, head);
+      });
+    }
   }
 
   /**

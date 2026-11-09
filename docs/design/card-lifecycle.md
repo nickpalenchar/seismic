@@ -201,7 +201,8 @@ issue with limited impact; info: a nitpick or an uncertain point worth flagging)
 whether it is about security, and the items one agent would fix with it in one go (a bundle, as on a
 review card)). It raises nothing the list holds already, and nothing the owner closed. Its verdicts
 are on the items under review when its brief was written (kept across a restart that resumes its session; a session without them starts over):
-one the worker resubmits while it runs is not in its brief, and waits for the next review. A review
+one the worker resubmits while it runs is not in its brief, and waits for the next review, which in
+automatic mode starts as soon as this one is done (in manual mode "Start code review" returns). A review
 that gives no verdict on an item of its brief under review, a verdict on any other, a regression of
 an item not fixed, or a verdict of not fixed or a regression without why, is refused and does it again; one that ends without recording failed; the card says why, and it can
 be started again.
@@ -462,7 +463,8 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
   own takes those up); approval waiting for the review.
 - **A review stands for a later handover of the same commit** (2026-11-05): an answer to the owner's
   words with ready_for_review and no new commit would otherwise start a new review each time, at its
-  cost, for a diff already reviewed (unless the handover resubmitted items, which a review must verify).
+  cost, for a diff already reviewed (unless items wait under review that the review does not verify,
+  which a review must).
 
 - **A card's code review is one running list of items, which each run verifies and adds to** (owner,
   2026-11-08): a page of findings per run, numbered anew, lost the owner's choices with every run and
