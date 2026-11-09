@@ -534,7 +534,7 @@ describe('workers', () => {
     runtime.last.call('ask', { question: 'Which license?', options: ['MIT', 'Apache'] });
     expect(state(c.id)).toBe('waiting:question');
     await workers.stop(c.id);
-    expect(board.item(c.id)!.agent?.stoppedAt).toEqual({ state: 'waiting', need: 'question' });
+    expect(board.item(c.id)!.agent?.stoppedAt).toEqual({ state: 'waiting', need: 'question', question: {} });
     await workers.start(c.id);
     expect(board.item(c.id)!.agent?.stoppedAt).toBeUndefined();
     await workers.stop(c.id);

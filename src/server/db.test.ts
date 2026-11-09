@@ -582,6 +582,7 @@ test('the latest completed run of a code review becomes the list of items, the i
     const midway = { mode: 'auto', handover: 5, review: { handover: 5, state: 'running', findings: [], at }, previous: [{ handover: 4, state: 'failed', findings: [], at }, { handover: 3, state: 'done', findings: [f(1, 'open', { severity: 'minor' })], at }] };
     s.updateCard(done!, { review: { codeReview: stored as never } });
     s.updateCard(running!, { review: { codeReview: midway as never } });
+    s.db.run('ALTER TABLE cards DROP COLUMN stopped_at');
     s.db.run('DROP TABLE card_review_item_events');
     s.db.run('DROP TABLE card_review_items');
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE \`card_review_items\`'))}`);

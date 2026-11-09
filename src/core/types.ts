@@ -432,13 +432,38 @@ export function withPart<I extends Pick<Item, ItemPart>, K extends ItemPart>(i: 
   return (Object.keys(merged).length ? { ...rest, [k]: merged } : rest) as I;
 }
 
-/** The card's agent and its run: its worker's status, turn and workstation; present while it has any of them. */
-/** The state a card was in when the owner stopped it. */
+/**
+ * What a card showed when the owner stopped it, as far as its state line needs to say it again: the
+ * state and what it waited for, and what sets its words apart ("2nd demo ready", "Demo ready with
+ * question", "Agent answered, waiting for you", "Agent reviewing").
+ */
 export interface StoppedAt {
   state: CardState;
   need?: Need;
+  /** Demos of earlier handovers the owner had not asked about. */
+  earlier?: number;
+  /** A question (a demo's, or the worker's), and that its agent failed on it. */
+  question?: { stuck?: true };
+  answering?: true;
+  answered?: true;
+  reviewing?: true;
 }
 
+/** What the card shows now, to say later where it was stopped. */
+export const stoppedAtOf = (i: Pick<Item, 'state' | 'need' | 'question' | 'demo' | 'review'>): StoppedAt => {
+  const earlier = i.demo?.earlier?.filter((d) => !d.asked).length ?? 0;
+  return {
+    state: i.state,
+    ...(i.need ? { need: i.need } : {}),
+    ...(earlier ? { earlier } : {}),
+    ...(i.question ? { question: i.question.stuck ? { stuck: true as const } : {} } : {}),
+    ...(i.review?.answering ? { answering: true as const } : {}),
+    ...(i.review?.answered ? { answered: true as const } : {}),
+    ...(i.review?.codeReview?.state === 'running' ? { reviewing: true as const } : {}),
+  };
+};
+
+/** The card's agent and its run: its worker's status, turn and workstation; present while it has any of them. */
 export interface ItemAgent {
   /** The worker's latest `report`. */
   statusLine?: string;

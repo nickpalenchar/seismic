@@ -583,7 +583,7 @@ export function Detail(p: Props) {
       <KindLine kind={kind} item={item} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className="p-title">{shownTitle(item)}</div>}
       <div className={['p-state', finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', item.review?.codeReview?.state === 'running' && 'reviewing', mergeProposed(item) && 'merge-proposed'].filter(Boolean).join(' ')}>
-        {mergeProposed(item) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : '●'} {stoppedAtOf(item) && !inParkingLot(item) && !item.queue ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(item)}
+        {mergeProposed(item) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : '●'} {stoppedAtOf(item) ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(item)}
         {snoozeOf(item) ? (
           <span className="p-status"> · {snoozeWho(snoozeOf(item)!)}</span>
         ) : item.review?.resolvingConflicts ? (

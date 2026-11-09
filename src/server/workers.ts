@@ -18,7 +18,7 @@ import { type CardFile, docImages, fileKind, isImage, normalPath, shownFiles } f
 import { DEFAULT_DEMO_DIRECTORY, expandHome } from '../../plugin/skills/demo/lib/settings.ts';
 import { HANDOVER_ARTIFACTS, type HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
-import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, AWAITED_STATES, awaited, type BackgroundTask, AGENT_HOLDS, halted, type Hold, isPaused, isPausing, pausable, pausableNow, snoozeOf, type WorkerTurn, type CardLanding, type Demo, type DemoKind, type DemoPage, finished, formatQuestion, handedOver, type Item, type Mock, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type RestartReason, type Share, type Snooze, SNOOZE_LIMIT, type Spot, type Superseded, type SpotInput, started, type StoppedAt } from '../core/types';
+import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, AWAITED_STATES, awaited, type BackgroundTask, AGENT_HOLDS, halted, type Hold, isPaused, isPausing, pausable, pausableNow, snoozeOf, type WorkerTurn, type CardLanding, type Demo, type DemoKind, type DemoPage, finished, formatQuestion, handedOver, type Item, type Mock, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type RestartReason, type Share, type Snooze, SNOOZE_LIMIT, type Spot, type Superseded, type SpotInput, started, stoppedAtOf } from '../core/types';
 import { ACTIVE, BadRequest, type Board, holdNow, replyNote, type Retracted, type StoredDemo, titleKey } from './board';
 import { type Asked, decisionLog, toQuestion, withPick } from './advisor';
 import { checkArtifact, DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, OBEYA_PLUGIN, placeIn, readChapters } from './demo';
@@ -3016,7 +3016,7 @@ export class Workers {
     this.bump(cardId);
     const generation = this.generation.get(cardId);
     const path = this.o.board.row(cardId).workstation;
-    const stoppedAt: StoppedAt = { state: card.state, ...(card.need ? { need: card.need } : {}) };
+    const stoppedAt = stoppedAtOf(card);
     this.o.board.work(cardId, { state: 'planned', need: null, detail: null, review: { pr: null }, approved_at: null, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null, stopped_at: JSON.stringify(stoppedAt) });
     this.o.board.log(cardId, 'state', 'owner', card.review?.pr ? this.o.board.t.worker.stoppedPrOpen(card.review.pr.number) : this.o.board.t.worker.stopped);
     return this.o.workstations.hasWork(cardId).then((keep) => {

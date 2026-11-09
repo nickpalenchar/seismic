@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
-import { clock, setLanguage, stateLabel, t } from './strings';
+import { clock, setLanguage, stateLabel, stoppedAtOf, t } from './strings';
 
 afterEach(() => setLanguage('en', []));
 
@@ -53,4 +53,15 @@ test('a stopped card names the state it was stopped at', () => {
   expect(stateLabel({ state: 'planned', agent: { branch: 'b' } })).toBe('Stopped');
   expect(stateLabel({ state: 'planned', agent: { branch: 'b', stoppedAt: { state: 'waiting', need: 'demo' } } })).toBe('Stopped at Demo ready');
   expect(stateLabel({ state: 'planned', agent: { branch: 'b', stoppedAt: { state: 'working' } } })).toBe('Stopped at Agent at work');
+});
+
+test('a stopped card keeps the words it showed, and says what it waits for when queued again', () => {
+  setLanguage('en', []);
+  const at = (stoppedAt: object, extra: object = {}) => ({ state: 'planned' as const, agent: { branch: 'b', stoppedAt: stoppedAt as never }, ...extra });
+  expect(stateLabel(at({ state: 'waiting', need: 'demo', earlier: 1 }))).toBe('Stopped at 2nd demo ready');
+  expect(stateLabel(at({ state: 'waiting', need: 'demo', question: {} }))).toBe('Stopped at Demo ready, with a question');
+  expect(stateLabel(at({ state: 'waiting', need: 'review', answered: true }))).toBe('Stopped at Agent answered, waiting for you');
+  expect(stateLabel(at({ state: 'waiting', need: 'review', reviewing: true }))).toBe('Stopped at Agent reviewing');
+  expect(stoppedAtOf(at({ state: 'working' }))?.status).toBe('Agent at work');
+  expect(stoppedAtOf(at({ state: 'working' }, { queue: { behind: [] } }))).toBeUndefined();
 });

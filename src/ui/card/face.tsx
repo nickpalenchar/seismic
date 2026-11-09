@@ -8,7 +8,7 @@ import type { Item } from '../../core/types';
 import { OtherCanvas, useOtherCanvas } from '../canvases';
 import { t } from '../strings';
 import { hasLabels, LabelMarks, PriorityMark } from './labels';
-import { Pin, PinDot, shownTitle, StateMarks, StateText, Title, UnreadDot } from './pieces';
+import { Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
 import { cardKind, cardSummary, cardTone } from './summary';
 
 export type CardSize = 'm' | 's' | 'xs';
@@ -154,7 +154,7 @@ function FaceXS({ item, underway, subtle, title, text, tail }: CardFaceProps) {
         <span className={item.state === 'proposal' ? 'f-dot proposal' : 'f-dot'} />
         <span className="f-words">
           {dotted([
-            <span className="f-state">{s.state.short}</span>,
+            <span className="f-state">{s.state.stopped ? <StoppedWords stopped={s.state.stopped} /> : s.state.short}</span>,
             kind !== s.state.short && kind,
             other && <OtherCanvas item={item} named />,
             tail,
