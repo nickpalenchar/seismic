@@ -20,6 +20,7 @@ import { asksYou, CardFace, cardClass, hasLabels, HourglassMark, LabelMarks, Lab
 import { scrollBehavior } from './motion';
 import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
+import { cardPath } from './address';
 
 /** The button for the conversation with Seismic (the project's top bar, the phone view's): a speech bubble. */
 export function TalkIcon() {

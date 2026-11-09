@@ -443,7 +443,7 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill.restart .tip.risk { pointer-events: none; }
 /* bridges the gap to the pill, so moving the cursor up into the popout keeps it open */
 .pill.restart .tip.why::before { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 10px; }
-.pill.restart .tip.why a.from { color: var(--link, #2e7fa8); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
+.pill.restart .tip.why a.from { color: var(--working); cursor: pointer; text-decoration: underline; text-decoration-color: currentColor; text-underline-offset: 2px; }
 .pill.restart .tip.why a.from:hover { text-decoration-color: currentColor; }
 .pill.restart .tip p { margin: 0 0 6px; }
 .pill.restart .tip p:last-child { margin: 0; }
