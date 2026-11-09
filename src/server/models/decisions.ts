@@ -31,6 +31,11 @@ export class Decisions {
     return this.db.select().from(decisions).where(and(eq(decisions.projectId, projectId), eq(decisions.cardId, cardId), isNull(decisions.planId))).orderBy(decisions.id).all();
   }
 
+  /** The decisions taken on card `from`, outside a plan, become those of card `to`. */
+  move(projectId: string, from: string, to: string) {
+    this.db.update(decisions).set({ cardId: to }).where(and(eq(decisions.projectId, projectId), eq(decisions.cardId, from), isNull(decisions.planId))).run();
+  }
+
   /** A plan's decisions, or with `null` those of the project's standalone cards. */
   of(projectId: string, planId: string | null, limit = 40): DecisionRow[] {
     return this.db

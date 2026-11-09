@@ -1737,6 +1737,8 @@ export class Board {
           ...(row.canvas_id === keep.canvas_id ? { x: row.x, y: row.y } : {}),
           idea: keep.state === 'proposal' && kept ? { proposal: { ...kept, questions: [...kept.questions, ...added] } satisfies Proposal } : {},
         });
+        // what was decided on the card that goes holds for the one both became: a plan's history shows it
+        this.store.decisions.move(this.project.id, id, other.id);
       }
       this.retargetMerge(id, other.id);
       const title = other.title;

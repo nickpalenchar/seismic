@@ -249,6 +249,7 @@ describe('folding into a progressed survivor', () => {
     const task = board().create({ title: 'Menu icons', body: 'Icons in the menu', x: 800, y: 0 });
     board().work(a.id, { idea: { becomesPlan: true } });
     board().work(b.id, { idea: { becomesPlan: true } });
+    board().decide({ plan_id: null, card_id: a.id, question: 'How does “New menu” go on?', answer: 'As a plan', by: 'owner' });
     expect(mergeableWith(board().item(a.id)!, board().item(task.id)!)).toBe(false);
     expect(mergeableWith(board().item(task.id)!, board().item(a.id)!)).toBe(false);
     // one whose plan doc is being written already is no partner
@@ -263,6 +264,8 @@ describe('folding into a progressed survivor', () => {
     const kept = board().item(b.id)!;
     expect(kept.body).toBe('Write a plan doc: a new menu, sorted');
     expect(kept.idea?.becomesPlan).toBe(true);
+    // what was decided on the card that went holds for the one that stays
+    expect(board().decisionsOn(b.id).map((d) => d.answer)).toEqual(['As a plan']);
   });
 
   test('an incomplete coverage map is refused, and changed survivor text requires a new comparison', async () => {

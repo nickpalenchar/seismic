@@ -59,9 +59,6 @@ Two started tasks cannot merge with each other.
 A card decided as a plan (its worker writes the plan doc) merges only with another such card whose
 worker has not started either: the card both become still writes one plan doc, which takes its
 place. An idea's card with prototypes does not dissolve, so its prototypes keep their idea.
-Decision (2026-11-09): the start check flagged two plan-doc cards as duplicates while merging was
-closed to them, leaving "Merge proposed" without a way to merge; merging into an ordinary task
-was rejected, as the plan would lose its place.
 
 The furthest-along card survives: proposal, planned, in progress (including stopped tasks with a
 branch), done/live, archived. The dissolving card is on the left and the survivor on the right.
@@ -92,7 +89,8 @@ with the existing dependency arrow waiting for the survivor to land. An archived
 archived; its new follow-up is created on the canvas just the same. An archived stopped task
 continues to hold the follow-up until its work lands; an archived finished task holds nothing. For unworked pairs approval
 instead gives the survivor the combined text and screenshots, with both proposals' questions kept
-as questions (or included in a planned task's text). The dissolved card is kept as deleted, marked
+as questions (or included in a planned task's text), and the decisions taken on the dissolving card
+(how an idea goes on, say) become the survivor's, so a plan it becomes shows them. The dissolved card is kept as deleted, marked
 as merged rather than dismissed for retrospective.
 
 "Separate" restores both original cards, including their places, without creating work. A failed
@@ -464,6 +462,13 @@ Every plan's sheet holds its conversation with its plan agent (see Asking in a p
 sheet), lists its decisions and links the idea or task its plan doc came from (see Deciding).
 
 ### Decisions
+
+- **Cards decided as plans merge only with each other, while neither has started** (owner,
+  2026-11-09): the start check flags two of them as duplicates as it flags any tasks, and the owner
+  merges them into the one card that writes the plan doc, which keeps both cards' text and decisions;
+  the dissolving card's conversation stays with it as deleted. Rejected: merging a plan-doc card with
+  an ordinary task (the plan would lose its place, or the task would become a plan nobody chose);
+  leaving plan-doc cards out of merging, with only "Dismiss merge" on a flagged pair.
 
 - **Code reviews are a project setting, by a separate agent of a model group of its own, only where
   work lands on `main`** (owner, 2026-11-05): automatic with the demo (the Review tab with its
