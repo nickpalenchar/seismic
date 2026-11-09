@@ -216,7 +216,11 @@ describe('the lines of commands', () => {
     // a token without an undo window offers no "Undo": the open conversation shows it
     await command('Reading …').reply({ confirm: 'In view', token: 'v' });
     expect(s.list().map((x) => x.text)).toEqual(['In view']);
-    expect(heard).toHaveLength(4);
+    // a quiet reply with an undo window keeps its line, which alone offers "Undo"
+    await command('Reading …').reply({ confirm: 'Quiet', quiet: true, token: 'q', undoMs: 5000 });
+    expect(s.list().map((x) => x.text)).toEqual(['In view', 'Quiet']);
+    expect(s.list()[1]!.undo).toBeDefined();
+    expect(heard).toHaveLength(5);
   });
 
   test('a line dismissed or swiped away while its command is read gets no confirmation later', async () => {

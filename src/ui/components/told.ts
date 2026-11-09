@@ -42,7 +42,7 @@ export function toldLines({ toasts, onHeard, inView, onGo, undo: undoRequest, on
   function settle(x: Told, h: Heard) {
     if (!lines.has(x)) return;
     const undo = !!(h.token && h.undoMs);
-    if (h.quiet || (!undo && inView(h))) return forget(x);
+    if (!undo && (h.quiet || inView(h))) return forget(x);
     x.heard = h;
     changed();
     const line = {
