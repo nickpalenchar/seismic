@@ -113,50 +113,63 @@ export async function fileTo(key: string, files: File[], put: (path: string) => 
 
 /** How many fields of their own have been made in this page, which numbers the next. */
 let fields = 0;
+/**
+ * The field of its own shown now under each key, whose callbacks hear what an upload begun in an
+ * earlier one of the same name brings (its card closed and opened again, say).
+ */
+const shownFields = new Map<string, { change: { current?: (ids: string[]) => void }; put: { current?: (path: string) => void } }>();
 
 /**
  * Screenshots going into a text field: pasted, dropped or picked, uploaded at once. They belong to
- * the field's `draft` (`draft.ts`), or without one to this field alone. `onChange` hears every
+ * the field's `draft` (`draft.ts`), or without one to this field alone, or with `name` to every
+ * field of that name shown one after the other (a card's own, by the card). `onChange` hears every
  * change the owner makes, so a card can keep them as they are added. Other files dropped or picked
  * go in by their path (`fileTo`): into the draft's text, or by `put` for a field that keeps its text itself.
  */
-export function useShotInput({ draft, initial = [], onChange, off = false, put }: { draft?: string; initial?: string[]; onChange?: (ids: string[]) => void; off?: boolean; put?: (path: string) => void } = {}) {
-  // a key of this field's own, never one a field shown later takes again (as `useId` may, at the same place)
-  const [own] = useState(() => ++fields);
+export function useShotInput({ draft, name, initial = [], onChange, off = false, put }: { draft?: string; name?: string; initial?: string[]; onChange?: (ids: string[]) => void; off?: boolean; put?: (path: string) => void } = {}) {
+  // a key of this field's own: by its name, else one no field shown later takes again (as `useId` may, at the same place)
+  const [own] = useState(() => name ?? String(++fields));
   const key = draft ?? `shots:${own}`;
-  // a field of its own starts with its screenshots, and they go with it
-  useState(() => !draft && initial.length && updateDraft(key, { images: initial }));
-  // an upload or marking still under way when the field goes (its card closed, another project shown)
-  // ends in it first, so the card hears all its screenshots, not only the late one
-  const gone = useRef(false);
-  const settle = () => {
+  const busy = () => {
     const d = draftOf(key);
-    if (!draft && gone.current && !d.uploading && !d.marking.length) dropDraft(key);
+    return d.uploading > 0 || d.marking.length > 0;
+  };
+  // a field of its own starts with its screenshots, unless an earlier one of its name is still adding to them
+  useState(() => !draft && !busy() && updateDraft(key, { images: initial }));
+  const change = useRef(onChange);
+  change.current = onChange;
+  const putRef = useRef(put);
+  putRef.current = put;
+  // an upload or marking still under way when the field goes (its card closed, another project shown)
+  // ends in the field of its name shown by then, else in this one, so the card hears all its
+  // screenshots and not only the late one; the draft goes once no field shows it and nothing is under way
+  const live = () => shownFields.get(key) ?? { change, put: putRef };
+  const settle = () => {
+    if (!draft && !shownFields.has(key) && !busy()) dropDraft(key);
   };
   useEffect(() => {
-    gone.current = false;
+    if (draft) return;
+    const mine = { change, put: putRef };
+    shownFields.set(key, mine);
     return () => {
-      gone.current = true;
-      settle();
+      if (shownFields.get(key) === mine) shownFields.delete(key);
+      // after a field of the same name shown in its place at once (the card's layout changing) has taken it over
+      queueMicrotask(settle);
     };
   }, [key]);
   const { images, uploading, marking, error } = useDraft(key);
   const [dropping, setDropping] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
-  const change = useRef(onChange);
-  change.current = onChange;
   const update = (fn: (cur: string[]) => string[]) => {
     updateDraft(key, (d) => ({ images: fn(d.images) }));
-    change.current?.(draftOf(key).images);
+    live().change.current?.(draftOf(key).images);
   };
   const pasteHint = usePasteHint(key, !off);
-  const putRef = useRef(put);
-  putRef.current = put;
   /** The screenshots among `files` as screenshots, the others by their paths. How many arrived. */
   const attach = async (files: File[]) => {
     if (off) return 0;
-    const shots = attachTo(key, files.filter(isImage), () => change.current?.(draftOf(key).images));
-    const others = fileTo(key, files.filter((f) => !isImage(f)), (path) => (putRef.current ?? ((w) => insertFiles(key, [w])))(pathWord(path)));
+    const shots = attachTo(key, files.filter(isImage), () => live().change.current?.(draftOf(key).images));
+    const others = fileTo(key, files.filter((f) => !isImage(f)), (path) => (live().put.current ?? ((w) => insertFiles(key, [w])))(pathWord(path)));
     const n = (await shots) + (await others);
     settle();
     return n;

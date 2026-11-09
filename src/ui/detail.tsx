@@ -3557,7 +3557,7 @@ function ManualFields({ item, repos, choice, fresh, onEdit, grow }: { item: Item
     onEdit({ body: next }, item.id);
   };
   // named by the card: an upload may end once the card has closed, or the page shows another project
-  const shots = useShotInput({ initial: item.images, onChange: (images) => onEdit({ images }, item.id), put });
+  const shots = useShotInput({ name: `card-${item.id}`, initial: item.images, onChange: (images) => onEdit({ images }, item.id), put });
   return (
     <>
       {!item.idea?.newRepo?.due && <RepoPick choice={choice} repos={repos} fresh={!!fresh} />}
