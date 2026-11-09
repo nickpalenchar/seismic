@@ -577,10 +577,10 @@ const en = {
     checkingLong: 'Seismic checks for possible duplicate cards and likely merge conflicts with work in progress.',
     checkingStopHint: 'Calls off the start while Seismic checks: the task is planned again, and starting it again checks it afresh.',
     checkingStopped: 'Start called off.',
-    behind: (cards: { title: string; notStarted: boolean }[]) => `Waits for ${cards.map((c) => `“${c.title}”${c.notStarted ? ' (not started yet)' : ''}`).join(', ')}.`,
+    behind: (cards: { title: string; notStarted: boolean }[]) => `Waits for ${cards.map((c) => `${c.title}${c.notStarted ? ' (not started yet)' : ''}`).join(', ')}.`,
     drawn: 'You connected the cards; it starts once that is done.',
     drawnToo: (cards: { title: string; notStarted: boolean }[]) =>
-      `It also waits for ${cards.map((c) => `“${c.title}”${c.notStarted ? ' (not started yet)' : ''}`).join(', ')}: you connected the cards.`,
+      `It also waits for ${cards.map((c) => `${c.title}${c.notStarted ? ' (not started yet)' : ''}`).join(', ')}: you connected the cards.`,
     workstation: 'Waiting for a workstation',
     slot: 'Waiting for a free slot',
     paused: 'Waiting: project paused',
