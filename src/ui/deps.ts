@@ -3,7 +3,8 @@
 // the Koordinator holds it behind; a workstream not delivered yet also waits for the open workstreams
 // it builds on, as the Koordinator read them from the plan doc, started or not; a card snoozed until
 // another card gets somewhere waits for that card; and a card waits for those the owner drew an arrow
-// from. A wait ends once the card waited for is finished.
+// from. A wait ends once the card waited for is finished. A wait that a chain of others already
+// implies (A before C, while A is before B and B before C) shows no line of its own.
 
 import type { Bounds } from '../core/layout';
 import { finished, type Item, snoozeOf } from '../core/types';
@@ -36,6 +37,29 @@ function waitsFor(i: Item, byId: Map<string, Item>): string[] {
 export function waitsAmong(items: Item[]): [from: string, to: string][] {
   const byId = new Map(items.map((i) => [i.id, i]));
   return items.flatMap((i) => waitsFor(i, byId).map((b): [string, string] => [b, i.id]));
+}
+
+/**
+ * `edges` without those a longer way between the same two cards already implies: of A → B, B → C and
+ * A → C, only the first two. An edge on a loop stays, so that leaving out one never cuts a loop apart.
+ */
+export function withoutImplied<E extends [from: string, to: string]>(edges: E[]): E[] {
+  const next = new Map<string, Set<string>>();
+  for (const [from, to] of edges) next.set(from, (next.get(from) ?? new Set()).add(to));
+  // whether `to` is reached from `from` without taking the edge `from → to` itself
+  const reaches = (from: string, to: string, skipDirect: boolean) => {
+    const seen = new Set([from]);
+    const todo = [...(next.get(from) ?? [])].filter((y) => !(skipDirect && y === to));
+    while (todo.length) {
+      const x = todo.pop()!;
+      if (x === to) return true;
+      if (seen.has(x)) continue;
+      seen.add(x);
+      todo.push(...(next.get(x) ?? []));
+    }
+    return false;
+  };
+  return edges.filter(([from, to]) => from === to || reaches(to, from, false) || !reaches(from, to, true));
 }
 
 /**
@@ -82,7 +106,9 @@ export function depsOf(id: string, items: Item[]): Deps | undefined {
   const before = walk((x) => behind(byId.get(x)!), (x, y) => [y, x], first);
   const after = walk((x) => waiters.get(x) ?? [], (x, y) => [x, y]);
   if (!before.size && !after.size) return undefined;
-  return { before, after, edges: [...edges.values()], first };
+  const direct = withoutImplied([...edges.values()]);
+  const kept = new Set(direct.map((e) => e.join(' ')));
+  return { before, after, edges: direct, first: new Set([...first].filter((k) => kept.has(k))) };
 }
 
 // ---------------------------------------------------------------- the dots an owner draws an arrow from

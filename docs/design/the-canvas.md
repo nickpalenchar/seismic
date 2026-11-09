@@ -294,12 +294,15 @@ outranks thinking. While the worker takes in feedback, the non-demo words add "f
 
 Every wait between cards on the canvas shows at all times as a thin, solid, grey arrow from the card
 waited for to the card waiting, under the cards and above plans like the dashed line: only direct
-waits, not the chain. All kinds of wait look alike (a card queued behind another, a workstream and
+waits, not the chain, and of those only the ones no chain of others already implies: when C waits
+for A and for B, and B for A, the arrows run A → B → C without one from A to C (the owner,
+2026-11-09: the extra arrows only cluttered the picture; the chain says the same). A wait on a loop
+always keeps its arrow. Finished cards' dim green lines count in that chain too. All kinds of wait look alike (a card queued behind another, a workstream and
 those it builds on, a card snoozed until another, an arrow the owner drew); a wait ends once the card
 waited for is finished. A finished card's dependencies stay instead, from it to
 the cards queued behind it, snoozed until it, building on it or that the owner drew an arrow to, as dim green lines (as long as the card still records that dependency; an arrow the owner drew can be removed with its trash button either way). A workstream of a collapsed plan shows
 its waits at the plan's head. The lines stay thin on screen however far the view zooms out.
-Under the pointer a card shows the waits around it over every step instead, those to it in the waiting colour and
+Under the pointer a card shows the waits around it over every step instead, again without those a chain implies, those to it in the waiting colour and
 those from it in purple (see Scheduling); a wait shows once, never as both. Only the colour changes: line, head and course
 stay as they were, so that moving the pointer over the cards leaves the picture calm.
 

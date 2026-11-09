@@ -37,7 +37,7 @@ import { KoordinatorSheet } from './koordinator';
 import { closeBarMenus, forcedText } from './queue';
 import { queueOrder } from '../core/queue';
 import { AgentsSheet } from './agents';
-import { depsOf, handleAt, manualPrerequisites, nearestHandle, settledAmong, type Side, SIDES, waitsAmong } from './deps';
+import { depsOf, handleAt, manualPrerequisites, nearestHandle, settledAmong, type Side, SIDES, waitsAmong, withoutImplied } from './deps';
 import { anchoredPath, nearestEdge } from './manualLinks';
 import type { ManualAnchor } from '../core/types';
 import { collect, inboxKept, keep, keepInbox, type Kept, leaveSheet, restore, type SideSheet, takeKept, takeSheetLeft } from './keep';
@@ -2307,10 +2307,17 @@ function Project({
   const notRemoving = ([from, to]: [string, string]) => !removing.some((x) => x.key === `${from}:${to}`);
   const shownSettled = settled.filter((d) => notRemoving([d.from, d.to]));
   const shownWaits = waits.filter(([from, to]) => !removing.some((x) => x.key === `${from}:${to}`));
+  // a line only for the waits no chain of others already implies, finished ones taken together with open ones
+  const lineKeys = useMemo(
+    () => new Set(withoutImplied([...shownWaits, ...shownSettled.map((d): [string, string] => [d.from, d.to])]).map(([from, to]) => `${from}:${to}`)),
+    [waits, settled, removing],
+  );
+  const lineWaits = shownWaits.filter(([from, to]) => lineKeys.has(`${from}:${to}`));
+  const lineSettled = shownSettled.filter((d) => lineKeys.has(`${d.from}:${d.to}`));
   const standsForId = (id: string) => (byId(id) ? standsFor(byId(id)!).id : id);
   // the waits whose other card lies on another canvas end in a stub with that canvas's icon
   const placedAt = new Map(placed.map((p) => [p.item.id, p.b]));
-  const stubs = canvases.length > 1 ? stubsOf(shownWaits, new Set(placedAt.keys()), byId, standsForId, canvases, canvasId) : [];
+  const stubs = canvases.length > 1 ? stubsOf(lineWaits, new Set(placedAt.keys()), byId, standsForId, canvases, canvasId) : [];
   const depOf = (id: string) => (!deps ? undefined : id === hovered ? 'self' : deps.before.has(id) ? 'before' : deps.after.has(id) ? 'after' : undefined);
   // a workstream of a collapsed plan points to where its plan stands
   const at = new Map(placed.map((p) => [p.item.id, p.b]));
@@ -2367,7 +2374,7 @@ function Project({
           <div id="world" style={{ transform: `translate(${cam.x}px,${cam.y}px) scale(${cam.s})` }}>
             <TerritoryLayer {...territories} selected={placed.filter((p) => (ring ? ring.ids : marked).includes(p.item.id)).map((p) => p.b)} />
             <Links placed={placed} waits={[...shownWaits, ...shownSettled.map((d): [string, string] => [d.from, d.to])]} standsFor={standsForId} />
-            <DepLinks placed={placed} waits={shownWaits} lit={deps?.edges ?? []} first={deps?.first} settled={shownSettled} standsFor={standsForId} routeOf={routeOf} s={cam.s}>
+            <DepLinks placed={placed} waits={lineWaits} lit={deps?.edges ?? []} first={deps?.first} settled={lineSettled} standsFor={standsForId} routeOf={routeOf} s={cam.s}>
               {/* an arrow the owner drew: under the pointer, a trash button that removes it, where no card
                   covers it; the button and the band that shows it keep their size on screen at every zoom */}
               {placed.flatMap(({ item, b }) => (connectable(item) ? item.plan?.manualDependsOn ?? [] : []).filter((from) => waitKeys.has(`${from}:${item.id}`) && !removing.some((x) => x.key === `${from}:${item.id}`)).flatMap((from) => {
