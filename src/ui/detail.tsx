@@ -832,8 +832,9 @@ export function Detail(p: Props) {
               />
             )
           )}
-          {duplicatePartner && mergeableWith(item, duplicatePartner) && <span className="duplicate-merge-actions">
-            <button className="btn duplicate-attempt" onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</button>
+          {/* a suggested card it cannot merge with can still be dismissed */}
+          {duplicatePartner && <span className="duplicate-merge-actions">
+            {mergeableWith(item, duplicatePartner) && <button className="btn duplicate-attempt" onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</button>}
             <button className="btn duplicate-dismiss" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</button>
           </span>}
           <Later item={item} act={act} />
