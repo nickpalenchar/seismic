@@ -81,6 +81,8 @@ function FaceInline({ item, title, href, onOpen }: CardFaceProps) {
       onClick={(e) => {
         if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         e.preventDefault();
+        // a row around the pill opens its own card on a click
+        e.stopPropagation();
         onOpen?.();
       }}
     >

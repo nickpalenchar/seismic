@@ -314,7 +314,7 @@ four kinds, the same on both:
 
 A confirmation or a still-at-it takes the place of the one before, as the page only ever reports
 the owner's last action; command lines and warnings stack, each standing for something of its own.
-A toast about a card names it in bold only while another card is open, and offers no "Go to card"
+A toast about a card names it only while another card is open (as an inline card where it is on the project, else in bold), and offers no "Go to card"
 for the card already open. On the phone each toast can also be swiped aside (see the phone view in
 Running Seismic).
 

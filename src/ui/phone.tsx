@@ -575,7 +575,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   );
   const acks = (
       <div id="acks">
-        <Cards.Provider value={{ items: opened?.project ? (snaps[opened.project.id]?.items ?? []) : [], open: openCard }}>
+        <Cards.Provider value={{ items: Object.values(snaps).flatMap((x) => x.items), open: openCard }}>
           <Toasts toasts={toasts} open={open ?? undefined} aside />
         </Cards.Provider>
         {/* nearest the microphone: a line going above it does not move the stars under a finger */}

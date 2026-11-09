@@ -105,10 +105,10 @@ export function waitedOn(ids: string[], items: Item[], name: (id: string) => str
 }
 
 /** "Waits for" and the cards it waits for, each as an inline card. */
-export function Waiting({ ids, items, name }: { ids: string[]; items: Item[]; name?: (id: string) => string }) {
+export function Waiting({ ids, items, name, onOpen }: { ids: string[]; items: Item[]; name?: (id: string) => string; onOpen?: (i: Item) => void }) {
   const waited = waitedOn(ids, items, name);
   const cards = ids.map((id) => ({ card: items.find((x) => x.id === id), title: name?.(id) }));
-  return <Naming text={(...names) => t.queue.behind(waited.map((w, k) => ({ ...w, title: names[k]! })))} cards={cards} />;
+  return <Naming text={(...names) => t.queue.behind(waited.map((w, k) => ({ ...w, title: names[k]! })))} cards={cards} onOpen={onOpen} />;
 }
 
 export type Behind = { behind: string[]; reason: string; manualWait?: string[] };
@@ -155,7 +155,7 @@ function QueueRow(p: {
         <span className="grip none" />
       )}
       <span className="q-what">
-        <CardFace item={item} size="xs" tail={item.queue && 'behind' in item.queue && <Waiting ids={item.queue.behind} items={items} />} />
+        <CardFace item={item} size="xs" tail={item.queue && 'behind' in item.queue && <Waiting ids={item.queue.behind} items={items} onOpen={onOpen} />} />
         {p.failed && <span className="hint why">{p.failed}</span>}
       </span>
       {held && <span className="q-held">{held}</span>}
