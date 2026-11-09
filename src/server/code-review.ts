@@ -333,7 +333,8 @@ export class CodeReviews {
     const c = codeReviewOf(this.o.board.row(cardId));
     if (c?.review?.state !== 'running') return;
     if (this.restart) return void this.paused.add(cardId);
-    this.launch(cardId, this.o.agentSetting?.(), c.review.session);
+    // a session without the scope of its brief cannot have its verdicts checked against it: the review starts over
+    this.launch(cardId, this.o.agentSetting?.(), c.review.scope ? c.review.session : undefined);
   }
 
   private launch(cardId: string, setting: AgentSetting | undefined, resume?: string): void {

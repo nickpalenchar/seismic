@@ -454,6 +454,30 @@ describe('code reviews', () => {
     expect(board.row(id).review?.codeReview?.review?.scope).toBeUndefined();
   });
 
+  test('a review resumed after a restart keeps the verdicts of its brief; an item resubmitted while it paused waits for the next review', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 3: 'ignore' });
+    await handOver(id, 'fix.ts');
+    await until(() => reviewers().length === 2);
+    reviewers()[1]!.emit({ type: 'session', id: 'review-2' });
+    await until(() => !!board.row(id).review?.codeReview?.review?.scope);
+    workers.restartDue({ reason: 'code', deadline: Date.now() + 15 * 60_000 });
+    reviewers()[1]!.emit({ type: 'idle' });
+    expect(await worker().call('resubmit_review_item', { items: [{ number: 3, note: 'Named it.' }] })).toContain('Resubmitted: #3');
+    workers.shutdown();
+    reviewing('auto');
+    workers.resumeAll();
+    await until(() => reviewers().length === 3);
+    const again = reviewers()[2]!;
+    expect(again.spec.resume).toBe('review-2');
+    await review(id, again, [], [{ number: 1, fixed: true }]);
+    expect(statuses(id)).toEqual(['fixed', 'raised', 'underReview']);
+  });
+
   test('"Ignore" closes an item without a word to the worker; Reopen brings a closed or fixed one back', async () => {
     reviewing('auto');
     const id = await started();
@@ -571,6 +595,8 @@ describe('code reviews', () => {
     // the follow-up tool refuses an item being fixed, one the owner closed, and any under review
     expect(await worker().call('follow_up_task', { findings: [1], title: 'T', task: 'x' })).toContain('item 1 is fixing');
     expect(await worker().call('follow_up_task', { findings: [3], title: 'T', task: 'x' })).toContain('item 3 is closed');
+    // and one the owner has not decided on yet
+    expect(await worker().call('follow_up_task', { findings: [2], title: 'T', task: 'x' })).toContain('item 2 is raised');
     expect(statuses(id)).toEqual(['fixing', 'raised', 'closed']);
     // resubmitted by tool, then handed over without a new commit: a review still starts
     await worker().call('resubmit_review_item', { items: [{ number: 1 }] });

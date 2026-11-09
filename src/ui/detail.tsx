@@ -742,7 +742,7 @@ export function Detail(p: Props) {
                   item={item}
                   tab={tab}
                   onTab={setTab}
-                  {...(item.review?.codeReview?.state ? { review: reviewTab(item, act) } : {})}
+                  {...(item.review?.codeReview?.state || item.review?.codeReview?.items.length ? { review: reviewTab(item, act) } : {})}
                   {...(inFolder ? { diff: changes.diff } : {})}
                   demo={
                     item.demo?.latest && (

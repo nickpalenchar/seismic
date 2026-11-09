@@ -990,7 +990,7 @@ export class Workers {
     const c = contributionOf(this.o.board.row(cardId));
     // on a card of the owner's, the findings are the items of its code review
     const code = c ? undefined : this.reviews.items(cardId);
-    const known = c ? c.findings?.map((f) => ({ id: f.id, state: f.status, settled: f.status !== 'open', card: f.card })) : code?.map((i) => ({ id: i.number, state: i.status, settled: !(i.status === 'raised' || i.status === 'reopened' || (i.status === 'followUp' && !i.card)), card: i.card }));
+    const known = c ? c.findings?.map((f) => ({ id: f.id, state: f.status, settled: f.status !== 'open', card: f.card })) : code?.map((i) => ({ id: i.number, state: i.status, settled: !(i.status === 'followUp' && !i.card), card: i.card }));
     if (!known?.length) return `Not made: your work has no code review with ${c ? 'findings' : 'items'}.`;
     if (!title) return 'Not made: the title is missing.';
     if (!task) return 'Not made: the task is missing.';
@@ -4885,7 +4885,7 @@ export class Workers {
         ? ([
             {
               name: 'follow_up_task',
-              description: `Make items of the code review of your work that the owner chose as follow-up tasks (or asked for in words) a task of its own, beside your card and following up on it; it waits in the queue behind your card and starts once your work has landed. findings: the numbers of the items it is made of, one or several that belong together; title: short and precise, in ${language}; task: what is to be done, in ${language}, written for the agent who will take it on and has seen neither your card nor the review: what is wrong and why, the files concerned, what done looks like. Seismic marks those items as follow-ups, linking the task.`,
+              description: `Make items of the code review of your work that the owner chose as follow-up tasks a task of its own, beside your card and following up on it; it waits in the queue behind your card and starts once your work has landed. findings: the numbers of the items it is made of, one or several that belong together; title: short and precise, in ${language}; task: what is to be done, in ${language}, written for the agent who will take it on and has seen neither your card nor the review: what is wrong and why, the files concerned, what done looks like. Seismic marks those items as follow-ups, linking the task.`,
               schema: { findings: z.array(z.number().int()), title: z.string(), task: z.string() },
               run: ({ findings, title, task }) => this.followUpTask(cardId, String(title).trim(), String(task).trim(), (findings as number[]) ?? []),
             },

@@ -200,7 +200,7 @@ departure from the repository's rules; minor: worth fixing without holding the w
 issue with limited impact; info: a nitpick or an uncertain point worth flagging), the file and line,
 whether it is about security, and the items one agent would fix with it in one go (a bundle, as on a
 review card)). It raises nothing the list holds already, and nothing the owner closed. Its verdicts
-are on the items under review when its brief was written (kept across a restart that resumes it):
+are on the items under review when its brief was written (kept across a restart that resumes its session; a session without them starts over):
 one the worker resubmits while it runs is not in its brief, and waits for the next review. A review
 that gives no verdict on an item of its brief under review, a verdict on any other, a regression of
 an item not fixed, or a verdict of not fixed or a regression without why, is refused and does it again; one that ends without recording failed; the card says why, and it can
@@ -240,7 +240,7 @@ which takes the item back to the owner as reopened.
   demo at once, but the owner is not notified (push, desktop notification) that it waits until the
   review has finished, whether the handover is the first or follows "Fix it". A "Review" tab stands after the deliverables, before Diff (see The files beside
   the demo in Conversation on the card): its running status, in the reviewing teal, names the reviewing harness and model
-  and has a "Stop review" button (the review run is dropped and leaves nothing, as on approval; the list stays), and above the list shows the items, those that need the owner counted beside the tab's title by severity in colour.
+  and has a "Stop review" button (the review run is dropped and leaves nothing, as on approval; the list stays, and so does the tab while it holds items), and above the list shows the items, those that need the owner counted beside the tab's title by severity in colour.
   A completed, current review with nothing open (no item raised, reopened, fixing or under review) shows a green checkmark beside the title.
   Blocker has a dark purple badge,
   critical a saturated red badge with white text, major a lighter red, minor orange, low yellow,
@@ -291,7 +291,7 @@ and its notification while the agent works, as sending the same choices through 
 The worker reads each item in full (it did not write them) and fixes those to fix on its branch,
 handing over again with a new demo where the change shows; that handover resubmits them. While
 the worker fixes them the items fold to their head line with a "Fixing" pill, so the ones still to
-decide stand out. Follow-up tasks it makes with a tool of its own, bundled as the owner's words say,
+decide stand out. Follow-up tasks it makes with a tool of its own, only of items the owner chose as follow-up tasks, bundled as the owner's words say,
 else as the review bundled them: tasks beside the card, following up on it, started at once and
 waiting in the queue until its work has landed (the reason reads "Builds on it"); until each item
 chosen has its task, the worker's handover and reply are refused. An item made a follow-up task
