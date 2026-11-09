@@ -14,7 +14,8 @@ The bar holds what is about Seismic as a whole. Left, ☰ and the logo, one butt
 Seismic's menu (see The logo's menu); in the middle the card finder's field; right, Seismic's
 button (a speech bubble, see Sheets) and, rightmost, an avatar that only holds the place for user
 accounts Seismic does not have yet (no menu, a tooltip saying it comes later). Notices about the
-server (an update, a restart, the workstation pool, `?`) stand left of Seismic's button.
+server (an update, a restart) and `?` stand left of Seismic's button; the workstation pool is in the
+status bar (see The pool in the status bar in Agents and workstations).
 
 Under the bar a row of buttons floats over the main area, the project between them staying the
 project's (drag and click go through): at the left the navigation's button (see The navigation), at
@@ -143,12 +144,12 @@ browser).
 
 The buttons always fit: when the contents outgrow the bar (a wide sheet, a narrow window), the
 search field narrows first (centred no longer once a side needs more than half), then the bar gives
-up in steps the logo's wordmark (☰ and the sign stay), the pool's label, the pool and `?`, and last
+up in steps the logo's wordmark (☰ and the sign stay), then `?`, and last
 the project's name beside the pinned navigation, the search field then shrinking to its icon;
 Seismic's button and the avatar always stay. The
 floating row does the same with its own steps: the branch, then the "Needs you" label, then the
 project's name shortens. The step is measured from the actual contents, since the same width may
-hold a short or a long name, one clone or three. In the app on a Mac the bar keeps clear of the
+hold a short or a long name. In the app on a Mac the bar keeps clear of the
 window's traffic lights at its left (or they sit in the pinned navigation's head).
 
 The logo (three chevrons in blues, `src/ui/logo/seismic_logo.png`; the wordmark "Seismic" in Newsreader) opens

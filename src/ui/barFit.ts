@@ -5,7 +5,7 @@
 
 import { type RefObject, useLayoutEffect } from 'react';
 
-export const STEPS = 4;
+export const STEPS = 3;
 
 /** The first step at which the contents fit, the last when none does. */
 export function firstFit(fits: (step: number) => boolean, steps = STEPS): number {

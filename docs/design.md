@@ -49,7 +49,7 @@ touches, and keep those current in the same change.
   the project (card sizes, a plan arranged by its dependencies), moving around, unfolding a card, addresses
   (a card's permalink, Back and Forward), sheets, visual identity, groups on the canvas, refusals.
 - [Agents and workstations](design/agents-and-workstations.md) — how agents run and where: agents,
-  models and effort, workstations (slots, the pool in the bar), folders without git, parking, hosts
+  models and effort, workstations (slots, the pool in the status bar), folders without git, parking, hosts
   (running there, logins and files, a dropped connection).
 - [Landing](design/landing.md) — how approved work reaches `main`: how work lands, the PR loop
   (watching the PR, ready to merge, the PR on the card), review cards for a contributor's pull

@@ -2501,7 +2501,6 @@ function Project({
             {oldBun && <OldBunPill version={oldBun} />}
             {online && update && restart?.reason !== 'update' && <UpdatePill update={update} />}
             {online && source && <SourcePill source={source} />}
-            {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => goTo(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
             {!helpKnown && (
               <HelpButton
                 on={helpOn}
@@ -2562,14 +2561,17 @@ function Project({
           </div>
         </div>
         <ArchiveView on={aOn} onClose={() => setAOn(false)} held={focus?.type === 'card'} archived={archived} done={doneCount} onOpen={open} onArchiveDone={() => archiveDone().catch(console.error)} els={archiveEls} />
-        {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the usage limits */}
+        {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the workstation pool and the usage limits */}
         <footer id="status">
           <div className="st-left">
             {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} /> : <span className="st online">{t.online}</span>}
             {online && snapshot.project.demoSite?.init?.running && <span className="st site-init">{t.creatingSite}</span>}
           </div>
           <div className="st-mid" ref={setTargetSlot} />
-          <div className="st-right">{online && usage && <UsagePill usage={usage} />}</div>
+          <div className="st-right">
+            {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => goTo(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
+            {online && usage && <UsagePill usage={usage} />}
+          </div>
         </footer>
         <NavSheet on={side.left > 0} {...nav} />
         <Minimap

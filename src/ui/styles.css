@@ -400,7 +400,7 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
   border-top: 1px solid var(--line); box-shadow: 0 -6px 18px -12px rgba(30,25,15,.18); }
 .resizing #status { transition: none; }
 /* above the open card's dimming, so whom the microphone speaks to stays readable; a list it opens goes over the confirmations */
-#status:has(.pill.usage.open, .pill.restart:hover) { z-index: 61; }
+#status:has(.pill.usage.open, .pill.workstations:hover, .pill.workstations.open, .pill.restart:hover) { z-index: 61; }
 #status .st-left { display: flex; align-items: center; min-width: 0; }
 #status .st-right { display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
 #status .st-mid { display: flex; justify-content: center; min-width: 0; }
@@ -415,8 +415,10 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
 #status .pill.restart > button { padding: 3px 10px; }
 #status .pill.restart .tip { top: auto; bottom: calc(100% + 8px); left: 0; right: auto; }
 #status .pill.restart > button .tip { left: auto; right: 0; }
-#status .pill.usage .tip { top: auto; bottom: calc(100% + 8px); max-height: calc(100vh - 110px); }
-#status .pill.usage .face { padding: 0 8px; border-radius: 3px; }
+#status .pill:is(.usage, .workstations) .tip { top: auto; bottom: calc(100% + 8px); max-height: calc(100vh - 110px); }
+#status .pill:is(.usage, .workstations) .face { padding: 0 8px; border-radius: 3px; }
+#status .pill.workstations::after { top: auto; bottom: 100%; }
+#status .st-right { gap: 6px; }
 #status .pill.usage .face:hover, #status .pill.usage.open .face { background: var(--chip); }
 #status #target { background: none; box-shadow: none; padding: 3px 10px; font-size: 13px; max-width: 100%; }
 #status #target.flat { background: var(--error); }
@@ -587,17 +589,16 @@ button.pill:hover { box-shadow: var(--lift); }
 .kpill .n { background: var(--planned); color: var(--on-ink); border-radius: 3px; padding: 0 7px; font-weight: 700; font-size: 12px; }
 .kpill.on { background: var(--ink); color: var(--bg); }
 /* the bar's buttons always fit (src/ui/barFit.ts): narrower than its contents, the search field shrinks first, then
-   the bar gives up in steps the wordmark for the sign, the pool's label, the pool and the help, and last the
+   the bar gives up in steps the wordmark for the sign, the help, and last the
    project's name beside the pinned navigation, letting the search field shrink to its icon */
 .bar-sign, .bar-icon { display: none; }
 #bar[data-fit~="1"] .bar-word { display: none; }
 #bar[data-fit~="1"] .bar-sign { display: block; line-height: 0; }
-#bar[data-fit~="2"] #workstations .lbl { display: none; }
-#bar[data-fit~="3"] #workstations, #bar[data-fit~="3"] .help { display: none; }
-#bar[data-fit~="4"] .bar-project { display: none; }
-#bar[data-fit~="4"] { grid-template-columns: auto minmax(34px, 440px) auto; }
-#bar[data-fit~="4"] .bar-search-key { display: none; }
-#bar[data-fit~="4"] .bar-search input { padding-right: 8px; }
+#bar[data-fit~="2"] .help { display: none; }
+#bar[data-fit~="3"] .bar-project { display: none; }
+#bar[data-fit~="3"] { grid-template-columns: auto minmax(34px, 440px) auto; }
+#bar[data-fit~="3"] .bar-search-key { display: none; }
+#bar[data-fit~="3"] .bar-search input { padding-right: 8px; }
 /* the bar's buttons are one height, whatever they hold: text, an icon, a count */
 #bar .pill, .pill.talk-pill { height: 34px; box-sizing: border-box; padding-block: 0; }
 #bar button.pill.help { width: 34px; height: 34px; }
@@ -3090,10 +3091,10 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 #floating-row[data-fit~="3"] .nav-pill .switch b { overflow: hidden; text-overflow: ellipsis; }
 .resizing #floating-row { transition: none; }
 /* two buttons as one: the agents and what needs the owner */
-.pill-group { display: flex; border-radius: 3px; box-shadow: var(--shadow); }
+.pill-group { display: flex; border-radius: 17px; box-shadow: var(--shadow); }
 .pill-group > .pill { box-shadow: none; border-radius: 0; }
-.pill-group > .pill:first-child { border-radius: 3px 0 0 3px; }
-.pill-group > .pill:last-child { border-radius: 0 3px 3px 0; border-left: 1px solid var(--line); }
+.pill-group > .pill:first-child { border-radius: 17px 0 0 17px; padding-left: 14px; }
+.pill-group > .pill:last-child { border-radius: 0 17px 17px 0; border-left: 1px solid var(--line); padding-right: 14px; }
 .pill-group:hover { box-shadow: var(--lift); }
 /* "Needs you": the bell, its label until the first click, the cards waiting in orange */
 .needs-you-pill { padding-inline: 12px; }

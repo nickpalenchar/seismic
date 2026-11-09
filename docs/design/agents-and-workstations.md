@@ -407,12 +407,14 @@ worker is told the app stack may not run there; if it needs it, it calls `need_c
 owner with `reply` and ends its turn, and the card waits for the next clean free clone ("Waiting for a workstation"), ahead of queued cards, where its session resumes by itself; what the owner says
 meanwhile waits for it.
 
-#### The pool in the bar
+#### The pool in the status bar
 
-For each repository in clones the top bar shows the pool ("Workstations"): per machine (named once
+For each repository in clones the status bar along the bottom shows the pool ("Workstations"), left
+of the usage limits (owner, 2026-11-09: not in the top bar, which holds only what is about Seismic
+as a whole): per machine (named once
 there is more than one) a dot per clone, solid while its card's worker is at work, pale while merely
 held, orange while free but blocked, and how many new cards could start ("2 free", "all taken",
-"none free · 1 blocked"). Hovering or clicking it drops down a list: per machine its slots at
+"none free · 1 blocked"). Hovering or clicking it opens a list above it: per machine its slots at
 work and clones taken, then each workstation on a line of its own, free ones included, with its path
 (cut at the front where too long, so its end stays readable), the dot the pill shows for it, and
 the card in it, "free" or "blocked"; then how many cards wait for a workstation or a slot. While
