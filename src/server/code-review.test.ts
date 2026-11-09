@@ -8,7 +8,8 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { generic } from '../adapters/generic';
 import type { RepoAdapter } from '../adapters/types';
-import { type AgentSetting, type CodeReviewSetting, needsYou, type Severity } from '../core/types';
+import { type AgentSetting, type CodeReviewSetting, needsYou, type ReviewItem, type ReviewItemEvent, type ReviewItemStatus, type Severity } from '../core/types';
+import { reopenings } from './code-review';
 import { artifact, type FakeSession, until } from './testing';
 import { Workers } from './workers';
 import { git } from './workstations';
@@ -719,5 +720,18 @@ describe('code reviews', () => {
     await worker().call('ready_for_review', { summary: 'Done.', demo: artifact() });
     await until(() => reviewers().length === 2);
     expect(reviewers()[1]!.inbox[0]).toContain('Under review');
+  });
+});
+
+describe('history of a reopened item', () => {
+  test('the worker reads every earlier round, the reviewer how often it was reopened', () => {
+    const at = '2026-11-08T00:00:00Z';
+    const ev = (who: 'worker' | 'reviewer', to: ReviewItemStatus, note: string): ReviewItemEvent => ({ at, who, to, note });
+    const item: ReviewItem = {
+      number: 1, title: 'Race', text: 'x', severity: 'major', status: 'reopened',
+      log: [ev('worker', 'underReview', 'checked A'), ev('reviewer', 'reopened', 'race A'), ev('worker', 'underReview', 'checked B'), ev('reviewer', 'reopened', 'race B')],
+    };
+    expect(reopenings(item)).toBe(2);
+    expect(reopenings({ ...item, log: [] })).toBe(0);
   });
 });

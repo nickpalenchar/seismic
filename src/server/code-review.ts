@@ -304,7 +304,7 @@ export class CodeReviews {
       note: [
         "The owner decided on items of the code review of your work (a separate agent reviewed your branch's diff against main, and its one list of items runs across all reviews), on the card; do it now:",
         fix.length
-          ? `- Fix these now:\n${fix.map(kept).join('\n')}\n  Fix them on your branch, run the checks, and hand over again (ready_for_review), with a new demo where the change shows; where nothing of it shows, the demo on the card stands. Your handover resubmits all of them to the reviewer, who verifies each. An item you hold wrong: dispute_review_item with your reasons instead of changing the code, which takes it back to the owner.`
+          ? `- Fix these now:\n${fix.map(kept).join('\n')}\n  Find the cause of each and fix every place in its code path where the same kind of problem can happen, not only the spot named; the notes of an item that came back say what earlier rounds tried and why it did not hold. Run the checks, and hand over again (ready_for_review), with a new demo where the change shows; where nothing of it shows, the demo on the card stands. Your handover resubmits all of them to the reviewer, who verifies each against the item's own problem; resubmit with a note that says what you checked besides the named spot. An item you hold wrong: dispute_review_item with your reasons instead of changing the code, which takes it back to the owner.`
           : '',
         later.length
           ? `- As follow-up tasks:\n${later.map(kept).join('\n')}\n  Make them tasks of their own with follow_up_task, before anything else ends your turn. Items that belong together become one task: as the owner's words below say first (“2 and 3 together”, “combine them as you see fit”, “all separate”); without a word on it, ${bundles.length ? `as the review bundled them (${bundles.map((b) => `items ${b}`).join('; ')}), the others one each` : 'one task each'}. Write each task for the agent who will take it on and has seen neither your card nor the review: what is wrong and why, the files concerned, what done looks like.`
@@ -392,7 +392,7 @@ export class CodeReviews {
     const tools: AgentTool[] = [
       {
         name: 'review',
-        description: `Record your review, once, at the end. verdicts: one for each item your brief lists as under review (the worker says it fixed it): fixed true where the diff and the code now fix it, else false with why (what is still wrong), which reopens it for the owner. regressions: the items marked fixed whose problem the diff shows again, each with why. items: the new items you found that the list does not hold yet (an empty list where there is none; at most ${MAX_NEW_ITEMS}, so keep the most important and merge or leave out the least), most severe first, each: title (short) and text (a sentence or two) in ${language}, saying what is wrong and why it matters; severity (blocker: crashes the app or exposes a very important secret or unprotected database; critical: a clear exploit, severe degradation or other major consequence; major: a real defect or clear departure from the repository's rules and design docs; minor: worth fixing but not a reason to hold the work; low: a small issue with limited impact; info: a nitpick or something to flag that may or may not be a problem), file and line where it is, security where it is about security, and with: the numbers of the other items one agent would sensibly fix in one go with it (the same cause, the same files), else none. The new items are numbered from ${nextNumber(items)} in the order you give them, which is how with names them.`,
+        description: `Record your review, once, at the end. verdicts: one for each item your brief lists as under review (the worker says it fixed it): fixed true where the diff and the code now fix it, else false with why (the original problem of the item that is still there), which reopens it for the owner; a different flaw the fix introduced is a new item, not a reason for false. regressions: the items marked fixed whose problem the diff shows again, each with why. items: the new items you found that the list does not hold yet (an empty list where there is none; at most ${MAX_NEW_ITEMS}, so keep the most important and merge or leave out the least), most severe first, each: title (short) and text (a sentence or two) in ${language}, saying what is wrong and why it matters; severity (blocker: crashes the app or exposes a very important secret or unprotected database; critical: a clear exploit, severe degradation or other major consequence; major: a real defect or clear departure from the repository's rules and design docs; minor: worth fixing but not a reason to hold the work; low: a small issue with limited impact; info: a nitpick or something to flag that may or may not be a problem), file and line where it is, security where it is about security, and with: the numbers of the other items one agent would sensibly fix in one go with it (the same cause, the same files), else none. The new items are numbered from ${nextNumber(items)} in the order you give them, which is how with names them.`,
         schema: {
           verdicts: z.array(z.object({ number: z.number().int(), fixed: z.boolean(), why: z.string().optional() })),
           regressions: z.array(z.object({ number: z.number().int(), why: z.string() })),
@@ -643,19 +643,26 @@ const where = (f: ReviewItem) => (f.file ? `${f.file}${f.line ? `:${f.line}` : '
 /** An item as the worker reads it in the owner's decision. */
 const described = (f: ReviewItem, viewer: ReviewItemWho = 'worker') => `  #${f.number} “${f.title}” (${[f.severity, where(f)].filter(Boolean).join(', ')}): ${f.text}${lastNote(f, viewer)}`;
 
-/** Why an item came back or what the worker said of its fix, where its log says: the latest note of a reopening or resubmission, as `viewer` reads it. */
+/** How often the item came back to the owner: reopened by the reviewer, the worker or the owner. */
+export const reopenings = (f: ReviewItem) => f.log.filter((x) => x.to === 'reopened').length;
+
+/**
+ * Why an item came back and what the worker said of its fixes, where its log says, as `viewer`
+ * reads it: every note of a reopening or resubmission, oldest first, so a reopened item shows what
+ * each earlier round tried and why it did not hold.
+ */
 const lastNote = (f: ReviewItem, viewer: ReviewItemWho = 'worker') => {
-  const e = f.log.findLast((x) => x.note && (x.to === 'reopened' || x.to === 'underReview'));
-  if (!e?.note) return '';
-  const by = e.who === viewer ? 'You' : `The ${e.who}`;
-  return `\n    ${by} wrote: ${e.note}`;
+  const notes = f.log.filter((x) => x.note && (x.to === 'reopened' || x.to === 'underReview'));
+  const said = (e: (typeof notes)[number]) => `${e.who === viewer ? 'You' : `The ${e.who}`} wrote: ${e.note}`;
+  if (notes.length <= 1) return notes.length ? `\n    ${said(notes[0]!)}` : '';
+  return `\n    Earlier rounds on this item (oldest first):${notes.map((e) => `\n      - ${said(e)}`).join('')}`;
 };
 
 /** The review's list as the review agent reads it in its brief: every item with its status, by what the review has to do with it. */
 function listed(items: ReviewItem[]): string {
   if (!items.length) return 'The running list of this work\'s review items is empty: nothing was raised before.';
   const of = (...s: ReviewItemStatus[]) => items.filter((i) => s.includes(i.status));
-  const full = (i: ReviewItem) => `${described(i, 'reviewer')}${i.context ? `\n    The owner wrote: ${i.context}` : ''}`.replace(/^ {2}/, '- ');
+  const full = (i: ReviewItem) => `${described(i, 'reviewer')}${reopenings(i) ? `\n    Reopened ${reopenings(i)} time${reopenings(i) === 1 ? '' : 's'} before.` : ''}${i.context ? `\n    The owner wrote: ${i.context}` : ''}`.replace(/^ {2}/, '- ');
   const short = (i: ReviewItem) => `- #${i.number} “${i.title}” (${[i.severity, where(i)].filter(Boolean).join(', ')}): ${i.text}`;
   const part = (title: string, rows: ReviewItem[], one: (i: ReviewItem) => string) => (rows.length ? `${title}\n${rows.map(one).join('\n')}` : '');
   return [
@@ -686,7 +693,7 @@ You only read: you change no file and run nothing. Read the changed files and th
 Review it the repository's way: its CLAUDE.md and its docs (design docs, contribution rules) say what matters here. Look for correctness (bugs, edge cases, races, error handling), security, code quality (what the repository's rules ask, needless complexity, duplication of what exists), and whether the change fits the design docs and keeps them current where the repository asks for that.
 
 The work has one running list of review items, which earlier reviews of it added to; the brief holds it with each item's status. Your review does three things with it:
-- Verify every item that is under review: read the code as it is now, and say whether it is fixed. Fixed means the problem is gone, not that something nearby changed; where it is not, say what is still wrong.
+- Verify every item that is under review against its own failure scenario: read the code as it is now, and say whether the problem the item describes is gone. Fixed means that problem is gone, not that something nearby changed. Not fixed means that same problem is still there; say what is still wrong. A different flaw, even right beside the item or caused by its fix, is a new item ("found while verifying #N"): what you find while verifying is a real defect, to be raised, not speculation to drop. The brief says how often an item was reopened before; on the third time, say what is structurally wrong with the way it is being fixed so that the owner can decide how to go on.
 - Check that nothing fixed came back: report an item marked fixed as a regression where the diff shows its problem again.
 - Add new items for what the list does not hold yet, including small issues or uncertain points worth flagging. Raise nothing the list already holds, whatever its status, and nothing like what the owner closed. Each item's title and explanation say what is wrong and why it matters, in ${language}, with the file and line. Grade each from blocker through critical, major, minor, low and info as the review tool describes.
 

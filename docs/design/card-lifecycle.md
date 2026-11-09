@@ -241,6 +241,17 @@ any item with a note (an item its work happens to fix though it is closed or a f
 reviewer too; a note on an item already under review joins its log for the reviewer) and to dispute an item it holds wrong, with its reasons, instead of changing code,
 which takes the item back to the owner as reopened.
 
+What a verdict means, so an item does not come back again and again: the reviewer verifies an item
+against its own failure scenario. "Not fixed" says only that the problem the item describes is still
+there; a different flaw the fix introduced, or found beside it, is a new item ("found while verifying
+#N"), and what a verification finds is a real defect, not speculation. The reviewer's brief says how
+often each item was reopened before (by anyone); on the third reopening it says what is structurally
+wrong with how the item is being fixed, so the owner can decide how to go on. The worker, fixing an
+item, finds the cause and fixes every place in the code path where the same kind of problem can
+happen, and its resubmit note says what it checked beyond the named spot. An item that came back
+reaches the worker with the notes of every earlier round (what was tried, why it did not hold), not
+only the latest.
+
 "Reviews happen" says when:
 
 - "Automatically, with the demo": the review starts as the worker hands over, and the card shows the
@@ -492,6 +503,13 @@ sheet), lists its decisions and links the idea or task its plan doc came from (s
   alone. Only the code review of a card's own work uses the list; a contributor's review card keeps
   its findings, which its worker rewrites. Rejected: keeping earlier runs as read-only snapshots (the
   log of each item tells the history); the reviewer sending a not-fixed item straight back to the worker.
+
+- **"Not fixed" means the original problem, and new flaws become new items** (owner, 2026-11-08): the
+  reviewer may not raise what the list holds, so a new race beside item #1 could only come back as
+  "#1 not fixed", and one item was reopened three times for three different races. Now a flaw the fix
+  introduced is a new item, the reviewer sees how often an item was reopened and escalates from the
+  third time, and the worker fixes the cause everywhere in the code path and sees the whole history of
+  an item. Rejected for now: asking the owner after two reopenings whether to accept the risk.
 
 - **The dashboard compares without ranking** (owner, 2026-11-03): ratings are the owner's judgement
   of single tasks, whose difficulty and kind count too, so rows keep a fixed order, always show how
