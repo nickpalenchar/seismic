@@ -74,7 +74,8 @@ interface Props {
   parent?: Item;
   /** The card it came from: a proposal's source, a prototype's idea, a follow-up's card. */
   from?: Item;
-  onEdit: (p: CardPatch) => void;
+  /** A change to the open card, or to the card `id` (an upload ending after the card closed). */
+  onEdit: (p: CardPatch, id?: string) => void;
   /** Saves pending edits; actions wait for it, so the worker sees the card as typed. */
   flush: () => Promise<void>;
   onDelete: () => void;
@@ -3541,7 +3542,7 @@ function ManualTitle({ item, onEdit }: { item: Item; onEdit: (p: CardPatch) => v
 }
 
 /** `fresh`: the repository picker offers a new repository (not on a proposal, which starts where it is). */
-function ManualFields({ item, repos, choice, fresh, onEdit, grow }: { item: Item; repos: RepoRef[]; choice: RepoChoice; fresh?: boolean; onEdit: (p: CardPatch) => void; grow?: boolean }) {
+function ManualFields({ item, repos, choice, fresh, onEdit, grow }: { item: Item; repos: RepoRef[]; choice: RepoChoice; fresh?: boolean; onEdit: (p: CardPatch, id?: string) => void; grow?: boolean }) {
   const [body, setBody] = useState(item.body);
   const ref = useRef<LinkFieldHandle>(null);
   // a dropped file's path goes in as typed while the field has the cursor, else after the text
@@ -3553,9 +3554,10 @@ function ManualFields({ item, repos, choice, fresh, onEdit, grow }: { item: Item
     if (field?.el && field.el === document.activeElement) return field.type(` ${path} `);
     const next = (latest.current = appended(latest.current, path));
     setBody(next);
-    onEdit({ body: next });
+    onEdit({ body: next }, item.id);
   };
-  const shots = useShotInput({ initial: item.images, onChange: (images) => onEdit({ images }), put });
+  // named by the card: an upload may end once the card has closed, or the page shows another project
+  const shots = useShotInput({ initial: item.images, onChange: (images) => onEdit({ images }, item.id), put });
   return (
     <>
       {!item.idea?.newRepo?.due && <RepoPick choice={choice} repos={repos} fresh={!!fresh} />}

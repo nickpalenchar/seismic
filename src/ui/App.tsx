@@ -665,12 +665,15 @@ function Project({
   };
   // what the open card holds as typed, which the snapshot may not carry yet
   const openDraft = useRef<Pick<Item, 'kind' | 'title' | 'body' | 'images'>>({ kind: 'task', title: '', body: '' });
-  const onEdit = (p: CardPatch) => {
-    const id = focusRef.current?.id;
+  const onEdit = (p: CardPatch, card?: string) => {
+    const open = focusRef.current?.id;
+    const id = card ?? open;
     if (!id) return;
-    if (p.title !== undefined) openDraft.current.title = p.title;
-    if (p.body !== undefined) openDraft.current.body = p.body;
-    if (p.images !== undefined) openDraft.current.images = p.images;
+    if (id === open) {
+      if (p.title !== undefined) openDraft.current.title = p.title;
+      if (p.body !== undefined) openDraft.current.body = p.body;
+      if (p.images !== undefined) openDraft.current.images = p.images;
+    }
     if (edit.current?.id !== id) flushEdit().catch(console.error);
     const e = (edit.current ??= { id, patch: {} });
     Object.assign(e.patch, p);
