@@ -1538,7 +1538,7 @@ function Conversation({
   // stand at the end, also while a worker's background work keeps its turn open
   const { working, paused, key } = talkState(item, past);
   // what the owner had not seen when the conversation came into view stays marked until it goes, what comes in view is seen
-  const { seen, came } = useSeen(item.id, events?.at(-1)?.id);
+  const { seen, came } = useSeen(item.id, events?.at(-1)?.id, useContext(TalkFolded).folded);
   // on the phone the conversation opens at the first message the owner has not seen
   const away = useContext(TalkElsewhere);
   const unseenFrom = (el: HTMLElement) => {
@@ -2100,6 +2100,7 @@ function DemoView({
   const video = useRef<HTMLVideoElement>(null);
   // on the phone the field is in a panel of its own, which a comment brings up
   const elsewhere = useContext(TalkElsewhere);
+  const talkFold = useContext(TalkFolded);
   const artifact = useRef<HTMLIFrameElement>(null);
   const artifactHeight = useReportedHeight(artifact, ARTIFACT_CAP);
   const [now, setNow] = useState(0);
@@ -2265,6 +2266,7 @@ function DemoView({
                     if (zoom.box) zoom.toggle();
                     fullscreen.leave();
                     if (elsewhere) elsewhere.open(true);
+                    else if (talkFold.folded) talkFold.show(true);
                     else document.querySelector<HTMLTextAreaElement>('.card-sheet .split-talk .composer textarea')?.focus();
                   }}
                 >
@@ -3637,6 +3639,10 @@ function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNo
   // on the phone the field is in a panel of its own, which a quote brings up
   const away = useContext(TalkElsewhere);
   const [folded, fold] = useFoldedTalk();
+  const show = (focus?: boolean) => {
+    fold(false);
+    if (focus) setTimeout(() => document.querySelector<HTMLTextAreaElement>('.card-sheet .split-talk .composer textarea')?.focus(), 0);
+  };
   const foldable = !!main && !away;
   const closed = foldable && folded;
   const toggle = (
@@ -3645,18 +3651,23 @@ function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNo
     </button>
   );
   return (
+    <TalkFolded.Provider value={{ folded: closed, show }}>
     <div className={['split', className, !main && 'alone', closed && 'folded'].filter(Boolean).join(' ')}>
       {main && (
         <div className="split-main" ref={box}>
           {main}
         </div>
       )}
-      {main && cite && <CiteButton box={box} draft={cite} anywhere onCite={away ? () => away.open(true) : undefined} />}
+      {main && cite && <CiteButton box={box} draft={cite} anywhere onCite={away ? () => away.open(true) : closed ? () => show(true) : undefined} />}
       {closed && toggle}
       <TalkColumn foldButton={foldable && !closed ? toggle : undefined}>{talk}</TalkColumn>
     </div>
+    </TalkFolded.Provider>
   );
 }
+
+/** Whether the card's conversation column is folded away, and how to bring it back (`focus`: the cursor in its field). */
+const TalkFolded = createContext<{ folded: boolean; show: (focus?: boolean) => void }>({ folded: false, show: () => {} });
 
 const TALK_FOLDED = 'obeya.talkFolded';
 

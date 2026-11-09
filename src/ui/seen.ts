@@ -51,10 +51,10 @@ export const follow = (came: Spans, before: number | undefined, last: number | u
  * A card's conversation in view: what of it the owner had seen when it came into view (so what came
  * after stays marked as new until it goes), and what came while it was in view (seen as it came,
  * never marked), while all it holds counts as seen as long as the page is in view. `last`: the
- * conversation's last event.
+ * conversation's last event; `hidden`: the conversation is folded away, so nothing counts as seen.
  */
-export function useSeen(card: string, last: number | undefined): { seen: number; came: Spans } {
-  const visible = usePageVisible();
+export function useSeen(card: string, last: number | undefined, hidden = false): { seen: number; came: Spans } {
+  const visible = usePageVisible() && !hidden;
   const atOpen = useRef<{ card: string; seen: number; last: number | undefined; came: Spans } | null>(null);
   if (atOpen.current?.card !== card) atOpen.current = { card, seen: seenOf(card), last, came: [] };
   const o = atOpen.current;
