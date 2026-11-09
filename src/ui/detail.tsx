@@ -1,4 +1,4 @@
-import { Car, Check, Lightbulb, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, Play, Plus, Share, SquarePlus, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Car, Check, Lightbulb, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, SquarePlus, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
 // The unfolded card: what it is, what its worker does, and what the owner decides.
 
@@ -3636,17 +3636,48 @@ function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNo
   const box = useRef<HTMLDivElement>(null);
   // on the phone the field is in a panel of its own, which a quote brings up
   const away = useContext(TalkElsewhere);
+  const [folded, fold] = useFoldedTalk();
+  const foldable = !!main && !away;
+  const closed = foldable && folded;
+  const toggle = (
+    <button type="button" className="split-fold" title={closed ? t.talk.show : t.talk.hide} aria-label={closed ? t.talk.show : t.talk.hide} aria-expanded={!closed} onClick={() => fold(!closed)}>
+      {closed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
+    </button>
+  );
   return (
-    <div className={['split', className, !main && 'alone'].filter(Boolean).join(' ')}>
+    <div className={['split', className, !main && 'alone', closed && 'folded'].filter(Boolean).join(' ')}>
       {main && (
         <div className="split-main" ref={box}>
           {main}
         </div>
       )}
       {main && cite && <CiteButton box={box} draft={cite} anywhere onCite={away ? () => away.open(true) : undefined} />}
-      <TalkColumn>{talk}</TalkColumn>
+      {closed && toggle}
+      <TalkColumn foldButton={foldable && !closed ? toggle : undefined}>{talk}</TalkColumn>
     </div>
   );
+}
+
+const TALK_FOLDED = 'obeya.talkFolded';
+
+/** Whether the owner folded the conversation column away on the full-size card, kept in this browser. */
+function useFoldedTalk(): [boolean, (v: boolean) => void] {
+  const [folded, set] = useState(() => {
+    try {
+      return localStorage.getItem(TALK_FOLDED) === '1';
+    } catch {
+      return false;
+    }
+  });
+  return [
+    folded,
+    (v) => {
+      try {
+        localStorage.setItem(TALK_FOLDED, v ? '1' : '0');
+      } catch {}
+      set(v);
+    },
+  ];
 }
 
 /**
@@ -3657,10 +3688,10 @@ function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNo
 export const TalkElsewhere = createContext<{ el: HTMLElement | null; open: (focus?: boolean) => void } | null>(null);
 
 /** A card's conversation: in its column, or where `TalkElsewhere` puts it. `bare`: no column of its own on the project. */
-function TalkColumn({ children, bare }: { children: ReactNode; bare?: boolean }) {
+function TalkColumn({ children, bare, foldButton }: { children: ReactNode; bare?: boolean; foldButton?: ReactNode }) {
   const away = useContext(TalkElsewhere);
   if (away) return away.el && createPortal(children, away.el);
-  return bare ? children : <div className="split-talk">{children}</div>;
+  return bare ? children : <div className="split-talk">{foldButton}{children}</div>;
 }
 
 /** The owner's one field under a conversation: words, and the options picked, go out with one Send. */

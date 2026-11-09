@@ -462,6 +462,8 @@ const en = {
   task: 'Task',
   talk: {
     heading: 'Conversation',
+    hide: 'Hide conversation',
+    show: 'Show conversation',
     empty: 'Nothing has happened yet.',
     working: 'working …',
     reading: 'is reading …',

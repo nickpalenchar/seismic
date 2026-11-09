@@ -206,6 +206,11 @@ for its first start (planned, snoozed to start later, or in the queue) is a spli
 right. Only a card the owner has just created stays its text alone until it closes or starts, so the
 task goes into the text, not into a note.
 
+On a wide screen the conversation column folds away with a button at its top ("Hide conversation"),
+so the left takes the full width; the same button at the card's top right ("Show conversation")
+brings it back. The choice is kept in the browser and holds for every card; the column stays alive
+while folded, so unsent drafts survive. The phone view has no such column and no button.
+
 A planned card nobody has worked on answers at once: what the owner types in its field
 ("A question or note – Seismic answers now …") goes to an agent, Seismic's answering agent (the one
 that looks up the Koordinator's questions, with a worker's tools to read and check), which replies in

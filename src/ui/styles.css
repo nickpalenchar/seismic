@@ -1053,7 +1053,14 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .split { display: grid; grid-template-columns: minmax(0, 1fr) clamp(400px, 36%, 560px); grid-template-rows: minmax(0, 1fr);
   gap: 24px; margin-top: 16px; max-height: min(600px, calc(100vh - 370px)); }
 /* a task without a result yet: the conversation alone, the panel only as wide as it (TALK_W in App.tsx) */
-.split.alone { grid-template-columns: minmax(0, 1fr); }
+.split.alone, .split.folded { grid-template-columns: minmax(0, 1fr); }
+/* the conversation folded away: its column stays mounted (drafts live in it) but out of sight, the button to bring it back at the corner */
+.split { position: relative; }
+.split.folded > .split-talk { display: none; }
+.split-fold { align-self: flex-end; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; margin: 0 0 6px; border: 0; background: transparent; color: var(--muted, inherit); border-radius: 4px; cursor: pointer; }
+.split-fold:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+.split.folded > .split-fold { position: absolute; top: 0; right: 0; margin: 0; z-index: 1; }
+@media (max-width: 760px) { .split-fold { display: none; } .split.folded { grid-template-columns: 1fr; } .split.folded > .split-talk { display: flex; } }
 .p-state + .p-src { margin-top: 4px; }
 /* its scrollbar's place stays: a bar coming as an artifact's frame grew narrowed the page in it, which grew anew */
 .split-main { overflow: auto; min-height: 0; padding-right: 4px; scrollbar-gutter: stable; }
