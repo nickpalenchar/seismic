@@ -401,6 +401,9 @@ describe('code reviews', () => {
     await handOver(id, 'fix3.ts');
     await until(() => reviewers().length === 4);
     expect(reviewers()[3]!.call('review', { verdicts: [{ number: 1, fixed: true }], regressions: [{ number: 3, why: 'x' }], items: [] })).toContain('#3 is not marked fixed');
+    // an item named twice, among the verdicts or the regressions, is refused
+    expect(reviewers()[3]!.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 1, fixed: false, why: 'Still open.' }], regressions: [], items: [] })).toContain('#1 has more than one verdict');
+    expect(reviewers()[3]!.call('review', { verdicts: [{ number: 1, fixed: true }], regressions: [{ number: 2, why: 'a' }, { number: 2, why: 'b' }], items: [] })).toContain('#2 is named more than once');
   });
 
   test('the worker resubmits any item with a note, and disputes one it holds wrong', async () => {

@@ -204,7 +204,7 @@ are on the items under review when its brief was written (kept across a restart 
 one the worker resubmits while it runs is not in its brief, and waits for the next review, which in
 automatic mode starts as soon as this one is done, or after a restart for items a done review left
 under review (in manual mode "Start code review" returns). A review
-that gives no verdict on an item of its brief under review, a verdict on any other, a regression of
+that gives no verdict on an item of its brief under review, a verdict on any other, two verdicts or two regressions on the same item, a regression of
 an item not fixed, or a verdict of not fixed or a regression without why, is refused and does it again; one that ends without recording failed; the card says why, and it can
 be started again.
 
