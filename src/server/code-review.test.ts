@@ -238,6 +238,28 @@ describe('code reviews', () => {
     expect(itemsOf(id)).toHaveLength(3);
   });
 
+  test('a stop while the results are saved leaves no applied results behind a running review', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    const reviews = (workers as unknown as { reviews: { finish(id: string, run: null, f: unknown): void } }).reviews;
+    const recorded = { verdicts: [], regressions: [], items: FINDINGS };
+    // Seismic stops as the results are written: nothing of them is stored
+    const work = board.work.bind(board);
+    board.work = () => {
+      throw new Error('stopped');
+    };
+    expect(() => reviews.finish(id, null, recorded)).toThrow('stopped');
+    board.work = work;
+    expect(itemsOf(id)).toHaveLength(0);
+    expect(board.item(id)!.review?.codeReview?.state).toBe('running');
+    // the resumed run records again: the items are there once
+    reviews.finish(id, null, recorded);
+    expect(itemsOf(id).map((i) => i.number)).toEqual([1, 2, 3]);
+    expect(board.item(id)!.review?.codeReview?.state).toBe('done');
+  });
+
   test('a review cut off by a restart goes on after it; one whose session is gone starts over', async () => {
     reviewing('auto');
     const id = await started();

@@ -494,9 +494,11 @@ export class CodeReviews {
     const failed = recorded ? undefined : clip(oneLine(error ?? t.codeReviewNoFindings), 300);
     this.paused.delete(cardId);
     const { session: _, scope: __, ...review } = c.review;
-    let result = { raised: [] as ReviewItem[], fixed: 0, reopened: 0 };
+    let result = { items: undefined as ReviewItem[] | undefined, raised: [] as ReviewItem[], fixed: 0, reopened: 0 };
     if (recorded) result = this.apply(cardId, recorded, { handover: review.handover, run: review.at });
-    this.save(cardId, { ...c, review: { ...review, state: failed ? 'failed' : 'done', ...(failed ? { error: failed } : {}) } });
+    // the list and the run's end are one write: a stop between them would resume a run whose results are already applied
+    const done: StoredCodeReview = { ...c, review: { ...review, state: failed ? 'failed' : 'done', ...(failed ? { error: failed } : {}) } };
+    this.o.board.work(cardId, { review: { codeReview: done, ...(result.items ? { items: result.items } : {}) } });
     const count = (s: Severity) => result.raised.filter((f) => f.severity === s).length;
     this.o.board.log(cardId, 'state', 'obeya', failed ? t.codeReviewFailed(failed) : t.codeReviewDone(result.raised.length, Object.fromEntries(SEVERITIES.map((s) => [s, count(s)])) as Record<Severity, number>, result.fixed, result.reopened));
     // items the worker resubmitted while it ran were not in its brief: the next review verifies them now
@@ -517,9 +519,9 @@ export class CodeReviews {
   /**
    * The recorded review applied to the list as it stands now: a verdict moves an item that is still
    * under review to fixed or reopened, a regression a fixed one to reopened, and the new items take
-   * the next free numbers. What changed under the review (the owner closed an item meanwhile) is left as it is.
+   * the next free numbers. Returns the new list; the caller saves it. What changed under the review (the owner closed an item meanwhile) is left as it is.
    */
-  private apply(cardId: string, r: Recorded, at: { handover: number; run: string }): { raised: ReviewItem[]; fixed: number; reopened: number } {
+  private apply(cardId: string, r: Recorded, at: { handover: number; run: string }): { items: ReviewItem[]; raised: ReviewItem[]; fixed: number; reopened: number } {
     let items = this.items(cardId);
     let fixed = 0;
     let reopened = 0;
@@ -555,8 +557,7 @@ export class CodeReviews {
       [...items.map((i) => [i.number, i.with ?? []] as [number, number[]]), ...given.map((g, k) => [first + k, g.with ?? []] as [number, number[]])],
     );
     const raised = all.slice(items.length);
-    this.setItems(cardId, all);
-    return { raised, fixed, reopened };
+    return { items: all, raised, fixed, reopened };
   }
 
   private stopSession(cardId: string): void {

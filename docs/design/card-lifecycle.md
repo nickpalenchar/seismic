@@ -269,7 +269,8 @@ mode a new one starts; in manual mode the tab, items and all, reads "outdated" a
 review" returns. Stopping the card stops a running review too. A restart of Seismic waits for a
 review at work as for a worker in a turn: its agent hears of it, ends its turn without recording, and
 goes on in the same session once Seismic runs again (a session that does not resume, another harness
-say, starts the review over); a review due while a restart waits starts after it. The card's log
+say, starts the review over); a review due while a restart waits starts after it. A review's results and its end are stored together,
+so a stop never leaves a running review whose results are already in the list. The card's log
 says it paused and went on; the tab reads running throughout. Only a review of work no longer waiting
 for approval after the restart failed ("Seismic restarted meanwhile").
 
