@@ -5,7 +5,7 @@
 
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { FullPage } from './fullPage';
 import type { Item } from '../core/types';
 import { CardFace, cardKind } from './card';
 import { plain } from './markdown';
@@ -14,6 +14,8 @@ import { stateLabel, t } from './strings';
 
 interface Props {
   on: boolean;
+  full: boolean;
+  onFull: (on: boolean) => void;
   onToggle: () => void;
   onClose: () => void;
   /** A card unfolded from the list is open: the list stays under the dim, for the card to fold back into. */
@@ -30,18 +32,15 @@ interface Props {
 }
 
 /** The bar's archive button; a click lists the archive under it. A click beside the list or Esc (in App) closes it. */
-export function ArchivePill({ on, onToggle, onClose, held, archived, done, onOpen, onArchiveDone, els, icon }: Props) {
+export function ArchivePill({ full, onFull: setFull, on, onToggle, onClose, held, archived, done, onOpen, onArchiveDone, els, icon }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState('');
-  const [full, setFull] = useState(false);
   // the full-screen view lives in the body, but a click in it is no click beside the archive
   const inside = { get current() { return { contains: (n: Node) => !!box.current?.contains(n) || !!(n instanceof Element && n.closest('#archive-full')) } as HTMLElement; } };
   useMenuClose(on, inside, () => held || onClose());
   const field = useRef<HTMLInputElement>(null);
   // what was searched last stays, selected, so typing starts a new search
   useEffect(() => void (on && field.current?.select()), [on, full]);
-  // closing the archive (Esc, a click beside it) also leaves the full-screen view
-  useEffect(() => void (!on && setFull(false)), [on]);
   const words = searchWords(query);
   const entries = { archived, words, query, onOpen, els };
   const search = (
@@ -90,8 +89,8 @@ export function ArchivePill({ on, onToggle, onClose, held, archived, done, onOpe
       )}
       {on &&
         full &&
-        createPortal(
-          <div id="archive-full" role="dialog" aria-label={t.archive.button}>
+        (
+          <FullPage id="archive-full" title={t.archive.button}>
             <div className="a-full-head">
               <h2>{t.archive.button}</h2>
               {search}
@@ -103,8 +102,7 @@ export function ArchivePill({ on, onToggle, onClose, held, archived, done, onOpe
               {archiveDone}
               <ArchiveEntries {...entries} />
             </div>
-          </div>,
-          document.body,
+          </FullPage>
         )}
     </div>
   );

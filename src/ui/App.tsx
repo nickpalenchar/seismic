@@ -1,10 +1,12 @@
+import { useFullPage } from './fullPage';
+import { DockShell, useDock, type DockView } from './dockViews';
 import { clientExtensions as extensions } from '../extensions/client';
 // The project: camera, drag, unfold-in-place and the plan sheet.
 
 import { useRatePrompt } from './feedback';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Archive, Bot, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash2 } from 'lucide-react';
+import { Archive, Bot, Inbox as Inbox2, Search, MessageSquare, FileText, Columns3, type LucideIcon, Settings, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
 import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, withPart, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, inParkingLot } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
@@ -55,7 +57,6 @@ import { Toasts, useToasts } from './components/toast';
 import { videoOf } from './spot';
 import { cardClass, shownState } from './card';
 import { CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
-import { clampWidth, loadWidths, saveWidths, SHEET_W, type SheetWidths, widthsIn } from './sheetWidth';
 import { clock, failText, t } from './strings';
 import { loadPinned, NAV_PROJECT_MIN, NAV_W, NavPill, NavSheet, savePinned } from './nav';
 import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
@@ -509,43 +510,29 @@ function Project({
   const [openId, setOpenId] = useState<string | null>(null);
   const [dim, setDim] = useState(false);
   const [sheetId, setSheetId] = useState<string | null>(null);
-  const [sheetOn, setSheetOn, sheetOnRef] = useLive(false);
+  const dock = useDock(inboxKept(sessionStorage) ? 'inbox' : null);
+  const sheetOn = dock.active === 'plan' || dock.active === 'plan-doc';
+  const sheetOnRef = { get current() { return dock.ref.current === 'plan' || dock.ref.current === 'plan-doc'; } };
+  const setSheetOn = (on: boolean) => {
+    if (on) dock.select(readingRef.current ? 'plan-doc' : 'plan');
+    else if (sheetOnRef.current) dock.select(null);
+  };
   // the open plan's plan doc, read in the widened sheet
   const [reading, setReading, readingRef] = useLive<{ mark?: string } | null>(null);
-  // how wide the sheets are, as the owner dragged them; in effect clamped to the window
-  const [widths, setWidths] = useState<SheetWidths>(() => loadWidths(localStorage));
-  const sheetW = widthsIn(widths, innerWidth);
-  const sheetWRef = useRef(sheetW);
-  sheetWRef.current = sheetW;
-  const [kOn, setKOn, kOnRef] = useLive(false);
+  const { widths: sheetW, resizing } = dock;
+  const [kOn, setKOn, kOnRef] = dock.view('seismic');
   // the inbox, a docked sheet like Seismic's: only one of them is open; it stays open across projects
-  const [inboxOn, setInboxOn, inboxOnRef] = useLive(() => inboxKept(sessionStorage));
+  const [inboxOn, setInboxOn, inboxOnRef] = dock.view('inbox');
   useEffect(() => keepInbox(sessionStorage, inboxOn), [inboxOn]);
   // what of the inbox the owner has read (src/ui/inboxRead.ts)
   const inboxRead = useInboxRead();
   // the project's settings, a docked sheet like the inbox, from the gear in the bar (projectSettings.tsx)
-  const [csOn, setCsOn, csOnRef] = useLive(false);
+  const [csOn, setCsOn, csOnRef] = dock.view('settings');
   // the agents, a docked sheet like the inbox, from the robot in the bar: the queue and the cards at work (agents.tsx)
-  const [agentsOn, setAgentsOn, agentsOnRef] = useLive(false);
-  // Seismic's sheet takes the inbox's place however it opens (its button, `?talk`, a reload), and the settings' and the agents'
-  useEffect(() => {
-    if (kOn) setInboxOn(false);
-    if (kOn) setCsOn(false);
-    if (kOn) setAgentsOn(false);
-  }, [kOn]);
-  // the inbox, the project's settings and the agents take each other's place
-  useEffect(() => {
-    if (inboxOn) setCsOn(false);
-    if (inboxOn) setAgentsOn(false);
-  }, [inboxOn]);
-  useEffect(() => {
-    if (csOn) setAgentsOn(false);
-  }, [csOn]);
-  useEffect(() => {
-    if (agentsOn) setInboxOn(false);
-    if (agentsOn) setCsOn(false);
-  }, [agentsOn]);
-  const [aOn, setAOn, aOnRef] = useLive(false);
+  const [agentsOn, setAgentsOn, agentsOnRef] = dock.view('agents');
+  const fullPage = useFullPage<string>();
+  const [aOn, setArchiveOn, aOnRef] = useLive(false);
+  const setAOn = (on: boolean) => { setArchiveOn(on); if (!on && fullPage.ref.current === 'archive') fullPage.show(null); };
   const [cOn, setCOn, cOnRef] = useLive(false);
   // the navigation pinned as a sidebar on the left (src/ui/nav.tsx)
   const [pinned, setPinned, pinnedRef] = useLive(loadPinned);
@@ -561,7 +548,7 @@ function Project({
    */
   const sideNow = (): Sides => {
     const narrow = matchMedia(NARROW).matches;
-    const right = narrow || !(kOnRef.current || inboxOnRef.current || csOnRef.current || agentsOnRef.current || sheetOnRef.current) ? 0 : sheetOnRef.current && readingRef.current ? sheetWRef.current.read : sheetWRef.current.sheet;
+    const right = narrow ? 0 : dock.width();
     return { left: !narrow && pinnedRef.current && innerWidth - NAV_W - right >= NAV_PROJECT_MIN ? NAV_W : 0, right };
   };
   /** Opens Seismic's sheet or closes it; an open plan closes. */
@@ -870,10 +857,6 @@ function Project({
     setSheetId(p.id);
     setReading(r);
     setSheetOn(true);
-    setKOn(false);
-    setInboxOn(false);
-    setCsOn(false);
-    setAgentsOn(false);
     setAOn(false);
     if (inView) await flyOrJump(camFor(bounds(p), sideNow()), 700, quick);
   }
@@ -1668,31 +1651,6 @@ function Project({
     } else fly(to, 450);
   }, [side.left, side.right]);
 
-  // the grip at the open sheet's left edge widens or narrows it; reading a plan doc has its own width
-  const gripOn = kOn || inboxOn || csOn || agentsOn || sheetOn;
-  const gripKind = !!reading && sheetOn ? 'read' : 'sheet';
-  const gripRef = useRef<{ x: number; w: number; kind: 'sheet' | 'read' } | null>(null);
-  const [resizing, setResizing] = useState(false);
-  useEffect(() => {
-    if (!resizing) saveWidths(localStorage, widths);
-  }, [widths, resizing]);
-  function onGripDown(e: React.PointerEvent) {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    gripRef.current = { x: e.clientX, w: sheetW[gripKind], kind: gripKind };
-    setResizing(true);
-  }
-  function onGripMove(e: React.PointerEvent) {
-    const g = gripRef.current;
-    if (!g) return;
-    const w = clampWidth(g.w + g.x - e.clientX, innerWidth, g.kind);
-    setWidths((ws) => ({ ...ws, [g.kind]: w }));
-  }
-  function onGripUp() {
-    gripRef.current = null;
-    setResizing(false);
-  }
   /** `c`, moved just far enough that the view outside the sheet shows some content. */
   const kept = (c: Cam) => keepInView(c, contentRef.current, viewNow());
   /** The view at the current zoom with a world point in the middle, as far as content stays in sight. */
@@ -2256,17 +2214,17 @@ function Project({
       const quoting = [focusedDraft(), f?.type === 'card' || f?.type === 'plan' ? cardDraft(f.id) : null, kOnRef.current ? OBEYA_DRAFT : null].find((k) => k && fieldOn(k) && replyOn(k));
       if (quoting) return setReply(quoting, null);
       // the archive's list closes after a card unfolded from it
+      if (f?.type !== 'card' && fullPage.ref.current) {
+        if (fullPage.ref.current === 'archive') setAOn(false);
+        else fullPage.show(null);
+        return;
+      }
       if (f?.type !== 'card' && aOnRef.current) return setAOn(false);
       // what is marked lets go before a sheet closes, once the colour ring for it has closed
       if (f?.type !== 'card' && !typing && !ring && marked.length) return setSelection([]);
       if (typing) (e.target as HTMLElement).blur();
       if (f?.type === 'card') closeCard();
-      else if (kOnRef.current) setKOn(false);
-      else if (inboxOnRef.current && f?.type !== 'plan') setInboxOn(false);
-      else if (csOnRef.current && f?.type !== 'plan') setCsOn(false);
-      else if (agentsOnRef.current && f?.type !== 'plan') setAgentsOn(false);
-      else if (f?.type === 'plan' && readingRef.current && sheetPlan) readPlan(sheetPlan, null);
-      else if (f?.type === 'plan') closePlan();
+      else dock.escape();
       return;
     }
     if (typing || f?.type === 'card' || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -2343,6 +2301,35 @@ function Project({
     </button>
   );
 
+  const planComponent = () => (
+    <Sheet
+      planCard={sheetPlan}
+      kids={sheetKids}
+      all={items}
+      on={sheetOn}
+      reading={reading}
+      onOpen={open}
+      onRead={(r) => sheetPlan && readPlan(sheetPlan, r)}
+      onStartAll={startAll}
+      onArrange={arrange}
+      els={sheetEls}
+      version={snapshot}
+    />
+  );
+  const dockViews: DockView[] = [
+    { id: 'inbox', besideCard: true, title: t.inbox.title, icon: Inbox2, component: () => (<Inbox entries={entries} current={snapshot.project.id} open={(focus?.type === 'card' ? focus.id : openId) ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
+          onProposalCard={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })}
+          onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />) },
+    { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet els={sheetEls} on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })} />) },
+    { id: 'settings', besideCard: true, title: t.projectSettings.title, icon: Settings, component: () => (<ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showProjectsSection(), setPrefsOn(false), setCOn(true))} />) },
+    { id: 'seismic', title: t.koordinator.title, icon: MessageSquare, buttonCloses: true, component: () => (<KoordinatorSheet on={kOn} onClose={toggleKoordinator} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
+            showRepoClones({ project: snapshot.project.id, repo, field: 'settings', setting });
+            setCOn(true);
+          }} />) },
+    { id: 'plan', slot: 'plan', title: sheetPlan?.title ?? '', icon: Columns3, close: () => void closePlan(), component: planComponent },
+    { id: 'plan-doc', slot: 'plan', title: sheetPlan?.title ?? '', icon: FileText, width: 'read', close: () => void closePlan(), escape: () => { if (sheetPlan) void readPlan(sheetPlan, null); }, component: planComponent },
+  ];
+  dock.register(dockViews);
   return (
     <HoldToTalk.Provider value={holdToTalk}>
     <OpenPerformance.Provider value={openPerformance}>
@@ -2513,6 +2500,8 @@ function Project({
           )}
           <ArchivePill
             on={aOn}
+            full={fullPage.active === 'archive'}
+            onFull={(on) => fullPage.show(on ? 'archive' : null)}
             onToggle={toggleArchive}
             onClose={() => setAOn(false)}
             held={focus?.type === 'card'}
@@ -2589,11 +2578,7 @@ function Project({
           onFollow={(wx, wy) => !focusRef.current && chase(camRef.current, viewOn(wx, wy), setCam)}
         />
         <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), showCanvas(c))} />
-        <Inbox entries={entries} current={snapshot.project.id} open={(focus?.type === 'card' ? focus.id : openId) ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
-          onProposalCard={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })}
-          onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
-        <AgentsSheet els={sheetEls} on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })} />
-        <ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showProjectsSection(), setPrefsOn(false), setCOn(true))} />
+
         <div id="dim" className={dim ? 'on' : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
         <WishDialog />
@@ -2665,10 +2650,7 @@ function Project({
             }}
           />
         )}
-        <KoordinatorSheet on={kOn} onClose={toggleKoordinator} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
-            showRepoClones({ project: snapshot.project.id, repo, field: 'settings', setting });
-            setCOn(true);
-          }} />
+
         <PushToTalk
           phase={ptt.phase}
           level={ptt.level}
@@ -2678,38 +2660,11 @@ function Project({
           slot={targetSlot}
           onDown={() => press(false)}
         />
-        <Sheet
-          planCard={sheetPlan}
-          kids={sheetKids}
-          all={items}
-          on={sheetOn}
-          reading={reading}
-          onOpen={open}
-          onRead={(r) => sheetPlan && readPlan(sheetPlan, r)}
-          onStartAll={startAll}
-          onArrange={arrange}
-          els={sheetEls}
-          version={snapshot}
-        />
+
         <div id="talk-docked" className={kOn ? 'on' : undefined}>
           {talkButton}
         </div>
-        {gripOn && !kOn && (
-          <button id="sheet-close" title={t.close} onClick={() => (sheetOn ? closePlan() : (setInboxOn(false), setCsOn(false), setAgentsOn(false)))}>
-            ✕
-          </button>
-        )}
-        <div
-          id="sheet-grip"
-          className={gripOn ? 'on' : undefined}
-          style={{ right: sheetW[gripKind] - 6 }}
-          title={t.sheetGrip}
-          onPointerDown={onGripDown}
-          onPointerMove={onGripMove}
-          onPointerUp={onGripUp}
-          onPointerCancel={onGripUp}
-          onDoubleClick={() => setWidths((ws) => ({ ...ws, [gripKind]: gripKind === 'sheet' ? SHEET_W : null }))}
-        />
+        <DockShell dock={dock} />
         {/* commands on their way and confirmations, stacked above the microphone */}
         <div id="acks">
           <Cards.Provider value={{ items, open: (i) => void openFresh(i) }}>

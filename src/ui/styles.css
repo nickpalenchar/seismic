@@ -1671,7 +1671,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .a-head { display: flex; align-items: center; gap: 6px; }
 .a-full { flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin-bottom: 6px; border: 0; border-radius: 3px; background: var(--chip); color: var(--ink); cursor: pointer; }
 /* the archive over the whole project, below the bar; a card opened from it unfolds above (dim 30, panel 40) */
-#archive-full { position: fixed; z-index: 28; top: 58px; bottom: 0; left: var(--left, 0px); right: var(--side, 0px); display: flex; flex-direction: column; background: var(--panel); }
+.full-page { position: fixed; z-index: 28; top: 58px; bottom: 0; left: var(--left, 0px); right: var(--side, 0px); display: flex; flex-direction: column; background: var(--panel); }
 .a-full-head { display: flex; align-items: center; gap: 14px; padding: 12px 24px 6px; }
 .a-full-head h2 { margin: 0 0 6px; font-size: 18px; }
 .a-full-head .a-search { max-width: 640px; }
@@ -3033,9 +3033,9 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 /* the inbox (src/ui/inbox.tsx): what waits for the owner on every project, a docked sheet on the desktop and
    "Needs you" on the phone. Its entries are panes of glass of their own; the card open now gets a ring and
    a tint. Beside an open card it stays above the dim, so the owner works down the list */
-#inbox { padding: 20px 14px 30px; z-index: 31; }
+#inbox { padding: 20px 14px 30px; }
 #inbox h2 { padding: 0 8px; }
-body:has(#inbox.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
+
 .inbox-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .inbox-entry { padding: 12px 14px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--glass-edge, var(--line));
   box-shadow: inset 0 1px 0 var(--glass-hi, transparent), var(--shadow); }
@@ -3083,12 +3083,12 @@ body:has(#inbox.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 :root[data-motion="reduce"] .card:hover { transform: none; }
 
 /* the project's settings, a sheet like the inbox (projectSettings.tsx) */
-#project-settings { padding: 20px 22px 30px; z-index: 31; }
+#project-settings { padding: 20px 22px 30px; }
 /* the agents (src/ui/agents.tsx): the queue and the cards at work by stage, a docked sheet like the inbox,
    above the dim beside an open card */
-#agents { padding: 20px 14px 30px; z-index: 31; }
+#agents { padding: 20px 14px 30px; }
 #agents h2 { padding: 0 8px; }
-body:has(#agents.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
+
 #agents .agents-tabs { margin: 0 8px 4px; }
 .agents-tabs .count { margin-left: 6px; font-weight: 600; font-size: 12px; color: var(--muted); }
 .agents-tabs .n { margin-left: 6px; border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--planned); }
@@ -3111,7 +3111,7 @@ body:has(#agents.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .cs-pill { padding-inline: 10px; }
 .cs-pill .n.err { margin-left: 4px; }
 .cs-pill.on { background: var(--chip); color: var(--ink); }
-body:has(#project-settings.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
+
 #project-settings .cs-project { margin: 0 40px 2px 0; font-size: 12px; color: var(--muted); }
 #project-settings > .hint { margin: 0 0 6px; font-size: 12.5px; line-height: 1.45; }
 #project-settings .cfg-head { margin-top: 22px; }
@@ -3164,3 +3164,7 @@ body:has(#project-settings.on) :is(#sheet-close, #sheet-grip) { z-index: 32; }
 .activity-row .act-card .state.doing-now { padding-bottom: 6px; }
 .activity-row .act-card .state.doing-now::after { bottom: 0; }
 .activity-end { height: 1px; }
+
+/* Dock views that remain usable beside an unfolded card. */
+.sheet.beside-card { z-index: 31; }
+:is(#sheet-close, #sheet-grip).beside-card { z-index: 32; }
