@@ -2144,7 +2144,7 @@ button.link:hover { text-decoration: underline; }
 #bar .card-search-button { padding-inline: 10px; font-family: var(--mono); }
 /* under the task field while it has the cursor, until a card was linked once */
 .p-body-field .card-refs-hint { position: absolute; top: 100%; left: 0; margin: 6px 0 0; }
-@media (max-width: 760px) { .p-body-field .card-refs-hint { position: static; } }
+@media (max-width: 760px) { .p-body-field:has(.card-refs-hint) { padding-bottom: 30px; } }
 @media (max-width: 760px) { #minimap, #sheet-grip { display: none; } .sheet, .sheet.reading { width: auto; left: 14px; right: 14px; top: 64px; bottom: 158px; border-radius: 3px; border: 0; box-shadow: var(--lift); } #sheet-close { top: 72px; right: 22px; } #talk-docked.on { top: 74px; right: 22px; } .split { grid-template-columns: 1fr; grid-template-rows: none; max-height: none; } .split .split-talk .talk { min-height: 240px; max-height: min(520px, 60vh); } }
 
 /* the play button on a startable card, shown while the pointer is on the card */
