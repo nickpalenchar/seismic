@@ -282,8 +282,8 @@ export function ProjectAgents({ project }: { project: ProjectInfo }) {
 }
 
 /** A restart that waits for workers or the owner: for whom and until when (on hover), and a button that has it go ahead now. */
-export function RestartPill({ restart, items }: { restart: PendingRestart; items: Item[] }) {
-  if (restart.repos) return <ReposRestartPill restart={restart} items={items} />;
+export function RestartPill({ restart, items, onOpen }: { restart: PendingRestart; items: Item[]; onOpen: (i: Item) => void }) {
+  if (restart.repos) return <ReposRestartPill restart={restart} items={items} onOpen={onOpen} />;
   const n = restart.cards.length + restart.elsewhere.reduce((m, c) => m + c.cards.length, 0);
   const until = clock(restart.deadline);
   const owner = restart.owner;
@@ -293,6 +293,7 @@ export function RestartPill({ restart, items }: { restart: PendingRestart; items
     <Pill
       restart={restart}
       items={items}
+      onOpen={onOpen}
       elsewhere={restart.elsewhere}
       go={api.restartNow}
       going={stop ? t.restart.goingStop : update ? t.restart.goingUpdate : t.restart.going}
@@ -320,12 +321,13 @@ export function RestartPill({ restart, items }: { restart: PendingRestart; items
 }
 
 /** A restart of some repositories' agents alone, for a change to their configuration, that waits for them; Seismic runs on. */
-function ReposRestartPill({ restart, items }: { restart: PendingRestart; items: Item[] }) {
+function ReposRestartPill({ restart, items, onOpen }: { restart: PendingRestart; items: Item[]; onOpen: (i: Item) => void }) {
   const r = t.restart.repos;
   return (
     <Pill
       restart={restart}
       items={items}
+      onOpen={onOpen}
       go={api.restartReposNow}
       going={r.going}
       say={r.pill(restart.cards.length)}
@@ -349,9 +351,10 @@ function ReposRestartPill({ restart, items }: { restart: PendingRestart; items: 
  * hover why (`why`), the cards it waits for here and on the other projects (`elsewhere`), and
  * what follows (`after`).
  */
-function Pill({ restart, items, elsewhere = [], go, going, say, until, now, risk, why, after }: {
+function Pill({ restart, items, onOpen, elsewhere = [], go, going, say, until, now, risk, why, after }: {
   restart: PendingRestart;
   items: Item[];
+  onOpen: (i: Item) => void;
   elsewhere?: PendingRestart['elsewhere'];
   go: () => Promise<{ restarting: boolean }>;
   going: string;
@@ -363,7 +366,10 @@ function Pill({ restart, items, elsewhere = [], go, going, say, until, now, risk
   after: ReactNode;
 }) {
   const [on, setOn] = useState(false);
-  const titles = restart.cards.map((id) => plain(items.find((i) => i.id === id)?.title ?? id));
+  const cards = restart.cards.map((id) => {
+    const item = items.find((i) => i.id === id);
+    return { item, title: plain(item?.title ?? id) };
+  });
   const click = () => {
     setOn(true);
     go().then(
@@ -390,13 +396,13 @@ function Pill({ restart, items, elsewhere = [], go, going, say, until, now, risk
       </button>
       <div className="tip why" role="tooltip">
         {why}
-        {titles.length + elsewhere.length > 0 && (
+        {cards.length + elsewhere.length > 0 && (
           <>
             <p>{t.restart.waits}</p>
-            {titles.length > 0 && (
+            {cards.length > 0 && (
               <ul>
-                {titles.map((x, i) => (
-                  <li key={i}>{x}</li>
+                {cards.map(({ item, title }, i) => (
+                  <li key={i}>{item ? <a className="from" onClick={() => onOpen(item)}>{title}</a> : title}</li>
                 ))}
               </ul>
             )}

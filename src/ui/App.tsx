@@ -2587,7 +2587,7 @@ function Project({
         {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the workstation pool and the usage limits */}
         <footer id="status">
           <div className="st-left">
-            {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} /> : <span className="st online">{t.online}</span>}
+            {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} onOpen={(i) => void openFresh(i)} /> : <span className="st online">{t.online}</span>}
             {online && snapshot.project.demoSite?.init?.running && <span className="st site-init">{t.creatingSite}</span>}
           </div>
           <div className="st-mid" ref={setTargetSlot} />
