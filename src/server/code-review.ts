@@ -392,7 +392,7 @@ export class CodeReviews {
     const tools: AgentTool[] = [
       {
         name: 'review',
-        description: `Record your review, once, at the end. verdicts: one for each item your brief lists as under review (the worker says it fixed it): fixed true where the diff and the code now fix it, else false with why (what is still wrong), which reopens it for the owner. regressions: the items marked fixed whose problem the diff shows again, each with why. items: the new items you found that the list does not hold yet (an empty list where there is none), most severe first, each: title (short) and text (a sentence or two) in ${language}, saying what is wrong and why it matters; severity (blocker: crashes the app or exposes a very important secret or unprotected database; critical: a clear exploit, severe degradation or other major consequence; major: a real defect or clear departure from the repository's rules and design docs; minor: worth fixing but not a reason to hold the work; low: a small issue with limited impact; info: a nitpick or something to flag that may or may not be a problem), file and line where it is, security where it is about security, and with: the numbers of the other items one agent would sensibly fix in one go with it (the same cause, the same files), else none. The new items are numbered from ${nextNumber(items)} in the order you give them, which is how with names them.`,
+        description: `Record your review, once, at the end. verdicts: one for each item your brief lists as under review (the worker says it fixed it): fixed true where the diff and the code now fix it, else false with why (what is still wrong), which reopens it for the owner. regressions: the items marked fixed whose problem the diff shows again, each with why. items: the new items you found that the list does not hold yet (an empty list where there is none; at most ${MAX_NEW_ITEMS}, so keep the most important and merge or leave out the least), most severe first, each: title (short) and text (a sentence or two) in ${language}, saying what is wrong and why it matters; severity (blocker: crashes the app or exposes a very important secret or unprotected database; critical: a clear exploit, severe degradation or other major consequence; major: a real defect or clear departure from the repository's rules and design docs; minor: worth fixing but not a reason to hold the work; low: a small issue with limited impact; info: a nitpick or something to flag that may or may not be a problem), file and line where it is, security where it is about security, and with: the numbers of the other items one agent would sensibly fix in one go with it (the same cause, the same files), else none. The new items are numbered from ${nextNumber(items)} in the order you give them, which is how with names them.`,
         schema: {
           verdicts: z.array(z.object({ number: z.number().int(), fixed: z.boolean(), why: z.string().optional() })),
           regressions: z.array(z.object({ number: z.number().int(), why: z.string() })),
@@ -535,7 +535,7 @@ export class CodeReviews {
       reopened++;
     }
     const first = nextNumber(items);
-    const given = r.items.slice(0, MAX_NEW_ITEMS);
+    const given = r.items;
     const fresh = given.map(
       (g, k): ReviewItem => ({
         number: first + k,
@@ -582,7 +582,8 @@ const nextNumber = (items: ReviewItem[]) => items.reduce((n, i) => Math.max(n, i
 /**
  * Why a recorded review cannot be taken, or nothing: a verdict for an item outside the run's
  * `scope` (those under review when its brief was written), none for one inside it, two verdicts
- * or two regressions on the same item, a regression of one that is not fixed, a verdict of not fixed or a regression without why.
+ * or two regressions on the same item, a regression of one that is not fixed, a verdict of not fixed
+ * or a regression without why, more new items than `MAX_NEW_ITEMS`.
  */
 function checkRecorded(items: ReviewItem[], scope: number[], r: Recorded): string | undefined {
   const status = (n: number) => items.find((i) => i.number === n)?.status;
@@ -605,6 +606,7 @@ function checkRecorded(items: ReviewItem[], scope: number[], r: Recorded): strin
   if (odd.length) return `${odd.map((n) => `#${n}`).join(', ')} ${odd.length === 1 ? 'is' : 'are'} not marked fixed, so a regression of ${odd.length === 1 ? 'it' : 'them'} is not taken.`;
   const bare = [...r.verdicts.filter((v) => !v.fixed && !v.why?.trim()), ...r.regressions.filter((g) => !g.why?.trim())].map((x) => x.number);
   if (bare.length) return `${bare.map((n) => `#${n}`).join(', ')} ${bare.length === 1 ? 'needs' : 'need'} why: say what is still wrong.`;
+  if (r.items.length > MAX_NEW_ITEMS) return `${r.items.length} new items are more than the ${MAX_NEW_ITEMS} a review takes: keep the most important ones, merging or leaving out the least important.`;
   return undefined;
 }
 

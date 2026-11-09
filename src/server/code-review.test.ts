@@ -361,6 +361,10 @@ describe('code reviews', () => {
     const second = reviewers()[1]!;
     expect(second.call('review', { verdicts: [], regressions: [], items: [] })).toContain('no verdict on #1');
     expect(second.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 2, fixed: true }], regressions: [], items: [] })).toContain('#2 is not under review');
+    // more new items than a review takes are refused, not cut
+    const many = Array.from({ length: 31 }, (_, k) => ({ title: `Item ${k}`, text: 'x', severity: 'low' as const }));
+    expect(second.call('review', { verdicts: [{ number: 1, fixed: true }], regressions: [], items: many })).toContain('31 new items are more than the 30');
+    expect(statuses(id)).toEqual(['underReview', 'followUp', 'followUp']);
     // numbers stay: the new item is #4
     await review(id, second, [{ title: 'Missing test', text: 'Nothing covers the fix.', severity: 'minor' }], [{ number: 1, fixed: true }]);
     expect(statuses(id)).toEqual(['fixed', 'followUp', 'followUp', 'raised']);
