@@ -285,12 +285,14 @@ export class CodeReviews {
     });
     const next = picked.reduce((all, p) => {
       const context = notes[p.i.number]?.trim();
-      return moved(all, p.i.number, p.route === 'self' ? 'fixing' : 'followUp', 'owner', undefined, {}, context);
+      const next = moved(all, p.i.number, p.route === 'self' ? 'fixing' : 'followUp', 'owner', undefined, {}, context);
+      // context the owner cleared goes from the item
+      return context === '' ? next.map((i) => (i.number === p.i.number ? (({ context: _, ...rest }) => rest)(i) : i)) : next;
     }, items);
     this.setItems(cardId, next);
     const after = (n: number) => next.find((x) => x.number === n)!;
     // the owner's context kept from an earlier choice goes with the item, unless this Send brings new context (which follows the note)
-    const kept = (f: ReviewItem) => `${described(f)}${f.context && !notes[f.number]?.trim() ? `\n    The owner wrote: ${f.context}` : ''}`;
+    const kept = (f: ReviewItem) => `${described(f)}${f.context && notes[f.number] === undefined ? `\n    The owner wrote: ${f.context}` : ''}`;
     const fix = picked.filter((p) => p.route === 'self').map((p) => after(p.i.number));
     const later = picked.filter((p) => p.route === 'later').map((p) => after(p.i.number));
     const ids = new Set(later.map((f) => f.number));

@@ -3019,7 +3019,8 @@ function FindingContext({ item, id, kept }: { item: Item; id: number; kept?: str
   const save = () => {
     updateDraft(draft, (d) => {
       const { [id]: _, ...rest } = d.findingNotes ?? {};
-      return { findingNotes: edit?.trim() ? { ...rest, [id]: edit } : rest };
+      // clearing the context the item kept is a choice of its own, sent with the decision
+      return { findingNotes: edit?.trim() ? { ...rest, [id]: edit } : kept ? { ...rest, [id]: '' } : rest };
     });
     type(undefined);
   };
@@ -3045,7 +3046,7 @@ function sentChoices(draft: string, sent: Record<string, FindingPick>) {
 
 /** The owner's notes on the findings they decided on, trimmed; a finding without words has none. */
 const notesOf = (notes: Record<string, string> | undefined, decided: Record<string, FindingPick>) =>
-  Object.fromEntries(Object.entries(notes ?? {}).filter(([id, text]) => id in decided && decided[id] !== 'ignore' && text.trim()));
+  Object.fromEntries(Object.entries(notes ?? {}).filter(([id, text]) => id in decided && decided[id] !== 'ignore' && (text.trim() || text === '')));
 
 /** A finding the card lists: one the owner ignored goes from the list once the choices are sent. */
 export const shownFinding = (f: Finding) => f.status !== 'dropped';

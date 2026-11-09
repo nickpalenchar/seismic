@@ -1728,7 +1728,8 @@ export class ProjectRuntime {
     const out: Record<number, string> = {};
     for (const [id, text] of Object.entries(notes as Record<string, unknown>)) {
       if (!/^\d+$/.test(id) || typeof text !== 'string') throw new BadRequest('invalid', 'findingNotes must map finding numbers to text');
-      if (text.trim()) out[Number(id)] = text;
+      // empty: the owner cleared the context an item kept from an earlier choice
+      out[Number(id)] = text;
     }
     return Object.keys(out).length ? out : undefined;
   }

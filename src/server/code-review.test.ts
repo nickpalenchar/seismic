@@ -526,6 +526,13 @@ describe('code reviews', () => {
     workers.message(id, '', [], false, undefined, undefined, { 1: 'self' });
     expect(worker().inbox.at(-1)).toContain('- Fix these now:\n  #1 “SQL built from input”');
     expect(worker().inbox.at(-1)).toMatch(/Fix these now:\n  #1[^\n]*\n(    .*\n)*    The owner wrote: Use a parameter\./);
+    // context the owner clears goes from the item and from what the worker reads
+    await handOver(id, 'fix2.ts');
+    await until(() => reviewers().length === 3);
+    await review(id, reviewers()[2]!, [], [{ number: 1, fixed: false, why: 'Still concatenated.' }]);
+    workers.message(id, '', [], false, undefined, undefined, { 1: 'self' }, { 1: '' });
+    expect(itemsOf(id)[0]!.context).toBeUndefined();
+    expect(worker().inbox.at(-1)).not.toContain('Use a parameter.');
   });
 
   test('a review resumed after a restart keeps the verdicts of its brief; an item resubmitted while it paused waits for the next review', async () => {
