@@ -245,15 +245,17 @@ describe('code reviews', () => {
     await until(() => reviewers().length === 1);
     const reviews = (workers as unknown as { reviews: { finish(id: string, run: null, f: unknown): void } }).reviews;
     const recorded = { verdicts: [], regressions: [], items: FINDINGS };
-    // Seismic stops as the results are written: nothing of them is stored
+    // Seismic stops right after the first write that stores anything of the results
     const work = board.work.bind(board);
-    board.work = () => {
+    board.work = (...a: Parameters<typeof work>) => {
+      work(...a);
+      board.work = work;
       throw new Error('stopped');
     };
     expect(() => reviews.finish(id, null, recorded)).toThrow('stopped');
-    board.work = work;
-    expect(itemsOf(id)).toHaveLength(0);
-    expect(board.item(id)!.review?.codeReview?.state).toBe('running');
+    // the run is either still running with no results, or done with them: never running with results applied
+    const stored = board.item(id)!.review?.codeReview?.state;
+    expect(itemsOf(id).length > 0).toBe(stored === 'done');
     // the resumed run records again: the items are there once
     reviews.finish(id, null, recorded);
     expect(itemsOf(id).map((i) => i.number)).toEqual([1, 2, 3]);
