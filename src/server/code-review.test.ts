@@ -312,6 +312,8 @@ describe('code reviews', () => {
     expect(fresh.spec.setting).toEqual(setting);
     expect(fresh.inbox[0]).toContain('SQL built from input');
     expect(fresh.inbox[0]).toContain('Race on a second handover');
+    // the item ignored in the same Send shows closed in the fresh worker's list
+    expect(fresh.inbox[0]).toContain('Closed (the owner ignored them; the review does not raise them again):\n  #3 “Name the constant”');
     expect(statuses(id)).toEqual(['fixing', 'followUp', 'closed']);
   });
 
@@ -376,6 +378,8 @@ describe('code reviews', () => {
     workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 2: 'self' });
     await handOver(id, 'fix.ts');
     await until(() => reviewers().length === 2);
+    // a verdict of not fixed needs why
+    expect(reviewers()[1]!.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 2, fixed: false }], regressions: [], items: [] })).toContain('#2 needs why');
     await review(id, reviewers()[1]!, [], [{ number: 1, fixed: true }, { number: 2, fixed: false, why: 'The lock is taken after the write.' }]);
     expect(statuses(id)).toEqual(['fixed', 'reopened', 'raised']);
     expect(itemsOf(id)[1]!.log.at(-1)).toMatchObject({ who: 'reviewer', from: 'underReview', to: 'reopened', note: 'The lock is taken after the write.' });
@@ -387,6 +391,8 @@ describe('code reviews', () => {
     expect(worker().inbox.at(-1)).toContain('The reviewer wrote: ');
     await handOver(id, 'fix2.ts');
     await until(() => reviewers().length === 3);
+    // so does a regression
+    expect(reviewers()[2]!.call('review', { verdicts: [{ number: 2, fixed: true }], regressions: [{ number: 1, why: ' ' }], items: [] })).toContain('#1 needs why');
     await review(id, reviewers()[2]!, [], [{ number: 2, fixed: true }], [{ number: 1, why: 'The retry builds the query by hand again.' }]);
     expect(statuses(id)).toEqual(['reopened', 'fixed', 'raised']);
     expect(itemsOf(id)[0]!.log.map((e) => e.to)).toEqual(['raised', 'fixing', 'underReview', 'fixed', 'reopened']);
@@ -410,6 +416,10 @@ describe('code reviews', () => {
     expect(itemsOf(id)[2]).toMatchObject({ status: 'underReview' });
     expect(itemsOf(id)[2]!.log.at(-1)).toMatchObject({ who: 'worker', from: 'closed', to: 'underReview', note: 'The constant is named now.' });
     expect(await worker().call('resubmit_review_item', { items: [{ number: 9 }] })).toContain('there is no item #9');
+    // a later note on an item under review joins its log; one without a note is refused
+    expect(await worker().call('resubmit_review_item', { items: [{ number: 3, note: 'Also covered by a test.' }] })).toContain('Note added to #3');
+    expect(await worker().call('resubmit_review_item', { items: [{ number: 3 }] })).toContain('#3 is under review already');
+    expect(itemsOf(id)[2]!.log.at(-1)).toMatchObject({ who: 'worker', from: 'underReview', to: 'underReview', note: 'Also covered by a test.' });
     // an item it holds wrong goes back to the owner, with its reasons
     expect(await worker().call('dispute_review_item', { items: [{ number: 2, note: '' }] })).toContain('needs your reasons');
     expect(await worker().call('dispute_review_item', { items: [{ number: 2, note: 'Exports are serialized by the queue already.' }] })).toContain('Disputed: #2');
@@ -420,7 +430,28 @@ describe('code reviews', () => {
     await handOver(id, 'fix.ts');
     expect(statuses(id)).toEqual(['underReview', 'reopened', 'underReview']);
     await until(() => reviewers().length === 2);
-    expect(reviewers()[1]!.inbox[0]).toContain('The worker wrote: The constant is named now.');
+    expect(reviewers()[1]!.inbox[0]).toContain('The worker wrote: Also covered by a test.');
+  });
+
+  test('a review gives verdicts on the items under review when it started; one resubmitted meanwhile waits for the next review', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 3: 'ignore' });
+    await handOver(id, 'fix.ts');
+    await until(() => reviewers().length === 2);
+    await until(() => !!board.row(id).review?.codeReview?.review?.scope);
+    expect(board.row(id).review?.codeReview?.review?.scope).toEqual([1]);
+    // the worker resubmits #3 while the review runs: not in this review's brief
+    expect(await worker().call('resubmit_review_item', { items: [{ number: 3, note: 'Named it.' }] })).toContain('Resubmitted: #3');
+    const second = reviewers()[1]!;
+    expect(second.inbox[0]).not.toContain('#3 “Name the constant”: A magic number.\n    The worker wrote');
+    expect(second.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 3, fixed: true }], regressions: [], items: [] })).toContain('#3 is not under review in your brief');
+    await review(id, second, [], [{ number: 1, fixed: true }]);
+    expect(statuses(id)).toEqual(['fixed', 'raised', 'underReview']);
+    expect(board.row(id).review?.codeReview?.review?.scope).toBeUndefined();
   });
 
   test('"Ignore" closes an item without a word to the worker; Reopen brings a closed or fixed one back', async () => {

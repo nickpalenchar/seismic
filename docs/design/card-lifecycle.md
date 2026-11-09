@@ -199,9 +199,11 @@ clear exploit, severe degradation, or other major consequence; major: a real def
 departure from the repository's rules; minor: worth fixing without holding the work up; low: a small
 issue with limited impact; info: a nitpick or an uncertain point worth flagging), the file and line,
 whether it is about security, and the items one agent would fix with it in one go (a bundle, as on a
-review card)). It raises nothing the list holds already, and nothing the owner closed. A review that
-gives no verdict on an item under review, or a verdict or regression on an item not in that status,
-is refused and does it again; one that ends without recording failed; the card says why, and it can
+review card)). It raises nothing the list holds already, and nothing the owner closed. Its verdicts
+are on the items under review when its brief was written (kept across a restart that resumes it):
+one the worker resubmits while it runs is not in its brief, and waits for the next review. A review
+that gives no verdict on an item of its brief under review, a verdict on any other, a regression of
+an item not fixed, or a verdict of not fixed or a regression without why, is refused and does it again; one that ends without recording failed; the card says why, and it can
 be started again.
 
 ##### The list of review items
@@ -229,7 +231,7 @@ and may "Write more context"; on a closed or fixed item "Reopen" puts it back as
 worker hears the whole list with every choice the owner sends: first the items to fix now, then the
 fixed, the closed and the follow-ups (and, last, the others). It has tools of its own: to resubmit
 any item with a note (an item its work happens to fix though it is closed or a follow-up goes to the
-reviewer too) and to dispute an item it holds wrong, with its reasons, instead of changing code,
+reviewer too; a note on an item already under review joins its log for the reviewer) and to dispute an item it holds wrong, with its reasons, instead of changing code,
 which takes the item back to the owner as reopened.
 
 "Reviews happen" says when:

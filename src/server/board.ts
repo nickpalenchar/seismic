@@ -189,8 +189,12 @@ export interface StoredContribution extends Contribution {
 export interface StoredCodeReview {
   mode: CodeReviewMode;
   handover: number;
-  /** `head`: the branch's commit it reviewed, where git told it; `session`: its agent's session while it runs, which goes on after a restart. */
-  review?: { handover: number; head?: string; state: 'running' | 'done' | 'failed'; error?: string; at: string; agent?: AgentIdentity; session?: string };
+  /**
+   * `head`: the branch's commit it reviewed, where git told it; `session`: its agent's session while
+   * it runs, which goes on after a restart; `scope`: the items under review when its brief was
+   * written, the ones it gives verdicts on.
+   */
+  review?: { handover: number; head?: string; state: 'running' | 'done' | 'failed'; error?: string; at: string; agent?: AgentIdentity; session?: string; scope?: number[] };
   /** An automatic review is about to start (git has not told the commit yet): the card shows it as running, so the handover is not announced before the review. */
   pending?: true;
 }

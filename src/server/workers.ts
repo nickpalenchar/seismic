@@ -1033,8 +1033,8 @@ export class Workers {
     if (!this.reviews.items(cardId).length) return 'Not resubmitted: your work has no code review items.';
     if (!entries.length) return 'Not resubmitted: name the items (items, their numbers).';
     const note = (e: { note?: string }) => (e.note?.trim() ? clip(e.note.trim(), 1000) : undefined);
-    const { done, refused } = this.reviews.resubmit(cardId, entries.map((e) => ({ number: Number(e.number), ...(note(e) ? { note: note(e)! } : {}) })));
-    return `${done.length ? `Resubmitted: ${done.map((i) => `#${i.number}`).join(', ')}, under review now.` : 'Nothing resubmitted.'}${refused.length ? ` Not resubmitted: ${refused.join('; ')}.` : ''}`;
+    const { done, noted, refused } = this.reviews.resubmit(cardId, entries.map((e) => ({ number: Number(e.number), ...(note(e) ? { note: note(e)! } : {}) })));
+    return `${done.length ? `Resubmitted: ${done.map((i) => `#${i.number}`).join(', ')}, under review now.` : noted.length ? '' : 'Nothing resubmitted.'}${noted.length ? ` Note added to ${noted.map((i) => `#${i.number}`).join(', ')}, under review already.` : ''}${refused.length ? ` Not resubmitted: ${refused.join('; ')}.` : ''}`.trim();
   }
 
   /** The worker disputes items it is fixing: back to the owner, reopened. */
@@ -1120,8 +1120,9 @@ export class Workers {
       if (!card.review.codeReview.items.some((i) => i.number === Number(id) && needsOwner(i)) || route === 'contributor')
         throw new BadRequest('noFinding', `item ${id} does not wait for you`);
     }
-    const decided = Object.keys(routed).length ? withNotes(this.reviews.decide(cardId, routed, notes), routed, notes) : undefined;
+    // ignored first, so that the fresh worker's list shows them closed
     if (ignored.length) this.ignore(cardId, ignored);
+    const decided = Object.keys(routed).length ? withNotes(this.reviews.decide(cardId, routed, notes), routed, notes) : undefined;
     if (!decided) return;
     this.o.board.record(cardId, 'reviewSent', 'owner');
     this.end(cardId);
@@ -4890,7 +4891,7 @@ export class Workers {
             },
             {
               name: 'resubmit_review_item',
-              description: `Resubmit items of the code review of your work to the reviewer, each with a note in ${language} on what you did: they go under review, and the next review verifies them. Your handover resubmits all the items you are fixing by itself; use this for an item the owner closed or made a follow-up that your work happens to fix, or to add a note to one.`,
+              description: `Resubmit items of the code review of your work to the reviewer, each with a note in ${language} on what you did: they go under review, and the next review verifies them. Your handover resubmits all the items you are fixing by itself; use this for an item the owner closed or made a follow-up that your work happens to fix, or to add a note to one, also one under review already.`,
               schema: { items: z.array(z.object({ number: z.number().int(), note: z.string().optional() })) },
               run: ({ items }) => this.resubmitItems(cardId, (items as { number: number; note?: string }[]) ?? []),
             },

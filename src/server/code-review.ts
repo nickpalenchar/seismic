@@ -191,20 +191,25 @@ export class CodeReviews {
 
   /**
    * The worker resubmits items (by number, with a note) for the reviewer to verify: they go under
-   * review. Refuses those already under review or fixed. `done` are the items moved.
+   * review. A note on one under review already joins its log; refuses one fixed, and one under
+   * review without a note. `done` are the items moved, `noted` those under review that got a note.
    */
-  resubmit(cardId: string, entries: { number: number; note?: string }[], who: ReviewItemWho = 'worker', handover?: number): { done: ReviewItem[]; refused: string[] } {
+  resubmit(cardId: string, entries: { number: number; note?: string }[], who: ReviewItemWho = 'worker', handover?: number): { done: ReviewItem[]; noted: ReviewItem[]; refused: string[] } {
     const items = this.items(cardId);
     const refused: string[] = [];
+    const noted: number[] = [];
     let next = items;
     for (const e of entries) {
       const i = next.find((x) => x.number === e.number);
       if (!i) refused.push(`there is no item #${e.number}`);
-      else if (i.status === 'underReview' || i.status === 'fixed') refused.push(`#${i.number} is ${i.status === 'fixed' ? 'fixed' : 'under review'} already`);
+      else if (i.status === 'underReview' && e.note) {
+        next = moved(next, e.number, 'underReview', who, e.note, handover !== undefined ? { handover } : {});
+        noted.push(i.number);
+      } else if (i.status === 'underReview' || i.status === 'fixed') refused.push(`#${i.number} is ${i.status === 'fixed' ? 'fixed' : 'under review'} already`);
       else next = moved(next, e.number, 'underReview', who, e.note, handover !== undefined ? { handover } : {});
     }
     if (next !== items) this.setItems(cardId, next);
-    return { done: next.filter((i) => items.find((x) => x.number === i.number)?.status !== i.status), refused };
+    return { done: next.filter((i) => items.find((x) => x.number === i.number)?.status !== i.status), noted: next.filter((i) => noted.includes(i.number)), refused };
   }
 
   /** The worker holds an item wrong: it goes back to the owner as reopened, with why. Refuses an item the worker is not fixing. */
@@ -362,6 +367,10 @@ export class CodeReviews {
     if (!ws || (!resume && !diff?.patch)) return this.finish(cardId, run, undefined, b.t.worker.codeReviewNoDiff);
     const card = b.item(cardId);
     const items = this.items(cardId);
+    // the items this run verifies: those under review when its brief was written, kept for a resumed session; one resubmitted meanwhile waits for the next review
+    const stored = codeReviewOf(b.row(cardId))?.review;
+    const scope = resume && stored?.scope ? stored.scope : items.filter((i) => i.status === 'underReview').map((i) => i.number);
+    if (!resume && stored?.state === 'running') this.save(cardId, { ...codeReviewOf(b.row(cardId))!, review: { ...stored, scope } });
     const language = `${LANGUAGE_NAMES[b.conversation()]} unless an explicit standing preference names another language`;
     let recorded: Recorded | undefined;
     let ended = false;
@@ -369,7 +378,7 @@ export class CodeReviews {
     const tools: AgentTool[] = [
       {
         name: 'review',
-        description: `Record your review, once, at the end. verdicts: one for each item that is under review (the worker says it fixed it): fixed true where the diff and the code now fix it, else false with why (what is still wrong), which reopens it for the owner. regressions: the items marked fixed whose problem the diff shows again, each with why. items: the new items you found that the list does not hold yet (an empty list where there is none), most severe first, each: title (short) and text (a sentence or two) in ${language}, saying what is wrong and why it matters; severity (blocker: crashes the app or exposes a very important secret or unprotected database; critical: a clear exploit, severe degradation or other major consequence; major: a real defect or clear departure from the repository's rules and design docs; minor: worth fixing but not a reason to hold the work; low: a small issue with limited impact; info: a nitpick or something to flag that may or may not be a problem), file and line where it is, security where it is about security, and with: the numbers of the other items one agent would sensibly fix in one go with it (the same cause, the same files), else none. The new items are numbered from ${nextNumber(items)} in the order you give them, which is how with names them.`,
+        description: `Record your review, once, at the end. verdicts: one for each item your brief lists as under review (the worker says it fixed it): fixed true where the diff and the code now fix it, else false with why (what is still wrong), which reopens it for the owner. regressions: the items marked fixed whose problem the diff shows again, each with why. items: the new items you found that the list does not hold yet (an empty list where there is none), most severe first, each: title (short) and text (a sentence or two) in ${language}, saying what is wrong and why it matters; severity (blocker: crashes the app or exposes a very important secret or unprotected database; critical: a clear exploit, severe degradation or other major consequence; major: a real defect or clear departure from the repository's rules and design docs; minor: worth fixing but not a reason to hold the work; low: a small issue with limited impact; info: a nitpick or something to flag that may or may not be a problem), file and line where it is, security where it is about security, and with: the numbers of the other items one agent would sensibly fix in one go with it (the same cause, the same files), else none. The new items are numbered from ${nextNumber(items)} in the order you give them, which is how with names them.`,
         schema: {
           verdicts: z.array(z.object({ number: z.number().int(), fixed: z.boolean(), why: z.string().optional() })),
           regressions: z.array(z.object({ number: z.number().int(), why: z.string() })),
@@ -387,7 +396,7 @@ export class CodeReviews {
         },
         run: (args) => {
           const given = { verdicts: (args.verdicts ?? []) as Recorded['verdicts'], regressions: (args.regressions ?? []) as Recorded['regressions'], items: (args.items ?? []) as Given[] };
-          const wrong = checkRecorded(this.items(cardId), given);
+          const wrong = checkRecorded(this.items(cardId), scope, given);
           if (wrong) return `Not recorded: ${wrong} Call review again with the whole review.`;
           recorded = given;
           return 'Recorded. End your turn now.';
@@ -470,7 +479,7 @@ export class CodeReviews {
     const t = this.o.board.t.worker;
     const failed = recorded ? undefined : clip(oneLine(error ?? t.codeReviewNoFindings), 300);
     this.paused.delete(cardId);
-    const { session: _, ...review } = c.review;
+    const { session: _, scope: __, ...review } = c.review;
     let result = { raised: [] as ReviewItem[], fixed: 0, reopened: 0 };
     if (recorded) result = this.apply(cardId, recorded, { handover: review.handover, run: review.at });
     this.save(cardId, { ...c, review: { ...review, state: failed ? 'failed' : 'done', ...(failed ? { error: failed } : {}) } });
@@ -489,13 +498,13 @@ export class CodeReviews {
     let reopened = 0;
     for (const v of r.verdicts) {
       if (items.find((i) => i.number === v.number)?.status !== 'underReview') continue;
-      items = moved(items, v.number, v.fixed ? 'fixed' : 'reopened', 'reviewer', v.fixed ? v.why?.trim() || undefined : clip(v.why?.trim() || 'Not fixed.', 1000), at);
+      items = moved(items, v.number, v.fixed ? 'fixed' : 'reopened', 'reviewer', v.why?.trim() ? clip(v.why.trim(), 1000) : undefined, at);
       if (v.fixed) fixed++;
       else reopened++;
     }
     for (const g of r.regressions) {
       if (items.find((i) => i.number === g.number)?.status !== 'fixed') continue;
-      items = moved(items, g.number, 'reopened', 'reviewer', clip(g.why.trim() || 'Regressed.', 1000), at);
+      items = moved(items, g.number, 'reopened', 'reviewer', clip(g.why.trim(), 1000), at);
       reopened++;
     }
     const first = nextNumber(items);
@@ -544,19 +553,21 @@ const now = () => new Date().toISOString();
 const nextNumber = (items: ReviewItem[]) => items.reduce((n, i) => Math.max(n, i.number), 0) + 1;
 
 /**
- * Why a recorded review cannot be taken, or nothing: a verdict for an item that is not under
- * review, none for one that is, a regression of one that is not fixed.
+ * Why a recorded review cannot be taken, or nothing: a verdict for an item outside the run's
+ * `scope` (those under review when its brief was written), none for one inside it, a regression of
+ * one that is not fixed, a verdict of not fixed or a regression without why.
  */
-function checkRecorded(items: ReviewItem[], r: Recorded): string | undefined {
+function checkRecorded(items: ReviewItem[], scope: number[], r: Recorded): string | undefined {
   const status = (n: number) => items.find((i) => i.number === n)?.status;
-  const under = items.filter((i) => i.status === 'underReview').map((i) => i.number);
   const named = new Set(r.verdicts.map((v) => v.number));
-  const stray = r.verdicts.filter((v) => status(v.number) !== 'underReview').map((v) => v.number);
-  if (stray.length) return `${stray.map((n) => `#${n}`).join(', ')} ${stray.length === 1 ? 'is' : 'are'} not under review, so a verdict on ${stray.length === 1 ? 'it' : 'them'} is not taken.`;
-  const missing = under.filter((n) => !named.has(n));
+  const stray = r.verdicts.filter((v) => !scope.includes(v.number)).map((v) => v.number);
+  if (stray.length) return `${stray.map((n) => `#${n}`).join(', ')} ${stray.length === 1 ? 'is' : 'are'} not under review in your brief, so a verdict on ${stray.length === 1 ? 'it' : 'them'} is not taken.`;
+  const missing = scope.filter((n) => !named.has(n));
   if (missing.length) return `there is no verdict on ${missing.map((n) => `#${n}`).join(', ')}, which ${missing.length === 1 ? 'is' : 'are'} under review.`;
   const odd = r.regressions.filter((g) => status(g.number) !== 'fixed').map((g) => g.number);
   if (odd.length) return `${odd.map((n) => `#${n}`).join(', ')} ${odd.length === 1 ? 'is' : 'are'} not marked fixed, so a regression of ${odd.length === 1 ? 'it' : 'them'} is not taken.`;
+  const bare = [...r.verdicts.filter((v) => !v.fixed && !v.why?.trim()), ...r.regressions.filter((g) => !g.why?.trim())].map((x) => x.number);
+  if (bare.length) return `${bare.map((n) => `#${n}`).join(', ')} ${bare.length === 1 ? 'needs' : 'need'} why: say what is still wrong.`;
   return undefined;
 }
 
