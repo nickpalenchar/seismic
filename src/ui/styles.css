@@ -1670,8 +1670,8 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .a-search { position: relative; margin: 2px 0 8px; flex: 1; min-width: 0; }
 .a-head { display: flex; align-items: center; gap: 6px; }
 .a-full { flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin-bottom: 6px; border: 0; border-radius: 3px; background: var(--chip); color: var(--ink); cursor: pointer; }
-/* the archive over the whole project, below the bar; a card opened from it unfolds above (dim 30, panel 40) */
-.full-page { position: fixed; z-index: 28; top: 58px; bottom: 0; left: var(--left, 0px); right: var(--side, 0px); display: flex; flex-direction: column; background: var(--panel); }
+/* Full-page views stay within the main area, below dock sheets (25) and unfolded cards (dim 30, panel 40). */
+.full-page { position: fixed; z-index: 24; top: 58px; bottom: 0; left: var(--left, 0px); right: var(--side, 0px); display: flex; flex-direction: column; background: var(--panel); }
 .a-full-head { display: flex; align-items: center; gap: 14px; padding: 12px 24px 6px; }
 .a-full-head h2 { margin: 0 0 6px; font-size: 18px; }
 .a-full-head .a-search { max-width: 640px; }

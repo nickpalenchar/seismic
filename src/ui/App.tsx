@@ -1,4 +1,4 @@
-import { useFullPage } from './fullPage';
+import { FullPageHost, useFullPage } from './fullPage';
 import { DockShell, useDock, type DockView } from './dockViews';
 import { clientExtensions as extensions } from '../extensions/client';
 // The project: camera, drag, unfold-in-place and the plan sheet.
@@ -2335,7 +2335,7 @@ function Project({
     <OpenPerformance.Provider value={openPerformance}>
     <KoordinatorAgent.Provider value={snapshot.koordinatorAgent}>
     <Canvases.Provider value={canvasView}>
-      <div
+      <FullPageHost
         className={[cam.s < FAR && 'z-far', resizing && 'resizing'].filter(Boolean).join(' ') || undefined}
         style={
           {
@@ -2675,7 +2675,7 @@ function Project({
           <NotifyAsk {...notifyAsk} />
         </div>
         <PerformanceDialog initial={perfAtStart} on={perfOn} onClose={() => setPerfOn(false)} projects={projects} here={snapshot.project.id} onOpenCard={(code) => void openNamed(code).catch(console.error)} />
-      </div>
+      </FullPageHost>
     </Canvases.Provider>
     </KoordinatorAgent.Provider>
     </OpenPerformance.Provider>
