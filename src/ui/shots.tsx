@@ -122,7 +122,20 @@ export function useShotInput({ draft, initial = [], onChange, off = false, put }
   const key = draft ?? `shots:${own}`;
   // a field of its own starts with its screenshots, and they go with it
   useState(() => !draft && initial.length && updateDraft(key, { images: initial }));
-  useEffect(() => (draft ? undefined : () => dropDraft(key)), [key]);
+  // an upload or marking still under way when the field goes (its card closed, another project shown)
+  // ends in it first, so the card hears all its screenshots, not only the late one
+  const gone = useRef(false);
+  const settle = () => {
+    const d = draftOf(key);
+    if (!draft && gone.current && !d.uploading && !d.marking.length) dropDraft(key);
+  };
+  useEffect(() => {
+    gone.current = false;
+    return () => {
+      gone.current = true;
+      settle();
+    };
+  }, [key]);
   const { images, uploading, marking, error } = useDraft(key);
   const [dropping, setDropping] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
@@ -140,7 +153,9 @@ export function useShotInput({ draft, initial = [], onChange, off = false, put }
     if (off) return 0;
     const shots = attachTo(key, files.filter(isImage), () => change.current?.(draftOf(key).images));
     const others = fileTo(key, files.filter((f) => !isImage(f)), (path) => (putRef.current ?? ((w) => insertFiles(key, [w])))(pathWord(path)));
-    return (await shots) + (await others);
+    const n = (await shots) + (await others);
+    settle();
+    return n;
   };
   const failed = (e: unknown) => updateDraft(key, { error: failText(e) });
   return {
@@ -184,6 +199,7 @@ export function useShotInput({ draft, initial = [], onChange, off = false, put }
         if (draft.here()) failed(e);
       } finally {
         draft.update((d) => ({ marking: d.marking.filter((x) => x !== id) }));
+        settle();
       }
     },
     /** After sending: the field is empty again, or without those sent while more were added. */

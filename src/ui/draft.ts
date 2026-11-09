@@ -206,7 +206,8 @@ export function updateDraft(key: string, change: Partial<Draft> | ((d: Draft) =>
  */
 export function draftIn(key: string): { here: () => boolean; update: (change: Partial<Draft> | ((d: Draft) => Partial<Draft>)) => void } {
   const at = kept;
-  const here = () => kept === at || !lasting(key);
+  // the same project's drafts, also once the owner has switched away and back
+  const here = () => (kept?.project === at?.project && kept?.store === at?.store) || !lasting(key);
   return {
     here,
     update: (change) => {

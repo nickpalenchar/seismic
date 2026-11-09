@@ -81,6 +81,9 @@ function storedIssue(at: typeof kept): Issue | null {
   }
 }
 
+/** Whether `at` is the draft the page shows now: the same project's, also after switching away and back. */
+const shown = (at: typeof kept) => kept?.key === at?.key && kept?.store === at?.store;
+
 /** Takes back the project's draft that `store` kept, and writes it down there from now on; for another project (switched to within the page), in place of the one's before. */
 export function keepWish(store: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, project: string) {
   const key = `obeya-wish-${project}`;
@@ -147,18 +150,18 @@ async function write(w: Wish, images: string[], { base, seed }: { base?: { title
       app: !!window.obeyaApp,
     });
     // the draft as it stands now on the project it was asked on: after a switch, the one kept there
-    const now = kept === at ? state.issue : storedIssue(at);
+    const now = shown(at) ? state.issue : storedIssue(at);
     const shots = base === undefined ? [...(now?.images ?? []), ...images] : (now?.images ?? images);
     const limited = out.limitedUntil ? { again: { wish: w, images, until: out.limitedUntil, base: before ? { title: before.title, body: before.body } : null } } : {};
     const issue: Issue = { title: out.title, body: out.body, images: shots, ...(out.raw ? { raw: true as const } : {}), ...limited, ...(from ? { from } : {}) };
-    if (kept === at) set({ writing: false, issue });
+    if (shown(at)) set({ writing: false, issue });
     // the owner switched to another project meanwhile: the draft goes to the project it was written on
     else if (at)
       try {
         at.store.setItem(at.key, JSON.stringify(issue));
       } catch {}
   } catch (e) {
-    if (kept === at) set({ writing: false, error: e instanceof ApiError ? errorText(e.code) : t.offlineError });
+    if (shown(at)) set({ writing: false, error: e instanceof ApiError ? errorText(e.code) : t.offlineError });
   }
 }
 
@@ -203,7 +206,7 @@ async function send(issue: Issue) {
     lines.push(t.wish.clipFailed);
   }
   window.open(url, '_blank', 'noopener');
-  if (kept !== at) {
+  if (!shown(at)) {
     // sent from the project before the owner switched: its draft is done there, this project's stays
     if (at)
       try {

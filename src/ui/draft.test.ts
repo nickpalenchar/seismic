@@ -174,3 +174,14 @@ test('an upload that ends after a switch to another project goes to the draft of
   expect(draftOf(OBEYA_DRAFT).images).toEqual(['img9']);
   expect(draftIn(OBEYA_DRAFT).here()).toBe(true);
 });
+
+test('an upload that ends after switching away and back shows in the draft at once', () => {
+  keepDrafts(s, 'shop');
+  updateDraft(OBEYA_DRAFT, { text: 'and back', images: [] });
+  const into = draftIn(OBEYA_DRAFT);
+  keepDrafts(s, 'blog');
+  keepDrafts(s, 'shop');
+  expect(into.here()).toBe(true);
+  into.update((d) => ({ images: [...d.images, 'img7'] }));
+  expect(draftOf(OBEYA_DRAFT)).toMatchObject({ text: 'and back', images: ['img7'] });
+});

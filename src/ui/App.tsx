@@ -8,7 +8,7 @@ import { Archive, Bot, Inbox as Inbox2, Search, type LucideIcon, Settings, Trash
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
 import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, withPart, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, inParkingLot } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
-import { api, ApiError, beforeReload, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
+import { api, ApiError, beforeReload, cardsOn, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { GroupNames, growFrom, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
@@ -281,6 +281,8 @@ function Project({
   oldBun: string | null;
 }) {
   knowProjects(projects);
+  // a card's calls go to this project, also those its editor makes after a switch to another (an upload ending)
+  cardsOn(snapshot.project.id, snapshot.items.map((i) => i.id));
   const projectsRef = useRef(projects);
   projectsRef.current = projects;
   // a rename of this project, or an address by an old name: it follows to the name now, keeping the card and query
@@ -686,6 +688,7 @@ function Project({
     // a card on another canvas opens there
     if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt && !inParkingLot(i)) showCanvas(i.canvas);
     if (i.kind === 'plan') return openPlan(i);
+    cardsOn(snapshot.project.id, [i.id]);
     setFocus({ type: 'card', id: i.id, prevCam: camRef.current, prevSide: camSide.current, plan: f });
     openDraft.current = { kind: i.kind, title: i.title, body: i.body, images: i.images ?? [] };
     setOpened(i.archivedAt ? i : null);

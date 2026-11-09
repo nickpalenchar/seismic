@@ -86,3 +86,15 @@ test("a draft written after a switch keeps its own project's screenshots, not th
   expect(JSON.parse(m.get(KEY)!)).toMatchObject({ title: 'Issue: The bar jumps.', images: [] });
   expect(wishNow().issue?.images).toEqual(['blog-shot']);
 });
+
+test('a draft still being written when the owner switches away and back shows on its project at once', async () => {
+  m.set(KEY, JSON.stringify({ title: '', body: '', images: [] }));
+  m.delete('obeya-wish-blog');
+  keepWish(store, 'shop');
+  openWish({ said: 'The menu sticks.' });
+  keepWish(store, 'blog');
+  keepWish(store, 'shop');
+  await written();
+  expect(wishNow().issue?.title).toBe('Issue: The menu sticks.');
+  expect(JSON.parse(m.get(KEY)!).title).toBe('Issue: The menu sticks.');
+});
