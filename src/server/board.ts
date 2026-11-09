@@ -2529,7 +2529,7 @@ export class Board {
     const made = p.items.get(ref.id);
     if (made) return made;
     const row = given ? null : this.store.cards.get(ref.id);
-    const item = given ?? (row && toItems([row], [], this.home, undefined, this.themeNow)[0]);
+    const item = given ?? (row && this.withActivePartners(toItems([row], [], this.home, undefined, this.themeNow))[0]);
     if (!item) return undefined;
     const prototype = withPart({ ...item, ...(ref.archived_at ? { archivedAt: ref.archived_at } : {}) }, 'idea', { ideaTitle: this.ideaTitle(p, ref.prototype_of) });
     p.items.set(ref.id, prototype);
