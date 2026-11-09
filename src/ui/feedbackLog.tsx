@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { creditOf, filtered, filterLog, givenAt, groupLog, LOG_GROUPS, logChoices, logQuery, type LogFilter, type LogGroup, type LogSection, type LogState, PERIODS, readLogQuery } from '../core/feedback-log';
 import { filterChoices } from '../core/performance';
 import type { ProjectInfo, Feedback } from '../core/types';
-import { projectPath, cardPath, feedbackLogPath } from './address';
+import { projectPath, cardPath, feedbackLogPath, switchTo } from './address';
 import { api } from './api';
 import { plain } from './markdown';
 import { Choice, configText, harnessName, StarText } from './performance';
@@ -203,7 +203,7 @@ function Row({ f, projectName, without }: { f: Feedback; projectName: (id: strin
             {name} <span className="hint">{p.deleted}</span>
           </span>
         ) : (
-          <a className="link card-link" href={cardPath(f.projectId, code)}>
+          <a className="link card-link" href={cardPath(f.projectId, code)} onClick={(e) => switchTo(e, cardPath(f.projectId, code))}>
             {name}
           </a>
         )}

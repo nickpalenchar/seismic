@@ -24,7 +24,7 @@ import { PageChangeList } from './page-changes';
 import { WishReplyLink } from './wish';
 import { ClockMark } from './snooze';
 import { know, known } from './known';
-import { cardPath } from './address';
+import { cardPath, switchTo } from './address';
 import { CardLink, Naming } from './cardLink';
 import { scrollBehavior } from './motion';
 
@@ -265,7 +265,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
           return (
             <div key={x.id} className="note ev-state">
               {clock(x.at)} · {t.koordinator.moved(plain(x.moved.title), x.moved.projectName)}{' '}
-              <a className="link" href={cardPath(x.moved.project, x.moved.card)}>
+              <a className="link" href={cardPath(x.moved.project, x.moved.card)} onClick={(e) => switchTo(e, cardPath(x.moved!.project, x.moved!.card))}>
                 {t.openThere}
               </a>
             </div>

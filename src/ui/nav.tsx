@@ -4,9 +4,9 @@
 // in the inbox (src/ui/inbox.tsx), on every project at once.
 
 import { GitBranch, PanelLeft, Plus, PanelLeftClose } from 'lucide-react';
-import { type MouseEvent, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ProjectInfo } from '../core/types';
-import { goTo, projectPath } from './address';
+import { projectPath, switchTo } from './address';
 import { ProjectAgents } from './parts';
 import { useMenuClose } from './queue';
 import { t } from './strings';
@@ -128,13 +128,6 @@ function NavList({ project, projects, counts, pinned, pinnable, onPin, onNew, ti
       </ul>
     </>
   );
-}
-
-/** A plain click switches within the page, without loading it again; one for a new tab or window stays the link's. */
-function switchTo(e: MouseEvent, path: string) {
-  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-  e.preventDefault();
-  goTo(path);
 }
 
 function ProjectIcon() {

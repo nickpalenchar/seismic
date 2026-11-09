@@ -66,6 +66,13 @@ export function goTo(path: string) {
   dispatchEvent(new PopStateEvent('popstate', { state: null }));
 }
 
+/** A plain click on a link switches within the page, without loading it again; one for a new tab or window stays the link's. */
+export function switchTo(e: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean; preventDefault(): void }, path: string) {
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  goTo(path);
+}
+
 /** The Agent Feedback Log, opened from a project: its link back to the dashboard leads there. */
 export const feedbackLogPath = (project: string) => `${projectPath(project)}/feedback`;
 
