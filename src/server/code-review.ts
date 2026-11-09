@@ -494,7 +494,7 @@ export class CodeReviews {
       const ws = this.o.board.row(cardId).workstation;
       void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
         const now = codeReviewOf(this.o.board.row(cardId));
-        if (!now?.pending && now?.review?.state === 'done' && now.review.at === review.at) this.begin(cardId, head);
+        if (now?.mode === 'auto' && !now.pending && now.review?.state === 'done' && now.review.at === review.at) this.begin(cardId, head);
       });
     }
   }
