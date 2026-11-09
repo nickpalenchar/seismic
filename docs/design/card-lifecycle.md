@@ -452,13 +452,13 @@ waited for) until it starts again, and its state line says "Stopped at" in grey 
 usual words and colour ("Stopped at Demo ready", the status in orange; "2nd demo ready", "Agent reviewing" and the like carry over, with their holds and colours: paused in grey, reviewing in teal, a failed question in red). While the card waits in a queue to start again or is parked, its state line says that instead. A card stopped before this was
 recorded says just "Stopped".
 
-The archive (its button in the bar, or `A`) drops down like the queue: archived cards on a timeline
+The archive ("Archive" in the logo's menu, or `A`) is a full-page view of the main area: archived cards on a timeline
 by day, newest first, each at size XS (see Card sizes) beside the time it was archived, a plan with
 the count of its workstreams. One unfolds as on the canvas and can go
 back to its place; an ended prototype only shows, read-only, how it ended. A search field, focused on
 opening and kept between openings, filters by every typed word (case and accents aside) in title,
 text, summary, last status, state or kind, and a plan's goal and workstreams, marking the words in the
-titles. The list stays under the dim while a card from it is open, so the card folds back into it.
+titles. The view stays under the dim while a card from it is open, so the card folds back into it.
 
 ### Plans end
 

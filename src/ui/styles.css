@@ -386,8 +386,10 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
 .prio.bare.prio-critical, .prio.bare.sugg { padding: 1px 3px; line-height: 1; }
 
 /* ---------- chrome ---------- */
-/* a frosted strip the project slides under, so cards never run into the pills; it ends at the panels docked at the window's edges */
-#bar { position: fixed; top: 0; left: var(--left, 0px); right: var(--side, 0px); transition: right .45s cubic-bezier(.3,.9,.3,1), left .45s cubic-bezier(.3,.9,.3,1), padding-left .45s cubic-bezier(.3,.9,.3,1); height: 58px; padding: 0 14px; display: flex; align-items: center; gap: 10px; z-index: 21;
+/* a frosted strip the project slides under, so cards never run into the pills; it ends at the panels docked at the window's edges.
+   Three columns: ☰ and the logo, the search field in the middle (centred while both sides leave it room), the chat and the avatar */
+#bar { position: fixed; top: 0; left: var(--left, 0px); right: var(--side, 0px); transition: right .45s cubic-bezier(.3,.9,.3,1), left .45s cubic-bezier(.3,.9,.3,1), padding-left .45s cubic-bezier(.3,.9,.3,1); height: 58px; padding: 0 14px; box-sizing: border-box;
+  display: grid; grid-template-columns: 1fr minmax(150px, 440px) 1fr; align-items: center; gap: 14px; z-index: 25;
   background: color-mix(in srgb, var(--bg) 84%, transparent); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
   border-bottom: 1px solid var(--line); box-shadow: 0 6px 18px -12px rgba(30,25,15,.18); }
 /* the status bar along the bottom, frosted like the top bar: the connection (or the restart that waits) at the
@@ -504,7 +506,7 @@ button.pill:hover { box-shadow: var(--lift); }
 }
 .pill:is(.workstations, .usage) { position: relative; padding: 0; }
 #bar .pill:is(.workstations, .usage) { padding: 0; }
-.pill:is(.workstations, .usage) .face { display: flex; align-items: center; gap: 8px; height: 100%; padding: 7px 14px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; border-radius: inherit; }
+.pill:is(.workstations, .usage) .face { display: flex; flex-direction: row; align-items: center; gap: 8px; height: 100%; padding: 7px 14px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; border-radius: inherit; }
 .pill:is(.workstations, .usage):hover, .pill:is(.workstations, .usage).open { box-shadow: var(--lift); }
 .pill.workstations .pool { display: flex; align-items: center; gap: 6px; }
 .pill.workstations .slots { display: flex; gap: 3px; }
@@ -563,38 +565,39 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill.workstations .ws-menu { grid-column: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 4px 0 2px; padding: 8px 10px; border-radius: 3px; background: var(--chip); }
 .pill.workstations .ws-menu .btn.ws-take { margin-left: 0; background: var(--panel); }
 .pill.workstations .ws-menu .hint { font-size: 12px; line-height: 1.4; }
-/* the logo opens Seismic's own menu (prefs.tsx); its chevron says it is a button */
+/* ☰ and the logo open Seismic's own menu (prefs.tsx); ☰ says it is a button */
 .app-logo { display: flex; align-items: center; gap: 5px; height: 34px; margin-right: 4px; padding: 0 6px; margin-left: -6px; border: 0; border-radius: 3px;
   background: none; color: var(--ink); cursor: pointer; }
 .app-logo:hover, .app-logo.on { background: color-mix(in srgb, var(--ink) 7%, transparent); }
 .app-logo .bar-word { display: block; line-height: 0; }
-.app-logo .chev { flex: none; color: var(--muted); }
-.app-logo.on .chev { transform: rotate(180deg); }
+.app-logo .burger { flex: none; display: block; margin-right: 3px; }
 .bar-menu.app-menu-list { width: 240px; list-style: none; margin: 0; }
 .app-menu-list button { width: 100%; padding: 7px 10px; border: 0; border-radius: 2px; background: none; font: inherit; font-size: 14px; color: var(--ink); text-align: left; cursor: pointer; }
 .app-menu-list button:hover, .app-menu-list button:focus-visible { background: var(--chip); outline: none; }
+.app-menu-list button:has(.waits) { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .app-menu-list .sep { margin: 5px 4px; border-top: 1px solid var(--line); }
 /* the open project's name, heading the bar beside the pinned navigation; set lower than the buttons' baseline so its capitals sit centred in the bar */
 .bar-project { margin: 0 6px 0 0; padding-left: 14px; border-left: 1px solid var(--line); max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   box-sizing: border-box; height: 34px; padding-top: 5px; font: 600 21px/29px var(--serif); }
-#bar .right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+#bar .left { display: flex; gap: 10px; align-items: center; }
+#bar .right { display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
 /* the traffic lights of the app's window on a Mac sit at the bar's left, or in the pinned navigation's head */
 #bar.titlebar { padding-left: 92px; }
 #bar.titlebar.beside-nav { padding-left: 14px; }
 .kpill .n { background: var(--planned); color: var(--on-ink); border-radius: 3px; padding: 0 7px; font-weight: 700; font-size: 12px; }
 .kpill.on { background: var(--ink); color: var(--bg); }
-/* the bar's buttons always fit (src/ui/barFit.ts): narrower than its contents, the bar gives up in steps the
-   wordmark for the sign and the branch, then the labels for icons a few at a time, then the pool and the help,
-   then all but the sheets' buttons and the restart's text */
-#bar > *, #bar .right > * { flex: none; }
+/* the bar's buttons always fit (src/ui/barFit.ts): narrower than its contents, the search field shrinks first, then
+   the bar gives up in steps the wordmark for the sign, the pool's label, the pool and the help, and last the
+   project's name beside the pinned navigation, letting the search field shrink to its icon */
 .bar-sign, .bar-icon { display: none; }
-#bar[data-fit~="1"] .bar-word, #bar[data-fit~="1"] .nav-pill .lbl { display: none; }
+#bar[data-fit~="1"] .bar-word { display: none; }
 #bar[data-fit~="1"] .bar-sign { display: block; line-height: 0; }
-#bar[data-fit~="2"] :is(#workstations, .config) .lbl, #bar[data-fit~="3"] :is(.archive, .new-card) .lbl { display: none; }
-#bar[data-fit~="2"] .config .bar-icon, #bar[data-fit~="3"] .archive .bar-icon { display: block; }
-#bar[data-fit~="2"] .config, #bar[data-fit~="3"] :is(.archive .kpill, .new-card) { padding-inline: 10px; }
-#bar[data-fit~="5"] #workstations, #bar[data-fit~="5"] .help { display: none; }
-#bar[data-fit~="6"] .nav-pill .switch b, #bar[data-fit~="6"] .bar-project, #bar[data-fit~="6"] .new-card, #bar[data-fit~="6"] .card-search-button { display: none; }
+#bar[data-fit~="2"] #workstations .lbl { display: none; }
+#bar[data-fit~="3"] #workstations, #bar[data-fit~="3"] .help { display: none; }
+#bar[data-fit~="4"] .bar-project { display: none; }
+#bar[data-fit~="4"] { grid-template-columns: auto minmax(34px, 440px) auto; }
+#bar[data-fit~="4"] .bar-search-key { display: none; }
+#bar[data-fit~="4"] .bar-search input { padding-right: 8px; }
 /* the bar's buttons are one height, whatever they hold: text, an icon, a count */
 #bar .pill, .pill.talk-pill { height: 34px; box-sizing: border-box; padding-block: 0; }
 #bar button.pill.help { width: 34px; height: 34px; }
@@ -638,10 +641,6 @@ button.pill:hover { box-shadow: var(--lift); }
 /* an answer waits in Seismic's sheet: orange, like everything that waits for the owner */
 .kpill .n.unread { background: var(--waiting); }
 .kpill .n.err { background: var(--error); }
-/* the inbox's button is its icon at every width, its count in the orange of a waiting card */
-.inbox-pill .bar-icon { display: block; }
-.inbox-pill .n { background: var(--waiting); }
-.inbox-pill.on { background: var(--chip); color: var(--ink); }
 /* the agents' button counts the queued cards in grey (src/ui/agents.tsx) */
 .agents-pill .bar-icon { display: block; }
 .agents-pill.on { background: var(--chip); color: var(--ink); }
@@ -1637,8 +1636,8 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 #sheet-close:hover { color: var(--ink); }
 /* the button for Seismic's sidebar: over the room the bar keeps for it (.talk-room), and the sidebar's
    corner while that is open; the same spot, as Seismic's sidebar is what --side is then. Beside another
-   sheet it goes left with the bar's end */
-#talk-docked { position: fixed; top: 11.5px; right: calc(var(--side, 0px) + 14px); transition: right .45s cubic-bezier(.3,.9,.3,1); z-index: 27; }
+   sheet it goes left with the bar's end; in the bar it stands left of the avatar (34px and the gap) */
+#talk-docked { position: fixed; top: 11.5px; right: calc(var(--side, 0px) + 14px + 34px + 10px); transition: right .45s cubic-bezier(.3,.9,.3,1); z-index: 27; }
 #talk-docked.on { right: 14px; display: none; }
 .talk-room { visibility: hidden; }
 /* the grip on the open sheet's left edge: drag to widen or narrow it, double-click for the default */
@@ -1670,8 +1669,9 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .a-search { position: relative; margin: 2px 0 8px; flex: 1; min-width: 0; }
 .a-head { display: flex; align-items: center; gap: 6px; }
 .a-full { flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin-bottom: 6px; border: 0; border-radius: 3px; background: var(--chip); color: var(--ink); cursor: pointer; }
-/* Full-page views stay within the main area, below dock sheets (25) and unfolded cards (dim 30, panel 40). */
-.full-page { position: fixed; z-index: 24; top: 58px; bottom: 0; left: var(--left, 0px); right: var(--side, 0px); display: flex; flex-direction: column; background: var(--panel); }
+/* Full-page views stay within the main area, below the floating row (24), the bar and dock sheets (25) and unfolded cards (dim 30, panel 40);
+   the floating row stands over their top */
+.full-page { position: fixed; z-index: 23; top: 58px; padding-top: 48px; box-sizing: border-box; bottom: 0; left: var(--left, 0px); right: var(--side, 0px); display: flex; flex-direction: column; background: var(--panel); }
 .a-full-head { display: flex; align-items: center; gap: 14px; padding: 12px 24px 6px; }
 .a-full-head h2 { margin: 0 0 6px; font-size: 18px; }
 .a-full-head .a-search { max-width: 640px; }
@@ -2143,12 +2143,20 @@ button.link:hover { text-decoration: underline; }
 .card-menu li { align-items: center; justify-content: space-between; }
 .card-menu .cm-pill { min-width: 0; pointer-events: none; }
 .card-menu .cm-code { flex: none; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
-.project-card-search { position: fixed; z-index: 22; top: 62px; left: calc(var(--left, 0px) + 14px); width: min(520px, calc(100vw - var(--left, 0px) - var(--side, 0px) - 28px)); box-sizing: border-box; background: var(--panel); box-shadow: var(--shadow); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
-.project-card-search input { width: 100%; box-sizing: border-box; padding: 9px 10px; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; outline-offset: 2px; }
-.project-card-search ul { list-style: none; max-height: min(360px, 45vh); overflow-y: auto; margin: 6px 0 0; padding: 0; }
+/* the card finder in the middle of the bar; its results drop under it while it has focus */
+.bar-search { position: relative; min-width: 0; }
+.bar-search.hidden { visibility: hidden; }
+.bar-search input { width: 100%; height: 34px; box-sizing: border-box; padding: 0 32px 0 34px; font: inherit; font-size: 14px; color: var(--ink);
+  background: var(--card); border: 1px solid var(--line); border-radius: 17px; outline: none; }
+.bar-search input:focus { border-color: var(--muted); }
+.bar-search input::-webkit-search-cancel-button { display: none; }
+.bar-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.bar-search-key { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); min-width: 18px; height: 20px; box-sizing: border-box; padding: 0 5px;
+  display: grid; place-items: center; font: 12px var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 3px; pointer-events: none; }
+.project-card-search { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: max(100%, min(520px, calc(100vw - 28px))); box-sizing: border-box;
+  list-style: none; max-height: min(420px, 55vh); overflow-y: auto; margin: 0; padding: 8px; background: var(--panel); box-shadow: var(--lift); border: 1px solid var(--line); border-radius: 4px; }
 .project-card-search li { padding: 7px 10px; border-radius: 3px; cursor: pointer; }
 .project-card-search li.on, .project-card-search li:hover { background: var(--chip); }
-#bar .card-search-button { padding-inline: 10px; font-family: var(--mono); }
 /* under the task field while it has the cursor, until a card was linked once */
 .p-body-field .card-refs-hint { position: absolute; top: 100%; left: 0; margin: 6px 0 0; }
 @media (max-width: 760px) { .p-body-field:has(.card-refs-hint) { padding-bottom: 30px; } }
@@ -3067,7 +3075,34 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 /* on the phone the replies are sized for a finger */
 .ph-section .inbox-entry .replies { gap: 8px; }
 .ph-section .inbox-entry .replies .btn { padding: 9px 16px; font-size: 14px; }
-#attention.on { background: var(--chip); }
+/* under the bar, floating over the main area: the project switcher at the left; the project settings and the
+   group of the agents and "Needs you" at the right. Only the buttons take the pointer: the project between them stays the project's */
+#floating-row { position: fixed; top: 66px; left: calc(var(--left, 0px) + 14px); right: calc(var(--side, 0px) + 14px); z-index: 24; display: flex; align-items: center; gap: 10px;
+  pointer-events: none; transition: right .45s cubic-bezier(.3,.9,.3,1), left .45s cubic-bezier(.3,.9,.3,1); }
+#floating-row > *, #floating-row .right > * { pointer-events: auto; }
+#floating-row .right { margin-left: auto; display: flex; gap: 10px; align-items: center; flex: none; }
+#floating-row .pill { height: 34px; box-sizing: border-box; padding-block: 0; }
+#floating-row .nav-pill { flex: none; }
+/* it fits as the bar does (barFit.ts): narrower than its buttons, it gives up the branch, then the "Needs you" label, then the project's name shrinks */
+#floating-row[data-fit~="1"] .nav-pill .lbl, #floating-row[data-fit~="2"] .needs-you-pill .lbl { display: none; }
+#floating-row[data-fit~="3"] .nav-pill { flex: 0 1 auto; min-width: 0; }
+#floating-row[data-fit~="3"] .nav-pill .switch { max-width: 100%; }
+#floating-row[data-fit~="3"] .nav-pill .switch b { overflow: hidden; text-overflow: ellipsis; }
+.resizing #floating-row { transition: none; }
+/* two buttons as one: the agents and what needs the owner */
+.pill-group { display: flex; border-radius: 3px; box-shadow: var(--shadow); }
+.pill-group > .pill { box-shadow: none; border-radius: 0; }
+.pill-group > .pill:first-child { border-radius: 3px 0 0 3px; }
+.pill-group > .pill:last-child { border-radius: 0 3px 3px 0; border-left: 1px solid var(--line); }
+.pill-group:hover { box-shadow: var(--lift); }
+/* "Needs you": the bell, its label until the first click, the cards waiting in orange */
+.needs-you-pill { padding-inline: 12px; }
+.needs-you-pill .bar-icon { display: block; }
+.needs-you-pill .lbl { font-weight: 600; }
+.needs-you-pill .n { background: var(--waiting); }
+.needs-you-pill.on { background: var(--chip); color: var(--ink); }
+/* the avatar's place, until Seismic has accounts */
+#bar .avatar { width: 34px; height: 34px; display: grid; place-items: center; color: var(--muted); }
 
 /* reduced motion (motion.ts sets data-motion, from the settings or the system): nothing moves or blurs, a view
    changes at once. Animations jump to their end and transitions take no time; the waves and streaks over the

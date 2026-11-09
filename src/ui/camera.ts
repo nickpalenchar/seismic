@@ -23,8 +23,8 @@ export const MIN_ZOOM = 0.55;
 export const MAX_ZOOM = 2;
 /** Below this scale cards drop their details. */
 export const FAR = 0.72;
-/** Height of the top bar the camera keeps content clear of. */
-export const TOP = 70;
+/** Height of the top bar and the floating row under it, which the camera keeps content clear of. */
+export const TOP = 110;
 
 export const toWorld = (cam: Cam, sx: number, sy: number) => ({ x: (sx - cam.x) / cam.s, y: (sy - cam.y) / cam.s });
 

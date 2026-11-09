@@ -1,9 +1,9 @@
 // The archive: finished and stopped cards and parked or dropped ideas taken off the project and plans whose plan doc is
-// gone, the most recently archived first, listed under the bar's button as the queue is. A plan's
+// gone, the most recently archived first, as a full-page view of the main area. A plan's
 // workstreams belong to it and are not listed on their own. A field over the list filters it as
 // the owner types.
 
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { FullPage } from './fullPage';
 import type { Item } from '../core/types';
@@ -14,9 +14,6 @@ import { stateLabel, t } from './strings';
 
 interface Props {
   on: boolean;
-  full: boolean;
-  onFull: (on: boolean) => void;
-  onToggle: () => void;
   onClose: () => void;
   /** A card unfolded from the list is open: the list stays under the dim, for the card to fold back into. */
   held: boolean;
@@ -28,83 +25,53 @@ interface Props {
   onArchiveDone: () => void;
   /** Where an archived card unfolds from and folds back to. */
   els: Map<string, HTMLElement>;
-  icon: ReactNode;
 }
 
-/** The bar's archive button; a click lists the archive under it. A click beside the list or Esc (in App) closes it. */
-export function ArchivePill({ full, onFull: setFull, on, onToggle, onClose, held, archived, done, onOpen, onArchiveDone, els, icon }: Props) {
-  const box = useRef<HTMLDivElement>(null);
+/** The archive as a full-page view of the main area, opened from the logo's menu. Its ✕, a click beside it or Esc (in App) closes it. */
+export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchiveDone, els }: Props) {
   const [query, setQuery] = useState('');
-  // the full-screen view lives in the body, but a click in it is no click beside the archive
-  const inside = { get current() { return { contains: (n: Node) => !!box.current?.contains(n) || !!(n instanceof Element && n.closest('#archive-full')) } as HTMLElement; } };
+  // the view lives in the body: a click in it is no click beside the archive
+  const inside = { get current() { return { contains: (n: Node) => !!(n instanceof Element && n.closest('#archive-full')) } as HTMLElement; } };
   useMenuClose(on, inside, () => held || onClose());
   const field = useRef<HTMLInputElement>(null);
   // what was searched last stays, selected, so typing starts a new search
-  useEffect(() => void (on && field.current?.select()), [on, full]);
+  useEffect(() => void (on && field.current?.select()), [on]);
+  if (!on) return null;
   const words = searchWords(query);
-  const entries = { archived, words, query, onOpen, els };
-  const search = (
-    <div className="a-search">
-      <input
-        ref={field}
-        type="text"
-        autoFocus
-        value={query}
-        placeholder={t.archive.search}
-        aria-label={t.archive.search}
-        spellCheck={false}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-      {query && (
-        <button className="x" title={t.archive.clearSearch} aria-label={t.archive.clearSearch} onClick={() => (setQuery(''), field.current?.focus())}>
-          ×
-        </button>
-      )}
-    </div>
-  );
-  const archiveDone = done > 0 && (
-    <button className="btn" onClick={onArchiveDone}>
-      {t.archive.archiveDone(done)}
-    </button>
-  );
   return (
-    <div className="menu-pill archive" ref={box}>
-      <button className={on ? 'pill kpill on' : 'pill kpill'} title={t.archive.title} aria-expanded={on} onClick={onToggle}>
-        {icon}
-        <span className="lbl">{t.archive.button}</span>
-      </button>
-      {on && !full && (
-        <div id="amenu" className="bar-menu archive-menu">
-          {archived.length > 0 && (
-            <div className="a-head">
-              {search}
-              <button className="a-full" title={t.archive.fullScreen} aria-label={t.archive.fullScreen} onClick={() => setFull(true)}>
-                <Maximize2 size={16} />
-              </button>
-            </div>
+    <FullPage id="archive-full" title={t.archive.button}>
+      <div className="a-full-head">
+        <h2>{t.archive.button}</h2>
+        <div className="a-search">
+          <input
+            ref={field}
+            type="text"
+            autoFocus
+            value={query}
+            placeholder={t.archive.search}
+            aria-label={t.archive.search}
+            spellCheck={false}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query && (
+            <button className="x" title={t.archive.clearSearch} aria-label={t.archive.clearSearch} onClick={() => (setQuery(''), field.current?.focus())}>
+              ×
+            </button>
           )}
-          {archiveDone}
-          <ArchiveEntries {...entries} />
         </div>
-      )}
-      {on &&
-        full &&
-        (
-          <FullPage id="archive-full" title={t.archive.button}>
-            <div className="a-full-head">
-              <h2>{t.archive.button}</h2>
-              {search}
-              <button className="a-full" title={t.archive.leaveFullScreen} aria-label={t.archive.leaveFullScreen} onClick={() => setFull(false)}>
-                <Minimize2 size={16} />
-              </button>
-            </div>
-            <div className="a-full-body">
-              {archiveDone}
-              <ArchiveEntries {...entries} />
-            </div>
-          </FullPage>
+        <button className="a-full" title={t.close} aria-label={t.close} onClick={onClose}>
+          <X size={16} />
+        </button>
+      </div>
+      <div className="a-full-body">
+        {done > 0 && (
+          <button className="btn" onClick={onArchiveDone}>
+            {t.archive.archiveDone(done)}
+          </button>
         )}
-    </div>
+        <ArchiveEntries archived={archived} words={words} query={query} onOpen={onOpen} els={els} />
+      </div>
+    </FullPage>
   );
 }
 

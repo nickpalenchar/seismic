@@ -84,3 +84,9 @@ function digest(s: string): string {
  */
 export const waitingCount = (entries: InboxEntry[], project?: string, read: (mark: string) => boolean = () => false) =>
   entries.filter((e) => counted(e) && !read(readMark(e)) && (!project || e.project === project)).length;
+
+/**
+ * How many cards wait for the owner on every project, read or not: the "Needs you" button's count.
+ * Only cards: Seismic's answers and rule or setting proposals count in the inbox alone.
+ */
+export const needsYouCount = (entries: InboxEntry[]) => entries.filter((e) => e.card && counted(e)).length;

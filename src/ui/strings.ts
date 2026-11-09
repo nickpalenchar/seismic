@@ -82,11 +82,10 @@ const en = {
   proposalMark: '✦ Proposal',
   progress: (live: number, all: number) => `${live} of ${all} live`,
   newCard: 'New task',
-  newCardHint: { text: 'To create a task, double-click on empty space where it should go. After the first time, this button goes away.', ok: 'Got it' },
+  newCardHint: { ok: 'Got it' },
   touch: {
     hold: 'Press and hold a card to move it, or the empty project to mark cards with a lasso.',
     ok: 'Got it',
-    newCard: 'To create a task, double-tap in the project where it should go. After the first time, this button goes away.',
     emptyTap: 'Or double-tap in the project to create one yourself.',
     markHowTo: 'To move several cards at once: press and hold the empty project, then draw around them.',
     move: 'Press, hold and drag a marked card to move them all. A tap on empty space lets go; a tap on a card adds or removes it.',
@@ -1346,6 +1345,11 @@ const en = {
       },
     },
   },
+  needsYou: {
+    label: 'Needs you',
+    button: (n: number) => (n === 0 ? 'Needs you: no card waits for you' : n === 1 ? 'Needs you: 1 card waits for you' : `Needs you: ${n} cards wait for you`),
+  },
+  avatar: 'Your account (coming later)',
   inbox: {
     title: 'Inbox',
     button: (n: number) => (n === 0 ? 'Inbox: nothing waits for you' : n === 1 ? 'Inbox: 1 thing waits for you' : `Inbox: ${n} things wait for you`),
@@ -2200,7 +2204,9 @@ const en = {
     notGranted: 'The system has not given permission yet. Turn the setting off and on again to ask anew.',
   },
   appMenu: {
-    button: 'Seismic: views, preferences, help',
+    button: 'Seismic: inbox, archive, views, preferences, help',
+    inbox: 'Inbox',
+    archive: 'Archive',
     performance: 'Agent performance',
     feedbackLog: 'Feedback log',
     prefs: 'Preferences',
@@ -2345,8 +2351,6 @@ const en = {
     empty: 'Nothing archived yet.',
     search: 'Search the archive',
     clearSearch: 'Clear the search',
-    fullScreen: 'Archive full screen',
-    leaveFullScreen: 'Leave full screen',
     /** No archived card matches what the owner typed into the archive's search field. */
     noMatch: (q: string) => `Nothing in the archive matches “${q}”.`,
     archive: 'Archive',

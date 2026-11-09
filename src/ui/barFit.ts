@@ -1,11 +1,11 @@
-// The top bar's buttons always fit into it, however wide the window, the sheet beside it, the canvas's
-// name and branch, and whichever buttons are showing. The bar gives up what it can spare in steps until
+// The top bar's buttons always fit into it, however wide the window, the sheet beside it, the project's
+// name, and whichever buttons are showing. The bar gives up what it can spare in steps until
 // its contents fit (styles.css says what each step hides), measured rather than guessed from the bar's
 // width: the same width holds a short branch or a long one, one machine's clones or three.
 
 import { type RefObject, useLayoutEffect } from 'react';
 
-export const STEPS = 6;
+export const STEPS = 4;
 
 /** The first step at which the contents fit, the last when none does. */
 export function firstFit(fits: (step: number) => boolean, steps = STEPS): number {
@@ -31,7 +31,8 @@ export function fitBar(bar: HTMLElement) {
 /**
  * Fits the bar whenever it changes width (the window, a sheet opening or dragged wider) or its
  * contents change (a button appears, a count or the branch changes, the fonts arrive). Both
- * observers call back before the next paint, so a step never shows half-done.
+ * observers call back before the next paint, so a step never shows half-done. The floating row under
+ * the bar fits the same way, with steps of its own.
  */
 export function useBarFit(ref: RefObject<HTMLElement | null>) {
   useLayoutEffect(() => {

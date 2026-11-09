@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { inboxEntries, readMark, waitingCount } from './inbox';
+import { inboxEntries, needsYouCount, readMark, waitingCount } from './inbox';
 import type { Item, Talk, Waiting } from './types';
 
 const card = (id: string, since: string, over: Partial<Item> = {}): Item => ({ id, kind: 'task', state: 'waiting', need: 'demo', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', waitingSince: since, ...over });
@@ -98,4 +98,14 @@ test('only unread entries count; a card that waits anew and a newer answer are u
   // a new question while the card still waits makes it unread too
   const asked = inboxEntries([site], { site: { ...site2.site, items: [card('a', '2026-11-05T08:00:00Z', { need: 'question', question: { text: 'Shipping too?', options: [] } }), card('b', '2026-11-05T09:00:00Z')] } });
   expect(waitingCount(asked, undefined, (m) => read.has(m))).toBe(3);
+});
+
+test('"Needs you" counts the cards waiting on every project, read or not, and nothing else', () => {
+  const entries = inboxEntries([site, app], {
+    site: { ...w([card('s', '2026-11-05T08:00:00Z')], [talk(1, '2026-11-05T09:00:00Z')]), preferences: [{ id: 1, state: 'proposed', text: 'A rule' }] },
+    app: w([card('a', '2026-11-05T09:00:00Z')]),
+  });
+  expect(waitingCount(entries)).toBe(4);
+  expect(needsYouCount(entries)).toBe(2);
+  expect(waitingCount(entries, undefined, () => true)).toBe(0);
 });

@@ -10,10 +10,22 @@ and arrow remains available as the canvas moves.
 
 ### The bar
 
-Left, first the logo with a small chevron, which opens Seismic's menu (see The logo's menu); then, after the navigation's button (see The navigation): the archive's button (see Card lifecycle) and "New
-task". The navigation's and the archive's lists close on a click beside them and on Esc. Seismic's
-button is the rightmost (see Sheets), the inbox's just before it, the agents' (a robot) before that,
-and the gear of the project settings before that (see The project settings).
+The bar holds what is about Seismic as a whole. Left, ☰ and the logo, one button that opens
+Seismic's menu (see The logo's menu); in the middle the card finder's field; right, Seismic's
+button (a speech bubble, see Sheets) and, rightmost, an avatar that only holds the place for user
+accounts Seismic does not have yet (no menu, a tooltip saying it comes later). Notices about the
+server (an update, a restart, the workstation pool, `?`) stand left of Seismic's button.
+
+Under the bar a row of buttons floats over the main area, the project between them staying the
+project's (drag and click go through): at the left the navigation's button (see The navigation), at
+the right the gear of the project settings (see The project settings) and then one group of two
+buttons, the agents' (a robot) and "Needs you" (a bell). "Needs you" counts in the orange of a
+waiting card the cards that wait for the owner on every project, read or not, and nothing else
+(Seismic's answers and proposals count in the inbox alone); its click opens the inbox's sheet until
+"Needs you" has a view of its own (see [A new UI menu](../plan/ui-menu.md)). Its label shows until
+the owner has clicked it once (per browser), then the bell and the count stand alone: the label is
+how a first-time owner learns what the bell is. The camera keeps content below the row as it does
+below the bar.
 
 The agents' button counts in grey the cards waiting in the queue, and only those; its click slides
 out the Agents sheet, a sheet like the inbox (see Sheets), with four tabs, the one chosen last
@@ -58,29 +70,29 @@ a card queued behind another card or for want of a free workstation; an agent st
 harness's usage limit. Not recorded: a handover waiting (the inbox shows that), snoozing and
 waking, and anything before the log existed (the tab starts empty).
 
-The search button opens a small card finder below the bar. On the canvas, `/` opens it when no text
-field has focus. It searches non-archived cards by title words or short code, in the same order as
+The card finder is a field in the middle of the bar, centred while the bar's sides leave it room,
+with a `/` key cap that teaches the shortcut; on the canvas, `/` focuses it when no text field has
+focus. While it has focus, its results drop below it. It searches non-archived cards by title words or short code, in the same order as
 card links in a task description, each result the card at size XS (see Card sizes). A click opens a result; arrow keys choose one and Enter opens it,
 including the first result when no arrow key has been pressed. Escape or a click outside closes it.
 The highlighted result remains visible as the owner moves through a list longer than the available space.
 The finder shows all matches; the task-description card-link menu limits its suggestions instead.
-Cards folded into a merge proposal are left out until they can open again. Opening search closes
-any open bar menu, and the finder fits beside a docked sheet.
+Cards folded into a merge proposal are left out until they can open again. Focusing the field closes
+any open bar menu; Escape or a pick empties it again. While a card is unfolded the field is hidden.
 
-The archive's list has a full-screen button beside its search field. The full-screen view fills the
-canvas below the bar with the same field, day headings and entries, so a long archive can be searched
-and browsed without the drop-down's width; a row opens its card as in the list, and the view stays
-beneath the unfolded card and returns when it folds back. Its button, Esc (once no card is open) or a
-click on the archive's button in the bar leaves it, closing the archive.
+The archive ("Archive" in the logo's menu, or `A`) is a full-page view of the main area, under the
+bar and the floating row: its search field, day headings and entries (see Card lifecycle); a row
+opens its card, the view stays beneath the unfolded card and returns when it folds back. Its ✕, Esc
+(once no card is open) or a click beside it closes it.
 
-The inbox button, beside Seismic's at the bar's right, shows an inbox icon and counts, in the orange
-of a waiting card, everything that waits for the owner on every project and that they have not read
-yet (see Read and unread below): the cards that need them, per project one for Seismic's answers
-waiting unread, and each open rule or setting proposal. The navigation's count per project counts the
-same way. Its click slides out the inbox from the right
+The inbox ("Inbox" in the logo's menu, which counts beside it, in the orange of a waiting card,
+everything that waits for the owner on every project and that they have not read yet, see Read and
+unread below: the cards that need them, per project one for Seismic's answers waiting unread, and
+each open rule or setting proposal; "Needs you" opens it too, for now). The navigation's count per
+project counts the same way. It slides out from the right
 instead of jumping to a card. The inbox is a sheet like Seismic's and a plan's (see Sheets): docked
 to the edge from top to bottom, the canvas moved aside, one sheet open at a time, the same width and
-grip; the button's second click, the sheet's ✕ and Esc close it. Opened, it stays open as the owner
+grip; "Needs you"'s second click, the sheet's ✕ and Esc close it. Opened, it stays open as the owner
 switches project (per tab), until they close it or open another sheet.
 
 The desktop's inbox lists the shown project's entries; a switch "All projects", right-aligned on the line of the Unread | All filter, lists every project's entries in one list (off by default, remembered). The list is ordered newest first by the time shown on the entry;
@@ -117,7 +129,7 @@ included) or opens its card some other way (on the canvas, with Tab); only a cli
 dot in the entry's top-right corner and the title bold, a read one neither. Read holds for the wait it was read
 in: a card that waits anew (a new demo after feedback), one that asks something new while it
 waits (another question, another summary) and a newer answer of Seismic's are unread again; a card open while it starts to wait again stays read, as the owner is
-looking at it. Only unread entries count on the inbox button. A switch "Unread | All" above the
+looking at it. Only unread entries count beside the menu's "Inbox". A switch "Unread | All" above the
 list shows every entry or only the unread ones; with "Unread", the open card's entry stays listed
 until the owner moves on, so it does not vanish under them. The switch's choice and what was read
 are kept per browser, like what of a conversation was seen (the phone and the desk each have their
@@ -129,11 +141,15 @@ with the link "Report a wish or a bug" (see Wishes for Seismic's makers). The bu
 the key: the legend says so, and once the key has been used the button is gone for good (per
 browser).
 
-The buttons always fit: when the contents outgrow the bar (a wide sheet, a narrow window), it gives
-up in steps the logo's wordmark (the sign and chevron stay) and branch, then labels a few at a time, then the workstation pool and `?`, and in
-the smallest bar all but the sheets' buttons (the inbox's keeping its count) and the navigation's,
-which loses the project's name. The step is measured from the actual contents, since the same
-width may hold a short or a long branch, one clone or three.
+The buttons always fit: when the contents outgrow the bar (a wide sheet, a narrow window), the
+search field narrows first (centred no longer once a side needs more than half), then the bar gives
+up in steps the logo's wordmark (☰ and the sign stay), the pool's label, the pool and `?`, and last
+the project's name beside the pinned navigation, the search field then shrinking to its icon;
+Seismic's button and the avatar always stay. The
+floating row does the same with its own steps: the branch, then the "Needs you" label, then the
+project's name shortens. The step is measured from the actual contents, since the same width may
+hold a short or a long name, one clone or three. In the app on a Mac the bar keeps clear of the
+window's traffic lights at its left (or they sit in the pinned navigation's head).
 
 The logo (three chevrons in blues, `src/ui/logo/seismic_logo.png`; the wordmark "Seismic" in Newsreader) opens
 the bar, stands alone while the page loads (above "No connection to the server" when the server is gone), and is the
@@ -141,10 +157,11 @@ favicon and the app icon's source (`scripts/logo.py`).
 
 #### The logo's menu
 
-A click on the logo lists what belongs to Seismic as a whole rather than to one project, in three groups:
-views ("Agent performance", which opens the performance dashboard over the page; "Feedback log", the
+A click on ☰ and the logo lists what belongs to Seismic as a whole rather than to one project, in
+four groups: "Inbox" with its count and "Archive" (until the left menu of [A new UI menu](../plan/ui-menu.md)
+holds them); views ("Agent performance", which opens the performance dashboard over the page; "Feedback log", the
 log's page), "Preferences" and "Configuration" (the dialog of every project, see The configuration
-dialog in Repositories and configuration), and help ("Controls: mouse and keys", the legend `?` shows; "Report a wish or a bug"). A click beside it or Esc closes it, as with the bar's other lists. The chevron is
+dialog in Repositories and configuration), and help ("Controls: mouse and keys", the legend `?` shows; "Report a wish or a bug"). A click beside it or Esc closes it, as with the bar's other lists. ☰ is
 there because the logo alone does not look clickable. The phone view has no such menu: it shows none
 of these.
 
@@ -155,7 +172,7 @@ showed, and a link in it opens the Configuration.
 
 ### The project settings
 
-The gear in the bar (an icon without a label, the configuration's problems counted on it in red)
+The gear in the floating row (an icon without a label, the configuration's problems counted on it in red)
 slides out the open project's settings, a sheet like the inbox (see Sheets): docked to the right edge
 in a wide window, one sheet at a time, its second click, its ✕ and Esc close it; a narrow window
 lays it over the whole page down to the status bar, the microphone hidden behind it. It is headed
@@ -208,7 +225,7 @@ open upwards.
 
 ### The navigation
 
-The bar's left holds the project picker. Its button names the project and its home branch (or its
+The floating row's left holds the project picker. Its button names the project and its home branch (or its
 count of repositories); a click lists the projects under it in the configuration's order, the open
 one marked. Each names its repositories and, in the orange of a waiting card, how many things wait
 for the owner there (the inbox's entries on that project), and carries its agents' pause (see
@@ -227,8 +244,8 @@ The bar), not here.
 
 The list's head has a button that pins it as a sidebar docked to the window's left edge, full
 height, as the sheets are on the right (see Sheets); the same button, pressed, unpins it. Pinned,
-the bar's button is gone (the sidebar is its place now) and the open project's name heads the bar in
-its stead, so which project is open reads at a glance; pinning holds per browser, on every project.
+the floating row's button is gone (the sidebar is its place now) and the open project's name stands
+in the bar after the logo, so which project is open reads at a glance; pinning holds per browser, on every project.
 Unlike a sheet it is not dimmed while a card is open. A narrow window, or one that would leave the
 project less than about a column of cards beside the sidebar and an open sheet, folds it back into
 the bar's button until there is room again: the two sidebars never stack, neither over each other
@@ -253,8 +270,7 @@ formats work with ordinary prose and screenshots; a concise action title covers 
 role or component, without inventing either.
 
 An empty canvas names speaking first (hold Space and say what to build; the card appears at the
-pointer), the double-click second. The bar's "New task" only teaches the double-click (a note
-with "Got it") and goes for good (per browser) once a card has been created by double-click.
+pointer), the double-click second.
 
 ### Cards on the canvas
 
@@ -821,7 +837,7 @@ code, a generic one otherwise.
   (Chakra, Radix, Ark), whose every migrated file would conflict with upstream; rebuilding the UI
   apart from upstream; winning over upstream's rules by specificity rather than load order. The
   earlier look, index cards pinned to a wall (2026-10-10), stays upstream's.
-- **The inbox button opens an inbox instead of jumping to the next card** (owner, 2026-11-01): with
+- **The inbox opens a list instead of jumping to the next card** (owner, 2026-11-01): with
   several things waiting, a jump hides what the others are and cannot answer anything. Entries are
   newest first on desktop (owner, 2026-11-08), as in a mail inbox,
   with "Unread" the default filter so what is still to do stays short.
@@ -847,12 +863,11 @@ code, a generic one otherwise.
 - **A plan the owner does not work on collapses** (2026-10-21): it stays in sight and needs no
   second list. Rejected: hiding plans into a list beside the archive, filtered by the plan doc's
   git author ("Only my plans").
-- **`?` and "New task" only teach** (2026-10-15). Rejected: a permanent `?` button, and "New
-  task" creating a card mid-view.
+- **`?` only teaches** (2026-10-15). Rejected: a permanent `?` button. A "New task" button that
+  only taught the double-click left the bar with the new menu (2026-11-09).
 - **A card's title is optional** (2026-10-15). Rejected: a required title, which dropped untitled
   cards with their text.
-- **Archive and "New task" sit left in the bar; the queue is the "Queue" tab of the Agents sheet,
-  beside "All"** (2026-11-07), opened from the agents' robot button with a grey badge counting the
+- **The queue is the "Queue" tab of the Agents sheet, beside "All"** (2026-11-07), opened from the agents' robot button with a grey badge counting the
   queued cards, so that what the agents do and what waits for them stand in one place (owner).
   Rejected: a drop-down list under a button of its own in the bar, which kept the queue apart from
   the cards being worked on; and the queue inside the Koordinator's sheet.

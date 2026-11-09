@@ -1,9 +1,9 @@
-// Seismic-the-app, behind its logo in the bar: a menu of the views about no one project (the agents'
-// performance, the feedback log), the preferences and help; and the preferences dialog (language,
+// Seismic-the-app, behind ☰ and its logo in the bar: a menu of the inbox and the archive, the views about
+// no one project (the agents' performance, the feedback log), the preferences and help; and the preferences dialog (language,
 // theme, motion, what is running), in the style of the configuration (config.tsx), which keeps what sets
 // up the work.
 
-import { ChevronDown } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import type { ConfigView, Preference, RepoRef } from '../core/types';
 import { api } from './api';
@@ -29,6 +29,10 @@ const keptSection = (): PrefsSection | null => {
 
 /** What the logo's menu opens; each closes the menu first. */
 export interface AppMenuActions {
+  onInbox: () => void;
+  /** Unread entries of the inbox, counted beside its entry. */
+  inboxCount: number;
+  onArchive: () => void;
   onPerformance: () => void;
   onFeedbackLog: () => void;
   onPrefs: () => void;
@@ -38,10 +42,11 @@ export interface AppMenuActions {
 }
 
 /**
- * The logo in the bar with a chevron, so it reads as a button: a click lists what is about Seismic
- * as a whole. Narrow, the bar shows the sign alone in it (barFit.ts).
+ * ☰ and the logo in the bar, so it reads as a button: a click lists the inbox and the archive (until
+ * the left menu holds them) and what is about Seismic as a whole. Narrow, the bar shows the sign alone
+ * in it (barFit.ts).
  */
-export function AppMenu({ onPerformance, onFeedbackLog, onPrefs, onConfig, onHelp }: AppMenuActions) {
+export function AppMenu({ onInbox, inboxCount, onArchive, onPerformance, onFeedbackLog, onPrefs, onConfig, onHelp }: AppMenuActions) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useMenuClose(open, box, () => setOpen(false), true);
@@ -62,16 +67,25 @@ export function AppMenu({ onPerformance, onFeedbackLog, onPrefs, onConfig, onHel
   return (
     <div className="menu-pill app-menu" ref={box}>
       <button className={open ? 'app-logo on' : 'app-logo'} title={m.button} aria-label={m.button} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Menu className="burger" size={18} strokeWidth={2} aria-hidden />
         <span className="bar-word">
           <Wordmark height={22} />
         </span>
         <span className="bar-sign">
           <Sign size={24} />
         </span>
-        <ChevronDown className="chev" size={10} strokeWidth={1.75} aria-hidden />
       </button>
       {open && (
         <ul className="bar-menu app-menu-list" role="menu">
+          {item(
+            <>
+              {m.inbox}
+              {inboxCount > 0 && <span className="waits">{inboxCount}</span>}
+            </>,
+            onInbox,
+          )}
+          {item(m.archive, onArchive)}
+          <li className="sep" role="separator" />
           {item(m.performance, onPerformance)}
           {item(m.feedbackLog, onFeedbackLog)}
           <li className="sep" role="separator" />

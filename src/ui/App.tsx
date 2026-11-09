@@ -6,7 +6,7 @@ import { clientExtensions as extensions } from '../extensions/client';
 import { useRatePrompt } from './feedback';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Archive, Bot, Inbox as Inbox2, Search, MessageSquare, FileText, Columns3, type LucideIcon, Settings, Trash2 } from 'lucide-react';
+import { Bot, CircleUserRound, ConciergeBell, Inbox as Inbox2, MessageSquare, FileText, Columns3, type LucideIcon, Settings, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
 import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, withPart, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, inParkingLot } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
@@ -23,7 +23,7 @@ import { Cards, KoordinatorAgent } from './message';
 import { motionMs, reducedMotion, sizeSettled } from './motion';
 import type { Heard, Where } from './api';
 import { replyOn, setReply } from './reply';
-import { ArchivePill } from './archive';
+import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
 import { useBarFit } from './barFit';
 import { UsagePill } from './usage';
@@ -44,7 +44,7 @@ import { anchoredPath, nearestEdge } from './manualLinks';
 import type { ManualAnchor } from '../core/types';
 import { collect, inboxKept, keep, keepInbox, type Kept, leaveSheet, restore, type SideSheet, takeKept, takeSheetLeft } from './keep';
 import { Sign } from './logo';
-import { DOUBLE_CLICK_KNOWN, Help, HelpButton, HELP_KEY_KNOWN, NewCardHint } from './help';
+import { Help, HelpButton, HELP_KEY_KNOWN } from './help';
 import { know, known } from './known';
 import { addAll, MARK_KNOWN, markable, MOVE_MARKED_KNOWN, movesWith, shifted, toggle } from './selection';
 import { closeWish, keepWish, openWish, useWish, WishDialog } from './wish';
@@ -64,7 +64,7 @@ import { type QuickReply, sendReply } from './quickReply';
 import { Inbox } from './inbox';
 import { useInboxRead } from './inboxRead';
 import { ProjectSettingsSheet } from './projectSettings';
-import { type InboxEntry, inboxEntries, readMark, waitingCount } from '../core/inbox';
+import { type InboxEntry, inboxEntries, needsYouCount, readMark, waitingCount } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, useWarnings, voiceTarget } from './tell';
 
@@ -179,6 +179,8 @@ function NoProject() {
 const KEPT_PROJECTS = 'obeya-phone-projects';
 /** Set once the owner has drawn their first arrow between cards: what an arrow does no longer shows while drawing. */
 const DEP_KNOWN = 'obeya-dep-known';
+/** Set once the owner has clicked "Needs you": its label goes, the bell and the count stay. */
+const NEEDS_YOU_KNOWN = 'obeya-needs-you-known';
 function keepProjects(list: ProjectInfo[]) {
   try {
     localStorage.setItem(KEPT_PROJECTS, JSON.stringify(list));
@@ -532,7 +534,8 @@ function Project({
   const [agentsOn, setAgentsOn, agentsOnRef] = dock.view('agents');
   const fullPage = useFullPage<string>();
   const [aOn, setArchiveOn, aOnRef] = useLive(false);
-  const setAOn = (on: boolean) => { setArchiveOn(on); if (!on && fullPage.ref.current === 'archive') fullPage.show(null); };
+  // the archive is a full-page view of the main area: open, it is the view shown
+  const setAOn = (on: boolean) => { setArchiveOn(on); if (on) fullPage.show('archive'); else if (fullPage.ref.current === 'archive') fullPage.show(null); };
   const [cOn, setCOn, cOnRef] = useLive(false);
   // the navigation pinned as a sidebar on the left (src/ui/nav.tsx)
   const [pinned, setPinned, pinnedRef] = useLive(loadPinned);
@@ -563,7 +566,6 @@ function Project({
     toggleKoordinator();
     if (!kOn) requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('#ksheet .tell textarea')?.focus({ preventScroll: true }));
   };
-  const toggleArchive = () => setAOn(!aOnRef.current);
   // the configuration is a dialog over the page: what is open behind it stays as it was
   const toggleConfig = () => (setPrefsOn(false), setCOn(!cOnRef.current));
   // asking Seismic about the configuration: its conversation in place of the dialog, ready to type into
@@ -572,7 +574,7 @@ function Project({
     if (!kOn) talkKoordinator();
   };
   const [helpOn, setHelpOn] = useState(false);
-  const [cardSearchOn, setCardSearchOn] = useState(false);
+  const searchField = useRef<HTMLInputElement>(null);
   // the app-wide preferences, a dialog over the page as the configuration is, opened from the logo's menu
   const [prefsOn, setPrefsOn] = useState(false);
   const openPrefs = () => {
@@ -594,9 +596,8 @@ function Project({
   // the bar's `?` button stays until the owner opened the legend with the key; the legend's foot says so
   const [helpKnown, setHelpKnown] = useState(() => known(HELP_KEY_KNOWN));
   const [helpNote, setHelpNote] = useState<'button' | 'gone'>();
-  // the bar's button for a new task stays until the owner created one by double-click; it only says how
-  const [dblKnown, setDblKnown] = useState(() => known(DOUBLE_CLICK_KNOWN));
-  const [newHintOn, setNewHintOn] = useState(false);
+  // the "Needs you" button says so until the owner has clicked it once; then the bell and the count do
+  const [needsYouKnown, setNeedsYouKnown] = useState(() => known(NEEDS_YOU_KNOWN));
   const [setupOn, setSetupOn] = useState(false);
   // what is wrong in the configuration as saved, marked on its button; read when the page loads,
   // after a save in the dialog, when a repository's settings change on its default branch, which
@@ -631,6 +632,8 @@ function Project({
   const panelRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLElement>(null);
   useBarFit(barRef);
+  const rowRef = useRef<HTMLDivElement>(null);
+  useBarFit(rowRef);
   const innerRef = useRef<HTMLDivElement>(null);
   // the panel follows its content from the unfold until it starts to fold
   const unfolded = useRef(false);
@@ -1949,11 +1952,6 @@ function Project({
     // the pointer capture retargets the event to the viewport, so look at what is under the pointer
     if (focusRef.current || document.elementFromPoint(x, y)?.closest('.item, .plan-dir')) return;
     createAt(toWorld(camRef.current, x, y));
-    if (!dblKnown) {
-      know(DOUBLE_CLICK_KNOWN);
-      setDblKnown(true);
-      setNewHintOn(false);
-    }
   }
 
   // what the fingers do on the project (touch.ts); the host gets this render's closures
@@ -2049,6 +2047,8 @@ function Project({
   const attentionCount = waitingCount(entries, undefined, inboxRead.read);
   // the cards waiting in the queue, counted in grey on the agents' button
   const queued = queueOrder(items).length;
+  // the cards that wait for the owner on every project, counted on the bell; the inbox counts more
+  const needsYouCards = needsYouCount(entries);
   const counts = Object.fromEntries(projects.map((c) => [c.id, waitingCount(entries, c.id, inboxRead.read)]));
   // the open card's entry is read, and stays so while it is open, even as the card waits anew
   const openEntry = openId ? entries.find((e) => e.card?.id === openId && e.project === snapshot.project.id) : undefined;
@@ -2164,11 +2164,6 @@ function Project({
       if (e.key === 'Escape') setPhoneOn(false);
       return;
     }
-    // so does the hint on how to create a task; Space and Enter press its button
-    if (newHintOn) {
-      if (e.key === 'Escape') setNewHintOn(false);
-      return;
-    }
     // the draft for Seismic's makers takes the keys until it closes, Esc closing it
     if (wishOn) {
       if (e.key === 'Escape') {
@@ -2187,7 +2182,7 @@ function Project({
     if (e.key === '/' && !typing && !focusRef.current && !e.metaKey && !e.ctrlKey && !e.altKey && !e.isComposing) {
       e.preventDefault();
       closeBarMenus();
-      setCardSearchOn(true);
+      searchField.current?.focus();
       return;
     }
     if (e.key === '?' && !typing) {
@@ -2240,7 +2235,7 @@ function Project({
       e.preventDefault();
       if (e.key === 'n') createAtCentre();
       else if (e.key === 'c') talkKoordinator();
-      else toggleArchive();
+      else setAOn(!aOnRef.current);
     }
   };
   useEffect(() => {
@@ -2479,61 +2474,58 @@ function Project({
         {(!focus || focus.type === 'plan') && <Edges cam={cam} targets={edgeTargets} side={side} onOpen={open} />}
         {/* in the app on a Mac the bar is the window's title bar: it moves the window (app/src/main.rs); beside the pinned navigation, the traffic lights sit in that */}
         <header id="bar" ref={barRef} {...(window.obeyaApp?.platform === 'macos' ? { className: side.left ? 'titlebar beside-nav' : 'titlebar', 'data-tauri-drag-region': '' } : {})}>
-          {extensions.map((e, i) => { const Slot = e.slots?.topBar; return Slot ? <Slot key={i} /> : null; })}
-          <AppMenu
-            onPerformance={openPerformance}
-            onFeedbackLog={() => location.assign(feedbackLogPath(snapshot.project.id))}
-            onPrefs={openPrefs}
-            onConfig={toggleConfig}
-            onHelp={() => {
-              setHelpNote(undefined);
-              setHelpOn(true);
-            }}
-          />
-          {/* beside the pinned navigation the bar heads the project with its name, which the navigation's button gave before */}
-          {side.left ? (
-            <h1 className="bar-project" title={snapshot.project.name} {...(window.obeyaApp?.platform === 'macos' ? { 'data-tauri-drag-region': '' } : {})}>
-              {snapshot.project.name}
-            </h1>
-          ) : (
-            <NavPill {...nav} />
-          )}
-          <ArchivePill
-            on={aOn}
-            full={fullPage.active === 'archive'}
-            onFull={(on) => fullPage.show(on ? 'archive' : null)}
-            onToggle={toggleArchive}
-            onClose={() => setAOn(false)}
-            held={focus?.type === 'card'}
-            archived={archived}
-            done={doneCount}
-            onOpen={open}
-            onArchiveDone={() => archiveDone().catch(console.error)}
-            els={archiveEls}
-            icon={<BarIcon icon={Archive} />}
-          />
-          {!focus && <button className="pill card-search-button" title={t.cardSearch.shortcut} aria-label={t.cardSearch.shortcut} aria-expanded={cardSearchOn} onClick={() => { closeBarMenus(); setCardSearchOn((on) => !on); }}>
-            <BarIcon icon={Search} /> <span>/</span>
-          </button>}
-          {!dblKnown && (
-            <button className="pill new-card" title={t.newCard} onClick={() => focusRef.current?.type !== 'card' && setNewHintOn(true)}>
-              + <span className="lbl">{t.newCard}</span>
-            </button>
-          )}
-          {!helpKnown && (
-            <HelpButton
-              on={helpOn}
-              onClick={() => {
-                setHelpNote('button');
-                setHelpOn(!helpOn);
+          <div className="left">
+            {extensions.map((e, i) => { const Slot = e.slots?.topBar; return Slot ? <Slot key={i} /> : null; })}
+            <AppMenu
+              onInbox={() => !inboxOnRef.current && toggleInbox()}
+              inboxCount={attentionCount}
+              onArchive={() => setAOn(true)}
+              onPerformance={openPerformance}
+              onFeedbackLog={() => location.assign(feedbackLogPath(snapshot.project.id))}
+              onPrefs={openPrefs}
+              onConfig={toggleConfig}
+              onHelp={() => {
+                setHelpNote(undefined);
+                setHelpOn(true);
               }}
             />
-          )}
+            {/* beside the pinned navigation the bar heads the project with its name, which the floating row's switcher gave before */}
+            {side.left > 0 && (
+              <h1 className="bar-project" title={snapshot.project.name} {...(window.obeyaApp?.platform === 'macos' ? { 'data-tauri-drag-region': '' } : {})}>
+                {snapshot.project.name}
+              </h1>
+            )}
+          </div>
+          <CardSearch items={items} field={searchField} hidden={!!focus} onOpen={(item) => void openFresh(item)} />
           <div className="right">
             {oldBun && <OldBunPill version={oldBun} />}
             {online && update && restart?.reason !== 'update' && <UpdatePill update={update} />}
             {online && source && <SourcePill source={source} />}
             {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => goTo(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
+            {!helpKnown && (
+              <HelpButton
+                on={helpOn}
+                onClick={() => {
+                  setHelpNote('button');
+                  setHelpOn(!helpOn);
+                }}
+              />
+            )}
+            {!kOn && (
+              <div className="talk-room" aria-hidden>
+                {talkButton}
+              </div>
+            )}
+            {/* Seismic has no user accounts yet: the avatar holds the place, without a menu */}
+            <span className="avatar" title={t.avatar} aria-label={t.avatar} role="img">
+              <CircleUserRound size={22} strokeWidth={1.75} aria-hidden />
+            </span>
+          </div>
+        </header>
+        {/* under the bar, floating over the main area: the project switcher at the left; the project's settings, its agents and what needs the owner at the right */}
+        <div id="floating-row" ref={rowRef}>
+          {!side.left && <NavPill {...nav} />}
+          <div className="right">
             <button className={csOn ? 'pill kpill cs-pill on' : 'pill kpill cs-pill'} title={t.projectSettings.button} aria-label={t.projectSettings.button} aria-expanded={csOn} onClick={toggleProjectSettings}>
               <BarIcon icon={Settings} />
               {configProblems > 0 && (
@@ -2542,22 +2534,34 @@ function Project({
                 </span>
               )}
             </button>
-            <button className={agentsOn ? 'pill kpill agents-pill on' : 'pill kpill agents-pill'} title={t.agents.button(queued)} aria-label={t.agents.button(queued)} aria-expanded={agentsOn} onClick={toggleAgents}>
-              <BarIcon icon={Bot} />
-              {queued > 0 && <span className="n">{queued}</span>}
-            </button>
-            <button className={inboxOn ? 'pill kpill inbox-pill on' : 'pill kpill inbox-pill'} id="attention" title={t.inbox.button(attentionCount)} aria-label={t.inbox.button(attentionCount)} aria-expanded={inboxOn} onClick={toggleInbox}>
-              <BarIcon icon={Inbox2} />
-              {attentionCount > 0 && <span className="n">{attentionCount}</span>}
-            </button>
-            {!kOn && (
-              <div className="talk-room" aria-hidden>
-                {talkButton}
-              </div>
-            )}
+            <div className="pill-group">
+              <button className={agentsOn ? 'pill kpill agents-pill on' : 'pill kpill agents-pill'} title={t.agents.button(queued)} aria-label={t.agents.button(queued)} aria-expanded={agentsOn} onClick={toggleAgents}>
+                <BarIcon icon={Bot} />
+                {queued > 0 && <span className="n">{queued}</span>}
+              </button>
+              {/* the inbox's sheet until "Needs you" has a view of its own */}
+              <button
+                className={inboxOn ? 'pill kpill needs-you-pill on' : 'pill kpill needs-you-pill'}
+                id="attention"
+                title={t.needsYou.button(needsYouCards)}
+                aria-label={t.needsYou.button(needsYouCards)}
+                aria-expanded={inboxOn}
+                onClick={() => {
+                  if (!needsYouKnown) {
+                    know(NEEDS_YOU_KNOWN);
+                    setNeedsYouKnown(true);
+                  }
+                  toggleInbox();
+                }}
+              >
+                <BarIcon icon={ConciergeBell} />
+                {!needsYouKnown && <span className="lbl">{t.needsYou.label}</span>}
+                {needsYouCards > 0 && <span className="n">{needsYouCards}</span>}
+              </button>
+            </div>
           </div>
-        </header>
-        {cardSearchOn && !focus && <CardSearch items={items} onOpen={(item) => void openFresh(item)} onClose={() => setCardSearchOn(false)} />}
+        </div>
+        <ArchiveView on={aOn} onClose={() => setAOn(false)} held={focus?.type === 'card'} archived={archived} done={doneCount} onOpen={open} onArchiveDone={() => archiveDone().catch(console.error)} els={archiveEls} />
         {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the usage limits */}
         <footer id="status">
           <div className="st-left">
@@ -2582,7 +2586,6 @@ function Project({
         <div id="dim" className={dim ? 'on' : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
         <WishDialog />
-        {newHintOn && <NewCardHint text={coarse || touchy ? t.touch.newCard : t.newCardHint.text} onClose={() => setNewHintOn(false)} />}
         <div id="panel" ref={panelRef}>
           <button className="close" title={t.close} onClick={() => closeCard()}>
             ✕
