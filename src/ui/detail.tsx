@@ -215,6 +215,7 @@ export function Detail(p: Props) {
   };
   // an approval that posts the text for the PR takes the owner's edit of it as it stands, saved or not
   const [parkedStart, setParkedStart] = useState<{ a: CardAction; done: ActDone } | null>(null);
+  const [manualStart, setManualStart] = useState<{ agent?: AgentSetting; names: string } | null>(null);
   const act = (a: CardAction, done: ActDone): Promise<void> => {
     // starting a parked card takes it out of the parking lot: the owner confirms first
     if (a.action === 'start' && inParkingLot(item)) {
@@ -550,7 +551,10 @@ export function Detail(p: Props) {
               codexAllowed={!inFolder && !item.review?.contribution}
               onStart={(agent) => {
                 const waiting = manualPrerequisites(item, all);
-                if (waiting.length && !window.confirm(t.queue.confirmManualStart(waiting.map((card) => plain(card.title)).join(', ')))) return;
+                if (waiting.length) {
+                  setManualStart({ agent, names: waiting.map((card) => plain(card.title)).join(', ') });
+                  return;
+                }
                 return act({ action: 'force', ...(agent ? { agent } : {}) }, { close: true, ack: forcedText(item.queue) });
               }}
             />
@@ -578,6 +582,15 @@ export function Detail(p: Props) {
 
   return (
     <CardRefs.Provider value={smartLink}><DescriptionEdit.Provider value={p.onEdit}>
+      <ConfirmDialog
+        open={!!manualStart}
+        onOpenChange={(open) => !open && setManualStart(null)}
+        title={t.queue.confirmManualStartTitle}
+        confirm={{ label: t.queue.force, onClick: () => { const choice = manualStart; if (choice) void act({ action: 'force', ...(choice.agent ? { agent: choice.agent } : {}) }, { close: true, ack: forcedText(item.queue!) }); } }}
+        cancel={t.queue.confirmManualStartBack}
+      >
+        <p>{manualStart && t.queue.confirmManualStart(manualStart.names)}</p>
+      </ConfirmDialog>
       <ConfirmDialog
         open={!!parkedStart}
         onOpenChange={(o) => !o && setParkedStart(null)}

@@ -37,6 +37,7 @@ import { Setup } from './setup';
 import { Phone, phoneView } from './phone';
 import { KoordinatorSheet } from './koordinator';
 import { closeBarMenus } from './components/menu';
+import { ConfirmDialog } from './components/dialog';
 import { forcedText } from './queue';
 import { queueOrder } from '../core/queue';
 import { AgentsSheet } from './agents';
@@ -1176,6 +1177,7 @@ function Project({
   // ---------------------------------------------------------------- acknowledgement with undo
   const toasts = useToasts();
   const { showAck, showWait, fail } = useAck(toasts.store);
+  const [manualStart, setManualStart] = useState<{ item: Item; names: string } | null>(null);
   const warnings = useWarnings(toasts.store, (id) => {
     const i = itemsRef.current.find((x) => x.id === id);
     if (i) void open(i);
@@ -1183,16 +1185,22 @@ function Project({
   const ratePrompt = useRatePrompt(items);
 
   /** The play button on a card: starts it, or one queued behind others despite the likely conflict. */
-  const startCard = useCallback(async (i: Item) => {
+  const startCardNow = useCallback(async (i: Item) => {
     try {
-      const waiting = i.queue ? manualPrerequisites(i, items) : [];
-      if (waiting.length && !window.confirm(t.queue.confirmManualStart(waiting.map((card) => plain(card.title)).join(', ')))) return;
       await api.act(i.id, { action: i.queue ? 'force' : 'start' });
       if (i.queue) showAck(forcedText(i.queue));
     } catch (e) {
       fail(e);
     }
-  }, [items]);
+  }, []);
+  const startCard = useCallback((i: Item) => {
+    const waiting = i.queue ? manualPrerequisites(i, items) : [];
+    if (waiting.length) {
+      setManualStart({ item: i, names: waiting.map((card) => plain(card.title)).join(', ') });
+      return;
+    }
+    void startCardNow(i);
+  }, [items, startCardNow]);
 
   /** The archive button on a finished card or a parked or dropped idea: takes it off the project, with a moment to undo. */
   const archiveCard = useCallback(async (i: Item) => {
@@ -2763,6 +2771,15 @@ function Project({
           {ratePrompt.prompt}
           <NotifyAsk {...notifyAsk} />
         </div>
+        <ConfirmDialog
+          open={!!manualStart}
+          onOpenChange={(open) => !open && setManualStart(null)}
+          title={t.queue.confirmManualStartTitle}
+          confirm={{ label: t.queue.force, onClick: () => { if (manualStart) void startCardNow(manualStart.item); } }}
+          cancel={t.queue.confirmManualStartBack}
+        >
+          <p>{manualStart && t.queue.confirmManualStart(manualStart.names)}</p>
+        </ConfirmDialog>
         <PerformanceDialog initial={perfAtStart} on={perfOn} onClose={() => setPerfOn(false)} projects={projects} here={snapshot.project.id} onOpenCard={(code) => void openNamed(code).catch(console.error)} />
       </FullPageHost>
     </Canvases.Provider>

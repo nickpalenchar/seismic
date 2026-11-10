@@ -604,6 +604,8 @@ const en = {
     forced: 'Started, despite possible merge conflicts.',
     forcedDrawn: 'Started without waiting for the cards you connected it to.',
     confirmManualStart: (names: string) => `This card is waiting for ${names}. Start anyway before those dependencies are finished?`,
+    confirmManualStartTitle: 'Start before dependencies finish?',
+    confirmManualStartBack: 'Keep waiting',
     earlier: 'Earlier',
     later: 'Later',
     place: (n: number, of: number) => `Place ${n} of ${of} in the queue.`,
