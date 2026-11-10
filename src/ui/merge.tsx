@@ -1,5 +1,6 @@
 // Merge selection and the owner's coverage review (design: Merging cards).
 
+import { createPortal } from 'react-dom';
 import { Fragment, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { type CardAction, type Item, merging, mergeableWith, mergeRank, canMergeFrom, withPart } from '../core/types';
 import { Inline, plain } from './markdown';
@@ -66,8 +67,10 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
       onPick(found[at]!);
     }
   };
-  return (
-    <div id="merge-pick" onClick={onClose}>
+  // Portalled to the body: the panel's frosted bar would otherwise confine the fixed dialog. React still bubbles events through
+  // the portal to the panel, so the root stops them there.
+  return createPortal(
+    <div id="merge-pick" onClick={(e) => { e.stopPropagation(); onClose(); }} onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       <div className="box" role="dialog" aria-modal="true" aria-label={t.merge.pickTitle(plain(item.title))} onClick={(e) => e.stopPropagation()} onKeyDown={key}>
         <button className="close" title={t.merge.cancel} onClick={onClose}>
           ✕
@@ -86,7 +89,8 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
         </ul>
         {!found.length && <p className="hint">{query.trim() ? t.merge.noMatch : t.merge.none}</p>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
