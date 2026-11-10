@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { UiRoot } from './components/ui';
 import { upgradeAddress } from './address';
 import { handOver, takeHandOver } from './api';
 import { takeAppDrops } from './appDrop';
@@ -12,4 +13,8 @@ if (window.obeyaApp) window.obeyaHandOver = handOver;
 if (window.obeyaApp?.handedOver) await takeHandOver();
 takeAppDrops();
 pinAboveKeyboard();
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(document.getElementById('root')!).render(
+  <UiRoot>
+    <App />
+  </UiRoot>,
+);

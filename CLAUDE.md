@@ -51,6 +51,7 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
   in a `-dev` checkout runs its code on `~/.obeya-dev` and port 4418, beside it. An Seismic restarts
   itself once `main` moves to commits that change code, a commit of yours included (workers resume, the page
   reloads); docs-only commits leave it running. Keep tests off it.
+- New UI uses the components in `src/ui/components/` (Radix Primitives behind our own CSS; the conventions are the header of `components/ui.tsx`) and adds one there rather than a bespoke control.
 - No project-specific logic in the core: what a project needs goes into its settings
   (`.obeya/settings.json` in that repository), not into this repo. Those settings stay few and
   generic: each describes something that holds for any kind of app, not one kind of web stack, and

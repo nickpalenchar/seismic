@@ -32,6 +32,7 @@
     "lucide-react": "^1.69.0",
     "pdfjs-dist": "^6.4.299",
     "playwright-core": "1.61.1",
+    "radix-ui": "^1.8.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "uqr": "^0.1.3",

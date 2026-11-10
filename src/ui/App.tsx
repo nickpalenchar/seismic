@@ -55,6 +55,7 @@ import { attachTo, imageFiles } from './shots';
 import { cardDraft, drafted, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, OBEYA_DRAFT, takesImages } from './draft';
 import { HoldToTalk, PushToTalk, SPACE_SHOWS_MS, TAP_MS, usePushToTalk, useTold } from './voice';
 import { Toasts, useToasts } from './components/toast';
+import { layerOpen } from './components/ui';
 import { videoOf } from './spot';
 import { cardClass, shownState } from './card';
 import { CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
@@ -2203,6 +2204,8 @@ function Project({
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target instanceof HTMLElement && e.target.isContentEditable);
     // a field being edited handles its own keys (Esc cancels the edit there); any other field's Esc closes what it is in
     if (typing && (e.target as Element).closest('[data-esc]')) return;
+    // an open layer from the component library (menu, popover, dialog) closes itself on Esc, before anything under it
+    if (e.key === 'Escape' && layerOpen()) return;
     // the configuration over the page takes the keys until it closes, Esc closing it
     if (cOnRef.current) {
       if (e.key === 'Escape' && !document.querySelector('.setup')) {
