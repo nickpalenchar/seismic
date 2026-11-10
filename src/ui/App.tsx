@@ -2156,7 +2156,7 @@ function Project({
     setKOn(false);
     if (focusRef.current?.type === 'plan') closePlan(false);
   };
-  // the left menu, floating under ☰ or docked on the left; its entries for views still to come open what stands for them today (docs/plan/ui-menu.md)
+  // the left menu, floating under ☰ or docked on the left
   const menu = {
     ...nav,
     inboxCount: attentionCount,
