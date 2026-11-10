@@ -6,7 +6,7 @@
 // in the inbox (src/ui/inbox.tsx), on every project at once.
 
 import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronRight, FileCheck, GitBranch, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users } from 'lucide-react';
-import { type ComponentProps, createContext, type ReactNode, useContext, useState } from 'react';
+import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
 import { CanvasIcon } from './canvasIcon';
@@ -162,6 +162,19 @@ export function NavSheet({ on, ...p }: MenuProps & { on: boolean }) {
 /** The menu's two pages, the main one and "Configure agents", the second sliding in over the first. */
 function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean }) {
   const [page, setPage] = useState<'main' | 'agents'>('main');
+  const previousPage = useRef(page);
+  const configureButton = useRef<HTMLButtonElement>(null);
+  const backButton = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (previousPage.current !== page) {
+      // The old page becomes inert in this commit. Keep focus inside the newly active page,
+      // including when the menu is docked and Radix is not managing its items. Radix
+      // focuses the menu content after selection, so move focus after that has finished.
+      const frame = requestAnimationFrame(() => (page === 'agents' ? backButton : configureButton).current?.focus());
+      previousPage.current = page;
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [page]);
   const m = t.leftMenu;
   const drag = titlebar ? { 'data-tauri-drag-region': '' } : {};
   // an entry's action: in the dropdown the menu closes with the choice
@@ -185,7 +198,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
         </div>
         <ul className="menu-list">
           {titlebar && inbox}
-          <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="more" aria-hidden />} />
+          <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="more" aria-hidden />} />
         </ul>
         <h3 className="menu-label">{m.projects}</h3>
         <ul className="nav-projects">
@@ -226,7 +239,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
       <InMenu.Provider value={!floating ? null : page === 'agents' ? ACTIVE : INACTIVE}>
       <div className="menu-page" inert={page !== 'agents'}>
         <div className="nav-head" {...drag}>
-          <Act className="menu-back" keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
+          <Act className="menu-back" ref={backButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
             <b>{m.configureAgents}</b>
           </Act>
@@ -277,10 +290,10 @@ function Act({ onAct, keep, disabled, tip, children, ...props }: { onAct?: (() =
 }
 
 /** One of the menu's entries: an icon, its label and what stands at its end; greyed out with "Coming soon" while it opens nothing yet. */
-function Entry({ icon, label, end, on, soon, keep, onClick }: { icon?: ReactNode; label: string; end?: ReactNode; on?: boolean; soon?: boolean; keep?: boolean; onClick?: () => void }) {
+function Entry({ icon, label, end, on, soon, keep, onClick, focusRef }: { icon?: ReactNode; label: string; end?: ReactNode; on?: boolean; soon?: boolean; keep?: boolean; onClick?: () => void; focusRef?: Ref<HTMLButtonElement> }) {
   return (
     <li>
-      <Act className={on ? 'menu-entry on' : 'menu-entry'} aria-current={on || undefined} disabled={soon} title={soon ? t.leftMenu.comingSoon : undefined} keep={keep} onAct={onClick}>
+      <Act ref={focusRef} className={on ? 'menu-entry on' : 'menu-entry'} aria-current={on || undefined} disabled={soon} title={soon ? t.leftMenu.comingSoon : undefined} keep={keep} onAct={onClick}>
         {icon}
         <span className="menu-entry-label">{label}</span>
         {soon ? <span className="soon">{t.leftMenu.comingSoon}</span> : end}

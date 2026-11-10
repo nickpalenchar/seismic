@@ -194,7 +194,7 @@ A click on ☰ and the logo opens one menu for everything that is not on the can
   "Report a wish or a bug" under it.
 
 The entry of what is showing (the canvas, the inbox, the queue, the parked cards, the archive, the project settings) is marked. The menu
-drops down under ☰, and a click on an entry, beside it or Esc closes it. Its head has a pin that
+drops down under ☰, and a click on an entry, beside it or Esc closes it. Moving to "Configure agents" or back keeps the menu open and moves keyboard focus to the new page. Its head has a pin that
 docks it as a sidebar on the window's left edge, full height, as the sheets are on the right (see
 Sheets); the same button, pressed, undocks it. Docked, it stays open as entries are clicked, ☰ hides
 it and shows it again (both remembered per browser, as the docking is, on every project), and the
