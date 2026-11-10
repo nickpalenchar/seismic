@@ -2265,8 +2265,8 @@ function Project({
     }
     // hold Space anywhere but in a text field to speak; the demo pauses while the owner talks, and a tap plays or pauses it
     if (e.code === 'Space' && !typing) {
-      // Space on a focused switch, checkbox, radio, menu item or the button of a menu does that control's own thing
-      if (e.target instanceof Element && e.target.closest('[role=switch], [role=checkbox], [role=radio], [role=menu], [aria-haspopup=menu]')) return;
+      // Space on a focused switch, checkbox, radio, menu item, the button of a menu or the docked logo does that control's own thing
+      if (e.target instanceof Element && e.target.closest('[role=switch], [role=checkbox], [role=radio], [role=menu], [aria-haspopup=menu], .app-logo')) return;
       e.preventDefault();
       if (!e.repeat) press(true);
       return;
