@@ -215,7 +215,7 @@ export function Composer({
           value={text}
           placeholder={placeholder}
           rows={1}
-          {...list.field}
+          {...(skills ? list.field : {})}
           data-esc={menuOn || undefined}
           onFocus={() => {
             setFocused(true);
