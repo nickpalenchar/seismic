@@ -40,6 +40,7 @@ import { SegmentedControl } from './components/segmented';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 import { Input, Textarea } from './components/input';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 
 declare global {
   interface Window {
@@ -3027,10 +3028,10 @@ function OldNames({ names, onDelete }: { names: string[]; onDelete: (name: strin
   return (
     <Field label={<>{c.oldNames} <Info text={c.oldNamesHint} /></>}>
       {names.length >= 3 ? (
-        <details className="cfg-old-names-fold">
-          <summary>{c.oldNamesCount(names.length)}</summary>
-          {rows}
-        </details>
+        <Collapsible className="cfg-old-names-fold">
+          <CollapsibleTrigger className="leading-[30px]">{c.oldNamesCount(names.length)}</CollapsibleTrigger>
+          <CollapsibleContent>{rows}</CollapsibleContent>
+        </Collapsible>
       ) : (
         rows
       )}
@@ -3172,10 +3173,12 @@ export function Problem({ problem, where, ask, retried, onShow }: { problem: Con
         text
       )}
       {DETAILED.includes(problem.code) && (
-        <details>
-          <summary>{t.config.details}</summary>
-          <code>{problem.detail}</code>
-        </details>
+        <Collapsible className="mt-1">
+          <CollapsibleTrigger className="text-muted-foreground">{t.config.details}</CollapsibleTrigger>
+          <CollapsibleContent>
+            <code>{problem.detail}</code>
+          </CollapsibleContent>
+        </Collapsible>
       )}
       {retried && START_FAILED.includes(problem.code) && (
         <Button size="small" disabled={retrying} onClick={() => void retry()}>

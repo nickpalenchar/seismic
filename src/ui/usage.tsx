@@ -5,6 +5,7 @@
 // that hides them again (the setting in Konfiguration → Benachrichtigungen und Limits shows them again).
 
 import { cn } from 'cn';
+import { Progress } from './components/progress';
 import { useState } from 'react';
 import type { Usage, UsageLimit } from '../core/types';
 import { api } from './api';
@@ -33,12 +34,12 @@ const percent = (n: number) => `${Math.round(n)} %`;
 /** A limit's meter: short in the bar, `wide` in the list. */
 function Meter({ limit, wide }: { limit: UsageLimit; wide?: boolean }) {
   return (
-    <span className={cn('relative block h-[9px] flex-none overflow-hidden rounded-[2px] bg-chip shadow-[inset_0_0_0_1px_var(--line)]', wide ? 'w-[60px]' : 'w-[26px]')} aria-hidden>
-      <i
-        className={cn('absolute inset-y-0 left-0 rounded-[inherit]', { critical: 'bg-error', warning: 'bg-waiting' }[limit.severity as string] ?? 'bg-muted-foreground')}
-        style={{ width: `${Math.min(100, Math.max(0, limit.percent))}%` }}
-      />
-    </span>
+    <Progress
+      value={limit.percent}
+      aria-label={limitName(limit)}
+      className={cn('h-[9px] flex-none rounded-[2px] shadow-[inset_0_0_0_1px_var(--line)]', wide ? 'w-[60px]' : 'w-[26px]')}
+      indicatorClassName={cn('rounded-[inherit] duration-0', { critical: 'bg-error', warning: 'bg-waiting' }[limit.severity as string] ?? 'bg-muted-foreground')}
+    />
   );
 }
 

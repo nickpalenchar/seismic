@@ -1212,6 +1212,7 @@ const en = {
     after: (title: string, met: Awaited, state: AwaitedState) =>
       `“${title}” ${{ reached: state === 'done' ? 'is done' : 'waits for you', gone: 'is gone', archived: 'was archived', stopped: 'was stopped', dropped: 'was dropped' }[met]}`,
     reshare: {
+      barLabel: 'Sharing again',
       outdated: (n: number) => (n === 1 ? 'One shared demo is outdated' : `${n} shared demos are outdated`),
       outdatedHint: 'Sharing again makes them afresh, with the same demo and the same link; one after the other. Since they were shared, the pages changed:',
       newest: (n: number) => `The newest ${n}`,

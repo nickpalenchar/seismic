@@ -20,7 +20,7 @@ test('a delivered workstream keeps its label before its title as a chip', () => 
 
 test('M shows the label chips before where and kind, then title, meta line, state line and pin', () => {
   const html = face({ item: { ...asking, idea: undefined }, where: 'shop' });
-  expect(html).toMatch(/<div class="kind"><span class="prio prio-high">.*High<\/span><span class="lchip lchip-category sugg".*<span class="lchip lchip-complexity".*<span>shop<\/span><\/div><div class="ttl">Cart model<\/div><div class="meta">Serif or sans\?<\/div><div class="state">.*Question for you.*<div class="badge pulse">\?<\/div>$/s);
+  expect(html).toMatch(/<div class="kind"><span class="prio prio-high">.*High<\/span><span class="lchip lchip-category sugg".*<span class="lchip lchip-complexity".*<span>shop<\/span><\/div><div class="ttl">Cart model<\/div><div class="meta">Serif or sans\?<\/div><div class="state">.*Question for you.*<span data-slot="badge" data-variant="pin" class="[^"]*">\?<\/span>$/s);
 });
 
 test('S shows chips, where, kind and since on top, the pin or the unread dot, the state, then the text in place of the meta line', () => {

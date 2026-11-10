@@ -22,6 +22,7 @@ import { edgeChipPositions } from './edgeChips';
 import { cardPath, switchTo } from './address';
 import { cn } from 'cn';
 import { Button, LinkButton } from './components/button';
+import { Badge } from './components/badge';
 import { Popover, PopoverContent, PopoverTrigger, useHoverOpen } from './components/popover';
 import { MenuItem } from './components/menu';
 import { Tooltip } from './components/tooltip';
@@ -159,7 +160,7 @@ function MergedPair({ item, partner, showRepo }: { item: Item; partner?: Item; s
         <span className="merge-knot">{merging(item) ? <span className="spinner" /> : <MergeMark />}</span>
       </div>
       <div className={`merge-half partner s-${partner?.state ?? 'planned'}`}>{partner ? <CardFace item={partner} where={showRepo ? partner.repo : undefined} /> : <div className="ttl untitled">{t.merge.gone}</div>}</div>
-      {needsYou(item) && <div className="badge pulse">✦</div>}
+      {needsYou(item) && <Badge variant="pin" pulse>✦</Badge>}
     </div>
   );
 }
@@ -946,8 +947,14 @@ export const PlanView = memo(
             {/* its plan agent's answers: a speech bubble, unlike the count of workstreams that need the owner */}
             {replies > 0 && (
               <Tooltip content={t.plan.replied(replies)}>
-                <button
-                    className="badge replied pulse" aria-label={t.plan.replied(replies)}
+                <Badge
+                    asChild
+                    variant="pin"
+                    pulse
+                    className="relative scale-100 [--pin:var(--proposal)] flex items-center justify-center gap-1 px-[5px] cursor-pointer"
+                  >
+                  <button
+                    aria-label={t.plan.replied(replies)}
                     onPointerDown={own}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -957,9 +964,10 @@ export const PlanView = memo(
                   <TalkIcon />
                   {replies > 1 && <span>{replies}</span>}
                 </button>
+                </Badge>
               </Tooltip>
             )}
-            {waiting > 0 && <div className="badge">{waiting}</div>}
+            {waiting > 0 && <Badge variant="pin" className="relative scale-100">{waiting}</Badge>}
           </div>
         )}
       </div>

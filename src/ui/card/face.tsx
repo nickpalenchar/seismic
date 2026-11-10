@@ -10,6 +10,7 @@ import { stateLabel, t } from '../strings';
 import { hasLabels, LabelMarks, PriorityMark } from './labels';
 import { Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
 import { cardKind, cardSummary, cardTone } from './summary';
+import { Badge } from '../components/badge';
 
 export type CardSize = 'm' | 's' | 'xs' | 'inline';
 
@@ -125,7 +126,7 @@ function FaceM({ item, where, underway, since, chip, subtle }: CardFaceProps) {
           <StateText state={s.state} since={since} />
         </span>
       </div>
-      {s.pin && (subtle ? <PinDot pin={s.pin} /> : <div className={s.pin.failed ? 'badge pulse failed' : 'badge pulse'}>{s.pin.mark}</div>)}
+      {s.pin && (subtle ? <PinDot pin={s.pin} /> : <Badge variant="pin" pulse className={s.pin.failed ? '[--pin:var(--error)]' : undefined}>{s.pin.mark}</Badge>)}
     </>
   );
 }

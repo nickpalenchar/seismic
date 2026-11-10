@@ -210,7 +210,7 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 .merge-half.partner { border: 1px solid var(--glass-edge); background: var(--card); box-shadow: var(--shadow);
   backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); }
 .merge-half.partner::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; border-radius: 2px; background: var(--c); }
-.merge-half.partner .state::after, .merge-half .badge { display: none; }
+.merge-half.partner .state::after, .merge-half [data-slot=badge][data-variant=pin] { display: none; }
 .merge-glue { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; color: var(--proposal); }
 .merge-glue::before { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 1.5px); height: 3px; background: var(--proposal); opacity: .55; }
 .merge-knot { position: relative; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%;
@@ -228,7 +228,6 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 /* its worker failed (its session died with an error, or never started): the owner's turn, in red, with a pin "!!" */
 .card.s-waiting.failed { --c: var(--error); box-shadow: 0 0 0 2px var(--error), var(--shadow); }
 .card.s-waiting.failed:hover { box-shadow: 0 0 0 2px var(--error), var(--lift); }
-.badge.failed { --pin: var(--error); }
 /* snoozed until a time: pushed back on greyed stock, the line standing still in pencil grey with a clock, no frame of the owner's turn */
 .card.snoozed { --c: var(--muted-foreground); opacity: .72; background-color: color-mix(in srgb, var(--muted-foreground) 9%, var(--card)); }
 .card.snoozed { box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow); }
@@ -261,7 +260,7 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 .card .state .clock-mark, .card .state .question-mark, .card .state .restart-mark, .card .state .hourglass-mark { flex: none; margin-right: -2px; }
 /* a question from its agent: the owner's turn in dark yellow, its rule, frame and pin, the pin with "?" */
 .card.asking { --c: var(--asking); }
-.card.asking .badge { --pin: var(--asking); }
+.card.asking [data-slot=badge][data-variant=pin] { --pin: var(--asking); }
 .card.s-waiting.asking { box-shadow: 0 0 0 2px var(--asking), var(--shadow); }
 .card.s-waiting.asking:hover { box-shadow: 0 0 0 2px var(--asking), var(--lift); }
 .z-far .card.s-waiting.asking { box-shadow: 0 0 0 5px var(--asking), var(--shadow); }
@@ -277,23 +276,12 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
    its mark. The pulse only grows and fades, which the compositor does on its own: an animated
    box-shadow repainted the card under it every frame, and on a zoomed-out project every repaint
    rasterised the card a little differently, so the whole card flickered. */
-.badge { --pin: var(--waiting); position: absolute; isolation: isolate; top: -10px; right: -8px; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px;
-  color: var(--on-ink); font: 700 13px/1 var(--font); display: grid; place-items: center;
-  transform: scale(max(1, calc(.9 / var(--s)))); transform-origin: 70% 30%; }
-.badge::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
-  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.45), transparent 45%), var(--pin);
-  box-shadow: 0 0 0 2px var(--glass-edge), 0 4px 10px -2px rgba(0,0,0,.25); }
-.badge.pulse::after { content: ''; position: absolute; inset: -15px; z-index: -2; border-radius: 27px; background: var(--pin);
-  opacity: 0; pointer-events: none; animation: pulse 1.8s ease-out infinite; }
 @keyframes pulse { 0% { transform: scale(.52); opacity: .6; } 70%, 100% { transform: none; opacity: 0; } }
 /* a plan's badges side by side at its corner: its agent's unread answers (a speech bubble in the
    plan agent's colour), then the count of workstreams that need the owner */
 .plan > .badges { position: absolute; top: -10px; right: -8px; display: flex; gap: 6px;
   transform: scale(max(1, calc(.9 / var(--s)))); transform-origin: 90% 30%; }
-.plan > .badges > .badge { position: relative; top: auto; right: auto; transform: none; }
-.badge.replied { --pin: var(--proposal); display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 5px; border: 0; cursor: pointer;
-  background: none; }
-.badge.replied svg { display: block; flex: none; width: 14px; height: 14px; }
+[data-variant=pin] svg { display: block; flex: none; width: 14px; height: 14px; }
 .card.lifted { opacity: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
 /* taken off the wall: tilted in the hand */
 .card.dragging { box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift); z-index: 5 !important; transition: none; transform: translateY(-4px) scale(1.02); }
@@ -603,8 +591,6 @@ button.pill:hover { box-shadow: var(--lift); }
 .agents-pill .bar-icon { display: block; }
 .agents-pill.on { background: var(--chip); color: var(--ink); }
 .reshare { margin-top: 16px; }
-.reshare .bar { flex-basis: 100%; height: 4px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--proposal) 18%, transparent); }
-.reshare .bar > span { display: block; height: 100%; background: var(--proposal); transition: width 0.3s; }
 .reshare .failed { display: block; margin-top: 2px; }
 .reshare .page-changes { flex-basis: 100%; margin: 0; }
 /* not the sheet's entries it stands in */
@@ -947,13 +933,8 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
    part is 24px high and centred on its capitals (text-box trims the line to them), × and + are drawn, not glyphs */
 .share-tags { gap: 6px; }
 .share-tags > .share-label { color: var(--muted-foreground); }
-.share-tags > .share-label, .share-tags .t, .tag-chip.pick { text-box: trim-both cap alphabetic; }
-.tag-chip { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 3px 0 10px; border-radius: 12px; background: var(--chip); font-size: 12.5px; line-height: 1; white-space: nowrap; box-sizing: border-box; }
-.tag-chip .dim { color: var(--muted-foreground); }
-.tag-chip .x { border-radius: 50%; }
+.share-tags > .share-label, .share-tags .t { text-box: trim-both cap alphabetic; }
 .tag-add svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
-.tag-chip.pick { all: unset; cursor: pointer; display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 12px; background: var(--chip); font-size: 12.5px; line-height: 1; box-sizing: border-box; }
-.tag-chip.pick:is(:hover, [data-highlighted]) { background: var(--line); }
 .tag-add { all: unset; cursor: pointer; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; border: 1px dashed var(--muted-foreground); color: var(--muted-foreground); box-sizing: border-box; }
 .tag-add:hover, .tag-add[data-state=open] { border-style: solid; color: var(--ink); }
 .bar-menu.tag-menu { width: min(340px, calc(100vw - 28px)); padding: 10px 12px; display: grid; gap: 10px; }
@@ -994,11 +975,11 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .question.brief { border-color: var(--idea); background: color-mix(in srgb, var(--idea) 6%, transparent); }
 /* the settled part "Teilaufgabe abtrennen" builds, folded under the brief */
 .question.brief.settled { margin-top: 10px; }
-.question.brief.settled > summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.question.brief.settled > [data-slot=collapsible-trigger] { font-weight: 600; font-size: 14px; }
 .prototype-demo { margin-top: 10px; }
-.prototype-demo > summary { cursor: pointer; font-weight: 600; font-size: 14px; }
-.prototype-demo > summary .hint { font-weight: 400; }
-.prototype-demo[open] > summary { margin-bottom: 8px; }
+.prototype-demo > [data-slot=collapsible-trigger] { font-weight: 600; font-size: 14px; }
+.prototype-demo > [data-slot=collapsible-trigger] .hint { font-weight: 400; }
+.prototype-demo[data-state=open] > [data-slot=collapsible-trigger] { margin-bottom: 8px; }
 .question.proposal { border-style: dashed; border-color: var(--proposal); }
 .question.superseded { border-color: var(--proposal); background: color-mix(in srgb, var(--proposal) 6%, transparent); }
 .question.repo-down { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 6%, transparent); }
@@ -1185,7 +1166,6 @@ span.cl-name { color: inherit; cursor: default; }
 .talk .background-work li::before { content: "↻"; color: var(--working); margin-right: 6px; }
 .talk .background-work .t { color: var(--muted-foreground); margin-left: 4px; font-variant-numeric: tabular-nums; }
 .talk .steps { margin-top: 6px; font-size: 12px; color: var(--muted-foreground); }
-.talk .steps summary { cursor: pointer; }
 .talk .steps ol { margin: 6px 0 2px; padding: 8px 10px; list-style: none; background: var(--chip); border-radius: 2px;
   display: flex; flex-direction: column; gap: 3px; }
 .talk .steps li { overflow-wrap: anywhere; }
@@ -1207,7 +1187,7 @@ span.cl-name { color: inherit; cursor: default; }
 :is(.msg.action, .q-chain) .cover .meta { font-size: 12.5px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
 /* relative, so the moving line of a card at work stays under its state line, inside the cover */
 :is(.msg.action, .q-chain) .cover .state { position: relative; inset: auto; margin-top: 6px; font-size: 11.5px; }
-:is(.msg.action, .q-chain) .cover .badge { display: none; }
+:is(.msg.action, .q-chain) .cover [data-slot=badge][data-variant=pin] { display: none; }
 :is(.msg.action, .q-chain) .cover.gone { cursor: default; box-shadow: none; opacity: .7; }
 :is(.msg.action, .q-chain) .cover.gone:hover { transform: none; }
 :is(.msg.action, .q-chain) .cover:is(.gone, .elsewhere)::before { background: var(--line); }
@@ -1284,18 +1264,15 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .pr-review h5 { margin: 0 0 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); }
 .pr-round { margin: 8px 0; }
 .pr-head { color: var(--muted-foreground); margin-bottom: 3px; }
-.pr-head b, .pr-comment summary b { color: var(--ink); font-weight: 600; }
-.pr-review details > summary { cursor: pointer; list-style: none; display: flex; gap: 6px; align-items: baseline; min-width: 0; padding: 2px 0; }
-.pr-review details > summary::-webkit-details-marker { display: none; }
-.pr-review details > summary::before { content: "▸"; color: var(--muted-foreground); font-size: 11px; flex: none; }
-.pr-review details[open] > summary::before { content: "▾"; }
-.pr-thread > summary::after { flex: none; order: -1; font-weight: 700; }
-.pr-thread.resolved > summary::after { content: "✓"; color: var(--approved); }
-.pr-thread.open > summary::after { content: "○"; color: var(--muted-foreground); }
-.pr-thread > summary::before { order: -2; }
+.pr-head b, .pr-comment [data-slot=collapsible-trigger] b { color: var(--ink); font-weight: 600; }
+.pr-thread > [data-slot=collapsible-trigger]::after { flex: none; order: -1; font-weight: 700; }
+.pr-thread.resolved > [data-slot=collapsible-trigger]::after { content: "✓"; color: var(--approved); }
+.pr-thread.open > [data-slot=collapsible-trigger]::after { content: "○"; color: var(--muted-foreground); }
+
+.pr-thread > [data-slot=collapsible-trigger]::before { order: -2; }
 .pr-thread { margin-left: 2px; }
 .pr-first { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pr-comment summary { color: var(--muted-foreground); }
+.pr-comment > [data-slot=collapsible-trigger] { color: var(--muted-foreground); }
 .pr-meta { flex: none; color: var(--muted-foreground); font-size: 12px; }
 .pr-body { margin: 2px 0 8px 18px; padding: 6px 10px; background: var(--card); border-radius: 2px; border: 1px solid var(--line); }
 .pr-body .p-lead, .pr-body .p-list { font-size: 13px; margin: 4px 0; }
@@ -1676,7 +1653,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-old-names { margin: 0; padding: 0; list-style: none; max-width: 420px; }
 .cfg-old-names li { display: flex; align-items: center; gap: 10px; min-height: 30px; }
 .cfg-old-names li > .c-del { margin-left: 0; }
-.cfg-old-names-fold summary { cursor: pointer; line-height: 30px; }
 .old-name-warning { padding: 8px 12px; border-radius: 4px; color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); font-weight: 600; }
 .review-approval-box .old-name-warning { margin: 0 0 12px; }
 .old-name-effects { margin: 0 0 12px; padding-left: 20px; line-height: 1.5; }
@@ -1781,8 +1757,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .c-row > [data-slot=button] { flex: none; }
 .c-path { flex: 1; min-width: 0; font-family: var(--mono) !important; font-size: 12px !important; }
 .c-problem { margin: 6px 0 0; font-size: 13px; }
-.c-problem details { margin-top: 4px; }
-.c-problem summary { cursor: pointer; color: var(--muted-foreground); }
 .c-problem code { display: block; margin-top: 4px; white-space: pre-wrap; overflow-wrap: break-word; }
 .c-problem > [data-slot=button]:not([data-variant=link]) { display: flex; width: fit-content; margin-top: 6px; }
 .c-actions { display: flex; gap: 8px; margin-top: 16px; }
@@ -2226,7 +2200,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .git-entries li .hint { flex: none; }
 .git-entries li.large, .git-entries li.large .hint { color: var(--warn); }
 .git-large { margin: 8px 0; }
-.git-ignore-file summary { cursor: pointer; }
 .git-ignore-file pre { font: 12px var(--mono); margin: 6px 0; padding: 8px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 4px; }
 .setup code { font: 12px var(--mono); }
 .setup .c-how code { padding: 2px 6px; border-radius: 2px; background: var(--card); border: 1px solid var(--line); -webkit-user-select: all; user-select: all; }
@@ -2284,15 +2257,15 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-card .state .state-text { display: contents; }
 .ph-card .state .since { color: var(--muted-foreground); font-weight: 500; white-space: pre; }
 /* everything in "Needs you" waits for the owner: the heading says so, no pin on each card */
-.ph-card .badge { display: none; }
+.ph-card [data-slot=badge][data-variant=pin] { display: none; }
 .ph-none { margin: 0; color: var(--muted-foreground); font-size: 14.5px; }
 /* the Agents view's tabs across the screen, and the stage chips in one row that scrolls sideways, sized for a finger */
 #ph-home .agents-tabs { display: flex; width: 100%; margin-top: 14px; }
 #ph-home .agents-tabs [data-slot=tabs-trigger] { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 4px; font-size: 15px; }
 #ph-home .agents-filter { flex-wrap: nowrap; overflow-x: auto; margin: 12px -14px 0; padding: 0 14px 2px; scrollbar-width: none; }
 #ph-home .agents-filter::-webkit-scrollbar { display: none; }
-#ph-home .agents-filter .chip { flex: none; min-height: 36px; padding: 0 14px; font-size: 14px; }
-#ph-home .agents-filter .chip .count { font-size: 13px; }
+#ph-home .agents-filter [data-slot=toggle-group-item] { flex: none; min-height: 36px; padding: 0 14px; font-size: 14px; }
+#ph-home .agents-filter [data-slot=toggle-group-item] span { font-size: 13px; }
 /* a stage's count beside its heading, trimmed to its capitals so it centres on what the eye sees */
 .ph-section h2 .n { font: 600 13px/1 var(--font); padding: 6px 8px; border-radius: 8px; background: var(--chip); color: var(--muted-foreground); text-box: trim-both cap alphabetic; }
 .ph-empty { margin-top: 18px; line-height: 1.45; }
@@ -2964,17 +2937,7 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .agents-stage h4 { margin: 10px 8px 6px; font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
 .agents-stage h4 .n { margin-left: 4px; border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--planned); }
 /* the chips above "All": one per stage, tinted in its colour while its group shows */
-.agents-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 8px 0; }
-.agents-filter .chip { --c: var(--working); display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; cursor: pointer;
-  border: 1px solid var(--line); background: transparent; color: var(--muted-foreground); }
-.agents-filter .chip[aria-pressed=true] { background: color-mix(in srgb, var(--c) 16%, var(--card)); border-color: color-mix(in srgb, var(--c) 55%, transparent); color: var(--ink); }
-.agents-filter .chip .count { font-weight: 700; font-size: 11.5px; }
-.agents-filter .chip.none { opacity: .55; }
-.agents-filter .stage-needsYou { --c: var(--waiting); }
-.agents-filter .stage-reviewing { --c: var(--reviewing); }
-.agents-filter .stage-landing { --c: var(--approved); }
-.agents-filter .stage-planned { --c: var(--planned); }
-.agents-filter .stage-done { --c: var(--approved); }
+.agents-filter { margin: 12px 8px 0; }
 .cs-pill .bar-icon { display: block; }
 .cs-pill { padding-inline: 10px; }
 .cs-pill .n.err { margin-left: 4px; }

@@ -57,6 +57,9 @@ import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
 import { Tooltip } from './components/tooltip';
 import { Textarea } from './components/input';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
+import { Badge, badgeVariants } from './components/badge';
+import { cn } from 'cn';
 
 /**
  * What the panel does after an action: fold the card and confirm (with undo, when it has one), or stay open.
@@ -609,7 +612,7 @@ export function Detail(p: Props) {
       </div>
       {where}
       {extensions.map((e, i) => { const Slot = e.slots?.detail; return Slot ? <Slot key={i} item={item} /> : null; })}
-      {extensions.some((e) => e.slots?.cardActions) && <details className="extension-actions"><Button asChild><summary>{t.extensionActions}</summary></Button><div className="actions">{extensions.map((e, i) => { const Slot = e.slots?.cardActions; return Slot ? <Slot key={i} item={item} /> : null; })}</div></details>}
+      {extensions.some((e) => e.slots?.cardActions) && <Collapsible className="extension-actions"><CollapsibleTrigger asChild><Button>{t.extensionActions}</Button></CollapsibleTrigger><CollapsibleContent className="actions">{extensions.map((e, i) => { const Slot = e.slots?.cardActions; return Slot ? <Slot key={i} item={item} /> : null; })}</CollapsibleContent></Collapsible>}
 
       <SupersededBox item={item} all={all} act={act} onDelete={p.onDelete} />
       <RepoDownBox item={item} />
@@ -1054,6 +1057,7 @@ function IdeaView({
   repos: RepoRef[];
 }) {
   const idea = item.idea!.discussion!;
+  const settledFold = useRef<HTMLDivElement>(null);
   // a new repository building creates first: the button names it, a line under it says what it does
   const fresh = newRepoWords(choice, true);
   const [prototyping, setPrototyping] = useState(false);
@@ -1083,10 +1087,12 @@ function IdeaView({
             {/* what "Teilaufgabe abtrennen" would build, as its worker's task */}
             {idea.split && !item.archivedAt && (
               // opened at the bottom of the column, it scrolls into view rather than opening out of sight
-              <details className="question brief settled" onToggle={(e) => e.currentTarget.open && e.currentTarget.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() })}>
-                <summary>{t.idea.settled(idea.split.title)}</summary>
-                <Body md={idea.split.brief} />
-              </details>
+              <Collapsible className="question brief settled" onOpenChange={(open) => open && requestAnimationFrame(() => settledFold.current?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() }))} ref={settledFold}>
+                <CollapsibleTrigger>{t.idea.settled(idea.split.title)}</CollapsibleTrigger>
+                <CollapsibleContent>
+                  <Body md={idea.split.brief} />
+                </CollapsibleContent>
+              </Collapsible>
             )}
             <PrototypeDemos item={item} />
           </>
@@ -1485,10 +1491,11 @@ function PrototypeDemos({ item }: { item: Item }) {
     <>
       <h4 className="p-h">{t.idea.prototypes}</h4>
       {all.map((p) => (
-        <details key={p.id} className="prototype-demo" open={p === latest}>
-          <summary>
+        <Collapsible key={p.id} className="prototype-demo" defaultOpen={p === latest}>
+          <CollapsibleTrigger>
             <Inline md={p.title} /> <span className="hint">· {stateLabel(p)}</span>
-          </summary>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
           {p.demo?.latest ? (
             <DemoView item={p} summary={p.review?.summary ?? ''} demo={p.demo.latest} autoplay={false}>
               <p className="hint">{t.idea.prototypeKept}</p>
@@ -1496,7 +1503,8 @@ function PrototypeDemos({ item }: { item: Item }) {
           ) : (
             <p className="hint">{t.idea.prototypeNoDemo}</p>
           )}
-        </details>
+          </CollapsibleContent>
+        </Collapsible>
       ))}
     </>
   );
@@ -2018,8 +2026,9 @@ const ARTIFACT_CAP = 30000;
 function Steps({ steps }: { steps: CardEvent[] }) {
   if (!steps.length) return null;
   return (
-    <details className="steps">
-      <summary>{t.talk.steps(steps.length)}</summary>
+    <Collapsible className="steps">
+      <CollapsibleTrigger>{t.talk.steps(steps.length)}</CollapsibleTrigger>
+      <CollapsibleContent>
       <ol>
         {steps.map((s) => (
           <li key={s.id} className={`step-${s.kind}`}>
@@ -2028,7 +2037,8 @@ function Steps({ steps }: { steps: CardEvent[] }) {
           </li>
         ))}
       </ol>
-    </details>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -2629,13 +2639,13 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
     const cls = ['finding', f.security && 'security', f.severity, f.status !== 'open' && 'settled', folded && 'folded'].filter(Boolean).join(' ');
     if (fixing)
       return (
-        <div key={f.id} className={cls}>
-          <button className="f-head f-fold" aria-expanded={!folded} title={folded ? t.codeReview.unfold : t.codeReview.fold} onClick={() => unfold(f.id)}>
+        <Collapsible key={f.id} className={cls} open={!folded} onOpenChange={() => unfold(f.id)}>
+          <CollapsibleTrigger className="f-head f-fold" title={folded ? t.codeReview.unfold : t.codeReview.fold}>
             {head}
             <span className="f-chevron">{folded ? <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />}</span>
-          </button>
-          {!folded && body(f, task)}
-        </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent>{body(f, task)}</CollapsibleContent>
+        </Collapsible>
       );
     return (
       <div key={f.id} className={cls}>
@@ -2818,23 +2828,23 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
     );
     const cls = ['finding', 'ritem', i.security && 'security', i.severity, !waits && 'settled', !open && 'folded'].filter(Boolean).join(' ');
     return (
-      <div key={i.number} className={cls}>
+      <Collapsible key={i.number} className={cls} open={open} onOpenChange={() => flip(i.number)}>
         <div className="f-row">
-          <button className="f-head f-fold" aria-expanded={open} title={open ? t.codeReview.fold : t.codeReview.unfold} onClick={() => flip(i.number)}>
+          <CollapsibleTrigger className="f-head f-fold" title={open ? t.codeReview.fold : t.codeReview.unfold}>
             <span className="f-no">#{i.number}</span>
             <span className={`f-sev ${i.severity}`}>{t.codeReview.severity[i.severity]}</span>
             <b>{i.title}</b>
             {i.security && <span className="f-tag">{t.review.security}</span>}
             {!open && pill}
             <span className="f-chevron">{open ? <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" /> : <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" />}</span>
-          </button>
+          </CollapsibleTrigger>
           {(i.status === 'closed' || i.status === 'fixed') && !finished(item.state) && !!ownerField(item) && (
             <LinkButton className="f-reopen" title={t.codeReview.reopenHint} onClick={() => act({ action: 'reopenReviewItem', number: i.number }, { close: false })}>
               {t.codeReview.reopen}
             </LinkButton>
           )}
         </div>
-        {open && (
+        <CollapsibleContent>
           <>
             <div className="f-text">
               <Inline md={i.text} /> {pill}
@@ -2874,8 +2884,8 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
               ))}
             </ol>
           </>
-        )}
-      </div>
+        </CollapsibleContent>
+      </Collapsible>
     );
   };
   return (
@@ -3373,12 +3383,12 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
       {!shown.length && <span className="hint t">{t.share.noTags}</span>}
       {shown.flatMap(([d, values]) =>
         values.map((v) => (
-          <span key={`${d}\n${v}`} className="tag-chip">
+          <Badge key={`${d}\n${v}`} variant="chip">
             <span className="t">
-              <span className="dim">{d}:</span> {v}
+              <span className="text-muted-foreground">{d}:</span> {v}
             </span>
-            <CloseButton label={t.share.removeTag(d, v)} size="small" className="x" onClick={() => set(d, values.filter((x) => x !== v))} />
-          </span>
+            <CloseButton label={t.share.removeTag(d, v)} size="small" className="rounded-full" onClick={() => set(d, values.filter((x) => x !== v))} />
+          </Badge>
         )),
       )}
       {rest.length > 0 && (
@@ -3395,7 +3405,7 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
               <div key={d} className="tag-dim">
                 <MenuLabel className="basis-full p-0 text-xs">{d}</MenuLabel>
                 {values.map((v) => (
-                  <MenuItem key={v} className="tag-chip pick" onSelect={() => set(d, [...(on.get(d) ?? []), v])}>
+                  <MenuItem key={v} className={cn(badgeVariants({ variant: 'chip' }), 'cursor-pointer px-2.5 outline-none data-[highlighted]:bg-line')} onSelect={() => set(d, [...(on.get(d) ?? []), v])}>
                     {v}
                   </MenuItem>
                 ))}
@@ -4059,14 +4069,14 @@ function PrReview({ entries }: { entries: PrReviewEntry[] }) {
               <b>{t.pr.round(++round, who(e))}</b> · {time(e.at)} · {t.pr.threads(e.threads.length, e.threads.filter((th) => !th.resolved).length)}
             </div>
             {e.threads.map((th, j) => (
-              <details key={j} className={`pr-thread ${th.resolved ? 'resolved' : 'open'}`}>
-                <summary title={th.resolved ? t.pr.resolved : t.pr.open}>
+              <Collapsible key={j} className={`pr-thread ${th.resolved ? 'resolved' : 'open'}`}>
+                <CollapsibleTrigger marker title={th.resolved ? t.pr.resolved : t.pr.open}>
                   <span className="pr-first">
                     <Inline md={firstLine(th.body)} />
                   </span>
                   {th.replies.length > 0 && <span className="pr-meta">{t.pr.replies(th.replies.length)}</span>}
-                </summary>
-                <div className="pr-body">
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pr-body">
                   {th.path && (
                     <div className="pr-where">
                       {th.url ? (
@@ -4083,26 +4093,26 @@ function PrReview({ entries }: { entries: PrReviewEntry[] }) {
                   {th.replies.map((r, k) => (
                     <PrReply key={k} c={r} />
                   ))}
-                </div>
-              </details>
+                </CollapsibleContent>
+              </Collapsible>
             ))}
           </div>
         ) : (
-          <details key={i} className="pr-comment">
-            <summary>
+          <Collapsible key={i} className="pr-comment">
+            <CollapsibleTrigger marker>
               <b>{who(e)}</b> · {e.edited ? t.pr.edited(time(e.at)) : time(e.at)} · <span className="pr-first">
                 <Inline md={firstLine(e.body)} />
               </span>
-            </summary>
-            <div className="pr-body">
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pr-body">
               <Body md={e.body} />
               {e.url && (
                 <a href={e.url} target="_blank" rel="noreferrer">
                   {t.pr.onForge} ↗
                 </a>
               )}
-            </div>
-          </details>
+            </CollapsibleContent>
+          </Collapsible>
         ),
       )}
     </div>

@@ -6,6 +6,7 @@
 // the Parked view (src/ui/views.tsx). "Activity" is the log of what happened on the cards (src/ui/activity.tsx).
 // The phone keeps its own lists with the tabs and stage chips below.
 
+import { cn } from 'cn';
 import { type ReactNode, useEffect, useRef } from 'react';
 import { agentStage, agentWork } from '../core/agents';
 import { waitsFor } from '../core/inbox';
@@ -55,12 +56,21 @@ export function AgentsTabs({ tab, onTab, queued, parked, children }: { tab: Tab;
  * The chips above "All": one per stage with its count, tinted while its group shows; a tap shows or
  * hides the group. With `onlyFull` (the phone, where the row has room for few) a stage without cards has none.
  */
+/** The colour a stage chip tints with while its group shows. */
+const STAGE_TINT: Record<string, string> = {
+  needsYou: '[--c:var(--waiting)]',
+  reviewing: '[--c:var(--reviewing)]',
+  landing: '[--c:var(--approved)]',
+  planned: '[--c:var(--planned)]',
+  done: '[--c:var(--approved)]',
+};
+
 export function StageChips<S extends string>({ stages, count, hidden, onHidden, onlyFull }: { stages: readonly S[]; count: (s: S) => number; hidden: S[]; onHidden: (h: S[]) => void; onlyFull?: boolean }) {
   return (
-    <ToggleGroup type="multiple" className="agents-filter" aria-label={t.agents.filter} value={stages.filter((s) => !hidden.includes(s))} onValueChange={(shown) => onHidden(stages.filter((s) => !shown.includes(s)))}>
+    <ToggleGroup type="multiple" variant="chips" className="agents-filter" aria-label={t.agents.filter} value={stages.filter((s) => !hidden.includes(s))} onValueChange={(shown) => onHidden(stages.filter((s) => !shown.includes(s)))}>
       {stages.filter((s) => !onlyFull || count(s) > 0).map((s) => (
-        <ToggleGroupItem key={s} value={s} className={`chip stage-${s}${count(s) ? '' : ' none'}`}>
-          {(t.agents.stages as Record<string, string>)[s]} <span className="count">{count(s)}</span>
+        <ToggleGroupItem key={s} value={s} className={cn(STAGE_TINT[s], !count(s) && 'opacity-55')}>
+          {(t.agents.stages as Record<string, string>)[s]} <span className="text-[11.5px] font-bold">{count(s)}</span>
         </ToggleGroupItem>
       ))}
     </ToggleGroup>

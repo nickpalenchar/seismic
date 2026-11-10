@@ -16,6 +16,7 @@ import { Button, CloseButton, LinkButton } from './components/button';
 import { RadioGroup, RadioOption } from './components/radio';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Input } from './components/input';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 /** The machine's system and processor, as the owner knows them: "macOS (arm64)". */
@@ -668,12 +669,14 @@ export function GitSetup({ path, confirm, onDone, onFolder }: { path: string; co
             </p>
           )}
           {p.gitignore !== undefined && (
-            <details className="git-ignore-file">
-              <summary className="hint">
+            <Collapsible className="git-ignore-file">
+              <CollapsibleTrigger className="hint">
                 {s.gitignore} <u>{s.gitignoreShow}</u>
-              </summary>
-              <pre>{p.gitignore}</pre>
-            </details>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <pre>{p.gitignore}</pre>
+              </CollapsibleContent>
+            </Collapsible>
           )}
           <p className="hint">{s.change}</p>
           <div className="c-actions">

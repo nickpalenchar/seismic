@@ -29,6 +29,7 @@ import { CardLink, Naming } from './cardLink';
 import { scrollBehavior } from './motion';
 import { Button, CloseButton } from './components/button';
 import { Textarea } from './components/input';
+import { Progress } from './components/progress';
 
 interface Props {
   on: boolean;
@@ -626,9 +627,12 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
                     ? s.stopped(run.done, run.total)
                     : s.finished(run.done, run.total)}
             </span>
-            <span className="bar">
-              <span style={{ width: `${run.total ? (100 * out) / run.total : 100}%` }} />
-            </span>
+            <Progress
+              value={run.total ? (100 * out) / run.total : 100}
+              aria-label={s.barLabel}
+              className="basis-full bg-proposal/18"
+              indicatorClassName="bg-proposal"
+            />
             {going && run.current && <span className="occasion">{s.now(plain(run.current))}</span>}
             {run.failed.length > 0 && (
               <span className="occasion">

@@ -19,7 +19,7 @@ in W2.
 
 ## Today
 
-- **Components.** `src/ui/components/` holds the toast, `Listbox`, `Badge` and the basic parts regenerated
+- **Components.** `src/ui/components/` holds the toast, `Listbox`, `Badge` (with the card pin and tag chip), `Input` and `Textarea`, `Collapsible`, `Progress` and the basic parts regenerated
   from shadcn in W2: `Button` (with `armed` and `suggested`; `IconButton` and `CloseButton` compose it
   with `Tooltip`), `Switch`, `Checkbox` and its label, `SegmentedControl` on `ToggleGroup`,
   `RadioGroup`, `Tabs`, `Tooltip` and `Menu` (shadcn's DropdownMenu). They are styled by Tailwind
@@ -49,13 +49,12 @@ in W2.
     phone, Help and the new-card hint, Report a wish, the merge picker, the canvas dialog, seven
     confirms sharing the `.review-approval-*` look copied seven times; dialog-like without a role:
     Setup, the Diff view, the screenshot lightbox, the demo video zoom, the artifact image.
-  - *Chips, pills, badges*: bar pills (~90 selectors), count badges in five contexts with their own
-    CSS, card badges, stage/label/tag/file chips, the card-link pill built as raw DOM inside the
-    contentEditable.
-  - *Fields*: text inputs and textareas styled by container (`:is(#config,#prefs,#project-settings)
-    input`, `#wish .w-issue` …; ~51 in Configuration, 9 in Setup); `datetime-local` in snooze.
-  - *Folds and progress*: native `<details>`, line-clamp "more/less", `aria-expanded` folds; the usage
-    meter and reshare bar without `role=progressbar`.
+  - *Chips, pills, badges*: bar pills (~90 selectors), count badges in four contexts with their own
+    CSS, the file chip, the card-link pill built as raw DOM inside the contentEditable (its classes are
+    asserted by `cardRefs.test.ts` and built server-side too, so it stays on its own CSS until a
+    string-building form of the chip exists).
+  - *Folds*: the performance rows (table rows: Collapsible renders a div) and the merge view's "Show
+    all" (it clips rather than removes) keep their `aria-expanded` buttons; line-clamp "more/less" too.
   - *Esc*: `App.tsx` routes Esc centrally and skips when `.lightbox`, `.demo-zoom` or `.diff-view`
     is in the DOM (and for an open layer); about fifteen components add their own Esc listeners.
 - **Phone.** `phone.tsx` is its own root but reuses the desktop components, so a migrated component
@@ -148,7 +147,7 @@ their changes to the controls, not the layout around them.
 - [x] **W1:** Foundations and tokens. `tailwindcss` and `bun-plugin-tailwind` wired into `bun start`, `--hot` and `scripts/build.ts` (Tailwind with preflight off, utilities layered under the old CSS); `components.json`, `cn()`, the `@` alias if the CLI needs it; shadcn's variables defined from frost's values in light and dark, with Seismic's state and glass tokens registered as extra Tailwind tokens and `dark:` bound to `data-theme`; the portal container; App's Esc handler made layer-aware. Proved by one generated part (e.g. `Badge`) used once with no visible change to the rest of the UI. Tests still pass and the bundle size and the blur-while-moving frame rate are measured once as a baseline. M.
 - [x] **W2:** Basic components regenerated from shadcn. Button, Switch, Checkbox, ToggleGroup (the segmented control), RadioGroup, Tabs, Tooltip and DropdownMenu replace our wrappers' CSS and markup. They keep our extras: `armed` and `suggested` on Button, tabs with manual activation for the canvas strip and change list, closing on `closeBarMenus`, the left menu docked-versus-dropdown context, `layerOpen`. IconButton and CloseButton stay as thin compositions. The `.btn`, `.seg`, `.pill`-toggle and related contextual overrides for these are deleted. L (may land in two cards: Button first, since every later part composes it, then the rest).
 - [ ] **W3:** The stopped families as shadcn parts. Popover (workstations and usage pills, the status pills' interactive tips, the StartAgent panel, the snooze date-time form, the archive drop-down; the canvas drawer keeps opening on hover through controlled open); Select (the ~30 native selects, with the phone's project switcher deciding between Select and the native picker on touch, checked in the Android emulator); Dialog and AlertDialog (Configuration, Preferences, Performance, Connect a phone, Help and the new-card hint, Report a wish, the merge picker, the canvas dialog; `forceMount` where input must survive closing; one `ConfirmDialog` for the seven confirms; Setup, the Diff view and the lightbox move onto Dialog where their behaviour fits, the rest is listed as staying our own). Delete `useMenuClose` and the hand-copied outside-click code. L; split into three cards: Popover (done), Select, Dialog.
-- [ ] **W4:** Fields, badges and folds. Input and Textarea (one look, not by container: `#config input`, `#wish .w-issue`, `textarea.p-title` and their kin go), Badge for count badges and card pins, chips (filter, label, tag with remove; the raw-DOM card-link pill shares the chip classes), Collapsible and Accordion for folds with a trigger and a region (finding folds, merge toggle, performance rows, config and detail `<details>`), Progress for the usage meter and reshare bar. M–L; Input/Textarea and Badge/chips may land apart.
+- [x] **W4:** Fields, badges and folds. Input and Textarea (one look, not by container: `#config input`, `#wish .w-issue`, `textarea.p-title` and their kin go), Badge for count badges and card pins, chips (filter, label, tag with remove; the raw-DOM card-link pill shares the chip classes), Collapsible and Accordion for folds with a trigger and a region (finding folds, merge toggle, performance rows, config and detail `<details>`), Progress for the usage meter and reshare bar. M–L; Input/Textarea and Badge/chips may land apart. Landed as one card, except the remainder named under "Today" (*Chips, pills, badges* and *Folds*); Accordion was not needed (no fold group opens one at a time).
 - [ ] **W5:** Higher-level parts. Sheet for the right-dock sheets (non-modal where the canvas stays usable beside it, keeping the dock's own resize grip), Command for the card finder (taking over its own outside-click close) and merge picker (replaces `Listbox` where the input is a plain field; the composer's skill menu and card-link menu sit in a textarea/contentEditable and keep `Listbox` unless Command fits there), Sonner behind the existing toast store so every toast still goes through it. M–L.
 - [ ] **W6:** AI Elements in the conversations. The message-item adapter; Conversation replaces `stickToEnd` (with scroll-to-latest and the unsent/unread behaviour intact); Message for turns in cards, chats and the Koordinator; Prompt Input as the one composer with voice, screenshots, skill menu and card links grafted on, working the same on every card kind and on the phone (keyboard open, first tap acts, Space for push-to-talk). Attachments and unsent input keep surviving close and reload. L; split into Conversation and Message, then Prompt Input.
 - [ ] **W7:** The remaining views and the canvas chrome. Every view still on `styles.css` after W2–W6 (card detail, plan cards and card faces' chrome, the top and status bars, the inbox, usage, feedback log, the phone's own controls, toasts) converted to Tailwind on the shared tokens, family by family; the canvas elements that stay our own restyled the same way. Frost's glass checked in dark mode on every part, and the blur-while-moving frame rate against W1's baseline. L; as many cards as there are views (about three).

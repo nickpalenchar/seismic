@@ -18,15 +18,21 @@ const badgeVariants = cva(
         outline: 'border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         ghost: '[a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 [a&]:hover:underline',
+        // a chip: a tag or label that may carry a remove button after its text
+        chip: 'h-6 gap-1 bg-chip py-0 pr-[3px] pl-2.5 text-[12.5px] leading-none font-normal',
+        // the pin at a card's corner: a count or mark on a glossy dot in the colour of --pin, which the
+        // card's state sets; counter-scaled so it stays readable when the canvas is zoomed out
+        pin: 'absolute isolate top-[-10px] right-[-8px] grid h-6 min-w-6 origin-[70%_30%] scale-[max(1,calc(.9/var(--s)))] place-items-center overflow-visible rounded-xl px-[7px] text-[13px] leading-none font-bold text-on-ink [--pin:var(--waiting)] before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:[background:radial-gradient(circle_at_35%_30%,rgba(255,255,255,.45),transparent_45%),var(--pin)] before:shadow-[0_0_0_2px_var(--glass-edge),0_4px_10px_-2px_rgba(0,0,0,.25)] before:content-[\'\']',
       },
     },
     defaultVariants: { variant: 'default' },
   },
 );
 
-function Badge({ className, variant = 'default', asChild = false, ...props }: ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+/** `pulse` rings a pin outward, for what waits for the owner. */
+function Badge({ className, variant = 'default', asChild = false, pulse, ...props }: ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { asChild?: boolean; pulse?: boolean }) {
   const Comp = asChild ? Slot.Root : 'span';
-  return <Comp data-slot="badge" data-variant={variant} className={cn(badgeVariants({ variant }), className)} {...props} />;
+  return <Comp data-slot="badge" data-variant={variant} className={cn(badgeVariants({ variant }), pulse && 'after:pointer-events-none after:absolute after:-inset-[15px] after:-z-20 after:animate-[pulse_1.8s_ease-out_infinite] after:rounded-[27px] after:bg-[var(--pin)] after:opacity-0 after:content-[\'\']', className)} {...props} />;
 }
 
 export { Badge, badgeVariants };
