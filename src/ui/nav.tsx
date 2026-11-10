@@ -124,22 +124,22 @@ export interface MenuProps extends ProjectsProps, MenuActions {
 export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { docked: boolean; dockedOn: boolean; onDocked: (on: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const on = docked ? dockedOn : open;
+  const logo = (
+    <button className={on ? 'app-logo on' : 'app-logo'} aria-label={t.leftMenu.button} aria-expanded={docked ? dockedOn : undefined} onClick={docked ? () => onDocked(!dockedOn) : undefined}>
+      <Menu_ className="burger" size={18} strokeWidth={2} aria-hidden />
+      <span className="bar-word">
+        <Wordmark height={22} />
+      </span>
+      <span className="bar-sign">
+        <Sign size={24} />
+      </span>
+    </button>
+  );
   return (
-    <Menu open={open && !docked} onOpenChange={(o) => !docked && setOpen(o)}>
+    <Menu open={open && !docked} onOpenChange={setOpen}>
       <div className="app-menu">
-        <Tooltip content={t.leftMenu.button}>
-          <MenuTrigger asChild>
-            <button className={on ? 'app-logo on' : 'app-logo'} aria-label={t.leftMenu.button} onClick={() => docked && onDocked(!dockedOn)}>
-              <Menu_ className="burger" size={18} strokeWidth={2} aria-hidden />
-              <span className="bar-word">
-                <Wordmark height={22} />
-              </span>
-              <span className="bar-sign">
-                <Sign size={24} />
-              </span>
-            </button>
-          </MenuTrigger>
-        </Tooltip>
+        {/* docked, the button toggles the sidebar: a trigger would swallow Enter and Space to open a menu that is not there */}
+        <Tooltip content={t.leftMenu.button}>{docked ? logo : <MenuTrigger asChild>{logo}</MenuTrigger>}</Tooltip>
       </div>
       <MenuContent className="nav-menu left-menu">
         <MenuBody {...p} floating />
