@@ -263,7 +263,7 @@ export function ChangeList({
 function TableFrame({ pick, current, children }: { pick: boolean; current?: string; children: ReactNode }) {
   if (!pick) return <>{children}</>;
   return (
-    <Tabs value={current ?? ''} onValueChange={() => {}} activationMode="manual" className="tabs-flat" orientation="vertical">
+    <Tabs value={current ?? ''} onValueChange={() => {}} activationMode="manual" className="contents" orientation="vertical">
       <TabsList>{children}</TabsList>
     </Tabs>
   );

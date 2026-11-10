@@ -839,8 +839,8 @@ export function Detail(p: Props) {
           )}
           {/* a suggested card it cannot merge with can still be dismissed */}
           {duplicatePartner && <span className="duplicate-merge-actions">
-            {mergeableWith(item, duplicatePartner) && <Button className="duplicate-attempt" onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>}
-            <Button className="duplicate-dismiss" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
+            {mergeableWith(item, duplicatePartner) && <Button className="duplicate-attempt rounded-none first:rounded-l-[3px] last:rounded-r-[3px]" onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>}
+            <Button className="duplicate-dismiss rounded-none first:rounded-l-[3px] last:rounded-r-[3px]" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
           </span>}
           <Later item={item} act={act} />
           {prototypeActions}
@@ -3392,7 +3392,7 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
           <MenuContent className="bar-menu tag-menu" align="end">
             {rest.map(([d, values]) => (
               <div key={d} className="tag-dim">
-                <MenuLabel>{d}</MenuLabel>
+                <MenuLabel className="basis-full p-0 text-xs">{d}</MenuLabel>
                 {values.map((v) => (
                   <MenuItem key={v} className="tag-chip pick" onSelect={() => set(d, [...(on.get(d) ?? []), v])}>
                     {v}

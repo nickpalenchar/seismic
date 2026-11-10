@@ -105,7 +105,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
       >
         {drawer && <Drawer canvases={canvases} shown={shown} waiting={waiting} empty={empty} onPick={pick} onEdit={(c) => (open(false), setDialog({ edit: c.id }))} onNew={startNew} />}
         {/* a tab picks its canvas by its own click, which tells a finger's first tap from the rest; Enter and Space click, the arrow keys move focus */}
-        <Tabs value={shown ?? ''} onValueChange={() => {}} activationMode="manual" className="tabs-flat">
+        <Tabs value={shown ?? ''} onValueChange={() => {}} activationMode="manual" className="contents">
           <TabsList className="canvas-strip" aria-label={t.canvases.strip}>
             {several &&
               canvases.map((c) => (

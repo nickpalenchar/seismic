@@ -58,6 +58,16 @@
   --radius: 10px;
 }
 
+/* Tailwind's scale counts in rem, made for a 16px root; frost's root is 14.5px, which would shrink every
+   spacing and size of a shadcn part by a tenth. The scale counts in pixels instead. */
+@theme {
+  --spacing: 4px;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

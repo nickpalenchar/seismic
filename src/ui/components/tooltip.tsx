@@ -1,16 +1,18 @@
-// Tooltip: the short text a control shows on hover or keyboard focus. One `TooltipProvider` (in
-// `UiRoot`) gives them all the same delay, and moving from one to the next shows it at once. Radix
-// opens a tooltip on pointer movement of a mouse or pen, never of a finger, and on keyboard focus, so a
-// tap goes straight to the control. `IconButton` shows its label through it. A disabled control keeps its tooltip: the pointer events Radix listens to still reach it (unlike the click).
+// Tooltip (shadcn/ui's Tooltip, on Radix Tooltip): the short text a control shows on hover or keyboard
+// focus. One `TooltipProvider` (in `UiRoot`) gives them all the same delay, and moving from one to the
+// next shows it at once. Radix opens a tooltip on pointer movement of a mouse or pen, never of a
+// finger, and on keyboard focus, so a tap goes straight to the control. `IconButton` shows its label
+// through it. A disabled control keeps its tooltip: the pointer events Radix listens to still reach it
+// (unlike the click).
 
-import { Tooltip as Primitive } from 'radix-ui';
+import { Tooltip as TooltipPrimitive } from 'radix-ui';
 import type { ComponentProps, ReactNode } from 'react';
 import { uiPortal } from './ui';
 
 export const TooltipProvider = ({ children }: { children: ReactNode }) => (
-  <Primitive.Provider delayDuration={450} skipDelayDuration={250}>
+  <TooltipPrimitive.Provider delayDuration={450} skipDelayDuration={250}>
     {children}
-  </Primitive.Provider>
+  </TooltipPrimitive.Provider>
 );
 
 export type TooltipProps = {
@@ -20,18 +22,25 @@ export type TooltipProps = {
   children: ReactNode;
   side?: 'top' | 'right' | 'bottom' | 'left';
   align?: 'start' | 'center' | 'end';
-} & Pick<ComponentProps<typeof Primitive.Root>, 'open' | 'onOpenChange' | 'delayDuration'>;
+} & Pick<ComponentProps<typeof TooltipPrimitive.Root>, 'open' | 'onOpenChange' | 'delayDuration'>;
 
 export function Tooltip({ content, children, side = 'top', align = 'center', ...root }: TooltipProps) {
   if (!content) return <>{children}</>;
   return (
-    <Primitive.Root disableHoverableContent {...root}>
-      <Primitive.Trigger asChild>{children}</Primitive.Trigger>
-      <Primitive.Portal container={uiPortal()}>
-        <Primitive.Content className="tooltip" side={side} align={align} sideOffset={6} collisionPadding={8}>
+    <TooltipPrimitive.Root disableHoverableContent {...root}>
+      <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal container={uiPortal()}>
+        <TooltipPrimitive.Content
+          data-slot="tooltip-content"
+          className="pointer-events-none z-60 max-w-[340px] rounded-[3px] bg-panel px-2.5 py-1.5 text-left text-[13px] leading-[1.45] font-normal whitespace-normal text-ink shadow-lift"
+          side={side}
+          align={align}
+          sideOffset={6}
+          collisionPadding={8}
+        >
           {content}
-        </Primitive.Content>
-      </Primitive.Portal>
-    </Primitive.Root>
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
 }

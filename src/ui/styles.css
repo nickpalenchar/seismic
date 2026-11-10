@@ -2,17 +2,10 @@
    (OFL, served from ./fonts with its licence). The states are inks, not UI hues. --on-ink is what is written on a fill of
    ink (a badge, the play button); --error and --warn are for failures and cautions. --panel is a solid surface; --glass
    the translucent one, only on what blurs what lies behind it. frost.test.ts measures the contrast of text on glass
-   from these tokens. */
-@import "./components/button.css";
-@import "./components/switch.css";
-@import "./components/checkbox.css";
-@import "./components/check-label.css";
-@import "./components/segmented.css";
-@import "./components/tabs.css";
-@import "./components/radio.css";
-@import "./components/tooltip.css";
+   from these tokens. The cascade layers come first so that Tailwind's (tailwind.css) take this order;
+   rules outside them win over any utility. */
+@layer theme, base, components, utilities;
 @import "./components/listbox.css";
-@import "./components/menu.css";
 @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap;
   src: url(./fonts/inter-latin-wght-normal.woff2) format("woff2"); }
 /* light: ice on a cool board */
@@ -57,7 +50,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
 /* the on-screen keyboard of an iPhone or iPad is up (keyboard.ts): the page stands in the part of the screen it leaves,
    and what is fixed to the screen with it, the body being their containing block (its transform) */
 .kb-pin body { transform: translateY(var(--kb-top)); height: var(--kb-h); }
-button, input, textarea { font: inherit; color: inherit; }
+/* in the base layer, so the components' utilities set their own colour and size over it */
+@layer base { button, input, textarea { font: inherit; color: inherit; } }
 svg.lucide { flex: none; }
 code { font: .92em var(--mono); background: var(--chip); border-radius: 5px; padding: 0 .25em; }
 a { color: inherit; }
@@ -728,7 +722,7 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 #wish .w-discard:hover { color: var(--ink); }
 #wish .w-sent { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 #wish .w-sent p { margin: 0; font-size: 15px; line-height: 1.45; }
-#wish .w-sent > .button { align-self: flex-end; margin-top: 10px; }
+#wish .w-sent > [data-slot=button] { align-self: flex-end; margin-top: 10px; }
 /* the quiet link to it: at the foot of Seismic's sidebar, in the legend, under a reply that Seismic cannot do something;
    its baseline is its words', not the icon's lower edge, so beside the legend's text both stand on one line */
 .wish-link { display: inline-flex; align-items: baseline; gap: 6px; border: 0; background: none; padding: 0; font: inherit; font-size: 12px; color: var(--muted-foreground); cursor: pointer; text-align: left; }
@@ -926,7 +920,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .repo-project { color: var(--muted-foreground); white-space: nowrap; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
 /* deleting stands apart from what moves the card on */
-.actions > .button[data-variant=danger] { margin-left: auto; }
+.actions > [data-slot=button][data-variant=danger] { margin-left: auto; }
 .review-approval-cover { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--dim); }
 .review-approval-box { width: min(440px, 100%); padding: 24px; border-radius: 4px; background: var(--panel); box-shadow: var(--lift); }
 .review-approval-box h2 { margin: 0 0 10px; font: 600 24px var(--font); }
@@ -955,9 +949,6 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .duplicate-preview .merge-side:first-child { border: 1.5px dashed var(--proposal); }
 .duplicate-merge-actions { display: inline-flex; vertical-align: middle; }
 /* two buttons joined into one */
-.duplicate-merge-actions > .button { border-radius: 0; }
-.duplicate-merge-actions > .button:first-child { border-radius: 3px 0 0 3px; }
-.duplicate-merge-actions > .button:last-child { border-radius: 0 3px 3px 0; }
 .duplicate-merge-actions .duplicate-attempt { background: var(--proposal); color: var(--on-ink); }
 .duplicate-merge-actions .duplicate-dismiss { background: color-mix(in srgb, var(--proposal) 12%, var(--chip)); color: var(--ink); }
 .demo-view video { width: 100%; border-radius: 3px; background: #000; display: block; }
@@ -1014,7 +1005,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .demo-versions .step { border: 0; background: none; color: var(--ink); width: 24px; height: 24px; border-radius: 2px; font-size: 18px; line-height: 1; cursor: pointer; }
 .demo-versions .step:hover:not(:disabled) { background: var(--chip); }
 .demo-versions .step:disabled { opacity: .3; cursor: default; }
-.demo-versions .button { margin-left: 10px; }
+.demo-versions [data-slot=button] { margin-left: 10px; }
 .demo-versions .on-page { display: inline-flex; vertical-align: -2px; margin-left: 6px; color: var(--approved); }
 .demo-versions .on-page svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .share .agent-says { color: var(--muted-foreground); font-size: 12px; }
@@ -1049,7 +1040,6 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .tag-add:hover, .tag-add[data-state=open] { border-style: solid; color: var(--ink); }
 .bar-menu.tag-menu { width: min(340px, calc(100vw - 28px)); padding: 10px 12px; display: grid; gap: 10px; }
 .tag-dim { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.tag-dim > .menu-heading { flex-basis: 100%; padding: 0; font-size: 12px; }
 .share .hint { margin: 0; }
 .share:not(.wide) > .hint { text-align: right; }
 /* a split (an idea, a proposal, a task) is as tall as its taller column, up to the room down to the microphone
@@ -1219,7 +1209,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 /* Deliverables stay in front; the change list has its own tab. */
 .result-tabs { margin-bottom: 14px; }
 .result-caption { margin-top: 0; }
-.ph-view .result-tabs .tabs-trigger { min-height: 44px; }
+.ph-view .result-tabs [data-slot=tabs-trigger] { min-height: 44px; }
 .cl-list { margin-bottom: 12px; font-size: 13px; }
 .cl-list table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .results .cl-list table { border-bottom: 1px solid var(--line); }
@@ -1572,7 +1562,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .f-discard.counting { border: 1px solid var(--error); }
 .f-count { margin-left: 8px; font-variant-numeric: tabular-nums; font-weight: 600; }
 .f-cancel { margin-left: 6px; color: var(--error); font-weight: 700; }
-.button.copied { color: var(--approved); font-weight: 600; }
 .diff-view { position: fixed; inset: 0; z-index: 1000; background: var(--dim); display: flex; justify-content: center;
   padding: 3vh 3vw; animation: fade .15s ease-out; }
 .d-sheet { display: flex; flex-direction: column; width: min(100%, 1500px); min-height: 0; }
@@ -1582,7 +1571,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .d-body { overflow: auto; padding: 8px 22px 28px; min-height: 0; }
 .d-files { border-collapse: collapse; font-size: 13px; margin: 6px 0 10px; }
 .d-files td { padding: 1px 14px 1px 0; vertical-align: baseline; }
-.d-files .button[data-variant=link] { font: 12.5px var(--mono); }
 .d-file { margin-top: 18px; }
 .d-file h3 { position: sticky; top: -8px; z-index: 1; display: flex; gap: 12px; align-items: baseline; margin: 0; padding: 7px 10px;
   background: var(--chip); border: 1px solid var(--line); border-radius: 2px 2px 0 0; font: 500 13px var(--font); }
@@ -1638,7 +1626,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .sheet .ws-text .p-list li { margin: 1px 0; }
 /* the archive: per day a timeline, the time on the left, each archived card as a small card */
 .archive-menu { width: min(460px, calc(100vw - 28px)); padding: 8px 10px 4px; }
-.archive-menu > .button { margin: 2px 0 6px; }
+.archive-menu > [data-slot=button] { margin: 2px 0 6px; }
 .a-search { position: relative; margin: 2px 0 8px; flex: 1; min-width: 0; }
 .a-head { display: flex; align-items: center; gap: 6px; }
 .a-full { flex: none; margin-bottom: 6px; }
@@ -1649,7 +1637,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .a-full-head h2 { margin: 0 0 6px; font-size: 18px; }
 .a-full-head .a-search { max-width: 640px; }
 .a-full-body { flex: 1; overflow: auto; padding: 4px 24px 24px; }
-.a-full-body > section, .a-full-body > .button, .a-full-body > .hint { max-width: 760px; }
+.a-full-body > section, .a-full-body > [data-slot=button], .a-full-body > .hint { max-width: 760px; }
 #archive-full h4 { margin: 10px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
 .a-search input { width: 100%; box-sizing: border-box; padding: 8px 30px 8px 11px; font-size: 14px; background: var(--card); border: 1px solid var(--line);
   border-radius: 3px; outline: none; }
@@ -1702,7 +1690,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-ask .hint { margin: 0 0 14px; line-height: 1.45; }
 .cfg-export-actions { display: flex; gap: 6px; margin: 16px 0 0; }
 /* a small button under text stands a little apart from it */
-:is(p, ul, ol, .c-install) + .button[data-size=small] { margin-top: 8px; }
+:is(p, ul, ol, .c-install) + [data-slot=button][data-size=small] { margin-top: 8px; }
 .cfg-nav-foot { margin-top: auto; padding: 18px 10px 0; }
 .cfg-nav-foot .wish-link { display: flex; margin-top: 14px; }
 .cfg-nav { --button-bg: var(--panel); }
@@ -1752,8 +1740,8 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-control > .c-style, .cfg-control > .c-sample { display: block; width: 100%; max-width: 420px; resize: vertical; }
 /* prose, not a path: the page's font */
 #config .cfg-control > :is(.c-style, .c-sample) { font-family: inherit; font-size: 13px; line-height: 1.45; padding: 6px 8px; }
-.cfg-control > .button { margin-top: 6px; }
-:is(#config, #prefs, #project-settings) .check-label { margin: 8px 0 0; }
+.cfg-control > [data-slot=button] { margin-top: 6px; }
+:is(#config, #prefs, #project-settings) [data-slot=check-label] { margin: 8px 0 0; }
 .cfg-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 0 56px; align-items: start; }
 .cfg-cols > .c-setup > .cfg-head.sub { margin-top: 0; padding-top: 0; border-top: 0; }
 /* the save buttons stay in view at the foot of the section */
@@ -1835,14 +1823,14 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-sub > label, .cfg-sub > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .cfg-sub > .wide { grid-column: 1 / -1; }
 .cfg-sub > label > .hint, .cfg-sub > div > .hint { font-size: 11.5px; }
-.cfg-sub > div > .segmented { align-self: flex-start; }
+.cfg-sub > div > [data-slot=toggle-group] { align-self: flex-start; }
 .cfg-sub input, .cfg-sub textarea { width: 100%; }
 .cfg-host-rows { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.3fr) minmax(0, 1.5fr) auto auto 24px; gap: 6px 10px; align-items: center; }
 .cfg-host-rows input { min-width: 0; width: 100%; }
 :is(#config, #prefs, #project-settings) .cfg-host-clones { display: flex; align-items: center; gap: 6px; }
 .cfg-host-clones > .hint { font-size: 11.5px; }
 :is(#config, #prefs, #project-settings) .cfg-host-clones input { width: 64px; }
-.cfg-host-rows + .button { margin-top: 6px; }
+.cfg-host-rows + [data-slot=button] { margin-top: 6px; }
 .cfg-agents { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(130px, .85fr) minmax(160px, 1fr) minmax(100px, .65fr); gap: 0 14px; align-items: center; max-width: 1000px; }
 .cfg-agents > .hint { font-size: 11.5px; padding-bottom: 4px; }
 .cfg-agents > select { min-width: 0; }
@@ -1886,13 +1874,13 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .c-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
 .c-row .hint { font-size: 11.5px; min-width: 0; }
 /* the hint beside it wraps, the button keeps its label on one line */
-.c-row > .button { flex: none; }
+.c-row > [data-slot=button] { flex: none; }
 .c-path { flex: 1; min-width: 0; font-family: var(--mono) !important; font-size: 12px !important; }
 .c-problem { margin: 6px 0 0; font-size: 13px; }
 .c-problem details { margin-top: 4px; }
 .c-problem summary { cursor: pointer; color: var(--muted-foreground); }
 .c-problem code { display: block; margin-top: 4px; white-space: pre-wrap; overflow-wrap: break-word; }
-.c-problem > .button:not([data-variant=link]) { display: flex; width: fit-content; margin-top: 6px; }
+.c-problem > [data-slot=button]:not([data-variant=link]) { display: flex; width: fit-content; margin-top: 6px; }
 .c-actions { display: flex; gap: 8px; margin-top: 16px; }
 .c-install { display: flex; gap: 10px; align-items: center; margin: 4px 0; font-size: 12.5px; }
 .c-install .hint { margin: 0; }
@@ -2396,7 +2384,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-none { margin: 0; color: var(--muted-foreground); font-size: 14.5px; }
 /* the Agents view's tabs across the screen, and the stage chips in one row that scrolls sideways, sized for a finger */
 #ph-home .agents-tabs { display: flex; width: 100%; margin-top: 14px; }
-#ph-home .agents-tabs .tabs-trigger { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 4px; font-size: 15px; }
+#ph-home .agents-tabs [data-slot=tabs-trigger] { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 4px; font-size: 15px; }
 #ph-home .agents-filter { flex-wrap: nowrap; overflow-x: auto; margin: 12px -14px 0; padding: 0 14px 2px; scrollbar-width: none; }
 #ph-home .agents-filter::-webkit-scrollbar { display: none; }
 #ph-home .agents-filter .chip { flex: none; min-height: 36px; padding: 0 14px; font-size: 14px; }
@@ -2470,12 +2458,12 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-view .split:empty { display: none; }
 .ph-view .split-main { overflow: visible; padding-right: 0; }
 .ph-view .proposal-grid .p-body { min-height: 160px; max-height: 50vh; }
-.ph-view .actions .button { min-height: 42px; }
+.ph-view .actions [data-slot=button] { min-height: 42px; }
 /* the change list's lines a finger's size */
 .ph-view .cl-list { font-size: 14.5px; }
 .ph-view .cl-list td, .ph-view .cl-list .f-mark { padding-top: 10px; padding-bottom: 10px; }
 .ph-view .cl-foot { font-size: 14.5px; }
-.ph-view .cl-foot .button { padding: 8px 0; }
+.ph-view .cl-foot [data-slot=button] { padding: 8px 0; }
 /* the video plays full width, and full screen from Seismic's button over it (fullscreen.ts); zooming within the page adds nothing on a phone */
 .ph-view .demo-view .zoom, .ph-view .seek-hint { display: none; }
 .ph-view .demo-view .fullscreen { position: absolute; top: 10px; right: 10px; z-index: 1; width: 42px; height: 42px; border: 0; border-radius: 50%;
@@ -2588,7 +2576,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 /* "Reviews happen" under the toggle of code reviews */
 .cr-when { margin-top: 12px; }
 .cr-when > .hint:first-child { display: block; font-size: 12.5px; }
-.cr-when .check-label { margin-top: 6px; }
+.cr-when [data-slot=check-label] { margin-top: 6px; }
 .cr-when > p.hint { margin: 8px 0 0; }
 .finding .f-sev, .rv-count { --sev: var(--asking); }
 .finding .f-sev.blocker, .rv-count.blocker { --sev: #93409b; }
@@ -2639,7 +2627,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .result-tabs .rv-outdated { margin-left: 6px; font-size: 11px; font-weight: 400; color: var(--muted-foreground); border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; }
 .result-tabs .rv-running { display: inline-block; width: 7px; height: 7px; margin-left: 7px; vertical-align: middle; border-radius: 50%; background: var(--reviewing); animation: arranging 1.2s ease-in-out infinite; }
 .code-review .rv-busy { margin: 4px 0; font-weight: 600; color: var(--reviewing); animation: arranging 1.6s ease-in-out infinite; }
-.code-review > .button { margin-top: 6px; }
+.code-review > [data-slot=button] { margin-top: 6px; }
 .review-submit { margin-top: 14px; display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; }
 .review-submit > .start-agent > .start-agent-buttons { height: 100%; }
 .review-submit .p-error { flex-basis: 100%; margin: 0; }
@@ -2656,7 +2644,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 /* this machine's demo sites (Configuration → Demos), adding one, and a project's demo site */
 .personal-site { margin-top: 32px; }
 .cfg-narrow { max-width: 620px; }
-.cfg-narrow > .segmented { margin-top: 4px; }
+.cfg-narrow > [data-slot=toggle-group] { margin-top: 4px; }
 .cfg-narrow > .hint { margin: 6px 0; }
 .personal-url { font-size: 15px; margin: 0 0 6px; }
 .personal-private { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
@@ -2664,23 +2652,23 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-sub > .tag-propose { flex-direction: column; align-items: flex-start; gap: 6px; }
 .tag-propose > .hint { margin: 0; }
 .personal-actions { display: flex; gap: 8px; align-items: center; margin: 10px 0 4px; }
-.cfg-narrow > .button[data-variant=primary] { margin: 4px 0 8px; }
+.cfg-narrow > [data-slot=button][data-variant=primary] { margin: 4px 0 8px; }
 .site-account { display: grid; gap: 6px; margin: 2px 0 10px; max-width: 520px; }
 .site-account label { display: flex; flex-direction: column; gap: 3px; }
 .site-account label:first-child { flex-direction: row; align-items: center; gap: 8px; }
 .site-account select { font: inherit; font-size: 13px; }
-.cfg-narrow > .button[data-variant=link] { display: block; margin-top: 10px; font-size: 13px; }
+.cfg-narrow > [data-slot=button][data-variant=link] { display: block; margin-top: 10px; font-size: 13px; }
 .personal-connect { margin-top: 12px; }
 .demo-site { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .demo-site:first-of-type { padding-top: 0; }
 .demo-site > .hint { margin: 2px 0; }
-.demo-site + .button { margin-top: 12px; }
+.demo-site + [data-slot=button] { margin-top: 12px; }
 .personal-url a, .site-init a { color: var(--working); text-decoration: underline 1px currentColor; text-underline-offset: .2em; }
 .add-site-back { display: inline-block; margin: 0 0 12px; font-size: 13.5px; }
 .add-site { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 10px; }
-.add-site > .segmented { align-self: flex-start; }
+.add-site > [data-slot=toggle-group] { align-self: flex-start; }
 .add-site > .hint, .add-site > .p-error { margin: 0; }
-.add-site > .check-label { font-size: 13.5px; }
+.add-site > [data-slot=check-label] { font-size: 13.5px; }
 .site-init > .hint { margin: 4px 0; }
 .site-init .personal-actions { margin: 6px 0 2px; }
 
@@ -2824,7 +2812,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .perf-few-note { margin: 0 0 6px; }
 .perf-empty { text-align: center; padding: 48px 10px; }
 .perf-empty h3 { font-family: var(--font); font-weight: 500; font-size: 20px; margin: 0 0 6px; }
-.perf-empty > .button { margin-top: 8px; }
+.perf-empty > [data-slot=button] { margin-top: 8px; }
 .rate-compare { margin-top: 6px; font-size: 13px; }
 :is(#config, #prefs, #project-settings) .cfg-perf { margin-top: 10px; }
 @media (max-width: 700px) { #perf { padding: 10px; } .perf-main { padding: 20px 56px 24px 18px; } .perf-spread, .perf-dots { min-width: 100px; } }
@@ -2872,11 +2860,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .prio-btn:hover { border-color: var(--line); background: var(--chip); }
 .prio-btn.set:has(.prio-critical) { padding: 1px; }
 .prio-menu { min-width: 140px; padding: 4px; display: flex; flex-direction: column; border: 1px solid var(--glass-edge); border-radius: 12px; }
-.prio-menu .menu-item { display: flex; align-items: center; border: 0; background: none; padding: 5px 8px; border-radius: 3px; cursor: pointer;
-  font: inherit; font-size: 13px; text-align: left; color: var(--ink); text-transform: none; letter-spacing: 0; }
-.prio-menu .menu-item[data-highlighted] { background: var(--chip); }
-.prio-menu .menu-item[data-state=checked] { background: var(--chip); font-weight: 600; }
-.prio-menu .menu-item.none { color: var(--muted-foreground); border-top: 1px solid var(--line); border-radius: 0 0 3px 3px; margin-top: 2px; }
 /* A suggested label carries the same dashed border and colour as a proposal card. */
 .lchip { display: inline-flex; align-items: center; gap: 3px; flex: none; padding: 0 5px; border: 1px solid var(--line); border-radius: 999px;
   line-height: 15px; font-size: .92em; font-weight: 500; color: var(--muted-foreground); background: var(--chip); text-transform: none; letter-spacing: .01em; }
@@ -3012,7 +2995,7 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .empty-inbox { margin: 0; padding: 8px; color: var(--muted-foreground); font-size: 13px; }
 /* on the phone the replies are sized for a finger */
 .ph-section .inbox-entry .replies { gap: 8px; }
-.ph-section .inbox-entry .replies > .button { min-height: 40px; font-size: 14px; }
+.ph-section .inbox-entry .replies > [data-slot=button] { min-height: 40px; font-size: 14px; }
 /* under the bar, floating over the main area: the project switcher at the left; the project settings and the
    group of the agents and "Needs you" at the right. Only the buttons take the pointer: the project between them stays the project's */
 #floating-row { position: fixed; top: 66px; left: calc(var(--left, 0px) + 48px); right: calc(var(--side, 0px) + 14px); z-index: 24; display: flex; align-items: center; gap: 10px;
@@ -3119,7 +3102,7 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 @media (max-width: 760px) { #project-settings.sheet { bottom: 46px; } body:has(#project-settings.on) .ptt-row { visibility: hidden; } }
 /* beside the two-line Start agent button, the other action buttons take its height */
 .actions:has(> .start-agent) { align-items: stretch; }
-.actions:has(> .start-agent) > .snooze-box > .button { flex: 1; }
+.actions:has(> .start-agent) > .snooze-box > [data-slot=button] { flex: 1; }
 
 .description-edit { position: relative; }
 .description-edit-button { border: 0; background: transparent; color: var(--muted-foreground); cursor: pointer; padding: 6px; opacity: 0; }

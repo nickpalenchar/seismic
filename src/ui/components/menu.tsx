@@ -1,13 +1,17 @@
-// Menus on Radix DropdownMenu: a button that opens a list of actions, links or radio choices, with
-// arrow keys, typeahead, Esc and an outside click handled by Radix. Non-modal: the page stays live
-// under an open menu, as the hand-built lists did. The list is portaled into `uiPortal()` and closes
-// when a shortcut asks the bar's menus to make room (`closeBarMenus`).
+// Menus (shadcn/ui's DropdownMenu, on Radix DropdownMenu): a button that opens a list of actions,
+// links or radio choices, with arrow keys, typeahead, Esc and an outside click handled by Radix.
+// Non-modal: the page stays live under an open menu, as the hand-built lists did. The list is
+// portaled into `uiPortal()` and closes when a shortcut asks the bar's menus to make room
+// (`closeBarMenus`).
 //
 // `Menu` is the root (`open` and `onOpenChange` to control it), `MenuTrigger` the button (`asChild`
-// to use the caller's), `MenuContent` the panel (`className` for its size), `MenuItem` an action
-// (a button; `asChild` for a link or a chip), `MenuRadioGroup` and `MenuRadioItem` a choice with the
-// current one marked, `MenuLabel` a heading.
+// to use the caller's), `MenuContent` the panel (a class of the caller's sets its size, padding and
+// corners), `MenuItem` an action (a button; `asChild` for a link or a chip, which then wears the
+// caller's look), `MenuRadioGroup` and `MenuRadioItem` a choice with the current one marked,
+// `MenuLabel` a heading. The left menu renders the same entries docked as a sidebar, outside any
+// menu: `nav.tsx` decides by context whether an entry is a `MenuItem` or a plain button.
 
+import { cn } from 'cn';
 import { DropdownMenu } from 'radix-ui';
 import { type ComponentProps, type ReactNode, useEffect, useRef } from 'react';
 import { uiPortal } from './ui';
@@ -25,10 +29,12 @@ export function Menu({ open, onOpenChange, ...props }: Omit<ComponentProps<typeo
     addEventListener('obeya:close-bar-menus', close);
     return () => removeEventListener('obeya:close-bar-menus', close);
   }, [open]);
-  return <DropdownMenu.Root modal={false} open={open} onOpenChange={onOpenChange} {...props} />;
+  return <DropdownMenu.Root data-slot="dropdown-menu" modal={false} open={open} onOpenChange={onOpenChange} {...props} />;
 }
 
-export const MenuTrigger = DropdownMenu.Trigger;
+export function MenuTrigger(props: ComponentProps<typeof DropdownMenu.Trigger>) {
+  return <DropdownMenu.Trigger data-slot="dropdown-menu-trigger" {...props} />;
+}
 
 // Radix returns focus to the trigger when a menu closes. A choice that opens a view (a dialog, a
 // confirm, another page) calls `leaveMenu()` first: that view takes the focus, the trigger behind
@@ -42,7 +48,11 @@ export function MenuContent({ className, children, onCloseAutoFocus, ...props }:
   return (
     <DropdownMenu.Portal container={uiPortal()}>
       <DropdownMenu.Content
-        className={className ? `menu ${className}` : 'menu'}
+        data-slot="dropdown-menu-content"
+        className={cn(
+          'z-60 max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100vh-16px))] overflow-auto rounded-[3px] bg-panel text-ink shadow-lift outline-none',
+          className,
+        )}
         sideOffset={6}
         collisionPadding={8}
         align="start"
@@ -60,24 +70,31 @@ export function MenuContent({ className, children, onCloseAutoFocus, ...props }:
   );
 }
 
+const item =
+  'flex w-full cursor-pointer items-center rounded-[3px] border-0 bg-transparent px-2 py-[5px] text-left text-[13px] text-ink normal-case tracking-normal outline-none data-highlighted:bg-chip data-disabled:cursor-default data-disabled:opacity-50';
+
 export function MenuItem({ asChild, className, children, ...props }: ComponentProps<typeof DropdownMenu.Item>) {
   return (
-    <DropdownMenu.Item asChild {...props}>
-      {asChild ? children : <button type="button" className={className ? `menu-item ${className}` : 'menu-item'}>{children}</button>}
+    <DropdownMenu.Item data-slot="dropdown-menu-item" asChild {...props}>
+      {asChild ? children : <button type="button" className={cn(item, className)}>{children}</button>}
     </DropdownMenu.Item>
   );
 }
 
-export const MenuRadioGroup = DropdownMenu.RadioGroup;
+export function MenuRadioGroup(props: ComponentProps<typeof DropdownMenu.RadioGroup>) {
+  return <DropdownMenu.RadioGroup data-slot="dropdown-menu-radio-group" {...props} />;
+}
 
 export function MenuRadioItem({ className, children, ...props }: ComponentProps<typeof DropdownMenu.RadioItem>) {
   return (
-    <DropdownMenu.RadioItem asChild {...props}>
-      <button type="button" className={className ? `menu-item ${className}` : 'menu-item'}>{children as ReactNode}</button>
+    <DropdownMenu.RadioItem data-slot="dropdown-menu-radio-item" asChild {...props}>
+      <button type="button" className={cn(item, 'data-[state=checked]:bg-chip data-[state=checked]:font-semibold', className)}>
+        {children as ReactNode}
+      </button>
     </DropdownMenu.RadioItem>
   );
 }
 
 export function MenuLabel({ className, ...props }: ComponentProps<typeof DropdownMenu.Label>) {
-  return <DropdownMenu.Label className={className ? `menu-heading ${className}` : 'menu-heading'} {...props} />;
+  return <DropdownMenu.Label data-slot="dropdown-menu-label" className={cn('px-2 pt-[5px] pb-[3px] text-[11px] text-muted-foreground', className)} {...props} />;
 }

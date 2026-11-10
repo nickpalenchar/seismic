@@ -342,7 +342,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           ) : (
             <>
               <p className="hint">{s.platform(platformName(view))}</p>
-              <Tabs value={shownPage} onValueChange={(p) => setPage(p as typeof shownPage)} className="tabs-flat">
+              <Tabs value={shownPage} onValueChange={(p) => setPage(p as typeof shownPage)} className="contents">
               {recommended && (
                   <TabsList variant="pill" className="setup-pages">
                     {(['required', 'recommended'] as const).map((p) => (
@@ -352,7 +352,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                     ))}
                   </TabsList>
               )}
-              <TabsContent value={shownPage} className="tabs-flat">
+              <TabsContent value={shownPage} className="contents">
               {view.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id) === (shownPage === 'recommended')).map((section) => (
                 <section key={section.id} className={`c-project c-setup setup-${section.id}`}>
                   <div className="setup-sh">

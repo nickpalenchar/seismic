@@ -385,7 +385,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     // a press on the dim around the dialog closes it; a press that starts inside does not
     <div id="config" className={on ? 'on' : undefined} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="cfg-box" role="dialog" aria-modal="true" aria-label={c.title}>
-        <Tabs orientation="vertical" value={tabOf} onValueChange={(v) => (v.startsWith(PROJECT_TAB) ? showProject(Number(v.slice(PROJECT_TAB.length))) : setSection(v as Section))} className="tabs-flat">
+        <Tabs orientation="vertical" value={tabOf} onValueChange={(v) => (v.startsWith(PROJECT_TAB) ? showProject(Number(v.slice(PROJECT_TAB.length))) : setSection(v as Section))} className="contents">
         <nav className="cfg-nav">
           <div className="p-kind">{c.kind}</div>
           <h2>{c.title}</h2>
@@ -2369,7 +2369,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
           <Problem key={k} problem={p} where={here} ask={askHere} retried={askHere && onRecheck} />
         ))}
       {/* its repositories as tabs, one shown at a time, with the problems of each counted on it */}
-      <Tabs value={String(at)} onValueChange={(v) => setAt(Number(v))} className="tabs-flat">
+      <Tabs value={String(at)} onValueChange={(v) => setAt(Number(v))} className="contents">
       <Field label={t.config.repos}>
         <div className="cfg-repo-tabs">
             <TabsList variant="segmented" aria-label={t.config.repos}>
@@ -2395,7 +2395,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
         </div>
       </Field>
       {repo && (
-        <TabsContent value={String(at)} className="tabs-flat">
+        <TabsContent value={String(at)} className="contents">
         <RepoRow
           key={at}
           repo={repo}

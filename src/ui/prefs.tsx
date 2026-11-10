@@ -44,7 +44,7 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
   return (
     <div id="prefs" className={on ? 'cfg-overlay on' : 'cfg-overlay'} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="cfg-box" role="dialog" aria-modal="true" aria-label={p.title}>
-        <Tabs orientation="vertical" value={section} onValueChange={(s) => setSection(s as PrefsSection)} className="tabs-flat">
+        <Tabs orientation="vertical" value={section} onValueChange={(s) => setSection(s as PrefsSection)} className="contents">
         <nav className="cfg-nav">
           <div className="p-kind">{p.kind}</div>
           <h2>{p.title}</h2>

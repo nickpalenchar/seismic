@@ -1,5 +1,0 @@
-/* Tooltip (tooltip.tsx). */
-
-.tooltip { z-index: 60; max-width: 340px; padding: 6px 10px; border-radius: 3px; background: var(--panel); color: var(--ink);
-  box-shadow: var(--lift); font-size: 13px; font-weight: 400; line-height: 1.45; white-space: normal; text-align: left;
-  pointer-events: none; }

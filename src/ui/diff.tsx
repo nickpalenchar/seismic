@@ -103,7 +103,7 @@ function AppLink({ item }: { item: Item }) {
 function CopyPath({ path }: { path: string }) {
   const [copied, copy] = useCopy(3000);
   return (
-    <LinkButton className={copied ? 'copied' : undefined} title={path} onClick={() => copy(path)}>
+    <LinkButton className={copied ? 'font-semibold text-approved' : undefined} title={path} onClick={() => copy(path)}>
       {copied ? t.diff.copied : t.diff.copyPath}
     </LinkButton>
   );
@@ -185,7 +185,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
                   {got.files.map((f) => (
                     <tr key={f.file}>
                       <td>
-                        <LinkButton onClick={() => go(f.file)}>
+                        <LinkButton className="[font:12.5px_var(--mono)]" onClick={() => go(f.file)}>
                           {f.file}
                         </LinkButton>{' '}
                         <span className="hint">{t.diff.status[f.status]}</span>

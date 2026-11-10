@@ -18,7 +18,7 @@ import { QueueList, useQueueSort } from './queue';
 import { useStoredState } from './stored';
 import { t } from './strings';
 import { Button } from './components/button';
-import { ToggleGroup, ToggleItem } from './components/segmented';
+import { ToggleGroup, ToggleGroupItem } from './components/segmented';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 
 export type AgentsTab = 'queue' | 'all' | 'parked' | 'activity';
@@ -34,7 +34,7 @@ export function useAgentsTab(first: Tab): [Tab, (t: Tab) => void] {
 /** The switch between the four tabs, the queue's count on "Queue" and the parked cards' on "Parked"; `children` is the panel of the tab shown. */
 export function AgentsTabs({ tab, onTab, queued, parked, children }: { tab: Tab; onTab: (t: Tab) => void; queued: number; parked: number; children?: ReactNode }) {
   return (
-    <Tabs value={tab} onValueChange={(k) => onTab(k as Tab)} className="tabs-flat">
+    <Tabs value={tab} onValueChange={(k) => onTab(k as Tab)} className="contents">
       <TabsList variant="segmented" className="agents-tabs" aria-label={t.agents.title}>
         {(['queue', 'all', 'parked', 'activity'] as const).map((k) => (
           <TabsTrigger key={k} value={k}>
@@ -44,7 +44,7 @@ export function AgentsTabs({ tab, onTab, queued, parked, children }: { tab: Tab;
           </TabsTrigger>
         ))}
       </TabsList>
-      <TabsContent value={tab} className="tabs-flat">
+      <TabsContent value={tab} className="contents">
         {children}
       </TabsContent>
     </Tabs>
@@ -59,9 +59,9 @@ export function StageChips<S extends string>({ stages, count, hidden, onHidden, 
   return (
     <ToggleGroup type="multiple" className="agents-filter" aria-label={t.agents.filter} value={stages.filter((s) => !hidden.includes(s))} onValueChange={(shown) => onHidden(stages.filter((s) => !shown.includes(s)))}>
       {stages.filter((s) => !onlyFull || count(s) > 0).map((s) => (
-        <ToggleItem key={s} value={s} className={`chip stage-${s}${count(s) ? '' : ' none'}`}>
+        <ToggleGroupItem key={s} value={s} className={`chip stage-${s}${count(s) ? '' : ' none'}`}>
           {(t.agents.stages as Record<string, string>)[s]} <span className="count">{count(s)}</span>
-        </ToggleItem>
+        </ToggleGroupItem>
       ))}
     </ToggleGroup>
   );
@@ -86,7 +86,7 @@ export function AgentsSheet({ on, items, open, underway, onOpen, project, change
   return (
     <Docked id="agents" ref={box} on={on} label={t.agents.work.title}>
       <h2>{t.agents.work.title}</h2>
-      <Tabs value={tab} onValueChange={(k) => setTab(k as WorkTab)} className="tabs-flat">
+      <Tabs value={tab} onValueChange={(k) => setTab(k as WorkTab)} className="contents">
         <TabsList variant="segmented" className="agents-tabs" aria-label={t.agents.work.title}>
           {(['work', 'activity'] as const).map((k) => (
             <TabsTrigger key={k} value={k}>
@@ -94,7 +94,7 @@ export function AgentsSheet({ on, items, open, underway, onOpen, project, change
             </TabsTrigger>
           ))}
         </TabsList>
-      <TabsContent value={tab} className="tabs-flat">
+      <TabsContent value={tab} className="contents">
       {tab === 'activity' ? (
         <ActivityTab project={project} changed={changed} open={open} onGo={onGo} />
       ) : (

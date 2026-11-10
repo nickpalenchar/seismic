@@ -19,11 +19,13 @@ in W2.
 
 ## Today
 
-- **Components.** `src/ui/components/` holds the toast, `Button` (variants, `armed`, `suggested`),
-  `Switch`, `Checkbox` and its label, `SegmentedControl`/`ToggleGroup`, `RadioGroup`, `Tabs`,
-  `Tooltip`, `Menu` and `Listbox`. Each wraps a Radix Primitive (single `radix-ui` package), follows
-  shadcn's API and is styled in plain CSS blocks on our tokens. The header of `components/ui.tsx`
-  states the conventions.
+- **Components.** `src/ui/components/` holds the toast, `Listbox`, `Badge` and the basic parts regenerated
+  from shadcn in W2: `Button` (with `armed` and `suggested`; `IconButton` and `CloseButton` compose it
+  with `Tooltip`), `Switch`, `Checkbox` and its label, `SegmentedControl` on `ToggleGroup`,
+  `RadioGroup`, `Tabs`, `Tooltip` and `Menu` (shadcn's DropdownMenu). They are styled by Tailwind
+  classes in the component on frost's tokens; containers reach them for layout through `data-slot`
+  (`[data-slot=button]`), never for their look. `Listbox` keeps its block in `components/listbox.css`
+  until W5. The header of `components/ui.tsx` states the conventions.
 - **Styling.** `styles.css`, one stylesheet on one set of CSS variables (`--card`, `--ink`, `--chip`, the
   state colours `--working`, `--waiting`, `--approved` …), light and dark via `data-theme`. Frost
   turns cards, sheets, dialogs and menus into frosted glass over a gradient board; `frost.ts` drops the
@@ -68,7 +70,11 @@ production build of `bun start` (`src/server/ui.ts`), in `--hot` through `bunfig
 `[serve.static]` plugins, and in `scripts/build.ts`, which compiles with `Bun.build` for it.
 `src/ui/tailwind.css` is linked by `index.html` beside `styles.css`, never imported by it: the plugin
 compiles (and its optimizer rewrites) the whole file that imports Tailwind, which turned the finished
-cards' color-mix into solid green when the stylesheet imported it. `components.json` for the shadcn CLI (the
+cards' color-mix into solid green when the stylesheet imported it. Tailwind's scale counts in pixels
+(`--spacing: 4px`, `text-xs`/`text-sm` in px), since frost's root font is 14.5px and the rem scale would
+shrink every part by a tenth. `styles.css` declares the cascade layers first and keeps its element
+reset (`button, input, textarea { font: inherit; color: inherit }`) in the `base` layer, so a part's
+own colour and size win over it. `components.json` for the shadcn CLI (the
 Radix build, matching the `radix-ui` package in use; `@/*` is `src/ui/*` in `tsconfig.json`). The
 CLI writes `cn` from shadcn's own `cn` package (a compiled clsx + tailwind-merge), so that is the
 helper; `src/ui/lib/utils.ts` re-exports it where `components.json`'s `utils` alias points, for registry
@@ -141,7 +147,7 @@ overrides it replaces, removes its family from "Today", and shows desktop and ph
 their changes to the controls, not the layout around them.
 
 - [x] **W1:** Foundations and tokens. `tailwindcss` and `bun-plugin-tailwind` wired into `bun start`, `--hot` and `scripts/build.ts` (Tailwind with preflight off, utilities layered under the old CSS); `components.json`, `cn()`, the `@` alias if the CLI needs it; shadcn's variables defined from frost's values in light and dark, with Seismic's state and glass tokens registered as extra Tailwind tokens and `dark:` bound to `data-theme`; the portal container; App's Esc handler made layer-aware. Proved by one generated part (e.g. `Badge`) used once with no visible change to the rest of the UI. Tests still pass and the bundle size and the blur-while-moving frame rate are measured once as a baseline. M.
-- [ ] **W2:** Basic components regenerated from shadcn. Button, Switch, Checkbox, ToggleGroup (the segmented control), RadioGroup, Tabs, Tooltip and DropdownMenu replace our wrappers' CSS and markup. They keep our extras: `armed` and `suggested` on Button, tabs with manual activation for the canvas strip and change list, closing on `closeBarMenus`, the left menu docked-versus-dropdown context, `layerOpen`. IconButton and CloseButton stay as thin compositions. The `.btn`, `.seg`, `.pill`-toggle and related contextual overrides for these are deleted. L (may land in two cards: Button first, since every later part composes it, then the rest).
+- [x] **W2:** Basic components regenerated from shadcn. Button, Switch, Checkbox, ToggleGroup (the segmented control), RadioGroup, Tabs, Tooltip and DropdownMenu replace our wrappers' CSS and markup. They keep our extras: `armed` and `suggested` on Button, tabs with manual activation for the canvas strip and change list, closing on `closeBarMenus`, the left menu docked-versus-dropdown context, `layerOpen`. IconButton and CloseButton stay as thin compositions. The `.btn`, `.seg`, `.pill`-toggle and related contextual overrides for these are deleted. L (may land in two cards: Button first, since every later part composes it, then the rest).
 - [ ] **W3:** The stopped families as shadcn parts. Popover (workstations and usage pills, the status pills' interactive tips, the StartAgent panel, the snooze date-time form, the archive drop-down; the canvas drawer keeps opening on hover through controlled open); Select (the ~30 native selects, with the phone's project switcher deciding between Select and the native picker on touch, checked in the Android emulator); Dialog and AlertDialog (Configuration, Preferences, Performance, Connect a phone, Help and the new-card hint, Report a wish, the merge picker, the canvas dialog; `forceMount` where input must survive closing; one `ConfirmDialog` for the seven confirms; Setup, the Diff view and the lightbox move onto Dialog where their behaviour fits, the rest is listed as staying our own). Delete `useMenuClose` and the hand-copied outside-click code. L; split into three cards: Popover, Select, Dialog.
 - [ ] **W4:** Fields, badges and folds. Input and Textarea (one look, not by container: `#config input`, `#wish .w-issue`, `textarea.p-title` and their kin go), Badge for count badges and card pins, chips (filter, label, tag with remove; the raw-DOM card-link pill shares the chip classes), Collapsible and Accordion for folds with a trigger and a region (finding folds, merge toggle, performance rows, config and detail `<details>`), Progress for the usage meter and reshare bar. M–L; Input/Textarea and Badge/chips may land apart.
 - [ ] **W5:** Higher-level parts. Sheet for the right-dock sheets (non-modal where the canvas stays usable beside it, keeping the dock's own resize grip), Command for the card finder and merge picker (replaces `Listbox` where the input is a plain field; the composer's skill menu and card-link menu sit in a textarea/contentEditable and keep `Listbox` unless Command fits there), Sonner behind the existing toast store so every toast still goes through it. M–L.

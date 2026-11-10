@@ -12,7 +12,8 @@
 //   dark and frost apply without a rule of their own. Until `styles.css` is gone Tailwind runs without
 //   its reset and under the old CSS: a part that needs a bare `button` or `input` resets it itself.
 //   The families not converted yet keep their block in `components/<name>.css`, imported by
-//   `styles.css`; layout (gap, alignment, margin) belongs to the container either way.
+//   `styles.css`; layout (gap, alignment, margin) belongs to the container either way, which reaches a
+//   part through its `data-slot` (`[data-slot=button]`), never to change its look.
 // - State: styled by the data attributes Radix sets (`data-[state=open]:`, `data-disabled:`,
 //   `data-highlighted:`) and our own (`data-variant`), not by extra state classes.
 // - Layers: anything that opens over the page (menu, popover, dialog, sheet, tooltip) portals into

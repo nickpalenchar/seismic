@@ -1,13 +1,52 @@
-// Segmented control and toggle groups on Radix ToggleGroup. `SegmentedControl` is the pick-one row
-// (theme, landing, Unread | All): the group is one tab stop and the arrow keys move between its
-// options. `ToggleGroup` and `ToggleItem` are the parts under it, for a group that wears another
-// look (the stage chips, a multi-select): `type="multiple"` makes each item its own on/off. Their
-// look is `segmented.css`; where a control sits is up to the container.
+// Segmented control and toggle groups (shadcn/ui's ToggleGroup, on Radix ToggleGroup).
+// `SegmentedControl` is the pick-one row (theme, landing, Unread | All): the group is one tab stop
+// and the arrow keys move between its options. `ToggleGroup` and `ToggleGroupItem` are the parts
+// under it: with `variant="segmented"` they wear its look, without one the caller's (the stage chips,
+// a multi-select); `type="multiple"` makes each item its own on/off. Where a control sits is up to
+// the container, which reaches it as `[data-slot=toggle-group]`.
 
-import { ToggleGroup as Group } from 'radix-ui';
-import type { ComponentProps, ReactNode } from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from 'cn';
+import { ToggleGroup as ToggleGroupPrimitive } from 'radix-ui';
+import { type ComponentProps, createContext, type ReactNode, useContext } from 'react';
 
-const classes = (base: string, className?: string) => (className ? `${base} ${className}` : base);
+const groupVariants = cva('', {
+  variants: {
+    variant: { none: '', segmented: 'inline-flex gap-0.5 rounded-[3px] bg-chip p-[3px]' },
+    size: { default: '', small: '' },
+  },
+  compoundVariants: [{ variant: 'segmented', size: 'small', className: 'p-0.5' }],
+  defaultVariants: { variant: 'none', size: 'default' },
+});
+
+const itemVariants = cva('', {
+  variants: {
+    variant: {
+      none: '',
+      segmented:
+        'cursor-pointer rounded-[2px] border-0 bg-transparent px-3 py-1 text-[13px] text-muted-foreground outline-none data-[state=on]:bg-card data-[state=on]:text-ink data-[state=on]:shadow-glass focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-default disabled:opacity-45',
+    },
+    size: { default: '', small: '' },
+  },
+  compoundVariants: [{ variant: 'segmented', size: 'small', className: 'px-2.5 py-[3px] text-[12.5px]' }],
+  defaultVariants: { variant: 'none', size: 'default' },
+});
+
+type Look = VariantProps<typeof groupVariants>;
+const GroupLook = createContext<Look>({});
+
+export function ToggleGroup({ variant, size, className, children, ...props }: ComponentProps<typeof ToggleGroupPrimitive.Root> & Look) {
+  return (
+    <ToggleGroupPrimitive.Root data-slot="toggle-group" data-variant={variant ?? undefined} data-size={size ?? undefined} className={cn(groupVariants({ variant, size }), className)} {...props}>
+      <GroupLook.Provider value={{ variant, size }}>{children}</GroupLook.Provider>
+    </ToggleGroupPrimitive.Root>
+  );
+}
+
+export function ToggleGroupItem({ className, ...props }: ComponentProps<typeof ToggleGroupPrimitive.Item>) {
+  const look = useContext(GroupLook);
+  return <ToggleGroupPrimitive.Item data-slot="toggle-group-item" className={cn(itemVariants(look), className)} {...props} />;
+}
 
 export type SegmentOption<V extends string> = {
   value: V;
@@ -39,10 +78,11 @@ export function SegmentedControl<V extends string>({
   itemClassName?: string;
 }) {
   return (
-    <Group.Root
+    <ToggleGroup
       type="single"
-      className={classes('segmented', className)}
-      data-size={size}
+      variant="segmented"
+      size={size}
+      className={className}
       aria-label={label}
       value={value}
       disabled={disabled}
@@ -50,13 +90,10 @@ export function SegmentedControl<V extends string>({
       onValueChange={(v) => v && onValueChange(v as V)}
     >
       {options.map((o) => (
-        <Group.Item key={o.value} value={o.value} className={classes('segmented-item', o.className ?? itemClassName)} disabled={o.disabled} title={o.title}>
+        <ToggleGroupItem key={o.value} value={o.value} className={o.className ?? itemClassName} disabled={o.disabled} title={o.title}>
           {o.label}
-        </Group.Item>
+        </ToggleGroupItem>
       ))}
-    </Group.Root>
+    </ToggleGroup>
   );
 }
-
-export const ToggleGroup = (props: ComponentProps<typeof Group.Root>) => <Group.Root {...props} />;
-export const ToggleItem = (props: ComponentProps<typeof Group.Item>) => <Group.Item {...props} />;
