@@ -38,7 +38,8 @@ import { Phone, phoneView } from './phone';
 import { KoordinatorSheet } from './koordinator';
 import { closeBarMenus, forcedText } from './queue';
 import { queueOrder } from '../core/queue';
-import { AgentsSheet, type WorkTab } from './agents';
+import { AgentsSheet } from './agents';
+import { ParkedView, QueueView, type SwitchedView, ViewSwitcher } from './views';
 import { depsOf, handleAt, manualPrerequisites, nearestHandle, settledAmong, type Side, SIDES, waitsAmong, withoutImplied } from './deps';
 import { anchoredPath, nearestEdge } from './manualLinks';
 import type { ManualAnchor } from '../core/types';
@@ -182,6 +183,7 @@ const KEPT_PROJECTS = 'obeya-phone-projects';
 const DEP_KNOWN = 'obeya-dep-known';
 /** Set once the owner has clicked "Needs you": its label goes, the bell and the count stay. */
 const NEEDS_YOU_KNOWN = 'obeya-needs-you-known';
+const TALK_KNOWN = 'obeya-talk-known';
 function keepProjects(list: ProjectInfo[]) {
   try {
     localStorage.setItem(KEPT_PROJECTS, JSON.stringify(list));
@@ -533,7 +535,7 @@ function Project({
   // the agents, a docked sheet like the inbox, from the robot in the bar: the queue and the cards at work (agents.tsx)
   const [agentsOn, setAgentsOn, agentsOnRef] = dock.view('agents');
   // the inbox is a full-page view too, from the left menu; it stays open across projects (per tab) until closed
-  const fullPage = useFullPage<string>(() => (inboxKept(sessionStorage) ? 'inbox' : null));
+  const fullPage = useFullPage<'inbox' | 'archive' | 'parked' | 'queue'>(() => (inboxKept(sessionStorage) ? 'inbox' : null));
   const [aOn, setArchiveOn, aOnRef] = useLive(false);
   // the archive is a full-page view of the main area: open, it is the view shown
   const setAOn = (on: boolean) => { setArchiveOn(on); if (on) fullPage.show('archive'); else if (fullPage.ref.current === 'archive') fullPage.show(null); };
@@ -546,6 +548,11 @@ function Project({
     } else if (fullPage.ref.current === 'inbox') fullPage.show(null);
   };
   useEffect(() => keepInbox(sessionStorage, inboxOn), [inboxOn]);
+  /** Parked and Queue, full-page views from the switcher and the menu; null goes back to the canvas. The camera stays where it was, an open card open. */
+  const showPage = (id: 'parked' | 'queue' | null) => {
+    setArchiveOn(false);
+    if (id || fullPage.ref.current) fullPage.show(id);
+  };
   const [cOn, setCOn, cOnRef] = useLive(false);
   // the left menu docked as a sidebar (src/ui/nav.tsx), and hidden there with ☰
   const [pinned, setPinned, pinnedRef] = useLive(loadPinned);
@@ -633,9 +640,11 @@ function Project({
   const sheetEls = useRef(new Map<string, HTMLElement>()).current;
   // entries of the inbox's view and of "Needs you", where a card opened from them unfolds from
   const inboxEls = useRef(new Map<string, HTMLElement>()).current;
-  /** The element a card unfolds from and folds back to: its entry in the inbox's view while that shows, on the project, or a row in the sheet it was opened from. */
+  // entries of the Parked view, likewise
+  const parkedEls = useRef(new Map<string, HTMLElement>()).current;
+  /** The element a card unfolds from and folds back to: its entry in the inbox's or the Parked view while that shows, on the project, or a row in the sheet it was opened from. */
   const fromEl = (id: string, inPlan: boolean) =>
-    (fullPage.ref.current === 'inbox' ? inboxEls.get(id) : undefined) ??
+    (fullPage.ref.current === 'inbox' ? inboxEls.get(id) : fullPage.ref.current === 'parked' ? parkedEls.get(id) : undefined) ??
     els.get(id) ?? (inPlan ? (sheetEls.get(id) ?? archiveEls.get(id)) : (archiveEls.get(id) ?? sheetEls.get(id)));
   // an archived card opened from a plan's sheet, which the archive list may not hold
   const [opened, setOpened] = useState<Item | null>(null);
@@ -2147,12 +2156,6 @@ function Project({
     setKOn(false);
     if (focusRef.current?.type === 'plan') closePlan(false);
   };
-  // the left menu's Queue and Parked open the agents' sheet at their tab
-  const [agentsAsk, setAgentsAsk] = useState<{ tab: WorkTab; n: number }>();
-  const openAgentsAt = (tab: WorkTab) => {
-    setAgentsAsk((a) => ({ tab, n: (a?.n ?? 0) + 1 }));
-    if (!agentsOnRef.current) toggleAgents();
-  };
   // the left menu, floating under ☰ or docked on the left; its entries for views still to come open what stands for them today (docs/plan/ui-menu.md)
   const menu = {
     ...nav,
@@ -2166,16 +2169,17 @@ function Project({
     onCanvas: (c: Canvas) => {
       if (aOnRef.current) setAOn(false);
       setInboxOn(false);
+      showPage(null);
       if (focusRef.current?.type === 'plan') closePlan();
       showCanvas(c);
     },
     queued,
     parked: items.filter((i) => inParkingLot(i) && !i.archivedAt).length,
-    onQueue: () => openAgentsAt('work'),
-    onParked: () => openAgentsAt('parked'),
+    onQueue: () => showPage('queue'),
+    onParked: () => showPage('parked'),
     onArchived: () => (setInboxOn(false), setAOn(true)),
     onProjectSettings: () => !csOnRef.current && toggleProjectSettings(),
-    showing: aOn ? ('archived' as const) : inboxOn ? ('inbox' as const) : csOn ? ('settings' as const) : undefined,
+    showing: aOn ? ('archived' as const) : inboxOn ? ('inbox' as const) : fullPage.active === 'parked' || fullPage.active === 'queue' ? fullPage.active : csOn ? ('settings' as const) : undefined,
     onConfig: toggleConfig,
     onPrefs: openPrefs,
     onHelp: () => {
@@ -2350,6 +2354,20 @@ function Project({
   // copy keeps its room
   // the status bar's middle, where the line naming whom the microphone speaks to stands
   const [targetSlot, setTargetSlot] = useState<HTMLElement | null>(null);
+  // "Hold Space to talk" stands in that line until the owner has talked once
+  const [talkKnown, setTalkKnown] = useState(() => known(TALK_KNOWN));
+  useEffect(() => {
+    if (ptt.phase !== 'listening' || talkKnown) return;
+    know(TALK_KNOWN);
+    setTalkKnown(true);
+  }, [ptt.phase]);
+  // the switcher at the bottom centre, where the microphone was: Canvas, Parked and Table still to come
+  const switched: SwitchedView | null = fullPage.active === 'parked' ? 'parked' : fullPage.active ? null : 'canvas';
+  const switchTo = (v: SwitchedView) => {
+    if (focusRef.current?.type === 'plan') closePlan();
+    setInboxOn(false);
+    showPage(v === 'parked' ? 'parked' : null);
+  };
   const talkButton = (
     <button className={kOn ? 'pill kpill talk-pill on' : 'pill kpill talk-pill'} title={t.koordinator.buttonTitle} aria-label={t.koordinator.button} onClick={talkKoordinator}>
       <TalkIcon />
@@ -2380,7 +2398,7 @@ function Project({
   const openCardId = (focus?.type === 'card' ? focus.id : openId) ?? undefined;
   const dockViews: DockView[] = [
     { id: 'needs-you', besideCard: true, title: t.needsYou.title, icon: ConciergeBell, component: () => (<NeedsYouSheet on={nyOn} entries={entries} current={snapshot.project.id} open={openCardId} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} />) },
-    { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet els={sheetEls} on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })} ask={agentsAsk} />) },
+    { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })} />) },
     { id: 'settings', besideCard: true, title: t.projectSettings.title, icon: Settings, component: () => (<ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showProjectsSection(), setPrefsOn(false), setCOn(true))} />) },
     { id: 'seismic', title: t.koordinator.title, icon: MessageSquare, buttonCloses: true, component: () => (<KoordinatorSheet on={kOn} onClose={toggleKoordinator} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
             showRepoClones({ project: snapshot.project.id, repo, field: 'settings', setting });
@@ -2610,6 +2628,8 @@ function Project({
           onProposalCard={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })}
           onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
         <ArchiveView on={aOn} onClose={() => setAOn(false)} held={focus?.type === 'card'} archived={archived} done={doneCount} onOpen={open} onArchiveDone={() => archiveDone().catch(console.error)} els={archiveEls} />
+        <ParkedView on={fullPage.active === 'parked'} items={items} open={openCardId} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} els={parkedEls} />
+        <QueueView on={fullPage.active === 'queue'} items={items} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} />
         {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the workstation pool and the usage limits */}
         <footer id="status">
           <div className="st-left">
@@ -2632,7 +2652,7 @@ function Project({
           onJump={(wx, wy) => !focusRef.current && fly(viewOn(wx, wy), 500)}
           onFollow={(wx, wy) => !focusRef.current && chase(camRef.current, viewOn(wx, wy), setCam)}
         />
-        <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), showCanvas(c))} />
+        <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), setInboxOn(false), showPage(null), showCanvas(c))} />
 
         {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
         <div id="dim" className={dim ? 'on' : undefined} style={inboxOn && !matchMedia(NARROW).matches ? { left: side.left + inboxListWidth() } : undefined} onClick={() => closeCard()} />
@@ -2714,6 +2734,8 @@ function Project({
           field={draftFor(where())}
           slot={targetSlot}
           onDown={() => press(false)}
+          hint={!talkKnown}
+          instead={<ViewSwitcher shown={switched} onShow={switchTo} />}
         />
 
         <div id="talk-docked" className={kOn ? 'on' : undefined}>

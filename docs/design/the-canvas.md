@@ -37,7 +37,7 @@ out, remembered per browser. Seismic's answers and rule or setting proposals are
 The open card's entry is ringed, and the sheet stays undimmed beside any card.
 
 The agents' button counts in grey the cards waiting in the queue, and only those; its click slides
-out "Agent work", a sheet (see Sheets) with three tabs, the one chosen last remembered per browser.
+out "Agent work", a sheet (see Sheets) with two tabs, the one chosen last remembered per browser.
 "Work" holds two groups, each heading with a plain count: "Working" (the project's cards at work:
 a worker at it, making its demo included, which its state line says; its code review running; its
 worker fixing findings the owner gave it; approved and landing, or in a pull request), each a pane
@@ -47,18 +47,33 @@ to its place (see The queue's order), with no button that takes it out of the qu
 too big to sit on a list row; "Take out of the queue" on the card does it), a row opening its card;
 then "Planned", the cards not started and not queued, as panes. A group without cards says so. A
 card that needs the owner is in neither: "Needs you" lists it, whatever its stage. Parked cards are
-only in "Parked"; finished and archived cards, and ideas the owner has nothing to answer on, are
+only in the Parked view; finished and archived cards, and ideas the owner has nothing to answer on, are
 not listed.
 
-"Parked" is the parking lot. A planned or stopped task that is not queued (nothing runs for it)
+The Parked view is the parking lot, a full-page view of the main area (see the archive below for
+how such a view behaves) from the view switcher or "Parked" in the left menu, headed with its count
+and a ✕. A planned or stopped task that is not queued (nothing runs for it)
 is parked with "Park" in its "⋯" menu (the open card's, and on the canvas); a task that waits for the
 owner (a demo, a question) can be parked too, which stops its agent first and asks to confirm with a
 yellow "Stop and park" or a grey "Go back"; parked, it is off the
-canvas and lists here as a pane like those of "Working", its state "Parked" with a car icon. It stays
+canvas and lists there as a pane like those of "Working", its state "Parked" with a car icon. It stays
 planned or stopped underneath, so its buttons are those of a card that is not running; it does not
 start by itself or from its start time. Starting it asks first: "This takes the card out of the
 parking lot" with "Unpark and start" or "Go back". "Unpark" in the same menu puts it back on the
 canvas without starting it. Opening a parked card unfolds it from its row, without flying anywhere.
+
+The Queue view ("Queue" in the left menu) is the queue as a full-page view: the waiting cards in
+turn, dragged to their place as in "Todo", a row opening its card.
+
+#### The view switcher
+
+At the bottom centre of the main area, a small rounded group "Canvas | Parked | Table" switches what
+the main area shows; "Table" is greyed out with "Coming soon". The view showing is marked (none
+while the inbox, the archive or the queue shows; "Canvas" goes back from them too). Switching keeps
+the canvas's camera where it was, and an open card stays open over whichever view comes. A click on
+it leaves the cursor where it was. The canvas tabs and the left menu's canvases go back to the
+canvas as well. There is no microphone button on the desktop: Space is held to talk (see Voice).
+The phone keeps its microphone and has no switcher.
 
 "Activity" is a log, newest first, of what happened lately on the cards and who did it, with no
 unread marker and no count on the tab or the robot button (what waits is in the inbox). Each line
@@ -173,14 +188,14 @@ A click on ☰ and the logo opens one menu for everything that is not on the can
   performance dashboard over the page) with "Feedback log" (the log's page) under it.
 - "Projects": the open project bold, with its count and its agents' pause, and under it its
   canvases by name (each with its waiting count; a click shows it), "Queue" and "Parked" (each with
-  its count in grey; for now they open Agent work at its "Work" and "Parked" tabs), "Archived" (the archive's view)
+  its count in grey; each opens its view), "Archived" (the archive's view)
   and "Project settings ›" (its sheet). Every other project is one line with its count and its
   pause, a click switching there (see The navigation); "New project" ends the list.
 - "Settings", the Configuration dialog (see The configuration dialog in Repositories and
   configuration), with "Preferences", "Controls: mouse and keys" (the legend `?` shows) and
   "Report a wish or a bug" under it.
 
-The entry of what is showing (the canvas, the archive, the project settings) is marked. The menu
+The entry of what is showing (the canvas, the inbox, the queue, the parked cards, the archive, the project settings) is marked. The menu
 drops down under ☰, and a click on an entry, beside it or Esc closes it. Its head has a pin that
 docks it as a sidebar on the window's left edge, full height, as the sheets are on the right (see
 Sheets); the same button, pressed, undocks it. Docked, it stays open as entries are clicked, ☰ hides
@@ -233,8 +248,9 @@ the decision on the status bar's liveness), and "No connection since <time>" or 
 <time>" from 2½ minutes on; while a restart waits, that instead, in ice blue (see Running Seismic,
 the restart); beside it "Creating demo site …" while the project's demo site is being initialized
 (see A project's demo site in Sharing demos). In the middle, whom the microphone speaks to (see Voice). It stays above an open
-card's dimming, so that line stays readable while a card is open; the microphone sits just above
-the bar. Right, the usage limits of the Claude plan that Claude Code on this machine is logged in
+card's dimming, so that line stays readable while a card is open; the view switcher sits just above
+the bar. Until the owner has talked once (remembered per browser), that line starts with "Hold Space
+to talk", which is how voice is found without a microphone button. Right, the usage limits of the Claude plan that Claude Code on this machine is logged in
 with, behind the small mark of the harness they belong to (Claude Code's; other harnesses get their
 own mark and meters beside it): the session's (five hours) and the week's, each a short meter with its
 percentage, the most used limit of each group, coloured in the grade the plan's usage endpoint gives

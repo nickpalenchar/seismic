@@ -766,6 +766,7 @@ const en = {
   offlineError: 'The server cannot be reached.',
   voice: {
     hold: 'Hold to speak (space)',
+    holdSpace: 'Hold Space to talk',
     koordinator: 'Seismic',
     card: (title: string) => `Seismic · Task: ${title}`,
     agent: (title: string) => `Agent · Task: ${title}`,
@@ -1325,7 +1326,7 @@ const en = {
     allHidden: 'All groups are hidden. Tap one above to show it.',
     work: {
       title: 'Agent work',
-      tabs: { work: 'Work', parked: 'Parked', activity: 'Activity' },
+      tabs: { work: 'Work', activity: 'Activity' },
       working: 'Working',
       todo: 'Todo',
       queued: 'Queued',
@@ -2218,6 +2219,17 @@ const en = {
     hint: 'When a card starts to wait for you (a demo, a question, a proposal …) and you are not looking at Seismic, the computer notifies you. Applies at once, on this computer.',
     denied: 'The system does not allow notifications from Seismic: allow them in the settings of the system or the browser.',
     notGranted: 'The system has not given permission yet. Turn the setting off and on again to ask anew.',
+  },
+  views: {
+    switcher: 'Views',
+    canvas: 'Canvas',
+    parked: 'Parked',
+    table: 'Table',
+    comingSoon: 'Coming soon',
+    parkedHint: 'Cards you parked wait here until you unpark them; they do not start on their own.',
+    queue: 'Queue',
+    queueHint: 'The tasks waiting for an agent, in the order they start. Drag one to move it.',
+    noneQueued: 'No task is waiting in the queue.',
   },
   leftMenu: {
     button: 'Menu: inbox, projects, agents and settings',

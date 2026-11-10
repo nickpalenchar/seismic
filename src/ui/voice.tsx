@@ -10,7 +10,7 @@
 
 import { createPortal } from 'react-dom';
 import { Mic } from 'lucide-react';
-import { createContext, useEffect, useRef, useState } from 'react';
+import { createContext, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { Place } from '../core/layout';
 import type { Notice } from '../core/types';
 import { ApiError, api, type Heard, holdRestart, shownProject, type Where } from './api';
@@ -289,8 +289,11 @@ export function useHeldByTouch<T extends HTMLElement>() {
  * names while they wait there. Those for Seismic stay in view: they go into Seismic's field when it
  * opens, and back beside the microphone when it closes, the paths that still stand in its words too.
  * With a `slot` (the middle of the project's status bar) the line stands there, not under the microphone.
+ * With `instead` (the desktop's view switcher) that stands where the microphone and its screenshot
+ * button would: Space is the only way to talk, the microphone shows only while it listens, and the
+ * line says "Hold Space to talk" while `hint` is on.
  */
-export function PushToTalk({ phase, level, flat, target, field, slot, onDown }: { phase: Phase; level: number; flat: boolean; target: string | null; field: string | null; slot?: HTMLElement | null; onDown: () => void }) {
+export function PushToTalk({ phase, level, flat, target, field, slot, onDown, instead, hint }: { phase: Phase; level: number; flat: boolean; target: string | null; field: string | null; slot?: HTMLElement | null; onDown: () => void; instead?: ReactNode; hint?: boolean }) {
   const on = useFieldOn(field);
   const key = on ? field! : MIC_DRAFT;
   const shots = useShotInput({ draft: key, off: !takesImages(key) });
@@ -327,16 +330,20 @@ export function PushToTalk({ phase, level, flat, target, field, slot, onDown }: 
           {t.voice.sendWithEnter && ` · ${t.voice.sendWithEnter}`}
         </div>
       ) : (
-        target !== null && (
+        (target !== null || hint) && (
           <div id="target">
-            → <b>{target}</b>
-            {parts.length > 0 && <span className="with"> {t.voice.with(parts)}</span>}
+            {hint && <span className="hint-talk">{t.voice.holdSpace}</span>}
+            {hint && target !== null && ' '}
+            {target !== null && (
+              <>
+                → <b>{target}</b>
+                {parts.length > 0 && <span className="with"> {t.voice.with(parts)}</span>}
+              </>
+            )}
           </div>
         )
       );
-  return (
-    <div id="ptt" className={`${phase}${shots.dropping ? ' dropping' : ''}`} {...shots.drop}>
-      <div className="ptt-row">
+  const micButton = (
         <button
           id="mic"
           ref={mic}
@@ -353,9 +360,20 @@ export function PushToTalk({ phase, level, flat, target, field, slot, onDown }: 
           <span className="ring" />
           <MicIcon />
         </button>
+  );
+  return (
+    <div id="ptt" className={`${phase}${shots.dropping ? ' dropping' : ''}${instead ? ' switching' : ''}`} {...shots.drop}>
+      {instead && phase === 'listening' && (
+        <div id="mic" className="listen" style={{ ['--lvl' as string]: 1 + level * 0.45 }} aria-hidden="true">
+          <span className="ring" />
+          <MicIcon />
+        </div>
+      )}
+      <div className="ptt-row">
+        {instead ?? micButton}
         {key === MIC_DRAFT && (
           <div className="ptt-shots">
-            <AttachButton shots={shots} title={t.voice.attach} />
+            {!instead && <AttachButton shots={shots} title={t.voice.attach} />}
             <ShotStrip shots={shots} />
             <FileChips />
           </div>

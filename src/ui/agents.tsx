@@ -2,14 +2,14 @@
 // Its first tab holds "Working" (the cards at work, src/core/agents.ts) and "Todo": the cards waiting
 // to start in turn, dragged to their place as on a waiting card (src/ui/queue.tsx), then the planned
 // ones; each card a pane like an inbox entry (its face at size S), whose title or "Go to card" opens
-// it. Cards that need the owner are in "Needs you" instead (src/ui/needsYou.tsx). "Parked" lists the
-// cards in the parking lot; "Activity" is the log of what happened on the cards (src/ui/activity.tsx).
+// it. Cards that need the owner are in "Needs you" instead (src/ui/needsYou.tsx), the parked ones in
+// the Parked view (src/ui/views.tsx). "Activity" is the log of what happened on the cards (src/ui/activity.tsx).
 // The phone keeps its own lists with the tabs and stage chips below.
 
 import { useEffect, useRef } from 'react';
 import { agentStage, agentWork } from '../core/agents';
 import { waitsFor } from '../core/inbox';
-import { inParkingLot, type Item } from '../core/types';
+import type { Item } from '../core/types';
 import { ActivityTab } from './activity';
 import { CardFace, shownTitle } from './card';
 import { Docked } from './docked';
@@ -59,18 +59,13 @@ export function StageChips<S extends string>({ stages, count, hidden, onHidden, 
   );
 }
 
-/** The desktop's Agent work tabs: the cards at work and to do, the parked ones, and the log. */
-export type WorkTab = 'work' | 'parked' | 'activity';
+/** The desktop's Agent work tabs: the cards at work and to do, and the log. */
+type WorkTab = 'work' | 'activity';
 
-/** The desktop's Agent work, docked on the right: "Working" and "Todo" (the queue, then the planned cards), "Parked" and "Activity". */
-export function AgentsSheet({ els, on, items, open, underway, onOpen, project, changed, onGo, ask }: { els: Map<string, HTMLElement>; on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void; project: string; changed: unknown; onGo: (project: string, i: Item) => void; ask?: { tab: WorkTab; n: number } }) {
+/** The desktop's Agent work, docked on the right: "Working" and "Todo" (the queue, then the planned cards), and "Activity". */
+export function AgentsSheet({ on, items, open, underway, onOpen, project, changed, onGo }: { on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void; project: string; changed: unknown; onGo: (project: string, i: Item) => void }) {
   const [kept, setTab] = useStoredState<WorkTab | null>('obeya-agent-work-tab', null);
-  const tab: WorkTab = kept === 'parked' || kept === 'activity' ? kept : 'work';
-  // the left menu's Queue and Parked open the sheet at their tab
-  useEffect(() => {
-    if (ask) setTab(ask.tab);
-  }, [ask?.n]);
-  const parked = items.filter((i) => inParkingLot(i) && !i.archivedAt);
+  const tab: WorkTab = kept === 'activity' ? kept : 'work';
   const box = useRef<HTMLElement>(null);
   const q = useQueueSort(items, box);
   // the sheet closed or the tab changed under a drag: the row is not dropped anywhere
@@ -84,25 +79,14 @@ export function AgentsSheet({ els, on, items, open, underway, onOpen, project, c
     <Docked id="agents" ref={box} on={on} label={t.agents.work.title}>
       <h2>{t.agents.work.title}</h2>
       <div className="seg agents-tabs" role="tablist" aria-label={t.agents.work.title}>
-        {(['work', 'parked', 'activity'] as const).map((k) => (
+        {(['work', 'activity'] as const).map((k) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : undefined} onClick={() => setTab(k)}>
             {t.agents.work.tabs[k]}
-            {k === 'parked' && parked.length > 0 && <span className="count">{parked.length}</span>}
           </button>
         ))}
       </div>
       {tab === 'activity' ? (
         <ActivityTab project={project} changed={changed} open={open} onGo={onGo} />
-      ) : tab === 'parked' ? (
-        parked.length ? (
-          <ul className="inbox-list">
-            {parked.map((i) => (
-              <AgentEntry key={i.id} item={i} els={els} here={i.id === open} underway={underway(i.id)} onOpen={onOpen} />
-            ))}
-          </ul>
-        ) : (
-          <p className="hint agents-empty">{t.agents.noneParked}</p>
-        )
       ) : (
         <>
           <section className="agents-stage">
@@ -137,13 +121,13 @@ export function AgentsSheet({ els, on, items, open, underway, onOpen, project, c
   );
 }
 
-/** A card, as the inbox shows an entry: its face at size S, with what it waits for where it needs the owner, and "Go to card". */
-function AgentEntry({ item: i, els, here, underway, onOpen }: { item: Item; els?: Map<string, HTMLElement>; here: boolean; underway: boolean; onOpen: (i: Item) => void }) {
+/** A card, as the inbox shows an entry: its face at size S, with what it waits for where it needs the owner, and "Go to card". With `els`, a card opened from it unfolds from it. */
+export function AgentEntry({ item: i, els, here, underway, onOpen }: { item: Item; els?: Map<string, HTMLElement>; here: boolean; underway: boolean; onOpen: (i: Item) => void }) {
   const stage = agentStage(i, underway);
   // what it waits for where it needs the owner, as its inbox entry says; else the line its card shows under its title
   const waits = stage === 'needsYou' ? waitsFor(i) : undefined;
   return (
-    <li ref={els && inParkingLot(i) ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined} className={`inbox-entry agent-entry stage-${stage ?? 'parked'}${here ? ' on' : ''}`} aria-current={here || undefined}>
+    <li ref={els ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined} className={`inbox-entry agent-entry stage-${stage ?? 'parked'}${here ? ' on' : ''}`} aria-current={here || undefined}>
       <CardFace
         item={i}
         size="s"

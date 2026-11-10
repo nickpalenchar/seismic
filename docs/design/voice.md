@@ -4,8 +4,13 @@ A chapter of the [design doc](../design.md), whose header says how it is written
 
 ### Voice in
 
-Push-to-talk: hold Space or the mic button in Seismic's window. The browser records and posts the
-audio with its focus (the open card, the plan in view).
+Push-to-talk: hold Space in Seismic's window, or on the phone its mic button. The browser records
+and posts the audio with its focus (the open card, the plan in view). The desktop has no microphone
+button at the bottom, where the view switcher stands (see The view switcher in The canvas): the
+status bar's middle line says "Hold Space to talk" until the owner has talked once, and while Space
+is held a microphone with the level shows above the switcher. Screenshots pasted (⌘V) with no field
+in view, and files dropped on the switcher, wait beside it for the next recording, as beside the
+phone's microphone.
 
 #### Dictating or sending
 
@@ -16,7 +21,7 @@ with no card open): its words before the spoken ones, its screenshots, the messa
 field empties, and gets them back when nothing was heard. A click into the field or beside it
 switches.
 
-A dictation starts from the microphone in the field, the microphone at the bottom (pressing it keeps
+A dictation starts from the microphone in the field, the phone's microphone at the bottom (pressing it keeps
 the cursor where it is), or Space held in the field. Space in a field is held back: released within
 250 ms or overlapped by another key (fast typing), it is typed; held longer it records, and released
 before a recording would count (600 ms in all) it is typed after all. While Space is down the field

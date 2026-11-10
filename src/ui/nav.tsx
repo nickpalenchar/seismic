@@ -105,7 +105,7 @@ export interface MenuActions {
   onArchived: () => void;
   onProjectSettings: () => void;
   /** Which of the open project's views is showing, marked in the menu. */
-  showing?: 'archived' | 'inbox' | 'settings';
+  showing?: 'archived' | 'inbox' | 'parked' | 'queue' | 'settings';
   /** The configuration: every project, its repositories, Seismic's agents, voice, demos. */
   onConfig: () => void;
   onPrefs: () => void;
@@ -202,8 +202,8 @@ function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; t
                   {p.canvases.map((v) => (
                     <Entry key={v.id} icon={<CanvasIcon canvas={v} size={15} />} label={v.name} on={!p.showing && v.id === p.canvas} onClick={run(() => p.onCanvas(v))} end={!!p.canvasWaiting[v.id] && <span className="waits">{p.canvasWaiting[v.id]}</span>} />
                   ))}
-                  <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} onClick={run(p.onQueue)} end={p.queued > 0 && <span className="grey">{p.queued}</span>} />
-                  <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} onClick={run(p.onParked)} end={p.parked > 0 && <span className="grey">{p.parked}</span>} />
+                  <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} on={p.showing === 'queue'} onClick={run(p.onQueue)} end={p.queued > 0 && <span className="grey">{p.queued}</span>} />
+                  <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} on={p.showing === 'parked'} onClick={run(p.onParked)} end={p.parked > 0 && <span className="grey">{p.parked}</span>} />
                   <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} on={p.showing === 'archived'} onClick={run(p.onArchived)} />
                   <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.projectSettings} on={p.showing === 'settings'} onClick={run(p.onProjectSettings)} end={<ChevronRight size={16} strokeWidth={2} className="more" aria-hidden />} />
                 </ul>

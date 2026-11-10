@@ -132,6 +132,7 @@ code { border-radius: 5px; }
 #panel::before { left: 30px; right: auto; width: 80px; height: 3px; border-radius: 0 0 3px 3px; box-shadow: 0 0 12px var(--c); }
 #panel .close, #sheet-close { border-radius: 10px; }
 #minimap { border-radius: 14px; border: 1px solid var(--glass-edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+.view-switch { background: var(--glass); border: 1px solid var(--glass-edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
 #mic { background: var(--glass); border: 1px solid var(--glass-edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
 .btn { border-radius: 10px; }
 .btn.primary { background: var(--working); color: var(--on-ink); }
