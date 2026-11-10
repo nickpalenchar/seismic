@@ -140,6 +140,7 @@ export function useToasts() {
 
 /** In this browser the owner has swiped a toast aside: they no longer nudge. */
 const SWIPED = 'obeya.swipedAside';
+let nextToastBridge = 0;
 
 function swipedOnce(): boolean {
   try {
@@ -156,12 +157,18 @@ function swipedOnce(): boolean {
  */
 export function Toasts({ toasts, open, aside = false }: { toasts: ReturnType<typeof useToasts>; open?: string; aside?: boolean }) {
   const { store, list } = toasts;
+  // Each project has its own numeric store ids, while Sonner keeps one module-wide store.
+  const bridge = useMemo(() => ++nextToastBridge, []);
   const shown = useRef(new Set<number>());
+  useEffect(() => () => {
+    for (const id of shown.current) sonner.dismiss(`${bridge}:${id}`);
+    shown.current.clear();
+  }, [bridge]);
   useEffect(() => {
     for (const x of list) {
       shown.current.add(x.id);
       sonner.custom(() => <ToastLine toast={x} open={open} aside={aside} onGone={() => store.remove(x.id)} />, {
-        id: x.id,
+        id: `${bridge}:${x.id}`,
         duration: Infinity,
         // Sonner also reports a toast it took away for the store; only one still in the store was swiped
         onDismiss: () => {
@@ -178,9 +185,9 @@ export function Toasts({ toasts, open, aside = false }: { toasts: ReturnType<typ
     for (const id of shown.current) {
       if (list.some((x) => x.id === id)) continue;
       shown.current.delete(id);
-      sonner.dismiss(id);
+      sonner.dismiss(`${bridge}:${id}`);
     }
-  }, [list, open, aside]);
+  }, [list, open, aside, bridge, store]);
   return <Toaster swipeDirections={aside ? ['left', 'right'] : []} />;
 }
 

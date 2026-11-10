@@ -54,6 +54,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
                 if (!open) closeBarMenus();
                 setOpen(true);
               }}
+              onBlur={close}
             />
             {!query && !open && <kbd className="pointer-events-none absolute top-1/2 right-2.5 grid h-5 min-w-[18px] -translate-y-1/2 place-items-center rounded-[3px] border border-line px-[5px] font-mono text-xs text-muted-foreground in-data-[fit~='3']:hidden" aria-hidden>/</kbd>}
           </div>
