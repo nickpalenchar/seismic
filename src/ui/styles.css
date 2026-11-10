@@ -65,13 +65,10 @@ a.link:hover, a.link:focus-visible { --hl: color-mix(in srgb, var(--question) 17
 /* a card named in a sentence: blue and underlined, so it reads as a link at a glance */
 a.link.card-link { color: var(--working); text-decoration: underline 1px currentColor; }
 /* a card a text links to: a pill with the dot of its state, its title (blue and underlined, as links are) and its priority */
-.smart-link { --c: var(--muted-foreground); display: inline-flex; align-items: center; gap: 6px; max-width: 100%; vertical-align: baseline;
-  padding: 1px 8px 1px 7px; border: 1px solid var(--glass-edge); border-radius: 999px; background: var(--chip); line-height: 1.45;
-  font-size: .92em; color: var(--working); text-decoration: none; white-space: nowrap; transition: border-color .12s, background-color .12s; }
+.smart-link { --c: var(--muted-foreground); }
 .smart-link .sl-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
 .smart-link .sl-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; text-decoration: underline 1px currentColor; text-underline-offset: .18em; }
 .smart-link .prio { font-size: .9em; }
-a.smart-link:hover, a.smart-link:focus-visible { border-color: var(--working); background: color-mix(in srgb, var(--working) 8%, var(--chip)); outline: none; }
 /* a card no longer on the project: its title as the link had it, muted */
 .smart-link.gone { color: var(--muted-foreground); }
 .smart-link.gone .sl-title { text-decoration: none; }
@@ -537,7 +534,6 @@ button.pill:hover { box-shadow: var(--lift); }
 /* the traffic lights of the app's window on a Mac sit at the bar's left, or in the pinned navigation's head */
 #bar.titlebar { padding-left: 92px; }
 #bar.titlebar.beside-nav { padding-left: 14px; }
-.kpill .n { background: var(--planned); color: var(--on-ink); border-radius: 3px; padding: 0 7px; font-weight: 700; font-size: 12px; }
 .kpill.on { background: var(--ink); color: var(--bg); }
 /* the bar's buttons always fit (src/ui/barFit.ts): narrower than its contents, the search field shrinks first, then
    the bar gives up in steps the wordmark for the sign, the help, and last lets the search field shrink to its icon */
@@ -583,10 +579,7 @@ button.pill:hover { box-shadow: var(--lift); }
 .proposals .setting-diff textarea { min-width: 0; }
 .proposals .setting-value { flex-basis: 100%; margin: 0; font: 12px/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--card); border-radius: 2px; padding: 6px 8px; }
 .prefs .pref-actions .take-on { flex-basis: 100%; color: var(--muted-foreground); font-size: 12px; }
-.kpill .n.prop { background: var(--proposal); }
 /* an answer waits in Seismic's sheet: orange, like everything that waits for the owner */
-.kpill .n.unread { background: var(--waiting); }
-.kpill .n.err { background: var(--error); }
 /* the agents' button counts the queued cards in grey (src/ui/agents.tsx) */
 .agents-pill .bar-icon { display: block; }
 .agents-pill.on { background: var(--chip); color: var(--ink); }
@@ -1662,7 +1655,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-project .cfg-field { align-items: start; }
 .cfg-project .cfg-field > .cfg-label { padding-top: 7px; }
 .cfg-repo-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.cfg-repo-tabs .n { margin-left: 6px; border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--error); }
+.cfg-repo-tabs [data-variant=count] { margin-left: 6px; }
 .cfg-repo { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
 .cfg-repo-path { display: flex; align-items: center; gap: 12px; max-width: 664px; }
 .cfg-repo-path > .c-path { flex: 1; }
@@ -2267,7 +2260,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 #ph-home .agents-filter [data-slot=toggle-group-item] { flex: none; min-height: 36px; padding: 0 14px; font-size: 14px; }
 #ph-home .agents-filter [data-slot=toggle-group-item] span { font-size: 13px; }
 /* a stage's count beside its heading, trimmed to its capitals so it centres on what the eye sees */
-.ph-section h2 .n { font: 600 13px/1 var(--font); padding: 6px 8px; border-radius: 8px; background: var(--chip); color: var(--muted-foreground); text-box: trim-both cap alphabetic; }
 .ph-empty { margin-top: 18px; line-height: 1.45; }
 /* the queue's rows sized for a finger: its card's face larger, a row of its own per card */
 #ph-home .qlist li { gap: 12px; padding: 12px 10px; margin-bottom: 8px; border-radius: 3px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); font-size: 14.5px; }
@@ -2645,7 +2637,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .perf-table tr.perf-group th { font-weight: 600; background: color-mix(in srgb, var(--chip) 70%, transparent); padding-top: 6px; padding-bottom: 6px; }
 .perf-table tbody th[scope="row"] { font-weight: 400; }
 .perf-row.few td, .perf-row.few .perf-expand { color: var(--muted-foreground); }
-.perf-expand { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 2px 0; font: inherit; color: var(--ink); cursor: pointer; text-align: left; }
+.perf-expand { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; color: var(--ink); }
 .perf-expand:hover { text-decoration: underline; text-underline-offset: 3px; }
 .perf-caret { width: 10px; color: var(--muted-foreground); font-size: 11px; }
 .perf-model { font: 13px var(--mono); }
@@ -2730,10 +2722,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .prio-btn.set:has(.prio-critical) { padding: 1px; }
 .prio-menu { min-width: 140px; padding: 4px; display: flex; flex-direction: column; border: 1px solid var(--glass-edge); border-radius: 12px; }
 /* A suggested label carries the same dashed border and colour as a proposal card. */
-.lchip { display: inline-flex; align-items: center; gap: 3px; flex: none; padding: 0 5px; border: 1px solid var(--line); border-radius: 999px;
-  line-height: 15px; font-size: .92em; font-weight: 500; color: var(--muted-foreground); background: var(--chip); text-transform: none; letter-spacing: .01em; }
-.lchip svg { display: block; flex: none; }
-.lchip.sugg { border-color: var(--proposal); border-style: dashed; }
 .prio.sugg { border: 1px dashed var(--proposal); border-radius: 3px; padding: 0 5px 0 4px; line-height: 15px; }
 .label-picks { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .lchip-none { display: inline-flex; align-items: center; gap: 3px; font-weight: 500; color: var(--muted-foreground); text-transform: none; letter-spacing: .01em; }
@@ -2835,7 +2823,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .ny-head svg { flex: none; color: var(--muted-foreground); transition: transform .15s; }
 .ny-head.open svg { transform: rotate(90deg); }
 .ny-head .ny-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ny-head .n { border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--waiting); }
 .ny-project .inbox-list { margin-top: 6px; }
 
 .inbox-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -2889,7 +2876,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .needs-you-pill { padding-inline: 12px; }
 .needs-you-pill .bar-icon { display: block; }
 .needs-you-pill .lbl { font-weight: 600; }
-.needs-you-pill .n { background: var(--waiting); }
 .needs-you-pill.on { background: var(--chip); color: var(--ink); }
 /* the avatar's place, until Seismic has accounts */
 #bar .avatar { width: 34px; height: 34px; display: grid; place-items: center; color: var(--muted-foreground); }
@@ -2930,17 +2916,17 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 
 #agents .agents-tabs { margin: 0 8px 4px; }
 .agents-tabs .count { margin-left: 6px; font-weight: 600; font-size: 12px; color: var(--muted-foreground); }
-.agents-tabs .n { margin-left: 6px; border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--planned); }
+.agents-tabs [data-variant=count] { margin-left: 6px; }
 #agents .agents-empty { margin: 14px 8px; font-size: 13px; line-height: 1.45; }
 .agents-stage h3 { margin: 18px 8px 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted-foreground); }
 .agents-stage h3 .count { font-weight: 400; }
 .agents-stage h4 { margin: 10px 8px 6px; font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
-.agents-stage h4 .n { margin-left: 4px; border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--planned); }
+.agents-stage h4 [data-variant=count] { margin-left: 4px; }
 /* the chips above "All": one per stage, tinted in its colour while its group shows */
 .agents-filter { margin: 12px 8px 0; }
 .cs-pill .bar-icon { display: block; }
 .cs-pill { padding-inline: 10px; }
-.cs-pill .n.err { margin-left: 4px; }
+.cs-pill [data-variant=count] { margin-left: 4px; }
 .cs-pill.on { background: var(--chip); color: var(--ink); }
 
 #project-settings .cs-project { margin: 0 40px 2px 0; font-size: 12px; color: var(--muted-foreground); }
@@ -2956,7 +2942,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 #project-settings select:not(.own) { color: var(--muted-foreground); }
 .cs-more { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 13px; }
 .cs-more .hint { font-size: 12.5px; }
-.cs-more .n.err { color: var(--warn); font-size: 12.5px; }
 /* a narrow window: the project's settings float over the whole page, down to the status bar */
 @media (max-width: 760px) { #project-settings.sheet { bottom: 46px; } body:has(#project-settings.on) .ptt-row { visibility: hidden; } }
 /* beside the two-line Start agent button, the other action buttons take its height */

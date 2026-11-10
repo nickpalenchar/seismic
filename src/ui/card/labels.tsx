@@ -7,6 +7,7 @@ import { type ReactNode, useState } from 'react';
 import { COMPLEXITIES, type Complexity, type Label, type Labels, LABEL_VALUES, PRIORITIES, type Priority } from '../../core/labels';
 import type { Item } from '../../core/types';
 import { api } from '../api';
+import { Badge } from '../components/badge';
 import { Menu, MenuContent, MenuRadioGroup, MenuRadioItem, MenuTrigger } from '../components/menu';
 import { t } from '../strings';
 
@@ -57,10 +58,10 @@ function chipTitle(label: Exclude<Label, 'priority'>, v: NonNullable<Labels[type
 /** One label as a compact chip; purple-bordered while Seismic suggested it. */
 function Chip({ label, value, suggested }: { label: Exclude<Label, 'priority'>; value: NonNullable<Labels[typeof label]>; suggested?: boolean }) {
   return (
-    <span className={`lchip lchip-${label}${suggested ? ' sugg' : ''}`} title={suggested ? `${chipTitle(label, value)}\n${t.labels.suggested}` : chipTitle(label, value)}>
+    <Badge variant="label" data-suggested={suggested || undefined} className={`lchip lchip-${label}${suggested ? ' sugg' : ''}`} title={suggested ? `${chipTitle(label, value)}\n${t.labels.suggested}` : chipTitle(label, value)}>
       {label === 'complexity' && <Bars complexity={value as Complexity} />}
       {chipText(label, value)}
-    </span>
+    </Badge>
   );
 }
 

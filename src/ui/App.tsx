@@ -73,6 +73,7 @@ import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, useWarnings, voiceTarget } from './tell';
 import { CloseButton } from './components/button';
 import { Tooltip } from './components/tooltip';
+import { Badge } from './components/badge';
 
 export function App() {
   const [phone] = useState(phoneView);
@@ -2378,9 +2379,9 @@ function Project({
       <button className={kOn ? 'pill kpill talk-pill on' : 'pill kpill talk-pill'} aria-label={t.koordinator.button} onClick={talkKoordinator}>
         <TalkIcon />
         {unread > 0 && (
-          <span className="n unread" title={t.koordinator.unreadCount(unread)}>
+          <Badge variant="count" className="bg-waiting" title={t.koordinator.unreadCount(unread)}>
             {unread}
-          </span>
+          </Badge>
         )}
       </button>
     </Tooltip>
@@ -2603,9 +2604,9 @@ function Project({
               <button className={csOn ? 'pill kpill cs-pill on' : 'pill kpill cs-pill'} aria-label={t.projectSettings.button} aria-expanded={csOn} onClick={toggleProjectSettings}>
                 <BarIcon icon={Settings} />
                 {configProblems > 0 && (
-                  <span className="n err" title={t.config.problemCount(configProblems)}>
+                  <Badge variant="count" className="bg-error" title={t.config.problemCount(configProblems)}>
                     {configProblems}
-                  </span>
+                  </Badge>
                 )}
               </button>
             </Tooltip>
@@ -2613,7 +2614,7 @@ function Project({
               <Tooltip content={t.agents.button(queued)}>
                 <button className={agentsOn ? 'pill kpill agents-pill on' : 'pill kpill agents-pill'} aria-label={t.agents.button(queued)} aria-expanded={agentsOn} onClick={toggleAgents}>
                   <BarIcon icon={Bot} />
-                  {queued > 0 && <span className="n">{queued}</span>}
+                  {queued > 0 && <Badge variant="count">{queued}</Badge>}
                 </button>
               </Tooltip>
               <Tooltip content={t.needsYou.button(needsYouCards)}>
@@ -2631,7 +2632,7 @@ function Project({
                 >
                   <BarIcon icon={ConciergeBell} />
                   {!needsYouKnown && <span className="lbl">{t.needsYou.label}</span>}
-                  {needsYouCards > 0 && <span className="n">{needsYouCards}</span>}
+                  {needsYouCards > 0 && <Badge variant="count" className="bg-waiting">{needsYouCards}</Badge>}
                 </button>
               </Tooltip>
             </div>

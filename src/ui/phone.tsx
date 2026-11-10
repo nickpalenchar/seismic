@@ -45,6 +45,7 @@ import { projectPath, cardPath, named, knowProjects, projectNamed, queryWithout,
 import { scrollBehavior } from './motion';
 import { Tooltip } from './components/tooltip';
 import { layerOpen } from './components/ui';
+import { Badge } from './components/badge';
 
 /**
  * Whether the page shows the phone view: on a phone, which has a coarse pointer and a short side
@@ -766,7 +767,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
               shownGroups.map((s) => (
                 <section key={s} className={`ph-section ph-stage stage-${s}`}>
                   <h2>
-                    {t.agents.stages[s]} <span className="n">{count(s)}</span>
+                    {t.agents.stages[s]} <Badge variant="count" className="rounded-lg bg-chip px-2 py-1.5 text-[13px] font-semibold text-muted-foreground [text-box:trim-both_cap_alphabetic]">{count(s)}</Badge>
                   </h2>
                   {s === 'needsYou' ? (
                     <InboxList
@@ -919,9 +920,9 @@ function TalkButton({ label, shown, n, count, working, onClick }: { label: strin
     <button className={['pill kpill talk-pill ph-talk-open', shown && 'on', working && 'working'].filter(Boolean).join(' ')} aria-expanded={shown} aria-label={shown ? t.phone.closeTalk : label} onClick={onClick}>
       <TalkIcon />
       {!shown && n > 0 && (
-        <span className="n unread" title={count}>
+        <Badge variant="count" className="bg-waiting" title={count}>
           {n}
-        </span>
+        </Badge>
       )}
     </button>
   );

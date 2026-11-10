@@ -15,6 +15,7 @@ import { useStoredState } from './stored';
 import { t } from './strings';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
+import { Badge } from './components/badge';
 
 type CardOnly = InboxEntry & { card: Item };
 
@@ -53,7 +54,7 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
               >
                 <ChevronRight size={14} strokeWidth={2} aria-hidden />
                 <span className="ny-name">{list[0]!.projectName}</span>
-                {n > 0 && <span className="n">{n}</span>}
+                {n > 0 && <Badge variant="count" className="bg-waiting">{n}</Badge>}
               </button>
               {open && <ul className="inbox-list">{list.map(entry)}</ul>}
             </section>

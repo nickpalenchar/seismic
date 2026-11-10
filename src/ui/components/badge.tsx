@@ -18,6 +18,12 @@ const badgeVariants = cva(
         outline: 'border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         ghost: '[a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 [a&]:hover:underline',
+        // a count beside a button or tab label; the caller tints it (`bg-waiting`, `bg-error`)
+        count: 'rounded-[3px] bg-planned px-1.5 py-0 text-[11.5px] leading-[inherit] font-bold text-on-ink',
+        // a card's label (category, sub-category, complexity); a dashed purple edge while Seismic suggested it
+        label: 'gap-[3px] border-line bg-chip px-[5px] py-0 text-[.92em] leading-[15px] font-medium tracking-[.01em] text-muted-foreground normal-case [&>svg]:size-auto! data-[suggested=true]:border-dashed data-[suggested=true]:border-proposal',
+        // the pill of a card a text links to (a link, or a span once the card is gone), also built as raw DOM in the composer: see `pillClass`
+        pill: 'max-w-full gap-1.5 overflow-visible border-glass-edge bg-chip py-px pr-2 pl-[7px] align-baseline text-[.92em] leading-[1.45] font-normal text-working no-underline focus-visible:border-working focus-visible:ring-0 [a&]:hover:border-working [a&]:hover:bg-[color-mix(in_srgb,var(--working)_8%,var(--chip))]',
         // a chip: a tag or label that may carry a remove button after its text
         chip: 'h-6 gap-1 bg-chip py-0 pr-[3px] pl-2.5 text-[12.5px] leading-none font-normal',
         // the pin at a card's corner: a count or mark on a glossy dot in the colour of --pin, which the
@@ -35,4 +41,7 @@ function Badge({ className, variant = 'default', asChild = false, pulse, ...prop
   return <Comp data-slot="badge" data-variant={variant} className={cn(badgeVariants({ variant }), pulse && 'after:pointer-events-none after:absolute after:-inset-[15px] after:-z-20 after:animate-[pulse_1.8s_ease-out_infinite] after:rounded-[27px] after:bg-[var(--pin)] after:opacity-0 after:content-[\'\']', className)} {...props} />;
 }
 
-export { Badge, badgeVariants };
+/** The class string of a badge variant for what is not React (the card-link pill the composer builds as DOM); `extra` joins it. */
+const badgeClass = (variant: NonNullable<VariantProps<typeof badgeVariants>['variant']>, ...extra: string[]) => cn(badgeVariants({ variant }), ...extra);
+
+export { Badge, badgeClass, badgeVariants };

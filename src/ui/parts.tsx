@@ -951,7 +951,7 @@ export const PlanView = memo(
                     asChild
                     variant="pin"
                     pulse
-                    className="relative scale-100 [--pin:var(--proposal)] flex items-center justify-center gap-1 px-[5px] cursor-pointer"
+                    className="relative top-auto right-auto scale-100 [--pin:var(--proposal)] flex items-center justify-center gap-1 px-[5px] cursor-pointer"
                   >
                   <button
                     aria-label={t.plan.replied(replies)}
@@ -967,7 +967,7 @@ export const PlanView = memo(
                 </Badge>
               </Tooltip>
             )}
-            {waiting > 0 && <Badge variant="pin" className="relative scale-100">{waiting}</Badge>}
+            {waiting > 0 && <Badge variant="pin" className="relative top-auto right-auto scale-100">{waiting}</Badge>}
           </div>
         )}
       </div>

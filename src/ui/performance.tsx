@@ -4,7 +4,7 @@
 // what it is, not how well it did; with too few ratings in all, the responses stand alone, without
 // averages. A row opens to its responses, each linking back to its card.
 
-import { createContext, Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useEffect, useMemo, useRef, useState } from 'react';
 import { logQuery, type LogFilter, type Period } from '../core/feedback-log';
 import { ageStep, FEW, filterChoices, filterFeedback, performance, type PerformanceFilter, type PerformanceRow, scatter, stars, trend } from '../core/performance';
 import type { ProjectInfo, Feedback, WorkConfig } from '../core/types';
@@ -14,6 +14,7 @@ import { plain } from './markdown';
 import { failText, t } from './strings';
 import { Button, CloseButton, LinkButton } from './components/button';
 import { SegmentedControl } from './components/segmented';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 
 /** Opens the dashboard, where the page offers it (the project, not the phone view). */
 export const OpenPerformance = createContext<(() => void) | null>(null);
@@ -156,14 +157,14 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
               </th>
             </tr>
           </thead>
-          <tbody>
-            {perf.rows.map((r) => {
+          {perf.rows.map((r) => {
               const group = r.kind === 'config' ? harnessName(r.config!.harness) : p.uncreditedHead;
               const heading = group !== head;
               head = group;
               const expanded = open === r.key;
               return (
-                <Fragment key={r.key}>
+                <Collapsible key={r.key} asChild open={expanded} onOpenChange={(o) => setOpen(o ? r.key : null)}>
+                  <tbody>
                   {heading && (
                     <tr className="perf-group">
                       <th scope="rowgroup" colSpan={5}>
@@ -173,12 +174,12 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
                   )}
                   <tr className={`perf-row${r.few ? ' few' : ''}${r.kind !== 'config' ? ' special' : ''}${expanded ? ' open' : ''}`}>
                     <th scope="row">
-                      <button className="perf-expand" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : r.key)}>
+                      <CollapsibleTrigger className="perf-expand">
                         <span className="perf-caret" aria-hidden>
                           {expanded ? '▾' : '▸'}
                         </span>
                         <RowName r={r} />
-                      </button>
+                      </CollapsibleTrigger>
                       {r.few && (
                         <span className="perf-tag" title={p.fewHint(FEW)}>
                           {p.few}
@@ -190,17 +191,17 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
                     <td>{view !== 'dots' ? <Spread r={r} /> : <Dots r={r} />}</td>
                     <td className="num">{r.comments}</td>
                   </tr>
-                  {expanded && (
+                  <CollapsibleContent asChild>
                     <tr className="perf-detail">
                       <td colSpan={5}>
                         <Responses list={r.responses} link={link} projectName={projectName} withConfig={r.kind === 'mixed'} />
                       </td>
                     </tr>
-                  )}
-                </Fragment>
+                  </CollapsibleContent>
+                  </tbody>
+                </Collapsible>
               );
             })}
-          </tbody>
         </table>
         {view !== 'dots' ? (
           <p className="perf-legend">

@@ -12,6 +12,7 @@ import { projectOf } from './api';
 import { SmartLink } from './cardLink';
 import { type CardSearch, cardSearchAt, knowsCardRefs, lines, linkText, matchingCards, referenced, textOf, usedCardRefs } from './cardRefs';
 import { Listbox, type ListboxState, useListbox } from './components/listbox';
+import { badgeClass } from './components/badge';
 import { Cards } from './message';
 import { t } from './strings';
 
@@ -40,7 +41,7 @@ function pill(href: string, text: string, card: Item | undefined): HTMLSpanEleme
 /** Brings a pill up to date with its card: state, current title, priority; muted once the card is gone. */
 function dress(el: HTMLElement, card: Item | undefined) {
   const on = card && !card.archivedAt;
-  el.className = on ? `smart-link s-${card.state}` : 'smart-link gone';
+  el.className = badgeClass('pill', on ? `smart-link s-${card.state}` : 'smart-link gone');
   el.replaceChildren();
   const dot = document.createElement('span');
   dot.className = 'sl-dot';

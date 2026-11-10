@@ -2380,7 +2380,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
                 return (
                   <TabsTrigger key={i} value={String(i)}>
                     {repoName(r, resolved?.repos[i])}
-                    {k > 0 && <span className="n err">{k}</span>}
+                    {k > 0 && <Badge variant="count" className="bg-error">{k}</Badge>}
                   </TabsTrigger>
                 );
               })}

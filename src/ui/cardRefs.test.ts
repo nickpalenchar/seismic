@@ -86,10 +86,10 @@ test('in a shown text a link to a card is a smart link: its state, current title
   const html = renderToStaticMarkup(
     createElement(Cards.Provider, { value: { items, open: () => {} } }, createElement(CardRefs.Provider, { value: smartLink }, createElement(Inline, { md }))),
   );
-  expect(html).toContain('<a class="smart-link s-working" href="/p/o/c/ab12"');
+  expect(html).toMatch(/<a href="\/p\/o\/c\/ab12"[^>]*class="[^"]*smart-link s-working"/);
   expect(html).toContain('<span class="sl-title">Login with Google</span>');
   expect(html).toContain('prio prio-high');
-  expect(html).toContain('<span class="smart-link gone"><span class="sl-dot"></span><span class="sl-title">Gone</span></span>');
+  expect(html).toMatch(/<span [^>]*class="[^"]*smart-link gone"><span class="sl-dot"><\/span><span class="sl-title">Gone<\/span><\/span>/);
   // without smart links (a plan doc, say) the link is its text, as before
   expect(renderToStaticMarkup(createElement(Inline, { md }))).toBe('Builds on <span>Login</span> and <span>Gone</span>.');
 });

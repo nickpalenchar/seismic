@@ -9,6 +9,7 @@ import { cardHref, referenced } from './cardRefs';
 import { plain } from './markdown';
 import { Cards } from './message';
 import { CardFace } from './card';
+import { Badge } from './components/badge';
 
 /** The card by `title` (its own by default); plain text where it is not on the project. `onOpen` in place of the `Cards` around it. */
 export function CardLink({ card, title, onOpen }: { card: Item | undefined; title?: string; onOpen?: (i: Item) => void }) {
@@ -47,10 +48,10 @@ export function SmartLink({ href, text }: { href: string; text: string }) {
   const card = referenced(cards.items, href);
   if (!card || card.archivedAt || projectOf(card.id) !== cardHref(href)?.project) {
     return (
-      <span className="smart-link gone">
+      <Badge variant="pill" className="smart-link gone">
         <span className="sl-dot" />
         <span className="sl-title">{plain(text)}</span>
-      </span>
+      </Badge>
     );
   }
   return <CardFace item={card} size="inline" title={plain(card.title || text)} href={cardPath(projectOf(card.id), card)} onOpen={() => cards.open(card)} />;

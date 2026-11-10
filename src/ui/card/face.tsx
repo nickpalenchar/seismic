@@ -73,10 +73,13 @@ function FaceInline({ item, title, href, onOpen }: CardFaceProps) {
     </>
   );
   const cls = `smart-link s-${item.state}`;
-  if (!href) return <span className={cls}>{body}</span>;
+  if (!href) return <Badge variant="pill" className={cls}>{body}</Badge>;
   return (
-    <a
+    <Badge
+      asChild
+      variant="pill"
       className={cls}
+    ><a
       href={href}
       title={stateLabel(item)}
       onClick={(e) => {
@@ -88,7 +91,7 @@ function FaceInline({ item, title, href, onOpen }: CardFaceProps) {
       }}
     >
       {body}
-    </a>
+    </a></Badge>
   );
 }
 

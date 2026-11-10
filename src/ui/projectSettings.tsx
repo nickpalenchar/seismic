@@ -11,6 +11,7 @@ import { ProjectSiteField, CardArchiveField, RightClickField, CodeReviewField, H
 import { Docked } from './docked';
 import { failText, t } from './strings';
 import { LinkButton } from './components/button';
+import { Badge } from './components/badge';
 
 /** The sheet of the project `project`; read afresh each time it opens or the Configuration over it closes. */
 export function ProjectSettingsSheet({ project, name, homePath, on, covered, problems, onConfig, onAddSite }: { project: string; name: string; /** The project's home repository, which proposing the demo site's tags reads. */ homePath?: string | undefined; /** Opens Configuration at the page that adds a demo site. */ onAddSite: () => void; on: boolean; /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */ covered: boolean; /** The configuration's problems, counted on the gear too. */ problems: number; onConfig: () => void }) {
@@ -134,7 +135,7 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
         <LinkButton type="button" onClick={onConfig}>
           {l.toConfig}
         </LinkButton>
-        {problems > 0 && <span className="n err">{t.config.problemCount(problems)}</span>}
+        {problems > 0 && <Badge variant="count" className="bg-transparent p-0 text-warn text-[12.5px]">{t.config.problemCount(problems)}</Badge>}
       </div>
     </Docked>
   );

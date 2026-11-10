@@ -21,6 +21,7 @@ import { t } from './strings';
 import { Button } from './components/button';
 import { ToggleGroup, ToggleGroupItem } from './components/segmented';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
+import { Badge } from './components/badge';
 
 export type AgentsTab = 'queue' | 'all' | 'parked' | 'activity';
 type Tab = AgentsTab;
@@ -40,7 +41,7 @@ export function AgentsTabs({ tab, onTab, queued, parked, children }: { tab: Tab;
         {(['queue', 'all', 'parked', 'activity'] as const).map((k) => (
           <TabsTrigger key={k} value={k}>
             {t.agents.tabs[k]}
-            {k === 'queue' && queued > 0 && <span className="n">{queued}</span>}
+            {k === 'queue' && queued > 0 && <Badge variant="count">{queued}</Badge>}
             {k === 'parked' && parked > 0 && <span className="count">{parked}</span>}
           </TabsTrigger>
         ))}
@@ -123,7 +124,7 @@ export function AgentsSheet({ on, items, open, underway, onOpen, project, change
             {q.queued.length > 0 && (
               <>
                 <h4>
-                  {t.agents.work.queued} <span className="n">{q.queued.length}</span>
+                  {t.agents.work.queued} <Badge variant="count">{q.queued.length}</Badge>
                 </h4>
                 <QueueList items={items} q={q} onOpen={onOpen} />
               </>
