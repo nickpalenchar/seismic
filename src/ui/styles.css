@@ -1234,8 +1234,8 @@ span.cl-name { color: inherit; cursor: default; }
 .cl-list td.d-del { padding-right: 6px; }
 .cl-list button.cl-lines { color: inherit; font: inherit; }
 .cl-list tr:has(.cl-lines:hover) .cl-lines { text-decoration: underline; }
-.cl-list[role="tablist"] .cl-row:not(.off) { cursor: pointer; }
-@media (hover: hover) { .cl-list[role="tablist"] .cl-row:not(.off, .on):hover { background: var(--chip); } }
+.cl-list [role="tablist"] .cl-row:not(.off) { cursor: pointer; }
+@media (hover: hover) { .cl-list [role="tablist"] .cl-row:not(.off, .on):hover { background: var(--chip); } }
 .cl-row.on { background: color-mix(in srgb, var(--waiting) 12%, transparent); }
 .cl-row.on .cl-name { color: var(--ink); font-weight: 600; }
 .cl-row.off { color: var(--muted); }

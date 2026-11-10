@@ -753,7 +753,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
         </header>
         {banner}
         <Notify />
-        <AgentsTabs tab={tab} onTab={setTab} queued={queued} parked={parked.length} />
+        <AgentsTabs tab={tab} onTab={setTab} queued={queued} parked={parked.length}>
         {!known ? null : tab === 'all' ? (
           <>
             <StageChips stages={PHONE_STAGES} count={count} hidden={hidden} onHidden={setHidden} onlyFull />
@@ -817,6 +817,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
             <ActivityTab project={obeyaId} changed={snaps} onGo={(_project, i) => openCard(i)} allProjects />
           </section>
         )}
+        </AgentsTabs>
       </div>
       {talk && (
         <TalkPanel

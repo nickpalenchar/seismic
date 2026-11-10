@@ -14,7 +14,7 @@ import { failText, fileSize, t } from './strings';
 import { projectPath } from './address';
 import { Button, CloseButton, LinkButton } from './components/button';
 import { RadioGroup, RadioOption } from './components/radio';
-import { Tabs, TabsList, TabsTrigger } from './components/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 /** The machine's system and processor, as the owner knows them: "macOS (arm64)". */
@@ -342,8 +342,8 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           ) : (
             <>
               <p className="hint">{s.platform(platformName(view))}</p>
+              <Tabs value={shownPage} onValueChange={(p) => setPage(p as typeof shownPage)} className="tabs-flat">
               {recommended && (
-                <Tabs value={shownPage} onValueChange={(p) => setPage(p as typeof shownPage)}>
                   <TabsList variant="pill" className="setup-pages">
                     {(['required', 'recommended'] as const).map((p) => (
                       <TabsTrigger key={p} value={p}>
@@ -351,8 +351,8 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                       </TabsTrigger>
                     ))}
                   </TabsList>
-                </Tabs>
               )}
+              <TabsContent value={shownPage} className="tabs-flat">
               {view.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id) === (shownPage === 'recommended')).map((section) => (
                 <section key={section.id} className={`c-project c-setup setup-${section.id}`}>
                   <div className="setup-sh">
@@ -371,6 +371,8 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                   )}
                 </section>
               ))}
+              </TabsContent>
+              </Tabs>
               {status && <p className="hint c-status">{status}</p>}
               <Button size="small" disabled={checking || running} onClick={recheck}>
                 {checking ? t.config.setup.checking : t.config.setup.recheck}

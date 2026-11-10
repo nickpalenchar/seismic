@@ -17,7 +17,7 @@ import { phoneView } from './phone';
 import { t } from './strings';
 import { Button, LinkButton } from './components/button';
 import { SegmentedControl } from './components/segmented';
-import { Tabs, TabsList, TabsTrigger } from './components/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 
 /** How many lines the change list shows before "and N more ▾" where it is not folded to the result; the file picked shows too. */
@@ -27,6 +27,8 @@ const TEXT_CAP = 400_000;
 /** The highest a page grows in its frame; a higher one scrolls inside it. */
 const PAGE_CAP = 30000;
 
+/** The id of the file view under the change list, which its lines' tabs control. */
+const FILE_PANEL = 'result-file-panel';
 const DEMO = '';
 const DIFF = '\0diff';
 /** The code review's tab, to open it from elsewhere on the card. */
@@ -91,25 +93,29 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const file = files.find((f) => f.path === path);
   const count = change?.folder ? shownChanges(change.folder.changes).length : (change?.files.length ?? 0);
   return (
-    <div className="results" ref={box} style={tallest ? { minHeight: tallest } : undefined}>
-      <Tabs value={current ?? ''} onValueChange={onTab}>
-        <TabsList variant="underline" className="result-tabs">
-          {tabs.map((entry) => (
-            <TabsTrigger key={entry.path} value={entry.path} title={'title' in entry ? entry.title : undefined}>
-              {entry.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-      {demo && <div ref={demoBox} role="tabpanel" hidden={current !== DEMO}>{demo}</div>}
-      {review && current === REVIEW && <div role="tabpanel">{review.panel}</div>}
+    <Tabs value={current ?? ''} onValueChange={onTab} className="results" ref={box} style={tallest ? { minHeight: tallest } : undefined}>
+      <TabsList variant="underline" className="result-tabs">
+        {tabs.map((entry) => (
+          <TabsTrigger key={entry.path} value={entry.path} title={'title' in entry ? entry.title : undefined}>
+            {entry.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {/* the video stays mounted under another tab, hidden, so it keeps its place */}
+      {demo && (
+        <TabsContent value={DEMO} forceMount hidden={current !== DEMO} ref={demoBox}>
+          {demo}
+        </TabsContent>
+      )}
+      {review && current === REVIEW && <TabsContent value={REVIEW}>{review.panel}</TabsContent>}
       {inDiff && (
-        <div role="tabpanel">
+        <TabsContent value={DIFF}>
           <ChangeList
             item={item}
             rows={rows}
             total={count ? { ...diffSize(change!.files), files: count } : undefined}
             current={pickedFile ?? undefined}
+            panel={FILE_PANEL}
             onPick={(path, changes) => {
               setPickedFile(path);
               setPicked(picked + 1);
@@ -117,19 +123,21 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
             }}
           />
           {file && (
-            <FileView
-              key={`${file.path}:${rev}`}
-              item={item}
-              file={file}
-              rev={rev}
-              changes={file.diff && (asChanges[file.path] ?? true)}
-              onChanges={(c) => setAsChanges({ ...asChanges, [file.path]: c })}
-            />
+            <div id={FILE_PANEL}>
+              <FileView
+                key={`${file.path}:${rev}`}
+                item={item}
+                file={file}
+                rev={rev}
+                changes={file.diff && (asChanges[file.path] ?? true)}
+                onChanges={(c) => setAsChanges({ ...asChanges, [file.path]: c })}
+              />
+            </div>
           )}
-        </div>
+        </TabsContent>
       )}
       {!inDiff && file && (
-        <div role="tabpanel">
+        <TabsContent value={file.path}>
           <p className="hint result-caption">{file.caption}</p>
           <FileView
             key={`${file.path}:${rev}`}
@@ -145,9 +153,9 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
               onTab(DIFF);
             }}
           />
-        </div>
+        </TabsContent>
       )}
-    </div>
+    </Tabs>
   );
 }
 
@@ -169,6 +177,7 @@ export function ChangeList({
   fold,
   total,
   current,
+  panel,
   onPick,
 }: {
   item: Item;
@@ -176,6 +185,8 @@ export function ChangeList({
   fold?: boolean;
   total?: { added: number; removed: number; files: number };
   current?: string;
+  /** The id of what the picked line shows, which the lines control. */
+  panel?: string;
   onPick?: (path: string, changes?: boolean) => void;
 }) {
   const [more, setMore] = useState(false);
@@ -197,7 +208,8 @@ export function ChangeList({
   // folded completely, the toggle counts the files, and the size beside it need not
   const counted = toggle && !more && !visible.length;
   return (
-    <Wrap pick={!!pick} current={current}>
+    <div className="cl-list">
+      <TableFrame pick={!!pick} current={current}>
       <table>
         <colgroup>
           <col className="cl-mark" />
@@ -214,10 +226,12 @@ export function ChangeList({
               onPick={pick && l.file ? (changes) => pick(l.path, changes) : undefined}
               onDiff={l.added || l.removed ? () => setOpen(l.path) : undefined}
               tabs={!!pick}
+              panel={panel}
             />
           ))}
         </tbody>
       </table>
+      </TableFrame>
       {(toggle || total) && (
         <div className="cl-foot">
           {toggle && (
@@ -236,26 +250,27 @@ export function ChangeList({
       )}
       {open !== null && <DiffView item={item} file={open} onClose={() => setOpen(null)} onRead={() => {}} />}
       {whole && <DiffView item={item} onClose={() => setWhole(false)} onRead={() => {}} />}
-    </Wrap>
+    </div>
   );
 }
 
 /**
- * The change list's frame: a tab list where a line picks the file the column shows. The lines pick by
- * their own click (a row anywhere, its name, its counts), so a tab's activation changes nothing and
- * the keys only move focus; Enter and Space click.
+ * The change list's lines: where a line picks the file the column shows they are a tab list, with
+ * the list's own buttons (more, the whole diff) outside it. The lines pick by their own click (a row
+ * anywhere, its name, its counts), so a tab's activation changes nothing and the keys only move
+ * focus; Enter and Space click.
  */
-function Wrap({ pick, current, children }: { pick: boolean; current?: string; children: ReactNode }) {
-  if (!pick) return <div className="cl-list">{children}</div>;
+function TableFrame({ pick, current, children }: { pick: boolean; current?: string; children: ReactNode }) {
+  if (!pick) return <>{children}</>;
   return (
     <Tabs value={current ?? ''} onValueChange={() => {}} activationMode="manual" className="tabs-flat" orientation="vertical">
-      <TabsList className="cl-list">{children}</TabsList>
+      <TabsList>{children}</TabsList>
     </Tabs>
   );
 }
 
 /** A line of the change list: a file to pick (`onPick`, `tabs`), or one whose diff a click shows (`onDiff`), or neither. */
-function Line({ row, on, onPick, onDiff, tabs }: { row: ChangeRow; on: boolean; onPick?: (changes?: boolean) => void; onDiff?: () => void; tabs: boolean }) {
+function Line({ row, on, onPick, onDiff, tabs, panel }: { row: ChangeRow; on: boolean; onPick?: (changes?: boolean) => void; onDiff?: () => void; tabs: boolean; panel?: string }) {
   const name = (p: string) => (row.dir ? `${p}/` : p);
   const path = row.from ? `${name(row.from)} → ${name(row.path)}` : name(row.path);
   // a file the column cannot show is greyed: its name opens nothing, its lines its diff
@@ -278,7 +293,7 @@ function Line({ row, on, onPick, onDiff, tabs }: { row: ChangeRow; on: boolean; 
       </td>
       <td className="cl-path">
         {byName ? (
-          <NameButton tab={tabs ? row.path : undefined} title={tabs ? path : `${path}\n${t.diff.showFile}`} onClick={byName}>
+          <NameButton tab={tabs ? row.path : undefined} panel={panel} title={tabs ? path : `${path}\n${t.diff.showFile}`} onClick={byName}>
             <bdi>{path}</bdi>
           </NameButton>
         ) : (
@@ -300,14 +315,14 @@ function Line({ row, on, onPick, onDiff, tabs }: { row: ChangeRow; on: boolean; 
 }
 
 /** A line's name: a tab (of the change list's tabs, valued by `tab`) or a plain button. */
-function NameButton({ tab, title, onClick, children }: { tab?: string; title: string; onClick: () => void; children: ReactNode }) {
+function NameButton({ tab, panel, title, onClick, children }: { tab?: string; panel?: string; title: string; onClick: () => void; children: ReactNode }) {
   const click = (e: { stopPropagation: () => void }) => (e.stopPropagation(), onClick());
   return tab === undefined ? (
     <button className="cl-name" title={title} onClick={click}>
       {children}
     </button>
   ) : (
-    <TabsTrigger className="cl-name" value={tab} title={title} onClick={click}>
+    <TabsTrigger className="cl-name" value={tab} aria-controls={panel} title={title} onClick={click}>
       {children}
     </TabsTrigger>
   );

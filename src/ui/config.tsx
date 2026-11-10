@@ -36,7 +36,7 @@ import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
 import { RadioGroup, RadioOption } from './components/radio';
 import { SegmentedControl } from './components/segmented';
-import { Tabs, TabsList, TabsTrigger } from './components/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 
 declare global {
@@ -415,7 +415,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                       const n = problems.filter((p) => p.project === i).length;
                       return (
                         <li key={keys.current[i]} role="presentation">
-                          <TabsTrigger value={PROJECT_TAB + i} onClick={() => on && showProject(i)}>
+                          <TabsTrigger value={PROJECT_TAB + i} aria-controls="cfg-sec-projects" onClick={() => on && showProject(i)}>
                             <span className="cfg-nav-name">{projectName(x, i)}</span>
                             {projectChanged(i) && <span className="cfg-dot" title={c.unsaved} />}
                             {n > 0 && (
@@ -438,7 +438,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                 </li>
               ) : (
                 <li key={s} role="presentation">
-                  <TabsTrigger value={s} onClick={() => s === section && setSection(s)}>
+                  <TabsTrigger value={s} aria-controls={`cfg-sec-${s}`} onClick={() => s === section && setSection(s)}>
                     {c.sections[s]}
                   </TabsTrigger>
                 </li>
@@ -456,7 +456,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
         {/* on the box, not in the scrolling column, so it stays in view however far that scrolls */}
         <CloseButton label={t.close} className="cfg-close" onClick={onClose} />
         <div className="cfg-main">
-          <section className="cfg-sec" hidden={section !== 'projects'}>
+          <section id="cfg-sec-projects" role="tabpanel" className="cfg-sec" hidden={section !== 'projects'}>
             {!view ? (
               <>
                 <Head title={c.sections.projects} />
@@ -511,35 +511,35 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
               />
             )}
           </section>
-          <section className="cfg-sec" hidden={section !== 'defaults'}>
+          <section id="cfg-sec-defaults" role="tabpanel" className="cfg-sec" hidden={section !== 'defaults'}>
             <ProjectDefaultsBlock view={defaults} onSaved={setDefaults} />
           </section>
-          <section className="cfg-sec" hidden={section !== 'agents'}>
+          <section id="cfg-sec-agents" role="tabpanel" className="cfg-sec" hidden={section !== 'agents'}>
             <AgentsBlock on={on} />
           </section>
-          <section className="cfg-sec" hidden={section !== 'voice'}>
+          <section id="cfg-sec-voice" role="tabpanel" className="cfg-sec" hidden={section !== 'voice'}>
             <VoiceBlock on={on} />
           </section>
-          <section className="cfg-sec" hidden={section !== 'demos' || addingSite}>
+          <section id="cfg-sec-demos" role="tabpanel" className="cfg-sec" hidden={section !== 'demos' || addingSite}>
             <DemoBlock on={on} />
             <DemoSitesBlock on={on && section === 'demos' && !addingSite} onAdd={() => setAddingSite(true)} />
           </section>
           <section className="cfg-sec" hidden={section !== 'demos' || !addingSite}>
             {addingSite && <AddSitePage on={on} onBack={() => setAddingSite(false)} />}
           </section>
-          <section className="cfg-sec" hidden={section !== 'notices'}>
+          <section id="cfg-sec-notices" role="tabpanel" className="cfg-sec" hidden={section !== 'notices'}>
             <Head title={c.sections.notices} />
             <NotificationsBlock on={on} />
             <UsageBlock on={on} />
             <FeedbackBlock on={on} />
           </section>
-          <section className="cfg-sec" hidden={section !== 'devices'}>
+          <section id="cfg-sec-devices" role="tabpanel" className="cfg-sec" hidden={section !== 'devices'}>
             <AccessSection on={on && section === 'devices'} onConnect={onConnect} />
           </section>
-          <section className="cfg-sec" hidden={section !== 'advanced'}>
+          <section id="cfg-sec-advanced" role="tabpanel" className="cfg-sec" hidden={section !== 'advanced'}>
             <ProjectExport projects={draft} ids={origin} />
           </section>
-          <section className="cfg-sec" hidden={section !== 'developer'}>
+          <section id="cfg-sec-developer" role="tabpanel" className="cfg-sec" hidden={section !== 'developer'}>
             <DeveloperBlock on={on && section === 'developer'} />
           </section>
         </div>
@@ -2368,9 +2368,9 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
           <Problem key={k} problem={p} where={here} ask={askHere} retried={askHere && onRecheck} />
         ))}
       {/* its repositories as tabs, one shown at a time, with the problems of each counted on it */}
+      <Tabs value={String(at)} onValueChange={(v) => setAt(Number(v))} className="tabs-flat">
       <Field label={t.config.repos}>
         <div className="cfg-repo-tabs">
-          <Tabs value={String(at)} onValueChange={(v) => setAt(Number(v))}>
             <TabsList variant="segmented" aria-label={t.config.repos}>
               {project.repos.map((r, i) => {
                 const k = problems.filter((p) => p.repo === i).length;
@@ -2382,7 +2382,6 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
                 );
               })}
             </TabsList>
-          </Tabs>
           <Button
             size="small"
             onClick={() => {
@@ -2395,6 +2394,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
         </div>
       </Field>
       {repo && (
+        <TabsContent value={String(at)} className="tabs-flat">
         <RepoRow
           key={at}
           repo={repo}
@@ -2412,7 +2412,9 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
             if (!x) setAt(Math.max(0, at - 1));
           }}
         />
+        </TabsContent>
       )}
+      </Tabs>
     </div>
   );
 }

@@ -111,6 +111,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
                 <TabsTrigger
                   key={c.id}
                   value={c.id}
+                aria-controls="world"
                   className={c.id === shown ? 'ctab on' : 'ctab'}
                   title={c.name}
                   onClick={(e) => {
