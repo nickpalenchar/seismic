@@ -485,6 +485,7 @@ const en = {
     reply: 'Reply',
     replyCancel: 'Don’t reply to it',
     toQuoted: 'Go to the message',
+    toLatest: 'Scroll to the latest message',
     cite: 'Quote',
     citeHint: 'Put the marked text into your message, in quotation marks',
     cited: (text: string) => `“${text}” - `,

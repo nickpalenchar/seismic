@@ -959,7 +959,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 /* the lane of a scrollbar that takes room (WebKit on a Mac set to show them always, Windows, Linux) stays
    whether the conversation scrolls or not: WebKit kept the height its text had wrapped to beside the scrollbar,
    which shows while the panel is measured, and every key typed laid it out anew, so the field jumped */
-.split .split-talk .talk { flex: 1; min-height: 0; max-height: none; max-width: none; scrollbar-gutter: stable; }
+.split .split-talk .conv { flex: 1; min-height: 0; max-height: none; max-width: none; }
 .split-talk .composer { margin-top: 10px; max-width: none; }
 /* a proposal's text box grows with the text (detail.tsx) and leaves the reason below it in view */
 .proposal-grid .p-body { min-height: min(360px, calc(100vh - 440px)); max-height: calc(100vh - 440px); resize: none; }
@@ -976,31 +976,16 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .question.repo-down { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 6%, transparent); }
 .question.brief .p-lead { margin-top: 6px; font-size: 14px; }
 .question.brief .p-list { margin-top: 4px; }
-.talk { background: var(--chip); border-radius: 14px; padding: 12px 14px; overflow: auto;
-  display: flex; flex-direction: column; gap: 8px; }
-.talk .msg { background: var(--card); border: 1px solid var(--glass-edge); border-radius: 12px; padding: 8px 12px; max-width: 92%; box-shadow: var(--shadow); flex: none; }
+.talk { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+/* the box around the messages (Conversation): the column scrolls inside it */
+.conv { background: var(--chip); border-radius: 14px; display: flex; flex-direction: column; }
 .talk .msg .p-lead { overflow-wrap: anywhere; }
 .talk .msg .p-lead { margin-top: 2px; font-size: 14px; }
 .talk .msg .p-list { margin-top: 4px; font-size: 13.5px; }
 .talk .msg :is(.p-table, .p-code-box, .p-quote) { margin-top: 6px; }
 .talk .msg .p-table table { font-size: 13.5px; }
-.talk .msg .who { font-size: 11px; font-weight: 600; color: var(--idea); }
-.talk .msg .who .agent-model { display: inline-block; margin-left: 7px; color: var(--muted-foreground); font-weight: 400; overflow-wrap: anywhere; }
-.talk .msg .who .t { color: var(--muted-foreground); font-weight: 400; margin-left: 4px; }
-.talk .msg.by-owner { align-self: flex-end; background: color-mix(in srgb, var(--working) 9%, var(--card)); }
-.talk .msg.by-owner .who { color: var(--working); }
 /* replying to one message (message.tsx): a button in its corner, and the
    message replied to quoted above the reply and above the field it is written in, as chat apps do */
-.talk .msg { position: relative; }
-.talk .msg:has(> .msg-reply) > .who { padding-right: 24px; }
-.msg-reply { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; display: grid; place-items: center; padding: 0;
-  border: 0; border-radius: 3px; background: var(--chip); color: var(--muted-foreground); cursor: pointer; }
-/* at the desk the button shows while the pointer is on its message; on a touch screen always */
-@media (hover: hover) {
-  .talk .msg > .msg-reply { opacity: 0; transition: opacity .12s; }
-  .talk .msg:hover > .msg-reply, .talk .msg > .msg-reply:focus-visible { opacity: 1; }
-}
-.msg-reply:hover { color: var(--ink); background: var(--line); }
 /* the button at text marked in a conversation, which quotes it in the field (cite.tsx): above the
    end of the marking, or below its last line (on a touch screen clear of the selection handles) */
 .cite { position: fixed; z-index: 50; transform: translate(-50%, calc(-100% - 6px)); display: flex; align-items: center; gap: 5px;
@@ -1011,10 +996,6 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .cite.below.left { transform: translate(calc(-100% + 2px), 6px); }
 @media (pointer: coarse) { .cite { height: 36px; min-width: 36px; } .cite.below { transform: translate(-50%, 30px); } }
 .cite:hover { background: color-mix(in srgb, var(--ink) 85%, var(--bg)); }
-.msg-delete { position: absolute; top: 7px; right: 7px; }
-.talk .msg:has(> .msg-delete) > .who { padding-right: 24px; }
-.talk .msg:has(> .msg-delete):has(> .msg-reply) > .who { padding-right: 52px; }
-.msg:has(> .msg-delete) > .msg-reply { right: 32px; }
 .quote { --q: var(--muted-foreground); display: flex; align-items: flex-start; min-width: 0; border: 1px solid color-mix(in srgb, var(--q) 30%, transparent); border-radius: 3px;
   background: color-mix(in srgb, var(--q) 8%, var(--card)); }
 .quote.q-by-owner { --q: var(--working); }
@@ -1048,7 +1029,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .talk .msg.held { outline: 1px dashed color-mix(in srgb, var(--working) 40%, transparent); outline-offset: -1px; }
 /* the owner's words the agent has not read yet: below its work, muted, until it reads them */
 .talk .msg.unread { outline: 1px dashed color-mix(in srgb, var(--working) 40%, transparent); outline-offset: -1px; }
-.talk .msg.unread > :not(.msg-delete):not(.unread-mark) { opacity: .6; }
+.talk .msg.unread > :not(.msg-actions):not(.unread-mark) { opacity: .6; }
 .talk .msg.unread > .unread-mark { margin-top: 4px; font-size: 12px; color: var(--working); }
 .talk :is(.msg, .question.ask).flash { animation: msg-flash 2.4s ease-out; }
 @keyframes msg-flash {
@@ -1206,9 +1187,7 @@ span.cl-name { color: inherit; cursor: default; }
 .start-at { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; margin: 10px 0 2px; font-size: 13px; color: var(--ink); }
 .start-at .clock-mark { vertical-align: -1px; color: var(--muted-foreground); }
 /* a task's conversation: under the card's demo and pull request, scrolled to its end */
-.talk.conv { max-height: min(520px, 60vh); max-width: 100ch; }
-.talk .msg.by-worker .who { color: var(--ink); }
-.talk .msg.by-koordinator .who, .talk .msg.by-plan .who { color: var(--muted-foreground); }
+.conv { max-height: min(520px, 60vh); max-width: 100ch; }
 .talk .msg.by-koordinator.thinking .who::after { background: linear-gradient(90deg, transparent, var(--proposal), transparent); background-size: 200% 100%; }
 .talk .msg.by-worker.thinking .who::after { background: linear-gradient(90deg, transparent, var(--working), transparent); background-size: 200% 100%; }
 /* a question in the conversation is answered, taken back or asked anew (the one the card waits on
@@ -1396,7 +1375,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .shot img { height: 88px; max-width: 240px; object-fit: cover; border-radius: 2px; display: block; }
 .talk .msg.by-owner .shots { justify-content: flex-end; }
 /* where a conversation starts, long ones folded to about eight lines */
-.talk .msg.by-plan .who, .talk .msg.by-proposal .who { color: var(--muted-foreground); }
 .fold { font-size: 14px; }
 .fold.folded { max-height: calc(var(--fold-lines, 8) * 1lh + 2px); overflow: hidden; }
 .fold.cut { mask-image: linear-gradient(to bottom, #000 75%, transparent); }
@@ -2338,8 +2316,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-view .demo-view .screen.full .comment-here { right: calc(50px + max(10px, env(safe-area-inset-right))); }
 /* a phone's browser zooms into a text field written smaller than 16 px */
 .ph-view textarea, .ph-view select, .ph-view input { font-size: 16px; }
-/* no pointer hovers on a phone: the reply button shows on every message */
-.ph-view .talk .msg > .msg-reply { opacity: .75; }
 .ph-view ~ #ptt { left: 50%; }
 .ph-view ~ #acks { left: 12px; right: auto; align-items: center; transition: none; }
 .ph-view ~ #ptt { bottom: calc(18px + env(safe-area-inset-bottom)); }

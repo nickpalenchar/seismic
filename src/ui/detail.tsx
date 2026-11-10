@@ -38,7 +38,7 @@ import { useFullscreen } from './fullscreen';
 import { motionMs, scrollBehavior } from './motion';
 import { type Box, onto, ZOOM_EASE, ZOOM_MS, zoomBox } from './zoomBox';
 import { AttachButton, imageUrl, ShotStrip, Shots, useShotInput } from './shots';
-import { useStickToEnd } from './stickToEnd';
+import { Conversation as Scroll } from './components/ai/conversation';
 import { newRepoWords, type RepoChoice, RepoPick, useRepoChoice } from './repoPick';
 import { dismissPlace, type Place, seekTo, showsVersions, usePlace, videoOf, watch } from './spot';
 import { cameInView, useSeen } from './seen';
@@ -1556,8 +1556,6 @@ function Conversation({
     const from = Math.max(seen, events.findLast((e) => e.author === 'owner')?.id ?? -1);
     return [...el.querySelectorAll<HTMLElement>('[data-ev]')].find((m) => Number(m.dataset.ev) > from) ?? null;
   };
-  // what the agents say and do follows at the end only while the owner stands there, so they can read further up meanwhile
-  const onScroll = useStickToEnd(box, events?.findLast((e) => e.author === 'owner')?.id, events, unseenFrom);
   const turns = useMemo(() => (events ? cardTalk(item, events, past) : null), [events, key]);
   const byId = useMemo(() => new Map(events?.map((e) => [e.id, e])), [events]);
   const fresh = useMemo(
@@ -1662,7 +1660,8 @@ function Conversation({
   return (
     <>
       <h4 className="p-h">{t.talk.heading}</h4>
-      <div className="talk conv" ref={box} onScroll={onScroll}>
+      {/* what the agents say and do follows at the end only while the owner stands there, so they can read further up meanwhile */}
+      <Scroll className="conv" contentClassName="talk" boxRef={box} said={events.findLast((e) => e.author === 'owner')?.id} entries={events} start={unseenFrom}>
         {turns.shown.length === 0 && !turns.unread.length && !working && !turns.asked.length && !seed && <div className="hint">{idea ? t.idea.talkEmpty : question ? t.question.empty : proposal ? t.reviseHint : t.talk.empty}</div>}
         <LimitNotice item={item} />
         {turns.shown.slice(0, seedAt).map(line)}
@@ -1685,9 +1684,9 @@ function Conversation({
         )}
         {/* a card that waits for the owner, its worker's turn over: what still runs of it, without the agent at work */}
         {!working && !paused && !past && !!item.agent?.background?.length && (
-          <div className={`msg by-${by} background-only`}>
+          <Msg by={by} className="background-only">
             <Background tasks={item.agent?.background} />
-          </div>
+          </Msg>
         )}
         {/* what the agent has not read yet stands below its work, until it reads it; comments on the
             demo video held back, until they are sent */}
@@ -1701,7 +1700,7 @@ function Conversation({
         {!working && !past && koordinatorReads(events) && <Reading />}
         {!working && questions}
         {!working && turns.below.map(line)}
-      </div>
+      </Scroll>
       {draft && <CiteButton box={box} draft={draft} />}
     </>
   );

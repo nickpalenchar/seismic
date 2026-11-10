@@ -18,7 +18,7 @@ import { Composer } from './composer';
 import { cardDraft, OBEYA_DRAFT } from './draft';
 import { Shots } from './shots';
 import { usePageVisible } from './seen';
-import { useStickToEnd } from './stickToEnd';
+import { Conversation as Scroll } from './components/ai/conversation';
 import { useFitHeight } from './fitHeight';
 import { PageChangeList } from './page-changes';
 import { WishReplyLink } from './wish';
@@ -236,16 +236,11 @@ function useRead(on: boolean, talk: Talk[], read: (ids: number[]) => Promise<unk
  */
 function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Talk[]; fresh: number[]; items: Item[]; onOpen: (i: Item) => void; draft: string; sheetOf?: string }) {
   const box = useRef<HTMLDivElement>(null);
+  if (!talk.length) return null;
   // every change on the project brings a new snapshot: only what the owner just said takes the
   // conversation back to its end, so they can read further up in the meantime
-  const onScroll = useStickToEnd(box, talk.at(-1)?.id, talk);
-  if (!talk.length) return null;
   return (
-    <div
-      className="talk conv"
-      ref={box}
-      onScroll={onScroll}
-    >
+    <Scroll className="conv" contentClassName="talk" boxRef={box} said={talk.at(-1)?.id} entries={talk}>
       {talk.map((x) => {
         // the owner replies to one of the exchange's messages
         const reply = (part: TalkRef['part'], by: TalkQuote['by'], text: string) => () => {
@@ -338,7 +333,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
         );
       })}
       <CiteButton box={box} draft={draft} />
-    </div>
+    </Scroll>
   );
 }
 

@@ -2,7 +2,7 @@
 // and when above, the text below as paragraphs and lists; a reply quotes the message it answers
 // above its words, as chat apps do.
 
-import { Copy, Reply, Trash2 } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { createContext, type ReactNode, type RefObject, useContext, useEffect, useRef, useState } from 'react';
 import type { AgentIdentity, AnswerFile, CardEvent, Item } from '../core/types';
 import { answerFile, api } from './api';
@@ -12,7 +12,8 @@ import type { Quoted } from './reply';
 import { clip } from '../core/text';
 import { copyOrSelect } from './copy';
 import { scrollBehavior } from './motion';
-import { CloseButton, IconButton, LinkButton } from './components/button';
+import { Message, MessageActions, MessageHead, MessageMeta, ReplyAction, DeleteAction } from './components/ai/message';
+import { CloseButton, LinkButton } from './components/button';
 import { Tooltip } from './components/tooltip';
 
 /**
@@ -36,7 +37,7 @@ export function Msg({
   children,
 }: {
   by: string;
-  who: ReactNode;
+  who?: ReactNode;
   agent?: AgentIdentity;
   at?: string;
   className?: string;
@@ -47,26 +48,25 @@ export function Msg({
   head?: ReactNode;
   children?: ReactNode;
 }) {
+  const actions = (onReply ? 1 : 0) + (onDelete ? 1 : 0);
   return (
-    <div className={['msg', `by-${by}`, onReply && 'replies', className].filter(Boolean).join(' ')} data-ev={ev}>
-      <div className="who">
-        {who}
-        {agent && <span className="agent-model">{t.config.agents.harnesses[agent.harness]}{agent.model ? ` · ${agent.model}` : ''}</span>}
-        {at && <span className="t">{time(at)}</span>}
-        {head}
-      </div>
-      {onReply && (
-        <Tooltip content={t.talk.reply}>
-          <button className="msg-reply" aria-label={t.talk.reply} onMouseDown={(e) => e.preventDefault()} onClick={onReply}>
-            <Reply size={15} strokeWidth={2} aria-hidden="true" />
-          </button>
-        </Tooltip>
+    <Message from={by === 'owner' ? 'user' : 'assistant'} className={['msg', `by-${by}`, onReply && 'replies', className].filter(Boolean).join(' ')} data-ev={ev}>
+      {(who || agent || at || head) && (
+        <MessageHead by={by} actions={actions}>
+          {who}
+          {agent && <MessageMeta className="agent-model ml-[7px] [overflow-wrap:anywhere]">{t.config.agents.harnesses[agent.harness]}{agent.model ? ` · ${agent.model}` : ''}</MessageMeta>}
+          {at && <MessageMeta className="t ml-1">{time(at)}</MessageMeta>}
+          {head}
+        </MessageHead>
       )}
-      {onDelete && (
-        <IconButton icon={<Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />} label={deleteLabel ?? t.delete} size="small" variant="danger" className="msg-delete" onMouseDown={(e) => e.preventDefault()} onClick={onDelete} />
+      {actions > 0 && (
+        <MessageActions>
+          {onReply && <ReplyAction onClick={onReply} />}
+          {onDelete && <DeleteAction onClick={onDelete} label={deleteLabel} />}
+        </MessageActions>
       )}
       {children}
-    </div>
+    </Message>
   );
 }
 
