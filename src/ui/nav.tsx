@@ -1,6 +1,6 @@
 // The left menu, behind ☰ and the logo in the bar: the inbox, the agents' configuration (a page of its
 // own that slides in), the projects (the open one with its canvases and views, every other one with the
-// count of what waits for the owner there and its agents' pause) and Seismic's settings and help. It
+// agents' pause) and Seismic's settings and help. It
 // drops down under ☰, or stays docked as a sidebar on the left, the project the rest. The floating
 // row's project switcher lists the projects alone, while the menu is not docked. What waits itself is
 // in the inbox (src/ui/inbox.tsx), on every project at once.
@@ -45,8 +45,6 @@ export const saveNavHidden = saveFlag(HIDDEN_KEY);
 interface ProjectsProps {
   project: ProjectInfo;
   projects: ProjectInfo[];
-  /** How many things wait for the owner on each project, this one's as this page sees it. */
-  counts: Record<string, number>;
   /** Opens the configuration with a new project added. */
   onNew: () => void;
 }
@@ -69,7 +67,7 @@ export function NavPill(p: ProjectsProps) {
         <div className="nav-menu nav-switch">
           <ul className="nav-projects">
             {p.projects.map((c) => (
-              <ProjectRow key={c.id} project={c} here={c.id === p.project.id} count={p.counts[c.id] ?? 0} repos />
+              <ProjectRow key={c.id} project={c} here={c.id === p.project.id} repos />
             ))}
             <NewProject
               onNew={() => {
@@ -86,20 +84,13 @@ export function NavPill(p: ProjectsProps) {
 
 /** What the menu's entries open; a floating menu closes first. */
 export interface MenuActions {
-  /** Unread entries of the inbox, counted beside its entry. */
-  inboxCount: number;
   onInbox: () => void;
   onPerformance: () => void;
   onFeedbackLog: () => void;
   /** The open project's canvases, the one shown marked while no other view covers it. */
   canvases: Canvas[];
   canvas?: string;
-  /** Per canvas, the cards on it waiting for the owner. */
-  canvasWaiting: Record<string, number>;
   onCanvas: (c: Canvas) => void;
-  /** Cards waiting in the queue and parked ones, counted in grey. */
-  queued: number;
-  parked: number;
   onQueue: () => void;
   onParked: () => void;
   onArchived: () => void;
@@ -176,7 +167,7 @@ function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; t
     </button>
   );
   const inbox = (
-    <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} onClick={run(p.onInbox)} end={p.inboxCount > 0 && <span className="waits">{p.inboxCount}</span>} />
+    <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} onClick={run(p.onInbox)} />
   );
   return (
     <div className={page === 'agents' ? 'menu-pages sub' : 'menu-pages'}>
@@ -196,20 +187,20 @@ function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; t
             c.id === p.project.id ? (
               <li key={c.id} className="nav-open">
                 <ul className="nav-projects">
-                  <ProjectRow project={c} here count={p.counts[c.id] ?? 0} />
+                  <ProjectRow project={c} here />
                 </ul>
                 <ul className="menu-list nav-tree">
                   {p.canvases.map((v) => (
-                    <Entry key={v.id} icon={<CanvasIcon canvas={v} size={15} />} label={v.name} on={!p.showing && v.id === p.canvas} onClick={run(() => p.onCanvas(v))} end={!!p.canvasWaiting[v.id] && <span className="waits">{p.canvasWaiting[v.id]}</span>} />
+                    <Entry key={v.id} icon={<CanvasIcon canvas={v} size={15} />} label={v.name} on={!p.showing && v.id === p.canvas} onClick={run(() => p.onCanvas(v))} />
                   ))}
-                  <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} on={p.showing === 'queue'} onClick={run(p.onQueue)} end={p.queued > 0 && <span className="grey">{p.queued}</span>} />
-                  <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} on={p.showing === 'parked'} onClick={run(p.onParked)} end={p.parked > 0 && <span className="grey">{p.parked}</span>} />
+                  <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} on={p.showing === 'queue'} onClick={run(p.onQueue)} />
+                  <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} on={p.showing === 'parked'} onClick={run(p.onParked)} />
                   <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} on={p.showing === 'archived'} onClick={run(p.onArchived)} />
                   <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.projectSettings} on={p.showing === 'settings'} onClick={run(p.onProjectSettings)} end={<ChevronRight size={16} strokeWidth={2} className="more" aria-hidden />} />
                 </ul>
               </li>
             ) : (
-              <ProjectRow key={c.id} project={c} here={false} count={p.counts[c.id] ?? 0} onGo={close} />
+              <ProjectRow key={c.id} project={c} here={false} onGo={close} />
             ),
           )}
           <NewProject onNew={run(p.onNew)} />
@@ -262,8 +253,8 @@ function Entry({ icon, label, end, on, soon, onClick }: { icon?: ReactNode; labe
   );
 }
 
-/** A project's row: a click switches there (the open one stays); its waiting count and its agents' pause. */
-function ProjectRow({ project: c, here, count: n, repos, onGo }: { project: ProjectInfo; here: boolean; count: number; repos?: boolean; onGo?: () => void }) {
+/** A project's row: a click switches there (the open one stays); its agents' pause. */
+function ProjectRow({ project: c, here, repos, onGo }: { project: ProjectInfo; here: boolean; repos?: boolean; onGo?: () => void }) {
   return (
     <li className={here ? 'nav-row on' : 'nav-row'}>
       <a
@@ -277,11 +268,6 @@ function ProjectRow({ project: c, here, count: n, repos, onGo }: { project: Proj
         <ProjectIcon />
         <b title={c.name}>{c.name}</b>
         {repos && <span className="hint">{c.repos.map((r) => r.name).join(', ')}</span>}
-        {n > 0 && (
-          <span className="waits" title={t.nav.waiting(n)}>
-            {n}
-          </span>
-        )}
       </a>
       <ProjectAgents project={c} />
     </li>

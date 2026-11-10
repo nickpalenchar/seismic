@@ -47,7 +47,7 @@ a task needs one marked. The agent's instructions say what each step does to the
 the idea, conversation and prototypes; planning keeps the prototypes for the workstream that builds
 on them), so it never recommends a click for what the click does not do. "Do what you suggest", to the Koordinator or the agent, takes that step.
 
-Once the agent has replied, the open idea needs the owner like a waiting card ("Idea · your turn", counted in the left menu) until they answer, park, drop or decide it.
+Once the agent has replied, the open idea needs the owner like a waiting card ("Idea · your turn", in the inbox) until they answer, park, drop or decide it.
 
 ### The brief
 

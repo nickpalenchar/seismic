@@ -67,7 +67,7 @@ import { InboxView, inboxListWidth } from './inbox';
 import { NeedsYouSheet } from './needsYou';
 import { useInboxRead } from './inboxRead';
 import { ProjectSettingsSheet } from './projectSettings';
-import { type InboxEntry, inboxEntries, needsYouCount, readMark, waitingCount } from '../core/inbox';
+import { type InboxEntry, inboxEntries, needsYouCount, readMark } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, useWarnings, voiceTarget } from './tell';
 
@@ -2076,13 +2076,10 @@ function Project({
   // acted on (on any project: its reply is under way) and without answers in Seismic's sheet while it is open
   const here = waitingIn({ ...snapshot, items, talk: kOn ? [] : snapshot.talk });
   const entries = inboxEntries(projects, { ...waiting, [snapshot.project.id]: here }, (id) => !!underway[id]);
-  // only what the owner has not read yet counts
-  const attentionCount = waitingCount(entries, undefined, inboxRead.read);
   // the cards waiting in the queue, counted in grey on the agents' button
   const queued = queueOrder(items).length;
   // the cards that wait for the owner on every project, counted on the bell; the inbox counts more
   const needsYouCards = needsYouCount(entries);
-  const counts = Object.fromEntries(projects.map((c) => [c.id, waitingCount(entries, c.id, inboxRead.read)]));
   // the open card's entry is read, and stays so while it is open, even as the card waits anew
   const openEntry = openId ? entries.find((e) => e.card?.id === openId && e.project === snapshot.project.id) : undefined;
   useEffect(() => {
@@ -2093,7 +2090,6 @@ function Project({
   const nav = {
     project: snapshot.project,
     projects,
-    counts,
     pinned,
     pinnable: !matchMedia(NARROW).matches && innerWidth - NAV_W - side.right >= NAV_PROJECT_MIN,
     onPin: pin,
@@ -2160,13 +2156,11 @@ function Project({
   // the left menu, floating under ☰ or docked on the left
   const menu = {
     ...nav,
-    inboxCount: attentionCount,
     onInbox: openInbox,
     onPerformance: openPerformance,
     onFeedbackLog: () => location.assign(feedbackLogPath(snapshot.project.id)),
     canvases,
     canvas: canvasId,
-    canvasWaiting: perCanvas.waiting,
     onCanvas: (c: Canvas) => {
       if (aOnRef.current) setAOn(false);
       setInboxOn(false);
@@ -2174,8 +2168,6 @@ function Project({
       if (focusRef.current?.type === 'plan') closePlan();
       showCanvas(c);
     },
-    queued,
-    parked: items.filter((i) => inParkingLot(i) && !i.archivedAt).length,
     onQueue: () => showPage('queue'),
     onParked: () => showPage('parked'),
     onArchived: () => (setInboxOn(false), setAOn(true)),
