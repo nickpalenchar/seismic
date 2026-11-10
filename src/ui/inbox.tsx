@@ -10,7 +10,7 @@
 // all of them or only the unread ones (src/ui/inboxRead.ts keeps what was read).
 
 import type { MouseEvent, ReactNode } from 'react';
-import { GitBranch, X } from 'lucide-react';
+import { GitBranch } from 'lucide-react';
 import type { InboxEntry } from '../core/inbox';
 import type { Item } from '../core/types';
 import { ProposalRow, SettingRow } from './koordinator';
@@ -21,7 +21,7 @@ import { CardFace, shownTitle, UnreadDot } from './card';
 import { type QuickReply, quickReplies } from './quickReply';
 import { useStoredState } from './stored';
 import { clock, shortDay, t } from './strings';
-import { Button } from './components/button';
+import { Button, CloseButton } from './components/button';
 
 /** When it began: the time today, else the day. */
 export const when = (iso: string | number) => (new Date(iso).toDateString() === new Date().toDateString() ? clock(iso) : shortDay(iso));
@@ -201,9 +201,7 @@ export function InboxView({ on, held, onClose, ...p }: InboxProps & { on: boolea
         <InboxList {...p} />
       </div>
       <div className="inbox-room">
-        <button className="a-full" title={t.close} aria-label={t.close} onClick={onClose}>
-          <X size={16} />
-        </button>
+        <CloseButton label={t.close} className="a-full" onClick={onClose} />
         <p className="hint">{t.inbox.pick}</p>
       </div>
     </FullPage>

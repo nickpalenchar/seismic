@@ -3,7 +3,6 @@
 // workstreams belong to it and are not listed on their own. A field over the list filters it as
 // the owner types.
 
-import { X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { FullPage } from './fullPage';
 import type { Item } from '../core/types';
@@ -58,9 +57,7 @@ export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchi
             <CloseButton label={t.archive.clearSearch} size="small" className="x" onClick={() => (setQuery(''), field.current?.focus())} />
           )}
         </div>
-        <button className="a-full" title={t.close} aria-label={t.close} onClick={onClose}>
-          <X size={16} />
-        </button>
+        <CloseButton label={t.close} className="a-full" onClick={onClose} />
       </div>
       <div className="a-full-body">
         {done > 0 && (

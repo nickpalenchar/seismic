@@ -4,10 +4,11 @@
 // unfolds over the view and folds back into its entry. The switcher holds Canvas, Parked and the
 // Table view still to come; switching keeps the canvas's camera, and an open card stays open.
 
-import { Table2, Car, Map as MapIcon, X } from 'lucide-react';
+import { Table2, Car, Map as MapIcon } from 'lucide-react';
 import { type ReactNode, useEffect, useRef } from 'react';
 import { inParkingLot, type Item } from '../core/types';
 import { AgentEntry } from './agents';
+import { CloseButton } from './components/button';
 import { FullPage } from './fullPage';
 import { QueueList, useQueueSort } from './queue';
 import { t } from './strings';
@@ -34,9 +35,7 @@ function Head({ title, n, onClose }: { title: string; n: number; onClose: () => 
         {title} {n > 0 && <span className="count">{n}</span>}
       </h2>
       <span className="grow" />
-      <button className="a-full" title={t.close} aria-label={t.close} onClick={onClose}>
-        <X size={16} />
-      </button>
+      <CloseButton label={t.close} className="a-full" onClick={onClose} />
     </div>
   );
 }

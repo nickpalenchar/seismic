@@ -1647,7 +1647,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .archive-menu > .button { margin: 2px 0 6px; }
 .a-search { position: relative; margin: 2px 0 8px; flex: 1; min-width: 0; }
 .a-head { display: flex; align-items: center; gap: 6px; }
-.a-full { flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin-bottom: 6px; border: 0; border-radius: 3px; background: var(--chip); color: var(--ink); cursor: pointer; }
+.a-full { flex: none; margin-bottom: 6px; }
 /* Full-page views stay within the main area, below the floating row (24), the bar and dock sheets (25) and unfolded cards (dim 30, panel 40);
    the floating row stands over their top */
 .full-page { position: fixed; z-index: 23; top: 58px; padding-top: 48px; box-sizing: border-box; bottom: 0; left: var(--left, 0px); right: var(--side, 0px); display: flex; flex-direction: column; background: var(--panel); }
