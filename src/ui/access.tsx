@@ -10,6 +10,7 @@ import { api } from './api';
 import { Field, Head } from './config';
 import { clock, failText, shortDay, t } from './strings';
 import { Button, CloseButton } from './components/button';
+import { SegmentedControl } from './components/segmented';
 
 /** Text with `code` in backticks, as the strings write commands. */
 function Coded({ text }: { text: string }) {
@@ -66,21 +67,17 @@ function Reach({ view, onView }: { view: AccessView; onView: (v: AccessView) => 
   return (
     <>
       <Field label={a.setting}>
-        <div className="seg" role="radiogroup" aria-label={a.setting}>
-          {([null, 'tailscale', 'address'] as const).map((x) => (
-            <button
-              key={x ?? 'off'}
-              type="button"
-              role="radio"
-              aria-checked={via === x}
-              className={via === x ? 'on' : undefined}
-              disabled={busy}
-              onClick={() => via !== x && save(x === 'tailscale' ? { via: 'tailscale', ...awake } : x === 'address' ? { via: 'address', address: view.addresses[0] ?? '', ...awake } : null)}
-            >
-              {x === 'tailscale' ? a.tailscale : x === 'address' ? a.address : a.off}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label={a.setting}
+          value={via ?? 'off'}
+          disabled={busy}
+          onValueChange={(x) => save(x === 'tailscale' ? { via: 'tailscale', ...awake } : x === 'address' ? { via: 'address', address: view.addresses[0] ?? '', ...awake } : null)}
+          options={[
+            { value: 'off', label: a.off },
+            { value: 'tailscale', label: a.tailscale },
+            { value: 'address', label: a.address },
+          ]}
+        />
         <p className="hint">
           <Coded text={via === 'tailscale' ? a.tailscaleHint : via === 'address' ? a.addressHint : a.offHint} />
         </p>
@@ -135,25 +132,20 @@ function Reach({ view, onView }: { view: AccessView; onView: (v: AccessView) => 
       )}
       {view.remote && (
         <Field label={a.awake}>
-          <div className="seg" role="radiogroup" aria-label={a.awake}>
-            {([false, true] as const).map((x) => (
-              <button
-                key={String(x)}
-                type="button"
-                role="radio"
-                aria-checked={always === x}
-                className={always === x ? 'on' : undefined}
-                disabled={busy}
-                onClick={() => {
-                  if (always === x || !view.remote) return;
-                  const { awake: _, ...rest } = view.remote;
-                  void save(x ? { ...rest, awake: 'always' } : rest);
-                }}
-              >
-                {x ? a.awakeAlways : a.awakeWorks}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label={a.awake}
+            value={always ? 'always' : 'works'}
+            disabled={busy}
+            onValueChange={(x) => {
+              if (!view.remote) return;
+              const { awake: _, ...rest } = view.remote;
+              void save(x === 'always' ? { ...rest, awake: 'always' } : rest);
+            }}
+            options={[
+              { value: 'works', label: a.awakeWorks },
+              { value: 'always', label: a.awakeAlways },
+            ]}
+          />
           <p className="hint">
             {always ? a.awakeAlwaysHint : a.awakeWorksHint} {a.lid}
           </p>

@@ -18,6 +18,10 @@ import { useSortable } from './sortable';
 import { useStoredState } from './stored';
 import { failText, t } from './strings';
 import { Button, CloseButton } from './components/button';
+import { Radio, RadioGroup } from './components/radio';
+
+/** The radio value of "no icon": a radio has no null. */
+const NO_ICON = '\0none';
 
 /** What the page knows of the project's canvases, for what shows a card (its menu, search). */
 export interface CanvasesView {
@@ -255,9 +259,9 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
     onClose();
   };
   const choice = (value: string | null, label: string, mark: ReactNode) => (
-    <button key={value ?? 'none'} type="button" role="radio" aria-checked={icon === value} className={icon === value ? 'cicon on' : 'cicon'} title={label} aria-label={label} onClick={() => set({ icon: value })}>
+    <Radio key={value ?? NO_ICON} value={value ?? NO_ICON} className="cicon" title={label} aria-label={label}>
       {mark}
-    </button>
+    </Radio>
   );
   return (
     <div id="canvas-dialog" onClick={onClose}>
@@ -303,7 +307,7 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
         />
         <p className={touched && problem ? 'cd-problem on' : 'cd-problem'}>{isMain ? t.canvases.mainKeeps : touched && problem ? problem : ' '}</p>
         <div className="cd-label">{t.canvases.icon}</div>
-        <div className="cd-icons" role="radiogroup" aria-label={t.canvases.icon}>
+        <RadioGroup className="cd-icons" label={t.canvases.icon} value={icon ?? NO_ICON} onValueChange={(v) => set({ icon: v === NO_ICON ? null : v })}>
           {choice(null, t.canvases.noIcon, <span className="cd-none">{t.canvases.noIcon}</span>)}
           <h3>{t.canvases.emojis}</h3>
           <div className="cd-grid">{CANVAS_EMOJIS.map((e) => choice(e, e, <span className="emoji">{e}</span>))}</div>
@@ -314,7 +318,7 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
               return choice(`lucide:${n}`, n.replace(/-/g, ' '), <L size={18} strokeWidth={2} aria-hidden />);
             })}
           </div>
-        </div>
+        </RadioGroup>
         {failed && <p className="cd-problem on">{failed}</p>}
         <div className="cd-actions">
           <Button type="submit" variant="primary" disabled={busy || !!problem}>

@@ -12,6 +12,7 @@ import { useDiffStyle } from './diffStyle';
 import { plain } from './markdown';
 import { t } from './strings';
 import { CloseButton, LinkButton } from './components/button';
+import { SegmentedControl } from './components/segmented';
 
 /** A file with more lines than this starts folded, so a generated file does not bury the rest. */
 const FOLD_LINES = 1500;
@@ -227,13 +228,7 @@ export function DiffStyleSwitch() {
   const { style, set, choosable } = useDiffStyle();
   if (!choosable) return null;
   return (
-    <span className="r-mode" role="group" aria-label={t.diff.layout}>
-      {(['unified', 'split'] as const).map((s) => (
-        <button key={s} className={style === s ? 'on' : ''} aria-pressed={style === s} onClick={() => set(s)}>
-          {t.diff[s]}
-        </button>
-      ))}
-    </span>
+    <SegmentedControl size="small" label={t.diff.layout} value={style} onValueChange={set} options={(['unified', 'split'] as const).map((s) => ({ value: s, label: t.diff[s] }))} />
   );
 }
 

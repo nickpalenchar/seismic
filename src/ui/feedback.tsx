@@ -11,6 +11,7 @@ import { plain } from './markdown';
 import { OpenPerformance } from './performance';
 import { failText, t } from './strings';
 import { Button, LinkButton } from './components/button';
+import { Radio, RadioGroup } from './components/radio';
 
 /** Stars and the comment for the card's approved work; `prompt`: the one after the approval, with its title and "Skip". */
 export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; onClose?: () => void }) {
@@ -58,25 +59,29 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
     <div className={prompt ? 'rate prompt' : 'rate'}>
       <div className="rate-row">
         <span className="rate-q">{prompt ? t.feedback.ask(plain(item.title)) : t.feedback.askCard}</span>
-        <span className="stars" role="radiogroup" aria-label={t.feedback.askCard} onPointerLeave={() => setHover(0)}>
+        {/* a rating, not a choice: the group has no star "on" until one is given, and the stars up to the hovered one fill */}
+        <RadioGroup
+          className="stars"
+          label={t.feedback.askCard}
+          value={rating ? String(rating) : ''}
+          disabled={busy}
+          onValueChange={(v) => void give({ rating: Number(v), ...(saved?.comment ? { comment: saved.comment } : {}) })}
+          onPointerLeave={() => setHover(0)}
+        >
           {t.feedback.stars.map((name, n) => (
-            <button
+            <Radio
               key={n}
-              type="button"
-              role="radio"
-              aria-checked={rating === n + 1}
+              value={String(n + 1)}
               aria-label={t.feedback.star(n + 1, name)}
               title={name}
               className={n < shown ? 'star on' : 'star'}
-              disabled={busy}
               // a mouse's only: Safari on the iPhone takes a tap that changes what shows on hover for the hover alone, and the star stayed unsaved
               onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(n + 1)}
-              onClick={() => rating !== n + 1 && void give({ rating: n + 1, ...(saved?.comment ? { comment: saved.comment } : {}) })}
             >
               {n < shown ? '★' : '☆'}
-            </button>
+            </Radio>
           ))}
-        </span>
+        </RadioGroup>
         {shown > 0 && <span className="rate-name">{t.feedback.stars[shown - 1]}</span>}
         {prompt && (
           <Button type="button" className="rate-skip" title={rating || text ? undefined : t.feedback.skipHint} disabled={busy} onClick={() => (text ? void sendComment() : onClose?.())}>

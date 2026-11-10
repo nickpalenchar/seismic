@@ -1113,6 +1113,7 @@ const en = {
     changed: (n: number) => (n === 1 ? '1 changed file' : `${n} changed files`),
     less: 'fewer',
     showChanges: 'Shows what changed in the file',
+    mode: 'Show',
     formatted: 'Formatted',
     whole: 'Whole file',
     changes: 'Changes',

@@ -24,6 +24,7 @@ import { clock, shortDay, t } from './strings';
 import { Button, CloseButton } from './components/button';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
+import { SegmentedControl } from './components/segmented';
 
 /** When it began: the time today, else the day. */
 export const when = (iso: string | number) => (new Date(iso).toDateString() === new Date().toDateString() ? clock(iso) : shortDay(iso));
@@ -125,13 +126,13 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
   return (
     <>
       <div className="inbox-bar">
-      <div className="seg inbox-filter" role="radiogroup" aria-label={t.inbox.filter}>
-        {(['unread', 'all'] as const).map((f) => (
-          <button key={f} type="button" role="radio" aria-checked={filter === f} className={filter === f ? 'on' : undefined} onClick={() => setFilter(f)}>
-            {f === 'all' ? t.inbox.all : t.inbox.unread}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        className="inbox-filter"
+        label={t.inbox.filter}
+        value={filter}
+        onValueChange={setFilter}
+        options={(['unread', 'all'] as const).map((f) => ({ value: f, label: f === 'all' ? t.inbox.all : t.inbox.unread }))}
+      />
         {current && (
           <CheckLabel>
             <Switch checked={everywhere} onCheckedChange={setEverywhere} />

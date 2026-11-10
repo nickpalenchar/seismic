@@ -16,6 +16,7 @@ import { PdfPages } from './pdf';
 import { phoneView } from './phone';
 import { t } from './strings';
 import { Button, LinkButton } from './components/button';
+import { SegmentedControl } from './components/segmented';
 
 /** How many lines the change list shows before "and N more ▾" where it is not folded to the result; the file picked shows too. */
 const FOLD = 8;
@@ -315,14 +316,16 @@ function FileView({ item, file, rev, changes, onChanges }: { item: Item; file: S
     <div className="r-file">
       <div className="r-bar">
         {file.diff && (
-          <span className="r-mode" role="group">
-            <button className={changes ? '' : 'on'} aria-pressed={!changes} onClick={() => onChanges(false)}>
-              {file.kind === 'markdown' || file.kind === 'page' ? t.files.formatted : t.files.whole}
-            </button>
-            <button className={changes ? 'on' : ''} aria-pressed={changes} onClick={() => onChanges(true)}>
-              {t.files.changes}
-            </button>
-          </span>
+          <SegmentedControl
+            size="small"
+            label={t.files.mode}
+            value={changes ? 'changes' : 'whole'}
+            onValueChange={(x) => onChanges(x === 'changes')}
+            options={[
+              { value: 'whole', label: file.kind === 'markdown' || file.kind === 'page' ? t.files.formatted : t.files.whole },
+              { value: 'changes', label: t.files.changes },
+            ]}
+          />
         )}
         {changes && <DiffStyleSwitch />}
         <span className="r-ways">

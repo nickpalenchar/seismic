@@ -18,6 +18,7 @@ import { QueueList, useQueueSort } from './queue';
 import { useStoredState } from './stored';
 import { t } from './strings';
 import { Button } from './components/button';
+import { ToggleGroup, ToggleItem } from './components/segmented';
 
 export type AgentsTab = 'queue' | 'all' | 'parked' | 'activity';
 type Tab = AgentsTab;
@@ -50,13 +51,13 @@ export function AgentsTabs({ tab, onTab, queued, parked }: { tab: Tab; onTab: (t
  */
 export function StageChips<S extends string>({ stages, count, hidden, onHidden, onlyFull }: { stages: readonly S[]; count: (s: S) => number; hidden: S[]; onHidden: (h: S[]) => void; onlyFull?: boolean }) {
   return (
-    <div className="agents-filter" role="group" aria-label={t.agents.filter}>
+    <ToggleGroup type="multiple" className="agents-filter" aria-label={t.agents.filter} value={stages.filter((s) => !hidden.includes(s))} onValueChange={(shown) => onHidden(stages.filter((s) => !shown.includes(s)))}>
       {stages.filter((s) => !onlyFull || count(s) > 0).map((s) => (
-        <button key={s} type="button" className={`chip stage-${s}${count(s) ? '' : ' none'}`} aria-pressed={!hidden.includes(s)} onClick={() => onHidden(hidden.includes(s) ? hidden.filter((x) => x !== s) : [...hidden, s])}>
+        <ToggleItem key={s} value={s} className={`chip stage-${s}${count(s) ? '' : ' none'}`}>
           {(t.agents.stages as Record<string, string>)[s]} <span className="count">{count(s)}</span>
-        </button>
+        </ToggleItem>
       ))}
-    </div>
+    </ToggleGroup>
   );
 }
 

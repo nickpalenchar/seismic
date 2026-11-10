@@ -44,23 +44,6 @@ a component migrates the phone along. Phone-only controls: the back and new butt
 the project `<select>` (the phone's counterpart of the project picker) and the draggable talk panel.
 Phone CSS gives a few shared controls a larger touch target (the buttons in `.ph-view .actions`, say).
 
-### Native radios — Radix RadioGroup
-
-- Native radios: card archive, right click and code review "when" (Defaults and Project settings),
-  Setup → first project "where".
-
-### Segmented control — Radix ToggleGroup (single) / RadioGroup
-
-- `.seg` with `role=radiogroup`: Configuration → Devices (remote access, keep awake), Preferences →
-  Appearance (theme, motion), Demos (add-site host, site publish), Projects → repository
-  (workstations, landing, language, demo language), Inbox Unread | All.
-- `.seg` without a role: card detail → pick repository / new repository (`repoPick.tsx`).
-- Radiogroups that are not `.seg`: chats scope (this project | all), the canvas dialog's icon grid,
-  the feedback stars (hover preview).
-- `aria-pressed` groups: files result mode (formatted | changes), Performance views, the Agents
-  sheet's stage chips (multi-select: ToggleGroup type "multiple").
-- None has arrow-key navigation; every option is its own tab stop.
-
 ### Tabs — Radix Tabs
 
 - With roles: Agents sheet Queue | All | Parked | Activity (with counts; also on the phone), card
@@ -198,7 +181,7 @@ focused control, a first tap acting while the phone keyboard is open.
 - [x] **W1:** Foundations. Add `@radix-ui/react-*` packages as each workstream needs them (or the single `radix-ui` package — pick one and say why); a portal container inside the app root; the component conventions above written as a short header comment in `src/ui/components/` (API shape, CSS block, tokens, data-attribute styling); App's Esc handler made layer-aware as described in Shape; the CLAUDE.md line that new UI uses the components in `src/ui/components/` and adds one there rather than a bespoke control; rewrite the decision "The look is frost, laid over upstream's stylesheet" in [The canvas](../design/the-canvas.md) so the rejected component library becomes the chosen Radix Primitives (owner, 2026-11-09: the fork no longer merges upstream; rejected shadcn/ui with Tailwind and Kibo UI as a second styling system, Base UI for its smaller set of mature parts). Proves the setup with the first component, `VisuallyHidden` or `Slot`, used once. S.
 - [x] **W2:** Button, IconButton, CloseButton, LinkButton. One `Button` (`variant`: default, primary, danger, code-review, review-warning, link; `size`: default, small; `suggested`, `armed` as props), `IconButton` (icon plus required label, which W6 turns into a tooltip), `CloseButton` replacing the twelve ✕ kinds, the StartAgent split button as a composition. Migrate every `btn`, `button.link` and close button; delete the old classes and contextual overrides, moving spacing to containers. Largest by count (detail and config); may land in two cards, settings first, then card detail and the rest. M.
 - [x] **W3:** Switch and Checkbox. Radix Switch for the 14 toggles, Radix Checkbox for the plain checkboxes (export, suggest, artifact checks); their labels (`c-check`, `share-check` …) become one `Field`-style label pattern. S.
-- [ ] **W4:** Segmented control and radio groups. `SegmentedControl` on Radix ToggleGroup (single and multiple) for every `.seg`, the chats scope, files result mode, Performance views and the stage chips' group; Radix RadioGroup for the native radios and the canvas icon grid; the feedback stars stay a bespoke rating on RadioGroup with their hover preview. Arrow keys replace one tab stop per option. M.
+- [x] **W4:** Segmented control and radio groups. `SegmentedControl` on Radix ToggleGroup (single and multiple) for every `.seg`, the chats scope, files result mode, Performance views and the stage chips' group; Radix RadioGroup for the native radios and the canvas icon grid; the feedback stars stay a bespoke rating on RadioGroup with their hover preview. Arrow keys replace one tab stop per option. M. Landed: `components/segmented.tsx` (`SegmentedControl`, `ToggleGroup`/`ToggleItem`) and `components/radio.tsx` (`RadioGroup`, `RadioOption`, `Radio`). The tablists that wear `.seg` (Agents tabs, repository tabs) stay until W5, which removes the `.seg` rules.
 - [ ] **W5:** Tabs. Radix Tabs for the Agents sheet (desktop and phone), card results, the Diff change list, Setup pages, the repository tabs and the canvas strip (keeping its hover drawer and first-tap-opens on touch); vertical Tabs for the Configuration and Preferences navs, keeping each section's address and unsent input. M.
 - [ ] **W6:** Tooltip. Radix Tooltip with one provider and delay; IconButton shows its label as one; the Configuration info tip, the status pills' `.tip.why` and the agents tip move onto it; tips that hold buttons wait for W8. Replace `title=` on icon-only buttons; leave it where it names truncated text. Check touch: a tooltip must not block the first tap. S–M.
 - [ ] **W7:** Menu. Radix DropdownMenu for the left menu, CardMore (on the card head and on canvas plan cards, still closing when the camera moves), the four label pickers (radio items), ShareTags and the project picker (links as items, the pin kept; the pinned navigation keeps sharing its list). `useMenuClose` loses these callers; their classes leave App's Esc list. M.

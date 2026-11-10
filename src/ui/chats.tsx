@@ -10,6 +10,7 @@ import { api } from './api';
 import { plain } from './markdown';
 import { useStoredState } from './stored';
 import { clock, failText, shortDay, t } from './strings';
+import { SegmentedControl } from './components/segmented';
 
 interface Props {
   /** The heading between the two buttons. */
@@ -112,15 +113,25 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
                   <X size={17} />
                 </button>
               </div>
-              <div className="chats-scope" role="radiogroup">
-                <button role="radio" aria-checked={!all} className={!all ? 'on' : undefined} onClick={() => setAll(false)}>
-                  <span className="chats-scope-name">{projectName}</span>
-                  <small>{t.koordinator.chatsHere}</small>
-                </button>
-                <button role="radio" aria-checked={all} className={all ? 'on' : undefined} onClick={() => setAll(true)}>
-                  {t.koordinator.chatsAll}
-                </button>
-              </div>
+              <SegmentedControl
+                className="chats-scope"
+                itemClassName="chats-scope-item"
+                label={t.koordinator.chats}
+                value={all ? 'all' : 'here'}
+                onValueChange={(x) => setAll(x === 'all')}
+                options={[
+                  {
+                    value: 'here',
+                    label: (
+                      <>
+                        <span className="chats-scope-name">{projectName}</span>
+                        <small>{t.koordinator.chatsHere}</small>
+                      </>
+                    ),
+                  },
+                  { value: 'all', label: t.koordinator.chatsAll },
+                ]}
+              />
               <ul className="chats-list">
                 {fresh && !all && (
                   <li>

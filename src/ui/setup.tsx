@@ -13,6 +13,7 @@ import { Sign } from './logo';
 import { failText, fileSize, t } from './strings';
 import { projectPath } from './address';
 import { Button, CloseButton, LinkButton } from './components/button';
+import { RadioGroup, RadioOption } from './components/radio';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 /** The machine's system and processor, as the owner knows them: "macOS (arm64)". */
@@ -500,16 +501,15 @@ function FirstProject({ view, ready, onView }: { view: MachineView; ready: boole
           {branch && `${s.first.branch(branch)} `}{saved.opens ? s.first.opens : s.first.startAgain}</p>
       ) : (
         <>
-          <div className="setup-where" role="radiogroup" aria-labelledby="setup-where">
+          <RadioGroup className="setup-where" labelledBy="setup-where" value={mode} onValueChange={(m) => setMode(m as typeof mode)}>
             <b id="setup-where">{s.first.where}</b>
             {(['folder', 'clone'] as const).map((m) => (
-              <label key={m} className={mode === m ? 'setup-choice on' : 'setup-choice'}>
-                <input type="radio" name="setup-where" checked={mode === m} onChange={() => setMode(m)} />
+              <RadioOption key={m} value={m} className={mode === m ? 'setup-choice on' : 'setup-choice'}>
                 <b>{s.first.modes[m].title}</b>
                 <span className="hint">{s.first.modes[m].hint}</span>
-              </label>
+              </RadioOption>
             ))}
-          </div>
+          </RadioGroup>
           {mode === 'folder' ? (
             <>
               <label>

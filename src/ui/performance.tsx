@@ -13,6 +13,7 @@ import { api } from './api';
 import { plain } from './markdown';
 import { failText, t } from './strings';
 import { Button, CloseButton, LinkButton } from './components/button';
+import { SegmentedControl } from './components/segmented';
 
 /** Opens the dashboard, where the page offers it (the project, not the phone view). */
 export const OpenPerformance = createContext<(() => void) | null>(null);
@@ -259,13 +260,7 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
                 )}
               </div>
               {comparable && shown.length > 0 && (
-                <div className="perf-views" role="group" aria-label={p.views.label}>
-                  {VIEWS.map((v) => (
-                    <button key={v} className={view === v ? 'on' : undefined} aria-pressed={view === v} onClick={() => setView(v)}>
-                      {p.views[v]}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl size="small" label={p.views.label} value={view} onValueChange={setView} options={VIEWS.map((v) => ({ value: v, label: p.views[v] }))} />
               )}
             </div>
           )}

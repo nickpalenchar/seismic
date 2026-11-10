@@ -34,6 +34,8 @@ import { Button, CloseButton, IconButton, LinkButton } from './components/button
 import { Checkbox } from './components/checkbox';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
+import { RadioGroup, RadioOption } from './components/radio';
+import { SegmentedControl } from './components/segmented';
 
 declare global {
   interface Window {
@@ -923,13 +925,12 @@ export function ThemeBlock({ on }: { on: boolean }) {
     <>
       <Head sub title={l.title} hint={l.hint} file={view.file} />
       <Field label={l.title}>
-        <div className="seg" role="radiogroup" aria-label={l.title}>
-          {[null, ...THEMES].map((x) => (
-            <button key={x ?? 'system'} type="button" role="radio" aria-checked={view.chosen === x} className={view.chosen === x ? 'on' : undefined} onClick={() => choose(x)}>
-              {x ? l.names[x] : l.system}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label={l.title}
+          value={view.chosen ?? SYSTEM}
+          onValueChange={(x) => choose(x === SYSTEM ? null : (x as Theme))}
+          options={[SYSTEM, ...THEMES].map((x) => ({ value: x, label: x === SYSTEM ? l.system : l.names[x as Theme] }))}
+        />
       </Field>
       {status && <p className="hint c-status">{status}</p>}
     </>
@@ -962,13 +963,12 @@ export function MotionBlock({ on }: { on: boolean }) {
     <>
       <Head sub title={l.title} hint={l.hint} file={view.file} />
       <Field label={l.title}>
-        <div className="seg" role="radiogroup" aria-label={l.title}>
-          {[null, ...MOTIONS].map((x) => (
-            <button key={x ?? 'system'} type="button" role="radio" aria-checked={view.chosen === x} className={view.chosen === x ? 'on' : undefined} onClick={() => choose(x)}>
-              {x ? l.names[x] : l.system}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label={l.title}
+          value={view.chosen ?? SYSTEM}
+          onValueChange={(x) => choose(x === SYSTEM ? null : (x as Motion))}
+          options={[SYSTEM, ...MOTIONS].map((x) => ({ value: x, label: x === SYSTEM ? l.system : l.names[x as Motion] }))}
+        />
       </Field>
       {status && <p className="hint c-status">{status}</p>}
     </>
@@ -1115,14 +1115,13 @@ export function CardArchiveField({ value, onChange }: { value: CardArchiving | u
   const now = value ?? 'manual';
   return (
     <Field label={<>{l.title} <Info text={l.hint} /></>}>
-      <div className="cr-field" role="radiogroup" aria-label={l.title}>
+      <RadioGroup className="cr-field" label={l.title} value={now} onValueChange={(mode) => onChange(mode as typeof now)}>
         {CARD_ARCHIVING.map((mode) => (
-          <CheckLabel key={mode}>
-            <input type="radio" checked={now === mode} onChange={() => onChange(mode)} />
+          <RadioOption key={mode} value={mode}>
             {l[mode]}
-          </CheckLabel>
+          </RadioOption>
         ))}
-      </div>
+      </RadioGroup>
     </Field>
   );
 }
@@ -1133,14 +1132,13 @@ export function RightClickField({ value, onChange }: { value: RightClick | undef
   const now = value ?? 'groups';
   return (
     <Field label={<>{l.title} <Info text={l.hint} /></>}>
-      <div className="cr-field" role="radiogroup" aria-label={l.title}>
+      <RadioGroup className="cr-field" label={l.title} value={now} onValueChange={(mode) => onChange(mode as typeof now)}>
         {RIGHT_CLICK.map((mode) => (
-          <CheckLabel key={mode}>
-            <input type="radio" checked={now === mode} onChange={() => onChange(mode)} />
+          <RadioOption key={mode} value={mode}>
             {l[mode]}
-          </CheckLabel>
+          </RadioOption>
         ))}
-      </div>
+      </RadioGroup>
     </Field>
   );
 }
@@ -1159,16 +1157,15 @@ export function CodeReviewField({ value, onChange, bare }: { value: Partial<Code
         {l.on}
       </CheckLabel>
       {now.on && (
-        <div className="cr-when" role="radiogroup" aria-label={l.when}>
+        <RadioGroup className="cr-when" label={l.when} value={now.mode} onValueChange={(mode) => onChange({ ...now, mode: mode as typeof now.mode })}>
           <span className="hint">{l.when}</span>
           {CODE_REVIEW_MODES.map((mode) => (
-            <CheckLabel key={mode}>
-              <input type="radio" checked={now.mode === mode} onChange={() => onChange({ ...now, mode })} />
+            <RadioOption key={mode} value={mode}>
               {l[mode]}
-            </CheckLabel>
+            </RadioOption>
           ))}
           <p className="hint">{l.scope}</p>
-        </div>
+        </RadioGroup>
       )}
     </>
   );
@@ -1650,6 +1647,8 @@ const MIB = 1024 * 1024;
 
 /** How a new site is added, in the switcher's order: a public GitHub repository works with any account; another host is entered by hand. */
 type AddHost = 'github-public' | 'github' | 'cloudflare' | 'manual';
+/** The option of an appearance choice that follows the system, in place of `null`. */
+const SYSTEM = 'system';
 const ADD_HOSTS: AddHost[] = ['github-public', 'github', 'cloudflare', 'manual'];
 
 /** The way chosen for a new site, a site entered by hand and a connection code not sent yet: they survive closing the dialog. */
@@ -1752,13 +1751,7 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
   );
   return (
     <div className="add-site">
-      <div className="seg" role="radiogroup" aria-label={p.add}>
-        {ADD_HOSTS.map((h) => (
-          <button key={h} type="button" role="radio" aria-checked={host === h} className={host === h ? 'on' : undefined} disabled={running} onClick={() => setHost(h)}>
-            {p.hosts[h]}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl label={p.add} value={host} disabled={running} onValueChange={setHost} options={ADD_HOSTS.map((h) => ({ value: h, label: p.hosts[h] }))} />
       <p className="hint">{p.notes[host]}</p>
       {host === 'cloudflare' && (
         <>
@@ -2106,16 +2099,12 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
           {/* not a label: a click on its words would press the first button */}
           <div className="wide">
             <span className="hint">{c.sitePublish}</span>
-            <div className="seg" role="radiogroup" aria-label={c.sitePublish}>
-              {(['click', 'approved'] as const).map((x) => {
-                const on = (value?.publish ?? 'click') === x;
-                return (
-                  <button key={x} type="button" role="radio" aria-checked={on} className={on ? 'on' : undefined} onClick={() => value && onChange(x === 'approved' ? { ...value, publish: x } : (({ publish: _, ...rest }) => rest)(value))}>
-                    {c.sitePublishes[x]}
-                  </button>
-                );
-              })}
-            </div>
+            <SegmentedControl
+              label={c.sitePublish}
+              value={value?.publish ?? 'click'}
+              onValueChange={(x) => value && onChange(x === 'approved' ? { ...value, publish: x } : (({ publish: _, ...rest }) => rest)(value))}
+              options={(['click', 'approved'] as const).map((x) => ({ value: x, label: c.sitePublishes[x] }))}
+            />
           </div>
             </>
           )}
@@ -2561,13 +2550,12 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
               <Info text={t.config.settings.workstationsHint} />
             </div>
             <div className="cfg-control">
-              <div className="seg" role="radiogroup" aria-label={t.config.settings.workstations}>
-                {(['worktrees', 'clones'] as const).map((x) => (
-                  <button key={x} type="button" role="radio" aria-checked={workIn === x} className={workIn === x ? 'on' : undefined} onClick={() => setWorkIn(x)}>
-                    {t.config.settings.workIn[x]}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                label={t.config.settings.workstations}
+                value={workIn}
+                onValueChange={setWorkIn}
+                options={(['worktrees', 'clones'] as const).map((x) => ({ value: x, label: t.config.settings.workIn[x] }))}
+              />
             </div>
           </div>
           {clones ? (
@@ -2733,13 +2721,7 @@ function RepoSettingsBlock({
           {row(
             'land',
             c.land,
-            <div className="seg" role="radiogroup" aria-label={c.land}>
-              {(['main', 'pr'] as const).map((x) => (
-                <button key={x} type="button" role="radio" aria-checked={land === x} className={land === x ? 'on' : undefined} onClick={() => set('land', x)}>
-                  {c.lands[x]}
-                </button>
-              ))}
-            </div>,
+            <SegmentedControl label={c.land} value={land ?? 'main'} onValueChange={(x) => set('land', x)} options={(['main', 'pr'] as const).map((x) => ({ value: x, label: c.lands[x] }))} />,
             c.landHint,
           )}
           {land === 'pr' &&
@@ -2788,13 +2770,7 @@ function RepoSettingsBlock({
         {LANGUAGES.length > 1 && row(
           'language',
           c.language,
-          <div className="seg" role="radiogroup" aria-label={c.language}>
-            {LANGUAGES.map((x) => (
-              <button key={x} type="button" role="radio" aria-checked={language === x} className={language === x ? 'on' : undefined} onClick={() => set('language', x)}>
-                {c.languages[x]}
-              </button>
-            ))}
-          </div>,
+          <SegmentedControl label={c.language} value={language} onValueChange={(x) => set('language', x)} options={LANGUAGES.map((x) => ({ value: x, label: c.languages[x] }))} />,
           c.languageHint,
         )}
       </div>
@@ -2803,13 +2779,7 @@ function RepoSettingsBlock({
         {LANGUAGES.length > 1 && row(
           'demoLanguage',
           c.demoLanguage,
-          <div className="seg" role="radiogroup" aria-label={c.demoLanguage}>
-            {LANGUAGES.map((x) => (
-              <button key={x} type="button" role="radio" aria-checked={demoLanguage === x} className={demoLanguage === x ? 'on' : undefined} onClick={() => set('demoLanguage', x)}>
-                {c.languages[x]}
-              </button>
-            ))}
-          </div>,
+          <SegmentedControl label={c.demoLanguage} value={demoLanguage ?? ''} onValueChange={(x) => set('demoLanguage', x)} options={LANGUAGES.map((x) => ({ value: x, label: c.languages[x] }))} />,
           c.demoLanguageHint,
         )}
         {row('artifacts', c.artifacts, <ArtifactChecks value={artifacts} onChange={(v) => set('artifacts', v)} />, c.artifactsHint)}

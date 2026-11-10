@@ -5,9 +5,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { type CardPatch, type Item, newRepoName, type RepoRef } from '../core/types';
+import { SegmentedControl } from './components/segmented';
 import { t } from './strings';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
+
+/** The option that stands for a repository still to be created, among the ids of the existing ones. */
+const NEW = '\0new';
 
 /** A new repository as the owner picks it on the card. */
 export interface FreshRepo {
@@ -88,25 +92,19 @@ export function RepoPick({ choice, repos, fresh = true }: { choice: RepoChoice; 
   if (repos.length < 2 && !n) return null;
   return (
     <div className="repo-pick">
-      <div className="seg">
-        {repos.map((r) => (
-          <button key={r.id} className={!n && r.id === choice.repo ? 'on' : ''} onClick={() => choice.pickRepo(r.id)}>
-            {r.name}
-          </button>
-        ))}
-        {fresh && (
-          <button
-            className={n ? 'on' : ''}
-            title={t.repoPick.newRepoHint}
-            onClick={() => {
-              choice.pickNew(besideHome(repos));
-              setFocusPath(true);
-            }}
-          >
-            {n && choice.name ? t.repoPick.named(choice.name) : t.repoPick.newRepo}
-          </button>
-        )}
-      </div>
+      <SegmentedControl
+        label={t.repoPick.label}
+        value={n ? NEW : (choice.repo ?? '')}
+        onValueChange={(x) => {
+          if (x !== NEW) return choice.pickRepo(x);
+          choice.pickNew(besideHome(repos));
+          setFocusPath(true);
+        }}
+        options={[
+          ...repos.map((r) => ({ value: r.id, label: r.name })),
+          ...(fresh ? [{ value: NEW, label: n && choice.name ? t.repoPick.named(choice.name) : t.repoPick.newRepo, title: t.repoPick.newRepoHint }] : []),
+        ]}
+      />
       {n && (
         <div className="repo-new">
           <input
