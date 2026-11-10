@@ -53,7 +53,6 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
       <input
         ref={field}
         type="search"
-        role="combobox"
         {...list.field}
         value={query}
         placeholder={t.cardSearch.placeholder}

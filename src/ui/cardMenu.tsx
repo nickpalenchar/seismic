@@ -203,7 +203,7 @@ export const LinkField = forwardRef<
         className={[className, !value && 'blank'].filter(Boolean).join(' ')}
         contentEditable
         suppressContentEditableWarning
-        role="textbox"
+        role={list.field.role}
         aria-multiline
         aria-placeholder={placeholder}
         data-placeholder={placeholder}

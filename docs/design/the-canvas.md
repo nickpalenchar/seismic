@@ -612,6 +612,14 @@ calm and modern without looking like a stock component kit.
   moving line). The state line at the card's foot stays one line, cut short
   with an ellipsis when it is longer, so it never runs into the text above it. Under the pointer a
   card lifts; dragged, it lifts a little further. "At work" is a stroke drawn again and again.
+- *Lists that fill from a field*: the card finder, the composer's `/` skill menu, the card-link menu
+  in the task field and the merge picker's search all behave alike. Focus stays in the field, which is
+  exposed as a combobox over a listbox; the arrow keys move the highlighted option (wrapping, except in
+  the merge picker), Enter picks it (Tab too in the two `/` menus), Escape closes the list alone and the
+  card stays open (`data-esc`), and a pointer over an option highlights it. Keys are left to an IME
+  while it composes. One small shared hook and component serve all four, with no combobox library
+  (Radix has none; cmdk and Ariakit would be a second behaviour library for four uses, two of which
+  sit in a textarea and a contentEditable they do not own; 2026-11-09).
 - *Glass costs frames, so it gives way*: zoomed far out and while the canvas moves (a pan, a zoom, a
   camera flight), cards drop the blur and take a tint that keeps them the colour they have at rest
   (in dark mode the blur's saturation makes them bluer, so the tint is a blue one; light mode needs

@@ -61,8 +61,9 @@ export function useListbox({ count, open, onPick, onEscape, wrap = false, pickKe
     setActive,
     onPick,
     onKeyDown,
-    /** What the field carries: the combobox wiring, and `data-esc` while an Escape would close the list. */
+    /** What the field carries: the combobox role and wiring, and `data-esc` while an Escape would close the list. */
     field: {
+      role: 'combobox' as const,
       'aria-autocomplete': 'list' as const,
       'aria-expanded': showing,
       'aria-controls': showing ? id : undefined,
