@@ -1,8 +1,8 @@
 // Merge selection and the owner's coverage review (design: Merging cards).
 
 import { createPortal } from 'react-dom';
-import { Fragment, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
+import { Fragment, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Collapsible, CollapsibleTrigger } from './components/collapsible';
 import { type CardAction, type Item, merging, mergeableWith, mergeRank, canMergeFrom, withPart } from '../core/types';
 import { Inline, plain } from './markdown';
 import { Body, Cards } from './message';
@@ -119,6 +119,7 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
   partner ??= archivedPartner;
   const busy = merging(item);
   const [expanded, setExpanded] = useState(false);
+  const sidesId = useId();
   const [clipped, setClipped] = useState(false);
   const sides = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -149,15 +150,15 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
   );
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded} className={`merge-view${expanded ? ' expanded' : ''}${clipped ? ' clipped' : ''}`}>
-      <CollapsibleContent forceMount className="merge-sides" ref={sides}>
+      <div className="merge-sides" ref={sides} id={sidesId}>
         {side(item, kind(item), true)}
         <div className="merge-sides-glue">
           <span className="merge-knot">{busy ? <span className="spinner" /> : <MergeMark />}</span>
         </div>
         {side(partner, partner ? kind(partner) : '')}
-      </CollapsibleContent>
+      </div>
       {(clipped || expanded) && (
-        <CollapsibleTrigger asChild>
+        <CollapsibleTrigger asChild aria-controls={sidesId}>
           <Button className="merge-toggle">{expanded ? t.merge.showLess : t.merge.showAll}</Button>
         </CollapsibleTrigger>
       )}
