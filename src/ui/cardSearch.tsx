@@ -49,6 +49,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
               placeholder={t.cardSearch.placeholder}
               aria-label={t.cardSearch.shortcut}
               title={t.cardSearch.shortcut}
+              data-esc={open || undefined}
               spellCheck={false}
               onFocus={() => {
                 if (!open) closeBarMenus();
