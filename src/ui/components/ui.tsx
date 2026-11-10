@@ -19,12 +19,16 @@
 //   handler leaves an open layer alone (see `layerOpen`).
 
 import { VisuallyHidden } from 'radix-ui';
-import type { ReactNode } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 
 /** The id of the element portals go into, inside the app root. */
 const PORTAL_ID = 'ui-portal';
 
-/** The element a Radix `Portal` renders into (`<Portal container={uiPortal()}>`); `null` before the root mounted. */
+/**
+ * The element a Radix `Portal` renders into (`<Portal container={uiPortal()}>`). `UiRoot` mounts
+ * the app only once the element exists, so it is never `null` for anything rendered inside the app
+ * (a null container would make Radix fall back to `document.body`, outside the theme).
+ */
 export const uiPortal = (): HTMLElement | null => document.getElementById(PORTAL_ID);
 
 /**
@@ -33,18 +37,22 @@ export const uiPortal = (): HTMLElement | null => document.getElementById(PORTAL
  */
 export const layerOpen = (): boolean =>
   !!document.querySelector(
-    `#${PORTAL_ID} [data-state=open], [data-radix-popper-content-wrapper], [role=dialog][data-state=open], [role=alertdialog][data-state=open]`,
+    `#${PORTAL_ID} :is([role=dialog], [role=alertdialog], [role=menu], [role=listbox], [role=tooltip])[data-state=open], [data-radix-popper-content-wrapper] > [data-state=open]`,
   );
 
-/** The app and the portal container beside it, both inside the root element. */
+/** The app and the portal container beside it, both inside the root element; the app mounts once the container exists. */
 export function UiRoot({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const markReady = useCallback((el: HTMLDivElement | null) => {
+    if (el) setReady(true);
+  }, []);
   return (
     <>
       <VisuallyHidden.Root asChild>
         <h1>Seismic</h1>
       </VisuallyHidden.Root>
-      {children}
-      <div id={PORTAL_ID} />
+      {ready && children}
+      <div id={PORTAL_ID} ref={markReady} />
     </>
   );
 }
