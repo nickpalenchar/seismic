@@ -25,11 +25,10 @@ library, no class-name helper. `src/ui/components/` holds the toast and the butt
 
 - `useMenuClose` (`queue.tsx`) is the de-facto dismiss hook: capture-phase outside `pointerdown`,
   optional Esc, and the `obeya:close-bar-menus` event. Used by the archive drop-down, the canvas
-  drawer, CardMore, ShareTags, the project picker, the left menu, snooze, StartAgent and the label
-  pickers. `parts.tsx` (workstations), `usage.tsx` and `cardSearch.tsx` carry their own copies.
+  drawer, snooze and StartAgent. `parts.tsx` (workstations), `usage.tsx` and `cardSearch.tsx` carry their own copies.
 - Esc is routed centrally by one capture `keydown` handler in `App.tsx`: open overlays "take the
-  keys" in order, it skips when `.lightbox`, `.demo-zoom`, `.nav-menu`, `.diff-view`,
-  `.start-agent-menu` or `.card-more-menu` is in the DOM, and honours `[data-esc]` on fields. About
+  keys" in order, it skips when `.lightbox`, `.demo-zoom`, `.diff-view` or
+  `.start-agent-menu` is in the DOM, and honours `[data-esc]` on fields. About
   fifteen components add their own Esc listeners besides.
 - No focus trap utility: only the Performance dialog traps focus and returns it to its opener.
 - Positioning is by hand: CardMore flips up/down, the label pickers shift left at the edge, snooze
@@ -46,14 +45,9 @@ Phone CSS gives a few shared controls a larger touch target (the buttons in `.ph
 
 ### Menu — Radix DropdownMenu
 
-- `role=menu`: the left menu (`prefs.tsx`, with separators), CardMore "⋯" on the card head and on
-  plan cards on the canvas (portal that follows the camera, closes when it moves; nested confirm),
-  the snooze menu (presets plus a date-time form; card actions and the conversation's snooze line),
-  the four label pickers (priority, category, sub-category, complexity; `menuitemradio`; card head
-  and plan sheet).
-- Without a role: the project picker (`nav.tsx`, a list of links, "New project" and the pin; the same
-  list docks as the pinned navigation), the archive drop-down (search, list, full-screen toggle),
-  ShareTags "+" (tag chips to pick), the StartAgent chevron (a panel of three selects).
+- Left (W8 and W9): the snooze menu (presets plus a date-time form; card actions and the
+  conversation's snooze line), the archive drop-down (search, list, full-screen toggle), the
+  StartAgent chevron (a panel of three selects). They are popovers, not menus of items.
 
 ### Popover — Radix Popover
 
@@ -159,7 +153,7 @@ focused control, a first tap acting while the phone keyboard is open.
 - [x] **W4:** Segmented control and radio groups. `SegmentedControl` on Radix ToggleGroup (single and multiple) for every `.seg`, the chats scope, files result mode, Performance views and the stage chips' group; Radix RadioGroup for the native radios and the canvas icon grid; the feedback stars stay a bespoke rating on RadioGroup with their hover preview. Arrow keys replace one tab stop per option. M. Landed: `components/segmented.tsx` (`SegmentedControl`, `ToggleGroup`/`ToggleItem`) and `components/radio.tsx` (`RadioGroup`, `RadioOption`, `Radio`). The tablists that wear `.seg` (Agents tabs, repository tabs) stay until W5, which removes the `.seg` rules.
 - [x] **W5:** Tabs. Radix Tabs for the Agents sheet (desktop and phone), card results, the Diff change list, Setup pages, the repository tabs and the canvas strip (keeping its hover drawer and first-tap-opens on touch); vertical Tabs for the Configuration and Preferences navs, keeping each section's address and unsent input. M. Landed: `components/tabs.tsx` (`Tabs`, `TabsList` with `variant` segmented, underline or pill, `TabsTrigger`, `TabsContent`). The canvas strip and the change list pick by their own click and use manual activation (arrows move focus, Enter and Space click), so a touch's first tap still only opens the drawer; the navs keep every section mounted, hidden, so unsent input survives. The `.seg` rules are gone.
 - [x] **W6:** Tooltip. Radix Tooltip with one provider and delay; IconButton shows its label as one; the Configuration info tip and the agents tip moved onto it; the status pills' tips hold links, so they moved to W8's inventory with the other interactive tips. Replace `title=` on icon-only buttons; leave it where it names truncated text. Check touch: a tooltip must not block the first tap. S–M.
-- [ ] **W7:** Menu. Radix DropdownMenu for the left menu, CardMore (on the card head and on canvas plan cards, still closing when the camera moves), the four label pickers (radio items), ShareTags and the project picker (links as items, the pin kept; the pinned navigation keeps sharing its list). `useMenuClose` loses these callers; their classes leave App's Esc list. M.
+- [x] **W7:** Menu. Radix DropdownMenu for the left menu, CardMore (on the card head and on canvas plan cards, still closing when the camera moves), the four label pickers (radio items), ShareTags and the project picker (links as items, the pin kept; the pinned navigation keeps sharing its list). `useMenuClose` loses these callers; their classes leave App's Esc list. M. Landed: `components/menu.tsx` (`Menu`, `MenuTrigger`, `MenuContent`, `MenuItem`, `MenuRadioGroup`, `MenuRadioItem`, `MenuLabel`; non-modal, portaled, closing on `closeBarMenus`). The left menu's entries are items while it drops down and plain buttons while it is docked (one context decides); an inactive page of it is skipped by the arrow keys.
 - [ ] **W8:** Popover. Radix Popover for the workstations and usage pills, the status pills' interactive tips, the StartAgent panel, the snooze menu's date-time form and the archive drop-down; the canvas drawer keeps opening on hover (Popover with controlled open). Delete `useMenuClose`, the `obeya:close-bar-menus` event if nothing else needs it, and the hand-copied outside-click code in parts and usage. M.
 - [ ] **W9:** Select. Radix Select for the 30 native selects, styled like the settings selects today; the StartAgent panel's three selects inside a popover; the phone's project switcher decides between Radix Select and keeping the native picker on touch (the native sheet is often better on a phone: check in the Android emulator and keep what works better). S–M.
 - [ ] **W10:** Dialog. Radix Dialog for Configuration, Preferences, Performance, Connect a phone, Help, the new-card hint, Report a wish, the merge picker and the canvas dialog (focus trap and return everywhere; `forceMount` where input must survive closing); Radix AlertDialog as one `ConfirmDialog` for the seven confirms; Setup, the Diff view and the lightbox move onto Dialog where their behaviour fits, else stay and are listed under "Stays bespoke". Their entries leave App's Esc list. The longest workstream after W2: may split into settings dialogs and the rest. M–L.

@@ -5,14 +5,14 @@
 // row's project switcher lists the projects alone, while the menu is not docked. What waits itself is
 // in the inbox (src/ui/inbox.tsx), on every project at once.
 
-import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronRight, FileCheck, GitBranch, Inbox, ListOrdered, Menu, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users } from 'lucide-react';
-import { type ReactNode, useRef, useState } from 'react';
+import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronRight, FileCheck, GitBranch, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users } from 'lucide-react';
+import { type ComponentProps, createContext, type ReactNode, useContext, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
 import { CanvasIcon } from './canvasIcon';
 import { Sign, Wordmark } from './logo';
+import { Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
 import { ProjectAgents } from './parts';
-import { useMenuClose } from './queue';
 import { t } from './strings';
 import { openWish } from './wish';
 import { Tooltip } from './components/tooltip';
@@ -53,35 +53,40 @@ interface ProjectsProps {
 /** The floating row's switcher: the project's name, and under it the projects. */
 export function NavPill(p: ProjectsProps) {
   const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  useMenuClose(open, box, () => setOpen(false), true);
   const home = p.project.repos[0];
   return (
-    <div className="nav-pill" ref={box}>
-      <button className={open ? 'pill project-switch on' : 'pill project-switch'} title={t.nav.button} aria-expanded={open} onClick={() => setOpen(!open)}>
-        <ProjectIcon />
-        <b>{p.project.name}</b>
-        <span className="hint lbl">{p.project.repos.length > 1 ? t.repos(p.project.repos.length) : home?.branch}</span>
-        <span className="hint">▾</span>
-      </button>
-      {open && (
-        <div className="nav-menu nav-switch">
+    <Menu open={open} onOpenChange={setOpen}>
+      <div className="nav-pill">
+        <MenuTrigger asChild>
+          <button className={open ? 'pill project-switch on' : 'pill project-switch'} title={t.nav.button}>
+            <ProjectIcon />
+            <b>{p.project.name}</b>
+            <span className="hint lbl">{p.project.repos.length > 1 ? t.repos(p.project.repos.length) : home?.branch}</span>
+            <span className="hint">▾</span>
+          </button>
+        </MenuTrigger>
+      </div>
+      <MenuContent className="nav-menu nav-switch">
+        <InMenu.Provider value={ACTIVE}>
           <ul className="nav-projects">
             {p.projects.map((c) => (
               <ProjectRow key={c.id} project={c} here={c.id === p.project.id} repos />
             ))}
-            <NewProject
-              onNew={() => {
-                setOpen(false);
-                p.onNew();
-              }}
-            />
+            <NewProject onNew={p.onNew} />
           </ul>
-        </div>
-      )}
-    </div>
+        </InMenu.Provider>
+      </MenuContent>
+    </Menu>
   );
 }
+
+/**
+ * Whether the entries below are items of an open dropdown (`active`: its page is showing, else they
+ * are skipped by the arrow keys) or plain buttons and links in the docked sidebar (no provider).
+ */
+const InMenu = createContext<{ active: boolean } | null>(null);
+const ACTIVE = { active: true };
+const INACTIVE = { active: false };
 
 /** What the menu's entries open; a floating menu closes first. */
 export interface MenuActions {
@@ -118,28 +123,28 @@ export interface MenuProps extends ProjectsProps, MenuActions {
  */
 export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { docked: boolean; dockedOn: boolean; onDocked: (on: boolean) => void }) {
   const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  useMenuClose(open, box, () => setOpen(false), true);
   const on = docked ? dockedOn : open;
   return (
-    <div className="menu-pill app-menu" ref={box}>
-      <Tooltip content={t.leftMenu.button}>
-        <button className={on ? 'app-logo on' : 'app-logo'} aria-label={t.leftMenu.button} aria-expanded={on} onClick={() => (docked ? onDocked(!dockedOn) : setOpen(!open))}>
-          <Menu className="burger" size={18} strokeWidth={2} aria-hidden />
-          <span className="bar-word">
-            <Wordmark height={22} />
-          </span>
-          <span className="bar-sign">
-            <Sign size={24} />
-          </span>
-        </button>
-      </Tooltip>
-      {open && !docked && (
-        <div className="nav-menu left-menu">
-          <MenuBody {...p} close={() => setOpen(false)} />
-        </div>
-      )}
-    </div>
+    <Menu open={open && !docked} onOpenChange={(o) => !docked && setOpen(o)}>
+      <div className="app-menu">
+        <Tooltip content={t.leftMenu.button}>
+          <MenuTrigger asChild>
+            <button className={on ? 'app-logo on' : 'app-logo'} aria-label={t.leftMenu.button} onClick={() => docked && onDocked(!dockedOn)}>
+              <Menu_ className="burger" size={18} strokeWidth={2} aria-hidden />
+              <span className="bar-word">
+                <Wordmark height={22} />
+              </span>
+              <span className="bar-sign">
+                <Sign size={24} />
+              </span>
+            </button>
+          </MenuTrigger>
+        </Tooltip>
+      </div>
+      <MenuContent className="nav-menu left-menu">
+        <MenuBody {...p} floating />
+      </MenuContent>
+    </Menu>
   );
 }
 
@@ -155,27 +160,23 @@ export function NavSheet({ on, ...p }: MenuProps & { on: boolean }) {
 }
 
 /** The menu's two pages, the main one and "Configure agents", the second sliding in over the first. */
-function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; titlebar?: boolean }) {
+function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean }) {
   const [page, setPage] = useState<'main' | 'agents'>('main');
   const m = t.leftMenu;
   const drag = titlebar ? { 'data-tauri-drag-region': '' } : {};
-  /** An entry's action: a floating menu closes first. */
-  const run = (f: () => void) => () => {
-    close?.();
-    f();
-  };
+  // an entry's action: in the dropdown the menu closes with the choice
+  const run = (f: () => void) => f;
   const pin = (p.pinnable || p.pinned) && (
-    <Tooltip content={p.pinned ? m.unpin : m.pin}>
-      <button className={p.pinned ? 'nav-pin on' : 'nav-pin'} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onClick={run(() => p.onPin(!p.pinned))}>
-        {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
-      </button>
-    </Tooltip>
+    <Act className={p.pinned ? 'nav-pin on' : 'nav-pin'} tip={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onAct={() => p.onPin(!p.pinned)}>
+      {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
+    </Act>
   );
   const inbox = (
     <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} onClick={run(p.onInbox)} />
   );
   return (
     <div className={page === 'agents' ? 'menu-pages sub' : 'menu-pages'}>
+      <InMenu.Provider value={!floating ? null : page === 'main' ? ACTIVE : INACTIVE}>
       <div className="menu-page" inert={page !== 'main'}>
         {/* in the app on a Mac the traffic lights take the head; the inbox's entry follows under it */}
         <div className="nav-head" {...drag}>
@@ -184,7 +185,7 @@ function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; t
         </div>
         <ul className="menu-list">
           {titlebar && inbox}
-          <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="more" aria-hidden />} />
+          <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="more" aria-hidden />} />
         </ul>
         <h3 className="menu-label">{m.projects}</h3>
         <ul className="nav-projects">
@@ -205,7 +206,7 @@ function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; t
                 </ul>
               </li>
             ) : (
-              <ProjectRow key={c.id} project={c} here={false} onGo={close} />
+              <ProjectRow key={c.id} project={c} here={false} />
             ),
           )}
           <NewProject onNew={run(p.onNew)} />
@@ -221,14 +222,14 @@ function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; t
           </li>
         </ul>
       </div>
+      </InMenu.Provider>
+      <InMenu.Provider value={!floating ? null : page === 'agents' ? ACTIVE : INACTIVE}>
       <div className="menu-page" inert={page !== 'agents'}>
         <div className="nav-head" {...drag}>
-          <Tooltip content={m.back}>
-            <button className="menu-back" onClick={() => setPage('main')} aria-label={m.back}>
-              <ArrowLeft size={16} strokeWidth={2} aria-hidden />
-              <b>{m.configureAgents}</b>
-            </button>
-          </Tooltip>
+          <Act className="menu-back" keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
+            <ArrowLeft size={16} strokeWidth={2} aria-hidden />
+            <b>{m.configureAgents}</b>
+          </Act>
           {pin}
         </div>
         <ul className="menu-list">
@@ -243,39 +244,70 @@ function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; t
           </li>
         </ul>
       </div>
+      </InMenu.Provider>
     </div>
   );
 }
 
+/** A button of the menu: an item of the open dropdown, else a plain button. `keep` leaves the dropdown open. */
+function Act({ onAct, keep, disabled, tip, children, ...props }: { onAct?: (() => void) | undefined; keep?: boolean; disabled?: boolean; tip?: string } & Omit<ComponentProps<'button'>, 'onClick'>) {
+  const menu = useContext(InMenu);
+  if (!menu) {
+    return (
+      <Tooltip content={tip}>
+        <button {...props} disabled={disabled} onClick={onAct}>{children}</button>
+      </Tooltip>
+    );
+  }
+  return (
+    <Tooltip content={tip}>
+      <MenuItem
+        asChild
+        disabled={disabled || !menu.active}
+        onSelect={(e) => {
+          if (keep) e.preventDefault();
+          onAct?.();
+        }}
+      >
+        <button {...props}>{children}</button>
+      </MenuItem>
+    </Tooltip>
+  );
+}
+
 /** One of the menu's entries: an icon, its label and what stands at its end; greyed out with "Coming soon" while it opens nothing yet. */
-function Entry({ icon, label, end, on, soon, onClick }: { icon?: ReactNode; label: string; end?: ReactNode; on?: boolean; soon?: boolean; onClick?: () => void }) {
+function Entry({ icon, label, end, on, soon, keep, onClick }: { icon?: ReactNode; label: string; end?: ReactNode; on?: boolean; soon?: boolean; keep?: boolean; onClick?: () => void }) {
   return (
     <li>
-      <button className={on ? 'menu-entry on' : 'menu-entry'} aria-current={on || undefined} disabled={soon} title={soon ? t.leftMenu.comingSoon : undefined} onClick={onClick}>
+      <Act className={on ? 'menu-entry on' : 'menu-entry'} aria-current={on || undefined} disabled={soon} title={soon ? t.leftMenu.comingSoon : undefined} keep={keep} onAct={onClick}>
         {icon}
         <span className="menu-entry-label">{label}</span>
         {soon ? <span className="soon">{t.leftMenu.comingSoon}</span> : end}
-      </button>
+      </Act>
     </li>
   );
 }
 
 /** A project's row: a click switches there (the open one stays); its agents' pause. */
 function ProjectRow({ project: c, here, repos, onGo }: { project: ProjectInfo; here: boolean; repos?: boolean; onGo?: () => void }) {
+  const menu = useContext(InMenu);
+  const link = (
+    <a
+      href={projectPath(c.id)}
+      aria-current={here ? 'page' : undefined}
+      onClick={(e) => {
+        onGo?.();
+        switchTo(e, projectPath(c.id));
+      }}
+    >
+      <ProjectIcon />
+      <b title={c.name}>{c.name}</b>
+      {repos && <span className="hint">{c.repos.map((r) => r.name).join(', ')}</span>}
+    </a>
+  );
   return (
     <li className={here ? 'nav-row on' : 'nav-row'}>
-      <a
-        href={projectPath(c.id)}
-        aria-current={here ? 'page' : undefined}
-        onClick={(e) => {
-          onGo?.();
-          switchTo(e, projectPath(c.id));
-        }}
-      >
-        <ProjectIcon />
-        <b title={c.name}>{c.name}</b>
-        {repos && <span className="hint">{c.repos.map((r) => r.name).join(', ')}</span>}
-      </a>
+      {menu ? <MenuItem asChild disabled={!menu.active}>{link}</MenuItem> : link}
       <ProjectAgents project={c} />
     </li>
   );
@@ -284,10 +316,10 @@ function ProjectRow({ project: c, here, repos, onGo }: { project: ProjectInfo; h
 function NewProject({ onNew }: { onNew: () => void }) {
   return (
     <li className="nav-row nav-new">
-      <button onClick={onNew}>
+      <Act onAct={onNew}>
         <Plus size={15} strokeWidth={2} aria-hidden />
         <b>{t.nav.newProject}</b>
-      </button>
+      </Act>
     </li>
   );
 }

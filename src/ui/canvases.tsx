@@ -18,6 +18,7 @@ import { useSortable } from './sortable';
 import { useStoredState } from './stored';
 import { failText, t } from './strings';
 import { Button, CloseButton } from './components/button';
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
 import { Radio, RadioGroup } from './components/radio';
 
 /** The radio value of "no icon": a radio has no null. */
@@ -355,38 +356,19 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
 export function CardMore({ item, floating }: { item: Item; floating?: boolean }) {
   const { canvases, move } = useContext(Canvases);
   const [open, setOpen] = useState(false);
-  const [at, setAt] = useState<{ left: number; top: number }>();
   const [confirm, setConfirm] = useState(false);
-  const box = useRef<HTMLSpanElement>(null);
-  const menu = useRef<HTMLDivElement>(null);
-  useMenuClose(open, box, () => setOpen(false), true, menu);
+  const button = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open || !floating) return;
     // the camera moving (a pan, a zoom, a flight) moves the button away from the menu
-    const from = box.current?.getBoundingClientRect();
+    const from = button.current?.getBoundingClientRect();
     let frame = requestAnimationFrame(function watch() {
-      const b = box.current?.getBoundingClientRect();
+      const b = button.current?.getBoundingClientRect();
       if (!b || !from || Math.abs(b.left - from.left) > 1 || Math.abs(b.top - from.top) > 1 || Math.abs(b.width - from.width) > 1) return setOpen(false);
       frame = requestAnimationFrame(watch);
     });
     return () => cancelAnimationFrame(frame);
   }, [open, floating]);
-  useLayoutEffect(() => {
-    const m = menu.current;
-    if (!open || !m) return;
-    const over = m.getBoundingClientRect().right - (document.documentElement.clientWidth - 8);
-    if (over > 0) m.style.left = `${(floating ? m.getBoundingClientRect().left : 0) - over}px`;
-    // floating, it stays on the page, which does not scroll: under the button, else above it, else on the
-    // side with more room, as high as that room and scrolling
-    const b = box.current?.getBoundingClientRect();
-    if (!floating || !b) return;
-    const under = document.documentElement.clientHeight - 8 - (b.bottom + 4);
-    const above = b.top - 4 - 8;
-    const h = m.scrollHeight;
-    const down = h <= under || (h > above && under >= above);
-    m.style.maxHeight = `${Math.min(h, down ? under : above)}px`;
-    m.style.top = `${down ? b.bottom + 4 : b.top - 4 - Math.min(h, above)}px`;
-  }, [open, at]);
   const on = canvasOf(canvases, item);
   const others = canvases.filter((c) => c.id !== on?.id);
   const stopsToPark = parkableStopping(item);
@@ -394,50 +376,38 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   const parked = !!inParkingLot(item) && !item.archivedAt;
   if ((!others.length && !canPark && !parked) || item.archivedAt) return null;
   const parking = (action: 'park' | 'unpark') => {
-    setOpen(false);
     void api.act(item.id, { action }).catch(console.error);
   };
-  const toggle = () => {
-    const b = box.current?.getBoundingClientRect();
-    if (floating && b) setAt({ left: b.left, top: b.bottom + 4 });
-    setOpen(!open);
-  };
-  const list = (
-    <div ref={menu} className={`prio-menu card-more-menu${floating ? ' floating' : ''}`} role="menu" {...(floating && at ? { style: at } : {})}>
-      {(canPark || parked) && (
-        <button role="menuitem" title={canPark ? t.parking.parkHint : undefined} onClick={() => (stopsToPark ? (setOpen(false), setConfirm(true)) : parking(canPark ? 'park' : 'unpark'))}>
-          <span className="lopt">
-            <Car size={14} aria-hidden />
-            {canPark ? t.parking.park : t.parking.unpark}
-          </span>
-        </button>
-      )}
-      {others.length > 0 && !parked && <div className="cm-head">{t.canvases.moveTo}</div>}
-      {!parked && others.map((c) => (
-        <button
-          key={c.id}
-          role="menuitem"
-          onClick={() => {
-            setOpen(false);
-            move(item, c);
-          }}
-        >
-          <span className="lopt">
-            <CanvasIcon canvas={c} />
-            {c.name}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
   return (
-    <span className="prio-pick card-more" ref={box}>
-      <Tooltip content={canPark || parked ? t.parking.menu : t.canvases.more}>
-        <button className="prio-btn" aria-label={canPark || parked ? t.parking.menu : t.canvases.more} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
-          <MoreHorizontal size={14} aria-hidden />
-        </button>
-      </Tooltip>
-      {open && (floating ? createPortal(list, document.body) : list)}
+    <span className="prio-pick card-more">
+      <Menu open={open} onOpenChange={setOpen}>
+        <MenuTrigger asChild>
+          <Tooltip content={canPark || parked ? t.parking.menu : t.canvases.more}>
+            <button ref={button} className="prio-btn" aria-label={canPark || parked ? t.parking.menu : t.canvases.more}>
+              <MoreHorizontal size={14} aria-hidden />
+            </button>
+          </Tooltip>
+        </MenuTrigger>
+        <MenuContent className="prio-menu card-more-menu">
+          {(canPark || parked) && (
+            <MenuItem title={canPark ? t.parking.parkHint : undefined} onSelect={() => (stopsToPark ? setConfirm(true) : parking(canPark ? 'park' : 'unpark'))}>
+              <span className="lopt">
+                <Car size={14} aria-hidden />
+                {canPark ? t.parking.park : t.parking.unpark}
+              </span>
+            </MenuItem>
+          )}
+          {others.length > 0 && !parked && <MenuLabel>{t.canvases.moveTo}</MenuLabel>}
+          {!parked && others.map((c) => (
+            <MenuItem key={c.id} onSelect={() => move(item, c)}>
+              <span className="lopt">
+                <CanvasIcon canvas={c} />
+                {c.name}
+              </span>
+            </MenuItem>
+          ))}
+        </MenuContent>
+      </Menu>
       {confirm && createPortal(
         <div className="review-approval-cover" onClick={() => setConfirm(false)}>
           <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="stop-park-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setConfirm(false); } }}>

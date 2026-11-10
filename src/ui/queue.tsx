@@ -37,9 +37,6 @@ export function useMenuClose(on: boolean, box: RefObject<HTMLElement | null>, cl
   }, [on]);
 }
 
-/** Make room for another bar interaction opened from a keyboard shortcut. */
-export const closeBarMenus = () => dispatchEvent(new Event('obeya:close-bar-menus'));
-
 /**
  * The queue's order to drag in: in the Agents sheet every card that may move, on a waiting card
  * (`own`) only that card. Held by what stays mounted while the list shows and hides, so that a

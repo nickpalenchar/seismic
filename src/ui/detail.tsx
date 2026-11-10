@@ -25,7 +25,7 @@ import { DiscardChanges, FolderBox, FolderLine, useFolderDiff } from './folder';
 import { asksYou, CardFace, cardClass, cardKind, HourglassMark, LabelMarks, LabelPicks, landedRef, QuestionMark, RestartMark, shownTitle, StoppedWords, Title } from './card';
 import { DepArrow, LimitNotice, PauseMark, PlayMark } from './parts';
 import { asksAhead, holdsNotes, queueOrder } from '../core/queue';
-import { forcedText, QueueList, scrollerOf, useMenuClose, useQueueMove, useQueueSort, waitText, type Behind } from './queue';
+import { forcedText, QueueList, scrollerOf, useQueueMove, useQueueSort, waitText, type Behind } from './queue';
 import { dimensions, shownTags } from '../core/page-tags';
 import { CardRefs, Inline, plain } from './markdown';
 import { Body, Cards, goToMessage, Msg, Quote, Reading, useAnswer, useReportedHeight } from './message';
@@ -52,6 +52,7 @@ import { Reauthenticate } from './reauthenticate';
 import { describeAgent, StartAgent } from './start-agent';
 import type { AgentSetting } from '../core/types';
 import { Button, type ButtonVariant, CloseButton, LinkButton } from './components/button';
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
 import { Tooltip } from './components/tooltip';
@@ -3359,8 +3360,6 @@ function ShareBox({ item, demo, act, onApproval, vocabulary, unlisted }: { item:
  */
 function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; vocabulary: PageTags; set: (dimension: string, values: string[]) => void }) {
   const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  useMenuClose(open, box, () => setOpen(false), true);
   const shown = shownTags(tags, vocabulary);
   const on = new Map(shown);
   const rest = dimensions(vocabulary).flatMap(([d, values]) => {
@@ -3368,7 +3367,7 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
     return left.length ? [[d, left] as const] : [];
   });
   return (
-    <div className="share-row share-tags" ref={box} title={t.share.tagsHint}>
+    <div className="share-row share-tags" title={t.share.tagsHint}>
       <span className="share-label">{t.share.tags}</span>
       {!shown.length && <span className="hint t">{t.share.noTags}</span>}
       {shown.flatMap(([d, values]) =>
@@ -3382,34 +3381,27 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
         )),
       )}
       {rest.length > 0 && (
-        <span className="menu-pill">
-          <Tooltip content={t.share.addTag}>
-            <button className={open ? 'tag-add on' : 'tag-add'} aria-label={t.share.addTag} aria-expanded={open} onClick={() => setOpen(!open)}>
-              <Plus size={10} strokeWidth={1.75} aria-hidden="true" />
-            </button>
-          </Tooltip>
-          {open && (
-            <div className="bar-menu tag-menu">
-              {rest.map(([d, values]) => (
-                <div key={d} className="tag-dim">
-                  <span className="hint">{d}</span>
-                  {values.map((v) => (
-                    <button
-                      key={v}
-                      className="tag-chip pick"
-                      onClick={() => {
-                        setOpen(false);
-                        set(d, [...(on.get(d) ?? []), v]);
-                      }}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-        </span>
+        <Menu open={open} onOpenChange={setOpen}>
+          <MenuTrigger asChild>
+            <Tooltip content={t.share.addTag}>
+              <button className="tag-add" aria-label={t.share.addTag}>
+                <Plus size={10} strokeWidth={1.75} aria-hidden="true" />
+              </button>
+            </Tooltip>
+          </MenuTrigger>
+          <MenuContent className="bar-menu tag-menu" align="end">
+            {rest.map(([d, values]) => (
+              <div key={d} className="tag-dim">
+                <MenuLabel>{d}</MenuLabel>
+                {values.map((v) => (
+                  <MenuItem key={v} className="tag-chip pick" onSelect={() => set(d, [...(on.get(d) ?? []), v])}>
+                    {v}
+                  </MenuItem>
+                ))}
+              </div>
+            ))}
+          </MenuContent>
+        </Menu>
       )}
     </div>
   );

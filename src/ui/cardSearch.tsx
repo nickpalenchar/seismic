@@ -4,7 +4,7 @@ import type { Item } from '../core/types';
 import { CardFace } from './card';
 import { matchingCards } from './cardRefs';
 import { Listbox, useListbox } from './components/listbox';
-import { closeBarMenus } from './queue';
+import { closeBarMenus } from './components/menu';
 import { t } from './strings';
 
 /** What the finder lists for the query: every match, not only the link menu's few; a card absorbed by a merge has no project element to unfold from. */

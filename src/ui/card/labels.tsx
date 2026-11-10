@@ -3,11 +3,11 @@
 // drawn with the same dashed border as a proposal; any pick makes it theirs.
 
 import { Flag as FlagIcon } from 'lucide-react';
-import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { COMPLEXITIES, type Complexity, type Label, type Labels, LABEL_VALUES, PRIORITIES, type Priority } from '../../core/labels';
 import type { Item } from '../../core/types';
 import { api } from '../api';
-import { useMenuClose } from '../queue';
+import { Menu, MenuContent, MenuRadioGroup, MenuRadioItem, MenuTrigger } from '../components/menu';
 import { t } from '../strings';
 
 /** A flag, in the colour of the priority it marks. */
@@ -64,6 +64,9 @@ function Chip({ label, value, suggested }: { label: Exclude<Label, 'priority'>; 
   );
 }
 
+/** The radio value of "None", which no label value can be. */
+const NONE = '';
+
 const CHIPPED = ['category', 'subcategory', 'complexity'] as const;
 
 /** Whether a card has any label to show. */
@@ -96,38 +99,32 @@ function LabelPick<L extends Label>({ item, label, values, shown, empty, option,
   open: boolean;
   setOpen: (on: boolean) => void;
 }) {
-  const box = useRef<HTMLSpanElement>(null);
-  const menu = useRef<HTMLDivElement>(null);
-  useMenuClose(open, box, () => setOpen(false), true);
-  // a list that would run past the window's right edge (a picker far right, a phone) moves left until it fits
-  useLayoutEffect(() => {
-    const m = menu.current;
-    if (!open || !m) return;
-    const over = m.getBoundingClientRect().right - (document.documentElement.clientWidth - 8);
-    if (over > 0) m.style.left = `${-over}px`;
-  }, [open]);
   const now = item.labels?.[label] as Labels[L] | undefined;
-  const pick = (v: NonNullable<Labels[L]> | null) => {
-    setOpen(false);
-    api.patch(item.id, { [label]: v }).catch(console.error);
+  const pick = (v: string) => {
+    const chosen = v === NONE ? null : values.find((x) => String(x) === v)!;
+    api.patch(item.id, { [label]: chosen }).catch(console.error);
   };
   return (
-    <span className="prio-pick" ref={box}>
-      <button className={now !== undefined ? 'prio-btn set' : 'prio-btn'} title={label === 'priority' ? t.priority.label : t.labels[label as Exclude<Label, 'priority'>].label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
-        {now !== undefined ? shown(now as NonNullable<Labels[L]>) : empty}
-      </button>
-      {open && (
-        <div ref={menu} className={`prio-menu lmenu-${label}`} role="menu">
-          {values.map((v) => (
-            <button key={String(v)} role="menuitemradio" aria-checked={now === v} className={now === v ? 'on' : ''} title={optionTitle?.(v)} onClick={() => pick(v)}>
-              {option(v)}
-            </button>
-          ))}
-          <button role="menuitemradio" aria-checked={now === undefined} className={now !== undefined ? 'none' : 'none on'} onClick={() => pick(null)}>
-            {t.priority.none}
+    <span className="prio-pick">
+      <Menu open={open} onOpenChange={setOpen}>
+        <MenuTrigger asChild>
+          <button className={now !== undefined ? 'prio-btn set' : 'prio-btn'} title={label === 'priority' ? t.priority.label : t.labels[label as Exclude<Label, 'priority'>].label}>
+            {now !== undefined ? shown(now as NonNullable<Labels[L]>) : empty}
           </button>
-        </div>
-      )}
+        </MenuTrigger>
+        <MenuContent className={`prio-menu lmenu-${label}`}>
+          <MenuRadioGroup value={now === undefined ? NONE : String(now)} onValueChange={pick}>
+            {values.map((v) => (
+              <MenuRadioItem key={String(v)} value={String(v)} title={optionTitle?.(v)}>
+                {option(v)}
+              </MenuRadioItem>
+            ))}
+            <MenuRadioItem value={NONE} className="none">
+              {t.priority.none}
+            </MenuRadioItem>
+          </MenuRadioGroup>
+        </MenuContent>
+      </Menu>
     </span>
   );
 }
@@ -135,7 +132,7 @@ function LabelPick<L extends Label>({ item, label, values, shown, empty, option,
 /** The unfolded card's pickers: priority, category, sub-category and complexity, one list open at a time. */
 export function LabelPicks({ item }: { item: Item }) {
   const [open, setOpen] = useState<Label>();
-  const at = (l: Label) => ({ open: open === l, setOpen: (on: boolean) => setOpen(on ? l : undefined) });
+  const at = (l: Label) => ({ open: open === l, setOpen: (on: boolean) => setOpen((now) => (on ? l : now === l ? undefined : now)) });
   const empty = (text: string, icon?: ReactNode) => (
     <span className="lchip-none">
       {icon}

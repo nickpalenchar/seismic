@@ -1,0 +1,9 @@
+/* Menu (menu.tsx): the panel sits where Radix puts it (fixed, beside its button); a variant class
+   (.nav-menu, .prio-menu, .bar-menu) sets its size and padding. */
+
+.menu { z-index: 60; box-sizing: border-box; max-height: min(var(--radix-dropdown-menu-content-available-height), calc(100vh - 16px)); overflow: auto;
+  background: var(--panel); box-shadow: var(--lift); border-radius: 3px; outline: none; }
+.menu-item { cursor: pointer; outline: none; }
+.menu-item[data-highlighted] { background: var(--chip); }
+.menu-item[data-disabled] { cursor: default; }
+.menu-heading { padding: 5px 8px 3px; font-size: 11px; color: var(--muted); }

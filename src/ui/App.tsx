@@ -36,7 +36,8 @@ import { LOG_KEYS, readLogQuery } from '../core/feedback-log';
 import { Setup } from './setup';
 import { Phone, phoneView } from './phone';
 import { KoordinatorSheet } from './koordinator';
-import { closeBarMenus, forcedText } from './queue';
+import { closeBarMenus } from './components/menu';
+import { forcedText } from './queue';
 import { queueOrder } from '../core/queue';
 import { AgentsSheet } from './agents';
 import { ParkedView, QueueView, type SwitchedView, ViewSwitcher } from './views';
@@ -2271,7 +2272,7 @@ function Project({
     if (e.key === 'Escape' && connection) { setConnection(null); return; }
     if (e.key === 'Escape') {
       // a screenshot or demo shown large closes first, a card's diff, the navigation's list and a card's "⋯"; the card or plan stays open
-      if (document.querySelector('.lightbox, .demo-zoom, .artifact-image-close, .nav-menu, .diff-view, .start-agent-menu, .card-more-menu')) return;
+      if (document.querySelector('.lightbox, .demo-zoom, .artifact-image-close, .diff-view, .start-agent-menu')) return;
       // so does the quote of a message the owner was replying to: in the field with the cursor, the open card's, the sidebar's
       const quoting = [focusedDraft(), f?.type === 'card' || f?.type === 'plan' ? cardDraft(f.id) : null, kOnRef.current ? OBEYA_DRAFT : null].find((k) => k && fieldOn(k) && replyOn(k));
       if (quoting) return setReply(quoting, null);
