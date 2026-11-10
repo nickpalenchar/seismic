@@ -4,7 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bun:test';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, symlinkSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
@@ -16,7 +16,7 @@ import { runAppCommand } from './app-command';
 import { type AgentEvent, sdkRuntime } from './runtime';
 import { FakeRuntime, fakeSsh, gitRepo, identify, until } from './testing';
 import { Workers } from './workers';
-import { git, gitAsync, HERE, RECHECK_MS, Workstations } from './workstations';
+import { git, gitAsync, HERE, RECHECK_MS, remoteText, VERSION_LIMIT, Workstations } from './workstations';
 
 let dir: string;
 let ssh: string;
@@ -43,6 +43,26 @@ describe('a workstation on a host', () => {
     expect(remote('/Users/me/repo')).toBeNull();
     expect(() => remote('ssh://gone/x')).toThrow('no host gone');
     expect(hostName('ssh://gone/x')).toBe('gone');
+  });
+
+  test("a file's text there, for a diff to expand: a blob or a plain file of the workstation, never past the limit, a link or another file", async () => {
+    const repo = gitRepo(join(dir, 'repo'));
+    writeFileSync(join(repo, 'a.txt'), 'one\ntwo\n');
+    writeFileSync(join(repo, 'big.txt'), 'x'.repeat(VERSION_LIMIT + 10));
+    writeFileSync(join(repo, 'bin.dat'), Buffer.from([65, 0, 66]));
+    symlinkSync('/etc/hosts', join(repo, 'link.txt'));
+    git(repo, 'add', '.');
+    git(repo, 'commit', '--quiet', '-m', 'Files');
+    const there = remote(onHost(name, repo))!;
+    const blob = (n: string) => remoteText(there, `git cat-file -e HEAD:${n}`, `git show HEAD:${n}`);
+    expect(await blob('a.txt')).toBe('one\ntwo\n');
+    expect(await blob('missing.txt')).toBeNull();
+    expect(await blob('big.txt')).toBeNull();
+    expect(await blob('bin.dat')).toBeNull();
+    const file = (n: string) => remoteText(there, `f='${n}'; [ -f "$f" ] && [ ! -L "$f" ] && case "$(realpath "$f")" in "$(pwd -P)"/*) true;; *) false;; esac`, 'cat "$f"');
+    expect(await file('a.txt')).toBe('one\ntwo\n');
+    expect(await file('link.txt')).toBeNull();
+    expect(await file('big.txt')).toBeNull();
   });
 
   test('runs git there, with the GitHub login on stdin rather than on the command line', async () => {
