@@ -26,6 +26,7 @@ import { Radio, RadioGroup } from './components/radio';
 const NO_ICON = '\0none';
 import { Tabs, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
+import { Input } from './components/input';
 
 /** What the page knows of the project's canvases, for what shows a card (its menu, search). */
 export interface CanvasesView {
@@ -383,10 +384,10 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
         <label className="cd-label" htmlFor="canvas-name">
           {t.canvases.name}
         </label>
-        <input
+        <Input
           id="canvas-name"
           ref={field}
-          className="cd-field"
+          className="cd-field text-[15px] px-3 py-[9px]"
           value={name}
           maxLength={CANVAS_NAME_MAX + 10}
           placeholder={t.canvases.namePlaceholder}

@@ -13,6 +13,7 @@ import { Shots } from './shots';
 import { stateLabel, t } from './strings';
 import { Button, CloseButton } from './components/button';
 import { Listbox, useListbox } from './components/listbox';
+import { Input } from './components/input';
 
 type Act = (a: CardAction, done: { close: true; ack: string } | { close: false }) => Promise<void>;
 
@@ -70,7 +71,7 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
       <div className="box" role="dialog" data-state="open" aria-modal="true" aria-label={t.merge.pickTitle(plain(item.title))} onClick={(e) => e.stopPropagation()}>
         <CloseButton label={t.merge.cancel} className="close" onClick={onClose} />
         <h2>{t.merge.pickTitle(plain(item.title))}</h2>
-        <input ref={field} className="merge-search" type="search" aria-label={t.merge.search} {...list.field} onKeyDown={list.onKeyDown} placeholder={t.merge.search} value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Input ref={field} className="merge-search text-[15px] px-3 py-[9px]" type="search" aria-label={t.merge.search} {...list.field} onKeyDown={list.onKeyDown} placeholder={t.merge.search} value={query} onChange={(e) => setQuery(e.target.value)} />
         <p className="hint">{t.merge.hint}</p>
         {found.length > 0 && (
           <Listbox box={list} items={found} label={t.merge.pickTitle(plain(item.title))} className="merge-list" itemKey={(i) => i.id}>

@@ -570,7 +570,7 @@ button.pill:hover { box-shadow: var(--lift); }
   font-size: 13px; cursor: default; flex-wrap: wrap; }
 .prefs li:hover { background: var(--chip); }
 .prefs .pref-text { flex: 1; cursor: text; min-width: 0; overflow-wrap: anywhere; }
-.prefs textarea { flex: 1; font-size: 13px; padding: 4px 6px; border: 1px solid var(--muted-foreground); border-radius: 2px; background: var(--card); resize: vertical; outline: none; }
+.prefs textarea { flex: 1; }
 .prefs .p-error { flex-basis: 100%; margin: 0; }
 .prefs .occasion { flex-basis: 100%; color: var(--muted-foreground); font-size: 12px; overflow-wrap: anywhere; }
 .prefs .occasion .from { color: var(--ink); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
@@ -585,8 +585,7 @@ button.pill:hover { box-shadow: var(--lift); }
 .proposals .setting-name { flex-basis: 100%; display: flex; align-items: baseline; gap: 8px; }
 .proposals .setting-name .from { margin-left: auto; white-space: nowrap; font-size: 12px; color: var(--ink); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
 .proposals .setting-new { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.proposals .setting-new textarea.setting-value { flex: none; border: 1px solid var(--line); resize: none; overflow: hidden; outline: none; color: var(--ink); }
-.proposals .setting-new textarea.setting-value:focus { border-color: var(--proposal); }
+.proposals .setting-new textarea.setting-value { flex: none; resize: none; overflow: hidden; }
 .proposals .setting-edit { color: var(--muted-foreground); font-size: 11.5px; }
 .proposals .setting-edit .from { color: var(--ink); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
 .proposals .setting-diff { flex-basis: 100%; display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: start; }
@@ -613,7 +612,7 @@ button.pill:hover { box-shadow: var(--lift); }
 .reshare select { font: inherit; font-size: 12px; color: var(--ink); padding: 3px 6px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); }
 .pref-new { margin-top: 8px; }
 .pref-new { gap: 6px 10px; }
-.pref-new textarea { min-height: 38px; font-size: 13px; }
+.pref-new textarea { min-height: 38px; }
 .pref-new .filed, .pref-new .p-error { flex-basis: 100%; }
 .hint { color: var(--muted-foreground); font-size: 12px; }
 button.pill.help { width: 32px; height: 32px; padding: 0; justify-content: center; font-weight: 700; font-size: 15px; color: var(--muted-foreground); }
@@ -647,11 +646,7 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 #wish .close { position: absolute; right: 14px; top: 12px; }
 #wish .w-issue { display: flex; flex-direction: column; gap: 10px; }
 #wish .w-issue label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted-foreground); }
-#wish .w-issue input, #wish .w-issue textarea { font: inherit; font-size: 14px; line-height: 1.45; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; }
-#wish .w-issue input { font-weight: 600; }
 #wish .w-issue textarea { resize: none; overflow: hidden; min-height: 90px; }
-#wish .w-issue :is(input, textarea):focus { outline: none; border-color: var(--muted-foreground); }
-#wish .w-issue :is(input, textarea):disabled { opacity: .55; }
 #wish .w-issue .hint { margin: 0; }
 #wish .w-compose { margin-top: 0; max-width: none; }
 #wish .w-writing, #wish .w-pending { margin: 0; font-size: 14px; }
@@ -723,8 +718,7 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 #canvas-dialog .close { position: absolute; right: 14px; top: 14px; }
 .cd-preview { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--chip); }
 .cd-label { font-size: 12px; font-weight: 600; color: var(--muted-foreground); margin-bottom: 6px; }
-.cd-field { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
-.cd-field[aria-invalid="true"] { border-color: var(--error); }
+.cd-field { width: 100%; box-sizing: border-box; }
 .cd-problem { min-height: 18px; margin: 4px 0 12px; font-size: 12px; color: var(--muted-foreground); }
 .cd-problem.on { color: var(--error); }
 .cd-icons { min-height: 0; overflow: auto; margin: 0 -4px; padding: 0 4px; }
@@ -783,8 +777,8 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 #panel::before { content: ""; position: absolute; left: 30px; width: 80px; top: 0; height: 3px; border-radius: 0 0 3px 3px; background: var(--c); box-shadow: 0 0 12px var(--c); z-index: 1; }
 .p-kind { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
 .p-title { font-size: 31px; margin: 2px 0 6px; line-height: 1.12; }
-textarea.p-title { display: block; width: calc(100% - 40px); border: 0; background: transparent; padding: 0; outline: none; resize: none; overflow: hidden; }
-textarea.p-title::placeholder { color: var(--muted-foreground); font-weight: 400; font-style: italic; }
+textarea.p-title { display: block; width: calc(100% - 40px); resize: none; overflow: hidden; }
+textarea.p-title::placeholder { font-weight: 400; font-style: italic; }
 .p-state { font-size: 13px; font-weight: 600; color: color-mix(in srgb, var(--c), var(--ink) var(--state-text-ink)); }
 .p-lead { font-size: 15.5px; max-width: 76ch; margin: 14px 0 0; white-space: pre-wrap; overflow-wrap: break-word; }
 .p-list { max-width: 76ch; margin: 12px 0 0; padding-left: 0; list-style: none; font-size: 14px; }
@@ -840,7 +834,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 /* the repository a card is built in, with a new one's folder and whether it gets a project of its own */
 .repo-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
 .repo-new { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex: 0 1 560px; }
-.repo-path { flex: 1; min-width: 0; font: 13px var(--mono); padding: 6px 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
+.repo-path { flex: 1; min-width: 0; font-family: var(--mono); }
 .repo-project { color: var(--muted-foreground); white-space: nowrap; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
 /* deleting stands apart from what moves the card on */
@@ -1226,8 +1220,7 @@ span.cl-name { color: inherit; cursor: default; }
 .talk .note .reauthenticate { justify-content: center; }
 .reauthenticate-token { display: flex; flex-direction: column; gap: 6px; flex-basis: 100%; font-style: normal; }
 .reauthenticate-token .c-row { display: flex; align-items: center; gap: 8px; }
-.reauthenticate-token input { flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); font-size: 13px; outline: none; }
-.reauthenticate-token input:focus { border-color: var(--muted-foreground); }
+.reauthenticate-token input { flex: 1; min-width: 0; }
 .talk .note.ev-denied { color: var(--warn); font-style: normal; }
 /* the line where the card was snoozed, while it is: with "Wake now" and "Change" under it */
 .talk .note.snooze-line { display: flex; flex-direction: column; align-items: center; gap: 2px; border-top: 1px dashed var(--line); padding-top: 8px; font-style: normal; }
@@ -1277,7 +1270,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .pr-held-text .p-lead { margin: 4px 0; }
 .pr-held-edit { float: right; margin: 0 -4px 4px 10px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--muted-foreground); font: inherit; font-size: 12px; cursor: pointer; }
 .pr-held-edit:hover { color: var(--ink); border-color: color-mix(in srgb, var(--inPr) 50%, transparent); }
-.pr-held-field { display: block; width: 100%; box-sizing: border-box; min-height: 6em; padding: 10px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--inPr) 50%, transparent); background: var(--card); color: var(--ink); font: inherit; font-size: 14.5px; line-height: 1.45; resize: none; }
+.pr-held-field { display: block; width: 100%; box-sizing: border-box; min-height: 6em; border-color: color-mix(in srgb, var(--inPr) 50%, transparent); font-size: 14.5px; line-height: 1.45; resize: none; }
 .pr-held-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
 .pr-held-acts .p-error { margin: 0; }
 .pr-held-asks { margin-top: 6px; font-size: 13px; color: var(--waiting); }
@@ -1380,9 +1373,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .hint.pick-why { margin-top: 6px; font-size: 12.5px; }
 /* the last choice: the owner's own answer, written in the choice itself */
 .choice.other { flex-basis: 100%; box-sizing: border-box; cursor: text; }
-.choice.other textarea { flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; outline: 0; background: transparent; resize: none;
-  font: inherit; color: inherit; line-height: inherit; field-sizing: content; min-height: 1lh; }
-.choice.other textarea::placeholder { color: var(--muted-foreground); }
+.choice.other textarea { flex: 1; min-width: 0; margin: 0; resize: none; font: inherit; color: inherit; line-height: inherit; field-sizing: content; min-height: 1lh; }
 .choice.other.alone::before { content: none; }
 /* the prototypes the idea's agent planned, one row each, its task in two lines */
 .prototype-variants { margin-top: 16px; max-width: 80ch; }
@@ -1623,11 +1614,11 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .c-trust-group > .hint { margin: 0 0 4px; }
 /* fields sunk a little into the sheet, a shade darker than it with a firmer edge, so the page's structure
    reads at a glance; the one being typed in comes up to the sheet's own colour */
-:is(#config, #prefs, #project-settings) input, :is(#config, #prefs, #project-settings) select, :is(#config, #prefs, #project-settings) textarea { font: inherit; font-size: 13px; padding: 6px 9px; border-radius: 8px;
+:is(#config, #prefs, #project-settings) select { font: inherit; font-size: 13px; padding: 6px 9px; border-radius: 8px;
   border: 1px solid color-mix(in srgb, var(--ink) 16%, var(--panel)); background: color-mix(in srgb, var(--ink) 5%, var(--panel));
   box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 7%, transparent); color: var(--ink); outline: none; }
-:is(#config, #prefs, #project-settings) input:hover, :is(#config, #prefs, #project-settings) textarea:hover, :is(#config, #prefs, #project-settings) select:hover { border-color: color-mix(in srgb, var(--ink) 28%, var(--panel)); }
-:is(#config, #prefs, #project-settings) input:focus, :is(#config, #prefs, #project-settings) textarea:focus, :is(#config, #prefs, #project-settings) select:focus { border-color: var(--muted-foreground); background-color: var(--panel); }
+:is(#config, #prefs, #project-settings) select:hover { border-color: color-mix(in srgb, var(--ink) 28%, var(--panel)); }
+:is(#config, #prefs, #project-settings) select:focus { border-color: var(--muted-foreground); background-color: var(--panel); }
 /* a select's own arrow, drawn as two strokes in the muted ink, as far in from the right edge as the text is
    from the left; the browser's arrow sat almost on the edge and cannot be moved */
 #phone select { font: inherit; font-size: 13px; padding: 6px 9px; border-radius: 2px; border: 1px solid color-mix(in srgb, var(--ink) 16%, var(--panel));
@@ -1637,8 +1628,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   background-image: linear-gradient(45deg, transparent 50%, var(--arrow) 50%, var(--arrow) calc(50% + 1.3px), transparent calc(50% + 1.3px)),
     linear-gradient(-45deg, transparent 50%, var(--arrow) 50%, var(--arrow) calc(50% + 1.3px), transparent calc(50% + 1.3px));
   background-size: 6px 6px; background-repeat: no-repeat; background-position: calc(100% - 18px) 55%, calc(100% - 12px) 55%; }
-:is(#config, #prefs, #project-settings) input::placeholder, :is(#config, #prefs, #project-settings) textarea::placeholder { color: color-mix(in srgb, var(--muted-foreground) 80%, var(--panel)); }
-:is(#config, #prefs, #project-settings) textarea { font: 12px var(--mono); resize: vertical; width: 100%; }
+:is(#config, #prefs, #project-settings) textarea { width: 100%; }
 .cfg-head { margin-bottom: 14px; }
 .cfg-head h3 { margin: 0 48px 6px 0; font-size: 26px; line-height: 1.15; }
 .cfg-head.sub { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); }
@@ -1773,8 +1763,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 }
 /* shared with the setup assistant */
 .c-project { margin: 16px 0 6px; padding: 12px 12px 10px; border: 1px solid var(--line); border-radius: 3px; }
-.c-project input, .c-project select, .c-project textarea { font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); outline: none; }
-.c-project input:focus, .c-project textarea:focus { border-color: var(--muted-foreground); }
+.c-project select { font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); outline: none; }
 .c-project .p-error { margin: 4px 0 0; font-size: 12.5px; }
 .c-id { font: 11.5px var(--mono); color: var(--muted-foreground); }
 .c-id.fresh { color: var(--warn); }
@@ -2198,7 +2187,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .c-voice .warn, .c-setup li .c-voice .hint.warn { color: var(--warn); }
 .c-cloud { display: flex; flex-direction: column; gap: 5px; width: 100%; max-width: 460px; box-sizing: border-box; padding: 8px 10px; border-radius: 6px; background: var(--chip); font-size: 12.5px; }
 .c-cloud .c-row { display: flex; gap: 6px; }
-.c-cloud input, .c-cloud select { font-size: 12.5px; padding: 4px 6px; box-sizing: border-box; }
+.c-cloud select { font-size: 12.5px; padding: 4px 6px; box-sizing: border-box; }
 .c-cloud > input, .c-cloud .c-row input { flex: 1; min-width: 0; width: 100%; }
 .c-cloud-go { justify-content: space-between; align-items: center; }
 .c-setup li.slow .c-mark, .c-setup li.slow > .hint { color: var(--warn); }
@@ -2483,7 +2472,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .finding .f-status { margin-top: 5px; font-size: 12px; color: var(--muted-foreground); }
 .finding .f-status.pending { color: var(--working); }
 .finding .f-context { margin-top: 6px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.finding .f-context textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); resize: vertical; }
+.finding .f-context textarea { width: 100%; box-sizing: border-box; }
 .finding .f-context .f-note { align-self: stretch; margin: 0; font-size: 13px; white-space: pre-wrap; background: var(--chip); border-radius: 6px; padding: 5px 8px; }
 .finding .f-context-btn { border: 0; background: none; padding: 2px 0; font-size: 12px; color: var(--working); text-decoration: underline; cursor: pointer; }
 .finding .f-choices { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
@@ -2653,7 +2642,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .rate.prompt .rate-q { flex-basis: 100%; }
 .rate-skip { margin-left: auto; }
 .rate-comment { display: flex; align-items: flex-end; gap: 10px; margin-top: 10px; }
-.rate-comment textarea { flex: 1; min-height: 3.2em; resize: vertical; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
+.rate-comment textarea { flex: 1; min-height: 3.2em; }
 .rate-given { margin: 0; color: var(--muted-foreground); font-style: italic; }
 .rate .hint, .rate .p-error { margin: 8px 0 0; }
 .rate-pop { pointer-events: auto; animation: toast-in .25s; }
@@ -2795,7 +2784,7 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 #merge-pick .box { position: relative; display: flex; flex-direction: column; padding: 22px 26px 18px; width: 640px; max-width: 100%; max-height: 100%; box-sizing: border-box; }
 #merge-pick h2 { margin: 0 44px 12px 0; font-size: 21px; }
 #merge-pick .close { position: absolute; right: 14px; top: 12px; }
-#merge-pick .merge-search { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
+#merge-pick .merge-search { width: 100%; box-sizing: border-box; }
 #merge-pick .hint { margin: 8px 0 6px; }
 .merge-list { overflow: auto; min-height: 0; }
 .merge-row { display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; border-radius: 3px; color: var(--ink); padding: 9px 10px; }

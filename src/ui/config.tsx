@@ -39,6 +39,7 @@ import { RadioGroup, RadioOption } from './components/radio';
 import { SegmentedControl } from './components/segmented';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
+import { Input, Textarea } from './components/input';
 
 declare global {
   interface Window {
@@ -1426,7 +1427,7 @@ function DemoBlock({ on }: { on: boolean }) {
   };
   const field = (k: (typeof VOICE_FIELDS)[VoiceKind][number]) => (
     <Field key={k} label={d.field[k](draft.voice)}>
-      <input
+      <Input
         className="c-path"
         aria-label={d.field[k](draft.voice)}
         spellCheck={false}
@@ -1442,7 +1443,7 @@ function DemoBlock({ on }: { on: boolean }) {
       <div className="cfg-cols">
         <div>
           <Field label={d.directory} hint={d.directoryHint(shown.directory)}>
-            <input
+            <Input
               className="c-path"
               aria-label={d.directory}
               spellCheck={false}
@@ -1490,7 +1491,7 @@ function DemoBlock({ on }: { on: boolean }) {
           {VOICE_FIELDS[draft.voice].map((k) => (k === 'voiceName' && draft.voice === 'qwen3' ? speakerField() : field(k)))}
           {(STYLED_VOICES as readonly VoiceKind[]).includes(draft.voice) && !(draft.voice === 'qwen3' && qwen3IsClone(draft)) && (
             <Field label={d.style} hint={d.styleHint}>
-              <textarea
+              <Textarea mono
                 className="c-style"
                 rows={4}
                 aria-label={d.style}
@@ -1504,7 +1505,7 @@ function DemoBlock({ on }: { on: boolean }) {
           {draft.voice === 'qwen3' &&
             LANGUAGES.map((l) => (
               <Field key={l} label={d.field.reference(d.languages[l])}>
-                <input
+                <Input
                   className="c-path"
                   aria-label={d.field.reference(d.languages[l])}
                   spellCheck={false}
@@ -1528,7 +1529,7 @@ function DemoBlock({ on }: { on: boolean }) {
             )}
           </Field>
           <Field label={d.sampleText}>
-            <textarea className="c-sample" rows={2} aria-label={d.sampleText} placeholder={d.sampleTextPlaceholder} value={sampleText} onChange={(e) => keepSampleText(e.target.value)} />
+            <Textarea mono className="c-sample" rows={2} aria-label={d.sampleText} placeholder={d.sampleTextPlaceholder} value={sampleText} onChange={(e) => keepSampleText(e.target.value)} />
           </Field>
           <Field label="">
             {job?.running ? (
@@ -1616,11 +1617,11 @@ function CloudflareAccount({ accounts, way, onChange, disabled }: { accounts: st
                 {a.tokenLink}
               </a>
             </span>
-            <input className="c-path" type="password" autoComplete="off" spellCheck={false} aria-label={a.tokenLabel} value={way.token} disabled={disabled} onChange={(e) => onChange({ ...way, token: e.target.value })} />
+            <Input className="c-path" type="password" autoComplete="off" spellCheck={false} aria-label={a.tokenLabel} value={way.token} disabled={disabled} onChange={(e) => onChange({ ...way, token: e.target.value })} />
           </label>
           <label>
             <span className="hint">{a.accountIdLabel}</span>
-            <input className="c-path" spellCheck={false} aria-label={a.accountIdLabel} value={way.accountId} disabled={disabled} onChange={(e) => onChange({ ...way, accountId: e.target.value })} />
+            <Input className="c-path" spellCheck={false} aria-label={a.accountIdLabel} value={way.accountId} disabled={disabled} onChange={(e) => onChange({ ...way, accountId: e.target.value })} />
           </label>
         </>
       )}
@@ -1750,10 +1751,10 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
       )}
       {host === 'manual' && (
         <div className="cfg-sub">
-          {sub(c.siteUrl, <input className="c-path" aria-label={c.siteUrl} placeholder="https://demos.example.com" spellCheck={false} value={manual.url} disabled={running} onChange={(e) => setManual({ ...manual, url: e.target.value })} />)}
-          {sub(c.siteDeploy, <input className="c-path" aria-label={c.siteDeploy} placeholder="bunx wrangler@4 pages deploy {dir} --project-name demos" spellCheck={false} value={manual.deploy} disabled={running} onChange={(e) => setManual({ ...manual, deploy: e.target.value })} />)}
-          {sub(c.siteEnv, <input className="c-path" aria-label={c.siteEnv} placeholder="sites/demos/deploy.env" spellCheck={false} value={manual.env} disabled={running} onChange={(e) => setManual({ ...manual, env: e.target.value })} />)}
-          {sub(c.siteMaxFile, <input className="c-path" type="number" min={1} aria-label={c.siteMaxFile} placeholder="25" value={manual.maxFile} disabled={running} onChange={(e) => setManual({ ...manual, maxFile: e.target.value })} />)}
+          {sub(c.siteUrl, <Input className="c-path" aria-label={c.siteUrl} placeholder="https://demos.example.com" spellCheck={false} value={manual.url} disabled={running} onChange={(e) => setManual({ ...manual, url: e.target.value })} />)}
+          {sub(c.siteDeploy, <Input className="c-path" aria-label={c.siteDeploy} placeholder="bunx wrangler@4 pages deploy {dir} --project-name demos" spellCheck={false} value={manual.deploy} disabled={running} onChange={(e) => setManual({ ...manual, deploy: e.target.value })} />)}
+          {sub(c.siteEnv, <Input className="c-path" aria-label={c.siteEnv} placeholder="sites/demos/deploy.env" spellCheck={false} value={manual.env} disabled={running} onChange={(e) => setManual({ ...manual, env: e.target.value })} />)}
+          {sub(c.siteMaxFile, <Input className="c-path" type="number" min={1} aria-label={c.siteMaxFile} placeholder="25" value={manual.maxFile} disabled={running} onChange={(e) => setManual({ ...manual, maxFile: e.target.value })} />)}
         </div>
       )}
       {(host === 'github' || (host === 'cloudflare' && unlisted)) && <p className="hint">{p.unlistedNote}</p>}
@@ -1788,7 +1789,7 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
         </p>
       ) : (
         <Field label={p.connect} hint={p.connectHint}>
-          <textarea className="c-path" rows={3} spellCheck={false} placeholder="obeya-site:…" aria-label={p.connect} value={code} onChange={(e) => setCode(e.target.value)} />
+          <Textarea mono className="c-path" rows={3} spellCheck={false} placeholder="obeya-site:…" aria-label={p.connect} value={code} onChange={(e) => setCode(e.target.value)} />
           <div className="personal-actions">
             <Button
               disabled={!code.trim()}
@@ -2020,7 +2021,7 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
         <>
           <label className="wide">
             <span className="hint">{l.path}</span>
-            <input
+            <Input
               className="c-path"
               aria-label={l.path}
               placeholder={l.pathPlaceholder}
@@ -2321,7 +2322,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
       </header>
       {checking && <p className="hint">{t.config.checking}</p>}
       <Field label={t.config.name} hint={fresh ? t.config.freshHint : undefined}>
-        <input
+        <Input
           className="cfg-name"
           aria-label={t.config.name}
           value={project.name ?? ''}
@@ -2506,7 +2507,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
   const leaving = resolved?.leaving?.length ? <p className="hint cfg-clone-leaving">{t.config.cloneLeaving(resolved.leaving.map((c) => (c.card ? { ...c, card: plain(c.card) } : c)))}</p> : null;
   const slots = (hint: string, placeholder: string) => (
     <Field className="cfg-slots" label={<>{t.config.slots} <Info text={hint} /></>}>
-      <input type="number" min={0} max={20} aria-label={t.config.slots} placeholder={placeholder} value={repo.slots ?? ''} onChange={(e) => onChange(without('slots', slotsOf(e.target.value)))} />
+      <Input type="number" min={0} max={20} aria-label={t.config.slots} placeholder={placeholder} value={repo.slots ?? ''} onChange={(e) => onChange(without('slots', slotsOf(e.target.value)))} />
       {leaving}
     </Field>
   );
@@ -2515,7 +2516,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
     <section className="cfg-repo">
       <Field label={t.config.path} hint={home || folder ? [...(home ? [t.config.home] : []), ...(folder ? [t.config.folderMode] : [])].join(' · ') : undefined}>
         <div className="cfg-repo-path">
-          <input className="c-path" aria-label={t.config.path} value={repo.path} placeholder={t.config.path} spellCheck={false} onChange={(e) => {
+          <Input className="c-path" aria-label={t.config.path} value={repo.path} placeholder={t.config.path} spellCheck={false} onChange={(e) => {
               // another folder: whether it goes without git is chosen for it anew
               const { git: _, ...rest } = repo;
               onChange({ ...rest, path: e.target.value });
@@ -2553,7 +2554,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
           {clones ? (
             <>
               <Field label={t.config.workstations}>
-                <textarea
+                <Textarea mono
                   ref={existing}
                   className="cfg-existing"
                   rows={2}
@@ -2568,7 +2569,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
                 {(repo.workstations ?? []).some(itself) && <p className="hint">{t.config.cloneIsRepo}</p>}
               </Field>
               <Field className="cfg-clone-count" label={<>{t.config.clones} <Info text={t.config.clonesHint} /></>}>
-                <input type="number" min={0} max={20} aria-label={t.config.clones} placeholder="0" value={repo.clones ?? ''} onChange={(e) => onChange(without('clones', Number(e.target.value) || undefined))} />
+                <Input type="number" min={0} max={20} aria-label={t.config.clones} placeholder="0" value={repo.clones ?? ''} onChange={(e) => onChange(without('clones', Number(e.target.value) || undefined))} />
                 {listed + (repo.clones ?? 0) + (repo.hosts ?? []).reduce((n, h) => n + h.clones, 0) === 0 ? (
                   <p className="hint warn">{t.config.noClones}</p>
                 ) : (
@@ -2709,7 +2710,7 @@ function RepoSettingsBlock({
       {!folder && (
         <div className="cfg-group">
           <h5 className="cfg-group-head">{t.config.groups.landing}</h5>
-          {row('branch', c.branch, <input className="c-path" aria-label={c.branch} spellCheck={false} value={value<string>('branch')} onChange={(e) => set('branch', e.target.value)} />, c.branchHint)}
+          {row('branch', c.branch, <Input className="c-path" aria-label={c.branch} spellCheck={false} value={value<string>('branch')} onChange={(e) => set('branch', e.target.value)} />, c.branchHint)}
           {row(
             'land',
             c.land,
@@ -2735,18 +2736,18 @@ function RepoSettingsBlock({
               </CheckLabel>,
               c.autoMergeHint,
             )}
-          {land === 'pr' && row('prNoise', c.prNoise, <textarea rows={2} spellCheck={false} aria-label={c.prNoise} value={lines('prNoise')} onChange={(e) => set('prNoise', e.target.value.split('\n'))} />, c.prNoiseHint)}
-          {row('softPaths', c.softPaths, <textarea rows={Math.max(2, value<string[]>('softPaths').length + 1)} spellCheck={false} aria-label={c.softPaths} value={lines('softPaths')} onChange={(e) => set('softPaths', e.target.value.split('\n'))} />, c.softPathsHint)}
+          {land === 'pr' && row('prNoise', c.prNoise, <Textarea mono rows={2} spellCheck={false} aria-label={c.prNoise} value={lines('prNoise')} onChange={(e) => set('prNoise', e.target.value.split('\n'))} />, c.prNoiseHint)}
+          {row('softPaths', c.softPaths, <Textarea mono rows={Math.max(2, value<string[]>('softPaths').length + 1)} spellCheck={false} aria-label={c.softPaths} value={lines('softPaths')} onChange={(e) => set('softPaths', e.target.value.split('\n'))} />, c.softPathsHint)}
         </div>
       )}
       <div className="cfg-group">
         <h5 className="cfg-group-head">{t.config.groups.app}</h5>
-        {row('setup', c.setup, <input className="c-path" aria-label={c.setup} spellCheck={false} value={value<string>('setup')} onChange={(e) => set('setup', e.target.value)} />, c.setupHint)}
-        {row('checks', c.checks, <textarea rows={Math.max(2, value<string[]>('checks').length + 1)} spellCheck={false} aria-label={c.checks} value={lines('checks')} onChange={(e) => set('checks', e.target.value.split('\n'))} />, c.checksHint)}
-        {row('run', c.run, <textarea rows={Math.max(6, Math.ceil(value<string>('run').length / 70) + 1)} aria-label={c.run} placeholder={c.runPlaceholder} value={value<string>('run')} onChange={(e) => set('run', e.target.value)} />, c.runHint)}
-        {row('stop', c.stop, <input className="c-path" aria-label={c.stop} placeholder="docker compose down" spellCheck={false} value={value<string>('stop')} onChange={(e) => set('stop', e.target.value)} />, c.stopHint)}
+        {row('setup', c.setup, <Input className="c-path" aria-label={c.setup} spellCheck={false} value={value<string>('setup')} onChange={(e) => set('setup', e.target.value)} />, c.setupHint)}
+        {row('checks', c.checks, <Textarea mono rows={Math.max(2, value<string[]>('checks').length + 1)} spellCheck={false} aria-label={c.checks} value={lines('checks')} onChange={(e) => set('checks', e.target.value.split('\n'))} />, c.checksHint)}
+        {row('run', c.run, <Textarea mono rows={Math.max(6, Math.ceil(value<string>('run').length / 70) + 1)} aria-label={c.run} placeholder={c.runPlaceholder} value={value<string>('run')} onChange={(e) => set('run', e.target.value)} />, c.runHint)}
+        {row('stop', c.stop, <Input className="c-path" aria-label={c.stop} placeholder="docker compose down" spellCheck={false} value={value<string>('stop')} onChange={(e) => set('stop', e.target.value)} />, c.stopHint)}
         {!!value<string>('stop').trim() &&
-          row('keep', c.keep, <input className="c-path" aria-label={c.keep} placeholder="grep -q PERSIST=1 .env" spellCheck={false} value={value<string>('keep')} onChange={(e) => set('keep', e.target.value)} />, c.keepHint)}
+          row('keep', c.keep, <Input className="c-path" aria-label={c.keep} placeholder="grep -q PERSIST=1 .env" spellCheck={false} value={value<string>('keep')} onChange={(e) => set('keep', e.target.value)} />, c.keepHint)}
       </div>
       <div className="cfg-group">
         <h5 className="cfg-group-head">{t.config.groups.plans}</h5>
@@ -2754,8 +2755,8 @@ function RepoSettingsBlock({
           'planDocs',
           c.planDocs,
           <div className="cfg-plan">
-            <input className="c-path" aria-label={c.planDir} placeholder={c.planDir} spellCheck={false} value={planDocs.dir} onChange={(e) => set('planDocs', { ...planDocs, dir: e.target.value })} />
-            <input className="c-path" aria-label={c.planExclude} placeholder={c.planExclude} spellCheck={false} value={planDocs.exclude.join(', ')} onChange={(e) => set('planDocs', { ...planDocs, exclude: e.target.value.split(/,\s*/) })} />
+            <Input className="c-path" aria-label={c.planDir} placeholder={c.planDir} spellCheck={false} value={planDocs.dir} onChange={(e) => set('planDocs', { ...planDocs, dir: e.target.value })} />
+            <Input className="c-path" aria-label={c.planExclude} placeholder={c.planExclude} spellCheck={false} value={planDocs.exclude.join(', ')} onChange={(e) => set('planDocs', { ...planDocs, exclude: e.target.value.split(/,\s*/) })} />
           </div>,
           c.planDocsHint,
         )}
@@ -2796,7 +2797,7 @@ function TagLines({ tags, placeholder, label, onChange }: { tags: PageTags | und
     if (JSON.stringify(parseTagLines(text)) !== JSON.stringify(tags)) setText(tagLines(tags));
   }, [JSON.stringify(tags)]);
   return (
-    <textarea
+    <Textarea mono
       rows={Math.max(2, text.split('\n').length + 1)}
       spellCheck={false}
       aria-label={label}
@@ -3093,18 +3094,18 @@ function Hosts({ hosts, onChange }: { hosts: HostConfig[]; onChange: (hosts: Hos
         <div className="cfg-host-rows">
           {hosts.map((h, i) => (
             <div key={i} className="cfg-host">
-              <input aria-label={t.config.hostName} value={h.name} placeholder={t.config.hostName} spellCheck={false} onChange={(e) => set(i, { ...h, name: e.target.value })} />
-              <input className="c-path" aria-label={t.config.hostSsh} value={h.ssh} placeholder={t.config.hostSsh} spellCheck={false} onChange={(e) => set(i, { ...h, ssh: e.target.value })} />
-              <input className="c-path" aria-label={t.config.hostRoot} value={h.root} placeholder={t.config.hostRoot} spellCheck={false} onChange={(e) => set(i, { ...h, root: e.target.value })} />
+              <Input aria-label={t.config.hostName} value={h.name} placeholder={t.config.hostName} spellCheck={false} onChange={(e) => set(i, { ...h, name: e.target.value })} />
+              <Input className="c-path" aria-label={t.config.hostSsh} value={h.ssh} placeholder={t.config.hostSsh} spellCheck={false} onChange={(e) => set(i, { ...h, ssh: e.target.value })} />
+              <Input className="c-path" aria-label={t.config.hostRoot} value={h.root} placeholder={t.config.hostRoot} spellCheck={false} onChange={(e) => set(i, { ...h, root: e.target.value })} />
               <label className="cfg-host-clones">
                 <span className="hint">{t.config.hostClones}</span>
-                <input type="number" min={0} max={20} value={h.clones} onChange={(e) => set(i, { ...h, clones: Number(e.target.value) || 0 })} />
+                <Input type="number" min={0} max={20} value={h.clones} onChange={(e) => set(i, { ...h, clones: Number(e.target.value) || 0 })} />
               </label>
               <label className="cfg-host-clones cfg-has-info">
                 <span className="hint">
                   {t.config.hostSlots} <Info text={t.config.slotsHint} />
                 </span>
-                <input
+                <Input
                   type="number"
                   min={0}
                   max={20}

@@ -15,6 +15,7 @@ import { useFitHeight } from './fitHeight';
 import { imageUrl, Shots } from './shots';
 import { clock, errorText, t } from './strings';
 import { Button, CloseButton } from './components/button';
+import { Input, Textarea } from './components/input';
 
 /** The issue as it will go out; `raw`: the job wrote nothing, the owner's words stand as they are. */
 interface Issue {
@@ -307,11 +308,11 @@ function IssueFields({ issue, disabled }: { issue: Issue; disabled: boolean }) {
     <div className="w-issue">
       <label>
         <span>{t.wish.issueTitle}</span>
-        <input ref={title} value={issue.title} disabled={disabled} spellCheck onChange={(e) => edit({ title: e.target.value })} />
+        <Input className="text-sm font-semibold" ref={title} value={issue.title} disabled={disabled} spellCheck onChange={(e) => edit({ title: e.target.value })} />
       </label>
       <label>
         <span>{t.wish.issueBody}</span>
-        <textarea ref={body} value={issue.body} disabled={disabled} spellCheck rows={4} onChange={(e) => edit({ body: e.target.value })} />
+        <Textarea className="text-sm" ref={body} value={issue.body} disabled={disabled} spellCheck rows={4} onChange={(e) => edit({ body: e.target.value })} />
       </label>
       {issue.again ? <p className="hint">{t.wish.limited(clock(issue.again.until))}</p> : issue.raw && <p className="hint">{t.wish.raw}</p>}
       <Shots ids={issue.images} />

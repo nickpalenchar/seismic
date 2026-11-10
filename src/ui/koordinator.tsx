@@ -28,6 +28,7 @@ import { cardPath, switchTo } from './address';
 import { CardLink, Naming } from './cardLink';
 import { scrollBehavior } from './motion';
 import { Button, CloseButton } from './components/button';
+import { Textarea } from './components/input';
 
 interface Props {
   on: boolean;
@@ -388,7 +389,7 @@ function TargetPick({ value, repos, onChange }: { value: string; repos: RepoRef[
 /** A rule's text being edited in place: Enter takes it, Escape leaves it as it was. */
 function RuleEdit({ draft, setDraft, onEnter, onBlur }: { draft: string; setDraft: (d: string | null) => void; onEnter: () => void; onBlur?: () => void }) {
   return (
-    <textarea
+    <Textarea
       data-esc
       autoFocus
       value={draft}
@@ -541,7 +542,7 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
         )}
         <span className="setting-label">{k.settingNew}</span>
         <span className="setting-new">
-          <textarea ref={field} className="setting-value" aria-label={k.settingNew} spellCheck={false} rows={1} value={draft} onChange={(e) => setDraft(e.target.value)} />
+          <Textarea ref={field} className="setting-value" aria-label={k.settingNew} spellCheck={false} rows={1} value={draft} onChange={(e) => setDraft(e.target.value)} />
           <span className="setting-edit">
             {changed ? (
               <>
@@ -740,7 +741,7 @@ export function NewPreference({ repos }: { repos: RepoRef[] }) {
     });
   return (
     <div className="composer pref-new">
-      <textarea
+      <Textarea
         value={text}
         rows={1}
         placeholder={t.koordinator.addPlaceholder}

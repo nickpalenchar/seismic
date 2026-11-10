@@ -9,6 +9,7 @@ import { SegmentedControl } from './components/segmented';
 import { t } from './strings';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
+import { Input } from './components/input';
 
 /** The option that stands for a repository still to be created, among the ids of the existing ones. */
 const NEW = '\0new';
@@ -107,7 +108,7 @@ export function RepoPick({ choice, repos, fresh = true }: { choice: RepoChoice; 
       />
       {n && (
         <div className="repo-new">
-          <input
+          <Input
             ref={pathRef}
             className="repo-path"
             aria-label={t.repoPick.path}

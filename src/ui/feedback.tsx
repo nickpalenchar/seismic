@@ -13,6 +13,7 @@ import { failText, t } from './strings';
 import { Button, LinkButton } from './components/button';
 import { Radio, RadioGroup } from './components/radio';
 import { Tooltip } from './components/tooltip';
+import { Textarea } from './components/input';
 
 /** Stars and the comment for the card's approved work; `prompt`: the one after the approval, with its title and "Skip". */
 export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; onClose?: () => void }) {
@@ -101,7 +102,7 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
             </p>
           ) : (
             <>
-              <textarea
+              <Textarea
                 rows={2}
                 placeholder={t.feedback.comment}
                 value={draft.text}

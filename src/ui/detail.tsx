@@ -56,6 +56,7 @@ import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './component
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
 import { Tooltip } from './components/tooltip';
+import { Textarea } from './components/input';
 
 /**
  * What the panel does after an action: fold the card and confirm (with undo, when it has one), or stay open.
@@ -3043,7 +3044,7 @@ function FindingContext({ item, id, kept }: { item: Item; id: number; kept?: str
   return (
     <div className="f-context">
       {editing ? (
-        <textarea autoFocus rows={3} value={edit} placeholder={t.review.contextPlaceholder} onChange={(e) => type(e.target.value)} />
+        <Textarea autoFocus rows={3} value={edit} placeholder={t.review.contextPlaceholder} onChange={(e) => type(e.target.value)} />
       ) : (
         saved && <p className="f-note">{saved}</p>
       )}
@@ -3218,7 +3219,7 @@ function HeldText({ card, body, save }: { card: string; body: string; save: (bod
     );
   return (
     <div className="pr-held-editing">
-      <textarea ref={ref} className="pr-held-field" value={text} maxLength={20000} onChange={(e) => updateDraft(key, { text: e.target.value })} />
+      <Textarea ref={ref} className="pr-held-field" value={text} maxLength={20000} onChange={(e) => updateDraft(key, { text: e.target.value })} />
       <div className="pr-held-acts">
         <Button variant="primary" size="small" disabled={saving || !text.trim()} onClick={() => void submit()}>
           {t.review.heldSave}
@@ -3526,7 +3527,8 @@ function ManualTitle({ item, onEdit }: { item: Item; onEdit: (p: CardPatch) => v
     if (!typed.current && !title && item.title) setTitle(item.title);
   }, [item.title]);
   return (
-    <textarea
+    <Textarea
+      bare
       ref={ref}
       className="p-title"
       rows={1}
@@ -3943,7 +3945,8 @@ function OtherChoice({ multiple, alone, on, text, onToggle, onWrite }: { multipl
         if (!on) field.current?.focus();
       }}
     >
-      <textarea
+      <Textarea
+        bare
         ref={field}
         rows={1}
         value={text}

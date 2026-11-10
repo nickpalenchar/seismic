@@ -15,6 +15,7 @@ import { projectPath } from './address';
 import { Button, CloseButton, LinkButton } from './components/button';
 import { RadioGroup, RadioOption } from './components/radio';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
+import { Input } from './components/input';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 /** The machine's system and processor, as the owner knows them: "macOS (arm64)". */
@@ -180,11 +181,11 @@ export function RecognitionDetail({ item, busy, changed }: { item: VoiceSetupIte
           <span className="hint">{c.about[preset]}</span>
           {preset === 'openai' && (
             <span className="c-row">
-              <input aria-label={c.baseUrl} spellCheck={false} placeholder={CLOUD_VOICES.openai.baseUrl} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
-              <input aria-label={c.model} spellCheck={false} placeholder={CLOUD_VOICES.openai.model} value={model} onChange={(e) => setModel(e.target.value)} />
+              <Input className="text-[12.5px] px-1.5 py-1" aria-label={c.baseUrl} spellCheck={false} placeholder={CLOUD_VOICES.openai.baseUrl} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+              <Input className="text-[12.5px] px-1.5 py-1" aria-label={c.model} spellCheck={false} placeholder={CLOUD_VOICES.openai.model} value={model} onChange={(e) => setModel(e.target.value)} />
             </span>
           )}
-          <input type="password" autoComplete="off" spellCheck={false} placeholder={kept ? c.keyKept : c.key} value={key} onChange={(e) => setKey(e.target.value)} />
+          <Input type="password" autoComplete="off" spellCheck={false} placeholder={kept ? c.keyKept : c.key} value={key} onChange={(e) => setKey(e.target.value)} />
           <span className="c-row c-cloud-go">
             <a href={CLOUD_VOICES[preset].keys} target="_blank" rel="noreferrer">
               {c.getKey}
@@ -403,8 +404,8 @@ function Identity({ onSaved, onError }: { onSaved: (v: MachineView) => void; onE
   };
   return (
     <span className="c-row setup-identity">
-      <input placeholder={s.yourName} value={name} onChange={(e) => setName(e.target.value)} />
-      <input placeholder={s.yourEmail} value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Input placeholder={s.yourName} value={name} onChange={(e) => setName(e.target.value)} />
+      <Input placeholder={s.yourEmail} value={email} onChange={(e) => setEmail(e.target.value)} />
       <Button size="small" disabled={busy || !name.trim() || !email.trim()} onClick={save}>
         {s.saveIdentity}
       </Button>
@@ -520,7 +521,7 @@ function FirstProject({ view, ready, onView }: { view: MachineView; ready: boole
               <label>
                 <span className="hint">{s.first.folder}</span>
                 <span className="c-row">
-                  <input className="c-path" spellCheck={false} placeholder={s.first.pathPlaceholder} value={path} onChange={(e) => setPath(e.target.value)} />
+                  <Input className="c-path" spellCheck={false} placeholder={s.first.pathPlaceholder} value={path} onChange={(e) => setPath(e.target.value)} />
                   {view.picker && (
                     <Button size="small" className="setup-pick" onClick={pick}>
                       {s.first.pick}
@@ -535,11 +536,11 @@ function FirstProject({ view, ready, onView }: { view: MachineView; ready: boole
             <>
               <label>
                 <span className="hint">{s.first.repo}</span>
-                <input className="c-path" spellCheck={false} placeholder={s.first.repoPlaceholder} value={clone} onChange={(e) => setClone(e.target.value)} />
+                <Input className="c-path" spellCheck={false} placeholder={s.first.repoPlaceholder} value={clone} onChange={(e) => setClone(e.target.value)} />
               </label>
               <label>
                 <span className="hint">{s.first.into}</span>
-                <input className="c-path" spellCheck={false} value={into} onChange={(e) => setInto(e.target.value)} />
+                <Input className="c-path" spellCheck={false} value={into} onChange={(e) => setInto(e.target.value)} />
               </label>
             </>
           )}

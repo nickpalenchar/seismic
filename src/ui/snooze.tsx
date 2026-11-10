@@ -10,6 +10,7 @@ import { api } from './api';
 import { clock, t } from './strings';
 import { Button, type ButtonVariant } from './components/button';
 import { Popover, PopoverContent, PopoverTrigger } from './components/popover';
+import { Input } from './components/input';
 
 /** The clock mark of a snoozed card and of the button that snoozes one. */
 export const ClockMark = () => (
@@ -112,9 +113,9 @@ export function SnoozeMenu({
               if (valid) go(picked);
             }}
           >
-            <input
+            <Input
               type="datetime-local"
-              className="min-w-0 rounded-[3px] border border-solid border-line bg-background px-1.5 py-[5px] text-[13px] text-ink"
+              className="min-w-0"
               value={value}
               min={fieldValue(now)}
               onChange={(e) => setValue(e.target.value)}

@@ -3,6 +3,7 @@ import { api } from './api';
 import { phoneView } from './phone';
 import { failText, t } from './strings';
 import { Button } from './components/button';
+import { Input } from './components/input';
 
 /** Whether this browser runs on the machine Seismic runs on, asked once per page. */
 let local: Promise<boolean> | undefined;
@@ -66,7 +67,7 @@ export function Reauthenticate({ start = false, token = false }: { start?: boole
         <form className="reauthenticate-token" onSubmit={(e) => (e.preventDefault(), void save())}>
           <label className="hint" htmlFor="reauthenticate-token">{t.setup.pasteToken}</label>
           <div className="c-row">
-            <input id="reauthenticate-token" type="password" autoComplete="off" spellCheck={false} placeholder={t.setup.tokenPlaceholder} value={pasted} onChange={(e) => setPasted(e.target.value)} />
+            <Input id="reauthenticate-token" type="password" autoComplete="off" spellCheck={false} placeholder={t.setup.tokenPlaceholder} value={pasted} onChange={(e) => setPasted(e.target.value)} />
             <Button size="small" type="submit" disabled={busy || !pasted.trim()}>{t.setup.saveToken}</Button>
           </div>
         </form>
