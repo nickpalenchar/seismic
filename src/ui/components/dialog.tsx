@@ -43,6 +43,7 @@ export function DialogContent({
   keepMounted,
   children,
   onInteractOutside,
+  onOpenAutoFocus,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content> & { layerClassName?: string; keepMounted?: boolean }) {
   // the parked children: a detached element they render into for good, moved into the box while it is open
@@ -60,6 +61,13 @@ export function DialogContent({
             aria-describedby={undefined}
             className={cn(box, className)}
             {...props}
+            onOpenAutoFocus={(e) => {
+              onOpenAutoFocus?.(e);
+              // the box itself takes the focus, not its first button: that one would open its tooltip, which would take the first Esc
+              if (e.defaultPrevented) return;
+              e.preventDefault();
+              (e.currentTarget as HTMLElement).focus();
+            }}
             onInteractOutside={(e) => {
               onInteractOutside?.(e);
               // a toast or the notification ask stands over the dialog without being part of it: pressing in them does not close it
