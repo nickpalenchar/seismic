@@ -3029,7 +3029,7 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .ph-section .inbox-entry .replies > .button { min-height: 40px; font-size: 14px; }
 /* under the bar, floating over the main area: the project switcher at the left; the project settings and the
    group of the agents and "Needs you" at the right. Only the buttons take the pointer: the project between them stays the project's */
-#floating-row { position: fixed; top: 66px; left: calc(var(--left, 0px) + 14px); right: calc(var(--side, 0px) + 14px); z-index: 24; display: flex; align-items: center; gap: 10px;
+#floating-row { position: fixed; top: 66px; left: calc(var(--left, 0px) + 48px); right: calc(var(--side, 0px) + 14px); z-index: 24; display: flex; align-items: center; gap: 10px;
   pointer-events: none; transition: right .45s cubic-bezier(.3,.9,.3,1), left .45s cubic-bezier(.3,.9,.3,1); }
 #floating-row > *, #floating-row .right > * { pointer-events: auto; }
 #floating-row .right { margin-left: auto; display: flex; gap: 10px; align-items: center; flex: none; }
