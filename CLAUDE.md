@@ -92,6 +92,9 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
   icon, say, or a hint that shows until it has been used once. A button that appears on hover over
   the thing it acts on is found that way and needs no more. A tooltip or a key that is only
   documented is not enough.
+- Every menu, popover, dialog or trigger in the UI works from the keyboard: Space and Enter activate
+  it (Space never starts push-to-talk on it), it has a keyboard opening path, and closing it leaves
+  focus where the user expects.
 - A single on/off setting is a toggle switch, not a checkbox; checkboxes only where several options
   of a set can be picked.
 - Rarely used actions stay out of the way: shown only where they apply, behind hover or an overflow
