@@ -2289,20 +2289,21 @@ function DemoView({
                   </button>
                 </Tooltip>
               )}
-              <button
-                className="zoom"
-                title={zoom.keyKnown ? (zoom.box ? t.demo.unzoom : t.demo.zoom) : undefined}
-                aria-label={zoom.box ? t.demo.unzoom : t.demo.zoom}
-                onClick={zoom.toggle}
-              >
-                {/* the key beside the magnifier until the owner first zoomed with it */}
-                {!zoom.keyKnown && (
-                  <span className="zoom-hint">
-                    {zoom.box ? t.demo.unzoomHint : t.demo.zoomHint} <kbd>Z</kbd>
-                  </span>
-                )}
-                {zoom.box ? <ZoomOut strokeWidth={2} /> : <ZoomIn strokeWidth={2} />}
-              </button>
+              <Tooltip content={zoom.keyKnown ? (zoom.box ? t.demo.unzoom : t.demo.zoom) : undefined}>
+                <button
+                  className="zoom"
+                  aria-label={zoom.box ? t.demo.unzoom : t.demo.zoom}
+                  onClick={zoom.toggle}
+                >
+                  {/* the key beside the magnifier until the owner first zoomed with it */}
+                  {!zoom.keyKnown && (
+                    <span className="zoom-hint">
+                      {zoom.box ? t.demo.unzoomHint : t.demo.zoomHint} <kbd>Z</kbd>
+                    </span>
+                  )}
+                  {zoom.box ? <ZoomOut strokeWidth={2} /> : <ZoomIn strokeWidth={2} />}
+                </button>
+              </Tooltip>
             </div>
           </div>
         )}

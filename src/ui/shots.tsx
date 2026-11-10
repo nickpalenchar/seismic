@@ -262,9 +262,11 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
     <div className="c-shots">
       {shots.images.map((id) => (
         <span key={id} className={shots.marking.includes(id) ? 'c-shot marking' : 'c-shot'}>
-          <button className="open" title={t.shots.markUp} onClick={(e) => enlarge.open(id, e)}>
-            <img src={imageUrl(id)} alt={t.shots.alt} />
-          </button>
+          <Tooltip content={t.shots.markUp}>
+            <button className="open" onClick={(e) => enlarge.open(id, e)}>
+              <img src={imageUrl(id)} alt={t.shots.alt} />
+            </button>
+          </Tooltip>
           <CloseButton label={t.shots.remove} size="small" className="remove" onClick={() => shots.remove(id)} />
         </span>
       ))}
@@ -351,9 +353,11 @@ export function Shots({ ids }: { ids?: string[] }) {
   return (
     <span className="shots">
       {ids.map((id) => (
-        <button key={id} className="shot" title={t.shots.enlarge} onClick={(e) => enlarge.open(id, e)}>
-          <img src={imageUrl(id)} alt={t.shots.alt} loading="lazy" />
-        </button>
+        <Tooltip key={id} content={t.shots.enlarge}>
+          <button className="shot" onClick={(e) => enlarge.open(id, e)}>
+            <img src={imageUrl(id)} alt={t.shots.alt} loading="lazy" />
+          </button>
+        </Tooltip>
       ))}
       {enlarge.view}
     </span>

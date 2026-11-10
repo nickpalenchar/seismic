@@ -14,6 +14,7 @@ import { Naming } from './cardLink';
 import { plain } from './markdown';
 import { type Drag, useSortable } from './sortable';
 import { failText, t } from './strings';
+import { Tooltip } from './components/tooltip';
 import { Button } from './components/button';
 
 /** A list under a bar's button: while it is `on`, a click anywhere beside `box` (and `also`, a list drawn elsewhere) closes it, and Esc does with `esc`. */
@@ -187,23 +188,23 @@ export function useQueueMove(item: Item, items: Item[]): { buttons: ReactNode; p
   const button = ({ earlier, past, blocked }: (typeof ways)[number]) => {
     const label = earlier ? t.queue.earlier : t.queue.later;
     return (
-      <Button
-        key={label}
-        size="small"
-        className={blocked ? 'qmove stuck' : 'qmove'}
-        disabled={!past}
-        title={blocked || label}
-        aria-label={label}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (blocked) return setWhy({ id: item.id, text: blocked });
-          setWhy(undefined);
-          api.act(item.id, { action: 'reorder', earlier }).catch((err) => setWhy({ id: item.id, text: failText(err), error: true }));
-        }}
-      >
-        {earlier ? '↑' : '↓'}
-        {` ${label}`}
-      </Button>
+      <Tooltip key={label} content={blocked || label}>
+        <Button
+          size="small"
+          className={blocked ? 'qmove stuck' : 'qmove'}
+          disabled={!past}
+          aria-label={label}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (blocked) return setWhy({ id: item.id, text: blocked });
+            setWhy(undefined);
+            api.act(item.id, { action: 'reorder', earlier }).catch((err) => setWhy({ id: item.id, text: failText(err), error: true }));
+          }}
+        >
+          {earlier ? '↑' : '↓'}
+          {` ${label}`}
+        </Button>
+      </Tooltip>
     );
   };
   const shown = why?.id === item.id && (why.error || ways.some((w) => w.blocked === why.text)) ? why.text : '';

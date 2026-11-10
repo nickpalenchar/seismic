@@ -873,19 +873,19 @@ export const PlanView = memo(
         {collapsed && (
           <div className="marks">
             {kids.map((k) => (
-              <button
-                key={k.id}
-                ref={(el) => void (el ? els.set(k.id, el) : els.delete(k.id))}
-                className={needsYou(k) ? 'mark yours' : 'mark'}
-                title={plain(k.title)}
-                aria-label={plain(k.title)}
-                style={{ background: `var(--${shownState(k)})` }}
-                onPointerDown={own}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpen(k);
-                }}
-              />
+              <Tooltip key={k.id} content={plain(k.title)}>
+                <button
+                  ref={(el) => void (el ? els.set(k.id, el) : els.delete(k.id))}
+                  className={needsYou(k) ? 'mark yours' : 'mark'}
+                  aria-label={plain(k.title)}
+                  style={{ background: `var(--${shownState(k)})` }}
+                  onPointerDown={own}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpen(k);
+                  }}
+                />
+              </Tooltip>
             ))}
           </div>
         )}

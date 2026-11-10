@@ -1,7 +1,7 @@
 // Tooltip: the short text a control shows on hover or keyboard focus. One `TooltipProvider` (in
 // `UiRoot`) gives them all the same delay, and moving from one to the next shows it at once. Radix
 // opens a tooltip on pointer movement of a mouse or pen, never of a finger, and on keyboard focus, so a
-// tap goes straight to the control. `IconButton` shows its label through it.
+// tap goes straight to the control. `IconButton` shows its label through it. A disabled control keeps its tooltip: the pointer events Radix listens to still reach it (unlike the click).
 
 import { Tooltip as Primitive } from 'radix-ui';
 import type { ComponentProps, ReactNode } from 'react';
@@ -23,6 +23,7 @@ export type TooltipProps = {
 } & Pick<ComponentProps<typeof Primitive.Root>, 'open' | 'onOpenChange' | 'delayDuration'>;
 
 export function Tooltip({ content, children, side = 'top', align = 'center', ...root }: TooltipProps) {
+  if (!content) return <>{children}</>;
   return (
     <Primitive.Root disableHoverableContent {...root}>
       <Primitive.Trigger asChild>{children}</Primitive.Trigger>

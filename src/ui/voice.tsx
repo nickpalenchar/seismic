@@ -8,6 +8,7 @@
 // free again at once: each spoken command has its own line above it while it is read, which becomes
 // its confirmation; a typed one gets its line with the confirmation.
 
+import { Tooltip } from './components/tooltip';
 import { createPortal } from 'react-dom';
 import { Mic } from 'lucide-react';
 import { createContext, type ReactNode, useEffect, useRef, useState } from 'react';
@@ -345,22 +346,23 @@ export function PushToTalk({ phase, level, flat, target, field, slot, onDown, in
         )
       );
   const micButton = (
-        <button
-          id="mic"
-          ref={mic}
-          title={t.voice.hold}
-          style={{ ['--lvl' as string]: 1 + level * 0.45 }}
-          onPointerDown={(e) => {
-            // the cursor stays where it is: in a field, what is said is written into it
-            e.preventDefault();
-            onDown();
-          }}
-          // held by a finger, it shows no menu
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <span className="ring" />
-          <MicIcon />
-        </button>
+        <Tooltip content={t.voice.hold}>
+          <button
+            id="mic"
+            ref={mic}
+            style={{ ['--lvl' as string]: 1 + level * 0.45 }}
+            onPointerDown={(e) => {
+              // the cursor stays where it is: in a field, what is said is written into it
+              e.preventDefault();
+              onDown();
+            }}
+            // held by a finger, it shows no menu
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <span className="ring" />
+            <MicIcon />
+          </button>
+        </Tooltip>
   );
   return (
     <div id="ptt" className={`${phase}${shots.dropping ? ' dropping' : ''}${instead ? ' switching' : ''}`} {...shots.drop}>
