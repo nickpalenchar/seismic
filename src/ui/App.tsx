@@ -61,7 +61,7 @@ import { clock, failText, t } from './strings';
 import { loadNavHidden, loadPinned, MenuButton, NAV_PROJECT_MIN, NAV_W, NavPill, NavSheet, saveNavHidden, savePinned } from './nav';
 import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { type QuickReply, sendReply } from './quickReply';
-import { InboxView, inboxListWidth } from './inbox';
+import { InboxView, INBOX_CARD_MIN, INBOX_ROOM, inboxListWidth } from './inbox';
 import { NeedsYouSheet } from './needsYou';
 import { useInboxRead } from './inboxRead';
 import { ProjectSettingsSheet } from './projectSettings';
@@ -568,8 +568,12 @@ function Project({
   const sideNow = (): Sides => {
     const narrow = matchMedia(NARROW).matches;
     const right = narrow ? 0 : dock.width();
-    return { left: !narrow && pinnedRef.current && !navHiddenRef.current && innerWidth - NAV_W - right >= NAV_PROJECT_MIN ? NAV_W : 0, right };
+    // the inbox's view needs room for its list and a card beside it
+    const room = innerWidth - NAV_W - right >= NAV_PROJECT_MIN && (fullPage.ref.current !== 'inbox' || innerWidth - NAV_W >= INBOX_ROOM);
+    return { left: !narrow && pinnedRef.current && !navHiddenRef.current && room ? NAV_W : 0, right };
   };
+  /** The width of the inbox view's list while it shows (none on a narrow window, where the card lies over the view). */
+  const inboxListNow = () => (fullPage.ref.current === 'inbox' && !matchMedia(NARROW).matches ? inboxListWidth(innerWidth - sideNow().left) : 0);
   /** Opens Seismic's sheet or closes it; an open plan closes. */
   const toggleKoordinator = () => {
     setKOn(!kOn);
@@ -631,12 +635,19 @@ function Project({
   const archiveEls = useRef(new Map<string, HTMLElement>()).current;
   // rows of the plan sheet, where its archived workstreams and its idea unfold from
   const sheetEls = useRef(new Map<string, HTMLElement>()).current;
-  // entries of the inbox's view and of "Needs you", where a card opened from them unfolds from
+  // the entries of the lists a card opens from: the inbox's view, "Needs you" and Agent work, each its own
+  // (the same card stands in several of them at once)
   const inboxEls = useRef(new Map<string, HTMLElement>()).current;
-  /** The element a card unfolds from and folds back to: its entry in the inbox's view while that shows, on the project, or a row in the sheet it was opened from. */
-  const fromEl = (id: string, inPlan: boolean) =>
-    (fullPage.ref.current === 'inbox' ? inboxEls.get(id) : undefined) ??
-    els.get(id) ?? (inPlan ? (sheetEls.get(id) ?? archiveEls.get(id)) : (archiveEls.get(id) ?? sheetEls.get(id)));
+  const needsYouEls = useRef(new Map<string, HTMLElement>()).current;
+  const workEls = useRef(new Map<string, HTMLElement>()).current;
+  /** The list entry the open card (or the one opening) was opened from, which it unfolds from and folds back to. */
+  const fromEntry = useRef<{ id: string; els: Map<string, HTMLElement> } | null>(null);
+  /** The element a card unfolds from and folds back to: the list entry it was opened from (any card's in the inbox's view while that shows), on the project, or a row in the sheet it was opened from. */
+  const fromEl = (id: string, inPlan: boolean) => {
+    const list = fromEntry.current?.id === id ? fromEntry.current.els : fullPage.ref.current === 'inbox' ? inboxEls : undefined;
+    const entry = list?.get(id);
+    return (entry?.isConnected ? entry : undefined) ?? els.get(id) ?? (inPlan ? (sheetEls.get(id) ?? archiveEls.get(id)) : (archiveEls.get(id) ?? sheetEls.get(id)));
+  };
   // an archived card opened from a plan's sheet, which the archive list may not hold
   const [opened, setOpened] = useState<Item | null>(null);
   useEffect(() => {
@@ -659,10 +670,10 @@ function Project({
     const panel = panelRef.current;
     const inner = innerRef.current;
     if (!panel || !inner) return;
-    // over the inbox's view, beside its list
+    // over the inbox's view, beside its list, which it never covers
     const side = sideNow();
-    const list = fullPage.ref.current === 'inbox' && !matchMedia(NARROW).matches ? inboxListWidth() : 0;
-    Object.assign(panel.style, panelRect(i, inner, { ...side, left: side.left + list }));
+    const list = inboxListNow();
+    Object.assign(panel.style, panelRect(i, inner, { ...side, left: side.left + list }, list ? INBOX_CARD_MIN : undefined));
   };
 
   // edits of the open card, saved shortly after typing stops
@@ -834,6 +845,7 @@ function Project({
     beingWritten.delete(f.id);
     setOpenId(null);
     setFocus(f.plan);
+    if (fromEntry.current?.id === f.id) fromEntry.current = null;
     // a new card left empty was not wanted; one with a task but no title, Seismic names
     const draft = openDraft.current;
     if (i?.source === 'manual' && !draft.title.trim()) {
@@ -849,7 +861,7 @@ function Project({
    * Opens a card the server made just now (a thread moved onto a Question card), which the project
    * may not show yet; a card open now folds first.
    */
-  async function openFresh(i: Item) {
+  async function openFresh(i: Item, from?: Map<string, HTMLElement>) {
     const f = focusRef.current;
     if (f?.type === 'card') {
       if (f.id === i.id) return;
@@ -858,6 +870,7 @@ function Project({
     flushSync(() => {
       if (!snapshotRef.current.items.some((x) => x.id === i.id)) setPending((p) => [...p, i]);
     });
+    fromEntry.current = from ? { id: i.id, els: from } : null;
     await open(i);
   }
 
@@ -2187,11 +2200,11 @@ function Project({
    * "Go to card": the card unfolds over the inbox's view (or beside "Needs you"), which stays open;
    * one on another project opens there, the inbox's view open under it again. Seismic's answer opens its sheet.
    */
-  function goToEntry(e: InboxEntry) {
+  function goToEntry(e: InboxEntry, from?: Map<string, HTMLElement>) {
     if (e.project !== snapshot.project.id) return goTo(e.card ? cardPath(e.project, e.card) : `${projectPath(e.project)}?talk`);
     if (!e.card) return kOnRef.current || toggleKoordinator();
     // the entry's own copy opens it when the project no longer lists the card (it just left the inbox)
-    void openFresh(byId(e.card.id) ?? e.card);
+    void openFresh(byId(e.card.id) ?? e.card, from);
   }
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
   keys.current = (e: KeyboardEvent) => {
@@ -2378,9 +2391,10 @@ function Project({
   );
   // the card open now, or flying open: its entry in the inbox and in "Needs you" is ringed
   const openCardId = (focus?.type === 'card' ? focus.id : openId) ?? undefined;
+  const inboxList = inboxOn && !matchMedia(NARROW).matches ? inboxListWidth(innerWidth - side.left) : 0;
   const dockViews: DockView[] = [
-    { id: 'needs-you', besideCard: true, title: t.needsYou.title, icon: ConciergeBell, component: () => (<NeedsYouSheet on={nyOn} entries={entries} current={snapshot.project.id} open={openCardId} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} />) },
-    { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet els={sheetEls} on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })} ask={agentsAsk} />) },
+    { id: 'needs-you', besideCard: true, title: t.needsYou.title, icon: ConciergeBell, component: () => (<NeedsYouSheet on={nyOn} entries={entries} current={snapshot.project.id} open={openCardId} onGo={(e) => goToEntry(e, needsYouEls)} els={needsYouEls} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} />) },
+    { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet els={sheetEls} entryEls={workEls} on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i, workEls)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })} ask={agentsAsk} />) },
     { id: 'settings', besideCard: true, title: t.projectSettings.title, icon: Settings, component: () => (<ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showProjectsSection(), setPrefsOn(false), setCOn(true))} />) },
     { id: 'seismic', title: t.koordinator.title, icon: MessageSquare, buttonCloses: true, component: () => (<KoordinatorSheet on={kOn} onClose={toggleKoordinator} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
             showRepoClones({ project: snapshot.project.id, repo, field: 'settings', setting });
@@ -2403,6 +2417,7 @@ function Project({
             '--read-w': `${sheetW.read}px`,
             '--side': `${side.right}px`,
             '--left': `${side.left}px`,
+            '--inbox-w': `${inboxList || 400}px`,
           } as React.CSSProperties
         }
       >
@@ -2606,7 +2621,7 @@ function Project({
             </div>
           </div>
         </div>
-        <InboxView on={inboxOn} held={focus?.type === 'card'} onClose={() => setInboxOn(false)} entries={entries} current={snapshot.project.id} open={openCardId} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} els={inboxEls}
+        <InboxView on={inboxOn} held={focus?.type === 'card'} onClose={() => setInboxOn(false)} entries={entries} current={snapshot.project.id} open={openCardId} onGo={(e) => goToEntry(e, inboxEls)} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} els={inboxEls}
           onProposalCard={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })}
           onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
         <ArchiveView on={aOn} onClose={() => setAOn(false)} held={focus?.type === 'card'} archived={archived} done={doneCount} onOpen={open} onArchiveDone={() => archiveDone().catch(console.error)} els={archiveEls} />
@@ -2635,7 +2650,7 @@ function Project({
         <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), showCanvas(c))} />
 
         {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
-        <div id="dim" className={dim ? 'on' : undefined} style={inboxOn && !matchMedia(NARROW).matches ? { left: side.left + inboxListWidth() } : undefined} onClick={() => closeCard()} />
+        <div id="dim" className={dim ? 'on' : undefined} style={inboxList ? { left: side.left + inboxList } : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
         <WishDialog />
         <div id="panel" ref={panelRef}>
@@ -2744,7 +2759,7 @@ function Project({
  * which it scrolls. Lays the content out at the final width
  * to measure it, so call it with the content rendered.
  */
-function panelRect(i: Item, inner: HTMLElement, side: Sides) {
+function panelRect(i: Item, inner: HTMLElement, side: Sides, floor?: number) {
   const tall = i.state !== 'planned' && i.state !== 'proposal';
   // a card with a conversation beside what it is about (an idea, a proposal, a task an agent worked on) gets the room of the mock's demo panel
   const wide = split(i);
@@ -2752,10 +2767,12 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides) {
   const want = wide ? 1600 : talkAlone(i) ? TALK_W : tall ? 980 : 900;
   // the sheet lies dimmed under an open card, so a card wider than the project reaches over it; the
   // pinned navigation, which stays usable beside it, limits it unless the window leaves less than a
-  // conversation's width beside the navigation
+  // conversation's width beside the navigation; beside the inbox's list never, down to `floor`
   const room = innerWidth - side.left - 80;
-  const W = Math.min(want, Math.max(room, Math.min(TALK_W, innerWidth - 80)));
+  const W = Math.min(want, Math.max(room, floor ?? Math.min(TALK_W, innerWidth - 80)));
   inner.style.width = `${W}px`;
+  // narrower than its split's two columns need: they stack, as on a narrow window
+  inner.classList.toggle('slim', W < SPLIT_W);
   inner.style.removeProperty('--pb');
   inner.style.overflowY = '';
   const pad = getComputedStyle(inner);
@@ -2769,7 +2786,7 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides) {
   const fill = content.querySelector<HTMLElement>('.split');
   if (fill) {
     fill.style.minHeight = fill.style.maxHeight = '';
-    if (!matchMedia(NARROW).matches) {
+    if (!matchMedia(NARROW).matches && W >= SPLIT_W) {
       const rest = height(content) - height(fill) + parseFloat(pad.paddingTop) + base;
       const room = Math.floor(mic - PANEL_TOP_OVER - rest);
       fill.style.minHeight = `${SPLIT_MIN}px`;
@@ -2800,6 +2817,8 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides) {
   return { left: `${Math.max(lo, Math.min(midX(side) - W / 2, innerWidth - W - 40))}px`, top: `${top(H)}px`, width: `${W}px`, height: `${H}px` };
 }
 
+/** The least width of a panel whose split (an idea, a proposal, a task) keeps its two columns side by side (styles.css). */
+const SPLIT_W = 760;
 /** A panel holding a conversation alone: its column at its widest (560 px, styles.css) and the panel's padding. */
 const TALK_W = 640;
 /** Below this the split's columns stack (styles.css) and the panel scrolls as a whole. */

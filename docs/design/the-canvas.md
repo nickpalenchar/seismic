@@ -34,7 +34,9 @@ its one-click replies, "Go to card", the unread dot), then every other project w
 as one header with its name and its count in orange, folded until clicked open (open again on a
 reload, as every fold of it starts closed). A switch "Hide other projects" leaves those headers
 out, remembered per browser. Seismic's answers and rule or setting proposals are the inbox's alone.
-The open card's entry is ringed, and the sheet stays undimmed beside any card.
+The open card's entry is ringed, and the sheet stays undimmed beside any card. A card opened from
+an entry here or in Agent work unfolds from that entry and folds back into it, also where the
+canvas does not show the card.
 
 The agents' button counts in grey the cards waiting in the queue, and only those; its click slides
 out "Agent work", a sheet (see Sheets) with three tabs, the one chosen last remembered per browser.
@@ -97,7 +99,10 @@ unread below: the cards that need them, per project one for Seismic's answers wa
 each open rule or setting proposal; the entry is marked while the inbox shows). The left menu's
 count per project counts the same way. The inbox is a full-page view of the main area, like the
 archive, instead of jumping to a card: its list in a column at the left, the room beside it saying
-that "Go to card" opens the card there. Its ✕ and Esc (once no card is open) close it, as do the
+that "Go to card" opens the card there. The list takes about a third of the window beside the left
+menu, narrower where a card beside it would get too little room; a card there never reaches over
+the list, its columns stacking where it is narrow, and the docked menu folds back where even that
+leaves no room. Its ✕ and Esc (once no card is open) close it, as do the
 menu's canvases and "Archived", which take its place. Opened, it stays open as the owner switches
 project (per tab) and across a reload, until they close it. A sheet on the right (Seismic's, say)
 opens beside it.
