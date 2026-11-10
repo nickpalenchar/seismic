@@ -35,23 +35,8 @@
   /* native controls, and the pages in a frame (prefers-color-scheme), take the look chosen */
   color-scheme: light;
 }
-/* dark: smoked glass on a night board (by system, and by choice below: the same tokens, frost.test.ts keeps them equal) */
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0d1420; --dot: rgba(150,180,220,.10); --card: rgba(150,180,220,.09); --ink: #e6eef8; --muted: #8fa3bb; --line: rgba(180,210,255,.13);
-  --glass-edge: rgba(180,210,255,.16); --glass-hi: rgba(200,225,255,.10);
-  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -10px rgba(0,0,0,.7);
-  --lift: 0 2px 4px rgba(0,0,0,.3), 0 18px 40px -14px rgba(0,0,0,.85);
-  --planned: #8a97a9; --working: #6aa2ff; --reviewing: #36c6c2; --waiting: #ff8a2a; --approved: #6fcf6a; --inPr: #2fc2c0; --live: #7a879d; --proposal: #a78bff; --idea: #ff6b95; --question: #8db6d6; --asking: #e6bd3a; --restart: #7fd0ef;
-  --waiting-rgb: 255,138,42; --on-ink: #0b111a; --error: #ff7a63; --warn: #f0a85a; --state-text-ink: 20%; --unblurred: rgba(0,53,145,.125);
-  --dep-line: rgba(140,165,200,.35); --done-dep: #3f6e45; --container: rgba(150,180,220,.04); --container-line: rgba(180,210,255,.12);
-  --dim: rgba(0,5,15,.5); --panel: #151e2c; --glass: rgba(21,30,44,.76); --chip: rgba(150,180,220,.10); --online: #96d873; --ice: #9fd6f0;
-  --board: radial-gradient(1100px 800px at 12% 18%, rgba(50,90,180,.18), transparent 60%),
-    radial-gradient(900px 700px at 88% 30%, rgba(130,60,150,.10), transparent 60%),
-    radial-gradient(1000px 900px at 60% 95%, rgba(20,120,130,.12), transparent 60%),
-    linear-gradient(135deg, #0d1420, #141d2b 55%, #0b111a);
-  color-scheme: dark;
-} }
-:root[data-theme="dark"] {
+/* One dark palette for the system look and an explicit choice (index.html tracks the system). */
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) {
   --bg: #0d1420; --dot: rgba(150,180,220,.10); --card: rgba(150,180,220,.09); --ink: #e6eef8; --muted: #8fa3bb; --line: rgba(180,210,255,.13);
   --glass-edge: rgba(180,210,255,.16); --glass-hi: rgba(200,225,255,.10);
   --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -10px rgba(0,0,0,.7);
@@ -101,7 +86,7 @@ a.smart-link:hover, a.smart-link:focus-visible { border-color: var(--working); b
 h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); font-weight: 650; letter-spacing: -.018em; }
 
 /* ---------- project ---------- */
-#viewport { position: fixed; inset: 0; cursor: grab; touch-action: none;
+#viewport { position: fixed; inset: 0; cursor: grab; touch-action: none; background-color: transparent;
   background-image: radial-gradient(var(--dot) 1px, transparent 1px); }
 #viewport.panning { cursor: grabbing; }
 /* under fingers a long press picks up a card: no text selection or callout competes with it */
@@ -196,7 +181,7 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 .card.idea-parked, .card.idea-dropped { opacity: .62; }
 .card.idea-dropped .ttl { text-decoration: line-through; text-decoration-color: var(--idea); text-decoration-thickness: 1.5px; }
 /* a Question card: a white index card tinted blue-grey, not yellowed like finished work */
-.card.q-card, .card.q-card.s-done { --c: var(--question); opacity: 1; background-color: color-mix(in srgb, var(--question) 8%, var(--card)); }
+.card.q-card, .card.q-card:is(.s-done, .s-live) { --c: var(--question); opacity: 1; background-color: color-mix(in srgb, var(--question) 8%, var(--card)); }
 .card.q-card .ttl, .card.q-card.s-done .ttl { font-weight: 600; }
 .card.q-card .state { left: 16px; }
 .card.q-card .kind { color: var(--question); text-transform: uppercase; letter-spacing: .07em; font-size: 10.5px; }
@@ -815,8 +800,7 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 .cd-new:hover { background: var(--chip); }
 .cd-failed { margin: 4px 8px; font-size: 12px; color: var(--error); }
 #canvas-dialog { position: fixed; inset: 0; z-index: 60; background: var(--dim); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center; padding: 8vh 24px 24px; animation: fade .15s ease-out; }
-#canvas-dialog .box { position: relative; display: flex; flex-direction: column; width: 560px; max-width: 100%; max-height: 100%; box-sizing: border-box; padding: 22px 26px 20px;
-  background: var(--panel); border-radius: 3px; box-shadow: var(--lift); }
+#canvas-dialog .box { position: relative; display: flex; flex-direction: column; width: 560px; max-width: 100%; max-height: 100%; box-sizing: border-box; padding: 22px 26px 20px; }
 #canvas-dialog h2 { display: flex; align-items: center; gap: 12px; margin: 0 44px 16px 0; font-size: 21px; }
 #canvas-dialog .close { position: absolute; right: 14px; top: 14px; }
 .cd-preview { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--chip); }
@@ -2190,8 +2174,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
    Colours only as area and edge, never on the card, so they do not compete with the states' colours.
    At rest nothing moves; a change sends a wave and a light along the edge, and the territory springs. */
 :root { --tl: 54%; --ta: .10; --tel: 44%; --tea: .7; --tga: .09; --tna: .17; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --tl: 60%; --ta: .13; --tel: 66%; --tea: .85; --tga: .20; --tna: .22; } }
-:root[data-theme="dark"] { --tl: 60%; --ta: .13; --tel: 66%; --tea: .85; --tga: .20; --tna: .22; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) { --tl: 60%; --ta: .13; --tel: 66%; --tea: .85; --tga: .20; --tna: .22; }
 #gnames { position: absolute; left: 0; top: 0; z-index: 5; overflow: visible; pointer-events: none; }
 #territories { position: absolute; left: 0; top: 0; z-index: 0; overflow: visible; pointer-events: none; }
 .terr .area { fill: hsl(var(--h) 80% var(--tl) / var(--ta)); transition: fill .4s; }
@@ -2622,20 +2605,12 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .finding .f-sev.minor { --badge-ink: #78400a; }
 .finding .f-sev.low { --badge-ink: #65510a; }
 .finding .f-sev.info { --badge-ink: var(--ink); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  .finding .f-sev.major { --badge-ink: #f4a0aa; }
-  .finding .f-sev.minor { --badge-ink: #ffad60; }
-  .finding .f-sev.low { --badge-ink: #e0b62e; }
-  .rv-count.blocker { --sev: #d58bdb; }
-  .rv-count.critical { --sev: #ff818c; }
-  .rv-count.major { --sev: #f4a0aa; }
-} }
-:root[data-theme="dark"] .finding .f-sev.major { --badge-ink: #f4a0aa; }
-:root[data-theme="dark"] .finding .f-sev.minor { --badge-ink: #ffad60; }
-:root[data-theme="dark"] .finding .f-sev.low { --badge-ink: #e0b62e; }
-:root[data-theme="dark"] .rv-count.blocker { --sev: #d58bdb; }
-:root[data-theme="dark"] .rv-count.critical { --sev: #ff818c; }
-:root[data-theme="dark"] .rv-count.major { --sev: #f4a0aa; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) .finding .f-sev.major { --badge-ink: #f4a0aa; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) .finding .f-sev.minor { --badge-ink: #ffad60; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) .finding .f-sev.low { --badge-ink: #e0b62e; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) .rv-count.blocker { --sev: #d58bdb; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) .rv-count.critical { --sev: #ff818c; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) .rv-count.major { --sev: #f4a0aa; }
 .finding .f-fold { width: 100%; font: inherit; color: inherit; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; }
 .finding .f-chevron { margin-left: auto; align-self: center; display: flex; color: var(--muted); }
 .finding .f-fold:hover .f-chevron { color: var(--ink); }
@@ -2655,18 +2630,11 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .finding .f-text .f-pill { margin-left: 4px; vertical-align: 1px; }
 .finding .f-log { margin: 6px 0 0; padding: 4px 0 0; border-top: 1px solid var(--line); list-style: none; font-size: 11px; line-height: 1.5; color: var(--muted); }
 .finding .f-note { margin: 5px 0 0; font-size: 13px; white-space: pre-wrap; background: var(--chip); border-radius: 6px; padding: 5px 8px; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  .finding .f-pill.raised { --pill-ink: #f4a0aa; }
-  .finding .f-pill.reopened { --pill-ink: #ffcd85; --pill-bg: #5a3c0a; }
-  .finding .f-pill.underReview { --pill-ink: #9fd0f5; --pill-bg: #173a56; }
-  .finding .f-pill.fixed { --pill-ink: #8fdca0; --pill-bg: #17391f; }
-  .finding .f-pill.followUp { --pill-ink: #c9b4f5; --pill-bg: #33265a; }
-} }
-:root[data-theme="dark"] .finding .f-pill.raised { --pill-ink: #f4a0aa; }
-:root[data-theme="dark"] .finding .f-pill.reopened { --pill-ink: #ffcd85; --pill-bg: #5a3c0a; }
-:root[data-theme="dark"] .finding .f-pill.underReview { --pill-ink: #9fd0f5; --pill-bg: #173a56; }
-:root[data-theme="dark"] .finding .f-pill.fixed { --pill-ink: #8fdca0; --pill-bg: #17391f; }
-:root[data-theme="dark"] .finding .f-pill.followUp { --pill-ink: #c9b4f5; --pill-bg: #33265a; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) .finding .f-pill.raised { --pill-ink: #f4a0aa; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) .finding .f-pill.reopened { --pill-ink: #ffcd85; --pill-bg: #5a3c0a; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) .finding .f-pill.underReview { --pill-ink: #9fd0f5; --pill-bg: #173a56; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) .finding .f-pill.fixed { --pill-ink: #8fdca0; --pill-bg: #17391f; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) .finding .f-pill.followUp { --pill-ink: #c9b4f5; --pill-bg: #33265a; }
 .finding .f-where { margin-top: 3px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .result-tabs .rv-count { margin-left: 6px; color: var(--sev); font-weight: 600; font-variant-numeric: tabular-nums; }
 .result-tabs .rv-clean { width: 16px; height: 16px; margin-left: 6px; vertical-align: middle; color: var(--approved); stroke-width: 3; }

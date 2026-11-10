@@ -86,17 +86,16 @@ function measure(t: Record<string, string>) {
   return rows.map((r) => ({ ...r, ratio: Math.round(r.ratio * 100) / 100 }));
 }
 
-for (const [mode, selector] of [['light', ':root'], ['dark', ':root[data-theme="dark"]']] as const) {
+for (const [mode, selector] of [['light', ':root'], ['dark', ':root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"])']] as const) {
   test(`every text on glass reaches its contrast in ${mode} mode`, () => {
     const rows = measure(tokens(selector));
     expect(rows.filter((r) => r.ratio < r.needs)).toEqual([]);
   });
 }
 
-test('dark by system and dark by choice share their tokens', () => {
-  const system = /@media \(prefers-color-scheme: dark\) \{ :root:not\(\[data-theme="light"\]\) \{([^}]+)\} \}/.exec(css)?.[1];
-  const chosen = /:root\[data-theme="dark"\] \{([^}]+)\}/.exec(css)?.[1];
-  expect(system?.trim()).toBe(chosen?.trim());
+test('the dark palette has one definition shared by system and choice', () => {
+  expect(css.match(/--bg: #0d1420/g)).toHaveLength(1);
+  expect(css).not.toContain('@media (prefers-color-scheme: dark)');
 });
 
-if (process.env.FROST_CONTRAST) for (const s of [':root', ':root[data-theme="dark"]']) console.table(measure(tokens(s)));
+if (process.env.FROST_CONTRAST) for (const s of [':root', ':root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"])']) console.table(measure(tokens(s)));

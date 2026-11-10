@@ -13,6 +13,11 @@
 <script>
   // the owner's last look in this browser (theme.ts), before the first paint: the server's answer comes later
   try { var t = localStorage.getItem('obeya-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+  // Keep system changes separate from the owner's choice, including when storage is unavailable.
+  var systemTheme = matchMedia('(prefers-color-scheme: dark)');
+  function syncSystemTheme() { document.documentElement.dataset.systemTheme = systemTheme.matches ? 'dark' : 'light'; }
+  syncSystemTheme();
+  systemTheme.addEventListener('change', syncSystemTheme);
 </script>
 <link rel="stylesheet" href="./styles.css">
 </head>
