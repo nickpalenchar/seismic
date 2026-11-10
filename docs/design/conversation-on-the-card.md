@@ -127,7 +127,8 @@ the block's text and copies the selection; where even that fails, the text stays
 button reads "Selected: press and hold to copy".
 
 A conversation scrolled to its end follows it as it grows; scrolled up, it stays put, and only the
-owner's own words or actions take it to the end. Seismic's sheet does the same.
+owner's own words or actions take it to the end, or the round button that shows at its bottom edge
+while it is scrolled up ("Scroll to the latest message"). Seismic's sheet does the same.
 
 ### Reading order
 

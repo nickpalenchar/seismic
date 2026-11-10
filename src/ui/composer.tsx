@@ -21,7 +21,7 @@ import { AttachButton, ShotStrip, useShotInput } from './shots';
 import { t } from './strings';
 import type { Skill } from '../core/types';
 import { HoldToTalk, MicIcon, TAP_MS, useHeldByTouch } from './voice';
-import { Button } from './components/button';
+import { PromptInput, PromptInputBody, PromptInputButton, PromptInputHint, PromptInputSubmit, PromptInputTextarea, PromptInputTools } from './components/ai/prompt-input';
 import { Tooltip } from './components/tooltip';
 
 /**
@@ -64,7 +64,7 @@ function fitField(el: HTMLTextAreaElement, tools: HTMLElement | null) {
   const stacked = textHeight(el) >= stackHeight - parseFloat(getComputedStyle(el).lineHeight) / 2;
   el.style.flex = flex;
   el.style.width = width;
-  tools.classList.toggle('stacked', stacked);
+  tools.toggleAttribute('data-stacked', stacked);
   // beside the stack the text starts at its top, not at its bottom
   setHeight(el, Math.max(textHeight(el), stacked ? stackHeight : 0));
   el.scrollTop = scrollTop;
@@ -204,17 +204,16 @@ export function Composer({
    */
   const keepFocus = (e: MouseEvent) => e.preventDefault();
   return (
-    <div className={['composer', className, shots.dropping && 'dropping', dictation && 'dictating'].filter(Boolean).join(' ')} {...shots.drop}>
+    <PromptInput className={className} dropping={shots.dropping} {...shots.drop}>
       <ShotStrip shots={shots} />
       {menuOn && <SkillMenu skills={menu} box={list} />}
-      <div className="c-field">
+      <PromptInputBody dictating={!!dictation}>
         {reply && <Quote q={reply.quote} onClear={() => setReply(key, null)} />}
         {chip}
-        <textarea
+        <PromptInputTextarea
           ref={field}
           value={text}
           placeholder={placeholder}
-          rows={1}
           {...(skills ? list.field : {})}
           data-esc={menuOn || undefined}
           onFocus={() => {
@@ -261,54 +260,53 @@ export function Composer({
             }
           }}
         />
-        <div className="c-tools" ref={tools}>
+        <PromptInputTools ref={tools}>
           <AttachButton shots={shots} />
           {talk && (
-            <Tooltip content={t.voice.dictate}>
-              <button
-                  ref={mic}
-                  className={dictation === 'listening' ? 'c-mic on' : 'c-mic'} aria-label={t.voice.dictate}
-                  onPointerDown={(e) => {
-                    // the cursor stays in the field, or goes there: what is said is written into it
-                    e.preventDefault();
-                    field.current?.focus();
-                    talk();
-                  }}
-                  onContextMenu={(e) => e.preventDefault()}
-              >
-                <MicIcon size={18} />
-              </button>
-            </Tooltip>
+            <PromptInputButton
+              ref={mic}
+              icon={<MicIcon size={18} />}
+              label={t.voice.dictate}
+              active={dictation === 'listening'}
+              className="rounded-full touch-none"
+              onPointerDown={(e) => {
+                // the cursor stays in the field, or goes there: what is said is written into it
+                e.preventDefault();
+                field.current?.focus();
+                talk();
+              }}
+              onContextMenu={(e) => e.preventDefault()}
+            />
           )}
           {action ? (
-            <Button variant="primary" className="c-send" disabled={!ready} onMouseDown={keepFocus} onClick={send}>
+            <PromptInputSubmit disabled={!ready} onMouseDown={keepFocus} onClick={send}>
               {action}
-            </Button>
+            </PromptInputSubmit>
           ) : (
             <Tooltip content={label}>
-              <Button variant="primary" className="c-send c-arrow" aria-label={label} disabled={!ready} onMouseDown={keepFocus} onClick={send}>
+              <PromptInputSubmit arrow aria-label={label} disabled={!ready} onMouseDown={keepFocus} onClick={send}>
                 <ArrowUp size={16} strokeWidth={2.25} aria-hidden="true" />
-              </Button>
+              </PromptInputSubmit>
             </Tooltip>
           )}
-        </div>
-      </div>
-      {shots.error && <p className="p-error c-error">{shots.error}</p>}
+        </PromptInputTools>
+      </PromptInputBody>
+      {shots.error && <p className="p-error c-error m-0 basis-full">{shots.error}</p>}
       {dictation === 'listening' ? (
-        <div className="c-listener c-dictation">
+        <PromptInputHint tone="working">
           → <b>{t.voice.intoField}</b>
           {t.voice.sendWithEnter && ` · ${t.voice.sendWithEnter}`}
-        </div>
+        </PromptInputHint>
       ) : dictation === 'writing' ? (
-        <div className="c-listener c-dictation">{t.voice.writing}</div>
+        <PromptInputHint tone="working">{t.voice.writing}</PromptInputHint>
       ) : note ? (
-        <div className="c-listener c-note">{note}</div>
+        <PromptInputHint tone="warn">{note}</PromptInputHint>
       ) : typeof obeya === 'string' ? (
-        <div className="c-listener">→ {obeya}</div>
+        <PromptInputHint>→ {obeya}</PromptInputHint>
       ) : (
-        focused && !!skillList?.length && !knowsSkills() && <div className="c-listener c-skills-hint">{t.skills.hint}</div>
+        focused && !!skillList?.length && !knowsSkills() && <PromptInputHint>{t.skills.hint}</PromptInputHint>
       )}
-    </div>
+    </PromptInput>
   );
 }
 

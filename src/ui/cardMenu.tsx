@@ -15,6 +15,7 @@ import { Listbox, type ListboxState, useListbox } from './components/listbox';
 import { badgeClass } from './components/badge';
 import { Cards } from './message';
 import { t } from './strings';
+import { PromptInputHint } from './components/ai/prompt-input';
 
 /** What the task field offers the card around it. */
 export interface LinkFieldHandle {
@@ -230,7 +231,7 @@ export const LinkField = forwardRef<
         onKeyDown={list.onKeyDown}
       />
       {menu.length > 0 && <CardMenu cards={menu} box={list} at={found?.place} />}
-      {focused && !menu.length && !knowsCardRefs() && <p className="c-listener card-refs-hint">{t.cardRefs.hint}</p>}
+      {focused && !menu.length && !knowsCardRefs() && <PromptInputHint className="card-refs-hint">{t.cardRefs.hint}</PromptInputHint>}
     </>
   );
 });

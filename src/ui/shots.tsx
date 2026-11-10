@@ -16,6 +16,7 @@ import { confirmPasteHint, pastedShots, pickedShots, usePasteHint } from './past
 import { failText, pasteKeys, t } from './strings';
 import { motionMs } from './motion';
 import { behindThumb, type Box, onto, ZOOM_EASE, ZOOM_MS } from './zoomBox';
+import { PromptInputButton } from './components/ai/prompt-input';
 import { Button, CloseButton } from './components/button';
 import { Tooltip } from './components/tooltip';
 
@@ -315,20 +316,16 @@ export function AttachButton({ shots, title = t.shots.attach }: { shots: ShotInp
   if (shots.off) return null;
   return (
     <>
-      <Tooltip content={title}>
-        <button
-            className="c-attach" aria-label={title}
-            // the cursor stays in the field: on a phone the keyboard stays up, and the field does not jump away from under the finger
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              const el = document.activeElement;
-              typing.current = el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement ? el : null;
-              shots.picker.current?.click();
-            }}
-        >
-          <ImageIcon size={18} strokeWidth={1.75} aria-hidden="true" />
-        </button>
-      </Tooltip>
+      <PromptInputButton
+        icon={<ImageIcon size={18} strokeWidth={1.75} aria-hidden="true" />}
+        label={title}
+        // the cursor stays in the field: on a phone the keyboard stays up, and the field does not jump away from under the finger
+        onClick={() => {
+          const el = document.activeElement;
+          typing.current = el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement ? el : null;
+          shots.picker.current?.click();
+        }}
+      />
       <input
         ref={shots.picker}
         type="file"

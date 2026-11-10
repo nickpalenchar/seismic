@@ -960,7 +960,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
    whether the conversation scrolls or not: WebKit kept the height its text had wrapped to beside the scrollbar,
    which shows while the panel is measured, and every key typed laid it out anew, so the field jumped */
 .split .split-talk .conv { flex: 1; min-height: 0; max-height: none; max-width: none; }
-.split-talk .composer { margin-top: 10px; max-width: none; }
+.split-talk [data-slot=prompt-input] { margin-top: 10px; max-width: none; }
 /* a proposal's text box grows with the text (detail.tsx) and leaves the reason below it in view */
 .proposal-grid .p-body { min-height: min(360px, calc(100vh - 440px)); max-height: calc(100vh - 440px); resize: none; }
 .question.brief { border-color: var(--idea); background: color-mix(in srgb, var(--idea) 6%, transparent); }
@@ -1009,8 +1009,8 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .quote-clear { margin: 3px 3px 0 0; }
 .talk .msg > .quote { margin: 5px 0 4px; }
-.composer .c-field .quote { flex: 1 1 100%; margin: 0 0 2px; }
-.composer .c-field .quote-text { -webkit-line-clamp: 2; }
+[data-slot=prompt-input-body] .quote { flex: 1 1 100%; margin: 0 0 2px; }
+[data-slot=prompt-input-body] .quote-text { -webkit-line-clamp: 2; }
 /* the place in the demo video the words are about (detail.tsx PlaceChip, SpotLink) */
 .quote.place { --q: var(--working); align-items: center; gap: 8px; padding: 4px 0 4px 6px; }
 .place-frame { flex: none; width: 48px; border-radius: 2px; background: #222; display: block; }
@@ -1329,31 +1329,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .prototype-end { height: 64px; }
 .prototype-variants .v-show { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; font-size: 12.5px; color: var(--muted-foreground); }
 .talk .question.ask { margin: 0; max-width: 92%; padding: 10px 12px; font-size: 14px; flex: none; background: color-mix(in srgb, var(--waiting) 9%, var(--card)); }
-.composer { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-end; margin-top: 16px; max-width: 80ch; }
-.composer textarea { flex: 1; resize: vertical; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 3px;
-  background: var(--card); outline: none; font-size: 14px; }
-.composer textarea:focus { border-color: var(--muted-foreground); }
-/* the field under a conversation (composer.tsx): one frame, as wide as the conversation, with the text growing as it is
-   written and the screenshot button, the microphone and Send in its bottom
-   corner, beside the text's scrollbar rather than over it: side by side beside a short text, on top of each other
-   (`stacked`, set by fitField) beside a tall one */
-.composer .c-field { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px; min-width: 0; padding: 4px; border: 1px solid var(--line);
-  border-radius: 3px; background: var(--card); }
-.composer .c-field:focus-within { border-color: var(--muted-foreground); }
-.composer .c-field textarea { min-height: 0; max-height: 30vh; padding: 6px 8px; border: 0; border-radius: 0; background: none; resize: none; line-height: 1.45; }
-.composer .c-tools { display: flex; align-items: center; gap: 2px; flex: none; }
-.composer .c-tools.stacked { flex-direction: column; }
-.composer .c-tools .c-attach { position: static; }
-.composer .c-send { padding: 6px 12px; font-size: 13px; border-radius: 2px; white-space: nowrap; }
-.composer .c-send.c-arrow { width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 3px; }
-.composer.dropping .c-field { border-color: var(--working); border-style: dashed; background: color-mix(in srgb, var(--working) 6%, var(--card)); }
-.c-attach { position: absolute; right: 6px; bottom: 6px; border: 0; background: none; color: var(--muted-foreground); padding: 4px; border-radius: 8px; cursor: pointer; line-height: 0; }
-.c-attach:hover { color: var(--ink); background: var(--chip); }
-/* the field's microphone: held, what is said is written into the field, which is framed in the working blue meanwhile */
-.c-mic { border: 0; background: none; color: var(--muted-foreground); padding: 4px; border-radius: 50%; cursor: pointer; line-height: 0; touch-action: none; }
-.c-mic:hover { color: var(--ink); background: var(--chip); }
-.c-mic.on, .c-mic.on:hover { color: var(--on-ink); background: var(--working); }
-.composer.dictating .c-field, .composer.dictating .c-field:focus-within { border-color: var(--working); box-shadow: 0 0 0 1px var(--working); }
 .c-shots { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
 .c-shot { position: relative; height: 64px; min-width: 64px; border-radius: 2px; border: 1px solid var(--line); background: var(--chip);
   display: inline-flex; align-items: center; justify-content: center; font-size: 12px; color: var(--muted-foreground); }
@@ -1369,7 +1344,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .ptt-shots .c-paste-hint { flex: 0 0 auto; width: 320px; }
 /* the marked version is being drawn and uploaded, to take its place */
 .c-shot.marking img { opacity: .5; }
-.c-error { flex-basis: 100%; margin: 0; }
 .shots { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .shot { border: 1px solid var(--line); border-radius: 2px; padding: 0; background: var(--card); cursor: zoom-in; line-height: 0; }
 .shot img { height: 88px; max-width: 240px; object-fit: cover; border-radius: 2px; display: block; }
@@ -1804,8 +1778,8 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 /* screenshots for the next recording: a small button and thumbnails to the right of the mic, which stays centred */
 .ptt-row { position: relative; }
 .ptt-shots { position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 10px; }
-#ptt .c-attach { position: static; width: 34px; height: 34px; border-radius: 12px; display: grid; place-items: center; padding: 0; background: var(--glass); border: 1px solid var(--glass-edge); box-shadow: var(--shadow); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-#ptt .c-attach:hover { color: var(--ink); box-shadow: var(--lift); }
+#ptt [data-slot=prompt-input-button] { position: static; width: 34px; height: 34px; border-radius: 12px; display: grid; place-items: center; padding: 0; background: var(--glass); border: 1px solid var(--glass-edge); box-shadow: var(--shadow); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+#ptt [data-slot=prompt-input-button]:hover { color: var(--ink); box-shadow: var(--lift); }
 #ptt .c-shots { flex-wrap: nowrap; flex-basis: auto; }
 #ptt .c-shot { height: 46px; min-width: 46px; box-shadow: var(--shadow); }
 #ptt .c-shot img { max-width: 82px; }
@@ -1922,11 +1896,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .toast.swipeable { user-select: none; -webkit-user-select: none; }
 .toast.nudge:not(.reading) { animation: toast-nudge .9s .7s ease-in-out; }
 @keyframes toast-nudge { 30% { transform: translateX(36px); } 55% { transform: translateX(-10px); } 75%, 100% { transform: none; } }
-.c-listener { flex-basis: 100%; margin-top: -4px; font-size: 11.5px; color: var(--muted-foreground); }
-.c-listener.c-dictation, .c-listener.c-dictation b { color: var(--working); }
-.c-listener.c-note { color: var(--warn); }
 /* `/` in a card's field: the skills of its agent that fit, over the conversation just above the field */
-.composer { position: relative; }
 .skill-menu { position: absolute; left: 0; right: 0; bottom: 100%; margin-bottom: 4px; z-index: 5; max-height: min(320px, 45vh); overflow: hidden auto;
   border: 1px solid var(--line); border-radius: 3px; background: var(--card); box-shadow: 0 6px 20px rgb(0 0 0 / 14%); font-size: 13px; }
 .skill-menu ul { list-style: none; margin: 0; padding: 4px; }
@@ -2275,7 +2245,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-grip .ph-word { font: 600 21px/1 var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .ph-talk { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; padding-top: 12px; }
 .ph-talk > .talk { flex: 0 1 auto; min-height: 0; max-height: none; max-width: none; }
-.ph-talk > .composer { max-width: none; margin-top: 10px; flex: none; }
+.ph-talk > [data-slot=prompt-input] { max-width: none; margin-top: 10px; flex: none; }
 /* a card's conversation: the panel's top names the card, no heading above the conversation */
 #ph-card-talk > .p-h { display: none; }
 /* while the keyboard is up the field has its own microphone: the field stands right above the keyboard */
@@ -2334,7 +2304,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 /* the cursor in a field says where the words go: a line under the microphone would lift it onto the field */
 .ph-view ~ #ptt #target.into { display: none; }
 /* the microphone is held by a finger: no long-press menu, no text selected */
-#mic, .c-mic { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
+#mic, [data-slot=prompt-input-button] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
 @media (pointer: coarse) { .lb-bar { flex-wrap: wrap; max-width: 100%; } }
 /* while the keyboard is up the field has its own microphone: the big one would stand over the field */
 .ph-kb .ph-view ~ :is(#ptt, .ph-new), .ph-kb .ph-view::after { display: none; }
