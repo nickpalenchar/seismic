@@ -503,6 +503,8 @@ const en = {
     title: (title: string) => `Changes of “${title}”`,
     landed: 'as landed',
     loading: 'Loading the diff …',
+    highlightFailed: 'The diff’s highlighting could not be loaded.',
+    reloadHighlight: 'Reload page',
     failed: 'The diff could not be read.',
     binary: 'Binary file',
     status: { added: 'new', deleted: 'deleted', renamed: 'renamed', modified: '' },

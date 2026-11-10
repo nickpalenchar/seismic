@@ -22,6 +22,9 @@ never restarts for new code. Constraints of the build: a macOS binary must be si
 least), or macOS kills it at start; Bun leaves a copy of its runtime (`.<hex>.bun-build`) in the
 working directory of every compile, so the build compiles in the output directory and removes it;
 the UI bundle needs `NODE_ENV` defined as production, or it ships React's development build.
+The UI uses code splitting in both the compiled binary and a normally started checkout, so opening
+the page does not download the diff viewer or the full collection of highlighting languages and
+themes. A checkout with hot reloading keeps Bun's native development server.
 
 `package.json` holds Seismic's version, which the settings show, with the commit beside it when Seismic
 runs from a checkout. `bun scripts/check-binary.ts` checks a binary end to end on the machine it

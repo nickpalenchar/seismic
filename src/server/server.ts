@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { join, resolve } from 'node:path';
 import { type ActivityPage, agentListens, type ProjectInfo, type ChatElsewhere, type ProjectSettingsView, type CardAction, type ClientMessage, type CardPatch, type DeveloperView, type Item, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
-import index from '../ui/index.html';
+import { uiRoutes } from './ui';
 import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
 import { type Dropped, findDropped, localImage } from './files';
@@ -447,10 +447,7 @@ export function serve(
     development: development && { hmr: true, console: true },
     routes: guarded({
       ...extensionRoutes,
-      '/': index,
-      // a project, and a card open on it (`/p/<project>/c/<code>`): the page reads the address
-      '/p/*': index,
-      '/c/*': index, // Existing bookmarks are upgraded by the page.
+      ...uiRoutes(development),
       // a browser on this machine signing in with a one-time link (owner.ts)
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
       // such a link, for whoever holds the owner's key (the app's shell, a second start, scripts); `next`: where it leads; `once`: for one browser

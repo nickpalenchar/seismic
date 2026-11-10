@@ -250,8 +250,10 @@ another machine). The owner rarely reads code, so it stays a quiet line.
 
 The diff (over the page, and in the Diff tab's "Changes") is one component with the same look in both
 places: highlighted by language (Shiki), with changed words marked inside a changed line, in
-Seismic's palette and the page's light or dark. It renders from the patch, so it opens as fast as
-the patch is there; a file with more than 1,500 lines starts folded. Where the patch leaves out
+Seismic's palette and the page's light or dark. It renders from the patch and waits until its
+language and theme are ready before showing code; while they load it shows "Loading the diff …",
+and a failed load offers "Reload page" (the browser can cache a failed module import for the page's
+lifetime). A file with more than 1,500 lines starts folded. Where the patch leaves out
 lines around its hunks, "N unmodified lines" expands them. Only as a changed file
 comes near the screen does the page ask the server (`GET …/cards/:id/versions?path=&probe`) whether
 both versions are there to show, which carries no file; the whole old and new text
@@ -263,7 +265,8 @@ card, the copy Seismic kept against the file now. A file with no old version or 
 the card's change (the rules of the files Seismic serves, below), has none to fetch. A switch
 "Unified | Split" on the desktop, remembered across cards and reloads, lays the lines under each
 other or side by side; the phone shows unified only, without the switch. The highlighter and its
-languages load when a diff first opens, never with the page.
+languages load when a diff first opens, never with the page. Each language and theme is fetched
+separately, only when needed; other files reuse what is already loaded.
 
 #### The files beside the demo
 
