@@ -70,17 +70,17 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
           onPointerLeave={() => setHover(0)}
         >
           {t.feedback.stars.map((name, n) => (
-            <Radio
-              key={n}
-              value={String(n + 1)}
-              aria-label={t.feedback.star(n + 1, name)}
-              title={name}
-              className={n < shown ? 'star on' : 'star'}
-              // a mouse's only: Safari on the iPhone takes a tap that changes what shows on hover for the hover alone, and the star stayed unsaved
-              onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(n + 1)}
-            >
-              {n < shown ? '★' : '☆'}
-            </Radio>
+            <Tooltip key={n} content={name}>
+              <Radio
+                value={String(n + 1)}
+                aria-label={t.feedback.star(n + 1, name)}
+                className={n < shown ? 'star on' : 'star'}
+                // a mouse's only: Safari on the iPhone takes a tap that changes what shows on hover for the hover alone, and the star stayed unsaved
+                onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(n + 1)}
+              >
+                {n < shown ? '★' : '☆'}
+              </Radio>
+            </Tooltip>
           ))}
         </RadioGroup>
         {shown > 0 && <span className="rate-name">{t.feedback.stars[shown - 1]}</span>}

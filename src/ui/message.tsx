@@ -188,9 +188,9 @@ function Code({ text }: { text: string }) {
       </pre>
       <Tooltip content={t.talk.copy}>
         <button
-          className={['p-copy', done].filter(Boolean).join(' ')} aria-label={label}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => void copy()}
+            className={['p-copy', done].filter(Boolean).join(' ')} aria-label={label}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => void copy()}
         >
           {done ? (
             <span>{label}</span>
@@ -297,9 +297,11 @@ export function AnswerFiles({ thread, files }: { thread: number; files?: AnswerF
             <button className="file-open" title={t.answer.open(f.caption)} onMouseDown={(e) => e.preventDefault()} onClick={() => void open(f.name)}>
               <span className="file-mark">{fileMark(f.name)}</span> {f.name}
             </button>
-            <a className="file-down" href={answerFile(thread, f.name, true)} title={t.answer.download} aria-label={t.answer.download}>
-              ↓
-            </a>
+            <Tooltip content={t.answer.download}>
+              <a className="file-down" href={answerFile(thread, f.name, true)} aria-label={t.answer.download}>
+                ↓
+              </a>
+            </Tooltip>
           </span>
         ))}
         <LinkButton className="file-folder" title={t.answer.showFolderHint} onMouseDown={(e) => e.preventDefault()} onClick={() => void open()}>

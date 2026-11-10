@@ -2488,7 +2488,7 @@ function Project({
               ),
             )}
             {placed.filter(({ item }) => connectable(item)).map(({ item, b }) => <div key={`handles:${item.id}`} data-id={item.id} className={`connection-handles ${cardClass(item, underway[item.id]).replace(/^card\s*/, '')}${depOf(item.id) ? ' dep-highlight' : ''}${connection?.target === item.id ? ' target' : ''}`} style={{ left: b.x, top: b.y, width: b.w, height: b.h }}>
-              {SIDES.map((side) => <button key={side} className={`connection-dot ${side}${!connection && (handle?.id === item.id && handle.side === side || touchDots(item.id)) ? ' visible' : ''}`} title={t.deps.connect} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} />)}
+              {SIDES.map((side) => <Tooltip key={side} content={t.deps.connect}><button className={`connection-dot ${side}${!connection && (handle?.id === item.id && handle.side === side || touchDots(item.id)) ? ' visible' : ''}`} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} /></Tooltip>)}
             </div>)}
             {planDirs?.map((d, n) => (
               <PlanDirNote
@@ -2582,9 +2582,11 @@ function Project({
               </div>
             )}
             {/* Seismic has no user accounts yet: the avatar holds the place, without a menu */}
-            <span className="avatar" title={t.avatar} aria-label={t.avatar} role="img">
-              <CircleUserRound size={22} strokeWidth={1.75} aria-hidden />
-            </span>
+            <Tooltip content={t.avatar}>
+              <span className="avatar" aria-label={t.avatar} role="img">
+                <CircleUserRound size={22} strokeWidth={1.75} aria-hidden />
+              </span>
+            </Tooltip>
           </div>
         </header>
         {/* under the bar, floating over the main area: the project switcher at the left; the project's settings, its agents and what needs the owner at the right */}
@@ -2610,16 +2612,16 @@ function Project({
               </Tooltip>
               <Tooltip content={t.needsYou.button(needsYouCards)}>
                 <button
-                  className={nyOn ? 'pill kpill needs-you-pill on' : 'pill kpill needs-you-pill'}
-                  id="attention" aria-label={t.needsYou.button(needsYouCards)}
-                  aria-expanded={nyOn}
-                  onClick={() => {
-                    if (!needsYouKnown) {
-                      know(NEEDS_YOU_KNOWN);
-                      setNeedsYouKnown(true);
-                    }
-                    toggleNeedsYou();
-                  }}
+                    className={nyOn ? 'pill kpill needs-you-pill on' : 'pill kpill needs-you-pill'}
+                    id="attention" aria-label={t.needsYou.button(needsYouCards)}
+                    aria-expanded={nyOn}
+                    onClick={() => {
+                      if (!needsYouKnown) {
+                        know(NEEDS_YOU_KNOWN);
+                        setNeedsYouKnown(true);
+                      }
+                      toggleNeedsYou();
+                    }}
                 >
                   <BarIcon icon={ConciergeBell} />
                   {!needsYouKnown && <span className="lbl">{t.needsYou.label}</span>}

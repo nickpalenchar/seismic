@@ -3,9 +3,3 @@
 .tooltip { z-index: 60; max-width: 340px; padding: 6px 10px; border-radius: 3px; background: var(--panel); color: var(--ink);
   box-shadow: var(--lift); font-size: 13px; font-weight: 400; line-height: 1.45; white-space: normal; text-align: left;
   pointer-events: none; }
-.tooltip[data-rich] { max-width: 360px; padding: 10px 14px; pointer-events: auto; }
-.tooltip[data-rich] p { margin: 0 0 6px; }
-.tooltip[data-rich] > :last-child { margin-bottom: 0; }
-.tooltip[data-rich] ul { margin: 0 0 6px; padding-left: 18px; }
-.tooltip[data-rich] p.warn { color: var(--waiting); }
-.tooltip[data-rich] a.from { color: var(--working); cursor: pointer; text-decoration: underline; text-decoration-color: currentColor; text-underline-offset: 2px; }

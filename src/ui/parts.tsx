@@ -87,13 +87,13 @@ function CardTurn({ item }: { item: Item }) {
   return (
     <Tooltip content={isPausing(item) ? t.pause.takeBackHint : paused ? t.pause.resumeHint : t.pause.safeHint}>
       <button
-        className={paused ? 'play turn resume' : 'play turn'} aria-label={paused ? t.pause.resume : t.pause.button}
-        // the project would take the press as the start of a drag or a click that opens the card
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => {
-          e.stopPropagation();
-          void api.act(item.id, paused ? { action: 'resume' } : { action: 'pause', safePoint: true }).catch(() => {});
-        }}
+          className={paused ? 'play turn resume' : 'play turn'} aria-label={paused ? t.pause.resume : t.pause.button}
+          // the project would take the press as the start of a drag or a click that opens the card
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            void api.act(item.id, paused ? { action: 'resume' } : { action: 'pause', safePoint: true }).catch(() => {});
+          }}
       >
         {paused ? <PlayMark /> : <PauseMark />}
       </button>
@@ -110,13 +110,13 @@ function CardCheckStop({ item }: { item: Item }) {
   return (
     <Tooltip content={t.queue.checkingStopHint}>
       <button
-        className="play turn" aria-label={t.stop}
-        // the project would take the press as the start of a drag or a click that opens the card
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => {
-          e.stopPropagation();
-          void api.act(item.id, { action: 'dequeue' }).catch(() => {});
-        }}
+          className="play turn" aria-label={t.stop}
+          // the project would take the press as the start of a drag or a click that opens the card
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            void api.act(item.id, { action: 'dequeue' }).catch(() => {});
+          }}
       >
         <Square className="btn-mark" size={10} strokeWidth={1.75} fill="currentColor" aria-hidden />
       </button>
@@ -202,13 +202,13 @@ export const CardView = memo(
         {startable && (
           <Tooltip content={item.queue ? t.queue.force : t.start}>
             <button
-              className="play" aria-label={item.queue ? t.queue.force : t.start}
-              // the project would take the press as the start of a drag or a click that opens the card
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onStart(item);
-              }}
+                className="play" aria-label={item.queue ? t.queue.force : t.start}
+                // the project would take the press as the start of a drag or a click that opens the card
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStart(item);
+                }}
             >
               <PlayIcon size={12} />
             </button>
@@ -217,12 +217,12 @@ export const CardView = memo(
         {archivable && (
           <Tooltip content={t.archive.archive}>
             <button
-              className={startable ? 'play archive beside' : 'play archive'} aria-label={t.archive.archive}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onArchive(item);
-              }}
+                className={startable ? 'play archive beside' : 'play archive'} aria-label={t.archive.archive}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onArchive(item);
+                }}
             >
               <Archive size={14} strokeWidth={2.25} />
             </button>
@@ -371,64 +371,57 @@ function Pill({ restart, items, project, onOpen, elsewhere = [], go, going, say,
     );
   return (
     <div className="pill restart" id="restart">
-      <Tooltip
-        rich
-        side="top"
-        align="start"
-        content={
-          <>
-            {why}
-            {cards.length + elsewhere.length > 0 && (
-              <>
-                <p>{t.restart.waits}</p>
-                {cards.length > 0 && (
-                  <ul>
-                    {cards.map(({ item, title }, i) => (
-                      <li key={i}>{item ? (
-                        <a
-                          className="from"
-                          href={cardPath(project, item)}
-                          onClick={(m) => {
-                            if (m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
-                            m.preventDefault();
-                            onOpen(item);
-                          }}
-                        >
-                          {title}
-                        </a>
-                      ) : title}</li>
-                    ))}
-                  </ul>
-                )}
-                {elsewhere.map((c) => (
-                  <div key={c.id} className="elsewhere">
-                    <p className="hint">{t.restart.on(c.project)}</p>
-                    <ul>
-                      {c.cards.map((x, i) => (
-                        <li key={i}>
-                          <a className="from" href={cardPath(c.id, x.short ?? x.id)} onClick={(m) => switchTo(m, cardPath(c.id, x.short ?? x.id))}>
-                            {plain(x.title)}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </>
-            )}
-            {after}
-          </>
-        }
-      >
-        <span className="pill-text">
-          <span className="spin">↻</span>
-          <span className="say">{say}</span>
-          {until && <span className="hint">{t.restart.until(clock(restart.deadline))}</span>}
+      <span className="spin">↻</span>
+      <span className="say">{say}</span>
+      {until && <span className="hint">{t.restart.until(clock(restart.deadline))}</span>}
+      <button onClick={click}>
+        {now}
+        <span className="tip risk" role="tooltip">
+          {risk}
         </span>
-      </Tooltip>
-      <Tooltip content={risk} side="top" align="end">
-        <button onClick={click}>{now}</button>
-      </Tooltip>
+      </button>
+      <div className="tip why" role="tooltip">
+        {why}
+        {cards.length + elsewhere.length > 0 && (
+          <>
+            <p>{t.restart.waits}</p>
+            {cards.length > 0 && (
+              <ul>
+                {cards.map(({ item, title }, i) => (
+                  <li key={i}>{item ? (
+                    <a
+                      className="from"
+                      href={cardPath(project, item)}
+                      onClick={(m) => {
+                        if (m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
+                        m.preventDefault();
+                        onOpen(item);
+                      }}
+                    >
+                      {title}
+                    </a>
+                  ) : title}</li>
+                ))}
+              </ul>
+            )}
+            {elsewhere.map((c) => (
+              <div key={c.id} className="elsewhere">
+                <p className="hint">{t.restart.on(c.project)}</p>
+                <ul>
+                  {c.cards.map((x, i) => (
+                    <li key={i}>
+                      <a className="from" href={cardPath(c.id, x.short ?? x.id)} onClick={(m) => switchTo(m, cardPath(c.id, x.short ?? x.id))}>
+                        {plain(x.title)}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </>
+        )}
+        {after}
+      </div>
     </div>
   );
 }
@@ -446,22 +439,7 @@ export function UpdatePill({ update }: { update: AppUpdate }) {
   };
   return (
     <div className="pill restart update" id="update">
-      <Tooltip
-        rich
-        side="top"
-        align="start"
-        content={
-          <>
-            <p>
-              <b>{t.update.title(update.version, update.date ? shortDay(update.date) : null)}</b>
-            </p>
-            {update.notes && <Doc md={update.notes} />}
-            <p className="hint">{update.download ? t.update.howDownload : t.update.how}</p>
-          </>
-        }
-      >
-        <span className="pill-text">{t.update.pill(update.version)}</span>
-      </Tooltip>
+      <span>{t.update.pill(update.version)}</span>
       {update.download ? (
         <button onClick={() => window.open(update.download, '_blank')}>{t.update.download}</button>
       ) : (
@@ -469,6 +447,13 @@ export function UpdatePill({ update }: { update: AppUpdate }) {
           {t.update.install}
         </button>
       )}
+      <div className="tip why" role="tooltip">
+        <p>
+          <b>{t.update.title(update.version, update.date ? shortDay(update.date) : null)}</b>
+        </p>
+        {update.notes && <Doc md={update.notes} />}
+        <p className="hint">{update.download ? t.update.howDownload : t.update.how}</p>
+      </div>
     </div>
   );
 }
@@ -495,37 +480,29 @@ export function SourcePill({ source }: { source: SourceUpdate }) {
       : t.source.local(source.checkout, source.blocked.files.map((f) => `\`${f}\``).join(', '));
   return (
     <div className={source.blocked ? 'pill restart update source by-hand' : 'pill restart update source'} id="source-update">
-      <Tooltip
-        rich
-        side="top"
-        align="start"
-        content={
-          <>
-            <p>
-              <b>{t.source.title(source.count, source.upstream)}</b>
-            </p>
-            <ul>
-              {source.commits.map((c, i) => (
-                <li key={i}>
-                  {c.subject} <span className="hint">{shortDay(c.date)}</span>
-                </li>
-              ))}
-            </ul>
-            {more > 0 && <p className="hint">{t.source.more(more)}</p>}
-            {source.error && <p className="warn">{t.source.failed(source.error)}</p>}
-            <p className="hint">
-              <Inline md={how} />
-            </p>
-          </>
-        }
-      >
-        <span className="pill-text">{t.source.pill(source.count)}</span>
-      </Tooltip>
+      <span>{t.source.pill(source.count)}</span>
       {!source.blocked && (
         <button onClick={pull} disabled={asked}>
           {t.source.pull}
         </button>
       )}
+      <div className="tip why" role="tooltip">
+        <p>
+          <b>{t.source.title(source.count, source.upstream)}</b>
+        </p>
+        <ul>
+          {source.commits.map((c, i) => (
+            <li key={i}>
+              {c.subject} <span className="hint">{shortDay(c.date)}</span>
+            </li>
+          ))}
+        </ul>
+        {more > 0 && <p className="hint">{t.source.more(more)}</p>}
+        {source.error && <p className="warn">{t.source.failed(source.error)}</p>}
+        <p className="hint">
+          <Inline md={how} />
+        </p>
+      </div>
     </div>
   );
 }
@@ -537,27 +514,17 @@ export function SourcePill({ source }: { source: SourceUpdate }) {
 export function OldBunPill({ version }: { version: string }) {
   return (
     <div className="pill restart old-bun" id="old-bun">
-      <Tooltip
-        rich
-        side="top"
-        align="start"
-        content={
-          <>
-            <p>
-              <b>{t.oldBun.title}</b>
-            </p>
-            <p>{t.oldBun.why(version)}</p>
-            <p>
-              <Inline md={t.oldBun.how} />
-            </p>
-          </>
-        }
-      >
-        <span className="pill-text">
-          <span className="warn">⚠</span>
-          <span className="say">{t.oldBun.pill(version)}</span>
-        </span>
-      </Tooltip>
+      <span className="warn">⚠</span>
+      <span className="say">{t.oldBun.pill(version)}</span>
+      <div className="tip why" role="tooltip">
+        <p>
+          <b>{t.oldBun.title}</b>
+        </p>
+        <p>{t.oldBun.why(version)}</p>
+        <p>
+          <Inline md={t.oldBun.how} />
+        </p>
+      </div>
     </div>
   );
 }
@@ -852,13 +819,13 @@ export const PlanView = memo(
         <div className="head">
           <Tooltip content={collapsed ? t.plan.expand : t.plan.collapse}>
             <button
-              className="fold" aria-label={collapsed ? t.plan.expand : t.plan.collapse}
-              aria-expanded={!collapsed}
-              onPointerDown={own}
-              onClick={(e) => {
-                e.stopPropagation();
-                onCollapse(item, !collapsed);
-              }}
+                className="fold" aria-label={collapsed ? t.plan.expand : t.plan.collapse}
+                aria-expanded={!collapsed}
+                onPointerDown={own}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCollapse(item, !collapsed);
+                }}
             >
               {collapsed ? <ChevronRight size={12} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={12} strokeWidth={1.75} aria-hidden="true" />}
             </button>
@@ -928,12 +895,12 @@ export const PlanView = memo(
             {replies > 0 && (
               <Tooltip content={t.plan.replied(replies)}>
                 <button
-                  className="badge replied pulse" aria-label={t.plan.replied(replies)}
-                  onPointerDown={own}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpen(item);
-                  }}
+                    className="badge replied pulse" aria-label={t.plan.replied(replies)}
+                    onPointerDown={own}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpen(item);
+                    }}
                 >
                   <TalkIcon />
                   {replies > 1 && <span>{replies}</span>}

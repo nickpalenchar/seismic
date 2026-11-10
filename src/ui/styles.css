@@ -417,6 +417,8 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
 #status .pill.restart .spin { color: var(--ice); }
 #status .pill.restart .hint { color: var(--ice); opacity: .8; font-weight: 400; }
 #status .pill.restart > button { padding: 3px 10px; }
+#status .pill.restart .tip { top: auto; bottom: calc(100% + 8px); left: 0; right: auto; }
+#status .pill.restart > button .tip { left: auto; right: 0; }
 #status .pill:is(.usage, .workstations) .tip { top: auto; bottom: calc(100% + 8px); max-height: calc(100vh - 110px); }
 #status .pill:is(.usage, .workstations) .face { padding: 0 8px; border-radius: 3px; }
 #status .pill.workstations::after { top: auto; bottom: 100%; }
@@ -433,12 +435,24 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill.restart.old-bun { padding: 7px 14px; }
 .pill.restart.old-bun .warn { color: var(--waiting); font-weight: 700; }
 .pill.restart.source.by-hand { padding: 7px 14px; }
-.pill-text { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pill.restart .tip p.warn { color: var(--waiting); }
 .pill.restart .spin { display: inline-block; color: var(--working); font-weight: 700; animation: spin 2.4s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .pill.restart button { border: 0; border-radius: 3px; padding: 4px 11px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
   background: var(--chip); color: var(--ink); }
 .pill.restart button:hover { background: var(--ink); color: var(--bg); }
+.pill.restart .tip { display: none; position: absolute; top: calc(100% + 8px); right: 0; width: 360px; padding: 10px 14px; border-radius: 3px;
+  background: var(--panel); color: var(--ink); box-shadow: var(--lift); white-space: normal; font-size: 13px; font-weight: 400; line-height: 1.45;
+  text-align: left; z-index: 30; }
+.pill.restart .tip.risk { pointer-events: none; }
+/* bridges the gap to the pill, so moving the cursor up into the popout keeps it open */
+.pill.restart .tip.why::before { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 10px; }
+.pill.restart .tip.why a.from { color: var(--working); cursor: pointer; text-decoration: underline; text-decoration-color: currentColor; text-underline-offset: 2px; }
+.pill.restart .tip.why a.from:hover { text-decoration-color: currentColor; }
+.pill.restart .tip p { margin: 0 0 6px; }
+.pill.restart .tip p:last-child { margin: 0; }
+.pill.restart .tip ul { margin: 0 0 6px; padding-left: 18px; }
+.pill.restart:hover:not(:has(button:hover)) > .tip.why, .pill.restart > .tip.why:hover, .pill.restart button:hover > .tip.risk { display: block; }
 /* the left menu (src/ui/nav.tsx), under ☰ or docked on the left, and the floating row's project switcher:
    the projects */
 .nav-pill { position: relative; }

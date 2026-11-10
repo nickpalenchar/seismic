@@ -17,6 +17,7 @@ import { phoneView } from './phone';
 import { t } from './strings';
 import { Button, LinkButton } from './components/button';
 import { SegmentedControl } from './components/segmented';
+import { Tooltip } from './components/tooltip';
 
 /** How many lines the change list shows before "and N more ▾" where it is not folded to the result; the file picked shows too. */
 const FOLD = 8;
@@ -337,9 +338,11 @@ function FileView({ item, file, rev, changes, onChanges }: { item: Item; file: S
             {t.files.show}
           </LinkButton>
           {' · '}
-          <a className="link" href={cardFile(item.id, file.path, true)} title={t.files.download} aria-label={t.files.download}>
-            ↓
-          </a>
+          <Tooltip content={t.files.download}>
+            <a className="link" href={cardFile(item.id, file.path, true)} aria-label={t.files.download}>
+              ↓
+            </a>
+          </Tooltip>
         </span>
       </div>
       {note && <p className="hint">{note}</p>}

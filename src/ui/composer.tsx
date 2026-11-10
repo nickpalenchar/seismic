@@ -270,15 +270,15 @@ export function Composer({
           {talk && (
             <Tooltip content={t.voice.dictate}>
               <button
-                ref={mic}
-                className={dictation === 'listening' ? 'c-mic on' : 'c-mic'} aria-label={t.voice.dictate}
-                onPointerDown={(e) => {
-                  // the cursor stays in the field, or goes there: what is said is written into it
-                  e.preventDefault();
-                  field.current?.focus();
-                  talk();
-                }}
-                onContextMenu={(e) => e.preventDefault()}
+                  ref={mic}
+                  className={dictation === 'listening' ? 'c-mic on' : 'c-mic'} aria-label={t.voice.dictate}
+                  onPointerDown={(e) => {
+                    // the cursor stays in the field, or goes there: what is said is written into it
+                    e.preventDefault();
+                    field.current?.focus();
+                    talk();
+                  }}
+                  onContextMenu={(e) => e.preventDefault()}
               >
                 <MicIcon size={18} />
               </button>
@@ -289,9 +289,11 @@ export function Composer({
               {action}
             </Button>
           ) : (
-            <Button variant="primary" className="c-send c-arrow" title={label} aria-label={label} disabled={!ready} onMouseDown={keepFocus} onClick={send}>
-              <ArrowUp size={16} strokeWidth={2.25} aria-hidden="true" />
-            </Button>
+            <Tooltip content={label}>
+              <Button variant="primary" className="c-send c-arrow" aria-label={label} disabled={!ready} onMouseDown={keepFocus} onClick={send}>
+                <ArrowUp size={16} strokeWidth={2.25} aria-hidden="true" />
+              </Button>
+            </Tooltip>
           )}
         </div>
       </div>

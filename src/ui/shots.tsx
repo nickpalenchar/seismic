@@ -315,14 +315,14 @@ export function AttachButton({ shots, title = t.shots.attach }: { shots: ShotInp
     <>
       <Tooltip content={title}>
         <button
-          className="c-attach" aria-label={title}
-          // the cursor stays in the field: on a phone the keyboard stays up, and the field does not jump away from under the finger
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            const el = document.activeElement;
-            typing.current = el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement ? el : null;
-            shots.picker.current?.click();
-          }}
+            className="c-attach" aria-label={title}
+            // the cursor stays in the field: on a phone the keyboard stays up, and the field does not jump away from under the finger
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const el = document.activeElement;
+              typing.current = el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement ? el : null;
+              shots.picker.current?.click();
+            }}
         >
           <ImageIcon size={18} strokeWidth={1.75} aria-hidden="true" />
         </button>

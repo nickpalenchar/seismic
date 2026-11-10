@@ -85,9 +85,9 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
     <div className="chats-head" ref={head}>
       <Tooltip content={waiting ? `${t.koordinator.chatsOpen} · ${t.koordinator.unreadCount(waiting)}` : t.koordinator.chatsOpen}>
         <button
-          className={['chats-btn', waiting> 0 && 'waits'].filter(Boolean).join(' ')} aria-label={t.koordinator.chatsOpen}
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
+            className={['chats-btn', waiting> 0 && 'waits'].filter(Boolean).join(' ')} aria-label={t.koordinator.chatsOpen}
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
         >
           <Menu size={18} />
         </button>

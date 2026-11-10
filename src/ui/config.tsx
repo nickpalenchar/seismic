@@ -638,10 +638,11 @@ function Info({ text }: { text: string }) {
   return (
     <Tooltip content={text} side="bottom" align="start" open={open} onOpenChange={setOpen} delayDuration={0}>
       <button
-          type="button"
-          className={open ? 'cfg-info on' : 'cfg-info'}
-          aria-label={t.config.info}
-          onClick={(e) => (e.preventDefault(), setOpen(true))}
+            type="button"
+            className={open ? 'cfg-info on' : 'cfg-info'}
+            aria-label={t.config.info}
+            // the trigger closes the tip on a click once this handler has run: open it again after that
+          onClick={(e) => (e.preventDefault(), setTimeout(() => setOpen(true)))}
       >
         <InfoIcon size={14} strokeWidth={1.75} aria-hidden="true" />
       </button>
@@ -2295,9 +2296,11 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
               {[true, false].map((earlier) => {
                 const label = earlier ? t.config.moveUp : t.config.moveDown;
                 return (
-                  <Button key={label} size="small" className="qmove" disabled={earlier ? n === 0 : last} title={label} aria-label={label} onClick={() => onMove(earlier)}>
-                    {earlier ? '↑' : '↓'}
-                  </Button>
+                  <Tooltip key={label} content={label}>
+                    <Button size="small" className="qmove" disabled={earlier ? n === 0 : last} aria-label={label} onClick={() => onMove(earlier)}>
+                      {earlier ? '↑' : '↓'}
+                    </Button>
+                  </Tooltip>
                 );
               })}
             </span>

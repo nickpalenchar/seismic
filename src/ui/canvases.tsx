@@ -266,9 +266,11 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
     onClose();
   };
   const choice = (value: string | null, label: string, mark: ReactNode) => (
-    <Radio key={value ?? NO_ICON} value={value ?? NO_ICON} className="cicon" title={label} aria-label={label}>
-      {mark}
-    </Radio>
+    <Tooltip key={value ?? NO_ICON} content={label}>
+      <Radio value={value ?? NO_ICON} className="cicon" aria-label={label}>
+        {mark}
+      </Radio>
+    </Tooltip>
   );
   return (
     <div id="canvas-dialog" onClick={onClose}>

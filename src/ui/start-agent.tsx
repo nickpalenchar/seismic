@@ -6,6 +6,7 @@ import { useMenuClose } from './queue';
 import { updateDraft, useDraft } from './draft';
 import { failText, t } from './strings';
 import { Button, type ButtonVariant, LinkButton } from './components/button';
+import { Tooltip } from './components/tooltip';
 
 /** What a worker on the shown project starts with: its own models over Configuration's. */
 const workerDefault = () => api.shownProjectSettings().then((v) => projectAgentSetting('worker', v.agents.worker, v.settings.agents));
@@ -166,9 +167,9 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
         <span>{label}</span>
         {!selectionOnly && (picked ?? currentDefault) && <span className="start-agent-model">{describeAgent((picked ?? currentDefault)!, true)}</span>}
       </Button>
-      {!selectionOnly && <Button type="button" ref={chevron} variant={variant} className="start-agent-chevron" disabled={disabled || starting} aria-label={a.chooseStart} aria-haspopup="true" aria-expanded={open} title={a.chooseStart} onClick={() => (open ? close() : setOpen(true))}>
+      {!selectionOnly && <Tooltip content={a.chooseStart}><Button type="button" ref={chevron} variant={variant} className="start-agent-chevron" disabled={disabled || starting} aria-label={a.chooseStart} aria-haspopup="true" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
         <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
-      </Button>}
+      </Button></Tooltip>}
     </div>
     {!open && (startError || (checked?.key === pickedKey && checked.error)) && <p className="p-error" role="status">{startError || checked?.error}</p>}
     {open && <div className="start-agent-menu" role="group" aria-label={a.chooseStart}>

@@ -2190,9 +2190,11 @@ function DemoView({
                   {t.demo.version(shownAt + 1, all.length, demo === latest)}
                   {demo.at && ` · ${handedAt(demo.at)}`}
                   {demo.handover !== undefined && item.demo?.share?.on?.includes(demo.handover) && (
-                    <span className="on-page" title={t.share.onPageMark} aria-label={t.share.onPageMark}>
-                      <ShareIcon />
-                    </span>
+                    <Tooltip content={t.share.onPageMark}>
+                      <span className="on-page" aria-label={t.share.onPageMark}>
+                        <ShareIcon />
+                      </span>
+                    </Tooltip>
                   )}
                 </span>
                 <Tooltip content={t.demo.newer}>
