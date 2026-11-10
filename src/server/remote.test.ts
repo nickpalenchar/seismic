@@ -274,7 +274,7 @@ describe('push', () => {
     expect((await viaTailnet('/api/push')).status).toBe(401);
   });
 
-  test('a paired phone turns notifications on; a card that starts waiting is pushed to it, but not while the owner uses a page here', async () => {
+  test('a paired phone turns notifications on; a card that starts waiting is pushed to it, even while the owner uses a page here', async () => {
     await turnOn();
     const cookie = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`));
     const own = { cookie, origin: `https://${NAME}`, 'content-type': 'application/json' };
@@ -293,14 +293,14 @@ describe('push', () => {
     await until(async () => (await push.settled(), pushed.length === 1));
     expect(pushed).toEqual(['https://web.push.apple.com/QGx']);
 
-    // the owner at a page here: what starts waiting meanwhile stays on the project
+    // the owner at a page here: the phone still receives what starts waiting
     const page = new (asOwner(() => server).WebSocket)(new URL('/api/c/main/ws', server.url.href.replace('http', 'ws')));
     await new Promise((r) => (page.onopen = r));
     page.send(JSON.stringify({ type: 'here' }));
     await until(() => push.atDesk());
     project.board.work(card('Export'), { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'CSV?', options: [] } }) });
     await push.settled();
-    expect(pushed).toHaveLength(1);
+    expect(pushed).toHaveLength(1); // the second push is queued for the next minute
     page.close();
 
     // “Remove” takes the subscription with it

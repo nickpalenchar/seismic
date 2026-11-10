@@ -288,12 +288,10 @@ no pushes; the section "Other devices" says so and which devices have them on.
 Seismic made a question of it: "Agent is stuck"). Not Seismic's answers in its conversation (the
 owner asked from where they are), nor cards waiting already when Seismic starts.
 
-*Not while the owner uses Seismic:* nothing is pushed while a page on this machine was in use in the
-last three minutes, or while a page on a paired device is in use. A page is in use while in view and
-the owner moved, typed or scrolled or a video played within the last half minute (it reports that
-every 30 s and on coming into view); a project left in view with nobody at it holds nothing off. The
-phone view is in use whenever in view, and its hold ends at once when it goes out of view, closes or
-is silent for 45 s. What starts waiting while the owner is there is not pushed later either.
+*Per device:* a paired device whose page is in view receives no push; other devices still receive
+one even when the desktop or another device is in use. A phone page stops holding its own pushes off
+when it goes out of view, closes or is silent for 45 seconds. What starts waiting while that page
+is in view is not pushed to it later either.
 
 Pushes go `Urgency: high`, which lets the push service wake a sleeping phone; whether it does is the
 phone's choice (Android held Chrome's messages until unlock on the owner's Pixel, 2026-10-16).

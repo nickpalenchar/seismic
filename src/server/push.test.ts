@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { Item } from '../core/types';
 import { Store } from './store';
 import { UNUSED_MS } from './remote';
-import { DESK_MS, DEVICE_MS, kindOf, plainTitle, Push, startedWaiting, type Waits } from './push';
+import { DEVICE_MS, kindOf, plainTitle, Push, startedWaiting, type Waits } from './push';
 import { b64u, type Bytes, fromB64u, type Post } from './webpush';
 
 const subtle = crypto.subtle;
@@ -107,15 +107,31 @@ describe('Push', () => {
     expect((await shown())[0]!.url).toBe(`/p/shop/c/${card!.short}`);
   });
 
-  test('nothing is pushed while the owner used a page at the machine in the last minutes', async () => {
-    const { push, shown, tick } = await setup();
+  test('an active desktop or another device does not suppress a phone push', async () => {
+    const { push, shown } = await setup();
     push.here();
-    tick(DESK_MS - 1000);
+    push.onDevice('other');
     push.waits([waits('c1')]);
-    expect(await shown()).toEqual([]);
-    tick(2000);
+    expect((await shown()).map((m) => m.tag)).toEqual(['c1']);
+  });
+
+  test('each device has its own delivery window and active device does not queue alerts', async () => {
+    const { store, push, sent, endWindow } = await setup();
+    const now = new Date().toISOString();
+    store.devices.add({ id: 'tablet', name: 'Tablet', pairedAt: now, lastSeen: now, tokenHash: 'other' });
+    const phoneSub = store.devices.pushes()[0]!.push;
+    push.subscribe('tablet', { ...phoneSub, endpoint: 'https://web.push.apple.com/tablet' });
+    push.onDevice('tablet');
+    push.waits([waits('c1')]);
+    await push.settled();
+    expect(sent.map((s) => s.url)).toEqual(['https://web.push.apple.com/abc']);
+    push.away('tablet');
     push.waits([waits('c2')]);
-    expect((await shown()).map((m) => m.tag)).toEqual(['c2']);
+    await push.settled();
+    expect(sent.map((s) => s.url)).toEqual(['https://web.push.apple.com/abc', 'https://web.push.apple.com/tablet']);
+    endWindow();
+    await push.settled();
+    expect(sent.map((s) => s.url)).toEqual(['https://web.push.apple.com/abc', 'https://web.push.apple.com/tablet', 'https://web.push.apple.com/abc']);
   });
 
   test('nothing is pushed while a page on the phone is in view, and again from when it goes out of view', async () => {
@@ -160,13 +176,13 @@ describe('Push', () => {
     expect(await shown()).toHaveLength(4);
   });
 
-  test('the owner back at the machine within the minute: what it collected stays there', async () => {
+  test('the owner back at the machine does not suppress queued pushes', async () => {
     const { push, shown, endWindow } = await setup();
     push.waits([waits('c1')]);
     push.waits([waits('c2')]);
     push.here();
     endWindow();
-    expect(await shown()).toHaveLength(1);
+    expect(await shown()).toHaveLength(2);
   });
 
   test('a subscription its push service no longer knows goes', async () => {

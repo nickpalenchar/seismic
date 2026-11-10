@@ -3,9 +3,8 @@
 // that failed, a worker that is stuck. Each paired device that turned notifications on holds one
 // subscription; Seismic signs with a VAPID key of its own in its home and needs no account.
 //
-// Nothing goes out while the owner uses Seismic: a page at the machine that was in view and used in the
-// last `DESK_MS`, or one on a paired device that is in view (a phone in their hand). The first push goes out at once; what starts waiting within `WINDOW_MS` after it
-// goes out as one push at the end of that minute.
+// Each device is independent: a visible phone holds off only its own pushes. The first push goes
+// out at once; what starts waiting in the next minute is sent together at its end.
 
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,7 +16,7 @@ import type { Store } from './store';
 import { UNUSED_MS } from './remote';
 import { newVapidJwk, type Post, type PushMessage, send, subscriptionOf, type Vapid, vapidOf } from './webpush';
 
-/** How long after the owner last used a page at the machine nothing is pushed. */
+/** How long a page at the machine counts as recently used. */
 export const DESK_MS = 3 * 60_000;
 /** How long a page on a paired device counts as in view after it last said so (every 30 s). */
 export const DEVICE_MS = 45_000;
@@ -66,8 +65,8 @@ export class Push {
   private desk = -Infinity;
   /** The paired devices with a page in view, by id, and when it last said so. */
   private devices = new Map<string, number>();
-  /** The minute after a push: what starts waiting meanwhile, by card. */
-  private window: Map<string, Waits> | null = null;
+  /** Per device, the minute after a push and what starts waiting meanwhile. */
+  private windows = new Map<string, Map<string, Waits>>();
   /** Deliveries, one after the other. */
   private sending: Promise<void> = Promise.resolve();
 
@@ -120,7 +119,7 @@ export class Push {
     return this.subscriptions().some((p) => p.id === device);
   }
 
-  /** The owner used a page at the machine: nothing is pushed for `DESK_MS`. */
+  /** The owner used a page at the machine. */
   here() {
     this.desk = this.now();
   }
@@ -130,7 +129,7 @@ export class Push {
     return this.now() - this.desk < DESK_MS;
   }
 
-  /** A page on paired device `device` is in view: nothing is pushed until it goes out of view (`away`), or says nothing for `DEVICE_MS`. */
+  /** A page on paired device `device` is in view until it goes away or falls silent. */
   onDevice(device: string) {
     this.devices.set(device, this.now());
   }
@@ -145,35 +144,35 @@ export class Push {
     return [...this.devices.values()].some((at) => this.now() - at < DEVICE_MS);
   }
 
-  /** Whether the owner uses Seismic, at the machine or on a device; the server's log says why a phone got nothing. */
-  private inUse(cards: Waits[]): boolean {
-    const where = this.atDesk() ? 'at the machine' : this.onADevice() && 'on a device';
-    if (where) console.log(`Seismic: not pushed, the owner is ${where}: ${cards.map((w) => `“${plainTitle(w.title)}”`).join(', ')}`);
-    return !!where;
-  }
-
-  /** Cards that started to wait for the owner. */
+  /** Cards that started to wait for the owner, independently for each device. */
   waits(cards: Waits[]) {
-    if (!cards.length || !this.subscriptions().length) return;
-    if (this.inUse(cards)) return;
-    if (this.window) {
-      for (const w of cards) this.window.set(w.card, w);
-      return;
+    if (!cards.length) return;
+    for (const { id } of this.subscriptions()) {
+      if (this.deviceInView(id)) continue;
+      const window = this.windows.get(id);
+      if (window) {
+        for (const w of cards) window.set(w.card, w);
+        continue;
+      }
+      const [first, ...rest] = cards;
+      this.windows.set(id, new Map(rest.map((w) => [w.card, w])));
+      this.deliver(id, this.message([first!]));
+      this.later(() => this.windowEnds(id), WINDOW_MS);
     }
-    const [first, ...rest] = cards;
-    this.window = new Map(rest.map((w) => [w.card, w]));
-    this.deliver(this.message([first!]));
-    this.later(() => this.windowEnds(), WINDOW_MS);
   }
 
-  /** The minute after a push is over: what started waiting meanwhile, and still waits, goes out as one push. */
-  private windowEnds() {
-    const cards = [...(this.window?.values() ?? [])].filter((w) => w.still());
-    this.window = null;
-    if (!cards.length || this.inUse(cards)) return;
-    this.window = new Map();
-    this.deliver(this.message(cards));
-    this.later(() => this.windowEnds(), WINDOW_MS);
+  private deviceInView(id: string): boolean {
+    return this.now() - (this.devices.get(id) ?? -Infinity) < DEVICE_MS;
+  }
+
+  /** Deliver the cards still waiting, unless this device is now in view. */
+  private windowEnds(id: string) {
+    const cards = [...(this.windows.get(id)?.values() ?? [])].filter((w) => w.still());
+    this.windows.delete(id);
+    if (!cards.length || this.deviceInView(id) || !this.subscribed(id)) return;
+    this.windows.set(id, new Map());
+    this.deliver(id, this.message(cards));
+    this.later(() => this.windowEnds(id), WINDOW_MS);
   }
 
   private message(cards: Waits[]): PushMessage {
@@ -191,12 +190,12 @@ export class Push {
     return row ? `/p/${encodeURIComponent(row.project_id)}/c/${row.short}` : `/?card=${encodeURIComponent(id)}`;
   }
 
-  /** Sends `message` to every device that gets pushes; a subscription its push service no longer knows goes. */
-  private deliver(message: PushMessage) {
+  /** Sends to one device; a subscription its push service no longer knows goes. */
+  private deliver(device: string, message: PushMessage) {
     this.sending = this.sending.then(async () => {
       const vapid = await this.keys();
       await Promise.all(
-        this.subscriptions().map(async ({ id, name, push }) => {
+        this.subscriptions().filter(({ id }) => id === device).map(async ({ id, name, push }) => {
           try {
             const status = await send(push, message, vapid, this.post);
             console.log(`Seismic: pushed “${message.title}” to ${name}: ${status === 201 ? 'taken' : status}`);
