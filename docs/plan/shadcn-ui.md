@@ -71,7 +71,9 @@ compiles (and its optimizer rewrites) the whole file that imports Tailwind, whic
 cards' color-mix into solid green when the stylesheet imported it. `components.json` for the shadcn CLI (the
 Radix build, matching the `radix-ui` package in use; `@/*` is `src/ui/*` in `tsconfig.json`). The
 CLI writes `cn` from shadcn's own `cn` package (a compiled clsx + tailwind-merge), so that is the
-helper, with no `lib/utils.ts`; `tw-animate-css` if the generated parts need it. shadcn parts go into `src/ui/components/` (replacing
+helper; `src/ui/lib/utils.ts` re-exports it where `components.json`'s `utils` alias points, for registry
+parts (AI Elements) that import it from there, and `components/registry.test.ts` checks that every alias
+resolves; `tw-animate-css` if the generated parts need it. shadcn parts go into `src/ui/components/` (replacing
 our same-named files), AI Elements into `src/ui/components/ai/`. Generated files are ours once
 copied: edited freely, with frost's needs written into them rather than patched over by overrides.
 
