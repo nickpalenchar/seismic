@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
 import { failText, t } from './strings';
+import { Button } from './components/button';
 
 type State = 'none' | 'install' | 'ask' | 'on';
 
@@ -60,8 +61,8 @@ export function Notify() {
   return (
     <div className="ph-notify">
       <span>{n.why}</span>
-      <button
-        className="btn primary"
+      <Button
+        variant="primary"
         onClick={async () => {
           // iOS asks only from a tap, and only once
           const p = await Notification.requestPermission();
@@ -70,7 +71,7 @@ export function Notify() {
         }}
       >
         {n.turnOn}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { scrollBehavior } from './motion';
 import { PdfPages } from './pdf';
 import { phoneView } from './phone';
 import { t } from './strings';
+import { Button, LinkButton } from './components/button';
 
 /** How many lines the change list shows before "and N more ▾" where it is not folded to the result; the file picked shows too. */
 const FOLD = 8;
@@ -215,16 +216,16 @@ export function ChangeList({
       {(toggle || total) && (
         <div className="cl-foot">
           {toggle && (
-            <button className="link cl-more" aria-expanded={more} onClick={() => setMore(!more)}>
+            <LinkButton className="cl-more" aria-expanded={more} onClick={() => setMore(!more)}>
               {more ? `${t.files.less} ▴` : `${counted ? t.files.changed(hidden) : t.files.more(hidden)} ▾`}
-            </button>
+            </LinkButton>
           )}
           {toggle && total && ' · '}
           {total && (
-            <button className="link diff-size" title={t.diff.show} onClick={() => setWhole(true)}>
+            <LinkButton className="diff-size" title={t.diff.show} onClick={() => setWhole(true)}>
               <Lines n={total} />
               {!counted && ` ${t.diff.size(total.files)}`}
-            </button>
+            </LinkButton>
           )}
         </div>
       )}
@@ -244,9 +245,9 @@ function Line({ row, on, onPick, onDiff, tabs }: { row: ChangeRow; on: boolean; 
   const onLines = onPick ? () => onPick(row.file?.diff ? true : undefined) : onDiff;
   const count = (text: string) =>
     onLines ? (
-      <button className="link cl-lines" title={onPick ? t.files.showChanges : t.diff.showFile} onClick={(e) => (e.stopPropagation(), onLines())}>
+      <LinkButton className="cl-lines" title={onPick ? t.files.showChanges : t.diff.showFile} onClick={(e) => (e.stopPropagation(), onLines())}>
         {text}
-      </button>
+      </LinkButton>
     ) : (
       text
     );
@@ -325,13 +326,13 @@ function FileView({ item, file, rev, changes, onChanges }: { item: Item; file: S
         )}
         {changes && <DiffStyleSwitch />}
         <span className="r-ways">
-          <button className="link" title={t.files.openHint} onClick={() => open(false)}>
+          <LinkButton title={t.files.openHint} onClick={() => open(false)}>
             {t.files.open}
-          </button>
+          </LinkButton>
           {' · '}
-          <button className="link" title={t.files.showHint} onClick={() => open(true)}>
+          <LinkButton title={t.files.showHint} onClick={() => open(true)}>
             {t.files.show}
-          </button>
+          </LinkButton>
           {' · '}
           <a className="link" href={cardFile(item.id, file.path, true)} title={t.files.download} aria-label={t.files.download}>
             ↓
@@ -377,9 +378,9 @@ function Shown({ item, file, url, rev, onOpen }: { item: Item; file: ShownFile; 
         <div className="r-tile">
           <span className="r-tile-name">{base(file.path)}</span>
           <span className="hint">{t.files.other}</span>
-          <button className="btn" title={t.files.openHint} onClick={onOpen}>
+          <Button title={t.files.openHint} onClick={onOpen}>
             {t.files.open}
-          </button>
+          </Button>
         </div>
       );
   }

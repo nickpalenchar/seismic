@@ -10,6 +10,7 @@ import type { ProjectSnapshot, Item } from '../core/types';
 import { plainTitle, startedWaiting } from '../core/waits';
 import { api } from './api';
 import { t } from './strings';
+import { Button } from './components/button';
 
 type Tauri = { invoke: (cmd: string, args?: unknown) => Promise<unknown> };
 const tauri = (): Tauri | undefined => (window as unknown as { __TAURI_INTERNALS__?: Tauri }).__TAURI_INTERNALS__;
@@ -114,12 +115,12 @@ export function NotifyAsk({ ask, answer }: { ask: boolean; answer: (on: boolean)
       <strong>{n.title}</strong>
       <span>{n.ask}</span>
       <div className="notify-ask-actions">
-        <button className="btn primary" onClick={() => answer(true)}>
+        <Button variant="primary" onClick={() => answer(true)}>
           {n.turnOn}
-        </button>
-        <button className="btn" onClick={() => answer(false)}>
+        </Button>
+        <Button onClick={() => answer(false)}>
           {n.no}
-        </button>
+        </Button>
       </div>
     </div>
   );

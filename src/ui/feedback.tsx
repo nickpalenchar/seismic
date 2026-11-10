@@ -10,6 +10,7 @@ import { dropDraft, rateDraft, updateDraft, useDraft } from './draft';
 import { plain } from './markdown';
 import { OpenPerformance } from './performance';
 import { failText, t } from './strings';
+import { Button, LinkButton } from './components/button';
 
 /** Stars and the comment for the card's approved work; `prompt`: the one after the approval, with its title and "Skip". */
 export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; onClose?: () => void }) {
@@ -78,9 +79,9 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
         </span>
         {shown > 0 && <span className="rate-name">{t.feedback.stars[shown - 1]}</span>}
         {prompt && (
-          <button type="button" className="btn rate-skip" title={rating || text ? undefined : t.feedback.skipHint} disabled={busy} onClick={() => (text ? void sendComment() : onClose?.())}>
+          <Button type="button" className="rate-skip" title={rating || text ? undefined : t.feedback.skipHint} disabled={busy} onClick={() => (text ? void sendComment() : onClose?.())}>
             {rating || text ? t.feedback.done : t.feedback.skip}
-          </button>
+          </Button>
         )}
       </div>
       {commenting && (
@@ -88,9 +89,9 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
           {saved?.comment && !draft.text ? (
             <p className="rate-given">
               {t.feedback.quoted(saved.comment)}{' '}
-              <button type="button" className="link" onClick={() => updateDraft(key, { text: saved.comment ?? '' })}>
+              <LinkButton type="button" onClick={() => updateDraft(key, { text: saved.comment ?? '' })}>
                 {t.feedback.change}
-              </button>
+              </LinkButton>
             </p>
           ) : (
             <>
@@ -104,9 +105,9 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
                 }}
               />
               {!prompt && (
-                <button type="button" className="btn" disabled={!text || busy || text === saved?.comment} onClick={() => void sendComment()}>
+                <Button type="button" disabled={!text || busy || text === saved?.comment} onClick={() => void sendComment()}>
                   {t.feedback.send}
-                </button>
+                </Button>
               )}
             </>
           )}
@@ -115,9 +116,9 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
       {error && <p className="p-error">{error}</p>}
       {thanked && !error && !prompt && <p className="hint">{t.feedback.thanks}</p>}
       {!prompt && rating > 0 && compare && (
-        <button type="button" className="link rate-compare" title={t.performance.openHint} onClick={compare}>
+        <LinkButton type="button" className="rate-compare" title={t.performance.openHint} onClick={compare}>
           {t.performance.open}
-        </button>
+        </LinkButton>
       )}
     </div>
   );

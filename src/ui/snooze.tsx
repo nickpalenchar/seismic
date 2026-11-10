@@ -8,6 +8,7 @@ import type { CardEvent, Item, Snooze } from '../core/types';
 import { api } from './api';
 import { useMenuClose } from './queue';
 import { clock, t } from './strings';
+import { Button, type ButtonVariant } from './components/button';
 
 /** The clock mark of a snoozed card and of the button that snoozes one. */
 export const ClockMark = () => (
@@ -60,7 +61,8 @@ function placeOnScreen(menu: HTMLElement, button: DOMRect) {
 export function SnoozeMenu({
   label,
   onSnooze,
-  className = 'btn',
+  variant,
+  size,
   inline = false,
   heading = t.snooze.heading,
   hint = t.snooze.hint,
@@ -71,7 +73,8 @@ export function SnoozeMenu({
 }: {
   label: string;
   onSnooze: (until: string) => void;
-  className?: string;
+  variant?: ButtonVariant;
+  size?: 'default' | 'small';
   inline?: boolean;
   heading?: string;
   hint?: string;
@@ -113,9 +116,9 @@ export function SnoozeMenu({
   const valid = !!picked && !Number.isNaN(picked.getTime()) && picked.getTime() > Date.now();
   return (
     <div className={inline ? 'snooze-box inline' : 'snooze-box'} ref={box}>
-      <button className={className} title={hint} aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
+      <Button variant={variant} size={size} title={hint} aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
         {mark && <ClockMark />} {label}
-      </button>
+      </Button>
       {open && (
         <div className="snooze-menu" role="menu" ref={menu}>
           <div className="snooze-h">{heading}</div>
@@ -133,9 +136,9 @@ export function SnoozeMenu({
               }}
             >
               <input type="datetime-local" value={value} min={fieldValue(now)} onChange={(e) => setValue(e.target.value)} autoFocus />
-              <button className="btn primary" disabled={!valid}>
+              <Button variant="primary" disabled={!valid}>
                 {set}
-              </button>
+              </Button>
             </form>
           ) : (
             <button
@@ -180,10 +183,10 @@ export function SnoozeLine({ item, e, at }: { item: Item; e: CardEvent; at: stri
         <ClockMark /> {at} · {e.text}
       </div>
       <div className="snooze-acts">
-        <button className="btn small" title={t.snooze.wakeHint} onClick={() => wake(item.id)}>
+        <Button size="small" title={t.snooze.wakeHint} onClick={() => wake(item.id)}>
           {t.snooze.wake}
-        </button>
-        <SnoozeMenu label={t.snooze.change} className="btn small" inline onSnooze={(until) => snooze(item.id, until)} />
+        </Button>
+        <SnoozeMenu label={t.snooze.change} size="small" inline onSnooze={(until) => snooze(item.id, until)} />
       </div>
     </div>
   );

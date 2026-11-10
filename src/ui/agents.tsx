@@ -17,6 +17,7 @@ import { Inline, plain } from './markdown';
 import { QueueList, useQueueSort } from './queue';
 import { useStoredState } from './stored';
 import { t } from './strings';
+import { Button } from './components/button';
 
 export type AgentsTab = 'queue' | 'all' | 'parked' | 'activity';
 type Tab = AgentsTab;
@@ -139,9 +140,9 @@ export function AgentEntry({ item: i, els, here, underway, onOpen }: { item: Ite
         text={waits && <Inline md={waits} />}
       >
         <div className="replies">
-          <button type="button" className="btn" onClick={() => onOpen(i)}>
+          <Button type="button" onClick={() => onOpen(i)}>
             {t.inbox.goToCard}
-          </button>
+          </Button>
         </div>
       </CardFace>
     </li>

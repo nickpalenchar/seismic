@@ -12,6 +12,7 @@ import { cardPath, feedbackLogPath } from './address';
 import { api } from './api';
 import { plain } from './markdown';
 import { failText, t } from './strings';
+import { Button, CloseButton, LinkButton } from './components/button';
 
 /** Opens the dashboard, where the page offers it (the project, not the phone view). */
 export const OpenPerformance = createContext<(() => void) | null>(null);
@@ -121,9 +122,9 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
     body = (
       <div className="perf-empty">
         <h3>{p.noMatch}</h3>
-        <button className="btn small" onClick={() => (setFilter({}), setPeriod('all'))}>
+        <Button size="small" onClick={() => (setFilter({}), setPeriod('all'))}>
           {p.clear}
-        </button>
+        </Button>
       </div>
     );
   else if (!comparable)
@@ -223,9 +224,7 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
   return (
     <div id="perf" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div ref={box} className="perf-box" role="dialog" aria-modal="true" aria-labelledby="perf-title" onKeyDown={trap}>
-        <button ref={close} className="cfg-close" title={t.close} aria-label={t.close} onClick={onClose}>
-          ✕
-        </button>
+        <CloseButton label={t.close} className="cfg-close" ref={close} onClick={onClose} />
         <div className="perf-main">
           <header className="perf-head">
             <h2 id="perf-title">{p.title}</h2>
@@ -254,9 +253,9 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
                   </select>
                 </label>
                 {filtered && (
-                  <button className="link perf-clear" onClick={() => (setFilter({}), setPeriod('all'))}>
+                  <LinkButton className="perf-clear" onClick={() => (setFilter({}), setPeriod('all'))}>
                     {p.clear}
-                  </button>
+                  </LinkButton>
                 )}
               </div>
               {comparable && shown.length > 0 && (

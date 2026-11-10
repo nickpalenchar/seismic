@@ -16,6 +16,7 @@ import { confirmPasteHint, pastedShots, pickedShots, usePasteHint } from './past
 import { failText, pasteKeys, t } from './strings';
 import { motionMs } from './motion';
 import { behindThumb, type Box, onto, ZOOM_EASE, ZOOM_MS } from './zoomBox';
+import { Button, CloseButton } from './components/button';
 
 /** The longest side the model looks at in detail; larger screenshots only cost upload and context. */
 export const MAX_SIDE = 2000;
@@ -263,9 +264,7 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
           <button className="open" title={t.shots.markUp} onClick={(e) => enlarge.open(id, e)}>
             <img src={imageUrl(id)} alt={t.shots.alt} />
           </button>
-          <button className="remove" title={t.shots.remove} onClick={() => shots.remove(id)}>
-            ×
-          </button>
+          <CloseButton label={t.shots.remove} size="small" className="remove" onClick={() => shots.remove(id)} />
         </span>
       ))}
       {Array.from({ length: shots.uploading }, (_, i) => (
@@ -276,9 +275,9 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
       {shots.pasteHint && (
         <div className="c-paste-hint" role="note">
           <p>{t.shots.pasteHint(pasteKeys())}</p>
-          <button className="btn small primary" onClick={confirmPasteHint}>
+          <Button variant="primary" size="small" onClick={confirmPasteHint}>
             {t.newCardHint.ok}
-          </button>
+          </Button>
         </div>
       )}
       {enlarge.view}
@@ -565,13 +564,13 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
           </svg>
           <div className="lb-bar" onClick={(e) => e.stopPropagation()}>
             {!marksKnown && <span className="lb-hint">{t.shots.markHint}</span>}
-            <button className="btn" title={t.shots.undoTitle} disabled={!marks.length} onClick={undo}>
+            <Button title={t.shots.undoTitle} disabled={!marks.length} onClick={undo}>
               <Undo2 size={14} strokeWidth={1.75} aria-hidden="true" />
               {t.shots.undo}
-            </button>
-            <button className="btn primary" onClick={close}>
+            </Button>
+            <Button variant="primary" onClick={close}>
               {t.shots.done}
-            </button>
+            </Button>
           </div>
         </>
       )}

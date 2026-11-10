@@ -7,6 +7,7 @@ import { type Bounds, PLAN_DIR_NOTE_W, planDirNoteBox, planDirNoteHeight, unionB
 import type { Item, PlanDir } from '../core/types';
 import { t } from './strings';
 import { useStoredState } from './stored';
+import { Button, CloseButton, LinkButton } from './components/button';
 
 /** Between the note and the plans below it. */
 const NOTE_GAP = 40;
@@ -72,13 +73,11 @@ export function PlanDirNote({
     >
       {dir.empty ? (
         <p>
-          <button className="x" title={t.planDir.hide} aria-label={t.planDir.hide} onClick={onHide}>
-            ×
-          </button>
+          <CloseButton label={t.planDir.hide} size="small" className="x" onClick={onHide} />
           {t.planDir.empty(where)}{' '}
-          <button className="link" title={t.planDir.changeHint} onClick={onChange}>
+          <LinkButton title={t.planDir.changeHint} onClick={onChange}>
             {t.planDir.change}
-          </button>
+          </LinkButton>
         </p>
       ) : (
         <>
@@ -91,13 +90,13 @@ export function PlanDirNote({
                 {!one && <span className="pd-why">{t.planDir.reason[o.reason]}</span>}
               </span>
               {o.preparing ? (
-                <button className="link" onClick={() => onOpen(o.preparing!)}>
+                <LinkButton onClick={() => onOpen(o.preparing!)}>
                   {t.planDir.preparing}
-                </button>
+                </LinkButton>
               ) : (
-                <button className="btn small" title={t.planDir.prepareHint} onClick={() => onPrepare(dir, o.file)}>
+                <Button size="small" title={t.planDir.prepareHint} onClick={() => onPrepare(dir, o.file)}>
                   {t.planDir.prepare}
-                </button>
+                </Button>
               )}
             </div>
           ))}

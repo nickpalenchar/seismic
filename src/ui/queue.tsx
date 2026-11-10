@@ -14,6 +14,7 @@ import { Naming } from './cardLink';
 import { plain } from './markdown';
 import { type Drag, useSortable } from './sortable';
 import { failText, t } from './strings';
+import { Button } from './components/button';
 
 /** A list under a bar's button: while it is `on`, a click anywhere beside `box` (and `also`, a list drawn elsewhere) closes it, and Esc does with `esc`. */
 export function useMenuClose(on: boolean, box: RefObject<HTMLElement | null>, close: () => void, esc = false, also?: RefObject<HTMLElement | null>) {
@@ -186,9 +187,10 @@ export function useQueueMove(item: Item, items: Item[]): { buttons: ReactNode; p
   const button = ({ earlier, past, blocked }: (typeof ways)[number]) => {
     const label = earlier ? t.queue.earlier : t.queue.later;
     return (
-      <button
+      <Button
         key={label}
-        className={['btn', 'qmove', blocked && 'stuck'].filter(Boolean).join(' ')}
+        size="small"
+        className={blocked ? 'qmove stuck' : 'qmove'}
         disabled={!past}
         title={blocked || label}
         aria-label={label}
@@ -201,7 +203,7 @@ export function useQueueMove(item: Item, items: Item[]): { buttons: ReactNode; p
       >
         {earlier ? '↑' : '↓'}
         {` ${label}`}
-      </button>
+      </Button>
     );
   };
   const shown = why?.id === item.id && (why.error || ways.some((w) => w.blocked === why.text)) ? why.text : '';

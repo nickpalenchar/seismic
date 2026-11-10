@@ -8,6 +8,7 @@ import { NewPreference, PreferenceRow } from './koordinator';
 import { Head, LanguageBlock, MotionBlock, ServerBlock, ThemeBlock } from './config';
 import { t } from './strings';
 import { WishLink } from './wish';
+import { Button, CloseButton } from './components/button';
 
 /** The dialog's sections, in the order its list shows them. */
 type PrefsSection = 'appearance' | 'rules' | 'about';
@@ -47,9 +48,9 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
           <h2>{p.title}</h2>
           <div className="cfg-ask">
             <p className="hint">{p.hint}</p>
-            <button className="btn small" onClick={onConfig}>
+            <Button size="small" onClick={onConfig}>
               {p.toConfig}
-            </button>
+            </Button>
           </div>
           <ul>
             {SECTIONS.map((s) => (
@@ -64,9 +65,7 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
             <WishLink onOpen={onClose} />
           </div>
         </nav>
-        <button className="cfg-close" title={t.close} onClick={onClose}>
-          ✕
-        </button>
+        <CloseButton label={t.close} className="cfg-close" onClick={onClose} />
         <div className="cfg-main">
           <section className="cfg-sec" hidden={section !== 'appearance'}>
             <Head title={p.sections.appearance} />

@@ -12,6 +12,7 @@ import type { ActDone } from './detail';
 import { DiffView, Lines } from './diff';
 import { atWork, ChangeList } from './files';
 import { t } from './strings';
+import { Button, LinkButton } from './components/button';
 
 /** How often an open card at work reads its change list again: its agent changes the folder as it goes. */
 const LOOK_MS = 5000;
@@ -62,7 +63,7 @@ export function FolderLine({ item, diff, sizeBelow }: { item: Item; diff: CardDi
         <>
           {below ? null : ': '}
           {below ? null : changes.length ? (
-            <button className="link diff-size" title={t.diff.show} onClick={() => setOpen(true)}>
+            <LinkButton className="diff-size" title={t.diff.show} onClick={() => setOpen(true)}>
               {t.folder.files(shownChanges(changes).length)}
               {size && (size.added || size.removed) ? (
                 <>
@@ -70,7 +71,7 @@ export function FolderLine({ item, diff, sizeBelow }: { item: Item; diff: CardDi
                   <Lines n={size} />
                 </>
               ) : null}
-            </button>
+            </LinkButton>
           ) : (
             t.folder.none
           )}
@@ -85,9 +86,9 @@ export function FolderLine({ item, diff, sizeBelow }: { item: Item; diff: CardDi
       {item.agent?.workstation && (
         <>
           {' · '}
-          <button className={copied ? 'link copied' : 'link'} title={item.agent.workstation} onClick={() => copy(item.agent!.workstation!)}>
+          <LinkButton className={copied ? 'copied' : undefined} title={item.agent.workstation} onClick={() => copy(item.agent!.workstation!)}>
             {copied ? t.diff.copied : t.diff.copyPath}
-          </button>
+          </LinkButton>
         </>
       )}
       {open && <DiffView item={item} onClose={() => setOpen(false)} onRead={() => {}} />}
@@ -132,8 +133,8 @@ export function DiscardChanges({ diff, act, onDone }: { diff: CardDiff | null; a
   const counting = left !== null;
   return (
     <>
-      <button
-        className={counting ? 'btn f-discard counting' : 'btn f-discard'}
+      <Button
+        className={counting ? 'f-discard counting' : 'f-discard'}
         title={counting ? t.folder.cancelHint : t.folder.discardHint(undoable)}
         onClick={() => setLeft(counting ? null : DISCARD_WAIT_S)}
       >
@@ -146,7 +147,7 @@ export function DiscardChanges({ diff, act, onDone }: { diff: CardDiff | null; a
             </span>
           </>
         )}
-      </button>
+      </Button>
       {counting && <span className="f-discarding">{t.folder.clickToCancel}</span>}
     </>
   );

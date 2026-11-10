@@ -21,6 +21,7 @@ import { CardFace, shownTitle, UnreadDot } from './card';
 import { type QuickReply, quickReplies } from './quickReply';
 import { useStoredState } from './stored';
 import { clock, shortDay, t } from './strings';
+import { Button } from './components/button';
 
 /** When it began: the time today, else the day. */
 export const when = (iso: string | number) => (new Date(iso).toDateString() === new Date().toDateString() ? clock(iso) : shortDay(iso));
@@ -84,9 +85,9 @@ export function CardEntry({ e, unread, here, current, onGo, onReply, onRead, els
       >
         <div className="replies">
           {quickReplies(i).map((r) => (
-            <button key={r.label} type="button" className={r.primary ? 'btn primary' : 'btn'} title={r.title} onClick={() => onReply(e.project, i, r)}>
+            <Button key={r.label} type="button" size="small" variant={r.primary ? 'primary' : 'default'} title={r.title} onClick={() => onReply(e.project, i, r)}>
               {r.label}
-            </button>
+            </Button>
           ))}
           <GoTo e={e} onGo={onGo} />
         </div>
@@ -104,9 +105,9 @@ const ProjectName = ({ name }: { name: string }) => (
 
 /** "Go to card", or "Go to Seismic" on Seismic's answer: on every entry, last and never primary. */
 const GoTo = ({ e, onGo }: { e: InboxEntry; onGo: (e: InboxEntry) => void }) => (
-  <button type="button" className="btn" onClick={() => onGo(e)}>
+  <Button type="button" onClick={() => onGo(e)}>
     {e.card ? t.inbox.goToCard : t.inbox.goToObeya}
-  </button>
+  </Button>
 );
 
 type Filter = 'all' | 'unread';

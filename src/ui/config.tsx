@@ -30,6 +30,7 @@ import { canNotify, notificationsChanged, type Permission, permission, requestPe
 import { WishLink } from './wish';
 import { projectPath } from './address';
 import { scrollBehavior } from './motion';
+import { Button, CloseButton, IconButton, LinkButton } from './components/button';
 
 declare global {
   interface Window {
@@ -378,9 +379,9 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
           <h2>{c.title}</h2>
           <div className="cfg-ask">
             <p className="hint">{c.koordinator}</p>
-            <button className="btn small" onClick={onTalk}>
+            <Button size="small" onClick={onTalk}>
               {c.askObeya}
-            </button>
+            </Button>
           </div>
           <ul>
             {SECTIONS.map((s) =>
@@ -433,16 +434,14 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
             )}
           </ul>
           <div className="cfg-nav-foot">
-            <button className="btn small" onClick={onSetup}>
+            <Button size="small" onClick={onSetup}>
               {t.setup.check}
-            </button>
+            </Button>
             <WishLink onOpen={onClose} />
           </div>
         </nav>
         {/* on the box, not in the scrolling column, so it stays in view however far that scrolls */}
-        <button className="cfg-close" title={t.close} onClick={onClose}>
-          ✕
-        </button>
+        <CloseButton label={t.close} className="cfg-close" onClick={onClose} />
         <div className="cfg-main">
           <section className="cfg-sec" hidden={section !== 'projects'}>
             {!view ? (
@@ -551,7 +550,7 @@ function ProjectExport({ projects, ids: savedIds }: { projects: ProjectConfig[];
     <p className="hint">{t.config.dataExport.hint}</p>
     <label><input type="checkbox" checked={selected === null} onChange={() => setSelected(null)} /> {t.config.dataExport.all}</label>
     {names.map((project) => <label key={project.id} style={{ display: 'block' }}><input type="checkbox" checked={selected === null || selected.includes(project.id)} onChange={(e) => setSelected(e.target.checked ? [...(selected ?? []), project.id] : (selected ?? names.map((n) => n.id)).filter((id) => id !== project.id))} /> {project.name}</label>)}
-    <p><button className="btn small" disabled={!ids.length} onClick={() => exportAs('csv')}>{t.config.dataExport.csv}</button>{' '}<button className="btn small" disabled={!ids.length} onClick={() => exportAs('json')}>{t.config.dataExport.json}</button></p>
+    <p className="cfg-export-actions"><Button size="small" disabled={!ids.length} onClick={() => exportAs('csv')}>{t.config.dataExport.csv}</Button><Button size="small" disabled={!ids.length} onClick={() => exportAs('json')}>{t.config.dataExport.json}</Button></p>
     {error && <p role="alert">{error}</p>}
   </>;
 }
@@ -579,14 +578,14 @@ function DeveloperBlock({ on }: { on: boolean }) {
       {view && (
         <>
           <Field label={l.restart} hint={view.why ? l.why[view.why] : l.restartHint}>
-            <button className="btn small" disabled={!view.restart} onClick={() => ask('restart')}>
+            <Button size="small" disabled={!view.restart} onClick={() => ask('restart')}>
               {l.restartButton}
-            </button>
+            </Button>
           </Field>
           <Field label={l.rebuild} hint={view.why ? l.why[view.why] : view.rebuildWhy ? l.why[view.rebuildWhy] : l.rebuildHint}>
-            <button className="btn small" disabled={!view.rebuild} onClick={() => ask('rebuild')}>
+            <Button size="small" disabled={!view.rebuild} onClick={() => ask('rebuild')}>
               {l.rebuildButton}
-            </button>
+            </Button>
           </Field>
         </>
       )}
@@ -751,19 +750,19 @@ function Projects({ view, draft, origin, n, projectKey, checked, changed, busy, 
       {changed && gone.length > 0 && <p className="hint warn">{c.gone(gone.join(', '))}</p>}
       {json && <pre className="c-json">{JSON.stringify(draft, null, 2)}</pre>}
       <div className="cfg-actions">
-        <button className="btn primary" disabled={!changed || busy || problems.some(blocksSaving)} onClick={() => void onSave()}>
+        <Button variant="primary" disabled={!changed || busy || problems.some(blocksSaving)} onClick={() => void onSave()}>
           {/* a configuration from the file applies while Seismic runs; one from the command line becomes the file with a restart */}
           {view.server.restarts && (view.source === 'args' || view.restarting) ? c.save : c.saveOnly}
-        </button>
+        </Button>
         {changed && (
-          <button className="btn" disabled={busy} onClick={onReset}>
+          <Button disabled={busy} onClick={onReset}>
             {c.reset}
-          </button>
+          </Button>
         )}
         {status ? <span className="hint c-status">{status}</span> : changed && draft.length > 1 && <span className="hint c-status">{c.savesAll}</span>}
-        <button className={json ? 'btn small cfg-json on' : 'btn small cfg-json'} onClick={onJson}>
+        <Button size="small" variant={json ? 'primary' : 'default'} className="cfg-json" aria-pressed={json} onClick={onJson}>
           {c.json}
-        </button>
+        </Button>
       </div>
     </>
   );
@@ -800,9 +799,9 @@ export function ServerBlock({ server }: { server: ConfigView['server'] }) {
       )}
       {/* in the app's window (app/src/main.rs), which opens a new window in the default browser */}
       {window.obeyaApp && (
-        <button className="btn small" title={c.openInBrowserHint} onClick={() => window.open(location.href, '_blank')}>
+        <Button size="small" title={c.openInBrowserHint} onClick={() => window.open(location.href, '_blank')}>
           {c.openInBrowser}
-        </button>
+        </Button>
       )}
     </>
   );
@@ -1069,9 +1068,9 @@ function FeedbackBlock({ on }: { on: boolean }) {
           {l.label}
         </label>
         {openPerformance && (
-          <button className="btn small cfg-perf" title={t.performance.openHint} onClick={openPerformance}>
+          <Button size="small" className="cfg-perf" title={t.performance.openHint} onClick={openPerformance}>
             {t.performance.open}
-          </button>
+          </Button>
         )}
       </Field>
       {status && <p className="hint c-status">{status}</p>}
@@ -1555,9 +1554,9 @@ function DemoBlock({ on }: { on: boolean }) {
               !shown.install.installed && (
                 <div className="c-install">
                   <p className="hint">{d.notInstalled(shown.install.missing.join(', '), fileSize(shown.install.mb * 1e6))}</p>
-                  <button className="btn small" disabled={installing} onClick={install}>
+                  <Button size="small" disabled={installing} onClick={install}>
                     {d.install(fileSize(shown.install.mb * 1e6))}
-                  </button>
+                  </Button>
                 </div>
               )
             )}
@@ -1567,18 +1566,18 @@ function DemoBlock({ on }: { on: boolean }) {
                 {d.problem[p]}
               </p>
             ))}
-            <button className="btn small" disabled={sampling || !shown.install.installed || !!shown.problems.length || !!shown.clips[draft.language]} onClick={listen}>
+            <Button size="small" disabled={sampling || !shown.install.installed || !!shown.problems.length || !!shown.clips[draft.language]} onClick={listen}>
               {sampling ? d.sampling : d.listen}
-            </button>
+            </Button>
           </Field>
           <div className="cfg-actions">
-            <button className="btn primary" disabled={!changed || busy} onClick={save}>
+            <Button variant="primary" disabled={!changed || busy} onClick={save}>
               {d.save}
-            </button>
+            </Button>
             {changed && (
-              <button className="btn" disabled={busy} onClick={() => setDraft(view.settings)}>
+              <Button disabled={busy} onClick={() => setDraft(view.settings)}>
                 {t.config.reset}
-              </button>
+              </Button>
             )}
             {status && <span className="hint c-status">{status}</span>}
           </div>
@@ -1779,13 +1778,13 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
       {(host === 'github' || (host === 'cloudflare' && unlisted)) && <p className="hint">{p.unlistedNote}</p>}
       <p className="hint">{p.checkNote}</p>
       <div className="personal-actions">
-        <button className="btn primary" disabled={running || !ready} onClick={() => void add(host)}>
+        <Button variant="primary" disabled={running || !ready} onClick={() => void add(host)}>
           {running ? p.adding : p.addGo}
-        </button>
+        </Button>
         {onCancel && !running && (
-          <button className="btn" onClick={onCancel}>
+          <Button onClick={onCancel}>
             {p.cancel}
-          </button>
+          </Button>
         )}
       </div>
       {job && job.running && job.lines.length > 0 && <p className="hint c-install">{job.lines.at(-1)}</p>}
@@ -1795,23 +1794,22 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
         </p>
       )}
       {job?.error && !job.running && job.offer === 'cloudflare' && (
-        <button className="btn small" onClick={() => void add('cloudflare')}>
+        <Button size="small" onClick={() => void add('cloudflare')}>
           {p.tryCloudflare}
-        </button>
+        </Button>
       )}
       {!connecting ? (
         <p className="hint personal-connect">
-          <button className="link" onClick={() => setConnecting(true)}>
+          <LinkButton onClick={() => setConnecting(true)}>
             {p.connect}
-          </button>{' '}
+          </LinkButton>{' '}
           · {p.connectIntro}
         </p>
       ) : (
         <Field label={p.connect} hint={p.connectHint}>
           <textarea className="c-path" rows={3} spellCheck={false} placeholder="obeya-site:…" aria-label={p.connect} value={code} onChange={(e) => setCode(e.target.value)} />
           <div className="personal-actions">
-            <button
-              className="btn"
+            <Button
               disabled={!code.trim()}
               onClick={async () => {
                 const before = new Set(view.sites.map((x) => x.url));
@@ -1830,7 +1828,7 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
               }}
             >
               {p.connectGo}
-            </button>
+            </Button>
           </div>
         </Field>
       )}
@@ -1853,9 +1851,9 @@ function AddSitePage({ on, onBack: back }: { on: boolean; onBack: () => void }) 
   };
   return (
     <div className="add-site-page">
-      <button type="button" className="link add-site-back" onClick={onBack}>
+      <LinkButton type="button" className="add-site-back" onClick={onBack}>
         ← {p.back}
-      </button>
+      </LinkButton>
       <Head title={p.add} hint={p.addHint} />
       {view && (
         <div className="cfg-narrow">
@@ -1915,8 +1913,8 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
             {x.paths.length > 0 && <p className="hint">{p.usedBy(x.paths.map((path) => (path ? `/${path}` : p.root)).join(', '))}</p>}
             {x.needs && <p className="p-error">{p.needs(x.needs)}</p>}
             <div className="personal-actions">
-              <button
-                className="btn small"
+              <Button
+                size="small"
                 title={p.codeHint}
                 disabled={!codes[x.url]}
                 onClick={() => {
@@ -1925,15 +1923,15 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
                 }}
               >
                 {copied && copiedUrl === x.url ? p.copied : p.code}
-              </button>
+              </Button>
               {removing !== x.url ? (
-                <button className="btn small" title={p.removeHint} onClick={() => setRemoving(x.url)}>
+                <Button size="small" title={p.removeHint} onClick={() => setRemoving(x.url)}>
                   {p.remove}
-                </button>
+                </Button>
               ) : (
                 <>
-                  <button
-                    className="btn small danger"
+                  <Button
+                    variant="danger" size="small"
                     onClick={async () => {
                       setRemoving(null);
                       setStatus('');
@@ -1945,10 +1943,10 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
                     }}
                   >
                     {p.removeConfirm}
-                  </button>
-                  <button className="btn small" onClick={() => setRemoving(null)}>
+                  </Button>
+                  <Button size="small" onClick={() => setRemoving(null)}>
                     {t.config.reset}
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -1956,9 +1954,9 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
           </div>
         ))}
         {!view.sites.length && <p className="hint">{p.none}</p>}
-        <button className="btn" onClick={onAdd}>
+        <Button onClick={onAdd}>
           {view.job?.running ? p.adding : p.add}
-        </button>
+        </Button>
         {status && <p className="p-error">{status}</p>}
       </div>
     </div>
@@ -2067,8 +2065,8 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
                 <>
                   <p className="p-error">{l.needsSetup}</p>
                   <div className="personal-actions">
-                    <button
-                      className="btn primary"
+                    <Button
+                      variant="primary"
                       title={l.initHint(where)}
                       disabled={running || !project || !!site.needs}
                       onClick={async () => {
@@ -2082,7 +2080,7 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
                       }}
                     >
                       {running ? l.initializing : l.initialize}
-                    </button>
+                    </Button>
                   </div>
                   {!project && <p className="hint">{l.saveFirst}</p>}
                   {site.needs && <p className="p-error">{t.config.sites.needs(site.needs)}</p>}
@@ -2199,9 +2197,9 @@ function SetupBlock({ draft, installing }: { draft: DemoSettings; installing: bo
       <p className="hint">
         {s.guide} <code>docs/demo-setup.md</code>
       </p>
-      <button className="btn small" disabled={checking} onClick={recheck}>
+      <Button size="small" disabled={checking} onClick={recheck}>
         {checking ? s.checking : s.recheck}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -2254,18 +2252,18 @@ function VoiceBlock({ on }: { on: boolean }) {
         </p>
       ) : view.fetch.mb ? (
         <div className="c-install">
-          <button className="btn small" disabled={blocked} onClick={install}>
+          <Button size="small" disabled={blocked} onClick={install}>
             {v.install(fileSize(view.fetch.mb * 1e6))}
-          </button>
+          </Button>
         </div>
       ) : (
         !blocked && <p className="hint">{v.ready}</p>
       )}
       {view.job?.error && !view.job.running && <p className="p-error">{v.failed(view.job.error.split('\n').at(-1) ?? '')}</p>}
       {status && <p className="hint c-status">{status}</p>}
-      <button className="btn small" disabled={checking || running} onClick={recheck}>
+      <Button size="small" disabled={checking || running} onClick={recheck}>
         {checking ? s.checking : s.recheck}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -2330,9 +2328,9 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
               {[true, false].map((earlier) => {
                 const label = earlier ? t.config.moveUp : t.config.moveDown;
                 return (
-                  <button key={label} className="btn qmove" disabled={earlier ? n === 0 : last} title={label} aria-label={label} onClick={() => onMove(earlier)}>
+                  <Button key={label} size="small" className="qmove" disabled={earlier ? n === 0 : last} title={label} aria-label={label} onClick={() => onMove(earlier)}>
                     {earlier ? '↑' : '↓'}
-                  </button>
+                  </Button>
                 );
               })}
             </span>
@@ -2405,15 +2403,15 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
               );
             })}
           </div>
-          <button
-            className="btn small"
+          <Button
+            size="small"
             onClick={() => {
               onChange({ ...project, repos: [...project.repos, { path: '' }] });
               setAt(project.repos.length);
             }}
           >
             {t.config.addRepo}
-          </button>
+          </Button>
         </div>
       </Field>
       {repo && (
@@ -2889,9 +2887,9 @@ function TagProposal({ path, current, language, onTags }: { path: string; curren
   if (!available && !running) return null;
   return (
     <div className="wide tag-propose">
-      <button
+      <Button
         type="button"
-        className="btn small"
+        size="small"
         title={c.siteTagsProposeHint}
         disabled={running}
         onClick={async () => {
@@ -2905,22 +2903,21 @@ function TagProposal({ path, current, language, onTags }: { path: string; curren
         }}
       >
         {running ? c.siteTagsProposing : c.siteTagsPropose}
-      </button>
+      </Button>
       {running && <p className="hint">{c.siteTagsProposeHint}</p>}
       {taken && (
         <p className="hint">
           {c.siteTagsProposed} {taken.why}{' '}
           {taken.before && (
-            <button
+            <LinkButton
               type="button"
-              className="link"
               onClick={() => {
                 onTags(taken.before);
                 setTaken(null);
               }}
             >
               {c.siteTagsBefore}
-            </button>
+            </LinkButton>
           )}
         </p>
       )}
@@ -2997,9 +2994,9 @@ function ShareSettings({ repo, values, branch, shareTo, shareDirect, takeover }:
         {!done && !count && <p className="hint">{c.none}</p>}
         {!done && count > 0 && !confirming && (
           <>
-            <button type="button" className="btn small" disabled={!saved && !prepare} onClick={() => setConfirming(true)}>
+            <Button type="button" size="small" disabled={!saved && !prepare} onClick={() => setConfirming(true)}>
               {c.button(count)}
-            </button>
+            </Button>
             <p className="hint">{saved || prepare ? `${c.hint}${repo.settings?.branch ? ` ${c.hintBranch}` : ''}` : c.saveFirst}</p>
           </>
         )}
@@ -3013,17 +3010,17 @@ function ShareSettings({ repo, values, branch, shareTo, shareDirect, takeover }:
               {JSON.stringify(sharedPreview(repo, values), null, 2)}
             </pre>
             <div className="cfg-share-actions">
-              <button type="button" className="btn primary small" disabled={busy} onClick={() => go()}>
+              <Button type="button" variant="primary" size="small" disabled={busy} onClick={() => go()}>
                 {shareTo === 'main' ? c.commit : c.openPr}
-              </button>
+              </Button>
               {shareTo === 'pr' && shareDirect && (
-                <button type="button" className="btn small" disabled={busy} onClick={() => go(true)}>
+                <Button type="button" size="small" disabled={busy} onClick={() => go(true)}>
                   {c.pushDirect(branch)}
-                </button>
+                </Button>
               )}
-              <button type="button" className="btn small" disabled={busy} onClick={() => setConfirming(false)}>
+              <Button type="button" size="small" disabled={busy} onClick={() => setConfirming(false)}>
                 {c.cancel}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -3096,18 +3093,18 @@ function OldNames({ names, onDelete }: { names: string[]; onDelete: (name: strin
               </ul>
               <p className="hint">{c.deleteOldNameSave}</p>
               <div className="review-approval-actions">
-                <button
-                  className="btn delete-old-name"
+                <Button
+                  className="delete-old-name"
                   onClick={() => {
                     onDelete(asking);
                     setAsking(null);
                   }}
                 >
                   {c.deleteOldNameConfirm}
-                </button>
-                <button className="btn" autoFocus onClick={() => setAsking(null)}>
+                </Button>
+                <Button autoFocus onClick={() => setAsking(null)}>
                   {c.deleteOldNameBack}
-                </button>
+                </Button>
               </div>
             </div>
           </div>,
@@ -3119,9 +3116,7 @@ function OldNames({ names, onDelete }: { names: string[]; onDelete: (name: strin
 
 function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button className="c-del c-remove" title={label} aria-label={label} onClick={onClick}>
-      <Trash2 size={15} strokeWidth={1.8} aria-hidden />
-    </button>
+    <IconButton icon={<Trash2 size={15} strokeWidth={1.8} aria-hidden />} label={label} size="small" variant="danger" className="c-del c-remove" onClick={onClick} />
   );
 }
 
@@ -3164,9 +3159,9 @@ function Hosts({ hosts, onChange }: { hosts: HostConfig[]; onChange: (hosts: Hos
           ))}
         </div>
       )}
-      <button className="btn small" onClick={() => onChange([...hosts, { name: '', ssh: '', root: '', clones: 2 }])}>
+      <Button size="small" onClick={() => onChange([...hosts, { name: '', ssh: '', root: '', clones: 2 }])}>
         {t.config.addHost}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -3203,9 +3198,9 @@ export function Problem({ problem, where, ask, retried, onShow }: { problem: Con
       {named ? (
         <>
           {named[0]}
-          <button type="button" className="link" onClick={() => onShow!(problem.ofProject!)}>
+          <LinkButton type="button" onClick={() => onShow!(problem.ofProject!)}>
             {problem.of}
-          </button>
+          </LinkButton>
           {named[1]}
         </>
       ) : (
@@ -3218,15 +3213,15 @@ export function Problem({ problem, where, ask, retried, onShow }: { problem: Con
         </details>
       )}
       {retried && START_FAILED.includes(problem.code) && (
-        <button className="btn small" disabled={retrying} onClick={() => void retry()}>
+        <Button size="small" disabled={retrying} onClick={() => void retry()}>
           {t.config.retry}
-        </button>
+        </Button>
       )}
       {error && <p>{error}</p>}
       {/* commands to trust are the owner's to look at, not a task's to fix */}
       {ask && problem.code !== 'untrusted' && (
-        <button
-          className="btn small"
+        <Button
+          size="small"
           disabled={asked}
           onClick={() => {
             setAsked(true);
@@ -3234,7 +3229,7 @@ export function Problem({ problem, where, ask, retried, onShow }: { problem: Con
           }}
         >
           {t.config.askFix}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -3277,9 +3272,9 @@ function TrustCommands({ path, trust, onDone }: { path: string; trust: RepoTrust
           {(g === 'claude' || g === 'codex') && blankOnly(trust, g).length > 0 && <p className="hint">{c.blankOnly(blankOnly(trust, g).join(', '))}</p>}
         </div>
       ))}
-      <button className="btn small" disabled={busy} onClick={go}>
+      <Button size="small" disabled={busy} onClick={go}>
         {c.trust}
-      </button>
+      </Button>
       {error && <p className="p-error">{error}</p>}
     </div>
   );
@@ -3320,9 +3315,9 @@ function AdapterSetup({ project, repo, takeover }: { project: string; repo: stri
         {t.config.adapterSetupHint}
         {!saved && <> {prepare ? t.config.adapterSetupSaves : t.config.adapterSetupSaveFirst}</>}
       </span>
-      <button className="btn small" disabled={busy || (!saved && !prepare)} onClick={go}>
+      <Button size="small" disabled={busy || (!saved && !prepare)} onClick={go}>
         {t.config.adapterSetup}
-      </button>
+      </Button>
       {error && <p className="p-error">{error}</p>}
     </div>
   );

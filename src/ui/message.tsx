@@ -12,6 +12,7 @@ import type { Quoted } from './reply';
 import { clip } from '../core/text';
 import { copyOrSelect } from './copy';
 import { scrollBehavior } from './motion';
+import { CloseButton, IconButton, LinkButton } from './components/button';
 
 /**
  * A message's frame: `by` places and colours it (the owner's on the right), `who` heads it with its
@@ -59,9 +60,7 @@ export function Msg({
         </button>
       )}
       {onDelete && (
-        <button className="msg-delete" title={deleteLabel} aria-label={deleteLabel} onMouseDown={(e) => e.preventDefault()} onClick={onDelete}>
-          <Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />
-        </button>
+        <IconButton icon={<Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />} label={deleteLabel ?? t.delete} size="small" variant="danger" className="msg-delete" onMouseDown={(e) => e.preventDefault()} onClick={onDelete} />
       )}
       {children}
     </div>
@@ -104,9 +103,7 @@ export function Quote({ q, onClear }: { q: Quoted; onClear?: () => void }) {
         <span className="quote-text">{q.text || '📷'}</span>
       </button>
       {onClear && (
-        <button className="quote-clear" title={t.talk.replyCancel} aria-label={t.talk.replyCancel} onMouseDown={(m) => m.preventDefault()} onClick={onClear}>
-          ×
-        </button>
+        <CloseButton label={t.talk.replyCancel} size="small" className="quote-clear" onMouseDown={(m) => m.preventDefault()} onClick={onClear} />
       )}
     </div>
   );
@@ -302,9 +299,9 @@ export function AnswerFiles({ thread, files }: { thread: number; files?: AnswerF
             </a>
           </span>
         ))}
-        <button className="link file-folder" title={t.answer.showFolderHint} onMouseDown={(e) => e.preventDefault()} onClick={() => void open()}>
+        <LinkButton className="file-folder" title={t.answer.showFolderHint} onMouseDown={(e) => e.preventDefault()} onClick={() => void open()}>
           {t.answer.showFolder}
-        </button>
+        </LinkButton>
       </div>
     </div>
   );

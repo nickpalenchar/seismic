@@ -10,6 +10,7 @@ import type { DiffPart } from '../core/diff';
 import { api } from './api';
 import type { DiffStyle } from './diffStyle';
 import { t } from './strings';
+import { LinkButton } from './components/button';
 
 /** `light` or `dark` as the page shows it now: the owner's choice on the page's root, else the system's. */
 function useLook(): 'light' | 'dark' {
@@ -117,7 +118,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
       ) : highlight.error ? (
         <p className="hint" role="alert">
           {t.diff.highlightFailed}{' '}
-          <button className="link" onClick={() => location.reload()}>{t.diff.reloadHighlight}</button>
+          <LinkButton onClick={() => location.reload()}>{t.diff.reloadHighlight}</LinkButton>
         </p>
       ) : (
         <PierreDiff fileDiff={fileDiff} options={options} disableWorkerPool />

@@ -1,4 +1,4 @@
-import { Car, Check, Lightbulb, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, SquarePlus, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Car, Check, Lightbulb, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, SquarePlus, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
 // The unfolded card: what it is, what its worker does, and what the owner decides.
 
@@ -51,6 +51,7 @@ import { claudeLoginFailed } from '../core/login';
 import { Reauthenticate } from './reauthenticate';
 import { describeAgent, StartAgent } from './start-agent';
 import type { AgentSetting } from '../core/types';
+import { Button, type ButtonVariant, CloseButton, LinkButton } from './components/button';
 
 /**
  * What the panel does after an action: fold the card and confirm (with undo, when it has one), or stay open.
@@ -162,9 +163,9 @@ function QueuePlace({ item, items }: { item: Item; items: Item[] }) {
     <div className="q-place" ref={box}>
       <span className="hint">{m.place}</span>
       {!open && m.buttons}
-      <button className="link" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <LinkButton aria-expanded={open} onClick={() => setOpen(!open)}>
         {open ? t.queue.hide : t.queue.show}
-      </button>
+      </LinkButton>
       {!open && m.why && <div className="hint why">{m.why}</div>}
       {open && (
         <div className="q-around">
@@ -318,8 +319,8 @@ export function Detail(p: Props) {
   const ideaThinking = !plan && !!p.from?.idea?.discussion?.thinking;
   const planning = !plan && !!p.from?.idea?.becomesPlan;
   const buildOn = (label: string) => (
-    <button
-      className="btn primary"
+    <Button
+      variant="primary"
       disabled={ideaThinking || planning || (!!plan && !chosen)}
       title={ideaThinking ? t.idea.prototypeWaits : planning ? t.idea.waitForPlan : plan && !chosen ? t.idea.chooseWorkstream : undefined}
       onClick={() =>
@@ -330,15 +331,15 @@ export function Detail(p: Props) {
       }
     >
       {label}
-    </button>
+    </Button>
   );
   const workstreamPick = plan && named ? (
     <div className="build-on">
       <span>
         {t.idea.buildsWorkstream(workstreamName(named))}{' '}
-        <button className="link" onClick={() => setPicking(true)}>
+        <LinkButton onClick={() => setPicking(true)}>
           {t.idea.otherWorkstream}
-        </button>
+        </LinkButton>
       </span>
     </div>
   ) : plan && (
@@ -358,9 +359,9 @@ export function Detail(p: Props) {
     <>
       {item.agent?.branch && workstreamPick}
       {item.agent?.branch && buildOn(t.idea.buildPrototype)}
-      <button className="btn" onClick={() => act({ action: 'discard' }, { close: true, ack: t.idea.discarded })}>
+      <Button onClick={() => act({ action: 'discard' }, { close: true, ack: t.idea.discarded })}>
         {t.idea.discard}
-      </button>
+      </Button>
     </>
   );
 
@@ -383,26 +384,26 @@ export function Detail(p: Props) {
     <ApproveReview c={item.review?.contribution} act={act} />
   ) : inFolder ? (
     <>
-      <button className="btn primary" title={item.review?.noChange ? undefined : t.folder.approveHint} onClick={() => act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.folder.approved, rate: item.id })}>
+      <Button variant="primary" title={item.review?.noChange ? undefined : t.folder.approveHint} onClick={() => act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.folder.approved, rate: item.id })}>
         {item.review?.noChange ? t.approveNoChange : t.approve}
-      </button>
+      </Button>
       <DiscardChanges diff={changes.diff} act={act} onDone={changes.reload} />
     </>
   ) : (
     <>
       {/* while yellow, a second line inside it says why, as on the start buttons */}
-      <button className={reviewRunning ? 'btn review-warning start-agent-main' : 'btn primary'} onClick={() => unsent ? setConfirmUnsent(true) : reviewRunning ? setConfirmReviewApproval(true) : act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id })}>
+      <Button variant={reviewRunning ? 'review-warning' : 'primary'} className={reviewRunning ? 'start-agent-main' : undefined} onClick={() => unsent ? setConfirmUnsent(true) : reviewRunning ? setConfirmReviewApproval(true) : act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id })}>
         <span>{item.review?.noChange ? t.approveNoChange : pr ? t.approvePr : t.approve}</span>
         {reviewRunning && <span className="start-agent-model">{cr?.state === 'running' || (verifying && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>}
-      </button>
+      </Button>
       {unsent > 0 && confirmUnsent && createPortal(
         <div className="review-approval-cover" onClick={() => setConfirmUnsent(false)}>
           <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="unsent-choices-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setConfirmUnsent(false); } }}>
             <h2 id="unsent-choices-title">{t.unsentChoices.title}</h2>
             <p>{t.unsentChoices.body(unsent)}</p>
             <div className="review-approval-actions">
-              <button className="btn primary" onClick={() => { setConfirmUnsent(false); void act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id }); }}>{t.unsentChoices.approve}</button>
-              <button className="btn" autoFocus onClick={() => setConfirmUnsent(false)}>{t.unsentChoices.back}</button>
+              <Button variant="primary" onClick={() => { setConfirmUnsent(false); void act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id }); }}>{t.unsentChoices.approve}</Button>
+              <Button autoFocus onClick={() => setConfirmUnsent(false)}>{t.unsentChoices.back}</Button>
             </div>
           </div>
         </div>, document.body,
@@ -413,22 +414,22 @@ export function Detail(p: Props) {
             <h2 id="review-approval-title">{t.approveDuringReview.title}</h2>
             <p>{t.approveDuringReview.body}</p>
             <div className="review-approval-actions">
-              <button className="btn primary" onClick={() => { setConfirmReviewApproval(false); void act({ action: 'approve' }, { close: true, ack: t.approved, pending: t.approving, rate: item.id }); }}>{t.approveDuringReview.land}</button>
-              <button className="btn" autoFocus onClick={() => setConfirmReviewApproval(false)}>{t.approveDuringReview.continue}</button>
+              <Button variant="primary" onClick={() => { setConfirmReviewApproval(false); void act({ action: 'approve' }, { close: true, ack: t.approved, pending: t.approving, rate: item.id }); }}>{t.approveDuringReview.land}</Button>
+              <Button autoFocus onClick={() => setConfirmReviewApproval(false)}>{t.approveDuringReview.continue}</Button>
             </div>
           </div>
         </div>, document.body,
       )}
       {/* where the owner starts code reviews themselves: beside Approve, in its own colour, until the latest handover is reviewed */}
       {asksReview && (
-        <button className="btn code-review" title={t.codeReview.startHint} onClick={() => (setTab(REVIEW), act({ action: 'codeReview' }, { close: false }))}>
+        <Button variant="code-review" title={t.codeReview.startHint} onClick={() => (setTab(REVIEW), act({ action: 'codeReview' }, { close: false }))}>
           {t.codeReview.start}
-        </button>
+        </Button>
       )}
       {direct && (
-        <button className="btn" title={t.directHint} onClick={() => act({ action: 'approve', direct: true }, { close: true, ack: t.approvedDirect, pending: t.approvingDirect, rate: item.id })}>
+        <Button title={t.directHint} onClick={() => act({ action: 'approve', direct: true }, { close: true, ack: t.approvedDirect, pending: t.approvingDirect, rate: item.id })}>
           {t.approveDirect}
-        </button>
+        </Button>
       )}
     </>
   );
@@ -468,9 +469,9 @@ export function Detail(p: Props) {
           {worked && item.agent?.branch && ' · '}
           <code>{parent.plan.file}</code>{' '}
           {readPlan && (
-            <button className="link" onClick={() => readPlan(parent, item.plan?.label)}>
+            <LinkButton onClick={() => readPlan(parent, item.plan?.label)}>
               {t.plan.readAt}
-            </button>
+            </LinkButton>
           )}
         </>
       )}
@@ -483,9 +484,9 @@ export function Detail(p: Props) {
         <>
           <div className="q-text">{t.queue.checkingLong}</div>
           <div className="actions">
-            <button className="btn" title={t.queue.checkingStopHint} onClick={() => act({ action: 'dequeue' }, { close: true, ack: t.queue.checkingStopped })}>
+            <Button title={t.queue.checkingStopHint} onClick={() => act({ action: 'dequeue' }, { close: true, ack: t.queue.checkingStopped })}>
               {t.stop}
-            </button>
+            </Button>
           </div>
         </>
       ) : 'restart' in item.queue ? (
@@ -493,9 +494,9 @@ export function Detail(p: Props) {
           <div className="q-text">{t.queue.restartLong}</div>
           <QueuePlace item={item} items={all} />
           <div className="actions">
-            <button className="btn" onClick={() => act({ action: 'dequeue' }, { close: false })}>
+            <Button onClick={() => act({ action: 'dequeue' }, { close: false })}>
               {t.queue.dequeue}
-            </button>
+            </Button>
           </div>
         </>
       ) : 'paused' in item.queue ? (
@@ -503,9 +504,9 @@ export function Detail(p: Props) {
           <div className="q-text">{t.queue.pausedLong}</div>
           <QueuePlace item={item} items={all} />
           <div className="actions">
-            <button className="btn" onClick={() => act({ action: 'dequeue' }, { close: false })}>
+            <Button onClick={() => act({ action: 'dequeue' }, { close: false })}>
               {t.queue.dequeue}
-            </button>
+            </Button>
           </div>
         </>
       ) : 'workstation' in item.queue ? (
@@ -513,16 +514,16 @@ export function Detail(p: Props) {
           <div className="q-text">
             {t.queue.workstationLong[item.queue.workstation]}{' '}
             {p.onClones && (
-              <button className="link" onClick={() => p.onClones?.(item.repo, item.queue && 'workstation' in item.queue && item.queue.workstation === 'slots' ? 'slots' : 'clones')}>
+              <LinkButton onClick={() => p.onClones?.(item.repo, item.queue && 'workstation' in item.queue && item.queue.workstation === 'slots' ? 'slots' : 'clones')}>
                 {t.queue.workstationConfig[item.queue.workstation]}
-              </button>
+              </LinkButton>
             )}
           </div>
           <QueuePlace item={item} items={all} />
           <div className="actions">
-            <button className="btn" onClick={() => act({ action: 'dequeue' }, { close: false })}>
+            <Button onClick={() => act({ action: 'dequeue' }, { close: false })}>
               {t.queue.dequeue}
-            </button>
+            </Button>
           </div>
         </>
       ) : (
@@ -535,7 +536,7 @@ export function Detail(p: Props) {
           <div className="actions">
             <StartAgent
               draft={cardDraft(item.id)}
-              tone="btn"
+              variant="default"
               saved={item.agent?.workerSetting}
               label={t.queue.force}
               codexAllowed={!inFolder && !item.review?.contribution}
@@ -545,9 +546,9 @@ export function Detail(p: Props) {
                 return act({ action: 'force', ...(agent ? { agent } : {}) }, { close: true, ack: forcedText(item.queue) });
               }}
             />
-            <button className="btn" onClick={() => act({ action: 'dequeue' }, { close: false })}>
+            <Button onClick={() => act({ action: 'dequeue' }, { close: false })}>
               {t.queue.dequeue}
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -575,8 +576,8 @@ export function Detail(p: Props) {
             <h2 id="parked-start-title">{t.parking.confirmTitle}</h2>
             <p>{t.parking.confirmText}</p>
             <div className="review-approval-actions">
-              <button className="btn primary" onClick={() => { const s = parkedStart; setParkedStart(null); void actNow(s.a, s.done); }}>{t.parking.confirm}</button>
-              <button className="btn" autoFocus onClick={() => setParkedStart(null)}>{t.parking.back}</button>
+              <Button variant="primary" onClick={() => { const s = parkedStart; setParkedStart(null); void actNow(s.a, s.done); }}>{t.parking.confirm}</Button>
+              <Button autoFocus onClick={() => setParkedStart(null)}>{t.parking.back}</Button>
             </div>
           </div>
         </div>, document.body,
@@ -603,7 +604,7 @@ export function Detail(p: Props) {
       </div>
       {where}
       {extensions.map((e, i) => { const Slot = e.slots?.detail; return Slot ? <Slot key={i} item={item} /> : null; })}
-      {extensions.some((e) => e.slots?.cardActions) && <details className="extension-actions"><summary className="btn">{t.extensionActions}</summary><div className="actions">{extensions.map((e, i) => { const Slot = e.slots?.cardActions; return Slot ? <Slot key={i} item={item} /> : null; })}</div></details>}
+      {extensions.some((e) => e.slots?.cardActions) && <details className="extension-actions"><Button asChild><summary>{t.extensionActions}</summary></Button><div className="actions">{extensions.map((e, i) => { const Slot = e.slots?.cardActions; return Slot ? <Slot key={i} item={item} /> : null; })}</div></details>}
 
       <SupersededBox item={item} all={all} act={act} onDelete={p.onDelete} />
       <RepoDownBox item={item} />
@@ -822,7 +823,7 @@ export function Detail(p: Props) {
             <Armed label={t.repoPick.making(choice.name)} undo={t.undo} onUndo={() => act({ action: 'stayHere' }, { close: false })} />
           ) : (
             !snoozeOf(item) && (
-              item.idea?.newRepo ? <button className="btn primary" disabled={!!fresh && !fresh.ready} title={fresh?.hint} onClick={() => act({ action: 'start' }, { close: false })}>{fresh?.button ?? t.start}</button> : <StartAgent
+              item.idea?.newRepo ? <Button variant="primary" disabled={!!fresh && !fresh.ready} title={fresh?.hint} onClick={() => act({ action: 'start' }, { close: false })}>{fresh?.button ?? t.start}</Button> : <StartAgent
                 draft={cardDraft(item.id)}
                 label={fresh?.button ?? t.start}
                 disabled={!!fresh && !fresh.ready}
@@ -834,8 +835,8 @@ export function Detail(p: Props) {
           )}
           {/* a suggested card it cannot merge with can still be dismissed */}
           {duplicatePartner && <span className="duplicate-merge-actions">
-            {mergeableWith(item, duplicatePartner) && <button className="btn duplicate-attempt" onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</button>}
-            <button className="btn duplicate-dismiss" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</button>
+            {mergeableWith(item, duplicatePartner) && <Button className="duplicate-attempt" onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>}
+            <Button className="duplicate-dismiss" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
           </span>}
           <Later item={item} act={act} />
           {prototypeActions}
@@ -845,8 +846,7 @@ export function Detail(p: Props) {
               {/* a task with a branch has work already, one decided as a plan goes its way: neither is discussed or planned anew */}
               {plannableAsPlan(item) && (
                 <>
-                  <button
-                    className="btn"
+                  <Button
                     title={t.idea.makeIdeaHint}
                     onClick={async () => {
                       await p.flush();
@@ -855,15 +855,15 @@ export function Detail(p: Props) {
                     }}
                   >
                     {t.idea.makeIdea}
-                  </button>
-                  <button className="btn" title={t.idea.planDocHint} onClick={() => act({ action: 'planDoc' }, { close: true, ack: t.idea.planned })}>
+                  </Button>
+                  <Button title={t.idea.planDocHint} onClick={() => act({ action: 'planDoc' }, { close: true, ack: t.idea.planned })}>
                     {t.idea.planDoc}
-                  </button>
+                  </Button>
                 </>
               )}
-              <button className="btn danger" onClick={p.onDelete}>
+              <Button variant="danger" onClick={p.onDelete}>
                 {t.delete}
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -881,15 +881,15 @@ export function Detail(p: Props) {
           {review ? prototypeActions || approveButton : (running || (halted && !item.archivedAt)) && prototypeActions}
           <Later item={item} act={act} />
           {running && (
-            <button className="btn" disabled={item.review?.landingPosition === 0} title={item.review?.landingPosition === 0 ? stateLabel(item) : t.stopHint} onClick={() => act({ action: 'stop' }, { close: true, ack: t.stopped })}>
+            <Button disabled={item.review?.landingPosition === 0} title={item.review?.landingPosition === 0 ? stateLabel(item) : t.stopHint} onClick={() => act({ action: 'stop' }, { close: true, ack: t.stopped })}>
               {t.stop}
-            </button>
+            </Button>
           )}
           {(archivable || (halted && !item.idea?.prototypeOf && item.source === 'manual')) && <ArchiveButton item={item} run={run} />}
           {halted && !item.archivedAt && item.source === 'manual' && !item.idea?.prototypeOf && (
-            <button className="btn danger" onClick={p.onDelete}>
+            <Button variant="danger" onClick={p.onDelete}>
               {t.delete}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -928,20 +928,20 @@ function ApproveReview({ c, act }: { c: Contribution; act: (a: CardAction, done:
   const go = (ack: string, pending: string) => act({ action: 'approve' }, { close: true, ack, pending });
   if (c.held?.asks.length)
     return (
-      <button className="btn primary" title={t.review.pushSendHint(c.author)} onClick={() => go(t.review.pushedSent(c.author), t.review.pushingHeld)}>
+      <Button variant="primary" title={t.review.pushSendHint(c.author)} onClick={() => go(t.review.pushedSent(c.author), t.review.pushingHeld)}>
         {t.review.pushSend(c.author)}
-      </button>
+      </Button>
     );
   const label = c.held ? (c.clash ? t.review.pushMergeAnyway(c.number) : t.review.pushMerge(c.number)) : c.clash ? t.review.mergeAnyway(c.number) : t.review.merge(c.number);
   return (
     <>
-      <button className="btn primary" title={c.clash ? t.review.mergeClashHint : c.held ? t.review.pushMergeHint : t.review.mergeHint} onClick={() => go(t.review.merged(c.number), c.held ? t.review.pushingHeld : t.review.merging)}>
+      <Button variant="primary" title={c.clash ? t.review.mergeClashHint : c.held ? t.review.pushMergeHint : t.review.mergeHint} onClick={() => go(t.review.merged(c.number), c.held ? t.review.pushingHeld : t.review.merging)}>
         {label}
-      </button>
+      </Button>
       {c.held && (
-        <button className="btn" title={t.review.pushOnlyHint} onClick={() => act({ action: 'pushChanges' }, { close: true, ack: t.review.pushed(c.number), pending: t.review.pushingHeld })}>
+        <Button title={t.review.pushOnlyHint} onClick={() => act({ action: 'pushChanges' }, { close: true, ack: t.review.pushed(c.number), pending: t.review.pushingHeld })}>
           {t.review.pushOnly}
-        </button>
+        </Button>
       )}
     </>
   );
@@ -967,12 +967,12 @@ function SupersededBox({ item, all, act, onDelete }: { item: Item; all: Item[]; 
       <h4>{s.by ? <Naming text={t.superseded.by} cards={[{ card: replacement, title: replacement?.title ?? s.title ?? '' }]} /> : t.superseded.withdrawn}</h4>
       {s.why && <div className="q-text">{s.why}</div>}
       <div className="actions">
-        <button className="btn danger" title={t.superseded.removeHint} onClick={onDelete}>
+        <Button variant="danger" title={t.superseded.removeHint} onClick={onDelete}>
           {t.superseded.remove}
-        </button>
-        <button className="btn" title={t.superseded.keepHint} onClick={() => act({ action: 'keep' }, { close: false })}>
+        </Button>
+        <Button title={t.superseded.keepHint} onClick={() => act({ action: 'keep' }, { close: false })}>
           {t.superseded.keep}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1018,8 +1018,8 @@ function useOpenQuestionsGuard(open: number) {
         <h2 id="open-questions-title">{t.startWithQuestions.title}</h2>
         <p>{t.startWithQuestions.body(open)}</p>
         <div className="review-approval-actions">
-          <button className="btn review-warning" onClick={() => { const go = pending; setPending(null); go(); }}>{t.startWithQuestions.anyway}</button>
-          <button className="btn" autoFocus onClick={() => setPending(null)}>{t.startWithQuestions.back}</button>
+          <Button variant="review-warning" onClick={() => { const go = pending; setPending(null); go(); }}>{t.startWithQuestions.anyway}</Button>
+          <Button autoFocus onClick={() => setPending(null)}>{t.startWithQuestions.back}</Button>
         </div>
       </div>
     </div>, document.body,
@@ -1055,7 +1055,7 @@ function IdeaView({
   const { guard, dialog: questionsDialog } = useOpenQuestionsGuard(idea.status === 'open' && !idea.thinking ? idea.questions.length : 0);
   // what the agent would do in the owner's place is the marked click; without a suggestion, building is
   const next = idea.status === 'open' && !idea.thinking ? idea.next : undefined;
-  const btn = (step: NextStep['step']) => (next ? (next.step === step ? 'btn primary suggested' : 'btn') : step === 'build' ? 'btn primary' : 'btn');
+  const btn = (step: NextStep['step']) => ({ variant: (next ? next.step === step : step === 'build') ? ('primary' as const) : ('default' as const), suggested: next?.step === step });
   return (
     <>
       <div className={['p-state', finishingUp(item) && 'finishing', snoozeOf(item) && 'paused'].filter(Boolean).join(' ')}>
@@ -1128,14 +1128,13 @@ function IdeaView({
           <div className="actions">
             {/* the settled part as a task of its own; the reply may change the split, so it waits for it */}
             {idea.split && (
-              <button
-                className={btn('splitOff')}
+              <Button {...btn('splitOff')}
                 disabled={idea.thinking}
                 title={t.idea.splitOffHint(idea.split.title)}
                 onClick={() => act({ action: 'splitOff' }, { close: false })}
               >
                 {t.idea.splitOff}
-              </button>
+              </Button>
             )}
             {item.idea?.newRepo?.due ? (
               <Armed label={t.repoPick.making(choice.name)} undo={t.undo} onUndo={() => act({ action: 'stayHere' }, { close: false })} />
@@ -1145,44 +1144,43 @@ function IdeaView({
               // while the agent works, the click waits for its reply in view; else the panel closes on the built card;
               // built in a new repository, it stays open for "Undo" and then follows the card to its project
               fresh ? (
-                <button className={btn('build')} disabled={!fresh.ready} title={fresh.hint} onClick={() => guard(() => void act({ action: 'build' }, { close: false }))}>
+                <Button {...btn('build')} disabled={!fresh.ready} title={fresh.hint} onClick={() => guard(() => void act({ action: 'build' }, { close: false }))}>
                   {fresh.button}
-                </button>
+                </Button>
               ) : (
                 <StartAgent
                   draft={cardDraft(item.id)}
                   label={t.idea.build}
-                  tone={btn('build').replace(' suggested', '')}
-                  suggested={btn('build').includes('suggested')}
+                  {...btn('build')}
                   codexAllowed={prototypes && !item.review?.contribution}
                   onStart={(agent) => guard(() => void act({ action: 'build', ...(agent ? { agent } : {}) }, idea.thinking ? { close: false } : { close: true, ack: t.idea.built }))}
                 />
               )
             )}
-            <button className={btn('planDoc')} disabled={idea.thinking} onClick={() => act({ action: 'planDoc' }, { close: true, ack: t.idea.planned })}>
+            <Button {...btn('planDoc')} disabled={idea.thinking} onClick={() => act({ action: 'planDoc' }, { close: true, ack: t.idea.planned })}>
               {t.idea.planDoc}
-            </button>
+            </Button>
             {prototypes && (
-              <button className={btn('prototype')} onClick={() => setPrototyping(true)}>
+              <Button {...btn('prototype')} onClick={() => setPrototyping(true)}>
                 {t.idea.prototype}
-              </button>
+              </Button>
             )}
             {idea.status !== 'parked' && (
-              <button className={btn('park')} onClick={() => act({ action: 'park' }, { close: true, ack: t.idea.parked })}>
+              <Button {...btn('park')} onClick={() => act({ action: 'park' }, { close: true, ack: t.idea.parked })}>
                 {t.idea.park}
-              </button>
+              </Button>
             )}
             {idea.status !== 'dropped' && (
-              <button className={btn('drop')} onClick={() => act({ action: 'drop' }, { close: true, ack: t.idea.dropped })}>
+              <Button {...btn('drop')} onClick={() => act({ action: 'drop' }, { close: true, ack: t.idea.dropped })}>
                 {t.idea.drop}
-              </button>
+              </Button>
             )}
             <Later item={item} act={act} />
             {/* not while a prototype of it is on the project */}
             {idea.status !== 'open' && !item.idea?.prototypes?.some((p) => !p.archivedAt) && <ArchiveButton item={item} run={run} />}
-            <button className="btn danger" onClick={onDelete}>
+            <Button variant="danger" onClick={onDelete}>
               {t.delete}
-            </button>
+            </Button>
           </div>
           {fresh && <p className="hint">{fresh.hint}</p>}
           {questionsDialog}
@@ -1231,15 +1229,14 @@ function QuestionView({ item, act, run, onTell }: { item: Item; act: (a: CardAct
           <ArchiveButton item={item} run={run} />
         ) : (
           <>
-            <button
-              className="btn"
+            <Button
               disabled={thread.thinking}
               title={thread.thinking ? t.question.asIdeaWaits : t.question.asIdeaHint}
               onClick={() => act({ action: 'asIdea' }, { close: false })}
             >
               {t.question.asIdea}
-            </button>
-            <ArchiveButton item={item} run={run} className="btn primary" label={t.question.done} hint={t.question.doneHint} />
+            </Button>
+            <ArchiveButton item={item} run={run} variant="primary" label={t.question.done} hint={t.question.doneHint} />
           </>
         )}
       </div>
@@ -1335,23 +1332,23 @@ function ProposalView({
         ) : (
           // one to start later is planned and waits until then: taking it on is all there is to it
           !idea && !later && !revising ? <StartAgent draft={cardDraft(item.id)} label={t.accept} codexAllowed={codexAllowed} onStart={(agent) => guard(() => void accept(true, false, agent))} /> :
-          <button className="btn primary" title={later ? t.startAt.accept : undefined} onClick={() => (idea || later ? accept(true) : guard(() => void accept(true)))}>{idea ? t.acceptIdea : later ? t.acceptOnly : t.accept}</button>
+          <Button variant="primary" title={later ? t.startAt.accept : undefined} onClick={() => (idea || later ? accept(true) : guard(() => void accept(true)))}>{idea ? t.acceptIdea : later ? t.acceptOnly : t.accept}</Button>
         )}
         {!later && (
-          <button className="btn" disabled={!!revising} onClick={() => accept(false)}>
+          <Button disabled={!!revising} onClick={() => accept(false)}>
             {idea ? t.acceptAsTask : t.acceptOnly}
-          </button>
+          </Button>
         )}
         {/* a task the owner would rather think through first */}
         {!idea && (
-          <button className="btn" disabled={!!armed} title={t.acceptAsIdeaHint} onClick={() => accept(false, true)}>
+          <Button disabled={!!armed} title={t.acceptAsIdeaHint} onClick={() => accept(false, true)}>
             {t.acceptAsIdea}
-          </button>
+          </Button>
         )}
         {!revising && !armed && <MergeButton item={item} all={all} act={act} />}
-        <button className="btn" onClick={() => act({ action: 'dismiss' }, { close: true, ack: t.dismissed })}>
+        <Button onClick={() => act({ action: 'dismiss' }, { close: true, ack: t.dismissed })}>
           {t.dismiss}
-        </button>
+        </Button>
         <Later item={item} act={act} />
       </div>
       {answer.questions.length > 0 && <p className="hint">{t.proposalQuestionsHint}</p>}
@@ -1370,7 +1367,7 @@ function StartAt({ item, act }: { item: Item; act: (a: CardAction, done: ActDone
       <ClockMark /> {t.startAt.line(snoozeWhen(at))} ·{' '}
       <SnoozeMenu
         label={t.snooze.change}
-        className="link"
+        variant="link"
         mark={false}
         heading={t.startAt.heading}
         hint={t.startAt.accept}
@@ -1387,12 +1384,12 @@ function StartAt({ item, act }: { item: Item; act: (a: CardAction, done: ActDone
 function Armed({ label, undo, onUndo }: { label: string; undo: string; onUndo: () => void }) {
   return (
     <>
-      <button className="btn primary armed" disabled aria-pressed>
+      <Button variant="primary" armed disabled aria-pressed>
         {label}
-      </button>
-      <button className="btn" onClick={onUndo}>
+      </Button>
+      <Button onClick={onUndo}>
         {undo}
-      </button>
+      </Button>
     </>
   );
 }
@@ -1732,7 +1729,7 @@ function Description({ item }: { item: Item }) {
   return <div className="description-edit">
     {editing ? <>
       <LinkField self={item} className="p-body" value={body} placeholder={t.bodyPlaceholder} onChange={(value) => { setBody(value); onEdit({ body: value }); }} />
-      <button className="btn" onClick={() => setEditing(false)}>{t.descriptionDone}</button>
+      <Button onClick={() => setEditing(false)}>{t.descriptionDone}</Button>
     </> : <>
       <Body md={body} />
       <button className="description-edit-button" title={t.descriptionEdit} aria-label={t.descriptionEdit} onClick={() => setEditing(true)}><Pencil size={16} /></button>
@@ -1760,9 +1757,9 @@ function Fold({ children, lines }: { children: ReactNode; lines?: number }) {
         {children}
       </div>
       {(long || open) && (
-        <button className="link fold-more" onClick={() => setOpen(!open)}>
+        <LinkButton className="fold-more" onClick={() => setOpen(!open)}>
           {open ? t.talk.less : t.talk.more}
-        </button>
+        </LinkButton>
       )}
     </>
   );
@@ -2195,9 +2192,9 @@ function DemoView({
                   ›
                 </button>
                 {shownAt < all.length - 2 && (
-                  <button className="link" onClick={() => show(latest)}>
+                  <LinkButton onClick={() => show(latest)}>
                     {t.demo.toLatest}
-                  </button>
+                  </LinkButton>
                 )}
               </div>
             )}
@@ -2816,9 +2813,9 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
             <span className="f-chevron">{open ? <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" /> : <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" />}</span>
           </button>
           {(i.status === 'closed' || i.status === 'fixed') && !finished(item.state) && !!ownerField(item) && (
-            <button className="link f-reopen" title={t.codeReview.reopenHint} onClick={() => act({ action: 'reopenReviewItem', number: i.number }, { close: false })}>
+            <LinkButton className="f-reopen" title={t.codeReview.reopenHint} onClick={() => act({ action: 'reopenReviewItem', number: i.number }, { close: false })}>
               {t.codeReview.reopen}
-            </button>
+            </LinkButton>
           )}
         </div>
         {open && (
@@ -2872,7 +2869,7 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
         <>
           <p className="rv-busy">{t.codeReview.running(reviewer)}</p>
           <p className="hint">{t.codeReview.runningHint}</p>
-          <button className="btn" onClick={() => act({ action: 'stopCodeReview' }, { close: false })}>{t.codeReview.stop}</button>
+          <Button onClick={() => act({ action: 'stopCodeReview' }, { close: false })}>{t.codeReview.stop}</Button>
         </>
       )}
       {r.state === 'failed' && <p className="bad">{t.codeReview.failed(r.error ?? '')}</p>}
@@ -2881,9 +2878,9 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
       {decides && waiting.length > 0 && <p className="hint">{t.codeReview.decideHint}</p>}
       {decides && <ReviewSubmit item={item} />}
       {again && (
-        <button className="btn" onClick={() => act({ action: 'codeReview' }, { close: false })}>
+        <Button onClick={() => act({ action: 'codeReview' }, { close: false })}>
           {t.codeReview.again}
-        </button>
+        </Button>
       )}
     </section>
   );
@@ -2917,7 +2914,7 @@ function ReviewSubmit({ item }: { item: Item }) {
   };
   return (
     <div className="review-submit">
-      <button type="button" className="btn primary start-agent-main" disabled={sending} onClick={() => submit()}><span>{t.codeReview.submitAnswers}</span>{item.agent?.workerSetting && <span className="start-agent-model">{describeAgent(item.agent.workerSetting, true)}</span>}</button>
+      <Button type="button" variant="primary" className="start-agent-main" disabled={sending} onClick={() => submit()}><span>{t.codeReview.submitAnswers}</span>{item.agent?.workerSetting && <span className="start-agent-model">{describeAgent(item.agent.workerSetting, true)}</span>}</Button>
       <StartAgent label={t.codeReview.submitNewAgent} selectionOnly hint={t.codeReview.newAgentHint} disabled={sending} onStart={(agent) => { if (agent) void submit(agent); }} />
       {error && <p className="p-error">{error}</p>}
     </div>
@@ -2959,9 +2956,9 @@ function Clash({ clash, onPush }: { clash: ClashFound; onPush?: () => void }) {
       </div>
       {onPush && (
         <div className="rr-clash-push">
-          <button className="btn" onClick={onPush}>
+          <Button onClick={onPush}>
             {t.review.pushMain}
-          </button>
+          </Button>
           <span>{t.review.pushHint}</span>
         </div>
       )}
@@ -2990,12 +2987,12 @@ function Blocked({ item, act }: { item: Item; act: (a: CardAction, done: ActDone
         </ul>
         <div className="rr-clash-what">{t.blocked.what}</div>
         <div className="rr-clash-push">
-          <button className="btn primary" title={t.blocked.landHint} onClick={() => act({ action: 'fold', land: true }, { close: true, ack: t.blocked.landed, pending: t.blocked.folding })}>
+          <Button variant="primary" title={t.blocked.landHint} onClick={() => act({ action: 'fold', land: true }, { close: true, ack: t.blocked.landed, pending: t.blocked.folding })}>
             {t.blocked.land}
-          </button>
-          <button className="btn" title={t.blocked.demoHint} onClick={() => act({ action: 'fold', land: false }, { close: true, ack: t.blocked.demoed, pending: t.blocked.folding })}>
+          </Button>
+          <Button title={t.blocked.demoHint} onClick={() => act({ action: 'fold', land: false }, { close: true, ack: t.blocked.demoed, pending: t.blocked.folding })}>
             {t.blocked.demo}
-          </button>
+          </Button>
         </div>
       </div>
     </section>
@@ -3079,9 +3076,7 @@ function DecidedChip({ item, decided }: { item: Item; decided: Record<string, Fi
         ))}
         {later.length > 1 && <span className="decided-tasks">{t.review.tasks(tasks)}</span>}
       </div>
-      <button className="quote-clear" title={t.review.undecide} aria-label={t.review.undecide} onMouseDown={(m) => m.preventDefault()} onClick={() => updateDraft(cardDraft(item.id), { findings: undefined })}>
-        ×
-      </button>
+      <CloseButton label={t.review.undecide} size="small" className="quote-clear" onMouseDown={(m) => m.preventDefault()} onClick={() => updateDraft(cardDraft(item.id), { findings: undefined })} />
     </div>
   );
 }
@@ -3210,12 +3205,12 @@ function HeldText({ card, body, save }: { card: string; body: string; save: (bod
     <div className="pr-held-editing">
       <textarea ref={ref} className="pr-held-field" value={text} maxLength={20000} onChange={(e) => updateDraft(key, { text: e.target.value })} />
       <div className="pr-held-acts">
-        <button className="btn small primary" disabled={saving || !text.trim()} onClick={() => void submit()}>
+        <Button variant="primary" size="small" disabled={saving || !text.trim()} onClick={() => void submit()}>
           {t.review.heldSave}
-        </button>
-        <button className="btn small" disabled={saving} onClick={close}>
+        </Button>
+        <Button size="small" disabled={saving} onClick={close}>
           {t.review.heldCancel}
-        </button>
+        </Button>
         {error && <span className="p-error">{error}</span>}
       </div>
     </div>
@@ -3267,14 +3262,14 @@ function ShareBox({ item, demo, act, onApproval, vocabulary, unlisted }: { item:
   const here = !!s?.url && (demo.handover !== undefined ? !!s.on?.includes(demo.handover) : latest && !s.stale);
   const later = sharesLater(item, demo, onApproval);
   const replace = (first: boolean) => (
-    <button key="replace" className={first ? 'btn primary' : 'btn'} title={t.share.replaceHint} onClick={() => go({ action: 'share', ...which })}>
+    <Button key="replace" variant={first ? 'primary' : 'default'} title={t.share.replaceHint} onClick={() => go({ action: 'share', ...which })}>
       {t.share.replace}
-    </button>
+    </Button>
   );
   const add = (first: boolean) => (
-    <button key="add" className={first ? 'btn primary' : 'btn'} title={latest ? t.share.addHint : t.share.addEarlierHint} onClick={() => go({ action: 'share', ...which, add: true })}>
+    <Button key="add" variant={first ? 'primary' : 'default'} title={latest ? t.share.addHint : t.share.addEarlierHint} onClick={() => go({ action: 'share', ...which, add: true })}>
       {latest ? t.share.add : t.share.share}
-    </button>
+    </Button>
   );
   const link = (
     <>
@@ -3282,9 +3277,9 @@ function ShareBox({ item, demo, act, onApproval, vocabulary, unlisted }: { item:
       <a className="share-link" href={s?.url} target="_blank" rel="noreferrer" title={t.share.open}>
         {s?.url?.replace(/^https?:\/\//, '')}
       </a>
-      <button className="btn" onClick={() => copy(s!.url!)}>
+      <Button onClick={() => copy(s!.url!)}>
         {copied ? t.share.copied : t.share.copy}
-      </button>
+      </Button>
     </>
   );
   return (
@@ -3295,18 +3290,18 @@ function ShareBox({ item, demo, act, onApproval, vocabulary, unlisted }: { item:
       ) : !s?.url ? (
         <div className="share-row">
           {along.length > 0 && <p className="hint">{t.share.along(t.share.demos(along))}</p>}
-          <button className="btn share-go" title={later ? t.share.shareNowHint : unlisted ? t.share.shareHintUnlisted : demo.kind === 'html' ? t.share.shareHintHtml : t.share.shareHint} onClick={() => go({ action: 'share', ...which })}>
+          <Button className="share-go" title={later ? t.share.shareNowHint : unlisted ? t.share.shareHintUnlisted : demo.kind === 'html' ? t.share.shareHintHtml : t.share.shareHint} onClick={() => go({ action: 'share', ...which })}>
             <ShareIcon />
             {later ? t.share.shareNow : t.share.share}
-          </button>
+          </Button>
         </div>
       ) : here ? (
         <>
           <div className="share-row">
             {link}
-            <button className="btn" title={numbers.length > 1 ? t.share.stopOneHint : t.share.stopHint} onClick={() => go({ action: 'unshare', ...which })}>
+            <Button title={numbers.length > 1 ? t.share.stopOneHint : t.share.stopHint} onClick={() => go({ action: 'unshare', ...which })}>
               {t.share.stop}
-            </button>
+            </Button>
           </div>
           {all.length > 1 && onPage && <p className="hint">{t.share.onPage(onPage)}</p>}
           {s.unlisted && <p className="hint">{t.share.unlisted}</p>}
@@ -3314,9 +3309,9 @@ function ShareBox({ item, demo, act, onApproval, vocabulary, unlisted }: { item:
             <div className="share-row">
               <p className="hint">{t.share.outdated}</p>
               <PageChangeList changes={s.outdated.map((id) => ({ id }))} />
-              <button className="btn" title={t.share.reshareHint} onClick={() => go({ action: 'share', ...which })}>
+              <Button title={t.share.reshareHint} onClick={() => go({ action: 'share', ...which })}>
                 {t.share.reshare}
-              </button>
+              </Button>
             </div>
           )}
         </>
@@ -3368,9 +3363,7 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
             <span className="t">
               <span className="dim">{d}:</span> {v}
             </span>
-            <button className="x" title={t.share.removeTag(d, v)} aria-label={t.share.removeTag(d, v)} onClick={() => set(d, values.filter((x) => x !== v))}>
-              <X size={10} strokeWidth={1.75} aria-hidden="true" />
-            </button>
+            <CloseButton label={t.share.removeTag(d, v)} size="small" className="x" onClick={() => set(d, values.filter((x) => x !== v))} />
           </span>
         )),
       )}
@@ -3455,25 +3448,24 @@ function ExportBox({
   return (
     <div className={open ? 'share wide' : 'share'}>
       {!open ? (
-        <button className="btn share-go" title={t.share.exportHint} onClick={() => setOpen(true)}>
+        <Button className="share-go" title={t.share.exportHint} onClick={() => setOpen(true)}>
           <ShareIcon />
           {t.share.share}
-        </button>
+        </Button>
       ) : (
         <>
           {!needs && <p className="hint">{t.share.exportIntro}</p>}
           <div className="share-row">
-            <button className="btn" title={artifact ? t.share.zipHintHtml : t.share.zipHint} disabled={!!busy} onClick={() => go('zip')}>
+            <Button title={artifact ? t.share.zipHintHtml : t.share.zipHint} disabled={!!busy} onClick={() => go('zip')}>
               {busy === 'zip' ? t.share.preparing : t.share.zip}
-            </button>
-            <button
-              className="btn"
+            </Button>
+            <Button
               title={tooLarge ? t.share.tooLarge(size!) : notAlone ? t.share.notAlone : artifact ? t.share.htmlHintHtml : t.share.htmlHint}
               disabled={!!busy || tooLarge || notAlone}
               onClick={() => go('html')}
             >
               {busy === 'html' ? t.share.preparing : t.share.html}
-            </button>
+            </Button>
           </div>
           {tooLarge && <p className="hint">{t.share.tooLarge(size!)}</p>}
           {notAlone && <p className="hint">{t.share.notAlone}</p>}
@@ -3484,9 +3476,9 @@ function ExportBox({
       {open && site && onDemoSites && (
         <p className="hint">
           {site === 'init' ? t.share.siteNotReady : t.share.noSite}{' '}
-          <button className="link" onClick={onDemoSites}>
+          <LinkButton onClick={onDemoSites}>
             {site === 'init' ? t.share.initSite : t.share.chooseSite}
-          </button>
+          </LinkButton>
         </p>
       )}
     </div>
@@ -3497,18 +3489,18 @@ function ExportBox({
  * Takes a finished card or a parked or dropped idea into the archive, or an archived one back onto
  * the project; `className`, `label` and `hint` dress the button that archives.
  */
-function ArchiveButton({ item, run, className = 'btn', label = t.archive.archive, hint }: { item: Item; run: Run; className?: string; label?: string; hint?: string }) {
+function ArchiveButton({ item, run, variant, label = t.archive.archive, hint }: { item: Item; run: Run; variant?: ButtonVariant; label?: string; hint?: string }) {
   const title = plain(item.title);
   // a stopped task whose workstation holds work stays on the project; the button says why
   const held = stopped(item) && !stoppedArchivable(item);
   return item.archivedAt ? (
-    <button className="btn" onClick={() => run(() => api.unarchive(item.id), { close: true, ack: t.archive.unarchived(title) })}>
+    <Button onClick={() => run(() => api.unarchive(item.id), { close: true, ack: t.archive.unarchived(title) })}>
       {t.archive.unarchive}
-    </button>
+    </Button>
   ) : (
-    <button className={className} disabled={held} title={held ? t.archive.holdsWork : hint} onClick={() => run(() => api.archive(item.id), { close: true, ack: t.archive.archived(title), undo: () => api.unarchive(item.id), rate: item.id })}>
+    <Button variant={variant} disabled={held} title={held ? t.archive.holdsWork : hint} onClick={() => run(() => api.archive(item.id), { close: true, ack: t.archive.archived(title), undo: () => api.unarchive(item.id), rate: item.id })}>
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -3814,9 +3806,7 @@ function PlaceChip({ cardId, place }: { cardId: string; place: Place }) {
         <b>{mmss(place.at)}</b>
         {place.chapter && ` · ${place.chapter}`}
       </span>
-      <button className="quote-clear" title={t.demo.unplace} aria-label={t.demo.unplace} onMouseDown={(m) => m.preventDefault()} onClick={dismissPlace}>
-        ×
-      </button>
+      <CloseButton label={t.demo.unplace} size="small" className="quote-clear" onMouseDown={(m) => m.preventDefault()} onClick={dismissPlace} />
     </div>
   );
 }

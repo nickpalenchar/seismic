@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Usage, UsageLimit } from '../core/types';
 import { api } from './api';
 import { clock, failText, snoozeWhen, t } from './strings';
+import { Button } from './components/button';
 
 /** The limit of a group the bar shows: the one most used, the first of those on a tie. */
 export function headline(limits: UsageLimit[]): UsageLimit[] {
@@ -101,9 +102,9 @@ export function UsagePill({ usage }: { usage: Usage }) {
         </ul>
         <p className="hint">{t.usage.source(clock(usage.at))}</p>
         <p className="hint">
-          <button className="btn" onClick={hide}>
+          <Button size="small" onClick={hide}>
             {t.usage.hide}
-          </button>{' '}
+          </Button>{' '}
           {t.usage.hideHint}
         </p>
         {status && <p className="warn">{status}</p>}

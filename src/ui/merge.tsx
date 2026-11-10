@@ -11,6 +11,7 @@ import { uiPortal } from './components/ui';
 import { MergeMark } from './parts';
 import { Shots } from './shots';
 import { stateLabel, t } from './strings';
+import { Button, CloseButton } from './components/button';
 
 type Act = (a: CardAction, done: { close: true; ack: string } | { close: false }) => Promise<void>;
 
@@ -36,9 +37,9 @@ export function MergeButton({ item, all, act }: { item: Item; all: Item[]; act: 
   if (!canMergeFrom(item)) return null;
   return (
     <>
-      <button className="btn" title={t.merge.buttonHint} onClick={() => setOpen(true)}>
+      <Button title={t.merge.buttonHint} onClick={() => setOpen(true)}>
         <MergeMark size={13} /> {t.merge.button}
-      </button>
+      </Button>
       {open && <MergePicker item={item} all={all} onClose={() => setOpen(false)} onPick={(other) => void act({ action: 'merge', with: other.id }, { close: false }).then(() => { setOpen(false); if (mergeRank(other) < mergeRank(item)) cards.open(other); })} />}
     </>
   );
@@ -76,9 +77,7 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
   return createPortal(
     <div id="merge-pick" onClick={(e) => { e.stopPropagation(); onClose(); }} onPointerDown={(e) => e.stopPropagation()}>
       <div className="box" role="dialog" data-state="open" aria-modal="true" aria-label={t.merge.pickTitle(plain(item.title))} onClick={(e) => e.stopPropagation()} onKeyDown={key}>
-        <button className="close" title={t.merge.cancel} onClick={onClose}>
-          ✕
-        </button>
+        <CloseButton label={t.merge.cancel} className="close" onClick={onClose} />
         <h2>{t.merge.pickTitle(plain(item.title))}</h2>
         <input ref={field} className="merge-search" type="search" placeholder={t.merge.search} value={query} onChange={(e) => setQuery(e.target.value)} />
         <p className="hint">{t.merge.hint}</p>
@@ -166,9 +165,9 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
         {side(partner, partner ? kind(partner) : '')}
       </div>
       {(clipped || expanded) && (
-        <button className="btn merge-toggle" aria-expanded={expanded} aria-controls={sidesId} onClick={() => setExpanded(!expanded)}>
+        <Button className="merge-toggle" aria-expanded={expanded} aria-controls={sidesId} onClick={() => setExpanded(!expanded)}>
           {expanded ? t.merge.showLess : t.merge.showAll}
-        </button>
+        </Button>
       )}
       <div className="merge-arrow" aria-hidden />
       <div className={busy ? 'merge-result busy' : 'merge-result'}>
@@ -201,18 +200,18 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
       {m.outcome ? <p className={`merge-callout ${m.outcome}`}>{m.outcome === 'covered' ? t.merge.covered : t.merge.extra}</p> : m.task !== undefined && partner && <p className="hint merge-intro">{t.merge.intro(plain(partner.title))}</p>}
       <div className="actions merge-actions">
         {m.task !== undefined && partner && (
-          <button className="btn primary" onClick={() => act({ action: 'approveMerge' }, { close: true, ack: t.merge.approved })}>
+          <Button variant="primary" onClick={() => act({ action: 'approveMerge' }, { close: true, ack: t.merge.approved })}>
             <MergeMark size={13} /> {t.merge.approve}
-          </button>
+          </Button>
         )}
         {m.failed !== undefined && partner && (
-          <button className="btn primary" onClick={() => act({ action: 'merge', with: partner.id }, { close: false })}>
+          <Button variant="primary" onClick={() => act({ action: 'merge', with: partner.id }, { close: false })}>
             {t.merge.retry}
-          </button>
+          </Button>
         )}
-        <button className="btn" title={t.merge.separateHint} onClick={() => act({ action: 'separate' }, { close: false })}>
+        <Button title={t.merge.separateHint} onClick={() => act({ action: 'separate' }, { close: false })}>
           {t.merge.separate}
-        </button>
+        </Button>
       </div>
     </div>
   );

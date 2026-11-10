@@ -14,6 +14,7 @@ import { WISH_DRAFT } from './draft';
 import { useFitHeight } from './fitHeight';
 import { imageUrl, Shots } from './shots';
 import { clock, errorText, t } from './strings';
+import { Button, CloseButton } from './components/button';
 
 /** The issue as it will go out; `raw`: the job wrote nothing, the owner's words stand as they are. */
 interface Issue {
@@ -227,18 +228,16 @@ export function WishDialog() {
   return (
     <div id="wish" onClick={closeWish}>
       <div className="box" role="dialog" aria-label={t.wish.title} onClick={(e) => e.stopPropagation()}>
-        <button className="close" title={t.close} onClick={closeWish}>
-          ✕
-        </button>
+        <CloseButton label={t.close} className="close" onClick={closeWish} />
         <h2>{t.wish.title}</h2>
         {w.sent ? (
           <div className="w-sent">
             {w.sent.map((line) => (
               <p key={line}>{line}</p>
             ))}
-            <button className="btn primary" autoFocus onClick={closeWish}>
+            <Button variant="primary" autoFocus onClick={closeWish}>
               {t.newCardHint.ok}
-            </button>
+            </Button>
           </div>
         ) : (
           <>
@@ -247,9 +246,9 @@ export function WishDialog() {
                 <p>{t.wish.pending}</p>
                 <blockquote>{short(w.pending.said)}</blockquote>
                 <p>{t.wish.pendingThen}</p>
-                <button className="btn small" disabled={w.writing} onClick={discard}>
+                <Button size="small" disabled={w.writing} onClick={discard}>
                   {t.wish.replace}
-                </button>
+                </Button>
               </div>
             )}
             {issue && <IssueFields issue={issue} disabled={w.writing} />}
@@ -273,9 +272,9 @@ export function WishDialog() {
                   <button className="w-discard" onClick={discard}>
                     {t.wish.discard}
                   </button>
-                  <button className="btn primary" disabled={w.writing || !issue.title.trim() || !issue.body.trim()} onClick={() => void send(issue)}>
+                  <Button variant="primary" disabled={w.writing || !issue.title.trim() || !issue.body.trim()} onClick={() => void send(issue)}>
                     {t.wish.open}
-                  </button>
+                  </Button>
                 </div>
               </>
             )}

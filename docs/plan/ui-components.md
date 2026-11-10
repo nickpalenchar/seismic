@@ -19,7 +19,7 @@ family's section when it is done.
 **Stack.** React 19 bundled by Bun; plain CSS in `styles.css` (~3,200 lines) with `frost.css` on
 top, both driven by CSS variables (`--card`, `--ink`, `--chip`, the status colours), light and dark
 via `data-theme`. Icons from `lucide-react`, the only UI dependency: no Radix, no positioning
-library, no class-name helper. `src/ui/components/` holds only the toast.
+library, no class-name helper. `src/ui/components/` holds the toast and the buttons (W2).
 
 **Shared plumbing today.**
 
@@ -42,28 +42,7 @@ library, no class-name helper. `src/ui/components/` holds only the toast.
 stage chips, inbox list, chats, Koordinator composer, card faces, usage pill, toasts), so migrating
 a component migrates the phone along. Phone-only controls: the back and new buttons, the talk pill,
 the project `<select>` (the phone's counterpart of the project picker) and the draggable talk panel.
-Phone CSS overrides shared controls in a few places (`.ph-view .actions .btn` and similar).
-
-### Button — shared component, no Radix
-
-- About 400 `<button>`s; about 205 carry `btn`: card detail (`detail.tsx`, ~68: action bar, idea
-  view, share box, proposal, review and confirm dialogs), Configuration (`config.tsx`, ~41),
-  Koordinator sheet (14), plan sheet and status-bar pills (`parts.tsx`, 10), Setup (10), then access,
-  canvases, merge (5 each), chats (4) and about twenty files with 1–3.
-- Variants: `btn`, `small`, `primary`, `danger`, combinations of these; modifiers `suggested`
-  (ring), `armed` (countdown bar), `code-review`, `review-warning`; the StartAgent split button;
-  `<summary className="btn">` once. About 50 contextual CSS overrides (`.actions .btn`,
-  `.cfg-nav .btn`, `.snooze-acts .btn.small`, `.ph-view .actions .btn` …); `.btn.small` carries a
-  top margin that many contexts reset.
-- Link-style buttons: `button.link` in about 35 places (detail, diff, files, config, setup …) plus
-  `hint`, `ttl-link`, `wish-link`.
-- Close ✕: about twelve kinds (`close` in help, wish, merge, phone connect, canvas dialog and the
-  card panel; `cfg-close`, `d-close`, `#sheet-close`, `x` in archive search, tag chips, plan dirs and
-  queue; `quote-clear`, `tell-hint-x`, `w-discard`, `pref-del`, `gdel`, `msg-delete`, `remove`),
-  each with its own CSS.
-- Icon-only buttons with their own classes: `prio-btn`, `tag-add`, `split-fold`, `fold`, `zoom`,
-  `fullscreen`, `play`, `c-mic`, `c-attach`, `c-copy`, `msg-reply`, `head-btn` and about twenty more;
-  most rely on `title` plus `aria-label`.
+Phone CSS gives a few shared controls a larger touch target (the buttons in `.ph-view .actions`, say).
 
 ### Switch — Radix Switch
 
@@ -227,7 +206,7 @@ focused control, a first tap acting while the phone keyboard is open.
 ## Workstreams
 
 - [x] **W1:** Foundations. Add `@radix-ui/react-*` packages as each workstream needs them (or the single `radix-ui` package — pick one and say why); a portal container inside the app root; the component conventions above written as a short header comment in `src/ui/components/` (API shape, CSS block, tokens, data-attribute styling); App's Esc handler made layer-aware as described in Shape; the CLAUDE.md line that new UI uses the components in `src/ui/components/` and adds one there rather than a bespoke control; rewrite the decision "The look is frost, laid over upstream's stylesheet" in [The canvas](../design/the-canvas.md) so the rejected component library becomes the chosen Radix Primitives (owner, 2026-11-09: the fork no longer merges upstream; rejected shadcn/ui with Tailwind and Kibo UI as a second styling system, Base UI for its smaller set of mature parts). Proves the setup with the first component, `VisuallyHidden` or `Slot`, used once. S.
-- [ ] **W2:** Button, IconButton, CloseButton, LinkButton. One `Button` (`variant`: default, primary, danger, code-review, review-warning, link; `size`: default, small; `suggested`, `armed` as props), `IconButton` (icon plus required label, which W6 turns into a tooltip), `CloseButton` replacing the twelve ✕ kinds, the StartAgent split button as a composition. Migrate every `btn`, `button.link` and close button; delete the old classes and contextual overrides, moving spacing to containers. Largest by count (detail and config); may land in two cards, settings first, then card detail and the rest. M.
+- [x] **W2:** Button, IconButton, CloseButton, LinkButton. One `Button` (`variant`: default, primary, danger, code-review, review-warning, link; `size`: default, small; `suggested`, `armed` as props), `IconButton` (icon plus required label, which W6 turns into a tooltip), `CloseButton` replacing the twelve ✕ kinds, the StartAgent split button as a composition. Migrate every `btn`, `button.link` and close button; delete the old classes and contextual overrides, moving spacing to containers. Largest by count (detail and config); may land in two cards, settings first, then card detail and the rest. M.
 - [ ] **W3:** Switch and Checkbox. Radix Switch for the 14 toggles, Radix Checkbox for the plain checkboxes (export, suggest, artifact checks); their labels (`c-check`, `share-check` …) become one `Field`-style label pattern. S.
 - [ ] **W4:** Segmented control and radio groups. `SegmentedControl` on Radix ToggleGroup (single and multiple) for every `.seg`, the chats scope, files result mode, Performance views and the stage chips' group; Radix RadioGroup for the native radios and the canvas icon grid; the feedback stars stay a bespoke rating on RadioGroup with their hover preview. Arrow keys replace one tab stop per option. M.
 - [ ] **W5:** Tabs. Radix Tabs for the Agents sheet (desktop and phone), card results, the Diff change list, Setup pages, the repository tabs and the canvas strip (keeping its hover drawer and first-tap-opens on touch); vertical Tabs for the Configuration and Preferences navs, keeping each section's address and unsent input. M.

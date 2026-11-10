@@ -11,6 +11,7 @@ import { useCopy } from './copy';
 import { useDiffStyle } from './diffStyle';
 import { plain } from './markdown';
 import { t } from './strings';
+import { CloseButton, LinkButton } from './components/button';
 
 /** A file with more lines than this starts folded, so a generated file does not bury the rest. */
 const FOLD_LINES = 1500;
@@ -38,9 +39,9 @@ export function Branch({ item, sizeBelow }: { item: Item; sizeBelow?: boolean })
         <>
           {' · '}
           {diff.files.length ? (
-            <button className="link diff-size" title={t.diff.show} onClick={() => setOpen(true)}>
+            <LinkButton className="diff-size" title={t.diff.show} onClick={() => setOpen(true)}>
               <Lines n={size} /> {t.diff.size(diff.files.length)}
-            </button>
+            </LinkButton>
           ) : (
             t.diff.none
           )}
@@ -101,9 +102,9 @@ function AppLink({ item }: { item: Item }) {
 function CopyPath({ path }: { path: string }) {
   const [copied, copy] = useCopy(3000);
   return (
-    <button className={copied ? 'link copied' : 'link'} title={path} onClick={() => copy(path)}>
+    <LinkButton className={copied ? 'copied' : undefined} title={path} onClick={() => copy(path)}>
       {copied ? t.diff.copied : t.diff.copyPath}
-    </button>
+    </LinkButton>
   );
 }
 
@@ -162,16 +163,14 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
             {one && (
               <>
                 {' · '}
-                <button className="link" onClick={() => setOnly(undefined)}>
+                <LinkButton onClick={() => setOnly(undefined)}>
                   {t.diff.show}
-                </button>
+                </LinkButton>
               </>
             )}
           </span>
           <DiffStyleSwitch />
-          <button className="d-close" title={t.diff.close} onClick={onClose}>
-            ×
-          </button>
+          <CloseButton label={t.diff.close} variant="ghost" className="d-close" onClick={onClose} />
         </div>
         <div className="d-body">
           {diff === null && <p className="hint">{t.diff.loading}</p>}
@@ -185,9 +184,9 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
                   {got.files.map((f) => (
                     <tr key={f.file}>
                       <td>
-                        <button className="link" onClick={() => go(f.file)}>
+                        <LinkButton onClick={() => go(f.file)}>
                           {f.file}
-                        </button>{' '}
+                        </LinkButton>{' '}
                         <span className="hint">{t.diff.status[f.status]}</span>
                       </td>
                       <td className="d-add">{f.binary ? '' : `+${f.added}`}</td>
@@ -261,9 +260,9 @@ export function FileDiff({ part, card }: { part: DiffPart; card: string }) {
       ) : folded ? (
         <p className="hint">
           {t.diff.big(lines)}{' '}
-          <button className="link" onClick={() => setFolded(false)}>
+          <LinkButton onClick={() => setFolded(false)}>
             {t.diff.unfold}
-          </button>
+          </LinkButton>
         </p>
       ) : empty ? null : (
         <Suspense fallback={<p className="hint">{t.diff.loading}</p>}>
@@ -308,9 +307,9 @@ function ChangeTable({ changes, diffed, onFile }: { changes: FolderChange[]; dif
               </td>
               <td className="f-path">
                 {diffed(c) ? (
-                  <button className="link" title={t.diff.showFile} onClick={() => onFile(c.path)}>
+                  <LinkButton title={t.diff.showFile} onClick={() => onFile(c.path)}>
                     {path}
-                  </button>
+                  </LinkButton>
                 ) : (
                   path
                 )}

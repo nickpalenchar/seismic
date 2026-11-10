@@ -12,6 +12,7 @@ import { useCopy } from './copy';
 import { Sign } from './logo';
 import { failText, fileSize, t } from './strings';
 import { projectPath } from './address';
+import { Button, CloseButton, LinkButton } from './components/button';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 /** The machine's system and processor, as the owner knows them: "macOS (arm64)". */
@@ -146,9 +147,9 @@ export function RecognitionDetail({ item, busy, changed }: { item: VoiceSetupIte
     return (
       <div className="c-voice">
         <span className="hint">{c.used(item.found ?? '', v.seconds(cloud.tested?.seconds ?? 0))}</span>
-        <button className="link" onClick={() => act(api.useLocalVoice)}>
+        <LinkButton onClick={() => act(api.useLocalVoice)}>
           {c.back}
-        </button>
+        </LinkButton>
         {status && <span className="p-error">{status}</span>}
       </div>
     );
@@ -158,9 +159,9 @@ export function RecognitionDetail({ item, busy, changed }: { item: VoiceSetupIte
     <div className="c-voice">
       {slow && <span className="hint warn">{v.slowDetail(v.seconds(slow.seconds))}</span>}
       {item.state === 'ok' && !measuring && (
-        <button className="link" disabled={busy} onClick={() => act(api.measureVoice)}>
+        <LinkButton disabled={busy} onClick={() => act(api.measureVoice)}>
           {speed ? v.remeasure : v.measure}
-        </button>
+        </LinkButton>
       )}
       {slow || open || cloud ? (
         <div className="c-cloud">
@@ -186,15 +187,15 @@ export function RecognitionDetail({ item, busy, changed }: { item: VoiceSetupIte
             <a href={CLOUD_VOICES[preset].keys} target="_blank" rel="noreferrer">
               {c.getKey}
             </a>
-            <button className="btn small" disabled={testing || (!key.trim() && !kept)} onClick={test}>
+            <Button size="small" disabled={testing || (!key.trim() && !kept)} onClick={test}>
               {testing ? c.testing : c.test}
-            </button>
+            </Button>
           </span>
         </div>
       ) : (
-        <button className="link" onClick={() => setOpen(true)}>
+        <LinkButton onClick={() => setOpen(true)}>
           {c.open}
-        </button>
+        </LinkButton>
       )}
       {status && <span className="p-error">{status}</span>}
     </div>
@@ -284,17 +285,17 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     if (i.act === 'login' || i.act === 'terminal')
       return (
         <>
-          <button className="btn small" onClick={() => act(section, i)}>
+          <Button size="small" onClick={() => act(section, i)}>
             {i.act === 'terminal' ? s.mobile.enable : s.login}
-          </button>
+          </Button>
           {terminal === i.id && <span className="hint">{i.act === 'terminal' ? s.mobile.enableOpen : s.terminalOpen}</span>}
         </>
       );
     return (
       <>
-        <button className="btn small" disabled={running} onClick={() => act(section, i)}>
+        <Button size="small" disabled={running} onClick={() => act(section, i)}>
           {i.mb ? s.installSized(fileSize(i.mb * 1e6)) : i.id === 'xcode' ? s.mobile.installApp : s.install}
-        </button>
+        </Button>
         {detail}
       </>
     );
@@ -329,9 +330,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           </div>
           {first && <LanguagePick />}
           {onClose && (
-            <button className="c-del setup-close" title={s.close} onClick={onClose}>
-              ✕
-            </button>
+            <CloseButton label={s.close} variant="ghost" className="setup-close" onClick={onClose} />
           )}
         </header>
         <div className="setup-body">
@@ -369,9 +368,9 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                 </section>
               ))}
               {status && <p className="hint c-status">{status}</p>}
-              <button className="btn small" disabled={checking || running} onClick={recheck}>
+              <Button size="small" disabled={checking || running} onClick={recheck}>
                 {checking ? t.config.setup.checking : t.config.setup.recheck}
-              </button>
+              </Button>
               {first && shownPage === 'required' && <FirstProject view={view} ready={ready(needed)} onView={setView} />}
             </>
           )}
@@ -400,9 +399,9 @@ function Identity({ onSaved, onError }: { onSaved: (v: MachineView) => void; onE
     <span className="c-row setup-identity">
       <input placeholder={s.yourName} value={name} onChange={(e) => setName(e.target.value)} />
       <input placeholder={s.yourEmail} value={email} onChange={(e) => setEmail(e.target.value)} />
-      <button className="btn small" disabled={busy || !name.trim() || !email.trim()} onClick={save}>
+      <Button size="small" disabled={busy || !name.trim() || !email.trim()} onClick={save}>
         {s.saveIdentity}
-      </button>
+      </Button>
     </span>
   );
 }
@@ -518,9 +517,9 @@ function FirstProject({ view, ready, onView }: { view: MachineView; ready: boole
                 <span className="c-row">
                   <input className="c-path" spellCheck={false} placeholder={s.first.pathPlaceholder} value={path} onChange={(e) => setPath(e.target.value)} />
                   {view.picker && (
-                    <button className="btn small setup-pick" onClick={pick}>
+                    <Button size="small" className="setup-pick" onClick={pick}>
                       {s.first.pick}
-                    </button>
+                    </Button>
                   )}
                 </span>
               </label>
@@ -545,9 +544,9 @@ function FirstProject({ view, ready, onView }: { view: MachineView; ready: boole
             </p>
           ) : (
             <div className="c-actions">
-              <button className="btn primary" disabled={!can || busy} onClick={() => create()}>
+              <Button variant="primary" disabled={!can || busy} onClick={() => create()}>
                 {mode === 'folder' ? s.first.create : s.first.cloneCreate}
-              </button>
+              </Button>
             </div>
           )}
           {job?.error && !job.running && <p className="p-error">{s.first.cloneFailed(job.error)}</p>}
@@ -672,15 +671,15 @@ export function GitSetup({ path, confirm, onDone, onFolder }: { path: string; co
           )}
           <p className="hint">{s.change}</p>
           <div className="c-actions">
-            <button className="btn primary" disabled={!!busy} onClick={go}>
+            <Button variant="primary" disabled={!!busy} onClick={go}>
               {busy === 'working' ? s.working : confirm}
-            </button>
-            <button className="btn small" disabled={!!busy} onClick={look}>
+            </Button>
+            <Button size="small" disabled={!!busy} onClick={look}>
               {s.again}
-            </button>
-            <button className="btn small" disabled={!!busy} onClick={() => setPreview(null)}>
+            </Button>
+            <Button size="small" disabled={!!busy} onClick={() => setPreview(null)}>
               {s.cancel}
-            </button>
+            </Button>
           </div>
         </>
       )}

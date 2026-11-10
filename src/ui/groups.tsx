@@ -7,6 +7,7 @@ import { type Bounds, centre } from '../core/layout';
 import type { Group, Item } from '../core/types';
 import { t } from './strings';
 import { type Claim, type Territory, Territories } from './territory';
+import { CloseButton } from './components/button';
 
 type Placed = { item: Item; b: Bounds }[];
 type Pt = { x: number; y: number };
@@ -395,14 +396,7 @@ export function Ring({
               >
                 <span>{b.g.name}</span>
                 {k === hot && !naming && (
-                  <button
-                    className="gdel"
-                    title={t.groups.remove}
-                    aria-label={t.groups.remove}
-                    onPointerDown={(e) => (e.preventDefault(), e.stopPropagation(), onDelete(b.g))}
-                  >
-                    ×
-                  </button>
+                  <CloseButton label={t.groups.remove} size="small" className="gdel" onPointerDown={(e) => (e.preventDefault(), e.stopPropagation(), onDelete(b.g))} />
                 )}
                 <b className="gcount" title={t.groups.open(openCards.get(b.g.id) ?? 0)}>
                   {openCards.get(b.g.id) ?? 0}

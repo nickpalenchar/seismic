@@ -17,6 +17,7 @@ import { useMenuClose } from './queue';
 import { useSortable } from './sortable';
 import { useStoredState } from './stored';
 import { failText, t } from './strings';
+import { Button, CloseButton } from './components/button';
 
 /** What the page knows of the project's canvases, for what shows a card (its menu, search). */
 export interface CanvasesView {
@@ -276,9 +277,7 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
           void save();
         }}
       >
-        <button type="button" className="close" title={t.canvases.cancel} onClick={onClose}>
-          ✕
-        </button>
+        <CloseButton label={t.canvases.cancel} className="close" onClick={onClose} />
         <h2>
           <span className="cd-preview">
             <CanvasIcon canvas={{ name: name.trim() || '?', ...(icon ? { icon } : {}) }} size={22} />
@@ -318,12 +317,12 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
         </div>
         {failed && <p className="cd-problem on">{failed}</p>}
         <div className="cd-actions">
-          <button type="submit" className="btn primary" disabled={busy || !!problem}>
+          <Button type="submit" variant="primary" disabled={busy || !!problem}>
             {canvas ? t.canvases.save : t.canvases.create}
-          </button>
-          <button type="button" className="btn" onClick={cancel}>
+          </Button>
+          <Button type="button" onClick={cancel}>
             {t.canvases.cancel}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -426,8 +425,8 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
             <h2 id="stop-park-title">{t.parking.stopTitle}</h2>
             <p>{t.parking.stopText}</p>
             <div className="review-approval-actions">
-              <button className="btn review-warning" onClick={() => { setConfirm(false); parking('park'); }}>{t.parking.stopConfirm}</button>
-              <button className="btn" autoFocus onClick={() => setConfirm(false)}>{t.parking.back}</button>
+              <Button variant="review-warning" onClick={() => { setConfirm(false); parking('park'); }}>{t.parking.stopConfirm}</Button>
+              <Button autoFocus onClick={() => setConfirm(false)}>{t.parking.back}</Button>
             </div>
           </div>
         </div>, document.body,

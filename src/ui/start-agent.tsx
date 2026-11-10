@@ -5,6 +5,7 @@ import { ApiError, api } from './api';
 import { useMenuClose } from './queue';
 import { updateDraft, useDraft } from './draft';
 import { failText, t } from './strings';
+import { Button, type ButtonVariant, LinkButton } from './components/button';
 
 /** What a worker on the shown project starts with: its own models over Configuration's. */
 const workerDefault = () => api.shownProjectSettings().then((v) => projectAgentSetting('worker', v.agents.worker, v.settings.agents));
@@ -23,7 +24,7 @@ const stands = (models: CodexModel[], c: { model: string; effort: AgentEffort })
 };
 
 /** A choice for this start only. The ordinary button continues to use the current default. */
-export function StartAgent({ label, disabled, title, codexAllowed = true, selectionOnly = false, hint, draft, saved, tone = 'btn primary', suggested = false, onStart }: { tone?: string; suggested?: boolean; label: string; disabled?: boolean; title?: string; codexAllowed?: boolean; selectionOnly?: boolean; hint?: string; draft?: string; saved?: AgentSetting; onStart: (setting?: AgentSetting) => void | Promise<void> }) {
+export function StartAgent({ label, disabled, title, codexAllowed = true, selectionOnly = false, hint, draft, saved, variant = 'primary', suggested = false, onStart }: { variant?: ButtonVariant; suggested?: boolean; label: string; disabled?: boolean; title?: string; codexAllowed?: boolean; selectionOnly?: boolean; hint?: string; draft?: string; saved?: AgentSetting; onStart: (setting?: AgentSetting) => void | Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [setting, setSetting] = useState<AgentSetting | null>(null);
   const [models, setModels] = useState<CodexModel[] | null>(null);
@@ -161,13 +162,13 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
 
   return <div className="start-agent" ref={box}>
     <div className={suggested ? 'start-agent-buttons suggested' : 'start-agent-buttons'}>
-      <button className={selectionOnly ? "btn code-review" : `${tone} start-agent-main`} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} aria-haspopup={selectionOnly ? "true" : undefined} aria-expanded={selectionOnly ? open : undefined} onClick={() => { if (selectionOnly) return setOpen(!open); void startPicked(); }}>
+      <Button variant={selectionOnly ? 'code-review' : variant} className={selectionOnly ? undefined : 'start-agent-main'} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} aria-haspopup={selectionOnly ? "true" : undefined} aria-expanded={selectionOnly ? open : undefined} onClick={() => { if (selectionOnly) return setOpen(!open); void startPicked(); }}>
         <span>{label}</span>
         {!selectionOnly && (picked ?? currentDefault) && <span className="start-agent-model">{describeAgent((picked ?? currentDefault)!, true)}</span>}
-      </button>
-      {!selectionOnly && <button type="button" ref={chevron} className={`${tone} start-agent-chevron`} disabled={disabled || starting} aria-label={a.chooseStart} aria-haspopup="true" aria-expanded={open} title={a.chooseStart} onClick={() => (open ? close() : setOpen(true))}>
+      </Button>
+      {!selectionOnly && <Button type="button" ref={chevron} variant={variant} className="start-agent-chevron" disabled={disabled || starting} aria-label={a.chooseStart} aria-haspopup="true" aria-expanded={open} title={a.chooseStart} onClick={() => (open ? close() : setOpen(true))}>
         <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
-      </button>}
+      </Button>}
     </div>
     {!open && (startError || (checked?.key === pickedKey && checked.error)) && <p className="p-error" role="status">{startError || checked?.error}</p>}
     {open && <div className="start-agent-menu" role="group" aria-label={a.chooseStart}>
@@ -192,10 +193,10 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
         </select></label>
         {codex && <p className="hint">{other === 'agy' ? a.agyScope : a.codexScope}</p>}
       </>}
-      {(error || loading) && <p className="p-error" role="status">{loading ? a.loadingModels : error} {error && (setting ? codex && <button className="link" onClick={loadModels}>{a.reloadModels}</button> : <button className="link" onClick={() => setAttempt(attempt + 1)}>{a.reloadModels}</button>)}</p>}
+      {(error || loading) && <p className="p-error" role="status">{loading ? a.loadingModels : error} {error && (setting ? codex && <LinkButton onClick={loadModels}>{a.reloadModels}</LinkButton> : <LinkButton onClick={() => setAttempt(attempt + 1)}>{a.reloadModels}</LinkButton>)}</p>}
       {codex && current && !loading && !valid && <p className="p-error" role="status">{a.unavailableChoice}</p>}
       {hint && <p className="hint start-agent-warning"><CircleAlert size={15} aria-hidden /> {hint}</p>}
-      <button className={selectionOnly ? "btn code-review" : "btn primary"} disabled={!valid || loading || starting || disabled} onClick={() => { if (setting) void start(setting, null); }}>{a.startWith}</button>
+      <Button variant={selectionOnly ? 'code-review' : 'primary'} disabled={!valid || loading || starting || disabled} onClick={() => { if (setting) void start(setting, null); }}>{a.startWith}</Button>
     </div>}
   </div>;
 }

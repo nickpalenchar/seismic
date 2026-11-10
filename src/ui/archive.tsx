@@ -11,6 +11,7 @@ import { CardFace, cardKind } from './card';
 import { plain } from './markdown';
 import { useMenuClose } from './queue';
 import { stateLabel, t } from './strings';
+import { Button, CloseButton } from './components/button';
 
 interface Props {
   on: boolean;
@@ -54,9 +55,7 @@ export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchi
             onChange={(e) => setQuery(e.target.value)}
           />
           {query && (
-            <button className="x" title={t.archive.clearSearch} aria-label={t.archive.clearSearch} onClick={() => (setQuery(''), field.current?.focus())}>
-              ×
-            </button>
+            <CloseButton label={t.archive.clearSearch} size="small" className="x" onClick={() => (setQuery(''), field.current?.focus())} />
           )}
         </div>
         <button className="a-full" title={t.close} aria-label={t.close} onClick={onClose}>
@@ -65,9 +64,9 @@ export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchi
       </div>
       <div className="a-full-body">
         {done > 0 && (
-          <button className="btn" onClick={onArchiveDone}>
+          <Button onClick={onArchiveDone}>
             {t.archive.archiveDone(done)}
-          </button>
+          </Button>
         )}
         <ArchiveEntries archived={archived} words={words} query={query} onOpen={onOpen} els={els} />
       </div>

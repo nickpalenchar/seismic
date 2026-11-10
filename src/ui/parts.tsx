@@ -21,6 +21,7 @@ import { scrollBehavior } from './motion';
 import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
 import { cardPath, switchTo } from './address';
+import { Button } from './components/button';
 
 /** The button for the conversation with Seismic (the project's top bar, the phone view's): a speech bubble. */
 export function TalkIcon() {
@@ -736,9 +737,9 @@ function WorkstationRows({ host, items, projects, onOpen, onElsewhere, onTake, o
               {item && w.leaving && (
                 <>
                   <span className="hint"> · {t.workstations.leaving}</span>
-                  <button className="btn ws-take" onClick={() => onKeep(item)}>
+                  <Button size="small" className="ws-take" onClick={() => onKeep(item)}>
                     {t.undo}
-                  </button>
+                  </Button>
                 </>
               )}
               {item && w.takeable && onTake && (
@@ -749,15 +750,16 @@ function WorkstationRows({ host, items, projects, onOpen, onElsewhere, onTake, o
             </span>
             {item && w.takeable && onTake && more === w.path && (
               <div className="ws-menu">
-                <button
-                  className="btn ws-take"
+                <Button
+                  size="small"
+                  className="ws-take"
                   onClick={() => {
                     setMore(null);
                     onTake(item);
                   }}
                 >
                   {t.workstations.take}
-                </button>
+                </Button>
                 <span className="hint">{t.workstations.takeWhat}</span>
               </div>
             )}
@@ -1234,24 +1236,24 @@ export function Sheet({
           </div>
           <div className="src">{planCard.plan.file}</div>
           {!planCard.archivedAt && (
-            <button className="btn read" onClick={() => onRead({})}>
+            <Button className="read" onClick={() => onRead({})}>
               {t.plan.read}
-            </button>
+            </Button>
           )}
           {!planCard.archivedAt && startable > 0 && (
             <div className="start-all">
-              <button className="btn primary" onClick={() => onStartAll(planCard, startable)}>
+              <Button variant="primary" onClick={() => onStartAll(planCard, startable)}>
                 {t.plan.startAll(startable)}
-              </button>
+              </Button>
               <p className="hint">{t.plan.startAllHint}</p>
             </div>
           )}
           {!planCard.archivedAt && (planCard.plan.arranging || arrangeable(kids)) && (
             <div className="arrange">
-              <button className="btn" disabled={planCard.plan.arranging} onClick={() => onArrange(planCard)}>
+              <Button disabled={planCard.plan.arranging} onClick={() => onArrange(planCard)}>
                 <ColumnsIcon size={12} />
                 {planCard.plan.arranging ? t.plan.arranging : t.plan.arrangeLong}
-              </button>
+              </Button>
               <p className="hint">{t.plan.arrangeHint}</p>
             </div>
           )}

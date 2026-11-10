@@ -12,6 +12,7 @@ import { api } from './api';
 import { plain } from './markdown';
 import { Choice, configText, harnessName, StarText } from './performance';
 import { failText, t } from './strings';
+import { Button, LinkButton } from './components/button';
 
 /** A filter's value for an unknown harness, model or effort (the empty string in the core), as a `<select>` can hold it apart from "all". */
 const UNKNOWN = '-';
@@ -80,9 +81,9 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
     body = (
       <div className="perf-empty">
         <h2>{p.noMatch}</h2>
-        <button className="btn small" onClick={clear}>
+        <Button size="small" onClick={clear}>
           {p.clear}
-        </button>
+        </Button>
       </div>
     );
   else
@@ -158,9 +159,9 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
                 onChange={(v) => set('rating', v)}
               />
               {filtered(filter) && (
-                <button className="link perf-clear" onClick={clear}>
+                <LinkButton className="perf-clear" onClick={clear}>
                   {p.clear}
-                </button>
+                </LinkButton>
               )}
             </div>
             <label className="perf-choice">

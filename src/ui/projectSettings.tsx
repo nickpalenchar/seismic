@@ -10,6 +10,7 @@ import { api } from './api';
 import { ProjectSiteField, CardArchiveField, RightClickField, CodeReviewField, Head, PlanBaselineField, SuggestField } from './config';
 import { Docked } from './docked';
 import { failText, t } from './strings';
+import { LinkButton } from './components/button';
 
 /** The sheet of the project `project`; read afresh each time it opens or the Configuration over it closes. */
 export function ProjectSettingsSheet({ project, name, homePath, on, covered, problems, onConfig, onAddSite }: { project: string; name: string; /** The project's home repository, which proposing the demo site's tags reads. */ homePath?: string | undefined; /** Opens Configuration at the page that adds a demo site. */ onAddSite: () => void; on: boolean; /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */ covered: boolean; /** The configuration's problems, counted on the gear too. */ problems: number; onConfig: () => void }) {
@@ -130,9 +131,9 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
       {status && <p className="hint c-status">{status}</p>}
       <div className="cs-more">
         <span className="hint">{l.more}</span>
-        <button type="button" className="link" onClick={onConfig}>
+        <LinkButton type="button" onClick={onConfig}>
           {l.toConfig}
-        </button>
+        </LinkButton>
         {problems > 0 && <span className="n err">{t.config.problemCount(problems)}</span>}
       </div>
     </Docked>

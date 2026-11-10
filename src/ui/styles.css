@@ -1,5 +1,6 @@
 /* Seismic's look (docs/design/the-canvas.md, "Visual identity"): index cards pinned to a wall. Titles in Newsreader, everything
    else in IBM Plex Sans Condensed, both OFL and served from ./fonts with their licences. */
+@import "./components/button.css";
 @font-face { font-family: Newsreader; font-style: normal; font-weight: 300 800; font-display: swap;
   src: url(./fonts/newsreader-latin-opsz-normal.woff2) format("woff2"); }
 @font-face { font-family: Newsreader; font-style: italic; font-weight: 300 800; font-display: swap;
@@ -103,15 +104,13 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
 .plan-dir.empty-dir { border-style: dashed; color: var(--muted); }
 .plan-dir p { margin: 0; }
 .plan-dir.empty-dir p { padding-right: 14px; }
-.plan-dir .x { position: absolute; top: 4px; right: 4px; padding: 2px 7px; font-size: 17px; line-height: 1; color: var(--muted); background: none; border: 0; cursor: pointer; }
-.plan-dir .x:hover { color: var(--ink); }
+.plan-dir .x { position: absolute; top: 4px; right: 4px; }
 .plan-dir .pd-head { font-weight: 600; }
 .plan-dir .pd-why { display: block; color: var(--muted); font-size: 12px; }
 .plan-dir > .pd-why { margin: 2px 0 4px; }
 .plan-dir .pd-doc { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 30px; }
 .plan-dir .pd-file { flex: 1; min-width: 0; padding: 3px 0; }
 .plan-dir .pd-name { display: block; font-family: var(--mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plan-dir .btn.small { margin-top: 0; padding: 3px 9px; flex: none; }
 .plan { border-radius: 4px; background: var(--container); border: 1.5px solid var(--container-line);
   backdrop-filter: blur(2px); }
 .plan > .head { position: absolute; left: 0; right: 0; top: 0; height: 58px; padding: 16px 22px;
@@ -200,7 +199,6 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
 /* its agent still at work after the landing: the yellowed stock, but awake, its state line in the working colour */
 .card.finishing { opacity: 1; }
 .card.finishing .state, .p-state.finishing { --c: var(--working); }
-.btn .btn-mark { margin-right: 3px; vertical-align: -1px; }
 /* its agent paused by the owner: the line stands still, in pencil grey */
 .card.paused .state, .p-state.paused { --c: var(--muted); }
 .card.paused .state::after { display: none; }
@@ -583,7 +581,6 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill.usage .usage-list .meter { width: 60px; }
 .pill.usage .usage-list b { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
 .pill.usage .usage-list .when { grid-column: 1 / -1; font-size: 12px; }
-.pill.usage .tip .btn { padding: 2px 9px; font-size: 12px; margin-right: 4px; }
 /* a workstation per line: its dot, its path cut at the front where too long (its end matters most), and the card in it below */
 .pill.workstations .ws-list { list-style: none; margin: 0 0 8px; padding: 0; }
 .pill.workstations .ws-list li { display: grid; grid-template-columns: 8px minmax(0, 1fr); column-gap: 8px; align-items: center; padding: 3px 0; }
@@ -593,12 +590,13 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill.workstations .ws-card { grid-column: 2; overflow-wrap: anywhere; }
 .pill.workstations .ws-card .from { color: var(--ink); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
 .pill.workstations .ws-card .from:hover { text-decoration-color: currentColor; }
-.pill.workstations .btn.ws-take { margin-left: 8px; padding: 2px 9px; font-size: 12px; font-weight: 500; vertical-align: 1px; }
+.pill.workstations .ws-take { margin-left: 8px; }
 /* the rare action of giving a card's clone away sits behind a faint "⋯" */
 .pill.workstations .ws-more { margin-left: 6px; padding: 0 5px; border: 0; border-radius: 3px; background: none; color: var(--muted); opacity: .55; cursor: pointer; font-size: 13px; line-height: 1.2; }
 .pill.workstations .ws-more:hover, .pill.workstations .ws-more[aria-expanded="true"] { opacity: 1; background: var(--chip); }
 .pill.workstations .ws-menu { grid-column: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 4px 0 2px; padding: 8px 10px; border-radius: 3px; background: var(--chip); }
-.pill.workstations .ws-menu .btn.ws-take { margin-left: 0; background: var(--panel); }
+.pill.workstations .ws-menu { --button-bg: var(--panel); }
+.pill.workstations .ws-menu .ws-take { margin-left: 0; }
 .pill.workstations .ws-menu .hint { font-size: 12px; line-height: 1.4; }
 /* ☰ and the logo open the left menu (nav.tsx); ☰ says it is a button */
 .app-logo { display: flex; align-items: center; gap: 5px; height: 34px; margin-right: 4px; padding: 0 6px; margin-left: -6px; border: 0; border-radius: 3px;
@@ -633,8 +631,6 @@ button.pill:hover { box-shadow: var(--lift); }
 .prefs li:hover { background: var(--chip); }
 .prefs .pref-text { flex: 1; cursor: text; min-width: 0; overflow-wrap: anywhere; }
 .prefs textarea { flex: 1; font-size: 13px; padding: 4px 6px; border: 1px solid var(--muted); border-radius: 2px; background: var(--card); resize: vertical; outline: none; }
-.prefs .pref-del { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 0 2px; }
-.prefs .pref-del:hover { color: var(--error); }
 .prefs .p-error { flex-basis: 100%; margin: 0; }
 .prefs .occasion { flex-basis: 100%; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .prefs .occasion .from { color: var(--ink); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
@@ -642,7 +638,6 @@ button.pill:hover { box-shadow: var(--lift); }
 .prefs .target, .pref-new .target { flex-basis: 100%; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
 .prefs .target select, .pref-new .target select { font: inherit; color: var(--ink); padding: 3px 6px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); }
 .prefs .pref-actions { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
-.prefs .pref-actions .btn { padding: 5px 11px; font-size: 12px; border-radius: 2px; white-space: nowrap; }
 .proposals li { background: color-mix(in srgb, var(--proposal) 9%, var(--chip)); }
 .proposals li:hover { background: color-mix(in srgb, var(--proposal) 9%, var(--chip)); }
 .proposals .pref-text { cursor: default; font-weight: 600; }
@@ -686,7 +681,7 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 #help { position: fixed; inset: 0; z-index: 60; background: var(--dim); display: flex; align-items: center; justify-content: center; padding: 24px; animation: fade .15s ease-out; }
 #help .box { position: relative; background: var(--panel); border-radius: 3px; box-shadow: var(--lift); padding: 22px 26px 24px; width: 860px; max-width: 100%; max-height: 100%; overflow: auto; }
 #help h2 { margin: 0 0 14px; font-size: 23px; }
-#help .close { position: absolute; right: 14px; top: 12px; border: 0; background: var(--chip); color: var(--ink); width: 32px; height: 32px; border-radius: 3px; cursor: pointer; }
+#help .close { position: absolute; right: 14px; top: 12px; }
 #help .sections { columns: 2 340px; column-gap: 36px; }
 #help section { break-inside: avoid; margin-bottom: 18px; }
 #help section:last-child { margin-bottom: 0; }
@@ -709,7 +704,7 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 #wish .box { position: relative; background: var(--panel); border-radius: 3px; box-shadow: var(--lift); padding: 22px 26px 22px; width: 760px; max-width: 100%; max-height: 100%; overflow: auto;
   display: flex; flex-direction: column; gap: 12px; }
 #wish h2 { margin: 0 0 2px; font-size: 21px; }
-#wish .close { position: absolute; right: 14px; top: 12px; border: 0; background: var(--chip); color: var(--ink); width: 32px; height: 32px; border-radius: 3px; cursor: pointer; }
+#wish .close { position: absolute; right: 14px; top: 12px; }
 #wish .w-issue { display: flex; flex-direction: column; gap: 10px; }
 #wish .w-issue label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
 #wish .w-issue input, #wish .w-issue textarea { font: inherit; font-size: 14px; line-height: 1.45; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; }
@@ -723,14 +718,14 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 #wish .w-pending { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 10px 0 14px; padding: 10px 12px; background: var(--chip); border-radius: 3px; }
 #wish .w-pending p { margin: 0; line-height: 1.45; }
 #wish .w-pending blockquote { margin: 0; padding-left: 10px; border-left: 2px solid var(--muted); line-height: 1.45; }
-#wish .w-pending .btn.small { margin-top: 0; background: var(--panel); }
+#wish .w-pending { --button-bg: var(--panel); }
 #wish .w-public { margin: 0; font-size: 12px; color: var(--muted); }
 #wish .w-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 #wish .w-discard { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; color: var(--muted); cursor: pointer; border-bottom: 1px solid var(--line); }
 #wish .w-discard:hover { color: var(--ink); }
 #wish .w-sent { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 #wish .w-sent p { margin: 0; font-size: 15px; line-height: 1.45; }
-#wish .w-sent .btn { align-self: flex-end; margin-top: 10px; }
+#wish .w-sent > .button { align-self: flex-end; margin-top: 10px; }
 /* the quiet link to it: at the foot of Seismic's sidebar, in the legend, under a reply that Seismic cannot do something;
    its baseline is its words', not the icon's lower edge, so beside the legend's text both stand on one line */
 .wish-link { display: inline-flex; align-items: baseline; gap: 6px; border: 0; background: none; padding: 0; font: inherit; font-size: 12px; color: var(--muted); cursor: pointer; text-align: left; }
@@ -804,7 +799,7 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 #canvas-dialog .box { position: relative; display: flex; flex-direction: column; width: 560px; max-width: 100%; max-height: 100%; box-sizing: border-box; padding: 22px 26px 20px;
   background: var(--panel); border-radius: 3px; box-shadow: var(--lift); }
 #canvas-dialog h2 { display: flex; align-items: center; gap: 12px; margin: 0 44px 16px 0; font-size: 21px; }
-#canvas-dialog .close { position: absolute; right: 14px; top: 14px; border: 0; background: var(--chip); color: var(--ink); width: 32px; height: 32px; border-radius: 3px; cursor: pointer; }
+#canvas-dialog .close { position: absolute; right: 14px; top: 14px; }
 .cd-preview { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--chip); }
 .cd-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
 .cd-field { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
@@ -821,7 +816,6 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 .cd-icons > .cicon { height: 32px; padding: 0 12px; }
 .cd-none { font-size: 13px; color: var(--muted); }
 .cd-actions { display: flex; gap: 8px; margin-top: 18px; }
-.cd-actions .btn:disabled { opacity: .5; cursor: default; }
 /* the open card's "⋯", and the canvases it offers to move the card to */
 .card-more .prio-btn { display: inline-grid; place-items: center; height: 20px; padding: 0 5px; color: var(--muted); }
 .card-more-menu { min-width: 200px; }
@@ -860,7 +854,7 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
   100% { box-shadow: none; }
 }
 #panel.ready .inner { opacity: 1; }
-#panel .close { position: absolute; right: 14px; top: 12px; border: 0; background: var(--chip); width: 32px; height: 32px; border-radius: 3px; cursor: pointer; z-index: 2; }
+#panel .close { position: absolute; right: 14px; top: 12px; z-index: 2; }
 /* the card's rule across the top, as on the card it unfolded from */
 #panel::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--c); z-index: 1; }
 .p-kind { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
@@ -928,16 +922,8 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .repo-path { flex: 1; min-width: 0; font: 13px var(--mono); padding: 6px 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
 .repo-project { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; cursor: pointer; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
-/* a button's label stays on one line: a row too narrow for all of them goes on in a second row */
-.actions .btn { white-space: nowrap; padding: 7px 12px; }
 /* deleting stands apart from what moves the card on */
-.actions > .btn.danger { margin-left: auto; }
-.btn { border: 0; border-radius: 3px; padding: 9px 16px; font-weight: 600; cursor: pointer; background: var(--chip); }
-.btn.primary { background: var(--ink); color: var(--bg); }
-.btn.danger { color: var(--error); }
-/* starting a code review: second to Approve, in purple */
-.btn.code-review { background: var(--proposal); color: var(--on-ink); }
-.btn.review-warning { background: #f5c247; color: #34270b; border: 1px solid #c48f21; }
+.actions > .button[data-variant=danger] { margin-left: auto; }
 .review-approval-cover { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--dim); }
 .review-approval-box { width: min(440px, 100%); padding: 24px; border-radius: 4px; background: var(--panel); box-shadow: var(--lift); }
 .review-approval-box h2 { margin: 0 0 10px; font: 600 24px var(--serif); }
@@ -951,13 +937,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
   font-size: 14px; }
 .next-step .next-h { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: var(--idea); }
 .next-step + .actions { margin-top: 12px; }
-.btn.suggested { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--idea); }
-/* "Build it like this" or "Accept and start" clicked while an agent works on the card: armed, with a bar running under its label until it is done */
-.btn.armed:disabled { opacity: 1; position: relative; overflow: hidden; }
-.btn.armed::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
-  background: linear-gradient(90deg, transparent, var(--idea), transparent); background-size: 200% 100%; animation: flow 1.4s linear infinite; }
 .hint.go-waits { color: var(--ink); font-weight: 600; }
-.btn:hover { filter: brightness(1.05); }
 
 .p-status { color: var(--muted); font-weight: 500; }
 .p-h { margin: 22px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
@@ -971,9 +951,10 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .duplicate-preview .merge-side { box-shadow: none; border: 1px solid var(--line); }
 .duplicate-preview .merge-side:first-child { border: 1.5px dashed var(--proposal); }
 .duplicate-merge-actions { display: inline-flex; vertical-align: middle; }
-.duplicate-merge-actions .btn { border-radius: 0; }
-.duplicate-merge-actions .btn:first-child { border-radius: 3px 0 0 3px; }
-.duplicate-merge-actions .btn:last-child { border-radius: 0 3px 3px 0; }
+/* two buttons joined into one */
+.duplicate-merge-actions > .button { border-radius: 0; }
+.duplicate-merge-actions > .button:first-child { border-radius: 3px 0 0 3px; }
+.duplicate-merge-actions > .button:last-child { border-radius: 0 3px 3px 0; }
 .duplicate-merge-actions .duplicate-attempt { background: var(--proposal); color: var(--on-ink); }
 .duplicate-merge-actions .duplicate-dismiss { background: color-mix(in srgb, var(--proposal) 12%, var(--chip)); color: var(--ink); }
 .demo-view video { width: 100%; border-radius: 3px; background: #000; display: block; }
@@ -1030,13 +1011,12 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .demo-versions .step { border: 0; background: none; color: var(--ink); width: 24px; height: 24px; border-radius: 2px; font-size: 18px; line-height: 1; cursor: pointer; }
 .demo-versions .step:hover:not(:disabled) { background: var(--chip); }
 .demo-versions .step:disabled { opacity: .3; cursor: default; }
-.demo-versions .link { margin-left: 10px; }
+.demo-versions .button { margin-left: 10px; }
 .demo-versions .on-page { display: inline-flex; vertical-align: -2px; margin-left: 6px; color: var(--approved); }
 .demo-versions .on-page svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .share .agent-says { color: var(--muted); font-size: 12px; }
 .share { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font-size: 13px; }
 .share.wide { flex: 1 1 100%; align-items: stretch; }
-.share .btn { padding: 7px 14px; }
 .share-go { display: inline-flex; align-items: center; gap: 7px; }
 .share-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-top: 8px; }
 .share-check input { margin: 0; }
@@ -1059,9 +1039,8 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .share-tags > .share-label, .share-tags .t, .tag-chip.pick { text-box: trim-both cap alphabetic; }
 .tag-chip { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 3px 0 10px; border-radius: 12px; background: var(--chip); font-size: 12.5px; line-height: 1; white-space: nowrap; box-sizing: border-box; }
 .tag-chip .dim { color: var(--muted); }
-.tag-chip .x { all: unset; cursor: pointer; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: var(--muted); }
-.tag-chip .x svg, .tag-add svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
-.tag-chip .x:hover { background: var(--line); color: var(--ink); }
+.tag-chip .x { border-radius: 50%; }
+.tag-add svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
 .tag-chip.pick { all: unset; cursor: pointer; display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 12px; background: var(--chip); font-size: 12.5px; line-height: 1; box-sizing: border-box; }
 .tag-chip.pick:hover { background: var(--line); }
 .tag-add { all: unset; cursor: pointer; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; border: 1px dashed var(--muted); color: var(--muted); box-sizing: border-box; }
@@ -1150,9 +1129,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .cite.below.left { transform: translate(calc(-100% + 2px), 6px); }
 @media (pointer: coarse) { .cite { height: 36px; min-width: 36px; } .cite.below { transform: translate(-50%, 30px); } }
 .cite:hover { background: color-mix(in srgb, var(--ink) 85%, var(--bg)); }
-.msg-delete { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; display: grid; place-items: center; padding: 0;
-  border: 0; border-radius: 3px; background: transparent; color: var(--muted); cursor: pointer; }
-.msg-delete:hover { color: var(--error); background: var(--line); }
+.msg-delete { position: absolute; top: 7px; right: 7px; }
 .talk .msg:has(> .msg-delete) > .who { padding-right: 24px; }
 .talk .msg:has(> .msg-delete):has(> .msg-reply) > .who { padding-right: 52px; }
 .msg:has(> .msg-delete) > .msg-reply { right: 32px; }
@@ -1167,9 +1144,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .quote-who { font-size: 11.5px; font-weight: 600; color: var(--q); }
 .quote-text { font-size: 12.5px; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.quote-clear { flex: none; margin: 3px 3px 0 0; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 3px; background: none;
-  color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
-.quote-clear:hover { color: var(--ink); background: var(--chip); }
+.quote-clear { margin: 3px 3px 0 0; }
 .talk .msg > .quote { margin: 5px 0 4px; }
 .composer .c-field .quote { flex: 1 1 100%; margin: 0 0 2px; }
 .composer .c-field .quote-text { -webkit-line-clamp: 2; }
@@ -1337,13 +1312,12 @@ span.cl-name { color: inherit; cursor: default; }
 .reauthenticate { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 10px; }
 .reauthenticate > div { flex-basis: 100%; }
 .reauthenticate code { overflow-wrap: anywhere; white-space: normal; }
-.reauthenticate > .btn.small { margin-top: 0; color: var(--ink); background: var(--card); border: 1px solid var(--line); }
+.reauthenticate { --button-bg: var(--card); }
 .talk .note .reauthenticate { justify-content: center; }
 .reauthenticate-token { display: flex; flex-direction: column; gap: 6px; flex-basis: 100%; font-style: normal; }
 .reauthenticate-token .c-row { display: flex; align-items: center; gap: 8px; }
 .reauthenticate-token input { flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); font-size: 13px; outline: none; }
 .reauthenticate-token input:focus { border-color: var(--muted); }
-.reauthenticate-token .btn.small { margin-top: 0; color: var(--ink); background: var(--card); border: 1px solid var(--line); }
 .talk .note.ev-denied { color: var(--warn); font-style: normal; }
 /* the line where the card was snoozed, while it is: with "Wake now" and "Change" under it */
 .talk .note.snooze-line { display: flex; flex-direction: column; align-items: center; gap: 2px; border-top: 1px dashed var(--line); padding-top: 8px; font-style: normal; }
@@ -1351,10 +1325,9 @@ span.cl-name { color: inherit; cursor: default; }
 .talk .wait-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 6px; }
 .talk .wait-line .clock-mark { vertical-align: -1px; }
 .snooze-acts { display: flex; gap: 8px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
-.snooze-acts .btn.small { margin-top: 4px; background: var(--card); border: 1px solid var(--line); color: var(--ink); }
+.snooze-acts { --button-bg: var(--card); margin-top: 4px; }
 /* "Later" and its menu of times, above the button in a card's action row; on the snooze line over the conversation, placed by script */
 .snooze-box { position: relative; display: inline-flex; flex-direction: column; align-items: center; }
-.snooze-box > .btn .clock-mark { margin-right: 4px; vertical-align: -1px; }
 .snooze-menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 30; min-width: 220px; display: flex; flex-direction: column;
   background: var(--card); border: 1px solid var(--line); border-radius: 4px; box-shadow: var(--lift); padding: 4px 0; text-align: left; font-style: normal; }
 .snooze-box.inline .snooze-menu { position: fixed; bottom: auto; max-width: calc(100vw - 16px); }
@@ -1364,7 +1337,6 @@ span.cl-name { color: inherit; cursor: default; }
 .snooze-opt.more { border-top: 1px solid var(--line); margin-top: 2px; }
 .snooze-pick { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); margin-top: 2px; align-items: center; }
 .snooze-pick input { min-width: 0; font: inherit; font-size: 13px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg); color: var(--ink); }
-.snooze-pick .btn { padding: 6px 12px; }
 /* a proposal its agent wants started later: when, with "Change" */
 .start-at { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; margin: 10px 0 2px; font-size: 13px; color: var(--ink); }
 .start-at .clock-mark { vertical-align: -1px; color: var(--muted); }
@@ -1406,7 +1378,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .pr-held-edit:hover { color: var(--ink); border-color: color-mix(in srgb, var(--inPr) 50%, transparent); }
 .pr-held-field { display: block; width: 100%; box-sizing: border-box; min-height: 6em; padding: 10px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--inPr) 50%, transparent); background: var(--card); color: var(--ink); font: inherit; font-size: 14.5px; line-height: 1.45; resize: none; }
 .pr-held-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
-.pr-held-acts .btn.small { margin-top: 0; }
 .pr-held-acts .p-error { margin: 0; }
 .pr-held-asks { margin-top: 6px; font-size: 13px; color: var(--waiting); }
 .checks { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
@@ -1440,7 +1411,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .question.queue { border-color: var(--planned); background: var(--chip); }
 .question.failed { border-color: var(--error); background: color-mix(in srgb, var(--error) 6%, transparent); }
 .question.queue .actions { margin-top: 10px; }
-.question.queue .btn { background: var(--card); border: 1px solid var(--line); }
+.question.queue { --button-bg: var(--card); }
 /* the chain a queued card waits in: the card it waits for, the card itself (its title), a card that waits
    for it, with the tags, rings and arrows of the project while the pointer is on a card; the card itself in green */
 .q-chain { display: flex; flex-direction: column; align-items: flex-start; margin-top: 20px; }
@@ -1455,8 +1426,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .q-place > .hint { margin: 0; }
 .q-place .why { flex-basis: 100%; }
 .qmoves { display: inline-flex; gap: 4px; flex: none; }
-.btn.qmove { padding: 4px 10px; font-size: 12.5px; font-weight: 500; }
-.btn.qmove.stuck { color: var(--muted); border-style: dashed; cursor: help; }
+.qmove.stuck { color: var(--muted); cursor: help; }
 /* a list under its button in the bar (the queue, the archive), each row opening its card on a click */
 .menu-pill { position: relative; }
 .bar-menu { position: absolute; top: calc(100% + 6px); left: 0; width: min(420px, calc(100vw - 28px)); max-height: calc(100vh - 80px); overflow: auto;
@@ -1468,8 +1438,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .qlist li:hover { background: var(--chip); }
 .qlist li .q-what { flex: 1; min-width: 0; }
 .qlist li .why { display: block; margin-top: 2px; }
-.qlist li .x { flex: none; padding: 0 4px; font-size: 17px; line-height: 22px; color: var(--muted); background: none; border: 0; cursor: pointer; }
-.qlist li .x:hover { color: var(--ink); }
 .qlist li { position: relative; }
 /* a row's grip: dragged to put the row elsewhere; a finger on it does not scroll the list */
 .qlist li .grip { flex: none; display: flex; justify-content: center; width: 12px; margin: 2px -4px 0 -2px; color: var(--muted); cursor: grab; touch-action: none; opacity: .7; }
@@ -1554,14 +1522,12 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
   display: inline-flex; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); }
 .c-shot img { height: 100%; max-width: 160px; object-fit: cover; border-radius: 2px; display: block; }
 .c-shot .open { all: unset; height: 100%; cursor: zoom-in; }
-.c-shot .remove { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 3px; border: 1px solid var(--line);
-  background: var(--card); color: var(--ink); font-size: 13px; line-height: 1; cursor: pointer; padding: 0; }
+.c-shot .remove { position: absolute; top: -7px; right: -7px; --button-bg: var(--card); box-shadow: 0 0 0 1px var(--line); }
 .c-shot.loading { padding: 0 10px; }
 /* after the first screenshot picked from disk: pasting works too, until confirmed */
 .c-paste-hint { flex-basis: 100%; display: flex; align-items: center; gap: 12px; padding: 8px 10px;
   border-radius: 2px; background: color-mix(in srgb, var(--working) 8%, var(--card)); font-size: 13px; line-height: 1.4; }
 .c-paste-hint p { margin: 0; flex: 1; }
-.c-paste-hint .btn { flex: none; }
 .ptt-shots .c-shots { flex-wrap: nowrap; align-items: center; }
 .ptt-shots .c-paste-hint { flex: 0 0 auto; width: 320px; }
 /* the marked version is being drawn and uploaded, to take its place */
@@ -1588,8 +1554,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .lb-marks { position: absolute; transform-origin: 0 0; cursor: crosshair; touch-action: none; -webkit-user-select: none; user-select: none; overflow: visible; }
 .lb-bar { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; border-radius: 4px; background: var(--card); box-shadow: var(--lift);
   cursor: default; animation: fade .38s ease-out; transition: opacity .2s; }
-.lb-bar .btn { padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; }
-.lb-bar .btn:disabled { opacity: .45; cursor: default; }
 .lb-hint { font-size: 13px; color: var(--muted); margin-right: 6px; }
 .lightbox.closing .lb-bar { opacity: 0; }
 @keyframes dim { from { background-color: transparent; } }
@@ -1607,7 +1571,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .f-list td { padding: 1px 0; vertical-align: top; }
 .f-list td.d-add, .f-list td.d-del { padding-left: 10px; white-space: nowrap; text-align: right; }
 .f-path { overflow-wrap: anywhere; }
-.f-list button.link { text-align: left; font: inherit; }
 .f-list .f-mark { width: 1.2em; padding-right: 4px; text-align: center; color: var(--muted); }
 .f-left { color: var(--muted); font-style: italic; }
 .f-undo.partial { color: var(--muted); }
@@ -1615,19 +1578,17 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .f-discard.counting { border: 1px solid var(--error); }
 .f-count { margin-left: 8px; font-variant-numeric: tabular-nums; font-weight: 600; }
 .f-cancel { margin-left: 6px; color: var(--error); font-weight: 700; }
-.link.copied { color: var(--approved); font-weight: 600; }
+.button.copied { color: var(--approved); font-weight: 600; }
 .diff-view { position: fixed; inset: 0; z-index: 1000; background: var(--dim); display: flex; justify-content: center;
   padding: 3vh 3vw; animation: fade .15s ease-out; }
 .d-sheet { display: flex; flex-direction: column; width: min(100%, 1500px); background: var(--panel); border-radius: 3px; box-shadow: var(--lift); min-height: 0; }
 .d-head { display: flex; align-items: baseline; gap: 14px; padding: 16px 22px 12px; border-bottom: 1px solid var(--line); }
 .d-head h2 { margin: 0; font-size: 21px; }
 .d-head .hint { flex: 1; }
-.d-close { border: 0; background: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--muted); padding: 0 4px; }
-.d-close:hover { color: var(--ink); }
 .d-body { overflow: auto; padding: 8px 22px 28px; min-height: 0; }
 .d-files { border-collapse: collapse; font-size: 13px; margin: 6px 0 10px; }
 .d-files td { padding: 1px 14px 1px 0; vertical-align: baseline; }
-.d-files .link { font: 12.5px var(--mono); text-align: left; }
+.d-files .button[data-variant=link] { font: 12.5px var(--mono); }
 .d-file { margin-top: 18px; }
 .d-file h3 { position: sticky; top: -8px; z-index: 1; display: flex; gap: 12px; align-items: baseline; margin: 0; padding: 7px 10px;
   background: var(--chip); border: 1px solid var(--line); border-radius: 2px 2px 0 0; font: 500 13px var(--cond); }
@@ -1639,7 +1600,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
   --diffs-addition-color: var(--approved); --diffs-deletion-color: var(--error); --diffs-modified-color: var(--working);
   --diffs-font-family: var(--mono); --diffs-font-size: 12px; --diffs-line-height: 1.5; }
 .d-cut { margin-top: 18px; }
-.btn:disabled { opacity: .45; cursor: default; filter: none; }
 /* above plans (z-index 0), below cards (2): a line from a workstream stays visible over its plan */
 #links { position: absolute; left: 0; top: 0; z-index: 1; overflow: visible; pointer-events: none; }
 #links path { fill: none; stroke: var(--proposal); stroke-width: 2; stroke-dasharray: 5 6; opacity: .7; }
@@ -1652,9 +1612,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
   overflow: auto; padding: 20px 22px 30px; }
 .sheet.on { transform: none; visibility: visible; transition-delay: 0s; }
 /* closes the open sheet, where the button that opened it was */
-#sheet-close { position: fixed; top: 14px; right: 14px; z-index: 27; width: 30px; height: 30px; border: 0; border-radius: 3px; background: var(--chip);
-  color: var(--muted); cursor: pointer; animation: fade .3s ease-out .2s backwards; }
-#sheet-close:hover { color: var(--ink); }
+#sheet-close { position: fixed; top: 14px; right: 14px; z-index: 27; animation: fade .3s ease-out .2s backwards; }
 /* the button for Seismic's sidebar: over the room the bar keeps for it (.talk-room), and the sidebar's
    corner while that is open; the same spot, as Seismic's sidebar is what --side is then. Beside another
    sheet it goes left with the bar's end; in the bar it stands left of the avatar (34px and the gap) */
@@ -1686,7 +1644,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .sheet .ws-text .p-list li { margin: 1px 0; }
 /* the archive: per day a timeline, the time on the left, each archived card as a small card */
 .archive-menu { width: min(460px, calc(100vw - 28px)); padding: 8px 10px 4px; }
-.archive-menu > .btn { margin: 2px 0 6px; padding: 6px 12px; font-size: 13px; }
+.archive-menu > .button { margin: 2px 0 6px; }
 .a-search { position: relative; margin: 2px 0 8px; flex: 1; min-width: 0; }
 .a-head { display: flex; align-items: center; gap: 6px; }
 .a-full { flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin-bottom: 6px; border: 0; border-radius: 3px; background: var(--chip); color: var(--ink); cursor: pointer; }
@@ -1697,14 +1655,12 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .a-full-head h2 { margin: 0 0 6px; font-size: 18px; }
 .a-full-head .a-search { max-width: 640px; }
 .a-full-body { flex: 1; overflow: auto; padding: 4px 24px 24px; }
-.a-full-body > section, .a-full-body > .btn, .a-full-body > .hint { max-width: 760px; }
+.a-full-body > section, .a-full-body > .button, .a-full-body > .hint { max-width: 760px; }
 #archive-full h4 { margin: 10px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .a-search input { width: 100%; box-sizing: border-box; padding: 8px 30px 8px 11px; font-size: 14px; background: var(--card); border: 1px solid var(--line);
   border-radius: 3px; outline: none; }
 .a-search input:focus { border-color: var(--muted); }
-.a-search .x { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 2px 8px; font-size: 17px; line-height: 1;
-  color: var(--muted); background: none; border: 0; cursor: pointer; }
-.a-search .x:hover { color: var(--ink); }
+.a-search .x { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
 .timeline .a-card mark { background: var(--chip); color: inherit; border-radius: 2px; box-shadow: 0 0 0 1px var(--chip); }
 .archive-menu h4 { margin: 6px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
@@ -1720,17 +1676,14 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   transition: transform .15s, box-shadow .15s; }
 .timeline .a-card:hover { transform: translateY(-1px); box-shadow: var(--lift); }
 .timeline .a-card:focus-visible { outline: 2px solid var(--working); outline-offset: 2px; }
-.sheet .btn.read { margin-top: 14px; padding: 7px 14px; font-size: 13px; }
+.sheet .read { margin-top: 14px; }
 .sheet .start-all { margin-top: 10px; }
-.sheet .start-all .btn { padding: 7px 14px; font-size: 13px; }
 .sheet .start-all .hint { margin: 6px 0 0; font-size: 12px; }
 .sheet .arrange { margin-top: 10px; }
-.sheet .arrange .btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; font-size: 13px; }
 .sheet .arrange .hint { margin: 6px 0 0; font-size: 12px; }
 
 /* Seismic's configuration: a dialog over the page, nearly as large as the window, its sections listed
    on the left and the one chosen on the right; settings as rows of label and control, without boxes */
-.btn.small { padding: 5px 11px; font-size: 12.5px; font-weight: 500; margin-top: 8px; }
 #config, #prefs { position: fixed; inset: 0; z-index: 55; background: var(--dim); display: none; padding: 28px; }
 :is(#config, #prefs).on { display: flex; animation: fade .15s ease-out; }
 .cfg-box { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr); min-width: 0; background: var(--panel); border-radius: 3px;
@@ -1754,13 +1707,16 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-nav li button.cfg-nav-add { padding-top: 5px; padding-bottom: 5px; font-size: 13px; color: var(--muted); }
 .cfg-nav li button.cfg-nav-add:hover { color: var(--ink); }
 .cfg-ask { margin: -6px 0 22px; padding: 0 10px; }
-.cfg-ask .hint { margin: 0 0 8px; line-height: 1.45; }
+.cfg-ask .hint { margin: 0 0 14px; line-height: 1.45; }
+.cfg-export-actions { display: flex; gap: 6px; margin: 16px 0 0; }
+/* a small button under text stands a little apart from it */
+:is(p, ul, ol, .c-install) + .button[data-size=small] { margin-top: 8px; }
 .cfg-nav-foot { margin-top: auto; padding: 18px 10px 0; }
 .cfg-nav-foot .wish-link { display: flex; margin-top: 14px; }
-.cfg-nav .btn { background: var(--panel); }
+.cfg-nav { --button-bg: var(--panel); }
 /* the right padding keeps a lane for the close button, so nothing scrolls under it or stands beside it */
 .cfg-main { position: relative; overflow-y: auto; padding: 26px 66px 0 40px; }
-.cfg-close { position: absolute; right: 22px; top: 14px; border: 0; background: var(--chip); color: var(--ink); width: 32px; height: 32px; border-radius: 3px; cursor: pointer; z-index: 2; }
+.cfg-close { position: absolute; right: 22px; top: 14px; z-index: 2; }
 .cfg-sec { max-width: 1180px; padding-bottom: 32px; }
 .cfg-sec[hidden] { display: none; }
 :is(#config, #prefs, #project-settings) code, #phone code { font: 12px var(--mono); overflow-wrap: anywhere; }
@@ -1814,7 +1770,7 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 /* prose, not a path: the page's font */
 #config .cfg-control > :is(.c-style, .c-sample) { font-family: inherit; font-size: 13px; line-height: 1.45; padding: 6px 8px; }
 .cfg-control > .seg { margin-top: 0; }
-.cfg-control .btn.small { margin-top: 6px; }
+.cfg-control > .button { margin-top: 6px; }
 :is(#config, #prefs, #project-settings) label.c-check { display: flex; gap: 8px; align-items: center; margin: 8px 0 0; font-size: 13px; }
 .cfg-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 0 56px; align-items: start; }
 .cfg-cols > .c-setup > .cfg-head.sub { margin-top: 0; padding-top: 0; border-top: 0; }
@@ -1844,7 +1800,6 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 .cfg-project-head .qmoves { margin-left: auto; align-self: center; }
 .cfg-project-head .qmoves + .c-del { margin-left: 0; }
 .cfg-project-head > .c-del { align-self: center; }
-.cfg-project-head .btn.qmove { margin-top: 0; padding: 2px 8px; }
 .cfg-project .cfg-name { width: 100%; max-width: 420px; }
 .cfg-old-names { margin: 0; padding: 0; list-style: none; max-width: 420px; }
 .cfg-old-names li { display: flex; align-items: center; gap: 10px; min-height: 30px; }
@@ -1854,14 +1809,12 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 .review-approval-box .old-name-warning { margin: 0 0 12px; }
 .old-name-effects { margin: 0 0 12px; padding-left: 20px; line-height: 1.5; }
 .review-approval-box .hint { margin: 0 0 18px; }
-.btn.delete-old-name { color: #fff; background: var(--error); border-color: var(--error); }
 .cfg-host { display: contents; }
 /* labels line up with the top of their controls, which are often several lines high */
 .cfg-project .cfg-field { align-items: start; }
 .cfg-project .cfg-field > .cfg-label { padding-top: 7px; }
 .cfg-repo-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .cfg-repo-tabs > .seg { margin-top: 0; }
-.cfg-repo-tabs > .btn.small { margin-top: 0; }
 .cfg-repo-tabs .n { margin-left: 6px; border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--error); }
 .cfg-repo { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
 .cfg-repo-path { display: flex; align-items: center; gap: 12px; max-width: 664px; }
@@ -1911,8 +1864,7 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 :is(#config, #prefs, #project-settings) .cfg-host-clones { display: flex; align-items: center; gap: 6px; }
 .cfg-host-clones > .hint { font-size: 11.5px; }
 :is(#config, #prefs, #project-settings) .cfg-host-clones input { width: 64px; }
-.cfg-hosts > .btn.small { margin-top: 0; }
-.cfg-host-rows + .btn.small { margin-top: 6px !important; }
+.cfg-host-rows + .button { margin-top: 6px; }
 .cfg-agents { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(130px, .85fr) minmax(160px, 1fr) minmax(100px, .65fr); gap: 0 14px; align-items: center; max-width: 1000px; }
 .cfg-agents > .hint { font-size: 11.5px; padding-bottom: 4px; }
 .cfg-agents > select { min-width: 0; }
@@ -1945,8 +1897,7 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 .c-project .p-error { margin: 4px 0 0; font-size: 12.5px; }
 .c-id { font: 11.5px var(--mono); color: var(--muted); }
 .c-id.fresh { color: var(--warn); }
-.c-del { margin-left: auto; border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 0 2px; }
-.c-del:hover { color: var(--error); }
+.c-del { margin-left: auto; }
 .c-remove svg { display: block; }
 /* a waste bin shows while the pointer or focus is on its entry; without a pointer that hovers, always */
 @media (hover: hover) {
@@ -1957,13 +1908,13 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 .c-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
 .c-row .hint { font-size: 11.5px; min-width: 0; }
 /* the hint beside it wraps, the button keeps its label on one line */
-.c-row > .btn { flex: none; white-space: nowrap; margin-top: 0; }
+.c-row > .button { flex: none; }
 .c-path { flex: 1; min-width: 0; font-family: var(--mono) !important; font-size: 12px !important; }
 .c-problem { margin: 6px 0 0; font-size: 13px; }
 .c-problem details { margin-top: 4px; }
 .c-problem summary { cursor: pointer; color: var(--muted); }
 .c-problem code { display: block; margin-top: 4px; white-space: pre-wrap; overflow-wrap: break-word; }
-.c-problem .btn { display: block; margin-top: 6px; color: var(--ink); }
+.c-problem > .button:not([data-variant=link]) { display: flex; width: fit-content; margin-top: 6px; }
 .c-actions { display: flex; gap: 8px; margin-top: 16px; }
 .c-install { display: flex; gap: 10px; align-items: center; margin: 4px 0; font-size: 12.5px; }
 .c-install .hint { margin: 0; }
@@ -2015,9 +1966,6 @@ input.toggle:focus-visible { outline: 2px solid var(--working); outline-offset: 
 .doc table { border-collapse: collapse; font-size: 14.5px; }
 .doc th, .doc td { text-align: left; vertical-align: top; padding: 5px 10px; border-bottom: 1px solid var(--line); }
 .doc th { font-weight: 600; }
-button.link { border: 0; background: none; padding: 0; color: var(--working); cursor: pointer; font-size: inherit; }
-button.link:hover { text-decoration: underline; }
-.c-problem button.link { font: inherit; text-decoration: underline; }
 .app-link { color: var(--working); text-decoration: none; }
 .app-link:hover { text-decoration: underline; }
 .sheet .origin { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; margin-top: 14px; padding: 9px 12px; border: 1px dashed var(--idea);
@@ -2058,8 +2006,7 @@ button.link:hover { text-decoration: underline; }
 .c-file { position: relative; height: 46px; display: inline-flex; align-items: center; padding: 0 12px; max-width: 180px; border-radius: 2px; border: 1px solid var(--line);
   background: var(--card); box-shadow: var(--shadow); font-size: 12px; color: var(--ink); white-space: nowrap; }
 .c-file .name { overflow: hidden; text-overflow: ellipsis; }
-.c-file .remove { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 3px; border: 1px solid var(--line);
-  background: var(--card); color: var(--ink); font-size: 13px; line-height: 1; cursor: pointer; padding: 0; }
+.c-file .remove { position: absolute; top: -7px; right: -7px; --button-bg: var(--card); box-shadow: 0 0 0 1px var(--line); }
 #ptt.dropping #mic { outline: 2px dashed var(--working); outline-offset: 5px; }
 /* the desktop's view switcher where the microphone was (src/ui/views.tsx); the microphone shows above it only while Space is held */
 .view-switch { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--card); box-shadow: var(--lift); }
@@ -2337,9 +2284,7 @@ button.link:hover { text-decoration: underline; }
 .gtag.vacant .gcount { background: color-mix(in srgb, var(--line) 70%, transparent); color: var(--muted); }
 .ring.open .gtag { opacity: 1; }
 .gtag.hot { font-weight: 600; box-shadow: 0 0 0 2px hsl(var(--h) 75% 52%), 0 0 14px hsl(var(--h) 90% 55% / .45); }
-.gdel { flex: none; width: 18px; height: 18px; margin-right: -2px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center;
-  background: transparent; color: var(--muted); font: 600 14px/1 var(--cond); cursor: pointer; }
-.gdel:hover { background: var(--ink); color: var(--bg); }
+.gdel { margin-right: -2px; border-radius: 50%; }
 .rcap { position: absolute; left: -60px; width: 120px; top: -9px; text-align: center; font: 600 13px/18px var(--cond); color: var(--ink); white-space: nowrap; }
 .rname { position: absolute; left: -80px; top: -16px; width: 160px; height: 32px; box-sizing: border-box; border-radius: 3px; border: 1.5px solid var(--working);
   background: var(--card); color: var(--ink); font: 14px var(--cond); padding: 0 12px; text-align: center; outline: none; box-shadow: 0 0 18px color-mix(in srgb, var(--working) 40%, transparent); }
@@ -2372,7 +2317,6 @@ button.link:hover { text-decoration: underline; }
 .setup .c-setup > .hint { margin: 2px 0 6px; }
 .setup .c-setup li { grid-template-columns: 16px 210px 1fr; }
 .c-act { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 2px 0 4px; }
-.c-act .btn.small { margin-top: 0; }
 .c-act .p-error { margin: 0; font-size: 12.5px; }
 .c-act .c-install { margin: 0; min-width: 0; }
 .c-voice { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; }
@@ -2428,7 +2372,7 @@ button.link:hover { text-decoration: underline; }
 #phone { position: fixed; inset: 0; z-index: 60; background: var(--dim); display: flex; align-items: center; justify-content: center; padding: 24px; animation: fade .15s ease-out; }
 #phone .box { position: relative; background: var(--panel); border-radius: 3px; box-shadow: var(--lift); padding: 22px 26px 20px; width: 680px; max-width: 100%; max-height: 100%; overflow: auto; font-size: 14px; }
 #phone h2 { margin: 0 0 16px; font-size: 23px; }
-#phone .close { position: absolute; right: 14px; top: 12px; border: 0; background: var(--chip); color: var(--ink); width: 32px; height: 32px; border-radius: 3px; cursor: pointer; }
+#phone .close { position: absolute; right: 14px; top: 12px; }
 #phone .cfg-field { grid-template-columns: 150px minmax(0, 1fr); }
 .acc-pair { display: flex; gap: 26px; align-items: flex-start; }
 .acc-pair p { margin: 0 0 10px; line-height: 1.45; }
@@ -2443,7 +2387,6 @@ button.link:hover { text-decoration: underline; }
 .acc-alone { color: var(--warn) !important; font-weight: 600; }
 .acc-devices { list-style: none; margin: 0; padding: 0; max-width: 720px; }
 .acc-devices li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 18px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
-.acc-devices .btn.small { margin-top: 0; }
 .acc-name { font-weight: 600; }
 .acc-connect { margin-top: 12px; }
 .acc-note { margin-top: 18px; max-width: 76ch; }
@@ -2460,7 +2403,6 @@ button.link:hover { text-decoration: underline; }
 .ph-quiet { position: sticky; top: 60px; z-index: 5; margin: 12px 0 0; padding: 10px 12px; border-radius: 3px; background: var(--ink); color: var(--bg); display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
 .ph-quiet b { font-weight: 600; font-size: 14.5px; }
 .ph-notify { margin: 14px 0 0; padding: 10px 12px; border-radius: 3px; border: 1px solid var(--line); background: var(--card); font-size: 14.5px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-.ph-notify .btn { margin-top: 0; }
 .ph-section { margin-top: 22px; }
 .ph-section h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font: 600 21px/1.15 var(--serif); }
 /* the lists' rows are the cards of the project, as wide as the screen: the state's rule across the top, an idea's
@@ -2557,12 +2499,12 @@ button.link:hover { text-decoration: underline; }
 .ph-view .split:empty { display: none; }
 .ph-view .split-main { overflow: visible; padding-right: 0; }
 .ph-view .proposal-grid .p-body { min-height: 160px; max-height: 50vh; }
-.ph-view .actions .btn { min-height: 42px; }
+.ph-view .actions .button { min-height: 42px; }
 /* the change list's lines a finger's size */
 .ph-view .cl-list { font-size: 14.5px; }
 .ph-view .cl-list td, .ph-view .cl-list .f-mark { padding-top: 10px; padding-bottom: 10px; }
 .ph-view .cl-foot { font-size: 14.5px; }
-.ph-view .cl-foot .link { padding: 8px 0; }
+.ph-view .cl-foot .button { padding: 8px 0; }
 /* the video plays full width, and full screen from Seismic's button over it (fullscreen.ts); zooming within the page adds nothing on a phone */
 .ph-view .demo-view .zoom, .ph-view .seek-hint { display: none; }
 .ph-view .demo-view .fullscreen { position: absolute; top: 10px; right: 10px; z-index: 1; width: 42px; height: 42px; border: 0; border-radius: 50%;
@@ -2742,7 +2684,7 @@ button.link:hover { text-decoration: underline; }
 .result-tabs .rv-outdated { margin-left: 6px; font-size: 11px; font-weight: 400; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; }
 .result-tabs .rv-running { display: inline-block; width: 7px; height: 7px; margin-left: 7px; vertical-align: middle; border-radius: 50%; background: var(--reviewing); animation: arranging 1.2s ease-in-out infinite; }
 .code-review .rv-busy { margin: 4px 0; font-weight: 600; color: var(--reviewing); animation: arranging 1.6s ease-in-out infinite; }
-.code-review > .btn { margin-top: 6px; }
+.code-review > .button { margin-top: 6px; }
 .review-submit { margin-top: 14px; display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; }
 .review-submit > .start-agent > .start-agent-buttons { height: 100%; }
 .review-submit .p-error { flex-basis: 100%; margin: 0; }
@@ -2755,8 +2697,6 @@ button.link:hover { text-decoration: underline; }
 .decided-lines .quote-text { color: var(--ink); }
 .tell-hint { display: flex; align-items: center; gap: 4px; margin: -2px 0 8px; font-size: 11px; color: var(--muted); }
 .tell-hint span { flex: 1; min-width: 0; }
-.tell-hint-x { flex: none; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--muted); cursor: pointer; }
-.tell-hint-x:hover { color: var(--ink); background: var(--chip); }
 
 /* this machine's demo sites (Configuration → Demos), adding one, and a project's demo site */
 .personal-site { margin-top: 32px; }
@@ -2769,18 +2709,17 @@ button.link:hover { text-decoration: underline; }
 .cfg-sub > .tag-propose { flex-direction: column; align-items: flex-start; gap: 6px; }
 .tag-propose > .hint { margin: 0; }
 .personal-actions { display: flex; gap: 8px; align-items: center; margin: 10px 0 4px; }
-.cfg-narrow > .btn.primary { margin: 4px 0 8px; }
+.cfg-narrow > .button[data-variant=primary] { margin: 4px 0 8px; }
 .site-account { display: grid; gap: 6px; margin: 2px 0 10px; max-width: 520px; }
 .site-account label { display: flex; flex-direction: column; gap: 3px; }
 .site-account label:first-child { flex-direction: row; align-items: center; gap: 8px; }
 .site-account select { font: inherit; font-size: 13px; }
-.cfg-narrow > button.link { display: block; margin-top: 10px; font-size: 13px; }
+.cfg-narrow > .button[data-variant=link] { display: block; margin-top: 10px; font-size: 13px; }
 .personal-connect { margin-top: 12px; }
-.personal-connect button.link { font-size: 13px; }
 .demo-site { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .demo-site:first-of-type { padding-top: 0; }
 .demo-site > .hint { margin: 2px 0; }
-.demo-site + .btn { margin-top: 12px; }
+.demo-site + .button { margin-top: 12px; }
 .personal-url a, .site-init a { color: var(--working); text-decoration: underline 1px currentColor; text-underline-offset: .2em; }
 .add-site-back { display: inline-block; margin: 0 0 12px; font-size: 13.5px; }
 .add-site { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 10px; }
@@ -2934,7 +2873,7 @@ button.link:hover { text-decoration: underline; }
 .perf-few-note { margin: 0 0 6px; }
 .perf-empty { text-align: center; padding: 48px 10px; }
 .perf-empty h3 { font-family: var(--serif); font-weight: 500; font-size: 20px; margin: 0 0 6px; }
-.perf-empty .btn { margin-top: 8px; }
+.perf-empty > .button { margin-top: 8px; }
 .rate-compare { margin-top: 6px; font-size: 13px; }
 :is(#config, #prefs, #project-settings) .cfg-perf { margin-top: 10px; }
 @media (max-width: 700px) { #perf { padding: 10px; } .perf-main { padding: 20px 56px 24px 18px; } .perf-spread, .perf-dots { min-width: 100px; } }
@@ -3015,7 +2954,7 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 #merge-pick { position: fixed; inset: 0; z-index: 60; background: var(--dim); display: flex; align-items: flex-start; justify-content: center; padding: 10vh 24px 24px; animation: fade .15s ease-out; }
 #merge-pick .box { position: relative; display: flex; flex-direction: column; background: var(--panel); border-radius: 3px; box-shadow: var(--lift); padding: 22px 26px 18px; width: 640px; max-width: 100%; max-height: 100%; box-sizing: border-box; }
 #merge-pick h2 { margin: 0 44px 12px 0; font-size: 21px; }
-#merge-pick .close { position: absolute; right: 14px; top: 12px; border: 0; background: var(--chip); color: var(--ink); width: 32px; height: 32px; border-radius: 3px; cursor: pointer; }
+#merge-pick .close { position: absolute; right: 14px; top: 12px; }
 #merge-pick .merge-search { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
 #merge-pick .hint { margin: 8px 0 6px; }
 .merge-list { list-style: none; margin: 0; padding: 0; overflow: auto; min-height: 0; }
@@ -3052,7 +2991,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
   .merge-sides-glue { flex-basis: 24px; }
   .merge-result { padding: 14px; }
 }
-.btn > .merge-mark { vertical-align: -2px; margin-right: 2px; }
 
 /* A subscription pause waits on the account clock, with a visible manual retry. */
 .card.limit-paused::before { background: #a9d8ec; }
@@ -3124,11 +3062,10 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .ph-section .inbox-filter { margin-left: 0; }
 .ph-section .inbox-bar { margin: 0 0 12px; }
 .inbox-entry .replies { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.inbox-entry .replies .btn { margin-top: 0; padding: 5px 12px; font-size: 12.5px; }
 .empty-inbox { margin: 0; padding: 8px; color: var(--muted); font-size: 13px; }
 /* on the phone the replies are sized for a finger */
 .ph-section .inbox-entry .replies { gap: 8px; }
-.ph-section .inbox-entry .replies .btn { padding: 9px 16px; font-size: 14px; }
+.ph-section .inbox-entry .replies > .button { min-height: 40px; font-size: 14px; }
 /* under the bar, floating over the main area: the project switcher at the left; the project settings and the
    group of the agents and "Needs you" at the right. Only the buttons take the pointer: the project between them stays the project's */
 #floating-row { position: fixed; top: 66px; left: calc(var(--left, 0px) + 14px); right: calc(var(--side, 0px) + 14px); z-index: 24; display: flex; align-items: center; gap: 10px;
@@ -3216,13 +3153,12 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 #project-settings select:not(.own) { color: var(--muted); }
 .cs-more { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 13px; }
 .cs-more .hint { font-size: 12.5px; }
-.cs-more button.link { text-decoration: underline; font-size: 13.5px; }
 .cs-more .n.err { color: var(--warn); font-size: 12.5px; }
 /* a narrow window: the project's settings float over the whole page, down to the status bar */
 @media (max-width: 760px) { #project-settings.sheet { bottom: 46px; } body:has(#project-settings.on) .ptt-row { visibility: hidden; } }
 /* beside the two-line Start agent button, the other action buttons take its height */
 .actions:has(> .start-agent) { align-items: stretch; }
-.actions:has(> .start-agent) > .snooze-box > .btn { flex: 1; }
+.actions:has(> .start-agent) > .snooze-box > .button { flex: 1; }
 
 .description-edit { position: relative; }
 .description-edit-button { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 6px; opacity: 0; }

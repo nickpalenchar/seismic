@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import { phoneView } from './phone';
 import { failText, t } from './strings';
+import { Button } from './components/button';
 
 /** Whether this browser runs on the machine Seismic runs on, asked once per page. */
 let local: Promise<boolean> | undefined;
@@ -57,7 +58,7 @@ export function Reauthenticate({ start = false, token = false }: { start?: boole
   return (
     <div className="reauthenticate">
       {token && <div className="hint">{t.setup.tokenWhy}</div>}
-      <button className="btn small" disabled={busy} onClick={() => void login()}>{token ? t.setup.newToken : t.setup.reauthenticate}</button>
+      <Button size="small" disabled={busy} onClick={() => void login()}>{token ? t.setup.newToken : t.setup.reauthenticate}</Button>
       {status && <span className="hint" role="status">{status}</span>}
       {command && <div className="hint"><code>{command}</code></div>}
       {command && !token && <div className="hint">{start ? t.setup.startAfterReauthenticate : t.setup.afterReauthenticate}</div>}
@@ -66,7 +67,7 @@ export function Reauthenticate({ start = false, token = false }: { start?: boole
           <label className="hint" htmlFor="reauthenticate-token">{t.setup.pasteToken}</label>
           <div className="c-row">
             <input id="reauthenticate-token" type="password" autoComplete="off" spellCheck={false} placeholder={t.setup.tokenPlaceholder} value={pasted} onChange={(e) => setPasted(e.target.value)} />
-            <button className="btn small" type="submit" disabled={busy || !pasted.trim()}>{t.setup.saveToken}</button>
+            <Button size="small" type="submit" disabled={busy || !pasted.trim()}>{t.setup.saveToken}</Button>
           </div>
         </form>
       )}

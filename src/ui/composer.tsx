@@ -20,6 +20,7 @@ import { AttachButton, ShotStrip, useShotInput } from './shots';
 import { t } from './strings';
 import type { Skill } from '../core/types';
 import { HoldToTalk, MicIcon, TAP_MS, useHeldByTouch } from './voice';
+import { Button } from './components/button';
 
 /**
  * How long Space stays down before it is held to speak rather than typed. Typing presses it for
@@ -283,13 +284,13 @@ export function Composer({
             </button>
           )}
           {action ? (
-            <button className="btn primary c-send" disabled={!ready} onMouseDown={keepFocus} onClick={send}>
+            <Button variant="primary" className="c-send" disabled={!ready} onMouseDown={keepFocus} onClick={send}>
               {action}
-            </button>
+            </Button>
           ) : (
-            <button className="btn primary c-send c-arrow" title={label} aria-label={label} disabled={!ready} onMouseDown={keepFocus} onClick={send}>
+            <Button variant="primary" className="c-send c-arrow" title={label} aria-label={label} disabled={!ready} onMouseDown={keepFocus} onClick={send}>
               <ArrowUp size={16} strokeWidth={2.25} aria-hidden="true" />
-            </button>
+            </Button>
           )}
         </div>
       </div>

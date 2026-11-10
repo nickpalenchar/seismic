@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode, type ComponentType } from 
 import { clampWidth, loadWidths, saveWidths, widthsIn, SHEET_W, type SheetWidths } from './sheetWidth';
 import { t } from './strings';
 import { DockPolicy } from './docked';
+import { CloseButton } from './components/button';
 
 export type DockId = 'seismic' | 'plan' | 'plan-doc' | 'needs-you' | 'agents' | 'settings';
 export interface DockView {
@@ -58,7 +59,7 @@ export function DockShell({ dock }: { dock: ReturnType<typeof useDock> }) {
       const shown = v.slot ? views.find((x) => x.slot === v.slot && x.id === active) ?? v : v;
       return <DockPolicy.Provider key={v.slot ?? v.id} value={!!shown.besideCard}>{shown.component()}</DockPolicy.Provider>;
     })}
-    {view && !view.buttonCloses && <button id="sheet-close" className={view.besideCard ? 'beside-card' : undefined} title={t.close} onClick={close}>✕</button>}
+    {view && !view.buttonCloses && <CloseButton id="sheet-close" label={t.close} className={view.besideCard ? 'beside-card' : undefined} onClick={close} />}
     <div id="sheet-grip" className={[view && 'on', view?.besideCard && 'beside-card'].filter(Boolean).join(' ')} style={{ right: widths[kind] - 6 }} title={t.sheetGrip}
       onPointerDown={(e) => {
         if (e.button !== 0) return;

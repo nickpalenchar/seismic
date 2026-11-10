@@ -70,6 +70,7 @@ import { ProjectSettingsSheet } from './projectSettings';
 import { type InboxEntry, inboxEntries, needsYouCount, readMark } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, useWarnings, voiceTarget } from './tell';
+import { CloseButton } from './components/button';
 
 export function App() {
   const [phone] = useState(phoneView);
@@ -2654,9 +2655,7 @@ function Project({
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
         <WishDialog />
         <div id="panel" ref={panelRef}>
-          <button className="close" title={t.close} onClick={() => closeCard()}>
-            ✕
-          </button>
+          <CloseButton label={t.close} className="close" onClick={() => closeCard()} />
           <div className="inner card-sheet" ref={innerRef}>
             <div className="content">
               {openItem && (

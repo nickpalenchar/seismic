@@ -22,6 +22,7 @@ import { AttachButton, ShotStrip, useShotInput } from './shots';
 import { replyOn, setReply, useReply } from './reply';
 import { sent, take, type Taken } from './spot';
 import { failText, t } from './strings';
+import { CloseButton } from './components/button';
 
 /** Starts a recording, for a text field's microphone and Space held in it; null where nobody listens. */
 export const HoldToTalk = createContext<(() => void) | null>(null);
@@ -395,9 +396,7 @@ function FileChips() {
       {words.map((w, i) => (
         <span key={i} className="c-file" title={w}>
           <span className="name">{w.replace(/"/g, '').split(/[\\/]/).at(-1)}</span>
-          <button className="remove" title={t.shots.remove} onClick={() => updateDraft(MIC_DRAFT, { text: words.filter((_, j) => j !== i).join(' ') })}>
-            ×
-          </button>
+          <CloseButton label={t.shots.remove} size="small" className="remove" onClick={() => updateDraft(MIC_DRAFT, { text: words.filter((_, j) => j !== i).join(' ') })} />
         </span>
       ))}
     </div>

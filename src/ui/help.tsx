@@ -3,6 +3,7 @@
 import { Fragment } from 'react';
 import { t } from './strings';
 import { WishLink } from './wish';
+import { CloseButton } from './components/button';
 
 /** The `?` button in the bar. */
 export function HelpButton({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -22,9 +23,7 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
   return (
     <div id="help" onClick={onClose}>
       <div className="box" role="dialog" aria-label={t.help.title} onClick={(e) => e.stopPropagation()}>
-        <button className="close" title={t.close} onClick={onClose}>
-          ✕
-        </button>
+        <CloseButton label={t.close} className="close" onClick={onClose} />
         <h2>{t.help.title}</h2>
         <div className="sections">
           {t.help.sections.map((s) => (

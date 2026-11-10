@@ -1,0 +1,30 @@
+/* Button, LinkButton, IconButton and CloseButton (button.tsx). Their look only: where they sit is the container's. */
+
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 3px;
+  padding: 7px 13px; font: inherit; font-weight: 600; line-height: 1.25; white-space: nowrap; text-align: center;
+  cursor: pointer; background: var(--button-bg, var(--chip)); color: var(--ink); }
+.button:hover { filter: brightness(1.05); }
+.button:disabled { opacity: .45; cursor: default; filter: none; }
+.button[data-size=small] { padding: 5px 11px; font-size: 12.5px; font-weight: 500; }
+.button[data-variant=primary] { background: var(--ink); color: var(--bg); }
+.button[data-variant=danger] { color: var(--error); }
+/* starting a code review: second to Approve, in purple */
+.button[data-variant=code-review] { background: var(--proposal); color: var(--on-ink); }
+.button[data-variant=review-warning] { background: #f5c247; color: #34270b; box-shadow: inset 0 0 0 1px #c48f21; }
+.button[data-variant=link] { display: inline; padding: 0; border-radius: 0; background: none; color: var(--working); font-weight: inherit;
+  white-space: normal; text-align: inherit; text-decoration: underline 1px currentColor; text-underline-offset: .18em; }
+.button[data-variant=link]:hover { filter: none; text-decoration-thickness: 2px; }
+.button[data-suggested] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--idea); }
+/* armed: disabled while it waits, yet not faded, with a bar running under its label */
+.button[data-armed]:disabled { opacity: 1; position: relative; overflow: hidden; }
+.button[data-armed]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--idea), transparent); background-size: 200% 100%; animation: flow 1.4s linear infinite; }
+
+.icon-button { display: inline-grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 3px;
+  background: var(--button-bg, var(--chip)); color: var(--ink); cursor: pointer; }
+.icon-button[data-size=small] { width: 20px; height: 20px; }
+.icon-button:is([data-variant=ghost], [data-variant=danger]) { background: none; color: var(--muted); }
+.icon-button:hover { color: var(--ink); filter: brightness(1.05); }
+.icon-button:is([data-variant=ghost], [data-variant=danger]):hover { background: var(--chip); filter: none; }
+.icon-button[data-variant=danger]:hover { color: var(--error); }
+.icon-button:disabled { opacity: .45; cursor: default; }

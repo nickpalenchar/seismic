@@ -27,6 +27,7 @@ import { know, known } from './known';
 import { cardPath, switchTo } from './address';
 import { CardLink, Naming } from './cardLink';
 import { scrollBehavior } from './motion';
+import { Button, CloseButton } from './components/button';
 
 interface Props {
   on: boolean;
@@ -121,17 +122,10 @@ function ReviewHint({ items, repos }: { items: Item[]; repos: RepoRef[] }) {
   return (
     <p className="tell-hint">
       <span>{t.review.hint}</span>
-      <button
-        className="tell-hint-x"
-        title={t.review.hideHint}
-        aria-label={t.review.hideHint}
-        onClick={() => {
+      <CloseButton label={t.review.hideHint} size="small" onClick={() => {
           know(REVIEW_KNOWN);
           setClosed(true);
-        }}
-      >
-        ×
-      </button>
+        }} />
     </p>
   );
 }
@@ -353,9 +347,9 @@ function WaitLine({ talk, wait, card, onOpen }: { talk: number; wait: TalkWait; 
       <span>
         <ClockMark /> <Naming text={(title) => t.koordinator.waits(title, wait.state)} cards={[{ card, title: wait.title }]} onOpen={onOpen} />
       </span>
-      <button className="btn small" title={t.koordinator.unwaitHint} onClick={() => void api.unwait(talk, wait.card).catch(() => {})}>
+      <Button size="small" title={t.koordinator.unwaitHint} onClick={() => void api.unwait(talk, wait.card).catch(() => {})}>
         {t.koordinator.unwait}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -452,21 +446,21 @@ export function ProposalRow({ p, items, rules, repos, onOpen, project }: { p: Pr
       </span>
       <TargetPick value={target} repos={repos} onChange={setTarget} />
       <span className="pref-actions">
-        <button className="btn primary" disabled={draft !== null && !draft.trim()} onClick={accept}>
+        <Button size="small" variant="primary" disabled={draft !== null && !draft.trim()} onClick={accept}>
           {t.koordinator.accept}
-        </button>
+        </Button>
         {draft === null ? (
-          <button className="btn" onClick={() => setDraft(p.text)}>
+          <Button size="small" onClick={() => setDraft(p.text)}>
             {t.koordinator.change}
-          </button>
+          </Button>
         ) : (
-          <button className="btn" onClick={() => setDraft(null)}>
+          <Button size="small" onClick={() => setDraft(null)}>
             {t.koordinator.cancel}
-          </button>
+          </Button>
         )}
-        <button className="btn danger" onClick={() => decide(() => api.rejectProposal(p.id, project))}>
+        <Button size="small" variant="danger" onClick={() => decide(() => api.rejectProposal(p.id, project))}>
           {t.koordinator.reject}
-        </button>
+        </Button>
       </span>
       {error && <span className="p-error">{error}</span>}
     </li>
@@ -576,20 +570,20 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
       </span>
       <span className="pref-actions">
         <span className="take-on">{k.takeOn}</span>
-        <button className="btn primary" disabled={busy || !draft.trim()} title={k.onMachineHint} onClick={() => take('machine')}>
+        <Button variant="primary" disabled={busy || !draft.trim()} title={k.onMachineHint} onClick={() => take('machine')}>
           {k.onMachine}
-        </button>
-        <button className="btn primary" disabled={busy || !draft.trim()} title={everyone} onClick={() => take('repository')}>
+        </Button>
+        <Button variant="primary" disabled={busy || !draft.trim()} title={everyone} onClick={() => take('repository')}>
           {k.forEveryone}
-        </button>
+        </Button>
       </span>
       <span className="occasion">
         {k.onMachine}: {k.onMachineHint} {k.forEveryone}: {everyone}
       </span>
       <span className="pref-actions">
-        <button className="btn danger" disabled={busy} onClick={() => decide(() => api.rejectSetting(p.id, project))}>
+        <Button size="small" variant="danger" disabled={busy} onClick={() => decide(() => api.rejectSetting(p.id, project))}>
           {k.reject}
-        </button>
+        </Button>
       </span>
       {error && <span className="p-error">{error}</span>}
     </li>
@@ -652,13 +646,13 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
             {(going || run.tags || !r.outdated) && (
               <span className="pref-actions">
                 {going ? (
-                  <button className="btn" title={s.stopHint} disabled={!!run.stopped} onClick={() => act(api.stopReshare)}>
+                  <Button size="small" title={s.stopHint} disabled={!!run.stopped} onClick={() => act(api.stopReshare)}>
                     {s.stop}
-                  </button>
+                  </Button>
                 ) : (
-                  <button className="btn" onClick={() => act(api.dismissReshare)}>
+                  <Button size="small" onClick={() => act(api.dismissReshare)}>
                     {s.dismiss}
-                  </button>
+                  </Button>
                 )}
               </span>
             )}
@@ -680,12 +674,12 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
                   <option value="">{s.all(r.outdated)}</option>
                 </select>
               )}
-              <button className="btn primary" onClick={() => act(() => api.reshare(chosen))}>
+              <Button size="small" variant="primary" onClick={() => act(() => api.reshare(chosen))}>
                 {s.go}
-              </button>
-              <button className="btn" title={s.dismissOutdatedHint} onClick={() => act(api.dismissReshare)}>
+              </Button>
+              <Button size="small" title={s.dismissOutdatedHint} onClick={() => act(api.dismissReshare)}>
                 {s.dismiss}
-              </button>
+              </Button>
             </span>
           </li>
         )}
@@ -694,9 +688,9 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
             <span className="pref-text">{s.untagged(r.untagged)}</span>
             <span className="occasion">{s.untaggedHint}</span>
             <span className="pref-actions">
-              <button className="btn primary" onClick={() => act(() => api.reshare(null, true))}>
+              <Button size="small" variant="primary" onClick={() => act(() => api.reshare(null, true))}>
                 {s.tag(r.untagged)}
-              </button>
+              </Button>
             </span>
           </li>
         )}
@@ -725,9 +719,7 @@ export function PreferenceRow({ p }: { p: Preference }) {
       ) : (
         <RuleEdit draft={draft} setDraft={setDraft} onEnter={save} onBlur={save} />
       )}
-      <button className="pref-del" title={t.koordinator.remove} onClick={() => api.setPreference(p.id, null).catch(() => {})}>
-        ✕
-      </button>
+      <CloseButton label={t.koordinator.remove} size="small" variant="danger" onClick={() => api.setPreference(p.id, null).catch(() => {})} />
       {error && <span className="p-error">{error}</span>}
     </li>
   );
@@ -763,9 +755,9 @@ export function NewPreference({ repos }: { repos: RepoRef[] }) {
           }
         }}
       />
-      <button className="btn" disabled={!text.trim()} onClick={add}>
+      <Button disabled={!text.trim()} onClick={add}>
         {t.koordinator.add}
-      </button>
+      </Button>
       <TargetPick value={target} repos={repos} onChange={setTarget} />
       {filed && <span className="hint filed">{filed}</span>}
       {error && <span className="p-error">{error}</span>}

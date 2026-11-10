@@ -9,6 +9,7 @@ import type { AccessView, RemoteSetting } from '../core/types';
 import { api } from './api';
 import { Field, Head } from './config';
 import { clock, failText, shortDay, t } from './strings';
+import { Button, CloseButton } from './components/button';
 
 /** Text with `code` in backticks, as the strings write commands. */
 function Coded({ text }: { text: string }) {
@@ -106,9 +107,11 @@ function Reach({ view, onView }: { view: AccessView; onView: (v: AccessView) => 
             </p>
           )}
           {ts.state === 'noHttps' && (
-            <a className="btn small" href="https://login.tailscale.com/admin/dns" target="_blank" rel="noreferrer">
-              {a.openDns}
-            </a>
+            <Button size="small" asChild>
+              <a href="https://login.tailscale.com/admin/dns" target="_blank" rel="noreferrer">
+                {a.openDns}
+              </a>
+            </Button>
           )}
         </Field>
       )}
@@ -204,9 +207,9 @@ export function AccessSection({ on, onConnect }: { on: boolean; onConnect: () =>
               </span>
               <span className="hint">{a.pairedAt(when(d.pairedAt))}</span>
               <span className="hint">{a.seenAt(when(d.lastSeen))}</span>
-              <button className="btn small" onClick={() => void remove(d.id)}>
+              <Button size="small" onClick={() => void remove(d.id)}>
                 {a.remove}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -214,9 +217,9 @@ export function AccessSection({ on, onConnect }: { on: boolean; onConnect: () =>
         <p className="hint">{a.noDevices}</p>
       )}
       {view.address && (
-        <button className="btn small primary acc-connect" onClick={onConnect}>
+        <Button variant="primary" size="small" className="acc-connect" onClick={onConnect}>
           {a.connect}
-        </button>
+        </Button>
       )}
       {status && <p className="hint c-status">{status}</p>}
       <p className="hint acc-note">{a.whileRunning}</p>
@@ -256,9 +259,9 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
     body = (
       <div className="acc-done">
         <p className="acc-connected">{a.connected(pairing.paired.name)}</p>
-        <button className="btn small" onClick={() => void another()}>
+        <Button size="small" onClick={() => void another()}>
           {a.another}
-        </button>
+        </Button>
       </div>
     );
   else if (pairing) {
@@ -284,15 +287,13 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
   return (
     <div id="phone" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="box" role="dialog" aria-modal="true" aria-label={a.connect}>
-        <button className="close" title={t.close} onClick={onClose}>
-          ✕
-        </button>
+        <CloseButton label={t.close} className="close" onClick={onClose} />
         <h2>{a.connect}</h2>
         {body}
         <div className="acc-foot">
-          <button className="btn small" onClick={onSection}>
+          <Button size="small" onClick={onSection}>
             {a.toSection}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
