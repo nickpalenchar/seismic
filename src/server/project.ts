@@ -9,7 +9,7 @@ import { defaultsFor, hasAdapterModule, readingAdapterModule, readingShared, rea
 import { Ahead } from './ahead';
 import { Answers, answersDir, answerTag } from './answers';
 import { demoDirectory, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
-import { demoFile } from './demo-page';
+import { demoFile } from './demo-file';
 import { openWithSystem } from './machine';
 import { repoName } from '../adapters/generic';
 import type { RepoAdapter, RepoInfo } from '../adapters/types';

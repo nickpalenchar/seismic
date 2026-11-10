@@ -21,7 +21,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { parse } from '@babel/parser';
 import { sealed, withHeightReport, withImageViewer } from '../core/frame';
-import { demoFile } from './demo-page';
+import { demoFile } from './demo-file';
 
 /** What a page names in its markup or its styles, which the copy inlines there, so it stays out of the table of files to fetch. */
 const LOADED = /\.(?:[cm]?js|css|woff2?|ttf|otf|eot|png|jpe?g|gif|webp|avif|bmp|ico|mp4|webm|mov|m4v|mp3|wav|ogg|oga|m4a|flac)$/i;

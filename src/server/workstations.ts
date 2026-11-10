@@ -18,7 +18,7 @@ import { runAppCommand } from './app-command';
 import { messageOf } from '../core/text';
 import { oneAtATime } from '../core/one-at-a-time';
 import { LandingQueue, type LandingTurn } from './landing-queue';
-import { demoFile } from './demo-page';
+import { demoFile } from './demo-file';
 import { sameRemote } from './repo';
 import { spawnOutput } from './spawn';
 

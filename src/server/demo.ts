@@ -7,7 +7,8 @@ import { basename, join } from 'node:path';
 import { pagePolicy, withHeightReport, withImageViewer, withMarkReport } from '../core/frame';
 import { chapterAt, type DemoKind } from '../core/types';
 import { filesKey, ownOrigin } from './access';
-import { demoFile, esc } from './demo-page';
+import { demoFile } from './demo-file';
+import { esc } from './demo-page';
 import type { FileAt } from './workstations';
 import { resource } from './resources';
 

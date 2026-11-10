@@ -4,11 +4,12 @@
 // without one exports it (share.ts): as a ZIP with the video or the artifact beside the page, or as
 // one HTML file with everything inside.
 
-import { type Dirent, existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
-import { join, resolve, sep } from 'node:path';
+import { type Dirent, existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { pagePolicy, sealed, withHeightReport, withImageViewer } from '../core/frame';
 import interFont from '../ui/fonts/inter-latin-wght-normal.woff2' with { type: 'file' };
 import interLicense from '../ui/fonts/LICENSE-Inter.txt' with { type: 'file' };
+import { demoFile } from './demo-file';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 
 /** The languages a page speaks: those a demo is narrated in. */
@@ -592,21 +593,6 @@ ${credit(language)}</main>
 
 /** An HTML artifact's directory on a page, beside the page's `index.html`. */
 export const ARTIFACT_DIR = 'artifact';
-
-/**
- * A file of a demo's directory by its path there: the file itself where it is one and lies inside the
- * directory, else null. A link to a file outside counts as outside: the worker made the directory,
- * and what is in it is served, published and passed on.
- */
-export function demoFile(dir: string, name: string): string | null {
-  try {
-    const root = realpathSync(dir);
-    const path = realpathSync(resolve(root, name));
-    return path.startsWith(root + sep) && statSync(path).isFile() ? path : null;
-  } catch {
-    return null;
-  }
-}
 
 /** The files of an HTML artifact's directory, relative to it, without hidden ones; links only to a file inside it. */
 export function artifactFiles(dir: string): string[] {
