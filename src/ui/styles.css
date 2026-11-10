@@ -7,6 +7,7 @@
 @import "./components/segmented.css";
 @import "./components/radio.css";
 @import "./components/tooltip.css";
+@import "./components/listbox.css";
 @font-face { font-family: Newsreader; font-style: normal; font-weight: 300 800; font-display: swap;
   src: url(./fonts/newsreader-latin-opsz-normal.woff2) format("woff2"); }
 @font-face { font-family: Newsreader; font-style: italic; font-weight: 300 800; font-display: swap;
@@ -2101,8 +2102,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .skill-menu { position: absolute; left: 0; right: 0; bottom: 100%; margin-bottom: 4px; z-index: 5; max-height: min(320px, 45vh); overflow: hidden auto;
   border: 1px solid var(--line); border-radius: 3px; background: var(--card); box-shadow: 0 6px 20px rgb(0 0 0 / 14%); font-size: 13px; }
 .skill-menu ul { list-style: none; margin: 0; padding: 4px; }
-.skill-menu li { display: flex; gap: 12px; align-items: baseline; padding: 6px 8px; border-radius: 2px; cursor: pointer; }
-.skill-menu li.on { background: var(--chip); }
+.skill-menu li { display: flex; gap: 12px; align-items: baseline; padding: 6px 8px; border-radius: 2px; }
 .skill-menu .sk-name { flex: none; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
 .skill-menu .sk-hint { color: var(--muted); }
 .skill-menu .sk-desc { flex: 1; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2124,8 +2124,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   display: grid; place-items: center; font: 12px var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 3px; pointer-events: none; }
 .project-card-search { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: max(100%, min(520px, calc(100vw - 28px))); box-sizing: border-box;
   list-style: none; max-height: min(420px, 55vh); overflow-y: auto; margin: 0; padding: 8px; background: var(--panel); box-shadow: var(--lift); border: 1px solid var(--line); border-radius: 4px; }
-.project-card-search li { padding: 7px 10px; border-radius: 3px; cursor: pointer; }
-.project-card-search li.on, .project-card-search li:hover { background: var(--chip); }
+.project-card-search li { padding: 7px 10px; border-radius: 3px; }
 /* under the task field while it has the cursor, until a card was linked once */
 .p-body-field .card-refs-hint { position: absolute; top: 100%; left: 0; margin: 6px 0 0; }
 @media (max-width: 760px) { .p-body-field:has(.card-refs-hint) { padding-bottom: 30px; } }
@@ -2936,9 +2935,9 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 #merge-pick .close { position: absolute; right: 14px; top: 12px; }
 #merge-pick .merge-search { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
 #merge-pick .hint { margin: 8px 0 6px; }
-.merge-list { list-style: none; margin: 0; padding: 0; overflow: auto; min-height: 0; }
-.merge-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; border-radius: 3px; background: transparent; color: var(--ink); padding: 9px 10px; cursor: pointer; font: inherit; }
-.merge-row.on { background: color-mix(in srgb, var(--proposal) 10%, transparent); }
+.merge-list { overflow: auto; min-height: 0; }
+.merge-row { display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; border-radius: 3px; color: var(--ink); padding: 9px 10px; }
+.merge-list li[data-active] { background: color-mix(in srgb, var(--proposal) 10%, transparent); }
 .merge-row > .face { flex: 1; }
 
 /* the merged card in its panel: the two it came from side by side, the merged one under them, centred */

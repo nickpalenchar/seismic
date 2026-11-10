@@ -15,6 +15,7 @@ import { dropDraft, typeInto, updateDraft, useDraft, useDraftField } from './dra
 import { setHeight, textHeight, useFitHeight } from './fitHeight';
 import { Quote } from './message';
 import { type Reply, replyOn, setReply, useReply } from './reply';
+import { Listbox, type ListboxState, useListbox } from './components/listbox';
 import { knowsSkills, matching, type Slash, skillWord, slashAt, useSkills, usedSkills } from './skills';
 import { AttachButton, ShotStrip, useShotInput } from './shots';
 import { t } from './strings';
@@ -129,7 +130,6 @@ export function Composer({
   const skillList = useSkills(skills, focused);
   // the `/` word at the cursor, the skill marked in the menu, and where Escape closed the menu
   const [slash, setSlash] = useState<Slash | null>(null);
-  const [marked, setMarked] = useState(0);
   const [dismissed, setDismissed] = useState<number | null>(null);
   const atCursor = () => {
     const el = field.current;
@@ -138,12 +138,11 @@ export function Composer({
     if (!at) setDismissed(null);
   };
   useEffect(atCursor, [text]);
-  useEffect(() => setMarked(0), [slash?.query]);
   // the menu: undefined while the skills are asked, else those that fit (none: no menu)
   const menu = skills && focused && slash && dismissed !== slash.start ? (skillList ? matching(skillList, slash.query) : undefined) : [];
   const menuOn = menu === undefined || menu.length > 0;
   // typed into the field, as if by hand: the cursor stays after it, and undo takes it back
-  const pick = (name: string) => {
+  const pickSkill = (name: string) => {
     const el = field.current;
     if (!el || !slash) return;
     const { from, to, word, skip } = skillWord(el.value, slash, el.selectionStart, name);
@@ -153,6 +152,17 @@ export function Composer({
     if (skip) el.setSelectionRange(el.selectionStart + skip, el.selectionStart + skip);
     usedSkills();
   };
+  const list = useListbox({
+    count: menu?.length ?? 0,
+    open: menuOn && !!slash,
+    wrap: true,
+    pickKeys: ['Tab'],
+    resetOn: slash?.query,
+    onPick: (i) => pickSkill(menu![i]!.name),
+    onNavigate: usedSkills,
+    // while the menu is open, Escape closes it, not the card
+    onEscape: () => slash && setDismissed(slash.start),
+  });
   // replying to a message is writing to it: the field takes the focus (not for a reply kept from before)
   const quoted = useRef(reply?.quote.ev);
   useEffect(() => {
@@ -196,7 +206,7 @@ export function Composer({
   return (
     <div className={['composer', className, shots.dropping && 'dropping', dictation && 'dictating'].filter(Boolean).join(' ')} {...shots.drop}>
       <ShotStrip shots={shots} />
-      {menuOn && <SkillMenu skills={menu} marked={marked} onPick={pick} />}
+      {menuOn && <SkillMenu skills={menu} box={list} />}
       <div className="c-field">
         {reply && <Quote q={reply.quote} onClear={() => setReply(key, null)} />}
         {chip}
@@ -205,7 +215,7 @@ export function Composer({
           value={text}
           placeholder={placeholder}
           rows={1}
-          // while the menu is open, Escape closes it, not the card
+          {...list.field}
           data-esc={menuOn || undefined}
           onFocus={() => {
             setFocused(true);
@@ -243,22 +253,7 @@ export function Composer({
             }
             // another key while Space is down: Space was typed, before it
             typeSpace();
-            if (menuOn && slash && !e.nativeEvent.isComposing) {
-              const n = menu?.length ?? 0;
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                return setDismissed(slash.start);
-              }
-              if (n && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-                e.preventDefault();
-                usedSkills();
-                return setMarked((m) => (m + (e.key === 'ArrowDown' ? 1 : n - 1)) % n);
-              }
-              if (n && (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey))) {
-                e.preventDefault();
-                return pick(menu![Math.min(marked, n - 1)]!.name);
-              }
-            }
+            if (list.onKeyDown(e)) return;
             if (enterSends && e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               send();
@@ -317,28 +312,24 @@ export function Composer({
 }
 
 /**
- * The skills that fit the `/` word at the cursor, above the field: the marked one is picked with
+ * The skills that fit the `/` word at the cursor, above the field: the active one is picked with
  * Enter or Tab, another with the arrow keys or a click. `skills` undefined: they are still asked.
  */
-function SkillMenu({ skills, marked, onPick }: { skills: Skill[] | undefined; marked: number; onPick: (name: string) => void }) {
-  const list = useRef<HTMLUListElement>(null);
-  useEffect(() => {
-    list.current?.children[marked]?.scrollIntoView({ block: 'nearest' });
-  }, [marked, skills]);
+function SkillMenu({ skills, box }: { skills: Skill[] | undefined; box: ListboxState }) {
   return (
-    <div className="skill-menu" role="listbox" aria-label={t.skills.menu}>
+    <div className="skill-menu">
       {skills ? (
-        <ul ref={list}>
-          {skills.map((s, i) => (
-            <li key={s.name} role="option" aria-selected={i === marked} className={i === marked ? 'on' : undefined} onMouseDown={(e) => e.preventDefault()} onClick={() => onPick(s.name)}>
+        <Listbox box={box} items={skills} label={t.skills.menu} itemKey={(s) => s.name}>
+          {(s) => (
+            <>
               <span className="sk-name">
                 /{s.name}
                 {s.hint && <span className="sk-hint"> {s.hint}</span>}
               </span>
               <span className="sk-desc">{s.description}</span>
-            </li>
-          ))}
-        </ul>
+            </>
+          )}
+        </Listbox>
       ) : (
         <p className="sk-loading">{t.skills.loading}</p>
       )}

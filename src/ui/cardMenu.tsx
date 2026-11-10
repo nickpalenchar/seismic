@@ -2,7 +2,7 @@
 // linked card stands as its smart link, a pill that the cursor steps over and that Backspace or
 // Delete takes out whole. The text is kept as markdown, a pill as the link to its card's address.
 // `/` and words of a title open a menu of the project's cards that fit, just under the line being
-// typed, each as the smart link it will become. The arrow keys mark, Enter, Tab or a click picks,
+// typed, each as the smart link it will become. The arrow keys move the active option, Enter, Tab or a click picks,
 // Escape closes it and leaves the card open. Picking puts the pill and a space in place of the search.
 
 import { type ClipboardEvent, forwardRef, useContext, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
@@ -11,6 +11,7 @@ import { cardPath } from './address';
 import { projectOf } from './api';
 import { SmartLink } from './cardLink';
 import { type CardSearch, cardSearchAt, knowsCardRefs, lines, linkText, matchingCards, referenced, textOf, usedCardRefs } from './cardRefs';
+import { Listbox, type ListboxState, useListbox } from './components/listbox';
 import { Cards } from './message';
 import { t } from './strings';
 
@@ -125,7 +126,6 @@ export const LinkField = forwardRef<
   const held = useRef<string | null>(null);
   const [focused, setFocused] = useState(false);
   const [found, setFound] = useState<{ search: CardSearch; place?: Place } | null>(null);
-  const [marked, setMarked] = useState(0);
   const [dismissed, setDismissed] = useState<number | null>(null);
   useLayoutEffect(() => {
     if (!root.current || value === held.current) return;
@@ -155,7 +155,6 @@ export const LinkField = forwardRef<
     }
     lookAtCursor();
   };
-  useEffect(() => setMarked(0), [found?.search.query]);
   useImperativeHandle(handle, () => ({
     el: root.current,
     type: (s) => void document.execCommand('insertText', false, s),
@@ -187,6 +186,16 @@ export const LinkField = forwardRef<
     usedCardRefs();
     read();
   };
+  const list = useListbox({
+    count: menu.length,
+    open: menu.length > 0,
+    wrap: true,
+    pickKeys: ['Tab'],
+    resetOn: found?.search.query,
+    onPick: (i) => pick(menu[i]!),
+    // while the menu is open, Escape closes it, not the card
+    onEscape: () => found && setDismissed(found.search.start),
+  });
   return (
     <>
       <div
@@ -198,8 +207,11 @@ export const LinkField = forwardRef<
         aria-multiline
         aria-placeholder={placeholder}
         data-placeholder={placeholder}
-        // while the menu is open, Escape closes it, not the card
-        data-esc={menu.length > 0 || undefined}
+        aria-autocomplete={list.field['aria-autocomplete']}
+        aria-expanded={list.field['aria-expanded']}
+        aria-controls={list.field['aria-controls']}
+        aria-activedescendant={list.field['aria-activedescendant']}
+        data-esc={list.field['data-esc']}
         onInput={read}
         onKeyUp={(e) => {
           if (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End') lookAtCursor();
@@ -214,46 +226,29 @@ export const LinkField = forwardRef<
           e.preventDefault();
           document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
         }}
-        onKeyDown={(e) => {
-          const n = menu.length;
-          if (!n || !found || e.nativeEvent.isComposing) return;
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            setDismissed(found.search.start);
-          } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-            e.preventDefault();
-            setMarked((m) => (m + (e.key === 'ArrowDown' ? 1 : n - 1)) % n);
-          } else if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
-            e.preventDefault();
-            pick(menu[Math.min(marked, n - 1)]!);
-          }
-        }}
+        onKeyDown={list.onKeyDown}
       />
-      {menu.length > 0 && <CardMenu cards={menu} marked={marked} onPick={pick} at={found?.place} />}
+      {menu.length > 0 && <CardMenu cards={menu} box={list} at={found?.place} />}
       {focused && !menu.length && !knowsCardRefs() && <p className="c-listener card-refs-hint">{t.cardRefs.hint}</p>}
     </>
   );
 });
 
-/** The cards that fit the search, the marked one picked with Enter or Tab, another with the arrow keys or a click; `at`: where it stands in the field's frame. */
-function CardMenu({ cards, marked, onPick, at }: { cards: Item[]; marked: number; onPick: (card: Item) => void; at?: Place }) {
-  const list = useRef<HTMLUListElement>(null);
-  useEffect(() => {
-    list.current?.children[marked]?.scrollIntoView({ block: 'nearest' });
-  }, [marked, cards]);
+/** The cards that fit the search, the active one picked with Enter or Tab, another with the arrow keys or a click; `at`: where it stands in the field's frame. */
+function CardMenu({ cards, box, at }: { cards: Item[]; box: ListboxState; at?: Place }) {
   return (
-    <div className="skill-menu card-menu" role="listbox" aria-label={t.cardRefs.menu} style={at}>
-      <ul ref={list}>
-        {cards.map((c, i) => (
-          <li key={c.id} role="option" aria-selected={i === marked} className={i === marked ? 'on' : undefined} onMouseDown={(e) => e.preventDefault()} onClick={() => onPick(c)}>
+    <div className="skill-menu card-menu" style={at}>
+      <Listbox box={box} items={cards} label={t.cardRefs.menu} itemKey={(c) => c.id}>
+        {(c) => (
+          <>
             {/* a click on it picks the card rather than opening it */}
             <span className="cm-pill">
               <SmartLink href={cardPath(projectOf(c.id), c)} text={c.title} />
             </span>
             {c.short && <span className="cm-code">{c.short}</span>}
-          </li>
-        ))}
-      </ul>
+          </>
+        )}
+      </Listbox>
     </div>
   );
 }

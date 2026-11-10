@@ -1,8 +1,9 @@
 import { Search } from 'lucide-react';
-import { type Ref, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type Ref, useEffect, useRef, useState } from 'react';
 import type { Item } from '../core/types';
 import { CardFace } from './card';
 import { matchingCards } from './cardRefs';
+import { Listbox, useListbox } from './components/listbox';
 import { closeBarMenus } from './queue';
 import { t } from './strings';
 
@@ -17,15 +18,8 @@ export const finderResults = (items: Item[], query: string) => matchingCards(ite
 export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; onOpen: (item: Item) => void; field: Ref<HTMLInputElement>; hidden: boolean }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(0);
   const box = useRef<HTMLDivElement>(null);
-  const list = useRef<HTMLUListElement>(null);
   const results = open ? finderResults(items, query) : [];
-  const active = results[Math.min(selected, results.length - 1)];
-  useEffect(() => setSelected(0), [query]);
-  useLayoutEffect(() => {
-    list.current?.children[Math.min(selected, results.length - 1)]?.scrollIntoView({ block: 'nearest' });
-  }, [selected, query, results.length]);
   const close = () => {
     setOpen(false);
     setQuery('');
@@ -45,6 +39,14 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
     close();
     onOpen(item);
   };
+  const list = useListbox({
+    count: results.length,
+    open,
+    wrap: true,
+    resetOn: query,
+    onPick: (i) => pick(results[i]!),
+    onEscape: (e) => (e.stopPropagation(), close()),
+  });
   return (
     <div className={hidden ? 'bar-search hidden' : 'bar-search'} ref={box}>
       <Search className="bar-search-icon" size={15} strokeWidth={2} aria-hidden />
@@ -52,46 +54,24 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
         ref={field}
         type="search"
         role="combobox"
-        aria-autocomplete="list"
-        data-esc
+        {...list.field}
         value={query}
         placeholder={t.cardSearch.placeholder}
         aria-label={t.cardSearch.shortcut}
         title={t.cardSearch.shortcut}
         spellCheck={false}
-        aria-controls={results.length ? 'project-card-search-results' : undefined}
-        aria-expanded={results.length > 0}
-        aria-activedescendant={active ? `project-card-search-option-${active.id}` : undefined}
         onFocus={() => {
           if (!open) closeBarMenus();
           setOpen(true);
         }}
         onChange={(e) => (setQuery(e.target.value), setOpen(true))}
-        onKeyDown={(e) => {
-          // Enter and arrows belong to the IME's candidate list while composing (Safari reports the confirming Enter as keyCode 229).
-          if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            e.stopPropagation();
-            close();
-          } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (results.length) setSelected((n) => (n + (e.key === 'ArrowDown' ? 1 : results.length - 1)) % results.length);
-          } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (results.length) pick(results[Math.min(selected, results.length - 1)]!);
-          }
-        }}
+        onKeyDown={list.onKeyDown}
       />
       {!query && !open && <kbd className="bar-search-key" aria-hidden>/</kbd>}
       {results.length > 0 && (
-        <ul ref={list} className="project-card-search" id="project-card-search-results" role="listbox" aria-label={t.cardSearch.results}>
-          {results.map((item, index) => (
-            <li key={item.id} id={`project-card-search-option-${item.id}`} role="option" aria-selected={index === selected} className={index === selected ? 'on' : undefined} onMouseEnter={() => setSelected(index)} onClick={() => pick(item)}>
-              <CardFace item={item} size="xs" />
-            </li>
-          ))}
-        </ul>
+        <Listbox box={list} items={results} label={t.cardSearch.results} className="project-card-search" itemKey={(item) => item.id}>
+          {(item) => <CardFace item={item} size="xs" />}
+        </Listbox>
       )}
     </div>
   );
