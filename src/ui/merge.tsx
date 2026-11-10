@@ -58,7 +58,7 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
   useEffect(() => field.current?.focus(), []);
   // Esc closes the picker wherever the focus is; App leaves the key alone while the dialog below is open (`layerOpen`)
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.isComposing && e.keyCode !== 229) onClose(); };
     window.addEventListener('keydown', esc, true);
     return () => window.removeEventListener('keydown', esc, true);
   }, [onClose]);
