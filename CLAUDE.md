@@ -32,7 +32,9 @@ its lasting decisions and constraints move into the design doc and the plan doc 
   workers are idle; with `--real-workers` they are real agents on the machine's Claude login.
 - UI checks run in a headless browser through the `browser` skill of Seismic's plugin
   (`seismic:browser`; a session without the plugin reads `plugin/skills/browser/SKILL.md`): `input`
-  for trusted clicks, drags, keys held for push-to-talk; `start --fake-mic <wav>` for voice. A
+  for trusted clicks, drags, keys held for push-to-talk; `start --fake-mic <wav>` for voice. Invoke
+  it as `bun plugin/skills/browser/lib/browser.ts <command> <port>`, never with `node`, and call
+  `start` first in the session: `nav`, `eval` and the other commands need the browser it starts. A
   claude-in-chrome tab is often hidden, which freezes `requestAnimationFrame`: camera flights and
   the unfold never finish there. For what headless Chromium can't reproduce (on-screen keyboard,
   fullscreen, rotation), use `bun scripts/android-phone.ts`: Chrome in the Android emulator, with
