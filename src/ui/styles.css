@@ -1814,7 +1814,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
    conversation down to 200px, below that the sheet scrolls */
 #ksheet { display: flex; flex-direction: column; }
 #ksheet > * { flex: none; }
-#ksheet > .talk { flex: 1 1 0; min-height: 200px; max-height: none; max-width: none; margin: 0 0 4px; }
+#ksheet > :is(.conv, .talk.fresh-chat) { flex: 1 1 0; min-height: 200px; max-height: none; max-width: none; margin: 0 0 4px; }
 /* Seismic's chats: the earlier ones slide out from the left over the conversation, a new one starts at the right */
 .chats-head { display: flex; align-items: center; gap: 6px; }
 .sheet > .chats-head { margin: 0 0 8px; }
@@ -1854,7 +1854,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .talk.fresh-chat { display: flex; align-items: center; justify-content: center; text-align: center; }
 .talk.fresh-chat .hint { max-width: 280px; margin: 0; }
 /* a plan's conversation with its plan agent grows in its sheet, which scrolls: no scrollbar of its own */
-#sheet .p-talk .talk { max-height: none; overflow: visible; margin-bottom: 4px; }
+#sheet .p-talk .conv { max-height: none; overflow: visible; margin-bottom: 4px; }
 /* what the owner took back stays, struck through */
 .talk .msg.undone :is(.p-lead, .p-list, .p-table) { text-decoration: line-through; text-decoration-color: var(--muted-foreground); }
 .k-rest { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
@@ -1914,7 +1914,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 /* under the task field while it has the cursor, until a card was linked once */
 .p-body-field .card-refs-hint { position: absolute; top: 100%; left: 0; margin: 6px 0 0; }
 @media (max-width: 760px) { .p-body-field:has(.card-refs-hint) { padding-bottom: 30px; } }
-@media (max-width: 760px) { #minimap, #sheet-grip { display: none; } .sheet, .sheet.reading { width: auto; left: 14px; right: 14px; top: 64px; bottom: 158px; } #sheet-close { top: 72px; right: 22px; } #talk-docked.on { top: 74px; right: 22px; } .split { grid-template-columns: 1fr; grid-template-rows: none; max-height: none; } .split .split-talk .talk { min-height: 240px; max-height: min(520px, 60vh); } }
+@media (max-width: 760px) { #minimap, #sheet-grip { display: none; } .sheet, .sheet.reading { width: auto; left: 14px; right: 14px; top: 64px; bottom: 158px; } #sheet-close { top: 72px; right: 22px; } #talk-docked.on { top: 74px; right: 22px; } .split { grid-template-columns: 1fr; grid-template-rows: none; max-height: none; } .split .split-talk .conv { min-height: 240px; max-height: min(520px, 60vh); } }
 
 /* the play button on a startable card, shown while the pointer is on the card */
 .card .play { position: absolute; right: 10px; bottom: 8px; width: 26px; height: 26px; border-radius: 8px; border: 0; padding: 0 0 0 2px;

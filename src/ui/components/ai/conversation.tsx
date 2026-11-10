@@ -25,10 +25,19 @@ export type ConversationProps = Omit<ComponentProps<typeof StickToBottom>, 'chil
   start?: (box: HTMLElement) => HTMLElement | null;
   /** Classes of the content, the column the messages stand in. */
   contentClassName?: string;
+  /** False when the containing sheet owns scrolling and following new messages. */
+  scrolling?: boolean;
   children?: React.ReactNode;
 };
 
-export function Conversation({ className, boxRef, said, entries, start, contentClassName, children, ...props }: ConversationProps) {
+export function Conversation({ className, boxRef, said, entries, start, contentClassName, scrolling = true, children, ...props }: ConversationProps) {
+  if (!scrolling) {
+    return (
+      <div ref={boxRef} className={cn('relative', className)} role="log">
+        <div className={contentClassName}>{children}</div>
+      </div>
+    );
+  }
   return (
     <StickToBottom
       // the library spreads its props onto the box's div, `ref` included (its types leave it out)

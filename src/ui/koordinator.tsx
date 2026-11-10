@@ -240,7 +240,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
   // every change on the project brings a new snapshot: only what the owner just said takes the
   // conversation back to its end, so they can read further up in the meantime
   return (
-    <Scroll className="conv" contentClassName="talk" boxRef={box} said={talk.at(-1)?.id} entries={talk}>
+    <Scroll className="conv" contentClassName="talk" boxRef={box} said={talk.at(-1)?.id} entries={talk} scrolling={!sheetOf}>
       {talk.map((x) => {
         // the owner replies to one of the exchange's messages
         const reply = (part: TalkRef['part'], by: TalkQuote['by'], text: string) => () => {
