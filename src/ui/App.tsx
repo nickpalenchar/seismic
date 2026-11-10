@@ -2261,6 +2261,8 @@ function Project({
     }
     // hold Space anywhere but in a text field to speak; the demo pauses while the owner talks, and a tap plays or pauses it
     if (e.code === 'Space' && !typing) {
+      // Space on a focused switch or checkbox flips it, as it did on the native input
+      if (e.target instanceof Element && e.target.closest('[role=switch], [role=checkbox]')) return;
       e.preventDefault();
       if (!e.repeat) press(true);
       return;
