@@ -92,6 +92,20 @@ describe('two cards at once', () => {
   });
 });
 
+describe('a moved file the card also changed', () => {
+  test('is no pure rename in its diff: its hunks stay, so its lines can be expanded', async () => {
+    ws.lease('a');
+    await call('a', 'Bash', { command: 'mv Sortierung.md Ordnung.md' }, () => {
+      renameSync(join(folder, 'Sortierung.md'), join(folder, 'Ordnung.md'));
+      writeFileSync(join(folder, 'Ordnung.md'), 'eins\nzwei\ndrei\nvier\n');
+    });
+    const d = (await ws.diff('a', true))!;
+    expect(d.patch).toContain('rename from Sortierung.md');
+    expect(d.patch).toContain('+vier');
+    expect(d.patch).not.toContain('similarity index 100%');
+  });
+});
+
 describe('undo', () => {
   test('puts back an overwritten binary and a deleted file, and leaves what someone changed since', async () => {
     ws.lease('a');

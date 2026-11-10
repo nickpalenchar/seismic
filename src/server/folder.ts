@@ -1016,7 +1016,8 @@ export class FolderWorkstations implements CardWorkstations {
     const head = [`diff --git a/${t.from ?? name} b/${name}`];
     if (t.kind === 'added') head.push('new file mode 100644');
     if (t.kind === 'deleted') head.push('deleted file mode 100644');
-    if (t.kind === 'moved') head.push('similarity index 100%', `rename from ${t.from}`, `rename to ${name}`);
+    // a move that also edited the file is no pure rename: its hunks follow
+    if (t.kind === 'moved') head.push(`similarity index ${t.changed ? 99 : 100}%`, `rename from ${t.from}`, `rename to ${name}`);
     const here = join(this.root, name);
     const was = t.kind === 'added' ? '/dev/null' : await this.copyOf(cardId, [t.from ?? name, name], t.before);
     const now = t.kind === 'deleted' ? '/dev/null' : here;

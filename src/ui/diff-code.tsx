@@ -32,8 +32,8 @@ function useLook(): 'light' | 'dark' {
 
 const THEMES = { light: 'github-light', dark: 'github-dark' } as const;
 
-/** What a file's whole text is, once asked: its two versions, or `none` where it has no text to show (too big, binary, no earlier version). */
-type Whole = { oldFile: { name: string; contents: string }; newFile: { name: string; contents: string } } | 'none' | null;
+/** Whether a file's whole text can be shown: `null` until asked. */
+type Whole = boolean | null;
 
 export default function CodeDiff({ part, card, style }: { part: DiffPart; card: string; style: DiffStyle }) {
   const look = useLook();
@@ -41,8 +41,9 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
   const fileDiff = useMemo<FileDiffMetadata | undefined>(() => parsePatchFiles(part.lines.join('\n')).flatMap((p) => p.files)[0], [part]);
   const changed = fileDiff?.type === 'change' || fileDiff?.type === 'rename-changed';
   // The library offers to expand only with a loader, so a file is offered it once its whole text is
-  // known to be there: asked for as the file comes near the screen, and a file whose text cannot be
-  // shown keeps its folded lines as plain text.
+  // known to be there: a probe, as the file comes near the screen, carries no file; the files
+  // themselves are fetched when the owner expands. A file whose text cannot be shown keeps its folded
+  // lines as plain text.
   const [whole, setWhole] = useState<Whole>(null);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -53,9 +54,9 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
       ([e]) => {
         if (!e?.isIntersecting) return;
         look.disconnect();
-        api.versions(card, fileDiff.name).then(
-          (v) => !gone && setWhole(v && v.old !== null && v.new !== null ? { oldFile: { name: fileDiff.prevName ?? fileDiff.name, contents: v.old }, newFile: { name: fileDiff.name, contents: v.new } } : 'none'),
-          () => !gone && setWhole('none'),
+        api.hasVersions(card, fileDiff.name).then(
+          (ok) => !gone && setWhole(ok),
+          () => !gone && setWhole(false),
         );
       },
       { rootMargin: '600px' },
@@ -77,9 +78,17 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
       hunkSeparators: 'line-info' as const,
       overflow: 'wrap' as const,
       lineDiffType: 'word-alt' as const,
-      ...(whole && whole !== 'none' ? { loadDiffFiles: async () => whole } : {}),
+      ...(whole
+        ? {
+            loadDiffFiles: async (f: FileDiffMetadata) => {
+              const v = await api.versions(card, f.name);
+              if (!v || v.old === null || v.new === null) throw new Error('no whole file to show');
+              return { oldFile: { name: f.prevName ?? f.name, contents: v.old }, newFile: { name: f.name, contents: v.new } };
+            },
+          }
+        : {}),
     }),
-    [look, style, whole],
+    [look, style, card, whole],
   );
   if (!fileDiff) return null;
   return (

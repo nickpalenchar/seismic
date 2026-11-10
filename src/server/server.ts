@@ -827,8 +827,15 @@ export function serve(
       },
       // what the card's work changes: its files with lines added and removed, with `?full` the diff too
       '/api/c/:project/cards/:id/diff': { GET: on((c, req) => c.diff(req.params.id!, new URL(req.url).searchParams.has('full'))) },
-      // one file of the card's change as it was and as it is, for the diff to show the lines around its hunks
-      '/api/c/:project/cards/:id/versions': { GET: on((c, req) => c.cardFileVersions(req.params.id!, new URL(req.url).searchParams.get('path') ?? '')) },
+      // one file of the card's change as it was and as it is, for the diff to show the lines around its hunks (`?probe`: just whether both are there)
+      '/api/c/:project/cards/:id/versions': {
+        GET: on(async (c, req) => {
+          const q = new URL(req.url).searchParams;
+          const v = await c.cardFileVersions(req.params.id!, q.get('path') ?? '');
+          // `probe`: only whether each version is there to show, so the page can offer expanding without carrying the files
+          return v && q.has('probe') ? { old: v.old !== null, new: v.new !== null } : v;
+        }),
+      },
       // the app running in the card's workstation: whether it answers, and the owner opening it to try it by hand
       '/api/c/:project/cards/:id/app': { GET: on((c, req) => c.appUp(req.params.id!)) },
       '/api/c/:project/cards/:id/app/open': {
