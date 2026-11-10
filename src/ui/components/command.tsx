@@ -14,7 +14,7 @@ import { cn } from 'cn';
 import { Command as CommandPrimitive } from 'cmdk';
 import { SearchIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
-import { Input } from './input';
+import { inputFieldClassName } from './input';
 
 function Command({ className, ...props }: ComponentProps<typeof CommandPrimitive>) {
   return <CommandPrimitive data-slot="command" className={cn('flex w-full flex-col text-ink', className)} {...props} />;
@@ -24,9 +24,11 @@ function CommandInput({ className, wrapperClassName, icon = true, ...props }: Co
   return (
     <div data-slot="command-input-wrapper" className={cn('relative flex items-center', wrapperClassName)}>
       {icon && <SearchIcon className="pointer-events-none absolute left-3 size-4 shrink-0 text-muted-foreground" aria-hidden />}
-      <CommandPrimitive.Input asChild {...props}>
-        <Input type="search" data-slot="command-input" className={cn('w-full [&::-webkit-search-cancel-button]:hidden', icon && 'pl-9', className)} />
-      </CommandPrimitive.Input>
+      <CommandPrimitive.Input
+        {...props}
+        data-slot="command-input"
+        className={cn(inputFieldClassName, 'w-full', icon && 'pl-9', className)}
+      />
     </div>
   );
 }
