@@ -19,6 +19,7 @@ import { useStoredState } from './stored';
 import { t } from './strings';
 import { Button } from './components/button';
 import { ToggleGroup, ToggleItem } from './components/segmented';
+import { Tabs, TabsList, TabsTrigger } from './components/tabs';
 
 export type AgentsTab = 'queue' | 'all' | 'parked' | 'activity';
 type Tab = AgentsTab;
@@ -33,15 +34,17 @@ export function useAgentsTab(first: Tab): [Tab, (t: Tab) => void] {
 /** The switch between the four tabs, the queue's count on "Queue" and the parked cards' on "Parked". */
 export function AgentsTabs({ tab, onTab, queued, parked }: { tab: Tab; onTab: (t: Tab) => void; queued: number; parked: number }) {
   return (
-    <div className="seg agents-tabs" role="tablist" aria-label={t.agents.title}>
-      {(['queue', 'all', 'parked', 'activity'] as const).map((k) => (
-        <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : undefined} onClick={() => onTab(k)}>
-          {t.agents.tabs[k]}
-          {k === 'queue' && queued > 0 && <span className="n">{queued}</span>}
-          {k === 'parked' && parked > 0 && <span className="count">{parked}</span>}
-        </button>
-      ))}
-    </div>
+    <Tabs value={tab} onValueChange={(k) => onTab(k as Tab)}>
+      <TabsList variant="segmented" className="agents-tabs" aria-label={t.agents.title}>
+        {(['queue', 'all', 'parked', 'activity'] as const).map((k) => (
+          <TabsTrigger key={k} value={k}>
+            {t.agents.tabs[k]}
+            {k === 'queue' && queued > 0 && <span className="n">{queued}</span>}
+            {k === 'parked' && parked > 0 && <span className="count">{parked}</span>}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }
 
@@ -80,13 +83,15 @@ export function AgentsSheet({ on, items, open, underway, onOpen, project, change
   return (
     <Docked id="agents" ref={box} on={on} label={t.agents.work.title}>
       <h2>{t.agents.work.title}</h2>
-      <div className="seg agents-tabs" role="tablist" aria-label={t.agents.work.title}>
-        {(['work', 'activity'] as const).map((k) => (
-          <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : undefined} onClick={() => setTab(k)}>
-            {t.agents.work.tabs[k]}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(k) => setTab(k as WorkTab)}>
+        <TabsList variant="segmented" className="agents-tabs" aria-label={t.agents.work.title}>
+          {(['work', 'activity'] as const).map((k) => (
+            <TabsTrigger key={k} value={k}>
+              {t.agents.work.tabs[k]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
       {tab === 'activity' ? (
         <ActivityTab project={project} changed={changed} open={open} onGo={onGo} />
       ) : (

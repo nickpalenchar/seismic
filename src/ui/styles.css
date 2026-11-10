@@ -5,6 +5,7 @@
 @import "./components/checkbox.css";
 @import "./components/check-label.css";
 @import "./components/segmented.css";
+@import "./components/tabs.css";
 @import "./components/radio.css";
 @import "./components/tooltip.css";
 @import "./components/listbox.css";
@@ -916,9 +917,6 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .p-body-field.dropping .p-body { border-color: var(--working); border-style: dashed; background: color-mix(in srgb, var(--working) 6%, var(--card)); }
 .p-body-field .c-error { margin-top: 6px; }
 .segs { display: flex; gap: 10px; flex-wrap: wrap; }
-.seg { display: inline-flex; background: var(--chip); border-radius: 3px; padding: 3px; gap: 2px; margin-top: 12px; }
-.seg button { border: 0; background: transparent; border-radius: 2px; padding: 4px 12px; font-size: 13px; cursor: pointer; color: var(--muted); }
-.seg button.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
 /* the repository a card is built in, with a new one's folder and whether it gets a project of its own */
 .repo-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
 .repo-new { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex: 0 1 560px; }
@@ -1217,12 +1215,9 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .answer-image img { display: block; max-width: 100%; max-height: 480px; border: 1px solid var(--line); border-radius: 2px; background: #fff; }
 
 /* Deliverables stay in front; the change list has its own tab. */
-.result-tabs { display: flex; flex-wrap: wrap; gap: 4px 16px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
-.result-tabs button { border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); padding: 8px 2px; font: inherit; font-size: 14px; cursor: pointer; overflow-wrap: anywhere; }
-.result-tabs button:hover { color: var(--ink); }
-.result-tabs button[aria-selected="true"] { border-bottom-color: var(--waiting); color: var(--ink); font-weight: 600; }
+.result-tabs { margin-bottom: 14px; }
 .result-caption { margin-top: 0; }
-.ph-view .result-tabs button { min-height: 44px; }
+.ph-view .result-tabs .tabs-trigger { min-height: 44px; }
 .cl-list { margin-bottom: 12px; font-size: 13px; }
 .cl-list table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .results .cl-list table { border-bottom: 1px solid var(--line); }
@@ -1694,7 +1689,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-nav li button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 0; border-radius: 2px; background: none;
   font: inherit; font-size: 14px; color: var(--ink); text-align: left; cursor: pointer; }
 .cfg-nav li button:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
-.cfg-nav li button.on { background: var(--panel); font-weight: 600; box-shadow: var(--shadow); }
+.cfg-nav li button[data-state=active] { background: var(--panel); font-weight: 600; box-shadow: var(--shadow); }
 .cfg-nav .n { margin-left: auto; border-radius: 3px; padding: 0 7px; font-weight: 700; font-size: 12px; color: var(--on-ink); background: var(--planned); }
 .cfg-nav .n.err { background: var(--error); }
 .cfg-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--waiting); }
@@ -1759,7 +1754,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-control > .c-style, .cfg-control > .c-sample { display: block; width: 100%; max-width: 420px; resize: vertical; }
 /* prose, not a path: the page's font */
 #config .cfg-control > :is(.c-style, .c-sample) { font-family: inherit; font-size: 13px; line-height: 1.45; padding: 6px 8px; }
-.cfg-control > .seg { margin-top: 0; }
 .cfg-control > .button { margin-top: 6px; }
 :is(#config, #prefs, #project-settings) .check-label { margin: 8px 0 0; }
 .cfg-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 0 56px; align-items: start; }
@@ -1801,7 +1795,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-project .cfg-field { align-items: start; }
 .cfg-project .cfg-field > .cfg-label { padding-top: 7px; }
 .cfg-repo-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.cfg-repo-tabs > .seg { margin-top: 0; }
 .cfg-repo-tabs .n { margin-left: 6px; border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--error); }
 .cfg-repo { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
 .cfg-repo-path { display: flex; align-items: center; gap: 12px; max-width: 664px; }
@@ -2289,9 +2282,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .setup-lang, .setup-close { margin-left: auto; }
 .setup-lang { font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); color: var(--ink); }
 .setup-intro { font-size: 13.5px; line-height: 1.5; margin: 14px 0 4px; }
-.setup-pages { display: flex; gap: 6px; margin: 4px 0 10px; }
-.setup-pages button { font: inherit; font-size: 13px; padding: 4px 14px; border-radius: 14px; border: 1px solid var(--line, currentColor); background: transparent; color: var(--muted); cursor: pointer; }
-.setup-pages button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.setup-pages { margin: 4px 0 10px; }
 .setup-sh { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
 .setup-sh > .hint { font-size: 12px; }
 .setup-tag { font-size: 11px; padding: 1px 8px; border-radius: 3px; background: var(--chip); color: var(--muted); }
@@ -2408,7 +2399,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-none { margin: 0; color: var(--muted); font-size: 14.5px; }
 /* the Agents view's tabs across the screen, and the stage chips in one row that scrolls sideways, sized for a finger */
 #ph-home .agents-tabs { display: flex; width: 100%; margin-top: 14px; }
-#ph-home .agents-tabs button { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 4px; font-size: 15px; }
+#ph-home .agents-tabs .tabs-trigger { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 4px; font-size: 15px; }
 #ph-home .agents-filter { flex-wrap: nowrap; overflow-x: auto; margin: 12px -14px 0; padding: 0 14px 2px; scrollbar-width: none; }
 #ph-home .agents-filter::-webkit-scrollbar { display: none; }
 #ph-home .agents-filter .chip { flex: none; min-height: 36px; padding: 0 14px; font-size: 14px; }

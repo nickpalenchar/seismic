@@ -17,6 +17,7 @@ import { phoneView } from './phone';
 import { t } from './strings';
 import { Button, LinkButton } from './components/button';
 import { SegmentedControl } from './components/segmented';
+import { Tabs, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 
 /** How many lines the change list shows before "and N more ▾" where it is not folded to the result; the file picked shows too. */
@@ -91,13 +92,15 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const count = change?.folder ? shownChanges(change.folder.changes).length : (change?.files.length ?? 0);
   return (
     <div className="results" ref={box} style={tallest ? { minHeight: tallest } : undefined}>
-      <div className="result-tabs" role="tablist">
-        {tabs.map((entry) => (
-          <button key={entry.path} type="button" role="tab" aria-selected={current === entry.path} title={'title' in entry ? entry.title : undefined} onClick={() => onTab(entry.path)}>
-            {entry.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={current ?? ''} onValueChange={onTab}>
+        <TabsList variant="underline" className="result-tabs">
+          {tabs.map((entry) => (
+            <TabsTrigger key={entry.path} value={entry.path} title={'title' in entry ? entry.title : undefined}>
+              {entry.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
       {demo && <div ref={demoBox} role="tabpanel" hidden={current !== DEMO}>{demo}</div>}
       {review && current === REVIEW && <div role="tabpanel">{review.panel}</div>}
       {inDiff && (
@@ -194,7 +197,7 @@ export function ChangeList({
   // folded completely, the toggle counts the files, and the size beside it need not
   const counted = toggle && !more && !visible.length;
   return (
-    <div className="cl-list" role={pick ? 'tablist' : undefined}>
+    <Wrap pick={!!pick} current={current}>
       <table>
         <colgroup>
           <col className="cl-mark" />
@@ -233,7 +236,21 @@ export function ChangeList({
       )}
       {open !== null && <DiffView item={item} file={open} onClose={() => setOpen(null)} onRead={() => {}} />}
       {whole && <DiffView item={item} onClose={() => setWhole(false)} onRead={() => {}} />}
-    </div>
+    </Wrap>
+  );
+}
+
+/**
+ * The change list's frame: a tab list where a line picks the file the column shows. The lines pick by
+ * their own click (a row anywhere, its name, its counts), so a tab's activation changes nothing and
+ * the keys only move focus; Enter and Space click.
+ */
+function Wrap({ pick, current, children }: { pick: boolean; current?: string; children: ReactNode }) {
+  if (!pick) return <div className="cl-list">{children}</div>;
+  return (
+    <Tabs value={current ?? ''} onValueChange={() => {}} activationMode="manual" className="tabs-flat" orientation="vertical">
+      <TabsList className="cl-list">{children}</TabsList>
+    </Tabs>
   );
 }
 
@@ -261,9 +278,9 @@ function Line({ row, on, onPick, onDiff, tabs }: { row: ChangeRow; on: boolean; 
       </td>
       <td className="cl-path">
         {byName ? (
-          <button className="cl-name" role={tabs ? 'tab' : undefined} aria-selected={tabs ? on : undefined} title={tabs ? path : `${path}\n${t.diff.showFile}`} onClick={(e) => (e.stopPropagation(), byName())}>
+          <NameButton tab={tabs ? row.path : undefined} title={tabs ? path : `${path}\n${t.diff.showFile}`} onClick={byName}>
             <bdi>{path}</bdi>
-          </button>
+          </NameButton>
         ) : (
           <span className="cl-name" title={path}>
             <bdi>{path}</bdi>
@@ -279,6 +296,20 @@ function Line({ row, on, onPick, onDiff, tabs }: { row: ChangeRow; on: boolean; 
       <td className="d-add">{lines && count(`+${row.added}`)}</td>
       <td className="d-del">{lines && count(`−${row.removed}`)}</td>
     </tr>
+  );
+}
+
+/** A line's name: a tab (of the change list's tabs, valued by `tab`) or a plain button. */
+function NameButton({ tab, title, onClick, children }: { tab?: string; title: string; onClick: () => void; children: ReactNode }) {
+  const click = (e: { stopPropagation: () => void }) => (e.stopPropagation(), onClick());
+  return tab === undefined ? (
+    <button className="cl-name" title={title} onClick={click}>
+      {children}
+    </button>
+  ) : (
+    <TabsTrigger className="cl-name" value={tab} title={title} onClick={click}>
+      {children}
+    </TabsTrigger>
   );
 }
 

@@ -22,6 +22,7 @@ import { Radio, RadioGroup } from './components/radio';
 
 /** The radio value of "no icon": a radio has no null. */
 const NO_ICON = '\0none';
+import { Tabs, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 
 /** What the page knows of the project's canvases, for what shows a card (its menu, search). */
@@ -102,33 +103,35 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
         }}
       >
         {drawer && <Drawer canvases={canvases} shown={shown} waiting={waiting} empty={empty} onPick={pick} onEdit={(c) => (open(false), setDialog({ edit: c.id }))} onNew={startNew} />}
-        <div className="canvas-strip" role="tablist" aria-label={t.canvases.strip}>
-          {several &&
-            canvases.map((c) => (
-              <button
-                key={c.id}
-                role="tab"
-                aria-selected={c.id === shown}
-                className={c.id === shown ? 'ctab on' : 'ctab'}
-                title={c.name}
-                onClick={(e) => {
-                  // a finger has no hover: its first tap brings the drawer, where the canvas is picked by name
-                  if ((e.nativeEvent as PointerEvent).pointerType === 'touch' && !drawer) return open(true);
-                  pick(c);
-                }}
-              >
-                <CanvasIcon canvas={c} />
-                {c.id === shown && <span className="ctab-name">{c.name}</span>}
-                {c.id !== shown && !!waiting[c.id] && <span className="ctab-n" title={t.canvases.waiting(waiting[c.id]!)}>{waiting[c.id]}</span>}
+        {/* a tab picks its canvas by its own click, which tells a finger's first tap from the rest; Enter and Space click, the arrow keys move focus */}
+        <Tabs value={shown ?? ''} onValueChange={() => {}} activationMode="manual" className="tabs-flat">
+          <TabsList className="canvas-strip" aria-label={t.canvases.strip}>
+            {several &&
+              canvases.map((c) => (
+                <TabsTrigger
+                  key={c.id}
+                  value={c.id}
+                  className={c.id === shown ? 'ctab on' : 'ctab'}
+                  title={c.name}
+                  onClick={(e) => {
+                    // a finger has no hover: its first tap brings the drawer, where the canvas is picked by name
+                    if ((e.nativeEvent as PointerEvent).pointerType === 'touch' && !drawer) return open(true);
+                    pick(c);
+                  }}
+                >
+                  <CanvasIcon canvas={c} />
+                  {c.id === shown && <span className="ctab-name">{c.name}</span>}
+                  {c.id !== shown && !!waiting[c.id] && <span className="ctab-n" title={t.canvases.waiting(waiting[c.id]!)}>{waiting[c.id]}</span>}
+                </TabsTrigger>
+              ))}
+            <Tooltip content={t.canvases.newCanvas}>
+              <button className={isKnown || several ? 'ctab new' : 'ctab new named'} aria-label={t.canvases.newCanvas} onClick={startNew}>
+                <Plus size={14} strokeWidth={2.4} aria-hidden />
+                {!isKnown && !several && <span className="ctab-name">{t.canvases.newCanvas}</span>}
               </button>
-            ))}
-          <Tooltip content={t.canvases.newCanvas}>
-            <button className={isKnown || several ? 'ctab new' : 'ctab new named'} aria-label={t.canvases.newCanvas} onClick={startNew}>
-              <Plus size={14} strokeWidth={2.4} aria-hidden />
-              {!isKnown && !several && <span className="ctab-name">{t.canvases.newCanvas}</span>}
-            </button>
-          </Tooltip>
-        </div>
+            </Tooltip>
+          </TabsList>
+        </Tabs>
       </div>
       {dialog && (
         <CanvasDialog

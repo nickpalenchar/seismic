@@ -9,6 +9,7 @@ import { Head, LanguageBlock, MotionBlock, ServerBlock, ThemeBlock } from './con
 import { t } from './strings';
 import { WishLink } from './wish';
 import { Button, CloseButton } from './components/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 
 /** The dialog's sections, in the order its list shows them. */
 type PrefsSection = 'appearance' | 'rules' | 'about';
@@ -43,6 +44,7 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
   return (
     <div id="prefs" className={on ? 'cfg-overlay on' : 'cfg-overlay'} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="cfg-box" role="dialog" aria-modal="true" aria-label={p.title}>
+        <Tabs orientation="vertical" value={section} onValueChange={(s) => setSection(s as PrefsSection)} className="tabs-flat">
         <nav className="cfg-nav">
           <div className="p-kind">{p.kind}</div>
           <h2>{p.title}</h2>
@@ -52,38 +54,45 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
               {p.toConfig}
             </Button>
           </div>
-          <ul>
-            {SECTIONS.map((s) => (
-              <li key={s}>
-                <button className={s === section ? 'on' : undefined} aria-current={s === section || undefined} onClick={() => setSection(s)}>
-                  {p.sections[s]}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <TabsList asChild aria-label={p.title}>
+            <ul>
+              {SECTIONS.map((s) => (
+                <li key={s} role="presentation">
+                  <TabsTrigger value={s}>{p.sections[s]}</TabsTrigger>
+                </li>
+              ))}
+            </ul>
+          </TabsList>
           <div className="cfg-nav-foot">
             <WishLink onOpen={onClose} />
           </div>
         </nav>
         <CloseButton label={t.close} className="cfg-close" onClick={onClose} />
         <div className="cfg-main">
+          <TabsContent value="appearance" forceMount asChild>
           <section className="cfg-sec" hidden={section !== 'appearance'}>
             <Head title={p.sections.appearance} />
             <LanguageBlock on={on} />
             <ThemeBlock on={on} />
             <MotionBlock on={on} />
           </section>
+          </TabsContent>
+          <TabsContent value="rules" forceMount asChild>
           <section className="cfg-sec" hidden={section !== 'rules'}>
             <Head title={p.sections.rules} />
             <p className="hint">{t.koordinator.preferencesHint}</p>
             <ul className="prefs">{preferences.filter((p) => p.state === 'active').map((p) => <PreferenceRow key={p.id} p={p} />)}</ul>
             <NewPreference repos={repos} />
           </section>
+          </TabsContent>
+          <TabsContent value="about" forceMount asChild>
           <section className="cfg-sec" hidden={section !== 'about'}>
             <Head title={p.sections.about} />
             {server && <ServerBlock server={server} />}
           </section>
+          </TabsContent>
         </div>
+        </Tabs>
       </div>
     </div>
   );

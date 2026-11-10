@@ -36,6 +36,7 @@ import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
 import { RadioGroup, RadioOption } from './components/radio';
 import { SegmentedControl } from './components/segmented';
+import { Tabs, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 
 declare global {
@@ -57,6 +58,8 @@ type Ask = (text: string, project?: string) => void;
 
 /** The dialog's sections, in the order its list shows them. */
 type Section = 'projects' | 'defaults' | 'agents' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
+/** The value of a project's tab in the navigation, followed by its number. */
+const PROJECT_TAB = 'project:';
 const SECTIONS: Section[] = ['projects', 'defaults', 'agents', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
 // the section shown, per tab: a save that restarts Seismic reloads the page, and the dialog comes back at it
 const SECTION_KEY = 'obeya-config-section';
@@ -376,10 +379,12 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
     if (checked) setChecked(checkedMoved(checked, draft.length, from, to));
     if (shown === from) setPick(to);
   };
+  const tabOf = section === 'projects' ? PROJECT_TAB + shown : section;
   return (
     // a press on the dim around the dialog closes it; a press that starts inside does not
     <div id="config" className={on ? 'on' : undefined} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="cfg-box" role="dialog" aria-modal="true" aria-label={c.title}>
+        <Tabs orientation="vertical" value={tabOf} onValueChange={(v) => (v.startsWith(PROJECT_TAB) ? showProject(Number(v.slice(PROJECT_TAB.length))) : setSection(v as Section))} className="tabs-flat">
         <nav className="cfg-nav">
           <div className="p-kind">{c.kind}</div>
           <h2>{c.title}</h2>
@@ -389,10 +394,11 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
               {c.askObeya}
             </Button>
           </div>
+          <TabsList asChild aria-label={c.title}>
           <ul>
             {SECTIONS.map((s) =>
               s === 'projects' ? (
-                <li key={s} className="cfg-nav-group">
+                <li key={s} className="cfg-nav-group" role="presentation">
                   {/* a heading over the projects, each of them a section of its own */}
                   <span className="cfg-nav-title">
                     {c.sections.projects}
@@ -403,13 +409,13 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                       </span>
                     )}
                   </span>
-                  <ul>
+                  <ul role="presentation">
                     {draft.map((x, i) => {
                       const on = section === 'projects' && i === shown;
                       const n = problems.filter((p) => p.project === i).length;
                       return (
-                        <li key={keys.current[i]}>
-                          <button className={on ? 'on' : undefined} aria-current={on || undefined} onClick={() => showProject(i)}>
+                        <li key={keys.current[i]} role="presentation">
+                          <TabsTrigger value={PROJECT_TAB + i} onClick={() => on && showProject(i)}>
                             <span className="cfg-nav-name">{projectName(x, i)}</span>
                             {projectChanged(i) && <span className="cfg-dot" title={c.unsaved} />}
                             {n > 0 && (
@@ -417,12 +423,12 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                                 {n}
                               </span>
                             )}
-                          </button>
+                          </TabsTrigger>
                         </li>
                       );
                     })}
                     {view && (
-                      <li>
+                      <li role="presentation">
                         <button className="cfg-nav-add" onClick={addProject}>
                           {c.addProject}
                         </button>
@@ -431,14 +437,15 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                   </ul>
                 </li>
               ) : (
-                <li key={s}>
-                  <button className={s === section ? 'on' : undefined} aria-current={s === section || undefined} onClick={() => setSection(s)}>
+                <li key={s} role="presentation">
+                  <TabsTrigger value={s} onClick={() => s === section && setSection(s)}>
                     {c.sections[s]}
-                  </button>
+                  </TabsTrigger>
                 </li>
               ),
             )}
           </ul>
+          </TabsList>
           <div className="cfg-nav-foot">
             <Button size="small" onClick={onSetup}>
               {t.setup.check}
@@ -536,6 +543,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
             <DeveloperBlock on={on && section === 'developer'} />
           </section>
         </div>
+        </Tabs>
       </div>
     </div>
   );
@@ -2362,17 +2370,19 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
       {/* its repositories as tabs, one shown at a time, with the problems of each counted on it */}
       <Field label={t.config.repos}>
         <div className="cfg-repo-tabs">
-          <div className="seg" role="tablist" aria-label={t.config.repos}>
-            {project.repos.map((r, i) => {
-              const k = problems.filter((p) => p.repo === i).length;
-              return (
-                <button key={i} type="button" role="tab" aria-selected={i === at} className={i === at ? 'on' : undefined} onClick={() => setAt(i)}>
-                  {repoName(r, resolved?.repos[i])}
-                  {k > 0 && <span className="n err">{k}</span>}
-                </button>
-              );
-            })}
-          </div>
+          <Tabs value={String(at)} onValueChange={(v) => setAt(Number(v))}>
+            <TabsList variant="segmented" aria-label={t.config.repos}>
+              {project.repos.map((r, i) => {
+                const k = problems.filter((p) => p.repo === i).length;
+                return (
+                  <TabsTrigger key={i} value={String(i)}>
+                    {repoName(r, resolved?.repos[i])}
+                    {k > 0 && <span className="n err">{k}</span>}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
           <Button
             size="small"
             onClick={() => {

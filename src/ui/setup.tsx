@@ -14,6 +14,7 @@ import { failText, fileSize, t } from './strings';
 import { projectPath } from './address';
 import { Button, CloseButton, LinkButton } from './components/button';
 import { RadioGroup, RadioOption } from './components/radio';
+import { Tabs, TabsList, TabsTrigger } from './components/tabs';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 /** The machine's system and processor, as the owner knows them: "macOS (arm64)". */
@@ -342,13 +343,15 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
             <>
               <p className="hint">{s.platform(platformName(view))}</p>
               {recommended && (
-                <div className="setup-pages" role="tablist">
-                  {(['required', 'recommended'] as const).map((p) => (
-                    <button key={p} role="tab" aria-selected={shownPage === p} className={shownPage === p ? 'on' : undefined} onClick={() => setPage(p)}>
-                      {s.pages[p]}
-                    </button>
-                  ))}
-                </div>
+                <Tabs value={shownPage} onValueChange={(p) => setPage(p as typeof shownPage)}>
+                  <TabsList variant="pill" className="setup-pages">
+                    {(['required', 'recommended'] as const).map((p) => (
+                      <TabsTrigger key={p} value={p}>
+                        {s.pages[p]}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
               )}
               {view.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id) === (shownPage === 'recommended')).map((section) => (
                 <section key={section.id} className={`c-project c-setup setup-${section.id}`}>
