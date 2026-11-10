@@ -20,6 +20,7 @@
 
 import { VisuallyHidden } from 'radix-ui';
 import { type ReactNode, useCallback, useState } from 'react';
+import { TooltipProvider } from './tooltip';
 
 /** The id of the element portals go into, inside the app root. */
 const PORTAL_ID = 'ui-portal';
@@ -52,7 +53,7 @@ export function UiRoot({ children }: { children: ReactNode }) {
       <VisuallyHidden.Root asChild>
         <h1>Seismic</h1>
       </VisuallyHidden.Root>
-      {ready && children}
+      {ready && <TooltipProvider>{children}</TooltipProvider>}
       <div id={PORTAL_ID} ref={markReady} />
     </>
   );

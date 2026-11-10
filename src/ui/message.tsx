@@ -13,6 +13,7 @@ import { clip } from '../core/text';
 import { copyOrSelect } from './copy';
 import { scrollBehavior } from './motion';
 import { CloseButton, IconButton, LinkButton } from './components/button';
+import { Tooltip } from './components/tooltip';
 
 /**
  * A message's frame: `by` places and colours it (the owner's on the right), `who` heads it with its
@@ -55,9 +56,11 @@ export function Msg({
         {head}
       </div>
       {onReply && (
-        <button className="msg-reply" title={t.talk.reply} aria-label={t.talk.reply} onMouseDown={(e) => e.preventDefault()} onClick={onReply}>
-          <Reply size={15} strokeWidth={2} aria-hidden="true" />
-        </button>
+        <Tooltip content={t.talk.reply}>
+          <button className="msg-reply" aria-label={t.talk.reply} onMouseDown={(e) => e.preventDefault()} onClick={onReply}>
+            <Reply size={15} strokeWidth={2} aria-hidden="true" />
+          </button>
+        </Tooltip>
       )}
       {onDelete && (
         <IconButton icon={<Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />} label={deleteLabel ?? t.delete} size="small" variant="danger" className="msg-delete" onMouseDown={(e) => e.preventDefault()} onClick={onDelete} />
@@ -183,19 +186,19 @@ function Code({ text }: { text: string }) {
       <pre ref={pre} className="p-code">
         {text}
       </pre>
-      <button
-        className={['p-copy', done].filter(Boolean).join(' ')}
-        title={t.talk.copy}
-        aria-label={label}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => void copy()}
-      >
-        {done ? (
-          <span>{label}</span>
-        ) : (
-          <Copy size={15} strokeWidth={1.75} aria-hidden="true" />
-        )}
-      </button>
+      <Tooltip content={t.talk.copy}>
+        <button
+          className={['p-copy', done].filter(Boolean).join(' ')} aria-label={label}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => void copy()}
+        >
+          {done ? (
+            <span>{label}</span>
+          ) : (
+            <Copy size={15} strokeWidth={1.75} aria-hidden="true" />
+          )}
+        </button>
+      </Tooltip>
     </div>
   );
 }

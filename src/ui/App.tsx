@@ -71,6 +71,7 @@ import { type InboxEntry, inboxEntries, needsYouCount, readMark } from '../core/
 import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, useWarnings, voiceTarget } from './tell';
 import { CloseButton } from './components/button';
+import { Tooltip } from './components/tooltip';
 
 export function App() {
   const [phone] = useState(phoneView);
@@ -2367,14 +2368,16 @@ function Project({
     showPage(v === 'parked' ? 'parked' : null);
   };
   const talkButton = (
-    <button className={kOn ? 'pill kpill talk-pill on' : 'pill kpill talk-pill'} title={t.koordinator.buttonTitle} aria-label={t.koordinator.button} onClick={talkKoordinator}>
-      <TalkIcon />
-      {unread > 0 && (
-        <span className="n unread" title={t.koordinator.unreadCount(unread)}>
-          {unread}
-        </span>
-      )}
-    </button>
+    <Tooltip content={t.koordinator.buttonTitle}>
+      <button className={kOn ? 'pill kpill talk-pill on' : 'pill kpill talk-pill'} aria-label={t.koordinator.button} onClick={talkKoordinator}>
+        <TalkIcon />
+        {unread > 0 && (
+          <span className="n unread" title={t.koordinator.unreadCount(unread)}>
+            {unread}
+          </span>
+        )}
+      </button>
+    </Tooltip>
   );
 
   const planComponent = () => (
@@ -2452,7 +2455,7 @@ function Project({
                 const shown = touchy && (touchFocus === from || touchFocus === item.id);
                 return [<g className={shown ? 'manual-edge shown' : 'manual-edge'} key={`${from}:${item.id}`}>
                   <path className="manual-hit" d={routed ? routed.path : linkPath(a, b, depHead(cam.s))} strokeWidth={22 / cam.s} />
-                  <foreignObject x={x - r} y={y - r} width={2 * r} height={2 * r}><button title={t.deps.remove} aria-label={t.deps.remove} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); removeDependency(from, item); }}><Trash2 strokeWidth={2} /></button></foreignObject>
+                  <foreignObject x={x - r} y={y - r} width={2 * r} height={2 * r}><Tooltip content={t.deps.remove}><button aria-label={t.deps.remove} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); removeDependency(from, item); }}><Trash2 strokeWidth={2} /></button></Tooltip></foreignObject>
                 </g>];
               }))}
               <CanvasStubs stubs={stubs} boundsOf={(id) => placedAt.get(id)} s={cam.s} onOpen={(i) => void openFresh(i)} />
@@ -2588,37 +2591,41 @@ function Project({
         <div id="floating-row" ref={rowRef}>
           {!side.left && <NavPill {...nav} />}
           <div className="right">
-            <button className={csOn ? 'pill kpill cs-pill on' : 'pill kpill cs-pill'} title={t.projectSettings.button} aria-label={t.projectSettings.button} aria-expanded={csOn} onClick={toggleProjectSettings}>
-              <BarIcon icon={Settings} />
-              {configProblems > 0 && (
-                <span className="n err" title={t.config.problemCount(configProblems)}>
-                  {configProblems}
-                </span>
-              )}
-            </button>
+            <Tooltip content={t.projectSettings.button}>
+              <button className={csOn ? 'pill kpill cs-pill on' : 'pill kpill cs-pill'} aria-label={t.projectSettings.button} aria-expanded={csOn} onClick={toggleProjectSettings}>
+                <BarIcon icon={Settings} />
+                {configProblems > 0 && (
+                  <span className="n err" title={t.config.problemCount(configProblems)}>
+                    {configProblems}
+                  </span>
+                )}
+              </button>
+            </Tooltip>
             <div className="pill-group">
-              <button className={agentsOn ? 'pill kpill agents-pill on' : 'pill kpill agents-pill'} title={t.agents.button(queued)} aria-label={t.agents.button(queued)} aria-expanded={agentsOn} onClick={toggleAgents}>
-                <BarIcon icon={Bot} />
-                {queued > 0 && <span className="n">{queued}</span>}
-              </button>
-              <button
-                className={nyOn ? 'pill kpill needs-you-pill on' : 'pill kpill needs-you-pill'}
-                id="attention"
-                title={t.needsYou.button(needsYouCards)}
-                aria-label={t.needsYou.button(needsYouCards)}
-                aria-expanded={nyOn}
-                onClick={() => {
-                  if (!needsYouKnown) {
-                    know(NEEDS_YOU_KNOWN);
-                    setNeedsYouKnown(true);
-                  }
-                  toggleNeedsYou();
-                }}
-              >
-                <BarIcon icon={ConciergeBell} />
-                {!needsYouKnown && <span className="lbl">{t.needsYou.label}</span>}
-                {needsYouCards > 0 && <span className="n">{needsYouCards}</span>}
-              </button>
+              <Tooltip content={t.agents.button(queued)}>
+                <button className={agentsOn ? 'pill kpill agents-pill on' : 'pill kpill agents-pill'} aria-label={t.agents.button(queued)} aria-expanded={agentsOn} onClick={toggleAgents}>
+                  <BarIcon icon={Bot} />
+                  {queued > 0 && <span className="n">{queued}</span>}
+                </button>
+              </Tooltip>
+              <Tooltip content={t.needsYou.button(needsYouCards)}>
+                <button
+                  className={nyOn ? 'pill kpill needs-you-pill on' : 'pill kpill needs-you-pill'}
+                  id="attention" aria-label={t.needsYou.button(needsYouCards)}
+                  aria-expanded={nyOn}
+                  onClick={() => {
+                    if (!needsYouKnown) {
+                      know(NEEDS_YOU_KNOWN);
+                      setNeedsYouKnown(true);
+                    }
+                    toggleNeedsYou();
+                  }}
+                >
+                  <BarIcon icon={ConciergeBell} />
+                  {!needsYouKnown && <span className="lbl">{t.needsYou.label}</span>}
+                  {needsYouCards > 0 && <span className="n">{needsYouCards}</span>}
+                </button>
+              </Tooltip>
             </div>
           </div>
         </div>

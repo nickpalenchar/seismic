@@ -54,6 +54,7 @@ import type { AgentSetting } from '../core/types';
 import { Button, type ButtonVariant, CloseButton, LinkButton } from './components/button';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
+import { Tooltip } from './components/tooltip';
 
 /**
  * What the panel does after an action: fold the card and confirm (with undo, when it has one), or stay open.
@@ -1616,9 +1617,11 @@ function Conversation({
           </button>
         ) : (
           pausableNow(item) && (
-            <button className="turn-pause" title={t.pause.hint} aria-label={t.pause.button} onClick={() => turn(item.id, 'pause')}>
-              <PauseMark />
-            </button>
+            <Tooltip content={t.pause.hint}>
+              <button className="turn-pause" aria-label={t.pause.button} onClick={() => turn(item.id, 'pause')}>
+                <PauseMark />
+              </button>
+            </Tooltip>
           )
         )
       }
@@ -1734,7 +1737,7 @@ function Description({ item }: { item: Item }) {
       <Button onClick={() => setEditing(false)}>{t.descriptionDone}</Button>
     </> : <>
       <Body md={body} />
-      <button className="description-edit-button" title={t.descriptionEdit} aria-label={t.descriptionEdit} onClick={() => setEditing(true)}><Pencil size={16} /></button>
+      <Tooltip content={t.descriptionEdit}><button className="description-edit-button" aria-label={t.descriptionEdit} onClick={() => setEditing(true)}><Pencil size={16} /></button></Tooltip>
     </>}
   </div>;
 }
@@ -2178,9 +2181,11 @@ function DemoView({
           <div className="demo-top">
             {earlier.length > 0 && (
               <div className={demo === latest ? 'demo-versions' : 'demo-versions earlier'} title={demo === latest ? undefined : t.demo.earlierHint}>
-                <button className="step" disabled={shownAt === 0} title={t.demo.older} aria-label={t.demo.older} onClick={() => show(all[shownAt - 1]!)}>
-                  ‹
-                </button>
+                <Tooltip content={t.demo.older}>
+                  <button className="step" disabled={shownAt === 0} aria-label={t.demo.older} onClick={() => show(all[shownAt - 1]!)}>
+                    ‹
+                  </button>
+                </Tooltip>
                 <span>
                   {t.demo.version(shownAt + 1, all.length, demo === latest)}
                   {demo.at && ` · ${handedAt(demo.at)}`}
@@ -2190,9 +2195,11 @@ function DemoView({
                     </span>
                   )}
                 </span>
-                <button className="step" disabled={demo === latest} title={t.demo.newer} aria-label={t.demo.newer} onClick={() => show(all[shownAt + 1]!)}>
-                  ›
-                </button>
+                <Tooltip content={t.demo.newer}>
+                  <button className="step" disabled={demo === latest} aria-label={t.demo.newer} onClick={() => show(all[shownAt + 1]!)}>
+                    ›
+                  </button>
+                </Tooltip>
                 {shownAt < all.length - 2 && (
                   <LinkButton onClick={() => show(latest)}>
                     {t.demo.toLatest}
@@ -2274,9 +2281,11 @@ function DemoView({
                 </button>
               )}
               {fullscreen.can && (
-                <button className="fullscreen" title={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen} aria-label={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen} onClick={fullscreen.toggle}>
-                  {fullscreen.full ? <Minimize strokeWidth={2} /> : <Maximize strokeWidth={2} />}
-                </button>
+                <Tooltip content={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen}>
+                  <button className="fullscreen" aria-label={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen} onClick={fullscreen.toggle}>
+                    {fullscreen.full ? <Minimize strokeWidth={2} /> : <Maximize strokeWidth={2} />}
+                  </button>
+                </Tooltip>
               )}
               <button
                 className="zoom"
@@ -3371,9 +3380,11 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
       )}
       {rest.length > 0 && (
         <span className="menu-pill">
-          <button className={open ? 'tag-add on' : 'tag-add'} title={t.share.addTag} aria-label={t.share.addTag} aria-expanded={open} onClick={() => setOpen(!open)}>
-            <Plus size={10} strokeWidth={1.75} aria-hidden="true" />
-          </button>
+          <Tooltip content={t.share.addTag}>
+            <button className={open ? 'tag-add on' : 'tag-add'} aria-label={t.share.addTag} aria-expanded={open} onClick={() => setOpen(!open)}>
+              <Plus size={10} strokeWidth={1.75} aria-hidden="true" />
+            </button>
+          </Tooltip>
           {open && (
             <div className="bar-menu tag-menu">
               {rest.map(([d, values]) => (
@@ -3640,9 +3651,11 @@ function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNo
   const foldable = !!main && !away;
   const closed = foldable && folded;
   const toggle = (
-    <button type="button" className="split-fold" title={closed ? t.talk.show : t.talk.hide} aria-label={closed ? t.talk.show : t.talk.hide} aria-expanded={!closed} onClick={() => fold(!closed)}>
-      {closed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
-    </button>
+    <Tooltip content={closed ? t.talk.show : t.talk.hide}>
+      <button type="button" className="split-fold" aria-label={closed ? t.talk.show : t.talk.hide} aria-expanded={!closed} onClick={() => fold(!closed)}>
+        {closed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
+      </button>
+    </Tooltip>
   );
   return (
     <TalkFolded.Provider value={{ folded: closed, show }}>

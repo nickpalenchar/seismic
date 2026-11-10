@@ -22,6 +22,7 @@ import { Radio, RadioGroup } from './components/radio';
 
 /** The radio value of "no icon": a radio has no null. */
 const NO_ICON = '\0none';
+import { Tooltip } from './components/tooltip';
 
 /** What the page knows of the project's canvases, for what shows a card (its menu, search). */
 export interface CanvasesView {
@@ -121,10 +122,12 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
                 {c.id !== shown && !!waiting[c.id] && <span className="ctab-n" title={t.canvases.waiting(waiting[c.id]!)}>{waiting[c.id]}</span>}
               </button>
             ))}
-          <button className={isKnown || several ? 'ctab new' : 'ctab new named'} title={t.canvases.newCanvas} aria-label={t.canvases.newCanvas} onClick={startNew}>
-            <Plus size={14} strokeWidth={2.4} aria-hidden />
-            {!isKnown && !several && <span className="ctab-name">{t.canvases.newCanvas}</span>}
-          </button>
+          <Tooltip content={t.canvases.newCanvas}>
+            <button className={isKnown || several ? 'ctab new' : 'ctab new named'} aria-label={t.canvases.newCanvas} onClick={startNew}>
+              <Plus size={14} strokeWidth={2.4} aria-hidden />
+              {!isKnown && !several && <span className="ctab-name">{t.canvases.newCanvas}</span>}
+            </button>
+          </Tooltip>
         </div>
       </div>
       {dialog && (
@@ -185,13 +188,17 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew }: { ca
                 {n > 0 && <span className="cd-n" title={t.canvases.waiting(n)}>{n}</span>}
               </button>
               <span className="cd-tools">
-                <button title={t.canvases.edit} aria-label={t.canvases.edit} onClick={() => onEdit(c)}>
-                  <Pencil size={13} aria-hidden />
-                </button>
-                {c.name !== MAIN_CANVAS && empty.has(c.id) && (
-                  <button title={t.canvases.remove} aria-label={t.canvases.remove} onClick={() => remove(c)}>
-                    <Trash2 size={13} aria-hidden />
+                <Tooltip content={t.canvases.edit}>
+                  <button aria-label={t.canvases.edit} onClick={() => onEdit(c)}>
+                    <Pencil size={13} aria-hidden />
                   </button>
+                </Tooltip>
+                {c.name !== MAIN_CANVAS && empty.has(c.id) && (
+                  <Tooltip content={t.canvases.remove}>
+                    <button aria-label={t.canvases.remove} onClick={() => remove(c)}>
+                      <Trash2 size={13} aria-hidden />
+                    </button>
+                  </Tooltip>
                 )}
               </span>
             </li>
@@ -419,9 +426,11 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   );
   return (
     <span className="prio-pick card-more" ref={box}>
-      <button className="prio-btn" title={canPark || parked ? t.parking.menu : t.canvases.more} aria-label={canPark || parked ? t.parking.menu : t.canvases.more} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
-        <MoreHorizontal size={14} aria-hidden />
-      </button>
+      <Tooltip content={canPark || parked ? t.parking.menu : t.canvases.more}>
+        <button className="prio-btn" aria-label={canPark || parked ? t.parking.menu : t.canvases.more} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
+          <MoreHorizontal size={14} aria-hidden />
+        </button>
+      </Tooltip>
       {open && (floating ? createPortal(list, document.body) : list)}
       {confirm && createPortal(
         <div className="review-approval-cover" onClick={() => setConfirm(false)}>
@@ -495,9 +504,11 @@ export function CanvasStubs({ stubs, boundsOf, s, onOpen }: { stubs: Stub[]; bou
             <g key={`${x.here} ${x.other.id} ${x.dir}`} className="canvas-stub">
               <path className="faint" d={`M${x0},${y} L${x1},${y}`} strokeWidth={Math.max(2, 1.6 / s)} strokeDasharray={`${4 / s} ${4 / s}`} markerEnd="url(#faint-arrow)" />
               <foreignObject x={chip - r} y={y - r} width={2 * r} height={2 * r}>
-                <button title={title} aria-label={title} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.stopPropagation(), onOpen(x.other))}>
-                  <CanvasIcon canvas={x.canvas} size={14 / s} />
-                </button>
+                <Tooltip content={title}>
+                  <button aria-label={title} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.stopPropagation(), onOpen(x.other))}>
+                    <CanvasIcon canvas={x.canvas} size={14 / s} />
+                  </button>
+                </Tooltip>
               </foreignObject>
             </g>
           );

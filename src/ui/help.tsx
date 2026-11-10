@@ -4,13 +4,16 @@ import { Fragment } from 'react';
 import { t } from './strings';
 import { WishLink } from './wish';
 import { CloseButton } from './components/button';
+import { Tooltip } from './components/tooltip';
 
 /** The `?` button in the bar. */
 export function HelpButton({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
-    <button className={on ? 'pill help on' : 'pill help'} title={t.help.button} aria-label={t.help.button} onClick={onClick}>
-      ?
-    </button>
+    <Tooltip content={t.help.button}>
+      <button className={on ? 'pill help on' : 'pill help'} aria-label={t.help.button} onClick={onClick}>
+        ?
+      </button>
+    </Tooltip>
   );
 }
 

@@ -6,6 +6,7 @@
 @import "./components/check-label.css";
 @import "./components/segmented.css";
 @import "./components/radio.css";
+@import "./components/tooltip.css";
 @font-face { font-family: Newsreader; font-style: normal; font-weight: 300 800; font-display: swap;
   src: url(./fonts/newsreader-latin-opsz-normal.woff2) format("woff2"); }
 @font-face { font-family: Newsreader; font-style: italic; font-weight: 300 800; font-display: swap;
@@ -416,8 +417,6 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--serif); 
 #status .pill.restart .spin { color: var(--ice); }
 #status .pill.restart .hint { color: var(--ice); opacity: .8; font-weight: 400; }
 #status .pill.restart > button { padding: 3px 10px; }
-#status .pill.restart .tip { top: auto; bottom: calc(100% + 8px); left: 0; right: auto; }
-#status .pill.restart > button .tip { left: auto; right: 0; }
 #status .pill:is(.usage, .workstations) .tip { top: auto; bottom: calc(100% + 8px); max-height: calc(100vh - 110px); }
 #status .pill:is(.usage, .workstations) .face { padding: 0 8px; border-radius: 3px; }
 #status .pill.workstations::after { top: auto; bottom: 100%; }
@@ -434,24 +433,12 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill.restart.old-bun { padding: 7px 14px; }
 .pill.restart.old-bun .warn { color: var(--waiting); font-weight: 700; }
 .pill.restart.source.by-hand { padding: 7px 14px; }
-.pill.restart .tip p.warn { color: var(--waiting); }
+.pill-text { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .pill.restart .spin { display: inline-block; color: var(--working); font-weight: 700; animation: spin 2.4s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .pill.restart button { border: 0; border-radius: 3px; padding: 4px 11px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
   background: var(--chip); color: var(--ink); }
 .pill.restart button:hover { background: var(--ink); color: var(--bg); }
-.pill.restart .tip { display: none; position: absolute; top: calc(100% + 8px); right: 0; width: 360px; padding: 10px 14px; border-radius: 3px;
-  background: var(--panel); color: var(--ink); box-shadow: var(--lift); white-space: normal; font-size: 13px; font-weight: 400; line-height: 1.45;
-  text-align: left; z-index: 30; }
-.pill.restart .tip.risk { pointer-events: none; }
-/* bridges the gap to the pill, so moving the cursor up into the popout keeps it open */
-.pill.restart .tip.why::before { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 10px; }
-.pill.restart .tip.why a.from { color: var(--working); cursor: pointer; text-decoration: underline; text-decoration-color: currentColor; text-underline-offset: 2px; }
-.pill.restart .tip.why a.from:hover { text-decoration-color: currentColor; }
-.pill.restart .tip p { margin: 0 0 6px; }
-.pill.restart .tip p:last-child { margin: 0; }
-.pill.restart .tip ul { margin: 0 0 6px; padding-left: 18px; }
-.pill.restart:hover:not(:has(button:hover)) > .tip.why, .pill.restart > .tip.why:hover, .pill.restart button:hover > .tip.risk { display: block; }
 /* the left menu (src/ui/nav.tsx), under ☰ or docked on the left, and the floating row's project switcher:
    the projects */
 .nav-pill { position: relative; }
@@ -532,10 +519,6 @@ button.pill:hover { box-shadow: var(--lift); }
   background: transparent; color: var(--muted); opacity: .55; cursor: pointer; transition: opacity .12s; }
 .agents-turn .btn-mark { margin: 0; }
 .agents-turn:hover, .agents-turn:focus-visible { opacity: 1; color: var(--ink); border-color: var(--muted); }
-/* what it does, at once while the pointer is on it, to its right: on the page itself, since the list and the
-   sidebar scroll and would cut it off at their edge and scroll sideways to it */
-.agents-tip { position: fixed; transform: translateY(-50%); padding: 6px 10px; border-radius: 3px; background: var(--panel); color: var(--ink);
-  box-shadow: var(--lift); white-space: nowrap; font-size: 13px; pointer-events: none; z-index: 40; }
 .nav-row:is(:hover, :focus-within) .agents-turn { display: grid; }
 .nav-row:is(:hover, :focus-within) .project-agents::before { display: none; }
 @media (hover: none) {
@@ -1780,9 +1763,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-has-info:is(:hover, :focus-within) .cfg-has-info:not(:hover, :focus-within) .cfg-info { opacity: 0; }
 .cfg-info:hover, .cfg-info.on, :is(#config, #prefs, #project-settings) .cfg-info:focus-visible { opacity: 1; color: var(--ink); }
 .cfg-info:focus-visible { outline: 1px solid var(--muted); outline-offset: 1px; border-radius: 50%; }
-.cfg-tip { position: fixed; z-index: 60; width: 340px; padding: 10px 14px; border-radius: 3px; background: var(--card); color: var(--ink);
-  box-shadow: var(--lift); font-size: 13px; font-weight: 400; line-height: 1.45; white-space: normal; pointer-events: none; }
-.cfg-tip[hidden] { display: none; }
 /* a project: its name as a heading line, its repositories as a table below it */
 /* a project as its own page: its title line, then each repository under a heading of its own, its
    settings in groups under small headings */

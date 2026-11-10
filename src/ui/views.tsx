@@ -12,6 +12,7 @@ import { CloseButton } from './components/button';
 import { FullPage } from './fullPage';
 import { QueueList, useQueueSort } from './queue';
 import { t } from './strings';
+import { Tooltip } from './components/tooltip';
 
 /** The views the switcher moves between, the canvas being none of the full-page ones. */
 export type SwitchedView = 'canvas' | 'parked';
@@ -95,10 +96,12 @@ export function ViewSwitcher({ shown, onShow }: { shown: SwitchedView | null; on
       {button('canvas', t.views.canvas, <MapIcon size={15} strokeWidth={2} aria-hidden />)}
       {button('parked', t.views.parked, <Car size={15} strokeWidth={2} aria-hidden />)}
       {/* not `disabled`: a disabled button shows no tooltip in every browser */}
-      <button type="button" className="soon" aria-disabled="true" title={t.views.comingSoon} aria-label={`${t.views.table} (${t.views.comingSoon})`}>
-        <Table2 size={15} strokeWidth={2} aria-hidden />
-        {t.views.table}
-      </button>
+      <Tooltip content={t.views.comingSoon}>
+        <button type="button" className="soon" aria-disabled="true" aria-label={`${t.views.table} (${t.views.comingSoon})`}>
+          <Table2 size={15} strokeWidth={2} aria-hidden />
+          {t.views.table}
+        </button>
+      </Tooltip>
     </div>
   );
 }

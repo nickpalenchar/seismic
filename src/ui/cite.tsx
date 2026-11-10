@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import { cite } from './draft';
 import { know, known } from './known';
 import { t } from './strings';
+import { Tooltip } from './components/tooltip';
 
 const KNOWN = 'obeya-cite-known';
 
@@ -186,27 +187,27 @@ export function CiteButton({ box, draft, anywhere, onCite }: { box: RefObject<HT
   }, [box, anywhere]);
   if (!marked) return null;
   return createPortal(
-    <button
-      className={['cite', marked.below && 'below', marked.left && 'left', named && 'named'].filter(Boolean).join(' ')}
-      style={{ left: marked.x, top: marked.y }}
-      title={t.talk.citeHint}
-      aria-label={t.talk.citeHint}
-      // the marking stays while the button is pressed, and so does the focus where it is
-      onPointerDown={(e) => e.preventDefault()}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={() => {
-        if (framed) unmarkFrame();
-        else getSelection()?.removeAllRanges();
-        setMarked(null);
-        cite(draft, t.talk.cited(marked.text));
-        onCite?.();
-        know(KNOWN);
-        setNamed(false);
-      }}
-    >
-      <Quote size={15} strokeWidth={2} aria-hidden="true" />
-      {named && <span>{t.talk.cite}</span>}
-    </button>,
+    <Tooltip content={t.talk.citeHint}>
+      <button
+        className={['cite', marked.below && 'below', marked.left && 'left', named && 'named'].filter(Boolean).join(' ')}
+        style={{ left: marked.x, top: marked.y }} aria-label={t.talk.citeHint}
+        // the marking stays while the button is pressed, and so does the focus where it is
+        onPointerDown={(e) => e.preventDefault()}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          if (framed) unmarkFrame();
+          else getSelection()?.removeAllRanges();
+          setMarked(null);
+          cite(draft, t.talk.cited(marked.text));
+          onCite?.();
+          know(KNOWN);
+          setNamed(false);
+        }}
+      >
+        <Quote size={15} strokeWidth={2} aria-hidden="true" />
+        {named && <span>{t.talk.cite}</span>}
+      </button>
+    </Tooltip>,
     document.body,
   );
 }

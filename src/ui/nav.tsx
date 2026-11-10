@@ -15,6 +15,7 @@ import { ProjectAgents } from './parts';
 import { useMenuClose } from './queue';
 import { t } from './strings';
 import { openWish } from './wish';
+import { Tooltip } from './components/tooltip';
 
 /** How wide the menu is, docked as a sidebar. */
 export const NAV_W = 340;
@@ -122,15 +123,17 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
   const on = docked ? dockedOn : open;
   return (
     <div className="menu-pill app-menu" ref={box}>
-      <button className={on ? 'app-logo on' : 'app-logo'} title={t.leftMenu.button} aria-label={t.leftMenu.button} aria-expanded={on} onClick={() => (docked ? onDocked(!dockedOn) : setOpen(!open))}>
-        <Menu className="burger" size={18} strokeWidth={2} aria-hidden />
-        <span className="bar-word">
-          <Wordmark height={22} />
-        </span>
-        <span className="bar-sign">
-          <Sign size={24} />
-        </span>
-      </button>
+      <Tooltip content={t.leftMenu.button}>
+        <button className={on ? 'app-logo on' : 'app-logo'} aria-label={t.leftMenu.button} aria-expanded={on} onClick={() => (docked ? onDocked(!dockedOn) : setOpen(!open))}>
+          <Menu className="burger" size={18} strokeWidth={2} aria-hidden />
+          <span className="bar-word">
+            <Wordmark height={22} />
+          </span>
+          <span className="bar-sign">
+            <Sign size={24} />
+          </span>
+        </button>
+      </Tooltip>
       {open && !docked && (
         <div className="nav-menu left-menu">
           <MenuBody {...p} close={() => setOpen(false)} />
@@ -162,9 +165,11 @@ function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; t
     f();
   };
   const pin = (p.pinnable || p.pinned) && (
-    <button className={p.pinned ? 'nav-pin on' : 'nav-pin'} title={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onClick={run(() => p.onPin(!p.pinned))}>
-      {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
-    </button>
+    <Tooltip content={p.pinned ? m.unpin : m.pin}>
+      <button className={p.pinned ? 'nav-pin on' : 'nav-pin'} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onClick={run(() => p.onPin(!p.pinned))}>
+        {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
+      </button>
+    </Tooltip>
   );
   const inbox = (
     <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} onClick={run(p.onInbox)} />
@@ -218,10 +223,12 @@ function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; t
       </div>
       <div className="menu-page" inert={page !== 'agents'}>
         <div className="nav-head" {...drag}>
-          <button className="menu-back" onClick={() => setPage('main')} title={m.back} aria-label={m.back}>
-            <ArrowLeft size={16} strokeWidth={2} aria-hidden />
-            <b>{m.configureAgents}</b>
-          </button>
+          <Tooltip content={m.back}>
+            <button className="menu-back" onClick={() => setPage('main')} aria-label={m.back}>
+              <ArrowLeft size={16} strokeWidth={2} aria-hidden />
+              <b>{m.configureAgents}</b>
+            </button>
+          </Tooltip>
           {pin}
         </div>
         <ul className="menu-list">

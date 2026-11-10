@@ -3,7 +3,6 @@
 import { Archive, ChevronDown, ChevronRight, Columns3, GitMerge, MessageSquare, Pause, Play, Square } from 'lucide-react';
 import { Docked } from './docked';
 import { memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
 import { agentFailed, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type SourceUpdate, stoppedArchivable, snoozeOf, isPausing } from '../core/types';
@@ -22,6 +21,7 @@ import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
 import { cardPath, switchTo } from './address';
 import { Button } from './components/button';
+import { Tooltip } from './components/tooltip';
 
 /** The button for the conversation with Seismic (the project's top bar, the phone view's): a speech bubble. */
 export function TalkIcon() {
@@ -85,19 +85,19 @@ function CardTurn({ item }: { item: Item }) {
   const paused = halted(item);
   if (!paused && !pausable(item)) return null;
   return (
-    <button
-      className={paused ? 'play turn resume' : 'play turn'}
-      title={isPausing(item) ? t.pause.takeBackHint : paused ? t.pause.resumeHint : t.pause.safeHint}
-      aria-label={paused ? t.pause.resume : t.pause.button}
-      // the project would take the press as the start of a drag or a click that opens the card
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => {
-        e.stopPropagation();
-        void api.act(item.id, paused ? { action: 'resume' } : { action: 'pause', safePoint: true }).catch(() => {});
-      }}
-    >
-      {paused ? <PlayMark /> : <PauseMark />}
-    </button>
+    <Tooltip content={isPausing(item) ? t.pause.takeBackHint : paused ? t.pause.resumeHint : t.pause.safeHint}>
+      <button
+        className={paused ? 'play turn resume' : 'play turn'} aria-label={paused ? t.pause.resume : t.pause.button}
+        // the project would take the press as the start of a drag or a click that opens the card
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          void api.act(item.id, paused ? { action: 'resume' } : { action: 'pause', safePoint: true }).catch(() => {});
+        }}
+      >
+        {paused ? <PlayMark /> : <PauseMark />}
+      </button>
+    </Tooltip>
   );
 }
 
@@ -108,19 +108,19 @@ function CardTurn({ item }: { item: Item }) {
 function CardCheckStop({ item }: { item: Item }) {
   if (item.state !== 'planned' || !item.queue || !('checking' in item.queue)) return null;
   return (
-    <button
-      className="play turn"
-      title={t.queue.checkingStopHint}
-      aria-label={t.stop}
-      // the project would take the press as the start of a drag or a click that opens the card
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => {
-        e.stopPropagation();
-        void api.act(item.id, { action: 'dequeue' }).catch(() => {});
-      }}
-    >
-      <Square className="btn-mark" size={10} strokeWidth={1.75} fill="currentColor" aria-hidden />
-    </button>
+    <Tooltip content={t.queue.checkingStopHint}>
+      <button
+        className="play turn" aria-label={t.stop}
+        // the project would take the press as the start of a drag or a click that opens the card
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          void api.act(item.id, { action: 'dequeue' }).catch(() => {});
+        }}
+      >
+        <Square className="btn-mark" size={10} strokeWidth={1.75} fill="currentColor" aria-hidden />
+      </button>
+    </Tooltip>
   );
 }
 
@@ -200,33 +200,33 @@ export const CardView = memo(
         {!underway && <CardTurn item={item} />}
         {!underway && <CardCheckStop item={item} />}
         {startable && (
-          <button
-            className="play"
-            title={item.queue ? t.queue.force : t.start}
-            aria-label={item.queue ? t.queue.force : t.start}
-            // the project would take the press as the start of a drag or a click that opens the card
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onStart(item);
-            }}
-          >
-            <PlayIcon size={12} />
-          </button>
+          <Tooltip content={item.queue ? t.queue.force : t.start}>
+            <button
+              className="play" aria-label={item.queue ? t.queue.force : t.start}
+              // the project would take the press as the start of a drag or a click that opens the card
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStart(item);
+              }}
+            >
+              <PlayIcon size={12} />
+            </button>
+          </Tooltip>
         )}
         {archivable && (
-          <button
-            className={startable ? 'play archive beside' : 'play archive'}
-            title={t.archive.archive}
-            aria-label={t.archive.archive}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onArchive(item);
-            }}
-          >
-            <Archive size={14} strokeWidth={2.25} />
-          </button>
+          <Tooltip content={t.archive.archive}>
+            <button
+              className={startable ? 'play archive beside' : 'play archive'} aria-label={t.archive.archive}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onArchive(item);
+              }}
+            >
+              <Archive size={14} strokeWidth={2.25} />
+            </button>
+          </Tooltip>
         )}
       </div>
     );
@@ -243,14 +243,6 @@ export const CardView = memo(
  */
 export function ProjectAgents({ project }: { project: ProjectInfo }) {
   const [asked, setAsked] = useState(false);
-  const [tip, setTip] = useState<{ x: number; y: number } | null>(null);
-  // a scroll moves the button from under the tip
-  useEffect(() => {
-    if (!tip) return;
-    const hide = () => setTip(null);
-    document.addEventListener('scroll', hide, true);
-    return () => document.removeEventListener('scroll', hide, true);
-  }, [tip]);
   const a = project.agents;
   if (!a) return null;
   const pause = a.running > 0;
@@ -259,26 +251,15 @@ export function ProjectAgents({ project }: { project: ProjectInfo }) {
     e.preventDefault();
     e.stopPropagation();
     setAsked(true);
-    setTip(null);
     (pause ? api.pauseAgents(project.id) : api.resumeAgents(project.id)).catch(console.error).finally(() => setAsked(false));
   };
-  const show = (e: { currentTarget: Element }) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    setTip({ x: r.right + 10, y: r.top + r.height / 2 });
-  };
-  const hide = () => setTip(null);
   return (
     <span className={pause ? 'project-agents running' : 'project-agents'}>
-      <button type="button" className="agents-turn" aria-label={`${label}: ${project.name}`} disabled={asked} onClick={click} onPointerEnter={show} onPointerLeave={hide} onFocus={(e) => e.currentTarget.matches(':focus-visible') && show(e)} onBlur={hide}>
-        {pause ? <PauseMark /> : <PlayMark />}
-      </button>
-      {tip &&
-        createPortal(
-          <span className="agents-tip" style={{ left: tip.x, top: tip.y }}>
-            {label}
-          </span>,
-          document.body,
-        )}
+      <Tooltip content={label} side="right">
+        <button type="button" className="agents-turn" aria-label={`${label}: ${project.name}`} disabled={asked} onClick={click}>
+          {pause ? <PauseMark /> : <PlayMark />}
+        </button>
+      </Tooltip>
     </span>
   );
 }
@@ -390,57 +371,64 @@ function Pill({ restart, items, project, onOpen, elsewhere = [], go, going, say,
     );
   return (
     <div className="pill restart" id="restart">
-      <span className="spin">↻</span>
-      <span className="say">{say}</span>
-      {until && <span className="hint">{t.restart.until(clock(restart.deadline))}</span>}
-      <button onClick={click}>
-        {now}
-        <span className="tip risk" role="tooltip">
-          {risk}
-        </span>
-      </button>
-      <div className="tip why" role="tooltip">
-        {why}
-        {cards.length + elsewhere.length > 0 && (
+      <Tooltip
+        rich
+        side="top"
+        align="start"
+        content={
           <>
-            <p>{t.restart.waits}</p>
-            {cards.length > 0 && (
-              <ul>
-                {cards.map(({ item, title }, i) => (
-                  <li key={i}>{item ? (
-                    <a
-                      className="from"
-                      href={cardPath(project, item)}
-                      onClick={(m) => {
-                        if (m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
-                        m.preventDefault();
-                        onOpen(item);
-                      }}
-                    >
-                      {title}
-                    </a>
-                  ) : title}</li>
+            {why}
+            {cards.length + elsewhere.length > 0 && (
+              <>
+                <p>{t.restart.waits}</p>
+                {cards.length > 0 && (
+                  <ul>
+                    {cards.map(({ item, title }, i) => (
+                      <li key={i}>{item ? (
+                        <a
+                          className="from"
+                          href={cardPath(project, item)}
+                          onClick={(m) => {
+                            if (m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
+                            m.preventDefault();
+                            onOpen(item);
+                          }}
+                        >
+                          {title}
+                        </a>
+                      ) : title}</li>
+                    ))}
+                  </ul>
+                )}
+                {elsewhere.map((c) => (
+                  <div key={c.id} className="elsewhere">
+                    <p className="hint">{t.restart.on(c.project)}</p>
+                    <ul>
+                      {c.cards.map((x, i) => (
+                        <li key={i}>
+                          <a className="from" href={cardPath(c.id, x.short ?? x.id)} onClick={(m) => switchTo(m, cardPath(c.id, x.short ?? x.id))}>
+                            {plain(x.title)}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </>
             )}
-            {elsewhere.map((c) => (
-              <div key={c.id} className="elsewhere">
-                <p className="hint">{t.restart.on(c.project)}</p>
-                <ul>
-                  {c.cards.map((x, i) => (
-                    <li key={i}>
-                      <a className="from" href={cardPath(c.id, x.short ?? x.id)} onClick={(m) => switchTo(m, cardPath(c.id, x.short ?? x.id))}>
-                        {plain(x.title)}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {after}
           </>
-        )}
-        {after}
-      </div>
+        }
+      >
+        <span className="pill-text">
+          <span className="spin">↻</span>
+          <span className="say">{say}</span>
+          {until && <span className="hint">{t.restart.until(clock(restart.deadline))}</span>}
+        </span>
+      </Tooltip>
+      <Tooltip content={risk} side="top" align="end">
+        <button onClick={click}>{now}</button>
+      </Tooltip>
     </div>
   );
 }
@@ -458,7 +446,22 @@ export function UpdatePill({ update }: { update: AppUpdate }) {
   };
   return (
     <div className="pill restart update" id="update">
-      <span>{t.update.pill(update.version)}</span>
+      <Tooltip
+        rich
+        side="top"
+        align="start"
+        content={
+          <>
+            <p>
+              <b>{t.update.title(update.version, update.date ? shortDay(update.date) : null)}</b>
+            </p>
+            {update.notes && <Doc md={update.notes} />}
+            <p className="hint">{update.download ? t.update.howDownload : t.update.how}</p>
+          </>
+        }
+      >
+        <span className="pill-text">{t.update.pill(update.version)}</span>
+      </Tooltip>
       {update.download ? (
         <button onClick={() => window.open(update.download, '_blank')}>{t.update.download}</button>
       ) : (
@@ -466,13 +469,6 @@ export function UpdatePill({ update }: { update: AppUpdate }) {
           {t.update.install}
         </button>
       )}
-      <div className="tip why" role="tooltip">
-        <p>
-          <b>{t.update.title(update.version, update.date ? shortDay(update.date) : null)}</b>
-        </p>
-        {update.notes && <Doc md={update.notes} />}
-        <p className="hint">{update.download ? t.update.howDownload : t.update.how}</p>
-      </div>
     </div>
   );
 }
@@ -499,29 +495,37 @@ export function SourcePill({ source }: { source: SourceUpdate }) {
       : t.source.local(source.checkout, source.blocked.files.map((f) => `\`${f}\``).join(', '));
   return (
     <div className={source.blocked ? 'pill restart update source by-hand' : 'pill restart update source'} id="source-update">
-      <span>{t.source.pill(source.count)}</span>
+      <Tooltip
+        rich
+        side="top"
+        align="start"
+        content={
+          <>
+            <p>
+              <b>{t.source.title(source.count, source.upstream)}</b>
+            </p>
+            <ul>
+              {source.commits.map((c, i) => (
+                <li key={i}>
+                  {c.subject} <span className="hint">{shortDay(c.date)}</span>
+                </li>
+              ))}
+            </ul>
+            {more > 0 && <p className="hint">{t.source.more(more)}</p>}
+            {source.error && <p className="warn">{t.source.failed(source.error)}</p>}
+            <p className="hint">
+              <Inline md={how} />
+            </p>
+          </>
+        }
+      >
+        <span className="pill-text">{t.source.pill(source.count)}</span>
+      </Tooltip>
       {!source.blocked && (
         <button onClick={pull} disabled={asked}>
           {t.source.pull}
         </button>
       )}
-      <div className="tip why" role="tooltip">
-        <p>
-          <b>{t.source.title(source.count, source.upstream)}</b>
-        </p>
-        <ul>
-          {source.commits.map((c, i) => (
-            <li key={i}>
-              {c.subject} <span className="hint">{shortDay(c.date)}</span>
-            </li>
-          ))}
-        </ul>
-        {more > 0 && <p className="hint">{t.source.more(more)}</p>}
-        {source.error && <p className="warn">{t.source.failed(source.error)}</p>}
-        <p className="hint">
-          <Inline md={how} />
-        </p>
-      </div>
     </div>
   );
 }
@@ -533,17 +537,27 @@ export function SourcePill({ source }: { source: SourceUpdate }) {
 export function OldBunPill({ version }: { version: string }) {
   return (
     <div className="pill restart old-bun" id="old-bun">
-      <span className="warn">⚠</span>
-      <span className="say">{t.oldBun.pill(version)}</span>
-      <div className="tip why" role="tooltip">
-        <p>
-          <b>{t.oldBun.title}</b>
-        </p>
-        <p>{t.oldBun.why(version)}</p>
-        <p>
-          <Inline md={t.oldBun.how} />
-        </p>
-      </div>
+      <Tooltip
+        rich
+        side="top"
+        align="start"
+        content={
+          <>
+            <p>
+              <b>{t.oldBun.title}</b>
+            </p>
+            <p>{t.oldBun.why(version)}</p>
+            <p>
+              <Inline md={t.oldBun.how} />
+            </p>
+          </>
+        }
+      >
+        <span className="pill-text">
+          <span className="warn">⚠</span>
+          <span className="say">{t.oldBun.pill(version)}</span>
+        </span>
+      </Tooltip>
     </div>
   );
 }
@@ -743,9 +757,11 @@ function WorkstationRows({ host, items, projects, onOpen, onElsewhere, onTake, o
                 </>
               )}
               {item && w.takeable && onTake && (
-                <button className="ws-more" title={t.workstations.more} aria-label={t.workstations.more} aria-expanded={more === w.path} onClick={() => setMore(more === w.path ? null : w.path)}>
-                  ⋯
-                </button>
+                <Tooltip content={t.workstations.more}>
+                  <button className="ws-more" aria-label={t.workstations.more} aria-expanded={more === w.path} onClick={() => setMore(more === w.path ? null : w.path)}>
+                    ⋯
+                  </button>
+                </Tooltip>
               )}
             </span>
             {item && w.takeable && onTake && more === w.path && (
@@ -834,19 +850,19 @@ export const PlanView = memo(
     return (
       <div className={`item plan s-${item.state}${collapsed ? ' collapsed' : ''}`} data-id={item.id} style={{ left: b.x, top: b.y, width: b.w, height: b.h, zIndex: 0 }}>
         <div className="head">
-          <button
-            className="fold"
-            title={collapsed ? t.plan.expand : t.plan.collapse}
-            aria-label={collapsed ? t.plan.expand : t.plan.collapse}
-            aria-expanded={!collapsed}
-            onPointerDown={own}
-            onClick={(e) => {
-              e.stopPropagation();
-              onCollapse(item, !collapsed);
-            }}
-          >
-            {collapsed ? <ChevronRight size={12} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={12} strokeWidth={1.75} aria-hidden="true" />}
-          </button>
+          <Tooltip content={collapsed ? t.plan.expand : t.plan.collapse}>
+            <button
+              className="fold" aria-label={collapsed ? t.plan.expand : t.plan.collapse}
+              aria-expanded={!collapsed}
+              onPointerDown={own}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCollapse(item, !collapsed);
+              }}
+            >
+              {collapsed ? <ChevronRight size={12} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={12} strokeWidth={1.75} aria-hidden="true" />}
+            </button>
+          </Tooltip>
           <span className="ttl">{plain(item.title)}</span>
           <span className="kind">{t.kind.plan}</span>
           {hasLabels(item) && <span className="head-labels"><LabelMarks item={item} /></span>}
@@ -910,19 +926,19 @@ export const PlanView = memo(
           <div className="badges">
             {/* its plan agent's answers: a speech bubble, unlike the count of workstreams that need the owner */}
             {replies > 0 && (
-              <button
-                className="badge replied pulse"
-                title={t.plan.replied(replies)}
-                aria-label={t.plan.replied(replies)}
-                onPointerDown={own}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpen(item);
-                }}
-              >
-                <TalkIcon />
-                {replies > 1 && <span>{replies}</span>}
-              </button>
+              <Tooltip content={t.plan.replied(replies)}>
+                <button
+                  className="badge replied pulse" aria-label={t.plan.replied(replies)}
+                  onPointerDown={own}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpen(item);
+                  }}
+                >
+                  <TalkIcon />
+                  {replies > 1 && <span>{replies}</span>}
+                </button>
+              </Tooltip>
             )}
             {waiting > 0 && <div className="badge">{waiting}</div>}
           </div>

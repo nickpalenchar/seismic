@@ -5,7 +5,7 @@
 // dialog (prefs.tsx).
 
 import { Info as InfoIcon, Trash2 } from 'lucide-react';
-import { type CSSProperties, Fragment, type ReactNode, useContext, useEffect, useId, useRef, useState } from 'react';
+import { Fragment, type ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
@@ -36,6 +36,7 @@ import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
 import { RadioGroup, RadioOption } from './components/radio';
 import { SegmentedControl } from './components/segmented';
+import { Tooltip } from './components/tooltip';
 
 declare global {
   interface Window {
@@ -630,48 +631,23 @@ export function Field({ label, hint, className, children }: { label: ReactNode; 
 /**
  * What to know about a field, behind a small icon: the icon shows while the pointer is on the field or its
  * label (the nearest `.cfg-has-info` around it) or the field has the focus, so the page stays calm; the text
- * shows on the icon at once, kept inside the window.
+ * shows on hover, on focus and on a click or tap, kept inside the window.
  */
 function Info({ text }: { text: string }) {
-  const id = useId();
-  const icon = useRef<HTMLButtonElement>(null);
-  const [at, setAt] = useState<CSSProperties | null>(null);
-  const show = () => {
-    const r = icon.current!.getBoundingClientRect();
-    const left = Math.max(8, Math.min(r.left - 12, innerWidth - TIP_WIDTH - 8));
-    // below the icon, or above it in the lower part of the window
-    setAt(r.bottom > innerHeight * 0.65 ? { left, bottom: innerHeight - r.top + 6 } : { left, top: r.bottom + 6 });
-  };
-  useEffect(() => {
-    if (!at) return;
-    const hide = () => setAt(null);
-    addEventListener('scroll', hide, true);
-    return () => removeEventListener('scroll', hide, true);
-  }, [at]);
+  const [open, setOpen] = useState(false);
   return (
-    <>
+    <Tooltip content={text} side="bottom" align="start" open={open} onOpenChange={setOpen} delayDuration={0}>
       <button
-        type="button"
-        ref={icon}
-        className={at ? 'cfg-info on' : 'cfg-info'}
-        aria-label={t.config.info}
-        aria-describedby={id}
-        onPointerEnter={show}
-        onPointerLeave={() => setAt(null)}
-        onFocus={show}
-        onBlur={() => setAt(null)}
-        onClick={(e) => (e.preventDefault(), show())}
+          type="button"
+          className={open ? 'cfg-info on' : 'cfg-info'}
+          aria-label={t.config.info}
+          onClick={(e) => (e.preventDefault(), setOpen(true))}
       >
         <InfoIcon size={14} strokeWidth={1.75} aria-hidden="true" />
       </button>
-      <span id={id} className="cfg-tip" role="tooltip" hidden={!at} style={at ?? undefined}>
-        {text}
-      </span>
-    </>
+    </Tooltip>
   );
 }
-
-const TIP_WIDTH = 340;
 
 interface ProjectsProps {
   view: ConfigView;

@@ -21,6 +21,7 @@ import { t } from './strings';
 import type { Skill } from '../core/types';
 import { HoldToTalk, MicIcon, TAP_MS, useHeldByTouch } from './voice';
 import { Button } from './components/button';
+import { Tooltip } from './components/tooltip';
 
 /**
  * How long Space stays down before it is held to speak rather than typed. Typing presses it for
@@ -267,21 +268,21 @@ export function Composer({
         <div className="c-tools" ref={tools}>
           <AttachButton shots={shots} />
           {talk && (
-            <button
-              ref={mic}
-              className={dictation === 'listening' ? 'c-mic on' : 'c-mic'}
-              title={t.voice.dictate}
-              aria-label={t.voice.dictate}
-              onPointerDown={(e) => {
-                // the cursor stays in the field, or goes there: what is said is written into it
-                e.preventDefault();
-                field.current?.focus();
-                talk();
-              }}
-              onContextMenu={(e) => e.preventDefault()}
-            >
-              <MicIcon size={18} />
-            </button>
+            <Tooltip content={t.voice.dictate}>
+              <button
+                ref={mic}
+                className={dictation === 'listening' ? 'c-mic on' : 'c-mic'} aria-label={t.voice.dictate}
+                onPointerDown={(e) => {
+                  // the cursor stays in the field, or goes there: what is said is written into it
+                  e.preventDefault();
+                  field.current?.focus();
+                  talk();
+                }}
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                <MicIcon size={18} />
+              </button>
+            </Tooltip>
           )}
           {action ? (
             <Button variant="primary" className="c-send" disabled={!ready} onMouseDown={keepFocus} onClick={send}>

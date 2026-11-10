@@ -43,6 +43,7 @@ import { Toasts, useToasts } from './components/toast';
 import { HoldToTalk, PushToTalk, usePushToTalk, useTold } from './voice';
 import { projectPath, cardPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { scrollBehavior } from './motion';
+import { Tooltip } from './components/tooltip';
 
 /**
  * Whether the page shows the phone view: on a phone, which has a coarse pointer and a short side
@@ -868,9 +869,11 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
       {talk ? (
         mic
       ) : (
-        <button className="ph-new" aria-label={t.newCard} title={t.newCard} disabled={making || !!made} onClick={() => void newCard()}>
-          <Plus size={30} strokeWidth={2.25} aria-hidden="true" />
-        </button>
+        <Tooltip content={t.newCard}>
+          <button className="ph-new" aria-label={t.newCard} disabled={making || !!made} onClick={() => void newCard()}>
+            <Plus size={30} strokeWidth={2.25} aria-hidden="true" />
+          </button>
+        </Tooltip>
       )}
     </HoldToTalk.Provider>
   );

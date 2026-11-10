@@ -11,6 +11,7 @@ import { plain } from './markdown';
 import { useStoredState } from './stored';
 import { clock, failText, shortDay, t } from './strings';
 import { SegmentedControl } from './components/segmented';
+import { Tooltip } from './components/tooltip';
 
 interface Props {
   /** The heading between the two buttons. */
@@ -82,23 +83,27 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
   return (
     // on the phone the head is the panel's grip: a press on it drags the panel, one on its buttons does not
     <div className="chats-head" ref={head}>
-      <button
-        className={['chats-btn', waiting > 0 && 'waits'].filter(Boolean).join(' ')}
-        title={waiting ? `${t.koordinator.chatsOpen} · ${t.koordinator.unreadCount(waiting)}` : t.koordinator.chatsOpen}
-        aria-label={t.koordinator.chatsOpen}
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-      >
-        <Menu size={18} />
-      </button>
-      {title}
-      <button className="chats-btn chats-new" title={t.koordinator.newChatHint} aria-label={t.koordinator.newChat} disabled={fresh} onClick={start}>
-        <SquarePen size={17} />
-      </button>
-      {onClose && (
-        <button className="chats-btn" title={t.koordinator.chatsClose} aria-label={t.koordinator.chatsClose} onClick={onClose}>
-          <X size={17} />
+      <Tooltip content={waiting ? `${t.koordinator.chatsOpen} · ${t.koordinator.unreadCount(waiting)}` : t.koordinator.chatsOpen}>
+        <button
+          className={['chats-btn', waiting> 0 && 'waits'].filter(Boolean).join(' ')} aria-label={t.koordinator.chatsOpen}
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          <Menu size={18} />
         </button>
+      </Tooltip>
+      {title}
+      <Tooltip content={t.koordinator.newChatHint}>
+        <button className="chats-btn chats-new" aria-label={t.koordinator.newChat} disabled={fresh} onClick={start}>
+          <SquarePen size={17} />
+        </button>
+      </Tooltip>
+      {onClose && (
+        <Tooltip content={t.koordinator.chatsClose}>
+          <button className="chats-btn" aria-label={t.koordinator.chatsClose} onClick={onClose}>
+            <X size={17} />
+          </button>
+        </Tooltip>
       )}
       {open &&
         head.current?.closest('.sheet, .ph-panel') &&
@@ -109,9 +114,11 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
             <div className="chats-drawer" ref={drawer} role="dialog" aria-label={t.koordinator.chats}>
               <div className="chats-top">
                 <b>{t.koordinator.chats}</b>
-                <button className="chats-btn" title={t.koordinator.chatsClose} aria-label={t.koordinator.chatsClose} onClick={() => setOpen(false)}>
-                  <X size={17} />
-                </button>
+                <Tooltip content={t.koordinator.chatsClose}>
+                  <button className="chats-btn" aria-label={t.koordinator.chatsClose} onClick={() => setOpen(false)}>
+                    <X size={17} />
+                  </button>
+                </Tooltip>
               </div>
               <SegmentedControl
                 className="chats-scope"
