@@ -3382,13 +3382,13 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
       )}
       {rest.length > 0 && (
         <Menu open={open} onOpenChange={setOpen}>
-          <MenuTrigger asChild>
-            <Tooltip content={t.share.addTag}>
+          <Tooltip content={t.share.addTag}>
+            <MenuTrigger asChild>
               <button className="tag-add" aria-label={t.share.addTag}>
                 <Plus size={10} strokeWidth={1.75} aria-hidden="true" />
               </button>
-            </Tooltip>
-          </MenuTrigger>
+            </MenuTrigger>
+          </Tooltip>
           <MenuContent className="bar-menu tag-menu" align="end">
             {rest.map(([d, values]) => (
               <div key={d} className="tag-dim">

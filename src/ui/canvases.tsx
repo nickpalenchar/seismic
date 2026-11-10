@@ -381,13 +381,13 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   return (
     <span className="prio-pick card-more">
       <Menu open={open} onOpenChange={setOpen}>
-        <MenuTrigger asChild>
-          <Tooltip content={canPark || parked ? t.parking.menu : t.canvases.more}>
+        <Tooltip content={canPark || parked ? t.parking.menu : t.canvases.more}>
+          <MenuTrigger asChild>
             <button ref={button} className="prio-btn" aria-label={canPark || parked ? t.parking.menu : t.canvases.more}>
               <MoreHorizontal size={14} aria-hidden />
             </button>
-          </Tooltip>
-        </MenuTrigger>
+          </MenuTrigger>
+        </Tooltip>
         <MenuContent className="prio-menu card-more-menu">
           {(canPark || parked) && (
             <MenuItem title={canPark ? t.parking.parkHint : undefined} onSelect={() => (stopsToPark ? (leaveMenu(), setConfirm(true)) : parking(canPark ? 'park' : 'unpark'))}>
