@@ -2244,7 +2244,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   background: color-mix(in srgb, var(--ink) 22%, transparent); }
 .ph-grip .ph-word { font: 600 21px/1 var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .ph-talk { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; padding-top: 12px; }
-.ph-talk > .talk { flex: 0 1 auto; min-height: 0; max-height: none; max-width: none; }
+.ph-talk > :is(.conv, .talk) { flex: 0 1 auto; min-height: 0; max-height: none; max-width: none; }
 .ph-talk > [data-slot=prompt-input] { max-width: none; margin-top: 10px; flex: none; }
 /* a card's conversation: the panel's top names the card, no heading above the conversation */
 #ph-card-talk > .p-h { display: none; }
