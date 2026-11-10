@@ -103,13 +103,6 @@ Phone CSS gives a few shared controls a larger touch target (the buttons in `.ph
   phone's talk panel, the full-page view — keep their own shell: they are not dialogs and get no
   focus trap.
 
-### Combobox and listbox — shared hook, no Radix
-
-- The `/` card search (`role=combobox` with a listbox), the composer's `/` skill menu (listbox under
-  a textarea), the card-link menu in the contentEditable task field (`cardMenu.tsx`), the merge
-  picker (input plus arrow keys, no ARIA). Radix has no combobox; each implements arrows, Enter,
-  Esc and `data-esc` by hand.
-
 ### Chips, pills and badges — shared components, no Radix
 
 - Bar pills (`.pill`, about 90 selectors): `kpill` toggles with `.on`, `aria-expanded` and a count
@@ -179,7 +172,7 @@ focused control, a first tap acting while the phone keyboard is open.
 - [ ] **W8:** Popover. Radix Popover for the workstations and usage pills, the status pills' interactive tips, the StartAgent panel, the snooze menu's date-time form and the archive drop-down; the canvas drawer keeps opening on hover (Popover with controlled open). Delete `useMenuClose`, the `obeya:close-bar-menus` event if nothing else needs it, and the hand-copied outside-click code in parts and usage. M.
 - [ ] **W9:** Select. Radix Select for the 30 native selects, styled like the settings selects today; the StartAgent panel's three selects inside a popover; the phone's project switcher decides between Radix Select and keeping the native picker on touch (the native sheet is often better on a phone: check in the Android emulator and keep what works better). S–M.
 - [ ] **W10:** Dialog. Radix Dialog for Configuration, Preferences, Performance, Connect a phone, Help, the new-card hint, Report a wish, the merge picker and the canvas dialog (focus trap and return everywhere; `forceMount` where input must survive closing); Radix AlertDialog as one `ConfirmDialog` for the seven confirms; Setup, the Diff view and the lightbox move onto Dialog where their behaviour fits, else stay and are listed under "Stays bespoke". Their entries leave App's Esc list. The longest workstream after W2: may split into settings dialogs and the rest. M–L.
-- [ ] **W11:** Combobox. No Radix part exists: one shared `useListbox` hook and `Listbox` component (active option, arrows, Enter, Esc with `data-esc`, ARIA wiring) under the card search, the composer's skill menu, the card-link menu and the merge picker. Rejected for now: adding cmdk or Ariakit, a second behaviour library beside Radix for four uses, two of which sit in a textarea and a contentEditable those libraries don't own. M.
+- [x] **W11:** Combobox. No Radix part exists: one shared `useListbox` hook and `Listbox` component (active option, arrows, Enter, Esc with `data-esc`, ARIA wiring) under the card search, the composer's skill menu, the card-link menu and the merge picker. Rejected for now: adding cmdk or Ariakit, a second behaviour library beside Radix for four uses, two of which sit in a textarea and a contentEditable those libraries don't own. M.
 - [ ] **W12:** Chips, pills, badges and fields. Shared `Pill` (bar and toggle pills with count), `Badge` (count, card pin), `Chip` (filter, label, tag with remove), `TextField` and `TextArea` (one look, not by container), and Radix Collapsible where a fold has a trigger and a region (finding folds, merge toggle, performance rows; native `<details>` may stay). The card-link pill built as raw DOM shares the `Chip` class. M.
 - [ ] **W13:** Close-out. A check that fails on a bespoke control (a test grepping `src/ui` for the old classes and roles outside `src/ui/components/`: `className="btn`, `role="switch"`, `.seg`, `<select`, `role="dialog"`, `role="menu"`, `useMenuClose`); the leftover CSS deleted; [The canvas](../design/the-canvas.md) "Visual identity" describes the component set as behaviour (keyboard, Esc order, focus) where a rebuild needs it; this plan doc and its link in that chapter's header deleted. S.
 
