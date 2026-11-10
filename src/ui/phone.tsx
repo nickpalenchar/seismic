@@ -44,6 +44,7 @@ import { HoldToTalk, PushToTalk, usePushToTalk, useTold } from './voice';
 import { projectPath, cardPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { scrollBehavior } from './motion';
 import { Tooltip } from './components/tooltip';
+import { layerOpen } from './components/ui';
 
 /**
  * Whether the page shows the phone view: on a phone, which has a coarse pointer and a short side
@@ -508,7 +509,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   // Esc closes the open conversation, else the open card, as Back does (a keyboard at the phone, or the view tried at the desk)
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || document.querySelector('.lightbox, .start-agent-menu')) return;
+      if (e.key !== 'Escape' || layerOpen() || document.querySelector('.lightbox')) return;
       if (talkRef.current) closeTalk();
       else back();
     };

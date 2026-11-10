@@ -3,8 +3,9 @@
 // a canvas and picks its icon, a card's "Move to canvas" menu, and the stubs of waits whose other
 // card lies on another canvas.
 
-import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, type PointerEvent as ReactPointerEvent, type ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { cn } from 'cn';
 import { Car, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { CANVAS_LUCIDE_ICONS } from '../core/canvas-icons';
 import type { Bounds } from '../core/layout';
@@ -13,12 +14,12 @@ import { api } from './api';
 import { CANVAS_EMOJIS, CanvasIcon, canvasText, lucideOf } from './canvasIcon';
 import { know, known } from './known';
 import { plain } from './markdown';
-import { useMenuClose } from './queue';
 import { useSortable } from './sortable';
 import { useStoredState } from './stored';
 import { failText, t } from './strings';
 import { Button, CloseButton } from './components/button';
 import { leaveMenu, Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
+import { Popover, PopoverAnchor, PopoverContent } from './components/popover';
 import { Radio, RadioGroup } from './components/radio';
 
 /** The radio value of "no icon": a radio has no null. */
@@ -49,8 +50,8 @@ const LEAVE_MS = 260;
 /**
  * The tab strip at the bottom right: each canvas's icon, the one shown as a wider tab with its name,
  * and a "+"; with one canvas only the "+", which names itself until it has been used. The pointer on
- * the strip (a tap on touch) slides out the drawer above it, which lists the canvases by name with
- * the cards waiting on each, and ends with "+ New canvas".
+ * the strip (a tap on touch, ↑ from the keyboard) slides out the drawer above it, which lists the
+ * canvases by name with the cards waiting on each, and ends with "+ New canvas".
  */
 export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }: {
   project: string;
@@ -73,12 +74,20 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
     know(KNOWN);
     setKnown(true);
   };
-  const open = (on: boolean) => {
+  // ↑ from the strip moves the focus into the drawer; opened by the pointer or by keyboard focus on the strip, it leaves the focus where it was
+  const byKey = useRef(false);
+  // the keyboard is on the strip: the drawer says how to reach it
+  const [keyed, setKeyed] = useState(false);
+  const open = (on: boolean, key = false) => {
     clearTimeout(leave.current);
     if (on && several) learn();
+    if (on) byKey.current = key;
+    else setKeyed(false);
     setDrawer(on && several);
   };
-  useMenuClose(drawer, box, () => open(false), true);
+  const inDrawer = (n: unknown) => n instanceof Element && !!n.closest('#canvas-drawer');
+  // the focus coming back from the drawer to its tab does not open the drawer again
+  const back = useRef(false);
   useEffect(() => () => clearTimeout(leave.current), []);
   const startNew = () => {
     learn();
@@ -90,51 +99,99 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
     onShow(c);
   };
   const editing = dialog?.edit ? canvases.find((c) => c.id === dialog.edit) : undefined;
+  const hover = {
+    onPointerEnter: (e: ReactPointerEvent) => e.pointerType === 'mouse' && open(true),
+    onPointerLeave: (e: ReactPointerEvent) => {
+      if (e.pointerType !== 'mouse') return;
+      clearTimeout(leave.current);
+      leave.current = setTimeout(() => setDrawer(false), LEAVE_MS);
+    },
+  };
   return (
-    <>
-      <div
-        id="canvas-tabs"
-        ref={box}
-        className={drawer ? 'out' : undefined}
-        onPointerEnter={(e) => e.pointerType === 'mouse' && open(true)}
-        onPointerLeave={(e) => {
-          if (e.pointerType !== 'mouse') return;
-          clearTimeout(leave.current);
-          leave.current = setTimeout(() => setDrawer(false), LEAVE_MS);
+    <Popover open={drawer} onOpenChange={(on) => open(on)}>
+      <PopoverAnchor asChild>
+        <div
+          id="canvas-tabs"
+          ref={box}
+          className={drawer ? 'out' : undefined}
+          {...hover}
+          // keyboard focus on the strip shows the drawer as the pointer does; ↑ moves into it
+          onFocus={(e) => {
+            if (back.current) return void (back.current = false);
+            if (!several || !e.target.matches(':focus-visible')) return;
+            setKeyed(true);
+            open(true);
+          }}
+          onBlur={(e) => {
+            if (!box.current?.contains(e.relatedTarget as Node) && !inDrawer(e.relatedTarget)) open(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowUp' || !several) return;
+            e.preventDefault();
+            if (!drawer) return open(true, true);
+            byKey.current = true;
+            document.querySelector<HTMLElement>('#canvas-drawer button')?.focus();
+          }}
+        >
+          {/* a tab picks its canvas by its own click, which tells a finger's first tap from the rest; Enter and Space click, the arrow keys move focus */}
+          <Tabs value={shown ?? ''} onValueChange={() => {}} activationMode="manual" className="contents">
+            <TabsList className="canvas-strip" aria-label={t.canvases.strip}>
+              {several &&
+                canvases.map((c) => (
+                  <TabsTrigger
+                    key={c.id}
+                    value={c.id}
+                    aria-controls="world"
+                    className={c.id === shown ? 'ctab on' : 'ctab'}
+                    title={c.name}
+                    onClick={(e) => {
+                      // a finger has no hover: its first tap brings the drawer, where the canvas is picked by name
+                      if ((e.nativeEvent as PointerEvent).pointerType === 'touch' && !drawer) return open(true);
+                      pick(c);
+                    }}
+                  >
+                    <CanvasIcon canvas={c} />
+                    {c.id === shown && <span className="ctab-name">{c.name}</span>}
+                    {c.id !== shown && !!waiting[c.id] && <span className="ctab-n" title={t.canvases.waiting(waiting[c.id]!)}>{waiting[c.id]}</span>}
+                  </TabsTrigger>
+                ))}
+              <Tooltip content={t.canvases.newCanvas}>
+                <button className={isKnown || several ? 'ctab new' : 'ctab new named'} aria-label={t.canvases.newCanvas} onClick={startNew}>
+                  <Plus size={14} strokeWidth={2.4} aria-hidden />
+                  {!isKnown && !several && <span className="ctab-name">{t.canvases.newCanvas}</span>}
+                </button>
+              </Tooltip>
+            </TabsList>
+          </Tabs>
+        </div>
+      </PopoverAnchor>
+      <PopoverContent
+        id="canvas-drawer"
+        side="top"
+        align="end"
+        sideOffset={6}
+        aria-label={t.canvases.strip}
+        className="w-[260px] max-h-[min(60vh,520px)] origin-bottom-right animate-[drawer-out_.18s_cubic-bezier(.3,.9,.3,1)] p-1.5 text-sm"
+        {...hover}
+        // a press on the strip is no press beside the drawer: a tab picks its canvas, "+" makes one
+        onInteractOutside={(e) => box.current?.contains(e.target as Node) && e.preventDefault()}
+        onOpenAutoFocus={(e) => byKey.current || e.preventDefault()}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          if (!byKey.current) return;
+          back.current = true;
+          box.current?.querySelector<HTMLElement>('.ctab.on')?.focus();
+        }}
+        onFocus={(e) => {
+          if (e.target.matches(':focus-visible')) byKey.current = true;
+        }}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node) && !box.current?.contains(e.relatedTarget as Node)) open(false);
         }}
       >
-        {drawer && <Drawer canvases={canvases} shown={shown} waiting={waiting} empty={empty} onPick={pick} onEdit={(c) => (open(false), setDialog({ edit: c.id }))} onNew={startNew} />}
-        {/* a tab picks its canvas by its own click, which tells a finger's first tap from the rest; Enter and Space click, the arrow keys move focus */}
-        <Tabs value={shown ?? ''} onValueChange={() => {}} activationMode="manual" className="contents">
-          <TabsList className="canvas-strip" aria-label={t.canvases.strip}>
-            {several &&
-              canvases.map((c) => (
-                <TabsTrigger
-                  key={c.id}
-                  value={c.id}
-                aria-controls="world"
-                  className={c.id === shown ? 'ctab on' : 'ctab'}
-                  title={c.name}
-                  onClick={(e) => {
-                    // a finger has no hover: its first tap brings the drawer, where the canvas is picked by name
-                    if ((e.nativeEvent as PointerEvent).pointerType === 'touch' && !drawer) return open(true);
-                    pick(c);
-                  }}
-                >
-                  <CanvasIcon canvas={c} />
-                  {c.id === shown && <span className="ctab-name">{c.name}</span>}
-                  {c.id !== shown && !!waiting[c.id] && <span className="ctab-n" title={t.canvases.waiting(waiting[c.id]!)}>{waiting[c.id]}</span>}
-                </TabsTrigger>
-              ))}
-            <Tooltip content={t.canvases.newCanvas}>
-              <button className={isKnown || several ? 'ctab new' : 'ctab new named'} aria-label={t.canvases.newCanvas} onClick={startNew}>
-                <Plus size={14} strokeWidth={2.4} aria-hidden />
-                {!isKnown && !several && <span className="ctab-name">{t.canvases.newCanvas}</span>}
-              </button>
-            </Tooltip>
-          </TabsList>
-        </Tabs>
-      </div>
+        {keyed && <p className="hint m-0 px-2 pt-1 pb-1.5">{t.canvases.drawerKey}</p>}
+        <Drawer canvases={canvases} shown={shown} waiting={waiting} empty={empty} onPick={pick} onEdit={(c) => (open(false), setDialog({ edit: c.id }))} onNew={startNew} />
+      </PopoverContent>
       {dialog && (
         <CanvasDialog
           project={project}
@@ -148,7 +205,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
           }}
         />
       )}
-    </>
+    </Popover>
   );
 }
 
@@ -177,30 +234,38 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew }: { ca
     api.deleteCanvas(c.id).catch((err) => setFailed(failText(err)));
   };
   return (
-    <div className="canvas-drawer" role="menu">
-      <ul>
+    <>
+      <ul className="m-0 list-none p-0">
         {sort.order.map((id) => {
           const c = canvases.find((x) => x.id === id)!;
           const n = waiting[c.id] ?? 0;
           return (
-            <li key={c.id} {...sort.row(c.id)} className={c.id === shown ? 'on' : undefined}>
-              <span className="grip" title={t.canvases.grip} {...sort.grip(c.id)}>
+            <li key={c.id} {...sort.row(c.id)} className="group flex items-center gap-0.5 rounded-[6px] bg-panel hover:bg-chip data-[sorting=dragged]:bg-chip">
+              <span className="grid h-[30px] w-4 flex-none cursor-grab touch-none place-items-center text-muted-foreground opacity-0 group-hover:opacity-80" title={t.canvases.grip} {...sort.grip(c.id)}>
                 <GripVertical size={14} aria-hidden />
               </span>
-              <button className="cd-pick" role="menuitemradio" aria-checked={c.id === shown} onClick={() => onPick(c)}>
+              <button
+                className="flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 border-0 bg-transparent pr-1.5 pl-0.5 text-left text-sm text-ink outline-none focus-visible:underline"
+                aria-current={c.id === shown || undefined}
+                onClick={() => onPick(c)}
+              >
                 <CanvasIcon canvas={c} size={16} />
-                <span className="cd-name">{c.name}</span>
-                {n > 0 && <span className="cd-n" title={t.canvases.waiting(n)}>{n}</span>}
+                <span className={cn('min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap', c.id === shown && 'font-bold')}>{c.name}</span>
+                {n > 0 && (
+                  <span className="box-border h-[18px] min-w-[18px] flex-none rounded-full bg-waiting px-[5px] text-center text-[11px] leading-[18px] font-bold text-on-ink" title={t.canvases.waiting(n)}>
+                    {n}
+                  </span>
+                )}
               </button>
-              <span className="cd-tools">
+              <span className="hidden flex-none gap-0.5 pr-1 group-focus-within:flex group-hover:flex">
                 <Tooltip content={t.canvases.edit}>
-                  <button aria-label={t.canvases.edit} onClick={() => onEdit(c)}>
+                  <button className={tool} aria-label={t.canvases.edit} onClick={() => onEdit(c)}>
                     <Pencil size={13} aria-hidden />
                   </button>
                 </Tooltip>
                 {c.name !== MAIN_CANVAS && empty.has(c.id) && (
                   <Tooltip content={t.canvases.remove}>
-                    <button aria-label={t.canvases.remove} onClick={() => remove(c)}>
+                    <button className={tool} aria-label={t.canvases.remove} onClick={() => remove(c)}>
                       <Trash2 size={13} aria-hidden />
                     </button>
                   </Tooltip>
@@ -210,13 +275,19 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew }: { ca
           );
         })}
       </ul>
-      {failed && <p className="cd-failed">{failed}</p>}
-      <button className="cd-new" role="menuitem" onClick={onNew}>
+      {failed && <p className="mx-2 my-1 text-xs text-error">{failed}</p>}
+      <button
+        className="mt-1 flex h-[34px] w-full cursor-pointer items-center gap-2 rounded-b-[6px] border-0 border-t border-solid border-line bg-transparent pr-2 pl-[18px] text-sm font-semibold text-ink outline-none hover:bg-chip focus-visible:bg-chip"
+        onClick={onNew}
+      >
         <Plus size={14} strokeWidth={2.4} aria-hidden /> {t.canvases.newCanvas}
       </button>
-    </div>
+    </>
   );
 }
+
+/** A canvas's rename and delete in the drawer. */
+const tool = 'grid size-[26px] cursor-pointer place-items-center rounded-[4px] border-0 bg-transparent text-muted-foreground hover:bg-panel hover:text-ink focus-visible:bg-panel focus-visible:text-ink outline-none';
 
 /** Why the name can't be taken; none when it can. */
 export function nameProblem(name: string, canvases: Canvas[], self?: string): string | undefined {

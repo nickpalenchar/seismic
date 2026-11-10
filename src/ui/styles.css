@@ -393,8 +393,6 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
   background: color-mix(in srgb, var(--bg) 45%, transparent); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
   border-top: 1px solid var(--line); }
 .resizing #status { transition: none; }
-/* above the open card's dimming, so whom the microphone speaks to stays readable; a list it opens goes over the confirmations */
-#status:has(.pill.usage.open, .pill.workstations:hover, .pill.workstations.open, .pill.restart:hover) { z-index: 61; }
 #status .st-left { display: flex; align-items: center; min-width: 0; }
 #status .st-right { display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
 #status .st-mid { display: flex; justify-content: center; min-width: 0; }
@@ -406,13 +404,9 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 #status .pill.restart .say { overflow: hidden; text-overflow: ellipsis; }
 #status .pill.restart .spin { color: var(--ice); }
 #status .pill.restart .hint { color: var(--ice); opacity: .8; font-weight: 400; }
-#status .pill.restart > button { padding: 3px 10px; border-radius: 999px; }
-#status .pill.restart .tip { top: auto; bottom: calc(100% + 8px); left: 0; right: auto; }
-#status .pill.restart > button .tip { left: auto; right: 0; }
-#status .pill:is(.usage, .workstations) .tip { top: auto; bottom: calc(100% + 8px); max-height: calc(100vh - 110px); }
+#status .pill.restart .go { padding: 3px 10px; border-radius: 999px; }
 #status .pill:is(.usage, .workstations) .face { padding: 0 8px; border-radius: 3px; }
 #status .pill.usage .face { border-radius: 999px; }
-#status .pill.workstations::after { top: auto; bottom: 100%; }
 #status .st-right { gap: 6px; }
 #status .pill.usage .face:hover, #status .pill.usage.open .face { background: var(--chip); }
 #status #target { background: none; box-shadow: none; padding: 3px 10px; font-size: 13px; max-width: 100%; }
@@ -427,24 +421,13 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill.restart.old-bun { padding: 7px 14px; }
 .pill.restart.old-bun .warn { color: var(--waiting); font-weight: 700; }
 .pill.restart.source.by-hand { padding: 7px 14px; }
-.pill.restart .tip p.warn { color: var(--waiting); }
 .pill.restart .spin { display: inline-block; color: var(--working); font-weight: 700; animation: spin 2.4s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.pill.restart button { border: 0; border-radius: 3px; padding: 4px 11px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+.pill.restart .tip-face { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0; border: 0; background: none; cursor: default; }
+.pill.restart .tip-face:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 999px; }
+.pill.restart .go { border: 0; border-radius: 3px; padding: 4px 11px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
   background: var(--chip); color: var(--ink); }
-.pill.restart button:hover { background: var(--ink); color: var(--bg); }
-.pill.restart .tip { display: none; position: absolute; top: calc(100% + 8px); right: 0; width: 360px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--glass-edge);
-  background: var(--panel); color: var(--ink); box-shadow: var(--lift); white-space: normal; font-size: 13px; font-weight: 400; line-height: 1.45;
-  text-align: left; z-index: 30; }
-.pill.restart .tip.risk { pointer-events: none; }
-/* bridges the gap to the pill, so moving the cursor up into the popout keeps it open */
-.pill.restart .tip.why::before { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 10px; }
-.pill.restart .tip.why a.from { color: var(--working); cursor: pointer; text-decoration: underline; text-decoration-color: currentColor; text-underline-offset: 2px; }
-.pill.restart .tip.why a.from:hover { text-decoration-color: currentColor; }
-.pill.restart .tip p { margin: 0 0 6px; }
-.pill.restart .tip p:last-child { margin: 0; }
-.pill.restart .tip ul { margin: 0 0 6px; padding-left: 18px; }
-.pill.restart:hover:not(:has(button:hover)) > .tip.why, .pill.restart > .tip.why:hover, .pill.restart button:hover > .tip.risk { display: block; }
+.pill.restart .go:hover { background: var(--ink); color: var(--bg); }
 /* the left menu (src/ui/nav.tsx), under ☰ or docked on the left, and the floating row's project switcher:
    the projects */
 .nav-pill { position: relative; }
@@ -537,64 +520,24 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill:is(.workstations, .usage) { position: relative; padding: 0; }
 #bar .pill:is(.workstations, .usage) { padding: 0; }
 .pill:is(.workstations, .usage) .face { display: flex; flex-direction: row; align-items: center; gap: 8px; height: 100%; padding: 7px 14px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; border-radius: inherit; }
-.pill:is(.workstations, .usage):hover, .pill:is(.workstations, .usage).open { box-shadow: var(--lift); }
 .pill.workstations .pool { display: flex; align-items: center; gap: 6px; }
 .pill.workstations .slots { display: flex; gap: 3px; }
-.pill.workstations :is(.slots i, .ws-list i) { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--planned); }
+.pill.workstations .slots i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--planned); }
 .pill.workstations .host { display: flex; align-items: center; gap: 5px; }
-.pill.workstations :is(.slots i.held, .ws-list .held i) { background: color-mix(in srgb, var(--working) 35%, transparent); box-shadow: none; }
-.pill.workstations :is(.slots i.on, .ws-list .on i) { background: var(--working); box-shadow: none; }
+.pill.workstations .slots i.held { background: color-mix(in srgb, var(--working) 35%, transparent); box-shadow: none; }
+.pill.workstations .slots i.on { background: var(--working); box-shadow: none; }
 .pill.workstations.full .face b, .pill.workstations b.warn { color: var(--waiting); }
-.pill.workstations :is(.slots i.blocked, .ws-list .blocked i) { background: var(--waiting); box-shadow: none; }
-.pill.workstations .tip :is(p.warn, span.warn) { color: var(--warn); overflow-wrap: anywhere; }
-.pill:is(.workstations, .usage) .tip { display: none; position: absolute; top: calc(100% + 8px); right: 0; width: 440px; max-height: calc(100vh - 90px); overflow-y: auto;
-  padding: 10px 14px; border-radius: 12px; border: 1px solid var(--glass-edge); box-sizing: border-box;
-  background: var(--panel); color: var(--ink); box-shadow: var(--lift); white-space: normal; font-size: 13px; font-weight: 400; line-height: 1.45;
-  text-align: left; z-index: 30; cursor: default; }
-/* the gap between the pill and the list holds the hover, so the pointer gets from one to the other */
-.pill.workstations::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 10px; }
-.pill:is(.workstations, .usage) .tip p { margin: 0 0 6px; }
-.pill:is(.workstations, .usage) .tip > :last-child, .pill.workstations .tip > div:last-child > :last-child,
-  .pill.workstations .tip > div:last-child > div:last-child > :last-child { margin-bottom: 0; }
-.pill.workstations:not(.shut):hover .tip, .pill:is(.workstations, .usage).open .tip { display: block; }
+.pill.workstations .slots i.blocked { background: var(--waiting); box-shadow: none; }
 /* the plan's usage limits: a short meter per group, in the usage endpoint's grade */
-.pill.usage .tip { width: 380px; }
 .pill.usage .face { gap: 16px; }
 .pill.usage .harness { display: flex; align-items: center; margin-right: -6px; }
 .harness-mark { display: block; stroke: #d97757; stroke-width: 2.6; stroke-linecap: round; }
-/* on the phone at the bar's right end; the list as wide as the screen allows */
+/* on the phone at the bar's right end */
 .ph-home .pill.usage { margin-left: auto; }
 .ph-home .pill.usage .face { padding: 6px 10px; gap: 10px; font-size: 13px; }
-.ph-home .pill.usage .tip { width: min(380px, calc(100vw - 28px)); }
-.pill.usage .group { display: flex; align-items: center; gap: 6px; }
-.pill.usage .group b { font-weight: 600; font-variant-numeric: tabular-nums; }
-.pill.usage .meter { position: relative; width: 26px; height: 9px; border-radius: 2px; background: var(--chip); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; flex: none; }
-.pill.usage .meter i { position: absolute; inset: 0 auto 0 0; background: var(--muted-foreground); border-radius: inherit; }
-.pill.usage .warning .meter i, .pill.usage .meter.warning i { background: var(--waiting); }
-.pill.usage .critical .meter i, .pill.usage .meter.critical i { background: var(--error); }
-.pill.usage .group.critical b { color: var(--error); }
-.pill.usage .usage-list { list-style: none; margin: 0 0 8px; padding: 0; }
-.pill.usage .usage-list li { display: grid; grid-template-columns: minmax(0, 1fr) 60px 42px; column-gap: 8px; align-items: center; padding: 3px 0; }
-.pill.usage .usage-list .meter { width: 60px; }
-.pill.usage .usage-list b { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
-.pill.usage .usage-list .when { grid-column: 1 / -1; font-size: 12px; }
-/* a workstation per line: its dot, its path cut at the front where too long (its end matters most), and the card in it below */
-.pill.workstations .ws-list { list-style: none; margin: 0 0 8px; padding: 0; }
-.pill.workstations .ws-list li { display: grid; grid-template-columns: 8px minmax(0, 1fr); column-gap: 8px; align-items: center; padding: 3px 0; }
-.pill.workstations .ws-list li > i { grid-row: 1; }
-.pill.workstations .ws-path { grid-column: 2; font: 12px/1.4 var(--mono); color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  direction: rtl; text-align: left; }
-.pill.workstations .ws-card { grid-column: 2; overflow-wrap: anywhere; }
-.pill.workstations .ws-card .from { color: var(--ink); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
-.pill.workstations .ws-card .from:hover { text-decoration-color: currentColor; }
-.pill.workstations .ws-take { margin-left: 8px; }
-/* the rare action of giving a card's clone away sits behind a faint "⋯" */
-.pill.workstations .ws-more { margin-left: 6px; padding: 0 5px; border: 0; border-radius: 3px; background: none; color: var(--muted-foreground); opacity: .55; cursor: pointer; font-size: 13px; line-height: 1.2; }
-.pill.workstations .ws-more:hover, .pill.workstations .ws-more[aria-expanded="true"] { opacity: 1; background: var(--chip); }
-.pill.workstations .ws-menu { grid-column: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 4px 0 2px; padding: 8px 10px; border-radius: 3px; background: var(--chip); }
-.pill.workstations .ws-menu { --button-bg: var(--panel); }
-.pill.workstations .ws-menu .ws-take { margin-left: 0; }
-.pill.workstations .ws-menu .hint { font-size: 12px; line-height: 1.4; }
+.pill.usage .limit { display: flex; align-items: center; gap: 6px; }
+.pill.usage .limit b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.pill.usage .limit.critical b { color: var(--error); }
 /* ☰ and the logo open the left menu (nav.tsx); ☰ says it is a button */
 .app-logo { display: flex; align-items: center; gap: 5px; height: 34px; margin-right: 4px; padding: 0 6px; margin-left: -6px; border: 0; border-radius: 3px;
   background: none; color: var(--ink); cursor: pointer; }
@@ -773,26 +716,7 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 .canvas-icon { flex: none; display: inline-block; }
 .canvas-icon.emoji { line-height: 1; }
 .canvas-icon.letter { display: inline-grid; place-items: center; border-radius: 50%; background: var(--chip); color: var(--ink); font-weight: 700; line-height: 1; padding: 2px; }
-.canvas-drawer { width: 260px; max-height: min(60vh, 520px); overflow: auto; padding: 6px; box-sizing: border-box; background: var(--panel); border: 1px solid var(--glass-edge); border-radius: 12px; box-shadow: var(--lift);
-  animation: drawer-out .18s cubic-bezier(.3,.9,.3,1); transform-origin: bottom right; }
 @keyframes drawer-out { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.canvas-drawer ul { list-style: none; margin: 0; padding: 0; }
-.canvas-drawer li { display: flex; align-items: center; gap: 2px; border-radius: 6px; background: var(--panel); }
-.canvas-drawer li:hover, .canvas-drawer li[data-sorting="dragged"] { background: var(--chip); }
-.canvas-drawer li.on .cd-name { font-weight: 700; }
-.canvas-drawer .grip { flex: none; display: grid; place-items: center; width: 16px; height: 30px; color: var(--muted-foreground); cursor: grab; opacity: 0; touch-action: none; }
-.canvas-drawer li:hover .grip { opacity: .8; }
-.cd-pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 2px; border: 0; background: none; color: var(--ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
-.cd-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cd-n { flex: none; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--waiting); color: var(--on-ink); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
-.cd-tools { flex: none; display: none; gap: 2px; padding-right: 4px; }
-.canvas-drawer li:hover .cd-tools { display: flex; }
-.cd-tools button { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 4px; background: none; color: var(--muted-foreground); cursor: pointer; }
-.cd-tools button:hover { background: var(--panel); color: var(--ink); }
-.cd-new { display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; margin-top: 4px; padding: 0 8px 0 18px; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 6px 6px;
-  background: none; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
-.cd-new:hover { background: var(--chip); }
-.cd-failed { margin: 4px 8px; font-size: 12px; color: var(--error); }
 #canvas-dialog { position: fixed; inset: 0; z-index: 60; background: var(--dim); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center; padding: 8vh 24px 24px; animation: fade .15s ease-out; }
 #canvas-dialog .box { position: relative; display: flex; flex-direction: column; width: 560px; max-width: 100%; max-height: 100%; box-sizing: border-box; padding: 22px 26px 20px; }
 #canvas-dialog h2 { display: flex; align-items: center; gap: 12px; margin: 0 44px 16px 0; font-size: 21px; }
@@ -1313,16 +1237,7 @@ span.cl-name { color: inherit; cursor: default; }
 .snooze-acts { display: flex; gap: 8px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
 .snooze-acts { --button-bg: var(--card); margin-top: 4px; }
 /* "Later" and its menu of times, above the button in a card's action row; on the snooze line over the conversation, placed by script */
-.snooze-box { position: relative; display: inline-flex; flex-direction: column; align-items: center; }
-.snooze-menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 30; min-width: 220px; display: flex; flex-direction: column;
-  background: var(--panel); border: 1px solid var(--glass-edge); border-radius: 12px; box-shadow: var(--lift); padding: 4px 0; text-align: left; font-style: normal; }
-.snooze-box.at-button .snooze-menu { position: fixed; bottom: auto; max-width: calc(100vw - 16px); }
-.snooze-h { padding: 6px 12px 4px; font-size: 11.5px; color: var(--muted-foreground); }
-.snooze-opt { border: 0; background: none; text-align: left; padding: 7px 12px; font: inherit; font-size: 13.5px; color: var(--ink); cursor: pointer; }
-.snooze-opt:hover { background: var(--chip); }
-.snooze-opt.more { border-top: 1px solid var(--line); margin-top: 2px; }
-.snooze-pick { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); margin-top: 2px; align-items: center; }
-.snooze-pick input { min-width: 0; font: inherit; font-size: 13px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg); color: var(--ink); }
+.snooze-box { display: inline-flex; flex-direction: column; align-items: center; }
 /* a proposal its agent wants started later: when, with "Change" */
 .start-at { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; margin: 10px 0 2px; font-size: 13px; color: var(--ink); }
 .start-at .clock-mark { vertical-align: -1px; color: var(--muted-foreground); }
@@ -2708,22 +2623,14 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   background: var(--ink); color: var(--bg); font: 13px/1.35 var(--font); text-align: left; animation: fade .15s ease-out; }
 
 /* A split start button keeps the usual start immediate and the one-off choice discoverable. */
-.start-agent { position: relative; }
 .start-agent-buttons { display: flex; align-items: stretch; }
 .start-agent-main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding-top: 4px; padding-bottom: 4px; line-height: 1.15; }
 .start-agent-buttons > .start-agent-main { border-radius: 6px 0 0 6px; }
 .start-agent-buttons > .start-agent-chevron { border-radius: 0 6px 6px 0; border-left: 1px solid var(--bg); min-width: 36px; }
 .start-agent-buttons.suggested { border-radius: 6px; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--idea); }
 .start-agent-model { font-size: 9.5px; font-weight: 400; opacity: .85; white-space: nowrap; }
-.start-agent-menu { position: absolute; z-index: 30; left: 0; bottom: calc(100% + 8px); width: min(380px, 85vw); max-height: min(70vh, 600px); overflow-y: auto; background: var(--bg); color: var(--ink); border: 1px solid var(--ink); border-radius: 8px; padding: 16px; box-shadow: 0 6px 24px #0003; }
 .start-agent-warning { display: flex; align-items: flex-start; gap: 6px; }
 .start-agent-warning svg { flex: none; margin-top: 2px; }
-.start-agent-menu label { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; }
-.start-agent-menu select { min-width: 0; max-width: 65%; }
-.start-agent-menu p { margin: 0 0 10px; }
-@media (max-width: 600px) {
-  .start-agent-menu { width: min(380px, calc(100vw - 140px)); }
-}
 
 /* what the card's worker is doing, after its state line in italics (a stage of its demo in green);
    the moving line then runs thin under that line instead of beside it */

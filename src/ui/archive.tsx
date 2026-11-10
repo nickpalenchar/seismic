@@ -8,7 +8,6 @@ import { FullPage } from './fullPage';
 import type { Item } from '../core/types';
 import { CardFace, cardKind } from './card';
 import { plain } from './markdown';
-import { useMenuClose } from './queue';
 import { stateLabel, t } from './strings';
 import { Button, CloseButton } from './components/button';
 
@@ -30,16 +29,13 @@ interface Props {
 /** The archive as a full-page view of the main area, opened from the logo's menu. Its ✕, a click beside it or Esc (in App) closes it. */
 export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchiveDone, els }: Props) {
   const [query, setQuery] = useState('');
-  // the view lives in the body: a click in it is no click beside the archive
-  const inside = { get current() { return { contains: (n: Node) => !!(n instanceof Element && n.closest('#archive-full')) } as HTMLElement; } };
-  useMenuClose(on, inside, () => held || onClose());
   const field = useRef<HTMLInputElement>(null);
   // what was searched last stays, selected, so typing starts a new search
   useEffect(() => void (on && field.current?.select()), [on]);
   if (!on) return null;
   const words = searchWords(query);
   return (
-    <FullPage id="archive-full" title={t.archive.button}>
+    <FullPage id="archive-full" title={t.archive.button} onClickBeside={() => held || onClose()}>
       <div className="a-full-head">
         <h2>{t.archive.button}</h2>
         <div className="a-search">

@@ -1,5 +1,5 @@
 // A main-area view stays mounted underneath an unfolded card. The canvas camera stays intact.
-import { createContext, useContext, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 export function useFullPage<Id extends string>(initial: () => Id | null = () => null) {
@@ -16,7 +16,19 @@ export function FullPageHost({ children, ...props }: HTMLAttributes<HTMLDivEleme
   return <div {...props} ref={setHost}><MainArea.Provider value={host}>{children}</MainArea.Provider></div>;
 }
 
-export function FullPage({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+/** A full-page view of the main area; `onClickBeside` is called for a press outside it (on the bar, a sheet), not one in a layer opened over it. */
+export function FullPage({ id, title, onClickBeside, children }: { id: string; title: string; onClickBeside?: () => void; children: ReactNode }) {
   const host = useContext(MainArea);
+  const beside = useRef(onClickBeside);
+  beside.current = onClickBeside;
+  useEffect(() => {
+    if (!onClickBeside) return;
+    const down = (e: PointerEvent) => {
+      const at = e.target instanceof Element ? e.target : null;
+      if (!at?.closest(`#${id}, #ui-portal`)) beside.current?.();
+    };
+    addEventListener('pointerdown', down, true);
+    return () => removeEventListener('pointerdown', down, true);
+  }, [!onClickBeside]);
   return host && createPortal(<div id={id} className="full-page" role="dialog" aria-label={title}>{children}</div>, host);
 }

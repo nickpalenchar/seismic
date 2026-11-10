@@ -19,15 +19,22 @@ import { uiPortal } from './ui';
 /** Make room for another bar interaction opened from a keyboard shortcut. */
 export const closeBarMenus = () => dispatchEvent(new Event('obeya:close-bar-menus'));
 
-export function Menu({ open, onOpenChange, ...props }: Omit<ComponentProps<typeof DropdownMenu.Root>, 'modal'>) {
-  const latest = useRef(onOpenChange);
-  latest.current = onOpenChange;
+/** While `open`, `close` when a shortcut asks the bar's menus to make room; menus and popovers take it. */
+export function useCloseBarMenus(open: boolean, close: () => void) {
+  const latest = useRef(close);
+  latest.current = close;
   useEffect(() => {
     if (!open) return;
-    leaving = false;
-    const close = () => latest.current?.(false);
-    addEventListener('obeya:close-bar-menus', close);
-    return () => removeEventListener('obeya:close-bar-menus', close);
+    const dismiss = () => latest.current();
+    addEventListener('obeya:close-bar-menus', dismiss);
+    return () => removeEventListener('obeya:close-bar-menus', dismiss);
+  }, [open]);
+}
+
+export function Menu({ open, onOpenChange, ...props }: Omit<ComponentProps<typeof DropdownMenu.Root>, 'modal'>) {
+  useCloseBarMenus(!!open, () => onOpenChange?.(false));
+  useEffect(() => {
+    if (open) leaving = false;
   }, [open]);
   return <DropdownMenu.Root data-slot="dropdown-menu" modal={false} open={open} onOpenChange={onOpenChange} {...props} />;
 }

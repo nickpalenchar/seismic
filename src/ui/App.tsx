@@ -2201,8 +2201,8 @@ function Project({
     if (typing && (e.target as Element).closest('[data-esc]')) return;
     // an open layer from the component library (menu, popover, dialog) closes itself on Esc, before anything under it
     if (e.key === 'Escape' && layerOpen()) return;
-    // a focused menu keeps its keys: arrows, typeahead and Tab are its own, not the page's shortcuts
-    if (e.target instanceof Element && e.target.closest('[role=menu]')) return;
+    // a focused menu or popover keeps its keys: arrows, typeahead and Tab are its own, not the page's shortcuts
+    if (e.target instanceof Element && e.target.closest('[role=menu], [data-slot=popover-content]')) return;
     // the configuration over the page takes the keys until it closes, Esc closing it
     if (cOnRef.current) {
       if (e.key === 'Escape' && !document.querySelector('.setup')) {
@@ -2273,8 +2273,8 @@ function Project({
     }
     if (e.key === 'Escape' && connection) { setConnection(null); return; }
     if (e.key === 'Escape') {
-      // a screenshot or demo shown large closes first, a card's diff, the navigation's list and a card's "⋯"; the card or plan stays open
-      if (document.querySelector('.lightbox, .demo-zoom, .artifact-image-close, .diff-view, .start-agent-menu')) return;
+      // a screenshot or demo shown large closes first, and a card's diff; the card or plan stays open
+      if (document.querySelector('.lightbox, .demo-zoom, .artifact-image-close, .diff-view')) return;
       // so does the quote of a message the owner was replying to: in the field with the cursor, the open card's, the sidebar's
       const quoting = [focusedDraft(), f?.type === 'card' || f?.type === 'plan' ? cardDraft(f.id) : null, kOnRef.current ? OBEYA_DRAFT : null].find((k) => k && fieldOn(k) && replyOn(k));
       if (quoting) return setReply(quoting, null);

@@ -2,10 +2,10 @@ import { ChevronDown, CircleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AGENT_EFFORTS, AGENT_MODELS, projectAgentSetting, type AgentEffort, type AgentModel, type AgentSetting, type CodexModel, type Harness } from '../core/types';
 import { ApiError, api } from './api';
-import { useMenuClose } from './queue';
 import { updateDraft, useDraft } from './draft';
 import { failText, t } from './strings';
 import { Button, type ButtonVariant, LinkButton } from './components/button';
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './components/popover';
 import { Tooltip } from './components/tooltip';
 
 /** What a worker on the shown project starts with: its own models over Configuration's. */
@@ -106,7 +106,6 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const startPicked = () => start(picked ?? undefined, pickedKey);
   const touched = useRef(false);
   const choose = (s: AgentSetting) => { touched.current = true; setSetting(s); };
-  const box = useRef<HTMLDivElement>(null);
   // the newest model request: an older one that answers late is dropped
   const request = useRef(0);
   const loadModels = async () => {
@@ -139,12 +138,9 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     workerDefault().then((v) => { if (active) { setSetting(picked ?? v); setInitial(v); } }).catch((e) => { if (active) setError(e instanceof ApiError ? e.message : failText(e)); });
     return () => { active = false; };
   }, [open, attempt]);
-  // the keyboard lands in the menu once it has its choices, and back on the chevron when it closes
-  const chevron = useRef<HTMLButtonElement>(null);
+  // the keyboard lands in the menu once it has its choices (Radix returns it to the button that opened it)
   const first = useRef<HTMLSelectElement>(null);
   useEffect(() => { if (open && setting) first.current?.focus({ preventScroll: true }); }, [open, !!setting]);
-  const close = () => { setOpen(false); chevron.current?.focus(); };
-  useMenuClose(open, box, () => (setOpen(false), chevron.current?.focus()), true);
   // a Claude choice needs no catalog: a request still pending for another harness is dropped, so it neither blocks the save nor answers later
   useEffect(() => {
     if (!open || !setting?.harness) return;
@@ -161,18 +157,19 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   // only a choice that can start is kept, so the main button never starts one the menu would refuse
   useEffect(() => { if (touched.current && setting && valid && (!codex || !loading)) setPicked(setting); }, [setting, valid, loading]);
 
-  return <div className="start-agent" ref={box}>
-    <div className={suggested ? 'start-agent-buttons suggested' : 'start-agent-buttons'}>
-      <Button variant={selectionOnly ? 'code-review' : variant} className={selectionOnly ? undefined : 'start-agent-main'} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} aria-haspopup={selectionOnly ? "true" : undefined} aria-expanded={selectionOnly ? open : undefined} onClick={() => { if (selectionOnly) return setOpen(!open); void startPicked(); }}>
-        <span>{label}</span>
-        {!selectionOnly && (picked ?? currentDefault) && <span className="start-agent-model">{describeAgent((picked ?? currentDefault)!, true)}</span>}
-      </Button>
-      {!selectionOnly && <Tooltip content={a.chooseStart}><Button type="button" ref={chevron} variant={variant} className="start-agent-chevron" disabled={disabled || starting} aria-label={a.chooseStart} aria-haspopup="true" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
+  const main = <Button variant={selectionOnly ? 'code-review' : variant} className={selectionOnly ? undefined : 'start-agent-main'} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} onClick={selectionOnly ? undefined : () => void startPicked()}>
+    <span>{label}</span>
+    {!selectionOnly && (picked ?? currentDefault) && <span className="start-agent-model">{describeAgent((picked ?? currentDefault)!, true)}</span>}
+  </Button>;
+  return <Popover open={open} onOpenChange={setOpen}><div className="start-agent">
+    <PopoverAnchor asChild><div className={suggested ? 'start-agent-buttons suggested' : 'start-agent-buttons'}>
+      {selectionOnly ? <PopoverTrigger asChild>{main}</PopoverTrigger> : main}
+      {!selectionOnly && <Tooltip content={a.chooseStart}><PopoverTrigger asChild><Button type="button" variant={variant} className="start-agent-chevron" disabled={disabled || starting} aria-label={a.chooseStart}>
         <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
-      </Button></Tooltip>}
-    </div>
+      </Button></PopoverTrigger></Tooltip>}
+    </div></PopoverAnchor>
     {!open && (startError || (checked?.key === pickedKey && checked.error)) && <p className="p-error" role="status">{startError || checked?.error}</p>}
-    {open && <div className="start-agent-menu" role="group" aria-label={a.chooseStart}>
+    <PopoverContent side="top" align="start" aria-label={a.chooseStart} className="w-[min(380px,calc(100vw-16px))] max-h-[min(var(--radix-popover-content-available-height),600px)] p-4 text-sm [&_label]:my-2.5 [&_label]:flex [&_label]:items-center [&_label]:justify-between [&_label]:gap-3 [&_p]:m-0 [&_p]:mb-2.5 [&_select]:max-w-[65%] [&_select]:min-w-0">
       {initial && <p className="hint">{a.currentDefault}: {describeAgent(initial)}</p>}
       <p className="hint">{a.choiceHint}</p>
       {setting && <>
@@ -198,6 +195,6 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
       {codex && current && !loading && !valid && <p className="p-error" role="status">{a.unavailableChoice}</p>}
       {hint && <p className="hint start-agent-warning"><CircleAlert size={15} aria-hidden /> {hint}</p>}
       <Button variant={selectionOnly ? 'code-review' : 'primary'} disabled={!valid || loading || starting || disabled} onClick={() => { if (setting) void start(setting, null); }}>{a.startWith}</Button>
-    </div>}
-  </div>;
+    </PopoverContent>
+  </div></Popover>;
 }

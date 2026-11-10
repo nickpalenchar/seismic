@@ -3,12 +3,13 @@
 // that line with "Wake now". One component for every kind of card.
 
 import { Clock } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { cn } from 'cn';
+import { useState } from 'react';
 import type { CardEvent, Item, Snooze } from '../core/types';
 import { api } from './api';
-import { useMenuClose } from './queue';
 import { clock, t } from './strings';
 import { Button, type ButtonVariant } from './components/button';
+import { Popover, PopoverContent, PopoverTrigger } from './components/popover';
 
 /** The clock mark of a snoozed card and of the button that snoozes one. */
 export const ClockMark = () => (
@@ -37,25 +38,10 @@ const fieldValue = (d: Date) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
-/** Room kept between the menu and the edges of the screen. */
-const EDGE = 8;
-
-/** Puts the menu (fixed) below the button where it fits on the screen, else above it, else as low as fits, centred on the button. */
-function placeOnScreen(menu: HTMLElement, button: DOMRect) {
-  const { width, height } = menu.getBoundingClientRect();
-  const below = button.bottom + 6;
-  const above = button.top - 6 - height;
-  const top = below + height <= innerHeight - EDGE ? below : above >= EDGE ? above : Math.max(EDGE, innerHeight - EDGE - height);
-  const left = Math.min(Math.max(EDGE, button.left + button.width / 2 - width / 2), innerWidth - EDGE - width);
-  menu.style.top = `${top}px`;
-  menu.style.left = `${Math.max(EDGE, left)}px`;
-}
-
 /**
  * The button that snoozes the card ("Later", "Change") and its menu: the presets, and a date and
  * time to pick. `inline`: the menu opens below the button where the screen has room, else above it,
- * over the conversation rather than in it (on the phone the conversation is often lower than the
- * menu, which it cut off); else above the button. A proposal's start time is set with the same
+ * over the conversation rather than in it; else above the button where there is room. A proposal's start time is set with the same
  * menu (`heading`, `hint`), which can also take the time away (`clear`).
  */
 export function SnoozeMenu({
@@ -89,85 +75,80 @@ export function SnoozeMenu({
   const [open, setOpen] = useState(false);
   const [picking, setPicking] = useState(false);
   const [value, setValue] = useState('');
-  const box = useRef<HTMLDivElement>(null);
-  const menu = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (!inline || !open) return;
-    const place = () => menu.current && box.current && placeOnScreen(menu.current, box.current.firstElementChild!.getBoundingClientRect());
-    place();
-    addEventListener('scroll', place, true);
-    addEventListener('resize', place);
-    return () => {
-      removeEventListener('scroll', place, true);
-      removeEventListener('resize', place);
-    };
-  }, [open, picking]);
-  const close = () => {
-    setOpen(false);
-    setPicking(false);
+  const show = (on: boolean) => {
+    setOpen(on);
+    if (!on) setPicking(false);
   };
-  useMenuClose(open, box, close);
   const now = new Date();
   const go = (at: Date) => {
-    close();
+    show(false);
     onSnooze(at.toISOString());
   };
   const picked = value ? new Date(value) : null;
   const valid = !!picked && !Number.isNaN(picked.getTime()) && picked.getTime() > Date.now();
+  const option = 'cursor-pointer border-0 bg-transparent px-3 py-[7px] text-left text-[13.5px] text-ink outline-none hover:bg-chip focus-visible:bg-chip';
+  const more = 'mt-0.5 border-t border-solid border-line';
   return (
-    <div className={inline ? 'snooze-box at-button' : 'snooze-box'} ref={box}>
-      <Button variant={variant} size={size} title={hint} aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
-        {mark && <ClockMark />} {label}
-      </Button>
-      {open && (
-        <div className="snooze-menu" role="menu" ref={menu}>
-          <div className="snooze-h">{heading}</div>
-          {snoozePresets(now).map((p) => (
-            <button key={p.label} className="snooze-opt" role="menuitem" onClick={() => go(p.at)}>
-              {p.label}
-            </button>
-          ))}
-          {picking ? (
-            <form
-              className="snooze-pick"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (valid) go(picked);
-              }}
-            >
-              <input type="datetime-local" value={value} min={fieldValue(now)} onChange={(e) => setValue(e.target.value)} autoFocus />
-              <Button variant="primary" disabled={!valid}>
-                {set}
-              </Button>
-            </form>
-          ) : (
-            <button
-              className="snooze-opt more"
-              role="menuitem"
-              onClick={() => {
-                setValue(fieldValue(at && at.getTime() > now.getTime() ? at : snoozePresets(now).at(-1)!.at));
-                setPicking(true);
-              }}
-            >
-              {t.snooze.pick}
-            </button>
-          )}
-          {clear && (
-            <button
-              className="snooze-opt more"
-              role="menuitem"
-              title={clear.hint}
-              onClick={() => {
-                close();
-                clear.onClear();
-              }}
-            >
-              {clear.label}
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+    <Popover open={open} onOpenChange={show}>
+      <div className="snooze-box">
+        <PopoverTrigger asChild>
+          <Button variant={variant} size={size} title={hint}>
+            {mark && <ClockMark />} {label}
+          </Button>
+        </PopoverTrigger>
+      </div>
+      <PopoverContent side={inline ? 'bottom' : 'top'} align={inline ? 'center' : 'start'} sideOffset={6} aria-label={heading} className="flex w-auto min-w-[220px] flex-col px-0 py-1">
+        <div className="px-3 pt-1.5 pb-1 text-[11.5px] text-muted-foreground">{heading}</div>
+        {snoozePresets(now).map((p) => (
+          <button key={p.label} className={option} onClick={() => go(p.at)}>
+            {p.label}
+          </button>
+        ))}
+        {picking ? (
+          <form
+            className={cn('flex items-center gap-2 px-3 py-2', more)}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (valid) go(picked);
+            }}
+          >
+            <input
+              type="datetime-local"
+              className="min-w-0 rounded-[3px] border border-solid border-line bg-background px-1.5 py-[5px] text-[13px] text-ink"
+              value={value}
+              min={fieldValue(now)}
+              onChange={(e) => setValue(e.target.value)}
+              autoFocus
+            />
+            <Button variant="primary" disabled={!valid}>
+              {set}
+            </Button>
+          </form>
+        ) : (
+          <button
+            className={cn(option, more)}
+            onClick={() => {
+              setValue(fieldValue(at && at.getTime() > now.getTime() ? at : snoozePresets(now).at(-1)!.at));
+              setPicking(true);
+            }}
+          >
+            {t.snooze.pick}
+          </button>
+        )}
+        {clear && (
+          <button
+            className={cn(option, more)}
+            title={clear.hint}
+            onClick={() => {
+              show(false);
+              clear.onClear();
+            }}
+          >
+            {clear.label}
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 

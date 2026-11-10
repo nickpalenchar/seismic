@@ -462,9 +462,10 @@ WebSocket, and a page that closes lets go. The server itself holds the restart w
 recording, and while a command is in its undo window until it has run.
 
 While a restart waits, the status bar shows it at its left in place of "Online" ("Restart waits for N agents", "… for your video", "… for
-your dictation"; with agents only, until when at most); hovering names why and the cards it waits for,
-across projects, and "Restart now" (`POST /api/restart`) has it go ahead at once, its hover
-saying what that cuts off.
+your dictation"; with agents only, until when at most); hovering it, or a click (Enter) that keeps it
+open, names why and the cards it waits for, across projects, and "Restart now" (`POST /api/restart`)
+has it go ahead at once, its tooltip saying what that cuts off. The bar's other pills with a note
+(the app update, new commits upstream, a Bun too old) open theirs the same way.
 
 #### Keeping the page
 

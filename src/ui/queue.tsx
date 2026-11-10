@@ -5,7 +5,7 @@
 // the end of the queue it is greyed out. The card also unfolds the queue, where it alone is dragged.
 
 import { GripVertical } from 'lucide-react';
-import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
+import { type ReactNode, type RefObject, useState } from 'react';
 import { move, movable, notStarted, queueOrder, reach } from '../core/queue';
 import type { Item } from '../core/types';
 import { api } from './api';
@@ -16,26 +16,6 @@ import { type Drag, useSortable } from './sortable';
 import { failText, t } from './strings';
 import { Tooltip } from './components/tooltip';
 import { Button } from './components/button';
-
-/** A list under a bar's button: while it is `on`, a click anywhere beside `box` (and `also`, a list drawn elsewhere) closes it, and Esc does with `esc`. */
-export function useMenuClose(on: boolean, box: RefObject<HTMLElement | null>, close: () => void, esc = false, also?: RefObject<HTMLElement | null>) {
-  const latest = useRef(close);
-  latest.current = close;
-  useEffect(() => {
-    if (!on) return;
-    const away = (e: PointerEvent) => box.current?.contains(e.target as Node) || also?.current?.contains(e.target as Node) || latest.current();
-    const key = (e: KeyboardEvent) => esc && e.key === 'Escape' && latest.current();
-    const dismiss = () => latest.current();
-    addEventListener('pointerdown', away, true);
-    addEventListener('keydown', key);
-    addEventListener('obeya:close-bar-menus', dismiss);
-    return () => {
-      removeEventListener('pointerdown', away, true);
-      removeEventListener('keydown', key);
-      removeEventListener('obeya:close-bar-menus', dismiss);
-    };
-  }, [on]);
-}
 
 /**
  * The queue's order to drag in: in the Agents sheet every card that may move, on a waiting card

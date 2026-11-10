@@ -2527,6 +2527,8 @@ const en = {
   },
   canvases: {
     strip: "This project's canvases",
+    /** Under the drawer while the keyboard is on the strip. */
+    drawerKey: '↑ moves into this list',
     newCanvas: 'New canvas',
     waiting: (n: number) => (n === 1 ? '1 card waiting for you' : `${n} cards waiting for you`),
     edit: 'Rename or change icon',

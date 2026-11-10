@@ -4,11 +4,13 @@
 // every limit with when it starts anew, where the numbers come from, and the button
 // that hides them again (the setting in Konfiguration → Benachrichtigungen und Limits shows them again).
 
-import { useEffect, useRef, useState } from 'react';
+import { cn } from 'cn';
+import { useState } from 'react';
 import type { Usage, UsageLimit } from '../core/types';
 import { api } from './api';
 import { clock, failText, snoozeWhen, t } from './strings';
 import { Button } from './components/button';
+import { Popover, PopoverContent, PopoverTrigger } from './components/popover';
 
 /** The limit of a group the bar shows: the one most used, the first of those on a tie. */
 export function headline(limits: UsageLimit[]): UsageLimit[] {
@@ -28,10 +30,14 @@ export function limitName(l: UsageLimit): string {
 
 const percent = (n: number) => `${Math.round(n)} %`;
 
-function Meter({ limit }: { limit: UsageLimit }) {
+/** A limit's meter: short in the bar, `wide` in the list. */
+function Meter({ limit, wide }: { limit: UsageLimit; wide?: boolean }) {
   return (
-    <span className={`meter ${limit.severity}`} aria-hidden>
-      <i style={{ width: `${Math.min(100, Math.max(0, limit.percent))}%` }} />
+    <span className={cn('relative block h-[9px] flex-none overflow-hidden rounded-[2px] bg-chip shadow-[inset_0_0_0_1px_var(--line)]', wide ? 'w-[60px]' : 'w-[26px]')} aria-hidden>
+      <i
+        className={cn('absolute inset-y-0 left-0 rounded-[inherit]', { critical: 'bg-error', warning: 'bg-waiting' }[limit.severity as string] ?? 'bg-muted-foreground')}
+        style={{ width: `${Math.min(100, Math.max(0, limit.percent))}%` }}
+      />
     </span>
   );
 }
@@ -54,18 +60,6 @@ export function UsagePill({ usage }: { usage: Usage }) {
   // open by a click (a tap) until one elsewhere or Escape
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => ref.current?.contains(e.target as Node) || setOpen(false);
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    addEventListener('pointerdown', away, true);
-    addEventListener('keydown', esc);
-    return () => {
-      removeEventListener('pointerdown', away, true);
-      removeEventListener('keydown', esc);
-    };
-  }, [open]);
   if (!usage.limits.length) return null;
   const hide = () => {
     setStatus('');
@@ -73,42 +67,44 @@ export function UsagePill({ usage }: { usage: Usage }) {
   };
   const shown = headline(usage.limits);
   return (
-    <div ref={ref} className={['pill usage', open && 'open'].filter(Boolean).join(' ')} id="usage">
-      <button className="face" aria-expanded={open} aria-label={t.usage.title} onClick={() => setOpen(!open)}>
-        <span className="harness" title={t.usage.harness}>
-          <ClaudeMark />
-        </span>
-        {shown.map((l) => (
-          <span key={l.group} className={`group ${l.severity}`}>
-            <span className="lbl">{t.usage.groups[l.group] ?? limitName(l)}</span>
-            <Meter limit={l} />
-            <b>{percent(l.percent)}</b>
+    <Popover open={open} onOpenChange={setOpen}>
+      <div className={['pill usage', open && 'open'].filter(Boolean).join(' ')} id="usage">
+        <PopoverTrigger className="face" aria-label={t.usage.title}>
+          <span className="harness" title={t.usage.harness}>
+            <ClaudeMark />
           </span>
-        ))}
-      </button>
-      <div className="tip" role="tooltip">
-        <p>
-          <b>{t.usage.title}</b>
-        </p>
-        <ul className="usage-list">
-          {usage.limits.map((l, i) => (
-            <li key={i} className={l.severity}>
-              <span className="name">{limitName(l)}</span>
+          {shown.map((l) => (
+            <span key={l.group} className={`limit ${l.severity}`}>
+              <span className="lbl">{t.usage.groups[l.group] ?? limitName(l)}</span>
               <Meter limit={l} />
               <b>{percent(l.percent)}</b>
-              {l.resetsAt && <span className="hint when">{t.usage.resets(snoozeWhen(l.resetsAt))}</span>}
+            </span>
+          ))}
+        </PopoverTrigger>
+      </div>
+      <PopoverContent side="top" align="end" aria-label={t.usage.title} className="w-[min(380px,calc(100vw-16px))]">
+        <p className="m-0 mb-1.5">
+          <b>{t.usage.title}</b>
+        </p>
+        <ul className="m-0 mb-2 list-none p-0">
+          {usage.limits.map((l, i) => (
+            <li key={i} className="grid grid-cols-[minmax(0,1fr)_60px_42px] items-center gap-x-2 py-[3px]">
+              <span>{limitName(l)}</span>
+              <Meter limit={l} wide />
+              <b className={cn('text-right font-semibold tabular-nums', l.severity === 'critical' && 'text-error')}>{percent(l.percent)}</b>
+              {l.resetsAt && <span className="hint col-span-full">{t.usage.resets(snoozeWhen(l.resetsAt))}</span>}
             </li>
           ))}
         </ul>
-        <p className="hint">{t.usage.source(clock(usage.at))}</p>
-        <p className="hint">
+        <p className="hint m-0 mb-1.5">{t.usage.source(clock(usage.at))}</p>
+        <p className="hint m-0">
           <Button size="small" onClick={hide}>
             {t.usage.hide}
           </Button>{' '}
           {t.usage.hideHint}
         </p>
-        {status && <p className="warn">{status}</p>}
-      </div>
-    </div>
+        {status && <p className="m-0 mt-1.5 text-warn">{status}</p>}
+      </PopoverContent>
+    </Popover>
   );
 }

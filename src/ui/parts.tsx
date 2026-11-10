@@ -20,7 +20,9 @@ import { scrollBehavior } from './motion';
 import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
 import { cardPath, switchTo } from './address';
-import { Button } from './components/button';
+import { cn } from 'cn';
+import { Button, LinkButton } from './components/button';
+import { Popover, PopoverContent, PopoverTrigger, useHoverOpen } from './components/popover';
 import { MenuItem } from './components/menu';
 import { Tooltip } from './components/tooltip';
 
@@ -381,59 +383,92 @@ function Pill({ restart, items, project, onOpen, elsewhere = [], go, going, say,
       </div>
     );
   return (
-    <div className="pill restart" id="restart">
-      <span className="spin">↻</span>
-      <span className="say">{say}</span>
-      {until && <span className="hint">{t.restart.until(clock(restart.deadline))}</span>}
-      <button onClick={click}>
-        {now}
-        <span className="tip risk" role="tooltip">
-          {risk}
-        </span>
-      </button>
-      <div className="tip why" role="tooltip">
-        {why}
-        {cards.length + elsewhere.length > 0 && (
-          <>
-            <p>{t.restart.waits}</p>
-            {cards.length > 0 && (
+    <TipPill
+      id="restart"
+      label={
+        <>
+          <span className="spin">↻</span>
+          <span className="say">{say}</span>
+          {until && <span className="hint">{t.restart.until(clock(restart.deadline))}</span>}
+        </>
+      }
+      action={
+        <Tooltip content={risk}>
+          <button className="go" onClick={click}>
+            {now}
+          </button>
+        </Tooltip>
+      }
+    >
+      {why}
+      {cards.length + elsewhere.length > 0 && (
+        <>
+          <p>{t.restart.waits}</p>
+          {cards.length > 0 && (
+            <ul>
+              {cards.map(({ item, title }, i) => (
+                <li key={i}>{item ? (
+                  <a
+                    className="link card-link"
+                    href={cardPath(project, item)}
+                    onClick={(m) => {
+                      if (m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
+                      m.preventDefault();
+                      onOpen(item);
+                    }}
+                  >
+                    {title}
+                  </a>
+                ) : title}</li>
+              ))}
+            </ul>
+          )}
+          {elsewhere.map((c) => (
+            <div key={c.id}>
+              <p className="hint">{t.restart.on(c.project)}</p>
               <ul>
-                {cards.map(({ item, title }, i) => (
-                  <li key={i}>{item ? (
-                    <a
-                      className="from"
-                      href={cardPath(project, item)}
-                      onClick={(m) => {
-                        if (m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
-                        m.preventDefault();
-                        onOpen(item);
-                      }}
-                    >
-                      {title}
+                {c.cards.map((x, i) => (
+                  <li key={i}>
+                    <a className="link card-link" href={cardPath(c.id, x.short ?? x.id)} onClick={(m) => switchTo(m, cardPath(c.id, x.short ?? x.id))}>
+                      {plain(x.title)}
                     </a>
-                  ) : title}</li>
+                  </li>
                 ))}
               </ul>
-            )}
-            {elsewhere.map((c) => (
-              <div key={c.id} className="elsewhere">
-                <p className="hint">{t.restart.on(c.project)}</p>
-                <ul>
-                  {c.cards.map((x, i) => (
-                    <li key={i}>
-                      <a className="from" href={cardPath(c.id, x.short ?? x.id)} onClick={(m) => switchTo(m, cardPath(c.id, x.short ?? x.id))}>
-                        {plain(x.title)}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </>
-        )}
-        {after}
+            </div>
+          ))}
+        </>
+      )}
+      {after}
+    </TipPill>
+  );
+}
+
+/**
+ * A pill of the status bar with a tip: its `label` shows the tip (`children`) while the pointer
+ * rests on it, and pins it open on a click (Enter, a tap) until a click elsewhere or Esc; `action`
+ * is the pill's button beside the label.
+ */
+function TipPill({ id, className, label, action, children }: { id: string; className?: string; label: ReactNode; action?: ReactNode; children: ReactNode }) {
+  const pop = useHoverOpen();
+  return (
+    <Popover {...pop.root}>
+      <div className={cn('pill restart', className)} id={id}>
+        <PopoverTrigger className="tip-face" {...pop.hover} {...pop.trigger}>
+          {label}
+        </PopoverTrigger>
+        {action}
       </div>
-    </div>
+      <PopoverContent
+        side="top"
+        align="start"
+        className="[&_p]:m-0 [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:m-0 [&_ul]:mb-1.5 [&_ul]:pl-[18px]"
+        {...pop.hover}
+        {...pop.content}
+      >
+        {children}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -449,23 +484,28 @@ export function UpdatePill({ update }: { update: AppUpdate }) {
     api.installUpdate().catch(() => setAsked(false));
   };
   return (
-    <div className="pill restart update" id="update">
-      <span>{t.update.pill(update.version)}</span>
-      {update.download ? (
-        <button onClick={() => window.open(update.download, '_blank')}>{t.update.download}</button>
-      ) : (
-        <button onClick={install} disabled={asked}>
-          {t.update.install}
-        </button>
-      )}
-      <div className="tip why" role="tooltip">
-        <p>
-          <b>{t.update.title(update.version, update.date ? shortDay(update.date) : null)}</b>
-        </p>
-        {update.notes && <Doc md={update.notes} />}
-        <p className="hint">{update.download ? t.update.howDownload : t.update.how}</p>
-      </div>
-    </div>
+    <TipPill
+      id="update"
+      className="update"
+      label={<span>{t.update.pill(update.version)}</span>}
+      action={
+        update.download ? (
+          <button className="go" onClick={() => window.open(update.download, '_blank')}>
+            {t.update.download}
+          </button>
+        ) : (
+          <button className="go" onClick={install} disabled={asked}>
+            {t.update.install}
+          </button>
+        )
+      }
+    >
+      <p>
+        <b>{t.update.title(update.version, update.date ? shortDay(update.date) : null)}</b>
+      </p>
+      {update.notes && <Doc md={update.notes} />}
+      <p className="hint">{update.download ? t.update.howDownload : t.update.how}</p>
+    </TipPill>
   );
 }
 
@@ -490,31 +530,34 @@ export function SourcePill({ source }: { source: SourceUpdate }) {
       ? t.source.diverged(source.checkout, source.upstream)
       : t.source.local(source.checkout, source.blocked.files.map((f) => `\`${f}\``).join(', '));
   return (
-    <div className={source.blocked ? 'pill restart update source by-hand' : 'pill restart update source'} id="source-update">
-      <span>{t.source.pill(source.count)}</span>
-      {!source.blocked && (
-        <button onClick={pull} disabled={asked}>
-          {t.source.pull}
-        </button>
-      )}
-      <div className="tip why" role="tooltip">
-        <p>
-          <b>{t.source.title(source.count, source.upstream)}</b>
-        </p>
-        <ul>
-          {source.commits.map((c, i) => (
-            <li key={i}>
-              {c.subject} <span className="hint">{shortDay(c.date)}</span>
-            </li>
-          ))}
-        </ul>
-        {more > 0 && <p className="hint">{t.source.more(more)}</p>}
-        {source.error && <p className="warn">{t.source.failed(source.error)}</p>}
-        <p className="hint">
-          <Inline md={how} />
-        </p>
-      </div>
-    </div>
+    <TipPill
+      id="source-update"
+      className={source.blocked ? 'update source by-hand' : 'update source'}
+      label={<span>{t.source.pill(source.count)}</span>}
+      action={
+        !source.blocked && (
+          <button className="go" onClick={pull} disabled={asked}>
+            {t.source.pull}
+          </button>
+        )
+      }
+    >
+      <p>
+        <b>{t.source.title(source.count, source.upstream)}</b>
+      </p>
+      <ul>
+        {source.commits.map((c, i) => (
+          <li key={i}>
+            {c.subject} <span className="hint">{shortDay(c.date)}</span>
+          </li>
+        ))}
+      </ul>
+      {more > 0 && <p className="hint">{t.source.more(more)}</p>}
+      {source.error && <p className="text-waiting">{t.source.failed(source.error)}</p>}
+      <p className="hint">
+        <Inline md={how} />
+      </p>
+    </TipPill>
   );
 }
 
@@ -524,19 +567,24 @@ export function SourcePill({ source }: { source: SourceUpdate }) {
  */
 export function OldBunPill({ version }: { version: string }) {
   return (
-    <div className="pill restart old-bun" id="old-bun">
-      <span className="warn">⚠</span>
-      <span className="say">{t.oldBun.pill(version)}</span>
-      <div className="tip why" role="tooltip">
-        <p>
-          <b>{t.oldBun.title}</b>
-        </p>
-        <p>{t.oldBun.why(version)}</p>
-        <p>
-          <Inline md={t.oldBun.how} />
-        </p>
-      </div>
-    </div>
+    <TipPill
+      id="old-bun"
+      className="old-bun"
+      label={
+        <>
+          <span className="warn">⚠</span>
+          <span className="say">{t.oldBun.pill(version)}</span>
+        </>
+      }
+    >
+      <p>
+        <b>{t.oldBun.title}</b>
+      </p>
+      <p>{t.oldBun.why(version)}</p>
+      <p>
+        <Inline md={t.oldBun.how} />
+      </p>
+    </TipPill>
   );
 }
 
@@ -560,26 +608,8 @@ export function WorkstationsPill({ pools, project, projects, items, onOpen, onEl
   onTake: (i: Item) => void;
   onKeep: (i: Item) => void;
 }) {
-  // open by a click (a tap) until one elsewhere or Escape; shut after a card is opened from it, until the pointer leaves
-  const [open, setOpen] = useState(false);
-  const [shut, setShut] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => ref.current?.contains(e.target as Node) || setOpen(false);
-    const esc = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      // the pointer may still be over it: shut, not just unpinned
-      setOpen(false);
-      setShut(true);
-    };
-    addEventListener('pointerdown', away, true);
-    addEventListener('keydown', esc);
-    return () => {
-      removeEventListener('pointerdown', away, true);
-      removeEventListener('keydown', esc);
-    };
-  }, [open]);
+  // shown while the pointer rests on it, pinned by a click (a tap) until one elsewhere or Escape
+  const pop = useHoverOpen();
   const several = pools.length > 1;
   const name = (repo: string) => project.repos.find((r) => r.id === repo)?.name ?? repo;
   const forWorkstation = items.filter((i) => (i.queue && 'workstation' in i.queue && i.queue.workstation !== 'slots') || i.agent?.waitsForClone).length;
@@ -597,18 +627,13 @@ export function WorkstationsPill({ pools, project, projects, items, onOpen, onEl
   // the machines a pool names: those with clones or a clone's folder kept, and every other machine than this one
   const named = (p: ClonePool) => p.hosts.filter((h) => h.total > 0 || !h.here || h.kept?.length);
   const opened = (go: () => void) => {
-    setOpen(false);
-    setShut(true);
+    pop.show(false);
     go();
   };
   return (
-    <div
-      ref={ref}
-      className={['pill workstations', full && 'full', open && 'open', shut && 'shut'].filter(Boolean).join(' ')}
-      id="workstations"
-      onPointerLeave={() => setShut(false)}
-    >
-      <button className="face" aria-expanded={open} onClick={() => setOpen(!open)}>
+    <Popover {...pop.root}>
+      <div className={['pill workstations', full && 'full', pop.open && 'open'].filter(Boolean).join(' ')} id="workstations">
+        <PopoverTrigger className="face" {...pop.hover} {...pop.trigger}>
         <span className="lbl">{t.workstations.label}</span>
         {pools.map((p) => {
           const hosts = named(p);
@@ -631,17 +656,25 @@ export function WorkstationsPill({ pools, project, projects, items, onOpen, onEl
           );
         })}
         <span className="hint drop">▾</span>
-      </button>
-      <div className="tip" role="dialog" aria-label={t.workstations.label}>
+        </PopoverTrigger>
+      </div>
+      <PopoverContent
+        side="top"
+        align="end"
+        aria-label={t.workstations.label}
+        className="flex w-[min(440px,calc(100vw-16px))] cursor-default flex-col gap-1.5 [&_p]:m-0"
+        {...pop.hover}
+        {...pop.content}
+      >
         {pools.map((p) => (
-          <div key={p.repo}>
+          <div key={p.repo} className="flex flex-col gap-1.5">
             {several && (
               <p>
                 <b>{name(p.repo)}</b>
               </p>
             )}
             {named(p).map((h) => (
-              <div key={h.name}>
+              <div key={h.name} className="flex flex-col gap-1.5">
                 <p>
                   {h.worktrees
                     ? t.workstations.worktreeSlots(h.name, h.busy.length, h.slots, h.workstations.length > 0)
@@ -670,10 +703,18 @@ export function WorkstationsPill({ pools, project, projects, items, onOpen, onEl
         ))}
         {forWorkstation > 0 && <p>{t.workstations.waiting(forWorkstation)}</p>}
         {forSlot > 0 && <p>{t.workstations.waitingSlot(forSlot)}</p>}
-      </div>
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
+
+/** A workstation's dot, as the pill's face shows it: solid at work, pale held, orange blocked, a ring free. */
+const wsDot = {
+  on: 'bg-working',
+  held: 'bg-[color-mix(in_srgb,var(--working)_35%,transparent)]',
+  blocked: 'bg-waiting',
+  free: 'shadow-[inset_0_0_0_1.5px_var(--planned)]',
+};
 
 /**
  * A machine's workstations, one per line: the dot the pill shows for it, its path (cut at the front
@@ -695,58 +736,58 @@ function WorkstationRows({ host, items, projects, onOpen, onElsewhere, onTake, o
   // the row whose "⋯" is open
   const [more, setMore] = useState<string | null>(null);
   return (
-    <ul className="ws-list">
+    <ul className="m-0 mb-0.5 list-none p-0">
       {host.workstations.map((w) => {
         const item = w.card && !w.project ? items.find((i) => i.id === w.card) : undefined;
         const busy = !!w.card && host.busy.includes(w.card);
         const state = busy ? 'on' : w.card ? 'held' : blocked.has(w.path) ? 'blocked' : 'free';
         const there = w.project && projects.find((c) => c.id === w.project);
         return (
-          <li key={w.path} className={state}>
-            <i aria-hidden />
-            <span className="ws-path" title={w.path}>
+          <li key={w.path} className="grid grid-cols-[8px_minmax(0,1fr)] items-center gap-x-2 py-[3px]">
+            <i className={cn('row-start-1 size-2 rounded-full', wsDot[state])} aria-hidden />
+            <span className="col-start-2 overflow-hidden font-mono text-xs text-ellipsis whitespace-nowrap text-muted-foreground [direction:rtl] text-left" title={w.path}>
               {/* the mark keeps the path's leading slash at its start in the right-to-left box that cuts it at the front */}
               {'\u200e' + w.path}
             </span>
-            <span className="ws-card">
+            <span className="col-start-2 [overflow-wrap:anywhere]">
               {item ? (
-                <a className="from" onClick={() => onOpen(item)}>
-                  {plain(item.title)}
-                </a>
+                <LinkButton onClick={() => onOpen(item)}>{plain(item.title)}</LinkButton>
               ) : w.card && there ? (
                 <>
-                  <a className="from" onClick={() => onElsewhere(there.id, w.card!)}>
-                    {plain(w.title ?? '')}
-                  </a>
+                  <LinkButton onClick={() => onElsewhere(there.id, w.card!)}>{plain(w.title ?? '')}</LinkButton>
                   <span className="hint"> · {t.workstations.onProject(there.name)}</span>
                 </>
               ) : w.card ? (
                 <span className="hint">{w.title ? t.workstations.notOnProject(plain(w.title)) : t.workstations.offProject}</span>
               ) : (
-                <span className={state === 'blocked' ? 'warn' : 'hint'}>{state === 'blocked' ? t.workstations.blockedRow : t.workstations.freeRow}</span>
+                <span className={state === 'blocked' ? 'text-warn' : 'hint'}>{state === 'blocked' ? t.workstations.blockedRow : t.workstations.freeRow}</span>
               )}
               {busy && !w.leaving && <span className="hint"> · {t.workstations.atWork}</span>}
               {item && w.leaving && (
                 <>
                   <span className="hint"> · {t.workstations.leaving}</span>
-                  <Button size="small" className="ws-take" onClick={() => onKeep(item)}>
+                  <Button size="small" className="ml-2" onClick={() => onKeep(item)}>
                     {t.undo}
                   </Button>
                 </>
               )}
               {item && w.takeable && onTake && (
                 <Tooltip content={t.workstations.more}>
-                  <button className="ws-more" aria-label={t.workstations.more} aria-expanded={more === w.path} onClick={() => setMore(more === w.path ? null : w.path)}>
+                  <button
+                    className="ml-1.5 cursor-pointer rounded-[3px] border-0 bg-transparent px-[5px] text-[13px] leading-[1.2] text-muted-foreground opacity-55 hover:bg-chip hover:opacity-100 aria-expanded:bg-chip aria-expanded:opacity-100"
+                    aria-label={t.workstations.more}
+                    aria-expanded={more === w.path}
+                    onClick={() => setMore(more === w.path ? null : w.path)}
+                  >
                     ⋯
                   </button>
                 </Tooltip>
               )}
             </span>
             {item && w.takeable && onTake && more === w.path && (
-              <div className="ws-menu">
+              <div className="col-start-2 mt-1 mb-0.5 flex flex-col items-start gap-1 rounded-[3px] bg-chip px-2.5 py-2 [--button-bg:var(--panel)]">
                 <Button
                   size="small"
-                  className="ws-take"
                   onClick={() => {
                     setMore(null);
                     onTake(item);
@@ -754,7 +795,7 @@ function WorkstationRows({ host, items, projects, onOpen, onElsewhere, onTake, o
                 >
                   {t.workstations.take}
                 </Button>
-                <span className="hint">{t.workstations.takeWhat}</span>
+                <span className="hint leading-[1.4]">{t.workstations.takeWhat}</span>
               </div>
             )}
           </li>
@@ -788,7 +829,7 @@ function BlockedClones({ host }: { host: PoolHost }) {
       {all
         .filter((b, i) => b.why !== 'unreachable' || all.findIndex((x) => x.why === 'unreachable') === i)
         .map((b) => (
-          <p key={b.path} className="warn">
+          <p key={b.path} className="text-warn [overflow-wrap:anywhere]">
             {line(b)}
           </p>
         ))}
