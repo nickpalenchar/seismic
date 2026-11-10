@@ -11,7 +11,7 @@ import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
 import { CanvasIcon } from './canvasIcon';
 import { Sign, Wordmark } from './logo';
-import { Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
+import { leaveMenu, Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
 import { ProjectAgents } from './parts';
 import { t } from './strings';
 import { openWish } from './wish';
@@ -266,6 +266,7 @@ function Act({ onAct, keep, disabled, tip, children, ...props }: { onAct?: (() =
         disabled={disabled || !menu.active}
         onSelect={(e) => {
           if (keep) e.preventDefault();
+          else leaveMenu();
           onAct?.();
         }}
       >
@@ -307,7 +308,7 @@ function ProjectRow({ project: c, here, repos, onGo }: { project: ProjectInfo; h
   );
   return (
     <li className={here ? 'nav-row on' : 'nav-row'}>
-      {menu ? <MenuItem asChild disabled={!menu.active}>{link}</MenuItem> : link}
+      {menu ? <MenuItem asChild disabled={!menu.active} onSelect={leaveMenu}>{link}</MenuItem> : link}
       <ProjectAgents project={c} item={menu} />
     </li>
   );

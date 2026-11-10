@@ -20,6 +20,7 @@ export function Menu({ open, onOpenChange, ...props }: Omit<ComponentProps<typeo
   latest.current = onOpenChange;
   useEffect(() => {
     if (!open) return;
+    leaving = false;
     const close = () => latest.current?.(false);
     addEventListener('obeya:close-bar-menus', close);
     return () => removeEventListener('obeya:close-bar-menus', close);
@@ -28,6 +29,14 @@ export function Menu({ open, onOpenChange, ...props }: Omit<ComponentProps<typeo
 }
 
 export const MenuTrigger = DropdownMenu.Trigger;
+
+// Radix returns focus to the trigger when a menu closes. A choice that opens a view (a dialog, a
+// confirm, another page) calls `leaveMenu()` first: that view takes the focus, the trigger behind
+// it does not.
+let leaving = false;
+export const leaveMenu = () => {
+  leaving = true;
+};
 
 export function MenuContent({ className, children, onCloseAutoFocus, ...props }: ComponentProps<typeof DropdownMenu.Content>) {
   return (
@@ -40,8 +49,9 @@ export function MenuContent({ className, children, onCloseAutoFocus, ...props }:
         {...props}
         onCloseAutoFocus={(e) => {
           onCloseAutoFocus?.(e);
-          // another menu opened by the click that closed this one keeps the focus it took
-          if (document.querySelector('[role=menu][data-state=open]')) e.preventDefault();
+          // another menu opened by the click that closed this one keeps the focus it took, and so does a view the choice opened
+          if (leaving || document.querySelector('[role=menu][data-state=open]')) e.preventDefault();
+          leaving = false;
         }}
       >
         {children}

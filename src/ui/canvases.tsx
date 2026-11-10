@@ -18,7 +18,7 @@ import { useSortable } from './sortable';
 import { useStoredState } from './stored';
 import { failText, t } from './strings';
 import { Button, CloseButton } from './components/button';
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
+import { leaveMenu, Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
 import { Radio, RadioGroup } from './components/radio';
 
 /** The radio value of "no icon": a radio has no null. */
@@ -390,7 +390,7 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
         </MenuTrigger>
         <MenuContent className="prio-menu card-more-menu">
           {(canPark || parked) && (
-            <MenuItem title={canPark ? t.parking.parkHint : undefined} onSelect={() => (stopsToPark ? setConfirm(true) : parking(canPark ? 'park' : 'unpark'))}>
+            <MenuItem title={canPark ? t.parking.parkHint : undefined} onSelect={() => (stopsToPark ? (leaveMenu(), setConfirm(true)) : parking(canPark ? 'park' : 'unpark'))}>
               <span className="lopt">
                 <Car size={14} aria-hidden />
                 {canPark ? t.parking.park : t.parking.unpark}
@@ -399,7 +399,7 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
           )}
           {others.length > 0 && !parked && <MenuLabel>{t.canvases.moveTo}</MenuLabel>}
           {!parked && others.map((c) => (
-            <MenuItem key={c.id} onSelect={() => move(item, c)}>
+            <MenuItem key={c.id} onSelect={() => (leaveMenu(), move(item, c))}>
               <span className="lopt">
                 <CanvasIcon canvas={c} />
                 {c.name}
