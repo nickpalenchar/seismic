@@ -867,8 +867,8 @@ code, a generic one otherwise.
   like a dialog, and the phone already closed cards that way. Rejected: closing as a step of its own,
   after which Back opened the card that was just closed.
 - **The look is frost, on our own stylesheet and Radix Primitives** (owner, 2026-11-05, 2026-11-09): a
-  stylesheet redefines the tokens and reshapes cards and chrome, and Lucide replaces the hand-drawn
-  icons. The fork no longer merges upstream (2026-11-09), so nothing keeps the UI from a component
+  one stylesheet with one token set (light, dark by system, dark by choice) draws cards and chrome, and
+  Lucide replaces the hand-drawn icons. The fork no longer merges upstream (2026-11-09), so nothing keeps the UI from a component
   set: controls are our own components in `src/ui/components/`, each wrapping an unstyled Radix
   Primitive and styled with the same CSS tokens, so frost, dark mode and the phone view apply to them
   without a rule of their own. Glass on every card was chosen over frost on the chrome alone with
@@ -878,8 +878,9 @@ code, a generic one otherwise.
   55 fps, against 60 without glass. Solid cards remain the fallback. Rejected: shadcn/ui with
   Tailwind, and Kibo UI on top of it, a second styling system that would mean mapping frost onto
   shadcn's variables (its source stays the API reference); Base UI, with a smaller set of mature
-  parts; winning over an older stylesheet by specificity rather than load order. The earlier look,
-  index cards pinned to a wall (2026-10-10), is gone.
+  parts; keeping frost as a layer over upstream's stylesheet, which made every rule depend on the layer
+  that overrode it (merged into one on 2026-11-10). The earlier look, index cards pinned to a wall
+  (2026-10-10), is gone.
 - **The inbox opens a list instead of jumping to the next card** (owner, 2026-11-01): with
   several things waiting, a jump hides what the others are and cannot answer anything. Entries are
   newest first on desktop (owner, 2026-11-08), as in a mail inbox,

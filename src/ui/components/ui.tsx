@@ -7,7 +7,7 @@
 //   the family has variants, `className` passed through for layout only, `asChild` where a link or
 //   label must be the element. Text comes from `strings.ts`, never literal.
 // - CSS: one block of its own per component, in `components/<name>.css`, imported by `styles.css`
-//   (`frost.css` reshapes the shared classes on top, as it does today). The class is the component's
+//   (the component's look and its shape come from the same file). The class is the component's
 //   name (`.switch`); layout (gap, alignment, margin) belongs to the container, never to an
 //   override such as `.actions .btn`.
 // - Tokens: colours, radii and shadows come from the CSS variables of the theme (`--card`, `--ink`,
