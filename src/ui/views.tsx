@@ -35,7 +35,7 @@ function Head({ title, n, onClose }: { title: string; n: number; onClose: () => 
       <h2>
         {title} {n > 0 && <span className="count">{n}</span>}
       </h2>
-      <span className="grow" />
+      <span className="expand" />
       <CloseButton label={t.close} className="a-full" onClick={onClose} />
     </div>
   );

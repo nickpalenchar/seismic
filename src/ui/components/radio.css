@@ -1,7 +1,7 @@
 /* RadioGroup and RadioOption (radio.tsx). */
 
 .radio-option[data-disabled] { opacity: .45; cursor: default; }
-.radio { flex: none; box-sizing: border-box; width: 14px; height: 14px; margin: 0; padding: 0; border: 1.5px solid var(--muted); border-radius: 50%; background: var(--card); cursor: inherit; display: inline-grid; place-items: center; }
+.radio { flex: none; box-sizing: border-box; width: 14px; height: 14px; margin: 0; padding: 0; border: 1.5px solid var(--muted-foreground); border-radius: 50%; background: var(--card); cursor: inherit; display: inline-grid; place-items: center; }
 .radio[data-state=checked] { border-color: var(--ink); }
 .radio:focus-visible { outline: 2px solid var(--working); outline-offset: 2px; }
 .radio-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }

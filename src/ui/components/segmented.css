@@ -1,7 +1,7 @@
 /* SegmentedControl (segmented.tsx). Their look only: margins and alignment are the container's. */
 
 .segmented { display: inline-flex; background: var(--chip); border-radius: 3px; padding: 3px; gap: 2px; }
-.segmented-item { border: 0; background: transparent; border-radius: 2px; padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }
+.segmented-item { border: 0; background: transparent; border-radius: 2px; padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer; color: var(--muted-foreground); }
 .segmented-item[data-state=on] { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
 .segmented-item:disabled { opacity: .45; cursor: default; }
 .segmented[data-size=small] { padding: 2px; }

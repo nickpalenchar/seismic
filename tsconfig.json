@@ -25,7 +25,10 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+
+    // the UI as the shadcn CLI writes its imports (components.json): `@/components/…`, `@/lib/utils`
+    "paths": { "@/*": ["./src/ui/*"] }
   },
   "exclude": ["node_modules", "dist", "app/target", "app/staged"]
 }

@@ -1,20 +1,21 @@
-// The component library of the UI: one file per family, each wrapping a Radix Primitive (the single
-// `radix-ui` package: one version for every part, so the parts never disagree on shared internals)
-// or, where no behaviour is needed, plain markup. Conventions every component here follows:
+// The component library of the UI: shadcn/ui's parts (on Radix Primitives, from the single `radix-ui`
+// package, so the parts never disagree on shared internals), one file per family, and AI Elements for
+// the conversations in `ai/`. Conventions every component here follows:
 //
-// - API: modelled on shadcn/ui's (its source is the reference; its Tailwind classes are not used).
-//   Small composable parts (`Menu`, `MenuTrigger`, `MenuItem` …), a `variant` and `size` prop where
-//   the family has variants, `className` passed through for layout only, `asChild` where a link or
-//   label must be the element. Text comes from `strings.ts`, never literal.
-// - CSS: one block of its own per component, in `components/<name>.css`, imported by `styles.css`
-//   (the component's look and its shape come from the same file). The class is the component's
-//   name (`.switch`); layout (gap, alignment, margin) belongs to the container, never to an
-//   override such as `.actions .btn`.
-// - Tokens: colours, radii and shadows come from the CSS variables of the theme (`--card`, `--ink`,
-//   `--chip` …) so light, dark and frost apply without a rule of their own.
-// - State: styled by the data attributes Radix sets (`[data-state=open]`, `[data-disabled]`,
-//   `[data-highlighted]`) and our own (`data-variant`), not by extra state classes.
-// - Layers: anything that opens over the page (menu, popover, dialog, tooltip) portals into
+// - Source: added with the shadcn CLI (`bunx --bun shadcn@latest add <part>`, set up by
+//   `components.json`), then ours: edited freely, in this repository's style, with frost's needs
+//   written into it rather than patched over from outside. Small composable parts (`Menu`,
+//   `MenuTrigger`, `MenuItem` …), `variant` and `size` through cva, `className` merged with `cn`,
+//   `asChild` where a link or label must be the element. Text comes from `strings.ts`, never literal.
+// - Look: Tailwind classes in the component on shadcn's tokens (`bg-primary`, `text-muted-foreground`)
+//   and Seismic's own (`bg-waiting`, `bg-glass`), which `tailwind.css` takes from frost, so light,
+//   dark and frost apply without a rule of their own. Until `styles.css` is gone Tailwind runs without
+//   its reset and under the old CSS: a part that needs a bare `button` or `input` resets it itself.
+//   The families not converted yet keep their block in `components/<name>.css`, imported by
+//   `styles.css`; layout (gap, alignment, margin) belongs to the container either way.
+// - State: styled by the data attributes Radix sets (`data-[state=open]:`, `data-disabled:`,
+//   `data-highlighted:`) and our own (`data-variant`), not by extra state classes.
+// - Layers: anything that opens over the page (menu, popover, dialog, sheet, tooltip) portals into
 //   `uiPortal()` so the theme applies, and dismisses itself on Esc and outside click; App's Esc
 //   handler leaves an open layer alone (see `layerOpen`).
 

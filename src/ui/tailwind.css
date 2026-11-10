@@ -1,0 +1,113 @@
+/* Tailwind and shadcn/ui's tokens on frost (docs/plan/shadcn-ui.md). index.html links this file beside
+   styles.css, never imported by it: Tailwind would process (and rewrite) whatever file imports it, the old
+   CSS with it. Tailwind comes in without its preflight, and everything it generates sits in cascade layers,
+   so the unlayered styles.css wins wherever both style the same property: a view converted
+   to Tailwind drops its old rules in the same change, and preflight comes on once styles.css is gone.
+
+   shadcn's variables are defined from frost's own tokens in styles.css, not from values of their own, so
+   light, dark and the system's choice follow its rules (`data-theme` on the root, else `data-system-theme`,
+   which index.html keeps in step with prefers-color-scheme):
+
+     shadcn                  frost                     what it is
+     --background            --bg                      the board's base colour (the gradient is --board)
+     --foreground            --ink                     text
+     --card                  --card (frost's own)      a card's glass
+     --card-foreground       --ink
+     --popover               --glass                   menus, popovers, dialogs: the denser glass
+     --popover-foreground    --ink
+     --primary               --working                 frost's blue, the primary button
+     --primary-foreground    --on-ink
+     --secondary, --muted,   --chip                    the quiet fill of chips and plain buttons
+       --accent
+     --secondary-foreground, --ink
+       --accent-foreground
+     --muted-foreground      (frost's own)             secondary text; was frost's --muted
+     --destructive           --error
+     --border, --input       --line
+     --ring                  --working                 the focus ring
+     --radius                10px                      sm 6, md 8 (frost's buttons), lg 10, xl 14 (cards)
+
+   Seismic's own tokens are Tailwind tokens too (`@theme inline` below): the state inks (`bg-waiting`,
+   `text-in-pr` …), the glass (`bg-glass`, `border-glass-edge`, `backdrop-blur-glass`, `shadow-glass`), and
+   the rest of frost's palette (`bg-chip`, `bg-panel`, `text-error` …). */
+
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source("./");
+
+/* `dark:` follows frost: data-theme=dark, or the system's dark where the owner chose neither */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, :not([data-theme])[data-system-theme=dark], :not([data-theme])[data-system-theme=dark] *));
+
+:root {
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card-foreground: var(--ink);
+  --popover: var(--glass);
+  --popover-foreground: var(--ink);
+  --primary: var(--working);
+  --primary-foreground: var(--on-ink);
+  --secondary: var(--chip);
+  --secondary-foreground: var(--ink);
+  --muted: var(--chip);
+  --accent: var(--chip);
+  --accent-foreground: var(--ink);
+  --destructive: var(--error);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--working);
+  --radius: 10px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* the states' inks */
+  --color-planned: var(--planned);
+  --color-working: var(--working);
+  --color-reviewing: var(--reviewing);
+  --color-waiting: var(--waiting);
+  --color-approved: var(--approved);
+  --color-in-pr: var(--inPr);
+  --color-live: var(--live);
+  --color-proposal: var(--proposal);
+  --color-idea: var(--idea);
+  --color-question: var(--question);
+  --color-asking: var(--asking);
+  --color-restart: var(--restart);
+  /* the glass */
+  --color-glass: var(--glass);
+  --color-glass-edge: var(--glass-edge);
+  --color-glass-hi: var(--glass-hi);
+  --blur-glass: 16px;
+  --shadow-glass: var(--shadow);
+  --shadow-lift: var(--lift);
+  /* the rest of the palette */
+  --color-ink: var(--ink);
+  --color-on-ink: var(--on-ink);
+  --color-line: var(--line);
+  --color-chip: var(--chip);
+  --color-panel: var(--panel);
+  --color-error: var(--error);
+  --color-warn: var(--warn);
+}

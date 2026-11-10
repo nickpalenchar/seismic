@@ -75,7 +75,7 @@ function measure(t: Record<string, string>) {
   const line = (s: string) => mix(parse(t.ink!), share, parse(t[s]!));
   const rows: { what: string; ratio: number; needs: number }[] = [
     { what: 'ink', ratio: worst(parse(t.ink!), card), needs: 4.5 },
-    { what: 'muted', ratio: worst(parse(t.muted!), card), needs: 4.5 },
+    { what: 'muted', ratio: worst(parse(t['muted-foreground']!), card), needs: 4.5 },
     { what: 'primary button', ratio: contrast(parse(t['on-ink']!), parse(t.working!)), needs: 4.5 },
     ...STATES.map((s) => ({ what: `${s} line`, ratio: worst(line(s), stockOf[s] ?? card), needs: 4.5 })),
     // done and live: the card at .74 opacity on stock tinted with its own ink

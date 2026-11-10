@@ -354,7 +354,7 @@ export function Ring({
   const caption = naming ? '' : !hb ? t.groups.cards(count) : hb.kind === 'group' ? hb.g.name : hb.kind === 'new' ? t.groups.create : t.groups.none;
   return (
     <div id="ringback" onPointerMove={(e) => naming || setHot(aimed(e))} onPointerDown={(e) => (e.preventDefault(), naming ? onClose() : pick(aimed(e)))} onContextMenu={(e) => e.preventDefault()}>
-      <div className={`ring${open ? ' open' : ''}`} style={{ left: at.x, top: at.y }}>
+      <div className={`radial${open ? ' open' : ''}`} style={{ left: at.x, top: at.y }}>
         <div className="rhalo" />
         {balls.map((b, k) => (
           <div

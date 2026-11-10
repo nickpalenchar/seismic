@@ -866,21 +866,29 @@ code, a generic one otherwise.
 - **Closing a card goes back a step** (owner, 2026-11-02): an open card is a view over the canvas,
   like a dialog, and the phone already closed cards that way. Rejected: closing as a step of its own,
   after which Back opened the card that was just closed.
-- **The look is frost, on our own stylesheet and Radix Primitives** (owner, 2026-11-05, 2026-11-09): a
-  one stylesheet with one token set (light, dark by system, dark by choice) draws cards and chrome, and
-  Lucide replaces the hand-drawn icons. The fork no longer merges upstream (2026-11-09), so nothing keeps the UI from a component
-  set: controls are our own components in `src/ui/components/`, each wrapping an unstyled Radix
-  Primitive and styled with the same CSS tokens, so frost, dark mode and the phone view apply to them
-  without a rule of their own. Glass on every card was chosen over frost on the chrome alone with
-  solid cards: the stronger look, at a cost measured with about 100
-  cards on screen at middle zoom on a 2560×1440 window, where blurring every card dropped to 49 fps
-  with a GPU and 23 fps without one; dropping the blur while the canvas moves brought it to 60 and
-  55 fps, against 60 without glass. Solid cards remain the fallback. Rejected: shadcn/ui with
-  Tailwind, and Kibo UI on top of it, a second styling system that would mean mapping frost onto
-  shadcn's variables (its source stays the API reference); Base UI, with a smaller set of mature
-  parts; keeping frost as a layer over upstream's stylesheet, which made every rule depend on the layer
-  that overrode it (merged into one on 2026-11-10). The earlier look, index cards pinned to a wall
-  (2026-10-10), is gone.
+- **The look is frost, on shadcn/ui with Tailwind** (owner, 2026-11-05, 2026-11-10): frost is
+  one stylesheet with one token set (board, glass, inks; light, dark by system, dark by choice), and
+  its tokens are the values behind shadcn/ui's variables
+  (`--background`, `--card`, `--primary` …), and the state inks and glass are Tailwind tokens of their
+  own, so a shadcn part wears frost without a rule of its own; `dark:` follows the owner's choice of
+  light or dark, else the system's. Controls are shadcn parts on Radix Primitives in
+  `src/ui/components/`, added through the shadcn CLI and edited freely once copied; AI Elements serve
+  the conversations. Glass on every card was chosen over frost on the chrome alone with solid cards:
+  the stronger look, at a cost measured with about 100 cards on screen at middle zoom on a 2560×1440
+  window, where blurring every card dropped to 49 fps with a GPU and 23 fps without one; dropping the
+  blur while the canvas moves brought it to 60 and 55 fps, against 60 without glass. Solid cards
+  remain the fallback. While the hand-written stylesheet is still being replaced, Tailwind runs without
+  its reset and its utilities sit in a cascade layer under the old stylesheet, which therefore wins
+  where both style a property; no class of the old stylesheet may share a name with a Tailwind utility
+  (`hidden`, `fixed`, `ring`), since the utility would apply to it as well. Rejected: our own
+  stylesheet on Radix Primitives (2026-11-09, reversed 2026-11-10: every control, popover and dialog
+  was being rebuilt by hand, and the ready-made higher-level parts and conversation components were
+  out of reach); shadcn's neutral look; porting shadcn's behaviour into our CSS; Tailwind only in the
+  conversations; a prefix on every Tailwind class, which would have kept old and new apart at the
+  price of every generated part's classes; Base UI, with a smaller set of mature parts; keeping frost
+  as a layer over upstream's stylesheet, which made every rule depend on the layer that overrode it
+  (merged into one on 2026-11-10). The earlier
+  look, index cards pinned to a wall (2026-10-10), is gone.
 - **The inbox opens a list instead of jumping to the next card** (owner, 2026-11-01): with
   several things waiting, a jump hides what the others are and cannot answer anything. Entries are
   newest first on desktop (owner, 2026-11-08), as in a mail inbox,

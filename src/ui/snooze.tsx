@@ -115,7 +115,7 @@ export function SnoozeMenu({
   const picked = value ? new Date(value) : null;
   const valid = !!picked && !Number.isNaN(picked.getTime()) && picked.getTime() > Date.now();
   return (
-    <div className={inline ? 'snooze-box inline' : 'snooze-box'} ref={box}>
+    <div className={inline ? 'snooze-box at-button' : 'snooze-box'} ref={box}>
       <Button variant={variant} size={size} title={hint} aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
         {mark && <ClockMark />} {label}
       </Button>

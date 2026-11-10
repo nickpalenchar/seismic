@@ -1,2 +1,6 @@
 [test]
 preload = ["./src/server/test-setup.ts"]
+
+# HTML imports served by Bun (`bun run dev`, the compiled binary) run the UI's CSS through Tailwind (src/ui/tailwind.css)
+[serve.static]
+plugins = ["bun-plugin-tailwind"]

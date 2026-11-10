@@ -2491,7 +2491,7 @@ function Project({
               ),
             )}
             {placed.filter(({ item }) => connectable(item)).map(({ item, b }) => <div key={`handles:${item.id}`} data-id={item.id} className={`connection-handles ${cardClass(item, underway[item.id]).replace(/^card\s*/, '')}${depOf(item.id) ? ' dep-highlight' : ''}${connection?.target === item.id ? ' target' : ''}`} style={{ left: b.x, top: b.y, width: b.w, height: b.h }}>
-              {SIDES.map((side) => <Tooltip key={side} content={t.deps.connect}><button className={`connection-dot ${side}${!connection && (handle?.id === item.id && handle.side === side || touchDots(item.id)) ? ' visible' : ''}`} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} /></Tooltip>)}
+              {SIDES.map((side) => <Tooltip key={side} content={t.deps.connect}><button className={`connection-dot ${side}${!connection && (handle?.id === item.id && handle.side === side || touchDots(item.id)) ? ' lit' : ''}`} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} /></Tooltip>)}
             </div>)}
             {planDirs?.map((d, n) => (
               <PlanDirNote

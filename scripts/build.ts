@@ -1,4 +1,4 @@
-// Seismic as one file: the server compiled with Bun (`bun build --compile`) into a binary that needs
+// Seismic as one file: the server compiled with Bun (`Bun.build` with `compile`) into a binary that needs
 // no Bun and no checkout, with the UI and SQLite in it, and beside it the resources other
 // processes run or import (src/server/resources.ts): the plugin with the demo skill and the
 // Playwright it records with, and the voice sidecars;
@@ -15,6 +15,7 @@
 
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import tailwind from 'bun-plugin-tailwind';
 import pkg from '../package.json';
 
 const TARGETS = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64', 'windows-x64'] as const;
@@ -67,9 +68,18 @@ for (const target of targets) {
   mkdirSync(dir, { recursive: true });
   const binary = join(dir, target.startsWith('windows') ? 'obeya.exe' : 'obeya');
   // Bun (1.3.12) leaves a copy of its runtime in the working directory (`.<hex>.bun-build`): there it goes
-  // the UI it carries is bundled now, not when it is served: as `bun start` serves it, React's production build
-  const production = ['--define', 'process.env.NODE_ENV="production"'];
-  run([process.execPath, 'build', '--compile', '--splitting', `--target=bun-${target}`, ...production, join(ROOT, 'src/server/main.ts'), '--outfile', binary], dir);
+  process.chdir(dir);
+  // the UI it carries is bundled now, not when it is served: as `bun start` serves it, React's production build,
+  // its CSS through Tailwind (src/ui/tailwind.css)
+  const built = await Bun.build({
+    entrypoints: [join(ROOT, 'src/server/main.ts')],
+    compile: { target: `bun-${target}` as Bun.Build.CompileTarget, outfile: binary },
+    splitting: true,
+    define: { 'process.env.NODE_ENV': '"production"' },
+    plugins: [tailwind],
+  }).catch((e: unknown) => fail(String(e)));
+  process.chdir(ROOT);
+  if (!built.success) fail(built.logs.join('\n'));
   for (const f of readdirSync(dir)) if (f.endsWith('.bun-build')) rmSync(join(dir, f), { force: true });
   if (target.startsWith('darwin')) {
     if (process.platform === 'darwin') {

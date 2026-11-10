@@ -6,4 +6,4 @@
 .menu-item { cursor: pointer; outline: none; }
 .menu-item[data-highlighted] { background: var(--chip); }
 .menu-item[data-disabled] { cursor: default; }
-.menu-heading { padding: 5px 8px 3px; font-size: 11px; color: var(--muted); }
+.menu-heading { padding: 5px 8px 3px; font-size: 11px; color: var(--muted-foreground); }

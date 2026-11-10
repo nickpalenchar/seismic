@@ -23,7 +23,7 @@
 .icon-button { display: inline-grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 10px;
   background: var(--button-bg, var(--chip)); color: var(--ink); cursor: pointer; }
 .icon-button[data-size=small] { width: 20px; height: 20px; border-radius: 3px; }
-.icon-button:is([data-variant=ghost], [data-variant=danger]) { background: none; color: var(--muted); }
+.icon-button:is([data-variant=ghost], [data-variant=danger]) { background: none; color: var(--muted-foreground); }
 .icon-button:hover { color: var(--ink); filter: brightness(1.05); }
 .icon-button:is([data-variant=ghost], [data-variant=danger]):hover { background: var(--chip); filter: none; }
 .icon-button[data-variant=danger]:hover { color: var(--error); }

@@ -6,16 +6,22 @@ import index from '../ui/index.html';
 const BASE = '/_ui/';
 let bundled: Promise<Map<string, Response>> | undefined;
 
+// Tailwind (src/ui/tailwind.css) for this build; a compiled binary carries its UI built already, so the plugin and its
+// native scanner stay out of it: the name is not a literal the bundler would follow.
+const TAILWIND = 'bun-plugin-tailwind';
+const tailwind = (): Promise<Bun.BunPlugin> => import(TAILWIND).then((m) => m.default);
+
 function bundle() {
-  return bundled ??= Bun.build({
+  return bundled ??= tailwind().then((plugin) => Bun.build({
     entrypoints: [resolve(import.meta.dir, '../ui/index.html')],
     target: 'browser',
     splitting: true,
     minify: true,
+    plugins: [plugin],
     define: { 'process.env.NODE_ENV': '"production"' },
     publicPath: BASE,
     naming: { entry: '[name]-[hash].[ext]', chunk: 'chunk-[hash].[ext]', asset: '[name]-[hash].[ext]' },
-  }).then((result) => {
+  })).then((result) => {
     if (!result.success) throw new AggregateError(result.logs, 'Could not bundle Seismic’s UI');
     const files = new Map<string, Response>();
     for (const output of result.outputs) {

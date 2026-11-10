@@ -2,7 +2,7 @@
 
 ## Goal
 
-Seismic's UI is hand-written CSS (`styles.css`, ~3,200 lines, with `frost.css` on top) and our own
+Seismic's UI is hand-written CSS (`styles.css`, ~3,200 lines, frost's look and tokens merged into it) and our own
 components in `src/ui/components/`. Adopt shadcn/ui with Tailwind v4 as the basis instead: its basic
 components (Button, Input, Select, Dialog …), its higher-level ones (Sheet, Command, Accordion,
 Sonner …) and AI Elements (Conversation, Message, Prompt Input) for the conversations. They replace
@@ -24,11 +24,11 @@ in W2.
   `Tooltip`, `Menu` and `Listbox`. Each wraps a Radix Primitive (single `radix-ui` package), follows
   shadcn's API and is styled in plain CSS blocks on our tokens. The header of `components/ui.tsx`
   states the conventions.
-- **Styling.** `styles.css` plus `frost.css`, both on CSS variables (`--card`, `--ink`, `--chip`, the
+- **Styling.** `styles.css`, one stylesheet on one set of CSS variables (`--card`, `--ink`, `--chip`, the
   state colours `--working`, `--waiting`, `--approved` …), light and dark via `data-theme`. Frost
   turns cards, sheets, dialogs and menus into frosted glass over a gradient board; `frost.ts` drops the
-  blur while the canvas moves, which keeps ~100 cards at 60 fps. Bun bundles the UI from `index.html`
-  with no PostCSS or Tailwind step.
+  blur while the canvas moves, which keeps ~100 cards at 60 fps. Tailwind and shadcn's tokens are in
+  (W1, below); the one generated part so far is `Badge`, on Configuration's problem counts.
 - **Conversations.** `message.tsx`, `composer.tsx` (voice, screenshots, skill menu, card links),
   `stickToEnd.ts`, `koordinator.tsx` and `chats.tsx`: ~1,700 lines of turns between the owner and
   agents. No tool-call or reasoning streams are shown.
@@ -63,10 +63,15 @@ in W2.
 
 ## Shape
 
-**Build.** Tailwind v4 through Bun's Tailwind plugin (`bun-plugin-tailwind`) in `bun start`, `--hot`
-and `scripts/build.ts`, so the UI keeps one bundling path. `components.json` for the shadcn CLI (the
-Radix build, matching the `radix-ui` package in use), the `cn()` helper (`clsx` + `tailwind-merge`),
-`tw-animate-css` if the generated parts need it. shadcn parts go into `src/ui/components/` (replacing
+**Build** (done in W1). Tailwind v4 through Bun's Tailwind plugin (`bun-plugin-tailwind`): in the
+production build of `bun start` (`src/server/ui.ts`), in `--hot` through `bunfig.toml`'s
+`[serve.static]` plugins, and in `scripts/build.ts`, which compiles with `Bun.build` for it.
+`src/ui/tailwind.css` is linked by `index.html` beside `styles.css`, never imported by it: the plugin
+compiles (and its optimizer rewrites) the whole file that imports Tailwind, which turned the finished
+cards' color-mix into solid green when the stylesheet imported it. `components.json` for the shadcn CLI (the
+Radix build, matching the `radix-ui` package in use; `@/*` is `src/ui/*` in `tsconfig.json`). The
+CLI writes `cn` from shadcn's own `cn` package (a compiled clsx + tailwind-merge), so that is the
+helper, with no `lib/utils.ts`; `tw-animate-css` if the generated parts need it. shadcn parts go into `src/ui/components/` (replacing
 our same-named files), AI Elements into `src/ui/components/ai/`. Generated files are ours once
 copied: edited freely, with frost's needs written into them rather than patched over by overrides.
 
@@ -76,16 +81,28 @@ for light and dark: `--background` the board, `--card` the glass, `--primary` fr
 state colours (`--working`, `--waiting`, `--approved` …) and frost's glass tokens (`--glass`,
 `--glass-edge`, the blur) are registered with Tailwind (`@theme inline`) as extra tokens, so
 `bg-waiting` and `bg-glass` exist. `data-theme` keeps switching light and dark (Tailwind's `dark:`
-variant is pointed at it), and the blur-while-moving behaviour of `frost.ts` stays as it is. W1
-writes the exact mapping table as a comment in the token file and keeps `frost.css` only for what is
-not a token (the gradient board, the glass recipe).
+variant is pointed at it, else the system's dark), and the blur-while-moving behaviour of `frost.ts`
+stays as it is. The mapping table is the header of `tailwind.css`, whose variables refer to frost's
+(`--background: var(--bg)`), so the theme blocks of `styles.css` stay the one place for values while
+the old rules still read them; W8 moves the values into the token file and leaves of the old CSS only
+what is not a token (the gradient board, the glass recipe). Frost's `--muted` (secondary text) was
+renamed `--muted-foreground`, shadcn's name for it, since shadcn's `--muted` is a fill.
 
 **Coexistence.** Tailwind's preflight resets every element, which would shift the hand-styled UI.
 So Tailwind comes in with preflight off and `styles.css` still loaded; utilities are layered
 (`@layer`) so that the old stylesheet and the new parts do not fight by specificity. Each workstream
 converts its views and deletes their CSS; preflight comes on in the last workstream, when `styles.css`
 is gone. Until then, a part that needs a reset (a `button` or `input` shadcn assumes is bare) carries
-it itself.
+it itself. Tailwind generates a utility for every word in `src/ui` that names one, and the utility
+applies to any element with that class: W1 renamed the old classes that shared a utility's name
+(`.hidden`, `.fixed`, `.inline`, `.ring`, `.table`, `.grow`, `.visible`), and `tailwind.test.ts`
+fails when a class the old stylesheets style is a utility.
+
+**Baseline** (W1, 2026-11-10, for W7's comparison). Bundle (all chunks, minified): JS 12.46 MB →
+12.49 MB (2.71 → 2.72 MB gzip; the `cn` package and cva), CSS 445 KB → 462 KB (199 → 202 KB gzip).
+Frame rate while panning, 100 cards at the overview zoom, 2560×1353, headless Chromium without a GPU
+(`moving` set, so no blur): 34.5 fps before and after Tailwind, measured by wheel events each frame
+for 4 s, three runs each.
 
 **AI Elements.** Only the parts with something to show. *Conversation* replaces `stickToEnd` and adds
 scroll-to-latest. *Message* is used as is. *Prompt Input* gets our voice (push-to-talk), screenshots,

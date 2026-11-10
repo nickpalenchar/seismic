@@ -342,7 +342,7 @@ export function Doc({ md, mark, markRef }: { md: string; mark?: string; markRef?
           return null;
         case 'table':
           return (
-            <div key={i} className="table">
+            <div key={i} className="table-wrap">
               <Table head={b.head} rows={b.rows} />
             </div>
           );

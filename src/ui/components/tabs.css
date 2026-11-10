@@ -1,16 +1,16 @@
 /* Tabs (tabs.tsx). Their look only: margins and alignment are the container's. */
 
 .tabs-list[data-variant=segmented] { display: inline-flex; background: var(--chip); border-radius: 3px; padding: 3px; gap: 2px; }
-.tabs-list[data-variant=segmented] .tabs-trigger { border: 0; background: transparent; border-radius: 2px; padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }
+.tabs-list[data-variant=segmented] .tabs-trigger { border: 0; background: transparent; border-radius: 2px; padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer; color: var(--muted-foreground); }
 .tabs-list[data-variant=segmented] .tabs-trigger[data-state=active] { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
 
 .tabs-list[data-variant=underline] { display: flex; flex-wrap: wrap; gap: 4px 16px; border-bottom: 1px solid var(--line); }
-.tabs-list[data-variant=underline] .tabs-trigger { border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); padding: 8px 2px; font: inherit; font-size: 14px; cursor: pointer; overflow-wrap: anywhere; }
+.tabs-list[data-variant=underline] .tabs-trigger { border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted-foreground); padding: 8px 2px; font: inherit; font-size: 14px; cursor: pointer; overflow-wrap: anywhere; }
 .tabs-list[data-variant=underline] .tabs-trigger:hover { color: var(--ink); }
 .tabs-list[data-variant=underline] .tabs-trigger[data-state=active] { border-bottom-color: var(--waiting); color: var(--ink); font-weight: 600; }
 
 .tabs-list[data-variant=pill] { display: flex; gap: 6px; }
-.tabs-list[data-variant=pill] .tabs-trigger { font: inherit; font-size: 13px; padding: 4px 14px; border-radius: 14px; border: 1px solid var(--line, currentColor); background: transparent; color: var(--muted); cursor: pointer; }
+.tabs-list[data-variant=pill] .tabs-trigger { font: inherit; font-size: 13px; padding: 4px 14px; border-radius: 14px; border: 1px solid var(--line, currentColor); background: transparent; color: var(--muted-foreground); cursor: pointer; }
 .tabs-list[data-variant=pill] .tabs-trigger[data-state=active] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
 

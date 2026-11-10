@@ -193,7 +193,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
       <div className="menu-page" inert={page !== 'main'}>
         {/* in the app on a Mac the traffic lights take the head; the inbox's entry follows under it */}
         <div className="nav-head" {...drag}>
-          {!titlebar && <ul className="menu-list grow">{inbox}</ul>}
+          {!titlebar && <ul className="menu-list expand">{inbox}</ul>}
           {pin}
         </div>
         <ul className="menu-list">

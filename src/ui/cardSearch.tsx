@@ -48,7 +48,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
     onEscape: (e) => (e.stopPropagation(), close()),
   });
   return (
-    <div className={hidden ? 'bar-search hidden' : 'bar-search'} ref={box}>
+    <div className={hidden ? 'bar-search away' : 'bar-search'} ref={box}>
       <Search className="bar-search-icon" size={15} strokeWidth={2} aria-hidden />
       <input
         ref={field}

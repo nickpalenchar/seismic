@@ -30,6 +30,7 @@ import { canNotify, notificationsChanged, type Permission, permission, requestPe
 import { WishLink } from './wish';
 import { projectPath } from './address';
 import { scrollBehavior } from './motion';
+import { Badge } from './components/badge';
 import { Button, CloseButton, IconButton, LinkButton } from './components/button';
 import { Checkbox } from './components/checkbox';
 import { CheckLabel } from './components/check-label';
@@ -404,9 +405,9 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                     {c.sections.projects}
                     {changed && !draft.some((_, i) => projectChanged(i)) && <span className="cfg-dot" title={c.unsaved} />}
                     {overall.length > 0 && (
-                      <span className="n err" title={c.problemCount(overall.length)}>
+                      <Badge variant="destructive" className="ml-auto" title={c.problemCount(overall.length)}>
                         {overall.length}
-                      </span>
+                      </Badge>
                     )}
                   </span>
                   <ul role="presentation">
@@ -419,9 +420,9 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
                             <span className="cfg-nav-name">{projectName(x, i)}</span>
                             {projectChanged(i) && <span className="cfg-dot" title={c.unsaved} />}
                             {n > 0 && (
-                              <span className="n err" title={c.problemCount(n)}>
+                              <Badge variant="destructive" className="ml-auto" title={c.problemCount(n)}>
                                 {n}
-                              </span>
+                              </Badge>
                             )}
                           </TabsTrigger>
                         </li>

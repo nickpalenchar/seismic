@@ -565,7 +565,7 @@ export function CanvasRing({ at: pointer, count, canvases, shown, onPick, onClos
   const caption = hc ? (hc.id === shown ? t.canvases.ringHere : hc.name) : t.canvases.ringCaption(count);
   return (
     <div id="ringback" onPointerMove={(e) => setHot(aimed(e))} onPointerDown={(e) => (e.preventDefault(), pick(aimed(e)))} onContextMenu={(e) => e.preventDefault()}>
-      <div className={`ring${open ? ' open' : ''}`} style={{ left: at.x, top: at.y }}>
+      <div className={`radial${open ? ' open' : ''}`} style={{ left: at.x, top: at.y }}>
         <div className="rhalo" />
         {canvases.map((c, k) => (
           <div

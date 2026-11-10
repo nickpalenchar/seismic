@@ -359,7 +359,7 @@ export function PushToTalk({ phase, level, flat, target, field, slot, onDown, in
             // held by a finger, it shows no menu
             onContextMenu={(e) => e.preventDefault()}
           >
-            <span className="ring" />
+            <span className="mic-ring" />
             <MicIcon />
           </button>
         </Tooltip>
@@ -368,7 +368,7 @@ export function PushToTalk({ phase, level, flat, target, field, slot, onDown, in
     <div id="ptt" className={`${phase}${shots.dropping ? ' dropping' : ''}${instead ? ' switching' : ''}`} {...shots.drop}>
       {instead && phase === 'listening' && (
         <div id="mic" className="listen" style={{ ['--lvl' as string]: 1 + level * 0.45 }} aria-hidden="true">
-          <span className="ring" />
+          <span className="mic-ring" />
           <MicIcon />
         </div>
       )}

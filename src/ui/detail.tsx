@@ -2810,7 +2810,7 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
     const open = waits !== flipped.has(i.number);
     const task = i.status === 'followUp' && i.card ? cards.items.find((x) => x.id === i.card) : undefined;
     const pill = (
-      <span className={`f-pill ${i.status}`} title={t.codeReview.statusHint[i.status]}>
+      <span className={`f-pill ${i.status === 'fixed' ? 'done-fix' : i.status}`} title={t.codeReview.statusHint[i.status]}>
         {i.status === 'fixed' && <Check size={11} strokeWidth={2.5} aria-hidden="true" />}
         {t.codeReview.status[i.status]}
       </span>
@@ -3568,7 +3568,7 @@ function ManualFields({ item, repos, choice, fresh, onEdit, grow }: { item: Item
       <div className={`p-body-field${shots.dropping ? ' dropping' : ''}`} {...shots.drop}>
         <ShotStrip shots={shots} />
         {/* a proposal's text shows in full as far as the screen allows, the panel growing with it */}
-        <div className={grow ? 'c-field grow' : 'c-field'}>
+        <div className={grow ? 'c-field expand' : 'c-field'}>
           <LinkField
             ref={ref}
             self={item}
