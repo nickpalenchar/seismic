@@ -33,11 +33,12 @@ export const uiPortal = (): HTMLElement | null => document.getElementById(PORTAL
 
 /**
  * Whether a Radix layer (menu, popover, dialog, tooltip, select) is open: it takes Esc before
- * anything under it, so App's handler leaves the key to it.
+ * anything under it, so App's handler leaves the key to it. `$=open` because a tooltip's states are
+ * `delayed-open` and `instant-open`, never `open`.
  */
 export const layerOpen = (): boolean =>
   !!document.querySelector(
-    `#${PORTAL_ID} :is([role=dialog], [role=alertdialog], [role=menu], [role=listbox], [role=tooltip])[data-state=open], [data-radix-popper-content-wrapper] > [data-state=open]`,
+    `#${PORTAL_ID} :is([role=dialog], [role=alertdialog], [role=menu], [role=listbox], [role=tooltip])[data-state$=open], [data-radix-popper-content-wrapper] > [data-state$=open]`,
   );
 
 /** The app and the portal container beside it, both inside the root element; the app mounts once the container exists. */
