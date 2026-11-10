@@ -584,6 +584,35 @@ export function textOf(data: Uint8Array): string | null {
   return new TextDecoder().decode(data);
 }
 
+/** A stream's bytes, read no further than `VERSION_LIMIT`: null once it holds more (`stop` ends what feeds it). */
+export async function boundedBytes(stream: ReadableStream<Uint8Array>, stop: () => void): Promise<Uint8Array | null> {
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for await (const chunk of stream) {
+    total += chunk.length;
+    if (total > VERSION_LIMIT) {
+      stop();
+      return null;
+    }
+    chunks.push(chunk);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) (out.set(c, at), (at += c.length));
+  return out;
+}
+
+/** A file's text for a diff to show whole, without reading one over `VERSION_LIMIT` into memory; null for none, a binary or a big one. */
+export async function boundedFileText(path: string): Promise<string | null> {
+  try {
+    const f = Bun.file(path);
+    if (f.size > VERSION_LIMIT) return null;
+    return textOf(new Uint8Array(await f.slice(0, VERSION_LIMIT + 1).arrayBuffer()));
+  } catch {
+    return null;
+  }
+}
+
 export function ownFile(root: string, path: string): FileAt | null {
   const at = demoFile(root, path);
   try {
@@ -1800,13 +1829,14 @@ export class Workstations implements CardWorkstations {
       }
       const show = async (ref: string, name: string) => {
         const p = Bun.spawn([GIT, 'show', `${ref}:${name}`], { cwd: ws, stdout: 'pipe', stderr: 'ignore' });
-        const data = new Uint8Array(await new Response(p.stdout).arrayBuffer());
-        return (await p.exited) === 0 ? { data } : null;
+        const data = await boundedBytes(p.stdout, () => p.kill());
+        return (await p.exited) === 0 && data ? textOf(data) : null;
       };
-      const before = await show(base, from);
-      const after = to ? await show(to, path) : ownFile(ws, path);
-      const read = async (f: FileAt | null) => (!f ? null : textOf('path' in f ? new Uint8Array(await Bun.file(f.path).arrayBuffer()) : f.data));
-      return { old: await read(before), new: await read(after) };
+      const here = async (name: string) => {
+        const f = ownFile(ws, name);
+        return f && 'path' in f ? boundedFileText(f.path) : null;
+      };
+      return { old: await show(base, from), new: to ? await show(to, path) : await here(path) };
     } catch {
       return null;
     }

@@ -1176,6 +1176,12 @@ describe('workers', () => {
     expect(await workers.fileVersions(c.id, 'README.md')).toEqual({ old: before, new: 'hello\nworld\nloose\n' });
     expect(await workers.fileVersions(c.id, 'new.ts')).toEqual({ old: null, new: 'export {}\n' });
     expect((await workers.fileVersions(c.id, 'blob.bin'))!.new).toBeNull();
+    // a file over the limit is refused without being read whole: on disk, and as git holds it
+    writeFileSync(join(clone, 'big.txt'), 'x'.repeat(2_100_000));
+    expect((await workers.fileVersions(c.id, 'big.txt'))!.new).toBeNull();
+    git(clone, 'add', 'big.txt');
+    git(clone, 'commit', '--quiet', '-m', 'Big');
+    expect((await workers.fileVersions(c.id, 'big.txt'))!.new).toBeNull();
     // a file the change does not touch, and a path out of the workstation
     writeFileSync(join(main, 'other.ts'), 'x\n');
     git(main, 'add', '.');

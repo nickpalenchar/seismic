@@ -16,7 +16,7 @@ import type { PoolHost } from '../core/types';
 import { messageOf } from '../core/text';
 import type { Store } from './store';
 import { spawnOutput } from './spawn';
-import { type CardWorkstations, type Change, type FileAt, type FileVersions, GIT, ownFile, textOf, type LandProblem, type Landed, type Lease, WorkstationError } from './workstations';
+import { type CardWorkstations, type Change, type FileAt, type FileVersions, GIT, boundedFileText, ownFile, type LandProblem, type Landed, type Lease, WorkstationError } from './workstations';
 
 /** A file or directory as the manifest has it. */
 export interface Entry {
@@ -581,10 +581,7 @@ export class FolderWorkstations implements CardWorkstations {
   async versionsOf(cardId: string, path: string): Promise<FileVersions | null> {
     const t = this.rec(cardId)?.changes.find((c) => c.path === path && !c.dir);
     if (!t) return null;
-    const read = async (p: string | null) => {
-      const f = p && (await Bun.file(p).arrayBuffer().then((b) => new Uint8Array(b), () => null));
-      return f ? textOf(f) : null;
-    };
+    const read = (p: string | null) => (p ? boundedFileText(p) : Promise.resolve(null));
     const was = t.kind === 'added' ? null : await this.copyOf(cardId, [t.from ?? path, path], t.before);
     const now = t.kind === 'deleted' ? null : ownFile(this.root, path);
     return { old: await read(was), new: await read(now && 'path' in now ? now.path : null) };
