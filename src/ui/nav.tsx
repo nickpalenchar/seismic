@@ -11,7 +11,7 @@ import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
 import { CanvasIcon } from './canvasIcon';
 import { Sign, Wordmark } from './logo';
-import { leaveMenu, Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
+import { closeBarMenus, leaveMenu, Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
 import { ProjectAgents } from './parts';
 import { t } from './strings';
 import { openWish } from './wish';
@@ -311,6 +311,12 @@ function ProjectRow({ project: c, here, repos, onGo }: { project: ProjectInfo; h
       aria-current={here ? 'page' : undefined}
       onClick={(e) => {
         onGo?.();
+        // switchTo prevents the link's click. Radix then skips MenuItem's select/close,
+        // so dismiss the dropdown explicitly before navigating within the page.
+        if (menu && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+          leaveMenu();
+          closeBarMenus();
+        }
         switchTo(e, projectPath(c.id));
       }}
     >
