@@ -1,0 +1,163 @@
+# shadcn/ui with Tailwind, in frost
+
+## Goal
+
+Seismic's UI is hand-written CSS (`styles.css`, ~3,200 lines, with `frost.css` on top) and our own
+components in `src/ui/components/`. Adopt shadcn/ui with Tailwind v4 as the basis instead: its basic
+components (Button, Input, Select, Dialog …), its higher-level ones (Sheet, Command, Accordion,
+Sonner …) and AI Elements (Conversation, Message, Prompt Input) for the conversations. They replace
+the hand-written CSS and the components we wrote on Radix, until no bespoke control and no
+container-scoped control styling is left. Seismic keeps the **frost** look: the shadcn parts wear
+frost's glass, gradient board and state colours, in light and dark, on desktop and phone. What the
+owner gets is one consistent, maintained component set, a conversation view with scroll-to-latest and
+a standard message layout, and new views built from ready-made parts.
+
+This plan takes over the unfinished work of the Radix plan (Popover, Select, Dialog, chips and fields,
+close-out; stopped 2026-11-10), which landed Button, Switch, Checkbox, Segmented, Radio, Tabs,
+Tooltip, Menu and Listbox in `src/ui/components/`. Those stay in use and are regenerated from shadcn
+in W2.
+
+## Today
+
+- **Components.** `src/ui/components/` holds the toast, `Button` (variants, `armed`, `suggested`),
+  `Switch`, `Checkbox` and its label, `SegmentedControl`/`ToggleGroup`, `RadioGroup`, `Tabs`,
+  `Tooltip`, `Menu` and `Listbox`. Each wraps a Radix Primitive (single `radix-ui` package), follows
+  shadcn's API and is styled in plain CSS blocks on our tokens. The header of `components/ui.tsx`
+  states the conventions.
+- **Styling.** `styles.css` plus `frost.css`, both on CSS variables (`--card`, `--ink`, `--chip`, the
+  state colours `--working`, `--waiting`, `--approved` …), light and dark via `data-theme`. Frost
+  turns cards, sheets, dialogs and menus into frosted glass over a gradient board; `frost.ts` drops the
+  blur while the canvas moves, which keeps ~100 cards at 60 fps. Bun bundles the UI from `index.html`
+  with no PostCSS or Tailwind step.
+- **Conversations.** `message.tsx`, `composer.tsx` (voice, screenshots, skill menu, card links),
+  `stickToEnd.ts`, `koordinator.tsx` and `chats.tsx`: ~1,700 lines of turns between the owner and
+  agents. No tool-call or reasoning streams are shown.
+- **What is still hand-built** (the inventory of the Radix plan, audit of 2026-11-09, counts from grep
+  and may be off by a few; each workstream recounts its family and the family leaves this list when it
+  is done):
+  - *Popovers*: workstations and usage pills, the status pills' interactive tips (`.tip.why`,
+    `.tip.risk`: pure CSS hover, not keyboard reachable), the StartAgent options panel, the snooze
+    date-time form, the archive drop-down, the canvas drawer (hover-opened). Dismissal by
+    `useMenuClose` (`queue.tsx`: outside `pointerdown`, Esc, the `obeya:close-bar-menus` event) and
+    hand-copied variants in `parts.tsx`, `usage.tsx`, `cardSearch.tsx`.
+  - *Selects*: ~30 native `<select>`s (Preferences, Configuration → Agents, Demos, Cloudflare,
+    project site, Devices, Project settings, StartAgent, Koordinator, Feedback log filters,
+    Performance, Setup, the card's "build on" workstream, the phone's project switcher), styled only
+    inside the settings dialogs.
+  - *Dialogs*: Configuration, Preferences, Performance (the only one with a focus trap), Connect a
+    phone, Help and the new-card hint, Report a wish, the merge picker, the canvas dialog, seven
+    confirms sharing the `.review-approval-*` look copied seven times; dialog-like without a role:
+    Setup, the Diff view, the screenshot lightbox, the demo video zoom, the artifact image.
+  - *Chips, pills, badges*: bar pills (~90 selectors), count badges in five contexts with their own
+    CSS, card badges, stage/label/tag/file chips, the card-link pill built as raw DOM inside the
+    contentEditable.
+  - *Fields*: text inputs and textareas styled by container (`:is(#config,#prefs,#project-settings)
+    input`, `#wish .w-issue` …; ~51 in Configuration, 9 in Setup); `datetime-local` in snooze.
+  - *Folds and progress*: native `<details>`, line-clamp "more/less", `aria-expanded` folds; the usage
+    meter and reshare bar without `role=progressbar`.
+  - *Esc*: `App.tsx` routes Esc centrally and skips when `.lightbox`, `.demo-zoom`, `.diff-view` or
+    `.start-agent-menu` is in the DOM; about fifteen components add their own Esc listeners.
+- **Phone.** `phone.tsx` is its own root but reuses the desktop components, so a migrated component
+  migrates the phone with it. Phone-only: back and new buttons, the talk pill, the project switcher,
+  the draggable talk panel; phone CSS enlarges touch targets for a few shared controls.
+
+## Shape
+
+**Build.** Tailwind v4 through Bun's Tailwind plugin (`bun-plugin-tailwind`) in `bun start`, `--hot`
+and `scripts/build.ts`, so the UI keeps one bundling path. `components.json` for the shadcn CLI (the
+Radix build, matching the `radix-ui` package in use), the `cn()` helper (`clsx` + `tailwind-merge`),
+`tw-animate-css` if the generated parts need it. shadcn parts go into `src/ui/components/` (replacing
+our same-named files), AI Elements into `src/ui/components/ai/`. Generated files are ours once
+copied: edited freely, with frost's needs written into them rather than patched over by overrides.
+
+**Tokens.** shadcn's variables (`--background`, `--foreground`, `--card`, `--primary`, `--muted`,
+`--accent`, `--border`, `--ring`, `--radius` …) become the one token set, with values taken from frost
+for light and dark: `--background` the board, `--card` the glass, `--primary` frost's blue. Seismic's
+state colours (`--working`, `--waiting`, `--approved` …) and frost's glass tokens (`--glass`,
+`--glass-edge`, the blur) are registered with Tailwind (`@theme inline`) as extra tokens, so
+`bg-waiting` and `bg-glass` exist. `data-theme` keeps switching light and dark (Tailwind's `dark:`
+variant is pointed at it), and the blur-while-moving behaviour of `frost.ts` stays as it is. W1
+writes the exact mapping table as a comment in the token file and keeps `frost.css` only for what is
+not a token (the gradient board, the glass recipe).
+
+**Coexistence.** Tailwind's preflight resets every element, which would shift the hand-styled UI.
+So Tailwind comes in with preflight off and `styles.css` still loaded; utilities are layered
+(`@layer`) so that the old stylesheet and the new parts do not fight by specificity. Each workstream
+converts its views and deletes their CSS; preflight comes on in the last workstream, when `styles.css`
+is gone. Until then, a part that needs a reset (a `button` or `input` shadcn assumes is bare) carries
+it itself.
+
+**AI Elements.** Only the parts with something to show. *Conversation* replaces `stickToEnd` and adds
+scroll-to-latest. *Message* is used as is. *Prompt Input* gets our voice (push-to-talk), screenshots,
+skill menu and card links grafted on. A small adapter maps our message items to the components' props;
+the Vercel AI SDK is not adopted. *Reasoning*, *Tool* and *Chain of Thought* wait until Seismic shows
+agents' tool calls.
+
+**Layers and Esc.** Radix layers dismiss themselves on Esc and outside click and portal under `body`:
+into a container inside the app root, so `data-theme` and frost apply. App's central Esc handler
+leaves an open layer alone (one rule: an open layer, e.g. a dialog or popper content with
+`data-state=open`, takes Esc first) instead of the class list; each workstream deletes its family's
+class from the old list, and `useMenuClose` and the `obeya:close-bar-menus` event go when their last
+caller does.
+
+**Behaviour kept.** Esc order (`layerOpen`: the innermost layer first, then the card); menus closing
+when the canvas moves (`closeBarMenus`); Space for push-to-talk not stolen by a focused control; the
+first tap acting while the phone keyboard is open; unsent input surviving closed dialogs
+(`forceMount`); the phone view following the desktop one. Accepted changes where Radix is the
+standard: roving focus and arrow keys in groups, tabs and menus, typeahead, focus trapped in modal
+dialogs and returned to the opener.
+
+**Stays our own.** The canvas itself: card faces' layout, the radial right-click rings, the cite
+button anchored to a selection, the lasso's "group" button, the camera, the dock's resize grip. They
+are restyled with Tailwind on the same tokens but not replaced by library parts. Non-modal side
+panels (the chats drawer, the phone's talk panel, the full-page view) keep their own shell; the dock
+sheets move onto Sheet only as far as Sheet's non-modal mode fits (W4).
+
+## Workstreams
+
+Each workstream converts every use in its family (desktop and phone), deletes the CSS and contextual
+overrides it replaces, removes its family from "Today", and shows desktop and phone in light and dark
+(frost on) in its demo, with the keyboard path (Tab, arrows, Esc) for the controls it touched.
+`config.tsx` and `detail.tsx` are touched by almost every workstream: workers rebase often and keep
+their changes to the controls, not the layout around them.
+
+- [ ] **W1:** Foundations and tokens. `tailwindcss` and `bun-plugin-tailwind` wired into `bun start`, `--hot` and `scripts/build.ts` (Tailwind with preflight off, utilities layered under the old CSS); `components.json`, `cn()`, the `@` alias if the CLI needs it; shadcn's variables defined from frost's values in light and dark, with Seismic's state and glass tokens registered as extra Tailwind tokens and `dark:` bound to `data-theme`; the portal container; App's Esc handler made layer-aware. Proved by one generated part (e.g. `Badge`) used once with no visible change to the rest of the UI. Tests still pass and the bundle size and the blur-while-moving frame rate are measured once as a baseline. M.
+- [ ] **W2:** Basic components regenerated from shadcn. Button, Switch, Checkbox, ToggleGroup (the segmented control), RadioGroup, Tabs, Tooltip and DropdownMenu replace our wrappers' CSS and markup. They keep our extras: `armed` and `suggested` on Button, tabs with manual activation for the canvas strip and change list, closing on `closeBarMenus`, the left menu docked-versus-dropdown context, `layerOpen`. IconButton and CloseButton stay as thin compositions. The `.btn`, `.seg`, `.pill`-toggle and related contextual overrides for these are deleted. L (may land in two cards: Button first, since every later part composes it, then the rest).
+- [ ] **W3:** The stopped families as shadcn parts. Popover (workstations and usage pills, the status pills' interactive tips, the StartAgent panel, the snooze date-time form, the archive drop-down; the canvas drawer keeps opening on hover through controlled open); Select (the ~30 native selects, with the phone's project switcher deciding between Select and the native picker on touch, checked in the Android emulator); Dialog and AlertDialog (Configuration, Preferences, Performance, Connect a phone, Help and the new-card hint, Report a wish, the merge picker, the canvas dialog; `forceMount` where input must survive closing; one `ConfirmDialog` for the seven confirms; Setup, the Diff view and the lightbox move onto Dialog where their behaviour fits, the rest is listed as staying our own). Delete `useMenuClose` and the hand-copied outside-click code. L; split into three cards: Popover, Select, Dialog.
+- [ ] **W4:** Fields, badges and folds. Input and Textarea (one look, not by container: `#config input`, `#wish .w-issue`, `textarea.p-title` and their kin go), Badge for count badges and card pins, chips (filter, label, tag with remove; the raw-DOM card-link pill shares the chip classes), Collapsible and Accordion for folds with a trigger and a region (finding folds, merge toggle, performance rows, config and detail `<details>`), Progress for the usage meter and reshare bar. M–L; Input/Textarea and Badge/chips may land apart.
+- [ ] **W5:** Higher-level parts. Sheet for the right-dock sheets (non-modal where the canvas stays usable beside it, keeping the dock's own resize grip), Command for the card finder and merge picker (replaces `Listbox` where the input is a plain field; the composer's skill menu and card-link menu sit in a textarea/contentEditable and keep `Listbox` unless Command fits there), Sonner behind the existing toast store so every toast still goes through it. M–L.
+- [ ] **W6:** AI Elements in the conversations. The message-item adapter; Conversation replaces `stickToEnd` (with scroll-to-latest and the unsent/unread behaviour intact); Message for turns in cards, chats and the Koordinator; Prompt Input as the one composer with voice, screenshots, skill menu and card links grafted on, working the same on every card kind and on the phone (keyboard open, first tap acts, Space for push-to-talk). Attachments and unsent input keep surviving close and reload. L; split into Conversation and Message, then Prompt Input.
+- [ ] **W7:** The remaining views and the canvas chrome. Every view still on `styles.css` after W2–W6 (card detail, plan cards and card faces' chrome, the top and status bars, the inbox, usage, feedback log, the phone's own controls, toasts) converted to Tailwind on the shared tokens, family by family; the canvas elements that stay our own restyled the same way. Frost's glass checked in dark mode on every part, and the blur-while-moving frame rate against W1's baseline. L; as many cards as there are views (about three).
+- [ ] **W8:** Close-out. Preflight on, `styles.css` gone and `frost.css` reduced to the board and glass recipe; a check that fails on a bespoke control (a test grepping `src/ui` outside `src/ui/components/` for `className="btn`, `role="switch"`, `<select`, `role="dialog"`, `role="menu"`, `useMenuClose`); the docs updated as the next paragraph says; this plan doc and its link in The canvas deleted. S–M.
+
+## Boundaries
+
+W1 goes first and W2's Button before everything else, since every later part composes it. W3, W4
+and W5 are independent once W2 has landed, except that W3's Popover precedes W5's Sheet and Command
+(same positioning and Esc plumbing) and the Dialog card precedes the `ConfirmDialog` users in W4.
+W6 needs W2 (Button, Tooltip, Menu) and W3's Popover; it can run beside W4 and W5. W7 starts after
+W2 for the views that need only basic parts and waits on the others for the rest. W8 is last. Two
+styling systems coexist from W1 to W8, so each workstream deletes the CSS of what it converts in the
+same change: a view is never half Tailwind, half old CSS.
+
+Docs, done by the workstream they belong to: W1 rewrites the decision "The look is frost, on our own
+stylesheet and Radix Primitives" in [The canvas](../design/the-canvas.md) (chosen: shadcn/ui with
+Tailwind in frost, 2026-11-10; rejected: our own CSS on Radix Primitives, shadcn's neutral look, the
+2026-11-09 "no Tailwind" choice and why it was reversed), the header of `components/ui.tsx` and the CLAUDE.md line "New UI uses
+the components in `src/ui/components/` …" (now: shadcn parts with Tailwind on frost's tokens, AI
+Elements for conversations, new parts added through the shadcn CLI); W8 describes the component set in
+"Visual identity" as behaviour (keyboard, Esc order, focus) where a rebuild needs it.
+
+Risks: visual regressions while two styling systems coexist (screenshots per workstream); the
+preflight switch at the end (W8 turns it on only when nothing depends on the old reset; W7 runs with
+the rest of the UI already reset-safe); frost's glass on shadcn parts in dark mode (checked per
+part, not only per view); frame rate with the blur on many Tailwind-styled cards; the phone layout,
+where portals and the on-screen keyboard meet (checked in the Android emulator for W3 and W6); focus
+moving where today's code left it, most of all Space for push-to-talk while a control has focus.
+
+Decisions (owner, 2026-11-10): shadcn/ui with Tailwind, adopted wholesale, reversing the
+2026-11-09 "no Tailwind" decision. Rejected: porting shadcn's behaviour into our CSS, Tailwind only in
+the conversations, and shadcn's own neutral look on our CSS. Frost stays: its tokens feed shadcn's
+variables. The Radix plan's open workstreams are built directly as shadcn parts here, not first on our
+CSS. Preflight scoping, the exact token mapping and where workstreams split are the plan writer's
+calls, the workers' to adjust.
