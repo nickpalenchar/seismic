@@ -105,7 +105,7 @@ export interface MenuActions {
   onArchived: () => void;
   onProjectSettings: () => void;
   /** Which of the open project's views is showing, marked in the menu. */
-  showing?: 'archived' | 'settings';
+  showing?: 'archived' | 'inbox' | 'settings';
   /** The configuration: every project, its repositories, Seismic's agents, voice, demos. */
   onConfig: () => void;
   onPrefs: () => void;
@@ -176,7 +176,7 @@ function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; t
     </button>
   );
   const inbox = (
-    <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} onClick={run(p.onInbox)} end={p.inboxCount > 0 && <span className="waits">{p.inboxCount}</span>} />
+    <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} onClick={run(p.onInbox)} end={p.inboxCount > 0 && <span className="waits">{p.inboxCount}</span>} />
   );
   return (
     <div className={page === 'agents' ? 'menu-pages sub' : 'menu-pages'}>

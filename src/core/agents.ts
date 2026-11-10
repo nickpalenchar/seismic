@@ -1,6 +1,6 @@
-// What the Agents sheet's "All" tab lists: the project's cards in the stage of their lifecycle they
-// are at, first those that need the owner, whatever their kind. Queued cards are in the "Queue" tab
-// instead; finished, archived and parked cards (the "Parked" tab lists those), and ideas the owner has nothing to answer on, are not listed.
+// The stage of its lifecycle a card is at, as the phone's "All" groups the project's cards and the
+// desktop's Agent work sorts them into "Working" and "Todo". Finished, archived and parked cards (the
+// "Parked" tab lists those), and ideas the owner has nothing to answer on, are at none.
 
 import { type Item, needsYou, inParkingLot } from './types';
 
@@ -27,7 +27,15 @@ export function agentStage(i: Item, underway = false): AgentStage | undefined {
   return 'working';
 }
 
-/** The cards by stage, in the order of `AGENT_STAGES`; a stage without a card is left out. */
-export function byStage(items: Item[], underway: (id: string) => boolean = () => false): { stage: AgentStage; items: Item[] }[] {
-  return AGENT_STAGES.map((stage) => ({ stage, items: items.filter((i) => agentStage(i, underway(i.id)) === stage) })).filter((g) => g.items.length);
+/** The stages Agent work's "Working" holds; "Todo" holds the queue and then the planned cards. */
+const WORKING: readonly AgentStage[] = ['working', 'reviewing', 'fixing', 'landing'];
+
+/**
+ * Agent work's groups: the cards at work (working, code reviewing, review fixing, landing) in the
+ * project's order, and the planned cards that are not queued. Cards that need the owner are in
+ * neither: "Needs you" lists them.
+ */
+export function agentWork(items: Item[], underway: (id: string) => boolean = () => false): { working: Item[]; planned: Item[] } {
+  const stage = (i: Item) => agentStage(i, underway(i.id));
+  return { working: items.filter((i) => WORKING.includes(stage(i)!)), planned: items.filter((i) => stage(i) === 'planned') };
 }

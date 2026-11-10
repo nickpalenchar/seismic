@@ -1323,6 +1323,15 @@ const en = {
     none: 'No cards.',
     filter: 'Show groups',
     allHidden: 'All groups are hidden. Tap one above to show it.',
+    work: {
+      title: 'Agent work',
+      tabs: { work: 'Work', parked: 'Parked', activity: 'Activity' },
+      working: 'Working',
+      todo: 'Todo',
+      queued: 'Queued',
+      noneWorking: 'No agent is at work.',
+      noneTodo: 'Nothing to do: no task is queued or planned.',
+    },
     activity: {
       empty: 'Nothing has happened yet. What happens on the cards from now on shows here.',
       harness: { claude: 'Claude', codex: 'Codex', agy: 'agy' },
@@ -1348,6 +1357,11 @@ const en = {
   },
   needsYou: {
     label: 'Needs you',
+    title: 'Needs you',
+    hideOthers: 'Hide other projects',
+    empty: 'No card waits for you.',
+    noneHere: 'No card waits for you on this project.',
+    project: (name: string, n: number) => `${name}: ${n === 1 ? '1 card waits' : `${n} cards wait`} for you`,
     button: (n: number) => (n === 0 ? 'Needs you: no card waits for you' : n === 1 ? 'Needs you: 1 card waits for you' : `Needs you: ${n} cards wait for you`),
   },
   avatar: 'Your account (coming later)',
@@ -1362,6 +1376,7 @@ const en = {
     unread: 'Unread',
     noneUnread: 'Nothing unread.',
     allProjects: 'All projects',
+    pick: '“Go to card” opens the card here, beside the list.',
   },
   phone: {
     forYou: 'Needs you',

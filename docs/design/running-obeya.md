@@ -135,12 +135,14 @@ On a phone the page shows the phone view instead of the project, at the same add
 same bundle. A phone is a device with a coarse pointer whose screen's shorter side is under 600 px;
 a tablet and a narrow window at the desk keep the project. `?view=phone` or `?view=project` decides
 instead. The view is settled at load; turning the phone does not switch it. It uses each project's
-own WebSocket. Under its top bar it shows the Agents view (see The bar in The canvas) across every
-project, with the desktop sheet's four tabs as a switch across the screen, the one chosen last
+own WebSocket. Under its top bar it shows the Agents view across every
+project, with four tabs as a switch across the screen ("Queue", "All", "Parked", "Activity"; the
+desktop's Agent work, see The bar in The canvas, groups the same cards as "Working" and "Todo" and
+lists those that need the owner in its "Needs you" sheet instead), the one chosen last
 remembered per browser ("All" until one was chosen):
 
 - **"All"**: the cards by stage, under a row of chips (one per stage that has cards, with its
-  count, scrolling sideways) that show or hide each group, as on the desktop. "Needs you" comes first
+  count, scrolling sideways) that show or hide each group. "Needs you" comes first
   and is the inbox (see The bar): what waits for the owner across every project in one list, most
   recently updated first, Seismic's unread answers among them. A new demo or another card update
   moves that card to the top. Each entry names its project, says what it waits for (its state line:
@@ -148,7 +150,7 @@ remembered per browser ("All" until one was chosen):
   the same one-click replies and "Go to card". Snoozed cards stand at the end (see Snoozing a card).
   The desktop's inbox shows the same entries with the latest wait first; both share the entry
   layout and actions, the unread dot and the "Unread | All" switch. Then "Working", "Code reviewing",
-  "Review fixing", "Landing" and "Planned" as on the desktop ("Working" also holding the ideas and
+  "Review fixing", "Landing" and "Planned" ("Working" also holding the ideas and
   questions an agent is at, which the desktop finds on the canvas), snoozed cards at the end of each, and
   last, on the phone only, "Done": the finished cards not archived yet (those the archive's "Archive
   … done tasks" would take), hidden until its chip is tapped. A planned card opened offers what it

@@ -3064,11 +3064,28 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .merge-callout.covered { background: color-mix(in srgb, #41a05a 14%, var(--card)); color: var(--ink); }
 .merge-callout.followUp { background: color-mix(in srgb, #d9a732 15%, var(--card)); color: var(--ink); }
 
-/* the inbox (src/ui/inbox.tsx): what waits for the owner on every project, a docked sheet on the desktop and
-   "Needs you" on the phone. Its entries are panes of glass of their own; the card open now gets a ring and
-   a tint. Beside an open card it stays above the dim, so the owner works down the list */
-#inbox { padding: 20px 14px 30px; }
-#inbox h2 { padding: 0 8px; }
+/* the inbox (src/ui/inbox.tsx): what waits for the owner on every project, a full-page view on the desktop
+   and "Needs you" on the phone. Its entries are panes of glass of their own; the card open now gets a ring
+   and a tint. The view's list keeps to its left, out of the dim beside an open card (App), so the owner
+   works down the list; the card unfolds in the room beside it */
+#inbox-full { flex-direction: row; }
+.inbox-col { flex: none; width: min(480px, max(340px, 36vw)); box-sizing: border-box; overflow: auto; padding: 12px 14px 30px; border-right: 1px solid var(--line); }
+.inbox-col h2 { margin: 0 8px 10px; font-size: 18px; }
+.inbox-room { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; padding: 12px 24px; }
+.inbox-room .hint { align-self: center; margin: auto 0; max-width: 320px; text-align: center; font-size: 13px; }
+#dim { transition: opacity .2s, left 0s; }
+/* "Needs you" (src/ui/needsYou.tsx): the shown project's cards, then every other project folded under its header */
+#needs-you { padding: 20px 14px 30px; }
+#needs-you h2 { padding: 0 8px; }
+#needs-you .inbox-bar { justify-content: flex-end; }
+.ny-project { margin-top: 14px; }
+.ny-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; text-align: left; }
+.ny-head:hover { background: var(--chip); }
+.ny-head svg { flex: none; color: var(--muted); transition: transform .15s; }
+.ny-head.open svg { transform: rotate(90deg); }
+.ny-head .ny-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ny-head .n { border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--waiting); }
+.ny-project .inbox-list { margin-top: 6px; }
 
 .inbox-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .inbox-entry { padding: 12px 14px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--glass-edge, var(--line));
@@ -3156,6 +3173,8 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 #agents .agents-empty { margin: 14px 8px; font-size: 13px; line-height: 1.45; }
 .agents-stage h3 { margin: 18px 8px 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .agents-stage h3 .count { font-weight: 400; }
+.agents-stage h4 { margin: 10px 8px 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.agents-stage h4 .n { margin-left: 4px; border-radius: 3px; padding: 0 6px; font-weight: 700; font-size: 11.5px; color: var(--on-ink); background: var(--planned); }
 /* the chips above "All": one per stage, tinted in its colour while its group shows */
 .agents-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 8px 0; }
 .agents-filter .chip { --c: var(--working); display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; cursor: pointer;

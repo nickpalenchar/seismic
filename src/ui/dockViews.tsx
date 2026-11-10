@@ -4,7 +4,7 @@ import { clampWidth, loadWidths, saveWidths, widthsIn, SHEET_W, type SheetWidths
 import { t } from './strings';
 import { DockPolicy } from './docked';
 
-export type DockId = 'seismic' | 'plan' | 'plan-doc' | 'inbox' | 'agents' | 'settings';
+export type DockId = 'seismic' | 'plan' | 'plan-doc' | 'needs-you' | 'agents' | 'settings';
 export interface DockView {
   id: DockId;
   title: string;

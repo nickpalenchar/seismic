@@ -22,34 +22,39 @@ project's (drag and click go through): at the left the project switcher (see The
 the right the gear of the project settings (see The project settings) and then one group of two
 buttons, the agents' (a robot) and "Needs you" (a bell). "Needs you" counts in the orange of a
 waiting card the cards that wait for the owner on every project, read or not, and nothing else
-(Seismic's answers and proposals count in the inbox alone); its click opens the inbox's sheet until
-"Needs you" has a view of its own (see [A new UI menu](../plan/ui-menu.md)). Its label shows until
+(Seismic's answers and proposals count in the inbox alone); its click opens the "Needs you" sheet
+(see below). Its label shows until
 the owner has clicked it once (per browser), then the bell and the count stand alone: the label is
 how a first-time owner learns what the bell is. The camera keeps content below the row as it does
 below the bar.
 
+"Needs you" is a sheet (see Sheets) of the cards that wait for the owner: the shown project's
+first, in the inbox's order and with the inbox's entries (see the inbox below: the card at size S,
+its one-click replies, "Go to card", the unread dot), then every other project with cards waiting
+as one header with its name and its count in orange, folded until clicked open (open again on a
+reload, as every fold of it starts closed). A switch "Hide other projects" leaves those headers
+out, remembered per browser. Seismic's answers and rule or setting proposals are the inbox's alone.
+The open card's entry is ringed, and the sheet stays undimmed beside any card.
+
 The agents' button counts in grey the cards waiting in the queue, and only those; its click slides
-out the Agents sheet, a sheet like the inbox (see Sheets), with four tabs, the one chosen last
-remembered per browser. "Queue" (with the same count) lists the waiting cards in turn, each at size
-XS (see Card sizes) with what it waits for, dragged to its place (see The queue's order), with no button that takes it out of
-the queue (that change is too big to sit on a list row; "Take out of the queue" on the card does it); a row opens its card. "All" lists the project's other cards, each a
-pane like an inbox entry (the card at size S, what it waits for where it needs the owner, "Go to
-card"), grouped by stage, in this order: "Needs you" (every card the
-inbox lists, whatever its kind, taken out of the stage it would be in), "Working" (a
-worker making its demo too, which its state line says), "Code reviewing" (its code review runs,
-also while the card waits for the owner), "Review fixing" (its worker fixes findings the owner gave
-it, "Fix it"), "Landing" (approved and landing, or in a pull request) and "Planned" (not started,
-not queued). A stage without a card shows no heading at all. Under the Queue | All switch, only
-on "All", a chip per stage with its count, tinted while its group shows, shows or hides that group
-at a click; what is hidden is remembered per browser. Queued cards are only in
-"Queue"; parked cards only in "Parked"; finished and archived cards, and ideas the owner has nothing to answer on, are not
-listed.
+out "Agent work", a sheet (see Sheets) with three tabs, the one chosen last remembered per browser.
+"Work" holds two groups, each heading with a plain count: "Working" (the project's cards at work:
+a worker at it, making its demo included, which its state line says; its code review running; its
+worker fixing findings the owner gave it; approved and landing, or in a pull request), each a pane
+like an inbox entry (the card at size S, "Go to card"), and "Todo": "Queued" with the queue's count
+in grey, the waiting cards in turn, each at size XS (see Card sizes) with what it waits for, dragged
+to its place (see The queue's order), with no button that takes it out of the queue (that change is
+too big to sit on a list row; "Take out of the queue" on the card does it), a row opening its card;
+then "Planned", the cards not started and not queued, as panes. A group without cards says so. A
+card that needs the owner is in neither: "Needs you" lists it, whatever its stage. Parked cards are
+only in "Parked"; finished and archived cards, and ideas the owner has nothing to answer on, are
+not listed.
 
 "Parked" is the parking lot. A planned or stopped task that is not queued (nothing runs for it)
 is parked with "Park" in its "⋯" menu (the open card's, and on the canvas); a task that waits for the
 owner (a demo, a question) can be parked too, which stops its agent first and asks to confirm with a
 yellow "Stop and park" or a grey "Go back"; parked, it is off the
-canvas and lists here as a pane like those of "All", its state "Parked" with a car icon. It stays
+canvas and lists here as a pane like those of "Working", its state "Parked" with a car icon. It stays
 planned or stopped underneath, so its buttons are those of a card that is not running; it does not
 start by itself or from its start time. Starting it asks first: "This takes the card out of the
 parking lot" with "Unpark and start" or "Go back". "Unpark" in the same menu puts it back on the
@@ -89,12 +94,13 @@ opens its card, the view stays beneath the unfolded card and returns when it fol
 The inbox ("Inbox" in the left menu, which counts beside it, in the orange of a waiting card,
 everything that waits for the owner on every project and that they have not read yet, see Read and
 unread below: the cards that need them, per project one for Seismic's answers waiting unread, and
-each open rule or setting proposal; "Needs you" opens it too, for now). The left menu's count per
-project counts the same way. It slides out from the right
-instead of jumping to a card. The inbox is a sheet like Seismic's and a plan's (see Sheets): docked
-to the edge from top to bottom, the canvas moved aside, one sheet open at a time, the same width and
-grip; "Needs you"'s second click, the sheet's ✕ and Esc close it. Opened, it stays open as the owner
-switches project (per tab), until they close it or open another sheet.
+each open rule or setting proposal; the entry is marked while the inbox shows). The left menu's
+count per project counts the same way. The inbox is a full-page view of the main area, like the
+archive, instead of jumping to a card: its list in a column at the left, the room beside it saying
+that "Go to card" opens the card there. Its ✕ and Esc (once no card is open) close it, as do the
+menu's canvases and "Archived", which take its place. Opened, it stays open as the owner switches
+project (per tab) and across a reload, until they close it. A sheet on the right (Seismic's, say)
+opens beside it.
 
 The desktop's inbox lists the shown project's entries; a switch "All projects", right-aligned on the line of the Unread | All filter, lists every project's entries in one list (off by default, remembered). The list is ordered newest first by the time shown on the entry;
 cards snoozed while they waited stand at the end (see Snoozing a card). The phone's "Needs you"
@@ -120,10 +126,11 @@ answer, a dismissal) is sent only once its "Undo" has run out, or as the page cl
 goes at once, with the undo a card's removal always has.
 
 "Go to card" ("Go to Seismic" on Seismic's answer) is on every entry, last and never primary, even
-alone. It opens the card beside the inbox, on this project or by switching to the card's project,
-where the inbox is open again beside it. Unlike a plan's sheet, the inbox is not dimmed while a
-card is open: the open card's entry is marked with a ring and a tint, and the owner works down the
-list from there.
+alone. It unfolds the card over the inbox's view, from its entry and into the room beside the list,
+without moving the canvas behind it; on another project by switching there, where the inbox is
+open again with the card. The list is not dimmed while a card is open: the open card's entry is
+marked with a ring and a tint, its buttons answer as before, and the owner works down the list from
+there; the card folds back into its entry and the view returns.
 
 Read and unread: an entry is unread until the owner clicks on it (any of its buttons, "Go to card"
 included) or opens its card some other way (on the canvas, with Tab); only a click on a button reads an entry (its title is one, underlined on hover and opening the card), not one on the text around it; an unread one has an orange
@@ -166,7 +173,7 @@ A click on ☰ and the logo opens one menu for everything that is not on the can
   performance dashboard over the page) with "Feedback log" (the log's page) under it.
 - "Projects": the open project bold, with its count and its agents' pause, and under it its
   canvases by name (each with its waiting count; a click shows it), "Queue" and "Parked" (each with
-  its count in grey; for now they open the Agents sheet at that tab), "Archived" (the archive's view)
+  its count in grey; for now they open Agent work at its "Work" and "Parked" tabs), "Archived" (the archive's view)
   and "Project settings ›" (its sheet). Every other project is one line with its count and its
   pause, a click switching there (see The navigation); "New project" ends the list.
 - "Settings", the Configuration dialog (see The configuration dialog in Repositories and
@@ -371,7 +378,7 @@ list says a card's title, state or labels in a way of its own:
   asks, its status, else the start of its text; its state line in its state's colour with what its
   agent is doing; and the pin while it needs the owner. Zoomed out, only the label chips of the top
   line stay, enlarged.
-- **S** is a compact row of up to four lines, for the inbox and the Agents sheet's "All": the label
+- **S** is a compact row of up to four lines, for the inbox, "Needs you" and Agent work: the label
   chips, then where, kind and since when; the title with the pin (in the inbox, drawn subtle, see below, the pin and the unread dot sit
   in the card's top-right corner); the state line; then what the card waits for (else the line under its title), in at
   most two lines. The top line and the state line stay one line on any width: the chips keep their
@@ -549,13 +556,13 @@ Card faces on the canvas link nothing, since a click there opens the card itself
 
 ### Sheets
 
-The sheets (Seismic's, a plan's, a plan doc being read, the inbox, the agents, the project settings) are a sidebar docked to the window's right
+The sheets (Seismic's, a plan's, a plan doc being read, "Needs you", Agent work, the project settings) are a sidebar docked to the window's right
 edge, full height; the docked left menu is one on the left edge. The canvas is the rest between
 them: the top bar, the microphone and its confirmations, the edge indicators, the minimap and an
 unfolding card all keep to it. Opening, closing or resizing a sheet, or docking the left menu,
 shifts the view so its middle stays in the middle of the rest. A card opened beside a sheet
 returns beside whatever sheet is open when it closes; a plan's sheet stays, dimmed, while one of
-its cards is open, and the inbox and the agents stay undimmed beside any card. A narrow window lays the sheet over the canvas.
+its cards is open, and "Needs you", Agent work and the project settings stay undimmed beside any card. A narrow window lays the sheet over the canvas.
 
 Seismic's button, a speech bubble with its counts, stays where it is when its sheet opens and becomes
 the sidebar's top corner that closes it; the sheet is headed "Seismic". Other sheets have a ✕.
@@ -789,15 +796,16 @@ code, a generic one otherwise.
   and the sheet's foot: two settings buttons side by side would leave the owner guessing which is
   which. Rejected: copying Configuration's models into each project (a later change there would reach
   no existing project), and the project's page in the Configuration dialog as the only place.
-- **The inbox on the right, the navigation a project picker** (owner, 2026-11-05, fork; replaces "One
-  navigation on the left for projects and what waits", 2026-11-02): what waits is worked down in a
-  list beside the cards it opens, across projects, and a list on the left that closed on every click
-  or grouped entries by project hid which wait was oldest. Shared entries, layout and actions on
-  desktop and phone keep their behavior consistent; the desktop sorts by the time shown, newest first, and the
-  phone newest update first. Each project keeps its own count in the picker.
-  Rejected: the inbox taking over the pinned left sidebar (a bigger change to upstream's
-  navigation), and tabs inside the left element (not really separate). It competes with Seismic's
-  sheet for the right edge; one sheet at a time settles that.
+- **The inbox a full-page view, "Needs you" a sheet** (owner, 2026-11-09; replaces "The inbox on
+  the right", 2026-11-05): what waits is worked down in a list beside the cards it opens, across
+  projects; as a view of the main area opened from the left menu, like the archive, the list gets
+  the room of the page and leaves the right edge to Seismic's sheet, and the card unfolds beside the
+  list instead of over a sheet. The cards alone, the everyday part, stay one click away behind the
+  bell as a sheet, the shown project first. Shared entries, layout and actions on desktop and phone
+  keep their behaviour consistent; the desktop sorts by the time shown, newest first, and the phone
+  newest update first. Rejected: the inbox as a dock view (it competed with Seismic's sheet for the
+  right edge), and a list on the left that closed on every click or grouped entries by project,
+  which hid which wait was oldest.
 - **Inbox entries read and unread** (owner, 2026-11-07): an entry already looked at still counted
   on the button, so the count no longer told what was new. Read is kept per entry and wait, so a
   card that asks again comes back unread, and only unread entries count. It is kept in the browser,
@@ -878,11 +886,13 @@ code, a generic one otherwise.
   only taught the double-click left the bar with the new menu (2026-11-09).
 - **A card's title is optional** (2026-10-15). Rejected: a required title, which dropped untitled
   cards with their text.
-- **The queue is the "Queue" tab of the Agents sheet, beside "All"** (2026-11-07), opened from the agents' robot button with a grey badge counting the
+- **The queue is part of Agent work's "Todo"** (2026-11-07; the two groups 2026-11-09), opened from the agents' robot button with a grey badge counting the
   queued cards, so that what the agents do and what waits for them stand in one place (owner).
-  Rejected: a drop-down list under a button of its own in the bar, which kept the queue apart from
-  the cards being worked on; and the queue inside the Koordinator's sheet.
-- **Activity is a tab of the Agents sheet** (2026-11-08), not a part of the inbox (the inbox is for
+  "Working" and "Todo" replace stage groups with chips per stage, which were more than the owner
+  read, and "Needs you" left them for a sheet of its own. Rejected: a drop-down list under a button
+  of its own in the bar, which kept the queue apart from the cards being worked on; and the queue
+  inside the Koordinator's sheet.
+- **Activity is a tab of Agent work** (2026-11-08), not a part of the inbox (the inbox is for
   what waits for the owner) and not a sheet of its own (the bar is full). Rejected: an unread count
   on the robot button, as a log has nothing to answer.
 - **The usage limits come from Claude Code's `/usage` data** (2026-10-28), asked through the

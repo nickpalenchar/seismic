@@ -2,8 +2,8 @@
 import { createContext, useContext, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
-export function useFullPage<Id extends string>() {
-  const [active, render] = useState<Id | null>(null);
+export function useFullPage<Id extends string>(initial: () => Id | null = () => null) {
+  const [active, render] = useState<Id | null>(initial);
   const ref = useRef(active);
   return { active, ref, show: (id: Id | null) => { ref.current = id; render(id); } };
 }

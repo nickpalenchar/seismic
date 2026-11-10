@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { agentStage, byStage } from './agents';
+import { agentStage, agentWork } from './agents';
 import type { Item, ReviewItem } from './types';
 
 const card = (id: string, over: Partial<Item> = {}): Item => ({ id, kind: 'task', state: 'working', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', ...over });
@@ -21,7 +21,7 @@ test('whatever needs the owner leaves its own stage, of any kind', () => {
   expect(agentStage(card('a', { kind: 'plan', state: 'waiting', need: 'question' }))).toBe('needsYou');
   // just answered: out of Needs you, as the inbox leaves it out, until the server moves the card on
   expect(agentStage(card('a', { state: 'waiting', need: 'question' }), true)).toBe('working');
-  expect(byStage([card('a', { state: 'proposal' })], (id) => id === 'a')).toEqual([]);
+  expect(agentWork([card('a', { state: 'proposal' })], (id) => id === 'a')).toEqual({ working: [], planned: [] });
 });
 
 test('approved work and work in a pull request is landing; a planned card not queued is planned', () => {
@@ -36,7 +36,7 @@ test('queued, finished, archived cards, other kinds and ideas without a question
     expect(agentStage(card('a', over))).toBeUndefined();
 });
 
-test('the stages come in their order, empty ones left out', () => {
-  const g = byStage([card('p', { state: 'planned' }), card('d', { agent: { doing: 'preparingDemo' } }), card('w1'), card('n', { state: 'waiting', need: 'review' }), card('w2')]);
-  expect(g.map((x) => [x.stage, x.items.map((i) => i.id)])).toEqual([['needsYou', ['n']], ['working', ['d', 'w1', 'w2']], ['planned', ['p']]]);
+test('Agent work holds the cards at work and the planned ones, none that needs the owner', () => {
+  const g = agentWork([card('p', { state: 'planned' }), card('d', { agent: { doing: 'preparingDemo' } }), card('w1'), card('n', { state: 'waiting', need: 'review' }), card('l', { state: 'approved' }), card('w2')]);
+  expect([g.working.map((i) => i.id), g.planned.map((i) => i.id)]).toEqual([['d', 'w1', 'l', 'w2'], ['p']]);
 });
