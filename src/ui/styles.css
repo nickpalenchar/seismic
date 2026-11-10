@@ -530,14 +530,14 @@ button.pill:hover { box-shadow: var(--lift); }
   background: linear-gradient(90deg, var(--c) 0 50%, transparent 50%) 0 0 / 200% 100% no-repeat, color-mix(in srgb, var(--c) 22%, transparent);
   animation: draw 1.6s cubic-bezier(.5,0,.3,1) infinite; }
 /* faint like the pause on a card and on the bubble in its conversation, full under the pointer */
-.agents-turn { display: none; place-items: center; width: 26px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: 3px;
-  background: transparent; color: var(--muted); opacity: .55; cursor: pointer; transition: opacity .12s; }
+.agents-turn { display: grid; place-items: center; width: 26px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: 3px;
+  background: transparent; color: var(--muted); opacity: 0; cursor: pointer; transition: opacity .12s; }
 .agents-turn .btn-mark { margin: 0; }
-.agents-turn:hover, .agents-turn:focus-visible { opacity: 1; color: var(--ink); border-color: var(--muted); }
-.nav-row:is(:hover, :focus-within) .agents-turn { display: grid; }
+.nav-row .agents-turn:is(:hover, :focus-visible, [data-highlighted]) { opacity: 1; color: var(--ink); border-color: var(--muted); }
+.nav-row:is(:hover, :focus-within) .agents-turn { opacity: .55; }
 .nav-row:is(:hover, :focus-within) .project-agents::before { display: none; }
 @media (hover: none) {
-  .agents-turn { display: grid; }
+  .agents-turn { opacity: .55; }
   .project-agents::before { display: none; }
 }
 .pill:is(.workstations, .usage) { position: relative; padding: 0; }

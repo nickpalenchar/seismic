@@ -308,7 +308,7 @@ function ProjectRow({ project: c, here, repos, onGo }: { project: ProjectInfo; h
   return (
     <li className={here ? 'nav-row on' : 'nav-row'}>
       {menu ? <MenuItem asChild disabled={!menu.active}>{link}</MenuItem> : link}
-      <ProjectAgents project={c} />
+      <ProjectAgents project={c} item={menu} />
     </li>
   );
 }

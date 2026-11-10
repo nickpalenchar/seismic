@@ -2201,6 +2201,8 @@ function Project({
     if (typing && (e.target as Element).closest('[data-esc]')) return;
     // an open layer from the component library (menu, popover, dialog) closes itself on Esc, before anything under it
     if (e.key === 'Escape' && layerOpen()) return;
+    // a focused menu keeps its keys: arrows, typeahead and Tab are its own, not the page's shortcuts
+    if (e.target instanceof Element && e.target.closest('[role=menu]')) return;
     // the configuration over the page takes the keys until it closes, Esc closing it
     if (cOnRef.current) {
       if (e.key === 'Escape' && !document.querySelector('.setup')) {

@@ -21,6 +21,7 @@ import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
 import { cardPath, switchTo } from './address';
 import { Button } from './components/button';
+import { MenuItem } from './components/menu';
 import { Tooltip } from './components/tooltip';
 
 /** The button for the conversation with Seismic (the project's top bar, the phone view's): a speech bubble. */
@@ -241,7 +242,8 @@ export const CardView = memo(
  * pointer is on the row; with none at work but some paused, a play that resumes them, on the same
  * hover. Where nothing hovers (touch), the button shows throughout.
  */
-export function ProjectAgents({ project }: { project: ProjectInfo }) {
+/** The pause or play on a project's row; `item` where the row is a dropdown's, which makes the button an item of it that the arrow keys reach and that leaves the menu open. */
+export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: { active: boolean } | null }) {
   const [asked, setAsked] = useState(false);
   const a = project.agents;
   if (!a) return null;
@@ -253,12 +255,21 @@ export function ProjectAgents({ project }: { project: ProjectInfo }) {
     setAsked(true);
     (pause ? api.pauseAgents(project.id) : api.resumeAgents(project.id)).catch(console.error).finally(() => setAsked(false));
   };
+  const turn = (
+    <button type="button" className="agents-turn" aria-label={`${label}: ${project.name}`} disabled={asked} onClick={click}>
+      {pause ? <PauseMark /> : <PlayMark />}
+    </button>
+  );
   return (
     <span className={pause ? 'project-agents running' : 'project-agents'}>
       <Tooltip content={label} side="right">
-        <button type="button" className="agents-turn" aria-label={`${label}: ${project.name}`} disabled={asked} onClick={click}>
-          {pause ? <PauseMark /> : <PlayMark />}
-        </button>
+        {item ? (
+          <MenuItem asChild disabled={asked || !item.active} onSelect={(e) => e.preventDefault()}>
+            {turn}
+          </MenuItem>
+        ) : (
+          turn
+        )}
       </Tooltip>
     </span>
   );

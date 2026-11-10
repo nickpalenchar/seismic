@@ -2386,7 +2386,7 @@ function useWatching(cardId: string, video: RefObject<HTMLVideoElement | null>, 
 /** A key with no modifier, pressed outside a text field and with nothing over the card: one for the demo video. */
 function forTheVideo(e: KeyboardEvent) {
   if (e.metaKey || e.ctrlKey || e.altKey) return false;
-  if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable]')) return false;
+  if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], [role=menu]')) return false;
   return !document.querySelector('#help, #config.on, .lightbox, .diff-view');
 }
 
