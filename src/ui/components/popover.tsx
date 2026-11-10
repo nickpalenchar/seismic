@@ -53,7 +53,8 @@ export function PopoverContent({ className, align = 'center', sideOffset = 8, ..
  * path across the gap between them keeps it; a click or tap on the trigger pins it open until a click
  * elsewhere, Esc or a second click. A finger has no hover: its tap pins. Spread `root` on `Popover`,
  * `hover` on the trigger (or whatever the pointer rests on) and on the panel, `content` on the panel,
- * and `trigger` on a `PopoverTrigger`.
+ * and `trigger` on a `PopoverTrigger`. A navigation action calls `close({ restoreFocus: false })`
+ * before opening its destination so closing the panel does not take focus back from that view.
  */
 export function useHoverOpen({ delay = 260, enabled = true }: { delay?: number; enabled?: boolean } = {}) {
   const [open, setOpen] = useState(false);
@@ -61,16 +62,23 @@ export function useHoverOpen({ delay = 260, enabled = true }: { delay?: number; 
   const leave = useRef<ReturnType<typeof setTimeout>>(undefined);
   // whether the popover closing now was pinned: only then does the focus go back to its trigger
   const wasPinned = useRef(false);
+  const restoreOnClose = useRef(true);
   useEffect(() => () => clearTimeout(leave.current), []);
   const show = (on: boolean, pin = false) => {
     clearTimeout(leave.current);
-    if (!on) wasPinned.current = pinned;
+    if (on) restoreOnClose.current = true;
+    else wasPinned.current = pinned;
     setOpen(on);
     setPinned(on && pin);
   };
   return {
     open,
     show,
+    // Actions opening another view hand focus to that view instead of back to this trigger.
+    close: ({ restoreFocus = true }: { restoreFocus?: boolean } = {}) => {
+      show(false);
+      restoreOnClose.current = restoreFocus;
+    },
     root: { open, onOpenChange: (on: boolean) => show(on, on) },
     hover: {
       onPointerEnter: (e: PointerEvent) => {
@@ -95,7 +103,7 @@ export function useHoverOpen({ delay = 260, enabled = true }: { delay?: number; 
     content: {
       // shown by hovering, it leaves the focus where it was (the composer, say), opening and closing
       onOpenAutoFocus: (e: Event) => pinned || e.preventDefault(),
-      onCloseAutoFocus: (e: Event) => wasPinned.current || e.preventDefault(),
+      onCloseAutoFocus: (e: Event) => (wasPinned.current && restoreOnClose.current) || e.preventDefault(),
     },
   };
 }

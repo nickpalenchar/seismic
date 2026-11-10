@@ -76,9 +76,12 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
   };
   // ↑ from the strip moves the focus into the drawer; opened by the pointer or by keyboard focus on the strip, it leaves the focus where it was
   const byKey = useRef(false);
+  // Restore only for an explicit dismissal/selection, never after focus leaves or a dialog opens.
+  const restoreFocus = useRef(false);
   // the keyboard is on the strip: the drawer says how to reach it
   const [keyed, setKeyed] = useState(false);
-  const open = (on: boolean, key = false) => {
+  const open = (on: boolean, key = false, restore = false) => {
+    restoreFocus.current = !on && restore;
     clearTimeout(leave.current);
     if (on && several) learn();
     if (on) byKey.current = key;
@@ -95,7 +98,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
     setDialog({});
   };
   const pick = (c: Canvas) => {
-    open(false);
+    open(false, false, byKey.current);
     onShow(c);
   };
   const editing = dialog?.edit ? canvases.find((c) => c.id === dialog.edit) : undefined;
@@ -104,11 +107,11 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
     onPointerLeave: (e: ReactPointerEvent) => {
       if (e.pointerType !== 'mouse') return;
       clearTimeout(leave.current);
-      leave.current = setTimeout(() => setDrawer(false), LEAVE_MS);
+      leave.current = setTimeout(() => open(false), LEAVE_MS);
     },
   };
   return (
-    <Popover open={drawer} onOpenChange={(on) => open(on)}>
+    <Popover open={drawer} onOpenChange={(on) => open(on, false, restoreFocus.current)}>
       <PopoverAnchor asChild>
         <div
           id="canvas-tabs"
@@ -178,10 +181,14 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
         onOpenAutoFocus={(e) => byKey.current || e.preventDefault()}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
-          if (!byKey.current) return;
+          if (!restoreFocus.current) return;
+          restoreFocus.current = false;
           back.current = true;
           box.current?.querySelector<HTMLElement>('.ctab.on')?.focus();
         }}
+        // This non-modal drawer follows the page's Tab order, rather than Radix's focus loop.
+        onKeyDownCapture={(e) => { if (e.key === 'Tab') e.stopPropagation(); }}
+        onEscapeKeyDown={() => { restoreFocus.current = byKey.current; }}
         onFocus={(e) => {
           if (e.target.matches(':focus-visible')) byKey.current = true;
         }}

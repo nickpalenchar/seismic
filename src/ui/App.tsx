@@ -753,6 +753,9 @@ function Project({
     const title = panel.querySelector<HTMLTextAreaElement>('textarea.p-title');
     const body = panel.querySelector<HTMLElement>('.p-body');
     if (title && !title.value) (body ?? title).focus();
+    // A link in a closing popover can disappear before the card unfolds. Give the opened
+    // view a focus destination, also when navigating here from another project.
+    if (!panel.contains(document.activeElement)) panel.querySelector<HTMLElement>('button')?.focus({ preventScroll: true });
     // the cursor at the end of the text
     if (body && body === document.activeElement) {
       getSelection()?.selectAllChildren(body);

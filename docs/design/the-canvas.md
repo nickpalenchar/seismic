@@ -709,7 +709,9 @@ A click on a tab switches to it. The pointer on the strip (on touch, the first t
 ↑ on a tab, which moves the focus into it) slides out a drawer above it: the canvases in order by name, each with its waiting count in orange, a click
 switching to it; on hover or keyboard focus a row shows a pencil (rename and icon), a grip that drags it to another
 place in the order, and a trash on a canvas without cards (never "main"); the drawer ends with
-"+ New canvas". The "+" and "+ New canvas" open the canvas dialog: a name, checked against the
+"+ New canvas". Tab and Shift+Tab can leave the drawer and keep focus at their destination;
+Escape or choosing a canvas from the keyboard returns focus to the selected tab. Opening the
+new-canvas or edit dialog leaves focus in that dialog. The "+" and "+ New canvas" open the canvas dialog: a name, checked against the
 naming rule as it is typed, and an icon picked from a grid of common emojis and a curated set of
 Lucide icons, or none; "Create canvas" makes it and shows it. The same dialog, from the pencil,
 changes a canvas ("main" keeps its name and changes only its icon). What is typed and picked in it

@@ -627,7 +627,7 @@ export function WorkstationsPill({ pools, project, projects, items, onOpen, onEl
   // the machines a pool names: those with clones or a clone's folder kept, and every other machine than this one
   const named = (p: ClonePool) => p.hosts.filter((h) => h.total > 0 || !h.here || h.kept?.length);
   const opened = (go: () => void) => {
-    pop.show(false);
+    pop.close({ restoreFocus: false });
     go();
   };
   return (
