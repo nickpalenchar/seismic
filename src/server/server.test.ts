@@ -1127,7 +1127,7 @@ describe('a restart that waits', () => {
 
     restarter.request('code');
     await until(() => restarts().length === 2);
-    expect(restarts()[1]!.restart).toMatchObject({ reason: 'code', cards: ['k1'], elsewhere: [{ project: second.board.project.name, cards: ['Export als CSV'] }] });
+    expect(restarts()[1]!.restart).toMatchObject({ reason: 'code', cards: ['k1'], elsewhere: [{ project: second.board.project.name, id: second.board.project.id, cards: [expect.objectContaining({ id: expect.any(String), title: 'Export als CSV' })] }] });
     busy = [busy[0]!];
     await until(() => restarts().length === 3);
     expect(restarts()[2]!.restart).toMatchObject({ cards: ['k1'], elsewhere: [] });

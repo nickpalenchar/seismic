@@ -3453,8 +3453,8 @@ export interface PendingRestart {
   deadline: number;
   /** The cards on this project whose worker it waits for. */
   cards: string[];
-  /** The workers on other projects it waits for: each project (by name) with its cards' titles. */
-  elsewhere: { project: string; cards: string[] }[];
+  /** The workers on other projects it waits for: each project (`id`, and its name) with its cards (id, short code, title). */
+  elsewhere: { id: string; project: string; cards: { id: string; short?: string; title: string }[] }[];
   /** What the owner does in some open page that it waits for, past the deadline too. */
   owner: OwnerHold[];
   /** Only the agents of these repositories (by name) restart, for a change to their configuration; Seismic and the others work on. */

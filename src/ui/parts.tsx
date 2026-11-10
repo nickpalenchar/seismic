@@ -20,7 +20,7 @@ import { asksYou, CardFace, cardClass, hasLabels, HourglassMark, LabelMarks, Lab
 import { scrollBehavior } from './motion';
 import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
-import { cardPath } from './address';
+import { cardPath, switchTo } from './address';
 
 /** The button for the conversation with Seismic (the project's top bar, the phone view's): a speech bubble. */
 export function TalkIcon() {
@@ -423,11 +423,15 @@ function Pill({ restart, items, project, onOpen, elsewhere = [], go, going, say,
               </ul>
             )}
             {elsewhere.map((c) => (
-              <div key={c.project} className="elsewhere">
+              <div key={c.id} className="elsewhere">
                 <p className="hint">{t.restart.on(c.project)}</p>
                 <ul>
                   {c.cards.map((x, i) => (
-                    <li key={i}>{plain(x)}</li>
+                    <li key={i}>
+                      <a className="from" href={cardPath(c.id, x.short ?? x.id)} onClick={(m) => switchTo(m, cardPath(c.id, x.short ?? x.id))}>
+                        {plain(x.title)}
+                      </a>
+                    </li>
                   ))}
                 </ul>
               </div>

@@ -190,19 +190,19 @@ export function serve(
     if (!due) return byId.get(id)?.pendingRestart() ?? null;
     const here = due.waiting.filter((w) => w.project === id);
     // the others by project, named, each card by its title: a project's page knows only its own cards
-    const elsewhere = new Map<string, string[]>();
+    const elsewhere = new Map<string, { id: string; short?: string; title: string }[]>();
     const items = new Map<string, Item[]>();
     for (const w of due.waiting) {
       if (w.project === id) continue;
       if (!items.has(w.project)) items.set(w.project, byId.get(w.project)?.board.items() ?? []);
-      const title = items.get(w.project)!.find((i) => i.id === w.card)?.title ?? w.card;
-      elsewhere.set(w.project, [...(elsewhere.get(w.project) ?? []), title]);
+      const item = items.get(w.project)!.find((i) => i.id === w.card);
+      elsewhere.set(w.project, [...(elsewhere.get(w.project) ?? []), { id: w.card, short: item?.short, title: item?.title ?? w.card }]);
     }
     return {
       reason: due.reason,
       deadline: due.deadline,
       cards: here.map((w) => w.card),
-      elsewhere: [...elsewhere].map(([c, cards]) => ({ project: byId.get(c)?.board.project.name ?? c, cards })),
+      elsewhere: [...elsewhere].map(([c, cards]) => ({ id: c, project: byId.get(c)?.board.project.name ?? c, cards })),
       owner: due.owner,
     };
   };
