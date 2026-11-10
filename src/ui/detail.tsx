@@ -52,6 +52,8 @@ import { Reauthenticate } from './reauthenticate';
 import { describeAgent, StartAgent } from './start-agent';
 import type { AgentSetting } from '../core/types';
 import { Button, type ButtonVariant, CloseButton, LinkButton } from './components/button';
+import { CheckLabel } from './components/check-label';
+import { Switch } from './components/switch';
 
 /**
  * What the panel does after an action: fold the card and confirm (with undo, when it has one), or stay open.
@@ -3228,10 +3230,10 @@ function sharesLater(item: Item, demo: Demo, onApproval: boolean): boolean {
 /** "Share on approval", under the row of buttons that approves. */
 function ShareOnApproval({ item, act }: { item: Item; act: (a: CardAction, done: ActDone) => Promise<void> }) {
   return (
-    <label className="share-check" title={t.share.onApprovalHint}>
-      <input type="checkbox" role="switch" className="toggle" checked={!item.demo?.notOnApproval} onChange={(e) => void act({ action: 'shareOnApproval', on: e.target.checked }, { close: false })} />
+    <CheckLabel className="share-check" title={t.share.onApprovalHint}>
+      <Switch checked={!item.demo?.notOnApproval} onCheckedChange={(on) => void act({ action: 'shareOnApproval', on }, { close: false })} />
       {item.review?.contribution ? t.review.onApproval : t.share.onApproval}
-    </label>
+    </CheckLabel>
   );
 }
 

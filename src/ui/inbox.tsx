@@ -22,6 +22,8 @@ import { type QuickReply, quickReplies } from './quickReply';
 import { useStoredState } from './stored';
 import { clock, shortDay, t } from './strings';
 import { Button, CloseButton } from './components/button';
+import { CheckLabel } from './components/check-label';
+import { Switch } from './components/switch';
 
 /** When it began: the time today, else the day. */
 export const when = (iso: string | number) => (new Date(iso).toDateString() === new Date().toDateString() ? clock(iso) : shortDay(iso));
@@ -131,10 +133,10 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
         ))}
       </div>
         {current && (
-          <label className="inbox-all-projects">
-            <input type="checkbox" role="switch" className="toggle" checked={everywhere} onChange={(ev) => setEverywhere(ev.target.checked)} />
+          <CheckLabel>
+            <Switch checked={everywhere} onCheckedChange={setEverywhere} />
             {t.inbox.allProjects}
-          </label>
+          </CheckLabel>
         )}
       </div>
       {!entries.length && <p className="empty-inbox">{t.inbox.empty}</p>}

@@ -12,6 +12,8 @@ import { OtherCanvas } from './canvases';
 import { CardFace, cardClass } from './card';
 import { useStoredState } from './stored';
 import { clock, t } from './strings';
+import { CheckLabel } from './components/check-label';
+import { Switch } from './components/switch';
 
 /** The log of the open project, or with the switch on, of every project; `allProjects` (the phone, which shows every project) always every project's, without the switch. */
 export function ActivityTab({ project, changed, open, onGo, allProjects }: { project: string; changed: unknown; open?: string; onGo: (project: string, i: Item) => void; allProjects?: boolean }) {
@@ -70,10 +72,10 @@ export function ActivityTab({ project, changed, open, onGo, allProjects }: { pro
     <>
       {!allProjects && (
         <div className="inbox-bar activity-bar">
-          <label className="inbox-all-projects">
-            <input type="checkbox" role="switch" className="toggle" checked={everywhere} onChange={(ev) => setEverywhere(ev.target.checked)} />
+          <CheckLabel>
+            <Switch checked={everywhere} onCheckedChange={setEverywhere} />
             {t.inbox.allProjects}
-          </label>
+          </CheckLabel>
         </div>
       )}
       {loaded && !entries.length ? (

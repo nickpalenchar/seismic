@@ -6,6 +6,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { type CardPatch, type Item, newRepoName, type RepoRef } from '../core/types';
 import { t } from './strings';
+import { CheckLabel } from './components/check-label';
+import { Switch } from './components/switch';
 
 /** A new repository as the owner picks it on the card. */
 export interface FreshRepo {
@@ -117,10 +119,10 @@ export function RepoPick({ choice, repos, fresh = true }: { choice: RepoChoice; 
             maxLength={1000}
             onChange={(e) => choice.setFresh({ ...n, path: e.target.value })}
           />
-          <label className="repo-project" title={t.repoPick.ownProjectHint}>
-            <input type="checkbox" role="switch" className="toggle" checked={n.project} onChange={(e) => choice.setFresh({ ...n, project: e.target.checked })} />
+          <CheckLabel className="repo-project" title={t.repoPick.ownProjectHint}>
+            <Switch checked={n.project} onCheckedChange={(on) => choice.setFresh({ ...n, project: on })} />
             {t.repoPick.ownProject}
-          </label>
+          </CheckLabel>
         </div>
       )}
     </div>

@@ -44,18 +44,8 @@ a component migrates the phone along. Phone-only controls: the back and new butt
 the project `<select>` (the phone's counterpart of the project picker) and the draggable talk panel.
 Phone CSS gives a few shared controls a larger touch target (the buttons in `.ph-view .actions`, say).
 
-### Switch — Radix Switch
+### Native radios — Radix RadioGroup
 
-- 14 checkboxes with `role="switch"` and class `toggle`. Configuration (10): Notices (usage,
-  notifications, feedback), Defaults and Project settings (plan baseline, code review), Agents
-  (Codex auto review), Demos (own voice, unlisted site), Projects → repository (direct, auto-merge).
-  Elsewhere: Agents sheet → Activity "all projects" (also on the phone), Inbox "all projects", card
-  detail → new repository "own project", card detail → share on approval.
-
-### Checkbox and native radios — Radix Checkbox, Radix RadioGroup
-
-- Checkboxes: Configuration → Advanced project export ("all" plus one per project, inline style),
-  the Suggest field (Defaults and Project settings), Demos → artifact checks.
 - Native radios: card archive, right click and code review "when" (Defaults and Project settings),
   Setup → first project "where".
 
@@ -207,7 +197,7 @@ focused control, a first tap acting while the phone keyboard is open.
 
 - [x] **W1:** Foundations. Add `@radix-ui/react-*` packages as each workstream needs them (or the single `radix-ui` package — pick one and say why); a portal container inside the app root; the component conventions above written as a short header comment in `src/ui/components/` (API shape, CSS block, tokens, data-attribute styling); App's Esc handler made layer-aware as described in Shape; the CLAUDE.md line that new UI uses the components in `src/ui/components/` and adds one there rather than a bespoke control; rewrite the decision "The look is frost, laid over upstream's stylesheet" in [The canvas](../design/the-canvas.md) so the rejected component library becomes the chosen Radix Primitives (owner, 2026-11-09: the fork no longer merges upstream; rejected shadcn/ui with Tailwind and Kibo UI as a second styling system, Base UI for its smaller set of mature parts). Proves the setup with the first component, `VisuallyHidden` or `Slot`, used once. S.
 - [x] **W2:** Button, IconButton, CloseButton, LinkButton. One `Button` (`variant`: default, primary, danger, code-review, review-warning, link; `size`: default, small; `suggested`, `armed` as props), `IconButton` (icon plus required label, which W6 turns into a tooltip), `CloseButton` replacing the twelve ✕ kinds, the StartAgent split button as a composition. Migrate every `btn`, `button.link` and close button; delete the old classes and contextual overrides, moving spacing to containers. Largest by count (detail and config); may land in two cards, settings first, then card detail and the rest. M.
-- [ ] **W3:** Switch and Checkbox. Radix Switch for the 14 toggles, Radix Checkbox for the plain checkboxes (export, suggest, artifact checks); their labels (`c-check`, `share-check` …) become one `Field`-style label pattern. S.
+- [x] **W3:** Switch and Checkbox. Radix Switch for the 14 toggles, Radix Checkbox for the plain checkboxes (export, suggest, artifact checks); their labels (`c-check`, `share-check` …) become one `Field`-style label pattern. S.
 - [ ] **W4:** Segmented control and radio groups. `SegmentedControl` on Radix ToggleGroup (single and multiple) for every `.seg`, the chats scope, files result mode, Performance views and the stage chips' group; Radix RadioGroup for the native radios and the canvas icon grid; the feedback stars stay a bespoke rating on RadioGroup with their hover preview. Arrow keys replace one tab stop per option. M.
 - [ ] **W5:** Tabs. Radix Tabs for the Agents sheet (desktop and phone), card results, the Diff change list, Setup pages, the repository tabs and the canvas strip (keeping its hover drawer and first-tap-opens on touch); vertical Tabs for the Configuration and Preferences navs, keeping each section's address and unsent input. M.
 - [ ] **W6:** Tooltip. Radix Tooltip with one provider and delay; IconButton shows its label as one; the Configuration info tip, the status pills' `.tip.why` and the agents tip move onto it; tips that hold buttons wait for W8. Replace `title=` on icon-only buttons; leave it where it names truncated text. Check touch: a tooltip must not block the first tap. S–M.

@@ -1,0 +1,8 @@
+/* Checkbox (checkbox.tsx). */
+
+.checkbox { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; margin: 0; padding: 0; border-radius: 3px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--ink) 40%, var(--panel)); background: var(--card); color: #fff; }
+.checkbox[data-state=checked] { border-color: var(--working); background: var(--working); }
+.checkbox[data-disabled] { opacity: .5; cursor: default; }
+.checkbox:focus-visible { outline: 2px solid var(--working); outline-offset: 2px; }
+.checkbox-indicator { display: grid; place-items: center; }

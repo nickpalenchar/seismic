@@ -31,6 +31,9 @@ import { WishLink } from './wish';
 import { projectPath } from './address';
 import { scrollBehavior } from './motion';
 import { Button, CloseButton, IconButton, LinkButton } from './components/button';
+import { Checkbox } from './components/checkbox';
+import { CheckLabel } from './components/check-label';
+import { Switch } from './components/switch';
 
 declare global {
   interface Window {
@@ -548,8 +551,8 @@ function ProjectExport({ projects, ids: savedIds }: { projects: ProjectConfig[];
     <Head title={t.config.sections.advanced} />
     <h3>{t.config.dataExport.title}</h3>
     <p className="hint">{t.config.dataExport.hint}</p>
-    <label><input type="checkbox" checked={selected === null} onChange={() => setSelected(null)} /> {t.config.dataExport.all}</label>
-    {names.map((project) => <label key={project.id} style={{ display: 'block' }}><input type="checkbox" checked={selected === null || selected.includes(project.id)} onChange={(e) => setSelected(e.target.checked ? [...(selected ?? []), project.id] : (selected ?? names.map((n) => n.id)).filter((id) => id !== project.id))} /> {project.name}</label>)}
+    <CheckLabel><Checkbox checked={selected === null} onCheckedChange={() => setSelected(null)} />{t.config.dataExport.all}</CheckLabel>
+    {names.map((project) => <CheckLabel key={project.id}><Checkbox checked={selected === null || selected.includes(project.id)} onCheckedChange={(on) => setSelected(on === true ? [...(selected ?? []), project.id] : (selected ?? names.map((n) => n.id)).filter((id) => id !== project.id))} />{project.name}</CheckLabel>)}
     <p className="cfg-export-actions"><Button size="small" disabled={!ids.length} onClick={() => exportAs('csv')}>{t.config.dataExport.csv}</Button><Button size="small" disabled={!ids.length} onClick={() => exportAs('json')}>{t.config.dataExport.json}</Button></p>
     {error && <p role="alert">{error}</p>}
   </>;
@@ -993,10 +996,10 @@ function UsageBlock({ on }: { on: boolean }) {
     <>
       <Head sub title={l.title} hint={l.hint} file={view.file} />
       <Field label={l.title}>
-        <label className="c-check">
-          <input type="checkbox" role="switch" className="toggle" checked={view.on} onChange={(e) => choose(e.target.checked)} />
+        <CheckLabel>
+          <Switch checked={view.on} onCheckedChange={choose} />
           {l.label}
-        </label>
+        </CheckLabel>
       </Field>
       {status && <p className="hint c-status">{status}</p>}
     </>
@@ -1030,10 +1033,10 @@ function NotificationsBlock({ on }: { on: boolean }) {
     <>
       <Head sub title={l.title} hint={l.hint} file={view.file} />
       <Field label={l.title}>
-        <label className="c-check">
-          <input type="checkbox" role="switch" className="toggle" checked={view.on === true} onChange={(e) => choose(e.target.checked)} />
+        <CheckLabel>
+          <Switch checked={view.on === true} onCheckedChange={choose} />
           {l.label}
-        </label>
+        </CheckLabel>
       </Field>
       {view.on === true && perm !== 'granted' && <p className="hint c-status">{perm === 'denied' ? l.denied : l.notGranted}</p>}
       {status && <p className="hint c-status">{status}</p>}
@@ -1063,10 +1066,10 @@ function FeedbackBlock({ on }: { on: boolean }) {
     <>
       <Head sub title={l.title} hint={l.hint} file={view.file} />
       <Field label={l.title}>
-        <label className="c-check">
-          <input type="checkbox" role="switch" className="toggle" checked={view.on} onChange={(e) => choose(e.target.checked)} />
+        <CheckLabel>
+          <Switch checked={view.on} onCheckedChange={choose} />
           {l.label}
-        </label>
+        </CheckLabel>
         {openPerformance && (
           <Button size="small" className="cfg-perf" title={t.performance.openHint} onClick={openPerformance}>
             {t.performance.open}
@@ -1085,10 +1088,10 @@ export function SuggestField({ value, onChange }: { value: SuggestSettings | und
   return (
     <Field label={<>{l.title} <Info text={l.hint} /></>}>
       {SUGGEST_TOGGLES.map((k) => (
-        <label key={k} className="c-check">
-          <input type="checkbox" checked={on[k]} onChange={(e) => onChange({ ...on, [k]: e.target.checked })} />
+        <CheckLabel key={k}>
+          <Checkbox checked={on[k]} onCheckedChange={(v) => onChange({ ...on, [k]: v === true })} />
           {l[k]}
-        </label>
+        </CheckLabel>
       ))}
     </Field>
   );
@@ -1098,10 +1101,10 @@ export function SuggestField({ value, onChange }: { value: SuggestSettings | und
 export function PlanBaselineField({ value, onChange }: { value: boolean | undefined; onChange: (on: boolean) => void }) {
   return (
     <Field label={t.config.planBaselines} hint={t.config.planBaselinesHint}>
-      <label className="c-check">
-        <input type="checkbox" role="switch" className="toggle" checked={value !== false} onChange={(e) => onChange(e.target.checked)} />
+      <CheckLabel>
+        <Switch checked={value !== false} onCheckedChange={onChange} />
         {t.config.planBaselinesOn}
-      </label>
+      </CheckLabel>
     </Field>
   );
 }
@@ -1114,10 +1117,10 @@ export function CardArchiveField({ value, onChange }: { value: CardArchiving | u
     <Field label={<>{l.title} <Info text={l.hint} /></>}>
       <div className="cr-field" role="radiogroup" aria-label={l.title}>
         {CARD_ARCHIVING.map((mode) => (
-          <label key={mode} className="c-check">
+          <CheckLabel key={mode}>
             <input type="radio" checked={now === mode} onChange={() => onChange(mode)} />
             {l[mode]}
-          </label>
+          </CheckLabel>
         ))}
       </div>
     </Field>
@@ -1132,10 +1135,10 @@ export function RightClickField({ value, onChange }: { value: RightClick | undef
     <Field label={<>{l.title} <Info text={l.hint} /></>}>
       <div className="cr-field" role="radiogroup" aria-label={l.title}>
         {RIGHT_CLICK.map((mode) => (
-          <label key={mode} className="c-check">
+          <CheckLabel key={mode}>
             <input type="radio" checked={now === mode} onChange={() => onChange(mode)} />
             {l[mode]}
-          </label>
+          </CheckLabel>
         ))}
       </div>
     </Field>
@@ -1151,18 +1154,18 @@ export function CodeReviewField({ value, onChange, bare }: { value: Partial<Code
   const now: CodeReviewSetting = { on: value?.on === true, mode: value?.mode === 'manual' ? 'manual' : 'auto' };
   const controls = (
     <>
-      <label className="c-check">
-        <input type="checkbox" role="switch" className="toggle" checked={now.on} onChange={(e) => onChange({ ...now, on: e.target.checked })} />
+      <CheckLabel>
+        <Switch checked={now.on} onCheckedChange={(on) => onChange({ ...now, on })} />
         {l.on}
-      </label>
+      </CheckLabel>
       {now.on && (
         <div className="cr-when" role="radiogroup" aria-label={l.when}>
           <span className="hint">{l.when}</span>
           {CODE_REVIEW_MODES.map((mode) => (
-            <label key={mode} className="c-check">
+            <CheckLabel key={mode}>
               <input type="radio" checked={now.mode === mode} onChange={() => onChange({ ...now, mode })} />
               {l[mode]}
-            </label>
+            </CheckLabel>
           ))}
           <p className="hint">{l.scope}</p>
         </div>
@@ -1253,10 +1256,10 @@ function AgentsBlock({ on }: { on: boolean }) {
       {codexOn && <p className="hint">{a.codexScope}</p>}
       {view.agents.worker.harness === 'codex' && (
         <>
-          <label className="c-check">
-            <input type="checkbox" role="switch" className="toggle" checked={view.codexAutoReview} disabled={busy} onChange={(e) => save(() => api.saveCodexAutoReview(e.target.checked))} />
+          <CheckLabel>
+            <Switch checked={view.codexAutoReview} disabled={busy} onCheckedChange={(on) => save(() => api.saveCodexAutoReview(on))} />
             {a.codexAutoReview}
-          </label>
+          </CheckLabel>
           <p className="hint">{a.codexAutoReviewHint}</p>
         </>
       )}
@@ -1321,15 +1324,14 @@ function ArtifactChecks({ value, onChange }: { value: HandoverArtifact[]; onChan
   return (
     <div>
       {HANDOVER_ARTIFACTS.map((a) => (
-        <label key={a} className="c-check">
-          <input
-            type="checkbox"
+        <CheckLabel key={a}>
+          <Checkbox
             checked={value.includes(a)}
             disabled={a !== 'schema' && value.includes(a) && !allowsDemo(value.filter((x) => x !== a))}
-            onChange={(e) => onChange(HANDOVER_ARTIFACTS.filter((x) => (x === a ? e.target.checked : value.includes(x))))}
+            onCheckedChange={(v) => onChange(HANDOVER_ARTIFACTS.filter((x) => (x === a ? v === true : value.includes(x))))}
           />
           {names[a]}
-        </label>
+        </CheckLabel>
       ))}
     </div>
   );
@@ -1536,10 +1538,10 @@ function DemoBlock({ on }: { on: boolean }) {
             ))}
           <Field label="" hint={d.person[shown.person]}>
             {!STOCK_ONLY.includes(draft.voice) && (
-              <label className="c-check">
-                <input type="checkbox" role="switch" className="toggle" checked={!!draft.ownVoice} onChange={(e) => set('ownVoice', e.target.checked || undefined)} />
+              <CheckLabel>
+                <Switch checked={!!draft.ownVoice} onCheckedChange={(on) => set('ownVoice', on || undefined)} />
                 {d.ownVoice}
-              </label>
+              </CheckLabel>
             )}
           </Field>
           <Field label={d.sampleText}>
@@ -1761,10 +1763,10 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
       {host === 'cloudflare' && (
         <>
           <CloudflareAccount accounts={view.cloudflareAccounts} way={chosen} onChange={setWay} disabled={running} />
-          <label className="c-check">
-            <input type="checkbox" role="switch" className="toggle" checked={unlisted} disabled={running} onChange={(e) => setUnlisted(e.target.checked)} />
+          <CheckLabel>
+            <Switch checked={unlisted} disabled={running} onCheckedChange={setUnlisted} />
             {p.unlisted}
-          </label>
+          </CheckLabel>
         </>
       )}
       {host === 'manual' && (
@@ -2744,19 +2746,19 @@ function RepoSettingsBlock({
             row(
               'direct',
               c.direct,
-              <label className="c-check">
-                <input type="checkbox" role="switch" className="toggle" checked={value<boolean>('direct')} onChange={(e) => set('direct', e.target.checked)} />
+              <CheckLabel>
+                <Switch checked={value<boolean>('direct')} onCheckedChange={(on) => set('direct', on)} />
                 {c.directLabel}
-              </label>,
+              </CheckLabel>,
             )}
           {land === 'pr' &&
             row(
               'autoMerge',
               c.autoMerge,
-              <label className="c-check">
-                <input type="checkbox" role="switch" className="toggle" checked={value<boolean>('autoMerge')} onChange={(e) => set('autoMerge', e.target.checked)} />
+              <CheckLabel>
+                <Switch checked={value<boolean>('autoMerge')} onCheckedChange={(on) => set('autoMerge', on)} />
                 {c.autoMergeLabel}
-              </label>,
+              </CheckLabel>,
               c.autoMergeHint,
             )}
           {land === 'pr' && row('prNoise', c.prNoise, <textarea rows={2} spellCheck={false} aria-label={c.prNoise} value={lines('prNoise')} onChange={(e) => set('prNoise', e.target.value.split('\n'))} />, c.prNoiseHint)}

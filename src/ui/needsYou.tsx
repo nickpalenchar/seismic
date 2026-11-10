@@ -13,6 +13,8 @@ import { Docked } from './docked';
 import { CardEntry, type InboxProps } from './inbox';
 import { useStoredState } from './stored';
 import { t } from './strings';
+import { CheckLabel } from './components/check-label';
+import { Switch } from './components/switch';
 
 type CardOnly = InboxEntry & { card: Item };
 
@@ -30,10 +32,10 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
     <Docked id="needs-you" on={on} label={t.needsYou.title}>
       <h2>{t.needsYou.title}</h2>
       <div className="inbox-bar">
-        <label className="inbox-all-projects">
-          <input type="checkbox" role="switch" className="toggle" checked={hideOthers} onChange={(ev) => setHideOthers(ev.target.checked)} />
+        <CheckLabel>
+          <Switch checked={hideOthers} onCheckedChange={setHideOthers} />
           {t.needsYou.hideOthers}
-        </label>
+        </CheckLabel>
       </div>
       {here.length ? <ul className="inbox-list">{here.map(entry)}</ul> : <p className="empty-inbox">{others.length ? t.needsYou.noneHere : t.needsYou.empty}</p>}
       {!hideOthers &&
