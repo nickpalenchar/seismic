@@ -345,6 +345,10 @@ by file dialog, a hint under the thumbnails names the paste and capture keys (‚å
 Win+Shift+S), across sends and reloads, until "Got it" or the first paste; never on a device
 without mouse or trackpad.
 
+Opening the image picker keeps the composing field focused until the picker takes over, so a
+phone's keyboard does not close and move the button before the first tap completes. Picking an
+image or cancelling returns the cursor to that field.
+
 A planned card's description takes screenshots too; its worker (or idea agent) gets them with the
 task, and building an idea adds those from its discussion. A command in the Koordinator's sheet may
 carry screenshots; they go with each action that creates or concerns a card, and join the task of a

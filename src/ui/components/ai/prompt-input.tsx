@@ -63,7 +63,7 @@ export function PromptInputTools({ className, ref, ...props }: ComponentProps<'d
 }
 
 /** A button of the tools that is not Send: the icon alone, the cursor stays in the field. */
-export function PromptInputButton({ className, active, ...props }: ComponentProps<typeof IconButton> & { active?: boolean }) {
+export function PromptInputButton({ className, active, onMouseDown, ...props }: ComponentProps<typeof IconButton> & { active?: boolean }) {
   return (
     <IconButton
       data-slot="prompt-input-button"
@@ -71,6 +71,11 @@ export function PromptInputButton({ className, active, ...props }: ComponentProp
       variant="ghost"
       className={cn('size-[26px] rounded-lg text-muted-foreground hover:not-disabled:text-ink data-[active]:bg-working data-[active]:text-on-ink data-[active]:hover:not-disabled:bg-working data-[active]:hover:not-disabled:text-on-ink', className)}
       {...props}
+      onMouseDown={(e) => {
+        // Keep the keyboard and layout steady until click opens the picker (or another tool).
+        e.preventDefault();
+        onMouseDown?.(e);
+      }}
     />
   );
 }
