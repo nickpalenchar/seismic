@@ -13,8 +13,9 @@ import { plain } from './markdown';
 import { Choice, configText, harnessName, StarText } from './performance';
 import { failText, t } from './strings';
 import { Button, LinkButton } from './components/button';
+import { Select, SelectItem } from './components/select';
 
-/** A filter's value for an unknown harness, model or effort (the empty string in the core), as a `<select>` can hold it apart from "all". */
+/** A filter's value for an unknown harness, model or effort (the empty string in the core), as a `<Select>` can hold it apart from "all". */
 const UNKNOWN = '-';
 
 export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here: string }) {
@@ -141,13 +142,13 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
               {choices.plans.length > 0 && <Choice label={p.filters.plan} value={filter.plan} options={choices.plans.map(({ id, title }) => ({ id, name: plain(title) }))} onChange={(v) => set('plan', v)} />}
               <label className="perf-choice">
                 <span>{p.filters.period}</span>
-                <select value={filter.period ?? 'all'} onChange={(e) => set('period', e.target.value === 'all' ? undefined : e.target.value)}>
+                <Select value={filter.period ?? 'all'} onValueChange={(picked) => set('period', picked === 'all' ? undefined : picked)}>
                   {PERIODS.map((d) => (
-                    <option key={d} value={d}>
+                    <SelectItem key={d} value={d}>
                       {d === 'all' ? p.periods.all : p.periods.days(Number(d))}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
+                </Select>
               </label>
               {credits.harnesses.length > 1 && <Choice label={l.filters.harness} value={known(filter.harness)} options={credits.harnesses.map((h) => ({ id: h || UNKNOWN, name: harnessName((h || null) as never) }))} onChange={(v) => set('harness', unknown(v))} />}
               {credits.models.length > 1 && <Choice label={l.filters.model} value={known(filter.model)} options={credits.models.map((m) => ({ id: m || UNKNOWN, name: m || p.unknownModel }))} onChange={(v) => set('model', unknown(v))} />}
@@ -166,13 +167,13 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
             </div>
             <label className="perf-choice">
               <span>{l.groupBy}</span>
-              <select value={group} onChange={(e) => setState((s) => ({ ...s, group: e.target.value as LogGroup }))}>
+              <Select value={group} onValueChange={(picked) => setState((s) => ({ ...s, group: picked as LogGroup }))}>
                 {LOG_GROUPS.map((g) => (
-                  <option key={g} value={g}>
+                  <SelectItem key={g} value={g}>
                     {l.groups[g]}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
+              </Select>
             </label>
           </div>
         )}

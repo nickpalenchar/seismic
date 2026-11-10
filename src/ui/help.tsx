@@ -4,6 +4,7 @@ import { Fragment } from 'react';
 import { t } from './strings';
 import { WishLink } from './wish';
 import { CloseButton } from './components/button';
+import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { Tooltip } from './components/tooltip';
 
 /** The `?` button in the bar. */
@@ -24,10 +25,12 @@ export function HelpButton({ on, onClick }: { on: boolean; onClick: () => void }
  */
 export function Help({ onClose, note }: { onClose: () => void; note?: 'button' | 'gone' }) {
   return (
-    <div id="help" onClick={onClose}>
-      <div className="box" role="dialog" aria-label={t.help.title} onClick={(e) => e.stopPropagation()}>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent id="help" className="box">
         <CloseButton label={t.close} className="close" onClick={onClose} />
-        <h2>{t.help.title}</h2>
+        <DialogTitle asChild>
+          <h2>{t.help.title}</h2>
+        </DialogTitle>
         <div className="sections">
           {t.help.sections.map((s) => (
             <section key={s.title}>
@@ -61,8 +64,8 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
           <span className="w-legend">{t.wish.legend}</span>
         </p>
         {note && <p className="key-note">{note === 'button' ? t.help.keyNote.button : t.help.keyNote.gone}</p>}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

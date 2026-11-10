@@ -3,8 +3,7 @@
 // a canvas and picks its icon, a card's "Move to canvas" menu, and the stubs of waits whose other
 // card lies on another canvas.
 
-import { createContext, type PointerEvent as ReactPointerEvent, type ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { createContext, type PointerEvent as ReactPointerEvent, type ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { cn } from 'cn';
 import { Car, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { CANVAS_LUCIDE_ICONS } from '../core/canvas-icons';
@@ -18,6 +17,7 @@ import { useSortable } from './sortable';
 import { useStoredState } from './stored';
 import { failText, t } from './strings';
 import { Button, CloseButton } from './components/button';
+import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { leaveMenu, Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
 import { Popover, PopoverAnchor, PopoverContent } from './components/popover';
 import { Radio, RadioGroup } from './components/radio';
@@ -323,9 +323,6 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
   const [busy, setBusy] = useState(false);
   const field = useRef<HTMLInputElement>(null);
   const isMain = canvas?.name === MAIN_CANVAS;
-  useLayoutEffect(() => {
-    if (!isMain) field.current?.focus();
-  }, []);
   const problem = isMain ? undefined : nameProblem(name, canvases, canvas?.id);
   const save = async () => {
     setTouched(true);
@@ -357,30 +354,33 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
     </Tooltip>
   );
   return (
-    <div id="canvas-dialog" onClick={onClose}>
-      <form
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        asChild
+        id="canvas-dialog"
         className="box"
-        role="dialog"
-        aria-modal="true"
-        aria-label={canvas ? t.canvases.dialogEdit : t.canvases.dialogNew}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          if (e.key !== 'Escape') return;
-          e.stopPropagation();
-          onClose();
+        layerClassName="items-start pt-[8vh]"
+        onOpenAutoFocus={(e) => {
+          if (isMain) return;
+          e.preventDefault();
+          field.current?.focus();
         }}
+      >
+      <form
         onSubmit={(e) => {
           e.preventDefault();
           void save();
         }}
       >
         <CloseButton label={t.canvases.cancel} className="close" onClick={onClose} />
+        <DialogTitle asChild>
         <h2>
           <span className="cd-preview">
             <CanvasIcon canvas={{ name: name.trim() || '?', ...(icon ? { icon } : {}) }} size={22} />
           </span>
           {canvas ? t.canvases.dialogEdit : t.canvases.dialogNew}
         </h2>
+        </DialogTitle>
         <label className="cd-label" htmlFor="canvas-name">
           {t.canvases.name}
         </label>
@@ -422,7 +422,8 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
           </Button>
         </div>
       </form>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -487,18 +488,15 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
           ))}
         </MenuContent>
       </Menu>
-      {confirm && createPortal(
-        <div className="review-approval-cover" onClick={() => setConfirm(false)}>
-          <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="stop-park-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setConfirm(false); } }}>
-            <h2 id="stop-park-title">{t.parking.stopTitle}</h2>
-            <p>{t.parking.stopText}</p>
-            <div className="review-approval-actions">
-              <Button variant="review-warning" onClick={() => { setConfirm(false); parking('park'); }}>{t.parking.stopConfirm}</Button>
-              <Button autoFocus onClick={() => setConfirm(false)}>{t.parking.back}</Button>
-            </div>
-          </div>
-        </div>, document.body,
-      )}
+      <ConfirmDialog
+        open={confirm}
+        onOpenChange={setConfirm}
+        title={t.parking.stopTitle}
+        confirm={{ label: t.parking.stopConfirm, variant: 'review-warning', onClick: () => parking('park') }}
+        cancel={t.parking.back}
+      >
+        <p>{t.parking.stopText}</p>
+      </ConfirmDialog>
     </span>
   );
 }

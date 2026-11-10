@@ -13,8 +13,10 @@ import { api } from './api';
 import { plain } from './markdown';
 import { failText, t } from './strings';
 import { Button, CloseButton, LinkButton } from './components/button';
+import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { SegmentedControl } from './components/segmented';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
+import { Select, SelectItem } from './components/select';
 
 /** Opens the dashboard, where the page offers it (the project, not the phone view). */
 export const OpenPerformance = createContext<(() => void) | null>(null);
@@ -48,31 +50,14 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
     setViewState(v);
   };
   const [open, setOpen] = useState<string | null>(null);
-  const close = useRef<HTMLButtonElement>(null);
-  const box = useRef<HTMLDivElement>(null);
-  // what had the focus when it opened gets it back when it closes, unless a card opened from it
-  const opener = useRef<HTMLElement | null>(null);
+  // the focus goes back to what had it when the dialog opened, unless a card opened from it
   const toCard = useRef(false);
   useEffect(() => {
     if (!on) return;
-    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     toCard.current = false;
     setError('');
     api.allFeedback().then(setAll, (e) => setError(failText(e)));
-    requestAnimationFrame(() => close.current?.focus());
-    return () => {
-      if (!toCard.current && opener.current?.isConnected) opener.current.focus({ preventScroll: true });
-    };
   }, [on]);
-  /** Tab stays within the dialog while it is open. */
-  const trap = (e: React.KeyboardEvent) => {
-    if (e.key !== 'Tab' || !box.current) return;
-    const all = [...box.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), select, input, textarea')].filter((x) => x.offsetParent !== null);
-    if (!all.length) return;
-    const first = all[0]!, last = all.at(-1)!;
-    if (e.shiftKey && document.activeElement === first) (e.preventDefault(), last.focus());
-    else if (!e.shiftKey && document.activeElement === last) (e.preventDefault(), first.focus());
-  };
   const since = period === 'all' ? undefined : new Date(Date.now() - Number(period) * DAY).toISOString();
   const shown = useMemo(() => filterFeedback(all ?? [], { ...filter, ...(since ? { since } : {}) }), [all, filter, since?.slice(0, 10)]);
   const perf = useMemo(() => performance(shown), [shown]);
@@ -224,12 +209,14 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
   }
 
   return (
-    <div id="perf" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={box} className="perf-box" role="dialog" aria-modal="true" aria-labelledby="perf-title" onKeyDown={trap}>
-        <CloseButton label={t.close} className="cfg-close" ref={close} onClick={onClose} />
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent id="perf" className="perf-box" layerClassName="z-55 items-stretch p-7" onCloseAutoFocus={(e) => toCard.current && e.preventDefault()}>
+        <CloseButton label={t.close} className="cfg-close" onClick={onClose} />
         <div className="perf-main">
           <header className="perf-head">
-            <h2 id="perf-title">{p.title}</h2>
+            <DialogTitle asChild>
+              <h2>{p.title}</h2>
+            </DialogTitle>
             {all && all.length > 0 && <p className="hint">{p.summary(perf.responses, perf.ratings, perf.uncredited)}</p>}
             <a className="link perf-to-log" href={`${feedbackLogPath(here)}${logQ}`} onClick={toLog}>
               {p.toLog} →
@@ -248,11 +235,11 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
                 )}
                 <label className="perf-choice">
                   <span>{p.filters.period}</span>
-                  <select value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
-                    <option value="all">{p.periods.all}</option>
-                    <option value="90">{p.periods.days(90)}</option>
-                    <option value="30">{p.periods.days(30)}</option>
-                  </select>
+                  <Select value={period} onValueChange={(picked) => setPeriod(picked as Period)}>
+                    <SelectItem value="all">{p.periods.all}</SelectItem>
+                    <SelectItem value="90">{p.periods.days(90)}</SelectItem>
+                    <SelectItem value="30">{p.periods.days(30)}</SelectItem>
+                  </Select>
                 </label>
                 {filtered && (
                   <LinkButton className="perf-clear" onClick={() => (setFilter({}), setPeriod('all'))}>
@@ -267,8 +254,8 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
           )}
           {body}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -276,14 +263,14 @@ export function Choice({ label, value, options, onChange }: { label: string; val
   return (
     <label className="perf-choice">
       <span>{label}</span>
-      <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
-        <option value="">{t.performance.filters.any}</option>
+      <Select value={value ?? ''} onValueChange={(picked) => onChange(picked || undefined)}>
+        <SelectItem value="">{t.performance.filters.any}</SelectItem>
         {options.map((o) => (
-          <option key={o.id} value={o.id}>
+          <SelectItem key={o.id} value={o.id}>
             {o.name}
-          </option>
+          </SelectItem>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }

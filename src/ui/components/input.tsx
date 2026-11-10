@@ -10,6 +10,7 @@ import type { ComponentProps } from 'react';
 
 export const inputFieldClassName =
   'rounded-lg border border-[color-mix(in_srgb,var(--ink)_16%,var(--panel))] bg-[color-mix(in_srgb,var(--ink)_5%,var(--panel))] px-[9px] py-1.5 text-[13px] text-ink shadow-[inset_0_1px_2px_color-mix(in_srgb,var(--ink)_7%,transparent)] outline-none transition-[color,box-shadow] placeholder:text-muted-foreground/80 hover:border-[color-mix(in_srgb,var(--ink)_28%,var(--panel))] focus:border-muted-foreground focus:bg-panel disabled:opacity-55 aria-invalid:border-destructive';
+export const field = inputFieldClassName;
 const bare = 'rounded-none border-0 bg-transparent p-0 shadow-none hover:border-0 focus:bg-transparent';
 
 function Input({ className, type = 'text', bare: isBare, ...props }: ComponentProps<'input'> & { bare?: boolean }) {

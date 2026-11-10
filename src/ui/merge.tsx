@@ -1,6 +1,5 @@
 // Merge selection and the owner's coverage review (design: Merging cards).
 
-import { createPortal } from 'react-dom';
 import { Fragment, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Collapsible, CollapsibleTrigger } from './components/collapsible';
 import { type CardAction, type Item, merging, mergeableWith, mergeRank, canMergeFrom, withPart } from '../core/types';
@@ -8,12 +7,12 @@ import { Inline, plain } from './markdown';
 import { Body, Cards } from './message';
 import { api } from './api';
 import { CardFace } from './card';
-import { uiPortal } from './components/ui';
 import { MergeMark } from './parts';
 import { Shots } from './shots';
 import { stateLabel, t } from './strings';
 import { Button, CloseButton } from './components/button';
 import { Command, CommandInput, CommandItem, CommandList } from './components/command';
+import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 
 type Act = (a: CardAction, done: { close: true; ack: string } | { close: false }) => Promise<void>;
 
@@ -56,35 +55,27 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
   const [query, setQuery] = useState('');
   const field = useRef<HTMLInputElement>(null);
   const found = useMemo(() => mergeCandidates(item, candidates, query).slice(0, SHOWN), [item, all, archived, query]);
-  useEffect(() => field.current?.focus(), []);
-  // Esc closes the picker wherever the focus is; App leaves the key alone while the dialog below is open (`layerOpen`)
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.isComposing && e.keyCode !== 229) onClose(); };
-    window.addEventListener('keydown', esc, true);
-    return () => window.removeEventListener('keydown', esc, true);
-  }, [onClose]);
-  // Portalled into the app's layer container: the panel's frosted bar would otherwise confine the fixed dialog. React still bubbles events through
-  // the portal to the panel, so the root stops them there.
-  return createPortal(
-    <div id="merge-pick" onClick={(e) => { e.stopPropagation(); onClose(); }} onPointerDown={(e) => e.stopPropagation()}>
-      <div className="box" role="dialog" data-state="open" aria-modal="true" aria-label={t.merge.pickTitle(plain(item.title))} onClick={(e) => e.stopPropagation()}>
-        <CloseButton label={t.merge.cancel} className="close" onClick={onClose} />
-        <h2>{t.merge.pickTitle(plain(item.title))}</h2>
-        <Command shouldFilter={false} label={t.merge.pickTitle(plain(item.title))} className="min-h-0 flex-1">
-          <CommandInput ref={field} icon={false} className="text-[15px] px-3 py-[9px]" aria-label={t.merge.search} placeholder={t.merge.search} value={query} onValueChange={setQuery} />
-          <p className="hint">{t.merge.hint}</p>
-          <CommandList>
-            {found.map((i) => (
-              <CommandItem key={i.id} value={i.id} className="w-full gap-3 px-2.5 py-[9px] data-[selected=true]:bg-proposal/10 *:flex-1" onSelect={() => onPick(i)}>
-                <CardFace item={i} size="xs" tail={i.archivedAt && t.merge.archived} />
-              </CommandItem>
-            ))}
-          </CommandList>
-          {!found.length && <p className="hint">{query.trim() ? t.merge.noMatch : t.merge.none}</p>}
-        </Command>
-      </div>
-    </div>,
-    uiPortal() ?? document.body,
+  return (
+    <div className="contents" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+      <Dialog open onOpenChange={(open) => !open && onClose()}>
+        <DialogContent id="merge-pick" className="box" layerClassName="items-start pt-[10vh]" onOpenAutoFocus={(e) => { e.preventDefault(); field.current?.focus(); }}>
+          <CloseButton label={t.merge.cancel} className="close" onClick={onClose} />
+          <DialogTitle asChild><h2>{t.merge.pickTitle(plain(item.title))}</h2></DialogTitle>
+          <Command shouldFilter={false} label={t.merge.pickTitle(plain(item.title))} className="min-h-0 flex-1">
+            <CommandInput ref={field} icon={false} className="text-[15px] px-3 py-[9px]" aria-label={t.merge.search} placeholder={t.merge.search} value={query} onValueChange={setQuery} />
+            <p className="hint">{t.merge.hint}</p>
+            <CommandList>
+              {found.map((i) => (
+                <CommandItem key={i.id} value={i.id} className="w-full gap-3 px-2.5 py-[9px] data-[selected=true]:bg-proposal/10 *:flex-1" onSelect={() => onPick(i)}>
+                  <CardFace item={i} size="xs" tail={i.archivedAt && t.merge.archived} />
+                </CommandItem>
+              ))}
+            </CommandList>
+            {!found.length && <p className="hint">{query.trim() ? t.merge.noMatch : t.merge.none}</p>}
+          </Command>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 

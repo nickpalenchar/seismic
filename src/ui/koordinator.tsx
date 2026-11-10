@@ -30,6 +30,7 @@ import { scrollBehavior } from './motion';
 import { Button, CloseButton } from './components/button';
 import { Textarea } from './components/input';
 import { Progress } from './components/progress';
+import { Select, SelectItem } from './components/select';
 
 interface Props {
   on: boolean;
@@ -97,10 +98,10 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
       <Composer className="tell" draft={draft} placeholder={t.voice.typePlaceholder} obeya onSend={onTell} />
       <label className="chat-model">{t.koordinator.chatModel}
-        <select value={chatModel ?? ''} onChange={(e) => void api.setChatModel(project, e.target.value || undefined).catch(console.error)}>
-          <option value="">{t.koordinator.projectModel}</option>
-          {AGENT_MODELS.map((model) => <option key={model} value={model}>{model === 'default' ? t.koordinator.defaultModel : model[0]!.toUpperCase() + model.slice(1)}</option>)}
-        </select>
+        <Select value={chatModel ?? ''} onValueChange={(picked) => void api.setChatModel(project, picked || undefined).catch(console.error)}>
+          <SelectItem value="">{t.koordinator.projectModel}</SelectItem>
+          {AGENT_MODELS.map((model) => <SelectItem key={model} value={model}>{model === 'default' ? t.koordinator.defaultModel : model[0]!.toUpperCase() + model.slice(1)}</SelectItem>)}
+        </Select>
       </label>
       <ReviewHint items={items} repos={repos} />
     </>
@@ -370,14 +371,14 @@ function TargetPick({ value, repos, onChange }: { value: string; repos: RepoRef[
   return (
     <label className="target">
       {t.koordinator.target}
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">{t.koordinator.targetPreferences}</option>
+      <Select value={value} onValueChange={(picked) => onChange(picked)}>
+        <SelectItem value="">{t.koordinator.targetPreferences}</SelectItem>
         {repos.map((r) => (
-          <option key={r.id} value={r.id}>
+          <SelectItem key={r.id} value={r.id}>
             {t.koordinator.targetClaudeMd(r.name)}
-          </option>
+          </SelectItem>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }
@@ -665,14 +666,14 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
             {r.changes && <PageChangeList changes={r.changes} />}
             <span className="pref-actions">
               {counts.length > 0 && (
-                <select value={chosen ?? ''} onChange={(e) => setPick(e.target.value ? Number(e.target.value) : 'all')}>
+                <Select value={chosen == null ? '' : String(chosen)} onValueChange={(picked) => setPick(picked ? Number(picked) : 'all')}>
                   {counts.map((n) => (
-                    <option key={n} value={n}>
+                    <SelectItem key={n} value={String(n)}>
                       {s.newest(n)}
-                    </option>
+                    </SelectItem>
                   ))}
-                  <option value="">{s.all(r.outdated)}</option>
-                </select>
+                  <SelectItem value="">{s.all(r.outdated)}</SelectItem>
+                </Select>
               )}
               <Button size="small" variant="primary" onClick={() => act(() => api.reshare(chosen))}>
                 {s.go}

@@ -10,7 +10,9 @@ import { api } from './api';
 import { Field, Head } from './config';
 import { clock, failText, shortDay, t } from './strings';
 import { Button, CloseButton } from './components/button';
+import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { SegmentedControl } from './components/segmented';
+import { Select, SelectItem } from './components/select';
 
 /** Text with `code` in backticks, as the strings write commands. */
 function Coded({ text }: { text: string }) {
@@ -84,14 +86,14 @@ function Reach({ view, onView }: { view: AccessView; onView: (v: AccessView) => 
       </Field>
       {via === 'address' && (
         <Field label={a.pick}>
-          <select aria-label={a.pick} value={view.remote?.via === 'address' ? view.remote.address : ''} disabled={busy} onChange={(e) => e.target.value && save({ via: 'address', address: e.target.value, ...awake })}>
-            {!view.addresses.length && <option value="">{a.pickNone}</option>}
+          <Select aria-label={a.pick} value={view.remote?.via === 'address' ? view.remote.address : ''} disabled={busy} onValueChange={(picked) => picked && save({ via: 'address', address: picked, ...awake })}>
+            {!view.addresses.length && <SelectItem value="">{a.pickNone}</SelectItem>}
             {view.addresses.map((x) => (
-              <option key={x} value={x}>
+              <SelectItem key={x} value={x}>
                 {x}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+          </Select>
         </Field>
       )}
       {via === 'tailscale' && (
@@ -277,17 +279,19 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
     );
   }
   return (
-    <div id="phone" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="box" role="dialog" aria-modal="true" aria-label={a.connect}>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent id="phone" className="box">
         <CloseButton label={t.close} className="close" onClick={onClose} />
-        <h2>{a.connect}</h2>
+        <DialogTitle asChild>
+          <h2>{a.connect}</h2>
+        </DialogTitle>
         {body}
         <div className="acc-foot">
           <Button size="small" onClick={onSection}>
             {a.toSection}
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

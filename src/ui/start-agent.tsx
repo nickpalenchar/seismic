@@ -7,6 +7,7 @@ import { failText, t } from './strings';
 import { Button, type ButtonVariant, LinkButton } from './components/button';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './components/popover';
 import { Tooltip } from './components/tooltip';
+import { Select, SelectItem } from './components/select';
 
 /** What a worker on the shown project starts with: its own models over Configuration's. */
 const workerDefault = () => api.shownProjectSettings().then((v) => projectAgentSetting('worker', v.agents.worker, v.settings.agents));
@@ -139,7 +140,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     return () => { active = false; };
   }, [open, attempt]);
   // the keyboard lands in the menu once it has its choices (Radix returns it to the button that opened it)
-  const first = useRef<HTMLSelectElement>(null);
+  const first = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (open && setting) first.current?.focus({ preventScroll: true }); }, [open, !!setting]);
   // a Claude choice needs no catalog: a request still pending for another harness is dropped, so it neither blocks the save nor answers later
   useEffect(() => {
@@ -169,26 +170,26 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
       </Button></PopoverTrigger></Tooltip>}
     </div></PopoverAnchor>
     {!open && (startError || (checked?.key === pickedKey && checked.error)) && <p className="p-error" role="status">{startError || checked?.error}</p>}
-    <PopoverContent side="top" align="start" aria-label={a.chooseStart} className="w-[min(380px,calc(100vw-16px))] max-h-[min(var(--radix-popover-content-available-height),600px)] p-4 text-sm [&_label]:my-2.5 [&_label]:flex [&_label]:items-center [&_label]:justify-between [&_label]:gap-3 [&_p]:m-0 [&_p]:mb-2.5 [&_select]:max-w-[65%] [&_select]:min-w-0">
+    <PopoverContent side="top" align="start" aria-label={a.chooseStart} className="w-[min(380px,calc(100vw-16px))] max-h-[min(var(--radix-popover-content-available-height),600px)] p-4 text-sm [&_label]:my-2.5 [&_label]:flex [&_label]:items-center [&_label]:justify-between [&_label]:gap-3 [&_p]:m-0 [&_p]:mb-2.5 [&_[data-slot=select-trigger]]:max-w-[65%] [&_[data-slot=select-trigger]]:min-w-0">
       {initial && <p className="hint">{a.currentDefault}: {describeAgent(initial)}</p>}
       <p className="hint">{a.choiceHint}</p>
       {setting && <>
-        <label>{a.harness}<select ref={first} value={setting.harness ?? 'claude'} onChange={(e) => choose({ ...setting, harness: e.target.value as Harness, ...(e.target.value !== 'claude' ? { [e.target.value]: setting[e.target.value as 'codex' | 'agy'] ?? { model: 'default', effort: choice.effort } } : {}) })}>
-          <option value="claude">{a.harnesses.claude}</option><option value="codex" disabled={!codexAllowed}>{a.harnesses.codex}{!codexAllowed ? ` (${a.unavailable})` : ''}</option><option value="agy" disabled={!codexAllowed}>{a.harnesses.agy}{!codexAllowed ? ` (${a.unavailable})` : ''}</option>
-        </select></label>
+        <label>{a.harness}<Select triggerRef={first} value={setting.harness ?? 'claude'} onValueChange={(picked) => choose({ ...setting, harness: picked as Harness, ...(picked !== 'claude' ? { [picked]: setting[picked as 'codex' | 'agy'] ?? { model: 'default', effort: choice.effort } } : {}) })}>
+          <SelectItem value="claude">{a.harnesses.claude}</SelectItem><SelectItem value="codex" disabled={!codexAllowed}>{a.harnesses.codex}{!codexAllowed ? ` (${a.unavailable})` : ''}</SelectItem><SelectItem value="agy" disabled={!codexAllowed}>{a.harnesses.agy}{!codexAllowed ? ` (${a.unavailable})` : ''}</SelectItem>
+        </Select></label>
         {!codexAllowed && <p className="hint">{a.codexUnavailableHere}</p>}
-        <label>{a.model}<select value={codex ? choice.model : setting.model} disabled={codex && (!current || loading)} onChange={(e) => {
-          if (!codex) return choose({ ...setting, model: e.target.value as AgentModel });
-          const model = current?.find((m) => e.target.value === 'default' ? m.isDefault : m.model === e.target.value);
+        <label>{a.model}<Select value={codex ? choice.model : setting.model} disabled={codex && (!current || loading)} onValueChange={(picked) => {
+          if (!codex) return choose({ ...setting, model: picked as AgentModel });
+          const model = current?.find((m) => picked === 'default' ? m.isDefault : m.model === picked);
           const supported = AGENT_EFFORTS.filter((x) => model?.supportedReasoningEfforts.some((y) => y.reasoningEffort === x));
-          choose({ ...setting, [other!]: { model: e.target.value, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
+          choose({ ...setting, [other!]: { model: picked, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
         }}>
-          {codex ? <><option value="default">{other === 'agy' ? a.agyDefault : a.codexDefault}</option>{choice.model !== 'default' && !current?.some((m) => m.model === choice.model) && <option value={choice.model}>{choice.model} ({a.unavailable})</option>}{current?.map((m) => <option key={m.model} value={m.model}>{m.model}</option>)}</> : AGENT_MODELS.map((m) => <option key={m} value={m}>{a.models[m]}</option>)}
-        </select></label>
-        <label>{a.effort}<select value={codex ? choice.effort : setting.effort} disabled={codex && (!current || loading)} onChange={(e) => choose(codex ? { ...setting, [other!]: { ...choice, effort: e.target.value as AgentEffort } } : { ...setting, effort: e.target.value as AgentEffort })}>
-          {codex && !efforts.includes(choice.effort) && <option value={choice.effort}>{a.efforts[choice.effort]} ({a.unavailable})</option>}
-          {(codex ? efforts : AGENT_EFFORTS).map((e) => <option key={e} value={e}>{a.efforts[e]}</option>)}
-        </select></label>
+          {codex ? <><SelectItem value="default">{other === 'agy' ? a.agyDefault : a.codexDefault}</SelectItem>{choice.model !== 'default' && !current?.some((m) => m.model === choice.model) && <SelectItem value={choice.model}>{choice.model} ({a.unavailable})</SelectItem>}{current?.map((m) => <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>)}</> : AGENT_MODELS.map((m) => <SelectItem key={m} value={m}>{a.models[m]}</SelectItem>)}
+        </Select></label>
+        <label>{a.effort}<Select value={codex ? choice.effort : setting.effort} disabled={codex && (!current || loading)} onValueChange={(picked) => choose(codex ? { ...setting, [other!]: { ...choice, effort: picked as AgentEffort } } : { ...setting, effort: picked as AgentEffort })}>
+          {codex && !efforts.includes(choice.effort) && <SelectItem value={choice.effort}>{a.efforts[choice.effort]} ({a.unavailable})</SelectItem>}
+          {(codex ? efforts : AGENT_EFFORTS).map((e) => <SelectItem key={e} value={e}>{a.efforts[e]}</SelectItem>)}
+        </Select></label>
         {codex && <p className="hint">{other === 'agy' ? a.agyScope : a.codexScope}</p>}
       </>}
       {(error || loading) && <p className="p-error" role="status">{loading ? a.loadingModels : error} {error && (setting ? codex && <LinkButton onClick={loadModels}>{a.reloadModels}</LinkButton> : <LinkButton onClick={() => setAttempt(attempt + 1)}>{a.reloadModels}</LinkButton>)}</p>}

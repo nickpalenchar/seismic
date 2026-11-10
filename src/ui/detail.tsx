@@ -52,6 +52,8 @@ import { Reauthenticate } from './reauthenticate';
 import { describeAgent, StartAgent } from './start-agent';
 import type { AgentSetting } from '../core/types';
 import { Button, type ButtonVariant, CloseButton, LinkButton } from './components/button';
+import { ConfirmDialog } from './components/dialog';
+import { Select, SelectItem } from './components/select';
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
@@ -353,14 +355,14 @@ export function Detail(p: Props) {
   ) : plan && (
     <label className="build-on">
       {t.idea.workstreamOf(plain(plan.title))}
-      <select value={workstream} onChange={(e) => setWorkstream(e.target.value)}>
-        <option value="">{workstreams.length ? t.idea.chooseWorkstream : t.idea.noWorkstream}</option>
+      <Select value={workstream} onValueChange={(picked) => setWorkstream(picked)}>
+        <SelectItem value="">{workstreams.length ? t.idea.chooseWorkstream : t.idea.noWorkstream}</SelectItem>
         {workstreams.map((w) => (
-          <option key={w.id} value={w.id}>
+          <SelectItem key={w.id} value={w.id}>
             {workstreamName(w)}
-          </option>
+          </SelectItem>
         ))}
-      </select>
+      </Select>
     </label>
   );
   const prototypeActions = item.idea?.prototypeOf && (
@@ -404,29 +406,27 @@ export function Detail(p: Props) {
         <span>{item.review?.noChange ? t.approveNoChange : pr ? t.approvePr : t.approve}</span>
         {reviewRunning && <span className="start-agent-model">{cr?.state === 'running' || (verifying && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>}
       </Button>
-      {unsent > 0 && confirmUnsent && createPortal(
-        <div className="review-approval-cover" onClick={() => setConfirmUnsent(false)}>
-          <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="unsent-choices-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setConfirmUnsent(false); } }}>
-            <h2 id="unsent-choices-title">{t.unsentChoices.title}</h2>
-            <p>{t.unsentChoices.body(unsent)}</p>
-            <div className="review-approval-actions">
-              <Button variant="primary" onClick={() => { setConfirmUnsent(false); void act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id }); }}>{t.unsentChoices.approve}</Button>
-              <Button autoFocus onClick={() => setConfirmUnsent(false)}>{t.unsentChoices.back}</Button>
-            </div>
-          </div>
-        </div>, document.body,
+      {unsent > 0 && (
+        <ConfirmDialog
+          open={confirmUnsent}
+          onOpenChange={setConfirmUnsent}
+          title={t.unsentChoices.title}
+          confirm={{ label: t.unsentChoices.approve, onClick: () => void act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id }) }}
+          cancel={t.unsentChoices.back}
+        >
+          <p>{t.unsentChoices.body(unsent)}</p>
+        </ConfirmDialog>
       )}
-      {reviewRunning && confirmReviewApproval && createPortal(
-        <div className="review-approval-cover" onClick={() => setConfirmReviewApproval(false)}>
-          <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="review-approval-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setConfirmReviewApproval(false); } }}>
-            <h2 id="review-approval-title">{t.approveDuringReview.title}</h2>
-            <p>{t.approveDuringReview.body}</p>
-            <div className="review-approval-actions">
-              <Button variant="primary" onClick={() => { setConfirmReviewApproval(false); void act({ action: 'approve' }, { close: true, ack: t.approved, pending: t.approving, rate: item.id }); }}>{t.approveDuringReview.land}</Button>
-              <Button autoFocus onClick={() => setConfirmReviewApproval(false)}>{t.approveDuringReview.continue}</Button>
-            </div>
-          </div>
-        </div>, document.body,
+      {reviewRunning && (
+        <ConfirmDialog
+          open={confirmReviewApproval}
+          onOpenChange={setConfirmReviewApproval}
+          title={t.approveDuringReview.title}
+          confirm={{ label: t.approveDuringReview.land, onClick: () => void act({ action: 'approve' }, { close: true, ack: t.approved, pending: t.approving, rate: item.id }) }}
+          cancel={t.approveDuringReview.continue}
+        >
+          <p>{t.approveDuringReview.body}</p>
+        </ConfirmDialog>
       )}
       {/* where the owner starts code reviews themselves: beside Approve, in its own colour, until the latest handover is reviewed */}
       {asksReview && (
@@ -578,18 +578,15 @@ export function Detail(p: Props) {
 
   return (
     <CardRefs.Provider value={smartLink}><DescriptionEdit.Provider value={p.onEdit}>
-      {parkedStart && createPortal(
-        <div className="review-approval-cover" onClick={() => setParkedStart(null)}>
-          <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="parked-start-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setParkedStart(null); } }}>
-            <h2 id="parked-start-title">{t.parking.confirmTitle}</h2>
-            <p>{t.parking.confirmText}</p>
-            <div className="review-approval-actions">
-              <Button variant="primary" onClick={() => { const s = parkedStart; setParkedStart(null); void actNow(s.a, s.done); }}>{t.parking.confirm}</Button>
-              <Button autoFocus onClick={() => setParkedStart(null)}>{t.parking.back}</Button>
-            </div>
-          </div>
-        </div>, document.body,
-      )}
+      <ConfirmDialog
+        open={!!parkedStart}
+        onOpenChange={(o) => !o && setParkedStart(null)}
+        title={t.parking.confirmTitle}
+        confirm={{ label: t.parking.confirm, onClick: () => { const s = parkedStart; if (s) void actNow(s.a, s.done); } }}
+        cancel={t.parking.back}
+      >
+        <p>{t.parking.confirmText}</p>
+      </ConfirmDialog>
       <KindLine kind={kind} item={item} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className="p-title">{shownTitle(item)}</div>}
       <div className={['p-state', finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', item.review?.codeReview?.state === 'running' && 'reviewing', mergeProposed(item) && 'merge-proposed'].filter(Boolean).join(' ')}>
@@ -1020,17 +1017,16 @@ function RepoDownBox({ item }: { item: Item }) {
 function useOpenQuestionsGuard(open: number) {
   const [pending, setPending] = useState<(() => void) | null>(null);
   const guard = (go: () => void) => (open > 0 ? setPending(() => go) : go());
-  const dialog = pending && createPortal(
-    <div className="review-approval-cover" onClick={() => setPending(null)}>
-      <div className="review-approval-box" role="dialog" aria-modal="true" aria-labelledby="open-questions-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setPending(null); } }}>
-        <h2 id="open-questions-title">{t.startWithQuestions.title}</h2>
-        <p>{t.startWithQuestions.body(open)}</p>
-        <div className="review-approval-actions">
-          <Button variant="review-warning" onClick={() => { const go = pending; setPending(null); go(); }}>{t.startWithQuestions.anyway}</Button>
-          <Button autoFocus onClick={() => setPending(null)}>{t.startWithQuestions.back}</Button>
-        </div>
-      </div>
-    </div>, document.body,
+  const dialog = (
+    <ConfirmDialog
+      open={!!pending}
+      onOpenChange={(o) => !o && setPending(null)}
+      title={t.startWithQuestions.title}
+      confirm={{ label: t.startWithQuestions.anyway, variant: 'review-warning', onClick: () => pending?.() }}
+      cancel={t.startWithQuestions.back}
+    >
+      <p>{t.startWithQuestions.body(open)}</p>
+    </ConfirmDialog>
   );
   return { guard, dialog };
 }
@@ -2397,7 +2393,7 @@ function useWatching(cardId: string, video: RefObject<HTMLVideoElement | null>, 
 function forTheVideo(e: KeyboardEvent) {
   if (e.metaKey || e.ctrlKey || e.altKey) return false;
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], [role=menu]')) return false;
-  return !document.querySelector('#help, #config.on, .lightbox, .diff-view');
+  return !document.querySelector('#help, #config, .lightbox, .diff-view');
 }
 
 /** The demo video the keys are for, with several on a card: the zoomed one, else the one playing, else the first. */

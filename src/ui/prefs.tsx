@@ -9,6 +9,7 @@ import { Head, LanguageBlock, MotionBlock, ServerBlock, ThemeBlock } from './con
 import { t } from './strings';
 import { WishLink } from './wish';
 import { Button, CloseButton } from './components/button';
+import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 
 /** The dialog's sections, in the order its list shows them. */
@@ -42,12 +43,14 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
   }, [on, section]);
   const p = t.prefs;
   return (
-    <div id="prefs" className={on ? 'cfg-overlay on' : 'cfg-overlay'} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="cfg-box" role="dialog" aria-modal="true" aria-label={p.title}>
+    <Dialog open={on} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent id="prefs" keepMounted className="cfg-box" layerClassName="z-55 items-stretch p-7">
         <Tabs orientation="vertical" value={section} onValueChange={(s) => setSection(s as PrefsSection)} className="contents">
         <nav className="cfg-nav">
           <div className="p-kind">{p.kind}</div>
-          <h2>{p.title}</h2>
+          <DialogTitle asChild>
+            <h2>{p.title}</h2>
+          </DialogTitle>
           <div className="cfg-ask">
             <p className="hint">{p.hint}</p>
             <Button size="small" onClick={onConfig}>
@@ -93,7 +96,7 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
           </TabsContent>
         </div>
         </Tabs>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

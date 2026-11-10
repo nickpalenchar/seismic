@@ -6,7 +6,6 @@
 
 import { Info as InfoIcon, Trash2 } from 'lucide-react';
 import { Fragment, type ReactNode, useContext, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
@@ -32,6 +31,7 @@ import { projectPath } from './address';
 import { scrollBehavior } from './motion';
 import { Badge } from './components/badge';
 import { Button, CloseButton, IconButton, LinkButton } from './components/button';
+import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { Checkbox } from './components/checkbox';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
@@ -41,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 import { Input, Textarea } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
+import { Select, SelectGroup, SelectItem, SelectLabel } from './components/select';
 
 declare global {
   interface Window {
@@ -385,12 +386,14 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
   const tabOf = section === 'projects' ? PROJECT_TAB + shown : section;
   return (
     // a press on the dim around the dialog closes it; a press that starts inside does not
-    <div id="config" className={on ? 'on' : undefined} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="cfg-box" role="dialog" aria-modal="true" aria-label={c.title}>
+    <Dialog open={on} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent id="config" keepMounted className="cfg-box" layerClassName="z-55 items-stretch p-7">
         <Tabs orientation="vertical" value={tabOf} onValueChange={(v) => (v.startsWith(PROJECT_TAB) ? showProject(Number(v.slice(PROJECT_TAB.length))) : setSection(v as Section))} className="contents">
         <nav className="cfg-nav">
           <div className="p-kind">{c.kind}</div>
-          <h2>{c.title}</h2>
+          <DialogTitle asChild>
+            <h2>{c.title}</h2>
+          </DialogTitle>
           <div className="cfg-ask">
             <p className="hint">{c.koordinator}</p>
             <Button size="small" onClick={onTalk}>
@@ -547,8 +550,8 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
           </section>
         </div>
         </Tabs>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -863,24 +866,24 @@ export function LanguageBlock({ on }: { on: boolean }) {
     <>
       <Head sub title={l.heading} file={view.file} />
       <Field label={l.title} hint={l.hint}>
-        <select aria-label={l.title} value={view.chosen ?? ''} disabled={busy} onChange={(e) => choose((e.target.value || null) as Language | null)}>
-          <option value="">{l.system(l.names[view.system])}</option>
+        <Select aria-label={l.title} value={view.chosen ?? ''} disabled={busy} onValueChange={(picked) => choose((picked || null) as Language | null)}>
+          <SelectItem value="">{l.system(l.names[view.system])}</SelectItem>
           {LANGUAGES.map((x) => (
-            <option key={x} value={x}>
+            <SelectItem key={x} value={x}>
               {l.names[x]}
-            </option>
+            </SelectItem>
           ))}
-        </select>
+        </Select>
       </Field>
       <Field label={l.conversation} hint={l.conversationHint}>
-        <select aria-label={l.conversation} value={view.conversationChosen ?? ''} disabled={busy} onChange={(e) => converse((e.target.value || null) as Language | null)}>
-          <option value="">{l.asInterface(l.names[view.language])}</option>
+        <Select aria-label={l.conversation} value={view.conversationChosen ?? ''} disabled={busy} onValueChange={(picked) => converse((picked || null) as Language | null)}>
+          <SelectItem value="">{l.asInterface(l.names[view.language])}</SelectItem>
           {LANGUAGES.map((x) => (
-            <option key={x} value={x}>
+            <SelectItem key={x} value={x}>
               {l.names[x]}
-            </option>
+            </SelectItem>
           ))}
-        </select>
+        </Select>
       </Field>
       {status && <p className="hint c-status">{status}</p>}
     </>
@@ -1269,31 +1272,31 @@ function AgentsBlock({ on }: { on: boolean }) {
                 {a.roles[role].name}
                 <span className="hint">{a.roles[role].hint}</span>
               </div>
-              <select aria-label={`${a.roles[role].name}: ${a.harness}`} value={choosesHarness(role) ? setting.harness ?? 'claude' : 'claude'} disabled={busy || !choosesHarness(role)} onChange={(e) => choose(role, { harness: e.target.value as Harness })}>
-                <option value="claude">{a.harnesses.claude}</option>
-                <option value="codex">{a.harnesses.codex}</option>
-                <option value="agy">{a.harnesses.agy}</option>
-              </select>
-              <select aria-label={`${a.roles[role].name}: ${a.model}`} value={codex ? choice.model : setting.model} disabled={busy || (codex && loading)} onChange={(e) => {
-                if (!codex) return choose(role, { model: e.target.value as AgentModel });
-                const next = models?.find((m) => e.target.value === 'default' ? m.isDefault : m.model === e.target.value);
+              <Select aria-label={`${a.roles[role].name}: ${a.harness}`} value={choosesHarness(role) ? setting.harness ?? 'claude' : 'claude'} disabled={busy || !choosesHarness(role)} onValueChange={(picked) => choose(role, { harness: picked as Harness })}>
+                <SelectItem value="claude">{a.harnesses.claude}</SelectItem>
+                <SelectItem value="codex">{a.harnesses.codex}</SelectItem>
+                <SelectItem value="agy">{a.harnesses.agy}</SelectItem>
+              </Select>
+              <Select aria-label={`${a.roles[role].name}: ${a.model}`} value={codex ? choice.model : setting.model} disabled={busy || (codex && loading)} onValueChange={(picked) => {
+                if (!codex) return choose(role, { model: picked as AgentModel });
+                const next = models?.find((m) => picked === 'default' ? m.isDefault : m.model === picked);
                 const supported = AGENT_EFFORTS.filter((x) => next?.supportedReasoningEfforts.some((y) => y.reasoningEffort === x));
-                return choose(role, { [other!]: { model: e.target.value, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
+                return choose(role, { [other!]: { model: picked, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
               }}>
                 {codex ? <>
-                  <option value="default">{other === 'agy' ? a.agyDefault : a.codexDefault}</option>
-                  {choice.model !== 'default' && !models?.some((m) => m.model === choice.model) && <option value={choice.model}>{choice.model}</option>}
-                  {models?.map((m) => <option key={m.model} value={m.model}>{m.model}</option>)}
-                </> : AGENT_MODELS.map((m) => <option key={m} value={m}>{a.models[m]}</option>)}
-              </select>
-              <select aria-label={`${a.roles[role].name}: ${a.effort}`} value={codex ? choice.effort : setting.effort} disabled={busy || (codex && loading)} onChange={(e) => choose(role, codex ? { [other!]: { ...choice, effort: e.target.value as AgentEffort } } : { effort: e.target.value as AgentEffort })}>
-                {codex && !efforts.includes(choice.effort) && <option value={choice.effort}>{a.efforts[choice.effort]}</option>}
+                  <SelectItem value="default">{other === 'agy' ? a.agyDefault : a.codexDefault}</SelectItem>
+                  {choice.model !== 'default' && !models?.some((m) => m.model === choice.model) && <SelectItem value={choice.model}>{choice.model}</SelectItem>}
+                  {models?.map((m) => <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>)}
+                </> : AGENT_MODELS.map((m) => <SelectItem key={m} value={m}>{a.models[m]}</SelectItem>)}
+              </Select>
+              <Select aria-label={`${a.roles[role].name}: ${a.effort}`} value={codex ? choice.effort : setting.effort} disabled={busy || (codex && loading)} onValueChange={(picked) => choose(role, codex ? { [other!]: { ...choice, effort: picked as AgentEffort } } : { effort: picked as AgentEffort })}>
+                {codex && !efforts.includes(choice.effort) && <SelectItem value={choice.effort}>{a.efforts[choice.effort]}</SelectItem>}
                 {efforts.map((x) => (
-                  <option key={x} value={x}>
+                  <SelectItem key={x} value={x}>
                     {a.efforts[x]}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
+              </Select>
             </Fragment>
           );
         })}
@@ -1414,14 +1417,14 @@ function DemoBlock({ on }: { on: boolean }) {
     const known = name ? qwen3Speaker(name) : QWEN3_SPEAKER;
     return (
       <Field key="voiceName" label={d.field.voiceName('qwen3')} hint={d.speakerHint}>
-        <select aria-label={d.field.voiceName('qwen3')} value={known ?? name} onChange={(e) => set('voiceName', e.target.value === QWEN3_SPEAKER ? undefined : e.target.value)}>
-          {!known && name && <option value={name}>{d.speakerUnknown(name)}</option>}
+        <Select aria-label={d.field.voiceName('qwen3')} value={known ?? name ?? ''} onValueChange={(picked) => set('voiceName', picked === QWEN3_SPEAKER ? undefined : picked)}>
+          {!known && name && <SelectItem value={name}>{d.speakerUnknown(name)}</SelectItem>}
           {QWEN3_SPEAKERS.map((s) => (
-            <option key={s} value={s}>
+            <SelectItem key={s} value={s}>
               {d.speakers[s]}
-            </option>
+            </SelectItem>
           ))}
-        </select>
+        </Select>
         {shown.problems.includes('unknownSpeaker') && <p className="p-error">{d.problem.unknownSpeaker}</p>}
       </Field>
     );
@@ -1456,38 +1459,39 @@ function DemoBlock({ on }: { on: boolean }) {
           </Field>
           {view.space && <KeepFrames space={view.space} value={draft.keepFrames} onChange={(v) => set('keepFrames', v)} />}
           {LANGUAGES.length > 1 && <Field label={d.language} hint={d.languageHint}>
-            <select aria-label={d.language} value={draft.language} onChange={(e) => set('language', e.target.value as NarrationLanguage)}>
+            <Select aria-label={d.language} value={draft.language} onValueChange={(picked) => set('language', picked as NarrationLanguage)}>
               {(Object.keys(d.languages) as NarrationLanguage[]).map((l) => (
-                <option key={l} value={l}>
+                <SelectItem key={l} value={l}>
                   {d.languages[l]}
-                </option>
+                </SelectItem>
               ))}
-            </select>
+            </Select>
           </Field>}
           <Field label={d.artifactsLabel} hint={d.artifactsHint}>
             <ArtifactChecks value={draft.artifacts ?? [...HANDOVER_ARTIFACTS]} onChange={(v) => set('artifacts', v.length === HANDOVER_ARTIFACTS.length ? undefined : v)} />
           </Field>
           <Field label={d.voice} hint={d.about[draft.voice]}>
-            <select
+            <Select
               aria-label={d.voice}
               value={draft.voice}
               // another voice starts with its own fields, and is nobody's own until ticked; directory and frames stay
-              onChange={(e) =>
-                setDraft({ language: draft.language, voice: e.target.value as VoiceKind, ...(draft.directory ? { directory: draft.directory } : {}), ...(draft.keepFrames ? { keepFrames: draft.keepFrames } : {}), ...(draft.artifacts ? { artifacts: draft.artifacts } : {}) })
+              onValueChange={(picked) =>
+                setDraft({ language: draft.language, voice: picked as VoiceKind, ...(draft.directory ? { directory: draft.directory } : {}), ...(draft.keepFrames ? { keepFrames: draft.keepFrames } : {}), ...(draft.artifacts ? { artifacts: draft.artifacts } : {}) })
               }
             >
               {VOICE_GROUPS.map(({ group, voices }) => (
-                <optgroup key={group} label={d.groups[group]}>
+                <SelectGroup key={group}>
+                  <SelectLabel>{d.groups[group]}</SelectLabel>
                   {voices
                     .filter((v) => v !== 'say' || view.platform === 'darwin' || draft.voice === 'say')
                     .map((v) => (
-                      <option key={v} value={v}>
+                      <SelectItem key={v} value={v}>
                         {d.voices[v]}
-                      </option>
+                      </SelectItem>
                     ))}
-                </optgroup>
+                </SelectGroup>
               ))}
-            </select>
+            </Select>
           </Field>
           {VOICE_FIELDS[draft.voice].map((k) => (k === 'voiceName' && draft.voice === 'qwen3' ? speakerField() : field(k)))}
           {(STYLED_VOICES as readonly VoiceKind[]).includes(draft.voice) && !(draft.voice === 'qwen3' && qwen3IsClone(draft)) && (
@@ -1599,15 +1603,15 @@ function CloudflareAccount({ accounts, way, onChange, disabled }: { accounts: st
     <div className="site-account">
       <label>
         <span className="hint">{a.account}</span>
-        <select aria-label={a.account} value={way.account} disabled={disabled} onChange={(e) => onChange({ ...way, account: e.target.value })}>
+        <Select aria-label={a.account} value={way.account} disabled={disabled} onValueChange={(picked) => onChange({ ...way, account: picked })}>
           {accounts.map((x) => (
-            <option key={x} value={x}>
+            <SelectItem key={x} value={x}>
               {a.accountOf(x)}
-            </option>
+            </SelectItem>
           ))}
-          <option value="">{a.accountLogin}</option>
-          <option value="token">{a.accountToken}</option>
-        </select>
+          <SelectItem value="">{a.accountLogin}</SelectItem>
+          <SelectItem value="token">{a.accountToken}</SelectItem>
+        </Select>
       </label>
       {way.account === 'token' && (
         <>
@@ -1997,25 +2001,25 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
     <div className="cfg-sub project-site">
       <label className="wide">
         {!bare && <span className="hint">{l.label}</span>}
-        <select
+        <Select
           aria-label={l.label}
           value={url}
           disabled={running}
-          onChange={(e) => {
+          onValueChange={(picked) => {
             setStatus('');
-            if (e.target.value === '+') return onAddSite();
-            onChange(e.target.value ? { url: e.target.value, ...(value?.publish ? { publish: value.publish } : {}), ...(value?.tags ? { tags: value.tags } : {}), ...(typed ? { path: typed } : {}) } : null);
+            if (picked === '+') return onAddSite();
+            onChange(picked ? { url: picked, ...(value?.publish ? { publish: value.publish } : {}), ...(value?.tags ? { tags: value.tags } : {}), ...(typed ? { path: typed } : {}) } : null);
           }}
         >
-          <option value="">{l.none}</option>
+          <SelectItem value="">{l.none}</SelectItem>
           {view?.sites.map((x) => (
-            <option key={x.url} value={x.url}>
+            <SelectItem key={x.url} value={x.url}>
               {siteLabel(x.url)}
-            </option>
+            </SelectItem>
           ))}
-          {url && !site && view && <option value={url}>{siteLabel(url)}</option>}
-          <option value="+">{l.addNew}</option>
-        </select>
+          {url && !site && view && <SelectItem value={url}>{siteLabel(url)}</SelectItem>}
+          <SelectItem value="+">{l.addNew}</SelectItem>
+        </Select>
       </label>
       {url && view && !site && <p className="p-error wide">{l.missing}</p>}
       {url && site && (
@@ -2125,20 +2129,20 @@ function KeepFrames({ space, value, onChange }: { space: DemoSpaceView; value: D
   const { used, freed, busy } = space;
   return (
     <Field label={<>{d.keepFrames} <Info text={d.keepFramesInfo} /></>}>
-      <select
+      <Select
         aria-label={d.keepFrames}
         value={String(shown)}
-        onChange={(e) => {
-          const v = e.target.value === 'always' ? 'always' : Number(e.target.value);
+        onValueChange={(picked) => {
+          const v = picked === 'always' ? 'always' : Number(picked);
           onChange(v === fallback ? undefined : v);
         }}
       >
         {choices.map((c) => (
-          <option key={c} value={String(c)}>
+          <SelectItem key={c} value={String(c)}>
             {label(c)}
-          </option>
+          </SelectItem>
         ))}
-      </select>
+      </Select>
       <p className="hint">
         {used ? d.used(fileSize(used.bytes), fileSize(used.work)) : d.counting}
         {used && busy && ` ${d.recounting}`}
@@ -3035,47 +3039,20 @@ function OldNames({ names, onDelete }: { names: string[]; onDelete: (name: strin
       ) : (
         rows
       )}
-      {asking !== null &&
-        createPortal(
-          <div className="review-approval-cover" onClick={() => setAsking(null)}>
-            <div
-              className="review-approval-box"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="old-name-title"
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  e.stopPropagation();
-                  setAsking(null);
-                }
-              }}
-            >
-              <h2 id="old-name-title">{c.deleteOldNameTitle(asking)}</h2>
-              <p className="old-name-warning">{c.deleteOldNameWarning}</p>
-              <ul className="old-name-effects">
-                <li>{c.deleteOldNameCards}</li>
-                <li>{c.deleteOldNameReuse}</li>
-              </ul>
-              <p className="hint">{c.deleteOldNameSave}</p>
-              <div className="review-approval-actions">
-                <Button
-                  className="delete-old-name"
-                  onClick={() => {
-                    onDelete(asking);
-                    setAsking(null);
-                  }}
-                >
-                  {c.deleteOldNameConfirm}
-                </Button>
-                <Button autoFocus onClick={() => setAsking(null)}>
-                  {c.deleteOldNameBack}
-                </Button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+      <ConfirmDialog
+        open={asking !== null}
+        onOpenChange={(o) => !o && setAsking(null)}
+        title={c.deleteOldNameTitle(asking ?? '')}
+        confirm={{ label: c.deleteOldNameConfirm, variant: 'default', className: 'delete-old-name', onClick: () => asking !== null && onDelete(asking) }}
+        cancel={c.deleteOldNameBack}
+      >
+        <p className="old-name-warning">{c.deleteOldNameWarning}</p>
+        <ul className="old-name-effects">
+          <li>{c.deleteOldNameCards}</li>
+          <li>{c.deleteOldNameReuse}</li>
+        </ul>
+        <p className="hint">{c.deleteOldNameSave}</p>
+      </ConfirmDialog>
     </Field>
   );
 }

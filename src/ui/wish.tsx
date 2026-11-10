@@ -15,6 +15,7 @@ import { useFitHeight } from './fitHeight';
 import { imageUrl, Shots } from './shots';
 import { clock, errorText, t } from './strings';
 import { Button, CloseButton } from './components/button';
+import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { Input, Textarea } from './components/input';
 
 /** The issue as it will go out; `raw`: the job wrote nothing, the owner's words stand as they are. */
@@ -227,10 +228,22 @@ export function WishDialog() {
   if (!w.open) return null;
   const { issue } = w;
   return (
-    <div id="wish" onClick={closeWish}>
-      <div className="box" role="dialog" aria-label={t.wish.title} onClick={(e) => e.stopPropagation()}>
+    <Dialog open onOpenChange={(open) => !open && closeWish()}>
+      <DialogContent
+        id="wish"
+        className="box"
+        onOpenAutoFocus={(e) => {
+          // the words go into the composer, not onto the close button that comes first
+          const field = (e.currentTarget as HTMLElement).querySelector<HTMLElement>('textarea, [contenteditable]');
+          if (!field) return;
+          e.preventDefault();
+          field.focus();
+        }}
+      >
         <CloseButton label={t.close} className="close" onClick={closeWish} />
-        <h2>{t.wish.title}</h2>
+        <DialogTitle asChild>
+          <h2>{t.wish.title}</h2>
+        </DialogTitle>
         {w.sent ? (
           <div className="w-sent">
             {w.sent.map((line) => (
@@ -281,8 +294,8 @@ export function WishDialog() {
             )}
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

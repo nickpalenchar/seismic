@@ -558,7 +558,6 @@ button.pill:hover { box-shadow: var(--lift); }
 .prefs .occasion .from { color: var(--ink); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
 .prefs .occasion q { font-style: italic; }
 .prefs .target, .pref-new .target { flex-basis: 100%; display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); font-size: 12px; }
-.prefs .target select, .pref-new .target select { font: inherit; color: var(--ink); padding: 3px 6px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); }
 .prefs .pref-actions { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .proposals li { background: color-mix(in srgb, var(--proposal) 9%, var(--chip)); }
 .proposals li:hover { background: color-mix(in srgb, var(--proposal) 9%, var(--chip)); }
@@ -586,7 +585,6 @@ button.pill:hover { box-shadow: var(--lift); }
 .reshare .page-changes { flex-basis: 100%; margin: 0; }
 /* not the sheet's entries it stands in */
 .reshare .page-changes li, .reshare .page-changes li:hover { margin: 0; padding: 0; border: 0; background: none; border-radius: 0; flex-wrap: nowrap; }
-.reshare select { font: inherit; font-size: 12px; color: var(--ink); padding: 3px 6px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); }
 .pref-new { margin-top: 8px; }
 .pref-new { gap: 6px 10px; }
 .pref-new textarea { min-height: 38px; }
@@ -594,7 +592,6 @@ button.pill:hover { box-shadow: var(--lift); }
 .hint { color: var(--muted-foreground); font-size: 12px; }
 button.pill.help { width: 32px; height: 32px; padding: 0; justify-content: center; font-weight: 700; font-size: 15px; color: var(--muted-foreground); }
 button.pill.help:hover, button.pill.help.on { color: var(--ink); }
-#help { position: fixed; inset: 0; z-index: 60; background: var(--dim); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 24px; animation: fade .15s ease-out; }
 #help .box { position: relative; padding: 22px 26px 24px; width: 860px; max-width: 100%; max-height: 100%; overflow: auto; }
 #help h2 { margin: 0 0 14px; font-size: 23px; }
 #help .close { position: absolute; right: 14px; top: 12px; }
@@ -616,7 +613,6 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 #help .w-legend { font-size: 12px; color: var(--muted-foreground); }
 
 /* the draft of a wish or a bug for Seismic's makers: over the page, as tall as its text needs; the box scrolls, its fields never */
-#wish { position: fixed; inset: 0; z-index: 61; background: var(--dim); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 24px; animation: fade .15s ease-out; }
 #wish .box { position: relative; padding: 22px 26px 22px; width: 760px; max-width: 100%; max-height: 100%; overflow: auto;
   display: flex; flex-direction: column; gap: 12px; }
 #wish h2 { margin: 0 0 2px; font-size: 21px; }
@@ -689,7 +685,6 @@ button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 .canvas-icon.emoji { line-height: 1; }
 .canvas-icon.letter { display: inline-grid; place-items: center; border-radius: 50%; background: var(--chip); color: var(--ink); font-weight: 700; line-height: 1; padding: 2px; }
 @keyframes drawer-out { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-#canvas-dialog { position: fixed; inset: 0; z-index: 60; background: var(--dim); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center; padding: 8vh 24px 24px; animation: fade .15s ease-out; }
 #canvas-dialog .box { position: relative; display: flex; flex-direction: column; width: 560px; max-width: 100%; max-height: 100%; box-sizing: border-box; padding: 22px 26px 20px; }
 #canvas-dialog h2 { display: flex; align-items: center; gap: 12px; margin: 0 44px 16px 0; font-size: 21px; }
 #canvas-dialog .close { position: absolute; right: 14px; top: 14px; }
@@ -816,14 +811,8 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
 /* deleting stands apart from what moves the card on */
 .actions > [data-slot=button][data-variant=danger] { margin-left: auto; }
-.review-approval-cover { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--dim); }
-.review-approval-box { width: min(440px, 100%); padding: 24px; border-radius: 4px; background: var(--panel); box-shadow: var(--lift); }
-.review-approval-box h2 { margin: 0 0 10px; font: 600 24px var(--font); }
-.review-approval-box p { margin: 0 0 22px; line-height: 1.5; }
-.review-approval-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 /* a prototype whose idea became a plan: the workstream to build on it, on a line of its own above the buttons */
 .build-on { flex-basis: 100%; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted-foreground); }
-.build-on select { font: inherit; font-size: 13px; color: var(--ink); padding: 6px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); max-width: 100%; }
 /* an idea's next step as its agent would take it: a line above the decisions, and the button it means */
 .next-step { display: flex; flex-direction: column; gap: 3px; margin-top: 16px; padding: 2px 0; max-width: 80ch;
   font-size: 14px; }
@@ -1388,8 +1377,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .f-discard.counting { border: 1px solid var(--error); }
 .f-count { margin-left: 8px; font-variant-numeric: tabular-nums; font-weight: 600; }
 .f-cancel { margin-left: 6px; color: var(--error); font-weight: 700; }
-.diff-view { position: fixed; inset: 0; z-index: 1000; background: var(--dim); display: flex; justify-content: center;
-  padding: 3vh 3vw; animation: fade .15s ease-out; }
 .d-sheet { display: flex; flex-direction: column; width: min(100%, 1500px); min-height: 0; }
 .d-head { display: flex; align-items: baseline; gap: 14px; padding: 16px 22px 12px; border-bottom: 1px solid var(--line); }
 .d-head h2 { margin: 0; font-size: 21px; }
@@ -1487,8 +1474,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 
 /* Seismic's configuration: a dialog over the page, nearly as large as the window, its sections listed
    on the left and the one chosen on the right; settings as rows of label and control, without boxes */
-#config, #prefs { position: fixed; inset: 0; z-index: 55; background: var(--dim); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: none; padding: 28px; }
-:is(#config, #prefs).on { display: flex; animation: fade .15s ease-out; }
 .cfg-box { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr); min-width: 0;
   overflow: hidden; position: relative; }
 .cfg-nav { display: flex; flex-direction: column; padding: 22px 14px 18px; background: transparent; border-right: 1px solid var(--line); overflow-y: auto; }
@@ -1527,22 +1512,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .c-trust { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 8px; }
 .c-trust-group { align-self: stretch; }
 .c-trust-group > .hint { margin: 0 0 4px; }
-/* fields sunk a little into the sheet, a shade darker than it with a firmer edge, so the page's structure
-   reads at a glance; the one being typed in comes up to the sheet's own colour */
-:is(#config, #prefs, #project-settings) select { font: inherit; font-size: 13px; padding: 6px 9px; border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--ink) 16%, var(--panel)); background: color-mix(in srgb, var(--ink) 5%, var(--panel));
-  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 7%, transparent); color: var(--ink); outline: none; }
-:is(#config, #prefs, #project-settings) select:hover { border-color: color-mix(in srgb, var(--ink) 28%, var(--panel)); }
-:is(#config, #prefs, #project-settings) select:focus { border-color: var(--muted-foreground); background-color: var(--panel); }
-/* a select's own arrow, drawn as two strokes in the muted ink, as far in from the right edge as the text is
-   from the left; the browser's arrow sat almost on the edge and cannot be moved */
-#phone select { font: inherit; font-size: 13px; padding: 6px 9px; border-radius: 2px; border: 1px solid color-mix(in srgb, var(--ink) 16%, var(--panel));
-  background: color-mix(in srgb, var(--ink) 5%, var(--panel)); color: var(--ink); }
-:is(#config, #prefs, #project-settings) select { appearance: none; -webkit-appearance: none; padding-right: 30px;
-  --arrow: color-mix(in srgb, var(--ink) 70%, transparent);
-  background-image: linear-gradient(45deg, transparent 50%, var(--arrow) 50%, var(--arrow) calc(50% + 1.3px), transparent calc(50% + 1.3px)),
-    linear-gradient(-45deg, transparent 50%, var(--arrow) 50%, var(--arrow) calc(50% + 1.3px), transparent calc(50% + 1.3px));
-  background-size: 6px 6px; background-repeat: no-repeat; background-position: calc(100% - 18px) 55%, calc(100% - 12px) 55%; }
 :is(#config, #prefs, #project-settings) textarea { width: 100%; }
 .cfg-head { margin-bottom: 14px; }
 .cfg-head h3 { margin: 0 48px 6px 0; font-size: 26px; line-height: 1.15; }
@@ -1556,7 +1525,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-label { color: var(--muted-foreground); font-size: 13px; }
 .cfg-control { min-width: 0; max-width: 640px; }
 .cfg-control > .hint { margin: 5px 0 0; font-size: 12.5px; line-height: 1.45; }
-.cfg-control > select, .cfg-control > .c-path { width: 100%; max-width: 420px; }
+.cfg-control > [data-slot=select-trigger], .cfg-control > .c-path { width: 100%; max-width: 420px; }
 .cfg-control > .c-style, .cfg-control > .c-sample { display: block; width: 100%; max-width: 420px; resize: vertical; }
 /* prose, not a path: the page's font */
 #config .cfg-control > :is(.c-style, .c-sample) { font-family: inherit; font-size: 13px; line-height: 1.45; padding: 6px 8px; }
@@ -1592,9 +1561,9 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-old-names li { display: flex; align-items: center; gap: 10px; min-height: 30px; }
 .cfg-old-names li > .c-del { margin-left: 0; }
 .old-name-warning { padding: 8px 12px; border-radius: 4px; color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); font-weight: 600; }
-.review-approval-box .old-name-warning { margin: 0 0 12px; }
+.old-name-warning { margin: 0 0 12px; }
 .old-name-effects { margin: 0 0 12px; padding-left: 20px; line-height: 1.5; }
-.review-approval-box .hint { margin: 0 0 18px; }
+[data-slot=confirm-dialog] .hint { margin: 0 0 18px; }
 .cfg-host { display: contents; }
 /* labels line up with the top of their controls, which are often several lines high */
 .cfg-project .cfg-field { align-items: start; }
@@ -1652,7 +1621,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-host-rows + [data-slot=button] { margin-top: 6px; }
 .cfg-agents { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(130px, .85fr) minmax(160px, 1fr) minmax(100px, .65fr); gap: 0 14px; align-items: center; max-width: 1000px; }
 .cfg-agents > .hint { font-size: 11.5px; padding-bottom: 4px; }
-.cfg-agents > select { min-width: 0; }
+.cfg-agents > [data-slot=select-trigger] { min-width: 0; }
 .cfg-agent { display: flex; flex-direction: column; padding: 9px 0; font-size: 14px; }
 .cfg-agent > .hint { font-size: 12px; }
 @media (max-width: 900px) {
@@ -1677,7 +1646,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 }
 /* shared with the setup assistant */
 .c-project { margin: 16px 0 6px; padding: 12px 12px 10px; border: 1px solid var(--line); border-radius: 3px; }
-.c-project select { font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); outline: none; }
 .c-project .p-error { margin: 4px 0 0; font-size: 12.5px; }
 .c-id { font: 11.5px var(--mono); color: var(--muted-foreground); }
 .c-id.fresh { color: var(--warn); }
@@ -2090,7 +2058,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .c-voice .warn, .c-setup li .c-voice .hint.warn { color: var(--warn); }
 .c-cloud { display: flex; flex-direction: column; gap: 5px; width: 100%; max-width: 460px; box-sizing: border-box; padding: 8px 10px; border-radius: 6px; background: var(--chip); font-size: 12.5px; }
 .c-cloud .c-row { display: flex; gap: 6px; }
-.c-cloud select { font-size: 12.5px; padding: 4px 6px; box-sizing: border-box; }
+.c-cloud [data-slot=select-trigger] { font-size: 12.5px; padding: 4px 6px; box-sizing: border-box; }
 .c-cloud > input, .c-cloud .c-row input { flex: 1; min-width: 0; width: 100%; }
 .c-cloud-go { justify-content: space-between; align-items: center; }
 .c-setup li.slow .c-mark, .c-setup li.slow > .hint { color: var(--warn); }
@@ -2134,7 +2102,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .setup .c-how code { padding: 2px 6px; border-radius: 2px; background: var(--card); border: 1px solid var(--line); -webkit-user-select: all; user-select: all; }
 
 /* "Connect a phone" (access.tsx): the QR code beside the address and the code to type */
-#phone { position: fixed; inset: 0; z-index: 60; background: var(--dim); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 24px; animation: fade .15s ease-out; }
 #phone .box { position: relative; padding: 22px 26px 20px; width: 680px; max-width: 100%; max-height: 100%; overflow: auto; font-size: 14px; }
 #phone h2 { margin: 0 0 16px; font-size: 23px; }
 #phone .close { position: absolute; right: 14px; top: 12px; }
@@ -2285,9 +2252,11 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-view .demo-view video::-webkit-media-controls-fullscreen-button { display: none; }
 .ph-view .demo-view .screen.full .comment-here { right: calc(50px + max(10px, env(safe-area-inset-right))); }
 /* a phone's browser zooms into a text field written smaller than 16 px */
-.ph-view textarea, .ph-view select, .ph-view input { font-size: 16px; }
-.ph-view ~ #ptt { left: 50%; }
-.ph-view ~ #acks { left: 12px; right: auto; align-items: center; transition: none; }
+.ph-view textarea, .ph-view select, .ph-view [data-slot=select-trigger], .ph-view input { font-size: 16px; }
+/* no pointer hovers on a phone: the reply button shows on every message */
+.ph-view .talk .msg > .msg-reply { opacity: .75; }
+.ph-view ~ #ptt, .ph-view ~ #acks { left: 50%; }
+.ph-view ~ #acks { right: auto; transform: translateX(-50%); align-items: center; transition: none; }
 .ph-view ~ #ptt { bottom: calc(18px + env(safe-area-inset-bottom)); }
 .ph-view ~ #acks { bottom: calc(91px + env(safe-area-inset-bottom)); width: calc(100vw - 24px); }
 .ph-view ~ #acks .toast { max-width: 100%; }
@@ -2459,7 +2428,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .site-account { display: grid; gap: 6px; margin: 2px 0 10px; max-width: 520px; }
 .site-account label { display: flex; flex-direction: column; gap: 3px; }
 .site-account label:first-child { flex-direction: row; align-items: center; gap: 8px; }
-.site-account select { font: inherit; font-size: 13px; }
+.site-account [data-slot=select-trigger] { font: inherit; font-size: 13px; }
 .cfg-narrow > [data-slot=button][data-variant=link] { display: block; margin-top: 10px; font-size: 13px; }
 .personal-connect { margin-top: 12px; }
 .demo-site { padding: 10px 0; border-bottom: 1px solid var(--line); }
@@ -2549,7 +2518,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 @media (pointer: coarse) { .star { font-size: 28px; padding: 0 5px; } }
 
 /* The performance dashboard: over the page as the configuration is, a table of the owner's ratings by model and effort */
-#perf { position: fixed; inset: 0; z-index: 55; background: var(--dim); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: flex; padding: 28px; animation: fade .15s ease-out; }
 .perf-box { flex: 1; min-width: 0; position: relative; display: flex; }
 .perf-main { flex: 1; overflow-y: auto; padding: 26px 66px 32px 40px; }
 .perf-main > * { max-width: 980px; }
@@ -2561,7 +2529,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .perf-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
 .perf-filters { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .perf-choice { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted-foreground); }
-.perf-choice select { font: inherit; font-size: 13px; color: var(--ink); padding: 5px 26px 5px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); max-width: 260px; }
 .perf-clear { font-size: 13px; padding-bottom: 9px; }
 .perf-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .perf-table th, .perf-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
@@ -2675,7 +2642,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .plan.collapsed:has(.head-labels) > .marks { top: 63px; }
 
 /* "Merge with": the cards a proposal can be merged with, the newest first, with a search */
-#merge-pick { position: fixed; inset: 0; z-index: 60; background: var(--dim); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center; padding: 10vh 24px 24px; animation: fade .15s ease-out; }
 #merge-pick .box { position: relative; display: flex; flex-direction: column; padding: 22px 26px 18px; width: 640px; max-width: 100%; max-height: 100%; box-sizing: border-box; }
 #merge-pick h2 { margin: 0 44px 12px 0; font-size: 21px; }
 #merge-pick .close { position: absolute; right: 14px; top: 12px; }
@@ -2867,8 +2833,8 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .cs-agents { display: flex; flex-direction: column; }
 .cs-agents .cfg-agent { padding: 10px 0 4px; }
 .cs-choice { display: grid; grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, .9fr)); gap: 8px; }
-.cs-choice select { min-width: 0; width: 100%; }
-#project-settings select:not(.own) { color: var(--muted-foreground); }
+.cs-choice [data-slot=select-trigger] { min-width: 0; width: 100%; }
+#project-settings [data-slot=select-trigger]:not(.own) { color: var(--muted-foreground); }
 .cs-more { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 13px; }
 .cs-more .hint { font-size: 12.5px; }
 /* a narrow window: the project's settings float over the whole page, down to the status bar */
@@ -2885,7 +2851,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 
 .description-edit .card-refs-hint { margin: 6px 0; }
 .chat-model { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--muted-foreground); font-size: 12px; }
-.chat-model select { color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; font: inherit; }
 .card .state .hourglass-mark { width: 9px; height: 12px; }
 
 

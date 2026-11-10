@@ -3,7 +3,6 @@
 // opens with a third. All stay quiet: the owner rarely reads the code or tries the app by hand.
 
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { type CardDiff, type DiffPart, diffSize, type FolderChange, shownChanges, splitDiff } from '../core/diff';
 import type { Item } from '../core/types';
 import { api } from './api';
@@ -12,6 +11,7 @@ import { useDiffStyle } from './diffStyle';
 import { plain } from './markdown';
 import { t } from './strings';
 import { CloseButton, LinkButton } from './components/button';
+import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { SegmentedControl } from './components/segmented';
 
 /** A file with more lines than this starts folded, so a generated file does not bury the rest. */
@@ -131,11 +131,6 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
       gone = true;
     };
   }, [item.id]);
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    addEventListener('keydown', h);
-    return () => removeEventListener('keydown', h);
-  }, [onClose]);
   const got = diff === 'failed' ? null : diff;
   const folder = got?.folder;
   // in a folder, only text files whose earlier version Seismic kept have lines to show
@@ -146,11 +141,13 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
   // one file's size stands in its own header
   const size = !one && got && diffSize(got.files);
   const go = (file: string) => document.getElementById(anchor(file))?.scrollIntoView({ block: 'start' });
-  return createPortal(
-    <div className="diff-view" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="d-sheet">
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="d-sheet" layerClassName="diff-view z-1000 items-stretch justify-center px-[3vw] py-[3vh]">
         <div className="d-head">
-          <h2>{t.diff.title(plain(item.title))}</h2>
+          <DialogTitle asChild>
+            <h2>{t.diff.title(plain(item.title))}</h2>
+          </DialogTitle>
           <span className="hint">
             {got?.source === 'folder' ? t.folder.changed : <code>{item.agent?.branch}</code>}
             {folder?.undo && ` · ${t.folder.undo[folder.undo]}`}
@@ -203,9 +200,8 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
             </>
           )}
         </div>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }
 

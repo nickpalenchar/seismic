@@ -17,6 +17,7 @@ import { RadioGroup, RadioOption } from './components/radio';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Input } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
+import { Select, SelectItem } from './components/select';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 /** The machine's system and processor, as the owner knows them: "macOS (arm64)". */
@@ -171,13 +172,13 @@ export function RecognitionDetail({ item, busy, changed }: { item: VoiceSetupIte
         <div className="c-cloud">
           <b>{c.offer}</b>
           <span className="c-row">
-            <select aria-label={c.service} value={preset} onChange={(e) => setPreset(e.target.value as CloudPreset)}>
+            <Select aria-label={c.service} value={preset} onValueChange={(picked) => setPreset(picked as CloudPreset)}>
               {CLOUD_PRESETS.map((p) => (
-                <option key={p} value={p}>
+                <SelectItem key={p} value={p}>
                   {c.names[p]}
-                </option>
+                </SelectItem>
               ))}
-            </select>
+            </Select>
           </span>
           <span className="hint">{c.about[preset]}</span>
           {preset === 'openai' && (
@@ -422,18 +423,18 @@ function LanguagePick() {
   }, []);
   if (!chosen || LANGUAGES.length < 2) return null;
   return (
-    <select
+    <Select
       className="setup-lang"
       aria-label={t.config.language.title}
       value={chosen}
-      onChange={(e) => api.saveLanguage(e.target.value as Language).then(() => reload(), console.error)}
+      onValueChange={(picked) => api.saveLanguage(picked as Language).then(() => reload(), console.error)}
     >
       {LANGUAGES.map((l) => (
-        <option key={l} value={l}>
+        <SelectItem key={l} value={l}>
           {t.config.language.names[l]}
-        </option>
+        </SelectItem>
       ))}
-    </select>
+    </Select>
   );
 }
 

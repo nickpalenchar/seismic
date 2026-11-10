@@ -12,6 +12,7 @@ import { Docked } from './docked';
 import { failText, t } from './strings';
 import { LinkButton } from './components/button';
 import { Badge } from './components/badge';
+import { Select, SelectItem } from './components/select';
 
 /** The sheet of the project `project`; read afresh each time it opens or the Configuration over it closes. */
 export function ProjectSettingsSheet({ project, name, homePath, on, covered, problems, onConfig, onAddSite }: { project: string; name: string; /** The project's home repository, which proposing the demo site's tags reads. */ homePath?: string | undefined; /** Opens Configuration at the page that adds a demo site. */ onAddSite: () => void; on: boolean; /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */ covered: boolean; /** The configuration's problems, counted on the gear too. */ problems: number; onConfig: () => void }) {
@@ -81,36 +82,36 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
                     <span className="hint">{a.roles[role].hint}</span>
                   </div>
                   <div className="cs-choice">
-                    <select className={own.harness ? 'own' : undefined} aria-label={`${a.roles[role].name}: ${a.harness}`} value={own.harness ?? ''} disabled={busy || !choosesHarness(role)} onChange={(e) => {
-                      const value = e.target.value as Harness | '';
+                    <Select className={own.harness ? 'own' : undefined} aria-label={`${a.roles[role].name}: ${a.harness}`} value={own.harness ?? ''} disabled={busy || !choosesHarness(role)} onValueChange={(picked) => {
+                      const value = picked as Harness | '';
                       if (!value) return choose(role, null);
                       return choose(role, { harness: value, model: undefined, effort: undefined });
                     }}>
-                      <option value="">{a.harnesses[base.harness ?? 'claude']}</option>
-                      <option value="claude">{a.harnesses.claude}</option>
-                      <option value="codex">{a.harnesses.codex}</option>
-                      <option value="agy">{a.harnesses.agy}</option>
-                    </select>
-                    <select className={own.model || (other && own[other]?.model) ? 'own' : undefined} aria-label={`${a.roles[role].name}: ${a.model}`} value={other ? own[other]?.model ?? '' : own.model ?? ''} disabled={busy} onChange={(e) => {
-                      const model = e.target.value;
+                      <SelectItem value="">{a.harnesses[base.harness ?? 'claude']}</SelectItem>
+                      <SelectItem value="claude">{a.harnesses.claude}</SelectItem>
+                      <SelectItem value="codex">{a.harnesses.codex}</SelectItem>
+                      <SelectItem value="agy">{a.harnesses.agy}</SelectItem>
+                    </Select>
+                    <Select className={own.model || (other && own[other]?.model) ? 'own' : undefined} aria-label={`${a.roles[role].name}: ${a.model}`} value={other ? own[other]?.model ?? '' : own.model ?? ''} disabled={busy} onValueChange={(picked) => {
+                      const model = picked;
                       if (other) return choose(role, { harness: other, [other]: { ...selected, model: model || (base.harness === other ? inherited.model : 'default') } });
                       return choose(role, { harness: own.harness ?? 'claude', model: model as AgentModel || undefined });
                     }}>
-                      <option value="">{other ? (base.harness === other && inherited.model !== 'default' ? inherited.model : l.accountDefault) : baseModel}</option>
+                      <SelectItem value="">{other ? (base.harness === other && inherited.model !== 'default' ? inherited.model : l.accountDefault) : baseModel}</SelectItem>
                       {other ? <>
-                        <option value="default">{l.accountDefault}</option>
-                        {selected.model !== 'default' && !models?.some((m) => m.model === selected.model) && <option value={selected.model}>{selected.model}</option>}
-                        {models?.map((m) => <option key={m.model} value={m.model}>{m.model}</option>)}
-                      </> : AGENT_MODELS.map((m) => <option key={m} value={m}>{a.models[m]}</option>)}
-                    </select>
-                    <select className={own.effort || (other && own[other]?.effort) ? 'own' : undefined} aria-label={`${a.roles[role].name}: ${a.effort}`} value={other ? own[other]?.effort ?? (own.harness ? '' : own.effort ?? '') : own.effort ?? ''} disabled={busy} onChange={(e) => {
-                      const effort = e.target.value as AgentEffort | '';
+                        <SelectItem value="default">{l.accountDefault}</SelectItem>
+                        {selected.model !== 'default' && !models?.some((m) => m.model === selected.model) && <SelectItem value={selected.model}>{selected.model}</SelectItem>}
+                        {models?.map((m) => <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>)}
+                      </> : AGENT_MODELS.map((m) => <SelectItem key={m} value={m}>{a.models[m]}</SelectItem>)}
+                    </Select>
+                    <Select className={own.effort || (other && own[other]?.effort) ? 'own' : undefined} aria-label={`${a.roles[role].name}: ${a.effort}`} value={other ? own[other]?.effort ?? (own.harness ? '' : own.effort ?? '') : own.effort ?? ''} disabled={busy} onValueChange={(picked) => {
+                      const effort = picked as AgentEffort | '';
                       if (other) return choose(role, { harness: other, [other]: { ...selected, effort: effort || (base.harness === other ? inherited.effort : base.effort) } });
                       return choose(role, { harness: own.harness ?? 'claude', effort: effort || undefined });
                     }}>
-                      <option value="">{a.efforts[other ? base.harness === other ? inherited.effort : base.effort : base.effort]}</option>
-                      {efforts.map((x) => <option key={x} value={x}>{a.efforts[x]}</option>)}
-                    </select>
+                      <SelectItem value="">{a.efforts[other ? base.harness === other ? inherited.effort : base.effort : base.effort]}</SelectItem>
+                      {efforts.map((x) => <SelectItem key={x} value={x}>{a.efforts[x]}</SelectItem>)}
+                    </Select>
                   </div>
                 </Fragment>
               );
