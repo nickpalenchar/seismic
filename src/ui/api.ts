@@ -495,11 +495,8 @@ export function reportFocus(place: Place) {
   sendFocus();
 }
 
-// The owner uses this page: in view, and they moved, typed or scrolled in it, or a video plays, within
-// the last half minute; in the phone view, in view at all, as a phone's screen locks by itself. While
-// they do at the machine (and three minutes after) or on the phone (until it goes out of view),
-// nothing that starts waiting is pushed to their phone; a page at the machine left in view with
-// nobody at it does not hold pushes off.
+// A paired device reports when its page is in view, so it holds off its own pushes. A phone
+// counts as in use while visible; other pages report recent interaction or video playback.
 const HERE_MS = 30_000;
 let used = true;
 let inViewIsUse = false;

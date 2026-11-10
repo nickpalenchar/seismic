@@ -25,6 +25,7 @@ let project: ProjectRuntime;
 let push: Push;
 /** What went to the push service: to where. */
 let pushed: string[];
+let pushTimers: (() => void)[];
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'obeya-remote-'));
@@ -35,7 +36,9 @@ beforeEach(() => {
   access = new Access({ store, home: dir, tailscale: new Tailscale(fakeTailscale(ts)), now: () => clock });
   project = new ProjectRuntime({ repos: [{ path: main }] }, { store, home: dir, runtime: undefined as never, forge: noForge });
   pushed = [];
+  pushTimers = [];
   push = new Push({
+    later: (fn) => void pushTimers.push(fn),
     store,
     post: async (url) => {
       pushed.push(url);
@@ -297,10 +300,14 @@ describe('push', () => {
     const page = new (asOwner(() => server).WebSocket)(new URL('/api/c/main/ws', server.url.href.replace('http', 'ws')));
     await new Promise((r) => (page.onopen = r));
     page.send(JSON.stringify({ type: 'here' }));
-    await until(() => push.atDesk());
+    page.send(JSON.stringify({ type: 'ping' }));
+    await new Promise<void>((resolve) => { page.onmessage = (event) => { if (JSON.parse(String(event.data)).type === 'pong') resolve(); }; });
     project.board.work(card('Export'), { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'CSV?', options: [] } }) });
     await push.settled();
-    expect(pushed).toHaveLength(1); // the second push is queued for the next minute
+    expect(pushed).toHaveLength(1);
+    pushTimers.shift()!();
+    await push.settled();
+    expect(pushed).toEqual(['https://web.push.apple.com/QGx', 'https://web.push.apple.com/QGx']);
     page.close();
 
     // “Remove” takes the subscription with it
@@ -309,14 +316,13 @@ describe('push', () => {
     expect(store.devices.pushes()).toEqual([]);
   });
 
-  test("the phone's page in view holds pushes off until it goes out of view or closes, without counting as the machine", async () => {
+  test("the phone's page in view holds pushes off until it goes out of view or closes", async () => {
     await turnOn();
     const cookie = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`));
     const phone = () => opens({ host: NAME, 'x-forwarded-for': '100.64.0.7', 'x-forwarded-proto': 'https', origin: `https://${NAME}`, cookie }).then((ws) => ws!);
     const ws = await phone();
     ws.send(JSON.stringify({ type: 'here' }));
     await until(() => push.onADevice());
-    expect(push.atDesk()).toBe(false);
     ws.send(JSON.stringify({ type: 'away' }));
     await until(() => !push.onADevice());
     ws.send(JSON.stringify({ type: 'back' }));

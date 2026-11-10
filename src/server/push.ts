@@ -16,8 +16,6 @@ import type { Store } from './store';
 import { UNUSED_MS } from './remote';
 import { newVapidJwk, type Post, type PushMessage, send, subscriptionOf, type Vapid, vapidOf } from './webpush';
 
-/** How long a page at the machine counts as recently used. */
-export const DESK_MS = 3 * 60_000;
 /** How long a page on a paired device counts as in view after it last said so (every 30 s). */
 export const DEVICE_MS = 45_000;
 /** What starts waiting within this after a push goes out together at its end. */
@@ -61,14 +59,12 @@ export class Push {
   private readonly post?: Post;
   private readonly later: (fn: () => void, ms: number) => void;
   private vapid?: Promise<Vapid>;
-  /** When the owner last used a page at the machine. */
-  private desk = -Infinity;
   /** The paired devices with a page in view, by id, and when it last said so. */
   private devices = new Map<string, number>();
   /** Per device, the minute after a push and what starts waiting meanwhile. */
   private windows = new Map<string, Map<string, Waits>>();
-  /** Deliveries, one after the other. */
-  private sending: Promise<void> = Promise.resolve();
+  /** Deliveries stay ordered per device, without blocking other devices. */
+  private sending = new Map<string, Promise<void>>();
 
   constructor(o: PushOptions) {
     this.store = o.store;
@@ -117,16 +113,6 @@ export class Push {
   /** Whether `device` gets pushes. */
   subscribed(device: string): boolean {
     return this.subscriptions().some((p) => p.id === device);
-  }
-
-  /** The owner used a page at the machine. */
-  here() {
-    this.desk = this.now();
-  }
-
-  /** Whether the owner is at the machine. */
-  atDesk(): boolean {
-    return this.now() - this.desk < DESK_MS;
   }
 
   /** A page on paired device `device` is in view until it goes away or falls silent. */
@@ -192,7 +178,8 @@ export class Push {
 
   /** Sends to one device; a subscription its push service no longer knows goes. */
   private deliver(device: string, message: PushMessage) {
-    this.sending = this.sending.then(async () => {
+    const previous = this.sending.get(device) ?? Promise.resolve();
+    const pending = previous.catch(() => {}).then(async () => {
       const vapid = await this.keys();
       await Promise.all(
         this.subscriptions().filter(({ id }) => id === device).map(async ({ id, name, push }) => {
@@ -206,10 +193,15 @@ export class Push {
         }),
       );
     });
+    this.sending.set(device, pending);
+    void pending.then(
+      () => { if (this.sending.get(device) === pending) this.sending.delete(device); },
+      () => { if (this.sending.get(device) === pending) this.sending.delete(device); },
+    );
   }
 
   /** Once what is on its way has been sent (for tests). */
-  settled(): Promise<void> {
-    return this.sending;
+  async settled(): Promise<void> {
+    await Promise.all(this.sending.values());
   }
 }

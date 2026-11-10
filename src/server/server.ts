@@ -1184,9 +1184,9 @@ export function serve(
           if (msg.type === 'back') byId.get(ws.data.project)?.ownerBack();
           // back from the terminal, say, where the owner committed what stood in the way of a pull, or pulled
           if (msg.type === 'back') void sources?.check(false);
-          // the owner uses a page at the machine or on their phone: what starts waiting meanwhile is not pushed
+          // A paired device in view holds off only its own pushes.
           const { device } = ws.data;
-          if (msg.type === 'back' || msg.type === 'here') device ? push.onDevice(device) : push.here();
+          if (device && (msg.type === 'back' || msg.type === 'here')) push.onDevice(device);
           if (msg.type === 'away' && device) push.away(device);
           if (msg.type === 'stall') {
             const stall = pageStall(msg);

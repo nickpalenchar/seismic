@@ -288,10 +288,11 @@ no pushes; the section "Other devices" says so and which devices have them on.
 Seismic made a question of it: "Agent is stuck"). Not Seismic's answers in its conversation (the
 owner asked from where they are), nor cards waiting already when Seismic starts.
 
-*Per device:* a paired device whose page is in view receives no push; other devices still receive
-one even when the desktop or another device is in use. A phone page stops holding its own pushes off
-when it goes out of view, closes or is silent for 45 seconds. What starts waiting while that page
-is in view is not pushed to it later either.
+*Per device:* a paired device in use receives no push; other devices still receive one even when
+the desktop or another device is in use. A phone page is in use while in view; another paired page
+is in use while visible and recently interacted with or playing video. The hold ends when the page
+goes out of view, closes or is silent for 45 seconds. What starts waiting while it is in use is not
+pushed to it later either.
 
 Pushes go `Urgency: high`, which lets the push service wake a sleeping phone; whether it does is the
 phone's choice (Android held Chrome's messages until unlock on the owner's Pixel, 2026-10-16).
@@ -566,8 +567,7 @@ workers are busy.
 - **Pushes by Web Push to the web app on the home screen** (2026-10-16, plan "Seismic from the phone").
   Rejected: ntfy or a messenger (a third party for nothing Web Push lacks); a native app (nothing a
   home-screen web app cannot do here). WebCrypto rather than a library: the two RFCs are a few dozen
-  lines, checked against RFC 8291's example. A page at the machine holds pushes off while in use, not
-  merely in view, or a project left open would hold them off until the screen locks.
+  lines, checked against RFC 8291's example.
 - **No pushes while the owner uses the phone view either** (2026-10-17): they add nothing while the
   owner works through the cards there. Its hold ends the moment it goes out of view, not three
   minutes later, so what starts waiting right after the phone is locked is pushed.

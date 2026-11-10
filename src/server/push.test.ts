@@ -11,7 +11,7 @@ import { b64u, type Bytes, fromB64u, type Post } from './webpush';
 const subtle = crypto.subtle;
 
 /** A paired device with a push subscription whose keys the test holds, and what its push service got. */
-async function setup(o: { status?: number } = {}) {
+async function setup(o: { status?: number; post?: Post } = {}) {
   const store = new Store(':memory:');
   const at = new Date().toISOString();
   store.devices.add({ id: 'phone', name: 'iPhone · Safari', pairedAt: at, lastSeen: at, tokenHash: 'h' });
@@ -20,7 +20,7 @@ async function setup(o: { status?: number } = {}) {
   const sent: { url: string; body: Uint8Array }[] = [];
   const post: Post = async (url, init) => {
     sent.push({ url, body: init.body });
-    return { status: o.status ?? 201, text: async () => '' };
+    return o.post ? o.post(url, init) : { status: o.status ?? 201, text: async () => '' };
   };
   let now = Date.now();
   const timers: (() => void)[] = [];
@@ -107,9 +107,8 @@ describe('Push', () => {
     expect((await shown())[0]!.url).toBe(`/p/shop/c/${card!.short}`);
   });
 
-  test('an active desktop or another device does not suppress a phone push', async () => {
+  test('another active device does not suppress a phone push', async () => {
     const { push, shown } = await setup();
-    push.here();
     push.onDevice('other');
     push.waits([waits('c1')]);
     expect((await shown()).map((m) => m.tag)).toEqual(['c1']);
@@ -132,6 +131,32 @@ describe('Push', () => {
     endWindow();
     await push.settled();
     expect(sent.map((s) => s.url)).toEqual(['https://web.push.apple.com/abc', 'https://web.push.apple.com/tablet', 'https://web.push.apple.com/abc']);
+  });
+
+  test('a slow device does not block another, while each device keeps its own delivery order', async () => {
+    let release!: () => void;
+    let tabletReached!: () => void;
+    const blocked = new Promise<void>((resolve) => { release = resolve; });
+    const tablet = new Promise<void>((resolve) => { tabletReached = resolve; });
+    const calls: string[] = [];
+    const { store, push, endWindow } = await setup({ post: async (url) => {
+      calls.push(url);
+      if (url.endsWith('/abc') && calls.filter((u) => u.endsWith('/abc')).length === 1) await blocked;
+      if (url.endsWith('/tablet')) tabletReached();
+      return { status: 201, text: async () => '' };
+    } });
+    const now = new Date().toISOString();
+    store.devices.add({ id: 'tablet', name: 'Tablet', pairedAt: now, lastSeen: now, tokenHash: 'other' });
+    push.subscribe('tablet', { ...store.devices.pushes()[0]!.push, endpoint: 'https://web.push.apple.com/tablet' });
+    push.waits([waits('c1')]);
+    push.waits([waits('c2')]);
+    await tablet;
+    endWindow(); // the phone's second alert queues behind its first
+    expect(calls.filter((u) => u.endsWith('/abc'))).toHaveLength(1);
+    release();
+    await push.settled();
+    expect(calls.filter((u) => u.endsWith('/abc'))).toHaveLength(2);
+    expect(calls.filter((u) => u.endsWith('/tablet'))).toHaveLength(1);
   });
 
   test('nothing is pushed while a page on the phone is in view, and again from when it goes out of view', async () => {
@@ -176,11 +201,11 @@ describe('Push', () => {
     expect(await shown()).toHaveLength(4);
   });
 
-  test('the owner back at the machine does not suppress queued pushes', async () => {
+  test('another active device does not suppress queued pushes', async () => {
     const { push, shown, endWindow } = await setup();
     push.waits([waits('c1')]);
     push.waits([waits('c2')]);
-    push.here();
+    push.onDevice('other');
     endWindow();
     expect(await shown()).toHaveLength(2);
   });
