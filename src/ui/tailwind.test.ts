@@ -13,8 +13,9 @@ const oldSheets = ['styles.css', ...new Glob('components/*.css').scanSync(dir)];
 const built = await Bun.build({ entrypoints: [`${dir}tailwind.css`], plugins: [tailwind] });
 const generated = await built.outputs[0]!.text();
 
-/** The class names a stylesheet's selectors use. */
-const classes = (css: string) => new Set([...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map((m) => m[1]!));
+/** The class names a stylesheet's selectors use, unescaped (`.first\:rounded-l` is `first:rounded-l`, not `first`). */
+const classes = (css: string) =>
+  new Set([...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/\.(-?(?:[A-Za-z_]|\\.)(?:[\w-]|\\.)*)/g)].map((m) => m[1]!.replace(/\\(.)/g, '$1')));
 
 test('Tailwind builds, without its preflight', () => {
   expect(built.success).toBe(true);

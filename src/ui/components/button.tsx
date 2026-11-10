@@ -14,7 +14,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Tooltip } from './tooltip';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-1.5 border-0 text-center whitespace-nowrap cursor-pointer outline-none enabled:hover:brightness-105 disabled:cursor-default disabled:opacity-45 focus-visible:ring-[3px] focus-visible:ring-ring/50',
+  'inline-flex items-center justify-center gap-1.5 border-0 text-center whitespace-nowrap cursor-pointer outline-none hover:not-disabled:brightness-105 disabled:cursor-default disabled:opacity-45 focus-visible:ring-[3px] focus-visible:ring-ring/50',
   {
     variants: {
       variant: {
@@ -25,9 +25,9 @@ const buttonVariants = cva(
         'code-review': 'bg-proposal text-on-ink',
         'review-warning': 'bg-[#f5c247] text-[#34270b] shadow-[inset_0_0_0_1px_#c48f21]',
         /** the icon alone until hovered */
-        ghost: 'bg-transparent text-muted-foreground enabled:hover:bg-chip enabled:hover:text-ink enabled:hover:brightness-100',
+        ghost: 'bg-transparent text-muted-foreground hover:not-disabled:bg-chip hover:not-disabled:text-ink hover:not-disabled:brightness-100',
         /** blue and underlined, inline in text */
-        link: 'inline rounded-none bg-transparent p-0 leading-[1.25] text-primary whitespace-normal [text-align:inherit] underline decoration-1 underline-offset-[.18em] enabled:hover:decoration-2 enabled:hover:brightness-100',
+        link: 'inline rounded-none bg-transparent p-0 leading-[1.25] text-primary whitespace-normal [text-align:inherit] underline decoration-1 underline-offset-[.18em] hover:not-disabled:decoration-2 hover:not-disabled:brightness-100',
       },
       size: { default: '', small: '', icon: 'size-8 shrink-0 rounded-lg p-0', 'icon-small': 'size-5 shrink-0 rounded-[3px] p-0' },
       /** a ring around it: the step the agent suggests */
@@ -108,7 +108,7 @@ export function IconButton({ icon, label, variant = 'default', size = 'default',
         type="button"
         variant={variant === 'default' ? 'default' : 'ghost'}
         size={size === 'small' ? 'icon-small' : 'icon'}
-        className={cn(variant === 'danger' && 'enabled:hover:text-destructive', className)}
+        className={cn(variant === 'danger' && 'hover:not-disabled:text-destructive', className)}
         aria-label={label}
         {...props}
       >
