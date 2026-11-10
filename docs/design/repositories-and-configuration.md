@@ -30,9 +30,9 @@ Its agent can take it back or replace it there as on its own project, and the wo
 reads the card it came from as with any follow-up.
 
 The UI opens `/p/<project>` (`/p/<project>/c/<code>` a card on it, `?talk` Seismic's sheet; see
-Addresses in The canvas); the navigation after the logo switches projects and lists what waits for
+Addresses in The canvas); the left menu and the project switcher switch projects and list what waits for
 the owner on each, kept current on every page (see The navigation). Wherever projects are listed
-(the navigation, the phone) they
+(the left menu, the project switcher, the phone) they
 stand in the configuration's order, so the owner sets it by moving them in the configuration dialog;
 the first is also where a page of a stopped project goes. A project without a name in the configuration is named after
 its first repository (the name in its `origin` URL, else its directory's), and its id follows, so all
@@ -368,7 +368,7 @@ last (see Projects), Project defaults (see Project defaults), Agents and models,
 (notifications on this computer, the usage limits in the bar, feedback after approval), Other
 devices (see Other devices), Advanced (the data export above) and Developer (see Restarting
 by hand in Running Seismic). Languages, light or dark, motion and the server are in "Preferences"
-behind the logo (see The logo's menu in The canvas). Below the sections "Check setup" and "Report a wish or a bug"
+under Settings in the left menu (see The left menu in The canvas). Below the sections "Check setup" and "Report a wish or a bug"
 (see Wishes for Seismic's makers). Each project in the list marks its unsaved changes and
 counts its problems in red; the heading counts the problems of no one project (none at all, say). Each section names the file it is saved in; settings are rows of label and control, no boxes in
 boxes. What to know about a field sits behind an info icon at its label, shown only while the pointer

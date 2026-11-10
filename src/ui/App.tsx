@@ -28,7 +28,7 @@ import { CardSearch } from './cardSearch';
 import { useBarFit } from './barFit';
 import { UsagePill } from './usage';
 import { ConfigDialog, Problem, showAddSite, showProjectsSection, showDevicesSection, showNewProject, showRepoClones } from './config';
-import { AppMenu, PrefsDialog } from './prefs';
+import { PrefsDialog } from './prefs';
 import { PhoneDialog } from './access';
 import { OpenPerformance, PerformanceDialog } from './performance';
 import { FeedbackLog } from './feedbackLog';
@@ -38,7 +38,7 @@ import { Phone, phoneView } from './phone';
 import { KoordinatorSheet } from './koordinator';
 import { closeBarMenus, forcedText } from './queue';
 import { queueOrder } from '../core/queue';
-import { AgentsSheet } from './agents';
+import { AgentsSheet, type AgentsTab } from './agents';
 import { depsOf, handleAt, manualPrerequisites, nearestHandle, settledAmong, type Side, SIDES, waitsAmong, withoutImplied } from './deps';
 import { anchoredPath, nearestEdge } from './manualLinks';
 import type { ManualAnchor } from '../core/types';
@@ -58,7 +58,7 @@ import { videoOf } from './spot';
 import { cardClass, shownState } from './card';
 import { CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clock, failText, t } from './strings';
-import { loadPinned, NAV_PROJECT_MIN, NAV_W, NavPill, NavSheet, savePinned } from './nav';
+import { loadNavHidden, loadPinned, MenuButton, NAV_PROJECT_MIN, NAV_W, NavPill, NavSheet, saveNavHidden, savePinned } from './nav';
 import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { type QuickReply, sendReply } from './quickReply';
 import { Inbox } from './inbox';
@@ -537,22 +537,28 @@ function Project({
   // the archive is a full-page view of the main area: open, it is the view shown
   const setAOn = (on: boolean) => { setArchiveOn(on); if (on) fullPage.show('archive'); else if (fullPage.ref.current === 'archive') fullPage.show(null); };
   const [cOn, setCOn, cOnRef] = useLive(false);
-  // the navigation pinned as a sidebar on the left (src/ui/nav.tsx)
+  // the left menu docked as a sidebar (src/ui/nav.tsx), and hidden there with ☰
   const [pinned, setPinned, pinnedRef] = useLive(loadPinned);
+  const [, setNavHidden, navHiddenRef] = useLive(loadNavHidden);
+  const showDocked = (on: boolean) => {
+    setNavHidden(!on);
+    saveNavHidden(!on);
+  };
   const pin = (on: boolean) => {
     setPinned(on);
     savePinned(on);
+    showDocked(true);
   };
   /**
    * What the panels docked at the window's edges take of it, as just set: the sheet on the right and
-   * the pinned navigation on the left; the project is what remains between them. A narrow window lays
-   * the sheet over the project instead (styles.css), and the navigation stays under its button, as it
+   * the docked menu on the left; the project is what remains between them. A narrow window lays
+   * the sheet over the project instead (styles.css), and the menu drops down under ☰, as it
    * does where it would leave the project too little room beside the sheet: the two never stack.
    */
   const sideNow = (): Sides => {
     const narrow = matchMedia(NARROW).matches;
     const right = narrow ? 0 : dock.width();
-    return { left: !narrow && pinnedRef.current && innerWidth - NAV_W - right >= NAV_PROJECT_MIN ? NAV_W : 0, right };
+    return { left: !narrow && pinnedRef.current && !navHiddenRef.current && innerWidth - NAV_W - right >= NAV_PROJECT_MIN ? NAV_W : 0, right };
   };
   /** Opens Seismic's sheet or closes it; an open plan closes. */
   const toggleKoordinator = () => {
@@ -2119,6 +2125,41 @@ function Project({
     setKOn(false);
     if (focusRef.current?.type === 'plan') closePlan(false);
   };
+  // the left menu's Queue and Parked open the agents' sheet at their tab
+  const [agentsAsk, setAgentsAsk] = useState<{ tab: AgentsTab; n: number }>();
+  const openAgentsAt = (tab: AgentsTab) => {
+    setAgentsAsk((a) => ({ tab, n: (a?.n ?? 0) + 1 }));
+    if (!agentsOnRef.current) toggleAgents();
+  };
+  // the left menu, floating under ☰ or docked on the left; its entries for views still to come open what stands for them today (docs/plan/ui-menu.md)
+  const menu = {
+    ...nav,
+    inboxCount: attentionCount,
+    onInbox: () => !inboxOnRef.current && toggleInbox(),
+    onPerformance: openPerformance,
+    onFeedbackLog: () => location.assign(feedbackLogPath(snapshot.project.id)),
+    canvases,
+    canvas: canvasId,
+    canvasWaiting: perCanvas.waiting,
+    onCanvas: (c: Canvas) => {
+      if (aOnRef.current) setAOn(false);
+      if (focusRef.current?.type === 'plan') closePlan();
+      showCanvas(c);
+    },
+    queued,
+    parked: items.filter((i) => inParkingLot(i) && !i.archivedAt).length,
+    onQueue: () => openAgentsAt('queue'),
+    onParked: () => openAgentsAt('parked'),
+    onArchived: () => setAOn(true),
+    onProjectSettings: () => !csOnRef.current && toggleProjectSettings(),
+    showing: aOn ? ('archived' as const) : csOn ? ('settings' as const) : undefined,
+    onConfig: toggleConfig,
+    onPrefs: openPrefs,
+    onHelp: () => {
+      setHelpNote(undefined);
+      setHelpOn(true);
+    },
+  };
   /**
    * "Go to card": the card opens beside the inbox, which stays open; one on another project opens
    * there, the inbox open beside it again. Seismic's answer opens its sheet in place of the inbox.
@@ -2315,7 +2356,7 @@ function Project({
     { id: 'inbox', besideCard: true, title: t.inbox.title, icon: Inbox2, component: () => (<Inbox entries={entries} current={snapshot.project.id} open={(focus?.type === 'card' ? focus.id : openId) ?? undefined} on={inboxOn} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead}
           onProposalCard={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })}
           onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />) },
-    { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet els={sheetEls} on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })} />) },
+    { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet els={sheetEls} on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })} ask={agentsAsk} />) },
     { id: 'settings', besideCard: true, title: t.projectSettings.title, icon: Settings, component: () => (<ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showProjectsSection(), setPrefsOn(false), setCOn(true))} />) },
     { id: 'seismic', title: t.koordinator.title, icon: MessageSquare, buttonCloses: true, component: () => (<KoordinatorSheet on={kOn} onClose={toggleKoordinator} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
             showRepoClones({ project: snapshot.project.id, repo, field: 'settings', setting });
@@ -2476,25 +2517,7 @@ function Project({
         <header id="bar" ref={barRef} {...(window.obeyaApp?.platform === 'macos' ? { className: side.left ? 'titlebar beside-nav' : 'titlebar', 'data-tauri-drag-region': '' } : {})}>
           <div className="left">
             {extensions.map((e, i) => { const Slot = e.slots?.topBar; return Slot ? <Slot key={i} /> : null; })}
-            <AppMenu
-              onInbox={() => !inboxOnRef.current && toggleInbox()}
-              inboxCount={attentionCount}
-              onArchive={() => setAOn(true)}
-              onPerformance={openPerformance}
-              onFeedbackLog={() => location.assign(feedbackLogPath(snapshot.project.id))}
-              onPrefs={openPrefs}
-              onConfig={toggleConfig}
-              onHelp={() => {
-                setHelpNote(undefined);
-                setHelpOn(true);
-              }}
-            />
-            {/* beside the pinned navigation the bar heads the project with its name, which the floating row's switcher gave before */}
-            {side.left > 0 && (
-              <h1 className="bar-project" title={snapshot.project.name} {...(window.obeyaApp?.platform === 'macos' ? { 'data-tauri-drag-region': '' } : {})}>
-                {snapshot.project.name}
-              </h1>
-            )}
+            <MenuButton {...menu} docked={pinned && nav.pinnable} dockedOn={side.left > 0} onDocked={showDocked} />
           </div>
           <CardSearch items={items} field={searchField} hidden={!!focus} onOpen={(item) => void openFresh(item)} />
           <div className="right">
@@ -2573,7 +2596,7 @@ function Project({
             {online && usage && <UsagePill usage={usage} />}
           </div>
         </footer>
-        <NavSheet on={side.left > 0} {...nav} />
+        <NavSheet on={side.left > 0} {...menu} />
         <Minimap
           cam={cam}
           side={side}

@@ -44,7 +44,7 @@ the stop waits for; quitting again goes ahead at once. The app ends when its ser
 it started in this run that ends unasked shows the last lines of its log in a dialog. The server's output goes to `app.log` in the home. A second start
 brings the window to the front. On a Mac, closing the window keeps the app in the Dock, and the
 window has no title bar: the project's bar holds the traffic lights, centred on its height, and drags the
-window (the pinned navigation's head, as tall, while it is pinned). Links
+window (the docked left menu's head, as tall, while it is docked). Links
 leaving the project and new windows open in the default browser, as does "Open in browser" in the
 settings (and the Mac's File menu). The shell itself opens them, a plain click on a link with
 `target=_blank` included; Tauri's opener plugin stays unregistered, since its link script takes such

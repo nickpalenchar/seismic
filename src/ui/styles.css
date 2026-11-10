@@ -444,8 +444,8 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill.restart .tip p:last-child { margin: 0; }
 .pill.restart .tip ul { margin: 0 0 6px; padding-left: 18px; }
 .pill.restart:hover:not(:has(button:hover)) > .tip.why, .pill.restart button:hover > .tip.risk { display: block; }
-/* the navigation at the bar's left (src/ui/nav.tsx): the project's name, and under it the projects,
-   each with the count of what waits for the owner there */
+/* the left menu (src/ui/nav.tsx), under ☰ or docked on the left, and the floating row's project switcher:
+   the projects, each with the count of what waits for the owner there */
 .nav-pill { position: relative; }
 .nav-pill .switch { cursor: pointer; }
 .nav-pill .switch.on { background: var(--chip); }
@@ -455,6 +455,41 @@ button.pill:hover { box-shadow: var(--lift); }
   display: grid; place-items: center; box-sizing: border-box; }
 .nav-menu { position: absolute; top: calc(100% + 6px); left: 0; width: min(360px, calc(100vw - 28px)); max-height: calc(100vh - 80px); overflow: auto; box-sizing: border-box;
   padding: 14px 14px 16px; background: var(--panel); border-radius: 3px; box-shadow: var(--lift); z-index: 30; }
+.nav-menu.left-menu { width: min(340px, calc(100vw - 28px)); overflow-x: hidden; }
+/* the menu's two pages side by side, the second ("Configure agents") sliding in over the first */
+.menu-pages { display: grid; grid-template-columns: 100% 100%; transition: transform .3s cubic-bezier(.3,.9,.3,1); }
+.menu-pages.sub { transform: translateX(-100%); }
+.menu-page { min-width: 0; }
+.menu-pages:not(.sub) > .menu-page + .menu-page, .menu-pages.sub > .menu-page:first-child { visibility: hidden; transition: visibility 0s .3s; }
+/* the page out of view takes no height, so the menu is as tall as the page it shows */
+.menu-pages { align-items: start; }
+.menu-pages:not(.sub) > .menu-page + .menu-page, .menu-pages.sub > .menu-page:first-child { height: 0; }
+.menu-list { list-style: none; margin: 0; padding: 0; }
+.menu-list.grow { flex: 1; min-width: 0; }
+.menu-list + .menu-list, .nav-projects + .menu-list { margin-top: 2px; }
+.menu-entry { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 6px 10px; border: 0; border-radius: 6px; background: none;
+  font: inherit; font-size: 14px; color: var(--ink); text-align: left; cursor: pointer; box-sizing: border-box; }
+.menu-entry > svg, .menu-entry > .canvas-icon { flex: none; color: var(--muted); }
+.menu-entry-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-entry > :is(.waits, .grey, .more, .soon) { margin-left: auto; flex: none; }
+.menu-entry .grey { min-width: 20px; padding: 0 6px; border-radius: 3px; background: var(--planned); color: var(--on-ink); font-size: 12px; font-weight: 700; line-height: 20px; text-align: center; box-sizing: border-box; }
+.menu-entry .more { color: var(--muted); }
+.menu-entry:hover:not(:disabled), .menu-entry:focus-visible { background: var(--chip); outline: none; }
+.menu-entry.on { background: var(--chip); font-weight: 600; }
+.menu-entry:disabled { color: var(--muted); opacity: .6; cursor: default; }
+.menu-entry .soon { font-size: 12px; }
+/* entries under another: the open project's canvases and views, what sits under Settings and Performance */
+.menu-list.nav-tree { margin: 2px 0 4px; padding-left: 22px; }
+.nav-tree .menu-entry { min-height: 30px; padding-block: 5px; font-size: 13px; color: var(--ink); }
+.menu-label { margin: 16px 10px 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.menu-foot { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+.left-menu .nav-head .menu-list { margin: 0; }
+.left-menu .nav-head { margin-bottom: 2px; }
+.left-menu .nav-row.on a { font-weight: 600; }
+.nav-open { list-style: none; }
+.menu-back { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; margin-left: -2px; border: 0; border-radius: 6px; background: none;
+  font: inherit; font-size: 14px; color: var(--ink); cursor: pointer; }
+.menu-back:hover { background: var(--chip); }
 /* pinned: a sidebar docked to the window's left edge, from top to bottom, as the sheets are on the right;
    above the dim of an open card (#dim), so it stays in view and switches project from there */
 .nav-sheet { position: fixed; top: 0; left: 0; bottom: 0; width: 340px; box-sizing: border-box; background: var(--panel); border-right: 1px solid var(--line);
@@ -462,8 +497,7 @@ button.pill:hover { box-shadow: var(--lift); }
   overflow: auto; padding: 14px 14px 30px; }
 .nav-sheet.on { transform: none; visibility: visible; transition-delay: 0s; }
 .nav-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.nav-head h2 { margin: 0; font: 600 21px/1.15 var(--serif); }
-.nav-sheet .nav-head { height: 30px; margin: 0 0 12px; }
+.nav-sheet .nav-head { min-height: 32px; margin: 0 0 2px; }
 /* in the app on a Mac the window's traffic lights sit in its head, as tall as the bar; it stays put as the list scrolls under it
    (a sticky box keeps clear of its scroller's padding, hence the negative top) */
 .nav-sheet.titlebar .nav-head { position: sticky; top: -14px; z-index: 1; height: 58px; margin: -14px -14px 0; padding: 0 14px 0 92px; background: var(--panel); }
@@ -567,20 +601,12 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill.workstations .ws-menu { grid-column: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 4px 0 2px; padding: 8px 10px; border-radius: 3px; background: var(--chip); }
 .pill.workstations .ws-menu .btn.ws-take { margin-left: 0; background: var(--panel); }
 .pill.workstations .ws-menu .hint { font-size: 12px; line-height: 1.4; }
-/* ☰ and the logo open Seismic's own menu (prefs.tsx); ☰ says it is a button */
+/* ☰ and the logo open the left menu (nav.tsx); ☰ says it is a button */
 .app-logo { display: flex; align-items: center; gap: 5px; height: 34px; margin-right: 4px; padding: 0 6px; margin-left: -6px; border: 0; border-radius: 3px;
   background: none; color: var(--ink); cursor: pointer; }
 .app-logo:hover, .app-logo.on { background: color-mix(in srgb, var(--ink) 7%, transparent); }
 .app-logo .bar-word { display: block; line-height: 0; }
 .app-logo .burger { flex: none; display: block; margin-right: 3px; }
-.bar-menu.app-menu-list { width: 240px; list-style: none; margin: 0; }
-.app-menu-list button { width: 100%; padding: 7px 10px; border: 0; border-radius: 2px; background: none; font: inherit; font-size: 14px; color: var(--ink); text-align: left; cursor: pointer; }
-.app-menu-list button:hover, .app-menu-list button:focus-visible { background: var(--chip); outline: none; }
-.app-menu-list button:has(.waits) { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.app-menu-list .sep { margin: 5px 4px; border-top: 1px solid var(--line); }
-/* the open project's name, heading the bar beside the pinned navigation; set lower than the buttons' baseline so its capitals sit centred in the bar */
-.bar-project { margin: 0 6px 0 0; padding-left: 14px; border-left: 1px solid var(--line); max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  box-sizing: border-box; height: 34px; padding-top: 5px; font: 600 21px/29px var(--serif); }
 #bar .left { display: flex; gap: 10px; align-items: center; }
 #bar .right { display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
 /* the traffic lights of the app's window on a Mac sit at the bar's left, or in the pinned navigation's head */
@@ -589,13 +615,11 @@ button.pill:hover { box-shadow: var(--lift); }
 .kpill .n { background: var(--planned); color: var(--on-ink); border-radius: 3px; padding: 0 7px; font-weight: 700; font-size: 12px; }
 .kpill.on { background: var(--ink); color: var(--bg); }
 /* the bar's buttons always fit (src/ui/barFit.ts): narrower than its contents, the search field shrinks first, then
-   the bar gives up in steps the wordmark for the sign, the help, and last the
-   project's name beside the pinned navigation, letting the search field shrink to its icon */
+   the bar gives up in steps the wordmark for the sign, the help, and last lets the search field shrink to its icon */
 .bar-sign, .bar-icon { display: none; }
 #bar[data-fit~="1"] .bar-word { display: none; }
 #bar[data-fit~="1"] .bar-sign { display: block; line-height: 0; }
 #bar[data-fit~="2"] .help { display: none; }
-#bar[data-fit~="3"] .bar-project { display: none; }
 #bar[data-fit~="3"] { grid-template-columns: auto minmax(34px, 440px) auto; }
 #bar[data-fit~="3"] .bar-search-key { display: none; }
 #bar[data-fit~="3"] .bar-search input { padding-right: 8px; }

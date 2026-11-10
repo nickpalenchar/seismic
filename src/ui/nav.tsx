@@ -1,51 +1,58 @@
-// The navigation at the bar's left: the project's name, and under it the projects, each with the
-// count of what waits for the owner there and its agents' pause. It opens as a list under its
-// button, or stays pinned as a sidebar docked on the left, the project the rest. What waits itself is
+// The left menu, behind ☰ and the logo in the bar: the inbox, the agents' configuration (a page of its
+// own that slides in), the projects (the open one with its canvases and views, every other one with the
+// count of what waits for the owner there and its agents' pause) and Seismic's settings and help. It
+// drops down under ☰, or stays docked as a sidebar on the left, the project the rest. The floating
+// row's project switcher lists the projects alone, while the menu is not docked. What waits itself is
 // in the inbox (src/ui/inbox.tsx), on every project at once.
 
-import { GitBranch, PanelLeft, Plus, PanelLeftClose } from 'lucide-react';
-import { useRef, useState } from 'react';
-import type { ProjectInfo } from '../core/types';
+import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronRight, FileCheck, GitBranch, Inbox, ListOrdered, Menu, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users } from 'lucide-react';
+import { type ReactNode, useRef, useState } from 'react';
+import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
+import { CanvasIcon } from './canvasIcon';
+import { Sign, Wordmark } from './logo';
 import { ProjectAgents } from './parts';
 import { useMenuClose } from './queue';
 import { t } from './strings';
+import { openWish } from './wish';
 
-/** How wide the navigation is, pinned as a sidebar. */
+/** How wide the menu is, docked as a sidebar. */
 export const NAV_W = 340;
-/** The least room the project keeps beside the pinned navigation and a sheet on the right; with less, it folds back into its button. */
+/** The least room the project keeps beside the docked menu and a sheet on the right; with less, it folds back under ☰. */
 export const NAV_PROJECT_MIN = 480;
 const PIN_KEY = 'obeya-nav-pinned';
+// docked, ☰ hides the menu and shows it again; it stays docked meanwhile
+const HIDDEN_KEY = 'obeya-nav-hidden';
 
-export const loadPinned = () => {
+const loadFlag = (key: string) => () => {
   try {
-    return localStorage.getItem(PIN_KEY) === '1';
+    return localStorage.getItem(key) === '1';
   } catch {
     return false;
   }
 };
-export const savePinned = (on: boolean) => {
+const saveFlag = (key: string) => (on: boolean) => {
   try {
-    if (on) localStorage.setItem(PIN_KEY, '1');
-    else localStorage.removeItem(PIN_KEY);
+    if (on) localStorage.setItem(key, '1');
+    else localStorage.removeItem(key);
   } catch {}
 };
+export const loadPinned = loadFlag(PIN_KEY);
+export const savePinned = saveFlag(PIN_KEY);
+export const loadNavHidden = loadFlag(HIDDEN_KEY);
+export const saveNavHidden = saveFlag(HIDDEN_KEY);
 
-interface ListProps {
+interface ProjectsProps {
   project: ProjectInfo;
   projects: ProjectInfo[];
   /** How many things wait for the owner on each project, this one's as this page sees it. */
   counts: Record<string, number>;
-  pinned: boolean;
-  /** Pinning is offered: the window has room for the sidebar. */
-  pinnable: boolean;
-  onPin: (on: boolean) => void;
   /** Opens the configuration with a new project added. */
   onNew: () => void;
 }
 
-/** The bar's button and the list under it. */
-export function NavPill(p: ListProps) {
+/** The floating row's switcher: the project's name, and under it the projects. */
+export function NavPill(p: ProjectsProps) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useMenuClose(open, box, () => setOpen(false), true);
@@ -59,74 +66,236 @@ export function NavPill(p: ListProps) {
         <span className="hint">▾</span>
       </button>
       {open && (
-        <div className="nav-menu">
-          <NavList
-            {...p}
-            onPin={(on) => {
-              setOpen(false);
-              p.onPin(on);
-            }}
-            onNew={() => {
-              setOpen(false);
-              p.onNew();
-            }}
-          />
+        <div className="nav-menu nav-switch">
+          <ul className="nav-projects">
+            {p.projects.map((c) => (
+              <ProjectRow key={c.id} project={c} here={c.id === p.project.id} count={p.counts[c.id] ?? 0} repos />
+            ))}
+            <NewProject
+              onNew={() => {
+                setOpen(false);
+                p.onNew();
+              }}
+            />
+          </ul>
         </div>
       )}
     </div>
   );
 }
 
-/** The navigation pinned as a sidebar on the left, sliding in and out. */
-export function NavSheet({ on, ...p }: ListProps & { on: boolean }) {
+/** What the menu's entries open; a floating menu closes first. */
+export interface MenuActions {
+  /** Unread entries of the inbox, counted beside its entry. */
+  inboxCount: number;
+  onInbox: () => void;
+  onPerformance: () => void;
+  onFeedbackLog: () => void;
+  /** The open project's canvases, the one shown marked while no other view covers it. */
+  canvases: Canvas[];
+  canvas?: string;
+  /** Per canvas, the cards on it waiting for the owner. */
+  canvasWaiting: Record<string, number>;
+  onCanvas: (c: Canvas) => void;
+  /** Cards waiting in the queue and parked ones, counted in grey. */
+  queued: number;
+  parked: number;
+  onQueue: () => void;
+  onParked: () => void;
+  onArchived: () => void;
+  onProjectSettings: () => void;
+  /** Which of the open project's views is showing, marked in the menu. */
+  showing?: 'archived' | 'settings';
+  /** The configuration: every project, its repositories, Seismic's agents, voice, demos. */
+  onConfig: () => void;
+  onPrefs: () => void;
+  onHelp: () => void;
+}
+
+export interface MenuProps extends ProjectsProps, MenuActions {
+  /** Docked as a sidebar (it may still be folded back, see `docked`). */
+  pinned: boolean;
+  /** Docking is offered: the window has room for the sidebar. */
+  pinnable: boolean;
+  onPin: (on: boolean) => void;
+}
+
+/**
+ * ☰ and the logo in the bar, so it reads as a button. Docked, a click hides the sidebar or shows it
+ * again; otherwise the menu drops down under it. Narrow, the bar shows the sign alone in it (barFit.ts).
+ */
+export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { docked: boolean; dockedOn: boolean; onDocked: (on: boolean) => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useMenuClose(open, box, () => setOpen(false), true);
+  const on = docked ? dockedOn : open;
+  return (
+    <div className="menu-pill app-menu" ref={box}>
+      <button className={on ? 'app-logo on' : 'app-logo'} title={t.leftMenu.button} aria-label={t.leftMenu.button} aria-expanded={on} onClick={() => (docked ? onDocked(!dockedOn) : setOpen(!open))}>
+        <Menu className="burger" size={18} strokeWidth={2} aria-hidden />
+        <span className="bar-word">
+          <Wordmark height={22} />
+        </span>
+        <span className="bar-sign">
+          <Sign size={24} />
+        </span>
+      </button>
+      {open && !docked && (
+        <div className="nav-menu left-menu">
+          <MenuBody {...p} close={() => setOpen(false)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The menu docked as a sidebar on the left, sliding in and out. */
+export function NavSheet({ on, ...p }: MenuProps & { on: boolean }) {
   // in the app on a Mac it reaches up to the window's top: the traffic lights sit in its head, which moves the window as the bar does
   const titlebar = window.obeyaApp?.platform === 'macos';
   return (
-    <aside id="nav" className={['nav-sheet', on && 'on', titlebar && 'titlebar'].filter(Boolean).join(' ')} aria-hidden={!on}>
-      <NavList {...p} titlebar={titlebar} />
+    <aside id="nav" className={['nav-sheet', 'left-menu', on && 'on', titlebar && 'titlebar'].filter(Boolean).join(' ')} aria-hidden={!on}>
+      <MenuBody {...p} titlebar={titlebar} />
     </aside>
   );
 }
 
-/** The projects in the configuration's order, this one marked; a click on one switches there. */
-function NavList({ project, projects, counts, pinned, pinnable, onPin, onNew, titlebar }: ListProps & { titlebar?: boolean }) {
+/** The menu's two pages, the main one and "Configure agents", the second sliding in over the first. */
+function MenuBody({ close, titlebar, ...p }: MenuProps & { close?: () => void; titlebar?: boolean }) {
+  const [page, setPage] = useState<'main' | 'agents'>('main');
+  const m = t.leftMenu;
+  const drag = titlebar ? { 'data-tauri-drag-region': '' } : {};
+  /** An entry's action: a floating menu closes first. */
+  const run = (f: () => void) => () => {
+    close?.();
+    f();
+  };
+  const pin = (p.pinnable || p.pinned) && (
+    <button className={p.pinned ? 'nav-pin on' : 'nav-pin'} title={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onClick={run(() => p.onPin(!p.pinned))}>
+      {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
+    </button>
+  );
+  const inbox = (
+    <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} onClick={run(p.onInbox)} end={p.inboxCount > 0 && <span className="waits">{p.inboxCount}</span>} />
+  );
   return (
-    <>
-      <div className="nav-head" {...(titlebar ? { 'data-tauri-drag-region': '' } : {})}>
-        <h2 {...(titlebar ? { 'data-tauri-drag-region': '' } : {})}>{t.nav.title}</h2>
-        {(pinnable || pinned) && (
-          <button className={pinned ? 'nav-pin on' : 'nav-pin'} title={pinned ? t.nav.unpin : t.nav.pin} aria-label={pinned ? t.nav.unpin : t.nav.pin} aria-pressed={pinned} onClick={() => onPin(!pinned)}>
-            {pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
-          </button>
-        )}
+    <div className={page === 'agents' ? 'menu-pages sub' : 'menu-pages'}>
+      <div className="menu-page" inert={page !== 'main'}>
+        {/* in the app on a Mac the traffic lights take the head; the inbox's entry follows under it */}
+        <div className="nav-head" {...drag}>
+          {!titlebar && <ul className="menu-list grow">{inbox}</ul>}
+          {pin}
+        </div>
+        <ul className="menu-list">
+          {titlebar && inbox}
+          <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="more" aria-hidden />} />
+        </ul>
+        <h3 className="menu-label">{m.projects}</h3>
+        <ul className="nav-projects">
+          {p.projects.map((c) =>
+            c.id === p.project.id ? (
+              <li key={c.id} className="nav-open">
+                <ul className="nav-projects">
+                  <ProjectRow project={c} here count={p.counts[c.id] ?? 0} />
+                </ul>
+                <ul className="menu-list nav-tree">
+                  {p.canvases.map((v) => (
+                    <Entry key={v.id} icon={<CanvasIcon canvas={v} size={15} />} label={v.name} on={!p.showing && v.id === p.canvas} onClick={run(() => p.onCanvas(v))} end={!!p.canvasWaiting[v.id] && <span className="waits">{p.canvasWaiting[v.id]}</span>} />
+                  ))}
+                  <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} onClick={run(p.onQueue)} end={p.queued > 0 && <span className="grey">{p.queued}</span>} />
+                  <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} onClick={run(p.onParked)} end={p.parked > 0 && <span className="grey">{p.parked}</span>} />
+                  <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} on={p.showing === 'archived'} onClick={run(p.onArchived)} />
+                  <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.projectSettings} on={p.showing === 'settings'} onClick={run(p.onProjectSettings)} end={<ChevronRight size={16} strokeWidth={2} className="more" aria-hidden />} />
+                </ul>
+              </li>
+            ) : (
+              <ProjectRow key={c.id} project={c} here={false} count={p.counts[c.id] ?? 0} onGo={close} />
+            ),
+          )}
+          <NewProject onNew={run(p.onNew)} />
+        </ul>
+        <ul className="menu-list menu-foot">
+          <Entry icon={<SlidersHorizontal size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />
+          <li>
+            <ul className="menu-list nav-tree">
+              <Entry label={m.prefs} onClick={run(p.onPrefs)} />
+              <Entry label={m.help} onClick={run(p.onHelp)} />
+              <Entry label={t.wish.link} onClick={run(() => openWish())} />
+            </ul>
+          </li>
+        </ul>
       </div>
-      <ul className="nav-projects">
-        {projects.map((c) => {
-          const n = counts[c.id] ?? 0;
-          return (
-            <li key={c.id} className={c.id === project.id ? 'nav-row on' : 'nav-row'}>
-              <a href={projectPath(c.id)} aria-current={c.id === project.id ? 'page' : undefined} onClick={(e) => switchTo(e, projectPath(c.id))}>
-                <ProjectIcon />
-                <b title={c.name}>{c.name}</b>
-                <span className="hint">{c.repos.map((r) => r.name).join(', ')}</span>
-                {n > 0 && (
-                  <span className="waits" title={t.nav.waiting(n)}>
-                    {n}
-                  </span>
-                )}
-              </a>
-              <ProjectAgents project={c} />
-            </li>
-          );
-        })}
-        <li className="nav-row nav-new">
-          <button onClick={onNew}>
-            <Plus size={15} strokeWidth={2} aria-hidden />
-            <b>{t.nav.newProject}</b>
+      <div className="menu-page" inert={page !== 'agents'}>
+        <div className="nav-head" {...drag}>
+          <button className="menu-back" onClick={() => setPage('main')} title={m.back} aria-label={m.back}>
+            <ArrowLeft size={16} strokeWidth={2} aria-hidden />
+            <b>{m.configureAgents}</b>
           </button>
-        </li>
-      </ul>
-    </>
+          {pin}
+        </div>
+        <ul className="menu-list">
+          <Entry icon={<Users size={16} strokeWidth={2} aria-hidden />} label={m.agents} soon />
+          <Entry icon={<ScrollText size={16} strokeWidth={2} aria-hidden />} label={m.rules} soon />
+          <Entry icon={<FileCheck size={16} strokeWidth={2} aria-hidden />} label={m.reviewRules} soon />
+          <Entry icon={<ChartLine size={16} strokeWidth={2} aria-hidden />} label={m.performance} onClick={run(p.onPerformance)} />
+          <li>
+            <ul className="menu-list nav-tree">
+              <Entry label={m.feedbackLog} onClick={run(p.onFeedbackLog)} />
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/** One of the menu's entries: an icon, its label and what stands at its end; greyed out with "Coming soon" while it opens nothing yet. */
+function Entry({ icon, label, end, on, soon, onClick }: { icon?: ReactNode; label: string; end?: ReactNode; on?: boolean; soon?: boolean; onClick?: () => void }) {
+  return (
+    <li>
+      <button className={on ? 'menu-entry on' : 'menu-entry'} aria-current={on || undefined} disabled={soon} title={soon ? t.leftMenu.comingSoon : undefined} onClick={onClick}>
+        {icon}
+        <span className="menu-entry-label">{label}</span>
+        {soon ? <span className="soon">{t.leftMenu.comingSoon}</span> : end}
+      </button>
+    </li>
+  );
+}
+
+/** A project's row: a click switches there (the open one stays); its waiting count and its agents' pause. */
+function ProjectRow({ project: c, here, count: n, repos, onGo }: { project: ProjectInfo; here: boolean; count: number; repos?: boolean; onGo?: () => void }) {
+  return (
+    <li className={here ? 'nav-row on' : 'nav-row'}>
+      <a
+        href={projectPath(c.id)}
+        aria-current={here ? 'page' : undefined}
+        onClick={(e) => {
+          onGo?.();
+          switchTo(e, projectPath(c.id));
+        }}
+      >
+        <ProjectIcon />
+        <b title={c.name}>{c.name}</b>
+        {repos && <span className="hint">{c.repos.map((r) => r.name).join(', ')}</span>}
+        {n > 0 && (
+          <span className="waits" title={t.nav.waiting(n)}>
+            {n}
+          </span>
+        )}
+      </a>
+      <ProjectAgents project={c} />
+    </li>
+  );
+}
+
+function NewProject({ onNew }: { onNew: () => void }) {
+  return (
+    <li className="nav-row nav-new">
+      <button onClick={onNew}>
+        <Plus size={15} strokeWidth={2} aria-hidden />
+        <b>{t.nav.newProject}</b>
+      </button>
+    </li>
   );
 }
 

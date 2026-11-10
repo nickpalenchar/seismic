@@ -1,18 +1,13 @@
-// Seismic-the-app, behind ☰ and its logo in the bar: a menu of the inbox and the archive, the views about
-// no one project (the agents' performance, the feedback log), the preferences and help; and the preferences dialog (language,
-// theme, motion, what is running), in the style of the configuration (config.tsx), which keeps what sets
-// up the work.
+// The preferences dialog (language, theme, motion, what is running), from the left menu's Settings
+// (nav.tsx), in the style of the configuration (config.tsx), which keeps what sets up the work.
 
-import { Menu } from 'lucide-react';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ConfigView, Preference, RepoRef } from '../core/types';
 import { api } from './api';
 import { NewPreference, PreferenceRow } from './koordinator';
 import { Head, LanguageBlock, MotionBlock, ServerBlock, ThemeBlock } from './config';
-import { Sign, Wordmark } from './logo';
-import { useMenuClose } from './queue';
 import { t } from './strings';
-import { openWish, WishLink } from './wish';
+import { WishLink } from './wish';
 
 /** The dialog's sections, in the order its list shows them. */
 type PrefsSection = 'appearance' | 'rules' | 'about';
@@ -26,79 +21,6 @@ const keptSection = (): PrefsSection | null => {
   const s = sessionStorage.getItem(SECTION_KEY) as PrefsSection | null;
   return s && SECTIONS.includes(s) ? s : null;
 };
-
-/** What the logo's menu opens; each closes the menu first. */
-export interface AppMenuActions {
-  onInbox: () => void;
-  /** Unread entries of the inbox, counted beside its entry. */
-  inboxCount: number;
-  onArchive: () => void;
-  onPerformance: () => void;
-  onFeedbackLog: () => void;
-  onPrefs: () => void;
-  /** The configuration: every project, its repositories, Seismic's agents, voice, demos. */
-  onConfig: () => void;
-  onHelp: () => void;
-}
-
-/**
- * ☰ and the logo in the bar, so it reads as a button: a click lists the inbox and the archive (until
- * the left menu holds them) and what is about Seismic as a whole. Narrow, the bar shows the sign alone
- * in it (barFit.ts).
- */
-export function AppMenu({ onInbox, inboxCount, onArchive, onPerformance, onFeedbackLog, onPrefs, onConfig, onHelp }: AppMenuActions) {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  useMenuClose(open, box, () => setOpen(false), true);
-  const m = t.appMenu;
-  const item = (label: ReactNode, run: () => void) => (
-    <li>
-      <button
-        role="menuitem"
-        onClick={() => {
-          setOpen(false);
-          run();
-        }}
-      >
-        {label}
-      </button>
-    </li>
-  );
-  return (
-    <div className="menu-pill app-menu" ref={box}>
-      <button className={open ? 'app-logo on' : 'app-logo'} title={m.button} aria-label={m.button} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <Menu className="burger" size={18} strokeWidth={2} aria-hidden />
-        <span className="bar-word">
-          <Wordmark height={22} />
-        </span>
-        <span className="bar-sign">
-          <Sign size={24} />
-        </span>
-      </button>
-      {open && (
-        <ul className="bar-menu app-menu-list" role="menu">
-          {item(
-            <>
-              {m.inbox}
-              {inboxCount > 0 && <span className="waits">{inboxCount}</span>}
-            </>,
-            onInbox,
-          )}
-          {item(m.archive, onArchive)}
-          <li className="sep" role="separator" />
-          {item(m.performance, onPerformance)}
-          {item(m.feedbackLog, onFeedbackLog)}
-          <li className="sep" role="separator" />
-          {item(m.prefs, onPrefs)}
-          {item(m.config, onConfig)}
-          <li className="sep" role="separator" />
-          {item(m.help, onHelp)}
-          {item(t.wish.link, () => openWish())}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 /** The app-wide preferences, a dialog over the page as the configuration is; each setting saves on its own. */
 export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on: boolean; onClose: () => void; onConfig: () => void; preferences: Preference[]; repos: RepoRef[] }) {

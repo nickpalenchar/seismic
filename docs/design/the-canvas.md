@@ -11,14 +11,14 @@ and arrow remains available as the canvas moves.
 ### The bar
 
 The bar holds what is about Seismic as a whole. Left, ☰ and the logo, one button that opens
-Seismic's menu (see The logo's menu); in the middle the card finder's field; right, Seismic's
+the left menu (see The left menu); in the middle the card finder's field; right, Seismic's
 button (a speech bubble, see Sheets) and, rightmost, an avatar that only holds the place for user
 accounts Seismic does not have yet (no menu, a tooltip saying it comes later). Notices about the
 server (an update, a restart) and `?` stand left of Seismic's button; the workstation pool is in the
 status bar (see The pool in the status bar in Agents and workstations).
 
 Under the bar a row of buttons floats over the main area, the project between them staying the
-project's (drag and click go through): at the left the navigation's button (see The navigation), at
+project's (drag and click go through): at the left the project switcher (see The navigation), gone while the left menu is docked, at
 the right the gear of the project settings (see The project settings) and then one group of two
 buttons, the agents' (a robot) and "Needs you" (a bell). "Needs you" counts in the orange of a
 waiting card the cards that wait for the owner on every project, read or not, and nothing else
@@ -81,15 +81,15 @@ The finder shows all matches; the task-description card-link menu limits its sug
 Cards folded into a merge proposal are left out until they can open again. Focusing the field closes
 any open bar menu; Escape or a pick empties it again. While a card is unfolded the field is hidden.
 
-The archive ("Archive" in the logo's menu, or `A`) is a full-page view of the main area, under the
+The archive ("Archived" under the open project in the left menu, or `A`) is a full-page view of the main area, under the
 bar and the floating row: its search field, day headings and entries (see Card lifecycle); a row
 opens its card, the view stays beneath the unfolded card and returns when it folds back. Its ✕, Esc
 (once no card is open) or a click beside it closes it.
 
-The inbox ("Inbox" in the logo's menu, which counts beside it, in the orange of a waiting card,
+The inbox ("Inbox" in the left menu, which counts beside it, in the orange of a waiting card,
 everything that waits for the owner on every project and that they have not read yet, see Read and
 unread below: the cards that need them, per project one for Seismic's answers waiting unread, and
-each open rule or setting proposal; "Needs you" opens it too, for now). The navigation's count per
+each open rule or setting proposal; "Needs you" opens it too, for now). The left menu's count per
 project counts the same way. It slides out from the right
 instead of jumping to a card. The inbox is a sheet like Seismic's and a plan's (see Sheets): docked
 to the edge from top to bottom, the canvas moved aside, one sheet open at a time, the same width and
@@ -145,26 +145,46 @@ browser).
 The buttons always fit: when the contents outgrow the bar (a wide sheet, a narrow window), the
 search field narrows first (centred no longer once a side needs more than half), then the bar gives
 up in steps the logo's wordmark (☰ and the sign stay), then `?`, and last
-the project's name beside the pinned navigation, the search field then shrinking to its icon;
+the search field shrinks to its icon;
 Seismic's button and the avatar always stay. The
 floating row does the same with its own steps: the branch, then the "Needs you" label, then the
 project's name shortens. The step is measured from the actual contents, since the same width may
 hold a short or a long name. In the app on a Mac the bar keeps clear of the
-window's traffic lights at its left (or they sit in the pinned navigation's head).
+window's traffic lights at its left (or they sit in the docked left menu's head).
 
 The logo (three chevrons in blues, `src/ui/logo/seismic_logo.png`; the wordmark "Seismic" in Newsreader) opens
 the bar, stands alone while the page loads (above "No connection to the server" when the server is gone), and is the
 favicon and the app icon's source (`scripts/logo.py`).
 
-#### The logo's menu
+#### The left menu
 
-A click on ☰ and the logo lists what belongs to Seismic as a whole rather than to one project, in
-four groups: "Inbox" with its count and "Archive" (until the left menu of [A new UI menu](../plan/ui-menu.md)
-holds them); views ("Agent performance", which opens the performance dashboard over the page; "Feedback log", the
-log's page), "Preferences" and "Configuration" (the dialog of every project, see The configuration
-dialog in Repositories and configuration), and help ("Controls: mouse and keys", the legend `?` shows; "Report a wish or a bug"). A click beside it or Esc closes it, as with the bar's other lists. ☰ is
-there because the logo alone does not look clickable. The phone view has no such menu: it shows none
-of these.
+A click on ☰ and the logo opens one menu for everything that is not on the canvas, top to bottom:
+
+- "Inbox" with its count (see the inbox above), which opens the inbox.
+- "Configure agents ›", which slides in a page of its own with a back arrow at its head: "Agents",
+  "Rules" and "Code review rules", greyed out with "Coming soon", and "Performance" (the
+  performance dashboard over the page) with "Feedback log" (the log's page) under it.
+- "Projects": the open project bold, with its count and its agents' pause, and under it its
+  canvases by name (each with its waiting count; a click shows it), "Queue" and "Parked" (each with
+  its count in grey; for now they open the Agents sheet at that tab), "Archived" (the archive's view)
+  and "Project settings ›" (its sheet). Every other project is one line with its count and its
+  pause, a click switching there (see The navigation); "New project" ends the list.
+- "Settings", the Configuration dialog (see The configuration dialog in Repositories and
+  configuration), with "Preferences", "Controls: mouse and keys" (the legend `?` shows) and
+  "Report a wish or a bug" under it.
+
+The entry of what is showing (the canvas, the archive, the project settings) is marked. The menu
+drops down under ☰, and a click on an entry, beside it or Esc closes it. Its head has a pin that
+docks it as a sidebar on the window's left edge, full height, as the sheets are on the right (see
+Sheets); the same button, pressed, undocks it. Docked, it stays open as entries are clicked, ☰ hides
+it and shows it again (both remembered per browser, as the docking is, on every project), and the
+floating row's project switcher is gone, since the menu switches projects. Unlike a sheet it is not
+dimmed while a card is open. A narrow window, or one that would leave the project less than about a
+column of cards beside it and an open sheet, folds it back under ☰ until there is room again: the
+two sidebars never stack, neither over each other nor side by side on one edge. In the app on a Mac
+the docked menu reaches up to the window's top, so the traffic lights move from the bar into its
+head, which stays in place as the menu scrolls and drags the window as the bar does; the bar beside
+it then starts at its own edge. The phone view has no such menu.
 
 "Preferences" is a dialog in the style of the Configuration (see The Configuration dialog in
 Repositories and configuration) with two sections: Language and appearance (languages, light or
@@ -226,11 +246,12 @@ open upwards.
 
 ### The navigation
 
-The floating row's left holds the project picker. Its button names the project and its home branch (or its
-count of repositories); a click lists the projects under it in the configuration's order, the open
-one marked. Each names its repositories and, in the orange of a waiting card, how many things wait
-for the owner there (the inbox's entries on that project), and carries its agents' pause (see
-Pausing a project's agents). A click on one switches there within the page, without loading it
+The floating row's left holds the project switcher while the left menu is not docked. Its button
+names the project and its home branch (or its count of repositories); a click lists the projects
+under it in the configuration's order, the open one marked, as the left menu lists them too. Each
+names its repositories and, in the orange of a waiting card, how many things wait for the owner
+there (the inbox's entries on that project), and carries its agents' pause (see Pausing a project's
+agents). A click on one switches there within the page, without loading it
 again: the canvas of the project before goes, the other's comes in its place as on a page load (its
 camera, the card, sheet and scroll positions it was left with, Seismic's sheet as left; see Sheets),
 and every input keeps its draft per project: a screenshot, a dictation or a wish draft that is still
@@ -242,17 +263,6 @@ loaded the whole app again; rejected: keeping every project mounted at once (a c
 canvas each, for projects not looked at). The list ends with "New project", which opens the configuration's
 Projects section with a new, empty project already added to its list, ready to fill in. What waits itself is in the inbox (see
 The bar), not here.
-
-The list's head has a button that pins it as a sidebar docked to the window's left edge, full
-height, as the sheets are on the right (see Sheets); the same button, pressed, unpins it. Pinned,
-the floating row's button is gone (the sidebar is its place now) and the open project's name stands
-in the bar after the logo, so which project is open reads at a glance; pinning holds per browser, on every project.
-Unlike a sheet it is not dimmed while a card is open. A narrow window, or one that would leave the
-project less than about a column of cards beside the sidebar and an open sheet, folds it back into
-the bar's button until there is room again: the two sidebars never stack, neither over each other
-nor side by side on one edge. In the app on a Mac the sidebar reaches up to the window's top, so the
-traffic lights move from the bar into its head, which stays in place as the list scrolls and drags
-the window as the bar does; the bar beside it then starts at its own edge.
 
 ### Creating cards
 
@@ -492,7 +502,7 @@ A card whose conversation stands alone is a conversation wide. A card with a con
 what it is about (an idea, a proposal, a task with a result) is a wide split, the conversation a
 third, as tall as its taller column. An open card sits in the middle of the canvas; where the canvas
 is too narrow for it, it reaches over the docked sheet, which lies dimmed under it anyway, but not
-over the pinned navigation, which stays usable beside it. Each
+over the docked left menu, which stays usable beside it. Each
 column scrolls on its own, the panel never. A Question card is its conversation alone at a card's
 width, growing with it up to the room above the microphone before it scrolls, like a split's column:
 a looked-up answer is long, and a box of fixed height left most of the window unused. A proposal's
@@ -540,9 +550,9 @@ Card faces on the canvas link nothing, since a click there opens the card itself
 ### Sheets
 
 The sheets (Seismic's, a plan's, a plan doc being read, the inbox, the agents, the project settings) are a sidebar docked to the window's right
-edge, full height; the pinned navigation is one on the left edge. The canvas is the rest between
+edge, full height; the docked left menu is one on the left edge. The canvas is the rest between
 them: the top bar, the microphone and its confirmations, the edge indicators, the minimap and an
-unfolding card all keep to it. Opening, closing or resizing a sheet, or pinning the navigation,
+unfolding card all keep to it. Opening, closing or resizing a sheet, or docking the left menu,
 shifts the view so its middle stays in the middle of the rest. A card opened beside a sheet
 returns beside whatever sheet is open when it closes; a plan's sheet stays, dimmed, while one of
 its cards is open, and the inbox and the agents stay undimmed beside any card. A narrow window lays the sheet over the canvas.
@@ -775,7 +785,7 @@ code, a generic one otherwise.
   from project to project (models first, then the labels Seismic suggests) belong one click from the
   project, in a sheet beside the cards rather than in a dialog over them. What the project leaves open
   follows the Configuration, so a change there still reaches every project that did not choose
-  otherwise. The gear took the bar's "Configuration" button's place, which moved to the logo's menu
+  otherwise. The gear took the bar's "Configuration" button's place, which moved to the left menu
   and the sheet's foot: two settings buttons side by side would leave the owner guessing which is
   which. Rejected: copying Configuration's models into each project (a later change there would reach
   no existing project), and the project's page in the Configuration dialog as the only place.

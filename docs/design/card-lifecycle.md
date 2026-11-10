@@ -367,7 +367,7 @@ the responses given stay.
 #### Comparing ratings
 
 "Compare ratings" (beside "Feedback after approval" in the Configuration, and
-under the stars of every rated card; the logo's menu has it as "Agent performance") opens "Agent performance" over the page, as the configuration
+under the stars of every rated card; the left menu has it as "Performance" under "Configure agents") opens "Agent performance" over the page, as the configuration
 is: every response on every project (`/api/feedback`), grouped by whom it credits (see Models and
 effort in Agents and workstations). Each harness heads its rows, one per model and effort, the model
 as the session resolved it and an unknown field named unknown; work by several configurations
@@ -452,7 +452,7 @@ waited for) until it starts again, and its state line says "Stopped at" in grey 
 usual words and colour ("Stopped at Demo ready", the status in orange; "2nd demo ready", "Agent reviewing" and the like carry over, with their holds and colours: paused in grey, reviewing in teal, a failed question in red). While the card waits in a queue to start again or is parked, its state line says that instead. A card stopped before this was
 recorded says just "Stopped".
 
-The archive ("Archive" in the logo's menu, or `A`) is a full-page view of the main area: archived cards on a timeline
+The archive ("Archived" in the left menu, or `A`) is a full-page view of the main area: archived cards on a timeline
 by day, newest first, each at size XS (see Card sizes) beside the time it was archived, a plan with
 the count of its workstreams. One unfolds as on the canvas and can go
 back to its place; an ended prototype only shows, read-only, how it ended. A search field, focused on

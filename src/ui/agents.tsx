@@ -59,8 +59,12 @@ export function StageChips<S extends string>({ stages, count, hidden, onHidden, 
 }
 
 /** The desktop's Agents sheet, docked on the right like the inbox. */
-export function AgentsSheet({ els, on, items, open, underway, onOpen, project, changed, onGo }: { els: Map<string, HTMLElement>; on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void; project: string; changed: unknown; onGo: (project: string, i: Item) => void }) {
+export function AgentsSheet({ els, on, items, open, underway, onOpen, project, changed, onGo, ask }: { els: Map<string, HTMLElement>; on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void; project: string; changed: unknown; onGo: (project: string, i: Item) => void; ask?: { tab: Tab; n: number } }) {
   const [tab, setTab] = useAgentsTab('queue');
+  // the left menu's Queue and Parked open the sheet at their tab
+  useEffect(() => {
+    if (ask) setTab(ask.tab);
+  }, [ask?.n]);
   const parked = items.filter((i) => inParkingLot(i) && !i.archivedAt);
   const box = useRef<HTMLElement>(null);
   const q = useQueueSort(items, box);
