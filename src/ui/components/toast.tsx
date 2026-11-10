@@ -3,11 +3,12 @@
 // for each spoken or typed command. Which of them replace and which stack, how long each stays and
 // how long it offers "Undo" is said per toast; one component draws them all.
 
-import { useContext, useMemo, useState } from 'react';
-import { Aside } from '../aside';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { toast as sonner } from 'sonner';
 import { CardLink } from '../cardLink';
 import { Cards } from '../message';
 import { t } from '../strings';
+import { Toaster } from './sonner';
 
 /**
  * What a toast is: a confirmation (dark), what the server is still at (dark, turning), a warning
@@ -137,18 +138,50 @@ export function useToasts() {
   return { store, list };
 }
 
+/** In this browser the owner has swiped a toast aside: they no longer nudge. */
+const SWIPED = 'obeya.swipedAside';
+
+function swipedOnce(): boolean {
+  try {
+    return localStorage.getItem(SWIPED) === '1';
+  } catch {
+    return false;
+  }
+}
+
 /**
- * The stack of toasts, oldest first; `open`: the card open now, which a toast neither names nor
- * offers to go to. With `aside` (the phone) the owner swipes a toast away.
+ * The stack of toasts, oldest first, drawn by Sonner; `open`: the card open now, which a toast neither
+ * names nor offers to go to. With `aside` (the phone) the owner swipes a toast away, which drops it
+ * from the store and takes nothing back.
  */
 export function Toasts({ toasts, open, aside = false }: { toasts: ReturnType<typeof useToasts>; open?: string; aside?: boolean }) {
-  return (
-    <>
-      {toasts.list.map((x) => (
-        <ToastLine key={x.id} toast={x} open={open} aside={aside} onGone={() => toasts.store.remove(x.id)} />
-      ))}
-    </>
-  );
+  const { store, list } = toasts;
+  const shown = useRef(new Set<number>());
+  useEffect(() => {
+    for (const x of list) {
+      shown.current.add(x.id);
+      sonner.custom(() => <ToastLine toast={x} open={open} aside={aside} onGone={() => store.remove(x.id)} />, {
+        id: x.id,
+        duration: Infinity,
+        // Sonner also reports a toast it took away for the store; only one still in the store was swiped
+        onDismiss: () => {
+          if (!store.has(x.id)) return;
+          if (aside) {
+            try {
+              localStorage.setItem(SWIPED, '1');
+            } catch {}
+          }
+          store.remove(x.id);
+        },
+      });
+    }
+    for (const id of shown.current) {
+      if (list.some((x) => x.id === id)) continue;
+      shown.current.delete(id);
+      sonner.dismiss(id);
+    }
+  }, [list, open, aside]);
+  return <Toaster swipeDirections={aside ? ['left', 'right'] : []} />;
 }
 
 /** The card a toast is about, as an inline card where it is on the project, else its title in bold. */
@@ -166,8 +199,10 @@ function ToastCard({ card }: { card: { id: string; title: string } }) {
 
 export function ToastLine({ toast: x, open, aside, onGone }: { toast: Toast; open?: string; aside: boolean; onGone: () => void }) {
   const go = x.undo ? [] : (x.go ?? []).filter((c) => c.id !== open);
+  // until the owner has swiped one aside, each nudges aside and back once as a hint
+  const nudge = aside && !swipedOnce();
   return (
-    <Aside on={aside} onGone={onGone} className={`toast ${x.kind}${x.reading ? ' reading' : ''}${go.length > 1 ? ' several' : ''}`} role={x.kind === 'warning' ? 'alert' : undefined}>
+    <div className={`toast ${x.kind}${x.reading ? ' reading' : ''}${go.length > 1 ? ' several' : ''}${aside ? ' swipeable' : ''}${nudge ? ' nudge' : ''}`} role={x.kind === 'warning' ? 'alert' : undefined}>
       <span>
         {x.card && x.card.id !== open && !x.reading && <ToastCard card={x.card} />}
         {x.text}
@@ -185,6 +220,6 @@ export function ToastLine({ toast: x, open, aside, onGone }: { toast: Toast; ope
         </button>
       ))}
       {x.dismiss && <button onClick={onGone}>{t.voice.dismissWarning}</button>}
-    </Aside>
+    </div>
   );
 }

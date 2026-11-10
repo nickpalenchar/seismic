@@ -456,7 +456,7 @@ button.pill:hover { box-shadow: var(--lift); }
 /* pinned: a sidebar docked to the window's left edge, from top to bottom, as the sheets are on the right;
    above the dim of an open card (#dim), so it stays in view and switches project from there */
 /* panes: the open card, sheets, dialogs, one frosted glass */
-#panel, .sheet, .nav-sheet, .cfg-box, .d-sheet, .perf-box, .setup-page, :is(#help, #wish, #phone, #merge-pick, #canvas-dialog) .box {
+#panel, .nav-sheet, .cfg-box, .d-sheet, .perf-box, .setup-page, :is(#help, #wish, #phone, #merge-pick, #canvas-dialog) .box {
   background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 18px; box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift);
   backdrop-filter: blur(28px) saturate(1.6); -webkit-backdrop-filter: blur(28px) saturate(1.6); }
 .nav-sheet { position: fixed; top: 0; left: 0; bottom: 0; width: 340px; box-sizing: border-box; border-radius: 0; border-left: 0;
@@ -542,8 +542,6 @@ button.pill:hover { box-shadow: var(--lift); }
 #bar[data-fit~="1"] .bar-sign { display: block; line-height: 0; }
 #bar[data-fit~="2"] .help { display: none; }
 #bar[data-fit~="3"] { grid-template-columns: auto minmax(34px, 440px) auto; }
-#bar[data-fit~="3"] .bar-search-key { display: none; }
-#bar[data-fit~="3"] .bar-search input { padding-right: 8px; }
 /* the bar's buttons are one height, whatever they hold: text, an icon, a count */
 #bar .pill, .pill.talk-pill { height: 34px; box-sizing: border-box; padding-block: 0; }
 #bar button.pill.help { width: 34px; height: 34px; }
@@ -1464,11 +1462,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 
 /* the sheets on the right are a column docked to the window's edge, from top to bottom; the project is
    what remains to their left (--side, set by App.tsx) */
-.sheet { position: fixed; top: 0; right: 0; bottom: 0; width: var(--sheet-w, 380px); border-radius: 0; border-right: 0;
-  z-index: 25; transform: translateX(calc(100% + 1px)); visibility: hidden;
-  transition: transform .45s cubic-bezier(.3,.9,.3,1), width .45s cubic-bezier(.3,.9,.3,1), visibility 0s .45s;
-  overflow: auto; padding: 20px 22px 30px; }
-.sheet.on { transform: none; visibility: visible; transition-delay: 0s; }
 /* closes the open sheet, where the button that opened it was */
 #sheet-close { position: fixed; top: 14px; right: 14px; z-index: 27; animation: fade .3s ease-out .2s backwards; }
 /* the button for Seismic's sidebar: over the room the bar keeps for it (.talk-room), and the sidebar's
@@ -1927,7 +1920,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 /* the toasts (confirmations, what the server is still at, warnings, each command's line), stacked in the bottom right corner, newest last */
 #acks { position: fixed; right: calc(var(--side, 0px) + 14px); transition: right .45s cubic-bezier(.3,.9,.3,1); bottom: 46px; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
 .toast { background: var(--ink); color: var(--bg); border-radius: 3px; padding: 12px 16px; max-width: min(560px, max(300px, calc((100vw - var(--left, 0px) - var(--side, 0px)) / 2 - 110px)), calc(100vw - var(--left, 0px) - var(--side, 0px) - 32px)); font-size: 14px;
-  display: flex; gap: 14px; align-items: center; pointer-events: auto; animation: toast-in .25s; }
+  display: flex; gap: 14px; align-items: center; pointer-events: auto; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } }
 .toast b { font-weight: 600; }
 .toast.wait::before { content: ""; flex: none; width: 12px; height: 12px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--bg) 25%, transparent); border-top-color: var(--bg); animation: spin .8s linear infinite; }
@@ -1940,9 +1933,16 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .toast.warning button { border-color: var(--warn); color: var(--warn); }
 .toast.reading { background: var(--panel); color: var(--muted-foreground); box-shadow: var(--shadow); padding: 7px 14px; font-size: 13px; }
 .toast.reading::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--working); animation: spin .8s linear infinite; }
-/* on the phone a line is swiped aside to be rid of it; until that has happened once, each nudges aside and back */
-.toast.aside { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-.toast.aside.nudge:not(.reading) { animation: toast-in .25s, toast-nudge .9s .7s ease-in-out; }
+/* the stack itself is Sonner's (components/sonner.tsx): it stands above what else `#acks` holds, its bottom edge on that column's top;
+   a toast is as wide as its words, to the right on the project, centred on the phone, where `.swipeable` ones are swiped aside; until that has
+   happened once, each nudges aside and back */
+#acks [data-sonner-toaster] { position: absolute; top: auto; bottom: calc(100% + 6px); left: auto; right: 0; width: 0; transform: none; --width: max-content; }
+#acks [data-sonner-toast] { width: max-content; max-width: inherit; left: auto; right: 0; pointer-events: none; }
+.ph-view ~ #acks [data-sonner-toaster] { left: 0; right: 0; width: auto; }
+.ph-view ~ #acks [data-sonner-toast] { left: 0; right: 0; width: 100%; }
+.ph-view ~ #acks :is([data-content], [data-title]) { display: flex; justify-content: center; width: 100%; }
+.toast.swipeable { user-select: none; -webkit-user-select: none; }
+.toast.nudge:not(.reading) { animation: toast-nudge .9s .7s ease-in-out; }
 @keyframes toast-nudge { 30% { transform: translateX(36px); } 55% { transform: translateX(-10px); } 75%, 100% { transform: none; } }
 .c-listener { flex-basis: 100%; margin-top: -4px; font-size: 11.5px; color: var(--muted-foreground); }
 .c-listener.c-dictation, .c-listener.c-dictation b { color: var(--working); }
@@ -1963,18 +1963,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .card-menu .cm-pill { min-width: 0; pointer-events: none; }
 .card-menu .cm-code { flex: none; font-family: var(--mono); font-size: 11.5px; color: var(--muted-foreground); }
 /* the card finder in the middle of the bar; its results drop under it while it has focus */
-.bar-search { position: relative; min-width: 0; }
-.bar-search.away { visibility: hidden; }
-.bar-search input { width: 100%; height: 34px; box-sizing: border-box; padding: 0 32px 0 34px; font: inherit; font-size: 14px; color: var(--ink);
-  background: var(--card); border: 1px solid var(--line); border-radius: 17px; outline: none; }
-.bar-search input:focus { border-color: var(--muted-foreground); }
-.bar-search input::-webkit-search-cancel-button { display: none; }
-.bar-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); pointer-events: none; }
-.bar-search-key { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); min-width: 18px; height: 20px; box-sizing: border-box; padding: 0 5px;
-  display: grid; place-items: center; font: 12px var(--mono); color: var(--muted-foreground); border: 1px solid var(--line); border-radius: 3px; pointer-events: none; }
-.project-card-search { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: max(100%, min(520px, calc(100vw - 28px))); box-sizing: border-box;
-  list-style: none; max-height: min(420px, 55vh); overflow-y: auto; margin: 0; padding: 8px; background: var(--panel); box-shadow: var(--lift); border: 1px solid var(--line); border-radius: 4px; }
-.project-card-search li { padding: 7px 10px; border-radius: 3px; }
 /* under the task field while it has the cursor, until a card was linked once */
 .p-body-field .card-refs-hint { position: absolute; top: 100%; left: 0; margin: 6px 0 0; }
 @media (max-width: 760px) { .p-body-field:has(.card-refs-hint) { padding-bottom: 30px; } }
@@ -2352,8 +2340,8 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-view textarea, .ph-view select, .ph-view input { font-size: 16px; }
 /* no pointer hovers on a phone: the reply button shows on every message */
 .ph-view .talk .msg > .msg-reply { opacity: .75; }
-.ph-view ~ #ptt, .ph-view ~ #acks { left: 50%; }
-.ph-view ~ #acks { right: auto; transform: translateX(-50%); align-items: center; transition: none; }
+.ph-view ~ #ptt { left: 50%; }
+.ph-view ~ #acks { left: 12px; right: auto; align-items: center; transition: none; }
 .ph-view ~ #ptt { bottom: calc(18px + env(safe-area-inset-bottom)); }
 .ph-view ~ #acks { bottom: calc(91px + env(safe-area-inset-bottom)); width: calc(100vw - 24px); }
 .ph-view ~ #acks .toast { max-width: 100%; }
@@ -2397,7 +2385,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   .ph-view ~ #ptt .c-shots { flex-direction: column-reverse; }
   .ph-view ~ #ptt .ptt-files { flex-direction: column-reverse; flex-wrap: nowrap; max-width: 104px; }
   .ph-view ~ #ptt .c-file { max-width: 104px; }
-  .ph-view ~ #acks { left: calc((100vw - 112px - env(safe-area-inset-right)) / 2); bottom: calc(14px + env(safe-area-inset-bottom));
+  .ph-view ~ #acks { bottom: calc(14px + env(safe-area-inset-bottom));
     width: calc(100vw - 112px - env(safe-area-inset-right) - 24px); }
   /* the strip holds the rest that stood beside the microphone: the project picker at its top, the button for Seismic's
      conversation at its bottom, both centred in it (`translate`, since a pressed button sets `transform`) */
@@ -2745,12 +2733,7 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 #merge-pick .box { position: relative; display: flex; flex-direction: column; padding: 22px 26px 18px; width: 640px; max-width: 100%; max-height: 100%; box-sizing: border-box; }
 #merge-pick h2 { margin: 0 44px 12px 0; font-size: 21px; }
 #merge-pick .close { position: absolute; right: 14px; top: 12px; }
-#merge-pick .merge-search { width: 100%; box-sizing: border-box; }
 #merge-pick .hint { margin: 8px 0 6px; }
-.merge-list { overflow: auto; min-height: 0; }
-.merge-row { display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; border-radius: 3px; color: var(--ink); padding: 9px 10px; }
-.merge-list li[data-active] { background: color-mix(in srgb, var(--proposal) 10%, transparent); }
-.merge-row > .face { flex: 1; }
 
 /* the merged card in its panel: the two it came from side by side, the merged one under them, centred */
 .merge-view { display: flex; flex-direction: column; align-items: center; gap: 0; margin-top: 10px; }

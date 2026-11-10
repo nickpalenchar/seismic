@@ -13,8 +13,7 @@ import { MergeMark } from './parts';
 import { Shots } from './shots';
 import { stateLabel, t } from './strings';
 import { Button, CloseButton } from './components/button';
-import { Listbox, useListbox } from './components/listbox';
-import { Input } from './components/input';
+import { Command, CommandInput, CommandItem, CommandList } from './components/command';
 
 type Act = (a: CardAction, done: { close: true; ack: string } | { close: false }) => Promise<void>;
 
@@ -64,7 +63,6 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
     window.addEventListener('keydown', esc, true);
     return () => window.removeEventListener('keydown', esc, true);
   }, [onClose]);
-  const list = useListbox({ count: found.length, open: true, resetOn: query, onPick: (n) => onPick(found[n]!) });
   // Portalled into the app's layer container: the panel's frosted bar would otherwise confine the fixed dialog. React still bubbles events through
   // the portal to the panel, so the root stops them there.
   return createPortal(
@@ -72,18 +70,18 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
       <div className="box" role="dialog" data-state="open" aria-modal="true" aria-label={t.merge.pickTitle(plain(item.title))} onClick={(e) => e.stopPropagation()}>
         <CloseButton label={t.merge.cancel} className="close" onClick={onClose} />
         <h2>{t.merge.pickTitle(plain(item.title))}</h2>
-        <Input ref={field} className="merge-search text-[15px] px-3 py-[9px]" type="search" aria-label={t.merge.search} {...list.field} onKeyDown={list.onKeyDown} placeholder={t.merge.search} value={query} onChange={(e) => setQuery(e.target.value)} />
-        <p className="hint">{t.merge.hint}</p>
-        {found.length > 0 && (
-          <Listbox box={list} items={found} label={t.merge.pickTitle(plain(item.title))} className="merge-list" itemKey={(i) => i.id}>
-            {(i) => (
-              <div className="merge-row">
+        <Command shouldFilter={false} label={t.merge.pickTitle(plain(item.title))} className="min-h-0 flex-1">
+          <CommandInput ref={field} icon={false} className="text-[15px] px-3 py-[9px]" aria-label={t.merge.search} placeholder={t.merge.search} value={query} onValueChange={setQuery} />
+          <p className="hint">{t.merge.hint}</p>
+          <CommandList>
+            {found.map((i) => (
+              <CommandItem key={i.id} value={i.id} className="w-full gap-3 px-2.5 py-[9px] data-[selected=true]:bg-proposal/10 *:flex-1" onSelect={() => onPick(i)}>
                 <CardFace item={i} size="xs" tail={i.archivedAt && t.merge.archived} />
-              </div>
-            )}
-          </Listbox>
-        )}
-        {!found.length && <p className="hint">{query.trim() ? t.merge.noMatch : t.merge.none}</p>}
+              </CommandItem>
+            ))}
+          </CommandList>
+          {!found.length && <p className="hint">{query.trim() ? t.merge.noMatch : t.merge.none}</p>}
+        </Command>
       </div>
     </div>,
     uiPortal() ?? document.body,

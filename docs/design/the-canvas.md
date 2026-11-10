@@ -95,7 +95,7 @@ The card finder is a field in the middle of the bar, centred while the bar's sid
 with a `/` key cap that teaches the shortcut; on the canvas, `/` focuses it when no text field has
 focus. While it has focus, its results drop below it. It searches non-archived cards by title words or short code, in the same order as
 card links in a task description, each result the card at size XS (see Card sizes). A click opens a result; arrow keys choose one and Enter opens it,
-including the first result when no arrow key has been pressed. Escape or a click outside closes it.
+including the first result when no arrow key has been pressed. Escape, a click outside or Tab away closes it.
 The highlighted result remains visible as the owner moves through a list longer than the available space.
 The finder shows all matches; the task-description card-link menu limits its suggestions instead.
 Cards folded into a merge proposal are left out until they can open again. Focusing the field closes
@@ -616,10 +616,10 @@ calm and modern without looking like a stock component kit.
   in the task field and the merge picker's search all behave alike. Focus stays in the field, which is
   exposed as a combobox over a listbox; the arrow keys move the highlighted option (wrapping, except in
   the merge picker), Enter picks it (Tab too in the two `/` menus), Escape closes the list alone and the
-  card stays open (`data-esc`), and a pointer over an option highlights it. Keys are left to an IME
-  while it composes. One small shared hook and component serve all four, with no combobox library
-  (Radix has none; cmdk and Ariakit would be a second behaviour library for four uses, two of which
-  sit in a textarea and a contentEditable they do not own; 2026-11-09).
+  card stays open, and a pointer over an option highlights it. Keys are left to an IME
+  while it composes. The finder and the merge picker are shadcn's Command (cmdk) over a plain search
+  field; the two `/` menus keep a small hook of their own, since their field is a textarea and a
+  contentEditable that cmdk cannot own (2026-11-09, revised 2026-11-10).
 - *Glass costs frames, so it gives way*: zoomed far out and while the canvas moves (a pan, a zoom, a
   camera flight), cards drop the blur and take a tint that keeps them the colour they have at rest
   (in dark mode the blur's saturation makes them bluer, so the tint is a blue one; light mode needs

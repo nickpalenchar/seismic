@@ -1,9 +1,10 @@
-// A listbox with an active option, for the fields that list what fits what is typed: the card finder,
-// the composer's skill menu, the card-link menu and the merge picker. Focus stays in the field; the
-// arrow keys move the active option, Enter (and Tab where it is given) picks it, Escape closes the list
-// and `data-esc` keeps App from also closing the card. No library behind it: Radix has no combobox,
-// and two of the four fields are a textarea and a contentEditable that a combobox library would not own.
-// `useListbox` is the behaviour, `Listbox` the markup with the ARIA wiring.
+// A listbox with an active option, for the composer's two menus that list what fits what is typed: the
+// skill menu and the card-link menu, whose field is a textarea or a contentEditable. Focus stays in the
+// field; the arrow keys move the active option, Enter (and Tab where it is given) picks it, Escape
+// closes the list and `data-esc` keeps App from also closing the card. No library behind it: a plain
+// search field with a list is `Command` (components/command.tsx), but cmdk owns its input and cannot
+// sit in a textarea or a contentEditable. `useListbox` is the behaviour, `Listbox` the markup with the
+// ARIA wiring.
 
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
