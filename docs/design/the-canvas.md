@@ -151,7 +151,7 @@ included) or opens its card some other way (on the canvas, with Tab); only a cli
 dot in the entry's top-right corner and the title bold, a read one neither. Read holds for the wait it was read
 in: a card that waits anew (a new demo after feedback), one that asks something new while it
 waits (another question, another summary) and a newer answer of Seismic's are unread again; a card open while it starts to wait again stays read, as the owner is
-looking at it. Only unread entries count beside the menu's "Inbox". A switch "Unread | All" above the
+looking at it. Nothing counts them: unread is shown by the entry's marker alone. A switch "Unread | All" above the
 list shows every entry or only the unread ones; with "Unread", the open card's entry stays listed
 until the owner moves on, so it does not vanish under them. The switch's choice and what was read
 are kept per browser, like what of a conversation was seen (the phone and the desk each have their
@@ -185,10 +185,9 @@ A click on ☰ and the logo opens one menu for everything that is not on the can
 - "Configure agents ›", which slides in a page of its own with a back arrow at its head: "Agents",
   "Rules" and "Code review rules", greyed out with "Coming soon", and "Performance" (the
   performance dashboard over the page) with "Feedback log" (the log's page) under it.
-- "Projects": the open project bold, with its count and its agents' pause, and under it its
-  canvases by name (each with its waiting count; a click shows it), "Queue" and "Parked" (each with
-  its count in grey; each opens its view), "Archived" (the archive's view)
-  and "Project settings ›" (its sheet). Every other project is one line with its count and its
+- "Projects": the open project bold, with its agents' pause, and under it its
+  canvases by name (a click shows it), "Queue" and "Parked" (each opens its view), "Archived" (the archive's view)
+  and "Project settings ›" (its sheet). No entry of the menu carries a count. Every other project is one line with its
   pause, a click switching there (see Switching projects); "New project" ends the list.
 - "Settings", the Configuration dialog (see The configuration dialog in Repositories and
   configuration), with "Preferences", "Controls: mouse and keys" (the legend `?` shows) and
@@ -272,8 +271,7 @@ open upwards.
 The floating row's left holds the project switcher while the left menu is not docked. Its button
 names the project and its home branch (or its count of repositories); a click lists the projects
 under it in the configuration's order, the open one marked, as the left menu lists them too. Each
-names its repositories and, in the orange of a waiting card, how many things wait for the owner
-there (the inbox's entries on that project), and carries its agents' pause (see Pausing a project's
+names its repositories and carries its agents' pause (see Pausing a project's
 agents). A click on one switches there within the page, without loading it
 again: the canvas of the project before goes, the other's comes in its place as on a page load (its
 camera, the card, sheet and scroll positions it was left with, Seismic's sheet as left; see Sheets),
@@ -822,9 +820,8 @@ code, a generic one otherwise.
   newest update first. Rejected: the inbox as a dock view (it competed with Seismic's sheet for the
   right edge), and a list on the left that closed on every click or grouped entries by project,
   which hid which wait was oldest.
-- **Inbox entries read and unread** (owner, 2026-11-07): an entry already looked at still counted
-  on the button, so the count no longer told what was new. Read is kept per entry and wait, so a
-  card that asks again comes back unread, and only unread entries count. It is kept in the browser,
+- **Inbox entries read and unread** (owner, 2026-11-07): an entry already looked at still stood out as
+  new. Read is kept per entry and wait, so a card that asks again comes back unread, and only unread entries are marked. It is kept in the browser,
   as what of a conversation was seen is: no new server state for a view-only marker. Rejected: read
   state on the server shared by phone and desk (more state for a marker; can follow if wanted);
   hiding read entries outright (they still wait and are answered from the list).

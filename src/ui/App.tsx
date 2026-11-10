@@ -2078,7 +2078,7 @@ function Project({
   const entries = inboxEntries(projects, { ...waiting, [snapshot.project.id]: here }, (id) => !!underway[id]);
   // the cards waiting in the queue, counted in grey on the agents' button
   const queued = queueOrder(items).length;
-  // the cards that wait for the owner on every project, counted on the bell; the inbox counts more
+  // the cards that wait for the owner on every project, counted on the bell
   const needsYouCards = needsYouCount(entries);
   // the open card's entry is read, and stays so while it is open, even as the card waits anew
   const openEntry = openId ? entries.find((e) => e.card?.id === openId && e.project === snapshot.project.id) : undefined;

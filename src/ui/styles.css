@@ -450,14 +450,10 @@ button.pill:hover { box-shadow: var(--lift); }
 .pill.restart .tip ul { margin: 0 0 6px; padding-left: 18px; }
 .pill.restart:hover:not(:has(button:hover)) > .tip.why, .pill.restart > .tip.why:hover, .pill.restart button:hover > .tip.risk { display: block; }
 /* the left menu (src/ui/nav.tsx), under ☰ or docked on the left, and the floating row's project switcher:
-   the projects, each with the count of what waits for the owner there */
+   the projects */
 .nav-pill { position: relative; }
 .nav-pill .switch { cursor: pointer; }
 .nav-pill .switch.on { background: var(--chip); }
-/* counts of what waits for the owner look like the pin on such a card */
-.waits { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
-  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.4), transparent 50%), var(--waiting); color: var(--on-ink); font-size: 12px; font-weight: 700;
-  display: grid; place-items: center; box-sizing: border-box; }
 .nav-menu { position: absolute; top: calc(100% + 6px); left: 0; width: min(360px, calc(100vw - 28px)); max-height: calc(100vh - 80px); overflow: auto; box-sizing: border-box;
   padding: 14px 14px 16px; background: var(--panel); border-radius: 3px; box-shadow: var(--lift); z-index: 30; }
 .nav-menu.left-menu { width: min(340px, calc(100vw - 28px)); overflow-x: hidden; }
@@ -476,8 +472,7 @@ button.pill:hover { box-shadow: var(--lift); }
   font: inherit; font-size: 14px; color: var(--ink); text-align: left; cursor: pointer; box-sizing: border-box; }
 .menu-entry > svg, .menu-entry > .canvas-icon { flex: none; color: var(--muted); }
 .menu-entry-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menu-entry > :is(.waits, .grey, .more, .soon) { margin-left: auto; flex: none; }
-.menu-entry .grey { min-width: 20px; padding: 0 6px; border-radius: 3px; background: var(--planned); color: var(--on-ink); font-size: 12px; font-weight: 700; line-height: 20px; text-align: center; box-sizing: border-box; }
+.menu-entry > :is(.more, .soon) { margin-left: auto; flex: none; }
 .menu-entry .more { color: var(--muted); }
 .menu-entry:hover:not(:disabled), .menu-entry:focus-visible { background: var(--chip); outline: none; }
 .menu-entry.on { background: var(--chip); font-weight: 600; }
@@ -517,7 +512,6 @@ button.pill:hover { box-shadow: var(--lift); }
 /* a long name and its repositories shorten rather than wrap, the repositories first; the count stays */
 .nav-row a b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-row a .hint { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nav-row a .waits { flex: none; margin-left: auto; }
 .nav-row a:hover { background: var(--chip); }
 .nav-new button { display: flex; align-items: center; gap: 7px; width: 100%; padding: 6px 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; color: var(--muted); cursor: pointer; text-align: left; }
 .nav-new button:hover { background: var(--chip); color: var(--ink); }

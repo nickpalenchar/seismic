@@ -30,8 +30,7 @@ Its agent can take it back or replace it there as on its own project, and the wo
 reads the card it came from as with any follow-up.
 
 The UI opens `/p/<project>` (`/p/<project>/c/<code>` a card on it, `?talk` Seismic's sheet; see
-Addresses in The canvas); the left menu and the project switcher switch projects and list what waits for
-the owner on each, kept current on every page (see Switching projects). Wherever projects are listed
+Addresses in The canvas); the left menu and the project switcher switch projects (see Switching projects). Wherever projects are listed
 (the left menu, the project switcher, the phone) they
 stand in the configuration's order, so the owner sets it by moving them in the configuration dialog;
 the first is also where a page of a stopped project goes. A project without a name in the configuration is named after
