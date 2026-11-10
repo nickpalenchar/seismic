@@ -4,7 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bun:test';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, symlinkSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, symlinkSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
@@ -54,15 +54,19 @@ describe('a workstation on a host', () => {
     git(repo, 'add', '.');
     git(repo, 'commit', '--quiet', '-m', 'Files');
     const there = remote(onHost(name, repo))!;
-    const blob = (n: string) => remoteText(there, `git cat-file -e HEAD:${n}`, `git show HEAD:${n}`);
+    const blob = (n: string) => remoteText(there, `n=$(git cat-file -s HEAD:${n}) && [ "$n" -le ${VERSION_LIMIT} ]`, `git show HEAD:${n}`);
     expect(await blob('a.txt')).toBe('one\ntwo\n');
     expect(await blob('missing.txt')).toBeNull();
     expect(await blob('big.txt')).toBeNull();
     expect(await blob('bin.dat')).toBeNull();
-    const file = (n: string) => remoteText(there, `f='${n}'; [ -f "$f" ] && [ ! -L "$f" ] && case "$(realpath "$f")" in "$(pwd -P)"/*) true;; *) false;; esac`, 'cat "$f"');
+    const file = (n: string) => remoteText(there, `f='${n}'; [ -f "$f" ] && [ ! -L "$f" ] && case "$(realpath "$f")" in "$(pwd -P)"/*) true;; *) false;; esac && [ "$(wc -c < "$f")" -le ${VERSION_LIMIT} ]`, 'cat "$f"');
     expect(await file('a.txt')).toBe('one\ntwo\n');
     expect(await file('link.txt')).toBeNull();
     expect(await file('big.txt')).toBeNull();
+    // a read that fails after the checks is no empty version
+    writeFileSync(join(repo, 'locked.txt'), 'secret\n');
+    chmodSync(join(repo, 'locked.txt'), 0);
+    if (process.getuid?.() !== 0) expect(await file('locked.txt')).toBeNull();
   });
 
   test('runs git there, with the GitHub login on stdin rather than on the command line', async () => {

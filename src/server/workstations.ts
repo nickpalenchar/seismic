@@ -603,12 +603,12 @@ export async function boundedBytes(stream: ReadableStream<Uint8Array>, stop: () 
 }
 
 /**
- * The text of `read` in a workstation on another machine, once `check` holds (a shell test that the
- * blob or file is there); cut at `VERSION_LIMIT` before it is read over SSH (`head -c`). Null where
- * the check fails, it prints more, or it is no text.
+ * The text of `read` in a workstation on another machine, once `check` holds: a shell test that the
+ * blob or file is there and no bigger than `VERSION_LIMIT`, so nothing past the limit crosses SSH and
+ * `read`'s own exit code says whether it worked. Null where either fails, or it is no text.
  */
 export async function remoteText(there: NonNullable<ReturnType<typeof remoteWorkstation>>, check: string, read: string): Promise<string | null> {
-  const r = await there.host.run(`${check} && { ${read}; } | head -c ${VERSION_LIMIT + 1}`, { cwd: there.path });
+  const r = await there.host.run(`${check} && ${read}`, { cwd: there.path });
   return r.code === 0 && Buffer.byteLength(r.stdout) <= VERSION_LIMIT && !r.stdout.includes('\0') ? r.stdout : null;
 }
 
@@ -1839,14 +1839,14 @@ export class Workstations implements CardWorkstations {
         } else i++;
       }
       const show = async (ref: string, name: string) => {
-        if (there) return remoteText(there, `git cat-file -e ${shWord(`${ref}:${name}`)}`, `git show ${shWord(`${ref}:${name}`)}`);
+        if (there) return remoteText(there, `n=$(git cat-file -s ${shWord(`${ref}:${name}`)}) && [ "$n" -le ${VERSION_LIMIT} ]`, `git show ${shWord(`${ref}:${name}`)}`);
         const p = Bun.spawn([GIT, 'show', `${ref}:${name}`], { cwd: ws, stdout: 'pipe', stderr: 'ignore' });
         const data = await boundedBytes(p.stdout, () => p.kill());
         return (await p.exited) === 0 && data ? textOf(data) : null;
       };
       const here = async (name: string) => {
         // on another machine: a plain file that stays inside the workstation
-        if (there) return remoteText(there, `f=${shWord(name)}; [ -f "$f" ] && [ ! -L "$f" ] && case "$(realpath "$f")" in "$(pwd -P)"/*) true;; *) false;; esac`, 'cat "$f"');
+        if (there) return remoteText(there, `f=${shWord(name)}; [ -f "$f" ] && [ ! -L "$f" ] && case "$(realpath "$f")" in "$(pwd -P)"/*) true;; *) false;; esac && [ "$(wc -c < "$f")" -le ${VERSION_LIMIT} ]`, 'cat "$f"');
         const f = ownFile(ws, name);
         return f && 'path' in f ? boundedFileText(f.path) : null;
       };

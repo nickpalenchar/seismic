@@ -252,8 +252,10 @@ The diff (over the page, and in the Diff tab's "Changes") is one component with 
 places: highlighted by language (Shiki), with changed words marked inside a changed line, in
 Seismic's palette and the page's light or dark. It renders from the patch, so it opens as fast as
 the patch is there; a file with more than 1,500 lines starts folded. Where the patch leaves out
-lines around its hunks, "N unmodified lines" expands them: only then does the page fetch that file's
-whole old and new text from the server (`GET …/cards/:id/versions?path=`). Which two versions: on an
+lines around its hunks, "N unmodified lines" expands them. The page fetches a changed file's whole
+old and new text from the server (`GET …/cards/:id/versions?path=`) only as that file comes near the
+screen; a file whose text cannot be shown (too big, binary, no earlier version) keeps its folded lines
+as plain text, without the expand control. Which two versions: on an
 open branch, where the workstation's branch started against the workstation now (uncommitted changes
 included); on a landed card, the commit before the landing against what it landed; on a folder
 card, the copy Seismic kept against the file now. A file with no old version or no text, or outside
