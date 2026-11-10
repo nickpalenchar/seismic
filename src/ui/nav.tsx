@@ -57,7 +57,7 @@ export function NavPill(p: ProjectsProps) {
   const home = p.project.repos[0];
   return (
     <div className="nav-pill" ref={box}>
-      <button className={open ? 'pill switch on' : 'pill switch'} title={t.nav.button} aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button className={open ? 'pill project-switch on' : 'pill project-switch'} title={t.nav.button} aria-expanded={open} onClick={() => setOpen(!open)}>
         <ProjectIcon />
         <b>{p.project.name}</b>
         <span className="hint lbl">{p.project.repos.length > 1 ? t.repos(p.project.repos.length) : home?.branch}</span>

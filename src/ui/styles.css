@@ -453,8 +453,8 @@ button.pill:hover { box-shadow: var(--lift); }
 /* the left menu (src/ui/nav.tsx), under ☰ or docked on the left, and the floating row's project switcher:
    the projects */
 .nav-pill { position: relative; }
-.nav-pill .switch { cursor: pointer; }
-.nav-pill .switch.on { background: var(--chip); }
+.nav-pill .project-switch { cursor: pointer; }
+.nav-pill .project-switch.on { background: var(--chip); }
 .nav-menu { position: absolute; top: calc(100% + 6px); left: 0; width: min(360px, calc(100vw - 28px)); max-height: calc(100vh - 80px); overflow: auto; box-sizing: border-box;
   padding: 14px 14px 16px; background: var(--panel); border-radius: 3px; box-shadow: var(--lift); z-index: 30; }
 .nav-menu.left-menu { width: min(340px, calc(100vw - 28px)); overflow-x: hidden; }
@@ -3069,8 +3069,8 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 /* it fits as the bar does (barFit.ts): narrower than its buttons, it gives up the branch, then the "Needs you" label, then the project's name shrinks */
 #floating-row[data-fit~="1"] .nav-pill .lbl, #floating-row[data-fit~="2"] .needs-you-pill .lbl { display: none; }
 #floating-row[data-fit~="3"] .nav-pill { flex: 0 1 auto; min-width: 0; }
-#floating-row[data-fit~="3"] .nav-pill .switch { max-width: 100%; }
-#floating-row[data-fit~="3"] .nav-pill .switch b { overflow: hidden; text-overflow: ellipsis; }
+#floating-row[data-fit~="3"] .nav-pill .project-switch { max-width: 100%; }
+#floating-row[data-fit~="3"] .nav-pill .project-switch b { overflow: hidden; text-overflow: ellipsis; }
 .resizing #floating-row { transition: none; }
 /* two buttons as one: the agents and what needs the owner */
 .pill-group { display: flex; border-radius: 17px; box-shadow: var(--shadow); }

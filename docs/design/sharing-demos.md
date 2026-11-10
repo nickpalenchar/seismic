@@ -206,8 +206,8 @@ there yet, or never will be if the deploy fails (decided 2026-10-26).
 
 A project's demo site may publish every approved demo by itself ("A demo goes on the site" "with
 the approval", `publish: "approved"` of its `demoSite`). There, until approval, the
-latest demo not on the page has a checkbox "Share on approval" (ticked) below the row of buttons that approves,
-which then reads "Share now". Unticked, approving shares nothing and the log says so. The choice
+latest demo not on the page has a switch "Share on approval" (on) below the row of buttons that approves,
+which then reads "Share now". Off, approving shares nothing and the log says so. The choice
 stays with the card and takes effect at once.
 
 On approval, before landing, the latest demo goes on the page as the owner's click would: a new page,
