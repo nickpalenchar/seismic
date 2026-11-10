@@ -1639,14 +1639,11 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
   background: var(--chip); border: 1px solid var(--line); border-radius: 2px 2px 0 0; font: 500 13px var(--cond); }
 .d-name { font: 12.5px var(--mono); }
 .d-file > .hint { margin: 6px 10px; }
-.d-lines { margin: 0; border: 1px solid var(--line); border-top: 0; font: 12px/1.5 var(--mono); }
-.d-lines > div { display: flex; }
-.d-no { flex: 0 0 4.5ch; padding: 0 6px; text-align: right; color: var(--muted); -webkit-user-select: none; user-select: none; opacity: .75; }
-.d-text { flex: 1; white-space: pre-wrap; overflow-wrap: anywhere; padding-right: 10px; }
-.d-lines > .d-add { background: color-mix(in srgb, var(--approved) 14%, transparent); color: inherit; }
-.d-lines > .d-del { background: color-mix(in srgb, var(--error) 12%, transparent); color: inherit; }
-.d-lines > .d-hunk { color: var(--muted); background: color-mix(in srgb, var(--working) 7%, transparent); }
-.d-lines > .d-note { color: var(--muted); font-style: italic; }
+.d-file diffs-container { display: block; isolation: isolate; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 2px 2px; overflow: hidden;
+  /* the library's colours from Seismic's palette, light and dark with the page */
+  --diffs-light-bg: var(--panel); --diffs-dark-bg: var(--panel); --diffs-light: var(--ink); --diffs-dark: var(--ink);
+  --diffs-addition-color: var(--approved); --diffs-deletion-color: var(--error); --diffs-modified-color: var(--working);
+  --diffs-font-family: var(--mono); --diffs-font-size: 12px; --diffs-line-height: 1.5; }
 .d-cut { margin-top: 18px; }
 .btn:disabled { opacity: .45; cursor: default; filter: none; }
 /* above plans (z-index 0), below cards (2): a line from a workstream stays visible over its plan */
@@ -1779,7 +1776,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .c-trust { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 8px; }
 .c-trust-group { align-self: stretch; }
 .c-trust-group > .hint { margin: 0 0 4px; }
-.c-trust .d-lines { border-top: 1px solid var(--line); }
 /* fields sunk a little into the sheet, a shade darker than it with a firmer edge, so the page's structure
    reads at a glance; the one being typed in comes up to the sheet's own colour */
 :is(#config, #prefs, #project-settings) input, :is(#config, #prefs, #project-settings) select, :is(#config, #prefs, #project-settings) textarea { font: inherit; font-size: 13px; padding: 6px 9px; border-radius: 2px;

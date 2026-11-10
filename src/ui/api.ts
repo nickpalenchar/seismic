@@ -341,6 +341,8 @@ export const api = {
   appOpen: (id: string) => cardAt(id, '/app/open'),
   /** What the card's work changes (null: nothing to read, no workstation and not landed); `full`: with the diff itself. */
   diff: async (id: string, full = false) => (await call<CardDiff | undefined>('GET', cardAt(id, `/diff${full ? '?full' : ''}`))) ?? null,
+  /** One file of the card's change as it was and as it is (null where none is to show), for a diff to expand the lines around its hunks. */
+  versions: async (id: string, path: string) => (await call<{ old: string | null; new: string | null } | undefined>('GET', cardAt(id, `/versions?path=${encodeURIComponent(path)}`))) ?? null,
   /** A plan's plan doc as written. */
   planDoc: (id: string) => call<{ file: string; markdown: string }>('GET', cardAt(id, '/plan')),
   /** A plan's decisions and the idea it came from. */

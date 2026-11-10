@@ -2,12 +2,13 @@
 // page. Where the branch is checked out is copied with another click, and the app running there
 // opens with a third. All stay quiet: the owner rarely reads the code or tries the app by hand.
 
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type CardDiff, type DiffPart, diffSize, type FolderChange, shownChanges, splitDiff } from '../core/diff';
 import type { Item } from '../core/types';
 import { api } from './api';
 import { useCopy } from './copy';
+import { useDiffStyle } from './diffStyle';
 import { plain } from './markdown';
 import { t } from './strings';
 
@@ -167,6 +168,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
               </>
             )}
           </span>
+          <DiffStyleSwitch />
           <button className="d-close" title={t.diff.close} onClick={onClose}>
             ×
           </button>
@@ -195,7 +197,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
                 </tbody>
               </table>}
               {parts.map((p) => (
-                <FileDiff key={p.file} part={p} />
+                <FileDiff key={p.file} part={p} card={item.id} />
               ))}
               {got.truncated && <p className="hint d-cut">{t.diff.truncated}</p>}
             </>
@@ -218,9 +220,30 @@ export function Lines({ n }: { n: { added: number; removed: number } }) {
   );
 }
 
-export function FileDiff({ part }: { part: DiffPart }) {
-  const lines = numbered(part.lines);
-  const [folded, setFolded] = useState(lines.length > FOLD_LINES);
+/** The diff's code, loaded when the first diff opens: it brings the highlighter and its languages. */
+const CodeDiff = lazy(() => import('./diff-code'));
+
+/** The switch between a diff's two layouts, on the desktop only. */
+export function DiffStyleSwitch() {
+  const { style, set, choosable } = useDiffStyle();
+  if (!choosable) return null;
+  return (
+    <span className="r-mode" role="group" aria-label={t.diff.layout}>
+      {(['unified', 'split'] as const).map((s) => (
+        <button key={s} className={style === s ? 'on' : ''} aria-pressed={style === s} onClick={() => set(s)}>
+          {t.diff[s]}
+        </button>
+      ))}
+    </span>
+  );
+}
+
+/** One file of a card's diff: its name and size, and its lines (`card`: whose change it is, where the unchanged lines around them come from). */
+export function FileDiff({ part, card }: { part: DiffPart; card: string }) {
+  const { style } = useDiffStyle();
+  const lines = part.lines.length;
+  const [folded, setFolded] = useState(lines > FOLD_LINES);
+  const empty = !part.lines.some((l) => l.startsWith('@@'));
   return (
     <section className="d-file" id={anchor(part.file)}>
       <h3>
@@ -237,52 +260,18 @@ export function FileDiff({ part }: { part: DiffPart }) {
         <p className="hint">{t.diff.binary}</p>
       ) : folded ? (
         <p className="hint">
-          {t.diff.big(lines.length)}{' '}
+          {t.diff.big(lines)}{' '}
           <button className="link" onClick={() => setFolded(false)}>
             {t.diff.unfold}
           </button>
         </p>
-      ) : (
-        <pre className="d-lines">
-          {lines.map((l, i) => (
-            <div key={i} className={`d-${l.kind}`}>
-              <span className="d-no">{l.old ?? ''}</span>
-              <span className="d-no">{l.new ?? ''}</span>
-              <span className="d-text">{l.text}</span>
-            </div>
-          ))}
-        </pre>
+      ) : empty ? null : (
+        <Suspense fallback={<p className="hint">{t.diff.loading}</p>}>
+          <CodeDiff part={part} card={card} style={style} />
+        </Suspense>
       )}
     </section>
   );
-}
-
-interface Line {
-  kind: 'hunk' | 'add' | 'del' | 'ctx' | 'note';
-  text: string;
-  old?: number;
-  new?: number;
-}
-
-/** A file's hunks with the line numbers before and after; its header lines (names, modes, index) are left out. */
-export function numbered(lines: string[]): Line[] {
-  const out: Line[] = [];
-  let old = 0;
-  let now = 0;
-  let inHunks = false;
-  for (const text of lines) {
-    const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
-    if (hunk) {
-      [old, now, inHunks] = [Number(hunk[1]), Number(hunk[2]), true];
-      out.push({ kind: 'hunk', text });
-    } else if (!inHunks) continue;
-    else if (text.startsWith('+')) out.push({ kind: 'add', text, new: now++ });
-    else if (text.startsWith('-')) out.push({ kind: 'del', text, old: old++ });
-    else if (text.startsWith('\\')) out.push({ kind: 'note', text });
-    // an empty line of the file is a space; an empty string is what `split` leaves after a last newline
-    else if (text) out.push({ kind: 'ctx', text, old: old++, new: now++ });
-  }
-  return out;
 }
 
 /** The sign of what happened to a file: moved, added, changed, deleted. */

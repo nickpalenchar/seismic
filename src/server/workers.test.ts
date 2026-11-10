@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { generic } from '../adapters/generic';
 import { needsYou, pausable } from '../core/types';
@@ -1160,6 +1160,38 @@ describe('workers', () => {
     runtime.last.emit({ type: 'idle' });
     expect(board.row(c.id).workstation).toBeNull();
     expect((await workers.diff(c.id, false))!.files).toHaveLength(3);
+  });
+
+  test('a changed file before and after: the base against the workstation, uncommitted included; once landed, the landing; nothing for a file outside the change', async () => {
+    const c = manual();
+    await workers.start(c.id);
+    const clone = board.row(c.id).workstation!;
+    writeFileSync(join(clone, 'README.md'), 'hello\nworld\n');
+    git(clone, 'add', '.');
+    git(clone, 'commit', '--quiet', '-m', 'World');
+    writeFileSync(join(clone, 'README.md'), 'hello\nworld\nloose\n');
+    writeFileSync(join(clone, 'new.ts'), 'export {}\n');
+    writeFileSync(join(clone, 'blob.bin'), Buffer.from([1, 0, 2]));
+    const before = readFileSync(join(main, 'README.md'), 'utf8');
+    expect(await workers.fileVersions(c.id, 'README.md')).toEqual({ old: before, new: 'hello\nworld\nloose\n' });
+    expect(await workers.fileVersions(c.id, 'new.ts')).toEqual({ old: null, new: 'export {}\n' });
+    expect((await workers.fileVersions(c.id, 'blob.bin'))!.new).toBeNull();
+    // a file the change does not touch, and a path out of the workstation
+    writeFileSync(join(main, 'other.ts'), 'x\n');
+    git(main, 'add', '.');
+    git(main, 'commit', '--quiet', '-m', 'Other');
+    git(clone, 'fetch', '--quiet', 'origin');
+    expect(await workers.fileVersions(c.id, 'other.ts')).toBeNull();
+    expect(await workers.fileVersions(c.id, '../escape')).toBeNull();
+    git(clone, 'add', '.');
+    git(clone, 'commit', '--quiet', '-m', 'More');
+    await runtime.last.call('ready_for_review', { summary: 'Fertig.', demo: artifact() });
+    runtime.last.emit({ type: 'idle' });
+    await workers.approve(c.id);
+    runtime.last.emit({ type: 'idle' });
+    expect(board.row(c.id).workstation).toBeNull();
+    expect(await workers.fileVersions(c.id, 'README.md')).toEqual({ old: before, new: 'hello\nworld\nloose\n' });
+    expect(await workers.fileVersions(c.id, 'other.ts')).toBeNull();
   });
 
   test('approval with uncommitted work sends the worker back', async () => {

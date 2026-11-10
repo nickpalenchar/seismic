@@ -16,7 +16,7 @@ import type { PoolHost } from '../core/types';
 import { messageOf } from '../core/text';
 import type { Store } from './store';
 import { spawnOutput } from './spawn';
-import { type CardWorkstations, type Change, type FileAt, GIT, ownFile, type LandProblem, type Landed, type Lease, WorkstationError } from './workstations';
+import { type CardWorkstations, type Change, type FileAt, type FileVersions, GIT, ownFile, textOf, type LandProblem, type Landed, type Lease, WorkstationError } from './workstations';
 
 /** A file or directory as the manifest has it. */
 export interface Entry {
@@ -575,6 +575,19 @@ export class FolderWorkstations implements CardWorkstations {
   /** The files the card changed in the folder as they are now: neither deleted nor a directory. */
   async changedFiles(cardId: string): Promise<string[]> {
     return (this.rec(cardId)?.changes ?? []).filter((t) => t.kind !== 'deleted' && !t.dir).map((t) => t.path);
+  }
+
+  /** A text file the card changed, as Seismic kept it before (none for a new file or one it kept no copy of) and as it is now. */
+  async versionsOf(cardId: string, path: string): Promise<FileVersions | null> {
+    const t = this.rec(cardId)?.changes.find((c) => c.path === path && !c.dir);
+    if (!t) return null;
+    const read = async (p: string | null) => {
+      const f = p && (await Bun.file(p).arrayBuffer().then((b) => new Uint8Array(b), () => null));
+      return f ? textOf(f) : null;
+    };
+    const was = t.kind === 'added' ? null : await this.copyOf(cardId, [t.from ?? path, path], t.before);
+    const now = t.kind === 'deleted' ? null : ownFile(this.root, path);
+    return { old: await read(was), new: await read(now && 'path' in now ? now.path : null) };
   }
 
   /** A file in the folder, for a card that changed something there; a link is none. */

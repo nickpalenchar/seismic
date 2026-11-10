@@ -8,7 +8,7 @@ import { type CardDiff, diffSize, shownChanges, splitDiff } from '../core/diff';
 import { type ChangeRow, changeRows, imageAt, type ShownFile } from '../core/files';
 import type { Item } from '../core/types';
 import { api, cardFile } from './api';
-import { ChangeNote, DiffView, FileDiff, Lines, MARK } from './diff';
+import { ChangeNote, DiffStyleSwitch, DiffView, FileDiff, Lines, MARK } from './diff';
 import { Doc, DocImages } from './markdown';
 import { useReportedHeight } from './message';
 import { scrollBehavior } from './motion';
@@ -323,6 +323,7 @@ function FileView({ item, file, rev, changes, onChanges }: { item: Item; file: S
             </button>
           </span>
         )}
+        {changes && <DiffStyleSwitch />}
         <span className="r-ways">
           <button className="link" title={t.files.openHint} onClick={() => open(false)}>
             {t.files.open}
@@ -460,7 +461,7 @@ function Changes({ item, path }: { item: Item; path: string }) {
   const part = diff === 'failed' ? undefined : splitDiff(diff.patch ?? '').find((p) => p.file === path);
   return part ? (
     <div className="r-diff">
-      <FileDiff part={part} />
+      <FileDiff part={part} card={item.id} />
     </div>
   ) : (
     <p className="hint">{t.files.noDiff}</p>

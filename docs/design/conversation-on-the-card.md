@@ -248,6 +248,20 @@ included; after, what the landing put on the default branch (an archived card ke
 shows the whole diff over the page; "Copy path" copies the workstation's directory (`host:/dir` on
 another machine). The owner rarely reads code, so it stays a quiet line.
 
+The diff (over the page, and in the Diff tab's "Changes") is one component with the same look in both
+places: highlighted by language (Shiki), with changed words marked inside a changed line, in
+Seismic's palette and the page's light or dark. It renders from the patch, so it opens as fast as
+the patch is there; a file with more than 1,500 lines starts folded. Where the patch leaves out
+lines around its hunks, "N unmodified lines" expands them: only then does the page fetch that file's
+whole old and new text from the server (`GET …/cards/:id/versions?path=`). Which two versions: on an
+open branch, where the workstation's branch started against the workstation now (uncommitted changes
+included); on a landed card, the commit before the landing against what it landed; on a folder
+card, the copy Seismic kept against the file now. A file with no old version or no text, or outside
+the card's change (the rules of the files Seismic serves, below), has none to fetch. A switch
+"Unified | Split" on the desktop, remembered across cards and reloads, lays the lines under each
+other or side by side; the phone shows unified only, without the switch. The highlighter and its
+languages load when a diff first opens, never with the page.
+
 #### The files beside the demo
 
 What a card's work made or changed is its result, shown on the left for folder and git cards alike.
@@ -528,6 +542,11 @@ image.
   Rejected: a tile that opens the file in the phone's PDF app (the result to judge would be one tap
   and an app away, unlike every other kind of file) and drawing pages on the server (no tool that
   runs on every platform). The desktop keeps the browser's viewer, which searches and selects text.
+- **The diff renders from the patch; whole files come only when unchanged lines are expanded**
+  (owner, 2026-11-09), with `@pierre/diffs` instead of hand-built lines. Rejected: the patch alone
+  (context stays at git's 3 lines) and whole old and new files for every file (slow for large
+  changes, and at odds with the 2 MB cut-off of the patch). Inline code-review items on diff lines are
+  a separate step.
 - **Deliverables and the diff have separate tabs** (owner, 2026-11-04): video first, HTML documents
   and schema-change pages as results, with the underlying file list in Diff. The owner judges the
   result from its deliverables; the code behind it stays a deliberate tab choice.

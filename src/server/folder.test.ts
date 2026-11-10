@@ -84,6 +84,11 @@ describe('two cards at once', () => {
     expect(d.files.find((f) => f.file === 'Sortierung.md')).toMatchObject({ added: 1, removed: 0 });
     expect(d.patch).toContain('+drei');
     expect(await ws.changes('a')).toEqual([{ file: 'Steuer/Scan.pdf', regions: ['moved from Scan.pdf'] }]);
+    // the kept copy and the file now; nothing for a file outside the change, a new file has no earlier version
+    expect(await ws.versionsOf('b', 'Sortierung.md')).toEqual({ old: expect.any(String), new: 'eins\nzwei\ndrei\n' });
+    expect((await ws.versionsOf('b', 'Nachlass/Brief.docx'))!.old).toBeNull();
+    expect(await ws.versionsOf('b', 'Scan.pdf')).toBeNull();
+    expect(await ws.versionsOf('a', 'Sortierung.md')).toBeNull();
   });
 });
 

@@ -546,6 +546,7 @@ export interface CardWorkstations {
   diff(cardId: string, full: boolean): Promise<CardDiff | null>;
   landedDiff(base: string, commit: string, full: boolean): Promise<CardDiff | null>;
   fileOf(cardId: string, path: string, ref?: string, local?: boolean): Promise<FileAt | null>;
+  versionsOf(cardId: string, path: string, landed?: { base: string; commit: string }): Promise<FileVersions | null>;
   changedFiles(cardId: string, landed?: { base: string; commit: string }, includeDeleted?: boolean): Promise<string[]>;
 }
 
@@ -568,6 +569,21 @@ export type FileAt = { path: string } | { data: Uint8Array<ArrayBuffer> };
  * The file at `path` in `root` itself, null where it is a link (or lies in a linked directory): a
  * link the card made could otherwise stand for any file of the root it did not change.
  */
+/** A text file of a card's change before and after it (null: none then, or not text, or too big to show). */
+export interface FileVersions {
+  old: string | null;
+  new: string | null;
+}
+
+/** The most a file's version may hold to be shown whole next to its diff. */
+export const VERSION_LIMIT = 2_000_000;
+
+/** A version's text; null for bytes that are no text (a NUL in them) or too many. */
+export function textOf(data: Uint8Array): string | null {
+  if (data.length > VERSION_LIMIT || data.includes(0)) return null;
+  return new TextDecoder().decode(data);
+}
+
 export function ownFile(root: string, path: string): FileAt | null {
   const at = demoFile(root, path);
   try {
@@ -1754,6 +1770,43 @@ export class Workstations implements CardWorkstations {
   async landedDiff(base: string, commit: string, full: boolean): Promise<CardDiff | null> {
     try {
       return cardDiff('landed', await gitDiff(this.o.repoPath, base, commit), full);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * One file of the card's change before and after, for the diff to show the lines around its hunks:
+   * as it was where the card's work started (the file's earlier name for a renamed one) against the
+   * workstation as it is now, uncommitted changes included; with `landed`, the commit before the
+   * landing against what it landed. Null where git or the workstation cannot tell (a clone on another machine).
+   */
+  async versionsOf(cardId: string, path: string, landed?: { base: string; commit: string }): Promise<FileVersions | null> {
+    try {
+      const ws = landed ? this.o.repoPath : this.leasedBy(cardId);
+      if (!ws || !mayExist(ws) || remoteWorkstation(ws)) return null;
+      const base = landed ? landed.base : await this.base(ws);
+      const to = landed?.commit;
+      // a renamed file's earlier name
+      const status = await gitRun(ws, ['-c', 'core.quotePath=false', 'diff', '--name-status', '-z', '-M', base, ...(to ? [to] : [])]);
+      const parts = status.stdout.split('\0');
+      let from = path;
+      for (let i = 0; i < parts.length; ) {
+        const code = parts[i++]!;
+        if (code.startsWith('R') || code.startsWith('C')) {
+          const [a, b] = [parts[i++]!, parts[i++]!];
+          if (b === path && code.startsWith('R')) from = a;
+        } else i++;
+      }
+      const show = async (ref: string, name: string) => {
+        const p = Bun.spawn([GIT, 'show', `${ref}:${name}`], { cwd: ws, stdout: 'pipe', stderr: 'ignore' });
+        const data = new Uint8Array(await new Response(p.stdout).arrayBuffer());
+        return (await p.exited) === 0 ? { data } : null;
+      };
+      const before = await show(base, from);
+      const after = to ? await show(to, path) : ownFile(ws, path);
+      const read = async (f: FileAt | null) => (!f ? null : textOf('path' in f ? new Uint8Array(await Bun.file(f.path).arrayBuffer()) : f.data));
+      return { old: await read(before), new: await read(after) };
     } catch {
       return null;
     }

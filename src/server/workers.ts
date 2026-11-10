@@ -32,7 +32,7 @@ import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE, execTools } from './exec-tools';
 import { type Forward, HOST_DIR, hostName, remote } from './hosts';
 import { runAppCommand } from './app-command';
 import { readingShared } from '../adapters';
-import { branchName, type CardWorkstations, type FileAt, gitSteps, ownFile, type Landed, type Lease, type PullStopped, shortageOf, together, WorkstationError, type Workstations } from './workstations';
+import { branchName, type CardWorkstations, type FileAt, type FileVersions, gitSteps, ownFile, type Landed, type Lease, type PullStopped, shortageOf, together, WorkstationError, type Workstations } from './workstations';
 import type { FolderWorkstations, UndoReport } from './folder';
 import { contributionOf, type PrState, type Shipped, type StoredContribution } from './board';
 import { type Doing, onTool, onToolDone, shownDoing, THINKING_AFTER } from './doing';
@@ -2572,6 +2572,21 @@ export class Workers {
     // landed work's workstation, while its worker finishes, has nothing left against the default branch
     if (row.state === 'live' && shipped?.commit && shipped.base) return this.o.workstations.landedDiff(shipped.base, shipped.commit, full);
     return this.o.workstations.diff(cardId, full);
+  }
+
+  /**
+   * One file of the card's change before and after (`CardWorkstations.versionsOf`), for the diff to
+   * expand the lines around its hunks; only a file `changedFiles` names, never any other file of the
+   * workstation. Null where there is none to show.
+   */
+  async fileVersions(cardId: string, asked: string): Promise<FileVersions | null> {
+    const path = normalPath(asked);
+    if (!path) return null;
+    const row = this.o.board.row(cardId);
+    const shipped = row.shipped ? (JSON.parse(row.shipped) as Shipped) : null;
+    const landed = row.state === 'live' && shipped?.commit && shipped.base ? { base: shipped.base, commit: shipped.commit } : undefined;
+    const changed = await this.o.workstations.changedFiles(cardId, landed);
+    return changed.includes(path) ? this.o.workstations.versionsOf(cardId, path, landed) : null;
   }
 
   /** The files of the card's change as they are now, as `diff` reads it, by a list no file name can pass for another in (`CardWorkstations.changedFiles`). */

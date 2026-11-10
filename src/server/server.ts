@@ -827,6 +827,8 @@ export function serve(
       },
       // what the card's work changes: its files with lines added and removed, with `?full` the diff too
       '/api/c/:project/cards/:id/diff': { GET: on((c, req) => c.diff(req.params.id!, new URL(req.url).searchParams.has('full'))) },
+      // one file of the card's change as it was and as it is, for the diff to show the lines around its hunks
+      '/api/c/:project/cards/:id/versions': { GET: on((c, req) => c.cardFileVersions(req.params.id!, new URL(req.url).searchParams.get('path') ?? '')) },
       // the app running in the card's workstation: whether it answers, and the owner opening it to try it by hand
       '/api/c/:project/cards/:id/app': { GET: on((c, req) => c.appUp(req.params.id!)) },
       '/api/c/:project/cards/:id/app/open': {

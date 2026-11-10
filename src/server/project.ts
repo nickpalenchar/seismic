@@ -54,7 +54,7 @@ import { isSitePath, siteMissing, siteName, sitePaths } from './site';
 import { demoSite, findSite } from './demo-sites';
 import { dimensions } from '../core/page-tags';
 import { type DueRestart, Workers } from './workers';
-import { branchSetting, type CardWorkstations, defaultBranch, type FileAt, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, Workstations } from './workstations';
+import { branchSetting, type CardWorkstations, defaultBranch, type FileAt, type FileVersions, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, Workstations } from './workstations';
 import { FolderWorkstations } from './folder';
 import { readingTheme, readTheme, type Theme } from './theme';
 import { claudeToken, githubToken, hostName, registerHost } from './hosts';
@@ -1944,6 +1944,11 @@ export class ProjectRuntime {
   /** A file of the card's work as its left column shows it (`Workers.file`); `local`: on disk, to open it. */
   cardFile(cardId: string, path: string, local = false): Promise<FileAt | null> {
     return this.repoOf(this.board.card(cardId) ?? cardId).workers.file(cardId, path, local);
+  }
+
+  /** One file of the card's change before and after (`Workers.fileVersions`). */
+  cardFileVersions(cardId: string, path: string): Promise<FileVersions | null> {
+    return this.repoOf(this.board.card(cardId) ?? cardId).workers.fileVersions(cardId, path);
   }
 
   /** "Open on the computer" on a file of the card's work, or with `show` "Show in folder": with the system's app on this machine. */
