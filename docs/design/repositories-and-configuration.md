@@ -31,7 +31,7 @@ reads the card it came from as with any follow-up.
 
 The UI opens `/p/<project>` (`/p/<project>/c/<code>` a card on it, `?talk` Seismic's sheet; see
 Addresses in The canvas); the left menu and the project switcher switch projects and list what waits for
-the owner on each, kept current on every page (see The navigation). Wherever projects are listed
+the owner on each, kept current on every page (see Switching projects). Wherever projects are listed
 (the left menu, the project switcher, the phone) they
 stand in the configuration's order, so the owner sets it by moving them in the configuration dialog;
 the first is also where a page of a stopped project goes. A project without a name in the configuration is named after
@@ -434,7 +434,7 @@ would show the server's own working directory and its commands for a new project
 up (see Setting up git in a folder). A repository's own settings problems (see Problems in the
 settings) show at it and block nothing. Technical detail folds under "Details"; each saved problem
 offers "Create a task to fix this", which asks the Koordinator of its project to create a task fixing
-it. The gear in the bar (see The project settings in The canvas) counts the saved configuration's problems in red, kept
+it. The gear in the floating row (see The project settings in The canvas) counts the saved configuration's problems in red, kept
 current also when a repository's settings change on its main branch; its sheet repeats the count beside
 "Open in Configuration".
 
@@ -496,7 +496,7 @@ and opens Seismic's conversation (Space for voice does not reach Seismic while t
 The other sections save on their own, restarting nothing: the demo settings into `demo.json` (see
 The demo settings and voices), this machine's demo sites below them into `demo-sites.json` (see This
 machine's demo sites in Sharing demos), and into `settings.json` in Seismic's home models, notifications, and
-(as the logo's "Preferences" do with languages and theme) whether the bar shows the usage limits
+(as the left menu's "Preferences" do with languages and theme) whether the bar shows the usage limits
 (`usageMeter: false` when not), whether approving asks for feedback (`feedbackPrompt: false` when
 not) and Project defaults into `settings.json` in Seismic's home.
 

@@ -25,7 +25,7 @@ library, no class-name helper. `src/ui/components/` holds only the toast.
 
 - `useMenuClose` (`queue.tsx`) is the de-facto dismiss hook: capture-phase outside `pointerdown`,
   optional Esc, and the `obeya:close-bar-menus` event. Used by the archive drop-down, the canvas
-  drawer, CardMore, ShareTags, the project picker, the logo's menu, snooze, StartAgent and the label
+  drawer, CardMore, ShareTags, the project picker, the left menu, snooze, StartAgent and the label
   pickers. `parts.tsx` (workstations), `usage.tsx` and `cardSearch.tsx` carry their own copies.
 - Esc is routed centrally by one capture `keydown` handler in `App.tsx`: open overlays "take the
   keys" in order, it skips when `.lightbox`, `.demo-zoom`, `.nav-menu`, `.diff-view`,
@@ -113,7 +113,7 @@ Phone CSS overrides shared controls in a few places (`.ph-view .actions .btn` an
 
 ### Menu — Radix DropdownMenu
 
-- `role=menu`: the logo's menu (`prefs.tsx`, with separators), CardMore "⋯" on the card head and on
+- `role=menu`: the left menu (`prefs.tsx`, with separators), CardMore "⋯" on the card head and on
   plan cards on the canvas (portal that follows the camera, closes when it moves; nested confirm),
   the snooze menu (presets plus a date-time form; card actions and the conversation's snooze line),
   the four label pickers (priority, category, sub-category, complexity; `menuitemradio`; card head
@@ -144,12 +144,12 @@ Phone CSS overrides shared controls in a few places (`.ph-view .actions .btn` an
 
 | Dialog | Where | Today |
 |---|---|---|
-| Configuration | logo's menu | always mounted, toggled by class; Esc from App; backdrop pointerdown; no trap |
-| Preferences | logo's menu | as Configuration |
-| Performance | logo's menu | the only one with a focus trap and focus return |
+| Configuration | left menu | always mounted, toggled by class; Esc from App; backdrop pointerdown; no trap |
+| Preferences | left menu | as Configuration |
+| Performance | left menu | the only one with a focus trap and focus return |
 | Connect a phone | Configuration → Devices | Esc from App; no trap |
-| Help (controls) and the new-card hint | logo's menu, "New task" | no `aria-modal`; autofocus on the hint |
-| Report a wish | logo's menu | no `aria-modal` |
+| Help (controls) and the new-card hint | left menu, "New task" | no `aria-modal`; autofocus on the hint |
+| Report a wish | left menu | no `aria-modal` |
 | Merge picker | card head | own Esc and arrow keys (a combobox inside) |
 | Canvas new / edit | canvas strip | own Esc on the form |
 | Confirms (7) | card detail: unsent replies, approve during review, start parked, open questions; stop-to-park; delete an old name | one shared look (`.review-approval-*`) copied seven times, each with its own Esc and autofocus on "Back" |
@@ -232,7 +232,7 @@ focused control, a first tap acting while the phone keyboard is open.
 - [ ] **W4:** Segmented control and radio groups. `SegmentedControl` on Radix ToggleGroup (single and multiple) for every `.seg`, the chats scope, files result mode, Performance views and the stage chips' group; Radix RadioGroup for the native radios and the canvas icon grid; the feedback stars stay a bespoke rating on RadioGroup with their hover preview. Arrow keys replace one tab stop per option. M.
 - [ ] **W5:** Tabs. Radix Tabs for the Agents sheet (desktop and phone), card results, the Diff change list, Setup pages, the repository tabs and the canvas strip (keeping its hover drawer and first-tap-opens on touch); vertical Tabs for the Configuration and Preferences navs, keeping each section's address and unsent input. M.
 - [ ] **W6:** Tooltip. Radix Tooltip with one provider and delay; IconButton shows its label as one; the Configuration info tip, the status pills' `.tip.why` and the agents tip move onto it; tips that hold buttons wait for W8. Replace `title=` on icon-only buttons; leave it where it names truncated text. Check touch: a tooltip must not block the first tap. S–M.
-- [ ] **W7:** Menu. Radix DropdownMenu for the logo's menu, CardMore (on the card head and on canvas plan cards, still closing when the camera moves), the four label pickers (radio items), ShareTags and the project picker (links as items, the pin kept; the pinned navigation keeps sharing its list). `useMenuClose` loses these callers; their classes leave App's Esc list. M.
+- [ ] **W7:** Menu. Radix DropdownMenu for the left menu, CardMore (on the card head and on canvas plan cards, still closing when the camera moves), the four label pickers (radio items), ShareTags and the project picker (links as items, the pin kept; the pinned navigation keeps sharing its list). `useMenuClose` loses these callers; their classes leave App's Esc list. M.
 - [ ] **W8:** Popover. Radix Popover for the workstations and usage pills, the status pills' interactive tips, the StartAgent panel, the snooze menu's date-time form and the archive drop-down; the canvas drawer keeps opening on hover (Popover with controlled open). Delete `useMenuClose`, the `obeya:close-bar-menus` event if nothing else needs it, and the hand-copied outside-click code in parts and usage. M.
 - [ ] **W9:** Select. Radix Select for the 30 native selects, styled like the settings selects today; the StartAgent panel's three selects inside a popover; the phone's project switcher decides between Radix Select and keeping the native picker on touch (the native sheet is often better on a phone: check in the Android emulator and keep what works better). S–M.
 - [ ] **W10:** Dialog. Radix Dialog for Configuration, Preferences, Performance, Connect a phone, Help, the new-card hint, Report a wish, the merge picker and the canvas dialog (focus trap and return everywhere; `forceMount` where input must survive closing); Radix AlertDialog as one `ConfirmDialog` for the seven confirms; Setup, the Diff view and the lightbox move onto Dialog where their behaviour fits, else stay and are listed under "Stays bespoke". Their entries leave App's Esc list. The longest workstream after W2: may split into settings dialogs and the rest. M–L.

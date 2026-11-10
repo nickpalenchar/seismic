@@ -335,7 +335,7 @@ An approve click folds the card at once without waiting for the server: the canv
 under way: first "being approved …" or "being pushed straight to main …", then the landing or its
 place in the repository’s landing queue (see How work lands). It no longer counts as needing the
 owner and is skipped by Tab, which goes on from the place of the card it opened last. A message with
-a spinner stands above the microphone, which the answer turns into the confirmation or, when the
+a spinner stands in the toast stack, which the answer turns into the confirmation or, when the
 landing is refused, into the reason, with the card waiting for review again; a restart that cut the
 landing off gives the card back the same way.
 
@@ -348,7 +348,7 @@ finished ones at once", which asks about each in turn); where cards archive them
 ("Automatically, after landing"), once the approval has gone through (the card's button, work that
 changed nothing included). A workstream, which goes into the archive only with its plan, is asked
 about after its approval either way. Then a prompt stands
-right above the microphone, under the confirmation: "How well did the agent do “…”?" with five stars (Poor, Fair, Okay,
+in the toast stack, under the confirmation: "How well did the agent do “…”?" with five stars (Poor, Fair, Okay,
 Good, Excellent) and "Skip". A star saves the rating at once; then a comment
 field opens, optional, and "Skip" becomes "Done". The prompt stays until answered or
 skipped, also when the card goes into the archive meanwhile; another approval asks about its own card instead. Skipping records nothing: the card keeps

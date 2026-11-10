@@ -144,7 +144,7 @@ along then. "Stop" stays in the card's action row: it ends the agent and plans t
 
 ### Pausing a project's agents
 
-With several projects, each project's row in the navigation (see The navigation) shows the moving line of a card at work while
+With several projects, each project's row in the left menu or project switcher (see Switching projects) shows the moving line of a card at work while
 at least one agent works on that project (any agent with a pause, as above). While the pointer is on
 the row, the line turns into a pause button, faint like a card's, "pause x running agents" in its tooltip; with
 none at work but at least one paused, the row shows ▶ on the same hover, "resume x paused agents". On a touch screen the button is always there. Nothing else of it sits in the bar. The
@@ -346,7 +346,7 @@ as a learned preference does. Older answers agents gave in the owner's name stay
   pausing a busy project from just swapping its running agents for its queued ones. Rejected: a
   project-wide stop at a safe point with every session ended and everything for its workers held
   (a state of its own beside the cards' pauses); a button beside the project pill (too close to
-  the one in the navigation, and in view all the time); a setting to start Seismic with every project
+  the one in the left menu, and in view all the time); a setting to start Seismic with every project
   paused (pauses last over restarts anyway).
 - **Waits of hours or days are a snooze Seismic holds** (2026-10-17). Rejected: workers keeping a turn
   open with chained background sleeps (the card looked busy for days and held a slot, every restart

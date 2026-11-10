@@ -348,17 +348,17 @@ A planned card's description takes screenshots too; its worker (or idea agent) g
 task, and building an idea adds those from its discussion. A command in the Koordinator's sheet may
 carry screenshots; they go with each action that creates or concerns a card, and join the task of a
 card it starts. A spoken command takes the screenshots of the field it speaks to (see Drafts);
-dropped on the microphone or pasted outside a text field, they land there. Only with no card open
-and the sidebar closed does the microphone keep its own screenshots beside it; they move into the
+dropped on the view switcher or pasted outside a text field, they land there (on the phone, at the microphone). Only with no card open
+and the sidebar closed does the switcher keep its own screenshots beside it; they move into the
 sidebar's field when it opens and back when it closes (its words stay in the sidebar's field, the
 paths of dropped files go back with them, see Other files). An
-open card leaves them beside the microphone, out of sight until it closes; they are for Seismic, not
+open card leaves them beside the switcher, out of sight until it closes; they are for Seismic, not
 the card's agent.
 
 ### Other files
 
 A file of another kind (a PDF, a log, a spreadsheet, a folder in the app) dropped on a field or on
-the microphone, or together with screenshots, goes in by its path, as a terminal agent's prompt
+the view switcher, or together with screenshots, goes in by its path, as a terminal agent's prompt
 takes a file dragged from the file manager, so the owner can have the agent read it, move it or
 change it where it lies. The app knows the path from the system (see App). A browser does not tell
 a page where a dropped file lies, so Seismic looks for it on its own machine: Spotlight on a Mac, else
@@ -371,9 +371,9 @@ folder of its own under its name made one word) and the copy's path goes in.
 The path goes into the field's text at the cursor while the field has it (⌘Z takes it back), else
 where the cursor last stood or at the end, parted by spaces, in quotes where it has a space; the
 focus stays where it was, so the microphone still sends rather than dictates. Dropped on the
-microphone with no field to take it, the path waits beside the microphone under the file's name (×
+switcher with no field to take it, the path waits beside it under the file's name (×
 removes it) and goes with the next recording; it moves into Seismic's field when the sidebar opens,
-and back beside the microphone when it closes, as the screenshots do, while it still stands in the
+and back beside the switcher when it closes, as the screenshots do, while it still stands in the
 field's text (the words around it stay there).
 While a file is looked for or uploads the field shows "uploading …" and does not send, and a recording
 waits for it (and for screenshots still uploading) before it goes. The image button's picker stays
@@ -518,14 +518,14 @@ image.
 - **Screenshots as images in the message**, so the agent sees them without a step. Rejected: files
   to read (only where tool results carry no images).
 - **Other files go in by their own path** (owner, 2026-10-26), so the agent can also move or change
-  them; a PDF dropped on the microphone opened in a new tab instead. A browser never tells a page a
+  them; a PDF dropped on the bottom-centre control opened in a new tab instead. A browser never tells a page a
   dropped file's path, so for a browser Seismic looks for the file by name, size and time, and the app
   takes the path from the system (owner's choice of both). Rejected: always a copy (the agent could
   not touch the original); the File System Access API, whose handles carry no path. The path is
   text in the field, so it reaches every agent through what already carries the owner's words and
   stays editable. Rejected: a chip per file beside the screenshots, which every way a message
   travels would have had to carry. The picker stays for images: on a phone it opens the photos.
-  The paths go back beside the microphone when the sidebar closes (owner, 2026-10-26): they stayed
+  The paths go back beside the switcher when the sidebar closes (owner, 2026-10-26): they stayed
   in its field and a recording went without them. Rejected: the microphone sending the closed
   sidebar's words, which stay apart from it on purpose.
 - **A spoken command takes the screenshots of its field** (2026-10-12). Rejected: a separate
