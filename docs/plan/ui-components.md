@@ -33,7 +33,7 @@ library, no class-name helper. `src/ui/components/` holds the toast and the butt
   fifteen components add their own Esc listeners besides.
 - No focus trap utility: only the Performance dialog traps focus and returns it to its opener.
 - Positioning is by hand: CardMore flips up/down, the label pickers shift left at the edge, snooze
-  repositions on scroll, `cfg-tip` is fixed and hides on scroll, `agents-tip` is a computed portal.
+  repositions on scroll.
 - Settings dialogs share blocks: `config.tsx` exports `Field`, `ThemeBlock`, `LanguageBlock`,
   `SuggestField`, `CodeReviewField` and others that `prefs.tsx` and `projectSettings.tsx` reuse, so
   a control migrated inside them covers all three dialogs.
@@ -53,16 +53,6 @@ Phone CSS gives a few shared controls a larger touch target (the buttons in `.ph
 - Without roles: the Configuration left nav (`aria-current`, sections and one entry per project) and
   the Preferences nav (appearance | rules | about) — vertical Tabs.
 
-### Tooltip — Radix Tooltip
-
-- `role=tooltip`: the Configuration `Info` (i) tip (hover, focus and click; fixed, hides on scroll),
-  the status bar pills' `.tip.why` and `.tip.risk` (restart, update, source, old Bun; pure CSS
-  hover), the usage pill's tip (holds a button: really a popover).
-- `agents-tip`: the play/pause tip in the project list, a computed portal.
-- 293 `title=` attributes (detail 69, config 34, files 15, canvases 14, Koordinator 13, parts 12,
-  App 12, message 11 …). The ones on icon-only buttons become a Tooltip through IconButton; `title`
-  on text (a truncated name, say) may stay.
-
 ### Menu — Radix DropdownMenu
 
 - `role=menu`: the left menu (`prefs.tsx`, with separators), CardMore "⋯" on the card head and on
@@ -78,7 +68,8 @@ Phone CSS gives a few shared controls a larger touch target (the buttons in `.ph
 
 - Click-pinned or hover panels with interactive content: the workstations pill (`role=dialog`,
   "Take" and per-workstation menus, own outside-click and Esc), the usage pill, the status pills'
-  tips that hold buttons, the StartAgent options panel, the snooze date-time form, the canvas drawer
+  hover tips (restart, update, source and old Bun: `.tip.why` holds card links, `.tip.risk` the button's
+  warning; pure CSS hover, not keyboard reachable), the StartAgent options panel, the snooze date-time form, the canvas drawer
   (hover-opened list with rename, icon, reorder, remove).
 
 ### Select — Radix Select
@@ -183,7 +174,7 @@ focused control, a first tap acting while the phone keyboard is open.
 - [x] **W3:** Switch and Checkbox. Radix Switch for the 14 toggles, Radix Checkbox for the plain checkboxes (export, suggest, artifact checks); their labels (`c-check`, `share-check` …) become one `Field`-style label pattern. S.
 - [x] **W4:** Segmented control and radio groups. `SegmentedControl` on Radix ToggleGroup (single and multiple) for every `.seg`, the chats scope, files result mode, Performance views and the stage chips' group; Radix RadioGroup for the native radios and the canvas icon grid; the feedback stars stay a bespoke rating on RadioGroup with their hover preview. Arrow keys replace one tab stop per option. M. Landed: `components/segmented.tsx` (`SegmentedControl`, `ToggleGroup`/`ToggleItem`) and `components/radio.tsx` (`RadioGroup`, `RadioOption`, `Radio`). The tablists that wear `.seg` (Agents tabs, repository tabs) stay until W5, which removes the `.seg` rules.
 - [ ] **W5:** Tabs. Radix Tabs for the Agents sheet (desktop and phone), card results, the Diff change list, Setup pages, the repository tabs and the canvas strip (keeping its hover drawer and first-tap-opens on touch); vertical Tabs for the Configuration and Preferences navs, keeping each section's address and unsent input. M.
-- [x] **W6:** Tooltip. Radix Tooltip with one provider and delay; IconButton shows its label as one; the Configuration info tip, the status pills' `.tip.why` and the agents tip move onto it; tips that hold buttons wait for W8. Replace `title=` on icon-only buttons; leave it where it names truncated text. Check touch: a tooltip must not block the first tap. S–M.
+- [x] **W6:** Tooltip. Radix Tooltip with one provider and delay; IconButton shows its label as one; the Configuration info tip and the agents tip moved onto it; the status pills' tips hold links, so they moved to W8's inventory with the other interactive tips. Replace `title=` on icon-only buttons; leave it where it names truncated text. Check touch: a tooltip must not block the first tap. S–M.
 - [ ] **W7:** Menu. Radix DropdownMenu for the left menu, CardMore (on the card head and on canvas plan cards, still closing when the camera moves), the four label pickers (radio items), ShareTags and the project picker (links as items, the pin kept; the pinned navigation keeps sharing its list). `useMenuClose` loses these callers; their classes leave App's Esc list. M.
 - [ ] **W8:** Popover. Radix Popover for the workstations and usage pills, the status pills' interactive tips, the StartAgent panel, the snooze menu's date-time form and the archive drop-down; the canvas drawer keeps opening on hover (Popover with controlled open). Delete `useMenuClose`, the `obeya:close-bar-menus` event if nothing else needs it, and the hand-copied outside-click code in parts and usage. M.
 - [ ] **W9:** Select. Radix Select for the 30 native selects, styled like the settings selects today; the StartAgent panel's three selects inside a popover; the phone's project switcher decides between Radix Select and keeping the native picker on touch (the native sheet is often better on a phone: check in the Android emulator and keep what works better). S–M.
