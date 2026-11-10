@@ -254,7 +254,8 @@ export function Composer({
             // another key while Space is down: Space was typed, before it
             typeSpace();
             if (list.onKeyDown(e)) return;
-            if (enterSends && e.key === 'Enter' && !e.shiftKey) {
+            // Enter confirming an IME candidate is the IME's (Safari reports it as keyCode 229)
+            if (enterSends && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
               e.preventDefault();
               send();
             }

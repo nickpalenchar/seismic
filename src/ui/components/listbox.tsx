@@ -78,9 +78,11 @@ export type ListboxState = ReturnType<typeof useListbox>;
 /** The options of `items`, each drawn by `children`; the active one is `[data-active]`. A pointer over an option makes it active, a click picks it, and neither moves the focus out of the field. */
 export function Listbox<T>({ box, items, label, className, itemKey, children }: { box: ListboxState; items: T[]; label: string; className?: string; itemKey: (item: T) => string; children: (item: T, index: number) => ReactNode }) {
   const list = useRef<HTMLUListElement>(null);
+  // keyed by what the list holds, not by the array: a parent that rebuilds it on every render must not scroll the list back to the active option
+  const held = items.map(itemKey).join('\n');
   useEffect(() => {
     list.current?.children[box.active]?.scrollIntoView({ block: 'nearest' });
-  }, [box.active, items]);
+  }, [box.active, held]);
   return (
     <ul ref={list} id={box.id} className={className ? `listbox ${className}` : 'listbox'} role="listbox" aria-label={label}>
       {items.map((item, i) => (
