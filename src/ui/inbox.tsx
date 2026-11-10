@@ -183,18 +183,8 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
   );
 }
 
-/** The least room a card opened from the inbox's view keeps beside its list. */
-export const INBOX_CARD_MIN = 360;
-/** The least width of the inbox view's list. */
-const LIST_MIN = 280;
-/** The window's width beside the docked left menu that the inbox's view needs for its list and a card beside it (with their margins). */
-export const INBOX_ROOM = LIST_MIN + INBOX_CARD_MIN + 80;
-
-/**
- * The width of the inbox view's list, out of `avail`, the window beside the docked left menu: about
- * a third of it, narrower where that would leave a card opened from it less than `INBOX_CARD_MIN`.
- */
-export const inboxListWidth = (avail: number) => Math.round(Math.max(LIST_MIN, Math.min(480, avail * 0.36, avail - INBOX_CARD_MIN - 80)));
+/** The width of the inbox view's list, beside which a card opened from it unfolds. */
+export const inboxListWidth = () => Math.round(Math.min(480, Math.max(340, innerWidth * 0.36)));
 
 /**
  * The desktop's inbox, a full-page view of the main area: the list at the left, the room beside it

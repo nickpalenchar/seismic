@@ -63,7 +63,7 @@ export function StageChips<S extends string>({ stages, count, hidden, onHidden, 
 export type WorkTab = 'work' | 'parked' | 'activity';
 
 /** The desktop's Agent work, docked on the right: "Working" and "Todo" (the queue, then the planned cards), "Parked" and "Activity". */
-export function AgentsSheet({ els, entryEls, on, items, open, underway, onOpen, project, changed, onGo, ask }: { els: Map<string, HTMLElement>; entryEls?: Map<string, HTMLElement>; on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void; project: string; changed: unknown; onGo: (project: string, i: Item) => void; ask?: { tab: WorkTab; n: number } }) {
+export function AgentsSheet({ els, on, items, open, underway, onOpen, project, changed, onGo, ask }: { els: Map<string, HTMLElement>; on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void; project: string; changed: unknown; onGo: (project: string, i: Item) => void; ask?: { tab: WorkTab; n: number } }) {
   const [kept, setTab] = useStoredState<WorkTab | null>('obeya-agent-work-tab', null);
   const tab: WorkTab = kept === 'parked' || kept === 'activity' ? kept : 'work';
   // the left menu's Queue and Parked open the sheet at their tab
@@ -79,7 +79,7 @@ export function AgentsSheet({ els, entryEls, on, items, open, underway, onOpen, 
   }, [on, tab]);
   const { working, planned } = agentWork(items, underway);
   const todo = q.queued.length + planned.length;
-  const entry = (i: Item) => <AgentEntry key={i.id} item={i} els={entryEls} here={i.id === open} underway={underway(i.id)} onOpen={onOpen} />;
+  const entry = (i: Item) => <AgentEntry key={i.id} item={i} here={i.id === open} underway={underway(i.id)} onOpen={onOpen} />;
   return (
     <Docked id="agents" ref={box} on={on} label={t.agents.work.title}>
       <h2>{t.agents.work.title}</h2>
@@ -143,7 +143,7 @@ function AgentEntry({ item: i, els, here, underway, onOpen }: { item: Item; els?
   // what it waits for where it needs the owner, as its inbox entry says; else the line its card shows under its title
   const waits = stage === 'needsYou' ? waitsFor(i) : undefined;
   return (
-    <li ref={els ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined} className={`inbox-entry agent-entry stage-${stage ?? 'parked'}${here ? ' on' : ''}`} aria-current={here || undefined}>
+    <li ref={els && inParkingLot(i) ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined} className={`inbox-entry agent-entry stage-${stage ?? 'parked'}${here ? ' on' : ''}`} aria-current={here || undefined}>
       <CardFace
         item={i}
         size="s"

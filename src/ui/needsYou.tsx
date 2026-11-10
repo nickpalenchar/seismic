@@ -16,7 +16,7 @@ import { t } from './strings';
 
 type CardOnly = InboxEntry & { card: Item };
 
-export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRead, onRead, els }: Omit<InboxProps, 'onProposalCard' | 'onProposalConfig'> & { on: boolean; current: string }) {
+export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRead, onRead }: Omit<InboxProps, 'onProposalCard' | 'onProposalConfig' | 'els'> & { on: boolean; current: string }) {
   const [hideOthers, setHideOthers] = useStoredState<boolean>('obeya-needs-you-hide-others', false);
   // the other projects opened in this sheet, until the page reloads
   const [unfolded, setUnfolded] = useState<string[]>([]);
@@ -24,7 +24,7 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
   const here = cards.filter((e) => e.project === current);
   const others = [...new Set(cards.filter((e) => e.project !== current).map((e) => e.project))].map((project) => ({ project, entries: cards.filter((e) => e.project === project) }));
   const entry = (e: CardOnly) => (
-    <CardEntry key={e.key} e={e} unread={!isRead(e)} here={e.project === current && e.card.id === open} current={current} onGo={onGo} onReply={onReply} onRead={onRead} els={e.project === current ? els : undefined} />
+    <CardEntry key={e.key} e={e} unread={!isRead(e)} here={e.project === current && e.card.id === open} current={current} onGo={onGo} onReply={onReply} onRead={onRead} />
   );
   return (
     <Docked id="needs-you" on={on} label={t.needsYou.title}>
