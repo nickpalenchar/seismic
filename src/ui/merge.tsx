@@ -7,6 +7,7 @@ import { Inline, plain } from './markdown';
 import { Body, Cards } from './message';
 import { api } from './api';
 import { CardFace } from './card';
+import { uiPortal } from './components/ui';
 import { MergeMark } from './parts';
 import { Shots } from './shots';
 import { stateLabel, t } from './strings';
@@ -55,11 +56,14 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
   const found = useMemo(() => mergeCandidates(item, candidates, query).slice(0, SHOWN), [item, all, archived, query]);
   useEffect(() => field.current?.focus(), []);
   useEffect(() => setAt(0), [query]);
+  // Esc closes the picker wherever the focus is; App leaves the key alone while the dialog below is open (`layerOpen`)
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', esc, true);
+    return () => window.removeEventListener('keydown', esc, true);
+  }, [onClose]);
   const key = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      onClose();
-    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       setAt((n) => Math.max(0, Math.min(found.length - 1, n + (e.key === 'ArrowDown' ? 1 : -1))));
     } else if (e.key === 'Enter' && found[at]) {
@@ -67,11 +71,11 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
       onPick(found[at]!);
     }
   };
-  // Portalled to the body: the panel's frosted bar would otherwise confine the fixed dialog. React still bubbles events through
+  // Portalled into the app's layer container: the panel's frosted bar would otherwise confine the fixed dialog. React still bubbles events through
   // the portal to the panel, so the root stops them there.
   return createPortal(
-    <div id="merge-pick" onClick={(e) => { e.stopPropagation(); onClose(); }} onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-      <div className="box" role="dialog" aria-modal="true" aria-label={t.merge.pickTitle(plain(item.title))} onClick={(e) => e.stopPropagation()} onKeyDown={key}>
+    <div id="merge-pick" onClick={(e) => { e.stopPropagation(); onClose(); }} onPointerDown={(e) => e.stopPropagation()}>
+      <div className="box" role="dialog" data-state="open" aria-modal="true" aria-label={t.merge.pickTitle(plain(item.title))} onClick={(e) => e.stopPropagation()} onKeyDown={key}>
         <button className="close" title={t.merge.cancel} onClick={onClose}>
           ✕
         </button>
@@ -90,7 +94,7 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
         {!found.length && <p className="hint">{query.trim() ? t.merge.noMatch : t.merge.none}</p>}
       </div>
     </div>,
-    document.body,
+    uiPortal() ?? document.body,
   );
 }
 
