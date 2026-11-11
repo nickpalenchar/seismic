@@ -675,7 +675,7 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
                   {hosts.length > 1 && <span className="hint">{h.name}</span>}
                   <span className="flex gap-[3px]" aria-hidden>
                     {hostDots(h, items, underway).map((d, i) => (
-                      <i key={i} className={cn('size-2', d.className)} style={d.style} />
+                      <WorkstationMark key={i} dot={d} />
                     ))}
                   </span>
                 </span>
@@ -751,13 +751,22 @@ const PULSING = new Set(['working', 'reviewing', 'approved']);
  * A workstation's dot, the same on the pill and in its list: in the colour of its card's state as
  * the card shows it (`cardTone`), so it follows the cards' colours, pulsing slowly where the card is
  * at work, in review or landing; a card on another project solid while its worker is at work, else
- * pale; a ring while free, orange while blocked. `w` is undefined for a free slot of worktrees.
+ * pale; a pause symbol while held for restart; a ring while free, orange while blocked.
+ * `w` is undefined for a free slot of worktrees.
  */
-function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], underway: Record<string, string>): { className: string; style?: CSSProperties } {
+type WorkstationDot = { className: string; style?: CSSProperties; paused?: boolean };
+
+function WorkstationMark({ dot, className }: { dot: WorkstationDot; className?: string }) {
+  const props = { className: cn('size-2 shrink-0', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
+  return dot.paused ? <Pause {...props} size={8} fill="currentColor" strokeWidth={2} /> : <i {...props} />;
+}
+
+function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], underway: Record<string, string>): WorkstationDot {
   const dot = 'block rounded-full';
   if (!w?.card) return { className: cn(dot, w && host.blocked?.some((b) => b.path === w.path) ? 'shadow-[inset_0_0_0_1.5px_var(--waiting)]' : 'shadow-[inset_0_0_0_1.5px_var(--muted-foreground)]') };
   const item = w.project ? undefined : items.find((i) => i.id === w.card);
   const tone = item ? cardTone(item, underway[item.id]) : host.busy.includes(w.card) ? 'working' : null;
+  if (item?.hold?.reason === 'restart') return { className: 'block text-[var(--restart)]', paused: true };
   if (!tone) return { className: cn(dot, 'bg-[color-mix(in_srgb,var(--working)_35%,transparent)]') };
   return {
     className: cn(dot, 'bg-[var(--c)]', PULSING.has(tone) && 'animate-[ws-pulse_2.4s_ease-in-out_infinite] motion-reduce:animate-none'),
@@ -811,7 +820,7 @@ function WorkstationRows({ host, items, underway, projects, onOpen, onElsewhere,
         if (!w)
           return (
             <li key={`slot-${n}`} className="grid grid-cols-[8px_minmax(0,1fr)] items-center gap-x-2 py-[3px]">
-              <i className={cn('size-2', dot.className)} aria-hidden />
+              <WorkstationMark dot={dot} />
               <span className="hint col-start-2">{t.workstations.freeSlot}</span>
             </li>
           );
@@ -827,7 +836,7 @@ function WorkstationRows({ host, items, underway, projects, onOpen, onElsewhere,
         );
         return (
           <li key={w.path} className={cn('grid grid-cols-[8px_minmax(0,1fr)] gap-x-2', item ? 'items-start py-1' : 'items-center py-[3px]')}>
-            <i className={cn('row-start-1 size-2', item && 'mt-[7px]', dot.className)} style={dot.style} aria-hidden />
+            <WorkstationMark dot={dot} className={cn('row-start-1', item && 'mt-[7px]')} />
             {!item && path}
             <span className={cn('col-start-2 [overflow-wrap:anywhere]', item ? 'row-start-1 flex min-w-0 items-start gap-1' : 'row-start-2')}>
               {item ? (
