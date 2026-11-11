@@ -25,7 +25,7 @@ export const cardTone = (i: Item, underway?: string): string =>
   underway || i.review?.landing
     ? 'approved'
     : snoozeOf(i) || isPaused(i) || inParkingLot(i)
-      ? 'muted'
+      ? 'muted-foreground'
       : i.kind === 'question'
         ? 'question'
         : (i.hold?.reason === 'restart') || (i.queue && 'restart' in i.queue)
