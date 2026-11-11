@@ -886,6 +886,9 @@ export function Detail(p: Props) {
       )}
 
       {/* the decisions go below both columns, as on an idea or a proposal */}
+      {worked && review && item.review?.noChange && !item.idea?.prototypeOf && (
+        <p className="wontfix-callout rounded-md border border-border bg-muted px-3 py-2 text-sm" role="note">{inFolder ? t.folder.noChangeHint : t.noChangeHint}</p>
+      )}
       {worked && (running || archivable || halted || snoozable(item)) && (
         <div className="actions">
           {halted && !item.archivedAt && (
@@ -908,7 +911,6 @@ export function Detail(p: Props) {
       )}
       {item.state === 'planned' && !item.idea?.proposal?.merge && !worked && !item.queue && fresh && <p className="hint">{fresh.hint}</p>}
       {review && item.demo?.latest && sharing && !item.demo.latest.asked && (shares?.share || item.demo.share) && sharesLater(item, item.demo.latest, !!shares?.shareOnApproval) && <ShareOnApproval item={item} act={act} />}
-      {review && item.review?.noChange && !item.idea?.prototypeOf && <p className="hint">{inFolder ? t.folder.noChangeHint : t.noChangeHint}</p>}
       {review && item.review?.modelsUnchanged && <p className="hint">{t.modelsUnchanged(item.review.modelsUnchanged)}</p>}
       {review && direct && !item.idea?.prototypeOf && <p className="hint">{t.directHint(reviewed)}</p>}
       </>}
