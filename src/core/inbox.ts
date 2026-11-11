@@ -42,22 +42,26 @@ export function waitsFor(i: Item): string {
 
 /**
  * Everything the owner decides on while the card waits, beyond the line `waitsFor` shows: the whole
- * question with its options, a proposal's text and questions, a merge's comparison, an idea's reply,
- * a handover's summary beside its question, a withdrawal's reason. A change to any of it is a change
- * to what waits (`needs_you`'s `last_updated`); its status line or position is not.
+ * question with its options, a proposal with its text and questions, a merge's comparison with what
+ * it compared, an idea's reply, a handover with what approving it does (its code review's items, a
+ * contribution's findings and held changes, a prototype's proposal to build on it), a withdrawal's
+ * reason, the pull requests waiting for their merge. A change to any of it is a change to what waits
+ * (`needs_you`'s `last_updated`, the read mark). Each part goes in whole but for what decides nothing:
+ * where a merge sits and which attempt it is, an agent at work, a pull request's polled checks and review.
  */
 export function decidedOn(i: Item): string {
   const p = i.idea?.proposal;
-  const m = p?.merge;
   const d = i.idea?.discussion;
+  const r = i.review;
+  const prs = [r?.pr, ...(r?.morePrs ?? [])].flatMap((x) => (x ? [{ ...x, waits: undefined, checks: undefined, review: undefined }] : []));
   return JSON.stringify([
     waitsFor(i),
-    i.need === 'question' || handedOver(i) ? (i.question ?? null) : null,
-    handedOver(i) ? (i.review?.summary ?? null) : null,
-    i.state === 'proposal' || m ? [i.title, i.body, p?.reason ?? null, p?.idea ?? null, p?.questions ?? []] : null,
-    m ? [m.with, m.title ?? null, m.task ?? null, m.outcome ?? null, m.titleCovered ?? null, m.parts ?? null, m.followUp ?? null, m.compared?.summary ?? null, m.failed ?? null] : null,
+    i.question ?? null,
+    handedOver(i) ? [r?.summary, r?.noChange, r?.modelsUnchanged, r?.lands, r?.blocked, r?.contribution, r?.codeReview && { ...r.codeReview, agent: undefined }, i.idea?.buildProposal, i.demo?.latest?.handover] : null,
+    i.state === 'proposal' || p?.merge ? [i.title, i.body, { ...p, revising: undefined, merge: p?.merge && { ...p.merge, origin: undefined, attempt: undefined } }] : null,
     i.idea?.superseded ?? null,
-    d && i.state === 'idea' ? [d.questions, d.next ?? null, d.brief] : null,
+    d && i.state === 'idea' ? { ...d, thinking: undefined, buildAfterReply: undefined } : null,
+    i.state === 'inPr' ? prs : null,
   ]);
 }
 

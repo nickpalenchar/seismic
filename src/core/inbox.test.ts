@@ -129,6 +129,20 @@ test('only unread entries count; a card that waits anew and a newer answer are u
   expect(readMark(merging({}, { agent: { statusLine: 'Comparing' } } as Partial<Item>))).toBe(seen);
   expect(readMark(merging({ task: 'Add CSV and XLSX.', outcome: 'followUp' }))).not.toBe(seen);
   expect(readMark(merging({}, { body: 'Add CSV with dates.' }))).not.toBe(seen);
+  // what a comparison compared counts too, where it sits on the canvas does not
+  const compared = { left: 'Add CSV.', right: 'Export data.', summary: 'Same export.' };
+  expect(readMark(merging({ compared: { ...compared, right: 'Export data as XLSX.' } }))).not.toBe(readMark(merging({ compared })));
+  expect(readMark(merging({ origin: { x: 40, y: 80 }, attempt: 'again' }))).toBe(seen);
+  // a handover's code review that finds something new is new too
+  const handover = (items: object[]) => readMark(inboxEntries([site], { site: w([card('a', '2026-11-05T08:00:00Z', { review: { summary: 'Done', codeReview: { mode: 'auto', state: 'done', items } } } as Partial<Item>)]) })[0]!);
+  expect(handover([{ number: 1 }])).not.toBe(handover([]));
+  // a pull request that waits for its merge: another one ready, or why Seismic left the merge, is new; a polled check is not
+  const pr = (over: object = {}) => ({ url: 'https://x/pull/1', number: 1, ready: true, checks: [], conflict: false, ...over });
+  const inPr = (review: Item['review'], over: Partial<Item> = {}) => readMark(inboxEntries([site], { site: w([card('a', '2026-11-05T08:00:00Z', { state: 'inPr', need: undefined, review, ...over })]) })[0]!);
+  const ready = inPr({ pr: pr() });
+  expect(inPr({ pr: pr({ checks: [{ name: 'ci', state: 'success' }] }) })).toBe(ready);
+  expect(inPr({ pr: pr({ mergeError: 'Base branch was modified' }) })).not.toBe(ready);
+  expect(inPr({ pr: pr(), morePrs: [pr({ url: 'https://y/pull/2', number: 2 })] })).not.toBe(inPr({ pr: pr(), morePrs: [pr({ url: 'https://y/pull/2', number: 2, ready: false })] }));
 });
 
 test('"Needs you" counts the cards waiting on every project, read or not, and nothing else', () => {

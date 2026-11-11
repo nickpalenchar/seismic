@@ -72,7 +72,9 @@ Persistent (SQLite):
   last: by when its answer came, so a slow lookup's answer to an older question comes after a newer one's),
   with its kind (the card kinds the pushes name, plus `merge`, `rule`, `setting`, `answer`), a
   digest of what it waits for (on a card all the owner decides on there: the whole question, the
-  summary, a proposal's text and questions, a merge's comparison, an idea's reply; the rule's text),
+  summary, a proposal's text and questions, a merge's comparison with what it compared, an idea's
+  reply, a handover's code review items, the pull requests waiting for their merge; not where a card
+  sits nor a pull request's polled checks; the rule's text),
   when it began, when
   what it waits on last changed and when it ended, all three in milliseconds. At most one row per
   target is open; a row stays once its wait ended, and a target that waits again gets a new one.
