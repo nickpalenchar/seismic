@@ -760,7 +760,7 @@ const PULSING = new Set(['working', 'reviewing', 'approved']);
 type WorkstationDot = { className: string; style?: CSSProperties; paused?: boolean };
 
 function WorkstationMark({ dot, className }: { dot: WorkstationDot; className?: string }) {
-  const props = { className: cn('shrink-0', dot.paused ? 'size-2' : 'size-2.5', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
+  const props = { className: cn('shrink-0', dot.paused ? 'size-2' : 'size-3', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
   return dot.paused ? <Pause {...props} size={8} fill="currentColor" strokeWidth={2} /> : <i {...props} />;
 }
 
@@ -822,7 +822,7 @@ function WorkstationRows({ host, items, underway, projects, onOpen, onElsewhere,
         const dot = wsDot(w, host, items, underway);
         if (!w)
           return (
-            <li key={`slot-${n}`} className="grid grid-cols-[8px_minmax(0,1fr)] items-center gap-x-2 py-[3px]">
+            <li key={`slot-${n}`} className="grid grid-cols-[12px_minmax(0,1fr)] items-center gap-x-2 py-[3px]">
               <WorkstationMark dot={dot} />
               <span className="hint col-start-2">{t.workstations.freeSlot}</span>
             </li>
@@ -838,8 +838,8 @@ function WorkstationRows({ host, items, underway, projects, onOpen, onElsewhere,
           </span>
         );
         return (
-          <li key={w.path} className={cn('grid grid-cols-[8px_minmax(0,1fr)] gap-x-2', item ? 'items-start py-1' : 'items-center py-[3px]')}>
-            <WorkstationMark dot={dot} className={cn('row-start-1', item && 'mt-[7px]')} />
+          <li key={w.path} className={cn('grid grid-cols-[12px_minmax(0,1fr)] gap-x-2', item ? 'items-start py-1' : 'items-center py-[3px]')}>
+            <WorkstationMark dot={dot} className={cn('row-start-1', item && (dot.paused ? 'mt-[7px]' : 'mt-[5px]'))} />
             {!item && path}
             <span className={cn('col-start-2 [overflow-wrap:anywhere]', item ? 'row-start-1 flex min-w-0 items-start gap-1' : 'row-start-2')}>
               {item ? (
