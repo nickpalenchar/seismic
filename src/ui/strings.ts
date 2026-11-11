@@ -765,7 +765,6 @@ const en = {
   offlineError: 'The server cannot be reached.',
   voice: {
     hold: 'Hold to speak (space)',
-    holdSpace: 'Hold Space to talk',
     koordinator: 'Seismic',
     card: (title: string) => `Seismic · Task: ${title}`,
     agent: (title: string) => `Agent · Task: ${title}`,

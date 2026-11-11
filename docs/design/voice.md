@@ -7,8 +7,7 @@ A chapter of the [design doc](../design.md), whose header says how it is written
 Push-to-talk: hold Space in Seismic's window, or on the phone its mic button. The browser records
 and posts the audio with its focus (the open card, the plan in view). The desktop has no microphone
 button at the bottom, where the view switcher stands (see The view switcher in The canvas): the
-status bar's middle line says "Hold Space to talk" until the owner has talked once, and while Space
-is held a microphone with the level shows above the switcher. Screenshots pasted (⌘V) with no field
+while Space is held a microphone with the level shows above the switcher. Screenshots pasted (⌘V) with no field
 in view, and files dropped on the switcher, wait beside it for the next recording, as beside the
 phone's microphone.
 

@@ -9,7 +9,6 @@
 // its confirmation; a typed one gets its line with the confirmation.
 
 import { Tooltip } from './components/tooltip';
-import { createPortal } from 'react-dom';
 import { Mic } from 'lucide-react';
 import { createContext, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { Place } from '../core/layout';
@@ -291,12 +290,11 @@ export function useHeldByTouch<T extends HTMLElement>() {
  * when there is one. So do the paths of other files dropped on it, which show beside it by their
  * names while they wait there. Those for Seismic stay in view: they go into Seismic's field when it
  * opens, and back beside the microphone when it closes, the paths that still stand in its words too.
- * With a `slot` (the middle of the project's status bar) the line stands there, not under the microphone.
  * With `instead` (the desktop's view switcher) that stands where the microphone and its screenshot
  * button would: Space is the only way to talk, the microphone shows only while it listens, and the
- * line says "Hold Space to talk" while `hint` is on.
+ * target line stays hidden.
  */
-export function PushToTalk({ phase, level, flat, target, field, slot, onDown, instead, hint }: { phase: Phase; level: number; flat: boolean; target: string | null; field: string | null; slot?: HTMLElement | null; onDown: () => void; instead?: ReactNode; hint?: boolean }) {
+export function PushToTalk({ phase, level, flat, target, field, onDown, instead }: { phase: Phase; level: number; flat: boolean; target: string | null; field: string | null; onDown: () => void; instead?: ReactNode; hint?: boolean }) {
   const on = useFieldOn(field);
   const key = on ? field! : MIC_DRAFT;
   const shots = useShotInput({ draft: key, off: !takesImages(key) });
@@ -327,24 +325,20 @@ export function PushToTalk({ phase, level, flat, target, field, slot, onDown, in
   // phone, where a field's own microphone says it, and turned, the line wraps to four in the strip)
   const lineClass = cn(
     'overflow-hidden rounded-[3px] text-ellipsis whitespace-nowrap text-muted-foreground [&_b]:font-semibold [&_b]:text-ink',
-    slot !== undefined
-      ? 'max-w-full px-2.5 py-[3px] text-[13px]'
-      : 'max-w-[calc((100vw-var(--left,0px)-var(--side,0px))*.6)] bg-card px-3 py-1 text-[12px] shadow-glass ph-landscape:max-w-[104px] ph-landscape:border-y-4 ph-landscape:border-[var(--card)] ph-landscape:px-2 ph-landscape:py-0 ph-landscape:text-center ph-landscape:whitespace-normal ph-landscape:[-webkit-box-orient:vertical] ph-landscape:[-webkit-line-clamp:4] ph-landscape:[display:-webkit-box]',
+    'max-w-[calc((100vw-var(--left,0px)-var(--side,0px))*.6)] bg-card px-3 py-1 text-[12px] shadow-glass ph-landscape:max-w-[104px] ph-landscape:border-y-4 ph-landscape:border-[var(--card)] ph-landscape:px-2 ph-landscape:py-0 ph-landscape:text-center ph-landscape:whitespace-normal ph-landscape:[-webkit-box-orient:vertical] ph-landscape:[-webkit-line-clamp:4] ph-landscape:[display:-webkit-box]',
   );
   const line = flat ? (
         <div id="target" className={cn(lineClass, 'bg-error font-semibold text-on-ink')}>
           {t.voice.flat}
         </div>
       ) : into ? (
-        <div id="target" className={cn(lineClass, 'text-working [&_b]:text-working', slot === undefined && 'hidden')}>
+        <div id="target" className={cn(lineClass, 'text-working [&_b]:text-working', 'hidden')}>
           → <b>{t.voice.intoField}</b>
           {t.voice.sendWithEnter && ` · ${t.voice.sendWithEnter}`}
         </div>
       ) : (
-        (target !== null || hint) && (
+        target !== null && (
           <div id="target" className={lineClass}>
-            {hint && <span className="text-muted-foreground">{t.voice.holdSpace}</span>}
-            {hint && target !== null && ' '}
             {target !== null && (
               <>
                 → <b>{target}</b>
@@ -392,8 +386,7 @@ export function PushToTalk({ phase, level, flat, target, field, slot, onDown, in
         )}
       </div>
       {shots.error && key === MIC_DRAFT && <div className="ptt-error">{shots.error}</div>}
-      {slot === undefined && line}
-      {slot && createPortal(line, slot)}
+      {!instead && line}
     </div>
   );
 }

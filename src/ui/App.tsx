@@ -191,7 +191,6 @@ const KEPT_PROJECTS = 'obeya-phone-projects';
 const DEP_KNOWN = 'obeya-dep-known';
 /** Set once the owner has clicked "Needs you": its label goes, the bell and the count stay. */
 const NEEDS_YOU_KNOWN = 'obeya-needs-you-known';
-const TALK_KNOWN = 'obeya-talk-known';
 function keepProjects(list: ProjectInfo[]) {
   try {
     localStorage.setItem(KEPT_PROJECTS, JSON.stringify(list));
@@ -2369,15 +2368,6 @@ function Project({
   // belongs to the sidebar, at its top corner, and closes it. It is one element that never moves to
   // another parent, so opening and closing the sidebar only changes its colour; in the bar a hidden
   // copy keeps its room
-  // the status bar's middle, where the line naming whom the microphone speaks to stands
-  const [targetSlot, setTargetSlot] = useState<HTMLElement | null>(null);
-  // "Hold Space to talk" stands in that line until the owner has talked once
-  const [talkKnown, setTalkKnown] = useState(() => known(TALK_KNOWN));
-  useEffect(() => {
-    if (ptt.phase !== 'listening' || talkKnown) return;
-    know(TALK_KNOWN);
-    setTalkKnown(true);
-  }, [ptt.phase]);
   // the switcher at the bottom centre, where the microphone was: Canvas, Parked and Table still to come
   const switched: SwitchedView | null = fullPage.active === 'parked' ? 'parked' : fullPage.active ? null : 'canvas';
   const switchTo = (v: SwitchedView) => {
@@ -2681,7 +2671,7 @@ function Project({
             {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} project={snapshot.project.id} onOpen={(i) => void openFresh(i)} /> : <span className={cn(statusWord, 'text-online')}>{t.online}</span>}
             {online && snapshot.project.demoSite?.init?.running && <span className={statusWord}>{t.creatingSite}</span>}
           </div>
-          <div className="flex min-w-0 justify-center" ref={setTargetSlot} />
+          <div />
           <div className="flex min-w-0 items-center justify-end gap-1.5">
             {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} underway={underway} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => goTo(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
             {online && usage.map((u) => <UsagePill key={u.harness} usage={u} />)}
@@ -2775,9 +2765,7 @@ function Project({
           flat={ptt.flat}
           target={target}
           field={draftFor(where())}
-          slot={targetSlot}
           onDown={() => press(false)}
-          hint={!talkKnown}
           instead={<ViewSwitcher shown={switched} onShow={switchTo} />}
         />
 

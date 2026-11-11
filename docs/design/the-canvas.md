@@ -247,10 +247,7 @@ connection is gone, "Server not responding …" while it is open but the server 
 the decision on the status bar's liveness), and "No connection since <time>" or "Unresponsive since
 <time>" from 2½ minutes on; while a restart waits, that instead, in ice blue (see Running Seismic,
 the restart); beside it "Creating demo site …" while the project's demo site is being initialized
-(see A project's demo site in Sharing demos). In the middle, whom the microphone speaks to (see Voice). It stays above an open
-card's dimming, so that line stays readable while a card is open; the view switcher sits just above
-the bar. Until the owner has talked once (remembered per browser), that line starts with "Hold Space
-to talk", which is how voice is found without a microphone button. Right, the usage limits of the plans the harnesses on this machine are logged in with, a pill per
+(see A project's demo site in Sharing demos). The view switcher sits just above the bar. Right, the usage limits of the plans the harnesses on this machine are logged in with, a pill per
 harness behind its small mark: the Claude plan Claude Code is logged in with, and beside it the
 ChatGPT plan Codex is signed in with, while it is (Codex not installed or signed out shows no pill).
 Each shows the session's (five hours) and the week's, each a short meter with its percentage, the
