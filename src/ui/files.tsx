@@ -3,7 +3,7 @@
 // HTML artifact, text as it is, anything else as a tile; each to open on the computer, show in its
 // folder, or download. Folder and git cards alike.
 
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { type CardDiff, diffSize, shownChanges, splitDiff } from '../core/diff';
 import { type ChangeRow, changeRows, imageAt, type ShownFile } from '../core/files';
 import type { Item } from '../core/types';
@@ -510,8 +510,9 @@ function Changes({ item, path }: { item: Item; path: string }) {
       gone = true;
     };
   }, [item.id]);
+  const patch = diff === null || diff === 'failed' ? undefined : (diff.patch ?? '');
+  const part = useMemo(() => (patch === undefined ? undefined : splitDiff(patch).find((p) => p.file === path)), [patch, path]);
   if (diff === null) return <p className="hint">{t.files.loading}</p>;
-  const part = diff === 'failed' ? undefined : splitDiff(diff.patch ?? '').find((p) => p.file === path);
   return part ? (
     <div className="r-diff">
       <FileDiff part={part} card={item.id} />

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { contextLines, gap, parseHunks, splitLines, splitRows } from './diff-lines';
+import { contextLines, endsFile, gap, parseHunks, splitLines, splitRows } from './diff-lines';
 import { languageOf } from './highlight';
 
 const patch = [
@@ -82,4 +82,13 @@ test('a split layout puts removed lines beside the added ones that replace them'
 
 test('a file’s language comes from its extension or name', () => {
   expect(['src/ui/a.tsx', 'x.py', 'Dockerfile', 'lib/b.h', 'README.md', 'notes.unknown'].map(languageOf)).toEqual(['tsx', 'py', 'docker', 'c', 'md', null]);
+});
+
+test('the patch tells whether the file ends with its last hunk or goes on past it', () => {
+  // three unchanged lines after the change, as git shows them: the file may go on
+  expect(endsFile(parseHunks(['@@ -1,4 +1,4 @@', '-a', '+A', ' b', ' c', ' d']))).toBe(false);
+  // fewer: the file ends there
+  expect(endsFile(parseHunks(['@@ -8,3 +8,3 @@', ' g', '-h', '+H']))).toBe(true);
+  // no newline after the last line: the file ends there too
+  expect(endsFile(parseHunks(['@@ -1,4 +1,4 @@', '-a', '+A', ' b', ' c', ' d', '\\ No newline at end of file']))).toBe(true);
 });

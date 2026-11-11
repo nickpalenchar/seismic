@@ -8,7 +8,7 @@ import type { DiffPart } from '../core/diff';
 import { api } from './api';
 import { LinkButton } from './components/button';
 import { CodeBlock, CodeBlockContent, CodeBlockLine, CodeBlockSplitRow } from './components/code-block';
-import { contextLines, type DiffLine, gap, type Hunk, parseHunks, splitLines, splitRows } from './diff-lines';
+import { contextLines, type DiffLine, endsFile, gap, type Hunk, parseHunks, splitLines, splitRows } from './diff-lines';
 import type { DiffStyle } from './diffStyle';
 import { languageOf, loadTokenizer, type Token } from './highlight';
 import { t } from './strings';
@@ -24,7 +24,13 @@ interface Painted {
 }
 
 export default function CodeDiff({ part, card, style }: { part: DiffPart; card: string; style: DiffStyle }) {
-  const hunks = useMemo(() => parseHunks(part.lines), [part]);
+  // Everything below follows the patch's text, not the object carrying it: a parent that splits the
+  // diff again (on a re-render, a new layout, the same diff fetched anew) leaves expanded lines and
+  // highlighting as they are.
+  const text = useMemo(() => part.lines.join('\n'), [part]);
+  const file = part.file;
+  const hunks = useMemo(() => parseHunks(text.split('\n')), [text]);
+  const ends = useMemo(() => endsFile(hunks), [hunks]);
   const changed = part.status === 'modified' || part.status === 'renamed';
   // A file is offered its unchanged lines once its whole text is known to be there: a probe, as the
   // file comes near the screen, carries no file; the files themselves are fetched when the owner
@@ -51,14 +57,14 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
       gone = true;
       look.disconnect();
     };
-  }, [part, card, changed]);
+  }, [text, file, card, changed]);
 
   const [whole, setWhole] = useState<Whole>(null);
   const [shown, setShown] = useState<ReadonlySet<number>>(new Set());
   useEffect(() => {
     setWhole(null);
     setShown(new Set());
-  }, [part]);
+  }, [text, file]);
   const expand = (i: number) => {
     setShown((s) => new Set(s).add(i));
     if (whole !== null && whole !== 'failed') return;
@@ -97,7 +103,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
     return () => {
       gone = true;
     };
-  }, [part, hunks, files]);
+  }, [file, hunks, files]);
 
   if (!hunks.length) return null;
   const tokensOf = (line: DiffLine) => (line.kind === 'removed' ? painted?.old.get(line.old!) : painted?.new.get(line.new!));
@@ -146,9 +152,11 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
     const g = gap(hunks, i, files?.new.length);
     if (shown.has(i) && files) for (const row of drawLines(contextLines(files.new, g.from, g.to ?? Infinity, g.shift), `g${i}`)) rows.push(row);
     else {
-      const count = g.to === null ? null : g.to - g.from;
+      // after the last hunk the count is known only from the whole file; until then the patch says
+      // whether the file ends there
+      const count = g.to === null ? (ends ? 0 : null) : g.to - g.from;
       const offer = expandable && whole !== 'failed';
-      if (count !== 0 && (count !== null || offer))
+      if (count !== 0)
         rows.push(
           <span key={`s${i}`} data-slot="code-block-separator" className="-mx-2.5 flex select-none items-baseline gap-3 bg-muted px-2.5 py-0.5 font-sans text-muted-foreground">
             {offer ? (
@@ -156,7 +164,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
                 {whole === 'loading' && shown.has(i) ? t.diff.loadingWhole : count === null ? t.diff.showRest : t.diff.showUnchanged(count)}
               </LinkButton>
             ) : (
-              <span>{t.diff.unchanged(count!)}</span>
+              <span>{count === null ? t.diff.restFolded : t.diff.unchanged(count)}</span>
             )}
             {hunk?.section && <span className="min-w-0 truncate font-mono">{hunk.section}</span>}
           </span>,

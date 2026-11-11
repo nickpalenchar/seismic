@@ -262,7 +262,10 @@ the file") reveals them, highlighted from the whole file. Only as a changed file
 comes near the screen does the page ask the server (`GET …/cards/:id/versions?path=&probe`) whether
 both versions are there to show, which carries no file; the whole old and new text
 (`GET …/versions?path=`) is fetched when the owner expands. A file whose text cannot be shown (too big, binary, no earlier version) keeps its folded lines
-as a count, without the expand control. Which two versions: on an
+as a count, without the expand control; after its last hunk, where no count is known, it says more
+unchanged lines may follow, unless the patch shows the file ending there (no newline after its last
+line, or fewer unchanged lines after the last change than git's three). Expanded lines stay expanded
+when the layout switches or the diff is read again unchanged. Which two versions: on an
 open branch, where the workstation's branch started against the workstation now (uncommitted changes
 included); on a landed card, the commit before the landing against what it landed; on a folder
 card, the copy Seismic kept against the file now. A file with no old version or no text, or outside

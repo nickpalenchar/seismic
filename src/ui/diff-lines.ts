@@ -93,6 +93,21 @@ export function gap(hunks: Hunk[], i: number, newLength?: number): { from: numbe
   return { from: prev.newTo, to: next ? next.newFrom : newLength === undefined ? null : newLength + 1, shift: prev.newTo - prev.oldTo };
 }
 
+/** The unchanged lines git shows around a change (its default, and what Seismic asks of it for a folder). */
+export const CONTEXT = 3;
+
+/**
+ * Whether the patch shows the file ending with its last hunk: no newline after its last line, or
+ * fewer unchanged lines after the last change than git shows around one.
+ */
+export function endsFile(hunks: Hunk[]): boolean {
+  const lines = hunks.at(-1)?.lines ?? [];
+  if (lines.at(-1)?.noEol) return true;
+  let after = 0;
+  for (let i = lines.length - 1; i >= 0 && lines[i]!.kind === 'context'; i--) after++;
+  return after < CONTEXT;
+}
+
 /** The unchanged lines `[from, to)` of the new file, numbered on both sides. */
 export function contextLines(file: string[], from: number, to: number, shift: number): DiffLine[] {
   const out: DiffLine[] = [];

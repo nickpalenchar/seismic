@@ -2,7 +2,7 @@
 // page. Where the branch is checked out is copied with another click, and the app running there
 // opens with a third. All stay quiet: the owner rarely reads the code or tries the app by hand.
 
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { type CardDiff, type DiffPart, diffSize, type FolderChange, shownChanges, splitDiff } from '../core/diff';
 import type { Item } from '../core/types';
 import { api } from './api';
@@ -134,7 +134,10 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
   const got = diff === 'failed' ? null : diff;
   const folder = got?.folder;
   // in a folder, only text files whose earlier version Seismic kept have lines to show
-  const all = got ? splitDiff(got.patch ?? '').filter((p) => !folder || p.lines.some((l) => l.startsWith('@@'))) : [];
+  // split once per patch text, so a file's diff keeps what the owner expanded across re-renders
+  const patch = got?.patch;
+  const split = useMemo(() => (patch === undefined ? [] : splitDiff(patch)), [patch]);
+  const all = got ? split.filter((p) => !folder || p.lines.some((l) => l.startsWith('@@'))) : [];
   // one file's diff while it is there; a file without one (cut off, say) shows the whole
   const one = only ? all.find((p) => p.file === only) : undefined;
   const parts = one ? [one] : all;
