@@ -159,9 +159,9 @@ export const merging = (i: Pick<Item, 'state' | 'idea'>) => {
   return !!merge && merge.task === undefined && merge.failed === undefined;
 };
 
-/** A merge starts at an unworked card; its partner may have reached any stage. */
+/** A merge starts at an unworked card; its partner may have reached any stage, and may be a plan's workstream. */
 export const mergeableWith = (p: Item, i: Item) =>
-  canMergeFrom(p) && i.id !== p.id && i.kind === 'task' && i.state !== 'idea' && !i.parent &&
+  canMergeFrom(p) && i.id !== p.id && i.kind === 'task' && i.state !== 'idea' &&
   !i.idea?.mergingInto && !snoozeOf(i) && !i.repoDown && !i.idea?.prototypeOf && (p.idea?.becomesPlan ? unworkedPlanDoc(i) && !i.idea?.prototypes?.length : !i.idea?.becomesPlan) &&
   !i.idea?.proposal?.idea && !i.idea?.proposal?.merge && !i.idea?.proposal?.revising && !i.idea?.proposal?.acceptAfterRevision;
 

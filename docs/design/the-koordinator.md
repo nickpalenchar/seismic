@@ -28,7 +28,7 @@ lets the owner compare, merge or remove the cards, or start it again without rep
 for unchanged text. Below the card's description it shows both original cards side by side, as in
 the merge comparison, with a prominent status. Until it is dismissed or started, or none of the suggested partners is an active card any more (all deleted or archived; the card then reads "Planned" again), the card's state reads "Merge proposed" in proposal violet (with a lightbulb icon in the open card) on every surface instead of grey "Planned". Beside "Start agent", a joined purple "Attempt
 merge" and secondary "Dismiss merge" pair either opens the existing agent-assisted merge flow or
-sets aside the suggestion; when the suggested card is not one it can merge with (a plan-doc card and
+sets aside the suggestion; a plan's workstream is a suggested card it can merge with; when the suggested card is not one it can merge with (a plan-doc card and
 an ordinary task, say), "Attempt merge" stays in the pair, disabled. Label, comparison and pair show on such a card
 whether it was started alone or scheduled together, and while it waits in the queue too: there the
 state reads "Merge proposed" as well, and what it waits for stays in the card's line below its title
