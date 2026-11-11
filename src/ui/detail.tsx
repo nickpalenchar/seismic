@@ -1876,6 +1876,10 @@ function Linked({ text }: { text: string }) {
 /** Who stands on the owner's side of the conversation: the owner, and whoever answers a question in their name. */
 const ownerSide = (e: CardEvent) => e.author === 'owner' || e.kind === 'answer';
 
+/** Historical agent and demo questions share their option pills and end label. */
+const questionOptionsClass = "q-opts list-none mt-1.5 mb-0.5 p-0 flex flex-wrap gap-1.5 [&_li]:text-[12.5px] [&_li]:py-0.5 [&_li]:px-[9px] [&_li]:border [&_li]:border-line [&_li]:rounded-[3px] [&_li]:text-muted-foreground [&_li.on]:text-ink [&_li.on]:border-working [&_li.on]:bg-[color-mix(in_srgb,var(--working)_10%,var(--card))] [&_li.on]:font-semibold [&_li.on]:before:content-['✓_'] [&_li.on]:before:text-working [.ended_&_li]:opacity-60";
+const questionEndClass = "hint q-end block mt-1 italic [&:is(button)]:p-0 [&:is(button)]:border-0 [&:is(button)]:bg-transparent [&:is(button)]:cursor-pointer [&:is(button)]:text-left [&:is(button)]:[font-family:inherit] [&:is(button):hover]:text-ink [&:is(button):hover]:underline";
+
 /**
  * One message of the conversation; a question with its options and what came of it, a handover with
  * its demo report's question, a reply with the handover that came next and says what changed; the owner's reply with the message it replies to (`quoted`) above it.
@@ -1922,7 +1926,7 @@ function Message({
       {!turn.quiet && <Body md={q ? q.text : (turn.words ?? e.text)} />}
       {e.wish && <WishReplyLink wish={e.wish} />}
       {q && turn.end !== 'settled' && (q.options.length > 0 || turn.picks?.length) && (
-        <ul className="q-opts list-none mt-1.5 mb-0.5 p-0 flex flex-wrap gap-1.5 [&_li]:text-[12.5px] [&_li]:py-0.5 [&_li]:px-[9px] [&_li]:border [&_li]:border-line [&_li]:rounded-[3px] [&_li]:text-muted-foreground [&_li.on]:text-ink [&_li.on]:border-working [&_li.on]:bg-[color-mix(in_srgb,var(--working)_10%,var(--card))] [&_li.on]:font-semibold [&_li.on]:before:content-['✓_'] [&_li.on]:before:text-working [.ended_&_li]:opacity-60">
+        <ul className={questionOptionsClass}>
           {q.options.map((o) => (
             <li key={o} className={(turn.picks ? turn.picks.includes(o) : turn.answer?.includes(o)) ? 'on' : ''}>
               <Inline md={o} />
@@ -1937,11 +1941,11 @@ function Message({
         </ul>
       )}
       {turn.end === 'again' ? (
-        <button className="hint q-end block mt-1 italic [&:is(button)]:p-0 [&:is(button)]:border-0 [&:is(button)]:bg-transparent [&:is(button)]:cursor-pointer [&:is(button)]:text-left [&:is(button)]:[font-family:inherit] [&:is(button):hover]:text-ink [&:is(button):hover]:underline" title={t.talk.toQuoted} onMouseDown={(m) => m.preventDefault()} onClick={() => goToMessage(turn.next!, '.question.ask')}>
+        <button className={questionEndClass} title={t.talk.toQuoted} onMouseDown={(m) => m.preventDefault()} onClick={() => goToMessage(turn.next!, '.question.ask')}>
           {t.talk.again} ↓
         </button>
       ) : (
-        turn.end && <div className="hint q-end block mt-1 italic [&:is(button)]:p-0 [&:is(button)]:border-0 [&:is(button)]:bg-transparent [&:is(button)]:cursor-pointer [&:is(button)]:text-left [&:is(button)]:[font-family:inherit] [&:is(button):hover]:text-ink [&:is(button):hover]:underline">{t.talk[turn.end]}</div>
+        turn.end && <div className={questionEndClass}>{t.talk[turn.end]}</div>
       )}
       {turn.then && (
         <div className="then mt-1.5 pt-1.5 border-t border-dashed border-line text-[13.5px]" data-ev={turn.then.e.id}>
@@ -1956,7 +1960,7 @@ function Message({
         <div className={`demo-q mt-1.5 pt-1.5 border-t border-dashed border-line text-[13.5px] [&_b]:text-waiting [&_b]:font-semibold [&.answered_b]:text-muted-foreground${demoQuestion.answer === undefined ? '' : ' answered'}`}>
           <b>{t.talk.demoQuestion}</b> {demoQuestion.question}
           {!!(demoQuestion.options?.length || demoQuestion.picks?.length) && (
-            <ul className="q-opts list-none mt-1.5 mb-0.5 p-0 flex flex-wrap gap-1.5 [&_li]:text-[12.5px] [&_li]:py-0.5 [&_li]:px-[9px] [&_li]:border [&_li]:border-line [&_li]:rounded-[3px] [&_li]:text-muted-foreground [&_li.on]:text-ink [&_li.on]:border-working [&_li.on]:bg-[color-mix(in_srgb,var(--working)_10%,var(--card))] [&_li.on]:font-semibold [&_li.on]:before:content-['✓_'] [&_li.on]:before:text-working [.ended_&_li]:opacity-60">
+            <ul className={questionOptionsClass}>
               {(demoQuestion.options ?? []).map((o) => (
                 <li key={o} className={(demoQuestion.picks ? demoQuestion.picks.includes(o) : demoQuestion.answer?.includes(o)) ? 'on' : ''}>
                   <Inline md={o} />
