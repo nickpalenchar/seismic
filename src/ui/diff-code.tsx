@@ -196,7 +196,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
 
 /** Said after a file's last line where no newline follows it. */
 function NoEol() {
-  return <span className="ms-3 select-none font-sans text-muted-foreground">{t.diff.noNewline}</span>;
+  return <span data-copy="skip" className="ms-3 select-none font-sans text-muted-foreground">{t.diff.noNewline}</span>;
 }
 
 const variant = (line: DiffLine) => (line.kind === 'context' ? 'default' : line.kind);

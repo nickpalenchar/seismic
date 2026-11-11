@@ -265,7 +265,9 @@ both versions are there to show, which carries no file; the whole old and new te
 as a count, without the expand control; after its last hunk, where no count is known, it says more
 unchanged lines may follow, unless the patch shows the file ending there (no newline after its last
 line, or fewer unchanged lines after the last change than git's three). Expanded lines stay expanded
-when the layout switches or the diff is read again unchanged. Which two versions: on an
+when the layout switches or the diff is read again unchanged. Copying a selection of the code gives the
+selected lines one per line, without line numbers, the rows between hunks or the note on a missing
+final newline; in the split layout, only the side the selection starts on. Which two versions: on an
 open branch, where the workstation's branch started against the workstation now (uncommitted changes
 included); on a landed card, the commit before the landing against what it landed; on a folder
 card, the copy Seismic kept against the file now. A file with no old version or no text, or outside

@@ -4,7 +4,7 @@
 // side by side in one row. The copy button, header and footer are left out until something needs them.
 
 import { cva, type VariantProps } from 'class-variance-authority';
-import type { ComponentProps, ReactNode } from 'react';
+import type { ClipboardEvent, ComponentProps, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 const codeBlockVariants = cva(
@@ -29,6 +29,45 @@ export function CodeBlock({
   return <div data-slot="code-block" data-variant={variant} data-size={size} className={cn(codeBlockVariants({ variant }), className)} {...props} />;
 }
 
+/**
+ * Copies the selected code a line per line. The browser's own text of a selection across the lines
+ * runs them together (each line is a box of its own, without a newline in its text) and would take
+ * in what is not code: line numbers, the rows between hunks, a note beside a line (`data-copy=skip`).
+ * In a split diff, only the side the selection starts on is copied, without the empty cells beside a
+ * line the other side has alone.
+ */
+function copyLines(e: ClipboardEvent<HTMLPreElement>) {
+  const selection = getSelection();
+  if (!selection || selection.isCollapsed || !selection.rangeCount) return;
+  const range = selection.getRangeAt(0);
+  const side = (content: Element) => {
+    const line = content.closest('[data-slot=code-block-line]');
+    const row = line?.parentElement;
+    return row?.dataset.slot === 'code-block-split-row' ? [...row.children].indexOf(line!) : -1;
+  };
+  // the empty side of a split row is no line of that file
+  const picked = [...e.currentTarget.querySelectorAll('[data-slot=code-block-line]:not([data-variant=absent]) > [data-slot=code-block-line-content]')].filter((c) =>
+    range.intersectsNode(c),
+  );
+  if (!picked.length) return;
+  const first = side(picked[0]!);
+  const text = picked
+    .filter((c) => side(c) === first)
+    .map((content) => {
+      const part = document.createRange();
+      part.selectNodeContents(content);
+      if (content.contains(range.startContainer)) part.setStart(range.startContainer, range.startOffset);
+      if (content.contains(range.endContainer)) part.setEnd(range.endContainer, range.endOffset);
+      const copy = part.cloneContents();
+      copy.querySelectorAll('[data-copy=skip]').forEach((n) => n.remove());
+      // an empty line holds a newline of its own, for its height
+      return (copy.textContent ?? '').replace(/^\n$/, '');
+    })
+    .join('\n');
+  e.clipboardData.setData('text/plain', text);
+  e.preventDefault();
+}
+
 /** The code: a string (one line per line of it), or `CodeBlockLine`s; `wrap` breaks long lines instead of scrolling. */
 export function CodeBlockContent({
   className,
@@ -37,6 +76,7 @@ export function CodeBlockContent({
   wrap = false,
   lineNumbers = false,
   startLine = 1,
+  onCopy,
   ...props
 }: ComponentProps<'pre'> & { wrap?: boolean; lineNumbers?: boolean; startLine?: number }) {
   return (
@@ -47,6 +87,10 @@ export function CodeBlockContent({
       dir="ltr"
       tabIndex={0}
       style={{ counterReset: `line ${startLine - 1}`, ...style }}
+      onCopy={(e) => {
+        onCopy?.(e);
+        if (!e.defaultPrevented) copyLines(e);
+      }}
       className={cn(
         'm-0 min-h-0 min-w-0 overflow-auto px-3 py-3 text-start font-mono leading-relaxed outline-none group-data-[size=sm]/code-block:px-2.5 group-data-[size=sm]/code-block:py-2.5 data-wrap:wrap-break-word data-wrap:whitespace-pre-wrap',
         className,
@@ -84,7 +128,7 @@ const codeBlockLineVariants = cva(
 
 /** One line; `gutter` stands before it, out of the selection (a diff's line numbers). */
 export function CodeBlockLine({ className, variant = 'default', gutter, children, ...props }: ComponentProps<'span'> & VariantProps<typeof codeBlockLineVariants> & { gutter?: ReactNode }) {
-  // An empty line holds a newline so copying a selection keeps blank lines.
+  // An empty line holds a newline, so it keeps the height of a line.
   const empty = children === undefined || children === null || children === '' || (Array.isArray(children) && children.length === 0);
   return (
     <span data-slot="code-block-line" data-variant={variant} data-gutter={gutter !== undefined || undefined} className={cn(codeBlockLineVariants({ variant }), className)} {...props}>
