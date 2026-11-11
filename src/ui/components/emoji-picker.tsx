@@ -62,7 +62,7 @@ export function EmojiPicker({
 }: Omit<ComponentProps<typeof EmojiPickerPrimitive.Root>, 'emojibaseUrl'> & { value?: string; search: string; onSearch: (search: string) => void }) {
   return (
     <Chosen.Provider value={value}>
-      <EmojiPickerPrimitive.Root className={cn('isolate flex min-h-0 flex-col', className)} data-slot="emoji-picker" emojibaseUrl={EMOJIBASE_URL} columns={12} {...props}>
+      <EmojiPickerPrimitive.Root className={cn('isolate flex min-h-0 flex-col', className)} data-slot="emoji-picker" emojibaseUrl={EMOJIBASE_URL} columns={14} {...props}>
         <div className={cn(inputFieldClassName, 'flex items-center gap-2 focus-within:border-muted-foreground focus-within:bg-panel')} data-slot="emoji-picker-search-wrapper">
           <SearchIcon className="size-4 shrink-0 opacity-50" aria-hidden />
           <EmojiPickerPrimitive.Search
