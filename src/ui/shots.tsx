@@ -19,6 +19,7 @@ import { behindThumb, type Box, onto, ZOOM_EASE, ZOOM_MS } from './zoomBox';
 import { PromptInputButton } from './components/ai/prompt-input';
 import { Button, CloseButton } from './components/button';
 import { Tooltip } from './components/tooltip';
+import { Spinner } from './components/spinner';
 
 /** The longest side the model looks at in detail; larger screenshots only cost upload and context. */
 export const MAX_SIDE = 2000;
@@ -273,7 +274,8 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
       ))}
       {Array.from({ length: shots.uploading }, (_, i) => (
         <span key={`u${i}`} className="c-shot loading">
-          {t.shots.uploading}
+          <Spinner className="size-5" />
+          <span className="sr-only" role="status">{t.shots.uploading}</span>
         </span>
       ))}
       {shots.pasteHint && (

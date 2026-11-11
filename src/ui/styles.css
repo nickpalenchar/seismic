@@ -1135,7 +1135,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .c-shot img { height: 100%; max-width: 160px; object-fit: cover; border-radius: 2px; display: block; }
 .c-shot .open { all: unset; height: 100%; cursor: zoom-in; }
 .c-shot .remove { position: absolute; top: -7px; right: -7px; --button-bg: var(--card); box-shadow: 0 0 0 1px var(--line); }
-.c-shot.loading { padding: 0 10px; }
 /* after the first screenshot picked from disk: pasting works too, until confirmed */
 .c-paste-hint { flex-basis: 100%; display: flex; align-items: center; gap: 12px; padding: 8px 10px;
   border-radius: 2px; background: color-mix(in srgb, var(--working) 8%, var(--card)); font-size: 13px; line-height: 1.4; }
