@@ -1501,7 +1501,7 @@ const en = {
     defaults: {
       hint: 'Every project you create from now on starts with these (here, through Seismic, or when building in a new repository). Existing projects keep their own settings; change those on their page under Projects. Applies at once.',
       agents: 'Models',
-      agentsValue: 'as under Agents and models; a project can choose its own (the gear in the bar)',
+      agentsValue: 'as under Agents and models; a project can choose its own (the sliders in the bar)',
     },
     planBaselines: 'Plan git baseline',
     planBaselinesOn: 'Create plan tags',

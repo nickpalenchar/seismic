@@ -19,7 +19,7 @@ status bar (see The pool in the status bar in Agents and workstations).
 
 Under the bar a row of buttons floats over the main area, the project between them staying the
 project's (drag and click go through): at the left the project switcher (see Switching projects), gone while the left menu is docked, at
-the right the gear of the project settings (see The project settings) and then one group of two
+the right the sliders of the project settings (see The project settings) and then one group of two
 buttons, the agents' (a robot) and "Needs you" (a bell). "Needs you" counts in the orange of a
 waiting card the cards that wait for the owner on every project, read or not, and nothing else
 (Seismic's answers and proposals count in the inbox alone); its click opens the "Needs you" sheet
@@ -222,7 +222,7 @@ showed, and a link in it opens the Configuration.
 
 ### The project settings
 
-The gear in the floating row (an icon without a label, the configuration's problems counted on it in red)
+The sliders in the floating row (an icon without a label, the configuration's problems counted on it in red)
 slides out the open project's settings, a sheet like the inbox (see Sheets): docked to the right edge
 in a wide window, one sheet at a time, its second click, its ✕ and Esc close it; a narrow window
 lays it over the whole page down to the status bar, the microphone hidden behind it. It is headed
@@ -829,11 +829,11 @@ code, a generic one otherwise.
   code is stored, not derived from the cards there are at the time, so a later card whose id starts
   alike cannot make an earlier link ambiguous. Rejected: query parameters (`?c=`, `?card=`), and
   the whole id in the address, which is long to read and pass on.
-- **A project's own settings behind a gear in the floating row** (owner, 2026-11-05): settings that differ
+- **A project's own settings behind a sliders icon in the floating row** (owner, 2026-11-05): settings that differ
   from project to project (models first, then the labels Seismic suggests) belong one click from the
   project, in a sheet beside the cards rather than in a dialog over them. What the project leaves open
   follows the Configuration, so a change there still reaches every project that did not choose
-  otherwise. The gear took the bar's "Configuration" button's place, which moved to the left menu
+  otherwise. The sliders took the bar's "Configuration" button's place, which moved to the left menu
   and the sheet's foot: two settings buttons side by side would leave the owner guessing which is
   which. Rejected: copying Configuration's models into each project (a later change there would reach
   no existing project), and the project's page in the Configuration dialog as the only place.

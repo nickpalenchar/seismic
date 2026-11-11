@@ -437,7 +437,7 @@ would show the server's own working directory and its commands for a new project
 up (see Setting up git in a folder). A repository's own settings problems (see Problems in the
 settings) show at it and block nothing. Technical detail folds under "Details"; each saved problem
 offers "Create a task to fix this", which asks the Koordinator of its project to create a task fixing
-it. The gear in the floating row (see The project settings in The canvas) counts the saved configuration's problems in red, kept
+it. The sliders in the floating row (see The project settings in The canvas) counts the saved configuration's problems in red, kept
 current also when a repository's settings change on its main branch; its sheet repeats the count beside
 "Open in Configuration".
 
@@ -521,7 +521,7 @@ a stopped project goes to the first project.
 A repository that does not start (a refused or unmakeable clone, a git error) never leaves a project
 half stopped: it starts again as it was before, with the problem shown at it, and failing that leaves
 the project, its cards kept. A project without its home repository does not run; the others do. These
-are problems of the running projects: they block no save, count on the gear in the bar, and
+are problems of the running projects: they block no save, count on the sliders in the bar, and
 "Try again" applies the saved configuration again. Where no project started, the page says so
 with the problems and that button instead of the setup assistant.
 

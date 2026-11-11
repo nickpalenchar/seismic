@@ -540,7 +540,7 @@ export function serve(
       },
       // the owner has the restart of a repository's agents that waits for them go ahead at once
       '/api/c/:project/restart': { POST: on((c) => ({ restarting: c.restartNow() })) },
-      // the project's own settings, from the gear in the bar: read with Configuration's models they fall back on, saved into the configuration
+      // the project's own settings, from the sliders in the bar: read with Configuration's models they fall back on, saved into the configuration
       '/api/c/:project/settings': {
         GET: on((c) => (config ? { settings: c.settings(), agents: agentsView(config.home).agents } satisfies ProjectSettingsView : notFound())),
         PUT: on(async (c, req) => {

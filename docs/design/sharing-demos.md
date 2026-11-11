@@ -417,7 +417,7 @@ repositories, sharing on approval) are gone, as the project's choice covers both
 
 #### A project's demo site
 
-A project chooses its demo site in its settings (the sheet from the gear, see The project settings in
+A project chooses its demo site in its settings (the sheet from the sliders, see The project settings in
 The canvas, and its page in Configuration): "Demo site" offers "None: export demos as a file",
 this machine's sites, and at the bottom "+ Add new site" (the page above). Once a site is chosen,
 "Path on the site" (`billing`, `team/billing`: up to three parts of lower-case letters, digits and

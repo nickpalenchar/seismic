@@ -1,4 +1,4 @@
-// The project's own settings, a docked sheet on the right like the inbox, opened from the gear in the
+// The project's own settings, a docked sheet on the right like the inbox, opened from the sliders in the
 // bar: models per group of agents over Configuration's, code reviews, the demo site, the labels Seismic
 // suggests, how cards go into the archive, what a right click on a card does, plan tags.
 // Each change saves at once into the configuration; the rest of the project (name, repositories) is
