@@ -1606,8 +1606,8 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .finding .f-pill.raised { --pill-ink: #8e2834; --pill-bg: color-mix(in srgb, #b93643 14%, transparent); }
 .finding .f-pill.reopened { --pill-ink: #8a5200; --pill-bg: #fde7c4; }
 .finding .f-pill.fixing { --pill-ink: #e6fbf8; --pill-bg: #11645f; }
-.finding .f-pill.fixing { position: relative; margin-right: 30px; }
-.finding .f-pill.fixing::after {
+.finding :is(.f-pill.fixing, .f-fixing) { position: relative; margin-right: 30px; }
+.finding :is(.f-pill.fixing, .f-fixing)::after {
   content: ""; position: absolute; left: calc(100% + 5px); top: calc(50% - 1px);
   width: 24px; height: 2px;
   background: linear-gradient(90deg, #11645f 0 50%, transparent 50%) 0 0 / 200% 100% no-repeat,
