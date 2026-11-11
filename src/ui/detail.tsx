@@ -469,6 +469,11 @@ export function Detail(p: Props) {
   const archivable = finishedArchivable(item);
   // a stopped task starts again, or goes into the archive with its conversation, from the row below it
   const halted = stopped(item) && !item.queue;
+  // on a planned card, queued or not: a suggested card it cannot merge with can still be dismissed
+  const duplicateActions = duplicatePartner && item.state === 'planned' && !item.idea?.proposal?.merge && <ButtonGroup className="duplicate-merge-actions">
+    <Button className="duplicate-attempt" disabled={!mergeableWith(item, duplicatePartner)} onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>
+    <Button className="duplicate-dismiss" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
+  </ButtonGroup>;
   const duplicateNotice = duplicatePartner && item.state === 'planned' && !item.queue && !item.idea?.proposal?.merge && <div className="question duplicate-notice">
     <h4>{t.duplicate.title}</h4>
     <p>{t.duplicate.detail}</p>
@@ -828,7 +833,7 @@ export function Detail(p: Props) {
       {/* approved work asks how the agent did until answered, and keeps the answer to change */}
       {item.review?.rate && <Rate item={item} />}
 
-      {item.state === 'planned' && item.queue && <div className="actions"><MergeButton item={item} all={all} act={act} /></div>}
+      {item.state === 'planned' && item.queue && <div className="actions">{duplicateActions || <MergeButton item={item} all={all} act={act} />}</div>}
 
       {/* the decisions of a card nobody worked on yet, below what it shows, as on every card */}
       {item.state === 'planned' && !item.idea?.proposal?.merge && !worked && !item.queue && (
@@ -848,11 +853,7 @@ export function Detail(p: Props) {
               />
             )
           )}
-          {/* a suggested card it cannot merge with can still be dismissed */}
-          {duplicatePartner && <ButtonGroup className="duplicate-merge-actions">
-            <Button className="duplicate-attempt" disabled={!mergeableWith(item, duplicatePartner)} onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>
-            <Button className="duplicate-dismiss" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
-          </ButtonGroup>}
+          {duplicateActions}
           <Later item={item} act={act} />
           {prototypeActions}
           {item.source === 'manual' && !item.idea?.prototypeOf && (

@@ -29,7 +29,8 @@ for unchanged text. Below the card's description it shows both original cards si
 the merge comparison, with a prominent status. Until it is dismissed or started, or none of the suggested partners is an active card any more (all deleted or archived; the card then reads "Planned" again), the card's state reads "Merge proposed" in proposal violet (with a lightbulb icon in the open card) on every surface instead of grey "Planned". Beside "Start agent", a joined purple "Attempt
 merge" and secondary "Dismiss merge" pair either opens the existing agent-assisted merge flow or
 sets aside the suggestion; when the suggested card is not one it can merge with (a plan-doc card and
-an ordinary task, say), only "Dismiss merge" shows. This applies to cards started alone and to cards scheduled together.
+an ordinary task, say), "Attempt merge" stays in the pair, disabled. The pair shows on such a card
+whether it was started alone or scheduled together, and while it waits in the queue too.
 
 A branch's change is measured from where it left the nearest branch that is not a card's
 (`obeya/…`): the main branch, or a long-lived branch the card was built on; from the main branch if
