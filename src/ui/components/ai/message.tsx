@@ -3,7 +3,7 @@
 // `MessageHead` heads it with who said it; `MessageActions` hold the buttons in its corner (reply,
 // take back), which show while the pointer is on the message and always on a touch screen. What a kind
 // of message adds (a question, the agent at work, an unread note) is the class `className` gives it,
-// styled in `styles.css`.
+// styled here on frost tokens.
 
 import { cn } from 'cn';
 import { Reply, Trash2 } from 'lucide-react';
@@ -19,8 +19,14 @@ export function Message({ className, from, ...props }: ComponentProps<'div'> & {
     <div
       data-slot="message"
       className={cn(
-        'group relative flex-none max-w-[92%] rounded-xl border border-glass-edge bg-card px-3 py-2 shadow-[var(--shadow)]',
+        'group/message group relative flex-none max-w-[92%] rounded-xl border border-glass-edge bg-card px-3 py-2 shadow-[var(--shadow)]',
         from === 'user' ? 'is-user self-end bg-[color-mix(in_srgb,var(--working)_9%,var(--card))]' : 'is-assistant',
+        // State hooks are shared by the card, chats and Koordinator adapters.
+        '[&:is(.held,.unread)]:outline [&:is(.held,.unread)]:outline-dashed [&:is(.held,.unread)]:outline-[color-mix(in_srgb,var(--working)_40%,transparent)] [&:is(.held,.unread)]:-outline-offset-1',
+        '[&.unread>:not(.msg-actions):not(.unread-mark)]:opacity-60 [&.paused>:not(.who)]:opacity-70',
+        '[&.fresh]:shadow-[0_0_0_1.5px_color-mix(in_srgb,var(--waiting)_70%,transparent),var(--shadow)] [&.flash]:animate-[msg-flash_2.4s_ease-out]',
+        '[&.undone_:is(.p-lead,.p-list,.p-table)]:line-through [&.undone_:is(.p-lead,.p-list,.p-table)]:decoration-muted-foreground [&.by-owner_.shots]:justify-end',
+        '[&.action]:bg-chip [&.action]:shadow-none [&.action]:border-dashed [&.action]:border-[color-mix(in_srgb,var(--muted-foreground)_55%,transparent)] [&.action]:[font-family:var(--font)] [&.action]:px-2.5 [&.action]:pt-[7px] [&.action]:pb-2.5 [&.action]:self-start',
         className,
       )}
       {...props}
@@ -43,7 +49,12 @@ const author: Record<string, string> = {
  */
 export function MessageHead({ by, actions = 0, children }: { by: string; actions?: number; children?: ReactNode }) {
   return (
-    <div className={cn('who text-[11px] font-semibold', author[by] ?? 'text-idea', actions === 1 && 'pr-6', actions > 1 && 'pr-[52px]')}>
+    <div className={cn('who text-[11px] font-semibold has-[>.msg-card]:flow-root',
+      'group-[.q]/message:text-waiting group-[.q.ended]/message:text-muted-foreground group-[.paused]/message:text-muted-foreground',
+      'group-[:is(.thinking,.paused)]/message:flex group-[:is(.thinking,.paused)]/message:items-center group-[:is(.thinking,.paused)]/message:gap-x-2 group-[:is(.thinking,.paused)]/message:min-h-5 group-[:is(.thinking,.paused)]/message:whitespace-nowrap',
+      "group-[.thinking]/message:after:content-[''] group-[.thinking]/message:after:inline-block group-[.thinking]/message:after:align-middle group-[.thinking]/message:after:w-[34px] group-[.thinking]/message:after:h-[3px] group-[.thinking]/message:after:rounded-[2px] group-[.thinking]/message:after:bg-[linear-gradient(90deg,transparent,var(--idea),transparent)] group-[.thinking]/message:after:bg-[length:200%_100%] group-[.thinking]/message:after:animate-[flow_1.4s_linear_infinite]",
+      'group-[.by-koordinator.thinking]/message:after:[background-image:linear-gradient(90deg,transparent,var(--proposal),transparent)] group-[.by-worker.thinking]/message:after:[background-image:linear-gradient(90deg,transparent,var(--working),transparent)]',
+      'group-[.action]/message:flex group-[.action]/message:items-center group-[.action]/message:gap-1.5 group-[.action]/message:text-muted-foreground group-[.action]/message:uppercase group-[.action]/message:tracking-[.06em] group-[.action]/message:text-[10.5px] group-[.action]/message:[&_.t]:normal-case group-[.action]/message:[&_.t]:tracking-normal group-[.action]/message:[&_.action-mark]:flex-none', author[by] ?? 'text-idea', actions === 1 && 'pr-6', actions > 1 && 'pr-[52px]')}>
       {children}
     </div>
   );
@@ -81,3 +92,6 @@ export const ReplyAction = ({ onClick }: { onClick: () => void }) => (
 export const DeleteAction = ({ onClick, label }: { onClick: () => void; label?: string }) => (
   <MessageAction icon={<Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />} label={label ?? t.delete} variant="danger" className="[@media(hover:hover)]:opacity-100" onClick={onClick} />
 );
+
+/** A state change between turns, shared by card conversations and chats. */
+export const noteClass = 'note text-xs text-muted-foreground italic self-center text-center [&.ev-error]:text-error [&.ev-error]:not-italic [&.ev-denied]:text-warn [&.ev-denied]:not-italic [&_.reauthenticate]:justify-center [&.snooze-line]:flex [&.snooze-line]:flex-col [&.snooze-line]:items-center [&.snooze-line]:gap-0.5 [&.snooze-line]:border-t [&.snooze-line]:border-dashed [&.snooze-line]:border-line [&.snooze-line]:pt-2 [&.snooze-line]:not-italic [&.snooze-line_.clock-mark]:align-[-1px]';

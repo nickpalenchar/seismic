@@ -2,6 +2,7 @@
 // of their own, on a card's action row and as "Change" on the snooze line of its conversation, and
 // that line with "Wake now". One component for every kind of card.
 
+import { noteClass } from './components/ai/message';
 import { Clock } from 'lucide-react';
 import { cn } from 'cn';
 import { useState } from 'react';
@@ -160,7 +161,7 @@ const wake = (cardId: string) => void api.act(cardId, { action: 'wake' }).catch(
 /** The line in the conversation where the card was snoozed, while it still is: with "Wake now" and "Change". */
 export function SnoozeLine({ item, e, at }: { item: Item; e: CardEvent; at: string }) {
   return (
-    <div className="note ev-state snooze-line">
+    <div className={`${noteClass} ev-state snooze-line`}>
       <div>
         <ClockMark /> {at} · {e.text}
       </div>

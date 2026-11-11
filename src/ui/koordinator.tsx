@@ -3,6 +3,7 @@
 // settings the work retrospective proposes, and the owner's preferences; shared demos to bring
 // up to date at once.
 
+import { noteClass } from './components/ai/message';
 import { Settings } from 'lucide-react';
 import { Docked } from './docked';
 import { ChatsHead } from './chats';
@@ -255,7 +256,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
         // a card left for another project, built there in a new repository: a line with a link to it there
         if (x.moved)
           return (
-            <div key={x.id} className="note ev-state">
+            <div key={x.id} className={`${noteClass} ev-state`}>
               {clock(x.at)} · {t.koordinator.moved(plain(x.moved.title), x.moved.projectName)}{' '}
               <a className="link" href={cardPath(x.moved.project, x.moved.card)} onClick={(e) => switchTo(e, cardPath(x.moved!.project, x.moved!.card))}>
                 {t.openThere}
@@ -266,7 +267,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
           <Fragment key={x.id}>
             {/* Seismic took a step up by itself, once a card it waited on got there or the answer it looked up for it came in: no words of the owner's */}
             {x.after ? (
-              <div className="note ev-state">
+              <div className={`${noteClass} ev-state`}>
                 {clock(x.at)} · {t.koordinator.after(x.after.title, x.after.met, x.after.state)}
               </div>
             ) : x.answered ? null : (
@@ -303,7 +304,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
             )}
             {/* a line leads to the Question card the thread goes on at */}
             {card ? (
-              <div className="moved">
+              <div className="moved mt-0.5 mb-2">
                 <ThreadCard thread={x.thread!} card={card} onOpen={onOpen} />
               </div>
             ) : (
@@ -341,7 +342,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
 /** Under Seismic's reply: a card it waits on, to take the step it said it would take then; "Stop waiting" drops that step. */
 function WaitLine({ talk, wait, card, onOpen }: { talk: number; wait: TalkWait; card: Item | undefined; onOpen: (i: Item) => void }) {
   return (
-    <div className="hint wait-line">
+    <div className="hint wait-line flex flex-wrap items-center gap-y-1 gap-x-2 mt-1.5 [&_.clock-mark]:align-[-1px]">
       <span>
         <ClockMark /> <Naming text={(title) => t.koordinator.waits(title, wait.state)} cards={[{ card, title: wait.title }]} onOpen={onOpen} />
       </span>

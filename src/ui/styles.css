@@ -537,6 +537,7 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 /* --unfold is set by App.tsx (UNFOLD_MS) */
 #panel.anim { --ease: cubic-bezier(.3,.9,.3,1); transition: left var(--unfold) var(--ease), top var(--unfold) var(--ease),
   width var(--unfold) var(--ease), height var(--unfold) var(--ease); }
+
 /* the inner box keeps the final width while the panel unfolds, so the content can be measured before it shows */
 /* --pb: the room below the content, more where the microphone covers the panel's foot (App.tsx) */
 #panel .inner { --pb: 26px; position: absolute; left: 0; top: 0; bottom: 0; width: 100%; overflow: auto; scrollbar-gutter: stable;
@@ -565,40 +566,9 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 textarea.p-title { display: block; width: calc(100% - 40px); resize: none; overflow: hidden; }
 textarea.p-title::placeholder { font-weight: 400; font-style: italic; }
 .p-state { font-size: 13px; font-weight: 600; color: color-mix(in srgb, var(--c), var(--ink) var(--state-text-ink)); }
-.p-lead { font-size: 15.5px; max-width: 76ch; margin: 14px 0 0; white-space: pre-wrap; overflow-wrap: break-word; }
-.p-list { max-width: 76ch; margin: 12px 0 0; padding-left: 0; list-style: none; font-size: 14px; }
-.p-list li { margin: 5px 0; padding-left: 24px; position: relative; }
-.p-list li::before { content: "•"; position: absolute; left: 7px; color: var(--muted-foreground); }
-.p-list li.done::before { content: "✓"; left: 4px; color: var(--approved); font-weight: 700; }
-.p-list li.open::before { content: "○"; left: 3px; }
-.p-list .p-list { margin-top: 2px; font-size: inherit; }
-ol.p-list { list-style: decimal; padding-left: 24px; }
-ol.p-list > li { padding-left: 2px; }
-ol.p-list > li::before { content: none; }
-.p-table { max-width: 100%; overflow: auto; margin: 10px 0 0; }
-.p-table table { border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
-.p-table :is(th, td) { text-align: left; vertical-align: top; padding: 4px 12px 4px 0; border-bottom: 1px solid var(--line); }
-.p-table th { font-weight: 600; }
-.p-code { margin: 10px 0 0; padding: 8px 10px; background: var(--chip); border-radius: 2px; overflow: auto; font: 12.5px/1.5 var(--mono); }
-/* a code block's copy button (message.tsx), in its corner: at the desk while the pointer is on the
-   block (and until used once), on a touch screen always */
-.p-code-box { position: relative; margin: 10px 0 0; }
-/* a conversation's code block is often prose to send on (a message): it wraps, to be read without scrolling sideways */
-.p-code-box > .p-code { margin: 0; padding-right: 36px; white-space: pre-wrap; overflow-wrap: break-word; }
-.p-copy { position: absolute; top: 3px; right: 3px; min-width: 26px; height: 26px; display: grid; place-items: center; padding: 0 6px;
-  border: 0; border-radius: 3px; background: var(--chip); color: var(--muted-foreground); font: inherit; font-size: 12px; cursor: pointer; }
-.p-copy:hover { color: var(--ink); background: var(--line); }
-.p-copy.copied { color: var(--ink); }
-@media (hover: hover) {
-  .p-copy:not(.copied, .selected) { opacity: 0; transition: opacity .12s; }
-  .p-code-box:hover > .p-copy, .p-copy:focus-visible { opacity: 1; }
-}
-@media (pointer: coarse) { .p-copy { min-width: 34px; height: 34px; } .p-code-box > .p-code { padding-right: 44px; } }
-.p-quote { margin: 10px 0 0; padding: 1px 0 1px 12px; border-left: 3px solid var(--line); color: var(--muted-foreground); }
-.p-quote > :first-child { margin-top: 0; }
-.p-hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
+
 /* a message's blank line: one empty line, whatever space its context keeps above a paragraph */
-.p-blank { margin-top: 0 !important; }
+
 .p-src { margin-top: 22px; color: var(--muted-foreground); font-size: 12.5px; }
 .p-src code { font-size: 12px; }
 textarea.p-body, .p-body[contenteditable] { display: block; width: 100%; max-width: 76ch; min-height: 180px; margin-top: 16px; padding: 12px 14px;
@@ -781,13 +751,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .talk { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
 /* the box around the messages (Conversation): the column scrolls inside it */
 .conv { background: var(--chip); border-radius: 14px; display: flex; flex-direction: column; }
-.talk .msg .p-lead { overflow-wrap: anywhere; }
-.talk .msg .p-lead { margin-top: 2px; font-size: 14px; }
-.talk .msg .p-list { margin-top: 4px; font-size: 13.5px; }
-.talk .msg :is(.p-table, .p-code-box, .p-quote) { margin-top: 6px; }
-.talk .msg .p-table table { font-size: 13.5px; }
-/* replying to one message (message.tsx): a button in its corner, and the
-   message replied to quoted above the reply and above the field it is written in, as chat apps do */
+
 /* the button at text marked in a conversation, which quotes it in the field (cite.tsx): above the
    end of the marking, or below its last line (on a touch screen clear of the selection handles) */
 .cite { position: fixed; z-index: 50; transform: translate(-50%, calc(-100% - 6px)); display: flex; align-items: center; gap: 5px;
@@ -798,86 +762,15 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .cite.below.left { transform: translate(calc(-100% + 2px), 6px); }
 @media (pointer: coarse) { .cite { height: 36px; min-width: 36px; } .cite.below { transform: translate(-50%, 30px); } }
 .cite:hover { background: color-mix(in srgb, var(--ink) 85%, var(--bg)); }
-.quote { --q: var(--muted-foreground); display: flex; align-items: flex-start; min-width: 0; border: 1px solid color-mix(in srgb, var(--q) 30%, transparent); border-radius: 3px;
-  background: color-mix(in srgb, var(--q) 8%, var(--card)); }
-.quote.q-by-owner { --q: var(--working); }
-.quote.q-by-worker { --q: var(--inPr); }
-.quote.q-by-explorer { --q: var(--idea); }
-.quote:is(.q-by-koordinator, .q-by-obeya, .q-by-plan) { --q: var(--proposal); }
-.quote-go { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 5px 9px 6px; border: 0; background: none;
-  text-align: left; font: inherit; color: inherit; cursor: pointer; }
-.quote-who { font-size: 11.5px; font-weight: 600; color: var(--q); }
-.quote-text { font-size: 12.5px; line-height: 1.4; color: var(--muted-foreground); overflow-wrap: anywhere;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.quote-clear { margin: 3px 3px 0 0; }
-.talk .msg > .quote { margin: 5px 0 4px; }
-[data-slot=prompt-input-body] .quote { flex: 1 1 100%; margin: 0 0 2px; }
-[data-slot=prompt-input-body] .quote-text { -webkit-line-clamp: 2; }
-/* the place in the demo video the words are about (detail.tsx PlaceChip, SpotLink) */
-.quote.place { --q: var(--working); align-items: center; gap: 8px; padding: 4px 0 4px 6px; }
-.place-frame { flex: none; width: 48px; border-radius: 2px; background: #222; display: block; }
-.place-text { flex: 1; min-width: 0; font-size: 13px; color: var(--muted-foreground); }
-.place-text b { color: var(--ink); }
-.talk .msg > .spot { display: flex; align-items: center; gap: 8px; margin: 5px 0 4px; padding: 0; border: 0; background: none; font: inherit;
-  font-size: 13px; color: var(--working); cursor: pointer; text-align: left; }
-.talk .msg > .spot img { width: 64px; border-radius: 2px; display: block; }
-.talk .msg > .spot:hover span { text-decoration: underline; }
-.talk .held-note { align-self: flex-end; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 4px 10px;
-  margin: -2px 2px 4px; font-size: 12px; color: var(--muted-foreground); text-align: right; }
-.held-send { padding: 3px 10px; border: 1px solid color-mix(in srgb, var(--working) 45%, transparent); border-radius: 3px; background: var(--card);
-  color: var(--working); font: inherit; font-weight: 600; cursor: pointer; }
-.held-send:hover { background: color-mix(in srgb, var(--working) 12%, var(--card)); }
-/* a comment held back for the agent: not sent yet, so it can still be deleted (the bin always shows) */
-.talk .msg.held { outline: 1px dashed color-mix(in srgb, var(--working) 40%, transparent); outline-offset: -1px; }
+
 /* the owner's words the agent has not read yet: below its work, muted, until it reads them */
-.talk .msg.unread { outline: 1px dashed color-mix(in srgb, var(--working) 40%, transparent); outline-offset: -1px; }
-.talk .msg.unread > :not(.msg-actions):not(.unread-mark) { opacity: .6; }
-.talk .msg.unread > .unread-mark { margin-top: 4px; font-size: 12px; color: var(--working); }
-.talk :is(.msg, .question.ask).flash { animation: msg-flash 2.4s ease-out; }
+
+.question.ask.flash { animation: msg-flash 2.4s ease-out; }
 @keyframes msg-flash {
   0%, 45% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--working) 60%, transparent), var(--shadow); background: color-mix(in srgb, var(--working) 14%, var(--card)); }
 }
-/* a message new to the owner: an answer that waited in Seismic's sheet, a card's message not seen yet, marked while it stays open */
-.talk .msg.fresh { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--waiting) 70%, transparent), var(--shadow); }
-.talk .msg.thinking .who::after { content: ""; display: inline-block; vertical-align: middle; margin-left: 8px; width: 34px; height: 3px; border-radius: 2px;
-  background: linear-gradient(90deg, transparent, var(--idea), transparent); background-size: 200% 100%; animation: flow 1.4s linear infinite; }
-/* the agent at work has its pause at the right of its name, faint; at the desk only while the
-   pointer is on the bubble, on a touch screen always; paused, it stands still in pencil grey with Resume */
-.talk .msg:is(.thinking, .paused) .who { display: flex; align-items: center; column-gap: 8px; min-height: 20px; }
-.talk .msg.thinking .who::after { order: 0; margin-left: 0; }
-/* its name and the model of its session stay on one line each, the bubble as wide as they need */
-.talk .msg:is(.thinking, .paused) .who { white-space: nowrap; }
-.talk .msg:is(.thinking, .paused) .who .agent-model { margin-left: 0; overflow-wrap: normal; }
-.turn-pause, .turn-resume { order: 1; margin-left: auto; flex: none; }
-.turn-pause { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 20px; padding: 0;
-  border: 1px solid var(--line); border-radius: 3px; background: none; color: var(--muted-foreground); opacity: .55; cursor: pointer; transition: opacity .12s; }
-.turn-pause .btn-mark { margin: 0; }
-.turn-pause:hover, .turn-pause:focus-visible { opacity: 1; color: var(--ink); border-color: var(--muted-foreground); }
-@media (hover: hover) {
-  .talk .msg.thinking:not(:hover) .turn-pause:not(:focus-visible) { opacity: 0; }
-}
-.talk .msg.paused .who { color: var(--muted-foreground); }
-.talk .msg.paused > :not(.who) { opacity: .7; }
-.turn-resume { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border: 0; border-radius: 3px;
-  background: var(--ink); color: var(--bg); font: 600 11.5px var(--font); cursor: pointer; }
-.turn-resume .btn-mark { margin: 0; }
-.turn-resume:hover { opacity: .85; }
-.mocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin: 8px 0 4px; }
+
 /* a looked-up answer: "Make it a card" in its head, always in view; its files under the text */
-.talk .msg .who:has(> .msg-card) { display: flow-root; }
-.msg-card { float: right; margin: -2px 0 0 8px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 3px; background: none;
-  color: var(--muted-foreground); font: 500 11px var(--font); cursor: pointer; }
-.msg-card:hover { color: var(--ink); border-color: var(--question); }
-.msg-card.on { color: var(--question); border-color: color-mix(in srgb, var(--question) 50%, transparent); }
-.talk .moved { margin: 2px 0 8px; }
-.talk .moved .msg-card { float: none; margin: 0; }
-.continues { margin-top: 4px; font-size: 11.5px; color: var(--muted-foreground); }
-.answer-files { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
-.answer-files figure { margin: 0; min-width: 0; }
-.answer-files figcaption { font-size: 11.5px; color: var(--muted-foreground); margin-top: 3px; overflow-wrap: anywhere; }
-.answer-files figcaption a { color: inherit; }
-.answer-page iframe { width: 100%; min-height: 80px; border: 1px solid var(--line); border-radius: 2px; background: #fff; display: block; }
-.answer-image img { display: block; max-width: 100%; max-height: 480px; border: 1px solid var(--line); border-radius: 2px; background: #fff; }
 
 /* Deliverables stay in front; the change list has its own tab. */
 .result-tabs { margin-bottom: 14px; }
@@ -920,40 +813,9 @@ span.cl-name { color: inherit; cursor: default; }
 .r-tile-name { font: 600 15px var(--font); overflow-wrap: anywhere; }
 .r-diff .d-file { margin-top: 0; }
 .r-diff .d-file h3 { top: 0; }
-.file-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-.file-chip { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: 11px; overflow: hidden; font: 12px var(--font); }
-.file-chip .file-open { border: 0; background: none; padding: 2px 6px 2px 8px; color: var(--ink); cursor: pointer; font: inherit; }
-.file-chip .file-open:hover, .file-chip .file-down:hover { background: var(--line); }
-.file-chip .file-mark { color: var(--question); }
-.file-chip .file-down { padding: 2px 7px; border-left: 1px solid var(--line); color: var(--muted-foreground); text-decoration: none; }
-.file-chips .file-folder { font: 12px var(--font); margin-left: 4px; }
-.mocks .mock { margin: 0; min-width: 0; }
-.mocks figcaption { font-size: 12px; font-weight: 600; color: var(--muted-foreground); margin-bottom: 4px; }
-.mocks iframe { width: 100%; border: 1px solid var(--line); border-radius: 2px; background: #fff; display: block; }
-.talk .gist .gist-full { display: none; white-space: pre-line; overflow-wrap: anywhere; }
-.talk .gist:hover .gist-line { display: none; }
-.talk .gist:hover .gist-full { display: block; }
-.talk .background-only .background-work { margin-top: 0; }
-.talk .background-work { margin-top: 6px; font-size: 12px; color: var(--muted-foreground); }
-.talk .background-work ul { margin: 3px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
-.talk .background-work li { color: var(--ink); overflow-wrap: anywhere; }
-.talk .background-work li::before { content: "↻"; color: var(--working); margin-right: 6px; }
-.talk .background-work .t { color: var(--muted-foreground); margin-left: 4px; font-variant-numeric: tabular-nums; }
-.talk .steps { margin-top: 6px; font-size: 12px; color: var(--muted-foreground); }
-.talk .steps ol { margin: 6px 0 2px; padding: 8px 10px; list-style: none; background: var(--chip); border-radius: 2px;
-  display: flex; flex-direction: column; gap: 3px; }
-.talk .steps li { overflow-wrap: anywhere; }
-.talk .steps .step-activity { font: 11.5px/1.5 var(--mono); }
-.talk .steps .step-say, .talk .steps .step-closing { color: var(--ink); }
-.talk .steps :is(.step-say, .step-closing) :is(.p-lead, .p-list, .p-table table) { margin: 0; font-size: 12.5px; }
-.talk .steps .step-state { color: var(--idea); }
 /* an action of Seismic's (a follow-up card it made), set apart from what is said: no card stock, a dashed
    frame, the small print's condensed face; the card's cover inside it, compact, opens the card */
-.talk .msg.action { background: var(--chip); box-shadow: none; border: 1px dashed color-mix(in srgb, var(--muted-foreground) 55%, transparent);
-  font-family: var(--font); padding: 7px 10px 10px; align-self: flex-start; }
-.talk .msg.action > .who { display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .06em; font-size: 10.5px; }
-.talk .msg.action > .who .t { text-transform: none; letter-spacing: 0; }
-.talk .msg.action .action-mark { flex: none; }
+
 :is(.msg.action, .q-chain) .cover { position: relative; display: flex; flex-direction: column; width: 280px; max-width: 100%; margin-top: 7px; padding: 10px 12px 9px;
   color: var(--ink); text-decoration: none; }
 :is(.msg.action, .q-chain) .cover .kind { font-size: 11px; }
@@ -965,22 +827,18 @@ span.cl-name { color: inherit; cursor: default; }
 :is(.msg.action, .q-chain) .cover.gone { cursor: default; box-shadow: none; opacity: .7; }
 :is(.msg.action, .q-chain) .cover.gone:hover { transform: none; }
 :is(.msg.action, .q-chain) .cover:is(.gone, .elsewhere)::before { background: var(--line); }
-.talk .note { font-size: 12px; color: var(--muted-foreground); font-style: italic; align-self: center; text-align: center; }
-.talk .note.ev-error { color: var(--error); font-style: normal; }
+
 .reauthenticate { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 10px; }
 .reauthenticate > div { flex-basis: 100%; }
 .reauthenticate code { overflow-wrap: anywhere; white-space: normal; }
 .reauthenticate { --button-bg: var(--card); }
-.talk .note .reauthenticate { justify-content: center; }
+
 .reauthenticate-token { display: flex; flex-direction: column; gap: 6px; flex-basis: 100%; font-style: normal; }
 .reauthenticate-token .c-row { display: flex; align-items: center; gap: 8px; }
 .reauthenticate-token input { flex: 1; min-width: 0; }
-.talk .note.ev-denied { color: var(--warn); font-style: normal; }
+
 /* the line where the card was snoozed, while it is: with "Wake now" and "Change" under it */
-.talk .note.snooze-line { display: flex; flex-direction: column; align-items: center; gap: 2px; border-top: 1px dashed var(--line); padding-top: 8px; font-style: normal; }
-.talk .note.snooze-line .clock-mark { vertical-align: -1px; }
-.talk .wait-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 6px; }
-.talk .wait-line .clock-mark { vertical-align: -1px; }
+
 .snooze-acts { display: flex; gap: 8px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
 .snooze-acts { --button-bg: var(--card); margin-top: 4px; }
 /* "Later" and its menu of times, above the button in a card's action row; on the snooze line over the conversation, placed by script */
@@ -990,29 +848,9 @@ span.cl-name { color: inherit; cursor: default; }
 .start-at .clock-mark { vertical-align: -1px; color: var(--muted-foreground); }
 /* a task's conversation: under the card's demo and pull request, scrolled to its end */
 .conv { max-height: min(520px, 60vh); max-width: 100ch; }
-.talk .msg.by-koordinator.thinking .who::after { background: linear-gradient(90deg, transparent, var(--proposal), transparent); background-size: 200% 100%; }
-.talk .msg.by-worker.thinking .who::after { background: linear-gradient(90deg, transparent, var(--working), transparent); background-size: 200% 100%; }
-/* a question in the conversation is answered, taken back or asked anew (the one the card waits on
-   stands at the end): no edge, its label stays orange, a turn where the owner had something to do */
-.talk .msg.q .who { color: var(--waiting); }
-/* a question nobody waits on that the owner picked nothing for: greyed, with how it ended; asked again
-   or left open, its options stay, greyed too */
-.talk .msg.q.ended .who, .talk .msg.q.ended .p-lead { color: var(--muted-foreground); }
-.talk .msg.q.ended .q-opts li { opacity: .6; }
-.talk .msg .q-end { display: block; margin-top: 4px; font-style: italic; }
-button.q-end { padding: 0; border: 0; background: none; cursor: pointer; text-align: left; font-family: inherit; }
-button.q-end:hover { color: var(--ink); text-decoration: underline; }
-.talk .msg .q-opts { list-style: none; margin: 6px 0 2px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+
 /* rounded by half a line: a short option is a pill, a long one that wraps a rounded box around all its lines */
-.talk .msg .q-opts li { font-size: 12.5px; padding: 2px 9px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted-foreground); }
-.talk .msg .q-opts li.on { color: var(--ink); border-color: var(--working); background: color-mix(in srgb, var(--working) 10%, var(--card)); font-weight: 600; }
-.talk .msg .q-opts li.on::before { content: "✓ "; color: var(--working); }
-.talk .msg .then { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: 13.5px; }
-.talk .msg .then-who { float: left; margin-right: 6px; font-size: 11px; line-height: 20px; font-weight: 600; color: var(--ink); }
-.talk .msg .then-who .t { color: var(--muted-foreground); font-weight: 400; margin-left: 4px; }
-.talk .msg .demo-q { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: 13.5px; }
-.talk .msg .demo-q b { color: var(--waiting); font-weight: 600; }
-.talk .msg .demo-q.answered b { color: var(--muted-foreground); }
+
 .question.pr { border-color: var(--inPr); background: color-mix(in srgb, var(--inPr) 7%, transparent); }
 .question.pr h4 a { color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 14px; }
 /* on a review card: what goes onto the PR with the approval, the agent's text as the contributor will read it */
@@ -1150,7 +988,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .shots { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .shot { border: 1px solid var(--line); border-radius: 2px; padding: 0; background: var(--card); cursor: zoom-in; line-height: 0; }
 .shot img { height: 88px; max-width: 240px; object-fit: cover; border-radius: 2px; display: block; }
-.talk .msg.by-owner .shots { justify-content: flex-end; }
+
 /* where a conversation starts, long ones folded to about eight lines */
 .fold { font-size: 14px; }
 .fold.folded { max-height: calc(var(--fold-lines, 8) * 1lh + 2px); overflow: hidden; }
@@ -1356,6 +1194,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .cfg-has-info:is(:hover, :focus-within) .cfg-has-info:not(:hover, :focus-within) .cfg-info { opacity: 0; }
 .cfg-info:hover, .cfg-info.on, :is(#config, #prefs, #project-settings) .cfg-info:focus-visible { opacity: 1; color: var(--ink); }
 .cfg-info:focus-visible { outline: 1px solid var(--muted-foreground); outline-offset: 1px; border-radius: 50%; }
+
 /* a project: its name as a heading line, its repositories as a table below it */
 /* a project as its own page: its title line, then each repository under a heading of its own, its
    settings in groups under small headings */
@@ -1627,7 +1466,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 /* a plan's conversation with its plan agent grows in its sheet, which scrolls: no scrollbar of its own */
 #sheet .p-talk .conv { max-height: none; overflow: visible; margin-bottom: 4px; }
 /* what the owner took back stays, struck through */
-.talk .msg.undone :is(.p-lead, .p-list, .p-table) { text-decoration: line-through; text-decoration-color: var(--muted-foreground); }
+
 .k-rest { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
 .k-rest .reshare { margin: 8px 0; }
 .fold-head { display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 2px; border: 0; background: none; font: inherit; font-size: 13px;
@@ -1681,6 +1520,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .card-menu li { align-items: center; justify-content: space-between; }
 .card-menu .cm-pill { min-width: 0; pointer-events: none; }
 .card-menu .cm-code { flex: none; font-family: var(--mono); font-size: 11.5px; color: var(--muted-foreground); }
+
 /* the card finder in the middle of the bar; its results drop under it while it has focus */
 /* under the task field while it has the cursor, until a card was linked once */
 .p-body-field .card-refs-hint { position: absolute; top: 100%; left: 0; margin: 6px 0 0; }
@@ -1776,6 +1616,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 #marked .mgroup:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
 .ricon circle { fill: hsl(var(--h) 75% 55%); }
 #marked .mhint, #markhint { max-width: 300px; margin: 0; padding: 6px 10px; border-radius: 3px; background: var(--ink); color: var(--bg); font: 13px/1.35 var(--font); text-align: left; }
+
 /* after a card was moved alone, for a few seconds beside where it was let go */
 /* how the long press works, under the bar between the docked panels, until it was used once */
 #touchhint { position: fixed; z-index: 30; top: 82px; left: calc(var(--left) + (100vw - var(--left) - var(--side)) / 2); transform: translateX(-50%);
@@ -1940,6 +1781,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-notify { margin: 14px 0 0; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-edge); background: var(--card); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); font-size: 14.5px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .ph-section { margin-top: 22px; }
 .ph-section h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font: 600 21px/1.15 var(--font); }
+
 /* the lists' rows are the cards of the project, as wide as the screen: the state's rule across the top, an idea's
    stock, the owner's turn framed and pinned, the state line in its colour */
 /* one column held upright, two (or more) side by side once the screen is wide enough, the phone turned, say */
@@ -2003,6 +1845,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 /* while the keyboard is up the field has its own microphone: the field stands right above the keyboard */
 .ph-kb .ph-panel { padding-bottom: 10px; }
 .ph-panel ~ #acks { bottom: calc(var(--ph-field, 0px) + 97px + env(safe-area-inset-bottom)); }
+
 /* a card opened: full screen, in its state's colour along the top */
 /* the list fades out under the microphone */
 .ph-view::after { content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: calc(87px + env(safe-area-inset-bottom)); z-index: 4;
@@ -2055,6 +1898,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   background: var(--card); color: var(--ink); box-shadow: var(--lift); -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .ph-new:active { box-shadow: var(--shadow); transform: translateX(-50%) translateY(1px); }
 .ph-new:disabled { color: var(--muted-foreground); cursor: default; }
+
 /* the cursor in a field says where the words go: a line under the microphone would lift it onto the field */
 /* the microphone is held by a finger: no long-press menu, no text selected */
 #mic, [data-slot=prompt-input-button] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
@@ -2120,6 +1964,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .finding .f-context .f-note { align-self: stretch; margin: 0; font-size: 13px; white-space: pre-wrap; background: var(--chip); border-radius: 6px; padding: 5px 8px; }
 .finding .f-context-btn { border: 0; background: none; padding: 2px 0; font-size: 12px; color: var(--working); text-decoration: underline; cursor: pointer; }
 .finding .f-choices { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+
 /* Finding badges and the open findings counted beside the Review tab. */
 /* "Reviews happen" under the toggle of code reviews */
 .cr-when { margin-top: 12px; }
@@ -2182,7 +2027,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .f-bundle { margin-bottom: 8px; }
 .f-bundle .f-bundle-head { font-size: 12px; color: var(--warn); margin-bottom: 4px; }
 .f-bundle .finding:last-child { margin-bottom: 0; }
-.quote.decided { --q: var(--waiting); }
 .decided-lines .decided-tasks { font-size: 12px; color: var(--muted-foreground); }
 .decided-lines { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 5px 9px 6px; }
 .decided-lines .quote-text { color: var(--ink); }
@@ -2595,7 +2439,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .description-edit .card-refs-hint { margin: 6px 0; }
 .chat-model { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--muted-foreground); font-size: 12px; }
 .card .state .hourglass-mark { width: 9px; height: 12px; }
-
 
 /* The Agents sheet's Activity tab: a line saying what happened, above the card's compact face */
 #agents .activity-bar { margin: 0 8px 6px; justify-content: flex-end; }

@@ -1,3 +1,4 @@
+import { noteClass } from './components/ai/message';
 import { Car, Check, Lightbulb, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, SquarePlus, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
 // The unfolded card: what it is, what its worker does, and what the owner decides.
@@ -28,7 +29,7 @@ import { asksAhead, holdsNotes, queueOrder } from '../core/queue';
 import { forcedText, QueueList, scrollerOf, useQueueMove, useQueueSort, waitText, type Behind } from './queue';
 import { dimensions, shownTags } from '../core/page-tags';
 import { CardRefs, Inline, plain } from './markdown';
-import { Body, Cards, goToMessage, Msg, Quote, Reading, useAnswer, useReportedHeight } from './message';
+import { quoteClass, Body, Cards, goToMessage, Msg, Quote, Reading, useAnswer, useReportedHeight } from './message';
 import { appended, cardDraft, draftOf, dropDraft, findingDraft, giveBack, questionsKey, reviewReset, updateDraft, useDraft, useDraftField, useDrafting } from './draft';
 import { eventQuote, type Reply, setReply } from './reply';
 import { CiteButton } from './cite';
@@ -1603,9 +1604,9 @@ function Conversation({
         onDelete={held.includes(turn.e.id) ? () => takeBack(item.id, turn.e) : undefined}
       />
       {turn.e.id === held.at(-1) && (
-        <div className="held-note">
+        <div className="held-note self-end flex items-center justify-end flex-wrap gap-x-2.5 gap-y-1 -mt-0.5 mx-0.5 mb-1 text-xs text-muted-foreground text-right">
           {t.demo.held(held.length)}
-          <button className="held-send" title={t.demo.sendNowHint} onClick={() => void api.act(item.id, { action: 'release', now: true }).catch(() => {})}>
+          <button className="held-send py-[3px] px-2.5 border border-[color-mix(in_srgb,var(--working)_45%,transparent)] rounded-[3px] bg-card text-working [font:inherit] font-semibold cursor-pointer hover:bg-[color-mix(in_srgb,var(--working)_12%,var(--card))]" title={t.demo.sendNowHint} onClick={() => void api.act(item.id, { action: 'release', now: true }).catch(() => {})}>
             {t.demo.sendNow}
           </button>
         </div>
@@ -1621,13 +1622,13 @@ function Conversation({
       who={proposal ? t.revising : `${agent} ${paused ? t.pause.paused : isPausing(item) ? t.pause.pausingTalk : idea ? t.idea.thinking : question ? t.answer.reading : t.talk.working}`}
       head={
         paused ? (
-          <button className="turn-resume" title={t.pause.resumeHint} onClick={() => turn(item.id, 'resume')}>
+          <button className="turn-resume order-1 ml-auto flex-none inline-flex items-center gap-1 py-0.5 px-[9px] border-0 rounded-[3px] bg-ink text-background [font:600_11.5px_var(--font)] cursor-pointer [&_.btn-mark]:m-0 hover:opacity-85" title={t.pause.resumeHint} onClick={() => turn(item.id, 'resume')}>
             <PlayMark /> {t.pause.resume}
           </button>
         ) : (
           pausableNow(item) && (
             <Tooltip content={t.pause.hint}>
-              <button className="turn-pause" aria-label={t.pause.button} onClick={() => turn(item.id, 'pause')}>
+              <button className="turn-pause order-1 ml-auto flex-none inline-flex items-center justify-center w-6 h-5 p-0 border border-line rounded-[3px] bg-transparent text-muted-foreground opacity-55 cursor-pointer transition-opacity duration-[120ms] [&_.btn-mark]:m-0 hover:opacity-100 focus-visible:opacity-100 hover:text-ink focus-visible:text-ink hover:border-muted-foreground focus-visible:border-muted-foreground [@media(hover:hover)]:group-[.thinking:not(:hover)]/message:[&:not(:focus-visible)]:opacity-0" aria-label={t.pause.button} onClick={() => turn(item.id, 'pause')}>
                 <PauseMark />
               </button>
             </Tooltip>
@@ -1787,7 +1788,7 @@ function Line({ turn, snoozed, explained, ...rest }: { turn: Turn; snoozed?: Ite
   ) : turn.e.made ? (
     <Made e={turn.e} fresh={rest.fresh} />
   ) : turn.line ? (
-    <div className={`note ev-${turn.e.kind}`} title={turn.e.code ? turn.e.text : undefined}>
+    <div className={`${noteClass} ev-${turn.e.kind}`} title={turn.e.code ? turn.e.text : undefined}>
       {time(turn.e.at)} · <Linked text={eventText(turn.e)} />
       {turn.e.kind === 'error' && !explained && claudeLoginFailed(turn.e.text) && <Reauthenticate token={turn.e.token} />}
     </div>
@@ -1921,7 +1922,7 @@ function Message({
       {!turn.quiet && <Body md={q ? q.text : (turn.words ?? e.text)} />}
       {e.wish && <WishReplyLink wish={e.wish} />}
       {q && turn.end !== 'settled' && (q.options.length > 0 || turn.picks?.length) && (
-        <ul className="q-opts">
+        <ul className="q-opts list-none mt-1.5 mb-0.5 p-0 flex flex-wrap gap-1.5 [&_li]:text-[12.5px] [&_li]:py-0.5 [&_li]:px-[9px] [&_li]:border [&_li]:border-line [&_li]:rounded-[3px] [&_li]:text-muted-foreground [&_li.on]:text-ink [&_li.on]:border-working [&_li.on]:bg-[color-mix(in_srgb,var(--working)_10%,var(--card))] [&_li.on]:font-semibold [&_li.on]:before:content-['✓_'] [&_li.on]:before:text-working [.ended_&_li]:opacity-60">
           {q.options.map((o) => (
             <li key={o} className={(turn.picks ? turn.picks.includes(o) : turn.answer?.includes(o)) ? 'on' : ''}>
               <Inline md={o} />
@@ -1936,15 +1937,15 @@ function Message({
         </ul>
       )}
       {turn.end === 'again' ? (
-        <button className="hint q-end" title={t.talk.toQuoted} onMouseDown={(m) => m.preventDefault()} onClick={() => goToMessage(turn.next!, '.question.ask')}>
+        <button className="hint q-end block mt-1 italic [&:is(button)]:p-0 [&:is(button)]:border-0 [&:is(button)]:bg-transparent [&:is(button)]:cursor-pointer [&:is(button)]:text-left [&:is(button)]:[font-family:inherit] [&:is(button):hover]:text-ink [&:is(button):hover]:underline" title={t.talk.toQuoted} onMouseDown={(m) => m.preventDefault()} onClick={() => goToMessage(turn.next!, '.question.ask')}>
           {t.talk.again} ↓
         </button>
       ) : (
-        turn.end && <div className="hint q-end">{t.talk[turn.end]}</div>
+        turn.end && <div className="hint q-end block mt-1 italic [&:is(button)]:p-0 [&:is(button)]:border-0 [&:is(button)]:bg-transparent [&:is(button)]:cursor-pointer [&:is(button)]:text-left [&:is(button)]:[font-family:inherit] [&:is(button):hover]:text-ink [&:is(button):hover]:underline">{t.talk[turn.end]}</div>
       )}
       {turn.then && (
-        <div className="then" data-ev={turn.then.e.id}>
-          <span className="then-who">
+        <div className="then mt-1.5 pt-1.5 border-t border-dashed border-line text-[13.5px]" data-ev={turn.then.e.id}>
+          <span className="then-who float-left mr-1.5 text-[11px] leading-5 font-semibold text-ink [&_.t]:text-muted-foreground [&_.t]:font-normal [&_.t]:ml-1">
             {t.talk.handover}
             <span className="t">{time(turn.then.e.at)}</span>
           </span>
@@ -1952,10 +1953,10 @@ function Message({
         </div>
       )}
       {demoQuestion?.question && (
-        <div className={`demo-q${demoQuestion.answer === undefined ? '' : ' answered'}`}>
+        <div className={`demo-q mt-1.5 pt-1.5 border-t border-dashed border-line text-[13.5px] [&_b]:text-waiting [&_b]:font-semibold [&.answered_b]:text-muted-foreground${demoQuestion.answer === undefined ? '' : ' answered'}`}>
           <b>{t.talk.demoQuestion}</b> {demoQuestion.question}
           {!!(demoQuestion.options?.length || demoQuestion.picks?.length) && (
-            <ul className="q-opts">
+            <ul className="q-opts list-none mt-1.5 mb-0.5 p-0 flex flex-wrap gap-1.5 [&_li]:text-[12.5px] [&_li]:py-0.5 [&_li]:px-[9px] [&_li]:border [&_li]:border-line [&_li]:rounded-[3px] [&_li]:text-muted-foreground [&_li.on]:text-ink [&_li.on]:border-working [&_li.on]:bg-[color-mix(in_srgb,var(--working)_10%,var(--card))] [&_li.on]:font-semibold [&_li.on]:before:content-['✓_'] [&_li.on]:before:text-working [.ended_&_li]:opacity-60">
               {(demoQuestion.options ?? []).map((o) => (
                 <li key={o} className={(demoQuestion.picks ? demoQuestion.picks.includes(o) : demoQuestion.answer?.includes(o)) ? 'on' : ''}>
                   <Inline md={o} />
@@ -1977,7 +1978,7 @@ function Message({
       {answer.files}
       <Shots ids={e.images} />
       <Steps steps={turn.then ? [...steps, ...turn.then.steps] : steps} />
-      {unread && <div className="hint unread-mark">{unread}</div>}
+      {unread && <div className="hint unread-mark mt-1 text-xs text-working">{unread}</div>}
     </Msg>
   );
 }
@@ -1986,7 +1987,7 @@ function Message({
 function Mocks({ mocks }: { mocks?: Mock[] }) {
   if (!mocks?.length) return null;
   return (
-    <div className="mocks">
+    <div className="mocks grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-2.5 mt-2 mb-1 [&_.mock]:m-0 [&_.mock]:min-w-0 [&_figcaption]:text-xs [&_figcaption]:font-semibold [&_figcaption]:text-muted-foreground [&_figcaption]:mb-1 [&_iframe]:w-full [&_iframe]:border [&_iframe]:border-line [&_iframe]:rounded-[2px] [&_iframe]:bg-white [&_iframe]:block">
       {mocks.map((m, i) => (
         <MockFrame key={i} mock={m} />
       ))}
@@ -2026,7 +2027,7 @@ const ARTIFACT_CAP = 30000;
 function Steps({ steps }: { steps: CardEvent[] }) {
   if (!steps.length) return null;
   return (
-    <Collapsible className="steps">
+    <Collapsible className="steps mt-1.5 text-xs text-muted-foreground [&_ol]:mt-1.5 [&_ol]:mb-0.5 [&_ol]:py-2 [&_ol]:px-2.5 [&_ol]:list-none [&_ol]:bg-chip [&_ol]:rounded-[2px] [&_ol]:flex [&_ol]:flex-col [&_ol]:gap-[3px] [&_li]:[overflow-wrap:anywhere] [&_.step-activity]:[font:11.5px/1.5_var(--mono)] [&_:is(.step-say,.step-closing)]:text-ink [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:m-0 [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:text-[12.5px] [&_.step-state]:text-idea">
       <CollapsibleTrigger>{t.talk.steps(steps.length)}</CollapsibleTrigger>
       <CollapsibleContent>
       <ol>
@@ -2054,7 +2055,7 @@ function Background({ tasks }: { tasks?: BackgroundTask[] }) {
   }, [runs]);
   if (!tasks?.length) return null;
   return (
-    <div className="background-work">
+    <div className="background-work mt-1.5 text-xs text-muted-foreground [.background-only_&]:mt-0 [&_ul]:mt-[3px] [&_ul]:mb-0 [&_ul]:p-0 [&_ul]:list-none [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-0.5 [&_li]:text-ink [&_li]:[overflow-wrap:anywhere] [&_li]:before:content-['↻'] [&_li]:before:text-working [&_li]:before:mr-1.5 [&_.t]:text-muted-foreground [&_.t]:ml-1 [&_.t]:tabular-nums">
       <span className="background-head">{t.talk.background}</span>
       <ul>
         {tasks.map((task, i) => (
@@ -2078,9 +2079,9 @@ function Gist({ text }: { text: string }) {
   const full = text.trim();
   if (line === full) return <div className="hint">{line}</div>;
   return (
-    <div className="hint gist">
-      <span className="gist-line">{line}</span>
-      <span className="gist-full">{full}</span>
+    <div className="hint gist group/gist">
+      <span className="gist-line group-hover/gist:hidden">{line}</span>
+      <span className="gist-full hidden whitespace-pre-line [overflow-wrap:anywhere] group-hover/gist:block">{full}</span>
     </div>
   );
 }
@@ -3093,16 +3094,16 @@ function DecidedChip({ item, decided }: { item: Item; decided: Record<string, Fi
   const later = named.filter(([, route]) => route === 'later').map(([id]) => findings.find((f) => f.id === Number(id))!);
   const tasks = new Set(later.map((f) => [f.id, ...(f.with ?? []).filter((w) => later.some((l) => l.id === w))].sort((a, b) => a - b).join())).size;
   return (
-    <div className="quote decided">
+    <div className={`${quoteClass} decided`}>
       <div className="decided-lines">
         {named.map(([id, route]) => (
-          <span key={id} className="quote-text">
+          <span key={id} className="quote-text text-[12.5px] leading-[1.4] text-muted-foreground [overflow-wrap:anywhere] line-clamp-3 [[data-slot=prompt-input-body]_&]:line-clamp-2">
             {t.review.decidedLine(Number(id), route === 'self' ? (code ? t.codeReview.fix : t.review.self) : route === 'later' ? t.review.later : route === 'ignore' ? t.review.ignore : t.review.toContributor)}
           </span>
         ))}
         {later.length > 1 && <span className="decided-tasks">{t.review.tasks(tasks)}</span>}
       </div>
-      <CloseButton label={t.review.undecide} size="small" className="quote-clear" onMouseDown={(m) => m.preventDefault()} onClick={() => updateDraft(cardDraft(item.id), { findings: undefined })} />
+      <CloseButton label={t.review.undecide} size="small" className="quote-clear mt-[3px] mr-[3px]" onMouseDown={(m) => m.preventDefault()} onClick={() => updateDraft(cardDraft(item.id), { findings: undefined })} />
     </div>
   );
 }
@@ -3822,13 +3823,13 @@ function PlaceChip({ cardId, place }: { cardId: string; place: Place }) {
     } catch {}
   }, [place.at]);
   return (
-    <div className="quote place" title={t.demo.place}>
-      <canvas ref={frame} className="place-frame" />
-      <span className="place-text">
+    <div className={`${quoteClass} place`} title={t.demo.place}>
+      <canvas ref={frame} className="place-frame flex-none w-12 rounded-[2px] bg-[#222] block" />
+      <span className="place-text flex-1 min-w-0 text-[13px] text-muted-foreground [&_b]:text-ink">
         <b>{mmss(place.at)}</b>
         {place.chapter && ` · ${place.chapter}`}
       </span>
-      <CloseButton label={t.demo.unplace} size="small" className="quote-clear" onMouseDown={(m) => m.preventDefault()} onClick={dismissPlace} />
+      <CloseButton label={t.demo.unplace} size="small" className="quote-clear mt-[3px] mr-[3px]" onMouseDown={(m) => m.preventDefault()} onClick={dismissPlace} />
     </div>
   );
 }
@@ -3836,7 +3837,7 @@ function PlaceChip({ cardId, place }: { cardId: string; place: Place }) {
 /** Above the owner's words in the conversation: the place in the demo video they are about; a click plays the video from there. */
 function SpotLink({ cardId, spot }: { cardId: string; spot: Spot }) {
   return (
-    <button className="spot" title={t.demo.toPlace} onClick={() => seekTo(cardId, spot.at, spot.demo)}>
+    <button className="spot flex items-center gap-2 mt-[5px] mb-1 p-0 border-0 bg-transparent [font:inherit] text-[13px] text-working cursor-pointer text-left [&_img]:w-16 [&_img]:rounded-[2px] [&_img]:block hover:[&_span]:underline" title={t.demo.toPlace} onClick={() => seekTo(cardId, spot.at, spot.demo)}>
       {spot.still && <img src={imageUrl(spot.still)} alt="" loading="lazy" />}
       <span>
         ▶ {mmss(spot.at)}
