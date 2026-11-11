@@ -3555,16 +3555,20 @@ export class Workers {
     return turns;
   }
 
+  /** The machine a card's worker in a turn holds a slot on (null: the one Seismic runs on); undefined for one not in a turn. */
+  turnHost(id: string): string | null | undefined {
+    const live = this.live.get(id);
+    const preparing = this.preparing.get(id);
+    if (!live?.busy && !preparing) return undefined;
+    if (live) return live.host;
+    // a clone that turned out dirty gave way to one on another machine, perhaps
+    const at = this.o.workstations.leasedBy(id);
+    return at ? hostName(at) : preparing!.host;
+  }
+
   /** How many of these workers are in a turn on a machine (null: the one Seismic runs on). */
   busyOn(host: string | null): number {
-    const on = (id: string) => {
-      const live = this.live.get(id);
-      if (live) return live.host;
-      // a clone that turned out dirty gave way to one on another machine, perhaps
-      const at = this.o.workstations.leasedBy(id);
-      return at ? hostName(at) : this.preparing.get(id)!.host;
-    };
-    return this.inTurn().filter((id) => on(id) === host).length;
+    return this.inTurn().filter((id) => this.turnHost(id) === host).length;
   }
 
   /**

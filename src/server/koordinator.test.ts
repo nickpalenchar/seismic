@@ -1016,6 +1016,42 @@ describe('Koordinator waits for a free workstation', () => {
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none' } });
   });
 
+  test("a finished card's worker is at work in the pool while it answers, also in a temporary worktree, and idle once it waits for the owner", async () => {
+    pool(1);
+    const f = card('F');
+    await workers.start(f.id);
+    workerOf(f.id).emit({ type: 'session', id: 'sess-f' });
+    await workerOf(f.id).call('ready_for_review', { summary: 'S', demo: artifact() });
+    workerOf(f.id).emit({ type: 'idle' });
+    await workers.approve(f.id);
+    // finishing after the landing, in its clone
+    expect(item(f.id).agent?.finishing).toBe(true);
+    expect(workstations.pool(workers.inTurn(), (c) => workers.turnHost(c))[0]).toMatchObject({ cards: [f.id], busy: [f.id] });
+    // it asks the owner: its clone stays its own, its slot is free
+    await workerOf(f.id).call('ask', { question: 'Stack stoppen?' });
+    workerOf(f.id).emit({ type: 'idle' });
+    await settle();
+    expect(item(f.id).agent?.finishing).toBe(true);
+    expect(workstations.pool(workers.inTurn(), (c) => workers.turnHost(c))[0]).toMatchObject({ cards: [f.id], busy: [] });
+    workers.answer(f.id, 'Ja.');
+    workerOf(f.id).emit({ type: 'idle' });
+    await settle();
+    expect(item(f.id).state).toBe('done');
+
+    const a = card('A');
+    k.request(a.id);
+    await scope(['src/a.ts']);
+    expect(board.row(a.id).workstation).toBe(clones[0]!);
+    // the owner asks the finished card while no clone is free: its worker answers in a temporary worktree, on a slot of this machine
+    workers.message(f.id, 'Läuft die Demo?');
+    await workers.prepared();
+    await settle();
+    expect(board.row(f.id).workstation).not.toBe(clones[0]!);
+    expect(workers.inTurn()).toContain(f.id);
+    expect(workstations.pool(workers.inTurn(), (c) => workers.turnHost(c))[0]).toMatchObject({ cards: [a.id], busy: [a.id, f.id] });
+    expect(workers.busyOn(null)).toBe(2);
+  });
+
   test('a card waits for a slot while the busy workers fill them, and starts once a turn ends', async () => {
     pool(3, 1);
     const a = card('A');
@@ -1066,6 +1102,14 @@ describe('Koordinator waits for a free workstation', () => {
     expect(item(b.id).state).toBe('working');
     expect(board.events(b.id).some((e) => e.text.includes('free slot again'))).toBe(true);
     expect(workstations.pool(workers.inTurn())[0]).toMatchObject({ cards: [b.id], busy: [b.id] });
+
+    // a worker finishing after its card's landing holds its slot as well
+    await workerOf(b.id).call('ready_for_review', { summary: 'S', demo: artifact() });
+    workerOf(b.id).emit({ type: 'idle' });
+    expect(workstations.pool(workers.inTurn())[0]).toMatchObject({ cards: [], busy: [] });
+    await workers.approve(b.id);
+    expect(item(b.id).agent?.finishing).toBe(true);
+    expect(workstations.pool(workers.inTurn(), (c) => workers.turnHost(c))[0]).toMatchObject({ cards: [b.id], busy: [b.id] });
   });
 
   test('in worktrees without slots, any number of cards work at once', async () => {

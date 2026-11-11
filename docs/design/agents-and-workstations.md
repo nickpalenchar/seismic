@@ -393,7 +393,7 @@ others; as many as clones when left out). A new card takes a clean free clone on
 (this one, then the hosts in order) with a slot left; with none, it waits ("Waiting for a free slot")
 until a turn ends somewhere. A card holds its clone until its work lands, a slot only while its
 worker is at work. A message to a waiting card is never held back for a slot, so a machine may go
-over its slots for a while. A repository in worktrees can have slots too (in the Configuration
+over its slots for a while. A worker finishing after its card's landing, or answering a finished card's question (in a temporary worktree too), holds a slot on its machine while it is in a turn, and the Workstations pill counts it at work there; once it waits for the owner or a restart, it holds none. A repository in worktrees can have slots too (in the Configuration
 dialog under its row), which cap its busy workers the same way; left out, there is no cap.
 
 #### A finished card's question
